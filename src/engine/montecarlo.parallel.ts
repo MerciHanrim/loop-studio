@@ -3,9 +3,11 @@
 // calls the SAME `aggregateRuns` the synchronous reference uses, so the result
 // is byte-identical for any worker count or job size (I11).
 //
-// Falls back to the synchronous `runMonteCarlo` when Workers are unavailable or
-// cannot be constructed (e.g. module workers blocked on `file://`). A worker
-// that errors *during* a run fails the whole call — never a silent partial.
+// Falls back to `runMonteCarloCooperative` (byte-identical to the sync
+// reference, but it yields to the event loop) when Workers are unavailable or
+// cannot be constructed (e.g. module workers blocked on `file://`), so the UI
+// stays responsive. A worker that errors *during* a run fails the whole call —
+// never a silent partial.
 
 import type { LoopEdge, LoopNode } from '../model/types'
 import {
@@ -13,7 +15,7 @@ import {
   aggregateRuns,
   projectMemory,
   resolveTracked,
-  runMonteCarlo,
+  runMonteCarloCooperative,
   runSeed,
   CELL_LIMIT,
   type MonteCarloResult,
@@ -62,7 +64,7 @@ export async function runMonteCarloParallel(
 ): Promise<MonteCarloResult> {
   const workers = Math.max(1, Math.floor(options.workers ?? defaultWorkerCount()))
   if (workers <= 1 || !canUseWorkers()) {
-    return runMonteCarlo(nodes, edges, config, options)
+    return runMonteCarloCooperative(nodes, edges, config, options)
   }
 
   const { runs, steps } = config
@@ -93,7 +95,7 @@ export async function runMonteCarloParallel(
   try {
     ;({ default: McWorker } = await import('./mc.worker.ts?worker&inline'))
   } catch {
-    return runMonteCarlo(nodes, edges, config, options) // no inlined worker → sync
+    return runMonteCarloCooperative(nodes, edges, config, options) // no inlined worker → sync
   }
 
   const poolIds = pools.map((p) => p.id)
@@ -108,7 +110,7 @@ export async function runMonteCarloParallel(
   try {
     pool = Array.from({ length: Math.min(workers, jobs.length) }, () => new McWorker())
   } catch {
-    return runMonteCarlo(nodes, edges, config, options) // construction blocked (file://) → sync
+    return runMonteCarloCooperative(nodes, edges, config, options) // construction blocked (file://) → sync
   }
 
   const { progressEvery = 64, onProgress, signal } = options
