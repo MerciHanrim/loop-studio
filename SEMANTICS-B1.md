@@ -1,143 +1,167 @@
 # Execution semantics — Engine B, Part 1: seeded randomness (single run)
 
-**Status: DRAFT for review.** Nothing here is frozen yet. Once reviewed, the
+**Status: DRAFT, conditionally approved.** The three design decisions are
+settled (§B0.1); the amendments below are folded in. On a final read the
 expected-value tables in §B7 become the frozen test vectors and implementation
-begins on `feat/engine-b-rng`.
+begins on `feat/engine-b-rng` in the order `rng.ts` → `evalRand` →
+probabilistic Gate.
 
 This document *extends* [`SEMANTICS.md`](./SEMANTICS.md) (Engine A, frozen). It
-does not restate Engine A; it only says what changes and what is added. Section
-numbers here are `B0…B8` to avoid collision. When this part is frozen it folds
-back into `SEMANTICS.md` as new sections and small edits to §5, §6, §8, §12, §15.
+only states what changes and what is added. Section numbers are `B0…B9` to
+avoid collision. On freeze this folds back into `SEMANTICS.md` as new sections
+plus small edits to §5, §6, §8, §12, §15, §16.
 
-Part 1 covers a **single run** with randomness. Monte-Carlo (many runs,
-distributions, percentile bands) is **Part 2**, a later branch, and is out of
-scope here — by design, so RNG reproducibility and distribution aggregation are
-verified separately.
+Part 1 is a **single run** with randomness. Monte-Carlo (many runs,
+distributions, percentile bands) is **Part 2**, a later branch, deliberately
+kept separate so RNG reproducibility and distribution aggregation are verified
+independently.
 
 ---
 
-## B0. Scope of Part 1
+## B0. Scope
 
 **Added**
 
-- A **seeded, keyed RNG** (§B1). No shared stream, no consumption order — every
-  draw is a pure function of an explicit key.
+- A **seeded, keyed RNG** — spec id **`loop-rng/1`** (§B1). No shared stream, no
+  consumption order; every draw is a pure function of an explicit key.
 - Evaluation of the flow expressions Engine A parsed but returned `0` for:
   - `range` — `1-3` → inclusive uniform integer
   - `dice` — `2D6`, `D6` → sum of independent uniform integers
 - **Probabilistic Gate** — `distribution: 'probabilistic'`: at most one branch
   per step, chosen by categorical sampling.
 
-**Unchanged from Engine A**
+**Unchanged from Engine A** — the two-phase step algorithm (`SEMANTICS.md` §6),
+the reservation ledger, back-pressure, `pull any` / `pull all`, contention
+order, capacity clamping, numeric conventions (§5: finite reals ≥ 0,
+`epsilon = 1e-9`). Invariants **I1–I5, I7** hold verbatim; **I6 is restated**;
+**I8, I9, I10 are added** (§B6).
 
-- The two-phase step algorithm (`SEMANTICS.md` §6), the reservation ledger,
-  back-pressure, `pull any` / `pull all`, contention order, capacity clamping.
-- Numeric conventions (§5): finite reals ≥ 0, `epsilon = 1e-9`. Sampled results
-  are integers but live in the same real-valued pipeline.
-- Invariants **I1–I5, I7** hold verbatim. **I6 is restated** (§B6). **I8, I9,
-  I10 are added** (§B6).
+**Still deferred** — Monte-Carlo; percentile bands; distribution readouts; gate
+round-robin (needs integer-token mode); state connections; `passive` /
+`interactive` activation.
 
-**Still deferred to Part 2 / later** — Monte-Carlo; percentile bands;
-distribution readouts; gate round-robin (needs integer-token mode); state
-connections; `passive` / `interactive` activation.
+### B0.1 Settled decisions (this review round)
+
+1. **RNG algorithm = FNV-1a 32-bit + one `mulberry32` output.** No "advance *k*
+   times" step — it would only add an arbitrary magic count and complicate the
+   reproduction contract. Frozen as `loop-rng/1` (§B1.2).
+2. **`seed` is NOT stored in `GraphDoc`.** It is a simulation run parameter
+   (§B5). Graph structure and experiment conditions stay separate; sharing a
+   `.json` graph never implicitly pins a particular run. Part 2 records `seed`
+   in a `RunConfig` / export metadata. Templates that want a representative
+   result carry `recommendedSeed` as **template metadata**, not a graph field.
+3. **Random Gate weights are allowed in Part 1** (`w = 1-3`, `w = 2D6`) — the
+   `flowVal` cache (§B3) already makes each weight edge draw once per step.
 
 ---
 
-## B1. The keyed RNG
+## B1. The keyed RNG — `loop-rng/1`
 
 ### B1.1 Model
 
 There is **no PRNG object threaded through the run.** Every random value is
 
 ```
-sample(key) ∈ [0, 1)          — a pure total function
+sample(key) → { hash, out, u }        — a pure total function
+u ∈ [0, 1)
 
 key = (seed, step, elementId, purpose, drawIndex)
 ```
 
 | field | type | meaning |
 |---|---|---|
-| `seed` | uint32 | run parameter, set in the sim controls; default `1` |
-| `step` | int ≥ 1 | the step being computed (step 0 has no draws) |
-| `elementId` | string | the **edge id** (flow expressions) or **gate id** (routing) |
+| `seed` | **uint32** | run parameter, set in the sim controls; default `1` (§B5) |
+| `step` | int ≥ 1 | the step being computed. **Step 0 is the Reset state and draws nothing; the first advance uses `step = 1` keys.** |
+| `elementId` | string | the **edge id** (flow expressions) or **gate id** (routing). Must not contain `\|`; the id generator guarantees this. |
 | `purpose` | string enum | `flow-range` · `flow-die` · `gate-route` (extensible) |
-| `drawIndex` | int ≥ 0 | which draw within one `(elementId, purpose, step)` — e.g. the two dice of `2D6` are `drawIndex` 0 and 1 |
+| `drawIndex` | int ≥ 0 | which draw within one `(elementId, purpose, step)` — the two dice of `2D6` are `drawIndex` 0 and 1; `range` and `gate-route` use `0` |
 
-Properties this buys us:
+Properties:
 
-- **The same key always yields the same sample** — on re-run, after Reset, and
-  when queried more than once inside a step.
+- **The same key always yields the same `{hash, out, u}`** — on re-run, after
+  Reset, and when queried more than once inside a step.
 - **Reordering the node/edge arrays changes nothing** — order is not an input.
 - **Adding an unrelated random element changes nothing** — a new edge/gate has a
   different `elementId`, so every existing key still hashes the same.
-- **Reset** returns to step 0 with the **same `seed`** — the whole trajectory
-  replays.
+- **Reset** returns to step 0 with the **same `seed`**; the next run replays
+  every draw.
 - **Only changing `seed`** produces a different trajectory (it is in every key).
 
-### B1.2 Algorithm — frozen in Part 1
+### B1.2 Algorithm — frozen as `loop-rng/1`
 
-The exact algorithm is pinned here so a saved run reproduces byte-for-byte on
-any platform with IEEE-754 doubles and 32-bit integer ops (`Math.imul`, `| 0`,
-`>>> 0`). **Do not "improve" it later** — a change is a new algorithm and must
-be versioned.
+Pinned exactly so a saved run reproduces byte-for-byte in another language, in a
+Worker, or in a later version. **A change to any step here is a new spec id
+(`loop-rng/2`), never an in-place edit.**
 
-**Step 1 — canonical key string.** Join the fields with `|` (which the id
-generator never emits):
+**Step 1 — canonical key string.** Join with `|` (never present in ids):
 
 ```
-keyString = String(seed) + "|" + String(step) + "|" + elementId
-          + "|" + purpose + "|" + String(drawIndex)
+keyString = decStr(seed) + "|" + decStr(step) + "|" + elementId
+          + "|" + purpose + "|" + decStr(drawIndex)
 ```
 
-`String(n)` is decimal, no separators, no leading zeros.
+`decStr(n)` = base-10, no separators, no leading zeros, no sign (all three
+integers are ≥ 0).
 
-**Step 2 — 32-bit hash: FNV-1a.** Over the UTF-16 code units of `keyString`,
-low byte then high byte of each unit:
+**Step 2 — encode as UTF-8 bytes.** `bytes = UTF-8(keyString)`. (All current
+ids and `purpose` values are ASCII, so one byte per character; UTF-8 is
+specified so any future non-ASCII id still has one defined byte sequence.)
+
+**Step 3 — FNV-1a, 32-bit, over the bytes:**
 
 ```
 FNV_OFFSET = 0x811c9dc5      FNV_PRIME = 0x01000193
 
 h = FNV_OFFSET
-for each code unit c of keyString:
-    h = (h XOR (c & 0xFF)) ;           h = Math.imul(h, FNV_PRIME) >>> 0
-    h = (h XOR ((c >>> 8) & 0xFF)) ;   h = Math.imul(h, FNV_PRIME) >>> 0
-return h >>> 0               // uint32
+for each byte b of bytes:
+    h = h XOR b                      // b in 0..255
+    h = Math.imul(h, FNV_PRIME) >>> 0
+hash = h >>> 0                       // uint32  — recorded in test vectors
 ```
 
-(For ASCII ids/purposes the high byte is `0`; feeding it anyway keeps the hash
-total for any future id.)
+Every intermediate `h` is a uint32: `XOR` keeps 32 bits, `Math.imul` gives a
+32-bit product, `>>> 0` re-normalises to unsigned.
 
-**Step 3 — one draw from mulberry32**, seeded with `h`:
+**Step 4 — one `mulberry32` output, seeded with `hash`:**
 
 ```
-function mulberry32(a):
-    a |= 0
-    a = (a + 0x6D2B79F5) | 0
-    t = Math.imul(a XOR (a >>> 15), 1 | a)
-    t = (t + Math.imul(t XOR (t >>> 7), 61 | t)) XOR t
-    return ((t XOR (t >>> 14)) >>> 0) / 4294967296
-
-sample(key) = mulberry32(h)          // seed = h, take exactly ONE output
+a   = hash | 0
+a   = (a + 0x6D2B79F5) | 0
+t   = Math.imul(a XOR (a >>> 15), 1 | a)
+t   = (t + Math.imul(t XOR (t >>> 7), 61 | t)) XOR t
+out = (t XOR (t >>> 14)) >>> 0       // uint32  — recorded in test vectors
+u   = out / 4294967296              // out / 2^32  →  [0, 1)
 ```
 
-- **Overflow:** every multiply is `Math.imul` (32-bit wraparound); every add is
-  `| 0`; the final state is coerced `>>> 0` before the divide.
-- **`[0, 1)` conversion:** `uint32 / 4294967296` (i.e. `/ 2^32`). Range is
-  `[0, 1)` — `1` is unreachable; `0` is reachable.
+- **Exactly one output.** `mulberry32` is not iterated.
+- **Overflow:** every `+` is `| 0`, every `*` is `Math.imul`, the result is
+  `>>> 0` before the divide.
+- **`[0, 1)`:** `1` is unreachable (`out ≤ 2^32 − 1`); `0` is reachable.
 
-### B1.3 Deriving values from `u = sample(key)`
+### B1.3 `seed` validation (UI boundary)
+
+The sim control accepts `seed` and normalises it **once, at input**:
+
+- Must be a **finite integer**. Then `seed = value >>> 0` (wrap into `uint32`,
+  range `0 … 4294967295`).
+- `NaN`, `±Infinity`, or a **non-integer** (`3.5`) is a **rejected input** — the
+  control shows an error and keeps the previous valid seed. No implicit
+  truncation or coercion.
+- The engine only ever sees a `uint32`. `initSim` / `step` do not re-validate.
+
+### B1.4 Deriving values from `u`
 
 | expression | `purpose` | draws | value |
 |---|---|---|---|
 | `range(lo, hi)` — `1-3` | `flow-range` | `drawIndex 0` | `lo + floor(u · (hi − lo + 1))` → integer in `[lo, hi]` |
 | `dice(n, d)` — `2D6`, `D6` | `flow-die` | `drawIndex 0 … n−1` | `Σᵢ (1 + floor(uᵢ · d))` → integer in `[n, n·d]` |
-| probabilistic gate route | `gate-route` | `drawIndex 0` | branch index by inverse-CDF (§B4) |
+| probabilistic gate route | `gate-route` | `drawIndex 0` | branch id by inverse-CDF (§B4.2) |
 
 `const`, `all`, `25%` are unchanged from Engine A `evalDet` and **never draw**.
 
-**Validation (all → value `0` + one run diagnostic, never a throw):**
+**Validation** (→ value `0` + one run diagnostic, never a throw):
 
-- `range`: `lo`, `hi` must be integers with `lo ≤ hi`. Non-integer endpoint or
+- `range`: `lo`, `hi` integers with `lo ≤ hi`. Non-integer endpoint or
   `lo > hi` → `0` + diagnostic.
 - `dice`: `n ≥ 1`, `d ≥ 1`, both integers. Otherwise → `0` + diagnostic.
 
@@ -145,25 +169,25 @@ sample(key) = mulberry32(h)          // seed = h, take exactly ONE output
 
 ## B2. Where randomness enters the step algorithm
 
-Two edits to `SEMANTICS.md` §6; everything else in §6 is untouched.
+Two edits to `SEMANTICS.md` §6; nothing else in §6 changes.
 
-### B2.1 §6 Phase 1 (Push / Sources) — Source edges may now be random
+### B2.1 §6 Phase 1 (Push / Sources) — Source edges may be random
 
 Engine A: a Source edge evaluating to `all` / `%` / random contributes `0`.
-Part 1: **`range` / `dice` on a Source edge evaluate normally** (a Source that
-emits `2D6` per step is a core pattern). `all` and `%` on a Source edge still
+Part 1: **`range` / `dice` on a Source edge evaluate normally** (a Source
+emitting `2D6` per step is a core pattern). `all` and `%` on a Source edge still
 contribute `0` — there is no source Pool to measure.
 
-So Phase 1 step 2 becomes: `want = flowVal(edge)` (§B3), where `flowVal` for a
-Source edge is `0` for `all`/`%` and the sampled integer for `range`/`dice`.
-`push all` atomicity is unchanged, now measured against the sampled `want`.
+Phase 1 step 2 becomes `want = flowVal(edge)` (§B3): `0` for `all`/`%` on a
+Source edge, the sampled integer for `range`/`dice`. `push all` atomicity is
+unchanged, now measured against the sampled `want`.
 
 ### B2.2 §6 Phase 2 (Pull) — probabilistic Gate branch
 
 A firing Gate with `distribution: 'probabilistic'` follows §B4 instead of the
 deterministic fixed-ratio split. Deterministic Gates are exactly as in
-`SEMANTICS.md` §6. A Converter, Drain, End reading a `range`/`dice` input edge
-uses `flowVal` (§B3) in place of `evalDet` — no other change to their logic.
+`SEMANTICS.md` §6. A Converter / Drain / End reading a `range`/`dice` input edge
+uses `flowVal` (§B3) in place of `evalDet`; no other change.
 
 ---
 
@@ -171,22 +195,22 @@ uses `flowVal` (§B3) in place of `evalDet` — no other change to their logic.
 
 Per step there is a map `flowVal : edgeId → number`, empty at step start.
 
-- The **first** time an edge's flow is needed this step, it is evaluated —
+- The **first** time an edge's flow is needed this step it is evaluated —
   drawing if it is `range`/`dice` — and the **numeric result is stored**.
 - Every later read this step (push sizing, Gate `demand`, `accept()` recursion,
   `rateOf()` for Gate weights and Converter rates) returns the stored number.
-- **`rateOf` never re-derives from the expression** — it reads `flowVal`. A
-  die is rolled once per edge per step, full stop.
+- **`rateOf` never re-derives from the expression** — it reads `flowVal`. A die
+  is rolled once per edge per step.
 
-For `const` this is trivially the constant. For `all` / `%` the stored value is
-the amount *as of first use* (`S[P] − taken[P]` at that moment); because each
-edge is consumed by exactly one router that executes once (§6), "first use" is
-well defined and equals Engine A's single evaluation. The cache exists so that
-**random** edges cannot be sampled twice; it is applied uniformly for simplicity.
+For `const` the stored value is the constant. For `all` / `%` it is the amount
+*as of first use* (`S[P] − taken[P]` then); each edge is consumed by exactly one
+router that executes once (§6), so "first use" is well defined and equals Engine
+A's single evaluation. The cache exists so **random** edges cannot be sampled
+twice; it is applied uniformly for simplicity.
 
 `accept()` may populate `flowVal` (it needs rates to size throughput). That is
-the *only* mutation `accept()` performs, and it is idempotent — a later real
-read gets the same number (this is I10).
+its only mutation and it is idempotent — a later real read gets the same number
+(I10).
 
 ---
 
@@ -196,246 +220,297 @@ read gets the same number (this is I10).
 
 ### B4.1 Weights and validation
 
-Let the outgoing edges be `e₁ … e_m` in **edge-creation order**, with
-`wⱼ = rateOf(eⱼ)` (from `flowVal`; normally constants).
+Outgoing edges are taken in **`edge.id` ascending order** (§B4.2), giving
+`e₁ … e_m` with `wⱼ = rateOf(eⱼ)` — read from `flowVal`, so a random weight
+(`w = 1-3`, `w = 2D6`) is **drawn once for that edge this step** and reused for
+the whole selection.
 
 - Any `wⱼ` that is `< 0`, `NaN`, or `±∞` → **reject**: the Gate does nothing
-  this step (`T = 0`, no draw consumed conceptually — the key is simply never
-  queried), emit diagnostic *"probabilistic gate `G`: invalid branch weight"*.
-- `Σw ≤ epsilon` (all zero / empty) → Gate does nothing, `T = 0`, diagnostic
-  *"probabilistic gate `G`: no positive branch weight"*.
-- Otherwise `pⱼ = wⱼ / Σw`. Branches with `wⱼ = 0` get `pⱼ = 0` and are never
-  selected; that is allowed.
+  this step (`T = 0`; the `gate-route` key is not queried), emit diagnostic
+  *"probabilistic gate `G`: invalid branch weight"*.
+- `Σw ≤ epsilon` (all zero / all sampled to zero / no out-edges) → Gate does
+  nothing, `T = 0`, diagnostic *"probabilistic gate `G`: no positive branch
+  weight"*.
+- Otherwise `pⱼ = wⱼ / Σw`. A branch with `wⱼ = 0` gets `pⱼ = 0` and is never
+  selected; allowed.
 
-### B4.2 Branch selection — categorical, one draw
+### B4.2 Branch selection — canonical order, one draw
+
+The inverse-CDF walk **must not** depend on array order or an implicit "creation
+order". Outgoing edges are sorted by **`edge.id` ascending** (string compare).
+
+> If edge creation order ever becomes product-meaningful, add a persistent
+> integer `order` field to the edge in `GraphDoc` and sort by `(order, id)`.
+> There is no such field today, so **`edge.id` ascending is the frozen rule**.
 
 ```
-u = sample(seed, step, gateId, 'gate-route', 0)
-acc = 0
-for j in 1 … m (edge-creation order):
+edges  = outgoing edges of G, sorted by edge.id ascending
+u      = sample(seed, step, gateId, 'gate-route', 0).u
+acc    = 0
+for j in 1 … m:
     acc += pⱼ
-    if u < acc:  selected = j;  break
+    if u < acc:  selected = eⱼ;  break
+selected ??= e_m           // float-guard: if the walk falls through, last edge
 ```
 
-`u ∈ [0, 1)` and `Σpⱼ = 1`, so some branch is always selected when weights are
-valid. (Floating-point guard: if the loop finishes without selecting due to
-round-off, `selected = m`, the last branch.)
+`u ∈ [0, 1)` and `Σpⱼ = 1`, so a branch is always selected when weights are
+valid.
 
-### B4.3 Throughput — like a deterministic gate with one branch of weight 1
+### B4.3 Throughput — a deterministic gate with one live branch of weight 1
 
-With branch `J = selected` and destination `destJ`:
+With `J = selected` and destination `destJ`:
 
 ```
-demand      = Σ flowVal(inEdge)            over input edges   (all → S[P]−taken[P], % → frac·S[P], const, range/dice)
-inputAvail  = Σ (S[P] − taken[P])          over input Pools
-T           = min(demand, inputAvail, accept(destJ))
-pull all:   if T < demand − epsilon  ⇒  T = 0
+demand     = Σ flowVal(inEdge)          over input edges
+inputAvail = Σ (S[P] − taken[P])        over input Pools
+T          = min(demand, inputAvail, accept(destJ))
+pull all:  if T < demand − epsilon  ⇒  T = 0
 ```
 
 If `T > epsilon`: pull `T` from the input Pools in `(sourceNodeId, edgeId)`
 order (update `taken`, `working`, emit `Pool→G` events); deliver **all** of `T`
-to `destJ` — a Pool: `working += T`; a Drain/End/Converter: `inbox[destJ] += T`;
-and if the delivery causes a downstream production of `q` into a Pool `Pk`, add
-`q` to `reserved[Pk]` now (same rule as the deterministic gate). Emit the
-`G→destJ` event. `moved[G] = T`.
+to `destJ` — Pool: `working += T`; Drain/End/Converter: `inbox[destJ] += T`; if
+the delivery causes a downstream production of `q` into a Pool `Pk`, add `q` to
+`reserved[Pk]` now (same rule as the deterministic gate). Emit `G→destJ`.
+`moved[G] = T`.
 
-**Non-selected branches:** exactly `0` this step. No delivery, no event, no
-reservation.
-
-**Selected branch blocked:** if `accept(destJ)` is small, `T` shrinks (or is
-`0`). **No re-draw. No fall-back to another branch.** `demand − T` stays in the
-input Pool (back-pressure, I4). This is the "no spill" rule (`SEMANTICS.md`
-decision 2) applied to a single branch.
+- **Non-selected branches:** exactly `0` — no delivery, no event, no reservation.
+- **Selected branch blocked:** `accept(destJ)` small ⇒ `T` shrinks or is `0`.
+  **No re-draw, no fall-back to another branch.** `demand − T` stays in the
+  input Pool (I4). This is `SEMANTICS.md` decision 2 ("no spill") on one branch.
 
 ### B4.4 `accept()` of a probabilistic Gate
 
-For the forward-planning recursion (an upstream router sizing what it may hand
-this Gate):
-
 ```
-accept(G_probabilistic) = accept(destJ)          where J is the branch that
-                                                 sample(…, gateId, 'gate-route', 0) selects
+accept(G_probabilistic) = accept(destJ)     where J is the branch that
+                                            sample(…, gateId, 'gate-route', 0) selects
 ```
 
-`accept()` may call `sample()` because draws are keyed and pure — no stream is
-advanced, no state mutated. The key is identical at planning time and execution
-time, so the branch chosen in `accept()` is the branch that actually moves
-(I10). Effectively the Gate looks, to `accept`, like a fixed-ratio gate whose
-only live branch has weight 1.
+`accept()` may call `sample()` — draws are keyed and pure, so no stream advances
+and nothing mutates. The key is identical at planning and execution time, so the
+branch assumed by `accept()` is the branch that moves (I10). To `accept`, the
+Gate looks like a fixed-ratio gate whose only live branch has weight 1.
 
 ---
 
-## B5. Reset and seed
+## B5. `seed`, Reset, templates
 
-- **Reset** (`simStore.reset`): step → 0, values → `initial`, series cleared.
-  `seed` is **unchanged**. The next run replays every draw identically (same
-  keys) — this is I6.
-- **`seed` is a run parameter, not graph data** in Part 1. It lives in the sim
-  controls (`simStore.seed`, default `1`), is not written into the graph
-  document, and is not part of the undo history. (A future "pin seed to the
-  document" option is possible; out of scope now.)
-- Changing `seed` re-hashes every key ⇒ a completely different but equally
-  reproducible trajectory.
-- `step` is in the key, so a draw at step 5 is independent of the draw at step 4
-  for the same element — there is no carried state to get out of sync.
+- **`seed` is a run parameter, not graph data.** It lives in the sim controls
+  (`simStore.seed`, default `1`), is **not** written to `GraphDoc`, and is not
+  in the undo history. Rationale: graph *structure* and *experiment conditions*
+  stay separate; a shared `.json` never silently fixes someone else's run.
+- **Reset** (`simStore.reset`): step → 0, values → `initial`, series cleared,
+  **`seed` unchanged**. The next run replays every draw (same keys) — this is I6.
+- Changing `seed` re-hashes every key ⇒ a different, equally reproducible
+  trajectory.
+- **Part 2** records `seed` in a `RunConfig` and/or result-export metadata so a
+  specific run can be cited.
+- **Templates** that want a representative outcome carry `recommendedSeed` in
+  **template metadata** (alongside `name` / `blurb`), applied to the sim control
+  on load — never as a field on the template's nodes or edges.
 
 ---
 
 ## B6. Invariants
 
-I1–I5 and I7 from `SEMANTICS.md` §12 are unchanged. I6 is restated to name the
+I1–I5 and I7 (`SEMANTICS.md` §12) are unchanged. I6 is restated to name the
 seed. I8–I10 are new.
 
 | # | Invariant |
 |---|---|
 | **I6** (restated) | **Determinism given a seed.** `step` is pure; `initSim` is total. Same graph **+ same `seed`** + same start ⇒ identical `state` sequence **and** identical `report`, on every run and after every Reset. |
-| **I8** | **Domain.** Every sampled value lies in its expression's domain: `range(lo,hi)` → integer in `[lo, hi]`; `dice(n,d)` → integer in `[n, n·d]`; a probabilistic-gate draw selects exactly one existing branch, or none only when weights are invalid / `Σw ≤ ε`. No sample is `NaN` or `±∞`. |
-| **I9** | **Key isolation.** A draw's value depends **only** on its key `(seed, step, elementId, purpose, drawIndex)`. Permuting the node or edge arrays, or adding / removing elements whose ids are not in that key, leaves the value bit-identical. (This is I7 sharpened for randomness: not just "final Pool values are order-invariant" but "each individual sample is stable".) |
+| **I8** | **Domain.** Every sampled value is in its expression's domain: `range(lo,hi)` → integer in `[lo, hi]`; `dice(n,d)` → integer in `[n, n·d]`; a probabilistic-gate draw selects exactly one existing branch, or none only when weights are invalid / `Σw ≤ ε`. No sample is `NaN` or `±∞`. |
+| **I9** | **Key isolation.** A draw's value depends **only** on its key `(seed, step, elementId, purpose, drawIndex)`. Permuting the node or edge arrays, or adding / removing elements whose ids are not in that key, leaves `hash`, `out`, and `u` bit-identical. (I7 sharpened for randomness.) |
 | **I10** | **Intra-step stability.** Within one step, every evaluation of the same `(elementId, purpose, drawIndex)` — including `accept()`'s trial pass and the execution pass — returns the same sample. Guaranteed by key purity and, redundantly, by the `flowVal` cache. |
 
 ---
 
-## B7. Expected results (draft test vectors)
+## B7. Expected results — draft test vectors
 
-Generated by the reference implementation of §B1.2. Each table records the
-**sample key(s)**, the **`u` value(s)** (6 dp), the **derived integer(s)**, and
-the resulting flow / Pool values. On freeze these become fixtures for
+Generated by the reference implementation of `loop-rng/1` (§B1.2). Every random
+row records the **key**, the FNV **`hash`** (uint32, hex), the **`out`** (uint32
+`mulberry32` output), and **`u`** (6 dp) — so a port in another language can
+check each stage, not just the final number. On freeze these become fixtures for
 `src/engine/rng.test.ts` and `src/engine/step.b1.test.ts`.
 
-Common: all nodes `automatic`; all pull nodes `pull any` unless noted.
+Common: all nodes `automatic`; all pull nodes `pull any` unless noted. Step 0 is
+the Reset state (no draws); the first advance is step 1.
 
-### R1 — Source `2D6` → uncapped Pool  (`seed = 1`)
+### RNG stage vectors (algorithm-only, no graph)
+
+| key | hash | out | u |
+|---|---|---:|---:|
+| `1\|1\|e1\|flow-die\|0` | `0x31a1fe5a` | 3827404282 | 0.891137 |
+| `1\|1\|e1\|flow-die\|1` | `0x32a1ffed` | 4280748691 | 0.996689 |
+| `1\|1\|e1\|flow-range\|0` | `0x0a9078c9` | 1628349630 | 0.379130 |
+| `1\|1\|G\|gate-route\|0` | `0xea0ec4b5` | 198040717 | 0.046110 |
+| `2\|1\|e1\|flow-range\|0` | `0x60bfd79c` | 1987613312 | 0.462777 |
+
+### R1 — Source `2D6` → uncapped Pool (`seed = 1`)
 
 ```
 Source S ──[e1: 2D6]──► Pool P   (P init 0, uncapped)
 ```
 
-Keys: `1|<step>|e1|flow-die|0` and `1|<step>|e1|flow-die|1`.
+| step | key₀ / key₁ | hash₀ / hash₁ | u₀ / u₁ | die₀ | die₁ | S→P | P |
+|---:|---|---|---:|---:|---:|---:|---:|
+| 0 | – | – | – | – | – | – | 0 |
+| 1 | `1\|1\|e1\|flow-die\|0` / `…\|1` | `0x31a1fe5a` / `0x32a1ffed` | 0.891137 / 0.996689 | 6 | 6 | 12 | 12 |
+| 2 | `1\|2\|e1\|flow-die\|0` / `…\|1` | `0xc1d77357` / `0xc0d771c4` | 0.695931 / 0.226545 | 5 | 2 | 7 | 19 |
+| 3 | `1\|3\|e1\|flow-die\|0` / `…\|1` | `0x8ffb2b04` / `0x90fb2c97` | 0.563082 / 0.604685 | 4 | 4 | 8 | 27 |
+| 4 | `1\|4\|e1\|flow-die\|0` / `…\|1` | `0x21e314e9` / `0x20e31356` | 0.145074 / 0.692496 | 1 | 5 | 6 | 33 |
+| 5 | `1\|5\|e1\|flow-die\|0` / `…\|1` | `0x0813e0ee` / `0x0913e281` | 0.643021 / 0.610432 | 4 | 4 | 8 | 41 |
+| 6 | `1\|6\|e1\|flow-die\|0` / `…\|1` | `0x4f24a5eb` / `0x4e24a458` | 0.010927 / 0.782814 | 1 | 5 | 6 | 47 |
 
-| step | u₀ | u₁ | die₀ | die₁ | S→P | P |
-|---:|---:|---:|---:|---:|---:|---:|
-| 0 | – | – | – | – | – | 0 |
-| 1 | 0.807186 | 0.885514 | 5 | 6 | 11 | 11 |
-| 2 | 0.303506 | 0.658543 | 2 | 4 | 6 | 17 |
-| 3 | 0.017977 | 0.331800 | 1 | 2 | 3 | 20 |
-| 4 | 0.006782 | 0.280174 | 1 | 2 | 3 | 23 |
-| 5 | 0.797746 | 0.816517 | 5 | 5 | 10 | 33 |
-| 6 | 0.832926 | 0.118526 | 5 | 1 | 6 | 39 |
-
-`fired` every step = {S}. I8: every die ∈ [1, 6]; every `S→P` ∈ [2, 12].
-I9 check: re-run with an extra unrelated `Source X ──[1-3]──► Drain Y` added
-anywhere ⇒ the `u₀ / u₁` column is unchanged.
+`fired` every step = {S}. I8: each die ∈ [1, 6]; each `S→P` ∈ [2, 12].
+**I9 check (required test):** re-run with an unrelated `Source X ──[1-3]──► Drain Y`
+added anywhere ⇒ the `hash / out / u` columns are unchanged.
 
 ### R2 — Pool `1-3` → Drain, with back-pressure
 
 ```
 Pool V ──[e1: 1-3]──► Drain D        (V init 10, pull any)
+want = 1 + floor(u · 3)
 ```
-
-Key: `<seed>|<step>|e1|flow-range|0`.  `want = 1 + floor(u · 3)`.
 
 **`seed = 1`**
 
-| step | u | want | V→D | V | note |
-|---:|---:|---:|---:|---:|---|
-| 0 | – | – | – | 10 | |
-| 1 | 0.705431 | 3 | 3 | 7 | |
-| 2 | 0.485432 | 2 | 2 | 5 | |
-| 3 | 0.291902 | 1 | 1 | 4 | |
-| 4 | 0.138796 | 1 | 1 | 3 | |
-| 5 | 0.316249 | 1 | 1 | 2 | |
-| 6 | 0.957962 | 3 | 2 | 0 | back-pressure: only 2 left (I4) |
-| 7 | 0.109135 | 1 | 0 | 0 | empty |
+| step | key | hash | u | want | V→D | V | note |
+|---:|---|---|---:|---:|---:|---:|---|
+| 0 | – | – | – | – | – | 10 | |
+| 1 | `1\|1\|e1\|flow-range\|0` | `0x0a9078c9` | 0.379130 | 2 | 2 | 8 | |
+| 2 | `1\|2\|e1\|flow-range\|0` | `0x16ee7534` | 0.558641 | 2 | 2 | 6 | |
+| 3 | `1\|3\|e1\|flow-range\|0` | `0x05207717` | 0.347429 | 2 | 2 | 4 | |
+| 4 | `1\|4\|e1\|flow-range\|0` | `0x159fc50a` | 0.489049 | 2 | 2 | 2 | |
+| 5 | `1\|5\|e1\|flow-range\|0` | `0x46e52945` | 0.332034 | 1 | 1 | 1 | |
+| 6 | `1\|6\|e1\|flow-range\|0` | `0x700ab260` | 0.608527 | 2 | 1 | 0 | back-pressure (I4) |
+| 7 | `1\|7\|e1\|flow-range\|0` | `0x051a7a53` | 0.521358 | 2 | 0 | 0 | empty |
 
 **`seed = 2`** (same graph — I6: seed alone changes the trajectory)
 
-| step | u | want | V→D | V |
-|---:|---:|---:|---:|---:|
-| 1 | 0.432355 | 2 | 2 | 8 |
-| 2 | 0.934066 | 3 | 3 | 5 |
-| 3 | 0.604038 | 2 | 2 | 3 |
-| 4 | 0.761805 | 3 | 3 | 0 |
-| 5 | 0.810542 | 3 | 0 | 0 |
+| step | key | hash | u | want | V→D | V |
+|---:|---|---|---:|---:|---:|---:|
+| 1 | `2\|1\|e1\|flow-range\|0` | `0x60bfd79c` | 0.462777 | 2 | 2 | 8 |
+| 2 | `2\|2\|e1\|flow-range\|0` | `0x0b4d26f1` | 0.200080 | 1 | 1 | 7 |
+| 3 | `2\|3\|e1\|flow-range\|0` | `0x2be38226` | 0.252245 | 1 | 1 | 6 |
+| 4 | `2\|4\|e1\|flow-range\|0` | `0xf8637b9b` | 0.811918 | 3 | 3 | 3 |
+| 5 | `2\|5\|e1\|flow-range\|0` | `0x8705e5c8` | 0.325100 | 1 | 1 | 2 |
+| 6 | `2\|6\|e1\|flow-range\|0` | `0xd2c64c2d` | 0.620825 | 2 | 2 | 0 |
+| 7 | `2\|7\|e1\|flow-range\|0` | `0x243a7dd2` | 0.977753 | 3 | 0 | 0 |
 
-### R3 — Probabilistic Gate, two drains  (`seed = 1`)
+### R3 — Probabilistic Gate, two drains (`seed = 1`)
 
 ```
 Pool V ──[e_in: 4]──► Gate G (probabilistic) ──[eA: w 1]──► Drain A
   (V init 100)                                └─[eB: w 3]──► Drain B
 ```
 
-`Σw = 4`, `p = [0.25, 0.75]` over edge-creation order `[A, B]`.
-Key: `1|<step>|G|gate-route|0`.  `demand = 4`, `accept(destJ) = ∞`, so `T = 4`.
+Outgoing edges id-sorted `[eA, eB]`; `Σw = 4`; `p = [0.25, 0.75]`.
+Key `1|<step>|G|gate-route|0`. `demand = 4`, `accept(destJ) = ∞`, so `T = 4`.
 
-| step | u | cumulative test | pick | G→A | G→B | V | A | B |
-|---:|---:|---|:--:|---:|---:|---:|---:|---:|
-| 1 | 0.376663 | 0.25 ≤ u < 1.0 | B | 0 | 4 | 96 | 0 | 4 |
-| 2 | 0.003411 | u < 0.25 | A | 4 | 0 | 92 | 4 | 4 |
-| 3 | 0.724678 | 0.25 ≤ u | B | 0 | 4 | 88 | 4 | 8 |
-| 4 | 0.032683 | u < 0.25 | A | 4 | 0 | 84 | 8 | 8 |
-| 5 | 0.123051 | u < 0.25 | A | 4 | 0 | 80 | 12 | 8 |
-| 6 | 0.519107 | 0.25 ≤ u | B | 0 | 4 | 76 | 12 | 12 |
-| 7 | 0.246256 | u < 0.25 | A | 4 | 0 | 72 | 16 | 12 |
-| 8 | 0.658592 | 0.25 ≤ u | B | 0 | 4 | 68 | 16 | 16 |
+| step | hash | u | walk | pick | G→A | G→B | V | A | B |
+|---:|---|---:|---|:--:|---:|---:|---:|---:|---:|
+| 1 | `0xea0ec4b5` | 0.046110 | `u < 0.25` | eA | 4 | 0 | 96 | 4 | 0 |
+| 2 | `0x0cb5b73a` | 0.879574 | `≥ 0.25` | eB | 0 | 4 | 92 | 4 | 4 |
+| 3 | `0xe61b0097` | 0.240920 | `u < 0.25` | eA | 4 | 0 | 88 | 8 | 4 |
+| 4 | `0x6ca04d2c` | 0.912739 | `≥ 0.25` | eB | 0 | 4 | 84 | 8 | 8 |
+| 5 | `0x8ce51a99` | 0.691021 | `≥ 0.25` | eB | 0 | 4 | 80 | 8 | 12 |
+| 6 | `0xcbbae83e` | 0.940401 | `≥ 0.25` | eB | 0 | 4 | 76 | 8 | 16 |
+| 7 | `0xd04b713b` | 0.609347 | `≥ 0.25` | eB | 0 | 4 | 72 | 8 | 20 |
+| 8 | `0x029c6b10` | 0.595210 | `≥ 0.25` | eB | 0 | 4 | 68 | 8 | 24 |
 
-Exactly one branch fires per step; the other is `0`. (This 8-step trace does not
-"look" 25/75 — that is small-sample noise; **distribution convergence is a Part 2
-/ Monte-Carlo concern**, not something this single run asserts.)
+Exactly one branch fires per step. (8 steps land 1×eA / 7×eB — small-sample
+noise around `p = [0.25, 0.75]`; **distribution convergence is a Part 2 concern**,
+not asserted here.)
 
-### R4 — Probabilistic Gate, selected branch capacity-blocked  (`seed = 1`)
+### R4 — Probabilistic Gate, selected branch capacity-blocked (`seed = 1`)
 
-Same as R3 but branch A feeds **Pool A, capacity 1** (branch B still a Drain).
-Same `gate-route` keys and `u` values as R3 (the draw does not depend on
-downstream capacity — I9).
+Same as R3 but `eA` feeds **Pool A, capacity 1** (`eB` still a Drain). Same
+`gate-route` keys and `u` values as R3 — the draw does not depend on downstream
+capacity (I9).
 
 | step | u | pick | `accept(destJ)` | T | V | A | note |
 |---:|---:|:--:|---:|---:|---:|---:|---|
-| 1 | 0.376663 | B | ∞ | 4 | 96 | 0 | |
-| 2 | 0.003411 | A | 1 | 1 | 95 | 1 | A fills; `demand−T = 3` stays in V |
-| 3 | 0.724678 | B | ∞ | 4 | 91 | 1 | |
-| 4 | 0.032683 | A | 0 | 0 | 91 | 1 | A full → **T = 0, no reroute to B** |
-| 5 | 0.123051 | A | 0 | 0 | 91 | 1 | idem |
-| 6 | 0.519107 | B | ∞ | 4 | 87 | 1 | |
-| 7 | 0.246256 | A | 0 | 0 | 87 | 1 | idem |
-| 8 | 0.658592 | B | ∞ | 4 | 83 | 1 | |
+| 1 | 0.046110 | eA | 1 | 1 | 99 | 1 | A fills; `demand−T = 3` stays in V |
+| 2 | 0.879574 | eB | ∞ | 4 | 95 | 1 | |
+| 3 | 0.240920 | eA | 0 | 0 | 95 | 1 | A full → **T = 0, no reroute to eB** |
+| 4 | 0.912739 | eB | ∞ | 4 | 91 | 1 | |
+| 5 | 0.691021 | eB | ∞ | 4 | 87 | 1 | |
+| 6 | 0.940401 | eB | ∞ | 4 | 83 | 1 | |
+| 7 | 0.609347 | eB | ∞ | 4 | 79 | 1 | |
+| 8 | 0.595210 | eB | ∞ | 4 | 75 | 1 | |
 
-I10: the branch `accept()` assumes for planning (`A` at steps 4/5/7) is the
-branch that then executes; both use key `1|<step>|G|gate-route|0`.
+I10: the branch `accept()` assumes when planning (`eA` at step 3) is the branch
+that then executes — both use key `1|3|G|gate-route|0`.
 
-### Mini-cases
+### Mini-cases (each a required test)
 
-- **`D6` (single die):** `dice(1, 6)`, one draw `drawIndex 0`,
-  value `1 + floor(u · 6)` ∈ [1, 6].
+- **`D6`:** `dice(1, 6)`, one draw `drawIndex 0`, value `1 + floor(u · 6)` ∈ [1, 6].
 - **`range` bad bounds:** `3-1` ⇒ value `0` + diagnostic; no draw.
-- **prob gate, `Σw = 0`:** two branches both weight `0` ⇒ `T = 0` every step +
-  diagnostic; `V` unchanged.
-- **prob gate, weight `-1`:** ⇒ rejected, `T = 0` + diagnostic.
-- **I9 permutation:** R3 with edges declared `[eB, eA]` instead of `[eA, eB]` —
-  `p` is still keyed to weights, and `u` is unchanged, but selection now walks
-  `B (0.75)` then `A`. Document whether branch **order** is part of the frozen
-  contract → **yes**: inverse-CDF walks edges in **edge-creation order**, so
-  `[eB, eA]` changes which branch a given `u` picks. Permuting the array that
-  React Flow hands us does **not** reorder creation order; only editing the graph
-  does. (Consistent with I7/I9: creation order is the explicit tiebreak, array
-  order is not.)
+- **prob gate `Σw = 0`:** two branches both weight `0` ⇒ `T = 0` every step +
+  diagnostic; `V` unchanged; `gate-route` key never queried.
+- **prob gate weight `-1` / `NaN` / `∞`:** rejected ⇒ `T = 0` + diagnostic.
+- **prob gate random weight:** `eA: w = 1-3`, `eB: w = 2` — `eA`'s weight is one
+  `flow-range` draw on `eA` per step, reused for `Σw` and `pⱼ`; not re-drawn for
+  the `gate-route` selection.
+- **array-reversal invariance (I7/I9):** declare G's out-edges `[eB, eA]`
+  instead of `[eA, eB]`; id-sort still yields `[eA, eB]`, so every `pick` in R3
+  is unchanged.
 
 ---
 
-## B8. Open questions for review
+## B8. Reference algorithm (normative pseudocode)
 
-1. **Hash choice.** FNV-1a (32-bit) + one `mulberry32` output. Simple, portable,
-   adequate for a single-run simulator. Alternative: hash → advance mulberry32
-   `k` times before output (better decorrelation of nearby seeds, costs one
-   magic constant `k`). Proposal: keep the single-output form; revisit only if a
-   Part 2 Monte-Carlo bias test fails.
-2. **`seed` in the document?** Part 1 keeps it a sim-control parameter. Pin-to-doc
-   could come with Part 2 (so a shared graph reproduces a specific run).
-3. **`drawIndex` for `dice` beyond `n`?** Not needed — `n` is fixed by the
-   expression. Listed for completeness only.
-4. **Random Gate *weights*** (`w = 1-3`): allowed by the `flowVal` path (the
-   weight edge draws once via its own `flow-range` key). Confirm this is in
-   scope for Part 1 or should be rejected until later. Proposal: allow it; it
-   falls out of the design for free and has a test vector cost of one row.
-5. **`purpose` string vs enum int in the key.** Strings are readable in test
-   vectors and diagnostics. Ints would be marginally faster. Proposal: keep
-   strings; the hash cost is negligible at these graph sizes.
+```
+// spec: loop-rng/1
+const FNV_OFFSET = 0x811c9dc5, FNV_PRIME = 0x01000193
+
+function fnv1a32(bytes: Uint8Array): uint32 {
+  let h = FNV_OFFSET
+  for (const b of bytes) { h ^= b; h = Math.imul(h, FNV_PRIME) >>> 0 }
+  return h >>> 0
+}
+
+function sample(seed, step, elementId, purpose, drawIndex) {
+  const key   = `${seed}|${step}|${elementId}|${purpose}|${drawIndex}`
+  const hash  = fnv1a32(utf8Encode(key))
+  let a = hash | 0
+  a = (a + 0x6D2B79F5) | 0
+  let t = Math.imul(a ^ (a >>> 15), 1 | a)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  const out = (t ^ (t >>> 14)) >>> 0
+  return { hash, out, u: out / 4294967296 }
+}
+
+rangeInt(lo, hi, u) = lo + Math.floor(u * (hi - lo + 1))
+die(d, u)           = 1 + Math.floor(u * d)
+```
+
+---
+
+## B9. Decisions log (this part)
+
+1. **RNG** → `loop-rng/1`: canonical `|`-joined key string → **UTF-8 bytes** →
+   FNV-1a 32-bit → **one** `mulberry32` output → `out / 2^32 ∈ [0,1)`. No
+   k-advance. All ops 32-bit (`Math.imul`, `| 0`, `>>> 0`).
+2. **`seed`** → `uint32`; UI validates a finite integer then `>>> 0`;
+   `NaN`/`∞`/fractional is a rejected input, not coerced. Not stored in
+   `GraphDoc`. Part 2 puts it in `RunConfig` / export metadata. Templates use
+   `recommendedSeed` metadata.
+3. **`range`** → inclusive uniform integer; endpoints must be integers.
+   **`dice`** → sum of `n` independent `1..d` integers, `drawIndex 0..n−1`.
+   Bad bounds → `0` + diagnostic.
+4. **One evaluation per edge per step** via `flowVal[edgeId]`; `rateOf` reads
+   the cache; `accept()` may populate it (idempotent).
+5. **Probabilistic Gate** → categorical inverse-CDF, **one draw**
+   (`gate-route`, `drawIndex 0`); outgoing edges ordered by **`edge.id`
+   ascending** (a future persistent `order` field could replace this); at most
+   one branch per step; blocked branch → `T` shrinks / `0`, **no re-draw, no
+   reroute**; invalid or zero-sum weights → inert + diagnostic. Random weights
+   allowed via the `flowVal` cache.
+6. **Timeline** → step 0 is the Reset state and draws nothing; the first advance
+   uses `step = 1` keys.
+7. **Invariants** → I6 restated for the seed; I8 (domain), I9 (key isolation),
+   I10 (intra-step stability) added; I1–I5, I7 unchanged.
+8. **Test vectors** record `key`, `hash` (uint32), `out` (uint32), and `u` for
+   every draw, so a non-JS port is checkable stage by stage.
