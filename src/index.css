@@ -64,6 +64,9 @@
   --flow-strength: var(--signal-primary); /* ~5:1 on canvas */
   --flow-trail: rgba(47, 116, 110, 0.22);
 
+  /* p10–p90 distribution band fill (data, not decoration) */
+  --dist-band-mix: 11%;
+
   /* — elevation (light leans on faint shadow; dark drops it entirely) — */
   --elev-node: drop-shadow(0 1px 1.5px rgba(20, 20, 20, 0.05));
   --elev-label: 0 1px 2px rgba(20, 20, 20, 0.08);
@@ -129,6 +132,7 @@
 
     --flow-strength: var(--signal-primary);
     --flow-trail: rgba(118, 183, 174, 0.2);
+    --dist-band-mix: 15%;
 
     --elev-node: none;
     --elev-label: none;
@@ -136,6 +140,7 @@
 }
 
 :root[data-theme='dark'] {
+  --dist-band-mix: 15%;
   --surface-ground: #171a18;
   --surface-canvas: #202320;
   --surface-panel: #272a27;
@@ -1405,4 +1410,107 @@ body {
   letter-spacing: 0.12em;
   color: var(--text-tertiary);
   min-width: 96px;
+}
+
+/* ==== P2 — distribution band chart ==================================== */
+.band {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.band__ctrls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.band__pool {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.band__pool--single {
+  border: 0;
+  padding: 0;
+  font-weight: 600;
+}
+.band__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.band__key b {
+  color: var(--text-primary);
+}
+.band__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.band__mean {
+  margin-left: auto;
+  border: 1px solid var(--line-structure);
+  border-radius: 4px;
+  padding: 1px 7px;
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.band__mean.is-on {
+  border-color: var(--signal-primary);
+  color: var(--text-primary);
+  background: var(--signal-primary-soft);
+}
+.band__plot {
+  flex: 1;
+  min-height: 0;
+}
+.band__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.band__axis {
+  stroke: var(--line-structure);
+  stroke-width: 1;
+}
+.band__grid {
+  stroke: var(--line-hairline);
+  stroke-width: 1;
+}
+.band__tick {
+  fill: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.band__area {
+  fill: color-mix(in srgb, var(--band-hue) var(--dist-band-mix), transparent);
+  stroke: none;
+}
+.band__p50 {
+  stroke: var(--band-hue);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.band__meanline {
+  stroke: var(--band-hue);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
+}
+.band__bead {
+  fill: var(--band-hue);
 }

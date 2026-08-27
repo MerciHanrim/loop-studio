@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
+import { BandChart } from './BandChart'
 import {
   toFinalCsv,
   toFinalSummaryCsv,
@@ -111,9 +112,7 @@ export function DistributionPanel() {
         <ExportMenu result={result} disabled={stale} />
       </div>
 
-      <div className="dist__plot dist__plot--placeholder">
-        p10 · p50 · p90 band chart — next checkpoint
-      </div>
+      <BandChart result={result} />
     </div>
   )
 }
