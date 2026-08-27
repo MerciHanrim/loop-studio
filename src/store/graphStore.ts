@@ -13,12 +13,20 @@ import { deserialize, loadFromStorage, saveToStorage, serialize } from '../model
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
 type XY = { x: number; y: number }
+type Snapshot = { nodes: LoopNode[]; edges: LoopEdge[] }
 
 type GraphStore = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   selectedNodeId: string | null
   selectedEdgeId: string | null
+
+  past: Snapshot[]
+  future: Snapshot[]
+  canUndo: boolean
+  canRedo: boolean
+  undo: () => void
+  redo: () => void
 
   onNodesChange: (changes: NodeChange<LoopNode>[]) => void
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
@@ -31,13 +39,23 @@ type GraphStore = {
   removeEdge: (id: string) => void
   setSelection: (nodeId: string | null, edgeId: string | null) => void
   newGraph: () => void
+  loadGraph: (snapshot: Snapshot) => void
   loadJSON: (text: string) => void
   exportJSON: () => string
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 
-function makeSample(): { nodes: LoopNode[]; edges: LoopEdge[] } {
+// ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
+// One history entry per discrete action. Continuous actions coalesce: a node
+// drag is one entry; rapid edits to the same field within COALESCE_MS are one
+// entry. Selection and simulation never create history.
+const COALESCE_MS = 600
+const HISTORY_MAX = 100
+let lastTag = ''
+let lastTagAt = 0
+
+function makeSample(): Snapshot {
   return {
     nodes: [
       {
@@ -91,18 +109,81 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     }, 400)
   }
 
+  /** Snapshot the CURRENT state into history before a mutation is applied. */
+  const commit = (tag: string) => {
+    const now = Date.now()
+    const coalesce = tag !== '' && tag === lastTag && now - lastTagAt < COALESCE_MS
+    lastTag = tag
+    lastTagAt = now
+    if (coalesce) return
+    const { nodes, edges } = get()
+    set({
+      past: [...get().past, { nodes, edges }].slice(-HISTORY_MAX),
+      future: [],
+      canUndo: true,
+      canRedo: false,
+    })
+  }
+
   return {
     nodes: boot.nodes,
     edges: boot.edges,
     selectedNodeId: null,
     selectedEdgeId: null,
+    past: [],
+    future: [],
+    canUndo: false,
+    canRedo: false,
+
+    undo: () => {
+      const { past, future, nodes, edges } = get()
+      if (!past.length) return
+      const prev = past[past.length - 1]
+      lastTag = ''
+      set({
+        nodes: prev.nodes,
+        edges: prev.edges,
+        past: past.slice(0, -1),
+        future: [{ nodes, edges }, ...future].slice(0, HISTORY_MAX),
+        canUndo: past.length > 1,
+        canRedo: true,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+      })
+      persist()
+    },
+
+    redo: () => {
+      const { past, future, nodes, edges } = get()
+      if (!future.length) return
+      const next = future[0]
+      lastTag = ''
+      set({
+        nodes: next.nodes,
+        edges: next.edges,
+        past: [...past, { nodes, edges }].slice(-HISTORY_MAX),
+        future: future.slice(1),
+        canUndo: true,
+        canRedo: future.length > 1,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+      })
+      persist()
+    },
 
     onNodesChange: (changes) => {
+      const dragging = changes.some((c) => c.type === 'position' && c.dragging)
+      const settled = changes.some((c) => c.type === 'position' && c.dragging === false)
+      const removed = changes.some((c) => c.type === 'remove')
+      if (removed) commit('')
+      else if (dragging) commit('move')
       set({ nodes: applyNodeChanges(changes, get().nodes) })
+      if (settled) lastTag = '' // end of a drag gesture
       persist()
     },
 
     onEdgesChange: (changes) => {
+      if (changes.some((c) => c.type === 'remove')) commit('')
       set({ edges: applyEdgeChanges(changes, get().edges) })
       persist()
     },
@@ -123,11 +204,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
           : { kind: 'resource', flow: '1' },
         markerEnd: viaState ? undefined : { type: MarkerType.ArrowClosed },
       }
+      commit('')
       set({ edges: addEdge(edge, get().edges) })
       persist()
     },
 
     addNodeAt: (kind, position) => {
+      commit('')
       const node = createNode(kind, position)
       set({
         nodes: [...get().nodes, node],
@@ -138,6 +221,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     updateNodeData: (id, patch) => {
+      commit(`data:${id}`)
       set({
         nodes: get().nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
@@ -147,11 +231,13 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     setEdgeData: (id, data) => {
+      commit(`edge:${id}`)
       set({ edges: get().edges.map((e) => (e.id === id ? { ...e, data } : e)) })
       persist()
     },
 
     removeNode: (id) => {
+      commit('')
       set({
         nodes: get().nodes.filter((n) => n.id !== id),
         edges: get().edges.filter((e) => e.source !== id && e.target !== id),
@@ -161,6 +247,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     removeEdge: (id) => {
+      commit('')
       set({ edges: get().edges.filter((e) => e.id !== id), selectedEdgeId: null })
       persist()
     },
@@ -168,12 +255,28 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     setSelection: (nodeId, edgeId) => set({ selectedNodeId: nodeId, selectedEdgeId: edgeId }),
 
     newGraph: () => {
+      commit('')
+      lastTag = ''
       set({ nodes: [], edges: [], selectedNodeId: null, selectedEdgeId: null })
+      persist()
+    },
+
+    loadGraph: ({ nodes, edges }) => {
+      commit('')
+      lastTag = ''
+      set({
+        nodes: nodes.map((n) => ({ ...n })),
+        edges: edges.map((e) => ({ ...e })),
+        selectedNodeId: null,
+        selectedEdgeId: null,
+      })
       persist()
     },
 
     loadJSON: (text) => {
       const { nodes, edges } = deserialize(text)
+      commit('')
+      lastTag = ''
       set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
       persist()
     },

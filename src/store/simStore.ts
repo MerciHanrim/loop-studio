@@ -19,12 +19,16 @@ type SimStore = {
 
   series: { step: number; values: SimValues }[]
 
+  /** which pools the timeline plots — 'all' or an explicit id list */
+  trackedIds: 'all' | string[]
+
   play: () => void
   pause: () => void
   stepOnce: () => void
   reset: () => void
   setSpeed: (ms: number) => void
   setSeed: (seed: number) => void
+  toggleTracked: (id: string, allPoolIds: string[]) => void
 }
 
 const MAX_SERIES = 400
@@ -86,6 +90,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     firedNodeIds: [],
     arrivedPoolIds: [],
     series: [],
+    trackedIds: 'all',
 
     play: () => {
       head()
@@ -123,5 +128,16 @@ export const useSimStore = create<SimStore>((set, get) => {
     },
 
     setSeed: (seed) => set({ seed }),
+
+    toggleTracked: (id, allPoolIds) => {
+      const cur = get().trackedIds
+      const list = cur === 'all' ? allPoolIds.slice() : cur.slice()
+      const i = list.indexOf(id)
+      if (i >= 0) list.splice(i, 1)
+      else list.push(id)
+      // back to 'all' when every pool is selected again
+      const isAll = allPoolIds.length > 0 && allPoolIds.every((p) => list.includes(p))
+      set({ trackedIds: isAll ? 'all' : list })
+    },
   }
 })

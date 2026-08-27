@@ -39,9 +39,9 @@ export function defaultData<K extends NodeKind>(kind: K): DataByKind[K] {
     },
     source: { kind: 'source', label: 'Source', activation: 'automatic', mode: 'pushAny' },
     drain: { kind: 'drain', label: 'Drain', activation: 'automatic', mode: 'pullAny' },
-    gate: { kind: 'gate', label: 'Gate', activation: 'passive', distribution: 'deterministic' },
-    converter: { kind: 'converter', label: 'Converter', activation: 'passive', mode: 'pullAny' },
-    end: { kind: 'end', label: 'End', activation: 'passive' },
+    gate: { kind: 'gate', label: 'Gate', activation: 'automatic', distribution: 'deterministic' },
+    converter: { kind: 'converter', label: 'Converter', activation: 'automatic', mode: 'pullAny' },
+    end: { kind: 'end', label: 'End', activation: 'automatic' },
   }
   return map[kind]
 }

@@ -5,10 +5,19 @@ import { PlayBar } from './PlayBar'
 
 // A — chart discipline: the canvas token, carried down onto the time axis.
 // Data line = resource-track weight; current value = the same solid Bead;
-// only the latest point is marked. No area fill, no gradient. Pixel-space
-// coordinates (measured) so beads stay round and mono text stays crisp.
+// only the latest point is marked. No area fill, no gradient.
 
 const PAD = { l: 40, r: 20, t: 14, b: 20 }
+// stable per-pool colour by index — reuses the approved node hues
+const HUES = [
+  '--hue-pool',
+  '--hue-gate',
+  '--hue-converter',
+  '--hue-drain',
+  '--hue-source',
+  '--hue-end',
+]
+const colorFor = (i: number) => `var(${HUES[i % HUES.length]})`
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -17,14 +26,26 @@ const reducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 
 const NICE = [1, 1.2, 1.4, 1.5, 1.6, 1.8, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 10]
-
-/** smallest clean value ≥ v — round ticks without huge headroom */
 function niceCeil(v: number): number {
   if (v <= 0) return 1
   const mag = 10 ** Math.floor(Math.log10(v))
   const n = v / mag
   const step = NICE.find((s) => n <= s + 1e-9) ?? 10
   return step * mag
+}
+
+function downloadCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[]) {
+  const head = ['step', ...pools.map((p) => p.label.replace(/[",\n]/g, ' '))].join(',')
+  const rows = series.map((pt) =>
+    [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0)].join(','),
+  )
+  const blob = new Blob([[head, ...rows].join('\n') + '\n'], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'loop-studio-run.csv'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export function TimelineChart() {
@@ -36,6 +57,8 @@ export function TimelineChart() {
   const status = useSimStore((s) => s.status)
   const stepIndex = useSimStore((s) => s.stepIndex)
   const arrivedPoolIds = useSimStore((s) => s.arrivedPoolIds)
+  const trackedIds = useSimStore((s) => s.trackedIds)
+  const toggleTracked = useSimStore((s) => s.toggleTracked)
   const nodes = useGraphStore((s) => s.nodes)
 
   useEffect(() => {
@@ -62,9 +85,12 @@ export function TimelineChart() {
     () =>
       nodes
         .filter((n) => n.data.kind === 'pool')
-        .map((n) => ({ id: n.id, label: n.data.label })),
+        .map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(i) })),
     [nodes],
   )
+  const allPoolIds = useMemo(() => pools.map((p) => p.id), [pools])
+  const isTracked = (id: string) => trackedIds === 'all' || trackedIds.includes(id)
+  const tracked = pools.filter((p) => isTracked(p.id))
 
   const view = useMemo(() => {
     const { w, h } = size
@@ -72,7 +98,7 @@ export function TimelineChart() {
     let maxStep = 1
     for (const pt of series) {
       maxStep = Math.max(maxStep, pt.step)
-      for (const p of pools) peak = Math.max(peak, pt.values[p.id] ?? 0)
+      for (const p of tracked) peak = Math.max(peak, pt.values[p.id] ?? 0)
     }
     const top = niceCeil(peak * 1.12)
     const iw = w - PAD.l - PAD.r
@@ -80,7 +106,7 @@ export function TimelineChart() {
     const x = (stp: number) => PAD.l + (maxStep === 0 ? 0 : (stp / maxStep) * iw)
     const y = (v: number) => PAD.t + ih - (v / top) * ih
 
-    const lines = pools.map((p) => {
+    const lines = tracked.map((p) => {
       const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
       let seg: { d: string; len: number } | null = null
       if (series.length >= 2) {
@@ -97,7 +123,7 @@ export function TimelineChart() {
       }
       return {
         id: p.id,
-        label: p.label,
+        color: p.color,
         last,
         d: series
           .map(
@@ -113,11 +139,10 @@ export function TimelineChart() {
 
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
     return { w, h, top, maxStep, x, y, lines, guideX }
-  }, [series, pools, status, stepIndex, size])
+  }, [series, tracked, status, stepIndex, size])
 
   const rm = reducedMotion()
   const { w, h } = view
-  // before the first Step there is nothing to observe yet — axes only
   const hasRun = series.length >= 2
 
   return (
@@ -129,12 +154,31 @@ export function TimelineChart() {
           <div className="timeline__head">
             <span>timeline</span>
             <span className="timeline__legend">
-              {view.lines.map((l) => (
-                <span key={l.id} className="timeline__key">
-                  <span className="timeline__mark" />
-                  {l.label} {fmt(l.last)}
-                </span>
-              ))}
+              {pools.map((p) => {
+                const on = isTracked(p.id)
+                const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`timeline__key${on ? '' : ' is-off'}`}
+                    onClick={() => toggleTracked(p.id, allPoolIds)}
+                    title={on ? `Hide ${p.label}` : `Show ${p.label}`}
+                  >
+                    <span className="timeline__mark" style={{ background: p.color }} />
+                    {p.label} {fmt(last)}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                className="timeline__csv"
+                disabled={!hasRun}
+                onClick={() => downloadCsv(pools, series)}
+                title="Download the run as CSV"
+              >
+                CSV
+              </button>
             </span>
           </div>
 
@@ -186,7 +230,13 @@ export function TimelineChart() {
 
               {hasRun
                 ? view.lines.map((l) => (
-                    <path key={l.id} className="timeline__line" d={l.d} fill="none" />
+                    <path
+                      key={l.id}
+                      className="timeline__line"
+                      d={l.d}
+                      fill="none"
+                      style={{ stroke: l.color }}
+                    />
                   ))
                 : null}
 
@@ -197,7 +247,11 @@ export function TimelineChart() {
                         key={`${l.id}-${view.maxStep}`}
                         className="timeline__seg"
                         d={l.seg.d}
-                        style={{ strokeDasharray: l.seg.len, strokeDashoffset: l.seg.len }}
+                        style={{
+                          stroke: l.color,
+                          strokeDasharray: l.seg.len,
+                          strokeDashoffset: l.seg.len,
+                        }}
                       />
                     ) : null,
                   )
@@ -215,7 +269,13 @@ export function TimelineChart() {
                           r="7"
                         />
                       ) : null}
-                      <circle className="timeline__bead" cx={l.endX} cy={l.endY} r="2.5" />
+                      <circle
+                        className="timeline__bead"
+                        cx={l.endX}
+                        cy={l.endY}
+                        r="2.5"
+                        style={{ fill: l.color }}
+                      />
                       <text
                         className="timeline__endlabel"
                         x={l.endX - 5}
