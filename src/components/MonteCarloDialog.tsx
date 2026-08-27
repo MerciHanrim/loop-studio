@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { estimateMonteCarloCost, type CostEstimate } from '../engine'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
@@ -24,6 +24,15 @@ export function MonteCarloDialog() {
   const progress = useMcStore((s) => s.progress)
   const completedRuns = useMcStore((s) => s.completedRuns)
   const lastThroughput = useMcStore((s) => s.lastThroughput)
+
+  const nodes = useGraphStore((s) => s.nodes)
+  const graphPools = useMemo(
+    () =>
+      nodes
+        .filter((n) => n.data.kind === 'pool')
+        .map((n) => ({ id: n.id, label: n.data.label })),
+    [nodes],
+  )
 
   const [estimate, setEstimate] = useState<CostEstimate | null>(null)
   const [estimating, setEstimating] = useState(false)
@@ -67,6 +76,26 @@ export function MonteCarloDialog() {
   const running = status === 'running'
   const overLimit = estimate?.overLimit ?? false
   const num = (v: string, lo: number) => Math.max(lo, Math.floor(Number(v) || lo))
+
+  // tracked-Pool selection. `tracked: []` is the canonical "all" (auto-tracks
+  // Pools added later); a strict subset is stored as an explicit graph-order id
+  // list. The last remaining Pool cannot be unchecked.
+  const allIds = graphPools.map((p) => p.id)
+  const trackAll = config.tracked.length === 0
+  const isTracked = (id: string) => trackAll || config.tracked.includes(id)
+  const onCount = graphPools.filter((p) => isTracked(p.id)).length
+  const noPools = graphPools.length === 0
+
+  const toggleTracked = (id: string) => {
+    const on = new Set(graphPools.filter((p) => isTracked(p.id)).map((p) => p.id))
+    if (on.has(id)) {
+      if (on.size <= 1) return // keep at least one
+      on.delete(id)
+    } else {
+      on.add(id)
+    }
+    setConfig({ tracked: on.size === allIds.length ? [] : allIds.filter((x) => on.has(x)) })
+  }
 
   return (
     <div className="mcdlg__scrim" onMouseDown={close}>
@@ -121,7 +150,47 @@ export function MonteCarloDialog() {
               }
             />
           </label>
-          <p className="mcdlg__note">Tracking every Pool. Per-Pool selection comes later.</p>
+          <div className="mcdlg__pools">
+            <div className="mcdlg__poolshead">
+              <span>{noPools ? 'tracked pools' : trackAll ? 'tracked · all pools' : `tracked · ${onCount} of ${graphPools.length}`}</span>
+              <button
+                type="button"
+                className="mcdlg__selectall"
+                disabled={running || trackAll || noPools}
+                onClick={() => setConfig({ tracked: [] })}
+              >
+                Select all
+              </button>
+            </div>
+            {noPools ? (
+              <p className="mcdlg__note">No Pools in the graph — add one to run.</p>
+            ) : (
+              <>
+                <div className="mcdlg__poollist" role="group" aria-label="Tracked Pools">
+                  {graphPools.map((p) => {
+                    const on = isTracked(p.id)
+                    const last = on && onCount === 1
+                    return (
+                      <label
+                        key={p.id}
+                        className="mcdlg__pool"
+                        title={last ? 'At least one Pool must stay tracked' : undefined}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          disabled={running || last}
+                          onChange={() => toggleTracked(p.id)}
+                        />
+                        {p.label}
+                      </label>
+                    )
+                  })}
+                </div>
+                <p className="mcdlg__note">At least one Pool must stay tracked.</p>
+              </>
+            )}
+          </div>
 
           <div className={`mcdlg__cost${overLimit ? ' is-over' : ''}`}>
             {estimating && !estimate ? (
@@ -185,7 +254,7 @@ export function MonteCarloDialog() {
             <button
               type="button"
               className="btn btn--primary"
-              disabled={overLimit || (estimating && !estimate)}
+              disabled={overLimit || noPools || (estimating && !estimate)}
               onClick={() => void run()}
             >
               Run {config.runs}×
