@@ -73,6 +73,10 @@ function NodeFrame({
   const path = SILHOUETTE[kind]
   return (
     <div className={`nodef nodef--${kind}${selected ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}>
+      {/* state ports (diamonds) — top in, bottom out */}
+      <Handle type="target" position={Position.Top} id="state-target" className="h h--state" />
+      <Handle type="source" position={Position.Bottom} id="state-source" className="h h--state" />
+
       <svg className="nodef__shape" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">
         <path className="nodef__fill" d={path} />
         <path className="nodef__stroke" d={path} />
@@ -112,7 +116,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
   const shown = live ?? d.initial
   const stepKey = useSimStore((s) => s.stepIndex)
   const arriving = useSimStore((s) => s.arrivedPoolIds.includes(id))
-  const sub = d.capacity != null ? `${d.mode} · max ${d.capacity}` : d.mode
+  // Pool's face is its count; mode / capacity stay in the inspector
   return (
     <>
       <Handle type="target" position={Position.Left} className="h h--in" />
@@ -121,7 +125,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
         title={d.label}
         value={fmt(shown)}
         valueDir={useValueDir(shown)}
-        sub={sub}
+        sub={d.capacity != null ? `≤ ${d.capacity}` : undefined}
         selected={selected}
         firing={useFiring(id)}
         arriving={arriving}

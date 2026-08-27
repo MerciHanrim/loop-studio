@@ -70,8 +70,14 @@
 
   --radius: 10px;
 
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans KR', sans-serif;
+  /* Track · Bead · Vessel — one type system: Plex Sans for language,
+     Plex Mono (tabular) for every quantity */
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
+    Consolas, monospace;
+
+  font-family: var(--font-sans);
   color: var(--text-primary);
 }
 
@@ -230,25 +236,53 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 650;
-  letter-spacing: 0.2px;
   color: var(--text-primary);
 }
 
 .toolbar__mark {
+  display: inline-flex;
   color: var(--signal-primary);
-  font-size: 18px;
 }
 
-.toolbar__tag {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-tertiary);
-  border: 1px solid var(--line-structure);
-  padding: 1px 6px;
-  border-radius: 999px;
+.toolbar__word {
+  font-family: var(--font-sans);
   font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+/* PREVIEW — a thin capsule, never louder than the product name */
+.toolbar__tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+  border: 1px solid var(--line-hairline);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ---- L1 Broken Orbit ---- */
+.logo {
+  display: block;
+  overflow: visible;
+}
+.logo__track {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.logo__bead {
+  fill: var(--signal-primary);
+  transition: cx 120ms ease-out, cy 120ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo__bead {
+    transition: none;
+  }
 }
 
 .toolbar__palette {
@@ -268,9 +302,9 @@ body {
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 550;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
   background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--line-structure);
@@ -294,9 +328,9 @@ body {
 
 .btn {
   padding: 5px 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 550;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
   background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--line-structure);
@@ -384,7 +418,8 @@ body {
   position: relative;
   display: inline-flex;
   min-width: 118px;
-  height: 60px;
+  height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18) */
+  font-family: var(--font-sans);
   font-size: 12px;
   filter: var(--elev-node);
 }
@@ -467,9 +502,9 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   width: 100%;
-  padding: 8px 16px;
+  padding: 6px 16px;
   pointer-events: none;
 }
 .nodef--source .nodef__body {
@@ -520,19 +555,23 @@ body {
   flex: none;
 }
 .nodef__title {
-  font-weight: 650;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .nodef__value {
-  font-size: 19px;
-  font-weight: 750;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   display: inline-block;
   transform-origin: left center;
+  line-height: 1.15;
 }
 .nodef__value--up,
 .nodef__value--down {
@@ -547,9 +586,11 @@ body {
   }
 }
 .nodef__sub {
+  font-family: var(--font-sans);
+  font-weight: 400;
   color: var(--text-tertiary);
-  font-size: 10px;
-  letter-spacing: 0.2px;
+  font-size: 12px;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -586,16 +627,48 @@ body {
   border-radius: 4px;
 }
 
+/* ports are track entry points, not decoration */
 .react-flow__handle {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   background: var(--surface-raised);
-  border: 1.5px solid var(--line-structure);
+  border: 1.25px solid var(--line-strong);
   border-radius: 999px;
 }
-.react-flow__handle.h--in,
-.react-flow__handle.h--out {
-  border-color: var(--line-strong);
+/* generous invisible hit area (≥16px) without enlarging the mark */
+.react-flow__handle::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+}
+/* state port — a hollow diamond (rotated square, keeping RF's centring) */
+.react-flow__handle.h--state {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  border-color: var(--line-structure);
+}
+.react-flow__handle.h--state.react-flow__handle-top {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.react-flow__handle.h--state.react-flow__handle-bottom {
+  transform: translate(-50%, 50%) rotate(45deg);
+}
+.react-flow__handle.h--state::before {
+  border-radius: 0;
+}
+/* hover / active connection — a soft outer halo */
+.react-flow__handle:hover {
+  box-shadow: 0 0 0 4px var(--signal-primary-soft);
+}
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto {
+  box-shadow: 0 0 0 4px var(--signal-primary-soft);
+}
+.react-flow__handle.valid {
+  border-color: var(--signal-primary);
+  box-shadow: 0 0 0 3px var(--signal-primary-soft);
 }
 
 /* ==== flow tokens — T1 Bead, compressing toward T3 at speed ============== */
@@ -651,8 +724,9 @@ body {
   gap: 6px;
 }
 .pb-btn {
-  font: inherit;
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
   padding: 3px 9px;
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -679,6 +753,8 @@ body {
   background: var(--signal-primary-soft);
 }
 .pstrip__step {
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
@@ -688,19 +764,26 @@ body {
   gap: 6px;
   color: var(--text-tertiary);
 }
+.pstrip__field > span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
 .pstrip__field input[type='range'] {
   width: 110px;
-  accent-color: var(--line-strong);
+  accent-color: var(--signal-primary);
 }
 .pstrip__seed {
-  width: 56px;
-  font: inherit;
-  font-size: 12px;
+  width: 52px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   padding: 2px 4px;
   border: 1px solid var(--line-structure);
   border-radius: 5px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .pstrip__collapse {
   margin-left: auto;
@@ -729,8 +812,10 @@ body {
   align-items: center;
   gap: 12px;
   padding: 5px 12px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -740,6 +825,7 @@ body {
   gap: 12px;
   text-transform: none;
   letter-spacing: 0;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 .timeline__key {
@@ -755,10 +841,13 @@ body {
   background: var(--hue-pool);
   flex: none;
 }
-.timeline__svg {
+.timeline__plot {
   flex: 1;
-  width: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+.timeline__svg {
+  display: block;
 }
 .timeline__grid {
   stroke: var(--line-hairline);
@@ -772,13 +861,15 @@ body {
 }
 .timeline__tick {
   fill: var(--text-tertiary);
-  font-size: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+/* paused guide shares the state-edge dash grammar */
 .timeline__guide {
   stroke: var(--state-guide);
   stroke-width: 1;
-  stroke-dasharray: 3 3;
+  stroke-dasharray: 4 4;
   opacity: 0.85;
 }
 .timeline__line {
@@ -798,11 +889,42 @@ body {
     stroke-dashoffset: 0;
   }
 }
+/* Bead — the same solid dot as the moving token, now the chart's current value */
+.timeline__bead {
+  fill: var(--hue-pool);
+}
+.timeline__arrival {
+  fill: none;
+  stroke: var(--signal-primary);
+  stroke-width: 1.25;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chartArrive 0.12s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes chartArrive {
+  from {
+    transform: scale(0.3);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
 .timeline__endlabel {
   fill: var(--text-primary);
-  font-size: 9px;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .timeline__arrival {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

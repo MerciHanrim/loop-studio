@@ -3,6 +3,7 @@ import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { NodeKind } from '../model/types'
+import { Logo } from './Logo'
 import { ThemeToggle } from './ThemeToggle'
 
 const DND_TYPE = 'application/loop-node'
@@ -65,8 +66,10 @@ export function Toolbar() {
   return (
     <header className="toolbar">
       <div className="toolbar__brand">
-        <span className="toolbar__mark">◉</span>
-        <span>Loop Studio</span>
+        <span className="toolbar__mark">
+          <Logo />
+        </span>
+        <span className="toolbar__word">Loop Studio</span>
         <span className="toolbar__tag">preview</span>
       </div>
 

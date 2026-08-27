@@ -83,7 +83,8 @@ function LoopEdge({
               ? 'var(--edge-state)'
               : 'var(--edge-resource)',
           strokeWidth: selected ? 2 : isState ? 1 : 1.5,
-          strokeDasharray: isState ? '5 4' : undefined,
+          strokeDasharray: isState ? '4 4' : undefined,
+          strokeLinecap: isState ? 'butt' : 'round',
         }}
       />
 

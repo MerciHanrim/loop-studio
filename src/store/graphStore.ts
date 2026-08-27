@@ -109,6 +109,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     onConnect: (conn) => {
       if (!conn.source || !conn.target) return
+      const viaState =
+        conn.sourceHandle?.startsWith('state') || conn.targetHandle?.startsWith('state')
       const edge: LoopEdge = {
         id: nextId('e'),
         source: conn.source,
@@ -116,8 +118,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         sourceHandle: conn.sourceHandle ?? null,
         targetHandle: conn.targetHandle ?? null,
         type: 'loop',
-        data: { kind: 'resource', flow: '1' },
-        markerEnd: { type: MarkerType.ArrowClosed },
+        data: viaState
+          ? { kind: 'state', mode: 'trigger', expr: '' }
+          : { kind: 'resource', flow: '1' },
+        markerEnd: viaState ? undefined : { type: MarkerType.ArrowClosed },
       }
       set({ edges: addEdge(edge, get().edges) })
       persist()
