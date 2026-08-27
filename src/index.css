@@ -1149,3 +1149,244 @@ body {
   outline-offset: 1px;
   border-color: var(--line-strong);
 }
+
+/* ==== P2 — Monte Carlo ================================================== */
+.btn--primary {
+  border-color: var(--signal-primary);
+  color: var(--signal-primary);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--signal-primary-soft);
+  border-color: var(--signal-primary);
+}
+
+/* strip entry + running state */
+.pstrip__mc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.pstrip__mcprog {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--signal-primary);
+}
+
+/* LIVE | DISTRIBUTION switch in the timeline header */
+.timeline__viewswitch {
+  display: inline-flex;
+  gap: 2px;
+}
+.timeline__viewtab {
+  border: 1px solid var(--line-structure);
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.timeline__viewtab:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.timeline__viewtab:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: 0;
+}
+.timeline__viewtab.is-on {
+  background: var(--signal-primary-soft);
+  border-color: var(--signal-primary);
+  color: var(--text-primary);
+}
+
+/* distribution panel (checkpoint 1: stats + export + placeholder) */
+.dist {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 10px;
+}
+.dist__stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 2px 0 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.dist__stat b {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.dist__stale {
+  color: var(--warning, #b26a1f);
+  font-size: 10px;
+}
+.dist__spacer {
+  flex: 1;
+}
+.dist__exports {
+  display: flex;
+  gap: 6px;
+}
+.dist__plot {
+  flex: 1;
+  min-height: 0;
+  border: 1px dashed var(--line-structure);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dist__plot--placeholder {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+/* setup dialog */
+.mcdlg__scrim {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface-ground) 62%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+.mcdlg {
+  width: 340px;
+  background: var(--surface-panel);
+  border: 1px solid var(--line-structure);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+.mcdlg__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-hairline);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.mcdlg__x {
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+}
+.mcdlg__body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mcdlg__field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.mcdlg__field > span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+}
+.mcdlg__field input {
+  width: 96px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.mcdlg__note {
+  margin: 0;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.mcdlg__cost {
+  border: 1px solid var(--line-hairline);
+  border-radius: 7px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+}
+.mcdlg__cost.is-over {
+  border-color: var(--warning, #b26a1f);
+}
+.mcdlg__costline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.mcdlg__costline b {
+  color: var(--text-primary);
+}
+.mcdlg__path {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.mcdlg__over {
+  color: var(--warning, #b26a1f);
+  font-size: 10px;
+}
+.mcdlg__progress {
+  position: relative;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.mcdlg__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--signal-primary);
+  transition: width 120ms linear;
+}
+.mcdlg__pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  mix-blend-mode: difference;
+}
+.mcdlg__foot {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line-hairline);
+}
+.mcdlg__foot .btn:last-child {
+  margin-left: auto;
+}

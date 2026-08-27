@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
+import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
+import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 
 // A — chart discipline: the canvas token, carried down onto the time axis.
@@ -150,6 +152,11 @@ export function TimelineChart() {
   const { w, h } = view
   const hasRun = series.length >= 2
 
+  const mcResult = useMcStore((s) => s.result)
+  const mcView = useMcStore((s) => s.view)
+  const setMcView = useMcStore((s) => s.setView)
+  const showDistribution = mcResult != null && mcView === 'distribution'
+
   return (
     <div className={`timeline${collapsed ? ' is-collapsed' : ''}`}>
       <PlayBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
@@ -157,8 +164,31 @@ export function TimelineChart() {
       {!collapsed ? (
         <div className="timeline__panel">
           <div className="timeline__head">
-            <span>timeline</span>
-            <span className="timeline__legend">
+            {mcResult != null ? (
+              <span className="timeline__viewswitch" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={!showDistribution}
+                  className={`timeline__viewtab${!showDistribution ? ' is-on' : ''}`}
+                  onClick={() => setMcView('live')}
+                >
+                  LIVE
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={showDistribution}
+                  className={`timeline__viewtab${showDistribution ? ' is-on' : ''}`}
+                  onClick={() => setMcView('distribution')}
+                >
+                  DISTRIBUTION
+                </button>
+              </span>
+            ) : (
+              <span>timeline</span>
+            )}
+            <span className="timeline__legend" hidden={showDistribution}>
               {pools.map((p) => {
                 const on = isTracked(p.id)
                 const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
@@ -187,7 +217,9 @@ export function TimelineChart() {
             </span>
           </div>
 
-          <div className="timeline__plot" ref={plotRef}>
+          {showDistribution ? <DistributionPanel /> : null}
+
+          <div className="timeline__plot" ref={plotRef} hidden={showDistribution}>
             <svg className="timeline__svg" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
               <line
                 className="timeline__axis"

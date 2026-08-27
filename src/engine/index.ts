@@ -45,6 +45,7 @@ export {
   type RunOptions,
 } from './montecarlo'
 export { canUseWorkers, runMonteCarloParallel, type ParallelOptions } from './montecarlo.parallel'
+export { estimateMonteCarloCost, type CostEstimate } from './montecarlo.estimate'
 export {
   EPSILON,
   type FlowEvent,

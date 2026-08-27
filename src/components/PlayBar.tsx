@@ -1,3 +1,4 @@
+import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 
 // P2 — playback lives in the chart-header strip, treated as part of the time
@@ -24,6 +25,13 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const reset = useSimStore((s) => s.reset)
   const setSpeed = useSimStore((s) => s.setSpeed)
   const setSeed = useSimStore((s) => s.setSeed)
+
+  const mcStatus = useMcStore((s) => s.status)
+  const mcProgress = useMcStore((s) => s.progress)
+  const mcMessage = useMcStore((s) => s.message)
+  const openMcDialog = useMcStore((s) => s.openDialog)
+  const cancelMc = useMcStore((s) => s.cancel)
+  const mcRunning = mcStatus === 'running'
 
   const running = status === 'running'
   const ended = status === 'ended'
@@ -91,6 +99,28 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           onChange={(e) => setSeed(Number(e.target.value))}
         />
       </label>
+
+      <span className="pstrip__mc">
+        {mcRunning ? (
+          <>
+            <span className="pstrip__mcprog" title="Monte-Carlo run in progress">
+              Monte Carlo {Math.round(mcProgress * 100)}%
+            </span>
+            <button type="button" className="pb-btn" onClick={cancelMc}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="pb-btn"
+            onClick={openMcDialog}
+            title="Run the diagram many times and see the distribution"
+          >
+            Monte Carlo{mcMessage ? ` · ${mcMessage}` : ''}
+          </button>
+        )}
+      </span>
 
       <button
         type="button"

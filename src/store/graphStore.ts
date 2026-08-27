@@ -27,9 +27,11 @@ type GraphStore = {
   selectedNodeId: string | null
   selectedEdgeId: string | null
 
-  /** bumped on any change that affects a simulation (structure or node/edge
-   *  data) — NOT position or selection. The sim store watches this to reset. */
-  structureRev: number
+  /** bumped only on changes that alter what a simulation computes — structure
+   *  (add/remove/connect) and simulation-relevant node/edge data. NOT position,
+   *  selection, or a pure `label` rename. The sim store and the Monte-Carlo
+   *  store watch this (to reset / to mark results stale). */
+  simulationRev: number
 
   past: Snapshot[]
   future: Snapshot[]
@@ -139,14 +141,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   }
 
   /** Signal a simulation-relevant change (structure or node/edge data). */
-  const bump = () => set({ structureRev: get().structureRev + 1 })
+  const bump = () => set({ simulationRev: get().simulationRev + 1 })
 
   return {
     nodes: boot.nodes,
     edges: boot.edges,
     selectedNodeId: null,
     selectedEdgeId: null,
-    structureRev: 0,
+    simulationRev: 0,
     past: [],
     future: [],
     canUndo: false,
@@ -267,7 +269,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
         ),
       })
-      bump()
+      // a pure `label` rename does not change what a simulation computes
+      if (Object.keys(patch).some((k) => k !== 'label')) bump()
       persist()
     },
 
