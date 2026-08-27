@@ -1,0 +1,263 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "source_mtc00jt3_1",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 0
+      },
+      "data": {
+        "kind": "source",
+        "label": "Det Source",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "pool_mtc00jt3_2",
+      "type": "pool",
+      "position": {
+        "x": 260,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Det Pool",
+        "activation": "passive",
+        "initial": 1,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "drain_mtc00jt3_3",
+      "type": "drain",
+      "position": {
+        "x": 480,
+        "y": 0
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Det Drain",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "source_mtc00jt4_4",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 200
+      },
+      "data": {
+        "kind": "source",
+        "label": "Dice Source",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "pool_mtc00jt4_5",
+      "type": "pool",
+      "position": {
+        "x": 260,
+        "y": 200
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Dice Pool",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "drain_mtc00jt4_6",
+      "type": "drain",
+      "position": {
+        "x": 480,
+        "y": 200
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Dice Drain",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pool_mtc00jt4_7",
+      "type": "pool",
+      "position": {
+        "x": 40,
+        "y": 400
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gate In",
+        "activation": "passive",
+        "initial": 1000,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "gate_mtc00jt4_8",
+      "type": "gate",
+      "position": {
+        "x": 260,
+        "y": 400
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Split",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "pool_mtc00jt4_9",
+      "type": "pool",
+      "position": {
+        "x": 480,
+        "y": 360
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gate A",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "pool_mtc00jt4_a",
+      "type": "pool",
+      "position": {
+        "x": 480,
+        "y": 460
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gate B",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_mtc00jt4_b",
+      "source": "source_mtc00jt3_1",
+      "target": "pool_mtc00jt3_2",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_mtc00jt4_c",
+      "source": "pool_mtc00jt3_2",
+      "target": "drain_mtc00jt3_3",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_mtc00jt4_d",
+      "source": "source_mtc00jt4_4",
+      "target": "pool_mtc00jt4_5",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2D6"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_mtc00jt4_e",
+      "source": "pool_mtc00jt4_5",
+      "target": "drain_mtc00jt4_6",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1-3"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_mtc00jt4_f",
+      "source": "pool_mtc00jt4_7",
+      "target": "gate_mtc00jt4_8",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_mtc00jt4_g",
+      "source": "gate_mtc00jt4_8",
+      "target": "pool_mtc00jt4_9",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_mtc00jt4_h",
+      "source": "gate_mtc00jt4_8",
+      "target": "pool_mtc00jt4_a",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    }
+  ]
+}
