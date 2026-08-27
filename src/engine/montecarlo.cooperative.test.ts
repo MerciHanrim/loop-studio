@@ -94,19 +94,16 @@ describe('runMonteCarloCooperative — event loop', () => {
   })
 
   it('the synchronous reference does NOT let a pending macrotask run before it returns', async () => {
-    const probe = new MessageChannel()
+    // a setTimeout(0) probe: FIFO timer order in Node makes the "eventually
+    // ran" leg reliable, unlike a MessageChannel here.
     let ran = false
-    probe.port1.onmessage = () => {
+    setTimeout(() => {
       ran = true
-    }
-    probe.port1.start?.()
-    probe.port2.postMessage(null)
+    }, 0)
     runMonteCarlo(nodes, edges, { ...cfg, runs: 400 })
-    expect(ran).toBe(false) // sync path never yielded
-    await new Promise((r) => setTimeout(r, 0))
+    expect(ran).toBe(false) // sync path blocked the loop entirely
+    await new Promise((r) => setTimeout(r, 0)) // now let the loop turn
     expect(ran).toBe(true)
-    probe.port1.close()
-    probe.port2.close()
   })
 })
 
