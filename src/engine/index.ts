@@ -1,2 +1,10 @@
 export { initSim, step } from './step'
-export type { FlowEvent, SimState, SimValues, StepResult } from './types'
+export { parseFlow, evalDet, rateOf, isRandom, type FlowExpr } from './flow'
+export {
+  EPSILON,
+  type FlowEvent,
+  type SimState,
+  type SimValues,
+  type StepReport,
+  type StepResult,
+} from './types'

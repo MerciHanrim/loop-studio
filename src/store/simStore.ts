@@ -54,7 +54,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     const activeByEdge: Record<string, number> = {}
     const arrived = new Set<string>()
     const kindOf = new Map(g.nodes.map((n) => [n.id, n.data.kind]))
-    for (const ev of r.events) {
+    for (const ev of r.report.events) {
       activeByEdge[ev.edgeId] = (activeByEdge[ev.edgeId] ?? 0) + ev.amount
       if (kindOf.get(ev.to) === 'pool') arrived.add(ev.to)
     }
@@ -63,7 +63,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       values: r.state.values,
       stepIndex: r.state.step,
       activeByEdge,
-      firedNodeIds: r.firedNodeIds,
+      firedNodeIds: r.report.fired,
       arrivedPoolIds: [...arrived],
       series: [...s.series, { step: r.state.step, values: r.state.values }].slice(-MAX_SERIES),
       status: r.state.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,

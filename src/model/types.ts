@@ -51,6 +51,8 @@ export type GateData = {
   label: string
   activation: Activation
   distribution: GateDistribution
+  /** all-or-nothing intake; optional, defaults to 'pullAny' */
+  mode?: PullMode
 }
 
 export type ConverterData = {
@@ -64,6 +66,8 @@ export type EndData = {
   kind: 'end'
   label: string
   activation: Activation
+  /** all-or-nothing intake when pool-fed; optional, defaults to 'pullAny' */
+  mode?: PullMode
 }
 
 export type NodeData =
