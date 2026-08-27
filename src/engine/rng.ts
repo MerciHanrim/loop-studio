@@ -77,6 +77,21 @@ export type Sample = {
 }
 
 /**
+ * The `loop-rng/1` mixing path: `key` → FNV-1a 32-bit → one `mulberry32`
+ * output. Returns `{ key, hash, out, u }`. Every `sample()` and every
+ * `loop-mc-seed/1` `runSeed()` goes through exactly this.
+ */
+export function mix32(key: string): Sample {
+  const hash = fnv1a32(key)
+  let a = hash | 0
+  a = (a + 0x6d2b79f5) | 0
+  let t = Math.imul(a ^ (a >>> 15), 1 | a)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  const out = (t ^ (t >>> 14)) >>> 0
+  return { key, hash, out, u: out / 4294967296 }
+}
+
+/**
  * One draw. Pure: same key ⇒ same result, always. `seed`, `step`, `drawIndex`
  * are non-negative integers; `elementId` must not contain `|` (the id generator
  * guarantees this).
@@ -88,14 +103,7 @@ export function sample(
   purpose: DrawPurpose,
   drawIndex: number,
 ): Sample {
-  const key = `${seed}|${step}|${elementId}|${purpose}|${drawIndex}`
-  const hash = fnv1a32(key)
-  let a = hash | 0
-  a = (a + 0x6d2b79f5) | 0
-  let t = Math.imul(a ^ (a >>> 15), 1 | a)
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-  const out = (t ^ (t >>> 14)) >>> 0
-  return { key, hash, out, u: out / 4294967296 }
+  return mix32(`${seed}|${step}|${elementId}|${purpose}|${drawIndex}`)
 }
 
 /** Inclusive uniform integer in [lo, hi] from `u ∈ [0, 1)`. */

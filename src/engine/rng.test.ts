@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RNG_SPEC, categorical, die, fnv1a32, rangeInt, sample, utf8Bytes } from './rng'
+import { RNG_SPEC, categorical, die, fnv1a32, mix32, rangeInt, sample, utf8Bytes } from './rng'
 
 // Frozen vectors — SEMANTICS-B1.md §B7. Any change here is a spec change.
 
@@ -63,6 +63,30 @@ describe('rng — sample() stage vectors (frozen)', () => {
     const a = sample(1, 3, 'e9', 'flow-die', 2)
     const b = sample(1, 3, 'e9', 'flow-die', 2)
     expect(b).toEqual(a)
+  })
+
+  it('sample() is exactly mix32() of the canonical key string', () => {
+    expect(sample(1, 1, 'e1', 'flow-die', 0)).toEqual(mix32('1|1|e1|flow-die|0'))
+    expect(sample(2, 1, 'e1', 'flow-range', 0)).toEqual(mix32('2|1|e1|flow-range|0'))
+  })
+
+  it('mix32 — loop-mc-seed/1 runSeed vectors (frozen, baseSeed 1)', () => {
+    // runSeed(1, i) = mix32("1|run|<i>").out
+    const expected: Array<[string, number, number]> = [
+      ['1|run|0', 0x20d40ea1, 1119822658],
+      ['1|run|1', 0x1fd40d0e, 2846739420],
+      ['1|run|2', 0x1ed40b7b, 1652246540],
+      ['1|run|3', 0x1dd409e8, 2344041868],
+      ['1|run|4', 0x24d414ed, 2234127498],
+      ['1|run|5', 0x23d4135a, 2381107215],
+      ['1|run|6', 0x22d411c7, 3605042148],
+      ['1|run|7', 0x21d41034, 3442733231],
+    ]
+    for (const [key, hash, out] of expected) {
+      const m = mix32(key)
+      expect(m.hash >>> 0).toBe(hash >>> 0)
+      expect(m.out).toBe(out)
+    }
   })
 
   it('every field participates — changing any one changes the draw', () => {
