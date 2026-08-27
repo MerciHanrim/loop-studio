@@ -171,12 +171,56 @@ function resolveTracked(
   return { pools, dropped }
 }
 
-function abortError(completedRuns: number): Error {
+export function abortError(completedRuns: number): Error {
   const e =
     typeof DOMException === 'function'
       ? new DOMException('Monte-Carlo run cancelled', 'AbortError')
       : Object.assign(new Error('Monte-Carlo run cancelled'), { name: 'AbortError' })
   return Object.assign(e, { completedRuns })
+}
+
+export { resolveTracked }
+
+/**
+ * Execute run indices `[startRun, endRun)` and return their raw trajectories in
+ * the run-major envelope layout (SEMANTICS-B2.md §MC7.1):
+ *   values[ ((localRun * (steps+1) + step) * poolCount) + poolIndex ]
+ * `endedAt[localRun]` is the step the run ended on, or `-1`. This is what a
+ * Worker computes and posts back; the main thread de-interleaves and aggregates.
+ */
+export function runRange(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  config: RunConfig,
+  poolIds: string[],
+  startRun: number,
+  endRun: number,
+): { values: Float64Array; endedAt: Int32Array } {
+  const span = config.steps + 1
+  const poolCount = poolIds.length
+  const local = endRun - startRun
+  const values = new Float64Array(local * span * poolCount)
+  const endedAt = new Int32Array(local).fill(-1)
+
+  for (let r = startRun; r < endRun; r++) {
+    const lr = r - startRun
+    const seed = runSeed(config.baseSeed, r)
+    let st = initSim(nodes)
+    for (let p = 0; p < poolCount; p++) values[(lr * span + 0) * poolCount + p] = st.values[poolIds[p]] ?? 0
+    let ended = false
+    for (let t = 1; t <= config.steps; t++) {
+      if (!ended) {
+        st = step(nodes, edges, st, seed).state
+        if (st.ended) {
+          ended = true
+          endedAt[lr] = t
+        }
+      }
+      for (let p = 0; p < poolCount; p++)
+        values[(lr * span + t) * poolCount + p] = st.values[poolIds[p]] ?? 0
+    }
+  }
+  return { values, endedAt }
 }
 
 // ── the synchronous reference ────────────────────────────────────────────
@@ -249,7 +293,29 @@ export function runMonteCarlo(
     }
   }
 
-  // ── aggregate ───────────────────────────────────────────────────────────
+  return aggregateRuns({ pools, runs, steps, store, endedAt, runSeeds, droppedTracked: dropped, config })
+}
+
+/**
+ * The single aggregation path — used by both `runMonteCarlo` (sync) and
+ * `runMonteCarloParallel`, so their results are byte-identical (I11).
+ * `store[p]` is run-major over one Pool: `store[p][run * (steps+1) + t]`.
+ * `endedAt[i]` is the step a run ended on, or `-1`.
+ */
+export function aggregateRuns(params: {
+  pools: { id: string; label: string }[]
+  runs: number
+  steps: number
+  store: Float64Array[]
+  endedAt: Int32Array | number[]
+  runSeeds: number[]
+  droppedTracked: string[]
+  config: RunConfig
+}): MonteCarloResult {
+  const { pools, runs, steps, store, endedAt, runSeeds, droppedTracked, config } = params
+  const span = steps + 1
+  const poolCount = pools.length
+
   const endedCum = new Array<number>(span).fill(0)
   for (let i = 0; i < runs; i++) {
     const e = endedAt[i]
@@ -292,7 +358,7 @@ export function runMonteCarlo(
     rngSpec: 'loop-rng/1',
     config,
     completedRuns: runs,
-    droppedTracked: dropped,
+    droppedTracked,
     pools,
     runSeeds,
     endedRuns: { atOrBeforeStep: endedCum },

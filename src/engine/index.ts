@@ -26,10 +26,12 @@ export {
   CELL_LIMIT,
   MC_SEED_SPEC,
   MC_SPEC,
+  aggregateRuns,
   neumaier,
   projectMemory,
   quantile,
   runMonteCarlo,
+  runRange,
   runSeed,
   toFinalCsv,
   toFinalSummaryCsv,
@@ -42,6 +44,7 @@ export {
   type RunConfig,
   type RunOptions,
 } from './montecarlo'
+export { canUseWorkers, runMonteCarloParallel, type ParallelOptions } from './montecarlo.parallel'
 export {
   EPSILON,
   type FlowEvent,
