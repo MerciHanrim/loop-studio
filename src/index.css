@@ -899,6 +899,11 @@ body {
   font-size: 11px;
   color: var(--text-secondary);
 }
+/* the `display: flex` above otherwise beats the [hidden] UA rule, leaving the
+   LIVE legend competing with the Distribution stats row */
+.timeline__legend[hidden] {
+  display: none;
+}
 .timeline__key {
   display: inline-flex;
   align-items: center;

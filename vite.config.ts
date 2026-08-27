@@ -1,7 +1,8 @@
 import { renameSync } from 'node:fs'
 import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
+import type { Plugin } from 'vite'
+import { configDefaults, defineConfig } from 'vitest/config'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 
 // Three build targets share one React source:
@@ -21,6 +22,11 @@ export default defineConfig(({ mode }) => {
     build: portable
       ? { outDir: 'dist-portable', emptyOutDir: true }
       : {},
+    // `npm test` is the vitest unit suite only; the Playwright specs under e2e/
+    // run via `npm run e2e`.
+    test: {
+      exclude: [...configDefaults.exclude, 'e2e/**'],
+    },
   }
 })
 
