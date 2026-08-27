@@ -141,3 +141,13 @@ export const useSimStore = create<SimStore>((set, get) => {
     },
   }
 })
+
+// Any simulation-relevant graph change stops the timer and returns to step 0,
+// so a run is never observed against a graph it did not come from.
+let lastRev = useGraphStore.getState().structureRev
+useGraphStore.subscribe((g) => {
+  if (g.structureRev !== lastRev) {
+    lastRev = g.structureRev
+    useSimStore.getState().reset()
+  }
+})

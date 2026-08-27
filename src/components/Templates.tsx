@@ -27,8 +27,8 @@ export function Templates() {
     const tpl = TEMPLATES.find((t) => t.id === id)
     if (!tpl) return
     if (hasContent && !window.confirm(`Replace the current diagram with "${tpl.name}"?`)) return
-    loadGraph(tpl.graph)
-    useSimStore.getState().reset()
+    useSimStore.getState().pause() // stop any run before the swap
+    loadGraph(tpl.graph) // one history entry; sim resets off structureRev
     setOpen(false)
   }
 

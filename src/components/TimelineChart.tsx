@@ -89,7 +89,12 @@ export function TimelineChart() {
     [nodes],
   )
   const allPoolIds = useMemo(() => pools.map((p) => p.id), [pools])
-  const isTracked = (id: string) => trackedIds === 'all' || trackedIds.includes(id)
+  // if an explicit list no longer matches any current pool (pools deleted /
+  // graph swapped), fall back to tracking everything
+  const listMatches =
+    Array.isArray(trackedIds) && trackedIds.some((id) => allPoolIds.includes(id))
+  const isTracked = (id: string) =>
+    trackedIds === 'all' || !listMatches || (trackedIds as string[]).includes(id)
   const tracked = pools.filter((p) => isTracked(p.id))
 
   const view = useMemo(() => {

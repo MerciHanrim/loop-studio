@@ -28,6 +28,8 @@ const link = (id: string, source: string, target: string, flow: string): LoopEdg
   id,
   source,
   target,
+  sourceHandle: 'out',
+  targetHandle: 'in',
   type: 'loop',
   data: { kind: 'resource', flow },
   markerEnd: { type: MarkerType.ArrowClosed },

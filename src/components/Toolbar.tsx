@@ -2,7 +2,6 @@ import { useRef } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
-import { useSimStore } from '../store/simStore'
 import type { NodeKind } from '../model/types'
 import { Logo } from './Logo'
 import { Templates } from './Templates'
@@ -29,7 +28,6 @@ export function Toolbar() {
   const redo = useGraphStore((s) => s.redo)
   const canUndo = useGraphStore((s) => s.canUndo)
   const canRedo = useGraphStore((s) => s.canRedo)
-  const resetSim = useSimStore((s) => s.reset)
   const { screenToFlowPosition } = useReactFlow()
 
   const addCentered = (kind: NodeKind) => {
@@ -62,7 +60,6 @@ export function Toolbar() {
       (text) => {
         try {
           loadJSON(text)
-          resetSim()
         } catch (err) {
           window.alert(err instanceof Error ? err.message : 'Could not read that file.')
         }
@@ -102,10 +99,7 @@ export function Toolbar() {
         <button
           type="button"
           className="btn btn--icon"
-          onClick={() => {
-            undo()
-            resetSim()
-          }}
+          onClick={undo}
           disabled={!canUndo}
           title="Undo (Ctrl/Cmd+Z)"
         >
@@ -114,10 +108,7 @@ export function Toolbar() {
         <button
           type="button"
           className="btn btn--icon"
-          onClick={() => {
-            redo()
-            resetSim()
-          }}
+          onClick={redo}
           disabled={!canRedo}
           title="Redo (Ctrl/Cmd+Shift+Z)"
         >
@@ -129,10 +120,7 @@ export function Toolbar() {
           type="button"
           className="btn"
           onClick={() => {
-            if (window.confirm('Clear the canvas and start a new graph?')) {
-              newGraph()
-              resetSim()
-            }
+            if (window.confirm('Clear the canvas and start a new graph?')) newGraph()
           }}
         >
           New
