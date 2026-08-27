@@ -1,0 +1,847 @@
+<title>Loop Studio Design Brief</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap"
+/>
+
+<style>
+  :root {
+    --ground: #f5f6f3;
+    --surface: #ffffff;
+    --surface-sunk: #eef0eb;
+    --ink: #1b2320;
+    --ink-soft: #55605b;
+    --hairline: #dfe3dd;
+    --accent: #0f9b8e;
+    --accent-deep: #0a6a61;
+    --signal: #c07d1f;
+    --gain: #2f8f5b;
+    --loss: #c2543f;
+
+    --node-pool: #4f88a6;
+    --node-source: #5c9c66;
+    --node-drain: #c07f6c;
+    --node-gate: #b0863f;
+    --node-converter: #7d74ac;
+    --node-end: #6f6862;
+
+    --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+    --font-body: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --ground: #14171a;
+      --surface: #1c2023;
+      --surface-sunk: #23282c;
+      --ink: #e7eae5;
+      --ink-soft: #9aa39d;
+      --hairline: #2f363a;
+      --accent: #2ec6b6;
+      --accent-deep: #7fe0d5;
+      --signal: #e2a24e;
+      --gain: #57b97e;
+      --loss: #e0765f;
+
+      --node-pool: #6aa7c4;
+      --node-source: #7cbd86;
+      --node-drain: #dc9a86;
+      --node-gate: #d0a55f;
+      --node-converter: #9d94cc;
+      --node-end: #9a938c;
+    }
+  }
+
+  :root[data-theme='dark'] {
+    --ground: #14171a;
+    --surface: #1c2023;
+    --surface-sunk: #23282c;
+    --ink: #e7eae5;
+    --ink-soft: #9aa39d;
+    --hairline: #2f363a;
+    --accent: #2ec6b6;
+    --accent-deep: #7fe0d5;
+    --signal: #e2a24e;
+    --gain: #57b97e;
+    --loss: #e0765f;
+
+    --node-pool: #6aa7c4;
+    --node-source: #7cbd86;
+    --node-drain: #dc9a86;
+    --node-gate: #d0a55f;
+    --node-converter: #9d94cc;
+    --node-end: #9a938c;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.62;
+    font-synthesis: none;
+  }
+
+  .page {
+    max-width: 912px;
+    margin: 0 auto;
+    padding: clamp(28px, 6vw, 76px) clamp(20px, 5vw, 44px) 120px;
+  }
+
+  .measure {
+    max-width: 62ch;
+  }
+
+  /* ---- masthead ---- */
+  .masthead {
+    margin-bottom: 3.25rem;
+  }
+
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    margin: 0 0 1.1rem;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5.4vw, 2.9rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+
+  .dek {
+    font-size: 1.2rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    margin: 0 0 1.75rem;
+    max-width: 54ch;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hairline);
+  }
+  .meta b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ---- blocks ---- */
+  .block {
+    margin-top: 3.25rem;
+    padding-top: 3.25rem;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin: 0 0 0.85rem;
+    color: var(--ink-soft);
+  }
+  .eyebrow--ask {
+    color: var(--signal);
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    text-wrap: balance;
+    margin: 0 0 1.1rem;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.06rem;
+    letter-spacing: -0.005em;
+    margin: 2rem 0 0.5rem;
+  }
+
+  p {
+    margin: 0 0 1.1rem;
+  }
+
+  a {
+    color: var(--accent-deep);
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--surface-sunk);
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+  }
+
+  ul {
+    margin: 0 0 1.1rem;
+    padding-left: 1.1rem;
+  }
+  li {
+    margin: 0 0 0.55rem;
+  }
+
+  .lede {
+    font-size: 1.16rem;
+    line-height: 1.5;
+  }
+
+  /* ---- decision list ---- */
+  .decisions {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .decisions > li {
+    margin: 0;
+    padding: 1.25rem 1.35rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--signal);
+    border-radius: 10px;
+  }
+  .decisions h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.04rem;
+  }
+  .decisions p {
+    margin: 0 0 0.5rem;
+    font-size: 0.98rem;
+  }
+  .decisions p:last-child {
+    margin-bottom: 0;
+  }
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* ---- figure / wireframe ---- */
+  .wide {
+    margin: 2rem 0;
+  }
+
+  figure {
+    margin: 0;
+  }
+  .frame {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+  }
+  .frame .fill {
+    fill: var(--surface);
+  }
+  .frame .sunk {
+    fill: var(--surface-sunk);
+  }
+  .frame .line {
+    stroke: var(--hairline);
+    stroke-width: 1.5;
+    fill: none;
+  }
+  .frame .dash {
+    stroke: var(--signal);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    fill: none;
+  }
+  .frame .lbl {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    fill: var(--ink);
+  }
+  .frame .lbl-soft {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    fill: var(--ink-soft);
+  }
+  .frame .lbl-new {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--signal);
+    letter-spacing: 0.1em;
+  }
+  figcaption {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 0.75rem;
+  }
+
+  /* ---- table ---- */
+  .scroll-x {
+    overflow-x: auto;
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 640px;
+    font-size: 0.95rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: var(--surface-sunk);
+  }
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .n-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    vertical-align: baseline;
+  }
+  .row-sep td {
+    border-bottom: 2px solid var(--ink-soft);
+  }
+
+  /* ---- swatches ---- */
+  .swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .swatches li {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 7px;
+    padding: 0.35rem 0.6rem 0.35rem 0.4rem;
+  }
+  .chip {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    flex: none;
+  }
+
+  .callout {
+    margin: 1.5rem 0 0;
+    padding: 1rem 1.2rem;
+    background: var(--surface-sunk);
+    border-radius: 9px;
+    font-size: 0.97rem;
+    color: var(--ink-soft);
+  }
+  .callout strong {
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  @media (max-width: 560px) {
+    body {
+      font-size: 16px;
+    }
+    .decisions > li {
+      padding: 1.1rem 1.1rem;
+    }
+  }
+</style>
+
+<article class="page">
+  <header class="masthead">
+    <p class="kicker">Design brief &nbsp;·&nbsp; for Lumi</p>
+    <h1>Making the diagram run</h1>
+    <p class="dek">
+      Loop Studio lets someone model a game's economy as a diagram and then press
+      play to watch it work. The editor exists in rough form. What needs design is
+      the running part &mdash; the moment the diagram comes alive.
+    </p>
+    <div class="meta">
+      <span><b>From</b> Hanrim · Cozy Shelter</span>
+      <span><b>Date</b> 2026&#8209;08&#8209;27</span>
+      <span><b>State</b> editor shell built · playback undesigned</span>
+      <span><b>Stack</b> React + React&nbsp;Flow, client&#8209;only</span>
+    </div>
+  </header>
+
+  <section class="block">
+    <p class="eyebrow">Context</p>
+    <h2>What Loop Studio is</h2>
+    <div class="measure">
+      <p>
+        <strong>Machinations</strong> is an established notation for modelling game
+        systems: resources flow between <em>pools</em>, are made by <em>sources</em>,
+        removed by <em>drains</em>, routed by <em>gates</em>, and traded by
+        <em>converters</em>. You draw the graph, hit play, and the tool simulates it
+        &mdash; numbers move, feedback loops cycle, and a chart plots the outcome over
+        time. It is a commercial web app used by economy designers at game studios.
+      </p>
+      <p>
+        <strong>Loop Studio</strong> is an independent, browser-only take on the same
+        idea. Nothing is uploaded; a diagram is a plain JSON file the user owns. It
+        started as one tool in the Cozy Shelter tools suite and is now being pulled
+        out to stand on its own &mdash; which is why its visual identity is open rather
+        than inherited.
+      </p>
+      <p>
+        The node canvas, the property inspector, and file load/save are working. The
+        simulation engine and everything you'd watch while it runs are what this brief
+        is about.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">The brief</p>
+    <h2>The experience to design</h2>
+    <div class="measure">
+      <p class="lede">
+        A person wires up a small system, presses <strong>play</strong>, and the
+        diagram starts running one step at a time. They should be able to <em>see the
+        logic happen</em>.
+      </p>
+      <p>Concretely, on each step of the run:</p>
+      <ul>
+        <li>sources spawn new resources;</li>
+        <li>
+          resources travel visibly along the connections &mdash; this is the signature
+          image of the whole product;
+        </li>
+        <li>pools' counts tick up and down as resources arrive and leave;</li>
+        <li>gates split or randomise the flow; converters trade it;</li>
+        <li>the nodes that acted this step register that they acted;</li>
+        <li>
+          a timeline chart at the bottom extends by one point, drawing every pool's
+          value as the run goes.
+        </li>
+      </ul>
+      <p>
+        The user controls the pace with a speed slider, can single&#8209;step to inspect
+        a moment, and can reset to replay from the start. Over a few hundred steps the
+        shape of the system &mdash; runaway growth, a stable loop, a slow bleed &mdash;
+        should become legible from the motion and the chart together.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Fixed &mdash; the shell it lives in</p>
+    <h2>App layout</h2>
+    <div class="measure">
+      <p>
+        Five regions. The toolbar, canvas, and inspector are in place. The
+        <strong>timeline chart</strong> is a new region to design. Where the
+        <strong>playback controls</strong> sit is an open call &mdash; the dashed shape
+        below is a guess, not a spec.
+      </p>
+    </div>
+    <div class="wide">
+      <figure>
+        <svg
+          class="frame"
+          viewBox="0 0 900 470"
+          role="img"
+          aria-label="Wireframe of the Loop Studio window: a top toolbar, a right-hand inspector, a central canvas, a new timeline chart along the bottom, and a floating playback control bar of undecided placement."
+        >
+          <rect x="16" y="16" width="868" height="438" rx="14" class="line" />
+          <!-- toolbar -->
+          <rect x="16" y="16" width="868" height="44" rx="14" class="sunk" />
+          <rect x="16" y="46" width="868" height="14" class="sunk" />
+          <text x="34" y="43" class="lbl">Toolbar</text>
+          <text x="120" y="43" class="lbl-soft">node palette · new · import · export</text>
+          <!-- inspector -->
+          <rect x="710" y="60" width="174" height="394" class="fill" />
+          <line x1="710" y1="60" x2="710" y2="454" class="line" />
+          <text x="726" y="86" class="lbl">Inspector</text>
+          <text x="726" y="106" class="lbl-soft">selected node</text>
+          <text x="726" y="122" class="lbl-soft">or connection</text>
+          <!-- canvas -->
+          <rect x="16" y="60" width="694" height="270" class="fill" />
+          <text x="34" y="86" class="lbl">Canvas</text>
+          <text x="34" y="106" class="lbl-soft">diagram + running simulation</text>
+          <circle cx="150" cy="200" r="16" class="line" />
+          <circle cx="330" cy="180" r="16" class="line" />
+          <circle cx="520" cy="220" r="16" class="line" />
+          <path d="M166 198 C 230 190, 270 184, 314 182" class="line" />
+          <path d="M346 184 C 410 196, 450 208, 504 216" class="line" />
+          <!-- playback (floating, undecided) -->
+          <rect x="250" y="286" width="226" height="34" rx="17" class="dash" />
+          <text x="278" y="307" class="lbl-new">PLACEMENT OPEN</text>
+          <text x="392" y="307" class="lbl-soft">playback</text>
+          <!-- timeline -->
+          <rect x="16" y="330" width="694" height="124" class="sunk" />
+          <line x1="16" y1="330" x2="710" y2="330" class="line" />
+          <text x="34" y="356" class="lbl">Timeline chart</text>
+          <text x="150" y="356" class="lbl-new">NEW</text>
+          <polyline points="34,436 120,420 200,424 280,398 360,404 440,372 520,388 600,350 680,364" class="line" />
+        </svg>
+        <figcaption>Regions, not proportions. The chart height and control placement are yours to decide.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Fixed &mdash; the technology</p>
+    <h2>Built on React Flow</h2>
+    <div class="measure">
+      <p>
+        The canvas is <a href="https://reactflow.dev">React Flow</a>. That fixes a few
+        things any design has to live with:
+      </p>
+      <ul>
+        <li>
+          <strong>Nodes are HTML/SVG cards</strong> on a pan-and-zoom surface, roughly
+          110&ndash;190&nbsp;px wide, each with connection handles on its sides.
+          Anything expressible in DOM, SVG, and CSS is fair game; anything that needs a
+          custom rendering engine is not.
+        </li>
+        <li>
+          <strong>Connections are bézier curves</strong> drawn as SVG paths. A resource
+          travelling a connection is a shape animated along that path.
+        </li>
+        <li>
+          <strong>Animation runs every step, for many edges at once</strong>, inside a
+          step duration the user sets between roughly 120&nbsp;ms and 1.2&nbsp;s. It
+          has to be cheap &mdash; CSS/SVG transforms, not heavy per-frame JavaScript
+          &mdash; and it has to read clearly even at the fast end.
+        </li>
+        <li><strong>Light and dark</strong> are both in scope from the start.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Fixed &mdash; the vocabulary</p>
+    <h2>Nodes and connections</h2>
+    <div class="measure">
+      <p>
+        Six node types and two connection types. Each needs to be recognisable on
+        sight &mdash; a diagram is read as a set of shapes before any label is read
+        &mdash; and each needs room for a live value or label plus a running/selected
+        state on top.
+      </p>
+    </div>
+    <div class="wide">
+      <div class="scroll-x">
+        <table>
+          <thead>
+            <tr>
+              <th>Element</th>
+              <th>Role in a run</th>
+              <th>What it has to carry visually</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="n-name"><span class="dot" style="background: var(--node-pool)"></span>Pool</td>
+              <td>Holds resources between steps. The one node with memory.</td>
+              <td>A count that <em>is</em> the node's face; a sense of filling and draining; an optional capacity ceiling.</td>
+            </tr>
+            <tr>
+              <td class="n-name"><span class="dot" style="background: var(--node-source)"></span>Source</td>
+              <td>Creates resources from nothing each step it fires.</td>
+              <td>Reads as an origin / faucet. Outputs only.</td>
+            </tr>
+            <tr>
+              <td class="n-name"><span class="dot" style="background: var(--node-drain)"></span>Drain</td>
+              <td>Consumes resources, removing them from the system.</td>
+              <td>Reads as a sink / outflow &mdash; the mirror of Source. Inputs only.</td>
+            </tr>
+            <tr>
+              <td class="n-name"><span class="dot" style="background: var(--node-gate)"></span>Gate</td>
+              <td>Routes what arrives, instantly, in the same step. Splits by ratio or by chance.</td>
+              <td>Reads as a junction / valve. Must not look like it stores anything. Shows which mode it's in.</td>
+            </tr>
+            <tr>
+              <td class="n-name"><span class="dot" style="background: var(--node-converter)"></span>Converter</td>
+              <td>Consumes N of one thing, produces M of another.</td>
+              <td>Reads as a machine / exchange, with an in-side and an out-side.</td>
+            </tr>
+            <tr>
+              <td class="n-name"><span class="dot" style="background: var(--node-end)"></span>End</td>
+              <td>Stops the run the moment a resource reaches it.</td>
+              <td>Terminal and rare. Reads as a finish line.</td>
+            </tr>
+            <tr class="row-sep">
+              <td class="n-name">Resource link</td>
+              <td>Carries resources. Tokens travel along it.</td>
+              <td>Solid, directional &mdash; the road. Carries a flow label: <code>2</code>, <code>all</code>, <code>2D6</code>, <code>25%</code>.</td>
+            </tr>
+            <tr>
+              <td class="n-name">State link</td>
+              <td>One node's value modifies another. Nothing physically moves.</td>
+              <td>Dashed, secondary. Must never be mistaken for a resource path. Carries a modifier: <code>+1</code>, <code>&ge;5</code>, a trigger mark.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow eyebrow--ask">Decisions we need from you</p>
+    <h2>The open questions</h2>
+    <div class="measure">
+      <p>
+        In rough priority order. Every one of these is currently a placeholder in the
+        build.
+      </p>
+    </div>
+    <ol class="decisions">
+      <li>
+        <p class="tag">the signature image</p>
+        <h3>A resource travelling a connection</h3>
+        <p>
+          What does a resource look like moving down a wire each step? One mark per
+          unit, or one mark carrying a number? Its size, speed, easing, trail; what it
+          does when it lands in a pool.
+        </p>
+        <p>
+          <strong>Why it matters:</strong> this is the image that says "the logic is
+          alive." Get this and the product has a soul.
+        </p>
+        <p>
+          <strong>Constraint:</strong> animated along an SVG bézier path, dozens at
+          once, inside a 120&nbsp;ms&ndash;1.2&nbsp;s step, legible at the fast end.
+        </p>
+      </li>
+      <li>
+        <p class="tag">recognisable at a glance</p>
+        <h3>The node visual language</h3>
+        <p>
+          How do the six types read as distinct shapes &mdash; including zoomed out,
+          where a whole system is in view and labels are unreadable? Machinations
+          leans hard on silhouette.
+        </p>
+        <p>
+          <strong>Constraint:</strong> a DOM/SVG card ~110&ndash;190&nbsp;px wide,
+          light and dark, with selected and running states layered on top.
+        </p>
+      </li>
+      <li>
+        <p class="tag">causality, tick by tick</p>
+        <h3>Which nodes fired this step</h3>
+        <p>
+          After each step some nodes acted and some sat idle. How is that shown
+          without turning the canvas into a light show? It lasts exactly one step and
+          sits on top of selection state.
+        </p>
+      </li>
+      <li>
+        <p class="tag">the payoff</p>
+        <h3>A pool's number changing</h3>
+        <p>
+          When a count ticks up or down, how much emphasis? Colour by direction? It
+          should feel consequential on a single step yet not exhausting across a
+          400&#8209;step run.
+        </p>
+        <p>
+          <strong>Note:</strong> a gain/loss colour is semantic and separate from the
+          product's accent hue.
+        </p>
+      </li>
+      <li>
+        <p class="tag">results over time</p>
+        <h3>The timeline chart</h3>
+        <p>
+          A new bottom panel plotting every pool's value against step number as the
+          run progresses. Its whole visual style, in both themes; one line per pool,
+          each matching its pool on the canvas; how it copes with long runs (scroll, a
+          moving window, compression).
+        </p>
+        <p>
+          <strong>Constraint:</strong> hand-built SVG, roughly 140&ndash;180&nbsp;px
+          tall, full canvas width, redrawn every step.
+        </p>
+      </li>
+      <li>
+        <p class="tag">reached for constantly</p>
+        <h3>The playback controls</h3>
+        <p>
+          Reset · step · play/pause · speed · a step counter · the run's seed. Where do
+          they live &mdash; floating on the canvas, a strip above the chart, folded
+          into the toolbar? How do <em>playing</em>, <em>paused</em>, and
+          <em>ended</em> read?
+        </p>
+      </li>
+      <li>
+        <p class="tag">sets everything else</p>
+        <h3>The overall identity</h3>
+        <p>
+          Loop Studio is leaving the Cozy Shelter suite to be its own product. How
+          close to Cozy Shelter's warm, quiet tone; how much its own thing?
+          Machinations is the functional reference, but its UI is dated and
+          tool-heavy &mdash; there's daylight there.
+        </p>
+        <p>
+          <strong>Downstream:</strong> a landing page and an onboarding flow come
+          later and will inherit whatever you set here.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Context &mdash; don't anchor on this</p>
+    <h2>The current rough state</h2>
+    <div class="measure">
+      <p>
+        There's a working editor with a placeholder skin: a warm-minimal palette
+        picked only to get pixels on screen. It is <strong>not a proposal</strong>.
+        Shown here so you know what's provisional (all of it) and can react against it
+        if that's useful.
+      </p>
+    </div>
+    <ul class="swatches">
+      <li><span class="chip" style="background: #faf7f1"></span>paper #faf7f1</li>
+      <li><span class="chip" style="background: #37322c"></span>ink #37322c</li>
+      <li><span class="chip" style="background: #7c9070"></span>accent #7c9070</li>
+      <li><span class="chip" style="background: #5b8aa6"></span>pool #5b8aa6</li>
+      <li><span class="chip" style="background: #6a9f6a"></span>source #6a9f6a</li>
+      <li><span class="chip" style="background: #c07f6c"></span>drain #c07f6c</li>
+      <li><span class="chip" style="background: #b58b57"></span>gate #b58b57</li>
+      <li><span class="chip" style="background: #8f7db0"></span>converter #8f7db0</li>
+      <li><span class="chip" style="background: #7a7268"></span>end #7a7268</li>
+    </ul>
+    <p class="callout">
+      Nodes are currently plain rounded cards with a coloured left edge and a big
+      number; connections are thin bézier curves with a small pill label; there is no
+      motion, no chart, no controls yet. <strong>A live build will follow</strong> so
+      you can design over the real thing in motion.
+    </p>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow">Reference</p>
+    <h2>Worth looking at</h2>
+    <div class="measure">
+      <h3>Machinations.io</h3>
+      <p>
+        The notation standard and the closest functional analogue. Study how it keeps
+        the six node types distinct, how it animates resource flow, and where it puts
+        the run controls. Its weak spot &mdash; and our opening &mdash; is a dense,
+        dated, utilitarian interface.
+      </p>
+      <h3>The Cozy Shelter tools</h3>
+      <p>
+        The sibling suite Loop Studio is spinning out of &mdash; Card Studio, Image
+        Studio, Lotus Studio, and others. The current house tone is warm, calm, and
+        single&#8209;purpose. Useful as the baseline we're deciding how far to move
+        from.
+      </p>
+    </div>
+  </section>
+
+  <section class="block">
+    <p class="eyebrow eyebrow--ask">Deliverable</p>
+    <h2>What would help most, coming back</h2>
+    <div class="measure">
+      <ul>
+        <li>
+          <strong>One or two mockups of a diagram mid&#8209;run</strong> &mdash; the
+          money shot: tokens on the wires, a couple of nodes lit, the chart drawn
+          partway.
+        </li>
+        <li>
+          <strong>Node specs for all six types</strong> &mdash; default, selected, and
+          just&#8209;fired states, light and dark.
+        </li>
+        <li>
+          <strong>Motion notes</strong> &mdash; token travel (duration, easing, what a
+          unit looks like), the fired&#8209;node treatment, the number&#8209;change
+          treatment. Description or a short clip both fine.
+        </li>
+        <li>
+          <strong>A colour token set</strong> for light and dark: surfaces, ink,
+          hairline, accent, semantic gain/loss, and the six node hues.
+        </li>
+        <li><strong>A timeline chart spec.</strong></li>
+        <li>
+          <strong>A read on identity</strong> &mdash; direction, and whether
+          &ldquo;Loop Studio&rdquo; is the right name.
+        </li>
+      </ul>
+      <p>Static mockups are enough; motion can be written down. Whatever's fastest to react to.</p>
+    </div>
+  </section>
+</article>

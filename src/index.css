@@ -1,0 +1,925 @@
+/* ============================================================================
+   Contrast system — achromatic first pass.
+   Hues and the six node-type colours are intentionally NOT here yet; they get
+   layered on once this greyscale structure is signed off. Every colour resolves
+   through a token so the palette pass is a values-only change.
+   ========================================================================== */
+
+:root {
+  /* ── Warm Mineral Lab — LIGHT ────────────────────────────────────────
+     Warm neutral surfaces; low-chroma mineral colour used in small areas
+     only, for classification or live flow — never to fill a node. */
+
+  /* — surfaces (back → front) — */
+  --surface-ground: #f0efea;
+  --surface-canvas: #f7f6f2;
+  --surface-panel: #fbfaf7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e9e8e2;
+  --surface-overlay: #f3f1eb;
+
+  /* — lines (weights unchanged in contrast, shifted warm-neutral) — */
+  --line-hairline: #e1dfd8;
+  --line-structure: #c1beb4;
+  --line-strong: #8c887e;
+  --line-focus: var(--focus-ring);
+  --line-disabled: #e7e5de;
+
+  /* — edges: measured against --surface-canvas — */
+  --edge-resource: #adaaa1; /* ~2.2:1 on canvas */
+  --edge-state: #c1beb5; /* ~1.7:1 on canvas; solid vs dashed also separates */
+  --edge-selected: var(--state-selected); /* ≥3:1 on canvas */
+
+  /* — text — */
+  --text-primary: #202421;
+  --text-secondary: #4f5651;
+  --text-tertiary: #6c746e;
+  --text-disabled: #9aa09a;
+  --text-on-state: #ffffff;
+  --text-inverse: #f2f1ec;
+
+  /* — mineral signal: "what is alive and moving right now" — */
+  --signal-primary: #2f746e;
+  --signal-primary-soft: #d8e5e1;
+  --focus-ring: #3f6fb6;
+  --warning: #a56332;
+
+  /* — state (shape / motion / position lead; colour is secondary) — */
+  --state-selected: #54524c;
+  --state-focus: var(--focus-ring);
+  --state-fired: var(--signal-primary);
+  --state-arrival: var(--signal-primary);
+  --state-guide: var(--signal-primary);
+  --state-warning: var(--warning);
+
+  /* — six node hues: only chip, compact dot, chart mark — */
+  --hue-pool: #527a91;
+  --hue-source: #66805e;
+  --hue-drain: #a86455;
+  --hue-gate: #9a7639;
+  --hue-converter: #78678f;
+  --hue-end: #756f68;
+
+  /* — flow token / trail = the mineral signal — */
+  --flow-strength: var(--signal-primary); /* ~5:1 on canvas */
+  --flow-trail: rgba(47, 116, 110, 0.22);
+
+  /* — elevation (light leans on faint shadow; dark drops it entirely) — */
+  --elev-node: drop-shadow(0 1px 1.5px rgba(20, 20, 20, 0.05));
+  --elev-label: 0 1px 2px rgba(20, 20, 20, 0.08);
+
+  --radius: 10px;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans KR', sans-serif;
+  color: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* ── Warm Mineral Lab — DARK (night observation; higher L, lower chroma) ── */
+    --surface-ground: #171a18;
+    --surface-canvas: #202320;
+    --surface-panel: #272a27;
+    --surface-raised: #323632;
+    --surface-sunken: #141715;
+    --surface-overlay: #2b302c;
+
+    --line-hairline: #3c403c;
+    --line-structure: #63685f;
+    --line-strong: #8a8f88;
+    --line-focus: var(--focus-ring);
+    --line-disabled: #313531;
+
+    --edge-resource: #575b56;
+    --edge-state: #474b47;
+    --edge-selected: var(--state-selected);
+
+    --text-primary: #eff2ed;
+    --text-secondary: #c8cec8;
+    --text-tertiary: #a7afa8;
+    --text-disabled: #6c736c;
+    --text-on-state: #171a18;
+    --text-inverse: #202320;
+
+    --signal-primary: #76b7ae;
+    --signal-primary-soft: #29433f;
+    --focus-ring: #83a9e6;
+    --warning: #d59660;
+
+    --state-selected: #9a9e96;
+    --state-focus: var(--focus-ring);
+    --state-fired: var(--signal-primary);
+    --state-arrival: var(--signal-primary);
+    --state-guide: var(--signal-primary);
+    --state-warning: var(--warning);
+
+    --hue-pool: #78a6be;
+    --hue-source: #91af85;
+    --hue-drain: #d18a78;
+    --hue-gate: #c6a05b;
+    --hue-converter: #a99bc0;
+    --hue-end: #a6a099;
+
+    --flow-strength: var(--signal-primary);
+    --flow-trail: rgba(118, 183, 174, 0.2);
+
+    --elev-node: none;
+    --elev-label: none;
+  }
+}
+
+:root[data-theme='dark'] {
+  --surface-ground: #171a18;
+  --surface-canvas: #202320;
+  --surface-panel: #272a27;
+  --surface-raised: #323632;
+  --surface-sunken: #141715;
+  --surface-overlay: #2b302c;
+
+  --line-hairline: #3c403c;
+  --line-structure: #63685f;
+  --line-strong: #8a8f88;
+  --line-focus: var(--focus-ring);
+  --line-disabled: #313531;
+
+  --edge-resource: #575b56;
+  --edge-state: #474b47;
+  --edge-selected: var(--state-selected);
+
+  --text-primary: #eff2ed;
+  --text-secondary: #c8cec8;
+  --text-tertiary: #a7afa8;
+  --text-disabled: #6c736c;
+  --text-on-state: #171a18;
+  --text-inverse: #202320;
+
+  --signal-primary: #76b7ae;
+  --signal-primary-soft: #29433f;
+  --focus-ring: #83a9e6;
+  --warning: #d59660;
+
+  --state-selected: #9a9e96;
+  --state-focus: var(--focus-ring);
+  --state-fired: var(--signal-primary);
+  --state-arrival: var(--signal-primary);
+  --state-guide: var(--signal-primary);
+  --state-warning: var(--warning);
+
+  --hue-pool: #78a6be;
+  --hue-source: #91af85;
+  --hue-drain: #d18a78;
+  --hue-gate: #c6a05b;
+  --hue-converter: #a99bc0;
+  --hue-end: #a6a099;
+
+  --flow-strength: var(--signal-primary);
+  --flow-trail: rgba(118, 183, 174, 0.2);
+
+  --elev-node: none;
+  --elev-label: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface-ground);
+}
+
+.app__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 2px;
+}
+
+/* ---- toolbar ---- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 14px;
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--line-hairline);
+  flex-wrap: wrap;
+}
+
+.toolbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: var(--text-primary);
+}
+
+.toolbar__mark {
+  color: var(--signal-primary);
+  font-size: 18px;
+}
+
+.toolbar__tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-tertiary);
+  border: 1px solid var(--line-structure);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.toolbar__palette {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toolbar__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--line-structure);
+  border-radius: 8px;
+  cursor: grab;
+}
+
+.chip:hover {
+  border-color: var(--line-strong);
+}
+
+.chip:active {
+  cursor: grabbing;
+}
+
+.chip__glyph {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-tertiary);
+}
+
+.btn {
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--line-structure);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--line-strong);
+}
+
+.btn--ghost {
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.btn--ghost:hover {
+  border-color: var(--state-warning);
+  color: var(--text-primary);
+}
+
+/* ---- canvas column ---- */
+.canvas-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.react-flow {
+  background: var(--surface-canvas);
+}
+.react-flow__background circle {
+  fill: var(--line-hairline);
+}
+/* keep edges from thinning to sub-pixel when zoomed out */
+.react-flow__edge-path {
+  vector-effect: non-scaling-stroke;
+}
+.react-flow__attribution {
+  background: transparent;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+/* React Flow secondary UI — map its internals to tokens so the minimap and
+   zoom controls don't become the loudest thing on a dark screen */
+.react-flow__minimap {
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-hairline);
+}
+.react-flow__minimap-mask {
+  fill: var(--surface-overlay);
+  fill-opacity: 0.45;
+}
+.react-flow__minimap-node {
+  fill: var(--line-disabled);
+  stroke: var(--line-structure);
+}
+.react-flow__controls {
+  border: 1px solid var(--line-hairline);
+  box-shadow: none;
+}
+.react-flow__controls-button {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border-bottom-color: var(--line-hairline);
+}
+.react-flow__controls-button:hover {
+  background: var(--surface-sunken);
+}
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+/* ==== N1 "Vessel" nodes ================================================== */
+.nodef {
+  position: relative;
+  display: inline-flex;
+  min-width: 118px;
+  height: 60px;
+  font-size: 12px;
+  filter: var(--elev-node);
+}
+.nodef--gate {
+  min-width: 134px;
+}
+
+.nodef__shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.nodef__fill {
+  fill: var(--surface-raised);
+}
+.nodef__stroke {
+  fill: none;
+  stroke: var(--line-structure);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.nodef__endbar {
+  stroke: var(--line-structure);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* state: selected — shape-hugging solid outline, never removed by animation */
+.nodef__sel {
+  fill: none;
+  stroke: var(--state-selected);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+/* state: fired — diffusing pulse, outside the selection ring, one step */
+.nodef__wave {
+  fill: none;
+  stroke: var(--state-fired);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nodeWave 0.5s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes nodeWave {
+  from {
+    transform: scale(0.98);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+/* state: arrival — compression ring INSIDE the pool, spatially split from fired */
+.nodef__arrival {
+  fill: var(--state-arrival);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nodeArrive 0.12s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes nodeArrive {
+  from {
+    transform: scale(0.25);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.nodef__body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 16px;
+  pointer-events: none;
+}
+.nodef--source .nodef__body {
+  padding-right: 26px;
+}
+.nodef--drain .nodef__body {
+  padding-left: 26px;
+}
+.nodef--gate .nodef__body {
+  padding: 8px 30px;
+  align-items: center;
+}
+.nodef--end .nodef__body {
+  padding-right: 24px;
+}
+
+.nodef__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+/* the one place a node's type colour appears at normal zoom */
+.nodef--pool {
+  --node-hue: var(--hue-pool);
+}
+.nodef--source {
+  --node-hue: var(--hue-source);
+}
+.nodef--drain {
+  --node-hue: var(--hue-drain);
+}
+.nodef--gate {
+  --node-hue: var(--hue-gate);
+}
+.nodef--converter {
+  --node-hue: var(--hue-converter);
+}
+.nodef--end {
+  --node-hue: var(--hue-end);
+}
+.nodef__chip {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--node-hue, var(--line-strong));
+  opacity: 1;
+  flex: none;
+}
+.nodef__title {
+  font-weight: 650;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nodef__value {
+  font-size: 19px;
+  font-weight: 750;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  transform-origin: left center;
+}
+.nodef__value--up,
+.nodef__value--down {
+  animation: nodeBump 0.32s ease-out;
+}
+@keyframes nodeBump {
+  from {
+    transform: scale(1.16);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.nodef__sub {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  letter-spacing: 0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* low zoom — silhouette + ports carry the scan; box grows ~12% */
+.nodef.is-compact {
+  min-width: 132px;
+  width: 132px;
+  height: 68px;
+}
+.nodef--gate.is-compact {
+  min-width: 150px;
+  width: 150px;
+}
+/* half a step stronger so the outline reads without colour at low zoom */
+.nodef.is-compact .nodef__stroke {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.nodef.is-compact .nodef__endbar {
+  stroke: var(--line-strong);
+  stroke-width: 4;
+}
+.nodef__cdot {
+  fill: var(--node-hue, var(--line-strong));
+  opacity: 1;
+}
+
+/* state: keyboard focus — outer ring, sits beyond the selection outline */
+.react-flow__node:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.react-flow__handle {
+  width: 9px;
+  height: 9px;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--line-structure);
+  border-radius: 999px;
+}
+.react-flow__handle.h--in,
+.react-flow__handle.h--out {
+  border-color: var(--line-strong);
+}
+
+/* ==== flow tokens — T1 Bead, compressing toward T3 at speed ============== */
+/* shown only on a selected edge — the flow's start point, not a rest marker */
+.flow-rest {
+  fill: var(--state-selected);
+  pointer-events: none;
+}
+.flow-bead {
+  fill: var(--flow-strength);
+}
+.flow-trail {
+  fill: var(--flow-trail);
+}
+.flow-token__n {
+  fill: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.flow-edge-pulse {
+  stroke: var(--flow-strength);
+  stroke-width: 2.5;
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  animation: edgePulse 0.4s ease-out forwards;
+}
+@keyframes edgePulse {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ==== P2 — playback strip in the chart header =========================== */
+.pstrip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--surface-panel);
+  border-top: 1px solid var(--line-hairline);
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: none;
+}
+.pstrip__group {
+  display: flex;
+  gap: 6px;
+}
+.pb-btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 9px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--line-structure);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.pb-btn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+.pb-btn:disabled {
+  color: var(--text-disabled);
+  border-color: var(--line-disabled);
+  cursor: default;
+}
+.pb-btn--primary {
+  border-color: var(--signal-primary);
+  color: var(--signal-primary);
+  font-weight: 600;
+  min-width: 84px;
+}
+.pb-btn--primary.is-running {
+  border-color: var(--signal-primary);
+  background: var(--signal-primary-soft);
+}
+.pstrip__step {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.pstrip__field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+}
+.pstrip__field input[type='range'] {
+  width: 110px;
+  accent-color: var(--line-strong);
+}
+.pstrip__seed {
+  width: 56px;
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid var(--line-structure);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+.pstrip__collapse {
+  margin-left: auto;
+  padding: 3px 8px;
+}
+
+/* ==== A — timeline chart (separate observation panel, not canvas) ======= */
+.timeline {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-panel);
+}
+.timeline.is-collapsed {
+  height: 40px;
+}
+.timeline__panel {
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-hairline);
+}
+.timeline__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.timeline__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+.timeline__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.timeline__mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--hue-pool);
+  flex: none;
+}
+.timeline__svg {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+.timeline__grid {
+  stroke: var(--line-hairline);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.timeline__axis {
+  stroke: var(--line-structure);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.timeline__tick {
+  fill: var(--text-tertiary);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.timeline__guide {
+  stroke: var(--state-guide);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.85;
+}
+.timeline__line {
+  stroke: var(--hue-pool);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.timeline__seg {
+  stroke: var(--hue-pool);
+  stroke-width: 2;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  animation: segReveal 0.16s ease-out forwards;
+}
+@keyframes segReveal {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.timeline__endlabel {
+  fill: var(--text-primary);
+  font-size: 9px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nodef__wave {
+    animation: nodeWaveRM 0.4s ease-out forwards;
+  }
+  @keyframes nodeWaveRM {
+    from {
+      opacity: 0.7;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  .nodef__arrival {
+    animation: nodeArriveRM 0.2s ease-out forwards;
+  }
+  @keyframes nodeArriveRM {
+    from {
+      opacity: 0.5;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  .nodef__value--up,
+  .nodef__value--down {
+    animation: none;
+  }
+}
+
+/* ---- edge label ---- */
+.edge-label {
+  position: absolute;
+  pointer-events: all;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--elev-label);
+}
+.edge-label--state {
+  color: var(--text-tertiary);
+  font-style: italic;
+  border-style: dashed;
+}
+.edge-label.is-selected {
+  border-color: var(--state-selected);
+  color: var(--text-primary);
+}
+
+/* ---- inspector ---- */
+.inspector {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--surface-panel);
+  border-left: 1px solid var(--line-hairline);
+  padding: 14px;
+  overflow-y: auto;
+}
+.inspector__empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.inspector__hint {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  margin-top: 8px;
+}
+.inspector__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.inspector__kind {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-structure);
+}
+
+.field {
+  display: block;
+  margin-bottom: 10px;
+}
+.field__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.field input,
+.field select {
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  border: 1px solid var(--line-structure);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.field input:focus-visible,
+.field select:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 1px;
+  border-color: var(--line-strong);
+}
