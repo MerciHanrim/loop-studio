@@ -51,6 +51,24 @@ test.describe('Monte Carlo run', () => {
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
   })
 
+  test('the LIVE-view legend is hidden in DISTRIBUTION and returns in LIVE', async ({ page }) => {
+    await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
+
+    const legend = page.locator('.timeline__legend')
+    const tab = (name: string) => page.locator('.timeline__viewtab', { hasText: name })
+
+    // run() lands on DISTRIBUTION — the LIVE legend must not compete with the
+    // distribution stats row
+    await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+    await expect(legend).toBeHidden()
+
+    await tab('LIVE').click()
+    await expect(legend).toBeVisible()
+
+    await tab('DISTRIBUTION').click()
+    await expect(legend).toBeHidden()
+  })
+
   test('a long run can be cancelled from the strip; no partial result', async ({ page }) => {
     // sized to comfortably outlast the Cancel click (steps dominate; workers
     // cannot parallelise within a run). 40 × 20001 × 4 = 3.2M cells < limit.
