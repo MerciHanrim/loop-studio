@@ -87,4 +87,73 @@ describe('mcStore', () => {
     expect(useMcStore.getState().stale).toBe(false)
     expect(useMcStore.getState().status).toBe('done')
   })
+
+  it('a config edit (runs/steps/seed/tracked) does NOT stale the result; the header uses the run\'s own RunConfig', async () => {
+    const { poolId } = seedGraph()
+    useMcStore.getState().setConfig({ runs: 20, steps: 4, baseSeed: 1 })
+    await useMcStore.getState().run()
+    const savedConfig = useMcStore.getState().result!.config
+
+    useMcStore.getState().setConfig({ runs: 999, steps: 50, baseSeed: 7, tracked: [poolId] })
+    const s = useMcStore.getState()
+    expect(s.stale).toBe(false)
+    expect(s.result!.config).toEqual(savedConfig) // result keeps its own RunConfig
+    expect(s.config).toMatchObject({ runs: 999, steps: 50, baseSeed: 7 }) // pending, next run only
+  })
+})
+
+describe('mcStore — tracked-Pool reconciliation', () => {
+  const poolIds = () =>
+    useGraphStore
+      .getState()
+      .nodes.filter((n) => n.data.kind === 'pool')
+      .map((n) => n.id)
+
+  function twoPoolGraph() {
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('pool', { x: 100, y: 0 })
+    g.addNodeAt('pool', { x: 200, y: 0 })
+    g.addNodeAt('pool', { x: 300, y: 0 })
+    const [, a, b, c] = useGraphStore.getState().nodes
+    return { a: a.id, b: b.id, c: c.id }
+  }
+
+  it('"all" ([]) stays [] when a Pool is deleted', () => {
+    const { a } = twoPoolGraph()
+    useMcStore.getState().setConfig({ tracked: [] })
+    useGraphStore.getState().removeNode(a)
+    expect(useMcStore.getState().config.tracked).toEqual([])
+  })
+
+  it('an explicit subset keeps only the intersection with surviving Pools', () => {
+    const { a, b, c } = twoPoolGraph()
+    useMcStore.getState().setConfig({ tracked: [a, b] })
+    useGraphStore.getState().removeNode(a)
+    expect(useMcStore.getState().config.tracked).toEqual([b])
+    expect(c).toBeTruthy() // c was never tracked; not added back
+  })
+
+  it('emptied subset with Pools remaining → first current Pool (never widens to all)', () => {
+    const { a, b } = twoPoolGraph()
+    useMcStore.getState().setConfig({ tracked: [a] })
+    useGraphStore.getState().removeNode(a)
+    const t = useMcStore.getState().config.tracked
+    expect(t).toHaveLength(1)
+    expect(t[0]).toBe(poolIds()[0])
+    expect(t[0]).not.toEqual([]) // not "all"
+    expect(b).toBeTruthy()
+  })
+
+  it('no Pools left → the (dead) list is kept; the dialog disables Run', () => {
+    const { a, b, c } = twoPoolGraph()
+    useMcStore.getState().setConfig({ tracked: [a, b] })
+    useGraphStore.getState().removeNode(a)
+    useGraphStore.getState().removeNode(b)
+    useGraphStore.getState().removeNode(c)
+    expect(poolIds()).toEqual([])
+    // reconcile leaves it alone rather than widening to [] ("all")
+    expect(useMcStore.getState().config.tracked.length).toBeGreaterThan(0)
+  })
 })

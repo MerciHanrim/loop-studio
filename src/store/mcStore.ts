@@ -154,12 +154,39 @@ export const useMcStore = create<McStore>((set, get) => ({
   },
 }))
 
+/**
+ * Keep `config.tracked` sane as Pools come and go, without ever widening a
+ * user's explicit subset into "all":
+ *  - `[]` ("all") stays `[]`
+ *  - an explicit list is intersected with the current Pool ids
+ *  - if that intersection is empty but Pools remain, fall to the first Pool
+ *  - if there are no Pools at all, leave the (now-dead) list; the dialog shows
+ *    an empty list and disables Run
+ */
+function reconcileTracked(): void {
+  const { config } = useMcStore.getState()
+  if (config.tracked.length === 0) return
+  const poolIds = useGraphStore
+    .getState()
+    .nodes.filter((n) => n.data.kind === 'pool')
+    .map((n) => n.id)
+  const kept = config.tracked.filter((id) => poolIds.includes(id))
+  if (kept.length === config.tracked.length) return
+  if (kept.length > 0) {
+    useMcStore.setState({ config: { ...config, tracked: kept } })
+  } else if (poolIds.length > 0) {
+    useMcStore.setState({ config: { ...config, tracked: [poolIds[0]] } })
+  }
+}
+
 // mark a result stale when the graph's simulation semantics change (structure or
-// sim-relevant data — never position / selection / a pure label rename)
+// sim-relevant data — never position / selection / a pure label rename; and
+// never a config edit — runs/steps/seed/tracked only apply to the next run).
 let lastRev = useGraphStore.getState().simulationRev
 useGraphStore.subscribe((g) => {
   if (g.simulationRev === lastRev) return
   lastRev = g.simulationRev
+  reconcileTracked()
   const s = useMcStore.getState()
   if (s.result && !s.stale) useMcStore.setState({ stale: true })
 })
