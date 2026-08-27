@@ -1,0 +1,145 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useGraphStore } from '../store/graphStore'
+import { deserialize, normalizeGraph, serialize } from './serialize'
+import type { GraphDoc } from './serialize'
+import type { LoopEdge, LoopNode } from './types'
+
+// ── helpers ────────────────────────────────────────────────────────────────
+const doc = (nodes: Partial<LoopNode>[], edges: Partial<LoopEdge>[]): string =>
+  JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes,
+    edges,
+  } as unknown as GraphDoc)
+
+const n = (id: string, kind: LoopNode['type']): Partial<LoopNode> => ({
+  id,
+  type: kind,
+  position: { x: 0, y: 0 },
+  data: { kind, label: id } as LoopNode['data'],
+})
+
+// ── handle-id migration ────────────────────────────────────────────────────
+describe('resource handle ids', () => {
+  it('a connection from the right circle is stored as sourceHandle "out"', () => {
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('pool', { x: 200, y: 0 })
+    const [src, pool] = useGraphStore.getState().nodes
+    useGraphStore
+      .getState()
+      .onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
+    const edge = useGraphStore.getState().edges.at(-1)!
+    expect(edge.sourceHandle).toBe('out')
+    expect(edge.data).toMatchObject({ kind: 'resource' })
+  })
+
+  it('a connection into the left circle is stored as targetHandle "in"', () => {
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('gate', { x: 200, y: 0 })
+    const [src, gate] = useGraphStore.getState().nodes
+    // React Flow can report a null handle when the port carries no id; the
+    // store must still pin a resource edge to the side ports.
+    useGraphStore
+      .getState()
+      .onConnect({ source: src.id, target: gate.id, sourceHandle: null, targetHandle: null })
+    const edge = useGraphStore.getState().edges.at(-1)!
+    expect(edge.sourceHandle).toBe('out')
+    expect(edge.targetHandle).toBe('in')
+  })
+
+  it('null / undefined / "" handles in a loaded file all recover to out/in', () => {
+    const { edges } = deserialize(
+      doc(
+        [n('s', 'source'), n('p', 'pool')],
+        [
+          { id: 'e-null', source: 's', target: 'p', sourceHandle: null, targetHandle: null, data: { kind: 'resource', flow: '1' } },
+          { id: 'e-empty', source: 's', target: 'p', sourceHandle: '', targetHandle: '', data: { kind: 'resource', flow: '2' } },
+          { id: 'e-missing', source: 's', target: 'p', data: { kind: 'resource', flow: '3' } },
+        ] as unknown as Partial<LoopEdge>[],
+      ),
+    )
+    for (const e of edges) {
+      expect(e.sourceHandle).toBe('out')
+      expect(e.targetHandle).toBe('in')
+    }
+    expect(edges.map((e) => (e.data as { flow: string }).flow)).toEqual(['1', '2', '3'])
+  })
+
+  it('explicit state handles survive import and are never rewritten to out/in', () => {
+    const { edges } = deserialize(
+      doc(
+        [n('p', 'pool'), n('g', 'gate')],
+        [
+          {
+            id: 's1',
+            source: 'p',
+            target: 'g',
+            sourceHandle: 'state-source',
+            targetHandle: 'state-target',
+            data: { kind: 'state', mode: 'trigger', expr: '' },
+          },
+        ] as unknown as Partial<LoopEdge>[],
+      ),
+    )
+    expect(edges[0].sourceHandle).toBe('state-source')
+    expect(edges[0].targetHandle).toBe('state-target')
+    expect(edges[0].data).toMatchObject({ kind: 'state' })
+  })
+
+  it('a state edge with one blank handle fills the state default, not out/in', () => {
+    const { edges } = deserialize(
+      doc(
+        [n('p', 'pool'), n('g', 'gate')],
+        [
+          {
+            id: 's1',
+            source: 'p',
+            target: 'g',
+            sourceHandle: 'state-source',
+            targetHandle: null,
+            data: { kind: 'state', mode: 'trigger', expr: '' },
+          },
+        ] as unknown as Partial<LoopEdge>[],
+      ),
+    )
+    expect(edges[0].sourceHandle).toBe('state-source')
+    expect(edges[0].targetHandle).toBe('state-target')
+  })
+
+  it('import → export → import keeps every handle id', () => {
+    const first = deserialize(
+      doc(
+        [n('s', 'source'), n('p', 'pool'), n('g', 'gate')],
+        [
+          { id: 'r1', source: 's', target: 'p', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+          { id: 'x1', source: 'p', target: 'g', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '' } },
+        ] as unknown as Partial<LoopEdge>[],
+      ),
+    )
+    const round = deserialize(serialize(first.nodes, first.edges))
+    expect(round.edges.map((e) => [e.id, e.sourceHandle, e.targetHandle])).toEqual([
+      ['r1', 'out', 'in'],
+      ['x1', 'state-source', 'state-target'],
+    ])
+  })
+
+  it('normalizeGraph backfills a template-style edge with no handles', () => {
+    const { edges } = normalizeGraph({
+      nodes: [],
+      edges: [
+        { id: 't', source: 'a', target: 'b', type: 'loop', data: { kind: 'resource', flow: 'all' } } as LoopEdge,
+      ],
+    })
+    expect(edges[0].sourceHandle).toBe('out')
+    expect(edges[0].targetHandle).toBe('in')
+  })
+})
+
+beforeEach(() => {
+  useGraphStore.getState().newGraph()
+})

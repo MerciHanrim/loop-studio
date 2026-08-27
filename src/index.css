@@ -338,13 +338,67 @@ body {
   cursor: pointer;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   border-color: var(--line-strong);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.btn--icon {
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .btn--ghost {
   border-color: transparent;
   color: var(--text-secondary);
+}
+
+/* ---- dropdown menu ---- */
+.menu {
+  position: relative;
+  display: inline-flex;
+}
+.menu__pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-structure);
+  border-radius: 9px;
+  box-shadow: var(--elev-label);
+}
+.menu__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.menu__item:hover {
+  background: var(--surface-sunken);
+}
+.menu__name {
+  font-weight: 600;
+  font-size: 12px;
+}
+.menu__blurb {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
 }
 
 .btn--ghost:hover {
@@ -844,7 +898,20 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 1px 3px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.timeline__key:hover {
+  background: var(--surface-sunken);
+}
+.timeline__key.is-off {
+  opacity: 0.4;
 }
 .timeline__mark {
   width: 8px;
@@ -852,6 +919,25 @@ body {
   border-radius: 2px;
   background: var(--hue-pool);
   flex: none;
+}
+.timeline__csv {
+  border: 1px solid var(--line-structure);
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+.timeline__csv:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+.timeline__csv:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .timeline__plot {
   flex: 1;

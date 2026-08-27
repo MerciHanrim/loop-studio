@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Handle, Position, useStore, type NodeProps, type NodeTypes } from '@xyflow/react'
+import {
+  Handle,
+  Position,
+  useConnection,
+  useStore,
+  type NodeProps,
+  type NodeTypes,
+} from '@xyflow/react'
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import type {
@@ -73,39 +80,66 @@ function NodeFrame({
   stepKey,
 }: FrameProps) {
   const compact = useStore((s) => s.transform[2] < COMPACT_ZOOM)
-  const stateConnected = useStore((s) =>
-    s.edges.some(
-      (e) =>
-        (e.source === nodeId && e.sourceHandle === 'state-source') ||
-        (e.target === nodeId && e.targetHandle === 'state-target'),
-    ),
+  // per-direction: is a state edge already wired to this node's in / out port?
+  const stateInWired = useStore((s) =>
+    s.edges.some((e) => e.target === nodeId && e.targetHandle === 'state-target'),
+  )
+  const stateOutWired = useStore((s) =>
+    s.edges.some((e) => e.source === nodeId && e.sourceHandle === 'state-source'),
+  )
+  // reveal every node's state target while a state connection is being dragged
+  const draggingState = useConnection(
+    (c) =>
+      c.inProgress &&
+      (c.fromHandle?.id === 'state-source' || c.fromHandle?.id === 'state-target'),
   )
   const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
   const isSelected = useGraphStore((s) => s.selectedNodeId === nodeId)
+  const frameRef = useRef<HTMLDivElement>(null)
+
+  // keyboard focus lands on React Flow's node wrapper, an ancestor of this div
+  useEffect(() => {
+    const rfNode = frameRef.current?.closest('.react-flow__node')
+    if (!rfNode) return
+    const on = () => setFocused(true)
+    const off = () => setFocused(false)
+    rfNode.addEventListener('focusin', on)
+    rfNode.addEventListener('focusout', off)
+    return () => {
+      rfNode.removeEventListener('focusin', on)
+      rfNode.removeEventListener('focusout', off)
+    }
+  }, [])
+
   const path = SILHOUETTE[kind]
-  // state ports recede until the node is hovered / selected / already wired
-  const revealed = hovered || isSelected || selected === true
-  const stateOpacity = revealed ? 1 : stateConnected ? 0.8 : 0.35
+  // state ports are invisible at rest; they surface on hover / selection /
+  // keyboard focus / while a state wire is being dragged. A port that already
+  // carries a state edge stays faintly visible so the wiring reads.
+  const revealed = hovered || focused || isSelected || selected === true || draggingState
+  const opIn = revealed ? 1 : stateInWired ? 0.5 : 0
+  const opOut = revealed ? 1 : stateOutWired ? 0.5 : 0
   return (
     <div
+      ref={frameRef}
       className={`nodef nodef--${kind}${selected ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* state ports (diamonds) — top in, bottom out; dimmed until used */}
+      {/* state ports (diamonds) — top in, bottom out; hidden until needed */}
       <Handle
         type="target"
         position={Position.Top}
         id="state-target"
         className="h h--state"
-        style={{ opacity: stateOpacity }}
+        style={{ opacity: opIn }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="state-source"
         className="h h--state"
-        style={{ opacity: stateOpacity }}
+        style={{ opacity: opOut }}
       />
 
       <svg className="nodef__shape" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">
@@ -150,7 +184,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
   // Pool's face is its count; mode / capacity stay in the inspector
   return (
     <>
-      <Handle type="target" position={Position.Left} className="h h--in" />
+      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="pool"
@@ -163,7 +197,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
         arriving={arriving}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} className="h h--out" />
+      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -182,7 +216,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
         firing={useFiring(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} className="h h--out" />
+      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -192,7 +226,7 @@ function DrainNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} className="h h--in" />
+      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="drain"
@@ -211,7 +245,7 @@ function GateNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} className="h h--in" />
+      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="gate"
@@ -221,7 +255,7 @@ function GateNode({ id, data, selected }: NodeProps) {
         firing={useFiring(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} className="h h--out" />
+      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -231,7 +265,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} className="h h--in" />
+      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="converter"
@@ -241,7 +275,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         firing={useFiring(id)}
         stepKey={stepKey}
       />
-      <Handle type="source" position={Position.Right} className="h h--out" />
+      <Handle type="source" position={Position.Right} id="out" className="h h--out" />
     </>
   )
 }
@@ -251,7 +285,7 @@ function EndNode({ id, data, selected }: NodeProps) {
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Handle type="target" position={Position.Left} className="h h--in" />
+      <Handle type="target" position={Position.Left} id="in" className="h h--in" />
       <NodeFrame
         nodeId={id}
         kind="end"
