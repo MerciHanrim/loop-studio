@@ -15,6 +15,7 @@ export {
   categorical,
   die,
   fnv1a32,
+  mix32,
   rangeInt,
   sample,
   utf8Bytes,
