@@ -1,10 +1,11 @@
 # Execution semantics — Engine B, Part 2: Monte-Carlo (many runs)
 
-**Status: DRAFT, conditionally approved.** The six decisions are settled
-(§MC0.1) and the two mandatory amendments — `loop-mc-seed/1` gains a `mulberry32`
-mixing step, and the mean uses Neumaier compensated summation — are folded in.
-On a final read the vectors in §MC9 become frozen fixtures and implementation
-begins on `feat/engine-b-monte-carlo` in the order:
+**Status: FROZEN.** All decisions are settled (§MC0.1, §MC11, §MC12); the two
+mandatory amendments — `loop-mc-seed/1` gains a `mulberry32` mixing step, and the
+mean uses Neumaier compensated summation — are folded in. The §MC9 vectors are
+frozen fixtures. Any change to `loop-mc/1` / `loop-mc-seed/1` is a new spec id,
+never an in-place edit. Implementation proceeds on `feat/engine-b-monte-carlo`
+in the order:
 
 1. `runSeed` + vector tests
 2. synchronous `runMonteCarlo`
@@ -220,7 +221,7 @@ type RunOptions = {
   workers?: number            // ≥ 1; default 1 (synchronous). Optimisation only.
   batchSize?: number          // run indices per work unit; default 64
   progressEvery?: number      // emit progress at least every N runs; default 64
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (p: MonteCarloProgress) => void   // see §MC7.3
   signal?: AbortSignal
 }
 ```
@@ -237,10 +238,32 @@ sorts before summarising (§MC4); mean is sorted + Neumaier (§MC6).
 - **Parallel driver** `runMonteCarloParallel(nodes, edges, config, options)`
   must return a result that compares **equal** to the reference.
   - Each Worker is initialised **once**: `init(nodes, edges, normalizedConfig)`.
-  - Jobs are index ranges: `{ startRun, endRun }`.
-  - Worker replies carry the **run index** with each per-run trace (typed
-    arrays); the driver places them by index, then aggregates.
-  - No graph re-transfer per batch. No `SharedArrayBuffer`.
+    No graph re-transfer per batch. No `SharedArrayBuffer`.
+  - A job is a half-open run-index range `[startRun, endRun)`.
+  - A reply is a **structured envelope** — the numbers are one flat
+    `Float64Array`, no header packed inside it:
+
+    ```ts
+    type WorkerBatchResult = {
+      startRun: number
+      endRun: number                 // half-open: covers startRun … endRun-1
+      poolIds: string[]              // the normalized tracked order
+      steps: number
+      values: Float64Array           // run-major, see below; values.buffer is Transferable
+    }
+    ```
+
+  - **Run-major layout**, `poolCount = poolIds.length`, `localRun = run −
+    startRun`:
+
+    ```
+    index = ((localRun * (steps + 1) + step) * poolCount) + poolIndex
+    ```
+
+  - `values.buffer` is transferred (not copied). The main thread merges each
+    batch into its global storage at the batch's `[startRun, endRun)` position,
+    then aggregates once all runs are in.
+  - **The final result is byte-identical for any `workers` count or `batchSize`.**
   - Portable single-file build: Worker inlining via `vite-plugin-singlefile` is
     an implementation checkpoint (same class of check as `TextEncoder` in
     Part 1). If it does not hold, the parallel driver is a **follow-up commit**;
@@ -251,18 +274,34 @@ sorts before summarising (§MC4); mean is sorted + Neumaier (§MC6).
 `signal.aborted` is checked at **batch boundaries** (never mid-run). On abort,
 `runMonteCarlo` / `runMonteCarloParallel` **throws `AbortError`** — no
 `MonteCarloResult` is returned. The error carries `completedRuns` (status only).
+Any provisional preview is discarded before the throw.
 
-- While running, the UI may show a **`provisional` preview** built from whatever
-  has completed — explicitly labelled provisional, never persisted or exported
-  as a real result.
 - Persisting a cancelled run's partial data is a separate future feature with its
   own design.
 
-### MC7.3 Progress
+### MC7.3 Progress and the provisional preview
 
-`onProgress(done, total)` fires at least every `progressEvery` completed runs and
-once at natural completion with `done === total`. Side-effect-free w.r.t. the
-result (I11). Not called after an abort throw.
+`onProgress` is a **separate lightweight type**, structurally incompatible with
+`MonteCarloResult` so a mid-flight value can never reach a save or export path:
+
+```ts
+type MonteCarloProgress = {
+  provisional: true
+  completedRuns: number
+  totalRuns: number
+  progress: number               // completedRuns / totalRuns ∈ [0, 1]
+  preview?: {
+    // a limited UI-only summary — e.g. current p50 band per tracked pool.
+    // NO final.values, NO frozen-method quantiles, NO CSV/JSON export fields.
+  }
+}
+```
+
+`onProgress(p: MonteCarloProgress)` fires at least every `progressEvery`
+completed runs and once at natural completion (`completedRuns === totalRuns`).
+It is side-effect-free w.r.t. the result (I11) and is **not** called after an
+abort throw. `preview` contents are advisory and not covered by the frozen
+method definitions; only the returned `MonteCarloResult` is.
 
 ### MC7.4 Memory limit
 
@@ -278,11 +317,15 @@ cells = runs × (steps + 1) × trackedPoolCount
   reports the projected footprint:
 
   ```
-  seriesCells   = runs × (steps + 1) × trackedPoolCount     // f64 band storage
+  seriesCells   = runs × (steps + 1) × trackedPoolCount     // f64 band storage (main thread)
   finalCells    = runs × trackedPoolCount                    // final.values
-  sortBuffer    ≈ runs × trackedPoolCount                    // transient, largest single (pool,t) column reused
-  projectedBytes ≈ (seriesCells + finalCells + sortBuffer) × 8   + JS array / Worker-transfer overhead
+  sortBuffer    ≈ runs × trackedPoolCount                    // transient, one (pool,t) column reused
+  workerBuffers ≈ workers × batchSize × (steps + 1) × trackedPoolCount   // batch envelopes alive at once
+  projectedBytes ≈ (seriesCells + finalCells + sortBuffer + workerBuffers) × 8   + JS array / structured-clone overhead
   ```
+
+  The `workerBuffers` term is included even for the synchronous path (`workers
+  = 1`, one batch buffer at a time) so the projection is an upper bound.
 
 - Warn-and-run is **not** an option.
 - Raising the limit later requires switching band storage to `TypedArray` and
@@ -339,12 +382,17 @@ Three flat files, `\n`-terminated, labels sanitised with
 step,pool,p10,p50,p90,mean,min,max
 ```
 
-**`montecarlo-final.csv`** — one row per run, wide over Pools, with the seed:
+**`montecarlo-final.csv`** — one row per run, wide over Pools, with the seed
+inline. **Rows are in run-index order**, so row `i` corresponds exactly to
+`result.runSeeds[i]` and `result.final[P].values[i]`. This one file reproduces
+every run on its own — no separate seed map.
 ```
 run,seed,<PoolLabelA>,<PoolLabelB>,...
+0,1119822658,...
+1,2846739420,...
 ```
 
-**`montecarlo-final-summary.csv`** — one row per Pool:
+**`montecarlo-final-summary.csv`** — one row per Pool (`pool` = its label):
 ```
 pool,p10,p50,p90,mean,min,max
 ```
@@ -447,17 +495,21 @@ I1–I10 unchanged.
 
 ---
 
-## MC11. Open questions for review
+## MC11. Resolved (final review round)
 
-1. **`montecarlo-final.csv` seed column** — include `runSeed` per row (current
-   draft) or a separate `run,seed` map file? Inline keeps one file joinable.
-2. **`provisional` preview shape** — same `MonteCarloResult` type with a
-   `provisional: true` marker, or a distinct lighter type? Leaning: distinct
-   type, so a provisional value can never be mistaken for a real result or
-   exported.
-3. **Worker transport encoding** — per-run traces as `Float64Array` per Pool, or
-   one flat `Float64Array` of shape `[pool][t]` with a header? Flat transfers
-   faster; header adds a tiny parse step.
+1. **`montecarlo-final.csv`** — seed inline per row (`run,seed,<pools…>`), rows
+   in run-index order matching `runSeeds[]`. One file reproduces every run; no
+   separate map (§MC8.2).
+2. **Provisional preview** — a distinct lightweight type `MonteCarloProgress`
+   (`provisional: true`), structurally incompatible with `MonteCarloResult`; no
+   `final.values`, no frozen-method quantiles, no export fields; discarded on
+   cancel before the `AbortError` (§MC7.3).
+3. **Worker transport** — one flat run-major `Float64Array` in a structured
+   envelope (`{ startRun, endRun, poolIds, steps, values }`), no header packed
+   in the array; `values.buffer` Transferable;
+   `index = ((localRun·(steps+1) + step)·poolCount) + poolIndex` (§MC7.1).
+
+`SEMANTICS-B2.md` and the §MC9 vectors are **frozen** as of this round.
 
 ---
 
@@ -474,13 +526,20 @@ I1–I10 unchanged.
    forward (exact). Constant `n` at every timestep.
 5. **`CELL_LIMIT = 5_000_000`**, `cells = runs × (steps+1) × trackedPoolCount`,
    rejected up front with a projected-memory report. No warn-and-run.
-6. **Cancellation** → throw `AbortError`, no `MonteCarloResult`. `completedRuns`
-   is status only. Running UI may show a labelled `provisional` preview.
+6. **Cancellation** → throw `AbortError`, no `MonteCarloResult`; discard the
+   preview first. `completedRuns` is status only. Preview is the separate
+   `MonteCarloProgress` type (`provisional: true`) — no export path.
 7. **`final`** → `values` in run-index order + `summary`; no `sorted`, no
-   histogram in the public result. CSV carries `run` + `seed`.
-8. **Workers** → init graph once per Worker, jobs are `{startRun, endRun}`,
-   replies carry the run index; no per-batch graph transfer, no SAB. Sync pure
-   impl first; parallel driver may be a follow-up commit.
+   histogram in the public result. `montecarlo-final.csv` = `run,seed,<pools…>`
+   in run-index order, matching `runSeeds[]` — reproduces every run alone.
+8. **Workers** → init graph once per Worker; jobs are half-open `[startRun,
+   endRun)`; a reply is a structured envelope with one **run-major** flat
+   `Float64Array` (`index = ((localRun·(steps+1)+step)·poolCount)+poolIndex`),
+   `values.buffer` Transferable, no in-array header; no per-batch graph
+   transfer, no SAB. Sync pure impl first; parallel driver is the last,
+   independent checkpoint after sync core + aggregation + export pass.
 9. **Template `recommendedRunConfig`** → `{ baseSeed, runs, steps }` in template
    metadata only (never `GraphDoc`); no `tracked`.
-10. **Invariants** → I11 (execution invariance), I12 (Monte-Carlo determinism).
+10. **Memory projection** includes `workerBuffers ≈ workers · batchSize ·
+    (steps+1) · trackedPoolCount` alongside the main-thread storage.
+11. **Invariants** → I11 (execution invariance), I12 (Monte-Carlo determinism).
