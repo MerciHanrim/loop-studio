@@ -223,6 +223,62 @@ export function runRange(
   return { values, endedAt }
 }
 
+// ── shared run machinery (one implementation for sync + cooperative) ──────
+type Prepared = { pools: { id: string; label: string }[]; dropped: string[]; span: number }
+
+/** Validate the config, resolve tracked Pools, and enforce CELL_LIMIT.
+ *  Cheap — no large allocations. Throws on an invalid or over-limit config. */
+function prepareRun(nodes: LoopNode[], config: RunConfig): Prepared {
+  const { runs, steps } = config
+  if (!Number.isInteger(runs) || runs < 1) throw new Error(`runs must be an integer ≥ 1 (got ${runs})`)
+  if (!Number.isInteger(steps) || steps < 1) throw new Error(`steps must be an integer ≥ 1 (got ${steps})`)
+  const { pools, dropped } = resolveTracked(nodes, config.tracked)
+  const proj = projectMemory(runs, steps, pools.length)
+  if (proj.overLimit) {
+    throw new Error(
+      `Monte-Carlo config exceeds the ${CELL_LIMIT.toLocaleString()}-cell limit: ` +
+        `runs ${runs} × (steps ${steps} + 1) × ${pools.length} tracked Pool(s) = ` +
+        `${proj.seriesCells.toLocaleString()} cells (~${Math.round(proj.projectedBytes / 1e6)} MB projected). ` +
+        `Reduce runs, steps, or the tracked Pool list.`,
+    )
+  }
+  return { pools, dropped, span: steps + 1 }
+}
+
+type RunFill = {
+  nodes: LoopNode[]
+  edges: LoopEdge[]
+  config: RunConfig
+  pools: { id: string; label: string }[]
+  span: number
+  store: Float64Array[]
+  endedAt: Int32Array
+  runSeeds: number[]
+}
+
+/** Compute run `i` and write it into the run-major per-Pool `store`. This is
+ *  the ONLY place a Monte-Carlo run is executed — sync and cooperative both
+ *  call it in ascending index order, so their `store` / `endedAt` are identical. */
+function fillOneRun(f: RunFill, i: number): void {
+  const { nodes, edges, config, pools, span, store, endedAt, runSeeds } = f
+  const poolCount = pools.length
+  const seed = runSeed(config.baseSeed, i)
+  runSeeds[i] = seed
+  let st = initSim(nodes)
+  for (let p = 0; p < poolCount; p++) store[p][i * span] = st.values[pools[p].id] ?? 0
+  let ended = false
+  for (let t = 1; t <= config.steps; t++) {
+    if (!ended) {
+      st = step(nodes, edges, st, seed).state
+      if (st.ended) {
+        ended = true
+        endedAt[i] = t
+      }
+    }
+    for (let p = 0; p < poolCount; p++) store[p][i * span + t] = st.values[pools[p].id] ?? 0
+  }
+}
+
 // ── the synchronous reference ────────────────────────────────────────────
 export function runMonteCarlo(
   nodes: LoopNode[],
@@ -230,70 +286,127 @@ export function runMonteCarlo(
   config: RunConfig,
   options: RunOptions = {},
 ): MonteCarloResult {
-  const { baseSeed, runs, steps } = config
-  if (!Number.isInteger(runs) || runs < 1) throw new Error(`runs must be an integer ≥ 1 (got ${runs})`)
-  if (!Number.isInteger(steps) || steps < 1) throw new Error(`steps must be an integer ≥ 1 (got ${steps})`)
-
-  const { pools, dropped } = resolveTracked(nodes, config.tracked)
-  const poolCount = pools.length
-  const span = steps + 1
-
-  const proj = projectMemory(runs, steps, poolCount)
-  if (proj.overLimit) {
-    throw new Error(
-      `Monte-Carlo config exceeds the ${CELL_LIMIT.toLocaleString()}-cell limit: ` +
-        `runs ${runs} × (steps ${steps} + 1) × ${poolCount} tracked Pool(s) = ` +
-        `${proj.seriesCells.toLocaleString()} cells (~${Math.round(proj.projectedBytes / 1e6)} MB projected). ` +
-        `Reduce runs, steps, or the tracked Pool list.`,
-    )
-  }
-
+  const { runs, steps } = config
+  const { pools, dropped, span } = prepareRun(nodes, config)
   const { batchSize = 64, progressEvery = 64, onProgress, signal } = options
 
-  // run-major storage: store[p] has length runs*span, idx = run*span + t
   const store = pools.map(() => new Float64Array(runs * span))
   const endedAt = new Int32Array(runs).fill(-1)
   const runSeeds = new Array<number>(runs)
-
-  const emitProgress = (done: number) => {
-    onProgress?.({ provisional: true, completedRuns: done, totalRuns: runs, progress: done / runs })
-  }
+  const fill: RunFill = { nodes, edges, config, pools, span, store, endedAt, runSeeds }
 
   let done = 0
   let lastProgressAt = 0
   for (let batchStart = 0; batchStart < runs; batchStart += batchSize) {
     if (signal?.aborted) throw abortError(done)
     const batchEnd = Math.min(batchStart + batchSize, runs)
-
-    for (let i = batchStart; i < batchEnd; i++) {
-      const seed = runSeed(baseSeed, i)
-      runSeeds[i] = seed
-      let st = initSim(nodes)
-      for (let p = 0; p < poolCount; p++) store[p][i * span] = st.values[pools[p].id] ?? 0
-
-      let ended = false
-      for (let t = 1; t <= steps; t++) {
-        if (!ended) {
-          const r = step(nodes, edges, st, seed)
-          st = r.state
-          if (st.ended) {
-            ended = true
-            endedAt[i] = t
-          }
-        }
-        // carry-forward once ended: st is unchanged, values repeat
-        for (let p = 0; p < poolCount; p++) store[p][i * span + t] = st.values[pools[p].id] ?? 0
-      }
-    }
-
+    for (let i = batchStart; i < batchEnd; i++) fillOneRun(fill, i)
     done = batchEnd
     if (done - lastProgressAt >= progressEvery || done === runs) {
-      emitProgress(done)
+      onProgress?.({ provisional: true, completedRuns: done, totalRuns: runs, progress: done / runs })
       lastProgressAt = done
     }
   }
 
   return aggregateRuns({ pools, runs, steps, store, endedAt, runSeeds, droppedTracked: dropped, config })
+}
+
+// ── cooperative fallback (yields to the event loop between batches) ───────
+export type CooperativeOptions = RunOptions & {
+  batchSize?: number
+  /** yield early if a batch of runs exceeds this many ms; 0 disables. Default 8. */
+  frameBudgetMs?: number
+}
+
+const nowMs: () => number =
+  typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? () => performance.now()
+    : () => Date.now()
+
+/** One reusable macrotask yielder per run — a `MessageChannel` (no ~4ms
+ *  `setTimeout` clamp), closed on `dispose()`. Falls back to `setTimeout(0)`. */
+function makeYielder(): { yieldNow: () => Promise<void>; dispose: () => void } {
+  if (typeof MessageChannel === 'function') {
+    const ch = new MessageChannel()
+    let resolveFn: (() => void) | null = null
+    ch.port1.onmessage = () => {
+      const r = resolveFn
+      resolveFn = null
+      r?.()
+    }
+    ch.port1.start?.()
+    return {
+      yieldNow: () =>
+        new Promise<void>((res) => {
+          resolveFn = res
+          ch.port2.postMessage(null)
+        }),
+      dispose: () => {
+        ch.port1.onmessage = null
+        resolveFn = null
+        ch.port1.close()
+        ch.port2.close()
+      },
+    }
+  }
+  return {
+    yieldNow: () => new Promise<void>((res) => setTimeout(res, 0)),
+    dispose: () => {},
+  }
+}
+
+/**
+ * Same result as `runMonteCarlo` (byte-identical `MonteCarloResult`), but async:
+ * it yields to the event loop between batches so a large `file://` / no-Worker
+ * run keeps the UI (progress, Cancel) responsive. `loop-mc/1` is untouched —
+ * this only interleaves `await` between whole runs.
+ */
+export async function runMonteCarloCooperative(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  config: RunConfig,
+  options: CooperativeOptions = {},
+): Promise<MonteCarloResult> {
+  const { runs, steps } = config
+  if (options.signal?.aborted) throw abortError(0) // before any validation / allocation
+  const { pools, dropped, span } = prepareRun(nodes, config)
+  if (options.signal?.aborted) throw abortError(0) // before the large arrays
+
+  const { batchSize = 64, frameBudgetMs = 8, progressEvery = 64, onProgress, signal } = options
+  const store = pools.map(() => new Float64Array(runs * span))
+  const endedAt = new Int32Array(runs).fill(-1)
+  const runSeeds = new Array<number>(runs)
+  const fill: RunFill = { nodes, edges, config, pools, span, store, endedAt, runSeeds }
+
+  const sched = makeYielder()
+  try {
+    let done = 0 // runs whose store rows are fully written
+    let lastProgressAt = 0
+    let sliceStart = nowMs()
+    while (done < runs) {
+      if (signal?.aborted) throw abortError(done)
+      fillOneRun(fill, done)
+      done++
+      // after each run: check the batch size AND the frame budget — but never
+      // yield after the final run (straight to final progress + aggregate)
+      const boundary =
+        done < runs &&
+        (done % batchSize === 0 || (frameBudgetMs > 0 && nowMs() - sliceStart >= frameBudgetMs))
+      if (boundary) {
+        if (done - lastProgressAt >= progressEvery) {
+          lastProgressAt = done
+          onProgress?.({ provisional: true, completedRuns: done, totalRuns: runs, progress: done / runs })
+        }
+        await sched.yieldNow()
+        if (signal?.aborted) throw abortError(done)
+        sliceStart = nowMs()
+      }
+    }
+    onProgress?.({ provisional: true, completedRuns: runs, totalRuns: runs, progress: 1 })
+    return aggregateRuns({ pools, runs, steps, store, endedAt, runSeeds, droppedTracked: dropped, config })
+  } finally {
+    sched.dispose() // close the channel even on abort / progress-callback throw
+  }
 }
 
 /**
