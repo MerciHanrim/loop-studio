@@ -1514,3 +1514,42 @@ body {
 .band__bead {
   fill: var(--band-hue);
 }
+
+/* ==== form polish ===================================================== */
+/* hide the native number-input spinners; keyboard entry + ↑↓ still work */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* confirm dialog — a compact mcdlg variant, both actions grouped right */
+.mcdlg--confirm {
+  width: 320px;
+}
+.mcdlg--confirm .mcdlg__head {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+}
+.mcdlg--confirm .mcdlg__body {
+  padding-top: 10px;
+  padding-bottom: 4px;
+}
+.mcdlg--confirm .mcdlg__note {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.mcdlg--confirm .mcdlg__foot {
+  justify-content: flex-end;
+}
+.mcdlg--confirm .mcdlg__foot .btn:last-child {
+  margin-left: 0;
+}
