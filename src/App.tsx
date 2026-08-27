@@ -1,6 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react'
 import { Canvas } from './components/Canvas'
 import { Inspector } from './components/Inspector'
+import { MonteCarloDialog } from './components/MonteCarloDialog'
 import { Shortcuts } from './components/Shortcuts'
 import { TimelineChart } from './components/TimelineChart'
 import { Toolbar } from './components/Toolbar'
@@ -19,6 +20,7 @@ export default function App() {
           <Inspector />
         </div>
       </div>
+      <MonteCarloDialog />
     </ReactFlowProvider>
   )
 }

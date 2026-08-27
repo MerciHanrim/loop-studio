@@ -114,7 +114,7 @@ describe('runRange — the Worker envelope layout', () => {
     // local run 0 of the sub-range == global run 10 of the full range
     for (let t = 0; t < span; t++) {
       for (let p = 0; p < 2; p++) {
-        expect(mid.values[(0 * span + t) * 2 + p]).toBe(full.values[(10 * span + t) * 2 + p])
+        expect(mid.values[t * 2 + p]).toBe(full.values[(10 * span + t) * 2 + p])
       }
     }
     expect(runSeed(cfg.baseSeed, 10)).toBeTypeOf('number')
