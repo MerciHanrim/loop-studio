@@ -23,6 +23,26 @@ export {
   type Sample,
 } from './rng'
 export {
+  CELL_LIMIT,
+  MC_SEED_SPEC,
+  MC_SPEC,
+  neumaier,
+  projectMemory,
+  quantile,
+  runMonteCarlo,
+  runSeed,
+  toFinalCsv,
+  toFinalSummaryCsv,
+  toMonteCarloJson,
+  toSeriesCsv,
+  type BandSummary,
+  type MemoryProjection,
+  type MonteCarloProgress,
+  type MonteCarloResult,
+  type RunConfig,
+  type RunOptions,
+} from './montecarlo'
+export {
   EPSILON,
   type FlowEvent,
   type SimState,
