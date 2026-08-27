@@ -642,12 +642,15 @@ body {
   inset: -5px;
   border-radius: inherit;
 }
-/* state port — a hollow diamond (rotated square, keeping RF's centring) */
+/* state port — a hollow diamond (rotated square, keeping RF's centring).
+   Idle/connected/revealed opacity is driven inline by the node so it survives
+   React Flow's own handle rules; drag states are nudged up here. */
 .react-flow__handle.h--state {
   width: 7px;
   height: 7px;
   border-radius: 1px;
   border-color: var(--line-structure);
+  transition: opacity 100ms ease-out;
 }
 .react-flow__handle.h--state.react-flow__handle-top {
   transform: translate(-50%, -50%) rotate(45deg);
@@ -657,6 +660,15 @@ body {
 }
 .react-flow__handle.h--state::before {
   border-radius: 0;
+}
+.react-flow__handle.h--state.connectingfrom,
+.react-flow__handle.h--state.connectingto {
+  opacity: 1 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__handle.h--state {
+    transition: none;
+  }
 }
 /* hover / active connection — a soft outer halo */
 .react-flow__handle:hover {
@@ -998,6 +1010,12 @@ body {
   color: var(--text-tertiary);
   font-size: 12px;
   margin-top: 8px;
+}
+.inspector__note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
 }
 .inspector__head {
   display: flex;

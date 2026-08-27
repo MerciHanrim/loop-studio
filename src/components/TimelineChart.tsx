@@ -117,6 +117,8 @@ export function TimelineChart() {
 
   const rm = reducedMotion()
   const { w, h } = view
+  // before the first Step there is nothing to observe yet — axes only
+  const hasRun = series.length >= 2
 
   return (
     <div className={`timeline${collapsed ? ' is-collapsed' : ''}`}>
@@ -166,9 +168,11 @@ export function TimelineChart() {
                   </text>
                 </g>
               ))}
-              <text className="timeline__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
-                step {view.maxStep}
-              </text>
+              {hasRun ? (
+                <text className="timeline__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
+                  step {view.maxStep}
+                </text>
+              ) : null}
 
               {view.guideX != null ? (
                 <line
@@ -180,11 +184,13 @@ export function TimelineChart() {
                 />
               ) : null}
 
-              {view.lines.map((l) => (
-                <path key={l.id} className="timeline__line" d={l.d} fill="none" />
-              ))}
+              {hasRun
+                ? view.lines.map((l) => (
+                    <path key={l.id} className="timeline__line" d={l.d} fill="none" />
+                  ))
+                : null}
 
-              {!rm
+              {hasRun && !rm
                 ? view.lines.map((l) =>
                     l.seg ? (
                       <path
@@ -197,7 +203,7 @@ export function TimelineChart() {
                   )
                 : null}
 
-              {series.length
+              {hasRun
                 ? view.lines.map((l) => (
                     <g key={`b-${l.id}`}>
                       {arrivedPoolIds.includes(l.id) ? (

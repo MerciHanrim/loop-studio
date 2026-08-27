@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Handle, Position, useStore, type NodeProps, type NodeTypes } from '@xyflow/react'
+import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import type {
   ConverterData,
@@ -47,6 +48,7 @@ function useValueDir(value: number): 'up' | 'down' | null {
 }
 
 type FrameProps = {
+  nodeId: string
   kind: NodeKind
   title: string
   value?: string
@@ -59,6 +61,7 @@ type FrameProps = {
 }
 
 function NodeFrame({
+  nodeId,
   kind,
   title,
   value,
@@ -70,12 +73,40 @@ function NodeFrame({
   stepKey,
 }: FrameProps) {
   const compact = useStore((s) => s.transform[2] < COMPACT_ZOOM)
+  const stateConnected = useStore((s) =>
+    s.edges.some(
+      (e) =>
+        (e.source === nodeId && e.sourceHandle === 'state-source') ||
+        (e.target === nodeId && e.targetHandle === 'state-target'),
+    ),
+  )
+  const [hovered, setHovered] = useState(false)
+  const isSelected = useGraphStore((s) => s.selectedNodeId === nodeId)
   const path = SILHOUETTE[kind]
+  // state ports recede until the node is hovered / selected / already wired
+  const revealed = hovered || isSelected || selected === true
+  const stateOpacity = revealed ? 1 : stateConnected ? 0.8 : 0.35
   return (
-    <div className={`nodef nodef--${kind}${selected ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}>
-      {/* state ports (diamonds) — top in, bottom out */}
-      <Handle type="target" position={Position.Top} id="state-target" className="h h--state" />
-      <Handle type="source" position={Position.Bottom} id="state-source" className="h h--state" />
+    <div
+      className={`nodef nodef--${kind}${selected ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* state ports (diamonds) — top in, bottom out; dimmed until used */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="state-target"
+        className="h h--state"
+        style={{ opacity: stateOpacity }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="state-source"
+        className="h h--state"
+        style={{ opacity: stateOpacity }}
+      />
 
       <svg className="nodef__shape" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">
         <path className="nodef__fill" d={path} />
@@ -121,6 +152,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
     <>
       <Handle type="target" position={Position.Left} className="h h--in" />
       <NodeFrame
+        nodeId={id}
         kind="pool"
         title={d.label}
         value={fmt(shown)}
@@ -142,6 +174,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
   return (
     <>
       <NodeFrame
+        nodeId={id}
         kind="source"
         title={d.label}
         sub={`${d.activation} · ${d.mode}`}
@@ -161,6 +194,7 @@ function DrainNode({ id, data, selected }: NodeProps) {
     <>
       <Handle type="target" position={Position.Left} className="h h--in" />
       <NodeFrame
+        nodeId={id}
         kind="drain"
         title={d.label}
         sub={`${d.activation} · ${d.mode}`}
@@ -179,6 +213,7 @@ function GateNode({ id, data, selected }: NodeProps) {
     <>
       <Handle type="target" position={Position.Left} className="h h--in" />
       <NodeFrame
+        nodeId={id}
         kind="gate"
         title={d.label}
         sub={d.distribution}
@@ -198,6 +233,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
     <>
       <Handle type="target" position={Position.Left} className="h h--in" />
       <NodeFrame
+        nodeId={id}
         kind="converter"
         title={d.label}
         sub={d.mode}
@@ -217,9 +253,9 @@ function EndNode({ id, data, selected }: NodeProps) {
     <>
       <Handle type="target" position={Position.Left} className="h h--in" />
       <NodeFrame
+        nodeId={id}
         kind="end"
         title={d.label}
-        sub="stops the run"
         selected={selected}
         firing={useFiring(id)}
         stepKey={stepKey}

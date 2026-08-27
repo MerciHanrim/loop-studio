@@ -52,6 +52,10 @@ export function Inspector() {
           <input value={d.label} onChange={(e) => set({ label: e.target.value })} />
         </Field>
 
+        {d.kind === 'end' && (
+          <p className="inspector__note">Stops the run the moment a resource reaches it.</p>
+        )}
+
         {d.kind !== 'end' && (
           <Field label="Activation">
             <select value={d.activation} onChange={(e) => set({ activation: e.target.value })}>
