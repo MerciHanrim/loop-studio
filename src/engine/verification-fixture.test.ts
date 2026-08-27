@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import fixtureDoc from '../../examples/engine-b-verification.json'
 import committedExpected from '../../examples/engine-b-verification.expected.json'
 import { normalizeGraph } from '../model/serialize'
@@ -35,15 +35,9 @@ function trace(nodes: LoopNode[], edges: LoopEdge[], seed: number, steps: number
   return rows
 }
 
-function fnvHex(s: string): string {
-  let h1 = 0x811c9dc5
-  let h2 = 0x811c9dc5
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i)
-    h1 = Math.imul(h1 ^ (c & 0xff), 0x01000193) >>> 0
-    h2 = Math.imul(h2 ^ (c >>> 8), 0x01000193) >>> 0
-  }
-  return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0')
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 function digest(mc: MonteCarloResult) {
   return {
@@ -57,7 +51,7 @@ function digest(mc: MonteCarloResult) {
   }
 }
 
-function deriveExpected(nodes: LoopNode[], edges: LoopEdge[]) {
+async function deriveExpected(nodes: LoopNode[], edges: LoopEdge[]) {
   const detPool = poolIdByLabel(nodes, 'Det Pool')
   const dicePool = poolIdByLabel(nodes, 'Dice Pool')
   const gateA = poolIdByLabel(nodes, 'Gate A')
@@ -106,7 +100,7 @@ function deriveExpected(nodes: LoopNode[], edges: LoopEdge[]) {
       config,
       trackedPools: config.tracked,
       bands: { detPool: band(detPool), dicePool: band(dicePool), gateA: band(gateA), gateB: band(gateB) },
-      resultJsonSha256: fnvHex(toMonteCarloJson(mc)),
+      resultJsonSha256: await sha256Hex(toMonteCarloJson(mc)),
       resultDigest: digest(mc),
     },
   }
@@ -114,7 +108,10 @@ function deriveExpected(nodes: LoopNode[], edges: LoopEdge[]) {
 
 describe('engine-b verification fixture', () => {
   const { nodes, edges } = loadFixture()
-  const derived = deriveExpected(nodes, edges)
+  let derived: Awaited<ReturnType<typeof deriveExpected>>
+  beforeAll(async () => {
+    derived = await deriveExpected(nodes, edges)
+  })
 
   it('reproduces examples/engine-b-verification.expected.json exactly', async () => {
     if ((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.GEN_FIXTURE === '1') {
