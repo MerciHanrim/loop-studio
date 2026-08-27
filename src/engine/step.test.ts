@@ -256,12 +256,28 @@ describe('Engine A — mini-cases', () => {
     expect(near(t[1].byEdge.oy ?? 0, 1.25)).toBe(true)
   })
 
-  it('random flow contributes 0 and raises a diagnostic', () => {
+  it('random flow (2D6) is evaluated by the seeded RNG — Engine B Part 1', () => {
     const nodes = [source('s'), pool('p', 0)]
     const edges = [edge('a', 's', 'p', '2D6')]
-    const r = step(nodes, edges, initSim(nodes))
+    const r = step(nodes, edges, initSim(nodes), 1) // seed 1
+    // 1|1|a|flow-die|0 → 6, 1|1|a|flow-die|1 → 2  (see rng.test.ts vectors)
+    expect(near(r.state.values.p, 8)).toBe(true)
+    expect(r.report.diagnostics).toEqual([]) // no "inactive" diagnostic anymore
+    // deterministic for a given seed
+    const again = step(nodes, edges, initSim(nodes), 1)
+    expect(near(again.state.values.p, 8)).toBe(true)
+    // a different seed → a different (still valid) draw
+    const other = step(nodes, edges, initSim(nodes), 999)
+    expect(other.state.values.p).toBeGreaterThanOrEqual(2)
+    expect(other.state.values.p).toBeLessThanOrEqual(12)
+  })
+
+  it('malformed random flow (2D0) contributes 0 and raises a diagnostic', () => {
+    const nodes = [source('s'), pool('p', 0)]
+    const edges = [edge('a', 's', 'p', '2D0')]
+    const r = step(nodes, edges, initSim(nodes), 1)
     expect(near(r.state.values.p, 0)).toBe(true)
-    expect(r.report.diagnostics.some((d) => /random flow/i.test(d))).toBe(true)
+    expect(r.report.diagnostics.some((d) => /D0|sides ≥ 1|contributes 0/i.test(d))).toBe(true)
   })
 
   it('End — a positive arrival ends the run and fires End', () => {

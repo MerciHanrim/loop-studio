@@ -80,13 +80,15 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         />
       </label>
 
-      <label className="pstrip__field" title="Used once randomness lands">
+      <label className="pstrip__field" title="Random seed — same seed reproduces the run; changing it restarts">
         <span>seed</span>
         <input
           className="pstrip__seed"
           type="number"
+          min={0}
+          step={1}
           value={seed}
-          onChange={(e) => setSeed(Number(e.target.value) || 0)}
+          onChange={(e) => setSeed(Number(e.target.value))}
         />
       </label>
 

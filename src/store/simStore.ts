@@ -53,7 +53,7 @@ export const useSimStore = create<SimStore>((set, get) => {
 
   const advance = () => {
     const g = graph()
-    const r = step(g.nodes, g.edges, head())
+    const r = step(g.nodes, g.edges, head(), get().seed)
 
     const activeByEdge: Record<string, number> = {}
     const arrived = new Set<string>()
@@ -127,7 +127,16 @@ export const useSimStore = create<SimStore>((set, get) => {
       if (get().status === 'running') startTimer()
     },
 
-    setSeed: (seed) => set({ seed }),
+    // SEMANTICS-B1.md §B1.3: accept a finite integer, normalise into uint32.
+    // NaN / Infinity / fractional are rejected (previous seed kept). Changing
+    // the seed changes the whole random trajectory, so the run restarts.
+    setSeed: (raw) => {
+      if (!Number.isInteger(raw)) return
+      const seed = raw >>> 0
+      if (seed === get().seed) return
+      set({ seed })
+      get().reset()
+    },
 
     toggleTracked: (id, allPoolIds) => {
       const cur = get().trackedIds

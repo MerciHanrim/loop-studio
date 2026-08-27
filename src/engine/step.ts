@@ -1,11 +1,16 @@
 import type { LoopEdge, LoopNode } from '../model/types'
-import { evalDet, isRandom, parseFlow, rateOf, type FlowExpr } from './flow'
+import { evalDet, evalRand, parseFlow, rateOf, type FlowExpr } from './flow'
+import { categorical, sample } from './rng'
 import { EPSILON, type SimState, type SimValues, type StepResult } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
 // Phase 1 push (Sources), then Phase 2 pull (Gate / Converter / Drain / End)
 // as one forward walk of the router DAG in topological order, with a
 // reservation ledger so pool capacity is never double-spent.
+//
+// Engine B Part 1 (SEMANTICS-B1.md) adds, behind a `seed`: random flow
+// evaluation (`1-3`, `2D6`) via a keyed RNG, cached one draw per edge per step;
+// and the probabilistic Gate (one branch per step by categorical sampling).
 
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
 const cap = (n: LoopNode): number =>
@@ -28,13 +33,23 @@ export function initSim(nodes: LoopNode[]): SimState {
 
 const ROUTER_KINDS = new Set(['gate', 'converter', 'drain', 'end'])
 
-export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): StepResult {
+export function step(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  prev: SimState,
+  seed = 1,
+): StepResult {
+  const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const resEdges = edges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
   const flowOf = new Map<string, FlowExpr>(
     resEdges.map((e) => [e.id, parseFlow(e.data?.kind === 'resource' ? e.data.flow : '1')]),
   )
   const fe = (e: LoopEdge) => flowOf.get(e.id)!
+  const isRandExpr = (e: LoopEdge) => {
+    const k = fe(e).kind
+    return k === 'range' || k === 'dice'
+  }
 
   const outRes = new Map<string, LoopEdge[]>()
   const inRes = new Map<string, LoopEdge[]>()
@@ -70,7 +85,30 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
   const fired = new Set<string>()
   const diagnostics: string[] = []
   let ended = prev.ended
-  const randomSeen = resEdges.filter((e) => isRandom(fe(e))).length
+
+  // ── Engine B: one draw per random edge per step (SEMANTICS-B1.md §B3) ─────
+  // `sampled` holds the drawn value for `range`/`dice` edges only; it is filled
+  // on first touch (whether as an amount or as a weight) and reused everywhere.
+  const sampled = new Map<string, number>()
+  const badRandom = new Set<string>()
+  const drawnValue = (e: LoopEdge): number => {
+    const hit = sampled.get(e.id)
+    if (hit !== undefined) return hit
+    const v = evalRand(fe(e), 0, 0, (purpose, i) => sample(seed, curStep, e.id, purpose, i).u, (reason) => {
+      if (badRandom.has(e.id)) return
+      badRandom.add(e.id)
+      diagnostics.push(`Edge "${e.id}" ${reason}; contributes 0.`)
+    })
+    sampled.set(e.id, v)
+    return v
+  }
+  /** Flow as an amount: deterministic forms exactly as Engine A; random forms
+   *  from the per-step draw cache. */
+  const amountOf = (e: LoopEdge, available: number, snapshot: number): number =>
+    isRandExpr(e) ? drawnValue(e) : evalDet(fe(e), available, snapshot)
+  /** Flow as a weight / per-activation rate: `all`→1, `%`→frac, `const`→value,
+   *  random→the drawn integer. */
+  const rateOfCached = (e: LoopEdge): number => (isRandExpr(e) ? drawnValue(e) : rateOf(fe(e)))
 
   const availOf = (id: string) => (S[id] ?? 0) - (taken.get(id) ?? 0)
   const reservedOf = (id: string) => reserved.get(id) ?? 0
@@ -89,7 +127,11 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
   const firing = (n: LoopNode) =>
     n.data.activation === 'automatic' || (n.data.activation === 'onStart' && prev.step === 0)
 
-  const sumInRate = (id: string) => inOf(id).reduce((s, e) => s + rateOf(fe(e)), 0)
+  const sumInRate = (id: string) => inOf(id).reduce((s, e) => s + rateOfCached(e), 0)
+
+  const cmpId = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  const isProbGate = (n: LoopNode | undefined) =>
+    n?.data.kind === 'gate' && n.data.distribution === 'probabilistic'
 
   // ── Phase 1: push ────────────────────────────────────────────────────────
   const sources = nodes
@@ -100,9 +142,9 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
     activated.add(src.id)
     const outs = outOf(src.id)
     const plan = outs.map((e) => {
-      const expr = fe(e)
-      // a Source edge has no source pool → available / snapshot are 0
-      return { e, want: evalDet(expr, 0, 0), pool: isPool(e.target) }
+      // a Source edge has no source pool → available / snapshot are 0; `all` and
+      // `%` stay 0 there, but `range` / `dice` now draw (SEMANTICS-B1.md §B2.1)
+      return { e, want: amountOf(e, 0, 0), pool: isPool(e.target) }
     })
     const pushAll = src.data.kind === 'source' && src.data.mode === 'pushAll'
     if (pushAll && !plan.every((p) => p.pool && headroom(p.e.target) >= p.want - EPSILON)) {
@@ -166,6 +208,30 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
     )
   }
 
+  // Probabilistic Gate branch selection — one `gate-route` draw per gate per
+  // step (SEMANTICS-B1.md §B4). Memoised so `accept()` and execution agree (I10).
+  const gatePick = new Map<string, LoopEdge | null>()
+  const pickBranch = (g: LoopNode): LoopEdge | null => {
+    const memo = gatePick.get(g.id)
+    if (memo !== undefined) return memo
+    const outs = outOf(g.id)
+      .filter((e) => !dead.has(e.id))
+      .sort(cmpId) // canonical order: edge.id ascending (§B4.2)
+    const weights = outs.map((e) => rateOfCached(e))
+    const idx = categorical(weights, sample(seed, curStep, g.id, 'gate-route', 0).u)
+    if (idx < 0) {
+      diagnostics.push(
+        weights.some((w) => !Number.isFinite(w) || w < 0)
+          ? `Probabilistic gate "${g.data.label}": invalid branch weight; gate is inert this step.`
+          : `Probabilistic gate "${g.data.label}": no positive branch weight; gate is inert this step.`,
+      )
+      gatePick.set(g.id, null)
+      return null
+    }
+    gatePick.set(g.id, outs[idx])
+    return outs[idx]
+  }
+
   // `accept(id)` — max the node can take on its input side, live. Memo is valid
   // only while `working`/`reserved` are stable, so it is rebuilt per router turn.
   const makeAccept = () => {
@@ -181,21 +247,27 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
         let fmax = 1
         for (const e of outOf(id)) {
           if (dead.has(e.id)) continue
-          const r = rateOf(fe(e))
+          const r = rateOfCached(e)
           if (r <= EPSILON) continue
           fmax = Math.min(fmax, accept(e.target) / r)
         }
         v = Math.max(0, Math.min(1, fmax)) * sumIn
       } else if (k === 'gate') {
-        const outs = outOf(id).filter((e) => !dead.has(e.id))
-        const sumW = outs.reduce((s, e) => s + rateOf(fe(e)), 0)
-        if (sumW <= EPSILON) v = 0
-        else {
-          v = Infinity
-          for (const e of outs) {
-            const w = rateOf(fe(e))
-            if (w <= EPSILON) continue
-            v = Math.min(v, accept(e.target) * (sumW / w))
+        if (isProbGate(byId.get(id))) {
+          // one live branch of effective weight 1 (§B4.4)
+          const sel = pickBranch(byId.get(id)!)
+          v = sel ? accept(sel.target) : 0
+        } else {
+          const outs = outOf(id).filter((e) => !dead.has(e.id))
+          const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
+          if (sumW <= EPSILON) v = 0
+          else {
+            v = Infinity
+            for (const e of outs) {
+              const w = rateOfCached(e)
+              if (w <= EPSILON) continue
+              v = Math.min(v, accept(e.target) * (sumW / w))
+            }
           }
         }
       } else v = 0
@@ -213,7 +285,7 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
       const f = sumIn > EPSILON ? Math.min(1, amountIn / sumIn) : 0
       for (const e of outOf(destId)) {
         if (dead.has(e.id)) continue
-        const q = nz(f * rateOf(fe(e)))
+        const q = nz(f * rateOfCached(e))
         if (q <= 0) continue
         if (isPool(e.target)) {
           reserved.set(e.target, reservedOf(e.target) + q)
@@ -221,10 +293,19 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
         } else planReserve(e.target, q)
       }
     } else if (k === 'gate') {
+      if (isProbGate(byId.get(destId))) {
+        // a probabilistic gate routes the whole amount down its one live branch
+        const sel = pickBranch(byId.get(destId)!)
+        if (sel && !dead.has(sel.id)) {
+          if (isPool(sel.target)) reserved.set(sel.target, reservedOf(sel.target) + nz(amountIn))
+          else planReserve(sel.target, nz(amountIn))
+        }
+        return
+      }
       const outs = outOf(destId).filter((e) => !dead.has(e.id))
-      const sumW = outs.reduce((s, e) => s + rateOf(fe(e)), 0)
+      const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
       for (const e of outs) {
-        const share = sumW > EPSILON ? nz((amountIn * rateOf(fe(e))) / sumW) : 0
+        const share = sumW > EPSILON ? nz((amountIn * rateOfCached(e)) / sumW) : 0
         if (share <= 0) continue
         if (isPool(e.target)) reserved.set(e.target, reservedOf(e.target) + share)
         else planReserve(e.target, share)
@@ -245,10 +326,10 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
         .filter((e) => isPool(e.source) && !dead.has(e.id))
         .sort(cmpEdge)
       const mode = (n.data as { mode?: 'pullAny' | 'pullAll' }).mode ?? 'pullAny'
-      const wants = ins.map((e) => {
-        const expr = fe(e)
-        return { e, want: evalDet(expr, availOf(e.source), S[e.source] ?? 0) }
-      })
+      const wants = ins.map((e) => ({
+        e,
+        want: amountOf(e, availOf(e.source), S[e.source] ?? 0),
+      }))
       const feasible =
         mode === 'pullAll' ? wants.every((w) => availOf(w.e.source) >= w.want - EPSILON) : true
       if (feasible) {
@@ -273,6 +354,12 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
 
     if (k === 'gate') {
       const mode = n.data.mode ?? 'pullAny'
+      const probabilistic = isProbGate(n)
+      // invalid / zero-sum weights ⇒ the gate is inert this step (diagnostic
+      // already pushed by pickBranch); do not touch the input pools.
+      const sel = probabilistic ? pickBranch(n) : null
+      if (probabilistic && !sel) continue
+
       let inb = inbox.get(id) ?? 0
       const ins = inOf(id)
         .filter((e) => isPool(e.source) && !dead.has(e.id))
@@ -280,8 +367,7 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
       let demand = inb
       let inputAvail = inb
       const wants = ins.map((e) => {
-        const expr = fe(e)
-        const w = evalDet(expr, availOf(e.source), S[e.source] ?? 0)
+        const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
         demand += w
         inputAvail += availOf(e.source)
         return { e, want: w }
@@ -307,11 +393,24 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
         }
       }
 
+      if (probabilistic) {
+        // the whole of T goes down the one selected branch (§B4.3)
+        if (isPool(sel!.target)) {
+          working[sel!.target] = (working[sel!.target] ?? 0) + T
+        } else {
+          inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
+          planReserve(sel!.target, T)
+        }
+        emit(sel!, id, sel!.target, T)
+        fired.add(id)
+        continue
+      }
+
       const outs = outOf(id).filter((e) => !dead.has(e.id))
-      const sumW = outs.reduce((s, e) => s + rateOf(fe(e)), 0)
+      const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
       for (const e of outs) {
         const share =
-          sumW > EPSILON ? nz((T * rateOf(fe(e))) / sumW) : nz(T / Math.max(1, outs.length))
+          sumW > EPSILON ? nz((T * rateOfCached(e)) / sumW) : nz(T / Math.max(1, outs.length))
         if (share <= 0) continue
         if (isPool(e.target)) {
           working[e.target] = (working[e.target] ?? 0) + share
@@ -334,7 +433,7 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
         .filter((e) => isPool(e.source) && !dead.has(e.id))
         .sort(cmpEdge)
       for (const e of poolIns) {
-        const r = rateOf(fe(e))
+        const r = rateOfCached(e)
         const a = nz(Math.max(0, Math.min(r, availOf(e.source))))
         if (a > 0) {
           takeFrom(e.source, a)
@@ -349,7 +448,7 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
       let f = sumIn > EPSILON ? received / sumIn : 0
       for (const e of outOf(id)) {
         if (dead.has(e.id)) continue
-        const r = rateOf(fe(e))
+        const r = rateOfCached(e)
         if (r <= EPSILON) continue
         const back = own?.get(e.target) ?? 0
         f = Math.min(f, (headroom(e.target) + back) / r)
@@ -360,7 +459,7 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
 
       for (const e of outOf(id)) {
         if (dead.has(e.id)) continue
-        const q = nz(f * rateOf(fe(e)))
+        const q = nz(f * rateOfCached(e))
         if (q <= 0) continue
         const held = Math.min(q, reservedOf(e.target))
         reserved.set(e.target, reservedOf(e.target) - held)
@@ -382,14 +481,8 @@ export function step(nodes: LoopNode[], edges: LoopEdge[], prev: SimState): Step
     working[nid] = v
   }
 
-  if (randomSeen > 0) {
-    diagnostics.push(
-      `${randomSeen} edge${randomSeen > 1 ? 's use' : ' uses'} random flow — inactive in deterministic mode; needs Engine B.`,
-    )
-  }
-
   return {
-    state: { step: prev.step + 1, values: working, ended },
+    state: { step: curStep, values: working, ended },
     report: {
       events,
       activated: [...activated].sort(),
