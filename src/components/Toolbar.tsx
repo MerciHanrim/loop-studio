@@ -1,8 +1,9 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { NodeKind } from '../model/types'
+import { ConfirmDialog } from './ConfirmDialog'
 import { Logo } from './Logo'
 import { Templates } from './Templates'
 import { ThemeToggle } from './ThemeToggle'
@@ -20,6 +21,8 @@ const PALETTE: { kind: NodeKind; label: string; glyph: string }[] = [
 
 export function Toolbar() {
   const fileRef = useRef<HTMLInputElement>(null)
+  const newBtnRef = useRef<HTMLButtonElement>(null)
+  const [confirmNew, setConfirmNew] = useState(false)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const newGraph = useGraphStore((s) => s.newGraph)
   const loadJSON = useGraphStore((s) => s.loadJSON)
@@ -117,11 +120,10 @@ export function Toolbar() {
         <Templates />
         <ThemeToggle />
         <button
+          ref={newBtnRef}
           type="button"
           className="btn"
-          onClick={() => {
-            if (window.confirm('Clear the canvas and start a new graph?')) newGraph()
-          }}
+          onClick={() => setConfirmNew(true)}
         >
           New
         </button>
@@ -131,14 +133,21 @@ export function Toolbar() {
         <button type="button" className="btn" onClick={doExport}>
           Export
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={onFile}
-        />
+        <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
       </div>
+
+      <ConfirmDialog
+        open={confirmNew}
+        title="Start a new graph?"
+        body="Your current graph will be replaced."
+        confirmLabel="New graph"
+        onConfirm={() => {
+          setConfirmNew(false)
+          newGraph()
+        }}
+        onCancel={() => setConfirmNew(false)}
+        returnFocusTo={() => newBtnRef.current}
+      />
     </header>
   )
 }

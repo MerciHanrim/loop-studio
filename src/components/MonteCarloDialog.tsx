@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { estimateMonteCarloCost, type CostEstimate } from '../engine'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
+import { useDialogFocus } from './useDialogFocus'
 
 // P2 — Monte-Carlo setup. Opens from the simulation strip (an execution mode,
 // not an authoring command). Shows an exact memory projection and a time RANGE
@@ -11,9 +12,6 @@ import { useMcStore } from '../store/mcStore'
 const fmtMs = (ms: number) => (ms < 950 ? `${Math.round(ms / 10) * 10}ms` : `${(ms / 1000).toFixed(1)}s`)
 const fmtBytes = (b: number) =>
   b < 1e6 ? `${Math.round(b / 1e3)} KB` : `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB`
-
-const FOCUSABLE =
-  'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'
 
 export function MonteCarloDialog() {
   const open = useMcStore((s) => s.dialogOpen)
@@ -58,50 +56,11 @@ export function MonteCarloDialog() {
     }
   }, [open, config, lastThroughput])
 
-  // focus in on open (first config field, else Close), restore to the strip
-  // button on close
-  useEffect(() => {
-    if (!open) return
-    const opener = document.activeElement as HTMLElement | null
-    const d = dialogRef.current
-    const target =
-      d?.querySelector<HTMLElement>('input, select') ?? d?.querySelector<HTMLElement>(FOCUSABLE)
-    target?.focus()
-    return () => {
-      const back =
-        document.querySelector<HTMLButtonElement>('.pstrip__mc button') ?? opener
-      back?.focus?.()
-    }
-  }, [open])
-
-  // Escape closes (does NOT cancel a run); Tab is trapped inside the dialog
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        close()
-        return
-      }
-      if (e.key !== 'Tab' || !dialogRef.current) return
-      const items = [...dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-        (el) => !el.hasAttribute('disabled'),
-      )
-      if (!items.length) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      const active = document.activeElement
-      if (e.shiftKey && active === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, close])
+  // Escape closes (does NOT cancel a run); Tab trapped; focus returns to the
+  // strip's Monte Carlo button
+  useDialogFocus(open, dialogRef, close, () =>
+    document.querySelector<HTMLButtonElement>('.pstrip__mc button'),
+  )
 
   if (!open) return null
 
