@@ -28,8 +28,13 @@ export type ParallelOptions = RunOptions & {
   jobSize?: number
 }
 
-const cpuCount = (): number =>
+export const cpuCount = (): number =>
   (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4
+
+/** Modest default: min(4, cores-1). Only an explicit `options.workers` (an
+ *  advanced setting) goes higher — a big pool costs spawn time + memory and
+ *  rarely helps the small runs the UI defaults to. */
+export const defaultWorkerCount = (): number => Math.min(4, Math.max(1, cpuCount() - 1))
 
 /**
  * True if this environment should use Workers. `false` when there is no DOM
@@ -55,7 +60,7 @@ export async function runMonteCarloParallel(
   config: RunConfig,
   options: ParallelOptions = {},
 ): Promise<MonteCarloResult> {
-  const workers = Math.max(1, Math.floor(options.workers ?? cpuCount()))
+  const workers = Math.max(1, Math.floor(options.workers ?? defaultWorkerCount()))
   if (workers <= 1 || !canUseWorkers()) {
     return runMonteCarlo(nodes, edges, config, options)
   }

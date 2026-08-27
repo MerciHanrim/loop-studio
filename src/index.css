@@ -1390,3 +1390,19 @@ body {
 .mcdlg__foot .btn:last-child {
   margin-left: auto;
 }
+
+/* Export menu in the distribution header opens upward (it sits at screen bottom) */
+.menu__pop--up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+/* Monte-Carlo cost block — labelled rows */
+.mcdlg__costlabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+  min-width: 96px;
+}

@@ -36,6 +36,9 @@ type McStore = {
   runGraph: { nodes: LoopNode[]; edges: LoopEdge[] } | null
   /** `simulationRev` at the moment `result` was produced */
   runRev: number
+  /** wall-clock throughput of the last completed run, for a tighter next
+   *  estimate — in-memory only, valid while `simulationRev` still matches */
+  lastThroughput: { rev: number; msPerRunStep: number } | null
   /** the graph's simulation semantics changed since `result` — still viewable,
    *  export disabled, cleared on the next successful run or on Clear */
   stale: boolean
@@ -64,6 +67,7 @@ export const useMcStore = create<McStore>((set, get) => ({
   result: null,
   runGraph: null,
   runRev: -1,
+  lastThroughput: null,
   stale: false,
   view: 'live',
   dialogOpen: false,
@@ -93,16 +97,20 @@ export const useMcStore = create<McStore>((set, get) => ({
       set({ progress: p.progress, completedRuns: p.completedRuns })
     }
 
+    const t0 = performance.now()
     try {
       const result = await runMonteCarloParallel(nodes, edges, config, {
         signal: controller.signal,
         onProgress,
       })
+      const wallMs = performance.now() - t0
+      const denom = Math.max(1, result.completedRuns * config.steps)
       set({
         status: 'done',
         result,
         runGraph: { nodes, edges },
         runRev: rev,
+        lastThroughput: { rev, msPerRunStep: wallMs / denom },
         stale: false,
         progress: 1,
         completedRuns: result.completedRuns,
@@ -136,6 +144,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       result: null,
       runGraph: null,
       runRev: -1,
+      lastThroughput: null,
       stale: false,
       progress: 0,
       completedRuns: 0,
