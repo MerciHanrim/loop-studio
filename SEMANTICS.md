@@ -4,13 +4,10 @@ How Loop Studio runs a diagram. The reference point is Machinations' observable
 behaviour; where this document and Machinations disagree, that is a bug to fix
 here.
 
-This revision specifies **Engine A — the deterministic core**. Randomness,
-Monte-Carlo, state connections, and interactive play are Engine B and are only
-sketched here under *Deferred*.
-
-> **Status: draft for review.** Nothing in `src/engine/` implements this yet
-> beyond the Source → Pool → Drain slice. The expected-result tables at the end
-> are the acceptance target; they become the first automated tests.
+This revision specifies **Engine A — the deterministic core**, and is **frozen**:
+the expected-result tables in §14 are the acceptance target and become the first
+automated tests. Randomness, Monte-Carlo, state connections, and interactive
+play are Engine B and appear here only under *Deferred* (§15).
 
 ---
 
@@ -20,18 +17,16 @@ sketched here under *Deferred*.
 
 - Node kinds: **Source, Pool, Gate (deterministic), Converter, Drain, End**
 - Resource connections with a flow rate
-- Flow expressions **evaluated**: a constant (`2`), `all`, a percentage (`25%`)
+- Flow expressions **evaluated**: a constant (`2`, `0.5`), `all`, a percentage
+  (`25%`)
 - Flow expressions **parsed but not evaluated**: ranges (`1-3`), dice (`2D6`) —
-  see §7
+  these contribute `0` in Engine A (§8)
 - Activation: `automatic`, `onStart`
-- Flow modes: `pull any` / `pull all` on Gate·Converter·Drain, `push any` /
+- Flow modes: `pull any` / `pull all` on Gate·Converter·Drain·End, `push any` /
   `push all` on Source
 - Pool capacity and **back-pressure**
 
-**Not in Engine A** (see §12): probabilistic gates, RNG, Monte-Carlo, state
-connections (triggers / activators / modifiers), `passive` / `interactive`
-activation, auto-pull / auto-push pools, delay / queue / register / trader,
-typed resources, gate round-robin.
+**Not in Engine A** — see §15.
 
 ---
 
@@ -40,23 +35,26 @@ typed resources, gate round-robin.
 A run is a fold over a **pure** step function:
 
 ```
-state₀      = initSim(graph)
-stateₙ₊₁, events, fired = step(graph, stateₙ)
+state0                  = initSim(graph)
+state(n+1), report      = step(graph, state(n))
 ```
 
-- `state` is `{ step, values, ended }` where `values` maps every Pool id to a
-  real number (Engine A works in real amounts, not integer tokens).
-- `step` has **no hidden state**: its output depends only on `graph` and the
-  `state` passed in. There is no RNG, no module-level cursor, no wall clock.
+- `state` is `{ step, values, ended }`. `values` maps every Pool id to a
+  non-negative finite real (§5).
+- `step` has **no hidden state**: output depends only on `graph` and the `state`
+  passed in. No RNG, no module-level cursor, no wall clock.
 - `initSim` fully rebuilds `state` from the graph (each Pool = its `initial`,
   `step = 0`, `ended = false`).
-- Therefore **Reset + the same graph reproduces the exact same sequence of
-  states and events, every time** (invariant I6).
+- **Reset + the same graph reproduces the exact same sequence of states and
+  reports, every time** (invariant I6).
 
-`events` is an ordered list of `{ edgeId, from, to, amount }` describing what
-moved this step; it drives the animation and is asserted by tests. `fired` is
-the set of node ids that activated this step (whether or not they moved
-anything).
+`report` is `{ events, activated, fired }`:
+
+- `events`: ordered `{ edgeId, from, to, amount }` for every transfer with
+  `amount > epsilon` this step. Drives animation; asserted by tests.
+- `activated`: node ids evaluated as execution targets this step.
+- `fired`: node ids that actually moved / produced / consumed `> epsilon` this
+  step. **The UI firing pulse uses `fired` only** (decision 5).
 
 ---
 
@@ -64,16 +62,17 @@ anything).
 
 - Discrete integer steps. **Step 0** is the initial state: Pools hold `initial`,
   nothing has flowed. **Step**/**Play** advances to 1, 2, 3, …
-- Every step reads a **snapshot** `S` = the Pool values as committed at the end
-  of the previous step. All pull demands are measured against `S` (and against
-  what earlier nodes have already taken this step — §9), never against
-  mid-step working values.
-- A separate **working copy** of the values is mutated during the step and
-  becomes `S` for the next step.
+- Each step reads a **snapshot** `S` = the Pool values committed at the end of
+  the previous step. Every pull demand is measured against `S` (and against what
+  earlier nodes already took this step — §10), never against mid-step working
+  values.
+- A separate **working copy** is mutated during the step and becomes `S` for the
+  next step.
 
-Consequence: a resource that a Source pushes into a Pool in step *n* is **not
-pullable from that Pool until step *n+1*** (it is not in the snapshot yet).
-Zero-storage routers (Gate, Converter) are the exception — see §5.
+Consequence: a resource a Source pushes into a Pool in step *n* is **not
+pullable from that Pool until step *n+1***. Zero-storage routers (Gate,
+Converter) are the exception — a Pool → Gate → Converter → Pool hand-off
+resolves inside one step (§6).
 
 ---
 
@@ -88,233 +87,250 @@ Zero-storage routers (Gate, Converter) are the exception — see §5.
 
 ---
 
-## 5. The step algorithm
+## 5. Numeric conventions
 
-Two phases. **Push before pull** (answer to Q1).
+- Every resource amount, capacity, and flow value is a **finite real ≥ 0**.
+- `epsilon = 1e-9`.
+- Any computed magnitude with `|x| < epsilon` is normalised to exactly `0`.
+- A Pool value that lands fractionally outside its bounds through rounding is
+  clamped into `[0, capacity]` (`[0, ∞)` if uncapped); this clamp only ever
+  corrects sub-`epsilon` drift — a clamp larger than `epsilon` is a bug (I3).
+- **`NaN` and `Infinity` are not valid inputs.** `initSim` rejects a graph whose
+  `initial`, `capacity`, or constant flow is non-finite.
+- Comparisons in tests are `|a − b| ≤ epsilon`.
+- Integer tokens, remainder distribution, and gate round-robin are a **separate
+  future mode** (§15), not part of Engine A.
+
+---
+
+## 6. The step algorithm
+
+Two phases. **Push before pull** (Q1). Phase 2 is a single forward walk of the
+router DAG in topological order; capacity is planned with a **reservation
+ledger** so it can never be double-spent.
+
+### Ledgers held for the duration of one step
+
+| ledger | meaning |
+|---|---|
+| `working[P]` | live Pool value; every headroom read uses this |
+| `taken[P]` | amount already pulled **out** of Pool `P` this step |
+| `reserved[P]` | amount promised **into** Pool `P` by an already-planned upstream router, not yet added to `working` |
+| `inbox[node]` | amount handed to a router by an upstream router this step |
+
+**Effective headroom:** `headroom(P) = capacity(P) − working[P] − reserved[P]`
+(`∞` if `P` is uncapped).
 
 ### Phase 1 — Push (Sources)
 
-For each firing Source, in ascending node-id order, for each outgoing resource
-edge in edge-creation order:
+Firing Sources in **ascending node-id** order; each Source's outgoing resource
+edges in **edge-creation** order.
 
-1. `want = evalDet(edge.flow)` (§7)
-2. target `T` is the Pool the edge points at
-3. `headroom(T) = capacity(T) − working[T]` (`∞` if `T` has no capacity)
-4. `moved = clamp(want, 0, headroom(T))`
-5. `working[T] += moved`; emit `{edge, from: source, to: T, amount: moved}`
+1. `push all`: if **any** outgoing edge has `headroom(target) < evalDet(flow)`,
+   the Source pushes **nothing on any edge** this step (atomic). Otherwise:
+2. per edge: `want = evalDet(flow)` (a Source edge's `all` / `%` / random all
+   evaluate to `0`; only a constant supplies resources), `m = min(want,
+   headroom(target))`, then `working[target] += m` and emit an event if
+   `m > epsilon`.
 
-`push all`: if **any** of the Source's outgoing edges cannot take its full
-`want` (headroom `< want`), the Source pushes **nothing on any edge** this step
-(atomic). `push any` (default): each edge moves what fits, independently.
+Sources have infinite supply and never contend; `want − m` is simply not
+created (I4).
 
-Sources have infinite supply, so they never contend; `want − moved` is simply
-not produced — it does not accumulate anywhere (I4).
+### Phase 2 — Pull (Gate, Converter, Drain, End)
 
-### Phase 2 — Pull (Gates, Converters, Drains)
+**Router DAG.** Nodes = the firing Gates / Converters / Drains / Ends. Directed
+edges = resource connections between them. Pools are the roots. A cycle among
+these zero-storage nodes with **no Pool in it** is ill-defined — every edge on
+such a cycle is treated as flow `0` and a diagnostic is emitted. Real feedback
+loops must contain a Pool.
 
-Routers hold nothing, so a Pool → Gate → Converter → Pool hand-off must resolve
-inside one step. This needs the downstream capacity to be known before anything
-is pulled, so Phase 2 is a **backward capacity pass** followed by a **forward
-execution pass**.
+**Order:** topological (roots first), ties broken by **ascending node id**.
+Every router executes **exactly once** per step.
 
-**Router DAG.** Build the DAG whose nodes are the firing Gates / Converters /
-Drains and whose edges are resource connections between them; Pools are the DAG
-roots (sources). A cycle of zero-storage routers with no Pool in it is
-ill-defined — Engine A treats every edge on such a cycle as flow `0` and emits a
-diagnostic. Real feedback loops must contain a Pool.
+**`accept(n)`** — read-only, used by a Gate/Converter to size its throughput. It
+reads **live** `working` / `reserved`, and recurses forward through
+not-yet-executed downstream routers (whose `inbox` is still empty):
 
-**Backward pass — `accept(node)`** = the maximum it can take on its input side
-this step, memoised over the DAG (leaves first):
-
-| node | `accept` |
+| n | `accept(n)` = max it can take on its input side |
 |---|---|
-| Pool `P` | `headroom(P)` using the current working value (Phase-1 pushes included) |
-| Drain `D` | `∞` |
-| Converter `C` | largest input total `x` such that every output `j` gets `x · outRateⱼ / Σ inRate ≤ accept(destⱼ)`; also `≤ Σ inRate` (one activation's worth per unit `f`, unbounded activations) |
-| Gate `G` | largest pulled total `T` such that every branch share `T · wⱼ / Σw ≤ accept(destⱼ)` — i.e. `T = minⱼ( accept(destⱼ) · Σw / wⱼ )` |
+| Pool `P` | `headroom(P)` |
+| Drain `D`, End `E` | `∞` |
+| Converter `C` | `fmax · Σ inRate`, where `fmax = min(1, min over out-edges k of accept(destₖ) / outRateₖ)` |
+| Gate `G` | `min over out-edges j of ( accept(destⱼ) · Σw / wⱼ )` |
 
-**Forward pass — execution**, routers in topological order (roots first), ties
-broken by ascending node id:
+**Execution**, in topo order:
 
-- **Drain `D`** (pool-fed): for each input edge, `pull(D, edge)` (§8); consumed
-  resources leave the system.
-- **Gate `G`** (deterministic):
-  - `demand = Σ evalDet(inEdge.flow)` over input edges (`all` → the pool's
-    snapshot-minus-taken; `%` → fraction of the pool's snapshot)
-  - `inputAvail = Σ (S[inPool] − taken[inPool])`
-  - `T = min(demand, inputAvail, accept(G))`
-  - pull `T` from the input pools (updating `taken` and `working`), emit
-    `V→G` events
-  - split by weight: branch `j` receives `T · wⱼ / Σw`, emit `G→destⱼ` events,
-    hand that amount to `destⱼ` (a Pool adds it to `working`; a Drain consumes
-    it; a Converter runs on it)
+- **Drain `D` / End `E`** — consume `got = inbox[node] + pullInputs(node)`
+  (§10). If `E` and `got > epsilon`: `ended = true`. Record `moved[node] = got`.
 
-  **No spill.** If one branch is capacity-blocked, `accept(G)` shrinks and
-  **all** branches scale down together; the un-pulled remainder stays in the
-  input Pool. (A gate is a fixed splitter, not a router that reroutes. Spill /
-  reroute is a candidate Engine-B feature — flagged in §13.)
+- **Gate `G`** (deterministic, fixed-ratio splitter):
+  1. `demand = Σ evalDet(inEdge.flow)` (`all` → `S[P] − taken[P]`; `%` →
+     `frac · S[P]`; constant → the number; random → `0`)
+  2. `inputAvail = Σ (S[P] − taken[P])` over input Pools
+  3. `T = min(demand, inputAvail, accept(G))`
+  4. `pull all`: if `T < demand − epsilon` then `T = 0`
+  5. if `T > epsilon`: pull `T` from the input Pools in `(sourceNodeId, edgeId)`
+     order (updating `taken`, `working`), emit `Pool→G` events. For each
+     outgoing edge `j` in edge-creation order: `share = T · wⱼ / Σw`; hand
+     `share` to `destⱼ` — a Pool: `working += share`; a Drain/End/Converter:
+     `inbox[destⱼ] += share`. **When a delivery will cause a downstream
+     production of `q` into some Pool `Pk` (i.e. feeding a Converter), add `q`
+     to `reserved[Pk]` now.** Emit `G→destⱼ` events. `moved[G] = T`.
 
-- **Converter `C`**: let `f` = feasible fraction `∈ [0, 1+]` =
-  `min( received / Σ inRate , accept-of-each-output / outRateⱼ )`. Consume
-  `f · inRateⱼ` on each input edge, produce `f · outRateⱼ` on each output edge.
-  A Converter fed by a Gate uses the amount the Gate handed it as `received`; a
-  pool-fed Converter pulls `f · inRate` from the pool.
+  **No spill** (decision 2): a capacity-blocked branch shrinks `accept(G)` and
+  therefore `T`; **all** branches scale down together; `demand − T` stays in the
+  input Pool.
 
-`pull all` on a Gate / Converter / Drain: if the feasible amount is **less than
-the full demand**, the node moves **nothing** this step (atomic). `pull any`
-(default): move the feasible amount.
+- **Converter `C`** — `received = inbox[C]` (+ a pool-fed Converter may also pull
+  up to `Σ inRate` from its input Pools in `(sourceNodeId, edgeId)` order).
+  `f = min( 1, received / Σ inRate, min over out-edges k of headroom(destₖ) /
+  outRateₖ )`, then `epsilon`-normalised into `[0, 1]`. `pull all`: if
+  `f < 1 − epsilon` then `f = 0`.
+  If `f > epsilon`: consume `f · inRateᵢ` on each input edge (from `inbox`
+  first, then Pool pull); produce `f · outRateₖ` into each `destₖ`
+  (`working += `, and settle the reservation: `reserved -= ` the amount
+  originally reserved for this Converter). `moved[C] = f · Σ inRate`.
+
+  **Exactly one activation per step, `0 ≤ f ≤ 1`** (gap 1). Because a Gate sizes
+  its delivery from `accept(C)` (which already caps at `f ≤ 1` and at live
+  output headroom via the reservation ledger), `received` never exceeds what `C`
+  can consume — **`inbox` is always fully consumed, so no router holds anything
+  between steps** (I5).
 
 ### Commit
 
-`working` becomes the next `S`. By construction every Pool is already within
-`[0, capacity]` (I3); the commit asserts this rather than clamping. `ended` is
-set if any resource was delivered to an **End** node this step (§6); once set,
-the run stops.
+`working` becomes the next `S`. Every Pool is already within `[0, capacity]` by
+construction (I3); the commit asserts it. If `ended` was set, the run stops.
 
 ---
 
-## 6. Node reference
+## 7. Node reference
 
-| Node | Role | Reads the edge rate as |
-|---|---|---|
-| **Source** | creates resources from nothing, pushes downstream | amount to push per step |
-| **Pool** | passive storage between steps; the only stateful node | amount to move (when pulled) |
-| **Gate** | pulls, splits, pushes — holds nothing | split **weight** on each outgoing edge |
-| **Converter** | consumes inputs, produces outputs at its own ratio — holds nothing | consume-per-activation (in), produce-per-activation (out) |
-| **Drain** | pulls resources and removes them from the system | amount to pull per step |
-| **End** | any resource reaching it ends the run | — |
+| Node | Role | reads its edge rate as | `accept` |
+|---|---|---|---|
+| **Source** | creates resources from nothing, pushes downstream | amount to push per step | — |
+| **Pool** | passive storage between steps; the only stateful node. Never auto-pulls or auto-pushes in Engine A | amount to move when pulled | `headroom(P)` |
+| **Gate** | pulls, splits by fixed ratio, pushes — holds nothing | split **weight** per outgoing edge | see §6 |
+| **Converter** | consumes inputs, produces outputs at its own ratio — holds nothing; ≤ 1 activation/step | consume-per-activation (in), produce-per-activation (out) | see §6 |
+| **Drain** | pulls resources and removes them from the system | amount to pull per step | `∞` |
+| **End** | any arrival `> epsilon` ends the run and marks it `fired` | amount to pull per step (if pool-fed) | `∞` |
 
-The number on a resource edge is one value with a context-dependent role
-(amount / weight / rate), decided by the active node at that end.
-
-A **Pool in Engine A never acts on its own** — it does not auto-pull or
-auto-push. It only gains resources from an upstream push and loses them to a
-downstream pull.
+The number on a resource edge is one value whose role (amount / weight / rate)
+is decided by the active node at that end.
 
 ---
 
-## 7. Flow expressions
+## 8. Flow expressions
 
-| Form | Parsed to | Engine A evaluation (`evalDet`) |
+| Form | Parsed to | Engine A `evalDet` |
 |---|---|---|
 | empty | const 1 | `1` |
-| `2`, `0.5` | const | the number |
-| `all` | all | `S[sourcePool] − taken[sourcePool]` (0 for a Source edge) |
-| `25%` | percent 0.25 | `0.25 · S[sourcePool]` (0 for a Source edge) |
-| `1-3` | range(1,3) | **`1`** (the minimum) + run diagnostic |
-| `2D6`, `D6` | dice(2,6) / dice(1,6) | **`2`** / **`1`** (the minimum) + run diagnostic |
+| `2`, `0.5` | const | the number (must be finite ≥ 0) |
+| `all` | all | `S[sourcePool] − taken[sourcePool]` (`0` on a Source edge) |
+| `25%` | percent 0.25 | `0.25 · S[sourcePool]` (`0` on a Source edge) |
+| `1-3` | range(1,3) | **`0`** + run diagnostic |
+| `2D6`, `D6` | dice(2,6) / dice(1,6) | **`0`** + run diagnostic |
 
 Ranges and dice are **parsed into structured values now** so the editor,
-serialisation, and Engine B all share one representation, but Engine A cannot
-evaluate randomness. It substitutes the **minimum** so a diagram containing dice
-still runs and previews a lower bound, and surfaces one diagnostic per run:
-*"N edges use random flow; held at minimum (deterministic mode). Full evaluation
-arrives with Engine B."*
-
-> **Open decision (§13):** minimum vs. treating a random edge as inert (`0`).
+serialisation, and Engine B share one representation. Engine A cannot evaluate
+randomness and does **not** substitute a stand-in value — the edge contributes
+`0` so a wrong-but-plausible number never appears in a run. One diagnostic per
+run: *"N edges use random flow — inactive in deterministic mode; needs Engine
+B."* A lower-bound preview may later be an explicit opt-in.
 
 ---
 
-## 8. `pull` helper
+## 9. `pull all` vs `pull any`
 
-```
-pull(node, edge) →
-  P     = edge.source                      // a Pool
-  avail = S[P] − taken[P]                   // snapshot minus earlier claims
-  want  = evalDet(edge.flow)               // 'all' → avail ; '25%' → 0.25·S[P]
-  amt   = (node is pull-all) ? (avail ≥ want ? want : 0)
-                             : clamp(want, 0, avail)
-  taken[P] += amt ; working[P] −= amt
-  emit { edge, from: P, to: node, amount: amt }
-  return amt
-```
+Per node, across **all** its input edges plus its output headroom:
 
-`pull all` atomicity is evaluated per node across **all** its input edges plus
-its output headroom: if the node cannot pull every input edge in full **and**
-place the full result, it pulls `0` from every edge.
+- **`pull any`** (default): each input edge moves `min(want, avail)`
+  independently; the node produces at whatever fraction it can.
+- **`pull all`**: if the node cannot pull **every** input edge in full **and**
+  place the full result, it moves **`0`** from every edge (atomic). For a Gate
+  this is `T = 0` when `T < demand`; for a Converter, `f = 0` when `f < 1`; for
+  a Drain/End, `0` when any input edge is short.
+
+`push all` is the Source mirror: full push on every outgoing edge, or nothing.
 
 ---
 
-## 9. Contention & ordering (Q2)
+## 10. Contention & ordering (Q2)
 
 When two firing nodes pull from the same Pool and it cannot satisfy both:
 
 1. Pull-phase nodes execute in **topological order** over the router DAG (a node
-   is processed after every upstream router it depends on).
-2. Nodes at the same topological rank are ordered by **ascending node id**
-   (ids are minted in creation order, so this is "first created, first served").
-3. Each puller takes from the Pool's **remaining** amount
-   `S[P] − taken[P]`; earlier nodes in the order have priority.
-4. A `pull all` node that cannot be satisfied from the remaining amount takes
-   **nothing**, leaving it for later nodes.
+   after every upstream router it depends on).
+2. Same topological rank → **ascending node id** ("first created, first
+   served").
+3. Within one node, multiple input edges are consumed in
+   **`(sourceNodeId, edgeId)`** order.
+4. Each pull takes from `S[P] − taken[P]`; earlier nodes/edges have priority.
+5. A `pull all` node that cannot be satisfied from what remains takes **`0`**,
+   leaving it for later nodes.
 
-The **final Pool values** after a step do not depend on any other iteration
-order (I7); only genuine contention invokes the priority rule, and that rule is
-itself deterministic. `events` are always emitted in this same fixed order.
-
----
-
-## 10. Capacity & back-pressure (Q3, Q4, Q5)
-
-- **A transfer moves `min(demand, sourceAvailable, targetHeadroom)`.** Capacity
-  is enforced at the moment of transfer, never by discarding an overfill.
-- **Unmoved resources stay upstream** (I4): in the source Pool if the block is
-  downstream; simply unproduced if the blocked node is a Source.
-- **Routers never accumulate.** A Gate or Converter that cannot pass resources
-  through pulls less input (`accept()` in §5). Nothing is left "inside" a
-  zero-storage node between steps (I5).
-- **Converter partial input → proportional output (Q4).** One fraction `f`
-  scales every input edge's consumption and every output edge's production
-  together. `f < 1` from either a starved input or a full output pool.
-- **Gate remainder (Q5).** Deterministic split is by weight and is exact
-  (`Σ branch shares = T`, real numbers, no rounding remainder). If a branch is
-  capacity-blocked, `T` itself is reduced (no spill), and `demand − T` stays in
-  the input Pool.
+Because every pull reads the **snapshot** `S` (not `working`), the **final Pool
+values are invariant to iteration order** except through this one explicit,
+deterministic priority rule (I7). `events` are always emitted in this order.
 
 ---
 
-## 11. Invariants (the acceptance checks)
+## 11. Capacity & back-pressure (Q3, Q4, Q5)
+
+- A transfer moves `min(demand, sourceAvailable, targetHeadroom)`. Capacity is
+  enforced at transfer time, never by discarding an overfill.
+- **Multiple producers into one Pool** cannot overfill it: each planned inflow
+  is added to `reserved[P]` when the upstream router is executed, and
+  `headroom(P)` subtracts `reserved[P]`. Producers execute in the deterministic
+  `(topo, id)` order; each sees the headroom the earlier ones left (gap 2).
+- Unmoved resources stay upstream (I4): in the source Pool, or unproduced by a
+  Source.
+- Routers never accumulate (I5): a blocked Gate/Converter pulls less input via
+  `accept()`; nothing is left inside a zero-storage node between steps.
+- **Converter partial input → proportional output (Q4).** One `f ∈ [0, 1]`
+  scales every input consumption and every output production together.
+- **Gate remainder (Q5).** The weighted split is exact over reals (no rounding
+  remainder). A blocked branch reduces `T` itself (no spill); `demand − T` stays
+  in the input Pool.
+
+---
+
+## 12. Invariants (acceptance checks)
 
 | # | Invariant |
 |---|---|
-| **I1** | **Conservation.** For every step: `Σ Pool(after) = Σ Pool(before) + Σ Source pushes − Σ Drain pulls − Σ Converter net loss`. No resource is created or destroyed in transit. |
-| **I2** | **Converter proportionality.** Per Converter per step there is a single `f ≥ 0` with `consumedⱼ = f·inRateⱼ` and `producedₖ = f·outRateₖ` for all its edges. |
-| **I3** | **Capacity.** After every step, every Pool value is within `[0, capacity]` (`[0, ∞)` if uncapped). Enforced by construction, not by lossy clamping. |
-| **I4** | **Back-pressure retention.** Any amount a transfer could not move remains in the upstream Pool, or is not produced by a Source. Nothing is silently dropped. |
-| **I5** | **Router zero-storage.** Gates and Converters hold `0` between steps. |
-| **I6** | **Determinism.** `step` is pure and `initSim` is total. Same graph + same start ⇒ identical `state` sequence and identical `events` on every run and after every Reset. |
-| **I7** | **Order independence.** Final Pool values depend on node iteration order only through the explicit, deterministic contention rule of §9. |
+| **I1** | **Conservation.** Per step: `Σ Pool(after) = Σ Pool(before) + Σ Source pushes − Σ Drain/End pulls − Σ Converter net loss`. No resource is created or destroyed in transit. |
+| **I2** | **Converter proportionality.** Per Converter per step there is a single `f ∈ [0, 1]` with `consumedᵢ = f·inRateᵢ` and `producedₖ = f·outRateₖ` for all its edges. |
+| **I3** | **Capacity.** After every step every Pool value is within `[0, capacity]`; any clamp applied is `< epsilon`. |
+| **I4** | **Back-pressure retention.** Anything a transfer could not move remains in the upstream Pool, or is not produced by a Source. Nothing is silently dropped. |
+| **I5** | **Router zero-storage.** Gates and Converters hold `0` between steps; every `inbox` is fully consumed in the step it is filled. |
+| **I6** | **Determinism.** `step` is pure and `initSim` is total. Same graph + same start ⇒ identical `state` sequence and identical `report` on every run and after every Reset. |
+| **I7** | **Iteration-order invariance.** The result depends on node/edge iteration order only through the explicit `(topo rank, node id)` / `(sourceNodeId, edgeId)` priority rules; any other ordering of the same nodes yields the same `values` and `events`. |
 
 ---
 
-## 12. The six questions, answered
+## 13. The six questions, answered
 
-1. **push or pull first in a step?** — **Push first** (Phase 1: Sources), then
-   pull (Phase 2: Gates / Converters / Drains). A resource pushed into a Pool
-   this step is visible to pulls only next step; router chains still resolve
-   within the step.
-2. **Several nodes want the same Pool — in what order?** — Topological order
-   over the router DAG, then ascending node id. Earlier = higher priority; each
-   takes from what remains. `pull all` losers take nothing (§9).
+1. **push or pull first?** — Push (Phase 1: Sources), then pull (Phase 2). A
+   resource pushed into a Pool this step is pullable only next step; router
+   chains still resolve within the step.
+2. **Several nodes want the same Pool — order?** — Topological rank, then
+   ascending node id; within a node, `(sourceNodeId, edgeId)`. Earlier = higher
+   priority; each takes from what remains; `pull all` losers take `0` (§10).
 3. **Capacity short — where do the resources stay?** — In the upstream Pool
-   (back-pressure), or unproduced if the blocked node is a Source. Never
-   discarded (I3, I4).
-4. **Converter gets only part of its input — is the output proportional?** —
-   Yes. A single fraction `f` scales all of its inputs and outputs together
-   (I2).
-5. **Gate split — what happens to the remainder?** — Deterministic split is
-   exact (real-number weights, no rounding remainder). A capacity-blocked branch
-   shrinks the gate's total intake (no spill); the shortfall stays in the input
-   Pool.
-6. **Reset then the same input — always the same result?** — Yes. No RNG, no
-   hidden state; `step` is pure and `initSim` fully resets (I6).
+   (back-pressure), or unproduced by a Source. Never discarded (I3, I4). Multiple
+   producers are serialised through the reservation ledger (§11).
+4. **Converter gets only part of its input — output proportional?** — Yes. One
+   `f ∈ [0, 1]`, exactly one activation per step (I2).
+5. **Gate split — the remainder?** — Exact weighted split over reals, no
+   rounding remainder. A blocked branch shrinks the gate's total intake (no
+   spill); the shortfall stays in the input Pool.
+6. **Reset then the same input — same result?** — Yes. No RNG, no hidden state
+   (I6).
 
 ---
 
-## 13. Representative sample & expected results
-
-The deterministic slice's acceptance sample. One diagram exercises supply,
-storage, splitting, conversion, consumption, capacity and determinism.
+## 14. Representative sample & expected results (test basis)
 
 ```
         e1: 3            e2: all         e3: w2 / consume 2
@@ -325,14 +341,14 @@ Source ───────► Pool V ─────────► Gate ─�
                                            Drain D
 ```
 
-- All nodes `automatic`. All pull nodes `pull any`.
-- `e3` rate `2` is both the Gate's weight for that branch **and** the
-  Converter's consume-per-activation. `e4` rate `1` is the Gate's other weight.
-- `e5` (Converter → P) rate `1` = produce-per-activation.
+- All nodes `automatic`; all pull nodes `pull any`.
+- `e3` rate `2` = Gate weight for that branch **and** Converter consume/activation.
+  `e4` rate `1` = Gate's other weight. `e5` (Converter → P) rate `1` =
+  produce/activation.
 
 ### Variant A — flowing equilibrium
 
-Add **Drain D2** pulling `e6: 1` from Pool P (`pull any`). P now has an outlet.
+Add **Drain D2** pulling `e6: 1` from Pool P (`pull any`).
 
 | step | V | P | Src→V | V→G | G→C | C→P | G→D | P→D2 | note |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -342,9 +358,10 @@ Add **Drain D2** pulling `e6: 1` from Pool P (`pull any`). P now has an outlet.
 | 3 | 3 | 1 | 3 | 3 | 2 | 1 | 1 | 1 | **equilibrium** |
 | ≥3 | 3 | 1 | 3 | 3 | 2 | 1 | 1 | 1 | steady state |
 
-Balance at steady state: in `3` (Source); out `1` (D) + `1` (D2) + `1`
-(Converter net loss: 2 consumed, 1 produced) = `3`. V: `+3 −3 = 0`. P:
-`+1 −1 = 0`. ✔ I1.
+Steady-state balance: in `3` (Source); out `1` (D) + `1` (D2) + `1` (Converter
+net loss) = `3`. V `+3 −3 = 0`; P `+1 −1 = 0`. ✔ I1.
+`fired` at steady state = {Source, Gate, Converter, Drain D, Drain D2}. At
+step 1 only {Source} fired (Gate/D2 activated, moved `0`).
 
 ### Variant B — bottleneck deadlock
 
@@ -357,34 +374,31 @@ Same diagram **without D2** — Pool P has no outlet.
 | 2 | 3 | 1 | 3 | 3 | 2 | 1 | 1 | |
 | 3 | 3 | 2 | 3 | 3 | 2 | 1 | 1 | |
 | 4 | 3 | 3 | 3 | 3 | 2 | 1 | 1 | **P at capacity** |
-| 5 | 6 | 3 | 3 | 0 | – | – | – | gate stalls; V starts backing up |
+| 5 | 6 | 3 | 3 | 0 | – | – | – | gate stalls; V backs up |
 | 6 | 9 | 3 | 3 | 0 | – | – | – | |
 | 7 | 10 | 3 | 1 | 0 | – | – | – | **V at capacity; Source back-pressures 3 → 1** |
 | 8 | 10 | 3 | 0 | 0 | – | – | – | frozen |
 | ≥8 | 10 | 3 | 0 | 0 | – | – | – | stable terminal state |
 
-Every non-moved resource is accounted for: steps 5–7 the Gate's `demand` (3)
-cannot be met by `accept(G) = 3·headroom(P) = 0`, so it pulls `0` and the 3 stay
-in V; step 7 the Source can only place `1` of its `3` and the other `2` are
-never created. ✔ I3, I4, I6.
+Steps 5–7: `accept(G) = accept(C) · Σw/w_C = 0` (P full ⇒ `headroom(P) = 0` ⇒
+`f_max = 0`), so `T = 0` and the 3 stay in V. Step 7: the Source can place only
+`1` of `3`; the other `2` are never created. ✔ I3, I4, I6. `fired` at steps ≥ 5
+= {Source} (step 5–6) then {} (step ≥ 8).
 
-### A `pull all` mini-case
+### Mini-cases
 
-Drain `D` with `pull all`, one input edge `flow 5`, from a Pool holding `4`:
-`avail (4) < want (5)` ⇒ D pulls **0**; the Pool keeps its `4`. Next step the
-Pool holds `≥ 5` ⇒ D pulls exactly `5`.
-
-### A `25%` mini-case
-
-Gate input edge `flow 25%` from a Pool with snapshot `S[P] = 10`:
-`want = 0.25 · 10 = 2.5`, regardless of what else pulls from `P` this step
-(the percentage is of the snapshot, not the running value).
+- **`pull all`:** Drain with `pull all`, input edge `flow 5`, Pool holds `4` ⇒
+  pulls `0`; Pool keeps `4`. When the Pool holds `≥ 5` ⇒ pulls exactly `5`.
+- **`25%`:** Gate input edge `flow 25%` from a Pool with `S[P] = 10` ⇒
+  `want = 2.5`, independent of other pulls from `P` this step.
+- **random flow:** Source edge `flow 2D6` ⇒ contributes `0`; run shows the
+  "needs Engine B" diagnostic.
 
 ---
 
-## 14. Deferred to Engine B (not in this slice)
+## 15. Deferred to Engine B / later
 
-- RNG + seed reproducibility; evaluation of `1-3` and `2D6`
+- RNG + seed reproducibility; evaluation of `1-3`, `2D6`; opt-in lower-bound preview
 - Probabilistic gates; gate **round-robin** (needs discrete tokens)
 - Monte-Carlo: many runs, percentile bands, end-step distribution
 - State connections: label modifiers, node modifiers, **triggers**, **activators**
@@ -392,19 +406,23 @@ Gate input edge `flow 25%` from a Pool with snapshot `S[P] = 10`:
 - Auto-pull / auto-push Pools
 - Delay, Queue, Register (formula), Trader
 - Typed / multi-colour resources
-- Integer-token mode (would reintroduce split remainders and enable round-robin)
+- **Integer-token mode** — reintroduces split remainders, enables round-robin
+- **Gate spill / reroute mode** — a blocked branch's share flows to open branches
 
-## 15. Open decisions for review
+---
 
-1. **Random flow in Engine A:** substitute the **minimum** (current proposal,
-   diagram still previews) vs. treat the edge as **inert `0`**.
-2. **Gate spill:** confirm **no spill** for Engine A (a blocked branch stalls
-   the whole gate). Spill / reroute would be an Engine-B option.
-3. **Real amounts vs integer tokens:** Engine A uses **real numbers**. Integer
-   mode is deferred (§14) — confirm that's acceptable for the deterministic
-   slice and its tests.
-4. **Converter fed by a Gate:** the Converter consumes what the Gate hands it
-   (Gate-driven), it does **not** separately pull. Confirm.
-5. **`fired` semantics:** a node is "fired" if it **activated**, even if
-   `accept`/availability left it moving `0`. Confirm (affects the firing-pulse
-   cue in the UI).
+## 16. Decisions log (resolved for this freeze)
+
+1. **Random flow in Engine A** → contributes `0` (not a min substitute).
+2. **Gate** → fixed-ratio splitter, **no spill**.
+3. **Amounts** → finite reals with `epsilon = 1e-9`; integer mode deferred (§5).
+4. **Gate → Converter** → Gate-driven via `inbox`; the Converter never
+   re-pulls that input; every router executes once per step.
+5. **`fired`** → actual moved/produced/consumed `> epsilon`; `activated` is the
+   separate "was evaluated" set; the UI pulse uses `fired`.
+6. **Converter** → exactly one activation per step, `0 ≤ f ≤ 1`.
+7. **Multiple producers into one Pool** → serialised via `reserved[P]` ledger in
+   `(topo, id)` order.
+8. **End** → `accept = ∞`; a `> epsilon` arrival ends the run and counts as
+   `fired`.
+9. **I7** → "Iteration-order invariance" (not full order independence).
