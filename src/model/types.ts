@@ -92,6 +92,9 @@ export type StateEdgeData = {
   mode: StateMode
   /** Modifier or condition expression, e.g. "+1" or ">=5". Unused for triggers. */
   expr: string
+  /** `trigger` only: integer ≥ 0 steps before delivery (SEMANTICS-S.md §S6).
+   *  `deliveryStep = firedStep + delay + 1`. Absent / invalid ⇒ 0. */
+  delay?: number
 }
 
 export type LoopEdgeData = ResourceEdgeData | StateEdgeData

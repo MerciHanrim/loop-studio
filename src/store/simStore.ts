@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
-import type { SimState, SimValues } from '../engine'
+import type { SimState, SimValues, TriggerQueueEntry } from '../engine'
 import { useGraphStore } from './graphStore'
 
 export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
@@ -14,6 +14,8 @@ type SimStore = {
   values: SimValues | null
   activeByEdge: Record<string, number>
   firedNodeIds: string[]
+  /** pending delayed state triggers, carried between steps (SEMANTICS-S.md §S8) */
+  triggerQueue: TriggerQueueEntry[]
   /** pools that received resources on the last step — drives the arrival cue */
   arrivedPoolIds: string[]
 
@@ -45,9 +47,16 @@ export const useSimStore = create<SimStore>((set, get) => {
   /** Current sim head, seeding an initial state on first use. */
   const head = (): SimState => {
     const s = get()
-    if (s.values) return { step: s.stepIndex, values: s.values, ended: s.status === 'ended' }
+    if (s.values)
+      return {
+        step: s.stepIndex,
+        values: s.values,
+        ended: s.status === 'ended',
+        fired: s.firedNodeIds,
+        triggerQueue: s.triggerQueue,
+      }
     const init = initSim(graph().nodes)
-    set({ values: init.values, stepIndex: 0, series: [{ step: 0, values: init.values }] })
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }] })
     return init
   }
 
@@ -68,6 +77,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       stepIndex: r.state.step,
       activeByEdge,
       firedNodeIds: r.report.fired,
+      triggerQueue: r.state.triggerQueue,
       arrivedPoolIds: [...arrived],
       series: [...s.series, { step: r.state.step, values: r.state.values }].slice(-MAX_SERIES),
       status: r.state.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
@@ -88,6 +98,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     values: null,
     activeByEdge: {},
     firedNodeIds: [],
+    triggerQueue: [],
     arrivedPoolIds: [],
     series: [],
     trackedIds: 'all',
@@ -117,6 +128,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         values: init.values,
         activeByEdge: {},
         firedNodeIds: [],
+        triggerQueue: [],
         arrivedPoolIds: [],
         series: [{ step: 0, values: init.values }],
       })

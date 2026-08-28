@@ -63,6 +63,8 @@ export {
   type FlowEvent,
   type SimState,
   type SimValues,
+  type StateEvent,
   type StepReport,
   type StepResult,
+  type TriggerQueueEntry,
 } from './types'
