@@ -1,7 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Browser E2E for Loop Studio. First slice: HTTP dev server, real Workers.
-// (The portable file:// cooperative path is a separate project, later.)
+// Browser E2E for Loop Studio.
+//   chromium       — http dev server (real Workers, the store bridge)
+//   build-portable — one-shot `npm run build:portable`
+//   portable       — the built single file opened from file:// (cooperative path,
+//                    no dev server, no bridge); depends on build-portable
 
 const PORT = 5173
 const BASE_URL = `http://localhost:${PORT}`
@@ -31,7 +34,18 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: /portable-file\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      name: 'build-portable',
+      testMatch: /portable\.setup\.ts/,
+    },
+    {
+      name: 'portable',
+      testMatch: /portable-file\.spec\.ts/,
+      dependencies: ['build-portable'],
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, baseURL: undefined },
     },
   ],
   webServer: {
