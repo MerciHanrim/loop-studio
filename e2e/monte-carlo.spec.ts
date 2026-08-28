@@ -69,6 +69,16 @@ test.describe('Monte Carlo run', () => {
     await expect(legend).toBeHidden()
   })
 
+  test('termination sparkline: the fixture has no End node → "No runs ended"', async ({ page }) => {
+    await runMc(page, { baseSeed: 1, runs: 30, steps: 8, tracked: FIXTURE_POOLS_4 })
+
+    const term = page.locator('.term')
+    await expect(term).toBeVisible()
+    await expect(term.locator('.term__cap')).toContainText('0% ended')
+    await expect(term.locator('.term__empty')).toHaveText('No runs ended')
+    await expect(term.locator('.term__line')).toHaveCount(0)
+  })
+
   test('a long run can be cancelled from the strip; no partial result', async ({ page }) => {
     // sized to comfortably outlast the Cancel click (steps dominate; workers
     // cannot parallelise within a run). 40 × 20001 × 4 = 3.2M cells < limit.
