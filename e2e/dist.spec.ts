@@ -55,6 +55,9 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   test('boots at /, imports Risky Factory, runs the Worker path → 424/500, exports, survives reload', async ({ page }) => {
     const { bad } = await openProd(page)
 
+    // 0 — the build stamp is injected and rendered (vN.N.N, optional · sha)
+    await expect(page.locator('.toolbar__build')).toHaveText(/^v\d+\.\d+\.\d+( · [0-9a-f]{7})?$/)
+
     // 1 — Import through the real hidden <input type=file>
     await page.locator('input[type="file"]').setInputFiles(RF)
     await expect(page.locator('.react-flow__node')).toHaveCount(18)

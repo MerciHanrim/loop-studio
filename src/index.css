@@ -273,6 +273,15 @@ body {
   border-radius: 3px;
 }
 
+/* version · build sha — quietest thing in the brand row, selectable for copy */
+.toolbar__build {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  user-select: text;
+}
+
 /* ---- L1 Broken Orbit ---- */
 .logo {
   display: block;
