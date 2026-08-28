@@ -276,16 +276,21 @@ export function step(
   // empty or unparseable `expr` ⇒ inert + exactly one diagnostic this step.
   // Several edges into one target apply in ascending `edge.id` to the running
   // value; intermediate out-of-range values are allowed. Then ONE clamp per
-  // target: `[0, capacity]`, or floor-0 only when the Pool is uncapped. The net
-  // edit is I1′'s explicit external term — reported in `report.stateEvents`
-  // only, never in `report.events`; it creates no trigger queue entry and never
-  // sets `ended`.
+  // target: `[0, capacity]`, or floor-0 only when the Pool is uncapped.
+  //
+  // Reporting (§S9): each edge's `delta` is its OWN raw requested change — the
+  // clamp is never folded into a per-edge figure (that could invert an edge's
+  // apparent direction). The single per-target clamp correction is reported once
+  // as `clampAdjustment` on the last label event into that target. Net external
+  // change on the target = `Σ delta + clampAdjustment = final − start`; this is
+  // I1′'s explicit term. `label` never touches `report.events`, never schedules
+  // a trigger, and never sets `ended`.
   const LABEL_RE = /^\s*([+\-=])\s*(\d+(?:\.\d+)?|S)\s*$/
   const labelEdges = stateEdges.filter(
     (e): e is LoopEdge & { data: { kind: 'state'; mode: 'label'; expr: string } } => e.data.mode === 'label',
   )
   const labelTargets = new Set<string>()
-  const labelApplied: { e: LoopEdge; delta: number; preRunning: number }[] = []
+  const labelApplied: { e: LoopEdge; delta: number }[] = []
   for (const e of labelEdges) {
     if (!byId.has(e.source) || !byId.has(e.target)) {
       diagnostics.push(`Label "${e.id}" connects a removed node; ignored.`)
@@ -319,26 +324,32 @@ export function step(
     const delta = m[1] === '+' ? operand : m[1] === '-' ? -operand : operand - running
     working[e.target] = running + delta
     labelTargets.add(e.target)
-    labelApplied.push({ e, delta, preRunning: running })
+    labelApplied.push({ e, delta })
   }
-  // one clamp per target, after every label edge across all targets
+  // one clamp per target, after every label edge across all targets; record the
+  // correction (clamped − unclamped) so it can be reported once, un-attributed.
+  const clampAdjByTarget = new Map<string, number>()
   for (const tid of labelTargets) {
-    const c = cap(byId.get(tid)!)
-    working[tid] = Math.min(c, Math.max(0, working[tid] ?? 0))
+    const unclamped = working[tid] ?? 0
+    const clamped = Math.min(cap(byId.get(tid)!), Math.max(0, unclamped))
+    working[tid] = clamped
+    clampAdjByTarget.set(tid, nz(clamped - unclamped))
   }
-  // per-edge `applied`: every edge but the last into a target contributed its
-  // full `delta`; the last absorbs that target's single clamp (§S9 / S-C).
+  // one label event per valid edge, ascending edge.id; `delta` is the edge's own
+  // raw request, `clampAdjustment` rides on the last event into each target.
   const lastLabelIdx = new Map<string, number>()
   labelApplied.forEach((r, i) => lastLabelIdx.set(r.e.target, i))
   labelApplied.forEach((r, i) => {
-    const applied =
-      lastLabelIdx.get(r.e.target) === i ? (working[r.e.target] ?? 0) - r.preRunning : r.delta
     stateEvents.push({
       edgeId: r.e.id,
       from: r.e.source,
       to: r.e.target,
       mode: 'label',
-      effect: { kind: 'label', delta: r.delta, applied },
+      effect: {
+        kind: 'label',
+        delta: r.delta,
+        clampAdjustment: lastLabelIdx.get(r.e.target) === i ? clampAdjByTarget.get(r.e.target) ?? 0 : 0,
+      },
     })
   })
 

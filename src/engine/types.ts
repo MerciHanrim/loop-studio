@@ -37,7 +37,12 @@ export type StateEvent = {
   effect:
     | { kind: 'trigger'; delivered: true; applied: boolean }
     | { kind: 'activator'; satisfied: boolean }
-    | { kind: 'label'; delta: number; applied: number }
+    // `delta` is this edge's raw requested change (for `=N` / `=S`, `N − running`).
+    // `clampAdjustment` is the target's SINGLE end-of-Phase-0 clamp correction,
+    // carried on the last label event into that target (0 elsewhere, 0 when the
+    // final value needed no clamp). Net external change on the target =
+    // Σ(delta over its label edges) + clampAdjustment = final − start.
+    | { kind: 'label'; delta: number; clampAdjustment: number }
 }
 
 export type StepReport = {

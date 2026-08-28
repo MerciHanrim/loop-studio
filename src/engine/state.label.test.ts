@@ -5,8 +5,10 @@ import { initSim, step } from './index'
 
 // SEMANTICS-S.md loop-state/1 — Slice 4: `label` (non-conserving numeric edit
 // on the target Pool's step-start balance). §S11 Case S-C is the acceptance
-// vector; §S9 fixes `stateEvents` (`delta` raw, `applied` post single clamp);
-// §S10 I1′ carries `Σ label applied` as the explicit external term.
+// vector. §S9 reporting: each edge's `delta` is its OWN raw request; the single
+// per-target end-of-Phase-0 clamp rides on the LAST label event into that
+// target as `clampAdjustment` (0 elsewhere / when no clamp). §S10 I1′ carries
+// `Σ delta + Σ clampAdjustment` as the explicit external term.
 
 const XY = { x: 0, y: 0 }
 const pool = (id: string, initial = 0, capacity: number | null = null): LoopNode => ({
@@ -35,7 +37,10 @@ const act = (id: string, s: string, t: string, expr: string): LoopEdge => ({
   data: { kind: 'state', mode: 'activator', expr },
 })
 
-type LabelEv = { edgeId: string; from: string; to: string; mode: string; effect: { kind: string; delta: number; applied: number } }
+type LabelEv = {
+  edgeId: string; from: string; to: string; mode: string
+  effect: { kind: string; delta: number; clampAdjustment: number }
+}
 type Frame = {
   step: number
   values: Record<string, number>
@@ -68,6 +73,9 @@ function run(nodes: LoopNode[], edges: LoopEdge[], steps: number): { frames: Fra
   return { frames, diags }
 }
 const lev = (evs: LabelEv[], id: string) => evs.find((e) => e.edgeId === id)
+/** net external change a label edge (or all label edges) contributed this step */
+const labelNet = (evs: LabelEv[]) =>
+  evs.filter((e) => e.effect.kind === 'label').reduce((a, e) => a + e.effect.delta + e.effect.clampAdjustment, 0)
 
 // ════════════════════════════════════════════════════════════════════════
 //  Case S-C — order + single clamp (the freeze target)
@@ -81,14 +89,15 @@ describe('S-C — F(10) ┄m1:"-1"┄►T ; F ┄m2:"+S"┄►T (cap 8) ; T ─4
     expect(frames.map((f) => f.values.T)).toEqual([0, 8, 4, 4, 4, 4])
     for (const f of frames) expect(f.values.F).toBe(10)
   })
-  it('stateEvents each step: m1 {delta:-1, applied:-1}; m2 delta:+10, applied absorbs the clamp', () => {
-    // step 1: before m2 the running value is -1, +10 → 9, clamp 8 ⇒ applied 8-(-1)=9
-    expect(lev(frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: -1, applied: -1 })
-    expect(lev(frames[1].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: 10, applied: 9 })
-    // step 2: before m2 running is 7, +10 → 17, clamp 8 ⇒ applied 1
-    expect(lev(frames[2].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: 10, applied: 1 })
-    // step 3+: S[T]=4 → 3 → 13 → clamp 8 ⇒ applied 5
-    expect(lev(frames[3].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: 10, applied: 5 })
+  it('each edge keeps its own raw delta; the clamp rides on m2 only', () => {
+    for (let s = 1; s <= 5; s++) {
+      expect(lev(frames[s].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: -1, clampAdjustment: 0 })
+      expect(lev(frames[s].stateEvents, 'm2')!.effect.delta).toBe(10) // +S[F] = +10, always
+    }
+    // clampAdjustment on m2: 9→8 ⇒ -1 ; 17→8 ⇒ -9 ; 13→8 ⇒ -5
+    expect(lev(frames[1].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-1)
+    expect(lev(frames[2].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-9)
+    expect(lev(frames[3].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-5)
   })
   it('label events are ascending by edgeId and never leak into report.events', () => {
     for (let s = 1; s <= 5; s++) {
@@ -97,12 +106,11 @@ describe('S-C — F(10) ┄m1:"-1"┄►T ; F ┄m2:"+S"┄►T (cap 8) ; T ─4
       expect(frames[s].events).not.toContain('m2')
     }
   })
-  it('I1′ — per step ΔT == Σ(label applied) − Drain pull (pull = min(4, S[T]))', () => {
+  it('I1′ — per step ΔT == (Σ delta + Σ clampAdjustment) − Drain pull', () => {
     for (let s = 1; s <= 5; s++) {
       const dT = frames[s].values.T - frames[s - 1].values.T
-      const sumApplied = frames[s].stateEvents.reduce((a, e) => a + e.effect.applied, 0)
       const drainPull = Math.min(4, frames[s - 1].values.T)
-      expect(dT).toBe(sumApplied - drainPull)
+      expect(dT).toBe(labelNet(frames[s].stateEvents) - drainPull)
     }
   })
 })
@@ -111,7 +119,6 @@ describe('S-C — F(10) ┄m1:"-1"┄►T ; F ┄m2:"+S"┄►T (cap 8) ; T ─4
 //  Grammar — the frozen assignment forms, and everything else inert
 // ════════════════════════════════════════════════════════════════════════
 describe('grammar — +N / -N / =N / +S / -S / =S only', () => {
-  // one label edge onto an isolated Tank; read the step-1 commit.
   const oneShot = (expr: string, tInit = 0, cap: number | null = null, fInit = 6) =>
     run([pool('F', fInit), pool('T', tInit, cap)], [label('m1', 'F', 'T', expr)], 1)
 
@@ -135,9 +142,9 @@ describe('grammar — +N / -N / =N / +S / -S / =S only', () => {
       expect(oneShot(e, t0).diags[1].filter((d) => d.startsWith('Label'))).toHaveLength(0)
     }
   })
-  it('=N reports delta = N − running', () => {
+  it('=N reports delta = N − running, clampAdjustment 0 when it fits', () => {
     const r = oneShot('=7', 2)
-    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 5, applied: 5 })
+    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 5, clampAdjustment: 0 })
   })
 
   const bad: [string, RegExp][] = [
@@ -191,33 +198,57 @@ describe('endpoints — source and target must both be Pools', () => {
 })
 
 // ════════════════════════════════════════════════════════════════════════
-//  Clamp — one, at the end of Phase 0
+//  Clamp — one per target, reported as an un-attributed clampAdjustment
 // ════════════════════════════════════════════════════════════════════════
-describe('a single clamp per target after every label edge', () => {
+describe('a single clamp per target, never folded into an edge delta', () => {
   it('uncapped Pool: floor at 0 only, no ceiling', () => {
     const lo = run([pool('F', 6), pool('T', 5)], [label('m1', 'F', 'T', '-10')], 1)
     expect(lo.frames[1].values.T).toBe(0)
-    expect(lev(lo.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: -10, applied: -5 })
+    // running −5 → clamp 0 ⇒ adjustment +5, but the edge still requested −10
+    expect(lev(lo.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: -10, clampAdjustment: 5 })
     const hi = run([pool('F', 6), pool('T', 0)], [label('m1', 'F', 'T', '+1000')], 1)
     expect(hi.frames[1].values.T).toBe(1000)
+    expect(lev(hi.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 1000, clampAdjustment: 0 })
   })
-  it('capped Pool: overflow clamps to capacity, surfaced on applied', () => {
+  it('capped Pool: overflow clamps to capacity, surfaced as a negative adjustment', () => {
     const r = run([pool('F', 6), pool('T', 0, 8)], [label('m1', 'F', 'T', '+100')], 1)
     expect(r.frames[1].values.T).toBe(8)
-    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 100, applied: 8 })
+    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 100, clampAdjustment: -92 })
   })
-  it('intermediate out-of-range values between two modifiers are allowed', () => {
-    // m1 "+20" pushes past cap 8, m2 "-15" brings it back to 5 — no clamp between.
+  it('intermediate out-of-range values between two modifiers are allowed (no clamp between)', () => {
+    // m1 "+20" pushes past cap 8, m2 "-15" brings it back to 5 — final in range ⇒ adjustment 0
     const r = run([pool('F', 6), pool('T', 0, 8)], [label('m1', 'F', 'T', '+20'), label('m2', 'F', 'T', '-15')], 1)
     expect(r.frames[1].values.T).toBe(5)
-    expect(lev(r.frames[1].stateEvents, 'm1')!.effect.applied).toBe(20) // full delta — no early clamp
-    expect(lev(r.frames[1].stateEvents, 'm2')!.effect.applied).toBe(-15)
+    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 20, clampAdjustment: 0 })
+    expect(lev(r.frames[1].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: -15, clampAdjustment: 0 })
   })
-  it('the last edge into a target absorbs the clamp; earlier edges keep their full delta', () => {
-    const r = run([pool('F', 6), pool('T', 0, 8)], [label('m1', 'F', 'T', '+5'), label('m2', 'F', 'T', '+10')], 1)
-    expect(r.frames[1].values.T).toBe(8)
-    expect(lev(r.frames[1].stateEvents, 'm1')!.effect.applied).toBe(5)
-    expect(lev(r.frames[1].stateEvents, 'm2')!.effect.applied).toBe(3) // 8 − 5
+  it('Lumi regression 1 — +100 then +1, cap 10: both deltas positive, adjustment −91 on the last', () => {
+    const r = run([pool('F', 6), pool('T', 0, 10)], [label('m1', 'F', 'T', '+100'), label('m2', 'F', 'T', '+1')], 1)
+    expect(r.frames[1].values.T).toBe(10)
+    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 100, clampAdjustment: 0 })
+    expect(lev(r.frames[1].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: 1, clampAdjustment: -91 })
+    expect(labelNet(r.frames[1].stateEvents)).toBe(10) // = final − start
+  })
+  it('Lumi regression 2 — +10 then -20, floor 0: adjustment +10 on the last', () => {
+    const r = run([pool('F', 6), pool('T', 0)], [label('m1', 'F', 'T', '+10'), label('m2', 'F', 'T', '-20')], 1)
+    expect(r.frames[1].values.T).toBe(0)
+    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 10, clampAdjustment: 0 })
+    expect(lev(r.frames[1].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: -20, clampAdjustment: 10 })
+    expect(labelNet(r.frames[1].stateEvents)).toBe(0)
+  })
+  it('Lumi regression 3 — reversed arrays: same edge-id order, same adjustment', () => {
+    const nodes = [pool('F', 6), pool('T', 0, 10)]
+    const edges = [label('m2', 'F', 'T', '+1'), label('m1', 'F', 'T', '+100')] // out of id order
+    const a = run(nodes, edges, 1)
+    const b = run([...nodes].reverse(), [...edges].reverse(), 1)
+    expect(b.frames).toEqual(a.frames)
+    expect(lev(a.frames[1].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-91)
+    expect(a.frames[1].stateEvents.map((e) => e.edgeId)).toEqual(['m1', 'm2'])
+  })
+  it('Lumi regression 4 — no clamp needed ⇒ every clampAdjustment is 0', () => {
+    const r = run([pool('F', 6), pool('T', 0, 10)], [label('m1', 'F', 'T', '+3'), label('m2', 'F', 'T', '+2')], 1)
+    expect(r.frames[1].values.T).toBe(5)
+    for (const id of ['m1', 'm2']) expect(lev(r.frames[1].stateEvents, id)!.effect.clampAdjustment).toBe(0)
   })
 })
 
@@ -234,8 +265,8 @@ describe('multiple modifiers apply in ascending edge.id', () => {
     const { nodes, edges } = build()
     const r = run(nodes, edges, 1)
     expect(r.frames[1].values.T).toBe(5)
-    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 2, applied: 2 })
-    expect(lev(r.frames[1].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: 3, applied: 3 })
+    expect(lev(r.frames[1].stateEvents, 'm1')!.effect).toEqual({ kind: 'label', delta: 2, clampAdjustment: 0 })
+    expect(lev(r.frames[1].stateEvents, 'm2')!.effect).toEqual({ kind: 'label', delta: 3, clampAdjustment: 0 })
   })
   it('I8-S — reversing the arrays does not change frames or diagnostics', () => {
     const { nodes, edges } = build()
@@ -280,8 +311,10 @@ describe('label always applies; a co-located activator gates only the target\'s 
   it('gauge open ⇒ exactly the S-C trace (D drains)', () => {
     const r = scGraph(10)
     expect(r.frames.map((f) => f.values.T)).toEqual([0, 8, 4, 4, 4, 4])
-    expect(lev(r.frames[2].stateEvents, 'm2')!.effect.applied).toBe(1)
-    for (let s = 1; s <= 5; s++) expect((r.frames[s].stateEvents.find((e) => e.edgeId === 'a1') as unknown as { effect: { satisfied: boolean } }).effect.satisfied).toBe(true)
+    expect(lev(r.frames[2].stateEvents, 'm2')!.effect.clampAdjustment).toBe(-9)
+    for (let s = 1; s <= 5; s++) {
+      expect((r.frames[s].stateEvents.find((e) => e.edgeId === 'a1') as unknown as { effect: { satisfied: boolean } }).effect.satisfied).toBe(true)
+    }
   })
   it('gauge closed ⇒ label still edits T every step, D never drains ⇒ T holds at 8', () => {
     const r = scGraph(3)

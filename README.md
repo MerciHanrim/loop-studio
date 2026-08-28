@@ -4,9 +4,12 @@ A browser-based editor and simulator for **Machinations-style diagrams** — mod
 game's economy or feedback systems as resources flowing between pools, sources,
 drains, gates, and converters, then run the model to see how it behaves over time.
 
-> Status: **early preview.** The diagram editor works; the simulation engine is
-> under construction. Execution semantics are being pinned down in
-> [`SEMANTICS.md`](SEMANTICS.md) as they land.
+**Live app: <https://cozy-loop-studio.pages.dev>**
+
+> Status: **working preview.** The diagram editor and the simulation engine
+> (deterministic + seeded randomness + Monte Carlo) are usable today. Execution
+> semantics are pinned down in frozen spec documents (see [Semantics](#semantics));
+> state connections are landing slice by slice.
 
 ## Why
 
@@ -19,38 +22,70 @@ in your browser, and a graph is a plain JSON file you own.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # -> dist/  (static, deploy anywhere)
+npm run dev            # http://localhost:5173
+npm run build          # -> dist/            static SPA, deploy anywhere
+npm run build:portable # -> dist-portable/   single self-contained index.html (file://)
 npm run lint
+npm test               # vitest (engine + store unit tests)
+npm run e2e            # Playwright browser end-to-end
+npm run e2e:dist      # Playwright against the production build
 ```
 
-Requires Node 20+.
+Requires **Node 22+** (`.nvmrc` pins `22`; `engines` requires `>=22.12.0`).
 
 ## Stack
 
 - React + TypeScript + Vite
 - [React Flow](https://reactflow.dev) (`@xyflow/react`) for the node canvas
 - Zustand for graph + simulation state
-- Simulation engine is a dependency-free TypeScript module (`src/engine/`, WIP),
-  kept separate from the UI so its behaviour can be unit-tested against
-  `SEMANTICS.md`
+- The simulation engine is a dependency-free TypeScript module (`src/engine/`),
+  kept separate from the UI so its behaviour can be unit-tested against the
+  frozen spec documents
+- Monte Carlo runs on a Web Worker on a secure origin, with a cooperative
+  main-thread fallback for `file://` / insecure origins
+- `vite-plugin-singlefile` produces a portable, offline single-file build
+- Deployed on **Cloudflare Pages**; CI on **GitHub Actions** (`main` is
+  protected — PR + green `checks` / `e2e` required)
+
+## Semantics
+
+Behaviour is frozen in versioned spec documents; a behavioural change means a new
+spec id, never an edit to a frozen one.
+
+| Doc | Spec id | Covers |
+|---|---|---|
+| [`SEMANTICS.md`](SEMANTICS.md) | — | Engine A: deterministic step / pull / push, gates, converters, conservation |
+| [`SEMANTICS-B1.md`](SEMANTICS-B1.md) | `loop-rng/1` | seeded keyed RNG, random flow (`1-3`, `2D6`), probabilistic gates |
+| [`SEMANTICS-B2.md`](SEMANTICS-B2.md) | `loop-mc/1`, `loop-mc-seed/1` | Monte Carlo: many runs, per-timestep bands, final-value distribution |
+| [`SEMANTICS-S.md`](SEMANTICS-S.md) | `loop-state/1` | state connections: `trigger` (+ delay), `activator`, `label` |
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `src/model/` | Graph data types, node factories, JSON load/save |
-| `src/store/` | Zustand store — nodes, edges, selection, persistence |
-| `src/components/` | Toolbar, canvas, inspector, custom node & edge views |
-| `src/engine/` | Simulation engine (WIP) |
+| `src/store/` | Zustand store — nodes, edges, selection, persistence, sim state |
+| `src/components/` | Toolbar, canvas, inspector, custom node & edge views, Monte-Carlo dialog + charts |
+| `src/engine/` | Simulation engine — deterministic step, RNG, Monte Carlo, state connections |
+| `e2e/` | Playwright specs (app, portable `file://`, production build) |
+| `examples/` | Importable graphs — `risky-factory.json` + an Engine-B verification fixture |
 
 ## Roadmap
 
-1. ✅ Diagram editor — add/connect/edit nodes, JSON import/export, autosave
-2. ⬜ Deterministic engine — step/play/reset, single-run timeline chart
-3. ⬜ Randomness + Monte Carlo — dice, probabilistic gates, percentile bands
-4. ⬜ Onboarding — starter templates, guided tour, inline docs, KO/EN
-5. ⬜ Ship — GitHub Pages + offline PWA, shareable URLs
+- ✅ Diagram editor — add / connect / edit nodes, JSON import/export, autosave
+- ✅ Deterministic engine (Engine A) — step / play / reset, single-run timeline
+- ✅ Engine B — seeded RNG, random flows, probabilistic gates
+- ✅ Monte Carlo — engine, dialog UI, percentile bands, result export/import
+- ✅ Cloudflare Pages deployment + GitHub Actions CI + protected `main`
+- ✅ Onboarding, part 1 — starter templates, verification fixture, Risky Factory example
+- ◐ State connections (`loop-state/1`)
+  - ✅ Trigger + delay
+  - ✅ Activator + comparison conditions
+  - ◐ Label modifier *(current PR)*
+  - ☐ Inspector fields + in-canvas state pulse / tint / flash
+- ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
+- ☐ Ship — workspace export, shareable URLs, offline PWA
+- ☐ Advanced Monte-Carlo worker-count setting
 
 ## Credits
 
