@@ -1,19 +1,25 @@
 # Execution semantics — State connections
 
-**Status: DRAFT, ready for freeze review.** D1–D7 resolved (§S12) and the seven
-pre-freeze additions folded in (this revision). No engine code yet. On freeze
-the §S11 tables become the acceptance vectors and implementation begins on
-`feat/state-semantics` in the slice order of §S13.
+```
+Spec ID: loop-state/1
+Status:  Frozen
+```
+
+**Frozen** (2026-08-28). The §S11 tables are the acceptance vectors;
+implementation proceeds on `feat/state-semantics` in the slice order of §S13,
+starting with slice 1 (Trigger + passive). Any change to a *behavioural* meaning
+here is a **`loop-state/2`** candidate in a new document — this file is never
+overwritten for semantics. Typo fixes and clarifying prose are allowed in v1.
 
 This document *extends* [`SEMANTICS.md`](./SEMANTICS.md) (Engine A, frozen) and
 is compatible with [`SEMANTICS-B1.md`](./SEMANTICS-B1.md) /
 [`SEMANTICS-B2.md`](./SEMANTICS-B2.md); it only states what changes and what is
 added. Section numbers are `S0…S13`.
 
-Spec id: **`loop-state/1`**. On freeze this folds into `SEMANTICS.md` with edits
-to §2 (state carries `fired` + `triggerQueue`), §4 (`passive` fires; `onStart`
-interaction), §6 (Phase 0), §12 (I1 carve-out, new invariants), §15 (remove
-"state connections"), §16 (decisions).
+On the eventual fold into `SEMANTICS.md`: edits to §2 (state carries `fired` +
+`triggerQueue`), §4 (`passive` fires; `onStart` interaction), §6 (Phase 0), §12
+(I1 carve-out, new invariants), §15 (remove "state connections"), §16
+(decisions).
 
 ---
 
