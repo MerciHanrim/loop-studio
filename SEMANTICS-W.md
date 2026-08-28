@@ -2,13 +2,15 @@
 
 ```
 Spec ID: loop-workspace/1
-Status:  Draft — review additions folded in; freezes on sign-off
+Status:  Frozen
 ```
 
-Defines *what a Workspace file is*, *what it carries*, and *how it is restored*,
-so the implementation has a fixed target. On sign-off it freezes as
-`loop-workspace/1`; a behavioural change after that is a new spec id in a new
-document (as with `loop-state/1 → loop-state/2`).
+**Frozen** (2026-08-28). This document is the fixed target for the
+implementation. A behavioural change after this is a new spec id in a new
+document (`loop-workspace/2`), exactly as with `loop-state/1 → loop-state/2`;
+this file only takes typo / clarifying-prose fixes.
+
+Defines *what a Workspace file is*, *what it carries*, and *how it is restored*.
 
 Independent of, and layered on top of, the graph / engine / Monte-Carlo specs. It
 never changes how a diagram *runs* — it only saves and restores app state around
@@ -178,18 +180,28 @@ so every id that keys a draw is in the projection.
 
 ### W3.2 Which graph is hashed
 
-- On **Export**: `resultGraphDigest = semanticDigest(mcStore.runGraph)` — the
-  snapshot of the graph the result was actually produced from, **not** the graph
-  currently on screen. (A user may export while holding a knowingly-stale
-  result.)
+- **`resultGraphDigest` is bound to the *run*, not to any later export.** It is
+  generated **only when a Monte-Carlo run completes** — `semanticDigest(runGraph)`
+  where `runGraph` is the exact graph that run executed against — and then
+  travels with the result unchanged.
+- On **Export**: the stored `resultGraphDigest` is written **verbatim**. It is
+  **never recomputed against the current graph on export.** In particular, when a
+  result was *restored from a Workspace file*, its original `resultGraphDigest` is
+  carried straight through to the next `Workspace JSON` — re-saving a
+  stale-loaded result must not relabel it with the current graph's digest (that
+  would make it look fresh on the next Import).
 - On **Import**: recompute `semanticDigest(file.nodes, file.edges)` — the
-  current graph — and compare:
+  current graph — and compare it to the file's `resultGraphDigest`:
   - **equal** → the result is attached; `stale` = whatever the file recorded (a
     file may legitimately carry a stale result the user kept);
   - **different** → the result is attached but forced **`stale: true`**, with a
     one-line notice ("the saved distribution is from an earlier version of this
     graph");
   - the graph always loads either way.
+
+So the digest has exactly one origin (a completed run's `runGraph`) and exactly
+one consumer (the Import-time comparison). Neither export nor restore ever
+rewrites it.
 
 ### W3.3 Corrupt / provisional
 
@@ -330,10 +342,12 @@ restores the same state.
 
 Round-trip: `Import(Workspace) → Export(Workspace)` reproduces the same
 `workspace` payload up to (a) a re-sorted `triggerQueue` / `stateEvents` if the
-input was out of canonical order, (b) `mc.stale` flipping to `true` on a digest
-mismatch, and (c) `view.timeline` falling back to `"live"` if there was no usable
-result. `Export(Graph)` from a restored workspace produces exactly today's Graph
-file (no `workspace` key).
+input was out of canonical order, (b) `mc.stale` written as the value it was
+*displayed* at after Import — i.e. `true` if the Import forced it on a digest
+mismatch (§W3.2) — while `resultGraphDigest` is carried through **unchanged**,
+and (c) `view.timeline` falling back to `"live"` if there was no usable result.
+`Export(Graph)` from a restored workspace produces exactly today's Graph file (no
+`workspace` key).
 
 ---
 
@@ -399,7 +413,7 @@ file (no `workspace` key).
 | **D3** | **`loop-workspace/1` is its own frozen spec id.** |
 | **D4** | **Always restore paused / idle; never auto-run; never restore the timer.** |
 | **D5** | **No silent truncation.** Over the byte cap ⇒ prompt (save without result / cancel); after removing the result, if graph + snapshot still exceed the cap ⇒ **hard reject**. A left-out result is recorded as `resultOmitted: "size-limit"`. |
-| **D6** | **Result ↔ graph binding via a SEMANTIC digest** (SHA-256 of the canonical, id-sorted, fixed-key-order JSON of engine-relevant node/edge fields only — no `position`, `label`, viewport, `recommendedRunConfig`, or other presentation fields). The stored digest is computed from **`runGraph`**, not the current graph; Import compares it against the current graph's semantic digest. |
+| **D6** | **Result ↔ graph binding via a SEMANTIC digest** (SHA-256 of the canonical, id-sorted, fixed-key-order JSON of engine-relevant node/edge fields only — no `position`, `label`, viewport, `recommendedRunConfig`, or other presentation fields). **Digest provenance:** the digest is generated **only when a Monte-Carlo run completes** (from that run's `runGraph`) and thereafter travels with the result **verbatim** — export writes it unchanged, and a result restored from a Workspace keeps its original digest (never relabelled with the current graph's). Import is its only consumer: it compares the stored digest against the current graph's semantic digest to decide `stale`. |
 | **D7** | **Excluded:** running/timer state, abort/Worker/provisional-MC state, undo history, dialog/focus/selection, transient animations, `lastThroughput`, user-global prefs (theme, language). |
 | **D8** | **Atomic, defensive, independent restoration.** Each part validates and fails in isolation; the restore pass runs after the single graph-load `simulationRev` bump and causes no further bump, so subscribers do not re-stale / re-reset. |
 | **D9** | **The live single-run `seed` (`simStore.seed`) is a required snapshot field**, distinct from `mc.config.baseSeed`, so a random run continues identically past the restore. |
@@ -459,6 +473,11 @@ file (no `workspace` key).
 6. **Stale-on-export** — hold a knowingly-stale result (edit the graph after a
    run), `Export(Workspace)`; the stored digest is the `runGraph`'s, and
    re-Import into the *edited* graph keeps it `stale`.
+6a. **Digest provenance across a re-save** — Import a Workspace whose result is
+    `stale` (digest mismatch), make no further change, `Export(Workspace)` again,
+    then Import that second file: the result is **still `stale`** — the re-save
+    carried the original `runGraph` digest, it was **not** relabelled with the
+    current graph's digest (which would have made it look fresh).
 7. **Corrupt result** — truncate `series` in `mc.result`; Import ⇒ graph +
    config + view + sim restore, result discarded with a warning.
 8. **Oversize → save without result** — a result over `WORKSPACE_MAX_BYTES` ⇒
