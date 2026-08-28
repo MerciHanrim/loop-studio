@@ -7,7 +7,7 @@
       "type": "source",
       "position": {
         "x": 0,
-        "y": 40
+        "y": 20
       },
       "data": {
         "kind": "source",
@@ -20,8 +20,8 @@
       "id": "ore_stock",
       "type": "pool",
       "position": {
-        "x": 200,
-        "y": 40
+        "x": 210,
+        "y": 20
       },
       "data": {
         "kind": "pool",
@@ -36,8 +36,8 @@
       "id": "ore_router",
       "type": "gate",
       "position": {
-        "x": 400,
-        "y": 40
+        "x": 420,
+        "y": 20
       },
       "data": {
         "kind": "gate",
@@ -50,8 +50,8 @@
       "id": "refined_ore",
       "type": "pool",
       "position": {
-        "x": 600,
-        "y": -40
+        "x": 640,
+        "y": 20
       },
       "data": {
         "kind": "pool",
@@ -66,8 +66,8 @@
       "id": "tailings",
       "type": "pool",
       "position": {
-        "x": 600,
-        "y": 150
+        "x": 640,
+        "y": 180
       },
       "data": {
         "kind": "pool",
@@ -82,8 +82,8 @@
       "id": "waste_drain",
       "type": "drain",
       "position": {
-        "x": 400,
-        "y": 150
+        "x": 420,
+        "y": 180
       },
       "data": {
         "kind": "drain",
@@ -96,8 +96,8 @@
       "id": "energy_source",
       "type": "source",
       "position": {
-        "x": 200,
-        "y": 260
+        "x": 0,
+        "y": 340
       },
       "data": {
         "kind": "source",
@@ -110,8 +110,8 @@
       "id": "energy_pool",
       "type": "pool",
       "position": {
-        "x": 400,
-        "y": 260
+        "x": 210,
+        "y": 340
       },
       "data": {
         "kind": "pool",
@@ -126,8 +126,8 @@
       "id": "assembly",
       "type": "converter",
       "position": {
-        "x": 820,
-        "y": 60
+        "x": 640,
+        "y": 340
       },
       "data": {
         "kind": "converter",
@@ -140,8 +140,8 @@
       "id": "components",
       "type": "pool",
       "position": {
-        "x": 1040,
-        "y": 60
+        "x": 860,
+        "y": 340
       },
       "data": {
         "kind": "pool",
@@ -156,8 +156,8 @@
       "id": "quality_gate",
       "type": "gate",
       "position": {
-        "x": 1240,
-        "y": 60
+        "x": 1080,
+        "y": 340
       },
       "data": {
         "kind": "gate",
@@ -167,11 +167,25 @@
       }
     },
     {
+      "id": "sales_drain",
+      "type": "drain",
+      "position": {
+        "x": 1300,
+        "y": 60
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Sales Drain",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
       "id": "finished",
       "type": "pool",
       "position": {
-        "x": 1460,
-        "y": -40
+        "x": 1300,
+        "y": 220
       },
       "data": {
         "kind": "pool",
@@ -183,25 +197,11 @@
       }
     },
     {
-      "id": "sales_drain",
-      "type": "drain",
-      "position": {
-        "x": 1680,
-        "y": -40
-      },
-      "data": {
-        "kind": "drain",
-        "label": "Sales Drain",
-        "activation": "automatic",
-        "mode": "pullAny"
-      }
-    },
-    {
       "id": "scrap",
       "type": "pool",
       "position": {
-        "x": 1460,
-        "y": 150
+        "x": 1300,
+        "y": 460
       },
       "data": {
         "kind": "pool",
@@ -216,8 +216,8 @@
       "id": "recycler",
       "type": "converter",
       "position": {
-        "x": 1680,
-        "y": 150
+        "x": 1300,
+        "y": 620
       },
       "data": {
         "kind": "converter",
@@ -230,8 +230,8 @@
       "id": "salvage",
       "type": "pool",
       "position": {
-        "x": 1880,
-        "y": 150
+        "x": 1300,
+        "y": 780
       },
       "data": {
         "kind": "pool",
@@ -246,8 +246,8 @@
       "id": "salvage_drain",
       "type": "drain",
       "position": {
-        "x": 2080,
-        "y": 150
+        "x": 1080,
+        "y": 780
       },
       "data": {
         "kind": "drain",
@@ -260,8 +260,8 @@
       "id": "end_defect",
       "type": "end",
       "position": {
-        "x": 1460,
-        "y": 320
+        "x": 1080,
+        "y": 560
       },
       "data": {
         "kind": "end",

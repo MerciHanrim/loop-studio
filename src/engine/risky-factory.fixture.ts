@@ -33,30 +33,37 @@ type NodeSpec = {
   distribution?: 'deterministic' | 'probabilistic'
 }
 
+// Folded into three bands so the whole graph is ~1.8 : 1 rather than one long
+// horizontal chain — the minimap stays legible and the canvas doesn't clip.
+//   band 1 (y≈20)   ore intake + deterministic routing + refine, with the
+//                   Tailings dead-end dropping just below
+//   band 2 (y≈340)  energy feed + the assembly spine → Components → Quality Gate
+//   right fan       Quality Gate → Finished/Sales (up) · Scrap→Recycler→Salvage
+//                   (down) · Critical Defect (End)
 const NODES: NodeSpec[] = [
-  // upstream: ore + energy feed
-  { id: 'ore_source', kind: 'source', label: 'Ore Source', at: [0, 40] },
-  { id: 'ore_stock', kind: 'pool', label: 'Ore Stock', at: [200, 40], initial: 8, capacity: 50 },
-  { id: 'ore_router', kind: 'gate', label: 'Ore Router', at: [400, 40], distribution: 'deterministic' },
-  { id: 'refined_ore', kind: 'pool', label: 'Refined Ore', at: [600, -40], initial: 0, capacity: 12 },
-  { id: 'tailings', kind: 'pool', label: 'Tailings', at: [600, 150], initial: 0, capacity: 15 },
-  { id: 'waste_drain', kind: 'drain', label: 'Waste Drain', at: [400, 150] },
-  { id: 'energy_source', kind: 'source', label: 'Energy Source', at: [200, 260] },
-  { id: 'energy_pool', kind: 'pool', label: 'Energy Pool', at: [400, 260], initial: 6, capacity: 20 },
+  // band 1 — ore intake + routing
+  { id: 'ore_source', kind: 'source', label: 'Ore Source', at: [0, 20] },
+  { id: 'ore_stock', kind: 'pool', label: 'Ore Stock', at: [210, 20], initial: 8, capacity: 50 },
+  { id: 'ore_router', kind: 'gate', label: 'Ore Router', at: [420, 20], distribution: 'deterministic' },
+  { id: 'refined_ore', kind: 'pool', label: 'Refined Ore', at: [640, 20], initial: 0, capacity: 12 },
+  { id: 'tailings', kind: 'pool', label: 'Tailings', at: [640, 180], initial: 0, capacity: 15 },
+  { id: 'waste_drain', kind: 'drain', label: 'Waste Drain', at: [420, 180] },
 
-  // assembly
-  { id: 'assembly', kind: 'converter', label: 'Assembly Converter', at: [820, 60] },
-  { id: 'components', kind: 'pool', label: 'Components', at: [1040, 60], initial: 0, capacity: 30 },
-  { id: 'quality_gate', kind: 'gate', label: 'Quality Gate', at: [1240, 60], distribution: 'probabilistic' },
+  // band 2 — energy feed + assembly spine
+  { id: 'energy_source', kind: 'source', label: 'Energy Source', at: [0, 340] },
+  { id: 'energy_pool', kind: 'pool', label: 'Energy Pool', at: [210, 340], initial: 6, capacity: 20 },
+  { id: 'assembly', kind: 'converter', label: 'Assembly Converter', at: [640, 340] },
+  { id: 'components', kind: 'pool', label: 'Components', at: [860, 340], initial: 0, capacity: 30 },
+  { id: 'quality_gate', kind: 'gate', label: 'Quality Gate', at: [1080, 340], distribution: 'probabilistic' },
 
-  // downstream: sell / recycle / fail
-  { id: 'finished', kind: 'pool', label: 'Finished Goods', at: [1460, -40], initial: 0, capacity: 25 },
-  { id: 'sales_drain', kind: 'drain', label: 'Sales Drain', at: [1680, -40] },
-  { id: 'scrap', kind: 'pool', label: 'Scrap Pool', at: [1460, 150], initial: 0, capacity: 12 },
-  { id: 'recycler', kind: 'converter', label: 'Recycler', at: [1680, 150] },
-  { id: 'salvage', kind: 'pool', label: 'Salvage Pool', at: [1880, 150], initial: 0, capacity: 10 },
-  { id: 'salvage_drain', kind: 'drain', label: 'Salvage Drain', at: [2080, 150] },
-  { id: 'end_defect', kind: 'end', label: 'Critical Defect', at: [1460, 320] },
+  // right fan — sell (up), recycle (down), fail (below)
+  { id: 'sales_drain', kind: 'drain', label: 'Sales Drain', at: [1300, 60] },
+  { id: 'finished', kind: 'pool', label: 'Finished Goods', at: [1300, 220], initial: 0, capacity: 25 },
+  { id: 'scrap', kind: 'pool', label: 'Scrap Pool', at: [1300, 460], initial: 0, capacity: 12 },
+  { id: 'recycler', kind: 'converter', label: 'Recycler', at: [1300, 620] },
+  { id: 'salvage', kind: 'pool', label: 'Salvage Pool', at: [1300, 780], initial: 0, capacity: 10 },
+  { id: 'salvage_drain', kind: 'drain', label: 'Salvage Drain', at: [1080, 780] },
+  { id: 'end_defect', kind: 'end', label: 'Critical Defect', at: [1080, 560] },
 ]
 
 type EdgeSpec = [id: string, source: string, target: string, flow: string]
