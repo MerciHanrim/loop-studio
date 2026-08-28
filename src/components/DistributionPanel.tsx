@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
 import { BandChart } from './BandChart'
+import { TerminationSparkline } from './TerminationSparkline'
 import {
   toFinalCsv,
   toFinalSummaryCsv,
@@ -112,6 +113,7 @@ export function DistributionPanel() {
         <ExportMenu result={result} disabled={stale} />
       </div>
 
+      <TerminationSparkline result={result} />
       <BandChart result={result} />
     </div>
   )

@@ -8,6 +8,9 @@ build must reproduce.
 `src/engine/verification-fixture.test.ts` re-derives every expected value from the
 fixture on every `npm test`, so a regression here fails CI.
 
+> Import `engine-b-verification.json` only. `engine-b-verification.expected.json`
+> is a test oracle and is not an importable graph.
+
 ## The three lanes
 
 | lane | wiring | what it proves |
