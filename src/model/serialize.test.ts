@@ -140,6 +140,36 @@ describe('resource handle ids', () => {
   })
 })
 
+describe('recommendedRunConfig round-trip', () => {
+  const g = () => ({ nodes: [n('p', 'pool') as LoopNode], edges: [] as LoopEdge[] })
+
+  it('serialize omits the key when no config is passed', () => {
+    expect(JSON.parse(serialize(g().nodes, g().edges))).not.toHaveProperty('recommendedRunConfig')
+  })
+
+  it('serialize writes it, deserialize reads it back unchanged', () => {
+    const rrc = { baseSeed: 7, runs: 500, steps: 40, tracked: ['p'] }
+    const back = deserialize(serialize(g().nodes, g().edges, rrc))
+    expect(back.recommendedRunConfig).toEqual(rrc)
+  })
+
+  it('a file without the field deserializes with recommendedRunConfig undefined', () => {
+    expect(deserialize(doc([n('p', 'pool')], [])).recommendedRunConfig).toBeUndefined()
+  })
+
+  it('a non-object recommendedRunConfig value is ignored', () => {
+    const bad = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [n('p', 'pool')], edges: [], recommendedRunConfig: [1, 2, 3] })
+    expect(deserialize(bad).recommendedRunConfig).toBeUndefined()
+  })
+
+  it('Import → Export → Import preserves the metadata', () => {
+    const rrc = { baseSeed: 1, runs: 500, steps: 40, tracked: ['p'] }
+    const once = deserialize(serialize(g().nodes, g().edges, rrc))
+    const twice = deserialize(serialize(once.nodes, once.edges, once.recommendedRunConfig))
+    expect(twice.recommendedRunConfig).toEqual(rrc)
+  })
+})
+
 beforeEach(() => {
   useGraphStore.getState().newGraph()
 })

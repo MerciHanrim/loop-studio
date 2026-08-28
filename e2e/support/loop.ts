@@ -97,10 +97,12 @@ export function mcSnapshot(page: Page): Promise<McSnapshot> {
   })
 }
 
-/** Load a serialized graph (same path as the Import button). */
+/** Load a serialized graph — same path as the Import button, including applying
+ *  the file's `recommendedRunConfig` to the Monte-Carlo config. */
 export async function importGraph(page: Page, json: string): Promise<void> {
   await page.evaluate((text) => {
-    ;(window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.graph.getState().loadJSON(text)
+    const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+    l.mc.getState().applyRecommended(l.graph.getState().loadJSON(text))
   }, json)
 }
 

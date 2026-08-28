@@ -1,5 +1,6 @@
 import { MarkerType } from '@xyflow/react'
 import { defaultData } from './factory'
+import type { RecommendedRunConfig } from './serialize'
 import type { LoopEdge, LoopNode, NodeData, NodeKind } from './types'
 
 export type Template = {
@@ -7,6 +8,8 @@ export type Template = {
   name: string
   blurb: string
   graph: { nodes: LoopNode[]; edges: LoopEdge[] }
+  /** applied to the Monte-Carlo config on load, same as a file's field */
+  recommendedRunConfig?: RecommendedRunConfig
 }
 
 type XY = { x: number; y: number }

@@ -117,8 +117,8 @@ test.describe('MC / sim invalidation', () => {
   test('template swap — tracked:[] ("all") stays [] after the swap', async ({ page }) => {
     page.on('dialog', (d) => d.accept())
     await importRF(page)
-    // leave tracked at its default []
-    await page.evaluate(() => (window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 120, steps: 20 }))
+    // force "all pools" (import applied risky-factory's recommended 6-Pool subset)
+    await page.evaluate(() => (window as any).__loop.mc.getState().setConfig({ baseSeed: 1, runs: 120, steps: 20, tracked: [] }))
     await run(page)
     expect((await mc(page)).tracked).toEqual([])
 
