@@ -132,8 +132,9 @@ export function step(
   }
 
   // ── Phase 0: state connections (SEMANTICS-S.md §S2) ─────────────────────
-  // Slice 1 handles `trigger` only. `activator` / `label` are inert here; a
-  // legacy `node` mode (or any unrecognised mode) is inert + one diagnostic.
+  // Slices 1–2: `trigger` (pulse + delay) and `activator` (AND level gate).
+  // `label` is inert; a legacy `node` / unrecognised mode is inert + one
+  // diagnostic per step.
   const stateEvents: StateEvent[] = []
   const stateEdgeCmp = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   const KNOWN_STATE_MODES = new Set(['trigger', 'activator', 'label'])
@@ -148,6 +149,51 @@ export function step(
   const triggerEdges = stateEdges.filter(
     (e): e is LoopEdge & { data: { kind: 'state'; mode: 'trigger'; delay?: number } } => e.data.mode === 'trigger',
   )
+
+  // ── activator gate (§S4) ──────────────────────────────────────────────
+  // `enabled(target)` = AND over its activator edges; empty ⇒ true. Source
+  // must be a Pool; a non-Pool source or an unparseable comparison is inert +
+  // diagnostic (does NOT disable the target). Slice 2 evaluates the frozen
+  // normal comparison forms; Slice 3 hardens the error messaging / boundaries.
+  const ACT_RE = /^\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/
+  const cmp = (v: number, op: string, n: number): boolean => {
+    switch (op) {
+      case '>=': return v >= n
+      case '<=': return v <= n
+      case '>': return v > n
+      case '<': return v < n
+      case '==': return v === n
+      case '!=': return v !== n
+      default: return true
+    }
+  }
+  const activatorEdges = stateEdges.filter(
+    (e): e is LoopEdge & { data: { kind: 'state'; mode: 'activator'; expr: string } } => e.data.mode === 'activator',
+  )
+  const enabledByNode = new Map<string, boolean>() // activator targets only
+  for (const e of activatorEdges) {
+    if (!byId.has(e.source) || !byId.has(e.target)) {
+      diagnostics.push(`Activator "${e.id}" connects a removed node; ignored.`)
+      continue
+    }
+    if (!isPool(e.source)) {
+      diagnostics.push(`Activator "${e.id}" needs a Pool source; ignored.`)
+      continue
+    }
+    const m = ACT_RE.exec((e.data as { expr?: string }).expr ?? '')
+    if (!m || !Number.isFinite(Number(m[2]))) {
+      diagnostics.push(`Activator "${e.id}" expression "${(e.data as { expr?: string }).expr ?? ''}" is not a comparison; ignored.`)
+      continue
+    }
+    const satisfied = cmp(S[e.source] ?? 0, m[1], Number(m[2]))
+    const prevOk = enabledByNode.get(e.target)
+    enabledByNode.set(e.target, prevOk === undefined ? satisfied : prevOk && satisfied)
+    stateEvents.push({
+      edgeId: e.id, from: e.source, to: e.target, mode: 'activator',
+      effect: { kind: 'activator', satisfied },
+    })
+  }
+  const isEnabled = (id: string): boolean => enabledByNode.get(id) ?? true
 
   // Validate each trigger edge's `delay` once this step: a non-negative integer;
   // NaN / Infinity / fractional / negative → 0 + exactly one diagnostic.
@@ -190,9 +236,10 @@ export function step(
   }
 
   const firing = (n: LoopNode) =>
-    n.data.activation === 'automatic' ||
-    (n.data.activation === 'onStart' && prev.step === 0) ||
-    (TRIGGERABLE.has(n.data.activation) && triggered.has(n.id))
+    isEnabled(n.id) &&
+    (n.data.activation === 'automatic' ||
+      (n.data.activation === 'onStart' && prev.step === 0) ||
+      (TRIGGERABLE.has(n.data.activation) && triggered.has(n.id)))
 
   const sumInRate = (id: string) => inOf(id).reduce((s, e) => s + rateOfCached(e), 0)
 
@@ -238,6 +285,13 @@ export function step(
   const routers = nodes.filter((n) => firing(n) && ROUTER_KINDS.has(n.data.kind))
   const rIds = new Set(routers.map((r) => r.id))
   const dead = new Set<string>() // edge ids on a router-only cycle
+  // a resource edge into a disabled router is inert — the upstream keeps the
+  // resource (§S4): treated exactly like a dead branch so gates / converters
+  // skip it and re-split over the rest, and nothing is orphaned in an inbox.
+  for (const e of resEdges) {
+    const k = kindOf(e.target)
+    if (k && ROUTER_KINDS.has(k) && !isEnabled(e.target)) dead.add(e.id)
+  }
 
   // Kahn topological sort of router→router edges, ascending-id tiebreak
   const indeg = new Map(routers.map((r) => [r.id, 0]))
@@ -307,7 +361,9 @@ export function step(
       if (memo.has(id)) return memo.get(id)!
       const k = kindOf(id)
       let v: number
-      if (k === 'pool') v = Math.max(0, headroom(id))
+      // a disabled router is inert — like a zero-weight branch (§S4)
+      if (k && ROUTER_KINDS.has(k) && !isEnabled(id)) v = 0
+      else if (k === 'pool') v = Math.max(0, headroom(id))
       else if (k === 'drain' || k === 'end') v = Infinity
       else if (k === 'converter') {
         const sumIn = sumInRate(id)
@@ -551,7 +607,9 @@ export function step(
   // ── Phase 0 wrap-up: state events + schedule future triggers ────────────
   for (const e of triggerEdges) {
     if (!deliveredEdgeIds.has(e.id)) continue
-    const applied = TRIGGERABLE.has(byId.get(e.target)!.data.activation)
+    // §S9: applied = the pulse made the target eligible to fire this step =
+    // target is passive/interactive AND its activator gate is open
+    const applied = TRIGGERABLE.has(byId.get(e.target)!.data.activation) && isEnabled(e.target)
     stateEvents.push({
       edgeId: e.id,
       from: e.source,
@@ -560,6 +618,8 @@ export function step(
       effect: { kind: 'trigger', delivered: true, applied },
     })
   }
+  // §S9: emitted in ascending edgeId (activator events were pushed in Phase 0)
+  stateEvents.sort((a, b) => (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0))
 
   const triggerQueue: TriggerQueueEntry[] = [...carriedQueue]
   for (const e of triggerEdges) {

@@ -37,6 +37,11 @@ const trig = (id: string, s: string, t: string, delay: number): LoopEdge => ({
   sourceHandle: 'state-source', targetHandle: 'state-target',
   data: { kind: 'state', mode: 'trigger', expr: '', delay },
 })
+const act = (id: string, s: string, t: string, expr: string): LoopEdge => ({
+  id, source: s, target: t, type: 'loop',
+  sourceHandle: 'state-source', targetHandle: 'state-target',
+  data: { kind: 'state', mode: 'activator', expr },
+})
 
 // random inflow (so runs differ by seed) + a passive drain gated by a delayed
 // trigger + a plain automatic drain on a second pool.
@@ -100,6 +105,32 @@ describe('path invariance — sync / cooperative / worker envelope give one resu
         expect(toMonteCarloJson(await runMonteCarloParallel(nodes, edges, cfg, { workers, jobSize }))).toEqual(ref)
       }
     }
+  })
+
+  it('an activator graph is also isolated + path-invariant', async () => {
+    // a random gauge (so runs differ) gates a drain
+    const g = [source('S'), pool('P', 0), drain('D', 'passive'), pool('G', 0), source('GS')]
+    const e = [
+      res('e1', 'S', 'P', '2D6'),
+      res('e2', 'P', 'D', '1-3'),
+      res('eg', 'GS', 'G', '1-3'),
+      act('a1', 'G', 'D', '>= 8'),
+      trig('t1', 'S', 'D', 0),
+    ]
+    const c: RunConfig = { baseSeed: 3, runs: 20, steps: 10, tracked: [] }
+    const sync = runMonteCarlo(g, e, c)
+    // per-run terminal == standalone trace of its own seed
+    const standalone: number[] = []
+    for (let i = 0; i < c.runs; i++) {
+      let st = initSim(g)
+      for (let t = 1; t <= c.steps; t++) st = step(g, e, st, runSeed(c.baseSeed, i)).state
+      standalone.push(st.values.P ?? 0)
+    }
+    expect(sync.final.P.values).toEqual(standalone)
+    // sync == cooperative == parallel(sync fallback)
+    const ref = toMonteCarloJson(sync)
+    expect(toMonteCarloJson(await runMonteCarloCooperative(g, e, c, { batchSize: 3 }))).toEqual(ref)
+    expect(toMonteCarloJson(await runMonteCarloParallel(g, e, c, { workers: 4, jobSize: 3 }))).toEqual(ref)
   })
 
   it('runRange (the Worker compute fn) — full range and chunked ranges agree', () => {
