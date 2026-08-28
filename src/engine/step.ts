@@ -1,7 +1,7 @@
 import type { LoopEdge, LoopNode } from '../model/types'
 import { evalDet, evalRand, parseFlow, rateOf, type FlowExpr } from './flow'
 import { categorical, sample } from './rng'
-import { EPSILON, type SimState, type SimValues, type StepResult } from './types'
+import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResult, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
 // Phase 1 push (Sources), then Phase 2 pull (Gate / Converter / Drain / End)
@@ -11,6 +11,11 @@ import { EPSILON, type SimState, type SimValues, type StepResult } from './types
 // Engine B Part 1 (SEMANTICS-B1.md) adds, behind a `seed`: random flow
 // evaluation (`1-3`, `2D6`) via a keyed RNG, cached one draw per edge per step;
 // and the probabilistic Gate (one branch per step by categorical sampling).
+//
+// State connections (SEMANTICS-S.md, loop-state/1) add a Phase 0 before Push.
+// Slice 1: `trigger` — a one-step pulse (optional integer `delay`) that fires a
+// `passive` / `interactive` target on the delivery step. `activator` and
+// `label` are inert until later slices.
 
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
 const cap = (n: LoopNode): number =>
@@ -28,10 +33,11 @@ export function initSim(nodes: LoopNode[]): SimState {
     values[n.id] = requireFinite(n.data.initial, `Pool "${n.data.label}" initial`)
     if (n.data.capacity != null) requireFinite(n.data.capacity, `Pool "${n.data.label}" capacity`)
   }
-  return { step: 0, values, ended: false }
+  return { step: 0, values, ended: false, fired: [], triggerQueue: [] }
 }
 
 const ROUTER_KINDS = new Set(['gate', 'converter', 'drain', 'end'])
+const TRIGGERABLE = new Set(['passive', 'interactive'])
 
 export function step(
   nodes: LoopNode[],
@@ -124,8 +130,61 @@ export function step(
   const emit = (e: LoopEdge, from: string, to: string, amount: number) => {
     if (amount > EPSILON) events.push({ edgeId: e.id, from, to, amount })
   }
+
+  // ── Phase 0: state connections (SEMANTICS-S.md §S2) ─────────────────────
+  // Slice 1 handles `trigger` only. `activator` / `label` are inert here.
+  const stateEvents: StateEvent[] = []
+  const stateEdgeCmp = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  const triggerEdges = edges
+    .filter((e): e is LoopEdge & { data: { kind: 'state'; mode: 'trigger'; delay?: number } } =>
+      e.data?.kind === 'state' && e.data.mode === 'trigger',
+    )
+    .sort(stateEdgeCmp)
+
+  /** `delay` as a non-negative integer; NaN / Infinity / fractional / negative → 0 + one diagnostic. */
+  const badDelay = new Set<string>()
+  const delayOf = (e: LoopEdge & { data: { delay?: number } }): number => {
+    const raw = e.data.delay
+    if (raw == null) return 0
+    if (!Number.isInteger(raw) || raw < 0) {
+      if (!badDelay.has(e.id)) {
+        badDelay.add(e.id)
+        diagnostics.push(`State edge "${e.id}" delay ${raw} is not an integer ≥ 0; treated as 0.`)
+      }
+      return 0
+    }
+    return raw
+  }
+
+  // deliver every queue entry due this step; a delivery whose edge or target no
+  // longer exists is dropped with no effect (§S8).
+  const prevQueue = prev.triggerQueue ?? []
+  const triggerEdgeIds = new Set(triggerEdges.map((e) => e.id))
+  const triggered = new Set<string>() // targets pulsed this step
+  const deliveredEdgeIds = new Set<string>()
+  const carriedQueue: TriggerQueueEntry[] = []
+  for (const q of prevQueue) {
+    if (q.deliveryStep > curStep) {
+      carriedQueue.push(q)
+      continue
+    }
+    // due (== curStep) or stale (< curStep, shouldn't happen) — consumed either way
+    if (q.deliveryStep < curStep) {
+      diagnostics.push(`Dropped a stale queued trigger (edge "${q.edgeId}", due ${q.deliveryStep}).`)
+      continue
+    }
+    if (triggerEdgeIds.has(q.edgeId) && byId.has(q.target)) {
+      triggered.add(q.target)
+      deliveredEdgeIds.add(q.edgeId)
+    } else {
+      diagnostics.push(`Dropped a queued trigger for a removed edge / node (edge "${q.edgeId}").`)
+    }
+  }
+
   const firing = (n: LoopNode) =>
-    n.data.activation === 'automatic' || (n.data.activation === 'onStart' && prev.step === 0)
+    n.data.activation === 'automatic' ||
+    (n.data.activation === 'onStart' && prev.step === 0) ||
+    (TRIGGERABLE.has(n.data.activation) && triggered.has(n.id))
 
   const sumInRate = (id: string) => inOf(id).reduce((s, e) => s + rateOfCached(e), 0)
 
@@ -481,12 +540,43 @@ export function step(
     working[nid] = v
   }
 
+  // ── Phase 0 wrap-up: state events + schedule future triggers ────────────
+  for (const e of triggerEdges) {
+    if (!deliveredEdgeIds.has(e.id)) continue
+    const applied = TRIGGERABLE.has(byId.get(e.target)!.data.activation)
+    stateEvents.push({
+      edgeId: e.id,
+      from: e.source,
+      to: e.target,
+      mode: 'trigger',
+      effect: { kind: 'trigger', delivered: true, applied },
+    })
+  }
+
+  const triggerQueue: TriggerQueueEntry[] = [...carriedQueue]
+  for (const e of triggerEdges) {
+    if (!fired.has(e.source)) continue
+    triggerQueue.push({
+      edgeId: e.id,
+      target: e.target,
+      deliveryStep: curStep + delayOf(e) + 1, // SEMANTICS-S.md §S3.1
+    })
+  }
+  triggerQueue.sort(
+    (a, b) =>
+      a.deliveryStep - b.deliveryStep ||
+      (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0),
+  )
+
+  const firedList = [...fired].sort()
+
   return {
-    state: { step: curStep, values: working, ended },
+    state: { step: curStep, values: working, ended, fired: firedList, triggerQueue },
     report: {
       events,
       activated: [...activated].sort(),
-      fired: [...fired].sort(),
+      fired: firedList,
+      stateEvents,
       diagnostics,
     },
   }
