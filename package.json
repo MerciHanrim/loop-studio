@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -10,10 +13,11 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "preview": "vite preview",
+    "preview": "vite preview --port 4173 --strictPort",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "e2e:update": "playwright test --update-snapshots"
+    "e2e:update": "playwright test --update-snapshots",
+    "e2e:dist": "playwright test -c playwright.dist.config.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
