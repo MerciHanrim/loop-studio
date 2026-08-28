@@ -19,14 +19,14 @@ const mk = (atOrBeforeStep: number[], completedRuns: number) => ({
 const yAt = (path: string, s: number) => Number(path.trim().split(/\s+/)[s * 3 + 2])
 
 describe('buildTermChart', () => {
-  it('0% — nothing ended: empty line, note-worthy, bead on the baseline', () => {
+  it('0% — nothing ended: no line, no Bead (NaN coords), just the note', () => {
     const c = buildTermChart(mk([0, 0, 0, 0], 100), SIZE)
     expect(c.anyEnded).toBe(false)
     expect(c.finalRate).toBe(0)
     expect(c.linePath).toBe('')
     expect(c.rates).toEqual([0, 0, 0, 0])
-    expect(c.beadY).toBeCloseTo(Y0)
-    expect(c.beadX).toBeCloseTo(184)
+    expect(Number.isNaN(c.beadX)).toBe(true)
+    expect(Number.isNaN(c.beadY)).toBe(true)
   })
 
   it('100% — every run ended: line reaches the top, bead at 100%', () => {
@@ -64,6 +64,8 @@ describe('buildTermChart', () => {
   it('guards completedRuns = 0 without dividing by zero', () => {
     const c = buildTermChart(mk([0, 0], 0), SIZE)
     expect(c.anyEnded).toBe(false)
-    expect(Number.isFinite(c.beadY)).toBe(true)
+    expect(c.finalRate).toBe(0)
+    expect(c.rates).toEqual([0, 0])
+    expect(c.linePath).toBe('')
   })
 })

@@ -76,7 +76,9 @@ test.describe('Monte Carlo run', () => {
     await expect(term).toBeVisible()
     await expect(term.locator('.term__cap')).toContainText('0% ended')
     await expect(term.locator('.term__empty')).toHaveText('No runs ended')
+    // at 0% neither the line nor the Bead is drawn — only the note
     await expect(term.locator('.term__line')).toHaveCount(0)
+    await expect(term.locator('.term__bead')).toHaveCount(0)
   })
 
   test('a long run can be cancelled from the strip; no partial result', async ({ page }) => {

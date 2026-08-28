@@ -42,13 +42,15 @@ export function buildTermChart(
     ? rates.map((rate, s) => `${s === 0 ? 'M' : 'L'} ${x(s).toFixed(1)} ${y(rate).toFixed(1)}`).join(' ')
     : ''
 
+  // At 0% there is no line and no Bead — only the "No runs ended" note. NaN
+  // coordinates keep that true even if a caller renders the circle unguarded.
   return {
     anyEnded,
     finalRate,
     rates,
     linePath,
-    beadX: x(lastStep),
-    beadY: y(finalRate),
+    beadX: anyEnded ? x(lastStep) : NaN,
+    beadY: anyEnded ? y(finalRate) : NaN,
   }
 }
 
