@@ -5,7 +5,7 @@ Loop Studio is a static single-page app (`dist/`). It is deployed on
 
 Why Cloudflare Pages:
 
-- short default URL (`loop-studio.pages.dev`), served at `/` — no
+- short default URL (`cozy-loop-studio.pages.dev`), served at `/` — no
   GitHub-Pages-style `/loop-studio/` base path to special-case
 - HTTPS everywhere ⇒ the Monte-Carlo **Web Worker path is active** (a `file://`
   or insecure origin falls back to the slower cooperative path)
@@ -23,6 +23,7 @@ Why Cloudflare Pages:
 
    | field | value |
    |---|---|
+   | Project name | `cozy-loop-studio` (⇒ `cozy-loop-studio.pages.dev`) |
    | Production branch | `main` |
    | Framework preset | *None* (Vite) |
    | Build command | `npm run build` |
@@ -75,7 +76,7 @@ deploy.
 
 ## Post-deploy smoke (on the live URL)
 
-1. open `https://loop-studio.pages.dev/` — canvas + toolbar render, no console
+1. open `https://cozy-loop-studio.pages.dev/` — canvas + toolbar render, no console
    errors
 2. **Templates ▾ → Flowing equilibrium**, press Play — the timeline moves
 3. **Import** `examples/risky-factory.json`; open **Monte Carlo** — fields show
