@@ -8,6 +8,17 @@ import { edgeTypes } from './edges/LoopEdge'
 
 const DND_TYPE = 'application/loop-node'
 
+// minimap node fill by kind — resolved from the theme tokens (var() in an inline
+// style property stays theme-reactive)
+const MINIMAP_HUE: Record<NodeKind, string> = {
+  pool: 'var(--hue-pool)',
+  source: 'var(--hue-source)',
+  drain: 'var(--hue-drain)',
+  gate: 'var(--hue-gate)',
+  converter: 'var(--hue-converter)',
+  end: 'var(--hue-end)',
+}
+
 export function Canvas() {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
@@ -58,7 +69,19 @@ export function Canvas() {
         maxZoom={2}
       >
         <Background gap={16} color="var(--line-hairline)" />
-        <MiniMap pannable zoomable />
+        <MiniMap
+          pannable
+          zoomable
+          ariaLabel="Graph minimap"
+          nodeColor={(n) => MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)'}
+          nodeStrokeColor="var(--line-strong)"
+          nodeStrokeWidth={2}
+          nodeBorderRadius={2}
+          maskColor="var(--minimap-mask)"
+          maskStrokeColor="var(--signal-primary)"
+          maskStrokeWidth={1}
+          bgColor="var(--surface-raised)"
+        />
         <Controls />
       </ReactFlow>
     </div>

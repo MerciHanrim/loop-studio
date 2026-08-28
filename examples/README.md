@@ -107,17 +107,28 @@ into production — it drains to `Salvage Drain` and stops there.
 
 ## Manual check in the app
 
+The probabilistic `Critical Defect (End)` can stop a run at any step — including
+very early — so the seeds have distinct jobs:
+
+| goal | seed / config |
+|---|---|
+| **watch the factory run** (steady state) | live sim, **seed 3** — survives all 40 steps |
+| **reproduce an early termination** | live sim, **seed 1** — the Critical Defect fires at step 2 (`Replay` reproduces it exactly — seeded RNG) |
+| **see the termination distribution** | Monte Carlo **500 × 40, base seed 1** |
+
 ```
 Import  examples/risky-factory.json
-Play at seed 3   → runs the full 40 steps; Ore Stock climbs toward 50,
-                   Refined Ore and Energy Pool sit pinned at capacity
-Reset, seed 4, Play → a Critical Defect ends the run around step 25
-Reset, seed 8, Play → ends around step 36
+
+Live — seed 3, Play → runs all 40 steps; Ore Stock climbs toward 50,
+                      Refined Ore and Energy Pool sit pinned at capacity
+Live — seed 1, Play → a Critical Defect ends it at step 2; Replay repeats it
+Live — seed 4 ends ~step 25,  seed 8 ends ~step 36
+
 Monte Carlo → runs 500, steps 40, base seed 1
   track: Ore Stock, Energy Pool, Components, Finished Goods, Scrap Pool, Salvage Pool
   Run → DISTRIBUTION:
     • Finished Goods band has a visible p10–p90 spread
-    • the termination sparkline rises then flattens near ~85 % (0 % < ended < 100 %)
+    • the termination sparkline rises then flattens near ~85 % (424 / 500)
   Export ▾ → Runs CSV / JSON
 Reset and Run again with the same config → identical result
 ```

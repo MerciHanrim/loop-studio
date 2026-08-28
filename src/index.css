@@ -67,6 +67,9 @@
   /* p10–p90 distribution band fill (data, not decoration) */
   --dist-band-mix: 11%;
 
+  /* minimap: dim everything outside the current viewport (~12% warm neutral) */
+  --minimap-mask: rgba(108, 116, 110, 0.12);
+
   /* — elevation (light leans on faint shadow; dark drops it entirely) — */
   --elev-node: drop-shadow(0 1px 1.5px rgba(20, 20, 20, 0.05));
   --elev-label: 0 1px 2px rgba(20, 20, 20, 0.08);
@@ -133,6 +136,7 @@
     --flow-strength: var(--signal-primary);
     --flow-trail: rgba(118, 183, 174, 0.2);
     --dist-band-mix: 15%;
+    --minimap-mask: rgba(0, 0, 0, 0.28);
 
     --elev-node: none;
     --elev-label: none;
@@ -141,6 +145,7 @@
 
 :root[data-theme='dark'] {
   --dist-band-mix: 15%;
+  --minimap-mask: rgba(0, 0, 0, 0.28);
   --surface-ground: #171a18;
   --surface-canvas: #202320;
   --surface-panel: #272a27;
@@ -442,19 +447,29 @@ body {
   color: var(--text-tertiary);
 }
 
-/* React Flow secondary UI — map its internals to tokens so the minimap and
-   zoom controls don't become the loudest thing on a dark screen */
+/* React Flow secondary UI — map its internals to tokens. The minimap has to be
+   *navigable*: node hues carry (via MiniMap nodeColor / nodeStrokeColor props),
+   the viewport rectangle reads as the signal colour, and everything outside it
+   is dimmed by a translucent mask. */
 .react-flow__minimap {
-  background: var(--surface-sunken);
-  border: 1px solid var(--line-hairline);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+  cursor: grab;
+}
+.react-flow__minimap:active {
+  cursor: grabbing;
 }
 .react-flow__minimap-mask {
-  fill: var(--surface-overlay);
-  fill-opacity: 0.45;
+  fill: var(--minimap-mask);
+  fill-opacity: 1;
+  stroke: var(--signal-primary);
+  stroke-width: 1;
 }
+/* node fill/stroke are set inline by the MiniMap nodeColor / nodeStrokeColor
+   props (per node kind); only the fill opacity is left to CSS */
 .react-flow__minimap-node {
-  fill: var(--line-disabled);
-  stroke: var(--line-structure);
+  fill-opacity: 0.8;
 }
 .react-flow__controls {
   border: 1px solid var(--line-hairline);
