@@ -1,0 +1,356 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "pulse_src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "source",
+        "label": "Pulse Source",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "buffer",
+      "type": "pool",
+      "position": {
+        "x": 240,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Buffer",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "passive_drain",
+      "type": "drain",
+      "position": {
+        "x": 520,
+        "y": -60
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Passive Drain",
+        "activation": "passive",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "interactive_drain",
+      "type": "drain",
+      "position": {
+        "x": 520,
+        "y": 60
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Interactive Drain",
+        "activation": "interactive",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "gauge_src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "kind": "source",
+        "label": "Gauge Source",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "gauge_a",
+      "type": "pool",
+      "position": {
+        "x": 240,
+        "y": 200
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gauge A",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "gauge_b",
+      "type": "pool",
+      "position": {
+        "x": 240,
+        "y": 320
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gauge B",
+        "activation": "passive",
+        "initial": 4,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "feeder",
+      "type": "pool",
+      "position": {
+        "x": 0,
+        "y": 460
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Feeder",
+        "activation": "passive",
+        "initial": 10,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tank",
+      "type": "pool",
+      "position": {
+        "x": 240,
+        "y": 460
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tank",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tank_drain",
+      "type": "drain",
+      "position": {
+        "x": 520,
+        "y": 460
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Tank Drain",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "level",
+      "type": "pool",
+      "position": {
+        "x": 240,
+        "y": 600
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Level",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 5,
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_src_buffer",
+      "source": "pulse_src",
+      "target": "buffer",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_buffer_pd",
+      "source": "buffer",
+      "target": "passive_drain",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_buffer_id",
+      "source": "buffer",
+      "target": "interactive_drain",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "t_pd_a",
+      "source": "pulse_src",
+      "target": "passive_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "trigger",
+        "expr": "",
+        "delay": 0
+      }
+    },
+    {
+      "id": "t_pd_b",
+      "source": "pulse_src",
+      "target": "passive_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "trigger",
+        "expr": "",
+        "delay": 0
+      }
+    },
+    {
+      "id": "t_id_delayed",
+      "source": "pulse_src",
+      "target": "interactive_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "trigger",
+        "expr": "",
+        "delay": 2
+      }
+    },
+    {
+      "id": "e_gsrc_ga",
+      "source": "gauge_src",
+      "target": "gauge_a",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "a_ga_pd",
+      "source": "gauge_a",
+      "target": "passive_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 3"
+      }
+    },
+    {
+      "id": "a_gb_pd",
+      "source": "gauge_b",
+      "target": "passive_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 3"
+      }
+    },
+    {
+      "id": "m_tank_sub",
+      "source": "feeder",
+      "target": "tank",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "-1"
+      }
+    },
+    {
+      "id": "m_tank_addS",
+      "source": "feeder",
+      "target": "tank",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+S"
+      }
+    },
+    {
+      "id": "e_tank_out",
+      "source": "tank",
+      "target": "tank_drain",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "m_level_set",
+      "source": "feeder",
+      "target": "level",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "=7"
+      }
+    }
+  ]
+}

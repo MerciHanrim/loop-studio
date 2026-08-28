@@ -1,11 +1,13 @@
 # Example graphs
 
-Two graphs with different jobs:
+Graphs with different jobs:
 
 | file | role | Import? |
 |---|---|---|
 | `engine-b-verification.json` | **precision instrument** — small isolated lanes, each checking one number, so a broken feature is easy to pin | yes |
 | `engine-b-verification.expected.json` | test oracle for the above — read by `verification-fixture.test.ts` and by a human comparing values | **no** (not a graph) |
+| `state-verification.json` | **state precision instrument** — one connected graph exercising every executable `trigger` / `activator` / `label` behaviour | yes |
+| `state-verification.expected.json` | test oracle for the above — read by `state-verification.test.ts` and by a human comparing the per-step trace | **no** (not a graph) |
 | `risky-factory.json` | **product demo** — one connected economy that exercises every working node kind and Engine A/B feature at once | yes |
 
 ---
@@ -73,7 +75,69 @@ GEN_FIXTURE=1 npx vitest run src/engine/verification-fixture.test.ts
 
 ---
 
-# 2 — Risky Factory (feature demo)
+# 2 — State verification fixture
+
+`state-verification.json` is one connected graph that exercises **every
+executable state connection** (`loop-state/1` semantics + `loop-state/2` label
+reporting) in a single importable model. `state-verification.expected.json`
+records the full per-step trace a correct build must reproduce —
+`src/engine/state-verification.test.ts` re-derives it on every `npm test`.
+
+> Import `state-verification.json` only. `state-verification.expected.json` is a
+> test oracle, not an importable graph.
+
+## What it wires
+
+| cluster | wiring | what it proves |
+|---|---|---|
+| **Trigger + activation** | `Pulse Source ─2→ Buffer ─1→ Passive Drain` / `─1→ Interactive Drain`; `Pulse Source ┄trigger d0┄> Passive Drain` **twice** (`t_pd_a`, `t_pd_b`); `Pulse Source ┄trigger d2┄> Interactive Drain` | delay 0 delivers on `fired + 1` (step 2); delay 2 on `fired + 3` (step 4); **two pulses into one target ⇒ one execution, both edges reported**; `interactive` behaves exactly as `passive` headless |
+| **Activator AND** | `Gauge Source ─1→ Gauge A` (ramps 0,1,2,3,…); `Gauge B` static 4; both `┄activator ">= 3"┄> Passive Drain` | AND of two — `Gauge B` always satisfied, `Gauge A` crosses at step 4. While the gate is shut the pulse still **arrives and is consumed as `applied:false`** (never re-held); it fires the step the gate opens |
+| **Label + clamp** | `Feeder` (10, isolated) `┄"-1"┄>` and `┄"+S"┄> Tank` (cap 8) `─4→ Tank Drain`; `Feeder ┄"=7"┄> Level` (cap 5) | `+` / `-` / `=` all evaluated; each edge's `delta` is its own request; the **single per-target clamp** rides the last label event as `clampAdjustment` (`Tank`: `−1 / −9 / −5`; `Level`: `−2` every step); `Feeder` is read-only, never debited |
+
+There is **no End node** — state never ends a run (I10-S), and an early End would
+hide the later steps.
+
+## `expected.json` contents
+
+- `frames` — for **steps 0–6**: every Pool's committed value, the sorted `fired`
+  set, the full `stateEvents` array (ascending `edgeId`), and the pending
+  `triggerQueue` (canonical `deliveryStep, edgeId` order), all by node **label**
+  so they are readable.
+- `roundTrip` / `arrayReverse` — the trace is identical after
+  `Import → Export → Import` and after reversing the node/edge arrays (I8-S).
+- `monteCarlo` — state carries no RNG, so every run is identical and
+  `runMonteCarlo` == cooperative == parallel == a standalone per-seed trace
+  (I9-S / path invariance).
+
+## Manual check in the app
+
+```
+Import  examples/state-verification.json
+
+Step 1 → Buffer 2 ; Tank 8 ; Level 5 ; Passive/Interactive Drain do NOT fire
+Step 2 → Tank Drain fires (Tank 8→4) ; select t_pd_a / t_pd_b — both pulse,
+         labelled "blocked" (Gauge A = 1, activator shut)
+Step 3 → still blocked (Gauge A = 2)
+Step 4 → Passive Drain AND Interactive Drain fire ; the activator edges turn
+         "on" ; the trigger pulses are no longer blocked
+Steady from step 4: Buffer 6, Tank 4, Level 5
+
+Select each state edge → the Inspector shows its mode, the delay / expression,
+  and a green "ok" or red hint. The `+S` edge flashes toward Tank; the `-1`
+  edge flashes away and carries a separate "clamp −n" note.
+Reset → every pulse / tint / flash clears; step index returns to 0.
+Export ▾ → JSON, New graph, Import it back → identical trace (delay 2 kept).
+```
+
+## Regenerating
+
+```bash
+GEN_FIXTURE=1 npx vitest run src/engine/state-verification.test.ts
+```
+
+---
+
+# 3 — Risky Factory (feature demo)
 
 `risky-factory.json` is one connected economy — 18 nodes — built to show every
 working node kind and Engine A/B feature in a single graph you can watch run.
