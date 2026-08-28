@@ -87,7 +87,9 @@ spec id, never an edit to a frozen one.
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
-- ☐ Ship — workspace export, shareable URLs, offline PWA
+- ◐ Ship
+  - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
+  - ☐ shareable URLs, offline PWA
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
