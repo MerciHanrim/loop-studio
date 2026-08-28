@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MonteCarloResult } from '../engine'
+import { useMcStore } from '../store/mcStore'
 
 // P2 band chart — one Pool. Low-opacity p10–p90 area (data, not decoration),
 // a 1.5px p50 Track, a Bead at the last point, and an optional 4-4 dashed mean.
@@ -21,14 +22,21 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
 export function BandChart({ result }: { result: MonteCarloResult }) {
   const pools = result.pools
-  const [poolId, setPoolId] = useState(pools[0]?.id ?? '')
-  const [showMean, setShowMean] = useState(false)
+  // selection lives in the store so a Workspace file can save / restore it
+  const storedPoolId = useMcStore((s) => s.distributionPoolId)
+  const setPoolId = useMcStore((s) => s.setDistributionPoolId)
+  const showMean = useMcStore((s) => s.showMean)
+  const setShowMean = useMcStore((s) => s.setShowMean)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 720, h: 118 })
 
+  const poolId = storedPoolId && pools.some((p) => p.id === storedPoolId) ? storedPoolId : (pools[0]?.id ?? '')
+
   useEffect(() => {
-    if (!pools.some((p) => p.id === poolId)) setPoolId(pools[0]?.id ?? '')
-  }, [pools, poolId])
+    if (storedPoolId == null || !pools.some((p) => p.id === storedPoolId)) {
+      setPoolId(pools[0]?.id ?? null)
+    }
+  }, [pools, storedPoolId, setPoolId])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -122,7 +130,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
         <button
           type="button"
           className={`band__mean${showMean ? ' is-on' : ''}`}
-          onClick={() => setShowMean((v) => !v)}
+          onClick={() => setShowMean(!showMean)}
           aria-pressed={showMean}
         >
           mean

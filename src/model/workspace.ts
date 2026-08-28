@@ -1,9 +1,12 @@
-// Workspace Export / Import — foundation layer (SEMANTICS-W.md, loop-workspace/1).
+// Workspace Export / Import — pure format layer (SEMANTICS-W.md, loop-workspace/1).
 //
-// Slice A: the pure pieces only — constants, the canonical *semantic* graph
-// digest (§W3.1 / §W11), a Web-Crypto-or-pure-JS SHA-256, and a UTF-8 byte
-// length. No serialization, no store, no UI — those are slices B and C.
+// Slice A: constants, the canonical *semantic* graph digest (§W3.1 / §W11), a
+// Web-Crypto-or-pure-JS SHA-256, a UTF-8 byte length.
+// Slice B: `buildWorkspacePayload` (assemble) and `readWorkspace` (the §W5
+// defensive reader). Still store-free and UI-free — the store wiring lives in
+// `src/store/workspaceIO.ts`.
 
+import { MAX_SERIES } from './limits'
 import type { LoopEdge, LoopNode } from './types'
 
 /** the `workspace.schema` string (§W11) */
@@ -235,5 +238,281 @@ export function sha256Js(bytes: Uint8Array): string {
 
   let out = ''
   for (let i = 0; i < 8; i++) out += (H[i] >>> 0).toString(16).padStart(8, '0')
+  return out
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  Slice B — assemble a payload, and the §W5 defensive reader
+// ════════════════════════════════════════════════════════════════════════
+
+const HEX64 = /^[0-9a-f]{64}$/
+/** sanity band for a restored zoom; React Flow clamps further on setViewport */
+export const MIN_ZOOM = 0.05
+export const MAX_ZOOM = 16
+
+export type RestoredWorkspace = {
+  /** engine-validated MC config patch (fields present only when valid) */
+  mcConfig: { baseSeed?: number; runs?: number; steps?: number; tracked?: string[] }
+  /** a usable restored result, or undefined (none / corrupt / omitted) */
+  result?: { result: unknown; resultGraphDigest: string; stale: boolean }
+  /** present when a result existed in the file but was left out (§W4) */
+  resultOmitted?: ResultOmittedReason
+  view: { timeline: 'live' | 'distribution'; distributionPoolId: string | null; showMean: boolean }
+  canvas?: { x: number; y: number; zoom: number }
+  simulation?: {
+    /** null => keep the store's current seed */
+    seed: number | null
+    step: number
+    ended: boolean
+    values: Record<string, number>
+    fired: string[]
+    triggerQueue: { edgeId: string; target: string; deliveryStep: number }[]
+    stateEvents: unknown[]
+    series: { step: number; values: Record<string, number> }[]
+  }
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+const uint32 = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isInteger(v) ? v >>> 0 : null
+
+/** Build the `workspace` payload from already-collected plain data (store-free). */
+export function buildWorkspacePayload(input: {
+  mc: WorkspacePayload['mc']
+  view: WorkspacePayload['view']
+  canvas: WorkspacePayload['canvas']
+  simulation: WorkspacePayload['simulation']
+}): WorkspacePayload {
+  return { schema: WORKSPACE_SCHEMA, version: WORKSPACE_VERSION, ...input }
+}
+
+/**
+ * §W5 — validate a raw `workspace` blob against the freshly-loaded graph.
+ * Pure: no stores. `currentGraphDigest` is `semanticDigest(graph)` computed by
+ * the caller (it is async). Returns the pieces to apply plus human warnings;
+ * `restored: null` means "skip the workspace, keep the graph" (§W5.3).
+ */
+export function readWorkspace(
+  raw: unknown,
+  graph: { nodes: LoopNode[]; edges: LoopEdge[] },
+  currentGraphDigest: string,
+): { restored: RestoredWorkspace | null; warnings: string[] } {
+  const warnings: string[] = []
+  if (!isObj(raw)) return { restored: null, warnings }
+
+  if (raw.schema !== WORKSPACE_SCHEMA || (finite(raw.version) && raw.version > WORKSPACE_VERSION)) {
+    return {
+      restored: null,
+      warnings: ["this file's saved workspace needs a newer Loop Studio; the graph opened without it"],
+    }
+  }
+
+  const nodeIds = new Set(graph.nodes.map((n) => n.id))
+  const pools = graph.nodes.filter((n) => n.data.kind === 'pool')
+  const poolIds = pools.map((n) => n.id)
+  const poolIdSet = new Set(poolIds)
+  const initialOf = new Map(pools.map((n) => [n.id, (n.data as { initial: number }).initial]))
+  const triggerEdgeIds = new Set(
+    graph.edges.filter((e) => e.data?.kind === 'state' && e.data.mode === 'trigger').map((e) => e.id),
+  )
+  const edgeIds = new Set(graph.edges.map((e) => e.id))
+
+  // ── mc.config ────────────────────────────────────────────────────────
+  const mcConfig: RestoredWorkspace['mcConfig'] = {}
+  const rawMc = isObj(raw.mc) ? raw.mc : {}
+  const cfg = isObj(rawMc.config) ? rawMc.config : {}
+  {
+    const s = uint32(cfg.baseSeed)
+    if (s !== null) mcConfig.baseSeed = s
+    if (Number.isInteger(cfg.runs) && (cfg.runs as number) >= 1) mcConfig.runs = cfg.runs as number
+    if (Number.isInteger(cfg.steps) && (cfg.steps as number) >= 1) mcConfig.steps = cfg.steps as number
+    if (Array.isArray(cfg.tracked)) {
+      if (cfg.tracked.length === 0) mcConfig.tracked = []
+      else {
+        const wanted = new Set(cfg.tracked.filter((x): x is string => typeof x === 'string'))
+        const kept = poolIds.filter((id) => wanted.has(id))
+        mcConfig.tracked = kept.length > 0 ? kept : poolIds.length > 0 ? [poolIds[0]] : []
+      }
+    }
+  }
+
+  // ── mc.result ────────────────────────────────────────────────────────
+  let result: RestoredWorkspace['result']
+  let resultOmitted: ResultOmittedReason | undefined
+  if (rawMc.resultOmitted != null) {
+    resultOmitted = 'size-limit'
+    warnings.push(
+      'the saved workspace left its distribution out because the file was too large; re-run Monte Carlo to regenerate it',
+    )
+  } else if (rawMc.result != null) {
+    const r = rawMc.result
+    const digest = typeof rawMc.resultGraphDigest === 'string' ? rawMc.resultGraphDigest : ''
+    if (!validateResultShape(r, nodeIds)) {
+      warnings.push('the saved distribution was corrupt and has been discarded')
+    } else if (!HEX64.test(digest)) {
+      result = { result: r, resultGraphDigest: digest, stale: true }
+      warnings.push('the saved distribution could not be verified against this graph and is marked stale')
+    } else {
+      const matches = digest === currentGraphDigest
+      result = {
+        result: r,
+        resultGraphDigest: digest, // §W3.2 — verbatim, never recomputed
+        stale: matches ? rawMc.stale === true : true,
+      }
+      if (!matches) {
+        warnings.push('the saved distribution is from an earlier version of this graph and is marked stale')
+      }
+    }
+  }
+
+  const haveUsableResult = !!result
+
+  // ── view ─────────────────────────────────────────────────────────────
+  const rawView = isObj(raw.view) ? raw.view : {}
+  let timeline: 'live' | 'distribution' = rawView.timeline === 'distribution' ? 'distribution' : 'live'
+  const trackedPoolIds = haveUsableResult ? resultPoolIds(result!.result) : null
+  const wantPool = typeof rawView.distributionPoolId === 'string' ? rawView.distributionPoolId : null
+  const poolOk = (id: string | null): boolean =>
+    id !== null && poolIdSet.has(id) && (trackedPoolIds ? trackedPoolIds.has(id) : true)
+  let distributionPoolId: string | null = null
+  if (poolOk(wantPool)) distributionPoolId = wantPool
+  else if (trackedPoolIds && trackedPoolIds.size > 0) distributionPoolId = [...trackedPoolIds][0]
+  else if (!haveUsableResult && poolIds.length > 0) distributionPoolId = poolIds[0]
+  if (timeline === 'distribution' && !haveUsableResult) timeline = 'live'
+  const view = { timeline, distributionPoolId, showMean: rawView.showMean === true }
+
+  // ── canvas ───────────────────────────────────────────────────────────
+  let canvas: RestoredWorkspace['canvas']
+  const rawCanvas = isObj(raw.canvas) ? raw.canvas : null
+  if (rawCanvas && finite(rawCanvas.x) && finite(rawCanvas.y) && finite(rawCanvas.zoom)) {
+    canvas = { x: rawCanvas.x, y: rawCanvas.y, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, rawCanvas.zoom)) }
+  }
+
+  // ── simulation snapshot ──────────────────────────────────────────────
+  let simulation: RestoredWorkspace['simulation']
+  const rawSim = isObj(raw.simulation) ? raw.simulation : null
+  if (rawSim) {
+    if (!Number.isInteger(rawSim.step) || (rawSim.step as number) < 0) {
+      warnings.push('the saved run position was invalid; the simulation was reset to step 0')
+    } else {
+      const step = rawSim.step as number
+      const seed = uint32(rawSim.seed)
+      const ended = rawSim.ended === true
+
+      const values: Record<string, number> = {}
+      const savedValues = isObj(rawSim.values) ? rawSim.values : {}
+      for (const id of poolIds) {
+        const v = savedValues[id]
+        values[id] = finite(v) && v >= 0 ? v : (initialOf.get(id) ?? 0)
+      }
+      for (const [k, v] of Object.entries(savedValues)) {
+        if (!poolIdSet.has(k) && nodeIds.has(k) && finite(v) && v >= 0) values[k] = v
+      }
+
+      const fired = Array.isArray(rawSim.fired)
+        ? rawSim.fired.filter((x): x is string => typeof x === 'string' && nodeIds.has(x))
+        : []
+
+      const triggerQueue = (Array.isArray(rawSim.triggerQueue) ? rawSim.triggerQueue : [])
+        .filter(isObj)
+        .map((q) => ({ edgeId: String(q.edgeId), target: String(q.target), deliveryStep: Number(q.deliveryStep) }))
+        .filter(
+          (q) =>
+            triggerEdgeIds.has(q.edgeId) &&
+            nodeIds.has(q.target) &&
+            Number.isInteger(q.deliveryStep) &&
+            q.deliveryStep > step,
+        )
+        .sort((a, b) => a.deliveryStep - b.deliveryStep || (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0))
+
+      let stateEvents: unknown[] = []
+      if (Array.isArray(rawSim.stateEvents)) {
+        const kept = rawSim.stateEvents.filter(
+          (e): e is Record<string, unknown> =>
+            isObj(e) && typeof e.edgeId === 'string' && edgeIds.has(e.edgeId),
+        )
+        if (kept.length === rawSim.stateEvents.length) {
+          stateEvents = [...kept].sort((a, b) => {
+            const x = a.edgeId as string
+            const y = b.edgeId as string
+            return x < y ? -1 : x > y ? 1 : 0
+          })
+        } // a partly-malformed array is dropped whole — it re-derives on the next step()
+      }
+
+      const series = readSeries(rawSim.series, poolIdSet, values, step)
+
+      simulation = { seed, step, ended, values, fired, triggerQueue, stateEvents, series }
+    }
+  }
+
+  return { restored: { mcConfig, result, resultOmitted, view, canvas, simulation }, warnings }
+}
+
+/** §W5 `series` rules — per-frame, per-Pool; a bad Pool value never kills a frame
+ *  or the snapshot, and the last frame is reconciled to the snapshot values. */
+function readSeries(
+  raw: unknown,
+  poolIdSet: Set<string>,
+  currentValues: Record<string, number>,
+  step: number,
+): { step: number; values: Record<string, number> }[] {
+  const frames: { step: number; values: Record<string, number> }[] = []
+  if (Array.isArray(raw)) {
+    for (const f of raw) {
+      if (!isObj(f) || !Number.isInteger(f.step)) continue
+      const vals = isObj(f.values) ? f.values : {}
+      const values: Record<string, number> = {}
+      for (const [k, v] of Object.entries(vals)) {
+        if (poolIdSet.has(k) && finite(v)) values[k] = v // per-Pool: drop only the bad key
+      }
+      frames.push({ step: f.step as number, values })
+    }
+  }
+  const capped = frames.slice(-MAX_SERIES)
+  const matchesCurrent = (values: Record<string, number>): boolean => {
+    const keys = Object.keys(values).filter((k) => poolIdSet.has(k))
+    return keys.length > 0 && keys.every((k) => values[k] === currentValues[k])
+  }
+  while (capped.length > 0 && !matchesCurrent(capped[capped.length - 1].values)) capped.pop()
+  if (capped.length === 0) {
+    const values: Record<string, number> = {}
+    for (const k of poolIdSet) values[k] = currentValues[k] ?? 0
+    return [{ step, values }]
+  }
+  return capped
+}
+
+// ── result-shape helpers ────────────────────────────────────────────────
+
+function validateResultShape(r: unknown, nodeIds: Set<string>): boolean {
+  if (!isObj(r)) return false
+  if (!Array.isArray(r.pools) || !isObj(r.config) || !Array.isArray(r.runSeeds)) return false
+  if (!isObj(r.series) || !isObj(r.final)) return false
+  const steps = (r.config as { steps?: unknown }).steps
+  const runs = (r.config as { runs?: unknown }).runs
+  if (!Number.isInteger(steps) || !Number.isInteger(runs)) return false
+  if ((r.runSeeds as unknown[]).length !== runs) return false
+  if (!(r.runSeeds as unknown[]).every(finite)) return false
+  for (const p of r.pools as unknown[]) {
+    if (!isObj(p) || typeof p.id !== 'string' || !nodeIds.has(p.id)) return false
+    const s = (r.series as Record<string, unknown>)[p.id]
+    if (!isObj(s)) return false
+    for (const band of Object.values(s)) {
+      if (!Array.isArray(band) || band.length !== (steps as number) + 1 || !band.every(finite)) return false
+    }
+    const fin = (r.final as Record<string, unknown>)[p.id]
+    if (!isObj(fin) || !Array.isArray(fin.values) || !fin.values.every(finite)) return false
+  }
+  return true
+}
+
+function resultPoolIds(r: unknown): Set<string> {
+  const out = new Set<string>()
+  if (isObj(r) && Array.isArray(r.pools)) {
+    for (const p of r.pools) if (isObj(p) && typeof p.id === 'string') out.add(p.id)
+  }
   return out
 }

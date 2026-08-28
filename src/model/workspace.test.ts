@@ -17,6 +17,12 @@ import {
 // The digest's Web-Crypto and pure-JS paths must agree, and only engine-relevant
 // graph fields may move it.
 
+/** reference SHA-256 via Web Crypto (available under vitest/node) */
+async function subtleHex(bytes: Uint8Array): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', bytes as unknown as ArrayBuffer)
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 describe('constants', () => {
   it('are the values pinned in §W11', () => {
     expect(WORKSPACE_SCHEMA).toBe('loop-workspace/1')
@@ -54,9 +60,7 @@ describe('sha256Js — FIPS 180-4', () => {
       const len = Math.floor(Math.random() * 300)
       const bytes = new Uint8Array(len)
       crypto.getRandomValues(bytes)
-      const buf = await crypto.subtle.digest('SHA-256', bytes)
-      const expected = Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('')
-      expect(sha256Js(bytes)).toBe(expected)
+      expect(sha256Js(bytes)).toBe(await subtleHex(bytes))
     }
   })
 
@@ -77,9 +81,7 @@ describe('sha256Js — FIPS 180-4', () => {
     ]
     for (const s of strings) {
       const bytes = utf8Bytes(s)
-      const buf = await crypto.subtle.digest('SHA-256', bytes)
-      const expected = Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('')
-      expect(sha256Js(bytes), `mismatch on ${JSON.stringify(s)}`).toBe(expected)
+      expect(sha256Js(bytes), `mismatch on ${JSON.stringify(s)}`).toBe(await subtleHex(bytes))
     }
   })
 })
