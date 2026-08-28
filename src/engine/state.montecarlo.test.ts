@@ -133,6 +133,36 @@ describe('path invariance — sync / cooperative / worker envelope give one resu
     expect(toMonteCarloJson(await runMonteCarloParallel(g, e, c, { workers: 4, jobSize: 3 }))).toEqual(ref)
   })
 
+  it('a delayed-trigger ↔ activator interplay graph is isolated + path-invariant', async () => {
+    // random feed (runs differ) + a delay-2 pulse onto a passive drain that is
+    // also gated by a random gauge ⇒ the pulse lands open on some runs, closed
+    // on others. loop-state/1 §S3/§S4: the outcome must be per-run only.
+    const g = [
+      source('S'), pool('P', 0), drain('D', 'passive'),
+      source('KS'), pool('K', 0), source('GS'), pool('G', 0),
+    ]
+    const e = [
+      res('e1', 'S', 'P', '2D6'),
+      res('e2', 'P', 'D', '1-3'),
+      res('ek', 'KS', 'K', '1'),
+      res('eg', 'GS', 'G', '1-3'),
+      act('a1', 'G', 'D', '>= 8'),
+      trig('t1', 'KS', 'D', 2),
+    ]
+    const c: RunConfig = { baseSeed: 5, runs: 20, steps: 12, tracked: [] }
+    const sync = runMonteCarlo(g, e, c)
+    const standalone: number[] = []
+    for (let i = 0; i < c.runs; i++) {
+      let st = initSim(g)
+      for (let t = 1; t <= c.steps; t++) st = step(g, e, st, runSeed(c.baseSeed, i)).state
+      standalone.push(st.values.P ?? 0)
+    }
+    expect(sync.final.P.values).toEqual(standalone)
+    const ref = toMonteCarloJson(sync)
+    expect(toMonteCarloJson(await runMonteCarloCooperative(g, e, c, { batchSize: 7 }))).toEqual(ref)
+    expect(toMonteCarloJson(await runMonteCarloParallel(g, e, c, { workers: 3, jobSize: 4 }))).toEqual(ref)
+  })
+
   it('runRange (the Worker compute fn) — full range and chunked ranges agree', () => {
     const poolIds = ['P', 'Q']
     const span = cfg.steps + 1

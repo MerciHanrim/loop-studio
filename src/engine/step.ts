@@ -153,9 +153,16 @@ export function step(
   // ── activator gate (§S4) ──────────────────────────────────────────────
   // `enabled(target)` = AND over its activator edges; empty ⇒ true. Source
   // must be a Pool; a non-Pool source or an unparseable comparison is inert +
-  // diagnostic (does NOT disable the target). Slice 2 evaluates the frozen
-  // normal comparison forms; Slice 3 hardens the error messaging / boundaries.
+  // diagnostic (does NOT disable the target).
+  //
+  // §S6 grammar — `(>=|>|<=|<|==|!=)\s*<finite real>`, leading/trailing and
+  // around-operator whitespace tolerated. Slice 3 only sharpens the diagnostic
+  // wording; it does NOT widen what parses. Everything the regex rejects —
+  // empty, operator-only, `NaN` / `±Infinity`, `+5` / `.5` / `5.` / `1e3`,
+  // trailing junk — stays invalid: the edge is inert (dropped from the AND)
+  // and adds exactly one diagnostic line this step.
   const ACT_RE = /^\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/
+  const ACT_OP_ONLY_RE = /^\s*(>=|<=|==|!=|>|<)\s*$/
   const cmp = (v: number, op: string, n: number): boolean => {
     switch (op) {
       case '>=': return v >= n
@@ -180,12 +187,25 @@ export function step(
       diagnostics.push(`Activator "${e.id}" needs a Pool source; ignored.`)
       continue
     }
-    const m = ACT_RE.exec((e.data as { expr?: string }).expr ?? '')
-    if (!m || !Number.isFinite(Number(m[2]))) {
-      diagnostics.push(`Activator "${e.id}" expression "${(e.data as { expr?: string }).expr ?? ''}" is not a comparison; ignored.`)
+    const rawExpr = (e.data as { expr?: string }).expr ?? ''
+    const m = ACT_RE.exec(rawExpr)
+    if (!m) {
+      const why =
+        rawExpr.trim() === ''
+          ? 'is empty'
+          : ACT_OP_ONLY_RE.test(rawExpr)
+            ? 'has no comparison value'
+            : 'is not a comparison (expected e.g. ">= 5")'
+      diagnostics.push(`Activator "${e.id}" expression "${rawExpr}" ${why}; ignored.`)
       continue
     }
-    const satisfied = cmp(S[e.source] ?? 0, m[1], Number(m[2]))
+    const n = Number(m[2])
+    if (!Number.isFinite(n)) {
+      // unreachable via ACT_RE, kept as a guard against future regex edits
+      diagnostics.push(`Activator "${e.id}" expression "${rawExpr}" uses a non-finite value; ignored.`)
+      continue
+    }
+    const satisfied = cmp(S[e.source] ?? 0, m[1], n)
     const prevOk = enabledByNode.get(e.target)
     enabledByNode.set(e.target, prevOk === undefined ? satisfied : prevOk && satisfied)
     stateEvents.push({
