@@ -164,15 +164,124 @@ describe('an invalid delay is treated as 0 with a diagnostic', () => {
   }
 })
 
+// ── simultaneous pulses at one target ────────────────────────────────────
+describe('two triggers to the same target: one execution, both edges reported', () => {
+  const nodes = [source('Src'), pool('P'), drain('D', 'passive')]
+  //           t2 delivers same step as t1 (both delay 0)
+  const edges = [res('e1', 'Src', 'P', '2'), res('e2', 'P', 'D', '1'), trig('t1', 'Src', 'D', 0), trig('t2', 'Src', 'D', 0)]
+  const { frames } = run(nodes, edges, 3)
+
+  it('D fires once at step 2', () => {
+    expect(frames[2].fired).toEqual(['D', 'Src'])
+    expect(frames[2].values.P).toBe(3) // +2 −1, not −2
+  })
+  it('stateEvents lists every arriving edge, ascending edgeId', () => {
+    expect(frames[2].stateEvents).toEqual([
+      { edgeId: 't1', from: 'Src', to: 'D', mode: 'trigger', effect: { kind: 'trigger', delivered: true, applied: true } },
+      { edgeId: 't2', from: 'Src', to: 'D', mode: 'trigger', effect: { kind: 'trigger', delivered: true, applied: true } },
+    ])
+  })
+  it('the queue keeps (deliveryStep, edgeId) order', () => {
+    expect(frames[1].queue).toEqual([
+      { edgeId: 't1', target: 'D', deliveryStep: 2 },
+      { edgeId: 't2', target: 'D', deliveryStep: 2 },
+    ])
+  })
+})
+
+describe('mixed delays can deliver to one target on the same step', () => {
+  // t1 d0 (from step t-1) and t2 d1 (from step t-2) both due at step 3
+  const nodes = [source('Src'), pool('P'), drain('D', 'passive')]
+  const edges = [res('e1', 'Src', 'P', '2'), res('e2', 'P', 'D', '1'), trig('t1', 'Src', 'D', 0), trig('t2', 'Src', 'D', 1)]
+  const { frames } = run(nodes, edges, 4)
+  it('step 3: D fires once, both t1 and t2 report delivered', () => {
+    expect(frames[3].fired).toEqual(['D', 'Src'])
+    expect(frames[3].stateEvents.map((s) => (s as { edgeId: string }).edgeId)).toEqual(['t1', 't2'])
+  })
+})
+
+// ── interactive target == passive ────────────────────────────────────────
+describe('an interactive target behaves exactly like passive (headless)', () => {
+  const nodes = [source('Src'), pool('P'), drain('D', 'interactive')]
+  const edges = [res('e1', 'Src', 'P', '2'), res('e2', 'P', 'D', '1'), trig('t1', 'Src', 'D', 0)]
+  const { frames } = run(nodes, edges, 6)
+  it('same P trace as S-A and applied: true', () => {
+    expect(frames.map((f) => f.values.P)).toEqual([0, 2, 3, 4, 5, 6, 7])
+    expect((frames[2].stateEvents[0] as { effect: { applied: boolean } }).effect.applied).toBe(true)
+  })
+})
+
+// ── onStart target ──────────────────────────────────────────────────────
+describe('a trigger on an onStart target has no execution effect', () => {
+  const nodes = [source('Src'), pool('P'), drain('D', 'automatic')]
+  // make D onStart via a raw override
+  ;(nodes[2].data as { activation: string }).activation = 'onStart'
+  const edges = [res('e1', 'Src', 'P', '2'), res('e2', 'P', 'D', '1'), trig('t1', 'Src', 'D', 0)]
+  const { frames } = run(nodes, edges, 4)
+  it('D never fires (P has nothing at step 1); deliveries report applied: false', () => {
+    for (let s = 1; s <= 4; s++) expect(frames[s].fired).toEqual(['Src'])
+    expect((frames[2].stateEvents[0] as { effect: { applied: boolean } }).effect.applied).toBe(false)
+  })
+})
+
+// ── a step where the source didn't move schedules nothing ────────────────
+describe('a trigger source that did not fire schedules no pulse', () => {
+  // Src → P is full from the start (init 2, cap 2) and P has no outlet ⇒ Src pushes 0
+  const nodes = [source('Src'), pool('P', 2, 2)]
+  const edges = [res('e1', 'Src', 'P', '5'), trig('t1', 'Src', 'P', 0)]
+  const { frames } = run(nodes, edges, 3)
+  it('the queue stays empty because Src never fired', () => {
+    for (const f of frames) {
+      expect(f.fired).toEqual([]) // Src pushed 0 each step
+      expect(f.queue).toEqual([])
+      expect(f.stateEvents).toEqual([])
+    }
+  })
+})
+
+// ── legacy `node` mode ──────────────────────────────────────────────────
+describe('a legacy `node` mode state edge is inert with one diagnostic', () => {
+  const nodes = [source('Src'), pool('P'), drain('D', 'passive')]
+  const nodeEdge: LoopEdge = {
+    id: 'x1', source: 'Src', target: 'D', type: 'loop',
+    sourceHandle: 'state-source', targetHandle: 'state-target',
+    data: { kind: 'state', mode: 'node', expr: '' },
+  }
+  const edges = [res('e1', 'Src', 'P', '2'), res('e2', 'P', 'D', '1'), nodeEdge]
+  const { frames, diags } = run(nodes, edges, 3)
+  it('D never fires, no stateEvents, one "not supported" diagnostic per step', () => {
+    for (let s = 1; s <= 3; s++) {
+      expect(frames[s].fired).toEqual(['Src'])
+      expect(frames[s].stateEvents).toEqual([])
+    }
+    expect(diags.filter((d) => /mode "node" is not supported/.test(d)).length).toBe(3)
+  })
+})
+
 // ── I8-S — reverse-array determinism ─────────────────────────────────────
 describe('I8-S — node / edge array order does not change the result', () => {
-  const nodes = [source('Src'), pool('P'), drain('D', 'passive')]
-  const edges = [res('e1', 'Src', 'P', '2'), res('e2', 'P', 'D', '1'), trig('t1', 'Src', 'D', 1)]
+  // two trigger edges with distinct ids + a delay, so the (deliveryStep, edgeId)
+  // sort tiebreak is exercised
+  const nodes = [source('Src'), pool('P'), drain('D', 'passive'), drain('E', 'passive')]
+  const edges = [
+    res('e1', 'Src', 'P', '2'),
+    res('e2', 'P', 'D', '1'),
+    res('e3', 'P', 'E', '1'),
+    trig('t2', 'Src', 'E', 1),
+    trig('t1', 'Src', 'D', 1),
+  ]
   const a = run(nodes, edges, 8)
   const b = run([...nodes].reverse(), [...edges].reverse(), 8)
 
   it('identical values / fired / stateEvents / triggerQueue frame by frame', () => {
     expect(b.frames).toEqual(a.frames)
     expect(b.diags).toEqual(a.diags)
+  })
+  it('the queue is sorted (deliveryStep, edgeId)', () => {
+    // step 1 scheduled t1@3 and t2@3 ⇒ t1 before t2 by id
+    expect(a.frames[1].queue).toEqual([
+      { edgeId: 't1', target: 'D', deliveryStep: 3 },
+      { edgeId: 't2', target: 'E', deliveryStep: 3 },
+    ])
   })
 })

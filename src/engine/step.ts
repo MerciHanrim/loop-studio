@@ -132,28 +132,36 @@ export function step(
   }
 
   // ── Phase 0: state connections (SEMANTICS-S.md §S2) ─────────────────────
-  // Slice 1 handles `trigger` only. `activator` / `label` are inert here.
+  // Slice 1 handles `trigger` only. `activator` / `label` are inert here; a
+  // legacy `node` mode (or any unrecognised mode) is inert + one diagnostic.
   const stateEvents: StateEvent[] = []
   const stateEdgeCmp = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
-  const triggerEdges = edges
-    .filter((e): e is LoopEdge & { data: { kind: 'state'; mode: 'trigger'; delay?: number } } =>
-      e.data?.kind === 'state' && e.data.mode === 'trigger',
-    )
+  const KNOWN_STATE_MODES = new Set(['trigger', 'activator', 'label'])
+  const stateEdges = edges
+    .filter((e): e is LoopEdge & { data: { kind: 'state'; mode: string; delay?: number } } => e.data?.kind === 'state')
     .sort(stateEdgeCmp)
-
-  /** `delay` as a non-negative integer; NaN / Infinity / fractional / negative → 0 + one diagnostic. */
-  const badDelay = new Set<string>()
-  const delayOf = (e: LoopEdge & { data: { delay?: number } }): number => {
-    const raw = e.data.delay
-    if (raw == null) return 0
-    if (!Number.isInteger(raw) || raw < 0) {
-      if (!badDelay.has(e.id)) {
-        badDelay.add(e.id)
-        diagnostics.push(`State edge "${e.id}" delay ${raw} is not an integer ≥ 0; treated as 0.`)
-      }
-      return 0
+  for (const e of stateEdges) {
+    if (!KNOWN_STATE_MODES.has(e.data.mode)) {
+      diagnostics.push(`State edge "${e.id}" mode "${e.data.mode}" is not supported; connection has no effect.`)
     }
-    return raw
+  }
+  const triggerEdges = stateEdges.filter(
+    (e): e is LoopEdge & { data: { kind: 'state'; mode: 'trigger'; delay?: number } } => e.data.mode === 'trigger',
+  )
+
+  // Validate each trigger edge's `delay` once this step: a non-negative integer;
+  // NaN / Infinity / fractional / negative → 0 + exactly one diagnostic.
+  const delayByEdge = new Map<string, number>()
+  for (const e of triggerEdges) {
+    const raw = e.data.delay
+    if (raw == null) {
+      delayByEdge.set(e.id, 0)
+    } else if (Number.isInteger(raw) && raw >= 0) {
+      delayByEdge.set(e.id, raw)
+    } else {
+      diagnostics.push(`State edge "${e.id}" delay ${raw} is not an integer ≥ 0; treated as 0.`)
+      delayByEdge.set(e.id, 0)
+    }
   }
 
   // deliver every queue entry due this step; a delivery whose edge or target no
@@ -559,7 +567,7 @@ export function step(
     triggerQueue.push({
       edgeId: e.id,
       target: e.target,
-      deliveryStep: curStep + delayOf(e) + 1, // SEMANTICS-S.md §S3.1
+      deliveryStep: curStep + delayByEdge.get(e.id)! + 1, // SEMANTICS-S.md §S3.1
     })
   }
   triggerQueue.sort(
