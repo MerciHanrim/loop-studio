@@ -6,8 +6,14 @@ Goal: prove the **HTTP Worker path** and the **portable `file://` cooperative
 path** produce the same Monte-Carlo result, that progress/cancel behave under
 each, and that undo/redo + template swap invalidate sim/MC state correctly.
 
-Principle: **no product-code changes.** One optional change is flagged in §8 and
-will not be made without approval. Everything else is Playwright harness + specs.
+Principle: **no product-code changes, no bridge extension.** `src/` is untouched;
+the existing DEV-only `window.__loop = {graph, sim, mc}` bridge is used as-is on
+http and is *not* available (nor added) on the portable `file://` page. All new
+code is Playwright harness + specs.
+
+Review status: plan approved 2026-08-28 with four corrections, folded in below
+(§1 message-level path proof, §3 cancel-observer split, §7 tracked precondition,
+§6 no `?__e2e` bridge — instrument `URL.createObjectURL` instead).
 
 ---
 
@@ -29,7 +35,7 @@ The store (`mcStore.run()`) calls `runMonteCarloParallel` with **no `workers`
 option**, so the path is decided purely by `navigator.hardwareConcurrency` (http)
 or the `file:` protocol (portable).
 
-### Harness levers (both via `page.addInitScript`, before app code runs)
+### Harness levers (all via `page.addInitScript`, before app code runs)
 
 1. **Force the path on http** by redefining the reading:
    ```js
@@ -37,31 +43,50 @@ or the `file:` protocol (portable).
    ```
    `N = 8` ⇒ `defaultWorkerCount()` = 4 ⇒ **Worker path**.
    `N = 1` ⇒ `defaultWorkerCount()` = 1 ⇒ **cooperative path**.
-   This is a test-environment value, not app behaviour — the app already reads it
-   at call time and adapts.
+   A test-environment value; the app already reads it at call time and adapts.
 
-2. **Prove a Worker was actually constructed**:
+2. **Instrument `Worker` with a `Proxy` `construct` trap** — preserves the real
+   prototype, `instanceof`, and all behaviour (no `class extends`, no method
+   swap on the instance):
    ```js
-   window.__workerCtors = 0
-   const R = window.Worker
-   window.Worker = class extends R { constructor(...a){ window.__workerCtors++; super(...a) } }
+   window.__wk = { ctor: 0, init: 0, job: 0, msgIn: 0 }
+   const RealWorker = window.Worker
+   const realPost = RealWorker.prototype.postMessage
+   RealWorker.prototype.postMessage = function (m, ...rest) {
+     const t = m && typeof m === 'object' && !ArrayBuffer.isView(m) ? m.type : undefined
+     if (t === 'init') window.__wk.init++
+     else if (t === 'job') window.__wk.job++
+     return realPost.call(this, m, ...rest)
+   }
+   window.Worker = new Proxy(RealWorker, {
+     construct(target, args) {
+       window.__wk.ctor++
+       const w = Reflect.construct(target, args) // genuine Worker, correct prototype
+       w.addEventListener('message', () => { window.__wk.msgIn++ })
+       return w
+     },
+   })
    ```
-   - Worker path ⇒ `__workerCtors > 0`
-   - cooperative path (`N=1` or `file://`) ⇒ `__workerCtors === 0`
-   Readable with `page.evaluate` even on the bridge-less portable page.
 
-3. **`file://` needs nothing forced** — `canUseWorkers()` returns `false` from the
-   protocol check, so cooperative is guaranteed; the spy's `0` confirms it and a
-   bridge/DOM assertion of `canUseWorkers() === false` is redundant but cheap on
-   http-served portable (not attempted on `file://`).
+3. **Cooperative-side probe** — a macrotask ticker to witness event-loop
+   interleave during a main-thread run:
+   ```js
+   window.__ticks = 0
+   ;(function t () { window.__ticks++; setTimeout(t, 0) })()
+   ```
+   It also lets a test snapshot "ticks advanced by ≥ k across the run" as
+   independent evidence the loop yielded (the cooperative driver's whole point).
 
-### What each spec asserts about the path
+### Strengthened proof that the chosen path did the computation
 
-| spec | how the path is pinned | proof it ran |
+| path | pinned by | proof it actually computed |
 |---|---|---|
-| worker run (http) | initscript `hardwareConcurrency = 8` | `__workerCtors >= 2`, result correct |
-| cooperative run (http) | initscript `hardwareConcurrency = 1` | `__workerCtors === 0`, result correct |
-| portable run (`file://`) | real `file:` protocol | `__workerCtors === 0`, no dev server, result correct |
+| **Worker** (http, `N=8`) | `hardwareConcurrency` initscript | `__wk.ctor ≥ 2` **and** `__wk.init ≥ 1` **and** `__wk.job ≥ 1` **and** `__wk.msgIn ≥ jobs` (result messages came back) **and** the run completes with a correct result |
+| **cooperative** (http, `N=1`) | `hardwareConcurrency` initscript | `__wk.ctor === 0` **and** a mid-run `0 < progress < 1` sample was seen (loop yielded) **and** `__ticks` advanced during the run **and** the run completes with a correct result |
+| **portable cooperative** (`file://`) | real `file:` protocol | `__wk.ctor === 0`, no dev server in play, mid-run progress seen via the strip `%`, completes with a correct result (same `424/500`) |
+
+`__wk.job` and `__wk.msgIn` together show the worker pool *sent jobs and received
+their results* — not merely that a `Worker` object was constructed.
 
 ---
 
@@ -95,46 +120,70 @@ Comparison method:
 - http worker vs http cooperative: read `window.__loop.mc.getState().result`
   from each context, `JSON.stringify` (stable key order — same object shape),
   `expect(a).toBe(b)`.
-- portable `file://` vs http reference: compare the **exported JSON files**
-  (Export ▾ → JSON) for the same `500 × 40, baseSeed 1` config — see §6.
+- portable `file://` vs http: compare the **exported JSON** for the same
+  `500 × 40, baseSeed 1` config, captured on both sides by the same
+  `URL.createObjectURL` instrumentation (see §6), `expect(a).toBe(b)`.
 
 ---
 
 ## 3. Mid-run progress observation + callbacks stop after cancel
 
 The store's `onProgress` does `if (get().status !== 'running') return; set({progress, completedRuns})`.
-`runMonteCarloParallel` fires progress every 64 completed runs (and once at the
+`runMonteCarloParallel` fires progress every 64 completed runs (+ once at the
 end); on abort it `reject`s and the internal `done()` guard makes any late
-worker message a no-op (`if (settled) return`), and removes the `abort`
+worker message a no-op (`if (settled) return`) and removes the `abort`
 listener. `runMonteCarloCooperative` fires at batch boundaries and, on abort,
 throws out of the loop and `dispose()`s the MessageChannel — no queued yield
-callbacks survive.
+callback survives.
 
-### Observation (http, both paths, via the bridge)
+**Verified store behaviour on cancel** (removes the apparent contradiction in the
+first draft): the `AbortError` branch sets `progress: 0` and `message:'Cancelled'`
+but **does not touch `completedRuns`** — it keeps whatever the last `onProgress`
+committed. So `progress` (a product-rule *reset*) and `completedRuns` (the last
+*delivered* value, now frozen) are two different quantities with two different
+post-cancel rules. The test asserts them separately, and adds an independent
+test-side observer of the async machinery so "work stopped" is not proven from
+product state alone.
 
-- Size the run so wall-time is comfortably > ~1 s (e.g. `2000 × 40`, all pools;
-  cells = 2000·41·8 = 656 k < 5 M limit).
-- `expect.poll` on `mc.getState()` and record: at least one sample with
-  `0 < progress < 1` **and** `status === 'running'` ⇒ *mid-run progress seen*.
-- Let it finish: `progress === 1`, `status === 'done'`.
+### Mid-run progress observed (http, both paths, bridge)
+
+- Size the run so wall-time ≫ 1 s (`2000 × 40`, all pools; 656 k cells < 5 M).
+- `expect.poll` on `mc.getState()`: at least one sample with `0 < progress < 1`
+  **and** `status === 'running'` ⇒ progress observed mid-run.
+- Worker path additionally: `__wk.msgIn` climbs across those samples. Cooperative
+  path additionally: `__ticks` advances by ≥ 20 across the run window.
+- Finish: `progress === 1`, `status === 'done'`, result correct.
 
 ### Callbacks stop after cancel (http, both paths)
 
-- Start a large run (`5000 × 40`, all pools = 1.64 M cells).
-- Poll until `completedRuns` is in `(0, 5000)` and `status === 'running'`.
-- `mc.cancel()` (or click the strip **Cancel**).
-- Poll until `status !== 'running'`; snapshot `completedRuns` as `X`.
-- Wait 750 ms, re-read: assert `completedRuns === X` (frozen — no callback
-  advanced it), `progress === 0` (the catch resets it), `message === 'Cancelled'`.
+Three distinct observations, not one:
+
+1. **Test-side observer of the async machinery** (the primary "callbacks stopped"
+   proof, decoupled from the store):
+   - Worker path — `X = window.__wk.msgIn` at the moment `status` leaves
+     `'running'`. Re-read after 750 ms: `__wk.msgIn === X` (workers were
+     `terminate()`d; no further result messages). Also `__wk.job` unchanged.
+   - Cooperative path — `X = mc.getState().completedRuns` captured while still
+     `'running'`; re-read the store's `completedRuns` at +250 / +500 / +750 ms:
+     never exceeds `X` (the loop threw; no batch boundary advanced it). (`__ticks`
+     keeps climbing — the ticker is independent — so it is *not* used as the
+     freeze signal here, only as the earlier "did yield" signal.)
+2. **Product state reset per product rules**: `progress === 0`,
+   `message === 'Cancelled'` (clears itself after 2.5 s), `status` back to
+   `'idle'` (no prior result) or `'done'` (prior result kept — §4).
+3. `completedRuns` is *not* re-zeroed by the cancel path (verified above), so it
+   equals the frozen `X` from step 1 for the cooperative case; for the worker
+   case it holds the last `onProgress` value. Asserted as `> 0 && < N` and stable
+   over 750 ms — a weaker corroboration of step 1, never the sole proof.
 
 ### Portable `file://` (DOM only, no bridge)
 
-- Progress: the strip shows `Monte Carlo NN%` (`.pstrip__mcprog`); assert its text
-  advances past `0%` and below `100%` while `status` is running, then the run
-  completes and DISTRIBUTION appears.
-- Cancel: click the strip **Cancel**; assert `.pstrip__mcprog` disappears, the
-  button reads `Monte Carlo · Cancelled` briefly, and the `%` text seen just
-  before cancel does not increase afterwards (poll twice, 500 ms apart).
+- Progress: `.pstrip__mcprog` text (`Monte Carlo NN%`) advances past `0%` and
+  below `100%` while running; then DISTRIBUTION appears.
+- Cancel: click the strip **Cancel**; `.pstrip__mcprog` disappears, the button
+  shows `Monte Carlo · Cancelled`. Record the last `%` seen before cancel;
+  re-read at +500 ms and +1000 ms — it does not increase. `__wk.ctor === 0`
+  throughout (cooperative), and no partial DISTRIBUTION appears (§4).
 
 ---
 
@@ -206,15 +255,20 @@ This ties the four numbers Lumi listed together end-to-end in the browser:
   drives the real hidden `<input accept=".json">` → `FileReader` → `loadJSON`.
 - **Run / observe / cancel**: entirely through the DOM (strip button, MC dialog
   inputs, `.pstrip__mcprog`, `.dist`, `.term__*`).
-- **Read the result for byte-equality**: Export ▾ → **JSON**, capture the
-  `download`, parse the file. An http context exports the same config's JSON;
-  the two files are compared byte-for-byte.
-  - **Open risk to confirm in step 1 of implementation**: whether Chromium fires
-    a `download` event for a `blob:` download initiated from a `file://` page
-    under Playwright. The download originates from a `blob:` URL (not the
-    `file:` origin) via `a.download` + `a.click()`, which is how slice 1's export
-    spec already works on http — so it is *expected* to work. If it does not,
-    the fallback in §8 applies (needs approval).
+- **Read the exported result** for byte-equality — three mechanisms, tried in
+  order, **all pure test instrumentation, no product change** (see §6.1 spike):
+  1. the real Playwright `download` event on Export ▾ → **JSON**;
+  2. an `addInitScript` that wraps `URL.createObjectURL` so that when the app's
+     `download()` helper builds its `Blob`, the test captures `await blob.text()`
+     keyed by the returned `blob:` URL (`DistributionPanel.download()` calls
+     `URL.createObjectURL(blob)` then `a.download` + `a.click()` synchronously —
+     the wrapper reads the Blob before `revokeObjectURL`);
+  3. combine the Export click succeeding with DOM metrics (`.term__pct`,
+     the "Ended" `.dist__stat`, `.term__line`/`.term__bead` counts) as a
+     coarser cross-check.
+  Mechanism 2 is protocol-independent and is the one the http reference also uses
+  so the two captures are apples-to-apples. If **all three** fail, stop and
+  report — a product-code bridge into the portable build is **not** an option.
 
 ### `file://` browser constraints (documented in the spec header)
 
@@ -246,85 +300,113 @@ swap and prompts `window.confirm()` when the canvas is non-empty.
 
 ### Spec `e2e/mc-invalidation.spec.ts` (http, bridge)
 
-1. Import risky-factory, run a small MC (`120 × 20`) → `stale === false`,
-   `view === 'distribution'`, Export enabled.
-2. Advance the live sim a few steps (`sim.stepOnce()` ×3) → `stepIndex === 3`.
-3. **Undo** an earlier structural edit (make one first: e.g.
-   `graph.updateNodeData(<pool>, {capacity: 999})` so `canUndo` is true), then
-   `graph.undo()`:
-   - `mc.getState().stale === true`, `result` still present (viewable)
-   - Export menu button `disabled` (`.dist__stats .menu button[disabled]`, title
+**Precondition on `tracked`** (correction 3): `tracked: []` means "track every
+Pool" and `reconcileTracked()` returns early for it — a template swap leaves it
+`[]` (now meaning the template's pools). To exercise the "falls to first pool"
+branch the test must first set an **explicit subset of Risky Factory Pool ids**.
+Both cases are covered:
+
+- Case A (explicit subset): before the swap,
+  `mc.setConfig({ tracked: ['ore_stock', 'components'] })`.
+- Case B (`[]`): a second run of the swap with `tracked: []` left as default.
+
+Steps:
+
+1. Import risky-factory. `mc.setConfig({ tracked: ['ore_stock','components'] })`.
+   Run a small MC (`120 × 20`) → `stale === false`, `view === 'distribution'`,
+   Export enabled, `result.pools` = exactly those two.
+2. Advance the live sim (`sim.stepOnce()` ×3) → `stepIndex === 3`.
+3. Make an undoable structural edit first
+   (`graph.updateNodeData(<pool>, {capacity: 999})` ⇒ `canUndo === true`), then
+   **`graph.undo()`**:
+   - `mc.getState().stale === true`; `result` still present (viewable)
+   - Export button `disabled` (`.dist__stats .menu button[disabled]`, title
      "Result is stale — re-run to export")
-   - `sim.getState().stepIndex === 0`, `status === 'idle'` (sim was reset)
-4. **Redo** (`graph.redo()`): still `stale === true` (redo bumps rev too),
-   result still present.
-5. Re-run MC → `stale === false`, fresh `result`, Export enabled again.
-6. **Config edit does NOT stale** (re-affirm slice 1): with a fresh result,
-   `mc.setConfig({runs: 300})` ⇒ `stale` stays `false`, `result` unchanged.
-7. **Template swap**: `page.on('dialog', d => d.accept())`, open Templates ▾,
-   pick "Flowing equilibrium":
-   - `graphSnapshot` now shows the template's nodes (risky-factory gone)
-   - `mc.getState().stale === true`, result still viewable
-   - `mc.getState().config.tracked` — reconciled: risky-factory pool ids no
-     longer match, so it falls to `[<first template pool id>]` (per
-     `reconcileTracked`: empty intersection + pools remain ⇒ first pool; never
-     widens to "all")
+   - `sim.getState().stepIndex === 0`, `status === 'idle'`
+4. **`graph.redo()`** — still `stale === true` (redo bumps rev too); result
+   still present.
+5. Re-run MC → `stale === false`, fresh `result`, Export enabled.
+6. **Config edit does NOT stale** (re-affirm slice 1): `mc.setConfig({runs:300})`
+   ⇒ `stale` stays `false`, `result` unchanged.
+7. **Template swap, Case A**: `page.on('dialog', d => d.accept())`, Templates ▾ →
+   "Flowing equilibrium":
+   - `graphSnapshot` shows the template's nodes (risky-factory gone)
+   - `mc.getState().stale === true`; result still viewable
+   - `mc.getState().config.tracked` reconciled to `[<first template pool id>]`
+     (empty intersection with `['ore_stock','components']` + pools remain ⇒
+     first pool; never widens to `[]`)
    - `sim.getState().status === 'idle'`, `stepIndex === 0`
-8. Swap while a **live run** is active: `sim.play()`, then pick the other
-   template — `Templates.pick()` pauses first; assert `sim.status !== 'running'`
-   and `stepIndex === 0` after.
+8. **Template swap, Case B** (`tracked: []`): reset, import risky-factory, leave
+   `tracked` default `[]`, run MC, swap template ⇒ `stale === true`,
+   `config.tracked` **still `[]`** (all — now the template's pools), sim reset.
+9. Swap while a **live run** is active: `sim.play()`, pick the other template —
+   `Templates.pick()` pauses first; assert `sim.status !== 'running'` and
+   `stepIndex === 0` after.
 
 ---
 
-## 8. The one potential product-code change (flagged, not made)
+## 6.1 Spike (step 1 deliverable) — before any spec is written
 
-**Only if** the `file://` blob-download for JSON export does not fire under
-Playwright (see §6 risk). Fallback:
+Build the portable file, open it from `file://`, and confirm — reporting back:
 
-> In `src/main.tsx`, widen the bridge guard from `import.meta.env.DEV` to
-> `import.meta.env.DEV || new URLSearchParams(location.search).has('__e2e')`, and
-> have the portable spec load `loop-studio.html?__e2e=1`.
+1. the page boots (root renders, no console errors), `location.protocol === 'file:'`;
+2. `setInputFiles` on the hidden `<input type=file>` imports risky-factory
+   (node count 18);
+3. an MC run completes with `window.__wk.ctor === 0` (cooperative), and the
+   `URL.createObjectURL` wrapper captures the Export → JSON blob text on
+   `file://` (mechanism 2);
+4. whether the real Playwright `download` event also fires on `file://`
+   (mechanism 1) — informational;
+5. that the captured JSON's `endedRuns.atOrBeforeStep.at(-1) === 424` for
+   `500 × 40, baseSeed 1`.
 
-- ~2 lines, additive, **opt-in via an explicit query param** — no effect on any
-  real user who never appends `?__e2e=1`.
-- Would let the `file://` spec read `window.__loop.mc.getState().result`
-  directly, same as the http specs.
+If mechanisms 1–3 all fail to yield the result JSON, **stop and report** — a
+product-code path into the portable build is off the table per review.
 
-Preference order: (a) download-based, no change; (b) this opt-in un-gate. Will
-report which one is needed after the step-1 spike and **wait for approval**
-before touching `main.tsx`.
+## 8. Product-code changes
+
+**None.** The rejected `?__e2e` bridge un-gate is not pursued. Result extraction
+on `file://` uses test-side Web-API instrumentation only (§6, mechanisms 1–3).
+If that proves impossible, the portable byte-equality check is dropped and the
+gap reported, rather than adding any access path to the shipped file.
 
 ---
 
 ## 9. File / config plan
 
 New:
-- `e2e/support/mc.ts` — `simSnapshot`, `mcResultJson(page)`, `forcePath(page, 'worker'|'coop')`
-  (hardwareConcurrency initscript), `installWorkerSpy(page)`, `workerCtorCount(page)`,
-  `readPortableUrl()`, `importGraphFile(page, path)` (setInputFiles).
+- `e2e/support/mc.ts` — path-instrumentation initscript (`__wk` Proxy + prototype
+  `postMessage` spy + `__ticks` ticker + `URL.createObjectURL` capture),
+  `forcePath(page, 'worker'|'coop')` (hardwareConcurrency), `pathProbe(page)`
+  (reads `__wk`/`__ticks`), `capturedExports(page)`, `simSnapshot(page)`,
+  `mcResultJson(page)`, `importGraphFile(page, path)`, `portableUrl()`.
 - `e2e/mc-paths.spec.ts` — §1–§4 on http (worker vs cooperative): byte-equal,
-  worker spy, mid-run progress, cancel stops callbacks, cancel keeps prior result.
+  message-level path proof, mid-run progress, cancel stops callbacks, cancel
+  keeps the prior result.
 - `e2e/mc-invalidation.spec.ts` — §7.
 - `e2e/portable-file.spec.ts` — §5–§6 on `file://`.
-- Possibly `e2e/fixtures/risky-factory.mc-500x40.json` — a committed reference
-  `MonteCarloResult` for the portable byte-equal check (generated from the http
-  run, ~1–2 MB; or regenerated in `globalSetup` to avoid committing a big blob —
-  decide at review).
+- Reference for the portable byte-equal check: regenerated in `globalSetup`
+  (http run, same config) and written to `test-results/` — **not committed**
+  (avoids a ~1–2 MB blob in the repo). Decide at review if a committed trimmed
+  reference is preferred.
 
 Changed (harness only):
-- `playwright.config.ts` — add the `portable` project + build step; keep the
-  existing `chromium` project untouched.
-- `e2e/support/loop.ts` — export `readRiskyFactory` is already there; add
-  `simSnapshot` if not colocated in `mc.ts`.
+- `playwright.config.ts` — add a `portable` project (its own `globalSetup` runs
+  `npm run build:portable`; no `webServer`); the existing `chromium` project
+  untouched.
+- `e2e/support/loop.ts` — `readRiskyFactory` already exported; add `simSnapshot`
+  re-export if colocated elsewhere.
 
-Unchanged: all of `src/`.
+Unchanged: **all of `src/`.**
 
 ## 10. Order of work (each a reviewable commit)
 
-1. Harness: `e2e/support/mc.ts` + config `portable` project + the `file://`
-   download spike (report result; get §8 decision if needed).
-2. `e2e/mc-paths.spec.ts` — byte-equality + worker spy (the core proof).
-3. `e2e/mc-paths.spec.ts` — progress + cancel semantics.
-4. `e2e/mc-invalidation.spec.ts` — undo/redo/template.
-5. `e2e/portable-file.spec.ts` — portable `file://` end-to-end.
+1. **Spike + harness** (§6.1): `e2e/support/mc.ts` + `portable` project in the
+   config. Run the spike, **report results** (esp. `file://` result capture).
+2. `e2e/mc-paths.spec.ts` — byte-equality + message-level path proof (core).
+3. `e2e/mc-paths.spec.ts` — mid-run progress + cancel-stops-callbacks +
+   cancel-keeps-prior-result.
+4. `e2e/mc-invalidation.spec.ts` — undo/redo/template (Cases A + B).
+5. `e2e/portable-file.spec.ts` — portable `file://` end-to-end + byte-equal vs
+   the http reference.
 6. Full `--repeat-each=2`, review checkpoint, `--no-ff` merge.
