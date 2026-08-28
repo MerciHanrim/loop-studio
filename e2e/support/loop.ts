@@ -107,6 +107,10 @@ export async function importGraph(page: Page, json: string): Promise<void> {
 export const readFixture = (): string =>
   readFileSync(new URL('../../examples/engine-b-verification.json', import.meta.url), 'utf8')
 
+/** The hands-on demo graph (one connected economy, every node kind). */
+export const readRiskyFactory = (): string =>
+  readFileSync(new URL('../../examples/risky-factory.json', import.meta.url), 'utf8')
+
 /** The 4 Pool ids the verification fixture's expected.json tracks (Gate In left
  *  out on purpose). Stable — the fixture is committed. */
 export const FIXTURE_POOLS_4 = [

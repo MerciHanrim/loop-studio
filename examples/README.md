@@ -1,4 +1,16 @@
-# Engine B verification fixture
+# Example graphs
+
+Two graphs with different jobs:
+
+| file | role | Import? |
+|---|---|---|
+| `engine-b-verification.json` | **precision instrument** — small isolated lanes, each checking one number, so a broken feature is easy to pin | yes |
+| `engine-b-verification.expected.json` | test oracle for the above — read by `verification-fixture.test.ts` and by a human comparing values | **no** (not a graph) |
+| `risky-factory.json` | **product demo** — one connected economy that exercises every working node kind and Engine A/B feature at once | yes |
+
+---
+
+# 1 — Engine B verification fixture
 
 `engine-b-verification.json` is a real **Export** from Loop Studio — a graph with
 three independent lanes that together exercise Engine A and Engine B (seeded RNG,
@@ -57,4 +69,66 @@ real serialization path). The **expected values** are regenerated from whatever
 
 ```bash
 GEN_FIXTURE=1 npx vitest run src/engine/verification-fixture.test.ts
+```
+
+---
+
+# 2 — Risky Factory (feature demo)
+
+`risky-factory.json` is one connected economy — 18 nodes — built to show every
+working node kind and Engine A/B feature in a single graph you can watch run.
+
+```
+Ore Source (2D6) ─→ Ore Stock (cap 50)
+      └─ Ore Router (deterministic 4 : 1) ─┬─ Refined Ore (cap 12)
+                                           └─ Tailings (cap 15) ─(1-3)→ Waste Drain
+Energy Source (1-3) ─→ Energy Pool (cap 20)
+
+Refined Ore ×3  +  Energy ×1  ─ Assembly Converter ─→ Components (cap 30)  [2 Parts]
+      └─ Quality Gate (probabilistic 17 : 3 : 1) ─┬─ Finished Goods (cap 25) ─(1-3)→ Sales Drain
+                                                  ├─ Scrap Pool (cap 12) ─ Recycler (2 → 1) ─→ Salvage Pool (cap 10) ─(1)→ Salvage Drain
+                                                  └─ Critical Defect (End)
+```
+
+| feature | where |
+|---|---|
+| random flow `2D6` / `1-3` | Ore Source, Energy Source, the two `1-3` drains |
+| Pool capacity + back-pressure | Refined Ore and Energy Pool pin at their caps; the shortfall pushes back up the chain to Ore Stock and the Sources |
+| deterministic Gate split | Ore Router sends resources **4 : 1** to Refined Ore vs Tailings every step |
+| multi-input Converter, proportional scale-down | Assembly needs 3 ore + 1 energy per batch; a short input lowers the batch fraction |
+| probabilistic Gate, one branch per step | Quality Gate routes the whole step to exactly one of Finished / Scrap / End |
+| a second Converter on a recycling branch | Scrap Pool → Recycler (2 → 1) → Salvage Pool → Salvage Drain — a **dead-end side-channel**, not a cycle; nothing returns upstream |
+| ordinary Drain vs probabilistic End | Sales / Waste / Salvage drains run every step; **Critical Defect** ends a run at random (weight 1 of 21 ≈ 5 %) |
+| seed reproducibility | same seed ⇒ identical run; a different seed diverges and ends on a different step |
+| Monte-Carlo bands + termination sparkline | Finished Goods shows a real `p10–p90` spread; the sparkline shows *when* the Critical Defect tends to hit |
+
+The Scrap → Recycler → Salvage path is a **recycling branch**, not a loop back
+into production — it drains to `Salvage Drain` and stops there.
+
+## Manual check in the app
+
+```
+Import  examples/risky-factory.json
+Play at seed 3   → runs the full 40 steps; Ore Stock climbs toward 50,
+                   Refined Ore and Energy Pool sit pinned at capacity
+Reset, seed 4, Play → a Critical Defect ends the run around step 25
+Reset, seed 8, Play → ends around step 36
+Monte Carlo → runs 500, steps 40, base seed 1
+  track: Ore Stock, Energy Pool, Components, Finished Goods, Scrap Pool, Salvage Pool
+  Run → DISTRIBUTION:
+    • Finished Goods band has a visible p10–p90 spread
+    • the termination sparkline rises then flattens near ~85 % (0 % < ended < 100 %)
+  Export ▾ → Runs CSV / JSON
+Reset and Run again with the same config → identical result
+```
+
+`src/engine/risky-factory.test.ts` builds this graph and pins only its structural
+invariants (every node kind present, one branch per gate step, the 4 : 1 split,
+Components/Finished actually produced, `0 % < ended < 100 %`, a populated
+sparkline) — not exact values, so honest engine changes don't force a rewrite.
+
+## Regenerating
+
+```bash
+GEN_RISKY_FACTORY=1 npx vitest run src/engine/risky-factory.test.ts
 ```

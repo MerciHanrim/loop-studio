@@ -6,6 +6,7 @@ import {
   mcSnapshot,
   openApp,
   readFixture,
+  readRiskyFactory,
   resetAll,
   runMc,
   test,
@@ -99,6 +100,30 @@ test.describe('Monte Carlo run', () => {
     const s = await mcSnapshot(page)
     expect(s.hasResult).toBe(false)
     expect(s.message).toBe('Cancelled')
+  })
+})
+
+test.describe('Risky Factory demo graph', () => {
+  test('imports, runs, and renders a populated termination sparkline', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, readRiskyFactory())
+
+    const g = await graphSnapshot(page)
+    expect(g.nodeCount).toBe(18)
+    expect(g.edgeCount).toBe(17)
+
+    await runMc(page, { baseSeed: 1, runs: 200, steps: 40 }) // all pools tracked
+
+    const term = page.locator('.term')
+    await expect(term).toBeVisible()
+    // this graph DOES terminate some runs → a real line + Bead, no note
+    await expect(term.locator('.term__line')).toHaveCount(1)
+    await expect(term.locator('.term__bead')).toHaveCount(1)
+    await expect(term.locator('.term__empty')).toHaveCount(0)
+    const pct = Number((await term.locator('.term__pct b').innerText()).replace('%', ''))
+    expect(pct).toBeGreaterThan(0)
+    expect(pct).toBeLessThan(100)
   })
 })
 
