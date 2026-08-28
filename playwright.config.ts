@@ -34,7 +34,9 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: /portable-file\.spec\.ts/,
+      // portable-file runs under the `portable` project; dist.spec runs under
+      // playwright.dist.config.ts (production build + `vite preview`)
+      testIgnore: [/portable-file\.spec\.ts/, /dist\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     {
