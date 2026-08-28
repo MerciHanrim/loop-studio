@@ -801,6 +801,37 @@ body {
   }
 }
 
+/* ==== state-edge feedback (SEMANTICS-S §S9 / S2 §S2-9) ================== */
+/* trigger — a bead delivered along the edge on its delivery step */
+.state-pulse__bead {
+  fill: var(--signal-primary);
+}
+.state-pulse--blocked .state-pulse__bead {
+  fill: none;
+  stroke: var(--state-warning);
+  stroke-width: 1.5;
+}
+/* label — flash toward (+) or away from (−) the target; direction is raw delta */
+.state-flash__bead {
+  fill: var(--signal-primary);
+  opacity: 0.9;
+}
+.state-flash--out .state-flash__bead {
+  fill: var(--text-tertiary);
+}
+/* reduced motion: a single static edge highlight instead of travel */
+.state-edge-pulse {
+  stroke: var(--signal-primary);
+  stroke-width: 2.5;
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  animation: edgePulse 0.4s ease-out forwards;
+}
+.state-edge-pulse--blocked {
+  stroke: var(--state-warning);
+}
+
 /* ==== P2 — playback strip in the chart header =========================== */
 .pstrip {
   display: flex;
@@ -1111,6 +1142,37 @@ body {
   border-color: var(--state-selected);
   color: var(--text-primary);
 }
+/* activator satisfied — steady "on" tint on the label to match the edge */
+.edge-label--on {
+  color: var(--signal-primary);
+  border-color: var(--signal-primary);
+  font-style: normal;
+}
+/* label delta + separate clamp note; trigger "blocked" tag */
+.edge-label__delta {
+  margin-left: 5px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--signal-primary);
+}
+.edge-label__clamp {
+  margin-left: 5px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--state-warning);
+}
+.edge-label--blocked,
+.edge-label__blocked {
+  color: var(--state-warning);
+}
+.edge-label__blocked {
+  margin-left: 5px;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
 
 /* ---- inspector ---- */
 .inspector {
@@ -1182,6 +1244,35 @@ body {
   outline: 2px solid var(--line-focus);
   outline-offset: 1px;
   border-color: var(--line-strong);
+}
+.field input[aria-invalid='true'] {
+  border-color: var(--state-warning);
+}
+.field__hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+.field__hint code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.field__hint--ok {
+  color: var(--text-secondary);
+}
+.field__hint--bad {
+  color: var(--state-warning);
+}
+.inspector__legacy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inspector__legacy code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 /* ==== P2 — Monte Carlo ================================================== */

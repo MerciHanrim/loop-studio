@@ -1,6 +1,7 @@
 import type { LoopEdge, LoopNode } from '../model/types'
 import { evalDet, evalRand, parseFlow, rateOf, type FlowExpr } from './flow'
 import { categorical, sample } from './rng'
+import { ACT_WHY, LABEL_WHY, parseActivatorExpr, parseDelay, parseLabelExpr } from './stateExpr'
 import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResult, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
@@ -158,14 +159,11 @@ export function step(
   // must be a Pool; a non-Pool source or an unparseable comparison is inert +
   // diagnostic (does NOT disable the target).
   //
-  // §S6 grammar — `(>=|>|<=|<|==|!=)\s*<finite real>`, leading/trailing and
-  // around-operator whitespace tolerated. Slice 3 only sharpens the diagnostic
-  // wording; it does NOT widen what parses. Everything the regex rejects —
-  // empty, operator-only, `NaN` / `±Infinity`, `+5` / `.5` / `5.` / `1e3`,
-  // trailing junk — stays invalid: the edge is inert (dropped from the AND)
-  // and adds exactly one diagnostic line this step.
-  const ACT_RE = /^\s*(>=|<=|==|!=|>|<)\s*(-?\d+(?:\.\d+)?)\s*$/
-  const ACT_OP_ONLY_RE = /^\s*(>=|<=|==|!=|>|<)\s*$/
+  // §S6 grammar (parser in ./stateExpr, shared with the Inspector) —
+  // `(>=|>|<=|<|==|!=)\s*<finite real>`, whitespace-tolerant. Everything it
+  // rejects — empty, operator-only, `NaN` / `±Infinity`, `+5` / `.5` / `5.` /
+  // `1e3`, trailing junk — stays invalid: the edge is inert (dropped from the
+  // AND) and adds exactly one diagnostic line this step.
   const cmp = (v: number, op: string, n: number): boolean => {
     switch (op) {
       case '>=': return v >= n
@@ -191,24 +189,12 @@ export function step(
       continue
     }
     const rawExpr = (e.data as { expr?: string }).expr ?? ''
-    const m = ACT_RE.exec(rawExpr)
-    if (!m) {
-      const why =
-        rawExpr.trim() === ''
-          ? 'is empty'
-          : ACT_OP_ONLY_RE.test(rawExpr)
-            ? 'has no comparison value'
-            : 'is not a comparison (expected e.g. ">= 5")'
-      diagnostics.push(`Activator "${e.id}" expression "${rawExpr}" ${why}; ignored.`)
+    const p = parseActivatorExpr(rawExpr)
+    if (!p.ok) {
+      diagnostics.push(`Activator "${e.id}" expression "${rawExpr}" ${ACT_WHY[p.reason]}; ignored.`)
       continue
     }
-    const n = Number(m[2])
-    if (!Number.isFinite(n)) {
-      // unreachable via ACT_RE, kept as a guard against future regex edits
-      diagnostics.push(`Activator "${e.id}" expression "${rawExpr}" uses a non-finite value; ignored.`)
-      continue
-    }
-    const satisfied = cmp(S[e.source] ?? 0, m[1], n)
+    const satisfied = cmp(S[e.source] ?? 0, p.op, p.n)
     const prevOk = enabledByNode.get(e.target)
     enabledByNode.set(e.target, prevOk === undefined ? satisfied : prevOk && satisfied)
     stateEvents.push({
@@ -223,10 +209,9 @@ export function step(
   const delayByEdge = new Map<string, number>()
   for (const e of triggerEdges) {
     const raw = e.data.delay
-    if (raw == null) {
-      delayByEdge.set(e.id, 0)
-    } else if (Number.isInteger(raw) && raw >= 0) {
-      delayByEdge.set(e.id, raw)
+    const d = parseDelay(raw)
+    if (raw == null || d.ok) {
+      delayByEdge.set(e.id, d.ok ? d.delay : 0)
     } else {
       diagnostics.push(`State edge "${e.id}" delay ${raw} is not an integer ≥ 0; treated as 0.`)
       delayByEdge.set(e.id, 0)
@@ -279,7 +264,8 @@ export function step(
   // exactly one diagnostic this step. Several edges into one target apply in
   // ascending `edge.id` to the running value; intermediate out-of-range values
   // are allowed. Then ONE clamp per target: `[0, capacity]`, or floor-0 only
-  // when the Pool is uncapped.
+  // when the Pool is uncapped. Grammar parser in ./stateExpr (shared with the
+  // Inspector).
   //
   // Reporting: loop-state/2 §S2-9 (SEMANTICS-S2.md). Each edge's `delta` is its
   // OWN raw requested change — the clamp is never folded into a per-edge figure
@@ -289,7 +275,6 @@ export function step(
   // `Σ delta + clampAdjustment = final − start`; this is I1′'s explicit term.
   // `label` never touches `report.events`, never schedules
   // a trigger, and never sets `ended`.
-  const LABEL_RE = /^\s*([+\-=])\s*(\d+(?:\.\d+)?|S)\s*$/
   const labelEdges = stateEdges.filter(
     (e): e is LoopEdge & { data: { kind: 'state'; mode: 'label'; expr: string } } => e.data.mode === 'label',
   )
@@ -309,23 +294,14 @@ export function step(
       continue
     }
     const raw = (e.data as { expr?: string }).expr ?? ''
-    const m = LABEL_RE.exec(raw)
-    if (!m) {
-      diagnostics.push(
-        raw.trim() === ''
-          ? `Label "${e.id}" expression "${raw}" is empty; ignored.`
-          : `Label "${e.id}" expression "${raw}" is not a +N / -N / =N / +S / -S / =S assignment; ignored.`,
-      )
+    const p = parseLabelExpr(raw)
+    if (!p.ok) {
+      diagnostics.push(`Label "${e.id}" expression "${raw}" ${LABEL_WHY[p.reason]}; ignored.`)
       continue
     }
-    const operand = m[2] === 'S' ? S[e.source] ?? 0 : Number(m[2])
-    if (!Number.isFinite(operand)) {
-      // unreachable via LABEL_RE, kept as a guard against future regex edits
-      diagnostics.push(`Label "${e.id}" expression "${raw}" uses a non-finite value; ignored.`)
-      continue
-    }
+    const operand = p.token === 'S' ? S[e.source] ?? 0 : p.n
     const running = working[e.target] ?? 0
-    const delta = m[1] === '+' ? operand : m[1] === '-' ? -operand : operand - running
+    const delta = p.op === '+' ? operand : p.op === '-' ? -operand : operand - running
     working[e.target] = running + delta
     labelTargets.add(e.target)
     labelApplied.push({ e, delta })

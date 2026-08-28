@@ -1,5 +1,15 @@
 export { initSim, step } from './step'
 export {
+  ACT_HINT,
+  LABEL_HINT,
+  parseActivatorExpr,
+  parseDelay,
+  parseLabelExpr,
+  type ActivatorParse,
+  type DelayParse,
+  type LabelParse,
+} from './stateExpr'
+export {
   evalDet,
   evalRand,
   isRandom,
