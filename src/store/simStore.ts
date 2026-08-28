@@ -166,7 +166,9 @@ export const useSimStore = create<SimStore>((set, get) => {
         firedNodeIds: snap.fired,
         triggerQueue: snap.triggerQueue,
         stateEvents: snap.stateEvents,
-        series: snap.series.length > 0 ? snap.series : [{ step: snap.step, values: snap.values }],
+        // exactly the file's (validated) history — never fabricated. The chart
+        // handles an empty list; the next Step / Reset rebuilds it.
+        series: snap.series,
         activeByEdge: {},
         arrivedPoolIds: [],
         ...(snap.seed != null ? { seed: snap.seed } : {}),

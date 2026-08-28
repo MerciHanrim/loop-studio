@@ -259,9 +259,11 @@ matters as much as per-field validation.
    Import does not touch the current Monte-Carlo / view / sim state beyond what
    graph Import already does** (`simulationRev` bump → sim reset, MC stale) —
    the existing rules are unchanged.
-3. `workspace.schema !== 'loop-workspace/1'` **or** `workspace.version > 1` →
-   **load the graph only**, one-line warning ("this file's saved workspace needs
-   a newer Loop Studio; the graph opened without it"). Never throw.
+3. Restore **only** an exact match: `workspace.schema === 'loop-workspace/1'`
+   **and** `workspace.version === 1` (strict — a string `"1"`, `1.5`, `0`, or a
+   negative all fail). Anything else → **load the graph only**, one-line warning
+   ("this file's saved workspace is not a supported version; the graph opened
+   without it"). Never throw.
 4. Otherwise restore each part **defensively and independently** — a failure in
    one part discards *that part* only:
    - **`mc.config`** — reuse `applyRecommended()`'s validation (finite-int
@@ -295,18 +297,21 @@ matters as much as per-field validation.
      - `stateEvents` — filter to edges present in the graph; re-sort ascending
        `edgeId`; if malformed, drop the whole array (it re-derives on the next
        `step()`).
-     - `series` — validate **each** frame:
-       - every Pool id present in the current graph (drop unknown keys / a whole
-         bad frame),
-       - every value **finite**,
-       - overall length **≤ `MAX_SERIES` (400)** (truncate the oldest beyond
-         that),
-       - the **last frame's values equal `simulation.values`** (the snapshot's
-         current values); if not, drop the trailing mismatched frames or, if
-         unrecoverable, replace `series` with a single frame `{ step,
-         values }` from the snapshot.
-       - A bad individual Pool series is dropped on its own; **an inconsistent
-         `series` never blocks restoring the rest of the snapshot.**
+     - `series` — validate, **never fabricate** (no frame is replaced, appended,
+       or synthesised):
+       - per frame: keep a `values` key only when it is a Pool id in the current
+         graph **and** the value is finite (a bad key is dropped on its own; an
+         empty frame is still a valid step marker);
+       - cap to the newest **`MAX_SERIES` (400)** frames;
+       - the **last frame's value for a Pool must equal that Pool's restored
+         current value** (`simulation.values`). If it does not, **that Pool's
+         series is dropped** — its key removed from *every* frame. The frame
+         list, the other Pools' series, and the snapshot are untouched. This is a
+         validation, not a reconciliation.
+       - Result: a bad or misaligned Pool series is dropped on its own; **an
+         inconsistent `series` never blocks restoring the rest of the snapshot**,
+         and the reader may legitimately hand back `[]` (the store's timeline
+         then rebuilds from the next `Step` / `Reset`).
      - If `simulation` cannot yield a coherent snapshot at all, restore **step 0
        / idle** and warn — never a half-set sim.
 5. **No auto-run**, **no timer** (§W2.1).
@@ -337,7 +342,7 @@ restores the same state.
 |---|---|---|
 | build **without** `loop-workspace` support | Workspace file | opens the graph (unknown `workspace` key ignored); fresh session state |
 | build **with** `loop-workspace/1` | plain Graph file | opens as today; workspace state fresh; existing graph-import rules only |
-| build with `loop-workspace/1` | `workspace.version` > 1 (or unknown schema) | **graph loads, workspace skipped + warning** |
+| build with `loop-workspace/1` | `workspace.version` not exactly `1` (newer, `0`, negative, fractional, a string) or an unknown schema | **graph loads, workspace skipped + warning** |
 | any build | Workspace file whose graph half is invalid | Import fails on the graph, as today |
 
 Round-trip: `Import(Workspace) → Export(Workspace)` reproduces the same
@@ -417,7 +422,7 @@ and (c) `view.timeline` falling back to `"live"` if there was no usable result.
 | **D7** | **Excluded:** running/timer state, abort/Worker/provisional-MC state, undo history, dialog/focus/selection, transient animations, `lastThroughput`, user-global prefs (theme, language). |
 | **D8** | **Atomic, defensive, independent restoration.** Each part validates and fails in isolation; the restore pass runs after the single graph-load `simulationRev` bump and causes no further bump, so subscribers do not re-stale / re-reset. |
 | **D9** | **The live single-run `seed` (`simStore.seed`) is a required snapshot field**, distinct from `mc.config.baseSeed`, so a random run continues identically past the restore. |
-| **D10** | **`series` is capped at `MAX_SERIES` (400)** — only the app's bounded live timeline is saved; no hidden full history is synthesised. Each frame is validated (Pool ids present, values finite, length ≤ 400, last frame == snapshot `values`); a bad Pool series is dropped alone; an inconsistent `series` never blocks the snapshot. |
+| **D10** | **`series` is capped at `MAX_SERIES` (400)** — only the app's bounded live timeline is saved; nothing is synthesised, replaced, or appended on read. Each frame keeps only finite values for current Pool ids. If the **last frame's value for a Pool ≠ that Pool's restored current value**, that Pool's whole series is dropped (its key removed from every frame) — a validation, not a reconciliation. A bad / misaligned Pool series is dropped alone; an inconsistent `series` never blocks the snapshot, and `[]` is a valid result. |
 | **D11** | **`view.timeline: "distribution"` with no usable result ⇒ fall back to `"live"`**; no selected Pool ⇒ first valid tracked Pool, else `"live"`. |
 
 ---
@@ -427,7 +432,7 @@ and (c) `view.timeline` falling back to `"live"` if there was no usable result.
 | name | value | note |
 |---|---|---|
 | `WORKSPACE_SCHEMA` | `"loop-workspace/1"` | the `workspace.schema` string |
-| `WORKSPACE_VERSION` | `1` | integer; a reader loads graph-only when the file's value exceeds this |
+| `WORKSPACE_VERSION` | `1` | a v1 reader restores **only** `version === 1` (strict); everything else loads graph-only |
 | `WORKSPACE_MAX_BYTES` | `8 * 1024 * 1024` (8 MiB) | hard cap on the serialized file; measured, not estimated |
 | `MAX_SERIES` | `400` (the existing `simStore` value) | the snapshot never carries more `series` frames than the store holds live |
 | `resultOmitted` values | `"size-limit"` (the only v1 value) | present only when a result existed but was left out |
@@ -486,13 +491,18 @@ and (c) `view.timeline` falling back to `"live"` if there was no usable result.
    explanatory notice and falls back to LIVE.
 9. **Oversize → hard reject** — a graph + `series` alone over the cap ⇒ Export is
    refused with the hard-reject message; `Graph JSON` still works.
-10. **Unknown version** — `workspace.version: 2` ⇒ graph loads, workspace skipped
-    + warning.
+10. **Version must be exactly 1** — `workspace.version` of `2`, `0`, `-1`, `1.5`,
+    or `"1"` ⇒ graph loads, workspace skipped + warning; nothing from the
+    workspace (seed, config, …) is applied.
 11. **Old build** — a Workspace file opened by a `loop-workspace`-unaware build
     (simulate by removing the reader) loads the graph.
 12. **Bad refs** — `triggerQueue` / `stateEvents` / `values` / a `series` frame
     referencing deleted ids ⇒ those entries dropped, the rest restored, queue
-    re-sorted, `series` last frame reconciled to `simulation.values`.
+    re-sorted.
+12a. **Misaligned `series`** — a Pool whose last `series` value ≠ its restored
+    current value ⇒ that Pool's key is removed from every frame (no frame
+    replaced or appended); other Pools' series and the snapshot are intact; a
+    note is emitted and the Import still succeeds.
 13. **Distribution fallback** — `view.timeline: "distribution"` with no result ⇒
     restores as LIVE; with a result but `distributionPoolId` not tracked ⇒ first
     valid Pool.

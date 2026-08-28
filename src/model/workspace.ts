@@ -302,10 +302,13 @@ export function readWorkspace(
   const warnings: string[] = []
   if (!isObj(raw)) return { restored: null, warnings }
 
-  if (raw.schema !== WORKSPACE_SCHEMA || (finite(raw.version) && raw.version > WORKSPACE_VERSION)) {
+  // §W5.3 — restore ONLY an exact `loop-workspace/1` payload. Anything else
+  // (a newer version, a `0` / negative / fractional version, a string `"1"`,
+  // an unknown schema) ⇒ graph only + warning. Never throw.
+  if (raw.schema !== WORKSPACE_SCHEMA || raw.version !== WORKSPACE_VERSION) {
     return {
       restored: null,
-      warnings: ["this file's saved workspace needs a newer Loop Studio; the graph opened without it"],
+      warnings: ["this file's saved workspace is not a supported version; the graph opened without it"],
     }
   }
 
@@ -442,47 +445,55 @@ export function readWorkspace(
         } // a partly-malformed array is dropped whole — it re-derives on the next step()
       }
 
-      const series = readSeries(rawSim.series, poolIdSet, values, step)
+      const seriesResult = readSeries(rawSim.series, poolIdSet, values)
+      warnings.push(...seriesResult.warnings)
 
-      simulation = { seed, step, ended, values, fired, triggerQueue, stateEvents, series }
+      simulation = { seed, step, ended, values, fired, triggerQueue, stateEvents, series: seriesResult.series }
     }
   }
 
   return { restored: { mcConfig, result, resultOmitted, view, canvas, simulation }, warnings }
 }
 
-/** §W5 `series` rules — per-frame, per-Pool; a bad Pool value never kills a frame
- *  or the snapshot, and the last frame is reconciled to the snapshot values. */
+/**
+ * §W5 `series` rules — validation only, no fabrication:
+ *  - per frame: keep a Pool key only when it names a Pool in the graph and the
+ *    value is finite (a bad key is dropped on its own);
+ *  - cap to the newest `MAX_SERIES` frames;
+ *  - the last frame's value for a Pool MUST equal that Pool's restored current
+ *    value. If it doesn't, that **Pool's series** is dropped (its key removed
+ *    from every frame). The frame structure, the other Pools' series, and the
+ *    snapshot are untouched. Nothing is replaced or appended.
+ */
 function readSeries(
   raw: unknown,
   poolIdSet: Set<string>,
   currentValues: Record<string, number>,
-  step: number,
-): { step: number; values: Record<string, number> }[] {
+): { series: { step: number; values: Record<string, number> }[]; warnings: string[] } {
+  if (!Array.isArray(raw)) return { series: [], warnings: [] }
   const frames: { step: number; values: Record<string, number> }[] = []
-  if (Array.isArray(raw)) {
-    for (const f of raw) {
-      if (!isObj(f) || !Number.isInteger(f.step)) continue
-      const vals = isObj(f.values) ? f.values : {}
-      const values: Record<string, number> = {}
-      for (const [k, v] of Object.entries(vals)) {
-        if (poolIdSet.has(k) && finite(v)) values[k] = v // per-Pool: drop only the bad key
-      }
-      frames.push({ step: f.step as number, values })
+  for (const f of raw) {
+    if (!isObj(f) || !Number.isInteger(f.step)) continue
+    const vals = isObj(f.values) ? f.values : {}
+    const values: Record<string, number> = {}
+    for (const [k, v] of Object.entries(vals)) {
+      if (poolIdSet.has(k) && finite(v)) values[k] = v
+    }
+    frames.push({ step: f.step as number, values })
+  }
+  const series = frames.slice(-MAX_SERIES)
+  const warnings: string[] = []
+  if (series.length > 0) {
+    const last = series[series.length - 1].values
+    const misaligned = Object.keys(last).filter((k) => poolIdSet.has(k) && last[k] !== currentValues[k])
+    if (misaligned.length > 0) {
+      for (const fr of series) for (const k of misaligned) delete fr.values[k]
+      warnings.push(
+        `the saved timeline history for ${misaligned.length} Pool(s) did not line up with the restored run position and was dropped`,
+      )
     }
   }
-  const capped = frames.slice(-MAX_SERIES)
-  const matchesCurrent = (values: Record<string, number>): boolean => {
-    const keys = Object.keys(values).filter((k) => poolIdSet.has(k))
-    return keys.length > 0 && keys.every((k) => values[k] === currentValues[k])
-  }
-  while (capped.length > 0 && !matchesCurrent(capped[capped.length - 1].values)) capped.pop()
-  if (capped.length === 0) {
-    const values: Record<string, number> = {}
-    for (const k of poolIdSet) values[k] = currentValues[k] ?? 0
-    return [{ step, values }]
-  }
-  return capped
+  return { series, warnings }
 }
 
 // ── result-shape helpers ────────────────────────────────────────────────
