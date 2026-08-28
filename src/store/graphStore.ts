@@ -16,6 +16,7 @@ import {
   saveToStorage,
   serialize,
 } from '../model/serialize'
+import type { RecommendedRunConfig } from '../model/serialize'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
 type XY = { x: number; y: number }
@@ -52,8 +53,9 @@ type GraphStore = {
   setSelection: (nodeId: string | null, edgeId: string | null) => void
   newGraph: () => void
   loadGraph: (snapshot: Snapshot) => void
-  loadJSON: (text: string) => void
-  exportJSON: () => string
+  /** returns the file's `recommendedRunConfig` (if any) for the caller to apply */
+  loadJSON: (text: string) => RecommendedRunConfig | undefined
+  exportJSON: (recommendedRunConfig?: RecommendedRunConfig) => string
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
@@ -320,14 +322,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     loadJSON: (text) => {
-      const { nodes, edges } = deserialize(text)
+      const { nodes, edges, recommendedRunConfig } = deserialize(text)
       commit('')
       lastTag = ''
       set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
       bump()
       persist()
+      return recommendedRunConfig
     },
 
-    exportJSON: () => serialize(get().nodes, get().edges),
+    exportJSON: (recommendedRunConfig) =>
+      serialize(get().nodes, get().edges, recommendedRunConfig),
   }
 })

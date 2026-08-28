@@ -45,6 +45,23 @@ async function startMc(page: Page, runs: number, steps: number, baseSeed = 1): P
   await expect(dlg).toBeHidden()
 }
 
+/** Open the dialog, assert it is pre-filled from the file's recommendedRunConfig,
+ *  and start the run. */
+async function startMcPrefilled(page: Page, runs: number, steps: number, baseSeed: number): Promise<void> {
+  await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+  const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
+  await expect(dlg).toBeVisible()
+  const nums = dlg.locator('.mcdlg__field input[type="number"]')
+  await expect(nums.nth(0)).toHaveValue(String(runs))
+  await expect(nums.nth(1)).toHaveValue(String(steps))
+  await expect(nums.nth(2)).toHaveValue(String(baseSeed))
+  const runBtn = dlg.locator('.mcdlg__foot .btn--primary')
+  await expect(runBtn).toHaveText(`Run ${runs} runs`)
+  await runBtn.click()
+  await page.keyboard.press('Escape')
+  await expect(dlg).toBeHidden()
+}
+
 const stripPct = async (page: Page): Promise<number | null> => {
   const el = page.locator('.pstrip__mcprog')
   if (!(await el.count())) return null
@@ -65,7 +82,8 @@ test.describe('portable file://', () => {
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
     test.setTimeout(60_000)
     await openPortable(page)
-    await startMc(page, 500, 40)
+    // the dialog is pre-filled from the file's recommendedRunConfig (500 × 40, seed 1)
+    await startMcPrefilled(page, 500, 40, 1)
 
     await expect(page.locator('.dist')).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
@@ -128,20 +146,21 @@ test.describe('portable file://', () => {
     expect((await pathProbe(page)).wk.ctor).toBe(0)
   })
 
-  test('byte-equal: portable file:// result === http result (500 × 40, seed 1)', async ({ browser }) => {
+  test('byte-equal: portable file:// result === http result (recommended 500 × 40)', async ({ browser }) => {
     test.setTimeout(90_000)
 
-    // portable file:// — DOM-driven, JSON via the createObjectURL capture
+    // both sides import risky-factory the real way, so both pick up the file's
+    // recommendedRunConfig (500 × 40, seed 1, the 6 tracked Pools) — no manual
+    // config on either side.
     const pctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const ppage = await pctx.newPage()
     await openPortable(ppage)
-    await startMc(ppage, 500, 40)
+    await startMcPrefilled(ppage, 500, 40, 1)
     await expect(ppage.locator('.dist')).toBeVisible({ timeout: 30_000 })
     const portableJson = await exportJsonText(ppage)
     expect((await pathProbe(ppage)).wk.ctor).toBe(0) // was cooperative
     await pctx.close()
 
-    // http dev server — same config via the bridge
     const hctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const hpage = await hctx.newPage()
     await installProbe(hpage)
@@ -150,9 +169,7 @@ test.describe('portable file://', () => {
     await hpage.locator('input[type="file"]').setInputFiles(RF)
     await expect(hpage.locator('.react-flow__node')).toHaveCount(18)
     await hpage.evaluate(async () => {
-      const m = (window as any).__loop.mc.getState()
-      m.setConfig({ baseSeed: 1, runs: 500, steps: 40, tracked: [] })
-      await m.run()
+      await (window as any).__loop.mc.getState().run() // config already = recommended
     })
     const httpJson = await hpage.evaluate(() => JSON.stringify((window as any).__loop.mc.getState().result))
     await hctx.close()

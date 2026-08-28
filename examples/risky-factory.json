@@ -526,5 +526,18 @@
         "type": "arrowclosed"
       }
     }
-  ]
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 500,
+    "steps": 40,
+    "tracked": [
+      "ore_stock",
+      "energy_pool",
+      "components",
+      "finished",
+      "scrap",
+      "salvage"
+    ]
+  }
 }

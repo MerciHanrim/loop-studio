@@ -6,6 +6,7 @@ import {
   type MonteCarloResult,
   type RunConfig,
 } from '../engine'
+import type { RecommendedRunConfig } from '../model/serialize'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
 
@@ -47,6 +48,8 @@ type McStore = {
   dialogOpen: boolean
 
   setConfig: (patch: Partial<RunConfig>) => void
+  /** apply a file's `recommendedRunConfig` — valid fields only, never throws */
+  applyRecommended: (m: RecommendedRunConfig | undefined) => void
   openDialog: () => void
   closeDialog: () => void
   setView: (v: McView) => void
@@ -73,6 +76,35 @@ export const useMcStore = create<McStore>((set, get) => ({
   dialogOpen: false,
 
   setConfig: (patch) => set({ config: { ...get().config, ...patch } }),
+
+  applyRecommended: (m) => {
+    if (!m || typeof m !== 'object') return
+    const patch: Partial<RunConfig> = {}
+    // baseSeed: same rule as the seed input / SEMANTICS-B1.md §B1.3 — a finite
+    // integer, then normalised to uint32 with `>>> 0` (so -1 → 4294967295,
+    // 4294967296 → 0); NaN / Infinity / fractional are ignored.
+    if (Number.isInteger(m.baseSeed)) patch.baseSeed = (m.baseSeed as number) >>> 0
+    if (Number.isInteger(m.runs) && (m.runs as number) >= 1) patch.runs = m.runs as number
+    if (Number.isInteger(m.steps) && (m.steps as number) >= 1) patch.steps = m.steps as number
+    if (Array.isArray(m.tracked)) {
+      if (m.tracked.length === 0) {
+        patch.tracked = [] // "all pools"
+      } else {
+        // intersect with the loaded graph's Pools, graph order; unknown ids drop.
+        // Mirrors reconcileTracked: an emptied explicit subset falls to the first
+        // Pool rather than silently widening to "all".
+        const wanted = new Set(m.tracked.filter((x): x is string => typeof x === 'string'))
+        const poolIds = useGraphStore
+          .getState()
+          .nodes.filter((n) => n.data.kind === 'pool')
+          .map((n) => n.id)
+        const kept = poolIds.filter((id) => wanted.has(id))
+        patch.tracked = kept.length > 0 ? kept : poolIds.length > 0 ? [poolIds[0]] : []
+      }
+    }
+    if (Object.keys(patch).length > 0) set({ config: { ...get().config, ...patch } })
+  },
+
   openDialog: () => set({ dialogOpen: true }),
   closeDialog: () => set({ dialogOpen: false }),
   setView: (v) => set({ view: v }),

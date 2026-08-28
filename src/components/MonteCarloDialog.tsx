@@ -209,7 +209,7 @@ export function MonteCarloDialog() {
                     {estimate.path === 'parallel'
                       ? `Parallel, ${estimate.workers} workers`
                       : estimate.fileProtocol
-                        ? 'Local — the screen may freeze during the run'
+                        ? 'Local · may briefly pause'
                         : 'Local'}
                   </span>
                 </span>
@@ -257,7 +257,7 @@ export function MonteCarloDialog() {
               disabled={overLimit || noPools || (estimating && !estimate)}
               onClick={() => void run()}
             >
-              Run {config.runs}×
+              Run {config.runs} runs
             </button>
           )}
           <button type="button" className="btn" onClick={close}>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { TEMPLATES } from '../model/templates'
 import { useGraphStore } from '../store/graphStore'
+import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 
 export function Templates() {
@@ -29,6 +30,7 @@ export function Templates() {
     if (hasContent && !window.confirm(`Replace the current diagram with "${tpl.name}"?`)) return
     useSimStore.getState().pause() // stop any run before the swap
     loadGraph(tpl.graph) // one history entry; sim resets off structureRev
+    useMcStore.getState().applyRecommended(tpl.recommendedRunConfig)
     setOpen(false)
   }
 

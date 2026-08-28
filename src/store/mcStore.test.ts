@@ -157,3 +157,86 @@ describe('mcStore — tracked-Pool reconciliation', () => {
     expect(useMcStore.getState().config.tracked.length).toBeGreaterThan(0)
   })
 })
+
+describe('mcStore.applyRecommended', () => {
+  const base = () => useMcStore.getState().config
+
+  // Source + 2 Pools, returns the Pool ids in graph order
+  const twoPoolGraph = () => {
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('pool', { x: 100, y: 0 })
+    g.addNodeAt('pool', { x: 200, y: 0 })
+    const [, a, b] = useGraphStore.getState().nodes
+    return { a: a.id, b: b.id }
+  }
+
+  it('applies valid runs / steps / baseSeed', () => {
+    useMcStore.getState().applyRecommended({ baseSeed: 7, runs: 500, steps: 40 })
+    expect(base()).toMatchObject({ baseSeed: 7, runs: 500, steps: 40 })
+  })
+
+  it('ignores a non-integer seed and non-positive runs/steps', () => {
+    useMcStore.getState().setConfig({ baseSeed: 3, runs: 200, steps: 30 })
+    useMcStore.getState().applyRecommended({ baseSeed: 1.5, runs: 0, steps: -4 })
+    expect(base()).toMatchObject({ baseSeed: 3, runs: 200, steps: 30 })
+    for (const bad of [NaN, Infinity, -Infinity, 2.0001]) {
+      useMcStore.getState().applyRecommended({ baseSeed: bad })
+      expect(base().baseSeed).toBe(3)
+    }
+  })
+
+  it('normalises an integer seed to uint32 with >>> 0 (matches the seed input rule)', () => {
+    useMcStore.getState().applyRecommended({ baseSeed: -1 })
+    expect(base().baseSeed).toBe(4294967295)
+    useMcStore.getState().applyRecommended({ baseSeed: 4294967296 })
+    expect(base().baseSeed).toBe(0)
+    useMcStore.getState().applyRecommended({ baseSeed: 4294967297 })
+    expect(base().baseSeed).toBe(1)
+  })
+
+  it('applies only the valid fields of partially-broken metadata', () => {
+    useMcStore.getState().setConfig({ baseSeed: 3, runs: 200, steps: 30 })
+    useMcStore.getState().applyRecommended({ baseSeed: 9, runs: 2.5, steps: 40 })
+    expect(base()).toMatchObject({ baseSeed: 9, runs: 200, steps: 40 })
+  })
+
+  it('undefined / empty / non-object input changes nothing', () => {
+    const before = { ...base() }
+    useMcStore.getState().applyRecommended(undefined)
+    useMcStore.getState().applyRecommended({})
+    useMcStore.getState().applyRecommended(42 as unknown as undefined)
+    expect(base()).toEqual(before)
+  })
+
+  it('tracked: [] stays [] ("all pools")', () => {
+    twoPoolGraph()
+    useMcStore.getState().applyRecommended({ tracked: [] })
+    expect(base().tracked).toEqual([])
+  })
+
+  it('tracked: intersects with the loaded graph, drops unknown ids, graph order', () => {
+    const { a, b } = twoPoolGraph()
+    useMcStore.getState().applyRecommended({ tracked: ['ghost', b, a, 'also-missing'] })
+    expect(base().tracked).toEqual([a, b]) // graph order, unknowns gone
+  })
+
+  it('tracked: an all-unknown subset falls to the first Pool (never widens to all)', () => {
+    const { a } = twoPoolGraph()
+    useMcStore.getState().applyRecommended({ tracked: ['nope-1', 'nope-2'] })
+    expect(base().tracked).toEqual([a])
+  })
+
+  it('tracked: unknown ids on a graph with no Pools stay a safe empty list', () => {
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('drain', { x: 200, y: 0 })
+    useMcStore.getState().setConfig({ tracked: [] })
+    useMcStore.getState().applyRecommended({ tracked: ['ghost'] })
+    const t = base().tracked
+    expect(t).toEqual([]) // no undefined id, not widened
+    expect(t.every((id) => typeof id === 'string')).toBe(true)
+  })
+})

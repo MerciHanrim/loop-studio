@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
+import { useMcStore } from '../store/mcStore'
 import type { NodeKind } from '../model/types'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Logo } from './Logo'
@@ -46,7 +47,10 @@ export function Toolbar() {
   }
 
   const doExport = () => {
-    const blob = new Blob([exportJSON()], { type: 'application/json' })
+    // save the current Monte-Carlo settings alongside the graph so a shared
+    // file reproduces the intended run
+    const json = exportJSON({ ...useMcStore.getState().config })
+    const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -62,7 +66,7 @@ export function Toolbar() {
     file.text().then(
       (text) => {
         try {
-          loadJSON(text)
+          useMcStore.getState().applyRecommended(loadJSON(text))
         } catch (err) {
           window.alert(err instanceof Error ? err.message : 'Could not read that file.')
         }

@@ -5,11 +5,27 @@ export const STORAGE_KEY = 'loop-studio:graph:v1'
 const SCHEMA = 'loop-studio/graph'
 const SCHEMA_VERSION = 1
 
+/**
+ * Advisory execution defaults saved alongside the graph so a shared file
+ * reproduces the run the author intended. NOT read by the engine — the app
+ * applies the valid fields to the Monte-Carlo config on an explicit
+ * document / template load only (never on localStorage restore). Every field
+ * is optional; an unknown-shaped value is ignored on load.
+ */
+export type RecommendedRunConfig = {
+  baseSeed?: number
+  runs?: number
+  steps?: number
+  /** Pool ids to track; `[]` means every Pool. Filtered to the loaded graph. */
+  tracked?: string[]
+}
+
 export type GraphDoc = {
   schema: string
   version: number
   nodes: LoopNode[]
   edges: LoopEdge[]
+  recommendedRunConfig?: RecommendedRunConfig
 }
 
 const KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
@@ -72,12 +88,23 @@ export function normalizeGraph(g: { nodes: LoopNode[]; edges: LoopEdge[] }): {
   return { nodes: g.nodes.map(normalizeNode), edges: g.edges.map(normalizeEdge) }
 }
 
-export function serialize(nodes: LoopNode[], edges: LoopEdge[]): string {
+export function serialize(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  recommendedRunConfig?: RecommendedRunConfig,
+): string {
   const doc: GraphDoc = { schema: SCHEMA, version: SCHEMA_VERSION, nodes, edges }
+  if (recommendedRunConfig && typeof recommendedRunConfig === 'object') {
+    doc.recommendedRunConfig = recommendedRunConfig
+  }
   return JSON.stringify(doc, null, 2)
 }
 
-export function deserialize(text: string): { nodes: LoopNode[]; edges: LoopEdge[] } {
+export function deserialize(text: string): {
+  nodes: LoopNode[]
+  edges: LoopEdge[]
+  recommendedRunConfig?: RecommendedRunConfig
+} {
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -94,7 +121,14 @@ export function deserialize(text: string): { nodes: LoopNode[]; edges: LoopEdge[
   if (!Array.isArray(obj.nodes) || !Array.isArray(obj.edges)) {
     throw new Error('Graph file is missing its nodes or edges.')
   }
-  return normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] })
+  const rrc =
+    obj.recommendedRunConfig && typeof obj.recommendedRunConfig === 'object' && !Array.isArray(obj.recommendedRunConfig)
+      ? (obj.recommendedRunConfig as RecommendedRunConfig)
+      : undefined
+  return {
+    ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
+    ...(rrc ? { recommendedRunConfig: rrc } : {}),
+  }
 }
 
 export function saveToStorage(nodes: LoopNode[], edges: LoopEdge[]): void {

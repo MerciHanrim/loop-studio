@@ -19,6 +19,14 @@ import { initSim, step } from './step'
 
 const built = buildRiskyFactory()
 
+// saved into the file as `recommendedRunConfig` so Import restores the verified run
+const RECOMMENDED = {
+  baseSeed: RISKY_FACTORY_MC.baseSeed,
+  runs: RISKY_FACTORY_MC.runs,
+  steps: RISKY_FACTORY_MC.steps,
+  tracked: [...RISKY_FACTORY_MC.tracked],
+}
+
 function trace(nodes: LoopNode[], edges: LoopEdge[], seed: number, steps: number) {
   let st = initSim(nodes)
   const rows: number[][] = []
@@ -35,7 +43,7 @@ describe('risky-factory example', () => {
       const fs = await import('node:' + 'fs')
       fs.writeFileSync(
         new URL('../../examples/risky-factory.json', import.meta.url),
-        serialize(built.nodes, built.edges) + '\n',
+        serialize(built.nodes, built.edges, RECOMMENDED) + '\n',
       )
     })
     return
@@ -45,7 +53,11 @@ describe('risky-factory example', () => {
   const id = (label: string) => nodes.find((n) => n.data.label === label)!.id
 
   it('the committed file matches buildRiskyFactory() through the serializer', () => {
-    expect(fixtureDoc).toEqual(JSON.parse(serialize(built.nodes, built.edges)))
+    expect(fixtureDoc).toEqual(JSON.parse(serialize(built.nodes, built.edges, RECOMMENDED)))
+  })
+
+  it('carries recommendedRunConfig matching the verified Monte-Carlo run', () => {
+    expect((fixtureDoc as { recommendedRunConfig?: unknown }).recommendedRunConfig).toEqual(RECOMMENDED)
   })
 
   it('uses every working node kind', () => {

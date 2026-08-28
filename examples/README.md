@@ -116,6 +116,10 @@ very early — so the seeds have distinct jobs:
 | **reproduce an early termination** | live sim, **seed 1** — the Critical Defect fires at step 2 (`Replay` reproduces it exactly — seeded RNG) |
 | **see the termination distribution** | Monte Carlo **500 × 40, base seed 1** |
 
+This file carries a `recommendedRunConfig`, so **Import already fills the Monte
+Carlo dialog** with `500 × 40, base seed 1` and the six tracked Pools below —
+just open it and press Run.
+
 ```
 Import  examples/risky-factory.json
 
@@ -124,14 +128,19 @@ Live — seed 3, Play → runs all 40 steps; Ore Stock climbs toward 50,
 Live — seed 1, Play → a Critical Defect ends it at step 2; Replay repeats it
 Live — seed 4 ends ~step 25,  seed 8 ends ~step 36
 
-Monte Carlo → runs 500, steps 40, base seed 1
-  track: Ore Stock, Energy Pool, Components, Finished Goods, Scrap Pool, Salvage Pool
+Monte Carlo → dialog is pre-filled: runs 500, steps 40, base seed 1
+  tracked: Ore Stock, Energy Pool, Components, Finished Goods, Scrap Pool, Salvage Pool
   Run → DISTRIBUTION:
     • Finished Goods band has a visible p10–p90 spread
     • the termination sparkline rises then flattens near ~85 % (424 / 500)
   Export ▾ → Runs CSV / JSON
 Reset and Run again with the same config → identical result
 ```
+
+> `recommendedRunConfig` is advisory metadata — the engine ignores it. It is
+> written by every **Export** (your current seed / runs / steps / tracked Pools)
+> and applied on **Import**. Run results and the LIVE/DISTRIBUTION view are not
+> saved. A file without the field leaves your current MC settings untouched.
 
 `src/engine/risky-factory.test.ts` builds this graph and pins only its structural
 invariants (every node kind present, one branch per gate step, the 4 : 1 split,
