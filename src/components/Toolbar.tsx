@@ -83,6 +83,13 @@ export function Toolbar() {
         </span>
         <span className="toolbar__word">Loop Studio</span>
         <span className="toolbar__tag">preview</span>
+        <span
+          className="toolbar__build"
+          title={`Loop Studio v${__APP_VERSION__} · build ${__BUILD_SHA__}`}
+        >
+          v{__APP_VERSION__}
+          {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
+        </span>
       </div>
 
       <div className="toolbar__palette">

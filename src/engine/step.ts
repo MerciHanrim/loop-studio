@@ -12,10 +12,13 @@ import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResul
 // evaluation (`1-3`, `2D6`) via a keyed RNG, cached one draw per edge per step;
 // and the probabilistic Gate (one branch per step by categorical sampling).
 //
-// State connections (SEMANTICS-S.md, loop-state/1) add a Phase 0 before Push.
-// Slice 1: `trigger` — a one-step pulse (optional integer `delay`) that fires a
-// `passive` / `interactive` target on the delivery step. `activator` and
-// `label` are inert until later slices.
+// State connections (SEMANTICS-S.md, loop-state/1) add a Phase 0 before Push:
+// `trigger` — a one-step pulse (optional integer `delay`) firing a `passive` /
+// `interactive` target on the delivery step; `activator` — an AND-combined level
+// gate on the target's firing; `label` — a numeric edit on the target Pool's
+// step-start balance, with a single end-of-Phase-0 clamp. The `label` event
+// reporting shape (`delta` + `clampAdjustment`) is loop-state/2 (SEMANTICS-S2.md);
+// everything else is loop-state/1.
 
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
 const cap = (n: LoopNode): number =>
@@ -132,9 +135,9 @@ export function step(
   }
 
   // ── Phase 0: state connections (SEMANTICS-S.md §S2) ─────────────────────
-  // Slices 1–2: `trigger` (pulse + delay) and `activator` (AND level gate).
-  // `label` is inert; a legacy `node` / unrecognised mode is inert + one
-  // diagnostic per step.
+  // `trigger` (pulse + delay), `activator` (AND level gate) and `label` (numeric
+  // edit on the target Pool's step-start balance) are live. A legacy `node` /
+  // unrecognised mode is inert + one diagnostic per step.
   const stateEvents: StateEvent[] = []
   const stateEdgeCmp = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   const KNOWN_STATE_MODES = new Set(['trigger', 'activator', 'label'])
@@ -266,6 +269,93 @@ export function step(
   const cmpId = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   const isProbGate = (n: LoopNode | undefined) =>
     n?.data.kind === 'gate' && n.data.distribution === 'probabilistic'
+
+  // ── label modifier — end of Phase 0 ─────────────────────────────────
+  // Value semantics: loop-state/1 §S5. A numeric edit on the target Pool's
+  // step-start balance (`working[target]`, seeded from `S[target]`). Source AND
+  // target must be Pools. `expr` is one of `+N -N =N +S -S =S` (N a finite real
+  // ≥ 0, whitespace tolerated; `S` = the literal token for `S[source]`). A
+  // non-Pool endpoint, a removed node, an empty or unparseable `expr` ⇒ inert +
+  // exactly one diagnostic this step. Several edges into one target apply in
+  // ascending `edge.id` to the running value; intermediate out-of-range values
+  // are allowed. Then ONE clamp per target: `[0, capacity]`, or floor-0 only
+  // when the Pool is uncapped.
+  //
+  // Reporting: loop-state/2 §S2-9 (SEMANTICS-S2.md). Each edge's `delta` is its
+  // OWN raw requested change — the clamp is never folded into a per-edge figure
+  // (that could invert an edge's apparent direction). The single per-target
+  // clamp correction is reported once as `clampAdjustment` on the last label
+  // event into that target. Net external change on the target =
+  // `Σ delta + clampAdjustment = final − start`; this is I1′'s explicit term.
+  // `label` never touches `report.events`, never schedules
+  // a trigger, and never sets `ended`.
+  const LABEL_RE = /^\s*([+\-=])\s*(\d+(?:\.\d+)?|S)\s*$/
+  const labelEdges = stateEdges.filter(
+    (e): e is LoopEdge & { data: { kind: 'state'; mode: 'label'; expr: string } } => e.data.mode === 'label',
+  )
+  const labelTargets = new Set<string>()
+  const labelApplied: { e: LoopEdge; delta: number }[] = []
+  for (const e of labelEdges) {
+    if (!byId.has(e.source) || !byId.has(e.target)) {
+      diagnostics.push(`Label "${e.id}" connects a removed node; ignored.`)
+      continue
+    }
+    if (!isPool(e.source)) {
+      diagnostics.push(`Label "${e.id}" needs a Pool source; ignored.`)
+      continue
+    }
+    if (!isPool(e.target)) {
+      diagnostics.push(`Label "${e.id}" needs a Pool target; ignored.`)
+      continue
+    }
+    const raw = (e.data as { expr?: string }).expr ?? ''
+    const m = LABEL_RE.exec(raw)
+    if (!m) {
+      diagnostics.push(
+        raw.trim() === ''
+          ? `Label "${e.id}" expression "${raw}" is empty; ignored.`
+          : `Label "${e.id}" expression "${raw}" is not a +N / -N / =N / +S / -S / =S assignment; ignored.`,
+      )
+      continue
+    }
+    const operand = m[2] === 'S' ? S[e.source] ?? 0 : Number(m[2])
+    if (!Number.isFinite(operand)) {
+      // unreachable via LABEL_RE, kept as a guard against future regex edits
+      diagnostics.push(`Label "${e.id}" expression "${raw}" uses a non-finite value; ignored.`)
+      continue
+    }
+    const running = working[e.target] ?? 0
+    const delta = m[1] === '+' ? operand : m[1] === '-' ? -operand : operand - running
+    working[e.target] = running + delta
+    labelTargets.add(e.target)
+    labelApplied.push({ e, delta })
+  }
+  // one clamp per target, after every label edge across all targets; record the
+  // correction (clamped − unclamped) so it can be reported once, un-attributed.
+  const clampAdjByTarget = new Map<string, number>()
+  for (const tid of labelTargets) {
+    const unclamped = working[tid] ?? 0
+    const clamped = Math.min(cap(byId.get(tid)!), Math.max(0, unclamped))
+    working[tid] = clamped
+    clampAdjByTarget.set(tid, nz(clamped - unclamped))
+  }
+  // one label event per valid edge, ascending edge.id; `delta` is the edge's own
+  // raw request, `clampAdjustment` rides on the last event into each target.
+  const lastLabelIdx = new Map<string, number>()
+  labelApplied.forEach((r, i) => lastLabelIdx.set(r.e.target, i))
+  labelApplied.forEach((r, i) => {
+    stateEvents.push({
+      edgeId: r.e.id,
+      from: r.e.source,
+      to: r.e.target,
+      mode: 'label',
+      effect: {
+        kind: 'label',
+        delta: r.delta,
+        clampAdjustment: lastLabelIdx.get(r.e.target) === i ? clampAdjByTarget.get(r.e.target) ?? 0 : 0,
+      },
+    })
+  })
 
   // ── Phase 1: push ────────────────────────────────────────────────────────
   const sources = nodes
