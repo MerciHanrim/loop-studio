@@ -27,8 +27,9 @@ export type FlowEvent = {
   amount: number
 }
 
-/** One state connection that had an effect this step (SEMANTICS-S.md §S9).
- *  Emitted in ascending `edgeId`. Drives the state-edge UI pulse. */
+/** One state connection that had an effect this step. `trigger` / `activator`:
+ *  SEMANTICS-S.md §S9 (loop-state/1). `label`: SEMANTICS-S2.md §S2-9
+ *  (loop-state/2). Emitted in ascending `edgeId`. Drives the state-edge UI pulse. */
 export type StateEvent = {
   edgeId: string
   from: string
@@ -37,11 +38,11 @@ export type StateEvent = {
   effect:
     | { kind: 'trigger'; delivered: true; applied: boolean }
     | { kind: 'activator'; satisfied: boolean }
-    // `delta` is this edge's raw requested change (for `=N` / `=S`, `N − running`).
-    // `clampAdjustment` is the target's SINGLE end-of-Phase-0 clamp correction,
-    // carried on the last label event into that target (0 elsewhere, 0 when the
-    // final value needed no clamp). Net external change on the target =
-    // Σ(delta over its label edges) + clampAdjustment = final − start.
+    // loop-state/2: `delta` is this edge's raw requested change (for `=N` / `=S`,
+    // `N − running`). `clampAdjustment` is the target's SINGLE end-of-Phase-0
+    // clamp correction, carried on the last label event into that target (0
+    // elsewhere, 0 when the final value needed no clamp). Net external change on
+    // the target = Σ(delta over its label edges) + clampAdjustment = final − start.
     | { kind: 'label'; delta: number; clampAdjustment: number }
 }
 

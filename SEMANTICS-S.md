@@ -293,8 +293,7 @@ A `passive` node with **no** incoming trigger edge never fires
   targets) have been applied: `working[P] → [0, capacity]`. A Pool **without a
   capacity** gets only the lower bound `0`. Intermediate out-of-range values
   between two modifiers are allowed; the excess removed by the single final
-  clamp is a `label` sink, reported once per target as `clampAdjustment` (§S9) —
-  never folded into any edge's `delta`.
+  clamp is a `label` sink and is reported (`applied ≠ delta`, §S9).
 - **Non-conserving by design.** The source Pool is **never debited** — `S[source]`
   is only read. The net change on the target is an external source/sink term in
   I1′ and appears in `report.stateEvents`, never in `report.events`.
@@ -387,7 +386,7 @@ stateEvents: {
   effect:
     | { kind: 'trigger';  delivered: true; applied: boolean }
     | { kind: 'activator'; satisfied: boolean }
-    | { kind: 'label';     delta: number; clampAdjustment: number }
+    | { kind: 'label';     delta: number; applied: number }
 }[]
 ```
 
@@ -401,16 +400,9 @@ stateEvents: {
 - **`activator`** — one entry every step for every activator edge, carrying the
   current boolean. The UI shows a steady "on" tint while `satisfied`, dim
   otherwise — no travelling pulse.
-- **`label`** — one entry per step per **valid** label edge (Pool→Pool, parsed
-  `expr`), ascending `edgeId`. `delta` = that edge's **own raw requested change**
-  (`+N` / `−N`, or `N − running` for `=N` / `=S`) — the clamp is never folded
-  into it, so an edge's sign always matches its request. The single per-target
-  end-of-Phase-0 clamp is reported once as `clampAdjustment` on the **last**
-  label event into that target (`0` on the others, `0` when the final value
-  needed no clamp). Net external change on a target =
-  `Σ delta + clampAdjustment = final − start`. The UI's direction / flash for an
-  edge reads `delta`; `clampAdjustment ≠ 0` is a truncation the UI can surface
-  separately.
+- **`label`** — one entry per step per label edge that applied, `delta` = the
+  raw requested change, `applied` = the change after the target's end-of-Phase-0
+  clamp (`applied ≠ delta` ⇒ a truncated push/pull, surfaced).
 - `report.fired` now includes `passive` / `interactive` nodes that fired via a
   trigger. The node **firing pulse** still uses `fired` only (`SEMANTICS.md`
   decision 5) — a trigger-fired passive node pulses like any other firing node.
@@ -423,7 +415,7 @@ stateEvents: {
 
 | # | Invariant |
 |---|---|
-| **I1′** | **Conservation (resource flow).** Per step, over **resource** movement only: `Σ Pool(after) = Σ Pool(before) + Σ Source push + Σ label net − Σ Drain/End pull − Σ Converter net loss`, where `Σ label net = Σ (delta over all label edges) + Σ (per-target clampAdjustment)`. That term is the explicit external source/sink; every other transit conserves. |
+| **I1′** | **Conservation (resource flow).** Per step, over **resource** movement only: `Σ Pool(after) = Σ Pool(before) + Σ Source push + Σ label applied − Σ Drain/End pull − Σ Converter net loss`. The `Σ label applied` term is the explicit external source/sink; every other transit conserves. |
 | **I2–I5** | Unchanged. `label` pre-adjusts `working` before Phase 1, so capacity (I3) and back-pressure retention (I4) still hold downstream; a disabled router keeps zero-storage (I5) and drops nothing (I4). |
 | **I6′** | **Determinism.** `step` pure; `initSim` total. `state` = `{ step, values, ended, fired, triggerQueue }`. Same graph + same start ⇒ identical `state` sequence, `report.events`, and `report.stateEvents`, on every run and after every Reset. |
 | **I7** | Unchanged (resource iteration-order invariance). |
@@ -521,12 +513,10 @@ then Phase 2 Drain pulls `min(4, S[T])`.
 | ≥3 | 4 | 3 | 13 | 8 | 4 | 4 → steady |
 
 `S[F] = 10` forever (F is only read). I1′: T's change per step =
-`(Σ label delta + clampAdjustment)` − `Drain pull`. `stateEvents` per step,
-ascending id: `m1 {label, delta:-1, clampAdjustment:0}`,
-`m2 {label, delta:+10, clampAdjustment:C}` where `C` is the single per-target
-clamp correction carried on the last event — step 1: `9 → 8`, `C = -1`; step 2:
-`17 → 8`, `C = -9`; step ≥ 3: `13 → 8`, `C = -5`. Each edge's `delta` keeps its
-own sign regardless of `C`. `report.events` never contains `m1` / `m2`.
+`Σ label applied` − `Drain pull`. `stateEvents` per step, ascending id:
+`m1 {label, delta:-1, applied:-1}`, `m2 {label, delta:+10, applied:+X}` where
+`+X` is the post-clamp contribution (step 2: from 7, requested +10 → 17,
+clamped to 8 ⇒ `applied:+1`). `report.events` never contains `m1` / `m2`.
 
 ---
 

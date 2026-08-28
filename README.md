@@ -57,7 +57,8 @@ spec id, never an edit to a frozen one.
 | [`SEMANTICS.md`](SEMANTICS.md) | — | Engine A: deterministic step / pull / push, gates, converters, conservation |
 | [`SEMANTICS-B1.md`](SEMANTICS-B1.md) | `loop-rng/1` | seeded keyed RNG, random flow (`1-3`, `2D6`), probabilistic gates |
 | [`SEMANTICS-B2.md`](SEMANTICS-B2.md) | `loop-mc/1`, `loop-mc-seed/1` | Monte Carlo: many runs, per-timestep bands, final-value distribution |
-| [`SEMANTICS-S.md`](SEMANTICS-S.md) | `loop-state/1` | state connections: `trigger` (+ delay), `activator`, `label` |
+| [`SEMANTICS-S.md`](SEMANTICS-S.md) | `loop-state/1` | state connections: `trigger` (+ delay), `activator`, `label` — historical baseline |
+| [`SEMANTICS-S2.md`](SEMANTICS-S2.md) | `loop-state/2` | current: inherits v1; changes only the `label` event report shape to `delta` + `clampAdjustment` |
 
 ## Layout
 
@@ -78,10 +79,10 @@ spec id, never an edit to a frozen one.
 - ✅ Monte Carlo — engine, dialog UI, percentile bands, result export/import
 - ✅ Cloudflare Pages deployment + GitHub Actions CI + protected `main`
 - ✅ Onboarding, part 1 — starter templates, verification fixture, Risky Factory example
-- ◐ State connections (`loop-state/1`)
+- ◐ State connections (`loop-state/1` → `loop-state/2`)
   - ✅ Trigger + delay
   - ✅ Activator + comparison conditions
-  - ◐ Label modifier *(current PR)*
+  - ◐ Label modifier — value semantics `loop-state/1`, event report `loop-state/2` *(current PR)*
   - ☐ Inspector fields + in-canvas state pulse / tint / flash
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
 - ☐ Ship — workspace export, shareable URLs, offline PWA

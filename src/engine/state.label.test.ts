@@ -3,12 +3,14 @@ import type { LoopEdge, LoopNode } from '../model/types'
 import type { SimState } from './index'
 import { initSim, step } from './index'
 
-// SEMANTICS-S.md loop-state/1 — Slice 4: `label` (non-conserving numeric edit
-// on the target Pool's step-start balance). §S11 Case S-C is the acceptance
-// vector. §S9 reporting: each edge's `delta` is its OWN raw request; the single
-// per-target end-of-Phase-0 clamp rides on the LAST label event into that
-// target as `clampAdjustment` (0 elsewhere / when no clamp). §S10 I1′ carries
-// `Σ delta + Σ clampAdjustment` as the explicit external term.
+// Slice 4: `label` — a non-conserving numeric edit on the target Pool's
+// step-start balance. VALUE semantics: SEMANTICS-S.md loop-state/1 §S5
+// (Pool→Pool, `+N -N =N +S -S =S`, ascending edge.id, one end-of-Phase-0 clamp).
+// REPORTING: SEMANTICS-S2.md loop-state/2 §S2-9 — each edge's `delta` is its OWN
+// raw request; the single per-target clamp rides on the LAST label event into
+// that target as `clampAdjustment` (0 elsewhere / when no clamp). I1′:
+// `Σ delta + Σ clampAdjustment = final − start`. §S2-11 Case S-C + the
+// multi-overflow / direction-preservation vectors are the acceptance basis.
 
 const XY = { x: 0, y: 0 }
 const pool = (id: string, initial = 0, capacity: number | null = null): LoopNode => ({

@@ -16,7 +16,9 @@ import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResul
 // `trigger` — a one-step pulse (optional integer `delay`) firing a `passive` /
 // `interactive` target on the delivery step; `activator` — an AND-combined level
 // gate on the target's firing; `label` — a numeric edit on the target Pool's
-// step-start balance, with a single end-of-Phase-0 clamp.
+// step-start balance, with a single end-of-Phase-0 clamp. The `label` event
+// reporting shape (`delta` + `clampAdjustment`) is loop-state/2 (SEMANTICS-S2.md);
+// everything else is loop-state/1.
 
 const nz = (x: number) => (Math.abs(x) < EPSILON ? 0 : x)
 const cap = (n: LoopNode): number =>
@@ -268,22 +270,24 @@ export function step(
   const isProbGate = (n: LoopNode | undefined) =>
     n?.data.kind === 'gate' && n.data.distribution === 'probabilistic'
 
-  // ── label modifier (§S5) — end of Phase 0 ─────────────────────────────
-  // A numeric edit on the target Pool's step-start balance (`working[target]`,
-  // seeded from `S[target]`). Source AND target must be Pools. `expr` is one of
-  // `+N -N =N +S -S =S` (N a finite real ≥ 0, whitespace tolerated; `S` = the
-  // literal token for `S[source]`). A non-Pool endpoint, a removed node, an
-  // empty or unparseable `expr` ⇒ inert + exactly one diagnostic this step.
-  // Several edges into one target apply in ascending `edge.id` to the running
-  // value; intermediate out-of-range values are allowed. Then ONE clamp per
-  // target: `[0, capacity]`, or floor-0 only when the Pool is uncapped.
+  // ── label modifier — end of Phase 0 ─────────────────────────────────
+  // Value semantics: loop-state/1 §S5. A numeric edit on the target Pool's
+  // step-start balance (`working[target]`, seeded from `S[target]`). Source AND
+  // target must be Pools. `expr` is one of `+N -N =N +S -S =S` (N a finite real
+  // ≥ 0, whitespace tolerated; `S` = the literal token for `S[source]`). A
+  // non-Pool endpoint, a removed node, an empty or unparseable `expr` ⇒ inert +
+  // exactly one diagnostic this step. Several edges into one target apply in
+  // ascending `edge.id` to the running value; intermediate out-of-range values
+  // are allowed. Then ONE clamp per target: `[0, capacity]`, or floor-0 only
+  // when the Pool is uncapped.
   //
-  // Reporting (§S9): each edge's `delta` is its OWN raw requested change — the
-  // clamp is never folded into a per-edge figure (that could invert an edge's
-  // apparent direction). The single per-target clamp correction is reported once
-  // as `clampAdjustment` on the last label event into that target. Net external
-  // change on the target = `Σ delta + clampAdjustment = final − start`; this is
-  // I1′'s explicit term. `label` never touches `report.events`, never schedules
+  // Reporting: loop-state/2 §S2-9 (SEMANTICS-S2.md). Each edge's `delta` is its
+  // OWN raw requested change — the clamp is never folded into a per-edge figure
+  // (that could invert an edge's apparent direction). The single per-target
+  // clamp correction is reported once as `clampAdjustment` on the last label
+  // event into that target. Net external change on the target =
+  // `Σ delta + clampAdjustment = final − start`; this is I1′'s explicit term.
+  // `label` never touches `report.events`, never schedules
   // a trigger, and never sets `ended`.
   const LABEL_RE = /^\s*([+\-=])\s*(\d+(?:\.\d+)?|S)\s*$/
   const labelEdges = stateEdges.filter(
