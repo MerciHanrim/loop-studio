@@ -42,6 +42,11 @@ const act = (id: string, s: string, t: string, expr: string): LoopEdge => ({
   sourceHandle: 'state-source', targetHandle: 'state-target',
   data: { kind: 'state', mode: 'activator', expr },
 })
+const lbl = (id: string, s: string, t: string, expr: string): LoopEdge => ({
+  id, source: s, target: t, type: 'loop',
+  sourceHandle: 'state-source', targetHandle: 'state-target',
+  data: { kind: 'state', mode: 'label', expr },
+})
 
 // random inflow (so runs differ by seed) + a passive drain gated by a delayed
 // trigger + a plain automatic drain on a second pool.
@@ -161,6 +166,30 @@ describe('path invariance — sync / cooperative / worker envelope give one resu
     const ref = toMonteCarloJson(sync)
     expect(toMonteCarloJson(await runMonteCarloCooperative(g, e, c, { batchSize: 7 }))).toEqual(ref)
     expect(toMonteCarloJson(await runMonteCarloParallel(g, e, c, { workers: 3, jobSize: 4 }))).toEqual(ref)
+  })
+
+  it('a label graph (per-run S[source] feeds the edit) is isolated + path-invariant', async () => {
+    // random inflow into the label SOURCE pool ⇒ the "+S" edit differs by run.
+    const g = [source('S'), pool('F', 0), pool('T', 0, 12), drain('D'), pool('P', 0)]
+    const e = [
+      res('e1', 'S', 'F', '2D6'),
+      lbl('m1', 'F', 'T', '+S'),
+      lbl('m2', 'F', 'T', '-3'),
+      res('e2', 'T', 'D', '1-3'),
+      res('e3', 'S', 'P', '1-3'),
+    ]
+    const c: RunConfig = { baseSeed: 9, runs: 20, steps: 12, tracked: [] }
+    const sync = runMonteCarlo(g, e, c)
+    const standalone: number[] = []
+    for (let i = 0; i < c.runs; i++) {
+      let st = initSim(g)
+      for (let t = 1; t <= c.steps; t++) st = step(g, e, st, runSeed(c.baseSeed, i)).state
+      standalone.push(st.values.T ?? 0)
+    }
+    expect(sync.final.T.values).toEqual(standalone)
+    const ref = toMonteCarloJson(sync)
+    expect(toMonteCarloJson(await runMonteCarloCooperative(g, e, c, { batchSize: 6 }))).toEqual(ref)
+    expect(toMonteCarloJson(await runMonteCarloParallel(g, e, c, { workers: 4, jobSize: 3 }))).toEqual(ref)
   })
 
   it('runRange (the Worker compute fn) — full range and chunked ranges agree', () => {
