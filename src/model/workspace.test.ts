@@ -59,6 +59,29 @@ describe('sha256Js — FIPS 180-4', () => {
       expect(sha256Js(bytes)).toBe(expected)
     }
   })
+
+  it('agrees with Web Crypto on non-ASCII UTF-8 (Hangul, emoji, supplementary plane)', async () => {
+    // Workspace JSON embeds user node/edge labels and the portable file:// path
+    // relies on sha256Js, so multi-byte input must match Web Crypto exactly.
+    // \u{} escapes keep this source plain-text (no astral literals).
+    const HANGUL = '광석 저장고' //  "gwangseok jeojanggo"
+    const KANJI = '鉱石' //  "kou seki"
+    const strings = [
+      HANGUL,
+      `Ore Stock · ${HANGUL} · ${KANJI}`,
+      `완제품 \u{1F9E9}\u{1F3ED} ≥ 5`, //  emoji + >= 5
+      `\u{1D11E} \u{1D7DB} \u{1D54F} U+1D11E / U+1D7DB / U+1D54F`, //  musical / math astral
+      `\u{1F1F0}\u{1F1F7}\u{1F1FA}\u{1F1F8}`, //  regional-indicator flag pairs
+      'a'.repeat(70) + '한글' + '\u{1F9E9}'.repeat(20), //  70 ASCII + Hangul + 20 emoji
+      ' ߿ࠀ￿', //  2- and 3-byte boundary code points
+    ]
+    for (const s of strings) {
+      const bytes = utf8Bytes(s)
+      const buf = await crypto.subtle.digest('SHA-256', bytes)
+      const expected = Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('')
+      expect(sha256Js(bytes), `mismatch on ${JSON.stringify(s)}`).toBe(expected)
+    }
+  })
 })
 
 describe('utf8ByteLength', () => {
