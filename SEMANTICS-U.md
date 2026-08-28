@@ -31,7 +31,7 @@ already writes. `SEMANTICS.md`, `SEMANTICS-B1.md`, `SEMANTICS-B2.md`,
   and copies it to the clipboard.
 - **On load**, if the fragment carries a recognised share payload, the app
   decodes and *fully validates* it, then — after a replace confirmation unless
-  this is the pristine first-boot sample (§U5.6) — loads that graph through the
+  this is the pristine first-boot sample (§U5.4) — loads that graph through the
   same `loadDoc` path as `Import`, and removes the payload from the address bar.
 
 **Out of scope for v1**
@@ -114,7 +114,7 @@ The inflate input / deflate output bytes are carried as **base64url**:
 `#g1=` payload → strict base64url-decode (§U1.4) → zlib-inflate (§U1.3), **with
 the inflated size bounded by `SHARE_MAX_DECODED_BYTES` — §U3.2**) → `JSON.parse`
 → `deserialize()` (the existing defensive validation). **Every stage must
-succeed** before the app touches its current state (§U5.2, §U5.5).
+succeed** before the app touches its current state (§U5.0, §U5.2).
 
 ---
 
@@ -196,8 +196,8 @@ so a legitimate link is never near this bound.
   device or build field. The payload is exactly the `serialize()` output
   (§U12.9).
 - The app **never auto-generates and never auto-opens** a share link; both
-  directions are explicit user actions (with, on open, the §U5.6 confirmation).
-- **On open the payload is stripped from the address bar immediately** (§U5.5)
+  directions are explicit user actions (with, on open, the §U5.4 confirmation).
+- **On open the payload is stripped from the address bar immediately** (§U5.6)
   so it does not linger in screenshots, screen shares, or history beyond the
   moment of navigation, and a reload does not silently re-import.
 - The payload is never placed in a query string, a request body, or anything
@@ -206,6 +206,23 @@ so a legitimate link is never near this bound.
 ---
 
 ## U5. Opening a link — load safety
+
+### U5.0 Processing order (fixed)
+
+```
+schedule fragment-strip → decode → inflate + SHARE_MAX_DECODED_BYTES check
+  → JSON.parse → deserialize → (if flag clear) replace confirm
+  → stop any active run → loadDoc  ×1
+```
+
+Nothing before `loadDoc` in that sequence changes the graph, the sim, or the MC
+state. **Stopping an active run happens only after full validation has
+succeeded *and* the user has approved the replace — immediately before
+`loadDoc`.** On a damaged / oversized / unsupported link, or a user **Cancel**,
+the *only* effect is removing the URL fragment: the graph and the run state
+(including a run in progress) are left exactly as they were — no run-stop, no
+`simulationRev` bump. That is what makes "a corrupt link never mutates the
+existing graph" (U8/U4) literally true.
 
 ### U5.1 Recognition
 
@@ -224,10 +241,11 @@ For a recognised prefix, run the full §U1.5 pipeline **to completion**:
 4. `deserialize()`.
 
 **If any stage fails**, the load is abandoned: the **current graph, sim, and MC
-state are left exactly as they were**, one console warning is emitted ("a share
-link was present but could not be read"), and the fragment is stripped anyway
-(§U5.5) so a reload does not repeat the error. A damaged link **never mutates
-the existing graph** — the confirm dialog and `loadDoc` (§U5.6–U5.7) are reached
+state — including any run in progress — are left exactly as they were**, one
+console warning is emitted ("a share link was present but could not be read"),
+and the fragment is stripped anyway (§U5.6) so a reload does not repeat the
+error. A damaged link **never mutates the existing graph and never stops a
+run** — the confirm dialog, the run-stop, and `loadDoc` (§U5.4–U5.5) are reached
 **only** after all four stages succeed.
 
 ### U5.3 No auto-run
@@ -236,23 +254,7 @@ A link load never starts a run and never starts a timer. Afterwards the live
 sim is `idle` at step 0 and Monte-Carlo is `idle` — identical to a `Graph JSON`
 import and to `loop-workspace/1` §W2.1.
 
-### U5.4 Stop any active run first
-
-If a live run or its timer is active when a valid link is being applied, it is
-**stopped safely first** (as `reset()` / `loadDoc` already do on a graph
-replace), then the graph is swapped. No step executes against a half-swapped
-graph.
-
-### U5.5 Strip the fragment — every outcome, path + query preserved
-
-On **success, failure, *and* cancel**, the fragment is removed with
-`history.replaceState(history.state, '', location.pathname + location.search)` —
-**only the `#…` part is removed; `pathname` and `search` are preserved**, and
-the history entry is replaced, not pushed. After a successful load the address
-bar therefore shows the bare app URL and a reload restores the now-persisted
-graph, not a re-decode.
-
-### U5.6 Replace confirmation — pristine-sample session flag
+### U5.4 Replace confirmation — pristine-sample session flag
 
 Whether opening a link prompts before replacing the working graph is decided by
 a **session flag that records the boot origin**, **not** by comparing graph
@@ -268,20 +270,40 @@ contents:
 
 Behaviour:
 
-- **flag set (pristine sample)** → apply the link with **no prompt**.
+- **flag set (pristine sample)** → apply the link (§U5.5) with **no prompt**.
 - **flag clear** → prompt: *"Open the shared diagram? Your current diagram will
   be replaced. Export it first if you want to keep it."*
-  - **Cancel** → keep the current graph unchanged; still strip the fragment
-    (§U5.5). No `simulationRev` bump.
-  - **OK** → proceed to §U5.7.
+  - **Cancel** → keep the current graph and run state unchanged (no run-stop, no
+    `simulationRev` bump); still strip the fragment (§U5.6).
+  - **OK** → proceed to §U5.5.
 
-### U5.7 Apply
+### U5.5 Apply — stop any active run, then one `loadDoc`
 
-`graphStore.loadDoc({ nodes, edges })` — this is the **one and only**
-`simulationRev` bump of the whole load (sim resets to step 0, MC goes idle,
-exactly as a `Graph JSON` import) — then `applyRecommended(recommendedRunConfig)`
-and `fitView()`. `loadDoc` persists, so the shared graph becomes the working
-graph. The restore is deterministic: the same link always yields the same state.
+Reached **only** after §U5.2 fully succeeded and (§U5.4) the replace was
+approved or skipped for the pristine sample:
+
+1. If a live run or its play timer is active, **stop it safely first** (as
+   `reset()` / `loadDoc` already do on a graph replace) so no step executes
+   against a half-swapped graph. This is the **first** point in the whole load
+   at which run state changes.
+2. `graphStore.loadDoc({ nodes, edges })` — the **one and only** `simulationRev`
+   bump of the whole load (sim resets to step 0, MC goes idle, exactly as a
+   `Graph JSON` import).
+3. `applyRecommended(recommendedRunConfig)` and `fitView()`.
+
+`loadDoc` persists, so the shared graph becomes the working graph. The restore
+is deterministic: the same link always yields the same state.
+
+### U5.6 Strip the fragment — every outcome, path + query preserved
+
+Scheduled up front (§U5.0) and carried out on **success, failure, *and*
+cancel**: the fragment is removed with
+`history.replaceState(history.state, '', location.pathname + location.search)` —
+**only the `#…` part is removed; `pathname` and `search` are preserved**, and
+the history entry is replaced, not pushed. After a successful load the address
+bar therefore shows the bare app URL and a reload restores the now-persisted
+graph, not a re-decode. This is the *only* effect on a damaged / oversized /
+unsupported link or a Cancel.
 
 ---
 
@@ -322,7 +344,7 @@ graph. The restore is deterministic: the same link always yields the same state.
     copied". Clipboard API unavailable → show the link in a read-only,
     pre-selected text field.
   - over cap → the §U3.1 hard-reject message; nothing copied.
-- **No dialog on _load_** except the §U5.6 replace confirmation (skipped for the
+- **No dialog on _load_** except the §U5.4 replace confirmation (skipped for the
   pristine sample).
 - The Monte-Carlo `Export ▾` inside the Distribution panel is unrelated and
   unchanged.
@@ -340,8 +362,8 @@ graph. The restore is deterministic: the same link always yields the same state.
 | **U5** | Outbound size is all-or-nothing on the base64url payload after `#g1=`: it fits `SHARE_MAX_BYTES` or `Share` is refused with a pointer to `Graph JSON`. The graph is never truncated to fit. Inbound, inflate is bounded incrementally by `SHARE_MAX_DECODED_BYTES` and aborts before parse on breach. |
 | **U6** | Every load outcome — success, failure, cancel — strips **only** the fragment via `history.replaceState`, preserving `pathname` + `search`; a reload never re-imports. |
 | **U7** | The share wire format is the same `loop-studio/graph` `version: 1` a `Graph JSON` export writes; a graph round-tripped through a link equals the same graph round-tripped through a file. `g1` is **zlib-wrapped DEFLATE**; any conformant decoder inflates any conformant encoder's output; identical bytes / identical URL strings are **not** guaranteed. |
-| **U8** | A successful link load bumps `simulationRev` **exactly once** (the `loadDoc` call); cancel and failure bump it zero times. Any active run is stopped safely before the swap. |
-| **U9** | Producing a link and opening a link are both explicit user actions; the app never auto-shares, and never applies a link without the §U5.6 confirmation unless the session is the pristine first-boot sample. |
+| **U8** | A successful link load bumps `simulationRev` **exactly once** (the `loadDoc` call); cancel and failure bump it zero times. An active run is stopped safely **only on the success path, immediately before `loadDoc`** — never on cancel or failure. |
+| **U9** | Producing a link and opening a link are both explicit user actions; the app never auto-shares, and never applies a link without the §U5.4 confirmation unless the session is the pristine first-boot sample. |
 
 ---
 
@@ -360,7 +382,7 @@ graph. The restore is deterministic: the same link always yields the same state.
 | **D8** | A standalone **`Share`** button, not a `Share ▾` menu. |
 | **D9** | Spec id `loop-share/1`, its own frozen doc; a later behavioural change ⇒ `loop-share/2`. |
 | **D10** | **PWA** is documented in a separate, **non-frozen** [`docs/pwa.md`](docs/pwa.md) — it has no wire format and no observable semantics. |
-| **D11** | A successful load causes **exactly one** `simulationRev` bump; any active run is stopped safely first; a corrupt link causes **zero** state change. |
+| **D11** | Fixed order (§U5.0): schedule fragment-strip → decode → inflate + size check → parse → deserialize → (if flag clear) confirm → **stop any active run → `loadDoc` ×1**. The run-stop and the single `simulationRev` bump happen **only** after validation succeeds and the replace is approved; a damaged / oversized / unsupported link or a Cancel changes nothing but the fragment. |
 
 ---
 
@@ -403,7 +425,8 @@ document, the graph / engine specs, or `loop-workspace/1`.
    by garbage / a truncated payload / valid base64url of non-JSON / valid JSON
    that fails `deserialize` ⇒ the app boots the *previous* graph unchanged, one
    console warning, fragment stripped; no exception escapes; `simulationRev`
-   unchanged.
+   unchanged; **a live run that was in progress is not stopped** (no run-stop on
+   the failure path — §U5.0).
 6. **Strict base64url** — a payload containing `+`, `/`, an `=`, or whitespace
    ⇒ rejected before inflate; treated as §U12.5.
 7. **zlib wrapper, not raw** — a payload compressed as **raw** DEFLATE
@@ -424,18 +447,20 @@ document, the graph / engine specs, or `loop-workspace/1`.
     normal boot, working graph untouched, fragment left as-is.
 12. **Fragment stripped on every outcome, path + query kept** — start from
     `…/sub/path?x=1#g1=…`; after success, after a decode failure, and after a
-    §U5.6 Cancel, `location` is `…/sub/path?x=1` with empty hash; the history
+    §U5.4 Cancel, `location` is `…/sub/path?x=1` with empty hash; the history
     entry was replaced, not pushed.
 13. **Pristine-sample flag** — first boot with the sample and a `g1=` link ⇒ no
     prompt, link applies. Then: edit a node and undo back to the exact sample
     shape, open another link ⇒ **prompt** (flag cleared by the edit, not
     restored by content match). Same after an `Import` or a `Template`.
 14. **Replace confirm** — with the flag clear, opening a link prompts; **Cancel**
-    keeps the current graph, bumps `simulationRev` zero times, and still strips
-    the fragment; **OK** replaces it.
-15. **Exactly one bump** — a successful link load bumps `simulationRev` exactly
-    once (assert the sim/MC subscribers fired once); an active live run / timer
-    is stopped before the swap and no step runs against a half-swapped graph.
+    keeps the current graph, bumps `simulationRev` zero times, does **not** stop
+    a run in progress, and still strips the fragment; **OK** replaces it.
+15. **Order: stop-run only just before `loadDoc`** — start a live run, open a
+    valid link, at the confirm prompt press **Cancel** ⇒ the run is still going.
+    Open it again and press **OK** ⇒ the run is stopped, then `simulationRev`
+    bumps exactly **once** (assert the sim/MC subscribers fired once), and no
+    step ran against a half-swapped graph.
 16. **No PII added** — decode a produced link and diff against a `Graph JSON`
     export: identical; no id / email / timestamp / build field present.
 17. **Old build** — a share link opened by a share-unaware build (simulate by
