@@ -2,21 +2,20 @@
 
 ```
 Spec ID: loop-share/1
-Status:  Draft
+Status:  Frozen
 ```
 
-**Draft.** First pass for review. Open forks are marked **(DECIDE)** in §U3–U7
-and collected in §U9. Once the decisions are settled this file flips to
-`Status: Frozen` and, from then on, a behavioural change is a new spec id in a
-new document (`loop-share/2`), exactly as with `loop-state/1 → loop-state/2` and
-`loop-workspace/1`; a frozen file takes only typo / clarifying-prose fixes.
+**Frozen** (2026-08-29). This document is the fixed target for the
+implementation. A behavioural change after this is a new spec id in a new
+document (`loop-share/2`), exactly as with `loop-state/1 → loop-state/2` and
+`loop-workspace/1`; this file only takes typo / clarifying-prose fixes.
 
 Defines *what a share link is*, *what it carries*, *how it is produced*, and
 *how it is opened*.
 
 Independent of, and layered on top of, the graph / engine / Monte-Carlo /
 workspace specs. It never changes how a diagram *runs* or what a file *is* — it
-adds a second **transport** for the graph document that a `Graph JSON` export
+adds a second **transport** for the same graph document a `Graph JSON` export
 already writes. `SEMANTICS.md`, `SEMANTICS-B1.md`, `SEMANTICS-B2.md`,
 `SEMANTICS-S.md`, `SEMANTICS-S2.md`, `SEMANTICS-W.md` are unaffected.
 
@@ -28,26 +27,28 @@ already writes. `SEMANTICS.md`, `SEMANTICS-B1.md`, `SEMANTICS-B2.md`,
 
 - A **share link** — `https://<host>/#<prefix><payload>` whose URL **fragment**
   carries an encoded `loop-studio/graph` document.
-- A **"Share link"** action that builds the link for the current diagram and
-  copies it to the clipboard.
+- A standalone **`Share`** action that builds the link for the current diagram
+  and copies it to the clipboard.
 - **On load**, if the fragment carries a recognised share payload, the app
-  decodes it, loads that graph defensively (the same path as `Import`), then
-  **removes the payload from the address bar**.
+  decodes and *fully validates* it, then — after a replace confirmation unless
+  this is the pristine first-boot sample (§U5.6) — loads that graph through the
+  same `loadDoc` path as `Import`, and removes the payload from the address bar.
 
 **Out of scope for v1**
 
 - Encoding a **Workspace** (`loop-workspace/1`) in a URL — a Monte-Carlo result
   and a sim snapshot are orders of magnitude too large for a link. A share link
-  carries the **graph only** (see §U2). The Workspace *file* stays the way to
+  carries the **`GraphDoc` only** (§U2). The Workspace *file* stays the way to
   move a run.
 - Any server: link shortening, storage, upload, redirect. There is no backend.
 - Private / authenticated / expiring links.
-- Offline install (**PWA**) — separate track; see §U10.
+- Carrying view / canvas framing (deferred to `loop-share/2`).
+- Offline install (**PWA**) — separate, non-frozen track; see [`docs/pwa.md`](docs/pwa.md).
 
 **Unchanged**
 
-- The graph half is produced by the **same `serialize()` path** as a `Graph
-  JSON` export and read by the **same `deserialize()`** validation. Graph schema
+- The graph is produced by the **same `serialize()` path** as a `Graph JSON`
+  export and read by the **same `deserialize()`** validation. Graph schema
   stays `loop-studio/graph` `version: 1`.
 - `localStorage` still persists the working graph. A share link is a transport,
   not a store.
@@ -57,34 +58,63 @@ already writes. `SEMANTICS.md`, `SEMANTICS-B1.md`, `SEMANTICS-B2.md`,
 ## U1. Link shape
 
 ```
-https://cozy-loop-studio.pages.dev/#g1=<base64url( deflate?( utf8( graphJson ) ) )>
+https://cozy-loop-studio.pages.dev/#g1=<base64url( zlibDeflate( utf8( graphJson ) ) )>
 ```
 
-| part | rule |
-|---|---|
-| **fragment, not query** | the payload is in `location.hash`. Never `?...`. Two reasons: (a) a fragment is **not transmitted** to the origin server or any CDN / proxy / access log — the diagram stays between the people who have the link; (b) the project security rules forbid personal or document data in a query string. A `?`-based share link is a defect. |
-| **key prefix** `g1=` | `g` = graph, `1` = payload format 1. Lets the loader tell a share payload from an in-app / router hash or a plain `#anchor`, and lets a later `g2=` / `w1=` coexist. An unknown prefix is ignored and the app boots normally. |
-| **encode pipeline** | canonical graph JSON (the exact `serialize()` string) → UTF-8 bytes → **(DECIDE D2)** raw DEFLATE (RFC 1951) *or* no compression → **base64url** (`A–Za–z0–9-_`, no `=` padding, no `+` `/`). base64url so the link is copy-paste-safe with no percent-encoding. |
-| **decode pipeline** | reverse: base64url-decode → inflate (if D2 = compression) → `JSON.parse` → `deserialize()`. Any failure at any stage ⇒ discard the payload, boot the normal graph, one console warning (§U5). |
+### U1.1 Fragment, not query
 
-**(DECIDE D2) — compression.** Raw graph JSON is bulky; a ~30-node diagram is
-roughly 4–8 KB raw, ~2–4 KB base64url. DEFLATE typically cuts that ~2–3×, so it
-is the difference between "most real diagrams fit a link" and "only small ones
-do". Cost: a **bundled pure-JS DEFLATE/INFLATE** is needed so the portable
-`file://` build and browsers without `CompressionStream` can still encode /
-decode — the same self-contained-fallback principle already accepted for
-SHA-256 in `loop-workspace/1` §W12. Recommendation: **adopt compression**;
-`CompressionStream('deflate-raw')` / `DecompressionStream` when present, the
-bundled fallback otherwise. The simpler alternative (base64url of raw JSON, no
-dependency, smaller shareable ceiling, compression deferred to `loop-share/2`)
-is viable if the fallback burden is judged not worth it.
+The payload is in `location.hash`. **Never** `?...`. Two reasons: (a) a fragment
+is **not transmitted** to the origin server or any CDN / proxy / access log —
+the diagram stays between the people who have the link (see §U4 for what a
+fragment *is* still exposed to); (b) the project security rules forbid personal
+or document data in a query string. A `?`-based share link is a defect.
 
-**(DECIDE D7) — checksum.** A damaged fragment currently surfaces as an inflate
-/ parse / validate failure (all handled → boot normal graph + warning). A
-4-byte CRC-32 prefix would let the loader say "this was a share link and it is
-damaged" rather than "unrecognised fragment". Recommendation: **no checksum for
-v1** — the decode failure path already exists and a link is not an authenticity
-claim.
+### U1.2 Key prefix
+
+`g1=` — `g` = graph, `1` = payload format 1. The loader uses it to tell a share
+payload from an in-app / router hash or a plain `#anchor`, and it lets a later
+`g2=` / `w1=` coexist. An unknown prefix is ignored and the app boots normally
+(§U6).
+
+### U1.3 Compression — zlib-wrapped DEFLATE
+
+The compressed layer is **zlib-wrapped DEFLATE (RFC 1950)** — a 2-byte zlib
+header and a trailing Adler-32 checksum around an RFC 1951 DEFLATE stream —
+**not** raw DEFLATE (RFC 1951). Implementations:
+
+- **`CompressionStream('deflate')` / `DecompressionStream('deflate')`** when the
+  context exposes them (these emit / accept the zlib wrapper by definition;
+  `'deflate-raw'` must **not** be used).
+- A **bundled pure-JS zlib inflate *and* deflate** for the portable `file://`
+  build and any browser without Compression Streams — the same self-contained
+  fallback principle already accepted for SHA-256 in `loop-workspace/1` §W12.
+  The fallback covers **both directions**: a portable build must be able to
+  *produce* a link and to *open* one.
+
+Different compressor implementations (native vs. fallback, different levels) may
+emit **different bytes** for the same graph. That is valid as long as every
+conformant decoder can inflate every conformant encoder's output. **There is no
+requirement that the same graph yields the same URL string**, and callers must
+not assume link stability across builds or sessions. Interop is mandatory:
+a link made under `https://` must open under `file://` and vice-versa (§U12.10).
+
+### U1.4 base64url — exact alphabet, strict decode
+
+The inflate input / deflate output bytes are carried as **base64url**:
+
+- encode: standard base64, then `+` → `-`, `/` → `_`, and **all `=` padding
+  removed**.
+- decode: **strict**. Only `A–Z a–z 0–9 - _` are accepted. Any other character
+  — including `+`, `/`, whitespace, or an `=` padding character — makes the
+  payload **invalid**: it is rejected before inflate, the existing graph is left
+  untouched, and the load fails per §U5.2.
+
+### U1.5 Decode pipeline
+
+`#g1=` payload → strict base64url-decode (§U1.4) → zlib-inflate (§U1.3), **with
+the inflated size bounded by `SHARE_MAX_DECODED_BYTES` — §U3.2**) → `JSON.parse`
+→ `deserialize()` (the existing defensive validation). **Every stage must
+succeed** before the app touches its current state (§U5.2, §U5.5).
 
 ---
 
@@ -93,98 +123,165 @@ claim.
 | carried | source | note |
 |---|---|---|
 | the whole `GraphDoc` — `nodes`, `edges`, `recommendedRunConfig` | `serialize()` | byte-identical to a `Graph JSON` export |
-| **(DECIDE D4)** `view.timeline` + `canvas` `{x,y,zoom}` | `mcStore.view` / React Flow `getViewport()` | tiny (~40 bytes). Lets a link frame the diagram on open. Recommendation: **graph only for v1**; canvas framing is a small nice-to-have that fits `loop-share/2` cleanly. |
 
-**Not carried** (same rationale as `loop-workspace/1` §W2 — a link is a
-*document*, not a session): MC `config` beyond `recommendedRunConfig`, MC
-`result`, the sim snapshot / `seed`, `distributionPoolId`, `showMean`, undo
-history, selection, dialog / focus state, **theme, language**, any user-global
-preference.
+**Nothing else.** Not MC `config` beyond `recommendedRunConfig`, not the MC
+`result`, not the sim snapshot / `seed`, not `distributionPoolId` / `showMean`,
+not `view.timeline`, not the canvas viewport, not undo history, selection,
+dialog / focus state, **theme, language**, or any user-global preference. Same
+rationale as `loop-workspace/1` §W2 — a link is a *document*, not a session.
+View / canvas framing is a `loop-share/2` question.
 
 ---
 
-## U3. Size limit — measured, all-or-nothing, no truncation
+## U3. Size limits — measured, all-or-nothing, no truncation
+
+### U3.1 Outbound cap — `SHARE_MAX_BYTES`
 
 The fragment is never sent to a server, so CDN request-line caps do not apply.
-The real constraints are (a) address-bar and clipboard sanity, and (b) chat /
-mail / doc tools that truncate or mangle very long links. So the limit is a
-product choice, not a protocol one.
+The real constraints are address-bar / clipboard sanity and chat / mail / doc
+tools that truncate or mangle long links. So the cap is a product choice.
 
-`SHARE_MAX_BYTES` — **(DECIDE D3)** — a hard cap on the **encoded fragment
-payload** (after compression + base64url), measured (not estimated) as byte
-length. Proposed **8 KiB** (≈ a few hundred nodes with compression). Larger
-values (16 / 32 KiB) let more diagrams share but break more often in the wild.
+`SHARE_MAX_BYTES = 8 * 1024` (**8 KiB**) — a hard cap on the **encoded fragment
+payload**, i.e. the **ASCII byte length of the base64url string that follows
+`#g1=`**. Not the whole-URL length; not the pre-compression JSON size.
+base64url is ASCII, so byte length equals character count.
 
-**Processing on "Share link":**
+**Processing on `Share`:**
 
-1. Serialize the current graph, run the encode pipeline, measure the fragment
-   byte length.
-2. **≤ cap** → build the full link, copy it, confirm ("Link copied — *N*
-   characters. Anyone with the link can open **and edit** this diagram.").
-3. **> cap** → **hard reject**, no truncation (same principle as
+1. `serialize()` the current graph, run the encode pipeline, measure the length
+   of the base64url payload.
+2. **≤ `SHARE_MAX_BYTES`** → build the full link, copy it, confirm ("Link copied
+   — *N* characters. Anyone with the link can open **and edit** this diagram.").
+3. **> `SHARE_MAX_BYTES`** → **hard reject**, no truncation (same principle as
    `loop-workspace/1` §W6): "This diagram is too large for a share link (*N* KB;
-   limit *8* KB). Use **Export ▾ → Graph JSON** and share the file." Zero links
-   produced.
+   limit 8 KB). Use **Export ▾ → Graph JSON** and share the file." Zero links
+   produced, nothing copied.
 
-There is nothing to progressively drop (a link has no MC result), so the flow
-is encode-once / compare / all-or-nothing — no double-measure.
+There is nothing to progressively drop (a link has no MC result), so the flow is
+encode-once / compare / all-or-nothing — no double-measure.
+
+### U3.2 Inbound cap — `SHARE_MAX_DECODED_BYTES` (decompression-bomb guard)
+
+A small base64url payload can inflate to an enormous JSON string. The decoder
+**must bound the inflate output**:
+
+`SHARE_MAX_DECODED_BYTES = 1024 * 1024` (**1 MiB**) — the maximum permitted
+length of the inflated UTF-8 bytes.
+
+Enforcement is **incremental**: inflation stops and the payload is rejected as
+soon as the running output length would exceed the cap — the full output is
+**never** materialised first. On breach the loader **aborts before `JSON.parse`**
+and reports the link as damaged / unsupported (§U5.2); the current graph is not
+touched.
+
+1 MiB is far above any graph that also fits `SHARE_MAX_BYTES` after compression,
+so a legitimate link is never near this bound.
 
 ---
 
 ## U4. Sensitive information
 
-- **The fragment never leaves the browser.** By construction it lives in
+- **The fragment never reaches a server.** By construction it lives in
   `location.hash`; it is not in any request to Cloudflare, to analytics, or to
-  any third party. This is the entire reason for fragment-not-query (§U1).
-- **A share link embeds the whole diagram**, including every node / edge
-  **`label`** and any text the user typed into a field. The Share action must
-  say so, plainly, once, **before** it copies: *"The link contains this entire
-  diagram, including all labels. Anyone you send it to can open and edit it."*
-  No silent share.
+  any third party. This is the entire reason for fragment-not-query (§U1.1).
+- **A fragment is still exposed** to the browser's **history**, to profile /
+  account **sync** if the user has it on, to the **clipboard**, and — the whole
+  point — to **whoever receives the link**. The `Share` UI shows a short line to
+  this effect (§U7) alongside the §U4 disclosure below.
+- **A share link embeds the entire diagram**, including every node / edge
+  **`label`** and any text typed into a field. The `Share` action states this,
+  once, **before** it copies: *"The link contains this entire diagram, including
+  all labels. Anyone you send it to can open and edit it."* No silent share.
 - **The app adds nothing of its own** — no user id, no email, no timestamp, no
-  device or build info. The payload is exactly the `serialize()` output.
+  device or build field. The payload is exactly the `serialize()` output
+  (§U12.9).
 - The app **never auto-generates and never auto-opens** a share link; both
-  directions are explicit user actions.
-- **On open, the payload is stripped from the address bar immediately**
-  (`history.replaceState`, §U5.5) so it does not sit in screenshots, screen
-  shares, or the browser history longer than the moment of navigation, and a
-  reload does not silently re-import.
-- The payload is never placed in a query string, a `POST` body, or anything
+  directions are explicit user actions (with, on open, the §U5.6 confirmation).
+- **On open the payload is stripped from the address bar immediately** (§U5.5)
+  so it does not linger in screenshots, screen shares, or history beyond the
+  moment of navigation, and a reload does not silently re-import.
+- The payload is never placed in a query string, a request body, or anything
   that reaches a server.
 
 ---
 
 ## U5. Opening a link — load safety
 
-1. **On boot, read `location.hash`.** If it does not start with a known share
-   prefix (`g1=`) → normal boot (the `localStorage` graph, or the sample). A
-   plain `#anchor` or a future router hash is left untouched.
-2. **Recognised prefix** → base64url-decode → inflate (if D2) → `JSON.parse` →
-   `deserialize()` (the existing defensive validation). **Any failure at any
-   stage ⇒ discard the payload, boot the normal graph, one console warning**
-   ("a share link was present but could not be read"). A bad link never blocks
-   the app.
-3. **Success** → load through `graphStore.loadDoc` — the **one** `simulationRev`
-   bump — so the sim resets to step 0 and Monte-Carlo goes idle, exactly as a
-   `Graph JSON` import; then `applyRecommended(recommendedRunConfig)` and
-   `fitView()` (or restore `canvas` if D4 carries it).
-4. **Always paused / idle. Nothing auto-runs**, no timer starts — the same
-   invariant as Graph Import and `loop-workspace/1` §W2.1.
-5. **Strip the fragment** —
-   `history.replaceState(null, '', location.pathname + location.search)` — so
-   the address bar is clean and a reload starts from the now-loaded (and
-   `localStorage`-persisted) graph, not from a re-decode.
-6. **(DECIDE D5) — precedence vs. the working graph.** A share link takes
-   precedence over the `localStorage` working graph *for that load* (the user
-   clicked the link to see *that* diagram). Because `loadDoc` persists, the
-   shared graph then **replaces** the working graph. There is no cross-load
-   undo. Options:
-   - **(recommended)** confirm first *unless the current graph is the pristine
-     sample* — "Open the shared diagram? Your current diagram will be replaced.
-     Export it first if you want to keep it." — Cancel keeps the local graph and
-     still strips the fragment;
-   - replace silently and rely on the user being able to re-open their own graph
-     from a prior export.
+### U5.1 Recognition
+
+On boot, read `location.hash`. If it does not start with a known share prefix
+(`g1=`) → normal boot (the `localStorage` graph, or the first-boot sample). A
+plain `#anchor` or a future router hash is left untouched, and no fragment strip
+happens.
+
+### U5.2 Validate fully before touching state
+
+For a recognised prefix, run the full §U1.5 pipeline **to completion**:
+
+1. strict base64url-decode (§U1.4),
+2. zlib-inflate bounded by `SHARE_MAX_DECODED_BYTES` (§U3.2),
+3. `JSON.parse`,
+4. `deserialize()`.
+
+**If any stage fails**, the load is abandoned: the **current graph, sim, and MC
+state are left exactly as they were**, one console warning is emitted ("a share
+link was present but could not be read"), and the fragment is stripped anyway
+(§U5.5) so a reload does not repeat the error. A damaged link **never mutates
+the existing graph** — the confirm dialog and `loadDoc` (§U5.6–U5.7) are reached
+**only** after all four stages succeed.
+
+### U5.3 No auto-run
+
+A link load never starts a run and never starts a timer. Afterwards the live
+sim is `idle` at step 0 and Monte-Carlo is `idle` — identical to a `Graph JSON`
+import and to `loop-workspace/1` §W2.1.
+
+### U5.4 Stop any active run first
+
+If a live run or its timer is active when a valid link is being applied, it is
+**stopped safely first** (as `reset()` / `loadDoc` already do on a graph
+replace), then the graph is swapped. No step executes against a half-swapped
+graph.
+
+### U5.5 Strip the fragment — every outcome, path + query preserved
+
+On **success, failure, *and* cancel**, the fragment is removed with
+`history.replaceState(history.state, '', location.pathname + location.search)` —
+**only the `#…` part is removed; `pathname` and `search` are preserved**, and
+the history entry is replaced, not pushed. After a successful load the address
+bar therefore shows the bare app URL and a reload restores the now-persisted
+graph, not a re-decode.
+
+### U5.6 Replace confirmation — pristine-sample session flag
+
+Whether opening a link prompts before replacing the working graph is decided by
+a **session flag that records the boot origin**, **not** by comparing graph
+contents:
+
+- The flag is "pristine sample" **only** when this session booted the built-in
+  first-run sample with no `localStorage` graph present, **and nothing has
+  changed it since**.
+- **Any** of: an edit (node/edge add, connect, data change, delete, move-commit),
+  an `Import`, applying a `Template`, an `undo` / `redo`, or a prior link /
+  workspace restore — **clears the flag permanently for the session**. Manually
+  re-creating the sample's shape does **not** restore it.
+
+Behaviour:
+
+- **flag set (pristine sample)** → apply the link with **no prompt**.
+- **flag clear** → prompt: *"Open the shared diagram? Your current diagram will
+  be replaced. Export it first if you want to keep it."*
+  - **Cancel** → keep the current graph unchanged; still strip the fragment
+    (§U5.5). No `simulationRev` bump.
+  - **OK** → proceed to §U5.7.
+
+### U5.7 Apply
+
+`graphStore.loadDoc({ nodes, edges })` — this is the **one and only**
+`simulationRev` bump of the whole load (sim resets to step 0, MC goes idle,
+exactly as a `Graph JSON` import) — then `applyRecommended(recommendedRunConfig)`
+and `fitView()`. `loadDoc` persists, so the shared graph becomes the working
+graph. The restore is deterministic: the same link always yields the same state.
 
 ---
 
@@ -192,10 +289,11 @@ is encode-once / compare / all-or-nothing — no double-measure.
 
 | reader | link | result |
 |---|---|---|
-| build **without** share support | share link | fragment ignored; app boots normally (`localStorage` / sample) |
+| build **without** share support | share link | fragment ignored; app boots normally (`localStorage` / sample); fragment left as-is |
 | build **with** `loop-share/1` | plain URL, no fragment | normal boot |
-| build with `loop-share/1` | fragment, **unknown** prefix (`g2=`, `w1=`, a router hash, `#anchor`) | ignored; normal boot. For a `gN=` it does not know, a one-line console note ("this link was made with a newer version of Loop Studio"). |
-| any build | `g1=` fragment that fails to decode / validate | normal boot + console warning |
+| build with `loop-share/1` | fragment, **unknown** prefix (`g2=`, `w1=`, a router hash, `#anchor`) | ignored; normal boot; working graph untouched. For a `gN=` it does not know, a one-line console note ("this link was made with a newer version of Loop Studio"). |
+| build with `loop-share/1` | `g1=` fragment that fails any of base64url / inflate / size / parse / `deserialize` | normal boot + console warning; **current graph untouched**; fragment stripped |
+| `https://` build ↔ portable `file://` build | either one's `g1=` link | **must** decode in the other (zlib interop + fallback inflate) |
 
 - The **graph wire format is unchanged** (`loop-studio/graph` `version: 1`). A
   link is only a transport for the same bytes a `Graph JSON` export writes: a
@@ -205,24 +303,29 @@ is encode-once / compare / all-or-nothing — no double-measure.
   `workspace` key. Sharing a workspace over a URL, if ever wanted, is a new
   `w1=` prefix under a new spec id — not this document.
 - **Portable `file://` build:** a share link targets an `https://` host, so
-  *opening* one needs the hosted app. But the **encoder** (the Share action)
-  must still work in the portable build — base64url and, if D2, the bundled
-  DEFLATE fallback, mirroring the SHA-256 fallback in `loop-workspace/1` §W12.
-  Round-trip is tested as *encode on `file://`* → *decode on `https://`*.
+  *opening* one needs the hosted app. The **encoder and decoder both** work in
+  the portable build via base64url and the bundled zlib fallback (§U1.3).
 
 ---
 
 ## U7. UI
 
-- **(DECIDE D8)** A **"Share link"** control in the toolbar, grouped with
-  `Import` / `Export ▾`. Options: its own button, or a third item under a
-  renamed **"Share ▾"** that also holds Graph / Workspace JSON. Recommendation:
-  **a standalone "Share link" button** — Export ▾ keeps its meaning ("write a
-  file"), Share is a different verb ("make a link").
-- Click → the §U4 disclosure + the §U3 size check → on confirm, build the link,
-  `navigator.clipboard.writeText`, toast "Link copied". If the clipboard API is
-  unavailable, present the link in a read-only, pre-selected text field.
-- **No dialog on _load_** unless D5 resolves to "confirm".
+- A standalone **`Share`** button in the toolbar, next to `Import` / `Export ▾`.
+  `Export ▾` keeps its meaning ("write a file"); `Share` is a different verb
+  ("make a link") and stays a single click, not a menu.
+- Click → a short combined disclosure: *what the link contains* ("this entire
+  diagram, including all labels; anyone with the link can open and edit it") and
+  *where a link can travel* ("the diagram data is in the link itself — it is not
+  uploaded to a server, but it will be in your browser history and visible to
+  anyone you send it to") → then the §U3.1 size check.
+  - within cap → build link, `navigator.clipboard.writeText`, toast "Link
+    copied". Clipboard API unavailable → show the link in a read-only,
+    pre-selected text field.
+  - over cap → the §U3.1 hard-reject message; nothing copied.
+- **No dialog on _load_** except the §U5.6 replace confirmation (skipped for the
+  pristine sample).
+- The Monte-Carlo `Export ▾` inside the Distribution panel is unrelated and
+  unchanged.
 
 ---
 
@@ -231,55 +334,40 @@ is encode-once / compare / all-or-nothing — no double-measure.
 | # | invariant |
 |---|---|
 | **U1** | The payload is always in the URL **fragment** — never a query string, a request body, or anything that reaches a server. |
-| **U2** | A share link carries the **graph document only** (optionally a small view / canvas hint); never an MC result, a sim snapshot, a seed, or a user-global preference. |
-| **U3** | Opening a link never starts a run and never starts a timer; afterwards the live sim is `idle` at step 0 and Monte-Carlo is `idle` — identical to a `Graph JSON` import. |
-| **U4** | A malformed, oversized, or unknown-prefix fragment can never prevent the app from booting. |
-| **U5** | Link size is all-or-nothing: the whole graph encodes under `SHARE_MAX_BYTES`, or the Share action is refused with a pointer to `Graph JSON`. The graph is never truncated to fit. |
-| **U6** | After a link loads, its payload is removed from the address bar; a reload does not re-import it. |
-| **U7** | The share wire format is the same `loop-studio/graph` `version: 1` a `Graph JSON` export writes; a graph round-tripped through a link equals the same graph round-tripped through a file. |
-| **U8** | Producing a link and opening a link are both explicit user actions; the app never auto-shares and never auto-imports a link without (per D5) consent. |
+| **U2** | A share link carries the **`GraphDoc` only** — `nodes`, `edges`, `recommendedRunConfig`. Never an MC result, a sim snapshot, a seed, a view / canvas hint, or a user-global preference. |
+| **U3** | Opening a link never starts a run or a timer; afterwards the live sim is `idle` at step 0 and Monte-Carlo is `idle` — identical to a `Graph JSON` import. |
+| **U4** | A malformed, oversized (outbound **or** decoded), or unknown-prefix fragment can never prevent the app from booting and never mutates the current graph. Validation (base64url → inflate → size → parse → `deserialize`) fully succeeds *before* any confirm or `loadDoc`. |
+| **U5** | Outbound size is all-or-nothing on the base64url payload after `#g1=`: it fits `SHARE_MAX_BYTES` or `Share` is refused with a pointer to `Graph JSON`. The graph is never truncated to fit. Inbound, inflate is bounded incrementally by `SHARE_MAX_DECODED_BYTES` and aborts before parse on breach. |
+| **U6** | Every load outcome — success, failure, cancel — strips **only** the fragment via `history.replaceState`, preserving `pathname` + `search`; a reload never re-imports. |
+| **U7** | The share wire format is the same `loop-studio/graph` `version: 1` a `Graph JSON` export writes; a graph round-tripped through a link equals the same graph round-tripped through a file. `g1` is **zlib-wrapped DEFLATE**; any conformant decoder inflates any conformant encoder's output; identical bytes / identical URL strings are **not** guaranteed. |
+| **U8** | A successful link load bumps `simulationRev` **exactly once** (the `loadDoc` call); cancel and failure bump it zero times. Any active run is stopped safely before the swap. |
+| **U9** | Producing a link and opening a link are both explicit user actions; the app never auto-shares, and never applies a link without the §U5.6 confirmation unless the session is the pristine first-boot sample. |
 
 ---
 
-## U9. Decisions — to resolve before freeze
+## U9. Decisions — resolved
 
-| # | decision | recommendation |
-|---|---|---|
-| **D1** | Payload in the URL **fragment**, never a query string. | firm |
-| **D2** | Encode = base64url of **DEFLATE**'d `serialize()` output, with a bundled pure-JS inflate/deflate fallback for `file://` / no-`CompressionStream`. | **adopt compression**; simpler raw-base64url is the fallback position |
-| **D3** | `SHARE_MAX_BYTES` on the encoded fragment; over ⇒ hard reject, no truncation. | **8 KiB** (vs 16 / 32) |
-| **D4** | Link carries **graph only**, or graph + `view.timeline` + `canvas`. | **graph only** for v1; canvas hint → `loop-share/2` |
-| **D5** | On load, **confirm before replacing** a non-sample working graph, or replace silently. | **confirm unless the current graph is the pristine sample**; Cancel still strips the fragment |
-| **D6** | After a link loads, strip the fragment via `history.replaceState`. | firm |
-| **D7** | No integrity checksum (rely on decode / parse / validate failure) vs. a 4-byte CRC-32 prefix for a cleaner "damaged link" message. | **no checksum** for v1 |
-| **D8** | Share control: standalone **"Share link"** button vs. fold into a **"Share ▾"** menu with Graph / Workspace JSON. | **standalone button** |
-| **D9** | Spec id `loop-share/1`, its own frozen doc; later behavioural change ⇒ `loop-share/2`. | firm |
-| **D10** | PWA (§U10): a §U10 appendix here, or a separate `docs/pwa.md` note with no frozen-spec status. | **separate note** — PWA has no wire / semantic surface |
+| # | decision |
+|---|---|
+| **D1** | Payload in the URL **fragment**, never a query string. |
+| **D2** | Encode = base64url of **zlib-wrapped DEFLATE (RFC 1950)** of the `serialize()` output. `CompressionStream('deflate')` when available; a bundled pure-JS zlib **inflate + deflate** fallback otherwise (portable `file://` and no-Compression-Streams). `deflate-raw` is not used. Cross-implementation byte differences are allowed; mutual decodability and `https ↔ file://` interop are required; URL-string stability is **not** promised. |
+| **D3** | `SHARE_MAX_BYTES = 8 * 1024` — hard cap on the **base64url payload byte length after `#g1=`** (not whole-URL, not pre-compression). Over ⇒ hard reject, no truncation. |
+| **D3b** | `SHARE_MAX_DECODED_BYTES = 1024 * 1024` — decompression-bomb guard on the inflated bytes, enforced **incrementally**, aborting **before** `JSON.parse`. |
+| **D4** | A link carries the **`GraphDoc` only**. `view` / `canvas` framing is deferred to `loop-share/2`. |
+| **D5** | On load, prompt before replacing the working graph **unless** a session flag says this is the pristine first-boot sample. The flag is set only by that boot origin and cleared permanently by any edit / `Import` / `Template` / `undo` / `redo` / prior restore — never by graph-content comparison. **Cancel still strips the fragment.** |
+| **D6** | After any load outcome, strip **only** the fragment via `history.replaceState`, preserving `pathname` + `search`. |
+| **D7** | **No integrity checksum.** A damaged fragment surfaces through the decode / inflate / size / parse / `deserialize` failure path (zlib's own Adler-32 already catches bit-rot inside the compressed stream). |
+| **D8** | A standalone **`Share`** button, not a `Share ▾` menu. |
+| **D9** | Spec id `loop-share/1`, its own frozen doc; a later behavioural change ⇒ `loop-share/2`. |
+| **D10** | **PWA** is documented in a separate, **non-frozen** [`docs/pwa.md`](docs/pwa.md) — it has no wire format and no observable semantics. |
+| **D11** | A successful load causes **exactly one** `simulationRev` bump; any active run is stopped safely first; a corrupt link causes **zero** state change. |
 
 ---
 
-## U10. PWA — note (not a frozen spec surface)
+## U10. PWA
 
-The offline-install track (roadmap step 3) has **no wire format and no
-observable semantics**: it is a `manifest.webmanifest` plus a service worker
-that precaches the **built app shell** (the Vite build's static assets) so an
-installed or offline user runs the same static app. It changes nothing in this
-document, in the graph / engine specs, or in `loop-workspace/1`.
-
-Points to pin when it is implemented (in the PR, or a plain `docs/pwa.md` — not
-as a `loop-*/N` frozen spec):
-
-- **Precache scope** — app shell and build assets only. **Not** cached: the
-  `localStorage` graph (already persistent and per-origin), any share-link
-  fragment (transient), Google Fonts if used (let the browser HTTP-cache them).
-- **Update strategy** — new build detected ⇒ **prompt to reload** rather than
-  `skipWaiting()` mid-session, so an open diagram is never swapped under the
-  user.
-- **Offline scope** — the app runs fully offline (it is client-only); *opening a
-  share link* still needs the network the first time to fetch the shell if it is
-  not yet cached.
-- **Portable build** — the `file://` single-file build neither needs nor
-  registers a service worker.
+Moved to [`docs/pwa.md`](docs/pwa.md) (non-frozen). It changes nothing in this
+document, the graph / engine specs, or `loop-workspace/1`.
 
 ---
 
@@ -287,45 +375,68 @@ as a `loop-*/N` frozen spec):
 
 | name | value | note |
 |---|---|---|
-| `SHARE_SCHEMA` prefix | `"g1="` | fragment key; `g` = graph, `1` = payload format |
-| `SHARE_MAX_BYTES` | **(DECIDE D3)** — proposed `8 * 1024` (8 KiB) | hard cap on the encoded fragment, measured not estimated |
+| share prefix | `"g1="` | fragment key; `g` = graph, `1` = payload format |
+| `SHARE_MAX_BYTES` | `8 * 1024` (8 KiB) | hard cap on the base64url payload byte length **after `#g1=`** |
+| `SHARE_MAX_DECODED_BYTES` | `1024 * 1024` (1 MiB) | incremental cap on inflated bytes; abort before `JSON.parse` |
+| compression | **zlib-wrapped DEFLATE (RFC 1950)** | `CompressionStream('deflate')` or the bundled pure-JS zlib fallback (inflate **and** deflate); never `deflate-raw` |
+| base64url alphabet | `A–Za–z0–9-_`, no `=` padding | strict decode: any other char (incl. `+` `/` whitespace `=`) ⇒ invalid |
 | graph schema | `loop-studio/graph` `version: 1` | unchanged; the link is only a transport |
-| compression | **(DECIDE D2)** — raw DEFLATE (RFC 1951), `deflate-raw` | with a bundled pure-JS fallback |
 
 ---
 
 ## U12. Acceptance vectors (test basis — filled on implementation)
 
 1. **Fragment, not query** — a produced link has its payload after `#`; there is
-   no `?` form; navigating the link issues no network request carrying the
+   no `?` form; navigating the link issues no network request that carries the
    payload.
-2. **Round-trip** — build a graph (mix of node kinds, resource + state edges, a
-   `recommendedRunConfig`), Share, open the link in a fresh session ⇒ `nodes` /
-   `edges` / `recommendedRunConfig` deep-equal the source; sim `idle` at step 0;
-   nothing auto-ran; no timer.
+2. **Round-trip** — build a graph (mixed node kinds, resource + state edges, a
+   `recommendedRunConfig`), `Share`, open the link in a fresh session ⇒ `nodes`
+   / `edges` / `recommendedRunConfig` deep-equal the source; sim `idle` at step
+   0; nothing auto-ran; no timer.
 3. **Link ≡ file** — the graph from a link deep-equals the graph from a `Graph
    JSON` export of the same diagram.
-4. **Over cap ⇒ hard reject** — a graph whose encoded fragment exceeds
-   `SHARE_MAX_BYTES` ⇒ Share produces **zero** links and shows the pointer to
-   `Graph JSON`; nothing is copied.
-5. **Malformed fragment ⇒ app still boots** — `#g1=` followed by garbage / a
-   truncated payload / valid base64url of non-JSON ⇒ the app boots the normal
-   graph with a console warning; no exception escapes.
-6. **Unknown prefix ⇒ ignored** — `#g2=…`, `#w1=…`, `#/route`, `#section` ⇒
-   normal boot, working graph untouched.
-7. **Fragment stripped on load** — after a link opens, `location.hash` is empty;
-   a reload loads the persisted graph, not a re-decode.
-8. **Precedence (D5)** — with a modified working graph, opening a link prompts;
-   Cancel keeps the local graph **and** strips the fragment; OK replaces it.
-   With the pristine sample, no prompt.
-9. **No PII added** — decode a produced link and diff against a `Graph JSON`
-   export: identical; no id / email / timestamp / build field is present.
-10. **`file://` encode → `https://` decode** — a link produced by the portable
-    single-file build (base64url + the DEFLATE fallback if D2) opens correctly
-    in the hosted build.
-11. **Compression fallback parity (if D2)** — the pure-JS DEFLATE path and
-    `CompressionStream` produce fragments that both decode to the identical
-    graph (they need not be byte-identical); tested against standard RFC 1951
-    vectors.
-12. **Old build** — a share link opened by a share-unaware build (simulate by
+4. **Over outbound cap ⇒ hard reject** — a graph whose base64url payload exceeds
+   `SHARE_MAX_BYTES` ⇒ `Share` produces **zero** links and shows the pointer to
+   `Graph JSON`; nothing is copied. Cap is measured on the substring after
+   `#g1=`, not the whole URL.
+5. **Malformed fragment ⇒ app still boots, graph untouched** — `#g1=` followed
+   by garbage / a truncated payload / valid base64url of non-JSON / valid JSON
+   that fails `deserialize` ⇒ the app boots the *previous* graph unchanged, one
+   console warning, fragment stripped; no exception escapes; `simulationRev`
+   unchanged.
+6. **Strict base64url** — a payload containing `+`, `/`, an `=`, or whitespace
+   ⇒ rejected before inflate; treated as §U12.5.
+7. **zlib wrapper, not raw** — a payload compressed as **raw** DEFLATE
+   (`deflate-raw`) ⇒ rejected at inflate (no zlib header); a correctly
+   zlib-wrapped payload decodes.
+8. **Compressor interop** — a link made with `CompressionStream('deflate')` and
+   a link made with the pure-JS zlib fallback, for the same graph, **both**
+   decode to the identical graph (bytes / URL strings need not match). Tested
+   against standard RFC 1950/1951 vectors.
+9. **Decompression-bomb guard** — a crafted `g1=` payload that inflates past
+   `SHARE_MAX_DECODED_BYTES` ⇒ inflation aborts **before** `JSON.parse`, the
+   link is reported damaged, the current graph is untouched, output is never
+   fully materialised.
+10. **`https ↔ file://` interop** — a link produced by the portable single-file
+    build opens correctly in the hosted build, and a link produced by the hosted
+    build opens in the portable build (decoder fallback path).
+11. **Unknown prefix ⇒ ignored** — `#g2=…`, `#w1=…`, `#/route`, `#section` ⇒
+    normal boot, working graph untouched, fragment left as-is.
+12. **Fragment stripped on every outcome, path + query kept** — start from
+    `…/sub/path?x=1#g1=…`; after success, after a decode failure, and after a
+    §U5.6 Cancel, `location` is `…/sub/path?x=1` with empty hash; the history
+    entry was replaced, not pushed.
+13. **Pristine-sample flag** — first boot with the sample and a `g1=` link ⇒ no
+    prompt, link applies. Then: edit a node and undo back to the exact sample
+    shape, open another link ⇒ **prompt** (flag cleared by the edit, not
+    restored by content match). Same after an `Import` or a `Template`.
+14. **Replace confirm** — with the flag clear, opening a link prompts; **Cancel**
+    keeps the current graph, bumps `simulationRev` zero times, and still strips
+    the fragment; **OK** replaces it.
+15. **Exactly one bump** — a successful link load bumps `simulationRev` exactly
+    once (assert the sim/MC subscribers fired once); an active live run / timer
+    is stopped before the swap and no step runs against a half-swapped graph.
+16. **No PII added** — decode a produced link and diff against a `Graph JSON`
+    export: identical; no id / email / timestamp / build field present.
+17. **Old build** — a share link opened by a share-unaware build (simulate by
     disabling the loader) boots normally and ignores the fragment.
