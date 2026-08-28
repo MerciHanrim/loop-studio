@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
-import type { SimState, SimValues, TriggerQueueEntry } from '../engine'
+import type { SimState, SimValues, StateEvent, TriggerQueueEntry } from '../engine'
 import { useGraphStore } from './graphStore'
 
 export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
@@ -16,6 +16,10 @@ type SimStore = {
   firedNodeIds: string[]
   /** pending delayed state triggers, carried between steps (SEMANTICS-S.md §S8) */
   triggerQueue: TriggerQueueEntry[]
+  /** state-edge effects from the step that produced the current head — drives
+   *  the trigger pulse / activator tint / label flash. `[]` at step 0 and after
+   *  Reset. (SEMANTICS-S.md §S9, SEMANTICS-S2.md §S2-9) */
+  stateEvents: StateEvent[]
   /** pools that received resources on the last step — drives the arrival cue */
   arrivedPoolIds: string[]
 
@@ -78,6 +82,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       activeByEdge,
       firedNodeIds: r.report.fired,
       triggerQueue: r.state.triggerQueue,
+      stateEvents: r.report.stateEvents,
       arrivedPoolIds: [...arrived],
       series: [...s.series, { step: r.state.step, values: r.state.values }].slice(-MAX_SERIES),
       status: r.state.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
@@ -99,6 +104,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     activeByEdge: {},
     firedNodeIds: [],
     triggerQueue: [],
+    stateEvents: [],
     arrivedPoolIds: [],
     series: [],
     trackedIds: 'all',
@@ -129,6 +135,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         activeByEdge: {},
         firedNodeIds: [],
         triggerQueue: [],
+        stateEvents: [],
         arrivedPoolIds: [],
         series: [{ step: 0, values: init.values }],
       })

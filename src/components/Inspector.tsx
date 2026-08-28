@@ -1,4 +1,13 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import {
+  ACT_HINT,
+  LABEL_HINT,
+  parseActivatorExpr,
+  parseDelay,
+  parseLabelExpr,
+  type ActivatorParse,
+  type LabelParse,
+} from '../engine'
 import { useGraphStore } from '../store/graphStore'
 import type {
   ConverterData,
@@ -7,10 +16,13 @@ import type {
   LoopEdgeData,
   PoolData,
   SourceData,
+  StateEdgeData,
   StateMode,
 } from '../model/types'
 
 const ACTIVATIONS = ['passive', 'automatic', 'onStart', 'interactive'] as const
+/** modes the engine executes; `node` (and anything unknown) is inert legacy data */
+const KNOWN_STATE_MODES: readonly StateMode[] = ['trigger', 'activator', 'label']
 
 type Patch = (patch: Record<string, unknown>) => void
 
@@ -114,29 +126,13 @@ export function Inspector() {
             />
           </Field>
         ) : (
-          <>
-            <Field label="Mode">
-              <select
-                value={ed.mode}
-                onChange={(e) => setData({ ...ed, mode: e.target.value as StateMode })}
-              >
-                <option value="label">label modifier (±)</option>
-                <option value="node">node modifier</option>
-                <option value="trigger">trigger (✳)</option>
-                <option value="activator">activator (≥)</option>
-              </select>
-            </Field>
-            {ed.mode !== 'trigger' && (
-              <Field label="Expression">
-                <input
-                  value={ed.expr}
-                  onChange={(e) => setData({ ...ed, expr: e.target.value })}
-                  placeholder={ed.mode === 'activator' ? '>=5' : '+1'}
-                />
-              </Field>
-            )}
-          </>
+          <StateEdgeFields ed={ed} setData={setData} />
         )}
+
+        <p className="inspector__note">
+          Editing a connection restarts the run at step 0 and clears any pending triggers; a
+          finished Monte-Carlo result is marked stale.
+        </p>
       </aside>
     )
   }
@@ -153,6 +149,160 @@ export function Inspector() {
     </aside>
   )
 }
+
+// ── state-edge editing ────────────────────────────────────────────────────
+
+function StateEdgeFields({
+  ed,
+  setData,
+}: {
+  ed: StateEdgeData
+  setData: (data: LoopEdgeData) => void
+}) {
+  if (!KNOWN_STATE_MODES.includes(ed.mode)) return <LegacyStateEdge ed={ed} setData={setData} />
+  return (
+    <>
+      <Field label="Mode">
+        <select
+          value={ed.mode}
+          onChange={(e) => setData({ ...ed, mode: e.target.value as StateMode })}
+        >
+          <option value="trigger">trigger — pulse the target to fire</option>
+          <option value="activator">activator — enable / disable the target</option>
+          <option value="label">label — add to / set the target Pool</option>
+        </select>
+      </Field>
+
+      {ed.mode === 'trigger' && <TriggerFields ed={ed} setData={setData} />}
+      {ed.mode === 'activator' && <ExprField ed={ed} setData={setData} kind="activator" />}
+      {ed.mode === 'label' && <ExprField ed={ed} setData={setData} kind="label" />}
+    </>
+  )
+}
+
+function TriggerFields({
+  ed,
+  setData,
+}: {
+  ed: StateEdgeData
+  setData: (data: LoopEdgeData) => void
+}) {
+  const raw = ed.delay
+  const ok = raw == null || parseDelay(raw).ok
+  return (
+    <Field label="Delay — steps before the pulse is delivered">
+      <input
+        type="number"
+        min={0}
+        step={1}
+        value={raw ?? ''}
+        aria-invalid={!ok}
+        onChange={(e) => {
+          const v = e.target.value
+          setData({ ...ed, delay: v === '' ? undefined : Number(v) })
+        }}
+      />
+      {ok ? (
+        <p className="field__hint">
+          delivered at <code>fired + delay + 1</code>; <code>0</code> means the next step.
+        </p>
+      ) : (
+        <p className="field__hint field__hint--bad">
+          use a whole number ≥ 0 — the engine runs any other value as <code>0</code> and leaves
+          what you typed untouched.
+        </p>
+      )}
+    </Field>
+  )
+}
+
+function describeActivator(p: Extract<ActivatorParse, { ok: true }>): string {
+  return `target is enabled while the source ${p.op} ${p.n}`
+}
+function describeLabel(p: Extract<LabelParse, { ok: true }>): string {
+  const amount = p.token === 'S' ? "the source Pool's value" : String(p.n)
+  if (p.op === '=') return `sets the target Pool to ${amount} each step`
+  return p.op === '+'
+    ? `adds ${amount} to the target Pool each step`
+    : `subtracts ${amount} from the target Pool each step`
+}
+
+function ExprField({
+  ed,
+  setData,
+  kind,
+}: {
+  ed: StateEdgeData
+  setData: (data: LoopEdgeData) => void
+  kind: 'activator' | 'label'
+}) {
+  const raw = ed.expr ?? ''
+  const res =
+    kind === 'activator'
+      ? ({ t: 'activator', p: parseActivatorExpr(raw) } as const)
+      : ({ t: 'label', p: parseLabelExpr(raw) } as const)
+
+  let hint: string
+  if (res.t === 'activator') {
+    hint = res.p.ok ? describeActivator(res.p) : `${ACT_HINT[res.p.reason]} — until it parses, this connection has no effect.`
+  } else {
+    hint = res.p.ok ? describeLabel(res.p) : `${LABEL_HINT[res.p.reason]} — until it parses, this connection has no effect.`
+  }
+
+  return (
+    <Field label={kind === 'activator' ? 'Condition — comparison against the source' : 'Modifier — change applied each step'}>
+      <input
+        value={raw}
+        placeholder={kind === 'activator' ? '>= 5' : '+1   ·   -2   ·   =S'}
+        aria-invalid={!res.p.ok}
+        onChange={(e) => setData({ ...ed, expr: e.target.value })}
+      />
+      <p className={`field__hint ${res.p.ok ? 'field__hint--ok' : 'field__hint--bad'}`}>{hint}</p>
+    </Field>
+  )
+}
+
+function LegacyStateEdge({
+  ed,
+  setData,
+}: {
+  ed: StateEdgeData
+  setData: (data: LoopEdgeData) => void
+}) {
+  const [to, setTo] = useState<StateMode>('trigger')
+  return (
+    <div className="inspector__legacy">
+      <p className="inspector__note">
+        <strong>Unsupported connection.</strong> Mode <code>{ed.mode}</code> is not executed —
+        this link has no effect on the simulation. Loop Studio never converts it automatically;
+        pick what it should become, then convert it explicitly.
+      </p>
+      <Field label="Convert to">
+        <select value={to} onChange={(e) => setTo(e.target.value as StateMode)}>
+          <option value="trigger">trigger</option>
+          <option value="activator">activator</option>
+          <option value="label">label</option>
+        </select>
+      </Field>
+      <button
+        type="button"
+        className="btn"
+        onClick={() =>
+          setData({
+            kind: 'state',
+            mode: to,
+            expr: ed.expr ?? '',
+            ...(ed.delay != null ? { delay: ed.delay } : {}),
+          })
+        }
+      >
+        Convert to {to}
+      </button>
+    </div>
+  )
+}
+
+// ── node field groups (unchanged) ────────────────────────────────────────
 
 function PoolFields({ d, set }: { d: PoolData; set: Patch }) {
   return (

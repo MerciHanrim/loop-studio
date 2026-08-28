@@ -128,6 +128,21 @@ describe('resource handle ids', () => {
     ])
   })
 
+  it('a trigger `delay` survives import → export → import; a mode with no delay stays clean', () => {
+    const first = deserialize(
+      doc(
+        [n('s', 'source'), n('d', 'drain'), n('p', 'pool'), n('g', 'gate')],
+        [
+          { id: 'td', source: 's', target: 'd', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 2 } },
+          { id: 'ac', source: 'p', target: 'g', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '>= 5' } },
+        ] as unknown as Partial<LoopEdge>[],
+      ),
+    )
+    const round = deserialize(serialize(first.nodes, first.edges))
+    expect(round.edges.find((e) => e.id === 'td')?.data).toEqual({ kind: 'state', mode: 'trigger', expr: '', delay: 2 })
+    expect(round.edges.find((e) => e.id === 'ac')?.data).toEqual({ kind: 'state', mode: 'activator', expr: '>= 5' })
+  })
+
   it('normalizeGraph backfills a template-style edge with no handles', () => {
     const { edges } = normalizeGraph({
       nodes: [],

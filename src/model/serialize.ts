@@ -66,7 +66,13 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
       type,
       sourceHandle: isBlankHandle(e.sourceHandle) ? 'state-source' : e.sourceHandle,
       targetHandle: isBlankHandle(e.targetHandle) ? 'state-target' : e.targetHandle,
-      data: { kind: 'state', mode: prev?.mode ?? 'trigger', expr: prev?.expr ?? '' },
+      data: {
+        kind: 'state',
+        mode: prev?.mode ?? 'trigger',
+        expr: prev?.expr ?? '',
+        // `delay` (trigger only) is graph structure — keep it across a round-trip
+        ...(typeof prev?.delay === 'number' ? { delay: prev.delay } : {}),
+      },
     }
   }
 
