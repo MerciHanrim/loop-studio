@@ -288,6 +288,14 @@ export function buildWorkspacePayload(input: {
   return { schema: WORKSPACE_SCHEMA, version: WORKSPACE_VERSION, ...input }
 }
 
+/** §W4 — the same payload with the MC result removed and the omission recorded.
+ *  A no-op when there was no result to drop. */
+export function omitResult(p: WorkspacePayload): WorkspacePayload {
+  if (p.mc.result === undefined) return p
+  const { result: _result, ...mcRest } = p.mc
+  return { ...p, mc: { ...mcRest, resultOmitted: 'size-limit' } }
+}
+
 /**
  * §W5 — validate a raw `workspace` blob against the freshly-loaded graph.
  * Pure: no stores. `currentGraphDigest` is `semanticDigest(graph)` computed by

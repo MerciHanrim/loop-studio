@@ -373,6 +373,15 @@ and (c) `view.timeline` falling back to `"live"` if there was no usable result.
   workspace-aware sibling; `deserialize()` returns `{ …graph, workspace? }`.
 - The restore pass is written so it runs **after** the one `simulationRev` bump
   from graph load and causes no further bump (§W5.1).
+- **As built:** `mcStore` gained `resultGraphDigest` / `distributionPoolId` /
+  `showMean` / `restoreResult`; `graphStore.loadDoc` gives the single bump;
+  `src/store/workspaceIO.ts` holds `collectWorkspacePayload` / `serializeWorkspaceFile`
+  / `planWorkspaceExport` / `decideWorkspaceExport` / `importFile`; the UI is
+  `src/components/ExportMenu.tsx` (`Export ▾` → Graph JSON / Workspace JSON, one
+  summary confirm so there is always a cancel path, then the §W4 prompt / hard
+  reject). A DEV-only `window.__workspaceMaxBytes` override lets the browser E2E
+  exercise the §W4 prompts on small files (`import.meta.env.DEV`, tree-shaken
+  from prod / portable).
 
 ---
 

@@ -2,9 +2,10 @@ import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
-import { useMcStore } from '../store/mcStore'
 import type { NodeKind } from '../model/types'
+import { importFile } from '../store/workspaceIO'
 import { ConfirmDialog } from './ConfirmDialog'
+import { ExportMenu } from './ExportMenu'
 import { Logo } from './Logo'
 import { Templates } from './Templates'
 import { ThemeToggle } from './ThemeToggle'
@@ -26,13 +27,11 @@ export function Toolbar() {
   const [confirmNew, setConfirmNew] = useState(false)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const newGraph = useGraphStore((s) => s.newGraph)
-  const loadJSON = useGraphStore((s) => s.loadJSON)
-  const exportJSON = useGraphStore((s) => s.exportJSON)
   const undo = useGraphStore((s) => s.undo)
   const redo = useGraphStore((s) => s.redo)
   const canUndo = useGraphStore((s) => s.canUndo)
   const canRedo = useGraphStore((s) => s.canRedo)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
 
   const addCentered = (kind: NodeKind) => {
     const rect = document.querySelector('.canvas')?.getBoundingClientRect()
@@ -46,27 +45,16 @@ export function Toolbar() {
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  const doExport = () => {
-    // save the current Monte-Carlo settings alongside the graph so a shared
-    // file reproduces the intended run
-    const json = exportJSON({ ...useMcStore.getState().config })
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'loop-studio-graph.json'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   const onFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
     file.text().then(
-      (text) => {
+      async (text) => {
         try {
-          useMcStore.getState().applyRecommended(loadJSON(text))
+          const out = await importFile(text)
+          if (out.canvas) setViewport(out.canvas, { duration: 0 })
+          if (out.warnings.length) window.alert(out.warnings.join('\n'))
         } catch (err) {
           window.alert(err instanceof Error ? err.message : 'Could not read that file.')
         }
@@ -141,9 +129,7 @@ export function Toolbar() {
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
           Import
         </button>
-        <button type="button" className="btn" onClick={doExport}>
-          Export
-        </button>
+        <ExportMenu getViewport={getViewport} />
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
       </div>
 

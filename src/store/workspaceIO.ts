@@ -9,9 +9,12 @@
 import type { MonteCarloResult, StateEvent } from '../engine'
 import { deserialize, serialize } from '../model/serialize'
 import {
+  WORKSPACE_MAX_BYTES,
   buildWorkspacePayload,
+  omitResult,
   readWorkspace,
   semanticDigest,
+  utf8ByteLength,
   type WorkspacePayload,
 } from '../model/workspace'
 import { useGraphStore } from './graphStore'
@@ -57,6 +60,44 @@ export function collectWorkspacePayload(canvas: Viewport): WorkspacePayload {
 export function serializeWorkspaceFile(payload: WorkspacePayload): string {
   const g = useGraphStore.getState()
   return serialize(g.nodes, g.edges, useMcStore.getState().config, payload)
+}
+
+// ── §W4 size handling ───────────────────────────────────────────────────
+
+export type WorkspaceFileOption = { text: string; bytes: number; resultOmitted: boolean }
+
+/** Serialise the workspace both with and without the MC result, each measured
+ *  as real UTF-8 bytes. `lean` is `null` when there is no result to drop. */
+export function planWorkspaceExport(canvas: Viewport): {
+  full: WorkspaceFileOption
+  lean: WorkspaceFileOption | null
+} {
+  const g = useGraphStore.getState()
+  const cfg = useMcStore.getState().config
+  const payload = collectWorkspacePayload(canvas)
+  const fullText = serialize(g.nodes, g.edges, cfg, payload)
+  const full: WorkspaceFileOption = { text: fullText, bytes: utf8ByteLength(fullText), resultOmitted: false }
+  if (payload.mc.result === undefined) return { full, lean: null }
+  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload))
+  return { full, lean: { text: leanText, bytes: utf8ByteLength(leanText), resultOmitted: true } }
+}
+
+export type ExportDecision =
+  | { kind: 'download'; option: WorkspaceFileOption }
+  | { kind: 'confirm-omit'; full: WorkspaceFileOption; lean: WorkspaceFileOption }
+  | { kind: 'reject'; bytes: number }
+
+/** §W4 — with the result if it fits; else offer to drop the result if THAT
+ *  fits; else hard-reject. Pure; `maxBytes` is `WORKSPACE_MAX_BYTES` in the app
+ *  and a small value in tests. */
+export function decideWorkspaceExport(
+  full: WorkspaceFileOption,
+  lean: WorkspaceFileOption | null,
+  maxBytes = WORKSPACE_MAX_BYTES,
+): ExportDecision {
+  if (full.bytes <= maxBytes) return { kind: 'download', option: full }
+  if (lean && lean.bytes <= maxBytes) return { kind: 'confirm-omit', full, lean }
+  return { kind: 'reject', bytes: (lean ?? full).bytes }
 }
 
 /**
