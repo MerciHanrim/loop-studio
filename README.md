@@ -69,7 +69,7 @@ spec id, never an edit to a frozen one.
 | `src/components/` | Toolbar, canvas, inspector, custom node & edge views, Monte-Carlo dialog + charts |
 | `src/engine/` | Simulation engine — deterministic step, RNG, Monte Carlo, state connections |
 | `e2e/` | Playwright specs (app, portable `file://`, production build) |
-| `examples/` | Importable graphs — `risky-factory.json` + an Engine-B verification fixture |
+| `examples/` | Importable graphs — `risky-factory.json` + Engine-B and State verification fixtures |
 
 ## Roadmap
 

@@ -1,0 +1,753 @@
+{
+  "about": "State verification fixture (loop-state/1 + loop-state/2). Import state-verification.json, then follow examples/README.md.",
+  "steps": 6,
+  "frames": [
+    {
+      "step": 0,
+      "values": {
+        "Buffer": 0,
+        "Feeder": 10,
+        "Gauge A": 0,
+        "Gauge B": 4,
+        "Level": 0,
+        "Tank": 0
+      },
+      "fired": [],
+      "stateEvents": [],
+      "queue": []
+    },
+    {
+      "step": 1,
+      "values": {
+        "Buffer": 2,
+        "Feeder": 10,
+        "Gauge A": 1,
+        "Gauge B": 4,
+        "Level": 5,
+        "Tank": 8
+      },
+      "fired": [
+        "Gauge Source",
+        "Pulse Source"
+      ],
+      "stateEvents": [
+        {
+          "edgeId": "a_ga_pd",
+          "from": "gauge_a",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": false
+          }
+        },
+        {
+          "edgeId": "a_gb_pd",
+          "from": "gauge_b",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "m_level_set",
+          "from": "feeder",
+          "to": "level",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 7,
+            "clampAdjustment": -2
+          }
+        },
+        {
+          "edgeId": "m_tank_addS",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 10,
+            "clampAdjustment": 0
+          }
+        },
+        {
+          "edgeId": "m_tank_sub",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": -1,
+            "clampAdjustment": -1
+          }
+        }
+      ],
+      "queue": [
+        {
+          "edgeId": "t_pd_a",
+          "target": "Passive Drain",
+          "deliveryStep": 2
+        },
+        {
+          "edgeId": "t_pd_b",
+          "target": "Passive Drain",
+          "deliveryStep": 2
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 4
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "values": {
+        "Buffer": 4,
+        "Feeder": 10,
+        "Gauge A": 2,
+        "Gauge B": 4,
+        "Level": 5,
+        "Tank": 4
+      },
+      "fired": [
+        "Gauge Source",
+        "Pulse Source",
+        "Tank Drain"
+      ],
+      "stateEvents": [
+        {
+          "edgeId": "a_ga_pd",
+          "from": "gauge_a",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": false
+          }
+        },
+        {
+          "edgeId": "a_gb_pd",
+          "from": "gauge_b",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "m_level_set",
+          "from": "feeder",
+          "to": "level",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 2,
+            "clampAdjustment": -2
+          }
+        },
+        {
+          "edgeId": "m_tank_addS",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 10,
+            "clampAdjustment": 0
+          }
+        },
+        {
+          "edgeId": "m_tank_sub",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": -1,
+            "clampAdjustment": -9
+          }
+        },
+        {
+          "edgeId": "t_pd_a",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": false
+          }
+        },
+        {
+          "edgeId": "t_pd_b",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": false
+          }
+        }
+      ],
+      "queue": [
+        {
+          "edgeId": "t_pd_a",
+          "target": "Passive Drain",
+          "deliveryStep": 3
+        },
+        {
+          "edgeId": "t_pd_b",
+          "target": "Passive Drain",
+          "deliveryStep": 3
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 4
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 5
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "values": {
+        "Buffer": 6,
+        "Feeder": 10,
+        "Gauge A": 3,
+        "Gauge B": 4,
+        "Level": 5,
+        "Tank": 4
+      },
+      "fired": [
+        "Gauge Source",
+        "Pulse Source",
+        "Tank Drain"
+      ],
+      "stateEvents": [
+        {
+          "edgeId": "a_ga_pd",
+          "from": "gauge_a",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": false
+          }
+        },
+        {
+          "edgeId": "a_gb_pd",
+          "from": "gauge_b",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "m_level_set",
+          "from": "feeder",
+          "to": "level",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 2,
+            "clampAdjustment": -2
+          }
+        },
+        {
+          "edgeId": "m_tank_addS",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 10,
+            "clampAdjustment": 0
+          }
+        },
+        {
+          "edgeId": "m_tank_sub",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": -1,
+            "clampAdjustment": -5
+          }
+        },
+        {
+          "edgeId": "t_pd_a",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": false
+          }
+        },
+        {
+          "edgeId": "t_pd_b",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": false
+          }
+        }
+      ],
+      "queue": [
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 4
+        },
+        {
+          "edgeId": "t_pd_a",
+          "target": "Passive Drain",
+          "deliveryStep": 4
+        },
+        {
+          "edgeId": "t_pd_b",
+          "target": "Passive Drain",
+          "deliveryStep": 4
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 5
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 6
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "values": {
+        "Buffer": 6,
+        "Feeder": 10,
+        "Gauge A": 4,
+        "Gauge B": 4,
+        "Level": 5,
+        "Tank": 4
+      },
+      "fired": [
+        "Gauge Source",
+        "Interactive Drain",
+        "Passive Drain",
+        "Pulse Source",
+        "Tank Drain"
+      ],
+      "stateEvents": [
+        {
+          "edgeId": "a_ga_pd",
+          "from": "gauge_a",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "a_gb_pd",
+          "from": "gauge_b",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "m_level_set",
+          "from": "feeder",
+          "to": "level",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 2,
+            "clampAdjustment": -2
+          }
+        },
+        {
+          "edgeId": "m_tank_addS",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 10,
+            "clampAdjustment": 0
+          }
+        },
+        {
+          "edgeId": "m_tank_sub",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": -1,
+            "clampAdjustment": -5
+          }
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "from": "pulse_src",
+          "to": "interactive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        },
+        {
+          "edgeId": "t_pd_a",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        },
+        {
+          "edgeId": "t_pd_b",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        }
+      ],
+      "queue": [
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 5
+        },
+        {
+          "edgeId": "t_pd_a",
+          "target": "Passive Drain",
+          "deliveryStep": 5
+        },
+        {
+          "edgeId": "t_pd_b",
+          "target": "Passive Drain",
+          "deliveryStep": 5
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 6
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 7
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "values": {
+        "Buffer": 6,
+        "Feeder": 10,
+        "Gauge A": 5,
+        "Gauge B": 4,
+        "Level": 5,
+        "Tank": 4
+      },
+      "fired": [
+        "Gauge Source",
+        "Interactive Drain",
+        "Passive Drain",
+        "Pulse Source",
+        "Tank Drain"
+      ],
+      "stateEvents": [
+        {
+          "edgeId": "a_ga_pd",
+          "from": "gauge_a",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "a_gb_pd",
+          "from": "gauge_b",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "m_level_set",
+          "from": "feeder",
+          "to": "level",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 2,
+            "clampAdjustment": -2
+          }
+        },
+        {
+          "edgeId": "m_tank_addS",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 10,
+            "clampAdjustment": 0
+          }
+        },
+        {
+          "edgeId": "m_tank_sub",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": -1,
+            "clampAdjustment": -5
+          }
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "from": "pulse_src",
+          "to": "interactive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        },
+        {
+          "edgeId": "t_pd_a",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        },
+        {
+          "edgeId": "t_pd_b",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        }
+      ],
+      "queue": [
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 6
+        },
+        {
+          "edgeId": "t_pd_a",
+          "target": "Passive Drain",
+          "deliveryStep": 6
+        },
+        {
+          "edgeId": "t_pd_b",
+          "target": "Passive Drain",
+          "deliveryStep": 6
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 7
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 8
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "values": {
+        "Buffer": 6,
+        "Feeder": 10,
+        "Gauge A": 6,
+        "Gauge B": 4,
+        "Level": 5,
+        "Tank": 4
+      },
+      "fired": [
+        "Gauge Source",
+        "Interactive Drain",
+        "Passive Drain",
+        "Pulse Source",
+        "Tank Drain"
+      ],
+      "stateEvents": [
+        {
+          "edgeId": "a_ga_pd",
+          "from": "gauge_a",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "a_gb_pd",
+          "from": "gauge_b",
+          "to": "passive_drain",
+          "mode": "activator",
+          "effect": {
+            "kind": "activator",
+            "satisfied": true
+          }
+        },
+        {
+          "edgeId": "m_level_set",
+          "from": "feeder",
+          "to": "level",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 2,
+            "clampAdjustment": -2
+          }
+        },
+        {
+          "edgeId": "m_tank_addS",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": 10,
+            "clampAdjustment": 0
+          }
+        },
+        {
+          "edgeId": "m_tank_sub",
+          "from": "feeder",
+          "to": "tank",
+          "mode": "label",
+          "effect": {
+            "kind": "label",
+            "delta": -1,
+            "clampAdjustment": -5
+          }
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "from": "pulse_src",
+          "to": "interactive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        },
+        {
+          "edgeId": "t_pd_a",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        },
+        {
+          "edgeId": "t_pd_b",
+          "from": "pulse_src",
+          "to": "passive_drain",
+          "mode": "trigger",
+          "effect": {
+            "kind": "trigger",
+            "delivered": true,
+            "applied": true
+          }
+        }
+      ],
+      "queue": [
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 7
+        },
+        {
+          "edgeId": "t_pd_a",
+          "target": "Passive Drain",
+          "deliveryStep": 7
+        },
+        {
+          "edgeId": "t_pd_b",
+          "target": "Passive Drain",
+          "deliveryStep": 7
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 8
+        },
+        {
+          "edgeId": "t_id_delayed",
+          "target": "Interactive Drain",
+          "deliveryStep": 9
+        }
+      ]
+    }
+  ],
+  "roundTrip": {
+    "matchesTrace": true
+  },
+  "arrayReverse": {
+    "matchesTrace": true
+  },
+  "monteCarlo": {
+    "perRunIsolation": true,
+    "syncEqualsCooperative": true,
+    "syncEqualsParallel": true,
+    "tankTerminalAllEqual": true
+  }
+}
