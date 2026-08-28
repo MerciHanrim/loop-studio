@@ -53,6 +53,7 @@ type GraphStore = {
   setSelection: (nodeId: string | null, edgeId: string | null) => void
   newGraph: () => void
   loadGraph: (snapshot: Snapshot) => void
+  loadDoc: (doc: { nodes: LoopNode[]; edges: LoopEdge[] }) => void
   /** returns the file's `recommendedRunConfig` (if any) for the caller to apply */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
   exportJSON: (recommendedRunConfig?: RecommendedRunConfig) => string
@@ -323,12 +324,19 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     loadJSON: (text) => {
       const { nodes, edges, recommendedRunConfig } = deserialize(text)
+      get().loadDoc({ nodes, edges })
+      return recommendedRunConfig
+    },
+
+    /** load already-deserialized (and normalized) nodes/edges — one `bump()`.
+     *  Used by `loadJSON` and by the Workspace importer so the whole restore is
+     *  a single `simulationRev` step (SEMANTICS-W.md §W5.1). */
+    loadDoc: ({ nodes, edges }) => {
       commit('')
       lastTag = ''
       set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
       bump()
       persist()
-      return recommendedRunConfig
     },
 
     exportJSON: (recommendedRunConfig) =>

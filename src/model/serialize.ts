@@ -26,6 +26,10 @@ export type GraphDoc = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   recommendedRunConfig?: RecommendedRunConfig
+  /** loop-workspace/1 extension (SEMANTICS-W.md) — an opaque blob here; the
+   *  Workspace reader validates it against the loaded graph. Absent on a plain
+   *  Graph Export. */
+  workspace?: unknown
 }
 
 const KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
@@ -98,10 +102,14 @@ export function serialize(
   nodes: LoopNode[],
   edges: LoopEdge[],
   recommendedRunConfig?: RecommendedRunConfig,
+  workspace?: unknown,
 ): string {
   const doc: GraphDoc = { schema: SCHEMA, version: SCHEMA_VERSION, nodes, edges }
   if (recommendedRunConfig && typeof recommendedRunConfig === 'object') {
     doc.recommendedRunConfig = recommendedRunConfig
+  }
+  if (workspace && typeof workspace === 'object') {
+    doc.workspace = workspace
   }
   return JSON.stringify(doc, null, 2)
 }
@@ -110,6 +118,8 @@ export function deserialize(text: string): {
   nodes: LoopNode[]
   edges: LoopEdge[]
   recommendedRunConfig?: RecommendedRunConfig
+  /** raw, unvalidated — the Workspace reader checks it against the loaded graph */
+  workspace?: unknown
 } {
   let raw: unknown
   try {
@@ -131,9 +141,14 @@ export function deserialize(text: string): {
     obj.recommendedRunConfig && typeof obj.recommendedRunConfig === 'object' && !Array.isArray(obj.recommendedRunConfig)
       ? (obj.recommendedRunConfig as RecommendedRunConfig)
       : undefined
+  const workspace =
+    obj.workspace && typeof obj.workspace === 'object' && !Array.isArray(obj.workspace)
+      ? obj.workspace
+      : undefined
   return {
     ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
+    ...(workspace ? { workspace } : {}),
   }
 }
 

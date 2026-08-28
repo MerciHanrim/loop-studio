@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { SimState, SimValues, StateEvent, TriggerQueueEntry } from '../engine'
+import { MAX_SERIES } from '../model/limits'
 import { useGraphStore } from './graphStore'
 
 export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
@@ -32,12 +33,27 @@ type SimStore = {
   pause: () => void
   stepOnce: () => void
   reset: () => void
+  /** replace the head with a verified snapshot (Workspace Import, SEMANTICS-W.md
+   *  §W5 / D1). Always lands paused / ended — never running, never a timer. Does
+   *  NOT touch the graph store, so it triggers no `simulationRev` bump. */
+  restoreSnapshot: (snap: SimSnapshot) => void
   setSpeed: (ms: number) => void
   setSeed: (seed: number) => void
   toggleTracked: (id: string, allPoolIds: string[]) => void
 }
 
-const MAX_SERIES = 400
+export type SimSnapshot = {
+  /** null ⇒ keep the current seed */
+  seed: number | null
+  step: number
+  ended: boolean
+  values: SimValues
+  fired: string[]
+  triggerQueue: TriggerQueueEntry[]
+  stateEvents: StateEvent[]
+  series: { step: number; values: SimValues }[]
+}
+
 let timer: ReturnType<typeof setInterval> | undefined
 
 export const useSimStore = create<SimStore>((set, get) => {
@@ -138,6 +154,24 @@ export const useSimStore = create<SimStore>((set, get) => {
         stateEvents: [],
         arrivedPoolIds: [],
         series: [{ step: 0, values: init.values }],
+      })
+    },
+
+    restoreSnapshot: (snap) => {
+      stopTimer()
+      set({
+        status: snap.ended ? 'ended' : 'paused',
+        stepIndex: snap.step,
+        values: snap.values,
+        firedNodeIds: snap.fired,
+        triggerQueue: snap.triggerQueue,
+        stateEvents: snap.stateEvents,
+        // exactly the file's (validated) history — never fabricated. The chart
+        // handles an empty list; the next Step / Reset rebuilds it.
+        series: snap.series,
+        activeByEdge: {},
+        arrivedPoolIds: [],
+        ...(snap.seed != null ? { seed: snap.seed } : {}),
       })
     },
 

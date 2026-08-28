@@ -9,6 +9,7 @@ import App from './App.tsx'
 import { useGraphStore } from './store/graphStore'
 import { useMcStore } from './store/mcStore'
 import { useSimStore } from './store/simStore'
+import * as workspaceIO from './store/workspaceIO'
 
 // Dev-only store bridge for browser E2E (never in the production / portable
 // build — `import.meta.env.DEV` is statically false there and tree-shaken out).
@@ -17,6 +18,7 @@ if (import.meta.env.DEV) {
     graph: useGraphStore,
     sim: useSimStore,
     mc: useMcStore,
+    io: workspaceIO,
   }
 }
 

@@ -78,6 +78,17 @@ async function exportJsonText(page: Page): Promise<string> {
   return json!.text
 }
 
+/** toolbar `Export ▾` → `Workspace JSON` (accepts the summary confirm) */
+async function exportWorkspaceText(page: Page): Promise<string> {
+  page.once('dialog', (d) => d.accept().catch(() => {}))
+  await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
+  await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Workspace JSON' }).click()
+  const exports = await capturedExports(page)
+  const ws = exports.findLast((e) => e.name === 'loop-studio-workspace.json')
+  expect(ws, 'a workspace export was captured on file://').toBeTruthy()
+  return ws!.text
+}
+
 test.describe('portable file://', () => {
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
     test.setTimeout(60_000)
@@ -176,5 +187,34 @@ test.describe('portable file://', () => {
 
     // whole MonteCarloResult, nothing excluded
     expect(JSON.parse(portableJson)).toEqual(JSON.parse(httpJson))
+  })
+
+  test('Workspace round-trip on file:// — SHA-256 digest works, result restores non-stale', async ({ page }) => {
+    test.setTimeout(60_000)
+    await openPortable(page)
+    await startMc(page, 60, 8, 1) // small, fast — fills the dialog fields
+    await expect(page.locator('.dist')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.dist__stale')).toHaveCount(0)
+
+    const wsText = await exportWorkspaceText(page)
+    const ws = JSON.parse(wsText).workspace
+    expect(ws.schema).toBe('loop-workspace/1')
+    expect(ws.mc.result).toBeDefined()
+    // the digest was minted on file:// (crypto.subtle or the pure-JS fallback)
+    expect(ws.mc.resultGraphDigest).toMatch(/^[0-9a-f]{64}$/)
+
+    // re-import the captured workspace file, unchanged
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'loop-studio-workspace.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(wsText, 'utf8'),
+    })
+    // graph reloads (18 nodes) and the distribution comes back NOT stale —
+    // proof the file:// digest recomputed to the same value
+    await expect(page.locator('.react-flow__node')).toHaveCount(18)
+    await expect(page.locator('.dist')).toBeVisible()
+    await expect(page.locator('.dist__stale')).toHaveCount(0)
+    // nothing auto-ran: the play control is idle
+    await expect(page.locator('.pb-btn', { hasText: 'Play' })).toBeVisible()
   })
 })

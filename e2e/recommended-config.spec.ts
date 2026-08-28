@@ -19,6 +19,12 @@ const mcConfig = (page: Page) =>
 const setConfig = (page: Page, c: Record<string, unknown>) =>
   page.evaluate((v) => (window as any).__loop.mc.getState().setConfig(v), c)
 
+/** toolbar `Export ▾` → `Graph JSON` */
+async function exportGraphJSON(page: Page) {
+  await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
+  await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Graph JSON' }).click()
+}
+
 test.describe('recommendedRunConfig', () => {
   test('importing Risky Factory applies its recommended MC config (no dialog)', async ({ page }) => {
     await openApp(page)
@@ -42,7 +48,7 @@ test.describe('recommendedRunConfig', () => {
     await importGraph(page, readRiskyFactory())
     await setConfig(page, { baseSeed: 7, runs: 250, steps: 18, tracked: ['components'] })
 
-    await page.getByRole('button', { name: 'Export' }).click()
+    await exportGraphJSON(page)
     const exports = await capturedExports(page)
     const file = exports.findLast((e) => e.name.endsWith('.json'))
     expect(file).toBeTruthy()
@@ -59,7 +65,7 @@ test.describe('recommendedRunConfig', () => {
     expect(await mcConfig(page)).toEqual(RF_RECOMMENDED)
 
     // export, then reset everything and re-import the exported bytes
-    await page.getByRole('button', { name: 'Export' }).click()
+    await exportGraphJSON(page)
     const exports = await capturedExports(page)
     const exported = exports.findLast((e) => e.name.endsWith('.json'))!.text
 

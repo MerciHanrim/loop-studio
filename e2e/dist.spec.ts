@@ -86,7 +86,11 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig
-    await page.getByRole('button', { name: 'Export', exact: true }).click() // toolbar, not "Export ▾"
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
+    await page
+      .locator('.toolbar__actions .menu__pop')
+      .getByRole('menuitem', { name: 'Graph JSON' })
+      .click()
     const graphFile = (await capturedExports(page)).findLast((e) => e.name === 'loop-studio-graph.json')
     expect(graphFile).toBeTruthy()
     const graphDoc = JSON.parse(graphFile!.text)

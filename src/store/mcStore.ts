@@ -7,6 +7,7 @@ import {
   type RunConfig,
 } from '../engine'
 import type { RecommendedRunConfig } from '../model/serialize'
+import { semanticDigest } from '../model/workspace'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
 
@@ -43,8 +44,16 @@ type McStore = {
   /** the graph's simulation semantics changed since `result` — still viewable,
    *  export disabled, cleared on the next successful run or on Clear */
   stale: boolean
+  /** semantic digest of the graph that PRODUCED `result` (SEMANTICS-W.md §W3.2).
+   *  Made only on a completed run; carried verbatim through Workspace
+   *  export/restore — never recomputed against a later graph. */
+  resultGraphDigest: string | null
 
   view: McView
+  /** which Pool the Distribution band chart shows (persisted in a Workspace) */
+  distributionPoolId: string | null
+  /** whether the band chart draws the mean line (persisted in a Workspace) */
+  showMean: boolean
   dialogOpen: boolean
 
   setConfig: (patch: Partial<RunConfig>) => void
@@ -53,6 +62,11 @@ type McStore = {
   openDialog: () => void
   closeDialog: () => void
   setView: (v: McView) => void
+  setDistributionPoolId: (id: string | null) => void
+  setShowMean: (v: boolean) => void
+  /** attach a result restored from a Workspace file WITHOUT recomputing its
+   *  digest (SEMANTICS-W.md §W3.2 / §W5.1). `null` clears any result. */
+  restoreResult: (p: { result: MonteCarloResult; resultGraphDigest: string; stale: boolean } | null) => void
   run: () => Promise<void>
   cancel: () => void
   clear: () => void
@@ -72,6 +86,9 @@ export const useMcStore = create<McStore>((set, get) => ({
   runRev: -1,
   lastThroughput: null,
   stale: false,
+  resultGraphDigest: null,
+  distributionPoolId: null,
+  showMean: false,
   view: 'live',
   dialogOpen: false,
 
@@ -108,6 +125,38 @@ export const useMcStore = create<McStore>((set, get) => ({
   openDialog: () => set({ dialogOpen: true }),
   closeDialog: () => set({ dialogOpen: false }),
   setView: (v) => set({ view: v }),
+  setDistributionPoolId: (id) => set({ distributionPoolId: id }),
+  setShowMean: (v) => set({ showMean: v }),
+
+  restoreResult: (p) => {
+    const rev = useGraphStore.getState().simulationRev
+    if (!p) {
+      set({
+        status: 'idle',
+        result: null,
+        runGraph: null,
+        runRev: rev,
+        resultGraphDigest: null,
+        stale: false,
+        progress: 0,
+        completedRuns: 0,
+      })
+      return
+    }
+    set({
+      status: 'done',
+      result: p.result,
+      // the producing graph is not carried in the file; the digest is the binding
+      runGraph: null,
+      // current rev ⇒ the simulationRev subscription won't re-stale this (§W5.1)
+      runRev: rev,
+      resultGraphDigest: p.resultGraphDigest,
+      stale: p.stale,
+      progress: 1,
+      completedRuns: p.result.completedRuns,
+      message: '',
+    })
+  },
 
   run: async () => {
     if (get().status === 'running') return
@@ -137,11 +186,14 @@ export const useMcStore = create<McStore>((set, get) => ({
       })
       const wallMs = performance.now() - t0
       const denom = Math.max(1, result.completedRuns * config.steps)
+      // §W3.2 — the digest is minted here, from the graph this run executed on
+      const resultGraphDigest = await semanticDigest({ nodes, edges })
       set({
         status: 'done',
         result,
         runGraph: { nodes, edges },
         runRev: rev,
+        resultGraphDigest,
         lastThroughput: { rev, msPerRunStep: wallMs / denom },
         stale: false,
         progress: 1,
@@ -176,12 +228,15 @@ export const useMcStore = create<McStore>((set, get) => ({
       result: null,
       runGraph: null,
       runRev: -1,
+      resultGraphDigest: null,
       lastThroughput: null,
       stale: false,
       progress: 0,
       completedRuns: 0,
       message: '',
       view: 'live',
+      distributionPoolId: null,
+      showMean: false,
     })
   },
 }))
