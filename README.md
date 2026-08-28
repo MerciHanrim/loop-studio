@@ -6,10 +6,11 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview.** The diagram editor and the simulation engine
-> (deterministic + seeded randomness + Monte Carlo) are usable today. Execution
-> semantics are pinned down in frozen spec documents (see [Semantics](#semantics));
-> state connections are landing slice by slice.
+> Status: **working preview** (v0.3.0). The diagram editor and the simulation
+> engine — deterministic, seeded randomness, Monte Carlo, and executable state
+> connections (`trigger` / `activator` / `label`) — are all usable today.
+> Execution semantics are pinned down in frozen spec documents (see
+> [Semantics](#semantics)).
 
 ## Why
 
@@ -78,15 +79,30 @@ spec id, never an edit to a frozen one.
 - ✅ Engine B — seeded RNG, random flows, probabilistic gates
 - ✅ Monte Carlo — engine, dialog UI, percentile bands, result export/import
 - ✅ Cloudflare Pages deployment + GitHub Actions CI + protected `main`
-- ✅ Onboarding, part 1 — starter templates, verification fixture, Risky Factory example
-- ◐ State connections (`loop-state/1` → `loop-state/2`)
+- ✅ Onboarding, part 1 — starter templates, Engine-B + State verification fixtures, Risky Factory example
+- ✅ State connections (`loop-state/1` + `loop-state/2`) — **v0.3.0**
   - ✅ Trigger + delay
   - ✅ Activator + comparison conditions
-  - ◐ Label modifier — value semantics `loop-state/1`, event report `loop-state/2` *(current PR)*
-  - ☐ Inspector fields + in-canvas state pulse / tint / flash
+  - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
+  - ✅ Inspector fields + in-canvas pulse / tint / flash
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
 - ☐ Ship — workspace export, shareable URLs, offline PWA
 - ☐ Advanced Monte-Carlo worker-count setting
+
+## Releases
+
+**v0.3.0 — executable state connections.** State edges (`trigger` with an
+integer `delay`, AND-combined `activator` level gates, `label` Pool modifiers)
+now run as a Phase 0 at the top of every step — frozen as `loop-state/1`, with
+the `label` event-report shape frozen separately as `loop-state/2`
+([`SEMANTICS-S.md`](SEMANTICS-S.md), [`SEMANTICS-S2.md`](SEMANTICS-S2.md)). The
+Inspector edits each mode with live validation; the canvas shows a travelling
+pulse on a trigger's delivery step, a steady tint for an open activator, and a
+`delta` flash (plus a separate clamp note) for a label. Covered end-to-end by
+`examples/state-verification.json` and its committed trace.
+
+v0.2.0 shipped Engine B (seeded RNG, probabilistic gates) and the Monte-Carlo
+engine + UI.
 
 ## Credits
 
