@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode } from '../model/types'
 import type { SimState } from './index'
-import { initSim, step } from './index'
+import { categorical, initSim, sample, step } from './index'
 
 // SEMANTICS-S.md loop-state/1 — Slice 2: `activator` (continuous AND level gate).
 // §S11 Case S-B / S-B2 are the acceptance vectors; I8-S is the determinism check.
@@ -207,6 +207,106 @@ describe('a disabled Gate / Converter keeps its input upstream', () => {
     for (let s = 1; s <= 5; s++) {
       expect(frames[s].values.P).toBe(3 * s)
       expect(frames[s].values.Q ?? 0).toBe(0)
+    }
+  })
+})
+
+// ── probabilistic Gate + an activator-disabled branch: no reroll ────────
+// SEMANTICS-S.md §S4 + SEMANTICS-B1.md §B4. A resource edge into a disabled
+// router is inert for *deterministic* re-splitting (a plain Gate / Converter
+// re-normalises over the branches that are still active — conservation holds).
+// A *probabilistic* Gate must NOT do that: it keeps its full branch set for the
+// `gate-route` draw. When the draw lands on the disabled branch it accepts 0 —
+// the resource stays upstream, with no redraw and no re-weighting (that would be
+// the frozen loop-rng/1 spill / reroll the spec forbids: 17:3:1 picking the
+// dead `1` does not become 17:3).
+describe('a probabilistic Gate keeps a disabled branch in the draw (no reroll)', () => {
+  const probGate = (id: string): LoopNode => ({
+    id, type: 'gate', position: XY,
+    data: { kind: 'gate', label: id, activation: 'automatic', distribution: 'probabilistic', mode: 'pullAny' },
+  })
+  // Src ─4→ P ─4→ PG(prob 1:3) ─┬ eA w1 → GX  (disabled: Gauge >= 100, never true)
+  //                             └ eB w3 → E   (drain)
+  const build = () => ({
+    nodes: [source('Src'), pool('P', 0), probGate('PG'), gate('GX'), drain('DX'), drain('E'), pool('Gauge', 0)],
+    edges: [
+      res('e_src', 'Src', 'P', '4'),
+      res('e_in', 'P', 'PG', '4'),
+      res('eA', 'PG', 'GX', '1'),
+      res('eB', 'PG', 'E', '3'),
+      res('eX', 'GX', 'DX', '1'),
+      act('a1', 'Gauge', 'GX', '>= 100'),
+    ],
+  })
+
+  type Rec = { values: Record<string, number>; fired: string[]; byEdge: Record<string, number> }
+  const trace = (nodes: LoopNode[], edges: LoopEdge[], steps: number): Rec[] => {
+    let st: SimState = initSim(nodes)
+    const out: Rec[] = [{ values: { ...st.values }, fired: [], byEdge: {} }]
+    for (let i = 1; i <= steps; i++) {
+      const r = step(nodes, edges, st, 1)
+      st = r.state
+      const byEdge: Record<string, number> = {}
+      for (const ev of r.report.events) byEdge[ev.edgeId] = (byEdge[ev.edgeId] ?? 0) + ev.amount
+      out.push({ values: { ...st.values }, fired: r.report.fired, byEdge })
+    }
+    return out
+  }
+
+  const { nodes, edges } = build()
+  const t = trace(nodes, edges, 12)
+  // the seed-1 `gate-route` draw over the FULL weight set [eA:1, eB:3]
+  const picksDead = (s: number) => categorical([1, 3], sample(1, s, 'PG', 'gate-route', 0).u) === 0
+  const deadSteps = [1, 5, 7, 8, 9]
+
+  it('the branch taken each step is the full-set categorical pick (weights not re-normalised)', () => {
+    for (let s = 1; s <= 12; s++) expect(picksDead(s)).toBe(deadSteps.includes(s))
+  })
+
+  it('a draw landing on the disabled branch moves nothing — the resource stays in P', () => {
+    for (const s of deadSteps) {
+      expect(t[s].byEdge.eA ?? 0).toBe(0) // dead branch carries nothing
+      expect(t[s].byEdge.eB ?? 0).toBe(0) // NOT rerouted to the open branch
+      expect(t[s].byEdge.e_in ?? 0).toBe(0) // the gate pulled nothing from P
+      expect(t[s].values.P - t[s - 1].values.P).toBe(4) // only the +4 Src push
+      expect(t[s].fired).not.toContain('PG')
+    }
+  })
+
+  it('a draw landing on the open branch routes the whole pulled amount down eB', () => {
+    for (let s = 1; s <= 12; s++) {
+      if (deadSteps.includes(s)) continue
+      const pulled = t[s].byEdge.e_in ?? 0
+      expect(pulled).toBeGreaterThan(0)
+      expect(t[s].byEdge.eB ?? 0).toBeCloseTo(pulled)
+      expect(t[s].byEdge.eA ?? 0).toBe(0)
+    }
+  })
+
+  it('the disabled router never runs — GX absent from fired, DX / eX stay empty', () => {
+    for (let s = 1; s <= 12; s++) {
+      expect(t[s].fired).not.toContain('GX')
+      expect(t[s].byEdge.eX ?? 0).toBe(0)
+      expect(t[s].values.DX ?? 0).toBe(0)
+    }
+  })
+
+  it('P trace is exactly [0, 4, 4, 4, 4, 8, 8, 12, 16, 20, 20, 20, 20]', () => {
+    expect(t.map((f) => f.values.P)).toEqual([0, 4, 4, 4, 4, 8, 8, 12, 16, 20, 20, 20, 20])
+  })
+
+  it('conservation — every unit Src pushed is either still in P or drained through E', () => {
+    const pushed = t.slice(1).reduce((a, f) => a + (f.byEdge.e_src ?? 0), 0)
+    const drained = t.slice(1).reduce((a, f) => a + (f.byEdge.eB ?? 0), 0)
+    expect(drained + t[12].values.P).toBeCloseTo(pushed)
+  })
+
+  it('I8-S — identical under node / edge array reversal', () => {
+    const r = trace([...nodes].reverse(), [...edges].reverse(), 12)
+    expect(r.map((f) => f.values.P)).toEqual(t.map((f) => f.values.P))
+    for (let s = 1; s <= 12; s++) {
+      expect(r[s].byEdge.eB ?? 0).toBeCloseTo(t[s].byEdge.eB ?? 0)
+      expect(r[s].byEdge.eA ?? 0).toBe(t[s].byEdge.eA ?? 0)
     }
   })
 })

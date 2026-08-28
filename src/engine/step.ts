@@ -286,12 +286,20 @@ export function step(
   const rIds = new Set(routers.map((r) => r.id))
   const dead = new Set<string>() // edge ids on a router-only cycle
   // a resource edge into a disabled router is inert — the upstream keeps the
-  // resource (§S4): treated exactly like a dead branch so gates / converters
-  // skip it and re-split over the rest, and nothing is orphaned in an inbox.
+  // resource (§S4). This is kept SEPARATE from `dead`: a *deterministic* gate /
+  // converter re-splits its output over the still-active branches (allowed —
+  // conservation holds), but a *probabilistic* gate must keep its full branch
+  // set for the `gate-route` draw (frozen loop-rng/1 no-spill / no-reroll). A
+  // probabilistic pick that lands on a disabled branch simply accepts 0, so the
+  // resource stays upstream — no redraw, no re-normalised weights.
+  const disabledInto = new Set<string>()
   for (const e of resEdges) {
     const k = kindOf(e.target)
-    if (k && ROUTER_KINDS.has(k) && !isEnabled(e.target)) dead.add(e.id)
+    if (k && ROUTER_KINDS.has(k) && !isEnabled(e.target)) disabledInto.add(e.id)
   }
+  // deterministic routing / accept / reserve skip both a dead branch and a
+  // branch into a disabled router; `pickBranch` (probabilistic) skips only `dead`.
+  const skipDet = (id: string): boolean => dead.has(id) || disabledInto.has(id)
 
   // Kahn topological sort of router→router edges, ascending-id tiebreak
   const indeg = new Map(routers.map((r) => [r.id, 0]))
@@ -369,7 +377,7 @@ export function step(
         const sumIn = sumInRate(id)
         let fmax = 1
         for (const e of outOf(id)) {
-          if (dead.has(e.id)) continue
+          if (skipDet(e.id)) continue
           const r = rateOfCached(e)
           if (r <= EPSILON) continue
           fmax = Math.min(fmax, accept(e.target) / r)
@@ -381,7 +389,7 @@ export function step(
           const sel = pickBranch(byId.get(id)!)
           v = sel ? accept(sel.target) : 0
         } else {
-          const outs = outOf(id).filter((e) => !dead.has(e.id))
+          const outs = outOf(id).filter((e) => !skipDet(e.id))
           const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
           if (sumW <= EPSILON) v = 0
           else {
@@ -407,7 +415,7 @@ export function step(
       const sumIn = sumInRate(destId)
       const f = sumIn > EPSILON ? Math.min(1, amountIn / sumIn) : 0
       for (const e of outOf(destId)) {
-        if (dead.has(e.id)) continue
+        if (skipDet(e.id)) continue
         const q = nz(f * rateOfCached(e))
         if (q <= 0) continue
         if (isPool(e.target)) {
@@ -417,15 +425,17 @@ export function step(
       }
     } else if (k === 'gate') {
       if (isProbGate(byId.get(destId))) {
-        // a probabilistic gate routes the whole amount down its one live branch
+        // a probabilistic gate routes the whole amount down its one live branch;
+        // if the draw landed on a disabled-router branch it reserves nothing and
+        // the resource stays upstream (no redraw — frozen loop-rng/1).
         const sel = pickBranch(byId.get(destId)!)
-        if (sel && !dead.has(sel.id)) {
+        if (sel && !skipDet(sel.id)) {
           if (isPool(sel.target)) reserved.set(sel.target, reservedOf(sel.target) + nz(amountIn))
           else planReserve(sel.target, nz(amountIn))
         }
         return
       }
-      const outs = outOf(destId).filter((e) => !dead.has(e.id))
+      const outs = outOf(destId).filter((e) => !skipDet(e.id))
       const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
       for (const e of outs) {
         const share = sumW > EPSILON ? nz((amountIn * rateOfCached(e)) / sumW) : 0
@@ -529,7 +539,7 @@ export function step(
         continue
       }
 
-      const outs = outOf(id).filter((e) => !dead.has(e.id))
+      const outs = outOf(id).filter((e) => !skipDet(e.id))
       const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
       for (const e of outs) {
         const share =
@@ -570,7 +580,7 @@ export function step(
       const own = ownReserve.get(id)
       let f = sumIn > EPSILON ? received / sumIn : 0
       for (const e of outOf(id)) {
-        if (dead.has(e.id)) continue
+        if (skipDet(e.id)) continue
         const r = rateOfCached(e)
         if (r <= EPSILON) continue
         const back = own?.get(e.target) ?? 0
@@ -581,7 +591,7 @@ export function step(
       if (f <= EPSILON) continue
 
       for (const e of outOf(id)) {
-        if (dead.has(e.id)) continue
+        if (skipDet(e.id)) continue
         const q = nz(f * rateOfCached(e))
         if (q <= 0) continue
         const held = Math.min(q, reservedOf(e.target))
