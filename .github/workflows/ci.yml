@@ -69,6 +69,8 @@ jobs:
         run: npm run e2e
       - name: E2E (production bundle)
         run: npm run e2e:dist
+      - name: E2E (PWA — service worker, offline, update)
+        run: npm run e2e:pwa
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4

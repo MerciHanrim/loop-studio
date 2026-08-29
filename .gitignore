@@ -11,6 +11,9 @@ node_modules
 dist
 dist-portable
 dist-pwa
+dist-pwa-a
+dist-pwa-b
+dist-pwa-c
 dist-ssr
 *.local
 

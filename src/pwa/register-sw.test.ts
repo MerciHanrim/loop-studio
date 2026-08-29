@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { decideUpdate, selectUpdateReady, usePwaStore } from '../store/pwaStore'
-import { wireRegistration } from './register-sw'
+import { isRegistrationAllowed, wireRegistration } from './register-sw'
 
 // docs/pwa.md §P4 — the waiting-worker boundary. Fakes stand in for the real
 // service-worker objects; `wireRegistration` is pure of `navigator` lookups.
@@ -166,6 +166,21 @@ describe('wireRegistration — waiting-worker boundary', () => {
 
     expect(reloadSpy()).not.toHaveBeenCalled()
     expect(ready()).toBe(false) // cleared / resynced
+  })
+})
+
+describe('isRegistrationAllowed (§P7 — Production host only)', () => {
+  // `__PWA_TEST_ORIGIN__` is '' in the vitest build, so only the real host passes
+  it('allows exactly the canonical Production origin', () => {
+    expect(isRegistrationAllowed('https://cozy-loop-studio.pages.dev')).toBe(true)
+  })
+  it('refuses a Cloudflare Preview subdomain', () => {
+    expect(isRegistrationAllowed('https://abc123.cozy-loop-studio.pages.dev')).toBe(false)
+  })
+  it('refuses localhost, a custom port, and file:// ("null")', () => {
+    expect(isRegistrationAllowed('http://localhost:5173')).toBe(false)
+    expect(isRegistrationAllowed('http://localhost:4174')).toBe(false)
+    expect(isRegistrationAllowed('null')).toBe(false)
   })
 })
 

@@ -11,6 +11,17 @@ import { usePwaStore } from '../store/pwaStore'
  *  explicit E2E preview origin (a build-time constant, never a window global). */
 const ALLOWED_ORIGINS = ['https://cozy-loop-studio.pages.dev']
 
+/** §P7 — Production host only. A Cloudflare **Preview** deploy
+ *  (`<hash>.cozy-loop-studio.pages.dev`), `localhost`, and `file://` (`origin`
+ *  === `"null"`) all fall through to `false`. `__PWA_TEST_ORIGIN__` is a build
+ *  define — `''` (and this clause dead) in every build except the PWA E2E one. */
+export function isRegistrationAllowed(origin: string): boolean {
+  return (
+    ALLOWED_ORIGINS.includes(origin) ||
+    (__PWA_TEST_ORIGIN__ !== '' && origin === __PWA_TEST_ORIGIN__)
+  )
+}
+
 type Store = Pick<
   ReturnType<typeof usePwaStore.getState>,
   'markWaiting' | 'clearWaiting' | 'setApplyFn'
@@ -76,12 +87,13 @@ export function wireRegistration(
 export async function registerPwa(): Promise<void> {
   if (!('serviceWorker' in navigator)) return
 
-  const allowed =
-    ALLOWED_ORIGINS.includes(location.origin) ||
-    (__PWA_TEST_ORIGIN__ !== '' && location.origin === __PWA_TEST_ORIGIN__)
-  if (!allowed) return
+  if (!isRegistrationAllowed(location.origin)) return
 
-  const reg = await navigator.serviceWorker.register('sw.js', { scope: '/' }).catch(() => null)
+  // `updateViaCache: 'none'` — an update check always re-fetches sw.js from the
+  // network, never the HTTP cache, so a new deploy is seen promptly (§P4).
+  const reg = await navigator.serviceWorker
+    .register('sw.js', { scope: '/', updateViaCache: 'none' })
+    .catch(() => null)
   if (!reg) return
 
   const { recheck } = wireRegistration(reg, navigator.serviceWorker, usePwaStore.getState())

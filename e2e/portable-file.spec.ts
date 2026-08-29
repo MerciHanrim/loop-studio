@@ -25,6 +25,16 @@ async function openPortable(page: Page): Promise<void> {
   await expect(page.locator('.toolbar')).toBeVisible()
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
   expect(await page.evaluate(() => Boolean((window as any).__loop))).toBe(false)
+  // the portable build ships no PWA layer and registers no service worker (§P6).
+  // (file:// usually has no `navigator.serviceWorker` at all — either way: none.)
+  expect(
+    await page.evaluate(async () => {
+      if (!('serviceWorker' in navigator)) return { regs: 0, controller: false }
+      const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+      return { regs: regs.length, controller: navigator.serviceWorker.controller != null }
+    }),
+  ).toEqual({ regs: 0, controller: false })
+  expect(await page.evaluate(() => document.querySelector('link[rel="manifest"]') != null)).toBe(false)
   await page.locator('input[type="file"]').setInputFiles(RF)
   await expect(page.locator('.react-flow__node')).toHaveCount(18)
 }
