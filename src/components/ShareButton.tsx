@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { SHARE_MAX_BYTES, encodeShareText } from '../model/share'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
-
-const DISCLOSURE =
-  'Create a share link?\n\n' +
-  'The link contains this entire diagram, including all labels — anyone with the link can open and edit it.\n\n' +
-  'The diagram travels inside the link itself: it is not uploaded to a server, but it will be in your browser ' +
-  'history and visible to anyone you send it to.'
-
-const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`
+import { SHARE_DISCLOSURE, prepareShareLink, shareKb } from '../ui/shareAction'
 
 type Panel = { url: string; copied: boolean }
 
@@ -27,6 +19,7 @@ export function ShareButton() {
   const wrapRef = useRef<HTMLDivElement>(null)
   const urlRef = useRef<HTMLInputElement>(null)
   const exportJSON = useGraphStore((s) => s.exportJSON)
+  const kb = shareKb
 
   useEffect(() => {
     if (!panel) return
@@ -46,54 +39,33 @@ export function ShareButton() {
     if (panel) urlRef.current?.select()
   }, [panel])
 
-  const shareCap = (): number => {
-    if (!import.meta.env.DEV) return SHARE_MAX_BYTES
-    return (window as unknown as { __shareMaxBytes?: number }).__shareMaxBytes ?? SHARE_MAX_BYTES
-  }
-
-  /**
-   * A share link is always built on the fixed public base (`__SHARE_BASE_URL__`,
-   * §U1.1) — never on `location`, which is `null` on `file://` and a private
-   * host on localhost / a Preview deploy, neither of which a recipient can open.
-   * Returns `null` if that base is not a valid http(s) URL (a build
-   * misconfiguration — surfaced as an error, never a silent `null/...` link).
-   */
-  const buildUrl = (payload: string): string | null => {
-    try {
-      const u = new URL(`#g1=${payload}`, __SHARE_BASE_URL__)
-      return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null
-    } catch {
-      return null
-    }
-  }
-
   const onShare = async () => {
     if (busy) return
     setPanel(null)
-    if (!window.confirm(DISCLOSURE)) return // §U4 — cancel: nothing happens
+    if (!window.confirm(SHARE_DISCLOSURE)) return // §U4 — cancel: nothing happens
 
     setBusy(true)
     try {
       const doc = exportJSON({ ...useMcStore.getState().config })
-      const { payload, bytes } = await encodeShareText(doc)
+      const result = await prepareShareLink(doc)
 
-      if (bytes > shareCap()) {
+      if (result.status === 'too-large') {
         // §U3.1 hard reject — no clipboard write, no address-bar change
         window.alert(
-          `This diagram is too large for a share link (${kb(bytes)}; limit ${kb(shareCap())}). ` +
+          `This diagram is too large for a share link (${kb(result.bytes)}; limit ${kb(result.cap)}). ` +
             `Use Export ▾ → Graph JSON and share the file instead.`,
         )
         return
       }
 
-      const url = buildUrl(payload)
-      if (url == null) {
+      if (result.status === 'no-base') {
         window.alert(
           'Share is not configured with a public address, so a link cannot be created. Please report this.',
         )
         return
       }
 
+      const url = result.url
       let copied = false
       try {
         await navigator.clipboard.writeText(url)

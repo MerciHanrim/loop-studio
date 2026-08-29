@@ -4,9 +4,11 @@ import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { NodeKind } from '../model/types'
 import { importFile } from '../store/workspaceIO'
+import { useIsMobile } from '../ui/media'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ExportMenu } from './ExportMenu'
 import { Logo } from './Logo'
+import { MobileTopBar } from './mobile/MobileTopBar'
 import { ShareButton } from './ShareButton'
 import { Templates } from './Templates'
 import { ThemeToggle } from './ThemeToggle'
@@ -33,6 +35,7 @@ export function Toolbar() {
   const canUndo = useGraphStore((s) => s.canUndo)
   const canRedo = useGraphStore((s) => s.canRedo)
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
+  const isMobile = useIsMobile()
 
   const addCentered = (kind: NodeKind) => {
     const rect = document.querySelector('.canvas')?.getBoundingClientRect()
@@ -63,6 +66,10 @@ export function Toolbar() {
       () => window.alert('Could not read that file.'),
     )
   }
+
+  // docs/mobile.md §MV6 — the mobile layout replaces the whole editing toolbar
+  // with a compact bar (Logo + a More menu). Desktop is untouched below.
+  if (isMobile) return <MobileTopBar />
 
   return (
     <header className="toolbar">
