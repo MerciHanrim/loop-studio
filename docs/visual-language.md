@@ -15,11 +15,17 @@ This formalises and extends the **N1 "Vessel"** system already on the canvas
 `src/index.css`). It is written so the later **Canvas Visual Refresh** slice can
 bring every existing node/edge onto one grammar in a single pass.
 
-> **Provisional.** Parameter and Register visuals (their silhouettes in §VL2.1,
-> the display-grouping note in §VL5.4, and the `invalid` row in §VL3) are marked
-> *provisional pending `loop-model/1`*. Their shapes, badges,
-> and the `invalid` treatment are sketches to be confirmed once the model spec
-> is drafted; nothing here fixes them.
+> **Parameter / Register visuals are fixed here.** `loop-expr/1` and
+> `loop-model/1` are **Frozen** (`SEMANTICS-X.md`, `SEMANTICS-M.md`), so the
+> **appearance and state representation** of Parameter and Register nodes — their
+> silhouettes (§VL2.1), the in-node layout (§VL2.4), the `invalid` treatment
+> (§VL3), and the display-grouping note (§VL5.4) — are now **normative** in this
+> doc, grounded in those specs. What stays deferred is *only verification*: until
+> the model-language **implementation** slice renders these nodes for real, they
+> sit behind a dev flag and their acceptance snapshots run against a
+> **provisional fixture** (§VL12.11), not the committed matrix. Rendering a
+> Parameter or Register — like any other node — changes **no** GraphDoc byte,
+> `loop-revision/*` digest, undo entry, or viewport (§VL10).
 
 ---
 
@@ -80,12 +86,16 @@ role; it is filled with `--surface-raised` (light) and outlined in
 | **gate** | a diamond (routes / decides) |
 | **converter** | a bow-tie (in one side, out the other) |
 | **end** | a rounded capsule (terminal) |
-| **parameter** *(provisional)* | a small rounded tag with a notched left edge (a knob you set) |
-| **register** *(provisional)* | a narrow lozenge with a `=` mark (a readout, not a container) |
+| **parameter** | a small rounded **tag with a notched left edge** — a knob you set. Non-colour tell vs register: the notch + a short stub "handle" on the notch side, and **no `=`**; the value sits in a slot, not after an equals sign |
+| **register** | a narrow **lozenge with a leading `=` glyph** — a readout, not a container. Non-colour tell vs parameter: the `=` is always drawn (struck through when `invalid`, §VL3), the outline is a single unbroken lozenge with no notch and no stub |
 
 Parameter and Register are visually **lighter** than the flow nodes — smaller,
-thinner stroke, no handles on the resource ports — to read as *annotations on*
-the model rather than *stages in* the flow.
+thinner stroke, no resource/state handles (§M1.3 / §M2: they have no ports and
+are never edge endpoints) — to read as *annotations on* the model rather than
+*stages in* the flow. The two are told apart **without colour**: the parameter's
+notch-and-stub silhouette vs the register's plain lozenge, and the register's
+persistent `=` glyph vs the parameter's slotted value. Neither shares a
+silhouette with any flow kind.
 
 ### VL2.2 Inside the node
 
@@ -111,9 +121,76 @@ Resource ports are the side circles (`out` right, `in` left); state ports are
 the top/bottom `state-*` handles. Handle affordance (size, hit area, hover
 halo) is unchanged from today; this doc does not touch connection behaviour.
 
----
+**Parameter and Register have no handles at all** — no resource port, no state
+port, no drag-to-connect affordance on any edge — because the model gives them
+no ports and forbids them as edge endpoints (`→ SEMANTICS-M.md §M1.3`, `§M2`).
+They participate only by being **referenced** from an expression.
 
-## VL3. Node states
+### VL2.4 Parameter and Register — in-node layout
+
+Fixed against the frozen model spec. Both use the §VL2.2 top-to-bottom order,
+but only the rows below ever apply to them.
+
+**Parameter** (`→ SEMANTICS-M.md §M1`):
+
+1. **Title** — `data.label`. One line, ellipsized.
+2. **Value** — `data.value`, the single semantic field: a finite number, large
+   tabular figures, shown **whether or not a run is live** (it is a constant,
+   not a per-step reading — §M1.1). A read-time-filled default reads `0` with the
+   Inspector's `PARAM_VALUE_FIXED` notice; the node itself shows no error cue —
+   **a Parameter is never `invalid`** (§M1.1), so it carries no struck-`=`, no
+   `—`, no warning outline for its own state.
+3. **Unit** — `data.unit` (already trim/NFC/≤24-byte normalised by the model,
+   §M1.2), a short suffix in `--text-tertiary` next to the value (`4.5 gold`).
+   Absent unit → value alone.
+4. **Advisory-range tell** — when `min`/`max`/`step` are present and coherent,
+   the value slot gets a thin **tick scale** underlay (min→max) with the current
+   value marked; this is decoration of an advisory hint, never a clamp. When the
+   stored `value` is outside `[min, max]` the mark sits at the clamped end of
+   the scale **and** a small `▲!`-style advisory dot appears on the value (the
+   Inspector shows `PARAM_VALUE_OUT_OF_RANGE`); the number itself is still shown
+   **as stored, unclamped** (§M1.2). A hint the model dropped at read time
+   (`PARAM_STEP_INVALID`, `PARAM_RANGE_INVALID`, `PARAM_UNIT_TOO_LONG` after
+   truncation) produces **no** canvas cue — only the Inspector notice.
+5. **Type chip** — §VL5.4 (display grouping only).
+
+No capacity bar, no expression row, no primary-value-from-run row.
+
+**Register** (`→ SEMANTICS-M.md §M2`, `§M3`):
+
+1. **Title** — `data.label`.
+2. **Computed value** — `R(currentStepIndex)` (§M3.5): the evaluation of the
+   Register against the current committed snapshot. Large tabular figures,
+   rendered through `data.format` (`int` rounds for display, `float` as-is,
+   `percent` shows `value × 100 %`) — display only; the digested value is the
+   raw number. Absent when no run is live, exactly like a pool's primary value.
+3. **Invalid state** — when the model reports the Register `invalid` (§M3.4):
+   the value area shows the neutral placeholder **`—`**, the leading `=` glyph
+   is **struck through** (the §VL3 `invalid` layer), and the outline takes the
+   `--warning` solid treatment. **No number is shown** — never `0`, never the
+   last valid value (§M6.2). The Inspector carries the enumerated model **code**
+   (`M_REG_PARSE` · `M_REG_EVAL` · `M_REG_UNKNOWN_REF` · `M_REG_WRONG_KIND` ·
+   `M_REG_INVALID_ID` · `M_REG_CYCLE` · `M_REG_DEPENDS_ON_INVALID`) plus a
+   message; the canvas shows only the placeholder + struck `=` (no code text on
+   the node).
+4. **Expression** — `data.expr` in `loop-expr/1` §X8 canonical form, one
+   monospace line in `--text-tertiary`, ellipsized, **as written** (never
+   evaluated or rewritten for display; a dangling `@id` after a delete stays
+   visible — §M5). This is the §VL2.2 "key expression" row; for a Register it is
+   **always** present (default `"0"`).
+5. **Unit** — `data.unit`, same placement as Parameter.
+6. **Type chip** — §VL5.4.
+
+**Timeline** — a step index where the Register is `invalid` is a **gap**: no
+series point, not a `0` and not an interpolated segment (§M6.2). When the
+Register recovers, the series resumes at the next index with no bridge across
+the gap. The timeline card marks the gap span with the same struck-`=` glyph in
+its legend row so the gap is not misread as missing data.
+
+**No content change from rendering.** Drawing either node — resting, invalid,
+mid-run, at any zoom — mutates no GraphDoc field and moves no digest, undo
+entry, or viewport (§VL10, VL-INV-1…6). A content change happens **only** when
+the user actually adds or edits a Parameter / Register (VL-INV-6).
 
 Each is an **additive** layer over the resting node. Colours are from
 `--state-*`; every state also has a non-colour tell.
@@ -129,11 +206,17 @@ Each is an **additive** layer over the resting node. Colours are from
 | **arrival** (a pool just received) | `--state-arrival` fill pulse at the `in` port | a small inbound chevron | one 320 ms pulse |
 | **blocked** (acted-but-nothing-happened, e.g. a gated-closed passive) | `--state-warning` outline | a hollow ⃠ badge, top-right | none — steady until state clears |
 | **conflict** (Review: this element differs base vs proposed vs yours) | `--warning` hatched outline | a ▲! badge; the Review panel lists it | none |
-| **invalid** *(provisional — register cycle / bad expression, `→ loop-model/1` / `loop-expr/1`)* | `--warning` solid outline | a struck-through `=` on the node; value shows `—`; a diagnostic in the Inspector | none |
+| **invalid** (a **Register** the model reports as `invalid` — parse / evaluate / unknown or wrong-kind / unreferenceable-id / cycle / depends-on-invalid, `→ SEMANTICS-M.md §M3.4`, `SEMANTICS-X.md §X7`) | `--warning` solid outline | the leading `=` glyph struck through; value shows `—` (**no number** — never `0`, never the last valid value, §M6.2); the enumerated `M_REG_*` code + message in the Inspector; a Timeline **gap** at every invalid step index | none — steady until the model clears it |
 
 Stacking: rings (focus inside selected) < step cues (fired glow, value slide) <
 persistent flags (blocked, conflict, invalid badges, always top-right, stacked
 downward in that order).
+
+The **`invalid`** state applies **only to Register** nodes (`→ SEMANTICS-M.md
+§M3`). A **Parameter is never `invalid`** (§M1.1): a bad `value` is read-time
+filled to `0`, and a bad advisory hint (`min`/`max`/`step`/`unit`) is dropped
+with an Inspector notice only — neither puts any error cue on the node.
+`selected` / `focus` / `conflict` (Review) still apply to both kinds normally.
 
 **Run controls do not restyle nodes.** `running` vs `paused` vs `ended` is
 shown by the run bar and the timeline head, not by the nodes.
@@ -205,10 +288,14 @@ changes — the line keeps its normal weight, the run proceeds. The Inspector's
 mismatch list is presented in a **stable order** so its rendering is
 deterministic (§VL10); the ordering key is a UI choice, not a wire rule.
 
-### VL5.4 Parameter / Register *(provisional)*
+### VL5.4 Parameter / Register
 
-Parameter and Register nodes may carry a type for display grouping only; they
-never sit on a resource edge, so §VL5.3 does not apply to them.
+Parameter and Register nodes may carry a type **for display grouping only** —
+the type chip's hue + name (§VL5.1), nothing more. They have no ports and never
+sit on a resource edge, so §VL5.3 mismatch does not apply to them and the model
+emits no finding for them (`→ SEMANTICS-M.md §M4.1`: `resourceType` lives only
+on a pool's `data` and a `resource` edge's `data`). If a build stores a type on
+one of these nodes it is rendered as the chip and otherwise ignored.
 
 ---
 
@@ -263,6 +350,23 @@ elements, never a resize or a re-route (§VL12.5).
 
 Grid fades out entering L1.
 
+**Parameter / Register at each level.** Same rule as every other kind — the
+§VL7.1 required set never drops:
+
+| Level | Parameter also shows | Register also shows |
+|---|---|---|
+| **L2** | title, value + unit, advisory tick scale, type chip | title, computed value, `expr` line, unit, type chip; struck `=` + `—` when `invalid` |
+| **L1** | title + value | title + computed value (or `—`); struck `=` kept when `invalid` |
+| **L0** | silhouette only (notch + stub), type dot | silhouette only (lozenge + `=`), type dot; the `=` stays **struck** when `invalid` |
+
+At **L0** both keep: the **role** silhouette (parameter's notch-and-stub vs
+register's plain lozenge — the non-colour tell survives), the **`invalid`**
+struck-`=` / `--warning` outline on a Register, the **selection / focus** rings,
+and any **run-in-progress** cue. Only text — the number, the unit, the `expr`
+line, the Inspector code — is elided. Neither node resizes or re-routes at a
+threshold (they have no edges to route); their footprint and hit target are
+byte-identical across L2/L1/L0 (§VL12.5).
+
 ---
 
 ## VL8. Light / Dark & accessibility
@@ -278,8 +382,13 @@ Grid fades out entering L1.
 - **Contrast** is held to the numeric floors in §VL11.2 and checked
   automatically (§VL12.10).
 - **Non-colour redundancy** is mandatory for: resource vs state edge (solid vs
-  dashed), every §VL3 state (each has a shape/icon/motion tell), and resource
-  type (icon + chip text, not hue alone).
+  dashed), every §VL3 state (each has a shape/icon/motion tell), resource type
+  (icon + chip text, not hue alone), and **parameter vs register** (notch-and-
+  stub silhouette vs plain lozenge; the register's persistent `=` glyph, struck
+  when `invalid`) — distinguishable in greyscale, under simulated
+  deuteranopia / protanopia / tritanopia, and under `forced-colors: active`
+  (the shape, the dash-free outline, and the `=` / struck-`=` all survive a UA
+  colour override).
 - **Focus** is always a visible ring distinct from selection; tab order follows
   reading order.
 - **`forced-colors` / high contrast:** when the UA overrides colours, the §VL7.1
@@ -346,6 +455,13 @@ The visual system must not break the local / offline / deterministic posture.
   approved pixel tolerance).
 - **Snapshot matrix:** {light, dark} × {desktop, mobile} × {L2, L1, L0} over a
   fixed fixture, plus the per-state and per-edge-class frames from §VL12.
+- **Parameter / Register are on a provisional fixture** until the model-language
+  **implementation** slice: a separate snapshot set — `param` resting, `param`
+  out-of-range, `register` valid mid-run, `register` `invalid` (each `M_REG_*`
+  reason once), the Timeline gap — over the same {light, dark} × {desktop,
+  mobile} × {L2, L1, L0} grid, rendered behind the dev flag. These frames are
+  **not** part of the committed acceptance matrix in this milestone; they fold
+  into it when the implementation slice renders the nodes for real (§VL12.11).
 - Verified environments: `prefers-reduced-motion: reduce`, keyboard-focus
   visible, and `forced-colors` / high-contrast (the required set of §VL7.1 must
   still be distinguishable when the UA overrides colours).
@@ -399,9 +515,16 @@ snapshots):
    renders every node kind, both edge classes, and every icon from cache.
 10. **Contrast thresholds** — an automated check computes the §VL11.2 contrast
     ratios for the token pairs actually used and fails below the floor.
-11. **Provisional isolation** — nothing in Parameter/Register rendering is
-    referenced by the acceptance snapshots until `loop-model/1` is frozen;
-    their nodes render behind a dev flag in this milestone.
+11. **Parameter / Register — provisional-fixture verification.** Their
+    *appearance and state representation* are fixed (§VL2.1, §VL2.4, §VL3,
+    §VL5.4) against the now-Frozen `loop-expr/1` / `loop-model/1`. Verification
+    is still staged: in **this** milestone their nodes render behind a dev flag
+    and are exercised **only** by the provisional snapshot set in §VL11.2 —
+    nothing in the committed acceptance matrix (criteria 1–10) depends on them.
+    When the model-language **implementation** slice lands, the dev flag is
+    removed and the provisional frames are promoted into the criterion-1 matrix
+    unchanged; a mismatch between a provisional frame and its promoted form is a
+    regression to fix, not a spec change.
 
 ---
 
@@ -419,10 +542,17 @@ snapshots):
   validation-assist. The field structure, the mismatch rule, and any canonical
   / digest inclusion are `loop-model/1` + `loop-revision/2` decisions, not this
   doc's. Hard type validation is a later, separate spec.
-- **VL-D4 — Parameter / Register visuals are provisional.** Shapes, the `=`
-  readout, and the `invalid` treatment are sketches pending `loop-model/1`;
-  they render behind a dev flag and are excluded from acceptance snapshots
-  until that spec freezes.
+- **VL-D4 — Parameter / Register appearance is fixed; only verification is
+  staged.** `loop-expr/1` and `loop-model/1` are Frozen, so the silhouettes
+  (§VL2.1), in-node layout (§VL2.4), the `invalid` treatment (§VL3, Register
+  only — a Parameter is never `invalid`), zoom behaviour (§VL7.2), and the
+  display-grouping note (§VL5.4) are **normative** here and grounded in those
+  specs. Rendering these nodes changes **no** GraphDoc byte, `loop-revision/*`
+  digest, undo entry, or viewport (§VL10). What remains deferred: until the
+  model-language **implementation** slice, the nodes render behind a dev flag
+  and are verified against a **provisional fixture** (§VL11.2, §VL12.11), not
+  the committed acceptance matrix — the frames are promoted unchanged when that
+  slice lands.
 - **VL-D5 — charts float, they don't dock.** The timeline/distribution move
   from a docked region to dismissible floating cards as part of the Refresh.
 - **VL-D6 — routing is render-only.** Any edge routing / label placement added
@@ -439,12 +569,15 @@ snapshots):
 
 ## VL14. Order this feeds into
 
-1. **This doc — Visual Language draft** (here).
-2. `loop-model/1` + `loop-expr/1` drafts — Parameter / Register semantics,
-   expression grammar & evaluation.
-3. `loop-revision/2` (and a check on `loop-workspace/2`) — new node kinds and
-   expression fields in the canonical projection / semantic digest.
-4. Freeze the specs; merge the docs PR.
+1. **This doc — Visual Language draft** (here). ✔ merged; Parameter / Register
+   appearance fixed in this follow-up.
+2. `loop-model/1` + `loop-expr/1` — Parameter / Register semantics, expression
+   grammar & evaluation. ✔ **Frozen** (`SEMANTICS-M.md`, `SEMANTICS-X.md`).
+3. `loop-revision/2` (with the "Workspace stays v1" note, `→ SEMANTICS-M.md
+   §M8.2`) — new node kinds and expression fields in the canonical projection /
+   semantic digest. **Draft** — the remaining pre-implementation spec.
+4. Merge `loop-revision/2`; verify merge-commit CI.
 5. `chore/open-0.6.0-dev`.
-6. Implementation slices: model language → **Canvas Visual Refresh** (this doc
-   made real) → Scenario Compare.
+6. Implementation slices: **model language → Canvas Visual Refresh** (this doc
+   made real). Scenario Compare is **out of the confirmed v0.6.0 scope** — it
+   needs its own spec/design PR and a separate go decision after the Refresh.
