@@ -369,6 +369,10 @@ body {
   font-size: 14px;
   line-height: 1;
 }
+.btn--sm {
+  padding: 3px 9px;
+  font-size: 11px;
+}
 
 .btn--ghost {
   border-color: transparent;
@@ -418,6 +422,32 @@ body {
   font-size: 11px;
   line-height: 1.35;
   color: var(--text-tertiary);
+}
+
+/* ---- share link popover ---- */
+.share-pop {
+  width: 320px;
+  gap: 8px;
+  padding: 10px;
+}
+.share-pop__status {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.share-pop__url {
+  width: 100%;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+}
+.share-pop__row {
+  display: flex;
+  gap: 6px;
 }
 
 .btn--ghost:hover {

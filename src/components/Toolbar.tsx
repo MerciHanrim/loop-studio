@@ -7,6 +7,7 @@ import { importFile } from '../store/workspaceIO'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ExportMenu } from './ExportMenu'
 import { Logo } from './Logo'
+import { ShareButton } from './ShareButton'
 import { Templates } from './Templates'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -129,6 +130,7 @@ export function Toolbar() {
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
           Import
         </button>
+        <ShareButton />
         <ExportMenu getViewport={getViewport} />
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
       </div>

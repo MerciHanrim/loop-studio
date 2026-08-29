@@ -34,6 +34,13 @@ type GraphStore = {
    *  store watch this (to reset / to mark results stale). */
   simulationRev: number
 
+  /** true only while this session is still showing the untouched first-run
+   *  sample (no `localStorage` graph at boot, nothing changed since). Cleared
+   *  permanently by any edit / Import / Template / undo / redo / restore. A
+   *  share link opens without a replace prompt only while this holds
+   *  (SEMANTICS-U.md §U5.6 / D5). */
+  pristineSample: boolean
+
   past: Snapshot[]
   future: Snapshot[]
   canUndo: boolean
@@ -114,7 +121,8 @@ function makeSample(): Snapshot {
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => {
-  const boot = normalizeGraph(loadFromStorage() ?? makeSample())
+  const stored = loadFromStorage()
+  const boot = normalizeGraph(stored ?? makeSample())
 
   const persist = () => {
     clearTimeout(saveTimer)
@@ -122,6 +130,12 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const s = get()
       saveToStorage(s.nodes, s.edges)
     }, 400)
+  }
+
+  /** One-way latch: the first edit / undo / redo / structural change ends the
+   *  "pristine sample" state for the rest of the session (SEMANTICS-U.md §U5.6). */
+  const clearPristine = () => {
+    if (get().pristineSample) set({ pristineSample: false })
   }
 
   /** Snapshot the CURRENT state into history before a mutation is applied. */
@@ -133,6 +147,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     // 'remove' coalesces only within a single tick (node + cascaded edges),
     // never across two separate deletions.
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
+    clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
     const { nodes, edges } = get()
     set({
@@ -144,7 +159,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   }
 
   /** Signal a simulation-relevant change (structure or node/edge data). */
-  const bump = () => set({ simulationRev: get().simulationRev + 1 })
+  const bump = () => {
+    clearPristine() // covers undo / redo / structural changes that skip `commit`
+    set({ simulationRev: get().simulationRev + 1 })
+  }
 
   return {
     nodes: boot.nodes,
@@ -152,6 +170,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     selectedNodeId: null,
     selectedEdgeId: null,
     simulationRev: 0,
+    pristineSample: stored == null,
     past: [],
     future: [],
     canUndo: false,

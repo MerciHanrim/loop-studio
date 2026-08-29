@@ -36,6 +36,12 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_VERSION__: JSON.stringify(appVersion),
       __BUILD_SHA__: JSON.stringify(buildSha()),
+      // A share link must open for its recipient, so its base is a fixed PUBLIC
+      // address — never `location` (which is `null` on file://, or a localhost /
+      // Preview host that no one else can reach). Overridable per deploy.
+      __SHARE_BASE_URL__: JSON.stringify(
+        process.env.VITE_SHARE_BASE_URL ?? 'https://cozy-loop-studio.pages.dev/',
+      ),
     },
     plugins: [
       react(),

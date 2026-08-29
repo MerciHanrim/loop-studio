@@ -61,6 +61,7 @@ spec id, never an edit to a frozen one.
 | [`SEMANTICS-S.md`](SEMANTICS-S.md) | `loop-state/1` | state connections: `trigger` (+ delay), `activator`, `label` — historical baseline |
 | [`SEMANTICS-S2.md`](SEMANTICS-S2.md) | `loop-state/2` | current: inherits v1; changes only the `label` event report shape to `delta` + `clampAdjustment` |
 | [`SEMANTICS-W.md`](SEMANTICS-W.md) | `loop-workspace/1` | Workspace Export/Import — an optional `workspace` extension on the graph doc (run config, MC result, view, verified sim snapshot) |
+| [`SEMANTICS-U.md`](SEMANTICS-U.md) | `loop-share/1` | Shareable URL — a `#g1=` fragment carrying the graph doc (zlib-wrapped DEFLATE + base64url, 8 KiB cap); PWA notes in [`docs/pwa.md`](docs/pwa.md) |
 
 ## Layout
 
@@ -89,7 +90,8 @@ spec id, never an edit to a frozen one.
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
 - ◐ Ship
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
-  - ☐ shareable URLs, offline PWA
+  - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
+  - ☐ offline PWA — install + offline shell ([`docs/pwa.md`](docs/pwa.md))
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases

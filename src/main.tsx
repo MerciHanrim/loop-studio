@@ -6,8 +6,10 @@ import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@xyflow/react/dist/style.css'
 import './index.css'
 import App from './App.tsx'
+import * as share from './model/share'
 import { useGraphStore } from './store/graphStore'
 import { useMcStore } from './store/mcStore'
+import * as shareLink from './store/shareLink'
 import { useSimStore } from './store/simStore'
 import * as workspaceIO from './store/workspaceIO'
 
@@ -19,6 +21,8 @@ if (import.meta.env.DEV) {
     sim: useSimStore,
     mc: useMcStore,
     io: workspaceIO,
+    share,
+    shareLink,
   }
 }
 
