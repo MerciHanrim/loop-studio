@@ -632,4 +632,81 @@ describe('per-hunk selective apply (§R7.2)', () => {
     expect(graphSig()).toBe(sig)
     expect(useGraphStore.getState().simulationRev).toBe(rev) // untouched
   })
+
+  it('structural conflict: a local edge onto a proposal-removed node ⇒ divergent, whole-apply confirms, selective remove refused (§ round 3)', async () => {
+    // base r0: pool ─ drain, NO edge
+    useGraphStore.getState().addNodeAt('drain', { x: 300, y: 0 })
+    const [poolN, drainN] = useGraphStore.getState().nodes
+    promote() // r0
+
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        // proposal removes the drain node (and, since there is no edge yet, nothing else)
+        f.nodes = (f.nodes as Array<{ id: string }>).filter((n) => n.id !== drainN.id)
+      }),
+    )
+    // NOW add a local edge onto the node the proposal removes
+    useGraphStore.getState().onConnect({ source: poolN.id, target: drainN.id, sourceHandle: 'out', targetHandle: 'in' })
+    const eid = useGraphStore.getState().edges[0].id
+
+    // three-way: the node-remove hunk is blocked, structurally
+    const plan = threeWayForPending(p)
+    const nh = plan.hunks.find((h) => h.id === drainN.id && h.kind === 'remove')!
+    expect(nh.blockedBy).toEqual([eid])
+    expect(plan.nConf).toBeGreaterThanOrEqual(1)
+
+    // classification is divergent — NOT "unknown ancestry / no field conflicts"
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'divergent' })
+
+    // whole-apply needs the §R7A.4 confirmation
+    expect(applyPendingProposal(p)).toMatchObject({ ok: false, reason: 'needs-confirmation', classification: 'divergent' })
+
+    // selective removal of the node is refused
+    const sig = graphSig()
+    expect(applyPendingProposal(p, { selection: { accept: { [drainN.id]: true }, fieldChoices: {} } })).toMatchObject({
+      ok: false,
+      reason: 'invalid-selection',
+    })
+    expect(graphSig()).toBe(sig)
+  })
+
+  it('node removal dependency is satisfied by RETARGETing the incident edge (§ round 3)', async () => {
+    // base r0: source ─e→ pool(mid) , plus a spare drain to retarget onto
+    useGraphStore.getState().newGraph()
+    useGraphStore.getState().addNodeAt('source', { x: 0, y: 0 })
+    useGraphStore.getState().addNodeAt('pool', { x: 200, y: 0 })
+    useGraphStore.getState().addNodeAt('drain', { x: 400, y: 0 })
+    const [s, mid, d] = useGraphStore.getState().nodes
+    useGraphStore.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' })
+    const eid = useGraphStore.getState().edges[0].id
+    promote()
+    const r0 = useProjectStore.getState().open!.revisionId
+
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        // proposal removes `mid` and retargets the edge s→mid to s→d
+        f.nodes = (f.nodes as Array<{ id: string }>).filter((n) => n.id !== mid.id)
+        const e = (f.edges as Array<Record<string, unknown>>).find((x) => x.id === eid)!
+        e.target = d.id
+      }),
+    )
+    const nh = threeWayForPending(p).hunks.find((h) => h.id === mid.id && h.kind === 'remove')!
+    expect(nh.dependents).toEqual([eid])
+    expect(nh.blockedBy).toBeUndefined()
+
+    // node alone ⇒ invalid (edge still → mid)
+    expect(
+      applyPendingProposal(p, { selection: { accept: { [mid.id]: true }, fieldChoices: {} } }),
+    ).toMatchObject({ ok: false, reason: 'invalid-selection' })
+
+    // node + the edge's endpoint retarget ⇒ valid
+    const ok = applyPendingProposal(p, {
+      selection: { accept: { [mid.id]: true }, fieldChoices: { [eid]: { target: 'proposed' } } },
+    })
+    expect(ok.ok).toBe(true)
+    if (ok.ok) expect(ok.newRevisionId).not.toBe(r0)
+    const g = useGraphStore.getState()
+    expect(g.nodes.some((n) => n.id === mid.id)).toBe(false)
+    expect(g.edges.find((e) => e.id === eid)!.target).toBe(d.id)
+  })
 })

@@ -775,4 +775,44 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
     await expect(sheet.locator('.review__warn')).toContainText(built.eid)
     await expect(page.locator('.sheet[aria-label="Review proposal"]')).toBeVisible()
   })
+
+  test('structural conflict (local edge onto a removed node) reads the same on the sheet — divergent, node blocked', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const [p0, d0] = L.graph.getState().nodes
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes = f.nodes.filter((n: { id: string }) => n.id !== d0.id)
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), pId: p0.id, dId: d0.id }
+    })
+    await page
+      .locator('.toolbar--mobile input[type="file"]')
+      .setInputFiles({ name: 'p.json', mimeType: 'application/json', buffer: Buffer.from(built.text) })
+    const sheet = page.locator('.sheet[aria-label="Review proposal"]')
+    await expect(sheet).toBeVisible()
+    await page.evaluate(
+      ([src, tgt]) =>
+        (window as unknown as { __loop: any }).__loop.graph
+          .getState()
+          .onConnect({ source: src, target: tgt, sourceHandle: 'out', targetHandle: 'in' }),
+      [built.pId, built.dId],
+    )
+    await expect(sheet.locator('.review__class--divergent')).toBeVisible()
+    await expect(sheet).not.toContainText('No field conflicts')
+    await sheet.locator('button', { hasText: 'Choose changes' }).click()
+    const nodeHunk = sheet.locator('.review__hunk', { hasText: 'Remove node' })
+    await expect(nodeHunk.locator('.review__hunk-dep--blocked')).toContainText('yours added edge')
+    await expect(nodeHunk.locator('input[type=checkbox]')).toBeDisabled()
+  })
 })

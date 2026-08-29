@@ -521,13 +521,17 @@ export type ProposalHunk = {
   yours: CanonicalNode | CanonicalEdge | null
   /** present for `change` */
   fields?: HunkField[]
-  /** a node `remove` hunk: the edge-`remove` hunk ids that MUST be accepted
-   *  together with it (edges incident in the target that the proposal also
-   *  removes). Surfaced to the user; never cascaded silently. */
-  removeWith?: string[]
-  /** a node `remove` hunk: target-only incident edge ids (added on your side,
-   *  not in `base`). Their presence makes a clean removal impossible — a
-   *  structural conflict; the node cannot be removed until you remove them. */
+  /** a node `remove` hunk: incident edge hunk ids that must be resolved with it
+   *  — each is a `remove` (drop the edge) OR a `change` that retargets an
+   *  endpoint away from this node. The apply check is reference-based (does any
+   *  edge still point at the removed node after the selection?), so retargets
+   *  satisfy the dependency just as removals do. Surfaced to the user; never
+   *  cascaded silently. */
+  dependents?: string[]
+  /** a node `remove` hunk: incident edges with **no** hunk to resolve them —
+   *  an edge you added locally (target-only), or one the proposal keeps while
+   *  removing the node. A STRUCTURAL CONFLICT: the node can't be removed, the
+   *  hunk `verdict` is `conflict`, and it feeds `nConf` (⇒ `divergent`). */
   blockedBy?: string[]
 }
 export type ThreeWayPlan = {
@@ -590,6 +594,27 @@ export function computeThreeWay(
       }
     }
   }
+
+  // node `remove` incident-edge analysis (Slice 2 review round 2). A dependent
+  // is any incident edge that HAS a hunk (a `remove`, or a `change` that
+  // retargets an endpoint) — the user resolves it with the node. An incident
+  // edge with NO hunk (you added it locally, or the proposal keeps it while
+  // deleting the node) is a STRUCTURAL CONFLICT: the hunk becomes `conflict`,
+  // which feeds `nConf` below (so classification is `divergent`, never
+  // "unknown ancestry · no field conflicts").
+  const edgeHunkIds = new Set(hunks.filter((h) => h.elementType === 'edge').map((h) => h.id))
+  for (const h of hunks) {
+    if (h.kind !== 'remove' || h.elementType !== 'node') continue
+    const incident = target.edges.filter((e) => e.source === h.id || e.target === h.id)
+    const dependents = incident.filter((e) => edgeHunkIds.has(e.id)).map((e) => e.id).sort()
+    const blockedBy = incident.filter((e) => !edgeHunkIds.has(e.id)).map((e) => e.id).sort()
+    if (dependents.length) h.dependents = dependents
+    if (blockedBy.length) {
+      h.blockedBy = blockedBy
+      h.verdict = 'conflict' // structural — counted in nConf
+    }
+  }
+
   let nConf = 0
   for (const h of hunks) {
     if (h.kind === 'change') {
@@ -597,23 +622,6 @@ export function computeThreeWay(
     } else if (h.verdict === 'conflict') {
       nConf += 1
     }
-  }
-
-  // node `remove` dependencies — the incident edges that go with it. Explicit,
-  // never cascaded silently (Slice 2 review round 2). Does NOT touch `nConf`
-  // (that stays the §R7A.3 node-value verdict, feeding classification).
-  const edgeRemoveHunk = new Set(hunks.filter((h) => h.kind === 'remove' && h.elementType === 'edge').map((h) => h.id))
-  const baseEdgeIds = new Set(base.edges.map((e) => e.id))
-  for (const h of hunks) {
-    if (h.kind !== 'remove' || h.elementType !== 'node') continue
-    const incident = target.edges.filter((e) => e.source === h.id || e.target === h.id)
-    const removeWith = incident.filter((e) => edgeRemoveHunk.has(e.id)).map((e) => e.id).sort()
-    const blockedBy = incident
-      .filter((e) => !edgeRemoveHunk.has(e.id) && !baseEdgeIds.has(e.id))
-      .map((e) => e.id)
-      .sort()
-    if (removeWith.length) h.removeWith = removeWith
-    if (blockedBy.length) h.blockedBy = blockedBy
   }
 
   return { hunks, nConf }
@@ -648,12 +656,14 @@ export type SelectiveApplyResult =
  * (not canonical) so element identity / render fields survive. Rejected hunks
  * leave the target untouched → unselected fields are byte-identical (D-cond 6).
  *
- * There is **NO implicit cascade** (Slice 2 review round 2). Removing a node
- * requires **explicitly** accepting every `hunk.removeWith` edge-`remove` hunk;
- * a node with a target-only incident edge (`hunk.blockedBy`) is a structural
- * conflict and cannot be removed. Any edge left referencing a missing node — an
- * accepted `add` edge whose node was not selected, or a base edge orphaned by a
- * removal — is refused as an `invalid-selection` **before anything is applied**.
+ * There is **NO implicit cascade** (Slice 2 review round 2). A node with a
+ * `blockedBy` incident edge (no hunk can resolve it) is a structural conflict
+ * and cannot be removed. Otherwise the dependency check is **reference-based**:
+ * after every accepted hunk is applied, any edge still pointing at a missing
+ * node — an accepted `add` edge whose node was not selected, or an incident
+ * edge that was neither removed nor retargeted with the node — is refused as an
+ * `invalid-selection` **before anything is loaded** (nothing is mutated in
+ * place; the result is built in scratch maps).
  */
 export function buildSelectiveApply(input: {
   target: { nodes: LoopNode[]; edges: LoopEdge[] }
@@ -664,21 +674,12 @@ export function buildSelectiveApply(input: {
   const { target, proposedFull, plan, selection } = input
   const bad = (detail: string): SelectiveApplyResult => ({ ok: false, reason: 'invalid-selection', detail })
 
-  // ── validate the selection BEFORE mutating anything ──
+  // ── structural conflicts refuse the selection up front ──
   for (const h of plan.hunks) {
-    if (h.kind === 'remove' && h.elementType === 'node' && selection.accept[h.id]) {
-      if (h.blockedBy?.length) {
-        return bad(
-          `Node ${h.id} can't be removed — you added edge ${h.blockedBy.join(', ')} to it. Remove that edge first, or keep the node.`,
-        )
-      }
-      for (const dep of h.removeWith ?? []) {
-        if (!selection.accept[dep]) {
-          return bad(
-            `Removing node ${h.id} also removes edge ${dep} — select that edge removal too, or keep the node.`,
-          )
-        }
-      }
+    if (h.kind === 'remove' && h.elementType === 'node' && selection.accept[h.id] && h.blockedBy?.length) {
+      return bad(
+        `Node ${h.id} can't be removed — edge ${h.blockedBy.join(', ')} points at it and the proposal offers no way to move or drop it. Keep the node.`,
+      )
     }
   }
 
@@ -725,12 +726,18 @@ export function buildSelectiveApply(input: {
     }
   }
 
-  // no silent cascade — any edge whose endpoint node is gone is an error
+  // reference-based dependency check — after the selection, any edge still
+  // pointing at a missing node is refused (no silent prune). Retargeting an
+  // endpoint to a surviving node satisfies the dependency just like removing
+  // the edge does.
+  const hasEdgeHunk = new Set(plan.hunks.filter((h) => h.elementType === 'edge').map((h) => h.id))
   for (const [id, e] of edges) {
     if (!nodes.has(e.source) || !nodes.has(e.target)) {
+      const missing = !nodes.has(e.source) ? e.source : e.target
       return bad(
-        `Edge ${id} would have no ${!nodes.has(e.source) ? 'source' : 'target'} node. ` +
-          `Also select the matching edge removal, or don't remove that node.`,
+        hasEdgeHunk.has(id)
+          ? `Edge ${id} still points at removed node ${missing} — also remove or retarget edge ${id}, or keep the node.`
+          : `Edge ${id} still points at removed node ${missing} — keep that node, or drop the edge first.`,
       )
     }
   }

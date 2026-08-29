@@ -106,22 +106,23 @@ describe('buildSelectiveApply — §R7.2', () => {
     expect(res.nodes.find((n) => n.id === 'a')).toEqual(target.nodes[0]) // untouched, byte-identical
   })
 
-  it('node removal: the incident edge removal is an EXPLICIT dependency (no silent cascade)', () => {
-    // proposal removes node b AND (implicitly, via the proposed graph) edge e_ab
+  it('node removal: an incident edge removal is a dependent — resolved by removing OR retargeting it', () => {
+    // proposal removes node b AND (via the proposed graph) edge e_ab
     const target = { nodes: [pool('a'), pool('b')], edges: [rEdge('e_ab', 'a', 'b')] }
     const proposedFull = { nodes: [pool('a')], edges: [] as LoopEdge[] }
     const baseC = cc(target.nodes, target.edges)
     const plan = computeThreeWay(baseC, cc(target.nodes, target.edges), cc(proposedFull.nodes, proposedFull.edges))
 
     const nodeHunk = plan.hunks.find((h) => h.id === 'b' && h.kind === 'remove')!
-    expect(nodeHunk.removeWith).toEqual(['e_ab']) // surfaced, not hidden
+    expect(nodeHunk.dependents).toEqual(['e_ab']) // surfaced, not hidden
+    expect(nodeHunk.blockedBy).toBeUndefined()
 
-    // node alone ⇒ invalid (the dependency edge removal is not selected)
+    // node alone ⇒ invalid (the edge still references b)
     expect(
       buildSelectiveApply({ target, proposedFull, plan, selection: { accept: { b: true }, fieldChoices: {} } }),
     ).toMatchObject({ ok: false, reason: 'invalid-selection' })
 
-    // node + its dependency ⇒ clean
+    // node + its dependent removal ⇒ clean
     const ok = buildSelectiveApply({
       target,
       proposedFull,
@@ -135,13 +136,45 @@ describe('buildSelectiveApply — §R7.2', () => {
     }
   })
 
-  it('a target-only edge on a removed node ⇒ structural conflict (blockedBy), node cannot be removed', () => {
+  it('node removal: a RETARGET of the incident edge satisfies the dependency (§ round 3)', () => {
+    // base: e_xb : a → b ; proposal removes b and retargets e_xb to c
+    const base = { nodes: [pool('a'), pool('b'), pool('c')], edges: [rEdge('e_xb', 'a', 'b')] }
+    const target = { nodes: [pool('a'), pool('b'), pool('c')], edges: [rEdge('e_xb', 'a', 'b')] }
+    const proposedFull = { nodes: [pool('a'), pool('c')], edges: [rEdge('e_xb', 'a', 'c')] } // b gone, edge → c
+    const plan = computeThreeWay(cc(base.nodes, base.edges), cc(target.nodes, target.edges), cc(proposedFull.nodes, proposedFull.edges))
+
+    const nodeHunk = plan.hunks.find((h) => h.id === 'b' && h.kind === 'remove')!
+    expect(nodeHunk.dependents).toEqual(['e_xb']) // the retarget change hunk
+    expect(nodeHunk.blockedBy).toBeUndefined()
+
+    // node alone (edge still → b) ⇒ invalid
+    expect(
+      buildSelectiveApply({ target, proposedFull, plan, selection: { accept: { b: true }, fieldChoices: {} } }),
+    ).toMatchObject({ ok: false, reason: 'invalid-selection' })
+
+    // node + the retarget field ⇒ valid: edge now points at c
+    const ok = buildSelectiveApply({
+      target,
+      proposedFull,
+      plan,
+      selection: { accept: { b: true }, fieldChoices: { e_xb: { target: 'proposed' } } },
+    })
+    expect(ok.ok).toBe(true)
+    if (ok.ok) {
+      expect(ok.nodes.map((n) => n.id).sort()).toEqual(['a', 'c'])
+      expect(ok.edges[0].target).toBe('c')
+    }
+  })
+
+  it('a target-only edge on a removed node ⇒ structural conflict: blockedBy, verdict conflict, feeds nConf ⇒ divergent', () => {
     const base = { nodes: [pool('a'), pool('b')], edges: [] as LoopEdge[] }
     const target = { nodes: [pool('a'), pool('b')], edges: [rEdge('e_mine', 'a', 'b')] } // e_mine is MY edge
     const proposedFull = { nodes: [pool('a')], edges: [] as LoopEdge[] } // proposal removes b
     const plan = computeThreeWay(cc(base.nodes, base.edges), cc(target.nodes, target.edges), cc(proposedFull.nodes, proposedFull.edges))
     const h = plan.hunks.find((x) => x.id === 'b' && x.kind === 'remove')!
     expect(h.blockedBy).toEqual(['e_mine'])
+    expect(h.verdict).toBe('conflict')
+    expect(plan.nConf).toBeGreaterThanOrEqual(1) // ⇒ classification is `divergent`, not `unknown`
     expect(
       buildSelectiveApply({ target, proposedFull, plan, selection: { accept: { b: true }, fieldChoices: {} } }),
     ).toMatchObject({ ok: false, reason: 'invalid-selection' })

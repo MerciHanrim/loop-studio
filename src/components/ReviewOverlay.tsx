@@ -67,10 +67,12 @@ const shortVal = (v: unknown): string => {
 
 /** default: pre-accept everything that applies cleanly; leave conflicts and
  *  no-ops for the user (a conflict left unset means "keep mine"). A clean node
- *  `remove` also pre-accepts its `removeWith` edge removals — those rows are
- *  visible in the list, so the cascade is never hidden. A node `remove` that is
- *  `blockedBy` a target-added edge is NOT pre-accepted. */
+ *  `remove` is pre-accepted only when every one of its `dependents` is itself a
+ *  `remove` hunk — then those removals are pre-accepted too (visible rows, no
+ *  hidden cascade). If any dependent is a retarget, the node `remove` is left
+ *  for the user to handle deliberately; a `blockedBy` node is never accepted. */
 function defaultSelection(plan: ThreeWayPlan): HunkSelection {
+  const byId = new Map(plan.hunks.map((h) => [h.id, h]))
   const accept: Record<string, boolean> = {}
   const fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>> = {}
   for (const h of plan.hunks) {
@@ -79,8 +81,11 @@ function defaultSelection(plan: ThreeWayPlan): HunkSelection {
       for (const f of h.fields ?? []) if (f.verdict === 'clean') fc[f.field] = 'proposed'
       if (Object.keys(fc).length) fieldChoices[h.id] = fc
     } else if (h.verdict === 'clean' && !h.blockedBy?.length) {
+      const deps = h.dependents ?? []
+      const allRemovable = deps.every((d) => byId.get(d)?.kind === 'remove')
+      if (h.kind === 'remove' && h.elementType === 'node' && !allRemovable) continue
       accept[h.id] = true
-      for (const dep of h.removeWith ?? []) accept[dep] = true
+      if (h.kind === 'remove' && h.elementType === 'node') for (const d of deps) accept[d] = true
     }
   }
   return { accept, fieldChoices }
@@ -142,15 +147,19 @@ function HunkRow({
           />
           <span>
             {h.kind === 'add' ? 'Add' : 'Remove'} {h.elementType} <code>{h.id}</code>
-            {h.verdict === 'conflict' ? <span className="review__hunk-tag"> · both sides changed this</span> : null}
+            {h.verdict === 'conflict' && !blocked ? (
+              <span className="review__hunk-tag"> · both sides changed this</span>
+            ) : null}
           </span>
         </label>
-        {h.removeWith?.length ? (
-          <div className="review__hunk-dep">also removes edge {h.removeWith.map((e) => <code key={e}>{e}</code>)}</div>
+        {h.dependents?.length ? (
+          <div className="review__hunk-dep">
+            also remove or retarget edge {h.dependents.map((e) => <code key={e}>{e}</code>)}
+          </div>
         ) : null}
         {blocked ? (
           <div className="review__hunk-dep review__hunk-dep--blocked">
-            can’t remove — you added edge {h.blockedBy!.map((e) => <code key={e}>{e}</code>) } to this node
+            can’t remove — yours added edge {h.blockedBy!.map((e) => <code key={e}>{e}</code>)} to this node
           </div>
         ) : null}
       </div>
@@ -339,9 +348,14 @@ export function ReviewOverlay() {
   const toggleAccept = (id: string, v: boolean) =>
     setSel((s) => {
       const accept = { ...s.accept, [id]: v }
-      // a node removal drags its explicit edge-removal dependencies along
+      // a node removal drags its `remove`-kind dependents along; retarget
+      // dependents are left for the user to resolve field-by-field
       const h = plan?.hunks.find((x) => x.id === id)
-      if (h?.kind === 'remove' && h.elementType === 'node') for (const dep of h.removeWith ?? []) accept[dep] = v
+      if (h?.kind === 'remove' && h.elementType === 'node') {
+        for (const dep of h.dependents ?? []) {
+          if (plan?.hunks.find((x) => x.id === dep)?.kind === 'remove') accept[dep] = v
+        }
+      }
       return { ...s, accept }
     })
 
