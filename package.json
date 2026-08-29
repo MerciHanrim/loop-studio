@@ -13,6 +13,7 @@
     "build:pwa": "tsc -b && vite build --mode pwa",
     "gen:icons": "node scripts/gen-icons.mjs",
     "check:icons": "node scripts/check-icons.mjs",
+    "check:mobile-query": "node scripts/check-mobile-query.mjs",
     "check:no-pwa": "node scripts/check-no-pwa.mjs",
     "check:pwa-closure": "node scripts/check-pwa-closure.mjs",
     "lint": "oxlint",

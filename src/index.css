@@ -76,6 +76,14 @@
 
   --radius: 10px;
 
+  /* Safe-area insets as tokens (docs/mobile.md §MV7). Real space is reserved
+     from these, not from bare env() — so an E2E can mock them by redefining
+     --sai-* on :root. Zero on every desktop / non-notched device. */
+  --sai-top: env(safe-area-inset-top, 0px);
+  --sai-right: env(safe-area-inset-right, 0px);
+  --sai-bottom: env(safe-area-inset-bottom, 0px);
+  --sai-left: env(safe-area-inset-left, 0px);
+
   /* Track · Bead · Vessel — one type system: Plex Sans for language,
      Plex Mono (tabular) for every quantity */
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system,
@@ -205,6 +213,9 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  /* the page body never scrolls sideways (docs/mobile.md §MV7) — the floor,
+     not the proof; the E2E bounding-box checks are the guarantee */
+  overflow-x: clip;
 }
 
 body {
@@ -1854,4 +1865,85 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .mcdlg__pool input:disabled {
   cursor: default;
+}
+
+/* ==========================================================================
+   Mobile View/Run layout (docs/mobile.md).
+   Slice 1: dynamic-viewport height, no sideways scroll, safe-area reserved as
+   real space, a full-bleed canvas. The compact top bar, the fixed run bar, the
+   sheets, and the editing lock arrive in Slices 2-3.
+   The query text below MUST equal MOBILE_MEDIA_QUERY in src/ui/media.ts —
+   src/ui/media.query.test.ts enforces it.
+   ========================================================================== */
+@media (max-width: 720px), (max-height: 500px) and (max-width: 950px) and (pointer: coarse) {
+  /* height tracks the *visual* viewport (dvh), so the iOS address bar
+     collapsing/expanding never pushes the bottom of the app off-screen;
+     100vh is the fallback for engines without dvh (docs/mobile.md §MV4a) */
+  .app {
+    height: 100vh;
+    height: 100dvh;
+    max-width: 100vw;
+  }
+
+  /* canvas over its controls — the Inspector becomes a read-only bottom sheet
+     in Slice 3; until then it is simply out of the mobile flow so the canvas
+     is full width */
+  .app__body {
+    flex-direction: column;
+  }
+  .inspector {
+    display: none;
+  }
+
+  /* editing-only controls — the node palette is gone on mobile (§MV6 / §MV-D9);
+     the compact top bar + More menu land in Slice 2 */
+  .toolbar__palette {
+    display: none;
+  }
+  /* interim: let the action buttons wrap instead of clipping past the edge —
+     Slice 2 replaces this row with the Logo + a single More menu */
+  .toolbar__actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* the Timeline chart body is a collapsible bottom sheet in Slice 2; for now
+     it stays out of the flow so the canvas is full height (§MV5 / §MV-D8) */
+  .timeline__panel {
+    display: none;
+  }
+
+  .canvas-col {
+    min-height: 0;
+  }
+  .canvas {
+    flex: 1 1 auto;
+  }
+
+  /* reserve the notch / status-bar strip as real space (docs/mobile.md §MV7) */
+  .toolbar {
+    padding-top: calc(8px + var(--sai-top));
+    padding-left: calc(14px + var(--sai-left));
+    padding-right: calc(14px + var(--sai-right));
+  }
+
+  /* reserve the home-indicator strip below the run controls; Slice 2 turns
+     .pstrip into a fixed bottom bar and re-verifies */
+  .pstrip {
+    height: auto;
+    min-height: 40px;
+    padding-bottom: calc(var(--sai-bottom));
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  /* React Flow zoom / fit controls: 44px touch targets, clear of the edges */
+  .react-flow__controls {
+    margin-bottom: calc(8px + var(--sai-bottom));
+    margin-left: calc(8px + var(--sai-left));
+  }
+  .react-flow__controls-button {
+    width: 44px;
+    height: 44px;
+  }
 }
