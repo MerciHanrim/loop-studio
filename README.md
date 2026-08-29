@@ -6,15 +6,16 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** (v0.4.0). The diagram editor and the simulation
-> engine — deterministic, seeded randomness, Monte Carlo, and executable state
-> connections (`trigger` / `activator` / `label`) — are all usable today, plus
-> Workspace Export/Import, shareable `#g1=` links, and an installable offline
-> PWA. Execution semantics are pinned down in frozen spec documents (see
-> [Semantics](#semantics)).
+> Status: **working preview** (`v0.4.0-dev` — the `v0.4.0` release is pending).
+> The diagram editor and the simulation engine — deterministic, seeded
+> randomness, Monte Carlo, and executable state connections (`trigger` /
+> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
+> shareable `#g1=` links, and an installable offline PWA. Execution semantics
+> are pinned down in frozen spec documents (see [Semantics](#semantics)).
 >
-> **Desktop-first editor.** Mobile browsers can open diagrams, but mobile
-> editing is not currently optimized.
+> **Desktop-first editor.** The `v0.4.0` tag is held while a mobile **view/run**
+> layer lands ([`docs/mobile.md`](docs/mobile.md)); until then a phone browser
+> gets the desktop layout as-is.
 
 ## Why
 
@@ -96,17 +97,18 @@ spec id, never an edit to a frozen one.
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
-- ✅ Ship — **v0.4.0**
+- ◐ Ship — **v0.4.0** *(features merged; the tag is held for the mobile view/run layer below)*
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
   - ✅ Offline PWA — installable, works fully offline **once the service-worker install and precache complete** on the first online load; a `prompt`-style update bar, never an automatic reload ([`docs/pwa.md`](docs/pwa.md))
-- ☐ Mobile responsive editing layout — *optional future backlog; today the desktop layout is served as-is on phones*
+  - ◐ Mobile **view/run** layout — a small-screen layout to open, pan/zoom, and run a shared diagram; editing stays desktop-only ([`docs/mobile.md`](docs/mobile.md))
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
 
-**v0.4.0 — ship: workspace, links, offline.** Three additions around the
-existing editor + engine:
+**v0.4.0 — ship: workspace, links, offline.** *(Release pending — code is on
+`main` as `0.4.0-dev`; the annotated `v0.4.0` tag is held while the mobile
+view/run layer lands.)* Three additions around the existing editor + engine:
 
 - **Workspace Export / Import** (`loop-workspace/1`,
   [`SEMANTICS-W.md`](SEMANTICS-W.md)) — an optional `workspace` key on the graph
@@ -127,7 +129,8 @@ existing editor + engine:
   build ships no service worker.
 
 Desktop-first — mobile browsers can open a diagram but the editing layout is not
-optimized for small screens.
+optimized for small screens. A minimal mobile **view/run** layout
+([`docs/mobile.md`](docs/mobile.md)) is landing before the `v0.4.0` tag.
 
 **v0.3.0 — executable state connections.** State edges (`trigger` with an
 integer `delay`, AND-combined `activator` level gates, `label` Pool modifiers)
