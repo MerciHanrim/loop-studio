@@ -3,12 +3,14 @@ import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { NodeKind } from '../model/types'
-import { importFile } from '../store/workspaceIO'
+import { useReviewStore } from '../store/reviewStore'
+import { routeImport } from '../store/revisionIO'
 import { useIsMobile } from '../ui/media'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ExportMenu } from './ExportMenu'
 import { Logo } from './Logo'
 import { MobileTopBar } from './mobile/MobileTopBar'
+import { RevisionChip } from './RevisionChip'
 import { ShareButton } from './ShareButton'
 import { Templates } from './Templates'
 import { ThemeToggle } from './ThemeToggle'
@@ -49,6 +51,9 @@ export function Toolbar() {
     e.dataTransfer.effectAllowed = 'move'
   }
 
+  // SEMANTICS-R.md §R10 — one routed import. A proposal opens the non-destructive
+  // Review overlay and changes nothing; everything else loads as before, and a
+  // revision file also adopts its project header.
   const onFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -56,9 +61,17 @@ export function Toolbar() {
     file.text().then(
       async (text) => {
         try {
-          const out = await importFile(text)
-          if (out.canvas) setViewport(out.canvas, { duration: 0 })
-          if (out.warnings.length) window.alert(out.warnings.join('\n'))
+          const r = await routeImport(text)
+          if (r.kind === 'proposal') {
+            useReviewStore.getState().open(r)
+            return
+          }
+          if (r.outcome.canvas) setViewport(r.outcome.canvas, { duration: 0 })
+          const warnings = [
+            ...(r.kind === 'project-dropped' ? [r.warning] : []),
+            ...r.outcome.warnings,
+          ]
+          if (warnings.length) window.alert(warnings.join('\n'))
         } catch (err) {
           window.alert(err instanceof Error ? err.message : 'Could not read that file.')
         }
@@ -137,6 +150,7 @@ export function Toolbar() {
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
           Import
         </button>
+        <RevisionChip />
         <ShareButton />
         <ExportMenu getViewport={getViewport} />
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />

@@ -1,10 +1,12 @@
 import { ReactFlowProvider } from '@xyflow/react'
+import { BootNotice } from './components/BootNotice'
 import { Canvas } from './components/Canvas'
 import { Inspector } from './components/Inspector'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
 import { PwaUpdateBar } from './components/PwaUpdateBar'
+import { ReviewOverlay } from './components/ReviewOverlay'
 import { ShareLoader } from './components/ShareLoader'
 import { Shortcuts } from './components/Shortcuts'
 import { TimelineChart } from './components/TimelineChart'
@@ -16,6 +18,7 @@ export default function App() {
       <ShareLoader />
       <Shortcuts />
       <PwaUpdateBar />
+      <BootNotice />
       <div className="app">
         <Toolbar />
         <div className="app__body">
@@ -29,6 +32,7 @@ export default function App() {
         <MobileInspectorSheet />
       </div>
       <MonteCarloDialog />
+      <ReviewOverlay />
     </ReactFlowProvider>
   )
 }
