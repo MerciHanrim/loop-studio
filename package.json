@@ -22,7 +22,8 @@
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:update": "playwright test --update-snapshots",
-    "e2e:dist": "playwright test -c playwright.dist.config.ts"
+    "e2e:dist": "playwright test -c playwright.dist.config.ts",
+    "e2e:pwa": "playwright test -c playwright.pwa.config.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

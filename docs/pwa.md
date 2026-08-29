@@ -333,45 +333,69 @@ if (ok && import.meta.env.MODE !== 'portable' && 'serviceWorker' in navigator) r
 
 ## P8. Acceptance vectors — automated and manual
 
-### P8.1 Automated (Playwright, Chromium — full SW support)
+### P8.1 Automated (Playwright — as built)
 
-A new `pwa` project: `npm run build:pwa` with `PWA_TEST_ORIGIN` set to the
-`vite preview` origin, served by `vite preview` (§P7).
+`playwright.pwa.config.ts` → `e2e/pwa.spec.ts` (9 tests, `workers: 1`,
+`fullyParallel: false`). The webServer is **`node e2e/support/pwa-serve.mjs`**,
+which:
 
-> Playwright cannot drive a real OS install. The **"installable" check here
-> verifies the *conditions*** — a linked `manifest.webmanifest` that parses with
-> name + `display` + `start_url` + a 192 and a 512 icon, and a registered SW
-> with a fetch handler — not an actual `beforeinstallprompt` acceptance.
+- up front builds **three independent generations** —
+  `dist-pwa-a|b|c` with stamps `pwagenA|B|C`, each with
+  `PWA_TEST_ORIGIN=http://localhost:4174` baked in;
+- serves whichever one a test selected — `POST /__gen?to=a|b|c` switches;
+- sends every response `cache-control: no-store` (so the browser HTTP cache
+  never masks a generation switch);
+- listens on all interfaces so **`http://localhost:4174`** (the *allowed*
+  origin) and **`http://127.0.0.1:4174`** (a *non-allowed* origin) reach the
+  same bytes.
 
-1. **installable conditions** — manifest link present and parses; required
-   fields + icon sizes present; `navigator.serviceWorker.register` resolves;
-   `getRegistration()` has an active/installing worker.
-2. **offline-ready gate** — first load → `onOfflineReady` fires and
-   `serviceWorker.controller` becomes non-null; a reload with
-   `context.setOffline(true)` **before** that signal is allowed to fail (the
-   guarantee starts at precache completion, §P3).
-3. **offline boot** — after offline-ready: `setOffline(true)`, reload → app
-   boots, the `localStorage` graph loads, add-node / Step / Reset work, a small
-   Monte-Carlo run completes.
-4. **offline deep link** — `setOffline(true)`, navigate to `/#g1=<payload>` →
-   the shared graph loads (shell from cache, payload from the URL, fragment
-   stripped per `SEMANTICS-U.md` §U5).
-5. **update prompt — nothing automatic** — with a waiting SW staged: the
-   `.pwa-update` bar appears; the controller does **not** change and the page
-   does **not** reload on its own; **Dismiss** hides it; a newly-staged waiting
-   SW re-shows it.
-6. **update apply** — click **Update** → `SKIP_WAITING` posted →
-   `controllerchange` → exactly one reload → the new build stamp
-   (`__BUILD_SHA__`) is shown.
-7. **update with a run in progress** — start a run, click **Update** → the extra
-   `confirm` appears; cancel keeps the run; accept reloads.
-8. **no stale mix** — after an activated update, only the current precache cache
-   name exists (`caches.keys()`); `cleanupOutdatedCaches` removed the old one.
-9. **portable** — the `portable` project asserts `serviceWorker.controller`
-   is `null` and `getRegistrations()` is empty (§P6).
-10. **origin gate** — a `build:pwa` output with `__PWA_TEST_ORIGIN__` empty,
-    served from an origin **not** in the allow-list, does **not** register
-    (`getRegistrations()` empty).
+**No test rebuilds anything.** Update tests just flip the generation and call
+`registration.update()`, so they are safe under retries and independent of
+order. Each test pins its starting generation (`setGen`) and gets a fresh
+`BrowserContext` (clean SW + Cache Storage). Wired into the `e2e` CI job as
+`npm run e2e:pwa`.
+
+> Playwright cannot drive a real OS install. The **"installable" check verifies
+> the *conditions*** — a linked `manifest.webmanifest` that parses with `name` /
+> `display` / `id` / `start_url` / `scope` and 192 + 512 + maskable icons, and a
+> registered SW — not `beforeinstallprompt`.
+
+1. **installable + first-visit lifecycle** — manifest parses with the expected
+   fields/icons; SW registers and reaches `activated`; the first-visit page is
+   **not** controlled and shows **no** `.pwa-update` bar; one reload ⇒
+   `controller.scriptURL` ends `/sw.js`, still no bar.
+2. **cache == advertised precache** — after install, the single
+   `workbox-precache-*` cache's contents (bare paths) equal `/sw.js`'s
+   `precacheAndRoute` list exactly — includes `index.html`,
+   `manifest.webmanifest`, and an `assets/mc.worker-*.js`.
+3. **offline cold boot** — `setOffline(true)`, new page → app boots, add a Pool,
+   Step → `step 1`.
+4. **offline Monte Carlo** — `setOffline(true)`, new page → run a 40×12 MC → the
+   `.dist` panel appears and the DISTRIBUTION tab is active: the **precached
+   `mc.worker-*.js` chunk runs a real distribution offline**.
+5. **offline `#g1=` deep link** — build a distinctive graph, Share (clipboard
+   stubbed), `setOffline(true)`, `goto('/#g1=<payload>')` → the graph loads from
+   cache, `location.hash === ''`.
+6. **registration gate (real browser)** — open the PWA build from
+   **`http://127.0.0.1:4174`**: the `<link rel="manifest">` is present, but
+   `getRegistrations()` stays empty and `controller` is `null` — the origin is
+   not the baked one. (Plus `isRegistrationAllowed()` unit-tested for the
+   Production host / a Preview subdomain / `localhost` / `"null"`.)
+7. **update — nothing automatic** — from gen A, switch to gen B + `update()` ⇒
+   the bar; a page sentinel survives (no reload), the stamp is unchanged;
+   **Dismiss** hides it and a re-`update()` of the *same* worker keeps it
+   hidden; switching to gen C + `update()` re-shows the bar (a new worker).
+8. **update apply — one reload, clean generation** — **Update** → one `load`
+   event → `controller` back; the sentinel is gone (reloaded once); the single
+   cache's contents equal gen C's advertised precache; every **rotated** hashed
+   chunk from gen A (the stamped `index-*.js`) is absent; the build stamp reads
+   `pwagenC`.
+9. **update with a run in progress** — Play, then **Update** → the extra
+   `confirm` (`/run is in progress/i`); **cancel** ⇒ sentinel survives, the run
+   is still `Pause`-state, the stamp is unchanged.
+
+**Portable** — `e2e/portable-file.spec.ts` asserts no SW registration / no
+controller / no `<link rel="manifest">` on the `file://` build (§P6).
 
 ### P8.2 Build-time checks — precache closure, and the inverse (run in `checks`)
 
@@ -514,5 +538,18 @@ from Lighthouse 13), so it is **not** a release gate. Instead:
    gates a run-in-progress `confirm`.
    `scripts/check-pwa-closure.mjs` (§P8.2a) in `checks`, run against **both**
    `dist-pwa/` and the `CF_PAGES_BRANCH=main npm run build → dist/` shape.
-3. **the `pwa` E2E project** (§P8.1) + the `portable` no-SW assertion + one full
-   run of the §P8.3 manual checklist.
+3. **✅ (landed) the `pwa` E2E project** — `playwright.pwa.config.ts` →
+   `e2e/pwa.spec.ts` (9 tests, §P8.1), backed by `e2e/support/pwa-serve.mjs`
+   which pre-builds three generations (`dist-pwa-a|b|c`, stamps `pwagenA|B|C`)
+   and switches which it serves on `POST /__gen?to=` — **no test rebuilds**, so
+   the update tests are retry-safe. Covers: installable + first-visit
+   lifecycle; cache == advertised precache; offline cold boot; **offline Monte
+   Carlo** (the precached worker chunk); offline `#g1=` link; the **real-browser
+   registration gate** (`127.0.0.1` origin ⇒ no SW despite the manifest); and
+   the update lifecycle (bar / no-auto-reload / per-worker Dismiss / new-gen
+   re-show / Update→one-reload→clean-generation→stamp / run-in-progress
+   confirm). `register-sw.ts` gains `isRegistrationAllowed()` (also unit-tested).
+   `e2e/portable-file.spec.ts` asserts the `file://` build has no SW / no
+   controller / no manifest link. `npm run e2e:pwa` in the `e2e` CI job. The
+   §P8.2 manual checklist is a one-time real-device run at the release
+   checkpoint.
