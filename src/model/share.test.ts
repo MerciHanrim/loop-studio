@@ -13,6 +13,7 @@ import {
   readShareFragment,
   utf8Bytes,
   zlibDeflate,
+  zlibDeflateFixedJs,
   zlibInflate,
   zlibWrapStored,
 } from './share'
@@ -186,6 +187,117 @@ describe('deflate/inflate interop', () => {
     }
     expect(threw).toBeInstanceOf(ShareError)
     expect(['inflate-failed', 'not-zlib']).toContain((threw as ShareError).reason)
+  })
+})
+
+// -- pure-JS fallback ENCODER really compresses (SS U1.3 / D2) ----------
+
+// A representative repetitive GraphDoc: repeated keys and structure, the shape
+// LZ77 + fixed Huffman is meant to shrink. ~40 nodes / ~40 edges.
+function sampleGraph(nodes = 40): string {
+  return JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: Array.from({ length: nodes }, (_, i) => ({
+      id: `node_${i}`,
+      type: i % 3 ? 'pool' : 'source',
+      position: { x: (i % 8) * 160, y: Math.floor(i / 8) * 120 },
+      data: { kind: i % 3 ? 'pool' : 'source', label: `Node ${i}`, initial: i % 3 ? 5 : 0, capacity: 100 },
+    })),
+    edges: Array.from({ length: nodes - 1 }, (_, i) => ({
+      id: `edge_${i}`,
+      source: `node_${i}`,
+      target: `node_${i + 1}`,
+      sourceHandle: 'out',
+      targetHandle: 'in',
+      type: 'loop',
+      data: { kind: 'resource', flow: String(1 + (i % 4)) },
+    })),
+    recommendedRunConfig: { baseSeed: 1, runs: 200, steps: 30, tracked: [] },
+  })
+}
+
+describe('zlibDeflateFixedJs (pure-JS fallback encoder)', () => {
+  it('shrinks a repetitive GraphDoc well below the original', () => {
+    const raw = enc(sampleGraph(40))
+    const packed = zlibDeflateFixedJs(raw)
+    expect(packed.length).toBeLessThan(raw.length * 0.6)
+    expect(dec(inflateZlibJs(packed, SHARE_MAX_DECODED_BYTES))).toBe(dec(raw))
+  })
+
+  it('also shrinks highly repetitive input dramatically', () => {
+    const raw = enc('x'.repeat(20000))
+    expect(zlibDeflateFixedJs(raw).length).toBeLessThan(400)
+  })
+
+  it('a representative large graph fits 8 KiB via BOTH native and the JS fallback', async () => {
+    const graph = sampleGraph(90)
+    const jsPayload = base64urlEncode(zlibDeflateFixedJs(enc(graph)))
+    const nativePayload = (await encodeShareText(graph)).payload
+    expect(jsPayload.length).toBeLessThanOrEqual(SHARE_MAX_BYTES)
+    expect(nativePayload.length).toBeLessThanOrEqual(SHARE_MAX_BYTES)
+    // sanity: the JS encoder is genuinely compressing, not merely storing
+    expect(jsPayload.length).toBeLessThan(enc(graph).length)
+  })
+
+  it('JS-made link opens with native inflate; native-made link opens with JS inflate', async () => {
+    const graph = sampleGraph(50)
+    const raw = enc(graph)
+
+    const jsLink = zlibDeflateFixedJs(raw)
+    expect(dec(await zlibInflate(jsLink, SHARE_MAX_DECODED_BYTES))).toBe(graph) // native DecompressionStream
+
+    const nativeLink = await zlibDeflate(raw)
+    expect(dec(inflateZlibJs(nativeLink, SHARE_MAX_DECODED_BYTES))).toBe(graph) // pure-JS inflate
+  })
+
+  it('JS encoder output is a zlib wrapper, not raw DEFLATE', () => {
+    const packed = zlibDeflateFixedJs(enc(sampleGraph(12)))
+    expect(packed[0]).toBe(0x78)
+    expect(((packed[0] << 8) | packed[1]) % 31).toBe(0)
+    expect(packed[1] & 0x20).toBe(0) // FDICT clear
+    // it inflates as zlib, and is NOT accepted as a raw stream
+    expect(() => inflateZlibJs(packed, SHARE_MAX_DECODED_BYTES)).not.toThrow()
+    expect(() => inflateZlibJs(packed.subarray(2), SHARE_MAX_DECODED_BYTES)).toThrow(/not-zlib/)
+  })
+
+  it('Hangul + emoji GraphDoc: JS compress -> native inflate is byte-identical', async () => {
+    const graph = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: '수도꼭지 🚰 광석' } },
+        { id: 'b', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: '금고 🏦 инвентарь', initial: 5 } },
+      ],
+      edges: [{ id: 'e', source: 'a', target: 'b', type: 'loop', data: { kind: 'resource', flow: '2' } }],
+    })
+    const raw = enc(graph)
+    const roundTripped = await zlibInflate(zlibDeflateFixedJs(raw), SHARE_MAX_DECODED_BYTES)
+    expect([...roundTripped]).toEqual([...raw]) // exact bytes
+    expect(dec(roundTripped)).toBe(graph)
+  })
+
+  it('incompressible input may grow, still round-trips, and the cap is judged on the final payload', async () => {
+    const rnd = new Uint8Array(4096)
+    crypto.getRandomValues(rnd)
+    let s = ''
+    for (const byte of rnd) s += String.fromCharCode(byte)
+    const raw = enc(s)
+    const packed = zlibDeflateFixedJs(raw)
+    // no correctness requirement on size for random data - only that it works
+    expect(dec(inflateZlibJs(packed, SHARE_MAX_DECODED_BYTES))).toBe(s)
+    expect(dec(await zlibInflate(packed, SHARE_MAX_DECODED_BYTES))).toBe(s)
+    // the size decision is on the base64url payload, whatever compression did
+    const payload = base64urlEncode(packed)
+    expect(fitsShareLink(payload.length)).toBe(payload.length <= SHARE_MAX_BYTES)
+  })
+
+  it('empty and 1-byte inputs still produce a valid stream', async () => {
+    for (const s of ['', 'Z']) {
+      const packed = zlibDeflateFixedJs(enc(s))
+      expect(dec(inflateZlibJs(packed, SHARE_MAX_DECODED_BYTES))).toBe(s)
+      expect(dec(await zlibInflate(packed, SHARE_MAX_DECODED_BYTES))).toBe(s)
+    }
   })
 })
 

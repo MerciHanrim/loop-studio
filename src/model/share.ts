@@ -4,7 +4,11 @@
 //   - strict base64url (SS U1.4)
 //   - zlib-wrapped DEFLATE (RFC 1950), with a Web-native path
 //     (Compression/DecompressionStream) and a self-contained fallback so a
-//     portable file:// build can both PRODUCE and OPEN a link (SS U1.3)
+//     portable file:// build can both PRODUCE and OPEN a link (SS U1.3). The
+//     fallback encoder is a real DEFLATE compressor - LZ77 + fixed Huffman
+//     (`zlibDeflateFixedJs`) - so a repetitive graph shrinks on file:// too,
+//     not just on https. (`zlibWrapStored` - uncompressed - is kept only as an
+//     inflater test vector.)
 //   - the outbound SHARE_MAX_BYTES check (SS U3.1)
 //   - the inbound, INCREMENTAL SHARE_MAX_DECODED_BYTES decompression-bomb guard
 //     that aborts before any parse and materialises nothing beyond the cap
@@ -90,11 +94,10 @@ function adler32(data: Uint8Array): number {
 }
 
 /**
- * Fallback encoder: a valid RFC 1950 stream built from RFC 1951 *stored*
- * (uncompressed) blocks. Any conformant inflater - native `DecompressionStream`
- * or `inflateZlibJs` - reads it. It does not compress; the native
- * `CompressionStream` path does. Cross-implementation byte differences are
- * expected and allowed (SS U1.3 / D2).
+ * A valid RFC 1950 stream built from RFC 1951 *stored* (uncompressed) blocks.
+ * NOT used as the encode fallback (that is `zlibDeflateFixedJs`, which actually
+ * compresses) - kept only as a decoder test vector: any conformant inflater
+ * must read it. Cross-implementation byte differences are expected (SS U1.3 / D2).
  */
 export function zlibWrapStored(data: Uint8Array): Uint8Array {
   // Canonical empty zlib stream - `DecompressionStream('deflate')` rejects an
@@ -377,6 +380,187 @@ export function inflateZlibJs(data: Uint8Array, maxOut: number): Uint8Array {
   return body
 }
 
+// -- pure-JS deflate (RFC 1951, LZ77 + fixed Huffman) ------------------
+
+// The encode fallback for portable file:// and any browser without
+// CompressionStream. One BFINAL fixed-Huffman block: LZ77 hash-chain matching
+// feeds the RFC 1951 fixed literal/length + distance code tables, so repetitive
+// data (JSON keys, repeated structure) genuinely shrinks. Not byte-identical to
+// `CompressionStream('deflate')` - that is allowed (SS U1.3 / D2) - but it is a
+// valid zlib stream every conformant inflater reads.
+
+const MIN_MATCH = 3
+const MAX_MATCH = 258
+const DEFLATE_WSIZE = 32768
+const HASH_SIZE = 1 << 15
+const MAX_CHAIN = 128
+
+function rev(code: number, n: number): number {
+  let r = 0
+  for (let k = 0; k < n; k++) {
+    r = (r << 1) | (code & 1)
+    code >>= 1
+  }
+  return r
+}
+
+// fixed literal/length codes (RFC 1951 3.2.6), pre-reversed for LSB-first output
+const FIX_LIT_CODE = new Uint16Array(288)
+const FIX_LIT_LEN = new Uint8Array(288)
+for (let s = 0; s < 288; s++) {
+  let n: number
+  let c: number
+  if (s < 144) {
+    n = 8
+    c = 0x30 + s
+  } else if (s < 256) {
+    n = 9
+    c = 0x190 + (s - 144)
+  } else if (s < 280) {
+    n = 7
+    c = s - 256
+  } else {
+    n = 8
+    c = 0xc0 + (s - 280)
+  }
+  FIX_LIT_LEN[s] = n
+  FIX_LIT_CODE[s] = rev(c, n)
+}
+const FIX_DIST_CODE = new Uint16Array(30)
+for (let d = 0; d < 30; d++) FIX_DIST_CODE[d] = rev(d, 5)
+
+// length 3..258 -> code index 0..28 (symbol = 257 + index)
+const LEN_CODE = new Uint16Array(259)
+{
+  let code = 0
+  for (let l = 3; l <= 258; l++) {
+    if (code < 28 && l >= LEN_BASE[code + 1]) code++
+    LEN_CODE[l] = code
+  }
+}
+// distance 1..32768 -> code index 0..29
+const DIST_CODE = new Uint8Array(DEFLATE_WSIZE + 1)
+{
+  let code = 0
+  for (let d = 1; d <= DEFLATE_WSIZE; d++) {
+    if (code < 29 && d >= DIST_BASE[code + 1]) code++
+    DIST_CODE[d] = code
+  }
+}
+
+class BitWriter {
+  bytes: number[] = []
+  private buf = 0
+  private cnt = 0
+  /** `code`'s low `n` bits, LSB first (Huffman codes must be pre-reversed). */
+  write(code: number, n: number): void {
+    this.buf |= (code & ((1 << n) - 1)) << this.cnt
+    this.cnt += n
+    while (this.cnt >= 8) {
+      this.bytes.push(this.buf & 0xff)
+      this.buf >>>= 8
+      this.cnt -= 8
+    }
+  }
+  finish(): number[] {
+    if (this.cnt > 0) {
+      this.bytes.push(this.buf & 0xff)
+      this.buf = 0
+      this.cnt = 0
+    }
+    return this.bytes
+  }
+}
+
+function hash3(a: number, b: number, c: number): number {
+  return ((a << 10) ^ (b << 5) ^ c) & (HASH_SIZE - 1)
+}
+
+/** RFC 1951 stream: one final fixed-Huffman block. */
+function deflateFixed(data: Uint8Array): number[] {
+  const bw = new BitWriter()
+  bw.write(1, 1) // BFINAL = 1
+  bw.write(1, 2) // BTYPE = 01 (fixed Huffman)
+
+  const n = data.length
+  const head = new Int32Array(HASH_SIZE).fill(-1)
+  const prev = new Int32Array(DEFLATE_WSIZE).fill(-1)
+
+  const insert = (pos: number): void => {
+    if (pos + MIN_MATCH > n) return
+    const h = hash3(data[pos], data[pos + 1], data[pos + 2])
+    prev[pos & (DEFLATE_WSIZE - 1)] = head[h]
+    head[h] = pos
+  }
+  const emitLiteral = (byte: number): void => {
+    bw.write(FIX_LIT_CODE[byte], FIX_LIT_LEN[byte])
+  }
+  const emitMatch = (len: number, dist: number): void => {
+    const lc = LEN_CODE[len]
+    const sym = 257 + lc
+    bw.write(FIX_LIT_CODE[sym], FIX_LIT_LEN[sym])
+    if (LEN_EXTRA[lc]) bw.write(len - LEN_BASE[lc], LEN_EXTRA[lc])
+    const dc = DIST_CODE[dist]
+    bw.write(FIX_DIST_CODE[dc], 5)
+    if (DIST_EXTRA[dc]) bw.write(dist - DIST_BASE[dc], DIST_EXTRA[dc])
+  }
+
+  let i = 0
+  while (i < n) {
+    let bestLen = 0
+    let bestDist = 0
+    if (i + MIN_MATCH <= n) {
+      const h = hash3(data[i], data[i + 1], data[i + 2])
+      let cand = head[h]
+      let chain = MAX_CHAIN
+      const limit = i - DEFLATE_WSIZE
+      const maxl = Math.min(MAX_MATCH, n - i)
+      while (cand >= 0 && cand > limit && chain-- > 0) {
+        if (data[cand + bestLen] === data[i + bestLen]) {
+          let l = 0
+          while (l < maxl && data[cand + l] === data[i + l]) l++
+          if (l > bestLen) {
+            bestLen = l
+            bestDist = i - cand
+            if (l >= maxl) break
+          }
+        }
+        cand = prev[cand & (DEFLATE_WSIZE - 1)]
+      }
+    }
+    if (bestLen >= MIN_MATCH) {
+      emitMatch(bestLen, bestDist)
+      const end = i + bestLen
+      while (i < end) {
+        insert(i)
+        i++
+      }
+    } else {
+      emitLiteral(data[i])
+      insert(i)
+      i++
+    }
+  }
+  bw.write(FIX_LIT_CODE[256], FIX_LIT_LEN[256]) // end of block
+  return bw.finish()
+}
+
+/** zlib-wrapped (RFC 1950) fixed-Huffman DEFLATE of `data`. */
+export function zlibDeflateFixedJs(data: Uint8Array): Uint8Array {
+  const body = deflateFixed(data)
+  const adler = adler32(data)
+  const out = new Uint8Array(2 + body.length + 4)
+  out[0] = 0x78 // CM=8, CINFO=7
+  out[1] = 0x9c // FLEVEL=2, FDICT=0; 0x789c % 31 === 0
+  out.set(body, 2)
+  const p = 2 + body.length
+  out[p] = (adler >>> 24) & 0xff
+  out[p + 1] = (adler >>> 16) & 0xff
+  out[p + 2] = (adler >>> 8) & 0xff
+  out[p + 3] = adler & 0xff
+  return out
+}
+
 // -- native-or-fallback deflate / inflate --------------------------------
 
 async function streamThrough(
@@ -421,10 +605,10 @@ const hasCompressionStream = typeof CompressionStream !== 'undefined'
 const hasDecompressionStream = typeof DecompressionStream !== 'undefined'
 
 /** zlib-wrapped DEFLATE: `CompressionStream('deflate')` when present, else the
- *  self-contained stored-block wrapper (SS U1.3). */
+ *  self-contained LZ77 + fixed-Huffman compressor (SS U1.3). */
 export async function zlibDeflate(bytes: Uint8Array): Promise<Uint8Array> {
   if (hasCompressionStream) return streamThrough(new CompressionStream('deflate'), bytes)
-  return zlibWrapStored(bytes)
+  return zlibDeflateFixedJs(bytes)
 }
 
 /** Inflate a zlib stream with the output bounded by `maxOut`. Native
