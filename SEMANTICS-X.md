@@ -2,15 +2,15 @@
 
 ```
 Spec ID: loop-expr/1
-Status:  Draft (rev 4 — freeze candidate)
+Status:  Frozen
 ```
 
-**Draft for review — rev 4 (freeze candidate).** Rev 3 is approved except one
-`@id` contradiction: it both offered a `@{opaque-id}` escape **and** required
-every reference-target id to be `SAFE_ID`, which makes the escape pointless and
-assumes every legacy GraphDoc id was already `SAFE_ID`. Rev 4 removes the id
-restriction: **any existing valid GraphDoc id may be referenced**; `SAFE_ID`
-only selects the *canonical spelling* (§X3). This is the sole change.
+**Frozen (2026-08-30, rev 4).** This document is the fixed target for the
+implementation. A behavioural change after this is a new spec id in a new
+document (`loop-expr/1.1` for the deferred function / comparison / conditional
+layer — §X11 X-1 — or `loop-expr/2`), exactly as with
+`loop-state/1 → loop-state/2`; this file only takes typo / clarifying-prose
+fixes. §X11 records the settled decisions X-1…X-6.
 
 Defines a **small, deterministic expression language** — its grammar, its
 reference syntax, its numeric rules, its canonical form, and how it is

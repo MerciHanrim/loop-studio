@@ -2,23 +2,21 @@
 
 ```
 Spec ID: loop-model/1
-Status:  Draft (rev 4 — freeze candidate)
+Status:  Frozen
 ```
 
-**Draft for review — rev 4 (freeze candidate).** Rev 3 is approved except the
-`@id` target restriction: it required every reference-target id to be `SAFE_ID`,
-which both makes the `@{…}` escape pointless and assumes every legacy GraphDoc
-id was already `SAFE_ID`. Rev 4 removes that: **any id valid in a GraphDoc today
-can be referenced** (`loop-expr/1` §X3 rev 4); `SAFE_ID` only picks the
-canonical spelling. `loop-model/1` imposes **no** new node-id constraint —
-consistent with "additive, v1 behaviour-identical". This is the sole change.
+**Frozen (2026-08-30, rev 4).** This document is the fixed target for the
+implementation. A behavioural change after this is a new spec id in a new
+document (`loop-model/2`), exactly as with `loop-state/1 → loop-state/2`; this
+file only takes typo / clarifying-prose fixes. §M10 records the settled
+decisions M-1…M-8.
 
-Rev 3's approved content is unchanged: Register time-axis (§M3), Resource Type
-identity (§M4.1), invalid-Register display value (§M6.2), the wire-level v1/v2
-discriminator + v1-first validation (§M8), `loop-workspace/2` narrowed out
-(§M8.2), advisory fields as revision content under the `advisory` tag (§M1.2,
-§M8.1a/b), and all §M10 / §X11 decisions closed. Adds three modelling
-constructs on top of the existing graph + engine:
+The `loop-revision/2` field-projection extensions (§M8.1a / §M8.1b) and the
+v1-first / common-v2 validation order (§M8.1c) are **fixed here** and are
+ratified into `SEMANTICS-R.md`'s successor when `loop-revision/2` is authored;
+`loop-workspace` stays at v1 (§M8.2).
+
+Adds three modelling constructs on top of the existing graph + engine:
 
 - **Parameter** — a fixed, user-tuned numeric input.
 - **Register** — a **derived** readout computed from the current snapshot by a
