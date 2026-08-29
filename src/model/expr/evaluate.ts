@@ -4,7 +4,8 @@
 // `resolve` returns per `@id` (X-INV-2). Single depth-first left-to-right pass,
 // no short-circuit; the FIRST error in that order is reported. Every result is
 // finite or it is a §X7 evaluate error — never NaN / ±Infinity / a stand-in
-// (X-INV-1).
+// (X-INV-1). The walk uses an explicit work stack, so an AST of any depth
+// evaluates without growing the call stack.
 
 import type { ExprNode } from './ast'
 import { type ExprError, type ExprResolveError, evalError, resolveError } from './errors'
@@ -28,52 +29,73 @@ class EvalFailure {
 
 const norm = (x: number) => (Object.is(x, -0) ? 0 : x)
 
-function walk(node: ExprNode, resolve: Resolver): number {
-  switch (node.type) {
-    case 'number':
-      return norm(node.value)
-
-    case 'ref': {
-      const out = resolve(node.id)
-      if (!out.ok) throw new EvalFailure(out.error)
-      if (!Number.isFinite(out.value)) {
-        throw new EvalFailure(resolveError('REF_NOT_FINITE', node.id))
-      }
-      return norm(out.value)
-    }
-
-    case 'unary': {
-      const v = walk(node.operand, resolve)
-      const r = -v
-      if (!Number.isFinite(r)) throw new EvalFailure(evalError('EVAL_NOT_FINITE'))
-      return norm(r)
-    }
-
-    case 'binary': {
-      const l = walk(node.left, resolve) // left first (§X6 left-to-right)
-      const r = walk(node.right, resolve)
-      let out: number
-      switch (node.op) {
-        case '+':
-          out = l + r
-          break
-        case '-':
-          out = l - r
-          break
-        case '*':
-          out = l * r
-          break
-        case '/':
-          if (r === 0) throw new EvalFailure(evalError('EVAL_DIV_ZERO'))
-          out = l / r
-          break
-      }
-      if (Number.isNaN(out) || !Number.isFinite(out)) {
-        throw new EvalFailure(evalError('EVAL_NOT_FINITE'))
-      }
-      return norm(out)
+const apply = (op: '+' | '-' | '*' | '/', l: number, r: number): number => {
+  switch (op) {
+    case '+':
+      return l + r
+    case '-':
+      return l - r
+    case '*':
+      return l * r
+    case '/': {
+      if (r === 0) throw new EvalFailure(evalError('EVAL_DIV_ZERO'))
+      return l / r
     }
   }
+}
+
+type Frame = { node: ExprNode; entered: boolean }
+
+/** Iterative depth-first, left-to-right post-order walk (§X6). */
+function walk(ast: ExprNode, resolve: Resolver): number {
+  const work: Frame[] = [{ node: ast, entered: false }]
+  const vals: number[] = []
+
+  while (work.length > 0) {
+    const frame = work[work.length - 1]
+    const node = frame.node
+
+    if (node.type === 'number') {
+      work.pop()
+      vals.push(norm(node.value))
+      continue
+    }
+    if (node.type === 'ref') {
+      work.pop()
+      const out = resolve(node.id)
+      if (!out.ok) throw new EvalFailure(out.error)
+      if (!Number.isFinite(out.value)) throw new EvalFailure(resolveError('REF_NOT_FINITE', node.id))
+      vals.push(norm(out.value))
+      continue
+    }
+
+    if (!frame.entered) {
+      frame.entered = true
+      // push children so the LEFT operand is evaluated first (§X6)
+      if (node.type === 'unary') {
+        work.push({ node: node.operand, entered: false })
+      } else {
+        work.push({ node: node.right, entered: false })
+        work.push({ node: node.left, entered: false })
+      }
+      continue
+    }
+
+    // post-order: operand value(s) are on top of `vals`
+    work.pop()
+    let out: number
+    if (node.type === 'unary') {
+      out = -vals.pop()!
+    } else {
+      const r = vals.pop()!
+      const l = vals.pop()!
+      out = apply(node.op, l, r)
+    }
+    if (Number.isNaN(out) || !Number.isFinite(out)) throw new EvalFailure(evalError('EVAL_NOT_FINITE'))
+    vals.push(norm(out))
+  }
+
+  return vals[0]
 }
 
 export function evaluate(ast: ExprNode, resolve: Resolver): EvalResult {

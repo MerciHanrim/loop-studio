@@ -46,29 +46,31 @@ export function canonicaliseExpr(src: string): string | null {
   return r.ok ? canonicalPrint(r.ast) : null
 }
 
-/** Collect every distinct `@id` target referenced by an AST, in first-seen order. */
+/** Collect every distinct `@id` target referenced by an AST, in first-seen
+ *  (left-to-right) order. Iterative — safe for an AST of any depth. */
 export function refsOf(ast: ExprNode): string[] {
   const seen = new Set<string>()
   const out: string[] = []
-  const visit = (n: ExprNode): void => {
+  const stack: ExprNode[] = [ast]
+  while (stack.length > 0) {
+    const n = stack.pop()!
     switch (n.type) {
       case 'ref':
         if (!seen.has(n.id)) {
           seen.add(n.id)
           out.push(n.id)
         }
-        return
+        break
       case 'unary':
-        visit(n.operand)
-        return
+        stack.push(n.operand)
+        break
       case 'binary':
-        visit(n.left)
-        visit(n.right)
-        return
+        stack.push(n.right) // push right first so the left subtree is visited first
+        stack.push(n.left)
+        break
       case 'number':
-        return
+        break
     }
   }
-  visit(ast)
   return out
 }
