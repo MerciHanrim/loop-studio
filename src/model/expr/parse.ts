@@ -15,6 +15,13 @@ import { type Token, tokenize } from './tokenize'
 
 export type ParseResult = { ok: true; ast: ExprNode } | { ok: false; error: ExprParseError }
 
+class ParseAbort {
+  readonly error: ExprParseError
+  constructor(error: ExprParseError) {
+    this.error = error
+  }
+}
+
 export function parse(src: string): ParseResult {
   if (src.trim() === '') return { ok: false, error: parseError('EXPR_EMPTY', 1) }
 
@@ -26,10 +33,8 @@ export function parse(src: string): ParseResult {
   const peek = (): Token => toks[pos]
   const advance = (): Token => toks[pos++]
 
-  let failure: ExprParseError | null = null
-  const fail = (err: ExprParseError): never => {
-    failure = err
-    throw err
+  const abort = (err: ExprParseError): never => {
+    throw new ParseAbort(err)
   }
 
   const parseExpr = (): ExprNode => parseAdd()
@@ -84,19 +89,19 @@ export function parse(src: string): ParseResult {
       const inner = parseExpr()
       const close = peek()
       if (close.type !== 'rparen') {
-        fail(parseError('EXPR_UNCLOSED_PAREN', open.col))
+        abort(parseError('EXPR_UNCLOSED_PAREN', open.col))
       }
       advance()
       return inner
     }
     // number / ref / "(" expected here
     if (t.type === 'op') {
-      fail(parseError('EXPR_SYNTAX', t.col, `unexpected "${t.op}" at column ${t.col}`))
+      abort(parseError('EXPR_SYNTAX', t.col, `unexpected "${t.op}" at column ${t.col}`))
     }
     if (t.type === 'rparen') {
-      fail(parseError('EXPR_SYNTAX', t.col, `unexpected ")" at column ${t.col}`))
+      abort(parseError('EXPR_SYNTAX', t.col, `unexpected ")" at column ${t.col}`))
     }
-    fail(parseError('EXPR_SYNTAX', t.col, `expected a number, reference or "(" at column ${t.col}`))
+    return abort(parseError('EXPR_SYNTAX', t.col, `expected a number, reference or "(" at column ${t.col}`))
   }
 
   try {
@@ -119,7 +124,8 @@ export function parse(src: string): ParseResult {
       }
     }
     return { ok: true, ast }
-  } catch {
-    return { ok: false, error: failure ?? parseError('EXPR_SYNTAX', 1) }
+  } catch (e) {
+    if (e instanceof ParseAbort) return { ok: false, error: e.error }
+    throw e
   }
 }

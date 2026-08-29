@@ -90,7 +90,12 @@ function registersOnCycle(ids: string[], depsOf: Map<string, string[]>): Set<str
 }
 
 class RefFail {
-  constructor(readonly code: MRegCode, readonly detail?: string) {}
+  readonly code: MRegCode
+  readonly detail?: string
+  constructor(code: MRegCode, detail?: string) {
+    this.code = code
+    this.detail = detail
+  }
 }
 
 export function evaluateRegisters(view: RegisterSnapshotView): Map<string, RegisterOutcome> {

@@ -20,7 +20,10 @@ export type Resolver = (id: string) => ResolveOutcome
 export type EvalResult = { ok: true; value: number } | { ok: false; error: ExprError }
 
 class EvalFailure {
-  constructor(readonly error: ExprError) {}
+  readonly error: ExprError
+  constructor(error: ExprError) {
+    this.error = error
+  }
 }
 
 const norm = (x: number) => (Object.is(x, -0) ? 0 : x)

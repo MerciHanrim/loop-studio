@@ -48,7 +48,7 @@ export type ResourceMismatchFinding = {
 
 export type MismatchGraphView = {
   /** every `resource` edge, in any order */
-  resourceEdges: { id: string; source: string; target: string; resourceType: unknown }[]
+  resourceEdges: { id: string; source: string; target: string; resourceType?: unknown }[]
   /** a node's kind, or `undefined` if the id is not a node */
   nodeKind: (id: string) => string | undefined
   /** a node's raw `data.resourceType` (only pools carry it) */
