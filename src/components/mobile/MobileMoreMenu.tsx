@@ -23,7 +23,8 @@ import { ThemeToggle } from '../ThemeToggle'
 // the desktop menus.
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
-const backToMore = () => document.querySelector<HTMLButtonElement>('.sheet__row--first')
+// a sub-sheet returns focus to the top bar's More button when it closes
+const backToMore = () => document.querySelector<HTMLButtonElement>('.mob-more')
 
 export function MobileMoreMenu({
   fileInputRef,
@@ -40,7 +41,6 @@ export function MobileMoreMenu({
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
   const loadGraph = useGraphStore((s) => s.loadGraph)
-  const hasContent = useGraphStore((s) => s.nodes.length > 0 || s.edges.length > 0)
 
   const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
 
@@ -72,11 +72,19 @@ export function MobileMoreMenu({
   const pickTemplate = (id: string) => {
     const tpl = TEMPLATES.find((t) => t.id === id)
     if (!tpl) return
-    if (hasContent && !window.confirm(`Replace the current diagram with "${tpl.name}"?`)) return
+    // docs/mobile.md §MV3b — confirm before replacing, unless the session is
+    // still the untouched first-boot sample. Cancel: the Templates sheet stays
+    // open and nothing changes (no pause, no load, no rev bump).
+    if (
+      !useGraphStore.getState().pristineSample &&
+      !window.confirm(`Replace the current diagram with "${tpl.name}"?`)
+    ) {
+      return
+    }
     useSimStore.getState().pause()
-    loadGraph(tpl.graph)
+    loadGraph(tpl.graph) // the existing atomic path — exactly one bump
     useMcStore.getState().applyRecommended(tpl.recommendedRunConfig)
-    closeOverlay()
+    closeOverlay() // accept: the sheet closes, focus returns to the More button
   }
 
   const graphJSON = () => {

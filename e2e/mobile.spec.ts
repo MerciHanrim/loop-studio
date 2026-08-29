@@ -434,7 +434,39 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     page.once('dialog', (d) => void d.accept())
     await fileInput.setInputFiles({ name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(fixture) })
     await expect.poll(() => graphContent(page)).not.toBe(before)
-    void more
+  })
+
+  test('Template from the More menu confirms before replacing; cancel keeps the graph, accept replaces + closes the sheet', async ({ page }) => {
+    await loadDiagram(page)
+    const before = await graphContent(page)
+    const templates = page.locator('.sheet[aria-label="Templates"]')
+
+    const openTemplates = async () => {
+      await more(page).click()
+      await page.locator('.sheet[aria-label="More"] .sheet__row', { hasText: 'Templates' }).click()
+      await expect(templates).toBeVisible()
+    }
+
+    // cancel — graph + run state untouched, the sheet stays open
+    await openTemplates()
+    page.once('dialog', (d) => {
+      expect(d.message()).toMatch(/replace/i)
+      return void d.dismiss()
+    })
+    await templates.locator('.sheet__row').first().click()
+    await page.waitForTimeout(150)
+    expect(await graphContent(page), 'cancel keeps the graph').toBe(before)
+    expect(await page.evaluate(
+      () => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex,
+    )).toBe(0)
+    await expect(templates).toBeVisible()
+
+    // accept — replaced once, the sheet closes, focus returns to More
+    page.once('dialog', (d) => void d.accept())
+    await templates.locator('.sheet__row').first().click()
+    await expect(templates).toBeHidden()
+    await expect(more(page)).toBeFocused()
+    await expect.poll(() => graphContent(page)).not.toBe(before)
   })
 
   test('a Monte-Carlo run still completes on mobile', async ({ page }) => {
