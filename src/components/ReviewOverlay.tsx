@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import { useProjectStore } from '../store/projectStore'
+import { useGraphStore } from '../store/graphStore'
+import { useProjectStore, type ApplyClassification, type ApplyFailReason } from '../store/projectStore'
 import { useReviewStore } from '../store/reviewStore'
 import { applyPendingProposal, openPendingProposalAsDocument } from '../store/revisionIO'
 import { useSimStore } from '../store/simStore'
@@ -50,21 +51,38 @@ function DiffSummary({ m }: { m: ReviewModel }) {
   )
 }
 
+const FAIL_MSG: Record<Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved'>, string> = {
+  'wrong-project': 'This proposal is for a different project.',
+  'no-target': 'No project is open to apply onto.',
+  'target-is-proposal': 'Export the open proposal as a Project revision first.',
+  'payload-invalid': 'This proposal file failed its integrity check — re-import it.',
+}
+
 export function ReviewOverlay() {
   const pending = useReviewStore((s) => s.pending)
   const close = useReviewStore((s) => s.close)
   const isMobile = useIsMobile()
   const dialogRef = useRef<HTMLDivElement>(null)
-  const [confirming, setConfirming] = useState(false)
+  // set once the store has told us a non-`exact` apply needs consent — carries
+  // the class + the target digest THAT decision was made against (§R7A.4)
+  const [armed, setArmed] = useState<{ cls: ApplyClassification; digest: string | null } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const { fitView } = useReactFlow()
 
-  // classification is recomputed against the LIVE target every time this opens
-  const model = useMemo(() => (pending ? reviewModel(pending) : null), [pending])
+  // Recompute the model against the LIVE store on every relevant change, so a
+  // target edited / swapped while this is open is reflected immediately. The
+  // store re-checks everything again at the click regardless (authoritative).
   const openRev = useProjectStore((s) => s.open?.revisionId ?? null)
+  const openRole = useProjectStore((s) => s.open?.role ?? null)
+  const simRev = useGraphStore((s) => s.simulationRev)
+  const model = useMemo(
+    () => (pending ? reviewModel(pending) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pending, openRev, openRole, simRev],
+  )
 
   useEffect(() => {
-    setConfirming(false)
+    setArmed(null)
     setErr(null)
   }, [pending])
 
@@ -80,7 +98,6 @@ export function ReviewOverlay() {
   if (!pending || !model) return null
 
   const canApply = model.gate === 'ok'
-  const needsConfirm = canApply && model.classification !== 'exact'
 
   const afterMutation = () => {
     useSimStore.getState().pause()
@@ -89,20 +106,25 @@ export function ReviewOverlay() {
   }
 
   const doApply = () => {
-    if (needsConfirm && !confirming) {
-      setConfirming(true)
+    setErr(null)
+    const res = applyPendingProposal(
+      pending,
+      armed ? { confirmed: true, expectTargetDigest: armed.digest ?? undefined } : {},
+    )
+    if (res.ok) {
+      afterMutation()
       return
     }
-    const res = applyPendingProposal(pending, { confirmed: needsConfirm })
-    if (!res.ok) {
-      setErr(
-        res.reason === 'needs-confirmation'
-          ? 'This apply needs confirmation.'
-          : `Could not apply (${res.reason}).`,
-      )
+    if (res.reason === 'needs-confirmation' || res.reason === 'target-moved') {
+      // arm (or re-arm) against the snapshot the store just evaluated
+      setArmed({ cls: res.classification ?? 'divergent', digest: res.targetDigest ?? null })
+      if (res.reason === 'target-moved') {
+        setErr('The document changed since you confirmed — review the change and apply again.')
+      }
       return
     }
-    afterMutation()
+    setArmed(null)
+    setErr(FAIL_MSG[res.reason])
   }
 
   const doOpenDoc = () => {
@@ -140,13 +162,15 @@ export function ReviewOverlay() {
         <p className="review__class review__class--blocked">{GATE_MSG[model.gate]}</p>
       )}
 
-      {confirming ? <p className="review__warn">{confirmationText(model)}</p> : null}
+      {armed ? (
+        <p className="review__warn">{confirmationText({ ...model, classification: armed.cls })}</p>
+      ) : null}
       {err ? <p className="review__warn">{err}</p> : null}
 
       <div className="review__actions">
         {canApply ? (
           <button type="button" className="btn btn--primary" onClick={doApply}>
-            {confirming ? 'Apply anyway' : 'Apply proposal'}
+            {armed ? 'Apply anyway' : 'Apply proposal'}
           </button>
         ) : null}
         <button type="button" className="btn" onClick={doOpenDoc}>

@@ -2338,3 +2338,27 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--text-primary);
   resize: vertical;
 }
+
+/* one-time boot notice (SEMANTICS-R.md §R8 reboot rule) */
+.boot-notice {
+  position: fixed;
+  top: calc(8px + var(--sai-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-mc-dialog);
+  max-width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface-panel);
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  box-shadow: var(--elev-label);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+.boot-notice__text {
+  flex: 1;
+}

@@ -180,7 +180,7 @@ describe('Apply — whole-proposal (§R7 / §R7.1 / §R7.3)', () => {
     const simRevBefore = useGraphStore.getState().simulationRev
 
     const res = applyPendingProposal(p)
-    expect(res).toEqual({ ok: false, reason: 'needs-confirmation', classification: 'unknown' })
+    expect(res).toMatchObject({ ok: false, reason: 'needs-confirmation', classification: 'unknown' })
     expect(graphSig()).toBe(sigBefore)
     expect(useProjectStore.getState().open).toEqual(openBefore)
     expect(useGraphStore.getState().simulationRev).toBe(simRevBefore)
@@ -301,5 +301,138 @@ describe('plain Graph / Workspace Export never carries a project header', () => 
     promote()
     const text = useGraphStore.getState().exportJSON()
     expect(JSON.parse(text).project).toBeUndefined()
+  })
+})
+
+// ── review round 3 — history sidecar, re-check at Apply ───────────────────
+
+/** a proposal whose base is the CURRENTLY-open revision (so it classifies
+ *  `exact` against an untouched target). */
+async function proposalForOpen(mut: (f: Record<string, unknown>) => void): Promise<PendingProposal> {
+  return importProposal(editedProposalFile(mut))
+}
+const applyOk = (p: PendingProposal, opts?: { confirmed?: boolean }) => {
+  const r = applyPendingProposal(p, opts)
+  if (!r.ok) throw new Error(`apply failed: ${r.reason}`)
+  return r
+}
+const rev = () => useProjectStore.getState().open!.revisionId
+
+describe('history sidecar — the project header is carried per undo frame (§R7.3)', () => {
+  it('Apply → plain edit → Undo edit → Undo Apply → Redo Apply keeps the header lineage', async () => {
+    const r0 = promote()
+    applyOk(await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool)))
+    const rA = rev()
+    expect(rA).not.toBe(r0)
+
+    useGraphStore.getState().addNodeAt('gate', { x: 1, y: 1 }) // plain edit, header unchanged
+    expect(rev()).toBe(rA)
+
+    useGraphStore.getState().undo() // undo the edit
+    expect(rev()).toBe(rA)
+    expect(useGraphStore.getState().nodes.some((n) => n.type === 'gate')).toBe(false)
+
+    useGraphStore.getState().undo() // undo the Apply
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0)
+    expect(useProjectStore.getState().open!.appliedProposal).toBeUndefined()
+    expect(useGraphStore.getState().nodes.some((n) => n.id === 'p_added')).toBe(false)
+
+    useGraphStore.getState().redo() // redo the Apply
+    expect(rev()).toBe(rA)
+    expect(useGraphStore.getState().nodes.some((n) => n.id === 'p_added')).toBe(true)
+    expect(autosaveHeader().revisionId).toBe(rA)
+  })
+
+  it('Apply A → Apply B → Undo B → Undo A → Redo A → Redo B', async () => {
+    const r0 = promote()
+    applyOk(await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool)))
+    const rA = rev()
+    applyOk(
+      await proposalForOpen((f) =>
+        (f.nodes as unknown[]).push({ ...extraPool, id: 'p_added2', data: { ...extraPool.data, label: 'Two' } }),
+      ),
+    )
+    const rB = rev()
+    expect(new Set([r0, rA, rB]).size).toBe(3)
+
+    useGraphStore.getState().undo()
+    expect(rev()).toBe(rA)
+    useGraphStore.getState().undo()
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0)
+    useGraphStore.getState().redo()
+    expect(rev()).toBe(rA)
+    useGraphStore.getState().redo()
+    expect(rev()).toBe(rB)
+    expect(autosaveHeader().revisionId).toBe(rB)
+  })
+
+  it('Undo an Apply, then a new edit ⇒ redo branch (and its header) is discarded', async () => {
+    const r0 = promote()
+    applyOk(await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool)))
+    expect(rev()).not.toBe(r0)
+
+    useGraphStore.getState().undo() // back to r0
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0)
+
+    useGraphStore.getState().addNodeAt('gate', { x: 2, y: 2 }) // fork a new branch
+    expect(useGraphStore.getState().canRedo).toBe(false)
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0) // header stays on the new branch
+  })
+})
+
+describe('Apply re-checks everything at the click, not the Review-time class', () => {
+  it('a target edited after an `exact` Review ⇒ Apply now needs confirmation', async () => {
+    promote()
+    const p = await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool))
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'exact' })
+
+    useGraphStore.getState().addNodeAt('gate', { x: 9, y: 9 }) // diverge AFTER the Review opened
+    const res = applyPendingProposal(p) // no `confirmed`
+    expect(res.ok).toBe(false)
+    if (res.ok) return
+    expect(res.reason).toBe('needs-confirmation')
+    expect(res.classification).not.toBe('exact')
+  })
+
+  it('the open project cleared while the Review is up ⇒ Apply refused, zero change', async () => {
+    promote()
+    const p = await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool))
+    const sig = graphSig()
+    useProjectStore.setState({ open: null, dirty: false })
+
+    expect(applyPendingProposal(p, { confirmed: true })).toEqual({ ok: false, reason: 'no-target' })
+    expect(graphSig()).toBe(sig)
+  })
+
+  it('a proposal payload tampered after import ⇒ payload-invalid, zero change', async () => {
+    promote()
+    const p = await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool))
+    const sig = graphSig()
+    p.base = { ...p.base, contentDigest: 'f'.repeat(64) } // digest no longer matches base.content
+
+    expect(applyPendingProposal(p, { confirmed: true })).toEqual({ ok: false, reason: 'payload-invalid' })
+    expect(graphSig()).toBe(sig)
+  })
+
+  it('expectTargetDigest guards the confirmed apply against a target that moved again', async () => {
+    promote()
+    const p = await proposalForOpen((f) => (f.nodes as unknown[]).push(extraPool))
+    useGraphStore.getState().addNodeAt('gate', { x: 1, y: 1 })
+
+    const first = applyPendingProposal(p)
+    expect(first.ok).toBe(false)
+    if (first.ok) return
+    expect(first.reason).toBe('needs-confirmation')
+    const armedDigest = first.targetDigest!
+
+    useGraphStore.getState().addNodeAt('source', { x: 2, y: 2 }) // target moves again
+
+    const stale = applyPendingProposal(p, { confirmed: true, expectTargetDigest: armedDigest })
+    expect(stale).toMatchObject({ ok: false, reason: 'target-moved' })
+
+    // re-arm against the fresh digest ⇒ applies
+    const freshDigest = (applyPendingProposal(p) as { targetDigest: string }).targetDigest
+    const done = applyPendingProposal(p, { confirmed: true, expectTargetDigest: freshDigest })
+    expect(done.ok).toBe(true)
   })
 })

@@ -1,4 +1,5 @@
 import { ReactFlowProvider } from '@xyflow/react'
+import { BootNotice } from './components/BootNotice'
 import { Canvas } from './components/Canvas'
 import { Inspector } from './components/Inspector'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
@@ -17,6 +18,7 @@ export default function App() {
       <ShareLoader />
       <Shortcuts />
       <PwaUpdateBar />
+      <BootNotice />
       <div className="app">
         <Toolbar />
         <div className="app__body">

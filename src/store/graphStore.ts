@@ -21,6 +21,10 @@ import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
 type XY = { x: number; y: number }
 type Snapshot = { nodes: LoopNode[]; edges: LoopEdge[] }
+/** one undo-history frame: the graph AND an opaque sidecar (the loop-revision/1
+ *  project header at that instant), so a single undo/redo restores both together
+ *  even across several Apply / edit steps (SEMANTICS-R.md §R7.3). */
+type HistoryEntry = { nodes: LoopNode[]; edges: LoopEdge[]; sidecar: unknown }
 
 type GraphStore = {
   nodes: LoopNode[]
@@ -41,8 +45,8 @@ type GraphStore = {
    *  (SEMANTICS-U.md §U5.6 / D5). */
   pristineSample: boolean
 
-  past: Snapshot[]
-  future: Snapshot[]
+  past: HistoryEntry[]
+  future: HistoryEntry[]
   canUndo: boolean
   canRedo: boolean
   undo: () => void
@@ -91,13 +95,19 @@ export function bootProjectHeader(): unknown {
   return loadFromStorage()?.project ?? null
 }
 
-// A single observer of history motion, so `projectStore` can keep the open
-// revision header paired with the graph across an Apply's one undo entry
-// (SEMANTICS-R.md §R7.3). Not part of the store state — no re-renders.
-let historyHook: ((kind: 'undo' | 'redo') => void) | null = null
-export function setHistoryHook(fn: ((kind: 'undo' | 'redo') => void) | null): void {
-  historyHook = fn
+// The undo history carries an opaque per-frame "sidecar" alongside the graph.
+// `projectStore` registers a get/set pair: `get()` reads the current project
+// header when a frame is captured, `set(h)` restores the header a frame carries
+// when undo/redo lands on it. This keeps the header lineage correct across any
+// sequence of Apply + plain edits + undo/redo (SEMANTICS-R.md §R7.3) without a
+// single global "last apply" variable. Not store state — no re-renders.
+let historySidecar: { get: () => unknown; set: (h: unknown) => void } | null = null
+export function setHistorySidecar(
+  s: { get: () => unknown; set: (h: unknown) => void } | null,
+): void {
+  historySidecar = s
 }
+const sidecarNow = (): unknown => historySidecar?.get() ?? null
 
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
@@ -188,8 +198,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (coalesce) return
     const { nodes, edges } = get()
     set({
-      past: [...get().past, { nodes, edges }].slice(-HISTORY_MAX),
-      future: [],
+      past: [...get().past, { nodes, edges, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
+      future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
     })
@@ -222,7 +232,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         nodes: prev.nodes,
         edges: prev.edges,
         past: past.slice(0, -1),
-        future: [{ nodes, edges }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
         selectedNodeId: null,
@@ -230,7 +240,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump()
       persist()
-      historyHook?.('undo')
+      historySidecar?.set(prev.sidecar) // restore the project header this frame carried
     },
 
     redo: () => {
@@ -241,7 +251,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       set({
         nodes: next.nodes,
         edges: next.edges,
-        past: [...past, { nodes, edges }].slice(-HISTORY_MAX),
+        past: [...past, { nodes, edges, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
@@ -250,7 +260,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump()
       persist()
-      historyHook?.('redo')
+      historySidecar?.set(next.sidecar) // restore the project header this frame carried
     },
 
     onNodesChange: (changes) => {

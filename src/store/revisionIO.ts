@@ -97,11 +97,15 @@ export function classifyPendingProposal(p: PendingProposal) {
 }
 
 /** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for
- *  every non-`exact` class). */
-export function applyPendingProposal(p: PendingProposal, opts: { confirmed?: boolean } = {}): ApplyResult {
+ *  every non-`exact` class); `expectTargetDigest` pins the snapshot the
+ *  confirmation was shown against. Re-gates / re-validates / re-classifies. */
+export function applyPendingProposal(
+  p: PendingProposal,
+  opts: { confirmed?: boolean; expectTargetDigest?: string } = {},
+): ApplyResult {
   return useProjectStore.getState().applyProposal(
     { project: p.project, base: p.base, proposed: proposedGraph(p) },
-    { confirmed: opts.confirmed },
+    { confirmed: opts.confirmed, expectTargetDigest: opts.expectTargetDigest },
   )
 }
 

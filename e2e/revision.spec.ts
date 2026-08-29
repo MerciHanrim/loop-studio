@@ -326,4 +326,75 @@ test.describe('loop-revision/1 — Slice 1C', () => {
     // the proposed top-level graph is the EDITED one
     expect(p2.nodes.length).toBeGreaterThan(p0.nodes.length)
   })
+
+  test('Apply re-classifies at the click: a target edited after an exact Review needs confirmation', async ({
+    page,
+  }) => {
+    await exportVia(page, /Project revision/)
+    const prop = await exportVia(page, /Make a proposal/)
+    const proposalText = await textOf(prop!)
+
+    await setFile(page, 'p.json', proposalText)
+    await expect(page.locator('.review')).toContainText('exactly the base') // exact at open time
+
+    // edit the target through the normal editor AFTER the Review is open
+    await addNode(page, 'gate')
+
+    // first Apply click now returns needs-confirmation (re-checked), not a silent apply
+    await page.locator('.review__actions button', { hasText: 'Apply proposal' }).click()
+    await expect(page.locator('.review__warn')).toBeVisible()
+    await expect(page.locator('.review__actions button', { hasText: 'Apply anyway' })).toBeVisible()
+    // and the graph was not touched by that first click
+    expect((await snap(page)).open!.applied).toBeNull()
+  })
+
+  test('proposal reboot rule (§R8): reload drops the proposal header, keeps the graph, re-import restores it', async ({
+    page,
+  }) => {
+    await exportVia(page, /Project revision/)
+    const r0 = (await snap(page)).open!.revisionId
+    const prop = await exportVia(page, /Make a proposal/)
+    const proposalText = await textOf(prop!)
+
+    await setFile(page, 'p.json', proposalText)
+    await page.locator('.review__actions button', { hasText: 'Open as a document' }).click()
+    await expect(page.locator('.rev-chip')).toContainText('proposal')
+    await addNode(page, 'converter')
+    const nodesBefore = (await snap(page)).nodes
+    // wait for graphStore's debounced autosave to actually hit localStorage
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          try {
+            return JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? '{}').nodes?.length ?? 0
+          } catch {
+            return 0
+          }
+        }),
+      )
+      .toBe(nodesBefore)
+
+    // ── reload ──
+    await page.reload()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+
+    const after = await snap(page)
+    expect(after.nodes).toBe(nodesBefore) // the graph work is kept
+    expect(after.open).toBeNull() // the proposal header is dropped (no pinned base to restore)
+    await expect(page.locator('.boot-notice')).toBeVisible()
+    // re-export / apply are unavailable while there is no project
+    await exportBtn(page).click()
+    await expect(exportItem(page, /Make a proposal/)).toBeDisabled()
+    await exportBtn(page).click()
+
+    await page.locator('.boot-notice button', { hasText: 'Dismiss' }).click()
+    await expect(page.locator('.boot-notice')).toBeHidden()
+
+    // ── re-importing the original proposal file restores the pinned base ──
+    await setFile(page, 'p.json', proposalText)
+    await page.locator('.review__actions button', { hasText: 'Open as a document' }).click()
+    await expect(page.locator('.rev-chip')).toContainText('proposal')
+    const prop2 = await exportVia(page, /Make a proposal/)
+    expect(JSON.parse(await textOf(prop2!)).project.base.revisionId).toBe(r0)
+  })
 })

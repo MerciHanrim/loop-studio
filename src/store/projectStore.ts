@@ -24,7 +24,7 @@ import {
   type RevisionExportPlan,
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
-import { bootProjectHeader, setAutosaveProjectHeader, setHistoryHook, useGraphStore } from './graphStore'
+import { bootProjectHeader, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
 
 // SEMANTICS-R.md §R2 / §R3 / §R6 / §R10 — the OPEN revision, the `dirty` flag,
 // and the two-phase Export transaction. Slice 1B (+ review round 2). NO UI.
@@ -57,9 +57,24 @@ export type OpenProject = {
 }
 
 export type ApplyClassification = 'exact' | 'divergent' | 'unknown'
+export type ApplyFailReason =
+  | 'wrong-project'
+  | 'no-target'
+  | 'target-is-proposal'
+  | 'needs-confirmation'
+  | 'payload-invalid'
+  | 'target-moved'
 export type ApplyResult =
   | { ok: true; classification: ApplyClassification; newRevisionId: string }
-  | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' | 'needs-confirmation'; classification?: ApplyClassification }
+  | {
+      ok: false
+      reason: ApplyFailReason
+      /** the class computed at THIS call (for the confirmation copy) */
+      classification?: ApplyClassification
+      /** the target digest at THIS call — the caller passes it back as
+       *  `expectTargetDigest` so the confirmed apply runs on the same snapshot */
+      targetDigest?: string
+    }
 
 /** Everything `commitRevisionExport` needs to verify a plan is still current
  *  and to land the right baseline. Returned by `planRevision`. */
@@ -113,11 +128,16 @@ type ProjectState = {
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
   /**
-   * §R7 — whole-proposal Apply. Atomic: one `loadDoc` (one undo entry, one
-   * `simulationRev` bump, paused/step 0), then a NEW revision (fresh id,
-   * `parentId` = the pre-apply revision, `appliedProposal` recorded). A single
-   * Undo restores the pre-apply GraphDoc AND this header (via the graphStore
-   * history hook). Non-`exact` needs `opts.confirmed`.
+   * §R7 — whole-proposal Apply. Re-gates, re-validates the proposal payload
+   * against its own digests, and RE-CLASSIFIES against the live target at call
+   * time (never the class the Review panel showed earlier). Atomic: one
+   * `loadDoc` (one undo entry, one `simulationRev` bump, paused/step 0), then a
+   * NEW revision (fresh id, `parentId` = the pre-apply revision,
+   * `appliedProposal` recorded). A single Undo restores the pre-apply GraphDoc
+   * AND this header (graphStore history sidecar). Non-`exact` needs
+   * `opts.confirmed`; a confirmed apply also passes `opts.expectTargetDigest`
+   * so a target that moved between the confirm and the apply is refused
+   * (`target-moved`) rather than silently applied to a different snapshot.
    */
   applyProposal: (
     input: {
@@ -125,8 +145,17 @@ type ProjectState = {
       base: ProposalBase
       proposed: { nodes: LoopNode[]; edges: LoopEdge[] }
     },
-    opts?: { now?: string; mint?: (p: 'rev') => string; confirmed?: boolean },
+    opts?: {
+      now?: string
+      mint?: (p: 'rev') => string
+      confirmed?: boolean
+      expectTargetDigest?: string
+    },
   ) => ApplyResult
+  /** a one-time reboot notice (currently: a proposal session that could not be
+   *  restored, §R8 reboot rule), or `null` */
+  bootNotice: string | null
+  dismissBootNotice: () => void
   clear: () => void
   /** test/boot seam — swap the open header without touching storage */
   _setOpen: (open: OpenProject | null) => void
@@ -180,11 +209,15 @@ function parseHeader(raw: unknown): OpenProject | null {
   if (!isProjectId(o.projectId) || !isRevisionId(o.revisionId)) return null
   if (o.parentId !== null && !isRevisionId(o.parentId)) return null
   if (typeof o.contentDigest !== 'string' || !HEX64.test(o.contentDigest)) return null
+  // §R8 reboot rule — a proposal session's pinned base (`pinnedBase.content`) is
+  // never autosaved, so its provenance cannot be honestly restored. Drop the
+  // whole header; the caller keeps the graph as a plain document and notifies.
+  if (o.role === 'proposal') return null
   return {
     projectId: o.projectId,
     revisionId: o.revisionId,
     parentId: (o.parentId as string | null) ?? null,
-    role: o.role === 'proposal' ? 'proposal' : 'revision',
+    role: 'revision',
     lineage: Array.isArray(o.lineage) ? o.lineage.filter((x): x is string => isRevisionId(x)) : [],
     meta: o.meta && typeof o.meta === 'object' ? (o.meta as ProjectMeta) : {},
     baselineDigest: o.contentDigest,
@@ -224,18 +257,25 @@ function classifyAgainst(
 
 let planSeq = 0
 
-/** the last Apply's before/after pair, so the graphStore history hook can keep
- *  the open header in lock-step with Apply's single undo entry (§R7.3). Cleared
- *  once the graph no longer sits on either side of that boundary. */
-let lastApply: {
-  preGraphDigest: string
-  preHeader: OpenProject
-  postGraphDigest: string
-  postHeader: OpenProject
-} | null = null
+/** §R8 reboot rule — a `role:"proposal"` session cannot be restored from the
+ *  autosave header alone: its provenance (`pinnedBase.content`) is deliberately
+ *  NOT persisted (frozen loop-revision/1). On reboot the header is dropped, the
+ *  graph is kept as a plain document, and this notice is shown once. */
+export const PROPOSAL_REBOOT_NOTICE =
+  'This session was editing a proposal. The base it was made from is not saved ' +
+  'on this device, so it reopened as a plain graph — your edits are kept. ' +
+  'Re-import the proposal file to review or re-export it.'
 
 export const useProjectStore = create<ProjectState>((set, get) => {
-  const open = parseHeader(bootProjectHeader())
+  const rawBoot = bootProjectHeader()
+  const open = parseHeader(rawBoot)
+  const proposalDropped =
+    !open &&
+    !!rawBoot &&
+    typeof rawBoot === 'object' &&
+    (rawBoot as Record<string, unknown>).schema === 'loop-revision/1' &&
+    (rawBoot as Record<string, unknown>).role === 'proposal'
+  if (proposalDropped) setAutosaveProjectHeader(null) // don't keep re-trying on every boot
   const dirty = open ? liveDigest() !== open.baselineDigest : false
 
   const authoredMeta = (base: ProjectMeta): ProjectMeta => ({
@@ -248,6 +288,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     open,
     dirty,
     activePlanId: null,
+    bootNotice: proposalDropped ? PROPOSAL_REBOOT_NOTICE : null,
+
+    dismissBootNotice: () => set({ bootNotice: null }),
 
     refreshDirty: () => {
       const o = get().open
@@ -400,9 +443,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
     openProposalAsDocument: (project, base, proposed) => {
       // §R10.5 — one atomic swap: load the proposed graph, then adopt a
-      // `proposal` header that PINS the original base for §R6 re-export.
+      // `proposal` header that PINS the original base for §R6 re-export. The
+      // graphStore history sidecar captures this header on the frame it creates,
+      // so undo restores the prior document AND its header.
       useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
-      lastApply = null // this replaces the document — the Apply undo pairing is void
       const digest = digestOfCanonical(canonicalContent(proposed))
       const next: OpenProject = {
         projectId: project.projectId,
@@ -427,28 +471,47 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     },
 
     applyProposal: ({ project, base, proposed }, opts = {}) => {
-      // §R7A.1 gates — identical to classifyProposal, plus the confirmation gate
+      // Everything is re-checked HERE, at the click — never trust the class the
+      // Review panel computed when it opened (the target may have been edited or
+      // swapped since).
+
+      // §R7A.1 gates
       const o = get().open
       if (!o) return { ok: false, reason: 'no-target' }
       if (o.projectId !== project.projectId) return { ok: false, reason: 'wrong-project' }
       if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
 
+      // §R6 / §R10 — the proposal payload must still hash to its own digests
+      const proposedCanon = canonicalContent(proposed)
+      if (
+        digestOfCanonical(base.content) !== base.contentDigest ||
+        (project.contentDigest != null && digestOfCanonical(proposedCanon) !== project.contentDigest)
+      ) {
+        return { ok: false, reason: 'payload-invalid' }
+      }
+
+      const targetDigest = liveDigest()
       const classification = classifyAgainst(o, base, proposed)
-      if (classification !== 'exact' && !opts.confirmed) {
-        return { ok: false, reason: 'needs-confirmation', classification }
+      if (classification !== 'exact') {
+        // a target that moved since the confirmation was shown ⇒ re-confirm
+        if (opts.expectTargetDigest != null && opts.expectTargetDigest !== targetDigest) {
+          return { ok: false, reason: 'target-moved', classification, targetDigest }
+        }
+        if (!opts.confirmed) {
+          return { ok: false, reason: 'needs-confirmation', classification, targetDigest }
+        }
       }
 
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
 
-      // capture the pre-apply target for the paired single-undo (§R7.3)
       const preHeader = o
-      const preGraphDigest = liveDigest()
 
-      // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0,
-      // one undo entry.
+      // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0, one
+      // undo entry. The history sidecar captures `preHeader` on that frame, so a
+      // single Undo restores the pre-apply graph AND this header together.
       useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
-      const postGraphDigest = digestOfCanonical(canonicalContent(proposed))
+      const postGraphDigest = digestOfCanonical(proposedCanon)
 
       // §R7.1 — a brand-new revision derived from the target
       const meta: ProjectMeta = { ...preHeader.meta, tool: TOOL, createdAt: now }
@@ -472,7 +535,6 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       }
       set({ open: postHeader, dirty: false, activePlanId: null })
       persist(postHeader)
-      lastApply = { preGraphDigest, preHeader, postGraphDigest, postHeader }
       return { ok: true, classification, newRevisionId: postHeader.revisionId }
     },
 
@@ -498,24 +560,21 @@ useGraphStore.subscribe(() => {
   }, 250)
 })
 
-// §R7.3 — Apply's `loadDoc` leaves ONE undo entry; when the user crosses it we
-// must move the open header with the graph. The hook fires on every undo/redo,
-// so we act only while the live graph still sits exactly on one side of the
-// recorded Apply boundary; any other edit voids the pairing.
-setHistoryHook((kind) => {
-  const la = lastApply
-  if (!la) return
-  const st = useProjectStore.getState()
-  const cur = liveDigest()
-  if (kind === 'undo' && cur === la.preGraphDigest && st.open?.revisionId === la.postHeader.revisionId) {
-    st._setOpen(la.preHeader)
-    persist(la.preHeader)
-  } else if (
-    kind === 'redo' &&
-    cur === la.postGraphDigest &&
-    st.open?.revisionId === la.preHeader.revisionId
-  ) {
-    st._setOpen(la.postHeader)
-    persist(la.postHeader)
-  }
+// §R7.3 — every undo-history frame carries the project header that was current
+// when it was captured (graphStore sidecar). `get` hands graphStore the live
+// header to store on a frame; `set` restores the header a frame carries when
+// undo/redo lands on it. Plain edits capture the unchanged header (restoring it
+// is a no-op); only an Apply frame differs from its neighbour, so only crossing
+// an Apply actually moves the header — for ANY sequence of applies + edits +
+// undo/redo, with no global bookkeeping.
+setHistorySidecar({
+  get: () => useProjectStore.getState().open,
+  set: (h) => {
+    const open = (h ?? null) as OpenProject | null
+    useProjectStore.setState({
+      open,
+      dirty: open ? liveDigest() !== open.baselineDigest : false,
+    })
+    persist(open)
+  },
 })
