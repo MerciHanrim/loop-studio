@@ -8,6 +8,15 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Loop Studio</title>
+    <!-- PWA install metadata (docs/pwa.md §P1). The manifest link + service
+         worker are injected only in the Production / PWA-test build (§P9 D8a);
+         these tags are harmless everywhere. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f0efea" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#171a18" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Loop Studio" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   </head>
   <body>
     <div id="root"></div>

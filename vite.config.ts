@@ -30,6 +30,12 @@ function buildSha(): string {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const portable = mode === 'portable'
+  // The PWA layer (manifest + service worker + registration) belongs only to
+  // the Production build and the dedicated `--mode pwa` test build — never a
+  // plain `npm run build`, dev, or portable (docs/pwa.md §P7 / §P9 D8a). The
+  // `vite-plugin-pwa` plugin is wired on this flag in Slice 2; the defines land
+  // now so the source can gate against them.
+  const pwa = mode === 'pwa' || process.env.CF_PAGES_BRANCH === 'main'
 
   return {
     base: './',
@@ -42,6 +48,13 @@ export default defineConfig(({ mode }) => {
       __SHARE_BASE_URL__: JSON.stringify(
         process.env.VITE_SHARE_BASE_URL ?? 'https://cozy-loop-studio.pages.dev/',
       ),
+      __PWA_ENABLED__: JSON.stringify(pwa),
+      // A build-time constant, NOT a window global — a Production bundle inlines
+      // this to '' so there is no runtime hook to widen the origin allow-list
+      // (§P7). Non-empty only for `--mode pwa` with PWA_TEST_ORIGIN set.
+      __PWA_TEST_ORIGIN__: JSON.stringify(
+        pwa && mode === 'pwa' ? (process.env.PWA_TEST_ORIGIN ?? '') : '',
+      ),
     },
     plugins: [
       react(),
@@ -49,7 +62,9 @@ export default defineConfig(({ mode }) => {
     ],
     build: portable
       ? { outDir: 'dist-portable', emptyOutDir: true }
-      : {},
+      : mode === 'pwa'
+        ? { outDir: 'dist-pwa', emptyOutDir: true } // the `--mode pwa` test build; Production still emits dist/
+        : {},
     // `npm test` is the vitest unit suite only; the Playwright specs under e2e/
     // run via `npm run e2e`.
     test: {
