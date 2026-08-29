@@ -6,12 +6,14 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** (v0.4.0). The diagram editor and the simulation
-> engine — deterministic, seeded randomness, Monte Carlo, and executable state
-> connections (`trigger` / `activator` / `label`) — are all usable today, plus
-> Workspace Export/Import, shareable `#g1=` links, and an installable offline
-> PWA. Execution semantics are pinned down in frozen spec documents (see
-> [Semantics](#semantics)).
+> Status: **working preview** — `v0.5.0-dev`; the last tagged release is
+> **v0.4.0**. The diagram editor and the simulation engine — deterministic,
+> seeded randomness, Monte Carlo, and executable state connections (`trigger` /
+> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
+> shareable `#g1=` links, and an installable offline PWA. Execution semantics
+> are pinned down in frozen spec documents (see [Semantics](#semantics)); the
+> next one in flight is Project Revision / Proposal (`loop-revision/1`,
+> [`SEMANTICS-R.md`](SEMANTICS-R.md)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -103,6 +105,7 @@ spec id, never an edit to a frozen one.
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
   - ✅ Offline PWA — installable, works fully offline **once the service-worker install and precache complete** on the first online load; a `prompt`-style update bar, never an automatic reload ([`docs/pwa.md`](docs/pwa.md))
   - ✅ Mobile **view/run** layout — a small-screen layout to open, pan/zoom, and run a shared diagram; editing stays desktop-only ([`docs/mobile.md`](docs/mobile.md))
+- ◐ Project Revision / Proposal (`loop-revision/1`, [`SEMANTICS-R.md`](SEMANTICS-R.md)) — file-only async collaboration: an immutable `parentId`-chained revision lineage, `proposal` files with a full `base.content` snapshot, a three-way diff, and confirmed whole-proposal / per-hunk apply. **Spec frozen; implementation in progress.** No accounts / server / sync.
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
