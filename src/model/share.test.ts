@@ -301,6 +301,137 @@ describe('zlibDeflateFixedJs (pure-JS fallback encoder)', () => {
   })
 })
 
+// -- compressor safety net: differential fuzz + explicit boundaries -----
+// The hand-rolled LZ77 + fixed-Huffman path is where an off-by-one hides.
+// For every input: JS compress -> JS inflate AND JS compress -> native inflate
+// must both be byte-identical to the original.
+
+const CAP = 1 << 20
+
+function lcg(seed: number): () => number {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+    return s
+  }
+}
+function concat(...parts: Uint8Array[]): Uint8Array {
+  const n = parts.reduce((a, p) => a + p.length, 0)
+  const out = new Uint8Array(n)
+  let o = 0
+  for (const p of parts) {
+    out.set(p, o)
+    o += p.length
+  }
+  return out
+}
+function eqBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
+  return true
+}
+async function bothInflate(raw: Uint8Array): Promise<void> {
+  const packed = zlibDeflateFixedJs(raw)
+  expect(eqBytes(inflateZlibJs(packed, CAP), raw)).toBe(true)
+  expect(eqBytes(await zlibInflate(packed, CAP), raw)).toBe(true)
+}
+
+describe('zlibDeflateFixedJs - differential fuzz + boundary cases', () => {
+  const rnd = lcg(0xc0ffee)
+  const randBytes = (n: number): Uint8Array => {
+    const a = new Uint8Array(n)
+    for (let i = 0; i < n; i++) a[i] = rnd() & 0xff
+    return a
+  }
+  const patterns: Record<string, (n: number) => Uint8Array> = {
+    zeros: (n) => new Uint8Array(n),
+    random: randBytes,
+    lowEntropy: (n) => {
+      const a = new Uint8Array(n)
+      for (let i = 0; i < n; i++) a[i] = i % 7
+      return a
+    },
+    block13: (n) => {
+      const blk = randBytes(13)
+      const a = new Uint8Array(n)
+      for (let i = 0; i < n; i++) a[i] = blk[i % 13]
+      return a
+    },
+    textish: (n) => {
+      const A = '{}[]",: abcdefghij0123\n'
+      const a = new Uint8Array(n)
+      for (let i = 0; i < n; i++) a[i] = A.charCodeAt((i * 7 + (i >> 4)) % A.length)
+      return a
+    },
+  }
+  const sizes = [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 255, 256, 257,
+    258, 259, 260, 300, 511, 512, 513, 1000, 4095, 4096, 4097,
+  ]
+
+  for (const name of Object.keys(patterns)) {
+    it(`byte-identical round-trip: ${name} at ${sizes.length} lengths (JS->JS and JS->native)`, async () => {
+      for (const n of sizes) await bothInflate(patterns[name](n))
+    })
+  }
+
+  it('exact match LENGTHS 3 / 257 / 258 / 259 / 400 round-trip', async () => {
+    for (const L of [3, 257, 258, 259, 400]) {
+      const seg = randBytes(L)
+      // seg followed by a different byte in each copy -> the match is exactly L
+      await bothInflate(concat(seg, Uint8Array.of(0x00), seg, Uint8Array.of(0x01)))
+    }
+  })
+
+  it('exact match DISTANCES 1 / 32767 / 32768 round-trip', async () => {
+    await bothInflate(concat(Uint8Array.of(0x41), new Uint8Array(600).fill(0x41))) // dist 1
+    for (const D of [32767, 32768]) {
+      const A = randBytes(D)
+      await bothInflate(concat(A, A)) // 2nd copy starts at offset D
+    }
+  })
+
+  it('the INFLATER accepts a native stream that uses distance 32768', async () => {
+    const P = patterns.block13(32768)
+    // 2nd P starts at offset 32769; the 1st P starts at offset 1 -> distance 32768
+    const raw = concat(Uint8Array.of(0x00), P, P)
+    const nativePacked = await zlibDeflate(raw)
+    expect(eqBytes(inflateZlibJs(nativePacked, CAP), raw)).toBe(true)
+  })
+
+  it('input ending mid-match / at odd byte boundaries round-trips', async () => {
+    const base = patterns.textish(777)
+    for (const cut of [1, 2, 3, 4, 5, 257, 258, 259, 511, 512, 513, 776, 777]) {
+      // the trailing region is a prefix of `base` -> the tail match runs off the end
+      await bothInflate(concat(base, base.subarray(0, cut)))
+    }
+  })
+
+  it('mixed random + repeated regions, many seeds', async () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const g = lcg(seed * 2654435761)
+      const chunks: Uint8Array[] = []
+      const count = 3 + (g() % 6)
+      for (let k = 0; k < count; k++) {
+        const kind = g() % 3
+        const len = 1 + (g() % 900)
+        if (kind === 0) {
+          const c = new Uint8Array(len)
+          for (let i = 0; i < len; i++) c[i] = g() & 0xff
+          chunks.push(c)
+        } else if (kind === 1) {
+          chunks.push(new Uint8Array(len).fill(g() & 0xff))
+        } else if (chunks.length) {
+          chunks.push(chunks[g() % chunks.length].slice()) // repeat an earlier region
+        } else {
+          chunks.push(new Uint8Array(len).fill(0x2a))
+        }
+      }
+      await bothInflate(concat(...chunks))
+    }
+  })
+})
+
 // -- outbound cap (SS U3.1) --------------------------------------------
 
 describe('SHARE_MAX_BYTES (outbound, 8 KiB)', () => {
