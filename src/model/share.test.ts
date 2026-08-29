@@ -6,6 +6,7 @@ import {
   ShareError,
   base64urlDecode,
   base64urlEncode,
+  classifyFragment,
   decodeShareText,
   encodeShareText,
   fitsShareLink,
@@ -530,6 +531,31 @@ describe('readShareFragment', () => {
 
   it('SHARE_PREFIX is g1=', () => {
     expect(SHARE_PREFIX).toBe('g1=')
+  })
+})
+
+describe('classifyFragment (SS U5.1 / U6)', () => {
+  it('g1=<payload> ⇒ share (payload may be empty), # optional', () => {
+    expect(classifyFragment('#g1=AbC-_')).toEqual({ kind: 'share', payload: 'AbC-_' })
+    expect(classifyFragment('g1=')).toEqual({ kind: 'share', payload: '' })
+  })
+
+  it('g<n>=... with n ≠ 1 ⇒ unsupported (a newer Share version)', () => {
+    for (const h of ['#g2=abc', 'g3=', '#g10=zzz', '#g99=AAAA']) {
+      expect(classifyFragment(h).kind).toBe('unsupported')
+    }
+  })
+
+  it('starts g1 but is not g1=... ⇒ malformed', () => {
+    for (const h of ['#g1', 'g1', '#g1x', '#g1-abc', '#g1/']) {
+      expect(classifyFragment(h).kind).toBe('malformed')
+    }
+  })
+
+  it('anything else ⇒ foreign (left in the address bar)', () => {
+    for (const h of ['', '#', '#section-2', '#/a/route', '#w1=abc', '#gg=1', '#g=1', '#g=', '#graph']) {
+      expect(classifyFragment(h).kind).toBe('foreign')
+    }
   })
 })
 

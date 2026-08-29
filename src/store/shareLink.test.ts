@@ -56,25 +56,79 @@ beforeEach(() => {
   useGraphStore.getState().addNodeAt('gate', { x: 10, y: 10 })
 })
 
-// ── no share fragment ──────────────────────────────────────────────────
-describe('no share link present', () => {
-  it('empty / plain-anchor / route hashes ⇒ none, nothing touched, no strip', async () => {
-    for (const hash of ['', '#', '#section-2', '#/some/route']) {
+// ── foreign fragments: not ours, left in the address bar ───────────────
+describe('a fragment that is not a Loop Studio share link', () => {
+  it('empty / plain-anchor / route / other-app fragments ⇒ none, nothing touched, no strip', async () => {
+    for (const hash of ['', '#', '#section-2', '#/some/route', '#w1=abc', '#gg=1', '#g=1']) {
       const before = rev()
       const out = await consumeShareLink({ hash, stripFragment: NEVER, confirm: NEVER })
       expect(out).toEqual({ kind: 'none' })
       expect(rev()).toBe(before)
     }
   })
+})
 
-  it('an unknown `gN=` prefix ⇒ none, fragment left as-is', async () => {
-    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+// ── ours, but not a link this build can open: warn + strip, no changes ──
+describe('an unsupported or malformed share link (§U6)', () => {
+  it('`#g2=...` while a run is active ⇒ run kept, bump 0, fragment stripped, warns', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    useSimStore.setState({ status: 'running' }, false)
     const before = rev()
-    const out = await consumeShareLink({ hash: '#g2=whatever', stripFragment: NEVER, confirm: NEVER })
-    expect(out).toEqual({ kind: 'none' })
+    const beforeNodes = useGraphStore.getState().nodes
+    let strips = 0
+    const out = await consumeShareLink({
+      hash: '#g2=eJxLYY=whatever',
+      confirm: NEVER,
+      stripFragment: () => {
+        strips++
+      },
+    })
+    expect(out).toEqual({ kind: 'failed', reason: 'unsupported-version' })
     expect(rev()).toBe(before)
-    expect(info).toHaveBeenCalledOnce()
-    info.mockRestore()
+    expect(useGraphStore.getState().nodes).toBe(beforeNodes)
+    expect(useSimStore.getState().status).toBe('running')
+    expect(strips).toBe(1)
+    expect(warn).toHaveBeenCalledOnce()
+    warn.mockRestore()
+  })
+
+  it('`#g10=...` ⇒ unsupported-version, stripped', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let strips = 0
+    const out = await consumeShareLink({
+      hash: '#g10=AAAA',
+      confirm: NEVER,
+      stripFragment: () => {
+        strips++
+      },
+    })
+    expect(out).toEqual({ kind: 'failed', reason: 'unsupported-version' })
+    expect(strips).toBe(1)
+    warn.mockRestore()
+  })
+
+  it('`#g1` and `#g1=` ⇒ handled as a broken link, fragment stripped, nothing mutated', async () => {
+    for (const hash of ['#g1', '#g1=']) {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      useSimStore.setState({ status: 'running' }, false)
+      const before = rev()
+      const beforeNodes = useGraphStore.getState().nodes
+      let strips = 0
+      const out = await consumeShareLink({
+        hash,
+        confirm: NEVER,
+        stripFragment: () => {
+          strips++
+        },
+      })
+      expect(out.kind).toBe('failed') // 'malformed' for `#g1`, an inflate failure for `#g1=`
+      expect(rev()).toBe(before)
+      expect(useGraphStore.getState().nodes).toBe(beforeNodes)
+      expect(useSimStore.getState().status).toBe('running')
+      expect(strips).toBe(1)
+      expect(warn).toHaveBeenCalledOnce()
+      warn.mockRestore()
+    }
   })
 })
 

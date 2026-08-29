@@ -651,9 +651,35 @@ export async function decodeShareText(payload: string): Promise<string> {
   return utf8Decode(raw)
 }
 
-/** `location.hash` -> the `g1=` payload, or `null` if this is not a share link
- *  (SS U5.1). A leading `#` is optional. */
-export function readShareFragment(hash: string): string | null {
+/**
+ * Classify a URL fragment against the Loop Studio Share grammar (SS U5.1 / U6).
+ *
+ *  - `share`       - `g1=<payload>` : a current share link (payload may be '')
+ *  - `unsupported` - `g<n>=...`, n != 1 : a Share link from a newer version
+ *  - `malformed`   - starts `g1` but is not `g1=...` : a broken share link
+ *  - `foreign`     - anything else (`#section`, `#/route`, `#w1=...`, '') : not
+ *                    ours; the caller leaves it in the address bar
+ *
+ * `unsupported` and `malformed` are Loop Studio's to clean up (warn + strip);
+ * `foreign` is left untouched.
+ */
+export type FragmentKind =
+  | { kind: 'share'; payload: string }
+  | { kind: 'unsupported' }
+  | { kind: 'malformed' }
+  | { kind: 'foreign' }
+
+export function classifyFragment(hash: string): FragmentKind {
   const h = hash.startsWith('#') ? hash.slice(1) : hash
-  return h.startsWith(SHARE_PREFIX) ? h.slice(SHARE_PREFIX.length) : null
+  if (h.startsWith(SHARE_PREFIX)) return { kind: 'share', payload: h.slice(SHARE_PREFIX.length) }
+  if (/^g\d+=/.test(h)) return { kind: 'unsupported' } // g2=, g10=, ... - a real versioned prefix
+  if (/^g1(?![0-9])/.test(h)) return { kind: 'malformed' } // g1, g1x, g1-... (g1= handled above)
+  return { kind: 'foreign' }
+}
+
+/** `location.hash` -> the `g1=` payload, or `null` if this is not a current
+ *  share link. Thin wrapper over `classifyFragment` (SS U5.1). */
+export function readShareFragment(hash: string): string | null {
+  const c = classifyFragment(hash)
+  return c.kind === 'share' ? c.payload : null
 }

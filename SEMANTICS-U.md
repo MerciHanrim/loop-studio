@@ -73,8 +73,9 @@ or document data in a query string. A `?`-based share link is a defect.
 
 `g1=` — `g` = graph, `1` = payload format 1. The loader uses it to tell a share
 payload from an in-app / router hash or a plain `#anchor`, and it lets a later
-`g2=` / `w1=` coexist. An unknown prefix is ignored and the app boots normally
-(§U6).
+`g2=` / `w1=` coexist. A `g<n>=` fragment the build cannot open is recognised as
+a stale Share link and cleaned up (§U5.1 / §U6); a fragment that is not ours is
+left alone.
 
 ### U1.3 Compression — zlib-wrapped DEFLATE
 
@@ -226,10 +227,19 @@ existing graph" (U8/U4) literally true.
 
 ### U5.1 Recognition
 
-On boot, read `location.hash`. If it does not start with a known share prefix
-(`g1=`) → normal boot (the `localStorage` graph, or the first-boot sample). A
-plain `#anchor` or a future router hash is left untouched, and no fragment strip
-happens.
+On boot, classify `location.hash` (a leading `#` is ignored):
+
+| the fragment | meaning | on boot |
+|---|---|---|
+| `g1=<payload>` | a current share link | §U5.2 onward (`<payload>` may be empty → treated as damaged) |
+| `g<n>=…`, `n ≠ 1` | a share link from a **newer** version | **console warning; graph + run untouched; strip the fragment** |
+| starts `g1` but is not `g1=…` (`g1`, `g1x`, `g1-…`) | a **broken** share link | **console warning; graph + run untouched; strip the fragment** |
+| anything else — `#section`, `#/route`, `#w1=…`, `#gg=…`, empty | **not Loop Studio's** | normal boot; **fragment left untouched**, no strip |
+
+The middle two rows are Loop Studio's own dead fragments, so the app cleans them
+up (warn + strip) exactly as it does a `g1=` link that fails validation (§U5.2).
+A `g<n>=` prefix **without** a `=` (a bare `#g2`) is treated as foreign, not as
+an unsupported version — only an actual `g<digits>=` is a confident version tag.
 
 ### U5.2 Validate fully before touching state
 
@@ -313,8 +323,10 @@ unsupported link or a Cancel.
 |---|---|---|
 | build **without** share support | share link | fragment ignored; app boots normally (`localStorage` / sample); fragment left as-is |
 | build **with** `loop-share/1` | plain URL, no fragment | normal boot |
-| build with `loop-share/1` | fragment, **unknown** prefix (`g2=`, `w1=`, a router hash, `#anchor`) | ignored; normal boot; working graph untouched. For a `gN=` it does not know, a one-line console note ("this link was made with a newer version of Loop Studio"). |
-| build with `loop-share/1` | `g1=` fragment that fails any of base64url / inflate / size / parse / `deserialize` | normal boot + console warning; **current graph untouched**; fragment stripped |
+| build with `loop-share/1` | `g<n>=…` with `n ≠ 1` (an **unsupported** Share version) | normal boot + **console warning**; working graph + run **untouched**; **fragment stripped** |
+| build with `loop-share/1` | starts `g1` but is not `g1=…` (a **malformed** Share link) | normal boot + **console warning**; working graph + run **untouched**; **fragment stripped** |
+| build with `loop-share/1` | `g1=` fragment that fails any of base64url / inflate / size / parse / `deserialize` | normal boot + console warning; working graph + run **untouched**; **fragment stripped** |
+| build with `loop-share/1` | a fragment that is **not ours** (`#section`, `#/route`, `#w1=…`, `#gg=…`) | normal boot; working graph untouched; **fragment left as-is** |
 | `https://` build ↔ portable `file://` build | either one's `g1=` link | **must** decode in the other (zlib interop + fallback inflate) |
 
 - The **graph wire format is unchanged** (`loop-studio/graph` `version: 1`). A
@@ -358,7 +370,7 @@ unsupported link or a Cancel.
 | **U1** | The payload is always in the URL **fragment** — never a query string, a request body, or anything that reaches a server. |
 | **U2** | A share link carries the **`GraphDoc` only** — `nodes`, `edges`, `recommendedRunConfig`. Never an MC result, a sim snapshot, a seed, a view / canvas hint, or a user-global preference. |
 | **U3** | Opening a link never starts a run or a timer; afterwards the live sim is `idle` at step 0 and Monte-Carlo is `idle` — identical to a `Graph JSON` import. |
-| **U4** | A malformed, oversized (outbound **or** decoded), or unknown-prefix fragment can never prevent the app from booting and never mutates the current graph. Validation (base64url → inflate → size → parse → `deserialize`) fully succeeds *before* any confirm or `loadDoc`. |
+| **U4** | A malformed, oversized (outbound **or** decoded), unsupported-version, or foreign fragment can never prevent the app from booting and never mutates the current graph or a running sim. Validation (base64url → inflate → size → parse → `deserialize`) fully succeeds *before* any confirm or `loadDoc`. |
 | **U5** | Outbound size is all-or-nothing on the base64url payload after `#g1=`: it fits `SHARE_MAX_BYTES` or `Share` is refused with a pointer to `Graph JSON`. The graph is never truncated to fit. Inbound, inflate is bounded incrementally by `SHARE_MAX_DECODED_BYTES` and aborts before parse on breach. |
 | **U6** | Every load outcome — success, failure, cancel — strips **only** the fragment via `history.replaceState`, preserving `pathname` + `search`; a reload never re-imports. |
 | **U7** | The share wire format is the same `loop-studio/graph` `version: 1` a `Graph JSON` export writes; a graph round-tripped through a link equals the same graph round-tripped through a file. `g1` is **zlib-wrapped DEFLATE**; any conformant decoder inflates any conformant encoder's output; identical bytes / identical URL strings are **not** guaranteed. |
@@ -443,8 +455,12 @@ document, the graph / engine specs, or `loop-workspace/1`.
 10. **`https ↔ file://` interop** — a link produced by the portable single-file
     build opens correctly in the hosted build, and a link produced by the hosted
     build opens in the portable build (decoder fallback path).
-11. **Unknown prefix ⇒ ignored** — `#g2=…`, `#w1=…`, `#/route`, `#section` ⇒
-    normal boot, working graph untouched, fragment left as-is.
+11. **Fragment classification (§U5.1)** —
+    - `#g2=…` / `#g10=…` (unsupported version) and `#g1` / `#g1x` (malformed) ⇒
+      normal boot, working graph **and a running sim untouched**, `simulationRev`
+      unchanged, one console warning, **fragment stripped**;
+    - `#w1=…`, `#gg=…`, `#/route`, `#section`, empty ⇒ normal boot, **fragment
+      left as-is**, no warning.
 12. **Fragment stripped on every outcome, path + query kept** — start from
     `…/sub/path?x=1#g1=…`; after success, after a decode failure, and after a
     §U5.4 Cancel, `location` is `…/sub/path?x=1` with empty hash; the history

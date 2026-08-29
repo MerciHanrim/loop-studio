@@ -17,8 +17,8 @@ import { deserialize } from '../model/serialize'
 import {
   type ShareFailure,
   ShareError,
+  classifyFragment,
   decodeShareText,
-  readShareFragment,
 } from '../model/share'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
@@ -28,10 +28,10 @@ export const REPLACE_PROMPT =
   'Open the shared diagram? Your current diagram will be replaced. Export it first if you want to keep it.'
 
 export type ShareLoadOutcome =
-  | { kind: 'none' } // no share fragment (or an unknown prefix) - normal boot
+  | { kind: 'none' } // not a Loop Studio fragment - left in the address bar
   | { kind: 'loaded' } // a valid link was applied
   | { kind: 'cancelled' } // a valid link, but the user declined the replace
-  | { kind: 'failed'; reason: ShareFailure | 'bad-graph' } // damaged link, ignored
+  | { kind: 'failed'; reason: ShareFailure | 'bad-graph' | 'unsupported-version' | 'malformed' }
 
 type Options = {
   /** defaults to `location.hash` */
@@ -56,18 +56,27 @@ function defaultStrip(): void {
 export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOutcome> {
   const hash =
     opts.hash ?? (typeof location !== 'undefined' ? location.hash : '')
-  const payload = readShareFragment(hash)
+  const fragment = classifyFragment(hash)
+  const strip = opts.stripFragment ?? defaultStrip
 
-  if (payload == null) {
-    // An unknown share-shaped prefix (`g2=`, ...) is from a newer build; note it
-    // but leave the fragment and the graph untouched (§U6).
-    if (/^#?g\d+=/.test(hash)) {
-      console.info('Loop Studio: this link was made with a newer version; opening the local graph.')
-    }
-    return { kind: 'none' }
+  // Not ours - a section anchor, a router path, another app's fragment. Leave it
+  // exactly as it is (§U5.1 / U6).
+  if (fragment.kind === 'foreign') return { kind: 'none' }
+
+  // Ours, but not a link this build can open. Still Loop Studio's to tidy up:
+  // warn, leave the graph + run untouched, and strip the dead fragment (§U6).
+  if (fragment.kind === 'unsupported') {
+    strip()
+    console.warn('Loop Studio: this share link uses an unsupported version; opening the local graph.')
+    return { kind: 'failed', reason: 'unsupported-version' }
+  }
+  if (fragment.kind === 'malformed') {
+    strip()
+    console.warn('Loop Studio: ignored a malformed share link.')
+    return { kind: 'failed', reason: 'malformed' }
   }
 
-  const strip = opts.stripFragment ?? defaultStrip
+  const payload = fragment.payload
 
   // ---- validate fully BEFORE touching any store (§U5.2) --------------------
   let text: string
