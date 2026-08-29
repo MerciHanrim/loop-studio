@@ -152,7 +152,8 @@ Crossing the breakpoint — first load under it, a resize, a rotation — is a
 
 On `orientationchange` (or a `matchMedia('(orientation: portrait)')` `change`):
 
-1. close any open overlay (Inspector / Timeline / More / MC dialog) first;
+1. close any open exclusive overlay (MV5) first — the PWA update bar, if
+   showing, stays;
 2. run `fitView` **exactly once**, after the resize settles (one
    `requestAnimationFrame` / `resize`-debounced call).
 
@@ -170,12 +171,30 @@ until they actually rotate.
   mobile (view/run uses defaults; a power user is on desktop).
 - 44 px minimum touch targets.
 
+### MV4a. Dynamic viewport height
+
+The mobile layout sizes to **`100dvh`** with **`100vh` as the fallback**
+(`height: 100vh; height: 100dvh`) — every full-height rule (`.app`, the canvas
+pane, the sheets' max-height, the MC dialog) uses this pair, never a bare
+`100vh`. Consequence: as the iOS address bar collapses/expands, and as the
+software keyboard opens (it never does for editing here, but a "Save link?"
+prompt or an OS autofill can still push the viewport), the **fixed bottom bar
+stays inside the visible viewport** — `dvh` tracks the shrinking visual
+viewport, and `env(safe-area-inset-bottom)` keeps it clear of the home
+indicator. A `visualViewport` `resize`/`scroll` listener is the last-resort
+nudge if a browser lags the CSS (translate the bar by
+`window.innerHeight - visualViewport.height - visualViewport.offsetTop` when
+that is positive).
+
 ## MV5. Timeline & Inspector sheets
 
 Both are bottom sheets. **Shared sheet contract:**
 
-- exactly **one** overlay open at a time — opening Inspector, Timeline, More, or
-  the MC dialog closes the others;
+- exactly **one exclusive overlay** open at a time. The exclusive set is
+  **Inspector, Timeline, the `More` menu, the Monte-Carlo dialog, the Share
+  result popover, the Templates menu, and the Export menu** — opening any one of
+  them closes whichever other exclusive overlay was open. (The PWA update bar is
+  **not** in this set — MV8a.)
 - the trigger carries `aria-expanded` / `aria-controls`; the sheet has
   `role="dialog"` + `aria-label`;
 - a visible **Close** button (44 px), **Escape** closes, and focus **returns to
@@ -228,11 +247,38 @@ exclusive).
 ## MV8. MC dialog on mobile
 
 - The Monte-Carlo dialog fits **inside** the mobile viewport: `max-width:
-  100vw`, `max-height: 100dvh` minus safe-area, centred; its inner run-list /
-  result area scrolls (`overflow-y: auto`, `overscroll-behavior: contain`).
-- It joins the mutually-exclusive overlay set (MV5) and follows the same
+  100vw`, `max-height: 100dvh` minus safe-area (`100vh` fallback, MV4a), centred;
+  its inner run-list / result area scrolls (`overflow-y: auto`,
+  `overscroll-behavior: contain`).
+- It joins the exclusive overlay set (MV5) and follows the same
   Escape / focus-return / `aria` contract.
 - The run itself is unchanged (worker on a secure origin; main-thread fallback).
+
+## MV8a. PWA update bar on mobile
+
+The `.pwa-update` bar (a new SW version is waiting) is **kept out** of the
+exclusive overlay set — a pending update is orthogonal to viewing a diagram and
+must not be dismissed just because a sheet opened, nor block a sheet from
+opening. Its mobile placement rules:
+
+- **Position — top.** On mobile the bar is fixed **directly below the compact
+  top bar** (`top: calc(<top-bar height> + env(safe-area-inset-top))`),
+  full-width minus the left/right safe-area insets. This keeps it away from the
+  crowded bottom edge (run bar + rising sheets) entirely, so it can collide with
+  neither.
+- **Z-index — above everything**, so its two 44 px buttons (**Update** /
+  **Dismiss**) stay reachable even while an exclusive sheet or the MC dialog is
+  open: `--z-canvas < --z-runbar < --z-sheet <= --z-mc-dialog < --z-pwa-update`.
+  Bottom sheets open to at most ~55 vh and the MC dialog is centred with a
+  safe-area top margin, so the top-anchored bar and a sheet **do not overlap**
+  in practice; the z-order is the guarantee if they ever do.
+- **Never covers a core control** — it is above a strip of canvas just under the
+  top bar; Reset / Step / Play·Pause / Monte Carlo, the `More` trigger, and a
+  sheet's **Close** are all elsewhere on screen. It can only occlude canvas,
+  which the user can pan. When it shows, the Canvas top padding (MV7) grows by
+  the bar's height so no node hides behind it.
+- Behaviour (waiting worker, one reload on Update, data-loss note) is unchanged
+  from `docs/pwa.md` §P4 — this section is layout only.
 
 ## MV9. Decisions to settle
 
@@ -249,12 +295,15 @@ exclusive).
 | MV-D8 | Timeline | collapsible bottom sheet, collapsed by default |
 | MV-D9 | secondary actions | a `More` menu (Share / Import / Export / Templates / Theme / stamp); palette + undo/redo + New not rendered |
 | MV-D10 | MiniMap | **not rendered** on mobile |
-| MV-D11 | overlays | Inspector / Timeline / More / MC dialog are **mutually exclusive**; each has `aria-expanded` on its trigger, a 44 px Close, Escape-to-close, focus-return |
+| MV-D11 | exclusive overlays | Inspector / Timeline / `More` / MC dialog / **Share result / Templates / Export** are **mutually exclusive** (opening one closes the others); each has `aria-expanded` on its trigger, a 44 px Close, Escape-to-close, focus-return |
 | MV-D12 | safe area | **reserved as real padding** on both bars and the canvas pane, not just visually honoured |
-| MV-D13 | rotation | close open overlays, `fitView` **once**; no re-fit on pan/zoom within an orientation |
-| MV-D14 | new state | a small UI-only `useUiStore` (`{ overlay: 'none' \| 'inspector' \| 'timeline' \| 'more' \| 'mc' }`) + `useIsMobile()` |
+| MV-D13 | rotation | close open exclusive overlays, `fitView` **once**; no re-fit on pan/zoom within an orientation |
+| MV-D14 | new state | a small UI-only `useUiStore` (`{ overlay: 'none' \| 'inspector' \| 'timeline' \| 'more' \| 'mc' \| 'share' \| 'templates' \| 'export' }`) + `useIsMobile()` |
 | MV-D15 | E2E | see MV10 |
 | MV-D16 | README | replace *"mobile editing is not currently optimized"* with *"Mobile browsers get a view & run layout — pan/zoom, play, Monte Carlo, inspect; editing is desktop-only."*; Roadmap line becomes `✅ Mobile view/run layout` |
+| MV-D17 | viewport height | `100dvh` with `100vh` fallback everywhere (MV4a); a `visualViewport` listener nudges the bottom bar if a browser lags; the fixed bottom bar stays on-screen through iOS address-bar / keyboard height changes |
+| MV-D18 | PWA update bar | **not** in the exclusive set (MV8a) — a pending update never closes a sheet and a sheet never blocks it |
+| MV-D19 | PWA update bar placement | fixed at the **top**, below the top bar (`top: calc(topbar + safe-area)`); **highest z-index** (`canvas < runbar < sheet <= mc-dialog < pwa-update`) so Update/Dismiss stay clickable with a sheet open; Canvas top padding grows by its height; can only ever occlude canvas |
 
 ## MV10. Required E2E
 
@@ -269,13 +318,31 @@ A dedicated **`mobile` Playwright project** — `devices['iPhone 13']`, run at
 - **every core control's bounding box is fully inside the viewport rect** — the
   `More` trigger, all four run-bar buttons, the `step N` counter, the React Flow
   `Controls`, and — when open — the Inspector sheet, the Timeline sheet, the
-  `More` menu, and the MC dialog;
+  `More` menu, the MC dialog, **the Share result URL field, and the PWA update
+  bar**;
 - Canvas occupies most of the viewport (canvas rect area ≥ ~60 % of viewport
   area) with both bars accounted for;
 - with **mocked non-zero safe-area insets** (inject
   `env(safe-area-inset-*)` fallbacks via a test stylesheet / `--sai-*` vars),
   the bottom bar's buttons are still fully visible and hittable, and no node sits
   under a bar.
+
+**Dynamic height & the non-exclusive update bar**
+
+- shrink then grow the viewport height at runtime (`page.setViewportSize` from
+  844 → ~620 → 844 in portrait, and a `visualViewport` resize simulation): after
+  every step the bottom run bar's rect is still fully inside the visual
+  viewport, and its buttons are hittable;
+- force the `.pwa-update` bar to show (seed a fake waiting worker as the PWA
+  specs already do): its bounding box is fully on-screen, anchored near the
+  **top** (below the top bar), and its `bottom` is above the run bar's `top` —
+  it overlaps no run-bar button;
+- with the update bar **and** a sheet open at once (open the Inspector while the
+  bar shows): the sheet's **Close**, the bar's **Update**, and the run bar's
+  **Play** are each fully visible and independently clickable — none is occluded
+  by another (the bar carries the highest z-index, MV8a);
+- the Share result URL field: open `More` → Share, the selectable URL field's
+  rect is fully within the viewport and the text is selectable.
 
 **View / interaction**
 
@@ -319,17 +386,22 @@ A dedicated **`mobile` Playwright project** — `devices['iPhone 13']`, run at
 ## MV11. Implementation slices
 
 1. **Breakpoint + `useIsMobile` + shared query module + overflow floor +
-   safe-area reservation + Canvas full-bleed + `fitView` rotation handling +
-   touch pan/zoom + MiniMap off.** Mostly CSS + a hook + a few `<ReactFlow>`
-   props. E2E: no h-scroll, controls in-viewport, canvas fills, safe-area
-   mock, pan/pinch move the viewport, rotation re-fits once; desktop snapshots
-   unchanged.
+   `100dvh`/`100vh` height + safe-area reservation + Canvas full-bleed +
+   `fitView` rotation handling + touch pan/zoom + MiniMap off.** Mostly CSS + a
+   hook + a few `<ReactFlow>` props. E2E: no h-scroll, controls in-viewport,
+   canvas fills, safe-area mock, dynamic-height shrink/grow keeps the run bar
+   on-screen, pan/pinch move the viewport, rotation re-fits once; desktop
+   snapshots unchanged.
 2. **Compact top bar + `More` menu + fixed bottom run bar + Timeline sheet + the
-   overlay contract (`useUiStore`, mutual exclusion, `aria-expanded`, Escape,
-   focus return).** Reuse existing popovers; drop palette / undo-redo / New /
-   speed / seed on mobile. E2E: `More` items present, Share still copies a link;
-   Reset / Step / Play / Monte Carlo work from the bottom bar; MC dialog fits +
-   scrolls; Timeline opens/closes; overlays mutually exclusive.
+   exclusive-overlay contract (`useUiStore`, mutual exclusion across Inspector /
+   Timeline / `More` / MC / Share / Templates / Export, `aria-expanded`, Escape,
+   focus return) + top-anchored PWA update bar placement (MV8a).** Reuse
+   existing popovers; drop palette / undo-redo / New / speed / seed on mobile.
+   E2E: `More` items present, Share still copies a link + its URL field is
+   on-screen; Reset / Step / Play / Monte Carlo work from the bottom bar; MC
+   dialog fits + scrolls; Timeline opens/closes; overlays mutually exclusive;
+   update bar + a sheet open together leaves Close / Update / Play all
+   clickable.
 3. **Structural editing lock + read-only Inspector sheet + confirm-on-replace +
    layout-switch purity.** `nodesDraggable={false}` etc.; `Shortcuts`
    early-returns on mobile; Inspector fields `disabled`; Import/Template confirm.
