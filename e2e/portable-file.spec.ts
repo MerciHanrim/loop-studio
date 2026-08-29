@@ -217,4 +217,47 @@ test.describe('portable file://', () => {
     // nothing auto-ran: the play control is idle
     await expect(page.locator('.pb-btn', { hasText: 'Play' })).toBeVisible()
   })
+
+  test('Share link round-trip — built on file:// with the pure-JS deflate, opens on http://', async ({
+    browser,
+  }) => {
+    test.setTimeout(60_000)
+
+    const pctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const ppage = await pctx.newPage()
+    // force the self-contained deflate even though file:// exposes CompressionStream
+    await ppage.addInitScript(() => {
+      // @ts-expect-error deleting a global for the test
+      delete window.CompressionStream
+      ;(window as any).__clip = []
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async (t: string) => void (window as any).__clip.push(t) },
+      })
+    })
+    await openPortable(ppage) // imports risky-factory (18 nodes)
+
+    ppage.once('dialog', (d) => d.accept().catch(() => {})) // the §U4 disclosure
+    await ppage.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+    const shareUrl = await ppage.locator('.share-pop__url').inputValue()
+    expect(shareUrl).toMatch(/^file:\/\/.*#g1=[A-Za-z0-9_-]+$/)
+    expect(await ppage.evaluate(() => (window as any).__clip)).toEqual([shareUrl])
+    const payload = shareUrl.split('#g1=')[1]
+    await pctx.close()
+
+    // the same payload, opened by the hosted build (native DecompressionStream)
+    const hctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const hpage = await hctx.newPage()
+    await hpage.goto(`${HTTP}/#g1=${payload}`)
+    await hpage.waitForFunction(() => Boolean((window as any).__loop))
+    await hpage.waitForFunction(() => location.hash === '') // ShareLoader consumed + stripped
+    await expect(hpage.locator('.react-flow__node')).toHaveCount(18)
+    const shape = await hpage.evaluate(() => {
+      const g = (window as any).__loop.graph.getState()
+      return { nodes: g.nodes.length, edges: g.edges.length, rev: g.simulationRev, sim: (window as any).__loop.sim.getState().status }
+    })
+    expect(shape).toMatchObject({ nodes: 18, rev: 1 })
+    expect(shape.sim).not.toBe('running')
+    await hctx.close()
+  })
 })
