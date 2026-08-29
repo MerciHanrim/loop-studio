@@ -6,14 +6,13 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** — `v0.5.0-dev`; the last tagged release is
-> **v0.4.0**. The diagram editor and the simulation engine — deterministic,
-> seeded randomness, Monte Carlo, and executable state connections (`trigger` /
-> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
-> shareable `#g1=` links, and an installable offline PWA. Execution semantics
-> are pinned down in frozen spec documents (see [Semantics](#semantics)); the
-> next one in flight is Project Revision / Proposal (`loop-revision/1`,
-> [`SEMANTICS-R.md`](SEMANTICS-R.md)).
+> Status: **working preview** (v0.5.0). The diagram editor and the simulation
+> engine — deterministic, seeded randomness, Monte Carlo, and executable state
+> connections (`trigger` / `activator` / `label`) — are all usable today, plus
+> Workspace Export/Import, shareable `#g1=` links, an installable offline PWA,
+> and file-based **project revisions & proposals** (`loop-revision/1`) for
+> asynchronous collaboration. Execution semantics are pinned down in frozen
+> spec documents (see [Semantics](#semantics)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -135,10 +134,51 @@ classification, or apply decision depends on them.
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
   - ✅ Offline PWA — installable, works fully offline **once the service-worker install and precache complete** on the first online load; a `prompt`-style update bar, never an automatic reload ([`docs/pwa.md`](docs/pwa.md))
   - ✅ Mobile **view/run** layout — a small-screen layout to open, pan/zoom, and run a shared diagram; editing stays desktop-only ([`docs/mobile.md`](docs/mobile.md))
-- ◐ Project Revision / Proposal (`loop-revision/1`, [`SEMANTICS-R.md`](SEMANTICS-R.md)) — file-only async collaboration: an immutable `parentId`-chained revision lineage, `proposal` files with a full `base.content` snapshot, a three-way diff, and confirmed whole-proposal / per-hunk apply. **Spec frozen; implementation in progress.** No accounts / server / sync.
+- ✅ Project Revision / Proposal (`loop-revision/1`, [`SEMANTICS-R.md`](SEMANTICS-R.md)) — **v0.5.0**
+  - ✅ File-only async collaboration — a stable `projectId`, an immutable `parentId`-chained revision lineage, `proposal` files carrying a full `base.content` snapshot (diff + apply run offline)
+  - ✅ Non-destructive Review — an id-keyed three-way diff, `exact` / `divergent` / `unknown` classification, desktop panel === mobile sheet
+  - ✅ Whole-proposal Apply (confirmed unless `exact`) and per-hunk **selective Apply** — per-field `take theirs` / `keep mine`, node-removal dependencies resolved by removing **or retargeting** each incident edge, structural conflicts and invalid selections refused before anything changes
+  - ✅ Atomic result — one new local revision, one undo entry, sim reset to step 0
+  - ✅ Verification fixture + oracle ([`examples/revision/`](examples/revision/README.md))
+  - No accounts / server / real-time sync
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
+
+**v0.5.0 — project revisions & proposals.** File-based **asynchronous
+collaboration** (`loop-revision/1`, [`SEMANTICS-R.md`](SEMANTICS-R.md)) — **no
+accounts, no server, no real-time sync**. A project moves between people only as
+JSON files.
+
+- **Project revision files** — `Export ▾ → Project revision` writes a graph doc
+  that also carries a stable `projectId` and an immutable `parentId`-chained
+  revision lineage.
+- **Proposals** — `Export ▾ → Make a proposal` produces a file with a complete
+  `base.content` snapshot, so the three-way diff and every apply are computable
+  entirely offline from the proposal plus the recipient's open document.
+- **Non-destructive Review** — importing a proposal opens a Review panel
+  (a bottom sheet on mobile): the graph, simulation, and undo history are
+  untouched. It shows an id-keyed three-way diff (`base` / `theirs` / `yours`),
+  an `exact` / `divergent` / `unknown` classification, and any structural
+  conflicts. Desktop and mobile use the same rules.
+- **Whole-proposal Apply** — replaces the graph with the proposal's; lands with
+  no prompt only when your revision *is* the base, otherwise it confirms and
+  names the loss.
+- **Selective (per-hunk) Apply** — pick individual adds / removes and resolve
+  each conflicting field *take theirs* / *keep mine*. Removing a node surfaces
+  its incident edges, each resolved by removal **or endpoint retarget**; an
+  invalid selection (an edge left pointing at nothing, a node blocked by a
+  locally-added edge) is refused before anything changes, and a full-GraphDoc
+  check runs on the result.
+- **Atomic** — either path yields one new local revision (`parentId` = your
+  pre-apply revision), one undo entry, and the sim reset to step 0; a single
+  Undo restores the graph and the revision header together. Apply writes no
+  file.
+- `meta.author` / `meta.title` / `meta.createdAt` in a shared file are
+  **self-reported and unverified**; no diff, classification, or apply decision
+  depends on them.
+- A worked end-to-end fixture with an apply oracle lives under
+  [`examples/revision/`](examples/revision/README.md).
 
 **v0.4.0 — ship: workspace, links, offline, mobile view/run.** Four additions
 around the existing editor + engine:
