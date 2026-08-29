@@ -2,14 +2,14 @@
 
 ```
 Spec ID: loop-revision/1
-Status:  Draft — for review (rev 3)
+Status:  Frozen
 ```
 
-**Draft (2026-08-29).** Not yet frozen. Once the §R12 decisions are settled and
-this document is marked `Frozen`, it is the fixed target for the implementation
-and a behavioural change afterward is a new spec id in a new document
-(`loop-revision/2`), exactly as with `loop-state/1 → loop-state/2`; a frozen
-file then takes only typo / clarifying-prose fixes.
+**Frozen (2026-08-29, rev 4).** This document is the fixed target for the
+implementation. A behavioural change after this is a new spec id in a new
+document (`loop-revision/2`), exactly as with `loop-state/1 → loop-state/2`;
+this file only takes typo / clarifying-prose fixes. §R12 records the settled
+decisions D1–D15.
 
 Defines *what a Project is*, *how revisions chain and stay immutable*, *what a
 Proposal file carries*, *the exact canonical projection its digest and diff run
@@ -109,7 +109,7 @@ payload. Autosave **does** now also persist the small `project` **header** —
 
     "meta": {                                         // ALL fields UNVERIFIED, display-only — §R8
       "title": "Coffee shop economy",                 // optional
-      "createdAt": "2026-08-29T12:00:00Z",            // ISO 8601 UTC — display only, never trusted for ordering
+      "createdAt": "2026-08-29T12:00:00Z",            // ISO 8601 UTC — stamped at revisionId mint, kept verbatim on re-export; display only, never trusted for ordering
       "author": { "name": "Alex", "note": "tuned the drain rates" },
       "tool": "loop-studio/0.5.0"
     }
@@ -149,8 +149,20 @@ A `revisionId` names **one exact content state** within a project. It is
 ### R2.1 `Export → Project revision` and the session baseline
 
 The Export runs the payload build, `canonicalContent`, `serialize`, the
-`REVISION_FILE_MAX_BYTES` measure, and (when a new id is needed) id minting. It
-**commits only if every one of those succeeds**:
+`REVISION_FILE_MAX_BYTES` measure, and (when a new id is needed) id minting,
+then **dispatches the download** (hands the blob to the browser). It
+**commits the baseline the moment the download is dispatched, and only if every
+prior step succeeded**:
+
+> **What "successful" means.** A browser cannot observe whether an ordinary
+> download reached disk. An **in-app Cancel**, or a failure in any step above,
+> commits nothing. Once payload validation passes and the download is
+> **dispatched**, the baseline commits. If the browser / OS then blocks the
+> download, or the user dismisses the save dialog, the app **cannot see it** —
+> and it does not matter: a re-export produces the **same `revisionId` and the
+> same bytes** (the frozen fields; a volatile field an implementation may add
+> outside them, §R2.2, is not covered), so the user simply downloads the
+> identical file again.
 
 - **Session was not dirty** → write the file with the **current**
   `revisionId` / `parentId` / `lineage`; the session baseline is unchanged.
@@ -178,10 +190,28 @@ The Export runs the payload build, `canonicalContent`, `serialize`, the
   `revisionId`, `parentId`, `role`, or `dirty` change; it only reads the
   current graph to build the proposal file.
 
-**On any failure — the user cancels, `serialize` throws, the file exceeds
+**On any failure — the user cancels in-app, `serialize` throws, the file exceeds
 `REVISION_FILE_MAX_BYTES`, or secure RNG is unavailable — nothing changes: no
-file is written, no id is minted, the session baseline / autosaved header /
-`dirty` flag are exactly as before.**
+download is dispatched, no id is minted, the session baseline / autosaved header
+/ `dirty` flag are exactly as before.**
+
+### R2.2 The "same bytes" contract
+
+Re-exporting an unchanged revision (§R2.1 "not dirty" path, or the second of two
+dirty exports for one content state) MUST reproduce a **byte-identical file**
+over the **frozen fields**: `schema`, `version`, `nodes`, `edges`,
+`recommendedRunConfig`, `workspace` (if any), and the whole `project` object
+including `meta`.
+
+- **`meta.createdAt` is stamped when the `revisionId` is minted and carried
+  **verbatim** on every later re-export of that revision** — it is the
+  revision's creation time, not the moment of this download, so it does not
+  break byte-stability.
+- An implementation MAY add its own volatile stamp (e.g. a separate
+  `meta.exportedAt`, a wall-clock of *this* download). Any such field is
+  **outside the frozen field set and outside the same-bytes contract**; a
+  reader ignores unknown `meta` keys, and a test of R2.1's stability compares
+  only the frozen fields.
 
 ---
 
@@ -396,8 +426,10 @@ preserved on the next `Make a proposal` export.
 
 "Apply" takes a **proposal** and produces a **new revision of the open project**,
 derived from the **currently-open revision** (the *target*). This holds for
-**every** classification (§R7A.2); only `divergent` / `unknown` add a
-confirmation.
+**every** classification (§R7A.2). A **whole-proposal** apply lands without a
+confirmation **only** when the class is `exact`; every other whole-proposal
+apply requires the §R7A.4 confirmation. A **per-hunk** apply needs no separate
+confirmation — the user's hunk selection is the consent.
 
 ### R7.1 The resulting revision
 
@@ -454,54 +486,47 @@ confirmation.
 ### R7A.2 Classify the target against the proposal (provable cases only)
 
 Inputs — **only** these, all file-contained: `target.revisionId`,
-`target.parentId` (from the target's own `project`), `proposal.base.revisionId`,
-`fullContentDigest(target)`, `proposal.base.contentDigest`, and the three-way
-conflict count from §R7A.3 (`nConf`, computed from `proposal.base.content` +
-target + proposed). **`lineage[]` is display-only advisory and is *not* an input
-to classification** — a bounded, possibly-truncated ancestor list cannot prove
-an indirect relationship.
+`fullContentDigest(target)`, `proposal.base.revisionId`,
+`proposal.base.contentDigest`, and the three-way conflict count from §R7A.3
+(`nConf`, computed from `proposal.base.content` + target + proposed).
+**`lineage[]` and `target.parentId` are display-only and are *not* inputs to
+classification** — `loop-revision/1` recognises no graded "ancestry" beyond an
+exact match; a bounded advisory list, and a single parent pointer, cannot make
+an apply *safer*.
 
-Evaluate top to bottom; the four classes are **mutually exclusive** (proof
-below):
+Three **mutually-exclusive, total** classes (given the §R7A.1 same-project
+gate):
 
-| # | class | condition (all must hold) |
+| # | class | condition |
 |---|---|---|
 | **exact** | `target.revisionId === proposal.base.revisionId` **and** `fullContentDigest(target) === proposal.base.contentDigest` |
-| **direct fast-forward** | *not* `exact`; **and** `proposal.base.revisionId === target.parentId`; **and** `nConf === 0` |
-| **divergent** | same `projectId`; *not* `exact` / `direct fast-forward`; **and** `nConf ≥ 1` |
-| **unknown ancestry** | same `projectId`; *not* `exact` / `direct fast-forward`; **and** `nConf === 0` (related content, but no file-contained proof that `proposal.base.revisionId` is `target.revisionId` or `target.parentId`) |
+| **divergent** | *not* `exact`; **and** `nConf ≥ 1` |
+| **unknown ancestry** | *not* `exact`; **and** `nConf === 0` |
 
 **Meaning / handling**
 
 - **exact** — the target *is* the base, content-verified. Whole-proposal apply
-  is a clean replace, **no confirmation** (§R7A.4).
-- **direct fast-forward** — a *distinct, provable* case: the target is exactly
-  **one** saved revision past the proposal's base (`target.parentId` is the
-  base — a fact in the target file, not inferred), **and** nothing the target
-  changed since then overlaps the proposal. Per-hunk "apply all" lands with
-  **no confirmation** (a genuine fast-forward); a *whole-proposal* apply still
-  confirms (it would also drop the target's one-revision-ahead edits).
-- **divergent** — same project, the two lines changed overlapping regions →
-  **confirmation** + manual per-hunk conflict resolution (§R7A.3 / §R7A.4).
-- **unknown ancestry** — same project, no conflicting hunks, but the files do
-  not prove how the two revisions relate. Handled **like `divergent`**
-  (confirmation required); per-hunk "apply all" is possible since `nConf === 0`,
-  but only behind the confirmation, whose message says the relationship is
-  unproven.
+  is a clean replace, the **only** case with **no confirmation** (§R7A.4).
+- **divergent** — the target has changes that differ from the base and they
+  **overlap** the proposal (`nConf ≥ 1`). Whole-apply needs confirmation;
+  per-hunk apply surfaces every conflict and the user resolves each (§R7A.3).
+- **unknown ancestry** — the target has changes that differ from the base but
+  they do **not** conflict with any proposal hunk (`nConf === 0`), and the
+  files carry **no directly-provable relationship** between the two revisions.
+  Whole-apply still needs confirmation (it would discard the target's own
+  changes). The UI may state *"No field conflicts"* — this is information for
+  the user, **never** a lineage grade that skips the confirmation policy.
 
-**Non-overlap** — `exact` needs `target.revisionId === base.revisionId`;
-`direct fast-forward` needs `target.parentId === base.revisionId` and *not*
-`exact`, and a revision's `revisionId` is never its own `parentId` (§R11 — a
-non-root `parentId` points to a different prior revision, a root's is `null`),
-so `exact` ∩ `direct fast-forward` = ∅. `divergent` needs `nConf ≥ 1`;
-`direct fast-forward` and `unknown` need `nConf === 0`. `direct fast-forward`
-needs the `target.parentId === base.revisionId` proof; `unknown` is exactly its
-absence. The four are disjoint and total (given the §R7A.1 same-project gate).
+There is **no** `fast-forward` class. `target.parentId === base.revisionId` with
+`nConf === 0` is a *clean divergence that happens to have a visible parent
+link*, not a Git-style fast-forward (the two revisions still diverged from a
+shared base); calling it fast-forward would mislead the implementation, the UI,
+and the user. It is classed `unknown ancestry` and treated like any other
+non-`exact` case.
 
-*(If a reviewer prefers fewer branches: dropping `direct fast-forward` and
-folding it into `unknown` — i.e. every non-`exact` apply requires a
-confirmation — is a valid simplification; its only cost is one extra click in
-the clean one-revision-ahead case. See §R12 D10.)*
+**Non-overlap / totality** — `exact` is `target.revisionId === base.revisionId
+∧ digestsEqual`. `divergent` and `unknown` both require `¬exact` and partition
+on `nConf ≥ 1` vs `nConf === 0`. Every same-project pair lands in exactly one.
 
 ### R7A.3 Three-way per-hunk check
 
@@ -525,20 +550,24 @@ proposal** or **keep mine** for each, or skips. **Nothing is auto-resolved.**
 
 ### R7A.4 Confirmation
 
-- **exact** → whole-proposal apply lands with **no** confirmation.
-- **direct fast-forward** → per-hunk "apply all" lands with no confirmation
-  (it is a clean fast-forward); a *whole-proposal* apply still confirms (it
-  would also discard the target's one-revision-ahead changes).
-- **divergent** / **unknown ancestry** → **explicit confirmation** naming both
-  revisions and stating the loss, before *any* change:
+- **exact** → **whole-proposal apply** lands with **no** confirmation.
+- **every other case** — any non-`exact` classification, for a **whole-proposal
+  apply** → an **explicit confirmation** naming both revisions and stating the
+  loss, before *any* change:
 
   > *This proposal was made from `rev_ab…`{ (title) }. You have `rev_cd…` open{,
-  > and their relationship can't be determined from the files }. Applying it
-  > {replaces your graph with the proposal's version | applies N hunks; M
-  > conflict}. Undo reverts it.*
+  > and their relationship can't be determined from the files }. Applying the
+  > whole proposal replaces your graph with its version — your changes since
+  > `rev_ab…` are lost. Undo reverts it.*
 
-  Actions: **Apply** (whole or resolved-per-hunk), **Open the proposal as a
-  document** (§R10.5 — no apply, no new revision), **Cancel**.
+- **per-hunk (selective) apply** — the user choosing which hunks to accept (and
+  resolving each conflicting field) **is** the consent; no separate
+  whole-graph-loss confirmation is shown. Conflicts are still surfaced per
+  field (`base` / `proposed` / `yours`) and resolved one by one (§R7A.3);
+  `nConf === 0` may be shown as *"No field conflicts"*.
+
+Actions on the confirmation: **Apply** (whole), **Switch to per-hunk**, **Open
+the proposal as a document** (§R10.5 — no apply, no new revision), **Cancel**.
 
 ---
 
@@ -577,9 +606,9 @@ proposal** or **keep mine** for each, or skips. **Nothing is auto-resolved.**
 | **R-INV-4** | The canonical revision projection (§R4.2) and `canonicalJson` (§R4.3) are fixed: the same graph always yields the same `fullContentDigest`; element order and whitespace in a source file never change it. |
 | **R-INV-5** | A proposal file always carries a complete `base.content` (§R6); the three-way diff and per-hunk apply are computable from the proposal file + the open document alone, with no external history. |
 | **R-INV-6** | `base.contentDigest === SHA-256(canonicalJson(base.content))`; a mismatch makes the `project` payload corrupt (graph still loads). |
-| **R-INV-7** | Apply always produces a **new** revision: fresh `revisionId`, `parentId` = the pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`. The proposal's `revisionId` / author is never adopted as the result's identity / verified author. This holds for `exact` and `divergent` alike; only `divergent` / `unknown` add a confirmation. |
+| **R-INV-7** | Apply always produces a **new** revision: fresh `revisionId`, `parentId` = the pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`. The proposal's `revisionId` / author is never adopted as the result's identity / verified author. A whole-proposal apply confirms unless the class is `exact` (§R7A.4); per-hunk apply needs no separate confirmation. |
 | **R-INV-8** | Apply is atomic: one `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry; it writes no file and mutates neither the proposal nor the base file. |
-| **R-INV-9** | Classification uses only file-contained, provable facts — `target.revisionId`, `target.parentId`, the two digests, and the three-way conflict count; **`lineage[]` is not an input**. The four classes are mutually exclusive; `unknown ancestry` is never inferred as `direct fast-forward`. |
+| **R-INV-9** | Classification uses only `target.revisionId`, the two digests, and the three-way conflict count (`nConf`); **`lineage[]` and `target.parentId` are not inputs**. Exactly three mutually-exclusive classes — `exact` / `divergent` / `unknown ancestry`. `loop-revision/1` has **no `fast-forward` grade**: `exact` is the only class that skips the whole-apply confirmation. |
 | **R-INV-10** | No `project` payload — malformed, wrong version, wrong project, digest-inconsistent, or partially corrupt — can prevent the graph (and a valid `workspace`) from importing. |
 | **R-INV-11** | Opening a proposal for Review does not change the open document; **Cancel** and any validation failure leave the graph, run state, undo history, and `projectStore` untouched. |
 | **R-INV-12** | Secure randomness is required to mint an id; if `crypto.getRandomValues` is unavailable or throws, `Export → Project revision` / `Make a proposal` **abort** with a message — `Math.random()` is never a fallback. |
@@ -647,9 +676,9 @@ in `loop-revision/2`.
 
 ---
 
-## R12. Decisions — to settle before freeze
+## R12. Decisions — settled at freeze
 
-| # | decision | proposed |
+| # | decision | resolution |
 |---|---|---|
 | **D1** | Container | a nested **`project`** key (additive, optional). A Project file is a valid Workspace / Graph file. |
 | **D2** | Spec id | **`loop-revision/1`**. |
@@ -658,9 +687,9 @@ in `loop-revision/2`.
 | **D5** | Canonical projection | **defined in §R4**, distinct from `loop-workspace/1`'s semantic digest: includes `label` + **full-precision `position`** + `recommendedRunConfig`; excludes `workspace` / `project` / `meta` / selection / UI transient; fixed field order, id-sorted arrays, **finite numbers kept exactly (`-0 → 0` only — NO rounding)**, missing-vs-default normalised to the default; **only** SHA-256 tooling is reused from W3.1. A UI may hide trivial position deltas with a display tolerance, never by rounding the digest input. |
 | **D6** | Proposal carries the base | `project.base` includes a complete **`content`** snapshot (the canonical projection of the base) plus its digest, so three-way diff and per-hunk apply are fully offline-computable. |
 | **D7** | Apply granularity | **both** whole-proposal and per-hunk selective apply are part of `loop-revision/1` — the file contract (D6) is complete for both from freeze. Implementation may ship whole-apply first; the wire format does not change. |
-| **D8** | Apply result | always a **new** revision: fresh `revisionId`, `parentId` = pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`; the proposal's id/author never adopted. Same for `exact` and `divergent`; only `divergent` / `unknown` add a confirmation. |
+| **D8** | Apply result | always a **new** revision: fresh `revisionId`, `parentId` = pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`; the proposal's id/author never adopted. A whole-proposal apply confirms unless `exact`; per-hunk apply's consent is the hunk selection. |
 | **D9** | Apply scope & atomicity | structural graph + `recommendedRunConfig` (run/sim/workspace **not** applied; opt-in copies only the run config); one `loadDoc`, one `simulationRev` bump, paused/step 0, one undo entry; writes no file. |
-| **D10** | Classification (§R7A.2 has the ID/digest/`nConf` table + a disjointness proof) | four **mutually-exclusive** classes from file-contained facts only — `exact` (`target.revisionId === base.revisionId` **and** digests equal), `direct fast-forward` (not exact; `target.parentId === base.revisionId`; `nConf === 0`), `divergent` (same project; not exact/ff; `nConf ≥ 1`), `unknown ancestry` (same project; not exact/ff; `nConf === 0`; no parent proof). `lineage[]` is **not** a classification input. `unknown` is handled like `divergent`. **Open question:** keep `direct fast-forward` (one fewer confirmation in the provable one-ahead case) or drop it and confirm every non-`exact` apply (simpler). |
+| **D10** | Classification (§R7A.2) | **decided: no `fast-forward` class.** `target.parentId === base.revisionId ∧ nConf === 0` is a *clean divergence with a visible parent link*, not a Git-style fast-forward, and must not be treated as a safer apply. Three mutually-exclusive classes over `target.revisionId` + digests + `nConf` only (`lineage[]` / `parentId` are display-only): `exact` (revisionId **and** digest match), `divergent` (¬exact ∧ `nConf ≥ 1`), `unknown ancestry` (¬exact ∧ `nConf === 0`). **`exact` is the sole class that skips the whole-apply confirmation**; every other whole-apply confirms. Per-hunk apply: hunk selection + Apply is itself the consent; conflicts still resolved per field. `nConf === 0` may be surfaced as "No field conflicts" but is never a confirmation-skipping grade. |
 | **D11** | Conflict model | no 3-way merge / rebase; per-hunk conflicts show `base` / `proposed` / `yours`, resolved by explicit per-item choice; whole-apply on a non-exact base needs explicit consent. |
 | **D12** | Author trust | `meta.*` unverified, display-only, UI-labelled "claimed, not verified"; no logic depends on them; `author.name` from a device-local setting, disclosed once to travel in exported files; byte-capped. |
 | **D13** | Import vs Apply | Import routes (§R10) and never changes the open doc except opening a revision or an explicit "open as a document"; Review is non-destructive; Apply is the only mutation and it is atomic; Cancel / validation failure = zero change. |
@@ -744,20 +773,25 @@ in `loop-revision/2`.
    `parentId` = target, `appliedProposal` = {proposalId, baseId, baseDigest},
    `projectId` unchanged, `meta.author` = the applier; sim paused/step 0; one
    undo restores the target.
-7. **Apply on `divergent` base** — edit the target after the proposal was made
-   ⇒ §R7A.4 confirmation names both revisions; **Cancel** ⇒ zero change (graph,
-   run, undo, `projectStore`); **Apply anyway** ⇒ new revision as in (6), undo
-   reverts; **Open as a document** ⇒ switch to the proposal's content, **no**
-   new revision minted.
-8. **`direct fast-forward`** — target's `parentId` === `proposal.base.revisionId`
-   and the three-way check has no conflicts ⇒ classed `direct fast-forward`;
-   per-hunk "apply all" lands with no confirmation and yields a clean merge;
-   whole-apply still confirms.
-9. **`unknown ancestry` is not fast-forward** — `proposal.base.revisionId` is
-   not the target's `revisionId` / `parentId` and not in a (short) `lineage[]`
-   ⇒ classed `unknown ancestry`, treated as `divergent` (confirmation
-   required); a longer `lineage[]` containing it moves it to `divergent`, never
-   to `fast-forward`.
+7. **Whole-apply on a `divergent` base** — edit the target (overlapping the
+   proposal) after the proposal was made ⇒ classed `divergent`; §R7A.4
+   confirmation names both revisions; **Cancel** ⇒ zero change (graph, run,
+   undo, `projectStore`); **Apply** ⇒ new revision as in (6), undo reverts;
+   **Open as a document** ⇒ switch to the proposal's content, **no** new
+   revision minted.
+8. **`unknown ancestry` still confirms for a whole-apply** — edit the target
+   in a region the proposal does **not** touch (so `nConf === 0`), and let
+   `target.parentId === proposal.base.revisionId` ⇒ classed `unknown ancestry`
+   (there is **no** `fast-forward` class); a **whole-proposal apply** still
+   shows the §R7A.4 confirmation; the UI may note "No field conflicts". A
+   **per-hunk "apply all"** proceeds on the user's hunk selection without the
+   separate whole-loss confirmation and yields a clean result (new revision as
+   in (6)).
+9. **`lineage[]` / `parentId` never soften an apply** — the same pair as (8)
+   with a long `lineage[]` that contains `proposal.base.revisionId`, or with a
+   short/absent `lineage[]` ⇒ **identical** classification (`unknown ancestry`)
+   and **identical** confirmation behaviour; classification output does not
+   depend on `lineage[]` or `parentId`.
 10. **Per-hunk conflict** — proposal changes node X `capacity` `10 → 20`; target
     already has `15` ⇒ conflict showing base `10` / proposed `20` / yours `15`;
     "keep mine" leaves `15`, "take proposal" sets `20`; result is a new
