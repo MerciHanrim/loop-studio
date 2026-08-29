@@ -733,4 +733,46 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
     expect(after.hasPNew).toBe(true) // the add was taken
     expect(after.parent).toBe(built.r0)
   })
+
+  test('node-removal edge dependency is shown on the sheet and enforced (Slice 2 round 2)', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const [a, b] = L.graph.getState().nodes
+      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' })
+      const eid = L.graph.getState().edges[0].id
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes = f.nodes.filter((n: { id: string }) => n.id !== b.id)
+      f.edges = f.edges.filter((e: { id: string }) => e.id !== eid)
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), eid }
+    })
+
+    await page
+      .locator('.toolbar--mobile input[type="file"]')
+      .setInputFiles({ name: 'p.json', mimeType: 'application/json', buffer: Buffer.from(built.text) })
+    const sheet = page.locator('.sheet[aria-label="Review proposal"]')
+    await expect(sheet).toBeVisible()
+    await sheet.locator('button', { hasText: 'Choose changes' }).click()
+
+    await expect(sheet.locator('.review__hunk', { hasText: 'Remove node' }).locator('.review__hunk-dep')).toContainText(
+      built.eid,
+    )
+    // node without its dependency ⇒ refused, same rule as desktop
+    await sheet.locator('.review__hunk', { hasText: 'Remove edge' }).locator('input[type=checkbox]').uncheck()
+    await sheet.locator('.review__hunk', { hasText: 'Remove node' }).locator('input[type=checkbox]').check()
+    await sheet.locator('button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(sheet.locator('.review__warn')).toContainText(built.eid)
+    await expect(page.locator('.sheet[aria-label="Review proposal"]')).toBeVisible()
+  })
 })

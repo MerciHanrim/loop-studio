@@ -2447,3 +2447,16 @@ input[type='number']::-webkit-inner-spin-button {
   align-items: center;
   gap: 3px;
 }
+
+.review__hunk-dep {
+  margin: 3px 0 0 22px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.review__hunk-dep code {
+  font-family: var(--font-mono);
+  margin: 0 2px;
+}
+.review__hunk-dep--blocked {
+  color: var(--warning);
+}

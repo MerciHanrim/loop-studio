@@ -10,6 +10,7 @@ import {
   computeThreeWay,
   countThreeWayConflicts,
   digestOfCanonical,
+  validateResultGraph,
   isProjectId,
   isRevisionId,
   mintId,
@@ -68,6 +69,7 @@ export type ApplyFailReason =
   | 'payload-invalid'
   | 'target-moved'
   | 'invalid-selection'
+  | 'no-effective-change'
 export type ApplyResult =
   | { ok: true; classification: ApplyClassification; newRevisionId: string; partial?: boolean }
   | {
@@ -78,6 +80,10 @@ export type ApplyResult =
       /** the target digest at THIS call — the caller passes it back as
        *  `expectTargetDigest` so the confirmed apply runs on the same snapshot */
       targetDigest?: string
+      /** `invalid-selection` — one short line (dependency / endpoint) */
+      detail?: string
+      /** `invalid-selection` from full-graph validation — the concrete reasons */
+      reasons?: string[]
     }
 
 /** Everything `commitRevisionExport` needs to verify a plan is still current
@@ -510,6 +516,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (opts.selection) {
         // §R7.2 / §R7A.4 — per-hunk: the selection is the consent, no
         // classification / whole-loss confirmation gate.
+
+        // freshness — the selection was made against ONE three-way result; a
+        // target that moved since must not silently reuse it (review round 2).
+        if (opts.expectTargetDigest != null && opts.expectTargetDigest !== targetDigest) {
+          return { ok: false, reason: 'target-moved', targetDigest }
+        }
         const plan = computeThreeWay(
           base.content,
           canonicalContent({ nodes: g.nodes, edges: g.edges }),
@@ -521,7 +533,15 @@ export const useProjectStore = create<ProjectState>((set, get) => {
           plan,
           selection: opts.selection,
         })
-        if (!built.ok) return { ok: false, reason: 'invalid-selection' }
+        if (!built.ok) return { ok: false, reason: 'invalid-selection', detail: built.detail }
+        // the picked field combination must yield a valid GraphDoc — normalize
+        // must not need to repair it (review round 2)
+        const valid = validateResultGraph(built.nodes, built.edges)
+        if (!valid.ok) return { ok: false, reason: 'invalid-selection', reasons: valid.reasons }
+        // an effective no-op mints no revision / undo entry / simulationRev bump
+        if (digestOfCanonical(canonicalContent({ nodes: built.nodes, edges: built.edges })) === targetDigest) {
+          return { ok: false, reason: 'no-effective-change' }
+        }
         resultNodes = built.nodes
         resultEdges = built.edges
         partial = true

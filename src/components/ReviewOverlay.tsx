@@ -6,6 +6,7 @@ import { useProjectStore, type ApplyClassification, type ApplyFailReason } from 
 import { useReviewStore } from '../store/reviewStore'
 import {
   applyPendingProposal,
+  currentTargetDigest,
   openPendingProposalAsDocument,
   threeWayForPending,
 } from '../store/revisionIO'
@@ -65,7 +66,10 @@ const shortVal = (v: unknown): string => {
 }
 
 /** default: pre-accept everything that applies cleanly; leave conflicts and
- *  no-ops for the user (a conflict left unset means "keep mine"). */
+ *  no-ops for the user (a conflict left unset means "keep mine"). A clean node
+ *  `remove` also pre-accepts its `removeWith` edge removals — those rows are
+ *  visible in the list, so the cascade is never hidden. A node `remove` that is
+ *  `blockedBy` a target-added edge is NOT pre-accepted. */
 function defaultSelection(plan: ThreeWayPlan): HunkSelection {
   const accept: Record<string, boolean> = {}
   const fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>> = {}
@@ -74,8 +78,9 @@ function defaultSelection(plan: ThreeWayPlan): HunkSelection {
       const fc: Record<string, 'proposed' | 'yours'> = {}
       for (const f of h.fields ?? []) if (f.verdict === 'clean') fc[f.field] = 'proposed'
       if (Object.keys(fc).length) fieldChoices[h.id] = fc
-    } else if (h.verdict === 'clean') {
+    } else if (h.verdict === 'clean' && !h.blockedBy?.length) {
       accept[h.id] = true
+      for (const dep of h.removeWith ?? []) accept[dep] = true
     }
   }
   return { accept, fieldChoices }
@@ -125,19 +130,30 @@ function HunkRow({
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
 }) {
   if (h.kind !== 'change') {
+    const blocked = !!h.blockedBy?.length
     return (
-      <label className="review__hunk-head">
-        <input
-          type="checkbox"
-          checked={!!sel.accept[h.id]}
-          disabled={h.verdict === 'noop'}
-          onChange={(e) => onToggleAccept(h.id, e.target.checked)}
-        />
-        <span>
-          {h.kind === 'add' ? 'Add' : 'Remove'} {h.elementType} <code>{h.id}</code>
-          {h.verdict === 'conflict' ? <span className="review__hunk-tag"> · both sides changed this</span> : null}
-        </span>
-      </label>
+      <div>
+        <label className="review__hunk-head">
+          <input
+            type="checkbox"
+            checked={!!sel.accept[h.id]}
+            disabled={h.verdict === 'noop' || blocked}
+            onChange={(e) => onToggleAccept(h.id, e.target.checked)}
+          />
+          <span>
+            {h.kind === 'add' ? 'Add' : 'Remove'} {h.elementType} <code>{h.id}</code>
+            {h.verdict === 'conflict' ? <span className="review__hunk-tag"> · both sides changed this</span> : null}
+          </span>
+        </label>
+        {h.removeWith?.length ? (
+          <div className="review__hunk-dep">also removes edge {h.removeWith.map((e) => <code key={e}>{e}</code>)}</div>
+        ) : null}
+        {blocked ? (
+          <div className="review__hunk-dep review__hunk-dep--blocked">
+            can’t remove — you added edge {h.blockedBy!.map((e) => <code key={e}>{e}</code>) } to this node
+          </div>
+        ) : null}
+      </div>
     )
   }
   return (
@@ -194,7 +210,10 @@ function HunkRow({
   )
 }
 
-const FAIL_MSG: Record<Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved'>, string> = {
+const FAIL_MSG: Record<
+  Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved' | 'no-effective-change'>,
+  string
+> = {
   'wrong-project': 'This proposal is for a different project.',
   'no-target': 'No project is open to apply onto.',
   'target-is-proposal': 'Export the open proposal as a Project revision first.',
@@ -227,11 +246,15 @@ export function ReviewOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pending, openRev, openRole, simRev],
   )
-  const plan = useMemo(
-    () => (pending && model?.gate === 'ok' ? threeWayForPending(pending) : null),
+  const planCtx = useMemo(
+    () =>
+      pending && model?.gate === 'ok'
+        ? { plan: threeWayForPending(pending), digest: currentTargetDigest() }
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pending, openRev, openRole, simRev, model?.gate],
   )
+  const plan = planCtx?.plan ?? null
 
   useEffect(() => {
     setArmed(null)
@@ -282,24 +305,45 @@ export function ReviewOverlay() {
       return
     }
     setArmed(null)
-    setErr(FAIL_MSG[res.reason])
+    setErr((FAIL_MSG as Record<string, string>)[res.reason] ?? `Could not apply (${res.reason}).`)
   }
 
   const doApplySelected = () => {
     setErr(null)
-    const res = applyPendingProposal(pending, { selection: sel })
+    const res = applyPendingProposal(pending, {
+      selection: sel,
+      expectTargetDigest: planCtx?.digest,
+    })
     if (res.ok) {
       afterMutation()
       return
     }
-    // per-hunk apply never returns needs-confirmation / target-moved
-    setErr(res.reason === 'invalid-selection' ? FAIL_MSG['invalid-selection'] : FAIL_MSG[res.reason as keyof typeof FAIL_MSG] ?? `Could not apply (${res.reason}).`)
+    if (res.reason === 'target-moved') {
+      // planCtx/sel already re-seed from the fresh plan (deps below) — just say so
+      setErr('The document changed while you were choosing — the list below is updated. Review and apply again.')
+      return
+    }
+    if (res.reason === 'no-effective-change') {
+      setErr('Those choices don’t change anything — nothing to apply.')
+      return
+    }
+    if (res.reason === 'invalid-selection') {
+      setErr((res.reasons?.length ? res.reasons.join(' ') : res.detail) ?? FAIL_MSG['invalid-selection'])
+      return
+    }
+    setErr(FAIL_MSG[res.reason as keyof typeof FAIL_MSG] ?? `Could not apply (${res.reason}).`)
   }
 
   const setField = (id: string, field: string, choice: 'proposed' | 'yours') =>
     setSel((s) => ({ ...s, fieldChoices: { ...s.fieldChoices, [id]: { ...(s.fieldChoices[id] ?? {}), [field]: choice } } }))
   const toggleAccept = (id: string, v: boolean) =>
-    setSel((s) => ({ ...s, accept: { ...s.accept, [id]: v } }))
+    setSel((s) => {
+      const accept = { ...s.accept, [id]: v }
+      // a node removal drags its explicit edge-removal dependencies along
+      const h = plan?.hunks.find((x) => x.id === id)
+      if (h?.kind === 'remove' && h.elementType === 'node') for (const dep of h.removeWith ?? []) accept[dep] = v
+      return { ...s, accept }
+    })
 
   const doOpenDoc = () => {
     openPendingProposalAsDocument(pending)

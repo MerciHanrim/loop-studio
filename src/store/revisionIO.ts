@@ -111,6 +111,14 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
   )
 }
 
+/** the live target digest a hunk selection is being built against — passed back
+ *  to `applyProposal` as `expectTargetDigest` so a moved target is rejected
+ *  (`target-moved`) instead of silently re-using a stale selection. */
+export function currentTargetDigest(): string {
+  const g = useGraphStore.getState()
+  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
+}
+
 /** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for
  *  every non-`exact` class); `expectTargetDigest` pins the snapshot the
  *  confirmation was shown against. Re-gates / re-validates / re-classifies. */

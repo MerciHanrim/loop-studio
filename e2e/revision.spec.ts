@@ -577,4 +577,85 @@ test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
       ),
     ).toBe(sigBefore)
   })
+
+  test('node removal shows its edge dependency; the node alone is refused, node + dep applies', async ({
+    page,
+  }) => {
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const [a, b] = L.graph.getState().nodes
+      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' })
+      const eid = L.graph.getState().edges[0].id
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes = f.nodes.filter((n: { id: string }) => n.id !== b.id) // proposal removes node b …
+      f.edges = f.edges.filter((e: { id: string }) => e.id !== eid) // … and its edge
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), bId: b.id, eid }
+    })
+
+    await setFile(page, 'p.json', built.text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+
+    const nodeHunk = page.locator('.review__hunk', { hasText: 'Remove node' })
+    await expect(nodeHunk.locator('.review__hunk-dep')).toContainText(built.eid) // dependency is visible
+
+    // deselect the standalone edge-removal hunk, keep the node ⇒ refused
+    await page
+      .locator('.review__hunk', { hasText: 'Remove edge' })
+      .locator('input[type=checkbox]')
+      .uncheck()
+    await nodeHunk.locator('input[type=checkbox]').check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review__warn')).toContainText(built.eid)
+    await expect(page.locator('.review')).toBeVisible()
+
+    // re-select the dependency ⇒ clean removal of both
+    await page
+      .locator('.review__hunk', { hasText: 'Remove edge' })
+      .locator('input[type=checkbox]')
+      .check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+    const after = await page.evaluate(() => {
+      const g = (window as unknown as { __loop: any }).__loop.graph.getState()
+      return { nodes: g.nodes.length, edges: g.edges.length }
+    })
+    expect(after.nodes).toBe(1)
+    expect(after.edges).toBe(0)
+  })
+
+  test('editing the target while the hunk list is open re-computes it; apply runs on the fresh state', async ({
+    page,
+  }) => {
+    const { sid, text } = await editedProposal(page) // proposal: add p_new + change sid.initial 0→42
+    await setFile(page, 'p.json', text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    // initially the change hunk is clean (target initial still 0)
+    await expect(page.locator('.review__field-row--conflict')).toHaveCount(0)
+
+    // edit the SAME field on the target through the normal editor
+    await page.evaluate(
+      (nid) => (window as unknown as { __loop: any }).__loop.graph.getState().updateNodeData(nid, { initial: 15 }),
+      sid,
+    )
+    // the hunk list re-computes → the field is now a conflict
+    await expect(page.locator('.review__field-row--conflict')).toBeVisible()
+    await expect(page.locator('.review__field-row--conflict')).toContainText('15') // yours
+
+    // resolve it and apply — runs against the fresh target
+    await page
+      .locator('.review__field-row--conflict label', { hasText: 'take theirs' })
+      .locator('input')
+      .check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+    expect(await nodeInitial(page, sid)).toBe(42)
+  })
 })

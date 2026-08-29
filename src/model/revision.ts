@@ -521,6 +521,14 @@ export type ProposalHunk = {
   yours: CanonicalNode | CanonicalEdge | null
   /** present for `change` */
   fields?: HunkField[]
+  /** a node `remove` hunk: the edge-`remove` hunk ids that MUST be accepted
+   *  together with it (edges incident in the target that the proposal also
+   *  removes). Surfaced to the user; never cascaded silently. */
+  removeWith?: string[]
+  /** a node `remove` hunk: target-only incident edge ids (added on your side,
+   *  not in `base`). Their presence makes a clean removal impossible — a
+   *  structural conflict; the node cannot be removed until you remove them. */
+  blockedBy?: string[]
 }
 export type ThreeWayPlan = {
   hunks: ProposalHunk[]
@@ -590,6 +598,24 @@ export function computeThreeWay(
       nConf += 1
     }
   }
+
+  // node `remove` dependencies — the incident edges that go with it. Explicit,
+  // never cascaded silently (Slice 2 review round 2). Does NOT touch `nConf`
+  // (that stays the §R7A.3 node-value verdict, feeding classification).
+  const edgeRemoveHunk = new Set(hunks.filter((h) => h.kind === 'remove' && h.elementType === 'edge').map((h) => h.id))
+  const baseEdgeIds = new Set(base.edges.map((e) => e.id))
+  for (const h of hunks) {
+    if (h.kind !== 'remove' || h.elementType !== 'node') continue
+    const incident = target.edges.filter((e) => e.source === h.id || e.target === h.id)
+    const removeWith = incident.filter((e) => edgeRemoveHunk.has(e.id)).map((e) => e.id).sort()
+    const blockedBy = incident
+      .filter((e) => !edgeRemoveHunk.has(e.id) && !baseEdgeIds.has(e.id))
+      .map((e) => e.id)
+      .sort()
+    if (removeWith.length) h.removeWith = removeWith
+    if (blockedBy.length) h.blockedBy = blockedBy
+  }
+
   return { hunks, nConf }
 }
 
@@ -621,9 +647,13 @@ export type SelectiveApplyResult =
  * §R7.2 — `target content + accepted hunks`. Operates on the REAL editor graphs
  * (not canonical) so element identity / render fields survive. Rejected hunks
  * leave the target untouched → unselected fields are byte-identical (D-cond 6).
- * A node `remove` cascades to its now-dangling edges (as the editor does). An
- * accepted edge whose endpoint node is absent from the result is an
- * **invalid selection** and is refused before anything is applied (D-cond 4).
+ *
+ * There is **NO implicit cascade** (Slice 2 review round 2). Removing a node
+ * requires **explicitly** accepting every `hunk.removeWith` edge-`remove` hunk;
+ * a node with a target-only incident edge (`hunk.blockedBy`) is a structural
+ * conflict and cannot be removed. Any edge left referencing a missing node — an
+ * accepted `add` edge whose node was not selected, or a base edge orphaned by a
+ * removal — is refused as an `invalid-selection` **before anything is applied**.
  */
 export function buildSelectiveApply(input: {
   target: { nodes: LoopNode[]; edges: LoopEdge[] }
@@ -632,6 +662,26 @@ export function buildSelectiveApply(input: {
   selection: HunkSelection
 }): SelectiveApplyResult {
   const { target, proposedFull, plan, selection } = input
+  const bad = (detail: string): SelectiveApplyResult => ({ ok: false, reason: 'invalid-selection', detail })
+
+  // ── validate the selection BEFORE mutating anything ──
+  for (const h of plan.hunks) {
+    if (h.kind === 'remove' && h.elementType === 'node' && selection.accept[h.id]) {
+      if (h.blockedBy?.length) {
+        return bad(
+          `Node ${h.id} can't be removed — you added edge ${h.blockedBy.join(', ')} to it. Remove that edge first, or keep the node.`,
+        )
+      }
+      for (const dep of h.removeWith ?? []) {
+        if (!selection.accept[dep]) {
+          return bad(
+            `Removing node ${h.id} also removes edge ${dep} — select that edge removal too, or keep the node.`,
+          )
+        }
+      }
+    }
+  }
+
   const nodes = new Map<string, LoopNode>(target.nodes.map((n) => [n.id, cloneEl(n)]))
   const edges = new Map<string, LoopEdge>(target.edges.map((e) => [e.id, cloneEl(e)]))
   const pNodes = new Map<string, LoopNode>(proposedFull.nodes.map((n) => [n.id, n]))
@@ -651,9 +701,7 @@ export function buildSelectiveApply(input: {
     if (h.kind === 'add') {
       if (!selection.accept[h.id]) continue
       const real = psrc.get(h.id)
-      if (!real) {
-        return { ok: false, reason: 'invalid-selection', detail: `Proposal is missing ${h.elementType} ${h.id}.` }
-      }
+      if (!real) return bad(`Proposal is missing ${h.elementType} ${h.id}.`)
       store.set(h.id, cloneEl(real) as LoopNode & LoopEdge)
     } else if (h.kind === 'remove') {
       if (!selection.accept[h.id]) continue
@@ -666,9 +714,7 @@ export function buildSelectiveApply(input: {
         // target deleted this element — "take proposal" re-adds it whole (vec 11)
         if (!wantsProposed) continue
         const real = psrc.get(h.id)
-        if (!real) {
-          return { ok: false, reason: 'invalid-selection', detail: `Proposal is missing ${h.elementType} ${h.id}.` }
-        }
+        if (!real) return bad(`Proposal is missing ${h.elementType} ${h.id}.`)
         store.set(h.id, cloneEl(real) as LoopNode & LoopEdge)
         continue
       }
@@ -679,26 +725,13 @@ export function buildSelectiveApply(input: {
     }
   }
 
-  // node removals cascade to edges that now dangle (editor semantics)
-  for (const [id, e] of [...edges]) {
-    if (!nodes.has(e.source) || !nodes.has(e.target)) edges.delete(id)
-  }
-
-  // an ACCEPTED edge hunk whose endpoint is still missing ⇒ invalid selection
-  for (const h of plan.hunks) {
-    if (h.elementType !== 'edge') continue
-    const accepted =
-      (h.kind === 'add' && selection.accept[h.id]) ||
-      (h.kind === 'change' &&
-        (h.fields ?? []).some((f) => (selection.fieldChoices[h.id] ?? {})[f.field] === 'proposed'))
-    if (!accepted) continue
-    const e = edges.get(h.id)
-    if (!e) {
-      return {
-        ok: false,
-        reason: 'invalid-selection',
-        detail: `Edge ${h.id} needs both endpoint nodes — also accept the node change it depends on, or deselect this edge.`,
-      }
+  // no silent cascade — any edge whose endpoint node is gone is an error
+  for (const [id, e] of edges) {
+    if (!nodes.has(e.source) || !nodes.has(e.target)) {
+      return bad(
+        `Edge ${id} would have no ${!nodes.has(e.source) ? 'source' : 'target'} node. ` +
+          `Also select the matching edge removal, or don't remove that node.`,
+      )
     }
   }
 
@@ -711,6 +744,97 @@ export function buildSelectiveApply(input: {
   for (const e of proposedFull.edges) if (edges.has(e.id) && !target.edges.some((t) => t.id === e.id)) outEdges.push(edges.get(e.id)!)
 
   return { ok: true, nodes: outNodes, edges: outEdges }
+}
+
+// ── §2 — validate the WHOLE result before it can be applied ────────────────
+
+const NODE_KINDS = new Set(['pool', 'source', 'drain', 'gate', 'converter', 'end'])
+
+export type ResultValidation = { ok: true } | { ok: false; reasons: string[] }
+
+/**
+ * Full-GraphDoc validation of a selective-apply result (Slice 2 review round 2).
+ * Endpoint existence alone is not enough — a field combination can produce an
+ * invalid doc, and `normalizeGraph` would then *silently repair* it. Any failure
+ * blocks the apply with a concrete list of reasons; nothing is mutated.
+ */
+export function validateResultGraph(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  recommendedRunConfig?: RecommendedRunConfig,
+): ResultValidation {
+  const reasons: string[] = []
+  const nodeIds = new Set(nodes.map((n) => n.id))
+
+  // 1. node kind + shape (before the projection — an unknown kind would crash it)
+  let kindsOk = true
+  for (const n of nodes) {
+    const kind = (n.data as { kind?: unknown } | undefined)?.kind
+    if (typeof kind !== 'string' || !NODE_KINDS.has(kind)) {
+      reasons.push(`Node ${n.id}: unknown kind "${String(kind)}".`)
+      kindsOk = false
+    } else if (n.type !== kind) {
+      reasons.push(`Node ${n.id}: type "${n.type}" ≠ data.kind "${kind}".`)
+    }
+    const p = n.position as { x?: unknown; y?: unknown } | undefined
+    if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') reasons.push(`Node ${n.id}: missing numeric position.`)
+  }
+
+  // 2. non-finite / out-of-domain numbers anywhere in the projection (skip when
+  //    a kind is already unknown — the projection would throw for that reason)
+  if (kindsOk) {
+    try {
+      canonicalContent({ nodes, edges })
+    } catch {
+      reasons.push('A node or edge holds a non-finite number (NaN / Infinity).')
+    }
+  }
+
+  // 3. edges — endpoints exist, kind, and handle compatibility
+  const seenEdge = new Set<string>()
+  for (const e of edges) {
+    if (seenEdge.has(e.id)) reasons.push(`Edge ${e.id}: duplicate id.`)
+    seenEdge.add(e.id)
+    if (!nodeIds.has(e.source)) reasons.push(`Edge ${e.id}: source node ${e.source} does not exist.`)
+    if (!nodeIds.has(e.target)) reasons.push(`Edge ${e.id}: target node ${e.target} does not exist.`)
+    const ek = (e.data as { kind?: unknown } | undefined)?.kind
+    const sState = typeof e.sourceHandle === 'string' && e.sourceHandle.startsWith('state')
+    const tState = typeof e.targetHandle === 'string' && e.targetHandle.startsWith('state')
+    if (ek === 'state') {
+      if (!sState || !tState) reasons.push(`Edge ${e.id}: a state edge must use state handles on both ends.`)
+    } else if (ek === 'resource') {
+      if (sState || tState) reasons.push(`Edge ${e.id}: a resource edge must not use state handles.`)
+    } else {
+      reasons.push(`Edge ${e.id}: unknown kind "${String(ek)}".`)
+    }
+  }
+
+  // 4. recommendedRunConfig.tracked must reference real pools (revision content
+  //    never carries rrc today, but guard it anyway)
+  const tracked = recommendedRunConfig?.tracked
+  if (Array.isArray(tracked)) {
+    for (const id of tracked) if (typeof id === 'string' && !nodeIds.has(id)) reasons.push(`recommendedRunConfig.tracked: node ${id} does not exist.`)
+  }
+
+  // 5. normalize must not need to REPAIR anything (blank handles, missing data
+  //    defaults, absent `type`) — a silent fix would mean the picked fields
+  //    made an invalid doc.
+  try {
+    const norm = normalizeGraph({ nodes, edges })
+    const keySorted = (x: unknown): unknown =>
+      Array.isArray(x)
+        ? x.map(keySorted)
+        : x && typeof x === 'object'
+          ? Object.fromEntries(Object.keys(x as object).sort().map((k) => [k, keySorted((x as Record<string, unknown>)[k])]))
+          : x
+    const before = JSON.stringify(keySorted({ nodes, edges }))
+    const after = JSON.stringify(keySorted(norm))
+    if (before !== after) reasons.push('The result is not already normalized — importing it would silently change it.')
+  } catch {
+    reasons.push('The result cannot be normalized.')
+  }
+
+  return reasons.length ? { ok: false, reasons } : { ok: true }
 }
 
 // ── defensive `project` reader (§R10 steps 3/6) ──────────────────────────
