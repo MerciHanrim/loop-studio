@@ -11,6 +11,7 @@ import {
   runMc,
   test,
 } from './support/loop'
+import { fixtureFlow } from './support/revision-fixture'
 
 // docs/mobile.md §MV10 — the mobile View/Run layout. Runs under the `mobile`
 // Playwright project (390x844 portrait; tests rotate to 844x390). Slice 1 scope:
@@ -815,4 +816,7 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
     await expect(nodeHunk.locator('.review__hunk-dep--blocked')).toContainText('yours added edge')
     await expect(nodeHunk.locator('input[type=checkbox]')).toBeDisabled()
   })
+
+  // the committed loop-revision/1 oracle produces IDENTICAL results on mobile
+  test('verification fixture — same Import→Review→Apply→Undo→Redo oracle as desktop', fixtureFlow('mobile'))
 })
