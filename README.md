@@ -6,17 +6,16 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** (`v0.4.0-dev` — the `v0.4.0` release is pending).
-> The diagram editor and the simulation engine — deterministic, seeded
-> randomness, Monte Carlo, and executable state connections (`trigger` /
-> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
-> shareable `#g1=` links, and an installable offline PWA. Execution semantics
-> are pinned down in frozen spec documents (see [Semantics](#semantics)).
+> Status: **working preview** (v0.4.0). The diagram editor and the simulation
+> engine — deterministic, seeded randomness, Monte Carlo, and executable state
+> connections (`trigger` / `activator` / `label`) — are all usable today, plus
+> Workspace Export/Import, shareable `#g1=` links, and an installable offline
+> PWA. Execution semantics are pinned down in frozen spec documents (see
+> [Semantics](#semantics)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
-> delete) is desktop-only ([`docs/mobile.md`](docs/mobile.md)). The `v0.4.0`
-> tag is cut once this release is finalised.
+> delete) is desktop-only ([`docs/mobile.md`](docs/mobile.md)).
 
 ## Why
 
@@ -98,7 +97,7 @@ spec id, never an edit to a frozen one.
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
-- ◐ Ship — **v0.4.0** *(features merged; the tag is held for the mobile view/run layer below)*
+- ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
   - ✅ Offline PWA — installable, works fully offline **once the service-worker install and precache complete** on the first online load; a `prompt`-style update bar, never an automatic reload ([`docs/pwa.md`](docs/pwa.md))
@@ -107,9 +106,8 @@ spec id, never an edit to a frozen one.
 
 ## Releases
 
-**v0.4.0 — ship: workspace, links, offline.** *(Release pending — code is on
-`main` as `0.4.0-dev`; the annotated `v0.4.0` tag is held while the mobile
-view/run layer lands.)* Three additions around the existing editor + engine:
+**v0.4.0 — ship: workspace, links, offline, mobile view/run.** Four additions
+around the existing editor + engine:
 
 - **Workspace Export / Import** (`loop-workspace/1`,
   [`SEMANTICS-W.md`](SEMANTICS-W.md)) — an optional `workspace` key on the graph
@@ -136,6 +134,16 @@ view/run layer lands.)* Three additions around the existing editor + engine:
   read-only Inspector sheet, and Share / Import / Export / Templates / Theme in
   a `More` menu. Structural editing is locked; opening a phone browser never
   mutates the diagram. The desktop layout is unchanged above the breakpoint.
+
+**Scope of the mobile layer.** It is a **view & run** mode, not a second
+editor. There are no accounts and no cloud projects, so a diagram moves between
+devices exactly two ways: a **Graph JSON / Workspace JSON** file (`Export ▾` on
+desktop → `More → Import file` on the phone; a Workspace file also restores the
+run position, the last distribution, and the view), or a **`#g1=` Share link**
+(graph only). Each browser's autosave is local to that browser and does not
+sync across devices. Asynchronous collaboration (shared project revisions /
+proposals) is **not** part of `v0.4.0` — it is a separate, spec-first candidate
+for a later release.
 
 **v0.3.0 — executable state connections.** State edges (`trigger` with an
 integer `delay`, AND-combined `activator` level gates, `label` Pool modifiers)
