@@ -26,6 +26,14 @@ if (import.meta.env.DEV) {
   }
 }
 
+// Service worker — Production / PWA-test build only. `__PWA_ENABLED__` is a
+// compile-time constant, so this whole block (and `./pwa/register-sw`) is
+// tree-shaken out of a plain `npm run build`, dev, and portable (docs/pwa.md
+// §P7). The origin allow-list inside `registerPwa` is the second gate.
+if (__PWA_ENABLED__) {
+  void import('./pwa/register-sw').then((m) => m.registerPwa())
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

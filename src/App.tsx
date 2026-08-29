@@ -2,6 +2,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import { Canvas } from './components/Canvas'
 import { Inspector } from './components/Inspector'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
+import { PwaUpdateBar } from './components/PwaUpdateBar'
 import { ShareLoader } from './components/ShareLoader'
 import { Shortcuts } from './components/Shortcuts'
 import { TimelineChart } from './components/TimelineChart'
@@ -12,6 +13,7 @@ export default function App() {
     <ReactFlowProvider>
       <ShareLoader />
       <Shortcuts />
+      <PwaUpdateBar />
       <div className="app">
         <Toolbar />
         <div className="app__body">

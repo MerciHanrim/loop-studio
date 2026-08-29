@@ -16,9 +16,11 @@ Relevant facts about the app (they make PWA simple here):
   (`src/engine/risky-factory.fixture.ts`) are built in code, not loaded.
   Fonts are bundled (`@fontsource/*`, self-hosted, hashed assets). So the full
   app is precacheable and, after one load, needs the network for **nothing**.
-- **The Monte-Carlo worker is inlined** — `mc.worker.ts?worker&inline` becomes a
-  blob URL inside the main JS bundle. There is no separate worker file for the
-  SW to serve (§P6).
+- **The Monte-Carlo worker is a separate hashed chunk** —
+  `dist/assets/mc.worker-<hash>.js`, loaded by a dynamic `import()` in the main
+  bundle (the `?worker&inline` query is honoured only by the *portable*
+  single-file build). It is precached (the `assets/*.js` glob) and referenced
+  from the main JS, so the §P8.2 closure check tracks it (§P6).
 - Build: `vite build` → `dist/` (`index.html` + hashed `assets/*`), deployed to
   Cloudflare Pages at `cozy-loop-studio.pages.dev`. `vite build --mode portable`
   → one self-contained `loop-studio.html` for `file://`.
@@ -91,11 +93,10 @@ and no injected `<link rel="manifest">` (§P9 D8a, Slice-1 criterion 5).
   globDirectory: 'dist',
   globPatterns: [
     'index.html',
-    'assets/*.{js,css}',        // hashed app chunks (incl. the inlined MC worker)
-    'assets/*.woff2',           // bundled @fontsource faces
+    'assets/*.{js,css}',        // hashed app chunks incl. the MC worker chunk
+    'assets/*.{woff,woff2}',    // @fontsource — the CSS @font-face lists BOTH
     'manifest.webmanifest',
     'icons/*.png',
-    'favicon.ico',              // apple-touch-icon.png is under icons/
   ],
   globIgnores: ['**/*.map', '**/*.LICENSE.txt'],
   maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // largest chunk ≈ 700 KB today
@@ -239,18 +240,21 @@ concern.
 
 ## P6. Worker and portable-build boundaries
 
-- **MC worker.** Inlined into the main bundle (`?worker&inline` → blob URL), so
-  the SW never intercepts a worker script — it is bytes inside a precached
-  `assets/*.js`. Worker viability on HTTP is unchanged by SW presence;
-  `canUseWorkers()` and the cooperative fallback are untouched. A blob-URL
-  worker is same-origin and not subject to SW `fetch` interception anyway.
+- **MC worker.** A separate hashed chunk (`assets/mc.worker-<hash>.js`),
+  precached by the `assets/*.js` glob and referenced by a dynamic `import()` in
+  the main bundle — the §P8.2 closure check verifies it is in the precache list.
+  Worker viability on HTTP is unchanged by SW presence; `canUseWorkers()` and
+  the cooperative fallback are untouched. The SW does not special-case worker
+  scripts — it serves the chunk from the precache like any other asset.
 - **Portable `file://` build.** `vite build --mode portable` **must not**
   include `vite-plugin-pwa` and **must not** register a SW or emit a manifest
   link (`file://` cannot host a SW, and there is nothing to cache — it is one
-  file). Registration is gated `if (import.meta.env.MODE !== 'portable' && __PWA_ENABLED__ && 'serviceWorker' in navigator)`.
+  file). The `pwa` flag in `vite.config.ts` is `!portable && (mode === 'pwa' ||
+  CF_PAGES_BRANCH === 'main')`, and `main.tsx` calls `registerPwa()` only behind
+  `if (__PWA_ENABLED__)` (compile-time `false` here → tree-shaken out).
   `e2e/portable-file.spec.ts` gains an assertion that
   `navigator.serviceWorker.controller === null` and `getRegistrations()` is
-  empty.
+  empty (Slice 3).
 
 ---
 
@@ -370,23 +374,34 @@ index.html
   → <script src>, <link href> (stylesheet / manifest / icon / apple-touch-icon),
     <link rel="modulepreload">, shell <img src>
   → each referenced CSS file
-      → every url(...) inside it  →  .woff2 / images
+      → every url(...) inside it  →  .woff / .woff2 / images
+  → each referenced JS file
+      → "assets/…" / "icons/…" string refs  →  the dynamic-import MC worker
+        chunk, any lazy chunk
   → manifest.webmanifest
       → every icons[].src
 ```
 
 For **every local URL** discovered (resolve relative to its referrer; **skip**
-absolute `http(s)://` URLs, `data:`, and `blob:`), assert it exists in **both**:
+absolute `//` / `http(s)://` URLs, `data:`, and `blob:`), assert it exists in
+**both**:
 
-- the Workbox precache list baked into `dist/sw.js` (`precacheAndRoute([…])` /
+- the Workbox precache list baked into `sw.js` (`precacheAndRoute([…])` /
   `__WB_MANIFEST`), and
-- the actual `dist/` tree on disk.
+- the actual output tree on disk.
 
-Reading only `index.html` + the manifest would miss a `.woff2` or image
-referenced only from inside a bundled CSS file — hence the `url(...)` step. Any
-reference the `globPatterns` did not pick up (a new `assets/media/` sub-folder,
-a renamed icon dir) fails the build instead of breaking offline silently.
-Reverse sanity: no precache entry resolves outside `dist/`.
+`sw.js` and `workbox-*.js` are the service worker itself and are exempt from the
+"must be precached" rule. Reading only `index.html` + the manifest would miss a
+font or image referenced only from inside a bundled CSS file (that is exactly
+how this check first caught the `.woff` fallbacks) or the MC worker chunk
+referenced only from JS — hence the CSS `url(...)` and JS string-ref steps. Any
+reference the `globPatterns` do not pick up fails the build instead of breaking
+offline silently.
+
+**Both PWA build paths are checked** — the `--mode pwa` test build
+(`dist-pwa/`) *and* the Cloudflare Production shape
+(`CF_PAGES_BRANCH=main npm run build` → `dist/`), so the plugin is proven to
+activate on the real deploy path, not just the test flag.
 
 **(b) The inverse — the non-PWA outputs carry nothing PWA.**
 
@@ -397,9 +412,13 @@ Against `npm run build` (plain) **and** `npm run build:portable`:
 - no `<link rel="manifest">` in the HTML;
 - no `registerSW` / service-worker-registration code string in the emitted JS.
 
-Suggested shape: `npm run build:pwa && node scripts/check-pwa-closure.mjs` and
-`npm run build && npm run build:portable && node scripts/check-no-pwa.mjs`, both
-wired into the `checks` CI job.
+As built, in the `checks` CI job (`scripts/check-{no-pwa,pwa-closure}.mjs`):
+
+```
+npm run build && npm run build:portable && npm run check:no-pwa   # (b)
+npm run build:pwa && npm run check:pwa-closure                    # (a), dist-pwa/
+CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist   # (a), Production shape
+```
 
 ### P8.3 Manual, real device (checklist — not automated)
 
@@ -458,11 +477,21 @@ from Lighthouse 13), so it is **not** a release gate. Instead:
    + `check:no-pwa` (§P8.2(b) — `dist/` and `dist-portable/` carry no
    `sw.js` / manifest / manifest-link / registration code). **No SW, no plugin
    yet.**
-2. **`vite-plugin-pwa` (`generateSW`, explicit globs, `cleanupOutdatedCaches`,
-   `skipWaiting:false`, `clientsClaim:false`, consumes `src/pwa/manifest.ts`) +
-   the dual-gated registration (§P7) + the `.pwa-update` bar** (§P4: waiting →
-   Update → `SKIP_WAITING` → `controllerchange` → one reload; the data-loss
-   line; the run-in-progress confirm; per-worker Dismiss).
-3. **the `pwa` E2E project** (§P8.1) + the **§P8.2(a) precache-closure build
-   test** against `dist-pwa/` + the `portable` no-SW assertion + one full run of
-   the §P8.3 manual checklist.
+2. **✅ (landed) `vite-plugin-pwa` + registration + `.pwa-update` bar + the
+   closure checks.** `VitePWA({ registerType:'prompt', injectRegister:false,
+   manifest, includeManifestIcons:false, workbox:{ globPatterns, globIgnores,
+   maximumFileSizeToCacheInBytes:3MiB, cleanupOutdatedCaches:true,
+   navigateFallback:'index.html', skipWaiting:false, clientsClaim:false } })`,
+   in `plugins` only when `pwa` (`!portable && (mode==='pwa' || CF main)`).
+   `src/pwa/register-sw.ts` — origin-allow-list gate, then
+   `register('sw.js')`; a new SW stays `waiting`; `usePwaStore.markWaiting()`
+   on `updatefound → installed` with a controller; Update posts `SKIP_WAITING`,
+   `controllerchange` triggers exactly one `reload()`; focus + hourly
+   `reg.update()`. `main.tsx`: `if (__PWA_ENABLED__) import('./pwa/register-sw')`
+   (tree-shaken elsewhere). `src/components/PwaUpdateBar.tsx` — shows only while
+   `hasWaiting && !dismissed`; the data-loss line; a run-in-progress `confirm`;
+   Dismiss is per-waiting-worker (`markWaiting` clears `dismissed`).
+   `scripts/check-pwa-closure.mjs` (§P8.2a) in `checks`, run against **both**
+   `dist-pwa/` and the `CF_PAGES_BRANCH=main npm run build → dist/` shape.
+3. **the `pwa` E2E project** (§P8.1) + the `portable` no-SW assertion + one full
+   run of the §P8.3 manual checklist.

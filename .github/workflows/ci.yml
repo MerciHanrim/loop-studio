@@ -39,10 +39,14 @@ jobs:
         run: npm run build
       - name: Portable build
         run: npm run build:portable
-      - name: PWA build (mode=pwa)
-        run: npm run build:pwa
       - name: No PWA leakage in plain / portable builds
         run: npm run check:no-pwa
+      - name: PWA build (mode=pwa)
+        run: npm run build:pwa
+      - name: PWA precache closure (mode=pwa)
+        run: npm run check:pwa-closure
+      - name: PWA precache closure (Cloudflare Production path)
+        run: CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist
 
   e2e:
     name: e2e
