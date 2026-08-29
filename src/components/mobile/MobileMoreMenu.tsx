@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useState, type RefObject } from 'react'
 import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useGraphStore } from '../../store/graphStore'
@@ -13,7 +13,7 @@ import {
 } from '../../store/workspaceIO'
 import { downloadText } from '../../ui/download'
 import { SHARE_DISCLOSURE, prepareShareLink, shareKb } from '../../ui/shareAction'
-import { useDialogFocus } from '../useDialogFocus'
+import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
 
 // docs/mobile.md §MV6 — the compact top bar's "More" menu and its three
@@ -23,41 +23,8 @@ import { ThemeToggle } from '../ThemeToggle'
 // the desktop menus.
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
-const backToMore = () => document.querySelector<HTMLButtonElement>('.sheet__row--first')
-
-function Sheet({
-  title,
-  onClose,
-  returnFocusTo,
-  children,
-}: {
-  title: string
-  onClose: () => void
-  returnFocusTo: () => HTMLElement | null | undefined
-  children: ReactNode
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  useDialogFocus(true, ref, onClose, returnFocusTo)
-  return (
-    <div className="sheet-scrim" onMouseDown={onClose}>
-      <div
-        ref={ref}
-        className="sheet"
-        role="dialog"
-        aria-label={title}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="sheet__head">
-          <span className="sheet__title">{title}</span>
-          <button type="button" className="sheet__x" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
-}
+// a sub-sheet returns focus to the top bar's More button when it closes
+const backToMore = () => document.querySelector<HTMLButtonElement>('.mob-more')
 
 export function MobileMoreMenu({
   fileInputRef,
@@ -74,7 +41,6 @@ export function MobileMoreMenu({
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
   const loadGraph = useGraphStore((s) => s.loadGraph)
-  const hasContent = useGraphStore((s) => s.nodes.length > 0 || s.edges.length > 0)
 
   const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
 
@@ -106,11 +72,19 @@ export function MobileMoreMenu({
   const pickTemplate = (id: string) => {
     const tpl = TEMPLATES.find((t) => t.id === id)
     if (!tpl) return
-    if (hasContent && !window.confirm(`Replace the current diagram with "${tpl.name}"?`)) return
+    // docs/mobile.md §MV3b — confirm before replacing, unless the session is
+    // still the untouched first-boot sample. Cancel: the Templates sheet stays
+    // open and nothing changes (no pause, no load, no rev bump).
+    if (
+      !useGraphStore.getState().pristineSample &&
+      !window.confirm(`Replace the current diagram with "${tpl.name}"?`)
+    ) {
+      return
+    }
     useSimStore.getState().pause()
-    loadGraph(tpl.graph)
+    loadGraph(tpl.graph) // the existing atomic path — exactly one bump
     useMcStore.getState().applyRecommended(tpl.recommendedRunConfig)
-    closeOverlay()
+    closeOverlay() // accept: the sheet closes, focus returns to the More button
   }
 
   const graphJSON = () => {
@@ -158,7 +132,7 @@ export function MobileMoreMenu({
 
   if (overlay === 'more') {
     return (
-      <Sheet title="More" onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current}>
+      <MobileSheet title="More" onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current}>
         <button
           type="button"
           className="sheet__row sheet__row--first"
@@ -174,7 +148,8 @@ export function MobileMoreMenu({
             fileInputRef.current?.click()
           }}
         >
-          Import…
+          Import file
+          <span className="sheet__row-sub">Graph or Workspace JSON</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('export')}>
           Export<span className="sheet__row-sub">▸</span>
@@ -189,13 +164,13 @@ export function MobileMoreMenu({
           v{__APP_VERSION__}
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </div>
-      </Sheet>
+      </MobileSheet>
     )
   }
 
   if (overlay === 'templates') {
     return (
-      <Sheet
+      <MobileSheet
         title="Templates"
         onClose={() => closeOverlay('templates')}
         returnFocusTo={backToMore}
@@ -206,26 +181,26 @@ export function MobileMoreMenu({
             <span className="sheet__row-sub">{t.blurb}</span>
           </button>
         ))}
-      </Sheet>
+      </MobileSheet>
     )
   }
 
   if (overlay === 'export') {
     return (
-      <Sheet title="Export" onClose={() => closeOverlay('export')} returnFocusTo={backToMore}>
+      <MobileSheet title="Export" onClose={() => closeOverlay('export')} returnFocusTo={backToMore}>
         <button type="button" className="sheet__row" onClick={graphJSON}>
           Graph JSON<span className="sheet__row-sub">diagram + run settings</span>
         </button>
         <button type="button" className="sheet__row" onClick={workspaceJSON}>
           Workspace JSON<span className="sheet__row-sub">graph + distribution + view</span>
         </button>
-      </Sheet>
+      </MobileSheet>
     )
   }
 
   if (overlay === 'share' && sharePanel) {
     return (
-      <Sheet
+      <MobileSheet
         title="Share link"
         onClose={() => {
           setSharePanel(null)
@@ -243,7 +218,7 @@ export function MobileMoreMenu({
           value={sharePanel.url}
           onFocus={(e) => e.currentTarget.select()}
         />
-      </Sheet>
+      </MobileSheet>
     )
   }
 

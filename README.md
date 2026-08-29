@@ -13,9 +13,10 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 > shareable `#g1=` links, and an installable offline PWA. Execution semantics
 > are pinned down in frozen spec documents (see [Semantics](#semantics)).
 >
-> **Desktop-first editor.** The `v0.4.0` tag is held while a mobile **view/run**
-> layer lands ([`docs/mobile.md`](docs/mobile.md)); until then a phone browser
-> gets the desktop layout as-is.
+> **Desktop-first editor.** Mobile browsers get a **view & run** layout —
+> pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
+> delete) is desktop-only ([`docs/mobile.md`](docs/mobile.md)). The `v0.4.0`
+> tag is cut once this release is finalised.
 
 ## Why
 
@@ -80,7 +81,7 @@ spec id, never an edit to a frozen one.
 | `src/store/` | Zustand store — nodes, edges, selection, persistence, sim state |
 | `src/components/` | Toolbar, canvas, inspector, custom node & edge views, Monte-Carlo dialog + charts |
 | `src/engine/` | Simulation engine — deterministic step, RNG, Monte Carlo, state connections |
-| `e2e/` | Playwright specs (app, portable `file://`, production build, PWA service worker) |
+| `e2e/` | Playwright specs (app, portable `file://`, production build, PWA service worker, mobile view/run) |
 | `examples/` | Importable graphs — `risky-factory.json` + Engine-B and State verification fixtures |
 
 ## Roadmap
@@ -101,7 +102,7 @@ spec id, never an edit to a frozen one.
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
   - ✅ Offline PWA — installable, works fully offline **once the service-worker install and precache complete** on the first online load; a `prompt`-style update bar, never an automatic reload ([`docs/pwa.md`](docs/pwa.md))
-  - ◐ Mobile **view/run** layout — a small-screen layout to open, pan/zoom, and run a shared diagram; editing stays desktop-only ([`docs/mobile.md`](docs/mobile.md))
+  - ✅ Mobile **view/run** layout — a small-screen layout to open, pan/zoom, and run a shared diagram; editing stays desktop-only ([`docs/mobile.md`](docs/mobile.md))
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
@@ -128,9 +129,13 @@ view/run layer lands.)* Three additions around the existing editor + engine:
   automatic). Registered only on the production host; the portable `file://`
   build ships no service worker.
 
-Desktop-first — mobile browsers can open a diagram but the editing layout is not
-optimized for small screens. A minimal mobile **view/run** layout
-([`docs/mobile.md`](docs/mobile.md)) is landing before the `v0.4.0` tag.
+- **Mobile view/run layout** ([`docs/mobile.md`](docs/mobile.md)) — below a
+  720px (or landscape-short) breakpoint the app switches to a small-screen
+  layout: a full-bleed canvas with finger pan / pinch-zoom, a fixed bottom bar
+  (Reset / Step / Play / Monte Carlo), a collapsible Timeline sheet, a
+  read-only Inspector sheet, and Share / Import / Export / Templates / Theme in
+  a `More` menu. Structural editing is locked; opening a phone browser never
+  mutates the diagram. The desktop layout is unchanged above the breakpoint.
 
 **v0.3.0 — executable state connections.** State edges (`trigger` with an
 integer `delay`, AND-combined `activator` level gates, `label` Pool modifiers)

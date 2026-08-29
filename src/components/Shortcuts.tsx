@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useGraphStore } from '../store/graphStore'
+import { useIsMobile } from '../ui/media'
 
 const isTypingTarget = (el: EventTarget | null): boolean => {
   const t = el as HTMLElement | null
@@ -14,7 +15,11 @@ const isTypingTarget = (el: EventTarget | null): boolean => {
  * store resets itself off graphStore.structureRev, so nothing to do here.
  */
 export function Shortcuts() {
+  const isMobile = useIsMobile()
   useEffect(() => {
+    // docs/mobile.md §MV3a — no structural keyboard shortcuts (undo/redo) on
+    // mobile; editing is desktop-only.
+    if (isMobile) return
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod || isTypingTarget(e.target)) return
@@ -29,6 +34,6 @@ export function Shortcuts() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [isMobile])
   return null
 }

@@ -1,9 +1,11 @@
 import { useRef, type ChangeEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
+import { useGraphStore } from '../../store/graphStore'
 import { importFile } from '../../store/workspaceIO'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { Logo } from '../Logo'
 import { MobileMoreMenu } from './MobileMoreMenu'
+import { MobileOpenFileHint } from './MobileOpenFileHint'
 
 // docs/mobile.md §MV6 — the compact top bar: Logo mark, a "view & run" caption,
 // and a single More button. No palette, no undo/redo, no New (editing is
@@ -20,6 +22,14 @@ export function MobileTopBar() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    // docs/mobile.md §MV3b — confirm before replacing the current document
+    // (unless it is still the untouched first-boot sample).
+    if (
+      !useGraphStore.getState().pristineSample &&
+      !window.confirm('Replace the current diagram with the imported file?')
+    ) {
+      return
+    }
     file.text().then(
       async (text) => {
         try {
@@ -53,6 +63,7 @@ export function MobileTopBar() {
       </button>
 
       <MobileMoreMenu fileInputRef={fileRef} moreBtnRef={moreRef} getViewport={getViewport} />
+      <MobileOpenFileHint onOpenFile={() => fileRef.current?.click()} />
       <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
     </header>
   )
