@@ -1,0 +1,142 @@
+{
+  "projectId": "proj_0000000000000000000000000F",
+  "baseRevisionId": "rev_00000000000000000000000BSE",
+  "digests": {
+    "base": "e490f996091cbb9e3875f83669e369240f882540421b141f6aa43db093da7617",
+    "clean": "cb6b4c226cdffe1a2009394a50e539c91057a88b522f3b426c904e372e9f577d",
+    "structural": "891f76715613fed6718f97cf2c41548e3f196b7d724c9baea6c7e6387379ee1a"
+  },
+  "wholeApply": {
+    "cleanOntoBase": {
+      "classification": "exact",
+      "digest": "cb6b4c226cdffe1a2009394a50e539c91057a88b522f3b426c904e372e9f577d"
+    },
+    "structuralOntoBase": {
+      "classification": "exact",
+      "digest": "891f76715613fed6718f97cf2c41548e3f196b7d724c9baea6c7e6387379ee1a"
+    },
+    "structuralOntoLocalEdge": {
+      "classification": "divergent",
+      "digest": "891f76715613fed6718f97cf2c41548e3f196b7d724c9baea6c7e6387379ee1a"
+    }
+  },
+  "threeWay": {
+    "cleanVsBase": {
+      "hunks": [
+        {
+          "kind": "add",
+          "id": "n_bonus",
+          "verdict": "clean"
+        },
+        {
+          "kind": "change",
+          "id": "n_gate",
+          "verdict": "clean"
+        },
+        {
+          "kind": "change",
+          "id": "n_pool",
+          "verdict": "clean"
+        },
+        {
+          "kind": "add",
+          "id": "e_gb",
+          "verdict": "clean"
+        }
+      ],
+      "nConf": 0
+    },
+    "cleanVsDiverged": {
+      "poolInitialField": {
+        "field": "data.initial",
+        "base": 5,
+        "proposed": 8,
+        "yours": 12,
+        "verdict": "conflict",
+        "tag": "engine"
+      },
+      "nConf": 1
+    },
+    "structuralVsBase": {
+      "gateRemoveDependents": [
+        "e_gd",
+        "e_pg"
+      ],
+      "gateRemoveBlockedBy": null
+    },
+    "structuralVsLocalEdge": {
+      "gateRemoveBlockedBy": [
+        "e_local"
+      ],
+      "gateRemoveVerdict": "conflict",
+      "nConf": 1
+    }
+  },
+  "selective": {
+    "clean/base/addNode+gateOnly": {
+      "selection": {
+        "accept": {
+          "n_bonus": true,
+          "e_gb": true
+        },
+        "fieldChoices": {
+          "n_gate": {
+            "data.distribution": "proposed"
+          },
+          "n_pool": {
+            "data.initial": "yours"
+          }
+        }
+      },
+      "digest": "b1efb623607ee0693faf70639f50a8c5e3669333a1d43b4db7e759063fc0ad01"
+    },
+    "clean/diverged/gateTheirs+poolMine": {
+      "selection": {
+        "accept": {},
+        "fieldChoices": {
+          "n_gate": {
+            "data.distribution": "proposed"
+          },
+          "n_pool": {
+            "data.initial": "yours"
+          }
+        }
+      },
+      "digest": "79698016fcaf507a2e15714a035cd7689be8d9eddcbac29d3f9e9efa10454539"
+    },
+    "structural/base/removeGate+retarget": {
+      "selection": {
+        "accept": {
+          "n_gate": true,
+          "e_pg": true
+        },
+        "fieldChoices": {
+          "e_gd": {
+            "source": "proposed"
+          }
+        }
+      },
+      "digest": "891f76715613fed6718f97cf2c41548e3f196b7d724c9baea6c7e6387379ee1a"
+    },
+    "structural/base/nodeAlone": {
+      "selection": {
+        "accept": {
+          "n_gate": true
+        },
+        "fieldChoices": {}
+      },
+      "invalid": true,
+      "detail": "Edge e_pg still points at removed node n_gate — also remove or retarget edge e_pg, or keep the node."
+    },
+    "structural/localEdge/nodeBlocked": {
+      "selection": {
+        "accept": {
+          "n_gate": true
+        },
+        "fieldChoices": {}
+      },
+      "invalid": true,
+      "detail": "Node n_gate can't be removed — edge e_local points at it and the proposal offers no way to move or drop it. Keep the node."
+    }
+  }
+}

@@ -1,0 +1,260 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "n_src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 120
+      },
+      "data": {
+        "kind": "source",
+        "label": "Faucet",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "n_pool",
+      "type": "pool",
+      "position": {
+        "x": 220,
+        "y": 100
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gold",
+        "activation": "passive",
+        "initial": 8,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "n_gate",
+      "type": "gate",
+      "position": {
+        "x": 440,
+        "y": 110
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Split",
+        "activation": "automatic",
+        "distribution": "uniform"
+      }
+    },
+    {
+      "id": "n_drain",
+      "type": "drain",
+      "position": {
+        "x": 660,
+        "y": 120
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Sink",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "n_bonus",
+      "type": "pool",
+      "position": {
+        "x": 440,
+        "y": 260
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Bonus",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_sp",
+      "source": "n_src",
+      "target": "n_pool",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_pg",
+      "source": "n_pool",
+      "target": "n_gate",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_gd",
+      "source": "n_gate",
+      "target": "n_drain",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_gb",
+      "source": "n_gate",
+      "target": "n_bonus",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    }
+  ],
+  "project": {
+    "schema": "loop-revision/1",
+    "version": 1,
+    "projectId": "proj_0000000000000000000000000F",
+    "revisionId": "rev_0000000000000000000000000X",
+    "parentId": "rev_00000000000000000000000BSE",
+    "role": "proposal",
+    "contentDigest": "cb6b4c226cdffe1a2009394a50e539c91057a88b522f3b426c904e372e9f577d",
+    "base": {
+      "revisionId": "rev_00000000000000000000000BSE",
+      "contentDigest": "e490f996091cbb9e3875f83669e369240f882540421b141f6aa43db093da7617",
+      "content": {
+        "nodes": [
+          {
+            "id": "n_drain",
+            "position": {
+              "x": 660,
+              "y": 120
+            },
+            "data": {
+              "kind": "drain",
+              "label": "Sink",
+              "activation": "automatic",
+              "mode": "pullAny"
+            }
+          },
+          {
+            "id": "n_gate",
+            "position": {
+              "x": 440,
+              "y": 110
+            },
+            "data": {
+              "kind": "gate",
+              "label": "Split",
+              "activation": "automatic",
+              "distribution": "deterministic",
+              "mode": "pullAny"
+            }
+          },
+          {
+            "id": "n_pool",
+            "position": {
+              "x": 220,
+              "y": 100
+            },
+            "data": {
+              "kind": "pool",
+              "label": "Gold",
+              "activation": "passive",
+              "initial": 5,
+              "capacity": null,
+              "mode": "pullAny"
+            }
+          },
+          {
+            "id": "n_src",
+            "position": {
+              "x": 0,
+              "y": 120
+            },
+            "data": {
+              "kind": "source",
+              "label": "Faucet",
+              "activation": "automatic",
+              "mode": "pushAny"
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "e_gd",
+            "source": "n_gate",
+            "target": "n_drain",
+            "sourceHandle": "out",
+            "targetHandle": "in",
+            "data": {
+              "kind": "resource",
+              "flow": "1"
+            }
+          },
+          {
+            "id": "e_pg",
+            "source": "n_pool",
+            "target": "n_gate",
+            "sourceHandle": "out",
+            "targetHandle": "in",
+            "data": {
+              "kind": "resource",
+              "flow": "1"
+            }
+          },
+          {
+            "id": "e_sp",
+            "source": "n_src",
+            "target": "n_pool",
+            "sourceHandle": "out",
+            "targetHandle": "in",
+            "data": {
+              "kind": "resource",
+              "flow": "2"
+            }
+          }
+        ]
+      }
+    },
+    "lineage": [
+      "rev_00000000000000000000000BSE"
+    ],
+    "meta": {
+      "title": "Revision fixture",
+      "createdAt": "2026-08-29T00:00:00.000Z",
+      "tool": "loop-studio/fixture",
+      "author": {
+        "name": "Fixture"
+      }
+    }
+  }
+}

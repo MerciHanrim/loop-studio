@@ -75,6 +75,36 @@ spec id, never an edit to a frozen one.
 | [`SEMANTICS-U.md`](SEMANTICS-U.md) | `loop-share/1` | Shareable URL — a `#g1=` fragment carrying the graph doc (zlib-wrapped DEFLATE + base64url, 8 KiB cap); PWA notes in [`docs/pwa.md`](docs/pwa.md) |
 | [`SEMANTICS-R.md`](SEMANTICS-R.md) | `loop-revision/1` | Project Revision / Proposal — an optional `project` key: a stable `projectId`, immutable `parentId`-chained revisions, `proposal` files carrying a full `base.content` snapshot, an id-keyed three-way diff, and `exact` / `divergent` / `unknown` apply (whole-proposal confirmed unless `exact`, or per-hunk). No accounts / server / sync. |
 
+## Project revisions & proposals
+
+**File-based asynchronous collaboration** — no accounts, no server, no
+real-time sync. A project moves between people only as JSON files you own.
+([`SEMANTICS-R.md`](SEMANTICS-R.md); worked example under
+[`examples/revision/`](examples/revision/README.md).)
+
+1. **Create a Project revision** — `Export ▾ → Project revision` writes a graph
+   file that also carries a stable `projectId` and this revision's lineage.
+   Send it to a collaborator.
+2. **Make a proposal** — they open it, choose `Export ▾ → Make a proposal`,
+   edit the copy, and send the proposal file back. It carries a complete
+   snapshot of the base, so the diff and apply are computable entirely offline.
+3. **Review** — you `Import` the proposal. It opens a **non-destructive Review**
+   panel (a bottom sheet on mobile): your graph, simulation, and undo history
+   are untouched. It shows a three-way diff (`base` / `theirs` / `yours`), a
+   classification (`exact` / `divergent` / `unknown`), and any structural
+   conflicts.
+4. **Apply** — either the **whole proposal** (replaces your graph; confirms
+   unless your revision *is* the base) or **Choose changes** (per-hunk: pick
+   individual adds / removes, resolve each conflicting field *take theirs* /
+   *keep mine*; removing a node surfaces the incident edges to remove **or
+   retarget**). Either way the result is one new local revision, one undo
+   entry, and the sim reset to step 0 — a single Undo reverts everything. Apply
+   writes no file; `Export ▾ → Project revision` afterward to persist it.
+
+`meta.author` / `meta.title` / `meta.createdAt` in a shared file are
+**self-reported and unverified** — the UI renders them muted, and no diff,
+classification, or apply decision depends on them.
+
 ## Layout
 
 | Path | What |
@@ -84,7 +114,7 @@ spec id, never an edit to a frozen one.
 | `src/components/` | Toolbar, canvas, inspector, custom node & edge views, Monte-Carlo dialog + charts |
 | `src/engine/` | Simulation engine — deterministic step, RNG, Monte Carlo, state connections |
 | `e2e/` | Playwright specs (app, portable `file://`, production build, PWA service worker, mobile view/run) |
-| `examples/` | Importable graphs — `risky-factory.json` + Engine-B and State verification fixtures |
+| `examples/` | Importable graphs — `risky-factory.json`, Engine-B / State verification fixtures, and the [`loop-revision/1` fixture](examples/revision/README.md) (base revision + clean / structural proposals + an apply oracle) |
 
 ## Roadmap
 

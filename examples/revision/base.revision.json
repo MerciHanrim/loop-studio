@@ -1,0 +1,129 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "n_src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 120
+      },
+      "data": {
+        "kind": "source",
+        "label": "Faucet",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "n_pool",
+      "type": "pool",
+      "position": {
+        "x": 220,
+        "y": 100
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gold",
+        "activation": "passive",
+        "initial": 5,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "n_gate",
+      "type": "gate",
+      "position": {
+        "x": 440,
+        "y": 110
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Split",
+        "activation": "automatic",
+        "distribution": "deterministic"
+      }
+    },
+    {
+      "id": "n_drain",
+      "type": "drain",
+      "position": {
+        "x": 660,
+        "y": 120
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Sink",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_sp",
+      "source": "n_src",
+      "target": "n_pool",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_pg",
+      "source": "n_pool",
+      "target": "n_gate",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_gd",
+      "source": "n_gate",
+      "target": "n_drain",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    }
+  ],
+  "project": {
+    "schema": "loop-revision/1",
+    "version": 1,
+    "projectId": "proj_0000000000000000000000000F",
+    "revisionId": "rev_00000000000000000000000BSE",
+    "parentId": null,
+    "role": "revision",
+    "contentDigest": "e490f996091cbb9e3875f83669e369240f882540421b141f6aa43db093da7617",
+    "lineage": [],
+    "meta": {
+      "title": "Revision fixture",
+      "createdAt": "2026-08-29T00:00:00.000Z",
+      "tool": "loop-studio/fixture",
+      "author": {
+        "name": "Fixture"
+      }
+    }
+  }
+}
