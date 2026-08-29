@@ -2,20 +2,22 @@
 
 ```
 Spec ID: loop-expr/1
-Status:  Draft (rev 2)
+Status:  Draft (rev 3)
 ```
 
-**Draft for review — rev 2** (grammar fully closed to an arithmetic core;
-AST-canonical digest form; enumerated error codes). Defines a **small,
-deterministic expression language** — its grammar, its reference syntax, its
-numeric rules, its canonical form, and how it is evaluated — and nothing else.
-Used by `loop-model/1` (Register expressions); everything beyond the arithmetic
-core is a later amendment.
+**Draft for review — rev 3.** Rev 2 (arithmetic-core grammar, AST-canonical
+digest form, enumerated error codes) is approved. Rev 3: the `@id` reference
+gets a `@{opaque-id}` escape so **every** node id is representable without
+ambiguity (§X3); every §X11 item is closed as `Decided` or `Deferred`. Defines
+a **small, deterministic expression language** — its grammar, its reference
+syntax, its numeric rules, its canonical form, and how it is evaluated — and
+nothing else. Used by `loop-model/1` (Register expressions); everything beyond
+the arithmetic core is a later amendment.
 
 Layered under `loop-model/1`. Does **not** change how a diagram runs today:
 `SEMANTICS.md`, `SEMANTICS-B1.md` / `-B2.md`, `SEMANTICS-S.md` / `-S2.md`
 (`loop-state/1` / `/2`), `SEMANTICS-W.md`, `SEMANTICS-U.md`, `SEMANTICS-R.md`
-are unaffected. §X11 records the open decisions.
+are unaffected. §X11 records the decisions (each Decided or Deferred).
 
 ---
 
@@ -58,10 +60,11 @@ mul     = unary ( ( "*" | "/" ) unary )*        ; left-assoc
 unary   = "-" unary | primary                   ; prefix minus, right-assoc, may stack
 primary = number | ref | "(" expr ")"
 
-ref     = "@" id
-id      = ALPHA (ALPHA | DIGIT)*                 ; = the app node-id charset (§X3)
-ALPHA   = "A"…"Z" | "a"…"z" | "_"
-DIGIT   = "0"…"9"
+ref       = "@" ( safe-id | "{" braced-id "}" )     ; §X3
+safe-id   = ALPHA (ALPHA | DIGIT)*                  ; = SAFE_ID, the constrained node-id charset
+braced-id = ( any char except "}" , CR , LF )+      ; the escape for an imported exotic id
+ALPHA     = "A"…"Z" | "a"…"z" | "_"
+DIGIT     = "0"…"9"
 
 number  = DIGIT+ ( "." DIGIT+ )? ( ("e"|"E") ("+"|"-")? DIGIT+ )?
 ```
@@ -69,7 +72,7 @@ number  = DIGIT+ ( "." DIGIT+ )? ( ("e"|"E") ("+"|"-")? DIGIT+ )?
 - **Operators:** binary `+ - * /` (left-assoc); unary `-` (prefix, right-assoc,
   stackable — `--@a` parses as `@a`). **No** unary `+`, `%`, `^`, `**`, `!`,
   comparison, `?:`, `&&`, `||`, function call, or any identifier other than an
-  `@id`.
+  `@id` / `@{id}`.
 - **Precedence**, lowest → highest: `+ -` < `* /` < unary `-` < grouping /
   `primary`.
 - **Number literals:** ≥ 1 digit, then optionally `.` + ≥ 1 digit (**both sides
@@ -88,23 +91,46 @@ unambiguous.
 
 ---
 
-## X3. References — `@id`
+## X3. References — `@id` and the `@{id}` escape
 
-A reference is `@` immediately followed by an identifier equal to the **stable
-node id** of the referenced element (e.g. `@pool_mtc00jt3_2`). It is **never** a
-label.
+A reference names a target by its **stable node id**, never a label.
 
-- **Resolution** — which node kinds `@id` may name, and what it evaluates to, is
+### X3.1 Two written forms; one meaning
+
+| form | when |
+|---|---|
+| **`@id`** — bare | `id` matches **`SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/`** (e.g. `@pool_mtc00jt3_2`) |
+| **`@{id}`** — braced escape | any other id — an imported graph whose ids contain `-`, `.`, digits-first, spaces, non-ASCII, etc. `id` inside the braces is any run of characters except `}`, CR, LF. |
+
+Both forms denote the **same** target id; `@{pool_x}` ≡ `@pool_x`. The
+**canonical form** (§X8) uses `@id` when the id is `SAFE_ID`, else `@{id}` — so
+a given target has exactly one canonical spelling.
+
+An id that itself contains `}` / CR / LF **cannot be referenced** (a
+`loop-model/1` limitation; the app's id minter never produces such an id — §X11
+item 6 — so this only bites a pathological import).
+
+### X3.2 `loop-model/1` requirement on the id minter
+
+Every node that `loop-model/1` allows as a reference target (`pool` /
+`parameter` / `register`) **must** have an id matching `SAFE_ID`. The app's
+minter (`nextId(prefix)` → `<prefix>_<base36>_<base36>`) and every committed
+example / template already comply; `loop-model/1` fixes this as a rule so the
+common case never needs the escape.
+
+### X3.3 Resolution & errors
+
+- **Resolution** — which kinds `@id` may name and what it evaluates to is
   `loop-model/1`'s decision (§M3). This spec fixes only the *syntax*, the
   *stored form*, and the *error codes*.
 - **Rename stability** — a reference holds an id, so renaming the target's
   `label` changes **no** bytes of the expression (X-INV-3).
-- **Editor display** — an editor MAY render `@id` as the target's current label
-  in a token and offer a picker; what it stores and digests is always `@id`.
-- **Unknown vs deleted** — at resolve time these are **indistinguishable**: a
-  deleted node's id simply is not in the graph. Both are `REF_UNKNOWN`
-  (§X7). A node that exists but is of a kind the consumer disallows is
-  `REF_WRONG_KIND`.
+- **Editor display** — an editor MAY render a reference as the target's current
+  label in a token and offer a picker; what it stores and digests is always the
+  canonical `@id` / `@{id}` form.
+- **Unknown vs deleted** — indistinguishable at resolve time: a deleted node's
+  id is simply not in the graph. Both are `REF_UNKNOWN` (§X7). A node that
+  exists but is of a disallowed kind is `REF_WRONG_KIND`.
 
 ---
 
@@ -204,7 +230,10 @@ opaque string like `label`.
 - **number literals:** the shortest round-tripping decimal — exactly
   `String(Number(literal))` after `-0 → 0` (`SEMANTICS-R.md` §R4.1 / §R4.3):
   `007` → `7`, `1.50` → `1.5`, `2.0` → `2`, `1e3` → `1000`, `1e21` → `1e+21`.
-- **references:** `@id`, verbatim.
+- **references:** the canonical form per §X3.1 — `@id` when the target id
+  matches `SAFE_ID`, else `@{id}`. A source `@{pool_x}` where `pool_x` is
+  `SAFE_ID` canonicalises to `@pool_x` (and vice-versa is impossible); so a
+  reference to a given target has exactly one canonical spelling.
 
 **Not** canonicalised (these change the AST, so they change the digest):
 operand order (`@a + @b` ≠ `@b + @a` — no commutativity folding), constant
@@ -251,23 +280,31 @@ revision.
 
 ---
 
-## X11. Open decisions — settle before freeze
+## X11. Decisions
 
-1. **Function / comparison / conditional layer** — deferred to `loop-expr/1.1`.
-   Sketch: add `{ abs, round, min, max, clamp }` (pure numeric, per-arg
-   evaluated, each with its own non-finite rule), the six comparison operators
-   (non-associative, yielding `1`/`0`), and `c ? a : b` (short-circuiting, `0` =
-   false). This is the most likely first amendment; confirm it is *not* wanted
-   in `loop-expr/1` itself. **Leaning: keep v1 arithmetic-only as above.**
-2. **`round` tie rule** (when the function layer lands) — half-away-from-zero
-   vs half-to-even. **Leaning: away-from-zero.**
-3. **`&&` / `||`** — not reserved, not planned for `1.1`; a later amendment if
-   ever. **Leaning: omit indefinitely; the conditional covers the need.**
-4. **Diagnostic message catalogue** — the exact human strings for every §X7
-   code, pinned at freeze alongside the codes.
-5. **Exponent canonical form** — `String(Number(x))` gives `1e+21` (with `+`).
-   Accept that verbatim (matches `SEMANTICS-R.md` §R4.3's "numbers as `String(n)`")
-   or strip the `+`. **Leaning: verbatim `String(n)`, no special-casing.**
-6. **`@id` charset vs the app's node-id regex** — confirm `[A-Za-z_][A-Za-z0-9_]*`
-   is a superset of every id the app mints (`pool_…`, `param_…`, `reg_…`), so no
-   valid id is unreferenceable.
+Every item is **Decided** (fixed by this spec) or **Deferred** (explicitly out
+of `loop-expr/1`).
+
+| # | Item | Resolution |
+|---|---|---|
+| **X-1** | Function / comparison / conditional layer | **Deferred — out of `loop-expr/1`.** `loop-expr/1` is arithmetic-only (§X2). A future `loop-expr/1.1` amendment adds `{ abs, round, min, max, clamp }` (pure numeric, per-arg evaluated, each with its own non-finite rule), the six comparisons (non-associative, `1`/`0`), and `c ? a : b` (short-circuiting, `0` = false). The sketch below is informative, not normative. |
+| **X-2** | `round` tie rule | **Deferred** — part of the X-1 function layer. When it lands: half-away-from-zero (`round(2.5) = 3`, `round(-2.5) = -3`). |
+| **X-3** | `&&` / `||` | **Deferred indefinitely — out of `loop-expr/1` and `1.1`.** Not reserved. A later amendment only if a real need appears; the conditional covers the known cases. |
+| **X-4** | Diagnostic message catalogue | **Decided.** The §X7 **codes** are the frozen contract (X-INV-8). The exact human **strings** are non-normative implementation wording (may be reworded), as with `loop-state/1`. Appendix X-A gives the current strings for reference. |
+| **X-5** | Exponent canonical form | **Decided: verbatim `String(Number(x))`** — `1e+21` keeps its `+`, matching `SEMANTICS-R.md` §R4.3 ("numbers as `String(n)`"). No special-casing. |
+| **X-6** | `@id` charset vs the app's node ids | **Decided.** `loop-expr/1` fixes `SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/` for the bare form and a `@{id}` escape for anything else (§X3.1); `loop-model/1` §X3.2 requires reference-target ids to be `SAFE_ID`. Verified: `nextId` output and every committed example / template already match `SAFE_ID`. |
+
+### Appendix X-A — diagnostic strings (non-normative)
+
+| code | string |
+|---|---|
+| `EXPR_EMPTY` | `the expression is empty` |
+| `EXPR_SYNTAX` | `unexpected "<tok>" at column <n>` / `expected <what> at column <n>` |
+| `EXPR_UNCLOSED_PAREN` | `"(" at column <n> is never closed` |
+| `EXPR_NUMBER_RANGE` | `the number at column <n> is too large` |
+| `EXPR_BAD_TOKEN` | `stray "<char>" at column <n>` |
+| `REF_UNKNOWN` | `no node with id "<id>"` |
+| `REF_WRONG_KIND` | `"<id>" is a <kind>; only pools, parameters and registers can be referenced` |
+| `REF_NOT_FINITE` | `"<id>" has no finite value` |
+| `EVAL_DIV_ZERO` | `division by zero` |
+| `EVAL_NOT_FINITE` | `the result is not a finite number` |

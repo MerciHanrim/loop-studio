@@ -2,12 +2,17 @@
 
 ```
 Spec ID: loop-model/1
-Status:  Draft (rev 2)
+Status:  Draft (rev 3)
 ```
 
-**Draft for review — rev 2** (Register time-axis fixed; advisory-field rules
-closed; Resource Type identity rule; error display value; a wire-level v1/v2
-discriminator; `loop-workspace/2` narrowed out). Adds three modelling
+**Draft for review — rev 3.** Rev 2 (Register time-axis, Resource Type
+identity, invalid-Register display value, wire-level v1/v2 discriminator,
+`loop-workspace/2` narrowed out) is approved. Rev 3: the advisory Parameter /
+Register fields are **in** the `loop-revision/2` canonical projection under a
+new `advisory` field tag (§M1.2, §M8.1a); the `@id` token gets an escape form
+(`loop-expr/1` §X3); `loop-revision/2` file-validation **order** is pinned
+(§M8.1c); every §M10 / §X11 open decision is closed as `Decided` or
+`Deferred`. Adds three modelling
 constructs on top of the existing graph + engine:
 
 - **Parameter** — a fixed, user-tuned numeric input.
@@ -22,8 +27,8 @@ graph with none of these behaves and digests **exactly** as a `loop-revision/1`
 graph does today (§M7, §M8, M-INV-1). Does **not** change how sources / pools /
 drains / gates / converters / state connections run — `SEMANTICS.md`,
 `SEMANTICS-B1.md` / `-B2.md`, `SEMANTICS-S.md` / `-S2.md` are untouched. Visual
-treatment is `docs/visual-language.md` (non-frozen). §M10 records the open
-decisions.
+treatment is `docs/visual-language.md` (non-frozen). §M10 records the decisions
+(each Decided or Deferred).
 
 ---
 
@@ -75,23 +80,34 @@ A new node kind: `type: "parameter"`, `data.kind: "parameter"`.
 - Editing `value` is a graph edit (undo-tracked, re-derives `dirty` per
   `SEMANTICS-R.md`), not a per-step event. It is a constant for the whole run.
 
-### M1.2 `min` / `max` / `step` / `unit` — advisory only
+### M1.2 `min` / `max` / `step` / `unit` — advisory, but **revision content**
 
-Each is a **hint** for the Inspector's slider / stepper / display. A bad hint is
-**dropped** (or truncated) with an Inspector warning; it **never** makes the
-node `invalid` and **never** affects the run.
+Each is a **hint** for the Inspector's slider / stepper / display. It changes no
+number, never makes the node `invalid`, and never affects the run. But it is a
+**user-edited value stored in the GraphDoc**, so — unlike a truly transient
+render field — it **is** part of the revision content: editing one makes the
+document `dirty`, a new `revisionId` is minted on export, and a Proposal can
+carry it as its own diff hunk. "No simulation meaning" and "not revision
+content" are **separate**; `loop-revision/1` already tracks the compute-neutral
+`label` and `position` as `cosmetic` fields for exactly this reason.
 
-| Field | Rule | On violation |
+These fields are projected into the `loop-revision/2` canonical projection
+(§M8.1a) under the **`advisory`** field tag (§M8.1b) — projected and diffable,
+but **not** `engineAffecting`.
+
+**Read-time normalisation** (before projection):
+
+| Field | Rule | On violation (read time) |
 |---|---|---|
-| `step` | if present, must be a finite number `> 0` | drop the hint; warn `PARAM_STEP_INVALID` |
-| `min`, `max` | if both present, must be finite with `min ≤ max` | drop **both** hints; warn `PARAM_RANGE_INVALID` |
-| `value` vs `[min, max]` | when `min`/`max` are present and coherent and `value ∉ [min, max]` | keep `value` **as stored**, run uses it **unclamped**; advisory `PARAM_VALUE_OUT_OF_RANGE` |
-| `unit` | a display string; trimmed for display; **≤ 24 UTF-8 bytes** after trim | over the cap → truncate for display; warn `PARAM_UNIT_TOO_LONG`. Not parsed, no semantics |
+| `step` | if present, a finite number `> 0` | **drop** the hint; warn `PARAM_STEP_INVALID`. A dropped hint is **not** projected. |
+| `min`, `max` | if both present, finite with `min ≤ max` | **drop both**; warn `PARAM_RANGE_INVALID`. Not projected. |
+| `unit` | a string; trimmed of leading/trailing Unicode `White_Space`; NFC; **≤ `PARAM_UNIT_MAX_BYTES` = 24** UTF-8 bytes | empty after trim → the field is **absent**. Over the cap → **truncated to the cap** (on a UTF-8 char boundary); warn `PARAM_UNIT_TOO_LONG`. The stored/projected value is the **normalised** one. Not parsed, no semantics. |
+| `value` vs `[min, max]` | when `min`/`max` are present and coherent | `value` is **kept as stored** and projected **as-is** (never clamped); the run uses it unclamped; advisory `PARAM_VALUE_OUT_OF_RANGE` only |
 
-`min` / `max` / `step` / `unit` are **display metadata**: they travel in the
-graph file but are **excluded from the canonical projection** (§M8.1), like
-`SEMANTICS-R.md` excludes `meta`. Two graphs differing only in a Parameter's
-`step` (or `unit`, `min`, `max`) are the **same revision**. *(Open — §M10-2.)*
+A field that survives read-time normalisation is projected as its **normalised
+stored value**. A field dropped at read time does **not** appear in the
+projection (so it also does not appear in a diff). See §M8.1a for the exact
+field lists.
 
 ### M1.3 Ports & forward-compat
 
@@ -122,15 +138,20 @@ A new node kind: `type: "register"`, `data.kind: "register"`.
 ```
 
 - **`expr`** is a `loop-expr/1` expression, stored in `loop-expr/1` §X8 canonical
-  form. **Default `"0"`** (always valid, shows `0`).
+  form. **Default `"0"`** (always valid, shows `0`). Projected under the
+  **`engine`** tag (§M8.1b) — it defines a computed value that the timeline
+  plots, so a change to it *is* engine-affecting for the Review.
 - A Register **stores no value.** It is not an entry in `SimState.values`; it is
   recomputed every time it is observed (§M3). Reset / replay carry nothing
   extra for it (M-INV-2).
-- **`unit`** — as §M1.2. **`format`** — display only: `int` rounds for display,
-  `float` shows as-is, `percent` renders `value × 100` with a `%` (the stored /
-  digested value is unchanged). A bad `format` string → treated as `float`,
-  warn `REG_FORMAT_INVALID`. `unit` / `format` are **display metadata**,
-  excluded from the canonical projection like §M1.2.
+- **`unit`** — same normalisation as §M1.2's `unit` (`PARAM_UNIT_MAX_BYTES`).
+  **`format`** — one of `"int"` / `"float"` / `"percent"`; display only:
+  `int` rounds for display, `float` shows as-is, `percent` renders
+  `value × 100` with a `%`. The stored / **digested** value is always the raw
+  number — `format` never changes it. An unrecognised `format` → treated as
+  `"float"`, warn `REG_FORMAT_INVALID`, and **not** projected (a dropped bad
+  hint). `unit` / `format` are **`advisory`**-tagged and **projected** when
+  valid (§M8.1a) — same "advisory but revision content" principle as §M1.2.
 - No ports; referenced only (`@reg_ef34gh`).
 
 ---
@@ -363,38 +384,99 @@ by a vague "uses the model layer".
 
 Otherwise it is **`loop-revision/1` content**, even in a v0.6.0 app.
 
-**The v2 projection is a conservative extension of the v1 projection:**
+### M8.1a `loop-revision/2` — the extended canonical projection
 
-- **new `FIELDS_BY_KIND` rows** — `parameter`: `kind`, `label`, `value`;
-  `register`: `kind`, `label`, `expr`. *(The advisory / display metadata
-  `min` / `max` / `step` / `unit` / `format` are **not** projected — §M1.2 /
-  §M2.)*
-- **extended rows** — `pool` and the `resource` edge gain a **trailing**
-  `resourceType`, **emitted only when the normalised value is non-empty**
-  (omitted entirely when untyped — never `null`, never `""`).
-- **`expr`** is projected as its `loop-expr/1` §X8 canonical text.
-- **numbers** (`value`) per §R4.1 (finite, `-0 → 0`, no rounding).
+`loop-revision/2` extends `SEMANTICS-R.md` §R4.2's frozen field tables:
+
+- **new `FIELDS_BY_KIND` rows** (node `data`, in this order):
+
+  | kind | fields |
+  |---|---|
+  | `parameter` | `kind`, `label`, `value`, `min`, `max`, `step`, `unit` |
+  | `register` | `kind`, `label`, `expr`, `unit`, `format` |
+
+  `value` is always present (finite, `-0 → 0`, no rounding — §R4.1), projected
+  **as stored** even when outside `[min, max]`. `min` / `max` are present **only
+  as a pair and only when coherent** (`min ≤ max`); `step` **only when `> 0`**;
+  `unit` **only when non-empty after normalisation** (§M1.2); `format` **only
+  when one of `int` / `float` / `percent`**. A field dropped at read time
+  (§M1.2 / §M2) is **absent** from the projection — never `null`, never `""`.
+
+- **extended existing rows** — `pool` and the `resource` edge gain a **trailing**
+  `resourceType`, emitted **only when the normalised value (§M4.1) is
+  non-empty** (omitted entirely when untyped).
+
+- **`expr`** is projected as its `loop-expr/1` §X8 canonical text (AST form,
+  `@id` / `@{id}` references — §X3).
+
 - everything else in §R4 — id-sorted arrays, whitespace-free `canonicalJson`,
   the fixed key order — is unchanged.
 
-**Consequence (M-INV-9):** run the v2 projection over a graph that fails the
-predicate and it emits **byte-identical** output to the v1 projection (no new
-kinds → no new rows; no `resourceType` → the trailing field omitted). So a
-`loop-revision/1` graph has the **same** `fullContentDigest` under either
-projection; there is **no discontinuity** at the v1/v2 boundary.
+### M8.1b Field tags — `engine` / `cosmetic` / `advisory`
 
-**v1 ↔ v2 comparison** (§R7A classification / three-way diff when a proposal's
-`base` and the open `target` fall on different sides of the predicate): because
-the v2 projection is a conservative extension, `loop-revision/2` compares
-**everything under the v2 projection** — a v1 graph is simply "v2 with an empty
-model layer", and its v2-projection digest equals its v1 digest. No "refuse"
-branch is needed; the diff degrades to exactly what a v1↔v1 diff would show for
-the shared part, plus `add` hunks for any new-kind / `resourceType` element.
-*(This is the key `loop-revision/2` decision; named here so it is fixed at that
-freeze — §M10-5.)*
+`loop-revision/1`'s `fieldTag` returns `engine | cosmetic`. `loop-revision/2`
+adds a **third** value, **`advisory`**:
 
-No new field on the `project` header: a reader runs the predicate on the file's
-own graph and picks the projection. **Inferred, not stored.**
+| tag | meaning | in projection & diff? | `summary.engineAffecting`? |
+|---|---|---|---|
+| `engine` | changes what the model computes / displays as a value | yes | **yes** |
+| `cosmetic` | pure presentation (`label`, `position`) | yes | no |
+| `advisory` | authored content that changes **no** value (a tuning hint / a type tag) | **yes** | no |
+
+Tag assignments for the new/extended fields:
+
+| field | tag |
+|---|---|
+| `parameter.value` | `engine` |
+| `parameter.min` / `.max` / `.step` / `.unit` | `advisory` |
+| `register.expr` | `engine` |
+| `register.unit` / `.format` | `advisory` |
+| `pool.resourceType`, `resource`-edge `.resourceType` | `advisory` |
+
+An `advisory` field is full revision content: editing it flips `dirty`, mints a
+new `revisionId` on export, and produces its own `change` hunk in a Proposal
+diff / selective Apply. It just does not set `engineAffecting`, so the Review UI
+can label it (e.g. *"tuning hint"*) distinctly from an `engine` change or a
+`cosmetic` rename.
+
+### M8.1c Conservative extension, and the file-validation order
+
+**Conservative extension (M-INV-9).** Run the v2 projection over a graph that
+**fails** the §M8.1 predicate and it emits **byte-identical** output to the v1
+projection — no `parameter` / `register` nodes ⇒ no new rows; no `resourceType`
+⇒ the trailing field omitted. So a `loop-revision/1` graph has the **same**
+`fullContentDigest` under either projection; there is **no discontinuity** at
+the boundary.
+
+**Validation order — v1 first, then lift (M-INV-11).** A reader given a file
+(revision or proposal) MUST:
+
+1. run the §M8.1 predicate on the file's **own** graph;
+2. **if it is `loop-revision/1` content:** verify `base.contentDigest` /
+   `project.contentDigest` against the **`loop-revision/1` projection**
+   (`fullContentDigest` per `SEMANTICS-R.md` §R4) — the digest the file's author
+   (a v0.5.x app) actually computed. **Only after that verifies**, lift the
+   content into the common v2 compare model (by M-INV-9 this reproduces the
+   identical bytes) for classification / diff against a possibly-v2 target;
+3. **if it is `loop-revision/2` content:** verify against the v2 projection
+   directly.
+
+Verifying a legitimate v1 file **directly with the v2 digest is forbidden** —
+any latent gap in the conservative-extension claim would misclassify a valid v1
+file as a **tampered payload** (`SEMANTICS-R.md` R-INV-6). Checking with the
+projection the author used, then lifting, makes M-INV-9 a *verified* property at
+read time rather than an *assumed* one.
+
+**v1 ↔ v2 comparison** (§R7A classification / three-way diff across the
+predicate boundary): after the step-2/3 verification, both sides are compared
+under the **v2 projection** — a v1 graph is "v2 with an empty model layer", its
+v2 digest equals its v1 digest. No "refuse" branch. The diff shows exactly a
+v1↔v1 diff for the shared part, plus `add` hunks for any new-kind /
+`resourceType` element. *(Formally ratified at the `loop-revision/2` freeze; the
+approach is fixed here.)*
+
+**No `project`-header field.** A reader infers the version by running the
+predicate on the file's own graph. **Inferred, not stored.**
 
 ### M8.2 `loop-workspace/2` is **not** required by `loop-model/1`
 
@@ -441,32 +523,23 @@ restore story is revisited.
 | **M-INV-8** | Parameter / Register / Resource Type are additive: adding them breaks no `loop-*/N` file; reading a v1 file triggers no migration, undo entry, or `dirty`, and no v2 marker is written into a v1 file. |
 | **M-INV-9** | The v2 canonical projection is a **conservative extension** of v1: on any graph that fails the §M8.1 predicate it emits byte-identical output, so the `fullContentDigest` is the same under either projection and there is no v1/v2 discontinuity. |
 | **M-INV-10** | `loop-workspace/2` is **not** introduced by `loop-model/1`: no new `SimState`, no restore-contract change; the §W3.1 semantic digest uses the graph's own (v1 or v2) projection. |
+| **M-INV-11** | A `loop-revision/1` file is digest-verified against the **v1 projection first**; only after it verifies is its content lifted into the v2 compare model. Verifying a v1 file directly with the v2 digest is forbidden (§M8.1c). |
+| **M-INV-12** | The advisory Parameter / Register fields (`min` / `max` / `step` / `unit` / `format`) and `resourceType` are **revision content**: they are in the v2 canonical projection (`advisory` tag), so editing one flips `dirty`, mints a new `revisionId`, and yields its own diff hunk — it just does not set `engineAffecting`. |
 
 ---
 
-## M10. Open decisions — settle before freeze
+## M10. Decisions
 
-1. **`@source` / `@drain` / `@gate` / `@converter` as references** — resolve to a
-   per-step engine output? **Leaning: no** for `loop-model/1` (snapshot-only
-   refs); revisit in the engine-expression amendment with a defined semantic.
-2. **`min` / `max` / `step` / `unit` / `format` in the digest** — this rev
-   **excludes** them (display metadata). Confirm that a proposal changing only a
-   slider bound is legitimately an *empty* diff; if not, project them (and
-   accept that a bound edit mints a revision).
-3. **Custom resource-type registry** — this rev derives the legend from types
-   *in use*, no declared list. Confirm no per-graph `resourceTypes: []` is
-   wanted (for autocomplete / a future hard-validation spec).
-4. **Mismatch across non-pool endpoints** — `loop-model/1` checks pool ↔ edge
-   only. Extend to source / drain / converter port types later, same
-   advisory-only rule.
-5. **v1 ↔ v2 comparison in `loop-revision/2`** — this rev's recommendation is
-   "always compare under the v2 projection; a v1 graph is v2-with-empty-model,
-   its v2 digest equals its v1 digest (M-INV-9)". This is a `loop-revision/2`
-   spec decision; named here so it is not lost.
-6. **`format: "percent"`** — render `value × 100 %` at display only. Confirm the
-   stored / digested value stays raw and `format` is display metadata (not
-   projected).
-7. **`unit` byte cap** — 24 UTF-8 bytes chosen (small-label spirit). Confirm, or
-   align with an existing constant.
-8. **Register DAG cost** — one topo sort per committed snapshot (step start +
-   step commit), not per reference access. Confirm this cadence.
+Every item is **Decided** (fixed by this spec) or **Deferred** (explicitly out
+of `loop-model/1`). No item is left "open with a leaning".
+
+| # | Item | Resolution |
+|---|---|---|
+| **M-1** | `@source` / `@drain` / `@gate` / `@converter` as references | **Deferred — out of `loop-model/1`.** Only `pool` / `parameter` / `register` resolve (§M3.1). Per-step engine outputs as references are for the future engine-expression amendment, which must define their semantic. |
+| **M-2** | `min` / `max` / `step` / `unit` / `format` in the projection | **Decided: included** (§M8.1a, §M8.1b) under the `advisory` tag. They are user-edited GraphDoc content, so they are revision content (M-INV-12); they are not `engineAffecting`. |
+| **M-3** | Custom resource-type registry (`resourceTypes: []` on the doc) | **Deferred — out of `loop-model/1`.** Any non-empty normalised string is a valid type; the legend is derived from types **in use**. A declared list is left for a later spec (autocomplete / hard validation). |
+| **M-4** | Mismatch across non-pool endpoints | **Deferred — out of `loop-model/1`.** `loop-model/1` checks `pool ↔ resource-edge` only (§M4.3). Source / drain / converter port typing is a later spec, same advisory-only rule. |
+| **M-5** | v1 ↔ v2 comparison in `loop-revision/2` | **Decided (approach fixed here; ratified at `loop-revision/2` freeze).** Verify v1 files with the v1 projection first (M-INV-11), then compare all sides under the v2 projection — a v1 graph is "v2 with an empty model layer", its v2 digest equals its v1 digest (M-INV-9). No refuse branch. |
+| **M-6** | `format: "percent"` | **Decided: display-only.** Renders `value × 100 %`; the stored / **digested** value stays the raw number. `format` is `advisory`-tagged and projected when valid (§M2, §M8.1b). |
+| **M-7** | `unit` byte cap | **Decided: `PARAM_UNIT_MAX_BYTES = 24`** UTF-8 bytes, post-trim/NFC (a new `loop-model/1` constant; the author-name/note caps are unrelated and larger). Over the cap → truncate on a char boundary + warn (§M1.2). |
+| **M-8** | Register DAG evaluation cadence | **Decided: one topological pass per committed snapshot** — once at step start (`S(t)`) and once after the step commits (`S(t+1)`); **not** per reference access. Caching `R(k)` for a committed snapshot is an implementation detail (§M3.6). |
