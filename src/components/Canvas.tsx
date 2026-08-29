@@ -63,7 +63,7 @@ export function Canvas() {
     [setSelection],
   )
 
-  const onDrop = useCallback(
+  const handleDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault()
       const kind = e.dataTransfer.getData(DND_TYPE) as NodeKind
@@ -73,13 +73,22 @@ export function Canvas() {
     [addNodeAt, screenToFlowPosition],
   )
 
-  const onDragOver = useCallback((e: DragEvent) => {
+  const handleDragOver = useCallback((e: DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
   }, [])
 
+  // docs/mobile.md §MV3a — structural editing is desktop-only. On mobile the
+  // canvas is view + run: nodes don't move or connect, nothing deletes, the
+  // browser context menu is suppressed. Selection stays on for the read-only
+  // Inspector sheet.
   return (
-    <div className="canvas" onDrop={onDrop} onDragOver={onDragOver}>
+    <div
+      className="canvas"
+      onDrop={isMobile ? undefined : handleDrop}
+      onDragOver={isMobile ? undefined : handleDragOver}
+      onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
+    >
       <ReactFlow<LoopNode, LoopEdge>
         nodes={nodes}
         edges={edges}
@@ -87,8 +96,12 @@ export function Canvas() {
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={isMobile ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
+        nodesDraggable={!isMobile}
+        nodesConnectable={!isMobile}
+        zoomOnDoubleClick={!isMobile}
+        deleteKeyCode={isMobile ? null : undefined}
         defaultEdgeOptions={{ type: 'loop' }}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}

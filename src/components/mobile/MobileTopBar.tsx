@@ -1,5 +1,6 @@
 import { useRef, type ChangeEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
+import { useGraphStore } from '../../store/graphStore'
 import { importFile } from '../../store/workspaceIO'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { Logo } from '../Logo'
@@ -20,6 +21,14 @@ export function MobileTopBar() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    // docs/mobile.md §MV3b — confirm before replacing the current document
+    // (unless it is still the untouched first-boot sample).
+    if (
+      !useGraphStore.getState().pristineSample &&
+      !window.confirm('Replace the current diagram with the imported file?')
+    ) {
+      return
+    }
     file.text().then(
       async (text) => {
         try {

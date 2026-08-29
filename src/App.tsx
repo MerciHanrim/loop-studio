@@ -1,6 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react'
 import { Canvas } from './components/Canvas'
 import { Inspector } from './components/Inspector'
+import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
 import { PwaUpdateBar } from './components/PwaUpdateBar'
@@ -25,6 +26,7 @@ export default function App() {
           <Inspector />
         </div>
         <MobileRunBar />
+        <MobileInspectorSheet />
       </div>
       <MonteCarloDialog />
     </ReactFlowProvider>
