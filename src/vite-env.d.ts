@@ -4,3 +4,6 @@
 declare const __APP_VERSION__: string
 /** Short commit SHA of the build (CF Pages / GitHub Actions / local git), or '' when unknown. */
 declare const __BUILD_SHA__: string
+/** Fixed public base a Share link is built on (default the Cloudflare Pages URL);
+ *  overridable per deploy with `VITE_SHARE_BASE_URL`. */
+declare const __SHARE_BASE_URL__: string

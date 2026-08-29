@@ -51,7 +51,21 @@ export function ShareButton() {
     return (window as unknown as { __shareMaxBytes?: number }).__shareMaxBytes ?? SHARE_MAX_BYTES
   }
 
-  const buildUrl = (payload: string) => `${location.origin}${location.pathname}#g1=${payload}`
+  /**
+   * A share link is always built on the fixed public base (`__SHARE_BASE_URL__`,
+   * §U1.1) — never on `location`, which is `null` on `file://` and a private
+   * host on localhost / a Preview deploy, neither of which a recipient can open.
+   * Returns `null` if that base is not a valid http(s) URL (a build
+   * misconfiguration — surfaced as an error, never a silent `null/...` link).
+   */
+  const buildUrl = (payload: string): string | null => {
+    try {
+      const u = new URL(`#g1=${payload}`, __SHARE_BASE_URL__)
+      return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null
+    } catch {
+      return null
+    }
+  }
 
   const onShare = async () => {
     if (busy) return
@@ -73,6 +87,13 @@ export function ShareButton() {
       }
 
       const url = buildUrl(payload)
+      if (url == null) {
+        window.alert(
+          'Share is not configured with a public address, so a link cannot be created. Please report this.',
+        )
+        return
+      }
+
       let copied = false
       try {
         await navigator.clipboard.writeText(url)

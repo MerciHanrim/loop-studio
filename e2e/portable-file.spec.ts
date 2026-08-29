@@ -218,46 +218,78 @@ test.describe('portable file://', () => {
     await expect(page.locator('.pb-btn', { hasText: 'Play' })).toBeVisible()
   })
 
-  test('Share link round-trip — built on file:// with the pure-JS deflate, opens on http://', async ({
-    browser,
-  }) => {
-    test.setTimeout(60_000)
-
-    const pctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
-    const ppage = await pctx.newPage()
-    // force the self-contained deflate even though file:// exposes CompressionStream
-    await ppage.addInitScript(() => {
-      // @ts-expect-error deleting a global for the test
-      delete window.CompressionStream
+  /** Open the real portable page, click Share (accepting the §U4 disclosure),
+   *  and return the URL shown in the field + what hit the (stubbed) clipboard.
+   *  `killCompressionStream` forces the self-contained fixed-Huffman deflate. */
+  async function shareFromPortable(
+    browser: import('@playwright/test').Browser,
+    killCompressionStream: boolean,
+  ): Promise<{ url: string; clip: string[] }> {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const page = await ctx.newPage()
+    await page.addInitScript((kill: boolean) => {
+      if (kill) {
+        // @ts-expect-error removing a global for the test
+        delete window.CompressionStream
+      }
       ;(window as any).__clip = []
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: async (t: string) => void (window as any).__clip.push(t) },
       })
-    })
-    await openPortable(ppage) // imports risky-factory (18 nodes)
+    }, killCompressionStream)
+    await openPortable(page) // imports risky-factory (18 nodes)
+    page.once('dialog', (d) => d.accept().catch(() => {}))
+    await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+    const url = await page.locator('.share-pop__url').inputValue()
+    const clip = await page.evaluate(() => (window as any).__clip as string[])
+    await ctx.close()
+    return { url, clip }
+  }
 
-    ppage.once('dialog', (d) => d.accept().catch(() => {})) // the §U4 disclosure
-    await ppage.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
-    const shareUrl = await ppage.locator('.share-pop__url').inputValue()
-    expect(shareUrl).toMatch(/^file:\/\/.*#g1=[A-Za-z0-9_-]+$/)
-    expect(await ppage.evaluate(() => (window as any).__clip)).toEqual([shareUrl])
-    const payload = shareUrl.split('#g1=')[1]
-    await pctx.close()
-
-    // the same payload, opened by the hosted build (native DecompressionStream)
-    const hctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
-    const hpage = await hctx.newPage()
-    await hpage.goto(`${HTTP}/#g1=${payload}`)
-    await hpage.waitForFunction(() => Boolean((window as any).__loop))
-    await hpage.waitForFunction(() => location.hash === '') // ShareLoader consumed + stripped
-    await expect(hpage.locator('.react-flow__node')).toHaveCount(18)
-    const shape = await hpage.evaluate(() => {
+  /** Open a `#g1=` payload on the hosted build and assert the 18-node graph. */
+  async function openPayloadOnHttp(
+    browser: import('@playwright/test').Browser,
+    payload: string,
+  ): Promise<void> {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const page = await ctx.newPage()
+    await page.goto(`${HTTP}/#g1=${payload}`)
+    await page.waitForFunction(() => Boolean((window as any).__loop))
+    await page.waitForFunction(() => location.hash === '') // ShareLoader consumed + stripped
+    await expect(page.locator('.react-flow__node')).toHaveCount(18)
+    const shape = await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
-      return { nodes: g.nodes.length, edges: g.edges.length, rev: g.simulationRev, sim: (window as any).__loop.sim.getState().status }
+      return { nodes: g.nodes.length, rev: g.simulationRev, sim: (window as any).__loop.sim.getState().status }
     })
     expect(shape).toMatchObject({ nodes: 18, rev: 1 })
     expect(shape.sim).not.toBe('running')
-    await hctx.close()
+    await ctx.close()
+  }
+
+  // codec check (keep): the pure-JS fixed-Huffman deflate output decodes on the
+  // native path across contexts.
+  test('pure-JS deflate link (file://) decodes on the hosted build', async ({ browser }) => {
+    test.setTimeout(60_000)
+    const { url } = await shareFromPortable(browser, /* kill CompressionStream */ true)
+    await openPayloadOnHttp(browser, url.split('#g1=')[1])
+  })
+
+  // real user path: the Share button on the actual file:// screen must produce a
+  // link a recipient can open — the FIXED public base, never `null/` (file://
+  // has `location.origin === "null"`), never a local path.
+  test('Share on file:// builds a production URL, not null/... , and it round-trips', async ({
+    browser,
+  }) => {
+    test.setTimeout(60_000)
+    const { url, clip } = await shareFromPortable(browser, /* keep CompressionStream */ false)
+
+    expect(url).toMatch(/^https:\/\/cozy-loop-studio\.pages\.dev\/#g1=[A-Za-z0-9_-]+$/)
+    expect(url).not.toContain('null/')
+    expect(url).not.toContain('file:')
+    expect(url.toLowerCase()).not.toContain('c:/') // no local absolute path leaked
+    expect(clip).toEqual([url]) // the field and the clipboard agree
+
+    await openPayloadOnHttp(browser, url.split('#g1=')[1])
   })
 })

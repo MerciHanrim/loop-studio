@@ -45,6 +45,15 @@ async function freshGoto(page: Page, url: string): Promise<void> {
 const shareBtn = (page: Page) => page.locator('.toolbar__actions button', { hasText: /^Share$/ })
 const sharePop = (page: Page) => page.locator('.share-pop')
 
+// A share link is always built on this fixed public base (vite `define`
+// `__SHARE_BASE_URL__`), never on `location` — so a link made on localhost / a
+// Preview deploy / file:// still opens for its recipient.
+const SHARE_BASE = 'https://cozy-loop-studio.pages.dev/'
+/** open a share `url`'s payload against the LOCAL server (the url itself points
+ *  at the production host, which the tests must not navigate to). */
+const openPayloadLocally = (page: Page, url: string) =>
+  freshGoto(page, `/#g1=${url.split('#g1=')[1]}`)
+
 /** Build a distinctive graph through the bridge: Source "α ⚙" ─3→ Pool "β 보물". */
 async function seedGraph(page: Page): Promise<void> {
   await page.evaluate(() => {
@@ -97,13 +106,26 @@ test('happy path: disclosure → link copied, shown selectably, address bar unto
   await expect(sharePop(page)).toBeVisible()
   await expect(page.locator('.share-pop__status')).toHaveText(/copied/i)
   const url = await page.locator('.share-pop__url').inputValue()
-  expect(url).toMatch(/^https?:\/\/[^#]+#g1=[A-Za-z0-9_-]+$/)
-  expect(url.startsWith(before.origin + before.pathname + '#g1=')).toBe(true)
+  // built on the fixed PUBLIC base, not on this localhost origin
+  expect(url).toMatch(
+    new RegExp(`^${SHARE_BASE.replace(/[.]/g, '\\.')}#g1=[A-Za-z0-9_-]+$`),
+  )
+  expect(url).not.toContain('localhost')
+  expect(url).not.toMatch(/\bnull\b/)
 
   expect(await clipWrites(page)).toEqual([url]) // exactly what the field shows
   const after = await locationParts(page)
   expect(after.href).toBe(before.href) // Share never touches the address bar
   expect(after.hash).toBe('')
+})
+
+test('the link base is the production URL even on a non-production host', async ({ page }) => {
+  await seedGraph(page)
+  page.once('dialog', (d) => void d.accept())
+  await shareBtn(page).click()
+  const url = await page.locator('.share-pop__url').inputValue()
+  expect(url.startsWith(`${SHARE_BASE}#g1=`)).toBe(true)
+  expect(url).not.toContain(new URL(page.url()).host) // not the dev host
 })
 
 test('disclosure cancelled ⇒ nothing: no popover, no clipboard write, no address change', async ({
@@ -165,7 +187,7 @@ test('round-trip: opening the copied link restores the graph and strips the frag
 
   // clear persistence so the shared link opens on a pristine boot (no prompt)
   await page.evaluate(() => localStorage.clear())
-  await freshGoto(page, url)
+  await openPayloadLocally(page, url) // url points at production; open its payload here
 
   expect(await labelsOf(page)).toEqual(expected)
   expect((await locationParts(page)).hash).toBe('')
@@ -222,13 +244,13 @@ test('a modified session prompts before replacing; Cancel keeps the graph, OK re
     expect(d.message()).toMatch(/replaced/i)
     void d.dismiss()
   })
-  await freshGoto(page, url)
+  await openPayloadLocally(page, url)
   expect(await labelsOf(page)).toContain('DIVERGED')
   expect((await locationParts(page)).hash).toBe('')
 
   // Accept the replace → the shared graph wins
   page.once('dialog', (d) => void d.accept())
-  await freshGoto(page, url)
+  await openPayloadLocally(page, url)
   expect(await labelsOf(page)).toEqual(original)
   expect((await locationParts(page)).hash).toBe('')
 })

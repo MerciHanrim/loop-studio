@@ -61,13 +61,23 @@ already writes. `SEMANTICS.md`, `SEMANTICS-B1.md`, `SEMANTICS-B2.md`,
 https://cozy-loop-studio.pages.dev/#g1=<base64url( zlibDeflate( utf8( graphJson ) ) )>
 ```
 
-### U1.1 Fragment, not query
+### U1.1 Fragment, not query; base is a fixed public address
 
 The payload is in `location.hash`. **Never** `?...`. Two reasons: (a) a fragment
 is **not transmitted** to the origin server or any CDN / proxy / access log —
 the diagram stays between the people who have the link (see §U4 for what a
 fragment *is* still exposed to); (b) the project security rules forbid personal
 or document data in a query string. A `?`-based share link is a defect.
+
+The link's **base is a build constant, not `location`.** `location` is
+`file://` (where `origin` is the string `"null"`), a `localhost` dev server, or
+a Cloudflare **Preview** host — none of which a recipient can open. The base is
+`__SHARE_BASE_URL__` (vite `define`), defaulting to
+`https://cozy-loop-studio.pages.dev/` and overridable per deploy with
+`VITE_SHARE_BASE_URL`. The link is `new URL('#g1=' + payload, __SHARE_BASE_URL__)`.
+If that base is not a valid `http(s)` URL the `Share` action **fails with a
+visible error** — it never emits a `null/…` or `file:…` link. The payload is
+unchanged by the base (still the `GraphDoc` only).
 
 ### U1.2 Key prefix
 
@@ -352,10 +362,14 @@ unsupported link or a Cancel.
   *where a link can travel* ("the diagram data is in the link itself — it is not
   uploaded to a server, but it will be in your browser history and visible to
   anyone you send it to") → then the §U3.1 size check.
-  - within cap → build link, `navigator.clipboard.writeText`, toast "Link
-    copied". Clipboard API unavailable → show the link in a read-only,
-    pre-selected text field.
-  - over cap → the §U3.1 hard-reject message; nothing copied.
+  - within cap → build the link on the fixed public base (§U1.1),
+    `navigator.clipboard.writeText`, and **always** show it in a read-only,
+    pre-selected field (status "Link copied"). If the Clipboard API is missing
+    or denied, the same field is the fallback (status "Copy this link:") with a
+    Copy retry — the URL is never left unreachable.
+  - over cap → the §U3.1 hard-reject message; **nothing copied, address bar
+    unchanged, no field shown**.
+  - misconfigured base (§U1.1) → a visible error; no link, nothing copied.
 - **No dialog on _load_** except the §U5.4 replace confirmation (skipped for the
   pristine sample).
 - The Monte-Carlo `Export ▾` inside the Distribution panel is unrelated and
@@ -410,6 +424,7 @@ document, the graph / engine specs, or `loop-workspace/1`.
 | name | value | note |
 |---|---|---|
 | share prefix | `"g1="` | fragment key; `g` = graph, `1` = payload format |
+| `__SHARE_BASE_URL__` | `https://cozy-loop-studio.pages.dev/` (env `VITE_SHARE_BASE_URL`) | the fixed public base a link is built on; **not** `location`. A non-`http(s)` value ⇒ `Share` errors, never a `null/…` link |
 | `SHARE_MAX_BYTES` | `8 * 1024` (8 KiB) | hard cap on the base64url payload byte length **after `#g1=`** |
 | `SHARE_MAX_DECODED_BYTES` | `1024 * 1024` (1 MiB) | incremental cap on inflated bytes; abort before `JSON.parse` |
 | compression | **zlib-wrapped DEFLATE (RFC 1950)** | `CompressionStream('deflate')` or the bundled pure-JS zlib fallback (inflate **and** deflate); never `deflate-raw` |
@@ -423,6 +438,12 @@ document, the graph / engine specs, or `loop-workspace/1`.
 1. **Fragment, not query** — a produced link has its payload after `#`; there is
    no `?` form; navigating the link issues no network request that carries the
    payload.
+1a. **Fixed public base** — `Share` on `file://`, on `localhost`, and on a
+   Preview host all produce a URL that starts with `__SHARE_BASE_URL__`
+   (`https://cozy-loop-studio.pages.dev/#g1=…` by default) — never `null/…`,
+   `file:…`, or a local path — and that URL's payload opens on the hosted build
+   and restores the same graph. A non-`http(s)` `__SHARE_BASE_URL__` makes
+   `Share` show an error instead of a link.
 2. **Round-trip** — build a graph (mixed node kinds, resource + state edges, a
    `recommendedRunConfig`), `Share`, open the link in a fresh session ⇒ `nodes`
    / `edges` / `recommendedRunConfig` deep-equal the source; sim `idle` at step
