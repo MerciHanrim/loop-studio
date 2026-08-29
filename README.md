@@ -6,13 +6,16 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** (v0.5.0). The diagram editor and the simulation
-> engine — deterministic, seeded randomness, Monte Carlo, and executable state
-> connections (`trigger` / `activator` / `label`) — are all usable today, plus
-> Workspace Export/Import, shareable `#g1=` links, an installable offline PWA,
-> and file-based **project revisions & proposals** (`loop-revision/1`) for
-> asynchronous collaboration. Execution semantics are pinned down in frozen
-> spec documents (see [Semantics](#semantics)).
+> Status: **working preview** — `v0.6.0-dev`; the last tagged release is
+> **v0.5.0**. The diagram editor and the simulation engine — deterministic,
+> seeded randomness, Monte Carlo, and executable state connections (`trigger` /
+> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
+> shareable `#g1=` links, an installable offline PWA, and file-based **project
+> revisions & proposals** (`loop-revision/1`) for asynchronous collaboration.
+> Execution semantics are pinned down in frozen spec documents (see
+> [Semantics](#semantics)); the next ones in flight are the **model language**
+> (`loop-expr/1`, `loop-model/1`, `loop-revision/2` — all frozen) and the Canvas
+> Visual Refresh.
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -144,6 +147,11 @@ classification, or apply decision depends on them.
   - ✅ Atomic result — one new local revision, one undo entry, sim reset to step 0
   - ✅ Verification fixture + oracle ([`examples/revision/`](examples/revision/README.md))
   - No accounts / server / real-time sync
+- ◐ Model language + Canvas Visual Refresh — **v0.6.0** (in progress)
+  - ◐ `parameter` / `register` node kinds + a safe arithmetic **expression** grammar (`loop-expr/1` [`SEMANTICS-X.md`](SEMANTICS-X.md), `loop-model/1` [`SEMANTICS-M.md`](SEMANTICS-M.md), `loop-revision/2` [`SEMANTICS-R2.md`](SEMANTICS-R2.md) — **specs frozen; implementation starting**)
+  - ◐ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector warnings; computation-neutral
+  - ◐ Canvas Visual Refresh — bring every node/edge onto one visual grammar ([`docs/visual-language.md`](docs/visual-language.md))
+  - ☐ Scenario Compare — **not in the confirmed v0.6.0 scope**; needs its own spec/design pass and a separate decision after the Refresh
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
