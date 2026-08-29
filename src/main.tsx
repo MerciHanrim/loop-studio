@@ -9,7 +9,10 @@ import App from './App.tsx'
 import * as share from './model/share'
 import { useGraphStore } from './store/graphStore'
 import { useMcStore } from './store/mcStore'
+import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
+import { useReviewStore } from './store/reviewStore'
+import * as revisionIO from './store/revisionIO'
 import * as shareLink from './store/shareLink'
 import { useSimStore } from './store/simStore'
 import { useUiStore } from './store/uiStore'
@@ -24,7 +27,10 @@ if (import.meta.env.DEV) {
     mc: useMcStore,
     ui: useUiStore,
     pwa: usePwaStore,
+    project: useProjectStore,
+    review: useReviewStore,
     io: workspaceIO,
+    revisionIO,
     share,
     shareLink,
   }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { WORKSPACE_MAX_BYTES } from '../model/workspace'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
+import { useProjectStore } from '../store/projectStore'
 import { useSimStore } from '../store/simStore'
 import {
   decideWorkspaceExport,
@@ -9,6 +10,12 @@ import {
   type Viewport,
   type WorkspaceFileOption,
 } from '../store/workspaceIO'
+import {
+  PROJECT_REVISION_DISCLOSURE,
+  exportProjectRevision,
+  makeProposal,
+} from '../ui/revisionActions'
+import { AuthorDialog } from './AuthorDialog'
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
 
@@ -27,8 +34,11 @@ function download(text: string, name: string) {
  *  so there is always a cancel path) and enforces the §W4 8 MiB cap. */
 export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
   const [open, setOpen] = useState(false)
+  const [authorOpen, setAuthorOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   const exportJSON = useGraphStore((s) => s.exportJSON)
+  const projectOpen = useProjectStore((s) => s.open)
 
   useEffect(() => {
     if (!open) return
@@ -47,6 +57,21 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
   const graphJSON = () => {
     download(exportJSON({ ...useMcStore.getState().config }), 'loop-studio-graph.json')
     setOpen(false)
+  }
+
+  // SEMANTICS-R.md §R2.1 — a Project revision is a Graph JSON that also carries
+  // the project identity + lineage. Two-phase: disclose, plan, download, commit.
+  const projectRevision = () => {
+    setOpen(false)
+    if (!window.confirm(PROJECT_REVISION_DISCLOSURE)) return
+    const r = exportProjectRevision()
+    if (!r.ok) window.alert(r.message)
+  }
+
+  const proposal = () => {
+    setOpen(false)
+    const r = makeProposal()
+    if (!r.ok) window.alert(r.message)
   }
 
   const workspaceJSON = () => {
@@ -90,6 +115,7 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
   return (
     <div className="menu" ref={wrapRef}>
       <button
+        ref={btnRef}
         type="button"
         className="btn"
         aria-haspopup="true"
@@ -108,8 +134,40 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
             <span className="menu__name">Workspace JSON</span>
             <span className="menu__blurb">graph + distribution + view + the live run</span>
           </button>
+          <button type="button" className="menu__item" role="menuitem" onClick={projectRevision}>
+            <span className="menu__name">Project revision</span>
+            <span className="menu__blurb">diagram + project id &amp; lineage, for offline collaboration</span>
+          </button>
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={proposal}
+            disabled={!projectOpen}
+            title={projectOpen ? undefined : 'Export a Project revision first'}
+          >
+            <span className="menu__name">Make a proposal</span>
+            <span className="menu__blurb">a copy to edit and send back for review</span>
+          </button>
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              setAuthorOpen(true)
+            }}
+          >
+            <span className="menu__name">Author for exports…</span>
+            <span className="menu__blurb">device-local label attached, unverified, to the file</span>
+          </button>
         </div>
       ) : null}
+      <AuthorDialog
+        open={authorOpen}
+        onClose={() => setAuthorOpen(false)}
+        returnFocusTo={() => btnRef.current}
+      />
     </div>
   )
 }

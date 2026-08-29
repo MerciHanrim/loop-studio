@@ -3,6 +3,7 @@ import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
+import { useProjectStore } from '../../store/projectStore'
 import { useSimStore } from '../../store/simStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import {
@@ -12,7 +13,13 @@ import {
   type WorkspaceFileOption,
 } from '../../store/workspaceIO'
 import { downloadText } from '../../ui/download'
+import {
+  PROJECT_REVISION_DISCLOSURE,
+  exportProjectRevision,
+  makeProposal,
+} from '../../ui/revisionActions'
 import { SHARE_DISCLOSURE, prepareShareLink, shareKb } from '../../ui/shareAction'
+import { AuthorDialog } from '../AuthorDialog'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
 
@@ -41,8 +48,10 @@ export function MobileMoreMenu({
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
   const loadGraph = useGraphStore((s) => s.loadGraph)
+  const projectOpen = useProjectStore((s) => s.open)
 
   const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
+  const [authorOpen, setAuthorOpen] = useState(false)
 
   const onShare = async () => {
     if (!window.confirm(SHARE_DISCLOSURE)) return
@@ -90,6 +99,19 @@ export function MobileMoreMenu({
   const graphJSON = () => {
     downloadText(exportJSON({ ...useMcStore.getState().config }), 'loop-studio-graph.json')
     closeOverlay()
+  }
+
+  const projectRevision = () => {
+    closeOverlay()
+    if (!window.confirm(PROJECT_REVISION_DISCLOSURE)) return
+    const r = exportProjectRevision()
+    if (!r.ok) window.alert(r.message)
+  }
+
+  const proposal = () => {
+    closeOverlay()
+    const r = makeProposal()
+    if (!r.ok) window.alert(r.message)
   }
 
   const workspaceJSON = () => {
@@ -194,6 +216,21 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={workspaceJSON}>
           Workspace JSON<span className="sheet__row-sub">graph + distribution + view</span>
         </button>
+        <button type="button" className="sheet__row" onClick={projectRevision}>
+          Project revision<span className="sheet__row-sub">graph + project id &amp; lineage</span>
+        </button>
+        <button
+          type="button"
+          className="sheet__row"
+          onClick={proposal}
+          disabled={!projectOpen}
+        >
+          Make a proposal<span className="sheet__row-sub">a copy to edit and send back</span>
+        </button>
+        <button type="button" className="sheet__row" onClick={() => setAuthorOpen(true)}>
+          Author for exports…<span className="sheet__row-sub">device-local, unverified label</span>
+        </button>
+        <AuthorDialog open={authorOpen} onClose={() => setAuthorOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>
     )
   }

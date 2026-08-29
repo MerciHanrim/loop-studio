@@ -483,6 +483,67 @@ export function computeRevisionDiff(
   }
 }
 
+// ── §R7A.3 three-way conflict count (feeds §R7A.2 divergent vs unknown) ───
+
+/** read one projection field, `data.*` or a top-level key. */
+function fieldOf(el: CanonicalNode | CanonicalEdge, field: string): unknown {
+  const o = el as Record<string, unknown>
+  if (field.startsWith('data.')) {
+    const d = (o.data ?? {}) as Record<string, unknown>
+    return d[field.slice(5)]
+  }
+  return o[field]
+}
+
+/**
+ * §R7A.3 — for every proposal hunk (`base` → `proposed`) look at the target's
+ * current value for that id and count conflicts. Whole-element granularity for
+ * `add` / `remove`; per changed field for `change`. This is `nConf` in §R7A.2:
+ * `nConf === 0` ⇒ `unknown ancestry`, `nConf ≥ 1` ⇒ `divergent`. The per-hunk
+ * *apply* (Slice 2) resolves the same conflicts one by one; here we only count.
+ *
+ * All three inputs are canonical GraphDoc projections (nodes/edges — the
+ * `loop-revision/1` exporters never emit `recommendedRunConfig` into a
+ * revision's content, so it plays no part in the count).
+ */
+export function countThreeWayConflicts(
+  base: CanonicalContent,
+  target: CanonicalContent,
+  proposed: CanonicalContent,
+): number {
+  let n = 0
+  type El = CanonicalNode | CanonicalEdge
+  for (const kind of ['node', 'edge'] as const) {
+    const pick = (c: CanonicalContent): El[] => (kind === 'node' ? c.nodes : c.edges)
+    const b = indexById<El>(pick(base))
+    const t = indexById<El>(pick(target))
+    const p = indexById<El>(pick(proposed))
+    for (const id of new Set<string>([...b.keys(), ...p.keys()])) {
+      const bv = b.get(id)
+      const pv = p.get(id)
+      const tv = t.get(id)
+      if (!bv && pv) {
+        // proposal ADDs id — conflict only if the target also added it, differently
+        if (tv && !deepEq(tv, pv)) n++
+      } else if (bv && !pv) {
+        // proposal REMOVEs id — conflict if the target changed it vs the base
+        if (tv && !deepEq(tv, bv)) n++
+      } else if (bv && pv && !deepEq(bv, pv)) {
+        // proposal CHANGEs id
+        if (!tv) {
+          n++ // target deleted what the proposal edits
+        } else {
+          for (const f of diffElement(kind, bv as never, pv as never)) {
+            const cur = fieldOf(tv, f.field)
+            if (!deepEq(cur, f.base) && !deepEq(cur, f.proposed)) n++ // a third value
+          }
+        }
+      }
+    }
+  }
+  return n
+}
+
 // ── defensive `project` reader (§R10 steps 3/6) ──────────────────────────
 
 export type ReadProjectOk = {
@@ -791,20 +852,43 @@ export type ProposalExportResult = ProposalExportPlan | ExportTooLarge | ExportD
  * The origin session is untouched — this function only reads.
  */
 export function planProposalExport(input: {
+  /** the proposed content (top-level graph of the file) */
   doc: Omit<GraphDocInput, 'schema' | 'version'>
   project: { projectId: string; revisionId: string; lineage: string[] }
+  /** origin dirtiness — only checked when `pinnedBase` is absent (a first
+   *  `Make a proposal` from an open revision) */
   dirty: boolean
+  /**
+   * The **pinned** base to write verbatim. Supplied when re-exporting a
+   * proposal that has since been edited: the base MUST stay the revision the
+   * proposal was first authored against (§R6), not the current proposed
+   * content. When absent, the base is `canonicalContent(doc)` and `dirty` is
+   * enforced.
+   */
+  pinnedBase?: { revisionId: string; content: CanonicalContent }
   meta: ProjectMeta
   now: string
   mint?: (p: 'rev') => string
   maxBytes?: number
 }): ProposalExportResult {
-  if (input.dirty) return { ok: false, reason: 'dirty-origin' }
-
   const cap = input.maxBytes ?? REVISION_FILE_MAX_BYTES
-  const baseCanon = canonicalContent(input.doc)
-  const contentDigest = digestOfCanonical(baseCanon)
   const mkId = input.mint ?? ((p: 'rev') => mintId(p))
+  const proposedDigest = digestOfCanonical(canonicalContent(input.doc))
+
+  // resolve the base BEFORE minting — a dirty-origin refusal mints no id (R14.5)
+  let base: ProposalBase
+  if (input.pinnedBase) {
+    base = {
+      revisionId: input.pinnedBase.revisionId,
+      contentDigest: digestOfCanonical(input.pinnedBase.content),
+      content: input.pinnedBase.content,
+    }
+  } else {
+    if (input.dirty) return { ok: false, reason: 'dirty-origin' }
+    const c = canonicalContent(input.doc) // proposed === base on first creation
+    base = { revisionId: input.project.revisionId, contentDigest: digestOfCanonical(c), content: c }
+  }
+
   const proposalRevisionId = mkId('rev')
 
   const project: ProjectPayload = {
@@ -812,13 +896,11 @@ export function planProposalExport(input: {
     version: PROJECT_VERSION,
     projectId: input.project.projectId,
     revisionId: proposalRevisionId,
-    parentId: input.project.revisionId,
+    parentId: base.revisionId,
     role: 'proposal',
-    // for a proposal the file's own content IS the proposed content, which at
-    // creation time equals the base
-    contentDigest,
-    base: { revisionId: input.project.revisionId, contentDigest, content: baseCanon },
-    lineage: [input.project.revisionId, ...input.project.lineage].slice(0, LINEAGE_MAX),
+    contentDigest: proposedDigest, // the file's own (proposed) content
+    base,
+    lineage: [base.revisionId, ...input.project.lineage].slice(0, LINEAGE_MAX),
     meta: { ...input.meta, createdAt: input.now },
   }
   const file = buildFile(input.doc, project)

@@ -1,9 +1,11 @@
 import { useRef, type ChangeEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../../store/graphStore'
-import { importFile } from '../../store/workspaceIO'
+import { useReviewStore } from '../../store/reviewStore'
+import { routeImport } from '../../store/revisionIO'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { Logo } from '../Logo'
+import { RevisionChip } from '../RevisionChip'
 import { MobileMoreMenu } from './MobileMoreMenu'
 import { MobileOpenFileHint } from './MobileOpenFileHint'
 
@@ -22,20 +24,36 @@ export function MobileTopBar() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    // docs/mobile.md §MV3b — confirm before replacing the current document
-    // (unless it is still the untouched first-boot sample).
-    if (
-      !useGraphStore.getState().pristineSample &&
-      !window.confirm('Replace the current diagram with the imported file?')
-    ) {
-      return
-    }
     file.text().then(
       async (text) => {
         try {
-          const out = await importFile(text)
-          if (out.canvas) setViewport(out.canvas, { duration: 0 })
-          if (out.warnings.length) window.alert(out.warnings.join('\n'))
+          // A proposal never replaces the document (§R10.5), so it needs no
+          // replace-confirm; everything else does (docs/mobile.md §MV3b) unless
+          // the session is still the untouched first-boot sample.
+          let role: unknown
+          try {
+            role = (JSON.parse(text) as { project?: { role?: unknown } }).project?.role
+          } catch {
+            /* not JSON — routeImport will surface the error */
+          }
+          if (
+            role !== 'proposal' &&
+            !useGraphStore.getState().pristineSample &&
+            !window.confirm('Replace the current diagram with the imported file?')
+          ) {
+            return
+          }
+          const r = await routeImport(text)
+          if (r.kind === 'proposal') {
+            useReviewStore.getState().open(r) // §R10.5 — Review only, no mutation
+            return
+          }
+          if (r.outcome.canvas) setViewport(r.outcome.canvas, { duration: 0 })
+          const warnings = [
+            ...(r.kind === 'project-dropped' ? [r.warning] : []),
+            ...r.outcome.warnings,
+          ]
+          if (warnings.length) window.alert(warnings.join('\n'))
         } catch (err) {
           window.alert(err instanceof Error ? err.message : 'Could not read that file.')
         }
@@ -50,6 +68,7 @@ export function MobileTopBar() {
         <Logo />
       </span>
       <span className="toolbar__vr">view &amp; run — edit on desktop</span>
+      <RevisionChip className="rev-chip--mobile" />
       <button
         ref={moreRef}
         type="button"

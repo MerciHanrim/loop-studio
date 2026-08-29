@@ -5,6 +5,7 @@ import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
 import { PwaUpdateBar } from './components/PwaUpdateBar'
+import { ReviewOverlay } from './components/ReviewOverlay'
 import { ShareLoader } from './components/ShareLoader'
 import { Shortcuts } from './components/Shortcuts'
 import { TimelineChart } from './components/TimelineChart'
@@ -29,6 +30,7 @@ export default function App() {
         <MobileInspectorSheet />
       </div>
       <MonteCarloDialog />
+      <ReviewOverlay />
     </ReactFlowProvider>
   )
 }

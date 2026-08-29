@@ -91,6 +91,14 @@ export function bootProjectHeader(): unknown {
   return loadFromStorage()?.project ?? null
 }
 
+// A single observer of history motion, so `projectStore` can keep the open
+// revision header paired with the graph across an Apply's one undo entry
+// (SEMANTICS-R.md §R7.3). Not part of the store state — no re-renders.
+let historyHook: ((kind: 'undo' | 'redo') => void) | null = null
+export function setHistoryHook(fn: ((kind: 'undo' | 'redo') => void) | null): void {
+  historyHook = fn
+}
+
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
 // drag is one entry; rapid edits to the same field within COALESCE_MS are one
@@ -222,6 +230,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump()
       persist()
+      historyHook?.('undo')
     },
 
     redo: () => {
@@ -241,6 +250,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump()
       persist()
+      historyHook?.('redo')
     },
 
     onNodesChange: (changes) => {

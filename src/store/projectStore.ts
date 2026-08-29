@@ -4,7 +4,9 @@ import {
   AUTHOR_NAME_MAX_BYTES,
   AUTHOR_NOTE_MAX_BYTES,
   HEX64,
+  LINEAGE_MAX,
   canonicalContent,
+  countThreeWayConflicts,
   digestOfCanonical,
   isProjectId,
   isRevisionId,
@@ -12,13 +14,17 @@ import {
   planProposalExport,
   planRevisionExport,
   truncBytes,
+  type AppliedProposal,
+  type CanonicalContent,
   type ProjectMeta,
   type ProjectPayload,
   type ProjectRole,
+  type ProposalBase,
   type ProposalExportResult,
   type RevisionExportPlan,
 } from '../model/revision'
-import { bootProjectHeader, setAutosaveProjectHeader, useGraphStore } from './graphStore'
+import type { LoopEdge, LoopNode } from '../model/types'
+import { bootProjectHeader, setAutosaveProjectHeader, setHistoryHook, useGraphStore } from './graphStore'
 
 // SEMANTICS-R.md §R2 / §R3 / §R6 / §R10 — the OPEN revision, the `dirty` flag,
 // and the two-phase Export transaction. Slice 1B (+ review round 2). NO UI.
@@ -43,7 +49,17 @@ export type OpenProject = {
   /** digest of the content this revision represents (the last committed /
    *  opened content). `dirty` compares the live graph against this. */
   baselineDigest: string
+  /** set on a revision produced by Apply (§R7.1) — provenance only */
+  appliedProposal?: AppliedProposal
+  /** set only while `role === 'proposal'` — the pinned base the proposal was
+   *  first authored against; re-export keeps THIS, not the edited content (§R6) */
+  pinnedBase?: { revisionId: string; content: CanonicalContent }
 }
+
+export type ApplyClassification = 'exact' | 'divergent' | 'unknown'
+export type ApplyResult =
+  | { ok: true; classification: ApplyClassification; newRevisionId: string }
+  | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' | 'needs-confirmation'; classification?: ApplyClassification }
 
 /** Everything `commitRevisionExport` needs to verify a plan is still current
  *  and to land the right baseline. Returned by `planRevision`. */
@@ -79,6 +95,38 @@ type ProjectState = {
   commitRevisionExport: (plan: PendingRevisionPlan) => 'committed' | 'stale' | 'no-op'
   planProposal: (opts?: PlanOpts) => PlanProposalResult
   openRevisionFromFile: (project: ProjectPayload, graphDigest: string) => void
+  /** §R10.5 — adopt a proposal file's proposed content as the open document,
+   *  pinning its base for re-export. Used by "Open as a document". Atomic: one
+   *  `loadDoc` on the proposed graph, then the `proposal` header. */
+  openProposalAsDocument: (
+    project: ProjectPayload,
+    base: ProposalBase,
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[] },
+  ) => void
+  /** §R7A.2 — classify a proposal against the open revision without applying
+   *  (for the Review UI). Same gates as `applyProposal`. */
+  classifyProposal: (input: {
+    project: ProjectPayload
+    base: ProposalBase
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[] }
+  }) =>
+    | { ok: true; classification: ApplyClassification }
+    | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
+  /**
+   * §R7 — whole-proposal Apply. Atomic: one `loadDoc` (one undo entry, one
+   * `simulationRev` bump, paused/step 0), then a NEW revision (fresh id,
+   * `parentId` = the pre-apply revision, `appliedProposal` recorded). A single
+   * Undo restores the pre-apply GraphDoc AND this header (via the graphStore
+   * history hook). Non-`exact` needs `opts.confirmed`.
+   */
+  applyProposal: (
+    input: {
+      project: ProjectPayload
+      base: ProposalBase
+      proposed: { nodes: LoopNode[]; edges: LoopEdge[] }
+    },
+    opts?: { now?: string; mint?: (p: 'rev') => string; confirmed?: boolean },
+  ) => ApplyResult
   clear: () => void
   /** test/boot seam — swap the open header without touching storage */
   _setOpen: (open: OpenProject | null) => void
@@ -112,7 +160,14 @@ function headerPayload(open: OpenProject) {
     contentDigest: open.baselineDigest,
     lineage: open.lineage,
     meta: open.meta,
+    ...(open.appliedProposal ? { appliedProposal: open.appliedProposal } : {}),
   }
+}
+
+function isAppliedProposalHeader(x: unknown): x is AppliedProposal {
+  if (!x || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  return isRevisionId(o.proposalId) && isRevisionId(o.baseId) && typeof o.baseDigest === 'string'
 }
 
 /** validate a raw autosave `project` header (no graph cross-check here — the
@@ -133,6 +188,7 @@ function parseHeader(raw: unknown): OpenProject | null {
     lineage: Array.isArray(o.lineage) ? o.lineage.filter((x): x is string => isRevisionId(x)) : [],
     meta: o.meta && typeof o.meta === 'object' ? (o.meta as ProjectMeta) : {},
     baselineDigest: o.contentDigest,
+    ...(isAppliedProposalHeader(o.appliedProposal) ? { appliedProposal: o.appliedProposal } : {}),
   }
 }
 
@@ -147,9 +203,36 @@ function persist(open: OpenProject | null): void {
   setAutosaveProjectHeader(open ? headerPayload(open) : null)
 }
 
+/** §R7A.2 — three mutually-exclusive classes over the live target (edits
+ *  included) and the proposal's `base` + proposed content. `lineage` / parent
+ *  are never inputs. */
+function classifyAgainst(
+  o: OpenProject,
+  base: ProposalBase,
+  proposed: { nodes: LoopNode[]; edges: LoopEdge[] },
+): ApplyClassification {
+  const g = useGraphStore.getState()
+  const target = canonicalContent({ nodes: g.nodes, edges: g.edges })
+  const exact =
+    o.revisionId === base.revisionId && digestOfCanonical(target) === base.contentDigest
+  if (exact) return 'exact'
+  const nConf = countThreeWayConflicts(base.content, target, canonicalContent(proposed))
+  return nConf >= 1 ? 'divergent' : 'unknown'
+}
+
 // ── store ──────────────────────────────────────────────────────────────────
 
 let planSeq = 0
+
+/** the last Apply's before/after pair, so the graphStore history hook can keep
+ *  the open header in lock-step with Apply's single undo entry (§R7.3). Cleared
+ *  once the graph no longer sits on either side of that boundary. */
+let lastApply: {
+  preGraphDigest: string
+  preHeader: OpenProject
+  postGraphDigest: string
+  postHeader: OpenProject
+} | null = null
 
 export const useProjectStore = create<ProjectState>((set, get) => {
   const open = parseHeader(bootProjectHeader())
@@ -290,6 +373,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         doc: { nodes: g.nodes, edges: g.edges },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
         dirty: isDirty,
+        // §R6 — re-exporting an edited proposal keeps the ORIGINAL pinned base,
+        // not the current (edited) content; the dirty-origin gate is skipped.
+        pinnedBase: o.role === 'proposal' ? o.pinnedBase : undefined,
         meta: authoredMeta(o.meta),
         now,
         mint: () => mkId('rev'),
@@ -312,6 +398,84 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       persist(next)
     },
 
+    openProposalAsDocument: (project, base, proposed) => {
+      // §R10.5 — one atomic swap: load the proposed graph, then adopt a
+      // `proposal` header that PINS the original base for §R6 re-export.
+      useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
+      lastApply = null // this replaces the document — the Apply undo pairing is void
+      const digest = digestOfCanonical(canonicalContent(proposed))
+      const next: OpenProject = {
+        projectId: project.projectId,
+        revisionId: project.revisionId,
+        parentId: project.parentId,
+        role: 'proposal',
+        lineage: project.lineage ?? [],
+        meta: project.meta ?? {},
+        baselineDigest: digest,
+        pinnedBase: { revisionId: base.revisionId, content: base.content },
+      }
+      set({ open: next, dirty: false, activePlanId: null })
+      persist(next)
+    },
+
+    classifyProposal: ({ project, base, proposed }) => {
+      const o = get().open
+      if (!o) return { ok: false, reason: 'no-target' }
+      if (o.projectId !== project.projectId) return { ok: false, reason: 'wrong-project' }
+      if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
+      return { ok: true, classification: classifyAgainst(o, base, proposed) }
+    },
+
+    applyProposal: ({ project, base, proposed }, opts = {}) => {
+      // §R7A.1 gates — identical to classifyProposal, plus the confirmation gate
+      const o = get().open
+      if (!o) return { ok: false, reason: 'no-target' }
+      if (o.projectId !== project.projectId) return { ok: false, reason: 'wrong-project' }
+      if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
+
+      const classification = classifyAgainst(o, base, proposed)
+      if (classification !== 'exact' && !opts.confirmed) {
+        return { ok: false, reason: 'needs-confirmation', classification }
+      }
+
+      const now = opts.now ?? new Date().toISOString()
+      const mkId = opts.mint ?? mintId
+
+      // capture the pre-apply target for the paired single-undo (§R7.3)
+      const preHeader = o
+      const preGraphDigest = liveDigest()
+
+      // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0,
+      // one undo entry.
+      useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
+      const postGraphDigest = digestOfCanonical(canonicalContent(proposed))
+
+      // §R7.1 — a brand-new revision derived from the target
+      const meta: ProjectMeta = { ...preHeader.meta, tool: TOOL, createdAt: now }
+      const applier = readAuthor()
+      if (applier) meta.author = applier
+      else delete meta.author
+
+      const postHeader: OpenProject = {
+        projectId: preHeader.projectId,
+        revisionId: mkId('rev'),
+        parentId: preHeader.revisionId,
+        role: 'revision',
+        lineage: [preHeader.revisionId, ...preHeader.lineage].slice(0, LINEAGE_MAX),
+        meta,
+        baselineDigest: postGraphDigest,
+        appliedProposal: {
+          proposalId: project.revisionId,
+          baseId: base.revisionId,
+          baseDigest: base.contentDigest,
+        },
+      }
+      set({ open: postHeader, dirty: false, activePlanId: null })
+      persist(postHeader)
+      lastApply = { preGraphDigest, preHeader, postGraphDigest, postHeader }
+      return { ok: true, classification, newRevisionId: postHeader.revisionId }
+    },
+
     clear: () => {
       set({ open: null, dirty: false, activePlanId: null })
       persist(null)
@@ -332,4 +496,26 @@ useGraphStore.subscribe(() => {
     if (gen !== dirtyGen) return // a newer edit already scheduled a fresher check
     useProjectStore.getState().refreshDirty()
   }, 250)
+})
+
+// §R7.3 — Apply's `loadDoc` leaves ONE undo entry; when the user crosses it we
+// must move the open header with the graph. The hook fires on every undo/redo,
+// so we act only while the live graph still sits exactly on one side of the
+// recorded Apply boundary; any other edit voids the pairing.
+setHistoryHook((kind) => {
+  const la = lastApply
+  if (!la) return
+  const st = useProjectStore.getState()
+  const cur = liveDigest()
+  if (kind === 'undo' && cur === la.preGraphDigest && st.open?.revisionId === la.postHeader.revisionId) {
+    st._setOpen(la.preHeader)
+    persist(la.preHeader)
+  } else if (
+    kind === 'redo' &&
+    cur === la.postGraphDigest &&
+    st.open?.revisionId === la.preHeader.revisionId
+  ) {
+    st._setOpen(la.postHeader)
+    persist(la.postHeader)
+  }
 })

@@ -6,7 +6,8 @@ import {
   type ProposalBase,
 } from '../model/revision'
 import { deserialize } from '../model/serialize'
-import { useProjectStore } from './projectStore'
+import type { LoopEdge, LoopNode } from '../model/types'
+import { useProjectStore, type ApplyResult } from './projectStore'
 import { importFile, type ImportOutcome, type Viewport } from './workspaceIO'
 
 // SEMANTICS-R.md §R10 — one file input, routed. Import ≠ Apply: a proposal for
@@ -75,6 +76,39 @@ export async function routeImport(text: string): Promise<RouteResult> {
   const outcome = await importFile(text)
   useProjectStore.getState().openRevisionFromFile(read.project, digestOfCanonical(loaded))
   return { kind: 'revision', outcome, project: read.project }
+}
+
+/** A routed proposal awaiting a Review-panel decision. */
+export type PendingProposal = Extract<RouteResult, { kind: 'proposal' }>
+
+/** the proposed graph carried by a routed proposal (deserialised once) */
+function proposedGraph(p: PendingProposal): { nodes: LoopNode[]; edges: LoopEdge[] } {
+  const { nodes, edges } = deserialize(p.proposedText)
+  return { nodes, edges }
+}
+
+/** §R7A.2 — classify without applying, for the Review UI. */
+export function classifyPendingProposal(p: PendingProposal) {
+  return useProjectStore.getState().classifyProposal({
+    project: p.project,
+    base: p.base,
+    proposed: proposedGraph(p),
+  })
+}
+
+/** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for
+ *  every non-`exact` class). */
+export function applyPendingProposal(p: PendingProposal, opts: { confirmed?: boolean } = {}): ApplyResult {
+  return useProjectStore.getState().applyProposal(
+    { project: p.project, base: p.base, proposed: proposedGraph(p) },
+    { confirmed: opts.confirmed },
+  )
+}
+
+/** §R10.5 — "Open as a document": adopt the proposed content, no apply, no new
+ *  revision, base pinned for re-export. */
+export function openPendingProposalAsDocument(p: PendingProposal): void {
+  useProjectStore.getState().openProposalAsDocument(p.project, p.base, proposedGraph(p))
 }
 
 export type { Viewport }

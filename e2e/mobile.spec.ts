@@ -586,3 +586,85 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     expect(s.hasResult).toBe(true)
   })
 })
+
+// SEMANTICS-R.md §R7 / §R10.5 — the mobile Review sheet must use the SAME apply
+// rules as the desktop panel (revisionActions + projectStore): import opens it
+// without mutation, a non-`exact` whole Apply confirms, and Apply is one atomic
+// step that mints a new revision.
+test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
+  test('import opens the sheet with no mutation; non-exact Apply confirms then mints a revision', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    // build a committed revision + a proposal for it, straight through the store
+    const built = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const g = L.graph.getState()
+      g.newGraph()
+      g.addNodeAt('pool', { x: 0, y: 0 })
+      g.addNodeAt('drain', { x: 200, y: 0 })
+      const P = L.project.getState()
+      const plan = P.planRevision({})
+      P.commitRevisionExport(plan.plan)
+      const r0 = L.project.getState().open.revisionId
+      const prop = P.planProposal({})
+      return { proposalText: (prop as { text: string }).text, r0 }
+    })
+
+    // the open doc drifts from the base
+    await page.evaluate(() =>
+      (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.graph
+        .getState()
+        .addNodeAt('gate', { x: 400, y: 100 }),
+    )
+    const before = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      return { nodes: L.graph.getState().nodes.length, simRev: L.graph.getState().simulationRev }
+    })
+
+    await page
+      .locator('.toolbar--mobile input[type="file"]')
+      .setInputFiles({ name: 'p.json', mimeType: 'application/json', buffer: Buffer.from(built.proposalText) })
+
+    const sheet = page.locator('.sheet[aria-label="Review proposal"]')
+    await expect(sheet).toBeVisible()
+    await expect(sheet).toContainText('unverified')
+
+    // import mutated nothing
+    const during = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      return {
+        nodes: L.graph.getState().nodes.length,
+        simRev: L.graph.getState().simulationRev,
+        rev: L.project.getState().open.revisionId,
+      }
+    })
+    expect(during.nodes).toBe(before.nodes)
+    expect(during.simRev).toBe(before.simRev)
+    expect(during.rev).toBe(built.r0)
+
+    // non-exact ⇒ first tap arms the confirmation, second applies
+    await sheet.locator('button', { hasText: 'Apply proposal' }).click()
+    await expect(sheet.locator('.review__warn')).toBeVisible()
+    await sheet.locator('button', { hasText: 'Apply anyway' }).click()
+    await expect(page.locator('.sheet[aria-label="Review proposal"]')).toBeHidden()
+
+    const after = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const p = L.project.getState().open
+      return {
+        rev: p.revisionId,
+        parent: p.parentId,
+        applied: p.appliedProposal ?? null,
+        simRev: L.graph.getState().simulationRev,
+        step: L.sim.getState().stepIndex,
+      }
+    })
+    expect(after.rev).not.toBe(built.r0)
+    expect(after.parent).toBe(built.r0)
+    expect(after.applied?.baseId).toBe(built.r0)
+    expect(after.simRev).toBe(before.simRev + 1)
+    expect(after.step).toBe(0)
+  })
+})
