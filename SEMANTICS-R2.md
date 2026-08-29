@@ -2,17 +2,22 @@
 
 ```
 Spec ID: loop-revision/2
-Status:  Draft
+Status:  Frozen
 ```
 
-**Draft (2026-08-30, rev 1).** Extends `SEMANTICS-R.md` (`loop-revision/1`,
-Frozen) so the canonical revision projection, its digest, the three-way diff,
-and Apply also cover the `loop-model/1` layer — `parameter` / `register` nodes
-and the advisory `resourceType` tag on pools and `resource` edges. The
-*approach* is already fixed in `SEMANTICS-M.md §M8` ("ratified into
-`SEMANTICS-R.md`'s successor when `loop-revision/2` is authored"); this document
-is that successor. It is a **Draft**: §R2-12 lists the few points still open;
-everything else is a formalisation of §M8, not a new decision.
+**Frozen (2026-08-30, rev 2).** This document is the fixed target for the
+implementation. A behavioural change after this is a new spec id in a new
+document (`loop-revision/3`), exactly as with `loop-state/1 → loop-state/2`;
+this file only takes typo / clarifying-prose fixes. §R2-12 records the settled
+decisions R2-D1…R2-D5 (each Decided or Deferred).
+
+Extends `SEMANTICS-R.md` (`loop-revision/1`, Frozen) so the canonical revision
+projection, its digest, the three-way diff, and Apply also cover the
+`loop-model/1` layer — `parameter` / `register` nodes and the advisory
+`resourceType` tag on pools and `resource` edges. The *approach* is already
+fixed in `SEMANTICS-M.md §M8` ("ratified into `SEMANTICS-R.md`'s successor when
+`loop-revision/2` is authored"); this document is that successor and formalises
+it — it introduces no new design beyond closing the §R2-12 boundaries.
 
 **No behavioural change to `loop-revision/1`.** A graph that does not use the
 model layer (§R2-1) projects, digests, diffs, and applies **byte-for-byte** as
@@ -41,8 +46,10 @@ unaffected.
   it (§R2-4);
 - the **validation order** — verify a v1 side with the v1 digest, *then* lift
   into the common v2 model — and **malformed-payload handling** (§R2-5);
-- **advisory-field behaviour** in `dirty` / whole diff / per-hunk Apply (§R2-6);
-- **bidirectional v1 ↔ v2** compare & Apply rules (§R2-7);
+- **advisory-field behaviour** in `dirty` / whole diff / whole + per-hunk Apply
+  (§R2-6);
+- **bidirectional v1 ↔ v2** compare & Apply rules, and the cross-version
+  whole-Apply **loss report** (§R2-7);
 - an explicit **"Workspace stays v1"** note (§R2-8).
 
 **Not changed:** `SEMANTICS-R.md §R4.1` normalisation (finite numbers, `-0 → 0`,
@@ -63,33 +70,72 @@ force `loop-workspace/2` (§R2-8); automatic merge/rebase; signing.
 
 ## R2-1. Version inference — the wire-level predicate
 
-Verbatim from `SEMANTICS-M.md §M8.1`, restated as the `loop-revision/2`
-contract.
+Formalises `SEMANTICS-M.md §M8.1` as the `loop-revision/2` contract.
 
-**A graph doc is `loop-revision/2` content iff ANY of:**
+**The predicate runs on the *normalised valid GraphDoc*, not on raw JSON.**
+A reader first applies the existing `normalizeGraph()` pass **and**
+`loop-model/1`'s defensive read (§M1.2 / §M2 / §M4.1: fill `value`/`expr`
+defaults, drop an invalid `step` / `min`-`max` pair / over-long or empty
+`unit` / unrecognised `format`, drop an empty-or-over-cap `resourceType`).
+The predicate then reads that result. Consequences:
 
-1. some `node.data.kind ∈ { "parameter", "register" }`; **or**
-2. some `node.data.kind === "pool"` whose `data.resourceType`, after
-   `SEMANTICS-M.md §M4.1` normalisation (trim → empty? → NFC → ≤ 64 UTF-8
-   bytes), is **non-empty**; **or**
+- a `resourceType` that was **removed during read** (empty after trim, or over
+  the 64-byte cap) does **not**, by itself, make the doc v2 content — the field
+  no longer exists on the normalised element;
+- conversely, if a `parameter` / `register` node's shape is **structurally
+  invalid** in a way the defensive read cannot seat (§R2-1.1), the reader
+  returns **`payload-invalid`** *before* any v2 projection is attempted — the
+  node is never silently promoted to v2 and then failed downstream.
+
+**A normalised graph doc is `loop-revision/2` content iff ANY of:**
+
+1. some `node.data.kind ∈ { "parameter", "register" }` (and the node passed the
+   §R2-1.1 structural gate); **or**
+2. some `node.data.kind === "pool"` whose `data.resourceType`, **after §M4.1
+   normalisation**, is still present (non-empty); **or**
 3. some edge with `data.kind === "resource"` whose `data.resourceType`, after
-   §M4.1 normalisation, is **non-empty**.
+   §M4.1 normalisation, is still present.
 
 Otherwise the doc is **`loop-revision/1` content**, even when produced or read
 by a v0.6+ app.
 
-- **Purely syntactic.** The predicate reads only `data.kind` and the normalised
-  `resourceType` string. It never runs the engine, never evaluates an `expr`,
-  never inspects `SimState`.
-- **Inferred, not stored.** No `project.version` / `project.schema` field
-  exists or is read. A reader recomputes the predicate on the graph in hand.
-  A future `project` header field is **forbidden** from carrying the version.
+- **Purely syntactic, post-normalisation.** The predicate reads only
+  `data.kind` and the *normalised* `resourceType` string. It never runs the
+  engine, never evaluates an `expr`, never inspects `SimState`.
+- **Inferred from content, never stored.** No `project.version` /
+  `project.schema` field exists or is read; a future `project` header field is
+  **forbidden** from carrying the version. A reader recomputes the predicate on
+  the normalised graph in hand — including, after an Apply, on the **result
+  graph** (§R2-7, R2-D3): the new revision's version is whatever its own
+  resulting content implies.
 - **Per side.** A **proposal** file carries two graphs — the proposed content
   (top-level `nodes` / `edges`) and `project.base.content`. The predicate is
   run on **each independently** (§R2-5); the two may disagree (a v2-capable
   author adding the model layer to a v1 base is the common case).
-- **Per graph, not per element.** One `parameter` node makes the **whole doc**
-  v2 content; the shared v1 elements are still projected exactly as v1 (§R2-4).
+- **Per graph, not per element.** One valid `parameter` node makes the **whole
+  doc** v2 content; the shared v1 elements are still projected exactly as v1
+  (§R2-4).
+
+### R2-1.1 The structural gate for `parameter` / `register`
+
+Before the predicate, a node whose `data.kind` is `parameter` or `register` is
+checked for a **seatable shape**. Read-time *fillable* problems are fine and
+leave the node in place; *unseatable* problems make the whole `project` payload
+`payload-invalid` (graph still loads, `project` dropped + warning — R-INV-10).
+
+| condition | outcome |
+|---|---|
+| `value` **absent** (key missing or `null`) | **fillable** — set to `0`, notice `PARAM_VALUE_FIXED`; node kept |
+| `value` present and **not a JSON number** (object, array, string, boolean) | **unseatable** → `payload-invalid` |
+| `value` present, a number, but **non-finite** (`NaN` / `±Infinity` — only reachable via a hand-edited file; JSON has no such literal) | **unseatable** → `payload-invalid` (a non-finite number in projected content is invalid per §R4.1) |
+| `expr` missing / `null` | **fillable** — set to `"0"`; node kept |
+| `expr` present and **not a string** | **unseatable** → `payload-invalid` |
+| `expr` present, a string, but **not parseable** as `loop-expr/1` (a syntax error — `EXPR_*`) | **unseatable** → `payload-invalid`. §M2 mandates `expr` be *stored* in §X8 canonical form, so an unparseable `expr` is a malformed file, not a runtime condition. |
+| `expr` parseable but **references a missing / wrong-kind id** (a dangling `@id`) | **kept** — the reference is syntactically valid; the Register is `invalid` at eval time (`M_REG_UNKNOWN_REF` / `M_REG_WRONG_KIND`), which is non-fatal (§M6.1, §M5). Projected in §X8 canonical form with the `@id` preserved. |
+| `label` present and not a string, or `data` not an object | **unseatable** → `payload-invalid` (same as any malformed node today) |
+
+An **unknown** `data.kind` (neither a v1 kind nor `parameter` / `register`) is
+handled by §R2-5.1 (graph-only + warning; no projection guessed).
 
 ---
 
@@ -258,8 +304,9 @@ by the predicate makes R2-INV-2 a *verified* property at read time, not an
 | digest present but ≠ the projection the predicate selected for that side | `project` payload **corrupt** (R-INV-6 / R-INV-10): the graph (and any `workspace`) still loads; `project` is **dropped + warning**; the file is **never** Reviewed or Applied as a trusted revision / proposal. |
 | `base.content` trips the v2 predicate and `base.contentDigest` matches the **v2** projection | **not** corrupt — a v2-capable app authored the base. Verify v2, proceed. |
 | `base.content` is v1 content and `base.contentDigest` matches the **v1** projection | normal path — verify v1, lift, proceed. |
-| a `parameter` / `register` node whose shape cannot be seated even after read-time normalisation (e.g. a `value` that is present, non-finite, **and** not fillable; a required string field holding a non-string) | **non-finite / invalid content** per `§R4.1`: drop `project` + warn. Graph still loads (R-INV-10). |
-| an unknown `node.data.kind` (not a v1 kind, not `parameter` / `register`) | this app cannot compute a projection for the file — **do not guess**. Degrade the `project` reader to **graph-only + warning**; the graph still loads. |
+| a `parameter` / `register` node that fails the §R2-1.1 **structural gate** (non-number `value`, non-finite `value`, non-string / unparseable `expr`, non-object `data`) | **`payload-invalid`** — returned **before** any v2 projection is attempted (§R2-1). Drop `project` + warn; graph still loads (R-INV-10). The doc is **not** classified as v2-then-failed. |
+| an unknown `node.data.kind` (not a v1 kind, not `parameter` / `register`) | this app cannot compute a projection for the file — **do not guess** and **do not** silently carry it into a digest. Degrade the `project` reader to **graph-only + warning**; the graph still loads. (R2-D5.) |
+| an **unknown `data` key** on an otherwise-known kind | excluded from the canonical projection exactly as `SEMANTICS-R.md §R4.2` already excludes any unlisted `data` key — it is not in the digest and no hunk carries it; `serialize()` still round-trips it in memory. (R2-D5.) |
 | the file's own graph is v2 content but the app is a **v1-only** build | already covered by `§R4.4` — the `project` reader degrades to graph-only + warning; `loop-revision/2` adds nothing. |
 | `project.contentDigest` **absent** (it is optional, `SEMANTICS-R.md §R1` / R10.4) | unchanged: no integrity check to run on the file's own graph; the baseline digest is `fullContentDigest` of the loaded graph under the predicate-selected projection. |
 
@@ -299,6 +346,10 @@ projection**, so a conflict on an advisory field (e.g. `min` changed to
 different values on both sides) counts toward `nConf` and can make the class
 `divergent`. The confirmation policy is unchanged: only `exact` skips it.
 
+When the target is v2 content and the proposal's proposed graph does **not**
+carry the same model-layer elements, a whole Apply removes them; the
+confirmation MUST carry the §R2-7.1 loss report.
+
 ### R2-6.4 Per-hunk (selective) Apply
 
 - An advisory-field hunk is **independently selectable** and applies
@@ -330,16 +381,36 @@ mismatch. The only refusal remains the `§R7A.1` different-`projectId` gate.
 | # | proposal base | proposal proposed | target | behaviour |
 |---|---|---|---|---|
 | 1 | v1 | v1 | v1 | identical to `loop-revision/1` today. v2 projection of every side ≡ v1 projection ≡ same bytes / digest (R2-INV-2). |
-| 2 | v1 | v1 | **v2** | the target carries a model layer the proposal does not mention. The diff shows the shared part as a normal v1↔v1 diff; the target's `parameter` / `register` / typed elements are **target-only** (present in target, absent in base and proposed). **Whole-proposal Apply adopts the proposed graph verbatim and therefore drops the target's model layer** — this is exactly the "your changes since base are lost" that the non-`exact` whole-apply confirmation (`§R7A.4`) already states, and the Review UI MUST name the model-layer loss specifically (wording — §R2-12 R2-D4). **Per-hunk Apply never removes an unmentioned target element** (`§R7.2`: rejected/absent hunks leave the target as-is), so a selective Apply preserves the target's model layer byte-for-byte. |
+| 2 | v1 | v1 | **v2** | the target carries a model layer the proposal does not mention. The diff shows the shared part as a normal v1↔v1 diff; the target's `parameter` / `register` / typed elements are **target-only** (present in target, absent in base and proposed). **Whole-proposal Apply adopts the proposed graph verbatim and therefore drops the target's model layer** — allowed only behind the non-`exact` whole-apply confirmation (`§R7A.4`), which MUST carry the computed **§R2-7.1 loss report**. **Per-hunk Apply never removes an unmentioned target element** (`§R7.2`: rejected/absent hunks leave the target as-is), so a selective Apply preserves the target's model layer byte-for-byte. |
 | 3 | v1 | **v2** | v1 | the proposal *adds* the model layer. `base.content` is v1 (verify v1); the proposed side is v2 (verify v2). The diff shows `add` hunks — `engine`-tagged for a `parameter.value` / `register.expr`, `advisory`-tagged for a `resourceType`. Whole Apply adopts them; per-hunk Apply adds only the selected ones. A selected `register` `add` whose `expr` references an id absent from the resulting target is **applied anyway** and the model marks it `invalid` (`M_REG_UNKNOWN_REF`, `SEMANTICS-M.md §M5`) — non-fatal, the run is not blocked, the Review / Inspector shows the `M_REG_*` code. |
 | 4 | **v2** | **v2** | **v2** | full three-way over the v2 projection; `engine` and `advisory` fields alike are diffable and feed `nConf`. |
 
 In every combo the compare model is the single v2 projection; a v1 side is "v2
 with an empty model layer", and its v2 digest equals its v1 digest (R2-INV-2).
 
----
+### R2-7.1 Cross-version whole-Apply loss report
 
-## R2-8. `loop-workspace/1` stays v1
+Before a **whole-proposal Apply** whose **result would drop model-layer content
+that exists on the target**, the reader computes — from the v2 projections of
+the target and the proposed graph — and the confirmation dialog (`§R7A.4`)
+displays:
+
+- **`paramRegistersRemoved`** — the count of `data.kind ∈ { parameter, register }`
+  nodes present in the target and **absent** from the proposed graph (by `id`);
+- **`resourceTypesRemoved`** — the count of `pool` / `resource`-edge elements
+  whose target projection carries a non-empty `resourceType` and whose proposed
+  projection (same `id`) carries **none** (removed) **or a different value**
+  (overwritten) — reported as *removed* and *changed* sub-counts;
+- a fixed warning line: *"This proposal does not include the model layer. Applying
+  the whole proposal removes N Parameters/Registers and M resource-type tags from
+  your graph that the proposal doesn't carry. Undo reverts it."* (exact copy is
+  an implementation string; the three quantities above are mandatory).
+
+If **both** counts are `0` the report is omitted (the whole Apply still shows the
+ordinary non-`exact` confirmation). The counts are a **pure function** of the two
+v2 projections — deterministic, no engine, no ordering dependence. A **per-hunk
+Apply** never triggers this report: it cannot remove an element that has no
+selected hunk (§R2-INV-7).
 
 Restates `SEMANTICS-M.md §M8.2`. A `loop-workspace/1` file embeds the GraphDoc
 **verbatim**, so `parameter` / `register` / `resourceType` ride along with **no
@@ -376,27 +447,38 @@ semantic digest and the sim-snapshot / restore story is revisited.
 
 | # | invariant |
 |---|---|
-| **R2-INV-1** | The §R2-1 version predicate is purely syntactic (`data.kind` + normalised `resourceType` only), evaluated **per graph** and **per side** of a proposal, and its result is **inferred, never stored** in any header. |
-| **R2-INV-2** | Conservative extension: for any graph failing §R2-1, `canonicalContent` emits **byte-identical** output to the `loop-revision/1` projection, so `fullContentDigest` is identical under either reading. The §R2-4 golden vector proves it at test time. |
+| **R2-INV-1** | The §R2-1 version predicate is purely syntactic (`data.kind` + normalised `resourceType` only) and runs on the **normalised valid GraphDoc** (after `normalizeGraph()` + the `loop-model/1` defensive read), **never on raw JSON** and **never on a stored header**. It is evaluated **per graph** and **per side** of a proposal. A field removed during normalisation (e.g. an empty / over-cap `resourceType`) does not make a doc v2; a `parameter` / `register` that fails the §R2-1.1 structural gate makes the `project` payload `payload-invalid` **before** any v2 projection. |
+| **R2-INV-2** | Conservative extension: for any normalised graph failing §R2-1, `canonicalContent` emits **byte-identical** output to the `loop-revision/1` projection, so `fullContentDigest` is identical under either reading. The §R2-4 golden vector proves it at test time, and its v1 oracle digest is **pinned to the value the shipped `loop-revision/1` implementation produces** (R2-D2). |
 | **R2-INV-3** | Validation order: the projection is chosen **per side** by the predicate; a v1 side's stored digest is verified against the **v1** projection **before** the content is lifted into the common v2 model. Verifying a v1 side directly with the v2 digest is **forbidden**. |
 | **R2-INV-4** | An `advisory` field is full revision content — editing it flips `dirty`, mints a new `revisionId` on export, produces its own diff hunk, and its conflicts feed `nConf` — but it **never** sets `summary.engineAffecting`. |
 | **R2-INV-5** | Apply atomicity (`SEMANTICS-R.md` R-INV-8) holds regardless of the `engine` / `advisory` / `cosmetic` mix of what changed: one `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry, no file written. An advisory-only Apply is no exception. |
 | **R2-INV-6** | No version-mismatch "refuse" branch. The only apply-time refusal is the `§R7A.1` different-`projectId` gate. Every same-project v1 / v2 combination is compared under the single common v2 projection. |
-| **R2-INV-7** | A whole-proposal Apply that would drop a **target-only** model layer is permitted **only** behind the existing non-`exact` whole-apply confirmation (`§R7A.4`), which names the loss. A per-hunk Apply never adds, removes, or edits a target element that has no selected hunk. |
+| **R2-INV-7** | A whole-proposal Apply that would drop a **target-only** model layer is permitted **only** behind the non-`exact` whole-apply confirmation (`§R7A.4`), which MUST carry the computed **§R2-7.1 loss report** — `paramRegistersRemoved`, `resourceTypesRemoved` (removed + changed), and the fixed warning line. A per-hunk Apply never adds, removes, or edits a target element that has no selected hunk, and so never triggers the report. |
 | **R2-INV-8** | `loop-workspace/1` is not bumped: no `SimState` change, no restore-contract change; its §W3.1 digest, if projection-based, follows the §R2-1 predicate as an erratum. `loop-workspace/2` waits for a Parameter `value` to become an engine input. |
 | **R2-INV-9** | No malformed, unknown-kind, non-finite, or version-skewed `project` payload can prevent the graph (or a valid `workspace`) from importing (`SEMANTICS-R.md` R-INV-10 carried forward); such a payload is dropped with a warning and never Reviewed or Applied. |
+| **R2-INV-10** | **v2 → v1 results are allowed.** Apply never refuses on a version basis (R2-INV-6). The resulting revision's own version is **re-inferred from the result graph** (§R2-1) — a selective Apply that leaves the result with no model layer produces `loop-revision/1` content (its `fullContentDigest` computed under the v1 projection, identical by R2-INV-2); one that introduces or keeps a model layer produces v2 content. The result is a normal new revision either way (`SEMANTICS-R.md §R7.1`). |
+| **R2-INV-11** | An **unknown `data.kind`** (not a v1 kind, not `parameter` / `register`) is never projected, digested, or hunk-carried: the `project` reader degrades to **graph-only + warning** and the graph still loads. An **unknown `data` key** on a known kind is excluded from the canonical projection exactly as `SEMANTICS-R.md §R4.2` already excludes any unlisted key. |
 
 ---
 
-## R2-12. Open decisions (to close at freeze)
+## R2-12. Decisions — settled at freeze
 
-| # | question | leaning |
+Every item is **Decided** or **Deferred — out of `loop-revision/2`**. Nothing
+here is left as a leaning.
+
+| # | question | resolution |
 |---|---|---|
-| **R2-D1** | `summary` sub-count for advisory hunks — field name and shape | **Add `advisoryAffecting: bool`**; confirm the name (`advisoryAffecting` vs `advisoryOnly` vs a `{ advisory }` count) at freeze. No wire effect on the digest. |
-| **R2-D2** | golden-vector fixture location + drift-guard test path | **`examples/revision-v2/` + `test/revision-v2-fixture.test.ts`**, mirroring the `loop-revision/1` fixture. Confirm at freeze. |
-| **R2-D3** | an *"advisory changes only"* quick-select bucket in Review | **Deferred to the model-language implementation slice** — spec permits it; the applied result must still pass `validateResultGraph`. |
-| **R2-D4** | exact Review-UI wording when a whole Apply would replace a target-only model layer | **Deferred to implementation**; the confirmation MUST mention the Parameters / Registers / resource types that will be replaced. |
-| **R2-D5** | whether the `loop-workspace/1 §W3.1` projection-follows-predicate clarification ships as a standalone erratum note or folded into the `loop-revision/2` freeze | **Deferred**; no behavioural difference either way. |
+| **R2-D1** | `summary` sub-count for advisory hunks | **Decided.** `RevisionDiff.summary` gains **`advisoryAffecting: boolean`** — `true` iff any hunk is `advisory`-tagged. It is **separate from** `engineAffecting`: an advisory-only conflict feeds `nConf` (and can push the class to `divergent`) but **never** sets `engineAffecting`. No wire / digest effect — `summary` is a computed view, not projected content. |
+| **R2-D2** | golden-vector fixture location + the v1 oracle digest | **Decided.** Fixtures at **`examples/revision-v2/`** (`G0.json`, `G1.json`, `oracle.json`); drift-guard at **`test/revision-v2-fixture.test.ts`**, mirroring `test/revision-fixture.test.ts`. The `G0` oracle string **and** its `fullContentDigest` are **pinned to the values the shipped `loop-revision/1` implementation produces** for `G0` (captured once from that code path, not recomputed by the v2 projection); the test asserts the v2 projection reproduces them byte-for-byte (R2-INV-2). |
+| **R2-D3** | an *"advisory changes only"* quick-select bucket in Review | **Deferred — out of `loop-revision/2`.** The spec permits such a bucket; whether it ships with the model-language slice or later is an implementation/UX call. Any result it produces MUST still pass `validateResultGraph` and the §R2-6.4 atomicity rules. |
+| **R2-D4** | Review-UI copy for a whole Apply that replaces a target-only model layer | **Decided** (contract) **+ Deferred** (exact string). The confirmation MUST compute and show the **§R2-7.1 loss report** — `paramRegistersRemoved`, `resourceTypesRemoved` (removed + changed sub-counts), and a warning line stating the model layer is not in the proposal and will be removed. The precise wording of that line is an implementation string; the three quantities and the warning are mandatory. |
+| **R2-D5** | unknown future `NodeKind` / `data` field — preserve or reject; and where the §W3.1 clarification lands | **Decided.** *(a)* An **unknown `data.kind`** is **rejected as trusted revision content**: no projection is guessed, nothing is carried into a digest or a hunk, the `project` reader degrades to **graph-only + warning**, the graph still loads (R2-INV-11). *(b)* An **unknown `data` key** on a known kind is **silently excluded** from the canonical projection — identical to `SEMANTICS-R.md §R4.2`'s existing treatment of any unlisted key — so it never enters the digest or a diff, while `serialize()` still round-trips it in memory. *(c)* The `loop-workspace/1 §W3.1` "projection follows the §R2-1 predicate" clarification is published as a **standalone `loop-workspace/1` erratum note**, not folded into this spec; it has no behavioural effect either way. |
+
+**Also settled inline** (see the cited invariants): version inference reads
+**normalised content only, never a stored header** (R2-INV-1); **v2 → v1 Apply
+results are allowed** and the new revision's version is re-inferred from the
+**result graph** (R2-INV-10); an **advisory-only** conflict is in `nConf` but
+not `engineAffecting` (R2-INV-4, R2-D1).
 
 Every other rule in this document is a formalisation of `SEMANTICS-M.md §M8`
 (already fixed) and is **not** reopened here.
@@ -443,16 +525,31 @@ Every other rule in this document is a formalisation of `SEMANTICS-M.md §M8`
 11. **Conservative extension under Apply** — applying a v1 proposal to a v1
     target through the v2 code path yields the identical bytes / `revisionId`
     lineage as the `loop-revision/1` implementation (regression parity).
+12. **Structural gate** — a proposal whose `base.content` holds a `parameter`
+    with `value: {}` (or `expr: 42`) is rejected as **`payload-invalid`**
+    *before* any v2 projection; the graph still imports; no Review is offered.
+13. **Removed `resourceType` is not a version bump** — a v2 pool whose
+    `resourceType` is edited to `"   "` (whitespace) normalises to untyped; if
+    it was the graph's only model-layer marker the graph is now `loop-revision/1`
+    content and its `fullContentDigest` equals the v1-projection value.
+14. **Loss report** — a v1 proposal applied whole to a target with 2 Registers
+    and 3 typed elements surfaces `paramRegistersRemoved: 2`,
+    `resourceTypesRemoved` summing to 3, and the warning line, before any change.
+15. **v2 → v1 result** — selectively applying only a non-model hunk from a v2
+    proposal onto a v1 target yields `loop-revision/1` content; the new
+    revision's `fullContentDigest` is the v1-projection value and a later
+    `Make a proposal` from it produces a v1 `base`.
 
 ---
 
 ## R2-14. Order this feeds into
 
-1. `docs/visual-language.md` — Parameter / Register appearance (done).
+1. `docs/visual-language.md` — Parameter / Register appearance (**merged**,
+   PR #35).
 2. `loop-expr/1` + `loop-model/1` — **Frozen** (`SEMANTICS-X.md`,
    `SEMANTICS-M.md`).
-3. **This document — `loop-revision/2` Draft** (here). Freeze after §R2-12 is
-   closed.
+3. **This document — `loop-revision/2`** — **Frozen** (rev 2); merged via
+   PR #36.
 4. Verify the merge-commit CI for both pre-implementation PRs, then
    `chore/open-0.6.0-dev`.
 5. Implementation slices: **model language → Canvas Visual Refresh**. Scenario
