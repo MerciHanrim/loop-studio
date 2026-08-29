@@ -25,13 +25,16 @@ describe('web app manifest', () => {
     expect(PWA_BACKGROUND).toBe('#f0efea')
   })
 
-  it('has plain 192 + 512 "any" icons and one "maskable" icon', () => {
+  it('has exactly three independent icon entries: 192 any, 512 any, 512 maskable', () => {
+    expect(manifest.icons).toHaveLength(3)
     const any = manifest.icons.filter((i) => i.purpose === 'any')
     const maskable = manifest.icons.filter((i) => i.purpose === 'maskable')
     expect(any.map((i) => i.sizes).sort()).toEqual(['192x192', '512x512'])
     expect(maskable).toHaveLength(1)
     expect(maskable[0].sizes).toBe('512x512')
     for (const i of manifest.icons) expect(i.type).toBe('image/png')
+    // the 192 is its own entry even though it may be a downscale of the 512
+    expect(any.find((i) => i.sizes === '192x192')?.src).toBe('icons/icon-192.png')
   })
 
   it('the maskable icon is a DIFFERENT file from the plain 512 (not just a purpose flag)', () => {
