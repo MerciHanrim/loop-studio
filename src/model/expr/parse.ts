@@ -15,6 +15,16 @@ import { type Token, tokenize } from './tokenize'
 
 export type ParseResult = { ok: true; ast: ExprNode } | { ok: false; error: ExprParseError }
 
+/**
+ * Grammar-nesting guard. §X sets no numeric cap on an expression, but the
+ * recursive-descent parser (and the AST walk in `evaluate`) must not overflow
+ * the call stack on a pathological input. Real Register expressions nest a
+ * handful deep; this limit is orders of magnitude above any legitimate use, so
+ * hitting it means a hand-crafted/hostile string, reported as an ordinary §X7
+ * parse error (`EXPR_SYNTAX`) with a column — never a thrown `RangeError`.
+ */
+export const MAX_EXPR_DEPTH = 1000
+
 class ParseAbort {
   readonly error: ExprParseError
   constructor(error: ExprParseError) {
@@ -37,13 +47,30 @@ export function parse(src: string): ParseResult {
     throw new ParseAbort(err)
   }
 
+  let depth = 0
+  const descend = <T>(at: number, fn: () => T): T => {
+    if (++depth > MAX_EXPR_DEPTH) {
+      abort(parseError('EXPR_SYNTAX', at, `expression nested too deeply at column ${at}`))
+    }
+    try {
+      return fn()
+    } finally {
+      depth--
+    }
+  }
+
   const parseExpr = (): ExprNode => parseAdd()
 
+  // A left-assoc chain builds a left-leaning spine that `evaluate` / the
+  // canonical printer later walk recursively; cap its length with the same
+  // guard so a 100k-long `@a + @a + …` cannot overflow those walks.
   const parseAdd = (): ExprNode => {
     let left = parseMul()
+    let run = 0
     for (;;) {
       const t = peek()
       if (t.type === 'op' && (t.op === '+' || t.op === '-')) {
+        if (++run > MAX_EXPR_DEPTH) abort(parseError('EXPR_SYNTAX', t.col, `expression nested too deeply at column ${t.col}`))
         advance()
         const right = parseMul()
         left = bin(t.op, left, right)
@@ -54,9 +81,11 @@ export function parse(src: string): ParseResult {
 
   const parseMul = (): ExprNode => {
     let left = parseUnary()
+    let run = 0
     for (;;) {
       const t = peek()
       if (t.type === 'op' && (t.op === '*' || t.op === '/')) {
+        if (++run > MAX_EXPR_DEPTH) abort(parseError('EXPR_SYNTAX', t.col, `expression nested too deeply at column ${t.col}`))
         advance()
         const right = parseUnary()
         left = bin(t.op, left, right)
@@ -69,7 +98,7 @@ export function parse(src: string): ParseResult {
     const t = peek()
     if (t.type === 'op' && t.op === '-') {
       advance()
-      return neg(parseUnary())
+      return neg(descend(t.col, parseUnary))
     }
     return parsePrimary()
   }
@@ -86,7 +115,7 @@ export function parse(src: string): ParseResult {
     }
     if (t.type === 'lparen') {
       const open = advance()
-      const inner = parseExpr()
+      const inner = descend(open.col, parseExpr)
       const close = peek()
       if (close.type !== 'rparen') {
         abort(parseError('EXPR_UNCLOSED_PAREN', open.col))

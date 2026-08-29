@@ -6,6 +6,11 @@
 // wrong-kind, is `invalid` and skipped; Registers depending on it cascade to
 // `invalid` (`depends-on-invalid`). Deterministic — independent Registers are
 // order-independent (pure eval, §X6), so `R(k)` is a function of `S(k)`.
+//
+// The topological pass is an iterative Kahn sort, so an arbitrarily long
+// acyclic Register chain never recurses. Only the (normally tiny) set of
+// Registers that fail to sort — those on / downstream of a cycle — is walked
+// with a depth-guarded DFS.
 
 import { type ExprNode, evaluate, parse, refsOf } from '../expr'
 
@@ -36,6 +41,11 @@ export type RegisterSnapshotView = {
   paramValue: (id: string) => number
 }
 
+/** Guard for the DFS over the un-sortable (cyclic) sub-graph — far above any
+ *  legitimate tangle; hitting it just means everything still unresolved is
+ *  reported `M_REG_CYCLE` rather than overflowing the stack. */
+const MAX_CYCLE_DFS_DEPTH = 5000
+
 const hasControlChar = (id: string): boolean => {
   for (let i = 0; i < id.length; i++) {
     const c = id.charCodeAt(i)
@@ -45,49 +55,8 @@ const hasControlChar = (id: string): boolean => {
 }
 
 type Prepared =
-  | { id: string; kind: 'ok'; ast: ExprNode; deps: string[] }
-  | { id: string; kind: 'parse-failed'; code: 'M_REG_PARSE'; detail: string }
-
-/** Tarjan SCC — returns the set of Register ids that sit on a dependency cycle
- *  (an SCC of size > 1, or a self-referential singleton). */
-function registersOnCycle(ids: string[], depsOf: Map<string, string[]>): Set<string> {
-  const index = new Map<string, number>()
-  const low = new Map<string, number>()
-  const onStack = new Set<string>()
-  const stack: string[] = []
-  const onCycle = new Set<string>()
-  let counter = 0
-
-  const strongconnect = (v: string): void => {
-    index.set(v, counter)
-    low.set(v, counter)
-    counter++
-    stack.push(v)
-    onStack.add(v)
-    for (const w of depsOf.get(v) ?? []) {
-      if (!index.has(w)) {
-        strongconnect(w)
-        low.set(v, Math.min(low.get(v)!, low.get(w)!))
-      } else if (onStack.has(w)) {
-        low.set(v, Math.min(low.get(v)!, index.get(w)!))
-      }
-    }
-    if (low.get(v) === index.get(v)) {
-      const comp: string[] = []
-      for (;;) {
-        const w = stack.pop()!
-        onStack.delete(w)
-        comp.push(w)
-        if (w === v) break
-      }
-      const selfLoop = comp.length === 1 && (depsOf.get(comp[0]) ?? []).includes(comp[0])
-      if (comp.length > 1 || selfLoop) for (const w of comp) onCycle.add(w)
-    }
-  }
-
-  for (const id of ids) if (!index.has(id)) strongconnect(id)
-  return onCycle
-}
+  | { kind: 'ok'; ast: ExprNode; deps: string[]; selfRef: boolean }
+  | { kind: 'parse-failed'; detail: string }
 
 class RefFail {
   readonly code: MRegCode
@@ -103,52 +72,38 @@ export function evaluateRegisters(view: RegisterSnapshotView): Map<string, Regis
   const idSet = new Set(ids)
   const result = new Map<string, RegisterOutcome>()
 
-  // 1. parse each expr; collect Register→Register deps
+  // 1. parse each expr; collect Register→Register deps + reverse edges
   const prepared = new Map<string, Prepared>()
-  const depsOf = new Map<string, string[]>()
+  const deps = new Map<string, string[]>() // id → registers it depends on (unique, excl. self)
+  const dependents = new Map<string, string[]>() // id → registers that depend on it
+  for (const id of ids) dependents.set(id, [])
+
   for (const r of view.registers) {
     const p = parse(r.expr)
     if (!p.ok) {
-      prepared.set(r.id, { id: r.id, kind: 'parse-failed', code: 'M_REG_PARSE', detail: p.error.code })
-      depsOf.set(r.id, [])
+      prepared.set(r.id, { kind: 'parse-failed', detail: p.error.code })
+      deps.set(r.id, [])
       continue
     }
-    const deps = refsOf(p.ast).filter((t) => idSet.has(t) && t !== r.id)
-    // a self-reference is still a cycle
-    const selfDep = refsOf(p.ast).includes(r.id)
-    prepared.set(r.id, { id: r.id, kind: 'ok', ast: p.ast, deps })
-    depsOf.set(r.id, selfDep ? [...deps, r.id] : deps)
+    const refs = refsOf(p.ast)
+    const selfRef = refs.includes(r.id)
+    const regDeps = [...new Set(refs.filter((t) => idSet.has(t) && t !== r.id))]
+    prepared.set(r.id, { kind: 'ok', ast: p.ast, deps: regDeps, selfRef })
+    deps.set(r.id, regDeps)
+    for (const d of regDeps) dependents.get(d)!.push(r.id)
   }
 
-  // 2. cycle detection
-  const onCycle = registersOnCycle(ids, depsOf)
-
-  // 3. evaluate in dependency order (memoised DFS; cycle nodes short-circuit)
-  const evaluating = new Set<string>()
-  const compute = (id: string): RegisterOutcome => {
-    const cached = result.get(id)
-    if (cached) return cached
-
-    if (onCycle.has(id)) {
-      const out: RegisterOutcome = { invalid: true, code: 'M_REG_CYCLE' }
-      result.set(id, out)
-      return out
-    }
-
+  // 2. resolve one register whose register-deps are all already in `result`
+  const evalOne = (id: string): RegisterOutcome => {
     const prep = prepared.get(id)!
     if (prep.kind === 'parse-failed') {
-      const out: RegisterOutcome = { invalid: true, code: 'M_REG_PARSE', detail: prep.detail }
-      result.set(id, out)
-      return out
+      return { invalid: true, code: 'M_REG_PARSE', detail: prep.detail }
     }
-
-    evaluating.add(id)
-    let out: RegisterOutcome
+    if (prep.selfRef) return { invalid: true, code: 'M_REG_CYCLE' } // a self-ref is a cycle
     try {
       const ev = evaluate(prep.ast, (refId) => {
         if (hasControlChar(refId)) throw new RefFail('M_REG_INVALID_ID', refId)
-        const kind = view.refKind(refId)
-        switch (kind) {
+        switch (view.refKind(refId)) {
           case 'missing':
             throw new RefFail('M_REG_UNKNOWN_REF', refId)
           case 'other':
@@ -158,40 +113,114 @@ export function evaluateRegisters(view: RegisterSnapshotView): Map<string, Regis
           case 'parameter':
             return { ok: true, value: view.paramValue(refId) }
           case 'register': {
-            const dep = compute(refId)
-            if (dep.invalid) throw new RefFail('M_REG_DEPENDS_ON_INVALID', refId)
+            const dep = result.get(refId)
+            if (!dep || dep.invalid) throw new RefFail('M_REG_DEPENDS_ON_INVALID', refId)
             return { ok: true, value: dep.value }
           }
         }
       })
-      if (ev.ok) {
-        out = { invalid: false, value: ev.value }
-      } else if (ev.error.class === 'evaluate') {
-        out = { invalid: true, code: 'M_REG_EVAL', detail: ev.error.code }
-      } else {
-        // a resolve error we surfaced from the resolver: map the loop-expr code
-        out =
-          ev.error.code === 'REF_UNKNOWN'
-            ? { invalid: true, code: 'M_REG_UNKNOWN_REF' }
-            : ev.error.code === 'REF_WRONG_KIND'
-              ? { invalid: true, code: 'M_REG_WRONG_KIND' }
-              : ev.error.code === 'REF_INVALID_ID'
-                ? { invalid: true, code: 'M_REG_INVALID_ID' }
-                : { invalid: true, code: 'M_REG_EVAL', detail: ev.error.code }
-      }
+      if (ev.ok) return { invalid: false, value: ev.value }
+      if (ev.error.class === 'evaluate') return { invalid: true, code: 'M_REG_EVAL', detail: ev.error.code }
+      return ev.error.code === 'REF_UNKNOWN'
+        ? { invalid: true, code: 'M_REG_UNKNOWN_REF' }
+        : ev.error.code === 'REF_WRONG_KIND'
+          ? { invalid: true, code: 'M_REG_WRONG_KIND' }
+          : ev.error.code === 'REF_INVALID_ID'
+            ? { invalid: true, code: 'M_REG_INVALID_ID' }
+            : { invalid: true, code: 'M_REG_EVAL', detail: ev.error.code }
     } catch (e) {
-      if (e instanceof RefFail) {
-        out = { invalid: true, code: e.code, detail: e.detail }
-      } else {
-        throw e
-      }
-    } finally {
-      evaluating.delete(id)
+      if (e instanceof RefFail) return { invalid: true, code: e.code, detail: e.detail }
+      throw e
     }
-    result.set(id, out)
-    return out
   }
 
-  for (const id of ids) compute(id)
+  const isSelfRef = (id: string): boolean => {
+    const p = prepared.get(id)!
+    return p.kind === 'ok' && p.selfRef
+  }
+
+  // 3. iterative Kahn topological pass — no recursion for the acyclic majority.
+  //    A self-referential Register is never enqueued (it is a cycle, step 4).
+  const pending = new Map<string, number>() // id → count of register-deps not yet resolved
+  const queue: string[] = []
+  for (const id of ids) {
+    const n = deps.get(id)!.length
+    pending.set(id, n)
+    if (n === 0 && !isSelfRef(id)) queue.push(id)
+  }
+  let qi = 0
+  while (qi < queue.length) {
+    const id = queue[qi++]
+    result.set(id, evalOne(id))
+    for (const dep of dependents.get(id)!) {
+      if (result.has(dep)) continue
+      const left = pending.get(dep)! - 1
+      pending.set(dep, left)
+      if (left === 0 && !isSelfRef(dep)) queue.push(dep)
+    }
+  }
+
+  // 4. whatever is left is on, or downstream of, a cycle. Classify with a
+  //    depth-guarded DFS over just this sub-graph (tiny in practice).
+  const unresolved = ids.filter((id) => !result.has(id))
+  if (unresolved.length > 0) {
+    const onCycle = cycleMembers(unresolved, deps)
+    for (const id of unresolved) if (isSelfRef(id)) onCycle.add(id)
+    for (const id of unresolved) {
+      result.set(id, {
+        invalid: true,
+        code: onCycle.has(id) ? 'M_REG_CYCLE' : 'M_REG_DEPENDS_ON_INVALID',
+      })
+    }
+  }
+
   return result
+}
+
+/**
+ * Return the ids in `nodes` that lie on a dependency cycle (a non-trivial SCC,
+ * or a self-loop). Iterative-friendly recursion capped at MAX_CYCLE_DFS_DEPTH —
+ * beyond that every still-unclassified node is treated as on a cycle.
+ */
+function cycleMembers(nodes: string[], deps: Map<string, string[]>): Set<string> {
+  const set = new Set(nodes)
+  const onCycle = new Set<string>()
+  // colour: 0 = unseen, 1 = on the current DFS path, 2 = done
+  const colour = new Map<string, number>()
+  for (const n of nodes) colour.set(n, 0)
+
+  for (const root of nodes) {
+    if (colour.get(root) !== 0) continue
+    // explicit stack of { node, iterator index into its deps }
+    const stack: { id: string; i: number }[] = [{ id: root, i: 0 }]
+    colour.set(root, 1)
+    while (stack.length > 0) {
+      if (stack.length > MAX_CYCLE_DFS_DEPTH) {
+        for (const f of stack) onCycle.add(f.id)
+        stack.length = 0
+        break
+      }
+      const frame = stack[stack.length - 1]
+      const edges = (deps.get(frame.id) ?? []).filter((d) => set.has(d))
+      if (frame.i < edges.length) {
+        const w = edges[frame.i++]
+        const c = colour.get(w) ?? 2
+        if (c === 1) {
+          // back-edge → every node from `w` up the stack is on the cycle
+          let mark = false
+          for (const f of stack) {
+            if (f.id === w) mark = true
+            if (mark) onCycle.add(f.id)
+          }
+        } else if (c === 0) {
+          colour.set(w, 1)
+          stack.push({ id: w, i: 0 })
+        }
+      } else {
+        colour.set(frame.id, 2)
+        stack.pop()
+      }
+    }
+  }
+  return onCycle
 }
