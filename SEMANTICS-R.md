@@ -2,7 +2,7 @@
 
 ```
 Spec ID: loop-revision/1
-Status:  Draft — for review (rev 2)
+Status:  Draft — for review (rev 3)
 ```
 
 **Draft (2026-08-29).** Not yet frozen. Once the §R12 decisions are settled and
@@ -62,7 +62,10 @@ a file, exactly like Workspace / Share today).
 path; a Project file **is** a valid Workspace file **is** a valid Graph file.
 Graph schema stays `version: 1`; `workspace` and `project` are additive,
 optional top-level keys; an older build ignores an unknown top-level key.
-`localStorage` still persists the **graph only** — never the project lineage.
+`loop-workspace/1` is untouched: autosave still never persists the `workspace`
+payload. Autosave **does** now also persist the small `project` **header** —
+`projectId` / `revisionId` / `parentId` / `role` / `lineage` / `meta`, never
+`base.content` — so a reload stays on the open revision (§R2.1).
 
 ---
 
@@ -135,14 +138,6 @@ A `revisionId` names **one exact content state** within a project. It is
 - **`dirty`** = `fullContentDigest(current graph) !== baselineDigest`. It is a
   pure function of content, recomputed (debounced) on edit. Selection, viewport,
   run state, undo depth never affect it.
-- **`Export → Project revision`:**
-  - **not dirty** → re-write the *same* revision: the file keeps the **same
-    `revisionId`** and the **same `parentId`**. Re-exporting an unchanged
-    revision reproduces the same revision identity (idempotent).
-  - **dirty** → mint a **new `revisionId`** (§R11 id rules); set `parentId` to
-    the *baseline* `revisionId`; `role: "revision"`; rebuild `lineage` as
-    `[parentId, ...oldLineage].slice(0, LINEAGE_MAX)`; this becomes the new
-    baseline (`baselineDigest` recomputed, `dirty` clears).
 - **`revisionId` is opaque and random**, not a content hash — two independently
   authored revisions with byte-identical content still have different ids (they
   are on different branches). Equality of `revisionId` therefore means "the same
@@ -150,6 +145,43 @@ A `revisionId` names **one exact content state** within a project. It is
   when `contentDigest` agrees (§R7A.2 case `exact`).
 - Ordering is by **`parentId` pointers only** — `createdAt` and any counter are
   display-only.
+
+### R2.1 `Export → Project revision` and the session baseline
+
+The Export runs the payload build, `canonicalContent`, `serialize`, the
+`REVISION_FILE_MAX_BYTES` measure, and (when a new id is needed) id minting. It
+**commits only if every one of those succeeds**:
+
+- **Session was not dirty** → write the file with the **current**
+  `revisionId` / `parentId` / `lineage`; the session baseline is unchanged.
+  A second consecutive `Export → Project revision` with no edits in between
+  produces a **byte-identical** file (same ids, same digest).
+- **Session was dirty** → mint **one** new `revisionId` (§R11); `parentId` =
+  the pre-export baseline `revisionId`; `role: "revision"`; `lineage` =
+  `[parentId, ...oldLineage].slice(0, LINEAGE_MAX)`; write the file; **then
+  update the session baseline in one step** to
+  `{ revisionId: <new>, parentId, baselineDigest = fullContentDigest(current
+  graph), lineage, meta }`. `dirty` is now `false`.
+  - A subsequent `Export → Project revision` with **no further edits** now takes
+    the "not dirty" path and reproduces the **same `revisionId` and digest** —
+    two dirty exports in a row cannot yield two different new revisions for one
+    unchanged content state.
+- The baseline update is **not** a graph-content change and **not** a normal
+  undo entry — undo/redo never moves the `revisionId` (it moves content, which
+  then re-derives `dirty` against the unchanged baseline).
+- Autosave (`localStorage`) stores the graph **plus the lightweight project
+  header** — `projectId`, `revisionId`, `parentId`, `role`, `lineage`, `meta`
+  — so a reload keeps the session on the same revision. It **never** autosaves
+  `base.content` or `workspace`. On the dirty path the autosaved header is
+  updated to the new revision together with the baseline.
+- **`Make a proposal` never touches the origin session** — no baseline,
+  `revisionId`, `parentId`, `role`, or `dirty` change; it only reads the
+  current graph to build the proposal file.
+
+**On any failure — the user cancels, `serialize` throws, the file exceeds
+`REVISION_FILE_MAX_BYTES`, or secure RNG is unavailable — nothing changes: no
+file is written, no id is minted, the session baseline / autosaved header /
+`dirty` flag are exactly as before.**
 
 ---
 
@@ -182,10 +214,20 @@ Operate on the graph after the existing `normalizeGraph()` pass
 (`src/model/serialize.ts` — fills kind defaults into node `data`, backfills
 blank edge handles to `out` / `in` / `state-*`, backfills edge `data`). Then:
 
-- **Numbers** — every number must be **finite**. `-0` → `0`. An integer-valued
-  float (`10.0`) → `10`. A non-finite number anywhere in the projected content
-  makes the content **invalid for revision purposes** (on import: drop `project`
-  + warn; on export it cannot occur — the editor never produces one).
+- **Numbers** — every number must be **finite**, and is kept **exactly as its
+  JavaScript `Number`**; the only normalisation is `-0 → 0`. Coordinates and
+  every other numeric field carry their full precision into the digest and into
+  `base.content` (`String(n)` after the `-0` fix — `10.0` and `10` are already
+  the same `Number` in JS, so they emit identically without a rounding rule). A
+  non-finite number anywhere in the projected content makes the content
+  **invalid for revision purposes** (on import: drop `project` + warn; on export
+  it cannot occur — the editor never produces one).
+  - **No rounding.** `position` is preserved to the pixel-fraction, so a
+    sub-pixel move is a real content change (it makes the session `dirty`, it
+    shows in the diff, and Apply restores the exact coordinate). A UI that wants
+    to *hide* trivial position deltas does so with a **display-only tolerance**
+    in the diff view — it must never round the value that feeds the digest or
+    `base.content`.
 - **Strings** — compared and hashed as their exact UTF-8 bytes. No case,
   Unicode-normalisation, or whitespace folding.
 - **Missing vs explicit** — an optional field absent and the same field present
@@ -205,7 +247,7 @@ canonicalContent(doc) = {
 
 node(n) = {
   "id":       n.id,
-  "position": { "x": round(n.position.x), "y": round(n.position.y) },   // Math.round → integers
+  "position": { "x": norm(n.position.x), "y": norm(n.position.y) },   // finite as-is; only -0 → 0. NO rounding.
   "data":     pick(normalizedNodeData(n), FIELDS_BY_KIND[n.data.kind])  // keys emitted in the fixed order below
 }
 
@@ -409,24 +451,57 @@ confirmation.
 - **No open project** (target anonymous) → cannot apply; offer only *"open the
   proposal as a document"* (§R10.5) or **Cancel**.
 
-### R7A.2 Classify the target against the proposal (only provable cases)
+### R7A.2 Classify the target against the proposal (provable cases only)
 
-Using only what the two files contain — `target.revisionId`, `target.parentId`,
-`target.lineage[]`, `proposal.base.revisionId`, the two digests, and
-`proposal.base.content`:
+Inputs — **only** these, all file-contained: `target.revisionId`,
+`target.parentId` (from the target's own `project`), `proposal.base.revisionId`,
+`fullContentDigest(target)`, `proposal.base.contentDigest`, and the three-way
+conflict count from §R7A.3 (`nConf`, computed from `proposal.base.content` +
+target + proposed). **`lineage[]` is display-only advisory and is *not* an input
+to classification** — a bounded, possibly-truncated ancestor list cannot prove
+an indirect relationship.
 
-| # | class | condition |
+Evaluate top to bottom; the four classes are **mutually exclusive** (proof
+below):
+
+| # | class | condition (all must hold) |
 |---|---|---|
-| **exact** | `target.revisionId === proposal.base.revisionId` **and** `fullContentDigest(target) === proposal.base.contentDigest` | the target *is* the base, content-verified |
-| **direct fast-forward** | not `exact`, **and** `proposal.base.revisionId === target.parentId` (a parent link **contained in the target file**), **and** the three-way check (§R7A.3, using `proposal.base.content`) yields **zero conflicts** | the target is exactly one saved revision ahead of the base, on the same line, with no overlap |
-| **divergent** | not `exact` / `direct fast-forward`, **and** `proposal.base.revisionId` appears in `target.lineage[]` **or** the three-way check yields conflicts | related but the two lines have diverged |
-| **unknown ancestry** | `proposal.base.revisionId` is **not** `target.revisionId`, **not** `target.parentId`, **and not** in the (bounded, advisory) `target.lineage[]` | the relationship cannot be proved from the files |
+| **exact** | `target.revisionId === proposal.base.revisionId` **and** `fullContentDigest(target) === proposal.base.contentDigest` |
+| **direct fast-forward** | *not* `exact`; **and** `proposal.base.revisionId === target.parentId`; **and** `nConf === 0` |
+| **divergent** | same `projectId`; *not* `exact` / `direct fast-forward`; **and** `nConf ≥ 1` |
+| **unknown ancestry** | same `projectId`; *not* `exact` / `direct fast-forward`; **and** `nConf === 0` (related content, but no file-contained proof that `proposal.base.revisionId` is `target.revisionId` or `target.parentId`) |
 
-`unknown ancestry` is **never** treated as `direct fast-forward`. `lineage[]`
-may *only* move a case from `unknown` toward `divergent` (i.e. confirm a
-relationship exists); it can never license a permissive (`exact` /
-`fast-forward`) outcome on its own — those require `revisionId` + `parentId` +
-digest / three-way facts.
+**Meaning / handling**
+
+- **exact** — the target *is* the base, content-verified. Whole-proposal apply
+  is a clean replace, **no confirmation** (§R7A.4).
+- **direct fast-forward** — a *distinct, provable* case: the target is exactly
+  **one** saved revision past the proposal's base (`target.parentId` is the
+  base — a fact in the target file, not inferred), **and** nothing the target
+  changed since then overlaps the proposal. Per-hunk "apply all" lands with
+  **no confirmation** (a genuine fast-forward); a *whole-proposal* apply still
+  confirms (it would also drop the target's one-revision-ahead edits).
+- **divergent** — same project, the two lines changed overlapping regions →
+  **confirmation** + manual per-hunk conflict resolution (§R7A.3 / §R7A.4).
+- **unknown ancestry** — same project, no conflicting hunks, but the files do
+  not prove how the two revisions relate. Handled **like `divergent`**
+  (confirmation required); per-hunk "apply all" is possible since `nConf === 0`,
+  but only behind the confirmation, whose message says the relationship is
+  unproven.
+
+**Non-overlap** — `exact` needs `target.revisionId === base.revisionId`;
+`direct fast-forward` needs `target.parentId === base.revisionId` and *not*
+`exact`, and a revision's `revisionId` is never its own `parentId` (§R11 — a
+non-root `parentId` points to a different prior revision, a root's is `null`),
+so `exact` ∩ `direct fast-forward` = ∅. `divergent` needs `nConf ≥ 1`;
+`direct fast-forward` and `unknown` need `nConf === 0`. `direct fast-forward`
+needs the `target.parentId === base.revisionId` proof; `unknown` is exactly its
+absence. The four are disjoint and total (given the §R7A.1 same-project gate).
+
+*(If a reviewer prefers fewer branches: dropping `direct fast-forward` and
+folding it into `unknown` — i.e. every non-`exact` apply requires a
+confirmation — is a valid simplification; its only cost is one extra click in
+the clean one-revision-ahead case. See §R12 D10.)*
 
 ### R7A.3 Three-way per-hunk check
 
@@ -497,13 +572,14 @@ proposal** or **keep mine** for each, or skips. **Nothing is auto-resolved.**
 |---|---|
 | **R-INV-1** | A file with no `project` key behaves exactly as a `loop-workspace/1` / Graph file does today. Stripping `project` yields exactly what `Export(Workspace)` / `Export(Graph)` would have written. |
 | **R-INV-2** | A `revisionId` names one exact content state: it is kept on re-export **only** while `fullContentDigest` is unchanged; any content change mints a new `revisionId` with `parentId` = the prior one. |
+| **R-INV-2a** | A **successful** `Export → Project revision` commits its `{ revisionId, parentId, baselineDigest, lineage }` to the session **and** the autosaved project header, atomically, as a non-content non-undo update; so an immediate unchanged re-export reproduces the same id and bytes. **Any** failure (cancel, `serialize`, `REVISION_FILE_MAX_BYTES`, secure RNG) writes no file, mints no id, and leaves the session baseline / autosaved header / `dirty` exactly as before. `Make a proposal` changes none of them. |
 | **R-INV-3** | `projectId` is stable across the whole lineage — every revision and proposal carries it byte-for-byte; promote mints it once; Apply and Export never change it. |
 | **R-INV-4** | The canonical revision projection (§R4.2) and `canonicalJson` (§R4.3) are fixed: the same graph always yields the same `fullContentDigest`; element order and whitespace in a source file never change it. |
 | **R-INV-5** | A proposal file always carries a complete `base.content` (§R6); the three-way diff and per-hunk apply are computable from the proposal file + the open document alone, with no external history. |
 | **R-INV-6** | `base.contentDigest === SHA-256(canonicalJson(base.content))`; a mismatch makes the `project` payload corrupt (graph still loads). |
 | **R-INV-7** | Apply always produces a **new** revision: fresh `revisionId`, `parentId` = the pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`. The proposal's `revisionId` / author is never adopted as the result's identity / verified author. This holds for `exact` and `divergent` alike; only `divergent` / `unknown` add a confirmation. |
 | **R-INV-8** | Apply is atomic: one `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry; it writes no file and mutates neither the proposal nor the base file. |
-| **R-INV-9** | Classification uses only file-contained, provable facts (`revisionId`, `parentId`, digests, `base.content`); `unknown ancestry` is never inferred as fast-forward; `lineage[]` never licenses a permissive outcome alone. |
+| **R-INV-9** | Classification uses only file-contained, provable facts — `target.revisionId`, `target.parentId`, the two digests, and the three-way conflict count; **`lineage[]` is not an input**. The four classes are mutually exclusive; `unknown ancestry` is never inferred as `direct fast-forward`. |
 | **R-INV-10** | No `project` payload — malformed, wrong version, wrong project, digest-inconsistent, or partially corrupt — can prevent the graph (and a valid `workspace`) from importing. |
 | **R-INV-11** | Opening a proposal for Review does not change the open document; **Cancel** and any validation failure leave the graph, run state, undo history, and `projectStore` untouched. |
 | **R-INV-12** | Secure randomness is required to mint an id; if `crypto.getRandomValues` is unavailable or throws, `Export → Project revision` / `Make a proposal` **abort** with a message — `Math.random()` is never a fallback. |
@@ -578,13 +654,13 @@ in `loop-revision/2`.
 | **D1** | Container | a nested **`project`** key (additive, optional). A Project file is a valid Workspace / Graph file. |
 | **D2** | Spec id | **`loop-revision/1`**. |
 | **D3** | Project identity | one opaque crypto-random `projectId`, minted on promote, stable for the lineage; `projectId` equality is the *only* identity test. |
-| **D4** | Revision identity & dirty | `revisionId` names one content state; kept on unchanged re-export, a **new** id (with `parentId` = prior) only when `fullContentDigest` changed; `dirty` is a pure content function. |
-| **D5** | Canonical projection | **defined in §R4**, distinct from `loop-workspace/1`'s semantic digest: includes `label` + `position` + `recommendedRunConfig`; excludes `workspace` / `project` / `meta` / selection / UI transient; fixed field order, id-sorted arrays, finite-number + missing-field normalisation; **only** SHA-256 tooling is reused from W3.1. |
+| **D4** | Revision identity, dirty & the session baseline | `revisionId` names one content state; a **successful** `Export → Project revision` commits the new `{ revisionId, parentId, baselineDigest, lineage }` to the session **and** the autosaved project header (a non-content, non-undo update); an unchanged re-export reproduces the **same id + bytes**; any failure (cancel / serialize / size / RNG) leaves baseline + file untouched; `Make a proposal` never changes the origin session (§R2.1). `dirty` is a pure `fullContentDigest` comparison. |
+| **D5** | Canonical projection | **defined in §R4**, distinct from `loop-workspace/1`'s semantic digest: includes `label` + **full-precision `position`** + `recommendedRunConfig`; excludes `workspace` / `project` / `meta` / selection / UI transient; fixed field order, id-sorted arrays, **finite numbers kept exactly (`-0 → 0` only — NO rounding)**, missing-vs-default normalised to the default; **only** SHA-256 tooling is reused from W3.1. A UI may hide trivial position deltas with a display tolerance, never by rounding the digest input. |
 | **D6** | Proposal carries the base | `project.base` includes a complete **`content`** snapshot (the canonical projection of the base) plus its digest, so three-way diff and per-hunk apply are fully offline-computable. |
 | **D7** | Apply granularity | **both** whole-proposal and per-hunk selective apply are part of `loop-revision/1` — the file contract (D6) is complete for both from freeze. Implementation may ship whole-apply first; the wire format does not change. |
 | **D8** | Apply result | always a **new** revision: fresh `revisionId`, `parentId` = pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`; the proposal's id/author never adopted. Same for `exact` and `divergent`; only `divergent` / `unknown` add a confirmation. |
 | **D9** | Apply scope & atomicity | structural graph + `recommendedRunConfig` (run/sim/workspace **not** applied; opt-in copies only the run config); one `loadDoc`, one `simulationRev` bump, paused/step 0, one undo entry; writes no file. |
-| **D10** | Classification | only provable cases: `exact` (revisionId + digest), `direct fast-forward` (file-contained parent link + zero three-way conflicts), `divergent` (related, lines diverged), `unknown ancestry` (relationship unprovable). `unknown` is never inferred as fast-forward; `lineage[]` is advisory and never licenses a permissive outcome alone. |
+| **D10** | Classification (§R7A.2 has the ID/digest/`nConf` table + a disjointness proof) | four **mutually-exclusive** classes from file-contained facts only — `exact` (`target.revisionId === base.revisionId` **and** digests equal), `direct fast-forward` (not exact; `target.parentId === base.revisionId`; `nConf === 0`), `divergent` (same project; not exact/ff; `nConf ≥ 1`), `unknown ancestry` (same project; not exact/ff; `nConf === 0`; no parent proof). `lineage[]` is **not** a classification input. `unknown` is handled like `divergent`. **Open question:** keep `direct fast-forward` (one fewer confirmation in the provable one-ahead case) or drop it and confirm every non-`exact` apply (simpler). |
 | **D11** | Conflict model | no 3-way merge / rebase; per-hunk conflicts show `base` / `proposed` / `yours`, resolved by explicit per-item choice; whole-apply on a non-exact base needs explicit consent. |
 | **D12** | Author trust | `meta.*` unverified, display-only, UI-labelled "claimed, not verified"; no logic depends on them; `author.name` from a device-local setting, disclosed once to travel in exported files; byte-capped. |
 | **D13** | Import vs Apply | Import routes (§R10) and never changes the open doc except opening a revision or an explicit "open as a document"; Review is non-destructive; Apply is the only mutation and it is atomic; Cancel / validation failure = zero change. |
@@ -635,10 +711,26 @@ in `loop-revision/2`.
    byte-identical `revisionId` + `parentId`**; edit, export ⇒ same `projectId`,
    **new** `revisionId`, `parentId` = the first; `dirty` is true between the
    edit and the export, false after.
+2a. **Dirty export → unchanged re-export is stable** — make an edit (`dirty`),
+    `Export → Project revision` (⇒ new `revisionId` R₁, baseline + autosaved
+    header updated), then **immediately re-export with no edit** ⇒ the file's
+    `revisionId` is **still R₁**, `parentId` unchanged, and the two exported
+    files are **byte-identical**. Two dirty exports in a row never produce two
+    different revisions for one content state. Then: cancel a third export, and
+    stub `serialize` / the size check / `crypto.getRandomValues` to fail on a
+    fourth ⇒ each failure leaves the baseline, the autosaved header, `dirty`,
+    and (no) file exactly as before. Undo across the edit moves content only —
+    `revisionId` does not change; `dirty` re-derives from the baseline.
+2b. **`Make a proposal` does not disturb the origin** — from a clean revision,
+    `Make a proposal` ⇒ the session's `revisionId` / `parentId` / `role` /
+    `baselineDigest` / `dirty` are unchanged; the autosaved header is unchanged.
 3. **Canonical digest — normalisation** — two files for the same graph that
    differ only in node/edge array order, key order, `"capacity": null` vs
    omitted, `10` vs `10.0`, and whitespace ⇒ **equal** `fullContentDigest` and
-   an **empty** diff.
+   an **empty** diff. A **sub-pixel** node move (`x += 0.4`) ⇒ **different**
+   `fullContentDigest`, `dirty` true, and one `changed` node hunk with a
+   `position` field (a display tolerance may hide it in the diff *view*, but the
+   digest and `base.content` carry the exact coordinate).
 4. **Digest — cosmetic vs engine** — a proposal that moves a node, renames a
    Pool, and changes a Gate `distribution` ⇒ three `changed` node hunks with
    `position` / `label` tagged `cosmetic`, `data.distribution` tagged `engine`,
