@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
+import { selectOverlay, useUiStore } from '../store/uiStore'
+import { useIsMobile } from '../ui/media'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 
@@ -54,6 +56,9 @@ export function TimelineChart() {
   const [collapsed, setCollapsed] = useState(false)
   const plotRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 760, h: 116 })
+  const isMobile = useIsMobile()
+  const overlay = useUiStore(selectOverlay)
+  const closeOverlay = useUiStore((s) => s.closeOverlay)
 
   const series = useSimStore((s) => s.series)
   const status = useSimStore((s) => s.status)
@@ -81,7 +86,7 @@ export function TimelineChart() {
     const ro = new ResizeObserver(apply)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [collapsed])
+  }, [collapsed, isMobile, overlay])
 
   const pools = useMemo(
     () =>
@@ -157,11 +162,7 @@ export function TimelineChart() {
   const setMcView = useMcStore((s) => s.setView)
   const showDistribution = mcResult != null && mcView === 'distribution'
 
-  return (
-    <div className={`timeline${collapsed ? ' is-collapsed' : ''}`}>
-      <PlayBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
-
-      {!collapsed ? (
+  const panel = (
         <div className="timeline__panel">
           <div className="timeline__head">
             {mcResult != null ? (
@@ -328,7 +329,35 @@ export function TimelineChart() {
             </svg>
           </div>
         </div>
-      ) : null}
+  )
+
+  // docs/mobile.md §MV5 / §MV-D8 — on mobile the Timeline is a collapsible
+  // bottom sheet, above the fixed run bar, shown only while it is the open
+  // overlay. The run controls live in <MobileRunBar>, not here.
+  if (isMobile) {
+    if (overlay !== 'timeline') return null
+    return (
+      <div className="timeline timeline--sheet" role="dialog" aria-label="Timeline">
+        <div className="sheet__head">
+          <span className="sheet__title">Timeline</span>
+          <button
+            type="button"
+            className="sheet__x"
+            aria-label="Close"
+            onClick={() => closeOverlay('timeline')}
+          >
+            ✕
+          </button>
+        </div>
+        {panel}
+      </div>
+    )
+  }
+
+  return (
+    <div className={`timeline${collapsed ? ' is-collapsed' : ''}`}>
+      <PlayBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
+      {!collapsed ? panel : null}
     </div>
   )
 }

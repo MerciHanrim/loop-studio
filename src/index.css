@@ -84,6 +84,20 @@
   --sai-bottom: env(safe-area-inset-bottom, 0px);
   --sai-left: env(safe-area-inset-left, 0px);
 
+  /* Mobile stacking order (docs/mobile.md §MV8a / §MV-D19):
+       canvas  <  sheet/scrim  <  run bar  <  MC dialog  <  PWA update bar
+     The run bar sits ABOVE the sheet scrim so Play / Step / Reset stay
+     clickable while a sheet is open; each sheet panel is pushed above the run
+     bar (scrim padding-bottom) so its Close is never hidden. The PWA update
+     bar is above everything and anchored at the TOP, clear of it all. */
+  --z-runbar: 45;
+  --z-sheet: 40;
+  --z-mc-dialog: 50;
+  --z-pwa-update: 60;
+  /* run bar height used to anchor the Timeline sheet + PWA bar offsets */
+  --mob-runbar-h: 52px;
+  --mob-topbar-h: 48px;
+
   /* Track · Bead · Vessel — one type system: Plex Sans for language,
      Plex Mono (tabular) for every quantity */
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system,
@@ -1869,11 +1883,12 @@ input[type='number']::-webkit-inner-spin-button {
 
 /* ==========================================================================
    Mobile View/Run layout (docs/mobile.md).
-   Slice 1: dynamic-viewport height, no sideways scroll, safe-area reserved as
-   real space, a full-bleed canvas. The compact top bar, the fixed run bar, the
-   sheets, and the editing lock arrive in Slices 2-3.
+   Slice 1: dynamic-viewport height, no sideways scroll, safe-area, full-bleed
+   canvas. Slice 2: compact top bar + More menu, fixed bottom run bar, Timeline
+   sheet, the exclusive-overlay contract, top-anchored PWA update bar. Slice 3:
+   editing lock + read-only Inspector sheet.
    The query text below MUST equal MOBILE_MEDIA_QUERY in src/ui/media.ts —
-   src/ui/media.query.test.ts enforces it.
+   scripts/check-mobile-query.mjs enforces it.
    ========================================================================== */
 @media (max-width: 720px), (max-height: 500px) and (max-width: 950px) and (pointer: coarse) {
   /* height tracks the *visual* viewport (dvh), so the iOS address bar
@@ -1885,32 +1900,11 @@ input[type='number']::-webkit-inner-spin-button {
     max-width: 100vw;
   }
 
-  /* canvas over its controls — the Inspector becomes a read-only bottom sheet
-     in Slice 3; until then it is simply out of the mobile flow so the canvas
-     is full width */
   .app__body {
     flex-direction: column;
   }
   .inspector {
-    display: none;
-  }
-
-  /* editing-only controls — the node palette is gone on mobile (§MV6 / §MV-D9);
-     the compact top bar + More menu land in Slice 2 */
-  .toolbar__palette {
-    display: none;
-  }
-  /* interim: let the action buttons wrap instead of clipping past the edge —
-     Slice 2 replaces this row with the Logo + a single More menu */
-  .toolbar__actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  /* the Timeline chart body is a collapsible bottom sheet in Slice 2; for now
-     it stays out of the flow so the canvas is full height (§MV5 / §MV-D8) */
-  .timeline__panel {
-    display: none;
+    display: none; /* Slice 3 → read-only bottom sheet */
   }
 
   .canvas-col {
@@ -1919,27 +1913,186 @@ input[type='number']::-webkit-inner-spin-button {
   .canvas {
     flex: 1 1 auto;
   }
+  /* the canvas pane reserves the fixed run bar's height as real space so no
+     node / React Flow control is ever painted under it (docs/mobile.md §MV7) */
+  .canvas-col .canvas {
+    padding-bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
+  }
 
-  /* reserve the notch / status-bar strip as real space (docs/mobile.md §MV7) */
+  /* ---- compact top bar (§MV6) — Logo + a caption + one More button ---- */
   .toolbar {
-    padding-top: calc(8px + var(--sai-top));
-    padding-left: calc(14px + var(--sai-left));
-    padding-right: calc(14px + var(--sai-right));
+    gap: 10px;
+    padding: calc(6px + var(--sai-top)) calc(12px + var(--sai-right)) 6px
+      calc(12px + var(--sai-left));
+    flex-wrap: nowrap;
+    min-height: var(--mob-topbar-h);
+  }
+  .toolbar--mobile .toolbar__vr {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    line-height: 1.2;
+  }
+  .toolbar--mobile .mob-more {
+    margin-left: auto;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 18px;
+    line-height: 1;
   }
 
-  /* reserve the home-indicator strip below the run controls; Slice 2 turns
-     .pstrip into a fixed bottom bar and re-verifies */
-  .pstrip {
+  /* ---- fixed bottom run bar (§MV4) ---- */
+  .pstrip--mobile {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-runbar);
     height: auto;
+    min-height: var(--mob-runbar-h);
+    padding: 6px calc(10px + var(--sai-right)) calc(6px + var(--sai-bottom))
+      calc(10px + var(--sai-left));
+    gap: 10px;
+    border-top: 1px solid var(--line-structure);
+  }
+  .pstrip--mobile .pb-btn {
     min-height: 40px;
-    padding-bottom: calc(var(--sai-bottom));
-    flex-wrap: wrap;
-    row-gap: 6px;
+    padding: 6px 12px;
+  }
+  .pstrip--mobile .pstrip__tl {
+    margin-left: auto;
   }
 
-  /* React Flow zoom / fit controls: 44px touch targets, clear of the edges */
+  /* ---- generic bottom sheet + scrim (§MV5 sheet contract) ---- */
+  .sheet-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-sheet);
+    background: color-mix(in srgb, var(--surface-ground) 55%, transparent);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    /* keep the sheet panel above the fixed run bar so its Close is reachable */
+    padding-bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
+  }
+  .sheet {
+    background: var(--surface-panel);
+    border-top: 1px solid var(--line-structure);
+    border-radius: 12px 12px 0 0;
+    padding: 8px calc(12px + var(--sai-right)) calc(12px + var(--sai-bottom))
+      calc(12px + var(--sai-left));
+    max-height: 72dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sheet__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 2px 8px;
+  }
+  .sheet__title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .sheet__x {
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .sheet__row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  .sheet__row:hover,
+  .sheet__row:focus-visible {
+    background: var(--surface-sunken);
+  }
+  .sheet__row-sub {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+  .sheet__stamp {
+    padding: 10px 10px 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+    user-select: text;
+  }
+  .sheet .share-pop__url {
+    font-size: 12px;
+  }
+
+  /* ---- Timeline as a bottom sheet, above the run bar (§MV5 / §MV-D8) ---- */
+  .timeline--sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
+    z-index: var(--z-sheet);
+    max-height: 46dvh;
+    border-top: 1px solid var(--line-structure);
+    box-shadow: 0 -8px 24px -16px rgba(0, 0, 0, 0.5);
+  }
+  .timeline--sheet .timeline__panel {
+    height: auto;
+    max-height: calc(46dvh - 40px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* ---- Monte-Carlo dialog fits the viewport + scrolls (§MV8) ---- */
+  .mcdlg__scrim {
+    z-index: var(--z-mc-dialog);
+    padding: calc(8px + var(--sai-top)) 8px calc(8px + var(--sai-bottom));
+  }
+  .mcdlg {
+    width: 100%;
+    max-width: 360px;
+    max-height: calc(100dvh - var(--sai-top) - var(--sai-bottom) - 16px);
+  }
+  .mcdlg__body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* ---- PWA update bar: TOP, above every sheet (§MV8a / §MV-D19) ---- */
+  .pwa-update {
+    top: calc(var(--mob-topbar-h) + var(--sai-top) + 6px);
+    bottom: auto;
+    left: calc(8px + var(--sai-left));
+    right: calc(8px + var(--sai-right));
+    transform: none;
+    max-width: none;
+    z-index: var(--z-pwa-update);
+  }
+
+  /* React Flow zoom / fit controls: 44px touch targets, clear of the run bar */
   .react-flow__controls {
-    margin-bottom: calc(8px + var(--sai-bottom));
+    margin-bottom: calc(var(--mob-runbar-h) + var(--sai-bottom) + 8px);
     margin-left: calc(8px + var(--sai-left));
   }
   .react-flow__controls-button {

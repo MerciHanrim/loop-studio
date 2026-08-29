@@ -9,8 +9,10 @@ import App from './App.tsx'
 import * as share from './model/share'
 import { useGraphStore } from './store/graphStore'
 import { useMcStore } from './store/mcStore'
+import { usePwaStore } from './store/pwaStore'
 import * as shareLink from './store/shareLink'
 import { useSimStore } from './store/simStore'
+import { useUiStore } from './store/uiStore'
 import * as workspaceIO from './store/workspaceIO'
 
 // Dev-only store bridge for browser E2E (never in the production / portable
@@ -20,6 +22,8 @@ if (import.meta.env.DEV) {
     graph: useGraphStore,
     sim: useSimStore,
     mc: useMcStore,
+    ui: useUiStore,
+    pwa: usePwaStore,
     io: workspaceIO,
     share,
     shareLink,
