@@ -7,3 +7,7 @@ declare const __BUILD_SHA__: string
 /** Fixed public base a Share link is built on (default the Cloudflare Pages URL);
  *  overridable per deploy with `VITE_SHARE_BASE_URL`. */
 declare const __SHARE_BASE_URL__: string
+/** `true` only in the Production / `--mode pwa` build — gates SW registration. */
+declare const __PWA_ENABLED__: boolean
+/** Extra allowed origin for the PWA E2E build; `''` (and dead code) everywhere else. */
+declare const __PWA_TEST_ORIGIN__: string

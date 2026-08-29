@@ -446,15 +446,23 @@ from Lighthouse 13), so it is **not** a release gate. Instead:
 
 ## P10. Implementation slices
 
-1. **manifest + icons + `index.html` head + `__PWA_ENABLED__`** — the two `any`
-   icons, the separately-composed maskable icon, `apple-touch-icon`, the
-   `<link rel="manifest">` + `theme-color` (light/dark) metas, and the build
-   flag. Installable metadata, no SW registration yet.
+1. **✅ (landed) manifest object + icons + `index.html` head + build flags.**
+   `scripts/gen-icons.mjs` (pure-Node rasteriser + PNG encoder) → committed
+   `public/icons/` (plain 192 / 512 `any`, a **separately composed** maskable
+   512, an opaque `apple-touch-icon` 180). `src/pwa/manifest.ts` — the manifest
+   as a source object (`id`/`start_url`/`scope` = `/`), unit-tested. `index.html`
+   gains light/dark `theme-color` + `apple-touch-icon` + iOS `apple-mobile-*`
+   metas (harmless in every build). `vite.config.ts`: `__PWA_ENABLED__` /
+   `__PWA_TEST_ORIGIN__` defines (§P7); `--mode pwa` builds to `dist-pwa/`
+   (Production still emits `dist/`). `checks` CI: `check:icons` (§P9 D1 criteria)
+   + `check:no-pwa` (§P8.2(b) — `dist/` and `dist-portable/` carry no
+   `sw.js` / manifest / manifest-link / registration code). **No SW, no plugin
+   yet.**
 2. **`vite-plugin-pwa` (`generateSW`, explicit globs, `cleanupOutdatedCaches`,
-   `skipWaiting:false`, `clientsClaim:false`) + the dual-gated registration
-   (§P7) + the `.pwa-update` bar** (§P4: waiting → Update → `SKIP_WAITING` →
-   `controllerchange` → one reload; the data-loss line; the run-in-progress
-   confirm; per-worker Dismiss).
-3. **the `pwa` E2E project** (§P8.1) + the **§P8.2 precache-closure build test**
-   + the `portable` no-SW assertion + one full run of the §P8.3 manual
-   checklist.
+   `skipWaiting:false`, `clientsClaim:false`, consumes `src/pwa/manifest.ts`) +
+   the dual-gated registration (§P7) + the `.pwa-update` bar** (§P4: waiting →
+   Update → `SKIP_WAITING` → `controllerchange` → one reload; the data-loss
+   line; the run-in-progress confirm; per-worker Dismiss).
+3. **the `pwa` E2E project** (§P8.1) + the **§P8.2(a) precache-closure build
+   test** against `dist-pwa/` + the `portable` no-SW assertion + one full run of
+   the §P8.3 manual checklist.

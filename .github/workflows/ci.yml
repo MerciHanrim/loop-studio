@@ -33,10 +33,16 @@ jobs:
         run: npm run lint
       - name: Unit tests
         run: npm test
+      - name: PWA icon check
+        run: npm run check:icons
       - name: Web build
         run: npm run build
       - name: Portable build
         run: npm run build:portable
+      - name: PWA build (mode=pwa)
+        run: npm run build:pwa
+      - name: No PWA leakage in plain / portable builds
+        run: npm run check:no-pwa
 
   e2e:
     name: e2e
