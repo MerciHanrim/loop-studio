@@ -35,9 +35,27 @@ export default defineConfig({
     {
       name: 'chromium',
       // portable-file runs under the `portable` project; dist.spec runs under
-      // playwright.dist.config.ts (production build + `vite preview`)
-      testIgnore: [/portable-file\.spec\.ts/, /dist\.spec\.ts/, /pwa\.spec\.ts/],
+      // playwright.dist.config.ts (production build + `vite preview`); mobile.spec
+      // runs under the `mobile` project (small viewport + touch)
+      testIgnore: [
+        /portable-file\.spec\.ts/,
+        /dist\.spec\.ts/,
+        /pwa\.spec\.ts/,
+        /mobile\.spec\.ts/,
+      ],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      // docs/mobile.md §MV10 — the mobile View/Run layout, at iPhone-class
+      // portrait (390x844) and landscape (844x390), touch + coarse pointer.
+      name: 'mobile',
+      testMatch: /mobile\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
     },
     {
       name: 'build-portable',

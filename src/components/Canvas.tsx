@@ -1,8 +1,9 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { DragEvent } from 'react'
 import { Background, Controls, MiniMap, ReactFlow, useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { useIsMobile } from '../ui/media'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 
@@ -27,7 +28,33 @@ export function Canvas() {
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
+  const isMobile = useIsMobile()
+
+  // docs/mobile.md §MV3d: on a real orientation flip, re-fit the whole diagram
+  // exactly once. Pan / pinch-zoom within one orientation never re-fits — the
+  // re-fit is gated on the portrait/landscape flag actually changing.
+  useEffect(() => {
+    if (!isMobile || typeof window === 'undefined') return
+    let landscape = window.innerWidth > window.innerHeight
+    let raf = 0
+    const onResize = () => {
+      const now = window.innerWidth > window.innerHeight
+      if (now === landscape) return
+      landscape = now
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        void fitView({ padding: 0.3, maxZoom: 1.2 })
+      })
+    }
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [isMobile, fitView])
 
   const onSelectionChange = useCallback(
     ({ nodes: sn, edges: se }: { nodes: { id: string }[]; edges: { id: string }[] }) => {
@@ -69,19 +96,23 @@ export function Canvas() {
         maxZoom={2}
       >
         <Background gap={16} color="var(--line-hairline)" />
-        <MiniMap
-          pannable
-          zoomable
-          ariaLabel="Graph minimap"
-          nodeColor={(n) => MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)'}
-          nodeStrokeColor="var(--line-strong)"
-          nodeStrokeWidth={2}
-          nodeBorderRadius={2}
-          maskColor="var(--minimap-mask)"
-          maskStrokeColor="var(--signal-primary)"
-          maskStrokeWidth={1}
-          bgColor="var(--surface-raised)"
-        />
+        {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
+            phone and eats space — not rendered in the mobile layout */}
+        {!isMobile && (
+          <MiniMap
+            pannable
+            zoomable
+            ariaLabel="Graph minimap"
+            nodeColor={(n) => MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)'}
+            nodeStrokeColor="var(--line-strong)"
+            nodeStrokeWidth={2}
+            nodeBorderRadius={2}
+            maskColor="var(--minimap-mask)"
+            maskStrokeColor="var(--signal-primary)"
+            maskStrokeWidth={1}
+            bgColor="var(--surface-raised)"
+          />
+        )}
         <Controls />
       </ReactFlow>
     </div>
