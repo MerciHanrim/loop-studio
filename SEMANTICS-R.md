@@ -2,19 +2,22 @@
 
 ```
 Spec ID: loop-revision/1
-Status:  Draft — for review
+Status:  Draft — for review (rev 2)
 ```
 
-**Draft (2026-08-29).** Not yet frozen. Once the §R10 decisions are settled and
+**Draft (2026-08-29).** Not yet frozen. Once the §R12 decisions are settled and
 this document is marked `Frozen`, it is the fixed target for the implementation
 and a behavioural change afterward is a new spec id in a new document
 (`loop-revision/2`), exactly as with `loop-state/1 → loop-state/2`; a frozen
 file then takes only typo / clarifying-prose fixes.
 
-Defines *what a Project is*, *how revisions chain*, *what a Proposal file is*,
-*how a Proposal is diffed against a revision*, and *how a Proposal is applied* —
-using files as the only transport, with **no accounts, no server, and no
-real-time sync**.
+Defines *what a Project is*, *how revisions chain and stay immutable*, *what a
+Proposal file carries*, *the exact canonical projection its digest and diff run
+over*, *how a Proposal is diffed three-way*, and *how applying a Proposal makes
+a new local revision* — using files as the only transport, with **no accounts,
+no server, and no real-time sync**. Every rule here is computable from the file
+in hand plus the currently-open document; nothing depends on history the app
+cannot see.
 
 Independent of, and layered on top of, the graph / engine / Monte-Carlo /
 workspace / share specs. It never changes how a diagram *runs*.
@@ -28,32 +31,32 @@ workspace / share specs. It never changes how a diagram *runs*.
 
 **Added**
 
-- A **Project** — a lineage of revisions of one diagram, identified by a stable
-  opaque `projectId`. A plain graph / Workspace file is *promoted* to a project
-  on the first `Export → Project revision` (a `projectId` and a root revision
-  are minted); nothing is a project until then.
-- A **Revision** — one saved point in a project's lineage:
-  `{ revisionId, parentId, role: "revision" }` plus the usual graph (and
-  optional `workspace`) content.
-- A **Proposal** — a revision-shaped file with `role: "proposal"` and a pinned
-  **`base`** (the `revisionId` + content digest it was authored against). The
-  unit that travels between people: *open a revision → make a Proposal copy →
-  edit → send the file → the recipient diffs it against their revision →
-  optionally applies it.*
-- **`Export ▾` gains `Project revision`** (advance the lineage) and, when a
-  project is open, **`Make a proposal`**.
-- **Import auto-detects** a `project` key. A proposal for the open project opens
-  a **Review** view (diff + apply); a revision of the open project (or a fresh
-  project) opens as that revision; a file with no `project` key loads exactly as
-  today.
+- A **Project** — a lineage of immutable revisions of one diagram, identified by
+  a stable opaque `projectId`. A plain graph / Workspace file is *promoted* to a
+  project on the first `Export → Project revision`.
+- A **Revision** — one immutable saved point: `{ revisionId, parentId,
+  role: "revision" }` plus the graph (and optional `workspace`) content. A
+  `revisionId` names one exact content state (§R2); editing an open revision
+  makes it **dirty** and the next `Export → Project revision` mints a new id.
+- A **Proposal** — a revision-shaped file with `role: "proposal"` that carries
+  **both** the proposed content (top-level `nodes` / `edges`) **and** a full
+  canonical snapshot of the base it was authored against
+  (`project.base.content`, §R6). The unit that travels between people: *open a
+  revision → `Make a proposal` copy → edit → send the file → the recipient
+  diffs it three-way and optionally applies it.*
+- **`Export ▾` gains `Project revision`** and, when a project is open,
+  **`Make a proposal`**.
+- **Import auto-detects** a `project` key and routes (§R10). Importing a
+  proposal for the open project opens a non-destructive **Review**; it never
+  changes the open document until the user clicks **Apply**.
 
 **Out of scope for v1** — accounts, login, a server, cloud storage; real-time /
-live collaboration, presence, document locking; automatic 3-way merge or rebase
-(conflict *resolution* is manual, per hunk); cryptographic signing or verified
-authorship; multi-project bundle files; a "revision browser" that lists files
-from disk; diffing the `workspace` (run) payload beyond a single "differs" flag;
-any network transport (the transport is a file, exactly like Workspace / Share
-today).
+live collaboration, presence, document locking; automatic 3-way *merge* or
+*rebase* of divergent branches (per-hunk conflict *resolution* is manual);
+cryptographic signing or verified authorship; multi-project bundle files; a
+"revision browser" that lists files from disk; diffing the `workspace` (run)
+payload beyond a single "differs" flag; any network transport (the transport is
+a file, exactly like Workspace / Share today).
 
 **Unchanged** — the graph half is still written by the *same* `serialize()`
 path; a Project file **is** a valid Workspace file **is** a valid Graph file.
@@ -69,7 +72,7 @@ optional top-level keys; an older build ignores an unknown top-level key.
 {
   "schema": "loop-studio/graph",
   "version": 1,
-  "nodes": [ /* … */ ],
+  "nodes": [ /* … the current / proposed graph … */ ],
   "edges": [ /* … */ ],
   "recommendedRunConfig": { /* … optional, as today … */ },
   "workspace": { /* … optional loop-workspace/1 payload, unchanged … */ },
@@ -78,309 +81,413 @@ optional top-level keys; an older build ignores an unknown top-level key.
     "schema": "loop-revision/1",
     "version": 1,
 
-    "projectId": "proj_<26 chars, Crockford base32, crypto-random — minted once, stable for the whole lineage>",
-    "revisionId": "rev_<26 chars — unique per exported file>",
-    "parentId": "rev_<the revisionId this was derived from>",   // null only for a project's root revision
-    "role": "revision",                                          // "revision" | "proposal"
+    "projectId": "proj_0123456789ABCDEFGHJKMNPQRS",  // "proj_" + 26 Crockford base32 — minted once, stable for the lineage
+    "revisionId": "rev_0123456789ABCDEFGHJKMNPQRS",   // "rev_"  + 26 Crockford base32 — names ONE content state (§R2)
+    "parentId": "rev_…",                              // the revisionId this was derived from; null only for a project root
+    "role": "revision",                               // "revision" | "proposal"
 
-    "base": {                                                    // present IFF role === "proposal"
-      "revisionId": "rev_<the revision this proposal was branched from>",
-      "contentDigest": "<sha-256 hex — fullContentDigest of that base revision; §R4.1>"
+    "base": {                                         // present IFF role === "proposal"
+      "revisionId": "rev_…",                          // the revision this proposal was branched from
+      "contentDigest": "<sha-256 hex of canonicalJson(base.content); §R4>",
+      "content": {                                    // the canonical revision projection (§R4.2) of the base — REQUIRED, complete
+        "nodes": [ /* projected, id-sorted */ ],
+        "edges": [ /* projected, id-sorted */ ],
+        "recommendedRunConfig": { /* normalized, or omitted */ }
+      }
     },
 
-    "appliedProposalId": "rev_<the proposal's revisionId>",      // present IFF this revision was produced by Apply (§R5); provenance only
+    "appliedProposal": {                              // present IFF this revision was produced by Apply (§R7); provenance only
+      "proposalId": "rev_…",                          // the proposal file's revisionId
+      "baseId": "rev_…",                              // the proposal's base.revisionId
+      "baseDigest": "<the proposal's base.contentDigest>"
+    },
 
-    "lineage": [ "rev_<parentId>", "rev_<grandparent>", "…" ],   // advisory, newest-first, ≤ LINEAGE_MAX; may be short or absent
+    "lineage": [ "rev_<parentId>", "rev_<grandparent>", "…" ],  // advisory, newest-first, ≤ LINEAGE_MAX; may be short/absent
 
-    "meta": {
-      "title": "Coffee shop economy",                            // optional human label
-      "createdAt": "2026-08-29T12:00:00Z",                       // ISO 8601 UTC — display only, never trusted for ordering
-      "author": { "name": "Alex", "note": "tuned the drain rates" },  // UNVERIFIED self-asserted strings — §R7
-      "tool": "loop-studio/0.5.0"                                // UNVERIFIED
+    "meta": {                                         // ALL fields UNVERIFIED, display-only — §R8
+      "title": "Coffee shop economy",                 // optional
+      "createdAt": "2026-08-29T12:00:00Z",            // ISO 8601 UTC — display only, never trusted for ordering
+      "author": { "name": "Alex", "note": "tuned the drain rates" },
+      "tool": "loop-studio/0.5.0"
     }
   }
 }
 ```
 
-Why a nested `project` key rather than a new container schema: today's Import
-reads `nodes` / `edges` unchanged; an older build ignores `project` and still
-opens the graph; a new build tells a plain / Workspace / Project file apart by
-which keys are present — no schema bump, no `version` collision. **A Project
-file is a valid Workspace file is a valid Graph file.**
+Why a nested `project` key: today's Import reads `nodes` / `edges` unchanged; an
+older build ignores `project` and still opens the graph; a new build tells
+plain / Workspace / Project files apart by which keys are present — no schema
+bump, no `version` collision. **A Project file is a valid Workspace file is a
+valid Graph file** (R-INV-1).
 
 ---
 
-## R2. Project identity
+## R2. Revision immutability & the dirty flag
 
-- **`projectId`** is an opaque, crypto-random id (`proj_` + 26 Crockford
-  base32 chars). It is minted **exactly once** — the first time a plain graph /
-  Workspace doc is saved via `Export → Project revision` — and is then **carried
-  unchanged** by every revision and every proposal in the lineage. Apply never
-  changes it (§R5). Nothing derives it from content; re-saving identical content
-  keeps the same `projectId`.
-- Two files **belong to the same project** iff their `project.projectId` strings
-  are byte-equal. That is the **only** identity check — never a title, a
-  filename, or a path.
-- A file with **no `project` key** has no project identity. It cannot be
-  imported as a proposal (there is no lineage to diff against); it opens as a
-  fresh anonymous graph / Workspace, and may then be promoted to a **new**
-  project (a fresh `projectId`).
-- A `project.projectId` that is absent, empty, or not a string → the whole
-  `project` key is ignored with a one-line warning; the file opens as a plain
-  graph / Workspace.
+A `revisionId` names **one exact content state** within a project. It is
+**never** carried onto changed content.
 
----
-
-## R3. Revision lineage
-
-- The app holds the **open revision** in a `projectStore`:
-  `{ projectId, revisionId, parentId, role, base?, lineage, meta }`, or `null`
-  when the open doc is anonymous. It is populated on load of a project file, and
-  replaced on `Export → Project revision` and on Apply.
-- **`Export → Project revision`** mints a **new `revisionId`**, sets
-  `parentId` to the *open* revision's `revisionId` (or `null` if this is the
-  first save — the root), keeps `projectId`, sets `role: "revision"`, and makes
-  that the new open revision. `lineage` is rebuilt as
-  `[parentId, ...open.lineage].slice(0, LINEAGE_MAX)`.
-- `revisionId` is opaque and **content-independent** (crypto-random, not a
-  hash): every export is a distinct revision object, even with identical
-  content. Ordering is by **`parentId` pointers only** — never by `createdAt`.
-- The lineage is a **tree**, not a line: two proposals off one revision, each
-  applied, yield two children of that revision. v1 never merges branches
-  automatically (§R6); each Apply makes **one** new linear child of whatever is
-  currently open.
-- **`lineage[]`** is an *advisory* bounded list of recent ancestor
-  `revisionId`s, newest first, starting with `parentId`. It is used only to
-  classify a proposal's base as an ancestor of the open revision (fast-forward
-  vs divergent, §R6). It is advisory: if short, missing, or malformed, conflict
-  handling still works — it just falls back to the stricter digest comparison.
-- **No trust in clocks or counters.** `createdAt` is display-only. There is no
-  monotonic revision number.
+- **On opening a Project file** the `projectStore` records the *baseline*:
+  `{ revisionId, parentId, baselineDigest = fullContentDigest(the loaded
+  graph), lineage, meta }`. For a proposal file the loaded graph is the
+  *proposed* content and the baseline digest is of that (its own
+  `project.revisionId` is a fresh id for the proposed state — see below).
+- **`dirty`** = `fullContentDigest(current graph) !== baselineDigest`. It is a
+  pure function of content, recomputed (debounced) on edit. Selection, viewport,
+  run state, undo depth never affect it.
+- **`Export → Project revision`:**
+  - **not dirty** → re-write the *same* revision: the file keeps the **same
+    `revisionId`** and the **same `parentId`**. Re-exporting an unchanged
+    revision reproduces the same revision identity (idempotent).
+  - **dirty** → mint a **new `revisionId`** (§R11 id rules); set `parentId` to
+    the *baseline* `revisionId`; `role: "revision"`; rebuild `lineage` as
+    `[parentId, ...oldLineage].slice(0, LINEAGE_MAX)`; this becomes the new
+    baseline (`baselineDigest` recomputed, `dirty` clears).
+- **`revisionId` is opaque and random**, not a content hash — two independently
+  authored revisions with byte-identical content still have different ids (they
+  are on different branches). Equality of `revisionId` therefore means "the same
+  saved revision object", and it is only *asserted* to mean "the same content"
+  when `contentDigest` agrees (§R7A.2 case `exact`).
+- Ordering is by **`parentId` pointers only** — `createdAt` and any counter are
+  display-only.
 
 ---
 
-## R4. Diff scope
+## R3. Project identity
 
-A **RevisionDiff** compares a *base* revision's content against a *proposal*'s
-content (or, in general, any two project files of the same `projectId`). It is
-**deterministic and id-keyed** — element order and whitespace never affect it.
+- **`projectId`** — opaque, crypto-random (`proj_` + 26 Crockford base32,
+  §R11). Minted **exactly once**, on the first `Export → Project revision` of a
+  previously-anonymous doc, then **carried byte-for-byte** by every revision and
+  proposal in the lineage. Apply and Export never change it. Nothing derives it
+  from content.
+- Two files **belong to the same project** iff `project.projectId` is byte-equal.
+  That is the **only** identity test — never a title, filename, or path.
+- A file with **no `project` key** has no project identity; it opens as a fresh
+  anonymous graph / Workspace and may be promoted to a **new** project.
+- A `projectId` (or `revisionId`, or any id) that fails the §R11 format check →
+  the whole `project` key is **dropped** with a one-line warning; the graph /
+  workspace still import (R-INV-10).
 
-### R4.1 Two digests
+---
 
-- **`semanticContentDigest(doc)`** — SHA-256 of the canonical JSON of the
-  **engine-relevant** projection, defined **identically to `loop-workspace/1`
-  §W3.1 / §W11** (node: `id`, `kind`, engine fields; edge: `id`, `source`,
-  `target`, `sourceHandle`, `targetHandle`, `data.kind`, `data.flow` |
-  `data.mode` / `data.delay` / `data.expr`; drop `recommendedRunConfig`;
-  id-sorted; fixed key order; lowercase hex). Answers *"does applying this
-  change how the diagram runs?"*.
-- **`fullContentDigest(doc)`** — the same, **plus** each node's `label` and
-  `position` (each coordinate rounded to an integer) and each edge's `label`,
-  **plus** `recommendedRunConfig`. Answers *"is this exactly the same document
-  state?"*. This is the digest written into a proposal's `base.contentDigest`.
+## R4. Canonical revision content & its digest
 
-Both digests use the pure-JS SHA-256 fallback where `crypto.subtle` is absent
-(same requirement and fallback as `loop-workspace/1` §W12.15).
+This projection is **defined here** and is **not** `loop-workspace/1`'s semantic
+digest — that one drops `label` / `position`, which this diff must show. Only
+the SHA-256 tooling is shared (§R4.4).
 
-### R4.2 What the diff reports
+### R4.1 Inputs and normalisation
 
-| part | granularity | fields |
+Operate on the graph after the existing `normalizeGraph()` pass
+(`src/model/serialize.ts` — fills kind defaults into node `data`, backfills
+blank edge handles to `out` / `in` / `state-*`, backfills edge `data`). Then:
+
+- **Numbers** — every number must be **finite**. `-0` → `0`. An integer-valued
+  float (`10.0`) → `10`. A non-finite number anywhere in the projected content
+  makes the content **invalid for revision purposes** (on import: drop `project`
+  + warn; on export it cannot occur — the editor never produces one).
+- **Strings** — compared and hashed as their exact UTF-8 bytes. No case,
+  Unicode-normalisation, or whitespace folding.
+- **Missing vs explicit** — an optional field absent and the same field present
+  with its documented default normalise to the **same** projected form: the
+  default is written explicitly (so a hand-edited file that omits `capacity`
+  and one that writes `"capacity": null` project identically).
+- **Booleans** — as-is.
+
+### R4.2 The projection
+
+```
+canonicalContent(doc) = {
+  "nodes": [ node(n) for n in doc.nodes ] sorted by n.id ascending (UTF-16 code-unit order),
+  "edges": [ edge(e) for e in doc.edges ] sorted by e.id ascending,
+  "recommendedRunConfig": rrc(doc.recommendedRunConfig)   // key omitted entirely if the result is empty
+}
+
+node(n) = {
+  "id":       n.id,
+  "position": { "x": round(n.position.x), "y": round(n.position.y) },   // Math.round → integers
+  "data":     pick(normalizedNodeData(n), FIELDS_BY_KIND[n.data.kind])  // keys emitted in the fixed order below
+}
+
+edge(e) = {
+  "id":           e.id,
+  "source":       e.source,
+  "target":       e.target,
+  "sourceHandle": e.sourceHandle,     // post-normalize: "out" | "in" | "state-source" | "state-target" | a real handle id
+  "targetHandle": e.targetHandle,
+  "data":         pick(normalizedEdgeData(e), EDGE_FIELDS_BY_KIND[e.data.kind])
+}
+
+rrc(c) = present-and-valid keys of { baseSeed, runs, steps, tracked }, coerced
+         (finite int for the numbers; string[] of graph-node ids for `tracked`,
+         in the order they appear in `c.tracked`), unknown keys dropped;
+         → {} (⇒ the key is omitted) if nothing valid remains
+```
+
+**`FIELDS_BY_KIND`** (node `data`, emitted in this order):
+
+| kind | fields |
+|---|---|
+| `pool` | `kind`, `label`, `activation`, `initial`, `capacity` (number **or** `null`), `mode` |
+| `source` | `kind`, `label`, `activation`, `mode` |
+| `drain` | `kind`, `label`, `activation`, `mode` |
+| `gate` | `kind`, `label`, `activation`, `distribution`, `mode` (always present after normalize; default `"pullAny"`) |
+| `converter` | `kind`, `label`, `activation`, `mode` |
+| `end` | `kind`, `label`, `activation`, `mode` (default `"pullAny"`) |
+
+**`EDGE_FIELDS_BY_KIND`** (edge `data`, in order):
+
+| kind | fields |
+|---|---|
+| `resource` | `kind`, `flow` |
+| `state` | `kind`, `mode`, `expr`, `delay` (integer ≥ 0; **always present after normalize**, default `0`) |
+
+Any node `data` key not in its list, any edge `data` key not in its list,
+`n.type` / `e.type`, `selected` / `dragging` / `measured` / width / height /
+`positionAbsolute`, and every top-level doc key other than `nodes` / `edges` /
+`recommendedRunConfig` are **excluded**.
+
+### R4.3 Canonical JSON
+
+`canonicalJson(x)` = `JSON.stringify` with: object keys in the **fixed order
+given above** (not lexicographic — the field tables define the order); no
+whitespace; arrays already sorted by the rules above; numbers as produced by
+JS `String(n)` after §R4.1 normalisation.
+
+### R4.4 The digests
+
+- **`fullContentDigest(doc)`** = `SHA-256`(UTF-8 bytes of
+  `canonicalJson(canonicalContent(doc))`), lowercase hex. This is the digest in
+  a proposal's `base.contentDigest`, the `baselineDigest` in `projectStore`, and
+  the basis of the `dirty` flag.
+- **`semanticView(node|edge)`** — the subset of the projection above that
+  affects the engine: drop node `label` and `position`, drop the whole
+  `recommendedRunConfig`. Used **only** to *tag* a diff hunk `engine` vs
+  `cosmetic` (§R5.2). There is no separate semantic *digest* in
+  `loop-revision/1`.
+- SHA-256 uses `crypto.subtle` where the context exposes it and **bundles a
+  pure-JS SHA-256 fallback** for every other target (identical requirement and
+  fallback to `loop-workspace/1` §W12.15). A build with neither degrades the
+  `project` reader to **graph-only + warning**.
+
+---
+
+## R5. The RevisionDiff
+
+`computeRevisionDiff(baseContent, proposedContent)` — both are
+`canonicalContent(...)` structures — is **deterministic and id-keyed**; element
+order and whitespace in the source files never affect it.
+
+### R5.1 Buckets
+
+For nodes, and independently for edges, partition ids into:
+
+- **`added`** — id in `proposed`, not in `base`; value = the proposed
+  projection.
+- **`removed`** — id in `base`, not in `proposed`; value = the base projection.
+- **`changed`** — id in both, projections differ; value = a per-field list
+  `{ field, base, proposed }` over the union of differing keys (a nested `data`
+  diff descends one level: `data.capacity`, `data.flow`, …).
+- **`unchanged`** — id in both, projections equal (not listed, only counted).
+
+`recommendedRunConfig` is diffed per key → `added` / `removed` / `changed`
+`{ key, base, proposed }`.
+
+### R5.2 Tags & summary
+
+- Each `changed` field, and each `added` / `removed` element, is tagged
+  **`engine`** if it is inside `semanticView` (endpoints, handles, `data.*`
+  other than nothing here — all edge `data` is engine; node `kind` / `activation`
+  / `initial` / `capacity` / `mode` / `distribution` are engine), else
+  **`cosmetic`** (node `label`, node `position`).
+- `RevisionDiff.summary` = `{ nodes: {added, removed, changed}, edges: {…},
+  runConfigChanged: <bool>, engineAffecting: <bool — any engine-tagged hunk or
+  any runConfig change>, empty: <bool — no added/removed/changed anywhere> }`.
+
+### R5.3 `workspace`
+
+Reduced to a single boolean `RevisionDiff.workspaceDiffers` — `true` if either
+file has a `workspace` key and the two payloads are not deep-equal. It is
+**never** broken down and **never** applied (§R7).
+
+---
+
+## R6. Proposal creation & `base.content`
+
+`Make a proposal` on an open, **non-dirty** project revision (if dirty, the app
+first offers to `Export → Project revision`) produces a file where:
+
+- `project.projectId` = the open project's;
+- `project.role` = `"proposal"`;
+- `project.revisionId` = a **fresh** id for the proposed state (each export of a
+  proposal mints a new one; the identity that matters is `base` + `projectId` +
+  `role`);
+- `project.parentId` = the open revision's `revisionId`;
+- `project.base` =
+  - `revisionId` = the open revision's `revisionId`,
+  - `content` = **`canonicalContent(the open graph)`** — the full projection,
+    complete, id-sorted (§R4.2). This is what makes the three-way diff and
+    per-hunk apply computable **entirely offline** from the proposal file plus
+    the recipient's open document.
+  - `contentDigest` = `SHA-256(canonicalJson(base.content))` — MUST equal
+    `fullContentDigest(the open graph)`. A reader that finds
+    `contentDigest !== SHA-256(canonicalJson(base.content))` treats the
+    `project` payload as **corrupt** (R-INV-10: graph still loads, `project`
+    dropped + warning).
+- top-level `nodes` / `edges` / `recommendedRunConfig` = an editable **copy** of
+  the base, which the author then edits;
+- `meta.author.name` from the device-local setting (§R8), truncated to
+  `AUTHOR_NAME_MAX_BYTES`; `meta.author.note` to `AUTHOR_NOTE_MAX_BYTES`.
+
+The **serialized proposal file** is capped at `REVISION_FILE_MAX_BYTES` (§R11) —
+it carries the base snapshot **and** the proposed graph; over the cap, `Make a
+proposal` is refused with a clear message (the diagram is too large to propose
+as one file; a plain Graph JSON still works). No silent truncation.
+
+Editing a proposal in-app: it behaves like an open revision (its own
+`baselineDigest` is of the proposed content) but its `role` / `base` are
+preserved on the next `Make a proposal` export.
+
+---
+
+## R7. Apply — the result is always a NEW local revision
+
+"Apply" takes a **proposal** and produces a **new revision of the open project**,
+derived from the **currently-open revision** (the *target*). This holds for
+**every** classification (§R7A.2); only `divergent` / `unknown` add a
+confirmation.
+
+### R7.1 The resulting revision
+
+- `projectId` = the target's (**never** the proposal's, though they must match —
+  §R7A.1);
+- `revisionId` = a **fresh** id minted at apply time (the proposal's own
+  `revisionId` is **not** reused);
+- `parentId` = the **target's** `revisionId` (the pre-apply open revision);
+- `role` = `"revision"`;
+- `appliedProposal` = `{ proposalId: proposal.project.revisionId, baseId:
+  proposal.project.base.revisionId, baseDigest:
+  proposal.project.base.contentDigest }` — provenance only;
+- `lineage` rebuilt from the target;
+- `meta.author` = the **applier's** device-local author (the proposal's author
+  is preserved **only** inside `appliedProposal` provenance and the Review view;
+  it is **not** promoted to the verified author of the result);
+- `meta.createdAt` = now (display-only).
+
+### R7.2 The resulting content
+
+- **Whole-proposal apply** → the proposed `nodes` / `edges` /
+  `recommendedRunConfig` **verbatim** (adopt the proposal's graph).
+- **Per-hunk (selective) apply** → `target content + accepted hunks`, each hunk
+  id-scoped and independently applicable (§R7A.3): `add` inserts the proposed
+  element; `remove` deletes it (and its now-dangling edges, as the editor does);
+  `change` sets the accepted fields (whole-element or field-level) on the
+  target's element. Rejected hunks leave the target as it was.
+- **Run / workspace / sim state is not applied.** An opt-in *"also take the
+  proposal's run config"* copies only `recommendedRunConfig` (and, if present,
+  `workspace.mc.config`) — never a sim snapshot, never an MC result.
+
+### R7.3 Atomicity
+
+- Exactly one `graphStore.loadDoc()` on the resulting graph → one
+  `simulationRev` bump → the sim resets to **paused at step 0**, the MC result
+  stales as any load does.
+- **One undo entry** — undo restores the pre-apply target (graph, and the
+  `projectStore` baseline).
+- Apply **never** writes a file and **never** mutates the proposal or base file.
+  The user `Export → Project revision` afterward to persist the new revision.
+
+---
+
+## R7A. Classification & conflicts (applied by §R7)
+
+### R7A.1 Gate: same project
+
+- `proposal.project.projectId !== target.project.projectId` → **refuse to
+  apply**: *"This proposal belongs to a different project."* No diff, no state
+  change. (The user may still **open the proposal as a document**, §R10.5.)
+- **No open project** (target anonymous) → cannot apply; offer only *"open the
+  proposal as a document"* (§R10.5) or **Cancel**.
+
+### R7A.2 Classify the target against the proposal (only provable cases)
+
+Using only what the two files contain — `target.revisionId`, `target.parentId`,
+`target.lineage[]`, `proposal.base.revisionId`, the two digests, and
+`proposal.base.content`:
+
+| # | class | condition |
 |---|---|---|
-| **nodes** | per `id`: `added` / `removed` / `changed` / `unchanged` | for `changed`: a per-field `{ field, base, proposal }` list over the **fullContent** node projection; each field tagged `engine` (in the semantic projection) or `cosmetic` (`label`, `position`) |
-| **edges** | per `id`: same four buckets | for `changed`: per-field over `source`, `target`, `sourceHandle`, `targetHandle`, `data.*`; endpoint / handle / `data` changes are `engine`, an edge `label` change is `cosmetic` |
-| **runConfig** | per key of `recommendedRunConfig` | `added` / `removed` / `changed` with `{ base, proposal }` |
-| **workspace** | one boolean | `workspaceDiffers` — `true` if either side has a `workspace` key and the two `workspace` payloads are not deep-equal. **Not** broken down further in v1. |
-| **meta** | — | never diffed (provenance, not content) |
+| **exact** | `target.revisionId === proposal.base.revisionId` **and** `fullContentDigest(target) === proposal.base.contentDigest` | the target *is* the base, content-verified |
+| **direct fast-forward** | not `exact`, **and** `proposal.base.revisionId === target.parentId` (a parent link **contained in the target file**), **and** the three-way check (§R7A.3, using `proposal.base.content`) yields **zero conflicts** | the target is exactly one saved revision ahead of the base, on the same line, with no overlap |
+| **divergent** | not `exact` / `direct fast-forward`, **and** `proposal.base.revisionId` appears in `target.lineage[]` **or** the three-way check yields conflicts | related but the two lines have diverged |
+| **unknown ancestry** | `proposal.base.revisionId` is **not** `target.revisionId`, **not** `target.parentId`, **and not** in the (bounded, advisory) `target.lineage[]` | the relationship cannot be proved from the files |
 
-- `RevisionDiff.summary` = counts (`{ nodes: {added, removed, changed}, edges:
-  {…}, runConfigChanged, engineAffecting: <bool — any `changed`/`added`/`removed`
-  hunk tagged engine, or any runConfig change> }`).
-- An element with the **same `id`** on both sides but a different `kind` (node)
-  or a different `data.kind` (edge) is reported as `changed` with the
-  kind-change first; a downstream apply treats it as replace-in-place.
-- The diff is defined for **any two docs of the same `projectId`**. Across
-  different `projectId`s it is **not computed** (§R6 case 4).
+`unknown ancestry` is **never** treated as `direct fast-forward`. `lineage[]`
+may *only* move a case from `unknown` toward `divergent` (i.e. confirm a
+relationship exists); it can never license a permissive (`exact` /
+`fast-forward`) outcome on its own — those require `revisionId` + `parentId` +
+digest / three-way facts.
 
----
+### R7A.3 Three-way per-hunk check
 
-## R5. Apply rules
+The proposal file contains `base.content`; the target's content is
+`canonicalContent(open graph)`; the proposed content is
+`canonicalContent(proposal top-level)`. For each proposal hunk (`base` →
+`proposed`), compare the target's current value for that id:
 
-"Apply" takes a **proposal** and produces a **new revision** of the project,
-derived from the **currently open revision** (the *target*).
-
-### R5.1 Whole-proposal apply (required)
-
-- The resulting content is the **proposal's** `nodes` / `edges` /
-  `recommendedRunConfig` **verbatim**. (Whole-apply does not merge; it adopts
-  the proposal's graph.)
-- A **new `revisionId`** is minted; `parentId` = the **target's** `revisionId`;
-  `projectId` unchanged; `role: "revision"`;
-  `appliedProposalId` = the proposal's `revisionId`; `lineage` rebuilt from the
-  target. `meta.author` is taken from the **applier's** local author setting,
-  not the proposal's (the proposal's author is preserved only in
-  `appliedProposalId` provenance + the diff view).
-- Apply is **atomic**: exactly one `loadDoc()` → one `simulationRev` bump →
-  lands **paused at step 0** (a structural load resets the sim, as any load
-  does), and is **one undo entry** (undo restores the pre-apply target).
-- Apply **never** mutates the proposal file or the base file on disk, and never
-  writes anything itself — it produces the new open revision in memory; the user
-  then `Export → Project revision` to persist it.
-- **Run / workspace state is not applied.** An opt-in **"also take the
-  proposal's run config"** copies only `recommendedRunConfig` (and, if present,
-  the proposal `workspace.mc.config`) — never a sim snapshot, never the MC
-  result. Off by default.
-
-### R5.2 Selective (per-hunk) apply — specified here; may land as a later slice
-
-- The Review UI can offer per-hunk accept toggles. Each accepted hunk is
-  **id-scoped and independently applicable**:
-  - `add node/edge X` → insert X (proposal's version);
-  - `remove node/edge X` → delete X;
-  - `change node/edge X` → for a whole-element accept, replace X with the
-    proposal's X; for **field-level** accept, set only the accepted fields on
-    the target's X.
-- Result content = **target + accepted hunks**, then the §R5.1 new-revision
-  wrapping (atomic `loadDoc`, one bump, one undo entry).
-- A hunk that is **not applicable** against the target (§R6.3) is shown but
-  cannot be toggled on until resolved.
-- Removing a node also removes its now-dangling edges (as the editor already
-  does); a rejected node-remove hunk keeps that node and its edges.
-
-### R5.3 Common to both
-
-- **`projectId` never changes.**
-- Applying is refused entirely if the proposal's `projectId` ≠ the target's
-  (§R6.4).
-- After a successful apply the app is on a **new, unsaved revision**; the
-  toolbar revision indicator shows it as modified until `Export → Project
-  revision`.
-
----
-
-## R6. Conflict handling
-
-No automatic merge. Everything below is either a clean apply or an **explicit,
-consented** apply / manual per-hunk resolution.
-
-### R6.1 Gate: same project
-
-If `proposal.project.projectId !== target.project.projectId` → **refuse**:
-*"This proposal belongs to a different project."* No diff, no apply. (Case 4.)
-
-If the **target is anonymous** (no open project) → the proposal cannot be
-applied; offer only **"Open the proposal as a new project"** (mint a fresh
-`projectId` from the proposal's content) or **Cancel**.
-
-### R6.2 Classify the target against the proposal's `base`
-
-| # | condition | classification |
-|---|---|---|
-| 1 | `target.revisionId === proposal.base.revisionId` **and** `fullContentDigest(target) === proposal.base.contentDigest` | **exact base** — whole-proposal apply is clean; per-hunk apply has no conflicts |
-| 2 | `target.revisionId !== proposal.base.revisionId` but `proposal.base.revisionId ∈ target.lineage` **and** every region a hunk touches still matches the base (per-field, §R6.3) | **fast-forward** — per-hunk apply lands cleanly; whole-proposal apply still asks for consent because it would also drop untouched-by-the-proposal edits the target made after `base` |
-| 3 | `proposal.base.revisionId ∉ target.lineage`, **or** `target.revisionId === proposal.base.revisionId` but the digest does not match (the open doc was edited after that revision without re-saving) | **divergent** — no clean whole-apply; per-hunk apply must resolve conflicts (§R6.3) |
-| 4 | `projectId` mismatch | **wrong project** — refused (§R6.1) |
-
-A missing / empty `proposal.base` (a malformed proposal, or a `role: "revision"`
-file dropped into Review) → treated as **divergent**, with the note *"this file
-does not record what it was based on."*
-
-### R6.3 Per-hunk applicability (fast-forward & divergent)
-
-For each proposal hunk, compare the **target's current** projected value for
-that `id` against the **proposal's `base`** value for the same `id`
-(reconstructable from `proposal` content minus the hunk, i.e. the base side of
-the diff):
-
-- **`add`** — id absent in target → applicable. Id present in target with an
-  **equal** projection → already there, hunk is a **no-op**. Id present but
-  **different** → **conflict** (added on both sides differently).
-- **`remove`** — id present in target and its projection **equals the base's** →
-  applicable. Id absent → **no-op**. Id present but **changed** vs base →
-  **conflict** (you edited what the proposal wants to delete).
+- **`add`** — id absent in target → **clean**. Id present, projection equals the
+  proposed → **no-op**. Id present, projection differs → **conflict** (added on
+  both sides).
+- **`remove`** — id present in target and equals `base.content`'s → **clean**.
+  Id absent → **no-op**. Id present but changed vs `base.content` → **conflict**.
 - **`change`** — id present and the fields the hunk changes still hold their
-  **base** values in the target → applicable. Id absent → **conflict** (you
-  deleted what the proposal wants to change). A field already at the proposal's
-  value → that field is a **no-op**; a field at a *third* value → **conflict on
-  that field**.
+  `base.content` values in the target → **clean**. Id absent → **conflict**. A
+  field already at the proposed value → that field **no-op**; a field at a third
+  value → **conflict on that field** (`base` / `proposed` / `yours` all shown).
 
-Conflicts are **surfaced per hunk (and per field)** with `base`, `proposal`,
-and `yours`; the user picks **take proposal** or **keep mine** for each, or
-skips it. Nothing is auto-resolved. A "take proposal" on a conflicting `change`
-whose id is missing first re-adds the element from the proposal.
+Conflicts are surfaced per hunk (and per field); the user picks **take
+proposal** or **keep mine** for each, or skips. **Nothing is auto-resolved.**
 
-### R6.4 Whole-proposal apply on a non-exact base
+### R7A.4 Confirmation
 
-Allowed only with an explicit confirmation that names both revisions and states
-the loss:
+- **exact** → whole-proposal apply lands with **no** confirmation.
+- **direct fast-forward** → per-hunk "apply all" lands with no confirmation
+  (it is a clean fast-forward); a *whole-proposal* apply still confirms (it
+  would also discard the target's one-revision-ahead changes).
+- **divergent** / **unknown ancestry** → **explicit confirmation** naming both
+  revisions and stating the loss, before *any* change:
 
-> *This proposal was made from revision `rev_ab…` (title, if any). You have
-> `rev_cd…` open. Applying it replaces your current graph with the proposal's
-> version — anything you changed since `rev_ab…` will be lost. Undo reverts it.*
+  > *This proposal was made from `rev_ab…`{ (title) }. You have `rev_cd…` open{,
+  > and their relationship can't be determined from the files }. Applying it
+  > {replaces your graph with the proposal's version | applies N hunks; M
+  > conflict}. Undo reverts it.*
 
-with **Apply anyway**, **Open the proposal instead** (switch to viewing/running
-the proposal as its own revision — no apply, no new revision), or **Cancel**.
-
-### R6.5 What is never automatic
-
-Renumbering ids, reconciling positions, choosing a "winner" for a conflicting
-field, merging two divergent branches into one revision, or rebasing a proposal
-onto a newer base. All of these are either manual (per-hunk) or out of scope.
+  Actions: **Apply** (whole or resolved-per-hunk), **Open the proposal as a
+  document** (§R10.5 — no apply, no new revision), **Cancel**.
 
 ---
 
-## R7. Author-info trust level
+## R8. Author-info trust level
 
-- `project.meta.author.name`, `author.note`, `meta.title`, `meta.createdAt`,
-  `meta.tool` are **unverified, self-asserted strings** written by whoever last
-  exported the file. There is no signing, no identity check, no server — a file
-  can claim any author.
-- The UI renders them as **claimed, not verified** — e.g. a muted
-  *"proposed by Alex · unverified"* and *"file says: 2026-08-29"*. Never
-  presented as authenticated. Same disclosure posture as the Share-link warning
-  in `SEMANTICS-U.md`.
-- **No apply / diff / conflict / lineage logic depends on `meta`.** A missing,
+- `meta.author.{name,note}`, `meta.title`, `meta.createdAt`, `meta.tool` are
+  **unverified, self-asserted strings** written by whoever last exported the
+  file. No signing, no identity, no server — a file can claim any author.
+- The UI renders them as **claimed, not verified** — a muted *"proposed by
+  Alex · unverified"*, *"file says: 2026-08-29"* — never as authenticated.
+  Same posture as the Share-link disclosure in `SEMANTICS-U.md`. All rendered
+  `meta` strings are escaped as text.
+- **No diff / classify / apply / lineage decision depends on `meta`.** Missing,
   empty, or garbage `author` / `createdAt` / `tool` never blocks or changes an
   outcome; it renders as *"unknown"*.
 - The trusted structural facts are `projectId`, `revisionId`, `parentId`,
-  `base.*`, `appliedProposalId`, `lineage` — and they are trusted **only as
-  opaque correlation keys**, never as proof of *who* produced a file or *when*.
-- `author.name` is filled from a **device-local** setting the user types once
-  (stored under the user's own `localStorage` key, like `theme`); it is never
-  read from the OS, an account, or the network. `Make a proposal` states once
-  that this name travels inside the file (like a diagram label). It contains no
-  PII beyond what the user chooses to type.
-
----
-
-## R8. Import routing
-
-One file input; branch on the keys present.
-
-1. **Parse + load the graph first** via the existing `deserialize()` path. If it
-   throws, Import fails as today; `workspace` / `project` are not consulted.
-2. **`project` absent** → today's behaviour (`workspace` handled per
-   `loop-workspace/1`, else a plain graph). The open project becomes `null`.
-3. **`project` present but `schema !== "loop-revision/1"` or `version !== 1`**
-   (strict — a string `"1"`, `1.5`, `0`, negative all fail) → **load the graph /
-   workspace only**, one-line warning (*"this file's project data is not a
-   supported version"*); open project `null`.
-4. **`project.role === "revision"`** (or unknown/absent `role`, treated as
-   `"revision"`) → open it: the graph (+ workspace) loads, and the
-   `projectStore` is set from the file's `project`. If it shares `projectId`
-   with the previously open project, it is just a different revision of the same
-   project; otherwise it is a different project.
-5. **`project.role === "proposal"`**:
-   - `projectId` **matches** the open project → open the **Review** view: the
-     RevisionDiff (§R4) between the open revision (target) and the proposal, the
-     §R6 classification, and the Apply / Open-instead / Cancel actions. The
-     graph on screen does **not** change until the user applies.
-   - `projectId` **differs** from the open project, or there is no open project
-     → the §R6.1 refuse / "open as a new project" path.
-6. A `project` payload that is structurally invalid (missing `projectId` /
-   `revisionId`; `base` absent on a `proposal`; non-string ids) → **degrade**:
-   load the graph / workspace, drop `project` with a warning, open project
-   `null`. The graph always survives, exactly as `loop-workspace/1` §W5
-   guarantees for `workspace`.
+  `base.*`, `appliedProposal.*`, `lineage[]` — trusted **only as opaque
+  correlation keys**, never as proof of *who* or *when*.
+- `meta.author.name` is filled from a **device-local** setting the user types
+  once (`localStorage` key `AUTHOR_NAME_KEY`, §R11) — never from the OS, an
+  account, or the network. **Before the name is stored, the settings UI states
+  once that it is written into and travels with every revision / proposal file
+  the user exports** (like a diagram label). `name` / `note` are truncated to
+  the §R11 byte caps on export.
 
 ---
 
@@ -388,139 +495,213 @@ One file input; branch on the keys present.
 
 | # | invariant |
 |---|---|
-| **R1** | A file with no `project` key behaves exactly as a `loop-workspace/1` / Graph file does today. Stripping `project` yields exactly what `Export(Workspace)` / `Export(Graph)` would have written. |
-| **R2** | `projectId` is stable across an entire lineage — every revision and proposal derived from a project carries it byte-for-byte; promote mints it once; Apply and Export never change it. |
-| **R3** | Apply produces a **new** revision whose `parentId` is the target it was applied onto, and **never** mutates the proposal file or the base file. |
-| **R4** | Apply is atomic: one `loadDoc()`, one `simulationRev` bump, lands paused at step 0, one undo entry. |
-| **R5** | A proposal whose `projectId` ≠ the open project is refused — no diff across projects, no apply. |
-| **R6** | Whole-proposal apply onto a non-exact base requires an explicit confirmation naming both revisions; per-hunk apply surfaces every conflict with base / proposal / yours and resolves **none** automatically. |
-| **R7** | `meta.author` / `createdAt` / `tool` are unverified, display-only; no diff / apply / conflict / lineage decision depends on them; the UI labels them as claimed-not-verified. |
-| **R8** | The RevisionDiff is deterministic and id-keyed: element order and whitespace in the two files never change it; the same two files always produce the same diff. |
-| **R9** | Round-trip — open a revision, `Make a proposal`, change nothing, Import the proposal: `fullContentDigest` equals the base's, the diff is empty, and Apply is a no-op that still advances the lineage only if the user asks. |
-| **R10** | No `project` payload — malformed, wrong version, wrong project, or partially corrupt — can prevent the graph from importing. |
+| **R-INV-1** | A file with no `project` key behaves exactly as a `loop-workspace/1` / Graph file does today. Stripping `project` yields exactly what `Export(Workspace)` / `Export(Graph)` would have written. |
+| **R-INV-2** | A `revisionId` names one exact content state: it is kept on re-export **only** while `fullContentDigest` is unchanged; any content change mints a new `revisionId` with `parentId` = the prior one. |
+| **R-INV-3** | `projectId` is stable across the whole lineage — every revision and proposal carries it byte-for-byte; promote mints it once; Apply and Export never change it. |
+| **R-INV-4** | The canonical revision projection (§R4.2) and `canonicalJson` (§R4.3) are fixed: the same graph always yields the same `fullContentDigest`; element order and whitespace in a source file never change it. |
+| **R-INV-5** | A proposal file always carries a complete `base.content` (§R6); the three-way diff and per-hunk apply are computable from the proposal file + the open document alone, with no external history. |
+| **R-INV-6** | `base.contentDigest === SHA-256(canonicalJson(base.content))`; a mismatch makes the `project` payload corrupt (graph still loads). |
+| **R-INV-7** | Apply always produces a **new** revision: fresh `revisionId`, `parentId` = the pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`. The proposal's `revisionId` / author is never adopted as the result's identity / verified author. This holds for `exact` and `divergent` alike; only `divergent` / `unknown` add a confirmation. |
+| **R-INV-8** | Apply is atomic: one `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry; it writes no file and mutates neither the proposal nor the base file. |
+| **R-INV-9** | Classification uses only file-contained, provable facts (`revisionId`, `parentId`, digests, `base.content`); `unknown ancestry` is never inferred as fast-forward; `lineage[]` never licenses a permissive outcome alone. |
+| **R-INV-10** | No `project` payload — malformed, wrong version, wrong project, digest-inconsistent, or partially corrupt — can prevent the graph (and a valid `workspace`) from importing. |
+| **R-INV-11** | Opening a proposal for Review does not change the open document; **Cancel** and any validation failure leave the graph, run state, undo history, and `projectStore` untouched. |
+| **R-INV-12** | Secure randomness is required to mint an id; if `crypto.getRandomValues` is unavailable or throws, `Export → Project revision` / `Make a proposal` **abort** with a message — `Math.random()` is never a fallback. |
+| **R-INV-13** | No automatic merge / rebase; conflicting hunks are surfaced with `base` / `proposed` / `yours` and resolved only by an explicit per-item choice. |
 
 ---
 
-## R10. Decisions — to settle before freeze
+## R10. Import routing (Import ≠ Apply)
 
-| # | decision | proposed |
-|---|---|---|
-| **D1** | Container | a nested **`project`** key on the `loop-studio/graph` doc (additive, optional), not a new schema. A Project file is a valid Workspace / Graph file. |
-| **D2** | Spec id | **`loop-revision/1`**, its own frozen id. |
-| **D3** | Project identity | one opaque crypto-random `projectId`, minted on first `Export → Project revision`, stable for the whole lineage; equality of `projectId` is the *only* identity test. |
-| **D4** | Revision id | opaque crypto-random, **content-independent** (every export is a distinct revision); lineage by `parentId` pointers only; `createdAt` never trusted for ordering. |
-| **D5** | Proposal | a `role: "proposal"` file carrying a pinned **`base` = { revisionId, fullContentDigest }**; content is an editable copy of the base. Each re-export of a proposal mints a fresh `revisionId` but preserves `base`. |
-| **D6** | Diff scope | id-keyed per-element `added` / `removed` / `changed` / `unchanged` over the **fullContent** projection (engine fields + `label` + `position` + `recommendedRunConfig`), each changed field tagged `engine` / `cosmetic`; `workspace` reduced to a single `workspaceDiffers` boolean; `meta` not diffed. |
-| **D7** | Apply granularity | **whole-proposal apply is required (slice 1)**; **per-hunk selective apply is specified here** and may land as a later slice. Both wrap the result as a new revision atomically (one `loadDoc`, one bump, one undo). |
-| **D8** | Apply scope | structural graph + `recommendedRunConfig`; **run / workspace / sim state is not applied** (an opt-in copies only the run config). Always lands paused / step 0. |
-| **D9** | Conflict model | project-id gate → classify target vs `base` (exact / fast-forward / divergent) → whole-apply on a non-exact base needs explicit consent; per-hunk conflicts show base / proposal / yours and are resolved **manually**. **No 3-way merge, no rebase, no auto-resolution.** |
-| **D10** | Author trust | `meta.*` are unverified self-asserted strings; UI labels them "claimed, not verified"; no logic depends on them; `author.name` comes from a device-local setting the user types once and is disclosed to travel in the file. |
-| **D11** | Persistence | the project lineage lives only in files and the in-memory `projectStore`; `localStorage` still persists the **graph only**; `New` / opening a plain file clears the open project. |
-| **D12** | Out of v1 | accounts, server, cloud, real-time sync, presence, locking, signing, auto-merge / rebase, multi-project bundles, a disk revision browser, deep `workspace` diffing, any network transport. |
+One file input; branch on the keys present. Nothing here changes the open
+document except step 4 (opening a revision) and step 5's explicit
+"open as a document".
+
+1. **Parse + load the graph first** via `deserialize()`. Throws → Import fails
+   as today; `workspace` / `project` are not consulted.
+2. **`project` absent** → today's behaviour (`workspace` per `loop-workspace/1`,
+   else a plain graph). Open project → `null`.
+3. **`project` present but `schema !== "loop-revision/1"` or `version !== 1`**
+   (strict — `"1"`, `1.5`, `0`, negative all fail), **or** any id fails the
+   §R11 format check, **or** `base` is absent on a `role: "proposal"`, **or**
+   `base.contentDigest !== SHA-256(canonicalJson(base.content))` → **load the
+   graph / workspace only**, one-line warning; open project → `null`. The graph
+   always survives (R-INV-10).
+4. **`project.role === "revision"`** (or absent/unknown `role`) → **open it**:
+   the graph (+ workspace) loads and `projectStore` is set from the file's
+   `project` (baseline digest = `fullContentDigest` of the loaded graph). Same
+   `projectId` as before ⇒ a different revision of the same project; otherwise a
+   different project.
+5. **`project.role === "proposal"`:**
+   - `projectId` **matches** the open project → open the **Review** view: the
+     RevisionDiff (§R5), the §R7A.2 classification, the §R7A.3 conflicts, and
+     **Apply / Open-as-document / Cancel**. **The open document is unchanged
+     until Apply** (R-INV-11).
+   - `projectId` **differs**, or there is **no** open project → offer **"Open
+     the proposed content as a document"**: load its graph, set `projectStore`
+     from its `project` (you are now on *that* project, viewing the proposed
+     content; the toolbar chip shows `proposal · viewing`), **no diff, no apply**
+     — there is no target. Or **Cancel** (nothing changes).
+6. On **Apply** only (from step 5, same project): the §R7 atomic path runs. On
+   **Cancel**, or any per-field validation failure during Review, **nothing
+   changes** — graph, run state, undo, `projectStore` all as before.
 
 ---
 
-## R11. Constants to pin on freeze
+## R11. Constants & formats to pin on freeze
 
 | name | value | note |
 |---|---|---|
 | `PROJECT_SCHEMA` | `"loop-revision/1"` | the `project.schema` string |
-| `PROJECT_VERSION` | `1` | a v1 reader restores **only** `version === 1` (strict); everything else loads graph/workspace-only |
-| `PROJECT_ID_PREFIX` | `"proj_"` | + 26 Crockford base32 chars from `crypto.getRandomValues` |
-| `REVISION_ID_PREFIX` | `"rev_"` | + 26 Crockford base32 chars; content-independent |
-| `LINEAGE_MAX` | `64` | cap on the advisory `lineage[]` ancestor list |
-| `AUTHOR_NAME_KEY` | `"loop-studio:author"` | device-local `localStorage` key for the self-asserted author name (like `loop-studio:theme`) |
-| digest projections | **semantic** = `loop-workspace/1` §W11 node/edge lists verbatim; **full** = semantic + node `label` + node `position` (integer-rounded) + edge `label` + `recommendedRunConfig` | canonicalisation (id-sort, fixed key order, no whitespace, SHA-256 lowercase hex, pure-JS fallback) identical to `loop-workspace/1` §W3.1 |
+| `PROJECT_VERSION` | `1` | a v1 reader restores **only** `version === 1` (strict); else graph/workspace-only |
+| id alphabet | Crockford base32: `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (no `I L O U`) | uppercase only |
+| `PROJECT_ID` | `^proj_[0-9A-HJKMNP-TV-Z]{26}$` | 26 chars ≈ 130 bits, from `crypto.getRandomValues` |
+| `REVISION_ID` | `^rev_[0-9A-HJKMNP-TV-Z]{26}$` | same generator; content-independent |
+| `LINEAGE_MAX` | `64` | cap on `lineage[]`; excess dropped from the tail on rebuild |
+| `AUTHOR_NAME_KEY` | `"loop-studio:author"` | device-local `localStorage` key (sibling of `loop-studio:theme`) |
+| `AUTHOR_NAME_MAX_BYTES` | `80` | UTF-8; truncated on export at a code-point boundary |
+| `AUTHOR_NOTE_MAX_BYTES` | `1000` | UTF-8; truncated at a code-point boundary |
+| `REVISION_FILE_MAX_BYTES` | `8 * 1024 * 1024` (8 MiB) | hard cap on the serialized revision / proposal file, measured as UTF-8 length; over ⇒ export refused (no truncation) |
+| RNG failure | **abort export** | `crypto.getRandomValues` unavailable / throwing ⇒ no id minted, no file written; **never** `Math.random()` |
+| digest tooling | `crypto.subtle` where present, else the bundled pure-JS SHA-256 (as `loop-workspace/1` §W12.15) | a build with neither ⇒ `project` reader is graph-only + warning |
+
+**Canonical projection field lists** — §R4.2 `FIELDS_BY_KIND` /
+`EDGE_FIELDS_BY_KIND` are the frozen lists; a future engine field is added there
+in `loop-revision/2`.
 
 ---
 
-## R12. Implementation consequences (decided here; not part of the frozen wire contract)
+## R12. Decisions — to settle before freeze
 
-- **`src/model/revision.ts`** — owns the `project` schema, id minting,
-  `semanticContentDigest` / `fullContentDigest` (reusing
-  `src/model/workspace.ts`'s digest primitives), `computeRevisionDiff(base,
-  proposal)`, hunk applicability (§R6.3), and the defensive `project` reader.
-  `deserialize()` grows to return `{ …graph, workspace?, project? }`.
-- **`src/store/projectStore.ts`** — the open revision
-  (`{ projectId, revisionId, parentId, role, base?, lineage, meta } | null`);
-  `promote()`, `nextRevision()` (mint + set as open), `applyProposal(proposal,
-  { hunks?, alsoRunConfig? })` (builds the resulting graph, calls
-  `graphStore.loadDoc` once, records `appliedProposalId`), `openRevision(file)`,
-  `clear()`.
-- **`src/store/revisionIO.ts`** — `collectProjectPayload()`,
-  `serializeRevisionFile()` / `serializeProposalFile()`, and `routeImport(text)`
-  extending `workspaceIO.importFile` (§R8) so one file input covers graph /
-  workspace / revision / proposal.
-- **UI** — `Export ▾` gains **Project revision** and **Make a proposal**; a
-  toolbar **revision chip** (project title · short `revisionId` · a `proposal`
-  badge · a "modified" dot); a **Review** panel/sheet (the RevisionDiff, per-hunk
-  toggles when selective apply ships, the §R6.4 consent dialog, Apply /
-  Open-instead / Cancel). On mobile the Review panel is a sheet and Apply goes
-  through the existing §MV3b confirm-before-replace path.
-- **`recommendedRunConfig`** already round-trips through `serialize()`; the diff
-  reads it directly.
+| # | decision | proposed |
+|---|---|---|
+| **D1** | Container | a nested **`project`** key (additive, optional). A Project file is a valid Workspace / Graph file. |
+| **D2** | Spec id | **`loop-revision/1`**. |
+| **D3** | Project identity | one opaque crypto-random `projectId`, minted on promote, stable for the lineage; `projectId` equality is the *only* identity test. |
+| **D4** | Revision identity & dirty | `revisionId` names one content state; kept on unchanged re-export, a **new** id (with `parentId` = prior) only when `fullContentDigest` changed; `dirty` is a pure content function. |
+| **D5** | Canonical projection | **defined in §R4**, distinct from `loop-workspace/1`'s semantic digest: includes `label` + `position` + `recommendedRunConfig`; excludes `workspace` / `project` / `meta` / selection / UI transient; fixed field order, id-sorted arrays, finite-number + missing-field normalisation; **only** SHA-256 tooling is reused from W3.1. |
+| **D6** | Proposal carries the base | `project.base` includes a complete **`content`** snapshot (the canonical projection of the base) plus its digest, so three-way diff and per-hunk apply are fully offline-computable. |
+| **D7** | Apply granularity | **both** whole-proposal and per-hunk selective apply are part of `loop-revision/1` — the file contract (D6) is complete for both from freeze. Implementation may ship whole-apply first; the wire format does not change. |
+| **D8** | Apply result | always a **new** revision: fresh `revisionId`, `parentId` = pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`; the proposal's id/author never adopted. Same for `exact` and `divergent`; only `divergent` / `unknown` add a confirmation. |
+| **D9** | Apply scope & atomicity | structural graph + `recommendedRunConfig` (run/sim/workspace **not** applied; opt-in copies only the run config); one `loadDoc`, one `simulationRev` bump, paused/step 0, one undo entry; writes no file. |
+| **D10** | Classification | only provable cases: `exact` (revisionId + digest), `direct fast-forward` (file-contained parent link + zero three-way conflicts), `divergent` (related, lines diverged), `unknown ancestry` (relationship unprovable). `unknown` is never inferred as fast-forward; `lineage[]` is advisory and never licenses a permissive outcome alone. |
+| **D11** | Conflict model | no 3-way merge / rebase; per-hunk conflicts show `base` / `proposed` / `yours`, resolved by explicit per-item choice; whole-apply on a non-exact base needs explicit consent. |
+| **D12** | Author trust | `meta.*` unverified, display-only, UI-labelled "claimed, not verified"; no logic depends on them; `author.name` from a device-local setting, disclosed once to travel in exported files; byte-capped. |
+| **D13** | Import vs Apply | Import routes (§R10) and never changes the open doc except opening a revision or an explicit "open as a document"; Review is non-destructive; Apply is the only mutation and it is atomic; Cancel / validation failure = zero change. |
+| **D14** | Limits | `LINEAGE_MAX 64`; author name/note byte caps; `REVISION_FILE_MAX_BYTES 8 MiB` (export refused over it, no truncation); `proj_` / `rev_` + 26 Crockford base32; secure-RNG failure aborts export. |
+| **D15** | Out of v1 | accounts, server, cloud, real-time sync, presence, locking, signing, auto-merge/rebase, multi-project bundles, a disk revision browser, deep `workspace` diffing, any network transport. |
+
+---
+
+## R13. Implementation consequences (decided here; not part of the frozen wire contract)
+
+- **`src/model/revision.ts`** — the `project` schema; `PROJECT_*` /
+  `REVISION_ID` validators; `canonicalContent` / `canonicalJson` /
+  `fullContentDigest` (reusing `src/model/workspace.ts`'s SHA-256 primitive);
+  `computeRevisionDiff`; the §R7A.3 per-hunk applicability check; the defensive
+  `project` reader (§R10 steps 3/6). `deserialize()` grows to return
+  `{ …graph, workspace?, project? }`.
+- **`src/store/projectStore.ts`** — the open revision +
+  `{ baselineDigest, dirty }`; `promote()`, `nextRevision()` (digest-gated —
+  §R2), `makeProposal()`, `openRevision(file)`, `applyProposal(proposal, {
+  hunks?, alsoRunConfig? })` (builds the resulting graph, one
+  `graphStore.loadDoc`, records `appliedProposal`), `clear()` (on `New` / a
+  plain-file open).
+- **`src/store/revisionIO.ts`** — `collectRevisionPayload()` /
+  `collectProposalPayload()`; `serializeRevisionFile()` /
+  `serializeProposalFile()` with the `REVISION_FILE_MAX_BYTES` measure;
+  `routeImport(text)` extending `workspaceIO.importFile` (§R10).
+- **Author setting** — a small settings control writing `AUTHOR_NAME_KEY`, with
+  the "travels in the file" disclosure; read at `Make a proposal` / `Project
+  revision` export.
+- **UI** — `Export ▾` gains **Project revision** / **Make a proposal**; a
+  toolbar **revision chip** (title · short `revisionId` · `proposal` /
+  `viewing` badge · a dirty dot); a **Review** panel (desktop) / sheet (mobile,
+  through the §MV3b confirm-before-replace path) with the RevisionDiff, per-hunk
+  toggles + conflict resolvers, the §R7A.4 consent, and Apply / Open-as-document
+  / Cancel.
 - Apply reuses `graphStore.loadDoc` (the single `simulationRev` bump from
-  `loop-workspace/1` §W7) so §R9/R4 hold without new reset plumbing.
+  `loop-workspace/1` §W7) so R-INV-8 holds with no new reset plumbing.
 
 ---
 
-## R13. Acceptance vectors (test basis — filled on implementation)
+## R14. Acceptance vectors (test basis — filled on implementation)
 
-1. **Plain / workspace files unaffected** — `Export(Graph)` and
-   `Export(Workspace)` bytes identical before/after this feature; a v0.4.0
-   Workspace file imports with no open project.
-2. **Promote + lineage** — open a plain graph, `Export → Project revision` ⇒ a
-   `project` with a fresh `projectId`, `parentId: null`, `role: "revision"`;
-   edit, export again ⇒ same `projectId`, new `revisionId`, `parentId` = the
-   first.
-3. **Make a proposal, no edits** — from a revision, `Make a proposal` ⇒
-   `role: "proposal"`, `base.revisionId` = the open revision,
-   `base.contentDigest` = its `fullContentDigest`; Import it into the same
-   revision ⇒ **exact base**, diff empty, Apply is a no-op.
-4. **Diff — engine vs cosmetic** — a proposal that moves a node, renames a Pool,
-   and changes a Gate `distribution` ⇒ the diff lists three `changed` node
-   hunks with `position` / `label` tagged `cosmetic` and `distribution` tagged
-   `engine`; `summary.engineAffecting === true`.
-5. **Whole-apply on exact base** — target === base ⇒ Apply with no confirmation;
-   result graph === proposal graph; a **new** revision, `parentId` = target,
-   `appliedProposalId` = the proposal, `projectId` unchanged; sim paused at
-   step 0; one undo entry restores the target.
-6. **Whole-apply on a divergent base** — edit the target after making the
-   proposal ⇒ Apply shows the §R6.4 consent naming both revisions; **Cancel**
-   changes nothing; **Apply anyway** replaces the graph and undo reverts it;
-   **Open instead** switches to the proposal as its own revision with no new
-   revision minted.
-7. **Wrong project** — a proposal whose `projectId` differs ⇒ refused, no diff,
-   no state change; the "open as a new project" path mints a fresh `projectId`.
-8. **Per-hunk apply (when it ships)** — a proposal with 3 node changes and 1
-   edge removal; accept 2 node changes, reject the rest ⇒ result = target + the
-   2 accepted fields; new revision; the edge is still present.
-9. **Per-hunk conflict** — the proposal changes node X's `capacity` from `10` to
-   `20`; the target already changed it to `15` ⇒ that field is a **conflict**
-   showing base `10` / proposal `20` / yours `15`; "keep mine" leaves `15`,
-   "take proposal" sets `20`; nothing auto-resolves.
-10. **Per-hunk conflict — deleted target** — the proposal changes node X; the
-    target deleted X ⇒ conflict; "take proposal" re-adds X from the proposal,
-    "keep mine" leaves X deleted.
-11. **Author is display-only** — a proposal with `author.name: "<script>"` and a
-    future `createdAt` ⇒ rendered as an escaped, muted "claimed, unverified"
-    label; the diff, classification, and apply outcomes are byte-identical to
-    the same file with `meta` removed.
-12. **Version must be exactly 1** — `project.version` of `2`, `0`, `-1`, `1.5`,
-    `"1"` ⇒ graph / workspace load, `project` skipped + warning; the
-    `projectStore` stays `null`.
-13. **Corrupt `project`** — missing `revisionId`; `base` absent on a proposal;
-    non-string `projectId` ⇒ graph / workspace still import, `project` dropped
-    with a warning.
-14. **Old build** — a Project file opened by a `loop-revision`-unaware build
-    (simulate by removing the reader) loads the graph (and the `workspace` if
-    that reader exists).
-15. **Deterministic diff** — shuffle `nodes` / `edges` order and reformat
-    whitespace in both files ⇒ identical `RevisionDiff`.
-16. **`file://` portable** — promote, proposal round-trip (3), diff (4), and a
-    whole-apply (5) all work in the portable single-file build from `file://`
-    (SHA-256 via the bundled pure-JS fallback, as `loop-workspace/1` §W12.15).
-17. **Mobile** — a proposal opened on the mobile layout shows the Review sheet;
-    Apply goes through the §MV3b confirm-before-replace path and produces the
-    same new revision as on desktop; the desktop `state-ui` / `visual`
-    snapshots are unchanged.
+1. **Plain / workspace files unaffected** — `Export(Graph)` / `Export(Workspace)`
+   bytes identical before/after; a v0.4.0 Workspace file imports with no open
+   project.
+2. **Promote + immutable lineage** — open a plain graph, `Export → Project
+   revision` ⇒ fresh `projectId`, `parentId: null`; **re-export with no edit ⇒
+   byte-identical `revisionId` + `parentId`**; edit, export ⇒ same `projectId`,
+   **new** `revisionId`, `parentId` = the first; `dirty` is true between the
+   edit and the export, false after.
+3. **Canonical digest — normalisation** — two files for the same graph that
+   differ only in node/edge array order, key order, `"capacity": null` vs
+   omitted, `10` vs `10.0`, and whitespace ⇒ **equal** `fullContentDigest` and
+   an **empty** diff.
+4. **Digest — cosmetic vs engine** — a proposal that moves a node, renames a
+   Pool, and changes a Gate `distribution` ⇒ three `changed` node hunks with
+   `position` / `label` tagged `cosmetic`, `data.distribution` tagged `engine`,
+   `summary.engineAffecting === true`.
+5. **Proposal carries a complete base** — `Make a proposal`, then with **only**
+   the proposal file: reconstruct `base.content`, compute the diff against an
+   independently-loaded target, and run a per-hunk apply — no other file needed;
+   `base.contentDigest === SHA-256(canonicalJson(base.content))`.
+6. **Whole-apply on `exact` base** — target `revisionId` + digest match ⇒ Apply
+   with no confirmation; result graph === proposal graph; **new** `revisionId`,
+   `parentId` = target, `appliedProposal` = {proposalId, baseId, baseDigest},
+   `projectId` unchanged, `meta.author` = the applier; sim paused/step 0; one
+   undo restores the target.
+7. **Apply on `divergent` base** — edit the target after the proposal was made
+   ⇒ §R7A.4 confirmation names both revisions; **Cancel** ⇒ zero change (graph,
+   run, undo, `projectStore`); **Apply anyway** ⇒ new revision as in (6), undo
+   reverts; **Open as a document** ⇒ switch to the proposal's content, **no**
+   new revision minted.
+8. **`direct fast-forward`** — target's `parentId` === `proposal.base.revisionId`
+   and the three-way check has no conflicts ⇒ classed `direct fast-forward`;
+   per-hunk "apply all" lands with no confirmation and yields a clean merge;
+   whole-apply still confirms.
+9. **`unknown ancestry` is not fast-forward** — `proposal.base.revisionId` is
+   not the target's `revisionId` / `parentId` and not in a (short) `lineage[]`
+   ⇒ classed `unknown ancestry`, treated as `divergent` (confirmation
+   required); a longer `lineage[]` containing it moves it to `divergent`, never
+   to `fast-forward`.
+10. **Per-hunk conflict** — proposal changes node X `capacity` `10 → 20`; target
+    already has `15` ⇒ conflict showing base `10` / proposed `20` / yours `15`;
+    "keep mine" leaves `15`, "take proposal" sets `20`; result is a new
+    revision; nothing auto-resolves.
+11. **Per-hunk conflict — deleted target** — proposal changes X; target deleted
+    X ⇒ conflict; "take proposal" re-adds X from the proposal, "keep mine"
+    leaves it deleted.
+12. **Wrong project** — a proposal with a different `projectId` ⇒ **refused to
+    apply**, no diff, no state change; "open as a document" loads its graph and
+    switches `projectStore` to that project.
+13. **Author is display-only** — a proposal with `author.name` containing markup
+    and a future `createdAt` ⇒ rendered escaped + muted "claimed, unverified";
+    the diff, classification, and apply outcomes are byte-identical to the same
+    file with `meta` removed.
+14. **Corrupt / inconsistent `project`** — missing `revisionId`; `base` absent
+    on a proposal; `base.contentDigest` not matching `base.content`; a
+    non-Crockford id ⇒ graph (+ valid `workspace`) still import, `project`
+    dropped + warning, `projectStore` `null`.
+15. **Version must be exactly 1** — `project.version` of `2`, `0`, `-1`, `1.5`,
+    `"1"` ⇒ graph/workspace load, `project` skipped + warning.
+16. **File size cap** — a graph large enough that a proposal (base snapshot +
+    proposed graph) exceeds `REVISION_FILE_MAX_BYTES` ⇒ `Make a proposal` is
+    refused with a clear message; `Export → Project revision` and `Graph JSON`
+    still work.
+17. **Secure-RNG failure** — stub `crypto.getRandomValues` to throw ⇒
+    `Export → Project revision` and `Make a proposal` abort with a message;
+    nothing is written; **no** `Math.random()` id appears.
+18. **Import ≠ Apply** — importing a same-project proposal opens Review with the
+    canvas unchanged; the graph changes only on **Apply**; **Cancel** and a
+    mid-Review validation failure leave everything as before.
+19. **Deterministic diff** — shuffle `nodes` / `edges` and reformat whitespace
+    in both files ⇒ identical `RevisionDiff`.
+20. **`file://` portable** — promote (2), proposal round-trip (5), diff (4), and
+    a whole-apply (6) all work in the portable single-file build from `file://`
+    (SHA-256 via the bundled fallback, as `loop-workspace/1` §W12.15).
+21. **Mobile** — a same-project proposal opened on the mobile layout shows the
+    Review sheet; Apply goes through the §MV3b confirm-before-replace path and
+    produces the same new revision as on desktop; the desktop `state-ui` /
+    `visual` snapshots are unchanged.
