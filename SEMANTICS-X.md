@@ -2,17 +2,20 @@
 
 ```
 Spec ID: loop-expr/1
-Status:  Draft (rev 3)
+Status:  Draft (rev 4 — freeze candidate)
 ```
 
-**Draft for review — rev 3.** Rev 2 (arithmetic-core grammar, AST-canonical
-digest form, enumerated error codes) is approved. Rev 3: the `@id` reference
-gets a `@{opaque-id}` escape so **every** node id is representable without
-ambiguity (§X3); every §X11 item is closed as `Decided` or `Deferred`. Defines
-a **small, deterministic expression language** — its grammar, its reference
-syntax, its numeric rules, its canonical form, and how it is evaluated — and
-nothing else. Used by `loop-model/1` (Register expressions); everything beyond
-the arithmetic core is a later amendment.
+**Draft for review — rev 4 (freeze candidate).** Rev 3 is approved except one
+`@id` contradiction: it both offered a `@{opaque-id}` escape **and** required
+every reference-target id to be `SAFE_ID`, which makes the escape pointless and
+assumes every legacy GraphDoc id was already `SAFE_ID`. Rev 4 removes the id
+restriction: **any existing valid GraphDoc id may be referenced**; `SAFE_ID`
+only selects the *canonical spelling* (§X3). This is the sole change.
+
+Defines a **small, deterministic expression language** — its grammar, its
+reference syntax, its numeric rules, its canonical form, and how it is
+evaluated — and nothing else. Used by `loop-model/1` (Register expressions);
+everything beyond the arithmetic core is a later amendment.
 
 Layered under `loop-model/1`. Does **not** change how a diagram runs today:
 `SEMANTICS.md`, `SEMANTICS-B1.md` / `-B2.md`, `SEMANTICS-S.md` / `-S2.md`
@@ -61,8 +64,9 @@ unary   = "-" unary | primary                   ; prefix minus, right-assoc, may
 primary = number | ref | "(" expr ")"
 
 ref       = "@" ( safe-id | "{" braced-id "}" )     ; §X3
-safe-id   = ALPHA (ALPHA | DIGIT)*                  ; = SAFE_ID, the constrained node-id charset
-braced-id = ( any char except "}" , CR , LF )+      ; the escape for an imported exotic id
+safe-id   = ALPHA (ALPHA | DIGIT)*                  ; matches SAFE_ID
+braced-id = ( braced-char | "\\}" | "\\\\" )+       ; the escape form; §X3.1
+braced-char = any char that is NOT "\" , "}" , or a Unicode control char (U+0000–U+001F, U+007F–U+009F)
 ALPHA     = "A"…"Z" | "a"…"z" | "_"
 DIGIT     = "0"…"9"
 
@@ -93,38 +97,54 @@ unambiguous.
 
 ## X3. References — `@id` and the `@{id}` escape
 
-A reference names a target by its **stable node id**, never a label.
+A reference names a target by its **node id**, never a label. **Any id that is
+valid in a GraphDoc today can be referenced** — `loop-expr/1` puts **no**
+restriction on node ids and does not require the app to change its id minter.
+`SAFE_ID` only decides which of the two written forms is *canonical*.
 
 ### X3.1 Two written forms; one meaning
 
-| form | when |
-|---|---|
-| **`@id`** — bare | `id` matches **`SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/`** (e.g. `@pool_mtc00jt3_2`) |
-| **`@{id}`** — braced escape | any other id — an imported graph whose ids contain `-`, `.`, digits-first, spaces, non-ASCII, etc. `id` inside the braces is any run of characters except `}`, CR, LF. |
+`SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/`.
 
-Both forms denote the **same** target id; `@{pool_x}` ≡ `@pool_x`. The
-**canonical form** (§X8) uses `@id` when the id is `SAFE_ID`, else `@{id}` — so
-a given target has exactly one canonical spelling.
+| form | used when | escape rules |
+|---|---|---|
+| **`@id`** — bare | the id matches `SAFE_ID` (e.g. `@pool_mtc00jt3_2`) | none |
+| **`@{id}`** — braced | any other id — an imported / hand-authored graph whose ids contain `-`, `.`, a leading digit, spaces, non-ASCII, etc. | inside the braces, a literal `}` is written `\}` and a literal `\` is written `\\`; every other character stands for itself. An unescaped `}` ends the reference. A `\` **not** followed by `}` or `\` is `EXPR_BAD_ESCAPE`. A raw **Unicode control character** inside the braces is `EXPR_BAD_TOKEN`. |
 
-An id that itself contains `}` / CR / LF **cannot be referenced** (a
-`loop-model/1` limitation; the app's id minter never produces such an id — §X11
-item 6 — so this only bites a pathological import).
+Both forms denote the **same** target id: `@{pool_x}` ≡ `@pool_x`, and
+`@{a-b.c}` denotes the id `a-b.c`. Decoding `@{…}` reverses the escapes
+(`\}` → `}`, `\\` → `\`).
 
-### X3.2 `loop-model/1` requirement on the id minter
+**Canonical form** (§X8): `@id` when the id matches `SAFE_ID`, otherwise
+`@{` + the id with `\` → `\\` and `}` → `\}` + `}`. So every target has exactly
+one canonical spelling, and `canonicalise` maps a bare `@{pool_x}` back to
+`@pool_x`.
 
-Every node that `loop-model/1` allows as a reference target (`pool` /
-`parameter` / `register`) **must** have an id matching `SAFE_ID`. The app's
-minter (`nextId(prefix)` → `<prefix>_<base36>_<base36>`) and every committed
-example / template already comply; `loop-model/1` fixes this as a rule so the
-common case never needs the escape.
+### X3.2 Ids that cannot be written at all
 
-### X3.3 Resolution & errors
+An id containing a **Unicode control character** (U+0000–U+001F, U+007F–U+009F)
+**cannot** be expressed by either form. This is **not** an expression bug: it is
+an **id-validity problem of the GraphDoc itself** (id validity is
+`SEMANTICS.md` / the serializer's concern). `loop-model/1` surfaces it as
+`REF_INVALID_ID` at the *node*, distinct from a parse error at the expression's
+column (§X7). Any id **without** a control character is representable — `\` and
+`}` are always escapable. The app's minter (`nextId(prefix)` →
+`<prefix>_<base36>_<base36>`) and every committed example / template already
+produce `SAFE_ID`s, so the common case never uses the escape.
 
-- **Resolution** — which kinds `@id` may name and what it evaluates to is
+### X3.3 Resolution, rename, errors
+
+- **Resolution** — which kinds a reference may name and what it evaluates to is
   `loop-model/1`'s decision (§M3). This spec fixes only the *syntax*, the
   *stored form*, and the *error codes*.
-- **Rename stability** — a reference holds an id, so renaming the target's
+- **`label` rename** — a reference holds an *id*, so renaming the target's
   `label` changes **no** bytes of the expression (X-INV-3).
+- **`id` rename** — changing a node's **id** (not its `label`) changes the
+  reference key. If an operation (an "assign id", a merge / import remap) does
+  this, the **same operation MUST rewrite** every `@old` / `@{old}` to the new
+  id, as a graph edit; absent that rewrite the references become `REF_UNKNOWN`.
+  (The app's editor does not offer id-editing today; this fixes the rule for
+  any tool that does.)
 - **Editor display** — an editor MAY render a reference as the target's current
   label in a token and offer a picker; what it stores and digests is always the
   canonical `@id` / `@{id}` form.
@@ -188,11 +208,14 @@ Three classes, checked in this order; the first hit is reported. Every code is a
 | **parse** | `EXPR_EMPTY` | the text is empty or all-whitespace |
 | | `EXPR_SYNTAX` | a general grammar violation (unexpected / missing token) — carries `column` |
 | | `EXPR_UNCLOSED_PAREN` | a `(` with no matching `)` |
+| | `EXPR_UNCLOSED_REF` | a `@{` with no matching unescaped `}` |
+| | `EXPR_BAD_ESCAPE` | inside `@{…}`, a `\` not followed by `}` or `\` |
 | | `EXPR_NUMBER_RANGE` | a numeric literal that parses to a non-finite `float64` |
-| | `EXPR_BAD_TOKEN` | a stray character, or whitespace inside a token (`@ a`, `1 . 5`) |
-| **resolve** | `REF_UNKNOWN` | `@id` names no node in the current graph (never existed **or** deleted — indistinguishable) |
-| | `REF_WRONG_KIND` | `@id` names a node that exists but is of a kind the consumer disallows |
-| | `REF_NOT_FINITE` | the consumer returned a non-finite value for a resolvable `@id` (should not happen; defensive) |
+| | `EXPR_BAD_TOKEN` | a stray character, whitespace inside a token (`@ a`, `1 . 5`), or a raw Unicode control char inside `@{…}` |
+| **resolve** | `REF_UNKNOWN` | the reference names no node in the current graph (never existed **or** deleted — indistinguishable) |
+| | `REF_WRONG_KIND` | the reference names a node that exists but is of a kind the consumer disallows |
+| | `REF_INVALID_ID` | a node whose id contains a Unicode control character and therefore cannot be referenced by any syntax — a GraphDoc id-validity problem, reported at the **node** (§X3.2), not at an expression column |
+| | `REF_NOT_FINITE` | the consumer returned a non-finite value for a resolvable reference (should not happen; defensive) |
 | **evaluate** | `EVAL_DIV_ZERO` | division by zero |
 | | `EVAL_NOT_FINITE` | any non-finite intermediate or final result |
 
@@ -231,9 +254,10 @@ opaque string like `label`.
   `String(Number(literal))` after `-0 → 0` (`SEMANTICS-R.md` §R4.1 / §R4.3):
   `007` → `7`, `1.50` → `1.5`, `2.0` → `2`, `1e3` → `1000`, `1e21` → `1e+21`.
 - **references:** the canonical form per §X3.1 — `@id` when the target id
-  matches `SAFE_ID`, else `@{id}`. A source `@{pool_x}` where `pool_x` is
-  `SAFE_ID` canonicalises to `@pool_x` (and vice-versa is impossible); so a
-  reference to a given target has exactly one canonical spelling.
+  matches `SAFE_ID`; otherwise `@{` + the id with `\` → `\\` and `}` → `\}` +
+  `}`. A source `@{pool_x}` where `pool_x` is `SAFE_ID` canonicalises to
+  `@pool_x`; so a reference to a given target has exactly one canonical
+  spelling.
 
 **Not** canonicalised (these change the AST, so they change the digest):
 operand order (`@a + @b` ≠ `@b + @a` — no commutativity folding), constant
@@ -292,7 +316,7 @@ of `loop-expr/1`).
 | **X-3** | `&&` / `||` | **Deferred indefinitely — out of `loop-expr/1` and `1.1`.** Not reserved. A later amendment only if a real need appears; the conditional covers the known cases. |
 | **X-4** | Diagnostic message catalogue | **Decided.** The §X7 **codes** are the frozen contract (X-INV-8). The exact human **strings** are non-normative implementation wording (may be reworded), as with `loop-state/1`. Appendix X-A gives the current strings for reference. |
 | **X-5** | Exponent canonical form | **Decided: verbatim `String(Number(x))`** — `1e+21` keeps its `+`, matching `SEMANTICS-R.md` §R4.3 ("numbers as `String(n)`"). No special-casing. |
-| **X-6** | `@id` charset vs the app's node ids | **Decided.** `loop-expr/1` fixes `SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/` for the bare form and a `@{id}` escape for anything else (§X3.1); `loop-model/1` §X3.2 requires reference-target ids to be `SAFE_ID`. Verified: `nextId` output and every committed example / template already match `SAFE_ID`. |
+| **X-6** | `@id` charset vs existing node ids | **Decided (rev 4).** No restriction on node ids — any id valid in a GraphDoc today can be referenced. `SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/` only picks the canonical spelling: bare `@id` for a `SAFE_ID`, the `@{…}` escape (with `\}` / `\\`) for anything else (§X3.1). The only unrepresentable ids are those containing a Unicode control character — a GraphDoc id-validity problem (`REF_INVALID_ID`, §X3.2), not an expression error, and not something `loop-expr/1` or `loop-model/1` forces the id minter to prevent. |
 
 ### Appendix X-A — diagnostic strings (non-normative)
 
@@ -301,10 +325,13 @@ of `loop-expr/1`).
 | `EXPR_EMPTY` | `the expression is empty` |
 | `EXPR_SYNTAX` | `unexpected "<tok>" at column <n>` / `expected <what> at column <n>` |
 | `EXPR_UNCLOSED_PAREN` | `"(" at column <n> is never closed` |
+| `EXPR_UNCLOSED_REF` | `"@{" at column <n> is never closed` |
+| `EXPR_BAD_ESCAPE` | `"\" at column <n> must be followed by "}" or "\"` |
 | `EXPR_NUMBER_RANGE` | `the number at column <n> is too large` |
 | `EXPR_BAD_TOKEN` | `stray "<char>" at column <n>` |
 | `REF_UNKNOWN` | `no node with id "<id>"` |
 | `REF_WRONG_KIND` | `"<id>" is a <kind>; only pools, parameters and registers can be referenced` |
+| `REF_INVALID_ID` | `node "<id-ish>" has an invalid id (contains a control character) and cannot be referenced` |
 | `REF_NOT_FINITE` | `"<id>" has no finite value` |
 | `EVAL_DIV_ZERO` | `division by zero` |
 | `EVAL_NOT_FINITE` | `the result is not a finite number` |

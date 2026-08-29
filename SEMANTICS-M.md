@@ -2,17 +2,22 @@
 
 ```
 Spec ID: loop-model/1
-Status:  Draft (rev 3)
+Status:  Draft (rev 4 — freeze candidate)
 ```
 
-**Draft for review — rev 3.** Rev 2 (Register time-axis, Resource Type
-identity, invalid-Register display value, wire-level v1/v2 discriminator,
-`loop-workspace/2` narrowed out) is approved. Rev 3: the advisory Parameter /
-Register fields are **in** the `loop-revision/2` canonical projection under a
-new `advisory` field tag (§M1.2, §M8.1a); the `@id` token gets an escape form
-(`loop-expr/1` §X3); `loop-revision/2` file-validation **order** is pinned
-(§M8.1c); every §M10 / §X11 open decision is closed as `Decided` or
-`Deferred`. Adds three modelling
+**Draft for review — rev 4 (freeze candidate).** Rev 3 is approved except the
+`@id` target restriction: it required every reference-target id to be `SAFE_ID`,
+which both makes the `@{…}` escape pointless and assumes every legacy GraphDoc
+id was already `SAFE_ID`. Rev 4 removes that: **any id valid in a GraphDoc today
+can be referenced** (`loop-expr/1` §X3 rev 4); `SAFE_ID` only picks the
+canonical spelling. `loop-model/1` imposes **no** new node-id constraint —
+consistent with "additive, v1 behaviour-identical". This is the sole change.
+
+Rev 3's approved content is unchanged: Register time-axis (§M3), Resource Type
+identity (§M4.1), invalid-Register display value (§M6.2), the wire-level v1/v2
+discriminator + v1-first validation (§M8), `loop-workspace/2` narrowed out
+(§M8.2), advisory fields as revision content under the `advisory` tag (§M1.2,
+§M8.1a/b), and all §M10 / §X11 decisions closed. Adds three modelling
 constructs on top of the existing graph + engine:
 
 - **Parameter** — a fixed, user-tuned numeric input.
@@ -220,8 +225,9 @@ function of `S(k)` (M-INV-6).
 |---|---|---|
 | parse | `M_REG_PARSE` (wraps `EXPR_*`) | a `loop-expr/1` parse error in `expr` |
 | evaluate | `M_REG_EVAL` (wraps `EVAL_*`) | a `loop-expr/1` evaluate error |
-| unknown reference | `M_REG_UNKNOWN_REF` (wraps `REF_UNKNOWN`) | an `@id` names nothing in the graph |
-| wrong-kind reference | `M_REG_WRONG_KIND` (wraps `REF_WRONG_KIND`) | an `@id` names a non-{pool,parameter,register} node |
+| unknown reference | `M_REG_UNKNOWN_REF` (wraps `REF_UNKNOWN`) | a reference names nothing in the graph |
+| wrong-kind reference | `M_REG_WRONG_KIND` (wraps `REF_WRONG_KIND`) | a reference names a non-{pool,parameter,register} node |
+| unreferenceable target | `M_REG_INVALID_ID` (wraps `REF_INVALID_ID`) | a target node's id contains a Unicode control char (`loop-expr/1` §X3.2) — a GraphDoc id-validity problem |
 | cycle | `M_REG_CYCLE` | on a Register→Register dependency cycle |
 | depends on invalid | `M_REG_DEPENDS_ON_INVALID` | references a Register that is itself `invalid` |
 
@@ -302,13 +308,21 @@ They drive the `docs/visual-language.md` §VL4 badge + the Inspector list —
 
 ## M5. References & rename stability
 
-- Expressions reference by **stable node id** (`@id`, `loop-expr/1` §X3).
-  Renaming a `label` changes **no** `expr` bytes and **no** digest (M-INV-4).
+- Expressions reference a target by its **node id**, written `@id` or `@{id}`
+  per `loop-expr/1` §X3. **Any id valid in a GraphDoc** may be a target;
+  `loop-model/1` adds **no** id constraint. The only unreferenceable ids are
+  those with a Unicode control character (`REF_INVALID_ID` — a GraphDoc
+  id-validity problem, `loop-expr/1` §X3.2), which the app's minter never
+  produces.
+- **`label` rename** — changes **no** `expr` bytes and **no** digest (M-INV-4).
+- **`id` rename** — changes the reference key; an operation that changes a
+  target's id MUST rewrite `@old` / `@{old}` in every referencing `expr` in the
+  same edit (`loop-expr/1` §X3.3). The editor does not offer id-editing today.
 - **Deleting** a referenced node ⇒ referencing Registers become `invalid`
   (`M_REG_UNKNOWN_REF`), reported, **non-fatal**. The `expr` text is **left as
-  written** (the dangling `@id` stays visible for the user to fix); the model
-  never rewrites or clears it.
-- An imported graph re-resolves `@id`s against its own nodes.
+  written** (the dangling reference stays visible for the user to fix); the
+  model never rewrites or clears it.
+- An imported graph re-resolves references against its own nodes.
 
 ---
 
