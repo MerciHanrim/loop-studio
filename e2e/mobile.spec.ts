@@ -667,4 +667,70 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
     expect(after.simRev).toBe(before.simRev + 1)
     expect(after.step).toBe(0)
   })
+
+  test('per-hunk selection + conflict rules are the same on the mobile sheet (Slice 2)', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const r0 = L.project.getState().open.revisionId
+      const sid = L.graph.getState().nodes[0].id
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes.push({
+        id: 'p_new',
+        type: 'pool',
+        position: { x: 60, y: 60 },
+        data: { kind: 'pool', label: 'New', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' },
+      })
+      f.nodes.find((n: { id: string }) => n.id === sid).data.initial = 42
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), r0, sid }
+    })
+    // diverge the changed field ⇒ conflict
+    await page.evaluate(
+      (sid) => (window as unknown as { __loop: any }).__loop.graph.getState().updateNodeData(sid, { initial: 15 }),
+      built.sid,
+    )
+
+    await page
+      .locator('.toolbar--mobile input[type="file"]')
+      .setInputFiles({ name: 'p.json', mimeType: 'application/json', buffer: Buffer.from(built.text) })
+
+    const sheet = page.locator('.sheet[aria-label="Review proposal"]')
+    await expect(sheet).toBeVisible()
+    await sheet.locator('button', { hasText: 'Choose changes' }).click()
+
+    // the SAME conflict surface as desktop
+    const conflict = sheet.locator('.review__field-row--conflict')
+    await expect(conflict).toContainText('base')
+    await expect(conflict).toContainText('yours')
+    await expect(conflict).toContainText('theirs')
+    await conflict.locator('label', { hasText: 'keep mine' }).locator('input').check()
+
+    // accept only the "Add p_new" hunk
+    await sheet.locator('.review__hunk', { hasText: 'Add node' }).locator('input[type=checkbox]').check()
+    await sheet.locator('button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.sheet[aria-label="Review proposal"]')).toBeHidden()
+
+    const after = await page.evaluate((sid) => {
+      const L = (window as unknown as { __loop: any }).__loop
+      return {
+        initial: L.graph.getState().nodes.find((n: any) => n.id === sid)?.data.initial,
+        hasPNew: L.graph.getState().nodes.some((n: any) => n.id === 'p_new'),
+        parent: L.project.getState().open.parentId,
+      }
+    }, built.sid)
+    expect(after.initial).toBe(15) // conflict kept mine
+    expect(after.hasPNew).toBe(true) // the add was taken
+    expect(after.parent).toBe(built.r0)
+  })
 })

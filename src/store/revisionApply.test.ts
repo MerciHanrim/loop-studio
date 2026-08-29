@@ -8,6 +8,7 @@ import {
   classifyPendingProposal,
   openPendingProposalAsDocument,
   routeImport,
+  threeWayForPending,
   type PendingProposal,
 } from './revisionIO'
 import { useSimStore } from './simStore'
@@ -434,5 +435,127 @@ describe('Apply re-checks everything at the click, not the Review-time class', (
     const freshDigest = (applyPendingProposal(p) as { targetDigest: string }).targetDigest
     const done = applyPendingProposal(p, { confirmed: true, expectTargetDigest: freshDigest })
     expect(done.ok).toBe(true)
+  })
+})
+
+// ── Slice 2 — per-hunk selective apply (§R7.2 / §R7A.3) ───────────────────
+
+const seededId = () => useGraphStore.getState().nodes[0].id
+const nodeInitial = (id: string) =>
+  (useGraphStore.getState().nodes.find((n) => n.id === id)!.data as Record<string, unknown>).initial
+
+describe('per-hunk selective apply (§R7.2)', () => {
+  it('applies only the accepted hunks; the rest of the graph is byte-identical; one atomic step', async () => {
+    const r0 = promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        ;(f.nodes as unknown[]).push(extraPool) // add p_added
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 42 // change seeded.initial 0 -> 42
+      }),
+    )
+    const plan = threeWayForPending(p)
+    expect(new Set(plan.hunks.map((h) => `${h.kind}:${h.id}`))).toEqual(
+      new Set([`add:${extraPool.id}`, `change:${sid}`]),
+    )
+
+    const beforeSeeded = JSON.stringify(useGraphStore.getState().nodes.find((n) => n.id === sid))
+    const simRevBefore = useGraphStore.getState().simulationRev
+
+    // accept ONLY the add, not the change
+    const res = applyPendingProposal(p, { selection: { accept: { [extraPool.id]: true }, fieldChoices: {} } })
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.partial).toBe(true)
+    expect(res.newRevisionId).not.toBe(r0)
+
+    expect(useGraphStore.getState().nodes.some((n) => n.id === extraPool.id)).toBe(true)
+    expect(nodeInitial(sid)).toBe(0) // the change hunk was NOT applied
+    // the seeded node is byte-identical (nothing but the accepted add touched it)
+    expect(JSON.stringify(useGraphStore.getState().nodes.find((n) => n.id === sid))).toBe(beforeSeeded)
+
+    // §R7.3 atomicity
+    expect(useGraphStore.getState().simulationRev).toBe(simRevBefore + 1)
+    expect(useSimStore.getState().stepIndex).toBe(0)
+    const open = useProjectStore.getState().open!
+    expect(open.parentId).toBe(r0)
+    expect(open.appliedProposal!.baseId).toBe(r0)
+
+    // one undo restores the pre-apply graph AND header
+    useGraphStore.getState().undo()
+    expect(useGraphStore.getState().nodes.some((n) => n.id === extraPool.id)).toBe(false)
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0)
+  })
+
+  it('per-hunk apply needs no whole-loss confirmation even on a divergent base', async () => {
+    const r0 = promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 20
+      }),
+    )
+    // diverge the target in the SAME field ⇒ whole-apply would be `divergent`
+    useGraphStore.getState().updateNodeData(sid, { initial: 15 })
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'divergent' })
+
+    // per-hunk apply proceeds on the selection alone — no `confirmed`
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } },
+    })
+    expect(res.ok).toBe(true)
+    if (res.ok) expect(res.newRevisionId).not.toBe(r0)
+    expect(nodeInitial(sid)).toBe(20)
+  })
+
+  it('conflict: "keep mine" leaves yours, "take proposal" takes theirs (vec 10)', async () => {
+    promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 20
+      }),
+    )
+    useGraphStore.getState().updateNodeData(sid, { initial: 15 }) // a third value
+    const field = threeWayForPending(p).hunks.find((h) => h.id === sid)!.fields!.find((x) => x.field === 'data.initial')!
+    expect([field.base, field.proposed, field.yours, field.verdict]).toEqual([0, 20, 15, 'conflict'])
+
+    // keep mine
+    let res = applyPendingProposal(p, { selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'yours' } } } })
+    expect(res.ok).toBe(true)
+    expect(nodeInitial(sid)).toBe(15)
+    useGraphStore.getState().undo()
+
+    // take proposal
+    res = applyPendingProposal(p, { selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } } })
+    expect(res.ok).toBe(true)
+    expect(nodeInitial(sid)).toBe(20)
+  })
+
+  it('an invalid selection (accepted edge, endpoint node not accepted) is refused with zero change', async () => {
+    promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        ;(f.nodes as unknown[]).push({ ...extraPool, id: 'c' })
+        ;(f.edges as unknown[]).push({
+          id: 'e_xc',
+          type: 'loop',
+          source: sid,
+          target: 'c',
+          sourceHandle: 'out',
+          targetHandle: 'in',
+          data: { kind: 'resource', flow: '1' },
+        })
+      }),
+    )
+    const sig = graphSig()
+    const res = applyPendingProposal(p, { selection: { accept: { e_xc: true }, fieldChoices: {} } }) // NOT accepting node c
+    expect(res).toEqual({ ok: false, reason: 'invalid-selection' })
+    expect(graphSig()).toBe(sig)
+    expect(useGraphStore.getState().simulationRev).toBeDefined()
   })
 })

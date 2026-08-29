@@ -2362,3 +2362,88 @@ input[type='number']::-webkit-inner-spin-button {
 .boot-notice__text {
   flex: 1;
 }
+
+/* per-hunk selective apply (SEMANTICS-R.md §R7.2) */
+.review__pick {
+  border: 1px solid var(--line-hairline);
+  border-radius: 8px;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: var(--surface-sunken);
+}
+.review__hunks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.review__hunk {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-hairline);
+  font-size: 12px;
+}
+.review__hunk:last-child {
+  border-bottom: 0;
+}
+.review__hunk--conflict {
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+}
+.review__hunk-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.review__hunk-head code,
+.review__field-vals code,
+.review__field-name code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+}
+.review__hunk-tag {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--warning);
+}
+.review__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.review__field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: var(--surface-panel);
+}
+.review__field-row--conflict {
+  outline: 1px solid var(--warning);
+}
+.review__field-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.review__field-tag {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+.review__field-vals {
+  color: var(--text-secondary);
+}
+.review__field-choice {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.review__field-choice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}

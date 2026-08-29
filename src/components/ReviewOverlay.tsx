@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
+import type { HunkSelection, ProposalHunk, ThreeWayPlan } from '../model/revision'
 import { useGraphStore } from '../store/graphStore'
 import { useProjectStore, type ApplyClassification, type ApplyFailReason } from '../store/projectStore'
 import { useReviewStore } from '../store/reviewStore'
-import { applyPendingProposal, openPendingProposalAsDocument } from '../store/revisionIO'
+import {
+  applyPendingProposal,
+  openPendingProposalAsDocument,
+  threeWayForPending,
+} from '../store/revisionIO'
 import { useSimStore } from '../store/simStore'
 import { useIsMobile } from '../ui/media'
 import { confirmationText, reviewModel, type ReviewModel } from '../ui/revisionActions'
@@ -51,11 +56,151 @@ function DiffSummary({ m }: { m: ReviewModel }) {
   )
 }
 
+// ── per-hunk selection (§R7.2) ───────────────────────────────────────────
+
+const shortVal = (v: unknown): string => {
+  if (v === undefined) return '—'
+  const s = typeof v === 'string' ? v : JSON.stringify(v)
+  return s.length > 40 ? `${s.slice(0, 39)}…` : s
+}
+
+/** default: pre-accept everything that applies cleanly; leave conflicts and
+ *  no-ops for the user (a conflict left unset means "keep mine"). */
+function defaultSelection(plan: ThreeWayPlan): HunkSelection {
+  const accept: Record<string, boolean> = {}
+  const fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>> = {}
+  for (const h of plan.hunks) {
+    if (h.kind === 'change') {
+      const fc: Record<string, 'proposed' | 'yours'> = {}
+      for (const f of h.fields ?? []) if (f.verdict === 'clean') fc[f.field] = 'proposed'
+      if (Object.keys(fc).length) fieldChoices[h.id] = fc
+    } else if (h.verdict === 'clean') {
+      accept[h.id] = true
+    }
+  }
+  return { accept, fieldChoices }
+}
+
+function selectionCount(sel: HunkSelection): number {
+  let n = Object.values(sel.accept).filter(Boolean).length
+  for (const fc of Object.values(sel.fieldChoices)) n += Object.values(fc).filter((c) => c === 'proposed').length
+  return n
+}
+
+function HunkList({
+  plan,
+  sel,
+  onToggleAccept,
+  onField,
+}: {
+  plan: ThreeWayPlan
+  sel: HunkSelection
+  onToggleAccept: (id: string, v: boolean) => void
+  onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
+}) {
+  const actionable = plan.hunks.filter(
+    (h) => h.verdict !== 'noop' || (h.fields ?? []).some((f) => f.verdict !== 'noop'),
+  )
+  if (!actionable.length) return <p className="review__stamp">Nothing new to apply — the target already matches.</p>
+  return (
+    <ul className="review__hunks">
+      {actionable.map((h) => (
+        <li key={`${h.elementType}:${h.id}`} className={`review__hunk review__hunk--${h.verdict}`}>
+          <HunkRow h={h} sel={sel} onToggleAccept={onToggleAccept} onField={onField} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function HunkRow({
+  h,
+  sel,
+  onToggleAccept,
+  onField,
+}: {
+  h: ProposalHunk
+  sel: HunkSelection
+  onToggleAccept: (id: string, v: boolean) => void
+  onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
+}) {
+  if (h.kind !== 'change') {
+    return (
+      <label className="review__hunk-head">
+        <input
+          type="checkbox"
+          checked={!!sel.accept[h.id]}
+          disabled={h.verdict === 'noop'}
+          onChange={(e) => onToggleAccept(h.id, e.target.checked)}
+        />
+        <span>
+          {h.kind === 'add' ? 'Add' : 'Remove'} {h.elementType} <code>{h.id}</code>
+          {h.verdict === 'conflict' ? <span className="review__hunk-tag"> · both sides changed this</span> : null}
+        </span>
+      </label>
+    )
+  }
+  return (
+    <div>
+      <div className="review__hunk-head">
+        Change {h.elementType} <code>{h.id}</code>
+        {h.yours === null ? <span className="review__hunk-tag"> · you deleted this</span> : null}
+      </div>
+      <div className="review__fields">
+        {(h.fields ?? [])
+          .filter((f) => f.verdict !== 'noop')
+          .map((f) => {
+            const choice = (sel.fieldChoices[h.id] ?? {})[f.field] ?? 'yours'
+            return (
+              <div key={f.field} className={`review__field-row review__field-row--${f.verdict}`}>
+                <span className="review__field-name">
+                  {f.field} <span className="review__field-tag">{f.tag}</span>
+                </span>
+                {f.verdict === 'conflict' ? (
+                  <span className="review__field-vals">
+                    base <code>{shortVal(f.base)}</code> · yours <code>{shortVal(f.yours)}</code> · theirs{' '}
+                    <code>{shortVal(f.proposed)}</code>
+                  </span>
+                ) : (
+                  <span className="review__field-vals">
+                    <code>{shortVal(f.yours)}</code> → <code>{shortVal(f.proposed)}</code>
+                  </span>
+                )}
+                <span className="review__field-choice">
+                  <label>
+                    <input
+                      type="radio"
+                      name={`${h.id}:${f.field}`}
+                      checked={choice === 'proposed'}
+                      onChange={() => onField(h.id, f.field, 'proposed')}
+                    />
+                    take theirs
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name={`${h.id}:${f.field}`}
+                      checked={choice === 'yours'}
+                      onChange={() => onField(h.id, f.field, 'yours')}
+                    />
+                    keep mine
+                  </label>
+                </span>
+              </div>
+            )
+          })}
+      </div>
+    </div>
+  )
+}
+
 const FAIL_MSG: Record<Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved'>, string> = {
   'wrong-project': 'This proposal is for a different project.',
   'no-target': 'No project is open to apply onto.',
   'target-is-proposal': 'Export the open proposal as a Project revision first.',
   'payload-invalid': 'This proposal file failed its integrity check — re-import it.',
+  'invalid-selection':
+    'That selection can’t be applied — an accepted edge needs a node you didn’t include. Adjust the choices and try again.',
 }
 
 export function ReviewOverlay() {
@@ -67,6 +212,8 @@ export function ReviewOverlay() {
   // the class + the target digest THAT decision was made against (§R7A.4)
   const [armed, setArmed] = useState<{ cls: ApplyClassification; digest: string | null } | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [mode, setMode] = useState<'whole' | 'hunks'>('whole')
+  const [sel, setSel] = useState<HunkSelection>({ accept: {}, fieldChoices: {} })
   const { fitView } = useReactFlow()
 
   // Recompute the model against the LIVE store on every relevant change, so a
@@ -80,11 +227,22 @@ export function ReviewOverlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pending, openRev, openRole, simRev],
   )
+  const plan = useMemo(
+    () => (pending && model?.gate === 'ok' ? threeWayForPending(pending) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pending, openRev, openRole, simRev, model?.gate],
+  )
 
   useEffect(() => {
     setArmed(null)
     setErr(null)
+    setMode('whole')
   }, [pending])
+
+  // seed the selection whenever the plan is (re)computed
+  useEffect(() => {
+    if (plan) setSel(defaultSelection(plan))
+  }, [plan])
 
   useEffect(() => {
     if (!pending) return
@@ -127,6 +285,22 @@ export function ReviewOverlay() {
     setErr(FAIL_MSG[res.reason])
   }
 
+  const doApplySelected = () => {
+    setErr(null)
+    const res = applyPendingProposal(pending, { selection: sel })
+    if (res.ok) {
+      afterMutation()
+      return
+    }
+    // per-hunk apply never returns needs-confirmation / target-moved
+    setErr(res.reason === 'invalid-selection' ? FAIL_MSG['invalid-selection'] : FAIL_MSG[res.reason as keyof typeof FAIL_MSG] ?? `Could not apply (${res.reason}).`)
+  }
+
+  const setField = (id: string, field: string, choice: 'proposed' | 'yours') =>
+    setSel((s) => ({ ...s, fieldChoices: { ...s.fieldChoices, [id]: { ...(s.fieldChoices[id] ?? {}), [field]: choice } } }))
+  const toggleAccept = (id: string, v: boolean) =>
+    setSel((s) => ({ ...s, accept: { ...s.accept, [id]: v } }))
+
   const doOpenDoc = () => {
     openPendingProposalAsDocument(pending)
     afterMutation()
@@ -167,10 +341,34 @@ export function ReviewOverlay() {
       ) : null}
       {err ? <p className="review__warn">{err}</p> : null}
 
+      {canApply && mode === 'hunks' && plan ? (
+        <div className="review__pick">
+          <HunkList plan={plan} sel={sel} onToggleAccept={toggleAccept} onField={setField} />
+        </div>
+      ) : null}
+
       <div className="review__actions">
-        {canApply ? (
+        {canApply && mode === 'whole' ? (
           <button type="button" className="btn btn--primary" onClick={doApply}>
             {armed ? 'Apply anyway' : 'Apply proposal'}
+          </button>
+        ) : null}
+        {canApply && mode === 'hunks' ? (
+          <button type="button" className="btn btn--primary" onClick={doApplySelected}>
+            Apply {selectionCount(sel)} selected
+          </button>
+        ) : null}
+        {canApply && !model.diff.summary.empty ? (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setErr(null)
+              setArmed(null)
+              setMode((m) => (m === 'whole' ? 'hunks' : 'whole'))
+            }}
+          >
+            {mode === 'whole' ? 'Choose changes' : 'Whole proposal'}
           </button>
         ) : null}
         <button type="button" className="btn" onClick={doOpenDoc}>
@@ -181,8 +379,9 @@ export function ReviewOverlay() {
         </button>
       </div>
       <p className="review__foot">
-        Apply makes a new local revision (parent {openRev ? shortId(openRev) : '—'}); one Undo
-        reverts it. Nothing is written to a file.
+        {mode === 'hunks' ? 'Applies the target plus the changes you pick' : 'Apply'} makes a new
+        local revision (parent {openRev ? shortId(openRev) : '—'}); one Undo reverts it. Nothing is
+        written to a file.
       </p>
     </div>
   )

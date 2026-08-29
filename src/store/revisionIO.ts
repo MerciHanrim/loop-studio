@@ -1,12 +1,16 @@
 import {
   canonicalContent,
+  computeThreeWay,
   digestOfCanonical,
   readProject,
+  type HunkSelection,
   type ProjectPayload,
   type ProposalBase,
+  type ThreeWayPlan,
 } from '../model/revision'
 import { deserialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { useGraphStore } from './graphStore'
 import { useProjectStore, type ApplyResult } from './projectStore'
 import { importFile, type ImportOutcome, type Viewport } from './workspaceIO'
 
@@ -96,16 +100,27 @@ export function classifyPendingProposal(p: PendingProposal) {
   })
 }
 
+/** §R7A.3 — the per-hunk three-way plan (`base` vs the LIVE target vs the
+ *  proposal), for the Review UI's hunk list. Pure read; nothing mutated. */
+export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
+  const g = useGraphStore.getState()
+  return computeThreeWay(
+    p.base.content,
+    canonicalContent({ nodes: g.nodes, edges: g.edges }),
+    canonicalContent(proposedGraph(p)),
+  )
+}
+
 /** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for
  *  every non-`exact` class); `expectTargetDigest` pins the snapshot the
  *  confirmation was shown against. Re-gates / re-validates / re-classifies. */
 export function applyPendingProposal(
   p: PendingProposal,
-  opts: { confirmed?: boolean; expectTargetDigest?: string } = {},
+  opts: { confirmed?: boolean; expectTargetDigest?: string; selection?: HunkSelection } = {},
 ): ApplyResult {
   return useProjectStore.getState().applyProposal(
     { project: p.project, base: p.base, proposed: proposedGraph(p) },
-    { confirmed: opts.confirmed, expectTargetDigest: opts.expectTargetDigest },
+    { confirmed: opts.confirmed, expectTargetDigest: opts.expectTargetDigest, selection: opts.selection },
   )
 }
 
