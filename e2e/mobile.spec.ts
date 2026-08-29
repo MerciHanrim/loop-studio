@@ -186,7 +186,7 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     for (const label of ['Share link', 'Import', 'Export', 'Templates', 'Theme']) {
       await expect(sheet(page, 'More').getByText(label, { exact: false }).first()).toBeVisible()
     }
-    await expect(sheet(page, 'More').locator('.sheet__stamp')).toContainText('v0.4.0-dev')
+    await expect(sheet(page, 'More').locator('.sheet__stamp')).toContainText(/v\d+\.\d+\.\d+/)
     await page.keyboard.press('Escape')
     await expect(sheet(page, 'More')).toBeHidden()
     await expect(more(page)).toBeFocused()

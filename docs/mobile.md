@@ -1,11 +1,12 @@
-# Mobile View/Run mode (design draft, non-frozen)
+# Mobile View/Run mode (non-frozen)
 
-**Status: design draft** for review. A responsive CSS + small-component layer.
-No native app, **no mobile editing** — a phone gets a **view & run** layout:
-open a diagram (usually from a Share link), pan / pinch it, play it, run Monte
-Carlo, read a node's config. Structural editing (add / move / connect / delete /
-property change) stays desktop-only. No wire/engine semantics; carries no
-`loop-*/N` id; revised freely.
+**Status: implemented — shipped in `v0.4.0`** (Slices 1–3, PRs #21 / #22 / #23).
+A responsive CSS + small-component layer. No native app, **no mobile editing** —
+a phone gets a **view & run** layout: open a diagram (from a file or a Share
+link), pan / pinch it, play it, run Monte Carlo, read a node's config.
+Structural editing (add / move / connect / delete / property change) stays
+desktop-only. No wire/engine semantics; carries no `loop-*/N` id; still revised
+freely. §MV9 is the decision record; §MV10 the E2E; §MV11 the slices as landed.
 
 ## MV0. Why
 
