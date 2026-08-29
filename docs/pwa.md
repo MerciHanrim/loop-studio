@@ -78,10 +78,10 @@ build and emits a precache manifest automatically, so the cache list can never
 drift from the build. Hand-rolling the SW (as with the SHA / deflate fallbacks)
 buys nothing here — the precache-and-activate lifecycle is exactly what Workbox
 does well, and it is battle-tested. The plugin is added to `plugins` **only for
-the Production and PWA-test builds** (`VITE_PWA=1` or `CF_PAGES_BRANCH==='main'`);
-a plain `npm run build` and the portable build include it not at all, so they
-emit no `sw.js`, no `manifest.webmanifest`, and no injected `<link rel="manifest">`
-(§P9 D8a, Slice-1 criterion 5).
+the Production and PWA-test builds** (`mode === 'pwa'` or
+`CF_PAGES_BRANCH === 'main'` — §P7); a plain `npm run build` and the portable
+build include it not at all, so they emit no `sw.js`, no `manifest.webmanifest`,
+and no injected `<link rel="manifest">` (§P9 D8a, Slice-1 criterion 5).
 
 **Precache — an explicit allow-list, not "whatever is in `dist/`":**
 
@@ -266,22 +266,30 @@ Registration needs **both** a build flag **and** a runtime-origin check — a
 build flag alone is fragile (a Production artifact served from a preview URL, a
 cached bundle on the wrong host).
 
-**Build flag** (vite `define`, mirrors `__SHARE_BASE_URL__`):
+**Build flag** (vite `define`, mirrors `__SHARE_BASE_URL__`). Driven by the
+build **mode** (portable-safe, no cross-platform env-var prefix needed) and, on
+CI, the Cloudflare branch:
 
 ```
-__PWA_ENABLED__ = JSON.stringify(
-  process.env.VITE_PWA === '1' ||
-  (process.env.CF_PAGES === '1' && process.env.CF_PAGES_BRANCH === 'main')
-)
+// vite.config.ts — `pwa` is true for `vite build --mode pwa` and for the
+// Cloudflare Production build; false for `npm run build`, dev, and portable.
+const pwa = mode === 'pwa' || process.env.CF_PAGES_BRANCH === 'main'
+__PWA_ENABLED__      = JSON.stringify(pwa)
+__PWA_TEST_ORIGIN__  = JSON.stringify(pwa && mode === 'pwa' ? (process.env.PWA_TEST_ORIGIN ?? '') : '')
 ```
+
+- `npm run build:pwa` → `tsc -b && vite build --mode pwa` (plugin on, flag true).
+- `npm run build` → plugin off, flag false, no `sw.js` / manifest.
+- `npm run build:portable` → `--mode portable`, plugin off.
 
 **Runtime origin allow-list**, checked immediately before `registerSW()`:
 
 ```js
 const ALLOWED_ORIGINS = ['https://cozy-loop-studio.pages.dev']
-// __PWA_TEST_ORIGIN__ is a vite `define` CONSTANT — '' in every build except the
-// PWA E2E build (VITE_PWA_TEST_ORIGIN=<preview origin>). It is NOT read from a
-// window global, so a Production bundle has no runtime hook to widen the list.
+// __PWA_TEST_ORIGIN__ is a vite `define` CONSTANT — '' in every build except a
+// `--mode pwa` build with PWA_TEST_ORIGIN=<preview origin> in the env. It is NOT
+// read from a window global, so a Production bundle has no runtime hook to widen
+// the list.
 const ok = __PWA_ENABLED__ && (
   ALLOWED_ORIGINS.includes(location.origin) ||
   (__PWA_TEST_ORIGIN__ !== '' && location.origin === __PWA_TEST_ORIGIN__)
@@ -289,10 +297,11 @@ const ok = __PWA_ENABLED__ && (
 if (ok && import.meta.env.MODE !== 'portable' && 'serviceWorker' in navigator) registerSW()
 ```
 
-- **`__pwaTestOrigin` is a build-time define, never a `window` global** (lock).
-  In a Production build `__PWA_TEST_ORIGIN__` inlines to `''`, so the second
-  clause is statically dead code and there is no user-reachable way to add an
-  origin at runtime. The E2E build is the only artifact where it is non-empty.
+- **`__PWA_TEST_ORIGIN__` is a build-time define, never a `window` global**
+  (lock). In a Production build it inlines to `''`, so the second clause is
+  statically dead code and there is no user-reachable way to add an origin at
+  runtime. A `--mode pwa` build with `PWA_TEST_ORIGIN` set is the only artifact
+  where it is non-empty.
 - `localhost`, any `*-<hash>.cozy-loop-studio.pages.dev` **Preview** origin, and
   `file://` never register — even if the artifact contains the SW file.
 - A **future custom domain** is added to `ALLOWED_ORIGINS` (source), nothing else.
@@ -307,8 +316,8 @@ if (ok && import.meta.env.MODE !== 'portable' && 'serviceWorker' in navigator) r
 
 ### P8.1 Automated (Playwright, Chromium — full SW support)
 
-A new `pwa` project: `vite build` with `VITE_PWA=1`, served by `vite preview`,
-with `window.__pwaTestOrigin` set to the preview origin (§P7).
+A new `pwa` project: `npm run build:pwa` with `PWA_TEST_ORIGIN` set to the
+`vite preview` origin, served by `vite preview` (§P7).
 
 > Playwright cannot drive a real OS install. The **"installable" check here
 > verifies the *conditions*** — a linked `manifest.webmanifest` that parses with
@@ -341,27 +350,56 @@ with `window.__pwaTestOrigin` set to the preview origin (§P7).
    name exists (`caches.keys()`); `cleanupOutdatedCaches` removed the old one.
 9. **portable** — the `portable` project asserts `serviceWorker.controller`
    is `null` and `getRegistrations()` is empty (§P6).
-10. **origin gate** — a build with `VITE_PWA=1` served from an origin **not** in
-    the allow-list and with `__PWA_TEST_ORIGIN__` empty does **not** register
+10. **origin gate** — a `build:pwa` output with `__PWA_TEST_ORIGIN__` empty,
+    served from an origin **not** in the allow-list, does **not** register
     (`getRegistrations()` empty).
 
-### P8.2 Build-time check — precache reference closure (runs in `checks`)
+### P8.2 Build-time checks — precache closure, and the inverse (run in `checks`)
 
-A Node test (not a browser test), run after `vite build` with `VITE_PWA=1`:
+Node scripts (not browser tests). They run against **dedicated build outputs**,
+because the PWA plugin's presence itself differs by build (§P9 D8a).
 
-1. Parse `dist/index.html` for every **local** reference — `<script src>`,
-   `<link href>` (stylesheet, `manifest`, `icon`, `apple-touch-icon`),
-   `<link rel="modulepreload">`, and any `<img src>` in the shell.
-2. Parse `dist/manifest.webmanifest` for every `icons[].src`.
-3. Read the precache list Workbox baked into `dist/sw.js` (the
-   `precacheAndRoute([...])` / `__WB_MANIFEST` array) — the `url` of each entry.
-4. **Assert every local reference from (1) + (2) is present in (3).** Any
-   referenced JS / CSS / font / icon that the `globPatterns` did not pick up
-   (e.g. a new `assets/media/` sub-folder, a differently-named icon dir) fails
-   the build — so an offline shell can never be silently missing a file.
-5. Also assert the reverse sanity: no precache entry points outside `dist/`.
+**(a) Precache reference closure — against the PWA build only.**
 
-This closes the gap that a hand-maintained glob list otherwise leaves open.
+Run `npm run build:pwa` (a `--mode pwa` build with the PWA plugin on — a plain
+`npm run build` has **no** `sw.js` and is not a valid target for this check),
+then walk the whole local reference graph:
+
+```
+index.html
+  → <script src>, <link href> (stylesheet / manifest / icon / apple-touch-icon),
+    <link rel="modulepreload">, shell <img src>
+  → each referenced CSS file
+      → every url(...) inside it  →  .woff2 / images
+  → manifest.webmanifest
+      → every icons[].src
+```
+
+For **every local URL** discovered (resolve relative to its referrer; **skip**
+absolute `http(s)://` URLs, `data:`, and `blob:`), assert it exists in **both**:
+
+- the Workbox precache list baked into `dist/sw.js` (`precacheAndRoute([…])` /
+  `__WB_MANIFEST`), and
+- the actual `dist/` tree on disk.
+
+Reading only `index.html` + the manifest would miss a `.woff2` or image
+referenced only from inside a bundled CSS file — hence the `url(...)` step. Any
+reference the `globPatterns` did not pick up (a new `assets/media/` sub-folder,
+a renamed icon dir) fails the build instead of breaking offline silently.
+Reverse sanity: no precache entry resolves outside `dist/`.
+
+**(b) The inverse — the non-PWA outputs carry nothing PWA.**
+
+Against `npm run build` (plain) **and** `npm run build:portable`:
+
+- no `sw.js` / `workbox-*.js` in the output;
+- no `manifest.webmanifest`;
+- no `<link rel="manifest">` in the HTML;
+- no `registerSW` / service-worker-registration code string in the emitted JS.
+
+Suggested shape: `npm run build:pwa && node scripts/check-pwa-closure.mjs` and
+`npm run build && npm run build:portable && node scripts/check-no-pwa.mjs`, both
+wired into the `checks` CI job.
 
 ### P8.3 Manual, real device (checklist — not automated)
 
@@ -400,8 +438,8 @@ from Lighthouse 13), so it is **not** a release gate. Instead:
 | **D6** | Format compat is the app readers' job (versioned, defensive). SW scope: **a fresh navigation / reload gets one consistent shell generation** — *not* a claim about multiple tabs open across an update. |
 | **D7** | MC worker is inlined ⇒ **no SW ↔ worker interaction**; portable build registers no SW and emits no manifest link (`MODE !== 'portable'`). |
 | **D8** | Registration needs **both** the `__PWA_ENABLED__` build flag **and** a runtime `location.origin` allow-list check (`https://cozy-loop-studio.pages.dev`, plus the build-define `__PWA_TEST_ORIGIN__` — empty outside the PWA-test build, **not** a `window` global). Preview / localhost / `file://` never register even if the artifact ships the SW. Custom domains join the allow-list later. |
-| **D8a** | The `vite-plugin-pwa` plugin (hence `sw.js` + `manifest.webmanifest` + the injected `<link rel="manifest">`) is present **only** in the Production build and the PWA-test build (`VITE_PWA=1` / CF `main`). A plain `npm run build` and the portable build emit **none** of them. `__PWA_TEST_ORIGIN__` is a build define (`''` outside the PWA-test build), never a `window` global. |
-| **D9** | Automated: the `pwa` Playwright project per §P8.1 (installable-**conditions**, offline-ready gate, offline boot, offline deep link, no-auto-update, update-apply + build-stamp, update-with-run confirm, no-stale-mix, portable-no-SW, origin-gate) **plus the §P8.2 precache-reference-closure build test in `checks`**. **Lighthouse PWA is not a gate** (category removed). Manual checklist per §P8.3 (DevTools Manifest/SW, real install UI, desktop + Android standalone, iOS A2HS, airplane-mode cold start, post-redeploy update → stamp change). Playwright "install" = condition checks, not OS install automation. |
+| **D8a** | The `vite-plugin-pwa` plugin (hence `sw.js` + `manifest.webmanifest` + the injected `<link rel="manifest">`) is present **only** in the Production build and the PWA-test build (`--mode pwa` / CF `main`). A plain `npm run build` and the portable build emit **none** of them — asserted by §P8.2(b). `__PWA_TEST_ORIGIN__` is a build define (`''` outside a `--mode pwa` build with `PWA_TEST_ORIGIN` set), never a `window` global. |
+| **D9** | Automated: the `pwa` Playwright project per §P8.1 (installable-**conditions**, offline-ready gate, offline boot, offline deep link, no-auto-update, update-apply + build-stamp, update-with-run confirm, no-stale-mix, portable-no-SW, origin-gate) **plus the §P8.2 build checks in `checks`** — (a) precache reference-closure over `index.html → JS/CSS/icon/manifest → CSS url(…) → font/image` against the **`build:pwa`** output, local refs only (`data:` / `blob:` / external skipped), each present in both `sw.js`'s precache list and `dist/`; (b) the inverse — plain `build` and `build:portable` emit no `sw.js` / manifest / manifest-link / registration code. **Lighthouse PWA is not a gate** (category removed). Manual checklist per §P8.3. Playwright "install" = condition checks, not OS install automation. |
 | **D10** | PWA ships inside **`v0.4.0`** (with Workspace Export + Shareable URL); the tag waits for it. |
 
 ---
