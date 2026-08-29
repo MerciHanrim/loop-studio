@@ -228,6 +228,27 @@ The palette chips, undo/redo, and **New** are **not rendered** on mobile.
 sheet contract as MV5 (`aria-expanded`, Escape, focus return, mutually
 exclusive).
 
+### MV6a. Getting your work onto the phone — no account sync
+
+Loop Studio has no accounts and no server storage; desktop autosave lives in
+that browser only. So a phone views another device's work by **opening a file**
+or **a Share link** — the two things that already move a diagram between
+machines:
+
+- **`More` → `Import file`** — a `Graph JSON` *or* a `Workspace JSON` (the same
+  `importFile()` desktop uses; a Workspace file also restores the run position,
+  the last distribution, and the view). Confirm-before-replace per MV3b.
+- **a `#g1=` Share link** — opened straight from the address bar / a message;
+  graph only (no run state).
+
+Because the mobile first screen is always the built-in sample until you load
+something, a small **"Open a file"** card sits on that first screen while the
+session is still `pristineSample`: the line *"No account sync — open a saved
+file or a Share link to view it here."*, an **Open a file** button (the same
+file picker as `More` → `Import file`), and a note that Graph/Workspace JSON
+come from desktop Export. It disappears the moment any document / template /
+Share link loads.
+
 ## MV7. Safe area, touch targets, overflow
 
 - **Safe area is reserved as real space**, not just honoured visually:
@@ -301,6 +322,7 @@ opening. Its mobile placement rules:
 | MV-D14 | new state | a small UI-only `useUiStore` (`{ overlay: 'none' \| 'inspector' \| 'timeline' \| 'more' \| 'mc' \| 'share' \| 'templates' \| 'export' }`) + `useIsMobile()` |
 | MV-D15 | E2E | see MV10 |
 | MV-D16 | README | replace *"mobile editing is not currently optimized"* with *"Mobile browsers get a view & run layout — pan/zoom, play, Monte Carlo, inspect; editing is desktop-only."*; Roadmap line becomes `✅ Mobile view/run layout` |
+| MV-D16a | opening files | no account / cloud sync (MV6a). `More` → `Import file` accepts Graph **and** Workspace JSON; a `#g1=` Share link is the other path. An **"Open a file"** card with the "No account sync" copy sits on the pristine first screen and clears once a document loads |
 | MV-D17 | viewport height | `100dvh` with `100vh` fallback everywhere (MV4a); a `visualViewport` listener nudges the bottom bar if a browser lags; the fixed bottom bar stays on-screen through iOS address-bar / keyboard height changes |
 | MV-D18 | PWA update bar | **not** in the exclusive set (MV8a) — a pending update never closes a sheet and a sheet never blocks it |
 | MV-D19 | PWA update bar placement | fixed at the **top**, below the top bar (`top: calc(topbar + safe-area)`); **highest z-index** (`canvas < runbar < sheet <= mc-dialog < pwa-update`) so Update/Dismiss stay clickable with a sheet open; Canvas top padding grows by its height; can only ever occlude canvas |
@@ -371,9 +393,19 @@ A dedicated **`mobile` Playwright project** — `devices['iPhone 13']`, run at
 
 **Document replacement still works**
 
-- from `More` → Import a fixture (or load a Template): a `window.confirm` appears
-  (unless pristine); accept → the new diagram is shown; the serialised doc now
-  matches the imported fixture.
+- `More` → `Import file` is a real, visible entry; it accepts a **Graph JSON**
+  *and* a **Workspace JSON** (the latter also restores the run position / last
+  distribution / view);
+- modified session → `window.confirm` before replacing; **Cancel** leaves the
+  `GraphDoc`, `simulationRev`, and run state untouched and keeps the sheet open;
+  **Accept** replaces via one `loadDoc()` (exactly `simulationRev + 1`), closes
+  the sheet, and returns focus to `More`;
+- **pristine first boot** → picking a Template (or Import) applies with **no
+  confirm**, exactly one `simulationRev` bump;
+- the same for a Template load from the `More` menu;
+- the **"Open a file"** first-run card (MV6a) is present while `pristineSample`,
+  carries the "No account sync" copy, its button opens the file picker, and it
+  disappears once a document loads.
 
 **Desktop is untouched**
 

@@ -5,6 +5,7 @@ import { importFile } from '../../store/workspaceIO'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { Logo } from '../Logo'
 import { MobileMoreMenu } from './MobileMoreMenu'
+import { MobileOpenFileHint } from './MobileOpenFileHint'
 
 // docs/mobile.md §MV6 — the compact top bar: Logo mark, a "view & run" caption,
 // and a single More button. No palette, no undo/redo, no New (editing is
@@ -62,6 +63,7 @@ export function MobileTopBar() {
       </button>
 
       <MobileMoreMenu fileInputRef={fileRef} moreBtnRef={moreRef} getViewport={getViewport} />
+      <MobileOpenFileHint onOpenFile={() => fileRef.current?.click()} />
       <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
     </header>
   )

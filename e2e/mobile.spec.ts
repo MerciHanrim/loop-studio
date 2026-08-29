@@ -436,19 +436,65 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await expect.poll(() => graphContent(page)).not.toBe(before)
   })
 
-  test('Template from the More menu confirms before replacing; cancel keeps the graph, accept replaces + closes the sheet', async ({ page }) => {
-    await loadDiagram(page)
+  const simRev = (page: Page) =>
+    page.evaluate(
+      () => (window as unknown as { __loop: { graph: { getState: () => { simulationRev: number } } } }).__loop.graph.getState().simulationRev,
+    )
+  const stepIndex = (page: Page) =>
+    page.evaluate(
+      () => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex,
+    )
+
+  const openTemplatesSheet = async (page: Page) => {
+    await more(page).click()
+    await page.locator('.sheet[aria-label="More"] .sheet__row', { hasText: 'Templates' }).click()
+    await expect(page.locator('.sheet[aria-label="Templates"]')).toBeVisible()
+  }
+
+  test('pristine first boot: picking a mobile Template applies with NO confirm, exactly one simulationRev bump, sheet closes + focus to More', async ({ page }) => {
+    // a genuine first-boot session: no saved graph ⇒ graphStore.pristineSample
+    await page.addInitScript(() => {
+      try {
+        localStorage.clear()
+      } catch {
+        /* private mode — fine */
+      }
+    })
+    await openApp(page)
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __loop: { graph: { getState: () => { pristineSample: boolean } } } }).__loop.graph.getState().pristineSample,
+      ),
+      'session is the pristine first-boot sample',
+    ).toBe(true)
+
     const before = await graphContent(page)
+    const revBefore = await simRev(page)
+
+    let confirmed = false
+    page.on('dialog', (d) => {
+      confirmed = true
+      return void d.dismiss()
+    })
+
+    await openTemplatesSheet(page)
+    await page.locator('.sheet[aria-label="Templates"] .sheet__row').first().click()
+
+    await expect(page.locator('.sheet[aria-label="Templates"]')).toBeHidden()
+    expect(confirmed, 'no confirm on the pristine sample').toBe(false)
+    await expect(more(page)).toBeFocused()
+    await expect.poll(() => graphContent(page)).not.toBe(before) // the template applied
+    expect(await simRev(page), 'exactly one simulationRev bump').toBe(revBefore + 1)
+  })
+
+  test('modified session: mobile Template confirms; cancel keeps everything, accept replaces via one simulationRev bump + closes the sheet', async ({ page }) => {
+    await loadDiagram(page) // importGraph clears pristineSample
+    const before = await graphContent(page)
+    const revBefore = await simRev(page)
     const templates = page.locator('.sheet[aria-label="Templates"]')
 
-    const openTemplates = async () => {
-      await more(page).click()
-      await page.locator('.sheet[aria-label="More"] .sheet__row', { hasText: 'Templates' }).click()
-      await expect(templates).toBeVisible()
-    }
-
-    // cancel — graph + run state untouched, the sheet stays open
-    await openTemplates()
+    // cancel — graph + run state + rev untouched, the sheet stays open
+    await openTemplatesSheet(page)
     page.once('dialog', (d) => {
       expect(d.message()).toMatch(/replace/i)
       return void d.dismiss()
@@ -456,17 +502,80 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await templates.locator('.sheet__row').first().click()
     await page.waitForTimeout(150)
     expect(await graphContent(page), 'cancel keeps the graph').toBe(before)
-    expect(await page.evaluate(
-      () => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex,
-    )).toBe(0)
+    expect(await stepIndex(page)).toBe(0)
+    expect(await simRev(page), 'cancel does not bump').toBe(revBefore)
     await expect(templates).toBeVisible()
 
-    // accept — replaced once, the sheet closes, focus returns to More
+    // accept — replaced with exactly one bump, the sheet closes, focus to More
     page.once('dialog', (d) => void d.accept())
     await templates.locator('.sheet__row').first().click()
     await expect(templates).toBeHidden()
     await expect(more(page)).toBeFocused()
     await expect.poll(() => graphContent(page)).not.toBe(before)
+    expect(await simRev(page), 'exactly one simulationRev bump').toBe(revBefore + 1)
+  })
+
+  test('pristine first boot shows the "Open a file" card (no account sync); its button opens the picker; it clears once a file loads', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        localStorage.clear()
+      } catch {
+        /* private mode */
+      }
+    })
+    await openApp(page)
+
+    const hint = page.locator('.openhint')
+    await expect(hint).toBeVisible()
+    await expect(hint).toContainText('No account sync')
+    await expect(hint).toContainText(/Share link/i)
+    const openBtn = hint.getByRole('button', { name: 'Open a file' })
+    await expect(openBtn).toBeVisible()
+    expect(rectInside(await hint.boundingBox(), 390, 844, 2)).toBe(true)
+
+    // the button opens the OS file chooser (same hidden input as More → Import file)
+    const chooser = page.waitForEvent('filechooser')
+    await openBtn.click()
+    await (await chooser).setFiles({
+      name: 'g.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(readFixture()),
+    })
+
+    // a real document loaded → pristine latch clears → the card is gone
+    await expect(hint).toBeHidden()
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __loop: { graph: { getState: () => { pristineSample: boolean } } } }).__loop.graph.getState().pristineSample,
+      ),
+    ).toBe(false)
+  })
+
+  test('mobile Import file accepts both Graph JSON and Workspace JSON', async ({ page }) => {
+    await loadDiagram(page)
+    const fileInput = page.locator('.toolbar--mobile input[type="file"]')
+
+    // Graph JSON — plain diagram, no workspace restore
+    page.once('dialog', (d) => void d.accept())
+    await fileInput.setInputFiles({ name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(readFixture()) })
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { __loop: { graph: { getState: () => { nodes: unknown[] } } } }).__loop.graph.getState().nodes.length,
+        ),
+      )
+      .toBeGreaterThan(0)
+
+    // Workspace JSON — carries a distinctive viewport that must restore
+    const wsText: string = await page.evaluate(() => {
+      const io = (window as unknown as { __loop: { io: { serializeWorkspaceFile: (p: unknown) => string; collectWorkspacePayload: (v: unknown) => unknown } } }).__loop.io
+      return io.serializeWorkspaceFile(io.collectWorkspacePayload({ x: 111, y: 222, zoom: 1.75 }))
+    })
+    page.once('dialog', (d) => void d.accept())
+    await fileInput.setInputFiles({ name: 'w.json', mimeType: 'application/json', buffer: Buffer.from(wsText) })
+    await expect
+      .poll(() => page.locator('.react-flow__viewport').evaluate((el) => (el as HTMLElement).style.transform))
+      .toContain('scale(1.75)')
   })
 
   test('a Monte-Carlo run still completes on mobile', async ({ page }) => {

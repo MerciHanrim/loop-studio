@@ -148,7 +148,8 @@ export function MobileMoreMenu({
             fileInputRef.current?.click()
           }}
         >
-          Import…
+          Import file
+          <span className="sheet__row-sub">Graph or Workspace JSON</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('export')}>
           Export<span className="sheet__row-sub">▸</span>

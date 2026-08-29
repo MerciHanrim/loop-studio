@@ -2048,6 +2048,53 @@ input[type='number']::-webkit-inner-spin-button {
     font-size: 12px;
   }
 
+  /* ---- "open a file" first-run hint (§MV6) — no account sync ---- */
+  .openhint {
+    position: fixed;
+    left: 50%;
+    top: calc(var(--mob-topbar-h) + var(--sai-top) + 16px);
+    transform: translateX(-50%);
+    z-index: var(--z-runbar);
+    width: min(320px, calc(100vw - 24px));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    text-align: center;
+    background: var(--surface-overlay);
+    border: 1px solid var(--line-structure);
+    border-radius: 10px;
+    box-shadow: var(--elev-label);
+  }
+  .openhint__title {
+    margin: 0;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .openhint__body {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+  .openhint__btn {
+    align-self: center;
+    margin-top: 4px;
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+  .openhint__sub {
+    margin: 4px 0 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-tertiary);
+  }
+  .openhint__sub code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+
   /* ---- read-only Inspector sheet (§MV5 / §MV-D3) ---- */
   .sheet--inspector {
     max-height: 60dvh;
