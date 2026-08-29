@@ -1,37 +1,56 @@
 import { create } from 'zustand'
 
-// docs/pwa.md §P4 — the state behind the `.pwa-update` bar. Only ever populated
-// by `src/pwa/register-sw.ts` (Production / PWA-test build). In every other
-// build `registerPwa()` is never called, so `hasWaiting` stays false and the
-// bar never renders.
+// docs/pwa.md §P4 — state behind the `.pwa-update` bar. Populated only by
+// `src/pwa/register-sw.ts` (Production / PWA-test build); in every other build
+// `registerPwa()` is never called and `waitingWorker` stays null.
+//
+// The store tracks the WAITING service-worker object itself, not just a flag, so
+// a Dismiss can be scoped to that exact worker: `markWaiting(sameWorker)` keeps
+// an existing Dismiss, only a DIFFERENT worker clears it (a new deploy).
 
 type PwaStore = {
-  /** a new service worker is installed and WAITING (an update is staged) */
-  hasWaiting: boolean
-  /** the user dismissed the bar for the current waiting worker */
-  dismissed: boolean
-  /** set by register-sw: message the waiting worker to skipWaiting */
+  /** the service worker currently installed and WAITING, or null */
+  waitingWorker: ServiceWorker | null
+  /** the worker the user dismissed the bar for (bar hidden while this === waitingWorker) */
+  dismissedWorker: ServiceWorker | null
+  /** set by register-sw: hand off to the waiting worker + reload on controllerchange */
   applyFn: (() => void) | null
 
-  /** a waiting worker appeared — show the bar afresh (un-dismiss) */
-  markWaiting: () => void
-  /** hide the bar for THIS waiting worker; the next deploy re-shows it */
+  /** a worker is waiting. Same object ⇒ keep any Dismiss; a new object ⇒ show afresh. */
+  markWaiting: (worker: ServiceWorker) => void
+  /** the waiting worker vanished / moved on — resync, hide the bar */
+  clearWaiting: () => void
+  /** hide the bar for the CURRENT waiting worker; a later deploy re-shows it */
   dismiss: () => void
-  /** Update clicked — hand off to the waiting worker (register-sw reloads on
-   *  the resulting `controllerchange`) */
+  /** Update clicked */
   apply: () => void
   setApplyFn: (fn: () => void) => void
 }
 
 export const usePwaStore = create<PwaStore>((set, get) => ({
-  hasWaiting: false,
-  dismissed: false,
+  waitingWorker: null,
+  dismissedWorker: null,
   applyFn: null,
-  markWaiting: () => set({ hasWaiting: true, dismissed: false }),
-  dismiss: () => set({ dismissed: true }),
+
+  markWaiting: (worker) =>
+    set((s) =>
+      s.waitingWorker === worker
+        ? s // same worker: no change, an existing Dismiss stays
+        : { waitingWorker: worker, dismissedWorker: null }, // new worker: un-dismiss
+    ),
+  clearWaiting: () => set({ waitingWorker: null }),
+  dismiss: () => set((s) => ({ dismissedWorker: s.waitingWorker })),
   apply: () => get().applyFn?.(),
   setApplyFn: (fn) => set({ applyFn: fn }),
 }))
 
-/** the bar shows only while a worker is waiting and the user hasn't dismissed it */
-export const selectUpdateReady = (s: PwaStore): boolean => s.hasWaiting && !s.dismissed
+/** the bar shows only while a worker is waiting and it is not the dismissed one */
+export const selectUpdateReady = (s: PwaStore): boolean =>
+  s.waitingWorker != null && s.waitingWorker !== s.dismissedWorker
+
+/** Should Update proceed? A run in progress needs a second confirm; otherwise it
+ *  applies straight away. Pure — testable without the SW / a dialog (docs/pwa.md
+ *  §P4.2 / test 6). */
+export function decideUpdate(runInProgress: boolean, confirm: () => boolean): boolean {
+  return !runInProgress || confirm()
+}

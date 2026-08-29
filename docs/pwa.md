@@ -163,13 +163,28 @@ SW never takes over clients on its own.
 
 ### P4.1 The update sequence (nothing automatic)
 
-1. A new SW is found and reaches **`waiting`**. It stays there.
-2. `onNeedRefresh` → the `.pwa-update` bar appears (§P4.2). No other effect.
-3. **Only when the user clicks Update:** post `SKIP_WAITING` to the waiting SW.
-4. Listen for `navigator.serviceWorker.controllerchange`; **when the controller
-   actually changes**, call `window.location.reload()` once.
-5. If the user never clicks Update, the new SW activates on the next natural
-   cold start (all tabs closed), as browsers already do.
+The store keeps the **waiting `ServiceWorker` object itself** (not just a flag),
+so a Dismiss is scoped to that exact worker.
+
+1. **Right after `register()`**, check `registration.waiting` — a SW that
+   finished installing before this tab ran would otherwise be missed. If present
+   (and there is a `navigator.serviceWorker.controller`, i.e. this is an
+   *update*, not a first install), `markWaiting(worker)`.
+2. A SW that installs later: on its `statechange` to `installed`, same check.
+3. `markWaiting(worker)` — **same object ⇒ no change** (any Dismiss survives a
+   visibility/hourly re-poll); a **different object ⇒ the bar shows afresh**
+   (`dismissed` cleared). The bar renders while `waitingWorker != null &&
+   waitingWorker !== dismissedWorker`.
+4. **First install (no controller) shows nothing.**
+5. **Only on the user's Update click:** re-read `registration.waiting`. If it is
+   gone or no longer `installed`, resync (clear the bar) and do nothing else —
+   no message, no reload. Otherwise register a **one-shot
+   `controllerchange` listener FIRST**, *then* `postMessage({type:'SKIP_WAITING'})`
+   to that worker.
+6. On `controllerchange`, `window.location.reload()` **once** — the listener
+   removes itself, so repeated events cause no further reload.
+7. If the user never clicks Update, the new SW activates on the next cold start
+   (all tabs closed), as browsers already do.
 
 **No automatic `skipWaiting`. No automatic reload.** `clientsClaim: false` so a
 just-activated SW does not seize control of an open tab.
@@ -483,14 +498,20 @@ from Lighthouse 13), so it is **not** a release gate. Instead:
    maximumFileSizeToCacheInBytes:3MiB, cleanupOutdatedCaches:true,
    navigateFallback:'index.html', skipWaiting:false, clientsClaim:false } })`,
    in `plugins` only when `pwa` (`!portable && (mode==='pwa' || CF main)`).
-   `src/pwa/register-sw.ts` — origin-allow-list gate, then
-   `register('sw.js')`; a new SW stays `waiting`; `usePwaStore.markWaiting()`
-   on `updatefound → installed` with a controller; Update posts `SKIP_WAITING`,
-   `controllerchange` triggers exactly one `reload()`; focus + hourly
-   `reg.update()`. `main.tsx`: `if (__PWA_ENABLED__) import('./pwa/register-sw')`
-   (tree-shaken elsewhere). `src/components/PwaUpdateBar.tsx` — shows only while
-   `hasWaiting && !dismissed`; the data-loss line; a run-in-progress `confirm`;
-   Dismiss is per-waiting-worker (`markWaiting` clears `dismissed`).
+   `src/pwa/register-sw.ts` — origin-allow-list gate, then `register('sw.js')`,
+   then `wireRegistration(reg, navigator.serviceWorker, store)` (pure of
+   `navigator` lookups → unit-testable). The **waiting-worker boundary** (§P4.1):
+   `registration.waiting` checked right after register; the store holds the
+   waiting `ServiceWorker` object so `markWaiting(same)` keeps a Dismiss and
+   only `markWaiting(different)` clears it; no controller ⇒ no bar; on Update
+   the `controllerchange` one-shot is registered **before** `postMessage`, a
+   vanished/moved worker resyncs with no message/reload, and repeated
+   `controllerchange` reloads exactly once. `src/pwa/register-sw.test.ts` (10)
+   covers the 7 boundary cases + `decideUpdate`. `main.tsx`:
+   `if (__PWA_ENABLED__) import('./pwa/register-sw')` (tree-shaken elsewhere).
+   `src/components/PwaUpdateBar.tsx` — renders while `waitingWorker != null &&
+   waitingWorker !== dismissedWorker`; the data-loss line; `decideUpdate`
+   gates a run-in-progress `confirm`.
    `scripts/check-pwa-closure.mjs` (§P8.2a) in `checks`, run against **both**
    `dist-pwa/` and the `CF_PAGES_BRANCH=main npm run build → dist/` shape.
 3. **the `pwa` E2E project** (§P8.1) + the `portable` no-SW assertion + one full

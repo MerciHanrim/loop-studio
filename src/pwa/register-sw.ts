@@ -11,6 +11,68 @@ import { usePwaStore } from '../store/pwaStore'
  *  explicit E2E preview origin (a build-time constant, never a window global). */
 const ALLOWED_ORIGINS = ['https://cozy-loop-studio.pages.dev']
 
+type Store = Pick<
+  ReturnType<typeof usePwaStore.getState>,
+  'markWaiting' | 'clearWaiting' | 'setApplyFn'
+>
+
+/**
+ * Wire a registration to the update store. Pure of `navigator` lookups so it is
+ * unit-testable with fakes. An update is only surfaced when this page is already
+ * **controlled** by an older SW — a first install (no `container.controller`)
+ * shows no bar (§P4 / test 7).
+ */
+export function wireRegistration(
+  reg: ServiceWorkerRegistration,
+  container: ServiceWorkerContainer,
+  store: Store,
+): { recheck: () => void } {
+  const surfaceIfUpdate = (worker: ServiceWorker | null | undefined): void => {
+    // an update only counts when this page is already CONTROLLED by an older SW;
+    // a first install (no controller) shows no bar (§P4 / test 7)
+    if (worker && worker.state === 'installed' && container.controller) {
+      store.markWaiting(worker)
+    }
+  }
+
+  // (a) a worker ALREADY waiting when this tab registered — check immediately,
+  //     otherwise a SW that finished installing before we ran is missed.
+  surfaceIfUpdate(reg.waiting)
+
+  // (b) a worker that finishes installing later
+  reg.addEventListener('updatefound', () => {
+    const sw = reg.installing
+    sw?.addEventListener('statechange', () => {
+      if (sw.state === 'installed') surfaceIfUpdate(sw)
+      else if (sw.state === 'redundant') store.clearWaiting() // superseded before we acted
+    })
+  })
+
+  // Update handler. Re-read `reg.waiting` — it may have changed or vanished.
+  // Register the `controllerchange` one-shot listener BEFORE messaging the
+  // worker, and reload only once no matter how many times it fires.
+  store.setApplyFn(() => {
+    const waiting = reg.waiting
+    if (!waiting || waiting.state !== 'installed') {
+      store.clearWaiting() // gone / moved on — resync, no message, no reload
+      return
+    }
+    let reloaded = false
+    const onControllerChange = (): void => {
+      if (reloaded) return
+      reloaded = true
+      container.removeEventListener('controllerchange', onControllerChange)
+      window.location.reload()
+    }
+    container.addEventListener('controllerchange', onControllerChange) // FIRST
+    waiting.postMessage({ type: 'SKIP_WAITING' }) // THEN
+  })
+
+  // re-poll `reg.waiting` (a tab that missed `updatefound` still catches up).
+  // The same worker ⇒ `markWaiting` is a no-op and any Dismiss survives.
+  return { recheck: () => surfaceIfUpdate(reg.waiting) }
+}
+
 export async function registerPwa(): Promise<void> {
   if (!('serviceWorker' in navigator)) return
 
@@ -22,31 +84,13 @@ export async function registerPwa(): Promise<void> {
   const reg = await navigator.serviceWorker.register('sw.js', { scope: '/' }).catch(() => null)
   if (!reg) return
 
-  const store = usePwaStore.getState()
-  store.setApplyFn(() => reg.waiting?.postMessage({ type: 'SKIP_WAITING' }))
-
-  // a worker already waiting when this tab loaded (tab reopened after a deploy)
-  if (reg.waiting && navigator.serviceWorker.controller) store.markWaiting()
-
-  // a worker that installs later, with a controller already in place ⇒ an update
-  reg.addEventListener('updatefound', () => {
-    const sw = reg.installing
-    sw?.addEventListener('statechange', () => {
-      if (sw.state === 'installed' && navigator.serviceWorker.controller) store.markWaiting()
-    })
-  })
-
-  // WE triggered skipWaiting (Update) ⇒ the controller changes ⇒ reload once
-  let reloaded = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return
-    reloaded = true
-    window.location.reload()
-  })
+  const { recheck } = wireRegistration(reg, navigator.serviceWorker, usePwaStore.getState())
 
   // update checks: on focus, and at most hourly (§P4)
-  const check = () => {
-    if (document.visibilityState === 'visible') void reg.update().catch(() => {})
+  const check = (): void => {
+    if (document.visibilityState !== 'visible') return
+    recheck() // catch a worker that is already waiting
+    void reg.update().catch(() => {})
   }
   document.addEventListener('visibilitychange', check)
   window.setInterval(check, 60 * 60 * 1000)

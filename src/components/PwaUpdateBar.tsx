@@ -1,5 +1,5 @@
 import { useMcStore } from '../store/mcStore'
-import { selectUpdateReady, usePwaStore } from '../store/pwaStore'
+import { decideUpdate, selectUpdateReady, usePwaStore } from '../store/pwaStore'
 import { useSimStore } from '../store/simStore'
 
 // docs/pwa.md §P4.2 — shown ONLY while a service worker is actually waiting and
@@ -17,10 +17,13 @@ export function PwaUpdateBar() {
   const onUpdate = () => {
     const running =
       useSimStore.getState().status === 'running' || useMcStore.getState().status === 'running'
-    if (running && !window.confirm('A run is in progress. Apply the update and reload anyway?')) {
-      return
+    if (
+      decideUpdate(running, () =>
+        window.confirm('A run is in progress. Apply the update and reload anyway?'),
+      )
+    ) {
+      apply() // register-sw messages the waiting worker + reloads once on controllerchange
     }
-    apply() // register-sw reloads once, on the resulting controllerchange
   }
 
   return (
