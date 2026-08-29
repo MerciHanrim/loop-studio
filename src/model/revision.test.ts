@@ -284,35 +284,179 @@ describe('planProposalExport (§R6 / R14.5)', () => {
   const g = doc([pool('p1', { capacity: 7 }), gate('g1')], [rEdge('e1', 'p1', 'g1')])
   const project = { projectId: FAKE_PROJ, revisionId: FAKE_REV, lineage: [] as string[] }
 
+  it('DIRTY origin ⇒ { ok:false, reason:"dirty-origin" } — no id, no file (review round 2)', () => {
+    const p = planProposalExport({ doc: g, project, dirty: true, meta: {}, now: 'n', mint: seqMint })
+    expect(p).toEqual({ ok: false, reason: 'dirty-origin' })
+    expect((p as { text?: string }).text).toBeUndefined()
+    // and no id was consumed
+    const before = idc
+    planProposalExport({ doc: g, project, dirty: true, meta: {}, now: 'n', mint: seqMint })
+    expect(idc).toBe(before)
+  })
+
   it('carries a complete, self-consistent base.content and round-trips through readProject', () => {
-    const p = planProposalExport({ doc: g, project, meta: {}, now: '2026-09-09T00:00:00Z', mint: seqMint })
+    const p = planProposalExport({ doc: g, project, dirty: false, meta: {}, now: '2026-09-09T00:00:00Z', mint: seqMint })
     expect(p.ok).toBe(true)
     if (!p.ok) return
     const file = JSON.parse(p.text)
     expect(file.project.role).toBe('proposal')
     expect(file.project.parentId).toBe(FAKE_REV)
     expect(file.project.base.revisionId).toBe(FAKE_REV)
-    // digest self-consistency (R-INV-6)
-    const rp = readProject(file.project)
+    // R-INV-6 + the §R10 header integrity digest of the proposed content
+    const proposed = canonicalContent({ nodes: file.nodes, edges: file.edges })
+    expect(file.project.contentDigest).toBe(digestOfCanonical(proposed))
+    const rp = readProject(file.project, proposed)
     expect(rp.ok).toBe(true)
     if (rp.ok) {
-      // base.content vs the (identical) proposed content ⇒ empty diff
-      const proposed = canonicalContent({ nodes: file.nodes, edges: file.edges })
       expect(computeRevisionDiff(rp.proposalBase!.content, proposed).summary.empty).toBe(true)
     }
   })
 
   it('an edit to the proposed graph shows up as a diff against the carried base', () => {
-    const p = planProposalExport({ doc: g, project, meta: {}, now: 'n', mint: seqMint })
+    const p = planProposalExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
     if (!p.ok) throw new Error('plan failed')
     const file = JSON.parse(p.text)
-    // simulate the author editing the proposed graph after Make-a-proposal
-    file.nodes[0].data.capacity = 99
+    file.nodes[0].data.capacity = 99 // author edits the proposed graph
+    // readProject WITHOUT the graph still parses the header (base check only)
     const rp = readProject(file.project)
     if (!rp.ok) throw new Error('read failed')
     const d = computeRevisionDiff(rp.proposalBase!.content, canonicalContent({ nodes: file.nodes, edges: file.edges }))
     expect(d.summary.nodes.changed).toBe(1)
     expect(d.nodes.changed[0].fields[0]).toMatchObject({ field: 'data.capacity', base: 7, proposed: 99, tag: 'engine' })
+  })
+})
+
+// ── header content-digest cross-check (§R10 / review round 2) ───────────────
+
+describe('readProject header integrity digest', () => {
+  const g = doc([pool('p1', { initial: 4 }), pool('p2')], [rEdge('e1', 'p1', 'p2', '2')])
+  const project = { projectId: FAKE_PROJ, revisionId: FAKE_REV, parentId: null as string | null, lineage: [] as string[] }
+
+  it('a revision file whose graph was edited but header left stale ⇒ project dropped, graph still opens', () => {
+    const p = planRevisionExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const file = JSON.parse(p.text)
+    // tamper: edit the graph, leave project.contentDigest as-is
+    file.nodes[0].data.initial = 999
+    const loaded = canonicalContent({ nodes: file.nodes, edges: file.edges })
+    const r = readProject(file.project, loaded)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.warning).toMatch(/does not match its graph/i)
+    // untouched file passes
+    const clean = readProject(JSON.parse(p.text).project, canonicalContent(g))
+    expect(clean.ok).toBe(true)
+  })
+
+  it('a proposal file whose proposed graph was edited but header left stale ⇒ dropped', () => {
+    const p = planProposalExport({ doc: g, project: { ...project }, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const file = JSON.parse(p.text)
+    file.edges[0].data.flow = '9' // tamper the proposed content
+    const loaded = canonicalContent({ nodes: file.nodes, edges: file.edges })
+    expect(readProject(file.project, loaded).ok).toBe(false)
+  })
+
+  it('no cross-check when the loaded graph is not supplied (header shape only)', () => {
+    const p = planRevisionExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const file = JSON.parse(p.text)
+    file.nodes[0].data.initial = 42
+    expect(readProject(file.project).ok).toBe(true) // no graph ⇒ no digest check
+  })
+
+  it('a malformed contentDigest is dropped when a graph is supplied', () => {
+    const p = planRevisionExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const file = JSON.parse(p.text)
+    file.project.contentDigest = 'ZZZZ'
+    expect(readProject(file.project, canonicalContent(g)).ok).toBe(false)
+  })
+})
+
+// ── canonical wire golden vector (§R4 / review round 2) ────────────────────
+// A frozen literal for one representative GraphDoc. Any change to the field
+// order, default normalisation, number handling, or the digest algorithm
+// breaks this — a regression that pure invariance tests can miss.
+
+const GOLDEN_NODES: LoopNode[] = [
+  // pool: explicit capacity 0, sub-pixel x, -0 y
+  pool('n_pool', { label: 'Café ☕', initial: 3, capacity: 0 }, { x: 12.5, y: -0 }),
+  // pool: capacity omitted ⇒ normalises to null; label omitted ⇒ id
+  { id: 'n_pool2', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', activation: 'passive', initial: 0, mode: 'pullAll' } } as unknown as LoopNode,
+  { id: 'n_src', type: 'source', position: { x: -40, y: 8 }, data: { kind: 'source', label: 'src', activation: 'automatic', mode: 'pushAll' } } as LoopNode,
+  { id: 'n_drain', type: 'drain', position: { x: 200, y: 0 }, data: { kind: 'drain', label: 'drain', activation: 'passive', mode: 'pullAny' } } as LoopNode,
+  gate('n_gate', { label: 'Gate 관문', distribution: 'probabilistic' }), // mode omitted ⇒ pullAny
+  { id: 'n_conv', type: 'converter', position: { x: 5.25, y: 5.75 }, data: { kind: 'converter', label: 'conv', activation: 'onStart', mode: 'pullAll' } } as LoopNode,
+  { id: 'n_end', type: 'end', position: { x: 300, y: 0 }, data: { kind: 'end', label: 'END', activation: 'passive' } } as unknown as LoopNode, // mode omitted ⇒ pullAny
+]
+const GOLDEN_EDGES: LoopEdge[] = [
+  rEdge('e_res', 'n_src', 'n_pool', '2D6'),
+  { id: 'e_state', type: 'loop', source: 'n_pool', target: 'n_gate', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '>= 5' } } as LoopEdge, // delay omitted ⇒ 0
+]
+const golden = () => doc(GOLDEN_NODES, GOLDEN_EDGES, { baseSeed: 7, runs: 100, steps: 20, tracked: ['n_pool'] })
+
+// —— frozen literals — captured from the projection; DO NOT hand-edit.
+// If a legitimate spec change moves these, update BOTH here and bump the
+// commit message; an accidental drift fails these three tests. ——
+const GOLDEN_JSON =
+  '{"nodes":[{"id":"n_conv","position":{"x":5.25,"y":5.75},"data":{"kind":"converter","label":"conv","activation":"onStart","mode":"pullAll"}},{"id":"n_drain","position":{"x":200,"y":0},"data":{"kind":"drain","label":"drain","activation":"passive","mode":"pullAny"}},{"id":"n_end","position":{"x":300,"y":0},"data":{"kind":"end","label":"END","activation":"passive","mode":"pullAny"}},{"id":"n_gate","position":{"x":10,"y":10},"data":{"kind":"gate","label":"Gate 관문","activation":"automatic","distribution":"probabilistic","mode":"pullAny"}},{"id":"n_pool","position":{"x":12.5,"y":0},"data":{"kind":"pool","label":"Café ☕","activation":"passive","initial":3,"capacity":0,"mode":"pullAny"}},{"id":"n_pool2","position":{"x":0,"y":0},"data":{"kind":"pool","label":"Pool","activation":"passive","initial":0,"capacity":null,"mode":"pullAll"}},{"id":"n_src","position":{"x":-40,"y":8},"data":{"kind":"source","label":"src","activation":"automatic","mode":"pushAll"}}],"edges":[{"id":"e_res","source":"n_src","target":"n_pool","sourceHandle":"out","targetHandle":"in","data":{"kind":"resource","flow":"2D6"}},{"id":"e_state","source":"n_pool","target":"n_gate","sourceHandle":"state-source","targetHandle":"state-target","data":{"kind":"state","mode":"activator","expr":">= 5","delay":0}}],"recommendedRunConfig":{"baseSeed":7,"runs":100,"steps":20,"tracked":["n_pool"]}}'
+const GOLDEN_HEX = '36738f559b411ebf2b7b19fc82e14fab5902106774621eab9cc6b47cc1db4ce4'
+
+describe('canonical wire golden vector', () => {
+  it('canonicalJson is byte-exact against the frozen literal', () => {
+    expect(canonicalJson(canonicalContent(golden()))).toBe(GOLDEN_JSON)
+  })
+
+  it('digest is byte-exact — pure-JS AND Web Crypto both equal the frozen hex', async () => {
+    expect(digestOfCanonical(canonicalContent(golden()))).toBe(GOLDEN_HEX)
+    expect(await fullContentDigest(golden())).toBe(GOLDEN_HEX)
+  })
+
+  it('shuffled array + key order produce the identical json + digest', () => {
+    const shuffledNodes = [...GOLDEN_NODES].reverse().map((n) => ({
+      ...n,
+      data: Object.fromEntries(Object.entries(n.data as Record<string, unknown>).reverse()) as LoopNode['data'],
+    }))
+    const shuffled = doc(shuffledNodes as LoopNode[], [...GOLDEN_EDGES].reverse(), {
+      tracked: ['n_pool'], steps: 20, runs: 100, baseSeed: 7,
+    })
+    expect(canonicalJson(canonicalContent(shuffled))).toBe(GOLDEN_JSON)
+    expect(digestOfCanonical(canonicalContent(shuffled))).toBe(GOLDEN_HEX)
+  })
+})
+
+// ── UTF-8 file-size boundary (§R11 / review round 2) ───────────────────────
+
+describe('REVISION_FILE_MAX_BYTES boundary', () => {
+  const project = { projectId: FAKE_PROJ, revisionId: FAKE_REV, parentId: null as string | null, lineage: [] as string[] }
+
+  it('exactly cap ⇒ ok; cap+1 ⇒ too-large; measured in UTF-8 with multi-byte chars', () => {
+    // pad a label with 3-byte chars so the file size lands on a chosen boundary
+    const make = (padChars: number) =>
+      planRevisionExport({
+        doc: doc([pool('p1', { label: '한'.repeat(padChars) })]),
+        project,
+        dirty: false,
+        meta: {},
+        now: 'n',
+        mint: seqMint,
+        maxBytes: 999_999, // set below from a probe
+      })
+    // probe the size for a small pad, then choose maxBytes on the boundary
+    const probe = make(10)
+    if (!probe.ok) throw new Error('probe')
+    const atCap = planRevisionExport({
+      doc: doc([pool('p1', { label: '한'.repeat(10) })]),
+      project, dirty: false, meta: {}, now: 'n', mint: seqMint, maxBytes: probe.bytes,
+    })
+    const overCap = planRevisionExport({
+      doc: doc([pool('p1', { label: '한'.repeat(10) })]),
+      project, dirty: false, meta: {}, now: 'n', mint: seqMint, maxBytes: probe.bytes - 1,
+    })
+    expect(atCap.ok).toBe(true)
+    expect(overCap).toMatchObject({ ok: false, reason: 'too-large', cap: probe.bytes - 1 })
+    // the reported byte count is the real UTF-8 length (each 한 is 3 bytes)
+    if (atCap.ok) expect(atCap.bytes).toBe(probe.bytes)
   })
 })
 

@@ -28,6 +28,8 @@ export const AUTHOR_NAME_KEY = 'loop-studio:author'
 export const AUTHOR_NAME_MAX_BYTES = 80
 export const AUTHOR_NOTE_MAX_BYTES = 1000
 export const REVISION_FILE_MAX_BYTES = 8 * 1024 * 1024
+/** lowercase 64-hex — a SHA-256 digest string */
+export const HEX64 = /^[0-9a-f]{64}$/
 
 // ── errors ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +101,11 @@ export type ProjectPayload = {
   revisionId: string
   parentId: string | null
   role: ProjectRole
+  /** `fullContentDigest` of THIS file's own canonical revision content (the
+   *  proposed content for a proposal). Optional integrity field — a reader that
+   *  has the loaded graph cross-checks it; a mismatch drops the whole `project`
+   *  payload (the graph still loads, R-INV-10); its absence is not an error. */
+  contentDigest?: string
   base?: ProposalBase
   appliedProposal?: AppliedProposal
   lineage?: string[]
@@ -513,7 +520,17 @@ function readMeta(m: unknown): ProjectMeta | undefined {
  * for a strictly-valid `loop-revision/1` payload; otherwise `{ ok: false,
  * warning }` and the caller loads the graph / workspace alone. Never throws.
  */
-export function readProject(raw: unknown): ReadProjectResult {
+/**
+ * §R10 steps 3/6 — validate a raw `project` value against the strict format
+ * rules and, when the loaded graph's canonical content is supplied, cross-check
+ * the header's claimed `contentDigest` against the actual GraphDoc. Any failure
+ * returns `{ ok: false, warning }`; the caller loads the graph / workspace
+ * alone (R-INV-10). Never throws.
+ *
+ * @param loadedContent  `canonicalContent(the file's own nodes/edges/rrc)`. When
+ *   given and `project.contentDigest` is present, a mismatch drops `project`.
+ */
+export function readProject(raw: unknown, loadedContent?: CanonicalContent): ReadProjectResult {
   const drop = (w: string): ReadProjectDropped => ({ ok: false, warning: w })
   if (!raw || typeof raw !== 'object') return drop("this file's project data is not readable")
   const o = raw as Record<string, unknown>
@@ -527,6 +544,17 @@ export function readProject(raw: unknown): ReadProjectResult {
   if (o.parentId !== null && !isRevisionId(o.parentId)) {
     return drop("this file's project data has a malformed parent id")
   }
+
+  // integrity: the header's claimed digest must match the file's actual graph
+  if (loadedContent && o.contentDigest !== undefined) {
+    if (typeof o.contentDigest !== 'string' || !HEX64.test(o.contentDigest)) {
+      return drop("this file's project content digest is malformed")
+    }
+    if (digestOfCanonical(loadedContent) !== o.contentDigest) {
+      return drop("this file's project data does not match its graph (edited outside Loop Studio?)")
+    }
+  }
+
   const role: ProjectRole = o.role === 'proposal' ? 'proposal' : 'revision'
 
   const lineage = Array.isArray(o.lineage)
@@ -561,7 +589,6 @@ function isAppliedProposal(x: unknown): x is AppliedProposal {
   return isRevisionId(o.proposalId) && isRevisionId(o.baseId) && typeof o.baseDigest === 'string'
 }
 
-const HEX64 = /^[0-9a-f]{64}$/
 
 function readProposalBase(x: unknown): ProposalBase | null {
   if (!x || typeof x !== 'object') return null
@@ -714,6 +741,7 @@ export function planRevisionExport(input: {
     revisionId,
     parentId,
     role: 'revision',
+    contentDigest: baselineDigest, // §R10 integrity — the file's own content
     lineage,
     meta,
   }
@@ -745,22 +773,34 @@ export type ProposalExportPlan = {
   bytes: number
   proposalRevisionId: string
 }
-export type ProposalExportResult = ProposalExportPlan | ExportTooLarge
+export type ExportDirtyOrigin = { ok: false; reason: 'dirty-origin' }
+export type ProposalExportResult = ProposalExportPlan | ExportTooLarge | ExportDirtyOrigin
 
 /**
- * §R6 — build a `Make a proposal` file: the proposed graph at top level plus a
- * complete `base.content` snapshot (canonical projection of the *same* graph at
- * creation time) and its digest. The origin session is untouched (that is the
- * caller's guarantee — this function only reads).
+ * §R6 — build a `Make a proposal` file from a **non-dirty** origin revision: the
+ * proposed graph at top level plus a complete `base.content` snapshot (the
+ * canonical projection of that same, current revision content) and its digest.
+ *
+ * **`dirty === true` ⇒ `{ ok: false, reason: 'dirty-origin' }`** with nothing
+ * minted and no file built: the open document differs from `project.revisionId`,
+ * so that id cannot honestly be `base.revisionId`. The caller must first
+ * `Export → Project revision` to pin the current content as a new revision,
+ * then retry. (An implicit revision here would collide with the two-phase
+ * commit transaction of §R2.1 — Slice 1B.)
+ *
+ * The origin session is untouched — this function only reads.
  */
 export function planProposalExport(input: {
   doc: Omit<GraphDocInput, 'schema' | 'version'>
   project: { projectId: string; revisionId: string; lineage: string[] }
+  dirty: boolean
   meta: ProjectMeta
   now: string
   mint?: (p: 'rev') => string
   maxBytes?: number
 }): ProposalExportResult {
+  if (input.dirty) return { ok: false, reason: 'dirty-origin' }
+
   const cap = input.maxBytes ?? REVISION_FILE_MAX_BYTES
   const baseCanon = canonicalContent(input.doc)
   const contentDigest = digestOfCanonical(baseCanon)
@@ -774,6 +814,9 @@ export function planProposalExport(input: {
     revisionId: proposalRevisionId,
     parentId: input.project.revisionId,
     role: 'proposal',
+    // for a proposal the file's own content IS the proposed content, which at
+    // creation time equals the base
+    contentDigest,
     base: { revisionId: input.project.revisionId, contentDigest, content: baseCanon },
     lineage: [input.project.revisionId, ...input.project.lineage].slice(0, LINEAGE_MAX),
     meta: { ...input.meta, createdAt: input.now },

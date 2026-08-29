@@ -105,6 +105,8 @@ payload. Autosave **does** now also persist the small `project` **header** —
       "baseDigest": "<the proposal's base.contentDigest>"
     },
 
+    "contentDigest": "<sha-256 hex — fullContentDigest of THIS file's own nodes/edges/rrc (the proposed content for a proposal)>",
+
     "lineage": [ "rev_<parentId>", "rev_<grandparent>", "…" ],  // advisory, newest-first, ≤ LINEAGE_MAX; may be short/absent
 
     "meta": {                                         // ALL fields UNVERIFIED, display-only — §R8
@@ -605,7 +607,7 @@ the proposal as a document** (§R10.5 — no apply, no new revision), **Cancel**
 | **R-INV-3** | `projectId` is stable across the whole lineage — every revision and proposal carries it byte-for-byte; promote mints it once; Apply and Export never change it. |
 | **R-INV-4** | The canonical revision projection (§R4.2) and `canonicalJson` (§R4.3) are fixed: the same graph always yields the same `fullContentDigest`; element order and whitespace in a source file never change it. |
 | **R-INV-5** | A proposal file always carries a complete `base.content` (§R6); the three-way diff and per-hunk apply are computable from the proposal file + the open document alone, with no external history. |
-| **R-INV-6** | `base.contentDigest === SHA-256(canonicalJson(base.content))`; a mismatch makes the `project` payload corrupt (graph still loads). |
+| **R-INV-6** | `base.contentDigest === SHA-256(canonicalJson(base.content))`, and — when the optional `project.contentDigest` is present — it `=== fullContentDigest(this file's own graph)` (proposed content for a proposal). Any mismatch makes the `project` payload corrupt (the graph still loads); such a file is never Reviewed or Applied as a trusted revision / proposal. |
 | **R-INV-7** | Apply always produces a **new** revision: fresh `revisionId`, `parentId` = the pre-apply target, `projectId` unchanged, `appliedProposal` recorded, applier as `meta.author`. The proposal's `revisionId` / author is never adopted as the result's identity / verified author. A whole-proposal apply confirms unless the class is `exact` (§R7A.4); per-hunk apply needs no separate confirmation. |
 | **R-INV-8** | Apply is atomic: one `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry; it writes no file and mutates neither the proposal nor the base file. |
 | **R-INV-9** | Classification uses only `target.revisionId`, the two digests, and the three-way conflict count (`nConf`); **`lineage[]` and `target.parentId` are not inputs**. Exactly three mutually-exclusive classes — `exact` / `divergent` / `unknown ancestry`. `loop-revision/1` has **no `fast-forward` grade**: `exact` is the only class that skips the whole-apply confirmation. |
@@ -629,9 +631,14 @@ document except step 4 (opening a revision) and step 5's explicit
 3. **`project` present but `schema !== "loop-revision/1"` or `version !== 1`**
    (strict — `"1"`, `1.5`, `0`, negative all fail), **or** any id fails the
    §R11 format check, **or** `base` is absent on a `role: "proposal"`, **or**
-   `base.contentDigest !== SHA-256(canonicalJson(base.content))` → **load the
+   `base.contentDigest !== SHA-256(canonicalJson(base.content))`, **or**
+   `project.contentDigest` is present and `!== fullContentDigest(this file's own
+   graph)` (the header was left stale after an out-of-app edit) → **load the
    graph / workspace only**, one-line warning; open project → `null`. The graph
-   always survives (R-INV-10).
+   always survives (R-INV-10). `contentDigest` is an **optional integrity
+   field** written by this build; its *absence* is not an error, but when it is
+   present it MUST match, for a revision and for a proposal's proposed content
+   alike.
 4. **`project.role === "revision"`** (or absent/unknown `role`) → **open it**:
    the graph (+ workspace) loads and `projectStore` is set from the file's
    `project` (baseline digest = `fullContentDigest` of the loaded graph). Same
@@ -810,6 +817,23 @@ in `loop-revision/2`.
     on a proposal; `base.contentDigest` not matching `base.content`; a
     non-Crockford id ⇒ graph (+ valid `workspace`) still import, `project`
     dropped + warning, `projectStore` `null`.
+14a. **Header `contentDigest` cross-check** — a revision file whose `nodes` /
+    `edges` were edited outside the app while `project.contentDigest` was left
+    stale ⇒ graph loads, `project` dropped + warning, not Reviewed / Applied;
+    the same for a proposal whose *proposed* content was tampered. A file with
+    no `contentDigest` still opens (absence is not an error). A canonical wire
+    **golden vector** (one GraphDoc covering every node/edge kind, a Unicode
+    label, `-0`, a sub-pixel position, missing-vs-explicit defaults) pins the
+    exact `canonicalJson` string and SHA-256 hex; Web Crypto and the pure-JS
+    fallback both match it; shuffled array / key order reproduce it byte-for-
+    byte.
+14b. **Dirty origin cannot make a proposal** — with the open document `dirty`,
+    `Make a proposal` / `planProposalExport` fails (`reason: "dirty-origin"`),
+    mints no id, writes no file; the user must `Export → Project revision`
+    first.
+14c. **UTF-8 size boundary** — a file sized to exactly the cap succeeds; cap + 1
+    byte is `too-large`; the measurement is real UTF-8 length with multi-byte
+    characters in a label.
 15. **Version must be exactly 1** — `project.version` of `2`, `0`, `-1`, `1.5`,
     `"1"` ⇒ graph/workspace load, `project` skipped + warning.
 16. **File size cap** — a graph large enough that a proposal (base snapshot +
