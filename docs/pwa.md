@@ -1,13 +1,13 @@
 # PWA — install & offline (design, non-frozen)
 
-**Status: design confirmed** (2026-08-29, after review) — the §P9 decisions are
-settled and guide the implementation slices in §P10. No wire format, no
-observable graph/engine semantics: it adds a `manifest.webmanifest` and a
-service worker (SW) that precaches the built app shell, so an installed or
-offline user runs the same static app. It changes nothing in
+**Status: implemented — shipped in `v0.4.0`.** No wire format, no observable
+graph/engine semantics: a `manifest.webmanifest` and a `vite-plugin-pwa`
+service worker that precaches the built app shell, so an installed or offline
+user runs the same static app. It changes nothing in
 [`SEMANTICS.md`](../SEMANTICS.md), [`SEMANTICS-U.md`](../SEMANTICS-U.md), or
 [`SEMANTICS-W.md`](../SEMANTICS-W.md), and it carries no `loop-*/N` id — this
-file is still revised freely as the implementation lands.
+file is still revised freely. §P10 records the slices as landed; §P8.3 the
+verification result.
 
 Relevant facts about the app (they make PWA simple here):
 
@@ -459,27 +459,41 @@ npm run build:pwa && npm run check:pwa-closure                    # (a), dist-pw
 CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist   # (a), Production shape
 ```
 
-### P8.3 Manual, real device (checklist — not automated)
+### P8.3 Manual verification — result
 
 Lighthouse's **PWA category was removed** (Lighthouse 12; PageSpeed Insights
-from Lighthouse 13), so it is **not** a release gate. Instead:
+from Lighthouse 13), so it is **not** a release gate.
 
-- **Chrome DevTools → Application → Manifest**: no errors or warnings; icons
-  render.
-- **Application → Service Workers**: the SW is `activated`, its **scope** is
-  `/`, and the page shows as **controlled** by it.
-- Install through the **browser's own install UI** (omnibox / menu) on desktop
-  Chrome / Edge and on Android Chrome; the icon + name are correct.
-- Launch the installed app **standalone** on desktop and Android — no URL bar,
-  correct splash (`background_color` + icon).
-- **iOS Safari → Add to Home Screen** → the app launches standalone
-  (`apple-touch-icon` + `apple-mobile-web-app-*` metas; no `beforeinstallprompt`
-  on iOS).
-- **Airplane mode**: fully quit and cold-launch the installed app — it boots and
-  the last diagram loads.
-- **After a real redeploy**: the update bar appears in a running instance;
-  **Update** → the app reloads and the visible **build stamp changes** to the
-  new SHA.
+**Verified for `v0.4.0` (2026-08-29), against the live `93db0a6` → `9bdd8bf`
+deploy:**
+
+- **Manifest** — served as `application/manifest+json`, parses with `name` /
+  `id` / `start_url` / `scope` = `/`, `display: standalone`, and the
+  192 / 512 / maskable icons.
+- **Service worker** — `activated`, scope `/`, the page is **controlled** after
+  the second load; `controller.scriptURL` ends `/sw.js`. Cache Storage holds one
+  `workbox-precache-*` cache with the whole shell (fonts, `index-*.js` / `.css`,
+  the `mc.worker-*` and `register-sw-*` chunks, icons, `index.html`,
+  `manifest.webmanifest`).
+- **Real Production update** — a tab controlled by the old SW did **not**
+  auto-reload; `registration.update()` surfaced a **waiting** worker and the
+  `.pwa-update` bar; the pre-Update screen/graph was preserved; **Update** did
+  **exactly one** reload; the build stamp changed to the new SHA; on activate
+  `cleanupOutdatedCaches` pruned the cache to the new generation only (the old
+  `index-*.js` / `register-sw-*.js` and the old `index.html?__WB_REVISION__`
+  were gone). A fresh context's first install showed **no** bar.
+- **No console errors**; no external CDN / font failures.
+- Offline cold boot, the offline `#g1=` link, and an offline Monte-Carlo run are
+  covered by `e2e/pwa.spec.ts` (§P8.1); the desktop standalone window and
+  airplane-mode cold start are exercised functionally by the same suite plus the
+  Production update above.
+
+**Not a `v0.4.0` gate.** Loop Studio is a **desktop-first** web app; the PWA
+exists for **desktop install + offline use**. A phone browser can open a
+diagram, but the editing layout is not adapted for small screens, so
+**Android home-screen install** and **iOS Safari Add-to-Home-Screen + offline
+launch** are recorded as *nice-to-check*, not release blockers. A mobile
+responsive layer is optional future backlog.
 
 ---
 

@@ -6,11 +6,15 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** (v0.3.0). The diagram editor and the simulation
+> Status: **working preview** (v0.4.0). The diagram editor and the simulation
 > engine — deterministic, seeded randomness, Monte Carlo, and executable state
-> connections (`trigger` / `activator` / `label`) — are all usable today.
-> Execution semantics are pinned down in frozen spec documents (see
+> connections (`trigger` / `activator` / `label`) — are all usable today, plus
+> Workspace Export/Import, shareable `#g1=` links, and an installable offline
+> PWA. Execution semantics are pinned down in frozen spec documents (see
 > [Semantics](#semantics)).
+>
+> **Desktop-first editor.** Mobile browsers can open diagrams, but mobile
+> editing is not currently optimized.
 
 ## Why
 
@@ -30,6 +34,8 @@ npm run lint
 npm test               # vitest (engine + store unit tests)
 npm run e2e            # Playwright browser end-to-end
 npm run e2e:dist      # Playwright against the production build
+npm run e2e:pwa       # Playwright against the PWA build (service worker, offline, update)
+npm run build:pwa     # -> dist-pwa/          the PWA build (also emitted by the Cloudflare `main` build)
 ```
 
 Requires **Node 22+** (`.nvmrc` pins `22`; `engines` requires `>=22.12.0`).
@@ -45,6 +51,8 @@ Requires **Node 22+** (`.nvmrc` pins `22`; `engines` requires `>=22.12.0`).
 - Monte Carlo runs on a Web Worker on a secure origin, with a cooperative
   main-thread fallback for `file://` / insecure origins
 - `vite-plugin-singlefile` produces a portable, offline single-file build
+- `vite-plugin-pwa` (Workbox) adds an installable service worker on the hosted
+  build only — the portable build ships none
 - Deployed on **Cloudflare Pages**; CI on **GitHub Actions** (`main` is
   protected — PR + green `checks` / `e2e` required)
 
@@ -71,7 +79,7 @@ spec id, never an edit to a frozen one.
 | `src/store/` | Zustand store — nodes, edges, selection, persistence, sim state |
 | `src/components/` | Toolbar, canvas, inspector, custom node & edge views, Monte-Carlo dialog + charts |
 | `src/engine/` | Simulation engine — deterministic step, RNG, Monte Carlo, state connections |
-| `e2e/` | Playwright specs (app, portable `file://`, production build) |
+| `e2e/` | Playwright specs (app, portable `file://`, production build, PWA service worker) |
 | `examples/` | Importable graphs — `risky-factory.json` + Engine-B and State verification fixtures |
 
 ## Roadmap
@@ -88,13 +96,38 @@ spec id, never an edit to a frozen one.
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
 - ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
-- ◐ Ship
+- ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
-  - ☐ offline PWA — install + offline shell ([`docs/pwa.md`](docs/pwa.md))
+  - ✅ Offline PWA — installable, works fully offline **once the service-worker install and precache complete** on the first online load; a `prompt`-style update bar, never an automatic reload ([`docs/pwa.md`](docs/pwa.md))
+- ☐ Mobile responsive editing layout — *optional future backlog; today the desktop layout is served as-is on phones*
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
+
+**v0.4.0 — ship: workspace, links, offline.** Three additions around the
+existing editor + engine:
+
+- **Workspace Export / Import** (`loop-workspace/1`,
+  [`SEMANTICS-W.md`](SEMANTICS-W.md)) — an optional `workspace` key on the graph
+  file carrying the run config, the last completed Monte-Carlo distribution
+  (bound to its graph by a semantic digest), the timeline view, the canvas
+  viewport, and a verified simulation snapshot. 8 MiB cap, all-or-nothing, no
+  silent truncation; restore is atomic and always paused.
+- **Shareable URL** (`loop-share/1`, [`SEMANTICS-U.md`](SEMANTICS-U.md)) — a
+  `Share` button that copies a `#g1=<payload>` link (zlib-wrapped DEFLATE +
+  strict base64url, 8 KiB cap, graph only) built on the fixed public origin.
+  Opening a link validates fully before touching state, confirms before
+  replacing a modified graph, and strips the fragment.
+- **Installable offline PWA** ([`docs/pwa.md`](docs/pwa.md)) — a
+  `vite-plugin-pwa` service worker precaches the whole app shell; after the
+  first online load completes, the app runs fully offline. Updates surface a
+  dismissible bar and apply only on the user's click (one reload, never
+  automatic). Registered only on the production host; the portable `file://`
+  build ships no service worker.
+
+Desktop-first — mobile browsers can open a diagram but the editing layout is not
+optimized for small screens.
 
 **v0.3.0 — executable state connections.** State edges (`trigger` with an
 integer `delay`, AND-combined `activator` level gates, `label` Pool modifiers)
