@@ -68,6 +68,29 @@ type GraphStore = {
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 
+// The lightweight loop-revision/1 project *header* (or null) that autosaves in
+// the SAME `localStorage` record as the graph — one atomic write, so a graph
+// and its project lineage can never come from two different moments
+// (SEMANTICS-R.md review round 2). `projectStore` is the only writer, via
+// `setAutosaveProjectHeader`; graphStore just carries the opaque value.
+let autosaveProjectHeader: unknown = null
+
+/** Set (or clear with `null`) the project header persisted alongside the graph,
+ *  and flush it immediately with the current graph in one write. Called by
+ *  `projectStore` on commit / open / clear. */
+export function setAutosaveProjectHeader(header: unknown): void {
+  autosaveProjectHeader = header ?? null
+  clearTimeout(saveTimer)
+  const s = useGraphStore.getState()
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader)
+}
+
+/** The raw project header from the last autosave record — read once by
+ *  `projectStore` on boot. */
+export function bootProjectHeader(): unknown {
+  return loadFromStorage()?.project ?? null
+}
+
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
 // drag is one entry; rapid edits to the same field within COALESCE_MS are one
@@ -123,13 +146,19 @@ function makeSample(): Snapshot {
 export const useGraphStore = create<GraphStore>((set, get) => {
   const stored = loadFromStorage()
   const boot = normalizeGraph(stored ?? makeSample())
+  autosaveProjectHeader = stored?.project ?? null
 
   const persist = () => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       const s = get()
-      saveToStorage(s.nodes, s.edges)
+      saveToStorage(s.nodes, s.edges, autosaveProjectHeader)
     }, 400)
+  }
+  /** any full-document swap starts with "no project"; a project-aware caller
+   *  (`projectStore.openRevisionFromFile`) re-sets the header right after. */
+  const dropProjectHeader = () => {
+    autosaveProjectHeader = null
   }
 
   /** One-way latch: the first edit / undo / redo / structural change ends the
@@ -326,6 +355,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     newGraph: () => {
       commit('')
       lastTag = ''
+      dropProjectHeader()
       set({ nodes: [], edges: [], selectedNodeId: null, selectedEdgeId: null })
       bump()
       persist()
@@ -336,6 +366,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const { nodes, edges } = normalizeGraph(snapshot)
       commit('')
       lastTag = ''
+      dropProjectHeader()
       set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
       bump()
       persist()
@@ -353,6 +384,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     loadDoc: ({ nodes, edges }) => {
       commit('')
       lastTag = ''
+      dropProjectHeader()
       set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
       bump()
       persist()
