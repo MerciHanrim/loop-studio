@@ -40,6 +40,8 @@ function rawProjectOf(text: string): unknown {
  */
 export async function routeImport(text: string): Promise<RouteResult> {
   const parsed = deserialize(text) // throws on a bad graph
+  // any import invalidates a pending Export plan (§R2.1 / review round 2)
+  useProjectStore.setState({ activePlanId: null })
   const raw = rawProjectOf(text)
 
   if (raw === undefined) {

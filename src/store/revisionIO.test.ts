@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { STORAGE_KEY } from '../model/serialize'
 import { useGraphStore } from './graphStore'
 import { useProjectStore } from './projectStore'
 import { routeImport } from './revisionIO'
+
+const recordProject = () => {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  return raw ? (JSON.parse(raw).project ?? null) : null
+}
 
 class MemStorage {
   m = new Map<string, string>()
@@ -27,14 +33,14 @@ beforeEach(() => {
   seq = 0
   useGraphStore.getState().newGraph()
   useGraphStore.getState().addNodeAt('pool', { x: 0, y: 0 })
-  useProjectStore.setState({ open: null, dirty: false })
+  useProjectStore.setState({ open: null, dirty: false, activePlanId: null })
 })
 
 /** promote the current graph and return the committed revision file text */
 function makeRevisionFile(): string {
   const plan = useProjectStore.getState().planRevision({ now: '2026-09-09T00:00:00Z', mint })
   if (!plan.ok) throw new Error('plan')
-  useProjectStore.getState().commitRevisionExport(plan.pendingHeader)
+  useProjectStore.getState().commitRevisionExport(plan.plan)
   return plan.text
 }
 
@@ -48,7 +54,7 @@ describe('routeImport (§R10 — Import ≠ Apply)', () => {
     const r = await routeImport(plain)
     expect(r.kind).toBe('graph')
     expect(useProjectStore.getState().open).toBeNull()
-    expect(mem.getItem('loop-studio:project:v1')).toBeNull()
+    expect(recordProject()).toBeNull() // no project header in the autosave record
   })
 
   it('a Project revision file loads the graph AND adopts the header', async () => {
@@ -56,7 +62,7 @@ describe('routeImport (§R10 — Import ≠ Apply)', () => {
     const openId = useProjectStore.getState().open!.revisionId
     // wander off to a different graph + no project
     useGraphStore.getState().newGraph()
-    useProjectStore.setState({ open: null, dirty: false })
+    useProjectStore.setState({ open: null, dirty: false, activePlanId: null })
 
     const r = await routeImport(file)
     expect(r.kind).toBe('revision')

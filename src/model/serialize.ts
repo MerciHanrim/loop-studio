@@ -30,6 +30,11 @@ export type GraphDoc = {
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
   workspace?: unknown
+  /** loop-revision/1 extension (SEMANTICS-R.md) — an opaque blob here; the
+   *  revision reader validates it. On the autosave record it holds the
+   *  lightweight project *header* (never `base.content`, never `workspace`) so
+   *  the graph + its project lineage are one atomic `localStorage` write. */
+  project?: unknown
 }
 
 const KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
@@ -103,6 +108,7 @@ export function serialize(
   edges: LoopEdge[],
   recommendedRunConfig?: RecommendedRunConfig,
   workspace?: unknown,
+  project?: unknown,
 ): string {
   const doc: GraphDoc = { schema: SCHEMA, version: SCHEMA_VERSION, nodes, edges }
   if (recommendedRunConfig && typeof recommendedRunConfig === 'object') {
@@ -110,6 +116,9 @@ export function serialize(
   }
   if (workspace && typeof workspace === 'object') {
     doc.workspace = workspace
+  }
+  if (project && typeof project === 'object') {
+    doc.project = project
   }
   return JSON.stringify(doc, null, 2)
 }
@@ -120,6 +129,8 @@ export function deserialize(text: string): {
   recommendedRunConfig?: RecommendedRunConfig
   /** raw, unvalidated — the Workspace reader checks it against the loaded graph */
   workspace?: unknown
+  /** raw, unvalidated — the revision reader (loop-revision/1) validates it */
+  project?: unknown
 } {
   let raw: unknown
   try {
@@ -145,22 +156,31 @@ export function deserialize(text: string): {
     obj.workspace && typeof obj.workspace === 'object' && !Array.isArray(obj.workspace)
       ? obj.workspace
       : undefined
+  const project =
+    obj.project && typeof obj.project === 'object' && !Array.isArray(obj.project)
+      ? obj.project
+      : undefined
   return {
     ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
+    ...(project ? { project } : {}),
   }
 }
 
-export function saveToStorage(nodes: LoopNode[], edges: LoopEdge[]): void {
+/** Autosave record — the graph and, atomically in the same write, the
+ *  lightweight `project` header (or nothing). One `localStorage.setItem`. */
+export function saveToStorage(nodes: LoopNode[], edges: LoopEdge[], project?: unknown): void {
   try {
-    localStorage.setItem(STORAGE_KEY, serialize(nodes, edges))
+    localStorage.setItem(STORAGE_KEY, serialize(nodes, edges, undefined, undefined, project))
   } catch {
     /* storage unavailable (private mode, quota) — silently skip */
   }
 }
 
-export function loadFromStorage(): { nodes: LoopNode[]; edges: LoopEdge[] } | null {
+export function loadFromStorage():
+  | { nodes: LoopNode[]; edges: LoopEdge[]; project?: unknown }
+  | null {
   try {
     const text = localStorage.getItem(STORAGE_KEY)
     if (!text) return null

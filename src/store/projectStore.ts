@@ -17,15 +17,20 @@ import {
   type ProjectRole,
   type ProposalExportResult,
   type RevisionExportPlan,
-  type RevisionExportResult,
 } from '../model/revision'
-import { useGraphStore } from './graphStore'
+import { bootProjectHeader, setAutosaveProjectHeader, useGraphStore } from './graphStore'
 
-// SEMANTICS-R.md §R2 / §R3 / §R13 — the OPEN revision of the current project,
-// the `dirty` flag, and the two-phase Export transaction. Slice 1B: lifecycle
-// + autosave header + the plan/commit split. NO UI (Slice 1C).
+// SEMANTICS-R.md §R2 / §R3 / §R6 / §R10 — the OPEN revision, the `dirty` flag,
+// and the two-phase Export transaction. Slice 1B (+ review round 2). NO UI.
+//
+// Consistency rules locked in review round 2:
+//  • The Export / Proposal DECISION uses a digest computed *at that instant*,
+//    never the debounced display `dirty`.
+//  • A pending export plan is single-use: `planId` + identity binding; a stale
+//    or double `commitRevisionExport` is a no-op.
+//  • The project header autosaves *inside the graph record* (graphStore), so a
+//    header can never attach to a graph from another moment.
 
-const PROJECT_STORAGE_KEY = 'loop-studio:project:v1'
 const TOOL = `loop-studio/${__APP_VERSION__}`
 
 export type OpenProject = {
@@ -35,47 +40,53 @@ export type OpenProject = {
   role: ProjectRole
   lineage: string[]
   meta: ProjectMeta
-  /** digest of the content this revision represents — the last committed /
-   *  opened content. `dirty` compares the live graph against this. */
+  /** digest of the content this revision represents (the last committed /
+   *  opened content). `dirty` compares the live graph against this. */
   baselineDigest: string
 }
+
+/** Everything `commitRevisionExport` needs to verify a plan is still current
+ *  and to land the right baseline. Returned by `planRevision`. */
+export type PendingRevisionPlan = {
+  planId: number
+  projectId: string
+  /** the revision this plan was derived from (`null` when it PROMOTES) */
+  baseRevisionId: string | null
+  /** `open.baselineDigest` at plan time (`null` when it promotes) */
+  baseBaselineDigest: string | null
+  /** digest of the content that was written into the file */
+  exportedSnapshotDigest: string
+  /** the header to adopt on commit */
+  pendingHeader: RevisionExportPlan['pendingHeader']
+  bytes: number
+}
+
+export type PlanRevisionResult =
+  | { ok: true; text: string; bytes: number; plan: PendingRevisionPlan }
+  | { ok: false; reason: 'too-large'; bytes: number; cap: number }
+
+type PlanProposalResult = ProposalExportResult | { ok: false; reason: 'no-project' }
 
 type ProjectState = {
   open: OpenProject | null
   dirty: boolean
+  /** the currently-committable plan id, or `null` — a plan is invalidated by a
+   *  newer plan, an Import/Open, or `clear()` */
+  activePlanId: number | null
 
-  /** recompute `dirty` from the live graph (sync, pure-JS SHA-256) */
   refreshDirty: () => void
-
-  /**
-   * §R2.1 phase 1 — build (do NOT commit) a `Project revision` file. If no
-   * project is open this PROMOTES: mints a projectId + a root revisionId. The
-   * returned `pendingHeader` is committed by `commitRevisionExport` only after
-   * the download is dispatched (Slice 1C).
-   */
-  planRevision: (opts?: { now?: string; mint?: (p: 'proj' | 'rev') => string; maxBytes?: number }) => RevisionExportResult
-
-  /** §R2.1 phase 2 — apply a dispatched export's `pendingHeader` to the session
-   *  baseline + the autosaved header. Idempotent-safe; call once per successful
-   *  dispatch. */
-  commitRevisionExport: (pendingHeader: RevisionExportPlan['pendingHeader']) => void
-
-  /** §R6 — build a `Make a proposal` file. `{ ok:false, reason:'dirty-origin' }`
-   *  when the session is dirty; `{ ok:false, reason:'no-project' }` when no
-   *  project is open. Never mutates the session. */
-  planProposal: (opts?: { now?: string; mint?: (p: 'proj' | 'rev') => string; maxBytes?: number }) =>
-    | ProposalExportResult
-    | { ok: false; reason: 'no-project' }
-
-  /** §R10 step 4 — adopt a loaded revision file's header. `graphDigest` is
-   *  `digestOfCanonical(canonicalContent(loaded graph))`. */
+  planRevision: (opts?: PlanOpts) => PlanRevisionResult
+  commitRevisionExport: (plan: PendingRevisionPlan) => 'committed' | 'stale' | 'no-op'
+  planProposal: (opts?: PlanOpts) => PlanProposalResult
   openRevisionFromFile: (project: ProjectPayload, graphDigest: string) => void
-
-  /** on `New` / a plain-file open */
   clear: () => void
+  /** test/boot seam — swap the open header without touching storage */
+  _setOpen: (open: OpenProject | null) => void
 }
 
-// ── author name/note from the device-local setting (§R8) ────────────────────
+type PlanOpts = { now?: string; mint?: (p: 'proj' | 'rev') => string; maxBytes?: number }
+
+// ── author, header (de)serialisation ───────────────────────────────────────
 
 function readAuthor(): ProjectMeta['author'] {
   try {
@@ -90,72 +101,70 @@ function readAuthor(): ProjectMeta['author'] {
   }
 }
 
-// ── autosave header (§R2.1) ────────────────────────────────────────────────
-
-/** the small `project` header persisted alongside the graph — never
- *  `base.content`, never `workspace` */
-function persistHeader(open: OpenProject | null): void {
-  try {
-    if (!open) {
-      localStorage.removeItem(PROJECT_STORAGE_KEY)
-      return
-    }
-    const payload = {
-      schema: 'loop-revision/1',
-      version: 1,
-      projectId: open.projectId,
-      revisionId: open.revisionId,
-      parentId: open.parentId,
-      role: open.role,
-      contentDigest: open.baselineDigest,
-      lineage: open.lineage,
-      meta: open.meta,
-    }
-    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(payload))
-  } catch {
-    /* storage unavailable — the header just won't survive a reload */
+function headerPayload(open: OpenProject) {
+  return {
+    schema: 'loop-revision/1',
+    version: 1,
+    projectId: open.projectId,
+    revisionId: open.revisionId,
+    parentId: open.parentId,
+    role: open.role,
+    contentDigest: open.baselineDigest,
+    lineage: open.lineage,
+    meta: open.meta,
   }
 }
 
-function restoreHeader(): OpenProject | null {
-  try {
-    const raw = localStorage.getItem(PROJECT_STORAGE_KEY)
-    if (!raw) return null
-    const o = JSON.parse(raw) as Record<string, unknown>
-    if (o.schema !== 'loop-revision/1' || o.version !== 1) return null
-    if (!isProjectId(o.projectId) || !isRevisionId(o.revisionId)) return null
-    if (o.parentId !== null && !isRevisionId(o.parentId)) return null
-    if (typeof o.contentDigest !== 'string' || !HEX64.test(o.contentDigest)) return null
-    return {
-      projectId: o.projectId,
-      revisionId: o.revisionId,
-      parentId: (o.parentId as string | null) ?? null,
-      role: o.role === 'proposal' ? 'proposal' : 'revision',
-      lineage: Array.isArray(o.lineage) ? o.lineage.filter((x): x is string => isRevisionId(x)) : [],
-      meta: (o.meta && typeof o.meta === 'object' ? (o.meta as ProjectMeta) : {}),
-      baselineDigest: o.contentDigest,
-    }
-  } catch {
-    return null
+/** validate a raw autosave `project` header (no graph cross-check here — the
+ *  header travels in the SAME record as the graph, so on boot `dirty` is simply
+ *  recomputed against that graph). Bad shape ⇒ null. */
+function parseHeader(raw: unknown): OpenProject | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  if (o.schema !== 'loop-revision/1' || o.version !== 1) return null
+  if (!isProjectId(o.projectId) || !isRevisionId(o.revisionId)) return null
+  if (o.parentId !== null && !isRevisionId(o.parentId)) return null
+  if (typeof o.contentDigest !== 'string' || !HEX64.test(o.contentDigest)) return null
+  return {
+    projectId: o.projectId,
+    revisionId: o.revisionId,
+    parentId: (o.parentId as string | null) ?? null,
+    role: o.role === 'proposal' ? 'proposal' : 'revision',
+    lineage: Array.isArray(o.lineage) ? o.lineage.filter((x): x is string => isRevisionId(x)) : [],
+    meta: o.meta && typeof o.meta === 'object' ? (o.meta as ProjectMeta) : {},
+    baselineDigest: o.contentDigest,
   }
 }
 
-// ── live-graph digest ──────────────────────────────────────────────────────
-
+/** the live graph's canonical digest — computed fresh every call (§R2, no
+ *  reliance on the debounced flag) */
 function liveDigest(): string {
   const g = useGraphStore.getState()
   return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
 }
 
+function persist(open: OpenProject | null): void {
+  setAutosaveProjectHeader(open ? headerPayload(open) : null)
+}
+
 // ── store ──────────────────────────────────────────────────────────────────
 
+let planSeq = 0
+
 export const useProjectStore = create<ProjectState>((set, get) => {
-  const open = restoreHeader()
+  const open = parseHeader(bootProjectHeader())
   const dirty = open ? liveDigest() !== open.baselineDigest : false
+
+  const authoredMeta = (base: ProjectMeta): ProjectMeta => ({
+    ...base,
+    tool: TOOL,
+    ...(readAuthor() ? { author: readAuthor() } : {}),
+  })
 
   return {
     open,
     dirty,
+    activePlanId: null,
 
     refreshDirty: () => {
       const o = get().open
@@ -163,40 +172,95 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (d !== get().dirty) set({ dirty: d })
     },
 
+    _setOpen: (o) => set({ open: o, dirty: o ? liveDigest() !== o.baselineDigest : false }),
+
     planRevision: (opts = {}) => {
-      get().refreshDirty()
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
+      const g = useGraphStore.getState()
+      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
       const o = get().open
+      const isDirty = o != null && snapDigest !== o.baselineDigest
+
+      // keep the display flag consistent with the decision just made
+      if (get().dirty !== isDirty) set({ dirty: isDirty })
+
+      let projectId: string
+      let baseRevisionId: string | null
+      let baseBaselineDigest: string | null
+      let pr
 
       if (!o) {
-        // PROMOTE — mint a new project + its root revision. May throw
-        // SecureRandomUnavailableError (R-INV-12) — the caller aborts.
-        const projectId = mkId('proj')
-        const revisionId = mkId('rev')
-        return planRevisionExport({
-          doc: { nodes: useGraphStore.getState().nodes, edges: useGraphStore.getState().edges },
-          project: { projectId, revisionId, parentId: null, lineage: [] },
-          dirty: false, // the root revision IS the current content
-          meta: { createdAt: now, tool: TOOL, ...(readAuthor() ? { author: readAuthor() } : {}) },
+        // PROMOTE — mint a project + its root revision (may throw
+        // SecureRandomUnavailableError; the caller aborts)
+        projectId = mkId('proj')
+        baseRevisionId = null
+        baseBaselineDigest = null
+        pr = planRevisionExport({
+          doc: { nodes: g.nodes, edges: g.edges },
+          project: { projectId, revisionId: mkId('rev'), parentId: null, lineage: [] },
+          dirty: false,
+          meta: authoredMeta({ createdAt: now }),
+          now,
+          mint: () => mkId('rev'),
+          maxBytes: opts.maxBytes,
+        })
+      } else {
+        projectId = o.projectId
+        baseRevisionId = o.revisionId
+        baseBaselineDigest = o.baselineDigest
+        pr = planRevisionExport({
+          doc: { nodes: g.nodes, edges: g.edges },
+          project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
+          dirty: isDirty,
+          meta: authoredMeta(o.meta),
           now,
           mint: () => mkId('rev'),
           maxBytes: opts.maxBytes,
         })
       }
 
-      return planRevisionExport({
-        doc: { nodes: useGraphStore.getState().nodes, edges: useGraphStore.getState().edges },
-        project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
-        dirty: get().dirty,
-        meta: { ...o.meta, tool: TOOL, ...(readAuthor() ? { author: readAuthor() } : {}) },
-        now,
-        mint: () => mkId('rev'),
-        maxBytes: opts.maxBytes,
-      })
+      if (!pr.ok) return pr // { ok:false, reason:'too-large', ... } — activePlanId untouched
+
+      const planId = ++planSeq
+      set({ activePlanId: planId }) // supersedes any earlier plan
+      return {
+        ok: true,
+        text: pr.text,
+        bytes: pr.bytes,
+        plan: {
+          planId,
+          projectId,
+          baseRevisionId,
+          baseBaselineDigest,
+          exportedSnapshotDigest: pr.pendingHeader.baselineDigest,
+          pendingHeader: pr.pendingHeader,
+          bytes: pr.bytes,
+        },
+      }
     },
 
-    commitRevisionExport: (h) => {
+    commitRevisionExport: (plan) => {
+      if (plan.planId !== get().activePlanId) return 'stale' // superseded / double / from another session
+      set({ activePlanId: null }) // consume — a repeat call is a no-op below
+
+      const o = get().open
+      if (plan.baseRevisionId === null) {
+        // a PROMOTE plan — only valid while still anonymous
+        if (o !== null) return 'stale'
+      } else {
+        // identity + baseline must be exactly what the plan was built against
+        if (
+          !o ||
+          o.projectId !== plan.projectId ||
+          o.revisionId !== plan.baseRevisionId ||
+          o.baselineDigest !== plan.baseBaselineDigest
+        ) {
+          return 'stale'
+        }
+      }
+
+      const h = plan.pendingHeader
       const next: OpenProject = {
         projectId: h.projectId,
         revisionId: h.revisionId,
@@ -204,32 +268,34 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         role: 'revision',
         lineage: h.lineage,
         meta: h.meta,
-        baselineDigest: h.baselineDigest,
+        baselineDigest: plan.exportedSnapshotDigest, // the digest of what was WRITTEN
       }
       set({ open: next })
-      persistHeader(next)
-      // §R2.1 clarification — if the live graph changed since planning, it no
-      // longer matches the exported snapshot ⇒ still dirty against the new
-      // baseline.
-      get().refreshDirty()
+      persist(next)
+      get().refreshDirty() // §R2.1 — if the live graph moved on, it's dirty again
+      return 'committed'
     },
 
     planProposal: (opts = {}) => {
       const o = get().open
       if (!o) return { ok: false, reason: 'no-project' }
-      get().refreshDirty()
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
+      const g = useGraphStore.getState()
+      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
+      const isDirty = snapDigest !== o.baselineDigest
+      if (get().dirty !== isDirty) set({ dirty: isDirty })
+
       return planProposalExport({
-        doc: { nodes: useGraphStore.getState().nodes, edges: useGraphStore.getState().edges },
+        doc: { nodes: g.nodes, edges: g.edges },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
-        dirty: get().dirty,
-        meta: { ...o.meta, tool: TOOL, ...(readAuthor() ? { author: readAuthor() } : {}) },
+        dirty: isDirty,
+        meta: authoredMeta(o.meta),
         now,
         mint: () => mkId('rev'),
         maxBytes: opts.maxBytes,
       })
-      // NB: no session mutation — the origin revision is untouched (§R6).
+      // no session mutation — the origin revision is untouched (§R6)
     },
 
     openRevisionFromFile: (project, graphDigest) => {
@@ -242,22 +308,28 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         meta: project.meta ?? {},
         baselineDigest: graphDigest,
       }
-      set({ open: next, dirty: false })
-      persistHeader(next)
+      set({ open: next, dirty: false, activePlanId: null }) // any pending export plan is now stale
+      persist(next)
     },
 
     clear: () => {
-      set({ open: null, dirty: false })
-      persistHeader(null)
+      set({ open: null, dirty: false, activePlanId: null })
+      persist(null)
     },
   }
 })
 
-// keep `dirty` fresh as the graph is edited (debounced; only while a project is
-// open). Mirrors mcStore's graphStore subscription.
+// keep the DISPLAY `dirty` flag fresh as the graph is edited — debounced,
+// latest-wins (a late timer from an older edit is discarded), only while a
+// project is open. The Export/Proposal DECISION never depends on this.
+let dirtyGen = 0
 let dirtyTimer: ReturnType<typeof setTimeout> | undefined
 useGraphStore.subscribe(() => {
   if (!useProjectStore.getState().open) return
+  const gen = ++dirtyGen
   clearTimeout(dirtyTimer)
-  dirtyTimer = setTimeout(() => useProjectStore.getState().refreshDirty(), 250)
+  dirtyTimer = setTimeout(() => {
+    if (gen !== dirtyGen) return // a newer edit already scheduled a fresher check
+    useProjectStore.getState().refreshDirty()
+  }, 250)
 })
