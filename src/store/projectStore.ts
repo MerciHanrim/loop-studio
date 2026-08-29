@@ -5,9 +5,12 @@ import {
   AUTHOR_NOTE_MAX_BYTES,
   HEX64,
   LINEAGE_MAX,
+  buildSelectiveApply,
   canonicalContent,
+  computeThreeWay,
   countThreeWayConflicts,
   digestOfCanonical,
+  validateResultGraph,
   isProjectId,
   isRevisionId,
   mintId,
@@ -16,6 +19,7 @@ import {
   truncBytes,
   type AppliedProposal,
   type CanonicalContent,
+  type HunkSelection,
   type ProjectMeta,
   type ProjectPayload,
   type ProjectRole,
@@ -64,8 +68,10 @@ export type ApplyFailReason =
   | 'needs-confirmation'
   | 'payload-invalid'
   | 'target-moved'
+  | 'invalid-selection'
+  | 'no-effective-change'
 export type ApplyResult =
-  | { ok: true; classification: ApplyClassification; newRevisionId: string }
+  | { ok: true; classification: ApplyClassification; newRevisionId: string; partial?: boolean }
   | {
       ok: false
       reason: ApplyFailReason
@@ -74,6 +80,10 @@ export type ApplyResult =
       /** the target digest at THIS call — the caller passes it back as
        *  `expectTargetDigest` so the confirmed apply runs on the same snapshot */
       targetDigest?: string
+      /** `invalid-selection` — one short line (dependency / endpoint) */
+      detail?: string
+      /** `invalid-selection` from full-graph validation — the concrete reasons */
+      reasons?: string[]
     }
 
 /** Everything `commitRevisionExport` needs to verify a plan is still current
@@ -128,16 +138,18 @@ type ProjectState = {
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
   /**
-   * §R7 — whole-proposal Apply. Re-gates, re-validates the proposal payload
-   * against its own digests, and RE-CLASSIFIES against the live target at call
-   * time (never the class the Review panel showed earlier). Atomic: one
-   * `loadDoc` (one undo entry, one `simulationRev` bump, paused/step 0), then a
-   * NEW revision (fresh id, `parentId` = the pre-apply revision,
-   * `appliedProposal` recorded). A single Undo restores the pre-apply GraphDoc
-   * AND this header (graphStore history sidecar). Non-`exact` needs
-   * `opts.confirmed`; a confirmed apply also passes `opts.expectTargetDigest`
-   * so a target that moved between the confirm and the apply is refused
-   * (`target-moved`) rather than silently applied to a different snapshot.
+   * §R7 — Apply. Re-gates, re-validates the proposal payload against its own
+   * digests. **Whole-proposal** (`opts.selection` absent): RE-CLASSIFIES against
+   * the live target; non-`exact` needs `opts.confirmed`; a confirmed apply also
+   * passes `opts.expectTargetDigest` so a target that moved since the confirm is
+   * refused (`target-moved`). **Per-hunk** (`opts.selection` present, §R7.2):
+   * the hunk selection IS the consent — no classification / confirmation gate;
+   * `buildSelectiveApply` produces `target + accepted hunks` and an
+   * `invalid-selection` (e.g. an accepted edge whose endpoint is absent) is
+   * refused before anything changes. Either way: one `loadDoc` (one undo entry,
+   * one `simulationRev` bump, paused/step 0), a NEW revision (fresh id,
+   * `parentId` = pre-apply, `appliedProposal` recorded), and a single Undo
+   * restores the pre-apply GraphDoc AND header (graphStore history sidecar).
    */
   applyProposal: (
     input: {
@@ -150,6 +162,9 @@ type ProjectState = {
       mint?: (p: 'rev') => string
       confirmed?: boolean
       expectTargetDigest?: string
+      /** §R7.2 per-hunk selective apply — when present, whole-graph
+       *  classification / confirmation is skipped (the selection is consent) */
+      selection?: HunkSelection
     },
   ) => ApplyResult
   /** a one-time reboot notice (currently: a proposal session that could not be
@@ -492,14 +507,56 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
       const targetDigest = liveDigest()
       const classification = classifyAgainst(o, base, proposed)
-      if (classification !== 'exact') {
-        // a target that moved since the confirmation was shown ⇒ re-confirm
+      const g = useGraphStore.getState()
+
+      // ── build the resulting graph ──
+      let resultNodes: LoopNode[]
+      let resultEdges: LoopEdge[]
+      let partial = false
+      if (opts.selection) {
+        // §R7.2 / §R7A.4 — per-hunk: the selection is the consent, no
+        // classification / whole-loss confirmation gate.
+
+        // freshness — the selection was made against ONE three-way result; a
+        // target that moved since must not silently reuse it (review round 2).
         if (opts.expectTargetDigest != null && opts.expectTargetDigest !== targetDigest) {
-          return { ok: false, reason: 'target-moved', classification, targetDigest }
+          return { ok: false, reason: 'target-moved', targetDigest }
         }
-        if (!opts.confirmed) {
-          return { ok: false, reason: 'needs-confirmation', classification, targetDigest }
+        const plan = computeThreeWay(
+          base.content,
+          canonicalContent({ nodes: g.nodes, edges: g.edges }),
+          proposedCanon,
+        )
+        const built = buildSelectiveApply({
+          target: { nodes: g.nodes, edges: g.edges },
+          proposedFull: proposed,
+          plan,
+          selection: opts.selection,
+        })
+        if (!built.ok) return { ok: false, reason: 'invalid-selection', detail: built.detail }
+        // the picked field combination must yield a valid GraphDoc — normalize
+        // must not need to repair it (review round 2)
+        const valid = validateResultGraph(built.nodes, built.edges)
+        if (!valid.ok) return { ok: false, reason: 'invalid-selection', reasons: valid.reasons }
+        // an effective no-op mints no revision / undo entry / simulationRev bump
+        if (digestOfCanonical(canonicalContent({ nodes: built.nodes, edges: built.edges })) === targetDigest) {
+          return { ok: false, reason: 'no-effective-change' }
         }
+        resultNodes = built.nodes
+        resultEdges = built.edges
+        partial = true
+      } else {
+        // §R7 whole-proposal: re-classify, gate the confirmation
+        if (classification !== 'exact') {
+          if (opts.expectTargetDigest != null && opts.expectTargetDigest !== targetDigest) {
+            return { ok: false, reason: 'target-moved', classification, targetDigest }
+          }
+          if (!opts.confirmed) {
+            return { ok: false, reason: 'needs-confirmation', classification, targetDigest }
+          }
+        }
+        resultNodes = proposed.nodes
+        resultEdges = proposed.edges
       }
 
       const now = opts.now ?? new Date().toISOString()
@@ -510,8 +567,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0, one
       // undo entry. The history sidecar captures `preHeader` on that frame, so a
       // single Undo restores the pre-apply graph AND this header together.
-      useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
-      const postGraphDigest = digestOfCanonical(proposedCanon)
+      useGraphStore.getState().loadDoc({ nodes: resultNodes, edges: resultEdges })
+      const postGraphDigest = digestOfCanonical(canonicalContent({ nodes: resultNodes, edges: resultEdges }))
 
       // §R7.1 — a brand-new revision derived from the target
       const meta: ProjectMeta = { ...preHeader.meta, tool: TOOL, createdAt: now }
@@ -535,7 +592,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       }
       set({ open: postHeader, dirty: false, activePlanId: null })
       persist(postHeader)
-      return { ok: true, classification, newRevisionId: postHeader.revisionId }
+      return { ok: true, classification, newRevisionId: postHeader.revisionId, ...(partial ? { partial: true } : {}) }
     },
 
     clear: () => {

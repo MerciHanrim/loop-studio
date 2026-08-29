@@ -398,3 +398,357 @@ test.describe('loop-revision/1 — Slice 1C', () => {
     expect(JSON.parse(await textOf(prop2!)).project.base.revisionId).toBe(r0)
   })
 })
+
+// ── Slice 2 — per-hunk selective apply (§R7.2 / §R7A.3) ───────────────────
+
+/** promote a 2-node graph, then build an edited proposal (adds `p_new`, changes
+ *  the seeded pool's `initial` 0 → 42) with a valid `contentDigest`. Uses the
+ *  dev source module for the digest so the router accepts it. */
+async function editedProposal(page: Page): Promise<{ text: string; r0: string; sid: string }> {
+  return page.evaluate(async () => {
+    const M = await import('/src/model/revision.ts')
+    const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+    const G = L.graph.getState()
+    G.newGraph()
+    G.addNodeAt('pool', { x: 0, y: 0 })
+    G.addNodeAt('drain', { x: 200, y: 0 })
+    const P = L.project.getState()
+    P.commitRevisionExport(P.planRevision({}).plan)
+    const r0 = L.project.getState().open.revisionId
+    const sid = L.graph.getState().nodes[0].id
+    const f = JSON.parse(P.planProposal({}).text)
+    f.nodes.push({
+      id: 'p_new',
+      type: 'pool',
+      position: { x: 60, y: 60 },
+      data: { kind: 'pool', label: 'New', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' },
+    })
+    f.nodes.find((n: { id: string }) => n.id === sid).data.initial = 42
+    f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+    return { text: JSON.stringify(f), r0, sid }
+  })
+}
+
+const nodeInitial = (page: Page, id: string) =>
+  page.evaluate(
+    (nid) =>
+      (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.graph
+        .getState()
+        .nodes.find((n: { id: string }) => n.id === nid)?.data.initial,
+    id,
+  )
+
+test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      L.project.getState().clear()
+      L.review.getState().close()
+    })
+    page.on('dialog', (d) => {
+      d.accept().catch(() => {})
+    })
+  })
+
+  test('"Choose changes" lists the hunks; applying a subset touches only those, atomically', async ({
+    page,
+  }) => {
+    const { r0, sid, text } = await editedProposal(page)
+    await setFile(page, 'p.json', text)
+    await expect(page.locator('.review')).toBeVisible()
+
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const hunks = page.locator('.review__hunk')
+    await expect(hunks).toHaveCount(2)
+    await expect(hunks.filter({ hasText: 'Add node' })).toContainText('p_new')
+    await expect(hunks.filter({ hasText: 'Change node' })).toContainText('data.initial')
+
+    const simRevBefore = await page.evaluate(
+      () => (window as unknown as { __loop: any }).__loop.graph.getState().simulationRev,
+    )
+
+    // deselect the "Add p_new" hunk → apply only the change
+    await page.locator('.review__hunk', { hasText: 'Add node' }).locator('input[type=checkbox]').uncheck()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+
+    expect(await nodeInitial(page, sid)).toBe(42) // the change WAS applied
+    expect(
+      await page.evaluate(() => (window as unknown as { __loop: any }).__loop.graph.getState().nodes.some((n: any) => n.id === 'p_new')),
+    ).toBe(false) // the add was NOT
+
+    const after = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: any }).__loop
+      return {
+        simRev: L.graph.getState().simulationRev,
+        step: L.sim.getState().stepIndex,
+        parent: L.project.getState().open.parentId,
+        rev: L.project.getState().open.revisionId,
+      }
+    })
+    expect(after.simRev).toBe(simRevBefore + 1)
+    expect(after.step).toBe(0)
+    expect(after.parent).toBe(r0)
+    expect(after.rev).not.toBe(r0)
+
+    // one undo restores the pre-apply graph AND the r0 header
+    await page.locator('.toolbar__actions button[title^="Undo"]').click()
+    expect(await nodeInitial(page, sid)).toBe(0)
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __loop: any }).__loop.project.getState().open.revisionId))
+      .toBe(r0)
+  })
+
+  test('a field conflict shows base / yours / theirs and "keep mine" wins when chosen', async ({
+    page,
+  }) => {
+    const { sid, text } = await editedProposal(page)
+    // diverge the same field to a third value ⇒ the change hunk is a conflict
+    await page.evaluate(
+      (nid) => (window as unknown as { __loop: any }).__loop.graph.getState().updateNodeData(nid, { initial: 15 }),
+      sid,
+    )
+    await setFile(page, 'p.json', text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+
+    const conflict = page.locator('.review__field-row--conflict')
+    await expect(conflict).toBeVisible()
+    await expect(conflict).toContainText('base')
+    await expect(conflict).toContainText('yours')
+    await expect(conflict).toContainText('theirs')
+
+    // keep mine on the conflicting field
+    await conflict.locator('label', { hasText: 'keep mine' }).locator('input').check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+    expect(await nodeInitial(page, sid)).toBe(15) // yours preserved
+  })
+
+  test('an invalid selection is refused before Apply, with an explanation and no change', async ({
+    page,
+  }) => {
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const sid = L.graph.getState().nodes[0].id
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes.push({
+        id: 'c',
+        type: 'pool',
+        position: { x: 80, y: 0 },
+        data: { kind: 'pool', label: 'C', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' },
+      })
+      f.edges.push({
+        id: 'e_xc',
+        type: 'loop',
+        source: sid,
+        target: 'c',
+        sourceHandle: 'out',
+        targetHandle: 'in',
+        data: { kind: 'resource', flow: '1' },
+      })
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f) }
+    })
+    const sigBefore = await page.evaluate(() =>
+      JSON.stringify((window as unknown as { __loop: any }).__loop.graph.getState().nodes.map((n: any) => n.id)),
+    )
+
+    await setFile(page, 'p.json', built.text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    // accept the edge, NOT node c
+    await page.locator('.review__hunk', { hasText: 'Add edge' }).locator('input[type=checkbox]').check()
+    await page.locator('.review__hunk', { hasText: 'Add node' }).locator('input[type=checkbox]').uncheck()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+
+    await expect(page.locator('.review__warn')).toContainText(/edge/i)
+    await expect(page.locator('.review')).toBeVisible() // still open, nothing applied
+    expect(
+      await page.evaluate(() =>
+        JSON.stringify((window as unknown as { __loop: any }).__loop.graph.getState().nodes.map((n: any) => n.id)),
+      ),
+    ).toBe(sigBefore)
+  })
+
+  test('node removal shows its edge dependency; the node alone is refused, node + dep applies', async ({
+    page,
+  }) => {
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const [a, b] = L.graph.getState().nodes
+      L.graph.getState().onConnect({ source: a.id, target: b.id, sourceHandle: 'out', targetHandle: 'in' })
+      const eid = L.graph.getState().edges[0].id
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes = f.nodes.filter((n: { id: string }) => n.id !== b.id) // proposal removes node b …
+      f.edges = f.edges.filter((e: { id: string }) => e.id !== eid) // … and its edge
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), bId: b.id, eid }
+    })
+
+    await setFile(page, 'p.json', built.text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+
+    const nodeHunk = page.locator('.review__hunk', { hasText: 'Remove node' })
+    await expect(nodeHunk.locator('.review__hunk-dep')).toContainText(built.eid) // dependency is visible
+
+    // deselect the standalone edge-removal hunk, keep the node ⇒ refused
+    await page
+      .locator('.review__hunk', { hasText: 'Remove edge' })
+      .locator('input[type=checkbox]')
+      .uncheck()
+    await nodeHunk.locator('input[type=checkbox]').check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review__warn')).toContainText(built.eid)
+    await expect(page.locator('.review')).toBeVisible()
+
+    // re-select the dependency ⇒ clean removal of both
+    await page
+      .locator('.review__hunk', { hasText: 'Remove edge' })
+      .locator('input[type=checkbox]')
+      .check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+    const after = await page.evaluate(() => {
+      const g = (window as unknown as { __loop: any }).__loop.graph.getState()
+      return { nodes: g.nodes.length, edges: g.edges.length }
+    })
+    expect(after.nodes).toBe(1)
+    expect(after.edges).toBe(0)
+  })
+
+  test('editing the target while the hunk list is open re-computes it; apply runs on the fresh state', async ({
+    page,
+  }) => {
+    const { sid, text } = await editedProposal(page) // proposal: add p_new + change sid.initial 0→42
+    await setFile(page, 'p.json', text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    // initially the change hunk is clean (target initial still 0)
+    await expect(page.locator('.review__field-row--conflict')).toHaveCount(0)
+
+    // edit the SAME field on the target through the normal editor
+    await page.evaluate(
+      (nid) => (window as unknown as { __loop: any }).__loop.graph.getState().updateNodeData(nid, { initial: 15 }),
+      sid,
+    )
+    // the hunk list re-computes → the field is now a conflict
+    await expect(page.locator('.review__field-row--conflict')).toBeVisible()
+    await expect(page.locator('.review__field-row--conflict')).toContainText('15') // yours
+
+    // resolve it and apply — runs against the fresh target
+    await page
+      .locator('.review__field-row--conflict label', { hasText: 'take theirs' })
+      .locator('input')
+      .check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+    expect(await nodeInitial(page, sid)).toBe(42)
+  })
+
+  test('structural conflict: a local edge onto a proposal-removed node ⇒ divergent + confirm, blocked in the hunk list', async ({
+    page,
+  }) => {
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('pool', { x: 0, y: 0 })
+      G.addNodeAt('drain', { x: 200, y: 0 })
+      const [p0, d0] = L.graph.getState().nodes
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes = f.nodes.filter((n: { id: string }) => n.id !== d0.id) // proposal removes the drain
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), pId: p0.id, dId: d0.id }
+    })
+
+    await setFile(page, 'p.json', built.text)
+    await expect(page.locator('.review')).toBeVisible()
+
+    // add a LOCAL edge onto the node the proposal removes
+    await page.evaluate(
+      ([src, tgt]) =>
+        (window as unknown as { __loop: any }).__loop.graph
+          .getState()
+          .onConnect({ source: src, target: tgt, sourceHandle: 'out', targetHandle: 'in' }),
+      [built.pId, built.dId],
+    )
+
+    // the class line is `divergent` — never "No field conflicts"
+    await expect(page.locator('.review__class--divergent')).toBeVisible()
+    await expect(page.locator('.review')).not.toContainText('No field conflicts')
+
+    // whole apply confirms
+    await page.locator('.review__actions button', { hasText: 'Apply proposal' }).click()
+    await expect(page.locator('.review__warn')).toBeVisible()
+
+    // and in the hunk list the node removal is blocked with "yours added edge"
+    // (switching mode also clears the armed confirmation)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const nodeHunk = page.locator('.review__hunk', { hasText: 'Remove node' })
+    await expect(nodeHunk.locator('.review__hunk-dep--blocked')).toContainText('yours added edge')
+    await expect(nodeHunk.locator('input[type=checkbox]')).toBeDisabled()
+  })
+
+  test('node removal dependency is satisfied by retargeting the incident edge', async ({ page }) => {
+    const built = await page.evaluate(async () => {
+      const M = await import('/src/model/revision.ts')
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const G = L.graph.getState()
+      G.newGraph()
+      G.addNodeAt('source', { x: 0, y: 0 })
+      G.addNodeAt('pool', { x: 200, y: 0 })
+      G.addNodeAt('drain', { x: 400, y: 0 })
+      const [s, mid, d] = L.graph.getState().nodes
+      L.graph.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' })
+      const eid = L.graph.getState().edges[0].id
+      const P = L.project.getState()
+      P.commitRevisionExport(P.planRevision({}).plan)
+      const f = JSON.parse(P.planProposal({}).text)
+      f.nodes = f.nodes.filter((n: { id: string }) => n.id !== mid.id) // remove `mid`
+      f.edges.find((e: { id: string }) => e.id === eid).target = d.id // retarget s→mid ⇒ s→d
+      f.project.contentDigest = M.digestOfCanonical(M.canonicalContent({ nodes: f.nodes, edges: f.edges }))
+      return { text: JSON.stringify(f), midId: mid.id, dId: d.id, eid }
+    })
+
+    await setFile(page, 'p.json', built.text)
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+
+    const nodeHunk = page.locator('.review__hunk', { hasText: 'Remove node' })
+    await expect(nodeHunk.locator('.review__hunk-dep')).toContainText(built.eid)
+    await expect(nodeHunk.locator('.review__hunk-dep')).toContainText('retarget')
+
+    // accept the node removal AND take the edge's new endpoint
+    await nodeHunk.locator('input[type=checkbox]').check()
+    await page
+      .locator('.review__field-row', { hasText: 'target' })
+      .locator('label', { hasText: 'take theirs' })
+      .locator('input')
+      .check()
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+
+    const after = await page.evaluate((eid) => {
+      const g = (window as unknown as { __loop: any }).__loop.graph.getState()
+      return { nodes: g.nodes.length, edgeTarget: g.edges.find((e: any) => e.id === eid)?.target }
+    }, built.eid)
+    expect(after.nodes).toBe(2) // source + drain
+    expect(after.edgeTarget).toBe(built.dId)
+  })
+})

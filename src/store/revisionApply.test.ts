@@ -6,8 +6,10 @@ import { useProjectStore } from './projectStore'
 import {
   applyPendingProposal,
   classifyPendingProposal,
+  currentTargetDigest,
   openPendingProposalAsDocument,
   routeImport,
+  threeWayForPending,
   type PendingProposal,
 } from './revisionIO'
 import { useSimStore } from './simStore'
@@ -434,5 +436,277 @@ describe('Apply re-checks everything at the click, not the Review-time class', (
     const freshDigest = (applyPendingProposal(p) as { targetDigest: string }).targetDigest
     const done = applyPendingProposal(p, { confirmed: true, expectTargetDigest: freshDigest })
     expect(done.ok).toBe(true)
+  })
+})
+
+// ── Slice 2 — per-hunk selective apply (§R7.2 / §R7A.3) ───────────────────
+
+const seededId = () => useGraphStore.getState().nodes[0].id
+const nodeInitial = (id: string) =>
+  (useGraphStore.getState().nodes.find((n) => n.id === id)!.data as Record<string, unknown>).initial
+
+describe('per-hunk selective apply (§R7.2)', () => {
+  it('applies only the accepted hunks; the rest of the graph is byte-identical; one atomic step', async () => {
+    const r0 = promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        ;(f.nodes as unknown[]).push(extraPool) // add p_added
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 42 // change seeded.initial 0 -> 42
+      }),
+    )
+    const plan = threeWayForPending(p)
+    expect(new Set(plan.hunks.map((h) => `${h.kind}:${h.id}`))).toEqual(
+      new Set([`add:${extraPool.id}`, `change:${sid}`]),
+    )
+
+    const beforeSeeded = JSON.stringify(useGraphStore.getState().nodes.find((n) => n.id === sid))
+    const simRevBefore = useGraphStore.getState().simulationRev
+
+    // accept ONLY the add, not the change
+    const res = applyPendingProposal(p, { selection: { accept: { [extraPool.id]: true }, fieldChoices: {} } })
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.partial).toBe(true)
+    expect(res.newRevisionId).not.toBe(r0)
+
+    expect(useGraphStore.getState().nodes.some((n) => n.id === extraPool.id)).toBe(true)
+    expect(nodeInitial(sid)).toBe(0) // the change hunk was NOT applied
+    // the seeded node is byte-identical (nothing but the accepted add touched it)
+    expect(JSON.stringify(useGraphStore.getState().nodes.find((n) => n.id === sid))).toBe(beforeSeeded)
+
+    // §R7.3 atomicity
+    expect(useGraphStore.getState().simulationRev).toBe(simRevBefore + 1)
+    expect(useSimStore.getState().stepIndex).toBe(0)
+    const open = useProjectStore.getState().open!
+    expect(open.parentId).toBe(r0)
+    expect(open.appliedProposal!.baseId).toBe(r0)
+
+    // one undo restores the pre-apply graph AND header
+    useGraphStore.getState().undo()
+    expect(useGraphStore.getState().nodes.some((n) => n.id === extraPool.id)).toBe(false)
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0)
+  })
+
+  it('per-hunk apply needs no whole-loss confirmation even on a divergent base', async () => {
+    const r0 = promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 20
+      }),
+    )
+    // diverge the target in the SAME field ⇒ whole-apply would be `divergent`
+    useGraphStore.getState().updateNodeData(sid, { initial: 15 })
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'divergent' })
+
+    // per-hunk apply proceeds on the selection alone — no `confirmed`
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } },
+    })
+    expect(res.ok).toBe(true)
+    if (res.ok) expect(res.newRevisionId).not.toBe(r0)
+    expect(nodeInitial(sid)).toBe(20)
+  })
+
+  it('conflict: "keep mine" leaves yours, "take proposal" takes theirs (vec 10)', async () => {
+    promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 20
+      }),
+    )
+    useGraphStore.getState().updateNodeData(sid, { initial: 15 }) // a third value
+    const field = threeWayForPending(p).hunks.find((h) => h.id === sid)!.fields!.find((x) => x.field === 'data.initial')!
+    expect([field.base, field.proposed, field.yours, field.verdict]).toEqual([0, 20, 15, 'conflict'])
+
+    // keep mine on the ONLY change ⇒ no effective change, no revision minted
+    expect(applyPendingProposal(p, { selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'yours' } } } }))
+      .toEqual({ ok: false, reason: 'no-effective-change' })
+    expect(nodeInitial(sid)).toBe(15)
+
+    // take proposal ⇒ applied
+    const res = applyPendingProposal(p, { selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } } })
+    expect(res.ok).toBe(true)
+    expect(nodeInitial(sid)).toBe(20)
+  })
+
+  it('a picked field combination that makes an invalid GraphDoc is blocked with reasons, zero change', async () => {
+    promote()
+    // seed: pool 'p' —resource→ drain (so there is an edge to mutate)
+    useGraphStore.getState().addNodeAt('drain', { x: 300, y: 0 })
+    const [n0, n1] = useGraphStore.getState().nodes
+    useGraphStore.getState().onConnect({ source: n0.id, target: n1.id, sourceHandle: 'out', targetHandle: 'in' })
+    const eid = useGraphStore.getState().edges[0].id
+    promote('b') // re-commit with the edge
+
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        // flip the edge's kind to "state" but LEAVE its resource handles ⇒ an
+        // edge that is only valid after normalize would repair it
+        const e = (f.edges as Array<Record<string, unknown>>).find((x) => x.id === eid)!
+        ;(e.data as Record<string, unknown>).kind = 'state'
+      }),
+    )
+    const sig = graphSig()
+    const rev = useGraphStore.getState().simulationRev
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: { [eid]: { 'data.kind': 'proposed' } } },
+    })
+    expect(res).toMatchObject({ ok: false, reason: 'invalid-selection' })
+    expect('reasons' in res && res.reasons!.length).toBeGreaterThan(0)
+    expect(graphSig()).toBe(sig)
+    expect(useGraphStore.getState().simulationRev).toBe(rev)
+  })
+
+  it('a stale selection against a moved target is refused (target-moved), not silently reused', async () => {
+    promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 20
+      }),
+    )
+    const staleDigest = currentTargetDigest()
+    // the target moves after the selection was built
+    useGraphStore.getState().addNodeAt('gate', { x: 9, y: 9 })
+    const sig = graphSig()
+
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } },
+      expectTargetDigest: staleDigest,
+    })
+    expect(res).toMatchObject({ ok: false, reason: 'target-moved' })
+    expect(graphSig()).toBe(sig)
+
+    // re-computed against the current target ⇒ applies
+    const ok = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } },
+      expectTargetDigest: currentTargetDigest(),
+    })
+    expect(ok.ok).toBe(true)
+    expect(nodeInitial(sid)).toBe(20)
+  })
+
+  it('a selection of only no-ops ⇒ no-effective-change (no revision / undo / simulationRev)', async () => {
+    promote()
+    const p = await importProposal(
+      editedProposalFile((f) => (f.nodes as unknown[]).push(extraPool)), // one clean add
+    )
+    const rev = useGraphStore.getState().simulationRev
+    const canUndo = useGraphStore.getState().canUndo
+    // accept NOTHING
+    expect(applyPendingProposal(p, { selection: { accept: {}, fieldChoices: {} } }))
+      .toEqual({ ok: false, reason: 'no-effective-change' })
+    expect(useGraphStore.getState().simulationRev).toBe(rev)
+    expect(useGraphStore.getState().canUndo).toBe(canUndo)
+  })
+
+  it('an invalid selection (accepted edge, endpoint node not accepted) is refused with zero change', async () => {
+    promote()
+    const sid = seededId()
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        ;(f.nodes as unknown[]).push({ ...extraPool, id: 'c' })
+        ;(f.edges as unknown[]).push({
+          id: 'e_xc',
+          type: 'loop',
+          source: sid,
+          target: 'c',
+          sourceHandle: 'out',
+          targetHandle: 'in',
+          data: { kind: 'resource', flow: '1' },
+        })
+      }),
+    )
+    const sig = graphSig()
+    const rev = useGraphStore.getState().simulationRev
+    const res = applyPendingProposal(p, { selection: { accept: { e_xc: true }, fieldChoices: {} } }) // NOT accepting node c
+    expect(res).toMatchObject({ ok: false, reason: 'invalid-selection' })
+    expect('detail' in res && res.detail).toBeTruthy() // a concrete reason
+    expect(graphSig()).toBe(sig)
+    expect(useGraphStore.getState().simulationRev).toBe(rev) // untouched
+  })
+
+  it('structural conflict: a local edge onto a proposal-removed node ⇒ divergent, whole-apply confirms, selective remove refused (§ round 3)', async () => {
+    // base r0: pool ─ drain, NO edge
+    useGraphStore.getState().addNodeAt('drain', { x: 300, y: 0 })
+    const [poolN, drainN] = useGraphStore.getState().nodes
+    promote() // r0
+
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        // proposal removes the drain node (and, since there is no edge yet, nothing else)
+        f.nodes = (f.nodes as Array<{ id: string }>).filter((n) => n.id !== drainN.id)
+      }),
+    )
+    // NOW add a local edge onto the node the proposal removes
+    useGraphStore.getState().onConnect({ source: poolN.id, target: drainN.id, sourceHandle: 'out', targetHandle: 'in' })
+    const eid = useGraphStore.getState().edges[0].id
+
+    // three-way: the node-remove hunk is blocked, structurally
+    const plan = threeWayForPending(p)
+    const nh = plan.hunks.find((h) => h.id === drainN.id && h.kind === 'remove')!
+    expect(nh.blockedBy).toEqual([eid])
+    expect(plan.nConf).toBeGreaterThanOrEqual(1)
+
+    // classification is divergent — NOT "unknown ancestry / no field conflicts"
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'divergent' })
+
+    // whole-apply needs the §R7A.4 confirmation
+    expect(applyPendingProposal(p)).toMatchObject({ ok: false, reason: 'needs-confirmation', classification: 'divergent' })
+
+    // selective removal of the node is refused
+    const sig = graphSig()
+    expect(applyPendingProposal(p, { selection: { accept: { [drainN.id]: true }, fieldChoices: {} } })).toMatchObject({
+      ok: false,
+      reason: 'invalid-selection',
+    })
+    expect(graphSig()).toBe(sig)
+  })
+
+  it('node removal dependency is satisfied by RETARGETing the incident edge (§ round 3)', async () => {
+    // base r0: source ─e→ pool(mid) , plus a spare drain to retarget onto
+    useGraphStore.getState().newGraph()
+    useGraphStore.getState().addNodeAt('source', { x: 0, y: 0 })
+    useGraphStore.getState().addNodeAt('pool', { x: 200, y: 0 })
+    useGraphStore.getState().addNodeAt('drain', { x: 400, y: 0 })
+    const [s, mid, d] = useGraphStore.getState().nodes
+    useGraphStore.getState().onConnect({ source: s.id, target: mid.id, sourceHandle: 'out', targetHandle: 'in' })
+    const eid = useGraphStore.getState().edges[0].id
+    promote()
+    const r0 = useProjectStore.getState().open!.revisionId
+
+    const p = await importProposal(
+      editedProposalFile((f) => {
+        // proposal removes `mid` and retargets the edge s→mid to s→d
+        f.nodes = (f.nodes as Array<{ id: string }>).filter((n) => n.id !== mid.id)
+        const e = (f.edges as Array<Record<string, unknown>>).find((x) => x.id === eid)!
+        e.target = d.id
+      }),
+    )
+    const nh = threeWayForPending(p).hunks.find((h) => h.id === mid.id && h.kind === 'remove')!
+    expect(nh.dependents).toEqual([eid])
+    expect(nh.blockedBy).toBeUndefined()
+
+    // node alone ⇒ invalid (edge still → mid)
+    expect(
+      applyPendingProposal(p, { selection: { accept: { [mid.id]: true }, fieldChoices: {} } }),
+    ).toMatchObject({ ok: false, reason: 'invalid-selection' })
+
+    // node + the edge's endpoint retarget ⇒ valid
+    const ok = applyPendingProposal(p, {
+      selection: { accept: { [mid.id]: true }, fieldChoices: { [eid]: { target: 'proposed' } } },
+    })
+    expect(ok.ok).toBe(true)
+    if (ok.ok) expect(ok.newRevisionId).not.toBe(r0)
+    const g = useGraphStore.getState()
+    expect(g.nodes.some((n) => n.id === mid.id)).toBe(false)
+    expect(g.edges.find((e) => e.id === eid)!.target).toBe(d.id)
   })
 })

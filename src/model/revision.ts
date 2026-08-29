@@ -483,7 +483,7 @@ export function computeRevisionDiff(
   }
 }
 
-// ── §R7A.3 three-way conflict count (feeds §R7A.2 divergent vs unknown) ───
+// ── §R7A.3 three-way per-hunk check (drives §R7A.2 nConf AND Slice 2 apply) ──
 
 /** read one projection field, `data.*` or a top-level key. */
 function fieldOf(el: CanonicalNode | CanonicalEdge, field: string): unknown {
@@ -495,53 +495,353 @@ function fieldOf(el: CanonicalNode | CanonicalEdge, field: string): unknown {
   return o[field]
 }
 
+export type ThreeWayFieldVerdict = 'clean' | 'noop' | 'conflict'
+/** one changed field of a `change` hunk, shown as base / proposed / yours */
+export type HunkField = {
+  field: string
+  base: unknown
+  proposed: unknown
+  yours: unknown
+  verdict: ThreeWayFieldVerdict
+  tag: 'engine' | 'cosmetic'
+}
 /**
- * §R7A.3 — for every proposal hunk (`base` → `proposed`) look at the target's
- * current value for that id and count conflicts. Whole-element granularity for
- * `add` / `remove`; per changed field for `change`. This is `nConf` in §R7A.2:
- * `nConf === 0` ⇒ `unknown ancestry`, `nConf ≥ 1` ⇒ `divergent`. The per-hunk
- * *apply* (Slice 2) resolves the same conflicts one by one; here we only count.
- *
- * All three inputs are canonical GraphDoc projections (nodes/edges — the
- * `loop-revision/1` exporters never emit `recommendedRunConfig` into a
- * revision's content, so it plays no part in the count).
+ * One proposal-driven change, id-scoped, with its §R7A.3 verdict against the
+ * target. `clean` = applies with no loss; `noop` = target already matches the
+ * proposal; `conflict` = the target holds a third value (needs a per-item
+ * choice). `yours` is the target's current canonical element (`null` = absent).
  */
-export function countThreeWayConflicts(
+export type ProposalHunk = {
+  kind: 'add' | 'remove' | 'change'
+  elementType: 'node' | 'edge'
+  id: string
+  verdict: ThreeWayFieldVerdict
+  base?: CanonicalNode | CanonicalEdge
+  proposed?: CanonicalNode | CanonicalEdge
+  yours: CanonicalNode | CanonicalEdge | null
+  /** present for `change` */
+  fields?: HunkField[]
+  /** a node `remove` hunk: incident edge hunk ids that must be resolved with it
+   *  — each is a `remove` (drop the edge) OR a `change` that retargets an
+   *  endpoint away from this node. The apply check is reference-based (does any
+   *  edge still point at the removed node after the selection?), so retargets
+   *  satisfy the dependency just as removals do. Surfaced to the user; never
+   *  cascaded silently. */
+  dependents?: string[]
+  /** a node `remove` hunk: incident edges with **no** hunk to resolve them —
+   *  an edge you added locally (target-only), or one the proposal keeps while
+   *  removing the node. A STRUCTURAL CONFLICT: the node can't be removed, the
+   *  hunk `verdict` is `conflict`, and it feeds `nConf` (⇒ `divergent`). */
+  blockedBy?: string[]
+}
+export type ThreeWayPlan = {
+  hunks: ProposalHunk[]
+  /** §R7A.2 `nConf` — conflicting whole-hunks (`add`/`remove`) + conflicting
+   *  fields of `change` hunks (a `change` whose target element was deleted
+   *  counts once). `0` ⇒ `unknown ancestry`, `≥ 1` ⇒ `divergent`. */
+  nConf: number
+}
+
+/**
+ * §R7A.3 — the full three-way plan for every proposal hunk. `base.content`,
+ * `canonicalContent(open graph)` and `canonicalContent(proposal top-level)`,
+ * all three. Pure and deterministic (id-sorted). `recommendedRunConfig` plays
+ * no part (the exporters never emit it into a revision's content).
+ */
+export function computeThreeWay(
   base: CanonicalContent,
   target: CanonicalContent,
   proposed: CanonicalContent,
-): number {
-  let n = 0
+): ThreeWayPlan {
   type El = CanonicalNode | CanonicalEdge
+  const hunks: ProposalHunk[] = []
   for (const kind of ['node', 'edge'] as const) {
     const pick = (c: CanonicalContent): El[] => (kind === 'node' ? c.nodes : c.edges)
     const b = indexById<El>(pick(base))
     const t = indexById<El>(pick(target))
     const p = indexById<El>(pick(proposed))
-    for (const id of new Set<string>([...b.keys(), ...p.keys()])) {
+    for (const id of [...new Set<string>([...b.keys(), ...p.keys()])].sort()) {
       const bv = b.get(id)
       const pv = p.get(id)
-      const tv = t.get(id)
+      const tv = t.get(id) ?? null
       if (!bv && pv) {
-        // proposal ADDs id — conflict only if the target also added it, differently
-        if (tv && !deepEq(tv, pv)) n++
+        // ADD
+        const verdict: ThreeWayFieldVerdict = !tv ? 'clean' : deepEq(tv, pv) ? 'noop' : 'conflict'
+        hunks.push({ kind: 'add', elementType: kind, id, verdict, proposed: pv, yours: tv })
       } else if (bv && !pv) {
-        // proposal REMOVEs id — conflict if the target changed it vs the base
-        if (tv && !deepEq(tv, bv)) n++
+        // REMOVE
+        const verdict: ThreeWayFieldVerdict = !tv ? 'noop' : deepEq(tv, bv) ? 'clean' : 'conflict'
+        hunks.push({ kind: 'remove', elementType: kind, id, verdict, base: bv, yours: tv })
       } else if (bv && pv && !deepEq(bv, pv)) {
-        // proposal CHANGEs id
-        if (!tv) {
-          n++ // target deleted what the proposal edits
-        } else {
-          for (const f of diffElement(kind, bv as never, pv as never)) {
-            const cur = fieldOf(tv, f.field)
-            if (!deepEq(cur, f.base) && !deepEq(cur, f.proposed)) n++ // a third value
-          }
-        }
+        // CHANGE
+        const fields: HunkField[] = diffElement(kind, bv as never, pv as never).map((f) => {
+          const yours = tv ? fieldOf(tv, f.field) : undefined
+          const verdict: ThreeWayFieldVerdict = !tv
+            ? 'conflict' // §R7A.3 — id absent in target ⇒ conflict
+            : deepEq(yours, f.proposed)
+              ? 'noop'
+              : deepEq(yours, f.base)
+                ? 'clean'
+                : 'conflict'
+          return { field: f.field, base: f.base, proposed: f.proposed, yours, verdict, tag: f.tag }
+        })
+        const verdict: ThreeWayFieldVerdict = fields.some((f) => f.verdict === 'conflict')
+          ? 'conflict'
+          : fields.some((f) => f.verdict === 'clean')
+            ? 'clean'
+            : 'noop'
+        hunks.push({ kind: 'change', elementType: kind, id, verdict, base: bv, proposed: pv, yours: tv, fields })
       }
     }
   }
-  return n
+
+  // node `remove` incident-edge analysis (Slice 2 review round 2). A dependent
+  // is any incident edge that HAS a hunk (a `remove`, or a `change` that
+  // retargets an endpoint) — the user resolves it with the node. An incident
+  // edge with NO hunk (you added it locally, or the proposal keeps it while
+  // deleting the node) is a STRUCTURAL CONFLICT: the hunk becomes `conflict`,
+  // which feeds `nConf` below (so classification is `divergent`, never
+  // "unknown ancestry · no field conflicts").
+  const edgeHunkIds = new Set(hunks.filter((h) => h.elementType === 'edge').map((h) => h.id))
+  for (const h of hunks) {
+    if (h.kind !== 'remove' || h.elementType !== 'node') continue
+    const incident = target.edges.filter((e) => e.source === h.id || e.target === h.id)
+    const dependents = incident.filter((e) => edgeHunkIds.has(e.id)).map((e) => e.id).sort()
+    const blockedBy = incident.filter((e) => !edgeHunkIds.has(e.id)).map((e) => e.id).sort()
+    if (dependents.length) h.dependents = dependents
+    if (blockedBy.length) {
+      h.blockedBy = blockedBy
+      h.verdict = 'conflict' // structural — counted in nConf
+    }
+  }
+
+  let nConf = 0
+  for (const h of hunks) {
+    if (h.kind === 'change') {
+      nConf += h.yours ? (h.fields ?? []).filter((f) => f.verdict === 'conflict').length : 1
+    } else if (h.verdict === 'conflict') {
+      nConf += 1
+    }
+  }
+
+  return { hunks, nConf }
+}
+
+/** §R7A.2 `nConf` — the conflict count only (see {@link computeThreeWay}). */
+export function countThreeWayConflicts(
+  base: CanonicalContent,
+  target: CanonicalContent,
+  proposed: CanonicalContent,
+): number {
+  return computeThreeWay(base, target, proposed).nConf
+}
+
+// ── §R7.2 per-hunk selective apply — build the resulting REAL graph ─────────
+
+const cloneEl = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
+
+export type HunkSelection = {
+  /** `add` / `remove` hunk id → accept it (default: not accepted) */
+  accept: Record<string, boolean>
+  /** `change` hunk id → field name → 'proposed' (take theirs) | 'yours' (keep
+   *  mine, the default for any unlisted field) */
+  fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>>
+}
+export type SelectiveApplyResult =
+  | { ok: true; nodes: LoopNode[]; edges: LoopEdge[] }
+  | { ok: false; reason: 'invalid-selection'; detail: string }
+
+/**
+ * §R7.2 — `target content + accepted hunks`. Operates on the REAL editor graphs
+ * (not canonical) so element identity / render fields survive. Rejected hunks
+ * leave the target untouched → unselected fields are byte-identical (D-cond 6).
+ *
+ * There is **NO implicit cascade** (Slice 2 review round 2). A node with a
+ * `blockedBy` incident edge (no hunk can resolve it) is a structural conflict
+ * and cannot be removed. Otherwise the dependency check is **reference-based**:
+ * after every accepted hunk is applied, any edge still pointing at a missing
+ * node — an accepted `add` edge whose node was not selected, or an incident
+ * edge that was neither removed nor retargeted with the node — is refused as an
+ * `invalid-selection` **before anything is loaded** (nothing is mutated in
+ * place; the result is built in scratch maps).
+ */
+export function buildSelectiveApply(input: {
+  target: { nodes: LoopNode[]; edges: LoopEdge[] }
+  proposedFull: { nodes: LoopNode[]; edges: LoopEdge[] }
+  plan: ThreeWayPlan
+  selection: HunkSelection
+}): SelectiveApplyResult {
+  const { target, proposedFull, plan, selection } = input
+  const bad = (detail: string): SelectiveApplyResult => ({ ok: false, reason: 'invalid-selection', detail })
+
+  // ── structural conflicts refuse the selection up front ──
+  for (const h of plan.hunks) {
+    if (h.kind === 'remove' && h.elementType === 'node' && selection.accept[h.id] && h.blockedBy?.length) {
+      return bad(
+        `Node ${h.id} can't be removed — edge ${h.blockedBy.join(', ')} points at it and the proposal offers no way to move or drop it. Keep the node.`,
+      )
+    }
+  }
+
+  const nodes = new Map<string, LoopNode>(target.nodes.map((n) => [n.id, cloneEl(n)]))
+  const edges = new Map<string, LoopEdge>(target.edges.map((e) => [e.id, cloneEl(e)]))
+  const pNodes = new Map<string, LoopNode>(proposedFull.nodes.map((n) => [n.id, n]))
+  const pEdges = new Map<string, LoopEdge>(proposedFull.edges.map((e) => [e.id, e]))
+
+  const setField = (el: Record<string, unknown>, field: string, value: unknown) => {
+    if (field.startsWith('data.')) {
+      el.data = { ...(el.data as Record<string, unknown>), [field.slice(5)]: cloneEl(value) }
+    } else {
+      el[field] = cloneEl(value)
+    }
+  }
+
+  for (const h of plan.hunks) {
+    const store = h.elementType === 'node' ? nodes : edges
+    const psrc = h.elementType === 'node' ? pNodes : pEdges
+    if (h.kind === 'add') {
+      if (!selection.accept[h.id]) continue
+      const real = psrc.get(h.id)
+      if (!real) return bad(`Proposal is missing ${h.elementType} ${h.id}.`)
+      store.set(h.id, cloneEl(real) as LoopNode & LoopEdge)
+    } else if (h.kind === 'remove') {
+      if (!selection.accept[h.id]) continue
+      store.delete(h.id)
+    } else {
+      // change
+      const choices = selection.fieldChoices[h.id] ?? {}
+      const wantsProposed = (h.fields ?? []).some((f) => choices[f.field] === 'proposed')
+      if (!store.has(h.id)) {
+        // target deleted this element — "take proposal" re-adds it whole (vec 11)
+        if (!wantsProposed) continue
+        const real = psrc.get(h.id)
+        if (!real) return bad(`Proposal is missing ${h.elementType} ${h.id}.`)
+        store.set(h.id, cloneEl(real) as LoopNode & LoopEdge)
+        continue
+      }
+      const el = store.get(h.id) as unknown as Record<string, unknown>
+      for (const f of h.fields ?? []) {
+        if (choices[f.field] === 'proposed') setField(el, f.field, f.proposed)
+      }
+    }
+  }
+
+  // reference-based dependency check — after the selection, any edge still
+  // pointing at a missing node is refused (no silent prune). Retargeting an
+  // endpoint to a surviving node satisfies the dependency just like removing
+  // the edge does.
+  const hasEdgeHunk = new Set(plan.hunks.filter((h) => h.elementType === 'edge').map((h) => h.id))
+  for (const [id, e] of edges) {
+    if (!nodes.has(e.source) || !nodes.has(e.target)) {
+      const missing = !nodes.has(e.source) ? e.source : e.target
+      return bad(
+        hasEdgeHunk.has(id)
+          ? `Edge ${id} still points at removed node ${missing} — also remove or retarget edge ${id}, or keep the node.`
+          : `Edge ${id} still points at removed node ${missing} — keep that node, or drop the edge first.`,
+      )
+    }
+  }
+
+  // keep target order, then append accepted adds in proposal order
+  const outNodes: LoopNode[] = []
+  for (const n of target.nodes) if (nodes.has(n.id)) outNodes.push(nodes.get(n.id)!)
+  for (const n of proposedFull.nodes) if (nodes.has(n.id) && !target.nodes.some((t) => t.id === n.id)) outNodes.push(nodes.get(n.id)!)
+  const outEdges: LoopEdge[] = []
+  for (const e of target.edges) if (edges.has(e.id)) outEdges.push(edges.get(e.id)!)
+  for (const e of proposedFull.edges) if (edges.has(e.id) && !target.edges.some((t) => t.id === e.id)) outEdges.push(edges.get(e.id)!)
+
+  return { ok: true, nodes: outNodes, edges: outEdges }
+}
+
+// ── §2 — validate the WHOLE result before it can be applied ────────────────
+
+const NODE_KINDS = new Set(['pool', 'source', 'drain', 'gate', 'converter', 'end'])
+
+export type ResultValidation = { ok: true } | { ok: false; reasons: string[] }
+
+/**
+ * Full-GraphDoc validation of a selective-apply result (Slice 2 review round 2).
+ * Endpoint existence alone is not enough — a field combination can produce an
+ * invalid doc, and `normalizeGraph` would then *silently repair* it. Any failure
+ * blocks the apply with a concrete list of reasons; nothing is mutated.
+ */
+export function validateResultGraph(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  recommendedRunConfig?: RecommendedRunConfig,
+): ResultValidation {
+  const reasons: string[] = []
+  const nodeIds = new Set(nodes.map((n) => n.id))
+
+  // 1. node kind + shape (before the projection — an unknown kind would crash it)
+  let kindsOk = true
+  for (const n of nodes) {
+    const kind = (n.data as { kind?: unknown } | undefined)?.kind
+    if (typeof kind !== 'string' || !NODE_KINDS.has(kind)) {
+      reasons.push(`Node ${n.id}: unknown kind "${String(kind)}".`)
+      kindsOk = false
+    } else if (n.type !== kind) {
+      reasons.push(`Node ${n.id}: type "${n.type}" ≠ data.kind "${kind}".`)
+    }
+    const p = n.position as { x?: unknown; y?: unknown } | undefined
+    if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') reasons.push(`Node ${n.id}: missing numeric position.`)
+  }
+
+  // 2. non-finite / out-of-domain numbers anywhere in the projection (skip when
+  //    a kind is already unknown — the projection would throw for that reason)
+  if (kindsOk) {
+    try {
+      canonicalContent({ nodes, edges })
+    } catch {
+      reasons.push('A node or edge holds a non-finite number (NaN / Infinity).')
+    }
+  }
+
+  // 3. edges — endpoints exist, kind, and handle compatibility
+  const seenEdge = new Set<string>()
+  for (const e of edges) {
+    if (seenEdge.has(e.id)) reasons.push(`Edge ${e.id}: duplicate id.`)
+    seenEdge.add(e.id)
+    if (!nodeIds.has(e.source)) reasons.push(`Edge ${e.id}: source node ${e.source} does not exist.`)
+    if (!nodeIds.has(e.target)) reasons.push(`Edge ${e.id}: target node ${e.target} does not exist.`)
+    const ek = (e.data as { kind?: unknown } | undefined)?.kind
+    const sState = typeof e.sourceHandle === 'string' && e.sourceHandle.startsWith('state')
+    const tState = typeof e.targetHandle === 'string' && e.targetHandle.startsWith('state')
+    if (ek === 'state') {
+      if (!sState || !tState) reasons.push(`Edge ${e.id}: a state edge must use state handles on both ends.`)
+    } else if (ek === 'resource') {
+      if (sState || tState) reasons.push(`Edge ${e.id}: a resource edge must not use state handles.`)
+    } else {
+      reasons.push(`Edge ${e.id}: unknown kind "${String(ek)}".`)
+    }
+  }
+
+  // 4. recommendedRunConfig.tracked must reference real pools (revision content
+  //    never carries rrc today, but guard it anyway)
+  const tracked = recommendedRunConfig?.tracked
+  if (Array.isArray(tracked)) {
+    for (const id of tracked) if (typeof id === 'string' && !nodeIds.has(id)) reasons.push(`recommendedRunConfig.tracked: node ${id} does not exist.`)
+  }
+
+  // 5. normalize must not need to REPAIR anything (blank handles, missing data
+  //    defaults, absent `type`) — a silent fix would mean the picked fields
+  //    made an invalid doc.
+  try {
+    const norm = normalizeGraph({ nodes, edges })
+    const keySorted = (x: unknown): unknown =>
+      Array.isArray(x)
+        ? x.map(keySorted)
+        : x && typeof x === 'object'
+          ? Object.fromEntries(Object.keys(x as object).sort().map((k) => [k, keySorted((x as Record<string, unknown>)[k])]))
+          : x
+    const before = JSON.stringify(keySorted({ nodes, edges }))
+    const after = JSON.stringify(keySorted(norm))
+    if (before !== after) reasons.push('The result is not already normalized — importing it would silently change it.')
+  } catch {
+    reasons.push('The result cannot be normalized.')
+  }
+
+  return reasons.length ? { ok: false, reasons } : { ok: true }
 }
 
 // ── defensive `project` reader (§R10 steps 3/6) ──────────────────────────
