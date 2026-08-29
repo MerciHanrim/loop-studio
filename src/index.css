@@ -226,6 +226,35 @@ body {
   min-height: 0;
 }
 
+/* ---- PWA update bar (docs/pwa.md §P4.2) ---- */
+.pwa-update {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-structure);
+  border-radius: 9px;
+  box-shadow: var(--elev-label);
+}
+.pwa-update__text {
+  flex: 1;
+}
+.pwa-update__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 :focus-visible {
   outline: 2px solid var(--line-focus);
   outline-offset: 2px;
