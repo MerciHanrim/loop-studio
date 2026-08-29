@@ -73,6 +73,8 @@ spec id, never an edit to a frozen one.
 | [`SEMANTICS-W.md`](SEMANTICS-W.md) | `loop-workspace/1` | Workspace Export/Import — an optional `workspace` extension on the graph doc (run config, MC result, view, verified sim snapshot) |
 | [`SEMANTICS-U.md`](SEMANTICS-U.md) | `loop-share/1` | Shareable URL — a `#g1=` fragment carrying the graph doc (zlib-wrapped DEFLATE + base64url, 8 KiB cap); PWA notes in [`docs/pwa.md`](docs/pwa.md) |
 | [`SEMANTICS-R.md`](SEMANTICS-R.md) | `loop-revision/1` | Project Revision / Proposal — an optional `project` key: a stable `projectId`, immutable `parentId`-chained revisions, `proposal` files carrying a full `base.content` snapshot, an id-keyed three-way diff, and `exact` / `divergent` / `unknown` apply (whole-proposal confirmed unless `exact`, or per-hunk). No accounts / server / sync. |
+| [`SEMANTICS-X.md`](SEMANTICS-X.md) | `loop-expr/1` | Expression grammar & evaluation — a small deterministic arithmetic language (`+ - * /`, unary `-`, `( )`, finite literals, `@id` / `@{id}` node references); pure single-pass evaluation, `/0` and non-finite ⇒ an error; an AST-canonical text form for the `loop-revision/2` digest. Foundation for `loop-model/1`. |
+| [`SEMANTICS-M.md`](SEMANTICS-M.md) | `loop-model/1` | Model language — `parameter` (a tuned numeric input) and `register` (a `loop-expr/1` readout, computed from the committed snapshot each step, stores nothing) node kinds, plus an advisory `resourceType` tag on pools / resource edges. Additive: a graph without them is byte- and digest-identical to `loop-revision/1`. Ripples into `loop-revision/2` (a wire-level v1/v2 discriminator; a new `advisory` field tag). |
 
 ## Project revisions & proposals
 
