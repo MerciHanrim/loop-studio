@@ -85,13 +85,21 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
     }
   }
 
-  const flow = e.data?.kind === 'resource' ? e.data.flow : undefined
+  const prevRes = e.data?.kind === 'resource' ? (e.data as Record<string, unknown>) : undefined
+  const flow = prevRes?.flow
   return {
     ...e,
     type,
     sourceHandle: isBlankHandle(e.sourceHandle) ? 'out' : e.sourceHandle,
     targetHandle: isBlankHandle(e.targetHandle) ? 'in' : e.targetHandle,
-    data: { kind: 'resource', flow: flow != null && flow !== '' ? flow : '1' },
+    data: {
+      kind: 'resource',
+      flow: flow != null && flow !== '' ? (flow as string) : '1',
+      // `resourceType` is authored graph structure (loop-model/1 §M4) — keep it
+      // across a round-trip, like `delay` on a state edge. A string is kept
+      // as-is here; the canonical projection normalises / drops it (§M4.1).
+      ...(typeof prevRes?.resourceType === 'string' ? { resourceType: prevRes.resourceType } : {}),
+    } as LoopEdge['data'],
   }
 }
 

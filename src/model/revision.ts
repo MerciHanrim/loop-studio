@@ -7,6 +7,11 @@
 // lifecycle that consumes these lands in Slice 1B.
 
 import { defaultData } from './factory'
+import {
+  normalizeResourceType,
+  readParameterData,
+  readRegisterData,
+} from './model'
 import { normalizeGraph } from './serialize'
 import type { RecommendedRunConfig } from './serialize'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
@@ -150,19 +155,55 @@ function numOrThrow(n: number, where: string): number {
 
 // ── canonical projection (§R4.2) ──────────────────────────────────────────
 
-/** node `data` keys, in the frozen emit order, by kind (§R4.2 FIELDS_BY_KIND) */
+/** node `data` keys, in the frozen emit order, by kind (§R4.2 FIELDS_BY_KIND).
+ *  `loop-revision/2` (`SEMANTICS-R2.md` §R2-2.2) appends a trailing
+ *  `resourceType` to `pool` — emitted **only** when the normalised value is
+ *  non-empty, so a graph with no resource types projects byte-identically to
+ *  `loop-revision/1` (R2-INV-2). */
 const NODE_FIELDS: Record<NodeKind, readonly string[]> = {
-  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode'],
+  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType'],
   source: ['kind', 'label', 'activation', 'mode'],
   drain: ['kind', 'label', 'activation', 'mode'],
   gate: ['kind', 'label', 'activation', 'distribution', 'mode'],
   converter: ['kind', 'label', 'activation', 'mode'],
   end: ['kind', 'label', 'activation', 'mode'],
 }
-/** edge `data` keys, in the frozen emit order, by kind (§R4.2 EDGE_FIELDS_BY_KIND) */
+/** `loop-revision/2` (`SEMANTICS-R2.md` §R2-2.1) — new node kinds, exact field
+ *  order. Only reached for a `data.kind` of `parameter` / `register`. */
+const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
+  parameter: ['kind', 'label', 'value', 'min', 'max', 'step', 'unit'],
+  register: ['kind', 'label', 'expr', 'unit', 'format'],
+}
+/** edge `data` keys, in the frozen emit order, by kind (§R4.2 EDGE_FIELDS_BY_KIND).
+ *  `loop-revision/2` appends a trailing `resourceType` to `resource`, same
+ *  "only when non-empty" rule as `pool`. */
 const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
-  resource: ['kind', 'flow'],
+  resource: ['kind', 'flow', 'resourceType'],
   state: ['kind', 'mode', 'expr', 'delay'],
+}
+
+const MODEL_NODE_KINDS = new Set(['parameter', 'register'])
+
+/**
+ * `SEMANTICS-R2.md` §R2-1 — the purely-syntactic v1/v2 content predicate, run
+ * on **normalised** nodes/edges (kind + normalised `resourceType` only). A doc
+ * is `loop-revision/2` content iff it has a `parameter` / `register` node, or a
+ * `pool` / `resource`-edge with a non-empty normalised `resourceType`. Inferred
+ * from content — never a stored header field.
+ */
+export function isModelLayerContent(doc: {
+  nodes: { data?: { kind?: unknown; resourceType?: unknown } | null }[]
+  edges: { data?: { kind?: unknown; resourceType?: unknown } | null }[]
+}): boolean {
+  for (const n of doc.nodes) {
+    const k = n.data?.kind
+    if (k === 'parameter' || k === 'register') return true
+    if (k === 'pool' && normalizeResourceType(n.data?.resourceType).value !== null) return true
+  }
+  for (const e of doc.edges) {
+    if (e.data?.kind === 'resource' && normalizeResourceType(e.data?.resourceType).value !== null) return true
+  }
+  return false
 }
 
 /** normalised node data: kind defaults filled, `mode` made explicit */
@@ -179,11 +220,38 @@ function normNodeData(n: LoopNode): Record<string, unknown> {
 }
 
 function projectNode(n: LoopNode): CanonicalNode {
-  const kind = n.data.kind
-  const fields = NODE_FIELDS[kind]
+  const kind = n.data.kind as string
+  const position = {
+    x: numOrThrow(n.position?.x ?? 0, `node ${n.id} position.x`),
+    y: numOrThrow(n.position?.y ?? 0, `node ${n.id} position.y`),
+  }
+  const rawData = n.data as unknown as Record<string, unknown>
+
+  // loop-revision/2 (§R2-2.1) — parameter / register. Defensive read first: an
+  // unseatable shape is a malformed FILE (§R2-1.1), surfaced the same way a
+  // non-finite number is (InvalidRevisionContentError ⇒ the caller drops
+  // `project`, the graph still loads — R-INV-10 / R2-INV-9).
+  if (MODEL_NODE_KINDS.has(kind)) {
+    const read = kind === 'parameter' ? readParameterData(rawData) : readRegisterData(rawData)
+    if (!read.ok) throw new InvalidRevisionContentError(`node ${n.id} (${kind}): ${read.detail}`)
+    const nd = read.data as unknown as Record<string, unknown>
+    const data: Record<string, unknown> = {}
+    for (const f of MODEL_NODE_FIELDS[kind as 'parameter' | 'register']) {
+      if (nd[f] !== undefined) data[f] = nd[f]
+    }
+    return { id: n.id, position, data }
+  }
+
+  const fields = NODE_FIELDS[kind as NodeKind]
   const src = normNodeData(n)
   const data: Record<string, unknown> = {}
   for (const f of fields) {
+    if (f === 'resourceType') {
+      // loop-revision/2 (§R2-2.2) — trailing, only when non-empty after §M4.1
+      const rt = normalizeResourceType(src.resourceType).value
+      if (rt !== null) data.resourceType = rt
+      continue
+    }
     let v = src[f]
     if (f === 'capacity') {
       // pool capacity: number (finite) or null (unbounded); absent ⇒ null
@@ -193,14 +261,7 @@ function projectNode(n: LoopNode): CanonicalNode {
     }
     data[f] = v
   }
-  return {
-    id: n.id,
-    position: {
-      x: numOrThrow(n.position?.x ?? 0, `node ${n.id} position.x`),
-      y: numOrThrow(n.position?.y ?? 0, `node ${n.id} position.y`),
-    },
-    data,
-  }
+  return { id: n.id, position, data }
 }
 
 function projectEdge(e: LoopEdge): CanonicalEdge {
@@ -214,6 +275,11 @@ function projectEdge(e: LoopEdge): CanonicalEdge {
     else if (f === 'expr') data.expr = (src?.expr ?? '') as string
     else if (f === 'flow') data.flow = (src?.flow ?? '') as string
     else if (f === 'mode') data.mode = src?.mode
+    else if (f === 'resourceType') {
+      // loop-revision/2 (§R2-2.2) — trailing, only when non-empty after §M4.1
+      const rt = normalizeResourceType(src?.resourceType).value
+      if (rt !== null) data.resourceType = rt
+    }
   }
   return {
     id: e.id,
@@ -292,18 +358,37 @@ export function digestOfCanonical(c: CanonicalContent): string {
 
 // ── engine vs cosmetic (§R4.4 / §R5.2) ────────────────────────────────────
 
-/** a node `data` field is `cosmetic` iff it is `label`; `position` is cosmetic;
- *  everything else in the projection is `engine`. */
-export function fieldTag(kind: 'node' | 'edge', field: string): 'engine' | 'cosmetic' {
+export type FieldTag = 'engine' | 'cosmetic' | 'advisory'
+
+/**
+ * `label` / `position` are `cosmetic`. `loop-revision/2` (`SEMANTICS-R2.md`
+ * §R2-3) adds `advisory` — authored content that changes no computed value:
+ * a Parameter tuning hint (`min` / `max` / `step` / `unit`), a Register display
+ * hint (`unit` / `format`), or a `resourceType` tag. `parameter.value` and
+ * `register.expr` stay `engine`. Everything else in the projection is `engine`.
+ */
+export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
   if (kind === 'node' && (field === 'label' || field === 'position' || field === 'data.label')) {
     return 'cosmetic'
+  }
+  if (field === 'data.resourceType') return 'advisory'
+  if (kind === 'node') {
+    if (
+      field === 'data.min' ||
+      field === 'data.max' ||
+      field === 'data.step' ||
+      field === 'data.unit' ||
+      field === 'data.format'
+    ) {
+      return 'advisory'
+    }
   }
   return 'engine'
 }
 
 // ── RevisionDiff (§R5) ───────────────────────────────────────────────────
 
-export type FieldChange = { field: string; base: unknown; proposed: unknown; tag: 'engine' | 'cosmetic' }
+export type FieldChange = { field: string; base: unknown; proposed: unknown; tag: FieldTag }
 export type ElementChange = { id: string; fields: FieldChange[] }
 export type ElementBuckets<T> = {
   added: T[]
@@ -326,6 +411,11 @@ export type RevisionDiff = {
     edges: { added: number; removed: number; changed: number }
     runConfigChanged: boolean
     engineAffecting: boolean
+    /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-3 / R2-D1) — any `advisory`-tagged
+     *  hunk (a tuning hint or a `resourceType` tag). Separate from
+     *  `engineAffecting`: an advisory change is real revision content and feeds
+     *  `dirty` / the diff / `nConf`, but never sets `engineAffecting`. */
+    advisoryAffecting: boolean
     empty: boolean
   }
 }
@@ -459,6 +549,12 @@ export function computeRevisionDiff(
     edges.changed.some((c) => c.fields.some((f) => f.tag === 'engine')) ||
     runConfig.length > 0
 
+  // §R2-3 — any advisory-tagged changed field (a tuning hint or a resourceType
+  // tag). Real revision content, but not engine-affecting.
+  const anyAdvisory =
+    nodes.changed.some((c) => c.fields.some((f) => f.tag === 'advisory')) ||
+    edges.changed.some((c) => c.fields.some((f) => f.tag === 'advisory'))
+
   const empty =
     nodes.added.length === 0 &&
     nodes.removed.length === 0 &&
@@ -478,6 +574,7 @@ export function computeRevisionDiff(
       edges: { added: edges.added.length, removed: edges.removed.length, changed: edges.changed.length },
       runConfigChanged: runConfig.length > 0,
       engineAffecting: anyEngine,
+      advisoryAffecting: anyAdvisory,
       empty,
     },
   }
@@ -503,7 +600,7 @@ export type HunkField = {
   proposed: unknown
   yours: unknown
   verdict: ThreeWayFieldVerdict
-  tag: 'engine' | 'cosmetic'
+  tag: FieldTag
 }
 /**
  * One proposal-driven change, id-scoped, with its §R7A.3 verdict against the
@@ -978,6 +1075,12 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
     if (typeof nn.id !== 'string') return null
     if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return null
     if (!nn.data || typeof nn.data !== 'object') return null
+    // loop-revision/2 (§R2-1.1 / §R2-5.1) — a base-snapshot `parameter` /
+    // `register` whose shape cannot be seated makes the whole `project` payload
+    // malformed (⇒ the caller drops it, the graph still loads).
+    const dk = (nn.data as { kind?: unknown }).kind
+    if (dk === 'parameter' && !readParameterData(nn.data).ok) return null
+    if (dk === 'register' && !readRegisterData(nn.data).ok) return null
     nodes.push({ id: nn.id, position: { x: pos.x as number, y: pos.y as number }, data: nn.data as Record<string, unknown> })
   }
   const edges: CanonicalEdge[] = []
