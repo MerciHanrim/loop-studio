@@ -1,20 +1,22 @@
 # Simulation Playback / Event Choreography (non-frozen design doc — DRAFT)
 
-**Status: DRAFT for review (round 1).** A **presentation-only** layer over the
-existing engine: when the user presses **Play** (or **Step**), the already-
-computed transition from one simulation step to the next is *choreographed* on
-the canvas — resources visibly leave a source, travel along the real edge path,
-arrive, and only then does the target's displayed value change. It does **not**
-touch the engine, the RNG, `SimState`, `R(t)`, state semantics, Monte-Carlo, the
-GraphDoc, the `loop-revision/*` digest, or the Workspace format. This doc carries
-no `loop-*/N` id and is revised freely (like `docs/visual-language.md`,
-`docs/edge-routing.md`).
+**Status: DRAFT for review (round 2).** Round 1's `committedStep ≥ revealedStep`
+two-clock model is **withdrawn**. The state model is now **one committed clock +
+a single `preparedTransition` with progress `τ`** (§PB2). A **presentation-only**
+layer over the existing engine: when the user presses **Play** (or **Step**), the
+next step is computed in full but **not committed**; resources visibly leave a
+source, travel the real edge path, arrive, and then — in **one atomic commit at
+`settle`** — `SimState` / step index / timeline series advance together. It does
+**not** touch the engine's determinism, the RNG result, state semantics,
+Monte-Carlo, the GraphDoc, the `loop-revision/*` digest, or the Workspace format.
+This doc carries no `loop-*/N` id and is revised freely (like
+`docs/visual-language.md`, `docs/edge-routing.md`).
 
-It supersedes the ad-hoc "flow bead" that the Canvas Visual Refresh (v0.6.0)
-and Orthogonal Routing Slice 1 (v0.7.0-dev) ship today: one `<animateMotion>`
-token per active edge, fire-and-forget, with no ordering, no backpressure, and
-no relationship to when the number on a Pool updates. This doc pins down what
-"the model comes alive when you press Play" means for Loop Studio **before any
+It supersedes the ad-hoc "flow bead" that the Canvas Visual Refresh (v0.6.0) and
+Orthogonal Routing Slice 1 (v0.7.0-dev) ship today: one `<animateMotion>` token
+per active edge, fire-and-forget, with no ordering, no backpressure, and no
+relationship to when the number on a Pool updates. This doc pins down what "the
+model comes alive when you press Play" means for Loop Studio **before any
 implementation**.
 
 **Build order:**
@@ -24,16 +26,17 @@ implementation**.
 3. no wire/spec amendment is expected — if one turns out to be needed, it stops
    and gets its own frozen `loop-*/N` (this doc does not pre-authorise it).
 
-**Review focus (round 1 — where the sharp edges are):**
+**Review focus (round 2):**
 
 | question | pinned in |
 |---|---|
-| when does `toState` commit to the store vs become visible on the canvas? | §PB2.4 (two clocks: `committedStep` ≥ `revealedStep`), §PB2.5 (ledger) |
-| what snapshot do value / timeline / Register show **while Paused**? | §PB5.3 (table — every viewer surface follows `revealedStep`; the timeline *line* may lead the *cursor* by one step) |
-| do Play backpressure + background catch-up ever drop a step? | §PB2.5, §PB3.2, §PB8.2 (every committed step's `settle` runs in order; only *travel visuals* are elided) |
-| does summing multiple `FlowEvents` on one edge lose causal info? | §PB4.5 (visual sum only; per-component breakdown kept for inspection; state events never merged) |
-| can a stale animation callback touch the **next** transition after cancel? | §PB7.2 (single monotonic `transitionId`; first-line id check; ledger discarded; timers cleared) |
-| on a speed change, how is the current transition's remaining time recomputed? | §PB6.2 (progress held as `τ`, not an end-timestamp; `remainingMs = (1−τ₀)·beatDuration`; beat boundaries fixed) |
+| compute vs commit — when does `S(t+1)` reach the store? | §PB1.1–PB1.2, §PB2.2 — computed at prepare, **committed once at `settle`**; `committedStep === revealedStep` always |
+| what do Canvas / Inspector / Register / Timeline / autosave / Workspace show during a transition? | §PB2.4 — **all of them read the last committed state `S(t)`**; the only extra thing that exists is `preparedTransition` + `τ` |
+| cancellation — Pause vs Reset/Import/Undo/edit | §PB7 — Pause **keeps** `preparedTransition` (τ frozen); the rest **discard** it, leaving no trace in RNG / step / series / Workspace |
+| do backpressure + background catch-up drop or double-count a step? | §PB3.2, §PB8 — one `preparedTransition` at a time; every committed step is written to the Timeline **exactly once**; "skip-to-latest" elides visual phases, never a state step |
+| speed change mid-transition | §PB6 — keep `τ`, recompute only the remaining phases; no speed 0 / invalid; `τ` never decreases; `settle` fires **exactly once** |
+| reduced motion | §PB9 — same prepared result; no travel element; short depart/path/arrive cue or immediate `settle`; **no auto-`settle` while Paused** |
+| summing several `FlowEvents` on one edge | §PB4.5 — token visual may merge; the events list keeps every original `FlowEvent` (origin / category / order); state events never merged |
 
 ---
 
@@ -52,455 +55,471 @@ implementation**.
 
 ## PB1. The hard boundary — the engine decides everything, the animation decides nothing
 
-**PB1.1 — order of operations, per step.** A step is computed **first, in full,
-synchronously**, exactly as today:
+**PB1.1 — compute, then (later) commit.** A step is computed **first, in full,
+synchronously**, exactly as the engine does today — but the result is **held, not
+written to the store**:
 
 ```
-step N:  fromState  ──engine──▶  { toState, FlowEvents[], StateEvents[] }
+committed  S(t)                     ← the ONLY authoritative sim state right now
+   │  pure engine step (no store write, no visible change)
+   ▼
+preparedTransition = {
+   fromStep: t,
+   from:     S(t),                  ← a reference to the committed state
+   events:   FlowEvents[] + StateEvents[],   ← the engine's own per-step lists, verbatim
+   to:       S(t+1),               ← fully computed, NOT yet committed
+   rngAfter: <engine cursor after t+1, if the engine has one>,
+   τ:        0                      ← animation progress, [0, 1]
+}
+   │  depart → travel → arrive        (τ advances; store still shows S(t))
+   ▼
+settle  ── ONE atomic commit ──▶  committed S(t+1)   (SimState + stepIndex + series + rng, together)
 ```
 
-`fromState` and `toState` are `SimState` values; `FlowEvents` / `StateEvents`
-are the engine's existing per-step event lists. The choreography is a **pure
-function of that already-computed triple** — it reads `fromState`, the event
-lists, and `toState`, and schedules visuals. It never calls the engine, never
-consumes RNG, never re-orders or coalesces events, and never writes back.
+`from` / `to` are `SimState` values; `events` is the engine's existing per-step
+output, **passed through unchanged** — the choreography never re-orders,
+coalesces, or invents events. Computing `preparedTransition` performs no store
+write and no visible change; if the engine carries an advancing RNG cursor, that
+cursor's advance is part of the **`settle` commit**, not of prepare (so a
+discarded `preparedTransition` leaves the RNG exactly where it was — §PB7).
 
-**PB1.2 — the displayed value is `toState`, always.** When a transition's
-choreography completes, every Pool/Register shows its `toState` value — bit-for-
-bit what the engine produced. If the animation is skipped, interrupted, or the
-tab was hidden the whole time, the canvas still lands on `toState`. The
-animation only controls **when, between "step committed" and "next input
-accepted", the eye is guided** — never the destination.
+**PB1.2 — `settle` is the single commit point.** `settle` (the last beat, §PB2.1)
+is the *only* place the store changes during playback. It applies `to` /
+`stepIndex+1` / the appended `series` point / the RNG cursor **in one update** —
+the same one `advance` action the store performs today, just deferred to the end
+of the choreography. Before `settle`: the store is `S(t)`. After `settle`: the
+store is `S(t+1)` and there is no `preparedTransition` until the next one is
+prepared. There is never a moment where the store is "half a step ahead".
 
 **PB1.3 — no animation-derived state.** Nothing the choreography computes (a
-token's position, a lane assignment, an elapsed fraction, a per-edge sum) enters
-`SimState`, the timeline series, the GraphDoc, the digest, the Share link, or
-the Workspace payload. It lives only in a render-side scheduler that is
-discarded on reset.
+token's position, a lane assignment, `τ`, a per-edge visual sum) enters
+`SimState`, the timeline series, the GraphDoc, the digest, the Share link, or the
+Workspace payload. `preparedTransition` lives only in a render-side scheduler and
+is discarded on cancel (§PB7).
 
-**PB1.4 — Register `R(t)`.** A Register value is still recomputed from the
-committed snapshot each step (`loop-model/1`); the choreography may *reveal* the
-new `R(t)` on the same "arrival" beat as the pools it depends on, but it reads
-`R(t)` from the engine layer, never re-derives it.
+**PB1.4 — Register `R(t)`.** A Register value is recomputed from the **committed**
+snapshot each step (`loop-model/1`). During a transition the committed snapshot is
+`S(t)`, so `R` reads `R(t)`; `settle` commits `S(t+1)` and the next read is
+`R(t+1)`. The choreography never re-derives `R`.
 
-## PB2. The transition timeline — one shared axis per step
+## PB2. State model — one committed clock + one `preparedTransition`
 
-**PB2.1 — a transition is a fixed sequence of beats.** For step `N`, every
-visual for that step is placed on **one normalised time axis** `τ ∈ [0, 1]`
-(mapped to wall-clock by the current speed, §PB6):
+**PB2.1 — a transition is a fixed sequence of beats.** Every visual for the
+prepared step is placed on **one normalised axis** `τ ∈ [0, 1]` (mapped to
+wall-clock by the current speed, §PB6):
 
-| beat | τ window | what happens |
-|---|---|---|
-| **depart** | `[0.00, 0.15]` | a token appears at each contributing source handle; the source's "outflow" cue plays |
-| **travel** | `[0.15, 0.80]` | tokens move along the **real edge path** (§PB4) at constant path-length speed |
-| **arrive** | `[0.80, 0.95]` | tokens reach the target handle; the target's "inflow" cue plays |
-| **settle** | `[0.95, 1.00]` | **the displayed value updates to `toState`** (count-up / delta chip); state effects (tint, pulse, gate open/close) resolve |
+| beat | τ window | what happens | store |
+|---|---|---|---|
+| **depart** | `[0.00, 0.15]` | a token appears at each contributing source handle; the source's "outflow" cue plays | `S(t)` |
+| **travel** | `[0.15, 0.80]` | tokens move along the **real edge path** (§PB4) at constant path-length speed | `S(t)` |
+| **arrive** | `[0.80, 0.95]` | tokens reach the target handle; the target's "inflow" cue plays | `S(t)` |
+| **settle** | `[0.95, 1.00]` | **one atomic commit → `S(t+1)`**; the value count-up / delta chip and state effects (tint, pulse, gate open/close) resolve against the just-committed state | `S(t) → S(t+1)` |
 
 The exact fractions are a single constants block (`PLAYBACK_BEATS`), tunable in
-one place, not scattered.
+one place.
 
-**PB2.2 — every event of step `N` shares this axis.** Two `FlowEvents` on
-different edges, a `trigger` `StateEvent`, and a `label` `StateEvent` in the
-same step all run against the *same* `τ`. They therefore *depart together*,
-*travel together*, and *settle together* — the step reads as one coordinated
-frame, not a cascade. Ordering **within** a beat (e.g. which of two arrivals
-draws on top) is deterministic: by ascending edge id, then by the flattened
-event key, matching the router's tie-break vocabulary.
+**PB2.2 — `committedStep === revealedStep`, always.** There is one clock: the
+store's `stepIndex`. It moves only at `settle`, so what the canvas shows and what
+the store holds are the same thing at every instant. There is no separate
+"revealed" snapshot and no observer-bypass layer — every existing reader of the
+store (Canvas, Inspector, Register panel, Timeline, autosave, Workspace Export,
+revision/project export, Monte-Carlo/Predict start point) just reads the store
+and is correct, because the store is not advanced until `settle`.
 
-**PB2.3 — delayed `trigger` delivery.** A `trigger` with `delay > 0` is
-delivered by the engine on a later step; its choreography plays on **that**
-step's axis (the delivery step), not the emit step. The emit step may show a
-brief "queued" cue at the source with no travel. (Open question PB-Q1: whether
-to also show a faint in-flight marker across the intervening steps, or keep it
-to emit-cue + delivery-choreography only. Lean: delivery only, for determinism.)
+**PB2.3 — exactly one `preparedTransition` at a time.** Play/Step create it;
+`settle` commits it and clears it; cancel discards it. It is **not** a queue —
+Play does not pre-compute step `t+2` while `t+1`'s transition is animating
+(§PB3.2). The only lookahead that ever exists is the single step currently being
+choreographed.
 
-**PB2.4 — store commit vs canvas reveal (the two clocks).** These are separate
-and must never be conflated:
+**PB2.4 — what every surface shows during a transition.** Because nothing is
+committed until `settle`, the answer is uniform and needs no per-surface table:
 
-| | when | authority |
+| surface | during depart / travel / arrive | after `settle` |
 |---|---|---|
-| **store commit** | the instant the engine returns step `N+1` (synchronously, before any frame) | `useSimStore` — `stepIndex`, `values`, `series`, `R(t)` inputs are all at `N+1` immediately; the timeline series already contains the point |
-| **canvas reveal** | the `settle` beat of `N+1`'s transition (τ ≥ 0.95) | the choreography — the *number rendered on a node*, the Register readout, the state tint, and the timeline **cursor** move to `N+1` here |
+| node value text, delta chip | `S(t)` | `S(t+1)` |
+| Register `R(t)` panel | `R(t)` | `R(t+1)` |
+| Inspector values | `S(t)` | `S(t+1)` |
+| timeline cursor **and** plotted line | both at step `t` (the line ends at `t`) | both at `t+1` |
+| autosave record / Workspace Export / Share / revision export | `S(t)` (step `t`, series up to `t`) | `S(t+1)` |
+| Monte-Carlo / Predict start point | `S(t)` | `S(t+1)` |
+| state cues (tint / pulse / blocked) | the `S(t)` state | the `S(t+1)` state |
+| tokens | at their `τ` positions | removed |
 
-So between "engine computed `N+1`" and "`settle` of `N+1`", the **store is one
-step ahead of what the canvas shows**. The scheduler tracks this as
-`revealedStep ≤ committedStep`. Everything that reads the store directly for a
-non-visual purpose (export, digest, Workspace save, `series` length, "ended"
-detection) sees `committedStep` and is correct immediately. Everything the
-*viewer* reads (node value text, Register panel, timeline cursor, state cues)
-follows `revealedStep` and catches up on `settle`. A hard reveal (scrub, Reset,
-Import, cancel — §PB7) sets `revealedStep = committedStep` at once with no
-choreography.
+A Workspace Export taken mid-`travel` saves step `t` with a series ending at `t`
+— **never** the not-yet-committed `S(t+1)`.
 
-**PB2.5 — the committed-step ledger.** The engine's per-step outputs
-(`fromState`, `events`, `toState`) for every step from `revealedStep+1` to
-`committedStep` are held in an ordered in-memory queue the scheduler drains one
-transition at a time. It is **append-only during a run and never reordered**;
-Play/Step append to it, the choreography shifts from its front, and cancel
-(§PB7) discards it wholesale. Because it is drained in order and Play only
-appends after the previous `settle`, **no committed step can be skipped over
-without its `settle` running** (its travel may be fast-forwarded — §PB3.3, §PB8
-— but `settle` always applies that step's `toState` and state effects before the
-next is drained).
+**PB2.5 — delayed `trigger` delivery.** A `trigger` with `delay > 0` is delivered
+by the engine on a later step; its choreography plays on **that** step's
+transition (the delivery step), because that is the step whose `events` list
+contains it. The emit step may show a brief "queued" cue at the source with no
+travel (see PB-Q1).
+
+**PB2.6 — event order within a beat.** Two `FlowEvents`, a `trigger`, and a
+`label` in the same prepared step all run against the *same* `τ` — depart
+together, travel together, `settle` together. Drawing order within a beat (which
+arrival is on top) is deterministic: ascending edge id, then the flattened event
+key, matching the router's tie-break vocabulary.
 
 ## PB3. Step vs Play — backpressure
 
-**PB3.1 — Step.** Pressing **Step** computes step `N+1` immediately (engine is
-synchronous) and plays its transition choreography **once**. The control
-returns to idle when `settle` completes. A second **Step** press *before*
-`settle` — see PB3.3.
+**PB3.1 — Step.** Pressing **Step** prepares step `t+1` (synchronous engine call,
+no commit) and plays its transition **once**. `settle` commits `S(t+1)`; control
+returns to idle. A second **Step** press before `settle` — PB3.3.
 
-**PB3.2 — Play = Step on a repeating timer, with backpressure.** Play appends
-step `N+1` to the ledger (§PB2.5) and choreographs it; only when that
-transition's `settle` beat has completed does it append and choreograph `N+2`.
-**Transitions never overlap** — exactly one is active at a time. Play paces the
-engine to the choreography, so `committedStep` never runs more than one step
-ahead of `revealedStep` under normal Play (it can get further ahead only via
-explicit Step-spam or a resumed background run — §PB8 — and even then every
-committed step's `settle` still fires in order, so **none is dropped**). Play's
-throughput is bounded by `beatDuration` by design (§PB6).
+**PB3.2 — Play.** Play prepares `t+1`, choreographs it, and **only after that
+transition's `settle` has committed `S(t+1)`** does it prepare `t+2`. Exactly one
+`preparedTransition` exists at a time; transitions never overlap; the engine is
+never run ahead of the choreography. Play's throughput is bounded by
+`beatDuration` by design (§PB6). "Ended" (`SimState.ended` on a committed step)
+stops Play after that step's `settle`; no empty transition is prepared.
 
-**PB3.3 — an input during an active transition.** Step-again / Play-toggle /
-speed-change while a transition is mid-flight:
+**PB3.3 — an input during an active transition.**
 
-- **Step again:** the in-flight transition is **fast-forwarded to `settle`
-  instantly** (tokens jump to arrival, value snaps to that step's `toState`),
-  then the next step's transition begins. No transition is ever silently
-  dropped; the user just chose to skip its travel.
-- **Play pressed (from Step/idle):** same fast-forward of any in-flight
-  single transition, then the Play loop takes over from the current step.
-- **Pause pressed:** PB5.
-
-**PB3.4 — "ended".** When the engine reports the run ended (`SimState.ended`),
-Play stops after that final transition's `settle`; no empty transitions play.
+- **Step again / Play pressed:** the in-flight transition is **advanced straight
+  to `settle`** (τ → 1 instantly): tokens jump to arrival, `settle` commits
+  `S(t+1)` **exactly once**, then the next step is prepared. No step is skipped —
+  the user chose to skip its *travel*, not its commit.
+- **Pause pressed:** §PB5 — the transition is kept, `τ` frozen, nothing
+  committed.
 
 ## PB4. Path fidelity — tokens follow the real edge `d`
 
-**PB4.1 — one path, every consumer.** A travelling token uses the **exact same
+**PB4.1 — one path, every consumer.** A travelling element uses the **exact same
 path string** the edge renders — `getBezierPath(...)` for a default edge,
 `currentRouteMap().get(id).d` for `route: "orthogonal"`. This is the invariant
 already enforced for the flow bead in Slice 1 (`e2e/edge-routing.spec.ts` "every
-path consumer reads the same d"); Playback extends it to *all* travelling
-elements (token, trail, count label, state pulse). No element may follow a
-straight chord while the edge is drawn curved or right-angled.
+path consumer reads the same d"); Playback extends it to *all* travelling /
+highlighted elements (token, trail, count label, state pulse). No element follows
+a straight chord while the edge is drawn curved or right-angled.
 
-**PB4.2 — direction.** A resource token travels **source-handle → target-
-handle**. A `label` `StateEvent` with a negative delta travels **target →
-source** (matching the current flash direction). An `activator` has no travel —
-it is a steady state, shown as a target tint that flips on `settle`.
+**PB4.2 — direction.** A resource token travels **source-handle → target-handle**.
+A `label` `StateEvent` with a negative delta travels **target → source** (the
+current flash direction). An `activator` has no travel — a target tint that flips
+on `settle`.
 
-**PB4.3 — constant speed along arc length.** The token covers equal path length
-per unit `τ` (not equal parameter `t`), so it does not visually accelerate
-through an orthogonal corner or a Bézier bulge. `<animateMotion>` with the
-path's own length, or a JS rAF sampler — implementation choice, same result.
+**PB4.3 — constant speed along arc length.** Equal path length per unit `τ` (not
+equal parameter `t`), so a token does not visually accelerate through an
+orthogonal corner or a Bézier bulge. `<animateMotion>` with the path's own
+length, or a JS rAF sampler — implementation choice, same result.
 
-**PB4.4 — zoom / LOD.** At **L2 / L1** the full token choreography plays. At
-**L0** (`docs/visual-language.md` §VL7, zoom `< 0.45`) the per-token travel is
-**elided**: the edge shows a brief directional "pulse" along its path plus the
-target's arrival cue and value update. Departure and arrival are still ordered
-on the `τ` axis; only the moving dot is dropped (it is a sub-pixel distraction
-at that zoom). Switching zoom mid-transition re-reads LOD on the next beat, not
-retroactively.
+**PB4.4 — zoom / LOD.** At **L2 / L1** the full token choreography plays. At **L0**
+(`docs/visual-language.md` §VL7, zoom `< 0.45`) the moving dot is **elided**: a
+brief directional path "pulse" + the target's arrival cue + the `settle` value
+update, still ordered on `τ`. Only the sub-pixel travelling dot is dropped;
+`settle` still commits normally. Switching zoom mid-transition re-reads LOD on the
+next beat, not retroactively.
 
-**PB4.5 — multiple events on one edge in one step, without losing causality.**
-If several `FlowEvents` traverse the same edge in one step, the **visual** is
-one token carrying the summed amount (count label = the sum), not N dots — but
-the summing is **presentational only**:
+**PB4.5 — several `FlowEvents` on one edge in one step — merge the token, keep the
+events.** The **token visual** may be one dot carrying the summed amount (label =
+the sum); the **`preparedTransition.events` list keeps every original
+`FlowEvent`**, unmerged:
 
-- the engine's individual `FlowEvents` are untouched (PB-INV-1); the merge is a
-  render-time group-by on `(edgeId, direction)`;
-- the merged token keeps a **breakdown** for inspection — hovering / selecting
-  the edge during or just after the transition shows the component amounts and
-  their origin (which gate output, which source), so "why did Pool X gain 5"
-  stays answerable as "3 from the gate's A-branch + 2 from the recycler";
-- a `trigger` / `activator` / `label` `StateEvent` on the same edge is **never**
-  merged into a resource token — it keeps its own beat (different meaning);
-- a hard cap `MAX_PLAYBACK_TOKENS` (proposed **12**) per edge per step, and a
-  global per-step cap (PB-Q4), bound the DOM; past the cap it is still one token
-  with the summed label + a "+N more" affordance to the breakdown. The cap
-  changes nothing about `toState`.
+- the merge is a **render-time group-by** on `(edgeId, direction)`; it changes no
+  engine data and no `to` value;
+- each original `FlowEvent`'s **origin** (which gate branch / source / converter),
+  **category** (resource kind), and **order** are preserved in the list, so
+  hover / select on the edge during or right after the transition shows the
+  breakdown ("+3 from the gate A-branch, +2 from the recycler");
+- **sign handling is fixed:** positives sum into a forward token, negatives into a
+  reverse token (`label`-style), a net-zero pair still shows both component cues
+  (it is information that they cancelled) — never a silent drop;
+- a `trigger` / `activator` / `label` `StateEvent` is **never** merged into a
+  resource token (different meaning, own beat);
+- a cap `MAX_PLAYBACK_TOKENS` (proposed **12**) per edge per step and a global
+  per-step cap (PB-Q4) bound the DOM; past the cap only the **`+N` affordance**
+  changes — the summed amount shown is still exact and `to` is untouched.
 
 ## PB5. Pause / Resume
 
-**PB5.1 — Pause freezes in place.** Pause stops the `τ` clock at its current
-value. Tokens hold their exact positions; no beat is forced to complete; the
-displayed value stays at whatever the frozen beat shows (still `fromState` if
-Pause landed before `settle`).
+**PB5.1 — Pause keeps the prepared transition.** Pause stops the `τ` clock at its
+current value. `preparedTransition` (its `from`, `events`, `to`, `rngAfter`, and
+`τ`) is **retained**. Tokens hold their exact positions. **Nothing is committed**
+— the store is still `S(t)` (PB2.4), and stays there until Resume/Step drives the
+transition to `settle`, or a cancel discards it.
 
-**PB5.2 — Resume continues.** Resume restarts the `τ` clock from the frozen
-value toward `τ = 1`; the same transition finishes, then Play resumes its loop.
-Resume never restarts the transition from `τ = 0` and never re-consumes engine
-work.
+**PB5.2 — Resume continues the same transition.** Resume restarts the `τ` clock
+from the frozen value toward `1` using the **already-computed** `preparedTransition`
+— same `events`, same `to`, same `rngAfter`. Nothing is recomputed and no RNG is
+consumed on Resume (it was computed once at prepare). No jump to `τ = 0`.
 
-**PB5.3 — which snapshot each surface shows while Paused.** Pause can land
-**before** a transition's `settle` (`revealedStep = N`, `committedStep = N+1`) or
-**at rest between** transitions (`revealedStep == committedStep`). The rule is
-uniform: **every viewer-facing surface shows `revealedStep`.**
+**PB5.3 — Pause mutates no store field.** Not `stepIndex`, not `values`, not
+`series`, not `simulationRev`. Every surface therefore keeps showing `S(t)`
+(PB2.4) — the timeline cursor and line are both at `t`, the Register panel reads
+`R(t)`, a Workspace Export saves `S(t)`.
 
-| surface | Paused mid-transition (revealed `N`, committed `N+1`) | Paused at rest (revealed == committed == `N`) |
-|---|---|---|
-| node value text / delta chip | `N` (`fromState` of the frozen transition) | `N` |
-| Register `R(t)` panel | `R` recomputed from the **`revealedStep` snapshot** (= `N`) | `R` at `N` |
-| timeline cursor | on step `N` | on step `N` |
-| timeline series (the plotted line) | full committed series **including `N+1`** — the line is drawn ahead of the cursor, the cursor just hasn't advanced | same |
-| state cues (tint / pulse / blocked) | the `revealedStep` state | the `revealedStep` state |
-| tokens | frozen at their exact `τ` positions | none |
-
-So the timeline **line** can extend one step past the **cursor** while Paused
-mid-transition — that is intentional and readable ("the engine has computed the
-next point; playback hasn't walked to it yet"). `Resume` walks the cursor +
-values to `N+1` via the rest of that transition; `Step` fast-forwards it; a
-scrub or Reset hard-syncs `revealedStep`.
-
-**PB5.4 — Pause is not Reset.** Pause changes no store state at all — not
-`stepIndex`, not `series`, not `simulationRev`. It only stops the `τ` clock. All
-of `SimState` stays exactly as the engine left it.
-
-**PB5.5 — Pause during the fast-forward of PB3.3 / PB8.** If Pause arrives while
-a transition is being fast-forwarded (Step-spam, catch-up), the fast-forward
-completes to that step's `settle` first (it is already atomic and near-instant),
-then the clock stops with `revealedStep == committedStep`. Pause never freezes a
-half-applied `settle`.
+**PB5.4 — Pause during a fast-forward.** If Pause lands while a transition is
+being advanced to `settle` (PB3.3, PB8), that advance is atomic and near-instant:
+`settle` commits `S(t+1)` first, *then* the clock stops with no
+`preparedTransition` pending. Pause never freezes a half-applied `settle`.
 
 ## PB6. Speed
 
-**PB6.1 — speed scales wall-clock only.** The speed control maps `τ`'s `[0,1]`
-to a wall-clock duration `beatDuration`. Faster = shorter `beatDuration` = the
-same beats, compressed. It changes **nothing** about: the engine result, RNG
-consumption, the number of steps, the event lists, the order of beats, or which
-`toState` is shown. Two runs at different speeds from the same seed produce
-byte-identical `SimState` at every step and identical timeline series.
+**PB6.1 — speed scales wall-clock only.** The speed control maps `τ`'s `[0,1]` to
+a wall-clock duration `beatDuration`. Faster = shorter `beatDuration` = the same
+beats, compressed. It changes **nothing** about the engine result, RNG result,
+step count, event lists, beat order, or which `to` is committed. Two runs at
+different speeds from the same seed commit byte-identical `SimState` at every step
+and identical series.
 
-**PB6.2 — speed change mid-transition: remaining time recompute.** The scheduler
-holds progress as `τ ∈ [0,1]`, **not** as an absolute end-timestamp. On a speed
-change at frame time `t₀` with current `τ₀`:
+**PB6.2 — speed change mid-transition: recompute the remaining phases only.**
+Progress is held as `τ ∈ [0,1]`, never as an absolute end-timestamp. On a change
+at frame time `t₀` with current `τ₀`:
 
 ```
-beatDuration      ← speedToDuration(newSpeed)          // the only input that changed
-remainingMs       ← (1 − τ₀) · beatDuration            // recomputed from τ₀, not from the old schedule
-// each subsequent frame:  τ ← τ₀ + (now − t₀) / beatDuration   (clamped to 1)
+beatDuration ← speedToDuration(newSpeed)          // clamped: newSpeed ∈ [SPEED_MIN, SPEED_MAX], finite; 0 / NaN / ∞ rejected, keep current
+remaining    ← (1 − τ₀) · beatDuration
+// each later frame:  τ ← max(τ_prev, τ₀ + (now − t₀) / beatDuration)   (clamped to 1)
 ```
 
-So the *elapsed* fraction is preserved exactly and only the *rate* of the
-remaining fraction changes — no visual jump, no restart, and the beat boundaries
-(`depart` / `travel` / `arrive` / `settle` at their fixed `τ` fractions) stay
-put. If `newSpeed` is faster and `τ₀` is already past a beat boundary, that beat
-is not replayed. A `<animateMotion>`-based implementation restarts the element
-with `begin` offset `−(τ₀ · beatDuration)` and the new `dur`; a JS rAF sampler
-just swaps `beatDuration` and keeps `τ₀`, `t₀`. Same result either way.
+- `τ` is **monotonic non-decreasing** — the `max(τ_prev, …)` guard means repeated
+  or conflicting speed changes can never rewind the token;
+- the fixed beat-boundary `τ` fractions do not move; a beat already passed is not
+  replayed;
+- a callback that crosses a beat boundary fires that boundary's hook (`arrive`,
+  `settle`) **at most once** — each hook is guarded by a `firedBeats` set on the
+  `preparedTransition`, so an overlong frame or a mid-flight speed change cannot
+  produce a double `arrive` or a double `settle`;
+- `settle` runs **exactly once** per `preparedTransition`, whichever way `τ`
+  reached `1` (normal, fast-forward, or a giant frame gap).
+
+`<animateMotion>` impl: restart the element with `begin = −(τ₀ · beatDuration)`
+and the new `dur`. JS rAF impl: swap `beatDuration`, keep `τ₀` / `t₀`. Same
+result.
 
 **PB6.3 — a floor.** `beatDuration` has a minimum (proposed ~120 ms total) so
-"fastest" is still a visible frame, not an instant snap. A user who wants
-instant should use **Step** repeatedly (which fast-forwards) or the timeline
-scrubber.
+"fastest" is still a visible frame. Instant advancement is **Step** (which
+fast-forwards) or the timeline scrubber, not a speed value.
 
-## PB7. Cancellation — Reset / Import / Undo / Redo / any edit
+## PB7. Cancellation
 
-**PB7.1 — these abort the choreography immediately.** Reset, Workspace/Graph
-Import, Undo, Redo, and any GraphDoc edit (add/remove/move/connect/retarget,
-Inspector change, route toggle, Apply) **cancel any in-flight transition at
-once**: every token is removed, the `τ` clock is torn down, and the canvas shows
-whatever the new authoritative state is (Reset → step 0; Import → the imported
-`SimState`; edit → sim reset to step 0 per the existing `simulationRev` rule).
+**PB7.1 — Pause vs discard.**
 
-**PB7.2 — stale-callback guard: an old callback cannot touch the next
-transition.** There is **one** monotonic `transitionId`, incremented every time a
-transition starts **and** every time the scheduler is torn down (cancel, Reset,
-Import, edit). The scheduler exposes `currentTransitionId` (an atomic read).
-Every scheduled callback — `requestAnimationFrame` tick, `animationend` /
-`animationcancel`, `setTimeout` beat advance, count-up tween frame — captures the
-`transitionId` it was armed under and, as its **first line**, does
-`if (id !== scheduler.currentTransitionId) return;`. Consequences:
+| trigger | `preparedTransition` | store | RNG / step / series / Workspace |
+|---|---|---|---|
+| **Pause** | kept, `τ` frozen | unchanged (`S(t)`) | untouched |
+| **Reset** | **discarded** | → step 0 | reset to step-0 state; no trace of the discarded step |
+| **Workspace / Graph Import** | **discarded** | → the imported `SimState` | as imported |
+| **Undo / Redo** | **discarded** | → the history frame | as that frame |
+| **any GraphDoc edit** (add/remove/move/connect/retarget, Inspector change, route toggle, Apply) | **discarded** | → sim reset to step 0 (the existing `simulationRev` rule) | reset |
 
-- a callback from a **cancelled** transition is inert (its id is now behind);
-- a callback from transition `K` can **never** be mistaken for transition `K+1`
-  — `K+1` has a strictly greater id, and `K`'s callbacks were all armed under
-  `K`. It cannot advance `K+1`'s `τ`, move `K+1`'s tokens, or fire `K+1`'s
-  `settle`;
-- `animationId`s / timers are also actively cleared on teardown, so this is a
-  belt-and-braces second line, not the only defence;
-- the ledger (§PB2.5) is discarded on teardown, so even a callback that somehow
-  passed the id check would find nothing to drain.
+**PB7.2 — a discarded transition leaves no trace.** Because `preparedTransition`
+holds `to` and `rngAfter` and **neither is committed until `settle`**, discarding
+it means: `stepIndex` never advanced, no `series` point was appended, the RNG
+cursor never moved, and no Workspace/Share/revision bytes changed. The engine is
+exactly where it was before the transition was prepared. (This is the main reason
+the round-1 two-clock model was wrong: there, `S(t+1)` was already committed, so a
+discard had to *roll back* the store; here there is nothing to roll back.)
 
-This generalises the state-effect layer's existing `stepIndex`-keyed React keys.
+**PB7.3 — stale-callback guard.** One monotonic `transitionId`, bumped when a
+transition is prepared **and** when the scheduler is torn down (any row above
+except Pause). Every scheduled callback (`requestAnimationFrame`, `animationend`
+/ `animationcancel`, `setTimeout` beat hook, count-up frame) captures the id it
+was armed under and, as its first line, `if (id !== scheduler.currentTransitionId)
+return;`. So a callback from a discarded transition — or from transition `K`
+after `K+1` has been prepared — is inert: it cannot move a token, advance `τ`, or
+fire `settle`. Timers/animation handles are also cleared on teardown (belt and
+braces), and there is no queue for a passed-through callback to act on.
 
-**PB7.3 — no partial commit.** Because the value update is the `settle` beat and
-`settle` is the last beat, a cancelled transition never leaves a half-applied
-display: either `settle` ran (value = that step's `toState`) or it did not
-(value = previous `toState`), and the subsequent authoritative render corrects
-it regardless.
+**PB7.4 — no partial commit.** The value update is the `settle` beat and `settle`
+is atomic and last, so a discarded transition never leaves a half-applied
+display: either `settle` ran (store = `S(t+1)`) or it did not (store = `S(t)`),
+and the post-discard authoritative render is correct either way.
 
-## PB8. Background tab / frame starvation — catch-up policy
+## PB8. Background tab / frame starvation
 
 **PB8.1 — the clock is wall-clock, not frame-count.** Each tick advances `τ` by
-`elapsedMs / beatDuration`, so a long gap between frames advances `τ`
-proportionally — the transition does not "pause" just because `requestAnimation
-Frame` stopped firing.
+`elapsedMs / beatDuration`; a long inter-frame gap advances `τ` proportionally —
+the transition does not stall just because `requestAnimationFrame` stopped
+firing.
 
-**PB8.2 — a large gap collapses travel but never skips a `settle`.** If a single
-frame gap exceeds one full transition (`elapsedMs > beatDuration`), the
-choreography does **not** replay every intermediate step's travel. It drains the
-ledger (§PB2.5) forward: for each committed step from `revealedStep+1` up to the
-step the Play loop had reached, it **applies that step's `settle`** (value
-update + state effects — cheap, no motion) in order, and only *animates the
-travel of the final one*. So `revealedStep` catches up to `committedStep`, every
-skipped step's `toState` and state effects **were applied** (in sequence, not
-jumped over — this is what "no step dropped" means), and only the *intermediate
-travel visuals* are elided. This bounds the animation backlog at one transition.
+**PB8.2 — one giant frame gap ⇒ fast-forward the current transition only.** If a
+frame gap pushes `τ ≥ 1` for the active transition, its `settle` fires **once**
+(PB6.2) and commits `S(t+1)`. The scheduler does **not** then prepare-and-settle
+`t+2, t+3, …` inside the same callback. Instead, after that one `settle`, the
+normal Play loop prepares `t+2` on the **next** tick. Consequences:
 
-**PB8.3 — `document.hidden`.** While the tab is hidden, the Play loop **stops
-appending to the ledger** (it does not run the engine ahead). On
-`visibilitychange` back to visible it resumes from the current `SimState`, with
-`revealedStep == committedStep` (any transition that was mid-flight when the tab
-hid is fast-forwarded to `settle` on the way out, per PB8.2). Rationale: a hidden
-tab has no viewer; `rAF` is throttled to ~0 and running the engine ahead only to
-animate it later serves nothing. Steps committed by explicit **Step** presses
-before hiding stay committed; Play just resumes choreographing forward from
-there — none are lost.
+- **no burst of pre-committed steps** — the store advances one step per
+  scheduler tick even when catching up;
+- a `MAX_SETTLES_PER_TICK` cap (proposed **1** for Play; a small N only for the
+  explicit "skip to end" control, if that is ever added) guarantees a single
+  callback cannot monopolise the main thread;
+- **every committed step is written to the timeline series exactly once**, in
+  order — catch-up changes *when* a step commits, never *whether* or *how many
+  times*;
+- **"skip-to-latest" means skipping visual phases (depart/travel/arrive), not
+  state steps.** There is no path by which `stepIndex` jumps by more than the
+  number of `settle` commits that actually ran.
 
-**PB8.4 — determinism unaffected.** None of PB8 touches the engine. A run
-backgrounded for a minute and one watched the whole time produce identical
-`SimState`, identical series, identical final `toState`.
+**PB8.3 — `document.hidden`.** While hidden, the Play loop **does not prepare new
+transitions** (the engine is not run ahead). Any transition that was mid-flight
+when the tab hid is fast-forwarded to its single `settle` on the way out (PB8.2),
+so on `visibilitychange` back the store is a clean committed step with no
+`preparedTransition`, and Play resumes preparing forward from there. Steps
+committed by explicit **Step** presses before hiding stay committed.
+
+**PB8.4 — determinism unaffected.** None of PB8 touches the engine or the RNG. A
+run backgrounded for a minute and one watched throughout commit identical
+`SimState` at every step, identical series, identical final state.
 
 ## PB9. `prefers-reduced-motion`
 
-**PB9.1 — no travel, but the beats still read.** Under reduced motion there is
-**no moving token**. The transition still communicates the same three things, in
-the same order, either as a short static sequence or all at once:
+**PB9.1 — same prepared result, no travel, no artificial wait.** Under reduced
+motion the `preparedTransition` is computed identically (same `events`, same `to`,
+same RNG result). The choreography then:
 
-- **depart:** the source handle briefly emphasised;
-- **path:** the edge path briefly emphasised end-to-end (a one-shot stroke
-  highlight, no motion — the existing `.flow-edge-pulse` treatment);
-- **arrive + settle:** the target handle emphasised and the value updates with a
-  delta chip (no count-up tween, or a very short one).
+- shows **no travelling element** (no token, no `<animateMotion>`);
+- shows the **depart** (source handle emphasis), **path** (a one-shot end-to-end
+  stroke highlight — the existing `.flow-edge-pulse`, no motion), and **arrive**
+  (target handle emphasis) cues **briefly** or all at once — the ordering is the
+  information, so it is not removed, but it is **not padded to a long duration**;
+- runs `settle` (value delta chip, state effects) — a very short count-up or an
+  immediate snap.
 
-**PB9.2 — timing.** Reduced motion may collapse `beatDuration` toward its floor
-so the sequence is quick; it must not collapse to zero (the ordering is the
-information). Step still fast-forwards; Play still paces one transition at a
-time.
+**PB9.2 — timing.** `beatDuration` may collapse toward its floor so the sequence
+is quick; it must not stretch playback out. Step still fast-forwards; Play still
+paces one transition at a time.
 
-**PB9.3 — this extends the Slice 1 contract.** Slice 1 already guarantees "zero
+**PB9.3 — Pause still holds.** Reduced motion does **not** auto-`settle` a Paused
+transition. If the user Paused mid-transition, it stays at `S(t)` with `τ` frozen
+until Resume/Step/cancel — same as full-motion (PB5).
+
+**PB9.4 — parity.** The committed `SimState` at every step, the timeline series,
+and the RNG result are **identical** to a full-motion run of the same seed.
+Reduced motion changes only which visual elements render and for how long.
+
+**PB9.5 — extends the Slice 1 contract.** Slice 1 already guarantees "zero
 `<animateMotion>` under the edge, a static `.flow-edge-pulse` on the same path"
-under reduced motion (`e2e/edge-routing.spec.ts`). Playback keeps that and adds
-the ordered depart/arrive emphasis.
+under reduced motion; Playback keeps that and adds the ordered depart/arrive
+emphasis.
 
 ## PB10. What is explicitly OUT of per-token choreography
 
-- **Monte Carlo.** A Monte-Carlo run executes hundreds of seeded runs headless;
-  there is no single canvas timeline to choreograph. MC keeps its current
-  progress strip + distribution view. No tokens.
-- **Predict / any look-ahead estimate.** Any "what happens next" preview
-  computes state without presenting a canvas transition — it shows numbers /
-  bands, not travelling tokens.
-- **The timeline scrubber.** Dragging the timeline to step `K` **jumps** the
-  canvas to `series[K]` with no travel choreography (it is navigation, not
-  playback). Pressing Play from a scrubbed position resumes forward
-  choreography from `K`.
-- **Autosave / load / share-link open.** Opening a graph shows its state
-  directly; the first Play press is the first choreography.
+- **Monte Carlo.** Hundreds of seeded headless runs — no single canvas timeline
+  to choreograph. Keeps its progress strip + distribution view. No tokens. Its
+  start point is the committed `SimState` (PB2.4).
+- **Predict / any look-ahead estimate.** Computes state without a canvas
+  transition — numbers / bands, not tokens.
+- **The timeline scrubber.** Dragging to step `K` **jumps** the canvas + store to
+  `series[K]` with no travel choreography (navigation, not playback). Play from
+  there resumes forward choreography from `K`.
+- **Autosave / load / share-link open.** Show state directly; the first Play
+  press is the first choreography.
 
 ## PB11. Non-negotiable invariants (PB-INV)
 
 | id | invariant |
 |---|---|
-| **PB-INV-1** | The engine computes `fromState → events → toState` **before** any visual is scheduled. The choreography is a pure function of that triple; it calls no engine code and consumes no RNG. |
-| **PB-INV-2** | When a transition ends (completed, fast-forwarded, or superseded), every value on the canvas equals the engine's `toState` for that step, bit-for-bit. |
-| **PB-INV-3** | Speed, Pause/Resume, tab visibility, and frame starvation change only **wall-clock pacing**. From one seed: identical `SimState` at every step, identical timeline series, identical step count, regardless of how it was watched. |
-| **PB-INV-4** | Every travelling / highlighted element for an edge uses that edge's **exact rendered `d`** (Bézier or orthogonal). No chords. |
-| **PB-INV-5** | All events of one step share one `τ` axis: depart together → travel together → **value updates on `settle`**, which is the last beat. Never value-first-then-travel. |
-| **PB-INV-6** | Play never overlaps two transitions. Exactly one is active; the next is computed only after the current `settle`. |
-| **PB-INV-7** | Reset / Import / Undo / Redo / any edit cancels the in-flight transition within one frame; a stale callback (checked against the single monotonic `transitionId`) is inert and can neither move a token, advance `τ`, nor fire `settle` — for its own transition **or any later one**. |
-| **PB-INV-11** | Two clocks: the store's `committedStep` (set synchronously when the engine returns a step) and the canvas's `revealedStep` (advanced on `settle`), with `revealedStep ≤ committedStep`. Non-visual store readers (export, digest, Workspace, `series`, "ended") see `committedStep`; every viewer surface (node value, Register panel, timeline cursor, state cues) follows `revealedStep`. |
-| **PB-INV-12** | Every committed step's `settle` (its `toState` + state effects) is applied **in order** before the next step is drained — Play backpressure and background catch-up elide only *travel visuals*, never a `settle`. No committed step is skipped. |
-| **PB-INV-13** | A summed edge token is a **presentational** group-by; the engine's individual `FlowEvents` are unchanged and their per-origin breakdown stays available for inspection. A `StateEvent` is never merged into a resource token. |
-| **PB-INV-8** | `prefers-reduced-motion` ⇒ zero moving elements; the depart / path / arrive / settle beats still play (static or quick) in order. |
-| **PB-INV-9** | No GraphDoc, `loop-revision/*` digest, `SimState`, timeline series, Share link, or Workspace (`loop-workspace/1`) byte changes. No new `loop-*/N`. Monte Carlo / Predict are untouched and tokenless. |
-| **PB-INV-10** | The whole layer is render-side and disposable: destroying the scheduler (unmount, Reset) leaves no residue in any store that persists or serialises. |
+| **PB-INV-1** | The engine computes `from → events → to` for a step **before** any visual is scheduled, and the choreography is a pure function of that result — it calls no engine code and never re-orders/coalesces events. If the engine has an advancing RNG cursor, prepare does not move it. |
+| **PB-INV-2** | The store changes **only** at `settle`, which applies `to` / `stepIndex+1` / the appended `series` point / the RNG cursor in **one atomic update**. Before `settle` the store is `S(t)`; after, `S(t+1)`. `committedStep === revealedStep` at every instant. |
+| **PB-INV-3** | Every reader of sim state — Canvas, Inspector, Register panel, Timeline (cursor **and** line), autosave, Workspace / Share / revision export, Monte-Carlo / Predict start — reads the committed store and therefore sees `S(t)` throughout a transition and `S(t+1)` only after `settle`. No separate "revealed" snapshot exists. |
+| **PB-INV-4** | Exactly one `preparedTransition` exists at a time. Play prepares `t+2` only after `t+1`'s `settle`. It is never a queue; the engine is never run ahead of the choreography. |
+| **PB-INV-5** | A discarded `preparedTransition` (Reset / Import / Undo / Redo / edit) leaves **no trace**: `stepIndex` did not advance, no `series` point was appended, the RNG cursor did not move, no Workspace / Share / revision bytes changed. |
+| **PB-INV-6** | `settle` runs **exactly once** per `preparedTransition`, and each beat hook (`arrive`, `settle`) fires at most once, regardless of frame gaps, fast-forward, or speed changes. `τ` is monotonic non-decreasing. |
+| **PB-INV-7** | A stale callback (id ≠ `currentTransitionId`) is inert — it cannot move a token, advance `τ`, or fire `settle`, for its own transition or any later one. |
+| **PB-INV-8** | Speed, Pause/Resume, tab visibility, and frame starvation change only **wall-clock pacing**. From one seed: identical committed `SimState` at every step, identical series, identical step count. Speed cannot be 0 / NaN / ∞. |
+| **PB-INV-9** | Every travelling / highlighted element for an edge uses that edge's **exact rendered `d`** (Bézier or orthogonal). No chords. |
+| **PB-INV-10** | All events of one step share one `τ` axis; the value update is the last beat (`settle`). Never value-first-then-travel. |
+| **PB-INV-11** | Background catch-up commits **one step per scheduler tick** (`MAX_SETTLES_PER_TICK`), writes every committed step to the series **exactly once**, and never advances `stepIndex` by more than the number of `settle`s that ran. "Skip-to-latest" elides visual phases only. |
+| **PB-INV-12** | A summed edge token is a presentational group-by; `preparedTransition.events` keeps every original `FlowEvent` with its origin / category / order. Sign handling (+ / 0 / −) is explicit; a `StateEvent` is never merged into a resource token. |
+| **PB-INV-13** | `prefers-reduced-motion` ⇒ zero moving elements and no artificially long wait; the depart / path / arrive / settle beats still play (brief or immediate) in order; the committed state, series, and RNG result are identical to a full-motion run; a Paused transition is **not** auto-settled. |
+| **PB-INV-14** | No GraphDoc, `loop-revision/*` digest, `SimState` shape, timeline series shape, Share link, or Workspace (`loop-workspace/1`) format change. No new `loop-*/N`. Monte Carlo / Predict untouched and tokenless. |
+| **PB-INV-15** | The whole layer is render-side and disposable: destroying the scheduler leaves no residue in any store that persists or serialises. |
 
 ## PB12. Acceptance / E2E (every slice)
 
-1. **Determinism vs speed** — run seed `S` to step `K` at slow speed, capture
-   `series`; repeat at fastest speed and via Step-spam; all three `series` and
-   the final `SimState` byte-identical.
-2. **Value-on-settle** — during `travel`, the target's displayed value still
-   reads `fromState`; only after `settle` does it read `toState`. (DOM text
-   assertion at sampled `τ`.)
-3. **One path** — for a Bézier edge and an orthogonal edge, the token's
-   `animateMotion` path (or sampled JS positions) lies on the edge's rendered
-   `d`.
-4. **Backpressure** — with Play running, at most one transition's token set is
-   in the DOM at any time; step `N+2`'s tokens never appear before `N+1`'s
-   `settle`.
-5. **Pause/Resume** — Pause mid-`travel` freezes token positions (bounding
-   boxes stable across 500 ms); Resume completes the *same* transition (no jump
-   to `τ=0`), value lands on `toState`.
-5a. **Pause snapshot** — Pause mid-transition (revealed `N`, committed `N+1`):
-   the node value text reads `N`, the Register panel reads `R@N`, the timeline
-   **cursor** is on `N` while the plotted **line** already includes `N+1`; no
-   store field (`stepIndex` / `series` / `simulationRev`) changed on Pause.
-5b. **Speed recompute** — change speed at `τ₀ ≈ 0.5` mid-`travel`: the token
-   does not jump; its position is continuous across the change; the remaining
-   travel takes `(1−τ₀)·newBeatDuration`; the `settle` still lands on `toState`.
-6. **Cancellation** — trigger Reset / Import / Undo / a node move mid-`travel`;
-   within one frame: zero tokens, canvas shows the new authoritative state, and
-   no delayed value update fires afterward (assert value stable for 1 s). Then
-   immediately start a new transition and assert the pre-cancel transition's
-   pending `rAF` / `animationend` callbacks (fired late) touch nothing —
-   `transitionId` mismatch, no-op.
-7. **Background catch-up** — drive Play, emulate `document.hidden` for a spell,
-   restore; the canvas resumes at the correct `SimState`, no token backlog, no
-   console error; `series` unchanged.
-8. **Reduced motion** — `prefers-reduced-motion: reduce`: zero `<animateMotion>`
-   under any edge during a transition; the depart/path/arrive emphasis elements
-   appear and the value updates with a delta chip.
-9. **L0** — at zoom `< 0.45`, no travelling dot; the directional path pulse +
-   arrival cue + value update still play in order.
-10. **Summed tokens** — two flow events on one edge in one step ⇒ one token,
-    label = the sum; `> MAX_PLAYBACK_TOKENS` events ⇒ still one token, value
-    correct.
-11. **MC untouched** — a Monte-Carlo run shows no tokens and its result is
-    identical to today's oracle.
-12. **VL-INV carry-over** — GraphDoc bytes, `loop-revision/3` digest, undo
-    stack, edge `d`, viewport unchanged by playing / pausing / resetting a run.
+1. **Determinism vs speed** — seed `S` to step `K` at slow speed, at fastest
+   speed, and via Step-spam; the committed `series` and final `SimState` are
+   byte-identical across all three.
+2. **Commit-on-settle** — during `depart`/`travel`/`arrive`, the store's
+   `stepIndex`, `values`, and `series.length` are unchanged (`= t`); a Workspace
+   Export taken at sampled `τ < 0.95` encodes step `t` with a series ending at
+   `t`; only after `settle` do they read `t+1`.
+3. **One clock** — at sampled `τ` mid-`travel`: the node value text, the Register
+   panel, the timeline cursor, and the timeline line all read step `t`
+   simultaneously.
+4. **One path** — for a Bézier edge and an orthogonal edge, the token's
+   `animateMotion` path (or sampled JS positions) lies on the edge's rendered `d`.
+5. **Backpressure** — with Play running, exactly one `preparedTransition` exists;
+   step `t+2` is not prepared before `t+1`'s `settle`; `t+2` tokens never appear
+   before `t+1` `settle`.
+6. **Pause/Resume** — Pause mid-`travel`: token bounding boxes stable across
+   500 ms, store fields unchanged, `preparedTransition` still present; Resume
+   completes the **same** transition (no jump to `τ=0`, no RNG re-consume) and
+   `settle` commits `S(t+1)` once.
+7. **Discard leaves no trace** — Reset / Import / Undo / a node move mid-`travel`:
+   within one frame zero tokens and the new authoritative state; the discarded
+   step is absent from `series`; the RNG cursor is unchanged from before prepare;
+   then start a new transition and confirm the pre-discard transition's late
+   `rAF` / `animationend` callbacks are no-ops (`transitionId` mismatch).
+8. **`settle` exactly once** — force an overlong frame (fake timers) that pushes
+   `τ` from `0.3` to `2.0` in one tick, and change speed mid-flight: `settle`
+   fires once, the series gains exactly one point, `stepIndex` advances by one.
+9. **Background catch-up** — drive Play, emulate `document.hidden` for a spell,
+   restore: the store advances **one step per tick** on catch-up, every step
+   appears in `series` exactly once and in order, no token backlog, no console
+   error, final state matches a foreground run.
+10. **Speed guards** — setting speed to 0 / NaN / a negative value is rejected
+    (speed stays at its last valid value); rapid alternating speed changes never
+    move a token backwards.
+11. **Reduced motion** — `prefers-reduced-motion: reduce`: zero `<animateMotion>`
+    during a transition; the depart/path/arrive cues appear briefly; total
+    transition wall-time ≤ the full-motion floor; committed `series` and RNG
+    result identical to a full-motion run of the same seed; a Paused transition
+    stays Paused (no auto-settle).
+12. **L0** — zoom `< 0.45`: no travelling dot; the path pulse + arrival cue +
+    `settle` value update still play in order and `settle` still commits.
+13. **Summed tokens** — two `FlowEvents` on one edge in one step ⇒ one token,
+    label = the exact sum, and the edge's hover/select breakdown lists both with
+    their origins; a net-zero +/− pair still shows both component cues;
+    `> MAX_PLAYBACK_TOKENS` ⇒ still one token, exact summed label, `+N`
+    affordance; `to` unchanged in every case.
+14. **MC / Predict untouched** — a Monte-Carlo run shows no tokens and its result
+    equals today's oracle; Predict shows numbers, no tokens.
+15. **VL / revision carry-over** — GraphDoc bytes, `loop-revision/3` digest, undo
+    stack, edge `d`, viewport unchanged by playing / pausing / discarding a run.
 
 ## PB13. Proposed slices (for discussion — not settled)
 
-- **Slice A — the transition scheduler + resource tokens.** The `τ`-axis
-  scheduler, backpressure, Pause/Resume/speed, cancellation guard, reduced
-  motion, L0 elision. Resource `FlowEvents` only (departure → travel on the real
-  `d` → arrival → count-up to `toState`). No state-event choreography yet
-  (state effects keep their current one-step cue but move onto the `settle`
-  beat).
+- **Slice A — the transition scheduler + resource tokens.** `preparedTransition`
+  + the single-commit `settle`, the `τ` scheduler, backpressure, Pause/Resume,
+  speed (incl. the guards + `firedBeats`), the discard/`transitionId` guard,
+  background catch-up (`MAX_SETTLES_PER_TICK`), reduced motion, L0 elision.
+  Resource `FlowEvents` only (depart → travel on the real `d` → arrive → count-up
+  on `settle`). State effects keep their current one-step cue but move onto the
+  `settle` beat.
 - **Slice B — state-event choreography.** `trigger` pulse as a travelling beat,
   `activator` tint flip on `settle`, `label` delta token with direction, the
-  "blocked" / clamp annotations aligned to the `arrive` beat. Delayed-trigger
-  emit cue vs delivery choreography (resolve PB-Q1).
-- **Slice C — polish.** Summed-token labels, per-edge multi-event lanes within
-  the cap, source outflow / target inflow micro-cues, count-up easing, the
-  reduced-motion static sequence timing.
+  "blocked" / clamp annotations on the `arrive` beat. Delayed-`trigger` emit cue
+  vs delivery choreography (resolve PB-Q1).
+- **Slice C — polish.** Summed-token breakdown UI, per-edge multi-event lanes
+  within the cap, source-outflow / target-inflow micro-cues, count-up easing,
+  reduced-motion sequence timing.
 
 ## PB14. Open questions
 
-- **PB-Q1** — delayed `trigger`: delivery-step choreography only, or also a
-  faint in-flight marker across the wait? (Lean: delivery only.)
-- **PB-Q2** — does `settle`'s value count-up animate (tween) or snap? A tween is
-  nicer but is itself motion; under reduced motion it snaps. (Lean: short tween
-  normally, snap under reduced motion, both land on `toState`.)
-- **PB-Q3** — Step-spam fast-forward: instant snap of the in-flight transition,
-  or a very fast "catch-up" play of it? (Lean: instant snap — matches "Step is
-  the escape hatch".)
-- **PB-Q4** — `MAX_PLAYBACK_TOKENS` value (12?) and the per-step global cap
-  across all edges (to bound total DOM on a wide graph).
-- **PB-Q5** — should the timeline scrubber optionally *play* a range (scrub-with-
-  choreography) or always jump? (Lean: always jump; a "play from here" is just
-  Play.)
+- **PB-Q1** — delayed `trigger`: delivery-step choreography only, or also a faint
+  in-flight marker across the wait? (Lean: delivery only, for determinism.)
+- **PB-Q2** — does `settle`'s value count-up tween or snap? (Lean: short tween
+  full-motion, snap under reduced motion; both land on `to`.)
+- **PB-Q3** — Step-spam / Play-during-transition: instant `settle` of the
+  in-flight transition (current text), or a very fast catch-up play of it?
+  (Lean: instant `settle` — Step is the escape hatch.)
+- **PB-Q4** — `MAX_PLAYBACK_TOKENS` (12?) and the global per-step token cap for a
+  wide graph.
+- **PB-Q5** — timeline scrubber: always jump (current text), or an optional
+  "scrub with choreography"? (Lean: always jump; "play from here" is just Play.)
+- **PB-Q6** — should `settle`'s atomic commit reuse the store's existing
+  `advance` action verbatim (preferred — one code path), or a dedicated
+  `commitPrepared` that asserts `preparedTransition.fromStep === stepIndex`?
 
 ## PB15. Scope boundary
 
-**In:** a render-side scheduler; resource + state event choreography along real
-edge paths; Pause/Resume/speed/cancel semantics; reduced-motion and L0
-behaviour; the acceptance set.
+**In:** a render-side scheduler holding one `preparedTransition`; the single
+atomic `settle` commit; resource + state event choreography along real edge
+paths; Pause/Resume/speed/discard semantics; background catch-up; reduced-motion
+and L0 behaviour; the acceptance set.
 
-**Out (this doc):** any engine change; any new persisted or serialised field;
-any `loop-*/N`; Monte-Carlo / Predict token animation; a "record / export the
+**Out (this doc):** any engine change; any new persisted or serialised field; any
+`loop-*/N`; Monte-Carlo / Predict token animation; a "record / export the
 animation" feature; camera moves / auto-pan-to-action (possible later, separate).
