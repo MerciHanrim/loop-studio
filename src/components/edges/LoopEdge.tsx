@@ -6,7 +6,9 @@ import {
   type EdgeProps,
   type EdgeTypes,
 } from '@xyflow/react'
+import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
+import { currentRouteMap } from '../../store/routeMap'
 import type { LoopEdgeData } from '../../model/types'
 import type { StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
@@ -36,7 +38,7 @@ function LoopEdge({
   data,
   selected,
 }: EdgeProps) {
-  const [path, labelX, labelY] = getBezierPath({
+  const [bezierPath, bezierLabelX, bezierLabelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -44,6 +46,17 @@ function LoopEdge({
     targetY,
     targetPosition,
   })
+
+  // loop-revision/3 §R3-2 / docs/edge-routing.md — an `orthogonal` edge takes
+  // its `d` from the atomic route map (§ER3.9); everything else (marker, bead,
+  // pulse, rings, LOD) just consumes the `path` string.
+  const routeMode = (data as { route?: unknown } | undefined)?.route
+  const gNodes = useGraphStore((s) => s.nodes)
+  const gEdges = useGraphStore((s) => s.edges)
+  const route = routeMode === 'orthogonal' ? currentRouteMap(gNodes, gEdges).get(id) : undefined
+  const path = route ? route.d : bezierPath
+  const labelX = route ? route.mid.x : bezierLabelX
+  const labelY = route ? route.mid.y : bezierLabelY
 
   const amount = useSimStore((s) => s.activeByEdge[id] ?? 0)
   const stepIndex = useSimStore((s) => s.stepIndex)
@@ -106,6 +119,7 @@ function LoopEdge({
         id={id}
         path={path}
         markerEnd={`url(#${markerId})`}
+        className={route ? `route-${route.routeClass}` : undefined}
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,

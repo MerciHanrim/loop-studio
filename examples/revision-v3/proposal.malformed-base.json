@@ -1,0 +1,239 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "n_src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "source",
+        "label": "Mint",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "n_gold",
+      "type": "pool",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gold",
+        "activation": "passive",
+        "initial": 5,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "Gold"
+      }
+    },
+    {
+      "id": "n_sink",
+      "type": "drain",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Out",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "p_rate",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Rate",
+        "value": 2
+      }
+    },
+    {
+      "id": "r_x",
+      "type": "register",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "kind": "register",
+        "label": "X",
+        "expr": "@n_gold * @p_rate"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_gd",
+      "source": "n_gold",
+      "target": "n_sink",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_nan",
+      "source": "n_gold",
+      "target": "n_sink",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_sg",
+      "source": "n_src",
+      "target": "n_gold",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "2",
+        "resourceType": "Gold"
+      }
+    },
+    {
+      "id": "e_stray",
+      "source": "n_src",
+      "target": "n_gold",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    }
+  ],
+  "project": {
+    "schema": "loop-revision/1",
+    "version": 1,
+    "projectId": "proj_0000000000000000000000000F",
+    "revisionId": "rev_00000000000000000000000RG4",
+    "parentId": "rev_00000000000000000000000RG3",
+    "role": "proposal",
+    "contentDigest": "5b67acd2cc6329303ffb64967b545457fccccbdf4d1e589a146916cbeb11a0c3",
+    "lineage": [
+      "rev_00000000000000000000000RG3"
+    ],
+    "base": {
+      "revisionId": "rev_00000000000000000000000RG3",
+      "contentDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "content": {
+        "nodes": [
+          {
+            "id": "n_gold",
+            "position": {
+              "x": 200,
+              "y": 0
+            },
+            "data": {
+              "kind": "pool",
+              "label": "Gold",
+              "activation": "passive",
+              "initial": 5,
+              "capacity": null,
+              "mode": "pullAny",
+              "resourceType": "Gold"
+            }
+          },
+          {
+            "id": "n_sink",
+            "position": {
+              "x": 400,
+              "y": 0
+            },
+            "data": {
+              "kind": "drain",
+              "label": "Out",
+              "activation": "automatic",
+              "mode": "pullAny"
+            }
+          },
+          {
+            "id": "n_src",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "data": {
+              "kind": "source",
+              "label": "Mint",
+              "activation": "automatic",
+              "mode": "pushAny"
+            }
+          },
+          {
+            "id": "p_rate",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "data": {
+              "kind": "parameter",
+              "label": "Rate",
+              "value": 2
+            }
+          },
+          {
+            "id": "r_x",
+            "position": {
+              "x": 200,
+              "y": 0
+            },
+            "data": {
+              "kind": "register",
+              "label": "X",
+              "expr": "@n_gold * @p_rate"
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "e_gd",
+            "source": "n_gold",
+            "target": "n_sink",
+            "sourceHandle": "out",
+            "targetHandle": "in",
+            "data": {
+              "kind": "resource",
+              "flow": "1"
+            }
+          },
+          {
+            "id": "e_sg",
+            "source": "n_src",
+            "target": "n_gold",
+            "sourceHandle": "out",
+            "targetHandle": "in",
+            "data": {
+              "kind": "resource",
+              "flow": "2",
+              "resourceType": "Gold"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

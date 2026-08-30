@@ -207,6 +207,18 @@ export function Inspector() {
           <StateEdgeFields ed={ed} setData={setData} />
         )}
 
+        <RouteField
+          value={ed.route === 'orthogonal' ? 'orthogonal' : 'bezier'}
+          onChange={(mode) => {
+            if (mode === 'orthogonal') setData({ ...ed, route: 'orthogonal' })
+            else {
+              // loop-revision/3 §R3-1 / ER-D16 — back to default drops BOTH keys
+              const { route: _r, waypoints: _w, ...rest } = ed
+              setData(rest as LoopEdgeData)
+            }
+          }}
+        />
+
         <p className="inspector__note">
           Editing a connection restarts the run at step 0 and clears any pending triggers; a
           finished Monte-Carlo result is marked stale.
@@ -225,6 +237,24 @@ export function Inspector() {
         </p>
       </div>
     </aside>
+  )
+}
+
+// ── edge routing (loop-revision/3 / docs/edge-routing.md) ─────────────────
+function RouteField({
+  value,
+  onChange,
+}: {
+  value: 'bezier' | 'orthogonal'
+  onChange: (mode: 'bezier' | 'orthogonal') => void
+}) {
+  return (
+    <Field label="Route">
+      <select value={value} onChange={(e) => onChange(e.target.value as 'bezier' | 'orthogonal')}>
+        <option value="bezier">Curved</option>
+        <option value="orthogonal">Orthogonal</option>
+      </select>
+    </Field>
   )
 }
 

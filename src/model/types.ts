@@ -111,7 +111,18 @@ export type NodeData = FlowNodeData | ModelNodeData
 /** How a state connection acts on its target. */
 export type StateMode = 'label' | 'node' | 'trigger' | 'activator'
 
-export type ResourceEdgeData = {
+/** loop-revision/3 (SEMANTICS-R3.md) — edge-routing user intent. Cosmetic wire
+ *  content: projected + diffed + dirty-tracked, never engine-affecting. Absent
+ *  `route` ⇒ Bézier (the writer never emits `"bezier"`). `waypoints` is
+ *  meaningful only with `route: "orthogonal"`; each point is world-space finite,
+ *  kept verbatim, in user order (§R3-1.1 / §R3-2). The computed path is NOT
+ *  stored. */
+export type EdgeRoutingData = {
+  route?: 'orthogonal'
+  waypoints?: { x: number; y: number }[]
+}
+
+export type ResourceEdgeData = EdgeRoutingData & {
   kind: 'resource'
   /** Flow expression: "1", "all", "2D6", "1-3", "25%", ... (parsed by the engine). */
   flow: string
@@ -119,7 +130,7 @@ export type ResourceEdgeData = {
   resourceType?: string
 }
 
-export type StateEdgeData = {
+export type StateEdgeData = EdgeRoutingData & {
   kind: 'state'
   mode: StateMode
   /** Modifier or condition expression, e.g. "+1" or ">=5". Unused for triggers. */

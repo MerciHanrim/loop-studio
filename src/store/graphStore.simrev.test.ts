@@ -80,6 +80,29 @@ describe('graphStore.simulationRev', () => {
     expect(bumped(() => useGraphStore.getState().loadJSON(doc))).toBeGreaterThan(0)
   })
 
+  it('does NOT bump: a routing-only edge edit (route / waypoints are cosmetic — loop-revision/3 §R3-3)', () => {
+    const { edgeId } = base()
+    expect(
+      bumped(() => useGraphStore.getState().setEdgeData(edgeId, { kind: 'resource', flow: '1', route: 'orthogonal' })),
+    ).toBe(0)
+    expect(
+      bumped(() =>
+        useGraphStore.getState().setEdgeData(edgeId, {
+          kind: 'resource',
+          flow: '1',
+          route: 'orthogonal',
+          waypoints: [{ x: 10, y: 20 }],
+        }),
+      ),
+    ).toBe(0)
+    // …but a routing edit that ALSO changes flow still bumps
+    expect(
+      bumped(() =>
+        useGraphStore.getState().setEdgeData(edgeId, { kind: 'resource', flow: '3', route: 'orthogonal' }),
+      ),
+    ).toBeGreaterThan(0)
+  })
+
   it('does NOT bump: a pure label rename', () => {
     const { poolId, sourceId } = base()
     expect(bumped(() => useGraphStore.getState().updateNodeData(poolId, { label: 'Vault' }))).toBe(0)

@@ -1,3 +1,4 @@
+import { readRoutingPayload } from './edgeRouting'
 import { defaultData } from './factory'
 import { readParameterData, readRegisterData } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
@@ -83,6 +84,12 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
   const stateEdge =
     e.data?.kind === 'state' || isStateHandle(e.sourceHandle) || isStateHandle(e.targetHandle)
 
+  // loop-revision/3 §R3-1.1 — accepted routing intent is appended TRAILING (the
+  // canonical projection orders it explicitly; this keeps the serialized file
+  // key order too). A bad payload is quarantined silently here; the import path
+  // re-scans raw edges via `routingReadIssues` for the user warning.
+  const routing = readRoutingPayload(e.data)
+
   if (stateEdge) {
     const prev = e.data?.kind === 'state' ? e.data : undefined
     return {
@@ -96,6 +103,8 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
         expr: prev?.expr ?? '',
         // `delay` (trigger only) is graph structure — keep it across a round-trip
         ...(typeof prev?.delay === 'number' ? { delay: prev.delay } : {}),
+        ...(routing.route ? { route: routing.route } : {}),
+        ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
       },
     }
   }
@@ -114,6 +123,8 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
       // across a round-trip, like `delay` on a state edge. A string is kept
       // as-is here; the canonical projection normalises / drops it (§M4.1).
       ...(typeof prevRes?.resourceType === 'string' ? { resourceType: prevRes.resourceType } : {}),
+      ...(routing.route ? { route: routing.route } : {}),
+      ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
     } as LoopEdge['data'],
   }
 }
