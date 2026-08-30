@@ -102,14 +102,20 @@ async function exportWorkspaceText(page: Page): Promise<string> {
 }
 
 test.describe('portable file://', () => {
-  test('the production bundle carries NO dev-only bridges (routeMap test hooks tree-shaken)', () => {
-    // docs/edge-routing.md — `__loop.routeMap` (genCount / reset / get) exists
-    // only behind `if (import.meta.env.DEV)`; a plain production build must not
-    // ship the route-cache test hooks, so nothing external can force a
-    // recompute. The whole `window.__loop` absence is already asserted at boot
-    // in openPortable(); this pins the tree-shake at the byte level.
+  test('the production bundle carries NO dev-only bridges / helpers (tree-shaken)', () => {
+    // docs/edge-routing.md — `__loop.routeMap` (genCount / reset / get) and
+    // docs/simulation-playback.md — the `deepFreeze` prepared-payload guard —
+    // exist only behind `if (import.meta.env.DEV)`. A plain production build must
+    // ship none of them. `window.__loop` absence is already asserted at boot in
+    // openPortable(); this pins the tree-shake at the byte level.
     const html = readFileSync(resolve('dist-portable/loop-studio.html'), 'utf8')
-    for (const marker of ['__routeGenCount', '__resetRouteCache', '__loop.routeMap', 'routeMap:{genCount']) {
+    for (const marker of [
+      '__routeGenCount',
+      '__resetRouteCache',
+      '__loop.routeMap',
+      'routeMap:{genCount',
+      'deepFreeze',
+    ]) {
       expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)
     }
   })
