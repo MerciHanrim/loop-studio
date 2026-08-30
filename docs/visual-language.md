@@ -15,16 +15,14 @@ This formalises and extends the **N1 "Vessel"** system already on the canvas
 `src/index.css`). It is written so the later **Canvas Visual Refresh** slice can
 bring every existing node/edge onto one grammar in a single pass.
 
-> **Parameter / Register visuals are fixed here.** `loop-expr/1` and
-> `loop-model/1` are **Frozen** (`SEMANTICS-X.md`, `SEMANTICS-M.md`), so the
-> **appearance and state representation** of Parameter and Register nodes — their
-> silhouettes (§VL2.1), the in-node layout (§VL2.4), the `invalid` treatment
-> (§VL3), and the display-grouping note (§VL5.4) — are now **normative** in this
-> doc, grounded in those specs. What stays deferred is *only verification*: until
-> the model-language **implementation** slice renders these nodes for real, they
-> sit behind a dev flag and their acceptance snapshots run against a
-> **provisional fixture** (§VL12.11), not the committed matrix. Rendering a
-> Parameter or Register — like any other node — changes **no** GraphDoc byte,
+> **Parameter / Register visuals are live.** `loop-expr/1` and `loop-model/1`
+> are **Frozen** (`SEMANTICS-X.md`, `SEMANTICS-M.md`) and the model-language
+> implementation has shipped, so the **appearance and state representation** of
+> Parameter and Register nodes — their silhouettes (§VL2.1), the in-node layout
+> (§VL2.4), the `invalid` treatment (§VL3), the display-grouping note (§VL5.4) —
+> are **normative** and rendered on the real canvas. They are **first-class in
+> the acceptance matrix** (§VL11.2 / §VL12), no dev flag. Rendering a Parameter
+> or Register — like any other node — changes **no** GraphDoc byte,
 > `loop-revision/*` digest, undo entry, or viewport (§VL10).
 
 ---
@@ -455,13 +453,12 @@ The visual system must not break the local / offline / deterministic posture.
   approved pixel tolerance).
 - **Snapshot matrix:** {light, dark} × {desktop, mobile} × {L2, L1, L0} over a
   fixed fixture, plus the per-state and per-edge-class frames from §VL12.
-- **Parameter / Register are on a provisional fixture** until the model-language
-  **implementation** slice: a separate snapshot set — `param` resting, `param`
-  out-of-range, `register` valid mid-run, `register` `invalid` (each `M_REG_*`
-  reason once), the Timeline gap — over the same {light, dark} × {desktop,
-  mobile} × {L2, L1, L0} grid, rendered behind the dev flag. These frames are
-  **not** part of the committed acceptance matrix in this milestone; they fold
-  into it when the implementation slice renders the nodes for real (§VL12.11).
+- **Parameter / Register are in the committed matrix.** Their frames — `param`
+  resting, `param` out-of-range, `register` valid mid-run, `register` `invalid`
+  (each `M_REG_*` reason once), the Timeline gap — sit in the same {light, dark}
+  × {desktop, mobile} × {L2, L1, L0} grid as every other kind. The Canvas
+  Visual Refresh slices land them in three passes: chrome / silhouettes / states
+  first, then edge & motion, then the full zoom × `forced-colors` matrix.
 - Verified environments: `prefers-reduced-motion: reduce`, keyboard-focus
   visible, and `forced-colors` / high-contrast (the required set of §VL7.1 must
   still be distinguishable when the UA overrides colours).
@@ -515,16 +512,13 @@ snapshots):
    renders every node kind, both edge classes, and every icon from cache.
 10. **Contrast thresholds** — an automated check computes the §VL11.2 contrast
     ratios for the token pairs actually used and fails below the floor.
-11. **Parameter / Register — provisional-fixture verification.** Their
-    *appearance and state representation* are fixed (§VL2.1, §VL2.4, §VL3,
-    §VL5.4) against the now-Frozen `loop-expr/1` / `loop-model/1`. Verification
-    is still staged: in **this** milestone their nodes render behind a dev flag
-    and are exercised **only** by the provisional snapshot set in §VL11.2 —
-    nothing in the committed acceptance matrix (criteria 1–10) depends on them.
-    When the model-language **implementation** slice lands, the dev flag is
-    removed and the provisional frames are promoted into the criterion-1 matrix
-    unchanged; a mismatch between a provisional frame and its promoted form is a
-    regression to fix, not a spec change.
+11. **Parameter / Register are first-class in the matrix.** Their appearance
+    and state representation (§VL2.1, §VL2.4, §VL3, §VL5.4) are rendered on the
+    real canvas and covered by criteria 1–10 like every other kind — no dev
+    flag, no provisional fixture. The `invalid` state (Register only — a
+    Parameter is never `invalid`) is drawn as a `--warning` **dashed** outline
+    plus a corner `!` flag, so it is identifiable with hue stripped and under
+    `forced-colors`; the value area shows `—`, never `0` or a stale value.
 
 ---
 
@@ -542,17 +536,15 @@ snapshots):
   validation-assist. The field structure, the mismatch rule, and any canonical
   / digest inclusion are `loop-model/1` + `loop-revision/2` decisions, not this
   doc's. Hard type validation is a later, separate spec.
-- **VL-D4 — Parameter / Register appearance is fixed; only verification is
-  staged.** `loop-expr/1` and `loop-model/1` are Frozen, so the silhouettes
-  (§VL2.1), in-node layout (§VL2.4), the `invalid` treatment (§VL3, Register
-  only — a Parameter is never `invalid`), zoom behaviour (§VL7.2), and the
-  display-grouping note (§VL5.4) are **normative** here and grounded in those
-  specs. Rendering these nodes changes **no** GraphDoc byte, `loop-revision/*`
-  digest, undo entry, or viewport (§VL10). What remains deferred: until the
-  model-language **implementation** slice, the nodes render behind a dev flag
-  and are verified against a **provisional fixture** (§VL11.2, §VL12.11), not
-  the committed acceptance matrix — the frames are promoted unchanged when that
-  slice lands.
+- **VL-D4 — Parameter / Register are live and first-class.** `loop-expr/1` /
+  `loop-model/1` are Frozen and the model-language implementation has shipped:
+  the silhouettes (§VL2.1), in-node layout (§VL2.4), the `invalid` treatment
+  (§VL3, Register only — a Parameter is never `invalid`), zoom behaviour
+  (§VL7.2), and the display-grouping note (§VL5.4) are **normative** and
+  rendered on the real canvas, in the committed acceptance matrix like every
+  other kind — **no dev flag, no provisional fixture**. Rendering these nodes
+  changes **no** GraphDoc byte, `loop-revision/*` digest, undo entry, or
+  viewport (§VL10).
 - **VL-D5 — charts float, they don't dock.** The timeline/distribution move
   from a docked region to dismissible floating cards as part of the Refresh.
 - **VL-D6 — routing is render-only.** Any edge routing / label placement added

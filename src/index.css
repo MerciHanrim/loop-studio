@@ -616,12 +616,61 @@ body {
   vector-effect: non-scaling-stroke;
 }
 
-/* state: selected — shape-hugging solid outline, never removed by animation */
+/* state: selected — shape-hugging SOLID outline, never removed by animation */
 .nodef__sel {
   fill: none;
   stroke: var(--state-selected);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
+}
+/* state: keyboard focus — DASHED ring, drawn inside the selection ring so both
+   read at once; solid-vs-dashed is the non-colour tell (§VL3). */
+.nodef__focus {
+  fill: none;
+  stroke: var(--state-focus);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2.5;
+  vector-effect: non-scaling-stroke;
+  paint-order: stroke;
+}
+/* state: invalid (loop-model/1) — WARNING dashed outline; the dash pattern +
+   the corner flag are the non-colour tell (§VL3 / §VL4). */
+.nodef--parameter,
+.nodef--register {
+  --node-hue: var(--line-structure); /* annotation nodes carry no flow hue */
+}
+.nodef--parameter .nodef__stroke,
+.nodef--register .nodef__stroke {
+  stroke-width: 1.25; /* lighter than a flow vessel (§VL2.1) */
+}
+.nodef--register .nodef__chip {
+  opacity: 0.55;
+}
+.nodef__invalid {
+  fill: none;
+  stroke: var(--warning);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.nodef__flag {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--warning);
+  background: var(--surface-raised);
+  border: 1.5px solid var(--warning);
+  border-radius: 50%;
+  pointer-events: none;
 }
 /* state: fired — diffusing pulse, outside the selection ring, one step */
 .nodef__wave {
