@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { formatRegisterValue, registersOfSnapshot } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
@@ -104,6 +105,17 @@ export function TimelineChart() {
     trackedIds === 'all' || !listMatches || (trackedIds as string[]).includes(id)
   const tracked = pools.filter((p) => isTracked(p.id))
 
+  // loop-model/1 §M3.5 — R(t) per committed snapshot for each Register.
+  // Nothing stored: recomputed from `series[i].values` + the live graph.
+  const registers = useMemo(
+    () => nodes.filter((n) => n.data.kind === 'register').map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(pools.length + i) })),
+    [nodes, pools.length],
+  )
+  const regByStep = useMemo(() => {
+    if (registers.length === 0) return []
+    return series.map((pt) => ({ step: pt.step, out: registersOfSnapshot(nodes, pt.values) }))
+  }, [series, nodes, registers.length])
+
   const view = useMemo(() => {
     const { w, h } = size
     let peak = 0
@@ -117,6 +129,45 @@ export function TimelineChart() {
     const ih = h - PAD.t - PAD.b
     const x = (stp: number) => PAD.l + (maxStep === 0 ? 0 : (stp / maxStep) * iw)
     const y = (v: number) => PAD.t + ih - (v / top) * ih
+
+    // Register lines use an independent min/max range (values may be negative)
+    // and BREAK at any step where R(t) is invalid — a gap, never a bridge.
+    let rlo = Infinity
+    let rhi = -Infinity
+    for (const f of regByStep) {
+      for (const r of registers) {
+        const o = f.out.get(r.id)
+        if (o && !o.invalid) {
+          rlo = Math.min(rlo, o.value)
+          rhi = Math.max(rhi, o.value)
+        }
+      }
+    }
+    const haveReg = Number.isFinite(rlo) && Number.isFinite(rhi)
+    const span = haveReg ? (rhi - rlo || 1) : 1
+    const ry = (v: number) => PAD.t + ih - ((v - rlo) / span) * ih
+    const regLines = registers.map((r) => {
+      const pts: { step: number; value: number }[] = []
+      for (const f of regByStep) {
+        const o = f.out.get(r.id)
+        if (o && !o.invalid) pts.push({ step: f.step, value: o.value })
+      }
+      // split into contiguous runs so a gap is not drawn through
+      const runs: string[] = []
+      let cur: string[] = []
+      let prevStep = -2
+      for (const p of pts) {
+        if (p.step !== prevStep + 1 && cur.length) {
+          runs.push(cur.join(' '))
+          cur = []
+        }
+        cur.push(`${cur.length === 0 ? 'M' : 'L'} ${x(p.step).toFixed(1)} ${ry(p.value).toFixed(1)}`)
+        prevStep = p.step
+      }
+      if (cur.length) runs.push(cur.join(' '))
+      const lastValid = pts.length ? pts[pts.length - 1] : null
+      return { id: r.id, color: r.color, d: runs.join(' '), lastValid, endX: lastValid ? x(lastValid.step) : 0, endY: lastValid ? ry(lastValid.value) : 0 }
+    })
 
     const lines = tracked.map((p) => {
       const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
@@ -150,8 +201,8 @@ export function TimelineChart() {
     })
 
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
-    return { w, h, top, maxStep, x, y, lines, guideX }
-  }, [series, tracked, status, stepIndex, size])
+    return { w, h, top, maxStep, x, y, lines, regLines, guideX }
+  }, [series, tracked, registers, regByStep, status, stepIndex, size])
 
   const rm = reducedMotion()
   const { w, h } = view
@@ -204,6 +255,17 @@ export function TimelineChart() {
                     <span className="timeline__mark" style={{ background: p.color }} />
                     {p.label} {fmt(last)}
                   </button>
+                )
+              })}
+              {registers.map((r) => {
+                const cur =
+                  regByStep.length ? regByStep[regByStep.length - 1].out.get(r.id) : undefined
+                return (
+                  <span key={r.id} className="timeline__key timeline__key--register" title={`Register ${r.label}`}>
+                    <span className="timeline__mark" style={{ background: r.color }} />
+                    {r.label}{' '}
+                    {cur && !cur.invalid ? formatRegisterValue(cur.value) : cur ? '—' : '·'}
+                  </span>
                 )
               })}
               <button
@@ -276,6 +338,22 @@ export function TimelineChart() {
                       style={{ stroke: l.color }}
                     />
                   ))
+                : null}
+
+              {/* loop-model/1 §M3.5 — Register series, dashed, with gaps where
+                  R(t) is invalid (never bridged, §M6.2). */}
+              {hasRun
+                ? view.regLines.map((l) =>
+                    l.d ? (
+                      <path
+                        key={`reg-${l.id}`}
+                        className="timeline__line timeline__line--register"
+                        d={l.d}
+                        fill="none"
+                        style={{ stroke: l.color, strokeDasharray: '4 3', opacity: 0.85 }}
+                      />
+                    ) : null,
+                  )
                 : null}
 
               {hasRun && !rm

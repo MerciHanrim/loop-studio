@@ -11,6 +11,7 @@ import {
 import { parseExpr } from '../model/expr'
 import {
   BUILTIN_RESOURCE_TYPES,
+  formatRegisterValue,
   isBuiltinResourceType,
   normalizeResourceType,
   RESOURCE_TYPE_MAX_BYTES,
@@ -20,6 +21,8 @@ import {
   resourceTypeMismatches,
 } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
+import { useRegisterOutcome } from '../store/registers'
+import { useSimStore } from '../store/simStore'
 import type {
   ConverterData,
   DrainData,
@@ -152,7 +155,7 @@ export function Inspector() {
         {d.kind === 'gate' && <GateFields d={d} set={set} />}
         {d.kind === 'converter' && <ConverterFields d={d} set={set} />}
         {d.kind === 'parameter' && <ParameterFields d={d} set={set} />}
-        {d.kind === 'register' && <RegisterFields d={d} set={set} />}
+        {d.kind === 'register' && <RegisterFields id={node.id} d={d} set={set} />}
       </aside>
     )
   }
@@ -552,10 +555,22 @@ function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
   )
 }
 
-function RegisterFields({ d, set }: { d: RegisterData; set: Patch }) {
+const REG_CODE_MESSAGE: Record<string, string> = {
+  M_REG_PARSE: 'the expression does not parse',
+  M_REG_EVAL: 'the expression evaluates to an error (division by zero / non-finite)',
+  M_REG_UNKNOWN_REF: 'a reference names no node in the graph',
+  M_REG_WRONG_KIND: 'a reference names a node that is not a pool / parameter / register',
+  M_REG_INVALID_ID: 'a referenced id contains an unusable control character',
+  M_REG_CYCLE: 'this Register is on a dependency cycle',
+  M_REG_DEPENDS_ON_INVALID: 'this Register depends on another invalid Register',
+}
+
+function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patch }) {
   const parsed = parseExpr(d.expr)
   const read = readRegisterData(d)
   const notices = read.ok ? read.notices : []
+  const outcome = useRegisterOutcome(id)
+  const stepIndex = useSimStore((s) => s.stepIndex)
   return (
     <>
       <Field label="Expression">
@@ -575,6 +590,19 @@ function RegisterFields({ d, set }: { d: RegisterData; set: Patch }) {
           <p className="inspector__note">Canonical form: <code>{parsed.expr.canonical}</code> (saved on export)</p>
         )
       )}
+
+      {/* §M3.5 — R(currentStepIndex); §M6.2 — an invalid Register shows NO value */}
+      {outcome && outcome.invalid ? (
+        <p className="inspector__note inspector__note--warn">
+          {outcome.code} · {REG_CODE_MESSAGE[outcome.code] ?? 'invalid'} — no value at step {stepIndex}.
+        </p>
+      ) : outcome ? (
+        <p className="inspector__note">
+          Value at step {stepIndex}: <strong>{formatRegisterValue(outcome.value, d.format)}</strong>{' '}
+          <span className="inspector__hint">(recomputed from the graph — never stored)</span>
+        </p>
+      ) : null}
+
       <Field label="Unit (advisory)">
         <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
@@ -588,11 +616,7 @@ function RegisterFields({ d, set }: { d: RegisterData; set: Patch }) {
       {notices.includes('REG_FORMAT_INVALID') && (
         <p className="inspector__note">Unrecognised format — will fall back to float on export.</p>
       )}
-      <p className="inspector__note">
-        A Register stores nothing and has no ports. The expression above is a <strong>parse
-        preview only</strong> — the computed value appears once the run observes it (a later
-        slice); no value is shown until then.
-      </p>
+      <p className="inspector__note">A Register stores nothing and has no ports.</p>
     </>
   )
 }

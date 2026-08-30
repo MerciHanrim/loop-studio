@@ -7,8 +7,9 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
-import { readParameterData, readRegisterData } from '../../model/model'
+import { formatRegisterValue, readParameterData, readRegisterData } from '../../model/model'
 import { useGraphStore } from '../../store/graphStore'
+import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
 import type {
   ConverterData,
@@ -332,8 +333,8 @@ function UnreadableModelNode({
 }
 
 function ParameterNode({ id, data, selected }: NodeProps) {
-  const read = readParameterData(data)
   const stepKey = useSimStore((s) => s.stepIndex)
+  const read = readParameterData(data)
   if (!read.ok) return <UnreadableModelNode id={id} kind="parameter" selected={selected} />
   const d = read.data
   return (
@@ -350,17 +351,23 @@ function ParameterNode({ id, data, selected }: NodeProps) {
 }
 
 function RegisterNode({ id, data, selected }: NodeProps) {
-  const read = readRegisterData(data)
   const stepKey = useSimStore((s) => s.stepIndex)
+  const outcome = useRegisterOutcome(id)
+  const numeric = outcome && !outcome.invalid ? outcome.value : Number.NaN
+  const dir = useValueDir(Number.isFinite(numeric) ? numeric : 0)
+  const read = readRegisterData(data)
   if (!read.ok) return <UnreadableModelNode id={id} kind="register" selected={selected} />
   const d = read.data
+  // §M3.5 — the value shown is R(currentStepIndex). §M6.2 — an invalid Register
+  // shows NO number (never 0, never a stale value): a `—` placeholder.
+  const invalid = !outcome || outcome.invalid
   return (
     <NodeFrame
       nodeId={id}
       kind="register"
       title={d.label || 'Register'}
-      // the expression itself — NOT a computed value (that arrives with the
-      // Register-observation slice). No number is shown until then.
+      value={invalid ? '—' : formatRegisterValue(numeric, d.format)}
+      valueDir={invalid ? null : dir}
       sub={`= ${d.expr}`}
       selected={selected}
       stepKey={stepKey}

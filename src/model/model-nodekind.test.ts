@@ -145,6 +145,10 @@ describe('engine tolerates model nodes (SEMANTICS-M.md §M6.1 — never read, ne
     }
     expect(firedEver.has('pm')).toBe(false)
     expect(firedEver.has('rg')).toBe(false)
+    // §M3.6 / M-INV-2 — Register values are NEVER in SimState
+    const st1 = step(g.nodes, g.edges, initSim(g.nodes), 1).state
+    expect(Object.keys(st1.values)).not.toContain('rg')
+    expect(Object.keys(st1.values).every((k) => (g.nodes.find((n) => n.id === k)?.data as { kind: string }).kind === 'pool')).toBe(true)
   })
 
   it('an edge incident to a model node contributes no flow and never blocks the run', () => {
