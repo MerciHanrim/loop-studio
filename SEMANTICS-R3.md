@@ -2,10 +2,18 @@
 
 ```
 Spec ID: loop-revision/3
-Status:  Draft
+Status:  Draft (rev 2)
 ```
 
-**Draft for review.** Extends `SEMANTICS-R2.md` (`loop-revision/2`, Frozen) so
+**Draft for review — rev 2** folds in Lumi's four pre-Freeze boundaries:
+the per-side v2/v3 discrimination + verify-own-projection-first order with the
+four v2↔v3 acceptance vectors (§R3-5); `resourceType` **removed** from the
+`state`-edge canonical row (§R3-2.1); "byte-for-byte" narrowed to
+**canonical-bytes / lossless-value** (§R3-7, R3-INV-9); and the
+post-quarantine `contentDigest` / project-header rule (§R3-5.2). The §R3-D
+decisions are closed per Lumi's guidance.
+
+Extends `SEMANTICS-R2.md` (`loop-revision/2`, Frozen) so
 the canonical revision projection, its digest, the three-way diff, and Apply
 also cover the **edge-routing user-intent fields** introduced by
 `docs/edge-routing.md` — `edge.data.route` and `edge.data.waypoints`. The
@@ -15,8 +23,8 @@ boundaries. On Freeze it is the fixed target for the routing implementation
 (Slice 1 = mode + auto routing; Slice 2 = the waypoint UI).
 
 **No behavioural change to `loop-revision/1` or `/2`.** A graph whose edges
-carry no routing intent (§R3-1) projects, digests, diffs, and applies
-**byte-for-byte** as it does under `loop-revision/2` today (R3-INV-2). Files,
+carry no routing intent (§R3-1) has a canonical projection, digest, diff, and
+Apply that are **byte-identical** to `loop-revision/2` today (R3-INV-2). Files,
 and only files, are the transport. Every rule is computable from the file in
 hand plus the open document.
 
@@ -58,8 +66,9 @@ digest, diff, file, Share link, or Workspace payload (§R3-9). Only the user's
   lift into the common v3 model (§R3-5);
 - **routing-field behaviour** in `dirty` / whole diff / whole + per-hunk Apply /
   undo (§R3-6);
-- the **round-trip preservation scope** — where the user's routing intent is
-  carried byte-for-byte (§R3-7);
+- the **round-trip preservation scope** — the valid routing **value** carried
+  losslessly, canonical bytes stable after the first write, *not* arbitrary
+  input bytes (§R3-7, R3-INV-9);
 - an explicit **"Workspace stays v1"** note (§R3-8);
 - the explicit **non-projected** list (§R3-9).
 
@@ -136,12 +145,17 @@ edge rows. Nothing else in `§R4` or `§R2-2` moves.
 | kind | `data` fields, **in this order** |
 |---|---|
 | `resource` edge | `kind`, `flow`, `resourceType`, **`route`**, **`waypoints`** |
-| `state` edge | `kind`, `mode`, `expr`, `delay`, `resourceType`?, **`route`**, **`waypoints`** |
+| `state` edge | `kind`, `mode`, `expr`, `delay`, **`route`**, **`waypoints`** |
 
-(The `state`-edge row is `SEMANTICS-S2.md`'s frozen order with the
-`loop-revision/2` `resourceType` — where present — and the two new keys
-appended. A `state` edge never carries `resourceType` today; the column is
-listed for a total order only.)
+- The `resource`-edge row is `SEMANTICS-R2.md §R2-2.2`'s order with the two new
+  keys appended.
+- The `state`-edge row is `SEMANTICS-S2.md`'s frozen `EDGE_FIELDS_BY_KIND`
+  order with **only** `route`, `waypoints` appended. **`resourceType` is NOT a
+  `state`-edge field** — it is agreed advisory content for `pool` and the
+  `resource` edge only (`loop-model/1 §M4` / `loop-revision/2 §R2-2.2`).
+  Introducing `resourceType` on a `state` edge would be new, routing-unrelated
+  wire semantics and needs its own `loop-model` amendment; `loop-revision/3`
+  does not do it.
 
 `route` and `waypoints` are the **last two keys** of the edge `data` object,
 `route` before `waypoints`, and each is emitted **only when non-default**:
@@ -219,60 +233,135 @@ non-empty `waypoints`): the output is **byte-identical** to the
 identical under either reading. Adding the routing feature to the codebase does
 **not** move any existing file's digest.
 
-**The golden vector.** A committed fixture — location decided in §R3-D — with:
+**The golden vector.** `examples/revision-v3/` + `test/revision-v3-fixture.test.ts`
+(R3-D3), mirroring `examples/revision-v2/`:
 
 - **RG0** — a v2-content graph (a `parameter`, a `register`, a `resourceType`,
-  no routing intent). Assert `digest_v3(RG0) === digest_v2(RG0)` and both equal
-  the pinned value the shipped `loop-revision/2` implementation produces.
-- **RG1** — RG0 with **one** edge set to `route: "orthogonal"` and **one**
-  other edge given a 3-point `waypoints`. Assert: `digest_v3(RG1) !==
-  digest_v2(RG1)` (a real revision); the two changed edges' projected `data`
-  objects gain exactly the trailing keys, in order; every other element's bytes
-  are unchanged from RG0; `computeRevisionDiff(RG0, RG1)` reports two
-  `changed` hunks, both `cosmetic`-tagged, `engineAffecting: false`,
+  no routing intent). Assert `digest_v3(RG0) === digest_v2(RG0)`, both equal
+  the value the shipped `loop-revision/2` implementation produces (**pinned**),
+  and `isModelLayerContent` / the v3 predicate agree it is **not** v3.
+- **RG1** — RG0 with **one** edge set `route: "orthogonal"` and **one** other
+  edge given a 3-point `waypoints`. Assert: it infers **v3**;
+  `digest_v3(RG1) !== digest_v2(RG1)`; the two changed edges' projected `data`
+  gain exactly the trailing keys in order (`{x, y}` per point);
+  every other element's bytes are unchanged from RG0;
+  `computeRevisionDiff(RG0, RG1)` = two `changed` hunks (`data.route`,
+  `data.waypoints`), both `cosmetic`, `engineAffecting: false`,
   `advisoryAffecting: false`, `empty: false`.
-- **RG2** — RG1 with the `route` edge switched back to Bézier (both keys
-  removed) and the `waypoints` edge's array emptied. Assert `RG2` fails §R3-1,
-  and `digest_v3(RG2) === digest_v2(RG2) === digest_v2(RG0)` for the
-  corresponding elements — the round-trip to default is **exact** (ER-D16).
-- **RG3** — a file with a deliberately broken payload (a 5000-entry
-  `waypoints`, a `NaN` coordinate, `route: 3`). Assert the routing payload is
-  dropped, one warning per edge in `id` order, the edges and every semantic
-  field survive, and the resulting graph's digest equals the same graph with
-  the payloads never present.
+- **RG2 — the v2 → v3 → v2 digest return.** RG1 with the `route` edge switched
+  back to Bézier (both keys removed) and the `waypoints` edge emptied. Assert
+  RG2 fails the v3 predicate and
+  `digest_v3(RG2) === digest_v2(RG2) === digest_v2(RG0)` — the round-trip to
+  default is **exact** (ER-D16 / R3-D5), and `computeRevisionDiff(RG1, RG2)`
+  is two `changed` hunks removing the keys.
+- **RG3 — malformed `proposed`.** A proposal file whose **proposed content**
+  carries a broken payload (a 65-entry `waypoints`, a `NaN` coord, `route: 3`,
+  `waypoints` with `route` absent). Assert every broken payload is quarantined,
+  one warning per edge in ascending `id` order, the edges + every semantic
+  field survive, the proposed side then infers v2 (nothing v3 survived), and
+  its `contentDigest` is verified against the **quarantined** GraphDoc; a
+  mismatch drops the whole proposal (graph-only + warning).
+- **RG4 — malformed `base`.** The same proposal but the break is in
+  `base.content`. Assert `base.content` is verified **independently** (§R3-5.2)
+  and its failure drops the **whole** proposal payload — no partial trust.
+- **RG5 — the four v2 ↔ v3 combinations (§R3-5.3 RV-1…RV-4)** replayed through
+  `computeThreeWay` / `buildSelectiveApply` / `validateResultGraph`: a v2 base
+  with a v3 proposed (routing hunks apply, no engine field touched); a v3 base
+  with a v2 proposed (routing hunks remove keys, digest returns); v3↔v3 full
+  three-way with a `waypoints` reorder feeding `nConf`; v2↔v2 unchanged from
+  `loop-revision/2`.
+- **RG6 — `loop-workspace/1` round-trip** (§R3-8): step RG1, build a workspace
+  payload, `readWorkspace`; assert the `workspace.simulation` key set is
+  unchanged, contains **no** `route` / `waypoints`, the pool state + step
+  restore, and the graph's `route` / `waypoints` are intact from the embedded
+  GraphDoc.
 
-Like `loop-revision/2 §R2-4`, the golden's v2 oracle digest is **pinned to the
-value the shipped `loop-revision/2` implementation produces**, so a drift in
-either projection fails the fixture.
+Like `loop-revision/2 §R2-4`, every v2 oracle digest is **pinned to the value
+the shipped `loop-revision/2` implementation produces**, so a drift in either
+projection fails the fixture.
 
 ---
 
-## R3-5. Validation order — verify with the own projection, then lift
+## R3-5. Per-side discrimination & validation order
 
-Per side, exactly as `loop-revision/2 §R2-5` / R2-INV-3:
+The order below is `loop-revision/2 §R2-5` / R2-INV-3 with a third version.
+Every step is **per side** — a graph, a revision file, and each of a proposal's
+`base.content` and proposed content are all "a side".
 
-1. Choose the projection by the predicate: a **v1** side → `{modelLayer:false}`
-   literal v1 projection; a **v2** side → the v2 projection; a **v3** side →
-   the v3 projection.
-2. Verify the side's **stored digest against that projection**.
-3. **Lift** the verified content into the common **v3** compare model (add the
-   trailing edge keys where absent, as *default*). By R3-INV-2 / R2-INV-2 the
-   lift reproduces identical bytes for a non-v3 side; the implementation
-   **asserts** this rather than assuming it.
+### R3-5.1 The ordered pipeline
 
-Verifying a v1 or v2 side **directly with the v3 digest is forbidden** — it
-could misclassify a valid older file as tampered (R-INV-6, carried forward).
+1. **Normalise** the side's graph (`SEMANTICS-R.md §R4.1` + `normalizeGraph()`).
+2. **Defensive read** of every `parameter` / `register` (`loop-revision/2
+   §R2-1.1`) **and** every edge's routing payload (§R3-1.1). A bad routing
+   payload is **quarantined** here — `route` / `waypoints` gone, the edge and
+   its semantic fields intact.
+3. **Infer the version** from the *result of step 2*, by predicate:
+   - any edge with a **surviving** `route: "orthogonal"` or non-empty
+     `waypoints` ⇒ **v3**;
+   - else, `loop-revision/2 §R2-1` decides **v2** or **v1**.
+   A routing payload that was quarantined in step 2 leaves **no** field behind,
+   so a file whose only "v3 signal" was a broken payload infers as **v2**
+   (or v1).
+4. **Verify the stored digest against the ORIGINAL version's projection:**
+   - a **v1** side → `{ modelLayer: false }` literal v1 projection;
+   - a **v2** side → the v2 projection;
+   - a **v3** side → the v3 projection.
+   Verifying a v1 or v2 side **directly with the v3 projection / digest is
+   forbidden** — a latent gap would misflag a valid older file as tampered
+   (R-INV-6, carried forward).
+5. **Lift** the verified content into the common **v3 compare model** — add the
+   trailing `route` / `waypoints` keys as *default* (absent) where the side
+   did not carry them. By R3-INV-2 / R2-INV-2 this reproduces byte-identical
+   output for a non-v3 side; the implementation **asserts** it rather than
+   assuming it.
+
 There is **no** version-mismatch "refuse" branch (R2-INV-6): every same-project
-v1 / v2 / v3 combination is compared under the one common v3 projection.
+v1 / v2 / v3 combination is compared under the one common v3 projection. The
+only apply-time refusal remains the `§R7A.1` different-`projectId` gate.
 
-### R3-5.1 Malformed / ambiguous payloads
+### R3-5.2 Post-quarantine `contentDigest` & the project header
 
-A `project` file whose graph, after §R3-1.1, still cannot be projected (a
-recognised failure mode of `loop-revision/2 §R2-5.1`, e.g. an unseatable model
-node) routes **graph-only + warning**, unchanged by this spec. A file whose
-**only** problem is a bad routing payload has that payload quarantined
-(§R3-1.1) and then follows the normal path — Review / Apply is reachable if
-nothing else is wrong, because the edge's semantic content is intact.
+After step 2 quarantines a routing payload, step 4 verifies against the
+**normalised, quarantined** GraphDoc:
+
+- **`contentDigest` is REQUIRED in a valid `loop-revision/3` file** (as it is
+  for `loop-revision/2` — `SEMANTICS-R.md §R10` / `R-INV`). A `project` /
+  `proposal` payload that carries a `contentDigest` which does **not** match
+  the normalised (post-quarantine) GraphDoc's `fullContentDigest` ⇒ **the whole
+  `project` / `proposal` payload is dropped, the graph opens graph-only +
+  warning.** This is the existing `loop-revision/*` tamper response; routing
+  quarantine does not weaken it.
+- **A legacy file with no `contentDigest`** (an early `loop-revision/1`
+  optional-digest file) keeps its existing `loop-revision/1` treatment — the
+  header is read but the content is trusted un-verified per that spec's rule.
+  If such a file *also* carries a routing payload it is, by definition, not a
+  clean v1 file; after the routing payload is quarantined it is treated as the
+  v1-with-optional-digest file it now is (header kept, unverified). A
+  `loop-revision/2` or `/3` file **must** carry the digest, so this only ever
+  applies to genuinely old inputs.
+- **A proposal verifies `base.content` and the proposed content
+  INDEPENDENTLY** by steps 1–4 above. Either failing its own digest drops the
+  **whole** proposal payload (graph-only + warning); a partial trust is never
+  produced.
+- **Warnings are deterministic** — one line per quarantined edge in ascending
+  edge `id` order, then the digest-mismatch line (if any), then any
+  `loop-revision/2 §R2-5.1` line.
+
+### R3-5.3 The four v2 ↔ v3 combinations — acceptance vectors
+
+Fixed, mirroring `loop-revision/2 §R2-7`. "base" = the pinned base a proposal
+was authored against; "target" = the recipient's open document.
+
+| # | base | proposed / target | result |
+|---|---|---|---|
+| **RV-1** | v2 | v2 | identical to `loop-revision/2` today. The v3 projection of each side ≡ its v2 projection ≡ same bytes / digest (R3-INV-2). No `route` / `waypoints` hunk. |
+| **RV-2** | v2 | **v3** (proposed adds routing) | `base.content` is v2 → verify v2; proposed is v3 → verify v3. The diff shows `changed` hunks `data.route` / `data.waypoints`, **`cosmetic`**-tagged, `engineAffecting: false`, `advisoryAffecting: false`, `empty: false`. Whole Apply adopts them; per-hunk Apply applies only the selected routing hunks. Applying them does **not** touch any engine field. |
+| **RV-3** | **v3** | v2 (proposed / target drops back to Bézier) | verify v3 base, v2 other side. The diff shows `changed` hunks removing `route` / `waypoints` (`base` = the value, `proposed` = absent). Whole Apply produces a graph that **fails §R3-1** and whose digest returns **exactly** to the v2 value for those elements (ER-D16). |
+| **RV-4** | **v3** | **v3** | full three-way over the v3 projection; `route` / `waypoints` diff and feed `nConf` like `label`; `engine` / `advisory` / `cosmetic` fields all diffable. |
+
+In every combination, "v2 file" also covers "a v3 file whose routing payloads
+were all quarantined" — after step 2 it *is* a v2 file, and its v3 digest
+equals its v2 digest (R3-INV-2).
 
 ---
 
@@ -305,8 +394,14 @@ as editing `label` or dragging a node.
 Adopts the proposed graph **verbatim** (`SEMANTICS-R.md §R7.2`); the routing
 keys ride along like `label` / `position`. Apply atomicity is unchanged: one
 `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry, no file
-written (R2-INV-5). A routing-only Apply is still confirmed unless the
-classification is `exact` (§R7A) — a `cosmetic`-only change can be `exact`.
+written (R2-INV-5).
+
+`exact` (§R7A) is decided by the **target's `revisionId` / `contentDigest`
+matching the proposal's pinned `base`** — **not** by which field tags the diff
+hunks carry (R3-D5). A routing-only proposal whose recipient is still exactly on
+the pinned base classifies `exact` and skips the confirm; if the recipient has
+diverged (any local edit — routing or otherwise), it is `divergent` /
+`unknown ancestry` and confirms, like any other proposal.
 
 ### R3-6.4 Per-hunk (selective) Apply
 
@@ -329,27 +424,46 @@ classification is `exact` (§R7A) — a `cosmetic`-only change can be `exact`.
 Each user routing action is **one** undo entry: set / clear `route`; add a
 waypoint; move a waypoint (coalesced per drag, like a node move); delete a
 waypoint; "Reset route" (clears `waypoints`, keeps `route`). Undo restores the
-exact prior `route` / `waypoints` bytes.
+exact prior `route` / `waypoints` value.
 
 ---
 
 ## R3-7. Round-trip preservation scope
 
-The user's routing **intent** (`route` + `waypoints`) is carried
-**byte-for-byte** through every file transport; the **computed route** is in
-**none** of them (§R3-9).
+The contract is **lossless preservation of the valid, normalised routing
+value**, and **canonical-byte stability** after the first canonical write — not
+"the original input JSON bytes". Arbitrary input is normalised on read (key
+order, an explicit `route: "bezier"`, `-0 → 0`, a stray `waypoints`, an empty
+`waypoints: []`), so its *original bytes* cannot be preserved and are not
+promised.
 
-| transport | `route` / `waypoints` preserved? | notes |
+Precisely:
+
+1. **Value losslessness.** A `route: "orthogonal"` and every accepted
+   `waypoints` point (order, full `Number` precision, duplicates, collinear
+   points) survive every transport below **without loss or reordering**.
+2. **Canonical-byte stability.** Once a graph has been serialised by
+   `serialize` / projected by `canonicalContent`, a `load → re-serialise` (or
+   `project → re-project`) produces **byte-identical** output. The idempotent
+   fixed point is the canonical form, not the author's original text.
+3. **No guarantee** for the original bytes of: an explicit default
+   (`route: "bezier"` normalises to absent), an empty `waypoints: []`
+   (normalises to absent), a quarantined bad payload (dropped — §R3-1.1), or
+   any non-canonical key order / whitespace in a hand-edited file.
+4. **Workspace** preserves the routing value **only inside its embedded
+   GraphDoc** — the `workspace` payload itself carries no routing field.
+
+| transport | valid routing value preserved? | notes |
 |---|---|---|
-| **Graph JSON** (`Export ▾ → Graph JSON` → Import) | **yes**, verbatim | the two trailing edge keys serialize and deserialize unchanged; a default edge emits neither. |
-| **Share link** (`#g1=` — `loop-share/1`) | **yes**, verbatim | the share payload is the same GraphDoc; a re-routed edge survives a copy-open. |
-| **Project revision** (`Export ▾ → Project revision`) | **yes**, verbatim + in the digest | `route` / `waypoints` are `cosmetic` revision content — projected, digested, diffed (§R3-2 / §R3-6). |
-| **Proposal** (`Make a proposal`) | **yes** | `base.content` and the proposed content both carry the routing keys through the v3 projection; the diff shows `cosmetic` hunks. |
-| **Workspace** (`Export ▾ → Workspace JSON` → Import) | **yes**, from the embedded GraphDoc | the `workspace` payload is `loop-workspace/1` (§R3-8) and carries **no** routing field of its own; `route` / `waypoints` come from the file's `nodes` / `edges`, exactly as `flow` / `resourceType` do. A stepped, then re-imported Workspace restores `S(t)` and the graph — routing intact — and the route is recomputed from the restored layout. |
+| **Graph JSON** (`Export ▾ → Graph JSON` → Import) | **yes** (value; canonical bytes after first write) | the two trailing edge keys serialise / deserialise unchanged; a default edge emits neither. |
+| **Share link** (`#g1=` — `loop-share/1`) | **yes** | the share payload is the same canonical GraphDoc; a re-routed edge survives a copy-open. |
+| **Project revision** (`Export ▾ → Project revision`) | **yes**, and in the `contentDigest` | `route` / `waypoints` are `cosmetic` revision content — projected, digested, diffed (§R3-2 / §R3-6). |
+| **Proposal** (`Make a proposal`) | **yes** | `base.content` and the proposed content each carry the routing keys through the v3 projection (verified independently — §R3-5.2); the diff shows `cosmetic` hunks. |
+| **Workspace** (`Export ▾ → Workspace JSON` → Import) | **yes**, from the embedded GraphDoc only | `route` / `waypoints` come from the file's `edges`, exactly as `flow` / `resourceType` do; `loop-workspace/1` is unchanged (§R3-8). A stepped, then re-imported Workspace restores `S(t)` + the graph (routing value intact); `d` is recomputed from the restored layout. |
 
 An edge whose routing payload was **quarantined on read** (§R3-1.1) round-trips
 as a **default (Bézier) edge** — the bad payload is not re-emitted. This is the
-one lossy case, and it is deliberate.
+one deliberately lossy case.
 
 ---
 
@@ -399,22 +513,26 @@ of `docs/edge-routing.md`.
 | **R3-INV-6** | Defensive read (§R3-1.1) is a **routing-only quarantine**: a bad `route` / `waypoints` is dropped with one deterministic warning; the edge's `id`, endpoints, handles, and every semantic field (`flow`, `kind`, `mode`, `expr`, `delay`, `resourceType`, …) are preserved; the graph opens; a `project` file with such an edge routes graph-only + warning, never Review / Apply-with-that-edge-broken. |
 | **R3-INV-7** | Apply atomicity (R-INV-8 / R2-INV-5) holds for any `engine` / `advisory` / `cosmetic` mix, routing included: one `loadDoc()`, one `simulationRev` bump, paused at step 0, one undo entry, no file written. |
 | **R3-INV-8** | `loop-workspace/1` is **not** bumped. The Workspace payload carries no routing field; `route` / `waypoints` live only in the embedded GraphDoc. |
-| **R3-INV-9** | A `waypoints` coordinate is stored and projected **verbatim** at full `Number` precision after `§R4.1` (`-0 → 0`, no rounding); it round-trips `Import → Export` byte-identical. `PATH_DECIMALS` / `COORD_EPS` are render-only and touch no wire value. |
+| **R3-INV-9** | A `waypoints` coordinate is stored and projected **verbatim** at full `Number` precision after `§R4.1` (`-0 → 0`, **no rounding**). The **value** round-trips losslessly through every transport (§R3-7); once canonically serialised, `load → re-serialise` is byte-identical. `PATH_DECIMALS` / `COORD_EPS` are render-only and touch no wire value. Original non-canonical input bytes (key order, explicit `"bezier"`, `[]`, a quarantined payload) are **not** promised. |
 | **R3-INV-10** | The computed route (`d`, `routeClass`, hit path, cache, `ROUTER_VERSION`) is in **no** projection, digest, diff, file, Share link, or Workspace payload (§R3-9). |
 
 ---
 
-## R3-D. Open decisions (to close before Freeze)
+## R3-D. Decisions
 
-| id | question | leaning |
-|---|---|---|
-| **R3-D1** | the exact `cosmetic` tag token in `fieldTag` — `loop-revision/2 §R2-3` names it `cosmetic`; confirm the codebase constant and that `label` / `position` already use it. | reuse `cosmetic` as-is; no new tag. |
-| **R3-D2** | `route` / `waypoints` on **state** edges as well as resource — or resource-only for Slice 1? | **both** (state edges are dashed and route the same); the projection lists both rows. Confirm no `SEMANTICS-S2.md` field-order conflict. |
-| **R3-D3** | golden-vector location — a new `examples/revision-v3/` + `test/revision-v3-fixture.test.ts`, mirroring `examples/revision-v2/`. | yes, that layout. |
-| **R3-D4** | `waypoints` element key order in the canonical JSON — `{x, y}` vs `{y, x}`. | `{x, y}` (matches `position` `{x, y}` in `§R4.2`). |
-| **R3-D5** | does a `route` / `waypoints`-only change ever classify `exact` (skipping the whole-Apply confirm)? `loop-revision/2` lets a `cosmetic`-only change be `exact`. | keep `loop-revision/2` behaviour — a `cosmetic`-only diff **can** be `exact`; no special routing rule. |
-| **R3-D6** | Slice 1 ships the `route` mode + auto routing while the `waypoints` field exists in the contract but has no editor — confirm the projection / digest / golden still cover `waypoints` from day one so Slice 2 needs no wire change. | yes — `waypoints` is fully specified here; Slice 2 is pure UI. |
+Closed per Lumi's guidance (rev 2). On Freeze `Status` flips to `Frozen` and
+the README Semantics table drops the "(Draft)".
 
-On Freeze, R3-D1…R3-D6 become a settled Decisions table (each Decided /
-Deferred), `Status` flips to `Frozen`, and the README Semantics table gains the
-`loop-revision/3` row.
+| id | decision |
+|---|---|
+| **R3-D1** | **Reuse the existing `cosmetic` `fieldTag` token as-is** — the one `label` / `position` already use (`loop-revision/1 §R5.2` / `loop-revision/2 §R2-3`). No new tag. `route` / `waypoints` set neither `engineAffecting` nor `advisoryAffecting`. |
+| **R3-D2** | **`route` / `waypoints` on `resource` AND `state` edges** — the two keys are appended to each edge's existing frozen field order. **`resourceType` is NOT added to the `state`-edge row** (§R3-2.1); it stays advisory content for `pool` + `resource` edge only. |
+| **R3-D3** | **Fixtures at `examples/revision-v3/` + `test/revision-v3-fixture.test.ts`**, mirroring `examples/revision-v2/`. Contents per §R3-4. `GEN_ORACLE=1` (or the repo's convention) regenerates. |
+| **R3-D4** | **`{ "x": …, "y": … }`** — key order `x` then `y`, matching `position` in `SEMANTICS-R.md §R4.2`. |
+| **R3-D5** | **`exact` is unchanged from `loop-revision/2`** — it is decided by the target's `revisionId` / `contentDigest` matching the proposal's pinned `base`, **not** by which field tags a hunk carries. A routing-only proposal whose target is still exactly the pinned base classifies **`exact`** and skips the whole-Apply confirm; if the target has diverged, it is `divergent` / `unknown` like any other. No routing-specific rule. |
+| **R3-D6** | **`waypoints` is fully specified from day one.** Slice 1 ships `route` mode + auto orthogonal routing with **no** `waypoints` editor, but the projection, the digest, the diff, the defensive read, and the golden vector all cover `waypoints`. Slice 2 (the waypoint UI) needs **no** wire change. |
+| **R3-D7** | **A `data.waypoints` diff hunk is whole-array.** `base` / `proposed` are the complete ordered point lists; a selective Apply of that hunk swaps the whole array (§R3-6.4). There is no per-point three-way merge. |
+
+On Freeze, this file only takes typo / clarifying-prose fixes; a behavioural
+change is a new spec id (`loop-revision/4`), exactly as `loop-revision/1 → /2 →
+/3`. The README Semantics table row loses "(Draft)".
