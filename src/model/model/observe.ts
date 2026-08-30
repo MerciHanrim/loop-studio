@@ -36,7 +36,7 @@ export function initialPoolValues(nodes: NodeLike[]): Record<string, number> {
 export function registersOfSnapshot(
   nodes: NodeLike[],
   poolValues: Record<string, number>,
-): Map<string, RegisterOutcome> {
+): ReadonlyMap<string, RegisterOutcome> {
   const byId = new Map(nodes.map((n) => [n.id, n]))
 
   const registers: { id: string; expr: string }[] = []
@@ -83,7 +83,7 @@ export type { RegisterOutcome } from './registers'
  * run, so a gap is never bridged.
  */
 export function registerSeriesRuns(
-  byStep: { step: number; outcomes: Map<string, RegisterOutcome> }[],
+  byStep: { step: number; outcomes: ReadonlyMap<string, RegisterOutcome> }[],
   registerId: string,
 ): { step: number; value: number }[][] {
   const runs: { step: number; value: number }[][] = []
