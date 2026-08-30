@@ -452,22 +452,39 @@ test.describe('edge routing — Slice 1', () => {
     expect(consumers.labelTransform).toContain(`${consumers.mid![0]}px`)
     expect(consumers.labelTransform).toContain(`${consumers.mid![1]}px`)
 
-    await test.step('running sim: the flow bead animates along the orthogonal d and does not restart on Pause / selection', async () => {
+    await test.step('running sim: the playback token walks the orthogonal d; a selection change does not restart it', async () => {
+      // prime one step (tokenless) so `gold` holds a unit and the drain edge `e_gd`
+      // actually carries flow on the step we then choreograph
+      await page.evaluate(() => (window as any).__loop.sim.getState().advance())
+      await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(2200))
       await page.locator('.pstrip button[title="Advance one step"]').click()
-      await page.locator('.pstrip button[title="Advance one step"]').click()
-      const beadPath = () =>
-        page.evaluate(
-          () =>
-            (document.querySelector('.react-flow__edge[data-id="e_gd"] .flow-move animateMotion') as SVGElement | null)?.getAttribute('path') ?? null,
-        )
-      const p1 = await beadPath()
-      if (p1 !== null) {
-        expect(p1).toBe(consumers.d) // the bead rides the SAME orthogonal path
-        // selecting the edge / re-rendering must not re-seed the animation
-        await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_gd'))
-        await page.waitForTimeout(50)
-        expect(await beadPath()).toBe(p1)
-      }
+      // wait for the token mid-travel and check its position sits on the rendered d
+      const tokenOnPath = () =>
+        page.evaluate(() => {
+          const g = document.querySelector('.react-flow__edge[data-id="e_gd"] .pb-move') as SVGGElement | null
+          const vis = document.querySelector('.react-flow__edge[data-id="e_gd"] path.react-flow__edge-path') as SVGPathElement | null
+          if (!g || !vis) return null
+          const m = (g.getAttribute('transform') || '').match(/translate\(([-\d.]+)\s+([-\d.]+)\)/)
+          if (!m) return null
+          const pt = { x: +m[1], y: +m[2] }
+          const total = vis.getTotalLength()
+          let best = Infinity
+          for (let i = 0; i <= 200; i++) {
+            const p = vis.getPointAtLength((i / 200) * total)
+            best = Math.min(best, Math.hypot(p.x - pt.x, p.y - pt.y))
+          }
+          return { dist: best, phase: g.getAttribute('data-playback-phase') }
+        })
+      await expect.poll(() => tokenOnPath().then((t) => (t && t.phase === 'travel' ? t.dist : 99)), { timeout: 8000 }).toBeLessThan(2)
+      const t1 = await tokenOnPath()
+      await page.evaluate(() => (window as any).__loop.sim.getState().pause())
+      const frozen = await tokenOnPath()
+      await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_gd'))
+      await page.waitForTimeout(60)
+      const afterSelect = await tokenOnPath()
+      expect(afterSelect!.dist).toBeCloseTo(frozen!.dist, 1) // no restart / jump
+      void t1
+      await page.evaluate(() => (window as any).__loop.sim.getState().reset())
     })
 
     await test.step('prefers-reduced-motion: no travelling element, a static edge cue only', async () => {

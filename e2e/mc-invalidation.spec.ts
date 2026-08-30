@@ -46,7 +46,7 @@ test.describe('MC / sim invalidation', () => {
     // advance the live sim, then make an undoable structural edit
     await page.evaluate(() => {
       const s = (window as any).__loop.sim.getState()
-      s.stepOnce(); s.stepOnce(); s.stepOnce()
+      s.advance(); s.advance(); s.advance()
     })
     expect((await simSnapshot(page)).stepIndex).toBe(3)
     await page.evaluate((id) => (window as any).__loop.graph.getState().updateNodeData(id, { capacity: 999 }), RF_POOL)

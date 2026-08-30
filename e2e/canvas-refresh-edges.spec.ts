@@ -77,28 +77,51 @@ test.describe('Canvas Refresh PR 2 — edge class & direction', () => {
   })
 })
 
-test.describe('Canvas Refresh PR 2 — flow bead reacts ONLY to real engine events', () => {
-  test('no bead at rest; a bead only where a FlowEvent actually moved resource; cleared on Reset', async ({ page }) => {
+// The travelling flow bead is now the docs/simulation-playback.md Slice 2
+// choreography token (`.pb-move`): Step and Play take the same path, the token
+// walks the real `d` in step with the store's τ, and it is REMOVED on settle
+// (the value commit and the token clearing are the same beat).
+test.describe('Playback choreography — the token reacts ONLY to real engine events', () => {
+  test('a token only where a FlowEvent actually moves resource; gone at rest / on Reset', async ({ page }) => {
     await load(page)
-    await expect(page.locator('.flow-move, .flow-bead, .state-pulse')).toHaveCount(0) // rest
+    await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(1400))
+    await expect(page.locator('.pb-move, .flow-bead, .state-pulse')).toHaveCount(0) // rest
 
     await step(page) // src pushes 2 → A; A has nothing yet so r2/r3 carry 0
-    await expect(page.locator('.react-flow__edge[data-id="r1"] .flow-move')).toHaveCount(1)
-    // r2 / r3 carried no resource this step ⇒ NO bead (not visually inferred)
-    await expect(page.locator('.react-flow__edge[data-id="r2"] .flow-move')).toHaveCount(0)
-    await expect(page.locator('.react-flow__edge[data-id="r3"] .flow-move')).toHaveCount(0)
+    // mid-travel: exactly one token on r1, none on r2 / r3
+    await expect(page.locator('.react-flow__edge[data-id="r1"] .pb-move')).toHaveCount(1)
+    await expect(page.locator('.react-flow__edge[data-id="r2"] .pb-move')).toHaveCount(0)
+    await expect(page.locator('.react-flow__edge[data-id="r3"] .pb-move')).toHaveCount(0)
 
+    // it clears itself on settle (same beat as the value commit)
+    await expect(page.locator('.pb-move')).toHaveCount(0)
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__loop.sim.getState().stepIndex))
+      .toBe(1)
+
+    await step(page)
     await reset(page)
-    await expect(page.locator('.flow-move, .flow-bead, .flow-trail, .state-pulse, .state-flash')).toHaveCount(0)
+    await expect(page.locator('.pb-move, .flow-bead, .flow-trail, .state-pulse, .state-flash')).toHaveCount(0)
   })
 
-  test('Pause freezes the bead — one element, a single-shot animateMotion (never looping)', async ({ page }) => {
+  test('exactly one token per edge; it never restarts on Pause / re-render / selection', async ({ page }) => {
     await load(page)
+    await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(2400))
     await step(page)
-    const bead = page.locator('.react-flow__edge[data-id="r1"] .flow-move')
-    await expect(bead).toHaveCount(1)
-    const repeat = await bead.locator('animateMotion').first().getAttribute('repeatCount')
-    expect(repeat).toBe('1') // not "indefinite"
+    const token = page.locator('.react-flow__edge[data-id="r1"] .pb-move')
+    await expect(token).toHaveCount(1)
+
+    // once paused mid-travel, its position is a pure function of the frozen τ —
+    // a re-render / selection change must not move it
+    await page.evaluate(() => (window as any).__loop.sim.getState().pause())
+    const t0 = await token.getAttribute('transform')
+    await page.locator('.react-flow__node[data-id="a"]').click()
+    await page.locator('.react-flow__node[data-id="b"]').click()
+    await page.locator('.react-flow__pane').click({ position: { x: 8, y: 8 } })
+    await expect(token).toHaveCount(1)
+    expect(await token.getAttribute('transform')).toBe(t0)
+    await page.waitForTimeout(250)
+    expect(await token.getAttribute('transform')).toBe(t0) // still frozen a beat later
   })
 })
 
@@ -107,7 +130,7 @@ test.describe('Canvas Refresh PR 2 — flow bead reacts ONLY to real engine even
 // reduce` there is literally no `animateMotion` / travelling element in the DOM
 // to play, freeze, or restart.
 const MOTION =
-  '.react-flow__edges animateMotion, .flow-move, .flow-bead, .flow-trail, .flow-token__n, .state-pulse, .state-flash'
+  '.react-flow__edges animateMotion, .flow-move, .pb-move, .pb-cue, .flow-bead, .flow-trail, .flow-token__n, .state-pulse, .state-flash'
 
 test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', () => {
   test('a real FlowEvent renders NO moving element — a held static highlight + arrival cue instead', async ({ page }) => {
@@ -167,61 +190,22 @@ test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', 
   })
 })
 
-test.describe('Canvas Refresh PR 2 — the bead is one deterministic play per event', () => {
-  test('one bead group per edge per step; every animateMotion is single-shot; label = merged sum', async ({ page }) => {
+test.describe('Playback choreography — one token per event, merged sum', () => {
+  test('one token per edge per step; label = the summed amount; never > 1', async ({ page }) => {
     await load(page)
-    // src → A carries flow "2": exactly ONE `.flow-move` group, and the count
-    // label reads the SUMMED amount — simStore folds every FlowEvent for an edge
-    // into one `activeByEdge[id]` (src/store/simStore.ts), so multiple events on
-    // one edge in a step still render as a single merged bead.
+    await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(1400))
     await step(page)
-    const bead = page.locator('.react-flow__edge[data-id="r1"] .flow-move')
-    await expect(bead).toHaveCount(1)
-    await expect(bead.locator('.flow-token__n')).toHaveText('2')
+    const token = page.locator('.react-flow__edge[data-id="r1"] .pb-move')
+    await expect(token).toHaveCount(1)
+    await expect(token.locator('.flow-token__n')).toHaveText('2') // src → A carries flow "2"
 
-    const motions = bead.locator('animateMotion')
-    const n = await motions.count()
-    expect(n).toBeGreaterThan(0)
-    for (let i = 0; i < n; i++) {
-      expect(await motions.nth(i).getAttribute('repeatCount')).toBe('1') // single-shot, never "indefinite"
-    }
-
-    // no edge ever shows more than one bead group across a multi-step run
-    for (let i = 0; i < 4; i++) {
+    // a multi-step run never shows more than one token on any edge at once
+    for (let i = 0; i < 5; i++) {
       await step(page)
       for (const id of ['r1', 'r2', 'r3']) {
-        expect(await page.locator(`.react-flow__edge[data-id="${id}"] .flow-move`).count()).toBeLessThanOrEqual(1)
+        expect(await page.locator(`.react-flow__edge[data-id="${id}"] .pb-move`).count()).toBeLessThanOrEqual(1)
       }
     }
-  })
-
-  test('Pause, a re-render, and a selection change do NOT restart the bead animation', async ({ page }) => {
-    await load(page)
-    await step(page)
-    const bead = page.locator('.react-flow__edge[data-id="r1"] .flow-move')
-    await expect(bead).toHaveCount(1)
-
-    // the group is keyed on `stepIndex` only — a re-render keeps the same DOM
-    // node, so the single-shot (repeatCount 1, fill freeze) is not re-begun. The
-    // observable proof: once it has frozen at the path end, the bead's on-screen
-    // position never changes again (a restart would jump it back down the path).
-    await page.waitForTimeout(700) // let the single-shot finish and freeze
-    const beadDot = page.locator('.react-flow__edge[data-id="r1"] .flow-bead')
-    const p0 = await beadDot.boundingBox()
-    expect(p0).not.toBeNull()
-
-    await page.locator('.react-flow__node[data-id="a"]').click() // selection change ⇒ every edge re-renders
-    await page.locator('.react-flow__node[data-id="b"]').click() // again — different selection
-    await page.locator('.react-flow__pane').click({ position: { x: 8, y: 8 } }) // deselect ⇒ re-render
-
-    await expect(bead).toHaveCount(1) // still one group (no duplicate, no remount)
-    const p1 = await beadDot.boundingBox()
-    await page.waitForTimeout(250)
-    const p2 = await beadDot.boundingBox()
-    expect(Math.round(p1!.x)).toBe(Math.round(p0!.x))
-    expect(Math.round(p1!.y)).toBe(Math.round(p0!.y))
-    expect(Math.round(p2!.x)).toBe(Math.round(p0!.x)) // still frozen a beat later
-    expect(Math.round(p2!.y)).toBe(Math.round(p0!.y))
   })
 })
 
@@ -244,11 +228,10 @@ test.describe('Canvas Refresh PR 2 — animation is a pure view change (VL-INV)'
         }
       })
 
+    await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(1600))
     const before = await capture()
     await step(page)
-    await step(page)
-    await step(page)
-    await expect(page.locator('.flow-move').first()).toBeVisible() // beads are live
+    await expect(page.locator('.pb-move').first()).toBeVisible() // the token is live
     const during = await capture()
 
     expect(during.digest).toBe(before.digest)

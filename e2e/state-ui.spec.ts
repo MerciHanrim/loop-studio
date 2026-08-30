@@ -49,7 +49,7 @@ const edgeData = (page: Page, id: string) =>
 const stepN = (page: Page, n: number) =>
   page.evaluate((k) => {
     const sim = (window as unknown as Bridge).__loop.sim.getState()
-    for (let i = 0; i < k; i++) sim.stepOnce()
+    for (let i = 0; i < k; i++) sim.advance()
   }, n)
 
 const stateEvents = (page: Page) =>

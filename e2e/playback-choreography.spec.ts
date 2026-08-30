@@ -196,4 +196,130 @@ test.describe('playback — Slice 2 choreography', () => {
     await expect.poll(() => simState(page).then((s) => s.stepIndex)).toBe(1)
     await call(page, 'pause')
   })
+
+  // ── Round 2 — the five boundaries ────────────────────────────────────
+
+  test('§1 — UI Step uses the SAME choreography as Play (no instant commit, no legacy bead)', async ({ page }) => {
+    await setup(page, G(false), 1400)
+    await page.locator('.pstrip button[title="Advance one step"]').click()
+    // a real transition appears (Step is choreographed, not instant)…
+    await expect.poll(() => simState(page).then((s) => (s.tau != null ? 1 : 0)), { timeout: 4000 }).toBe(1)
+    const mid = await page.evaluate(() => ({
+      pb: document.querySelectorAll('.pb-move').length,
+      legacy: document.querySelectorAll('.flow-move, .react-flow__edges animateMotion:not(.pb-move animateMotion)').length,
+      step: (window as any).__loop.sim.getState().stepIndex,
+    }))
+    expect(mid.pb).toBeGreaterThan(0)
+    expect(mid.legacy).toBe(0) // NO legacy animateMotion bead anywhere for a resource step
+    expect(mid.step).toBe(0) // …and the store is still at S(0) until settle
+    // …then it settles and does NOT continue
+    await expect.poll(() => simState(page).then((s) => s.tau), { timeout: 4000 }).toBeNull()
+    expect((await simState(page)).stepIndex).toBe(1)
+    expect((await simState(page)).status).not.toBe('running')
+  })
+
+  test('§2 — no double-play: the token never re-appears for the same step around settle', async ({ page }) => {
+    await setup(page, G(false), 700)
+    await call(page, 'play')
+    // sample many frames straddling the first settle; count how many DISTINCT
+    // times a `.pb-move` for e_sp is present, keyed by fromStep
+    const seenByStep = new Map<number, number>()
+    let transitions = 0
+    let lastPresent = false
+    for (let i = 0; i < 120; i++) {
+      const s = await page.evaluate(() => {
+        const st = (window as any).__loop.sim.getState()
+        return { fromStep: st.transition?.fromStep ?? null, present: !!document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move'), stepIndex: st.stepIndex }
+      })
+      if (s.present && !lastPresent && s.fromStep != null) {
+        seenByStep.set(s.fromStep, (seenByStep.get(s.fromStep) ?? 0) + 1)
+        transitions++
+      }
+      lastPresent = s.present
+      if (s.stepIndex >= 3) break
+      await page.waitForTimeout(20)
+    }
+    await call(page, 'pause')
+    // the token appeared at most once per step — never a second render for a step
+    for (const [, count] of seenByStep) expect(count).toBe(1)
+    expect(transitions).toBeGreaterThanOrEqual(2)
+  })
+
+  test('§3 — the phase is observable DOM state: depart → travel → arrive, monotonic, Pause holds', async ({ page }) => {
+    await setup(page, G(false), 2400)
+    await call(page, 'play')
+    const order = ['depart', 'travel', 'arrive']
+    let maxSeen = -1
+    let watchFrom = -1
+    const seen = new Set<string>()
+    for (let i = 0; i < 160; i++) {
+      const snap = await page.evaluate(() => {
+        const st = (window as any).__loop.sim.getState()
+        return {
+          ph: document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move')?.getAttribute('data-playback-phase') ?? null,
+          from: st.transition?.fromStep ?? null,
+        }
+      })
+      if (snap.ph && snap.from != null) {
+        if (watchFrom === -1) watchFrom = snap.from
+        if (snap.from !== watchFrom) break // a NEW transition started — done observing the first
+        seen.add(snap.ph)
+        const idx = order.indexOf(snap.ph)
+        expect(idx, `unknown phase ${snap.ph}`).toBeGreaterThanOrEqual(0)
+        expect(idx, 'phase never goes backward within one transition').toBeGreaterThanOrEqual(maxSeen)
+        maxSeen = idx
+      }
+      await page.waitForTimeout(20)
+    }
+    await call(page, 'pause')
+    expect([...seen].sort()).toEqual(['arrive', 'depart', 'travel'])
+
+    // Pause mid-travel holds the phase; a speed change does not rewind it
+    await call(page, 'reset')
+    await call(page, 'play')
+    await expect
+      .poll(() => page.evaluate(() => document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move')?.getAttribute('data-playback-phase') ?? null))
+      .toBe('travel')
+    await call(page, 'pause')
+    const held = await page.evaluate(() => document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move')?.getAttribute('data-playback-phase'))
+    await call(page, 'setSpeed', 300)
+    await page.waitForTimeout(200)
+    const after = await page.evaluate(() => document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move')?.getAttribute('data-playback-phase'))
+    expect(after).toBe(held) // no rewind, no advance while paused
+    await call(page, 'setSpeed', 1400)
+  })
+
+  test('§4/§5 — summed-token boundaries; selection does not restart the transition', async ({ page }) => {
+    await setup(page, G(false), 2200)
+    await call(page, 'play')
+    // an edge that carries 0 this step has no token
+    await expect.poll(() => simState(page).then((s) => (s.tau && s.tau > 0.3 && s.tau < 0.7 ? 1 : -1)), { timeout: 8000 }).toBe(1)
+    expect(await page.locator('.react-flow__edge[data-id="e_pd"] .pb-move').count()).toBe(0) // pool empty → e_pd carries 0
+
+    // selecting / deselecting the flowing edge mid-transition: same transition,
+    // same fromStep, τ keeps advancing — no restart
+    const a = await simState(page)
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_sp'))
+    await page.waitForTimeout(60)
+    const b = await simState(page)
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, null))
+    await page.waitForTimeout(60)
+    const c = await simState(page)
+    expect(b.fromStep).toBe(a.fromStep)
+    expect(c.fromStep).toBe(a.fromStep)
+    expect(c.tau).toBeGreaterThanOrEqual(a.tau!) // τ only moved forward across the re-renders
+
+    // breakdown order is stable across deselect / reselect (emission order)
+    await call(page, 'pause')
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_sp'))
+    const bd1 = await page.evaluate(() =>
+      [...document.querySelectorAll('.edge-label[data-edge-id="e_sp"] .edge-label__bd')].map((e) => e.textContent),
+    )
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, null))
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_sp'))
+    const bd2 = await page.evaluate(() =>
+      [...document.querySelectorAll('.edge-label[data-edge-id="e_sp"] .edge-label__bd')].map((e) => e.textContent),
+    )
+    expect(bd2).toEqual(bd1)
+  })
 })
