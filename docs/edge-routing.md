@@ -130,8 +130,9 @@ produce a **byte-identical** route.
 | `CORNER_R` | **6** | drawn corner radius (`--radius` token); a segment shorter than `2 × CORNER_R` draws a straight join |
 | `SELF_LOOP` | **28** | the offset of a `source === target` loop from the node box |
 | `COORD_EPS` | **1e-3** | ruler-coordinate quantum; two coordinates within `COORD_EPS` are the same ruler |
-| `PATH_DECIMALS` | **2** | `d`-string coordinate precision (matches today's `react-flow__edge-path`) |
+| `PATH_DECIMALS` | **2** | rendered `d`-string precision only (matches today's `react-flow__edge-path`) — **never** applied to a stored `waypoints` coordinate |
 | `MAX_EXPANSIONS` | **20000** | per-edge A* node-expansion cap → L/Z fallback if hit |
+| `MAX_WAYPOINTS_PER_EDGE` | **64** | defensive cap; a `waypoints` array longer than this drops the whole routing payload for that edge (§ER4) |
 
 ### ER3.2 Obstacles
 
@@ -184,25 +185,57 @@ A* uses the manhattan-distance heuristic plus `BEND_COST` for a turn; the
 open-set tie-break is (lower `f`, then lower `g`, then the move that reduces the
 larger remaining axis distance, then lower `(x, y)`).
 
-### ER3.5 Post-process
+### ER3.5 Numeric normalisation & post-process
 
-- Drop any point equal to its predecessor within `COORD_EPS` (**zero-length
-  segment removal**).
-- Drop any interior point colinear with both neighbours within `COORD_EPS`
-  (**consecutive-colinear collapse**) — the route is the minimal point list for
-  its shape.
-- Round every surviving coordinate to `PATH_DECIMALS` for the `d` string.
+Applied to the **derived path only** — never to a stored `waypoints`
+coordinate (§ER4).
+
+- **Quantise** every ruler / search coordinate to `COORD_EPS` with
+  round-half-away-from-zero:
+  `q(v) = Math.sign(v) * Math.round(Math.abs(v) / COORD_EPS) * COORD_EPS`.
+  This is symmetric about 0, so a negative coordinate rounds the mirror of its
+  positive twin (no `Math.round`'s round-half-toward-`+∞` bias).
+- **`-0 → 0`** everywhere a coordinate is written or compared
+  (`x === 0 ? 0 : x`), so `-0` and `0` never produce two rulers or two `d`
+  strings.
+- **Half-ties** in any `<` comparison (cost keys, ruler sort, open-set) break
+  toward the **smaller signed value**, then smaller `x`, then smaller `y`,
+  then lower edge `id` — every comparator is a total order.
+- **Zero-length segment removal** — drop any path point equal to its
+  predecessor within `COORD_EPS`.
+- **Consecutive-collinear collapse** — drop any interior path point collinear
+  with both neighbours within `COORD_EPS`; the path is the minimal point list
+  for its shape.
+- **Round** every surviving path coordinate to `PATH_DECIMALS` for the `d`
+  string.
+- **Padding re-check (final)** — after rounding, assert no rounded path segment
+  lies within an inflated obstacle (`ROUTE_PAD`). If rounding pushed a segment
+  in (only possible at the `COORD_EPS` / `PATH_DECIMALS` boundary), nudge that
+  segment out by one `PATH_DECIMALS` step, deterministically, away from the
+  obstacle centre; if that still fails, the edge takes the L/Z fallback
+  (§ER3.6) — a rounded path never visibly cuts a node.
 - Corners: emit a quadratic/arc join of radius `min(CORNER_R, halfShorter)`;
   below `2 × CORNER_R` on either incident segment, emit a straight `L`.
 
-### ER3.6 Special cases (all deterministic, none use A*)
+### ER3.6 Special cases & fallback (all deterministic, none use A*)
 
-| case | route |
-|---|---|
-| **self-loop** (`source === target`) | exit the source handle's side, out `ROUTE_STUB`, along the side `SELF_LOOP`, back in `ROUTE_STUB` to the target handle — a fixed 3-corner rounded rectangle. If the two handles are on different sides, the loop hugs the corner between them. |
-| **same-side handles** (both `Left`, both `Right`, …) | a "C": exit both stubs the shared normal, run the outer segment at `max(sourceStubEnd, targetStubEnd) + ROUTE_PAD` from the node, join. |
-| **fully blocked** (A* returns nothing, or `MAX_EXPANSIONS` hit) | the direct **L** (one bend) if source/target axes differ, else the **Z** (two bends) through the midpoint of the endpoints' bounding box — ignores obstacles, may overlap. Logged once per edge id. Never drops the `path`. |
-| **degenerate** (endpoints within `COORD_EPS`) | a straight `M … L …` of `≥ 1px` so the marker still orients. |
+Each returns a route with an explicit **`routeClass`** on the rendered edge
+(`data-route-class`, for the E2E and for a one-time console note) — the stored
+GraphDoc is untouched:
+
+| case | `routeClass` | route |
+|---|---|---|
+| normal A* result | `orthogonal` | the searched route |
+| **self-loop** (`source === target`) | `self-loop` | exit the source handle's side, out `ROUTE_STUB`, along the side `SELF_LOOP`, back in `ROUTE_STUB` to the target handle — a fixed 3-corner rounded rectangle. Different sides ⇒ the loop hugs the corner between them. |
+| **same-side handles** (both `Left` / both `Right` / …) | `same-side` | a "C": exit both stubs the shared normal, run the outer segment at `max(sourceStubEnd, targetStubEnd) + ROUTE_PAD` from the node, join. |
+| **blocked** — A* returns nothing, `MAX_EXPANSIONS` hit, or the §ER3.5 padding re-check still fails | `fallback-lz` | the direct **L** (one bend) if source/target axes differ, else the **Z** (two bends) through the midpoint of the endpoints' bounding box — ignores obstacles, may overlap. |
+| **degenerate** — endpoints within `COORD_EPS` | `degenerate` | a straight `M … L …` of `≥ 1 px` along the source handle normal so the marker still orients. |
+
+The **`fallback-lz` route is itself deterministic** — the same L/Z for the same
+`(sourceStubEnd, targetStubEnd, sourcePosition, targetPosition)`, so its `d` and
+`edge-interaction` `d` are byte-identical across renders and input orderings,
+exactly like a searched route. A `fallback-lz` is `console.warn`'d **once per
+edge id per session** (dev only), never per frame.
 
 ### ER3.7 Parallel-edge fan-out
 
@@ -215,28 +248,54 @@ larger remaining axis distance, then lower `(x, y)`).
   search. Ordering by `id` (not array/paint order) makes the layout
   independent of insertion order.
 
-### ER3.8 Recompute — the cache key
+### ER3.8 The canonical cache key
 
-A route is recomputed **iff** any of the following identity inputs changes:
+The whole orthogonal-edge set shares **one** memo, keyed by a canonical
+serialisation of exactly these inputs — nothing else, and **never a previous
+route** (that would let an incremental result diverge from a clean recompute):
 
-- a node is **created / deleted / moved** (its `position`);
-- a node's **`measured` width/height** changes, or a **handle's position**
-  (`Position` or offset) changes;
-- an **edge is created / deleted**;
-- **this edge's** `source` / `target` / `sourceHandle` / `targetHandle`
-  changes;
-- **this edge's** `route` mode or `waypoints` change;
-- the **parallel set this edge belongs to** changes (a sibling added / removed /
-  re-keyed);
-- a **router constant** (§ER3.1) or the obstacle-padding config changes
-  (build-time only today, but the key includes it).
+```
+routeMapKey = stableStringify({
+  nodes: [ for every node, sorted by id:
+    { id, bx: q(x), by: q(y), bw: q(measuredW), bh: q(measuredH) } ],      // quantised bounds
+  handles: [ for every handle actually used by an orthogonal edge, sorted:
+    { nodeId, handleId, position, dx: q(offsetX), dy: q(offsetY) } ],
+  edges: [ for every edge with route === "orthogonal", sorted by id:
+    { id, source, target, sourceHandle, targetHandle,
+      waypoints: [ {x, y} … ],                                             // raw wire precision, order kept
+      parallelKey } ],                                                      // (source,sHandle,target,tHandle) unordered
+  router: ROUTER_VERSION,                                                   // bumps if any §ER3.1 constant changes
+})
+```
 
-It is **NOT** recomputed on zoom, pan, hover, selection, keyboard focus, theme
-change, a sim step / run cue, or any animation frame. The memo key is the tuple
-of every input above (obstacle boxes as a sorted, `COORD_EPS`-quantised list).
-During an active node drag, edges incident to the dragged node use the L/Z
-fallback for the live preview and do the full computation once on `dragstop`
-(one undo entry, coalesced like the node move).
+- `q(v)` is the §ER3.5 quantiser (`-0 → 0`, round-half-away-from-zero).
+- **Every** obstacle's geometry is in the key — the whole node set, not just
+  nodes incident to a given edge (crossing / shared-path cost couples them).
+- **Excluded** (current decision, correct): zoom, pan, viewport transform,
+  hover, selection, keyboard focus, theme / `data-theme`, `prefers-*`, sim
+  status / step / run cue, any animation frame.
+- **Bézier edges are not in the key** and never trigger a recompute.
+
+### ER3.9 Global reroute is atomic
+
+Because the cost function couples edges (crossing / shared-path) and the routing
+order is by edge id, a change to the obstacle geometry **or** the
+orthogonal-edge set does **not** recompute incident edges only:
+
+1. On any `routeMapKey` change, recompute **every** `route === "orthogonal"`
+   edge, in **ascending edge-id** order, in one pass (each edge sees the routes
+   already committed *in this pass* for the shared/crossing key — §ER3.4).
+2. Build the complete new `Map<edgeId, { d, hitD, routeClass }>` off to the
+   side.
+3. **Swap it in atomically** — one render commit. A render never mixes an
+   edge's stale cached route with another edge's fresh one.
+4. Therefore an incremental trigger (one node moved) and a cold full recompute
+   from the same `routeMapKey` produce the **identical** route map
+   (ER-INV-3 / acceptance §ER12.4).
+
+During an active node drag the preview uses the L/Z fallback (`routeClass`
+`fallback-lz`) for edges incident to the dragged node; the atomic full pass runs
+once on `dragstop`.
 
 ---
 
@@ -246,12 +305,28 @@ A **waypoint** is stored, per edge, as an **ordered list of world-space finite
 `{x, y}`**. The contract (Slice 2 builds the UI; the field exists from
 `loop-revision/3`):
 
-- **World-space, finite.** `x`, `y` are `number`, `Number.isFinite`, in the
-  same flow coordinates as `node.position`. Non-finite / non-number ⇒ the
-  waypoint list is rejected at read (defensive read → the edge falls back to a
-  pure auto route + a warning, never a crash — mirrors `loop-model/1` §M1).
+- **Defensive read (`§ER4-DR`).** The routing payload = `route` +
+  `waypoints`. It is accepted only if `waypoints` is an **array of ≤
+  `MAX_WAYPOINTS_PER_EDGE` (64)** objects, each with `x` and `y` that are
+  `typeof "number"` and `Number.isFinite`. If **any** of that fails —
+  over-length, a non-object entry, a non-finite / non-number coord, `route`
+  not one of `"bezier"` / `"orthogonal"`, or `waypoints` present with `route
+  ≠ "orthogonal"` — the reader **drops the whole routing payload for that
+  edge** (`route` → absent, `waypoints` → dropped) and emits one import
+  warning. The **edge itself and its `source` / `target` / handles / `flow` /
+  `kind` / every other semantic field are preserved** — this is a
+  routing-only quarantine, mirrors `loop-model/1` §M1 / `graphStructureIssues`.
+- **`-0 → 0`.** Any `-0` coordinate is normalised to `0` at read.
+- **Wire precision is kept.** A read-accepted `{x, y}` is stored **verbatim**
+  at full `Number` precision — `PATH_DECIMALS` and `COORD_EPS` are *render*
+  steps (§ER3.5) and never touch the stored value. Round-tripping a file must
+  not perturb a waypoint coordinate.
+- **Duplicate / collinear waypoints are PRESERVED on the wire.** They are user
+  intent; only the *derived path* strips zero-length and collinear *segments*
+  (§ER3.5). A file with `[{10,10},{10,10},{10,40}]` keeps all three points and
+  renders the same path as `[{10,40}]` between the same endpoints.
 - **User order preserved.** The list is used in array order; the router does
-  **not** reorder it.
+  **not** reorder or dedupe it.
 - **Endpoints are never stored.** The source and target handles are the
   implicit first and last points; `waypoints` are strictly interior.
 - **The router connects the spans.** It orthogonally connects
@@ -288,18 +363,40 @@ mobile renders the file's route, no handles.
 
 ## ER5. `route` mode & Bézier parity
 
-- **Per-edge `route` mode** — `"bezier"` or `"orthogonal"`; **absent ⇒
-  `"bezier"`**. Nothing else about the edge changes.
-- **Existing graphs are inert.** With no `route` field and no `waypoints`, an
+### ER5.1 Canonical form — default Bézier is the *absence* of the fields
+
+To keep the conservative extension exact (a graph that ends up back on Bézier is
+byte- and digest-identical to before it was ever re-routed):
+
+| rule | |
+|---|---|
+| `route` **absent** | = Bézier. The only canonical representation of "this edge is a curve". |
+| **writer** | never emits `route: "bezier"` and never emits an empty `waypoints: []`. `serialize` / the revision projection strip both. |
+| **reader** | an explicit `route: "bezier"` is **normalised to absent**; `waypoints` present alongside it is **dropped** (§ER4-DR). `waypoints` is meaningful **only** with `route: "orthogonal"`. |
+| **switch → Bézier** (Inspector / context action) | removes **both** `route` **and** `waypoints` from `edge.data`. One undo entry. After it, the edge's bytes / projection / digest match a never-routed edge. |
+| **switch → Orthogonal** | sets `route: "orthogonal"`; `waypoints` stays whatever it was (empty until Slice 2). |
+
+An **explicit** stored Bézier (keeping `route: "bezier"` and preserving
+`waypoints` across a Bézier↔Orthogonal toggle) is **not** in scope — it would
+need its own decision on why, the UI affordance, and a `loop-revision/3` field
+that is no longer "absent = default". If it is ever wanted it is a separate
+amendment, not a silent behaviour.
+
+### ER5.2 Parity & opt-in
+
+- **Per-edge `route` mode** — `"bezier"` (⇒ absent) or `"orthogonal"`. Nothing
+  else about the edge changes.
+- **Existing graphs are inert.** With `route` absent and no `waypoints`, an
   edge emits exactly `getBezierPath(...)` — this feature does not touch the
   bytes, the digest, the undo stack, or the render of any graph that has never
   had an edge re-routed (ER-INV-1 / -6).
-- **Opt-in survives the file.** A user sets `route: "orthogonal"` via the
-  Inspector edge panel (`Route: Curved | Orthogonal`) or a context action. It is
-  **stored** (`loop-revision/3` cosmetic content), so it persists through
-  reload, autosave, Export/Import, a Share link, and a Project revision — the
-  reason option A (store nothing) is rejected. One undo entry; marks the
-  revision dirty; shows in the diff as a cosmetic-tagged field change.
+- **Opt-in survives the file.** Setting `route: "orthogonal"` is **stored**
+  (`loop-revision/3` cosmetic content), so it persists through reload,
+  autosave, Export/Import, a Share link, and a Project revision — the reason
+  option A (store nothing) is rejected. One undo entry; marks the revision
+  dirty; shows in the diff as a cosmetic-tagged field change. Switching **back**
+  removes the fields and returns the edge (and the file, and the digest) to the
+  v2 state.
 - **A global "new edges are orthogonal" default** is deferred and must never
   retroactively rewrite existing edges.
 - **Everything visual is unchanged** — the direction marker, flow bead,
@@ -315,27 +412,36 @@ mobile renders the file's route, no handles.
 implementation. The file stores **user intent only**, never a computed result.
 
 - **Stored on the edge** (in `edge.data`, alongside `flow` / `resourceType`):
-  - `route?: "bezier" | "orthogonal"` — absent ⇒ `"bezier"`;
-  - `waypoints?: { x: number; y: number }[]` — absent / `[]` ⇒ none; each
-    finite, world-space, user order (§ER4).
-- **Never stored:** the computed orthogonal path, its bends, corner points, or
-  any A* output. Those are recomputed from the layout every time (§ER3.8).
+  - `route?: "orthogonal"` — **absent ⇒ Bézier**; the writer never emits
+    `"bezier"`, the reader normalises an explicit `"bezier"` to absent (§ER5.1);
+  - `waypoints?: { x: number; y: number }[]` — meaningful **only** with
+    `route: "orthogonal"`; absent / `[]` ⇒ none; ≤ 64, each finite, world-space,
+    **verbatim `Number` precision**, user order, duplicates / collinear points
+    **kept** (§ER4 / §ER4-DR).
+- **Never stored:** the computed orthogonal path, its bends, corner points, the
+  `routeClass`, or any A* output. Those are recomputed from the layout every
+  time (§ER3.8 / ER3.9).
 - **`loop-revision/3`** (new `SEMANTICS-R3.md`, drafted + **Frozen** before
-  Slice 1):
-  - `route` and `waypoints` join `FIELDS_BY_KIND` for resource **and** state
-    edges, **after** `resourceType`, emitted only when non-default
-    (conservative extension — a graph with neither is byte- and
-    digest-identical under the v2 *and* v3 projection, like R2-INV-2);
-  - both fields are tagged **cosmetic** (the existing 3rd tag beside
-    engine / advisory is `cosmetic` per `loop-revision/2` §R2-3 — confirm the
-    exact name during the R3 draft): projected, diffed, dirty-tracked,
-    **never** `engineAffecting`, never feeds `nConf` on its own;
-  - `waypoints` canonical form: the array in order, each `{x, y}` with the
-    coordinate written as `loop-expr/1`-style verbatim `String(n)` (finite
-    float64), no rounding in the projection (rounding is a *render* step);
-  - version predicate: a graph is `loop-revision/3` iff any edge carries a
-    non-default `route` / `waypoints` (inferred, never stored — same shape as
-    the v1/v2 predicate);
+  Slice 1) fixes, precisely:
+  - `route` then `waypoints` join `FIELDS_BY_KIND` for resource **and** state
+    edges, **after** `resourceType`, **emitted only when non-default**
+    (`route` present == `"orthogonal"`; `waypoints` non-empty). A graph with
+    neither is byte- and digest-identical under the v2 *and* v3 projection —
+    the **v2 conservative-extension golden** (a committed v2 file whose v3
+    digest equals its v2 digest);
+  - both fields tagged **cosmetic** (the 3rd `loop-revision/2` §R2-3 field tag
+    beside engine / advisory — confirm the exact token in the R3 draft):
+    projected, diffed, dirty-tracked, **never** `engineAffecting`, never feeds
+    `nConf` on its own;
+  - `waypoints` canonical form: the array **in wire order, not deduped**, each
+    `{x, y}` written as `loop-expr/1`-style verbatim `String(n)` for a finite
+    float64 (`-0` already normalised to `0` at read); no rounding in the
+    projection (rounding is a *render* step, §ER3.5);
+  - the reader's `§ER4-DR` quarantine (drop the routing payload, keep the edge)
+    is a `loop-revision/3` read rule, not just an editor nicety;
+  - version predicate: a graph is `loop-revision/3` iff any edge carries
+    `route: "orthogonal"` or a non-empty `waypoints` (inferred from normalised
+    content, never stored — same shape as the v1/v2 predicate);
   - **v1 → v2 → v3 all lift**: verify a v1/v2 file against its own projection,
     then lift to the common v3 compare model (R2-INV-style).
 - **`loop-workspace` stays v1** — routing adds nothing to `SimState`, the
@@ -365,16 +471,21 @@ version.
 2. **No semantic effect.** Re-routing an edge does not change `source` /
    `target` / `sourceHandle` / `targetHandle`, engine results, `R(t)`, state
    events, resource-type findings, Monte-Carlo output, or the timeline.
-3. **Deterministic & idempotent.** Same layout + handles + manual waypoints ⇒
-   byte-identical route ⇒ byte-identical `path` `d` and `edge-interaction`
-   `d`. Re-rendering without a layout change re-uses the memoized route.
+3. **Deterministic & idempotent.** The same `routeMapKey` (§ER3.8) ⇒ the same
+   `Map<edgeId, {d, hitD, routeClass}>`, byte-identical, regardless of browser,
+   node/edge input order, or whether it was reached incrementally or by a cold
+   full recompute (§ER3.9). Includes the `fallback-lz` / `self-loop` /
+   `same-side` / `degenerate` classes.
 4. **Endpoints honoured.** The route begins at the source handle and ends at
    the target handle, along each handle's `Position` normal. Fan-out offsets the
    stub, not the attach point.
-5. **Never fails to draw.** A boxed-in pair falls back to a direct L/Z route
-   (may overlap) rather than dropping the edge.
-6. **Bézier parity.** With mode `bezier` (the default), the emitted `path` is
-   exactly `getBezierPath(...)` — this feature is inert for an untouched graph.
+5. **Never fails to draw.** A boxed-in pair, a `MAX_EXPANSIONS` hit, or a
+   post-round padding intrusion falls back to a deterministic L/Z
+   (`routeClass: "fallback-lz"`, may overlap) rather than dropping the edge.
+6. **Bézier parity.** `route` absent ⇒ the emitted `path` is exactly
+   `getBezierPath(...)`; switching an edge to orthogonal and back leaves the
+   edge, the GraphDoc bytes, and the `loop-revision/*` digest exactly as a
+   never-routed edge (§ER5.1).
 
 ---
 
@@ -434,17 +545,22 @@ version.
 | **ER-D2** | serialization — A / B / C? | **Decided — the C wire contract, staged.** File stores `route` mode + optional `waypoints` (user intent only); computed path never stored; both tracked as **`loop-revision/3` cosmetic** content. Slice 1 = mode + auto routing; Slice 2 = waypoint UI (§ER6). |
 | **ER-D3** | default mode for a *new* edge? | **Decided — `"bezier"`** (absent field ⇒ bézier). A global "new edges orthogonal" toggle is deferred and must not rewrite existing edges. |
 | **ER-D4** | pinned route — auto-fill between waypoints, or literal polyline? | **Decided — auto-fill between.** The router A*-connects each `waypoint[k] → waypoint[k+1]` span (and the two end spans), so a pinned route still avoids obstacles between the pinned points (§ER4). |
-| **ER-D5** | router constants | **Decided as fixed values** in §ER3.1 (`ROUTE_PAD 12`, `ROUTE_STUB 16`, `BEND_COST 20`, `PARALLEL_GAP 10`, `CORNER_R 6`, `SELF_LOOP 28`, `COORD_EPS 1e-3`, `PATH_DECIMALS 2`, `MAX_EXPANSIONS 20000`). Not per-graph tunable. Any change is a router-config change and part of the cache key. |
+| **ER-D5** | router constants | **Decided as fixed values** in §ER3.1 (`ROUTE_PAD 12`, `ROUTE_STUB 16`, `BEND_COST 20`, `PARALLEL_GAP 10`, `CORNER_R 6`, `SELF_LOOP 28`, `COORD_EPS 1e-3`, `PATH_DECIMALS 2`, `MAX_EXPANSIONS 20000`, `MAX_WAYPOINTS_PER_EDGE 64`). Not per-graph tunable. A change bumps `ROUTER_VERSION`, which is in the cache key. |
 | **ER-D6** | cost / tie-break order | **Decided** — length → bends → backtrack → shared/crossing → geometry (flattened point list) → edge id; total, no residual ties (§ER3.4). |
 | **ER-D7** | ruler generation + numeric normalisation | **Decided** — obstacle inflated edges + stub-end coords + wide-channel midpoints; quantise to `COORD_EPS`, sort, dedupe; float64 everywhere else, negatives/fractions fine (§ER3.3). |
 | **ER-D8** | endpoint-node obstacle exception + stub length | **Decided** — the edge's own source/target nodes are not obstacles for it; a fixed `ROUTE_STUB` (16) perpendicular exit/entry, clamped shorter (never longer) if it lands in another obstacle (§ER3.2). |
 | **ER-D9** | self-loop, same-side handles, fully blocked, overlapping obstacles, degenerate endpoints | **Decided** — deterministic non-A* routes for each (§ER3.6); obstacle set is a union of rectangles (§ER3.2). |
 | **ER-D10** | zero-length segments + consecutive collinear points | **Decided** — dropped in the post-process pass within `COORD_EPS` (§ER3.5); the route is the minimal point list for its shape. |
 | **ER-D11** | parallel-edge fan-out order | **Decided — by edge `id`** (string compare), so it is independent of insertion / paint order; the set includes reversed pairs (§ER3.7). |
-| **ER-D12** | recompute triggers + cache key | **Decided** — the 7-input list in §ER3.8; never zoom / pan / hover / select / focus / theme / sim / animation. |
-| **ER-D13** | manual-waypoint contract | **Decided** — world-space finite `{x,y}`, user order, endpoints excluded, auto-fill between, fixed on node move, in-obstacle ⇒ `invalid` cue + fallback (value kept), Reset clears waypoints only, one undo entry per add/move/delete/Reset, cosmetic revision content, no engine effect (§ER4). |
-| **ER-D14** | mobile | **Decided — render the file's route as-authored;** no route-editing handles (routing is display-only on the view/run layout). |
+| **ER-D12** | recompute triggers + cache key | **Decided** — the canonical `routeMapKey` in §ER3.8; never zoom / pan / hover / select / focus / theme / sim / animation; a previous route is **not** an input. |
+| **ER-D13** | manual-waypoint contract | **Decided** — §ER4: world-space finite `{x,y}`, user order, endpoints excluded, auto-fill between, fixed on node move, in-obstacle ⇒ `invalid` cue + fallback (value kept), Reset clears waypoints only, one undo entry per add/move/delete/Reset, cosmetic revision content, no engine effect. |
+| **ER-D14** | mobile | **Decided — render the file's route as-authored;** no route-editing handles. |
 | **ER-D15** | pixel matrix | **Decided** — the Visual Refresh matrix fixture stays bézier; add a **separate** small orthogonal-route fixture with its own committed frames. |
+| **ER-D16** | canonical form of default Bézier | **Decided (§ER5.1)** — `route` absent = Bézier; writer never emits `"bezier"` or `waypoints: []`; reader normalises explicit `"bezier"` → absent and drops a stray `waypoints`; switch → Bézier removes **both** fields; `waypoints` valid only with `route: "orthogonal"`. Explicit-Bézier-with-waypoint-preservation is a **separate** amendment if ever wanted. |
+| **ER-D17** | waypoint defensive limits | **Decided (§ER4-DR)** — `MAX_WAYPOINTS_PER_EDGE = 64`; over-length / non-object / non-finite / bad `route` / `waypoints`-without-orthogonal ⇒ **drop the routing payload only + one warning**, keep the edge and every semantic field; `-0 → 0`; wire coords kept at full `Number` precision (only the derived path gets `PATH_DECIMALS`); duplicate / collinear waypoints **preserved on the wire**, stripped only from the derived path. |
+| **ER-D18** | global reroute atomicity | **Decided (§ER3.9)** — any `routeMapKey` change recomputes **all** `orthogonal` edges in ascending edge-id order in one pass, then swaps the full route map in atomically. A render never mixes an edge's stale route with another's fresh one; incremental == cold full recompute. |
+| **ER-D19** | numeric & failure normalisation | **Decided (§ER3.5 / ER3.6)** — `q(v)` round-half-**away-from-zero** (symmetric about 0), `-0 → 0` on every write/compare, `<`-tie → smaller signed value then `x` then `y` then edge id, a final post-round padding re-check (nudge once, else L/Z), `MAX_EXPANSIONS` / re-check failure ⇒ `routeClass: "fallback-lz"` (deterministic L/Z, same `d` for same input), one dev `console.warn` per edge id per session. |
+| **ER-D20** | `routeClass` on the edge | **Decided** — `orthogonal` / `self-loop` / `same-side` / `fallback-lz` / `degenerate` exposed as `data-route-class` for the E2E; **not** stored in the GraphDoc. |
 
 Open (not blocking Slice 1): a global "new edges orthogonal" toggle;
 arrow-key waypoint nudging; whether the flow chip needs its own offset beyond
@@ -485,31 +601,57 @@ Machine-checkable, mirroring the Visual Refresh specs.
    draw a non-empty `d` (deterministic golden per case); the boxed-in one is
    the documented L/Z. (ER-INV-5.)
 9. Post-process: a fixture that would produce a zero-length segment / three
-   collinear points yields the minimal point list (assert point count).
+   collinear path points yields the minimal point list (assert point count);
+   a `-0` node position and its `+0` twin produce the **same** `d`.
+9a. **Atomicity** (§ER3.9) — move one node; the resulting route map equals a
+    cold full recompute from the same `routeMapKey`, for **every** orthogonal
+    edge (not just incident ones). No render frame shows a mixed old/new map.
+9b. **`fallback-lz` determinism** — the boxed-in / `MAX_EXPANSIONS` fixture's
+    `d` and `edge-interaction` `d` are byte-identical across two loads and with
+    inputs reversed; `data-route-class="fallback-lz"`.
+
+**Wire / canonical form**
+10. **Default round-trip** — set an edge to `orthogonal`, then back to
+    `Curved`; `edge.data` has **no** `route` and **no** `waypoints`; the
+    serialized GraphDoc and the `loop-revision/*` digest equal the pre-edit
+    bytes exactly (ER-D16).
+11. **Writer** never emits `route: "bezier"` or `waypoints: []`; a file
+    containing an explicit `route: "bezier"` reads back with the field absent;
+    a file with `waypoints` but `route ≠ "orthogonal"` reads back with
+    `waypoints` dropped + a warning (ER-D16 / §ER4-DR).
+12. **Defensive read** — a file with a 5000-entry `waypoints`, or a non-object
+    entry, or a `NaN` coord: the routing payload is dropped with **one**
+    warning; the edge, its `source` / `target` / handles / `flow` / `kind` are
+    intact; import still succeeds (ER-D17).
+13. **Precision** — an accepted `waypoints` coordinate round-trips
+    `Import → Export` **byte-identical** (no `PATH_DECIMALS` on the wire);
+    duplicate / collinear waypoints survive the round-trip and render the same
+    path as the deduped list.
 
 **Parallel edges**
-10. K = 3 edges between one ordered pair ⇒ 3 distinct routes, none overlapping
+14. K = 3 edges between one ordered pair ⇒ 3 distinct routes, none overlapping
     along their shared span; swapping two of the three edge ids swaps their
-    offsets (order is by id, not array position).
+    offsets (order is by id, not array position); a reversed `B→A` sibling
+    shares the fan-out set.
 
 **Waypoints (Slice 2)**
-11. Add / move / delete / Reset are one undo entry each; `waypoints` appears in
+15. Add / move / delete / Reset are one undo entry each; `waypoints` appears in
     the three-way diff as a **cosmetic** change, never feeds `nConf`, never
     changes `engineAffecting`.
-12. A waypoint dragged inside a node shows the `invalid` edge cue, the value is
+16. A waypoint dragged inside a node shows the `invalid` edge cue, the value is
     kept, and the affected span uses the fallback; dragging it out clears the
     cue. Moving a node leaves the waypoints fixed and re-routes the spans.
-13. `loop-workspace/1` round-trip: step, Export a Workspace, re-Import — the
+17. `loop-workspace/1` round-trip: step, Export a Workspace, re-Import — the
     `route` / `waypoints` come from the GraphDoc (not `SimState`), the run
     state restores, nothing about routing is in the workspace payload.
 
 **Accessibility / platform**
-14. `forced-colors: active` and `prefers-reduced-motion: reduce` — a mode
+18. `forced-colors: active` and `prefers-reduced-motion: reduce` — a mode
     switch is instant (no path-morph); solid-vs-dashed + the direction marker
     survive; the fat hit path follows the route.
-15. Mobile: a file with an orthogonal edge renders that route; no
+19. Mobile: a file with an orthogonal edge renders that route; no
     route-editing handles; no horizontal document scroll.
-16. Perf guard: a fixture above `MAX_EXPANSIONS` falls back to L/Z, logs once,
+20. Perf guard: a fixture above `MAX_EXPANSIONS` falls back to L/Z, logs once,
     no dropped frame; the memo is not invalidated by zoom / select / hover.
 
 ---
