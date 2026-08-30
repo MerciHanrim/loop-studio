@@ -9,6 +9,7 @@ import {
 import { useSimStore } from '../../store/simStore'
 import type { LoopEdgeData } from '../../model/types'
 import type { StateEvent } from '../../engine'
+import { EDGE_MARKER } from './EdgeMarkers'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
 const FAST_MS = 300
@@ -31,7 +32,6 @@ function LoopEdge({
   targetPosition,
   data,
   selected,
-  markerEnd,
 }: EdgeProps) {
   const [path, labelX, labelY] = getBezierPath({
     sourceX,
@@ -88,12 +88,21 @@ function LoopEdge({
         ? 'var(--edge-state)'
         : 'var(--edge-resource)'
 
+  // §VL6 — the renderer owns the direction marker (see EdgeMarkers.tsx); it is
+  // always drawn and tracks the edge class so the arrow is tokenised in both
+  // themes, never React Flow's fixed grey.
+  const markerId = selected
+    ? EDGE_MARKER.selected
+    : isState
+      ? EDGE_MARKER.state
+      : EDGE_MARKER.resource
+
   return (
     <>
       <BaseEdge
         id={id}
         path={path}
-        markerEnd={markerEnd}
+        markerEnd={`url(#${markerId})`}
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,

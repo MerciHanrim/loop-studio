@@ -1,4 +1,3 @@
-import { MarkerType } from '@xyflow/react'
 import { defaultData } from './factory'
 import type { RecommendedRunConfig } from './serialize'
 import type { LoopEdge, LoopNode, NodeData, NodeKind } from './types'
@@ -35,7 +34,6 @@ const link = (id: string, source: string, target: string, flow: string): LoopEdg
   targetHandle: 'in',
   type: 'loop',
   data: { kind: 'resource', flow },
-  markerEnd: { type: MarkerType.ArrowClosed },
 })
 
 // The two acceptance diagrams from SEMANTICS.md §14, ready to drop on the canvas.
