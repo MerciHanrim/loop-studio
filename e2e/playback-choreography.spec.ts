@@ -322,4 +322,53 @@ test.describe('playback — Slice 2 choreography', () => {
     )
     expect(bd2).toEqual(bd1)
   })
+
+  // ── Slice 3 — viewing conditions (§PB4.4 / §PB12 test 12) ──────────────
+  test('§PB4.4 — at L0 the travelling dot is elided; depart / travel-pulse / arrive still play in order, settle still commits', async ({ page }) => {
+    await setup(page, G(false), 2200)
+    // world-zoom below the L1↔L0 threshold (0.45)
+    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.3 }))
+    await page.waitForTimeout(60)
+    const z = await page.evaluate(
+      () => parseFloat(/scale\(([-0-9.]+)\)/.exec((document.querySelector('.react-flow__viewport') as HTMLElement).style.transform)![1]),
+    )
+    expect(z).toBeLessThan(0.45)
+
+    const step0 = (await simState(page)).stepIndex
+    await call(page, 'play')
+
+    // through the whole transition: never a moving `.pb-move` dot on the flowing edge
+    const phases = new Set<string>()
+    let sawL0Pulse = false
+    for (let i = 0; i < 90; i++) {
+      const snap = await page.evaluate(() => {
+        const edge = document.querySelector('.react-flow__edge[data-id="e_sp"]')!
+        const dot = edge.querySelector('g.pb-move')
+        const cue = edge.querySelector('.pb-cue')
+        const l0 = edge.querySelector('.pb-l0-pulse')
+        const s = (window as any).__loop.sim.getState()
+        return {
+          dot: !!dot,
+          cuePhase: cue?.getAttribute('data-playback-phase') ?? null,
+          l0: !!l0,
+          phase: s.transition?.phase ?? null,
+          tau: s.transition?.tau ?? null,
+          step: s.stepIndex,
+        }
+      })
+      expect(snap.dot).toBe(false) // the sub-pixel dot is never created at L0
+      if (snap.phase) phases.add(snap.phase)
+      if (snap.l0) {
+        sawL0Pulse = true
+        expect(snap.phase).toBe('travel') // the pulse only stands in for `travel`
+      }
+      if (snap.step > step0 && snap.tau == null) break
+      await page.waitForTimeout(30)
+    }
+
+    expect([...phases].sort()).toEqual(['arrive', 'depart', 'travel']) // ordered beats still ran
+    expect(sawL0Pulse).toBe(true) // the travel stand-in showed
+    expect((await simState(page)).stepIndex).toBe(step0 + 1) // settle still committed exactly one step
+    await call(page, 'pause')
+  })
 })

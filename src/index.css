@@ -1021,6 +1021,17 @@ body {
   font-weight: 700;
   text-anchor: middle;
 }
+/* docs/simulation-playback.md §PB4.4 — at L0 the sub-pixel travelling dot is
+   dropped; this steady directional stroke stands in for the `travel` beat so
+   the depart → travel → arrive order still reads on the map. No motion; it is
+   present only while `phase === "travel"` and clears with the transition. */
+.pb-l0-pulse {
+  stroke: var(--flow-strength);
+  stroke-width: 3;
+  opacity: 0.6;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
 /* §VL6 / §VL9 — the reduced-motion substitute for a travelling bead (rendered
    only under `prefers-reduced-motion: reduce`): a static highlight over the
    edge that STAYS for the whole step, no fade, so "this edge carried flow this
