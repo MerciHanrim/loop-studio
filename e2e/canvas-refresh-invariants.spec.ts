@@ -3,9 +3,10 @@ import { expect, openApp, resetAll, test } from './support/loop'
 
 // docs/visual-language.md §VL10 (VL-INV-1…6) — the Canvas Visual Refresh is a
 // PURE VIEW CHANGE. Rendering / hovering / selecting / keyboard-focusing a node
-// (including the new Parameter / Register kinds) must not touch the GraphDoc,
-// its `loop-revision/*` digest, the undo/redo stacks, node positions/sizes, or
-// the viewport.
+// (including the new Parameter / Register kinds), and an `invalid` cue toggling
+// on/off, must not touch the GraphDoc, its `loop-revision/*` digest, the
+// undo/redo stacks, node positions / sizes / DOM boxes, the CONNECTED EDGE
+// PATHS, or the viewport.
 
 const GRAPH = JSON.stringify({
   schema: 'loop-studio/graph',
@@ -14,67 +15,114 @@ const GRAPH = JSON.stringify({
     { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Mint', activation: 'automatic', mode: 'pushAny' } },
     { id: 'gold', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'Gold', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', resourceType: 'Gold' } },
     { id: 'p_rate', type: 'parameter', position: { x: 0, y: 200 }, data: { kind: 'parameter', label: 'Rate', value: 2.5, min: 0, max: 10, unit: 'x' } },
-    { id: 'r_val', type: 'register', position: { x: 240, y: 200 }, data: { kind: 'register', label: 'Value', expr: '@gold * @p_rate' } },
-    { id: 'r_bad', type: 'register', position: { x: 460, y: 200 }, data: { kind: 'register', label: 'Bad', expr: '1 / (@gold - @gold)' } },
+    // r_flip is invalid ONLY while gold === 0 (i.e. at step 0); a sim step
+    // makes it valid — the `invalid` cue toggles with NO GraphDoc change.
+    { id: 'r_flip', type: 'register', position: { x: 240, y: 200 }, data: { kind: 'register', label: 'Flip', expr: '100 / @gold' } },
   ],
   edges: [
     { id: 'e', type: 'loop', source: 'src', target: 'gold', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
   ],
 })
 
-type Snap = { digest: string; canUndo: boolean; canRedo: boolean; positions: string; viewport: string }
+type Snap = {
+  digest: string
+  canUndo: boolean
+  canRedo: boolean
+  positions: string
+  boxes: string
+  edgePaths: string
+  viewport: string
+}
 
 async function snap(page: Page): Promise<Snap> {
   return page.evaluate(() => {
-    const l = (window as unknown as { __loop: { graph: { getState: () => any }; revisionIO: { currentTargetDigest: () => string } } }).__loop
+    const l = (window as unknown as {
+      __loop: { graph: { getState: () => any }; revisionIO: { currentTargetDigest: () => string } }
+    }).__loop
     const g = l.graph.getState()
     const vp = document.querySelector('.react-flow__viewport') as HTMLElement | null
+    const box = (id: string) => {
+      const el = document.querySelector(`.react-flow__node[data-id="${id}"]`) as HTMLElement | null
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return [id, Math.round(r.width), Math.round(r.height)]
+    }
+    const nodeIds = g.nodes.map((n: any) => n.id)
     return {
-      // the canonical revision content digest (§R4.4 / VL-INV-4) — the projection
-      // already ignores transient UI flags like `selected`, so this is the
-      // GraphDoc identity the Refresh must not move.
       digest: l.revisionIO.currentTargetDigest(),
       canUndo: g.canUndo,
       canRedo: g.canRedo,
-      positions: JSON.stringify(g.nodes.map((n: any) => [n.id, n.position.x, n.position.y, n.width ?? null, n.height ?? null])),
+      positions: JSON.stringify(
+        g.nodes.map((n: any) => [n.id, n.position.x, n.position.y, n.width ?? null, n.height ?? null, n.measured?.width ?? null, n.measured?.height ?? null]),
+      ),
+      boxes: JSON.stringify(nodeIds.map(box)),
+      edgePaths: JSON.stringify(
+        [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')].map((p) => (p as SVGPathElement).getAttribute('d')),
+      ),
       viewport: vp ? vp.style.transform : '',
     }
   })
 }
 
+async function expectUnchanged(before: Snap, after: Snap, why: string): Promise<void> {
+  expect(after.digest, `${why}: canonical revision digest`).toBe(before.digest)
+  expect(after.positions, `${why}: node positions / measured size`).toBe(before.positions)
+  expect(after.boxes, `${why}: node DOM bounding boxes`).toBe(before.boxes)
+  expect(after.edgePaths, `${why}: connected edge SVG path[d]`).toBe(before.edgePaths)
+  expect(after.canUndo, `${why}: canUndo`).toBe(before.canUndo)
+  expect(after.canRedo, `${why}: canRedo`).toBe(before.canRedo)
+  expect(after.viewport, `${why}: viewport transform`).toBe(before.viewport)
+}
+
 test.describe('Canvas Refresh — VL-INV (view change only)', () => {
-  test('hover / select / keyboard-focus a Parameter and a Register change nothing', async ({ page }) => {
+  test('hover / select / keyboard-focus / invalid-toggle change nothing observable in the doc or layout', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+    page.on('dialog', (d) => void d.accept())
     await page.setInputFiles('.toolbar__actions input[type=file]', {
       name: 'g.json',
       mimeType: 'application/json',
       buffer: Buffer.from(GRAPH, 'utf8'),
     })
-    await expect(page.locator('.react-flow__node[data-id="r_val"]')).toBeVisible()
-    await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__invalid')).toBeVisible() // invalid outline drawn
-    await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__flag')).toHaveText('!')
+    await expect(page.locator('.react-flow__node[data-id="r_flip"]')).toBeVisible()
+    // step 0: gold === 0 ⇒ r_flip is invalid
+    await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__invalid')).toBeVisible()
 
-    const before = await snap(page)
+    const base = await snap(page)
 
-    // hover every node
-    for (const id of ['src', 'gold', 'p_rate', 'r_val', 'r_bad']) {
-      await page.locator(`.react-flow__node[data-id="${id}"]`).hover()
-    }
-    // click-select the Parameter, then the invalid Register
-    await page.locator('.react-flow__node[data-id="p_rate"]').click()
-    await expect(page.locator('.react-flow__node[data-id="p_rate"].is-selected, .react-flow__node.selected[data-id="p_rate"]')).toBeVisible()
-    await page.locator('.react-flow__node[data-id="r_bad"]').click()
-    // keyboard focus: Tab into the canvas and move focus with arrows/tab
-    await page.locator('.react-flow__node[data-id="r_bad"]').focus()
-    await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__focus')).toBeVisible()
+    await test.step('hover every node', async () => {
+      for (const id of ['src', 'gold', 'p_rate', 'r_flip']) {
+        await page.locator(`.react-flow__node[data-id="${id}"]`).hover()
+      }
+      await expectUnchanged(base, await snap(page), 'hover')
+    })
 
-    const after = await snap(page)
+    await test.step('select the Parameter then the Register', async () => {
+      await page.locator('.react-flow__node[data-id="p_rate"]').click()
+      await page.locator('.react-flow__node[data-id="r_flip"]').click()
+      await expectUnchanged(base, await snap(page), 'select')
+    })
 
-    expect(after.digest).toBe(before.digest) // canonical revision content — unchanged (VL-INV-4)
-    expect(after.positions).toBe(before.positions) // no auto position / size change
-    expect(after.canUndo).toBe(before.canUndo) // undo stack untouched
-    expect(after.canRedo).toBe(before.canRedo)
-    expect(after.viewport).toBe(before.viewport) // no auto fitView / pan
+    await test.step('keyboard-focus the Register', async () => {
+      await page.locator('.react-flow__node[data-id="r_flip"]').focus()
+      await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__focus')).toBeVisible()
+      await expectUnchanged(base, await snap(page), 'focus')
+    })
+
+    await test.step('invalid cue toggles OFF on a sim step — no reflow, edges unmoved', async () => {
+      await page.locator('.pstrip button[title="Advance one step"]').click() // gold → 1, r_flip valid
+      await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__invalid')).toHaveCount(0)
+      await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__flag')).toHaveCount(0)
+      // a sim step legitimately changes the digest inputs? NO — canonicalContent
+      // ignores sim state; the GraphDoc is identical. Positions / boxes / edges
+      // must be byte-identical (the `!` flag is an absolute overlay).
+      await expectUnchanged(base, await snap(page), 'invalid toggled off')
+    })
+
+    await test.step('invalid cue toggles back ON on Reset', async () => {
+      await page.locator('.pstrip button[title="Reset to step 0"]').click()
+      await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__invalid')).toBeVisible()
+      await expectUnchanged(base, await snap(page), 'invalid toggled back on')
+    })
   })
 })

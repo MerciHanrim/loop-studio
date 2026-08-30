@@ -623,18 +623,22 @@ body {
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
-/* state: keyboard focus — DASHED ring, drawn inside the selection ring so both
-   read at once; solid-vs-dashed is the non-colour tell (§VL3). */
+/* state: keyboard focus — DASHED ring, scaled INSIDE the selection ring so
+   both read at once (§VL3 stacking: "focus inside selected"); solid-vs-dashed
+   is the non-colour tell. */
 .nodef__focus {
   fill: none;
   stroke: var(--state-focus);
   stroke-width: 1.5;
   stroke-dasharray: 3 2.5;
   vector-effect: non-scaling-stroke;
-  paint-order: stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.9);
 }
-/* state: invalid (loop-model/1) — WARNING dashed outline; the dash pattern +
-   the corner flag are the non-colour tell (§VL3 / §VL4). */
+/* state: invalid (loop-model/1) — WARNING dashed outline, the OUTERMOST ring
+   (scaled slightly out so it survives under the selection ring); the dash
+   pattern + the corner flag are the non-colour tell (§VL3 / §VL4). */
 .nodef--parameter,
 .nodef--register {
   --node-hue: var(--line-structure); /* annotation nodes carry no flow hue */
@@ -652,6 +656,9 @@ body {
   stroke-width: 2;
   stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(1.06);
 }
 .nodef__flag {
   position: absolute;

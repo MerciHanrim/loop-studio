@@ -72,6 +72,37 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     await expect(focus).toHaveCSS('stroke-dasharray', /\d/)
   })
 
+  test('STACKING — a Register that is selected + focused + invalid shows all four cues (§VL3)', async ({ page }) => {
+    await load(page)
+    const bad = node(page, 'r_bad')
+    await bad.click() // select
+    await bad.focus() // keyboard focus — selection is kept
+
+    // all four state layers are present at once — none overwrites another
+    const sel = bad.locator('.nodef__sel')
+    const focus = bad.locator('.nodef__focus')
+    const inv = bad.locator('.nodef__invalid')
+    const flag = bad.locator('.nodef__flag')
+    for (const l of [sel, focus, inv, flag]) await expect(l).toBeVisible()
+
+    // the non-colour tells stay distinct: selection SOLID, focus + invalid DASHED
+    // with different patterns; the focus ring is inset (scaled), the invalid ring
+    // is the outermost (scaled out).
+    await expect(sel).toHaveCSS('stroke-dasharray', /none|^$/)
+    const focusDash = await focus.evaluate((el) => getComputedStyle(el).strokeDasharray)
+    const invDash = await inv.evaluate((el) => getComputedStyle(el).strokeDasharray)
+    expect(focusDash).toMatch(/\d/)
+    expect(invDash).toMatch(/\d/)
+    expect(focusDash).not.toBe(invDash)
+    expect(await focus.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none') // inset
+    expect(await inv.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none') // outset
+    await expect(flag).toHaveText('!')
+
+    // accessible name carries the invalid state (not shape / colour alone)
+    await expect(bad.locator('.nodef')).toHaveAttribute('aria-label', /invalid/)
+    await expect(bad.locator('.nodef')).toHaveAttribute('aria-label', /selected/)
+  })
+
   test('renders in light and dark', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await load(page)

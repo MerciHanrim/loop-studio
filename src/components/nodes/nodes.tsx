@@ -131,9 +131,21 @@ function NodeFrame({
   const revealed = hovered || focused || isSelected || selected === true || draggingState
   const opIn = revealed ? 1 : stateInWired ? 0.5 : 0
   const opOut = revealed ? 1 : stateOutWired ? 0.5 : 0
+  // §VL3 stacking — every state is its own layer, so a Register that is
+  // selected AND keyboard-focused AND invalid shows all three cues at once:
+  // the outer --warning invalid ring, the solid selection ring, the inset
+  // dashed focus ring, and the corner `!` flag. The accessible name carries
+  // `invalid` too (not colour / shape alone).
+  const aria =
+    `${kind} ${title}` +
+    (invalid ? ', invalid' : '') +
+    (selected ? ', selected' : '') +
+    (focused ? ', focused' : '')
   return (
     <div
       ref={frameRef}
+      role="img"
+      aria-label={aria}
       className={
         `nodef nodef--${kind}` +
         (selected ? ' is-selected' : '') +
