@@ -219,7 +219,14 @@ function normNodeData(n: LoopNode): Record<string, unknown> {
   return merged
 }
 
-function projectNode(n: LoopNode): CanonicalNode {
+/**
+ * `modelLayer: false` is the **literal `loop-revision/1` projection** — it
+ * emits none of the `loop-revision/2` additions and *throws* if it meets a
+ * `parameter` / `register` node. `readRevisionSide` verifies a v1 side against
+ * this projection (§R2-5 / R2-INV-3) before lifting into the `modelLayer: true`
+ * compare model.
+ */
+function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
   const kind = n.data.kind as string
   const position = {
     x: numOrThrow(n.position?.x ?? 0, `node ${n.id} position.x`),
@@ -232,6 +239,9 @@ function projectNode(n: LoopNode): CanonicalNode {
   // non-finite number is (InvalidRevisionContentError ⇒ the caller drops
   // `project`, the graph still loads — R-INV-10 / R2-INV-9).
   if (MODEL_NODE_KINDS.has(kind)) {
+    if (!modelLayer) {
+      throw new InvalidRevisionContentError(`node ${n.id}: a ${kind} node is not loop-revision/1 content`)
+    }
     const read = kind === 'parameter' ? readParameterData(rawData) : readRegisterData(rawData)
     if (!read.ok) throw new InvalidRevisionContentError(`node ${n.id} (${kind}): ${read.detail}`)
     const nd = read.data as unknown as Record<string, unknown>
@@ -248,6 +258,7 @@ function projectNode(n: LoopNode): CanonicalNode {
   for (const f of fields) {
     if (f === 'resourceType') {
       // loop-revision/2 (§R2-2.2) — trailing, only when non-empty after §M4.1
+      if (!modelLayer) continue
       const rt = normalizeResourceType(src.resourceType).value
       if (rt !== null) data.resourceType = rt
       continue
@@ -264,7 +275,7 @@ function projectNode(n: LoopNode): CanonicalNode {
   return { id: n.id, position, data }
 }
 
-function projectEdge(e: LoopEdge): CanonicalEdge {
+function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
   const kind: 'resource' | 'state' = e.data?.kind === 'state' ? 'state' : 'resource'
   const fields = EDGE_FIELDS[kind]
   const src = e.data as Record<string, unknown> | undefined
@@ -277,6 +288,7 @@ function projectEdge(e: LoopEdge): CanonicalEdge {
     else if (f === 'mode') data.mode = src?.mode
     else if (f === 'resourceType') {
       // loop-revision/2 (§R2-2.2) — trailing, only when non-empty after §M4.1
+      if (!modelLayer) continue
       const rt = normalizeResourceType(src?.resourceType).value
       if (rt !== null) data.resourceType = rt
     }
@@ -314,15 +326,23 @@ const byId = <T extends { id: string }>(a: T, b: T) => (a.id < b.id ? -1 : a.id 
  * every RF-render field. Throws `InvalidRevisionContentError` on a non-finite
  * number.
  */
-export function canonicalContent(doc: {
-  nodes: LoopNode[]
-  edges: LoopEdge[]
-  recommendedRunConfig?: RecommendedRunConfig
-}): CanonicalContent {
+export function canonicalContent(
+  doc: {
+    nodes: LoopNode[]
+    edges: LoopEdge[]
+    recommendedRunConfig?: RecommendedRunConfig
+  },
+  opts: { modelLayer?: boolean } = {},
+): CanonicalContent {
+  // `modelLayer` defaults to `true` — the conservative `loop-revision/2`
+  // projection, byte-identical to `loop-revision/1` for a graph with no model
+  // layer (R2-INV-2). `readRevisionSide` passes `false` to run the literal v1
+  // projection when verifying a v1 side (§R2-5).
+  const modelLayer = opts.modelLayer ?? true
   const g = normalizeGraph({ nodes: doc.nodes, edges: doc.edges })
   const out: CanonicalContent = {
-    nodes: g.nodes.map(projectNode).sort(byId),
-    edges: g.edges.map(projectEdge).sort(byId),
+    nodes: g.nodes.map((n) => projectNode(n, modelLayer)).sort(byId),
+    edges: g.edges.map((e) => projectEdge(e, modelLayer)).sort(byId),
   }
   const rrc = projectRunConfig(doc.recommendedRunConfig)
   if (rrc) out.recommendedRunConfig = rrc
@@ -354,6 +374,98 @@ export async function fullContentDigest(doc: {
  *  Used where the caller has the projection in hand and wants no `await`. */
 export function digestOfCanonical(c: CanonicalContent): string {
   return sha256Js(utf8Bytes(canonicalJson(c)))
+}
+
+// ── §R2-5 — the ordered read pipeline for one revision / proposal side ─────
+
+export type SideVersion = 'loop-revision/1' | 'loop-revision/2'
+export type RevisionSideOk = {
+  ok: true
+  version: SideVersion
+  /** the content in the common v2 compare model (byte-identical to the v1
+   *  projection for a v1 side — R2-INV-2) */
+  content: CanonicalContent
+  /** true iff a `storedDigest` was supplied and matched the version-appropriate
+   *  projection */
+  digestVerified: boolean
+}
+export type RevisionSideFail = {
+  ok: false
+  /** which ordered stage rejected the side */
+  stage: 'defensive-read' | 'digest'
+  detail: string
+}
+export type RevisionSideResult = RevisionSideOk | RevisionSideFail
+
+/**
+ * `SEMANTICS-R2.md` §R2-5 — process one revision / proposal side in the FIXED
+ * order, so "verify the v1 digest with the v1 projection, then lift" is a
+ * tested call sequence, not an accident of the two projections happening to
+ * agree:
+ *
+ *   1. `normalizeGraph` — kind defaults, handle backfill, the `resourceType`
+ *      round-trip (`src/model/serialize.ts`).
+ *   2. **defensive read** of every `parameter` / `register` — the §R2-1.1
+ *      structural gate. An unseatable shape fails HERE (`stage:'defensive-read'`),
+ *      before any projection or version decision.
+ *   3. the **§R2-1 version predicate** on the *normalised* graph.
+ *   4. project + verify: a **v1** side is projected with `{ modelLayer:false }`
+ *      — the literal `loop-revision/1` projection — and its `storedDigest` is
+ *      checked against THAT; a **v2** side against `{ modelLayer:true }`.
+ *   5. **lift**: a verified v1 side is re-projected with `{ modelLayer:true }`
+ *      (the common compare model). By R2-INV-2 the bytes are identical; this
+ *      function asserts it rather than assuming it.
+ *
+ * `NodeKind` is not yet widened, so step 1 leaves a `parameter` / `register`
+ * node *unchanged* (`normalizeNode` only defaults the six flow kinds) — default
+ * fill + field normalisation for model nodes lives in the step-2 defensive read
+ * until the editor-wiring slice moves it into `normalizeNode`.
+ */
+export function readRevisionSide(
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: RecommendedRunConfig },
+  storedDigest?: string,
+): RevisionSideResult {
+  // 1 + 2 — normalise, then the structural gate (BEFORE any projection)
+  const g = normalizeGraph({ nodes: graph.nodes, edges: graph.edges })
+  for (const n of g.nodes) {
+    const k = (n.data as { kind?: unknown } | undefined)?.kind
+    if (k === 'parameter' || k === 'register') {
+      const read = k === 'parameter'
+        ? readParameterData(n.data as unknown)
+        : readRegisterData(n.data as unknown)
+      if (!read.ok) {
+        return { ok: false, stage: 'defensive-read', detail: `node ${n.id} (${k}): ${read.detail}` }
+      }
+    }
+  }
+
+  // 3 — the §R2-1 predicate on the normalised graph
+  const version: SideVersion = isModelLayerContent({
+    nodes: g.nodes as { data?: { kind?: unknown; resourceType?: unknown } | null }[],
+    edges: g.edges as { data?: { kind?: unknown; resourceType?: unknown } | null }[],
+  })
+    ? 'loop-revision/2'
+    : 'loop-revision/1'
+
+  // 4 — project under the version-appropriate field set and verify the digest
+  if (version === 'loop-revision/1') {
+    const v1 = canonicalContent(graph, { modelLayer: false }) // the literal v1 projection
+    if (storedDigest !== undefined && digestOfCanonical(v1) !== storedDigest) {
+      return { ok: false, stage: 'digest', detail: 'stored digest does not match the loop-revision/1 projection' }
+    }
+    // 5 — lift into the common compare model; R2-INV-2 says the bytes match
+    const lifted = canonicalContent(graph, { modelLayer: true })
+    if (canonicalJson(lifted) !== canonicalJson(v1)) {
+      throw new InvalidRevisionContentError('R2-INV-2: lifting a v1 side changed its canonical bytes')
+    }
+    return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
+  }
+
+  const v2 = canonicalContent(graph, { modelLayer: true })
+  if (storedDigest !== undefined && digestOfCanonical(v2) !== storedDigest) {
+    return { ok: false, stage: 'digest', detail: 'stored digest does not match the loop-revision/2 projection' }
+  }
+  return { ok: true, version, content: v2, digestVerified: storedDigest !== undefined }
 }
 
 // ── engine vs cosmetic (§R4.4 / §R5.2) ────────────────────────────────────
@@ -987,6 +1099,13 @@ function readMeta(m: unknown): ProjectMeta | undefined {
  *
  * @param loadedContent  `canonicalContent(the file's own nodes/edges/rrc)`. When
  *   given and `project.contentDigest` is present, a mismatch drops `project`.
+ *
+ * The **ordered** §R2-5 pipeline for the file's own graph
+ * (normalise → defensive read → version predicate → version-appropriate digest
+ * verify → v2 lift) is `readRevisionSide`. The import layer routes the raw
+ * graph through it and passes the resulting `content` in as `loadedContent`;
+ * that wiring lands with the editor / apply slice — `readProject` itself only
+ * does the format + digest checks on an already-projected `loadedContent`.
  */
 export function readProject(raw: unknown, loadedContent?: CanonicalContent): ReadProjectResult {
   const drop = (w: string): ReadProjectDropped => ({ ok: false, warning: w })
