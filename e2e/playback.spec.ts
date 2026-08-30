@@ -53,6 +53,23 @@ const pb = (page: Page): Promise<PB> =>
 const call = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(([f, a]) => (window as any).__loop.sim.getState()[f as string](...(a as unknown[])), [fn, args] as const)
 
+/** install a controllable `document.hidden` (the scheduler polls it each rAF). */
+async function installHidden(page: Page) {
+  await page.evaluate(() => {
+    ;(window as any).__hidden = false
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => (window as any).__hidden === true })
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => ((window as any).__hidden ? 'hidden' : 'visible'),
+    })
+  })
+}
+const setHidden = (page: Page, hidden: boolean) =>
+  page.evaluate((h) => {
+    ;(window as any).__hidden = h
+    document.dispatchEvent(new Event('visibilitychange'))
+  }, hidden)
+
 async function setup(page: Page, speedMs = 1400) {
   await openApp(page)
   await resetAll(page)
@@ -186,5 +203,102 @@ test.describe('playback — Slice 1 state machine', () => {
     expect((await pb(page)).speedMs).toBe(500)
     await call(page, 'setSpeed', 300)
     expect((await pb(page)).speedMs).toBe(300)
+  })
+
+  test('a GraphDoc edit mid-transition cancels playback IMMEDIATELY — no wait for settle, no late commit (Round 2 §2)', async ({ page }) => {
+    await setup(page, 1600)
+    await call(page, 'play')
+    await expect
+      .poll(() => pb(page).then((s) => (s.transition && s.transition.tau > 0.15 && s.transition.tau < 0.7 ? 1 : -1)), { timeout: 8000 })
+      .toBe(1)
+    const mid = await pb(page)
+    expect(mid.stepIndex).toBe(0)
+
+    // a real graph edit → simulationRev bumps → the sim resets on the spot
+    await page.evaluate(() => {
+      const g = (window as any).__loop.graph.getState()
+      const pool = g.nodes.find((n: any) => n.data.kind === 'pool')
+      g.updateNodeData(pool.id, { capacity: 5 })
+    })
+    // within a frame: transition gone, no commit, back at step 0
+    await page.waitForTimeout(50)
+    const after = await pb(page)
+    expect(after.transition).toBeNull()
+    expect(after.activeTransitionId).toBeNull()
+    expect(after.stepIndex).toBe(0)
+    expect(after.status).not.toBe('running')
+    // and nothing commits afterwards
+    await page.waitForTimeout(800)
+    const later = await pb(page)
+    expect(later.stepIndex).toBe(0)
+    expect(later.commitEpoch).toBe(after.commitEpoch)
+  })
+
+  test('background / visibility (Round 2 §4)', async ({ page }) => {
+    await setup(page, 900)
+    await installHidden(page)
+
+    await test.step('hidden during a transition ⇒ no commit; hidden ⇒ no next transition prepared', async () => {
+      await call(page, 'play')
+      await expect
+        .poll(() => pb(page).then((s) => (s.transition && s.transition.tau > 0.1 && s.transition.tau < 0.6 ? 1 : -1)), { timeout: 8000 })
+        .toBe(1)
+      const before = await pb(page)
+      await setHidden(page, true)
+      await page.waitForTimeout(2500) // >> one full beat
+      const hidden = await pb(page)
+      expect(hidden.stepIndex).toBe(before.stepIndex) // nothing settled while hidden
+      expect(hidden.commitEpoch).toBe(before.commitEpoch)
+      expect(hidden.activeTransitionId).toBe(before.activeTransitionId) // same transition, not a new one
+      expect(hidden.transition!.fromStep).toBe(before.transition!.fromStep)
+    })
+
+    await test.step('back to visible + a big time jump ⇒ the current transition settles exactly once, then the next begins on a later frame', async () => {
+      const beforeVisible = await pb(page)
+      await setHidden(page, false)
+      await expect.poll(() => pb(page).then((s) => s.stepIndex)).toBe(beforeVisible.transition!.fromStep + 1)
+      const one = await pb(page)
+      expect(one.commitEpoch).toBe(beforeVisible.commitEpoch + 1) // exactly one settle
+      expect(one.seriesSteps).toEqual(Array.from({ length: one.stepIndex + 1 }, (_, i) => i)) // each step once
+      // the run continues normally
+      await expect.poll(() => pb(page).then((s) => s.stepIndex)).toBeGreaterThan(one.stepIndex)
+      await call(page, 'pause')
+      const s = await pb(page)
+      expect(s.seriesSteps).toEqual(Array.from({ length: s.stepIndex + 1 }, (_, i) => i))
+    })
+
+    await test.step('Paused, then hidden/visible ⇒ no auto-settle', async () => {
+      await call(page, 'reset')
+      await call(page, 'play')
+      await expect
+        .poll(() => pb(page).then((s) => (s.transition && s.transition.tau > 0.15 && s.transition.tau < 0.6 ? 1 : -1)), { timeout: 8000 })
+        .toBe(1)
+      await call(page, 'pause')
+      const paused = await pb(page)
+      await setHidden(page, true)
+      await page.waitForTimeout(600)
+      await setHidden(page, false)
+      await page.waitForTimeout(600)
+      const s = await pb(page)
+      expect(s.stepIndex).toBe(paused.stepIndex) // no settle happened
+      expect(s.commitEpoch).toBe(paused.commitEpoch)
+      expect(s.status).toBe('paused')
+    })
+
+    await test.step('Reset then a visibility callback ⇒ no late commit', async () => {
+      await call(page, 'play')
+      await expect
+        .poll(() => pb(page).then((s) => (s.transition && s.transition.tau > 0.15 ? 1 : -1)), { timeout: 8000 })
+        .toBe(1)
+      await call(page, 'reset')
+      const r = await pb(page)
+      await setHidden(page, true)
+      await setHidden(page, false)
+      await page.waitForTimeout(600)
+      const s = await pb(page)
+      expect(s.stepIndex).toBe(0)
+      expect(s.commitEpoch).toBe(r.commitEpoch)
+      expect(s.transition).toBeNull()
+    })
   })
 })

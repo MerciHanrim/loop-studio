@@ -21,13 +21,15 @@ const BEAT_SETTLE = 0.95
 /** τ maps to this wall-clock duration; a floor so "fastest" is still a frame. */
 const PLAYBACK_MIN_MS = 120
 
-export type PreparedTransition = {
-  transitionId: number
+/** the pure output of `prepareTransition` — no identity, no side effect. */
+export type PreparedResult = {
   fromStep: number
   /** the store generation this was prepared against (§PB2.7a / §PB7.5) */
   expectedCommitEpoch: number
   /** the GraphDoc generation this was prepared against (§PB7.5) */
   expectedSimulationRev: number
+  /** the RNG seed this was prepared against (§PB7.5 — seed is a prepare input) */
+  expectedSeed: number
   /** the engine's fully-computed next state — NOT committed */
   toState: SimState
   /** render-side fields the commit applies alongside the state */
@@ -39,6 +41,10 @@ export type PreparedTransition = {
     triggerQueue: TriggerQueueEntry[]
   }
 }
+
+/** a `PreparedResult` given an identity by `armPrepared` — what `commitPrepared`
+ *  and the scheduler pass around. */
+export type PreparedTransition = PreparedResult & { transitionId: number }
 
 export type CommitResult = 'committed' | 'stale' | 'already-settled'
 
@@ -88,8 +94,13 @@ type SimStore = {
   setSeed: (seed: number) => void
   toggleTracked: (id: string, allPoolIds: string[]) => void
 
-  /** §PB2.7 — pure: compute the next step, commit nothing. */
-  prepareTransition: () => PreparedTransition
+  /** §PB2.7 — PURE: compute the next step; commit nothing, mint no id, move no
+   *  counter. Repeat calls return a fully-identical result. */
+  prepareTransition: () => PreparedResult
+  /** §PB2.7 — the one impure step: give a `PreparedResult` a fresh
+   *  `transitionId`, mark it the active transition, and (in dev) freeze it so
+   *  the animation layer cannot mutate `toState` / `derived`. */
+  armPrepared: (r: PreparedResult) => PreparedTransition
   /** §PB7.7 — the fixed decision ladder; one atomic commit on success. */
   commitPrepared: (p: PreparedTransition) => CommitResult
 }
@@ -119,6 +130,17 @@ const isHidden = (): boolean =>
   typeof document !== 'undefined' && document.hidden === true
 const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n)
 
+/** recursively `Object.freeze` a plain-data value (dev only) so a bug that
+ *  mutates `prepared.toState` / `prepared.derived` throws instead of silently
+ *  corrupting a committed state. */
+function deepFreeze<T>(v: T): T {
+  if (v && typeof v === 'object' && !Object.isFrozen(v)) {
+    Object.freeze(v)
+    for (const k of Object.keys(v as object)) deepFreeze((v as Record<string, unknown>)[k])
+  }
+  return v
+}
+
 export const useSimStore = create<SimStore>((set, get) => {
   const graph = () => useGraphStore.getState()
 
@@ -140,7 +162,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     return init
   }
 
-  const deriveFrom = (r: StepResult): PreparedTransition['derived'] => {
+  const deriveFrom = (r: StepResult): PreparedResult['derived'] => {
     const g = graph()
     const activeByEdge: Record<string, number> = {}
     const arrived = new Set<string>()
@@ -151,47 +173,60 @@ export const useSimStore = create<SimStore>((set, get) => {
     }
     return {
       activeByEdge,
-      firedNodeIds: r.report.fired,
-      stateEvents: r.report.stateEvents,
+      firedNodeIds: [...r.report.fired],
+      stateEvents: [...r.report.stateEvents],
       arrivedPoolIds: [...arrived],
-      triggerQueue: r.state.triggerQueue,
+      triggerQueue: [...r.state.triggerQueue],
     }
   }
 
-  const prepareTransition = (): PreparedTransition => {
+  /** §PB2.7 — PURE. No `set`, no id, no counter; repeat calls are identical. */
+  const prepareTransition = (): PreparedResult => {
     const g = graph()
     const h = head()
     const r = step(g.nodes, g.edges, h, get().seed)
     return {
-      transitionId: nextTransitionId++,
       fromStep: h.step,
       expectedCommitEpoch: get().commitEpoch,
       expectedSimulationRev: g.simulationRev,
+      expectedSeed: get().seed,
       toState: r.state,
       derived: deriveFrom(r),
     }
+  }
+
+  /** §PB2.7 — the one impure step: mint an id, mark active, freeze in dev so the
+   *  animation layer cannot mutate `toState` / `derived`. */
+  const armPrepared = (r: PreparedResult): PreparedTransition => {
+    const armed: PreparedTransition = { ...r, transitionId: nextTransitionId++ }
+    set({ activeTransitionId: armed.transitionId })
+    if (import.meta.env.DEV) deepFreeze(armed)
+    return armed
   }
 
   const commitPrepared = (p: PreparedTransition): CommitResult => {
     // §PB7.7 — the fixed order; stop at the first match.
     if (p.transitionId === get().lastSettledTransitionId) return 'already-settled'
     if (p.transitionId !== get().activeTransitionId) return 'stale'
+    const g = graph()
     if (
       p.expectedCommitEpoch !== get().commitEpoch ||
-      p.expectedSimulationRev !== graph().simulationRev ||
+      p.expectedSimulationRev !== g.simulationRev ||
+      p.expectedSeed !== get().seed ||
       p.fromStep !== get().stepIndex
     ) {
       return 'stale'
     }
-    // one atomic transaction (§PB1.2 / PB-INV-2)
+    // one atomic transaction (§PB1.2 / PB-INV-2). `p.toState` / `p.derived` are
+    // frozen (dev); everything is copied by value / reference into fresh fields.
     set((s) => ({
       values: p.toState.values,
       stepIndex: p.toState.step,
-      triggerQueue: p.toState.triggerQueue,
-      activeByEdge: p.derived.activeByEdge,
-      firedNodeIds: p.derived.firedNodeIds,
-      stateEvents: p.derived.stateEvents,
-      arrivedPoolIds: p.derived.arrivedPoolIds,
+      triggerQueue: [...p.toState.triggerQueue],
+      activeByEdge: { ...p.derived.activeByEdge },
+      firedNodeIds: [...p.derived.firedNodeIds],
+      stateEvents: [...p.derived.stateEvents],
+      arrivedPoolIds: [...p.derived.arrivedPoolIds],
       series: [...s.series, { step: p.toState.step, values: p.toState.values }].slice(-MAX_SERIES),
       status: p.toState.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
       commitEpoch: s.commitEpoch + 1,
@@ -204,9 +239,7 @@ export const useSimStore = create<SimStore>((set, get) => {
 
   /** legacy immediate path (§PB2.8) — Step-from-idle and tests. */
   const advance = (): CommitResult => {
-    const p = prepareTransition()
-    // mark it active just for this synchronous commit, then let the ladder run
-    set({ activeTransitionId: p.transitionId })
+    const p = armPrepared(prepareTransition())
     const r = commitPrepared(p)
     if (r !== 'committed') set({ activeTransitionId: null }) // no leak on a raced call
     return r
@@ -218,7 +251,11 @@ export const useSimStore = create<SimStore>((set, get) => {
     rafId = undefined
   }
 
-  /** tear down any in-flight transition without committing it (§PB7.1). */
+  /** §PB7.1 — tear down the in-flight transition without committing it: kill the
+   *  rAF, drop the prepared payload, clear the active id. Called by every
+   *  committed-state replacement (reset / restoreSnapshot / the simulationRev
+   *  subscription) BEFORE the state swap, so a graph edit cancels playback
+   *  immediately — it does not wait for the next settle. */
   const discardTransition = () => {
     stopLoop()
     prepared = null
@@ -227,15 +264,32 @@ export const useSimStore = create<SimStore>((set, get) => {
   }
 
   const beginTransition = () => {
-    if (get().status === 'ended') {
-      stopLoop()
-      return
-    }
-    const p = prepareTransition()
+    if (get().status !== 'running' || get().status === 'ended' || isHidden()) return
+    const p = armPrepared(prepareTransition())
     prepared = p
     arriveFired = false
     tauStartedAt = now()
-    set({ activeTransitionId: p.transitionId, transition: { fromStep: p.fromStep, tau: 0 } })
+    set({ transition: { fromStep: p.fromStep, tau: 0 } })
+  }
+
+  /** run the ladder for the in-flight transition, then FULLY tear down. A
+   *  non-`committed` result (stale / already-settled) also drops the run out of
+   *  auto-Play — the user re-presses Play (Round 2 §2). */
+  const settleActive = () => {
+    const p = prepared
+    prepared = null
+    arriveFired = false
+    const res = p ? commitPrepared(p) : 'stale'
+    if (res !== 'committed') {
+      stopLoop()
+      set((s) => ({
+        activeTransitionId: null,
+        transition: null,
+        status: s.status === 'running' ? 'paused' : s.status,
+      }))
+    }
+    // on 'committed', commitPrepared already cleared active/transition + set
+    // status (ended / paused / running). The loop's next tick begins t+2.
   }
 
   /** drive the current transition straight to `settle` (Step / fast-forward). */
@@ -245,36 +299,32 @@ export const useSimStore = create<SimStore>((set, get) => {
     settleActive()
   }
 
-  const settleActive = () => {
-    const p = prepared
-    prepared = null
-    arriveFired = false
-    if (p) commitPrepared(p) // ladder; clears activeTransitionId + transition on success
-    // a stale / already-settled result leaves the store untouched; the loop
-    // will re-prepare from the current committed state on the next frame.
-    set({ activeTransitionId: null, transition: null })
-    if (get().status === 'ended') stopLoop()
-  }
-
   const loop = () => {
     rafId = undefined
-    const s = get()
 
+    // §PB8.3 — while hidden: freeze in place. Do NOT advance τ, settle, or
+    // prepare. Keep the rAF armed so the first visible tick catches the gap.
+    if (isHidden()) {
+      if ((get().status === 'running' || get().activeTransitionId != null) && typeof requestAnimationFrame !== 'undefined') {
+        rafId = requestAnimationFrame(loop)
+      }
+      return
+    }
+
+    const s = get()
     if (s.activeTransitionId != null && prepared) {
       const wall = (now() - tauStartedAt) / beatDuration()
       const tau = clamp01(Math.max(s.transition?.tau ?? 0, wall)) // monotonic (§PB6.2)
       if (tau >= BEAT_ARRIVE && !arriveFired) arriveFired = true // Slice 1: no visual yet
       if (tau >= BEAT_SETTLE) {
-        settleActive()
+        settleActive() // §PB8.2 — a giant gap settles ONCE here; t+2 begins next tick
       } else {
         set({ transition: { fromStep: prepared.fromStep, tau } })
       }
-    } else if (s.status === 'running' && !isHidden()) {
-      // §PB8.3 — never prepare a new transition while hidden
+    } else if (s.status === 'running') {
       beginTransition()
     }
 
-    // keep ticking while a run is live or a transition is settling
     if ((get().status === 'running' || get().activeTransitionId != null) && typeof requestAnimationFrame !== 'undefined') {
       rafId = requestAnimationFrame(loop)
     } else {
@@ -311,6 +361,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     lastSettledTransitionId: null,
 
     prepareTransition,
+    armPrepared,
     commitPrepared,
 
     play: () => {
@@ -325,12 +376,15 @@ export const useSimStore = create<SimStore>((set, get) => {
     },
 
     stepOnce: () => {
-      // §PB3.3 — a Step during an active transition only settles it (one commit);
-      // it does not begin the next step.
-      if (get().activeTransitionId != null) {
+      // §PB3.3 — a Step during an active (scheduler-driven) transition only
+      // settles it (one commit); it does not begin the next step.
+      if (get().activeTransitionId != null && prepared) {
         forceSettleCurrent()
         return
       }
+      // a stray armed id with no scheduler transition behind it (only reachable
+      // by calling armPrepared() directly) — clear it, then step normally.
+      if (get().activeTransitionId != null) set({ activeTransitionId: null })
       if (get().status === 'running') return
       advance()
     },

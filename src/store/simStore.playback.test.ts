@@ -1,19 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { serialize } from '../model/serialize'
+import { TEMPLATES } from '../model/templates'
 import { step } from '../engine'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
 
 // docs/simulation-playback.md Slice 1 — the compute/commit split.
-// `prepareTransition` computes S(t+1) and commits NOTHING; `commitPrepared`
-// runs the §PB7.7 decision ladder and, on success, does one atomic commit +
-// bumps `commitEpoch`. The store is S(t) until the commit (§PB2.2).
+//   prepareTransition()  — PURE: compute S(t+1); no store write, no id, no counter.
+//   armPrepared(result)  — the one impure step: mint transitionId, mark active,
+//                          deep-freeze in dev.
+//   commitPrepared(p)    — the §PB7.7 ladder; one atomic commit + commitEpoch++.
+// The store is S(t) until the commit (§PB2.2).
 
 const sim = () => useSimStore.getState()
 const graph = () => useGraphStore.getState()
-/** the scheduler marks a transition active before committing it; mirror that in
- *  unit tests that call `commitPrepared` directly. */
-const arm = (id: number) =>
-  (useSimStore.setState as unknown as (s: object) => void)({ activeTransitionId: id })
+/** prepare + arm — what the scheduler does before it can commit. */
+const armed = () => sim().armPrepared(sim().prepareTransition())
 
 /** Source ─2→ Pool ─1→ Drain (a plain deterministic flow). */
 function flowGraph() {
@@ -35,122 +37,35 @@ beforeEach(() => {
   useGraphStore.getState().newGraph()
 })
 
-describe('Slice 1 — prepare / commit split', () => {
-  it('prepareTransition commits nothing; the store stays at S(t) (§PB12-2)', () => {
+describe('Slice 1 — prepare is pure, arm is the impure step (§PB2.7 / Round 2 §1)', () => {
+  it('prepareTransition writes nothing, mints no id, and 100 calls are byte-identical', () => {
     flowGraph()
     sim().reset()
-    const step0 = { stepIndex: sim().stepIndex, values: sim().values, len: sim().series.length, epoch: sim().commitEpoch }
-    const p = sim().prepareTransition()
-    // nothing moved
-    expect(sim().stepIndex).toBe(step0.stepIndex)
-    expect(sim().values).toBe(step0.values)
-    expect(sim().series.length).toBe(step0.len)
-    expect(sim().commitEpoch).toBe(step0.epoch)
-    // but the prepared step is fully computed
-    expect(p.fromStep).toBe(0)
-    expect(p.toState.step).toBe(1)
-    expect(p.expectedCommitEpoch).toBe(step0.epoch)
-    expect(p.expectedSimulationRev).toBe(graph().simulationRev)
+    const before = JSON.stringify({ i: sim().stepIndex, v: sim().values, l: sim().series.length, e: sim().commitEpoch, active: sim().activeTransitionId })
+    const first = JSON.stringify(sim().prepareTransition())
+    expect(JSON.parse(first)).not.toHaveProperty('transitionId')
+    for (let k = 0; k < 99; k++) expect(JSON.stringify(sim().prepareTransition())).toBe(first)
+    expect(JSON.stringify({ i: sim().stepIndex, v: sim().values, l: sim().series.length, e: sim().commitEpoch, active: sim().activeTransitionId })).toBe(before)
   })
 
-  it('commitPrepared applies one atomic step and bumps commitEpoch (§PB12-2)', () => {
+  it('armPrepared mints a fresh id each call, marks it active, and (dev) deep-freezes the payload', () => {
     flowGraph()
     sim().reset()
-    const e0 = sim().commitEpoch
-    const p = sim().prepareTransition()
-    arm(p.transitionId)
-    expect(sim().commitPrepared(p)).toBe('committed')
-    expect(sim().stepIndex).toBe(1)
-    expect(sim().series.length).toBe(2)
-    expect(sim().commitEpoch).toBe(e0 + 1)
-    expect(sim().activeTransitionId).toBeNull()
-    expect(sim().lastSettledTransitionId).toBe(p.transitionId)
+    const a = sim().armPrepared(sim().prepareTransition())
+    const b = sim().armPrepared(sim().prepareTransition())
+    expect(a.transitionId).not.toBe(b.transitionId)
+    expect(sim().activeTransitionId).toBe(b.transitionId)
+    // frozen: the animation layer cannot mutate toState / derived (dev / test)
+    expect(Object.isFrozen(a)).toBe(true)
+    expect(() => {
+      ;(a.toState.values as Record<string, number>).x = 999
+    }).toThrow()
+    expect(() => {
+      ;(a.derived.firedNodeIds as string[]).push('x')
+    }).toThrow()
   })
 
-  it('a second commit of the same prepared ⇒ already-settled, zero further mutation (§PB12-8 / §PB12-18)', () => {
-    flowGraph()
-    sim().reset()
-    const p = sim().prepareTransition()
-    arm(p.transitionId)
-    expect(sim().commitPrepared(p)).toBe('committed')
-    const after = { step: sim().stepIndex, len: sim().series.length, epoch: sim().commitEpoch }
-    expect(sim().commitPrepared(p)).toBe('already-settled')
-    expect(sim().stepIndex).toBe(after.step)
-    expect(sim().series.length).toBe(after.len)
-    expect(sim().commitEpoch).toBe(after.epoch)
-  })
-
-  it('the ladder is ordered: already-settled beats stale-id beats CAS (§PB7.7)', () => {
-    flowGraph()
-    sim().reset()
-    // a prepared whose id was never made active ⇒ stale (id mismatch), no CAS needed
-    const never = sim().prepareTransition()
-    expect(sim().commitPrepared(never)).toBe('stale')
-    // commit a real one, then re-submit ⇒ already-settled even though CAS would also fail
-    const real = sim().prepareTransition()
-    arm(real.transitionId)
-    expect(sim().commitPrepared(real)).toBe('committed')
-    expect(sim().commitPrepared(real)).toBe('already-settled')
-  })
-})
-
-describe('Slice 1 — CAS revalidation (§PB12-16)', () => {
-  it('a reset between prepare and commit ⇒ stale, store untouched', () => {
-    flowGraph()
-    sim().reset()
-    const p = sim().prepareTransition()
-    sim().reset() // bumps commitEpoch
-    arm(p.transitionId)
-    expect(sim().commitPrepared(p)).toBe('stale')
-    expect(sim().stepIndex).toBe(0)
-    expect(sim().series.length).toBe(1)
-  })
-
-  it('a GraphDoc edit between prepare and commit ⇒ stale (simulationRev)', () => {
-    const { poolId } = flowGraph()
-    sim().reset()
-    const p = sim().prepareTransition()
-    graph().updateNodeData(poolId, { capacity: 9 }) // bumps simulationRev → subscription resets sim
-    arm(p.transitionId)
-    expect(sim().commitPrepared(p)).toBe('stale')
-    expect(sim().stepIndex).toBe(0)
-  })
-
-  it('a step advanced another way between prepare and commit ⇒ stale (fromStep)', () => {
-    flowGraph()
-    sim().reset()
-    const p = sim().prepareTransition() // fromStep 0
-    sim().stepOnce() // now at step 1
-    arm(p.transitionId)
-    expect(sim().commitPrepared(p)).toBe('stale')
-    expect(sim().stepIndex).toBe(1)
-  })
-
-  it('restoreSnapshot bumps commitEpoch and staleness applies', () => {
-    flowGraph()
-    sim().reset()
-    const e0 = sim().commitEpoch
-    const p = sim().prepareTransition()
-    sim().restoreSnapshot({ seed: null, step: 3, ended: false, values: { x: 1 }, fired: [], triggerQueue: [], stateEvents: [], series: [] })
-    expect(sim().commitEpoch).toBe(e0 + 1)
-    arm(p.transitionId)
-    expect(sim().commitPrepared(p)).toBe('stale')
-  })
-})
-
-describe('Slice 1 — prepare determinism (§PB12-17)', () => {
-  it('100 prepares are pure: identical toState, store byte-identical after', () => {
-    flowGraph()
-    sim().reset()
-    const before = JSON.stringify({ i: sim().stepIndex, v: sim().values, l: sim().series.length, e: sim().commitEpoch })
-    const first = JSON.stringify(sim().prepareTransition().toState)
-    for (let k = 0; k < 99; k++) {
-      expect(JSON.stringify(sim().prepareTransition().toState)).toBe(first)
-    }
-    expect(JSON.stringify({ i: sim().stepIndex, v: sim().values, l: sim().series.length, e: sim().commitEpoch })).toBe(before)
-  })
-
-  it('prepare does not mutate the graph inputs (frozen-safe)', () => {
+  it('the prepared inputs (graph nodes/edges) are not mutated — frozen-safe', () => {
     flowGraph()
     sim().reset()
     Object.freeze(graph().nodes)
@@ -161,7 +76,107 @@ describe('Slice 1 — prepare determinism (§PB12-17)', () => {
   })
 })
 
-describe('Slice 1 — legacy immediate path equivalence (§PB12-19 / PB-INV-18)', () => {
+describe('Slice 1 — commitPrepared ladder (§PB7.7)', () => {
+  it('prepareTransition commits nothing; the store stays at S(t)', () => {
+    flowGraph()
+    sim().reset()
+    const s0 = { i: sim().stepIndex, v: sim().values, l: sim().series.length, e: sim().commitEpoch }
+    const p = sim().prepareTransition()
+    expect(sim().stepIndex).toBe(s0.i)
+    expect(sim().values).toBe(s0.v)
+    expect(sim().series.length).toBe(s0.l)
+    expect(sim().commitEpoch).toBe(s0.e)
+    expect(p.fromStep).toBe(0)
+    expect(p.toState.step).toBe(1)
+    expect(p.expectedCommitEpoch).toBe(s0.e)
+    expect(p.expectedSimulationRev).toBe(graph().simulationRev)
+    expect(p.expectedSeed).toBe(sim().seed)
+  })
+
+  it('a full-guard commit applies one atomic step + bumps commitEpoch', () => {
+    flowGraph()
+    sim().reset()
+    const e0 = sim().commitEpoch
+    const p = armed()
+    expect(sim().commitPrepared(p)).toBe('committed')
+    expect(sim().stepIndex).toBe(1)
+    expect(sim().series.length).toBe(2)
+    expect(sim().commitEpoch).toBe(e0 + 1)
+    expect(sim().activeTransitionId).toBeNull()
+    expect(sim().lastSettledTransitionId).toBe(p.transitionId)
+  })
+
+  it('a second commit of the same prepared ⇒ already-settled, zero further mutation', () => {
+    flowGraph()
+    sim().reset()
+    const p = armed()
+    expect(sim().commitPrepared(p)).toBe('committed')
+    const after = { step: sim().stepIndex, len: sim().series.length, epoch: sim().commitEpoch }
+    expect(sim().commitPrepared(p)).toBe('already-settled')
+    expect(sim().stepIndex).toBe(after.step)
+    expect(sim().series.length).toBe(after.len)
+    expect(sim().commitEpoch).toBe(after.epoch)
+  })
+
+  it('the order is fixed: already-settled beats stale-id beats CAS', () => {
+    flowGraph()
+    sim().reset()
+    // never armed ⇒ id mismatch ⇒ stale (no CAS needed)
+    expect(sim().commitPrepared({ ...sim().prepareTransition(), transitionId: 987654 })).toBe('stale')
+    const real = armed()
+    expect(sim().commitPrepared(real)).toBe('committed')
+    // re-submit: id === lastSettledTransitionId wins even though CAS would also fail
+    expect(sim().commitPrepared(real)).toBe('already-settled')
+  })
+})
+
+describe('Slice 1 — CAS revalidation & audit of committed-state / engine-input paths (Round 2 §3)', () => {
+  it('reset between prepare and commit ⇒ stale (commitEpoch), store untouched', () => {
+    flowGraph()
+    sim().reset()
+    const p = armed()
+    sim().reset() // bumps commitEpoch, discards the transition
+    expect(sim().commitPrepared(p)).toBe('stale')
+    expect(sim().stepIndex).toBe(0)
+    expect(sim().series.length).toBe(1)
+  })
+
+  it('a seed change is in the CAS even without an epoch bump (expectedSeed)', () => {
+    flowGraph()
+    sim().reset()
+    const p = armed()
+    // bypass setSeed's reset() to isolate the seed check
+    ;(useSimStore.setState as unknown as (s: object) => void)({ seed: 424242 })
+    expect(sim().commitPrepared(p)).toBe('stale')
+    expect(sim().stepIndex).toBe(0)
+  })
+
+  it('every committed-state / engine-input path bumps a guard AND discards the prepared transition', () => {
+    const cases: { name: string; run: () => void }[] = [
+      { name: 'graph edit', run: () => { const id = graph().nodes.find((n) => n.data.kind === 'pool')!.id; graph().updateNodeData(id, { capacity: 7 }) } },
+      { name: 'undo', run: () => { const id = graph().nodes.find((n) => n.data.kind === 'pool')!.id; graph().updateNodeData(id, { capacity: 8 }); graph().undo() } },
+      { name: 'redo', run: () => { const id = graph().nodes.find((n) => n.data.kind === 'pool')!.id; graph().updateNodeData(id, { capacity: 8 }); graph().undo(); graph().redo() } },
+      { name: 'import (loadJSON)', run: () => graph().loadJSON(serialize(graph().nodes, graph().edges)) },
+      { name: 'template swap (loadGraph)', run: () => graph().loadGraph(TEMPLATES[0].graph) },
+      { name: 'restoreSnapshot', run: () => sim().restoreSnapshot({ seed: null, step: 0, ended: false, values: {}, fired: [], triggerQueue: [], stateEvents: [], series: [] }) },
+      { name: 'setSeed', run: () => sim().setSeed(sim().seed + 1) },
+    ]
+    for (const c of cases) {
+      flowGraph()
+      sim().reset()
+      const e0 = sim().commitEpoch
+      const rev0 = graph().simulationRev
+      const p = armed()
+      c.run()
+      const guardMoved = sim().commitEpoch !== e0 || graph().simulationRev !== rev0
+      expect(guardMoved, `${c.name}: commitEpoch or simulationRev must change`).toBe(true)
+      expect(sim().activeTransitionId, `${c.name}: prepared transition discarded`).toBeNull()
+      expect(sim().commitPrepared(p), `${c.name}: a late commit is stale`).toBe('stale')
+    }
+  })
+})
+
+describe('Slice 1 — legacy immediate path (§PB2.8 / PB-INV-18)', () => {
   it('stepOnce from idle == a direct pure engine step', () => {
     flowGraph()
     sim().reset()
@@ -172,7 +187,7 @@ describe('Slice 1 — legacy immediate path equivalence (§PB12-19 / PB-INV-18)'
     expect(sim().values).toEqual(direct.state.values)
   })
 
-  it('N steps are deterministic and speed-independent at the state layer (§PB12-1)', () => {
+  it('N steps are deterministic and speed-independent at the state layer', () => {
     flowGraph()
     const run = () => {
       sim().reset()
@@ -180,19 +195,27 @@ describe('Slice 1 — legacy immediate path equivalence (§PB12-19 / PB-INV-18)'
       return JSON.stringify(sim().series)
     }
     const a = run()
-    sim().setSpeed(50) // rejected? 50 is valid; just changes pacing, not state
+    sim().setSpeed(50)
     const b = run()
     sim().setSpeed(2000)
     const c = run()
     expect(b).toBe(a)
     expect(c).toBe(a)
   })
+
+  it('back-to-back advance() from idle leaves no active-id leak', () => {
+    flowGraph()
+    sim().reset()
+    sim().stepOnce()
+    sim().stepOnce()
+    expect(sim().stepIndex).toBe(2)
+    expect(sim().activeTransitionId).toBeNull()
+  })
 })
 
-describe('Slice 1 — speed guards (§PB12-10 / §PB6.2)', () => {
+describe('Slice 1 — speed guards (§PB6.2)', () => {
   it('rejects 0 / NaN / negative / Infinity; keeps the last valid value', () => {
     sim().setSpeed(400)
-    expect(sim().speedMs).toBe(400)
     for (const bad of [0, Number.NaN, -100, Number.POSITIVE_INFINITY]) {
       sim().setSpeed(bad)
       expect(sim().speedMs).toBe(400)
