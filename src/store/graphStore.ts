@@ -2,7 +2,6 @@ import {
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
-  MarkerType,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -147,7 +146,6 @@ function makeSample(): Snapshot {
         target: 'sample-pool',
         type: 'loop',
         data: { kind: 'resource', flow: '2' },
-        markerEnd: { type: MarkerType.ArrowClosed },
       },
       {
         id: 'sample-e2',
@@ -155,7 +153,6 @@ function makeSample(): Snapshot {
         target: 'sample-drain',
         type: 'loop',
         data: { kind: 'resource', flow: '1' },
-        markerEnd: { type: MarkerType.ArrowClosed },
       },
     ],
   }
@@ -313,7 +310,6 @@ export const useGraphStore = create<GraphStore>((set, get) => {
             targetHandle: 'in',
             type: 'loop',
             data: { kind: 'resource', flow: '1' },
-            markerEnd: { type: MarkerType.ArrowClosed },
           }
       commit('')
       set({ edges: addEdge(edge, get().edges) })

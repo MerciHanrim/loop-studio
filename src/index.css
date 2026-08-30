@@ -534,6 +534,20 @@ body {
 .react-flow__edge-path {
   vector-effect: non-scaling-stroke;
 }
+/* §VL6 — the direction marker (src/components/edges/EdgeMarkers.tsx). The
+   renderer draws it, not React Flow, so it is tokenised — holds contrast in
+   BOTH themes — and tracks the edge class it terminates. Its orientation is the
+   direction cue and is never removed. */
+.loop-arrow path {
+  fill: var(--edge-resource);
+  stroke: none;
+}
+.loop-arrow--state path {
+  fill: var(--edge-state);
+}
+.loop-arrow--selected path {
+  fill: var(--edge-selected);
+}
 .react-flow__attribution {
   background: transparent;
   font-size: 10px;
@@ -924,21 +938,16 @@ body {
   font-weight: 700;
   text-anchor: middle;
 }
+/* §VL6 / §VL9 — the reduced-motion substitute for a travelling bead (rendered
+   only under `prefers-reduced-motion: reduce`): a static highlight over the
+   edge that STAYS for the whole step, no fade, so "this edge carried flow this
+   step" stays legible even while paused. */
 .flow-edge-pulse {
   stroke: var(--flow-strength);
   stroke-width: 2.5;
-  opacity: 0;
+  opacity: 0.75;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
-  animation: edgePulse 0.4s ease-out forwards;
-}
-@keyframes edgePulse {
-  from {
-    opacity: 0.7;
-  }
-  to {
-    opacity: 0;
-  }
 }
 
 /* ==== state-edge feedback (SEMANTICS-S §S9 / S2 §S2-9) ================== */
@@ -959,14 +968,15 @@ body {
 .state-flash--out .state-flash__bead {
   fill: var(--text-tertiary);
 }
-/* reduced motion: a single static edge highlight instead of travel */
+/* reduced motion: a persistent static edge highlight instead of travel — held
+   for the step (§VL9), so the trigger fire / label apply stays readable while
+   paused. */
 .state-edge-pulse {
   stroke: var(--signal-primary);
   stroke-width: 2.5;
-  opacity: 0;
+  opacity: 0.8;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
-  animation: edgePulse 0.4s ease-out forwards;
 }
 .state-edge-pulse--blocked {
   stroke: var(--state-warning);
@@ -1231,27 +1241,18 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* §VL9 — same rule as the edge pulse: no travel / no fade-out. The fired ring
+     and the arrival disc are HELD statically for the step so "this node fired /
+     resource landed here" stays readable while paused, then clear on the next
+     step or Reset when firedNodeIds / arrivedPoolIds empty. */
   .nodef__wave {
-    animation: nodeWaveRM 0.4s ease-out forwards;
-  }
-  @keyframes nodeWaveRM {
-    from {
-      opacity: 0.7;
-    }
-    to {
-      opacity: 0;
-    }
+    animation: none;
+    opacity: 0.6;
   }
   .nodef__arrival {
-    animation: nodeArriveRM 0.2s ease-out forwards;
-  }
-  @keyframes nodeArriveRM {
-    from {
-      opacity: 0.5;
-    }
-    to {
-      opacity: 0;
-    }
+    animation: none;
+    opacity: 0.4;
+    transform: scale(0.9);
   }
   .nodef__value--up,
   .nodef__value--down {

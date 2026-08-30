@@ -1,4 +1,3 @@
-import { MarkerType } from '@xyflow/react'
 import { defaultData } from '../model/factory'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 
@@ -109,7 +108,6 @@ export function buildRiskyFactory(): { nodes: LoopNode[]; edges: LoopEdge[] } {
     targetHandle: 'in',
     type: 'loop',
     data: { kind: 'resource', flow },
-    markerEnd: { type: MarkerType.ArrowClosed },
   }))
 
   return { nodes, edges }

@@ -6,6 +6,7 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useIsMobile } from '../ui/media'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
+import { EdgeMarkers } from './edges/EdgeMarkers'
 
 const DND_TYPE = 'application/loop-node'
 
@@ -111,6 +112,7 @@ export function Canvas() {
         minZoom={0.2}
         maxZoom={2}
       >
+        <EdgeMarkers />
         <Background gap={16} color="var(--line-hairline)" />
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
             phone and eats space — not rendered in the mobile layout */}
