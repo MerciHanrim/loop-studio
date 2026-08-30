@@ -157,7 +157,8 @@ classification, or apply decision depends on them.
   - ✅ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector mismatch warning; computation-neutral (a mismatch changes nothing that runs)
   - ✅ Canvas Visual Refresh — every node/edge on one visual grammar: **edge class / direction / cues + three zoom detail levels (L2/L1/L0) that elide only supplementary text + a renderer-owned tokenised direction marker + `prefers-reduced-motion` / `forced-colors` support**, locked by a committed pixel matrix. Edge **geometry is unchanged** — React Flow's Bézier path; orthogonal routing is **not** in this release ([`docs/visual-language.md`](docs/visual-language.md))
   - ✅ Verification fixture + oracle ([`examples/model-verification.json`](examples/README.md)) + desktop / mobile Import→Run→Timeline E2E
-  - ☐ Scenario Compare — **not in v0.6.0**; needs its own spec/design pass and a separate decision
+- ◐ Orthogonal edge routing — right-angle segments that step around nodes, rounded corners, parallel-edge fan-out, optional manual waypoints. Pure render concern (never edits `source` / `target` / handles). **Spec draft:** [`docs/edge-routing.md`](docs/edge-routing.md)
+- ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
