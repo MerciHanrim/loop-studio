@@ -39,7 +39,17 @@ export type RouteInput = {
   selfLoop: boolean
 }
 
-export type RouteResult = { d: string; hitD: string; routeClass: RouteClass; mid: Pt; endAngle: number }
+export type RouteResult = {
+  d: string
+  hitD: string
+  routeClass: RouteClass
+  mid: Pt
+  endAngle: number
+  /** docs/edge-routing.md §ER4 — ≥ 1 manual waypoint sits inside an inflated
+   *  obstacle. The value is still kept on the wire; the edge shows the §VL3
+   *  dashed `--warning` cue and the route falls back deterministically. */
+  invalidWaypoint: boolean
+}
 
 // ── numeric normalisation (§ER3.5) ─────────────────────────────────────────
 const z0 = (n: number): number => (n === 0 ? 0 : n)
@@ -260,6 +270,10 @@ export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
   const src = { x: inp.source.x + perpS.x, y: inp.source.y + perpS.y }
   const tgt = { x: inp.target.x + perpT.x, y: inp.target.y + perpT.y }
 
+  // §ER4 — set once the obstacle set is known; a manual waypoint landing inside
+  // an inflated obstacle keeps its value but flags the edge + forces the fallback.
+  let invalidWp = false
+
   const done = (pts: Pt[], cls: RouteClass): RouteResult => {
     const s = simplify(pts.length ? pts : [src, tgt])
     // arc-length midpoint of the polyline, for the label
@@ -279,7 +293,7 @@ export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
     const p = s.length >= 2 ? s[s.length - 2] : { x: src.x, y: src.y }
     const e2 = s[s.length - 1] ?? { x: tgt.x, y: tgt.y }
     const endAngle = Math.atan2(e2.y - p.y, e2.x - p.x)
-    return { d: pointsToPath(s), hitD: pointsToPoly(s), routeClass: cls, mid, endAngle }
+    return { d: pointsToPath(s), hitD: pointsToPoly(s), routeClass: cls, mid, endAngle, invalidWaypoint: invalidWp }
   }
 
   if (near(src.x, tgt.x) && near(src.y, tgt.y)) {
@@ -290,6 +304,10 @@ export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
   const stubA = { x: src.x + sN.x * ROUTE_STUB, y: src.y + sN.y * ROUTE_STUB }
   const stubB = { x: tgt.x + tN.x * ROUTE_STUB, y: tgt.y + tN.y * ROUTE_STUB }
   const rs = inp.obstacles.map(inflate)
+  invalidWp = inp.waypoints.some((w) => {
+    const p = { x: q(w.x), y: q(w.y) }
+    return rs.some((r) => ptInside(p, r))
+  })
 
   // same-side handles → deterministic C: both stubs face the shared normal, an
   // outer segment ROUTE_PAD beyond the furthest stub, then back.

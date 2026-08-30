@@ -6,11 +6,33 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 //    on then off restores the exact `d` and the exact revision digest;
 //  • an `orthogonal` edge's visible `d` + hit-area `d` are deterministic across
 //    hover / select / zoom / theme and independent of edge input order;
-//  • the route map is rebuilt atomically — an incremental node move lands on the
-//    SAME paths as loading that final graph cold;
+//  • the route map is rebuilt atomically — one obstacle move recomputes EVERY
+//    orthogonal edge in a single generation; no mixed stale/fresh DOM frame;
+//    the previous route is never an input; incremental == cold recompute;
+//  • every path consumer (visible, hit, marker, label anchor, flow bead) reads
+//    the SAME `d`; reduced-motion leaves a static cue, no travelling element;
 //  • VL-INV: a route toggle is cosmetic — it moves the digest but never the
 //    running simulation / timeline;
 //  • the Inspector Route control round-trips.
+
+/** two crossing orthogonal edges + a free-standing obstacle pool between them;
+ *  moving `obst` reroutes BOTH edges. `obst` is an endpoint of neither. */
+const GRID = () =>
+  JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 'a', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'A', activation: 'automatic', mode: 'pushAny' } },
+      { id: 'b', type: 'drain', position: { x: 560, y: 0 }, data: { kind: 'drain', label: 'B', activation: 'automatic', mode: 'pullAny' } },
+      { id: 'c', type: 'source', position: { x: 0, y: 220 }, data: { kind: 'source', label: 'C', activation: 'automatic', mode: 'pushAny' } },
+      { id: 'd', type: 'drain', position: { x: 560, y: 220 }, data: { kind: 'drain', label: 'D', activation: 'automatic', mode: 'pullAny' } },
+      { id: 'obst', type: 'pool', position: { x: 280, y: -400 }, data: { kind: 'pool', label: 'Obs', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    ],
+    edges: [
+      { id: 'e_ab', type: 'loop', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', route: 'orthogonal' } },
+      { id: 'e_cd', type: 'loop', source: 'c', target: 'd', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', route: 'orthogonal' } },
+    ],
+  })
 
 const G2 = (over: { route?: boolean } = {}) =>
   JSON.stringify({
@@ -236,5 +258,184 @@ test.describe('edge routing — Slice 1', () => {
     const data = await edgeData(page, 'e_sg')
     expect(data.route).toBeUndefined()
     expect(data.waypoints).toBeUndefined()
+  })
+
+  test('one obstacle move recomputes every orthogonal edge in a single atomic generation', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, GRID())
+    await expect(page.locator('.react-flow__edge[data-id="e_ab"] path.route-orthogonal')).toHaveCount(1)
+    await expect(page.locator('.react-flow__edge[data-id="e_cd"] path.route-orthogonal')).toHaveCount(1)
+    await settle(page)
+
+    const genAndPaths = () =>
+      page.evaluate(() => {
+        const l = (window as any).__loop
+        const g = l.graph.getState()
+        const domD = (id: string) =>
+          (document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`) as SVGPathElement)?.getAttribute('d') ?? ''
+        return {
+          gen: l.routeMap.genCount(),
+          ab: { dom: domD('e_ab'), map: l.routeMap.get('e_ab')?.d ?? '' },
+          cd: { dom: domD('e_cd'), map: l.routeMap.get('e_cd')?.d ?? '' },
+        }
+      })
+
+    const before = await genAndPaths()
+    // the render and the route map agree ⇒ one shared generation
+    expect(before.ab.dom).toBe(before.ab.map)
+    expect(before.cd.dom).toBe(before.cd.map)
+
+    // move the obstacle a long way through both corridors
+    await page.evaluate(() => {
+      const g = (window as any).__loop.graph.getState()
+      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 280, y: 4 }, dragging: true }])
+      g.onNodesChange([{ type: 'position', id: 'obst', position: { x: 280, y: 4 }, dragging: false }])
+    })
+    await settle(page)
+    const after = await genAndPaths()
+
+    expect(after.gen).toBe(before.gen + 1) // ONE full rebuild pass, not one-per-edge
+    // the move mattered — at least one edge's geometry changed
+    expect(after.ab.dom !== before.ab.dom || after.cd.dom !== before.cd.dom).toBe(true)
+    // …and NO edge is left on a stale path: DOM == map for BOTH, same frame
+    expect(after.ab.dom).toBe(after.ab.map)
+    expect(after.cd.dom).toBe(after.cd.map)
+
+    // the previous route is not an input: clearing the cache and recomputing
+    // from scratch yields byte-identical paths
+    const recomputed = await page.evaluate(() => {
+      const l = (window as any).__loop
+      l.routeMap.reset()
+      return { ab: l.routeMap.get('e_ab')?.d ?? '', cd: l.routeMap.get('e_cd')?.d ?? '' }
+    })
+    expect(recomputed.ab).toBe(after.ab.map)
+    expect(recomputed.cd).toBe(after.cd.map)
+
+    // incremental == cold: import the moved graph fresh
+    const cold = JSON.parse(GRID())
+    cold.nodes.find((n: any) => n.id === 'obst').position = { x: 280, y: 4 }
+    await importGraph(page, JSON.stringify(cold))
+    await expect(page.locator('.react-flow__edge[data-id="e_ab"] path.route-orthogonal')).toHaveCount(1)
+    await settle(page)
+    const coldPaths = await genAndPaths()
+    expect(coldPaths.ab.dom).toBe(after.ab.dom)
+    expect(coldPaths.cd.dom).toBe(after.cd.dom)
+
+    // reversed edge input order ⇒ identical per id
+    const rev = JSON.parse(JSON.stringify(cold))
+    rev.edges.reverse()
+    await importGraph(page, JSON.stringify(rev))
+    await expect(page.locator('.react-flow__edge[data-id="e_ab"] path.route-orthogonal')).toHaveCount(1)
+    await settle(page)
+    const revPaths = await genAndPaths()
+    expect(revPaths.ab.dom).toBe(after.ab.dom)
+    expect(revPaths.cd.dom).toBe(after.cd.dom)
+  })
+
+  test('a waypoint inside an obstacle shows the §ER4 invalid cue and still keeps its value', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    // `mid` pool sits right where e_ac`s single waypoint is pinned
+    const g = {
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [
+        { id: 'a', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'A', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'c', type: 'drain', position: { x: 520, y: 0 }, data: { kind: 'drain', label: 'C', activation: 'automatic', mode: 'pullAny' } },
+        { id: 'mid', type: 'pool', position: { x: 250, y: -20 }, data: { kind: 'pool', label: 'Mid', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+      ],
+      edges: [
+        { id: 'e_ac', type: 'loop', source: 'a', target: 'c', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', route: 'orthogonal', waypoints: [{ x: 300, y: 12 }] } },
+      ],
+    }
+    await importGraph(page, JSON.stringify(g))
+    await expect(page.locator('.react-flow__edge[data-id="e_ac"] path.route-invalid')).toHaveCount(1)
+    await settle(page)
+
+    const cue = await page.evaluate(() => {
+      const p = document.querySelector('.react-flow__edge[data-id="e_ac"] path.react-flow__edge-path') as SVGPathElement
+      const route = (window as any).__loop.routeMap.get('e_ac')
+      const g = (window as any).__loop.graph.getState()
+      return {
+        invalidClass: p.classList.contains('route-invalid'),
+        fallback: route?.routeClass,
+        invalidFlag: route?.invalidWaypoint,
+        dash: getComputedStyle(p).strokeDasharray,
+        waypoints: g.edges[0].data.waypoints, // value kept
+      }
+    })
+    expect(cue.invalidFlag).toBe(true)
+    expect(cue.invalidClass).toBe(true)
+    expect(cue.fallback).toBe('fallback-lz')
+    expect(cue.dash).not.toBe('none') // dashed WARNING treatment
+    expect(cue.waypoints).toEqual([{ x: 300, y: 12 }]) // not consumed / not moved
+  })
+
+  test('every path consumer reads the same d; reduced-motion leaves only a static cue', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G2({ route: true }))
+    await expect(page.locator('.react-flow__edge[data-id="e_gd"] path.route-orthogonal')).toHaveCount(1)
+    await settle(page)
+
+    const consumers = await page.evaluate(() => {
+      const l = (window as any).__loop
+      const edge = document.querySelector('.react-flow__edge[data-id="e_gd"]') as SVGGElement
+      const vis = edge.querySelector('path.react-flow__edge-path') as SVGPathElement
+      const hit = edge.querySelector('path.react-flow__edge-interaction') as SVGPathElement
+      const label = document.querySelector('.edge-label[data-edge-id="e_gd"]') as HTMLElement | null
+      const route = l.routeMap.get('e_gd')
+      return {
+        d: vis.getAttribute('d'),
+        hit: hit.getAttribute('d'),
+        markerEnd: vis.getAttribute('marker-end') ?? vis.style.markerEnd ?? '',
+        labelTransform: label?.style.transform ?? '',
+        mid: route ? [Math.round(route.mid.x), Math.round(route.mid.y)] : null,
+      }
+    })
+    expect(consumers.hit).toBe(consumers.d) // BaseEdge draws both from one path
+    expect(consumers.markerEnd).toMatch(/url\(#/) // the renderer-owned direction marker
+    // the label anchor is the route's arc-length midpoint
+    expect(consumers.labelTransform).toContain(`${consumers.mid![0]}px`)
+    expect(consumers.labelTransform).toContain(`${consumers.mid![1]}px`)
+
+    await test.step('running sim: the flow bead animates along the orthogonal d and does not restart on Pause / selection', async () => {
+      await page.locator('.pstrip button[title="Advance one step"]').click()
+      await page.locator('.pstrip button[title="Advance one step"]').click()
+      const beadPath = () =>
+        page.evaluate(
+          () =>
+            (document.querySelector('.react-flow__edge[data-id="e_gd"] .flow-move animateMotion') as SVGElement | null)?.getAttribute('path') ?? null,
+        )
+      const p1 = await beadPath()
+      if (p1 !== null) {
+        expect(p1).toBe(consumers.d) // the bead rides the SAME orthogonal path
+        // selecting the edge / re-rendering must not re-seed the animation
+        await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_gd'))
+        await page.waitForTimeout(50)
+        expect(await beadPath()).toBe(p1)
+      }
+    })
+
+    await test.step('prefers-reduced-motion: no travelling element, a static edge cue only', async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.evaluate(() => {
+        const s = (window as any).__loop.sim.getState()
+        s.reset()
+      })
+      await page.locator('.pstrip button[title="Advance one step"]').click()
+      await page.waitForTimeout(80)
+      const rm = await page.evaluate(() => {
+        const edge = document.querySelector('.react-flow__edge[data-id="e_gd"]') as SVGGElement
+        const move = edge.querySelectorAll('animateMotion').length
+        const pulse = edge.querySelector('path.flow-edge-pulse') as SVGPathElement | null
+        const vis = edge.querySelector('path.react-flow__edge-path') as SVGPathElement
+        return { move, pulseD: pulse?.getAttribute('d') ?? null, d: vis.getAttribute('d') }
+      })
+      expect(rm.move).toBe(0) // nothing travels
+      if (rm.pulseD !== null) expect(rm.pulseD).toBe(rm.d) // the static cue uses the same path
+      await page.emulateMedia({ reducedMotion: null })
+    })
   })
 })

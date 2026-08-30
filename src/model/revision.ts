@@ -894,6 +894,15 @@ export function countThreeWayConflicts(
 
 const cloneEl = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 
+/** projection keys emitted ONLY when present / non-default — the sole keys a
+ *  selective Apply may remove when a hunk field's `proposed` is `undefined`.
+ *  Everything else (`kind`, `flow`, `mode`, `expr`, `label`, `value`,
+ *  `activation`, `capacity`, endpoints, handles, …) is always projected. */
+const OPTIONAL_PROJECTED_KEYS = new Set([
+  'route', 'waypoints', 'resourceType', 'delay', // edge data
+  'min', 'max', 'step', 'unit', 'format', // parameter / register hints
+])
+
 export type HunkSelection = {
   /** `add` / `remove` hunk id → accept it (default: not accepted) */
   accept: Record<string, boolean>
@@ -943,18 +952,23 @@ export function buildSelectiveApply(input: {
   const pEdges = new Map<string, LoopEdge>(proposedFull.edges.map((e) => [e.id, e]))
 
   const setField = (el: Record<string, unknown>, field: string, value: unknown) => {
-    // a `cosmetic` key the proposal drops (`route` / `waypoints` back to Bézier,
-    // a cleared `resourceType`) diffs as `proposed: undefined` — take that as
-    // "remove the key", never a literal `undefined` value (§R3-6 / R3-INV-9).
+    // A hunk field whose `proposed` value is `undefined` is the proposal DROPPING
+    // an OPTIONAL projected key (`route` / `waypoints` back to Bézier, a cleared
+    // `resourceType`, a removed Parameter tuning hint). Take that as "remove the
+    // key" — but ONLY for keys the projection actually omits when absent, so a
+    // malformed diff can never delete a required / defaulted field (§R3-6 /
+    // R3-INV-9). A non-optional field with `proposed: undefined` is left as the
+    // target has it (never written as a literal `undefined`).
     if (field.startsWith('data.')) {
       const key = field.slice(5)
       const data = { ...(el.data as Record<string, unknown>) }
-      if (value === undefined) delete data[key]
-      else data[key] = cloneEl(value)
+      if (value === undefined) {
+        if (OPTIONAL_PROJECTED_KEYS.has(key)) delete data[key]
+      } else {
+        data[key] = cloneEl(value)
+      }
       el.data = data
-    } else if (value === undefined) {
-      delete el[field]
-    } else {
+    } else if (value !== undefined) {
       el[field] = cloneEl(value)
     }
   }

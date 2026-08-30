@@ -534,6 +534,14 @@ body {
 .react-flow__edge-path {
   vector-effect: non-scaling-stroke;
 }
+/* docs/edge-routing.md §ER4 / §VL3 — a manual waypoint inside an inflated
+   obstacle: the route already fell back deterministically (routeClass
+   `fallback-lz`); the dashed WARNING stroke is the non-colour tell that the
+   pinned point could not be honoured. The value is still kept on the wire. */
+.react-flow__edge-path.route-invalid {
+  stroke: var(--warning);
+  stroke-dasharray: 6 3;
+}
 /* §VL6 — the direction marker (src/components/edges/EdgeMarkers.tsx). The
    renderer draws it, not React Flow, so it is tokenised — holds contrast in
    BOTH themes — and tracks the edge class it terminates. Its orientation is the

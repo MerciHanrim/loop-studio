@@ -82,25 +82,34 @@ describe('graphStore.simulationRev', () => {
 
   it('does NOT bump: a routing-only edge edit (route / waypoints are cosmetic — loop-revision/3 §R3-3)', () => {
     const { edgeId } = base()
+    const set = (d: Record<string, unknown>) => useGraphStore.getState().setEdgeData(edgeId, d as never)
+    // route only
+    expect(bumped(() => set({ kind: 'resource', flow: '1', route: 'orthogonal' }))).toBe(0)
+    // waypoints only (route already present)
     expect(
-      bumped(() => useGraphStore.getState().setEdgeData(edgeId, { kind: 'resource', flow: '1', route: 'orthogonal' })),
+      bumped(() => set({ kind: 'resource', flow: '1', route: 'orthogonal', waypoints: [{ x: 10, y: 20 }] })),
     ).toBe(0)
+    // change just the waypoints array
     expect(
-      bumped(() =>
-        useGraphStore.getState().setEdgeData(edgeId, {
-          kind: 'resource',
-          flow: '1',
-          route: 'orthogonal',
-          waypoints: [{ x: 10, y: 20 }],
-        }),
-      ),
+      bumped(() => set({ kind: 'resource', flow: '1', route: 'orthogonal', waypoints: [{ x: 30, y: 40 }, { x: 30, y: 80 }] })),
     ).toBe(0)
-    // …but a routing edit that ALSO changes flow still bumps
+    // Orthogonal → Curved: BOTH keys removed in one patch — still cosmetic
+    expect(bumped(() => set({ kind: 'resource', flow: '1' }))).toBe(0)
+  })
+
+  it('bumps exactly +1: a patch that mixes a routing key with a real field', () => {
+    const { edgeId } = base()
+    const set = (d: Record<string, unknown>) => useGraphStore.getState().setEdgeData(edgeId, d as never)
+    // flow changed alongside route
+    expect(bumped(() => set({ kind: 'resource', flow: '3', route: 'orthogonal' }))).toBe(1)
+    // kind / mode / expr changed alongside route (resource → state in one patch)
     expect(
-      bumped(() =>
-        useGraphStore.getState().setEdgeData(edgeId, { kind: 'resource', flow: '3', route: 'orthogonal' }),
-      ),
-    ).toBeGreaterThan(0)
+      bumped(() => set({ kind: 'state', mode: 'activator', expr: '@x > 1', route: 'orthogonal' })),
+    ).toBe(1)
+    // and a routing-only follow-up on the state edge does not bump
+    expect(
+      bumped(() => set({ kind: 'state', mode: 'activator', expr: '@x > 1', route: 'orthogonal', waypoints: [{ x: 1, y: 2 }] })),
+    ).toBe(0)
   })
 
   it('does NOT bump: a pure label rename', () => {

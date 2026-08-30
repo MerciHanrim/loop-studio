@@ -135,6 +135,47 @@ describe('orthogonalRoute — waypoint span contract (§ER5)', () => {
     expect(computeOrthogonalRoute(inp).d).toBe(r.d)
   })
 
+  it('every non-collinear waypoint is a vertex of the emitted polyline (auto span interpolation)', () => {
+    const wp = [
+      { x: 90, y: 0 },
+      { x: 90, y: 120 },
+      { x: 210, y: 120 },
+    ]
+    const r = computeOrthogonalRoute(base({ target: { x: 210, y: 260 }, targetPosition: Position.Top, waypoints: wp }))
+    // every number pair in the `d` (M / L vertices AND Q corner control points)
+    const nums = [...r.d.matchAll(/-?\d+(?:\.\d+)?/g)].map((m) => parseFloat(m[0]))
+    const pairs: { x: number; y: number }[] = []
+    for (let i = 0; i + 1 < nums.length; i += 2) pairs.push({ x: nums[i], y: nums[i + 1] })
+    // each corner waypoint is honoured: an x within CORNER_R and a y within
+    // CORNER_R of some emitted coordinate pair (the rounded `Q` control point is
+    // the waypoint itself; adjacent L points are pulled in by CORNER_R).
+    const near = (a: number, b: number) => Math.abs(a - b) <= 6 + 0.5
+    for (const p of wp) {
+      expect(pairs.some((v) => near(v.x, p.x) && near(v.y, p.y))).toBe(true)
+    }
+  })
+
+  it('a waypoint inside an inflated obstacle ⇒ invalidWaypoint, deterministic fallback, value not consumed by the router', () => {
+    const wpBad = [{ x: 100, y: 0 }] // sits inside the obstacle below
+    const inp = base({
+      source: { x: 0, y: 0 },
+      target: { x: 300, y: 0 },
+      waypoints: wpBad,
+      obstacles: [{ id: 'box', x: 70, y: -40, w: 80, h: 80 }],
+    })
+    const r = computeOrthogonalRoute(inp)
+    expect(r.invalidWaypoint).toBe(true)
+    expect(r.routeClass).toBe('fallback-lz')
+    // deterministic: identical inputs ⇒ identical fallback geometry
+    const again = computeOrthogonalRoute(inp)
+    expect(again.d).toBe(r.d)
+    expect(again.hitD).toBe(r.hitD)
+    expect(again.invalidWaypoint).toBe(true)
+    // a valid waypoint set on the same layout is NOT flagged
+    const ok = computeOrthogonalRoute({ ...inp, waypoints: [{ x: 100, y: 200 }] })
+    expect(ok.invalidWaypoint).toBe(false)
+  })
+
   it('a duplicate / collinear waypoint list still yields a path with no NaN and ≤ PATH_DECIMALS', () => {
     const r = computeOrthogonalRoute(
       base({ waypoints: [{ x: 80, y: 0 }, { x: 80, y: 0 }, { x: 80, y: 80 }, { x: 80, y: 160 }] }),

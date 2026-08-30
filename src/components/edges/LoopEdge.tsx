@@ -119,7 +119,11 @@ function LoopEdge({
         id={id}
         path={path}
         markerEnd={`url(#${markerId})`}
-        className={route ? `route-${route.routeClass}` : undefined}
+        className={
+          route
+            ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}`
+            : undefined
+        }
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,

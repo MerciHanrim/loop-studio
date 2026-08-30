@@ -433,3 +433,61 @@ describe('loop-revision/3 golden vector — §R3-4', () => {
     expect(readRoutingPayload({ waypoints: [{ x: 1, y: 1 }] })).toEqual({})
   })
 })
+
+// SEMANTICS-R3.md §R3-5 — the ORDER of the per-side pipeline is a tested call
+// sequence, not "the two projections happen to agree":
+//   normalize → routing defensive read → infer version from SURVIVING intent
+//   → verify the stored digest against the OWN-version projection → lift to v3.
+describe('loop-revision/3 — the per-side validation order (§R3-5 / R3-INV-4)', () => {
+  it('version is inferred AFTER the defensive read — a graph whose ONLY routing intent is malformed is v2, not v3', () => {
+    // raw bytes carry route:"orthogonal", but the payload is quarantined first
+    const g = { nodes: buildRG0().nodes, edges: [rEdge('e_sg', 'n_src', 'n_gold', { flow: '2', route: 'orthogonal', waypoints: [{ x: 1, y: Number.POSITIVE_INFINITY }] })] }
+    const side = readRevisionSide(g)
+    expect(side.ok && side.version).toBe('loop-revision/2')
+    if (side.ok) expect(canonicalJson(side.content)).not.toMatch(/"route"|"waypoints"/)
+  })
+
+  it('a v3 side is verified against its OWN (routing-included) projection — a digest that only matches the routing-stripped v2 reading is REJECTED', () => {
+    const strippedDigest = dg2(RG1) // == dg3(RG0): the v2 reading of RG1
+    const own = dg3(RG1)
+    expect(strippedDigest).not.toBe(own)
+    const bad = readRevisionSide(RG1, strippedDigest)
+    expect(bad.ok).toBe(false)
+    expect(!bad.ok && bad.stage).toBe('digest')
+    expect(!bad.ok && bad.detail).toMatch(/loop-revision\/3/)
+    // its own digest passes, and the lift is byte-identical to that projection
+    const good = readRevisionSide(RG1, own)
+    expect(good.ok && good.digestVerified).toBe(true)
+    if (good.ok) expect(canonicalJson(good.content)).toBe(canonicalJson(v3(RG1)))
+  })
+
+  it('a v2 side is verified against the v2 projection and is NEVER first checked with a v3 digest', () => {
+    const v2own = dg2(RG0)
+    const ok = readRevisionSide(RG0, v2own)
+    expect(ok.ok && ok.version).toBe('loop-revision/2')
+    expect(ok.ok && ok.digestVerified).toBe(true)
+    // a v3-shaped digest (RG1's own) must not be what an RG0 side is measured against
+    const bad = readRevisionSide(RG0, dg3(RG1))
+    expect(bad.ok).toBe(false)
+    expect(!bad.ok && bad.detail).toMatch(/loop-revision\/2/) // measured as v2, reported as v2
+  })
+
+  it('RV-1…RV-4 each pass through readRevisionSide, then the common v3 compare model', () => {
+    const sideOf = (g: { nodes: LoopNode[]; edges: LoopEdge[] }, d?: string) => readRevisionSide(g, d)
+    // RV-1 v2 base / v3 proposed
+    expect((sideOf(RG0, dg2(RG0)) as { version?: string }).version).toBe('loop-revision/2')
+    expect((sideOf(RG1, dg3(RG1)) as { version?: string }).version).toBe('loop-revision/3')
+    // RV-2 v3 base / v2 proposed — mirror of RV-1
+    // RV-3 v3 / v3
+    const RG1b = { nodes: RG1.nodes, edges: RG1.edges.map((e) => (e.id === 'e_gd' ? ({ ...e, data: { ...e.data, waypoints: [{ x: 1, y: 2 }] } } as LoopEdge) : e)) }
+    expect((sideOf(RG1b, dg3(RG1b)) as { version?: string }).version).toBe('loop-revision/3')
+    // RV-4 v2 / v2
+    expect((sideOf(RG2, dg2(RG2)) as { version?: string }).version).toBe('loop-revision/2')
+    // every ok side's `content` is already the v3 compare model (== {modelLayer:true})
+    for (const [g, d] of [[RG0, dg2(RG0)], [RG1, dg3(RG1)], [RG1b, dg3(RG1b)], [RG2, dg2(RG2)]] as const) {
+      const s = readRevisionSide(g, d)
+      expect(s.ok).toBe(true)
+      if (s.ok) expect(canonicalJson(s.content)).toBe(canonicalJson(canonicalContent(g, { modelLayer: true })))
+    }
+  })
+})

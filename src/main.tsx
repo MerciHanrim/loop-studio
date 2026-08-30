@@ -13,6 +13,7 @@ import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
 import { useReviewStore } from './store/reviewStore'
 import * as revisionIO from './store/revisionIO'
+import { __resetRouteCache, __routeGenCount, currentRouteMap } from './store/routeMap'
 import * as shareLink from './store/shareLink'
 import { useSimStore } from './store/simStore'
 import { useUiStore } from './store/uiStore'
@@ -31,6 +32,14 @@ if (import.meta.env.DEV) {
     review: useReviewStore,
     io: workspaceIO,
     revisionIO,
+    routeMap: {
+      genCount: __routeGenCount,
+      reset: __resetRouteCache,
+      get: (id: string) => {
+        const g = useGraphStore.getState()
+        return currentRouteMap(g.nodes, g.edges).get(id) ?? null
+      },
+    },
     share,
     shareLink,
   }
