@@ -1,16 +1,22 @@
 # Simulation Playback / Event Choreography (non-frozen design doc — DRAFT)
 
-**Status: DRAFT for review (round 2).** Round 1's `committedStep ≥ revealedStep`
-two-clock model is **withdrawn**. The state model is now **one committed clock +
-a single `preparedTransition` with progress `τ`** (§PB2). A **presentation-only**
-layer over the existing engine: when the user presses **Play** (or **Step**), the
-next step is computed in full but **not committed**; resources visibly leave a
-source, travel the real edge path, arrive, and then — in **one atomic commit at
-`settle`** — `SimState` / step index / timeline series advance together. It does
-**not** touch the engine's determinism, the RNG result, state semantics,
-Monte-Carlo, the GraphDoc, the `loop-revision/*` digest, or the Workspace format.
-This doc carries no `loop-*/N` id and is revised freely (like
-`docs/visual-language.md`, `docs/edge-routing.md`).
+**Status: DRAFT for review (round 3).** Round 1's `committedStep ≥ revealedStep`
+two-clock model was withdrawn; round 2's **one committed clock + a single
+`preparedTransition` with progress `τ`** state model (§PB2) is **approved**. Round
+3 adds the API boundary (§PB2.7 — a dedicated `commitPrepared()`, **not** a reuse
+of `advance`), the commit-time revalidation / prepare-determinism /
+exactly-once-commit / legacy-path-equivalence boundaries (§PB7.5–PB7.8), the
+finalised implementation slices (§PB13), and closes every §PB14 question as
+**Decided** or explicit **Deferred**.
+
+A **presentation-only** layer over the existing engine: when the user presses
+**Play** (or **Step**), the next step is computed in full but **not committed**;
+resources visibly leave a source, travel the real edge path, arrive, and then —
+in **one atomic commit at `settle`** — `SimState` / step index / timeline series /
+RNG advance together. It does **not** touch the engine's determinism, the RNG
+result, state semantics, Monte-Carlo, the GraphDoc, the `loop-revision/*` digest,
+or the Workspace format. This doc carries no `loop-*/N` id and is revised freely
+(like `docs/visual-language.md`, `docs/edge-routing.md`).
 
 It supersedes the ad-hoc "flow bead" that the Canvas Visual Refresh (v0.6.0) and
 Orthogonal Routing Slice 1 (v0.7.0-dev) ship today: one `<animateMotion>` token
@@ -20,23 +26,23 @@ model comes alive when you press Play" means for Loop Studio **before any
 implementation**.
 
 **Build order:**
-1. this design doc → review → settle;
-2. implementation slices (proposed in §PB13), each behind the same acceptance
-   set (§PB12);
+1. this design doc → review → settle (round 3 closes the questions);
+2. implementation slices §PB13 (S1 state machine + `commitPrepared` → S2
+   choreography → S3 reduced-motion / LOD / background / mobile / matrix), each
+   behind the acceptance set §PB12;
 3. no wire/spec amendment is expected — if one turns out to be needed, it stops
    and gets its own frozen `loop-*/N` (this doc does not pre-authorise it).
 
-**Review focus (round 2):**
+**Round 3 review focus:**
 
 | question | pinned in |
 |---|---|
-| compute vs commit — when does `S(t+1)` reach the store? | §PB1.1–PB1.2, §PB2.2 — computed at prepare, **committed once at `settle`**; `committedStep === revealedStep` always |
-| what do Canvas / Inspector / Register / Timeline / autosave / Workspace show during a transition? | §PB2.4 — **all of them read the last committed state `S(t)`**; the only extra thing that exists is `preparedTransition` + `τ` |
-| cancellation — Pause vs Reset/Import/Undo/edit | §PB7 — Pause **keeps** `preparedTransition` (τ frozen); the rest **discard** it, leaving no trace in RNG / step / series / Workspace |
-| do backpressure + background catch-up drop or double-count a step? | §PB3.2, §PB8 — one `preparedTransition` at a time; every committed step is written to the Timeline **exactly once**; "skip-to-latest" elides visual phases, never a state step |
-| speed change mid-transition | §PB6 — keep `τ`, recompute only the remaining phases; no speed 0 / invalid; `τ` never decreases; `settle` fires **exactly once** |
-| reduced motion | §PB9 — same prepared result; no travel element; short depart/path/arrive cue or immediate `settle`; **no auto-`settle` while Paused** |
-| summing several `FlowEvents` on one edge | §PB4.5 — token visual may merge; the events list keeps every original `FlowEvent` (origin / category / order); state events never merged |
+| the API — `prepareTransition` / `commitPrepared`, and why not reuse `advance` | §PB2.7 |
+| commit-time revalidation (CAS) — what is compared, what a mismatch does | §PB7.5 (`simulationRev`, `stepIndex === fromStep`, RNG cursor, committed-state digest, "still active" → else `stale`, zero mutation) |
+| prepare determinism — repeat-safe, RNG-neutral, frozen-input-safe | §PB7.6 |
+| exactly-once commit — double settle / Pause-Resume loop / big frame gap / speed across a boundary / same-tick stale + fresh callbacks | §PB7.7 |
+| relationship to the legacy immediate path (tests / MC / Predict) | §PB2.8 — `advance == prepare → commitPrepared`; only Step/Play UI uses the prepared path |
+| every §PB14 question | §PB14 — all **Decided** or **Deferred** |
 
 ---
 
@@ -160,6 +166,61 @@ travel (see PB-Q1).
 together, travel together, `settle` together. Drawing order within a beat (which
 arrival is on top) is deterministic: ascending edge id, then the flattened event
 key, matching the router's tie-break vocabulary.
+
+**PB2.7 — the API: `prepareTransition` + `commitPrepared` (a dedicated commit,
+NOT a reuse of `advance`).** `advance` today *computes and commits together*.
+Reusing it for playback would risk (a) running the engine step / RNG twice, (b)
+committing a **fresh** result instead of the prepared one, (c) overwriting a
+state the user changed mid-animation with a stale result, and (d) tangling the
+existing immediate path with the playback path. So playback gets its own two
+functions and the two responsibilities are split:
+
+```
+prepareTransition(snapshot) →
+   {
+     fromStep,                 // the committed stepIndex this was prepared against
+     fromStateIdentity,        // reference / digest of the committed SimState at prepare time
+     events,                   // the engine's per-step FlowEvents[] + StateEvents[], verbatim
+     toState,                  // fully computed S(fromStep + 1), NOT committed
+     rngAfter,                 // the RNG cursor value AS OF after the step (held, not applied)
+     transitionId,             // fresh monotonic id (§PB7.3)
+   }
+
+commitPrepared(prepared, expected) → "committed" | "stale" | "already-settled"
+```
+
+- `prepareTransition` is **pure** over `(GraphDoc, committed SimState, RNG
+  cursor)`: no store write, no RNG-cursor advance, no visible change (§PB1,
+  §PB7.6).
+- `expected` is the small snapshot captured **at prepare time** —
+  `{ simulationRev, stepIndex, fromStateIdentity, rngBefore }` — that
+  `commitPrepared` compares against the live store (§PB7.5).
+- `commitPrepared` performs the **§PB7.5 revalidation** against `expected`; on
+  success it mutates, **in one store transaction**, `SimState` **and**
+  `stepIndex` **and** the appended `series` point **and** the RNG cursor **and**
+  the store's "last FlowEvents" field that the canvas cue layer reads — together,
+  never partially. On failure it returns `"stale"` / `"already-settled"` and
+  performs **zero** mutation.
+- `settle` (§PB2.1) is exactly one `commitPrepared` call. Nothing else in the
+  playback layer writes sim state.
+
+**PB2.8 — relationship to the legacy immediate path.** The non-playback callers —
+unit/integration tests that just want to step the engine, Monte-Carlo, Predict —
+keep using the existing **immediate** `advance` (compute + commit in one call,
+no tokens). Both paths **must** bottom out in the *same pure engine primitive*
+(the current `step(nodes, edges, prev, seed)` → `StepResult`) and produce
+identical results:
+
+```
+advance(S, rng)                       // legacy immediate
+   ≡  commitPrepared(prepareTransition({ S, rng }), expected)   // playback, when nothing changed in between
+```
+
+i.e. `advance` becomes a thin wrapper: `prepareTransition` then an immediate
+`commitPrepared` with `expected` = the state it was just prepared against.
+Playback simply inserts the `τ` animation *between* those two calls. Only the
+Step / Play **UI** uses the split path; MC / Predict stay on the tokenless
+immediate path (§PB10).
 
 ## PB3. Step vs Play — backpressure
 
@@ -326,6 +387,57 @@ is atomic and last, so a discarded transition never leaves a half-applied
 display: either `settle` ran (store = `S(t+1)`) or it did not (store = `S(t)`),
 and the post-discard authoritative render is correct either way.
 
+**PB7.5 — commit-time revalidation (compare-and-swap).** `transitionId` alone is
+not enough — it proves "this callback belongs to the current transition", not
+"the world is still the one this transition was prepared against". So
+`commitPrepared(prepared, expected)` re-checks **all** of the following the
+instant before it mutates, against the live store:
+
+| checked | pass condition |
+|---|---|
+| `simulationRev` | `expected.simulationRev === store.simulationRev` (no edit / import / undo since prepare) |
+| step index | `prepared.fromStep === store.stepIndex` |
+| committed state identity | `prepared.fromStateIdentity` matches the live committed `SimState` (reference equality, or a digest if a defensive copy is unavoidable) |
+| RNG cursor | the live RNG cursor equals the one `prepared` was computed from (`expected.rngBefore`) |
+| liveness | this `preparedTransition` is still the scheduler's active one and has not already settled |
+
+If **any** check fails → return `"stale"` and perform **zero** mutation
+(`SimState`, `stepIndex`, `series`, RNG, "last FlowEvents" all untouched). The
+scheduler then discards the `preparedTransition` and — if Play is still running —
+prepares a fresh one from the *current* committed state on the next tick. A
+`"stale"` result is normal, not an error (it just means something authoritative
+changed during the animation); it is logged at debug level only.
+
+**PB7.6 — prepare determinism.** `prepareTransition` is a pure function of
+`(GraphDoc, committed SimState, RNG cursor)`:
+
+- calling it **twice** on the same inputs returns byte-/state-identical `events`,
+  `toState`, and `rngAfter`;
+- it **never advances the store's RNG cursor** (it reads the cursor and computes
+  `rngAfter` as a value, applied only by `commitPrepared`); N repeated prepares
+  leave the store RNG where it was;
+- it **does not mutate its inputs** — passing a deep-`Object.freeze`d
+  `{ nodes, edges, SimState }` must not throw and must not attempt a write
+  (defensive copies where the engine needs scratch space).
+
+This is what makes Pause→Resume safe (Resume re-uses the *stored* `prepared`, it
+does not re-prepare) and what makes PB7.5's "recompute from current state after a
+`stale`" deterministic.
+
+**PB7.7 — `settle` commits exactly once.** Across every path:
+
+| path | outcome |
+|---|---|
+| the `settle` beat fires, then fires again (overlong frame re-entry) | 2nd call → `"already-settled"`, no mutation |
+| Pause / Resume toggled many times, then the transition completes | one `commitPrepared`, one `series` point |
+| a giant frame gap jumps `τ` from `0.3` to `2.0` in one tick | `firedBeats` gates `arrive` and `settle` to once each |
+| a speed change pushes `τ` across the `arrive` and/or `settle` boundary in one frame | each boundary hook fires once |
+| a stale callback from transition `K` and a fresh callback from `K+1` run in the same tick | `K`'s is a no-op (PB7.3); `K+1`'s `settle` still fires exactly once |
+
+`firedBeats` (a small set on the `preparedTransition`) + the `"already-settled"`
+return from `commitPrepared` are the two guards; either alone is sufficient, both
+are cheap.
+
 ## PB8. Background tab / frame starvation
 
 **PB8.1 — the clock is wall-clock, not frame-count.** Each tick advances `τ` by
@@ -425,6 +537,9 @@ emphasis.
 | **PB-INV-13** | `prefers-reduced-motion` ⇒ zero moving elements and no artificially long wait; the depart / path / arrive / settle beats still play (brief or immediate) in order; the committed state, series, and RNG result are identical to a full-motion run; a Paused transition is **not** auto-settled. |
 | **PB-INV-14** | No GraphDoc, `loop-revision/*` digest, `SimState` shape, timeline series shape, Share link, or Workspace (`loop-workspace/1`) format change. No new `loop-*/N`. Monte Carlo / Predict untouched and tokenless. |
 | **PB-INV-15** | The whole layer is render-side and disposable: destroying the scheduler leaves no residue in any store that persists or serialises. |
+| **PB-INV-16** | Playback commits sim state **only** through `commitPrepared(prepared, expected)`, never through `advance`. `commitPrepared` re-validates `simulationRev`, `stepIndex === fromStep`, committed-state identity, RNG cursor, and liveness the instant before it mutates; any mismatch ⇒ `"stale"` and **zero** mutation. A second commit of the same `prepared` ⇒ `"already-settled"`, zero mutation. |
+| **PB-INV-17** | `prepareTransition` is a pure function of `(GraphDoc, committed SimState, RNG cursor)`: repeat calls return identical `events` / `toState` / `rngAfter`; it never advances the store RNG cursor; it never mutates its inputs (safe on deep-frozen inputs). |
+| **PB-INV-18** | Legacy immediate `advance` and the playback path bottom out in the **same** pure engine primitive and produce identical results: `advance(S, rng) ≡ prepareTransition({S, rng}) → commitPrepared(…)`. Only the Step / Play UI uses the split path; MC / Predict / test-stepping keep the tokenless immediate path. |
 
 ## PB12. Acceptance / E2E (every slice)
 
@@ -478,45 +593,70 @@ emphasis.
     equals today's oracle; Predict shows numbers, no tokens.
 15. **VL / revision carry-over** — GraphDoc bytes, `loop-revision/3` digest, undo
     stack, edge `d`, viewport unchanged by playing / pausing / discarding a run.
+16. **CAS `stale`** — prepare a transition, then between prepare and `settle`
+    mutate one of: the graph (`simulationRev` bumps), the RNG cursor, the
+    committed `SimState` (a scrub), or advance `stepIndex` another way. At
+    `settle`, `commitPrepared` returns `"stale"` and **no** store field changed;
+    Play then re-prepares from the current state.
+17. **Prepare determinism / frozen inputs** — call `prepareTransition` 100× on
+    the same deep-`Object.freeze`d `{nodes, edges, SimState, rng}`: identical
+    `events` / `toState` / `rngAfter` every time, no throw, and the store RNG
+    cursor is unchanged after all 100 calls.
+18. **`settle` exactly once — the matrix** — for each row of §PB7.7 (double beat
+    fire, Pause/Resume loop, giant frame gap, speed across a boundary, same-tick
+    stale+fresh callbacks): the `series` gains exactly one point and `stepIndex`
+    advances by exactly one; the redundant call returns `"already-settled"`.
+19. **Legacy-path equivalence** — for a seed and step, `advance(S, rng)` and
+    `prepareTransition({S, rng}) → commitPrepared(…)` produce byte-identical
+    `SimState`, `series` point, and RNG cursor. A Monte-Carlo run (immediate
+    path) and a step-by-step Play of the same seed reach the same per-step
+    states.
 
-## PB13. Proposed slices (for discussion — not settled)
+## PB13. Implementation slices (Decided)
 
-- **Slice A — the transition scheduler + resource tokens.** `preparedTransition`
-  + the single-commit `settle`, the `τ` scheduler, backpressure, Pause/Resume,
-  speed (incl. the guards + `firedBeats`), the discard/`transitionId` guard,
-  background catch-up (`MAX_SETTLES_PER_TICK`), reduced motion, L0 elision.
-  Resource `FlowEvents` only (depart → travel on the real `d` → arrive → count-up
-  on `settle`). State effects keep their current one-step cue but move onto the
-  `settle` beat.
-- **Slice B — state-event choreography.** `trigger` pulse as a travelling beat,
-  `activator` tint flip on `settle`, `label` delta token with direction, the
-  "blocked" / clamp annotations on the `arrive` beat. Delayed-`trigger` emit cue
-  vs delivery choreography (resolve PB-Q1).
-- **Slice C — polish.** Summed-token breakdown UI, per-edge multi-event lanes
-  within the cap, source-outflow / target-inflow micro-cues, count-up easing,
-  reduced-motion sequence timing.
+- **Slice 1 — the state machine, no real choreography.** `prepareTransition` +
+  `commitPrepared` (with the §PB7.5 CAS, §PB7.6 purity, §PB7.7 exactly-once
+  guards), the `preparedTransition` + `τ` scheduler, Step/Play backpressure
+  (§PB3), Pause/Resume (§PB5), discard + `transitionId` guard (§PB7),
+  background one-per-tick (§PB8), the `advance` = `prepare → commitPrepared`
+  refactor (§PB2.8). **Visuals are minimal** — the existing single flow bead may
+  be retimed onto the beats, but no new token / trail / breakdown UI. Ships when
+  §PB12 tests 1–3, 5–10, 16–19 are green and no v1 sim/MC/Predict behaviour
+  moved (PB-INV-18).
+- **Slice 2 — the choreography.** `depart → travel → arrive` on the real
+  Bézier / orthogonal `d` (§PB4.1), the resource token + count-up on `settle`,
+  Pause/Resume freezing token positions, speed re-rate mid-travel (§PB6.2),
+  the summed-token visual + `events`-list breakdown (§PB4.5), event ordering
+  within a beat (§PB2.6). §PB12 tests 4, 6, 13 join the gate.
+- **Slice 3 — the edges.** `prefers-reduced-motion` (§PB9), zoom LOD / L0
+  elision (§PB4.4), background-tab visual behaviour polish, the mobile
+  view/run layout, and the full visual + E2E matrix (light/dark × the LOD
+  levels × reduced-motion). §PB12 tests 11, 12, 15 join the gate. State-event
+  choreography (`trigger` travelling beat, `activator` tint, `label` delta
+  token) also lands here or as a small Slice 3b.
 
-## PB14. Open questions
+## PB14. Decisions (all closed)
 
-- **PB-Q1** — delayed `trigger`: delivery-step choreography only, or also a faint
-  in-flight marker across the wait? (Lean: delivery only, for determinism.)
-- **PB-Q2** — does `settle`'s value count-up tween or snap? (Lean: short tween
-  full-motion, snap under reduced motion; both land on `to`.)
-- **PB-Q3** — Step-spam / Play-during-transition: instant `settle` of the
-  in-flight transition (current text), or a very fast catch-up play of it?
-  (Lean: instant `settle` — Step is the escape hatch.)
-- **PB-Q4** — `MAX_PLAYBACK_TOKENS` (12?) and the global per-step token cap for a
-  wide graph.
-- **PB-Q5** — timeline scrubber: always jump (current text), or an optional
-  "scrub with choreography"? (Lean: always jump; "play from here" is just Play.)
-- **PB-Q6** — should `settle`'s atomic commit reuse the store's existing
-  `advance` action verbatim (preferred — one code path), or a dedicated
-  `commitPrepared` that asserts `preparedTransition.fromStep === stepIndex`?
+| id | decision |
+|---|---|
+| **PB-Q1** delayed `trigger` visual | **Decided:** delivery-step choreography only; the emit step shows a brief static "queued" cue at the source, no travel and no in-flight marker across the wait (keeps it a pure function of that step's `events`). |
+| **PB-Q2** `settle` count-up | **Decided:** a short count-up tween in full motion, an immediate snap under `prefers-reduced-motion`; both land on `toState`; the tween is cosmetic and never gates `commitPrepared` (which has already run). |
+| **PB-Q3** Step-spam / Play-during-transition | **Decided:** instant advance to `settle` (τ → 1, one `commitPrepared`), not a fast catch-up play. Step is the escape hatch. |
+| **PB-Q4** token caps | **Decided:** `MAX_PLAYBACK_TOKENS = 12` per edge per step; global per-step cap `MAX_PLAYBACK_TOKENS_TOTAL = 60`. Past a cap only the `+N` affordance changes; the summed amount stays exact; `toState` untouched. Both are one constants block, tunable. |
+| **PB-Q5** timeline scrubber | **Decided:** always jump (navigation, not playback); a scrub commits `series[K]` to the store like today. "Play from here" is just pressing Play. No scrub-with-choreography. |
+| **PB-Q6** commit API | **Decided:** a **dedicated `commitPrepared()`**, not a reuse of `advance`. `advance` is refactored to `prepareTransition` + an immediate `commitPrepared` so both paths share the pure primitive (§PB2.7 / §PB2.8 / PB-INV-16/18). |
+| **PB-D1** RNG cursor | **Decided:** if the engine exposes an advancing cursor, `prepareTransition` reads it and returns `rngAfter` as a value; `commitPrepared` applies it as part of the atomic commit. If the engine is fully keyed (no cursor — current `step(seed, stepIndex)` shape), `rngAfter` is omitted and the CAS check on it is a no-op. Either way playback consumes no RNG that a discard would need to undo. |
+| **PB-D2** state-effect timing in Slice 1 | **Decided:** until Slice 2/3, existing `trigger` / `activator` / `label` cues keep their current single-step form but are triggered on the `settle` beat (not on raw `stepIndex` change), so they stay aligned with the committed state. |
+
+**Deferred (explicit, out of this cycle):** a "record / export the animation"
+feature; camera moves / auto-pan-to-action; scrub-with-choreography; per-token
+lanes beyond the cap; any Predict visualisation change.
 
 ## PB15. Scope boundary
 
-**In:** a render-side scheduler holding one `preparedTransition`; the single
-atomic `settle` commit; resource + state event choreography along real edge
+**In:** `prepareTransition` + `commitPrepared` and the `advance` refactor; a
+render-side scheduler holding one `preparedTransition`; the single atomic
+`settle` commit with CAS; resource + state event choreography along real edge
 paths; Pause/Resume/speed/discard semantics; background catch-up; reduced-motion
 and L0 behaviour; the acceptance set.
 
