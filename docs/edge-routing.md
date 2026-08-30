@@ -344,6 +344,10 @@ A **waypoint** is stored, per edge, as an **ordered list of world-space finite
   deterministic fallback for the affected span (route to the nearest free
   point, then to the next pinned point). The waypoint value is **kept** (not
   auto-deleted) so the user can drag it out.
+  *Slice 1 status:* the `RouteResult.invalidWaypoint` flag + the
+  `.route-invalid` dashed `--warning` stroke + `routeClass: 'fallback-lz'` +
+  value-kept are implemented; the **per-span** "nearest free point" refinement
+  and the hover tooltip land with the Slice 2 drag UI.
 - **Reset route** removes **all `waypoints`**, keeps **`route` mode**. One undo
   entry.
 - **Undo granularity.** Add, move (per `dragstop`), delete, and Reset are each

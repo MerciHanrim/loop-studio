@@ -326,3 +326,54 @@ describe('projectStore — open a revision / clear', () => {
     expect(autosaveHeader()).toBeNull()
   })
 })
+
+describe('projectStore — routing is loop-revision/3 cosmetic revision content (§R3-3)', () => {
+  it('route on ⇒ dirty; Orthogonal→Curved removes both keys, digest returns exactly; undo restores route + waypoints + the header, redo removes them', () => {
+    vi.useFakeTimers()
+    try {
+      useGraphStore.getState().newGraph()
+      useGraphStore.getState().addNodeAt('source', { x: 0, y: 0 })
+      useGraphStore.getState().addNodeAt('pool', { x: 200, y: 0 })
+      const [s, p] = useGraphStore.getState().nodes
+      useGraphStore.getState().onConnect({ source: s.id, target: p.id, sourceHandle: 'out', targetHandle: 'in' })
+      const eid = useGraphStore.getState().edges[0].id
+      const set = (d: Record<string, unknown>) => {
+        useGraphStore.getState().setEdgeData(eid, d as never)
+        vi.advanceTimersByTime(700) // past COALESCE_MS ⇒ each edit is its own undo entry
+      }
+
+      promote('2026-09-09T00:00:00Z')
+      const baseline = useProjectStore.getState().open!.baselineDigest
+      expect(useProjectStore.getState().dirty).toBe(false)
+      const depth0 = useGraphStore.getState().past.length
+
+      set({ kind: 'resource', flow: '1', route: 'orthogonal' })
+      useProjectStore.getState().refreshDirty()
+      expect(useProjectStore.getState().dirty).toBe(true) // cosmetic still moves the canonical digest
+      expect(useGraphStore.getState().past.length).toBe(depth0 + 1)
+
+      set({ kind: 'resource', flow: '1', route: 'orthogonal', waypoints: [{ x: 100, y: 10 }] })
+      expect(useGraphStore.getState().past.length).toBe(depth0 + 2)
+
+      set({ kind: 'resource', flow: '1' }) // Orthogonal → Curved: both keys gone in one patch
+      expect(useGraphStore.getState().past.length).toBe(depth0 + 3)
+      useProjectStore.getState().refreshDirty()
+      expect(useProjectStore.getState().dirty).toBe(false) // EXACT return to the pinned baseline
+      expect(live()).toBe(baseline)
+
+      useGraphStore.getState().undo() // undo the Curved step
+      const back = useGraphStore.getState().edges[0].data as Record<string, unknown>
+      expect(back.route).toBe('orthogonal')
+      expect(back.waypoints).toEqual([{ x: 100, y: 10 }])
+      // the header travelled with the frame — still the same open revision
+      expect(useProjectStore.getState().open!.baselineDigest).toBe(baseline)
+
+      useGraphStore.getState().redo()
+      const fwd = useGraphStore.getState().edges[0].data as Record<string, unknown>
+      expect(fwd.route).toBeUndefined()
+      expect(fwd.waypoints).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

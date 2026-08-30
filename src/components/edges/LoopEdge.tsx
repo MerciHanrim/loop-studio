@@ -6,7 +6,9 @@ import {
   type EdgeProps,
   type EdgeTypes,
 } from '@xyflow/react'
+import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
+import { currentRouteMap } from '../../store/routeMap'
 import type { LoopEdgeData } from '../../model/types'
 import type { StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
@@ -36,7 +38,7 @@ function LoopEdge({
   data,
   selected,
 }: EdgeProps) {
-  const [path, labelX, labelY] = getBezierPath({
+  const [bezierPath, bezierLabelX, bezierLabelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -44,6 +46,17 @@ function LoopEdge({
     targetY,
     targetPosition,
   })
+
+  // loop-revision/3 §R3-2 / docs/edge-routing.md — an `orthogonal` edge takes
+  // its `d` from the atomic route map (§ER3.9); everything else (marker, bead,
+  // pulse, rings, LOD) just consumes the `path` string.
+  const routeMode = (data as { route?: unknown } | undefined)?.route
+  const gNodes = useGraphStore((s) => s.nodes)
+  const gEdges = useGraphStore((s) => s.edges)
+  const route = routeMode === 'orthogonal' ? currentRouteMap(gNodes, gEdges).get(id) : undefined
+  const path = route ? route.d : bezierPath
+  const labelX = route ? route.mid.x : bezierLabelX
+  const labelY = route ? route.mid.y : bezierLabelY
 
   const amount = useSimStore((s) => s.activeByEdge[id] ?? 0)
   const stepIndex = useSimStore((s) => s.stepIndex)
@@ -106,6 +119,11 @@ function LoopEdge({
         id={id}
         path={path}
         markerEnd={`url(#${markerId})`}
+        className={
+          route
+            ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}`
+            : undefined
+        }
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,
@@ -114,6 +132,25 @@ function LoopEdge({
           opacity: activatorOn === false ? 0.5 : 1,
         }}
       />
+
+      {/* docs/edge-routing.md §ER4 — a route point inside a node. The dashed
+          `--warning` stroke is the colour tell; this `!` badge at the route
+          midpoint is the NON-colour tell (a glyph, present-or-absent — survives
+          `forced-colors` / greyscale and never collides with a dashed state
+          edge), and it carries the accessible name. */}
+      {route?.invalidWaypoint ? (
+        <g
+          className="route-invalid-flag"
+          transform={`translate(${labelX}, ${labelY})`}
+          role="img"
+          aria-label="invalid route — a route point is inside a node"
+        >
+          <circle r="7.5" />
+          <text textAnchor="middle" dominantBaseline="central" dy="0.5">
+            !
+          </text>
+        </g>
+      ) : null}
 
       {/* reduced motion: no travel — a one-step edge emphasis instead */}
       {flowing && rm ? (

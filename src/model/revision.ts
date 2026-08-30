@@ -6,6 +6,7 @@
 // (§R2.1 / §R6). NO store, NO autosave, NO UI, NO download side effects — the
 // lifecycle that consumes these lands in Slice 1B.
 
+import { edgeHasRoutingIntent } from './edgeRouting'
 import { defaultData } from './factory'
 import {
   normalizeResourceType,
@@ -175,11 +176,13 @@ const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
   register: ['kind', 'label', 'expr', 'unit', 'format'],
 }
 /** edge `data` keys, in the frozen emit order, by kind (§R4.2 EDGE_FIELDS_BY_KIND).
- *  `loop-revision/2` appends a trailing `resourceType` to `resource`, same
- *  "only when non-empty" rule as `pool`. */
+ *  `loop-revision/2` appends a trailing `resourceType` to `resource`;
+ *  `loop-revision/3` (SEMANTICS-R3.md §R3-2.1) appends `route` then `waypoints`
+ *  to **both** kinds — `resourceType` is NOT a `state`-edge field. Each new key
+ *  is emitted only when non-default. */
 const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
-  resource: ['kind', 'flow', 'resourceType'],
-  state: ['kind', 'mode', 'expr', 'delay'],
+  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints'],
+  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints'],
 }
 
 const MODEL_NODE_KINDS = new Set(['parameter', 'register'])
@@ -295,6 +298,24 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       const rt = normalizeResourceType(src?.resourceType).value
       if (rt !== null) data.resourceType = rt
     }
+    else if (f === 'route') {
+      // loop-revision/3 (§R3-2.1) — conservative: only under the v2/v3
+      // projection, and only when `route === "orthogonal"` survived.
+      if (!modelLayer) continue
+      if (src?.route === 'orthogonal') data.route = 'orthogonal'
+    }
+    else if (f === 'waypoints') {
+      // §R3-2.2 — array in stored order, NOT deduped, each {x, y} verbatim
+      // (§R4.1: -0 -> 0, no rounding). Only with `route: "orthogonal"`.
+      if (!modelLayer) continue
+      const wp = src?.waypoints
+      if (src?.route === 'orthogonal' && Array.isArray(wp) && wp.length > 0) {
+        data.waypoints = (wp as { x: number; y: number }[]).map((p) => ({
+          x: numOrThrow(p.x === 0 ? 0 : p.x, `edge ${e.id} data.waypoints.x`),
+          y: numOrThrow(p.y === 0 ? 0 : p.y, `edge ${e.id} data.waypoints.y`),
+        }))
+      }
+    }
   }
   return {
     id: e.id,
@@ -381,7 +402,7 @@ export function digestOfCanonical(c: CanonicalContent): string {
 
 // ── §R2-5 — the ordered read pipeline for one revision / proposal side ─────
 
-export type SideVersion = 'loop-revision/1' | 'loop-revision/2'
+export type SideVersion = 'loop-revision/1' | 'loop-revision/2' | 'loop-revision/3'
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -445,13 +466,22 @@ export function readRevisionSide(
     }
   }
 
-  // 3 — the §R2-1 predicate on the normalised graph
-  const version: SideVersion = isModelLayerContent({
+  // 3 — the version predicate on the normalised graph.
+  //   SEMANTICS-R3.md §R3-1 / §R3-5.1 step 3 — inferred, per side, from the
+  //   post-defensive-read content. Routing intent (a surviving
+  //   `route: "orthogonal"` / non-empty `waypoints`) ⇒ v3; else the frozen
+  //   `loop-revision/2` §R2-1 model-layer predicate ⇒ v2; else v1. v2 and v3
+  //   share the conservative `{ modelLayer: true }` projection (§R3-INV-2).
+  const hasRouting = g.edges.some((e) => edgeHasRoutingIntent(e.data))
+  const hasModel = isModelLayerContent({
     nodes: g.nodes as { data?: { kind?: unknown; resourceType?: unknown } | null }[],
     edges: g.edges as { data?: { kind?: unknown; resourceType?: unknown } | null }[],
   })
-    ? 'loop-revision/2'
-    : 'loop-revision/1'
+  const version: SideVersion = hasRouting
+    ? 'loop-revision/3'
+    : hasModel
+      ? 'loop-revision/2'
+      : 'loop-revision/1'
 
   // 4 — project under the version-appropriate field set and verify the digest
   if (version === 'loop-revision/1') {
@@ -459,7 +489,7 @@ export function readRevisionSide(
     if (storedDigest !== undefined && digestOfCanonical(v1) !== storedDigest) {
       return { ok: false, stage: 'digest', detail: 'stored digest does not match the loop-revision/1 projection' }
     }
-    // 5 — lift into the common compare model; R2-INV-2 says the bytes match
+    // 5 — lift into the common compare model; R2-INV-2 / R3-INV-2 say the bytes match
     const lifted = canonicalContent(graph, { modelLayer: true })
     if (canonicalJson(lifted) !== canonicalJson(v1)) {
       throw new InvalidRevisionContentError('R2-INV-2: lifting a v1 side changed its canonical bytes')
@@ -467,9 +497,15 @@ export function readRevisionSide(
     return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
   }
 
+  // v2 + v3 both use the conservative projection; the label distinguishes them
+  // for the loss report / UI (§R3-5).
   const v2 = canonicalContent(graph, { modelLayer: true })
   if (storedDigest !== undefined && digestOfCanonical(v2) !== storedDigest) {
-    return { ok: false, stage: 'digest', detail: 'stored digest does not match the loop-revision/2 projection' }
+    return {
+      ok: false,
+      stage: 'digest',
+      detail: `stored digest does not match the ${version === 'loop-revision/3' ? 'loop-revision/3' : 'loop-revision/2'} projection`,
+    }
   }
   return { ok: true, version, content: v2, digestVerified: storedDigest !== undefined }
 }
@@ -489,6 +525,9 @@ export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
   if (kind === 'node' && (field === 'label' || field === 'position' || field === 'data.label')) {
     return 'cosmetic'
   }
+  // loop-revision/3 §R3-3 — routing intent is cosmetic (like `label` / `position`):
+  // projected, diffed, dirty-tracked; never engineAffecting, never advisoryAffecting.
+  if (kind === 'edge' && (field === 'data.route' || field === 'data.waypoints')) return 'cosmetic'
   if (field === 'data.resourceType') return 'advisory'
   if (kind === 'node') {
     if (
@@ -855,6 +894,15 @@ export function countThreeWayConflicts(
 
 const cloneEl = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 
+/** projection keys emitted ONLY when present / non-default — the sole keys a
+ *  selective Apply may remove when a hunk field's `proposed` is `undefined`.
+ *  Everything else (`kind`, `flow`, `mode`, `expr`, `label`, `value`,
+ *  `activation`, `capacity`, endpoints, handles, …) is always projected. */
+const OPTIONAL_PROJECTED_KEYS = new Set([
+  'route', 'waypoints', 'resourceType', 'delay', // edge data
+  'min', 'max', 'step', 'unit', 'format', // parameter / register hints
+])
+
 export type HunkSelection = {
   /** `add` / `remove` hunk id → accept it (default: not accepted) */
   accept: Record<string, boolean>
@@ -904,9 +952,23 @@ export function buildSelectiveApply(input: {
   const pEdges = new Map<string, LoopEdge>(proposedFull.edges.map((e) => [e.id, e]))
 
   const setField = (el: Record<string, unknown>, field: string, value: unknown) => {
+    // A hunk field whose `proposed` value is `undefined` is the proposal DROPPING
+    // an OPTIONAL projected key (`route` / `waypoints` back to Bézier, a cleared
+    // `resourceType`, a removed Parameter tuning hint). Take that as "remove the
+    // key" — but ONLY for keys the projection actually omits when absent, so a
+    // malformed diff can never delete a required / defaulted field (§R3-6 /
+    // R3-INV-9). A non-optional field with `proposed: undefined` is left as the
+    // target has it (never written as a literal `undefined`).
     if (field.startsWith('data.')) {
-      el.data = { ...(el.data as Record<string, unknown>), [field.slice(5)]: cloneEl(value) }
-    } else {
+      const key = field.slice(5)
+      const data = { ...(el.data as Record<string, unknown>) }
+      if (value === undefined) {
+        if (OPTIONAL_PROJECTED_KEYS.has(key)) delete data[key]
+      } else {
+        data[key] = cloneEl(value)
+      }
+      el.data = data
+    } else if (value !== undefined) {
       el[field] = cloneEl(value)
     }
   }

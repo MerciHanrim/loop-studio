@@ -1,0 +1,22 @@
+{
+  "loopRevision2": {
+    "rg0Digest": "b068ddc5c93123f5740148bb5cf428488584cbbca8ded04a94ab1b08a9e58572"
+  },
+  "loopRevision3": {
+    "rg1Digest": "1f6f0cdaf92fc9c079118b6f58b30cfde9e9760e4f644f0bdfe4e22f4112569f",
+    "rg0IsV3": false,
+    "rg1IsV3": true
+  },
+  "diff": {
+    "rg0ToRg1": [
+      "e_gd:data.route:cosmetic",
+      "e_gd:data.waypoints:cosmetic",
+      "e_sg:data.route:cosmetic"
+    ],
+    "summary": {
+      "engineAffecting": false,
+      "advisoryAffecting": false,
+      "empty": false
+    }
+  }
+}

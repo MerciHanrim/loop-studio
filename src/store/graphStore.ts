@@ -343,8 +343,17 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     setEdgeData: (id, data) => {
       commit(`edge:${id}`)
+      const before = get().edges.find((e) => e.id === id)?.data as Record<string, unknown> | undefined
       set({ edges: get().edges.map((e) => (e.id === id ? { ...e, data } : e)) })
-      bump()
+      // loop-revision/3 §R3-3 — `route` / `waypoints` are cosmetic: they change
+      // the canonical digest but NOTHING a simulation computes, so a routing-only
+      // edit must not bump `simulationRev` (mirrors the pure-`label` exemption).
+      const after = data as unknown as Record<string, unknown>
+      const COSMETIC = new Set(['route', 'waypoints'])
+      const touched = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(
+        (k) => !Object.is(before?.[k], after[k]),
+      )
+      if (touched.length === 0 || !touched.every((k) => COSMETIC.has(k))) bump()
       persist()
     },
 
