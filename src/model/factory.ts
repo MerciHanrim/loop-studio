@@ -5,7 +5,9 @@ import type {
   GateData,
   LoopNode,
   NodeKind,
+  ParameterData,
   PoolData,
+  RegisterData,
   SourceData,
 } from './types'
 
@@ -24,6 +26,8 @@ type DataByKind = {
   gate: GateData
   converter: ConverterData
   end: EndData
+  parameter: ParameterData
+  register: RegisterData
 }
 
 /** Starting data for a freshly dropped node of each kind. */
@@ -42,6 +46,9 @@ export function defaultData<K extends NodeKind>(kind: K): DataByKind[K] {
     gate: { kind: 'gate', label: 'Gate', activation: 'automatic', distribution: 'deterministic' },
     converter: { kind: 'converter', label: 'Converter', activation: 'automatic', mode: 'pullAny' },
     end: { kind: 'end', label: 'End', activation: 'automatic' },
+    // loop-model/1 — `value` default 0 (§M1.1); `expr` default "0" (§M2).
+    parameter: { kind: 'parameter', label: 'Parameter', value: 0 },
+    register: { kind: 'register', label: 'Register', expr: '0' },
   }
   return map[kind]
 }

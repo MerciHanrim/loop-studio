@@ -14,7 +14,7 @@ import {
 } from './model'
 import { normalizeGraph } from './serialize'
 import type { RecommendedRunConfig } from './serialize'
-import type { LoopEdge, LoopNode, NodeKind } from './types'
+import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
 // ── constants & formats (§R11) ──────────────────────────────────────────────
@@ -160,7 +160,7 @@ function numOrThrow(n: number, where: string): number {
  *  `resourceType` to `pool` — emitted **only** when the normalised value is
  *  non-empty, so a graph with no resource types projects byte-identically to
  *  `loop-revision/1` (R2-INV-2). */
-const NODE_FIELDS: Record<NodeKind, readonly string[]> = {
+const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
   pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType'],
   source: ['kind', 'label', 'activation', 'mode'],
   drain: ['kind', 'label', 'activation', 'mode'],
@@ -252,7 +252,7 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
     return { id: n.id, position, data }
   }
 
-  const fields = NODE_FIELDS[kind as NodeKind]
+  const fields = NODE_FIELDS[kind as FlowNodeKind]
   const src = normNodeData(n)
   const data: Record<string, unknown> = {}
   for (const f of fields) {

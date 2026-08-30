@@ -3,6 +3,7 @@ import {
   computeThreeWay,
   digestOfCanonical,
   readProject,
+  readRevisionSide,
   type HunkSelection,
   type ProjectPayload,
   type ProposalBase,
@@ -55,7 +56,21 @@ export async function routeImport(text: string): Promise<RouteResult> {
     return { kind: outcome.workspace ? 'workspace' : 'graph', outcome }
   }
 
-  const loaded = canonicalContent({ nodes: parsed.nodes, edges: parsed.edges })
+  // §R2-5 — the ordered pipeline for the file's own graph: normalise →
+  // defensive read (structural gate) → version predicate → version-appropriate
+  // projection. A malformed model payload (§R2-5.1) never blocks the graph and
+  // never enters Review / Apply.
+  const side = readRevisionSide({ nodes: parsed.nodes, edges: parsed.edges, recommendedRunConfig: parsed.recommendedRunConfig })
+  if (!side.ok) {
+    const outcome = await importFile(text)
+    useProjectStore.getState().clear()
+    return {
+      kind: 'project-dropped',
+      outcome,
+      warning: `this file's model-layer content is not readable (${side.detail})`,
+    }
+  }
+  const loaded = side.content
   const read = readProject(raw, loaded)
 
   if (!read.ok) {

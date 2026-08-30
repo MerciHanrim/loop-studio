@@ -8,13 +8,17 @@ import {
   type ActivatorParse,
   type LabelParse,
 } from '../engine'
+import { parseExpr } from '../model/expr'
+import { readParameterData, readRegisterData } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import type {
   ConverterData,
   DrainData,
   GateData,
   LoopEdgeData,
+  ParameterData,
   PoolData,
+  RegisterData,
   SourceData,
   StateEdgeData,
   StateMode,
@@ -68,7 +72,7 @@ export function Inspector() {
           <p className="inspector__note">Stops the run the moment a resource reaches it.</p>
         )}
 
-        {d.kind !== 'end' && (
+        {'activation' in d && d.kind !== 'end' && (
           <Field label="Activation">
             <select value={d.activation} onChange={(e) => set({ activation: e.target.value })}>
               {ACTIVATIONS.map((a) => (
@@ -85,6 +89,8 @@ export function Inspector() {
         {d.kind === 'drain' && <DrainFields d={d} set={set} />}
         {d.kind === 'gate' && <GateFields d={d} set={set} />}
         {d.kind === 'converter' && <ConverterFields d={d} set={set} />}
+        {d.kind === 'parameter' && <ParameterFields d={d} set={set} />}
+        {d.kind === 'register' && <RegisterFields d={d} set={set} />}
       </aside>
     )
   }
@@ -376,5 +382,84 @@ function ConverterFields({ d, set }: { d: ConverterData; set: Patch }) {
         <option value="pullAll">pull all</option>
       </select>
     </Field>
+  )
+}
+
+// ── loop-model/1 (SEMANTICS-M.md) ────────────────────────────────────────
+
+const numOrUndef = (s: string): number | undefined => (s === '' ? undefined : Number(s))
+
+function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
+  // advisory notices from the defensive read (§M1.2) — value-out-of-range etc.
+  const read = readParameterData(d)
+  const notices = read.ok ? read.notices : []
+  return (
+    <>
+      <Field label="Value">
+        <input type="number" value={d.value} onChange={(e) => set({ value: Number(e.target.value) })} />
+      </Field>
+      <Field label="Unit (advisory)">
+        <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
+      </Field>
+      <Field label="Min (advisory)">
+        <input type="number" value={d.min ?? ''} onChange={(e) => set({ min: numOrUndef(e.target.value) })} />
+      </Field>
+      <Field label="Max (advisory)">
+        <input type="number" value={d.max ?? ''} onChange={(e) => set({ max: numOrUndef(e.target.value) })} />
+      </Field>
+      <Field label="Step (advisory)">
+        <input type="number" value={d.step ?? ''} onChange={(e) => set({ step: numOrUndef(e.target.value) })} />
+      </Field>
+      {notices.includes('PARAM_VALUE_OUT_OF_RANGE') && (
+        <p className="inspector__note">The value is outside the advisory min/max — kept as-is, not clamped.</p>
+      )}
+      {(notices.includes('PARAM_RANGE_INVALID') || notices.includes('PARAM_STEP_INVALID')) && (
+        <p className="inspector__note">An advisory hint is incoherent and will be dropped on export.</p>
+      )}
+      <p className="inspector__note">A Parameter has no ports — reference it by id from an expression.</p>
+    </>
+  )
+}
+
+function RegisterFields({ d, set }: { d: RegisterData; set: Patch }) {
+  const parsed = parseExpr(d.expr)
+  const read = readRegisterData(d)
+  const notices = read.ok ? read.notices : []
+  return (
+    <>
+      <Field label="Expression">
+        <input
+          value={d.expr}
+          spellCheck={false}
+          style={{ fontFamily: 'var(--font-mono, monospace)' }}
+          onChange={(e) => set({ expr: e.target.value })}
+        />
+      </Field>
+      {!parsed.ok ? (
+        <p className="inspector__note inspector__note--warn">
+          {parsed.error.code} · {parsed.error.message}
+        </p>
+      ) : (
+        parsed.expr.canonical !== d.expr && (
+          <p className="inspector__note">Canonical form: <code>{parsed.expr.canonical}</code> (saved on export)</p>
+        )
+      )}
+      <Field label="Unit (advisory)">
+        <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
+      </Field>
+      <Field label="Format (advisory)">
+        <select value={d.format ?? 'float'} onChange={(e) => set({ format: e.target.value })}>
+          <option value="int">int</option>
+          <option value="float">float</option>
+          <option value="percent">percent</option>
+        </select>
+      </Field>
+      {notices.includes('REG_FORMAT_INVALID') && (
+        <p className="inspector__note">Unrecognised format — will fall back to float on export.</p>
+      )}
+      <p className="inspector__note">
+        A Register is a read-only computed value; it stores nothing and has no ports.
+      </p>
+    </>
   )
 }

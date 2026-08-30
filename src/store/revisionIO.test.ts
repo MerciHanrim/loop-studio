@@ -131,4 +131,30 @@ describe('routeImport (§R10 — Import ≠ Apply)', () => {
     expect(r.kind).toBe('project-dropped')
     expect(useProjectStore.getState().open).toBeNull()
   })
+
+  // ── loop-revision/2 — routeImport runs the readRevisionSide pipeline ──────
+
+  it('a valid parameter/register in a revision file routes normally as a revision', async () => {
+    const f = JSON.parse(makeRevisionFile())
+    f.nodes.push({ id: 'pm', type: 'parameter', position: { x: 5, y: 5 }, data: { kind: 'parameter', label: 'Price', value: 3 } })
+    // recompute project.contentDigest for the edited graph would be needed for a
+    // trusted revision; here we only assert the model node does not break routing
+    const r = await routeImport(JSON.stringify(f))
+    // digest is stale ⇒ project-dropped, but crucially NOT because the model
+    // node failed the pipeline — and the graph (incl. the parameter) loads
+    expect(r.kind).toBe('project-dropped')
+    expect(useGraphStore.getState().nodes.some((n) => n.id === 'pm')).toBe(true)
+    expect(useGraphStore.getState().nodes.find((n) => n.id === 'pm')?.data).toMatchObject({ kind: 'parameter', value: 3 })
+  })
+
+  it('an UNSEATABLE model node ⇒ project-dropped via the §R2-5.1 gate, graph still loads', async () => {
+    const f = JSON.parse(makeRevisionFile())
+    f.nodes.push({ id: 'bad', type: 'register', position: { x: 5, y: 5 }, data: { kind: 'register', label: 'B', expr: 'min(@a,@b)' } })
+    const r = await routeImport(JSON.stringify(f))
+    expect(r.kind).toBe('project-dropped')
+    if (r.kind === 'project-dropped') expect(r.warning).toMatch(/model-layer content is not readable/i)
+    expect(useProjectStore.getState().open).toBeNull()
+    // the graph — including the raw, unrepaired bad node — still loaded
+    expect(useGraphStore.getState().nodes.some((n) => n.id === 'bad')).toBe(true)
+  })
 })

@@ -1,4 +1,4 @@
-import type { LoopEdge, LoopNode } from '../model/types'
+import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { evalDet, evalRand, parseFlow, rateOf, type FlowExpr } from './flow'
 import { categorical, sample } from './rng'
 import { ACT_WHY, LABEL_WHY, parseActivatorExpr, parseDelay, parseLabelExpr } from './stateExpr'
@@ -243,11 +243,16 @@ export function step(
     }
   }
 
+  // loop-model/1: `parameter` / `register` nodes have no `activation` and never
+  // fire — the engine ignores them entirely (SEMANTICS-M.md §M6.1).
+  const actOf = (n: { data: LoopNode['data'] }): Activation =>
+    'activation' in n.data ? n.data.activation : 'passive'
+
   const firing = (n: LoopNode) =>
     isEnabled(n.id) &&
-    (n.data.activation === 'automatic' ||
-      (n.data.activation === 'onStart' && prev.step === 0) ||
-      (TRIGGERABLE.has(n.data.activation) && triggered.has(n.id)))
+    (actOf(n) === 'automatic' ||
+      (actOf(n) === 'onStart' && prev.step === 0) ||
+      (TRIGGERABLE.has(actOf(n)) && triggered.has(n.id)))
 
   const sumInRate = (id: string) => inOf(id).reduce((s, e) => s + rateOfCached(e), 0)
 
@@ -705,7 +710,7 @@ export function step(
     if (!deliveredEdgeIds.has(e.id)) continue
     // §S9: applied = the pulse made the target eligible to fire this step =
     // target is passive/interactive AND its activator gate is open
-    const applied = TRIGGERABLE.has(byId.get(e.target)!.data.activation) && isEnabled(e.target)
+    const applied = TRIGGERABLE.has(actOf(byId.get(e.target)!)) && isEnabled(e.target)
     stateEvents.push({
       edgeId: e.id,
       from: e.source,

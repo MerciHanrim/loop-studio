@@ -18,6 +18,9 @@ const MINIMAP_HUE: Record<NodeKind, string> = {
   gate: 'var(--hue-gate)',
   converter: 'var(--hue-converter)',
   end: 'var(--hue-end)',
+  // loop-model/1 — annotation nodes read as structure, not a flow hue
+  parameter: 'var(--line-structure)',
+  register: 'var(--line-structure)',
 }
 
 export function Canvas() {

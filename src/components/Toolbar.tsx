@@ -24,6 +24,8 @@ const PALETTE: { kind: NodeKind; label: string; glyph: string }[] = [
   { kind: 'gate', label: 'Gate', glyph: '◇' },
   { kind: 'converter', label: 'Converter', glyph: '⇄' },
   { kind: 'end', label: 'End', glyph: '⊗' },
+  { kind: 'parameter', label: 'Parameter', glyph: '▭' },
+  { kind: 'register', label: 'Register', glyph: '＝' },
 ]
 
 export function Toolbar() {
