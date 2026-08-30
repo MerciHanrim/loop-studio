@@ -2,16 +2,20 @@
 
 ```
 Spec ID: loop-revision/3
-Status:  Draft (rev 2)
+Status:  Frozen
 ```
 
-**Draft for review — rev 2** folds in Lumi's four pre-Freeze boundaries:
-the per-side v2/v3 discrimination + verify-own-projection-first order with the
-four v2↔v3 acceptance vectors (§R3-5); `resourceType` **removed** from the
+**Frozen (2026-08-30, rev 2).** This document is the fixed target for the
+edge-routing implementation (Slice 1 = `route` mode + auto routing; Slice 2 =
+the manual-waypoint UI). A behavioural change after this is a new spec id in a
+new document (`loop-revision/4`), exactly as `loop-revision/1 → /2 → /3`; this
+file now only takes typo / clarifying-prose fixes. §R3-D records the settled
+decisions R3-D1…R3-D7. Rev 2 folded in the four pre-Freeze boundaries: the
+per-side v2/v3 discrimination + verify-own-projection-first order with the four
+v2↔v3 acceptance vectors (§R3-5); `resourceType` **removed** from the
 `state`-edge canonical row (§R3-2.1); "byte-for-byte" narrowed to
-**canonical-bytes / lossless-value** (§R3-7, R3-INV-9); and the
-post-quarantine `contentDigest` / project-header rule (§R3-5.2). The §R3-D
-decisions are closed per Lumi's guidance.
+canonical-bytes / lossless-value (§R3-7, R3-INV-9); and the post-quarantine
+`contentDigest` / project-header rule (§R3-5.2).
 
 Extends `SEMANTICS-R2.md` (`loop-revision/2`, Frozen) so
 the canonical revision projection, its digest, the three-way diff, and Apply
@@ -19,7 +23,7 @@ also cover the **edge-routing user-intent fields** introduced by
 `docs/edge-routing.md` — `edge.data.route` and `edge.data.waypoints`. The
 *approach* is fixed in that design doc (ER-D2, §ER6); this document formalises
 it at the wire level and introduces no new design beyond closing the §R3-D
-boundaries. On Freeze it is the fixed target for the routing implementation
+boundaries. It is the fixed target for the routing implementation
 (Slice 1 = mode + auto routing; Slice 2 = the waypoint UI).
 
 **No behavioural change to `loop-revision/1` or `/2`.** A graph whose edges
@@ -520,8 +524,7 @@ of `docs/edge-routing.md`.
 
 ## R3-D. Decisions
 
-Closed per Lumi's guidance (rev 2). On Freeze `Status` flips to `Frozen` and
-the README Semantics table drops the "(Draft)".
+Settled (rev 2, folded in at Freeze).
 
 | id | decision |
 |---|---|
@@ -533,6 +536,5 @@ the README Semantics table drops the "(Draft)".
 | **R3-D6** | **`waypoints` is fully specified from day one.** Slice 1 ships `route` mode + auto orthogonal routing with **no** `waypoints` editor, but the projection, the digest, the diff, the defensive read, and the golden vector all cover `waypoints`. Slice 2 (the waypoint UI) needs **no** wire change. |
 | **R3-D7** | **A `data.waypoints` diff hunk is whole-array.** `base` / `proposed` are the complete ordered point lists; a selective Apply of that hunk swaps the whole array (§R3-6.4). There is no per-point three-way merge. |
 
-On Freeze, this file only takes typo / clarifying-prose fixes; a behavioural
-change is a new spec id (`loop-revision/4`), exactly as `loop-revision/1 → /2 →
-/3`. The README Semantics table row loses "(Draft)".
+This file now only takes typo / clarifying-prose fixes; a behavioural change is
+a new spec id (`loop-revision/4`), exactly as `loop-revision/1 → /2 → /3`.
