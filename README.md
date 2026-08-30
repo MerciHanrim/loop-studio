@@ -6,20 +6,23 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** — **v0.6.0**. The diagram editor and the
-> simulation engine — deterministic, seeded randomness, Monte Carlo, and
-> executable state connections (`trigger` / `activator` / `label`) — are all
-> usable today, plus Workspace Export/Import, shareable `#g1=` links, an
-> installable offline PWA, and file-based **project revisions & proposals**
-> (`loop-revision/1`) for asynchronous collaboration. **New in v0.6.0:** a
-> deterministic **model language** — `parameter` / `register` nodes and a safe
-> arithmetic **expression** grammar (`loop-expr/1`, `loop-model/1`,
-> `loop-revision/2`), Register `R(t)` observation, and an advisory
-> `resourceType` tag — and a **Canvas Visual Refresh** (edge class / direction
-> / cues, zoom detail levels, a tokenised direction marker, reduced-motion &
-> forced-colors support). Edge **geometry is unchanged** (React Flow's Bézier
-> path). Execution semantics are pinned down in frozen spec documents (see
-> [Semantics](#semantics)).
+> Status: **working preview** — `v0.7.0-dev`; the last tagged release is
+> **v0.6.0**. The diagram editor and the simulation engine — deterministic,
+> seeded randomness, Monte Carlo, and executable state connections (`trigger` /
+> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
+> shareable `#g1=` links, an installable offline PWA, and file-based **project
+> revisions & proposals** (`loop-revision/1`) for asynchronous collaboration.
+> **v0.6.0** added a deterministic **model language** — `parameter` / `register`
+> nodes and a safe arithmetic **expression** grammar (`loop-expr/1`,
+> `loop-model/1`, `loop-revision/2`), Register `R(t)` observation, and an
+> advisory `resourceType` tag — and a **Canvas Visual Refresh** (edge class /
+> direction / cues, zoom detail levels, a tokenised direction marker,
+> reduced-motion & forced-colors support). **In `v0.7.0-dev`:** automatic
+> **orthogonal edge routing** — right-angle segments that step around nodes
+> (`route: "orthogonal"`, `loop-revision/3`), a cosmetic wire field that changes
+> nothing the engine computes; manual waypoint editing is deferred. Next up is
+> **Simulation Playback / Event Choreography**. Execution semantics are pinned
+> down in frozen spec documents (see [Semantics](#semantics)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -158,7 +161,10 @@ classification, or apply decision depends on them.
   - ✅ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector mismatch warning; computation-neutral (a mismatch changes nothing that runs)
   - ✅ Canvas Visual Refresh — every node/edge on one visual grammar: **edge class / direction / cues + three zoom detail levels (L2/L1/L0) that elide only supplementary text + a renderer-owned tokenised direction marker + `prefers-reduced-motion` / `forced-colors` support**, locked by a committed pixel matrix. Edge **geometry is unchanged** — React Flow's Bézier path; orthogonal routing is **not** in this release ([`docs/visual-language.md`](docs/visual-language.md))
   - ✅ Verification fixture + oracle ([`examples/model-verification.json`](examples/README.md)) + desktop / mobile Import→Run→Timeline E2E
-- ◐ Orthogonal edge routing — right-angle segments that step around nodes, rounded corners, parallel-edge fan-out, optional manual waypoints. Pure render concern (never edits `source` / `target` / handles). **Spec draft:** [`docs/edge-routing.md`](docs/edge-routing.md)
+- ◐ Orthogonal edge routing — **v0.7.0-dev** ([`docs/edge-routing.md`](docs/edge-routing.md), `loop-revision/3` [`SEMANTICS-R3.md`](SEMANTICS-R3.md) frozen)
+  - ✅ Orthogonal auto routing — **Slice 1**: `route: "orthogonal"` selection + an automatic deterministic router (obstacle-avoiding A*, parallel-edge fan-out, rounded corners, L/Z fallback) + an atomic route-map that recomputes every orthogonal edge in one pass. `route` / `waypoints` are `loop-revision/3` **cosmetic** wire fields — projected / diffed / dirty-tracked, never engine- or advisory-affecting; a non-routing graph's digest is unchanged. Pure render concern (never edits `source` / `target` / handles)
+  - ☐ Manual waypoint editing — **deferred**: the `waypoints` wire contract is frozen and Slice 1 reads / writes existing waypoints losslessly, but the create / move / delete UI is not built; revisited only when there is real demand
+- ◐ Simulation Playback / Event Choreography — **v0.7.0-dev**: pressing Play makes the model move — departure → travel → arrival → value update along each real edge path, on a shared per-step time axis — while the engine result stays fully deterministic and untouched. Non-`frozen` design doc (`docs/simulation-playback.md`) first, implementation after it settles
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
 
