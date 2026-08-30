@@ -7,15 +7,17 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
 > Status: **working preview** — `v0.6.0-dev`; the last tagged release is
-> **v0.5.0**. The diagram editor and the simulation engine — deterministic,
+> **v0.6.0**. The diagram editor and the simulation engine — deterministic,
 > seeded randomness, Monte Carlo, and executable state connections (`trigger` /
 > `activator` / `label`) — are all usable today, plus Workspace Export/Import,
-> shareable `#g1=` links, an installable offline PWA, and file-based **project
-> revisions & proposals** (`loop-revision/1`) for asynchronous collaboration.
+> shareable `#g1=` links, an installable offline PWA, file-based **project
+> revisions & proposals** (`loop-revision/1`) for asynchronous collaboration,
+> and a deterministic **model language** — `parameter` / `register` nodes and a
+> safe arithmetic **expression** grammar (`loop-expr/1`, `loop-model/1`,
+> `loop-revision/2`) — with a refreshed canvas visual grammar (zoom detail
+> levels, a tokenised direction marker, reduced-motion & forced-colors support).
 > Execution semantics are pinned down in frozen spec documents (see
-> [Semantics](#semantics)); the next ones in flight are the **model language**
-> (`loop-expr/1`, `loop-model/1`, `loop-revision/2` — all frozen) and the Canvas
-> Visual Refresh.
+> [Semantics](#semantics)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -147,14 +149,53 @@ classification, or apply decision depends on them.
   - ✅ Atomic result — one new local revision, one undo entry, sim reset to step 0
   - ✅ Verification fixture + oracle ([`examples/revision/`](examples/revision/README.md))
   - No accounts / server / real-time sync
-- ◐ Model language + Canvas Visual Refresh — **v0.6.0** (in progress)
-  - ◐ `parameter` / `register` node kinds + a safe arithmetic **expression** grammar (`loop-expr/1` [`SEMANTICS-X.md`](SEMANTICS-X.md), `loop-model/1` [`SEMANTICS-M.md`](SEMANTICS-M.md), `loop-revision/2` [`SEMANTICS-R2.md`](SEMANTICS-R2.md) — **specs frozen; implementation starting**)
-  - ◐ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector warnings; computation-neutral
-  - ◐ Canvas Visual Refresh — bring every node/edge onto one visual grammar ([`docs/visual-language.md`](docs/visual-language.md))
-  - ☐ Scenario Compare — **not in the confirmed v0.6.0 scope**; needs its own spec/design pass and a separate decision after the Refresh
+- ✅ Model language + Canvas Visual Refresh — **v0.6.0**
+  - ✅ `parameter` / `register` node kinds + a safe arithmetic **expression** grammar (`loop-expr/1` [`SEMANTICS-X.md`](SEMANTICS-X.md), `loop-model/1` [`SEMANTICS-M.md`](SEMANTICS-M.md), `loop-revision/2` [`SEMANTICS-R2.md`](SEMANTICS-R2.md) — all frozen) — a Register's value `R(t)` is recomputed from the committed snapshot every step and stored nowhere; `/0`, a self / mutual cycle, an unknown ref, or a depends-on-invalid never halts the run
+  - ✅ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector mismatch warning; computation-neutral (a mismatch changes nothing that runs)
+  - ✅ Canvas Visual Refresh — every node/edge on one visual grammar, three zoom detail levels (L2/L1/L0) that elide only supplementary text, a renderer-owned tokenised direction marker, `prefers-reduced-motion` and `forced-colors` support, a committed pixel matrix ([`docs/visual-language.md`](docs/visual-language.md))
+  - ✅ Verification fixture + oracle ([`examples/model-verification.json`](examples/README.md)) + desktop / mobile Import→Run→Timeline E2E
+  - ☐ Scenario Compare — **not in the v0.6.0 scope**; needs its own spec/design pass and a separate decision
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
+
+**v0.6.0 — model language & canvas visual refresh.** A small deterministic
+modelling layer on top of the engine, and one visual grammar for the canvas.
+
+- **Parameter & Register nodes** (`loop-expr/1` [`SEMANTICS-X.md`](SEMANTICS-X.md),
+  `loop-model/1` [`SEMANTICS-M.md`](SEMANTICS-M.md)) — a `parameter` is a tuned
+  numeric input; a `register` holds a `loop-expr/1` expression (`+ - * /`, unary
+  `-`, `( )`, finite literals, `@id` / `@{id}` references) whose value `R(t)` is
+  **recomputed from the committed snapshot each step and stored nowhere**. It
+  reads on the Canvas, the Inspector, and as a dashed line in the Timeline
+  (a gap where `R(t)` is invalid, never bridged). `/0`, a self / mutual cycle,
+  an unknown reference, and a depends-on-invalid cascade each surface an error
+  code and **never halt the run**. Registers have no ports; an edge to one is
+  isolated on import with a warning.
+- **Advisory `resourceType`** — a free-text tag on pools and resource edges
+  (trim → NFC → ≤ 64 bytes), with a built-in palette + icon, a legend, and an
+  Inspector **mismatch** note. Purely advisory: a mismatch changes nothing that
+  runs, and the tag rides through Export / Import.
+- **`loop-revision/2`** ([`SEMANTICS-R2.md`](SEMANTICS-R2.md)) — the revision
+  projection / diff / Apply extended for the model layer: a syntactic v1/v2
+  discriminator inferred from the normalised doc (never stored), an `advisory`
+  field tag, and a conservative-extension guarantee — a graph with no model
+  layer is byte- and digest-identical to `loop-revision/1`. `loop-workspace/1`
+  stays v1.
+- **Canvas Visual Refresh** ([`docs/visual-language.md`](docs/visual-language.md))
+  — every node and edge on one "Vessel" grammar; three zoom detail levels
+  (L2 / L1 / L0) that elide **only supplementary text** — role, edge class +
+  direction, selection / focus, error flags, run cues and the accessible name
+  survive at every level, and the node footprint is byte-identical across them;
+  a renderer-owned tokenised direction marker (no more React Flow grey); a
+  persistent static cue under `prefers-reduced-motion`; `forced-colors`
+  support. Locked by a committed `{light,dark} × {desktop,mobile} × {L2,L1,L0}`
+  pixel matrix and a set of view-change invariants (a render never moves the
+  GraphDoc, its digest, the undo stack, node geometry, edge routes, or the
+  viewport).
+- **Verification fixture** — [`examples/model-verification.json`](examples/README.md)
+  + its oracle, re-derived by `test/model-verification.test.ts` and replayed by
+  a desktop / mobile Import→Run→Timeline E2E.
 
 **v0.5.0 — project revisions & proposals.** File-based **asynchronous
 collaboration** (`loop-revision/1`, [`SEMANTICS-R.md`](SEMANTICS-R.md)) — **no

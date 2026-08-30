@@ -1,0 +1,194 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "source",
+        "label": "Mint",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "gold",
+      "type": "pool",
+      "position": {
+        "x": 260,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gold",
+        "activation": "passive",
+        "initial": 10,
+        "capacity": 100,
+        "mode": "pullAny",
+        "resourceType": "Gold"
+      }
+    },
+    {
+      "id": "mana",
+      "type": "pool",
+      "position": {
+        "x": 260,
+        "y": 160
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Mana",
+        "activation": "passive",
+        "initial": 2,
+        "capacity": 50,
+        "mode": "pullAny",
+        "resourceType": "Mana"
+      }
+    },
+    {
+      "id": "sink",
+      "type": "drain",
+      "position": {
+        "x": 540,
+        "y": 0
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Upkeep",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "p_rate",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 260
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Reserve rate",
+        "value": 2,
+        "min": 0,
+        "max": 10,
+        "step": 0.5,
+        "unit": "x"
+      }
+    },
+    {
+      "id": "r_reserve",
+      "type": "register",
+      "position": {
+        "x": 260,
+        "y": 260
+      },
+      "data": {
+        "kind": "register",
+        "label": "Reserve",
+        "expr": "@gold * @p_rate",
+        "unit": "g",
+        "format": "int"
+      }
+    },
+    {
+      "id": "r_head",
+      "type": "register",
+      "position": {
+        "x": 260,
+        "y": 360
+      },
+      "data": {
+        "kind": "register",
+        "label": "Headroom",
+        "expr": "@r_reserve + 10"
+      }
+    },
+    {
+      "id": "r_ratio",
+      "type": "register",
+      "position": {
+        "x": 540,
+        "y": 260
+      },
+      "data": {
+        "kind": "register",
+        "label": "Gold : Mana",
+        "expr": "@gold / @mana",
+        "format": "float"
+      }
+    },
+    {
+      "id": "r_gap",
+      "type": "register",
+      "position": {
+        "x": 540,
+        "y": 360
+      },
+      "data": {
+        "kind": "register",
+        "label": "Ratio − 1",
+        "expr": "@r_ratio - 1"
+      }
+    },
+    {
+      "id": "r_loop",
+      "type": "register",
+      "position": {
+        "x": 540,
+        "y": 460
+      },
+      "data": {
+        "kind": "register",
+        "label": "Self loop",
+        "expr": "@r_loop + 1"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_src_gold",
+      "source": "src",
+      "target": "gold",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "3",
+        "resourceType": "Gold"
+      }
+    },
+    {
+      "id": "e_gold_sink",
+      "source": "gold",
+      "target": "sink",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "2",
+        "resourceType": "Mana"
+      }
+    },
+    {
+      "id": "e_mana_sink",
+      "source": "mana",
+      "target": "sink",
+      "type": "loop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "resourceType": "Mana"
+      }
+    }
+  ]
+}

@@ -1,10 +1,14 @@
-# Visual Language (non-frozen — DRAFT)
+# Visual Language (non-frozen — living doc)
 
-**Status: draft for review.** A **non-behavioral** visual system for the
-canvas: node shape, colour, edge style, badges, state cues, zoom levels,
-motion, and light/dark. It says how the graph *looks* and how a visual cue maps
-to a model state — it does **not** define what any model state means or how the
-engine computes it. Every semantic reference points out to a spec
+**Status: implemented as of v0.6.0; kept as the living reference.** A
+**non-behavioral** visual system for the canvas: node shape, colour, edge
+style, badges, state cues, zoom levels, motion, and light/dark. It says how the
+graph *looks* and how a visual cue maps to a model state — it does **not**
+define what any model state means or how the engine computes it. The Canvas
+Visual Refresh (three PRs — chrome / silhouettes / states, then edge class &
+motion, then zoom LOD & the acceptance matrix) has landed; the sections below
+describe the shipped behaviour. Anything still called out as deferred is marked
+so inline. Every semantic reference points out to a spec
 (`→ SEMANTICS-*.md`, `→ loop-model/1`, `→ loop-expr/1`). Carries no `loop-*/N`
 id; revised freely. §VL10–VL11 are the invariants against the GraphDoc /
 offline posture; §VL12 the acceptance criteria; §VL13 the decision record;
@@ -311,10 +315,11 @@ one of these nodes it is rendered as the chip and otherwise ignored.
   static highlighted segment near the target end and the amount chip.
 - **State effect** — a trigger fire / activator flip / label apply pulses the
   edge once (`--state-guide`), matching the node's step cue.
-- **Routing** — the Refresh slice adds light orthogonal-ish routing with
-  rounded corners and small offsets so parallel edges between the same pair
-  fan out instead of overlapping. Routing is a render concern; it never edits
-  `source` / `target` / handles.
+- **Routing** — *deferred.* Edges stay on React Flow's bézier path
+  (`getBezierPath`). Light orthogonal-ish routing with rounded corners and
+  small offsets so parallel edges between the same pair fan out instead of
+  overlapping is a possible later pass; it would be a pure render concern and
+  must never edit `source` / `target` / handles.
 
 ---
 
