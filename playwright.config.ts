@@ -49,7 +49,9 @@ export default defineConfig({
       // docs/mobile.md §MV10 — the mobile View/Run layout, at iPhone-class
       // portrait (390x844) and landscape (844x390), touch + coarse pointer.
       name: 'mobile',
-      testMatch: /mobile\.spec\.ts/,
+      // mobile.spec.ts + the visual acceptance matrix (it runs the same cells
+      // under `chromium` for desktop and here for the mobile viewport)
+      testMatch: /(mobile\.spec|canvas-refresh-visual\.spec)\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 390, height: 844 },

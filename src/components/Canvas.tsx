@@ -41,8 +41,17 @@ export function Canvas() {
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView } = useReactFlow()
+  const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
   const isMobile = useIsMobile()
+
+  // Dev-only: expose the viewport controls so the browser E2E can set an EXACT,
+  // repeatable zoom for the deterministic screenshot matrix. Tree-shaken out of
+  // the production / portable build (`import.meta.env.DEV` is statically false).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const w = window as unknown as { __loop?: Record<string, unknown> }
+    if (w.__loop) w.__loop.rf = { setViewport, getViewport, fitView }
+  }, [setViewport, getViewport, fitView])
 
   // docs/mobile.md §MV3d: on a real orientation flip, re-fit the whole diagram
   // exactly once. Pan / pinch-zoom within one orientation never re-fits — the

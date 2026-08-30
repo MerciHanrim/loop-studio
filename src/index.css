@@ -599,6 +599,10 @@ body {
   position: relative;
   display: inline-flex;
   min-width: 118px;
+  /* a long label / big value is ellipsised inside the vessel, never allowed to
+     stretch the silhouette (which `preserveAspectRatio="none"` would distort,
+     especially once the box is held across L2/L1/L0 — §VL7.1) */
+  max-width: 260px;
   height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18) */
   font-family: var(--font-sans);
   font-size: 12px;
@@ -796,6 +800,7 @@ body {
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
+  min-width: 0; /* let it shrink below its content so the ellipsis engages */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -807,6 +812,10 @@ body {
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transform-origin: left center;
   line-height: 1.15;
 }
