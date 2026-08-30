@@ -556,19 +556,11 @@ body {
   fill: var(--warning);
   font: 700 11px var(--font-sans);
 }
-@media (forced-colors: active) {
-  /* keep the non-colour cue legible when the UA overrides all colours */
-  .react-flow__edge-path.route-invalid {
-    stroke: CanvasText;
-  }
-  .route-invalid-flag circle {
-    fill: Canvas;
-    stroke: CanvasText;
-  }
-  .route-invalid-flag text {
-    fill: CanvasText;
-  }
-}
+/* Under `forced-colors: active` the UA force-adjusts these SVG `fill` / `stroke`
+   values to system colours automatically (the same path the Canvas Visual
+   Refresh relies on — no `@media` block, see scripts/check-mobile-query.mjs).
+   The non-colour tell is the `!` GLYPH itself: present on an invalid route,
+   absent otherwise. */
 /* §VL6 — the direction marker (src/components/edges/EdgeMarkers.tsx). The
    renderer draws it, not React Flow, so it is tokenised — holds contrast in
    BOTH themes — and tracks the edge class it terminates. Its orientation is the
