@@ -1,4 +1,4 @@
-// loop-expr/1 (SEMANTICS-X.md §X2) — recursive-descent parser.
+// loop-expr/1 (SEMANTICS-X.md §X2) — an explicit-stack (shunting-yard) parser.
 //
 //   expr    = add
 //   add     = mul ( ("+"|"-") mul )*        left-assoc
@@ -6,31 +6,23 @@
 //   unary   = "-" unary | primary           prefix, right-assoc, stackable
 //   primary = number | ref | "(" expr ")"
 //
-// There is exactly one parse for any accepted string (§X2). A failure yields a
-// single §X7 parse error with a 1-based column.
+// There is exactly one parse for any accepted string (§X2). §X puts **no**
+// numeric cap on an expression, so a grammatically valid string of any depth
+// parses successfully — the two working stacks grow on the heap, never the
+// call stack. A failure yields a single §X7 parse error with a 1-based column.
 
 import { bin, type ExprNode, neg, num, ref } from './ast'
 import { type ExprParseError, parseError } from './errors'
-import { type Token, tokenize } from './tokenize'
+import { tokenize } from './tokenize'
 
 export type ParseResult = { ok: true; ast: ExprNode } | { ok: false; error: ExprParseError }
 
-/**
- * Grammar-nesting guard. §X sets no numeric cap on an expression, but the
- * recursive-descent parser (and the AST walk in `evaluate`) must not overflow
- * the call stack on a pathological input. Real Register expressions nest a
- * handful deep; this limit is orders of magnitude above any legitimate use, so
- * hitting it means a hand-crafted/hostile string, reported as an ordinary §X7
- * parse error (`EXPR_SYNTAX`) with a column — never a thrown `RangeError`.
- */
-export const MAX_EXPR_DEPTH = 1000
+type OpEntry =
+  | { kind: 'binop'; op: '+' | '-' | '*' | '/'; prec: 1 | 2; col: number }
+  | { kind: 'unary'; col: number }
+  | { kind: 'lparen'; col: number }
 
-class ParseAbort {
-  readonly error: ExprParseError
-  constructor(error: ExprParseError) {
-    this.error = error
-  }
-}
+const binPrec = (op: '+' | '-' | '*' | '/'): 1 | 2 => (op === '+' || op === '-' ? 1 : 2)
 
 export function parse(src: string): ParseResult {
   if (src.trim() === '') return { ok: false, error: parseError('EXPR_EMPTY', 1) }
@@ -39,122 +31,89 @@ export function parse(src: string): ParseResult {
   if (!lexed.ok) return { ok: false, error: lexed.error }
   const toks = lexed.tokens
 
-  let pos = 0
-  const peek = (): Token => toks[pos]
-  const advance = (): Token => toks[pos++]
+  const output: ExprNode[] = []
+  const ops: OpEntry[] = []
+  let expectOperand = true
 
-  const abort = (err: ExprParseError): never => {
-    throw new ParseAbort(err)
+  const fail = (err: ExprParseError): ParseResult => ({ ok: false, error: err })
+
+  /** collapse the top operator into the output stack */
+  const reduceTop = (): ExprParseError | null => {
+    const top = ops.pop()!
+    if (top.kind === 'unary') {
+      if (output.length < 1) return parseError('EXPR_SYNTAX', top.col)
+      output.push(neg(output.pop()!))
+    } else if (top.kind === 'binop') {
+      if (output.length < 2) return parseError('EXPR_SYNTAX', top.col)
+      const r = output.pop()!
+      const l = output.pop()!
+      output.push(bin(top.op, l, r))
+    }
+    // a 'lparen' is never reduced (callers break on it) — nothing to do
+    return null
   }
 
-  let depth = 0
-  const descend = <T>(at: number, fn: () => T): T => {
-    if (++depth > MAX_EXPR_DEPTH) {
-      abort(parseError('EXPR_SYNTAX', at, `expression nested too deeply at column ${at}`))
-    }
-    try {
-      return fn()
-    } finally {
-      depth--
-    }
-  }
+  for (const t of toks) {
+    if (t.type === 'eof') break
 
-  const parseExpr = (): ExprNode => parseAdd()
+    if (t.type === 'number' || t.type === 'ref') {
+      if (!expectOperand) return fail(parseError('EXPR_SYNTAX', t.col))
+      output.push(t.type === 'number' ? num(t.value) : ref(t.id))
+      expectOperand = false
+      continue
+    }
 
-  // A left-assoc chain builds a left-leaning spine that `evaluate` / the
-  // canonical printer later walk recursively; cap its length with the same
-  // guard so a 100k-long `@a + @a + …` cannot overflow those walks.
-  const parseAdd = (): ExprNode => {
-    let left = parseMul()
-    let run = 0
-    for (;;) {
-      const t = peek()
-      if (t.type === 'op' && (t.op === '+' || t.op === '-')) {
-        if (++run > MAX_EXPR_DEPTH) abort(parseError('EXPR_SYNTAX', t.col, `expression nested too deeply at column ${t.col}`))
-        advance()
-        const right = parseMul()
-        left = bin(t.op, left, right)
-      } else break
-    }
-    return left
-  }
-
-  const parseMul = (): ExprNode => {
-    let left = parseUnary()
-    let run = 0
-    for (;;) {
-      const t = peek()
-      if (t.type === 'op' && (t.op === '*' || t.op === '/')) {
-        if (++run > MAX_EXPR_DEPTH) abort(parseError('EXPR_SYNTAX', t.col, `expression nested too deeply at column ${t.col}`))
-        advance()
-        const right = parseUnary()
-        left = bin(t.op, left, right)
-      } else break
-    }
-    return left
-  }
-
-  const parseUnary = (): ExprNode => {
-    const t = peek()
-    if (t.type === 'op' && t.op === '-') {
-      advance()
-      return neg(descend(t.col, parseUnary))
-    }
-    return parsePrimary()
-  }
-
-  const parsePrimary = (): ExprNode => {
-    const t = peek()
-    if (t.type === 'number') {
-      advance()
-      return num(t.value)
-    }
-    if (t.type === 'ref') {
-      advance()
-      return ref(t.id)
-    }
     if (t.type === 'lparen') {
-      const open = advance()
-      const inner = descend(open.col, parseExpr)
-      const close = peek()
-      if (close.type !== 'rparen') {
-        abort(parseError('EXPR_UNCLOSED_PAREN', open.col))
-      }
-      advance()
-      return inner
+      if (!expectOperand) return fail(parseError('EXPR_SYNTAX', t.col))
+      ops.push({ kind: 'lparen', col: t.col })
+      continue
     }
-    // number / ref / "(" expected here
-    if (t.type === 'op') {
-      abort(parseError('EXPR_SYNTAX', t.col, `unexpected "${t.op}" at column ${t.col}`))
-    }
+
     if (t.type === 'rparen') {
-      abort(parseError('EXPR_SYNTAX', t.col, `unexpected ")" at column ${t.col}`))
+      if (expectOperand) return fail(parseError('EXPR_SYNTAX', t.col))
+      while (ops.length > 0 && ops[ops.length - 1].kind !== 'lparen') {
+        const e = reduceTop()
+        if (e) return fail(e)
+      }
+      if (ops.length === 0) return fail(parseError('EXPR_SYNTAX', t.col)) // unmatched ")"
+      ops.pop() // discard the matching "("
+      expectOperand = false
+      continue
     }
-    return abort(parseError('EXPR_SYNTAX', t.col, `expected a number, reference or "(" at column ${t.col}`))
+
+    // an operator token
+    if (expectOperand) {
+      if (t.op === '-') {
+        ops.push({ kind: 'unary', col: t.col }) // prefix minus, right-assoc, stackable
+        continue
+      }
+      // "+", "*", "/" cannot start an operand
+      return fail(parseError('EXPR_SYNTAX', t.col, `unexpected "${t.op}" at column ${t.col}`))
+    }
+    // binary operator: pop while the top binds at least as tightly (left-assoc)
+    const prec = binPrec(t.op)
+    while (ops.length > 0) {
+      const top = ops[ops.length - 1]
+      if (top.kind === 'lparen') break
+      const topPrec = top.kind === 'unary' ? 3 : top.prec
+      if (topPrec < prec) break
+      const e = reduceTop()
+      if (e) return fail(e)
+    }
+    ops.push({ kind: 'binop', op: t.op, prec, col: t.col })
+    expectOperand = true
   }
 
-  try {
-    const ast = parseExpr()
-    const rest = peek()
-    if (rest.type !== 'eof') {
-      const what =
-        rest.type === 'op'
-          ? `"${rest.op}"`
-          : rest.type === 'number'
-            ? `"${rest.raw}"`
-            : rest.type === 'ref'
-              ? `a reference`
-              : rest.type === 'rparen'
-                ? `")"`
-                : `a token`
-      return {
-        ok: false,
-        error: parseError('EXPR_SYNTAX', rest.col, `unexpected ${what} at column ${rest.col}`),
-      }
-    }
-    return { ok: true, ast }
-  } catch (e) {
-    if (e instanceof ParseAbort) return { ok: false, error: e.error }
-    throw e
+  // end of input
+  if (expectOperand) {
+    return fail(parseError('EXPR_SYNTAX', toks[toks.length - 1].col))
   }
+  while (ops.length > 0) {
+    const top = ops[ops.length - 1]
+    if (top.kind === 'lparen') return fail(parseError('EXPR_UNCLOSED_PAREN', top.col))
+    const e = reduceTop()
+    if (e) return fail(e)
+  }
+  if (output.length !== 1) return fail(parseError('EXPR_SYNTAX', 1))
+  return { ok: true, ast: output[0] }
 }

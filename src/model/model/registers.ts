@@ -8,9 +8,9 @@
 // order-independent (pure eval, §X6), so `R(k)` is a function of `S(k)`.
 //
 // The topological pass is an iterative Kahn sort, so an arbitrarily long
-// acyclic Register chain never recurses. Only the (normally tiny) set of
-// Registers that fail to sort — those on / downstream of a cycle — is walked
-// with a depth-guarded DFS.
+// acyclic Register chain never recurses. The (normally tiny) set of Registers
+// that fail to sort (those on / downstream of a cycle) is classified with an
+// explicit-stack DFS — no recursion, no depth limit, exact at any size.
 
 import { type ExprNode, evaluate, parse, refsOf } from '../expr'
 
@@ -40,11 +40,6 @@ export type RegisterSnapshotView = {
   /** a parameter's `data.value` */
   paramValue: (id: string) => number
 }
-
-/** Guard for the DFS over the un-sortable (cyclic) sub-graph — far above any
- *  legitimate tangle; hitting it just means everything still unresolved is
- *  reported `M_REG_CYCLE` rather than overflowing the stack. */
-const MAX_CYCLE_DFS_DEPTH = 5000
 
 const hasControlChar = (id: string): boolean => {
   for (let i = 0; i < id.length; i++) {
@@ -160,8 +155,8 @@ export function evaluateRegisters(view: RegisterSnapshotView): Map<string, Regis
     }
   }
 
-  // 4. whatever is left is on, or downstream of, a cycle. Classify with a
-  //    depth-guarded DFS over just this sub-graph (tiny in practice).
+  // 4. whatever is left is on, or downstream of, a cycle. Classify it with an
+  //    explicit-stack DFS over just this sub-graph (no recursion, no depth cap).
   const unresolved = ids.filter((id) => !result.has(id))
   if (unresolved.length > 0) {
     const onCycle = cycleMembers(unresolved, deps)
@@ -179,8 +174,9 @@ export function evaluateRegisters(view: RegisterSnapshotView): Map<string, Regis
 
 /**
  * Return the ids in `nodes` that lie on a dependency cycle (a non-trivial SCC,
- * or a self-loop). Iterative-friendly recursion capped at MAX_CYCLE_DFS_DEPTH —
- * beyond that every still-unclassified node is treated as on a cycle.
+ * or a self-loop), via an explicit-stack colour DFS. No depth limit and no
+ * approximation — the classification is exact for a dependency graph of any
+ * size (§M3.4: `M_REG_CYCLE` vs `M_REG_DEPENDS_ON_INVALID`).
  */
 function cycleMembers(nodes: string[], deps: Map<string, string[]>): Set<string> {
   const set = new Set(nodes)
@@ -195,11 +191,6 @@ function cycleMembers(nodes: string[], deps: Map<string, string[]>): Set<string>
     const stack: { id: string; i: number }[] = [{ id: root, i: 0 }]
     colour.set(root, 1)
     while (stack.length > 0) {
-      if (stack.length > MAX_CYCLE_DFS_DEPTH) {
-        for (const f of stack) onCycle.add(f.id)
-        stack.length = 0
-        break
-      }
       const frame = stack[stack.length - 1]
       const edges = (deps.get(frame.id) ?? []).filter((d) => set.has(d))
       if (frame.i < edges.length) {

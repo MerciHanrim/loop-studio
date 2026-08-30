@@ -5,7 +5,7 @@
 // `canonicalise` is idempotent (X-INV-5). It does NOT fold constants, reorder
 // operands, or reassociate.
 
-import type { BinaryNode, ExprNode } from './ast'
+import type { ExprNode } from './ast'
 
 export const SAFE_ID = /^[A-Za-z_][A-Za-z0-9_]*$/
 
@@ -24,47 +24,63 @@ export function canonicalNumber(value: number): string {
 // precedence: add < mul < unary < primary
 const PREC = { add: 1, mul: 2, unary: 3, primary: 4 } as const
 
-function precOf(node: ExprNode): number {
-  switch (node.type) {
-    case 'number':
-    case 'ref':
-      return PREC.primary
-    case 'unary':
-      return PREC.unary
-    case 'binary':
-      return node.op === '+' || node.op === '-' ? PREC.add : PREC.mul
-  }
-}
+type Out = { text: string; prec: number }
+type Frame = { node: ExprNode; entered: boolean }
 
-function binChildText(child: ExprNode, parent: BinaryNode, side: 'left' | 'right'): string {
-  const parentPrec = precOf(parent)
-  const childPrec = precOf(child)
-  let needParens = childPrec < parentPrec
-  // left-assoc: a same-precedence child on the RIGHT must be parenthesised
-  // (`@a - (@b - @c)` kept, `@a - @b - @c` not).
-  if (!needParens && childPrec === parentPrec && side === 'right') needParens = true
-  const inner = print(child)
-  return needParens ? `(${inner})` : inner
-}
-
-function print(node: ExprNode): string {
-  switch (node.type) {
-    case 'number':
-      return canonicalNumber(node.value)
-    case 'ref':
-      return canonicalRef(node.id)
-    case 'unary': {
-      // parenthesise a lower-precedence operand: `-(@a + @b)`, `-(@a * @b)`;
-      // `--@a` and `-@a` need none.
-      const operand = node.operand
-      const inner = print(operand)
-      return precOf(operand) < PREC.unary ? `-(${inner})` : `-${inner}`
-    }
-    case 'binary':
-      return `${binChildText(node.left, node, 'left')} ${node.op} ${binChildText(node.right, node, 'right')}`
-  }
-}
-
+/**
+ * Iterative post-order pretty-print. Each node's `{ text, prec }` is built from
+ * its children's, so an AST of any depth serialises without recursion.
+ * Parentheses are kept **iff** removing them would change the parse: a child of
+ * strictly lower precedence, or a same-precedence child on the RIGHT of a
+ * left-assoc binary (`@a - (@b - @c)` kept, `@a - @b - @c` not), or a
+ * lower-precedence operand under a unary minus (`-(@a + @b)`).
+ */
 export function canonicalPrint(ast: ExprNode): string {
-  return print(ast)
+  const work: Frame[] = [{ node: ast, entered: false }]
+  const outs: Out[] = []
+
+  while (work.length > 0) {
+    const frame = work[work.length - 1]
+    const node = frame.node
+
+    if (node.type === 'number') {
+      work.pop()
+      outs.push({ text: canonicalNumber(node.value), prec: PREC.primary })
+      continue
+    }
+    if (node.type === 'ref') {
+      work.pop()
+      outs.push({ text: canonicalRef(node.id), prec: PREC.primary })
+      continue
+    }
+
+    if (!frame.entered) {
+      frame.entered = true
+      if (node.type === 'unary') {
+        work.push({ node: node.operand, entered: false })
+      } else {
+        work.push({ node: node.right, entered: false })
+        work.push({ node: node.left, entered: false })
+      }
+      continue
+    }
+
+    work.pop()
+    if (node.type === 'unary') {
+      const operand = outs.pop()!
+      const text = operand.prec < PREC.unary ? `-(${operand.text})` : `-${operand.text}`
+      outs.push({ text, prec: PREC.unary })
+    } else {
+      const right = outs.pop()!
+      const left = outs.pop()!
+      const parentPrec = node.op === '+' || node.op === '-' ? PREC.add : PREC.mul
+      const wrap = (child: Out, sideRight: boolean): string => {
+        const needParens = child.prec < parentPrec || (child.prec === parentPrec && sideRight)
+        return needParens ? `(${child.text})` : child.text
+      }
+      outs.push({ text: `${wrap(left, false)} ${node.op} ${wrap(right, true)}`, prec: parentPrec })
+    }
+  }
+
+  return outs[0].text
 }

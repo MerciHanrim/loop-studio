@@ -1,53 +1,59 @@
 import { describe, expect, it } from 'vitest'
-import { canonicaliseExpr, evaluate, parse, type Resolver } from './index'
-import { MAX_EXPR_DEPTH } from './parse'
+import { canonicaliseExpr, evaluate, parse, refsOf, type Resolver } from './index'
 
-// SEMANTICS-X.md sets no numeric size cap, but a pathological string must never
-// crash the recursive-descent parser or the AST walks — it must return a clean
-// §X7 parse error (X-INV-8), never a thrown RangeError.
+// SEMANTICS-X.md puts NO numeric cap on an expression (§X2). A grammatically
+// valid string of any depth MUST parse, evaluate, canonicalise, and have its
+// refs collected — with no artificial EXPR_SYNTAX and no thrown RangeError.
+// The parser, evaluator, canonical printer, and refsOf are all explicit-stack.
 
-const num: Resolver = () => ({ ok: true, value: 1 })
+const one: Resolver = () => ({ ok: true, value: 1 })
+const N = 60_000
 
-describe('loop-expr/1 — pathological input never overflows the stack', () => {
-  it('deeply nested parentheses → EXPR_SYNTAX, no throw', () => {
-    const deep = '('.repeat(50_000) + '1' + ')'.repeat(50_000)
-    const r = parse(deep)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('EXPR_SYNTAX')
-  })
-
-  it('deeply stacked unary minus → EXPR_SYNTAX, no throw', () => {
-    const r = parse('-'.repeat(50_000) + '@a')
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('EXPR_SYNTAX')
-  })
-
-  it('a very long left-assoc chain → EXPR_SYNTAX, no throw', () => {
-    const chain = Array.from({ length: 50_000 }, () => '@a').join(' + ')
-    const r = parse(chain)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error.code).toBe('EXPR_SYNTAX')
-  })
-
-  it('accepts nesting up to the limit and evaluates / canonicalises it', () => {
-    const n = MAX_EXPR_DEPTH - 1
-    const src = '('.repeat(n) + '@a + 1' + ')'.repeat(n)
+describe('loop-expr/1 — deep but valid expressions succeed (no artificial limit)', () => {
+  it('deeply nested parentheses parse and evaluate', () => {
+    const src = '('.repeat(N) + '@a + 2' + ')'.repeat(N)
     const r = parse(src)
     expect(r.ok).toBe(true)
-    if (r.ok) {
-      const ev = evaluate(r.ast, num)
-      expect(ev.ok && ev.value).toBe(2)
-      expect(canonicaliseExpr(src)).toBe('@a + 1')
-    }
+    if (!r.ok) return
+    const ev = evaluate(r.ast, one)
+    expect(ev.ok && ev.value).toBe(3)
+    expect(canonicaliseExpr(src)).toBe('@a + 2')
+    expect(refsOf(r.ast)).toEqual(['a'])
   })
 
-  it('a chain just under the limit still evaluates', () => {
-    const chain = Array.from({ length: MAX_EXPR_DEPTH - 1 }, () => '1').join(' + ')
-    const r = parse(chain)
+  it('deeply stacked unary minus parses and evaluates (parity of the count)', () => {
+    const evenR = parse('-'.repeat(N) + '@a') // even ⇒ +1
+    const oddR = parse('-'.repeat(N + 1) + '@a') // odd ⇒ -1
+    expect(evenR.ok && oddR.ok).toBe(true)
+    if (!evenR.ok || !oddR.ok) return
+    expect(evaluate(evenR.ast, one)).toEqual({ ok: true, value: 1 })
+    expect(evaluate(oddR.ast, one)).toEqual({ ok: true, value: -1 })
+    expect(canonicaliseExpr('-'.repeat(4) + '@a')).toBe('----@a')
+  })
+
+  it('a very long left-assoc chain parses, evaluates, and canonicalises', () => {
+    const src = Array.from({ length: N }, () => '@a').join(' + ')
+    const r = parse(src)
     expect(r.ok).toBe(true)
-    if (r.ok) {
-      const ev = evaluate(r.ast, num)
-      expect(ev.ok && ev.value).toBe(MAX_EXPR_DEPTH - 1)
-    }
+    if (!r.ok) return
+    expect(evaluate(r.ast, one)).toEqual({ ok: true, value: N })
+    // canonical form of a left chain is itself, one space per operator
+    expect(canonicaliseExpr(src)).toBe(src)
+    expect(refsOf(r.ast)).toEqual(['a'])
+  })
+
+  it('a deep chain that hits a div-by-zero still reports the FIRST error, no overflow', () => {
+    const src = `${Array.from({ length: N }, () => '1').join(' + ')} + 1 / 0`
+    const r = parse(src)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(evaluate(r.ast, one)).toEqual({ ok: false, error: expect.objectContaining({ code: 'EVAL_DIV_ZERO' }) })
+  })
+
+  it('a genuinely invalid deep string still returns a clean §X7 code', () => {
+    // 60k opens, only 59,999 closes ⇒ one unclosed paren
+    const r = parse('('.repeat(N) + '1' + ')'.repeat(N - 1))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error.code).toBe('EXPR_UNCLOSED_PAREN')
   })
 })
