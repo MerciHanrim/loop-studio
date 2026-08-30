@@ -35,6 +35,8 @@ export type PoolData = {
   /** Upper bound on stored resources; null means unbounded. */
   capacity: number | null
   mode: ResourceMode
+  /** loop-model/1 §M4 — advisory resource-type tag; changes no number. */
+  resourceType?: string
 }
 
 export type SourceData = {
@@ -113,6 +115,8 @@ export type ResourceEdgeData = {
   kind: 'resource'
   /** Flow expression: "1", "all", "2D6", "1-3", "25%", ... (parsed by the engine). */
   flow: string
+  /** loop-model/1 §M4 — advisory resource-type tag; changes no number. */
+  resourceType?: string
 }
 
 export type StateEdgeData = {

@@ -9,7 +9,16 @@ import {
   type LabelParse,
 } from '../engine'
 import { parseExpr } from '../model/expr'
-import { readParameterData, readRegisterData } from '../model/model'
+import {
+  BUILTIN_RESOURCE_TYPES,
+  isBuiltinResourceType,
+  normalizeResourceType,
+  RESOURCE_TYPE_MAX_BYTES,
+  type ResourceMismatchFinding,
+  readParameterData,
+  readRegisterData,
+  resourceTypeMismatches,
+} from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import type {
   ConverterData,
@@ -52,9 +61,60 @@ export function Inspector() {
   const node = nodes.find((n) => n.id === selectedNodeId) ?? null
   const edge = edges.find((e) => e.id === selectedEdgeId) ?? null
 
+  // loop-model/1 §M4.3 — advisory mismatch findings for the whole graph, then
+  // filtered to whatever is selected. Deterministic, computation-neutral.
+  const mismatches = resourceTypeMismatches({
+    resourceEdges: edges
+      .filter((e) => (e.data as { kind?: string } | undefined)?.kind !== 'state')
+      .map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        resourceType: (e.data as { resourceType?: unknown } | undefined)?.resourceType,
+      })),
+    nodeKind: (id) => (nodes.find((n) => n.id === id)?.data as { kind?: string } | undefined)?.kind,
+    nodeResourceType: (id) =>
+      (nodes.find((n) => n.id === id)?.data as { resourceType?: unknown } | undefined)?.resourceType,
+  })
+
   if (node) {
     const d = node.data
     const set: Patch = (patch) => updateNodeData(node.id, patch)
+
+    // A node whose `data` can't be read at all (non-object, unknown kind), or a
+    // `parameter` / `register` that fails the §R2-1.1 structural gate. Show a
+    // fallback that never touches the unreadable fields (no `0`, no `"0"`).
+    const kindStr = d && typeof d === 'object' ? (d as { kind?: unknown }).kind : undefined
+    const modelRead =
+      kindStr === 'parameter'
+        ? readParameterData(d)
+        : kindStr === 'register'
+          ? readRegisterData(d)
+          : null
+    const unreadable =
+      !d || typeof d !== 'object' || typeof kindStr !== 'string' || (modelRead != null && !modelRead.ok)
+    if (unreadable) {
+      const kindLabel = typeof kindStr === 'string' ? kindStr : 'node'
+      const detail = modelRead && !modelRead.ok ? modelRead.detail : 'the data is not a readable object'
+      return (
+        <aside className="inspector">
+          <div className="inspector__head">
+            <span className="inspector__kind inspector__kind--edge">{kindLabel}</span>
+            <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
+              Delete
+            </button>
+          </div>
+          <p className="inspector__note inspector__note--warn">
+            This node's data can't be read ({detail}). It is loaded as-is and left out of the model —
+            fix it in the file, or delete the node.
+          </p>
+          <Field label="Raw data">
+            <textarea readOnly rows={5} value={JSON.stringify(node.data, null, 2)} />
+          </Field>
+        </aside>
+      )
+    }
+
     return (
       <aside className="inspector">
         <div className="inspector__head">
@@ -84,7 +144,9 @@ export function Inspector() {
           </Field>
         )}
 
-        {d.kind === 'pool' && <PoolFields d={d} set={set} />}
+        {d.kind === 'pool' && (
+          <PoolFields d={d} set={set} findings={mismatches.filter((f) => f.nodeId === node.id)} />
+        )}
         {d.kind === 'source' && <SourceFields d={d} set={set} />}
         {d.kind === 'drain' && <DrainFields d={d} set={set} />}
         {d.kind === 'gate' && <GateFields d={d} set={set} />}
@@ -124,13 +186,20 @@ export function Inspector() {
         </Field>
 
         {ed.kind === 'resource' ? (
-          <Field label="Flow">
-            <input
-              value={ed.flow}
-              onChange={(e) => setData({ kind: 'resource', flow: e.target.value })}
-              placeholder="1, all, 2D6, 1-3, 25%"
+          <>
+            <Field label="Flow">
+              <input
+                value={ed.flow}
+                onChange={(e) => setData({ ...ed, kind: 'resource', flow: e.target.value })}
+                placeholder="1, all, 2D6, 1-3, 25%"
+              />
+            </Field>
+            <ResourceTypeField
+              value={ed.resourceType}
+              onChange={(v) => setData({ ...ed, kind: 'resource', resourceType: v })}
+              findings={mismatches.filter((f) => f.edgeId === edge.id)}
             />
-          </Field>
+          </>
         ) : (
           <StateEdgeFields ed={ed} setData={setData} />
         )}
@@ -310,7 +379,64 @@ function LegacyStateEdge({
 
 // ── node field groups (unchanged) ────────────────────────────────────────
 
-function PoolFields({ d, set }: { d: PoolData; set: Patch }) {
+// ── loop-model/1 §M4 — advisory resource-type tag ────────────────────────
+
+function ResourceTypeField({
+  value,
+  onChange,
+  findings,
+}: {
+  value: string | undefined
+  onChange: (v: string | undefined) => void
+  findings: ResourceMismatchFinding[]
+}) {
+  const norm = normalizeResourceType(value)
+  const raw = value ?? ''
+  return (
+    <>
+      <Field label="Resource type (advisory)">
+        <input
+          value={raw}
+          list="resource-type-builtins"
+          placeholder="Gold, Energy, XP, Player, Item, or a custom name"
+          onChange={(e) => onChange(e.target.value || undefined)}
+        />
+      </Field>
+      <datalist id="resource-type-builtins">
+        {BUILTIN_RESOURCE_TYPES.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
+      {norm.value === null && raw.trim() !== '' && (
+        <p className="inspector__note inspector__note--warn">
+          Over {RESOURCE_TYPE_MAX_BYTES} bytes — this tag will be dropped on export.
+        </p>
+      )}
+      {norm.value !== null && norm.value !== raw && (
+        <p className="inspector__note">Normalised to “{norm.value}”.</p>
+      )}
+      {norm.value !== null && !isBuiltinResourceType(norm.value) && (
+        <p className="inspector__note">Custom type — generic swatch; no built-in colour.</p>
+      )}
+      {findings.length > 0 && (
+        <p className="inspector__note inspector__note--warn">
+          Type mismatch: {findings.map((f) => `${f.edgeType} ↔ ${f.nodeType}`).join(', ')}. Advisory
+          only — it changes no amount and blocks no run.
+        </p>
+      )}
+    </>
+  )
+}
+
+function PoolFields({
+  d,
+  set,
+  findings,
+}: {
+  d: PoolData
+  set: Patch
+  findings: ResourceMismatchFinding[]
+}) {
   return (
     <>
       <Field label="Starting amount">
@@ -337,6 +463,11 @@ function PoolFields({ d, set }: { d: PoolData; set: Patch }) {
           <option value="pushAll">push all</option>
         </select>
       </Field>
+      <ResourceTypeField
+        value={d.resourceType}
+        onChange={(v) => set({ resourceType: v })}
+        findings={findings}
+      />
     </>
   )
 }
@@ -458,7 +589,9 @@ function RegisterFields({ d, set }: { d: RegisterData; set: Patch }) {
         <p className="inspector__note">Unrecognised format — will fall back to float on export.</p>
       )}
       <p className="inspector__note">
-        A Register is a read-only computed value; it stores nothing and has no ports.
+        A Register stores nothing and has no ports. The expression above is a <strong>parse
+        preview only</strong> — the computed value appears once the run observes it (a later
+        slice); no value is shown until then.
       </p>
     </>
   )

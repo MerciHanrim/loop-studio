@@ -51,7 +51,12 @@ export function step(
 ): StepResult {
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
   const byId = new Map(nodes.map((n) => [n.id, n]))
-  const resEdges = edges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
+  // loop-model/1: `parameter` / `register` have no ports — the engine ignores
+  // ANY edge incident to one (a malformed / hand-authored file can carry them).
+  const MODEL = new Set(['parameter', 'register'])
+  const modelId = (id: string) => MODEL.has(byId.get(id)?.data.kind as string)
+  const liveEdges = edges.filter((e) => !modelId(e.source) && !modelId(e.target))
+  const resEdges = liveEdges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
   const flowOf = new Map<string, FlowExpr>(
     resEdges.map((e) => [e.id, parseFlow(e.data?.kind === 'resource' ? e.data.flow : '1')]),
   )
@@ -142,7 +147,7 @@ export function step(
   const stateEvents: StateEvent[] = []
   const stateEdgeCmp = (a: LoopEdge, b: LoopEdge) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   const KNOWN_STATE_MODES = new Set(['trigger', 'activator', 'label'])
-  const stateEdges = edges
+  const stateEdges = liveEdges
     .filter((e): e is LoopEdge & { data: { kind: 'state'; mode: string; delay?: number } } => e.data?.kind === 'state')
     .sort(stateEdgeCmp)
   for (const e of stateEdges) {
@@ -246,7 +251,7 @@ export function step(
   // loop-model/1: `parameter` / `register` nodes have no `activation` and never
   // fire — the engine ignores them entirely (SEMANTICS-M.md §M6.1).
   const actOf = (n: { data: LoopNode['data'] }): Activation =>
-    'activation' in n.data ? n.data.activation : 'passive'
+    n.data && typeof n.data === 'object' && 'activation' in n.data ? n.data.activation : 'passive'
 
   const firing = (n: LoopNode) =>
     isEnabled(n.id) &&

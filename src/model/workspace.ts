@@ -83,7 +83,8 @@ type EdgeProjection = {
 }
 
 function projectNode(n: LoopNode): NodeProjection {
-  const d = n.data
+  const d = (n.data ?? {}) as LoopNode['data']
+  if (typeof d !== 'object') return { id: n.id, kind: undefined as unknown as string }
   const p: NodeProjection = { id: n.id, kind: d.kind }
   if ('activation' in d) p.activation = d.activation
   if ('mode' in d && d.mode !== undefined) p.mode = d.mode

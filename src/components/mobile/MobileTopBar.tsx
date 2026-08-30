@@ -51,6 +51,7 @@ export function MobileTopBar() {
           if (r.outcome.canvas) setViewport(r.outcome.canvas, { duration: 0 })
           const warnings = [
             ...(r.kind === 'project-dropped' ? [r.warning] : []),
+            ...('structuralWarning' in r && r.structuralWarning ? [r.structuralWarning] : []),
             ...r.outcome.warnings,
           ]
           if (warnings.length) window.alert(warnings.join('\n'))
