@@ -1,0 +1,190 @@
+{
+  "about": "Model-language verification fixture (loop-expr/1 + loop-model/1 + loop-revision/2). Import model-verification.json, then follow examples/README.md.",
+  "canonicalExprs": {
+    "r_reserve": "@gold * @p_rate",
+    "r_head": "@r_reserve + 10",
+    "r_ratio": "@gold / @mana",
+    "r_gap": "@r_ratio - 1",
+    "r_loop": "@r_loop + 1"
+  },
+  "pools": {
+    "gold": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "mana": [
+      2,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "registers": [
+    {
+      "step": 0,
+      "r_reserve": 20,
+      "r_head": 30,
+      "r_ratio": 5,
+      "r_gap": 4,
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    },
+    {
+      "step": 1,
+      "r_reserve": 22,
+      "r_head": 32,
+      "r_ratio": 11,
+      "r_gap": 10,
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    },
+    {
+      "step": 2,
+      "r_reserve": 24,
+      "r_head": 34,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    },
+    {
+      "step": 3,
+      "r_reserve": 26,
+      "r_head": 36,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    },
+    {
+      "step": 4,
+      "r_reserve": 28,
+      "r_head": 38,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    },
+    {
+      "step": 5,
+      "r_reserve": 30,
+      "r_head": 40,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    },
+    {
+      "step": 6,
+      "r_reserve": 32,
+      "r_head": 42,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    }
+  ],
+  "resourceMismatches": [
+    {
+      "edgeId": "e_gold_sink",
+      "endpoint": "source",
+      "nodeId": "gold",
+      "edgeType": "Mana",
+      "nodeType": "Gold"
+    }
+  ],
+  "workspaceRoundTrip": {
+    "wireSchema": "loop-workspace/1",
+    "wireVersion": 1,
+    "simulationKeys": [
+      "ended",
+      "fired",
+      "seed",
+      "series",
+      "stateEvents",
+      "step",
+      "triggerQueue",
+      "values"
+    ],
+    "savedStateMentionsARegister": false,
+    "restoredStep": 3,
+    "restoredPoolValues": {
+      "gold": 13,
+      "mana": 0
+    },
+    "exportStep": 3,
+    "registersRecomputedEqualExport": true,
+    "registersRecomputed": {
+      "r_reserve": 26,
+      "r_head": 36,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    }
+  },
+  "malformedAcceptance": {
+    "parameterStringValueRejected": true,
+    "parameterInfinityRejected": true,
+    "registerNonStringExprRejected": true,
+    "registerUnparseableExprRejected": true,
+    "dataNotAnObjectRejected": true,
+    "noZeroStandIn": true,
+    "unseatableModelNodeFailsStructuralGate": true,
+    "edgeToModelNodeRefused": true
+  },
+  "revision2": {
+    "v2Digest": "5023c8ab7e80a6cf5c9966fa75adfc07d4991f3b723606da8a1724abeae01ce2",
+    "conservativeExtension": true,
+    "v1Digest": "18b606d5b9d976dccaffac1953b1663af919a321b56cab83252f0f5df123e937",
+    "advisoryVariantDigest": "756da08480855a80936464aa5bfd7c7a6d314e9c385687884e625b3e03c55f81",
+    "advisoryDiff": {
+      "nodesChanged": 2,
+      "edgesChanged": 1,
+      "nodesAdded": 0,
+      "nodesRemoved": 0,
+      "engineAffecting": false,
+      "advisoryAffecting": true
+    }
+  }
+}

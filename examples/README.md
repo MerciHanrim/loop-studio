@@ -9,6 +9,8 @@ Graphs with different jobs:
 | `state-verification.json` | **state precision instrument** — one connected graph exercising every executable `trigger` / `activator` / `label` behaviour | yes |
 | `state-verification.expected.json` | test oracle for the above — read by `state-verification.test.ts` and by a human comparing the per-step trace | **no** (not a graph) |
 | `risky-factory.json` | **product demo** — one connected economy that exercises every working node kind and Engine A/B feature at once | yes |
+| `model-verification.json` | **model-language precision instrument** — a `parameter`, five `register`s (DAG, `/0`, depends-on-invalid, self-cycle) and an advisory `resourceType` mismatch, in one deterministic economy | yes |
+| `model-verification.expected.json` | test oracle for the above — read by `test/model-verification.test.ts` and by a human comparing `R(t)` | **no** (not a graph) |
 
 ---
 
@@ -215,4 +217,95 @@ sparkline) — not exact values, so honest engine changes don't force a rewrite.
 
 ```bash
 GEN_RISKY_FACTORY=1 npx vitest run src/engine/risky-factory.test.ts
+```
+
+---
+
+# 4 — Model language verification fixture
+
+`model-verification.json` is one connected, **fully deterministic** economy (no
+dice, no probabilistic gates) built to exercise every `loop-expr/1` +
+`loop-model/1` + `loop-revision/2` behaviour in a single importable graph.
+`model-verification.expected.json` records the canonical expression forms, the
+per-step `S(t)` / `R(t)` trace, the advisory mismatch finding, and the
+`loop-revision/2` digests a correct build must reproduce —
+`test/model-verification.test.ts` re-derives it on every `npm test`, and
+`e2e/model-verification.spec.ts` replays it through the app on **desktop and
+mobile**.
+
+> Import `model-verification.json` only. `model-verification.expected.json` is a
+> test oracle, not an importable graph.
+
+## What it wires
+
+```
+Mint ─3→ Gold (init 10, "Gold") ─2→ Upkeep         Gold climbs +1 / step  → 16 at step 6
+              Mana (init 2, "Mana") ─1→ Upkeep      Mana: 2, 1, 0, 0, …
+
+Reserve rate  (parameter, value 2)
+Reserve   = @gold * @p_rate         valid every step   (Pool × Parameter)
+Headroom  = @r_reserve + 10         valid every step   (Register → Register, a DAG)
+Gold:Mana = @gold / @mana           valid t0–t1, then M_REG_EVAL (÷0 once Mana = 0)
+Ratio − 1 = @r_ratio - 1            cascades: M_REG_DEPENDS_ON_INVALID from t2
+Self loop = @r_loop + 1             M_REG_CYCLE at every step
+```
+
+- the edge `Gold ─→ Upkeep` is tagged `resourceType: "Mana"` while the `Gold`
+  pool is `"Gold"` — one **advisory mismatch** finding; it changes nothing that
+  runs.
+- an invalid Register **never halts the run** — pools keep advancing after t2.
+- `R(t)` is recomputed from `S(t)` each step and **stored nowhere**: the
+  `loop-revision/*` content digest is byte-identical before and after a run.
+
+## `expected.json` contents
+
+- `canonicalExprs` — each Register's `expr` in `loop-expr/1` §X8 AST text form
+- `pools` — `Gold` / `Mana` values for steps 0–6
+- `registers` — `R(t)` for every Register at each of steps 0–6: a number, or
+  `{ "invalid": "M_REG_*" }`
+- `resourceMismatches` — the one advisory `resourceType` finding
+- `revision2` — the `loop-revision/2` v2 digest; `conservativeExtension` (the
+  model-stripped v1 baseline is byte-identical under either projection); and
+  `advisoryDiff` — the model graph vs the same graph with only `resourceType` /
+  a Register `unit` nudged: `engineAffecting: false`, `advisoryAffecting: true`
+- `workspaceRoundTrip` — Export a Workspace after stepping to 3: the wire id
+  stays `loop-workspace/1` v1 (no `loop-workspace/2`); the saved `simulation`
+  keys are pools + step + seed + fired + series only —
+  `savedStateMentionsARegister: false`; re-Import restores `S(3)` and
+  `registersRecomputedEqualExport: true` (R(t) from the GraphDoc + restored
+  `S(t)`, identical to Export time)
+- `malformedAcceptance` — the pure side of the malformed-payload guarantees: a
+  string / `Infinity` Parameter value, a non-string / unparseable Register
+  `expr`, and non-object `data` are all rejected with **no `0` stand-in**; an
+  unseatable model node fails `readRevisionSide` at the §R2-1.1 structural gate;
+  a resource edge onto a model node is refused. The **UI** side — graph opens,
+  Canvas / Inspector never crash, an `unreadable` fallback is shown, and the
+  `project` header is dropped so Review / Apply is unreachable — is
+  `e2e/model-nodes.spec.ts`.
+
+## Manual check in the app
+
+```
+Import  examples/model-verification.json
+Step 1 → select "Reserve"   → Inspector "Value at step 1: 22  (recomputed … never stored)"
+         select "Gold:Mana"  → "Value at step 1: 11"
+Step to 3 → select "Gold:Mana" → "M_REG_EVAL · … — no value at step 3"
+           select "Ratio − 1"  → "M_REG_DEPENDS_ON_INVALID …"
+           select "Self loop"   → "M_REG_CYCLE …"   (and the run is still going)
+Timeline → one dashed line per Register that has a valid run; "Gold:Mana" and
+           "Ratio − 1" stop at t1 with a GAP, not a bridged line; "Self loop"
+           has no line at all
+Select the Gold ─→ Upkeep edge → Inspector shows "Type mismatch: Mana ↔ Gold. Advisory …"
+Reset → Register values recompute for step 0; nothing about the graph changed.
+
+Export ▾ → Workspace JSON at step 3, New graph, Import it back
+  → step 3 and the Pool counts are restored; the saved file has no Register
+    values (it is `loop-workspace/1`, unchanged)
+  → select "Reserve" → the same "Value at step 3" as before (recomputed)
+```
+
+## Regenerating
+
+```bash
+GEN_MODEL_VERIFICATION=1 npx vitest run test/model-verification.test.ts
 ```
