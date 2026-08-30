@@ -968,6 +968,29 @@ body {
 .flow-trail {
   fill: var(--flow-trail);
 }
+/* docs/simulation-playback.md Slice 2 — the τ-synced travelling token. Position
+   is set on the <g> transform every frame by the store's τ; CSS only handles the
+   depart scale-in and the arrive pulse. No `transition`/`animation` on the
+   transform itself — that would fight τ. */
+.pb-move {
+  pointer-events: none;
+}
+.pb-move--depart .flow-bead {
+  transform: scale(0.4);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.pb-move--arrive .flow-bead {
+  transform: scale(1.25);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pb-move--depart .flow-bead,
+  .pb-move--arrive .flow-bead {
+    transition: transform 90ms ease-out;
+  }
+}
 .flow-token__n {
   fill: var(--text-secondary);
   font-size: 9px;
@@ -1337,6 +1360,20 @@ body {
   font-style: normal;
   font-weight: 600;
   color: var(--state-warning);
+}
+/* §PB4.5 — per-transfer breakdown for a selected edge while a transition is
+   in flight; the merged token stays one dot, the causality lives here. */
+.edge-label__breakdown {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 5px;
+}
+.edge-label__bd {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 9px;
+  color: var(--flow-strength);
+  font-variant-numeric: tabular-nums;
 }
 .edge-label--blocked,
 .edge-label__blocked {

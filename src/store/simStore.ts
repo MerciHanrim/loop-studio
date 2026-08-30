@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
-import type { SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
+import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { MAX_SERIES } from '../model/limits'
 import { useGraphStore } from './graphStore'
 
@@ -35,6 +35,9 @@ export type PreparedResult = {
   /** render-side fields the commit applies alongside the state */
   derived: {
     activeByEdge: Record<string, number>
+    /** the raw per-step transfers, in deterministic emission order — the token
+     *  layer sums per edge and shows the breakdown on hover (Slice 2, §PB4.5). */
+    events: FlowEvent[]
     firedNodeIds: string[]
     stateEvents: StateEvent[]
     arrivedPoolIds: string[]
@@ -76,7 +79,21 @@ type SimStore = {
    *  (settle / reset / restoreSnapshot). Never serialised (PB-INV-19). */
   commitEpoch: number
   /** a minimal public view of the in-flight transition (Slice 2 grows this) */
-  transition: { fromStep: number; tau: number } | null
+  /** a READ-ONLY view of the in-flight transition for the Slice 2 choreography
+   *  layer — the state machine never reads it back. */
+  transition:
+    | {
+        fromStep: number
+        /** animation progress ∈ [0, 1] on the beat axis (§PB2.1) */
+        tau: number
+        /** summed resource amount per edge for THIS step (settle has not run) */
+        flowByEdge: Record<string, number>
+        /** raw transfers for the breakdown (§PB4.5) */
+        events: FlowEvent[]
+        /** state-edge effects for THIS step */
+        stateEvents: StateEvent[]
+      }
+    | null
   /** id of the current preparedTransition, or null (§PB7.3) */
   activeTransitionId: number | null
   /** id of the most recent transition that `commitPrepared` committed (§PB7.7) */
@@ -173,6 +190,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     }
     return {
       activeByEdge,
+      events: [...r.report.events],
       firedNodeIds: [...r.report.fired],
       stateEvents: [...r.report.stateEvents],
       arrivedPoolIds: [...arrived],
@@ -269,7 +287,15 @@ export const useSimStore = create<SimStore>((set, get) => {
     prepared = p
     arriveFired = false
     tauStartedAt = now()
-    set({ transition: { fromStep: p.fromStep, tau: 0 } })
+    set({
+      transition: {
+        fromStep: p.fromStep,
+        tau: 0,
+        flowByEdge: { ...p.derived.activeByEdge },
+        events: p.derived.events,
+        stateEvents: p.derived.stateEvents,
+      },
+    })
   }
 
   /** run the ladder for the in-flight transition, then FULLY tear down. A
@@ -295,7 +321,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   /** drive the current transition straight to `settle` (Step / fast-forward). */
   const forceSettleCurrent = () => {
     if (get().activeTransitionId == null || !prepared) return
-    set({ transition: { fromStep: prepared.fromStep, tau: 1 } })
+    set((s) => ({ transition: s.transition ? { ...s.transition, tau: 1 } : null }))
     settleActive()
   }
 
@@ -319,7 +345,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       if (tau >= BEAT_SETTLE) {
         settleActive() // §PB8.2 — a giant gap settles ONCE here; t+2 begins next tick
       } else {
-        set({ transition: { fromStep: prepared.fromStep, tau } })
+        set((s) => ({ transition: s.transition ? { ...s.transition, tau } : null }))
       }
     } else if (s.status === 'running') {
       beginTransition()
