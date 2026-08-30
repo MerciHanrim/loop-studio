@@ -174,23 +174,32 @@ test.describe('playback — Slice 1 state machine', () => {
     expect(later.commitEpoch).toBe(r.commitEpoch)
   })
 
-  test('a Step click settles at most one step', async ({ page }) => {
-    await setup(page, 1600)
-    await call(page, 'play')
-    await expect
-      .poll(() => pb(page).then((s) => (s.transition && s.transition.tau > 0.15 && s.transition.tau < 0.7 ? 1 : -1)), { timeout: 8000 })
-      .toBe(1)
-    await call(page, 'pause')
+  test('a Step click = exactly one choreographed step (never stacks, never skips)', async ({ page }) => {
+    await setup(page, 700)
     const from = (await pb(page)).stepIndex
-
     const stepBtn = page.locator('.pstrip button[title="Advance one step"]')
-    await stepBtn.click() // settles the paused transition → from + 1
-    await stepBtn.click() // ordinary step → from + 2
-    await stepBtn.click() // → from + 3
-    const s = await pb(page)
-    expect(s.stepIndex).toBe(from + 3)
-    expect(s.seriesSteps).toEqual(Array.from({ length: s.stepIndex + 1 }, (_, i) => i)) // no gaps
-    expect(s.transition).toBeNull()
+
+    for (let n = 1; n <= 3; n++) {
+      await stepBtn.click()
+      // the click starts the SAME choreography Play uses — a transition appears…
+      await expect.poll(() => pb(page).then((s) => (s.transition ? 1 : 0)), { timeout: 4000 }).toBe(1)
+      // …then it settles, and the loop does NOT continue to the next step
+      await expect.poll(() => pb(page).then((s) => s.transition), { timeout: 4000 }).toBeNull()
+      const s = await pb(page)
+      expect(s.stepIndex).toBe(from + n)
+      expect(s.status).not.toBe('running')
+      expect(s.seriesSteps).toEqual(Array.from({ length: s.stepIndex + 1 }, (_, i) => i)) // no gaps
+    }
+
+    // a rapid burst never stacks: clicking again while a transition is in flight
+    // only fast-forwards it, so N fast clicks advance by at most N
+    const base = (await pb(page)).stepIndex
+    for (let i = 0; i < 4; i++) await stepBtn.click()
+    await expect.poll(() => pb(page).then((s) => s.transition), { timeout: 6000 }).toBeNull()
+    const after = await pb(page)
+    expect(after.stepIndex - base).toBeGreaterThanOrEqual(1)
+    expect(after.stepIndex - base).toBeLessThanOrEqual(4)
+    expect(after.seriesSteps).toEqual(Array.from({ length: after.stepIndex + 1 }, (_, i) => i))
   })
 
   test('speed 0 / negative / NaN is rejected', async ({ page }) => {

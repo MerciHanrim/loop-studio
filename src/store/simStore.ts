@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { initSim, step } from '../engine'
-import type { SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
+import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { MAX_SERIES } from '../model/limits'
 import { useGraphStore } from './graphStore'
 
@@ -16,8 +16,12 @@ export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
 // (§PB2.8 / PB-INV-18).
 
 /** the fixed beat fractions on the τ ∈ [0,1] axis (§PB2.1). */
+const BEAT_DEPART_END = 0.15
 const BEAT_ARRIVE = 0.8
 const BEAT_SETTLE = 0.95
+export type PlaybackPhase = 'depart' | 'travel' | 'arrive'
+const phaseOf = (tau: number): PlaybackPhase =>
+  tau < BEAT_DEPART_END ? 'depart' : tau < BEAT_ARRIVE ? 'travel' : 'arrive'
 /** τ maps to this wall-clock duration; a floor so "fastest" is still a frame. */
 const PLAYBACK_MIN_MS = 120
 
@@ -35,6 +39,9 @@ export type PreparedResult = {
   /** render-side fields the commit applies alongside the state */
   derived: {
     activeByEdge: Record<string, number>
+    /** the raw per-step transfers, in deterministic emission order — the token
+     *  layer sums per edge and shows the breakdown on hover (Slice 2, §PB4.5). */
+    events: FlowEvent[]
     firedNodeIds: string[]
     stateEvents: StateEvent[]
     arrivedPoolIds: string[]
@@ -76,7 +83,23 @@ type SimStore = {
    *  (settle / reset / restoreSnapshot). Never serialised (PB-INV-19). */
   commitEpoch: number
   /** a minimal public view of the in-flight transition (Slice 2 grows this) */
-  transition: { fromStep: number; tau: number } | null
+  /** a READ-ONLY view of the in-flight transition for the Slice 2 choreography
+   *  layer — the state machine never reads it back. */
+  transition:
+    | {
+        fromStep: number
+        /** animation progress ∈ [0, 1] on the beat axis (§PB2.1) */
+        tau: number
+        /** which beat the τ is in — an observable DOM tell for tests (§PB2.1) */
+        phase: PlaybackPhase
+        /** summed resource amount per edge for THIS step (settle has not run) */
+        flowByEdge: Record<string, number>
+        /** raw transfers for the breakdown (§PB4.5) */
+        events: FlowEvent[]
+        /** state-edge effects for THIS step */
+        stateEvents: StateEvent[]
+      }
+    | null
   /** id of the current preparedTransition, or null (§PB7.3) */
   activeTransitionId: number | null
   /** id of the most recent transition that `commitPrepared` committed (§PB7.7) */
@@ -103,6 +126,10 @@ type SimStore = {
   armPrepared: (r: PreparedResult) => PreparedTransition
   /** §PB7.7 — the fixed decision ladder; one atomic commit on success. */
   commitPrepared: (p: PreparedTransition) => CommitResult
+  /** §PB2.8 — the tokenless immediate path: `armPrepared(prepareTransition()) →
+   *  commitPrepared`, no animation. NOT used by the Step / Play UI (both go
+   *  through the choreography). For Monte-Carlo / Predict / engine tests. */
+  advance: () => CommitResult
 }
 
 export type SimSnapshot = {
@@ -128,7 +155,12 @@ const now = (): number =>
   typeof performance !== 'undefined' ? performance.now() : Date.now()
 const isHidden = (): boolean =>
   typeof document !== 'undefined' && document.hidden === true
+const reducedMotion = (): boolean =>
+  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches === true
 const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n)
+/** §PB9 — under reduced motion a step still paces (Play) but never stretches;
+ *  a Step settles it instantly. */
+const RM_BEAT_MS = 220
 
 /** recursively `Object.freeze` a plain-data value (dev only) so a bug that
  *  mutates `prepared.toState` / `prepared.derived` throws instead of silently
@@ -144,7 +176,8 @@ function deepFreeze<T>(v: T): T {
 export const useSimStore = create<SimStore>((set, get) => {
   const graph = () => useGraphStore.getState()
 
-  const beatDuration = (): number => Math.max(get().speedMs, PLAYBACK_MIN_MS)
+  const beatDuration = (): number =>
+    reducedMotion() ? RM_BEAT_MS : Math.max(get().speedMs, PLAYBACK_MIN_MS)
 
   /** Current sim head, seeding an initial state on first use. */
   const head = (): SimState => {
@@ -173,6 +206,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     }
     return {
       activeByEdge,
+      events: [...r.report.events],
       firedNodeIds: [...r.report.fired],
       stateEvents: [...r.report.stateEvents],
       arrivedPoolIds: [...arrived],
@@ -263,13 +297,25 @@ export const useSimStore = create<SimStore>((set, get) => {
     set({ activeTransitionId: null, transition: null })
   }
 
+  /** prepare + arm + start the τ clock for ONE step's choreography. Used by both
+   *  UI Step (one-shot) and Play (the loop re-calls it after each settle). It
+   *  does not decide whether to continue — the loop does, gated on `status`. */
   const beginTransition = () => {
-    if (get().status !== 'running' || get().status === 'ended' || isHidden()) return
+    if (get().status === 'ended' || isHidden() || get().activeTransitionId != null) return
     const p = armPrepared(prepareTransition())
     prepared = p
     arriveFired = false
     tauStartedAt = now()
-    set({ transition: { fromStep: p.fromStep, tau: 0 } })
+    set({
+      transition: {
+        fromStep: p.fromStep,
+        tau: 0,
+        phase: phaseOf(0),
+        flowByEdge: { ...p.derived.activeByEdge },
+        events: p.derived.events,
+        stateEvents: p.derived.stateEvents,
+      },
+    })
   }
 
   /** run the ladder for the in-flight transition, then FULLY tear down. A
@@ -295,7 +341,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   /** drive the current transition straight to `settle` (Step / fast-forward). */
   const forceSettleCurrent = () => {
     if (get().activeTransitionId == null || !prepared) return
-    set({ transition: { fromStep: prepared.fromStep, tau: 1 } })
+    set((s) => ({ transition: s.transition ? { ...s.transition, tau: 1, phase: 'arrive' as const } : null }))
     settleActive()
   }
 
@@ -319,7 +365,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       if (tau >= BEAT_SETTLE) {
         settleActive() // §PB8.2 — a giant gap settles ONCE here; t+2 begins next tick
       } else {
-        set({ transition: { fromStep: prepared.fromStep, tau } })
+        set((s) => ({ transition: s.transition ? { ...s.transition, tau, phase: phaseOf(tau) } : null }))
       }
     } else if (s.status === 'running') {
       beginTransition()
@@ -363,6 +409,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     prepareTransition,
     armPrepared,
     commitPrepared,
+    advance,
 
     play: () => {
       head()
@@ -376,17 +423,24 @@ export const useSimStore = create<SimStore>((set, get) => {
     },
 
     stepOnce: () => {
-      // §PB3.3 — a Step during an active (scheduler-driven) transition only
-      // settles it (one commit); it does not begin the next step.
+      // §PB3.1 / PB3.3 — the UI Step uses the SAME choreographed one-step path
+      // as Play (prepare → depart → travel → arrive → settle), it just does not
+      // continue to the next transition. Only Play's loop continues.
       if (get().activeTransitionId != null && prepared) {
-        forceSettleCurrent()
+        forceSettleCurrent() // Step during a paused transition ⇒ finish it now
         return
       }
-      // a stray armed id with no scheduler transition behind it (only reachable
-      // by calling armPrepared() directly) — clear it, then step normally.
       if (get().activeTransitionId != null) set({ activeTransitionId: null })
-      if (get().status === 'running') return
-      advance()
+      if (get().status === 'running') return // Step is disabled while Play runs
+      beginTransition()
+      if (typeof requestAnimationFrame === 'undefined' || reducedMotion()) {
+        // no animation clock (SSR / vitest), or reduced motion ⇒ a Step's
+        // one-step choreography settles instantly (§PB9 — no artificial wait).
+        set((s) => ({ transition: s.transition ? { ...s.transition, tau: 1, phase: 'arrive' as const } : null }))
+        settleActive()
+      } else {
+        startLoop()
+      }
     },
 
     reset: () => {

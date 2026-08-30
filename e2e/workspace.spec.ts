@@ -76,8 +76,8 @@ test.describe('Export ▾ — Graph JSON vs Workspace JSON', () => {
     await smallGraph(page)
     await page.evaluate(() => {
       const L = (window as unknown as Bridge).__loop
-      L.sim.getState!().stepOnce()
-      L.sim.getState!().stepOnce()
+      L.sim.getState!().advance()
+      L.sim.getState!().advance()
     })
   })
 
@@ -176,7 +176,7 @@ test.describe('Workspace Import — restore is atomic and always paused', () => 
   test('a workspace saved mid-run imports paused, one rev bump, nothing auto-runs', async ({ page }) => {
     await page.evaluate(() => {
       const L = (window as unknown as Bridge).__loop
-      for (let i = 0; i < 3; i++) L.sim.getState!().stepOnce()
+      for (let i = 0; i < 3; i++) L.sim.getState!().advance()
     })
     await runMc(page, { baseSeed: 1, runs: 20, steps: 3, tracked: [] })
     const file = await page.evaluate(() => {
@@ -281,7 +281,7 @@ test.describe('Workspace Import — restore is atomic and always paused', () => 
   test('a plain Graph import after a Workspace leaves no restored snapshot', async ({ page }) => {
     await page.evaluate(() => {
       const L = (window as unknown as Bridge).__loop
-      for (let i = 0; i < 4; i++) L.sim.getState!().stepOnce()
+      for (let i = 0; i < 4; i++) L.sim.getState!().advance()
     })
     const ws = await page.evaluate(() => {
       const L = (window as unknown as Bridge).__loop

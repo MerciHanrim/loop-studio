@@ -968,6 +968,53 @@ body {
 .flow-trail {
   fill: var(--flow-trail);
 }
+/* docs/simulation-playback.md Slice 2 — the τ-synced choreography token. The
+   <g> transform is set every frame from the store's τ; CSS only handles the
+   per-phase bead scale and the depart / arrive cue rings. No transition on the
+   token transform itself — that would fight τ. */
+.pb-move {
+  pointer-events: none;
+}
+.pb-move--depart .flow-bead {
+  transform: scale(0.45);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.pb-move--arrive .flow-bead {
+  transform: scale(1.2);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pb-move--depart .flow-bead,
+  .pb-move--arrive .flow-bead {
+    transition: transform 90ms ease-out;
+  }
+}
+/* the source / target cue rings — a phase tell that does not depend on the
+   moving dot, so `depart` and `arrive` read at a glance. */
+.pb-cue {
+  fill: none;
+  stroke: var(--flow-strength);
+  stroke-width: 1.5;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pb-cue {
+    animation: pb-cue-ping 260ms ease-out;
+  }
+}
+@keyframes pb-cue-ping {
+  from {
+    opacity: 0.9;
+    r: 3;
+  }
+  to {
+    opacity: 0.35;
+    r: 8;
+  }
+}
 .flow-token__n {
   fill: var(--text-secondary);
   font-size: 9px;
@@ -1337,6 +1384,23 @@ body {
   font-style: normal;
   font-weight: 600;
   color: var(--state-warning);
+}
+/* §PB4.5 — per-transfer breakdown for a selected edge while a transition is
+   in flight; the merged token stays one dot, the causality lives here. */
+.edge-label__breakdown {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 5px;
+}
+.edge-label__bd {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 9px;
+  color: var(--flow-strength);
+  font-variant-numeric: tabular-nums;
+}
+.edge-label__bd--more {
+  color: var(--text-tertiary);
 }
 .edge-label--blocked,
 .edge-label__blocked {

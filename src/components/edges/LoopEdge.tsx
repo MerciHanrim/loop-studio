@@ -14,14 +14,43 @@ import type { StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
-const FAST_MS = 300
 // docs/visual-language.md §VL7.2 — the flow / condition chip is L2-only detail;
 // the edge class (solid vs dashed) and the direction marker are the §VL7.1
 // required set and are never hidden. A selected edge keeps its label at any zoom.
 const LABEL_L2_MIN = 0.8
 
+// docs/simulation-playback.md Slice 2 — the token walks the `travel` beat of the
+// τ axis. The store owns τ (Slice 1); this layer only reads it.
+const PB_TRAVEL_START = 0.15
+const PB_TRAVEL_END = 0.8
+
 const fmtAmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 const fmtSigned = (n: number) => `${n > 0 ? '+' : ''}${fmtAmt(n)}`
+
+// A detached <path> reused to sample any `d` string at a length fraction. Works
+// on a non-mounted element in every SVG-capable browser; `document`-guarded so
+// SSR / jsdom never touch it.
+let _pbPath: SVGPathElement | null = null
+function pointOnPath(d: string, t: number): { x: number; y: number } {
+  if (typeof document === 'undefined') return { x: 0, y: 0 }
+  if (!_pbPath) _pbPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  if (_pbPath.getAttribute('d') !== d) _pbPath.setAttribute('d', d)
+  let len = 0
+  try {
+    len = _pbPath.getTotalLength()
+  } catch {
+    return { x: 0, y: 0 }
+  }
+  const p = _pbPath.getPointAtLength(Math.max(0, Math.min(1, t)) * len)
+  return { x: p.x, y: p.y }
+}
+/** τ → position fraction along the edge: held at the source through `depart`,
+ *  linear across `travel`, held at the target through `arrive` / `settle`. */
+const travelFraction = (tau: number): number => {
+  if (tau <= PB_TRAVEL_START) return 0
+  if (tau >= PB_TRAVEL_END) return 1
+  return (tau - PB_TRAVEL_START) / (PB_TRAVEL_END - PB_TRAVEL_START)
+}
 
 const reducedMotion = () =>
   typeof window !== 'undefined' &&
@@ -63,6 +92,17 @@ function LoopEdge({
   const speedMs = useSimStore((s) => s.speedMs)
   const status = useSimStore((s) => s.status)
   const stateEvent = useSimStore((s) => s.stateEvents.find((e) => e.edgeId === id))
+  // docs/simulation-playback.md Slice 2 — a READ-ONLY consumer of the in-flight
+  // transition. Only an edge that carries flow / a state effect this step
+  // re-renders per τ frame; every other edge's selector returns null both frames
+  // (so selecting a node, panning, etc. never re-render an idle edge's token).
+  const edgeKind = (data as { kind?: unknown } | undefined)?.kind
+  const transition = useSimStore((s) => {
+    const t = s.transition
+    if (!t) return null
+    if (edgeKind === 'state') return t
+    return (t.flowByEdge[id] ?? 0) > 0 ? t : null
+  })
   const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
 
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
@@ -76,11 +116,25 @@ function LoopEdge({
 
   const rm = reducedMotion()
   const running = status === 'running' || status === 'paused'
-  const flowing = amount > 0 && !isState && running
-  const showToken = flowing && !rm
-  const fast = speedMs <= FAST_MS
+  // reduced-motion substitute for a travelling token: a held highlight on the
+  // edge that carried flow this (committed) step — set once the step settles,
+  // stays through Pause, clears on Reset (docs/visual-language.md §VL9). The
+  // choreography scheduler settles a reduced-motion step near-instantly.
+  const rmHeldPulse = rm && !isState && amount > 0 && running
   const dur = Math.min(Math.max(speedMs * 0.7, 150), 680)
   const anim = { dur: `${dur}ms`, repeatCount: 1, fill: 'freeze' as const, path }
+
+  // ── Slice 2 choreography — the token walks the real `d` in step with τ ──
+  // The scheduler owns τ / phase / commit (Slice 1); this layer only reads.
+  const pbPhase = transition && !isState ? transition.phase : null
+  const pbFlow = transition && !isState ? (transition.flowByEdge[id] ?? 0) : 0
+  const pbToken = pbFlow > 0 && !rm && !!pbPhase
+  const pbFrac = transition ? travelFraction(transition.tau) : 0
+  const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
+  const pbEndPt = pbToken ? pointOnPath(path, 1) : null
+  const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
+  const pbBreakdown = pbAll.slice(0, 8)
+  const pbBreakdownRest = pbAll.length - pbBreakdown.length
 
   // ── state-edge feedback (SEMANTICS-S.md §S9 / SEMANTICS-S2.md §S2-9) ──
   // a live step's event drives it; Reset / edit clear `stateEvents` so it goes
@@ -88,8 +142,9 @@ function LoopEdge({
   const sv = isState ? stateVisual(stateEvent) : null
   const activatorOn = sv?.kind === 'activator' ? sv.satisfied : undefined
 
-  // start-of-flow dot only when the edge is selected; never at plain rest
-  const startDot = selected && !isState && !showToken
+  // start-of-flow dot only when the edge is selected and idle; hidden during a
+  // transition so it never doubles up with the token.
+  const startDot = selected && !isState && transition == null
   const sx = sourceX + (targetX - sourceX) * 0.08
   const sy = sourceY + (targetY - sourceY) * 0.08
 
@@ -152,11 +207,6 @@ function LoopEdge({
         </g>
       ) : null}
 
-      {/* reduced motion: no travel — a one-step edge emphasis instead */}
-      {flowing && rm ? (
-        <path key={`p-${id}-${stepIndex}`} className="flow-edge-pulse" d={path} fill="none" />
-      ) : null}
-
       {/* state edge, reduced motion: static one-step highlight for pulse / flash */}
       {sv && (sv.kind === 'trigger' || sv.kind === 'label') && rm ? (
         <path
@@ -196,31 +246,53 @@ function LoopEdge({
         </g>
       ) : null}
 
-      {showToken ? (
-        <g key={`t-${id}-${stepIndex}`} className={`flow-move${fast ? ' flow-move--fast' : ''}`}>
-          {fast ? (
-            <g>
-              <rect className="flow-trail" x="-11" y="-2.5" width="22" height="5" rx="2.5" />
-              <animateMotion {...anim} rotate="auto" />
-            </g>
+      {/* Slice 2 — the τ-synced choreography (Step AND Play take this same
+          path). Every position is a pure function of `transition.tau`, so Pause
+          freezes it, a speed change re-rates it, and a discard removes it — no
+          token-specific state. `data-playback-phase` makes the beat observable. */}
+      {pbToken && pbPt ? (
+        <>
+          {/* depart: a cue at the source; the token sits at the source */}
+          {pbPhase === 'depart' ? (
+            <circle className="pb-cue pb-cue--depart" cx={sourceX} cy={sourceY} r="6" />
           ) : null}
-          <g>
-            {fast ? (
-              <rect className="flow-bead flow-bead--fast" x="-6" y="-2" width="12" height="4" rx="2" />
-            ) : (
-              <circle className="flow-bead" r="3.6" />
-            )}
-            <animateMotion {...anim} rotate="auto" />
-          </g>
-          {amount > 1 ? (
-            <g>
+          {/* arrive: a cue at the target; the token sits at the target */}
+          {pbPhase === 'arrive' && pbEndPt ? (
+            <circle className="pb-cue pb-cue--arrive" cx={pbEndPt.x} cy={pbEndPt.y} r="6" />
+          ) : null}
+          <g
+            className={`pb-move pb-move--${pbPhase}`}
+            data-playback-phase={pbPhase}
+            transform={`translate(${pbPt.x} ${pbPt.y})`}
+          >
+            <circle className="flow-bead" r="3.6" />
+            {pbFlow > 1 ? (
               <text className="flow-token__n" dy="-8">
-                {fmtAmt(amount)}
+                {fmtAmt(pbFlow)}
               </text>
-              <animateMotion {...anim} />
-            </g>
-          ) : null}
-        </g>
+            ) : null}
+          </g>
+        </>
+      ) : null}
+
+      {/* reduced motion: no travel. During a Play transition, a static edge
+          emphasis for THIS step's flow (§PB9 — the "path" cue). It clears on
+          settle and the held post-settle pulse below takes over seamlessly. */}
+      {transition && !isState && pbFlow > 0 && rm ? (
+        <path
+          key={`pbrm-${id}-${transition.fromStep}`}
+          className="flow-edge-pulse"
+          data-playback-phase={pbPhase}
+          d={path}
+          fill="none"
+        />
+      ) : null}
+      {/* reduced motion: the held static substitute for the travelling token —
+          shown once the step has settled, kept through Pause, cleared on Reset
+          (§PB9 / docs/visual-language.md §VL9). A synchronous Step-from-idle
+          under reduced motion settles instantly and lands straight here. */}
+      {rmHeldPulse && transition == null ? (
+        <path key={`p-${id}-${stepIndex}`} className="flow-edge-pulse" d={path} fill="none" />
       ) : null}
 
       {showLabel ? (
@@ -246,6 +318,21 @@ function LoopEdge({
             {sv?.kind === 'trigger' && !sv.applied ? (
               <span className="edge-label__blocked" title="delivered, but the target could not fire (wrong activation, or an activator held it closed)">
                 blocked
+              </span>
+            ) : null}
+            {/* §PB4.5 — the token merges into one dot, but a selected edge shows
+                the per-transfer breakdown (emission order, capped) so causality
+                is not lost. The dot's own label always shows the exact sum. */}
+            {pbAll.length > 1 ? (
+              <span className="edge-label__breakdown" title="this step's transfers along this edge">
+                {pbBreakdown.map((e, i) => (
+                  <span key={i} className="edge-label__bd">
+                    +{fmtAmt(e.amount)}
+                  </span>
+                ))}
+                {pbBreakdownRest > 0 ? (
+                  <span className="edge-label__bd edge-label__bd--more">+{pbBreakdownRest}</span>
+                ) : null}
               </span>
             ) : null}
           </div>

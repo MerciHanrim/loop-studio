@@ -20,7 +20,7 @@ const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 500
 const stepN = (page: Page, n: number) =>
   page.evaluate((k) => {
     const sim = (window as unknown as Bridge).__loop.sim.getState()
-    for (let i = 0; i < k; i++) sim.stepOnce()
+    for (let i = 0; i < k; i++) sim.advance()
   }, n)
 
 const select = (page: Page, nodeId: string) =>
