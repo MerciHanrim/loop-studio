@@ -1,0 +1,23 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    { "id": "src_mint", "type": "source", "position": { "x": 0, "y": 0 }, "data": { "kind": "source", "label": "Mint", "activation": "automatic", "mode": "pushAny" } },
+    { "id": "pool_gold", "type": "pool", "position": { "x": 200, "y": 0 }, "data": { "kind": "pool", "label": "Gold", "activation": "passive", "initial": 100, "capacity": 500, "mode": "pullAny" } },
+    { "id": "pool_bank", "type": "pool", "position": { "x": 400, "y": 120 }, "data": { "kind": "pool", "label": "Bank", "activation": "passive", "initial": 0, "capacity": null, "mode": "pullAny" } },
+    { "id": "gate_split", "type": "gate", "position": { "x": 400, "y": -120 }, "data": { "kind": "gate", "label": "Split", "activation": "automatic", "distribution": "deterministic", "mode": "pullAny" } },
+    { "id": "conv_forge", "type": "converter", "position": { "x": 600, "y": -120 }, "data": { "kind": "converter", "label": "Forge", "activation": "automatic", "mode": "pullAny" } },
+    { "id": "drain_tax", "type": "drain", "position": { "x": 800, "y": -120 }, "data": { "kind": "drain", "label": "Tax", "activation": "automatic", "mode": "pullAny" } },
+    { "id": "end_win", "type": "end", "position": { "x": 600, "y": 120 }, "data": { "kind": "end", "label": "Win", "activation": "automatic" } }
+  ],
+  "edges": [
+    { "id": "e_bank_state", "type": "loop", "source": "pool_bank", "target": "end_win", "sourceHandle": "state-source", "targetHandle": "state-target", "data": { "kind": "state", "mode": "activator", "expr": ">= 200", "delay": 0 } },
+    { "id": "e_forge_tax", "type": "loop", "source": "conv_forge", "target": "drain_tax", "sourceHandle": "out", "targetHandle": "in", "data": { "kind": "resource", "flow": "1" } },
+    { "id": "e_gate_bank", "type": "loop", "source": "gate_split", "target": "pool_bank", "sourceHandle": "out", "targetHandle": "in", "data": { "kind": "resource", "flow": "all" } },
+    { "id": "e_gate_forge", "type": "loop", "source": "gate_split", "target": "conv_forge", "sourceHandle": "out", "targetHandle": "in", "data": { "kind": "resource", "flow": "2" } },
+    { "id": "e_gold_gate", "type": "loop", "source": "pool_gold", "target": "gate_split", "sourceHandle": "out", "targetHandle": "in", "data": { "kind": "resource", "flow": "1-3" } },
+    { "id": "e_gold_state", "type": "loop", "source": "pool_gold", "target": "src_mint", "sourceHandle": "state-source", "targetHandle": "state-target", "data": { "kind": "state", "mode": "trigger", "expr": "", "delay": 2 } },
+    { "id": "e_mint_gold", "type": "loop", "source": "src_mint", "target": "pool_gold", "sourceHandle": "out", "targetHandle": "in", "data": { "kind": "resource", "flow": "5" } }
+  ],
+  "recommendedRunConfig": { "baseSeed": 42, "runs": 100, "steps": 50, "tracked": ["pool_gold", "pool_bank"] }
+}

@@ -119,7 +119,7 @@ classification, or apply decision depends on them.
 | `src/components/` | Toolbar, canvas, inspector, custom node & edge views, Monte-Carlo dialog + charts |
 | `src/engine/` | Simulation engine — deterministic step, RNG, Monte Carlo, state connections |
 | `e2e/` | Playwright specs (app, portable `file://`, production build, PWA service worker, mobile view/run) |
-| `examples/` | Importable graphs — `risky-factory.json`, Engine-B / State verification fixtures, and the [`loop-revision/1` fixture](examples/revision/README.md) (base revision + clean / structural proposals + an apply oracle) |
+| `examples/` | Importable graphs — `risky-factory.json`, Engine-B / State verification fixtures, the [`loop-revision/1` fixture](examples/revision/README.md) (base revision + clean / structural proposals + an apply oracle), and `revision-v2/` (the `loop-revision/2` golden vector — `G0` v1 graph, `G1` = `G0` + a model layer, `oracle.json`) |
 
 ## Roadmap
 
