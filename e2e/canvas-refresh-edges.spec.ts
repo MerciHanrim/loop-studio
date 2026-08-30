@@ -18,7 +18,9 @@ const GRAPH = JSON.stringify({
     { id: 'r1', type: 'loop', source: 'src', target: 'a', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '2' } },
     { id: 'r2', type: 'loop', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
     { id: 'r3', type: 'loop', source: 'b', target: 'sink', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
-    { id: 's1', type: 'loop', source: 'b', target: 'src', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 0 } },
+    // src is an automatic source — it fires every step, so this trigger reliably
+    // delivers a state effect on the following step
+    { id: 's1', type: 'loop', source: 'src', target: 'b', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 0 } },
   ],
 })
 
@@ -100,29 +102,126 @@ test.describe('Canvas Refresh PR 2 — flow bead reacts ONLY to real engine even
   })
 })
 
-test.describe('Canvas Refresh PR 2 — reduced motion', () => {
-  test('no travelling bead; a PERSISTENT static edge highlight carries the same info', async ({ page }) => {
+// every animated group in the edges layer is CONDITIONALLY RENDERED behind `!rm`
+// in LoopEdge (not merely CSS-suppressed) — so under `prefers-reduced-motion:
+// reduce` there is literally no `animateMotion` / travelling element in the DOM
+// to play, freeze, or restart.
+const MOTION =
+  '.react-flow__edges animateMotion, .flow-move, .flow-bead, .flow-trail, .flow-token__n, .state-pulse, .state-flash'
+
+test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', () => {
+  test('a real FlowEvent renders NO moving element — a held static highlight + arrival cue instead', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await load(page)
-    await step(page)
+    await expect(page.locator(MOTION)).toHaveCount(0) // at rest
 
-    await expect(page.locator('.react-flow__edge[data-id="r1"] .flow-move')).toHaveCount(0) // no travel
-    const rm = page.locator('.react-flow__edge[data-id="r1"] .flow-edge-pulse')
-    await expect(rm).toHaveCount(1)
-    // it STAYS (no fade-out) — still one painted element after a beat, even paused
-    await page.waitForTimeout(600)
-    await expect(rm).toHaveCount(1)
-    const held = await rm.evaluate((el) => {
+    await step(page) // src pushes 2 → A  (one real FlowEvent on r1)
+    await expect(page.locator(MOTION)).toHaveCount(0) // NOTHING moves — no bead, no animateMotion
+
+    // the substitute: a persistent highlight on the edge that carried flow…
+    await expect(page.locator('.react-flow__edge[data-id="r1"] .flow-edge-pulse')).toHaveCount(1)
+    // …and the arrival cue on the pool it landed in, HELD (no fade-to-0 keyframe)
+    const arrival = page.locator('.react-flow__node[data-id="a"] .nodef__arrival')
+    await expect(arrival).toHaveCount(1)
+    const held = await arrival.evaluate((el) => {
       const cs = getComputedStyle(el)
-      return { opacity: Number(cs.opacity), stroke: cs.stroke, w: (el as SVGGraphicsElement).getBBox().width }
+      return { anim: cs.animationName, op: Number(cs.opacity) }
     })
-    expect(held.opacity).toBeGreaterThan(0.1) // no fade
-    expect(held.stroke).toMatch(/^rgb/) // resolves to --flow-strength — carries "flow moved here"
-    expect(held.w).toBeGreaterThan(0) // a real path over the edge
+    expect(held.anim === 'none' || held.anim === '').toBe(true) // not animating
+    expect(held.op).toBeGreaterThan(0.1) // and actually visible, not faded away
+
+    // an edge that carried NOTHING this step gets no highlight (nothing inferred)
+    await expect(page.locator('.react-flow__edge[data-id="r2"] .flow-edge-pulse')).toHaveCount(0)
+  })
+
+  test('the cues are HELD through Pause and only clear on Reset', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await load(page)
+    await step(page) // status → paused
+    const pulse = page.locator('.react-flow__edge[data-id="r1"] .flow-edge-pulse')
+    const arrival = page.locator('.react-flow__node[data-id="a"] .nodef__arrival')
+    await expect(pulse).toHaveCount(1)
+    await expect(arrival).toHaveCount(1)
+
+    await page.waitForTimeout(800) // a beat later, still paused — no fade-out
+    await expect(pulse).toHaveCount(1)
+    await expect(arrival).toHaveCount(1)
+    expect(Number(await pulse.evaluate((el) => getComputedStyle(el).opacity))).toBeGreaterThan(0.1)
+    await expect(page.locator(MOTION)).toHaveCount(0) // still nothing moving
 
     await reset(page)
-    await expect(page.locator('.flow-edge-pulse, .state-edge-pulse')).toHaveCount(0)
-    await page.emulateMedia({ reducedMotion: null })
+    await expect(page.locator('.flow-edge-pulse, .state-edge-pulse, .nodef__wave, .nodef__arrival')).toHaveCount(0)
+  })
+
+  test('a state-edge effect under reduce is also static — no pulse travels', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await load(page)
+    for (let i = 0; i < 5; i++) {
+      await step(page)
+      await expect(page.locator(MOTION)).toHaveCount(0) // never, at any step
+    }
+    // s1 (src→b trigger, delay 0) has delivered by now ⇒ its static highlight is
+    // shown and is the ONLY representation (no travelling `.state-pulse`)
+    await expect(page.locator('.react-flow__edge[data-id="s1"] .state-edge-pulse')).toHaveCount(1)
+    await expect(page.locator('.state-pulse, .state-flash')).toHaveCount(0)
+  })
+})
+
+test.describe('Canvas Refresh PR 2 — the bead is one deterministic play per event', () => {
+  test('one bead group per edge per step; every animateMotion is single-shot; label = merged sum', async ({ page }) => {
+    await load(page)
+    // src → A carries flow "2": exactly ONE `.flow-move` group, and the count
+    // label reads the SUMMED amount — simStore folds every FlowEvent for an edge
+    // into one `activeByEdge[id]` (src/store/simStore.ts), so multiple events on
+    // one edge in a step still render as a single merged bead.
+    await step(page)
+    const bead = page.locator('.react-flow__edge[data-id="r1"] .flow-move')
+    await expect(bead).toHaveCount(1)
+    await expect(bead.locator('.flow-token__n')).toHaveText('2')
+
+    const motions = bead.locator('animateMotion')
+    const n = await motions.count()
+    expect(n).toBeGreaterThan(0)
+    for (let i = 0; i < n; i++) {
+      expect(await motions.nth(i).getAttribute('repeatCount')).toBe('1') // single-shot, never "indefinite"
+    }
+
+    // no edge ever shows more than one bead group across a multi-step run
+    for (let i = 0; i < 4; i++) {
+      await step(page)
+      for (const id of ['r1', 'r2', 'r3']) {
+        expect(await page.locator(`.react-flow__edge[data-id="${id}"] .flow-move`).count()).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  test('Pause, a re-render, and a selection change do NOT restart the bead animation', async ({ page }) => {
+    await load(page)
+    await step(page)
+    const bead = page.locator('.react-flow__edge[data-id="r1"] .flow-move')
+    await expect(bead).toHaveCount(1)
+
+    // the group is keyed on `stepIndex` only — a re-render keeps the same DOM
+    // node, so the single-shot (repeatCount 1, fill freeze) is not re-begun. The
+    // observable proof: once it has frozen at the path end, the bead's on-screen
+    // position never changes again (a restart would jump it back down the path).
+    await page.waitForTimeout(700) // let the single-shot finish and freeze
+    const beadDot = page.locator('.react-flow__edge[data-id="r1"] .flow-bead')
+    const p0 = await beadDot.boundingBox()
+    expect(p0).not.toBeNull()
+
+    await page.locator('.react-flow__node[data-id="a"]').click() // selection change ⇒ every edge re-renders
+    await page.locator('.react-flow__node[data-id="b"]').click() // again — different selection
+    await page.locator('.react-flow__pane').click({ position: { x: 8, y: 8 } }) // deselect ⇒ re-render
+
+    await expect(bead).toHaveCount(1) // still one group (no duplicate, no remount)
+    const p1 = await beadDot.boundingBox()
+    await page.waitForTimeout(250)
+    const p2 = await beadDot.boundingBox()
+    expect(Math.round(p1!.x)).toBe(Math.round(p0!.x))
+    expect(Math.round(p1!.y)).toBe(Math.round(p0!.y))
+    expect(Math.round(p2!.x)).toBe(Math.round(p0!.x)) // still frozen a beat later
+    expect(Math.round(p2!.y)).toBe(Math.round(p0!.y))
   })
 })
 

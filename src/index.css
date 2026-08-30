@@ -1241,27 +1241,18 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* §VL9 — same rule as the edge pulse: no travel / no fade-out. The fired ring
+     and the arrival disc are HELD statically for the step so "this node fired /
+     resource landed here" stays readable while paused, then clear on the next
+     step or Reset when firedNodeIds / arrivedPoolIds empty. */
   .nodef__wave {
-    animation: nodeWaveRM 0.4s ease-out forwards;
-  }
-  @keyframes nodeWaveRM {
-    from {
-      opacity: 0.7;
-    }
-    to {
-      opacity: 0;
-    }
+    animation: none;
+    opacity: 0.6;
   }
   .nodef__arrival {
-    animation: nodeArriveRM 0.2s ease-out forwards;
-  }
-  @keyframes nodeArriveRM {
-    from {
-      opacity: 0.5;
-    }
-    to {
-      opacity: 0;
-    }
+    animation: none;
+    opacity: 0.4;
+    transform: scale(0.9);
   }
   .nodef__value--up,
   .nodef__value--down {
