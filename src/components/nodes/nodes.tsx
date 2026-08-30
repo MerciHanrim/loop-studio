@@ -71,6 +71,10 @@ type FrameProps = {
   selected?: boolean
   firing?: boolean
   arriving?: boolean
+  /** §VL3 — the model layer's `invalid` state (a Register the engine can't
+   *  evaluate, or an unreadable model node). A `--warning` dashed outline + a
+   *  top-right `!` flag; carries no value (the caller passes `—`). */
+  invalid?: boolean
   stepKey: number
 }
 
@@ -84,6 +88,7 @@ function NodeFrame({
   selected,
   firing,
   arriving,
+  invalid,
   stepKey,
 }: FrameProps) {
   const compact = useStore((s) => s.transform[2] < COMPACT_ZOOM)
@@ -126,10 +131,29 @@ function NodeFrame({
   const revealed = hovered || focused || isSelected || selected === true || draggingState
   const opIn = revealed ? 1 : stateInWired ? 0.5 : 0
   const opOut = revealed ? 1 : stateOutWired ? 0.5 : 0
+  // §VL3 stacking — every state is its own layer, so a Register that is
+  // selected AND keyboard-focused AND invalid shows all three cues at once:
+  // the outer --warning invalid ring, the solid selection ring, the inset
+  // dashed focus ring, and the corner `!` flag. The accessible name carries
+  // `invalid` too (not colour / shape alone).
+  const aria =
+    `${kind} ${title}` +
+    (invalid ? ', invalid' : '') +
+    (selected ? ', selected' : '') +
+    (focused ? ', focused' : '')
   return (
     <div
       ref={frameRef}
-      className={`nodef nodef--${kind}${selected ? ' is-selected' : ''}${compact ? ' is-compact' : ''}`}
+      role="img"
+      aria-label={aria}
+      className={
+        `nodef nodef--${kind}` +
+        (selected ? ' is-selected' : '') +
+        (focused ? ' is-focused' : '') +
+        (invalid ? ' is-invalid' : '') +
+        (compact ? ' is-compact' : '')
+      }
+      data-invalid={invalid ? '' : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -155,7 +179,13 @@ function NodeFrame({
         {kind === 'end' ? (
           <line className="nodef__endbar" x1="95" y1="15" x2="95" y2="49" />
         ) : null}
+        {/* §VL3 — invalid: a --warning dashed outline (dash pattern is the
+            non-colour tell). Sits under the selection / focus rings. */}
+        {invalid ? <path className="nodef__invalid" d={path} /> : null}
         {selected ? <path className="nodef__sel" d={path} /> : null}
+        {/* §VL3 — keyboard focus: a DASHED ring, inside the (solid) selection
+            ring; dashed-vs-solid is the non-colour tell. */}
+        {focused ? <path className="nodef__focus" d={path} /> : null}
         {firing ? <path key={`w${stepKey}`} className="nodef__wave" d={path} /> : null}
         {arriving ? (
           <circle key={`a${stepKey}`} className="nodef__arrival" cx="60" cy="32" r="15" />
@@ -163,6 +193,13 @@ function NodeFrame({
         {/* low zoom: type colour collapses to one dot inside the silhouette */}
         {compact ? <circle className="nodef__cdot" cx="60" cy="32" r="9" /> : null}
       </svg>
+
+      {/* §VL4 — one persistent flag, top-right, non-colour tell for `invalid` */}
+      {invalid ? (
+        <span className="nodef__flag" aria-hidden="true" title="This node is invalid">
+          !
+        </span>
+      ) : null}
 
       {!compact ? (
         <div className="nodef__body">
@@ -325,8 +362,9 @@ function UnreadableModelNode({
       nodeId={id}
       kind={kind}
       title={`unreadable ${kind}`}
-      sub="⚠ data cannot be read — fix it in the file"
+      sub="data cannot be read — fix it in the file"
       selected={selected}
+      invalid
       stepKey={stepKey}
     />
   )
@@ -370,6 +408,7 @@ function RegisterNode({ id, data, selected }: NodeProps) {
       valueDir={invalid ? null : dir}
       sub={`= ${d.expr}`}
       selected={selected}
+      invalid={invalid}
       stepKey={stepKey}
     />
   )
