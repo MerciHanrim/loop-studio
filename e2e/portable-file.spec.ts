@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
@@ -100,6 +102,18 @@ async function exportWorkspaceText(page: Page): Promise<string> {
 }
 
 test.describe('portable file://', () => {
+  test('the production bundle carries NO dev-only bridges (routeMap test hooks tree-shaken)', () => {
+    // docs/edge-routing.md — `__loop.routeMap` (genCount / reset / get) exists
+    // only behind `if (import.meta.env.DEV)`; a plain production build must not
+    // ship the route-cache test hooks, so nothing external can force a
+    // recompute. The whole `window.__loop` absence is already asserted at boot
+    // in openPortable(); this pins the tree-shake at the byte level.
+    const html = readFileSync(resolve('dist-portable/loop-studio.html'), 'utf8')
+    for (const marker of ['__routeGenCount', '__resetRouteCache', '__loop.routeMap', 'routeMap:{genCount']) {
+      expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)
+    }
+  })
+
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
     test.setTimeout(60_000)
     await openPortable(page)

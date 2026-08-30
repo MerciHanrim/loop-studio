@@ -133,6 +133,25 @@ function LoopEdge({
         }}
       />
 
+      {/* docs/edge-routing.md §ER4 — a route point inside a node. The dashed
+          `--warning` stroke is the colour tell; this `!` badge at the route
+          midpoint is the NON-colour tell (a glyph, present-or-absent — survives
+          `forced-colors` / greyscale and never collides with a dashed state
+          edge), and it carries the accessible name. */}
+      {route?.invalidWaypoint ? (
+        <g
+          className="route-invalid-flag"
+          transform={`translate(${labelX}, ${labelY})`}
+          role="img"
+          aria-label="invalid route — a route point is inside a node"
+        >
+          <circle r="7.5" />
+          <text textAnchor="middle" dominantBaseline="central" dy="0.5">
+            !
+          </text>
+        </g>
+      ) : null}
+
       {/* reduced motion: no travel — a one-step edge emphasis instead */}
       {flowing && rm ? (
         <path key={`p-${id}-${stepIndex}`} className="flow-edge-pulse" d={path} fill="none" />

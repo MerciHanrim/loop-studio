@@ -372,6 +372,58 @@ test.describe('edge routing — Slice 1', () => {
     expect(cue.waypoints).toEqual([{ x: 300, y: 12 }]) // not consumed / not moved
   })
 
+  test('the invalid-route cue is distinguishable WITHOUT colour, on resource AND state edges, under forced-colors', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    // p1 → p2 resource (bad waypoint), p2 → p3 state (bad waypoint), p1 → p3
+    // resource with NO waypoint = the "normal" control edge. `box` swallows the
+    // shared waypoint coordinate for both bad edges.
+    const g = {
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [
+        { id: 'p1', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'P1', activation: 'automatic', initial: 5, capacity: null, mode: 'pushAny' } },
+        { id: 'p2', type: 'pool', position: { x: 460, y: 0 }, data: { kind: 'pool', label: 'P2', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'p3', type: 'pool', position: { x: 460, y: 260 }, data: { kind: 'pool', label: 'P3', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'box', type: 'pool', position: { x: 200, y: -30 }, data: { kind: 'pool', label: 'Box', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+      ],
+      edges: [
+        { id: 'e_res', type: 'loop', source: 'p1', target: 'p2', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', route: 'orthogonal', waypoints: [{ x: 240, y: 10 }] } },
+        { id: 'e_state', type: 'loop', source: 'p2', target: 'p3', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '@p1 > 0', route: 'orthogonal', waypoints: [{ x: 240, y: 10 }] } },
+        { id: 'e_ok', type: 'loop', source: 'p1', target: 'p3', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', route: 'orthogonal' } },
+      ],
+    }
+    await page.emulateMedia({ forcedColors: 'active' })
+    await importGraph(page, JSON.stringify(g))
+    await expect(page.locator('.react-flow__edge[data-id="e_res"] path.route-invalid')).toHaveCount(1)
+    await settle(page)
+
+    const read = () =>
+      page.evaluate(() => {
+        const flag = (id: string) => {
+          const el = document.querySelector(`.react-flow__edge[data-id="${id}"] g.route-invalid-flag`) as SVGGElement | null
+          if (!el) return null
+          const text = el.querySelector('text')?.textContent ?? ''
+          const box = el.querySelector('circle') != null
+          return { name: el.getAttribute('aria-label') ?? '', role: el.getAttribute('role') ?? '', text, box }
+        }
+        return { res: flag('e_res'), state: flag('e_state'), ok: flag('e_ok') }
+      })
+    const r = await read()
+
+    // both bad edges carry the glyph badge + an accessible name; the good one does not
+    for (const bad of [r.res, r.state]) {
+      expect(bad).not.toBeNull()
+      expect(bad!.text).toBe('!') // a SHAPE, not a colour
+      expect(bad!.box).toBe(true)
+      expect(bad!.role).toBe('img')
+      expect(bad!.name.toLowerCase()).toContain('invalid route')
+    }
+    expect(r.ok).toBeNull() // a valid orthogonal edge has no badge
+
+    await page.emulateMedia({ forcedColors: 'none' })
+  })
+
   test('every path consumer reads the same d; reduced-motion leaves only a static cue', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
