@@ -1,4 +1,5 @@
 import { defaultData } from './factory'
+import { readParameterData, readRegisterData } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
 
 export const STORAGE_KEY = 'loop-studio:graph:v1'
@@ -37,13 +38,27 @@ export type GraphDoc = {
   project?: unknown
 }
 
-const KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
+const FLOW_KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
 
 /** Fill in fields an older or hand-made file may be missing (e.g. `activation`
- *  before it became `automatic` by default) without overriding saved values. */
+ *  before it became `automatic` by default) without overriding saved values.
+ *  For `parameter` / `register` (loop-model/1) the normalised `data` is the
+ *  defensive reader's output (§M1.2 / §M2 — defaults filled, incoherent hints
+ *  dropped). A model node whose shape cannot be seated (§R2-1.1) is left
+ *  **exactly as authored**: the graph still loads, and the downstream
+ *  `readRevisionSide` / canonical projection reject the `project` payload
+ *  rather than silently repairing it. */
 function normalizeNode(n: LoopNode): LoopNode {
   const kind = (n.data?.kind ?? (n.type as NodeKind | undefined)) as NodeKind | undefined
-  if (!kind || !KINDS.includes(kind)) return n
+  if (!kind) return n
+
+  if (kind === 'parameter' || kind === 'register') {
+    const read = kind === 'parameter' ? readParameterData(n.data) : readRegisterData(n.data)
+    if (!read.ok) return n
+    return { ...n, type: n.type ?? kind, data: { ...read.data } as LoopNode['data'] }
+  }
+
+  if (!FLOW_KINDS.includes(kind)) return n
   return {
     ...n,
     type: n.type ?? kind,

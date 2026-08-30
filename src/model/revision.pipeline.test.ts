@@ -116,17 +116,18 @@ describe('§R2-5 pipeline — G1 through the real integration path, and its curr
     if (r.ok) expect(digestOfCanonical(r.content)).toBe(directDigest)
   })
 
-  it('LIMITATION: normalizeGraph does NOT default-fill or normalise a model node (NodeKind not widened)', () => {
-    // a parameter node with NO value and a bad unit: normalizeGraph passes it
-    // through untouched; the model defensive read is what fills / drops fields.
-    const raw = node('pm', { kind: 'parameter', label: 'x' }) // no `value`
+  it('normalizeGraph now default-fills / normalises a model node (limitation closed by the editor-wiring slice)', () => {
+    // a parameter node with NO value and an incoherent range: normalizeNode
+    // runs the loop-model/1 defensive read and folds its result into a new
+    // object — `value` filled to 0, the bad min/max pair dropped.
+    const raw = node('pm', { kind: 'parameter', label: 'x', min: 10, max: 1 })
     const round = deserialize(serialize([raw], []))
-    // normalizeNode left it exactly as authored — no `value: 0` injected here
-    expect((round.nodes[0].data as Record<string, unknown>).value).toBeUndefined()
-    // the projection (step 4) is where the default is applied
+    const d = round.nodes[0].data as Record<string, unknown>
+    expect(d.value).toBe(0)
+    expect(d.min).toBeUndefined()
+    expect(d.max).toBeUndefined()
+    // the projection agrees
     const projected = canonicalContent({ nodes: round.nodes, edges: [] }, { modelLayer: true })
     expect(projected.nodes[0].data).toEqual({ kind: 'parameter', label: 'x', value: 0 })
-    // …and this is the documented boundary: model-node normalisation moves into
-    // normalizeNode at the editor-wiring slice, when NodeKind is widened.
   })
 })

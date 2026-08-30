@@ -10,7 +10,12 @@ import type { Edge, Node } from '@xyflow/react'
  * are documented in SEMANTICS.md — this file is only the shape of the data.
  */
 
-export type NodeKind = 'pool' | 'source' | 'drain' | 'gate' | 'converter' | 'end'
+/** The six flow kinds the engine executes. */
+export type FlowNodeKind = 'pool' | 'source' | 'drain' | 'gate' | 'converter' | 'end'
+/** loop-model/1 (SEMANTICS-M.md) — annotation kinds: no ports, no engine
+ *  phase, referenced only from expressions. */
+export type ModelNodeKind = 'parameter' | 'register'
+export type NodeKind = FlowNodeKind | ModelNodeKind
 
 /** When a node fires during a simulation step. */
 export type Activation = 'passive' | 'automatic' | 'onStart' | 'interactive'
@@ -30,6 +35,8 @@ export type PoolData = {
   /** Upper bound on stored resources; null means unbounded. */
   capacity: number | null
   mode: ResourceMode
+  /** loop-model/1 §M4 — advisory resource-type tag; changes no number. */
+  resourceType?: string
 }
 
 export type SourceData = {
@@ -70,13 +77,36 @@ export type EndData = {
   mode?: PullMode
 }
 
-export type NodeData =
-  | PoolData
-  | SourceData
-  | DrainData
-  | GateData
-  | ConverterData
-  | EndData
+export type RegisterFormat = 'int' | 'float' | 'percent'
+
+/** loop-model/1 §M1 — a fixed, user-tuned numeric input. `value` is the only
+ *  semantic field; `min` / `max` / `step` / `unit` are advisory hints. Never
+ *  `invalid`. Has no ports; referenced only from expressions. */
+export type ParameterData = {
+  kind: 'parameter'
+  label: string
+  value: number
+  min?: number
+  max?: number
+  step?: number
+  unit?: string
+}
+
+/** loop-model/1 §M2 — a derived readout: `expr` is a `loop-expr/1` string in
+ *  §X8 canonical form (default `"0"`); the Register stores no value. `unit` /
+ *  `format` are advisory display hints. Has no ports. */
+export type RegisterData = {
+  kind: 'register'
+  label: string
+  expr: string
+  unit?: string
+  format?: RegisterFormat
+}
+
+export type FlowNodeData = PoolData | SourceData | DrainData | GateData | ConverterData | EndData
+export type ModelNodeData = ParameterData | RegisterData
+
+export type NodeData = FlowNodeData | ModelNodeData
 
 /** How a state connection acts on its target. */
 export type StateMode = 'label' | 'node' | 'trigger' | 'activator'
@@ -85,6 +115,8 @@ export type ResourceEdgeData = {
   kind: 'resource'
   /** Flow expression: "1", "all", "2D6", "1-3", "25%", ... (parsed by the engine). */
   flow: string
+  /** loop-model/1 §M4 — advisory resource-type tag; changes no number. */
+  resourceType?: string
 }
 
 export type StateEdgeData = {

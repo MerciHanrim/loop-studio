@@ -24,6 +24,8 @@ const PALETTE: { kind: NodeKind; label: string; glyph: string }[] = [
   { kind: 'gate', label: 'Gate', glyph: '◇' },
   { kind: 'converter', label: 'Converter', glyph: '⇄' },
   { kind: 'end', label: 'End', glyph: '⊗' },
+  { kind: 'parameter', label: 'Parameter', glyph: '▭' },
+  { kind: 'register', label: 'Register', glyph: '＝' },
 ]
 
 export function Toolbar() {
@@ -69,6 +71,7 @@ export function Toolbar() {
           if (r.outcome.canvas) setViewport(r.outcome.canvas, { duration: 0 })
           const warnings = [
             ...(r.kind === 'project-dropped' ? [r.warning] : []),
+            ...('structuralWarning' in r && r.structuralWarning ? [r.structuralWarning] : []),
             ...r.outcome.warnings,
           ]
           if (warnings.length) window.alert(warnings.join('\n'))

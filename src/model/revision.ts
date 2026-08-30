@@ -14,7 +14,7 @@ import {
 } from './model'
 import { normalizeGraph } from './serialize'
 import type { RecommendedRunConfig } from './serialize'
-import type { LoopEdge, LoopNode, NodeKind } from './types'
+import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
 // ── constants & formats (§R11) ──────────────────────────────────────────────
@@ -160,7 +160,7 @@ function numOrThrow(n: number, where: string): number {
  *  `resourceType` to `pool` — emitted **only** when the normalised value is
  *  non-empty, so a graph with no resource types projects byte-identically to
  *  `loop-revision/1` (R2-INV-2). */
-const NODE_FIELDS: Record<NodeKind, readonly string[]> = {
+const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
   pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType'],
   source: ['kind', 'label', 'activation', 'mode'],
   drain: ['kind', 'label', 'activation', 'mode'],
@@ -183,6 +183,9 @@ const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
 }
 
 const MODEL_NODE_KINDS = new Set(['parameter', 'register'])
+/** every recognised node `data.kind` (flow + model). */
+const NODE_KINDS = new Set(['pool', 'source', 'drain', 'gate', 'converter', 'end', 'parameter', 'register'])
+const MODEL_KINDS = MODEL_NODE_KINDS
 
 /**
  * `SEMANTICS-R2.md` §R2-1 — the purely-syntactic v1/v2 content predicate, run
@@ -252,7 +255,7 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
     return { id: n.id, position, data }
   }
 
-  const fields = NODE_FIELDS[kind as NodeKind]
+  const fields = NODE_FIELDS[kind as FlowNodeKind]
   const src = normNodeData(n)
   const data: Record<string, unknown> = {}
   for (const f of fields) {
@@ -429,6 +432,9 @@ export function readRevisionSide(
   const g = normalizeGraph({ nodes: graph.nodes, edges: graph.edges })
   for (const n of g.nodes) {
     const k = (n.data as { kind?: unknown } | undefined)?.kind
+    if (typeof k !== 'string' || !NODE_KINDS.has(k)) {
+      return { ok: false, stage: 'defensive-read', detail: `node ${n.id}: unreadable data (kind "${String(k)}")` }
+    }
     if (k === 'parameter' || k === 'register') {
       const read = k === 'parameter'
         ? readParameterData(n.data as unknown)
@@ -964,7 +970,27 @@ export function buildSelectiveApply(input: {
 
 // ── §2 — validate the WHOLE result before it can be applied ────────────────
 
-const NODE_KINDS = new Set(['pool', 'source', 'drain', 'gate', 'converter', 'end'])
+/**
+ * `SEMANTICS-M.md §M1.3` / §M2 — a `parameter` / `register` node has **no
+ * ports**, so **no edge** may name it as `source` or `target`. This is the ONE
+ * rule shared by import isolation, whole Apply, and selective Apply (a
+ * hand-authored / malformed file can carry such an edge; the engine also
+ * ignores it, and the loader isolates it with a warning). Deterministic,
+ * id-sorted; empty ⇒ clean.
+ */
+export function graphStructureIssues(nodes: LoopNode[], edges: LoopEdge[]): string[] {
+  const kindOf = new Map<string, unknown>(nodes.map((n) => [n.id, (n.data as { kind?: unknown } | undefined)?.kind]))
+  const out: string[] = []
+  for (const e of [...edges].sort(byId)) {
+    for (const [end, id] of [['source', e.source], ['target', e.target]] as const) {
+      const k = kindOf.get(id)
+      if (typeof k === 'string' && MODEL_KINDS.has(k)) {
+        out.push(`Edge ${e.id}: its ${end} "${id}" is a ${k}, which has no ports and cannot be connected.`)
+      }
+    }
+  }
+  return out
+}
 
 export type ResultValidation = { ok: true } | { ok: false; reasons: string[] }
 
@@ -1006,7 +1032,9 @@ export function validateResultGraph(
     }
   }
 
-  // 3. edges — endpoints exist, kind, and handle compatibility
+  // 3. edges — endpoints exist, kind, and handle compatibility, plus the shared
+  //    "no port on a model node" rule (import / whole Apply / selective Apply
+  //    all use `graphStructureIssues` for that part).
   const seenEdge = new Set<string>()
   for (const e of edges) {
     if (seenEdge.has(e.id)) reasons.push(`Edge ${e.id}: duplicate id.`)
@@ -1024,6 +1052,7 @@ export function validateResultGraph(
       reasons.push(`Edge ${e.id}: unknown kind "${String(ek)}".`)
     }
   }
+  reasons.push(...graphStructureIssues(nodes, edges))
 
   // 4. recommendedRunConfig.tracked must reference real pools (revision content
   //    never carries rrc today, but guard it anyway)

@@ -7,6 +7,7 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
+import { readParameterData, readRegisterData } from '../../model/model'
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import type {
@@ -30,6 +31,11 @@ const SILHOUETTE: Record<NodeKind, string> = {
   converter:
     'M14 8 H106 Q112 8 112 14 L82 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L38 32 L8 14 Q8 8 14 8 Z',
   end: 'M28 8 H92 Q112 8 112 32 Q112 56 92 56 H28 Q8 56 8 32 Q8 8 28 8 Z',
+  // loop-model/1 — docs/visual-language.md §VL2.1. `parameter`: a rounded tag
+  // with a notched left edge + a short stub. `register`: a plain lozenge (its
+  // leading `=` glyph is drawn separately in the node body, not the outline).
+  parameter: 'M40 12 H100 Q108 12 108 20 V44 Q108 52 100 52 H40 L28 40 H18 V24 H28 L40 12 Z',
+  register: 'M30 12 H98 Q116 12 116 32 Q116 52 98 52 H30 Q14 52 14 32 Q14 12 30 12 Z',
 }
 
 const COMPACT_ZOOM = 0.6
@@ -298,6 +304,70 @@ function EndNode({ id, data, selected }: NodeProps) {
   )
 }
 
+// ── loop-model/1 annotation nodes — no ports, never fire ─────────────────
+
+/** Shown when a `parameter` / `register` node's `data` cannot be read
+ *  (`SEMANTICS-R2.md §R2-1.1`). Never displays a stand-in value — no `0`, no
+ *  `"0"` — just the silhouette + an explicit "unreadable" cue. */
+function UnreadableModelNode({
+  id,
+  kind,
+  selected,
+}: {
+  id: string
+  kind: 'parameter' | 'register'
+  selected?: boolean
+}) {
+  const stepKey = useSimStore((s) => s.stepIndex)
+  return (
+    <NodeFrame
+      nodeId={id}
+      kind={kind}
+      title={`unreadable ${kind}`}
+      sub="⚠ data cannot be read — fix it in the file"
+      selected={selected}
+      stepKey={stepKey}
+    />
+  )
+}
+
+function ParameterNode({ id, data, selected }: NodeProps) {
+  const read = readParameterData(data)
+  const stepKey = useSimStore((s) => s.stepIndex)
+  if (!read.ok) return <UnreadableModelNode id={id} kind="parameter" selected={selected} />
+  const d = read.data
+  return (
+    <NodeFrame
+      nodeId={id}
+      kind="parameter"
+      title={d.label || 'Parameter'}
+      value={fmt(d.value)}
+      sub={d.unit || undefined}
+      selected={selected}
+      stepKey={stepKey}
+    />
+  )
+}
+
+function RegisterNode({ id, data, selected }: NodeProps) {
+  const read = readRegisterData(data)
+  const stepKey = useSimStore((s) => s.stepIndex)
+  if (!read.ok) return <UnreadableModelNode id={id} kind="register" selected={selected} />
+  const d = read.data
+  return (
+    <NodeFrame
+      nodeId={id}
+      kind="register"
+      title={d.label || 'Register'}
+      // the expression itself — NOT a computed value (that arrives with the
+      // Register-observation slice). No number is shown until then.
+      sub={`= ${d.expr}`}
+      selected={selected}
+      stepKey={stepKey}
+    />
+  )
+}
+
 export const nodeTypes: NodeTypes = {
   pool: PoolNode,
   source: SourceNode,
@@ -305,4 +375,6 @@ export const nodeTypes: NodeTypes = {
   gate: GateNode,
   converter: ConverterNode,
   end: EndNode,
+  parameter: ParameterNode,
+  register: RegisterNode,
 }
