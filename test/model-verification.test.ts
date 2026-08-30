@@ -3,9 +3,22 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { initSim, step } from '../src/engine/step'
 import { canonicaliseExpr } from '../src/model/expr'
-import { initialPoolValues, registersOfSnapshot, resourceTypeMismatches } from '../src/model/model'
-import { canonicalContent, computeRevisionDiff, digestOfCanonical } from '../src/model/revision'
+import {
+  initialPoolValues,
+  readParameterData,
+  readRegisterData,
+  registersOfSnapshot,
+  resourceTypeMismatches,
+} from '../src/model/model'
+import {
+  canonicalContent,
+  computeRevisionDiff,
+  digestOfCanonical,
+  graphStructureIssues,
+  readRevisionSide,
+} from '../src/model/revision'
 import { normalizeGraph, serialize } from '../src/model/serialize'
+import { buildWorkspacePayload, readWorkspace, WORKSPACE_SCHEMA, WORKSPACE_VERSION } from '../src/model/workspace'
 import type { LoopEdge, LoopNode } from '../src/model/types'
 import {
   buildModelAdvisoryVariant,
@@ -54,6 +67,124 @@ function rtSeries(nodes: LoopNode[], edges: LoopEdge[]): { pools: Record<string,
   return { pools, regs }
 }
 
+/** R(t) for a given S(t), in the oracle's { id: number | {invalid} } shape */
+function regRowFrom(nodes: LoopNode[], values: Record<string, number>): Record<string, number | { invalid: string }> {
+  const outcomes = registersOfSnapshot(nodes, values)
+  const out: Record<string, number | { invalid: string }> = {}
+  for (const n of nodes) {
+    if (n.data.kind !== 'register') continue
+    const o = outcomes.get(n.id)
+    out[n.id] = !o ? { invalid: 'MISSING' } : o.invalid ? { invalid: o.code } : round(o.value)
+  }
+  return out
+}
+
+/**
+ * loop-workspace/1 stays v1 for the model layer (no loop-workspace/2). Prove it
+ * with a real round-trip: step the engine, Export a Workspace, and assert the
+ * saved SimState carries pools + step but NOTHING about Registers — no value,
+ * no error, no Register series — then re-Import and recompute R(t) from the
+ * GraphDoc + the restored S(t). The recomputed values must equal what they were
+ * at Export time (§M-INV-2 · SEMANTICS-W.md §W2).
+ */
+function workspaceRoundTrip(nodes: LoopNode[], edges: LoopEdge[]) {
+  const AT = 3
+  let st = initSim(nodes)
+  for (let t = 1; t <= AT; t++) st = step(nodes, edges, st, 1).state
+  const beforeExport = regRowFrom(nodes, st.values)
+
+  const payload = buildWorkspacePayload({
+    mc: { config: { baseSeed: 1, runs: 10, steps: 10, tracked: [] }, stale: false },
+    view: { timeline: 'live', distributionPoolId: null, showMean: false },
+    canvas: { x: 0, y: 0, zoom: 1 },
+    simulation: {
+      seed: 1,
+      step: st.step,
+      ended: false,
+      values: st.values,
+      fired: st.fired ?? [],
+      triggerQueue: st.triggerQueue ?? [],
+      stateEvents: [],
+      series: [
+        { step: 0, values: pickPools(nodes, initialPoolValues(nodes)) },
+        { step: st.step, values: pickPools(nodes, st.values) },
+      ],
+    },
+  })
+  const file = JSON.parse(serialize(nodes, edges, undefined, payload)) as { workspace: any }
+  const { restored } = readWorkspace(file.workspace, { nodes, edges }, 'x')
+  const restoredSim = restored!.simulation!
+  const afterImport = regRowFrom(nodes, restoredSim.values)
+
+  const regIds = new Set(nodes.filter((n) => n.data.kind === 'register').map((n) => n.id))
+  return {
+    wireSchema: file.workspace.schema,
+    wireVersion: file.workspace.version,
+    simulationKeys: Object.keys(file.workspace.simulation).sort(),
+    // no Register id appears anywhere in the saved SimState (values or series)
+    savedStateMentionsARegister:
+      Object.keys(file.workspace.simulation.values).some((k) => regIds.has(k)) ||
+      file.workspace.simulation.series.some((f: { values: Record<string, number> }) =>
+        Object.keys(f.values).some((k) => regIds.has(k)),
+      ),
+    restoredStep: restoredSim.step,
+    restoredPoolValues: pickPools(nodes, restoredSim.values),
+    exportStep: AT,
+    // recompute R(t) from GraphDoc + restored S(t): identical to Export time
+    registersRecomputedEqualExport: JSON.stringify(afterImport) === JSON.stringify(beforeExport),
+    registersRecomputed: afterImport,
+  }
+}
+
+const pickPools = (nodes: LoopNode[], v: Record<string, number>): Record<string, number> =>
+  Object.fromEntries(
+    nodes.filter((n) => n.data.kind === 'pool').map((n) => [n.id, round(v[n.id] ?? 0)]),
+  )
+
+/**
+ * Malformed model payloads — the pure side of the closeout acceptance. The
+ * defensive readers refuse a bad value (no `0` / `"0"` stand-in), and an
+ * unseatable model node fails `readRevisionSide` at the §R2-1.1 structural gate
+ * (stage 'defensive-read') — so a project file with one drops to graph-only,
+ * never Review / Apply. The *UI* side of the same guarantees (graph opens,
+ * Canvas / Inspector never crash, `unreadable` fallback shown, `project` header
+ * dropped) is `e2e/model-nodes.spec.ts`.
+ */
+function malformedAcceptance() {
+  const n = (id: string, type: string, data: unknown): LoopNode =>
+    ({ id, type, position: { x: 0, y: 0 }, data } as LoopNode)
+  const pool = n('p1', 'pool', { kind: 'pool', label: 'P', activation: 'passive', initial: 5, capacity: null, mode: 'pullAny' })
+
+  const paramStr = readParameterData({ kind: 'parameter', label: 'x', value: 'lots' })
+  const paramInf = readParameterData({ kind: 'parameter', label: 'x', value: Number.POSITIVE_INFINITY })
+  const regNum = readRegisterData({ kind: 'register', label: 'x', expr: 42 })
+  const regNoParse = readRegisterData({ kind: 'register', label: 'x', expr: 'min(@a,@b)' })
+  const dataNotObject = readParameterData('nope')
+
+  // an unseatable register (expr is a number) — the §R2-1.1 gate
+  const side = readRevisionSide({ nodes: [pool, n('m1', 'register', { kind: 'register', label: 'x', expr: 42 })], edges: [] })
+
+  // a resource edge onto a model node — structural, refused before a run
+  const edgeToModel = graphStructureIssues(
+    [pool, n('r1', 'register', { kind: 'register', label: 'r', expr: '1' })],
+    [{ id: 'e', source: 'p1', target: 'r1', type: 'loop', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } } as LoopEdge],
+  )
+
+  return {
+    parameterStringValueRejected: !paramStr.ok,
+    parameterInfinityRejected: !paramInf.ok,
+    registerNonStringExprRejected: !regNum.ok,
+    registerUnparseableExprRejected: !regNoParse.ok,
+    dataNotAnObjectRejected: !dataNotObject.ok,
+    // no reader ever returns a 0 / "0" stand-in for a bad value
+    noZeroStandIn: [paramStr, paramInf, regNum, regNoParse, dataNotObject].every(
+      (r) => r.ok || !JSON.stringify(r).match(/"(value|expr)":\s*("0"|0)\b/),
+    ),
+    unseatableModelNodeFailsStructuralGate: !side.ok && side.stage === 'defensive-read',
+    edgeToModelNodeRefused: edgeToModel.length > 0,
+  }
+}
+
 function derive() {
   const built = buildModelVerification()
   const norm = normalizeGraph(built)
@@ -100,6 +231,8 @@ function derive() {
     pools: trace.pools,
     registers: trace.regs,
     resourceMismatches: mismatches,
+    workspaceRoundTrip: workspaceRoundTrip(norm.nodes, norm.edges),
+    malformedAcceptance: malformedAcceptance(),
     revision2: {
       v2Digest,
       conservativeExtension: v1UnderV2 === v1UnderV1,
@@ -172,6 +305,35 @@ describe('model-language verification fixture', () => {
     expect(derived.resourceMismatches).toEqual([
       { edgeId: 'e_gold_sink', endpoint: 'source', nodeId: 'gold', edgeType: 'Mana', nodeType: 'Gold' },
     ])
+  })
+
+  it('malformed model payloads: the defensive readers refuse bad values (no 0 stand-in) and an unseatable node fails the structural gate', () => {
+    // UI-level acceptance (graph opens, no crash, `unreadable` fallback, project
+    // header dropped) is e2e/model-nodes.spec.ts — this pins the pure side.
+    expect(derived.malformedAcceptance).toEqual({
+      parameterStringValueRejected: true,
+      parameterInfinityRejected: true,
+      registerNonStringExprRejected: true,
+      registerUnparseableExprRejected: true,
+      dataNotAnObjectRejected: true,
+      noZeroStandIn: true,
+      unseatableModelNodeFailsStructuralGate: true,
+      edgeToModelNodeRefused: true,
+    })
+  })
+
+  it('loop-workspace/1 v1 round-trip: the Workspace saves pools + step, never a Register, and R(t) recomputes to the pre-Export values', () => {
+    const w = derived.workspaceRoundTrip
+    expect(w.wireSchema).toBe(WORKSPACE_SCHEMA) // stays 'loop-workspace/1'
+    expect(w.wireVersion).toBe(WORKSPACE_VERSION) // 1 — no loop-workspace/2
+    expect(w.simulationKeys).toEqual(['ended', 'fired', 'seed', 'series', 'stateEvents', 'step', 'triggerQueue', 'values'])
+    expect(w.savedStateMentionsARegister).toBe(false) // no Register value / error / series in SimState
+    expect(w.restoredStep).toBe(w.exportStep) // step restored
+    expect(w.restoredPoolValues).toEqual({ gold: 13, mana: 0 }) // S(3) pools restored
+    expect(w.registersRecomputedEqualExport).toBe(true) // recomputed from GraphDoc + restored S(t)
+    // and the recomputed R(3) is exactly the step-3 oracle row (minus its `step`)
+    const { step: _s, ...row3 } = derived.registers[3]
+    expect(w.registersRecomputed).toEqual(row3)
   })
 
   it('loop-revision/2: conservative extension holds; a resourceType / unit nudge is advisory-only', () => {

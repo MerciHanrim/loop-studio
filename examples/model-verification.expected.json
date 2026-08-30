@@ -128,6 +128,51 @@
       "nodeType": "Gold"
     }
   ],
+  "workspaceRoundTrip": {
+    "wireSchema": "loop-workspace/1",
+    "wireVersion": 1,
+    "simulationKeys": [
+      "ended",
+      "fired",
+      "seed",
+      "series",
+      "stateEvents",
+      "step",
+      "triggerQueue",
+      "values"
+    ],
+    "savedStateMentionsARegister": false,
+    "restoredStep": 3,
+    "restoredPoolValues": {
+      "gold": 13,
+      "mana": 0
+    },
+    "exportStep": 3,
+    "registersRecomputedEqualExport": true,
+    "registersRecomputed": {
+      "r_reserve": 26,
+      "r_head": 36,
+      "r_ratio": {
+        "invalid": "M_REG_EVAL"
+      },
+      "r_gap": {
+        "invalid": "M_REG_DEPENDS_ON_INVALID"
+      },
+      "r_loop": {
+        "invalid": "M_REG_CYCLE"
+      }
+    }
+  },
+  "malformedAcceptance": {
+    "parameterStringValueRejected": true,
+    "parameterInfinityRejected": true,
+    "registerNonStringExprRejected": true,
+    "registerUnparseableExprRejected": true,
+    "dataNotAnObjectRejected": true,
+    "noZeroStandIn": true,
+    "unseatableModelNodeFailsStructuralGate": true,
+    "edgeToModelNodeRefused": true
+  },
   "revision2": {
     "v2Digest": "5023c8ab7e80a6cf5c9966fa75adfc07d4991f3b723606da8a1724abeae01ce2",
     "conservativeExtension": true,

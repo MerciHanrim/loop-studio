@@ -103,6 +103,48 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     await expect(stepLabel(page)).toContainText('step 3')
   })
 
+  test('loop-workspace/1 round-trip: a stepped Workspace saves no Register state; re-Import restores S(t) and R(t) recomputes to the same values', async ({ page }) => {
+    await stepN(page, 3)
+    await select(page, 'r_reserve')
+    await expect(inspector(page)).toContainText('Value at step 3')
+    const beforeText = await inspector(page).innerText()
+
+    // Export a Workspace via the real format path (bridge, works desktop + mobile)
+    const ws = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: any }).__loop
+      return L.io.serializeWorkspaceFile(L.io.collectWorkspacePayload({ x: 0, y: 0, zoom: 1 })) as string
+    })
+    const parsed = JSON.parse(ws)
+    expect(parsed.workspace.schema).toBe('loop-workspace/1')
+    expect(parsed.workspace.version).toBe(1)
+    // the saved SimState mentions no Register — not a value, not an error, not a series
+    const regIds = ['r_reserve', 'r_head', 'r_ratio', 'r_gap', 'r_loop']
+    const sim = parsed.workspace.simulation
+    expect(regIds.some((id) => id in sim.values)).toBe(false)
+    expect((sim.series as { values: Record<string, number> }[]).some((f) => regIds.some((id) => id in f.values))).toBe(false)
+    expect('registers' in sim || 'R' in sim).toBe(false)
+
+    // wipe, then re-Import the workspace file
+    await page.evaluate(() => (window as unknown as { __loop: any }).__loop.graph.getState().newGraph())
+    await page.evaluate((t) => (window as unknown as { __loop: any }).__loop.io.importFile(t), ws)
+
+    // step index + pool state restored
+    await expect(stepLabel(page)).toContainText('step 3')
+    const goldNow = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: any }).__loop
+      const g = L.graph.getState()
+      return L.sim.getState().values?.[g.nodes.find((n: any) => n.id === 'gold').id]
+    })
+    expect(goldNow).toBe(13) // S(3): Gold
+
+    // R(t) recomputed from the restored S(t) — identical to before the Export
+    await select(page, 'r_reserve')
+    await expect(inspector(page)).toContainText('Value at step 3')
+    expect(await inspector(page).innerText()).toBe(beforeText)
+    await select(page, 'r_ratio')
+    await expect(inspector(page)).toContainText('M_REG_EVAL')
+  })
+
   test('the advisory resourceType mismatch is surfaced on the edge Inspector and does not change the run', async ({ page }) => {
     const poolAfter = () =>
       page.evaluate(() => {

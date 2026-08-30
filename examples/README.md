@@ -268,6 +268,20 @@ Self loop = @r_loop + 1             M_REG_CYCLE at every step
   model-stripped v1 baseline is byte-identical under either projection); and
   `advisoryDiff` — the model graph vs the same graph with only `resourceType` /
   a Register `unit` nudged: `engineAffecting: false`, `advisoryAffecting: true`
+- `workspaceRoundTrip` — Export a Workspace after stepping to 3: the wire id
+  stays `loop-workspace/1` v1 (no `loop-workspace/2`); the saved `simulation`
+  keys are pools + step + seed + fired + series only —
+  `savedStateMentionsARegister: false`; re-Import restores `S(3)` and
+  `registersRecomputedEqualExport: true` (R(t) from the GraphDoc + restored
+  `S(t)`, identical to Export time)
+- `malformedAcceptance` — the pure side of the malformed-payload guarantees: a
+  string / `Infinity` Parameter value, a non-string / unparseable Register
+  `expr`, and non-object `data` are all rejected with **no `0` stand-in**; an
+  unseatable model node fails `readRevisionSide` at the §R2-1.1 structural gate;
+  a resource edge onto a model node is refused. The **UI** side — graph opens,
+  Canvas / Inspector never crash, an `unreadable` fallback is shown, and the
+  `project` header is dropped so Review / Apply is unreachable — is
+  `e2e/model-nodes.spec.ts`.
 
 ## Manual check in the app
 
@@ -283,6 +297,11 @@ Timeline → one dashed line per Register that has a valid run; "Gold:Mana" and
            has no line at all
 Select the Gold ─→ Upkeep edge → Inspector shows "Type mismatch: Mana ↔ Gold. Advisory …"
 Reset → Register values recompute for step 0; nothing about the graph changed.
+
+Export ▾ → Workspace JSON at step 3, New graph, Import it back
+  → step 3 and the Pool counts are restored; the saved file has no Register
+    values (it is `loop-workspace/1`, unchanged)
+  → select "Reserve" → the same "Value at step 3" as before (recomputed)
 ```
 
 ## Regenerating

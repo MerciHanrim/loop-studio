@@ -1,13 +1,18 @@
 # Visual Language (non-frozen — living doc)
 
-**Status: implemented as of v0.6.0; kept as the living reference.** A
-**non-behavioral** visual system for the canvas: node shape, colour, edge
-style, badges, state cues, zoom levels, motion, and light/dark. It says how the
-graph *looks* and how a visual cue maps to a model state — it does **not**
-define what any model state means or how the engine computes it. The Canvas
-Visual Refresh (three PRs — chrome / silhouettes / states, then edge class &
-motion, then zoom LOD & the acceptance matrix) has landed; the sections below
-describe the shipped behaviour. Anything still called out as deferred is marked
+**Status: implemented for the pending v0.6.0 release (on `main`, not yet
+tagged); kept as the living reference.** A **non-behavioral** visual system for
+the canvas: node shape, colour, edge style, badges, state cues, zoom levels,
+motion, and light/dark. It says how the graph *looks* and how a visual cue maps
+to a model state — it does **not** define what any model state means or how the
+engine computes it.
+
+The Canvas Visual Refresh landed in three PRs — chrome / silhouettes / states,
+then **edge class / direction / cues + motion**, then **zoom LOD + the
+acceptance matrix**. The v0.6.0 scope is the *look* of edges and the *elision*
+of detail, **not edge geometry**: edge paths stay on React Flow's Bézier route
+(`getBezierPath`) and orthogonal routing is deferred (§VL6 "Routing"). The
+sections below describe the shipped behaviour; anything still deferred is marked
 so inline. Every semantic reference points out to a spec
 (`→ SEMANTICS-*.md`, `→ loop-model/1`, `→ loop-expr/1`). Carries no `loop-*/N`
 id; revised freely. §VL10–VL11 are the invariants against the GraphDoc /
