@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
+import { currentRegisterOutcomes } from '../store/registers'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { selectOverlay, useUiStore } from '../store/uiStore'
@@ -104,6 +106,21 @@ export function TimelineChart() {
     trackedIds === 'all' || !listMatches || (trackedIds as string[]).includes(id)
   const tracked = pools.filter((p) => isTracked(p.id))
 
+  // loop-model/1 §M3.5 — R(t) per committed snapshot for each Register.
+  // Nothing stored: recomputed from `series[i].values` + the live graph.
+  const registers = useMemo(
+    () => nodes.filter((n) => n.data.kind === 'register').map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(pools.length + i) })),
+    [nodes, pools.length],
+  )
+  // one `registersOfSnapshot` per UNIQUE historical snapshot (§M3.5). The live
+  // "current step" read reuses the shared `currentRegisterOutcomes` cache so
+  // the Canvas / Inspector / this legend never re-evaluate it.
+  const regByStep = useMemo(() => {
+    if (registers.length === 0) return []
+    return series.map((pt) => ({ step: pt.step, outcomes: registersOfSnapshot(nodes, pt.values) }))
+  }, [series, nodes, registers.length])
+  const currentOutcomes = currentRegisterOutcomes(nodes, useSimStore((s) => s.values))
+
   const view = useMemo(() => {
     const { w, h } = size
     let peak = 0
@@ -117,6 +134,43 @@ export function TimelineChart() {
     const ih = h - PAD.t - PAD.b
     const x = (stp: number) => PAD.l + (maxStep === 0 ? 0 : (stp / maxStep) * iw)
     const y = (v: number) => PAD.t + ih - (v / top) * ih
+
+    // Register lines use an independent min/max range (values may be negative)
+    // and BREAK into separate subpaths at any step where R(t) is invalid — a
+    // gap, never bridged (§M6.2). Run-splitting is `registerSeriesRuns`.
+    const runsById = new Map(registers.map((r) => [r.id, registerSeriesRuns(regByStep, r.id)]))
+    let rlo = Infinity
+    let rhi = -Infinity
+    for (const runs of runsById.values()) {
+      for (const run of runs) {
+        for (const p of run) {
+          rlo = Math.min(rlo, p.value)
+          rhi = Math.max(rhi, p.value)
+        }
+      }
+    }
+    const haveReg = Number.isFinite(rlo) && Number.isFinite(rhi)
+    const span = haveReg ? rhi - rlo || 1 : 1
+    const ry = (v: number) => PAD.t + ih - ((v - rlo) / span) * ih
+    const regLines = registers.map((r) => {
+      const runs = runsById.get(r.id) ?? []
+      const d = runs
+        .map((run) =>
+          run.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.step).toFixed(1)} ${ry(p.value).toFixed(1)}`).join(' '),
+        )
+        .join(' ')
+      const lastRun = runs.length ? runs[runs.length - 1] : null
+      const lastValid = lastRun ? lastRun[lastRun.length - 1] : null
+      return {
+        id: r.id,
+        color: r.color,
+        d,
+        runCount: runs.length,
+        lastValid,
+        endX: lastValid ? x(lastValid.step) : 0,
+        endY: lastValid ? ry(lastValid.value) : 0,
+      }
+    })
 
     const lines = tracked.map((p) => {
       const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
@@ -150,8 +204,8 @@ export function TimelineChart() {
     })
 
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
-    return { w, h, top, maxStep, x, y, lines, guideX }
-  }, [series, tracked, status, stepIndex, size])
+    return { w, h, top, maxStep, x, y, lines, regLines, guideX }
+  }, [series, tracked, registers, regByStep, status, stepIndex, size])
 
   const rm = reducedMotion()
   const { w, h } = view
@@ -204,6 +258,16 @@ export function TimelineChart() {
                     <span className="timeline__mark" style={{ background: p.color }} />
                     {p.label} {fmt(last)}
                   </button>
+                )
+              })}
+              {registers.map((r) => {
+                const cur = currentOutcomes.get(r.id)
+                return (
+                  <span key={r.id} className="timeline__key timeline__key--register" title={`Register ${r.label}`}>
+                    <span className="timeline__mark" style={{ background: r.color }} />
+                    {r.label}{' '}
+                    {cur && !cur.invalid ? formatRegisterValue(cur.value) : cur ? '—' : '·'}
+                  </span>
                 )
               })}
               <button
@@ -276,6 +340,22 @@ export function TimelineChart() {
                       style={{ stroke: l.color }}
                     />
                   ))
+                : null}
+
+              {/* loop-model/1 §M3.5 — Register series, dashed, with gaps where
+                  R(t) is invalid (never bridged, §M6.2). */}
+              {hasRun
+                ? view.regLines.map((l) =>
+                    l.d ? (
+                      <path
+                        key={`reg-${l.id}`}
+                        className="timeline__line timeline__line--register"
+                        d={l.d}
+                        fill="none"
+                        style={{ stroke: l.color, strokeDasharray: '4 3', opacity: 0.85 }}
+                      />
+                    ) : null,
+                  )
                 : null}
 
               {hasRun && !rm
