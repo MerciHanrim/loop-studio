@@ -319,11 +319,12 @@ one of these nodes it is rendered as the chip and otherwise ignored.
   static highlighted segment near the target end and the amount chip.
 - **State effect** — a trigger fire / activator flip / label apply pulses the
   edge once (`--state-guide`), matching the node's step cue.
-- **Routing** — *deferred.* Edges stay on React Flow's bézier path
-  (`getBezierPath`). Light orthogonal-ish routing with rounded corners and
-  small offsets so parallel edges between the same pair fan out instead of
-  overlapping is a possible later pass; it would be a pure render concern and
-  must never edit `source` / `target` / handles.
+- **Routing** — *not in v0.6.0.* Edges stay on React Flow's bézier path
+  (`getBezierPath`). Orthogonal routing (right-angle segments that step around
+  nodes, rounded corners, parallel-edge fan-out, optional manual waypoints) is
+  its own spec-first project — see [`docs/edge-routing.md`](edge-routing.md)
+  (DRAFT). It is a pure render concern and must never edit `source` / `target`
+  / handles.
 
 ---
 
