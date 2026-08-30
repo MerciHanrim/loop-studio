@@ -152,6 +152,37 @@ test.describe('mobile view/run — Slice 1 layout', () => {
     await expect(page.locator('.react-flow__minimap')).toHaveCount(1)
     await expect(page.locator('.inspector')).toBeVisible()
   })
+
+  // docs/visual-language.md §VL7 — the zoom LOD is the same code path on mobile.
+  test('zoom LOD works on the mobile canvas — L2 → L0 → L2, no reflow, no sideways scroll', async ({ page }) => {
+    await loadDiagram(page)
+    const anyNode = page.locator('.react-flow__node .nodef').first()
+    const zoom = () =>
+      page.evaluate(() => parseFloat(/scale\(([-0-9.]+)\)/.exec((document.querySelector('.react-flow__viewport') as HTMLElement).style.transform)![1]))
+    const lod = () => anyNode.evaluate((el) => (el.className.match(/lod-\w+/) || [''])[0])
+    const worldBox = () =>
+      anyNode.evaluate((el) => {
+        const z = parseFloat(/scale\(([-0-9.]+)\)/.exec((document.querySelector('.react-flow__viewport') as HTMLElement).style.transform)![1])
+        const r = el.getBoundingClientRect()
+        return [Math.round(r.width / z), Math.round(r.height / z)]
+      })
+    const box = await page.locator('.react-flow__pane').boundingBox()
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+
+    // risky-factory fit-to-view on a phone starts zoomed out — pull in to L2 first
+    for (let i = 0; i < 80 && (await zoom()) < 1; i++) await page.mouse.wheel(0, -130)
+    expect(await lod()).toBe('lod-L2')
+    const b2 = await worldBox()
+
+    for (let i = 0; i < 80 && (await zoom()) > 0.3; i++) await page.mouse.wheel(0, 130)
+    expect(await lod()).toBe('lod-L0')
+    expect(await worldBox(), 'node footprint identical at L0').toEqual(b2)
+    await noHScroll(page)
+
+    for (let i = 0; i < 80 && (await zoom()) < 1; i++) await page.mouse.wheel(0, -130)
+    expect(await lod()).toBe('lod-L2')
+    expect(await worldBox(), 'footprint restored at L2').toEqual(b2)
+  })
 })
 
 // ---------------------------------------------------------------------------

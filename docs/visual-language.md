@@ -320,12 +320,13 @@ one of these nodes it is rendered as the chip and otherwise ignored.
 
 ## VL7. Zoom levels — information elision
 
-The canvas has three detail levels, switched at fixed world-zoom thresholds
-(today: one threshold at `0.6` for both node compaction and edge labels; the
-Refresh slice splits it into two). Elision **only hides supplementary detail**.
-At **every** level a node keeps its position, its size, and its silhouette, and
-an edge keeps its class and endpoints — a zoom change is a pure fade of hidden
-elements, never a resize or a re-route (§VL12.5).
+The canvas has three detail levels, switched at fixed world-zoom thresholds —
+`0.8` (L2 ↔ L1) and `0.45` (L1 ↔ L0). Elision **only hides supplementary
+detail**. At **every** level a node keeps its position, its size, and its
+silhouette, and an edge keeps its class and endpoints — a zoom change is a pure
+fade of hidden elements, never a resize or a re-route (§VL12.5). The switch is a
+pure function of zoom: a threshold round-trip restores the prior state exactly
+(no hysteresis).
 
 ### VL7.1 The required set — never hidden at any zoom
 
@@ -472,14 +473,19 @@ The visual system must not break the local / offline / deterministic posture.
 
 ## VL12. Acceptance criteria
 
-Machine-checkable, for the Refresh slice's E2E (`e2e/visual.spec.ts` +
-snapshots):
+Machine-checkable, for the Refresh slice's E2E — the chrome/state/edge frames in
+`e2e/model-nodes-visual.spec.ts` + `e2e/canvas-refresh-*.spec.ts`, and the
+committed pixel matrix in `e2e/canvas-refresh-visual.spec.ts`:
 
-1. **Snapshot set** — one committed screenshot per: each node kind at L2 resting
-   (light + dark); each §VL3 state on a pool at L2; a resource edge and a state
-   edge at L2 with labels; the three zoom levels of a fixed 6-node fixture;
-   reduced-motion vs normal on a mid-run frame. Full **matrix** per §VL11.2.
-   Tolerance and platform pinning as for the existing Distribution snapshots.
+1. **Snapshot matrix** — a committed screenshot for every cell of
+   {light, dark} × {desktop, mobile} × {L2, L1, L0} over one long-content
+   fixture (long multi-script label, large + negative values, unit, an
+   `invalid` Register, a selected + keyboard-focused node, a resource and a
+   state edge, a live run cue), plus a `forced-colors: active` frame at L2 and
+   L0. Non-deterministic chrome (the build stamp) is outside the `.react-flow`
+   clip; the minimap + attribution are masked; fonts are awaited and the
+   single-shot run cue is frozen before the shot. Tolerance and platform
+   pinning as for the existing Distribution snapshots.
 2. **No off-canvas UI** — at every supported width (desktop + the mobile
    View/Run widths, `→ docs/mobile.md`), every floating card, legend, and badge
    has its bounding box fully within the viewport; the document never scrolls
