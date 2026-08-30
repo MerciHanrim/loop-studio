@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   formatRegisterValue,
   initialPoolValues,
+  registerSeriesRuns,
   registersOfSnapshot,
 } from './observe'
+import type { RegisterOutcome } from './registers'
 
 // loop-model/1 §M3 / §M3.5 / §M6.2 — R(t) = evaluate every Register against the
 // committed snapshot S(t). Pure, one value per step index, invalid ⇒ no value.
@@ -114,6 +116,33 @@ describe('Timeline — point at t is R(t); an invalid step is a gap (never bridg
     // the invalid steps produced NO point — not a 0, not a carried value
     expect(points.find((p) => p.step === 0 || p.step === 2)).toBeUndefined()
     void nodes
+  })
+
+  it('registerSeriesRuns splits at every invalid step — separate runs, never bridged', () => {
+    const ok = (v: number): RegisterOutcome => ({ invalid: false, value: v })
+    const bad: RegisterOutcome = { invalid: true, code: 'M_REG_EVAL' }
+    const byStep = [
+      { step: 0, outcomes: new Map([['r', bad]]) },
+      { step: 1, outcomes: new Map([['r', ok(25)]]) },
+      { step: 2, outcomes: new Map([['r', bad]]) },
+      { step: 3, outcomes: new Map([['r', ok(20)]]) },
+      { step: 4, outcomes: new Map([['r', ok(21)]]) },
+    ]
+    const runs = registerSeriesRuns(byStep, 'r')
+    expect(runs).toEqual([
+      [{ step: 1, value: 25 }],
+      [
+        { step: 3, value: 20 },
+        { step: 4, value: 21 },
+      ],
+    ])
+    // the rendered `d` a caller would build has TWO subpaths (two `M`), and no
+    // `L` connects step 1 to step 3
+    const d = runs
+      .map((run) => run.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.step} ${p.value}`).join(' '))
+      .join(' ')
+    expect(d.match(/M /g)).toHaveLength(2)
+    expect(d).toBe('M 1 25 M 3 20 L 4 21')
   })
 
   it('scrub / replay: evaluating a past snapshot gives the same R(t) as at run time', () => {

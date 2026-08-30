@@ -42,5 +42,6 @@ export { trimUnicodeWhitespace, truncateUtf8, utf8Len } from './text'
 export {
   formatRegisterValue,
   initialPoolValues,
+  registerSeriesRuns,
   registersOfSnapshot,
 } from './observe'

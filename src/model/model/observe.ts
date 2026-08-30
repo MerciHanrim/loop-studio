@@ -76,6 +76,38 @@ export function registersOfSnapshot(
 
 export type { RegisterOutcome } from './registers'
 
+/**
+ * §M3.5 / §M6.2 — split a Register's per-step outcomes into **contiguous runs**
+ * of valid points. A step where `R(t)` is invalid (or missing) ends the current
+ * run; the next valid step starts a new one. A caller draws one polyline per
+ * run, so a gap is never bridged.
+ */
+export function registerSeriesRuns(
+  byStep: { step: number; outcomes: Map<string, RegisterOutcome> }[],
+  registerId: string,
+): { step: number; value: number }[][] {
+  const runs: { step: number; value: number }[][] = []
+  let cur: { step: number; value: number }[] = []
+  let prevStep: number | null = null
+  for (const f of byStep) {
+    const o = f.outcomes.get(registerId)
+    if (o && !o.invalid) {
+      if (prevStep !== null && f.step !== prevStep + 1 && cur.length) {
+        runs.push(cur)
+        cur = []
+      }
+      cur.push({ step: f.step, value: o.value })
+      prevStep = f.step
+    } else {
+      if (cur.length) runs.push(cur)
+      cur = []
+      prevStep = null
+    }
+  }
+  if (cur.length) runs.push(cur)
+  return runs
+}
+
 /** Display string for a valid Register value, per `data.format` (display only —
  *  the digested value is always the raw number, §M2). */
 export function formatRegisterValue(value: number, format?: 'int' | 'float' | 'percent'): string {

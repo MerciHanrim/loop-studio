@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { formatRegisterValue, registersOfSnapshot } from '../model/model'
+import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
+import { currentRegisterOutcomes } from '../store/registers'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { selectOverlay, useUiStore } from '../store/uiStore'
@@ -111,10 +112,14 @@ export function TimelineChart() {
     () => nodes.filter((n) => n.data.kind === 'register').map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(pools.length + i) })),
     [nodes, pools.length],
   )
+  // one `registersOfSnapshot` per UNIQUE historical snapshot (§M3.5). The live
+  // "current step" read reuses the shared `currentRegisterOutcomes` cache so
+  // the Canvas / Inspector / this legend never re-evaluate it.
   const regByStep = useMemo(() => {
     if (registers.length === 0) return []
-    return series.map((pt) => ({ step: pt.step, out: registersOfSnapshot(nodes, pt.values) }))
+    return series.map((pt) => ({ step: pt.step, outcomes: registersOfSnapshot(nodes, pt.values) }))
   }, [series, nodes, registers.length])
+  const currentOutcomes = currentRegisterOutcomes(nodes, useSimStore((s) => s.values))
 
   const view = useMemo(() => {
     const { w, h } = size
@@ -131,42 +136,40 @@ export function TimelineChart() {
     const y = (v: number) => PAD.t + ih - (v / top) * ih
 
     // Register lines use an independent min/max range (values may be negative)
-    // and BREAK at any step where R(t) is invalid — a gap, never a bridge.
+    // and BREAK into separate subpaths at any step where R(t) is invalid — a
+    // gap, never bridged (§M6.2). Run-splitting is `registerSeriesRuns`.
+    const runsById = new Map(registers.map((r) => [r.id, registerSeriesRuns(regByStep, r.id)]))
     let rlo = Infinity
     let rhi = -Infinity
-    for (const f of regByStep) {
-      for (const r of registers) {
-        const o = f.out.get(r.id)
-        if (o && !o.invalid) {
-          rlo = Math.min(rlo, o.value)
-          rhi = Math.max(rhi, o.value)
+    for (const runs of runsById.values()) {
+      for (const run of runs) {
+        for (const p of run) {
+          rlo = Math.min(rlo, p.value)
+          rhi = Math.max(rhi, p.value)
         }
       }
     }
     const haveReg = Number.isFinite(rlo) && Number.isFinite(rhi)
-    const span = haveReg ? (rhi - rlo || 1) : 1
+    const span = haveReg ? rhi - rlo || 1 : 1
     const ry = (v: number) => PAD.t + ih - ((v - rlo) / span) * ih
     const regLines = registers.map((r) => {
-      const pts: { step: number; value: number }[] = []
-      for (const f of regByStep) {
-        const o = f.out.get(r.id)
-        if (o && !o.invalid) pts.push({ step: f.step, value: o.value })
+      const runs = runsById.get(r.id) ?? []
+      const d = runs
+        .map((run) =>
+          run.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.step).toFixed(1)} ${ry(p.value).toFixed(1)}`).join(' '),
+        )
+        .join(' ')
+      const lastRun = runs.length ? runs[runs.length - 1] : null
+      const lastValid = lastRun ? lastRun[lastRun.length - 1] : null
+      return {
+        id: r.id,
+        color: r.color,
+        d,
+        runCount: runs.length,
+        lastValid,
+        endX: lastValid ? x(lastValid.step) : 0,
+        endY: lastValid ? ry(lastValid.value) : 0,
       }
-      // split into contiguous runs so a gap is not drawn through
-      const runs: string[] = []
-      let cur: string[] = []
-      let prevStep = -2
-      for (const p of pts) {
-        if (p.step !== prevStep + 1 && cur.length) {
-          runs.push(cur.join(' '))
-          cur = []
-        }
-        cur.push(`${cur.length === 0 ? 'M' : 'L'} ${x(p.step).toFixed(1)} ${ry(p.value).toFixed(1)}`)
-        prevStep = p.step
-      }
-      if (cur.length) runs.push(cur.join(' '))
-      const lastValid = pts.length ? pts[pts.length - 1] : null
-      return { id: r.id, color: r.color, d: runs.join(' '), lastValid, endX: lastValid ? x(lastValid.step) : 0, endY: lastValid ? ry(lastValid.value) : 0 }
     })
 
     const lines = tracked.map((p) => {
@@ -258,8 +261,7 @@ export function TimelineChart() {
                 )
               })}
               {registers.map((r) => {
-                const cur =
-                  regByStep.length ? regByStep[regByStep.length - 1].out.get(r.id) : undefined
+                const cur = currentOutcomes.get(r.id)
                 return (
                   <span key={r.id} className="timeline__key timeline__key--register" title={`Register ${r.label}`}>
                     <span className="timeline__mark" style={{ background: r.color }} />
