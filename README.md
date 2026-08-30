@@ -6,19 +6,19 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** — `v0.6.0-dev`; the last tagged release is
-> **v0.5.0**. **v0.6.0 is code-complete on `main` but not yet tagged.** The
-> diagram editor and the simulation engine — deterministic, seeded randomness,
-> Monte Carlo, and executable state connections (`trigger` / `activator` /
-> `label`) — are all usable today, plus Workspace Export/Import, shareable
-> `#g1=` links, an installable offline PWA, and file-based **project revisions &
-> proposals** (`loop-revision/1`) for asynchronous collaboration. **Landing in
-> v0.6.0** (implemented on `main`, release pending): a deterministic **model
-> language** — `parameter` / `register` nodes and a safe arithmetic
-> **expression** grammar (`loop-expr/1`, `loop-model/1`, `loop-revision/2`) —
-> and a refreshed canvas visual grammar (zoom detail levels, a tokenised
-> direction marker, reduced-motion & forced-colors support). Execution
-> semantics are pinned down in frozen spec documents (see
+> Status: **working preview** — **v0.6.0**. The diagram editor and the
+> simulation engine — deterministic, seeded randomness, Monte Carlo, and
+> executable state connections (`trigger` / `activator` / `label`) — are all
+> usable today, plus Workspace Export/Import, shareable `#g1=` links, an
+> installable offline PWA, and file-based **project revisions & proposals**
+> (`loop-revision/1`) for asynchronous collaboration. **New in v0.6.0:** a
+> deterministic **model language** — `parameter` / `register` nodes and a safe
+> arithmetic **expression** grammar (`loop-expr/1`, `loop-model/1`,
+> `loop-revision/2`), Register `R(t)` observation, and an advisory
+> `resourceType` tag — and a **Canvas Visual Refresh** (edge class / direction
+> / cues, zoom detail levels, a tokenised direction marker, reduced-motion &
+> forced-colors support). Edge **geometry is unchanged** (React Flow's Bézier
+> path). Execution semantics are pinned down in frozen spec documents (see
 > [Semantics](#semantics)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
@@ -151,21 +151,21 @@ classification, or apply decision depends on them.
   - ✅ Atomic result — one new local revision, one undo entry, sim reset to step 0
   - ✅ Verification fixture + oracle ([`examples/revision/`](examples/revision/README.md))
   - No accounts / server / real-time sync
-- ◐ Model language + Canvas Visual Refresh — **v0.6.0 · code-complete on `main`, release pending**
+- ✅ Model language + Canvas Visual Refresh — **v0.6.0**
   - ✅ `parameter` / `register` node kinds + a safe arithmetic **expression** grammar (`loop-expr/1` [`SEMANTICS-X.md`](SEMANTICS-X.md), `loop-model/1` [`SEMANTICS-M.md`](SEMANTICS-M.md), `loop-revision/2` [`SEMANTICS-R2.md`](SEMANTICS-R2.md) — all frozen) — a Register's value `R(t)` is recomputed from the committed snapshot every step and stored nowhere; `/0`, a self / mutual cycle, an unknown ref, or a depends-on-invalid never halts the run
+  - ✅ Register `R(t)` observation — Canvas, Inspector, and a dashed Timeline line (a real gap where `R(t)` is invalid, never bridged), all recomputed from the same `R(currentStep)`; a stepped Workspace still round-trips as `loop-workspace/1` (no `loop-workspace/2`)
   - ✅ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector mismatch warning; computation-neutral (a mismatch changes nothing that runs)
-  - ✅ Canvas Visual Refresh — every node/edge on one visual grammar; the v0.6.0 scope is **edge class / direction / cues + three zoom detail levels (L2/L1/L0) that elide only supplementary text + a renderer-owned tokenised direction marker + `prefers-reduced-motion` / `forced-colors` support**, locked by a committed pixel matrix. Edge **geometry stays on React Flow's Bézier path** — orthogonal routing is deferred ([`docs/visual-language.md`](docs/visual-language.md))
-  - ✅ Verification fixture + oracle ([`examples/model-verification.json`](examples/README.md)) + desktop / mobile Import→Run→Timeline E2E; a `loop-workspace/1` v1 round-trip check (no `loop-workspace/2`)
-  - ☐ Scenario Compare — **not in the v0.6.0 scope**; needs its own spec/design pass and a separate decision
+  - ✅ Canvas Visual Refresh — every node/edge on one visual grammar: **edge class / direction / cues + three zoom detail levels (L2/L1/L0) that elide only supplementary text + a renderer-owned tokenised direction marker + `prefers-reduced-motion` / `forced-colors` support**, locked by a committed pixel matrix. Edge **geometry is unchanged** — React Flow's Bézier path; orthogonal routing is **not** in this release ([`docs/visual-language.md`](docs/visual-language.md))
+  - ✅ Verification fixture + oracle ([`examples/model-verification.json`](examples/README.md)) + desktop / mobile Import→Run→Timeline E2E
+  - ☐ Scenario Compare — **not in v0.6.0**; needs its own spec/design pass and a separate decision
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
 
-**v0.6.0 (release pending) — model language & canvas visual refresh.**
-Implemented on `main`; the version stamp is still `0.6.0-dev` and no `v0.6.0`
-tag exists yet — the `0.6.0-dev → 0.6.0` Release PR promotes this entry to
-shipped. A small deterministic modelling layer on top of the engine, and one
-visual grammar for the canvas.
+**v0.6.0 — model language & canvas visual refresh.** A small deterministic
+modelling layer on top of the engine, and one visual grammar for the canvas.
+Edge **geometry** and **Scenario Compare** are deliberately *not* in this
+release.
 
 - **Parameter & Register nodes** (`loop-expr/1` [`SEMANTICS-X.md`](SEMANTICS-X.md),
   `loop-model/1` [`SEMANTICS-M.md`](SEMANTICS-M.md)) — a `parameter` is a tuned

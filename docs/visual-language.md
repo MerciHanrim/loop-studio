@@ -1,11 +1,10 @@
 # Visual Language (non-frozen — living doc)
 
-**Status: implemented for the pending v0.6.0 release (on `main`, not yet
-tagged); kept as the living reference.** A **non-behavioral** visual system for
-the canvas: node shape, colour, edge style, badges, state cues, zoom levels,
-motion, and light/dark. It says how the graph *looks* and how a visual cue maps
-to a model state — it does **not** define what any model state means or how the
-engine computes it.
+**Status: shipped in v0.6.0; kept as the living reference.** A
+**non-behavioral** visual system for the canvas: node shape, colour, edge
+style, badges, state cues, zoom levels, motion, and light/dark. It says how the
+graph *looks* and how a visual cue maps to a model state — it does **not**
+define what any model state means or how the engine computes it.
 
 The Canvas Visual Refresh landed in three PRs — chrome / silhouettes / states,
 then **edge class / direction / cues + motion**, then **zoom LOD + the
