@@ -320,12 +320,13 @@ one of these nodes it is rendered as the chip and otherwise ignored.
 
 ## VL7. Zoom levels — information elision
 
-The canvas has three detail levels, switched at fixed world-zoom thresholds
-(today: one threshold at `0.6` for both node compaction and edge labels; the
-Refresh slice splits it into two). Elision **only hides supplementary detail**.
-At **every** level a node keeps its position, its size, and its silhouette, and
-an edge keeps its class and endpoints — a zoom change is a pure fade of hidden
-elements, never a resize or a re-route (§VL12.5).
+The canvas has three detail levels, switched at fixed world-zoom thresholds —
+`0.8` (L2 ↔ L1) and `0.45` (L1 ↔ L0). Elision **only hides supplementary
+detail**. At **every** level a node keeps its position, its size, and its
+silhouette, and an edge keeps its class and endpoints — a zoom change is a pure
+fade of hidden elements, never a resize or a re-route (§VL12.5). The switch is a
+pure function of zoom: a threshold round-trip restores the prior state exactly
+(no hysteresis).
 
 ### VL7.1 The required set — never hidden at any zoom
 

@@ -833,22 +833,22 @@ body {
   white-space: nowrap;
 }
 
-/* low zoom — silhouette + ports carry the scan; box grows ~12% */
-.nodef.is-compact {
-  min-width: 132px;
-  width: 132px;
-  height: 68px;
+/* docs/visual-language.md §VL7.2 — zoom detail levels. The node keeps its
+   position, SIZE and hit target at every level (§VL7.1); only supplementary
+   text is elided, via `visibility` so the box never reflows:
+     L2  full body      L1  title + value (sub hidden)      L0  map dot only */
+.nodef.lod-L1 .nodef__sub {
+  visibility: hidden;
 }
-.nodef--gate.is-compact {
-  min-width: 150px;
-  width: 150px;
+.nodef.lod-L0 .nodef__body {
+  visibility: hidden;
 }
-/* half a step stronger so the outline reads without colour at low zoom */
-.nodef.is-compact .nodef__stroke {
+/* half a step stronger so the outline reads without colour at L0 map zoom */
+.nodef.lod-L0 .nodef__stroke {
   stroke: var(--line-strong);
   stroke-width: 2;
 }
-.nodef.is-compact .nodef__endbar {
+.nodef.lod-L0 .nodef__endbar {
   stroke: var(--line-strong);
   stroke-width: 4;
 }

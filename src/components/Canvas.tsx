@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import type { DragEvent } from 'react'
-import { Background, Controls, MiniMap, ReactFlow, useReactFlow } from '@xyflow/react'
+import { Background, Controls, MiniMap, ReactFlow, useReactFlow, useStore } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useIsMobile } from '../ui/media'
@@ -9,6 +9,15 @@ import { edgeTypes } from './edges/LoopEdge'
 import { EdgeMarkers } from './edges/EdgeMarkers'
 
 const DND_TYPE = 'application/loop-node'
+
+// docs/visual-language.md §VL7.2 — "Grid fades out entering L1". The dot grid is
+// a scan aid for the detail view only; below the L2 threshold it is dropped so
+// the map view stays clean. Pure function of zoom — a threshold round-trip
+// restores it exactly (no hysteresis).
+function LodGrid() {
+  const showGrid = useStore((s) => s.transform[2] >= 0.8)
+  return showGrid ? <Background gap={16} color="var(--line-hairline)" /> : null
+}
 
 // minimap node fill by kind — resolved from the theme tokens (var() in an inline
 // style property stays theme-reactive)
@@ -113,7 +122,7 @@ export function Canvas() {
         maxZoom={2}
       >
         <EdgeMarkers />
-        <Background gap={16} color="var(--line-hairline)" />
+        <LodGrid />
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
             phone and eats space — not rendered in the mobile layout */}
         {!isMobile && (

@@ -13,7 +13,10 @@ import { EDGE_MARKER } from './EdgeMarkers'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
 const FAST_MS = 300
-const LABEL_HIDE_ZOOM = 0.6
+// docs/visual-language.md §VL7.2 — the flow / condition chip is L2-only detail;
+// the edge class (solid vs dashed) and the direction marker are the §VL7.1
+// required set and are never hidden. A selected edge keeps its label at any zoom.
+const LABEL_L2_MIN = 0.8
 
 const fmtAmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 const fmtSigned = (n: number) => `${n > 0 ? '+' : ''}${fmtAmt(n)}`
@@ -47,7 +50,7 @@ function LoopEdge({
   const speedMs = useSimStore((s) => s.speedMs)
   const status = useSimStore((s) => s.status)
   const stateEvent = useSimStore((s) => s.stateEvents.find((e) => e.edgeId === id))
-  const lowZoom = useStore((s) => s.transform[2] < LABEL_HIDE_ZOOM)
+  const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
 
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'

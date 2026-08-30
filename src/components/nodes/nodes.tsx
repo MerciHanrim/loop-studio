@@ -39,7 +39,18 @@ const SILHOUETTE: Record<NodeKind, string> = {
   register: 'M30 12 H98 Q116 12 116 32 Q116 52 98 52 H30 Q14 52 14 32 Q14 12 30 12 Z',
 }
 
-const COMPACT_ZOOM = 0.6
+// docs/visual-language.md §VL7.2 — three detail levels at fixed world-zoom
+// thresholds. Elision only fades supplementary TEXT; the silhouette, rings,
+// invalid flag, run cues, footprint and hit target are identical at every
+// level (§VL7.1 / §VL12.5).
+const LOD_L2_MIN = 0.8 // ≥ 0.8  → L2 detail (title + value + sub + chip)
+const LOD_L1_MIN = 0.45 // ≥ 0.45 → L1 compact (title + value); < 0.45 → L0 map
+type Lod = 'L2' | 'L1' | 'L0'
+const lodFor = (z: number): Lod => (z >= LOD_L2_MIN ? 'L2' : z >= LOD_L1_MIN ? 'L1' : 'L0')
+
+function useLod(): Lod {
+  return useStore((s) => lodFor(s.transform[2]))
+}
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
 
@@ -91,7 +102,8 @@ function NodeFrame({
   invalid,
   stepKey,
 }: FrameProps) {
-  const compact = useStore((s) => s.transform[2] < COMPACT_ZOOM)
+  const lod = useLod()
+  const mapOnly = lod === 'L0' // no text at all — silhouette + type dot
   // per-direction: is a state edge already wired to this node's in / out port?
   const stateInWired = useStore((s) =>
     s.edges.some((e) => e.target === nodeId && e.targetHandle === 'state-target'),
@@ -147,11 +159,10 @@ function NodeFrame({
       role="img"
       aria-label={aria}
       className={
-        `nodef nodef--${kind}` +
+        `nodef nodef--${kind} lod-${lod}` +
         (selected ? ' is-selected' : '') +
         (focused ? ' is-focused' : '') +
-        (invalid ? ' is-invalid' : '') +
-        (compact ? ' is-compact' : '')
+        (invalid ? ' is-invalid' : '')
       }
       data-invalid={invalid ? '' : undefined}
       onMouseEnter={() => setHovered(true)}
@@ -190,8 +201,8 @@ function NodeFrame({
         {arriving ? (
           <circle key={`a${stepKey}`} className="nodef__arrival" cx="60" cy="32" r="15" />
         ) : null}
-        {/* low zoom: type colour collapses to one dot inside the silhouette */}
-        {compact ? <circle className="nodef__cdot" cx="60" cy="32" r="9" /> : null}
+        {/* L0 map: type colour collapses to one dot inside the silhouette */}
+        {mapOnly ? <circle className="nodef__cdot" cx="60" cy="32" r="9" /> : null}
       </svg>
 
       {/* §VL4 — one persistent flag, top-right, non-colour tell for `invalid` */}
@@ -201,20 +212,22 @@ function NodeFrame({
         </span>
       ) : null}
 
-      {!compact ? (
-        <div className="nodef__body">
-          <span className="nodef__head">
-            <span className="nodef__chip" />
-            <span className="nodef__title">{title}</span>
+      {/* The body is ALWAYS in the DOM so the node's footprint / hit target is
+          byte-identical across L2 / L1 / L0 (§VL7.1). The `lod-*` class fades
+          the elided text: L1 hides `sub`, L0 hides the whole body — the
+          silhouette + `cdot` carry the map view. */}
+      <div className="nodef__body">
+        <span className="nodef__head">
+          <span className="nodef__chip" />
+          <span className="nodef__title">{title}</span>
+        </span>
+        {value != null ? (
+          <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}>
+            {value}
           </span>
-          {value != null ? (
-            <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}>
-              {value}
-            </span>
-          ) : null}
-          {sub ? <span className="nodef__sub">{sub}</span> : null}
-        </div>
-      ) : null}
+        ) : null}
+        {sub ? <span className="nodef__sub">{sub}</span> : null}
+      </div>
     </div>
   )
 }
