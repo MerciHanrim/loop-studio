@@ -21,7 +21,7 @@ import { useSimStore } from './simStore'
 type Snapshot = { nodes: LoopNode[]; values: SimValues | null }
 
 let cacheKey: Snapshot | null = null
-let cacheMap: Map<string, RegisterOutcome> = new Map()
+let cacheMap: ReadonlyMap<string, RegisterOutcome> = new Map()
 let evalCount = 0
 
 /** `R(currentStepIndex)` for every Register — computed at most once per
@@ -29,7 +29,7 @@ let evalCount = 0
 export function currentRegisterOutcomes(
   nodes: LoopNode[],
   values: SimValues | null,
-): Map<string, RegisterOutcome> {
+): ReadonlyMap<string, RegisterOutcome> {
   if (cacheKey && cacheKey.nodes === nodes && cacheKey.values === values) return cacheMap
   cacheMap = registersOfSnapshot(nodes, values ?? initialPoolValues(nodes))
   cacheKey = { nodes, values }
@@ -48,7 +48,7 @@ export function __resetRegisterCache(): void {
   evalCount = 0
 }
 
-export function useRegisterOutcomes(): Map<string, RegisterOutcome> {
+export function useRegisterOutcomes(): ReadonlyMap<string, RegisterOutcome> {
   const nodes = useGraphStore((s) => s.nodes)
   const values = useSimStore((s) => s.values)
   return currentRegisterOutcomes(nodes, values)
