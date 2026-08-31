@@ -299,19 +299,32 @@ atomic activation (§L4.5), persists the new `code` (§L5.1), sets `<html lang>`
 `<html dir>` from the entry's metadata **on activation**, and announces the
 change once. No reload, no run interruption, no viewport change.
 
-**Slice 1 form — a cycling button.** With `en` + `ko` (the first two shipped
-locales) the control is a plain `.btn` (identical height to the sibling toolbar
-controls, so it shifts no committed visual baseline) showing the active locale's
-`nativeName`; a press — mouse, **Enter, or Space** — advances to the next
-registered locale, wrapping. Its accessible name states **both** the current
-locale and the one a press switches to (`lang.ariaLabel`).
+**Form — a trigger button + a registry-driven overlay menu.** The Toolbar
+control is a plain `.btn` (identical height to the sibling controls, so it shifts
+**no** committed visual baseline) showing the active locale's `nativeName`.
+Pressing it — mouse, **Enter, Space, or ↓** — opens an **absolutely-positioned
+popover** (`.lang-menu__pop`) that lists **every** registered locale in registry
+order; the popover is an overlay, so it changes neither the Toolbar height nor
+any Canvas geometry. On mobile the **same component** is rendered inside
+`MobileMoreMenu`.
 
-**When a third locale is _shipped_**, replace the cycle with a **dropdown /
-menu** (each entry addressable directly). That is a `LanguageSwitch.tsx` change
-only — **the registry, `resolveInitialLocale`, `setLocale`, the
-`loop-studio/ui-locale/1` key, and every other part of the base stay exactly as
-they are.** The dev-only `en-XA` pseudo-locale (§L11) already exercises the
-N-locale path through the cycle today.
+- each item is a `role="menuitemradio"`; the active locale carries
+  `aria-checked="true"` and a `✓`; `nativeName` is primary, `englishName` a
+  secondary line when it differs;
+- the trigger carries `aria-haspopup="menu"` + `aria-expanded`;
+- keyboard: **Enter / Space / ↓** open; **↑ / ↓** move; **Home / End** jump;
+  **Escape** closes and returns focus to the trigger; selecting an item closes
+  and returns focus;
+- while the chosen catalog loads, the item shows a `lang.loading` note and the
+  trigger a `data-loading` flag; a failed load leaves the current selection
+  (`aria-checked` follows `activeLocale`, §L4.5);
+- **adding a locale needs no change to `LanguageSwitch.tsx`** — the menu is a
+  `.map` over `LOCALES`. The dev-only `en-XA` pseudo-locale (§L11) exercises the
+  ≥3-locale menu today.
+
+A dedicated Settings screen (theme + motion + language + …) is deferred until
+there are enough preferences to justify the information-architecture work; it is
+**not** part of this cycle.
 
 **L5.1 — persistence: one named string key (Q5 — decided).**
 

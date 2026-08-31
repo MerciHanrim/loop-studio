@@ -1,15 +1,15 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
-// docs/localization.md Slice 1 — the i18n base on the Toolbar + Play bar.
-//   • the language control switches the UI language immediately, atomically;
-//   • `<html lang>` tracks the active locale;
-//   • the choice is persisted at `loop-studio/ui-locale/1`, and a corrupt /
-//     unregistered stored value is ignored (browser locale → en);
-//   • `?lang=<code>` forces a locale WITHOUT touching localStorage (§L11);
-//   • §L12 #5 — a locale switch (any number of times) moves NOTHING that
-//     belongs to the document or the committed engine result.
-// The full per-locale × device visual matrix is Slice 3.
+// docs/localization.md Slice 1 + the language-menu follow-up.
+//   • the language control is a trigger button + a registry-driven overlay menu
+//     (menu / menuitemradio); it changes no Toolbar height and no Canvas geometry;
+//   • `<html lang>` tracks the active locale; the choice persists at
+//     `loop-studio/ui-locale/1` and survives a reload; a corrupt stored value is
+//     ignored (browser locale → en);
+//   • `?lang=<code>` (dev/e2e only, §L11) forces a locale without persisting;
+//   • §L12 #5 — a locale switch moves NOTHING that belongs to the document or
+//     the committed engine result, including any exported payload.
 
 type Bridge = {
   __loop: Record<string, { getState: () => any }> & {
@@ -33,13 +33,20 @@ const G = JSON.stringify({
 const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.lang)
 const stored = (page: Page) => page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))
 
-/** the language control cycles registered locales; click until `<html lang>`
- *  matches (bounded). Works for the desktop toolbar and the mobile More sheet. */
-async function setLocale(page: Page, code: string, scope = '') {
-  for (let i = 0; i < 4 && (await htmlLang(page)) !== code; i++) {
-    await page.locator(`${scope} .lang-switch`.trim()).first().click()
-    await page.waitForTimeout(80)
+/** open the language menu (desktop or inside the mobile More sheet) and pick a
+ *  locale by its registered code. */
+async function pickLocale(page: Page, code: string, scope = '') {
+  const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
+  if ((await trigger.getAttribute('aria-expanded')) === 'true') {
+    await page.keyboard.press('Escape')
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false')
   }
+  await trigger.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+  const item = page.locator(`${scope} .lang-menu__item[data-locale="${code}"]`.trim())
+  await expect(item).toBeVisible()
+  await item.click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
   await expect.poll(() => htmlLang(page)).toBe(code)
 }
 
@@ -60,14 +67,15 @@ const snapshot = (page: Page) =>
       simulationRev: g.simulationRev,
       viewport: l.rf.getViewport(),
       d: [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')].map((p) => p.getAttribute('d')),
+      hit: [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-interaction')].map((p) => p.getAttribute('d')),
       values: s.values,
       stepIndex: s.stepIndex,
       status: s.status,
     }
   })
 
-test.describe('i18n — Slice 1 (desktop Toolbar + Play bar)', () => {
-  test('the language control switches the UI immediately and sets <html lang>', async ({ page }) => {
+test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
+  test('the language menu switches the UI immediately and sets <html lang>', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
@@ -75,24 +83,30 @@ test.describe('i18n — Slice 1 (desktop Toolbar + Play bar)', () => {
     await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ Play')
     await expect(page.locator('.toolbar__tag')).toHaveText('preview')
 
-    await setLocale(page, 'ko')
-    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await pickLocale(page, 'ko')
     expect(await stored(page)).toBe('ko')
     await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ 재생')
     await expect(page.locator('.toolbar__tag')).toHaveText('미리보기')
     await expect(page.locator('.toolbar__palette .chip--pool')).toContainText('풀')
 
-    await setLocale(page, 'en')
-    await expect.poll(() => htmlLang(page)).toBe('en')
+    await pickLocale(page, 'en')
     await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ Play')
+  })
+
+  test('the chosen locale survives a reload (no flash — resolved before mount)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickLocale(page, 'ko')
+    await page.reload()
+    await expect(page.locator('.toolbar')).toBeVisible()
+    expect(await htmlLang(page)).toBe('ko')
+    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ 재생')
   })
 
   test('creating a node in a Korean UI stores the locale-independent default label', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    await setLocale(page, 'ko')
-    await expect.poll(() => htmlLang(page)).toBe('ko')
-
+    await pickLocale(page, 'ko')
     await page.locator('.toolbar__palette .chip--source').click()
     const label = await page.evaluate(() => {
       const g = (window as unknown as Bridge).__loop.graph.getState()
@@ -114,12 +128,7 @@ test.describe('i18n — Slice 1 (desktop Toolbar + Play bar)', () => {
       (window as unknown as Bridge).__loop.rf.setViewport({ x: 37, y: -12, zoom: 0.8 }, { duration: 0 }),
     )
     const before = await snapshot(page)
-
-    for (const code of ['ko', 'en', 'ko', 'en']) {
-      await setLocale(page, code)
-      await expect.poll(() => htmlLang(page)).toBe(code)
-    }
-
+    for (const code of ['ko', 'en', 'ko', 'en']) await pickLocale(page, code)
     expect(await snapshot(page)).toEqual(before) // byte-for-byte
   })
 
@@ -132,12 +141,130 @@ test.describe('i18n — Slice 1 (desktop Toolbar + Play bar)', () => {
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'KO_bad_value'))
     await page.goto('/')
     await expect(page.locator('.toolbar')).toBeVisible()
-    expect(await htmlLang(page)).toBe('en') // fell through to the browser locale → en
+    expect(await htmlLang(page)).toBe('en')
     expect(await stored(page)).toBe('KO_bad_value') // left exactly as it was
   })
 })
 
-test.describe('i18n — Slice 1 (export / storage boundary, §L12 #5 extended)', () => {
+test.describe('i18n — the language MENU: geometry & baseline', () => {
+  test('opening / using the menu changes no Toolbar height, viewport, node box, or edge d', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+
+    const geom = () =>
+      page.evaluate(() => {
+        const tb = document.querySelector('.toolbar') as HTMLElement
+        const nodeBoxes = [...document.querySelectorAll('.react-flow__node')].map((n) => {
+          const r = (n as HTMLElement).getBoundingClientRect()
+          return [n.getAttribute('data-id'), Math.round(r.width), Math.round(r.height)]
+        })
+        const measured = (window as any).__loop.graph
+          .getState()
+          .nodes.map((n: any) => [n.id, n.measured?.width ?? n.width ?? null, n.measured?.height ?? n.height ?? null])
+        return {
+          toolbarH: Math.round((tb?.getBoundingClientRect().height ?? 0) * 10) / 10,
+          viewport: (window as any).__loop.rf.getViewport(),
+          nodeBoxes: JSON.stringify(nodeBoxes),
+          measured: JSON.stringify(measured),
+          d: [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')].map((p) => p.getAttribute('d')),
+        }
+      })
+
+    const before = await geom()
+    // open the menu, move focus around, pick KO, reopen, pick EN
+    await page.locator('.lang-switch').click()
+    await expect(page.locator('.lang-menu__pop')).toBeVisible()
+    await page.keyboard.press('ArrowDown')
+    await page.locator('.lang-menu__item[data-locale="ko"]').click()
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await pickLocale(page, 'en')
+
+    expect(await geom()).toEqual(before)
+  })
+})
+
+test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
+  test('menu a11y contract — haspopup / expanded / menuitemradio / aria-checked / keyboard', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const trigger = page.locator('.toolbar .lang-switch')
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'menu')
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+    // Enter opens; focus lands on the active item; it is aria-checked
+    await trigger.focus()
+    await page.keyboard.press('Enter')
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    const menu = page.locator('.lang-menu__pop')
+    await expect(menu).toHaveAttribute('role', 'menu')
+    const items = menu.locator('[role="menuitemradio"]')
+    await expect(items).toHaveCount(3) // en, ko, en-XA (dev pseudo)
+    await expect(menu.locator('[data-locale="en"]')).toHaveAttribute('aria-checked', 'true')
+    await expect(menu.locator('[data-locale="ko"]')).toHaveAttribute('aria-checked', 'false')
+
+    // ArrowDown / End / Home move focus without changing the selection
+    await page.keyboard.press('ArrowDown')
+    await expect(menu.locator('[data-locale="ko"]')).toBeFocused()
+    await page.keyboard.press('End')
+    await expect(menu.locator('[data-locale="en-XA"]')).toBeFocused()
+    await page.keyboard.press('Home')
+    await expect(menu.locator('[data-locale="en"]')).toBeFocused()
+    expect(await htmlLang(page)).toBe('en') // nothing selected yet
+
+    // Escape closes and returns focus to the trigger
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    await expect(trigger).toBeFocused()
+
+    // Space opens, Enter on ko selects, focus returns to the trigger
+    await page.keyboard.press(' ')
+    await expect(page.locator('.lang-menu__pop')).toBeVisible()
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await expect(page.locator('.lang-menu__pop')).toBeHidden()
+    await expect(trigger).toBeFocused()
+  })
+
+  test('a 3rd (dev pseudo) locale is directly selectable — no UI code change', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickLocale(page, 'en-XA')
+    expect(await htmlLang(page)).toBe('en-XA')
+    // the menu now checks en-XA
+    await page.locator('.toolbar .lang-switch').click()
+    await expect(page.locator('.lang-menu__item[data-locale="en-XA"]')).toHaveAttribute('aria-checked', 'true')
+  })
+
+  test('rapid selections settle on the last request; label / <html lang> / catalog agree', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.locator('.lang-switch').click()
+    await page.locator('.lang-menu__item[data-locale="ko"]').click()
+    await page.locator('.lang-switch').click()
+    await page.locator('.lang-menu__item[data-locale="en"]').click()
+    await page.locator('.lang-switch').click()
+    await page.locator('.lang-menu__item[data-locale="ko"]').click()
+    await page.waitForTimeout(200)
+
+    const s = await page.evaluate(() => {
+      const st = (window as any).__loop.i18n?.getState?.() ?? null
+      return {
+        lang: document.documentElement.lang,
+        label: document.querySelector('.lang-switch span')?.textContent?.trim() ?? null,
+        active: st?.activeLocale ?? null,
+        loading: st?.loading ?? null,
+      }
+    })
+    expect(s.lang).toBe('ko')
+    expect(s.label).toBe('한국어')
+    if (s.active != null) expect(s.active).toBe('ko')
+    if (s.loading != null) expect(s.loading).toBe(false)
+  })
+})
+
+test.describe('i18n — export / storage boundary (§L12 #5 extended)', () => {
   test('every export is byte-identical across ko → en → ko → en, and carries no locale token', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
@@ -148,14 +275,12 @@ test.describe('i18n — Slice 1 (export / storage boundary, §L12 #5 extended)',
       s.advance()
     })
 
-    // capture the full set of serialisable outputs
     const capture = () =>
       page.evaluate(async () => {
         const l = (window as unknown as Bridge).__loop as any
         const g = l.graph.getState()
         const graphJSON = g.exportJSON({ runs: 200, steps: 30, baseSeed: 1 })
-        const wsPayload = l.io.collectWorkspacePayload({ x: 0, y: 0, zoom: 1 })
-        const workspace = l.io.serializeWorkspaceFile(wsPayload)
+        const workspace = l.io.serializeWorkspaceFile(l.io.collectWorkspacePayload({ x: 0, y: 0, zoom: 1 }))
         const share = (await l.share.encodeShareText(graphJSON)).payload
         return {
           graphJSON,
@@ -171,19 +296,13 @@ test.describe('i18n — Slice 1 (export / storage boundary, §L12 #5 extended)',
       })
 
     const en1 = await capture()
-
-    for (const code of ['ko', 'en', 'ko', 'en']) {
-      await setLocale(page, code)
-      await expect.poll(() => htmlLang(page)).toBe(code)
-    }
-
+    for (const code of ['ko', 'en', 'ko', 'en']) await pickLocale(page, code)
     const en2 = await capture()
-    expect(en2).toEqual(en1) // byte-for-byte, every payload
 
-    // no locale token anywhere in any exported payload
+    expect(en2).toEqual(en1)
     for (const [name, blob] of Object.entries(en2)) {
-      for (const token of ['loop-studio/ui-locale/1', 'activeLocale', 'requestedLocale', '"locale"', 'ui-locale']) {
-        expect(blob, `${name} must not contain "${token}"`).not.toContain(token)
+      for (const tok of ['loop-studio/ui-locale/1', 'activeLocale', 'requestedLocale', '"locale"', 'ui-locale']) {
+        expect(blob, `${name} must not contain "${tok}"`).not.toContain(tok)
       }
     }
   })
@@ -192,100 +311,25 @@ test.describe('i18n — Slice 1 (export / storage boundary, §L12 #5 extended)',
     await page.goto('/?lang=ko')
     await expect(page.locator('.toolbar')).toBeVisible()
     await expect.poll(() => htmlLang(page)).toBe('ko')
-
     const url = await page.evaluate(async () => {
       const l = (window as unknown as Bridge).__loop as any
-      const graphJSON = l.graph.getState().exportJSON()
-      const enc = await l.share.encodeShareText(graphJSON)
-      return `${'https://x/'}#${l.share.SHARE_PREFIX}${enc.payload}`
+      const enc = await l.share.encodeShareText(l.graph.getState().exportJSON())
+      return `https://x/#${l.share.SHARE_PREFIX}${enc.payload}`
     })
     expect(url).not.toContain('lang=')
     expect(url).not.toContain('ui-locale')
   })
 })
 
-test.describe('i18n — Slice 1 (language control a11y & N-locale generality)', () => {
-  test('the control activates with keyboard Enter AND Space (each advances one locale)', async ({ page }) => {
-    await openApp(page)
-    await resetAll(page)
-    const btn = page.locator('.toolbar .lang-switch')
-
-    await btn.focus()
-    await page.keyboard.press('Enter')
-    await expect.poll(() => htmlLang(page)).toBe('ko') // en → ko
-
-    const afterEnter = await htmlLang(page)
-    await btn.focus()
-    await page.keyboard.press('Space')
-    await expect.poll(() => htmlLang(page)).not.toBe(afterEnter) // Space also advanced it
-  })
-
-  test('the accessible name names the current locale and the switch target', async ({ page }) => {
-    await openApp(page)
-    await resetAll(page)
-    const btn = page.locator('.toolbar .lang-switch')
-    // en → the next registered locale is ko (stable regardless of dev pseudo-locales)
-    expect(await btn.getAttribute('aria-label')).toBe('Language: English — switch to 한국어')
-    await setLocale(page, 'ko')
-    const label = await btn.getAttribute('aria-label')
-    expect(label).toContain('언어: 한국어') // names the current locale, localised
-    expect(label).toMatch(/전환$/) // and the "switch to <next>" clause
-  })
-
-  test('adding a 3rd (dev pseudo) locale — every locale stays reachable by cycling', async ({ page }) => {
-    await openApp(page)
-    await resetAll(page)
-    // en → ko → en-XA → en  (the dev-only QA pseudo-locale is registered)
-    const seen = new Set<string>()
-    for (let i = 0; i < 4; i++) {
-      seen.add(await htmlLang(page))
-      await page.locator('.toolbar .lang-switch').click()
-      await page.waitForTimeout(60)
-    }
-    seen.add(await htmlLang(page))
-    expect([...seen].sort()).toEqual(['en', 'en-XA', 'ko'])
-  })
-
-  test('rapid presses: the last request wins; the label, <html lang> and the live catalog always agree', async ({ page }) => {
-    await openApp(page)
-    await resetAll(page)
-    const btn = page.locator('.toolbar .lang-switch')
-    // three fast presses: en → ko → en-XA → en (back to en)
-    await btn.click()
-    await btn.click()
-    await btn.click()
-    await page.waitForTimeout(200)
-    const state = await page.evaluate(() => {
-      const l = (window as unknown as Bridge).__loop as any
-      const s = l.i18n?.getState?.() ?? null
-      const btnEl = document.querySelector('.toolbar .lang-switch') as HTMLElement
-      return {
-        lang: document.documentElement.lang,
-        label: btnEl?.textContent?.trim() ?? null,
-        active: s?.activeLocale ?? null,
-        loading: s?.loading ?? null,
-      }
-    })
-    expect(state.lang).toBe('en')
-    expect(state.label).toBe('English')
-    if (state.active != null) expect(state.active).toBe('en')
-    if (state.loading != null) expect(state.loading).toBe(false)
-  })
-})
-
-test.describe('i18n — Slice 1 (mobile switch, in the More sheet)', () => {
+test.describe('i18n — the language menu on mobile (in the More sheet)', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('the language control in the More menu switches the UI', async ({ page }) => {
+  test('the same menu component, invoked from MobileMoreMenu', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
-    expect(await htmlLang(page)).toBe('en')
-
     await page.locator('.mob-more').click()
     await expect(page.locator('.sheet')).toBeVisible()
-    await setLocale(page, 'ko', '.sheet')
-
-    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await pickLocale(page, 'ko', '.sheet')
     expect(await stored(page)).toBe('ko')
     await expect(page.locator('.toolbar__vr')).toHaveText('보기 및 실행 — 편집은 데스크톱에서')
   })
