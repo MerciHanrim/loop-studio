@@ -9,6 +9,7 @@ import {
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import { currentRouteMap } from '../../store/routeMap'
+import { useLod } from '../lod'
 import type { LoopEdgeData } from '../../model/types'
 import type { StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
@@ -104,6 +105,11 @@ function LoopEdge({
     return (t.flowByEdge[id] ?? 0) > 0 ? t : null
   })
   const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
+  // §PB4.4 — the L0 ("map") level shares the canvas-wide LOD classifier (../lod);
+  // no second copy of the 0.45 threshold. At L0 the sub-pixel travelling dot is
+  // elided, the ordered depart / path-pulse / arrive cues still play, and
+  // `settle` still commits.
+  const atL0 = useLod() === 'L0'
 
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'
@@ -128,10 +134,15 @@ function LoopEdge({
   // The scheduler owns τ / phase / commit (Slice 1); this layer only reads.
   const pbPhase = transition && !isState ? transition.phase : null
   const pbFlow = transition && !isState ? (transition.flowByEdge[id] ?? 0) : 0
-  const pbToken = pbFlow > 0 && !rm && !!pbPhase
+  // the ordered phase cues (depart ring · travel path-pulse · arrive ring) —
+  // shown whenever a resource transition is in flight and motion is allowed,
+  // at every zoom including L0.
+  const pbCueOn = pbFlow > 0 && !rm && !!pbPhase
+  // the travelling dot itself — elided at L0 (§PB4.4).
+  const pbToken = pbCueOn && !atL0
   const pbFrac = transition ? travelFraction(transition.tau) : 0
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
-  const pbEndPt = pbToken ? pointOnPath(path, 1) : null
+  const pbEndPt = pbCueOn && pbPhase === 'arrive' ? pointOnPath(path, 1) : null
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
   const pbBreakdown = pbAll.slice(0, 8)
   const pbBreakdownRest = pbAll.length - pbBreakdown.length
@@ -249,43 +260,68 @@ function LoopEdge({
       {/* Slice 2 — the τ-synced choreography (Step AND Play take this same
           path). Every position is a pure function of `transition.tau`, so Pause
           freezes it, a speed change re-rates it, and a discard removes it — no
-          token-specific state. `data-playback-phase` makes the beat observable. */}
-      {pbToken && pbPt ? (
+          token-specific state. `data-playback-phase` makes the beat observable.
+          Slice 3 — at L0 the moving `<g>` is elided; the depart / travel-pulse /
+          arrive cues below still play in order (§PB4.4). */}
+      {pbCueOn ? (
         <>
-          {/* depart: a cue at the source; the token sits at the source */}
+          {/* depart: a cue at the source */}
           {pbPhase === 'depart' ? (
-            <circle className="pb-cue pb-cue--depart" cx={sourceX} cy={sourceY} r="6" />
+            <circle
+              className="pb-cue pb-cue--depart"
+              data-playback-phase="depart"
+              cx={sourceX}
+              cy={sourceY}
+              r="6"
+            />
           ) : null}
-          {/* arrive: a cue at the target; the token sits at the target */}
+          {/* travel, L0 only: a directional path pulse in place of the dot */}
+          {pbPhase === 'travel' && atL0 ? (
+            <path
+              className="pb-l0-pulse"
+              data-playback-phase="travel"
+              d={path}
+              fill="none"
+            />
+          ) : null}
+          {/* arrive: a cue at the target */}
           {pbPhase === 'arrive' && pbEndPt ? (
-            <circle className="pb-cue pb-cue--arrive" cx={pbEndPt.x} cy={pbEndPt.y} r="6" />
+            <circle
+              className="pb-cue pb-cue--arrive"
+              data-playback-phase="arrive"
+              cx={pbEndPt.x}
+              cy={pbEndPt.y}
+              r="6"
+            />
           ) : null}
-          <g
-            className={`pb-move pb-move--${pbPhase}`}
-            data-playback-phase={pbPhase}
-            transform={`translate(${pbPt.x} ${pbPt.y})`}
-          >
-            <circle className="flow-bead" r="3.6" />
-            {pbFlow > 1 ? (
-              <text className="flow-token__n" dy="-8">
-                {fmtAmt(pbFlow)}
-              </text>
-            ) : null}
-          </g>
+          {pbToken && pbPt ? (
+            <g
+              className={`pb-move pb-move--${pbPhase}`}
+              data-playback-phase={pbPhase}
+              transform={`translate(${pbPt.x} ${pbPt.y})`}
+            >
+              <circle className="flow-bead" r="3.6" />
+              {pbFlow > 1 ? (
+                <text className="flow-token__n" dy="-8">
+                  {fmtAmt(pbFlow)}
+                </text>
+              ) : null}
+            </g>
+          ) : null}
         </>
       ) : null}
 
-      {/* reduced motion: no travel. During a Play transition, a static edge
-          emphasis for THIS step's flow (§PB9 — the "path" cue). It clears on
-          settle and the held post-settle pulse below takes over seamlessly. */}
+      {/* reduced motion: no travel. During a transition, the ordered beat is
+          still information (§PB9.1), so the depart ring, the path emphasis and
+          the arrive ring are shown together (timing is collapsed, so "all at
+          once" — not padded). `data-playback-phase` still tracks the live beat.
+          Clears on settle; the held post-settle pulse below takes over. */}
       {transition && !isState && pbFlow > 0 && rm ? (
-        <path
-          key={`pbrm-${id}-${transition.fromStep}`}
-          className="flow-edge-pulse"
-          data-playback-phase={pbPhase}
-          d={path}
-          fill="none"
-        />
+        <g key={`pbrm-${id}-${transition.fromStep}`} data-playback-phase={pbPhase}>
+          <path className="flow-edge-pulse" data-playback-phase={pbPhase} d={path} fill="none" />
+          <circle className="pb-cue pb-cue--depart" cx={sourceX} cy={sourceY} r="5" />
+          <circle className="pb-cue pb-cue--arrive" cx={targetX} cy={targetY} r="5" />
+        </g>
       ) : null}
       {/* reduced motion: the held static substitute for the travelling token —
           shown once the step has settled, kept through Pause, cleared on Reset

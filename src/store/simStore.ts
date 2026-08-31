@@ -158,9 +158,6 @@ const isHidden = (): boolean =>
 const reducedMotion = (): boolean =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches === true
 const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n)
-/** §PB9 — under reduced motion a step still paces (Play) but never stretches;
- *  a Step settles it instantly. */
-const RM_BEAT_MS = 220
 
 /** recursively `Object.freeze` a plain-data value (dev only) so a bug that
  *  mutates `prepared.toState` / `prepared.derived` throws instead of silently
@@ -176,8 +173,11 @@ function deepFreeze<T>(v: T): T {
 export const useSimStore = create<SimStore>((set, get) => {
   const graph = () => useGraphStore.getState()
 
-  const beatDuration = (): number =>
-    reducedMotion() ? RM_BEAT_MS : Math.max(get().speedMs, PLAYBACK_MIN_MS)
+  // §PB6 — τ maps to this wall-clock span. Reduced motion does NOT get its own
+  // (shorter) span here: instead `loop()` drives an RM transition straight to
+  // `settle` with no τ ramp at all (§PB9 — no artificial wait), so this is only
+  // ever the full-motion pacing.
+  const beatDuration = (): number => Math.max(get().speedMs, PLAYBACK_MIN_MS)
 
   /** Current sim head, seeding an initial state on first use. */
   const head = (): SimState => {
@@ -359,7 +359,11 @@ export const useSimStore = create<SimStore>((set, get) => {
 
     const s = get()
     if (s.activeTransitionId != null && prepared) {
-      const wall = (now() - tauStartedAt) / beatDuration()
+      // §PB9 — reduced motion: no τ ramp. The remaining beats collapse and this
+      // transition settles on THIS tick. `Math.max` still applies, so τ only
+      // ever moves forward: toggling RM mid-`travel` finishes the *current*
+      // transition once (same `prepared`, same id) — never a rewind or restart.
+      const wall = reducedMotion() ? 1 : (now() - tauStartedAt) / beatDuration()
       const tau = clamp01(Math.max(s.transition?.tau ?? 0, wall)) // monotonic (§PB6.2)
       if (tau >= BEAT_ARRIVE && !arriveFired) arriveFired = true // Slice 1: no visual yet
       if (tau >= BEAT_SETTLE) {

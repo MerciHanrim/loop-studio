@@ -64,6 +64,12 @@ async function setup(page: Page, json: string, speedMs = 1600) {
 }
 
 test.describe('playback — Slice 2 choreography', () => {
+  // never let an emulated `prefers-reduced-motion: reduce` (or a viewport zoom)
+  // leak into a later test if an RM / LOD test fails mid-way
+  test.afterEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: null }).catch(() => {})
+  })
+
   for (const [name, route] of [['Bézier', false], ['orthogonal', true]] as const) {
     test(`the token walks the real ${name} edge d in step with τ`, async ({ page }) => {
       await setup(page, G(route))
@@ -167,22 +173,164 @@ test.describe('playback — Slice 2 choreography', () => {
     await call(page, 'pause')
   })
 
-  test('reduced motion ⇒ no travelling token, a static edge cue instead', async ({ page }) => {
+  test('reduced motion ⇒ no travelling element ever; a held static cue after settle', async ({ page }) => {
     await setup(page, G(false), 1200)
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await call(page, 'play')
-    await expect.poll(() => simState(page).then((s) => (s.tau && s.tau > 0.2 && s.tau < 0.7 ? 1 : -1)), { timeout: 8000 }).toBe(1)
-    const rm = await page.evaluate(() => {
-      const edge = document.querySelector('.react-flow__edge[data-id="e_sp"]') as SVGGElement
-      return {
-        moving: edge.querySelectorAll('g.pb-move').length + edge.querySelectorAll('animateMotion').length,
-        pulse: edge.querySelector('path.flow-edge-pulse') != null,
+    const seenMoving = await page.evaluate(async () => {
+      const edge = () => document.querySelector('.react-flow__edge[data-id="e_sp"]') as SVGGElement
+      let moving = 0
+      const obs = new MutationObserver(() => {
+        const e = edge()
+        moving += e.querySelectorAll('g.pb-move').length + e.querySelectorAll('animateMotion').length
+      })
+      obs.observe(edge(), { childList: true, subtree: true })
+      const sim = (window as any).__loop.sim.getState()
+      sim.play()
+      await new Promise((r) => setTimeout(r, 900))
+      // sample a few animation frames too
+      for (let i = 0; i < 30; i++) {
+        const e = edge()
+        moving += e.querySelectorAll('g.pb-move').length + e.querySelectorAll('animateMotion').length
+        await new Promise((r) => requestAnimationFrame(() => r(null)))
       }
+      obs.disconnect()
+      ;(window as any).__loop.sim.getState().pause()
+      return moving
     })
-    expect(rm.moving).toBe(0)
-    expect(rm.pulse).toBe(true)
-    await call(page, 'pause')
+    expect(seenMoving).toBe(0) // never any travelling element under reduced motion
+
+    // several steps have committed; the held static substitute is on the edge
+    const after = await page.evaluate(() => {
+      const edge = document.querySelector('.react-flow__edge[data-id="e_sp"]') as SVGGElement
+      const s = (window as any).__loop.sim.getState()
+      return { step: s.stepIndex, pulse: edge.querySelector('path.flow-edge-pulse') != null }
+    })
+    expect(after.step).toBeGreaterThan(1)
+    expect(after.pulse).toBe(true)
     await page.emulateMedia({ reducedMotion: null })
+  })
+
+  test('reduced motion — Play settles far faster than full motion, no full-beat wait; Pause never auto-settles', async ({ page }) => {
+    const K = 6
+    // full-motion baseline at a deliberately slow beat
+    await setup(page, G(false), 900)
+    const fullMs = await page.evaluate(async (k) => {
+      const sim = (window as any).__loop.sim.getState()
+      sim.reset()
+      const t0 = performance.now()
+      sim.play()
+      await new Promise<void>((res) => {
+        const id = setInterval(() => {
+          if ((window as any).__loop.sim.getState().stepIndex >= k) {
+            clearInterval(id)
+            res()
+          }
+        }, 15)
+      })
+      ;(window as any).__loop.sim.getState().pause()
+      return performance.now() - t0
+    }, K)
+
+    // same run, reduced motion
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const rmMs = await page.evaluate(async (k) => {
+      const sim = (window as any).__loop.sim.getState()
+      sim.reset()
+      const t0 = performance.now()
+      sim.play()
+      await new Promise<void>((res) => {
+        const id = setInterval(() => {
+          if ((window as any).__loop.sim.getState().stepIndex >= k) {
+            clearInterval(id)
+            res()
+          }
+        }, 15)
+      })
+      ;(window as any).__loop.sim.getState().pause()
+      return performance.now() - t0
+    }, K)
+
+    // full motion spends ~900ms per step; reduced motion has NO per-step wait
+    expect(fullMs).toBeGreaterThan(K * 700)
+    expect(rmMs).toBeLessThan(fullMs / 3)
+    expect(rmMs).toBeLessThan(K * 200) // well under even the 120ms floor × K — no artificial beat wait
+
+    // Pause under reduced motion: nothing auto-advances afterwards
+    const held = await page.evaluate(() => (window as any).__loop.sim.getState().stepIndex)
+    await page.waitForTimeout(500)
+    const later = await page.evaluate(() => (window as any).__loop.sim.getState().stepIndex)
+    expect(later).toBe(held)
+    await page.emulateMedia({ reducedMotion: null })
+  })
+
+  test('reduced motion — toggled mid-transition: collapse remaining beats, settle once, no rewind/restart, parity with full motion', async ({ page }) => {
+    // a full-motion run to K as the oracle
+    await setup(page, G(false), 1000)
+    const oracle = await page.evaluate(async (k) => {
+      const S = () => (window as any).__loop.sim.getState()
+      S().reset()
+      for (let i = 0; i < k; i++) S().advance()
+      const s = S()
+      return { values: s.values, series: s.series.length, step: s.stepIndex }
+    }, 5)
+
+    // fresh run: Play full-motion, pause mid-travel, flip RM on, resume
+    await call(page, 'reset')
+    await call(page, 'setSpeed', 2000)
+    await call(page, 'play')
+    await expect
+      .poll(() => simState(page).then((s) => (s.tau && s.tau > 0.35 && s.tau < 0.7 ? 1 : -1)), { timeout: 8000 })
+      .toBe(1)
+    const mid = await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      return { id: s.activeTransitionId, fromStep: s.transition?.fromStep ?? null, tau: s.transition?.tau ?? null, step: s.stepIndex }
+    })
+    await call(page, 'pause')
+    // RM on WHILE paused mid-transition ⇒ still no auto-settle
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.waitForTimeout(300)
+    const pausedRm = await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      return { id: s.activeTransitionId, tau: s.transition?.tau ?? null, step: s.stepIndex }
+    })
+    expect(pausedRm.step).toBe(mid.step) // not committed
+    expect(pausedRm.id).toBe(mid.id) // same transition, not restarted
+    expect(pausedRm.tau).toBeGreaterThanOrEqual(mid.tau!) // never rewound
+    const seriesMid = await page.evaluate(() => (window as any).__loop.sim.getState().series.length)
+
+    // finish THAT transition — the remaining beats collapse and it settles
+    // EXACTLY once (Step is the escape hatch for a paused transition)
+    await call(page, 'stepOnce')
+    const done = await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      return { id: s.activeTransitionId, tau: s.transition?.tau ?? null, step: s.stepIndex, series: s.series.length }
+    })
+    expect(done.step).toBe(mid.step + 1)
+    expect(done.id).toBeNull()
+    expect(done.tau).toBeNull()
+    expect(done.series).toBe(seriesMid + 1) // one settle, not two
+
+    // finish to K under RM and compare with the full-motion oracle
+    await page.evaluate(async (k) => {
+      const S = () => (window as any).__loop.sim.getState()
+      S().play()
+      await new Promise<void>((res) => {
+        const id = setInterval(() => {
+          if (S().stepIndex >= k) {
+            clearInterval(id)
+            res()
+          }
+        }, 15)
+      })
+      S().pause()
+    }, 5)
+    const rmRun = await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      return { values: s.values, series: s.series.length, step: s.stepIndex }
+    })
+    expect(rmRun.step).toBe(oracle.step)
+    expect(rmRun.series).toBe(oracle.series)
+    expect(rmRun.values).toEqual(oracle.values)
   })
 
   test('the target value still updates only on settle (Slice 1 contract holds)', async ({ page }) => {
@@ -321,5 +469,122 @@ test.describe('playback — Slice 2 choreography', () => {
       [...document.querySelectorAll('.edge-label[data-edge-id="e_sp"] .edge-label__bd')].map((e) => e.textContent),
     )
     expect(bd2).toEqual(bd1)
+  })
+
+  // ── Slice 3 — viewing conditions (§PB4.4 / §PB12 test 12) ──────────────
+  test('§PB4.4 — at L0 the travelling dot is elided; depart / travel-pulse / arrive still play in order, settle still commits', async ({ page }) => {
+    await setup(page, G(false), 2200)
+    // world-zoom below the L1↔L0 threshold (0.45)
+    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.3 }))
+    await page.waitForTimeout(60)
+    const z = await page.evaluate(
+      () => parseFloat(/scale\(([-0-9.]+)\)/.exec((document.querySelector('.react-flow__viewport') as HTMLElement).style.transform)![1]),
+    )
+    expect(z).toBeLessThan(0.45)
+
+    const step0 = (await simState(page)).stepIndex
+    await call(page, 'play')
+
+    // through the whole transition: never a moving `.pb-move` dot on the flowing edge
+    const phases = new Set<string>()
+    let sawL0Pulse = false
+    for (let i = 0; i < 90; i++) {
+      const snap = await page.evaluate(() => {
+        const edge = document.querySelector('.react-flow__edge[data-id="e_sp"]')!
+        const dot = edge.querySelector('g.pb-move')
+        const cue = edge.querySelector('.pb-cue')
+        const l0 = edge.querySelector('.pb-l0-pulse')
+        const s = (window as any).__loop.sim.getState()
+        return {
+          dot: !!dot,
+          cuePhase: cue?.getAttribute('data-playback-phase') ?? null,
+          l0: !!l0,
+          phase: s.transition?.phase ?? null,
+          tau: s.transition?.tau ?? null,
+          step: s.stepIndex,
+        }
+      })
+      expect(snap.dot).toBe(false) // the sub-pixel dot is never created at L0
+      if (snap.phase) phases.add(snap.phase)
+      if (snap.l0) {
+        sawL0Pulse = true
+        expect(snap.phase).toBe('travel') // the pulse only stands in for `travel`
+      }
+      if (snap.step > step0 && snap.tau == null) break
+      await page.waitForTimeout(30)
+    }
+
+    expect([...phases].sort()).toEqual(['arrive', 'depart', 'travel']) // ordered beats still ran
+    expect(sawL0Pulse).toBe(true) // the travel stand-in showed
+    expect((await simState(page)).stepIndex).toBe(step0 + 1) // settle still committed exactly one step
+    await call(page, 'pause')
+  })
+
+  test('L1 ↔ L0 threshold round-trip mid-travel: the dot elides then returns at the current τ — no restart, no transition / step change, no digest / undo / d change', async ({ page }) => {
+    await setup(page, G(true), 4000) // orthogonal edges — the `d` must not move; slow beat for headroom
+    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.7 })) // L1
+    await page.waitForTimeout(60)
+
+    const inv = () =>
+      page.evaluate(() => {
+        const l = (window as any).__loop
+        return {
+          digest: l.revisionIO.currentTargetDigest(),
+          canUndo: l.graph.getState().canUndo,
+          canRedo: l.graph.getState().canRedo,
+          d: [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')].map((p) => p.getAttribute('d')),
+        }
+      })
+    const tok = () =>
+      page.evaluate(() => {
+        const g = document.querySelector('.react-flow__edge[data-id="e_sp"] g.pb-move') as SVGGElement | null
+        const l0 = document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-l0-pulse')
+        const s = (window as any).__loop.sim.getState()
+        const m = g && (g.getAttribute('transform') || '').match(/translate\(([-\d.]+)\s+([-\d.]+)\)/)
+        return {
+          hasDot: !!g,
+          hasL0Pulse: !!l0,
+          x: m ? +m[1] : null,
+          id: s.activeTransitionId,
+          phase: s.transition?.phase ?? null,
+          fromStep: s.transition?.fromStep ?? null,
+          tau: s.transition?.tau ?? null,
+          step: s.stepIndex,
+        }
+      })
+
+    const invBefore = await inv()
+    await call(page, 'play')
+
+    // catch the dot mid-`travel` at L1
+    await expect.poll(() => tok().then((t) => (t.hasDot && t.phase === 'travel' ? 1 : -1)), { timeout: 8000 }).toBe(1)
+    const atL1 = await tok()
+
+    // → L0: the dot goes, the path cue stays, the transition is untouched
+    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.3 }))
+    await expect.poll(() => tok().then((t) => (t.hasDot ? 1 : -1))).toBe(-1)
+    const atL0 = await tok()
+    expect(atL0.hasL0Pulse).toBe(true)
+    expect(atL0.id).toBe(atL1.id) // same transition
+    expect(atL0.fromStep).toBe(atL1.fromStep)
+    expect(atL0.step).toBe(atL1.step) // not committed by a zoom
+    expect(atL0.tau).toBeGreaterThanOrEqual(atL1.tau!) // τ kept advancing, never reset
+
+    // → L1: the dot returns AT the current τ position (near where it would be),
+    // not back at the source
+    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.7 }))
+    await expect.poll(() => tok().then((t) => (t.hasDot ? 1 : -1))).toBe(1)
+    const back = await tok()
+    expect(back.id).toBe(atL1.id)
+    expect(back.fromStep).toBe(atL1.fromStep)
+    expect(back.tau).toBeGreaterThanOrEqual(atL0.tau!) // monotonic across the whole round-trip
+    // the dot is further along the edge than it was before the round-trip — it
+    // did NOT restart from the source
+    expect(back.x!).toBeGreaterThan(atL1.x! - 2)
+
+    await call(page, 'pause')
+    const invAfter = await inv()
+    expect(invAfter).toEqual(invBefore) // zoom/pan moved no GraphDoc / digest / undo / edge `d`
+    await call(page, 'reset')
   })
 })
