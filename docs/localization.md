@@ -1,9 +1,17 @@
 # Localization (non-frozen design doc — DRAFT)
 
-**Status: DRAFT for review.** First cut of the Onboarding-part-2 localization
-base. A **UI-chrome-only** layer: it changes the *language of the interface*,
-nothing the engine computes, nothing that is serialized, and no wire contract.
-It carries no `loop-*/N` id and is revised freely (like `docs/visual-language.md`,
+**Status: DRAFT — rev 2, for review.** Rev 1's direction was accepted; rev 2
+closes the five §L14 open questions (Q1 TS-module catalogs + `satisfies`; Q2
+`intl-messageformat`; Q3 user-facing diagnostics only this cycle; Q4 Toolbar +
+Play bar as the Slice-1 anchor; Q5 a single `loop-studio/ui-locale/1` string
+key) and pins the **catalog loader + atomic-activation** contract (§L4.5). Still
+**not frozen and not implementation-approved** — rev 2 is for one more pass on
+fallback, async switching, the user-input non-translation boundary, and the
+slice split.
+
+A **UI-chrome-only** layer: it changes the *language of the interface*, nothing
+the engine computes, nothing that is serialized, and no wire contract. It
+carries no `loop-*/N` id and is revised freely (like `docs/visual-language.md`,
 `docs/mobile.md`, `docs/edge-routing.md`). §L14 is the decision record; §L12 the
 verification set; §L13 the slices; §L15 the scope boundary.
 
@@ -90,15 +98,47 @@ the keys that `en` has — no missing, no extra. This is enforced in CI for
 `error.M_REG_EVAL.message`, `a11y.playback.status.stepN`. Keys are ASCII and
 never built from user data or file content at a call site.
 
-**L3.3 — per-language files.** `src/i18n/locales/en.ts`, `src/i18n/locales/ko.ts`,
-… — each a typed module exporting a `Record` (or a `satisfies Catalog` object so
-`tsc` flags a shape mismatch against the `en`-derived type). Catalogs as **code,
-not JSON**, so the type system carries the key set and a translator edits one
-self-contained file. They are **statically imported** for `en` + `ko` in
-v0.8.0 (§L2.1 one bundle); the `catalog: () => import(...)` shape in the
-registry is already a thunk so a later switch to **dynamic per-locale loading**
-(when many locales make the bundle heavy) is a loader change **only** — it does
-not touch call sites, the key set, or the GraphDoc / Workspace / Share boundary.
+**L3.3 — per-language files, TS module + `satisfies` (Q1 — decided).**
+`src/i18n/locales/en.ts`, `src/i18n/locales/ko.ts`, … — each a TypeScript module
+default-exporting a plain object literal. `en.ts` is authored first and **is**
+the canonical shape:
+
+```ts
+// locales/en.ts
+const en = {
+  'toolbar.export': 'Export',
+  'playback.status.stepN': 'Step {n}',
+  // …
+} as const
+export type MessageCatalog = Record<keyof typeof en, string>
+export default en
+```
+
+```ts
+// locales/ko.ts
+import type { MessageCatalog } from './en'
+const ko = {
+  'toolbar.export': '내보내기',
+  'playback.status.stepN': '{n}단계',
+  // …
+} satisfies MessageCatalog          // ← tsc errors on a missing OR an extra key
+export default ko
+```
+
+- **compile-time key parity:** `satisfies MessageCatalog` on every non-`en`
+  catalog makes `tsc` fail the build on a missing or an extra key in the object
+  literal — the CI script (§L12 #1) then adds the runtime / cross-locale checks
+  (empty strings, placeholder-set match, "add a locale" smoke).
+- **catalog keys are flat, stable IDs** (§L3.2) — never the English text, never a
+  key derived from user data. Translated message *text* never becomes a type
+  identifier or a lookup key in product code.
+- catalogs are **code, not JSON**, this cycle. A JSON extraction / import
+  pipeline is added only when a real translation-management tool needs it — a
+  separate, later decision.
+- `en` + `ko` are **statically imported** in v0.8.0 (§L2.1, one bundle); the
+  registry's `catalog: () => import(...)` thunk (§L2.2) is the seam for later
+  dynamic loading (§L4.5) — a loader change **only**, touching no call site, no
+  key, and no GraphDoc / Workspace / Share boundary.
 
 **L3.4 — what is *not* in the catalog.**
 
@@ -115,51 +155,106 @@ not touch call sites, the key set, or the GraphDoc / Workspace / Share boundary.
 **The line:** anything the user or a file author wrote stays as written; anything
 Loop Studio's own chrome says gets a key.
 
-## L4. Message format
+## L4. Message format & the catalog runtime
 
-**L4.1 — a `t(key, params?)` helper, no concatenation.** Components call
-`t('playback.status.stepN', { n })`. **Assembling a sentence from translatable
-fragments in a component is forbidden** — `"Step " + n`, `t('a') + t('b')`,
-`<>{t('x')} {value}</>` where word order matters — because order, particles, and
-spacing differ by language. A string with a runtime value is **one key with a
-named slot**: `"Step {n}"` / `"{n}단계"`.
+**L4.1 — `intl-messageformat` (FormatJS) is the formatter (Q2 — decided).** No
+hand-rolled ICU subset — nested plural/select, escaping, the `other` rule, and
+per-language CLDR plural categories are not something to re-implement and keep
+correct long-term. Use FormatJS's [`intl-messageformat`](https://formatjs.github.io/docs/intl-messageformat/)
+directly:
 
-**L4.2 — plural / select from the start.** The format supports ICU-style
-`{n, plural, one {# item} other {# items}}` and `{g, select, …}` from day one
-(a small formatter, or a vetted micro-dep — §L14-Q2), because Korean has no
-plural but a future locale will, and retrofitting a formatter across every call
-site later is exactly the kind of two-way assumption this doc bans. English +
-Korean catalogs simply won't use the plural arm much; the mechanism is there.
+- full [ICU Message syntax](https://formatjs.github.io/docs/core-concepts/icu-syntax/)
+  — `{name}`, `{n, plural, …}`, `{g, select, …}`, `{n, selectordinal, …}`,
+  `{n, number}`, `{d, date, …}` backed by `Intl.NumberFormat` /
+  `Intl.DateTimeFormat`;
+- a `t(key, params?)` wrapper compiles an `IntlMessageFormat(message, locale)`
+  and **caches the compiled formatter keyed by `(locale, key, message)`**;
+- the dependency version is **pinned in the lockfile**;
+- **rich-text tag syntax (`<b>…</b>` callbacks) is forbidden in Slice 1** —
+  string output only. If a surface genuinely needs inline markup, that is a
+  separate decision, not a Slice-1 freedom.
+
+**L4.2 — no concatenation.** Components call `t('playback.status.stepN', { n })`.
+**Assembling a sentence from translatable fragments in a component is
+forbidden** — `"Step " + n`, `t('a') + t('b')`, `<>{t('x')} {value}</>` where
+order matters — because word order, particles, and spacing differ by language.
+A string with a runtime value is **one ICU message with a named slot**:
+`"Step {n}"` / `"{n}단계"`.
 
 **L4.3 — placeholder validation.** Every catalog entry's placeholder set must
-match the `en` entry's placeholder set (same names, no extras); CI checks this
-for every locale (§L12 #1). A call site passing an unknown param, or omitting a
+match the `en` entry's (same names, no extras); CI checks this for every
+registered locale (§L12 #1). A call site passing an unknown param, or omitting a
 required one, is a dev-time throw + a test.
 
-**L4.4 — missing key ⇒ `en`, then the key.** `t()` for a key absent in the
-active locale returns the `en` string (dev: console warn; CI: hard fail).
-Absent from `en` too ⇒ the key text, visibly, with a test hook — never an empty
-string.
+**L4.4 — the fallback chain: `active → en → visible key`.** `t()` for a key
+absent from the active locale's catalog renders the `en` string (dev: console
+warn; CI: hard fail via §L12 #1, so this never ships). Absent from `en` too ⇒
+the key text rendered **visibly**, with a test hook — never an empty string,
+never a thrown render. A malformed ICU message (should be caught by CI) falls
+back the same way: the `en` message, then the raw pattern, never a crash.
+
+**L4.5 — catalog loading & _atomic_ locale activation (decided).** In v0.8.0 EN
+and KO both ship in the one app deploy, so the "load" is synchronous today — but
+the activation contract is written for the async case from the start so a later
+move to dynamic chunks is a loader swap only:
+
+- **activation is atomic and only _after_ the target catalog is fully loaded.**
+  The provider exposes the *active* locale; a switch request loads the target
+  catalog, then swaps in one render. There is no interval where some strings are
+  new and some are old.
+- **the previous locale's screen stays rendered while the target loads** — no
+  spinner-blanking of the UI, no partially-translated frame.
+- **stale requests are ignored.** If the user switches A→B→A (or B→C) while B is
+  still loading, a late-arriving B result is dropped; only the newest request
+  can activate.
+- **on load failure the current locale is kept** — the switch is a no-op with a
+  one-time non-blocking notice; nothing half-applies.
+- **the data boundary is unchanged regardless of load strategy:** no GraphDoc,
+  Workspace, Share, revision, or PWA-precache bytes depend on which catalogs are
+  loaded or when. (The PWA precache set covers whatever catalogs the build
+  statically includes; a future dynamic chunk is a runtime fetch cached by the
+  runtime-caching rule, not part of the precache manifest — no `sw.js`
+  contract change for EN/KO.)
+- a test drives a **deferred** catalog loader (a controllable promise) to assert
+  the four rules above without needing real chunks.
 
 ## L5. The language switch
 
 **Auto-generated from the registry.** The control lists `nativeName` for every
 registered locale in registry order, marks the active one, and needs **no edit**
 when a locale is added. It sits next to the theme toggle — desktop `Toolbar`,
-mobile `MobileMoreMenu`. Changing it: writes `localStorage['loop-studio:lang']`
-(§L2 persistence below), re-renders with the new catalog, sets `<html lang>` and
-`<html dir>` from the entry's metadata, and announces the change once in the
-live region. No reload, no run interruption, no viewport change.
+mobile `MobileMoreMenu`. Changing it: kicks off the atomic activation (§L4.5),
+persists the new `code` (§L5.1), sets `<html lang>` / `<html dir>` from the
+entry's metadata **on activation**, and announces the change once in the live
+region. No reload, no run interruption, no viewport change.
 
-**Persistence & initial resolution.** The chosen `code` is a **`localStorage`-only
-UI setting** (`loop-studio:lang`), per-browser, like the theme choice — **never**
-in the GraphDoc, Workspace / Share payload, revision / proposal file, the
-`loop-revision/*` digest, undo, or `simulationRev`. Resolution at first paint
-(before React mounts, to avoid a flash):
+**L5.1 — persistence: one named string key (Q5 — decided).**
 
-1. a stored `loop-studio:lang` **that is a registered `code`** wins;
-2. else, the first registered locale whose `code` matches
-   `navigator.languages` by primary subtag (so `ko-KR` → `ko`);
+```
+localStorage["loop-studio/ui-locale/1"] = "ko"
+```
+
+- the value is a **bare locale `code` string**, not a JSON blob — no premature
+  preferences schema, no migration.
+- on read it is **validated against the registry**; a corrupt, empty, or
+  unregistered value is **ignored** (fall through to browser locale → `en`).
+- reading a bad value **never throws and never rewrites stored data** — a
+  garbage value is simply not honoured; it is left untouched or overwritten only
+  by the next explicit switch.
+- a locale change updates **only this one key**.
+- it is **never** copied into the GraphDoc, the Workspace / Share payload, a
+  revision / proposal file, the `loop-revision/*` digest, undo, or
+  `simulationRev`. Per-browser, like the theme choice.
+- future UI settings (if any) each get their **own** `loop-studio/<thing>/<n>`
+  key — this doc introduces exactly one.
+
+**L5.2 — initial resolution** at first paint (before React mounts, to avoid a
+flash):
+
+1. a stored `loop-studio/ui-locale/1` **whose value is a registered `code`**
+   wins;
+2. else, the first registered locale whose `code` matches `navigator.languages`
+   by primary subtag (so `ko-KR` → `ko`);
 3. else the **base locale** (`en`).
 
 ## L6. Surface inventory (the sweep)
@@ -196,19 +291,39 @@ slices:
 - **Accessibility** — every `aria-label`, `title`, `role="status"` text,
   `PlaybackAnnouncer.tsx`, dialog titles (§L10).
 
-## L7. Errors, warnings, diagnostics
+## L7. Errors, warnings, diagnostics (Q3 — decided: user-facing only this cycle)
 
-- **UI-raised** (validation hints, import failures, size-cap prompts, Share
-  too big) — keyed message text.
-- **Engine diagnostics** (`src/engine/*` — `report.diagnostics`, thrown `Error`
-  messages, the Monte-Carlo cell-limit string). The engine is deliberately
-  **dependency-free and UI-agnostic** (`SEMANTICS.md`) — it must not import an
-  i18n runtime. Resolution: the engine emits a **stable code + structured
-  params** (`{ code: 'MC_CELL_LIMIT', limit, cells, mb }`); the UI renders a
-  localized sentence keyed by the code. Where the engine returns a pre-formatted
-  English string today, keep it as an **untranslated developer-facing fallback**
-  and add the UI-side localized rendering. The exact engine-code list =
-  §L14-Q3.
+This cycle does **not** restructure the whole engine error system. It touches
+**only the diagnostics that reach the UI.**
+
+- **UI-raised** (validation hints, import failures, size-cap prompts, Share too
+  big) — keyed message text, straightforwardly.
+- **Engine diagnostics that surface in the UI** (`report.diagnostics` entries
+  shown to the user, the Monte-Carlo cell-limit message, import-refusal
+  reasons). The engine is deliberately **dependency-free and UI-agnostic**
+  (`SEMANTICS.md`) — it must not import an i18n runtime. So:
+  - the engine hands the UI a **`{ code, params }`** boundary object
+    (`{ code: 'MC_CELL_LIMIT', limit, cells, mb }`); the pre-formatted English
+    string stays as an **untranslated developer-facing fallback**.
+  - the diagnostic **codes** (`M_REG_EVAL`, `EXPR_SYNTAX`, `M_REG_CYCLE`,
+    `MC_CELL_LIMIT`, …) are **unchanged and stay stable**.
+  - the translation catalog is keyed by a **separate message key**
+    (`error.MC_CELL_LIMIT.message`), *derived from* but not *equal to* the code
+    — the code is data, the message key is a catalog lookup. A renamed catalog
+    key never implies a renamed engine code and vice-versa.
+  - an **unrecognised code** (an engine version ahead of the catalog, or a code
+    with no `error.<code>.message` entry) renders a **stable generic localized
+    message** ("Something went wrong while running the model.") **with the raw
+    code shown** alongside for a bug report — never a blank, never the English
+    dev string as the primary text.
+- **Out of scope this cycle:** structuring internal assertions, developer-only
+  errors, and every remaining `throw new Error(...)` in `src/engine/**` into
+  `{ code, params }`. That is its own follow-up.
+- **Unchanged:** the frozen engine results, `report.diagnostics` *contents*
+  (which conditions produce a diagnostic), and evaluation precedence. Adding a
+  `code` field to a diagnostic object is additive metadata, not a semantics
+  change; if any consumer test pins the exact English `diagnostics` strings,
+  it moves to asserting the `code` instead.
 
 ## L8. Numbers, dates, units
 
@@ -243,7 +358,17 @@ slices:
 - The language switch has an accessible name per locale and announces the change
   once.
 
-## L11. (reserved)
+## L11. Development affordances
+
+- **`?lang=<code>`** query param (dev + e2e only) forces a locale for a session
+  without touching `localStorage` — used by the §L12 tests.
+- **key-visibility mode** (a dev flag) renders every `t()` call as its raw key
+  instead of a message, so an un-keyed hardcoded string on a surface is
+  obvious at a glance.
+- **missing-key console warnings** in dev (they are a hard CI failure, §L12 #1,
+  so they never reach production).
+- these are stripped from the production bundle the same way as the existing
+  `import.meta.env.DEV` probes (byte-checked by `e2e/portable-file.spec.ts`).
 
 ## L12. Verification — every check iterates the whole registry
 
@@ -278,18 +403,50 @@ slices:
 
 ## L13. Slices
 
-1. **Base** — `src/i18n/` (registry, `t()` + provider, the message formatter,
-   the initial-language resolver, `<html lang>` / `dir`), the auto-generated
-   language switch, `en` + `ko` catalogs for **one anchor surface**
-   (proposal: Toolbar + Play bar), checks #1–#3, #5–#8 wired. No behaviour
-   change beyond the switch.
-2. **Surface conversion** — the rest of §L6, surface by surface, each with its
-   `en` + `ko` strings and matrix cells; the engine-code rework (§L7).
-3. **Per-locale visual matrix** — check #4 completed and committed.
-4. **Guided first-run tour** — on the finished base. Its own design pass.
-5. **Contextual inline help** — on the finished base. Its own design pass.
+**Slice 1 — the base + the Toolbar + Play bar anchor (Q4 — decided).** The
+smallest surface that exercises the whole mechanism end to end. It lands:
 
-## L14. Decisions & open questions
+- `src/i18n/` — the **locale registry** + metadata, the `t()` provider, the
+  `intl-messageformat` wrapper with the `(locale, key, message)` compiled-formatter
+  cache, the **atomic-activation loader** (§L4.5, synchronous today, async-shaped),
+  the **initial-language resolver** (§L5.2), `<html lang>` / `<html dir>`.
+- the **auto-generated language-select control** — desktop `Toolbar`, mobile
+  `MobileMoreMenu` — with save / restore / browser-locale fallback and
+  **immediate** (atomic) switching.
+- `en` + `ko` catalogs for **Toolbar + Play bar only**: every button name,
+  tooltip, and `aria-label`; Play / Pause / Step / Reset; the step-announcement
+  templates in `PlaybackAnnouncer` (logic unchanged).
+- CI checks #1–#3 and #5–#8; the visual matrix (check #4) for just these two
+  surfaces.
+- **the invariance assertion** (§L12 #5): switching KO↔EN before, during, and
+  after a run leaves the GraphDoc bytes, the `loop-revision/3` digest, undo /
+  redo, the viewport, `simulationRev`, and `SimState` (values / stepIndex)
+  byte-for-byte unchanged.
+- **no behaviour change beyond the switch**; the Inspector, Timeline, dialogs,
+  revision UI, etc. stay English until Slice 2.
+
+**Slice 2 — full surface conversion.** The rest of §L6 — **the Inspector first**
+(the largest surface: every field label, unit, activation / mode option,
+validation hint, `resourceType` note), then Timeline, Monte Carlo, Import /
+Export / Workspace, revision UI, PWA update bar, boot / share, Templates,
+Shortcuts, and all remaining errors / empty states / a11y strings — surface by
+surface, each with its `en` + `ko` catalog additions and its visual-matrix
+cells. The §L7 user-facing engine-diagnostic `{ code, params }` rework lands
+here.
+
+**Slice 3 — per-locale visual matrix.** Check #4 completed across every §L6
+surface and every registered locale × light/dark × desktop/mobile, committed.
+
+**Slice 4 — guided first-run tour.** On the finished base. Its own design pass.
+
+**Slice 5 — contextual inline help.** On the finished base. Its own design pass.
+
+## L14. Decision record
+
+No open questions as of rev 2. Rev 2 is still for review — fallback (§L4.4),
+async / atomic activation (§L4.5), the user-input non-translation boundary
+(§L3.4), and the slice split (§L13) are the parts to re-confirm before a freeze
+or an implementation go.
 
 **Decided (Lumi, cycle kickoff + the N-language clarification):**
 
@@ -302,8 +459,9 @@ slices:
 - **one key set for all locales**, CI-enforced for every registered locale.
 - **per-language files** (`src/i18n/locales/<code>.ts`); a new language = one
   file + one registry line, zero edits elsewhere.
-- **message format with plural / select / named slots from day one**; string
-  concatenation of translatable fragments is banned.
+- **message format with plural / select / named slots from day one** (the
+  formatter itself is decided in rev 2, Q2); string concatenation of
+  translatable fragments is banned.
 - **tests iterate the whole registry** — missing keys, extra keys, empty
   translations, placeholder mismatch, fallback.
 - **language switch auto-generated from the registry.**
@@ -322,44 +480,65 @@ slices:
   viewport / sim state invariant (§L12).
 - guided tour + inline help are later slices on the finished base (§L13).
 
-**Open — need a call before the base slice:**
+**Decided in rev 2 (Lumi — the five questions + the loader):**
 
-- **Q1 — catalog module shape.** A plain `export default { … } satisfies
-  Catalog` object per locale, with `Catalog` derived from `typeof enCatalog` so
-  `tsc` flags shape drift — vs a JSON file + a generated type. Proposal: TS
-  module + `satisfies`, for compile-time key safety and translator-friendly
-  single files.
-- **Q2 — the formatter.** Hand-rolled ICU-subset (`{name}`, `{n, plural, …}`,
-  `{g, select, …}` — ~80 lines) vs a vetted micro-dep (`@formatjs/intl`,
-  `messageformat`). A dep adds bundle weight + supply-chain surface; a
-  hand-rolled subset covers what KO/EN and the near-term locales need. Proposal:
-  **hand-rolled ICU-subset**, with a clear seam to swap in `messageformat` if
-  requirements outgrow it.
-- **Q3 — engine diagnostic codes.** Rework **all** `report.diagnostics` +
-  thrown engine `Error`s to `{ code, params }` now, or only the user-facing ones
-  (cell-limit, import failures) this cycle and leave the long tail as English
-  developer strings. Proposal: **user-facing only** now; a follow-up for the
-  rest.
-- **Q4 — anchor surface for Slice 1.** Toolbar + Play bar (small, high
-  visibility) vs Inspector (largest, exercises field/unit/validation early).
-  Proposal: Toolbar + Play bar.
-- **Q5 — `localStorage` key name + shape.** `loop-studio:lang` = `"ko"` (bare
-  code) vs a small JSON blob for future prefs. Proposal: bare code string,
-  matching the theme key's simplicity.
+- **Q1 — catalog module shape → TS module + `satisfies`** (§L3.3). `en.ts` is
+  the canonical shape; `type MessageCatalog = Record<keyof typeof en, string>`;
+  every other locale is `… satisfies MessageCatalog`, so `tsc` blocks a missing
+  **or** an extra key at compile time. Keys are flat, stable IDs — translated
+  text is never a type identifier or a lookup key. A JSON extraction pipeline
+  comes only when a real translation-management tool needs it (separate, later).
+- **Q2 — the formatter → `intl-messageformat` (FormatJS), used directly**
+  (§L4.1). No hand-rolled ICU subset — nested plural/select, escaping, the
+  `other` rule, and per-language CLDR plural categories are not worth
+  re-implementing. Full ICU Message syntax (plural / select / selectordinal /
+  `{n, number}` / `{d, date}` via `Intl.*`); the `t()` wrapper caches the
+  compiled formatter keyed by `(locale, key, message)`; the dependency version
+  is pinned in the lockfile; **rich-text tag callbacks are forbidden in
+  Slice 1** (string output only — a separate decision if a surface needs
+  markup).
+- **Q3 — engine diagnostics → user-facing only this cycle** (§L7). Only
+  UI-exposed diagnostics get the `{ code, params }` boundary. Codes
+  (`M_REG_EVAL`, `EXPR_SYNTAX`, …) stay stable. The catalog is keyed by a
+  **separate `error.<code>.message` key**, not the code itself. An unknown code
+  ⇒ a stable generic localized message **with the raw code shown**. Structuring
+  every internal assertion / dev error / `throw` is a separate follow-up. The
+  frozen engine results and evaluation precedence do **not** change.
+- **Q4 — Slice-1 anchor → Toolbar + Play bar** (§L13). The Inspector — the
+  largest string / field / validation surface — is the start of Slice 2's full
+  surface conversion.
+- **Q5 — persistence key → one named bare string** (§L5.1):
+  `localStorage["loop-studio/ui-locale/1"] = "ko"`. Validated against the
+  registry on read; a corrupt / unregistered value is ignored (→ browser locale
+  → `en`) and reading it never throws or mutates stored data; a switch updates
+  only this key; never copied into Workspace / Share / GraphDoc; future UI
+  settings each get their own key. No preferences schema or migration now.
+- **Catalog loader & atomic activation** (§L4.5). EN + KO ship in one app
+  deploy; activation is atomic and happens **only after** the target catalog is
+  fully loaded — never a partially-translated frame. The contract is written for
+  the async case from the start: the previous locale's screen stays up while the
+  target loads; stale late-arriving requests are ignored; a load failure keeps
+  the current locale; and no GraphDoc / Workspace / Share / PWA-data boundary
+  depends on which catalogs are loaded or when, whatever the load strategy
+  becomes.
 
 ## L15. Scope boundary
 
-**In:** the `src/i18n/` registry + `t()` + formatter + resolver + `<html
-lang>`/`dir`; the auto-generated switch + `localStorage` persistence; `en` + `ko`
-catalogs for every §L6 surface; the engine user-facing-diagnostic rework
-(§L7 / Q3); the §L12 registry-wide verification set; the per-locale visual
-matrix. Then the guided tour and inline help as separate slices.
+**In:** the `src/i18n/` registry + `t()` (`intl-messageformat` + compiled-formatter
+cache) + the initial-language resolver + `<html lang>`/`dir`; the atomic-activation
+loader (§L4.5, synchronous today, async-shaped); the auto-generated switch +
+the single `loop-studio/ui-locale/1` key; `en` + `ko` catalogs for every §L6
+surface; the §L7 user-facing engine-diagnostic `{ code, params }` rework; the
+§L12 registry-wide verification set + the per-locale visual matrix. Then the
+guided tour and inline help as separate slices.
 
-**Out (this cycle):** any RTL-correct layout (metadata only); machine
-translation; translating model data, example GraphDoc strings, or wire
-identifiers; changing any serialized format, digest, or `loop-*/N`; a per-locale
-bundle or deploy; **actually** dynamic-loading catalogs (the seam is built, the
-loader is not); reformatting stored / digested numbers; locale-aware date
-rendering beyond a single `Intl.DateTimeFormat` call if a date ever surfaces; a
-translation-management service or crowd workflow; a third shipped locale (the
-base must *accept* one, this cycle does not *ship* one).
+**Out (this cycle):** any RTL-correct layout (`dir` metadata only); rich-text
+tag callbacks in messages; machine translation; translating model data, example
+GraphDoc strings, wire identifiers, or diagnostic codes; changing any serialized
+format, digest, or `loop-*/N`; a per-locale bundle or deploy; **actually**
+dynamic-loading catalogs (the thunk seam is built, real chunks are not);
+restructuring internal / developer-only engine errors; reformatting stored /
+digested / canonical-form numbers; locale-aware date rendering beyond a single
+`Intl.DateTimeFormat` call if a date ever surfaces; a translation-management
+service or crowd workflow; a third **shipped** locale (the base must *accept*
+one; this cycle does not *ship* one).
