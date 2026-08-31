@@ -210,12 +210,24 @@ match the `en` entry's (same names, no extras); CI checks this for every
 registered locale (§L12 #1). A call site passing an unknown param, or omitting a
 required one, is a dev-time throw + a test.
 
-**L4.4 — the fallback chain: `active → en → visible key`.** `t()` for a key
-absent from the active locale's catalog renders the `en` string (dev: console
-warn; CI: hard fail via §L12 #1, so this never ships). Absent from `en` too ⇒
-the key text rendered **visibly**, with a test hook — never an empty string,
-never a thrown render. A malformed ICU message (should be caught by CI) falls
-back the same way: the `en` message, then the raw pattern, never a crash.
+**L4.4 — the fallback chain, applied per `t()` call, and it NEVER exposes a raw
+ICU pattern.** `format.ts`'s `tryFormat` returns `null` on any failure — a bad
+pattern **or** a missing / wrong-shape runtime parameter (CI §L12 #1 blocks bad
+patterns and cross-catalog argument drift, but cannot see what a call site
+passes). `render()` then walks:
+
+1. **the active-locale message** formatted with the given params;
+2. if that returns `null` → **the same key's `en` message**, same params;
+3. if that also returns `null` → a **stable localised failure notice carrying
+   the key** (`i18n.messageError` → `"text unavailable ({key})"` /
+   `"문구를 표시할 수 없음 ({key})"`);
+4. last resort (the notice key itself unusable) → the **bare key text**.
+
+Never a throw, never an empty string, and **never the raw ICU message or the
+user parameters** in the rendered output, an error UI, or a production log. The
+only diagnostic is a **dev-mode** `console.warn` naming the **key, the locale,
+and the error class** — not `err.message` (FormatJS embeds the pattern in it),
+not the params.
 
 **L4.5 — catalog loading & _atomic_ locale activation (decided).** In v0.8.0 EN
 and KO both ship in the one app deploy, so the "load" is synchronous today — but
@@ -280,13 +292,26 @@ start, so a later move to dynamic chunks is a loader swap only.
 
 ## L5. The language switch
 
-**Auto-generated from the registry.** The control lists `nativeName` for every
-registered locale in registry order, marks the active one, and needs **no edit**
-when a locale is added. It sits next to the theme toggle — desktop `Toolbar`,
-mobile `MobileMoreMenu`. Changing it: kicks off the atomic activation (§L4.5),
-persists the new `code` (§L5.1), sets `<html lang>` / `<html dir>` from the
-entry's metadata **on activation**, and announces the change once in the live
-region. No reload, no run interruption, no viewport change.
+**Auto-generated from the registry.** The control is driven entirely by
+`LOCALES` and needs **no edit** when a locale is added. It sits next to the theme
+toggle — desktop `Toolbar`, mobile `MobileMoreMenu`. Activating it kicks off the
+atomic activation (§L4.5), persists the new `code` (§L5.1), sets `<html lang>` /
+`<html dir>` from the entry's metadata **on activation**, and announces the
+change once. No reload, no run interruption, no viewport change.
+
+**Slice 1 form — a cycling button.** With `en` + `ko` (the first two shipped
+locales) the control is a plain `.btn` (identical height to the sibling toolbar
+controls, so it shifts no committed visual baseline) showing the active locale's
+`nativeName`; a press — mouse, **Enter, or Space** — advances to the next
+registered locale, wrapping. Its accessible name states **both** the current
+locale and the one a press switches to (`lang.ariaLabel`).
+
+**When a third locale is _shipped_**, replace the cycle with a **dropdown /
+menu** (each entry addressable directly). That is a `LanguageSwitch.tsx` change
+only — **the registry, `resolveInitialLocale`, `setLocale`, the
+`loop-studio/ui-locale/1` key, and every other part of the base stay exactly as
+they are.** The dev-only `en-XA` pseudo-locale (§L11) already exercises the
+N-locale path through the cycle today.
 
 **L5.1 — persistence: one named string key (Q5 — decided).**
 
@@ -445,17 +470,27 @@ This cycle does **not** restructure the whole engine error system. It touches
 - The language switch has an accessible name per locale and announces the change
   once.
 
-## L11. Development affordances
+## L11. Development affordances — strictly dev-only, byte-gated
 
-- **`?lang=<code>`** query param (dev + e2e only) forces a locale for a session
-  without touching `localStorage` — used by the §L12 tests.
-- **key-visibility mode** (a dev flag) renders every `t()` call as its raw key
-  instead of a message, so an un-keyed hardcoded string on a surface is
-  obvious at a glance.
-- **missing-key console warnings** in dev (they are a hard CI failure, §L12 #1,
-  so they never reach production).
-- these are stripped from the production bundle the same way as the existing
-  `import.meta.env.DEV` probes (byte-checked by `e2e/portable-file.spec.ts`).
+Every item here is read **only inside `import.meta.env.DEV`**, which is
+statically `false` in the production and portable builds, so the code, the query
+key, and the identifiers are **tree-shaken out entirely**.
+`e2e/portable-file.spec.ts` asserts their absence at the byte level
+(`devLocaleOverride`, `devPseudoLocales`, `en-XA`, `__formatCacheSize`, `?lang`).
+
+- **`?lang=<code>`** — a debugging / e2e convenience, **not a product feature**.
+  It forces a *registered* locale for the session and then stops: it does **not**
+  enter the §L5.2 order, does **not** write `localStorage`, and does **not**
+  propagate to a Workspace / Share payload. In a production build the query
+  string has no effect — a `?lang=ko` there still resolves by the stored
+  preference / browser rule.
+- **the `en-XA` pseudo-locale** — a dev-only registry entry (catalog = `en`
+  verbatim) so the switch, the resolver, and every check exercise an *Nth*
+  locale without special-casing `en` / `ko`. Not shipped.
+- **`missing-key` / `format-failed` console warnings** in dev (both are hard CI
+  failures, §L12 #1, so they never reach production).
+- (a later **key-visibility mode** — render every `t()` as its bare key to spot
+  an un-keyed string — is noted for Slice 2/3, not built here.)
 
 ## L12. Verification — every check iterates the whole registry
 

@@ -38,6 +38,8 @@ jobs:
         run: npm run check:icons
       - name: Mobile breakpoint — single source of truth
         run: npm run check:mobile-query
+      - name: i18n catalogs — registry-wide key + ICU integrity
+        run: npm run check:i18n
       - name: Web build
         run: npm run build
       - name: Portable build

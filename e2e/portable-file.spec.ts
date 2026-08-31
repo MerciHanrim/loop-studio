@@ -117,6 +117,10 @@ test.describe('portable file://', () => {
       'deepFreeze',
       '__edgeRenders', // Slice 3c-c dev-only render probe
       '__budgetComputes', // Slice 3c-c dev-only budget-sort probe
+      'devLocaleOverride', // i18n Slice 1 — the dev-only `?lang=` reader
+      'devPseudoLocales', // i18n Slice 1 — the dev-only QA pseudo-locale
+      'en-XA', // the QA pseudo-locale code
+      '__formatCacheSize', // i18n format-cache test probe
     ]) {
       expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)
     }

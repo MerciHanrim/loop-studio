@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useSimStore } from '../store/simStore'
+import { t } from '../i18n'
 
 // docs/simulation-playback.md Slice 3c — a polite live region so a screen reader
 // can follow the run without watching the canvas.
@@ -50,7 +51,7 @@ export function PlaybackAnnouncer() {
       if (s.stepIndex < gen.stepFloor) return // rewound (Reset / scrub)
       if (s.status === 'idle' || s.status === 'ended') return // superseded
       lastAt.current = Date.now()
-      setMessage(`Step ${s.stepIndex}`)
+      setMessage(t('a11y.playback.stepN', { n: s.stepIndex }))
     }
 
     const p = prev.current
@@ -62,14 +63,14 @@ export function PlaybackAnnouncer() {
       const stepped = stepIndex > p.stepIndex
       setMessage(
         status === 'running'
-          ? 'Playback started'
+          ? t('a11y.playback.started')
           : status === 'ended'
-            ? `Ended at step ${stepIndex}`
+            ? t('a11y.playback.endedAtStep', { n: stepIndex })
             : status === 'idle'
-              ? 'Reset to step 0'
+              ? t('a11y.playback.resetToZero')
               : stepped
-                ? `Step ${stepIndex}` // a Step press, not a user Pause
-                : `Paused at step ${stepIndex}`,
+                ? t('a11y.playback.stepN', { n: stepIndex }) // a Step press, not a user Pause
+                : t('a11y.playback.pausedAtStep', { n: stepIndex }),
       )
       lastAt.current = now
     } else if (simulationRev === p.simulationRev && stepIndex === p.stepIndex + 1) {
@@ -77,7 +78,7 @@ export function PlaybackAnnouncer() {
       if (now - lastAt.current >= ANNOUNCE_MIN_MS) {
         cancelPending()
         lastAt.current = now
-        setMessage(`Step ${stepIndex}`)
+        setMessage(t('a11y.playback.stepN', { n: stepIndex }))
       } else if (!pending.current) {
         // inside the throttle window — schedule ONE latest-wins announcement
         const gen: Gen = { simulationRev, stepFloor: stepIndex }

@@ -1,5 +1,6 @@
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
+import { useT } from '../i18n'
 
 // P2 — playback lives in the chart-header strip, treated as part of the time
 // axis rather than the editing toolbar.
@@ -32,6 +33,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const openMcDialog = useMcStore((s) => s.openDialog)
   const cancelMc = useMcStore((s) => s.cancel)
   const mcRunning = mcStatus === 'running'
+  const t = useT()
 
   const running = status === 'running'
   const ended = status === 'ended'
@@ -50,7 +52,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   return (
     <div className="pstrip" data-placeholder="P2 — chart-header strip">
       <div className="pstrip__group">
-        <button type="button" className="pb-btn" onClick={reset} title="Reset to step 0">
+        <button type="button" className="pb-btn" onClick={reset} title={t('playbar.reset.title')}>
           ⟲
         </button>
         <button
@@ -58,7 +60,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           className="pb-btn"
           onClick={stepOnce}
           disabled={running}
-          title="Advance one step"
+          title={t('playbar.step.title')}
         >
           ⏭
         </button>
@@ -67,17 +69,16 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
         >
-          {ended ? '⟳ Replay' : running ? '⏸ Pause' : '▶ Play'}
+          {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
       </div>
 
       <span className="pstrip__step">
-        step {stepIndex}
-        {ended ? ' · ended' : ''}
+        {ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}
       </span>
 
       <label className="pstrip__field">
-        <span>speed</span>
+        <span>{t('playbar.speed')}</span>
         <input
           type="range"
           min={SPEED_MIN}
@@ -88,8 +89,8 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         />
       </label>
 
-      <label className="pstrip__field" title="Random seed — same seed reproduces the run; changing it restarts">
-        <span>seed</span>
+      <label className="pstrip__field" title={t('playbar.seed.title')}>
+        <span>{t('playbar.seed')}</span>
         <input
           className="pstrip__seed"
           type="number"
@@ -103,11 +104,11 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       <span className="pstrip__mc">
         {mcRunning ? (
           <>
-            <span className="pstrip__mcprog" title="Monte-Carlo run in progress">
-              Monte Carlo {Math.round(mcProgress * 100)}%
+            <span className="pstrip__mcprog" title={t('playbar.mc.progress.title')}>
+              {t('playbar.mc.progress', { pct: Math.round(mcProgress * 100) })}
             </span>
             <button type="button" className="pb-btn" onClick={cancelMc}>
-              Cancel
+              {t('playbar.cancel')}
             </button>
           </>
         ) : (
@@ -115,9 +116,9 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
             type="button"
             className="pb-btn"
             onClick={openMcDialog}
-            title="Run the diagram many times and see the distribution"
+            title={t('playbar.mc.title')}
           >
-            Monte Carlo{mcMessage ? ` · ${mcMessage}` : ''}
+            {mcMessage ? t('playbar.mc.withNote', { note: mcMessage }) : t('playbar.mc')}
           </button>
         )}
       </span>
@@ -126,7 +127,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         type="button"
         className="pb-btn pstrip__collapse"
         onClick={onToggleCollapse}
-        title={collapsed ? 'Show timeline' : 'Hide timeline'}
+        title={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
       >
         {collapsed ? '▴' : '▾'}
       </button>

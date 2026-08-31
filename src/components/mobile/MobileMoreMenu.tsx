@@ -19,7 +19,9 @@ import {
   makeProposal,
 } from '../../ui/revisionActions'
 import { SHARE_DISCLOSURE, prepareShareLink, shareKb } from '../../ui/shareAction'
+import { useT } from '../../i18n'
 import { AuthorDialog } from '../AuthorDialog'
+import { LanguageSwitch } from '../LanguageSwitch'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
 
@@ -45,6 +47,7 @@ export function MobileMoreMenu({
   const overlay = useUiStore(selectOverlay)
   const openOverlay = useUiStore((s) => s.openOverlay)
   const closeOverlay = useUiStore((s) => s.closeOverlay)
+  const t = useT()
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
   const loadGraph = useGraphStore((s) => s.loadGraph)
@@ -154,7 +157,7 @@ export function MobileMoreMenu({
 
   if (overlay === 'more') {
     return (
-      <MobileSheet title="More" onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current}>
+      <MobileSheet title={t('mobile.more')} onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current}>
         <button
           type="button"
           className="sheet__row sheet__row--first"
@@ -180,7 +183,10 @@ export function MobileMoreMenu({
           Templates<span className="sheet__row-sub">▸</span>
         </button>
         <div className="sheet__row" style={{ cursor: 'default' }}>
-          Theme<span className="sheet__row-sub"><ThemeToggle /></span>
+          {t('theme.rowLabel')}<span className="sheet__row-sub"><ThemeToggle /></span>
+        </div>
+        <div className="sheet__row" style={{ cursor: 'default' }}>
+          {t('lang.rowLabel')}<span className="sheet__row-sub"><LanguageSwitch /></span>
         </div>
         <div className="sheet__stamp">
           v{__APP_VERSION__}

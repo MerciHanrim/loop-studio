@@ -4,6 +4,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { useReviewStore } from '../../store/reviewStore'
 import { routeImport } from '../../store/revisionIO'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
+import { useT } from '../../i18n'
 import { Logo } from '../Logo'
 import { RevisionChip } from '../RevisionChip'
 import { MobileMoreMenu } from './MobileMoreMenu'
@@ -19,6 +20,7 @@ export function MobileTopBar() {
   const overlay = useUiStore(selectOverlay)
   const toggleOverlay = useUiStore((s) => s.toggleOverlay)
   const { getViewport, setViewport } = useReactFlow()
+  const t = useT()
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -68,7 +70,7 @@ export function MobileTopBar() {
       <span className="toolbar__mark">
         <Logo />
       </span>
-      <span className="toolbar__vr">view &amp; run — edit on desktop</span>
+      <span className="toolbar__vr">{t('mobile.topbar.caption')}</span>
       <RevisionChip className="rev-chip--mobile" />
       <button
         ref={moreRef}
@@ -76,7 +78,7 @@ export function MobileTopBar() {
         className="btn mob-more"
         aria-haspopup="dialog"
         aria-expanded={overlay === 'more'}
-        aria-label="More"
+        aria-label={t('mobile.more')}
         onClick={() => toggleOverlay('more')}
       >
         ⋯
