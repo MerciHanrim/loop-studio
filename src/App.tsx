@@ -5,6 +5,7 @@ import { Inspector } from './components/Inspector'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
+import { PlaybackAnnouncer } from './components/PlaybackAnnouncer'
 import { PwaUpdateBar } from './components/PwaUpdateBar'
 import { ReviewOverlay } from './components/ReviewOverlay'
 import { ShareLoader } from './components/ShareLoader'
@@ -33,6 +34,7 @@ export default function App() {
       </div>
       <MonteCarloDialog />
       <ReviewOverlay />
+      <PlaybackAnnouncer />
     </ReactFlowProvider>
   )
 }

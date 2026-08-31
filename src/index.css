@@ -2547,6 +2547,21 @@ input[type='number']::-webkit-inner-spin-button {
   resize: vertical;
 }
 
+/* visually-hidden but available to assistive tech (docs/simulation-playback.md
+   Slice 3c live region) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* one-time boot notice (SEMANTICS-R.md §R8 reboot rule) */
 .boot-notice {
   position: fixed;
