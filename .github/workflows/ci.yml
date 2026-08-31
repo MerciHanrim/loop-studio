@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
 
+# a new commit on the same ref cancels the running CI for that ref
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -50,12 +51,20 @@ jobs:
       - name: PWA precache closure (Cloudflare Production path)
         run: CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist
 
-  e2e:
-    name: e2e
-    # Windows so the committed visual baselines (`*-chromium-win32.png`) match;
-    # public repo ⇒ Actions minutes are free.
+  # ── E2E, parallelised ──────────────────────────────────────────────────
+  # The dev-server + portable suite (`npm run e2e`) is split into N Playwright
+  # shards that run concurrently; the production-bundle and PWA suites are
+  # their own jobs. The `e2e` job below fans them back into one status.
+  e2e-shard:
+    name: e2e (shard ${{ matrix.shard }}/4)
+    # Windows so the committed visual baselines (`*-win32.png`) match; public
+    # repo ⇒ Actions minutes are free.
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,21 +74,85 @@ jobs:
       - run: npm ci
       - name: Install Chromium
         run: npx playwright install chromium
-      # `npm run e2e` self-builds the portable bundle (build-portable setup
-      # project); `npm run e2e:dist` self-builds dist/ via its webServer.
+      # the default config's `build-portable` setup project self-builds the
+      # portable bundle on each shard that carries a portable spec
       - name: E2E (dev server + portable file://)
-        run: npm run e2e
+        run: npx playwright test --shard=${{ matrix.shard }}/4
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-shard-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e-dist:
+    name: e2e (production bundle)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install chromium
       - name: E2E (production bundle)
         run: npm run e2e:dist
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-dist
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e-pwa:
+    name: e2e (PWA)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install chromium
       - name: E2E (PWA — service worker, offline, update)
         run: npm run e2e:pwa
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-pwa
           path: |
             playwright-report/
             test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  # single stable status that gates the branch — green only if every E2E job is
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    needs: [e2e-shard, e2e-dist, e2e-pwa]
+    if: always()
+    steps:
+      - name: Every E2E job passed
+        run: |
+          echo "shards : ${{ needs.e2e-shard.result }}"
+          echo "dist   : ${{ needs.e2e-dist.result }}"
+          echo "pwa    : ${{ needs.e2e-pwa.result }}"
+          test "${{ needs.e2e-shard.result }}" = "success" \
+            && test "${{ needs.e2e-dist.result }}" = "success" \
+            && test "${{ needs.e2e-pwa.result }}" = "success"
