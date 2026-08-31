@@ -10,6 +10,8 @@ import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import { currentRouteMap } from '../../store/routeMap'
 import { useLod } from '../lod'
+import { MAX_PLAYBACK_TOKENS } from './playback-caps'
+import { usePlaybackTravelBudget } from './playbackBudget'
 import type { LoopEdgeData } from '../../model/types'
 import type { StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
@@ -93,14 +95,15 @@ function LoopEdge({
   const status = useSimStore((s) => s.status)
   const stateEvent = useSimStore((s) => s.stateEvents.find((e) => e.edgeId === id))
   // docs/simulation-playback.md Slice 2 — a READ-ONLY consumer of the in-flight
-  // transition. Only an edge that carries flow / a state effect this step
+  // transition. Only an edge that carries flow / a state effect THIS step
   // re-renders per τ frame; every other edge's selector returns null both frames
-  // (so selecting a node, panning, etc. never re-render an idle edge's token).
+  // (so selecting a node, panning, etc. never re-render an idle edge's cue — and
+  // an idle state edge is held to the same rule as an idle resource edge).
   const edgeKind = (data as { kind?: unknown } | undefined)?.kind
   const transition = useSimStore((s) => {
     const t = s.transition
     if (!t) return null
-    if (edgeKind === 'state') return t
+    if (edgeKind === 'state') return t.stateEvents.some((e) => e.edgeId === id) ? t : null
     return (t.flowByEdge[id] ?? 0) > 0 ? t : null
   })
   const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
@@ -119,6 +122,13 @@ function LoopEdge({
   else if (d.mode === 'activator') text = d.expr || '≥'
   else text = d.expr || '±'
 
+  // dev-only render probe (§PB perf ceiling test) — proves an idle edge does not
+  // re-render on every τ frame. Tree-shaken from production.
+  if (import.meta.env.DEV) {
+    const w = window as unknown as { __edgeRenders?: Record<string, number> }
+    ;(w.__edgeRenders ??= {})[id] = (w.__edgeRenders[id] ?? 0) + 1
+  }
+
   const rm = reducedMotion()
   const running = status === 'running' || status === 'paused'
   // reduced-motion substitute for a travelling token: a held highlight on the
@@ -129,19 +139,24 @@ function LoopEdge({
 
   // ── Slice 2 choreography — the token walks the real `d` in step with τ ──
   // The scheduler owns τ / phase / commit (Slice 1); this layer only reads.
+  // §PB4.5 — ONE global budget (`MAX_PLAYBACK_TOKENS_TOTAL`) across every
+  // travelling cue in a step: resource tokens + state `trigger` beads + non-zero
+  // state `label` beads. Past it an edge keeps its committed label and its
+  // settle cue, it just does not animate.
+  const travelBudget = usePlaybackTravelBudget(id)
   const pbPhase = transition && !isState ? transition.phase : null
   const pbFlow = transition && !isState ? (transition.flowByEdge[id] ?? 0) : 0
   // the ordered phase cues (depart ring · travel path-pulse · arrive ring) —
-  // shown whenever a resource transition is in flight and motion is allowed,
-  // at every zoom including L0.
-  const pbCueOn = pbFlow > 0 && !rm && !!pbPhase
+  // shown whenever a resource transition is in flight, motion is allowed, and
+  // this edge is within the global travel budget; at every zoom including L0.
+  const pbCueOn = pbFlow > 0 && !rm && !!pbPhase && travelBudget.has(id)
   // the travelling dot itself — elided at L0 (§PB4.4).
   const pbToken = pbCueOn && !atL0
   const pbFrac = transition ? travelFraction(transition.tau) : 0
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
   const pbEndPt = pbCueOn && pbPhase === 'arrive' ? pointOnPath(path, 1) : null
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
-  const pbBreakdown = pbAll.slice(0, 8)
+  const pbBreakdown = pbAll.slice(0, MAX_PLAYBACK_TOKENS)
   const pbBreakdownRest = pbAll.length - pbBreakdown.length
 
   // ── state-edge feedback (SEMANTICS-S.md §S9 / SEMANTICS-S2.md §S2-9) ──
@@ -165,7 +180,14 @@ function LoopEdge({
   // direction); everything else travels source → target.
   const stReverse = stv?.kind === 'label' && stv.delta < 0
   const stFrac = transition ? travelFraction(transition.tau) : 0
-  const stTravels = !rm && (stv?.kind === 'trigger' || (stv?.kind === 'label' && stv.delta !== 0))
+  // §PB4.4 — a state bead is the same sub-pixel element as the resource dot, so
+  // it is elided at L0 too. §PB4.5 — and only travels within the global budget;
+  // over it, the committed label delta still lands, the bead just does not move.
+  const stTravels =
+    !rm &&
+    !atL0 &&
+    travelBudget.has(id) &&
+    (stv?.kind === 'trigger' || (stv?.kind === 'label' && stv.delta !== 0))
   const stPt = stTravels ? pointOnPath(path, stReverse ? 1 - stFrac : stFrac) : null
   const stTargetPt = !rm && stv?.kind === 'activator' && stPhase === 'arrive' ? pointOnPath(path, 1) : null
 
@@ -350,7 +372,7 @@ function LoopEdge({
           the arrive ring are shown together (timing is collapsed, so "all at
           once" — not padded). `data-playback-phase` still tracks the live beat.
           Clears on settle; the held post-settle pulse below takes over. */}
-      {transition && !isState && pbFlow > 0 && rm ? (
+      {transition && !isState && pbFlow > 0 && rm && travelBudget.has(id) ? (
         <g key={`pbrm-${id}-${transition.fromStep}`} data-playback-phase={pbPhase}>
           <path className="flow-edge-pulse" data-playback-phase={pbPhase} d={path} fill="none" />
           <circle className="pb-cue pb-cue--depart" cx={sourceX} cy={sourceY} r="5" />

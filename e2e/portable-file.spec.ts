@@ -115,6 +115,8 @@ test.describe('portable file://', () => {
       '__loop.routeMap',
       'routeMap:{genCount',
       'deepFreeze',
+      '__edgeRenders', // Slice 3c-c dev-only render probe
+      '__budgetComputes', // Slice 3c-c dev-only budget-sort probe
     ]) {
       expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)
     }
