@@ -6,10 +6,10 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** — **v0.7.0**. The diagram editor and the
-> simulation engine — deterministic, seeded randomness, Monte Carlo, and
-> executable state connections (`trigger` / `activator` / `label`) — are all
-> usable today, plus Workspace Export/Import,
+> Status: **working preview** — `v0.8.0-dev`; the last tagged release is
+> **v0.7.0**. The diagram editor and the simulation engine — deterministic,
+> seeded randomness, Monte Carlo, and executable state connections (`trigger` /
+> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
 > shareable `#g1=` links, an installable offline PWA, and file-based **project
 > revisions & proposals** (`loop-revision/1`) for asynchronous collaboration.
 > **v0.6.0** added a deterministic **model language** — `parameter` / `register`
@@ -27,6 +27,13 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 > forced-colors handling and a bounded on-screen token count — a display layer
 > that leaves the deterministic engine result untouched. Execution semantics are
 > pinned down in frozen spec documents (see [Semantics](#semantics)).
+>
+> **In `v0.8.0-dev`:** Onboarding, part 2 — a **KO / EN localization** base (a
+> runtime language switch on a single bundle; the chosen language is a
+> `localStorage`-only UI setting that never enters the GraphDoc, Workspace,
+> Share link, or `loop-revision/*` digest), then a guided first-run tour and
+> contextual inline help on top of it. Design doc (`docs/localization.md`)
+> first, implementation after it settles.
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -146,10 +153,11 @@ classification, or apply decision depends on them.
   - ✅ Activator + comparison conditions
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
-- ☐ Onboarding, part 2 — **deferred beyond v0.7.0** (the run-status live region, Inspector help text, and the visual-language work already shipped are accessibility / design pieces, not this)
-  - ☐ Guided first-run tour
-  - ☐ Contextual inline help and documentation
-  - ☐ KO/EN localization infrastructure and translated UI strings
+- ◐ Onboarding, part 2 — **v0.8.0-dev** ([`docs/localization.md`](docs/localization.md) — design doc first; the run-status live region, Inspector help text, and the visual-language work already shipped are accessibility / design pieces, not this)
+  - ☐ KO / EN localization base — a translation-key + `locale` structure, a runtime language switch on **one** bundle, initial language (a stored choice wins, else `ko*` browser language ⇒ KO, else EN; always an EN fallback), and the switch's boundary with Workspace / Share / revision. The chosen language is a `localStorage`-only UI setting — it never enters the GraphDoc, the Workspace / Share payload, the `loop-revision/*` digest, undo, or `simulationRev`. **Model data is not translated** (user `label` / expression / `unit` / `resourceType` and example GraphDoc strings are verbatim); error **codes** (`M_REG_EVAL`, `EXPR_SYNTAX`, …) and wire identifiers (schema id, `kind`, `mode`, `tool`, file keys) stay ASCII/English — only human-readable message text is translated
+  - ☐ Surface conversion — Toolbar, Inspector, Timeline, Import / Export, revision UI, the PWA update bar, errors / warnings, empty states, and accessibility names + live-region text; desktop / mobile × light / dark × LOD KO / EN visual + regression matrix; a CI check that the EN / KO key sets are byte-identical (no missing or unused key); locale switch leaves GraphDoc / digest / undo / viewport / simulation state unchanged
+  - ☐ Guided first-run tour — built on the localization base
+  - ☐ Contextual inline help and documentation — built on the localization base
 - ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
