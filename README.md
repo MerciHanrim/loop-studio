@@ -6,10 +6,10 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 **Live app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** — `v0.7.0-dev`; the last tagged release is
-> **v0.6.0**. The diagram editor and the simulation engine — deterministic,
-> seeded randomness, Monte Carlo, and executable state connections (`trigger` /
-> `activator` / `label`) — are all usable today, plus Workspace Export/Import,
+> Status: **working preview** — **v0.7.0**. The diagram editor and the
+> simulation engine — deterministic, seeded randomness, Monte Carlo, and
+> executable state connections (`trigger` / `activator` / `label`) — are all
+> usable today, plus Workspace Export/Import,
 > shareable `#g1=` links, an installable offline PWA, and file-based **project
 > revisions & proposals** (`loop-revision/1`) for asynchronous collaboration.
 > **v0.6.0** added a deterministic **model language** — `parameter` / `register`
@@ -17,7 +17,7 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 > `loop-model/1`, `loop-revision/2`), Register `R(t)` observation, and an
 > advisory `resourceType` tag — and a **Canvas Visual Refresh** (edge class /
 > direction / cues, zoom detail levels, a tokenised direction marker,
-> reduced-motion & forced-colors support). **In `v0.7.0-dev`:** automatic
+> reduced-motion & forced-colors support). **New in v0.7.0:** automatic
 > **orthogonal edge routing** — right-angle segments that step around nodes
 > (`route: "orthogonal"`, `loop-revision/3`), a cosmetic wire field that changes
 > nothing the engine computes (manual waypoint editing is deferred) — and
@@ -168,10 +168,10 @@ classification, or apply decision depends on them.
   - ✅ Advisory `resourceType` tag on pools / resource edges — colour, icon, legend, Inspector mismatch warning; computation-neutral (a mismatch changes nothing that runs)
   - ✅ Canvas Visual Refresh — every node/edge on one visual grammar: **edge class / direction / cues + three zoom detail levels (L2/L1/L0) that elide only supplementary text + a renderer-owned tokenised direction marker + `prefers-reduced-motion` / `forced-colors` support**, locked by a committed pixel matrix. Edge **geometry is unchanged** — React Flow's Bézier path; orthogonal routing is **not** in this release ([`docs/visual-language.md`](docs/visual-language.md))
   - ✅ Verification fixture + oracle ([`examples/model-verification.json`](examples/README.md)) + desktop / mobile Import→Run→Timeline E2E
-- ◐ Orthogonal edge routing — **v0.7.0-dev** ([`docs/edge-routing.md`](docs/edge-routing.md), `loop-revision/3` [`SEMANTICS-R3.md`](SEMANTICS-R3.md) frozen)
+- ◐ Orthogonal edge routing — **v0.7.0** ([`docs/edge-routing.md`](docs/edge-routing.md), `loop-revision/3` [`SEMANTICS-R3.md`](SEMANTICS-R3.md) frozen)
   - ✅ Orthogonal auto routing — **Slice 1**: `route: "orthogonal"` selection + an automatic deterministic router (obstacle-avoiding A*, parallel-edge fan-out, rounded corners, L/Z fallback) + an atomic route-map that recomputes every orthogonal edge in one pass. `route` / `waypoints` are `loop-revision/3` **cosmetic** wire fields — projected / diffed / dirty-tracked, never engine- or advisory-affecting; a non-routing graph's digest is unchanged. Pure render concern (never edits `source` / `target` / handles)
   - ☐ Manual waypoint editing — **deferred**: the `waypoints` wire contract is frozen and Slice 1 reads / writes existing waypoints losslessly, but the create / move / delete UI is not built; revisited only when there is real demand
-- ✅ Simulation Playback / Event Choreography — **v0.7.0-dev** ([`docs/simulation-playback.md`](docs/simulation-playback.md), a non-`frozen` design doc — no `loop-*/N` id): pressing Play makes the model move — departure → travel → arrival → value update along each real edge path, on a shared per-step time axis — while the engine result stays byte-for-byte deterministic and untouched (a display layer only, **no new engine oracle**)
+- ✅ Simulation Playback / Event Choreography — **v0.7.0** ([`docs/simulation-playback.md`](docs/simulation-playback.md), a non-`frozen` design doc — no `loop-*/N` id): pressing Play makes the model move — departure → travel → arrival → value update along each real edge path, on a shared per-step time axis — while the engine result stays byte-for-byte deterministic and untouched (a display layer only, **no new engine oracle**)
   - ✅ Resource token choreography — `depart` → `travel` → `arrive` → `settle` on the exact rendered edge `d` (Bézier **and** orthogonal), Pause freezes / speed re-rates / discard removes; several transfers on one edge ⇒ one summed token + a capped `+N` breakdown
   - ✅ State-event choreography — a `trigger` bead rides the edge on its delivery step, an `activator` lands a target-side cue on the `arrive` beat (never travels), a signed `label` delta bead by sign; a state cue is never merged into the resource token and fires once per transition
   - ✅ Viewing conditions — `prefers-reduced-motion` (no travelling element, collapsed beats, no artificial wait), an L0 (`zoom < 0.45`) elision that keeps the ordered depart / path-pulse / arrive cues, background-tab freeze-and-recover, and a mobile view/run layout
@@ -182,6 +182,46 @@ classification, or apply decision depends on them.
 - ☐ Advanced Monte-Carlo worker-count setting
 
 ## Releases
+
+**v0.7.0 — orthogonal routing & simulation playback.** Two render-layer
+additions on top of the same engine — the deterministic simulation result and
+every serialized byte are unchanged.
+
+- **Automatic orthogonal edge routing** (`docs/edge-routing.md`, `loop-revision/3`
+  [`SEMANTICS-R3.md`](SEMANTICS-R3.md) frozen) — `route: "orthogonal"` on an edge
+  swaps its Bézier curve for right-angle segments from a deterministic
+  obstacle-avoiding router (parallel-edge fan-out, rounded corners, L/Z
+  fallback) and an atomic route-map that recomputes every orthogonal edge in one
+  pass. `route` / `waypoints` are `loop-revision/3` **cosmetic** wire fields —
+  projected, diffed and dirty-tracked, but never engine- or advisory-affecting;
+  a graph that uses no routing has an unchanged content digest. **Manual
+  waypoint editing** (the create / move / delete UI) is deliberately deferred —
+  the wire contract is frozen and existing waypoints round-trip losslessly,
+  revisited only on real demand.
+- **Simulation Playback / Event Choreography** (`docs/simulation-playback.md`, a
+  non-`frozen` design doc — no `loop-*/N`) — pressing Play makes the model move:
+  a resource visibly departs its source, travels the **exact rendered edge `d`**
+  (Bézier or orthogonal), arrives, and only then does the value update, on a
+  shared per-step `τ` time axis. State events choreograph too — a `trigger` bead
+  rides the edge on its delivery step, an `activator` lands a target-side cue on
+  the `arrive` beat (it never travels), a signed `label` delta bead reads by
+  sign — and a state cue is never merged into the resource token. It handles
+  `prefers-reduced-motion` (no travelling element, collapsed beats, no
+  artificial wait), an L0 (`zoom < 0.45`) elision that keeps the ordered
+  depart / path-pulse / arrive cues, background-tab freeze-and-recover, a mobile
+  view/run layout, an always-mounted polite a11y live region, `forced-colors`
+  shape tells, and a bounded on-screen token count — one global
+  `MAX_PLAYBACK_TOKENS_TOTAL = 60` budget across resource + `trigger` + `label`
+  cues, chosen deterministically and sorted once per transition. It is a
+  **display layer only**: Play / Pause / speed / Reset move no GraphDoc bytes,
+  no `loop-revision/3` digest, no undo stack, no viewport, no edge `d`, and a
+  choreographed Play commits exactly what a plain `advance()` run does — so
+  there is **no new engine oracle**, only the reproducible
+  [`examples/playback-choreography.json`](examples/README.md) demo + its QA
+  checklist and the `e2e/playback-*.spec.ts` acceptance matrix.
+
+**Scenario Compare** and **manual waypoint editing** are deliberately *not* in
+this release; each is its own later project.
 
 **v0.6.0 — model language & canvas visual refresh.** A small deterministic
 modelling layer on top of the engine, and one visual grammar for the canvas.

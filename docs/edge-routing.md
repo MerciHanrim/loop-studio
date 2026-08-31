@@ -1,7 +1,10 @@
-# Edge Routing (non-frozen design doc — DRAFT)
+# Edge Routing (non-frozen design doc)
 
-**Status: DRAFT for review (round 2 — Lumi's ER-D2 / algorithm / recompute /
-waypoint boundaries folded in).** A **non-behavioral** rendering concern: how a
+**Status: Slice 1 shipped in v0.7.0 (automatic orthogonal routing, PR #51); kept
+as the living reference. Manual waypoint editing (§ER4, "Slice 2") is
+deferred — the wire contract is frozen and existing waypoints round-trip
+losslessly, but the create / move / delete UI is not built.** A
+**non-behavioral** rendering concern: how a
 resource / state edge's *path* is drawn between two fixed endpoints. It does
 **not** change `source` / `target` / handles, the engine, `R(t)`, state
 semantics, or Monte-Carlo results. This design doc carries no `loop-*/N` id and

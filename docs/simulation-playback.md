@@ -1,6 +1,8 @@
-# Simulation Playback / Event Choreography (non-frozen design doc — DRAFT)
+# Simulation Playback / Event Choreography (non-frozen design doc)
 
-**Status: DRAFT — final form, pending merge.** Round 1's `committedStep ≥
+**Status: shipped in v0.7.0; kept as the living reference.** The design below is
+the form that shipped (design doc PR #53 → Slices 1–3c, PRs #54–#64); §PB16 is
+the verification of record. Round 1's `committedStep ≥
 revealedStep` two-clock model was withdrawn; round 2's **one committed clock + a
 single `preparedTransition` with progress `τ`** state model (§PB2) is approved.
 Round 3 fixed the last three expressions: the RNG is confirmed **fully keyed**
@@ -24,12 +26,11 @@ the RNG draws, state semantics, Monte-Carlo, the GraphDoc, the `loop-revision/*`
 digest, or the Workspace format. This doc carries no `loop-*/N` id and is revised
 freely (like `docs/visual-language.md`, `docs/edge-routing.md`).
 
-It supersedes the ad-hoc "flow bead" that the Canvas Visual Refresh (v0.6.0) and
-Orthogonal Routing Slice 1 (v0.7.0-dev) ship today: one `<animateMotion>` token
-per active edge, fire-and-forget, with no ordering, no backpressure, and no
-relationship to when the number on a Pool updates. This doc pins down what "the
-model comes alive when you press Play" means for Loop Studio **before any
-implementation**.
+It superseded the ad-hoc "flow bead" that the Canvas Visual Refresh (v0.6.0) and
+Orthogonal Routing Slice 1 shipped: one `<animateMotion>` token per active edge,
+fire-and-forget, with no ordering, no backpressure, and no relationship to when
+the number on a Pool updates. This doc pins down what "the model comes alive when
+you press Play" means for Loop Studio.
 
 **Build order:**
 1. this design doc → merge;
@@ -742,7 +743,7 @@ and L0 behaviour; the acceptance set.
 `loop-*/N`; Monte-Carlo / Predict token animation; a "record / export the
 animation" feature; camera moves / auto-pan-to-action (possible later, separate).
 
-## PB16. Verification of record (shipped v0.7.0-dev)
+## PB16. Verification of record (shipped in v0.7.0)
 
 Playback is a **display layer** over the existing engine — it introduces no
 engine change, no persisted field, no `loop-*/N` — so it has **no `*.expected.json`
