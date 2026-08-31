@@ -1327,6 +1327,14 @@ body {
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
+/* leader from a displaced endpoint label back to its real dot */
+.timeline__lead {
+  fill: none;
+  stroke-width: 1;
+  opacity: 0.55;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .timeline__arrival {
     animation: none;
