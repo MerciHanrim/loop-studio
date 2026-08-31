@@ -11,6 +11,7 @@ Graphs with different jobs:
 | `risky-factory.json` | **product demo** — one connected economy that exercises every working node kind and Engine A/B feature at once | yes |
 | `model-verification.json` | **model-language precision instrument** — a `parameter`, five `register`s (DAG, `/0`, depends-on-invalid, self-cycle) and an advisory `resourceType` mismatch, in one deterministic economy | yes |
 | `model-verification.expected.json` | test oracle for the above — read by `test/model-verification.test.ts` and by a human comparing `R(t)` | **no** (not a graph) |
+| `playback-choreography.json` | **Simulation Playback demo** — one graph that reproduces every choreography cue at once (resource token, `trigger` bead, `activator` settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a 65-edge fan that pushes past the 60-token budget | yes |
 
 ---
 
@@ -309,3 +310,90 @@ Export ▾ → Workspace JSON at step 3, New graph, Import it back
 ```bash
 GEN_MODEL_VERIFICATION=1 npx vitest run test/model-verification.test.ts
 ```
+
+---
+
+# 5 — Simulation Playback choreography demo
+
+`playback-choreography.json` is one connected graph built to make **every
+Simulation Playback / Event Choreography cue visible at once** when you press
+Play. It is a **reproducible visual / interaction fixture, not a semantics
+oracle** — Playback is a display layer over the existing engine, so there is
+**no `playback-choreography.expected.json`**. Its verification of record is the
+E2E suite listed below plus `e2e/playback-fixture.spec.ts`, which imports this
+file and checks the cues, the budget, and the invariance assertions.
+
+> Import `playback-choreography.json` and press **Play** (live sim, any seed —
+> the graph is fully deterministic). It has no `recommendedRunConfig`; Monte
+> Carlo is not the point here.
+
+## What it wires
+
+| cluster | wiring | the cue it shows |
+|---|---|---|
+| **Fan** | `Fan Source ─1→ P00 … P64` — **65 resource edges**, four of them `route: "orthogonal"` | 65 travelling **resource tokens** in one step — more than the **`MAX_PLAYBACK_TOKENS_TOTAL` = 60** budget, so ~10 edges commit their value with **no** animation |
+| **Merge** | `Merge A ─3→` and `Merge B ─2→ Merge Pool` (both `orthogonal`) | two resource tokens into one pool; each edge's token is labelled with its own amount; the pool value is their sum |
+| **Signal** | `Signal Source ─1→ Gate Pool` ; `Signal Source ┄trigger d0┄▷ Signal Drain` ; `Gate Pool ┄activator "≥ 1"┄▷ Signal Drain` | the **`trigger` bead** rides the real edge `d` on its delivery step; the **`activator`** never travels — its target-side cue lands on the **`arrive`** beat once `Gate Pool ≥ 1` |
+| **Label** | `Feeder ┄"+5"┄▷ Tank` and `Feeder ┄"-2"┄▷ Tank` | a **signed `label` delta bead** per edge — toward the target for `+`, away for `−` — never merged into a resource token |
+
+`Fan Source` / `Merge *` / `Signal Source` are automatic, so a plain **Play**
+drives the whole thing; the `trigger` delivers on step 2 (`fired + delay + 1`).
+
+## QA checklist — each behaviour and the test that locks it
+
+| you should see… | when | locked by |
+|---|---|---|
+| a dot departs the source, travels the **exact rendered `d`**, arrives, then the value updates | Play / Step, any zoom ≥ L1 | `e2e/playback-choreography.spec.ts` "token walks the real Bézier / orthogonal edge d", "token position tracks τ" |
+| **Bézier and orthogonal** edges both carry the token on their own `d` | Merge edges (orthogonal) vs Fan edges (Bézier) | `e2e/playback-fixture.spec.ts` "token walks the real d on both…", `e2e/edge-routing.spec.ts` "every path consumer reads the same d" |
+| Pause **freezes** the token; Resume continues; a speed change does not jump | Pause mid-travel | `e2e/playback-choreography.spec.ts` "Pause freezes the token…" |
+| several transfers on one edge ⇒ **one** token, label = the exact sum; a selected edge shows the capped `+N` breakdown | select a Merge edge | `e2e/playback-choreography.spec.ts` "several transfers on one edge…", `e2e/playback-caps-perf.spec.ts` "MAX_PLAYBACK_TOKENS … breakdown chips" |
+| the **`trigger`** bead rides the edge on its delivery step; blocked ⇒ hollow | step 2 | `e2e/playback-choreography.spec.ts` "trigger rides the real … edge d", `e2e/state-ui.spec.ts` |
+| the **`activator`** shows a target-side cue on **`arrive`** and never a travelling bead | once `Gate Pool ≥ 1` | `e2e/playback-choreography.spec.ts` "activator does not travel…", `e2e/playback-fixture.spec.ts` "the activator edge never renders a travelling bead" |
+| a **signed `label` delta** bead per edge, by sign, never merged with the resource token | every step | `e2e/playback-choreography.spec.ts` "label — a signed-delta bead by sign…" |
+| more than **60** travelling cues in a step ⇒ exactly 60 animate, the rest still commit; the chosen set is deterministic and input-order-independent; **≤ 1** travelling element per edge | the Fan | `e2e/playback-caps-perf.spec.ts` (whole file), `e2e/playback-fixture.spec.ts` "every travelling cue kind renders, and the global 60-token budget bites", `src/engine/state-one-cue-per-edge.test.ts` |
+| the budget is sorted **once per transition**, not per edge or per τ frame | any run | `e2e/playback-caps-perf.spec.ts` "the budget is sorted ONCE per transition" |
+| **L0** (zoom `< 0.45`): no travelling dot / state bead; the ordered depart / path-pulse / arrive cues + `settle` still play | zoom out | `e2e/playback-choreography.spec.ts` "§PB4.4 — at L0 the travelling dot is elided", `e2e/playback-fixture.spec.ts` "reduced motion and L0 both drop every travelling element" |
+| **`prefers-reduced-motion: reduce`**: zero travelling elements ever; a static edge cue instead; a Paused transition never auto-settles | OS setting | `e2e/playback-choreography.spec.ts` "reduced motion ⇒ no travelling element ever", "Play settles far faster…" |
+| a11y: one always-mounted polite live region announces `Step N` / `Paused at step N`; no announce on theme / selection / speed | Play / Step / Pause | `e2e/playback-a11y-background.spec.ts` (whole file) |
+| `forced-colors: active`: the resource token, trigger bead, activator cue and label bead stay **distinguishable without hue** (shape tells) | forced-colors mode | `e2e/playback-visual.spec.ts` "forced-colors: active …" |
+
+## Invariance — Playback moves nothing that belongs to the document or the engine
+
+Play, Pause, speed changes and Reset must leave all of this **byte-for-byte**
+unchanged: the GraphDoc bytes, the `loop-revision/3` content digest, the undo /
+redo stack, the viewport (pan / zoom), every edge's rendered `d` (visible + hit
+area), and the **committed simulation result** — a choreographed Play commits
+exactly what a plain `advance()`-only run of the same length does.
+
+- `e2e/playback-fixture.spec.ts` "playing / pausing / resetting moves no
+  GraphDoc / digest / undo / viewport / edge d — and no committed value"
+- `e2e/playback-invariants.spec.ts` (whole file)
+
+## Manual check in the app
+
+```
+Import  examples/playback-choreography.json
+
+Play (or Step) at a slow speed →
+  • ~60 dots leave Fan Source and travel their edges; a handful of Fan edges
+    just tick their target value up with no dot (the 60-token budget)
+  • Merge A / Merge B each send a labelled dot into Merge Pool
+  • step 2: a bead rides Signal Source ┄▷ Signal Drain (the trigger)
+  • once Gate Pool ≥ 1: a ring lands at Signal Drain on arrival (the activator) —
+    it never travels
+  • Feeder ┄▷ Tank shows "+5" toward Tank and "-2" away from it every step
+
+Zoom out below ~45% → the dots disappear; the depart / path-pulse / arrive
+  cues and the value updates still play in order
+OS "reduce motion" → no travelling element at all; a static edge cue instead
+
+Pause mid-travel → every dot freezes in place; Resume continues from there
+Reset → every cue clears; step index and every Pool value return to the import
+
+Export ▾ → JSON, New graph, Import it back → identical graph (routes kept)
+```
+
+There is intentionally **no oracle file** and **no `*.test.ts` value check** for
+this graph — its engine behaviour is already covered by the verification
+fixtures above; here the engine is only the thing the display layer must not
+disturb.

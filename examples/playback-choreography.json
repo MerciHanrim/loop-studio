@@ -1,0 +1,2261 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "fan_src",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 560
+      },
+      "data": {
+        "kind": "source",
+        "label": "Fan Source",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "zp00",
+      "type": "pool",
+      "position": {
+        "x": 360,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P00",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp01",
+      "type": "pool",
+      "position": {
+        "x": 510,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P01",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp02",
+      "type": "pool",
+      "position": {
+        "x": 660,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P02",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp03",
+      "type": "pool",
+      "position": {
+        "x": 810,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P03",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp04",
+      "type": "pool",
+      "position": {
+        "x": 960,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P04",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp05",
+      "type": "pool",
+      "position": {
+        "x": 1110,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P05",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp06",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P06",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp07",
+      "type": "pool",
+      "position": {
+        "x": 1410,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P07",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp08",
+      "type": "pool",
+      "position": {
+        "x": 1560,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P08",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp09",
+      "type": "pool",
+      "position": {
+        "x": 1710,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P09",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp10",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P10",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp11",
+      "type": "pool",
+      "position": {
+        "x": 2010,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P11",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp12",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P12",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp13",
+      "type": "pool",
+      "position": {
+        "x": 360,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P13",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp14",
+      "type": "pool",
+      "position": {
+        "x": 510,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P14",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp15",
+      "type": "pool",
+      "position": {
+        "x": 660,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P15",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp16",
+      "type": "pool",
+      "position": {
+        "x": 810,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P16",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp17",
+      "type": "pool",
+      "position": {
+        "x": 960,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P17",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp18",
+      "type": "pool",
+      "position": {
+        "x": 1110,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P18",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp19",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P19",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp20",
+      "type": "pool",
+      "position": {
+        "x": 1410,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P20",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp21",
+      "type": "pool",
+      "position": {
+        "x": 1560,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P21",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp22",
+      "type": "pool",
+      "position": {
+        "x": 1710,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P22",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp23",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P23",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp24",
+      "type": "pool",
+      "position": {
+        "x": 2010,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P24",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp25",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 190
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P25",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp26",
+      "type": "pool",
+      "position": {
+        "x": 360,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P26",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp27",
+      "type": "pool",
+      "position": {
+        "x": 510,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P27",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp28",
+      "type": "pool",
+      "position": {
+        "x": 660,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P28",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp29",
+      "type": "pool",
+      "position": {
+        "x": 810,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P29",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp30",
+      "type": "pool",
+      "position": {
+        "x": 960,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P30",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp31",
+      "type": "pool",
+      "position": {
+        "x": 1110,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P31",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp32",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P32",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp33",
+      "type": "pool",
+      "position": {
+        "x": 1410,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P33",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp34",
+      "type": "pool",
+      "position": {
+        "x": 1560,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P34",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp35",
+      "type": "pool",
+      "position": {
+        "x": 1710,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P35",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp36",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P36",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp37",
+      "type": "pool",
+      "position": {
+        "x": 2010,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P37",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp38",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 340
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P38",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp39",
+      "type": "pool",
+      "position": {
+        "x": 360,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P39",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp40",
+      "type": "pool",
+      "position": {
+        "x": 510,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P40",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp41",
+      "type": "pool",
+      "position": {
+        "x": 660,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P41",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp42",
+      "type": "pool",
+      "position": {
+        "x": 810,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P42",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp43",
+      "type": "pool",
+      "position": {
+        "x": 960,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P43",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp44",
+      "type": "pool",
+      "position": {
+        "x": 1110,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P44",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp45",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P45",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp46",
+      "type": "pool",
+      "position": {
+        "x": 1410,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P46",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp47",
+      "type": "pool",
+      "position": {
+        "x": 1560,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P47",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp48",
+      "type": "pool",
+      "position": {
+        "x": 1710,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P48",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp49",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P49",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp50",
+      "type": "pool",
+      "position": {
+        "x": 2010,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P50",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp51",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 490
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P51",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp52",
+      "type": "pool",
+      "position": {
+        "x": 360,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P52",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp53",
+      "type": "pool",
+      "position": {
+        "x": 510,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P53",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp54",
+      "type": "pool",
+      "position": {
+        "x": 660,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P54",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp55",
+      "type": "pool",
+      "position": {
+        "x": 810,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P55",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp56",
+      "type": "pool",
+      "position": {
+        "x": 960,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P56",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp57",
+      "type": "pool",
+      "position": {
+        "x": 1110,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P57",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp58",
+      "type": "pool",
+      "position": {
+        "x": 1260,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P58",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp59",
+      "type": "pool",
+      "position": {
+        "x": 1410,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P59",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp60",
+      "type": "pool",
+      "position": {
+        "x": 1560,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P60",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp61",
+      "type": "pool",
+      "position": {
+        "x": 1710,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P61",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp62",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P62",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp63",
+      "type": "pool",
+      "position": {
+        "x": 2010,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P63",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "zp64",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 640
+      },
+      "data": {
+        "kind": "pool",
+        "label": "P64",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "merge_a",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 1180
+      },
+      "data": {
+        "kind": "source",
+        "label": "Merge A",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "merge_b",
+      "type": "source",
+      "position": {
+        "x": 0,
+        "y": 1320
+      },
+      "data": {
+        "kind": "source",
+        "label": "Merge B",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "merge_pool",
+      "type": "pool",
+      "position": {
+        "x": 360,
+        "y": 1250
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Merge Pool",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "sig_src",
+      "type": "source",
+      "position": {
+        "x": 760,
+        "y": 1180
+      },
+      "data": {
+        "kind": "source",
+        "label": "Signal Source",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "gate_pool",
+      "type": "pool",
+      "position": {
+        "x": 1120,
+        "y": 1180
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Gate Pool",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "sig_drain",
+      "type": "drain",
+      "position": {
+        "x": 1120,
+        "y": 1360
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Signal Drain",
+        "activation": "passive",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "feeder",
+      "type": "pool",
+      "position": {
+        "x": 760,
+        "y": 1520
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Feeder",
+        "activation": "passive",
+        "initial": 100000,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tank",
+      "type": "pool",
+      "position": {
+        "x": 1120,
+        "y": 1520
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Tank",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "zf00",
+      "source": "fan_src",
+      "target": "zp00",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf01",
+      "source": "fan_src",
+      "target": "zp01",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf02",
+      "source": "fan_src",
+      "target": "zp02",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf03",
+      "source": "fan_src",
+      "target": "zp03",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf04",
+      "source": "fan_src",
+      "target": "zp04",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf05",
+      "source": "fan_src",
+      "target": "zp05",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf06",
+      "source": "fan_src",
+      "target": "zp06",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf07",
+      "source": "fan_src",
+      "target": "zp07",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf08",
+      "source": "fan_src",
+      "target": "zp08",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf09",
+      "source": "fan_src",
+      "target": "zp09",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf10",
+      "source": "fan_src",
+      "target": "zp10",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf11",
+      "source": "fan_src",
+      "target": "zp11",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf12",
+      "source": "fan_src",
+      "target": "zp12",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf13",
+      "source": "fan_src",
+      "target": "zp13",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf14",
+      "source": "fan_src",
+      "target": "zp14",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf15",
+      "source": "fan_src",
+      "target": "zp15",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf16",
+      "source": "fan_src",
+      "target": "zp16",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf17",
+      "source": "fan_src",
+      "target": "zp17",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf18",
+      "source": "fan_src",
+      "target": "zp18",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf19",
+      "source": "fan_src",
+      "target": "zp19",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf20",
+      "source": "fan_src",
+      "target": "zp20",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf21",
+      "source": "fan_src",
+      "target": "zp21",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf22",
+      "source": "fan_src",
+      "target": "zp22",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf23",
+      "source": "fan_src",
+      "target": "zp23",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf24",
+      "source": "fan_src",
+      "target": "zp24",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf25",
+      "source": "fan_src",
+      "target": "zp25",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf26",
+      "source": "fan_src",
+      "target": "zp26",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf27",
+      "source": "fan_src",
+      "target": "zp27",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf28",
+      "source": "fan_src",
+      "target": "zp28",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf29",
+      "source": "fan_src",
+      "target": "zp29",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf30",
+      "source": "fan_src",
+      "target": "zp30",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf31",
+      "source": "fan_src",
+      "target": "zp31",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf32",
+      "source": "fan_src",
+      "target": "zp32",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf33",
+      "source": "fan_src",
+      "target": "zp33",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf34",
+      "source": "fan_src",
+      "target": "zp34",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf35",
+      "source": "fan_src",
+      "target": "zp35",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf36",
+      "source": "fan_src",
+      "target": "zp36",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf37",
+      "source": "fan_src",
+      "target": "zp37",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf38",
+      "source": "fan_src",
+      "target": "zp38",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf39",
+      "source": "fan_src",
+      "target": "zp39",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf40",
+      "source": "fan_src",
+      "target": "zp40",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf41",
+      "source": "fan_src",
+      "target": "zp41",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf42",
+      "source": "fan_src",
+      "target": "zp42",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf43",
+      "source": "fan_src",
+      "target": "zp43",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf44",
+      "source": "fan_src",
+      "target": "zp44",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf45",
+      "source": "fan_src",
+      "target": "zp45",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf46",
+      "source": "fan_src",
+      "target": "zp46",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf47",
+      "source": "fan_src",
+      "target": "zp47",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf48",
+      "source": "fan_src",
+      "target": "zp48",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf49",
+      "source": "fan_src",
+      "target": "zp49",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf50",
+      "source": "fan_src",
+      "target": "zp50",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf51",
+      "source": "fan_src",
+      "target": "zp51",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf52",
+      "source": "fan_src",
+      "target": "zp52",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf53",
+      "source": "fan_src",
+      "target": "zp53",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf54",
+      "source": "fan_src",
+      "target": "zp54",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf55",
+      "source": "fan_src",
+      "target": "zp55",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf56",
+      "source": "fan_src",
+      "target": "zp56",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf57",
+      "source": "fan_src",
+      "target": "zp57",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf58",
+      "source": "fan_src",
+      "target": "zp58",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf59",
+      "source": "fan_src",
+      "target": "zp59",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf60",
+      "source": "fan_src",
+      "target": "zp60",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf61",
+      "source": "fan_src",
+      "target": "zp61",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf62",
+      "source": "fan_src",
+      "target": "zp62",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf63",
+      "source": "fan_src",
+      "target": "zp63",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "zf64",
+      "source": "fan_src",
+      "target": "zp64",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "m_a",
+      "source": "merge_a",
+      "target": "merge_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3",
+        "route": "orthogonal"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "m_b",
+      "source": "merge_b",
+      "target": "merge_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2",
+        "route": "orthogonal"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "e_sig",
+      "source": "sig_src",
+      "target": "gate_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      },
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "t_sd",
+      "source": "sig_src",
+      "target": "sig_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "trigger",
+        "expr": "",
+        "delay": 0
+      }
+    },
+    {
+      "id": "a_gd",
+      "source": "gate_pool",
+      "target": "sig_drain",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 1"
+      }
+    },
+    {
+      "id": "l_add",
+      "source": "feeder",
+      "target": "tank",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+5"
+      }
+    },
+    {
+      "id": "l_sub",
+      "source": "feeder",
+      "target": "tank",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "-2"
+      }
+    }
+  ]
+}
