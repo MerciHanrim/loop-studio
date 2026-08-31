@@ -326,9 +326,17 @@ the sum); the **`preparedTransition.events` list keeps every original
   (it is information that they cancelled) — never a silent drop;
 - a `trigger` / `activator` / `label` `StateEvent` is **never** merged into a
   resource token (different meaning, own beat);
-- a cap `MAX_PLAYBACK_TOKENS` (proposed **12**) per edge per step and a global
-  per-step cap (PB-Q4) bound the DOM; past the cap only the **`+N` affordance**
-  changes — the summed amount shown is still exact and `to` is untouched.
+- a cap `MAX_PLAYBACK_TOKENS` (**12**) per edge per step bounds the per-transfer
+  breakdown chips (`shown + N == the edge's transfer count`); and a SINGLE global
+  `MAX_PLAYBACK_TOKENS_TOTAL` (**60**) budget spans **every travelling cue in a
+  step together** — resource transfer tokens, `trigger` beads and non-zero
+  `label` beads — chosen by the fixed stable key
+  `(edgeId, cueKind, originalEventIndex)` with `resource < trigger < label`, so
+  the animated set is deterministic and independent of the order the engine
+  emitted events in. Past either cap only the animation is skipped — the summed
+  amount shown is still exact, the engine result and any settle-beat cue
+  (`activator`, the committed value / label) are untouched. `activator` never
+  travels, so it is never budget-gated.
 
 ## PB5. Pause / Resume
 
@@ -639,13 +647,17 @@ emphasis.
     transition wall-time ≤ the full-motion floor; committed `series` and drawn
     random values identical to a full-motion run of the same seed; a Paused
     transition stays Paused (no auto-settle).
-12. **L0** — zoom `< 0.45`: no travelling dot; the path pulse + arrival cue +
-    `settle` value update still play in order and `settle` still commits.
+12. **L0** — zoom `< 0.45`: no travelling dot and no travelling state bead; the
+    path pulse + arrival cue + any `activator` settle cue + the `settle` value
+    update still play in order and `settle` still commits.
 13. **Summed tokens** — two `FlowEvents` on one edge in one step ⇒ one token,
     label = the exact sum, and the edge's hover/select breakdown lists both with
     their origins; a net-zero +/− pair still shows both component cues;
     `> MAX_PLAYBACK_TOKENS` ⇒ still one token, exact summed label, `+N`
-    affordance; `to` unchanged in every case.
+    affordance; `> MAX_PLAYBACK_TOKENS_TOTAL` travelling cues across the step
+    (resource + `trigger` + non-zero `label`, one global budget) ⇒ the
+    over-budget edges keep their committed value / label and their settle cue
+    but do not animate; `to` unchanged in every case.
 14. **MC / Predict untouched** — a Monte-Carlo run shows no tokens and its result
     equals today's oracle; Predict shows numbers, no tokens.
 15. **VL / revision carry-over** — GraphDoc bytes, `loop-revision/3` digest, undo
@@ -702,7 +714,7 @@ emphasis.
 | **PB-Q1** delayed `trigger` visual | **Decided:** delivery-step choreography only; the emit step shows a brief static "queued" cue at the source, no travel and no in-flight marker across the wait (keeps it a pure function of that step's `events`). |
 | **PB-Q2** `settle` count-up | **Decided:** a short count-up tween in full motion, an immediate snap under `prefers-reduced-motion`; both land on `toState`; the tween is cosmetic and never gates `commitPrepared` (which has already run). |
 | **PB-Q3** Step-spam / Play-during-transition | **Decided:** instant advance to `settle` (τ → 1, one `commitPrepared`), not a fast catch-up play. Step is the escape hatch. |
-| **PB-Q4** token caps | **Decided:** `MAX_PLAYBACK_TOKENS = 12` per edge per step; global per-step cap `MAX_PLAYBACK_TOKENS_TOTAL = 60`. Past a cap only the `+N` affordance changes; the summed amount stays exact; `toState` untouched. Both are one constants block, tunable. |
+| **PB-Q4** token caps | **Decided:** `MAX_PLAYBACK_TOKENS = 12` per edge per step (breakdown chips; `shown + N == transfer count`); `MAX_PLAYBACK_TOKENS_TOTAL = 60` is ONE global budget over **all travelling cues in a step together** — resource transfer tokens + state `trigger` beads + non-zero state `label` beads — chosen by the fixed stable key `(edgeId, cueKind, originalEventIndex)`, `resource < trigger < label`, so the animated set is deterministic and input-order-independent. `activator` never travels, so it is never budget-gated. Past a cap only the animation is skipped; the summed amount stays exact; the engine result and every settle-beat cue are untouched. Both are one constants block (`playback-caps.ts`), tunable. |
 | **PB-Q5** timeline scrubber | **Decided:** always jump (navigation, not playback); a scrub commits `series[K]` to the store like today. "Play from here" is just pressing Play. No scrub-with-choreography. |
 | **PB-Q6** commit API | **Decided:** a **dedicated `commitPrepared()`**, not a reuse of `advance`. `advance` is refactored to `prepareTransition` + an immediate `commitPrepared` so both paths share the pure primitive (§PB2.7 / §PB2.8 / PB-INV-16/18). |
 | **PB-D1** RNG | **Decided (verified against the code):** `loop-rng/1` (`src/engine/rng.ts`, `SEMANTICS-B1.md §B1.2`, frozen) is **fully keyed** — "there is no PRNG object threaded through a run; every random value is a pure total function of `(seed, step, elementId, purpose, drawIndex)`". So there is **no RNG cursor** anywhere in the design: `preparedTransition` has no `rngAfter`, `commitPrepared` commits no RNG state, the CAS has no RNG row, and `seed + fromStep` are named `prepareTransition` inputs (§PB1.1a). The playback layer must not introduce a cursor. If a future `loop-rng/2` ever adds one, this decision is revisited then, not pre-authorised here. |
