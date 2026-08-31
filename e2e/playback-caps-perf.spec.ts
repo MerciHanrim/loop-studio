@@ -81,6 +81,9 @@ const travellingSet = (page: Page) =>
   )
 
 async function setup(page: Page, graph: string, speedMs = 3000) {
+  // explicit — a CI runner whose OS default is `prefers-reduced-motion: reduce`
+  // would instant-settle every step and starve the `holdTravel` polls.
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
   await openApp(page)
   await resetAll(page)
   await importGraph(page, graph)
@@ -327,13 +330,16 @@ test.describe('playback — Slice 3c-c: ONE global travel budget (resource + tri
     await page.waitForTimeout(400)
     expect(await page.locator('g.pb-move, g.state-move').count()).toBe(0)
     await call(page, 'pause')
-    await page.emulateMedia({ reducedMotion: null })
 
-    // L0 (world zoom < 0.45), full motion
+    // L0 (world zoom < 0.45), full motion — pin no-preference explicitly (a bare
+    // reset can land on a CI OS default of `reduce`, which would instant-settle)
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     await call(page, 'reset')
     await call(page, 'advance')
-    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.3 }))
-    await page.waitForTimeout(60)
+    await page.evaluate(() => (window as any).__loop.rf.setViewport({ x: 0, y: 0, zoom: 0.3 }, { duration: 0 }))
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__loop.rf.getViewport().zoom))
+      .toBeLessThan(0.45)
     await call(page, 'setSpeed', 3000)
     await call(page, 'play')
     await expect.poll(() => sim(page).then((s) => (s.tau != null && s.tau > 0.2 && s.tau < 0.7 ? 1 : -1)), { timeout: 12000 }).toBe(1)
