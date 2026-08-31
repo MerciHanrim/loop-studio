@@ -210,8 +210,38 @@ export function TimelineChart() {
       }
     })
 
+    // ── endpoint value labels — keep every dot at its real (endX, endY), but
+    // stack the LABELS with a minimum vertical gap so close values stay
+    // readable; a leader line ties a displaced label back to its dot. Pure
+    // function of the endpoints, sorted by (y, id) so the result is
+    // deterministic and does not reshuffle on a rerender / Pause. ──────────
+    const LABEL_GAP = 15 // ≈ .timeline__endlabel rendered box height + breathing
+    const labelLo = PAD.t + 8
+    const labelHi = h - PAD.b
+    const endLabels = lines
+      .map((l) => ({ id: l.id, color: l.color, x: l.endX, dotY: l.endY, text: fmt(l.last), labelY: l.endY }))
+      .sort((a, b) => a.dotY - b.dotY || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    const n = endLabels.length
+    if (n > 0) {
+      // downward sweep: each label at least LABEL_GAP below the previous
+      for (let i = 1; i < n; i++) {
+        endLabels[i].labelY = Math.max(endLabels[i].labelY, endLabels[i - 1].labelY + LABEL_GAP)
+      }
+      // if the rigid stack overran the bottom, slide the WHOLE stack up (keeps
+      // every gap intact)
+      const overflow = endLabels[n - 1].labelY - labelHi
+      if (overflow > 0) for (const e of endLabels) e.labelY -= overflow
+      // still space-constrained (top underflows) ⇒ distribute evenly across the
+      // available band with the largest step that fits
+      if (endLabels[0].labelY < labelLo) {
+        const step = n > 1 ? Math.min(LABEL_GAP, (labelHi - labelLo) / (n - 1)) : 0
+        for (let i = 0; i < n; i++) endLabels[i].labelY = labelLo + i * step
+      }
+      for (const e of endLabels) e.labelY = Math.max(labelLo, Math.min(labelHi, e.labelY))
+    }
+
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
-    return { w, h, top, minStep, maxStep, x, y, lines, regLines, guideX }
+    return { w, h, top, minStep, maxStep, x, y, lines, regLines, guideX, endLabels }
   }, [series, tracked, registers, regByStep, status, stepIndex, size])
 
   const rm = reducedMotion()
@@ -408,14 +438,31 @@ export function TimelineChart() {
                         r="2.5"
                         style={{ fill: l.color }}
                       />
+                    </g>
+                  ))
+                : null}
+
+              {/* endpoint value labels — collision-avoided, each tied to its dot
+                  by a short leader when it had to move (§ chart legibility). */}
+              {hasRun
+                ? view.endLabels.map((e) => (
+                    <g key={`el-${e.id}`}>
+                      {Math.abs(e.labelY - e.dotY) > 1 ? (
+                        <polyline
+                          className="timeline__lead"
+                          points={`${e.x},${e.dotY} ${e.x - 4},${e.dotY} ${e.x - 8},${e.labelY} ${e.x - 12},${e.labelY}`}
+                          style={{ stroke: e.color }}
+                        />
+                      ) : null}
                       <text
                         className="timeline__endlabel"
-                        x={l.endX - 5}
-                        y={l.endY}
-                        dy="-5"
+                        data-series={e.id}
+                        x={e.x - (Math.abs(e.labelY - e.dotY) > 1 ? 14 : 5)}
+                        y={e.labelY}
+                        dy={Math.abs(e.labelY - e.dotY) > 1 ? '0.32em' : '-5'}
                         textAnchor="end"
                       >
-                        {fmt(l.last)}
+                        {e.text}
                       </text>
                     </g>
                   ))
