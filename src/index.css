@@ -1863,13 +1863,20 @@ body {
   bottom: calc(100% + 6px);
 }
 
-/* Language menu — left-anchored, narrow; an absolutely-positioned popover, so it
-   never affects the Toolbar height or any Canvas geometry (docs/localization.md §L5) */
+/* Language menu — an absolutely-positioned popover, so it never affects the
+   Toolbar height or any Canvas geometry (docs/localization.md §L5). Left-anchored
+   on desktop; right-anchored inside the mobile More sheet so it grows leftward
+   and stays inside a narrow viewport. Capped to the viewport either way. */
 .lang-menu__pop {
   left: 0;
   right: auto;
   width: max-content;
   min-width: 150px;
+  max-width: calc(100vw - 24px);
+}
+.sheet .lang-menu__pop {
+  left: auto;
+  right: 0;
 }
 .lang-menu__item[aria-checked='true'] .menu__name {
   color: var(--signal-primary, var(--text-primary));

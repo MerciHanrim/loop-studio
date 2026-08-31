@@ -171,6 +171,15 @@ test.describe('i18n — the language MENU: geometry & baseline', () => {
         }
       })
 
+    // wait until React Flow has measured the nodes and drawn the edge path, so
+    // the baseline is the settled geometry (not a pre-measure frame).
+    await expect
+      .poll(async () => {
+        const g = await geom()
+        return g.d.every(Boolean) && !g.measured.includes('null')
+      })
+      .toBe(true)
+
     const before = await geom()
     // open the menu, move focus around, pick KO, reopen, pick EN
     await page.locator('.lang-switch').click()
@@ -185,6 +194,18 @@ test.describe('i18n — the language MENU: geometry & baseline', () => {
 })
 
 test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
+  test('Tab out of the open menu closes it and does not trap focus', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const trigger = page.locator('.toolbar .lang-switch')
+    await trigger.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.lang-menu__pop')).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(page.locator('.lang-menu__pop')).toBeHidden()
+    await expect(trigger).not.toBeFocused() // focus advanced past the trigger, not trapped
+  })
+
   test('menu a11y contract — haspopup / expanded / menuitemradio / aria-checked / keyboard', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
@@ -332,5 +353,32 @@ test.describe('i18n — the language menu on mobile (in the More sheet)', () => 
     await pickLocale(page, 'ko', '.sheet')
     expect(await stored(page)).toBe('ko')
     await expect(page.locator('.toolbar__vr')).toHaveText('보기 및 실행 — 편집은 데스크톱에서')
+  })
+
+  test('the open menu stays inside the 390px viewport — no horizontal scroll', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.locator('.mob-more').click()
+    await expect(page.locator('.sheet')).toBeVisible()
+
+    const trigger = page.locator('.sheet .lang-switch').first()
+    await trigger.click()
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+
+    const pop = page.locator('.sheet .lang-menu__pop')
+    await expect(pop).toBeVisible()
+
+    const box = await page.evaluate(() => {
+      const r = document.querySelector('.sheet .lang-menu__pop')!.getBoundingClientRect()
+      return {
+        left: r.left,
+        right: r.right,
+        vw: document.documentElement.clientWidth,
+        docScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }
+    })
+    expect(box.left).toBeGreaterThanOrEqual(-1)
+    expect(box.right).toBeLessThanOrEqual(box.vw + 1)
+    expect(box.docScroll).toBeLessThanOrEqual(1)
   })
 })
