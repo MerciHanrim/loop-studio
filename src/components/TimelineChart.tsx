@@ -210,45 +210,61 @@ export function TimelineChart() {
       }
     })
 
-    // ── endpoint value labels — keep every dot at its real (endX, endY), but
-    // stack the LABELS with a minimum vertical gap so close values stay
-    // readable; a leader line ties a displaced label back to its dot. Pure
-    // function of the endpoints, sorted by (y, id) so the result is
-    // deterministic and does not reshuffle on a rerender / Pause. ──────────
+    // ── endpoint value labels — every dot stays at its real (endX, endY); only
+    // the LABELS are laid out to avoid collision. Deterministic: candidates
+    // sorted by (y, id); a relaxation pulls each back toward its own dot so an
+    // uncrowded label (a lone high value) keeps its exact spot with no leader,
+    // and only the crowded ones move. When the band cannot hold every label at
+    // the min gap the extras collapse into a "+N" chip (legend order wins — the
+    // legend already lists every series and its value). ──────────────────────
     const LABEL_GAP = 16 // ≈ .timeline__endlabel rendered box (~14px) + breathing
-    const labelLo = PAD.t + 8
+    const labelLo = PAD.t + 2
     const labelHi = h - PAD.b
-    const endLabels = lines
-      .map((l) => ({ id: l.id, color: l.color, x: l.endX, dotY: l.endY, text: fmt(l.last), labelY: l.endY }))
+    const bandFit = Math.max(1, Math.floor((labelHi - labelLo) / LABEL_GAP) + 1)
+
+    let endLabels = lines
+      .map((l, rank) => ({ id: l.id, color: l.color, x: l.endX, dotY: l.endY, text: fmt(l.last), labelY: l.endY, rank }))
       .sort((a, b) => a.dotY - b.dotY || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    const n = endLabels.length
-    if (n > 0) {
-      if (labelHi - labelLo < (n - 1) * LABEL_GAP) {
-        // the band genuinely cannot hold n labels at the min gap ⇒ spread evenly
-        const step = n > 1 ? (labelHi - labelLo) / (n - 1) : 0
-        for (let i = 0; i < n; i++) endLabels[i].labelY = labelLo + i * step
-      } else {
-        // relax toward each dotY while keeping a min gap and staying in-band.
-        // A: top-down min-gap. B: bottom-up min-gap + bottom bound (lets a label
-        // with slack drift back toward its dot). C: top-down again for the top
-        // bound. A label whose dot already has room is left on its dot (no
-        // leader); only the crowded ones move.
-        for (let i = 1; i < n; i++) {
-          endLabels[i].labelY = Math.max(endLabels[i].labelY, endLabels[i - 1].labelY + LABEL_GAP)
-        }
-        endLabels[n - 1].labelY = Math.min(endLabels[n - 1].labelY, labelHi)
-        for (let i = n - 2; i >= 0; i--) {
-          endLabels[i].labelY = Math.min(endLabels[i].labelY, endLabels[i + 1].labelY - LABEL_GAP)
-        }
-        endLabels[0].labelY = Math.max(endLabels[0].labelY, labelLo)
-        for (let i = 1; i < n; i++) {
-          endLabels[i].labelY = Math.max(endLabels[i].labelY, endLabels[i - 1].labelY + LABEL_GAP)
-        }
-      }
+
+    let endMore: { count: number; x: number; y: number } | null = null
+    const total = endLabels.length
+    if (total > bandFit) {
+      const keep = Math.max(1, bandFit - 1) // reserve one slot for the chip
+      const kept = new Set([...endLabels].sort((a, b) => a.rank - b.rank).slice(0, keep).map((e) => e.id))
+      endMore = { count: total - kept.size, x: endLabels[0].x, y: labelHi }
+      endLabels = endLabels.filter((e) => kept.has(e.id))
     }
 
+    const n = endLabels.length
+    const allDotY = endLabels.map((e) => e.dotY)
+    if (n > 0) {
+      // A: top-down min-gap. B: bottom-up min-gap + bottom bound (a label with
+      // slack drifts back toward its dot). C: top-down again for the top bound.
+      const bottom = endMore ? labelHi - LABEL_GAP : labelHi
+      for (let i = 1; i < n; i++) {
+        endLabels[i].labelY = Math.max(endLabels[i].labelY, endLabels[i - 1].labelY + LABEL_GAP)
+      }
+      endLabels[n - 1].labelY = Math.min(endLabels[n - 1].labelY, bottom)
+      for (let i = n - 2; i >= 0; i--) {
+        endLabels[i].labelY = Math.min(endLabels[i].labelY, endLabels[i + 1].labelY - LABEL_GAP)
+      }
+      endLabels[0].labelY = Math.max(endLabels[0].labelY, labelLo)
+      for (let i = 1; i < n; i++) {
+        endLabels[i].labelY = Math.max(endLabels[i].labelY, endLabels[i - 1].labelY + LABEL_GAP)
+      }
+    }
+    // a label carries a leader when it was moved OR when its dot shares space
+    // with another series' dot (so the label alone can't say which dot it names)
+    const endLabelsOut = endLabels.map((e, i) => {
+      const nearestOther = Math.min(
+        Infinity,
+        ...allDotY.filter((_, j) => j !== i).map((dy) => Math.abs(dy - e.dotY)),
+      )
+      return { ...e, leader: Math.abs(e.labelY - e.dotY) > 3 || nearestOther < LABEL_GAP }
+    })
+
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
-    return { w, h, top, minStep, maxStep, x, y, lines, regLines, guideX, endLabels }
+    return { w, h, top, minStep, maxStep, x, y, lines, regLines, guideX, endLabels: endLabelsOut, endMore }
   }, [series, tracked, registers, regByStep, status, stepIndex, size])
 
   const rm = reducedMotion()
@@ -454,31 +470,40 @@ export function TimelineChart() {
                   fixed LABEL_GAP guarantees no overlap); a displaced one gets a
                   leader back to its real dot and shifts left to clear it. */}
               {hasRun
-                ? view.endLabels.map((e) => {
-                    const moved = Math.abs(e.labelY - e.dotY) > 1
-                    return (
-                      <g key={`el-${e.id}`}>
-                        {moved ? (
-                          <polyline
-                            className="timeline__lead"
-                            points={`${e.x},${e.dotY} ${e.x - 4},${e.dotY} ${e.x - 8},${e.labelY} ${e.x - 12},${e.labelY}`}
-                            style={{ stroke: e.color }}
-                          />
-                        ) : null}
-                        <text
-                          className="timeline__endlabel"
-                          data-series={e.id}
-                          x={e.x - (moved ? 14 : 6)}
-                          y={e.labelY}
-                          dy="0.32em"
-                          textAnchor="end"
-                        >
-                          {e.text}
-                        </text>
-                      </g>
-                    )
-                  })
+                ? view.endLabels.map((e) => (
+                    <g key={`el-${e.id}`}>
+                      {e.leader ? (
+                        <polyline
+                          className="timeline__lead"
+                          points={`${e.x},${e.dotY} ${e.x - 4},${e.dotY} ${e.x - 8},${e.labelY} ${e.x - 12},${e.labelY}`}
+                          style={{ stroke: e.color }}
+                        />
+                      ) : null}
+                      <text
+                        className="timeline__endlabel"
+                        data-series={e.id}
+                        x={e.x - (e.leader ? 14 : 6)}
+                        y={e.labelY}
+                        dy="0.32em"
+                        textAnchor="end"
+                      >
+                        {e.text}
+                      </text>
+                    </g>
+                  ))
                 : null}
+              {hasRun && view.endMore ? (
+                <text
+                  className="timeline__endlabel timeline__endlabel--more"
+                  data-series="__more__"
+                  x={view.endMore.x - 6}
+                  y={view.endMore.y}
+                  dy="0.32em"
+                  textAnchor="end"
+                >
+                  +{view.endMore.count}
+                </text>
+              ) : null}
             </svg>
           </div>
         </div>

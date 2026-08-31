@@ -1335,6 +1335,10 @@ body {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+/* overflow chip when the plot is too short for every endpoint label */
+.timeline__endlabel--more {
+  fill: var(--text-tertiary);
+}
 @media (prefers-reduced-motion: reduce) {
   .timeline__arrival {
     animation: none;
