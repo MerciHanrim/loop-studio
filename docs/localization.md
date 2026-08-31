@@ -578,6 +578,31 @@ default kept separate, a byte-identical-GraphDoc-across-locales test — and whe
 the **§L7 user-facing engine-diagnostic `{ code, params }` mapping** lands
 (the Inspector / Timeline are where those diagnostics show).
 
+> **Implemented (`feat/i18n-slice2a`).** `en` + `ko` for Canvas (`ariaLabel`),
+> the Inspector (every field label, note, hint, empty state, the `resourceType`
+> mismatch note, Parameter / Register advisory notes), the Timeline chrome
+> (`timeline` caption, `LIVE` / `DISTRIBUTION`, legend show/hide + Register
+> titles, CSV, the `step N` axis text), the mobile read-only Inspector sheet,
+> and the node-face *unreadable / invalid* synthetic cues. The **node-palette
+> two-layer tip** — `palette.<kind>.name` (also the button's accessible name) /
+> `palette.<kind>.description` (semantic, matched to `SEMANTICS-*`) /
+> `palette.addAction`, three separate DOM lines, an absolutely-positioned
+> overlay shown on hover **and** keyboard focus, `aria-describedby`-linked.
+> **§L7 diagnostics:** the register `M_REG_*` codes and the `EXPR_*` parse codes
+> are shown verbatim by the caller with the prose from `error.<code>.message`
+> (params carry only atoms — a column number); an unknown code falls back to
+> `error.unknownCode`. **Not translated** (raw model data, shown as-is): every
+> node/edge `label`, expression text, `unit`, `resourceType`, an Inspector raw
+> value, and every wire enum token (`pullAny`, `deterministic`, `passive`,
+> `trigger`, the node-kind chip, …). **Deviations:** three edit-time hint notes
+> (trigger `delay`, Register canonical form, the deprecated `node`-mode note)
+> lose a decorative inline `<code>` box — an ICU message cannot carry markup
+> (§L4.1); text and values are preserved. The palette has no mobile surface
+> (editing is desktop-only), so the "mobile inline description instead of a
+> tooltip" clause has no target this slice. `Close` on the mobile Timeline /
+> sheets and React Flow's own zoom controls stay English — a cross-cutting
+> concern for Slice 2b.
+
 **Slice 2b — the app work surface.** **Import / Export / Workspace, revision UI,
 the Templates picker UI, the PWA update bar, every remaining empty / error
 state, and the accessibility names + live-region text** app-wide. Each surface

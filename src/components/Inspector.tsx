@@ -1,7 +1,5 @@
 import { useState, type ReactNode } from 'react'
 import {
-  ACT_HINT,
-  LABEL_HINT,
   parseActivatorExpr,
   parseDelay,
   parseLabelExpr,
@@ -23,6 +21,8 @@ import {
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
 import { useSimStore } from '../store/simStore'
+import { useT, type MessageKey } from '../i18n'
+import type { ExprParseCode } from '../model/expr'
 import type {
   ConverterData,
   DrainData,
@@ -40,6 +40,41 @@ const ACTIVATIONS = ['passive', 'automatic', 'onStart', 'interactive'] as const
 /** modes the engine executes; `node` (and anything unknown) is inert legacy data */
 const KNOWN_STATE_MODES: readonly StateMode[] = ['trigger', 'activator', 'label']
 
+// docs/localization.md §L7 — a stable diagnostic CODE (shown verbatim by the
+// caller) → the user-facing message key. An unknown code falls back to the
+// generic `error.unknownCode`; a code that needs per-cause wording gets a new
+// key here, never a mutated code string. Every value is a literal so the
+// call-site scan in check-i18n.mjs sees the key as referenced.
+const REG_CODE_KEY: Record<string, MessageKey> = {
+  M_REG_PARSE: 'error.M_REG_PARSE.message',
+  M_REG_EVAL: 'error.M_REG_EVAL.message',
+  M_REG_UNKNOWN_REF: 'error.M_REG_UNKNOWN_REF.message',
+  M_REG_WRONG_KIND: 'error.M_REG_WRONG_KIND.message',
+  M_REG_INVALID_ID: 'error.M_REG_INVALID_ID.message',
+  M_REG_CYCLE: 'error.M_REG_CYCLE.message',
+  M_REG_DEPENDS_ON_INVALID: 'error.M_REG_DEPENDS_ON_INVALID.message',
+}
+const EXPR_CODE_KEY: Record<ExprParseCode, MessageKey> = {
+  EXPR_EMPTY: 'error.EXPR_EMPTY.message',
+  EXPR_SYNTAX: 'error.EXPR_SYNTAX.message',
+  EXPR_UNCLOSED_PAREN: 'error.EXPR_UNCLOSED_PAREN.message',
+  EXPR_UNCLOSED_REF: 'error.EXPR_UNCLOSED_REF.message',
+  EXPR_BAD_ESCAPE: 'error.EXPR_BAD_ESCAPE.message',
+  EXPR_NUMBER_RANGE: 'error.EXPR_NUMBER_RANGE.message',
+  EXPR_BAD_TOKEN: 'error.EXPR_BAD_TOKEN.message',
+}
+const ACT_HINT_KEY = {
+  empty: 'stateExpr.activator.hint.empty',
+  'op-only': 'stateExpr.activator.hint.opOnly',
+  'not-a-comparison': 'stateExpr.activator.hint.notAComparison',
+  'non-finite': 'stateExpr.activator.hint.nonFinite',
+} satisfies Record<string, MessageKey>
+const LABEL_HINT_KEY = {
+  empty: 'stateExpr.label.hint.empty',
+  'not-an-assignment': 'stateExpr.label.hint.notAnAssignment',
+  'non-finite': 'stateExpr.label.hint.nonFinite',
+} satisfies Record<string, MessageKey>
+
 type Patch = (patch: Record<string, unknown>) => void
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -52,6 +87,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function Inspector() {
+  const t = useT()
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
@@ -98,20 +134,22 @@ export function Inspector() {
       !d || typeof d !== 'object' || typeof kindStr !== 'string' || (modelRead != null && !modelRead.ok)
     if (unreadable) {
       const kindLabel = typeof kindStr === 'string' ? kindStr : 'node'
-      const detail = modelRead && !modelRead.ok ? modelRead.detail : 'the data is not a readable object'
+      // `modelRead.detail` is a structural-read phrase from the dependency-free
+      // model layer — passed through as a substitution atom (§L7).
+      const detail =
+        modelRead && !modelRead.ok ? modelRead.detail : t('inspector.unreadable.detailFallback')
       return (
         <aside className="inspector">
           <div className="inspector__head">
             <span className="inspector__kind inspector__kind--edge">{kindLabel}</span>
             <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
-              Delete
+              {t('inspector.delete')}
             </button>
           </div>
           <p className="inspector__note inspector__note--warn">
-            This node's data can't be read ({detail}). It is loaded as-is and left out of the model —
-            fix it in the file, or delete the node.
+            {t('inspector.unreadable.note', { detail })}
           </p>
-          <Field label="Raw data">
+          <Field label={t('inspector.field.rawData')}>
             <textarea readOnly rows={5} value={JSON.stringify(node.data, null, 2)} />
           </Field>
         </aside>
@@ -123,20 +161,18 @@ export function Inspector() {
         <div className="inspector__head">
           <span className={`inspector__kind inspector__kind--${d.kind}`}>{d.kind}</span>
           <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
-            Delete
+            {t('inspector.delete')}
           </button>
         </div>
 
-        <Field label="Label">
+        <Field label={t('inspector.field.label')}>
           <input value={d.label} onChange={(e) => set({ label: e.target.value })} />
         </Field>
 
-        {d.kind === 'end' && (
-          <p className="inspector__note">Stops the run the moment a resource reaches it.</p>
-        )}
+        {d.kind === 'end' && <p className="inspector__note">{t('inspector.node.endNote')}</p>}
 
         {'activation' in d && d.kind !== 'end' && (
-          <Field label="Activation">
+          <Field label={t('inspector.field.activation')}>
             <select value={d.activation} onChange={(e) => set({ activation: e.target.value })}>
               {ACTIVATIONS.map((a) => (
                 <option key={a} value={a}>
@@ -166,13 +202,15 @@ export function Inspector() {
     return (
       <aside className="inspector">
         <div className="inspector__head">
-          <span className="inspector__kind inspector__kind--edge">{ed.kind} link</span>
+          <span className="inspector__kind inspector__kind--edge">
+            {t('inspector.edge.kindLink', { kind: ed.kind })}
+          </span>
           <button type="button" className="btn btn--ghost" onClick={() => removeEdge(edge.id)}>
-            Delete
+            {t('inspector.delete')}
           </button>
         </div>
 
-        <Field label="Type">
+        <Field label={t('inspector.field.type')}>
           <select
             value={ed.kind}
             onChange={(e) =>
@@ -183,18 +221,18 @@ export function Inspector() {
               )
             }
           >
-            <option value="resource">resource — carries resources</option>
-            <option value="state">state — reads a value, modifies target</option>
+            <option value="resource">{t('inspector.edge.type.resource')}</option>
+            <option value="state">{t('inspector.edge.type.state')}</option>
           </select>
         </Field>
 
         {ed.kind === 'resource' ? (
           <>
-            <Field label="Flow">
+            <Field label={t('inspector.field.flow')}>
               <input
                 value={ed.flow}
                 onChange={(e) => setData({ ...ed, kind: 'resource', flow: e.target.value })}
-                placeholder="1, all, 2D6, 1-3, 25%"
+                placeholder={t('inspector.edge.flowPlaceholder')}
               />
             </Field>
             <ResourceTypeField
@@ -219,10 +257,7 @@ export function Inspector() {
           }}
         />
 
-        <p className="inspector__note">
-          Editing a connection restarts the run at step 0 and clears any pending triggers; a
-          finished Monte-Carlo result is marked stale.
-        </p>
+        <p className="inspector__note">{t('inspector.edge.note')}</p>
       </aside>
     )
   }
@@ -230,11 +265,8 @@ export function Inspector() {
   return (
     <aside className="inspector">
       <div className="inspector__empty">
-        <p>Select a node or connection to edit it.</p>
-        <p className="inspector__hint">
-          Drag a piece from the top bar onto the canvas, then drag between the dots on
-          each side to wire them together.
-        </p>
+        <p>{t('inspector.empty.title')}</p>
+        <p className="inspector__hint">{t('inspector.empty.hint')}</p>
       </div>
     </aside>
   )
@@ -248,11 +280,12 @@ function RouteField({
   value: 'bezier' | 'orthogonal'
   onChange: (mode: 'bezier' | 'orthogonal') => void
 }) {
+  const t = useT()
   return (
-    <Field label="Route">
+    <Field label={t('inspector.field.route')}>
       <select value={value} onChange={(e) => onChange(e.target.value as 'bezier' | 'orthogonal')}>
-        <option value="bezier">Curved</option>
-        <option value="orthogonal">Orthogonal</option>
+        <option value="bezier">{t('inspector.edge.route.curved')}</option>
+        <option value="orthogonal">{t('inspector.edge.route.orthogonal')}</option>
       </select>
     </Field>
   )
@@ -267,17 +300,18 @@ function StateEdgeFields({
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
 }) {
+  const t = useT()
   if (!KNOWN_STATE_MODES.includes(ed.mode)) return <LegacyStateEdge ed={ed} setData={setData} />
   return (
     <>
-      <Field label="Mode">
+      <Field label={t('inspector.field.mode')}>
         <select
           value={ed.mode}
           onChange={(e) => setData({ ...ed, mode: e.target.value as StateMode })}
         >
-          <option value="trigger">trigger — pulse the target to fire</option>
-          <option value="activator">activator — enable / disable the target</option>
-          <option value="label">label — add to / set the target Pool</option>
+          <option value="trigger">{t('inspector.edge.mode.trigger')}</option>
+          <option value="activator">{t('inspector.edge.mode.activator')}</option>
+          <option value="label">{t('inspector.edge.mode.label')}</option>
         </select>
       </Field>
 
@@ -295,10 +329,11 @@ function TriggerFields({
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
 }) {
+  const t = useT()
   const raw = ed.delay
   const ok = raw == null || parseDelay(raw).ok
   return (
-    <Field label="Delay — steps before the pulse is delivered">
+    <Field label={t('inspector.field.delay')}>
       <input
         type="number"
         min={0}
@@ -311,28 +346,25 @@ function TriggerFields({
         }}
       />
       {ok ? (
-        <p className="field__hint">
-          delivered at <code>fired + delay + 1</code>; <code>0</code> means the next step.
-        </p>
+        <p className="field__hint">{t('inspector.delay.ok')}</p>
       ) : (
-        <p className="field__hint field__hint--bad">
-          use a whole number ≥ 0 — the engine runs any other value as <code>0</code> and leaves
-          what you typed untouched.
-        </p>
+        <p className="field__hint field__hint--bad">{t('inspector.delay.bad')}</p>
       )}
     </Field>
   )
 }
 
-function describeActivator(p: Extract<ActivatorParse, { ok: true }>): string {
-  return `target is enabled while the source ${p.op} ${p.n}`
+type TFn = ReturnType<typeof useT>
+
+function describeActivator(t: TFn, p: Extract<ActivatorParse, { ok: true }>): string {
+  return t('inspector.activator.describe', { op: p.op, n: p.n })
 }
-function describeLabel(p: Extract<LabelParse, { ok: true }>): string {
-  const amount = p.token === 'S' ? "the source Pool's value" : String(p.n)
-  if (p.op === '=') return `sets the target Pool to ${amount} each step`
+function describeLabel(t: TFn, p: Extract<LabelParse, { ok: true }>): string {
+  const amount = p.token === 'S' ? t('inspector.label.amountSource') : String(p.n)
+  if (p.op === '=') return t('inspector.label.describe.set', { amount })
   return p.op === '+'
-    ? `adds ${amount} to the target Pool each step`
-    : `subtracts ${amount} from the target Pool each step`
+    ? t('inspector.label.describe.add', { amount })
+    : t('inspector.label.describe.subtract', { amount })
 }
 
 function ExprField({
@@ -344,6 +376,7 @@ function ExprField({
   setData: (data: LoopEdgeData) => void
   kind: 'activator' | 'label'
 }) {
+  const t = useT()
   const raw = ed.expr ?? ''
   const res =
     kind === 'activator'
@@ -352,16 +385,28 @@ function ExprField({
 
   let hint: string
   if (res.t === 'activator') {
-    hint = res.p.ok ? describeActivator(res.p) : `${ACT_HINT[res.p.reason]} — until it parses, this connection has no effect.`
+    hint = res.p.ok
+      ? describeActivator(t, res.p)
+      : t('inspector.stateExpr.noEffect', { hint: t(ACT_HINT_KEY[res.p.reason]) })
   } else {
-    hint = res.p.ok ? describeLabel(res.p) : `${LABEL_HINT[res.p.reason]} — until it parses, this connection has no effect.`
+    hint = res.p.ok
+      ? describeLabel(t, res.p)
+      : t('inspector.stateExpr.noEffect', { hint: t(LABEL_HINT_KEY[res.p.reason]) })
   }
 
   return (
-    <Field label={kind === 'activator' ? 'Condition — comparison against the source' : 'Modifier — change applied each step'}>
+    <Field
+      label={
+        kind === 'activator' ? t('inspector.field.condition') : t('inspector.field.modifier')
+      }
+    >
       <input
         value={raw}
-        placeholder={kind === 'activator' ? '>= 5' : '+1   ·   -2   ·   =S'}
+        placeholder={
+          kind === 'activator'
+            ? t('inspector.expr.activatorPlaceholder')
+            : t('inspector.expr.labelPlaceholder')
+        }
         aria-invalid={!res.p.ok}
         onChange={(e) => setData({ ...ed, expr: e.target.value })}
       />
@@ -377,15 +422,12 @@ function LegacyStateEdge({
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
 }) {
+  const t = useT()
   const [to, setTo] = useState<StateMode>('trigger')
   return (
     <div className="inspector__legacy">
-      <p className="inspector__note">
-        <strong>Unsupported connection.</strong> Mode <code>{ed.mode}</code> is not executed —
-        this link has no effect on the simulation. Loop Studio never converts it automatically;
-        pick what it should become, then convert it explicitly.
-      </p>
-      <Field label="Convert to">
+      <p className="inspector__note">{t('inspector.legacy.note', { mode: ed.mode })}</p>
+      <Field label={t('inspector.legacy.convertTo')}>
         <select value={to} onChange={(e) => setTo(e.target.value as StateMode)}>
           <option value="trigger">trigger</option>
           <option value="activator">activator</option>
@@ -404,7 +446,7 @@ function LegacyStateEdge({
           })
         }
       >
-        Convert to {to}
+        {t('inspector.legacy.convertButton', { mode: to })}
       </button>
     </div>
   )
@@ -423,38 +465,42 @@ function ResourceTypeField({
   onChange: (v: string | undefined) => void
   findings: ResourceMismatchFinding[]
 }) {
+  const t = useT()
   const norm = normalizeResourceType(value)
   const raw = value ?? ''
   return (
     <>
-      <Field label="Resource type (advisory)">
+      <Field label={t('inspector.field.resourceType')}>
         <input
           value={raw}
           list="resource-type-builtins"
-          placeholder="Gold, Energy, XP, Player, Item, or a custom name"
+          placeholder={t('inspector.resourceType.placeholder')}
           onChange={(e) => onChange(e.target.value || undefined)}
         />
       </Field>
       <datalist id="resource-type-builtins">
-        {BUILTIN_RESOURCE_TYPES.map((t) => (
-          <option key={t} value={t} />
+        {BUILTIN_RESOURCE_TYPES.map((rt) => (
+          <option key={rt} value={rt} />
         ))}
       </datalist>
       {norm.value === null && raw.trim() !== '' && (
         <p className="inspector__note inspector__note--warn">
-          Over {RESOURCE_TYPE_MAX_BYTES} bytes — this tag will be dropped on export.
+          {t('inspector.resourceType.tooLong', { max: RESOURCE_TYPE_MAX_BYTES })}
         </p>
       )}
       {norm.value !== null && norm.value !== raw && (
-        <p className="inspector__note">Normalised to “{norm.value}”.</p>
+        <p className="inspector__note">
+          {t('inspector.resourceType.normalised', { value: norm.value })}
+        </p>
       )}
       {norm.value !== null && !isBuiltinResourceType(norm.value) && (
-        <p className="inspector__note">Custom type — generic swatch; no built-in colour.</p>
+        <p className="inspector__note">{t('inspector.resourceType.custom')}</p>
       )}
       {findings.length > 0 && (
         <p className="inspector__note inspector__note--warn">
-          Type mismatch: {findings.map((f) => `${f.edgeType} ↔ ${f.nodeType}`).join(', ')}. Advisory
-          only — it changes no amount and blocks no run.
+          {t('inspector.resourceType.mismatch', {
+            pairs: findings.map((f) => `${f.edgeType} ↔ ${f.nodeType}`).join(', '),
+          })}
         </p>
       )}
     </>
@@ -470,16 +516,17 @@ function PoolFields({
   set: Patch
   findings: ResourceMismatchFinding[]
 }) {
+  const t = useT()
   return (
     <>
-      <Field label="Starting amount">
+      <Field label={t('inspector.field.startingAmount')}>
         <input
           type="number"
           value={d.initial}
           onChange={(e) => set({ initial: Number(e.target.value) })}
         />
       </Field>
-      <Field label="Capacity (blank = unlimited)">
+      <Field label={t('inspector.field.capacity')}>
         <input
           type="number"
           value={d.capacity ?? ''}
@@ -488,7 +535,7 @@ function PoolFields({
           }
         />
       </Field>
-      <Field label="Flow mode">
+      <Field label={t('inspector.field.flowMode')}>
         <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
           <option value="pullAny">pull any</option>
           <option value="pullAll">pull all</option>
@@ -506,8 +553,9 @@ function PoolFields({
 }
 
 function SourceFields({ d, set }: { d: SourceData; set: Patch }) {
+  const t = useT()
   return (
-    <Field label="Flow mode">
+    <Field label={t('inspector.field.flowMode')}>
       <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
         <option value="pushAny">push any</option>
         <option value="pushAll">push all</option>
@@ -517,8 +565,9 @@ function SourceFields({ d, set }: { d: SourceData; set: Patch }) {
 }
 
 function DrainFields({ d, set }: { d: DrainData; set: Patch }) {
+  const t = useT()
   return (
-    <Field label="Flow mode">
+    <Field label={t('inspector.field.flowMode')}>
       <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
         <option value="pullAny">pull any</option>
         <option value="pullAll">pull all</option>
@@ -528,8 +577,9 @@ function DrainFields({ d, set }: { d: DrainData; set: Patch }) {
 }
 
 function GateFields({ d, set }: { d: GateData; set: Patch }) {
+  const t = useT()
   return (
-    <Field label="Distribution">
+    <Field label={t('inspector.field.distribution')}>
       <select value={d.distribution} onChange={(e) => set({ distribution: e.target.value })}>
         <option value="deterministic">deterministic</option>
         <option value="probabilistic">probabilistic</option>
@@ -539,8 +589,9 @@ function GateFields({ d, set }: { d: GateData; set: Patch }) {
 }
 
 function ConverterFields({ d, set }: { d: ConverterData; set: Patch }) {
+  const t = useT()
   return (
-    <Field label="Flow mode">
+    <Field label={t('inspector.field.flowMode')}>
       <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
         <option value="pullAny">pull any</option>
         <option value="pullAll">pull all</option>
@@ -554,48 +605,40 @@ function ConverterFields({ d, set }: { d: ConverterData; set: Patch }) {
 const numOrUndef = (s: string): number | undefined => (s === '' ? undefined : Number(s))
 
 function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
+  const t = useT()
   // advisory notices from the defensive read (§M1.2) — value-out-of-range etc.
   const read = readParameterData(d)
   const notices = read.ok ? read.notices : []
   return (
     <>
-      <Field label="Value">
+      <Field label={t('inspector.field.value')}>
         <input type="number" value={d.value} onChange={(e) => set({ value: Number(e.target.value) })} />
       </Field>
-      <Field label="Unit (advisory)">
+      <Field label={t('inspector.field.unit')}>
         <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
-      <Field label="Min (advisory)">
+      <Field label={t('inspector.field.min')}>
         <input type="number" value={d.min ?? ''} onChange={(e) => set({ min: numOrUndef(e.target.value) })} />
       </Field>
-      <Field label="Max (advisory)">
+      <Field label={t('inspector.field.max')}>
         <input type="number" value={d.max ?? ''} onChange={(e) => set({ max: numOrUndef(e.target.value) })} />
       </Field>
-      <Field label="Step (advisory)">
+      <Field label={t('inspector.field.step')}>
         <input type="number" value={d.step ?? ''} onChange={(e) => set({ step: numOrUndef(e.target.value) })} />
       </Field>
       {notices.includes('PARAM_VALUE_OUT_OF_RANGE') && (
-        <p className="inspector__note">The value is outside the advisory min/max — kept as-is, not clamped.</p>
+        <p className="inspector__note">{t('inspector.parameter.outOfRange')}</p>
       )}
       {(notices.includes('PARAM_RANGE_INVALID') || notices.includes('PARAM_STEP_INVALID')) && (
-        <p className="inspector__note">An advisory hint is incoherent and will be dropped on export.</p>
+        <p className="inspector__note">{t('inspector.parameter.hintIncoherent')}</p>
       )}
-      <p className="inspector__note">A Parameter has no ports — reference it by id from an expression.</p>
+      <p className="inspector__note">{t('inspector.parameter.noPorts')}</p>
     </>
   )
 }
 
-const REG_CODE_MESSAGE: Record<string, string> = {
-  M_REG_PARSE: 'the expression does not parse',
-  M_REG_EVAL: 'the expression evaluates to an error (division by zero / non-finite)',
-  M_REG_UNKNOWN_REF: 'a reference names no node in the graph',
-  M_REG_WRONG_KIND: 'a reference names a node that is not a pool / parameter / register',
-  M_REG_INVALID_ID: 'a referenced id contains an unusable control character',
-  M_REG_CYCLE: 'this Register is on a dependency cycle',
-  M_REG_DEPENDS_ON_INVALID: 'this Register depends on another invalid Register',
-}
-
 function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patch }) {
+  const t = useT()
   const parsed = parseExpr(d.expr)
   const read = readRegisterData(d)
   const notices = read.ok ? read.notices : []
@@ -603,7 +646,7 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
   const stepIndex = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Field label="Expression">
+      <Field label={t('inspector.field.expression')}>
         <input
           value={d.expr}
           spellCheck={false}
@@ -613,30 +656,39 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
       </Field>
       {!parsed.ok ? (
         <p className="inspector__note inspector__note--warn">
-          {parsed.error.code} · {parsed.error.message}
+          {parsed.error.code} · {t(EXPR_CODE_KEY[parsed.error.code], { column: parsed.error.column })}
         </p>
       ) : (
         parsed.expr.canonical !== d.expr && (
-          <p className="inspector__note">Canonical form: <code>{parsed.expr.canonical}</code> (saved on export)</p>
+          <p className="inspector__note">
+            {t('inspector.register.canonical', { canonical: parsed.expr.canonical })}
+          </p>
         )
       )}
 
       {/* §M3.5 — R(currentStepIndex); §M6.2 — an invalid Register shows NO value */}
       {outcome && outcome.invalid ? (
         <p className="inspector__note inspector__note--warn">
-          {outcome.code} · {REG_CODE_MESSAGE[outcome.code] ?? 'invalid'} — no value at step {stepIndex}.
+          {t('inspector.register.invalidAtStep', {
+            code: outcome.code,
+            reason: t(REG_CODE_KEY[outcome.code] ?? 'error.unknownCode'),
+            step: stepIndex,
+          })}
         </p>
       ) : outcome ? (
         <p className="inspector__note">
-          Value at step {stepIndex}: <strong>{formatRegisterValue(outcome.value, d.format)}</strong>{' '}
-          <span className="inspector__hint">(recomputed from the graph — never stored)</span>
+          {t('inspector.register.valueAtStep', {
+            step: stepIndex,
+            value: formatRegisterValue(outcome.value, d.format),
+          })}{' '}
+          <span className="inspector__hint">{t('inspector.register.recomputed')}</span>
         </p>
       ) : null}
 
-      <Field label="Unit (advisory)">
+      <Field label={t('inspector.field.unit')}>
         <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
-      <Field label="Format (advisory)">
+      <Field label={t('inspector.field.format')}>
         <select value={d.format ?? 'float'} onChange={(e) => set({ format: e.target.value })}>
           <option value="int">int</option>
           <option value="float">float</option>
@@ -644,9 +696,9 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
         </select>
       </Field>
       {notices.includes('REG_FORMAT_INVALID') && (
-        <p className="inspector__note">Unrecognised format — will fall back to float on export.</p>
+        <p className="inspector__note">{t('inspector.register.formatInvalid')}</p>
       )}
-      <p className="inspector__note">A Register stores nothing and has no ports.</p>
+      <p className="inspector__note">{t('inspector.register.noStore')}</p>
     </>
   )
 }

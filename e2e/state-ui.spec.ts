@@ -159,7 +159,9 @@ test.describe('Slice 5 — Inspector editing', () => {
     await selectEdge(page, 'legacy1')
     const insp = page.locator('.inspector')
     await expect(insp.locator('.inspector__legacy')).toContainText('Unsupported')
-    await expect(insp.locator('.inspector__legacy code')).toHaveText('node')
+    // the inert mode token is shown verbatim in the note (i18n Slice 2a moved
+    // this note into an ICU message, which cannot carry an inline <code> box)
+    await expect(insp.locator('.inspector__legacy .inspector__note')).toContainText('node')
 
     await insp.locator('.inspector__legacy select').selectOption('activator')
     await insp.getByRole('button', { name: /Convert to activator/ }).click()

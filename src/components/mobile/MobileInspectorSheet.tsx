@@ -3,6 +3,7 @@ import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../../store/graphStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
+import { useT } from '../../i18n'
 import { Inspector } from '../Inspector'
 import { MobileSheet } from './MobileSheet'
 
@@ -14,6 +15,7 @@ import { MobileSheet } from './MobileSheet'
 // desktop-only).
 
 export function MobileInspectorSheet() {
+  const t = useT()
   const isMobile = useIsMobile()
   const overlay = useUiStore(selectOverlay)
   const openOverlay = useUiStore((s) => s.openOverlay)
@@ -44,8 +46,8 @@ export function MobileInspectorSheet() {
   if (!isMobile || !hasSelection || overlay !== 'inspector') return null
 
   return (
-    <MobileSheet title="Inspector — read only" className="sheet--inspector" onClose={dismiss}>
-      <p className="sheet__ro-note">Editing is on desktop. This is a read-only view.</p>
+    <MobileSheet title={t('mobile.inspector.title')} className="sheet--inspector" onClose={dismiss}>
+      <p className="sheet__ro-note">{t('mobile.inspector.roNote')}</p>
       <fieldset className="inspector-ro" disabled>
         <Inspector />
       </fieldset>
