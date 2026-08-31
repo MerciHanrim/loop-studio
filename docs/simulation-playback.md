@@ -741,3 +741,33 @@ and L0 behaviour; the acceptance set.
 **Out (this doc):** any engine change; any new persisted or serialised field; any
 `loop-*/N`; Monte-Carlo / Predict token animation; a "record / export the
 animation" feature; camera moves / auto-pan-to-action (possible later, separate).
+
+## PB16. Verification of record (shipped v0.7.0-dev)
+
+Playback is a **display layer** over the existing engine — it introduces no
+engine change, no persisted field, no `loop-*/N` — so it has **no `*.expected.json`
+oracle of its own**. Its verification is:
+
+- **`examples/playback-choreography.json`** — one committed graph that reproduces
+  every choreography cue at once (resource token, `trigger` bead, `activator`
+  settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a
+  65-edge fan that pushes past `MAX_PLAYBACK_TOKENS_TOTAL`. A reproducible
+  visual / interaction fixture, **not** a semantics oracle. The per-cue QA
+  checklist (each behaviour → the E2E that locks it) lives in
+  [`examples/README.md`](../examples/README.md) §5.
+- **`e2e/playback-fixture.spec.ts`** — imports that graph and checks the cues,
+  the 60-token budget, the Bézier/orthogonal `d` fidelity, the L0 / reduced-motion
+  elision, and the invariance below.
+- **Behavioural specs** — `playback.spec.ts` (Slice 1 state machine),
+  `playback-choreography.spec.ts` (token + state-event choreography, Pause/speed,
+  L0, reduced motion), `playback-caps-perf.spec.ts` (the global budget, the
+  once-per-transition sort, the render budget), `playback-invariants.spec.ts`
+  (VL-INV), `playback-a11y-background.spec.ts` (live region + background
+  recovery), `playback-visual.spec.ts` (the light/dark × device × LOD ×
+  motion × forced-colors acceptance matrix), and
+  `src/engine/state-one-cue-per-edge.test.ts` (the ≤1-state-event-per-edge
+  engine invariant the per-edge budget relies on).
+- **Invariance** — Play / Pause / speed / Reset leave the GraphDoc bytes, the
+  `loop-revision/3` digest, the undo stack, the viewport, every edge `d`, and the
+  **committed simulation result** byte-for-byte unchanged; a choreographed Play
+  commits exactly what a plain `advance()`-only run of the same length does.

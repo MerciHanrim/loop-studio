@@ -20,9 +20,13 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 > reduced-motion & forced-colors support). **In `v0.7.0-dev`:** automatic
 > **orthogonal edge routing** — right-angle segments that step around nodes
 > (`route: "orthogonal"`, `loop-revision/3`), a cosmetic wire field that changes
-> nothing the engine computes; manual waypoint editing is deferred. Next up is
-> **Simulation Playback / Event Choreography**. Execution semantics are pinned
-> down in frozen spec documents (see [Semantics](#semantics)).
+> nothing the engine computes (manual waypoint editing is deferred) — and
+> **Simulation Playback / Event Choreography**: pressing Play makes resources
+> visibly depart, travel the real edge path, and arrive before the value
+> updates, on a shared per-step time axis, with reduced-motion / L0 / a11y /
+> forced-colors handling and a bounded on-screen token count — a display layer
+> that leaves the deterministic engine result untouched. Execution semantics are
+> pinned down in frozen spec documents (see [Semantics](#semantics)).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -142,7 +146,10 @@ classification, or apply decision depends on them.
   - ✅ Activator + comparison conditions
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
-- ☐ Onboarding, part 2 — guided tour, inline docs, KO/EN localization
+- ☐ Onboarding, part 2 — **deferred beyond v0.7.0** (the run-status live region, Inspector help text, and the visual-language work already shipped are accessibility / design pieces, not this)
+  - ☐ Guided first-run tour
+  - ☐ Contextual inline help and documentation
+  - ☐ KO/EN localization infrastructure and translated UI strings
 - ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
@@ -164,7 +171,13 @@ classification, or apply decision depends on them.
 - ◐ Orthogonal edge routing — **v0.7.0-dev** ([`docs/edge-routing.md`](docs/edge-routing.md), `loop-revision/3` [`SEMANTICS-R3.md`](SEMANTICS-R3.md) frozen)
   - ✅ Orthogonal auto routing — **Slice 1**: `route: "orthogonal"` selection + an automatic deterministic router (obstacle-avoiding A*, parallel-edge fan-out, rounded corners, L/Z fallback) + an atomic route-map that recomputes every orthogonal edge in one pass. `route` / `waypoints` are `loop-revision/3` **cosmetic** wire fields — projected / diffed / dirty-tracked, never engine- or advisory-affecting; a non-routing graph's digest is unchanged. Pure render concern (never edits `source` / `target` / handles)
   - ☐ Manual waypoint editing — **deferred**: the `waypoints` wire contract is frozen and Slice 1 reads / writes existing waypoints losslessly, but the create / move / delete UI is not built; revisited only when there is real demand
-- ◐ Simulation Playback / Event Choreography — **v0.7.0-dev**: pressing Play makes the model move — departure → travel → arrival → value update along each real edge path, on a shared per-step time axis — while the engine result stays fully deterministic and untouched. Non-`frozen` design doc (`docs/simulation-playback.md`) first, implementation after it settles
+- ✅ Simulation Playback / Event Choreography — **v0.7.0-dev** ([`docs/simulation-playback.md`](docs/simulation-playback.md), a non-`frozen` design doc — no `loop-*/N` id): pressing Play makes the model move — departure → travel → arrival → value update along each real edge path, on a shared per-step time axis — while the engine result stays byte-for-byte deterministic and untouched (a display layer only, **no new engine oracle**)
+  - ✅ Resource token choreography — `depart` → `travel` → `arrive` → `settle` on the exact rendered edge `d` (Bézier **and** orthogonal), Pause freezes / speed re-rates / discard removes; several transfers on one edge ⇒ one summed token + a capped `+N` breakdown
+  - ✅ State-event choreography — a `trigger` bead rides the edge on its delivery step, an `activator` lands a target-side cue on the `arrive` beat (never travels), a signed `label` delta bead by sign; a state cue is never merged into the resource token and fires once per transition
+  - ✅ Viewing conditions — `prefers-reduced-motion` (no travelling element, collapsed beats, no artificial wait), an L0 (`zoom < 0.45`) elision that keeps the ordered depart / path-pulse / arrive cues, background-tab freeze-and-recover, and a mobile view/run layout
+  - ✅ Accessibility & `forced-colors` — one always-mounted polite live region announcing the committed run state; every cue distinguishable without hue by shape tells
+  - ✅ Performance ceiling — one global `MAX_PLAYBACK_TOKENS_TOTAL = 60` budget across resource + `trigger` + `label` travelling cues, chosen deterministically and sorted once per transition; `MAX_PLAYBACK_TOKENS = 12` breakdown chips; an idle edge never re-renders on a τ frame
+  - ✅ Reproducible demo fixture + QA checklist ([`examples/playback-choreography.json`](examples/README.md)) + `e2e/playback-fixture.spec.ts` + the acceptance matrix (`e2e/playback-*.spec.ts`)
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
 
