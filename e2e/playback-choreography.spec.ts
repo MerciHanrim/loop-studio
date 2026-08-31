@@ -367,28 +367,38 @@ test.describe('playback — Slice 2 choreography', () => {
   })
 
   test('§2 — no double-play: the token never re-appears for the same step around settle', async ({ page }) => {
-    await setup(page, G(false), 700)
+    await setup(page, G(false), 1000)
     await call(page, 'play')
-    // sample many frames straddling the first settle; count how many DISTINCT
-    // times a `.pb-move` for e_sp is present, keyed by fromStep
+    // sample frames straddling several settles; count how many DISTINCT
+    // contiguous runs of a `.pb-move` for e_sp occur, keyed by fromStep. A
+    // second run for the same fromStep = a double-play. Wall-clock bounded so a
+    // slow CI box still reaches ≥ 3 steps.
     const seenByStep = new Map<number, number>()
     let transitions = 0
-    let lastPresent = false
-    for (let i = 0; i < 120; i++) {
+    let curRun: number | null = null // fromStep of the token run in progress
+    const deadline = Date.now() + 20_000
+    while (Date.now() < deadline) {
       const s = await page.evaluate(() => {
         const st = (window as any).__loop.sim.getState()
         return { fromStep: st.transition?.fromStep ?? null, present: !!document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move'), stepIndex: st.stepIndex }
       })
-      if (s.present && !lastPresent && s.fromStep != null) {
-        seenByStep.set(s.fromStep, (seenByStep.get(s.fromStep) ?? 0) + 1)
-        transitions++
+      if (s.present && s.fromStep != null) {
+        // a new run starts on first-present OR when fromStep changed without us
+        // catching the settle gap. A second run for a fromStep already seen ⇒
+        // double-play (caught by the per-step count assertion below).
+        if (curRun !== s.fromStep) {
+          seenByStep.set(s.fromStep, (seenByStep.get(s.fromStep) ?? 0) + 1)
+          transitions++
+          curRun = s.fromStep
+        }
+      } else {
+        curRun = null
       }
-      lastPresent = s.present
-      if (s.stepIndex >= 3) break
-      await page.waitForTimeout(20)
+      if (s.stepIndex >= 3 && transitions >= 2) break
+      await page.waitForTimeout(15)
     }
     await call(page, 'pause')
-    // the token appeared at most once per step — never a second render for a step
+    // the token appeared exactly one contiguous run per step — never a second
     for (const [, count] of seenByStep) expect(count).toBe(1)
     expect(transitions).toBeGreaterThanOrEqual(2)
   })
