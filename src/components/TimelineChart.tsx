@@ -129,10 +129,17 @@ export function TimelineChart() {
       maxStep = Math.max(maxStep, pt.step)
       for (const p of tracked) peak = Math.max(peak, pt.values[p.id] ?? 0)
     }
+    // Rolling X domain: the series holds only the last MAX_SERIES steps, so the
+    // axis runs from the EARLIEST retained step, not from 0 — otherwise a
+    // trimmed run draws starting a fraction of the way in and appears to shrink
+    // toward the right as more of the head is dropped. Internal `pt.step`
+    // numbers are untouched; only the mapping to pixels changes.
+    const minStep = series.length ? series[0].step : 0
+    const domainSpan = Math.max(1, maxStep - minStep)
     const top = niceCeil(peak * 1.12)
     const iw = w - PAD.l - PAD.r
     const ih = h - PAD.t - PAD.b
-    const x = (stp: number) => PAD.l + (maxStep === 0 ? 0 : (stp / maxStep) * iw)
+    const x = (stp: number) => PAD.l + ((stp - minStep) / domainSpan) * iw
     const y = (v: number) => PAD.t + ih - (v / top) * ih
 
     // Register lines use an independent min/max range (values may be negative)
@@ -204,7 +211,7 @@ export function TimelineChart() {
     })
 
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
-    return { w, h, top, maxStep, x, y, lines, regLines, guideX }
+    return { w, h, top, minStep, maxStep, x, y, lines, regLines, guideX }
   }, [series, tracked, registers, regByStep, status, stepIndex, size])
 
   const rm = reducedMotion()
@@ -315,9 +322,16 @@ export function TimelineChart() {
                 </g>
               ))}
               {hasRun ? (
-                <text className="timeline__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
-                  step {view.maxStep}
-                </text>
+                <>
+                  {view.minStep > 0 ? (
+                    <text className="timeline__tick" x={PAD.l} y={h - 6} textAnchor="start">
+                      step {view.minStep}
+                    </text>
+                  ) : null}
+                  <text className="timeline__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
+                    step {view.maxStep}
+                  </text>
+                </>
               ) : null}
 
               {view.guideX != null ? (
