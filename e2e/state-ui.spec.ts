@@ -52,6 +52,28 @@ const stepN = (page: Page, n: number) =>
     for (let i = 0; i < k; i++) sim.advance()
   }, n)
 
+// docs/simulation-playback.md Slice 3b — the state cue is τ-synced, so it only
+// exists while a transition is in flight. Run ONE step through the real
+// choreography at a slow beat and hold it mid-`travel` so the cue is on screen;
+// `finishStateCue` then settles that same transition with one commit.
+async function stepStateCue(page: Page) {
+  await page.evaluate(() => {
+    const s = (window as unknown as Bridge).__loop.sim.getState()
+    s.setSpeed(4000)
+    s.stepOnce()
+  })
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().transition?.tau ?? -1))
+    .toBeGreaterThan(0.25)
+  await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().pause())
+}
+async function finishStateCue(page: Page) {
+  await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepOnce())
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().transition))
+    .toBe(null)
+}
+
 const stateEvents = (page: Page) =>
   page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stateEvents as any[])
 
@@ -175,9 +197,11 @@ test.describe('Slice 5 — in-canvas feedback', () => {
     await stepN(page, 1) // Src fires step 1 → schedules for step 2; nothing delivered yet
     expect(ev(await stateEvents(page), 't_trig')).toBeUndefined()
 
-    await stepN(page, 1) // step 2 — delivery
+    await stepStateCue(page) // step 2 — delivery, choreographed
+    await expect(page.locator('.react-flow__edge[data-id="t_trig"] .state-move--trigger')).toHaveCount(1)
+    await expect(page.locator('.react-flow__edge[data-id="t_trig"] .state-move[data-playback-phase]')).toHaveCount(1)
+    await finishStateCue(page)
     expect(ev(await stateEvents(page), 't_trig')?.effect.delivered).toBe(true)
-    await expect(page.locator('.react-flow__edge[data-id="t_trig"] .state-pulse')).toHaveCount(1)
   })
 
   test('trigger delay 2: no delivery until step 4', async ({ page }) => {
@@ -192,12 +216,15 @@ test.describe('Slice 5 — in-canvas feedback', () => {
   })
 
   test('applied:false is delivered but marked blocked — automatic target and gated-closed passive', async ({ page }) => {
-    await stepN(page, 2)
-    // t_auto → an automatic Drain: pulse delivered, no execution effect
+    await stepN(page, 1)
+    await stepStateCue(page) // step 2, choreographed
+    // t_auto → an automatic Drain: pulse delivered, no execution effect — the
+    // travelling cue is drawn blocked (hollow warning bead)
+    await expect(page.locator('.react-flow__edge[data-id="t_auto"] .state-move--trigger.state-move--blocked')).toHaveCount(1)
+    await finishStateCue(page)
     const auto = ev(await stateEvents(page), 't_auto')
     expect(auto.effect).toEqual({ kind: 'trigger', delivered: true, applied: false })
     await expect(page.locator('.edge-label[data-edge-id="t_auto"] .edge-label__blocked')).toBeVisible()
-    await expect(page.locator('.react-flow__edge[data-id="t_auto"] .state-pulse--blocked')).toHaveCount(1)
 
     // t_trig → passive D, but Gauge (0,+1/step) is below ">= 3" until it opens
     expect(ev(await stateEvents(page), 't_trig')?.effect.applied).toBe(false)
@@ -231,10 +258,21 @@ test.describe('Slice 5 — in-canvas feedback', () => {
     expect(ev(list, 'm2').effect).toEqual({ kind: 'label', delta: -1, clampAdjustment: -1 })
 
     await expect(page.locator('.edge-label[data-edge-id="m1"] .edge-label__delta')).toHaveText('+10')
-    await expect(page.locator('.react-flow__edge[data-id="m1"] .state-flash--in')).toHaveCount(1)
     await expect(page.locator('.edge-label[data-edge-id="m2"] .edge-label__delta')).toHaveText('-1')
-    await expect(page.locator('.react-flow__edge[data-id="m2"] .state-flash--out')).toHaveCount(1)
     await expect(page.locator('.edge-label[data-edge-id="m2"] .edge-label__clamp')).toHaveText('clamp -1')
+  })
+
+  test('label: the τ cue rides toward the target for +, away for −', async ({ page }) => {
+    await stepStateCue(page) // step 1 — the label step, choreographed
+    await expect(page.locator('.react-flow__edge[data-id="m1"] .state-move--label.state-move--in')).toHaveCount(1)
+    await expect(page.locator('.react-flow__edge[data-id="m2"] .state-move--label.state-move--out')).toHaveCount(1)
+    // the cue carries the signed delta
+    await expect(page.locator('.react-flow__edge[data-id="m1"] .state-move__n')).toHaveText('+10')
+    await expect(page.locator('.react-flow__edge[data-id="m2"] .state-move__n')).toHaveText('-1')
+    await finishStateCue(page)
+    const list = await stateEvents(page)
+    expect(ev(list, 'm1').effect).toEqual({ kind: 'label', delta: 10, clampAdjustment: 0 })
+    expect(ev(list, 'm2').effect).toEqual({ kind: 'label', delta: -1, clampAdjustment: -1 })
   })
 
   test('effects clear on Reset and on an edit; an edit also rewinds the sim to step 0', async ({ page }) => {

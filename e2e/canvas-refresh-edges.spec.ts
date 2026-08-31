@@ -85,7 +85,7 @@ test.describe('Playback choreography — the token reacts ONLY to real engine ev
   test('a token only where a FlowEvent actually moves resource; gone at rest / on Reset', async ({ page }) => {
     await load(page)
     await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(1400))
-    await expect(page.locator('.pb-move, .flow-bead, .state-pulse')).toHaveCount(0) // rest
+    await expect(page.locator('.pb-move, .flow-bead, .state-move')).toHaveCount(0) // rest
 
     await step(page) // src pushes 2 → A; A has nothing yet so r2/r3 carry 0
     // mid-travel: exactly one token on r1, none on r2 / r3
@@ -101,7 +101,7 @@ test.describe('Playback choreography — the token reacts ONLY to real engine ev
 
     await step(page)
     await reset(page)
-    await expect(page.locator('.pb-move, .flow-bead, .flow-trail, .state-pulse, .state-flash')).toHaveCount(0)
+    await expect(page.locator('.pb-move, .flow-bead, .flow-trail, .state-move')).toHaveCount(0)
   })
 
   test('exactly one token per edge; it never restarts on Pause / re-render / selection', async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe('Playback choreography — the token reacts ONLY to real engine ev
 // reduce` there is literally no `animateMotion` / travelling element in the DOM
 // to play, freeze, or restart.
 const MOTION =
-  '.react-flow__edges animateMotion, .flow-move, .pb-move, .pb-cue, .flow-bead, .flow-trail, .flow-token__n, .state-pulse, .state-flash'
+  '.react-flow__edges animateMotion, .flow-move, .pb-move, .pb-cue, .flow-bead, .flow-trail, .flow-token__n, .state-move, .state-move__n'
 
 test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', () => {
   test('a real FlowEvent renders NO moving element — a held static highlight + arrival cue instead', async ({ page }) => {
@@ -184,9 +184,9 @@ test.describe('Canvas Refresh PR 2 — reduced motion: the flow bead contract', 
       await expect(page.locator(MOTION)).toHaveCount(0) // never, at any step
     }
     // s1 (src→b trigger, delay 0) has delivered by now ⇒ its static highlight is
-    // shown and is the ONLY representation (no travelling `.state-pulse`)
+    // shown and is the ONLY representation (no travelling `.state-move`)
     await expect(page.locator('.react-flow__edge[data-id="s1"] .state-edge-pulse')).toHaveCount(1)
-    await expect(page.locator('.state-pulse, .state-flash')).toHaveCount(0)
+    await expect(page.locator('.state-move')).toHaveCount(0)
   })
 })
 

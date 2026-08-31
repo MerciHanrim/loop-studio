@@ -217,7 +217,7 @@ test.describe('Canvas Refresh PR 3 — zoom LOD (§VL7)', () => {
     await zoomTo(page, 0.3)
     await page.locator('.pstrip button[title="Advance one step"]').click()
     // no travelling element at any zoom under reduce…
-    await expect(page.locator('.react-flow__edges animateMotion, .flow-move, .state-pulse')).toHaveCount(0)
+    await expect(page.locator('.react-flow__edges animateMotion, .flow-move, .state-move')).toHaveCount(0)
     // …and the run-in-progress cue (required set) is still present at L0
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] .flow-edge-pulse')).toHaveCount(1)
     await page.emulateMedia({ reducedMotion: null })

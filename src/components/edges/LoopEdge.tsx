@@ -90,7 +90,6 @@ function LoopEdge({
 
   const amount = useSimStore((s) => s.activeByEdge[id] ?? 0)
   const stepIndex = useSimStore((s) => s.stepIndex)
-  const speedMs = useSimStore((s) => s.speedMs)
   const status = useSimStore((s) => s.status)
   const stateEvent = useSimStore((s) => s.stateEvents.find((e) => e.edgeId === id))
   // docs/simulation-playback.md Slice 2 — a READ-ONLY consumer of the in-flight
@@ -127,8 +126,6 @@ function LoopEdge({
   // stays through Pause, clears on Reset (docs/visual-language.md §VL9). The
   // choreography scheduler settles a reduced-motion step near-instantly.
   const rmHeldPulse = rm && !isState && amount > 0 && running
-  const dur = Math.min(Math.max(speedMs * 0.7, 150), 680)
-  const anim = { dur: `${dur}ms`, repeatCount: 1, fill: 'freeze' as const, path }
 
   // ── Slice 2 choreography — the token walks the real `d` in step with τ ──
   // The scheduler owns τ / phase / commit (Slice 1); this layer only reads.
@@ -152,6 +149,25 @@ function LoopEdge({
   // away, and every animated node is keyed on `stepIndex` so nothing stacks.
   const sv = isState ? stateVisual(stateEvent) : null
   const activatorOn = sv?.kind === 'activator' ? sv.satisfied : undefined
+
+  // ── Slice 3b — τ-synced state-event choreography ──────────────────────
+  // A READ-ONLY consumer of the in-flight `transition.stateEvents` (owned by
+  // Slice 1, carried per τ tick by Slice 2). It NEVER merges with the resource
+  // token — different edge kind, its own beat. `trigger` and a non-zero `label`
+  // ride the real `d`; `activator` does not travel, it lands a target cue on
+  // the settle beat. One cue per transition — position is a pure function of τ,
+  // so Pause freezes it and a discard removes it; nothing re-fires.
+  const stEv =
+    isState && transition ? transition.stateEvents.find((e) => e.edgeId === id) ?? null : null
+  const stv = stateVisual(stEv ?? undefined)
+  const stPhase = transition && stv ? transition.phase : null
+  // `label` with a negative delta reads target → source (the existing flash
+  // direction); everything else travels source → target.
+  const stReverse = stv?.kind === 'label' && stv.delta < 0
+  const stFrac = transition ? travelFraction(transition.tau) : 0
+  const stTravels = !rm && (stv?.kind === 'trigger' || (stv?.kind === 'label' && stv.delta !== 0))
+  const stPt = stTravels ? pointOnPath(path, stReverse ? 1 - stFrac : stFrac) : null
+  const stTargetPt = !rm && stv?.kind === 'activator' && stPhase === 'arrive' ? pointOnPath(path, 1) : null
 
   // start-of-flow dot only when the edge is selected and idle; hidden during a
   // transition so it never doubles up with the token.
@@ -218,11 +234,15 @@ function LoopEdge({
         </g>
       ) : null}
 
-      {/* state edge, reduced motion: static one-step highlight for pulse / flash */}
-      {sv && (sv.kind === 'trigger' || sv.kind === 'label') && rm ? (
+      {/* state edge, reduced motion: a static one-step highlight in place of the
+          travelling bead — shown while the transition is in flight AND held
+          after settle (keyed on the committed step), cleared on Reset / edit.
+          Trigger / label only; an activator shows as the persistent tint. */}
+      {isState && sv && (sv.kind === 'trigger' || sv.kind === 'label') && rm && running ? (
         <path
           key={`sp-${id}-${stepIndex}`}
           className={`state-edge-pulse${sv.kind === 'trigger' && !sv.applied ? ' state-edge-pulse--blocked' : ''}`}
+          data-playback-phase={stPhase ?? undefined}
           d={path}
           fill="none"
         />
@@ -230,31 +250,45 @@ function LoopEdge({
 
       {startDot ? <circle className="flow-rest" cx={sx} cy={sy} r="2.5" /> : null}
 
-      {/* state edge, full motion: trigger pulse on the delivery step */}
-      {sv?.kind === 'trigger' && !rm ? (
-        <g
-          key={`trig-${id}-${stepIndex}`}
-          className={`state-pulse${sv.applied ? '' : ' state-pulse--blocked'}`}
-        >
-          <circle className="state-pulse__bead" r={sv.applied ? 4 : 3.4} />
-          <animateMotion {...anim} rotate="auto" />
-        </g>
-      ) : null}
-
-      {/* state edge, full motion: label flash — direction is raw `delta` only */}
-      {sv?.kind === 'label' && !rm && sv.delta !== 0 ? (
-        <g
-          key={`lbl-${id}-${stepIndex}`}
-          className={`state-flash state-flash--${sv.delta > 0 ? 'in' : 'out'}`}
-        >
-          <circle className="state-flash__bead" r="3.4" />
-          <animateMotion
-            {...anim}
-            keyPoints={sv.delta > 0 ? '0;1' : '1;0'}
-            keyTimes="0;1"
-            calcMode="linear"
-          />
-        </g>
+      {/* Slice 3b — the τ-synced state-event choreography (Step AND Play). One
+          cue per transition; position is a pure function of `transition.tau`.
+          NEVER merged with the resource token. */}
+      {!rm && stv && transition ? (
+        <>
+          {/* trigger: a bead rides the real `d`; blocked ⇒ hollow, smaller */}
+          {stv.kind === 'trigger' && stPt ? (
+            <g
+              className={`state-move state-move--trigger${stv.applied ? '' : ' state-move--blocked'}`}
+              data-playback-phase={stPhase ?? undefined}
+              transform={`translate(${stPt.x} ${stPt.y})`}
+            >
+              <circle className="state-move__bead" r={stv.applied ? 4 : 3.4} />
+            </g>
+          ) : null}
+          {/* label: a signed-delta bead — toward the target for +, away for − */}
+          {stv.kind === 'label' && stv.delta !== 0 && stPt ? (
+            <g
+              className={`state-move state-move--label state-move--${stv.delta > 0 ? 'in' : 'out'}`}
+              data-playback-phase={stPhase ?? undefined}
+              transform={`translate(${stPt.x} ${stPt.y})`}
+            >
+              <circle className="state-move__bead" r="3.4" />
+              <text className="state-move__n" dy="-8">
+                {fmtSigned(stv.delta)}
+              </text>
+            </g>
+          ) : null}
+          {/* activator: no travel — a target-side cue on the arrive / settle beat */}
+          {stv.kind === 'activator' && stTargetPt ? (
+            <circle
+              className={`state-cue state-cue--activator${stv.satisfied ? ' is-on' : ''}`}
+              data-playback-phase="arrive"
+              cx={stTargetPt.x}
+              cy={stTargetPt.y}
+              r="6"
+            />
+          ) : null}
+        </>
       ) : null}
 
       {/* Slice 2 — the τ-synced choreography (Step AND Play take this same

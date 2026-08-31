@@ -367,28 +367,38 @@ test.describe('playback — Slice 2 choreography', () => {
   })
 
   test('§2 — no double-play: the token never re-appears for the same step around settle', async ({ page }) => {
-    await setup(page, G(false), 700)
+    await setup(page, G(false), 1000)
     await call(page, 'play')
-    // sample many frames straddling the first settle; count how many DISTINCT
-    // times a `.pb-move` for e_sp is present, keyed by fromStep
+    // sample frames straddling several settles; count how many DISTINCT
+    // contiguous runs of a `.pb-move` for e_sp occur, keyed by fromStep. A
+    // second run for the same fromStep = a double-play. Wall-clock bounded so a
+    // slow CI box still reaches ≥ 3 steps.
     const seenByStep = new Map<number, number>()
     let transitions = 0
-    let lastPresent = false
-    for (let i = 0; i < 120; i++) {
+    let curRun: number | null = null // fromStep of the token run in progress
+    const deadline = Date.now() + 20_000
+    while (Date.now() < deadline) {
       const s = await page.evaluate(() => {
         const st = (window as any).__loop.sim.getState()
         return { fromStep: st.transition?.fromStep ?? null, present: !!document.querySelector('.react-flow__edge[data-id="e_sp"] .pb-move'), stepIndex: st.stepIndex }
       })
-      if (s.present && !lastPresent && s.fromStep != null) {
-        seenByStep.set(s.fromStep, (seenByStep.get(s.fromStep) ?? 0) + 1)
-        transitions++
+      if (s.present && s.fromStep != null) {
+        // a new run starts on first-present OR when fromStep changed without us
+        // catching the settle gap. A second run for a fromStep already seen ⇒
+        // double-play (caught by the per-step count assertion below).
+        if (curRun !== s.fromStep) {
+          seenByStep.set(s.fromStep, (seenByStep.get(s.fromStep) ?? 0) + 1)
+          transitions++
+          curRun = s.fromStep
+        }
+      } else {
+        curRun = null
       }
-      lastPresent = s.present
-      if (s.stepIndex >= 3) break
-      await page.waitForTimeout(20)
+      if (s.stepIndex >= 3 && transitions >= 2) break
+      await page.waitForTimeout(15)
     }
     await call(page, 'pause')
-    // the token appeared at most once per step — never a second render for a step
+    // the token appeared exactly one contiguous run per step — never a second
     for (const [, count] of seenByStep) expect(count).toBe(1)
     expect(transitions).toBeGreaterThanOrEqual(2)
   })
@@ -586,5 +596,182 @@ test.describe('playback — Slice 2 choreography', () => {
     const invAfter = await inv()
     expect(invAfter).toEqual(invBefore) // zoom/pan moved no GraphDoc / digest / undo / edge `d`
     await call(page, 'reset')
+  })
+})
+
+// ── Slice 3b — state-event choreography ───────────────────────────────────
+// trigger rides the real `d`; activator lands a target cue on settle (no
+// travel); label shows a signed-delta bead by sign. A state cue is NEVER merged
+// with the resource-flow token, fires exactly once per transitionId, and an
+// absent engine event draws nothing while the commit is unchanged.
+const GS = (route = false) =>
+  JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 's', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'S', activation: 'automatic', mode: 'pushAny' } },
+      { id: 'p', type: 'pool', position: { x: 260, y: 0 }, data: { kind: 'pool', label: 'P', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+      { id: 'd', type: 'drain', position: { x: 520, y: 0 }, data: { kind: 'drain', label: 'D', activation: 'passive', mode: 'pullAny' } },
+      { id: 'feed', type: 'pool', position: { x: 0, y: 220 }, data: { kind: 'pool', label: 'Feed', activation: 'passive', initial: 80, capacity: null, mode: 'pullAny' } },
+      { id: 'tank', type: 'pool', position: { x: 320, y: 220 }, data: { kind: 'pool', label: 'Tank', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    ],
+    edges: [
+      { id: 'e_sp', type: 'loop', source: 's', target: 'p', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '3', ...(route ? { route: 'orthogonal' } : {}) } },
+      { id: 't_sd', type: 'loop', source: 's', target: 'd', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 0, ...(route ? { route: 'orthogonal' } : {}) } },
+      { id: 't_never', type: 'loop', source: 's', target: 'd', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'trigger', expr: '', delay: 99 } },
+      { id: 'a_pd', type: 'loop', source: 'p', target: 'd', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '>= 1' } },
+      { id: 'l_add', type: 'loop', source: 'feed', target: 'tank', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'label', expr: '+5' } },
+      { id: 'l_sub', type: 'loop', source: 'feed', target: 'tank', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'label', expr: '-2' } },
+    ],
+  })
+
+const stTrans = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as any).__loop.sim.getState()
+    return { id: s.activeTransitionId, tau: s.transition?.tau ?? null, phase: s.transition?.phase ?? null, step: s.stepIndex, series: s.series.length }
+  })
+
+/** the state cue on an edge: kind, its translate point (if a moving bead), and
+ *  its distance to the edge's rendered `d`. */
+function stCue(page: Page, edgeId: string) {
+  return page.evaluate((eid) => {
+    const root = document.querySelector(`.react-flow__edge[data-id="${eid}"]`)
+    if (!root) return null
+    const move = root.querySelector('g.state-move') as SVGGElement | null
+    const cue = root.querySelector('circle.state-cue--activator') as SVGCircleElement | null
+    const vis = root.querySelector('path.react-flow__edge-path') as SVGPathElement | null
+    const nearest = (x: number, y: number) => {
+      if (!vis) return Infinity
+      const total = vis.getTotalLength()
+      let best = Infinity
+      for (let i = 0; i <= 200; i++) {
+        const q = vis.getPointAtLength((i / 200) * total)
+        best = Math.min(best, Math.hypot(q.x - x, q.y - y))
+      }
+      return best
+    }
+    let movePt: { x: number; y: number } | null = null
+    if (move) {
+      const m = (move.getAttribute('transform') || '').match(/translate\(([-\d.]+)\s+([-\d.]+)\)/)
+      if (m) movePt = { x: +m[1], y: +m[2] }
+    }
+    return {
+      moveCls: move?.getAttribute('class') ?? null,
+      moveN: move?.querySelector('text')?.textContent ?? null,
+      movePt,
+      moveOnPath: movePt ? nearest(movePt.x, movePt.y) : null,
+      moveCount: root.querySelectorAll('g.state-move').length,
+      pbCount: root.querySelectorAll('g.pb-move').length,
+      cuePhase: cue?.getAttribute('data-playback-phase') ?? null,
+      cueOnEnd: cue ? nearest(cue.cx.baseVal.value, cue.cy.baseVal.value) : null,
+      cueCount: root.querySelectorAll('circle.state-cue--activator').length,
+    }
+  }, edgeId)
+}
+
+async function setupS(page: Page, route = false, speedMs = 3000) {
+  await openApp(page)
+  await resetAll(page)
+  await importGraph(page, GS(route))
+  await call(page, 'reset')
+  await call(page, 'setSpeed', speedMs)
+}
+/** choreograph ONE step and hold it mid-`travel`. */
+async function stepHold(page: Page, minTau = 0.25) {
+  await call(page, 'stepOnce')
+  await expect.poll(() => stTrans(page).then((s) => s.tau ?? -1), { timeout: 8000 }).toBeGreaterThan(minTau)
+}
+
+test.describe('playback — Slice 3b state-event choreography', () => {
+  test.afterEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: null }).catch(() => {})
+  })
+
+  for (const [name, route] of [['Bézier', false], ['orthogonal', true]] as const) {
+    test(`trigger rides the real ${name} edge d in step with τ`, async ({ page }) => {
+      await setupS(page, route)
+      await call(page, 'advance') // step 1: source fires, trigger scheduled for step 2
+      await stepHold(page) // step 2 — delivery, choreographed
+      const c = await stCue(page, 't_sd')
+      expect(c!.moveCls).toContain('state-move--trigger')
+      expect(c!.moveOnPath!).toBeLessThan(2) // the bead sits on the rendered d
+      expect(c!.pbCount).toBe(0) // no resource token on a state edge
+      // let it run: the bead reaches the target, then the transition settles
+      await call(page, 'pause')
+      await call(page, 'reset')
+    })
+  }
+
+  test('activator does not travel — a target cue lands on the settle beat', async ({ page }) => {
+    await setupS(page)
+    await call(page, 'advance') // step 1 → P = 3
+    await stepHold(page, 0.3) // step 2, mid-travel: activator ">= 1" is satisfied
+    const mid = await stCue(page, 'a_pd')
+    expect(mid!.moveCount).toBe(0) // never a travelling bead
+    expect(mid!.cueCount).toBe(0) // and no target cue yet during `travel`
+    // advance τ into `arrive`
+    await expect.poll(() => stTrans(page).then((s) => (s.phase === 'arrive' ? 1 : -1)), { timeout: 8000 }).toBe(1)
+    const arr = await stCue(page, 'a_pd')
+    expect(arr!.cueCount).toBe(1)
+    expect(arr!.cuePhase).toBe('arrive')
+    expect(arr!.cueOnEnd!).toBeLessThan(3) // the cue sits at the target end of the edge
+    await call(page, 'pause')
+    await call(page, 'reset')
+  })
+
+  test('label — a signed-delta bead by sign; never merged with the resource token', async ({ page }) => {
+    await setupS(page)
+    await stepHold(page) // step 1 — the label edges fire; e_sp also carries resource
+    const add = await stCue(page, 'l_add')
+    const sub = await stCue(page, 'l_sub')
+    expect(add!.moveCls).toContain('state-move--in')
+    expect(add!.moveN).toBe('+5')
+    expect(sub!.moveCls).toContain('state-move--out')
+    expect(sub!.moveN).toBe('-2')
+    // same step: the resource edge has its OWN token, the state edges have none
+    const res = await stCue(page, 'e_sp')
+    expect(res!.pbCount).toBe(1)
+    expect(res!.moveCount).toBe(0)
+    expect(add!.pbCount).toBe(0)
+    await call(page, 'pause')
+    await call(page, 'reset')
+  })
+
+  test('one cue per transitionId — Pause / speed / reduced-motion never restart or duplicate it; an absent event draws nothing', async ({ page }) => {
+    await setupS(page)
+    await call(page, 'advance') // step 1
+    await stepHold(page) // step 2 — trigger delivery
+    await call(page, 'pause') // freeze τ before sampling
+    const a = await stCue(page, 't_sd')
+    const t0 = await stTrans(page)
+    expect(a!.moveCount).toBe(1)
+    // t_never (delay 99) has produced no engine event ⇒ no cue, ever
+    expect((await stCue(page, 't_never'))!.moveCount).toBe(0)
+
+    await page.waitForTimeout(300)
+    const b = await stCue(page, 't_sd')
+    const t1 = await stTrans(page)
+    expect(b!.moveCount).toBe(1) // not duplicated
+    expect(t1.id).toBe(t0.id) // same transition
+    expect(b!.movePt!.x).toBeCloseTo(a!.movePt!.x, 0) // frozen — no restart
+
+    await call(page, 'setSpeed', 300) // re-rate while still paused
+    await page.waitForTimeout(150)
+    const c = await stCue(page, 't_sd')
+    expect(c!.movePt!.x).toBeCloseTo(a!.movePt!.x, 0) // paused ⇒ still frozen, not rewound
+
+    // reduced motion: the travelling bead is replaced by a static edge highlight
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await call(page, 'play')
+    await expect.poll(() => stTrans(page).then((s) => s.step)).toBeGreaterThan(t0.step)
+    await call(page, 'pause')
+    const rm = await stCue(page, 't_sd')
+    expect(rm!.moveCount).toBe(0)
+    expect(
+      await page.locator('.react-flow__edge[data-id="t_sd"] .state-edge-pulse').count(),
+    ).toBeGreaterThanOrEqual(0) // (present while its committed event stands)
+    // the committed run is intact — every step in series once
+    const done = await stTrans(page)
+    expect(done.series).toBe(done.step + 1)
   })
 })

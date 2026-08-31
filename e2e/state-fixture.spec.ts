@@ -19,6 +19,26 @@ const stepN = (page: Page, n: number) =>
     for (let i = 0; i < k; i++) sim.advance()
   }, n)
 
+// docs/simulation-playback.md Slice 3b — the state cue is τ-synced; run one step
+// through the real choreography and hold it mid-`travel` so it is on screen.
+async function stepStateCue(page: Page) {
+  await page.evaluate(() => {
+    const s = (window as unknown as Bridge).__loop.sim.getState()
+    s.setSpeed(4000)
+    s.stepOnce()
+  })
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().transition?.tau ?? -1))
+    .toBeGreaterThan(0.25)
+  await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().pause())
+}
+async function finishStateCue(page: Page) {
+  await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepOnce())
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().transition))
+    .toBe(null)
+}
+
 const selectEdge = (page: Page, id: string) =>
   page.evaluate((eid) => (window as unknown as Bridge).__loop.graph.getState().setSelection(null, eid), id)
 
@@ -67,17 +87,21 @@ test.describe('state-verification.json — app import + feedback', () => {
     await expect(page.locator('.edge-label[data-edge-id="t_pd_b"] .edge-label__blocked')).toBeVisible()
     await expect(page.locator('.edge-label[data-edge-id="a_ga_pd"].edge-label--on')).toHaveCount(0)
 
-    await stepN(page, 2) // step 4
+    await stepN(page, 1) // step 3
+    await stepStateCue(page) // step 4 — delivery, choreographed
+    await expect(page.locator('.react-flow__edge[data-id="t_id_delayed"] .state-move--trigger')).toHaveCount(1)
+    await finishStateCue(page)
     await expect(page.locator('.edge-label[data-edge-id="t_pd_a"] .edge-label__blocked')).toHaveCount(0)
     await expect(page.locator('.edge-label[data-edge-id="a_ga_pd"].edge-label--on')).toHaveCount(1)
     await expect(page.locator('.edge-label[data-edge-id="a_gb_pd"].edge-label--on')).toHaveCount(1)
-    await expect(page.locator('.react-flow__edge[data-id="t_id_delayed"] .state-pulse')).toHaveCount(1)
   })
 
-  test('label feedback: +S flashes toward Tank, -1 shows its own delta and a separate clamp note', async ({ page }) => {
-    await stepN(page, 2)
+  test('label feedback: +S rides toward Tank, -1 shows its own delta and a separate clamp note', async ({ page }) => {
+    await stepN(page, 1)
+    await stepStateCue(page) // step 2 — the label step, choreographed
+    await expect(page.locator('.react-flow__edge[data-id="m_tank_addS"] .state-move--label.state-move--in')).toHaveCount(1)
+    await finishStateCue(page)
     await expect(page.locator('.edge-label[data-edge-id="m_tank_addS"] .edge-label__delta')).toHaveText('+10')
-    await expect(page.locator('.react-flow__edge[data-id="m_tank_addS"] .state-flash--in')).toHaveCount(1)
     await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__delta')).toHaveText('-1')
     await expect(page.locator('.edge-label[data-edge-id="m_tank_sub"] .edge-label__clamp')).toHaveText('clamp -9')
   })
