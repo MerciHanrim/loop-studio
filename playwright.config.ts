@@ -51,7 +51,7 @@ export default defineConfig({
       name: 'mobile',
       // mobile.spec.ts + the acceptance specs that must run under BOTH the
       // desktop (`chromium`) and the mobile viewport
-      testMatch: /(mobile\.spec|canvas-refresh-visual\.spec|model-verification\.spec)\.ts/,
+      testMatch: /(mobile\.spec|canvas-refresh-visual\.spec|model-verification\.spec|timeline-end-labels\.spec)\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 390, height: 844 },
