@@ -48,11 +48,11 @@ const en = {
   'theme.light': '☀ Light',
   'theme.dark': '☾ Dark',
 
-  // ── Language switch (auto-generated from the registry) ──────────────────
+  // ── Language menu (auto-generated from the registry) ───────────────────
   'lang.rowLabel': 'Language',
   'lang.title': 'Language',
-  // the accessible name names the CURRENT locale and the one a press switches to
-  'lang.ariaLabel': 'Language: {current} — switch to {next}',
+  'lang.menuLabel': 'Choose a language',
+  'lang.loading': 'loading…',
 
   // ── Play bar (desktop `PlayBar`, mobile `MobileRunBar`) ─────────────────
   'playbar.reset.title': 'Reset to step 0',
