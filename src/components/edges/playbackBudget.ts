@@ -12,8 +12,21 @@ const EMPTY: ReadonlySet<string> = new Set()
 // `(edgeId, cueKind, originalEventIndex)`. A FIXED total order (never the
 // accidental alpha order `label < resource < trigger`), so the chosen set never
 // depends on the order the engine happened to emit events in.
+//
+// An edge emits AT MOST ONE travelling cue per step: it has one `data.kind`
+// (resource XOR state) and one state `mode`, and each mode contributes at most
+// one `StateEvent` (locked by src/engine/state-one-cue-per-edge.test.ts). So a
+// candidate's `edgeId` alone is unique across the pool, membership is a plain
+// `Set<edgeId>`, and the on-screen travelling-element count equals the picked
+// edge count ≤ MAX_PLAYBACK_TOKENS_TOTAL. `cueKind` / `originalEventIndex` in the
+// key are a defensive total order (a tie could only ever arise if that engine
+// invariant were relaxed) — they never actually break a tie today.
 const KIND_RANK = { resource: 0, trigger: 1, label: 2 } as const
 
+// computed ONCE per transition: `t.flowByEdge` is a fresh object per
+// `beginTransition` and kept by reference across every τ tick, so a frame that
+// only advances τ hits this cache and never re-sorts; every one of the (up to
+// hundreds of) LoopEdge consumers in a step shares the single computed set.
 let cache: { key: object; set: ReadonlySet<string> } | null = null
 
 /** The ≤ `MAX_PLAYBACK_TOKENS_TOTAL` edge-ids that get a TRAVELLING cue this
@@ -28,6 +41,13 @@ let cache: { key: object; set: ReadonlySet<string> } | null = null
  *  it just does not animate. */
 function budgetSet(t: Transition): ReadonlySet<string> {
   if (cache && cache.key === t.flowByEdge) return cache.set
+
+  // dev-only probe (§PB perf ceiling test) — one increment == one full sort.
+  // Tree-shaken from production.
+  if (import.meta.env.DEV) {
+    const w = window as unknown as { __budgetComputes?: number }
+    w.__budgetComputes = (w.__budgetComputes ?? 0) + 1
+  }
 
   const firstEv: Record<string, number> = {}
   t.events.forEach((e, i) => {

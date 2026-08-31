@@ -241,6 +241,21 @@ test.describe('playback — Slice 3c-c: ONE global travel budget (resource + tri
 
     // the bearing set is the deterministic first-60 by (edgeId, cueKind, ord)
     expect(await travellingSet(page)).toEqual(Array.from({ length: 60 }, (_, i) => C(i)))
+
+    // per-edge lock: NO edge renders more than one travelling element, so the
+    // on-screen total can never exceed the picked-edge count even though the
+    // budget gates per edgeId (src/engine/state-one-cue-per-edge.test.ts proves
+    // the engine never gives one edge two travelling events)
+    const maxPerEdge = await page.evaluate(
+      () =>
+        Math.max(
+          0,
+          ...[...document.querySelectorAll('.react-flow__edge')].map(
+            (e) => e.querySelectorAll('g.pb-move, g.state-move').length,
+          ),
+        ),
+    )
+    expect(maxPerEdge).toBeLessThanOrEqual(1)
     await call(page, 'reset')
   })
 
@@ -428,5 +443,38 @@ test.describe('playback — Slice 3c-c: render budget', () => {
     expect(live, 'the flowing resource edge re-renders per τ frame').toBeGreaterThan(15)
     expect(lblLive, 'an ACTIVE state edge re-renders per τ frame').toBeGreaterThan(15)
     expect(idleStateMax, 'an idle state edge does NOT re-render per frame').toBeLessThanOrEqual(1)
+  })
+
+  test('the budget is sorted ONCE per transition — never per edge, never per τ frame', async ({ page }) => {
+    await setup(page, mixedGraph()) // 83 edges, 60 travelling candidates
+    await call(page, 'advance')
+
+    // ── inside ONE transition, held slow so Play stays in its `travel` beat:
+    //    60 candidate edges read the budget every τ frame, the sort runs zero
+    //    more times ──
+    await call(page, 'setSpeed', 20000)
+    await call(page, 'play')
+    await expect
+      .poll(() => sim(page).then((s) => (s.tau != null && s.tau > 0.18 && s.tau < 0.45 ? 1 : -1)), { timeout: 18000 })
+      .toBe(1)
+    const stepFrozen = (await sim(page)).stepIndex
+    await page.evaluate(() => ((window as any).__budgetComputes = 0))
+    await page.waitForTimeout(1500) // many τ frames × 60 consumers
+    const duringTravel = await page.evaluate(() => (window as any).__budgetComputes as number)
+    expect((await sim(page)).stepIndex, 'still the same transition').toBe(stepFrozen)
+    expect(duringTravel, 'a τ-only frame never re-sorts the budget').toBe(0)
+
+    // ── across N settles: exactly one sort per NEW transition, not per edge and
+    //    not per frame ──
+    await call(page, 'setSpeed', 250)
+    await page.evaluate(() => ((window as any).__budgetComputes = 0))
+    const step0 = (await sim(page)).stepIndex
+    await expect.poll(() => sim(page).then((s) => s.stepIndex), { timeout: 15000 }).toBeGreaterThan(step0 + 4)
+    await call(page, 'pause')
+    const perTransition = await page.evaluate(() => (window as any).__budgetComputes as number)
+    const steps = (await sim(page)).stepIndex - step0
+    expect(perTransition).toBeGreaterThanOrEqual(steps - 1)
+    expect(perTransition).toBeLessThanOrEqual(steps + 1) // ≈ steps, never steps×60 or steps×frames
+    await call(page, 'reset')
   })
 })

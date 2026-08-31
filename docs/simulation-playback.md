@@ -336,7 +336,13 @@ the sum); the **`preparedTransition.events` list keeps every original
   emitted events in. Past either cap only the animation is skipped — the summed
   amount shown is still exact, the engine result and any settle-beat cue
   (`activator`, the committed value / label) are untouched. `activator` never
-  travels, so it is never budget-gated.
+  travels, so it is never budget-gated. An edge emits **at most one** travelling
+  cue per step (one `data.kind`, one state `mode`, one `StateEvent` per mode —
+  `state-one-cue-per-edge.test.ts`), so per-`edgeId` budget membership can never
+  make one edge render several beads; the on-screen travelling total equals the
+  picked-edge count. The sort is computed **once per transition** (keyed on the
+  per-transition `flowByEdge` identity) — a τ-only frame and every one of the
+  hundreds of edge consumers share that one result.
 
 ## PB5. Pause / Resume
 
