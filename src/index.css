@@ -1104,6 +1104,55 @@ body {
   stroke: var(--state-warning);
 }
 
+/* docs/simulation-playback.md Slice 3c-b — under `forced-colors: active` the UA
+   flattens every SVG fill / stroke to a single system colour, so the resource
+   token, the state cues and the phase rings would all read alike. Re-introduce
+   the distinction by SHAPE (not hue), taking explicit ownership with system
+   colour keywords:
+     • resource token  — a SOLID dot (default, `CanvasText` fill)
+     • state trigger    — a HOLLOW ring (so it can't be read as a resource dot)
+     • activator        — a ring; not-satisfied is DASHED
+     • label delta      — the signed `±N` GLYPH stays legible
+     • L0 travel pulse  — a bold DASHED stroke, never mistaken for the edge   */
+@media (forced-colors: active) {
+  .flow-bead {
+    fill: CanvasText;
+    forced-color-adjust: none;
+  }
+  .state-move--trigger .state-move__bead,
+  .state-move--blocked .state-move__bead {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1.6;
+    forced-color-adjust: none;
+  }
+  .state-move--label .state-move__bead {
+    fill: CanvasText;
+    forced-color-adjust: none;
+  }
+  .flow-token__n,
+  .state-move__n {
+    fill: CanvasText;
+    forced-color-adjust: none;
+  }
+  .state-cue--activator {
+    stroke: CanvasText;
+    forced-color-adjust: none;
+  }
+  .state-cue--activator:not(.is-on) {
+    stroke-dasharray: 3 2;
+  }
+  .pb-cue {
+    stroke: CanvasText;
+    forced-color-adjust: none;
+  }
+  .pb-l0-pulse {
+    stroke: CanvasText;
+    stroke-dasharray: 6 4;
+    forced-color-adjust: none;
+  }
+}
+
 /* ==== P2 — playback strip in the chart header =========================== */
 .pstrip {
   display: flex;

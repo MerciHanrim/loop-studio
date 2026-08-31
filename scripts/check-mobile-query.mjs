@@ -35,7 +35,8 @@ for (const m of css.matchAll(/@media ([^{]+){/g)) {
   const allowed =
     q === MOBILE_MEDIA_QUERY ||
     q.includes('prefers-color-scheme') ||
-    q.includes('prefers-reduced-motion')
+    q.includes('prefers-reduced-motion') ||
+    q.includes('forced-colors')
   if (allowed) continue
   fail(`unexpected @media query in src/index.css: ${q}`)
 }
