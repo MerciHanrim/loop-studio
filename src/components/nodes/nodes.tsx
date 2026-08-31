@@ -19,6 +19,7 @@ import type {
   PoolData,
   SourceData,
 } from '../../model/types'
+import { useLod } from '../lod'
 
 // ── N1 "Vessel" silhouettes ──────────────────────────────────────────────
 // The outer shape carries the node's role. Type colour is used only on a small
@@ -40,17 +41,10 @@ const SILHOUETTE: Record<NodeKind, string> = {
 }
 
 // docs/visual-language.md §VL7.2 — three detail levels at fixed world-zoom
-// thresholds. Elision only fades supplementary TEXT; the silhouette, rings,
+// thresholds; the classifier lives in ../lod so nodes, edges and playback all
+// share it. Elision only fades supplementary TEXT; the silhouette, rings,
 // invalid flag, run cues, footprint and hit target are identical at every
 // level (§VL7.1 / §VL12.5).
-const LOD_L2_MIN = 0.8 // ≥ 0.8  → L2 detail (title + value + sub + chip)
-const LOD_L1_MIN = 0.45 // ≥ 0.45 → L1 compact (title + value); < 0.45 → L0 map
-type Lod = 'L2' | 'L1' | 'L0'
-const lodFor = (z: number): Lod => (z >= LOD_L2_MIN ? 'L2' : z >= LOD_L1_MIN ? 'L1' : 'L0')
-
-function useLod(): Lod {
-  return useStore((s) => lodFor(s.transform[2]))
-}
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
 

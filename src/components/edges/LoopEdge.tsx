@@ -9,6 +9,7 @@ import {
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import { currentRouteMap } from '../../store/routeMap'
+import { useLod } from '../lod'
 import type { LoopEdgeData } from '../../model/types'
 import type { StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
@@ -18,11 +19,6 @@ const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
 // the edge class (solid vs dashed) and the direction marker are the §VL7.1
 // required set and are never hidden. A selected edge keeps its label at any zoom.
 const LABEL_L2_MIN = 0.8
-// docs/visual-language.md §VL7 — the L1 ↔ L0 world-zoom threshold. At L0 ("map")
-// the playback dot is sub-pixel, so it is elided (docs/simulation-playback.md
-// §PB4.4): the ordered depart / path-pulse / arrive cues still play, and
-// `settle` still commits — only the travelling dot is dropped.
-const LOD_L0_MAX = 0.45
 
 // docs/simulation-playback.md Slice 2 — the token walks the `travel` beat of the
 // τ axis. The store owns τ (Slice 1); this layer only reads it.
@@ -109,7 +105,11 @@ function LoopEdge({
     return (t.flowByEdge[id] ?? 0) > 0 ? t : null
   })
   const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
-  const atL0 = useStore((s) => s.transform[2] < LOD_L0_MAX)
+  // §PB4.4 — the L0 ("map") level shares the canvas-wide LOD classifier (../lod);
+  // no second copy of the 0.45 threshold. At L0 the sub-pixel travelling dot is
+  // elided, the ordered depart / path-pulse / arrive cues still play, and
+  // `settle` still commits.
+  const atL0 = useLod() === 'L0'
 
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'
