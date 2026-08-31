@@ -205,7 +205,7 @@ for (const level of ['L2', 'L1', 'L0'] as const) {
     await step(page)
     await setLod(page, level)
     await expect(
-      page.locator('.react-flow__edges animateMotion, .flow-move, .flow-bead, .flow-trail, .state-pulse, .state-flash'),
+      page.locator('.react-flow__edges animateMotion, .flow-move, .flow-bead, .flow-trail, .state-move'),
     ).toHaveCount(0)
     await expect(page.locator('.react-flow__edge[data-id="e_sg"] .flow-edge-pulse')).toHaveCount(1)
     await page.emulateMedia({ reducedMotion: null })

@@ -1045,22 +1045,50 @@ body {
 }
 
 /* ==== state-edge feedback (SEMANTICS-S §S9 / S2 §S2-9) ================== */
-/* trigger — a bead delivered along the edge on its delivery step */
-.state-pulse__bead {
+/* docs/simulation-playback.md Slice 3b — the τ-synced state cue. The <g>
+   transform is set every frame from the store's τ (like the resource token);
+   CSS only styles the bead. No transition on the transform — it would fight τ. */
+.state-move {
+  pointer-events: none;
+}
+/* trigger — a bead delivered along the edge; blocked ⇒ hollow warning ring */
+.state-move--trigger .state-move__bead {
   fill: var(--signal-primary);
 }
-.state-pulse--blocked .state-pulse__bead {
+.state-move--blocked .state-move__bead {
   fill: none;
   stroke: var(--state-warning);
   stroke-width: 1.5;
 }
-/* label — flash toward (+) or away from (−) the target; direction is raw delta */
-.state-flash__bead {
+/* label — a signed-delta bead toward (+) / away (−) the target */
+.state-move--label .state-move__bead {
   fill: var(--signal-primary);
   opacity: 0.9;
 }
-.state-flash--out .state-flash__bead {
+.state-move--out .state-move__bead {
   fill: var(--text-tertiary);
+}
+.state-move__n {
+  fill: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+/* activator — no travel; a target-side ring that lands on the settle beat */
+.state-cue--activator {
+  fill: none;
+  stroke: var(--state-warning);
+  stroke-width: 1.5;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+.state-cue--activator.is-on {
+  stroke: var(--signal-primary);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .state-cue--activator {
+    animation: pb-cue-ping 260ms ease-out;
+  }
 }
 /* reduced motion: a persistent static edge highlight instead of travel — held
    for the step (§VL9), so the trigger fire / label apply stays readable while
