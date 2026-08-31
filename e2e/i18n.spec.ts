@@ -137,6 +137,142 @@ test.describe('i18n — Slice 1 (desktop Toolbar + Play bar)', () => {
   })
 })
 
+test.describe('i18n — Slice 1 (export / storage boundary, §L12 #5 extended)', () => {
+  test('every export is byte-identical across ko → en → ko → en, and carries no locale token', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+    await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      s.advance()
+      s.advance()
+    })
+
+    // capture the full set of serialisable outputs
+    const capture = () =>
+      page.evaluate(async () => {
+        const l = (window as unknown as Bridge).__loop as any
+        const g = l.graph.getState()
+        const graphJSON = g.exportJSON({ runs: 200, steps: 30, baseSeed: 1 })
+        const wsPayload = l.io.collectWorkspacePayload({ x: 0, y: 0, zoom: 1 })
+        const workspace = l.io.serializeWorkspaceFile(wsPayload)
+        const share = (await l.share.encodeShareText(graphJSON)).payload
+        return {
+          graphJSON,
+          workspace,
+          share,
+          digest: l.revisionIO.currentTargetDigest(),
+          series: JSON.stringify(l.sim.getState().series),
+          labels: JSON.stringify([
+            ...g.nodes.map((n: any) => [n.id, n.data.label ?? null]),
+            ...g.edges.map((e: any) => [e.id, e.data?.label ?? null]),
+          ]),
+        }
+      })
+
+    const en1 = await capture()
+
+    for (const code of ['ko', 'en', 'ko', 'en']) {
+      await setLocale(page, code)
+      await expect.poll(() => htmlLang(page)).toBe(code)
+    }
+
+    const en2 = await capture()
+    expect(en2).toEqual(en1) // byte-for-byte, every payload
+
+    // no locale token anywhere in any exported payload
+    for (const [name, blob] of Object.entries(en2)) {
+      for (const token of ['loop-studio/ui-locale/1', 'activeLocale', 'requestedLocale', '"locale"', 'ui-locale']) {
+        expect(blob, `${name} must not contain "${token}"`).not.toContain(token)
+      }
+    }
+  })
+
+  test('a `?lang=` dev override never propagates to a Share URL', async ({ page }) => {
+    await page.goto('/?lang=ko')
+    await expect(page.locator('.toolbar')).toBeVisible()
+    await expect.poll(() => htmlLang(page)).toBe('ko')
+
+    const url = await page.evaluate(async () => {
+      const l = (window as unknown as Bridge).__loop as any
+      const graphJSON = l.graph.getState().exportJSON()
+      const enc = await l.share.encodeShareText(graphJSON)
+      return `${'https://x/'}#${l.share.SHARE_PREFIX}${enc.payload}`
+    })
+    expect(url).not.toContain('lang=')
+    expect(url).not.toContain('ui-locale')
+  })
+})
+
+test.describe('i18n — Slice 1 (language control a11y & N-locale generality)', () => {
+  test('the control activates with keyboard Enter AND Space (each advances one locale)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const btn = page.locator('.toolbar .lang-switch')
+
+    await btn.focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => htmlLang(page)).toBe('ko') // en → ko
+
+    const afterEnter = await htmlLang(page)
+    await btn.focus()
+    await page.keyboard.press('Space')
+    await expect.poll(() => htmlLang(page)).not.toBe(afterEnter) // Space also advanced it
+  })
+
+  test('the accessible name names the current locale and the switch target', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const btn = page.locator('.toolbar .lang-switch')
+    // en → the next registered locale is ko (stable regardless of dev pseudo-locales)
+    expect(await btn.getAttribute('aria-label')).toBe('Language: English — switch to 한국어')
+    await setLocale(page, 'ko')
+    const label = await btn.getAttribute('aria-label')
+    expect(label).toContain('언어: 한국어') // names the current locale, localised
+    expect(label).toMatch(/전환$/) // and the "switch to <next>" clause
+  })
+
+  test('adding a 3rd (dev pseudo) locale — every locale stays reachable by cycling', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    // en → ko → en-XA → en  (the dev-only QA pseudo-locale is registered)
+    const seen = new Set<string>()
+    for (let i = 0; i < 4; i++) {
+      seen.add(await htmlLang(page))
+      await page.locator('.toolbar .lang-switch').click()
+      await page.waitForTimeout(60)
+    }
+    seen.add(await htmlLang(page))
+    expect([...seen].sort()).toEqual(['en', 'en-XA', 'ko'])
+  })
+
+  test('rapid presses: the last request wins; the label, <html lang> and the live catalog always agree', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const btn = page.locator('.toolbar .lang-switch')
+    // three fast presses: en → ko → en-XA → en (back to en)
+    await btn.click()
+    await btn.click()
+    await btn.click()
+    await page.waitForTimeout(200)
+    const state = await page.evaluate(() => {
+      const l = (window as unknown as Bridge).__loop as any
+      const s = l.i18n?.getState?.() ?? null
+      const btnEl = document.querySelector('.toolbar .lang-switch') as HTMLElement
+      return {
+        lang: document.documentElement.lang,
+        label: btnEl?.textContent?.trim() ?? null,
+        active: s?.activeLocale ?? null,
+        loading: s?.loading ?? null,
+      }
+    })
+    expect(state.lang).toBe('en')
+    expect(state.label).toBe('English')
+    if (state.active != null) expect(state.active).toBe('en')
+    if (state.loading != null) expect(state.loading).toBe(false)
+  })
+})
+
 test.describe('i18n — Slice 1 (mobile switch, in the More sheet)', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 

@@ -23,7 +23,7 @@ export function LanguageSwitch() {
       type="button"
       className="btn lang-switch"
       lang={current.code}
-      aria-label={t('lang.title')}
+      aria-label={t('lang.ariaLabel', { current: current.nativeName, next: next.nativeName })}
       title={t('lang.title')}
       data-locale={current.code}
       onClick={() => setLocale(next.code)}

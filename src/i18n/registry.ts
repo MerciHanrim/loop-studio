@@ -27,7 +27,7 @@ export type LocaleEntry = {
   catalog: () => Promise<MessageCatalog>
 }
 
-export const LOCALES: readonly LocaleEntry[] = [
+const SHIPPED_LOCALES: readonly LocaleEntry[] = [
   {
     code: 'en',
     englishName: 'English',
@@ -44,7 +44,29 @@ export const LOCALES: readonly LocaleEntry[] = [
     numberLocale: 'ko',
     catalog: () => Promise.resolve(ko),
   },
-] as const
+]
+
+// A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,
+// and every check reach an Nth locale without special-casing `en` / `ko`. Its
+// catalog is `en` verbatim. `import.meta.env.DEV` is statically false in the
+// production and portable builds, so `SHIPPED_LOCALES` is all that ships (the
+// byte-level `e2e/portable-file.spec.ts` gate asserts `devPseudoLocales` and
+// `en-XA` are absent).
+function devPseudoLocales(): readonly LocaleEntry[] {
+  if (!import.meta.env.DEV) return []
+  return [
+    {
+      code: 'en-XA',
+      englishName: 'Pseudo (QA)',
+      nativeName: 'Pseudo (QA)',
+      dir: 'ltr',
+      numberLocale: 'en',
+      catalog: () => Promise.resolve(en),
+    },
+  ]
+}
+
+export const LOCALES: readonly LocaleEntry[] = [...SHIPPED_LOCALES, ...devPseudoLocales()]
 
 /** the base locale — its catalog is the canonical key set and the final
  *  fallback, and it is statically bundled so boot can never fail for want of it

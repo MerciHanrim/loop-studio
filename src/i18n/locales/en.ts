@@ -11,6 +11,11 @@
 // Slice 2a / 2b.
 
 const en = {
+  // ── i18n internals ─────────────────────────────────────────────────────
+  // shown only if a message fails to format even after the `en` fallback
+  // (§L4.4) — a stable notice carrying the key, never the raw ICU pattern.
+  'i18n.messageError': 'text unavailable ({key})',
+
   // ── Toolbar / brand ────────────────────────────────────────────────────
   'toolbar.preview': 'preview',
   'toolbar.buildTitle': 'Loop Studio v{version} · build {sha}',
@@ -46,6 +51,8 @@ const en = {
   // ── Language switch (auto-generated from the registry) ──────────────────
   'lang.rowLabel': 'Language',
   'lang.title': 'Language',
+  // the accessible name names the CURRENT locale and the one a press switches to
+  'lang.ariaLabel': 'Language: {current} — switch to {next}',
 
   // ── Play bar (desktop `PlayBar`, mobile `MobileRunBar`) ─────────────────
   'playbar.reset.title': 'Reset to step 0',

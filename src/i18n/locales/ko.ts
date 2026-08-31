@@ -5,6 +5,9 @@
 import type { MessageCatalog } from './en'
 
 const ko = {
+  // ── i18n 내부 ───────────────────────────────────────────────────────
+  'i18n.messageError': '문구를 표시할 수 없음 ({key})',
+
   // ── 툴바 / 브랜드 ─────────────────────────────────────────────────────
   'toolbar.preview': '미리보기',
   'toolbar.buildTitle': 'Loop Studio v{version} · 빌드 {sha}',
@@ -38,6 +41,7 @@ const ko = {
   // ── 언어 선택 ────────────────────────────────────────────────────────
   'lang.rowLabel': '언어',
   'lang.title': '언어',
+  'lang.ariaLabel': '언어: {current} — {next}(으)로 전환',
 
   // ── 재생 바 ─────────────────────────────────────────────────────────
   'playbar.reset.title': '0단계로 초기화',

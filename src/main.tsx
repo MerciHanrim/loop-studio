@@ -6,7 +6,7 @@ import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@xyflow/react/dist/style.css'
 import './index.css'
 import App from './App.tsx'
-import { initI18n } from './i18n'
+import { initI18n, useI18n } from './i18n'
 import * as share from './model/share'
 import { useGraphStore } from './store/graphStore'
 import { useMcStore } from './store/mcStore'
@@ -31,6 +31,7 @@ if (import.meta.env.DEV) {
     pwa: usePwaStore,
     project: useProjectStore,
     review: useReviewStore,
+    i18n: useI18n,
     io: workspaceIO,
     revisionIO,
     routeMap: {

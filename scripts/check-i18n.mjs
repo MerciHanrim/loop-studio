@@ -30,19 +30,30 @@ const fail = (m) => {
 }
 const ok = (m) => console.log(`  ok    ${m}`)
 
-// ── discover the registered locales from src/i18n/registry.ts, then load each
-//    src/i18n/locales/<code>.ts. Registry-driven (§L12) — never names `ko`. ──
+// ── every locale CATALOG FILE (src/i18n/locales/*.ts) is validated against the
+//    base. A pseudo-locale whose catalog is another locale verbatim (e.g. the
+//    dev-only `en-XA`) has no file and needs no separate check. Registry-driven
+//    in spirit (§L12) — the loop is over the file set, never named against
+//    `ko`. `BASE_LOCALE` is read from the registry source. ──
 const registrySrc = readFileSync(resolve(root, 'src/i18n/registry.ts'), 'utf8')
-const CODES = [...registrySrc.matchAll(/\bcode:\s*'([a-zA-Z][\w-]*)'/g)].map((m) => m[1])
 const BASE_LOCALE = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(registrySrc)?.[1]
-if (!CODES.length || !BASE_LOCALE) {
-  fail('could not read the locale registry (LOCALES codes / BASE_LOCALE)')
+if (!BASE_LOCALE) {
+  fail('could not read BASE_LOCALE from src/i18n/registry.ts')
+  process.exit(1)
+}
+
+const localesDir = resolve(root, 'src/i18n/locales')
+const CODES = readdirSync(localesDir)
+  .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f))
+  .map((f) => f.replace(/\.ts$/, ''))
+if (!CODES.includes(BASE_LOCALE)) {
+  fail(`base locale "${BASE_LOCALE}" has no src/i18n/locales/${BASE_LOCALE}.ts`)
   process.exit(1)
 }
 
 const catalogs = new Map()
 for (const code of CODES) {
-  const mod = await import(pathToFileURL(resolve(root, `src/i18n/locales/${code}.ts`)).href)
+  const mod = await import(pathToFileURL(resolve(localesDir, `${code}.ts`)).href)
   catalogs.set(code, mod.default)
 }
 const base = catalogs.get(BASE_LOCALE)

@@ -71,12 +71,17 @@ export const useI18n = create<I18nState>((set, get) => ({
   },
 }))
 
-/** dev / e2e only — `?lang=<code>` forces a locale for the session without
- *  touching `localStorage` (§L11). */
-function forcedLangParam(): string | null {
-  if (!import.meta.env.DEV) return null
+/** DEV / E2E ONLY — `?lang=<code>` forces a registered locale for the session
+ *  without touching `localStorage` and without entering the §L5.2 order (§L11).
+ *  Guarded by `import.meta.env.DEV`, which is statically false in the production
+ *  and portable builds, so this function and its `'lang'` query key are
+ *  tree-shaken out entirely (asserted by `e2e/portable-file.spec.ts`).
+ *  It is a debugging convenience, never a product feature: it is not persisted
+ *  and never propagates to a Workspace / Share payload. */
+function devLocaleOverride(): string | null {
   try {
-    return new URLSearchParams(window.location.search).get('lang')
+    const q = new URLSearchParams(window.location.search).get('lang')
+    return q && getEntry(q) ? q : null
   } catch {
     return null
   }
@@ -85,11 +90,9 @@ function forcedLangParam(): string | null {
 /** §L5.2 — resolve + load the initial catalog BEFORE React mounts. Falls back
  *  to the embedded `en` if the chosen non-`en` catalog rejects at boot. */
 export async function initI18n(): Promise<void> {
-  const forced = forcedLangParam()
   const code =
-    forced != null && getEntry(forced)
-      ? forced
-      : resolveInitialLocale(readStoredLocale(), navigatorLanguages())
+    (import.meta.env.DEV ? devLocaleOverride() : null) ??
+    resolveInitialLocale(readStoredLocale(), navigatorLanguages())
   const entry = getEntry(code) ?? BASE_ENTRY
   try {
     const cat = await entry.catalog()
