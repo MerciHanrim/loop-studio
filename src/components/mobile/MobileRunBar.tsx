@@ -3,6 +3,7 @@ import { useMcStore } from '../../store/mcStore'
 import { useSimStore } from '../../store/simStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
+import { useT } from '../../i18n'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
 // Monte Carlo + the step counter + a Timeline-sheet toggle. No speed slider or
@@ -26,6 +27,7 @@ export function MobileRunBar() {
   const toggleOverlay = useUiStore((s) => s.toggleOverlay)
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const isMobile = useIsMobile()
+  const t = useT()
 
   // the MC dialog is part of the exclusive set (§MV5): opening it closes any
   // open sheet. The forward direction (a sheet closing the dialog) is in
@@ -52,9 +54,9 @@ export function MobileRunBar() {
   }
 
   return (
-    <div className="pstrip pstrip--mobile" role="toolbar" aria-label="Run controls">
+    <div className="pstrip pstrip--mobile" role="toolbar" aria-label={t('runbar.ariaLabel')}>
       <div className="pstrip__group">
-        <button type="button" className="pb-btn" onClick={reset} aria-label="Reset to step 0">
+        <button type="button" className="pb-btn" onClick={reset} aria-label={t('playbar.reset.title')}>
           ⟲
         </button>
         <button
@@ -62,7 +64,7 @@ export function MobileRunBar() {
           className="pb-btn"
           onClick={stepOnce}
           disabled={running}
-          aria-label="Advance one step"
+          aria-label={t('playbar.step.title')}
         >
           ⏭
         </button>
@@ -71,24 +73,26 @@ export function MobileRunBar() {
           className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
         >
-          {ended ? '⟳ Replay' : running ? '⏸ Pause' : '▶ Play'}
+          {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
       </div>
 
-      <span className="pstrip__step">step {stepIndex}{ended ? ' · ended' : ''}</span>
+      <span className="pstrip__step">
+        {ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}
+      </span>
 
       {mcRunning ? (
         <button type="button" className="pb-btn" onClick={cancelMc}>
-          MC {Math.round(mcProgress * 100)}% · Cancel
+          {t('runbar.mc.cancel', { pct: Math.round(mcProgress * 100) })}
         </button>
       ) : (
         <button
           type="button"
           className="pb-btn"
           onClick={openMcDialog}
-          title="Run the diagram many times and see the distribution"
+          title={t('playbar.mc.title')}
         >
-          Monte Carlo
+          {t('playbar.mc')}
         </button>
       )}
 
@@ -99,7 +103,7 @@ export function MobileRunBar() {
         aria-expanded={overlay === 'timeline'}
         onClick={() => toggleOverlay('timeline')}
       >
-        Timeline {overlay === 'timeline' ? '▾' : '▴'}
+        {t('runbar.timeline')} {overlay === 'timeline' ? '▾' : '▴'}
       </button>
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT, type MessageKey } from '../i18n'
 
 type Mode = 'system' | 'light' | 'dark'
 const KEY = 'loop-studio:theme'
@@ -9,13 +10,14 @@ function apply(mode: Mode) {
   else el.setAttribute('data-theme', mode)
 }
 
-const LABEL: Record<Mode, string> = {
-  system: '◐ Auto',
-  light: '☀ Light',
-  dark: '☾ Dark',
+const LABEL_KEY: Record<Mode, MessageKey> = {
+  system: 'theme.auto',
+  light: 'theme.light',
+  dark: 'theme.dark',
 }
 
 export function ThemeToggle() {
+  const t = useT()
   const [mode, setMode] = useState<Mode>(() => {
     try {
       const v = localStorage.getItem(KEY)
@@ -38,8 +40,8 @@ export function ThemeToggle() {
     setMode((m) => (m === 'system' ? 'light' : m === 'light' ? 'dark' : 'system'))
 
   return (
-    <button type="button" className="btn" onClick={cycle} title="Theme: system / light / dark">
-      {LABEL[mode]}
+    <button type="button" className="btn" onClick={cycle} title={t('theme.title')}>
+      {t(LABEL_KEY[mode])}
     </button>
   )
 }

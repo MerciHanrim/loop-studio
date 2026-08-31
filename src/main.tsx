@@ -6,6 +6,7 @@ import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@xyflow/react/dist/style.css'
 import './index.css'
 import App from './App.tsx'
+import { initI18n } from './i18n'
 import * as share from './model/share'
 import { useGraphStore } from './store/graphStore'
 import { useMcStore } from './store/mcStore'
@@ -53,8 +54,13 @@ if (__PWA_ENABLED__) {
   void import('./pwa/register-sw').then((m) => m.registerPwa())
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// docs/localization.md §L5.2 — resolve + load the initial catalog BEFORE React
+// mounts, so the first paint is already in the right language (no flash). The
+// embedded `en` catalog makes this fast and un-failable.
+void initI18n().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

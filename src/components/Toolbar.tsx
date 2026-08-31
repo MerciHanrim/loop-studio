@@ -6,8 +6,10 @@ import type { NodeKind } from '../model/types'
 import { useReviewStore } from '../store/reviewStore'
 import { routeImport } from '../store/revisionIO'
 import { useIsMobile } from '../ui/media'
+import { useT, type MessageKey } from '../i18n'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ExportMenu } from './ExportMenu'
+import { LanguageSwitch } from './LanguageSwitch'
 import { Logo } from './Logo'
 import { MobileTopBar } from './mobile/MobileTopBar'
 import { RevisionChip } from './RevisionChip'
@@ -17,15 +19,17 @@ import { ThemeToggle } from './ThemeToggle'
 
 const DND_TYPE = 'application/loop-node'
 
-const PALETTE: { kind: NodeKind; label: string; glyph: string }[] = [
-  { kind: 'pool', label: 'Pool', glyph: '◉' },
-  { kind: 'source', label: 'Source', glyph: '＋' },
-  { kind: 'drain', label: 'Drain', glyph: '－' },
-  { kind: 'gate', label: 'Gate', glyph: '◇' },
-  { kind: 'converter', label: 'Converter', glyph: '⇄' },
-  { kind: 'end', label: 'End', glyph: '⊗' },
-  { kind: 'parameter', label: 'Parameter', glyph: '▭' },
-  { kind: 'register', label: 'Register', glyph: '＝' },
+// The palette BUTTON label is chrome (keyed); a click still creates a node with
+// the locale-independent `defaultData()` label (docs/localization.md §L3.4).
+const PALETTE: { kind: NodeKind; labelKey: MessageKey; glyph: string }[] = [
+  { kind: 'pool', labelKey: 'toolbar.node.pool', glyph: '◉' },
+  { kind: 'source', labelKey: 'toolbar.node.source', glyph: '＋' },
+  { kind: 'drain', labelKey: 'toolbar.node.drain', glyph: '－' },
+  { kind: 'gate', labelKey: 'toolbar.node.gate', glyph: '◇' },
+  { kind: 'converter', labelKey: 'toolbar.node.converter', glyph: '⇄' },
+  { kind: 'end', labelKey: 'toolbar.node.end', glyph: '⊗' },
+  { kind: 'parameter', labelKey: 'toolbar.node.parameter', glyph: '▭' },
+  { kind: 'register', labelKey: 'toolbar.node.register', glyph: '＝' },
 ]
 
 export function Toolbar() {
@@ -40,6 +44,7 @@ export function Toolbar() {
   const canRedo = useGraphStore((s) => s.canRedo)
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
   const isMobile = useIsMobile()
+  const t = useT()
 
   const addCentered = (kind: NodeKind) => {
     const rect = document.querySelector('.canvas')?.getBoundingClientRect()
@@ -94,10 +99,10 @@ export function Toolbar() {
           <Logo />
         </span>
         <span className="toolbar__word">Loop Studio</span>
-        <span className="toolbar__tag">preview</span>
+        <span className="toolbar__tag">{t('toolbar.preview')}</span>
         <span
           className="toolbar__build"
-          title={`Loop Studio v${__APP_VERSION__} · build ${__BUILD_SHA__}`}
+          title={t('toolbar.buildTitle', { version: __APP_VERSION__, sha: __BUILD_SHA__ })}
         >
           v{__APP_VERSION__}
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
@@ -113,10 +118,10 @@ export function Toolbar() {
             draggable
             onDragStart={(e) => onDragStart(e, p.kind)}
             onClick={() => addCentered(p.kind)}
-            title={`Add ${p.label} — drag onto the canvas, or click`}
+            title={t('toolbar.node.addTitle', { name: t(p.labelKey) })}
           >
             <span className="chip__glyph">{p.glyph}</span>
-            {p.label}
+            {t(p.labelKey)}
           </button>
         ))}
       </div>
@@ -127,7 +132,7 @@ export function Toolbar() {
           className="btn btn--icon"
           onClick={undo}
           disabled={!canUndo}
-          title="Undo (Ctrl/Cmd+Z)"
+          title={t('toolbar.undo.title')}
         >
           ↶
         </button>
@@ -136,22 +141,23 @@ export function Toolbar() {
           className="btn btn--icon"
           onClick={redo}
           disabled={!canRedo}
-          title="Redo (Ctrl/Cmd+Shift+Z)"
+          title={t('toolbar.redo.title')}
         >
           ↷
         </button>
         <Templates />
         <ThemeToggle />
+        <LanguageSwitch />
         <button
           ref={newBtnRef}
           type="button"
           className="btn"
           onClick={() => setConfirmNew(true)}
         >
-          New
+          {t('toolbar.new')}
         </button>
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
-          Import
+          {t('toolbar.import')}
         </button>
         <RevisionChip />
         <ShareButton />
@@ -161,9 +167,9 @@ export function Toolbar() {
 
       <ConfirmDialog
         open={confirmNew}
-        title="Start a new graph?"
-        body="Your current graph will be replaced."
-        confirmLabel="New graph"
+        title={t('toolbar.newGraph.title')}
+        body={t('toolbar.newGraph.body')}
+        confirmLabel={t('toolbar.newGraph.confirm')}
         onConfirm={() => {
           setConfirmNew(false)
           newGraph()
