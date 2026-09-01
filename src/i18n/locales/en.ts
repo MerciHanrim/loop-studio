@@ -278,6 +278,71 @@ const en = {
   'error.EXPR_BAD_ESCAPE.message': "“\\” at column {column} must be followed by “'}'” or “\\”",
   'error.EXPR_NUMBER_RANGE.message': 'the number at column {column} is too large',
   'error.EXPR_BAD_TOKEN.message': 'there is a stray character at column {column}',
+
+  // ═══ Slice 2b-1 — small app chrome: Share · PWA bar · import · rev chip ═══
+
+  // ── shared confirm dialog ──────────────────────────────────────────────
+  'dialog.cancel': 'Cancel',
+
+  // ── Share (SEMANTICS-U.md §U7) — the disclosure is now an in-app dialog;
+  //    the link build + clipboard write run inside the Confirm click (§U4) ──
+  'share.button': 'Share',
+  'share.button.title': 'Copy a link that opens this diagram',
+  'share.disclosure.title': 'Create a share link?',
+  'share.disclosure.body':
+    'The link contains this entire diagram, including every label — anyone with it can open and edit the diagram. It is not uploaded to a server, but it travels inside the link, so it stays in your browser history and is visible to anyone you send it to.',
+  'share.disclosure.confirm': 'Create link',
+  'share.tooLarge':
+    'This diagram is too large for a share link ({size}; the limit is {cap}). Use Export ▾ → Graph JSON and share the file instead.',
+  'share.noBase':
+    'Share is not configured with a public address, so a link cannot be created. Please report this.',
+  'share.panel.label': 'Share link',
+  'share.panel.copied': 'Link copied to the clipboard.',
+  'share.panel.copyThis': 'Copy this link:',
+  'share.panel.copyAgain': 'Copy again',
+  'share.panel.copy': 'Copy',
+  'share.panel.close': 'Close',
+
+  // ── PWA update bar (docs/pwa.md §P4.2) ─────────────────────────────────
+  'pwa.text':
+    'A new version of Loop Studio is ready. Applying it reloads the app and resets the current run and any unsaved results. Your diagram is saved.',
+  'pwa.update': 'Update',
+  'pwa.dismiss': 'Dismiss',
+  'pwa.running.title': 'A run is in progress',
+  'pwa.running.body':
+    'Applying the update reloads the page and ends the current run. Apply it anyway?',
+  'pwa.running.confirm': 'Apply and reload',
+
+  // ── Boot notice (SEMANTICS-R.md §R8) ──────────────────────────────────
+  'bootNotice.dismiss': 'Dismiss',
+  'bootNotice.proposalReboot':
+    'This session was editing a proposal. The base it was made from is not saved on this device, so it reopened as a plain graph — your edits are kept. Re-import the proposal file to review or re-export it.',
+
+  // ── Revision chip (SEMANTICS-R.md §R2 / §R8) ─────────────────────────
+  'revChip.proposal': 'proposal',
+  'revChip.rev': 'rev {id}',
+  'revChip.title': 'Project {project} · {role} {revision}',
+  'revChip.titleDirty': 'Project {project} · {role} {revision} · unsaved changes since this revision',
+  'revChip.unsaved': 'unsaved changes',
+
+  // ── Import replace flow (Toolbar + MobileTopBar) ─────────────────────
+  'import.replace.title': 'Replace the current diagram?',
+  'import.replace.body': 'The imported file will replace what is on the canvas now.',
+  'import.replace.confirm': 'Replace',
+  'import.readError': 'Could not read that file.',
+
+  // ── React Flow a11y (the `ariaLabelConfig` on <ReactFlow>) ───────────
+  'rf.controls.label': 'Canvas controls',
+  'rf.controls.zoomIn': 'Zoom in',
+  'rf.controls.zoomOut': 'Zoom out',
+  'rf.controls.fitView': 'Fit the diagram to the view',
+  'rf.controls.interactive': 'Toggle canvas editing',
+  'rf.handle.label': 'Connection point',
+  'rf.node.a11y': 'Press Enter or Space to select this node. Press Delete to remove it, Escape to cancel.',
+  'rf.node.a11yKeyboard':
+    'Press Enter or Space to select this node, then the arrow keys to move it. Press Delete to remove it, Escape to cancel.',
+  'rf.edge.a11y':
+    'Press Enter or Space to select this connection. Press Delete to remove it, Escape to cancel.',
 } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */

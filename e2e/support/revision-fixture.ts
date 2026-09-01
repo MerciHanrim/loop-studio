@@ -33,6 +33,21 @@ const closeReview = (page: Page) =>
 async function importFixture(page: Page, kind: 'toolbar' | 'mobile', text: string): Promise<void> {
   const sel = kind === 'mobile' ? '.toolbar--mobile input[type="file"]' : '.toolbar__actions input[type=file]'
   await page.setInputFiles(sel, { name: 'fx.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  // docs/localization.md Slice 2b — on mobile a non-proposal import asks to
+  // replace via the in-app ConfirmDialog (a proposal opens Review, no confirm).
+  let role: unknown
+  try {
+    role = (JSON.parse(text) as { project?: { role?: unknown } }).project?.role
+  } catch {
+    /* ignore */
+  }
+  if (kind === 'mobile' && role !== 'proposal') {
+    const dlg = page.locator('.mcdlg--confirm')
+    if (await dlg.isVisible().catch(() => false)) {
+      await dlg.getByRole('button', { name: /replace|교체/i }).click()
+      await expect(dlg).toHaveCount(0)
+    }
+  }
 }
 
 /** apply a named oracle selection through the real store, on the pending proposal */

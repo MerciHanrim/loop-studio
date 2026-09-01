@@ -1,15 +1,9 @@
 import { SHARE_MAX_BYTES, encodeShareText } from '../model/share'
 
 // SEMANTICS-U.md §U7 — the shared parts of "make a share link", used by the
-// desktop `ShareButton` and the mobile More menu. The one-time disclosure
-// (`window.confirm(SHARE_DISCLOSURE)`) and the clipboard write stay in the
-// callers; everything deterministic lives here.
-
-export const SHARE_DISCLOSURE =
-  'Create a share link?\n\n' +
-  'The link contains this entire diagram, including all labels — anyone with the link can open and edit it.\n\n' +
-  'The diagram travels inside the link itself: it is not uploaded to a server, but it will be in your browser ' +
-  'history and visible to anyone you send it to.'
+// desktop `ShareButton` and the mobile More menu. The one-time disclosure (an
+// in-app ConfirmDialog, docs/localization.md Slice 2b) and the clipboard write
+// stay in the callers; everything deterministic lives here.
 
 export const shareKb = (n: number): string => `${(n / 1024).toFixed(1)} KB`
 

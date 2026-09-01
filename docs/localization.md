@@ -631,7 +631,42 @@ the **§L7 user-facing engine-diagnostic `{ code, params }` mapping** lands
 **Slice 2b — the app work surface.** **Import / Export / Workspace, revision UI,
 the Templates picker UI, the PWA update bar, every remaining empty / error
 state, and the accessibility names + live-region text** app-wide. Each surface
-with its `en` + `ko` catalog additions.
+with its `en` + `ko` catalog additions. **Also: retire `window.confirm()` — every
+confirm becomes the shared in-app `ConfirmDialog`** (one system, desktop +
+mobile), under this contract:
+
+- no external effect (share URL build, clipboard, download, import, GraphDoc
+  swap) runs before **Confirm**; Cancel / Escape / backdrop are one identical
+  cancel path (backdrop-dismiss is *allowed* — every Slice-2b cancel is safe);
+- focus is trapped while open and returns to the trigger on close; **initial
+  focus is Cancel** so Enter never fires a destructive confirm;
+- a double-click on Confirm runs the effect once (caller `busy` guard);
+- a locale switch while a dialog is open re-renders it in the new locale;
+- opening + closing a dialog leaves digest / undo / viewport / SimState
+  unchanged; user-activation work (clipboard, download) runs inside the Confirm
+  button's click handler.
+
+Split into two PRs (size / review):
+
+> **2b-1 (`feat/i18n-slice2b`) — implemented.** The shared `ConfirmDialog`
+> hardening (`useId` for the aria ids, `dismissOnBackdrop`, `dialog.cancel`
+> key), **Share** (`ShareButton` + the mobile More sheet: the §U4 disclosure is
+> now the dialog; export + link build + clipboard run only from Confirm),
+> **PWA update bar** (`pwa.*` strings + the "run in progress" confirm → dialog),
+> **import replace-confirm** (`MobileTopBar` → dialog; `Toolbar` had no confirm,
+> its error `alert()` body is keyed), **RevisionChip** + **BootNotice**
+> (`projectStore.bootNotice` now emits a code, `BootNotice` localizes it), and
+> the **React Flow a11y layer** (`<ReactFlow ariaLabelConfig>` — Controls
+> buttons, the node / edge keyboard hints, the handle label). `<strong>` in the
+> PWA-bar text and `<code>` in the legacy note become plain text (ICU has no
+> markup, §L4.1). Still native, deferred to 2b-2: the Templates replace-confirm
+> and the Export **project-revision** disclosure. `routeImport` warning strings
+> stay English for now (no `{code}` — a later pass).
+>
+> **2b-2** — Templates (name / blurb keying + its replace-confirm → dialog),
+> Export / Workspace menus + the project-revision disclosure → dialog,
+> `ReviewOverlay`, `MonteCarloDialog`, `AuthorDialog`, and the remaining mobile
+> More-sheet rows.
 
 **Slice 3 — acceptance validation.** The **full string inventory** reconciled
 (every surface accounted for); the **KO / EN × desktop / mobile visual matrix**

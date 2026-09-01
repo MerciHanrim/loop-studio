@@ -38,6 +38,17 @@ async function noHScroll(page: Page): Promise<void> {
   expect(over, 'no horizontal document overflow').toBeLessThanOrEqual(0)
 }
 
+// Slice 2b — the Share disclosure and the import replace-confirm are in-app
+// ConfirmDialogs now (not window.confirm).
+async function answerDialog(page: Page, choice: 'accept' | 'cancel', text?: RegExp): Promise<void> {
+  const dlg = page.locator('.mcdlg--confirm')
+  await expect(dlg).toBeVisible()
+  if (text) await expect(dlg).toContainText(text)
+  const name = choice === 'accept' ? /create link|replace|apply|링크 만들기|교체|적용/i : /^cancel$|^취소$/i
+  await dlg.getByRole('button', { name }).click()
+  await expect(dlg).toHaveCount(0)
+}
+
 function rectInside(inner: { x: number; y: number; width: number; height: number } | null, w: number, h: number, slack = 1): boolean {
   if (!inner) return false
   return (
@@ -288,9 +299,9 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
 
   test('Share from the More menu still creates a link; the URL field is on-screen', async ({ page }) => {
     await loadDiagram(page)
-    page.on('dialog', (d) => void d.accept()) // the one-time disclosure
     await more(page).click()
     await sheet(page, 'More').locator('.sheet__row', { hasText: 'Share link' }).click()
+    await answerDialog(page, 'accept', /anyone with it/i) // the §U4 disclosure, in-app now
     const field = page.locator('.sheet .share-pop__url')
     await expect(field).toBeVisible()
     expect(rectInside(await field.boundingBox(), PORTRAIT.width, PORTRAIT.height, 2)).toBe(true)
@@ -454,17 +465,14 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     const fileInput = page.locator('.toolbar--mobile input[type="file"]')
 
     // cancel
-    page.once('dialog', (d) => {
-      expect(d.message()).toMatch(/replace/i)
-      return void d.dismiss()
-    })
     await fileInput.setInputFiles({ name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(fixture) })
+    await answerDialog(page, 'cancel', /replace/i)
     await page.waitForTimeout(150)
     expect(await graphContent(page), 'cancel keeps the graph').toBe(before)
 
     // accept
-    page.once('dialog', (d) => void d.accept())
     await fileInput.setInputFiles({ name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(fixture) })
+    await answerDialog(page, 'accept', /replace/i)
     await expect.poll(() => graphContent(page)).not.toBe(before)
   })
 
@@ -588,8 +596,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     const fileInput = page.locator('.toolbar--mobile input[type="file"]')
 
     // Graph JSON — plain diagram, no workspace restore
-    page.once('dialog', (d) => void d.accept())
     await fileInput.setInputFiles({ name: 'g.json', mimeType: 'application/json', buffer: Buffer.from(readFixture()) })
+    await answerDialog(page, 'accept', /replace/i)
     await expect
       .poll(() =>
         page.evaluate(
@@ -603,8 +611,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
       const io = (window as unknown as { __loop: { io: { serializeWorkspaceFile: (p: unknown) => string; collectWorkspacePayload: (v: unknown) => unknown } } }).__loop.io
       return io.serializeWorkspaceFile(io.collectWorkspacePayload({ x: 111, y: 222, zoom: 1.75 }))
     })
-    page.once('dialog', (d) => void d.accept())
     await fileInput.setInputFiles({ name: 'w.json', mimeType: 'application/json', buffer: Buffer.from(wsText) })
+    await answerDialog(page, 'accept', /replace/i)
     await expect
       .poll(() => page.locator('.react-flow__viewport').evaluate((el) => (el as HTMLElement).style.transform))
       .toContain('scale(1.75)')
