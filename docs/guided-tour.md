@@ -1,11 +1,12 @@
 # Guided first-run tour (non-frozen design doc — DRAFT)
 
-**Status: design pending review — no code. rev 2** — rev 1's structure
-(desktop/mobile split, read-only principle, six-step scope, a11y + invariance)
-is unchanged; rev 2 pins the four **lifecycle boundaries**: Welcome **display
-timing & UI priority** (§GT6.1), **`localStorage` failure** (§GT6.3), the
-**exit-state transition table** (§GT6.4), and the **Help menu + mobile-target**
-rules (§GT7), with matching E2E (§GT9).
+**Status: settled design — implementation pending. rev 3.** rev 1 fixed the
+structure (desktop/mobile split, read-only principle, six-step scope, a11y +
+invariance); rev 2 pinned the four **lifecycle boundaries** (§GT6.1 display
+timing, §GT6.3 `localStorage` failure, §GT6.4 exit-state table, §GT7 Help menu +
+mobile target); **rev 3** adds a second working Help entry — **`About Loop
+Studio`** (§GT7, §GT9) — since the tool has no in-app place to show the creator /
+copyright today. The tour's six steps and lifecycle contract are unchanged.
 
 This doc fixes the **behaviour contract** for the guided first-run tour before
 any implementation. It is a **non-frozen** design doc — no `loop-*/N` id, no
@@ -14,8 +15,10 @@ any implementation. It is a **non-frozen** design doc — no `loop-*/N` id, no
 [`docs/edge-routing.md`](edge-routing.md).
 
 The tour is the first slice of **Onboarding, part 2 → guided first-run tour**
-(README roadmap), built on the finished localization base. **Contextual inline
-help** is a *separate later slice* and is out of scope here (§GT12).
+(README roadmap), built on the finished localization base. The slice also lands
+the **Help (`?`) menu** it needs as a home, with `Take a tour` **and** `About
+Loop Studio`. **Contextual inline help** is a *separate later slice* and is out
+of scope here (§GT12).
 
 A **UI-chrome-only** layer: a read-only overlay that points at parts of the
 interface. It changes nothing the engine computes, nothing that is serialized,
@@ -41,9 +44,11 @@ to perform a step (§GT4).
 - a **mobile tour** — six steps rewritten for view/run, *not* a shrink of the
   desktop tour (§GT3);
 - a **Welcome card** on the true first run, with `Start tour` / `Skip` (§GT6);
-- a **re-entry point** — a small Help (`?`) menu in the toolbar (desktop) and a
-  row in the More sheet (mobile); this slice ships only its **`Take a tour`**
-  item (§GT7);
+- a small **Help (`?`) menu** in the toolbar (desktop) and in the More sheet
+  (mobile), with two working entries — **`Take a tour`** (tour re-entry) and
+  **`About Loop Studio`** (§GT7); `Contextual help` is not present;
+- an **About dialog** — creator + version/build + copyright + the
+  non-affiliation line, EN + KO (§GT7);
 - one `localStorage` key that suppresses the Welcome card after the first
   interaction (§GT6);
 - EN + KO copy from the localization catalog (§GT8);
@@ -290,23 +295,94 @@ is **not persisted** — a reload mid-tour does not force-resume from the middle
 - A corrupt / unrecognised stored value is treated as "suppress the card" (fail
   safe — never nag) and is **left in place**, never rewritten.
 
-## GT7. Re-entry — the Help menu
+## GT7. The Help menu — `Take a tour` + `About Loop Studio`
 
 Add a small **Help (`?`)** control to the toolbar actions cluster (desktop) and
-an equivalent **row in the More sheet** (mobile).
+an equivalent **row in the More sheet** (mobile). It has **two working entries**:
 
-- This slice ships **exactly one** item: **`Take a tour`** — restarts the tour at
-  step 1. It always runs the platform-appropriate script (desktop script on
-  desktop, mobile script on mobile) regardless of the stored key, and per §GT6.4
-  never rewrites it.
-- **`Contextual help` is NOT shown** — not as a disabled row, not greyed out,
-  not a placeholder. It is added by the later inline-help slice, which owns its
-  own design + PR. The Help control is *structured* as a menu (rather than a
-  bare button) only so that later slice can add an item without moving anything;
-  with one item it may render as a single action.
+```
+? Help
+ ├─ Take a tour
+ └─ About Loop Studio
+```
+
+- **`Take a tour`** — restarts the tour at step 1. It always runs the
+  platform-appropriate script (desktop on desktop, mobile on mobile) regardless
+  of the stored key, and per §GT6.4 never rewrites it.
+- **`About Loop Studio`** — opens the About dialog (§GT7.1).
+- **`Contextual help` is NOT shown** — not a disabled row, not a placeholder. It
+  is added by the later inline-help slice (its own design + PR).
 
 If the Help menu opens as a popover, the tour scrim (§GT4) still blocks the rest
 of the UI while a tour launched from it is running.
+
+### GT7.1 The About dialog
+
+The tool currently shows the creator / copyright **only in `README.md`** — a
+hosted-only or portable user never sees it. `About Loop Studio` is a small,
+static, **read-only** dialog that fixes that.
+
+**Content** (from the localization catalog, §GT8):
+
+```
+Loop Studio
+v0.8.0-dev · build 2b6d504
+
+Created by Hanrim
+Cozy Shelter
+
+Copyright © 2026 Hanrim.
+All rights reserved.
+
+Loop Studio is an independent project and is not affiliated
+with or endorsed by Machinations.io.
+```
+
+Korean:
+
+```
+Loop Studio
+v0.8.0-dev · 빌드 2b6d504
+
+제작: Hanrim
+Cozy Shelter
+
+Copyright © 2026 Hanrim.
+All rights reserved.
+
+Loop Studio는 독립 프로젝트이며 Machinations.io와
+제휴하거나 보증받은 프로젝트가 아닙니다.
+```
+
+- **`Copyright © 2026 Hanrim. All rights reserved.` is NOT translated** — the
+  same ASCII line in every locale (like a wire token). "Loop Studio", the
+  version string, and the build SHA are also verbatim.
+- **Version + build SHA** are read from the **same source as the toolbar build
+  stamp** (`__APP_VERSION__` / `__BUILD_SHA__`) — one source of truth, so they
+  can never disagree with the header.
+- **`Created by` / `제작:`** and the non-affiliation sentence are localized.
+- **`Cozy Shelter` is a link** to `https://cozyshelter.tistory.com/` — the same
+  target as `README.md`, in every locale and every build. **No GitHub /
+  repository link is included.**
+
+**Behaviour**
+
+- Reachable identically from the **desktop Help menu** and the **mobile
+  More → Help** entry; identical in the **portable** and **PWA** builds.
+- Opening or closing About changes **nothing**: GraphDoc bytes, `loop-revision/*`
+  digest, undo / redo, viewport, selection, `simulationRev`, `SimState`, and the
+  Monte-Carlo config are all untouched. The About key does **not** exist — there
+  is no persisted "seen About" state.
+- A standard modal: **`Escape`, a backdrop click, and an explicit close button**
+  each dismiss it by the one same path; focus is trapped while open. Opening
+  About **closes the Help menu**, so on close focus returns to the **Help (`?`)
+  trigger** — not the `About Loop Studio` menu item, which no longer exists.
+  (This is the normal dialog contract — *distinct* from the tour's **inert**
+  scrim in §GT4.)
+- Nothing about the About dialog enters the Graph JSON, Workspace JSON, or `#g1=`
+  Share payload.
+- No animation requirement; respects `prefers-reduced-motion` and `forced-colors`
+  like every other dialog.
 
 ## GT8. Localization
 
@@ -320,7 +396,13 @@ and KO `satisfies MessageCatalog`, e.g.:
 - `tour.desktop.<step>.title` / `.body` for steps `pieces` · `canvas` ·
   `inspector` · `playback` · `timeline` · `files`
 - `tour.mobile.<step>.title` / `.body` for the six mobile steps
-- `tour.help.menuLabel` · `tour.help.takeTour`
+- `tour.help.menuLabel` · `tour.help.takeTour` · `tour.help.about`
+- `about.createdBy` (= `"Created by"` / `"제작:"`) ·
+  `about.notAffiliated` (the Machinations.io sentence). The product name,
+  `v{version} · build {sha}` line, the `Cozy Shelter` link (text **and** its
+  `https://cozyshelter.tistory.com/` href), and `Copyright © 2026 Hanrim. All
+  rights reserved.` are **not** catalog strings — they are shown verbatim in
+  every locale (the version/SHA come from `__APP_VERSION__` / `__BUILD_SHA__`).
 
 No string concatenation of translatable fragments; `{n}` / `{total}` are ICU
 arguments. The tour adds **no** exception to any localization invariant
@@ -340,8 +422,9 @@ The implementation slice must ship E2E covering:
    **not** auto-open the tour.
 3. **Re-entry** — `Help → Take a tour` opens the tour at step 1 even when the key
    is `completed` / `dismissed`, and **does not rewrite** the key on any exit.
-4. **Help menu contents** — the Help control exposes exactly `Take a tour`; there
-   is **no** `Contextual help` item (not present, not disabled) in this slice.
+4. **Help menu contents** — the Help control exposes exactly two working items,
+   `Take a tour` and `About Loop Studio`; there is **no** `Contextual help` item
+   (not present, not disabled) in this slice.
 5. **Six steps, both platforms** — desktop and mobile (390 px) each walk 1→6 via
    `Next`, `Back` returns, `Done` on step 6 ends; `N / 6` label correct at each
    step. No mobile step opens a menu / sheet — step 6 highlights the closed `⋯`
@@ -386,6 +469,18 @@ The implementation slice must ship E2E covering:
     (rendered-style evidence), not hue-only.
 18. **Long Korean** — KO copy at 390 px: popover wraps, stays on-screen, no
     horizontal scroll.
+19. **About dialog** — `Help → About Loop Studio` (desktop) and the mobile
+    More → Help entry both open it. It shows the same `v{version} · build {sha}`
+    as the toolbar build stamp; the `Copyright © 2026 Hanrim. All rights
+    reserved.` line is **byte-identical in EN and KO**, while `Created by` /
+    `제작:` and the non-affiliation sentence switch with the locale; the
+    `Cozy Shelter` line links to `https://cozyshelter.tistory.com/`.
+    **Each** of `Escape`, a backdrop click, and the close button dismisses the
+    dialog, and after **each** of those three paths focus is on the **Help
+    (`?`) trigger** (the Help menu having closed when About opened). Opening then
+    closing About leaves GraphDoc / digest / undo / viewport / selection /
+    `simulationRev` / `SimState` unchanged, and no `about` key appears in any
+    export or Share payload.
 
 ## GT10. Decision record
 
@@ -417,10 +512,19 @@ The implementation slice must ship E2E covering:
   corrupt-value fallback). First visit ⇒ `ko*` browser gets a Korean
   Welcome + tour, everything else English; an explicit user choice always wins
   over the browser language. *(Lumi, this thread.)*
-- **Help menu — one item this slice.** `Take a tour` only; `Contextual help` is
-  *not shown at all* (not a disabled row) — it belongs to the later inline-help
-  slice. The control is structured as a menu so that slice can add to it without
-  moving anything. *(Lumi, rev 2.)*
+- **Help menu — two working items this slice.** `Take a tour` and `About Loop
+  Studio`. `Contextual help` is *not shown at all* (not a disabled row) — it
+  belongs to the later inline-help slice. *(Lumi, rev 2 + rev 3.)*
+- **`About Loop Studio` dialog** (§GT7.1). The tool had no in-app place to show
+  the creator / copyright — only `README.md`, which a hosted-only or portable
+  user never sees. A small static read-only dialog fixes it, homed in the same
+  Help menu. Version + build SHA come from the same `__APP_VERSION__` /
+  `__BUILD_SHA__` as the header; `Copyright © 2026 Hanrim. All rights reserved.`
+  is not translated; `Cozy Shelter` **is a link** to
+  `https://cozyshelter.tistory.com/` (matching `README.md`), no GitHub link;
+  opening About closes the Help menu, so `Escape` / backdrop / close each return
+  focus to the **Help (`?`) trigger**; opening / closing it mutates nothing and
+  leaves no persisted state. *(Lumi, rev 3.)*
 - **Welcome timing — after settle, single surface only** (§GT6.1). The card waits
   behind any `ConfirmDialog` / sheet / boot notice / PWA bar and behind graph
   restore for a `#g1=` link; it never stacks or interrupts, and the tour layer
@@ -444,21 +548,23 @@ The implementation slice must ship E2E covering:
 
 ## GT11. Slices
 
-- **This PR — the design doc.** `docs/guided-tour.md` only, no code. Merges as
-  *settled design, implementation pending*.
-- **Next — implementation (its own PR).** The tour store + overlay component,
-  the six desktop + six mobile steps, `data-tour` attributes on the regions,
-  the Welcome card, the Help (`?`) menu with **`Take a tour` only**, `tour.*`
-  catalog entries (EN + KO), and the §GT9 E2E set. No engine / wire / serialized
-  change; EN output and every existing snapshot unchanged except the new Help
-  control.
+- **The design doc.** `docs/guided-tour.md` only, no code — merged as *settled
+  design, implementation pending* (rev 1–2), then amended by rev 3 to add
+  `About Loop Studio` to the Help menu.
+- **Next — implementation (its own PR).** The tour store + overlay component, the
+  six desktop + six mobile steps, `data-tour` attributes on the regions, the
+  Welcome card, the Help (`?`) menu with **`Take a tour` + `About Loop Studio`**,
+  the About dialog, `tour.*` + `about.*` catalog entries (EN + KO), and the §GT9
+  E2E set (19 cases). No engine / wire / serialized change; EN output and every
+  existing snapshot unchanged except the new Help control.
 - **Later slice — contextual inline help.** Separate design + PR; adds
   `Contextual help` to the Help menu.
 
 ## GT12. Scope boundary
 
-The guided tour is **presentation only**. It carries no `loop-*/N` id, defines
-no wire field, and is revised freely. Nothing it does is observable in an
-export, a digest, an undo entry, or the engine. Contextual inline help,
-first-run analytics, interactive tutorials, and per-step deep links are **not**
-in this design and are not implied by it.
+The guided tour **and the Help menu / About dialog it introduces** are
+**presentation only**. They carry no `loop-*/N` id, define no wire field, and are
+revised freely. Nothing they do is observable in an export, a digest, an undo
+entry, or the engine. Contextual inline help, first-run analytics, interactive
+tutorials, and per-step deep links are **not** in this design and are not implied
+by it.
