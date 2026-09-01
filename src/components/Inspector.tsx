@@ -63,6 +63,17 @@ const EXPR_CODE_KEY: Record<ExprParseCode, MessageKey> = {
   EXPR_NUMBER_RANGE: 'error.EXPR_NUMBER_RANGE.message',
   EXPR_BAD_TOKEN: 'error.EXPR_BAD_TOKEN.message',
 }
+// docs/localization.md §L3.4 (refined) — a wire enum's OPTION LABEL is localized
+// UI text; the `<option value>` stays the token, so GraphDoc / digest are
+// unchanged and a locale switch fires no `change`. Raw-data fallback + the
+// `{code}` diagnostics keep the bare token.
+const ACTIVATION_KEY = {
+  passive: 'enum.activation.passive',
+  automatic: 'enum.activation.automatic',
+  onStart: 'enum.activation.onStart',
+  interactive: 'enum.activation.interactive',
+} satisfies Record<string, MessageKey>
+
 const ACT_HINT_KEY = {
   empty: 'stateExpr.activator.hint.empty',
   'op-only': 'stateExpr.activator.hint.opOnly',
@@ -176,7 +187,7 @@ export function Inspector() {
             <select value={d.activation} onChange={(e) => set({ activation: e.target.value })}>
               {ACTIVATIONS.map((a) => (
                 <option key={a} value={a}>
-                  {a}
+                  {t(ACTIVATION_KEY[a])}
                 </option>
               ))}
             </select>
@@ -429,9 +440,9 @@ function LegacyStateEdge({
       <p className="inspector__note">{t('inspector.legacy.note', { mode: ed.mode })}</p>
       <Field label={t('inspector.legacy.convertTo')}>
         <select value={to} onChange={(e) => setTo(e.target.value as StateMode)}>
-          <option value="trigger">trigger</option>
-          <option value="activator">activator</option>
-          <option value="label">label</option>
+          <option value="trigger">{t('enum.stateMode.trigger')}</option>
+          <option value="activator">{t('enum.stateMode.activator')}</option>
+          <option value="label">{t('enum.stateMode.label')}</option>
         </select>
       </Field>
       <button
@@ -537,10 +548,10 @@ function PoolFields({
       </Field>
       <Field label={t('inspector.field.flowMode')}>
         <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
-          <option value="pullAny">pull any</option>
-          <option value="pullAll">pull all</option>
-          <option value="pushAny">push any</option>
-          <option value="pushAll">push all</option>
+          <option value="pullAny">{t('enum.flowMode.pullAny')}</option>
+          <option value="pullAll">{t('enum.flowMode.pullAll')}</option>
+          <option value="pushAny">{t('enum.flowMode.pushAny')}</option>
+          <option value="pushAll">{t('enum.flowMode.pushAll')}</option>
         </select>
       </Field>
       <ResourceTypeField
@@ -557,8 +568,8 @@ function SourceFields({ d, set }: { d: SourceData; set: Patch }) {
   return (
     <Field label={t('inspector.field.flowMode')}>
       <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
-        <option value="pushAny">push any</option>
-        <option value="pushAll">push all</option>
+        <option value="pushAny">{t('enum.flowMode.pushAny')}</option>
+        <option value="pushAll">{t('enum.flowMode.pushAll')}</option>
       </select>
     </Field>
   )
@@ -569,8 +580,8 @@ function DrainFields({ d, set }: { d: DrainData; set: Patch }) {
   return (
     <Field label={t('inspector.field.flowMode')}>
       <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
-        <option value="pullAny">pull any</option>
-        <option value="pullAll">pull all</option>
+        <option value="pullAny">{t('enum.flowMode.pullAny')}</option>
+        <option value="pullAll">{t('enum.flowMode.pullAll')}</option>
       </select>
     </Field>
   )
@@ -581,8 +592,8 @@ function GateFields({ d, set }: { d: GateData; set: Patch }) {
   return (
     <Field label={t('inspector.field.distribution')}>
       <select value={d.distribution} onChange={(e) => set({ distribution: e.target.value })}>
-        <option value="deterministic">deterministic</option>
-        <option value="probabilistic">probabilistic</option>
+        <option value="deterministic">{t('enum.distribution.deterministic')}</option>
+        <option value="probabilistic">{t('enum.distribution.probabilistic')}</option>
       </select>
     </Field>
   )
@@ -593,8 +604,8 @@ function ConverterFields({ d, set }: { d: ConverterData; set: Patch }) {
   return (
     <Field label={t('inspector.field.flowMode')}>
       <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
-        <option value="pullAny">pull any</option>
-        <option value="pullAll">pull all</option>
+        <option value="pullAny">{t('enum.flowMode.pullAny')}</option>
+        <option value="pullAll">{t('enum.flowMode.pullAll')}</option>
       </select>
     </Field>
   )
@@ -690,9 +701,9 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
       </Field>
       <Field label={t('inspector.field.format')}>
         <select value={d.format ?? 'float'} onChange={(e) => set({ format: e.target.value })}>
-          <option value="int">int</option>
-          <option value="float">float</option>
-          <option value="percent">percent</option>
+          <option value="int">{t('enum.format.int')}</option>
+          <option value="float">{t('enum.format.float')}</option>
+          <option value="percent">{t('enum.format.percent')}</option>
         </select>
       </Field>
       {notices.includes('REG_FORMAT_INVALID') && (

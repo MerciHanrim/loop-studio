@@ -128,6 +128,27 @@ const en = {
   'inspector.unreadable.detailFallback': 'the data is not a readable object',
   'inspector.field.rawData': 'Raw data',
 
+  // ── Wire-enum OPTION labels — the human-readable text of a <select>; the
+  //    <option value> stays the wire token, GraphDoc / digest are unchanged
+  //    (docs/localization.md §L3.4). Raw-data fallback, diagnostic codes, and
+  //    the Canvas raw-state readout keep the bare token.
+  'enum.activation.passive': 'passive',
+  'enum.activation.automatic': 'automatic',
+  'enum.activation.onStart': 'onStart',
+  'enum.activation.interactive': 'interactive',
+  'enum.flowMode.pullAny': 'pull any',
+  'enum.flowMode.pullAll': 'pull all',
+  'enum.flowMode.pushAny': 'push any',
+  'enum.flowMode.pushAll': 'push all',
+  'enum.distribution.deterministic': 'deterministic',
+  'enum.distribution.probabilistic': 'probabilistic',
+  'enum.format.int': 'int',
+  'enum.format.float': 'float',
+  'enum.format.percent': 'percent',
+  'enum.stateMode.trigger': 'trigger',
+  'enum.stateMode.activator': 'activator',
+  'enum.stateMode.label': 'label',
+
   // ── Inspector — node fields ───────────────────────────────────────────
   'inspector.field.activation': 'Activation',
   'inspector.node.endNote': 'Stops the run the moment a resource reaches it.',
