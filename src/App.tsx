@@ -1,6 +1,7 @@
 import { ReactFlowProvider } from '@xyflow/react'
 import { BootNotice } from './components/BootNotice'
 import { Canvas } from './components/Canvas'
+import { GuidedTour } from './components/GuidedTour'
 import { Inspector } from './components/Inspector'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
@@ -35,6 +36,7 @@ export default function App() {
       <MonteCarloDialog />
       <ReviewOverlay />
       <PlaybackAnnouncer />
+      <GuidedTour />
     </ReactFlowProvider>
   )
 }

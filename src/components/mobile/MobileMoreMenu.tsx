@@ -15,7 +15,9 @@ import {
 import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
+import { useTourStore } from '../../store/tourStore'
 import { useT } from '../../i18n'
+import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { LanguageSwitch } from '../LanguageSwitch'
@@ -60,6 +62,7 @@ export function MobileMoreMenu({
   const [shareConfirm, setShareConfirm] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
   // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
@@ -245,6 +248,9 @@ export function MobileMoreMenu({
         <div className="sheet__row" style={{ cursor: 'default' }}>
           {t('lang.rowLabel')}<span className="sheet__row-sub"><LanguageSwitch /></span>
         </div>
+        <button type="button" className="sheet__row" onClick={() => openOverlay('help')}>
+          {t('tour.help.menuLabel')}<span className="sheet__row-sub">▸</span>
+        </button>
         <div className="sheet__stamp">
           v{__APP_VERSION__}
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
@@ -313,6 +319,31 @@ export function MobileMoreMenu({
         <AuthorDialog open={authorOpen} onClose={() => setAuthorOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>
       {pendingDlg}
+      </>
+    )
+  }
+
+  // docs/guided-tour.md §GT7 — the mobile Help sub-sheet: `Take a tour` +
+  // `About Loop Studio`. `Contextual help` is not shown (later slice).
+  if (overlay === 'help') {
+    return (
+      <>
+      <MobileSheet title={t('tour.help.menuLabel')} onClose={() => closeOverlay('help')} returnFocusTo={backToMore}>
+        <button
+          type="button"
+          className="sheet__row"
+          onClick={() => {
+            closeOverlay() // close the sheet so the tour overlay is visible
+            useTourStore.getState().startReplay('mobile')
+          }}
+        >
+          {t('tour.help.takeTour')}
+        </button>
+        <button type="button" className="sheet__row" onClick={() => setAboutOpen(true)}>
+          {t('tour.help.about')}
+        </button>
+        <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
+      </MobileSheet>
       </>
     )
   }

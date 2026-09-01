@@ -94,6 +94,10 @@
   --z-sheet: 40;
   --z-mc-dialog: 50;
   --z-pwa-update: 60;
+  /* docs/guided-tour.md §GT4 — the tour layer is above the Canvas / Toolbar /
+     Timeline / run bar / sheets but BELOW ConfirmDialog and every blocking
+     modal (`--z-mc-dialog`) and the PWA bar. */
+  --z-tour: 47;
   /* run bar height used to anchor the Timeline sheet + PWA bar offsets */
   --mob-runbar-h: 52px;
   --mob-topbar-h: 48px;
@@ -1785,7 +1789,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 40;
+  /* above the guided-tour layer (--z-tour); matches the mobile MC-dialog z */
+  z-index: var(--z-mc-dialog);
 }
 .mcdlg {
   width: 340px;
@@ -2860,4 +2865,133 @@ input[type='number']::-webkit-inner-spin-button {
 :lang(ko) .mcdlg__costlabel,
 :lang(ko) .review__field-tag {
   font-size: 11px;
+}
+
+/* ==== Guided first-run tour + Help / About (docs/guided-tour.md) ==========
+   A read-only overlay: scrim + spotlight + popover. Layout-neutral (nothing
+   reflows), no transitions (§GT4 reduced-motion), forced-colors safe. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-tour);
+}
+/* the scrim swallows every background click (§GT4) — a plain full-cover layer */
+.tour-scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface-ground) 55%, transparent);
+}
+/* the spotlight is drawn ON TOP of the scrim, never interactive; the big
+   box-shadow dims everything outside it so the target reads through */
+.tour-spot {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 8px;
+  border: 2px solid var(--signal-primary, #2f6f4f);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--surface-ground) 55%, transparent);
+}
+.tour-popover,
+.tour-card {
+  position: fixed;
+  background: var(--surface-panel);
+  border: 1px solid var(--line-structure);
+  border-radius: var(--radius, 10px);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.45);
+  padding: 14px 16px;
+  color: var(--text-primary);
+}
+.tour-card {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 24px));
+  text-align: left;
+}
+.tour-card__title,
+.tour-popover__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.tour-card__body,
+.tour-popover__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.tour-card__foot,
+.tour-popover__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tour-popover {
+  max-width: calc(100vw - 24px);
+}
+.tour-popover--centred {
+  transform: none;
+}
+.tour-popover__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.tour-popover__pos {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+.tour-popover__x {
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px;
+}
+:lang(ko) .tour-popover__pos {
+  letter-spacing: 0;
+}
+
+/* About dialog — reuses the .mcdlg shell */
+.mcdlg--about {
+  width: min(340px, calc(100vw - 24px));
+}
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.about p {
+  margin: 0;
+}
+.about__version {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.about__copyright {
+  color: var(--text-secondary);
+}
+.about__note {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+@media (forced-colors: active) {
+  .tour-spot {
+    outline: 3px solid CanvasText;
+    border-color: CanvasText;
+  }
+  .tour-popover,
+  .tour-card {
+    border: 1px solid CanvasText;
+  }
 }

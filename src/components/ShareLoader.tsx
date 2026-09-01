@@ -1,6 +1,7 @@
 import { useReactFlow } from '@xyflow/react'
 import { useEffect, useRef } from 'react'
 import { consumeShareLink } from '../store/shareLink'
+import { useTourStore } from '../store/tourStore'
 
 /**
  * Consumes a `#g1=` share link once, on mount (SEMANTICS-U.md §U5). Renders
@@ -18,6 +19,9 @@ export function ShareLoader() {
       if (outcome.kind === 'loaded') {
         fitView({ padding: 0.3, maxZoom: 1.2, duration: 0 })
       }
+      // docs/guided-tour.md §GT6.1 — the boot sequence (incl. a `#g1=` restore)
+      // has settled; the first-run Welcome card may now be considered.
+      useTourStore.getState().markAppSettled()
     })
   }, [fitView])
 

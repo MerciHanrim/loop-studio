@@ -291,6 +291,13 @@ test.describe('portable file://', () => {
   ): Promise<void> {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     const page = await ctx.newPage()
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed') // no first-run card
+      } catch {
+        /* ignore */
+      }
+    })
     await page.goto(`${HTTP}/#g1=${payload}`)
     await page.waitForFunction(() => Boolean((window as any).__loop))
     await page.waitForFunction(() => location.hash === '') // ShareLoader consumed + stripped

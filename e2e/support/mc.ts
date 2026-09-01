@@ -84,6 +84,16 @@ function probeSource(): string {
 /** Install the probe. Call once per page, before navigation. */
 export async function installProbe(page: Page): Promise<void> {
   await page.addInitScript(probeSource())
+  // docs/guided-tour.md — suppress the first-run Welcome card in the portable /
+  // dist specs (they don't import `./support/loop`, so they miss its fixture).
+  await page.addInitScript(() => {
+    try {
+      if (!localStorage.getItem('loop-studio/guided-tour/1'))
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+    } catch {
+      /* opaque origin (file://) — the app guards storage; tour trigger sees null */
+    }
+  })
 }
 
 /**

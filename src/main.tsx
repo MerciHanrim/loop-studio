@@ -17,6 +17,7 @@ import * as revisionIO from './store/revisionIO'
 import { __resetRouteCache, __routeGenCount, currentRouteMap } from './store/routeMap'
 import * as shareLink from './store/shareLink'
 import { useSimStore } from './store/simStore'
+import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
 import * as workspaceIO from './store/workspaceIO'
 
@@ -31,6 +32,7 @@ if (import.meta.env.DEV) {
     pwa: usePwaStore,
     project: useProjectStore,
     review: useReviewStore,
+    tour: useTourStore,
     i18n: useI18n,
     io: workspaceIO,
     revisionIO,

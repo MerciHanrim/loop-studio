@@ -17,6 +17,7 @@ export type Overlay =
   | 'share'
   | 'templates'
   | 'export'
+  | 'help' // docs/guided-tour.md §GT7 — the mobile Help sub-sheet
   | 'inspector' // Slice 3
 
 type UiState = {

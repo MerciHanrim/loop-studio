@@ -50,7 +50,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   }
 
   return (
-    <div className="pstrip" data-placeholder="P2 — chart-header strip">
+    <div className="pstrip" data-placeholder="P2 — chart-header strip" data-tour="playback">
       <div className="pstrip__group">
         <button type="button" className="pb-btn" onClick={reset} title={t('playbar.reset.title')}>
           ⟲
