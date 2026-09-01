@@ -7,4 +7,8 @@ import type { MessageKey } from '../i18n'
 export const TEMPLATE_KEY = {
   equilibrium: { name: 'templates.equilibrium.name', blurb: 'templates.equilibrium.blurb' },
   deadlock: { name: 'templates.deadlock.name', blurb: 'templates.deadlock.blurb' },
+  'mmo-progression': {
+    name: 'templates.mmoProgression.name',
+    blurb: 'templates.mmoProgression.blurb',
+  },
 } satisfies Record<string, { name: MessageKey; blurb: MessageKey }>

@@ -106,4 +106,34 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // 7 — no console errors (support/loop fixture), no failed / cross-origin requests
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
+
+  test('the "Early MMO progression" Template loads its bundled graph + recommended MC config', async ({ page }) => {
+    const { bad } = await openProd(page)
+
+    // Templates ▾ is the first `.menu` in the toolbar actions
+    await page.locator('.toolbar__actions > .menu').first().locator('> button').click()
+    await page
+      .locator('.toolbar__actions > .menu')
+      .first()
+      .locator('.menu__pop [role="menuitem"]', { hasText: 'Early MMO progression' })
+      .click()
+    const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
+    if (await confirm.isVisible().catch(() => false)) await confirm.click()
+
+    // the canonical examples/mmo-progression.json is 92 nodes
+    await expect(page.locator('.react-flow__node')).toHaveCount(92)
+
+    // the file's recommendedRunConfig pre-fills the Monte-Carlo dialog
+    await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()
+    const dlg = page.locator('.mcdlg[aria-labelledby="mcdlg-title"]')
+    await expect(dlg).toBeVisible()
+    const nums = dlg.locator('.mcdlg__field input[type="number"]')
+    await expect(nums.nth(0)).toHaveValue('200')
+    await expect(nums.nth(1)).toHaveValue('150')
+    await expect(nums.nth(2)).toHaveValue('1')
+    await expect(dlg.locator('.mcdlg__foot .btn--primary')).toHaveText('Run 200 runs')
+    await page.keyboard.press('Escape')
+
+    expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
 })

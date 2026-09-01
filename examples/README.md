@@ -12,6 +12,7 @@ Graphs with different jobs:
 | `model-verification.json` | **model-language precision instrument** — a `parameter`, five `register`s (DAG, `/0`, depends-on-invalid, self-cycle) and an advisory `resourceType` mismatch, in one deterministic economy | yes |
 | `model-verification.expected.json` | test oracle for the above — read by `test/model-verification.test.ts` and by a human comparing `R(t)` | **no** (not a graph) |
 | `playback-choreography.json` | **Simulation Playback demo** — one graph that reproduces every choreography cue at once (resource token, `trigger` bead, `activator` settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a 65-edge fan that pushes past the 60-token budget | yes |
+| `mmo-progression.json` | **product demo / Templates entry** — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve | yes (also in **Templates ▾**) |
 
 ---
 
@@ -408,3 +409,100 @@ There is intentionally **no oracle file** and **no `*.test.ts` value check** for
 this graph — its engine behaviour is already covered by the verification
 fixtures above; here the engine is only the thing the display layer must not
 disturb.
+
+---
+
+# 6 — Early MMO progression (levels 1–15)
+
+`mmo-progression.json` is the third **Templates ▾** entry and a connected
+**play-economy** demo — not an XP curve but the whole loop: kill things, turn in
+rewards, level up, buy gear, keep eating, pay to repair. Design:
+[`docs/example-mmo-progression.md`](../docs/example-mmo-progression.md).
+
+It is **generalised** — its own invented numbers and generic labels ("Starter
+encounters", "Sell to vendor", "Repair (bill)"). No World-of-Warcraft names,
+tuning values, or assets; it does not present itself as official or affiliated.
+
+## What it wires
+
+```
+three parallel ZONE LANES — exactly one live at a time (Level activators):
+  Starter 1–5     ·  Foothills 5–10   ·  Highlands 10–15  (also needs Gear score ≥ 6)
+each lane:
+  Encounters Source → Encounter Pool → Combat Gate (probabilistic, 3 branches)
+     ├─ win   → Victory Pool → Win amp Converter → Reward Pool + Combat wins + a loot roll
+     ├─ fail  → shared Setbacks Pool  → Setback cost  (Gear wear, Elapsed time, Combat fails)
+     └─ death → shared Deaths queue   → Death cost    (Deaths, Elapsed time, Gear wear)
+  Loot roll Pool → Loot Gate (probabilistic drop_rate) → shared Drops Pool
+  XP → Level Converter (rising xp_per_level: 10 / 20 / 30) ; a per-step Training gold sink
+
+shared economy:
+  Reward Pool → Reward router (deterministic hunt : quest = 3 : 1)
+     → Hunt / Quest payout Converters → XP (+ XP earned), Gold (+ Gold earned),
+                                        Hunt XP / Quest XP counters
+  Drops Pool → Loot dispatch (tee: Items looted + a sort token)
+     → Loot category Gate (deterministic 34 : 40 : 20 : 6)
+     → Equip / Vendor / Consumable / Rare bucket Pools → four Converters
+        → Items equipped / sold / consumed, Gear score, Gold (+ earned + Vendor revenue),
+          Water / Food (+ bought)
+  Water / Food upkeep Converters → Water / Food consumed
+  Resupply Converter (Gold → Water/Food + bought + Resupply spend), opened by Water < 5
+  Repair: a wear-clearing Converter + a gold-metering Converter, opened by Gear wear > 6
+  Clock Source → Elapsed time  ;  Completion Source → Completion Pool → End (opened by Level ≥ 15)
+  seven reporting Registers (loop-expr/1: + - * / and @id only)
+```
+
+Every "how much total" quantity is a **cumulative counter Pool** a flow only
+adds to. Every balance Pool that is both filled and drained (`Gold`, `Water`,
+`Food`) has paired `… earned|bought` / `… spent|consumed` counters fed the same
+amounts, so these **accounting identities hold to a float epsilon at every
+step** (`src/engine/mmo-progression.test.ts` asserts them across six seeds):
+
+```
+start Gold  + Gold earned  = final Gold + Repair spend + Resupply spend + Training spend
+start Water + Water bought  = final Water + Water consumed
+start Food  + Food bought   = final Food  + Food consumed
+Items looted = Items equipped + Items sold + Items consumed + <held in the loot pipeline>
+```
+
+## Manual check in the app
+
+This file carries a `recommendedRunConfig`, so **Import (or pick it from
+Templates ▾) already fills the Monte Carlo dialog** with `200 × 150, base seed 1`
+and the tracked Pools below.
+
+```
+Templates ▾ → "Early MMO progression (levels 1–15)"   (or Import examples/mmo-progression.json)
+
+Live — seed 1, Play → Level climbs 1 → 5 → 10 → 15; the active lane hands off at
+                      each band boundary; the run ends the step after Level hits 15
+Live — Replay with the same seed → identical run; a different seed ends on a different step
+
+Monte Carlo → dialog is pre-filled: runs 200, steps 150, base seed 1
+  tracked: Elapsed time, Level, Deaths, Combat wins / fails, Water / Food consumed,
+           Items looted / equipped / sold / consumed, Gold earned, Repair / Resupply /
+           Training spend, Gold, Vendor revenue, Gear score, Quest XP, Hunt XP
+  Run → DISTRIBUTION:
+    • ≥ 95 % of runs reach Level 15 inside 150 steps; the median lands ~90–100
+    • Elapsed time (time-to-15) shows a real p10–p90 spread — drop luck and combat
+      variance move it
+    • Gold trends near zero for much of the run (repair + resupply pressure), then
+      loosens; Deaths and Combat fails climb faster in the higher lanes
+  Export ▾ → Runs CSV / JSON
+Reset and Run again with the same config → identical result
+```
+
+`src/engine/mmo-progression.test.ts` builds this graph from
+`src/engine/mmo-progression.fixture.ts`, serialises it, and checks the committed
+file matches. It pins structural invariants (node-kind coverage, six
+probabilistic + two deterministic gates, activator state edges, `loop-expr/1`
+Registers), seed reproducibility, the accounting identities above, and the
+**reach-15 tuning window** (median 60–120 steps, ≥ 95 % inside 150) — **not**
+exact values. There is **no `*.expected.json`**: the tuning numbers may be
+re-picked without a "regression" as long as the identities and the window hold.
+
+## Regenerating
+
+```bash
+GEN_MMO_PROGRESSION=1 npx vitest run src/engine/mmo-progression.test.ts
+```

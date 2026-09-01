@@ -372,6 +372,9 @@ const en = {
   'templates.deadlock.name': 'Bottleneck deadlock',
   'templates.deadlock.blurb':
     'The same system with no outlet on the product pool. It fills to capacity, the gate stalls, the vault backs up, and the source is throttled to zero — a stable frozen state.',
+  'templates.mmoProgression.name': 'Early MMO progression (levels 1–15)',
+  'templates.mmoProgression.blurb':
+    'A connected play economy: three zone lanes (1–5 / 5–10 / 10–15), probabilistic combat with wins, setbacks and deaths, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve. Run it or Monte-Carlo it to see how wide the time-to-15 spreads.',
   'templates.replace.title': 'Replace the current diagram?',
   'templates.replace.body': 'Loading “{name}” replaces what is on the canvas now.',
   'templates.replace.confirm': 'Load template',
