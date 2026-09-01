@@ -384,6 +384,118 @@ test.describe('guided tour — geometry', () => {
   })
 })
 
+// ── 11b — the spotlight ring stays fully on screen (regression) ────────────
+// The Canvas / Inspector / Playback / Timeline targets touch a viewport edge;
+// the highlight border must not be half-clipped there (§GT4 forced-colors).
+test.describe('guided tour — spotlight clamp', () => {
+  // [step index, target selector] for the edge-touching regions of each script
+  const DESKTOP: [number, string][] = [
+    [1, '.canvas'],
+    [2, 'aside.inspector'],
+    [3, '.pstrip'],
+    [4, '.timeline'],
+  ]
+  const MOBILE: [number, string][] = [
+    [1, '.canvas'],
+    [3, '.pstrip--mobile'],
+  ]
+
+  const checkSpotOnScreen = async (page: Page, platform: 'desktop' | 'mobile') => {
+    await page.evaluate(
+      (p) => (window as unknown as Bridge).__loop.tour.getState().startReplay(p),
+      platform,
+    )
+    for (const [step, sel] of platform === 'mobile' ? MOBILE : DESKTOP) {
+      await page.evaluate((s) => {
+        const store = (window as unknown as Bridge).__loop.tour
+        while (store.getState().step < s) store.getState().next()
+        while (store.getState().step > s) store.getState().back()
+      }, step)
+      const spot = page.locator('.tour-spot')
+      await expect(spot).toBeVisible()
+      const box = await spot.evaluate((el) => {
+        const b = el.getBoundingClientRect()
+        return { left: b.left, top: b.top, right: b.right, bottom: b.bottom }
+      })
+      const vw = page.viewportSize()!.width
+      const vh = page.viewportSize()!.height
+      // the whole border line is inside the viewport, on every edge
+      expect(box.left, `${sel} left`).toBeGreaterThanOrEqual(2)
+      expect(box.top, `${sel} top`).toBeGreaterThanOrEqual(2)
+      expect(box.right, `${sel} right`).toBeLessThanOrEqual(vw - 2)
+      expect(box.bottom, `${sel} bottom`).toBeLessThanOrEqual(vh - 2)
+      // …but the ring still covers its target (not moved off it)
+      const tgt = await page.evaluate((s) => {
+        const el = document.querySelector(s)
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
+      }, sel)
+      expect(tgt, `${sel} present`).not.toBeNull()
+      const overlapW = Math.min(box.right, tgt!.right) - Math.max(box.left, tgt!.left)
+      const overlapH = Math.min(box.bottom, tgt!.bottom) - Math.max(box.top, tgt!.top)
+      expect(overlapW, `${sel} overlaps x`).toBeGreaterThan(20)
+      expect(overlapH, `${sel} overlaps y`).toBeGreaterThan(20)
+    }
+    await page.keyboard.press('Escape')
+  }
+
+  test('desktop — ring fully visible on Canvas / Inspector / Playback / Timeline', async ({ page }) => {
+    await seedKey(page, 'completed')
+    await openApp(page)
+    await importGraph(page, G)
+    await checkSpotOnScreen(page, 'desktop')
+  })
+
+  test('390 px — the ring on Canvas + the run bar is fully visible', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await seedKey(page, 'completed')
+    await openApp(page)
+    await importGraph(page, G)
+    await checkSpotOnScreen(page, 'mobile')
+  })
+
+  test('forced-colors — the same, and the ring keeps a non-hue outline', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await seedKey(page, 'completed')
+    await openApp(page)
+    await importGraph(page, G)
+    await checkSpotOnScreen(page, 'desktop')
+    // the spot has an outline under forced-colors (not hue-only)
+    await page.evaluate(() => (window as unknown as Bridge).__loop.tour.getState().startReplay('desktop'))
+    const outline = await page.locator('.tour-spot').evaluate((el) => getComputedStyle(el).outlineStyle)
+    expect(outline).not.toBe('none')
+  })
+
+  test('opening the tour leaves layout / viewport / node boxes unchanged', async ({ page }) => {
+    await seedKey(page, 'completed')
+    await openApp(page)
+    await importGraph(page, G)
+    await expect.poll(() => page.locator('.react-flow__edge path.react-flow__edge-path').count()).toBeGreaterThan(0)
+    const geom = () =>
+      page.evaluate(() => ({
+        toolbar: JSON.stringify(document.querySelector('.toolbar')!.getBoundingClientRect()),
+        canvasTop: Math.round(document.querySelector('.canvas')!.getBoundingClientRect().top),
+        viewport: (window as unknown as Bridge).__loop.rf.getViewport(),
+        nodes: [...document.querySelectorAll('.react-flow__node')].map((n) => {
+          const r = (n as HTMLElement).getBoundingClientRect()
+          return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]
+        }),
+      }))
+    const before = await geom()
+    await page.evaluate(() => {
+      const t = (window as unknown as Bridge).__loop.tour
+      t.getState().startReplay('desktop')
+      for (let i = 0; i < 5; i++) t.getState().next()
+      for (let i = 0; i < 3; i++) t.getState().back()
+    })
+    await expect(page.locator('.tour-popover')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.tour-popover')).toHaveCount(0)
+    expect(await geom()).toEqual(before)
+  })
+})
+
 // ── 12 / 13 — invariance & payload ─────────────────────────────────────────
 test.describe('guided tour — invariance', () => {
   test('walking the whole tour changes no GraphDoc / digest / undo / viewport / SimState', async ({ page }) => {

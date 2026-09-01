@@ -121,6 +121,8 @@ function measure(sel: string): Rect | null {
 
 const MARGIN = 12
 const POP_W = 300
+// keep the 2 px highlight border + the 3 px forced-colors outline on screen
+const SPOT_INSET = 5
 
 function TourPopover() {
   const t = useT()
@@ -187,20 +189,24 @@ function TourPopover() {
     pop = { top: Math.max(MARGIN, vh / 2 - 90), left: clampX(vw / 2 - POP_W / 2) }
   }
 
+  // the highlight ring hugs the target + 4 px, but is CLAMPED so the whole
+  // border line (and its `forced-colors` outline) stays on screen even when the
+  // target touches a viewport edge (Canvas / Inspector / Playback / Timeline).
+  // The ring shrinks near an edge; it is never moved off the target.
+  const spot = rect
+    ? (() => {
+        const left = Math.max(SPOT_INSET, rect.left - 4)
+        const top = Math.max(SPOT_INSET, rect.top - 4)
+        const right = Math.min(vw - SPOT_INSET, rect.left + rect.width + 4)
+        const bottom = Math.min(vh - SPOT_INSET, rect.top + rect.height + 4)
+        return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) }
+      })()
+    : null
+
   return (
     <div className="tour" role="presentation">
       <div className="tour-scrim" />
-      {rect ? (
-        <div
-          className="tour-spot"
-          style={{
-            top: rect.top - 4,
-            left: rect.left - 4,
-            width: rect.width + 8,
-            height: rect.height + 8,
-          }}
-        />
-      ) : null}
+      {spot ? <div className="tour-spot" style={spot} /> : null}
       <div
         ref={ref}
         className={`tour-popover${rect ? '' : ' tour-popover--centred'}`}
