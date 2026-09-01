@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { estimateMonteCarloCost, type CostEstimate } from '../engine'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
@@ -17,7 +17,14 @@ const fmtBytes = (b: number) =>
 export function MonteCarloDialog() {
   const t = useT()
   const open = useMcStore((s) => s.dialogOpen)
-  const close = useMcStore((s) => s.closeDialog)
+  const closeDialog = useMcStore((s) => s.closeDialog)
+  // iOS Safari keeps its focus-zoom until the field is blurred — drop focus (and
+  // dismiss the soft keyboard) before the dialog unmounts so the page returns to
+  // 100% (docs/mobile.md §MV4b). No-op on desktop.
+  const close = useCallback(() => {
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    closeDialog()
+  }, [closeDialog])
   const config = useMcStore((s) => s.config)
   const setConfig = useMcStore((s) => s.setConfig)
   const run = useMcStore((s) => s.run)

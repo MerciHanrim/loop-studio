@@ -291,6 +291,30 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     expect(scrolls).toBe(true)
   })
 
+  test('MC dialog inputs are ≥ 16px (no iOS focus-zoom) and blur on close (§MV4b)', async ({ page }) => {
+    await loadDiagram(page)
+    await runBar(page).getByRole('button', { name: 'Monte Carlo' }).click()
+    const inputs = page.locator('.mcdlg__field input')
+    const n = await inputs.count()
+    expect(n).toBeGreaterThan(0)
+    for (let i = 0; i < n; i++) {
+      const px = await inputs.nth(i).evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+      expect(px, `input ${i} font-size`).toBeGreaterThanOrEqual(16)
+    }
+    // the viewport meta must NOT block accessibility zoom
+    const vp = await page.evaluate(
+      () => document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? '',
+    )
+    expect(vp).not.toMatch(/maximum-scale|user-scalable\s*=\s*no/)
+
+    // focusing a field then dismissing the dialog drops focus (iOS un-zooms)
+    await inputs.first().focus()
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toBe('INPUT')
+    await page.locator('.mcdlg__x').click()
+    await expect(page.locator('.mcdlg')).toBeHidden()
+    expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('INPUT')
+  })
+
   test('Timeline sheet opens and closes', async ({ page }) => {
     await loadDiagram(page)
     await runBar(page).getByRole('button', { name: /^Timeline/ }).click()

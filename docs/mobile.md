@@ -207,6 +207,24 @@ nudge if a browser lags the CSS (translate the bar by
 `window.innerHeight - visualViewport.height - visualViewport.offsetTop` when
 that is positive).
 
+### MV4b. iOS input focus-zoom
+
+iOS Safari **zooms the page in** when a text / number `<input>` whose computed
+`font-size` is **< 16px** receives focus, and does **not** zoom back out when
+the field blurs — the app is left stuck at ~130 %. The Monte-Carlo dialog is the
+only place a mobile user focuses a field (the run bar has no seed / speed
+input), so:
+
+- under the mobile media query, **`.mcdlg__field input` is `font-size: 16px`**
+  — at 16px iOS does not trigger the focus-zoom at all;
+- **`MonteCarloDialog` blurs `document.activeElement` before it closes** (every
+  dismiss path — the ✕, the scrim, `Escape`), which drops focus and dismisses
+  the soft keyboard so the page returns to 100 %.
+
+Pinch / accessibility zoom is **never** blocked — the viewport meta stays
+`width=device-width, initial-scale=1.0, viewport-fit=cover` with no
+`maximum-scale` or `user-scalable=no`.
+
 ## MV5. Timeline & Inspector sheets
 
 Both are bottom sheets. **Shared sheet contract:**
