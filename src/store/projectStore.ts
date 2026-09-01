@@ -167,9 +167,10 @@ type ProjectState = {
       selection?: HunkSelection
     },
   ) => ApplyResult
-  /** a one-time reboot notice (currently: a proposal session that could not be
-   *  restored, §R8 reboot rule), or `null` */
-  bootNotice: string | null
+  /** a one-time reboot notice code (currently only: a proposal session that
+   *  could not be restored, §R8 reboot rule), or `null`. The UI (`BootNotice`)
+   *  maps the code to localized text (`bootNotice.<code>`). */
+  bootNotice: 'proposalReboot' | null
   dismissBootNotice: () => void
   clear: () => void
   /** test/boot seam — swap the open header without touching storage */
@@ -272,14 +273,11 @@ function classifyAgainst(
 
 let planSeq = 0
 
-/** §R8 reboot rule — a `role:"proposal"` session cannot be restored from the
- *  autosave header alone: its provenance (`pinnedBase.content`) is deliberately
- *  NOT persisted (frozen loop-revision/1). On reboot the header is dropped, the
- *  graph is kept as a plain document, and this notice is shown once. */
-export const PROPOSAL_REBOOT_NOTICE =
-  'This session was editing a proposal. The base it was made from is not saved ' +
-  'on this device, so it reopened as a plain graph — your edits are kept. ' +
-  'Re-import the proposal file to review or re-export it.'
+// §R8 reboot rule — a `role:"proposal"` session cannot be restored from the
+// autosave header alone: its provenance (`pinnedBase.content`) is deliberately
+// NOT persisted (frozen loop-revision/1). On reboot the header is dropped, the
+// graph is kept as a plain document, and a one-time notice (`bootNotice:
+// 'proposalReboot'`, rendered by `BootNotice` via `t('bootNotice.…')`) is shown.
 
 export const useProjectStore = create<ProjectState>((set, get) => {
   const rawBoot = bootProjectHeader()
@@ -303,7 +301,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     open,
     dirty,
     activePlanId: null,
-    bootNotice: proposalDropped ? PROPOSAL_REBOOT_NOTICE : null,
+    bootNotice: proposalDropped ? 'proposalReboot' : null,
 
     dismissBootNotice: () => set({ bootNotice: null }),
 

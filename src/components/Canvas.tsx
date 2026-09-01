@@ -46,6 +46,22 @@ export function Canvas() {
   const isMobile = useIsMobile()
   const t = useT()
 
+  // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
+  // nodes / edges, the handle label) — localized via the one config prop
+  // (docs/localization.md Slice 2b). The MiniMap keeps its explicit `ariaLabel`.
+  const ariaLabelConfig = {
+    'controls.ariaLabel': t('rf.controls.label'),
+    'controls.zoomIn.ariaLabel': t('rf.controls.zoomIn'),
+    'controls.zoomOut.ariaLabel': t('rf.controls.zoomOut'),
+    'controls.fitView.ariaLabel': t('rf.controls.fitView'),
+    'controls.interactive.ariaLabel': t('rf.controls.interactive'),
+    'minimap.ariaLabel': t('canvas.minimap'),
+    'handle.ariaLabel': t('rf.handle.label'),
+    'node.a11yDescription.default': t('rf.node.a11y'),
+    'node.a11yDescription.keyboardDisabled': t('rf.node.a11yKeyboard'),
+    'edge.a11yDescription.default': t('rf.edge.a11y'),
+  }
+
   // Dev-only: expose the viewport controls so the browser E2E can set an EXACT,
   // repeatable zoom for the deterministic screenshot matrix. Tree-shaken out of
   // the production / portable build (`import.meta.env.DEV` is statically false).
@@ -127,6 +143,7 @@ export function Canvas() {
         zoomOnDoubleClick={!isMobile}
         deleteKeyCode={isMobile ? null : undefined}
         defaultEdgeOptions={{ type: 'loop' }}
+        ariaLabelConfig={ariaLabelConfig}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
         minZoom={0.2}

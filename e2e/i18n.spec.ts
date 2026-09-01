@@ -355,6 +355,24 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await pickLocale(page, 'en')
     expect(await snapshot(page)).toEqual(before)
   })
+
+  test('Slice 2b-1 chrome — Share button and React Flow controls localize', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+
+    const shareBtn = page.locator('.toolbar__actions button', { hasText: /^Share$/ })
+    const zoomIn = page.locator('.react-flow__controls-zoomin')
+    await expect(shareBtn).toBeVisible()
+    await expect(zoomIn).toHaveAttribute('aria-label', 'Zoom in')
+
+    await pickLocale(page, 'ko')
+    await expect(page.locator('.toolbar__actions button', { hasText: '공유' })).toBeVisible()
+    await expect(zoomIn).toHaveAttribute('aria-label', '확대')
+    await expect(page.locator('.react-flow__controls')).toHaveAttribute('aria-label', '캔버스 컨트롤')
+
+    await pickLocale(page, 'en')
+  })
 })
 
 test.describe('i18n — the language MENU: geometry & baseline', () => {

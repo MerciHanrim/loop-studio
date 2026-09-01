@@ -18,9 +18,10 @@ import {
   exportProjectRevision,
   makeProposal,
 } from '../../ui/revisionActions'
-import { SHARE_DISCLOSURE, prepareShareLink, shareKb } from '../../ui/shareAction'
+import { prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useT } from '../../i18n'
 import { AuthorDialog } from '../AuthorDialog'
+import { ConfirmDialog } from '../ConfirmDialog'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
@@ -54,31 +55,38 @@ export function MobileMoreMenu({
   const projectOpen = useProjectStore((s) => s.open)
 
   const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
+  const [shareConfirm, setShareConfirm] = useState(false)
+  const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
 
-  const onShare = async () => {
-    if (!window.confirm(SHARE_DISCLOSURE)) return
-    const result = await prepareShareLink(exportJSON({ ...useMcStore.getState().config }))
-    if (result.status === 'too-large') {
-      window.alert(
-        `This diagram is too large for a share link (${shareKb(result.bytes)}; limit ${shareKb(result.cap)}). ` +
-          `Use Export → Graph JSON and share the file instead.`,
-      )
-      return
-    }
-    if (result.status === 'no-base') {
-      window.alert('Share is not configured with a public address, so a link cannot be created.')
-      return
-    }
-    let copied = false
+  // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
+  // now. `runShare` (export + link build + clipboard) starts only from Confirm.
+  const runShare = async () => {
+    setShareConfirm(false)
+    if (shareBusy) return
+    setShareBusy(true)
     try {
-      await navigator.clipboard.writeText(result.url)
-      copied = true
-    } catch {
-      copied = false
+      const result = await prepareShareLink(exportJSON({ ...useMcStore.getState().config }))
+      if (result.status === 'too-large') {
+        window.alert(t('share.tooLarge', { size: shareKb(result.bytes), cap: shareKb(result.cap) }))
+        return
+      }
+      if (result.status === 'no-base') {
+        window.alert(t('share.noBase'))
+        return
+      }
+      let copied = false
+      try {
+        await navigator.clipboard.writeText(result.url)
+        copied = true
+      } catch {
+        copied = false
+      }
+      setSharePanel({ url: result.url, copied })
+      openOverlay('share')
+    } finally {
+      setShareBusy(false)
     }
-    setSharePanel({ url: result.url, copied })
-    openOverlay('share')
   }
 
   const pickTemplate = (id: string) => {
@@ -157,13 +165,14 @@ export function MobileMoreMenu({
 
   if (overlay === 'more') {
     return (
+      <>
       <MobileSheet title={t('mobile.more')} onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current}>
         <button
           type="button"
           className="sheet__row sheet__row--first"
-          onClick={() => void onShare()}
+          onClick={() => setShareConfirm(true)}
         >
-          Share link
+          {t('share.panel.label')}
         </button>
         <button
           type="button"
@@ -193,6 +202,16 @@ export function MobileMoreMenu({
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </div>
       </MobileSheet>
+      <ConfirmDialog
+        open={shareConfirm}
+        title={t('share.disclosure.title')}
+        body={t('share.disclosure.body')}
+        confirmLabel={t('share.disclosure.confirm')}
+        onConfirm={runShare}
+        onCancel={() => setShareConfirm(false)}
+        returnFocusTo={() => document.querySelector<HTMLButtonElement>('.sheet__row--first')}
+      />
+      </>
     )
   }
 
@@ -244,7 +263,7 @@ export function MobileMoreMenu({
   if (overlay === 'share' && sharePanel) {
     return (
       <MobileSheet
-        title="Share link"
+        title={t('share.panel.label')}
         onClose={() => {
           setSharePanel(null)
           closeOverlay('share')
@@ -252,7 +271,7 @@ export function MobileMoreMenu({
         returnFocusTo={backToMore}
       >
         <div className="share-pop__status">
-          {sharePanel.copied ? 'Link copied to the clipboard.' : 'Copy this link:'}
+          {sharePanel.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
         </div>
         <input
           className="share-pop__url"

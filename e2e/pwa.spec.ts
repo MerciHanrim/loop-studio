@@ -163,8 +163,9 @@ test('offline: a #g1= share link opens from cache and strips the fragment', asyn
 
   await page.locator('.toolbar__palette .chip--drain').click()
   const distinct = await nodeCount(page)
-  page.once('dialog', (d) => void d.accept())
+  // the §U4 disclosure is an in-app ConfirmDialog now
   await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+  await page.locator('.mcdlg--confirm').getByRole('button', { name: /create link/i }).click()
   const url = await page.locator('.share-pop__url').inputValue()
   const payload = url.split('#g1=')[1]
   expect(payload).toMatch(/^[A-Za-z0-9_-]+$/)
@@ -271,14 +272,37 @@ test('Update with a run in progress asks once more; cancel keeps the run and doe
   await page.locator('.pb-btn--primary', { hasText: 'Play' }).click()
   await expect(page.locator('.pb-btn--primary', { hasText: 'Pause' })).toBeVisible()
 
-  page.once('dialog', (d) => {
-    expect(d.message()).toMatch(/run is in progress/i)
-    void d.dismiss()
-  })
+  // the "run in progress" prompt is an in-app ConfirmDialog now
   await page.locator('.pwa-update button', { hasText: 'Update' }).click()
+  const dlg = page.locator('.mcdlg--confirm')
+  await expect(dlg).toBeVisible()
+  await expect(dlg).toContainText(/run is in progress/i)
+  await dlg.getByRole('button', { name: /^cancel$/i }).click()
+  await expect(dlg).toHaveCount(0)
   await page.waitForTimeout(600)
 
   expect(await page.evaluate(() => (window as unknown as { __sentinel?: boolean }).__sentinel)).toBe(true)
   await expect(page.locator('.pb-btn--primary', { hasText: 'Pause' })).toBeVisible()
   await expect(stamp(page)).toHaveText(base)
+})
+
+test('Update with a run in progress — confirm applies and reloads', async ({ page }) => {
+  await setGen(page, 'a')
+  await installAndControl(page)
+  await page.evaluate(() => ((window as unknown as { __sentinel: boolean }).__sentinel = true))
+  await stageUpdate(page, 'b')
+  await expect(page.locator('.pwa-update')).toBeVisible()
+  await page.locator('.pb-btn--primary', { hasText: 'Play' }).click()
+  await expect(page.locator('.pb-btn--primary', { hasText: 'Pause' })).toBeVisible()
+
+  await page.locator('.pwa-update button', { hasText: 'Update' }).click()
+  const dlg = page.locator('.mcdlg--confirm')
+  await expect(dlg).toBeVisible()
+  await Promise.all([
+    page.waitForEvent('load'),
+    dlg.getByRole('button', { name: /apply and reload|적용하고 다시 로드/i }).click(),
+  ])
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+  // reloaded exactly once (the sentinel is gone)
+  expect(await page.evaluate(() => (window as unknown as { __sentinel?: boolean }).__sentinel)).toBeUndefined()
 })

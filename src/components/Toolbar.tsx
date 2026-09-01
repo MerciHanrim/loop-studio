@@ -84,10 +84,10 @@ export function Toolbar() {
           ]
           if (warnings.length) window.alert(warnings.join('\n'))
         } catch (err) {
-          window.alert(err instanceof Error ? err.message : 'Could not read that file.')
+          window.alert(err instanceof Error ? err.message : t('import.readError'))
         }
       },
-      () => window.alert('Could not read that file.'),
+      () => window.alert(t('import.readError')),
     )
   }
 

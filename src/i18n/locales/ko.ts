@@ -249,6 +249,66 @@ const ko = {
   'error.EXPR_BAD_ESCAPE.message': "{column}열의 “\\” 다음에는 “'}'” 또는 “\\”가 와야 합니다",
   'error.EXPR_NUMBER_RANGE.message': '{column}열의 숫자가 너무 큽니다',
   'error.EXPR_BAD_TOKEN.message': '{column}열에 불필요한 문자가 있습니다',
+
+  // ═══ Slice 2b-1 — 작은 앱 chrome: Share · PWA 바 · 가져오기 · rev chip ═══
+
+  'dialog.cancel': '취소',
+
+  // ── Share (SEMANTICS-U.md §U7) ──
+  'share.button': '공유',
+  'share.button.title': '이 다이어그램을 여는 링크 복사',
+  'share.disclosure.title': '공유 링크를 만들까요?',
+  'share.disclosure.body':
+    '링크에는 모든 이름표를 포함한 이 다이어그램 전체가 담깁니다 — 링크를 가진 사람은 누구나 다이어그램을 열고 편집할 수 있습니다. 서버에 올라가지는 않지만 링크 안에 들어 있어 브라우저 기록에 남고, 보낸 상대 모두가 볼 수 있습니다.',
+  'share.disclosure.confirm': '링크 만들기',
+  'share.tooLarge':
+    '이 다이어그램은 공유 링크로 만들기에 너무 큽니다 ({size}, 한도 {cap}). 대신 Export ▾ → Graph JSON으로 파일을 공유하세요.',
+  'share.noBase': '공유에 공개 주소가 설정되어 있지 않아 링크를 만들 수 없습니다. 신고해 주세요.',
+  'share.panel.label': '공유 링크',
+  'share.panel.copied': '링크를 클립보드에 복사했습니다.',
+  'share.panel.copyThis': '이 링크를 복사하세요:',
+  'share.panel.copyAgain': '다시 복사',
+  'share.panel.copy': '복사',
+  'share.panel.close': '닫기',
+
+  // ── PWA 업데이트 바 (docs/pwa.md §P4.2) ──
+  'pwa.text':
+    'Loop Studio 새 버전이 준비되었습니다. 적용하면 앱이 다시 로드되고 현재 실행과 저장하지 않은 결과가 초기화됩니다. 다이어그램은 저장되어 있습니다.',
+  'pwa.update': '업데이트',
+  'pwa.dismiss': '나중에',
+  'pwa.running.title': '실행이 진행 중입니다',
+  'pwa.running.body': '업데이트를 적용하면 페이지가 다시 로드되고 현재 실행이 끝납니다. 그래도 적용할까요?',
+  'pwa.running.confirm': '적용하고 다시 로드',
+
+  // ── 부팅 알림 (SEMANTICS-R.md §R8) ──
+  'bootNotice.dismiss': '닫기',
+  'bootNotice.proposalReboot':
+    '이 세션은 제안(proposal)을 편집하고 있었습니다. 만들어진 기준(base)이 이 기기에 저장되어 있지 않아 일반 그래프로 다시 열렸습니다 — 편집 내용은 유지됩니다. 검토하거나 다시 내보내려면 제안 파일을 다시 가져오세요.',
+
+  // ── 리비전 칩 (SEMANTICS-R.md §R2 / §R8) ──
+  'revChip.proposal': '제안',
+  'revChip.rev': 'rev {id}',
+  'revChip.title': '프로젝트 {project} · {role} {revision}',
+  'revChip.titleDirty': '프로젝트 {project} · {role} {revision} · 이 리비전 이후 저장하지 않은 변경 있음',
+  'revChip.unsaved': '저장하지 않은 변경',
+
+  // ── 가져오기 교체 흐름 (Toolbar + MobileTopBar) ──
+  'import.replace.title': '현재 다이어그램을 교체할까요?',
+  'import.replace.body': '가져온 파일이 지금 캔버스에 있는 내용을 대체합니다.',
+  'import.replace.confirm': '교체',
+  'import.readError': '파일을 읽을 수 없습니다.',
+
+  // ── React Flow 접근성 (<ReactFlow>의 `ariaLabelConfig`) ──
+  'rf.controls.label': '캔버스 컨트롤',
+  'rf.controls.zoomIn': '확대',
+  'rf.controls.zoomOut': '축소',
+  'rf.controls.fitView': '다이어그램을 화면에 맞추기',
+  'rf.controls.interactive': '캔버스 편집 켜기/끄기',
+  'rf.handle.label': '연결점',
+  'rf.node.a11y': 'Enter나 Space로 이 노드를 선택합니다. Delete로 제거, Escape로 취소합니다.',
+  'rf.node.a11yKeyboard':
+    'Enter나 Space로 이 노드를 선택한 뒤 화살표 키로 이동합니다. Delete로 제거, Escape로 취소합니다.',
+  'rf.edge.a11y': 'Enter나 Space로 이 연결을 선택합니다. Delete로 제거, Escape로 취소합니다.',
 } satisfies MessageCatalog
 
 export default ko

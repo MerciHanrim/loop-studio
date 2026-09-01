@@ -1,4 +1,4 @@
-import type { Dialog, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 
 // SEMANTICS-U.md loop-share/1 — the `Share` button (§U7), the §U3.1 8 KiB hard
@@ -44,6 +44,17 @@ async function freshGoto(page: Page, url: string): Promise<void> {
 
 const shareBtn = (page: Page) => page.locator('.toolbar__actions button', { hasText: /^Share$/ })
 const sharePop = (page: Page) => page.locator('.share-pop')
+
+// §U4 — the disclosure is an in-app ConfirmDialog now (docs/localization.md
+// Slice 2b), not window.confirm. Nothing runs until "Create link" is clicked.
+const disclosure = (page: Page) => page.locator('.mcdlg--confirm')
+async function openShare(page: Page, choice: 'accept' | 'cancel' = 'accept') {
+  await shareBtn(page).click()
+  await expect(disclosure(page)).toBeVisible()
+  await expect(disclosure(page)).toContainText(/anyone with it/i)
+  const name = choice === 'accept' ? /create link|링크 만들기/i : /^cancel$|^취소$/i
+  await disclosure(page).getByRole('button', { name }).click()
+}
 
 // A share link is always built on this fixed public base (vite `define`
 // `__SHARE_BASE_URL__`), never on `location` — so a link made on localhost / a
@@ -96,12 +107,7 @@ test('happy path: disclosure → link copied, shown selectably, address bar unto
   await seedGraph(page)
   const before = await locationParts(page)
 
-  page.once('dialog', (d: Dialog) => {
-    expect(d.type()).toBe('confirm')
-    expect(d.message()).toMatch(/anyone with the link/i)
-    void d.accept()
-  })
-  await shareBtn(page).click()
+  await openShare(page)
 
   await expect(sharePop(page)).toBeVisible()
   await expect(page.locator('.share-pop__status')).toHaveText(/copied/i)
@@ -121,8 +127,7 @@ test('happy path: disclosure → link copied, shown selectably, address bar unto
 
 test('the link base is the production URL even on a non-production host', async ({ page }) => {
   await seedGraph(page)
-  page.once('dialog', (d) => void d.accept())
-  await shareBtn(page).click()
+  await openShare(page)
   const url = await page.locator('.share-pop__url').inputValue()
   expect(url.startsWith(`${SHARE_BASE}#g1=`)).toBe(true)
   expect(url).not.toContain(new URL(page.url()).host) // not the dev host
@@ -133,9 +138,9 @@ test('disclosure cancelled ⇒ nothing: no popover, no clipboard write, no addre
 }) => {
   await seedGraph(page)
   const before = await locationParts(page)
-  page.once('dialog', (d) => void d.dismiss())
-  await shareBtn(page).click()
+  await openShare(page, 'cancel')
   await page.waitForTimeout(200)
+  await expect(disclosure(page)).toHaveCount(0)
   await expect(sharePop(page)).toHaveCount(0)
   expect(await clipWrites(page)).toEqual([])
   expect((await locationParts(page)).href).toBe(before.href)
@@ -144,8 +149,7 @@ test('disclosure cancelled ⇒ nothing: no popover, no clipboard write, no addre
 test('Clipboard API denied ⇒ the link is still shown for manual copy', async ({ page }) => {
   await seedGraph(page)
   await page.evaluate(() => ((window as any).__clipMode = 'fail'))
-  page.once('dialog', (d) => void d.accept())
-  await shareBtn(page).click()
+  await openShare(page)
 
   await expect(sharePop(page)).toBeVisible()
   await expect(page.locator('.share-pop__status')).toHaveText(/copy this link/i)
@@ -161,12 +165,13 @@ test('over 8 KiB ⇒ alert, and NEITHER the clipboard NOR the address bar change
   await page.evaluate(() => ((window as any).__shareMaxBytes = 200)) // DEV seam: tiny cap
   const before = await locationParts(page)
 
+  // the too-large notice stays a native alert (a terminal error, not a confirm)
   const seen: string[] = []
   page.on('dialog', (d) => {
     seen.push(`${d.type()}:${d.message().slice(0, 20)}`)
-    void d.accept() // accept the disclosure AND dismiss-via-accept the alert
+    void d.accept()
   })
-  await shareBtn(page).click()
+  await openShare(page)
   await page.waitForTimeout(300)
 
   expect(seen.some((s) => s.startsWith('alert'))).toBe(true)
@@ -181,8 +186,7 @@ test('round-trip: opening the copied link restores the graph and strips the frag
   await seedGraph(page)
   const expected = await labelsOf(page)
 
-  page.once('dialog', (d) => void d.accept())
-  await shareBtn(page).click()
+  await openShare(page)
   const url = await page.locator('.share-pop__url').inputValue()
 
   // clear persistence so the shared link opens on a pristine boot (no prompt)
@@ -226,8 +230,7 @@ test('a modified session prompts before replacing; Cancel keeps the graph, OK re
   await seedGraph(page)
   const original = await labelsOf(page)
 
-  page.once('dialog', (d) => void d.accept()) // disclosure
-  await shareBtn(page).click()
+  await openShare(page) // the disclosure is an in-app dialog
   const url = await page.locator('.share-pop__url').inputValue()
 
   // diverge the graph so the next boot is NOT pristine, and let the store's
