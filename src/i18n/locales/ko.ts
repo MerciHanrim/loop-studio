@@ -375,6 +375,98 @@ const ko = {
   'author.disclosure':
     '이 이름은 이 기기에만 저장됩니다. 내보내는 모든 Project revision과 제안에 검증 없이 첨부되어 보내는 파일 안에서 함께 이동하므로, 받는 사람 누구나 읽을 수 있습니다. 누구나 편집할 수 있으니 신원이 아니라 이름표로 여기세요.',
   'author.save': '저장',
+
+  // ═══ Slice 2b-2b — 몬테카를로 dialog · 제안 검토 ════════════════════════
+  // UI chrome(제목/버튼/설명/빈 상태/접근성 이름)만. diff hunk 내용, 필드 값,
+  // 통계, 리비전 id는 원문 그대로.
+
+  // ── 몬테카를로 설정 dialog ──
+  'mc.title': '몬테카를로',
+  'mc.close': '닫기',
+  'mc.closeKeepRunning': '닫기 (계속 실행)',
+  'mc.field.runs': '실행 횟수',
+  'mc.field.steps': '단계 수',
+  'mc.field.baseSeed': '기준 시드',
+  'mc.pools.head': '추적 풀',
+  'mc.pools.headAll': '추적 · 모든 풀',
+  'mc.pools.headSome': '추적 · {total}개 중 {n}개',
+  'mc.pools.selectAll': '전체 선택',
+  'mc.pools.none': '그래프에 풀이 없습니다 — 실행하려면 하나 추가하세요.',
+  'mc.pools.group': '추적 풀',
+  'mc.pools.keepOne': '최소 한 개의 풀은 추적을 유지해야 합니다.',
+  'mc.cost.estimating': '추정 중…',
+  'mc.cost.measured': '측정값 (마지막 실행)',
+  'mc.cost.benchmark': '로컬 벤치마크',
+  'mc.cost.execution': '실행 방식',
+  'mc.cost.parallel': '병렬, 워커 {workers}개',
+  'mc.cost.localPause': '로컬 · 잠깐 멈출 수 있음',
+  'mc.cost.local': '로컬',
+  'mc.cost.memory': '메모리',
+  'mc.cost.overLimit': ' — 한도 초과, 실행 횟수 / 단계를 줄이세요',
+  'mc.run': '{runs}회 실행',
+  'mc.cancel': '취소',
+
+  // ── 제안 검토 (SEMANTICS-R.md §R7 / §R7A / §R10.5) ──
+  'review.title': '제안 검토',
+  'review.close': '닫기',
+  'review.byPrefix': '제안자',
+  'review.byAnon': '제안',
+  'review.unverified': '· 미검증',
+  'review.fileSays': '파일 기록: {stamp}',
+  'review.differentProject': '지금 열려 있는 것과 프로젝트 id가 다릅니다.',
+  'review.diff.none': '그래프 변경 없음.',
+  'review.diff.nodes': '노드',
+  'review.diff.edges': '엣지',
+  'review.diff.runConfig': '실행 설정',
+  'review.gate.wrongProject':
+    '이 제안은 다른 프로젝트의 것입니다. 문서로는 열 수 있습니다.',
+  'review.gate.noTarget': '열려 있는 프로젝트가 없습니다. 이 제안을 문서로 열거나 취소하세요.',
+  'review.gate.targetIsProposal':
+    '현재 제안이 열려 있습니다. 다른 제안을 적용하려면 먼저 이 제안을 Project revision으로 내보내세요.',
+  'review.class.exact': '열려 있는 리비전이 이 제안이 만들어진 기준과 정확히 일치합니다.',
+  'review.class.divergent':
+    '열려 있는 리비전에 이 제안과 겹치는 변경이 있습니다. 제안 전체를 적용하면 그 변경이 사라집니다.',
+  'review.class.unknown':
+    '열려 있는 리비전에 변경이 있고, 두 파일의 관계를 증명할 수 없습니다. 필드 충돌은 없습니다.',
+  'review.confirm.default':
+    '이 제안은 이전 리비전에서 만들어졌습니다. 제안 전체를 적용하면 그래프가 제안의 버전으로 대체되어 그 이후의 변경이 사라집니다. 실행 취소로 되돌릴 수 있습니다.',
+  'review.confirm.unknown':
+    '이 제안은 이전 리비전에서 만들어졌고, 두 파일의 관계를 판단할 수 없습니다. 제안 전체를 적용하면 그래프가 제안의 버전으로 대체되어 그 이후의 변경이 사라집니다. 실행 취소로 되돌릴 수 있습니다.',
+  'review.err.targetMoved': '확인한 이후 문서가 바뀌었습니다 — 변경을 검토하고 다시 적용하세요.',
+  'review.err.targetMovedList':
+    '선택하는 동안 문서가 바뀌었습니다 — 아래 목록이 갱신되었습니다. 검토 후 다시 적용하세요.',
+  'review.err.noEffect': '그 선택은 아무것도 바꾸지 않습니다 — 적용할 것이 없습니다.',
+  'review.err.generic': '적용할 수 없음 ({reason}).',
+  'review.fail.wrongProject': '이 제안은 다른 프로젝트의 것입니다.',
+  'review.fail.noTarget': '적용할 대상 프로젝트가 열려 있지 않습니다.',
+  'review.fail.targetIsProposal': '먼저 열린 제안을 Project revision으로 내보내세요.',
+  'review.fail.payloadInvalid': '이 제안 파일이 무결성 검사에 실패했습니다 — 다시 가져오세요.',
+  'review.fail.invalidSelection':
+    '그 선택은 적용할 수 없습니다 — 수락한 엣지에 포함하지 않은 노드가 필요합니다. 선택을 조정한 뒤 다시 시도하세요.',
+  'review.hunk.add': '추가',
+  'review.hunk.remove': '제거',
+  'review.hunk.change': '변경',
+  'review.hunk.bothChanged': ' · 양쪽이 함께 바꿈',
+  'review.hunk.youDeleted': ' · 내가 삭제함',
+  'review.hunk.alsoRemove': '다음 엣지도 제거하거나 다시 연결:',
+  'review.hunk.cantRemove': '제거 불가 — 내가 추가한 엣지',
+  'review.hunk.toThisNode': '— 이 노드로',
+  'review.field.base': '기준',
+  'review.field.yours': '내 것',
+  'review.field.theirs': '상대 것',
+  'review.field.takeTheirs': '상대 것 사용',
+  'review.field.keepMine': '내 것 유지',
+  'review.action.applyAnyway': '무시하고 적용',
+  'review.action.applyProposal': '제안 적용',
+  'review.action.applySelected': '선택한 {count}개 적용',
+  'review.action.chooseChanges': '변경 고르기',
+  'review.action.wholeProposal': '제안 전체',
+  'review.action.openAsDoc': '문서로 열기',
+  'review.action.cancel': '취소',
+  'review.foot.hunks':
+    '대상과 고른 변경을 적용하면 새 로컬 리비전이 만들어집니다 (부모 {parent}). 실행 취소 한 번으로 되돌립니다. 파일에는 아무것도 기록되지 않습니다.',
+  'review.foot.whole':
+    '적용하면 새 로컬 리비전이 만들어집니다 (부모 {parent}). 실행 취소 한 번으로 되돌립니다. 파일에는 아무것도 기록되지 않습니다.',
 } satisfies MessageCatalog
 
 export default ko

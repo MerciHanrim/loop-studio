@@ -373,6 +373,27 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
 
     await pickLocale(page, 'en')
   })
+
+  test('Slice 2b-2b — the Monte Carlo dialog localizes; a locale switch keeps its config', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+
+    await page.locator('.pstrip__mc button').click()
+    const dlg = page.locator('.mcdlg[role="dialog"]')
+    await expect(dlg.locator('#mcdlg-title')).toHaveText('Monte Carlo')
+    const cfg = () => page.evaluate(() => JSON.stringify((window as any).__loop.mc.getState().config))
+    const before = await cfg()
+
+    await page.evaluate(() => (window as any).__loop.i18n.getState().setLocale('ko'))
+    await expect(dlg.locator('#mcdlg-title')).toHaveText('몬테카를로')
+    await expect(dlg.getByRole('button', { name: /회 실행/ })).toBeVisible() // "Run N runs"
+    expect(await cfg()).toBe(before) // opening a dialog + switching locale changed no config
+
+    await page.evaluate(() => (window as any).__loop.i18n.getState().setLocale('en'))
+  })
 })
 
 test.describe('i18n — the language MENU: geometry & baseline', () => {
