@@ -1,10 +1,18 @@
 # Loop Studio
 
-A browser-based editor and simulator for **Machinations-style diagrams** — model a
-game's economy or feedback systems as resources flowing between pools, sources,
-drains, gates, and converters, then run the model to see how it behaves over time.
+Loop Studio is a browser-based **visual systems editor and simulator** for
+resource flows, state changes, probabilistic rules, and feedback loops. It is
+designed primarily for **game economies**, while the same step-based model can
+represent inventory and supply chains, production processes, service queues, cash
+flows, energy systems, and other resource-flow systems. You draw the system as a
+**Machinations-style diagram** — resources moving between pools, sources, drains,
+gates, and converters — then run the model to see how it behaves over time.
 
-**Live app: <https://cozy-loop-studio.pages.dev>**
+Loop Studio currently uses a deterministic, discrete-step simulation model;
+continuous-time equations and spatial physics are not directly supported (see
+[Future directions](#future-directions)).
+
+**Run it now — the live web app: <https://cozy-loop-studio.pages.dev>**
 
 > Status: **working preview** — `v0.8.0-dev`; the last tagged release is
 > **v0.7.0**. The diagram editor and the simulation engine — deterministic,
@@ -41,10 +49,13 @@ drains, gates, and converters, then run the model to see how it behaves over tim
 
 ## Why
 
-Machinations is a well-established notation (Dormans & Adams, *Game Mechanics:
-Advanced Game Design*) and a commercial SaaS. Loop Studio is an independent,
-open, client-only take on the same idea: nothing is uploaded, the whole app runs
-in your browser, and a graph is a plain JSON file you own.
+Game economies are the representative case: Machinations is a well-established
+notation for them (Dormans & Adams, *Game Mechanics: Advanced Game Design*) and
+a commercial SaaS. Loop Studio is an independent, open, client-only take on the
+same idea — nothing is uploaded, the whole app runs in your browser, and a graph
+is a plain JSON file you own — and the notation generalises: a pool that fills
+and drains on probabilistic rules is a warehouse, a queue, or a cash balance
+just as readily as a resource bar.
 
 ## Develop
 
@@ -188,6 +199,16 @@ classification, or apply decision depends on them.
   - ✅ Reproducible demo fixture + QA checklist ([`examples/playback-choreography.json`](examples/README.md)) + `e2e/playback-fixture.spec.ts` + the acceptance matrix (`e2e/playback-*.spec.ts`)
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
+
+## Future directions
+
+Not on a committed schedule — directions the current model could grow toward,
+recorded here so the scope boundary above is explicit rather than implied:
+
+- Continuous-time models and numerical integration
+- Region, grid, or network-based spatial models
+- External-engine integration for specialized physics (rigid-body collision,
+  fluids, particles)
 
 ## Releases
 

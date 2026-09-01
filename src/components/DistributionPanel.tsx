@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
+import { useT } from '../i18n'
 import { BandChart } from './BandChart'
 import { TerminationSparkline } from './TerminationSparkline'
 import {
@@ -30,6 +31,7 @@ function endedPct(r: MonteCarloResult): number {
 }
 
 function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: boolean }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -59,28 +61,28 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
         aria-haspopup="true"
         aria-expanded={open}
         disabled={disabled}
-        title={disabled ? 'Result is stale — re-run to export' : 'Export this run'}
+        title={disabled ? t('dist.export.staleTitle') : t('dist.export.title')}
         onClick={() => setOpen((v) => !v)}
       >
-        Export ▾
+        {t('export.button')}
       </button>
       {open ? (
         <div className="menu__pop menu__pop--up" role="menu">
           <button type="button" className="menu__item" role="menuitem" onClick={() => save('series.csv', toSeriesCsv(result), 'text/csv')}>
-            <span className="menu__name">Series CSV</span>
-            <span className="menu__blurb">per-step p10/p50/p90/mean/min/max</span>
+            <span className="menu__name">{t('dist.export.seriesCsv')}</span>
+            <span className="menu__blurb">{t('dist.export.seriesCsv.blurb')}</span>
           </button>
           <button type="button" className="menu__item" role="menuitem" onClick={() => save('runs.csv', toFinalCsv(result), 'text/csv')}>
-            <span className="menu__name">Runs CSV</span>
-            <span className="menu__blurb">terminal value per run · run, seed, pools</span>
+            <span className="menu__name">{t('dist.export.runsCsv')}</span>
+            <span className="menu__blurb">{t('dist.export.runsCsv.blurb')}</span>
           </button>
           <button type="button" className="menu__item" role="menuitem" onClick={() => save('summary.csv', toFinalSummaryCsv(result), 'text/csv')}>
-            <span className="menu__name">Summary CSV</span>
-            <span className="menu__blurb">final-value summary per pool</span>
+            <span className="menu__name">{t('dist.export.summaryCsv')}</span>
+            <span className="menu__blurb">{t('dist.export.summaryCsv.blurb')}</span>
           </button>
           <button type="button" className="menu__item" role="menuitem" onClick={() => save('result.json', toMonteCarloJson(result), 'application/json')}>
             <span className="menu__name">JSON</span>
-            <span className="menu__blurb">full MonteCarloResult</span>
+            <span className="menu__blurb">{t('dist.export.json.blurb')}</span>
           </button>
         </div>
       ) : null}
@@ -89,6 +91,7 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
 }
 
 export function DistributionPanel() {
+  const t = useT()
   const result = useMcStore((s) => s.result)
   const stale = useMcStore((s) => s.stale)
   if (!result) return null
@@ -97,18 +100,18 @@ export function DistributionPanel() {
     <div className="dist">
       <div className="dist__stats">
         <span className="dist__stat">
-          <b>{result.completedRuns}</b> runs
+          <b>{result.completedRuns}</b> {t('dist.runs')}
         </span>
         <span className="dist__stat">
-          <b>{result.config.steps}</b> steps
+          <b>{result.config.steps}</b> {t('dist.steps')}
         </span>
         <span className="dist__stat">
-          seed <b>{result.config.baseSeed}</b>
+          {t('dist.seed')} <b>{result.config.baseSeed}</b>
         </span>
         <span className="dist__stat">
-          Ended <b>{endedPct(result)}%</b>
+          {t('dist.ended')} <b>{endedPct(result)}%</b>
         </span>
-        {stale ? <span className="dist__stale">stale — graph changed; re-run to refresh</span> : null}
+        {stale ? <span className="dist__stale">{t('dist.stale')}</span> : null}
         <span className="dist__spacer" />
         <ExportMenu result={result} disabled={stale} />
       </div>

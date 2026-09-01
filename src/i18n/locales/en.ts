@@ -116,6 +116,14 @@ const en = {
 
   // ── Canvas ─────────────────────────────────────────────────────────────
   'canvas.minimap': 'Graph minimap',
+  'canvas.route.invalidFlag': 'invalid route — a route point is inside a node',
+  // in-canvas edge-label annotations for a state / playback step
+  'canvas.edgeLabel.clamp': 'clamp',
+  'canvas.edgeLabel.clamp.title': "removed by the target Pool's single end-of-Phase-0 clamp",
+  'canvas.edgeLabel.blocked': 'blocked',
+  'canvas.edgeLabel.blocked.title':
+    'delivered, but the target could not fire (wrong activation, or an activator held it closed)',
+  'canvas.edgeLabel.breakdown.title': "this step's transfers along this edge",
 
   // ── Inspector — shared ────────────────────────────────────────────────
   'inspector.delete': 'Delete',
@@ -281,8 +289,9 @@ const en = {
 
   // ═══ Slice 2b-1 — small app chrome: Share · PWA bar · import · rev chip ═══
 
-  // ── shared confirm dialog ──────────────────────────────────────────────
+  // ── shared dialog / sheet chrome ──────────────────────────────────────
   'dialog.cancel': 'Cancel',
+  'dialog.close': 'Close',
 
   // ── Share (SEMANTICS-U.md §U7) — the disclosure is now an in-app dialog;
   //    the link build + clipboard write run inside the Confirm click (§U4) ──
@@ -479,6 +488,7 @@ const en = {
   'review.fail.payloadInvalid': 'This proposal file failed its integrity check — re-import it.',
   'review.fail.invalidSelection':
     "That selection can't be applied — an accepted edge needs a node you didn't include. Adjust the choices and try again.",
+  'review.hunks.none': 'Nothing new to apply — the target already matches.',
   'review.hunk.add': 'Add',
   'review.hunk.remove': 'Remove',
   'review.hunk.change': 'Change',
@@ -503,6 +513,39 @@ const en = {
     'Applies the target plus the changes you pick makes a new local revision (parent {parent}); one Undo reverts it. Nothing is written to a file.',
   'review.foot.whole':
     'Apply makes a new local revision (parent {parent}); one Undo reverts it. Nothing is written to a file.',
+
+  // ═══ Slice 3 — inventory mop-up: distribution view · open-file hint ═════
+
+  // ── Distribution panel (the Monte-Carlo result view) ────────────────
+  'dist.runs': 'runs',
+  'dist.steps': 'steps',
+  'dist.seed': 'seed',
+  'dist.ended': 'Ended',
+  'dist.stale': 'stale — graph changed; re-run to refresh',
+  'dist.export.staleTitle': 'Result is stale — re-run to export',
+  'dist.export.title': 'Export this run',
+  'dist.export.seriesCsv': 'Series CSV',
+  'dist.export.seriesCsv.blurb': 'per-step p10/p50/p90/mean/min/max',
+  'dist.export.runsCsv': 'Runs CSV',
+  'dist.export.runsCsv.blurb': 'terminal value per run · run, seed, pools',
+  'dist.export.summaryCsv': 'Summary CSV',
+  'dist.export.summaryCsv.blurb': 'final-value summary per pool',
+  'dist.export.json.blurb': 'full MonteCarloResult',
+
+  // ── Termination sparkline ──────────────────────────────────────────
+  'term.title': 'termination',
+  'term.ended': 'ended',
+  'term.noRuns': 'No runs ended',
+
+  // ── Band chart ────────────────────────────────────────────────────
+  'band.pool': 'Pool',
+  'band.mean': 'mean',
+
+  // ── Mobile "open a file" first-run hint (§MV6) ─────────────────────
+  'openhint.title': 'No account sync',
+  'openhint.body': 'Open a saved file or a Share link to view it here.',
+  'openhint.button': 'Open a file',
+  'openhint.sub': 'Export Graph JSON or Workspace JSON on desktop, or open a #g1= Share link.',
 } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */

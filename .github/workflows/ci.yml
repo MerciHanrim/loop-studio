@@ -40,6 +40,8 @@ jobs:
         run: npm run check:mobile-query
       - name: i18n catalogs — registry-wide key + ICU integrity
         run: npm run check:i18n
+      - name: i18n surface — no untranslated user-facing string in a component
+        run: npm run check:i18n-surface
       - name: Web build
         run: npm run build
       - name: Portable build

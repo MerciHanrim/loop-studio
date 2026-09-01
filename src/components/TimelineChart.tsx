@@ -523,7 +523,7 @@ export function TimelineChart() {
           <button
             type="button"
             className="sheet__x"
-            aria-label="Close"
+            aria-label={t('dialog.close')}
             onClick={() => closeOverlay('timeline')}
           >
             ✕

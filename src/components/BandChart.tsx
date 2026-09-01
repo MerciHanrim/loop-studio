@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MonteCarloResult } from '../engine'
 import { useMcStore } from '../store/mcStore'
+import { useT } from '../i18n'
 
 // P2 band chart — one Pool. Low-opacity p10–p90 area (data, not decoration),
 // a 1.5px p50 Track, a Bead at the last point, and an optional 4-4 dashed mean.
@@ -21,6 +22,7 @@ function niceCeil(v: number): number {
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
 export function BandChart({ result }: { result: MonteCarloResult }) {
+  const t = useT()
   const pools = result.pools
   // selection lives in the store so a Workspace file can save / restore it
   const storedPoolId = useMcStore((s) => s.distributionPoolId)
@@ -112,7 +114,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
             className="band__pool"
             value={poolId}
             onChange={(e) => setPoolId(e.target.value)}
-            aria-label="Pool"
+            aria-label={t('band.pool')}
           >
             {pools.map((p) => (
               <option key={p.id} value={p.id}>
@@ -133,7 +135,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
           onClick={() => setShowMean(!showMean)}
           aria-pressed={showMean}
         >
-          mean
+          {t('band.mean')}
         </button>
       </div>
 
@@ -150,7 +152,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
             </g>
           ))}
           <text className="band__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
-            step {steps}
+            {t('timeline.axis.step', { n: steps })}
           </text>
 
           <path className="band__area" d={view.area} />

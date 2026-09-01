@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MonteCarloResult } from '../engine'
+import { useT } from '../i18n'
 
 // P2 — cumulative termination rate for the whole run set (not per Pool).
 // X = step, Y = runs ended at-or-before that step / completedRuns. Same Track
@@ -55,6 +56,7 @@ export function buildTermChart(
 }
 
 export function TerminationSparkline({ result }: { result: MonteCarloResult }) {
+  const t = useT()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<Size>({ w: 720, h: 34 })
 
@@ -85,9 +87,9 @@ export function TerminationSparkline({ result }: { result: MonteCarloResult }) {
   return (
     <div className="term">
       <div className="term__cap">
-        <span>termination</span>
+        <span>{t('term.title')}</span>
         <span className="term__pct">
-          <b>{pct}%</b> ended
+          <b>{pct}%</b> {t('term.ended')}
         </span>
       </div>
       <div className="term__plot" ref={wrapRef}>
@@ -103,7 +105,7 @@ export function TerminationSparkline({ result }: { result: MonteCarloResult }) {
             100%
           </text>
           <text className="term__tick" x={w - PAD.r} y={h - 3} textAnchor="end">
-            step {steps}
+            {t('timeline.axis.step', { n: steps })}
           </text>
 
           {chart.anyEnded ? (
@@ -113,7 +115,7 @@ export function TerminationSparkline({ result }: { result: MonteCarloResult }) {
             </>
           ) : (
             <text className="term__empty" x={(PAD.l + w - PAD.r) / 2} y={(PAD.t + h - PAD.b) / 2 + 3} textAnchor="middle">
-              No runs ended
+              {t('term.noRuns')}
             </text>
           )}
         </svg>
