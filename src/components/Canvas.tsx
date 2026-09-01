@@ -4,6 +4,7 @@ import { Background, Controls, MiniMap, ReactFlow, useReactFlow, useStore } from
 import { useGraphStore } from '../store/graphStore'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useIsMobile } from '../ui/media'
+import { useT } from '../i18n'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 import { EdgeMarkers } from './edges/EdgeMarkers'
@@ -43,6 +44,7 @@ export function Canvas() {
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
   const isMobile = useIsMobile()
+  const t = useT()
 
   // Dev-only: expose the viewport controls so the browser E2E can set an EXACT,
   // repeatable zoom for the deterministic screenshot matrix. Tree-shaken out of
@@ -138,7 +140,7 @@ export function Canvas() {
           <MiniMap
             pannable
             zoomable
-            ariaLabel="Graph minimap"
+            ariaLabel={t('canvas.minimap')}
             nodeColor={(n) => MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)'}
             nodeStrokeColor="var(--line-strong)"
             nodeStrokeWidth={2}

@@ -11,6 +11,7 @@ import { formatRegisterValue, readParameterData, readRegisterData } from '../../
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
+import { useT } from '../../i18n'
 import type {
   ConverterData,
   DrainData,
@@ -96,6 +97,7 @@ function NodeFrame({
   invalid,
   stepKey,
 }: FrameProps) {
+  const tip = useT()
   const lod = useLod()
   const mapOnly = lod === 'L0' // no text at all — silhouette + type dot
   // per-direction: is a state edge already wired to this node's in / out port?
@@ -201,7 +203,7 @@ function NodeFrame({
 
       {/* §VL4 — one persistent flag, top-right, non-colour tell for `invalid` */}
       {invalid ? (
-        <span className="nodef__flag" aria-hidden="true" title="This node is invalid">
+        <span className="nodef__flag" aria-hidden="true" title={tip('node.invalidFlag')}>
           !
         </span>
       ) : null}
@@ -363,13 +365,14 @@ function UnreadableModelNode({
   kind: 'parameter' | 'register'
   selected?: boolean
 }) {
+  const t = useT()
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
     <NodeFrame
       nodeId={id}
       kind={kind}
-      title={`unreadable ${kind}`}
-      sub="data cannot be read — fix it in the file"
+      title={t('node.unreadable.title', { kind })}
+      sub={t('node.unreadable.sub')}
       selected={selected}
       invalid
       stepKey={stepKey}

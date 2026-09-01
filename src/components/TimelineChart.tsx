@@ -6,6 +6,7 @@ import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { selectOverlay, useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
+import { useT } from '../i18n'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 
@@ -55,6 +56,7 @@ function downloadCsv(pools: { id: string; label: string }[], series: { step: num
 }
 
 export function TimelineChart() {
+  const t = useT()
   const [collapsed, setCollapsed] = useState(false)
   const plotRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 760, h: 116 })
@@ -288,7 +290,7 @@ export function TimelineChart() {
                   className={`timeline__viewtab${!showDistribution ? ' is-on' : ''}`}
                   onClick={() => setMcView('live')}
                 >
-                  LIVE
+                  {t('timeline.view.live')}
                 </button>
                 <button
                   type="button"
@@ -297,11 +299,11 @@ export function TimelineChart() {
                   className={`timeline__viewtab${showDistribution ? ' is-on' : ''}`}
                   onClick={() => setMcView('distribution')}
                 >
-                  DISTRIBUTION
+                  {t('timeline.view.distribution')}
                 </button>
               </span>
             ) : (
-              <span>timeline</span>
+              <span>{t('timeline.title')}</span>
             )}
             <span className="timeline__legend" hidden={showDistribution}>
               {pools.map((p) => {
@@ -313,7 +315,7 @@ export function TimelineChart() {
                     type="button"
                     className={`timeline__key${on ? '' : ' is-off'}`}
                     onClick={() => toggleTracked(p.id, allPoolIds)}
-                    title={on ? `Hide ${p.label}` : `Show ${p.label}`}
+                    title={on ? t('timeline.legend.hide', { label: p.label }) : t('timeline.legend.show', { label: p.label })}
                   >
                     <span className="timeline__mark" style={{ background: p.color }} />
                     {p.label} {fmt(last)}
@@ -323,7 +325,7 @@ export function TimelineChart() {
               {registers.map((r) => {
                 const cur = currentOutcomes.get(r.id)
                 return (
-                  <span key={r.id} className="timeline__key timeline__key--register" title={`Register ${r.label}`}>
+                  <span key={r.id} className="timeline__key timeline__key--register" title={t('timeline.legend.register', { label: r.label })}>
                     <span className="timeline__mark" style={{ background: r.color }} />
                     {r.label}{' '}
                     {cur && !cur.invalid ? formatRegisterValue(cur.value) : cur ? '—' : '·'}
@@ -335,9 +337,9 @@ export function TimelineChart() {
                 className="timeline__csv"
                 disabled={!hasRun}
                 onClick={() => downloadCsv(pools, series)}
-                title="Download the run as CSV"
+                title={t('timeline.csvTitle')}
               >
-                CSV
+                {t('timeline.csv')}
               </button>
             </span>
           </div>
@@ -378,11 +380,11 @@ export function TimelineChart() {
                 <>
                   {view.minStep > 0 ? (
                     <text className="timeline__tick" x={PAD.l} y={h - 6} textAnchor="start">
-                      step {view.minStep}
+                      {t('timeline.axis.step', { n: view.minStep })}
                     </text>
                   ) : null}
                   <text className="timeline__tick" x={w - PAD.r} y={h - 6} textAnchor="end">
-                    step {view.maxStep}
+                    {t('timeline.axis.step', { n: view.maxStep })}
                   </text>
                 </>
               ) : null}
@@ -515,9 +517,9 @@ export function TimelineChart() {
   if (isMobile) {
     if (overlay !== 'timeline') return null
     return (
-      <div className="timeline timeline--sheet" role="dialog" aria-label="Timeline">
+      <div className="timeline timeline--sheet" role="dialog" aria-label={t('timeline.sheetTitle')}>
         <div className="sheet__head">
-          <span className="sheet__title">Timeline</span>
+          <span className="sheet__title">{t('timeline.sheetTitle')}</span>
           <button
             type="button"
             className="sheet__x"

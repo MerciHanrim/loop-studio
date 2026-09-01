@@ -146,6 +146,156 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
   })
 })
 
+test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)', () => {
+  test('the palette tip has three separate lines, is aria-describedby-linked, and localizes', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+
+    const chip = page.locator('.palette-item .chip--source')
+    const tip = page.locator('#palette-tip-source')
+    await expect(chip).toHaveAttribute('aria-describedby', 'palette-tip-source')
+    // three DISTINCT element lines — never one concatenated string
+    await expect(tip.locator('.palette-tip__name')).toHaveText('Source')
+    await expect(tip.locator('.palette-tip__desc')).toHaveCount(1)
+    await expect(tip.locator('.palette-tip__how')).toHaveText('Click, or drag onto the canvas, to add one.')
+    // the button's accessible name stays the short name
+    await expect(chip).toHaveAccessibleName('Source')
+
+    await pickLocale(page, 'ko')
+    await expect(tip.locator('.palette-tip__name')).toHaveText('소스')
+    await expect(tip.locator('.palette-tip__how')).toHaveText('클릭하거나 캔버스로 끌어다 놓아 추가하세요.')
+    await expect(chip).toHaveAccessibleName('소스')
+  })
+
+  test('showing a palette tip (hover / focus) moves no Toolbar height, viewport, node box, or edge d', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+
+    const geom = () =>
+      page.evaluate(() => {
+        const tb = document.querySelector('.toolbar') as HTMLElement
+        const boxes = [...document.querySelectorAll('.react-flow__node')].map((n) => {
+          const r = (n as HTMLElement).getBoundingClientRect()
+          return [n.getAttribute('data-id'), Math.round(r.width), Math.round(r.height)]
+        })
+        return {
+          toolbarH: Math.round((tb?.getBoundingClientRect().height ?? 0) * 10) / 10,
+          viewport: (window as any).__loop.rf.getViewport(),
+          boxes: JSON.stringify(boxes),
+          d: [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')].map((p) => p.getAttribute('d')),
+        }
+      })
+
+    await expect
+      .poll(async () => {
+        const g = await geom()
+        return g.d.every(Boolean)
+      })
+      .toBe(true)
+    const before = await geom()
+
+    // keyboard focus surfaces the tip (:focus-within); hover surfaces it too
+    await page.locator('.palette-item .chip--gate').focus()
+    await expect(page.locator('#palette-tip-gate')).toBeVisible()
+    await page.locator('.palette-item .chip--register').hover()
+    await expect(page.locator('#palette-tip-register')).toBeVisible()
+
+    expect(await geom()).toEqual(before)
+  })
+
+  test('Inspector chrome localizes; the node/edge model data does not', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+    await pickLocale(page, 'ko')
+
+    // select the source node through the store bridge
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection('src', null))
+    const insp = page.locator('aside.inspector')
+    await expect(insp.locator('.field__label').first()).toHaveText('이름') // "Label"
+    await expect(insp.getByRole('button', { name: '삭제' })).toBeVisible() // "Delete"
+    // the user's label value is still the English default it was created with
+    await expect(insp.locator('.field input').first()).toHaveValue('S')
+    // the kind chip is a raw enum token — shown verbatim
+    await expect(insp.locator('.inspector__kind')).toHaveText('source')
+  })
+
+  test('a register diagnostic shows the stable CODE verbatim + a localized message', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate(() => {
+      const g = (window as any).__loop.graph.getState()
+      // structurally readable expr, but it evaluates invalid ⇒ M_REG_EVAL
+      g.loadJSON(
+        JSON.stringify({
+          schema: 'loop-studio/graph',
+          version: 1,
+          nodes: [
+            { id: 'r1', type: 'register', position: { x: 0, y: 0 }, data: { kind: 'register', label: 'R', expr: '1 / 0' } },
+          ],
+          edges: [],
+        }),
+      )
+      g.setSelection('r1', null)
+    })
+    await pickLocale(page, 'ko')
+    const note = page.locator('aside.inspector .inspector__note--warn').first()
+    await expect(note).toContainText('M_REG_EVAL') // code — never translated
+    await expect(note).toContainText('오류로 평가됩니다') // message — localized
+    await expect(note).toContainText('단계에서 값 없음') // frame — localized
+  })
+
+  test('Timeline chrome localizes; the EN axis text stays "step N"', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+
+    await expect(page.locator('.timeline__head')).toContainText('timeline')
+    await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      s.advance()
+      s.advance()
+    })
+    const enTicks = await page.evaluate(() =>
+      [...document.querySelectorAll('.timeline__svg .timeline__tick')]
+        .map((s) => (s.textContent ?? '').trim())
+        .filter((s) => s.startsWith('step ')),
+    )
+    expect(enTicks.length).toBeGreaterThan(0) // EN axis unchanged — "step N"
+
+    await pickLocale(page, 'ko')
+    await expect(page.locator('.timeline__head')).toContainText('타임라인')
+    const koTicks = await page.evaluate(() =>
+      [...document.querySelectorAll('.timeline__svg .timeline__tick')]
+        .map((s) => (s.textContent ?? '').trim())
+        .filter((s) => /단계$/.test(s)),
+    )
+    expect(koTicks.length).toBeGreaterThan(0) // KO axis — "N단계"
+  })
+
+  test('a locale round-trip with a model graph + Inspector open moves nothing document-owned', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+    await page.evaluate(() => {
+      const s = (window as any).__loop.sim.getState()
+      s.advance()
+      s.advance()
+      ;(window as any).__loop.graph.getState().setSelection('pool', null)
+    })
+    const before = await snapshot(page)
+    for (const code of ['ko', 'en', 'ko', 'en']) await pickLocale(page, code)
+    expect(await snapshot(page)).toEqual(before)
+  })
+})
+
 test.describe('i18n — the language MENU: geometry & baseline', () => {
   test('opening / using the menu changes no Toolbar height, viewport, node box, or edge d', async ({ page }) => {
     await openApp(page)

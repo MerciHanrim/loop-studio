@@ -20,16 +20,19 @@ import { ThemeToggle } from './ThemeToggle'
 const DND_TYPE = 'application/loop-node'
 
 // The palette BUTTON label is chrome (keyed); a click still creates a node with
-// the locale-independent `defaultData()` label (docs/localization.md §L3.4).
-const PALETTE: { kind: NodeKind; labelKey: MessageKey; glyph: string }[] = [
-  { kind: 'pool', labelKey: 'toolbar.node.pool', glyph: '◉' },
-  { kind: 'source', labelKey: 'toolbar.node.source', glyph: '＋' },
-  { kind: 'drain', labelKey: 'toolbar.node.drain', glyph: '－' },
-  { kind: 'gate', labelKey: 'toolbar.node.gate', glyph: '◇' },
-  { kind: 'converter', labelKey: 'toolbar.node.converter', glyph: '⇄' },
-  { kind: 'end', labelKey: 'toolbar.node.end', glyph: '⊗' },
-  { kind: 'parameter', labelKey: 'toolbar.node.parameter', glyph: '▭' },
-  { kind: 'register', labelKey: 'toolbar.node.register', glyph: '＝' },
+// the locale-independent `defaultData()` label (docs/localization.md §L3.4). The
+// tip has three keyed layers — `.name` (also the button's accessible name),
+// `.description` (semantic, matched to SEMANTICS-*), `palette.addAction` — each
+// on its OWN DOM line, never concatenated (§L13 / Slice 2a).
+const PALETTE: { kind: NodeKind; nameKey: MessageKey; descKey: MessageKey; glyph: string }[] = [
+  { kind: 'pool', nameKey: 'palette.pool.name', descKey: 'palette.pool.description', glyph: '◉' },
+  { kind: 'source', nameKey: 'palette.source.name', descKey: 'palette.source.description', glyph: '＋' },
+  { kind: 'drain', nameKey: 'palette.drain.name', descKey: 'palette.drain.description', glyph: '－' },
+  { kind: 'gate', nameKey: 'palette.gate.name', descKey: 'palette.gate.description', glyph: '◇' },
+  { kind: 'converter', nameKey: 'palette.converter.name', descKey: 'palette.converter.description', glyph: '⇄' },
+  { kind: 'end', nameKey: 'palette.end.name', descKey: 'palette.end.description', glyph: '⊗' },
+  { kind: 'parameter', nameKey: 'palette.parameter.name', descKey: 'palette.parameter.description', glyph: '▭' },
+  { kind: 'register', nameKey: 'palette.register.name', descKey: 'palette.register.description', glyph: '＝' },
 ]
 
 export function Toolbar() {
@@ -111,18 +114,29 @@ export function Toolbar() {
 
       <div className="toolbar__palette">
         {PALETTE.map((p) => (
-          <button
-            key={p.kind}
-            type="button"
-            className={`chip chip--${p.kind}`}
-            draggable
-            onDragStart={(e) => onDragStart(e, p.kind)}
-            onClick={() => addCentered(p.kind)}
-            title={t('toolbar.node.addTitle', { name: t(p.labelKey) })}
-          >
-            <span className="chip__glyph">{p.glyph}</span>
-            {t(p.labelKey)}
-          </button>
+          <span key={p.kind} className="palette-item">
+            <button
+              type="button"
+              className={`chip chip--${p.kind}`}
+              draggable
+              onDragStart={(e) => onDragStart(e, p.kind)}
+              onClick={() => addCentered(p.kind)}
+              aria-describedby={`palette-tip-${p.kind}`}
+            >
+              <span className="chip__glyph" aria-hidden="true">
+                {p.glyph}
+              </span>
+              {t(p.nameKey)}
+            </button>
+            {/* overlay tip — three separate lines, absolutely positioned so the
+                Toolbar height and Canvas geometry never change (§L13). Shown on
+                hover AND keyboard focus via `.palette-item:hover / :focus-within`. */}
+            <span className="palette-tip" role="tooltip" id={`palette-tip-${p.kind}`}>
+              <span className="palette-tip__name">{t(p.nameKey)}</span>
+              <span className="palette-tip__desc">{t(p.descKey)}</span>
+              <span className="palette-tip__how">{t('palette.addAction')}</span>
+            </span>
+          </span>
         ))}
       </div>
 
