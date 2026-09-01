@@ -16,7 +16,12 @@ const ALT_ORIGIN = 'http://127.0.0.1:4174' // reaches the same content, NOT an a
 // scoped so the second page some tests open (`context.newPage()`) is covered.
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
-    ;(window as unknown as { __noFirstRunTour: boolean }).__noFirstRunTour = true
+    try {
+      if (!localStorage.getItem('loop-studio/guided-tour/1'))
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+    } catch {
+      /* ignore */
+    }
   })
 })
 

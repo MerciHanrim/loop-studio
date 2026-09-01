@@ -4,30 +4,22 @@ import { create } from 'zustand'
 // nothing it does is serialized, digested, undone, or seen by the engine
 // (§GT4 / §GT12). Its only persistent trace is one localStorage string (§GT6).
 
-/** §GT6 — the one UI-only key. `completed | dismissed` both suppress the
- *  auto Welcome card equally (§GT6, §GT10). Namespaced like the ui-locale key. */
+/** §GT6 — the one UI-only key. **Only** `completed | dismissed` are honoured;
+ *  both suppress the auto Welcome card equally (§GT6, §GT10). Namespaced like
+ *  the ui-locale key. */
 export const TOUR_STORAGE_KEY = 'loop-studio/guided-tour/1'
 export type TourStored = 'completed' | 'dismissed'
 
-/** The recognised stored value, or null (absent, unrecognised, or a read that
- *  threw — §GT6.3). Used for reporting; the Welcome-card gate uses `isTourKeySet`. */
+/** The recognised stored value, or `null`. `null` covers **all** of: absent, an
+ *  unrecognised / corrupt string, and a read that threw (§GT6.3). A corrupt
+ *  value must NOT lock the user out of the tour — it is treated as absent, and
+ *  the in-memory `offeredThisSession` flag alone caps the card to once. */
 export function readTourKey(): TourStored | null {
   try {
     const v = localStorage.getItem(TOUR_STORAGE_KEY)
     return v === 'completed' || v === 'dismissed' ? v : null
   } catch {
     return null
-  }
-}
-
-/** §GT6 / §GT6.4 — ANY stored value (recognised OR corrupt) suppresses the auto
- *  Welcome card and is left in place. A read that throws (§GT6.3) counts as
- *  "not set" so the card may still be offered (once per session). */
-export function isTourKeySet(): boolean {
-  try {
-    return localStorage.getItem(TOUR_STORAGE_KEY) != null
-  } catch {
-    return false
   }
 }
 function writeTourKey(v: TourStored): void {
@@ -93,11 +85,8 @@ export const useTourStore = create<TourState>((set, get) => ({
   offerWelcome: () => {
     if (offeredThisSession) return false
     if (get().phase !== 'idle') return false
-    if (isTourKeySet()) {
-      offeredThisSession = true // never nag again this session either
-      return false
-    }
-    offeredThisSession = true
+    offeredThisSession = true // once per session, whatever happens next
+    if (readTourKey() != null) return false // a recognised value already decided
     set({ phase: 'welcome', step: 0, replay: false })
     return true
   },

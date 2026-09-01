@@ -28,18 +28,13 @@ const G = JSON.stringify({
   edges: [{ id: 'e', type: 'loop', source: 'src', target: 'pool', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '2' } }],
 })
 
-/** enable the first-run trigger for this spec (clears the support fixture's
- *  `__noFirstRunTour` flag), and seed the tour key before the FIRST app boot.
- *  Registered after `_tourSeed`, so it wins. A `sessionStorage` sentinel makes
- *  the key seed one-shot: a later `page.reload()` keeps what the tour wrote. */
+/** seed the tour key before the FIRST app boot, overriding the support
+ *  fixture's `dismissed` (this page-level init script is registered later, so it
+ *  wins). A `sessionStorage` sentinel makes it a one-shot: a later
+ *  `page.reload()` keeps whatever the tour just wrote. `null` = first-run state. */
 const seedKey = (page: Page, v: 'completed' | 'dismissed' | 'garbage' | null) =>
   page.addInitScript(
     ([k, val]) => {
-      try {
-        delete (window as unknown as { __noFirstRunTour?: boolean }).__noFirstRunTour
-      } catch {
-        /* ignore */
-      }
       try {
         if (sessionStorage.getItem('__tour_seeded')) return
         sessionStorage.setItem('__tour_seeded', '1')
@@ -115,6 +110,17 @@ test.describe('guided tour — first run', () => {
       await expect(popover(page)).toHaveCount(0)
     })
   }
+
+  test('a corrupt stored value ⇒ treated as absent (card shown), and left untouched', async ({
+    page,
+  }) => {
+    await seedKey(page, 'garbage') // an unrecognised string
+    await openApp(page)
+    await expect(welcome(page)).toBeVisible() // §GT6 — a bad value must not lock the tour out
+    expect(await storedKey(page)).toBe('garbage') // never rewritten before an explicit choice
+    await welcome(page).getByRole('button', { name: /Skip|건너뛰기/ }).click()
+    expect(await storedKey(page)).toBe('dismissed') // now a real choice is recorded
+  })
 
   test('Skip, then reload ⇒ the card does not return (key = dismissed)', async ({ page }) => {
     await seedKey(page, null)
@@ -259,18 +265,43 @@ test.describe('guided tour — locale mid-tour', () => {
   })
 })
 
-// ── 8 — display priority ───────────────────────────────────────────────────
+// ── 8 — display priority: a busy visit skips the card ENTIRELY (§GT6.1) ─────
 test.describe('guided tour — display priority (§GT6.1)', () => {
-  test('the Welcome card waits behind a ConfirmDialog, then appears', async ({ page }) => {
+  test('a dialog up when the check runs ⇒ no card this visit, and none later; a clean reload shows it', async ({
+    page,
+  }) => {
     await seedKey(page, null)
+    // bring a dialog up the instant the store bridge exists — before the
+    // one-shot first-run check runs. ONE-SHOT (sentinel) so the later reload is
+    // a genuinely clean visit.
+    await page.addInitScript(() => {
+      if (sessionStorage.getItem('__mcOpenedOnce')) return
+      const iv = setInterval(() => {
+        const l = (window as unknown as { __loop?: { mc?: { getState: () => { openDialog: () => void } } } }).__loop
+        if (l?.mc) {
+          sessionStorage.setItem('__mcOpenedOnce', '1')
+          l.mc.getState().openDialog()
+          clearInterval(iv)
+        }
+      }, 5)
+    })
     await openApp(page)
-    // open a ConfirmDialog before the card could settle in, and hold it open
-    await page.locator('.toolbar__actions button', { hasText: /^(New|새로 만들기)$/ }).click()
-    await expect(page.locator('.mcdlg--confirm')).toBeVisible()
+    await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible()
+    await page.waitForTimeout(600) // well past the 250 ms check
+    await expect(welcome(page)).toHaveCount(0) // §GT6.1 — skipped this visit
+
+    // closing the dialog must NOT resurrect the card — the visit is over
+    await page.locator('.mcdlg[role="dialog"] .mcdlg__x, .mcdlg[role="dialog"] button', { hasText: /Close|Cancel/ }).first().click()
+    await expect(page.locator('.mcdlg[role="dialog"]')).toBeHidden()
     await page.waitForTimeout(600)
-    await expect(welcome(page)).toHaveCount(0) // deferred behind the confirm (§GT6.1)
-    await page.locator('.mcdlg--confirm button', { hasText: /Cancel|취소/ }).click()
-    await expect(welcome(page)).toBeVisible() // now the single top surface
+    await expect(welcome(page)).toHaveCount(0)
+    expect(await storedKey(page)).toBeNull() // still first-run
+
+    // a fresh visit with nothing up ⇒ the card appears
+    await page.evaluate(() => sessionStorage.removeItem('__tour_seeded')) // let seedKey re-clear
+    await page.reload()
+    await expect(page.locator('.toolbar')).toBeVisible()
+    await expect(welcome(page)).toBeVisible()
   })
 })
 

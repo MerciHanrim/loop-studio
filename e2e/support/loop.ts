@@ -9,13 +9,19 @@ const IGNORE = [/favicon/i, /\[vite\] connect/i, /Download the React DevTools/i]
 
 export const test = base.extend<{ errors: string[]; _tourSeed: void }>({
   // docs/guided-tour.md — every spec starts with the first-run Welcome card
-  // suppressed so it never intercepts a click. A `window` flag (not
-  // localStorage, which some specs `.clear()`); guided-tour.spec.ts clears it
-  // in its own `seedKey(page, …)` init script, registered later so it wins.
+  // suppressed so it never intercepts a click. The suppression is the real
+  // product mechanism: the stored key set to `dismissed`. Context-scoped so a
+  // second page (`context.newPage()`) is covered too. guided-tour.spec.ts
+  // overrides this with its own `seedKey(page, …)` (registered later, wins).
   _tourSeed: [
-    async ({ page }, use) => {
-      await page.addInitScript(() => {
-        ;(window as unknown as { __noFirstRunTour: boolean }).__noFirstRunTour = true
+    async ({ context }, use) => {
+      await context.addInitScript(() => {
+        try {
+          if (!localStorage.getItem('loop-studio/guided-tour/1'))
+            localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+        } catch {
+          /* opaque origin — a spec that hits this stubs storage itself */
+        }
       })
       await use()
     },

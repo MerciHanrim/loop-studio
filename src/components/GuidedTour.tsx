@@ -4,7 +4,7 @@ import { useMcStore } from '../store/mcStore'
 import { useProjectStore } from '../store/projectStore'
 import { selectUpdateReady, usePwaStore } from '../store/pwaStore'
 import { useReviewStore } from '../store/reviewStore'
-import { TOUR_TOTAL, isTourKeySet, useTourStore } from '../store/tourStore'
+import { TOUR_TOTAL, readTourKey, useTourStore } from '../store/tourStore'
 import { useUiStore } from '../store/uiStore'
 import { tourScript } from './tourSteps'
 import { useDialogFocus } from './useDialogFocus'
@@ -27,27 +27,24 @@ export function GuidedTour() {
   )
 }
 
-// ── §GT6.1 — offer the auto Welcome card once, after the app has settled, and
-//    only while it would be the single top-level surface. Polled: a
-//    `ConfirmDialog` / About dialog is local component state, not a store, so a
-//    DOM check for its scrim is the reliable "something else is up" signal. ──
+// ── §GT6.1 — the auto Welcome card is offered EXACTLY ONCE, a short beat after
+//    the boot sequence settles, and ONLY if nothing else is on screen at that
+//    moment. If a dialog / sheet / notice is up when the check runs, this visit
+//    is over — the card does NOT pop later when that surface closes. A
+//    `ConfirmDialog` is local component state, not a store, so a DOM check for
+//    its scrim is part of the "something is up" test. ──
 const BLOCKING_SEL = '.mcdlg__scrim, .sheet-scrim, .review, .boot-notice, .pwa-update'
 
 function FirstRunTrigger() {
+  const appSettled = useTourStore((s) => s.appSettled)
   useEffect(() => {
-    // an E2E opt-out — a `window` flag (survives `localStorage.clear()` and an
-    // opaque `file://` origin where storage throws). A real user never sets it.
-    if ((window as { __noFirstRunTour?: boolean }).__noFirstRunTour) return
-    if (isTourKeySet()) return // never — the key already decides (§GT6)
-    let stop = false
-    const tick = () => {
-      if (stop) return
+    if (!appSettled) return
+    if (readTourKey() != null) return // a recognised value already decided (§GT6)
+    // one delayed check — lets any post-settle surface (BootNotice, a PWA
+    // update prompt) mount first, then decide once and for all.
+    const id = setTimeout(() => {
       const st = useTourStore.getState()
-      if (st.phase !== 'idle') {
-        stop = true
-        return
-      }
-      if (!st.appSettled) return
+      if (st.phase !== 'idle') return
       if (typeof document !== 'undefined' && document.querySelector(BLOCKING_SEL)) return
       if (
         useMcStore.getState().dialogOpen ||
@@ -56,17 +53,11 @@ function FirstRunTrigger() {
         useProjectStore.getState().bootNotice != null ||
         selectUpdateReady(usePwaStore.getState())
       )
-        return
-      stop = true
+        return // busy visit — skip entirely, no re-check (§GT6.1)
       st.offerWelcome()
-    }
-    const iv = setInterval(tick, 200)
-    tick()
-    return () => {
-      stop = true
-      clearInterval(iv)
-    }
-  }, [])
+    }, 250)
+    return () => clearTimeout(id)
+  }, [appSettled])
 
   return null
 }

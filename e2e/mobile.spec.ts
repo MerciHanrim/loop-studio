@@ -495,10 +495,13 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
   }
 
   test('pristine first boot: picking a mobile Template applies with NO confirm, exactly one simulationRev bump, sheet closes + focus to More', async ({ page }) => {
-    // a genuine first-boot session: no saved graph ⇒ graphStore.pristineSample
+    // a genuine first-boot session: no saved graph ⇒ graphStore.pristineSample.
+    // Runs AFTER the shared fixture's tour seed, so re-suppress the first-run
+    // Welcome card here (docs/guided-tour.md — it is not what this test is about).
     await page.addInitScript(() => {
       try {
         localStorage.clear()
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
       } catch {
         /* private mode — fine */
       }
@@ -554,6 +557,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await page.addInitScript(() => {
       try {
         localStorage.clear()
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed') // no first-run tour card
       } catch {
         /* private mode */
       }

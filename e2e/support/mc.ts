@@ -87,7 +87,12 @@ export async function installProbe(page: Page): Promise<void> {
   // docs/guided-tour.md — suppress the first-run Welcome card in the portable /
   // dist specs (they don't import `./support/loop`, so they miss its fixture).
   await page.addInitScript(() => {
-    ;(window as unknown as { __noFirstRunTour: boolean }).__noFirstRunTour = true
+    try {
+      if (!localStorage.getItem('loop-studio/guided-tour/1'))
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+    } catch {
+      /* opaque origin (file://) — the app guards storage; tour trigger sees null */
+    }
   })
 }
 

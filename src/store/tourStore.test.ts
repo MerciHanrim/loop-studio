@@ -53,10 +53,22 @@ describe('tourStore — first-run offer (§GT6.1 / §GT6.3)', () => {
     }
   })
 
-  it('a corrupt stored value suppresses the card and is left untouched', () => {
+  it('a corrupt stored value is treated as absent (card offered once) and left untouched', () => {
     mem.setItem(TOUR_STORAGE_KEY, 'garbage')
+    expect(run().offerWelcome()).toBe(true) // NOT locked out by a bad value (§GT6)
+    expect(mem.getItem(TOUR_STORAGE_KEY)).toBe('garbage') // never rewritten
+    // …but only once per session
+    useTourStore.setState({ phase: 'idle' })
     expect(run().offerWelcome()).toBe(false)
-    expect(mem.getItem(TOUR_STORAGE_KEY)).toBe('garbage')
+  })
+
+  it('only `completed` / `dismissed` count as a decision; anything else is absent', () => {
+    for (const bad of ['seen', 'true', '1', '{}', 'COMPLETED', '']) {
+      reset()
+      mem.setItem(TOUR_STORAGE_KEY, bad)
+      expect(readTourKey()).toBeNull()
+      expect(run().offerWelcome()).toBe(true)
+    }
   })
 
   it('offers at most once per session even when getItem throws', () => {

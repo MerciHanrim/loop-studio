@@ -198,11 +198,14 @@ only. A step whose `data-tour` node is missing is handled per §GT4
 localStorage["loop-studio/guided-tour/1"]  =  "completed" | "dismissed"
 ```
 
-**absent** → this browser has never finished or dismissed the tour → the Welcome
-card is eligible (subject to §GT6.1). **present** (either value) → the Welcome
-card is **never auto-shown again**; the tour stays available from the Help menu
-(§GT7). `completed` vs `dismissed` is retained only for a future decision (§GT10)
-— both suppress the card identically.
+Only `"completed"` and `"dismissed"` are honoured. **A recognised value** → the
+Welcome card is never auto-shown again; the tour stays available from the Help
+menu (§GT7). `completed` vs `dismissed` is retained only for a future decision
+(§GT10) — both suppress the card identically. **Anything else** — absent, an
+unrecognised string, or a read that throws — is treated as **absent**: the card
+is eligible (subject to §GT6.1), and a corrupt value never permanently hides the
+tour. The once-per-session cap is the in-memory `offeredThisSession` flag, not
+the key.
 
 **`completed` / `dismissed` are UI-only.** The key never enters the GraphDoc, the
 Workspace / Share payload, the `loop-revision/*` digest, undo, or `simulationRev`,
@@ -211,27 +214,28 @@ anywhere else as a substitute (§GT6.3).
 
 ### GT6.1 Welcome display timing & UI priority
 
-The auto Welcome card is **deferred until the app has settled** and is shown
-**only when it would be the single top-level surface**:
+The auto Welcome card is decided by **exactly one check**, a short beat after
+the boot sequence settles. There is **no polling and no deferral** — the visit
+is resolved once:
 
 1. **After** locale resolution (§GT6.2) **and** the app's initial restore —
-   autosave load, and, for a `#g1=` link or a Workspace / revision file opened
-   from the URL, the **graph restore completes first**. The tour never races or
-   interferes with restoring the shared graph.
-2. **Not while** another top-level surface is open — a `ConfirmDialog`, a mobile
-   sheet, the `BootNotice`, or the PWA update bar. If one is open at the moment
-   the card would appear, the card **waits** until every such surface is closed,
-   then appears (still subject to rule 3). It does not stack on top of them and
-   does not interrupt them.
-3. **Only one automatic top-level UI at a time.** If, by the time the app
-   settles, a boot notice or update prompt is showing, the Welcome card yields
-   to it and re-checks when that clears. A visit where something else always
-   needs the user's attention simply doesn't show the card this time; the key
-   stays absent and the next clean visit shows it.
+   autosave load, and, for a `#g1=` link, the **graph restore completes first**
+   (`ShareLoader` signals "settled" only after `consumeShareLink` resolves). The
+   tour never races or interferes with restoring the shared graph. The single
+   check runs ~250 ms after that signal so any post-settle surface (`BootNotice`,
+   a PWA update prompt) has mounted first.
+2. **If, at that moment, any other top-level surface is open** — a
+   `ConfirmDialog`, a mobile sheet, the `BootNotice`, or the PWA update bar —
+   **this visit is over.** The card is not shown, and it does **not** reappear
+   when that surface later closes. The stored key stays absent, so the **next**
+   visit that is clean at check time shows the card.
+3. **If nothing is up**, the card is shown. Either way the check fires once per
+   page session (`offeredThisSession`), so a re-render, route change, or a
+   surface opening/closing after the check changes nothing.
 4. **Z-order** (§GT4): the tour / Welcome layer is above the Canvas / Toolbar /
    Timeline but **below** `ConfirmDialog` — a confirm can always appear over the
-   tour and take focus. (Given rule 2 they should not coexist, but the ordering
-   is fixed regardless.)
+   tour and take focus. (They should not coexist, but the ordering is fixed
+   regardless.)
 
 Manual entry via `Help → Take a tour` (§GT7) has **no** timing gate — the user
 asked for it — beyond the normal focus handoff.
@@ -292,8 +296,11 @@ is **not persisted** — a reload mid-tour does not force-resume from the middle
   A user who lands on step 6 and then presses `Escape` gets `dismissed`.
 - A replay launched from the Help menu **never rewrites** the key, whatever its
   current value — Help is not a first-run surface.
-- A corrupt / unrecognised stored value is treated as "suppress the card" (fail
-  safe — never nag) and is **left in place**, never rewritten.
+- **Only `completed` / `dismissed` count as a decision.** Any other stored
+  string — and a read that throws (§GT6.3) — is treated as **absent**: the card
+  is still eligible (a corrupt value must never lock a user out of the tour),
+  capped to once per session by the in-memory flag. The unrecognised value is
+  **left in place** and never rewritten until the user makes a real choice.
 
 ## GT7. The Help menu — `Take a tour` + `About Loop Studio`
 
@@ -552,23 +559,30 @@ The implementation slice must ship E2E covering:
   design, implementation pending* (rev 1–2), then amended by rev 3 to add
   `About Loop Studio` to the Help menu.
 - **Implementation — `feat/guided-tour`.** `src/store/tourStore.ts` (phase
-  machine + the §GT6.4 table + `TOUR_STORAGE_KEY`), `src/components/GuidedTour.tsx`
-  (the `FirstRunTrigger` poll of §GT6.1, the Welcome card, the step popover +
-  spotlight — `position: fixed`, no transitions, `--z-tour: 47` below every
-  dialog), `src/components/tourSteps.ts` (the two six-step scripts keyed by
-  `data-tour` / a plain selector), `src/components/HelpMenu.tsx` (desktop `?`
-  menu), `src/components/AboutDialog.tsx` (reuses the `.mcdlg` shell). `data-tour`
-  attributes on `.toolbar__palette` / `.canvas` / `aside.inspector` / `.pstrip` /
-  `.timeline` / `.toolbar__actions` and the mobile `.toolbar--mobile` /
-  `.pstrip--mobile` / `.pstrip__tl` / `.mob-more`. Help lands in the desktop
+  machine + the §GT6.4 table + `TOUR_STORAGE_KEY`; `readTourKey()` returns
+  `null` for absent / unrecognised / a throw — `offerWelcome()` only bails on a
+  *recognised* value, and the once-per-session cap is the in-memory flag),
+  `src/components/GuidedTour.tsx` (`FirstRunTrigger` = **one** `setTimeout`
+  check ~250 ms after `appSettled`, no polling; the Welcome card; the step
+  popover + spotlight — `position: fixed`, no transitions, `--z-tour: 47` below
+  every dialog, sits beside a full-height panel, centred fallback when a target
+  is missing; inert scrim), `src/components/tourSteps.ts` (the two six-step
+  scripts keyed by `data-tour` / a plain selector), `src/components/HelpMenu.tsx`
+  (desktop `?` menu), `src/components/AboutDialog.tsx` (reuses the `.mcdlg`
+  shell). `data-tour` on `.toolbar__palette` / `.canvas` / `aside.inspector` /
+  `.pstrip` / `.timeline` / `.toolbar__actions` and the mobile `.toolbar--mobile`
+  / `.pstrip--mobile` / `.pstrip__tl` / `.mob-more`. Help lands in the desktop
   toolbar and a mobile More → Help sub-sheet (`uiStore` `'help'` overlay).
-  `tour.*` + `about.*` catalog (EN + KO); `ShareLoader` calls
-  `tourStore.markAppSettled()` after the `#g1=` consume. E2E:
-  `e2e/guided-tour.spec.ts` (27 tests across the 19 §GT9 conditions),
-  `src/store/tourStore.test.ts` (11). No engine / wire / serialized change; every
-  existing snapshot unchanged (the new Help `?` sits outside the screenshot
-  clips). `e2e/support/loop.ts` seeds the tour key `dismissed` by default so the
-  card never intercepts another spec's clicks.
+  `.mcdlg__scrim` z-index → `var(--z-mc-dialog)` so "below every dialog" holds on
+  desktop too. `tour.*` + `about.*` catalog (EN + KO); `ShareLoader` calls
+  `tourStore.markAppSettled()` after the `#g1=` consume. **No test-only symbol
+  ships** — the E2E suppresses the card the real way, by seeding
+  `loop-studio/guided-tour/1 = "dismissed"` (`e2e/support/loop.ts` fixture;
+  `portable` / `dist` via `installProbe`; `pwa.spec.ts` in `beforeEach`); a
+  bundle grep for `__noFirstRunTour` is 0. E2E:
+  `e2e/guided-tour.spec.ts` (29 across the 19 §GT9 conditions + the three
+  boundary fixes), `src/store/tourStore.test.ts` (13). No engine / wire /
+  serialized change; every existing snapshot unchanged.
 - **Later slice — contextual inline help.** Separate design + PR; adds
   `Contextual help` to the Help menu.
 
