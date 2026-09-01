@@ -361,9 +361,9 @@ Loop Studio는 독립 프로젝트이며 Machinations.io와
   stamp** (`__APP_VERSION__` / `__BUILD_SHA__`) — one source of truth, so they
   can never disagree with the header.
 - **`Created by` / `제작:`** and the non-affiliation sentence are localized.
-- **`Cozy Shelter`** may optionally be a link to `https://cozyshelter.tistory.com/`;
-  a plain text line is also acceptable. **No GitHub / repository link is
-  required.**
+- **`Cozy Shelter` is a link** to `https://cozyshelter.tistory.com/` — the same
+  target as `README.md`, in every locale and every build. **No GitHub /
+  repository link is included.**
 
 **Behaviour**
 
@@ -374,9 +374,11 @@ Loop Studio는 독립 프로젝트이며 Machinations.io와
   Monte-Carlo config are all untouched. The About key does **not** exist — there
   is no persisted "seen About" state.
 - A standard modal: **`Escape`, a backdrop click, and an explicit close button**
-  all dismiss it by the one same path; focus is trapped while open and returns
-  to the `About Loop Studio` menu item on close. (This is the normal dialog
-  contract — *distinct* from the tour's **inert** scrim in §GT4.)
+  each dismiss it by the one same path; focus is trapped while open. Opening
+  About **closes the Help menu**, so on close focus returns to the **Help (`?`)
+  trigger** — not the `About Loop Studio` menu item, which no longer exists.
+  (This is the normal dialog contract — *distinct* from the tour's **inert**
+  scrim in §GT4.)
 - Nothing about the About dialog enters the Graph JSON, Workspace JSON, or `#g1=`
   Share payload.
 - No animation requirement; respects `prefers-reduced-motion` and `forced-colors`
@@ -397,10 +399,10 @@ and KO `satisfies MessageCatalog`, e.g.:
 - `tour.help.menuLabel` · `tour.help.takeTour` · `tour.help.about`
 - `about.createdBy` (= `"Created by"` / `"제작:"`) ·
   `about.notAffiliated` (the Machinations.io sentence). The product name,
-  `v{version} · build {sha}` line, `Cozy Shelter`, and
-  `Copyright © 2026 Hanrim. All rights reserved.` are **not** catalog strings —
-  they are shown verbatim in every locale (the version/SHA come from
-  `__APP_VERSION__` / `__BUILD_SHA__`).
+  `v{version} · build {sha}` line, the `Cozy Shelter` link (text **and** its
+  `https://cozyshelter.tistory.com/` href), and `Copyright © 2026 Hanrim. All
+  rights reserved.` are **not** catalog strings — they are shown verbatim in
+  every locale (the version/SHA come from `__APP_VERSION__` / `__BUILD_SHA__`).
 
 No string concatenation of translatable fragments; `{n}` / `{total}` are ICU
 arguments. The tour adds **no** exception to any localization invariant
@@ -471,11 +473,14 @@ The implementation slice must ship E2E covering:
     More → Help entry both open it. It shows the same `v{version} · build {sha}`
     as the toolbar build stamp; the `Copyright © 2026 Hanrim. All rights
     reserved.` line is **byte-identical in EN and KO**, while `Created by` /
-    `제작:` and the non-affiliation sentence switch with the locale. `Escape`, a
-    backdrop click, and the close button each dismiss it; focus returns to the
-    `About Loop Studio` menu item. Opening then closing About leaves GraphDoc /
-    digest / undo / viewport / selection / `simulationRev` / `SimState`
-    unchanged, and no `about` key appears in any export or Share payload.
+    `제작:` and the non-affiliation sentence switch with the locale; the
+    `Cozy Shelter` line links to `https://cozyshelter.tistory.com/`.
+    **Each** of `Escape`, a backdrop click, and the close button dismisses the
+    dialog, and after **each** of those three paths focus is on the **Help
+    (`?`) trigger** (the Help menu having closed when About opened). Opening then
+    closing About leaves GraphDoc / digest / undo / viewport / selection /
+    `simulationRev` / `SimState` unchanged, and no `about` key appears in any
+    export or Share payload.
 
 ## GT10. Decision record
 
@@ -515,7 +520,10 @@ The implementation slice must ship E2E covering:
   user never sees. A small static read-only dialog fixes it, homed in the same
   Help menu. Version + build SHA come from the same `__APP_VERSION__` /
   `__BUILD_SHA__` as the header; `Copyright © 2026 Hanrim. All rights reserved.`
-  is not translated; no GitHub link; opening / closing it mutates nothing and
+  is not translated; `Cozy Shelter` **is a link** to
+  `https://cozyshelter.tistory.com/` (matching `README.md`), no GitHub link;
+  opening About closes the Help menu, so `Escape` / backdrop / close each return
+  focus to the **Help (`?`) trigger**; opening / closing it mutates nothing and
   leaves no persisted state. *(Lumi, rev 3.)*
 - **Welcome timing — after settle, single surface only** (§GT6.1). The card waits
   behind any `ConfirmDialog` / sheet / boot notice / PWA bar and behind graph
