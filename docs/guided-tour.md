@@ -1,10 +1,17 @@
 # Guided first-run tour (non-frozen design doc — DRAFT)
 
-**Status: design pending review — no code.** This doc fixes the **behaviour
-contract** for the guided first-run tour before any implementation. It is a
-**non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — and merges as
-*settled design, implementation pending*, like [`docs/localization.md`](localization.md),
-[`docs/mobile.md`](mobile.md), and [`docs/edge-routing.md`](edge-routing.md).
+**Status: design pending review — no code. rev 2** — rev 1's structure
+(desktop/mobile split, read-only principle, six-step scope, a11y + invariance)
+is unchanged; rev 2 pins the four **lifecycle boundaries**: Welcome **display
+timing & UI priority** (§GT6.1), **`localStorage` failure** (§GT6.3), the
+**exit-state transition table** (§GT6.4), and the **Help menu + mobile-target**
+rules (§GT7), with matching E2E (§GT9).
+
+This doc fixes the **behaviour contract** for the guided first-run tour before
+any implementation. It is a **non-frozen** design doc — no `loop-*/N` id, no
+`Frozen` marker — and merges as *settled design, implementation pending*, like
+[`docs/localization.md`](localization.md), [`docs/mobile.md`](mobile.md), and
+[`docs/edge-routing.md`](edge-routing.md).
 
 The tour is the first slice of **Onboarding, part 2 → guided first-run tour**
 (README roadmap), built on the finished localization base. **Contextual inline
@@ -84,15 +91,19 @@ tour is a **different script**, not the desktop tour with smaller popovers.
 | 3 | **Inspect** | a node (or the read-only Inspector sheet) | tap a node or connection to read its configuration (editing is desktop-only) |
 | 4 | **Run it** | the bottom run bar (Step · Play) | step through the model or play it |
 | 5 | **Timeline** | the Timeline sheet handle | open the timeline sheet to see values over time |
-| 6 | **More** | the **More** (`⋯`) menu | Share, Export, and the language switch live here |
+| 6 | **More** | the **More** (`⋯`) **button** — *the tour points at the closed button; it does not open the sheet* | Share, Export, and the language switch live in this menu |
+
+No mobile step opens a menu or sheet. Step 6 highlights the closed `⋯` button;
+because the tour scrim swallows background input (§GT4), the More sheet, the file
+menu, and the language menu cannot open while the tour is running.
 
 ## GT4. Behaviour boundary
 
 The tour is an **overlay that reads the UI**; it never drives it.
 
 **No state mutation.** Starting, advancing (`Next`), going back (`Back`), and
-ending the tour (`Escape`, an explicit close, or finishing step 6) leave **all**
-of the following byte-for-byte unchanged:
+ending the tour (`Escape`, the explicit close control, `Skip`, or `Done` on step
+6) leave **all** of the following byte-for-byte unchanged:
 
 - the GraphDoc (nodes / edges / project) and the `loop-revision/*` digest;
 - the undo / redo stacks and `simulationRev`;
@@ -112,19 +123,40 @@ popover). They **do not reflow** the Toolbar, Canvas, Inspector, or Timeline —
 no element is resized, inserted into flow, or scrolled by the tour. (Same
 constraint the language menu and the palette tip already meet.)
 
+**Scrim swallows background input; backdrop click is inert.** While the tour (or
+the Welcome card) is open, the scrim intercepts pointer events, so a click that
+would land on the Toolbar, a menu trigger, the Canvas, or the language switch
+does **nothing** — no menu opens, no node is selected, nothing behind the tour
+reacts. A click on the scrim itself is **ignored** — it is *not* a dismiss path
+(exit is only `Escape`, the close control, `Skip`, or `Done`; see the table in
+§GT6.4). Highlighting a region does not make it interactive.
+
+**Z-order.** The tour layer sits **above** the Canvas, Toolbar, Timeline, and
+the palette tip, but **below** `ConfirmDialog` and any true blocking modal —
+`ConfirmDialog` must always be able to appear on top of, and take focus from,
+the tour. In practice the tour never coexists with `ConfirmDialog` (§GT6.1), but
+the stacking order is fixed so a programmatic confirm can never be trapped
+behind the tour.
+
 **Missing target.** If a step's anchor element is absent or off-screen, the
 tour shows the step's copy in a **safe centred card** (no spotlight, no arrow)
 and stays on that step. It never auto-skips, never advances past the end, and
 never crashes. `Next` / `Back` still work.
 
-**Locale change mid-tour.** Switching EN↔KO while the tour is open re-renders
-the **current step** immediately in the new locale (copy, `N / 6` label,
-button labels). The step index does not change.
+**Locale change mid-tour.** If the active locale changes while the tour is open
+(e.g. a programmatic `setLocale`), the **current step** re-renders immediately in
+the new locale — copy, `N / 6` label, button labels — and the step index and
+progress are unchanged. This is a **reactivity** guarantee only: because focus is
+trapped in the popover (§GT4 a11y), a user cannot reach the background language
+menu mid-tour, so this is not a user-reachable flow in this slice — the E2E
+(§GT9 case 6) drives the locale change through the store, not a click.
 
 **Accessibility.**
 
-- `Escape` ends the tour.
-- `Back` / `Next` buttons; `Next` on step 6 is `Done` and ends the tour.
+- `Escape` ends the tour (→ `dismissed`, §GT6.4).
+- `Back` / `Next` buttons; `Next` on step 6 is `Done` and ends the tour
+  (→ `completed`, written **on the `Done` press**, not on merely reaching
+  step 6).
 - keyboard focus is **trapped** inside the popover while the tour is open; on
   end, focus returns to the control that opened it (the Welcome card's
   `Start tour`, or the Help menu's `Take a tour`).
@@ -155,9 +187,55 @@ only. A step whose `data-tour` node is missing is handled per §GT4
 
 ## GT6. First run & persistence
 
-**Language.** The tour does **no language detection of its own.** The Welcome
-card and every tour step render in whatever locale the app has already resolved
-and activated at load, per [`docs/localization.md`](localization.md) §L5.2:
+**Key** (UI-only, namespaced like `loop-studio/ui-locale/1`):
+
+```
+localStorage["loop-studio/guided-tour/1"]  =  "completed" | "dismissed"
+```
+
+**absent** → this browser has never finished or dismissed the tour → the Welcome
+card is eligible (subject to §GT6.1). **present** (either value) → the Welcome
+card is **never auto-shown again**; the tour stays available from the Help menu
+(§GT7). `completed` vs `dismissed` is retained only for a future decision (§GT10)
+— both suppress the card identically.
+
+**`completed` / `dismissed` are UI-only.** The key never enters the GraphDoc, the
+Workspace / Share payload, the `loop-revision/*` digest, undo, or `simulationRev`,
+and is never read by the engine. On failure to persist it, nothing is written
+anywhere else as a substitute (§GT6.3).
+
+### GT6.1 Welcome display timing & UI priority
+
+The auto Welcome card is **deferred until the app has settled** and is shown
+**only when it would be the single top-level surface**:
+
+1. **After** locale resolution (§GT6.2) **and** the app's initial restore —
+   autosave load, and, for a `#g1=` link or a Workspace / revision file opened
+   from the URL, the **graph restore completes first**. The tour never races or
+   interferes with restoring the shared graph.
+2. **Not while** another top-level surface is open — a `ConfirmDialog`, a mobile
+   sheet, the `BootNotice`, or the PWA update bar. If one is open at the moment
+   the card would appear, the card **waits** until every such surface is closed,
+   then appears (still subject to rule 3). It does not stack on top of them and
+   does not interrupt them.
+3. **Only one automatic top-level UI at a time.** If, by the time the app
+   settles, a boot notice or update prompt is showing, the Welcome card yields
+   to it and re-checks when that clears. A visit where something else always
+   needs the user's attention simply doesn't show the card this time; the key
+   stays absent and the next clean visit shows it.
+4. **Z-order** (§GT4): the tour / Welcome layer is above the Canvas / Toolbar /
+   Timeline but **below** `ConfirmDialog` — a confirm can always appear over the
+   tour and take focus. (Given rule 2 they should not coexist, but the ordering
+   is fixed regardless.)
+
+Manual entry via `Help → Take a tour` (§GT7) has **no** timing gate — the user
+asked for it — beyond the normal focus handoff.
+
+### GT6.2 Language
+
+The tour does **no language detection of its own.** The Welcome card and every
+tour step render in whatever locale the app has already resolved and activated at
+load, per [`docs/localization.md`](localization.md) §L5.2:
 
 1. a previously **stored** user choice (`loop-studio/ui-locale/1`) wins;
 2. else, on a true first visit, the **browser** preference — `ko` / `ko-KR` /
@@ -167,49 +245,68 @@ and activated at load, per [`docs/localization.md`](localization.md) §L5.2:
 
 So on a first visit: `ko*` browser → **Korean Welcome + Korean tour**; any other
 browser → **English Welcome + English tour**. An explicit user choice always
-outranks the browser language — a Korean-browser user who once picked English
-gets the English tour, and vice versa. Mid-tour language changes are handled in
-§GT4 (current step and progress kept, copy swapped immediately).
+outranks the browser language. Mid-tour locale changes are the reactivity
+guarantee in §GT4.
 
-**Key** (UI-only, namespaced like `loop-studio/ui-locale/1`):
+### GT6.3 `localStorage` unavailable
 
-```
-localStorage["loop-studio/guided-tour/1"]  =  "completed" | "dismissed"
-```
+Storage reads / writes can throw or silently fail (private mode, blocked site
+data, quota). The tour must degrade, never break:
 
-- **absent** → first run. On load, after the app is interactive, show a small
-  **Welcome card** (not the full tour): a one-line greeting and two buttons —
-  **`Start tour`** and **`Skip`**.
-  - `Start tour` → open the tour at step 1.
-  - `Skip` → close the card, write `"dismissed"`.
-  - finishing the tour (step 6 `Done`, or `Escape` partway) → write
-    `"completed"`.
-  - Either stored value **suppresses the Welcome card on every later visit.**
-    The tour itself stays available forever from the Help menu (§GT7).
-- **the current step is memory-only.** A reload mid-tour does **not** force-resume
-  from step 3 — a reload with the key still absent shows the Welcome card again
-  only if the user never interacted; once `Start tour` or `Skip` is pressed the
-  key is written and the card does not return. (i.e. pressing `Start tour` writes
-  nothing until the tour ends; if the user reloads *during* the tour, they get
-  the Welcome card once more — acceptable, and simpler than persisting progress.
-  Alternative in §GT10.)
-- a corrupt / unrecognised stored value is treated as **"suppress the card"**
-  (fail safe — never nag), and is left in place, never rewritten.
-- **`completed` / `dismissed` are UI-only.** The key never enters the GraphDoc,
-  the Workspace / Share payload, the `loop-revision/*` digest, undo, or
-  `simulationRev`. It is never read by the engine.
+- a read or write failure **does not block app boot** and is caught, not
+  propagated;
+- if the key **cannot be read**, treat it as absent, but propose the Welcome
+  card **at most once per page session** — hold an in-memory "already offered
+  this session" flag so a re-render or a route change does not re-show it;
+- if the key **cannot be written** on `Skip` / `Done`, the tour still closes
+  normally and the in-memory "offered / finished this session" flag suppresses
+  any repeat **for the rest of the session**; the card may reappear on a genuine
+  new page load (acceptable — no worse than a first visit), and never loops
+  within one session;
+- **never** write the tour state to the GraphDoc, autosave blob, Workspace,
+  Share payload, or any other store as a fallback.
+
+### GT6.4 Exit-state transition table
+
+The current step lives in memory only (`{ active, step, platform }`, §GT4) and
+is **not persisted** — a reload mid-tour does not force-resume from the middle
+(alternative considered in §GT10). Only these transitions touch the key:
+
+| Transition | Writes |
+|---|---|
+| Welcome → `Start tour` | *(nothing — key stays absent until the tour ends)* |
+| Welcome → `Skip` | `dismissed` |
+| Welcome → `Escape` | `dismissed` |
+| Tour → `Done` (the step-6 button, pressed) | `completed` |
+| Tour → `Escape` / close control (any step) | `dismissed` |
+| Replayed tour (from Help) → any exit | *(nothing — keep the existing `completed` / `dismissed`)* |
+
+- **Backdrop click is not an exit** — the scrim is inert (§GT4); it neither
+  dismisses nor confirms. Exit is always an explicit control or `Escape`.
+- **`completed` is written on the `Done` press**, not on merely reaching step 6.
+  A user who lands on step 6 and then presses `Escape` gets `dismissed`.
+- A replay launched from the Help menu **never rewrites** the key, whatever its
+  current value — Help is not a first-run surface.
+- A corrupt / unrecognised stored value is treated as "suppress the card" (fail
+  safe — never nag) and is **left in place**, never rewritten.
 
 ## GT7. Re-entry — the Help menu
 
 Add a small **Help (`?`)** control to the toolbar actions cluster (desktop) and
-an equivalent **row in the More sheet** (mobile). Structure it as a menu so a
-later slice can extend it:
+an equivalent **row in the More sheet** (mobile).
 
-- **`Take a tour`** — restarts the tour at step 1. *(this slice)*
-- `Contextual help` — *reserved for the later inline-help slice; not built now.*
+- This slice ships **exactly one** item: **`Take a tour`** — restarts the tour at
+  step 1. It always runs the platform-appropriate script (desktop script on
+  desktop, mobile script on mobile) regardless of the stored key, and per §GT6.4
+  never rewrites it.
+- **`Contextual help` is NOT shown** — not as a disabled row, not greyed out,
+  not a placeholder. It is added by the later inline-help slice, which owns its
+  own design + PR. The Help control is *structured* as a menu (rather than a
+  bare button) only so that later slice can add an item without moving anything;
+  with one item it may render as a single action.
 
-Selecting `Take a tour` always runs the platform-appropriate tour (desktop
-script on desktop, mobile script on mobile), regardless of the stored key.
+If the Help menu opens as a popover, the tour scrim (§GT4) still blocks the rest
+of the UI while a tour launched from it is running.
 
 ## GT8. Localization
 
@@ -235,46 +332,59 @@ re-renders on change (§GT4).
 
 The implementation slice must ship E2E covering:
 
-1. **First run** — with the key absent, the Welcome card appears **once** after
-   load. With the key present (`completed` **or** `dismissed`), it does **not**.
-2. **Skip / complete then reload** — after `Skip` or finishing the tour, a
-   reload does **not** re-show the Welcome card, and does **not** auto-open the
-   tour.
-3. **Re-entry** — `Help → Take a tour` opens the tour at step 1 even when the
-   key is `completed` / `dismissed`.
-4. **Six steps, both platforms** — desktop and mobile (390 px) each walk 1→6 via
-   `Next`, `Back` returns, `Done` on step 6 ends; `N / 6` label is correct at
-   each step.
-5. **Locale — first visit** — with no stored locale and `navigator.language`
-   `ko` / `ko-KR`, the Welcome card and the tour render in **Korean**; with a
-   non-`ko` browser language, in **English**. A stored user choice overrides the
-   browser language in both directions. The tour runs no detection of its own —
-   it reflects the app's active locale.
-6. **Locale — mid-tour** — switching EN↔KO while the tour is open keeps the
-   current step **and** the progress state, and re-renders only the copy +
-   `N / 6` label + button labels in the new locale.
-7. **Overlay geometry** — on desktop and at 390 px, at every step the popover is
-   inside the viewport (no element's right/bottom edge past the viewport, no
-   horizontal document scroll), and the Toolbar height / Canvas top / Timeline
-   box / node DOM boxes / edge `d` are **unchanged** while the tour is open vs
-   closed.
-8. **Invariance** — open the tour, walk all six steps, `Back` a few, then end:
-   GraphDoc bytes, `loop-revision/*` digest, undo / redo, viewport, **selection**,
-   `simulationRev`, and `SimState` (`values` / `stepIndex` / `status`) are all
-   identical to before the tour. Repeat with a run **playing** — it is still
-   playing, at the same or later step, untouched by the tour.
-9. **Payload** — Graph JSON, Workspace JSON, and the `#g1=` Share payload contain
-   **no** `tour` / `guided-tour` key; the exported bytes and digest are identical
-   with the tour key `completed` vs absent.
-10. **a11y** — `Escape` ends; focus is trapped while open and returns to the
+1. **First run** — with the key absent and nothing else on screen, the Welcome
+   card appears **once** after the app settles. With the key present (`completed`
+   **or** `dismissed`), it does **not**.
+2. **Skip / complete then reload** — after `Skip`, `Escape` on the card, `Done`,
+   or `Escape` mid-tour, a reload does **not** re-show the Welcome card and does
+   **not** auto-open the tour.
+3. **Re-entry** — `Help → Take a tour` opens the tour at step 1 even when the key
+   is `completed` / `dismissed`, and **does not rewrite** the key on any exit.
+4. **Help menu contents** — the Help control exposes exactly `Take a tour`; there
+   is **no** `Contextual help` item (not present, not disabled) in this slice.
+5. **Six steps, both platforms** — desktop and mobile (390 px) each walk 1→6 via
+   `Next`, `Back` returns, `Done` on step 6 ends; `N / 6` label correct at each
+   step. No mobile step opens a menu / sheet — step 6 highlights the closed `⋯`
+   button.
+6. **Locale — first visit** — with no stored locale and `navigator.language`
+   `ko` / `ko-KR`, the Welcome card and tour render in **Korean**; with a non-`ko`
+   browser language, in **English**. A stored user choice overrides the browser
+   language in both directions.
+7. **Locale — mid-tour reactivity** — a locale change driven **through the store**
+   (`setLocale`, not a background click — focus is trapped) keeps the current
+   step **and** progress and re-renders only the copy + `N / 6` + button labels.
+8. **Display priority** — with the key absent, open a `ConfirmDialog` (or a boot
+   notice) before the app settles: the Welcome card does **not** appear over it;
+   it appears only after that surface is dismissed. A `#g1=` Share link restores
+   its graph fully **before** the card shows.
+9. **Backdrop is inert** — clicking the scrim neither dismisses the tour nor
+   activates anything behind it; a click over a menu trigger / node / the
+   language switch while the tour is open does nothing.
+10. **`localStorage` unavailable** — with storage reads/writes forced to throw:
+    the app still boots, the Welcome card is offered **at most once** for the
+    session (no loop on re-render), closing the tour still works, and **no** tour
+    state is written to any other store.
+11. **Overlay geometry** — on desktop and at 390 px, at every step the popover is
+    inside the viewport (no edge past it, no horizontal document scroll), and the
+    Toolbar height / Canvas top / Timeline box / node DOM boxes / edge `d` are
+    **unchanged** while the tour is open vs closed.
+12. **Invariance** — open the tour, walk all six steps, `Back` a few, then end:
+    GraphDoc bytes, `loop-revision/*` digest, undo / redo, viewport, **selection**,
+    `simulationRev`, and `SimState` (`values` / `stepIndex` / `status`) are
+    identical to before. Repeat with a run **playing** — still playing, at the
+    same or a later step, untouched.
+13. **Payload** — Graph JSON, Workspace JSON, and the `#g1=` Share payload contain
+    **no** `tour` / `guided-tour` key; exported bytes and digest are identical
+    with the key `completed` vs absent.
+14. **a11y** — `Escape` ends; focus is trapped while open and returns to the
     trigger on end; `Back` / `Next` reachable by keyboard.
-11. **Missing target** — force a step's `data-tour` node out of the DOM; the tour
+15. **Missing target** — force a step's `data-tour` node out of the DOM; the tour
     shows the centred fallback card, does not advance or crash, and `Next` /
     `Back` still work.
-12. **reduced-motion** — no transition between steps.
-13. **forced-colors** — the spotlight outline and popover border are present
+16. **reduced-motion** — no transition between steps.
+17. **forced-colors** — the spotlight outline and popover border are present
     (rendered-style evidence), not hue-only.
-14. **Long Korean** — KO copy at 390 px: popover wraps, stays on-screen, no
+18. **Long Korean** — KO copy at 390 px: popover wraps, stays on-screen, no
     horizontal scroll.
 
 ## GT10. Decision record
@@ -307,8 +417,30 @@ The implementation slice must ship E2E covering:
   corrupt-value fallback). First visit ⇒ `ko*` browser gets a Korean
   Welcome + tour, everything else English; an explicit user choice always wins
   over the browser language. *(Lumi, this thread.)*
-- **Help menu is extensible** — `Take a tour` now, `Contextual help` reserved for
-  the later slice.
+- **Help menu — one item this slice.** `Take a tour` only; `Contextual help` is
+  *not shown at all* (not a disabled row) — it belongs to the later inline-help
+  slice. The control is structured as a menu so that slice can add to it without
+  moving anything. *(Lumi, rev 2.)*
+- **Welcome timing — after settle, single surface only** (§GT6.1). The card waits
+  behind any `ConfirmDialog` / sheet / boot notice / PWA bar and behind graph
+  restore for a `#g1=` link; it never stacks or interrupts, and the tour layer
+  sits below `ConfirmDialog` in the z-order. A visit that is always busy simply
+  skips the card that time (key stays absent). *(Lumi, rev 2.)*
+- **`localStorage` failure is non-fatal** (§GT6.3). Read/write errors are caught;
+  the card is offered at most once per session via an in-memory flag; nothing is
+  ever written elsewhere as a substitute. *(Lumi, rev 2.)*
+- **Exit-state table is fixed** (§GT6.4). `Skip` / `Escape` on the card and
+  `Escape` / close mid-tour → `dismissed`; only the pressed **`Done`** →
+  `completed` (not merely reaching step 6); a Help-launched replay writes
+  nothing; the scrim / backdrop is inert and is not a dismiss path. *(Lumi,
+  rev 2.)*
+- **Mobile step 6 points at the closed `⋯` button** — the tour opens no menu or
+  sheet on any platform; the inert scrim also prevents the file / language menu
+  from opening by a fall-through click. *(Lumi, rev 2.)*
+- **Mid-tour locale test is store-driven, not a click.** Focus is trapped, so the
+  background language menu is unreachable during the tour; the E2E asserts only
+  the reactivity (external `setLocale` → same step re-renders), not a
+  non-existent user path. *(Lumi, rev 2.)*
 
 ## GT11. Slices
 
