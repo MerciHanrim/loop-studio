@@ -317,6 +317,9 @@ describe('mmo-progression example', () => {
     const mc = runMonteCarlo(nodes, edges, { ...MMO_PROGRESSION_MC, tracked: [...MMO_PROGRESSION_MC.tracked] })
     const cum = mc.endedRuns.atOrBeforeStep
 
+    // recomputes the full 200 × 150 sweep a second time — generous timeout so a
+    // loaded CI runner (this job also just ran `npm ci` + tsc + lint) doesn't
+    // trip the 5 s default.
     it('is deterministic — the same config reproduces byte-identical output', () => {
       const again = runMonteCarlo(nodes, edges, {
         ...MMO_PROGRESSION_MC,
@@ -325,7 +328,7 @@ describe('mmo-progression example', () => {
       expect(again.series).toEqual(mc.series)
       expect(again.endedRuns).toEqual(mc.endedRuns)
       expect(again.final).toEqual(mc.final)
-    })
+    }, 20000)
 
     it('tracks the explicit Pool list, none dropped', () => {
       expect(mc.droppedTracked).toEqual([])
