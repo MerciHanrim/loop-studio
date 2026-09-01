@@ -469,20 +469,27 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     z1_enc: { x: CX[0], y: 40 },
     z2_enc: { x: CX[1], y: 40 },
     z3_enc: { x: CX[2], y: 40 },
-    end15: { x: 2760, y: 40 },
-    completion_src: { x: 2560, y: 170 },
-    completion: { x: 2760, y: 170 },
-    clock: { x: 2560, y: 290 },
-    elapsed: { x: 2760, y: 290 },
+    // The completion / clock block sits well right of Highlands' right lane
+    // (`z3_xp_meter` / `z3_xp2lvl` at x 2440) so nothing overlaps `Clock` /
+    // `Completion pulse`.
+    end15: { x: 3020, y: 40 },
+    completion_src: { x: 2820, y: 170 },
+    completion: { x: 3020, y: 170 },
+    clock: { x: 2820, y: 290 },
+    elapsed: { x: 3020, y: 290 },
 
-    // ── TOP-RIGHT: reporting / checks (no edges — clear of the minimap) ──
-    r_efflevel: { x: 2960, y: 60 },
-    r_huntshare: { x: 2960, y: 130 },
-    r_income: { x: 2960, y: 200 },
-    r_expense: { x: 2960, y: 270 },
-    r_netgold: { x: 2960, y: 340 },
-    r_items_acct: { x: 2960, y: 410 },
-    r_burned: { x: 2960, y: 480 },
+    // ── RIGHT EDGE: reporting / checks (no edges — a Register has no ports) ──
+    // One column at x 3280 (right of every other node, including the completion
+    // block above), 110 px pitch — enough that each Register's title + value +
+    // expression line clears the next at 100 % zoom without spreading the block
+    // so far it is tiring to scan.
+    r_efflevel: { x: 3280, y: 40 },
+    r_huntshare: { x: 3280, y: 150 },
+    r_income: { x: 3280, y: 260 },
+    r_expense: { x: 3280, y: 370 },
+    r_netgold: { x: 3280, y: 480 },
+    r_items_acct: { x: 3280, y: 590 },
+    r_burned: { x: 3280, y: 700 },
 
     // ── the HUB ROW (y 660 → shifted to 800): the only place zone columns merge ──
     drop: { x: 380, y: 660 },
@@ -570,10 +577,14 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
 
   // The hub row + the bottom economy bands were authored at y ≥ 640; drop them
   // another 140 px so the widened zone grids (which now reach y ≈ 620) keep clear
-  // air above the hub row. Registers (y ≤ 480) and the spine (y ≤ 290) are
-  // untouched. One pass, so the band spacing below stays exactly as authored.
+  // air above the hub row. The spine (y ≤ 290) and the right-edge Register column
+  // (its own explicit y values above) are excluded. One pass, so the band spacing
+  // below stays exactly as authored.
+  const regId = new Set(nodes.filter((n) => n.data.kind === 'register').map((n) => n.id))
   for (const n of nodes) {
-    if (LAYOUT[n.id] && n.position.y >= 640) n.position = { x: n.position.x, y: n.position.y + 140 }
+    if (LAYOUT[n.id] && !regId.has(n.id) && n.position.y >= 640) {
+      n.position = { x: n.position.x, y: n.position.y + 140 }
+    }
   }
 
   return { nodes, edges }
