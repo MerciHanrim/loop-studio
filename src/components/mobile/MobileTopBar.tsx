@@ -69,7 +69,7 @@ export function MobileTopBar() {
   }
 
   return (
-    <header className="toolbar toolbar--mobile">
+    <header className="toolbar toolbar--mobile" data-tour="mobile-open">
       <span className="toolbar__mark">
         <Logo />
       </span>
@@ -79,6 +79,7 @@ export function MobileTopBar() {
         ref={moreRef}
         type="button"
         className="btn mob-more"
+        data-tour="mobile-more"
         aria-haspopup="dialog"
         aria-expanded={overlay === 'more'}
         aria-label={t('mobile.more')}

@@ -7,7 +7,20 @@ import { test as base, expect, type Page } from '@playwright/test'
 
 const IGNORE = [/favicon/i, /\[vite\] connect/i, /Download the React DevTools/i]
 
-export const test = base.extend<{ errors: string[] }>({
+export const test = base.extend<{ errors: string[]; _tourSeed: void }>({
+  // docs/guided-tour.md — every spec starts with the first-run Welcome card
+  // suppressed so it never intercepts a click. A `window` flag (not
+  // localStorage, which some specs `.clear()`); guided-tour.spec.ts clears it
+  // in its own `seedKey(page, …)` init script, registered later so it wins.
+  _tourSeed: [
+    async ({ page }, use) => {
+      await page.addInitScript(() => {
+        ;(window as unknown as { __noFirstRunTour: boolean }).__noFirstRunTour = true
+      })
+      await use()
+    },
+    { auto: true },
+  ],
   errors: [
     async ({ page }, use) => {
       const errors: string[] = []

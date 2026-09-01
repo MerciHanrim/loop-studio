@@ -125,6 +125,7 @@ export function Canvas() {
   return (
     <div
       className="canvas"
+      data-tour="canvas"
       onDrop={isMobile ? undefined : handleDrop}
       onDragOver={isMobile ? undefined : handleDragOver}
       onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}

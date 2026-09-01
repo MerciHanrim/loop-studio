@@ -9,6 +9,7 @@ import { useIsMobile } from '../ui/media'
 import { useT, type MessageKey } from '../i18n'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ExportMenu } from './ExportMenu'
+import { HelpMenu } from './HelpMenu'
 import { LanguageSwitch } from './LanguageSwitch'
 import { Logo } from './Logo'
 import { MobileTopBar } from './mobile/MobileTopBar'
@@ -112,7 +113,7 @@ export function Toolbar() {
         </span>
       </div>
 
-      <div className="toolbar__palette">
+      <div className="toolbar__palette" data-tour="palette">
         {PALETTE.map((p) => (
           <span key={p.kind} className="palette-item">
             <button
@@ -140,7 +141,7 @@ export function Toolbar() {
         ))}
       </div>
 
-      <div className="toolbar__actions">
+      <div className="toolbar__actions" data-tour="files">
         <button
           type="button"
           className="btn btn--icon"
@@ -176,6 +177,7 @@ export function Toolbar() {
         <RevisionChip />
         <ShareButton />
         <ExportMenu getViewport={getViewport} />
+        <HelpMenu />
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
       </div>
 

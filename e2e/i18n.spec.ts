@@ -127,6 +127,9 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
     await page.evaluate(() =>
       (window as unknown as Bridge).__loop.rf.setViewport({ x: 37, y: -12, zoom: 0.8 }, { duration: 0 }),
     )
+    // React Flow must have drawn the edge path before the baseline (else `d` is
+    // `[]` in `before` and populated in `after` — a timing-only mismatch)
+    await expect(page.locator('.react-flow__edge path.react-flow__edge-path')).toHaveCount(1)
     const before = await snapshot(page)
     for (const code of ['ko', 'en', 'ko', 'en']) await pickLocale(page, code)
     expect(await snapshot(page)).toEqual(before) // byte-for-byte
@@ -205,7 +208,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await expect
       .poll(async () => {
         const g = await geom()
-        return g.d.every(Boolean)
+        return g.d.length > 0 && g.d.every(Boolean) // `[].every` is vacuously true
       })
       .toBe(true)
     const before = await geom()
@@ -305,6 +308,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
       s.advance()
       ;(window as any).__loop.graph.getState().setSelection('pool', null)
     })
+    await expect(page.locator('.react-flow__edge path.react-flow__edge-path')).toHaveCount(1)
     const before = await snapshot(page)
     for (const code of ['ko', 'en', 'ko', 'en']) await pickLocale(page, code)
     expect(await snapshot(page)).toEqual(before)
@@ -327,6 +331,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await expect(actSel.locator('option[value="automatic"]')).toHaveText('automatic')
     await expect(flowSel.locator('option[value="pushAny"]')).toHaveText('push any')
 
+    await expect(page.locator('.react-flow__edge path.react-flow__edge-path')).toHaveCount(1)
     const before = await snapshot(page)
     const inspW = () =>
       page.evaluate(() => Math.round(document.querySelector('aside.inspector')!.getBoundingClientRect().width))

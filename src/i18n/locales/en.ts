@@ -546,6 +546,51 @@ const en = {
   'openhint.body': 'Open a saved file or a Share link to view it here.',
   'openhint.button': 'Open a file',
   'openhint.sub': 'Export Graph JSON or Workspace JSON on desktop, or open a #g1= Share link.',
+
+  // ═══ Guided first-run tour + Help menu (docs/guided-tour.md) ═══════════════
+  'tour.welcome.title': 'Welcome to Loop Studio',
+  'tour.welcome.body': 'A quick two-minute tour of the six parts of the workspace?',
+  'tour.welcome.start': 'Start tour',
+  'tour.welcome.skip': 'Skip',
+  'tour.nav.back': 'Back',
+  'tour.nav.next': 'Next',
+  'tour.nav.done': 'Done',
+  'tour.nav.position': '{n} / {total}',
+  'tour.nav.close': 'Close the tour',
+  // desktop steps
+  'tour.desktop.pieces.title': 'Pieces',
+  'tour.desktop.pieces.body': 'The building blocks — Pool, Source, Drain, Gate, and the rest. Click one, or drag it onto the canvas, to add it.',
+  'tour.desktop.canvas.title': 'Canvas',
+  'tour.desktop.canvas.body': 'Place pieces here, connect them handle to handle, and pan or zoom to move around.',
+  'tour.desktop.inspector.title': 'Inspector',
+  'tour.desktop.inspector.body': 'Select any piece or connection to edit its settings here.',
+  'tour.desktop.playback.title': 'Playback',
+  'tour.desktop.playback.body': 'Run the model one step at a time or continuously. A fixed Seed makes a random run repeatable.',
+  'tour.desktop.timeline.title': 'Timeline',
+  'tour.desktop.timeline.body': 'Watch pool values and run results change over time.',
+  'tour.desktop.files.title': 'Files and sharing',
+  'tour.desktop.files.body': 'Start from a template, import a file, copy a Share link, or export the graph or workspace.',
+  // mobile steps
+  'tour.mobile.open.title': 'Open a graph',
+  'tour.mobile.open.body': 'Open a shared graph — from a #g1= link, or by importing a file from the More menu.',
+  'tour.mobile.canvas.title': 'Move around',
+  'tour.mobile.canvas.body': 'Drag to pan, pinch to zoom. Fit re-centres the diagram.',
+  'tour.mobile.inspect.title': 'Inspect',
+  'tour.mobile.inspect.body': 'Tap a node or connection to read its configuration. Editing is desktop-only.',
+  'tour.mobile.run.title': 'Run it',
+  'tour.mobile.run.body': 'Step through the model, or press Play to run it.',
+  'tour.mobile.timeline.title': 'Timeline',
+  'tour.mobile.timeline.body': 'Open the timeline sheet to see values over time.',
+  'tour.mobile.more.title': 'More',
+  'tour.mobile.more.body': 'Share, Export, and the language switch all live in this menu.',
+  // Help menu
+  'tour.help.menuLabel': 'Help',
+  'tour.help.takeTour': 'Take a tour',
+  'tour.help.about': 'About Loop Studio',
+  // About dialog (the product name, version line, Cozy Shelter link text/href,
+  // and the copyright line are shown verbatim in every locale — not keyed)
+  'about.createdBy': 'Created by',
+  'about.notAffiliated': 'Loop Studio is an independent project and is not affiliated with or endorsed by Machinations.io.',
 } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */

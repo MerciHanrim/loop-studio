@@ -54,7 +54,7 @@ export function MobileRunBar() {
   }
 
   return (
-    <div className="pstrip pstrip--mobile" role="toolbar" aria-label={t('runbar.ariaLabel')}>
+    <div className="pstrip pstrip--mobile" role="toolbar" aria-label={t('runbar.ariaLabel')} data-tour="mobile-run">
       <div className="pstrip__group">
         <button type="button" className="pb-btn" onClick={reset} aria-label={t('playbar.reset.title')}>
           ⟲
@@ -99,6 +99,7 @@ export function MobileRunBar() {
       <button
         type="button"
         className="pb-btn pstrip__tl"
+        data-tour="mobile-timeline"
         aria-haspopup="dialog"
         aria-expanded={overlay === 'timeline'}
         onClick={() => toggleOverlay('timeline')}

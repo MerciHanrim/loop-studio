@@ -11,6 +11,15 @@ import { expect, test } from '@playwright/test'
 const ORIGIN = 'http://localhost:4174'
 const ALT_ORIGIN = 'http://127.0.0.1:4174' // reaches the same content, NOT an allowed origin
 
+// docs/guided-tour.md — keep the first-run Welcome card out of these DOM-driven
+// tests (this spec doesn't use the shared `./support/loop` fixture). Context-
+// scoped so the second page some tests open (`context.newPage()`) is covered.
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => {
+    ;(window as unknown as { __noFirstRunTour: boolean }).__noFirstRunTour = true
+  })
+})
+
 const setGen = (page: Page, to: 'a' | 'b' | 'c') =>
   page.request.post(`${ORIGIN}/__gen?to=${to}`).then((r) => expect(r.ok()).toBe(true))
 

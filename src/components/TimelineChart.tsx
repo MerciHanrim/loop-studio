@@ -535,7 +535,7 @@ export function TimelineChart() {
   }
 
   return (
-    <div className={`timeline${collapsed ? ' is-collapsed' : ''}`}>
+    <div className={`timeline${collapsed ? ' is-collapsed' : ''}`} data-tour="timeline">
       <PlayBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
       {!collapsed ? panel : null}
     </div>

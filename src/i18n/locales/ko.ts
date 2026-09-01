@@ -510,6 +510,50 @@ const ko = {
   'openhint.body': '저장한 파일이나 공유 링크를 열어 여기서 확인하세요.',
   'openhint.button': '파일 열기',
   'openhint.sub': '데스크톱에서 Graph JSON 또는 Workspace JSON을 내보내거나 #g1= 공유 링크를 여세요.',
+
+  // ═══ 가이드 첫 실행 투어 + 도움말 메뉴 (docs/guided-tour.md) ═══════════════
+  'tour.welcome.title': 'Loop Studio에 오신 것을 환영합니다',
+  'tour.welcome.body': '작업 공간의 여섯 부분을 2분 만에 둘러볼까요?',
+  'tour.welcome.start': '투어 시작',
+  'tour.welcome.skip': '건너뛰기',
+  'tour.nav.back': '이전',
+  'tour.nav.next': '다음',
+  'tour.nav.done': '완료',
+  'tour.nav.position': '{n} / {total}',
+  'tour.nav.close': '투어 닫기',
+  // 데스크톱 단계
+  'tour.desktop.pieces.title': '조각',
+  'tour.desktop.pieces.body': '풀, 소스, 드레인, 게이트 등 기본 구성 요소입니다. 클릭하거나 캔버스로 끌어다 놓아 추가하세요.',
+  'tour.desktop.canvas.title': '캔버스',
+  'tour.desktop.canvas.body': '여기에 조각을 배치하고 양쪽 점을 이어 연결하며, 화면을 이동하거나 확대·축소합니다.',
+  'tour.desktop.inspector.title': '인스펙터',
+  'tour.desktop.inspector.body': '조각이나 연결을 선택하면 여기서 설정을 편집합니다.',
+  'tour.desktop.playback.title': '재생',
+  'tour.desktop.playback.body': '모델을 한 단계씩 또는 연속으로 실행합니다. 시드를 고정하면 무작위 실행을 재현할 수 있습니다.',
+  'tour.desktop.timeline.title': '타임라인',
+  'tour.desktop.timeline.body': '풀 값과 실행 결과가 시간에 따라 어떻게 변하는지 관찰합니다.',
+  'tour.desktop.files.title': '파일과 공유',
+  'tour.desktop.files.body': '템플릿에서 시작하거나, 파일을 가져오거나, 공유 링크를 복사하거나, 그래프·워크스페이스를 내보냅니다.',
+  // 모바일 단계
+  'tour.mobile.open.title': '그래프 열기',
+  'tour.mobile.open.body': '#g1= 링크로, 또는 More 메뉴에서 파일을 가져와 공유된 그래프를 엽니다.',
+  'tour.mobile.canvas.title': '화면 이동',
+  'tour.mobile.canvas.body': '끌어서 이동하고 손가락을 오므려 확대·축소합니다. Fit은 다이어그램을 다시 가운데로 맞춥니다.',
+  'tour.mobile.inspect.title': '내용 확인',
+  'tour.mobile.inspect.body': '노드나 연결을 눌러 설정을 확인합니다. 편집은 데스크톱에서만 가능합니다.',
+  'tour.mobile.run.title': '실행',
+  'tour.mobile.run.body': '모델을 한 단계씩 실행하거나 재생을 눌러 실행합니다.',
+  'tour.mobile.timeline.title': '타임라인',
+  'tour.mobile.timeline.body': '타임라인 시트를 열어 시간에 따른 값을 확인합니다.',
+  'tour.mobile.more.title': 'More',
+  'tour.mobile.more.body': '공유, 내보내기, 언어 전환이 모두 이 메뉴에 있습니다.',
+  // 도움말 메뉴
+  'tour.help.menuLabel': '도움말',
+  'tour.help.takeTour': '둘러보기',
+  'tour.help.about': 'Loop Studio 정보',
+  // About 대화상자 (제품명·버전 줄·Cozy Shelter 링크·저작권 줄은 번역하지 않고 모든 로케일에서 그대로 표시)
+  'about.createdBy': '제작:',
+  'about.notAffiliated': 'Loop Studio는 독립 프로젝트이며 Machinations.io와 제휴하거나 보증받은 프로젝트가 아닙니다.',
 } satisfies MessageCatalog
 
 export default ko

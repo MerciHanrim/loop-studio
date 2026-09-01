@@ -1,6 +1,6 @@
 # Guided first-run tour (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 3.** rev 1 fixed the
+**Status: IMPLEMENTED (`feat/guided-tour`). rev 3.** rev 1 fixed the
 structure (desktop/mobile split, read-only principle, six-step scope, a11y +
 invariance); rev 2 pinned the four **lifecycle boundaries** (§GT6.1 display
 timing, §GT6.3 `localStorage` failure, §GT6.4 exit-state table, §GT7 Help menu +
@@ -551,12 +551,24 @@ The implementation slice must ship E2E covering:
 - **The design doc.** `docs/guided-tour.md` only, no code — merged as *settled
   design, implementation pending* (rev 1–2), then amended by rev 3 to add
   `About Loop Studio` to the Help menu.
-- **Next — implementation (its own PR).** The tour store + overlay component, the
-  six desktop + six mobile steps, `data-tour` attributes on the regions, the
-  Welcome card, the Help (`?`) menu with **`Take a tour` + `About Loop Studio`**,
-  the About dialog, `tour.*` + `about.*` catalog entries (EN + KO), and the §GT9
-  E2E set (19 cases). No engine / wire / serialized change; EN output and every
-  existing snapshot unchanged except the new Help control.
+- **Implementation — `feat/guided-tour`.** `src/store/tourStore.ts` (phase
+  machine + the §GT6.4 table + `TOUR_STORAGE_KEY`), `src/components/GuidedTour.tsx`
+  (the `FirstRunTrigger` poll of §GT6.1, the Welcome card, the step popover +
+  spotlight — `position: fixed`, no transitions, `--z-tour: 47` below every
+  dialog), `src/components/tourSteps.ts` (the two six-step scripts keyed by
+  `data-tour` / a plain selector), `src/components/HelpMenu.tsx` (desktop `?`
+  menu), `src/components/AboutDialog.tsx` (reuses the `.mcdlg` shell). `data-tour`
+  attributes on `.toolbar__palette` / `.canvas` / `aside.inspector` / `.pstrip` /
+  `.timeline` / `.toolbar__actions` and the mobile `.toolbar--mobile` /
+  `.pstrip--mobile` / `.pstrip__tl` / `.mob-more`. Help lands in the desktop
+  toolbar and a mobile More → Help sub-sheet (`uiStore` `'help'` overlay).
+  `tour.*` + `about.*` catalog (EN + KO); `ShareLoader` calls
+  `tourStore.markAppSettled()` after the `#g1=` consume. E2E:
+  `e2e/guided-tour.spec.ts` (27 tests across the 19 §GT9 conditions),
+  `src/store/tourStore.test.ts` (11). No engine / wire / serialized change; every
+  existing snapshot unchanged (the new Help `?` sits outside the screenshot
+  clips). `e2e/support/loop.ts` seeds the tour key `dismissed` by default so the
+  card never intercepts another spec's clicks.
 - **Later slice — contextual inline help.** Separate design + PR; adds
   `Contextual help` to the Help menu.
 
