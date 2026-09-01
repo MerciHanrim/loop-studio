@@ -167,7 +167,7 @@ classification, or apply decision depends on them.
 - ◐ Onboarding, part 2 — **v0.8.0-dev** ([`docs/localization.md`](docs/localization.md) — design doc first; the run-status live region, Inspector help text, and the visual-language work already shipped are accessibility / design pieces, not this)
   - ✅ Extensible localization base — registry-driven N-language structure with EN + KO as the first shipped locales; runtime language menu, atomic catalog activation, ICU formatting, EN fallback, and `localStorage`-only locale persistence. Locale state never enters GraphDoc / Workspace / Share / revision / digest / undo / simulation state
   - ✅ Full-app localization + acceptance validation — Toolbar, Canvas, Inspector, Timeline, Templates, Import / Export, Share, revision, PWA, dialogs, errors, empty states, accessibility text, KO typography, desktop / mobile visual references, invariance tests, and CI guards for catalog parity and hardcoded UI strings
-  - ☐ Guided first-run tour — built on the localization base
+  - ☐ Guided first-run tour — built on the localization base ([`docs/guided-tour.md`](docs/guided-tour.md) — design doc first)
   - ☐ Contextual inline help and documentation — built on the localization base
 - ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
