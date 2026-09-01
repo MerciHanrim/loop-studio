@@ -1,0 +1,399 @@
+# Example — "Early MMO progression (levels 1–15)" (non-frozen design doc — DRAFT)
+
+**Status: settled design — implementation pending. rev 2.** rev 1 laid out the
+scope, model, and boundaries; **rev 2** applies the review decisions (§EM12,
+closed): **three parallel zone lanes** (§EM4), a **win / non-fatal fail /
+death** combat split (§EM2.2), **cumulative counter Pools** for every "how much
+total" quantity (§EM2.3–EM2.5), `Gear wear` separated from `Gear score`
+(§EM2.4), per-band Level-Converter costs (§EM2.6), and a set of **accounting
+invariants** in the acceptance conditions (§EM10.1). This is a **non-frozen** design doc — no `loop-*/N` id, no `Frozen`
+marker — and merges as *settled design, implementation pending*, like
+[`docs/localization.md`](localization.md) and [`docs/guided-tour.md`](guided-tour.md).
+
+The example is the **second follow-up** to the localization base (after the
+guided tour, before contextual inline help). It is a **product demo / Templates
+entry**, not a precision instrument and not a test oracle: it exists to show
+that Loop Studio models a *play economy*, not just an XP curve — growth,
+gating, rewards, cost, and probabilistic variance on one screen.
+
+## EM0. Why
+
+"1 → 15 in an early MMO zone" is the canonical progression story: kill things,
+turn in quests, level up, buy gear, keep eating. Modelled as a **discrete-step
+resource flow** it becomes a real economy question — *where does XP/hour sag,
+does gear cost wall you, how wide is the levelling-time spread from drop luck?*
+The existing Templates (`Flowing equilibrium`, `Bottleneck deadlock`) are tiny
+teaching diagrams; this one is a **connected mid-size economy** a user can open,
+run, and Monte-Carlo out of the box.
+
+## EM1. Scope
+
+**In**
+
+- one runnable **`loop-studio/graph`** — `examples/mmo-progression.json` — with a
+  `recommendedRunConfig`;
+- a **generalised** subject: *early MMO levelling*, with the example's own
+  invented numbers and generic node labels;
+- the **required play-economy elements** (EM2): combat success / failure, death
+  count + time & repair penalty, water & food consumption + resupply,
+  categorised loot, an equip-vs-sell decision, vendor revenue, and gold spent on
+  repair / consumables / training;
+- **three zones** (1–5 / 5–10 / 10–15) with level-gated unlocks (EM4);
+- a **Monte-Carlo config** and the tracked-quantity set (EM7);
+- registration in the **Templates** menu (EN + KO name / blurb) and an
+  `examples/README.md` row;
+- an **acceptance E2E** — import → run → the graph is valid, deterministic, and
+  round-trips (EM10).
+
+**Out**
+
+- **Real combat.** Each fight is abstracted to `success probability · time cost ·
+  consumables spent · reward · death chance`. No per-hit, positioning, cooldown,
+  threat, or party mechanics.
+- **Spatial / continuous anything** — no map, movement, pathing, AI, collision
+  (§EM8). Zones are gated stages, not places.
+- **A test oracle.** There is **no** `mmo-progression.expected.json`; the E2E
+  checks schema + reproducibility + round-trip, not specific numbers.
+- **WoW-specific content** — see EM9.
+
+## EM2. The model — play element → node
+
+Two engine facts drive the shape:
+
+- **Every "how much total" quantity is a cumulative counter Pool** — a Pool a
+  flow only ever *adds to*, never drains. A Pool that gets both filled and
+  emptied (a live balance like `Gold`, `Water`, `Food`) cannot also report its
+  gross inflow / outflow, so each such balance gets a **paired `… earned` /
+  `… spent` counter Pool** fed the same amounts. Registers store nothing (§M2),
+  so they are never counters.
+- **A derived read-out is a Register** — a pure `loop-expr/1` function of the
+  committed snapshot: `+ - * /` and `@id` only; **no `floor` / `min` / `max` /
+  conditionals**. So a Register can compute a *ratio* or a *sum*, but not an
+  integer level or a clamp.
+
+### EM2.1 Core progression
+
+| Element | Node(s) | Notes |
+|---|---|---|
+| Time | `Elapsed time` **counter Pool** ← a clock Source adds `time_per_step` each step; the death branch adds `death_time_penalty` | terminal value across runs = the time-to-15 distribution |
+| XP (live) | `XP` **Pool** — filled by the reward router, drained by whichever zone's Level Converter is active | not a counter — see `XP earned` below |
+| XP earned | `XP earned` **counter Pool** — fed the same reward amounts, never drained | so `total XP = f(level path)` is verifiable |
+| Level | `Level` **Pool** — raised **1 per fire** by the zone's **XP → Level Converter**; each zone lane has its own converter with its own rising `xp_per_level[zone]` (§EM2.5) | integer, because a Converter emits whole units — the engine does the "floor" a Register cannot |
+| Reaching 15 | a `completion` Source pushes a **1-unit pulse every step** toward an **End** node; a state **`activator`** on `Level ≥ 15` **opens that route**. Before level 15 the route is closed and the pulse is discarded; at level 15 the next pulse arrives `> epsilon` and ends the run `fired` (SEMANTICS.md §8) | this is the run terminator |
+
+### EM2.2 Combat — three outcomes
+
+`Encounters` Source pushes a fixed "encounters per step" flow into the active
+zone's **`Combat` Gate** (`probabilistic`), which has **three** weighted
+branches:
+
+| Branch | weight | effect (every branch also increments its counter) |
+|---|---|---|
+| **Win** | `w_win[zone]` | `Combat wins` += 1; `XP` + `XP earned` (+`xp_per_kill[zone]`), `Gold` + `Gold earned` (+`gold_per_kill[zone]`), a `Recovery` converter spends `water_per_fight` + `food_per_fight` (and adds them to `Water consumed` / `Food consumed`), and the **Loot roll** fires |
+| **Non-fatal fail** | `w_fail[zone]` | `Combat fails` += 1; no XP, no gold, no loot; `Gear wear` += `wear_per_fail`; a little `Elapsed time` += `fail_time_cost`. **No death.** |
+| **Death** | `w_death[zone]` | `Deaths` += 1; `Elapsed time` += `death_time_penalty`; `Gear wear` += `wear_per_death`; no reward |
+
+`Combat wins`, `Combat fails`, `Deaths` are cumulative counter Pools;
+`total combats = wins + fails + deaths`. Splitting fail from death keeps the
+death rate and the consumable economy honest — not every setback is a corpse
+run.
+
+### EM2.3 Loot — categorised, counted
+
+On a **win**, a `Loot` Gate (`probabilistic`, `drop_rate[zone]`) splits
+**drop** vs **nothing**. A drop feeds a `Loot category` Gate (deterministic
+weights) → four category flows. Every drop also increments `Items looted`
+(counter Pool).
+
+| Category | routed to | counter |
+|---|---|---|
+| **Equip upgrade** | a `Gear` Converter → `Gear score` **Pool** (+`gear_gain`), and `Items equipped` += 1 | `Gear score` only ever rises here |
+| **Vendor trash** | a `Vendor` Converter → `Gold` + `Gold earned` (+`vendor_value`), and `Vendor revenue` (counter) += `vendor_value`, `Items sold` += 1 | |
+| **Consumable** | `Water` + `Food` (+`consumable_bonus`), `Items consumed` += 1 | a small free top-up |
+| **Rare reward** | a lump to `Gold` + `Gold earned` (+`rare_value`), `Items sold` += 1 (a rare is sold, not equipped, in this model) | low weight, high value — the variance driver |
+
+`Items looted = Items equipped + Items sold + Items consumed + <drops still in a
+holding pool>` — see the §EM10 loot invariant.
+
+### EM2.4 Consumables & spend — every flow counted
+
+| Balance Pool | inflow | outflow | paired counters |
+|---|---|---|---|
+| `Gold` | kill / vendor / rare rewards | `Repair`, `Resupply`, `Training` Drains | `Gold earned` (in), `Repair spend` / `Resupply spend` / `Training spend` (each a counter Pool the matching Drain also feeds) |
+| `Water` | `Resupply` converter (Gold → Water at `resupply_cost`), consumable drops | `Recovery` converter per win | `Water bought` (in), `Water consumed` (out) |
+| `Food` | `Resupply` converter, consumable drops | `Recovery` converter per win | `Food bought` (in), `Food consumed` (out) |
+| `Gear wear` | `wear_per_fail`, `wear_per_death` | the `Repair` Converter consumes `Gear wear` **and** `Gold` (a `repair_cost_per_wear` ratio), reducing wear to 0-ish; it **never touches `Gear score`** | — |
+| `Gear score` | equip-upgrade drops only | — (never lowered) | — |
+
+`Resupply` fires when `Water` or `Food` is below `restock_threshold` — a state
+`activator` (`Water < restock_threshold`) opens the Gold→Water/Food converter.
+`Repair` fires when `Gear wear` is above `repair_threshold` — a state
+`activator` (`Gear wear > repair_threshold`).
+
+### EM2.5 Quest vs hunt XP
+
+The encounter reward is split by a deterministic **`Reward router`** Gate
+(`quest_reward_share` weight) into a **Quest** route (`xp_per_quest[zone]`,
+`gold_per_quest[zone]` — larger, lumpier) and a **Hunt** route (per-kill,
+steady). Both routes feed `XP` **and** `XP earned`, **and** their own
+never-drained counters `Quest XP` / `Hunt XP`. The final share is the Register
+`@hunt_xp / (@hunt_xp + @quest_xp)` — a `/0` before the first reward yields an
+invalid Register value (a real Timeline gap), never a halt (§M).
+
+### EM2.6 Zones — three parallel lanes (decided, §EM12)
+
+**Three lanes**, one per band, each a full copy of §EM2.2–EM2.5 with its own
+Parameters and its own **XP → Level Converter** (rising `xp_per_level`):
+
+| Zone lane | Level band | opened by (state `activator`) | closed by | `xp_per_level` | tone |
+|---|---|---|---|---|---|
+| **Starter** | 1–5 | run start (`Level ≥ 0`) | `Level ≥ 5` | `xp_per_level_1` (low) | high win weight, low `xp_per_kill`, cheap repair |
+| **Foothills** | 5–10 | `Level ≥ 5` | `Level ≥ 10` | `xp_per_level_2` (higher) | more `w_fail` / `w_death`, higher `xp_per_kill`, a `gear_gate_5` check |
+| **Highlands** | 10–15 | `Level ≥ 10` **and** `Gear score ≥ gear_gate_10` | run ends at 15 | `xp_per_level_3` (highest) | lowest win weight, highest `w_death`, highest rewards + costs |
+
+Exactly one lane's `Encounters` flow is live at a time — each lane's
+`Encounters` Source is gated by an `activator` that is **open only inside its
+band** (`Level ≥ lower` and `Level < upper`, expressed as two `activator`s on
+the same route, or an "open at lower, close at upper" pair). A closed lane
+contributes nothing. This makes each zone's economy a **separately inspectable
+block on the Timeline** — the whole point of the three-lane choice, and the
+band boundaries are unambiguous under the current expression grammar (a single
+level-scaled lane could not draw them cleanly).
+
+Shared across all three lanes: `Level`, `XP` / `XP earned`, `Gold` + all its
+counters, `Water` / `Food` + counters, `Gear wear`, `Gear score`, `Deaths`,
+`Elapsed time`, `Items *`, `Quest XP` / `Hunt XP`, and the level-15 End.
+
+### EM2.7 Layout
+
+Left-to-right: **Starter lane** (top band), **Foothills lane** (middle),
+**Highlands lane** (bottom), each with its own combat → loot → recovery row;
+the **shared economy** (`Level`, `Gold` + counters, `Water`/`Food` + counters,
+`Gear`, `Deaths`, `Elapsed time`, the Registers, the End) runs down the right
+edge. Reads as three stacked economies feeding one progression column at L1.
+
+## EM3. One combat cycle (within the active zone lane)
+
+```
+encounter (this lane's Encounters Source — per step, only while the lane is open)
+  → Combat gate (probabilistic, 3 branches)
+      ├─ win  → XP (+ XP earned) , Gold (+ Gold earned)
+      │           → Loot gate (probabilistic: drop_rate) — on drop: Items looted +1
+      │               → Loot category (deterministic weights)
+      │                   ├─ equip upgrade  → Gear score ; Items equipped +1
+      │                   ├─ vendor trash   → Vendor → Gold (+ Gold earned, + Vendor revenue) ; Items sold +1
+      │                   ├─ consumable     → Water + Food ; Items consumed +1
+      │                   └─ rare reward    → Gold (+ Gold earned, + Vendor revenue) ; Items sold +1
+      │           → Recovery converter: Water -= water_per_fight (+ Water consumed) ;
+      │                                 Food  -= food_per_fight  (+ Food consumed)
+      ├─ non-fatal fail → Gear wear += wear_per_fail ; Elapsed time += fail_time_cost
+      └─ death          → Deaths +1 ; Elapsed time += death_time_penalty ; Gear wear += wear_per_death
+  → Reward router (deterministic): Quest route / Hunt route  →  XP (+ XP earned) , Quest XP / Hunt XP
+  → Resupply activator (Water|Food < restock_threshold): Gold → Water/Food (+ counters)
+  → Repair activator (Gear wear > repair_threshold): Gear wear → 0 , Gold -= repair_cost (+ Repair spend)
+  → Training drain: Gold -= training_cost[zone] (+ Training spend)
+  → this lane's XP → Level converter: XP -= xp_per_level[zone] → Level +1
+  → completion pulse → (Level ≥ 15 activator open?) → End  [ends the run fired]
+```
+
+Every step is one such cycle in whichever lane `Level` currently sits in;
+`Elapsed time` advances by `time_per_step` plus any fail / death penalty.
+
+## EM4. Zones
+
+Fully specified in **§EM2.6** — three parallel lanes, `1–5 / 5–10 / 10–15`,
+each explicitly opened and closed by state `activator`s on `Level` (and a
+`Gear score` gate into Highlands). This is the decided form (§EM12 Q1); a
+single level-scaled lane was rejected because the current expression grammar
+(no comparisons / `floor`) can't draw clean band transitions.
+
+## EM5. Parameters (own numbers — placeholders for review)
+
+All tunable, all the example's own invented values (§EM9). Several are **per
+zone lane** (`[1|2|3]`, Starter / Foothills / Highlands):
+
+- **progression:** `time_per_step` · `xp_per_kill[1..3]` · `xp_per_quest[1..3]` ·
+  `xp_per_level[1..3]` (rising) · `gold_per_kill[1..3]` · `gold_per_quest[1..3]`
+- **combat split:** `w_win[1..3]` · `w_fail[1..3]` · `w_death[1..3]` (each lane's
+  three `Combat` gate weights; win falls and death rises with the band)
+- **penalties:** `death_time_penalty` · `fail_time_cost` · `wear_per_fail` ·
+  `wear_per_death`
+- **loot:** `drop_rate[1..3]` · loot-category weights
+  `equip_w` / `vendor_w` / `consumable_w` / `rare_w` · `gear_gain` ·
+  `vendor_value` · `rare_value` · `consumable_bonus`
+- **consumables & spend:** `water_per_fight` · `food_per_fight` ·
+  `resupply_cost` · `restock_threshold` · `repair_cost_per_wear` ·
+  `repair_threshold` · `training_cost[1..3]`
+- **routing & gates:** `encounters_per_step` · `quest_reward_share` ·
+  `gear_gate_5` · `gear_gate_10`
+
+Numbers are picked to the §EM10 tuning target: **median run reaches level 15 in
+60–120 steps**, and **≥ 95 % of a fixed verification-seed set reach level 15
+within 150 steps**, with visible XP/hour variance from drop + combat luck.
+
+## EM6. Registers (derived read-outs only)
+
+`loop-expr/1` gives `+ - * /` and `@id` (Pool / Parameter / Register values)
+only — no `floor` / `min` / `max` / conditionals. Every Register here is
+**reporting**, a pure function of the counter Pools:
+
+- `Total income` = `@gold_earned` (the counter, not the live `@gold`).
+- `Total expense` = `@repair_spend + @resupply_spend + @training_spend`.
+- `Net gold check` = `@gold_earned - @repair_spend - @resupply_spend - @training_spend`
+  — should track the live `@gold` minus its start value (the §EM10 gold
+  invariant, shown live on the Timeline).
+- `Hunt XP share` = `@hunt_xp / (@hunt_xp + @quest_xp)` — a `/0` before the first
+  reward yields an invalid Register value (a real Timeline gap), never a halt.
+- `Effective level` = `1 + @xp_earned / @xp_per_level_1` — a **continuous** read
+  of progress; the integer `Level` Pool (Converter-driven) is the real gate.
+- `Items accounted` = `@items_equipped + @items_sold + @items_consumed` — vs
+  `@items_looted` (the §EM10 loot invariant).
+- `Consumables burned` = `@water_consumed + @food_consumed`.
+
+## EM7. Monte Carlo
+
+`recommendedRunConfig`: `{ baseSeed: 1, runs: 200, steps: 150 }` (§EM12 Q2),
+with an **explicit `tracked` list** (§EM12 Q3):
+
+| tracked Pool | reads as |
+|---|---|
+| `Elapsed time` | **time to level 15** — a run that hits 15 ends early, so its terminal `Elapsed time` is its levelling time; a run that doesn't reach 15 in 150 steps contributes its LOCF terminal value |
+| `Level` | did the run finish (terminal = 15) or stall (< 15) |
+| `Deaths` | deaths per run |
+| `Combat wins` + `Combat fails` (counter Pools) | total fights and the win/fail split (with `Deaths` = the third outcome) |
+| `Water consumed` + `Food consumed` | total consumables burned |
+| `Items looted` / `Items equipped` / `Items sold` / `Items consumed` | the loot breakdown |
+| `Gold earned` / `Repair spend` / `Resupply spend` / `Training spend` / `Gold` | gross income, gross outflows, final balance |
+| `Vendor revenue` | gold from selling specifically |
+| `Gear score` | final gear |
+| `Quest XP` / `Hunt XP` | the XP-source split |
+
+**Questions it answers** (echoed in `examples/README.md`):
+
+- average / best / worst steps to level 15, and how wide the spread is;
+- which zone lane the XP curve flattens in (per-lane Timeline blocks);
+- whether gear / repair cost throttles progress (`Gold` trending to zero,
+  `Repair spend` climbing);
+- quest vs hunt reward balance (`Hunt XP share`);
+- how much drop-rate luck moves the levelling time (`Items *` spread vs
+  `Elapsed time` spread).
+
+## EM8. What Loop Studio deliberately does not model here
+
+Real-time combat control, 3D movement, monster AI, collision / hitboxes,
+line-of-sight, party/aggro. Each fight is a single probabilistic node with a
+time cost and a reward. This is the honest boundary of a deterministic
+discrete-step model — and the point of the example is that the *economic* shape
+of levelling survives that abstraction.
+
+## EM9. Naming & IP boundary
+
+The shipped example is **`Early MMO progression (levels 1–15)`** — a generic
+name, generic node labels ("Starter zone", "Vendor trash", "Repair Drain"), and
+**the example's own invented numbers**. It contains **no** World-of-Warcraft
+zone / quest / creature names, **no** official tuning values, and **no** Blizzard
+assets or copied text. It does not present itself as official or affiliated.
+
+A WoW-flavoured version, if ever made, is a **separate personal / blog artifact
+derived from this file** — never the bundled Template — and carries an explicit
+notice: *"Unofficial. World of Warcraft and related names are trademarks of
+Blizzard Entertainment, Inc. Not affiliated with or endorsed by Blizzard
+Entertainment."* This is a public-policy risk-management choice, not legal
+advice.
+
+## EM10. Verification (acceptance — not an oracle)
+
+The implementation PR ships an E2E that:
+
+- **imports** `examples/mmo-progression.json` and asserts it deserializes as
+  `loop-studio/graph` with the expected node / edge counts;
+- **runs** it (Step and Play) to completion or `steps`, asserting the run is
+  **deterministic** at `baseSeed` (same trajectory on a re-run) and that a
+  different seed diverges;
+- confirms, over a **fixed verification-seed set**, that a run reaches
+  `Level = 15` and ends `fired` with **median 60–120 steps** and **≥ 95 % within
+  150 steps**;
+- **round-trips**: Export → re-import is byte-identical; the `loop-revision/3`
+  digest is stable;
+- opens it from **Templates** on desktop and mobile — the menu **name / blurb**
+  render in EN and KO, and the seeded node labels are byte-identical across
+  locales (the §L3.4 rule);
+- works in the **portable** build.
+
+### EM10.1 Accounting invariants
+
+At the end of every run (and, ideally, at every step), these must hold to a
+floating-point epsilon:
+
+```
+start Gold  + Gold earned
+  = final Gold + Repair spend + Resupply spend + Training spend
+
+start Food   + Food bought
+  = final Food + Food consumed
+
+start Water  + Water bought
+  = final Water + Water consumed
+
+Items looted
+  = Items equipped + Items sold + Items consumed + <items still held, if any>
+```
+
+If a run holds no items in a pending pool, the last line is
+`Items looted = Items equipped + Items sold + Items consumed` exactly. The E2E
+asserts each identity from the final `SimState` (Monte-Carlo `tracked` terminal
+values give the same numbers across the run set). A broken counter wiring fails
+here, not a numeric-oracle diff.
+
+No numeric oracle otherwise: the example is a demo, so its exact tuning values
+may be re-picked without a "regression", as long as the invariants above and the
+reach-15 target still hold.
+
+## EM11. Slices
+
+- **This PR — the design doc.** `docs/example-mmo-progression.md` only, no code.
+- **Next — implementation (its own PR):** the canonical
+  `examples/mmo-progression.json` (built by constructing the graph in the app and
+  exporting it); a third `TEMPLATES` entry in `src/model/templates.ts` that
+  **loads that `.json`** (no inline duplicate, §EM12 Q5) + the `templateKeys.ts`
+  `id` map; `templates.<id>.name` / `.blurb` in `en.ts` + `ko.ts`; an
+  `examples/README.md` row + a "how to read it" section; the §EM10 E2E incl. the
+  §EM10.1 accounting invariants. No engine / wire / serialized change; the two
+  existing Templates and every visual snapshot unchanged.
+
+## EM12. Decision record (closed)
+
+1. **Zone form → three parallel lanes** (§EM2.6 / §EM4). `1–5 / 5–10 / 10–15`,
+   each explicitly opened and closed by state `activator`s on `Level`, so zone
+   unlocks and per-band bottlenecks are read directly off the Timeline. A single
+   level-scaled lane was rejected: the current expression grammar (no
+   comparisons / `floor`) can't express clean band transitions.
+2. **`recommendedRunConfig.steps = 150`.** Tuning target: **median 60–120 steps**
+   to level 15, and **≥ 95 %** of a fixed verification-seed set reaching 15
+   within 150 steps (§EM10).
+3. **Explicit `tracked` list** for Monte Carlo (§EM7), not `[]`.
+4. **`resourceType` tags** on `Gold` / `Water` / `Food` / `Gear score`, applied
+   consistently.
+5. **Canonical = `examples/mmo-progression.json`**; the Template entry loads it.
+   **No inline `templates.ts` duplicate.**
+
+### EM12.1 §EM2 reinforcements (applied in rev 2)
+
+- Combat has **three** outcomes — win / non-fatal fail / death (§EM2.2); not
+  every loss is a death.
+- **Cumulative counter Pools** added for every "how much total": `XP earned`,
+  `Gold earned`, `Vendor revenue`, `Repair spend`, `Resupply spend`,
+  `Training spend`, `Water bought` / `Water consumed`, `Food bought` /
+  `Food consumed`, `Items looted` / `Items equipped` / `Items sold` /
+  `Items consumed`, `Combat wins` / `Combat fails` (§EM2.3–EM2.5). A balance
+  Pool never doubles as its own gross counter.
+- **`Quest XP` / `Hunt XP` are never-drained earn counters** (§EM2.5), parallel
+  to feeding the live `XP`; the final share is computable.
+- **`Gear wear` is separate from `Gear score`** (§EM2.4): wear accumulates on
+  fail / death; `Repair` consumes wear **and** Gold to clear it; `Gear score`
+  only ever rises, from equip drops.
+- **Level-15 End** is fed a **per-step 1-unit completion pulse**; a `Level ≥ 15`
+  `activator` opens that route; the pulse is discarded until then (§EM2.1).
+- **Rising level cost** via **per-lane `xp_per_level`** on each zone's XP → Level
+  Converter (§EM2.6) — natural under the current engine.
+- **Accounting invariants** (§EM10.1) are acceptance conditions.
