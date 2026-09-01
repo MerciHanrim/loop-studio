@@ -25,6 +25,19 @@ type UiState = {
   openOverlay: (o: Exclude<Overlay, 'none'>) => void
   closeOverlay: (only?: Overlay) => void
   toggleOverlay: (o: Exclude<Overlay, 'none'>) => void
+
+  /**
+   * Canvas EDIT lock (docs/mobile.md §MV3a shape, on desktop). Locked ⇒ nodes
+   * don't move / connect, nothing deletes, the Inspector is read-only — but
+   * selection, the read-only Inspector, pan / zoom, the minimap, the Timeline
+   * and the simulation all still work. UI-only: never the GraphDoc, the
+   * `loop-revision/*` digest, undo, or `simulationRev`. Seeded from
+   * `recommendedRunConfig.canvasLocked` on document / template load; the toolbar
+   * / Controls lock toggle flips it.
+   */
+  canvasLocked: boolean
+  setCanvasLocked: (v: boolean) => void
+  toggleCanvasLocked: () => void
 }
 
 function dismissMcDialog(): void {
@@ -49,6 +62,10 @@ export const useUiStore = create<UiState>((set, get) => ({
     dismissMcDialog()
     set({ overlay: o })
   },
+
+  canvasLocked: false,
+  setCanvasLocked: (v) => set((s) => (s.canvasLocked === v ? s : { canvasLocked: v })),
+  toggleCanvasLocked: () => set((s) => ({ canvasLocked: !s.canvasLocked })),
 }))
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay

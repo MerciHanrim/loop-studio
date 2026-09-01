@@ -1,8 +1,8 @@
 import { ReactFlowProvider } from '@xyflow/react'
 import { BootNotice } from './components/BootNotice'
 import { Canvas } from './components/Canvas'
+import { DesktopInspector } from './components/DesktopInspector'
 import { GuidedTour } from './components/GuidedTour'
-import { Inspector } from './components/Inspector'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
@@ -28,7 +28,7 @@ export default function App() {
             <Canvas />
             <TimelineChart />
           </div>
-          <Inspector />
+          <DesktopInspector />
         </div>
         <MobileRunBar />
         <MobileInspectorSheet />

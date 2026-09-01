@@ -291,3 +291,29 @@ describe('recommendedRunConfig.timelineSeries — the Timeline display default (
     expect('timelineSeries' in recommendedRunConfigForExport()).toBe(false)
   })
 })
+
+describe('recommendedRunConfig.canvasLocked — the Canvas edit-lock (UI-only)', () => {
+  it('applyRecommended sets uiStore.canvasLocked from the field; absent / non-true ⇒ false', async () => {
+    const { useUiStore } = await import('./uiStore')
+    useMcStore.getState().applyRecommended({ canvasLocked: true })
+    expect(useUiStore.getState().canvasLocked).toBe(true)
+    useMcStore.getState().applyRecommended({ baseSeed: 3 }) // no field ⇒ unlocked
+    expect(useUiStore.getState().canvasLocked).toBe(false)
+    useMcStore.getState().applyRecommended({ canvasLocked: true })
+    useMcStore.getState().applyRecommended(undefined)
+    expect(useUiStore.getState().canvasLocked).toBe(false)
+    useMcStore.getState().applyRecommended({ canvasLocked: 'yes' as unknown as boolean })
+    expect(useUiStore.getState().canvasLocked).toBe(false)
+  })
+
+  it('recommendedRunConfigForExport carries canvasLocked only while it is true', async () => {
+    const { useUiStore } = await import('./uiStore')
+    const { recommendedRunConfigForExport } = await import('./mcStore')
+    useMcStore.getState().setConfig({ baseSeed: 1, runs: 3, steps: 3, tracked: [] })
+    useUiStore.getState().setCanvasLocked(false)
+    expect('canvasLocked' in recommendedRunConfigForExport()).toBe(false)
+    useUiStore.getState().setCanvasLocked(true)
+    expect(recommendedRunConfigForExport().canvasLocked).toBe(true)
+    useUiStore.getState().setCanvasLocked(false)
+  })
+})

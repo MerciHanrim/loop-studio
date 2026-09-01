@@ -1,8 +1,17 @@
 import { useCallback, useEffect } from 'react'
 import type { DragEvent } from 'react'
-import { Background, Controls, MiniMap, ReactFlow, useReactFlow, useStore } from '@xyflow/react'
+import {
+  Background,
+  ControlButton,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  useReactFlow,
+  useStore,
+} from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
 import { nodeTypes } from './nodes/nodes'
@@ -44,7 +53,14 @@ export function Canvas() {
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
   const isMobile = useIsMobile()
+  const canvasLocked = useUiStore((s) => s.canvasLocked)
+  const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
   const t = useT()
+
+  // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
+  // desktop Canvas is edit-locked (uiStore.canvasLocked). Selection, pan / zoom,
+  // the minimap, the Timeline and the sim are unaffected either way.
+  const noEdit = isMobile || canvasLocked
 
   // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
   // nodes / edges, the handle label) — localized via the one config prop
@@ -124,11 +140,11 @@ export function Canvas() {
   // Inspector sheet.
   return (
     <div
-      className="canvas"
+      className={`canvas${canvasLocked ? ' canvas--locked' : ''}`}
       data-tour="canvas"
-      onDrop={isMobile ? undefined : handleDrop}
-      onDragOver={isMobile ? undefined : handleDragOver}
-      onContextMenu={isMobile ? (e) => e.preventDefault() : undefined}
+      onDrop={noEdit ? undefined : handleDrop}
+      onDragOver={noEdit ? undefined : handleDragOver}
+      onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
     >
       <ReactFlow<LoopNode, LoopEdge>
         nodes={nodes}
@@ -137,12 +153,13 @@ export function Canvas() {
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={isMobile ? undefined : onConnect}
+        onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
-        nodesDraggable={!isMobile}
-        nodesConnectable={!isMobile}
+        nodesDraggable={!noEdit}
+        nodesConnectable={!noEdit}
+        edgesReconnectable={!noEdit}
         zoomOnDoubleClick={!isMobile}
-        deleteKeyCode={isMobile ? null : undefined}
+        deleteKeyCode={noEdit ? null : undefined}
         defaultEdgeOptions={{ type: 'loop' }}
         ariaLabelConfig={ariaLabelConfig}
         fitView
@@ -169,7 +186,23 @@ export function Canvas() {
             bgColor="var(--surface-raised)"
           />
         )}
-        <Controls />
+        {/* our own edit-lock replaces React Flow's "interactive" toggle, which
+            also kills selection (so the Inspector can't open). `canvasLocked`
+            keeps selection + a read-only Inspector; it only blocks structural
+            edits. Hidden on mobile — the mobile layout is always view-only. */}
+        <Controls showInteractive={false}>
+          {!isMobile && (
+            <ControlButton
+              onClick={toggleCanvasLocked}
+              title={canvasLocked ? t('canvas.lock.unlock') : t('canvas.lock.lock')}
+              aria-label={canvasLocked ? t('canvas.lock.unlock') : t('canvas.lock.lock')}
+              aria-pressed={canvasLocked}
+              className="rf-lock"
+            >
+              {canvasLocked ? '🔒' : '🔓'}
+            </ControlButton>
+          )}
+        </Controls>
       </ReactFlow>
     </div>
   )

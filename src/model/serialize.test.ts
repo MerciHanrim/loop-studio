@@ -202,6 +202,16 @@ describe('recommendedRunConfig round-trip', () => {
     const back = deserialize(serialize(g().nodes, g().edges, { baseSeed: 2, runs: 3, steps: 3 }))
     expect(back.recommendedRunConfig).not.toHaveProperty('timelineSeries')
   })
+
+  it('canvasLocked round-trips; a file without it deserialises without it', () => {
+    const rrc = { baseSeed: 1, runs: 5, steps: 5, canvasLocked: true }
+    const once = deserialize(serialize(g().nodes, g().edges, rrc))
+    expect(once.recommendedRunConfig).toEqual(rrc)
+    const twice = deserialize(serialize(once.nodes, once.edges, once.recommendedRunConfig))
+    expect(twice.recommendedRunConfig).toEqual(rrc)
+    const plain = deserialize(serialize(g().nodes, g().edges, { baseSeed: 1, runs: 1, steps: 1 }))
+    expect(plain.recommendedRunConfig).not.toHaveProperty('canvasLocked')
+  })
 })
 
 beforeEach(() => {

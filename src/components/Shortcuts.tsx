@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useGraphStore } from '../store/graphStore'
+import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 
 const isTypingTarget = (el: EventTarget | null): boolean => {
@@ -16,10 +17,12 @@ const isTypingTarget = (el: EventTarget | null): boolean => {
  */
 export function Shortcuts() {
   const isMobile = useIsMobile()
+  const canvasLocked = useUiStore((s) => s.canvasLocked)
   useEffect(() => {
     // docs/mobile.md §MV3a — no structural keyboard shortcuts (undo/redo) on
-    // mobile; editing is desktop-only.
-    if (isMobile) return
+    // mobile; editing is desktop-only. Same when the desktop Canvas is
+    // edit-locked (uiStore.canvasLocked).
+    if (isMobile || canvasLocked) return
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
       if (!mod || isTypingTarget(e.target)) return
@@ -34,6 +37,6 @@ export function Shortcuts() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isMobile])
+  }, [isMobile, canvasLocked])
   return null
 }

@@ -50,3 +50,25 @@ describe('uiStore — exclusive mobile overlay', () => {
     expect(useUiStore.getState().overlay).toBe('none')
   })
 })
+
+describe('uiStore — canvasLocked (edit-lock, UI-only)', () => {
+  beforeEach(() => useUiStore.setState({ canvasLocked: false }))
+
+  it('defaults to false; set / toggle flip it', () => {
+    const s = () => useUiStore.getState()
+    expect(s().canvasLocked).toBe(false)
+    s().setCanvasLocked(true)
+    expect(s().canvasLocked).toBe(true)
+    s().toggleCanvasLocked()
+    expect(s().canvasLocked).toBe(false)
+    s().toggleCanvasLocked()
+    expect(s().canvasLocked).toBe(true)
+  })
+
+  it('setCanvasLocked to the same value is a no-op (stable reference)', () => {
+    useUiStore.getState().setCanvasLocked(true)
+    const before = useUiStore.getState()
+    useUiStore.getState().setCanvasLocked(true)
+    expect(useUiStore.getState()).toBe(before)
+  })
+})

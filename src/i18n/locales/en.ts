@@ -116,6 +116,9 @@ const en = {
 
   // ── Canvas ─────────────────────────────────────────────────────────────
   'canvas.minimap': 'Graph minimap',
+  // the Canvas edit-lock toggle in the React Flow controls
+  'canvas.lock.lock': 'Lock editing — selecting and reading stay on',
+  'canvas.lock.unlock': 'Unlock editing — move, connect, and change values',
   'canvas.route.invalidFlag': 'invalid route — a route point is inside a node',
   // in-canvas edge-label annotations for a state / playback step
   'canvas.edgeLabel.clamp': 'clamp',

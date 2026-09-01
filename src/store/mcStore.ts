@@ -10,6 +10,7 @@ import type { RecommendedRunConfig } from '../model/serialize'
 import { semanticDigest } from '../model/workspace'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
+import { useUiStore } from './uiStore'
 
 // Monte-Carlo run state. Deliberately NOT persisted to localStorage — a
 // distribution is an experiment result, not part of the document.
@@ -95,12 +96,15 @@ export const useMcStore = create<McStore>((set, get) => ({
   setConfig: (patch) => set({ config: { ...get().config, ...patch } }),
 
   applyRecommended: (m) => {
-    // Timeline default series is a display preference, applied on EVERY document
-    // load — the file's list, or 'all' when the field is absent (unchanged
-    // behaviour for older files). Kept separate from the Monte-Carlo config
-    // below, which is deliberately left untouched when a file omits it.
-    const ts = m && typeof m === 'object' ? (m as { timelineSeries?: unknown }).timelineSeries : undefined
-    useSimStore.getState().setTimelineSeries(Array.isArray(ts) ? (ts as string[]) : undefined)
+    // Display preferences apply on EVERY document load — the file's value, or the
+    // default when the field is absent (unchanged behaviour for older files).
+    // Kept separate from the Monte-Carlo config below, which is deliberately left
+    // untouched when a file omits it.
+    const rc = m && typeof m === 'object' ? (m as Record<string, unknown>) : {}
+    useSimStore
+      .getState()
+      .setTimelineSeries(Array.isArray(rc.timelineSeries) ? (rc.timelineSeries as string[]) : undefined)
+    useUiStore.getState().setCanvasLocked(rc.canvasLocked === true)
 
     if (!m || typeof m !== 'object') return
     const patch: Partial<RunConfig> = {}
@@ -258,9 +262,11 @@ export const useMcStore = create<McStore>((set, get) => ({
  */
 export function recommendedRunConfigForExport(): RecommendedRunConfig {
   const ts = useSimStore.getState().timelineSeries
+  const locked = useUiStore.getState().canvasLocked
   return {
     ...useMcStore.getState().config,
     ...(Array.isArray(ts) ? { timelineSeries: [...ts].sort() } : {}),
+    ...(locked ? { canvasLocked: true } : {}),
   }
 }
 

@@ -1598,6 +1598,16 @@ body {
   padding: 14px;
   overflow-y: auto;
 }
+/* Canvas edit-lock (uiStore.canvasLocked): the desktop Inspector is wrapped in a
+   `<fieldset disabled>`; `display: contents` drops the fieldset box so the inner
+   `.inspector` aside stays the normal flex column, while `disabled` still makes
+   every control inside it inert. */
+.inspector-ro--desktop {
+  display: contents;
+}
+.react-flow__controls-button.rf-lock[aria-pressed='true'] {
+  background: var(--surface-sunken);
+}
 .inspector__empty {
   color: var(--text-secondary);
   font-size: 13px;
