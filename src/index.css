@@ -2242,6 +2242,15 @@ input[type='number']::-webkit-inner-spin-button {
    scripts/check-mobile-query.mjs enforces it.
    ========================================================================== */
 @media (max-width: 720px), (max-height: 500px) and (max-width: 950px) and (pointer: coarse) {
+  /* iOS Safari auto-zooms a focused text/number input whose font is < 16px and
+     never zooms back out (docs/mobile.md §MV4b). The Monte-Carlo dialog is the
+     only place a mobile user focuses a field, so bump those to 16px. Pinch /
+     accessibility zoom is NOT blocked — the viewport meta has no
+     `maximum-scale` / `user-scalable=no`. */
+  .mcdlg__field input {
+    font-size: 16px;
+  }
+
   /* height tracks the *visual* viewport (dvh), so the iOS address bar
      collapsing/expanding never pushes the bottom of the app off-screen;
      100vh is the fallback for engines without dvh (docs/mobile.md §MV4a) */
