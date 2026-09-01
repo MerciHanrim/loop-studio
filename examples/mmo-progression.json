@@ -1369,7 +1369,7 @@
       "type": "register",
       "position": {
         "x": 3280,
-        "y": 340
+        "y": 260
       },
       "data": {
         "kind": "register",
@@ -1383,7 +1383,7 @@
       "type": "register",
       "position": {
         "x": 3280,
-        "y": 490
+        "y": 370
       },
       "data": {
         "kind": "register",
@@ -1397,7 +1397,7 @@
       "type": "register",
       "position": {
         "x": 3280,
-        "y": 640
+        "y": 480
       },
       "data": {
         "kind": "register",
@@ -1411,7 +1411,7 @@
       "type": "register",
       "position": {
         "x": 3280,
-        "y": 190
+        "y": 150
       },
       "data": {
         "kind": "register",
@@ -1439,7 +1439,7 @@
       "type": "register",
       "position": {
         "x": 3280,
-        "y": 790
+        "y": 590
       },
       "data": {
         "kind": "register",
@@ -1453,7 +1453,7 @@
       "type": "register",
       "position": {
         "x": 3280,
-        "y": 940
+        "y": 700
       },
       "data": {
         "kind": "register",

@@ -480,15 +480,16 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
 
     // ── RIGHT EDGE: reporting / checks (no edges — a Register has no ports) ──
     // One column at x 3280 (right of every other node, including the completion
-    // block above), 150 px pitch so each Register's title + value + expression
-    // line reads clear of the next even at 100 % zoom.
+    // block above), 110 px pitch — enough that each Register's title + value +
+    // expression line clears the next at 100 % zoom without spreading the block
+    // so far it is tiring to scan.
     r_efflevel: { x: 3280, y: 40 },
-    r_huntshare: { x: 3280, y: 190 },
-    r_income: { x: 3280, y: 340 },
-    r_expense: { x: 3280, y: 490 },
-    r_netgold: { x: 3280, y: 640 },
-    r_items_acct: { x: 3280, y: 790 },
-    r_burned: { x: 3280, y: 940 },
+    r_huntshare: { x: 3280, y: 150 },
+    r_income: { x: 3280, y: 260 },
+    r_expense: { x: 3280, y: 370 },
+    r_netgold: { x: 3280, y: 480 },
+    r_items_acct: { x: 3280, y: 590 },
+    r_burned: { x: 3280, y: 700 },
 
     // ── the HUB ROW (y 660 → shifted to 800): the only place zone columns merge ──
     drop: { x: 380, y: 660 },

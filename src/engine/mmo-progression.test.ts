@@ -151,7 +151,8 @@ describe('mmo-progression example', () => {
     expect(regs.every((r) => r.position.x >= spineMaxX && r.position.x > everyOtherMaxX)).toBe(true)
     expect(new Set(regs.map((r) => r.position.x)).size).toBe(1) // one column
     for (let i = 1; i < regs.length; i++) {
-      expect(regs[i].position.y - regs[i - 1].position.y).toBeGreaterThanOrEqual(140)
+      // wide enough that a Register's title + value + expression clears the next
+      expect(regs[i].position.y - regs[i - 1].position.y).toBeGreaterThanOrEqual(100)
     }
   })
 
