@@ -137,13 +137,22 @@ describe('mmo-progression example', () => {
     expect(b2.minX).toBeGreaterThan(b1.maxX)
     expect(b3.minX).toBeGreaterThan(b2.maxX)
 
-    // Registers have no ports, so nothing wires to them — they must not sit
-    // where resource edges run (top-right, above the economy)
+    // Registers have no ports, so nothing wires to them — they sit in one clean
+    // column past the right edge of every other node, with a wide enough vertical
+    // pitch that each Register's title + value + expression reads clear of the
+    // next at 100 % zoom.
     const regIds = new Set(nodes.filter((n) => n.data.kind === 'register').map((n) => n.id))
     expect(edges.filter((e) => regIds.has(e.source) || regIds.has(e.target))).toEqual([])
-    const regs = nodes.filter((n) => regIds.has(n.id))
+    const regs = nodes.filter((n) => regIds.has(n.id)).sort((a, b) => a.position.y - b.position.y)
     const spineMaxX = Math.max(...['char_creation', 'z3_enc', 'end15'].map((id) => at(id).position.x))
-    expect(regs.every((r) => r.position.x >= spineMaxX && r.position.y < 600)).toBe(true)
+    const everyOtherMaxX = Math.max(
+      ...nodes.filter((n) => !regIds.has(n.id)).map((n) => n.position.x),
+    )
+    expect(regs.every((r) => r.position.x >= spineMaxX && r.position.x > everyOtherMaxX)).toBe(true)
+    expect(new Set(regs.map((r) => r.position.x)).size).toBe(1) // one column
+    for (let i = 1; i < regs.length; i++) {
+      expect(regs[i].position.y - regs[i - 1].position.y).toBeGreaterThanOrEqual(140)
+    }
   })
 
   it('deserialises as loop-studio/graph with the expected structure', () => {

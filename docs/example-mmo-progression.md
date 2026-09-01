@@ -438,9 +438,12 @@ Character creation → Starter · Lv 1–5 → Foothills · Lv 5–10 → Highla
   Equip / Sell / Consume` and the item counters.
 - **BOTTOM-CENTRE** — the gold economy: `Reward router → payouts → Gold →
   Repair / Resupply / Training`, plus gear and consumables.
-- **TOP-RIGHT** — the seven reporting Registers, in clear space. A Register has
-  no ports, so **nothing wires to them**; they are placed where no resource edge
-  runs (and clear of the minimap's bottom-right corner).
+- **RIGHT EDGE** — the seven reporting Registers in one column (`x 2960`, past
+  the right edge of every other node), at a **150 px vertical pitch** so each
+  Register's title + value + expression line reads clear of the next at 100 %
+  zoom. A Register has no ports, so **nothing wires to them**; the column sits
+  where no resource edge runs, clear of `Reached level 15` / the completion
+  block on its left.
 
 Positions live in one `LAYOUT` table in the builder so the structural code stays
 readable.

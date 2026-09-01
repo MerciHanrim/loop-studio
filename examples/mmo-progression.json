@@ -1369,7 +1369,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 200
+        "y": 340
       },
       "data": {
         "kind": "register",
@@ -1383,7 +1383,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 270
+        "y": 490
       },
       "data": {
         "kind": "register",
@@ -1397,7 +1397,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 340
+        "y": 640
       },
       "data": {
         "kind": "register",
@@ -1411,7 +1411,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 130
+        "y": 190
       },
       "data": {
         "kind": "register",
@@ -1425,7 +1425,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 60
+        "y": 40
       },
       "data": {
         "kind": "register",
@@ -1439,7 +1439,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 410
+        "y": 790
       },
       "data": {
         "kind": "register",
@@ -1453,7 +1453,7 @@
       "type": "register",
       "position": {
         "x": 2960,
-        "y": 480
+        "y": 940
       },
       "data": {
         "kind": "register",

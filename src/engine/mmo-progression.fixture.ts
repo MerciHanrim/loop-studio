@@ -475,14 +475,18 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     clock: { x: 2560, y: 290 },
     elapsed: { x: 2760, y: 290 },
 
-    // ── TOP-RIGHT: reporting / checks (no edges — clear of the minimap) ──
-    r_efflevel: { x: 2960, y: 60 },
-    r_huntshare: { x: 2960, y: 130 },
-    r_income: { x: 2960, y: 200 },
-    r_expense: { x: 2960, y: 270 },
-    r_netgold: { x: 2960, y: 340 },
-    r_items_acct: { x: 2960, y: 410 },
-    r_burned: { x: 2960, y: 480 },
+    // ── RIGHT EDGE: reporting / checks (no edges — a Register has no ports) ──
+    // One column at x 2960 (right of every other node), 150 px pitch so each
+    // Register's title + value + expression line reads clear of the next even at
+    // 100 % zoom. Clear of `Reached level 15` / the completion block on the left
+    // and of the economy below.
+    r_efflevel: { x: 2960, y: 40 },
+    r_huntshare: { x: 2960, y: 190 },
+    r_income: { x: 2960, y: 340 },
+    r_expense: { x: 2960, y: 490 },
+    r_netgold: { x: 2960, y: 640 },
+    r_items_acct: { x: 2960, y: 790 },
+    r_burned: { x: 2960, y: 940 },
 
     // ── the HUB ROW (y 660 → shifted to 800): the only place zone columns merge ──
     drop: { x: 380, y: 660 },
@@ -570,10 +574,14 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
 
   // The hub row + the bottom economy bands were authored at y ≥ 640; drop them
   // another 140 px so the widened zone grids (which now reach y ≈ 620) keep clear
-  // air above the hub row. Registers (y ≤ 480) and the spine (y ≤ 290) are
-  // untouched. One pass, so the band spacing below stays exactly as authored.
+  // air above the hub row. The spine (y ≤ 290) and the right-edge Register column
+  // (its own explicit y values above) are excluded. One pass, so the band spacing
+  // below stays exactly as authored.
+  const regId = new Set(nodes.filter((n) => n.data.kind === 'register').map((n) => n.id))
   for (const n of nodes) {
-    if (LAYOUT[n.id] && n.position.y >= 640) n.position = { x: n.position.x, y: n.position.y + 140 }
+    if (LAYOUT[n.id] && !regId.has(n.id) && n.position.y >= 640) {
+      n.position = { x: n.position.x, y: n.position.y + 140 }
+    }
   }
 
   return { nodes, edges }
