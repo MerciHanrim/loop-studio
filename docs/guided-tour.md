@@ -182,6 +182,13 @@ clamped to the viewport (`max-width`, wrap) and never causes a horizontal
 document scroll. Long Korean copy wraps; it does not push the popover
 off-screen.
 
+**Spotlight clamp.** The highlight ring hugs the target + 4 px, but every edge
+is clamped to **≥ 2 px inside the viewport** (`SPOT_INSET`) so the whole border
+line — and its `forced-colors` outline, drawn outside it — stays visible even
+when the target touches a viewport edge (Canvas, Inspector, Playback, Timeline).
+The ring shrinks near an edge; it is **never moved off the target**, and no
+layout, Canvas viewport, or node box changes.
+
 ## GT5. Step anchoring
 
 Steps target **stable regions**, addressed by a dedicated `data-tour` attribute
