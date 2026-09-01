@@ -120,8 +120,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
     if (await confirm.isVisible().catch(() => false)) await confirm.click()
 
-    // the canonical examples/mmo-progression.json is 92 nodes
-    await expect(page.locator('.react-flow__node')).toHaveCount(92)
+    // the canonical examples/mmo-progression.json is 97 nodes
+    await expect(page.locator('.react-flow__node')).toHaveCount(97)
 
     // the file's recommendedRunConfig pre-fills the Monte-Carlo dialog
     await page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' }).click()

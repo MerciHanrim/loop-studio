@@ -78,7 +78,7 @@ Two engine facts drive the shape:
 | Time | `Elapsed time` **counter Pool** ← a clock Source adds `time_per_step` each step; the death branch adds `death_time_penalty` | terminal value across runs = the time-to-15 distribution |
 | XP (live) | `XP` **Pool** — filled by the reward router, drained by whichever zone's Level Converter is active | not a counter — see `XP earned` below |
 | XP earned | `XP earned` **counter Pool** — fed the same reward amounts, never drained | so `total XP = f(level path)` is verifiable |
-| Level | `Level` **Pool** — raised **1 per fire** by the zone's **XP → Level Converter**; each zone lane has its own converter with its own rising `xp_per_level[zone]` (§EM2.5) | integer, because a Converter emits whole units — the engine does the "floor" a Register cannot |
+| Level | `Level` **Pool** — raised **+1** by the zone's **`pull all` XP-meter Gate → level-up Converter** (§EM13.4); each lane has its own, with its own rising `xp_per_level[zone]` (§EM2.5) | whole number in a single run — the meter Gate pulls `xp_per_level` atomically and the Converter emits 1 |
 | Reaching 15 | a `completion` Source pushes a **1-unit pulse every step** toward an **End** node; a state **`activator`** on `Level ≥ 15` **opens that route**. Before level 15 the route is closed and the pulse is discarded; at level 15 the next pulse arrives `> epsilon` and ends the run `fired` (SEMANTICS.md §8) | this is the run terminator |
 
 ### EM2.2 Combat — three outcomes
@@ -101,9 +101,11 @@ run.
 ### EM2.3 Loot — categorised, counted
 
 On a **win**, a `Loot` Gate (`probabilistic`, `drop_rate[zone]`) splits
-**drop** vs **nothing**. A drop feeds a `Loot category` Gate (deterministic
-weights) → four category flows. Every drop also increments `Items looted`
-(counter Pool).
+**drop** vs **nothing**. A drop feeds a `Loot category` Gate — **`probabilistic`**
+(§EM13.6): one whole drop lands in **exactly one** of four category bucket Pools,
+so `Items equipped` / `Items sold` / `Items consumed` are **whole numbers in a
+single run** (only a Monte-Carlo average is fractional). Every drop also
+increments `Items looted` (counter Pool).
 
 | Category | routed to | counter |
 |---|---|---|
@@ -179,7 +181,7 @@ encounter (this lane's Encounters Source — per step, only while the lane is op
   → Combat gate (probabilistic, 3 branches)
       ├─ win  → XP (+ XP earned) , Gold (+ Gold earned)
       │           → Loot gate (probabilistic: drop_rate) — on drop: Items looted +1
-      │               → Loot category (deterministic weights)
+      │               → Loot category (probabilistic — one drop, one category)
       │                   ├─ equip upgrade  → Gear score ; Items equipped +1
       │                   ├─ vendor trash   → Vendor → Gold (+ Gold earned, + Vendor revenue) ; Items sold +1
       │                   ├─ consumable     → Water + Food ; Items consumed +1
@@ -242,10 +244,14 @@ only — no `floor` / `min` / `max` / conditionals. Every Register here is
 - `Net gold check` = `@gold_earned - @repair_spend - @resupply_spend - @training_spend`
   — should track the live `@gold` minus its start value (the §EM10 gold
   invariant, shown live on the Timeline).
-- `Hunt XP share` = `@hunt_xp / (@hunt_xp + @quest_xp)` — a `/0` before the first
-  reward yields an invalid Register value (a real Timeline gap), never a halt.
-- `Effective level` = `1 + @xp_earned / @xp_per_level_1` — a **continuous** read
-  of progress; the integer `Level` Pool (Converter-driven) is the real gate.
+- `Hunt XP share` = `@hunt_xp / (@hunt_xp + @quest_xp + 0.001)` — the `+ 0.001`
+  keeps the denominator non-zero so R(t) is a clean `0%` before the first reward
+  instead of a `/0` diagnostic on opening (§EM13.6); the term is negligible once
+  XP flows.
+- `XP pace (starter-levels)` = `@xp_earned / @xp_per_level_1` — **not** a level
+  estimate (the real `Level` Pool is Converter-driven and piecewise, which an
+  expression can't reproduce): total XP earned expressed in first-zone
+  level-costs, a pace / effort index.
 - `Items accounted` = `@items_equipped + @items_sold + @items_consumed` — vs
   `@items_looted` (the §EM10 loot invariant).
 - `Consumables burned` = `@water_consumed + @food_consumed`.
@@ -397,3 +403,124 @@ reach-15 target still hold.
 - **Rising level cost** via **per-lane `xp_per_level`** on each zone's XP → Level
   Converter (§EM2.6) — natural under the current engine.
 - **Accounting invariants** (§EM10.1) are acceptance conditions.
+
+## EM13. Implementation notes (PR #86, on the `main` graph)
+
+The build is `src/engine/mmo-progression.fixture.ts` → `examples/mmo-progression.json`
+(94 nodes / 136 edges), verified by `src/engine/mmo-progression.test.ts`
+(regen: `GEN_MMO_PROGRESSION=1 npx vitest run …`). The following are settled
+during implementation.
+
+### EM13.1 Product-template layout
+
+The graph is laid out as a **first-time reading path**, not a wiring schematic:
+
+```
+Character creation → Starter · Lv 1–5 → Foothills · Lv 5–10 → Highlands · Lv 10–15 → Reached level 15
+```
+
+- **TOP** — a spine of five evenly-spaced landmarks (`char_creation`,
+  `z1_enc` / `z2_enc` / `z3_enc` renamed to the band labels, `end15`); the small
+  `Active character` helper sits between creation and the first zone.
+- **MIDDLE** — three **isolated zone columns**. Each zone's `Combat → outcome →
+  level-up` flows straight down inside its own column (adjacent columns do not
+  overlap in x); a column's **only outgoing edges** go to the shared **hub row**
+  just below — `Drop`, `Setbacks`, `Deaths queue`, `XP`, `Level`, `Reward`.
+- **BOTTOM-LEFT** — the loot chain: `Drop → dispatch → category →
+  Equip / Sell / Consume` and the item counters.
+- **BOTTOM-CENTRE** — the gold economy: `Reward router → payouts → Gold →
+  Repair / Resupply / Training`, plus gear and consumables.
+- **TOP-RIGHT** — the seven reporting Registers, in clear space. A Register has
+  no ports, so **nothing wires to them**; they are placed where no resource edge
+  runs (and clear of the minimap's bottom-right corner).
+
+Positions live in one `LAYOUT` table in the builder so the structural code stays
+readable. Acceptance: at a 1920 px viewport, fit-to-screen, the five stage names
+and the flow between them are legible; the detailed bottom economy is
+zoom-to-read.
+
+### EM13.2 `Character creation` (§EM2.1)
+
+`Character creation` is an **`onStart` Source** — it fires once on the first
+advance, putting a token in the `Active character` Pool. A `>= 1` activator on
+the Starter encounters Source opens the first zone, so the run "spawns in" on
+step 1 and adventuring begins on step 2. It is **not** a race / class / cosmetic
+picker (out of scope); it is the graph's start marker.
+
+### EM13.3 Timeline default (`recommendedRunConfig.timelineSeries`)
+
+The file ships a curated **10-series** Timeline default — `Level`,
+`Elapsed time`, `XP earned`, `Gold`, `Deaths`, `Gear score`, `Water consumed`,
+`Food consumed`, `Items sold`, and the **`Net gold check`** Register — so a
+first-run Timeline shows the story, not 47 counters. The rest are one `+N more`
+click away. The Monte-Carlo `tracked` list (§EM7) stays wide for the
+distributions; the two are independent (`timelineSeries` is UI-only display
+state — never the GraphDoc / digest / undo). The field itself landed in a
+separate prerequisite PR.
+
+### EM13.4 Engine-shaped model choices (all conservation-safe)
+
+Noted in the fixture header comment:
+
+1. **INTEGER Level, via a `pull all` meter Gate.** A `pullAll` *pool-fed*
+   Converter that is under-supplied **consumes its partial input without
+   producing** (SEMANTICS.md §6) — it would silently destroy XP and break the
+   `XP earned` counter. So the level-up per lane is a **`pull all` deterministic
+   METER GATE** that pulls exactly `xp_per_level` from the shared `XP` Pool
+   (atomically — nothing when XP is short) feeding a Converter that turns that
+   fixed amount into exactly `+1` Level. `Level` is a **whole number in a single
+   run**; XP is never destroyed. (Monte-Carlo averages of `Level` are still
+   fractional, as expected.)
+2. **Repair is two single-input Converters** (`Repair (wear)` clears Gear wear,
+   `Repair (bill)` meters the Gold) rather than one two-input Converter — a
+   single Converter couples one `f` across two inputs of unequal availability and
+   can pay a Repair bill with Gold it did not actually consume. Split, each is a
+   single-input metered Converter, so Gold conservation is exact. Both halves
+   open together (`Gear wear > threshold` **and** `Gold ≥ 1`).
+3. **`Loot category` is probabilistic** (§EM13.6) — one drop, one category, so
+   item counts are integral in a single run.
+4. **`Hunt XP share` denominator has a `+ 0.001` guard** so R(t) reads a clean
+   `0%` from the initial state — no `/0` diagnostic when the template is opened.
+5. **`XP pace (starter-levels)`** (Register id `r_efflevel`) replaces the earlier
+   "Effective level" name — it is a pace / effort index (`@xp_earned /
+   xp_per_level_1`), not a level estimate, since real growth cost is piecewise
+   and an expression can't reproduce it.
+
+### EM13.5.1 Layout acceptance (settled with review)
+
+Full-fit-with-every-label is not a realistic target for a model this size (the
+minimap and pan / zoom exist for that). The layout is accepted when: the main
+progression axis order is identifiable in the overall view; zooming a zone lets
+you follow that lane's internal flow; the minimap reaches the other subsystems;
+no nodes permanently overlap or hide behind the Inspector; and Reporting / the
+Timeline do not dominate the main flow.
+
+### EM13.5 Tuning (§EM10)
+
+Monte Carlo `base seed 1, 200 × 150`: **~99 %** of runs reach Level 15 within 150
+steps; **median ≈ 95 steps** (target 60–120), with a real p10–p90 spread on
+time-to-15. The §EM10.1 accounting identities hold to ≈ 1e-13 across the checked
+seeds. No numeric oracle — the tuning values may be re-picked without a
+"regression" as long as the identities and the reach-15 window hold.
+
+### EM13.6 Loot category is `probabilistic` (revised)
+
+§EM2.3 originally specified a **deterministic** `Loot category` Gate. A
+deterministic Gate splits one input by weight, so a single drop is smeared
+across all four categories and a single run shows fractional
+`Items equipped` / `Items sold` / `Items consumed`. Review corrected this: the
+`Loot category` Gate is **`probabilistic`** — one whole drop lands in **exactly
+one** category bucket Pool per step. In a single seeded run
+`Items looted`, `Items equipped`, `Items sold`, `Items consumed`, and each
+bucket count are **whole numbers**; only a Monte-Carlo average is fractional.
+Continuous quantities (`Gear score`, `Gold`, `XP`, `Elapsed time`) stay
+fractional, which is fine. `mmo-progression.test.ts` asserts the item counters
+are integral for six seeds. (Weights re-tuned with the change:
+`drop_rate` 38 / 38 / 44, category odds 38 : 40 : 18 : 4, `gear_gate_10` 4 —
+100 % of the verification-seed set now reaches Level 15, median ≈ 88.)
+
+### EM13.7 `Loot category` gate count
+
+With §EM13.6 the graph has **seven probabilistic Gates** (three `Combat`, three
+`Loot`, one `Loot category`) and **one deterministic** Gate (the `Reward
+router`).

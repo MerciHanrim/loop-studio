@@ -7,6 +7,17 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 // test in mmo-progression.test.ts pins structural invariants + the §EM10.1
 // accounting identities + the reach-15 tuning window, never specific numbers.
 //
+// Laid out as a first-time READING PATH (docs/example-mmo-progression.md §EM13):
+// a top spine — Character creation → Starter · Lv 1–5 → Foothills · Lv 5–10 →
+// Highlands · Lv 10–15 → Reached level 15 — with each zone's detail directly
+// below its landmark, the shared economy as a band across the middle-bottom, and
+// the seven Registers in a corner block. Positions live in the LAYOUT table at
+// the end of the builder. `Character creation` is an `onStart` Source that seeds
+// `Active character`; a `>= 1` activator on the Starter encounters Source opens
+// the first zone. The file also ships `recommendedRunConfig.timelineSeries` —
+// the curated ~10-series Timeline default (the wide Monte-Carlo `tracked` list
+// stays separate).
+//
 // Shape (one connected play economy):
 //
 //   three parallel ZONE LANES, exactly one live at a time (Level activators):
@@ -16,12 +27,12 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 //               Death Pool }; a Loot-roll Pool → Loot Gate (probabilistic drop);
 //               an XP→Level Converter (rising xp_per_level); a Training drain.
 //
-//   shared economy (down the right edge):
+//   shared economy (hub row + bottom bands — see the LAYOUT table):
 //     Win amp → Reward Pool → Reward Router (deterministic hunt:quest) →
 //       Hunt / Quest payout Converters → XP (+ XP earned), Gold (+ Gold earned),
 //       Hunt XP / Quest XP counters.
 //     Drop Pool → Loot dispatch (tee: Items looted + category feed) →
-//       Loot category Gate (deterministic) → four bucket Pools → four bucket
+//       Loot category Gate (PROBABILISTIC — one drop, one category) → four
 //       Converters → Items equipped / sold / consumed, Gear score, Gold
 //       (+ Gold earned + Vendor revenue), Water/Food (+ bought).
 //     Water/Food upkeep Converters → Water/Food consumed.
@@ -33,22 +44,27 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 //     Completion Source → Completion Pool → End, opened by `Level ≥ 15`.
 //     seven reporting Registers (loop-expr/1: + - * / and @id only).
 //
-// Two deliberate deviations from docs/example-mmo-progression.md, both forced by
-// the frozen engine and both conservation-safe:
+// Structural notes (docs/example-mmo-progression.md §EM13):
 //
-//   • `Level` is CONTINUOUS, not integer. The design's "a Converter emits whole
-//     units" relied on a `pullAll` XP→Level Converter, but a `pullAll` pool-fed
-//     Converter that is under-supplied consumes its partial input WITHOUT
-//     producing (SEMANTICS.md §6 / step.ts) — that would silently destroy XP and
-//     break the `XP earned` counter. So each XP→Level Converter is `pullAny`:
-//     when XP ≥ xp_per_level it is exactly +1 Level; when XP is short it adds a
-//     fraction and consumes exactly what it added (XP conserved). The band
-//     activators still switch cleanly at Level 5.0 / 10.0 / 15.0.
+//   • INTEGER Level. A `pullAll` pool-fed Converter that is under-supplied
+//     consumes its partial input WITHOUT producing (SEMANTICS.md §6 / step.ts),
+//     which would silently destroy XP. So the level-up is a `pull all`
+//     deterministic METER GATE (pulls exactly `xp_per_level` from the XP Pool,
+//     atomically — nothing when XP is short) feeding a Converter that turns that
+//     fixed amount into exactly +1 Level. Level is a WHOLE NUMBER in a single
+//     run; XP is never destroyed.
 //   • REPAIR is two Converters (`Repair (wear)` clears Gear wear, `Repair (bill)`
 //     meters the Gold) rather than one two-input Converter — a single Converter
 //     couples one `f` across two inputs of unequal availability and can pay a
 //     Repair bill with Gold it did not actually consume. Split, each is a
 //     single-input metered Converter, so Gold conservation is exact.
+//   • `Loot category` is PROBABILISTIC — one whole drop → exactly one category,
+//     so item counts are integral in a single run (§EM13.6).
+//   • `Hunt XP share` divides by `(@hunt_xp + @quest_xp + 0.001)` so R(t) is a
+//     clean `0%` before the first reward, not a `/0` diagnostic on opening.
+//   • `XP pace (starter-levels)` (id `r_efflevel`) is NOT a level estimate —
+//     real Level is Converter-driven and piecewise, which an expression cannot
+//     reproduce — it is total XP earned in first-zone level-costs.
 //
 // Every "how much total" quantity is a cumulative counter Pool a flow only adds
 // to; every balance Pool that is both filled and drained (Gold / Water / Food)
@@ -71,14 +87,14 @@ export const P = {
   // per zone lane [Starter, Foothills, Highlands]
   bandLo: [1, 5, 10] as const, // Level ≥  (lane opens)
   bandHi: [5, 10, null] as const, // Level <  (lane closes); Highlands runs to the End
-  gearGate10: 6, // Highlands also needs Gear score ≥ this
+  gearGate10: 4, // Highlands also needs Gear score ≥ this
 
   rewardPerWin: [1.15, 1.5, 2.0] as const, // units delivered to the Reward Pool per win
-  wWin: [9, 7, 6] as const, // Combat Gate branch weights …
-  wFail: [1.8, 2.5, 2.8] as const,
-  wDeath: [0.5, 0.9, 1.3] as const,
-  dropRate: [34, 34, 40] as const, // Loot Gate "drop" weight vs "no drop" = 100 − this
-  xpPerLevel: [10, 20, 30] as const, // rising level cost per band
+  wWin: [9, 7, 6.5] as const, // Combat Gate branch weights …
+  wFail: [1.8, 2.5, 2.6] as const,
+  wDeath: [0.5, 0.9, 1.2] as const,
+  dropRate: [38, 38, 44] as const, // Loot Gate "drop" weight vs "no drop" = 100 − this
+  xpPerLevel: [10, 19, 27] as const, // rising level cost per band
   trainingCost: [0.25, 0.45, 0.7] as const, // per-step Gold sink while in the band
 
   // reward router (deterministic) + payout converters
@@ -89,7 +105,7 @@ export const P = {
   questXp: 9,
   questGold: 7,
 
-  // loot category gate (deterministic) weights + effects
+  // loot category gate (probabilistic — one whole drop, one category) weights + effects
   equipW: 34,
   vendorW: 40,
   consumableW: 20,
@@ -153,6 +169,19 @@ const res = (id: string, source: string, target: string, flow: string): LoopEdge
   targetHandle: 'in',
   type: 'loop',
   data: { kind: 'resource', flow },
+})
+
+// a long edge that leaves a zone column or crosses the economy — routed
+// ORTHOGONALLY (loop-revision/3 `route`, cosmetic: changes nothing the engine
+// computes) so it steps around nodes instead of sweeping a curve through them.
+const resO = (id: string, source: string, target: string, flow: string): LoopEdge => ({
+  id,
+  source,
+  target,
+  sourceHandle: 'out',
+  targetHandle: 'in',
+  type: 'loop',
+  data: { kind: 'resource', flow, route: 'orthogonal' },
 })
 
 const act = (id: string, source: string, target: string, expr: string): LoopEdge => ({
@@ -275,7 +304,10 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   N(pool('drop', 'Drops', { x: 900, y: 980 }, { capacity: 8 }))
   N(pool('loot_feed', 'Loot to sort', { x: 1080, y: 980 }, { capacity: 8 }))
   N(mkNode('converter', 'loot_dispatch', 'Loot dispatch', { x: 990, y: 980 }))
-  N(mkNode('gate', 'loot_category', 'Loot category', { x: 1180, y: 980 }, { distribution: 'deterministic' }))
+  // PROBABILISTIC — one whole drop lands in exactly one category (integer item
+  // counts in a single run; only Monte-Carlo averages are fractional). The
+  // weights are selection odds, not a split ratio.
+  N(mkNode('gate', 'loot_category', 'Loot category', { x: 1180, y: 980 }, { distribution: 'probabilistic' }))
   E(res('e_drop_in', 'drop', 'loot_dispatch', '1'))
   E(res('e_dispatch_looted', 'loot_dispatch', 'items_looted', '1'))
   E(res('e_dispatch_feed', 'loot_dispatch', 'loot_feed', '1'))
@@ -337,36 +369,50 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     const lo = P.bandLo[z]
     const hi = P.bandHi[z]
     N(mkNode('source', `${p}_enc_src`, `${['Starter', 'Foothills', 'Highlands'][z]} encounters`, { x: 40, y }))
-    N(pool(`${p}_enc`, `${['Starter', 'Foothills', 'Highlands'][z]} encounter`, { x: 240, y }, { capacity: 3 }))
+    N(
+      pool(
+        `${p}_enc`,
+        // the top-spine LANDMARK for this stage of the journey
+        `${['Starter · Lv 1–5', 'Foothills · Lv 5–10', 'Highlands · Lv 10–15'][z]}`,
+        { x: 240, y },
+        { capacity: 3 },
+      ),
+    )
     N(mkNode('gate', `${p}_combat`, `${['Starter', 'Foothills', 'Highlands'][z]} combat`, { x: 440, y }, { distribution: 'probabilistic' }))
     N(pool(`${p}_win`, `${['Starter', 'Foothills', 'Highlands'][z]} victory`, { x: 550, y: y - 40 }, { capacity: 3 }))
     N(mkNode('converter', `${p}_winamp`, `${['Starter', 'Foothills', 'Highlands'][z]} win`, { x: 660, y: y - 40 }))
     N(pool(`${p}_lootroll`, `${['Starter', 'Foothills', 'Highlands'][z]} loot roll`, { x: 880, y: y - 40 }, { capacity: 3 }))
     N(mkNode('gate', `${p}_loot`, `${['Starter', 'Foothills', 'Highlands'][z]} loot`, { x: 1080, y: y - 40 }, { distribution: 'probabilistic' }))
+    // XP → Level: a `pull all` meter Gate pulls exactly `xp_per_level` from the
+    // shared XP Pool (all-or-nothing — nothing is consumed when XP is short), and
+    // the Converter turns that fixed amount into exactly +1 Level. So Level is a
+    // WHOLE NUMBER in a single run, and no XP is ever destroyed.
+    N(mkNode('gate', `${p}_xp_meter`, `${['Starter', 'Foothills', 'Highlands'][z]} XP meter`, { x: 620, y: y + 80 }, { distribution: 'deterministic', mode: 'pullAll' }))
     N(mkNode('converter', `${p}_xp2lvl`, `${['Starter', 'Foothills', 'Highlands'][z]} level up`, { x: 660, y: y + 80 }))
     N(mkNode('converter', `${p}_training`, `${['Starter', 'Foothills', 'Highlands'][z]} training`, { x: 660, y: y + 160 }))
 
     E(res(`e_${p}_enc_in`, `${p}_enc_src`, `${p}_enc`, num(P.encountersPerStep)))
     E(res(`e_${p}_enc_gate`, `${p}_enc`, `${p}_combat`, 'all'))
     E(res(`e_${p}_win`, `${p}_combat`, `${p}_win`, num(P.wWin[z])))
-    E(res(`e_${p}_fail`, `${p}_combat`, 'fail_pool', num(P.wFail[z])))
-    E(res(`e_${p}_death`, `${p}_combat`, 'death_pool', num(P.wDeath[z])))
+    E(resO(`e_${p}_fail`, `${p}_combat`, 'fail_pool', num(P.wFail[z])))
+    E(resO(`e_${p}_death`, `${p}_combat`, 'death_pool', num(P.wDeath[z])))
     // win amp: 1 win token → Reward units + a win count + a loot roll
     E(res(`e_${p}_winamp_in`, `${p}_win`, `${p}_winamp`, '1'))
-    E(res(`e_${p}_winamp_reward`, `${p}_winamp`, 'reward', num(P.rewardPerWin[z])))
-    E(res(`e_${p}_winamp_ct`, `${p}_winamp`, 'combat_wins', '1'))
+    E(resO(`e_${p}_winamp_reward`, `${p}_winamp`, 'reward', num(P.rewardPerWin[z])))
+    E(resO(`e_${p}_winamp_ct`, `${p}_winamp`, 'combat_wins', '1'))
     E(res(`e_${p}_winamp_loot`, `${p}_winamp`, `${p}_lootroll`, '1'))
     E(res(`e_${p}_lootroll_gate`, `${p}_lootroll`, `${p}_loot`, 'all'))
-    E(res(`e_${p}_loot_drop`, `${p}_loot`, 'drop', num(P.dropRate[z])))
-    E(res(`e_${p}_loot_miss`, `${p}_loot`, 'void', num(100 - P.dropRate[z])))
-    // xp → level (rising cost) + per-step training gold sink
-    E(res(`e_${p}_xp2lvl_in`, 'xp', `${p}_xp2lvl`, num(P.xpPerLevel[z])))
-    E(res(`e_${p}_xp2lvl_out`, `${p}_xp2lvl`, 'level', '1'))
-    E(res(`e_${p}_training_in`, 'gold', `${p}_training`, num(P.trainingCost[z])))
-    E(res(`e_${p}_training_ct`, `${p}_training`, 'training_spend', num(P.trainingCost[z])))
+    E(resO(`e_${p}_loot_drop`, `${p}_loot`, 'drop', num(P.dropRate[z])))
+    E(resO(`e_${p}_loot_miss`, `${p}_loot`, 'void', num(100 - P.dropRate[z])))
+    // XP meter (pull all) → level-up Converter → Level ; + a per-step Gold sink
+    E(resO(`e_${p}_xpmeter_in`, 'xp', `${p}_xp_meter`, num(P.xpPerLevel[z])))
+    E(res(`e_${p}_xpmeter_out`, `${p}_xp_meter`, `${p}_xp2lvl`, num(P.xpPerLevel[z])))
+    E(resO(`e_${p}_xp2lvl_out`, `${p}_xp2lvl`, 'level', '1'))
+    E(resO(`e_${p}_training_in`, 'gold', `${p}_training`, num(P.trainingCost[z])))
+    E(resO(`e_${p}_training_ct`, `${p}_training`, 'training_spend', num(P.trainingCost[z])))
 
     // band activators — open the lane only inside its Level band
-    for (const target of [`${p}_enc_src`, `${p}_xp2lvl`, `${p}_training`]) {
+    for (const target of [`${p}_enc_src`, `${p}_xp_meter`, `${p}_xp2lvl`, `${p}_training`]) {
       if (lo > 1) E(act(`a_${target}_lo`, 'level', target, `>= ${lo}`))
       if (hi != null) E(act(`a_${target}_hi`, 'level', target, `< ${hi}`))
       if (z === 2) E(act(`a_${target}_gear`, 'gear_score', target, `>= ${P.gearGate10}`))
@@ -376,14 +422,140 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   // shared "no drop" sink
   N(mkNode('drain', 'void', 'No drop', { x: 1280, y: 1160 }))
 
+  // ── character creation — the start of the journey (§EM2.1) ──────────────
+  // `Character creation` is an `onStart` Source: it fires once on the first
+  // advance, putting a token in `Active character`. A `>= 1` activator on the
+  // Starter encounters Source then opens the first zone — so the visible path is
+  // Character creation → Starter zone → Foothills → Highlands → Reached level 15.
+  N(mkNode('source', 'char_creation', 'Character creation', { x: 0, y: 0 }, { activation: 'onStart' }))
+  N(pool('active_char', 'Active character', { x: 0, y: 0 }, { capacity: 2 }))
+  E(res('e_char_create', 'char_creation', 'active_char', '1'))
+  E(act('a_starter_open', 'active_char', 'z1_enc_src', '>= 1'))
+
   // ── reporting Registers (loop-expr/1 canonical form) ────────────────────
   N(reg('r_income', 'Total income', '@gold_earned', { x: 2280, y: 400 }, { format: 'int' }))
   N(reg('r_expense', 'Total expense', '@repair_spend + @resupply_spend + @training_spend', { x: 2280, y: 460 }, { format: 'int' }))
   N(reg('r_netgold', 'Net gold check', '@gold_earned - @repair_spend - @resupply_spend - @training_spend', { x: 2280, y: 520 }, { format: 'int' }))
-  N(reg('r_huntshare', 'Hunt XP share', '@hunt_xp / (@hunt_xp + @quest_xp)', { x: 2280, y: 300 }, { format: 'percent' }))
-  N(reg('r_efflevel', 'Effective level', `1 + @xp_earned / ${num(P.xpPerLevel[0])}`, { x: 2280, y: 40 }, { format: 'float' }))
+  // `+ 0.001` keeps the denominator non-zero so R(t) is a clean `0%` before the
+  // first reward instead of an invalid `/0` (no diagnostic on opening the file);
+  // the term is negligible once XP flows.
+  N(reg('r_huntshare', 'Hunt XP share', '@hunt_xp / (@hunt_xp + @quest_xp + 0.001)', { x: 2280, y: 300 }, { format: 'percent' }))
+  // NOT a level estimate (real Level is Converter-driven and piecewise, which an
+  // expression can't reproduce) — total XP earned expressed in first-zone
+  // level-costs, i.e. a pace / effort index.
+  N(reg('r_efflevel', 'XP pace (starter-levels)', `@xp_earned / ${num(P.xpPerLevel[0])}`, { x: 2280, y: 40 }, { format: 'float' }))
   N(reg('r_items_acct', 'Items accounted', '@items_equipped + @items_sold + @items_consumed', { x: 2280, y: 900 }, { format: 'float' }))
   N(reg('r_burned', 'Consumables burned', '@water_consumed + @food_consumed', { x: 2280, y: 720 }, { format: 'int' }))
+
+  // ── layout (§EM2.7 / §EM13.1) ─────────────────────────────────────────────
+  //   TOP     spine: Character → Starter → Foothills → Highlands → Reached 15
+  //   MIDDLE  three ISOLATED zone columns — each zone's Combat → outcome →
+  //           level-up flows straight down inside its own column; a column's
+  //           only outgoing edges go to the shared HUB ROW just below it.
+  //   BOT-L   Loot chain (Drop → dispatch → category → Equip / Sell / Consume)
+  //   BOT-C   Gold economy (Reward router → payouts → Gold → Repair / Resupply
+  //           / Training) + consumables + gear
+  //   TOP-R   the seven reporting Registers, in clear space (no edges reach
+  //           them — a Register has no ports)
+  //   BOT-R   left empty for the minimap
+  const CX = [660, 1240, 1820] as const // the three zone-column centres, 580 apart
+  const LAYOUT: Record<string, XY> = {
+    // ── TOP: the spine (y 40) — Character → 3 zones → Reached level 15 ──
+    char_creation: { x: 40, y: 40 },
+    active_char: { x: 280, y: 40 },
+    z1_enc: { x: CX[0], y: 40 },
+    z2_enc: { x: CX[1], y: 40 },
+    z3_enc: { x: CX[2], y: 40 },
+    end15: { x: 2320, y: 40 },
+    completion_src: { x: 2160, y: 170 },
+    completion: { x: 2320, y: 170 },
+    clock: { x: 2160, y: 290 },
+    elapsed: { x: 2320, y: 290 },
+
+    // ── TOP-RIGHT: reporting / checks (no edges — clear of the minimap) ──
+    r_efflevel: { x: 2500, y: 60 },
+    r_huntshare: { x: 2500, y: 130 },
+    r_income: { x: 2500, y: 200 },
+    r_expense: { x: 2500, y: 270 },
+    r_netgold: { x: 2500, y: 340 },
+    r_items_acct: { x: 2500, y: 410 },
+    r_burned: { x: 2500, y: 480 },
+
+    // ── the HUB ROW (y 660): the only place zone columns merge ──
+    drop: { x: 380, y: 660 },
+    fail_pool: { x: 560, y: 660 },
+    death_pool: { x: 720, y: 660 },
+    xp: { x: 1120, y: 660 },
+    xp_earned: { x: 1280, y: 660 },
+    level: { x: 1460, y: 660 },
+    reward: { x: 1680, y: 660 },
+    void: { x: 1880, y: 640 },
+
+    // ── BOTTOM-LEFT: the loot chain (x 100–1150, y 800–1360) ──
+    loot_dispatch: { x: 380, y: 800 },
+    items_looted: { x: 200, y: 800 },
+    loot_feed: { x: 380, y: 920 },
+    loot_category: { x: 380, y: 1040 },
+    bucket_equip: { x: 300, y: 1160 },
+    bucket_vendor: { x: 460, y: 1160 },
+    bucket_consumable: { x: 620, y: 1160 },
+    bucket_rare: { x: 780, y: 1160 },
+    equip_conv: { x: 300, y: 1280 },
+    vendor_conv: { x: 460, y: 1280 },
+    consumable_conv: { x: 620, y: 1280 },
+    rare_conv: { x: 780, y: 1280 },
+    items_equipped: { x: 120, y: 1160 },
+    items_sold: { x: 120, y: 1240 },
+    items_consumed: { x: 120, y: 1320 },
+
+    // ── BOTTOM-CENTRE: setback / death, reward router, gold, gear, upkeep ──
+    combat_wins: { x: 560, y: 780 },
+    combat_fails: { x: 560, y: 840 },
+    deaths: { x: 560, y: 900 },
+    fail_conv: { x: 720, y: 800 },
+    death_conv: { x: 880, y: 800 },
+    reward_router: { x: 1680, y: 800 },
+    hunt_payout: { x: 1840, y: 760 },
+    quest_payout: { x: 1840, y: 860 },
+    hunt_xp: { x: 2000, y: 760 },
+    quest_xp: { x: 2000, y: 860 },
+    gold: { x: 1500, y: 1000 },
+    gold_earned: { x: 1680, y: 1000 },
+    vendor_revenue: { x: 1860, y: 1000 },
+    repair_wear: { x: 2160, y: 760 },
+    wear_cleared: { x: 2160, y: 680 },
+    repair_gold: { x: 2160, y: 840 },
+    gear_wear: { x: 2160, y: 920 },
+    gear_score: { x: 2340, y: 920 },
+    repair_spend: { x: 1500, y: 1120 },
+    resupply: { x: 1680, y: 1120 },
+    resupply_spend: { x: 1680, y: 1220 },
+    training_spend: { x: 1860, y: 1120 },
+    water_consumed: { x: 1200, y: 1160 },
+    food_consumed: { x: 1200, y: 1220 },
+    water_upkeep: { x: 1360, y: 1160 },
+    food_upkeep: { x: 1360, y: 1220 },
+    water: { x: 1520, y: 1300 },
+    food: { x: 1520, y: 1360 },
+    water_bought: { x: 1700, y: 1340 },
+    food_bought: { x: 1880, y: 1340 },
+  }
+  for (let z = 0; z < 3; z++) {
+    const cx = CX[z]
+    // one self-contained column: everything within [cx-190, cx+250] × [140, 560]
+    Object.assign(LAYOUT, {
+      [`z${z + 1}_enc_src`]: { x: cx - 190, y: 150 },
+      [`z${z + 1}_combat`]: { x: cx, y: 250 },
+      [`z${z + 1}_xp_meter`]: { x: cx + 110, y: 200 },
+      [`z${z + 1}_xp2lvl`]: { x: cx + 250, y: 200 },
+      [`z${z + 1}_training`]: { x: cx + 200, y: 330 },
+      [`z${z + 1}_win`]: { x: cx - 120, y: 380 },
+      [`z${z + 1}_winamp`]: { x: cx + 40, y: 380 },
+      [`z${z + 1}_lootroll`]: { x: cx - 120, y: 500 },
+      [`z${z + 1}_loot`]: { x: cx + 40, y: 500 },
+    })
+  }
+  for (const n of nodes) if (LAYOUT[n.id]) n.position = LAYOUT[n.id]
 
   return { nodes, edges }
 }
@@ -414,5 +586,22 @@ export const MMO_PROGRESSION_MC = {
     'gear_score',
     'quest_xp',
     'hunt_xp',
+  ],
+  // the Timeline's DEFAULT visible set (loop-studio/timelineSeries — Pool + Register
+  // ids, sorted). The MC `tracked` list above stays wide for analysis; this keeps
+  // the first-run Timeline to the story: Level, time, XP, Gold, Deaths, Gear,
+  // consumables burned, Items sold, and the Net gold check Register. The rest are
+  // one "+N more" click away.
+  timelineSeries: [
+    'deaths',
+    'elapsed',
+    'food_consumed',
+    'gear_score',
+    'gold',
+    'items_sold',
+    'level',
+    'r_netgold',
+    'water_consumed',
+    'xp_earned',
   ],
 }

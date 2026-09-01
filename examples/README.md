@@ -423,9 +423,33 @@ It is **generalised** — its own invented numbers and generic labels ("Starter
 encounters", "Sell to vendor", "Repair (bill)"). No World-of-Warcraft names,
 tuning values, or assets; it does not present itself as official or affiliated.
 
+## How to read it
+
+A first-time reader follows the **top spine**, left to right:
+
+```
+Character creation → Starter · Lv 1–5 → Foothills · Lv 5–10 → Highlands · Lv 10–15 → Reached level 15
+```
+
+`Character creation` is an `onStart` Source that puts one token in `Active
+character`; a `>= 1` activator on the Starter encounters Source then opens the
+first zone. Each zone's combat / loot / level-up hangs directly **below** its
+landmark; the shared economy is a band across the middle-bottom; the seven
+reporting Registers sit in a small **corner block**, off the main path.
+
+The Timeline opens on a curated **10-series** default
+(`recommendedRunConfig.timelineSeries`): Level, Elapsed time, XP earned, Gold,
+Deaths, Gear score, Water/Food consumed, Items sold, and the **Net gold check**
+Register. The full accounting counters are still in the graph — one **`+N more`**
+click away in the legend. The Monte-Carlo `tracked` list stays wide (for the
+distributions); the two are independent.
+
 ## What it wires
 
 ```
+Character creation (onStart Source) → Active character Pool
+   └─ `Active character ≥ 1` activator opens the Starter lane
+
 three parallel ZONE LANES — exactly one live at a time (Level activators):
   Starter 1–5     ·  Foothills 5–10   ·  Highlands 10–15  (also needs Gear score ≥ 6)
 each lane:
@@ -441,7 +465,7 @@ shared economy:
      → Hunt / Quest payout Converters → XP (+ XP earned), Gold (+ Gold earned),
                                         Hunt XP / Quest XP counters
   Drops Pool → Loot dispatch (tee: Items looted + a sort token)
-     → Loot category Gate (deterministic 34 : 40 : 20 : 6)
+     → Loot category Gate (probabilistic 38 : 40 : 18 : 4 — one drop, one category)
      → Equip / Vendor / Consumable / Rare bucket Pools → four Converters
         → Items equipped / sold / consumed, Gear score, Gold (+ earned + Vendor revenue),
           Water / Food (+ bought)
@@ -469,13 +493,15 @@ Items looted = Items equipped + Items sold + Items consumed + <held in the loot 
 
 This file carries a `recommendedRunConfig`, so **Import (or pick it from
 Templates ▾) already fills the Monte Carlo dialog** with `200 × 150, base seed 1`
-and the tracked Pools below.
+and the tracked Pools below, and sets the Timeline's default 10 series.
 
 ```
 Templates ▾ → "Early MMO progression (levels 1–15)"   (or Import examples/mmo-progression.json)
 
-Live — seed 1, Play → Level climbs 1 → 5 → 10 → 15; the active lane hands off at
-                      each band boundary; the run ends the step after Level hits 15
+Live — seed 1, Play → the Character-creation Source fires once; from step 2 the
+                      Starter lane runs. Level climbs 1 → 5 → 10 → 15; the active
+                      lane hands off at each band boundary; the run ends the step
+                      after Level hits 15
 Live — Replay with the same seed → identical run; a different seed ends on a different step
 
 Monte Carlo → dialog is pre-filled: runs 200, steps 150, base seed 1

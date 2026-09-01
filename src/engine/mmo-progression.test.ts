@@ -28,6 +28,7 @@ const RECOMMENDED = {
   runs: MMO_PROGRESSION_MC.runs,
   steps: MMO_PROGRESSION_MC.steps,
   tracked: [...MMO_PROGRESSION_MC.tracked],
+  timelineSeries: [...MMO_PROGRESSION_MC.timelineSeries],
 }
 
 function poolTrace(nodes: LoopNode[], edges: LoopEdge[], seed: number, steps: number) {
@@ -81,6 +82,62 @@ describe('mmo-progression example', () => {
     )
   })
 
+  it('the Timeline default (timelineSeries) is a curated ~10-series set of real ids, sorted', () => {
+    const ts = (fixtureDoc as unknown as { recommendedRunConfig: { timelineSeries: string[] } })
+      .recommendedRunConfig.timelineSeries
+    expect(ts.length).toBeGreaterThanOrEqual(9)
+    expect(ts.length).toBeLessThanOrEqual(12)
+    expect([...ts]).toEqual([...ts].sort()) // sorted
+    const ids = new Set(nodes.map((n) => n.id))
+    for (const id of ts) expect(ids.has(id), id).toBe(true)
+    // the story metrics + the Net gold check Register
+    for (const id of ['level', 'elapsed', 'gold', 'deaths', 'r_netgold']) expect(ts).toContain(id)
+    // it is NOT the same list as the Monte-Carlo tracked set (different purpose)
+    expect([...ts].sort()).not.toEqual([...MMO_PROGRESSION_MC.tracked].sort())
+  })
+
+  it('opens on Character creation → the three zone landmarks → Reached level 15, left to right', () => {
+    const at = (id: string) => nodes.find((n) => n.id === id)!
+    const cc = at('char_creation')
+    expect(cc.data.kind).toBe('source')
+    expect((cc.data as { activation: string }).activation).toBe('onStart')
+    const spine = ['char_creation', 'active_char', 'z1_enc', 'z2_enc', 'z3_enc', 'end15'].map(at)
+    // strictly increasing x, and all on one row well above the detail
+    for (let i = 1; i < spine.length; i++) {
+      expect(spine[i].position.x, spine[i].id).toBeGreaterThan(spine[i - 1].position.x)
+    }
+    const spineY = spine.map((n) => n.position.y)
+    expect(Math.max(...spineY) - Math.min(...spineY)).toBeLessThanOrEqual(20)
+    // the busy detail sits below the spine
+    const detail = nodes.filter((n) => /_combat$|_winamp$|_loot$|_conv$|^bucket_/.test(n.id))
+    expect(detail.every((n) => n.position.y > Math.max(...spineY) + 100)).toBe(true)
+    // the landmark labels carry the level band
+    expect((at('z1_enc').data as { label: string }).label).toMatch(/1[–-]5/)
+    expect((at('z3_enc').data as { label: string }).label).toMatch(/10[–-]15/)
+  })
+
+  it('each zone is an isolated column; the seven Registers sit in clear space (no edges)', () => {
+    const at = (id: string) => nodes.find((n) => n.id === id)!
+    const zoneBox = (z: number) => {
+      const xs = [`enc_src`, `combat`, `win`, `winamp`, `lootroll`, `loot`, `xp2lvl`, `training`].map(
+        (s) => at(`z${z}_${s}`).position.x,
+      )
+      return { minX: Math.min(...xs), maxX: Math.max(...xs) }
+    }
+    const [b1, b2, b3] = [1, 2, 3].map(zoneBox)
+    // adjacent zone columns do not overlap in x — each lane's detail is its own
+    expect(b2.minX).toBeGreaterThan(b1.maxX)
+    expect(b3.minX).toBeGreaterThan(b2.maxX)
+
+    // Registers have no ports, so nothing wires to them — they must not sit
+    // where resource edges run (top-right, above the economy)
+    const regIds = new Set(nodes.filter((n) => n.data.kind === 'register').map((n) => n.id))
+    expect(edges.filter((e) => regIds.has(e.source) || regIds.has(e.target))).toEqual([])
+    const regs = nodes.filter((n) => regIds.has(n.id))
+    const spineMaxX = Math.max(...['char_creation', 'z3_enc', 'end15'].map((id) => at(id).position.x))
+    expect(regs.every((r) => r.position.x >= spineMaxX && r.position.y < 600)).toBe(true)
+  })
+
   it('deserialises as loop-studio/graph with the expected structure', () => {
     expect((fixtureDoc as { schema: string }).schema).toBe('loop-studio/graph')
     expect((fixtureDoc as { version: number }).version).toBe(1)
@@ -101,12 +158,17 @@ describe('mmo-progression example', () => {
     expect(edges.length).toBe(built.edges.length)
   })
 
-  it('has probabilistic combat / loot gates, deterministic router / category gates, and activator state edges', () => {
+  it('has probabilistic combat / loot / category gates, deterministic router / XP-meter gates, and activator state edges', () => {
     const gates = nodes.filter((n) => n.data.kind === 'gate')
     const dist = gates.map((g) => (g.data as { distribution: string }).distribution).sort()
-    // 3 combat + 3 loot probabilistic; reward-router + loot-category deterministic
-    expect(dist.filter((d) => d === 'probabilistic')).toHaveLength(6)
-    expect(dist.filter((d) => d === 'deterministic')).toHaveLength(2)
+    // 3 combat + 3 loot + 1 loot-category probabilistic;
+    // reward router + 3 pull-all XP-meter gates deterministic
+    expect(dist.filter((d) => d === 'probabilistic')).toHaveLength(7)
+    expect(dist.filter((d) => d === 'deterministic')).toHaveLength(4)
+    // each XP-meter gate is `pull all` — it moves `xp_per_level` atomically or nothing
+    for (const g of gates.filter((n) => n.id.endsWith('_xp_meter'))) {
+      expect((g.data as { mode?: string }).mode).toBe('pullAll')
+    }
     const stateEdges = edges.filter((e) => e.data?.kind === 'state')
     expect(stateEdges.length).toBeGreaterThan(0)
     expect(stateEdges.every((e) => (e.data as { mode: string }).mode === 'activator')).toBe(true)
@@ -120,6 +182,18 @@ describe('mmo-progression example', () => {
       for (const ref of expr.match(/@[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
         expect(poolIds.has(ref.slice(1)), `${expr} → ${ref}`).toBe(true)
       }
+    }
+  })
+
+  it('every Register evaluates to a value at step 0 — no `/0` / invalid on opening the file', async () => {
+    const { registersOfSnapshot } = await import('../model/model')
+    const st0 = initSim(nodes)
+    const out = registersOfSnapshot(nodes, st0.values)
+    for (const r of nodes.filter((n) => n.data.kind === 'register')) {
+      const o = out.get(r.id)
+      expect(o, r.id).toBeDefined()
+      if (o!.invalid) throw new Error(`${r.id} is invalid at step 0 (code ${o!.code})`)
+      expect(Number.isFinite(o!.value), `${r.id} = ${o!.value}`).toBe(true)
     }
   })
 
@@ -205,6 +279,28 @@ describe('mmo-progression example', () => {
                 held),
           ),
         ).toBeLessThan(EPS)
+      })
+
+      it(`run ${i}: Level and item counts are whole numbers`, () => {
+        const { values } = runToEnd(nodes, edges, runSeed(1, i), MMO_PROGRESSION_MC.steps)
+        const nearInt = (x: number) => Math.abs(x - Math.round(x)) < EPS
+        // the pull-all XP meter → +1 Converter keeps Level integral in a single run
+        expect(nearInt(v(values, 'level')), `level = ${v(values, 'level')}`).toBe(true)
+        // one whole drop → exactly one category, so every item counter is an integer
+        for (const id of [
+          'items_looted',
+          'items_equipped',
+          'items_sold',
+          'items_consumed',
+          'bucket_equip',
+          'bucket_vendor',
+          'bucket_consumable',
+          'bucket_rare',
+          'loot_feed',
+          'drop',
+        ]) {
+          expect(nearInt(v(values, id)), `${id} = ${v(values, id)}`).toBe(true)
+        }
       })
     }
   })

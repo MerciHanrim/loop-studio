@@ -16,7 +16,13 @@ const DOC = JSON.parse(
 ) as {
   nodes: { id: string }[]
   edges: { id: string }[]
-  recommendedRunConfig: { baseSeed: number; runs: number; steps: number; tracked: string[] }
+  recommendedRunConfig: {
+    baseSeed: number
+    runs: number
+    steps: number
+    tracked: string[]
+    timelineSeries: string[]
+  }
 }
 
 const EN_NAME = 'Early MMO progression (levels 1–15)'
@@ -96,6 +102,12 @@ test.describe('Early MMO progression example', () => {
     })
     expect([...cfg.tracked].sort()).toEqual([...DOC.recommendedRunConfig.tracked].sort())
     expect(DOC.recommendedRunConfig.tracked.length).toBeGreaterThan(10)
+
+    // the curated Timeline default (recommendedRunConfig.timelineSeries) is applied
+    const ts = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().timelineSeries)
+    expect(ts).toEqual([...DOC.recommendedRunConfig.timelineSeries])
+    expect(ts).toContain('r_netgold') // a Register in the default set
+    expect(ts.length).toBeLessThan(DOC.recommendedRunConfig.tracked.length) // fewer than MC tracks
   })
 
   test('the Templates menu name + blurb render in EN and KO (§L3.4 — node labels stay verbatim)', async ({ page }) => {
