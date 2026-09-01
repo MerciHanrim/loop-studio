@@ -51,11 +51,11 @@ continuous-time equations and spatial physics are not directly supported (see
 
 Game economies are the representative case: Machinations is a well-established
 notation for them (Dormans & Adams, *Game Mechanics: Advanced Game Design*) and
-a commercial SaaS. Loop Studio is an independent, open, client-only take on the
-same idea — nothing is uploaded, the whole app runs in your browser, and a graph
-is a plain JSON file you own — and the notation generalises: a pool that fills
-and drains on probabilistic rules is a warehouse, a queue, or a cash balance
-just as readily as a resource bar.
+a commercial SaaS. Loop Studio is an independent, client-only implementation with
+portable files and no account lock-in — nothing is uploaded, the whole app runs
+in your browser, and a graph is a plain JSON file you own — and the notation
+generalises: a pool that fills and drains on probabilistic rules is a warehouse,
+a queue, or a cash balance just as readily as a resource bar.
 
 ## Develop
 
