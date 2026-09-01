@@ -207,19 +207,23 @@ Reset and Run again with the same config → identical result
 
 > `recommendedRunConfig` is advisory metadata — the engine ignores it. It is
 > written by every **Export** (your current seed / runs / steps / tracked Pools,
-> plus `timelineSeries` — the series the Timeline shows by default) and applied on
-> **Import** / **Templates** / **Workspace** / **Share**. Run results and the
-> LIVE/DISTRIBUTION view are not saved. A file without the Monte-Carlo fields
-> leaves your current MC settings untouched; a file without `timelineSeries`
-> shows every series, as before.
+> plus `timelineSeries` — the series the Timeline shows by default — and
+> `canvasLocked` when the Canvas edit-lock is on) and applied on **Import** /
+> **Templates** / **Workspace** / **Share**. Run results and the LIVE/DISTRIBUTION
+> view are not saved. A file without the Monte-Carlo fields leaves your current MC
+> settings untouched; a file without `timelineSeries` shows every series, and one
+> without `canvasLocked` opens unlocked — all as before.
 >
-> `timelineSeries` is a **display preference only** — Pool *and* Register ids,
-> sorted; deleted / unknown ids are ignored; a toggle in the Timeline legend is
-> UI state that never touches the GraphDoc, the `loop-revision/*` digest, undo,
-> or a simulation result. Project **revisions** carry no run config (unchanged),
-> so they carry no `timelineSeries`. Known limitation: an *older* Loop Studio
-> that predates the field will drop it on re-save (there is no unknown-field
-> preservation); current and newer builds round-trip it losslessly.
+> `timelineSeries` and `canvasLocked` are **display preferences only** —
+> `timelineSeries` is Pool *and* Register ids, sorted, with deleted / unknown ids
+> ignored; `canvasLocked` is a boolean opening the Canvas in a readable edit-lock
+> (selection, the read-only Inspector, pan / zoom and the simulation still work).
+> Neither touches the GraphDoc, the `loop-revision/*` digest, undo, or a
+> simulation result, and the user can flip either from the UI at any time.
+> Project **revisions** carry no run config (unchanged), so they carry neither
+> field. Known limitation: an *older* Loop Studio that predates a field will drop
+> it on re-save (there is no unknown-field preservation); current and newer builds
+> round-trip both losslessly.
 
 `src/engine/risky-factory.test.ts` builds this graph and pins only its structural
 invariants (every node kind present, one branch per gate step, the 4 : 1 split,
@@ -444,6 +448,12 @@ Register. The full accounting counters are still in the graph — one **`+N more
 click away in the legend. The Monte-Carlo `tracked` list stays wide (for the
 distributions); the two are independent.
 
+The Canvas opens **edit-locked** (`recommendedRunConfig.canvasLocked: true`): the
+layout is part of this example, so a first read can't nudge a node by accident.
+Selecting nodes, the read-only Inspector, pan / zoom, the minimap, the Timeline
+and the simulation all still work; the Controls lock toggle (🔒 → 🔓) unlocks
+editing whenever you want it.
+
 ## What it wires
 
 ```
@@ -451,21 +461,22 @@ Character creation (onStart Source) → Active character Pool
    └─ `Active character ≥ 1` activator opens the Starter lane
 
 three parallel ZONE LANES — exactly one live at a time (Level activators):
-  Starter 1–5     ·  Foothills 5–10   ·  Highlands 10–15  (also needs Gear score ≥ 6)
+  Starter 1–5     ·  Foothills 5–10   ·  Highlands 10–15  (also needs Gear score ≥ 4)
 each lane:
   Encounters Source → Encounter Pool → Combat Gate (probabilistic, 3 branches)
      ├─ win   → Victory Pool → Win amp Converter → Reward Pool + Combat wins + a loot roll
      ├─ fail  → shared Setbacks Pool  → Setback cost  (Gear wear, Elapsed time, Combat fails)
      └─ death → shared Deaths queue   → Death cost    (Deaths, Elapsed time, Gear wear)
   Loot roll Pool → Loot Gate (probabilistic drop_rate) → shared Drops Pool
-  XP → Level Converter (rising xp_per_level: 10 / 20 / 30) ; a per-step Training gold sink
+  XP → `pull all` XP-meter Gate → Level Converter (rising xp_per_level: 10 / 19 / 27,
+       so Level is a whole number in a single run) ; a per-step Training gold sink
 
 shared economy:
   Reward Pool → Reward router (deterministic hunt : quest = 3 : 1)
      → Hunt / Quest payout Converters → XP (+ XP earned), Gold (+ Gold earned),
                                         Hunt XP / Quest XP counters
   Drops Pool → Loot dispatch (tee: Items looted + a sort token)
-     → Loot category Gate (probabilistic 38 : 40 : 18 : 4 — one drop, one category)
+     → Loot category Gate (probabilistic 34 : 40 : 20 : 6 — one drop, one category)
      → Equip / Vendor / Consumable / Rare bucket Pools → four Converters
         → Items equipped / sold / consumed, Gear score, Gold (+ earned + Vendor revenue),
           Water / Food (+ bought)
@@ -493,7 +504,8 @@ Items looted = Items equipped + Items sold + Items consumed + <held in the loot 
 
 This file carries a `recommendedRunConfig`, so **Import (or pick it from
 Templates ▾) already fills the Monte Carlo dialog** with `200 × 150, base seed 1`
-and the tracked Pools below, and sets the Timeline's default 10 series.
+and the tracked Pools below, sets the Timeline's default 10 series, and opens the
+Canvas edit-locked (unlock with the Controls 🔒 toggle).
 
 ```
 Templates ▾ → "Early MMO progression (levels 1–15)"   (or Import examples/mmo-progression.json)

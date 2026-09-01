@@ -22,6 +22,7 @@ const DOC = JSON.parse(
     steps: number
     tracked: string[]
     timelineSeries: string[]
+    canvasLocked: boolean
   }
 }
 
@@ -108,6 +109,37 @@ test.describe('Early MMO progression example', () => {
     expect(ts).toEqual([...DOC.recommendedRunConfig.timelineSeries])
     expect(ts).toContain('r_netgold') // a Register in the default set
     expect(ts.length).toBeLessThan(DOC.recommendedRunConfig.tracked.length) // fewer than MC tracks
+  })
+
+  test('opens edit-locked — a node still selects into a read-only Inspector; unlock → editable', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+
+    const isLocked = () =>
+      page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.ui.getState().canvasLocked)
+    expect(await isLocked()).toBe(true) // recommendedRunConfig.canvasLocked
+    expect(DOC.recommendedRunConfig.canvasLocked).toBe(true)
+    await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
+    await expect(page.locator('.react-flow__controls-button.rf-lock')).toHaveText('🔒')
+
+    // selection + a read-only Inspector still work while locked
+    await page.locator('.react-flow__node[data-id="level"]').click()
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().selectedNodeId),
+      )
+      .toBe('level')
+    const aside = page.locator('aside.inspector')
+    await expect(aside).toBeVisible()
+    await expect(aside.locator('input').first()).toBeDisabled()
+    await expect(page.locator('.react-flow__node[data-id="level"]')).not.toHaveClass(/draggable/)
+
+    // unlocking restores editing
+    await page.locator('.react-flow__controls-button.rf-lock').click()
+    expect(await isLocked()).toBe(false)
+    await expect(page.locator('.react-flow__node[data-id="level"]')).toHaveClass(/draggable/)
+    await expect(aside.locator('input').first()).toBeEnabled()
   })
 
   test('the Templates menu name + blurb render in EN and KO (§L3.4 — node labels stay verbatim)', async ({ page }) => {

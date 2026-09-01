@@ -6,8 +6,8 @@
       "id": "level",
       "type": "pool",
       "position": {
-        "x": 1460,
-        "y": 660
+        "x": 1520,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -23,7 +23,7 @@
       "type": "pool",
       "position": {
         "x": 1120,
-        "y": 660
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -38,8 +38,8 @@
       "id": "xp_earned",
       "type": "pool",
       "position": {
-        "x": 1280,
-        "y": 660
+        "x": 1320,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -54,8 +54,8 @@
       "id": "reward",
       "type": "pool",
       "position": {
-        "x": 1680,
-        "y": 660
+        "x": 1720,
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -71,7 +71,7 @@
       "type": "pool",
       "position": {
         "x": 560,
-        "y": 660
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -87,7 +87,7 @@
       "type": "pool",
       "position": {
         "x": 720,
-        "y": 660
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -103,7 +103,7 @@
       "type": "gate",
       "position": {
         "x": 1680,
-        "y": 800
+        "y": 940
       },
       "data": {
         "kind": "gate",
@@ -117,7 +117,7 @@
       "type": "converter",
       "position": {
         "x": 1840,
-        "y": 760
+        "y": 900
       },
       "data": {
         "kind": "converter",
@@ -131,7 +131,7 @@
       "type": "converter",
       "position": {
         "x": 1840,
-        "y": 860
+        "y": 1000
       },
       "data": {
         "kind": "converter",
@@ -145,7 +145,7 @@
       "type": "pool",
       "position": {
         "x": 2000,
-        "y": 760
+        "y": 900
       },
       "data": {
         "kind": "pool",
@@ -161,7 +161,7 @@
       "type": "pool",
       "position": {
         "x": 2000,
-        "y": 860
+        "y": 1000
       },
       "data": {
         "kind": "pool",
@@ -177,7 +177,7 @@
       "type": "converter",
       "position": {
         "x": 720,
-        "y": 800
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -191,7 +191,7 @@
       "type": "converter",
       "position": {
         "x": 880,
-        "y": 800
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -205,7 +205,7 @@
       "type": "pool",
       "position": {
         "x": 560,
-        "y": 780
+        "y": 920
       },
       "data": {
         "kind": "pool",
@@ -221,7 +221,7 @@
       "type": "pool",
       "position": {
         "x": 560,
-        "y": 840
+        "y": 980
       },
       "data": {
         "kind": "pool",
@@ -237,7 +237,7 @@
       "type": "pool",
       "position": {
         "x": 560,
-        "y": 900
+        "y": 1040
       },
       "data": {
         "kind": "pool",
@@ -253,7 +253,7 @@
       "type": "pool",
       "position": {
         "x": 1500,
-        "y": 1000
+        "y": 1140
       },
       "data": {
         "kind": "pool",
@@ -270,7 +270,7 @@
       "type": "pool",
       "position": {
         "x": 1680,
-        "y": 1000
+        "y": 1140
       },
       "data": {
         "kind": "pool",
@@ -286,7 +286,7 @@
       "type": "pool",
       "position": {
         "x": 1860,
-        "y": 1000
+        "y": 1140
       },
       "data": {
         "kind": "pool",
@@ -302,7 +302,7 @@
       "type": "pool",
       "position": {
         "x": 1500,
-        "y": 1120
+        "y": 1260
       },
       "data": {
         "kind": "pool",
@@ -318,7 +318,7 @@
       "type": "pool",
       "position": {
         "x": 1680,
-        "y": 1220
+        "y": 1360
       },
       "data": {
         "kind": "pool",
@@ -334,7 +334,7 @@
       "type": "pool",
       "position": {
         "x": 1860,
-        "y": 1120
+        "y": 1260
       },
       "data": {
         "kind": "pool",
@@ -350,7 +350,7 @@
       "type": "pool",
       "position": {
         "x": 1520,
-        "y": 1300
+        "y": 1440
       },
       "data": {
         "kind": "pool",
@@ -367,7 +367,7 @@
       "type": "pool",
       "position": {
         "x": 1520,
-        "y": 1360
+        "y": 1500
       },
       "data": {
         "kind": "pool",
@@ -384,7 +384,7 @@
       "type": "pool",
       "position": {
         "x": 1700,
-        "y": 1340
+        "y": 1480
       },
       "data": {
         "kind": "pool",
@@ -400,7 +400,7 @@
       "type": "pool",
       "position": {
         "x": 1880,
-        "y": 1340
+        "y": 1480
       },
       "data": {
         "kind": "pool",
@@ -416,7 +416,7 @@
       "type": "pool",
       "position": {
         "x": 1200,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -432,7 +432,7 @@
       "type": "pool",
       "position": {
         "x": 1200,
-        "y": 1220
+        "y": 1360
       },
       "data": {
         "kind": "pool",
@@ -448,7 +448,7 @@
       "type": "converter",
       "position": {
         "x": 1360,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "converter",
@@ -462,7 +462,7 @@
       "type": "converter",
       "position": {
         "x": 1360,
-        "y": 1220
+        "y": 1360
       },
       "data": {
         "kind": "converter",
@@ -476,7 +476,7 @@
       "type": "converter",
       "position": {
         "x": 1680,
-        "y": 1120
+        "y": 1260
       },
       "data": {
         "kind": "converter",
@@ -490,7 +490,7 @@
       "type": "pool",
       "position": {
         "x": 2340,
-        "y": 920
+        "y": 1060
       },
       "data": {
         "kind": "pool",
@@ -507,7 +507,7 @@
       "type": "pool",
       "position": {
         "x": 2160,
-        "y": 920
+        "y": 1060
       },
       "data": {
         "kind": "pool",
@@ -523,7 +523,7 @@
       "type": "pool",
       "position": {
         "x": 2160,
-        "y": 680
+        "y": 820
       },
       "data": {
         "kind": "pool",
@@ -539,7 +539,7 @@
       "type": "converter",
       "position": {
         "x": 2160,
-        "y": 760
+        "y": 900
       },
       "data": {
         "kind": "converter",
@@ -553,7 +553,7 @@
       "type": "converter",
       "position": {
         "x": 2160,
-        "y": 840
+        "y": 980
       },
       "data": {
         "kind": "converter",
@@ -567,7 +567,7 @@
       "type": "pool",
       "position": {
         "x": 380,
-        "y": 660
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -583,7 +583,7 @@
       "type": "pool",
       "position": {
         "x": 380,
-        "y": 920
+        "y": 1060
       },
       "data": {
         "kind": "pool",
@@ -599,7 +599,7 @@
       "type": "converter",
       "position": {
         "x": 380,
-        "y": 800
+        "y": 940
       },
       "data": {
         "kind": "converter",
@@ -613,7 +613,7 @@
       "type": "gate",
       "position": {
         "x": 380,
-        "y": 1040
+        "y": 1180
       },
       "data": {
         "kind": "gate",
@@ -627,7 +627,7 @@
       "type": "pool",
       "position": {
         "x": 300,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -643,7 +643,7 @@
       "type": "pool",
       "position": {
         "x": 460,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -659,7 +659,7 @@
       "type": "pool",
       "position": {
         "x": 620,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -675,7 +675,7 @@
       "type": "pool",
       "position": {
         "x": 780,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -691,7 +691,7 @@
       "type": "pool",
       "position": {
         "x": 200,
-        "y": 800
+        "y": 940
       },
       "data": {
         "kind": "pool",
@@ -707,7 +707,7 @@
       "type": "pool",
       "position": {
         "x": 120,
-        "y": 1160
+        "y": 1300
       },
       "data": {
         "kind": "pool",
@@ -723,7 +723,7 @@
       "type": "pool",
       "position": {
         "x": 120,
-        "y": 1240
+        "y": 1380
       },
       "data": {
         "kind": "pool",
@@ -739,7 +739,7 @@
       "type": "pool",
       "position": {
         "x": 120,
-        "y": 1320
+        "y": 1460
       },
       "data": {
         "kind": "pool",
@@ -755,7 +755,7 @@
       "type": "converter",
       "position": {
         "x": 300,
-        "y": 1280
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -769,7 +769,7 @@
       "type": "converter",
       "position": {
         "x": 460,
-        "y": 1280
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -783,7 +783,7 @@
       "type": "converter",
       "position": {
         "x": 620,
-        "y": 1280
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -797,7 +797,7 @@
       "type": "converter",
       "position": {
         "x": 780,
-        "y": 1280
+        "y": 1420
       },
       "data": {
         "kind": "converter",
@@ -810,7 +810,7 @@
       "id": "elapsed",
       "type": "pool",
       "position": {
-        "x": 2320,
+        "x": 2760,
         "y": 290
       },
       "data": {
@@ -826,7 +826,7 @@
       "id": "clock",
       "type": "source",
       "position": {
-        "x": 2160,
+        "x": 2560,
         "y": 290
       },
       "data": {
@@ -840,7 +840,7 @@
       "id": "completion",
       "type": "pool",
       "position": {
-        "x": 2320,
+        "x": 2760,
         "y": 170
       },
       "data": {
@@ -856,7 +856,7 @@
       "id": "completion_src",
       "type": "source",
       "position": {
-        "x": 2160,
+        "x": 2560,
         "y": 170
       },
       "data": {
@@ -870,7 +870,7 @@
       "id": "end15",
       "type": "end",
       "position": {
-        "x": 2320,
+        "x": 2760,
         "y": 40
       },
       "data": {
@@ -883,8 +883,8 @@
       "id": "z1_enc_src",
       "type": "source",
       "position": {
-        "x": 470,
-        "y": 150
+        "x": 460,
+        "y": 160
       },
       "data": {
         "kind": "source",
@@ -897,7 +897,7 @@
       "id": "z1_enc",
       "type": "pool",
       "position": {
-        "x": 660,
+        "x": 720,
         "y": 40
       },
       "data": {
@@ -913,8 +913,8 @@
       "id": "z1_combat",
       "type": "gate",
       "position": {
-        "x": 660,
-        "y": 250
+        "x": 690,
+        "y": 300
       },
       "data": {
         "kind": "gate",
@@ -927,8 +927,8 @@
       "id": "z1_win",
       "type": "pool",
       "position": {
-        "x": 540,
-        "y": 380
+        "x": 460,
+        "y": 320
       },
       "data": {
         "kind": "pool",
@@ -943,8 +943,8 @@
       "id": "z1_winamp",
       "type": "converter",
       "position": {
-        "x": 700,
-        "y": 380
+        "x": 460,
+        "y": 460
       },
       "data": {
         "kind": "converter",
@@ -957,8 +957,8 @@
       "id": "z1_lootroll",
       "type": "pool",
       "position": {
-        "x": 540,
-        "y": 500
+        "x": 460,
+        "y": 600
       },
       "data": {
         "kind": "pool",
@@ -973,8 +973,8 @@
       "id": "z1_loot",
       "type": "gate",
       "position": {
-        "x": 700,
-        "y": 500
+        "x": 690,
+        "y": 620
       },
       "data": {
         "kind": "gate",
@@ -987,8 +987,8 @@
       "id": "z1_xp_meter",
       "type": "gate",
       "position": {
-        "x": 770,
-        "y": 200
+        "x": 960,
+        "y": 290
       },
       "data": {
         "kind": "gate",
@@ -1002,8 +1002,8 @@
       "id": "z1_xp2lvl",
       "type": "converter",
       "position": {
-        "x": 910,
-        "y": 200
+        "x": 960,
+        "y": 440
       },
       "data": {
         "kind": "converter",
@@ -1016,8 +1016,8 @@
       "id": "z1_training",
       "type": "converter",
       "position": {
-        "x": 860,
-        "y": 330
+        "x": 690,
+        "y": 470
       },
       "data": {
         "kind": "converter",
@@ -1030,8 +1030,8 @@
       "id": "z2_enc_src",
       "type": "source",
       "position": {
-        "x": 1050,
-        "y": 150
+        "x": 1200,
+        "y": 160
       },
       "data": {
         "kind": "source",
@@ -1044,7 +1044,7 @@
       "id": "z2_enc",
       "type": "pool",
       "position": {
-        "x": 1240,
+        "x": 1460,
         "y": 40
       },
       "data": {
@@ -1060,8 +1060,8 @@
       "id": "z2_combat",
       "type": "gate",
       "position": {
-        "x": 1240,
-        "y": 250
+        "x": 1430,
+        "y": 300
       },
       "data": {
         "kind": "gate",
@@ -1074,8 +1074,8 @@
       "id": "z2_win",
       "type": "pool",
       "position": {
-        "x": 1120,
-        "y": 380
+        "x": 1200,
+        "y": 320
       },
       "data": {
         "kind": "pool",
@@ -1090,8 +1090,8 @@
       "id": "z2_winamp",
       "type": "converter",
       "position": {
-        "x": 1280,
-        "y": 380
+        "x": 1200,
+        "y": 460
       },
       "data": {
         "kind": "converter",
@@ -1104,8 +1104,8 @@
       "id": "z2_lootroll",
       "type": "pool",
       "position": {
-        "x": 1120,
-        "y": 500
+        "x": 1200,
+        "y": 600
       },
       "data": {
         "kind": "pool",
@@ -1120,8 +1120,8 @@
       "id": "z2_loot",
       "type": "gate",
       "position": {
-        "x": 1280,
-        "y": 500
+        "x": 1430,
+        "y": 620
       },
       "data": {
         "kind": "gate",
@@ -1134,8 +1134,8 @@
       "id": "z2_xp_meter",
       "type": "gate",
       "position": {
-        "x": 1350,
-        "y": 200
+        "x": 1700,
+        "y": 290
       },
       "data": {
         "kind": "gate",
@@ -1149,8 +1149,8 @@
       "id": "z2_xp2lvl",
       "type": "converter",
       "position": {
-        "x": 1490,
-        "y": 200
+        "x": 1700,
+        "y": 440
       },
       "data": {
         "kind": "converter",
@@ -1163,8 +1163,8 @@
       "id": "z2_training",
       "type": "converter",
       "position": {
-        "x": 1440,
-        "y": 330
+        "x": 1430,
+        "y": 470
       },
       "data": {
         "kind": "converter",
@@ -1177,8 +1177,8 @@
       "id": "z3_enc_src",
       "type": "source",
       "position": {
-        "x": 1630,
-        "y": 150
+        "x": 1940,
+        "y": 160
       },
       "data": {
         "kind": "source",
@@ -1191,7 +1191,7 @@
       "id": "z3_enc",
       "type": "pool",
       "position": {
-        "x": 1820,
+        "x": 2200,
         "y": 40
       },
       "data": {
@@ -1207,8 +1207,8 @@
       "id": "z3_combat",
       "type": "gate",
       "position": {
-        "x": 1820,
-        "y": 250
+        "x": 2170,
+        "y": 300
       },
       "data": {
         "kind": "gate",
@@ -1221,8 +1221,8 @@
       "id": "z3_win",
       "type": "pool",
       "position": {
-        "x": 1700,
-        "y": 380
+        "x": 1940,
+        "y": 320
       },
       "data": {
         "kind": "pool",
@@ -1237,8 +1237,8 @@
       "id": "z3_winamp",
       "type": "converter",
       "position": {
-        "x": 1860,
-        "y": 380
+        "x": 1940,
+        "y": 460
       },
       "data": {
         "kind": "converter",
@@ -1251,8 +1251,8 @@
       "id": "z3_lootroll",
       "type": "pool",
       "position": {
-        "x": 1700,
-        "y": 500
+        "x": 1940,
+        "y": 600
       },
       "data": {
         "kind": "pool",
@@ -1267,8 +1267,8 @@
       "id": "z3_loot",
       "type": "gate",
       "position": {
-        "x": 1860,
-        "y": 500
+        "x": 2170,
+        "y": 620
       },
       "data": {
         "kind": "gate",
@@ -1281,8 +1281,8 @@
       "id": "z3_xp_meter",
       "type": "gate",
       "position": {
-        "x": 1930,
-        "y": 200
+        "x": 2440,
+        "y": 290
       },
       "data": {
         "kind": "gate",
@@ -1296,8 +1296,8 @@
       "id": "z3_xp2lvl",
       "type": "converter",
       "position": {
-        "x": 2070,
-        "y": 200
+        "x": 2440,
+        "y": 440
       },
       "data": {
         "kind": "converter",
@@ -1310,8 +1310,8 @@
       "id": "z3_training",
       "type": "converter",
       "position": {
-        "x": 2020,
-        "y": 330
+        "x": 2170,
+        "y": 470
       },
       "data": {
         "kind": "converter",
@@ -1324,8 +1324,8 @@
       "id": "void",
       "type": "drain",
       "position": {
-        "x": 1880,
-        "y": 640
+        "x": 1920,
+        "y": 780
       },
       "data": {
         "kind": "drain",
@@ -1352,7 +1352,7 @@
       "id": "active_char",
       "type": "pool",
       "position": {
-        "x": 280,
+        "x": 320,
         "y": 40
       },
       "data": {
@@ -1368,7 +1368,7 @@
       "id": "r_income",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 200
       },
       "data": {
@@ -1382,7 +1382,7 @@
       "id": "r_expense",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 270
       },
       "data": {
@@ -1396,7 +1396,7 @@
       "id": "r_netgold",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 340
       },
       "data": {
@@ -1410,7 +1410,7 @@
       "id": "r_huntshare",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 130
       },
       "data": {
@@ -1424,7 +1424,7 @@
       "id": "r_efflevel",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 60
       },
       "data": {
@@ -1438,7 +1438,7 @@
       "id": "r_items_acct",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 410
       },
       "data": {
@@ -1452,7 +1452,7 @@
       "id": "r_burned",
       "type": "register",
       "position": {
-        "x": 2500,
+        "x": 2960,
         "y": 480
       },
       "data": {
@@ -3287,6 +3287,7 @@
       "r_netgold",
       "water_consumed",
       "xp_earned"
-    ]
+    ],
+    "canvasLocked": true
   }
 }

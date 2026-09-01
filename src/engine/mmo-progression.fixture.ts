@@ -458,38 +458,41 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   //   TOP-R   the seven reporting Registers, in clear space (no edges reach
   //           them — a Register has no ports)
   //   BOT-R   left empty for the minimap
-  const CX = [660, 1240, 1820] as const // the three zone-column centres, 580 apart
+  // Zone centres are far enough apart (720) that each zone's roomy 3-lane grid
+  // (below) never bleeds into its neighbour — a first read can zoom a zone and
+  // every node stays readable and clickable (§EM13.5.1).
+  const CX = [720, 1460, 2200] as const // the three zone-column centres, 740 apart
   const LAYOUT: Record<string, XY> = {
     // ── TOP: the spine (y 40) — Character → 3 zones → Reached level 15 ──
     char_creation: { x: 40, y: 40 },
-    active_char: { x: 280, y: 40 },
+    active_char: { x: 320, y: 40 },
     z1_enc: { x: CX[0], y: 40 },
     z2_enc: { x: CX[1], y: 40 },
     z3_enc: { x: CX[2], y: 40 },
-    end15: { x: 2320, y: 40 },
-    completion_src: { x: 2160, y: 170 },
-    completion: { x: 2320, y: 170 },
-    clock: { x: 2160, y: 290 },
-    elapsed: { x: 2320, y: 290 },
+    end15: { x: 2760, y: 40 },
+    completion_src: { x: 2560, y: 170 },
+    completion: { x: 2760, y: 170 },
+    clock: { x: 2560, y: 290 },
+    elapsed: { x: 2760, y: 290 },
 
     // ── TOP-RIGHT: reporting / checks (no edges — clear of the minimap) ──
-    r_efflevel: { x: 2500, y: 60 },
-    r_huntshare: { x: 2500, y: 130 },
-    r_income: { x: 2500, y: 200 },
-    r_expense: { x: 2500, y: 270 },
-    r_netgold: { x: 2500, y: 340 },
-    r_items_acct: { x: 2500, y: 410 },
-    r_burned: { x: 2500, y: 480 },
+    r_efflevel: { x: 2960, y: 60 },
+    r_huntshare: { x: 2960, y: 130 },
+    r_income: { x: 2960, y: 200 },
+    r_expense: { x: 2960, y: 270 },
+    r_netgold: { x: 2960, y: 340 },
+    r_items_acct: { x: 2960, y: 410 },
+    r_burned: { x: 2960, y: 480 },
 
-    // ── the HUB ROW (y 660): the only place zone columns merge ──
+    // ── the HUB ROW (y 660 → shifted to 800): the only place zone columns merge ──
     drop: { x: 380, y: 660 },
     fail_pool: { x: 560, y: 660 },
     death_pool: { x: 720, y: 660 },
     xp: { x: 1120, y: 660 },
-    xp_earned: { x: 1280, y: 660 },
-    level: { x: 1460, y: 660 },
-    reward: { x: 1680, y: 660 },
-    void: { x: 1880, y: 640 },
+    xp_earned: { x: 1320, y: 660 },
+    level: { x: 1520, y: 660 },
+    reward: { x: 1720, y: 660 },
+    void: { x: 1920, y: 640 },
 
     // ── BOTTOM-LEFT: the loot chain (x 100–1150, y 800–1360) ──
     loot_dispatch: { x: 380, y: 800 },
@@ -542,20 +545,36 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   }
   for (let z = 0; z < 3; z++) {
     const cx = CX[z]
-    // one self-contained column: everything within [cx-190, cx+250] × [140, 560]
+    // One self-contained column on a roomy 3-lane grid — L / M / R at cx-260 /
+    // cx-30 / cx+240 (≈ 260 px pitch), rows every ~150 px, all inside
+    // [cx-260, cx+240] × [150, 620]. The combat → win → winamp → loot-roll → loot
+    // chain runs down the LEFT lane; the XP-meter → level-up pair sits on the
+    // RIGHT lane; encounters + training are on the MIDDLE lane. No two boxes
+    // abut, and no in-column edge has to cross a node body.
+    const L = cx - 260
+    const M = cx - 30
+    const R = cx + 240
     Object.assign(LAYOUT, {
-      [`z${z + 1}_enc_src`]: { x: cx - 190, y: 150 },
-      [`z${z + 1}_combat`]: { x: cx, y: 250 },
-      [`z${z + 1}_xp_meter`]: { x: cx + 110, y: 200 },
-      [`z${z + 1}_xp2lvl`]: { x: cx + 250, y: 200 },
-      [`z${z + 1}_training`]: { x: cx + 200, y: 330 },
-      [`z${z + 1}_win`]: { x: cx - 120, y: 380 },
-      [`z${z + 1}_winamp`]: { x: cx + 40, y: 380 },
-      [`z${z + 1}_lootroll`]: { x: cx - 120, y: 500 },
-      [`z${z + 1}_loot`]: { x: cx + 40, y: 500 },
+      [`z${z + 1}_enc_src`]: { x: L, y: 160 },
+      [`z${z + 1}_combat`]: { x: M, y: 300 },
+      [`z${z + 1}_win`]: { x: L, y: 320 },
+      [`z${z + 1}_winamp`]: { x: L, y: 460 },
+      [`z${z + 1}_lootroll`]: { x: L, y: 600 },
+      [`z${z + 1}_loot`]: { x: M, y: 620 },
+      [`z${z + 1}_xp_meter`]: { x: R, y: 290 },
+      [`z${z + 1}_xp2lvl`]: { x: R, y: 440 },
+      [`z${z + 1}_training`]: { x: M, y: 470 },
     })
   }
   for (const n of nodes) if (LAYOUT[n.id]) n.position = LAYOUT[n.id]
+
+  // The hub row + the bottom economy bands were authored at y ≥ 640; drop them
+  // another 140 px so the widened zone grids (which now reach y ≈ 620) keep clear
+  // air above the hub row. Registers (y ≤ 480) and the spine (y ≤ 290) are
+  // untouched. One pass, so the band spacing below stays exactly as authored.
+  for (const n of nodes) {
+    if (LAYOUT[n.id] && n.position.y >= 640) n.position = { x: n.position.x, y: n.position.y + 140 }
+  }
 
   return { nodes, edges }
 }
@@ -604,4 +623,9 @@ export const MMO_PROGRESSION_MC = {
     'water_consumed',
     'xp_earned',
   ],
+  // the layout is part of the explanation — open in a view-safe EDIT-LOCK so a
+  // stray drag can't move a node. Selection + the read-only Inspector + pan /
+  // zoom / minimap / Timeline / the sim all still work; the user flips the 🔓
+  // control in the Canvas to edit. (recommendedRunConfig.canvasLocked, UI-only.)
+  canvasLocked: true,
 }

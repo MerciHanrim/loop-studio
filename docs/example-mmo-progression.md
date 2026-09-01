@@ -259,7 +259,8 @@ only — no `floor` / `min` / `max` / conditionals. Every Register here is
 ## EM7. Monte Carlo
 
 `recommendedRunConfig`: `{ baseSeed: 1, runs: 200, steps: 150 }` (§EM12 Q2),
-with an **explicit `tracked` list** (§EM12 Q3):
+with an **explicit `tracked` list** (§EM12 Q3), plus the two UI-only advisory
+fields `timelineSeries` (§EM13.3) and `canvasLocked` (§EM13.8):
 
 | tracked Pool | reads as |
 |---|---|
@@ -407,7 +408,7 @@ reach-15 target still hold.
 ## EM13. Implementation notes (PR #86, on the `main` graph)
 
 The build is `src/engine/mmo-progression.fixture.ts` → `examples/mmo-progression.json`
-(94 nodes / 136 edges), verified by `src/engine/mmo-progression.test.ts`
+(97 nodes / 144 edges), verified by `src/engine/mmo-progression.test.ts`
 (regen: `GEN_MMO_PROGRESSION=1 npx vitest run …`). The following are settled
 during implementation.
 
@@ -422,10 +423,17 @@ Character creation → Starter · Lv 1–5 → Foothills · Lv 5–10 → Highla
 - **TOP** — a spine of five evenly-spaced landmarks (`char_creation`,
   `z1_enc` / `z2_enc` / `z3_enc` renamed to the band labels, `end15`); the small
   `Active character` helper sits between creation and the first zone.
-- **MIDDLE** — three **isolated zone columns**. Each zone's `Combat → outcome →
-  level-up` flows straight down inside its own column (adjacent columns do not
-  overlap in x); a column's **only outgoing edges** go to the shared **hub row**
-  just below — `Drop`, `Setbacks`, `Deaths queue`, `XP`, `Level`, `Reward`.
+- **MIDDLE** — three **isolated zone columns**, centres **740 px apart**. Each
+  column is a roomy **3-lane grid** (`L / M / R` at `cx−260 / cx−30 / cx+240`,
+  rows every ~150 px, all inside `[cx−260, cx+240] × [150, 620]`): the
+  `Combat → Victory → win amp → loot roll → Loot` chain runs down the **left**
+  lane, the `XP-meter → level-up` pair sits on the **right** lane, encounters and
+  training on the **middle** lane. No two node boxes abut and no in-column edge
+  crosses a node body. Adjacent columns do not overlap in x; a column's **only
+  outgoing edges** go to the shared **hub row** just below — `Drop`, `Setbacks`,
+  `Deaths queue`, `XP`, `Level`, `Reward`. The hub row and the bottom economy
+  bands were dropped a further 140 px (one pass over the `LAYOUT` table) so the
+  widened grids keep clear air above the hub row.
 - **BOTTOM-LEFT** — the loot chain: `Drop → dispatch → category →
   Equip / Sell / Consume` and the item counters.
 - **BOTTOM-CENTRE** — the gold economy: `Reward router → payouts → Gold →
@@ -435,9 +443,7 @@ Character creation → Starter · Lv 1–5 → Foothills · Lv 5–10 → Highla
   runs (and clear of the minimap's bottom-right corner).
 
 Positions live in one `LAYOUT` table in the builder so the structural code stays
-readable. Acceptance: at a 1920 px viewport, fit-to-screen, the five stage names
-and the flow between them are legible; the detailed bottom economy is
-zoom-to-read.
+readable.
 
 ### EM13.2 `Character creation` (§EM2.1)
 
@@ -486,14 +492,28 @@ Noted in the fixture header comment:
    xp_per_level_1`), not a level estimate, since real growth cost is piecewise
    and an expression can't reproduce it.
 
-### EM13.5.1 Layout acceptance (settled with review)
+### EM13.5.1 Layout acceptance (settled with review, revised after the spacing pass)
 
-Full-fit-with-every-label is not a realistic target for a model this size (the
-minimap and pan / zoom exist for that). The layout is accepted when: the main
-progression axis order is identifiable in the overall view; zooming a zone lets
-you follow that lane's internal flow; the minimap reaches the other subsystems;
-no nodes permanently overlap or hide behind the Inspector; and Reporting / the
-Timeline do not dominate the main flow.
+Full-fit-with-every-label is **not** a realistic target for a model this size —
+the minimap and pan / zoom exist for that, and review explicitly retracted it.
+The layout is accepted when, at the **start / middle / end** stages of a run:
+
+- the main progression axis order is identifiable in the overall view;
+- **zooming a zone, every node in it is readable and reliably clickable** — no
+  node boxes abut, and no edge or value badge sits on top of a node body / port
+  so as to steal its click target;
+- the minimap reaches the other subsystems;
+- no nodes permanently overlap or hide behind the Inspector;
+- the current-step run emphasis (the active-edge cue) never fully obscures a
+  node body;
+- Reporting / the Timeline do not dominate the main flow.
+
+Large-graph static **and** running-state readability at the whole-graph level
+(focus view on the selected node, dimming unselected edges / badges, pointer
+handling so edges never intercept a node's click area, group frames, semantic
+zoom, and separating "active" from "a transfer actually happened" in the run
+cue) is tracked as an explicit **follow-up readability slice**, out of scope for
+this example PR.
 
 ### EM13.5 Tuning (§EM10)
 
@@ -522,5 +542,19 @@ are integral for six seeds. (Weights re-tuned with the change:
 ### EM13.7 `Loot category` gate count
 
 With §EM13.6 the graph has **seven probabilistic Gates** (three `Combat`, three
-`Loot`, one `Loot category`) and **one deterministic** Gate (the `Reward
-router`).
+`Loot`, one `Loot category`) and **four deterministic** Gates — the `Reward
+router` plus the three `pull all` XP-meter Gates (§EM13.4 #1), one per zone.
+
+### EM13.8 `recommendedRunConfig.canvasLocked` — opens in a readable edit-lock
+
+The template ships `recommendedRunConfig.canvasLocked: true`. On load the Canvas
+opens **edit-locked**: nodes don't move / connect, nothing deletes, the Inspector
+is read-only — but selecting a node, reading its Inspector, pan / zoom, the
+minimap, the Timeline and the simulation all still work. The layout *is* part of
+this example's explanation (§EM13.1), so it shouldn't be nudged by accident on a
+first read; the Controls lock toggle (🔒 → 🔓) unlocks editing at any time. Like
+`timelineSeries`, `canvasLocked` is UI-only advisory metadata — never the
+GraphDoc, the `loop-revision/*` digest, undo, or `simulationRev` — and it is
+preserved across Graph / Workspace / Share round-trips. Absent (every older file)
+⇒ unlocked, unchanged. The Canvas view-lock itself landed in a separate
+prerequisite PR (#89); this template only opts in.

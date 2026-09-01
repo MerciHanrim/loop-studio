@@ -29,6 +29,7 @@ const RECOMMENDED = {
   steps: MMO_PROGRESSION_MC.steps,
   tracked: [...MMO_PROGRESSION_MC.tracked],
   timelineSeries: [...MMO_PROGRESSION_MC.timelineSeries],
+  canvasLocked: MMO_PROGRESSION_MC.canvasLocked,
 }
 
 function poolTrace(nodes: LoopNode[], edges: LoopEdge[], seed: number, steps: number) {
@@ -94,6 +95,13 @@ describe('mmo-progression example', () => {
     for (const id of ['level', 'elapsed', 'gold', 'deaths', 'r_netgold']) expect(ts).toContain(id)
     // it is NOT the same list as the Monte-Carlo tracked set (different purpose)
     expect([...ts].sort()).not.toEqual([...MMO_PROGRESSION_MC.tracked].sort())
+  })
+
+  it('opens edit-locked (recommendedRunConfig.canvasLocked) — the layout is part of the explanation', () => {
+    expect(
+      (fixtureDoc as unknown as { recommendedRunConfig: { canvasLocked?: unknown } })
+        .recommendedRunConfig.canvasLocked,
+    ).toBe(true)
   })
 
   it('opens on Character creation → the three zone landmarks → Reached level 15, left to right', () => {
