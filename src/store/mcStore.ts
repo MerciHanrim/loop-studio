@@ -95,6 +95,13 @@ export const useMcStore = create<McStore>((set, get) => ({
   setConfig: (patch) => set({ config: { ...get().config, ...patch } }),
 
   applyRecommended: (m) => {
+    // Timeline default series is a display preference, applied on EVERY document
+    // load — the file's list, or 'all' when the field is absent (unchanged
+    // behaviour for older files). Kept separate from the Monte-Carlo config
+    // below, which is deliberately left untouched when a file omits it.
+    const ts = m && typeof m === 'object' ? (m as { timelineSeries?: unknown }).timelineSeries : undefined
+    useSimStore.getState().setTimelineSeries(Array.isArray(ts) ? (ts as string[]) : undefined)
+
     if (!m || typeof m !== 'object') return
     const patch: Partial<RunConfig> = {}
     // baseSeed: same rule as the seed input / SEMANTICS-B1.md §B1.3 — a finite
@@ -240,6 +247,22 @@ export const useMcStore = create<McStore>((set, get) => ({
     })
   },
 }))
+
+/**
+ * The `recommendedRunConfig` every graph Export writes: the Monte-Carlo config
+ * PLUS the current Timeline default-series selection (`timelineSeries`, omitted
+ * while it is the implicit 'all'). Used by Graph JSON export, the Share encoder,
+ * and Workspace export so a round-trip preserves the recommended display.
+ * Project revisions carry no run config at all (unchanged) and so carry no
+ * `timelineSeries`.
+ */
+export function recommendedRunConfigForExport(): RecommendedRunConfig {
+  const ts = useSimStore.getState().timelineSeries
+  return {
+    ...useMcStore.getState().config,
+    ...(Array.isArray(ts) ? { timelineSeries: [...ts].sort() } : {}),
+  }
+}
 
 /**
  * Keep `config.tracked` sane as Pools come and go, without ever widening a

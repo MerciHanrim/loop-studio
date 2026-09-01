@@ -183,6 +183,25 @@ describe('recommendedRunConfig round-trip', () => {
     const twice = deserialize(serialize(once.nodes, once.edges, once.recommendedRunConfig))
     expect(twice.recommendedRunConfig).toEqual(rrc)
   })
+
+  it('timelineSeries (Pool + Register ids) round-trips like any other field', () => {
+    const rrc = {
+      baseSeed: 1,
+      runs: 10,
+      steps: 5,
+      tracked: ['p'],
+      timelineSeries: ['p', 'reg_net', 'reg_share'],
+    }
+    const once = deserialize(serialize(g().nodes, g().edges, rrc))
+    expect(once.recommendedRunConfig).toEqual(rrc)
+    const twice = deserialize(serialize(once.nodes, once.edges, once.recommendedRunConfig))
+    expect(twice.recommendedRunConfig).toEqual(rrc)
+  })
+
+  it('a file with no timelineSeries deserializes without it (older-file behaviour)', () => {
+    const back = deserialize(serialize(g().nodes, g().edges, { baseSeed: 2, runs: 3, steps: 3 }))
+    expect(back.recommendedRunConfig).not.toHaveProperty('timelineSeries')
+  })
 })
 
 beforeEach(() => {

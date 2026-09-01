@@ -240,3 +240,54 @@ describe('mcStore.applyRecommended', () => {
     expect(t.every((id) => typeof id === 'string')).toBe(true)
   })
 })
+
+describe('recommendedRunConfig.timelineSeries — the Timeline display default (separate from MC tracked)', () => {
+  it('applyRecommended sets simStore.timelineSeries from the field (sorted)', async () => {
+    const { useSimStore } = await import('./simStore')
+    useMcStore.getState().applyRecommended({ timelineSeries: ['gold', 'level', 'gold'] })
+    expect(useSimStore.getState().timelineSeries).toEqual(['gold', 'level'])
+  })
+
+  it('applyRecommended with no timelineSeries resets it to "all" (older files unchanged)', async () => {
+    const { useSimStore } = await import('./simStore')
+    useSimStore.getState().setTimelineSeries(['x'])
+    useMcStore.getState().applyRecommended({ baseSeed: 5 })
+    expect(useSimStore.getState().timelineSeries).toBe('all')
+  })
+
+  it('applyRecommended(undefined) also resets timelineSeries to "all"', async () => {
+    const { useSimStore } = await import('./simStore')
+    useSimStore.getState().setTimelineSeries(['x'])
+    useMcStore.getState().applyRecommended(undefined)
+    expect(useSimStore.getState().timelineSeries).toBe('all')
+  })
+
+  it('a non-array timelineSeries is ignored (⇒ "all")', async () => {
+    const { useSimStore } = await import('./simStore')
+    useSimStore.getState().setTimelineSeries(['x'])
+    useMcStore.getState().applyRecommended({ timelineSeries: 'oops' as unknown as string[] })
+    expect(useSimStore.getState().timelineSeries).toBe('all')
+  })
+
+  it('recommendedRunConfigForExport merges the MC config with a sorted timelineSeries', async () => {
+    const { useSimStore } = await import('./simStore')
+    const { recommendedRunConfigForExport } = await import('./mcStore')
+    useMcStore.getState().setConfig({ baseSeed: 2, runs: 10, steps: 5, tracked: [] })
+    useSimStore.getState().setTimelineSeries(['b', 'a'])
+    expect(recommendedRunConfigForExport()).toEqual({
+      baseSeed: 2,
+      runs: 10,
+      steps: 5,
+      tracked: [],
+      timelineSeries: ['a', 'b'],
+    })
+  })
+
+  it('recommendedRunConfigForExport omits timelineSeries while it is "all"', async () => {
+    const { useSimStore } = await import('./simStore')
+    const { recommendedRunConfigForExport } = await import('./mcStore')
+    useMcStore.getState().setConfig({ baseSeed: 1, runs: 3, steps: 3, tracked: [] })
+    useSimStore.getState().setTimelineSeries(undefined)
+    expect('timelineSeries' in recommendedRunConfigForExport()).toBe(false)
+  })
+})

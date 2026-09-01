@@ -18,7 +18,7 @@ import {
   type WorkspacePayload,
 } from '../model/workspace'
 import { useGraphStore } from './graphStore'
-import { useMcStore } from './mcStore'
+import { recommendedRunConfigForExport, useMcStore } from './mcStore'
 import { useSimStore } from './simStore'
 
 export type Viewport = { x: number; y: number; zoom: number }
@@ -59,7 +59,7 @@ export function collectWorkspacePayload(canvas: Viewport): WorkspacePayload {
 /** The full file string for a Workspace Export (graph + optional workspace). */
 export function serializeWorkspaceFile(payload: WorkspacePayload): string {
   const g = useGraphStore.getState()
-  return serialize(g.nodes, g.edges, useMcStore.getState().config, payload)
+  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload)
 }
 
 // ── §W4 size handling ───────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export function planWorkspaceExport(canvas: Viewport): {
   lean: WorkspaceFileOption | null
 } {
   const g = useGraphStore.getState()
-  const cfg = useMcStore.getState().config
+  const cfg = recommendedRunConfigForExport()
   const payload = collectWorkspacePayload(canvas)
   const fullText = serialize(g.nodes, g.edges, cfg, payload)
   const full: WorkspaceFileOption = { text: fullText, bytes: utf8ByteLength(fullText), resultOmitted: false }

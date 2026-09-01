@@ -205,9 +205,20 @@ Reset and Run again with the same config → identical result
 ```
 
 > `recommendedRunConfig` is advisory metadata — the engine ignores it. It is
-> written by every **Export** (your current seed / runs / steps / tracked Pools)
-> and applied on **Import**. Run results and the LIVE/DISTRIBUTION view are not
-> saved. A file without the field leaves your current MC settings untouched.
+> written by every **Export** (your current seed / runs / steps / tracked Pools,
+> plus `timelineSeries` — the series the Timeline shows by default) and applied on
+> **Import** / **Templates** / **Workspace** / **Share**. Run results and the
+> LIVE/DISTRIBUTION view are not saved. A file without the Monte-Carlo fields
+> leaves your current MC settings untouched; a file without `timelineSeries`
+> shows every series, as before.
+>
+> `timelineSeries` is a **display preference only** — Pool *and* Register ids,
+> sorted; deleted / unknown ids are ignored; a toggle in the Timeline legend is
+> UI state that never touches the GraphDoc, the `loop-revision/*` digest, undo,
+> or a simulation result. Project **revisions** carry no run config (unchanged),
+> so they carry no `timelineSeries`. Known limitation: an *older* Loop Studio
+> that predates the field will drop it on re-save (there is no unknown-field
+> preservation); current and newer builds round-trip it losslessly.
 
 `src/engine/risky-factory.test.ts` builds this graph and pins only its structural
 invariants (every node kind present, one branch per gate step, the 4 : 1 split,

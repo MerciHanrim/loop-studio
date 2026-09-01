@@ -58,6 +58,8 @@ function downloadCsv(pools: { id: string; label: string }[], series: { step: num
 export function TimelineChart() {
   const t = useT()
   const [collapsed, setCollapsed] = useState(false)
+  // the collapsed legend: hidden Pool / Register keys sit behind a `+N more`
+  const [legendExpanded, setLegendExpanded] = useState(false)
   const plotRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 760, h: 116 })
   const isMobile = useIsMobile()
@@ -68,8 +70,8 @@ export function TimelineChart() {
   const status = useSimStore((s) => s.status)
   const stepIndex = useSimStore((s) => s.stepIndex)
   const arrivedPoolIds = useSimStore((s) => s.arrivedPoolIds)
-  const trackedIds = useSimStore((s) => s.trackedIds)
-  const toggleTracked = useSimStore((s) => s.toggleTracked)
+  const timelineSeries = useSimStore((s) => s.timelineSeries)
+  const toggleTimelineSeries = useSimStore((s) => s.toggleTimelineSeries)
   const nodes = useGraphStore((s) => s.nodes)
 
   useEffect(() => {
@@ -99,21 +101,30 @@ export function TimelineChart() {
         .map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(i) })),
     [nodes],
   )
-  const allPoolIds = useMemo(() => pools.map((p) => p.id), [pools])
-  // if an explicit list no longer matches any current pool (pools deleted /
-  // graph swapped), fall back to tracking everything
-  const listMatches =
-    Array.isArray(trackedIds) && trackedIds.some((id) => allPoolIds.includes(id))
-  const isTracked = (id: string) =>
-    trackedIds === 'all' || !listMatches || (trackedIds as string[]).includes(id)
-  const tracked = pools.filter((p) => isTracked(p.id))
-
   // loop-model/1 §M3.5 — R(t) per committed snapshot for each Register.
   // Nothing stored: recomputed from `series[i].values` + the live graph.
   const registers = useMemo(
     () => nodes.filter((n) => n.data.kind === 'register').map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(pools.length + i) })),
     [nodes, pools.length],
   )
+
+  // `timelineSeries` (simStore, UI-only) is the DEFAULT visible set — Pool AND
+  // Register ids. 'all' (or a stale list that names nothing here) shows every
+  // series, exactly as before. A `recommendedRunConfig.timelineSeries` on the
+  // loaded file seeds it; the legend toggles it in place.
+  const allSeriesIds = useMemo(
+    () => [...pools.map((p) => p.id), ...registers.map((r) => r.id)],
+    [pools, registers],
+  )
+  const listMatches =
+    Array.isArray(timelineSeries) && timelineSeries.some((id) => allSeriesIds.includes(id))
+  const isShown = (id: string) =>
+    timelineSeries === 'all' || !listMatches || (timelineSeries as string[]).includes(id)
+  const shownPools = pools.filter((p) => isShown(p.id))
+  const shownRegisters = registers.filter((r) => isShown(r.id))
+  const hiddenPools = pools.filter((p) => !isShown(p.id))
+  const hiddenRegisters = registers.filter((r) => !isShown(r.id))
+  const hiddenCount = hiddenPools.length + hiddenRegisters.length
   // one `registersOfSnapshot` per UNIQUE historical snapshot (§M3.5). The live
   // "current step" read reuses the shared `currentRegisterOutcomes` cache so
   // the Canvas / Inspector / this legend never re-evaluate it.
@@ -129,7 +140,7 @@ export function TimelineChart() {
     let maxStep = 1
     for (const pt of series) {
       maxStep = Math.max(maxStep, pt.step)
-      for (const p of tracked) peak = Math.max(peak, pt.values[p.id] ?? 0)
+      for (const p of shownPools) peak = Math.max(peak, pt.values[p.id] ?? 0)
     }
     // Rolling X domain: the series holds only the last MAX_SERIES steps, so the
     // axis runs from the EARLIEST retained step, not from 0 — otherwise a
@@ -147,7 +158,7 @@ export function TimelineChart() {
     // Register lines use an independent min/max range (values may be negative)
     // and BREAK into separate subpaths at any step where R(t) is invalid — a
     // gap, never bridged (§M6.2). Run-splitting is `registerSeriesRuns`.
-    const runsById = new Map(registers.map((r) => [r.id, registerSeriesRuns(regByStep, r.id)]))
+    const runsById = new Map(shownRegisters.map((r) => [r.id, registerSeriesRuns(regByStep, r.id)]))
     let rlo = Infinity
     let rhi = -Infinity
     for (const runs of runsById.values()) {
@@ -161,7 +172,7 @@ export function TimelineChart() {
     const haveReg = Number.isFinite(rlo) && Number.isFinite(rhi)
     const span = haveReg ? rhi - rlo || 1 : 1
     const ry = (v: number) => PAD.t + ih - ((v - rlo) / span) * ih
-    const regLines = registers.map((r) => {
+    const regLines = shownRegisters.map((r) => {
       const runs = runsById.get(r.id) ?? []
       const d = runs
         .map((run) =>
@@ -181,7 +192,7 @@ export function TimelineChart() {
       }
     })
 
-    const lines = tracked.map((p) => {
+    const lines = shownPools.map((p) => {
       const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
       let seg: { d: string; len: number } | null = null
       if (series.length >= 2) {
@@ -267,7 +278,7 @@ export function TimelineChart() {
 
     const guideX = status === 'paused' && maxStep > 0 ? x(stepIndex) : null
     return { w, h, top, minStep, maxStep, x, y, lines, regLines, guideX, endLabels: endLabelsOut, endMore }
-  }, [series, tracked, registers, regByStep, status, stepIndex, size])
+  }, [series, shownPools, shownRegisters, regByStep, status, stepIndex, size])
 
   const rm = reducedMotion()
   const { w, h } = view
@@ -306,32 +317,80 @@ export function TimelineChart() {
               <span>{t('timeline.title')}</span>
             )}
             <span className="timeline__legend" hidden={showDistribution}>
-              {pools.map((p) => {
-                const on = isTracked(p.id)
+              {shownPools.map((p) => {
                 const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
                 return (
                   <button
                     key={p.id}
                     type="button"
-                    className={`timeline__key${on ? '' : ' is-off'}`}
-                    onClick={() => toggleTracked(p.id, allPoolIds)}
-                    title={on ? t('timeline.legend.hide', { label: p.label }) : t('timeline.legend.show', { label: p.label })}
+                    className="timeline__key"
+                    onClick={() => toggleTimelineSeries(p.id, allSeriesIds)}
+                    title={t('timeline.legend.hide', { label: p.label })}
                   >
                     <span className="timeline__mark" style={{ background: p.color }} />
                     {p.label} {fmt(last)}
                   </button>
                 )
               })}
-              {registers.map((r) => {
+              {shownRegisters.map((r) => {
                 const cur = currentOutcomes.get(r.id)
                 return (
-                  <span key={r.id} className="timeline__key timeline__key--register" title={t('timeline.legend.register', { label: r.label })}>
+                  <button
+                    key={r.id}
+                    type="button"
+                    className="timeline__key timeline__key--register"
+                    onClick={() => toggleTimelineSeries(r.id, allSeriesIds)}
+                    title={t('timeline.legend.hide', { label: r.label })}
+                  >
                     <span className="timeline__mark" style={{ background: r.color }} />
                     {r.label}{' '}
                     {cur && !cur.invalid ? formatRegisterValue(cur.value) : cur ? '—' : '·'}
-                  </span>
+                  </button>
                 )
               })}
+
+              {hiddenCount > 0 ? (
+                <button
+                  type="button"
+                  className="timeline__key timeline__key--more"
+                  aria-expanded={legendExpanded}
+                  onClick={() => setLegendExpanded((v) => !v)}
+                >
+                  {legendExpanded
+                    ? t('timeline.legend.fewer')
+                    : t('timeline.legend.more', { n: hiddenCount })}
+                </button>
+              ) : null}
+
+              {legendExpanded
+                ? [
+                    ...hiddenPools.map((s) => ({ ...s, isReg: false })),
+                    ...hiddenRegisters.map((s) => ({ ...s, isReg: true })),
+                  ].map(({ id, label, color, isReg }) => {
+                    const cur = isReg ? currentOutcomes.get(id) : undefined
+                    const last = series.length ? series[series.length - 1].values[id] ?? 0 : 0
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`timeline__key is-off${isReg ? ' timeline__key--register' : ''}`}
+                        onClick={() => toggleTimelineSeries(id, allSeriesIds)}
+                        title={t('timeline.legend.show', { label })}
+                      >
+                        <span className="timeline__mark" style={{ background: color }} />
+                        {label}{' '}
+                        {isReg
+                          ? cur && !cur.invalid
+                            ? formatRegisterValue(cur.value)
+                            : cur
+                              ? '—'
+                              : '·'
+                          : fmt(last)}
+                      </button>
+                    )
+                  })
+                : null}
+
               <button
                 type="button"
                 className="timeline__csv"

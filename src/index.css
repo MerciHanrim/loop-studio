@@ -1364,6 +1364,15 @@ body {
 .timeline__key.is-off {
   opacity: 0.4;
 }
+/* `+N more` / `Show fewer` — a control, not a series key */
+.timeline__key--more {
+  border: 1px dashed var(--line-structure);
+  color: var(--text-tertiary);
+}
+.timeline__key--more:hover {
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
 .timeline__mark {
   width: 8px;
   height: 8px;

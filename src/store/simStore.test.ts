@@ -112,3 +112,43 @@ describe('a simulation-relevant graph change discards the pending queue', () => 
     expect(sim().stepIndex).toBe(0)
   })
 })
+
+describe('timelineSeries — the Timeline default visible set (UI-only)', () => {
+  const s = () => useSimStore.getState()
+
+  it('defaults to "all"', () => {
+    expect(s().timelineSeries).toBe('all')
+  })
+
+  it('setTimelineSeries: undefined / empty ⇒ "all"; an array is sorted + de-duped', () => {
+    s().setTimelineSeries(['b', 'a', 'a', 'c'])
+    expect(s().timelineSeries).toEqual(['a', 'b', 'c'])
+    s().setTimelineSeries([])
+    expect(s().timelineSeries).toBe('all')
+    s().setTimelineSeries(['x'])
+    expect(s().timelineSeries).toEqual(['x'])
+    s().setTimelineSeries(undefined)
+    expect(s().timelineSeries).toBe('all')
+  })
+
+  it('setTimelineSeries drops non-strings, keeps unknown ids verbatim', () => {
+    s().setTimelineSeries(['ghost', 'level', 2 as unknown as string, null as unknown as string])
+    expect(s().timelineSeries).toEqual(['ghost', 'level'])
+  })
+
+  it('toggleTimelineSeries flips one id and collapses back to "all"', () => {
+    const all = ['a', 'b', 'c']
+    s().setTimelineSeries(['a', 'b', 'c'])
+    s().toggleTimelineSeries('b', all) // hide b
+    expect(s().timelineSeries).toEqual(['a', 'c'])
+    s().toggleTimelineSeries('b', all) // show b again ⇒ every id on ⇒ "all"
+    expect(s().timelineSeries).toBe('all')
+  })
+
+  it('toggleTimelineSeries from "all" starts an explicit list minus the toggled id', () => {
+    const all = ['a', 'b', 'c']
+    expect(s().timelineSeries).toBe('all')
+    s().toggleTimelineSeries('c', all)
+    expect(s().timelineSeries).toEqual(['a', 'b'])
+  })
+})
