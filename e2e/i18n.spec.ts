@@ -394,6 +394,40 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
 
     await page.evaluate(() => (window as any).__loop.i18n.getState().setLocale('en'))
   })
+
+  test('Export menu display names localize; the JSON format token and file bytes do not', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+
+    const openExport = () => page.locator('.toolbar__actions .menu > button', { hasText: /내보내기|Export/ }).click()
+    const item = (name: RegExp) =>
+      page.locator('.toolbar__actions .menu__pop .menu__name', { hasText: name })
+
+    await openExport()
+    await expect(item(/^Graph JSON$/)).toBeVisible()
+    await expect(item(/^Project revision$/)).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    // the EN Graph JSON export, for the byte comparison
+    const enFile = await page.evaluate(() => (window as any).__loop.graph.getState().exportJSON({}))
+
+    await pickLocale(page, 'ko')
+    await openExport()
+    await expect(item(/^그래프 JSON$/)).toBeVisible() // display name translated, "JSON" kept
+    await expect(item(/^워크스페이스 JSON$/)).toBeVisible()
+    await expect(item(/^프로젝트 리비전$/)).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    const koFile = await page.evaluate(() => (window as any).__loop.graph.getState().exportJSON({}))
+    expect(koFile).toBe(enFile) // the downloaded file is byte-identical across locales
+    expect(koFile).toContain('loop-studio/graph') // schema id unchanged
+    expect(/[가-힣]/.test(koFile.replace(/"label":"[^"]*"/g, ''))).toBe(false)
+
+    await pickLocale(page, 'en')
+  })
 })
 
 test.describe('i18n — the language MENU: geometry & baseline', () => {
