@@ -1,5 +1,6 @@
+import mmoProgressionDoc from '../../examples/mmo-progression.json'
 import { defaultData } from './factory'
-import type { RecommendedRunConfig } from './serialize'
+import { normalizeGraph, type RecommendedRunConfig } from './serialize'
 import type { LoopEdge, LoopNode, NodeData, NodeKind } from './types'
 
 export type Template = {
@@ -75,5 +76,18 @@ export const TEMPLATES: Template[] = [
     blurb:
       'The same system with no outlet on the product pool. It fills to capacity, the gate stalls, the vault backs up, and the source is throttled to zero — a stable frozen state.',
     graph: { nodes: baseNodes(), edges: baseEdges() },
+  },
+  // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
+  // The canonical graph is examples/mmo-progression.json (built + verified by
+  // src/engine/mmo-progression.fixture.ts); this entry loads it, no inline copy
+  // (docs/example-mmo-progression.md §EM11 / §EM12 Q5).
+  {
+    id: 'mmo-progression',
+    name: 'Early MMO progression (levels 1–15)',
+    blurb:
+      'A connected play economy: three zone lanes, probabilistic combat, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve.',
+    graph: normalizeGraph(mmoProgressionDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] }),
+    recommendedRunConfig: (mmoProgressionDoc as { recommendedRunConfig?: RecommendedRunConfig })
+      .recommendedRunConfig,
   },
 ]
