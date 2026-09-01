@@ -13,6 +13,7 @@ Graphs with different jobs:
 | `model-verification.expected.json` | test oracle for the above — read by `test/model-verification.test.ts` and by a human comparing `R(t)` | **no** (not a graph) |
 | `playback-choreography.json` | **Simulation Playback demo** — one graph that reproduces every choreography cue at once (resource token, `trigger` bead, `activator` settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a 65-edge fan that pushes past the 60-token budget | yes |
 | `mmo-progression.json` | **product demo / Templates entry** — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve | yes (also in **Templates ▾**) |
+| `mmo-progression.ko.json` | **Korean-language independent derived copy** of the file above — display-only node `label` / `resourceType` strings translated, everything else (ids, structure, positions, expressions, edges, `recommendedRunConfig`, schema/version) byte-identical, so it reproduces the exact same run. **Not registered in Templates ▾ or anywhere in the app** — a separate file for a Korean-labelled read of the same example, imported manually | yes (Import only — not a Templates entry) |
 
 ---
 
@@ -426,6 +427,16 @@ rewards, level up, buy gear, keep eating, pay to repair. Design:
 It is **generalised** — its own invented numbers and generic labels ("Starter
 encounters", "Sell to vendor", "Repair (bill)"). No World-of-Warcraft names,
 tuning values, or assets; it does not present itself as official or affiliated.
+
+`mmo-progression.ko.json` is an **independent Korean-language derived copy** —
+the same graph with only its display `label` / `resourceType` strings
+translated (structure, positions, expressions, edges, `recommendedRunConfig`,
+schema/version, and every run result are unchanged). It is **not** part of the
+Templates ▾ entry or wired into the app in any way; it exists purely as a
+Korean-labelled file to `Import` directly. The app does not switch a Templates
+entry's underlying file by locale (see `docs/example-mmo-progression.md`
+§EM14 for why, and the longer-term single-graph-plus-translation-overlay idea
+that would replace this pattern).
 
 ## How to read it
 

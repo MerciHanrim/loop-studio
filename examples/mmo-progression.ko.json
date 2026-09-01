@@ -1,0 +1,3293 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "level",
+      "type": "pool",
+      "position": {
+        "x": 1520,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "레벨",
+        "activation": "passive",
+        "initial": 1,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "xp",
+      "type": "pool",
+      "position": {
+        "x": 1120,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "경험치",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "xp_earned",
+      "type": "pool",
+      "position": {
+        "x": 1320,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "획득 경험치",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "reward",
+      "type": "pool",
+      "position": {
+        "x": 1720,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "보상",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 12,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "fail_pool",
+      "type": "pool",
+      "position": {
+        "x": 560,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "실패",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 6,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "death_pool",
+      "type": "pool",
+      "position": {
+        "x": 720,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "사망 대기열",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 6,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "reward_router",
+      "type": "gate",
+      "position": {
+        "x": 1680,
+        "y": 940
+      },
+      "data": {
+        "kind": "gate",
+        "label": "보상 분배기",
+        "activation": "automatic",
+        "distribution": "deterministic"
+      }
+    },
+    {
+      "id": "hunt_payout",
+      "type": "converter",
+      "position": {
+        "x": 1840,
+        "y": 900
+      },
+      "data": {
+        "kind": "converter",
+        "label": "사냥 보상 지급",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "quest_payout",
+      "type": "converter",
+      "position": {
+        "x": 1840,
+        "y": 1000
+      },
+      "data": {
+        "kind": "converter",
+        "label": "퀘스트 보상 지급",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "hunt_xp",
+      "type": "pool",
+      "position": {
+        "x": 2000,
+        "y": 900
+      },
+      "data": {
+        "kind": "pool",
+        "label": "사냥 경험치",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "quest_xp",
+      "type": "pool",
+      "position": {
+        "x": 2000,
+        "y": 1000
+      },
+      "data": {
+        "kind": "pool",
+        "label": "퀘스트 경험치",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "fail_conv",
+      "type": "converter",
+      "position": {
+        "x": 720,
+        "y": 940
+      },
+      "data": {
+        "kind": "converter",
+        "label": "실패 비용",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "death_conv",
+      "type": "converter",
+      "position": {
+        "x": 880,
+        "y": 940
+      },
+      "data": {
+        "kind": "converter",
+        "label": "사망 비용",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "combat_wins",
+      "type": "pool",
+      "position": {
+        "x": 560,
+        "y": 920
+      },
+      "data": {
+        "kind": "pool",
+        "label": "전투 승리",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "combat_fails",
+      "type": "pool",
+      "position": {
+        "x": 560,
+        "y": 980
+      },
+      "data": {
+        "kind": "pool",
+        "label": "전투 실패",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "deaths",
+      "type": "pool",
+      "position": {
+        "x": 560,
+        "y": 1040
+      },
+      "data": {
+        "kind": "pool",
+        "label": "사망",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "gold",
+      "type": "pool",
+      "position": {
+        "x": 1500,
+        "y": 1140
+      },
+      "data": {
+        "kind": "pool",
+        "label": "골드",
+        "activation": "passive",
+        "initial": 10,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "화폐"
+      }
+    },
+    {
+      "id": "gold_earned",
+      "type": "pool",
+      "position": {
+        "x": 1680,
+        "y": 1140
+      },
+      "data": {
+        "kind": "pool",
+        "label": "획득 골드",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "vendor_revenue",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 1140
+      },
+      "data": {
+        "kind": "pool",
+        "label": "상인 판매 수익",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "repair_spend",
+      "type": "pool",
+      "position": {
+        "x": 1500,
+        "y": 1260
+      },
+      "data": {
+        "kind": "pool",
+        "label": "수리 비용",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "resupply_spend",
+      "type": "pool",
+      "position": {
+        "x": 1680,
+        "y": 1360
+      },
+      "data": {
+        "kind": "pool",
+        "label": "재보급 비용",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "training_spend",
+      "type": "pool",
+      "position": {
+        "x": 1860,
+        "y": 1260
+      },
+      "data": {
+        "kind": "pool",
+        "label": "훈련 비용",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "water",
+      "type": "pool",
+      "position": {
+        "x": 1520,
+        "y": 1440
+      },
+      "data": {
+        "kind": "pool",
+        "label": "물",
+        "activation": "passive",
+        "initial": 12,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "보급품"
+      }
+    },
+    {
+      "id": "food",
+      "type": "pool",
+      "position": {
+        "x": 1520,
+        "y": 1500
+      },
+      "data": {
+        "kind": "pool",
+        "label": "식량",
+        "activation": "passive",
+        "initial": 12,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "보급품"
+      }
+    },
+    {
+      "id": "water_bought",
+      "type": "pool",
+      "position": {
+        "x": 1700,
+        "y": 1480
+      },
+      "data": {
+        "kind": "pool",
+        "label": "구매한 물",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "food_bought",
+      "type": "pool",
+      "position": {
+        "x": 1880,
+        "y": 1480
+      },
+      "data": {
+        "kind": "pool",
+        "label": "구매한 식량",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "water_consumed",
+      "type": "pool",
+      "position": {
+        "x": 1200,
+        "y": 1300
+      },
+      "data": {
+        "kind": "pool",
+        "label": "소비한 물",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "food_consumed",
+      "type": "pool",
+      "position": {
+        "x": 1200,
+        "y": 1360
+      },
+      "data": {
+        "kind": "pool",
+        "label": "소비한 식량",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "water_upkeep",
+      "type": "converter",
+      "position": {
+        "x": 1360,
+        "y": 1300
+      },
+      "data": {
+        "kind": "converter",
+        "label": "물 유지",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "food_upkeep",
+      "type": "converter",
+      "position": {
+        "x": 1360,
+        "y": 1360
+      },
+      "data": {
+        "kind": "converter",
+        "label": "식량 유지",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "resupply",
+      "type": "converter",
+      "position": {
+        "x": 1680,
+        "y": 1260
+      },
+      "data": {
+        "kind": "converter",
+        "label": "재보급",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "gear_score",
+      "type": "pool",
+      "position": {
+        "x": 2340,
+        "y": 1060
+      },
+      "data": {
+        "kind": "pool",
+        "label": "장비 점수",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny",
+        "resourceType": "전투력"
+      }
+    },
+    {
+      "id": "gear_wear",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 1060
+      },
+      "data": {
+        "kind": "pool",
+        "label": "장비 마모도",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 40,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "wear_cleared",
+      "type": "pool",
+      "position": {
+        "x": 2160,
+        "y": 820
+      },
+      "data": {
+        "kind": "pool",
+        "label": "마모 해소",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "repair_wear",
+      "type": "converter",
+      "position": {
+        "x": 2160,
+        "y": 900
+      },
+      "data": {
+        "kind": "converter",
+        "label": "수리(마모)",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "repair_gold",
+      "type": "converter",
+      "position": {
+        "x": 2160,
+        "y": 980
+      },
+      "data": {
+        "kind": "converter",
+        "label": "수리(비용)",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "drop",
+      "type": "pool",
+      "position": {
+        "x": 380,
+        "y": 800
+      },
+      "data": {
+        "kind": "pool",
+        "label": "드롭",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "loot_feed",
+      "type": "pool",
+      "position": {
+        "x": 380,
+        "y": 1060
+      },
+      "data": {
+        "kind": "pool",
+        "label": "분류 대기 전리품",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "loot_dispatch",
+      "type": "converter",
+      "position": {
+        "x": 380,
+        "y": 940
+      },
+      "data": {
+        "kind": "converter",
+        "label": "전리품 분배",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "loot_category",
+      "type": "gate",
+      "position": {
+        "x": 380,
+        "y": 1180
+      },
+      "data": {
+        "kind": "gate",
+        "label": "전리품 분류",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "bucket_equip",
+      "type": "pool",
+      "position": {
+        "x": 300,
+        "y": 1300
+      },
+      "data": {
+        "kind": "pool",
+        "label": "장비 드롭",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "bucket_vendor",
+      "type": "pool",
+      "position": {
+        "x": 460,
+        "y": 1300
+      },
+      "data": {
+        "kind": "pool",
+        "label": "판매용 드롭",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "bucket_consumable",
+      "type": "pool",
+      "position": {
+        "x": 620,
+        "y": 1300
+      },
+      "data": {
+        "kind": "pool",
+        "label": "소모품 드롭",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "bucket_rare",
+      "type": "pool",
+      "position": {
+        "x": 780,
+        "y": 1300
+      },
+      "data": {
+        "kind": "pool",
+        "label": "희귀 드롭",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 8,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "items_looted",
+      "type": "pool",
+      "position": {
+        "x": 200,
+        "y": 940
+      },
+      "data": {
+        "kind": "pool",
+        "label": "획득 아이템",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "items_equipped",
+      "type": "pool",
+      "position": {
+        "x": 120,
+        "y": 1300
+      },
+      "data": {
+        "kind": "pool",
+        "label": "장착 아이템",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "items_sold",
+      "type": "pool",
+      "position": {
+        "x": 120,
+        "y": 1380
+      },
+      "data": {
+        "kind": "pool",
+        "label": "판매 아이템",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "items_consumed",
+      "type": "pool",
+      "position": {
+        "x": 120,
+        "y": 1460
+      },
+      "data": {
+        "kind": "pool",
+        "label": "소비 아이템",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "equip_conv",
+      "type": "converter",
+      "position": {
+        "x": 300,
+        "y": 1420
+      },
+      "data": {
+        "kind": "converter",
+        "label": "장착",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "vendor_conv",
+      "type": "converter",
+      "position": {
+        "x": 460,
+        "y": 1420
+      },
+      "data": {
+        "kind": "converter",
+        "label": "상인에게 판매",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "consumable_conv",
+      "type": "converter",
+      "position": {
+        "x": 620,
+        "y": 1420
+      },
+      "data": {
+        "kind": "converter",
+        "label": "소모품 사용",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "rare_conv",
+      "type": "converter",
+      "position": {
+        "x": 780,
+        "y": 1420
+      },
+      "data": {
+        "kind": "converter",
+        "label": "희귀 아이템 판매",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "elapsed",
+      "type": "pool",
+      "position": {
+        "x": 3020,
+        "y": 290
+      },
+      "data": {
+        "kind": "pool",
+        "label": "경과 시간",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "clock",
+      "type": "source",
+      "position": {
+        "x": 2820,
+        "y": 290
+      },
+      "data": {
+        "kind": "source",
+        "label": "시계",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "completion",
+      "type": "pool",
+      "position": {
+        "x": 3020,
+        "y": 170
+      },
+      "data": {
+        "kind": "pool",
+        "label": "완료",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "completion_src",
+      "type": "source",
+      "position": {
+        "x": 2820,
+        "y": 170
+      },
+      "data": {
+        "kind": "source",
+        "label": "완료 신호",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "end15",
+      "type": "end",
+      "position": {
+        "x": 3020,
+        "y": 40
+      },
+      "data": {
+        "kind": "end",
+        "label": "15레벨 도달",
+        "activation": "automatic"
+      }
+    },
+    {
+      "id": "z1_enc_src",
+      "type": "source",
+      "position": {
+        "x": 460,
+        "y": 160
+      },
+      "data": {
+        "kind": "source",
+        "label": "초원 지대 조우",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "z1_enc",
+      "type": "pool",
+      "position": {
+        "x": 720,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "초원 지대 · 1–5레벨",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z1_combat",
+      "type": "gate",
+      "position": {
+        "x": 690,
+        "y": 300
+      },
+      "data": {
+        "kind": "gate",
+        "label": "초원 지대 전투",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "z1_win",
+      "type": "pool",
+      "position": {
+        "x": 460,
+        "y": 320
+      },
+      "data": {
+        "kind": "pool",
+        "label": "초원 지대 승리",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z1_winamp",
+      "type": "converter",
+      "position": {
+        "x": 460,
+        "y": 460
+      },
+      "data": {
+        "kind": "converter",
+        "label": "초원 지대 승전 처리",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z1_lootroll",
+      "type": "pool",
+      "position": {
+        "x": 460,
+        "y": 600
+      },
+      "data": {
+        "kind": "pool",
+        "label": "초원 지대 전리품 판정",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z1_loot",
+      "type": "gate",
+      "position": {
+        "x": 690,
+        "y": 620
+      },
+      "data": {
+        "kind": "gate",
+        "label": "초원 지대 전리품",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "z1_xp_meter",
+      "type": "gate",
+      "position": {
+        "x": 960,
+        "y": 290
+      },
+      "data": {
+        "kind": "gate",
+        "label": "초원 지대 경험치 계량기",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "z1_xp2lvl",
+      "type": "converter",
+      "position": {
+        "x": 960,
+        "y": 440
+      },
+      "data": {
+        "kind": "converter",
+        "label": "초원 지대 레벨업",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z1_training",
+      "type": "converter",
+      "position": {
+        "x": 690,
+        "y": 470
+      },
+      "data": {
+        "kind": "converter",
+        "label": "초원 지대 훈련",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z2_enc_src",
+      "type": "source",
+      "position": {
+        "x": 1200,
+        "y": 160
+      },
+      "data": {
+        "kind": "source",
+        "label": "구릉 지대 조우",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "z2_enc",
+      "type": "pool",
+      "position": {
+        "x": 1460,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "구릉 지대 · 5–10레벨",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z2_combat",
+      "type": "gate",
+      "position": {
+        "x": 1430,
+        "y": 300
+      },
+      "data": {
+        "kind": "gate",
+        "label": "구릉 지대 전투",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "z2_win",
+      "type": "pool",
+      "position": {
+        "x": 1200,
+        "y": 320
+      },
+      "data": {
+        "kind": "pool",
+        "label": "구릉 지대 승리",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z2_winamp",
+      "type": "converter",
+      "position": {
+        "x": 1200,
+        "y": 460
+      },
+      "data": {
+        "kind": "converter",
+        "label": "구릉 지대 승전 처리",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z2_lootroll",
+      "type": "pool",
+      "position": {
+        "x": 1200,
+        "y": 600
+      },
+      "data": {
+        "kind": "pool",
+        "label": "구릉 지대 전리품 판정",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z2_loot",
+      "type": "gate",
+      "position": {
+        "x": 1430,
+        "y": 620
+      },
+      "data": {
+        "kind": "gate",
+        "label": "구릉 지대 전리품",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "z2_xp_meter",
+      "type": "gate",
+      "position": {
+        "x": 1700,
+        "y": 290
+      },
+      "data": {
+        "kind": "gate",
+        "label": "구릉 지대 경험치 계량기",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "z2_xp2lvl",
+      "type": "converter",
+      "position": {
+        "x": 1700,
+        "y": 440
+      },
+      "data": {
+        "kind": "converter",
+        "label": "구릉 지대 레벨업",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z2_training",
+      "type": "converter",
+      "position": {
+        "x": 1430,
+        "y": 470
+      },
+      "data": {
+        "kind": "converter",
+        "label": "구릉 지대 훈련",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z3_enc_src",
+      "type": "source",
+      "position": {
+        "x": 1940,
+        "y": 160
+      },
+      "data": {
+        "kind": "source",
+        "label": "고지대 조우",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "z3_enc",
+      "type": "pool",
+      "position": {
+        "x": 2200,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "고지대 · 10–15레벨",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z3_combat",
+      "type": "gate",
+      "position": {
+        "x": 2170,
+        "y": 300
+      },
+      "data": {
+        "kind": "gate",
+        "label": "고지대 전투",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "z3_win",
+      "type": "pool",
+      "position": {
+        "x": 1940,
+        "y": 320
+      },
+      "data": {
+        "kind": "pool",
+        "label": "고지대 승리",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z3_winamp",
+      "type": "converter",
+      "position": {
+        "x": 1940,
+        "y": 460
+      },
+      "data": {
+        "kind": "converter",
+        "label": "고지대 승전 처리",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z3_lootroll",
+      "type": "pool",
+      "position": {
+        "x": 1940,
+        "y": 600
+      },
+      "data": {
+        "kind": "pool",
+        "label": "고지대 전리품 판정",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z3_loot",
+      "type": "gate",
+      "position": {
+        "x": 2170,
+        "y": 620
+      },
+      "data": {
+        "kind": "gate",
+        "label": "고지대 전리품",
+        "activation": "automatic",
+        "distribution": "probabilistic"
+      }
+    },
+    {
+      "id": "z3_xp_meter",
+      "type": "gate",
+      "position": {
+        "x": 2440,
+        "y": 290
+      },
+      "data": {
+        "kind": "gate",
+        "label": "고지대 경험치 계량기",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAll"
+      }
+    },
+    {
+      "id": "z3_xp2lvl",
+      "type": "converter",
+      "position": {
+        "x": 2440,
+        "y": 440
+      },
+      "data": {
+        "kind": "converter",
+        "label": "고지대 레벨업",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "z3_training",
+      "type": "converter",
+      "position": {
+        "x": 2170,
+        "y": 470
+      },
+      "data": {
+        "kind": "converter",
+        "label": "고지대 훈련",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "void",
+      "type": "drain",
+      "position": {
+        "x": 1920,
+        "y": 780
+      },
+      "data": {
+        "kind": "drain",
+        "label": "드롭 없음",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "char_creation",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 40
+      },
+      "data": {
+        "kind": "source",
+        "label": "캐릭터 생성",
+        "activation": "onStart",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "active_char",
+      "type": "pool",
+      "position": {
+        "x": 320,
+        "y": 40
+      },
+      "data": {
+        "kind": "pool",
+        "label": "활성 캐릭터",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 2,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "r_income",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 260
+      },
+      "data": {
+        "kind": "register",
+        "label": "총 수입",
+        "expr": "@gold_earned",
+        "format": "int"
+      }
+    },
+    {
+      "id": "r_expense",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 370
+      },
+      "data": {
+        "kind": "register",
+        "label": "총 지출",
+        "expr": "@repair_spend + @resupply_spend + @training_spend",
+        "format": "int"
+      }
+    },
+    {
+      "id": "r_netgold",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 480
+      },
+      "data": {
+        "kind": "register",
+        "label": "순 골드 검산",
+        "expr": "@gold_earned - @repair_spend - @resupply_spend - @training_spend",
+        "format": "int"
+      }
+    },
+    {
+      "id": "r_huntshare",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 150
+      },
+      "data": {
+        "kind": "register",
+        "label": "사냥 경험치 비율",
+        "expr": "@hunt_xp / (@hunt_xp + @quest_xp + 0.001)",
+        "format": "percent"
+      }
+    },
+    {
+      "id": "r_efflevel",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 40
+      },
+      "data": {
+        "kind": "register",
+        "label": "경험치 진행 속도 (초원 지대 기준)",
+        "expr": "@xp_earned / 10",
+        "format": "float"
+      }
+    },
+    {
+      "id": "r_items_acct",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 590
+      },
+      "data": {
+        "kind": "register",
+        "label": "아이템 정산",
+        "expr": "@items_equipped + @items_sold + @items_consumed",
+        "format": "float"
+      }
+    },
+    {
+      "id": "r_burned",
+      "type": "register",
+      "position": {
+        "x": 3280,
+        "y": 700
+      },
+      "data": {
+        "kind": "register",
+        "label": "소비한 소모품",
+        "expr": "@water_consumed + @food_consumed",
+        "format": "int"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_reward_in",
+      "source": "reward",
+      "target": "reward_router",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_router_hunt",
+      "source": "reward_router",
+      "target": "hunt_payout",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_router_quest",
+      "source": "reward_router",
+      "target": "quest_payout",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_hunt_xp",
+      "source": "hunt_payout",
+      "target": "xp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_hunt_xpe",
+      "source": "hunt_payout",
+      "target": "xp_earned",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_hunt_qctr",
+      "source": "hunt_payout",
+      "target": "hunt_xp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_hunt_gold",
+      "source": "hunt_payout",
+      "target": "gold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
+    },
+    {
+      "id": "e_hunt_golde",
+      "source": "hunt_payout",
+      "target": "gold_earned",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
+    },
+    {
+      "id": "e_quest_xp",
+      "source": "quest_payout",
+      "target": "xp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9"
+      }
+    },
+    {
+      "id": "e_quest_xpe",
+      "source": "quest_payout",
+      "target": "xp_earned",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9"
+      }
+    },
+    {
+      "id": "e_quest_qctr",
+      "source": "quest_payout",
+      "target": "quest_xp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9"
+      }
+    },
+    {
+      "id": "e_quest_gold",
+      "source": "quest_payout",
+      "target": "gold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "7"
+      }
+    },
+    {
+      "id": "e_quest_golde",
+      "source": "quest_payout",
+      "target": "gold_earned",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "7"
+      }
+    },
+    {
+      "id": "e_fail_in",
+      "source": "fail_pool",
+      "target": "fail_conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_fail_ct",
+      "source": "fail_conv",
+      "target": "combat_fails",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_fail_wear",
+      "source": "fail_conv",
+      "target": "gear_wear",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1.5"
+      }
+    },
+    {
+      "id": "e_fail_time",
+      "source": "fail_conv",
+      "target": "elapsed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_death_in",
+      "source": "death_pool",
+      "target": "death_conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_death_ct",
+      "source": "death_conv",
+      "target": "deaths",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_death_wear",
+      "source": "death_conv",
+      "target": "gear_wear",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_death_time",
+      "source": "death_conv",
+      "target": "elapsed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_water_up",
+      "source": "water",
+      "target": "water_upkeep",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_water_up_ct",
+      "source": "water_upkeep",
+      "target": "water_consumed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_food_up",
+      "source": "food",
+      "target": "food_upkeep",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_food_up_ct",
+      "source": "food_upkeep",
+      "target": "food_consumed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_resupply_gold",
+      "source": "gold",
+      "target": "resupply",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "6"
+      }
+    },
+    {
+      "id": "e_resupply_water",
+      "source": "resupply",
+      "target": "water",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "8"
+      }
+    },
+    {
+      "id": "e_resupply_waterb",
+      "source": "resupply",
+      "target": "water_bought",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "8"
+      }
+    },
+    {
+      "id": "e_resupply_food",
+      "source": "resupply",
+      "target": "food",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "8"
+      }
+    },
+    {
+      "id": "e_resupply_foodb",
+      "source": "resupply",
+      "target": "food_bought",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "8"
+      }
+    },
+    {
+      "id": "e_resupply_spend",
+      "source": "resupply",
+      "target": "resupply_spend",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "6"
+      }
+    },
+    {
+      "id": "a_resupply",
+      "source": "water",
+      "target": "resupply",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 5"
+      }
+    },
+    {
+      "id": "e_repair_wear_in",
+      "source": "gear_wear",
+      "target": "repair_wear",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      }
+    },
+    {
+      "id": "e_repair_wear_ct",
+      "source": "repair_wear",
+      "target": "wear_cleared",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      }
+    },
+    {
+      "id": "e_repair_gold_in",
+      "source": "gold",
+      "target": "repair_gold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      }
+    },
+    {
+      "id": "e_repair_gold_ct",
+      "source": "repair_gold",
+      "target": "repair_spend",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      }
+    },
+    {
+      "id": "a_repair_wear",
+      "source": "gear_wear",
+      "target": "repair_wear",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "> 6"
+      }
+    },
+    {
+      "id": "a_repair_wear_gold",
+      "source": "gold",
+      "target": "repair_wear",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 1"
+      }
+    },
+    {
+      "id": "a_repair_gold",
+      "source": "gear_wear",
+      "target": "repair_gold",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "> 6"
+      }
+    },
+    {
+      "id": "a_repair_gold_gold",
+      "source": "gold",
+      "target": "repair_gold",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 1"
+      }
+    },
+    {
+      "id": "e_drop_in",
+      "source": "drop",
+      "target": "loot_dispatch",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_dispatch_looted",
+      "source": "loot_dispatch",
+      "target": "items_looted",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_dispatch_feed",
+      "source": "loot_dispatch",
+      "target": "loot_feed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_feed_cat",
+      "source": "loot_feed",
+      "target": "loot_category",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_cat_equip",
+      "source": "loot_category",
+      "target": "bucket_equip",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "34"
+      }
+    },
+    {
+      "id": "e_cat_vendor",
+      "source": "loot_category",
+      "target": "bucket_vendor",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "40"
+      }
+    },
+    {
+      "id": "e_cat_consumable",
+      "source": "loot_category",
+      "target": "bucket_consumable",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "20"
+      }
+    },
+    {
+      "id": "e_cat_rare",
+      "source": "loot_category",
+      "target": "bucket_rare",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "6"
+      }
+    },
+    {
+      "id": "e_equip_in",
+      "source": "bucket_equip",
+      "target": "equip_conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_equip_ct",
+      "source": "equip_conv",
+      "target": "items_equipped",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_equip_gear",
+      "source": "equip_conv",
+      "target": "gear_score",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "4"
+      }
+    },
+    {
+      "id": "e_vendor_in",
+      "source": "bucket_vendor",
+      "target": "vendor_conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_vendor_ct",
+      "source": "vendor_conv",
+      "target": "items_sold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_vendor_gold",
+      "source": "vendor_conv",
+      "target": "gold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_vendor_golde",
+      "source": "vendor_conv",
+      "target": "gold_earned",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_vendor_rev",
+      "source": "vendor_conv",
+      "target": "vendor_revenue",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
+    },
+    {
+      "id": "e_cons_in",
+      "source": "bucket_consumable",
+      "target": "consumable_conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_cons_ct",
+      "source": "consumable_conv",
+      "target": "items_consumed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_cons_water",
+      "source": "consumable_conv",
+      "target": "water",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
+    },
+    {
+      "id": "e_cons_waterb",
+      "source": "consumable_conv",
+      "target": "water_bought",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
+    },
+    {
+      "id": "e_cons_food",
+      "source": "consumable_conv",
+      "target": "food",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
+    },
+    {
+      "id": "e_cons_foodb",
+      "source": "consumable_conv",
+      "target": "food_bought",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
+    },
+    {
+      "id": "e_rare_in",
+      "source": "bucket_rare",
+      "target": "rare_conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_rare_ct",
+      "source": "rare_conv",
+      "target": "items_sold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_rare_gold",
+      "source": "rare_conv",
+      "target": "gold",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "14"
+      }
+    },
+    {
+      "id": "e_rare_golde",
+      "source": "rare_conv",
+      "target": "gold_earned",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "14"
+      }
+    },
+    {
+      "id": "e_rare_rev",
+      "source": "rare_conv",
+      "target": "vendor_revenue",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "14"
+      }
+    },
+    {
+      "id": "e_clock",
+      "source": "clock",
+      "target": "elapsed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_completion_in",
+      "source": "completion_src",
+      "target": "completion",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_completion_end",
+      "source": "completion",
+      "target": "end15",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "a_end15",
+      "source": "level",
+      "target": "end15",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 15"
+      }
+    },
+    {
+      "id": "e_z1_enc_in",
+      "source": "z1_enc_src",
+      "target": "z1_enc",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z1_enc_gate",
+      "source": "z1_enc",
+      "target": "z1_combat",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_z1_win",
+      "source": "z1_combat",
+      "target": "z1_win",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "9"
+      }
+    },
+    {
+      "id": "e_z1_fail",
+      "source": "z1_combat",
+      "target": "fail_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1.8",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_death",
+      "source": "z1_combat",
+      "target": "death_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.5",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_winamp_in",
+      "source": "z1_win",
+      "target": "z1_winamp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z1_winamp_reward",
+      "source": "z1_winamp",
+      "target": "reward",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1.15",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_winamp_ct",
+      "source": "z1_winamp",
+      "target": "combat_wins",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_winamp_loot",
+      "source": "z1_winamp",
+      "target": "z1_lootroll",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z1_lootroll_gate",
+      "source": "z1_lootroll",
+      "target": "z1_loot",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_z1_loot_drop",
+      "source": "z1_loot",
+      "target": "drop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "38",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_loot_miss",
+      "source": "z1_loot",
+      "target": "void",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "62",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_xpmeter_in",
+      "source": "xp",
+      "target": "z1_xp_meter",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "10",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_xpmeter_out",
+      "source": "z1_xp_meter",
+      "target": "z1_xp2lvl",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "10"
+      }
+    },
+    {
+      "id": "e_z1_xp2lvl_out",
+      "source": "z1_xp2lvl",
+      "target": "level",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_training_in",
+      "source": "gold",
+      "target": "z1_training",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.25",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z1_training_ct",
+      "source": "z1_training",
+      "target": "training_spend",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.25",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "a_z1_enc_src_hi",
+      "source": "level",
+      "target": "z1_enc_src",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 5"
+      }
+    },
+    {
+      "id": "a_z1_xp_meter_hi",
+      "source": "level",
+      "target": "z1_xp_meter",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 5"
+      }
+    },
+    {
+      "id": "a_z1_xp2lvl_hi",
+      "source": "level",
+      "target": "z1_xp2lvl",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 5"
+      }
+    },
+    {
+      "id": "a_z1_training_hi",
+      "source": "level",
+      "target": "z1_training",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 5"
+      }
+    },
+    {
+      "id": "e_z2_enc_in",
+      "source": "z2_enc_src",
+      "target": "z2_enc",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z2_enc_gate",
+      "source": "z2_enc",
+      "target": "z2_combat",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_z2_win",
+      "source": "z2_combat",
+      "target": "z2_win",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "7"
+      }
+    },
+    {
+      "id": "e_z2_fail",
+      "source": "z2_combat",
+      "target": "fail_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2.5",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_death",
+      "source": "z2_combat",
+      "target": "death_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.9",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_winamp_in",
+      "source": "z2_win",
+      "target": "z2_winamp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z2_winamp_reward",
+      "source": "z2_winamp",
+      "target": "reward",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1.5",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_winamp_ct",
+      "source": "z2_winamp",
+      "target": "combat_wins",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_winamp_loot",
+      "source": "z2_winamp",
+      "target": "z2_lootroll",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z2_lootroll_gate",
+      "source": "z2_lootroll",
+      "target": "z2_loot",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_z2_loot_drop",
+      "source": "z2_loot",
+      "target": "drop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "38",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_loot_miss",
+      "source": "z2_loot",
+      "target": "void",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "62",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_xpmeter_in",
+      "source": "xp",
+      "target": "z2_xp_meter",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "19",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_xpmeter_out",
+      "source": "z2_xp_meter",
+      "target": "z2_xp2lvl",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "19"
+      }
+    },
+    {
+      "id": "e_z2_xp2lvl_out",
+      "source": "z2_xp2lvl",
+      "target": "level",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_training_in",
+      "source": "gold",
+      "target": "z2_training",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.45",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z2_training_ct",
+      "source": "z2_training",
+      "target": "training_spend",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.45",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "a_z2_enc_src_lo",
+      "source": "level",
+      "target": "z2_enc_src",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 5"
+      }
+    },
+    {
+      "id": "a_z2_enc_src_hi",
+      "source": "level",
+      "target": "z2_enc_src",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 10"
+      }
+    },
+    {
+      "id": "a_z2_xp_meter_lo",
+      "source": "level",
+      "target": "z2_xp_meter",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 5"
+      }
+    },
+    {
+      "id": "a_z2_xp_meter_hi",
+      "source": "level",
+      "target": "z2_xp_meter",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 10"
+      }
+    },
+    {
+      "id": "a_z2_xp2lvl_lo",
+      "source": "level",
+      "target": "z2_xp2lvl",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 5"
+      }
+    },
+    {
+      "id": "a_z2_xp2lvl_hi",
+      "source": "level",
+      "target": "z2_xp2lvl",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 10"
+      }
+    },
+    {
+      "id": "a_z2_training_lo",
+      "source": "level",
+      "target": "z2_training",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 5"
+      }
+    },
+    {
+      "id": "a_z2_training_hi",
+      "source": "level",
+      "target": "z2_training",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": "< 10"
+      }
+    },
+    {
+      "id": "e_z3_enc_in",
+      "source": "z3_enc_src",
+      "target": "z3_enc",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z3_enc_gate",
+      "source": "z3_enc",
+      "target": "z3_combat",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_z3_win",
+      "source": "z3_combat",
+      "target": "z3_win",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "6.5"
+      }
+    },
+    {
+      "id": "e_z3_fail",
+      "source": "z3_combat",
+      "target": "fail_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2.6",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_death",
+      "source": "z3_combat",
+      "target": "death_pool",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1.2",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_winamp_in",
+      "source": "z3_win",
+      "target": "z3_winamp",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z3_winamp_reward",
+      "source": "z3_winamp",
+      "target": "reward",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "2",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_winamp_ct",
+      "source": "z3_winamp",
+      "target": "combat_wins",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_winamp_loot",
+      "source": "z3_winamp",
+      "target": "z3_lootroll",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "e_z3_lootroll_gate",
+      "source": "z3_lootroll",
+      "target": "z3_loot",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_z3_loot_drop",
+      "source": "z3_loot",
+      "target": "drop",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "44",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_loot_miss",
+      "source": "z3_loot",
+      "target": "void",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "56",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_xpmeter_in",
+      "source": "xp",
+      "target": "z3_xp_meter",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "27",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_xpmeter_out",
+      "source": "z3_xp_meter",
+      "target": "z3_xp2lvl",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "27"
+      }
+    },
+    {
+      "id": "e_z3_xp2lvl_out",
+      "source": "z3_xp2lvl",
+      "target": "level",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_training_in",
+      "source": "gold",
+      "target": "z3_training",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.7",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "e_z3_training_ct",
+      "source": "z3_training",
+      "target": "training_spend",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "0.7",
+        "route": "orthogonal"
+      }
+    },
+    {
+      "id": "a_z3_enc_src_lo",
+      "source": "level",
+      "target": "z3_enc_src",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 10"
+      }
+    },
+    {
+      "id": "a_z3_enc_src_gear",
+      "source": "gear_score",
+      "target": "z3_enc_src",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 4"
+      }
+    },
+    {
+      "id": "a_z3_xp_meter_lo",
+      "source": "level",
+      "target": "z3_xp_meter",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 10"
+      }
+    },
+    {
+      "id": "a_z3_xp_meter_gear",
+      "source": "gear_score",
+      "target": "z3_xp_meter",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 4"
+      }
+    },
+    {
+      "id": "a_z3_xp2lvl_lo",
+      "source": "level",
+      "target": "z3_xp2lvl",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 10"
+      }
+    },
+    {
+      "id": "a_z3_xp2lvl_gear",
+      "source": "gear_score",
+      "target": "z3_xp2lvl",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 4"
+      }
+    },
+    {
+      "id": "a_z3_training_lo",
+      "source": "level",
+      "target": "z3_training",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 10"
+      }
+    },
+    {
+      "id": "a_z3_training_gear",
+      "source": "gear_score",
+      "target": "z3_training",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 4"
+      }
+    },
+    {
+      "id": "e_char_create",
+      "source": "char_creation",
+      "target": "active_char",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "a_starter_open",
+      "source": "active_char",
+      "target": "z1_enc_src",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= 1"
+      }
+    }
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 200,
+    "steps": 150,
+    "tracked": [
+      "elapsed",
+      "level",
+      "deaths",
+      "combat_wins",
+      "combat_fails",
+      "water_consumed",
+      "food_consumed",
+      "items_looted",
+      "items_equipped",
+      "items_sold",
+      "items_consumed",
+      "gold_earned",
+      "repair_spend",
+      "resupply_spend",
+      "training_spend",
+      "gold",
+      "vendor_revenue",
+      "gear_score",
+      "quest_xp",
+      "hunt_xp"
+    ],
+    "timelineSeries": [
+      "deaths",
+      "elapsed",
+      "food_consumed",
+      "gear_score",
+      "gold",
+      "items_sold",
+      "level",
+      "r_netgold",
+      "water_consumed",
+      "xp_earned"
+    ],
+    "canvasLocked": true
+  }
+}
