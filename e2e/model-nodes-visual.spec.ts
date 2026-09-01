@@ -75,8 +75,13 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
   test('STACKING — a Register that is selected + focused + invalid shows all four cues (§VL3)', async ({ page }) => {
     await load(page)
     const bad = node(page, 'r_bad')
-    await bad.click() // select
-    await bad.focus() // keyboard focus — selection is kept
+    // focus + keyboard-select — a raw click on r_bad can be intercepted by the
+    // fixed minimap panel it sits under after fitView (flaky). React Flow's own
+    // a11y handling selects the focused node on Space, so this gets both the
+    // selection ring AND the keyboard-focus ring in one go.
+    await bad.focus()
+    await page.keyboard.press(' ')
+    await expect(bad.locator('.nodef__sel')).toBeVisible()
 
     // all four state layers are present at once — none overwrites another
     const sel = bad.locator('.nodef__sel')

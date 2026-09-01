@@ -296,6 +296,20 @@ body {
   flex-wrap: wrap;
 }
 
+/* Cap the Toolbar control heights. Under `<html lang="ko">` the browser resolves
+   font metrics for the whole subtree differently (CJK), growing every control —
+   even fixed-`line-height` icon buttons — by ~1px and the Toolbar by 2px
+   between EN and KO. `max-height` at the EN natural height is a ceiling only:
+   EN never reaches it (rendering unchanged, baselines unchanged), KO is clamped
+   back down, so the Toolbar height is locale-invariant (docs/localization.md
+   §L12 #5). The clamp trims at most a sub-pixel of glyph descender. */
+.toolbar .chip {
+  max-height: 27px;
+}
+.toolbar .btn {
+  max-height: 28px;
+}
+
 .toolbar__brand {
   display: flex;
   align-items: center;
