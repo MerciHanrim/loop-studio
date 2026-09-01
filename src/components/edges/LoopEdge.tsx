@@ -6,6 +6,7 @@ import {
   type EdgeProps,
   type EdgeTypes,
 } from '@xyflow/react'
+import { useT } from '../../i18n'
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
 import { currentRouteMap } from '../../store/routeMap'
@@ -70,6 +71,7 @@ function LoopEdge({
   data,
   selected,
 }: EdgeProps) {
+  const t = useT()
   const [bezierPath, bezierLabelX, bezierLabelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -101,10 +103,10 @@ function LoopEdge({
   // an idle state edge is held to the same rule as an idle resource edge).
   const edgeKind = (data as { kind?: unknown } | undefined)?.kind
   const transition = useSimStore((s) => {
-    const t = s.transition
-    if (!t) return null
-    if (edgeKind === 'state') return t.stateEvents.some((e) => e.edgeId === id) ? t : null
-    return (t.flowByEdge[id] ?? 0) > 0 ? t : null
+    const tr = s.transition
+    if (!tr) return null
+    if (edgeKind === 'state') return tr.stateEvents.some((e) => e.edgeId === id) ? tr : null
+    return (tr.flowByEdge[id] ?? 0) > 0 ? tr : null
   })
   const lowZoom = useStore((s) => s.transform[2] < LABEL_L2_MIN)
   // §PB4.4 — the L0 ("map") level shares the canvas-wide LOD classifier (../lod);
@@ -247,7 +249,7 @@ function LoopEdge({
           className="route-invalid-flag"
           transform={`translate(${labelX}, ${labelY})`}
           role="img"
-          aria-label="invalid route — a route point is inside a node"
+          aria-label={t('canvas.route.invalidFlag')}
         >
           <circle r="7.5" />
           <text textAnchor="middle" dominantBaseline="central" dy="0.5">
@@ -403,20 +405,20 @@ function LoopEdge({
               <span className="edge-label__delta">{fmtSigned(sv.delta)}</span>
             ) : null}
             {sv?.kind === 'label' && sv.clampAdjustment !== 0 ? (
-              <span className="edge-label__clamp" title="removed by the target Pool's single end-of-Phase-0 clamp">
-                clamp {fmtSigned(sv.clampAdjustment)}
+              <span className="edge-label__clamp" title={t('canvas.edgeLabel.clamp.title')}>
+                {t('canvas.edgeLabel.clamp')} {fmtSigned(sv.clampAdjustment)}
               </span>
             ) : null}
             {sv?.kind === 'trigger' && !sv.applied ? (
-              <span className="edge-label__blocked" title="delivered, but the target could not fire (wrong activation, or an activator held it closed)">
-                blocked
+              <span className="edge-label__blocked" title={t('canvas.edgeLabel.blocked.title')}>
+                {t('canvas.edgeLabel.blocked')}
               </span>
             ) : null}
             {/* §PB4.5 — the token merges into one dot, but a selected edge shows
                 the per-transfer breakdown (emission order, capped) so causality
                 is not lost. The dot's own label always shows the exact sum. */}
             {pbAll.length > 1 ? (
-              <span className="edge-label__breakdown" title="this step's transfers along this edge">
+              <span className="edge-label__breakdown" title={t('canvas.edgeLabel.breakdown.title')}>
                 {pbBreakdown.map((e, i) => (
                   <span key={i} className="edge-label__bd">
                     +{fmtAmt(e.amount)}

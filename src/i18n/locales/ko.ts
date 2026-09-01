@@ -96,6 +96,14 @@ const ko = {
 
   // ── 캔버스 ────────────────────────────────────────────────────────────
   'canvas.minimap': '그래프 미니맵',
+  'canvas.route.invalidFlag': '잘못된 경로 — 경로 점이 노드 안에 있습니다',
+  // 상태 / 재생 단계의 캔버스 내 연결 라벨 주석
+  'canvas.edgeLabel.clamp': '클램프',
+  'canvas.edgeLabel.clamp.title': '대상 풀의 페이즈 0 종료 시 단일 클램프로 제거됨',
+  'canvas.edgeLabel.blocked': '차단됨',
+  'canvas.edgeLabel.blocked.title':
+    '전달되었지만 대상이 실행되지 못함 (활성화 방식이 맞지 않거나 액티베이터가 닫아 둠)',
+  'canvas.edgeLabel.breakdown.title': '이 단계에서 이 연결로 이동한 내역',
 
   // ── 인스펙터 — 공통 ─────────────────────────────────────────────────
   'inspector.delete': '삭제',
@@ -253,6 +261,7 @@ const ko = {
   // ═══ Slice 2b-1 — 작은 앱 chrome: Share · PWA 바 · 가져오기 · rev chip ═══
 
   'dialog.cancel': '취소',
+  'dialog.close': '닫기',
 
   // ── Share (SEMANTICS-U.md §U7) ──
   'share.button': '공유',
@@ -443,6 +452,7 @@ const ko = {
   'review.fail.payloadInvalid': '이 제안 파일이 무결성 검사에 실패했습니다 — 다시 가져오세요.',
   'review.fail.invalidSelection':
     '그 선택은 적용할 수 없습니다 — 수락한 엣지에 포함하지 않은 노드가 필요합니다. 선택을 조정한 뒤 다시 시도하세요.',
+  'review.hunks.none': '새로 적용할 내용이 없습니다 — 대상이 이미 일치합니다.',
   'review.hunk.add': '추가',
   'review.hunk.remove': '제거',
   'review.hunk.change': '변경',
@@ -467,6 +477,39 @@ const ko = {
     '대상과 고른 변경을 적용하면 새 로컬 리비전이 만들어집니다 (부모 {parent}). 실행 취소 한 번으로 되돌립니다. 파일에는 아무것도 기록되지 않습니다.',
   'review.foot.whole':
     '적용하면 새 로컬 리비전이 만들어집니다 (부모 {parent}). 실행 취소 한 번으로 되돌립니다. 파일에는 아무것도 기록되지 않습니다.',
+
+  // ═══ Slice 3 — 인벤토리 정리: 분포 보기 · 파일 열기 안내 ═══════════
+
+  // ── 분포 패널 (몬테카를로 결과 보기) ──
+  'dist.runs': '회',
+  'dist.steps': '단계',
+  'dist.seed': '시드',
+  'dist.ended': '종료',
+  'dist.stale': '오래됨 — 그래프가 바뀌었습니다. 다시 실행해 갱신하세요',
+  'dist.export.staleTitle': '결과가 오래됨 — 내보내려면 다시 실행하세요',
+  'dist.export.title': '이 실행 내보내기',
+  'dist.export.seriesCsv': '시리즈 CSV',
+  'dist.export.seriesCsv.blurb': '단계별 p10/p50/p90/평균/최소/최대',
+  'dist.export.runsCsv': '실행 CSV',
+  'dist.export.runsCsv.blurb': '실행별 최종값 · run, seed, pools',
+  'dist.export.summaryCsv': '요약 CSV',
+  'dist.export.summaryCsv.blurb': '풀별 최종값 요약',
+  'dist.export.json.blurb': '전체 MonteCarloResult',
+
+  // ── 종료 스파크라인 ──
+  'term.title': '종료',
+  'term.ended': '종료됨',
+  'term.noRuns': '종료된 실행 없음',
+
+  // ── 밴드 차트 ──
+  'band.pool': '풀',
+  'band.mean': '평균',
+
+  // ── 모바일 "파일 열기" 최초 실행 안내 (§MV6) ──
+  'openhint.title': '계정 동기화 없음',
+  'openhint.body': '저장한 파일이나 공유 링크를 열어 여기서 확인하세요.',
+  'openhint.button': '파일 열기',
+  'openhint.sub': '데스크톱에서 Graph JSON 또는 Workspace JSON을 내보내거나 #g1= 공유 링크를 여세요.',
 } satisfies MessageCatalog
 
 export default ko

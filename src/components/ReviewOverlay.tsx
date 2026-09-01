@@ -111,10 +111,11 @@ function HunkList({
   onToggleAccept: (id: string, v: boolean) => void
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
 }) {
+  const t = useT()
   const actionable = plan.hunks.filter(
     (h) => h.verdict !== 'noop' || (h.fields ?? []).some((f) => f.verdict !== 'noop'),
   )
-  if (!actionable.length) return <p className="review__stamp">Nothing new to apply — the target already matches.</p>
+  if (!actionable.length) return <p className="review__stamp">{t('review.hunks.none')}</p>
   return (
     <ul className="review__hunks">
       {actionable.map((h) => (

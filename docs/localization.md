@@ -697,6 +697,65 @@ completed across every §L6 surface; **long-Korean / overflow / LOD /
 **GraphDoc / digest / undo / viewport / simulation invariance** asserted across
 the whole app, not just Slice 1's two surfaces.
 
+> **Implemented (`feat/i18n-slice3`).** Form: **functional / DOM tests as the
+> gate + a few KO reference screenshots** (chosen over a ~30-image KO pixel
+> matrix — that is brittle and high-maintenance; the EN visual baselines are
+> untouched, so whole-design regression cover is not lost).
+>
+> - **Inventory reconcile.** `scripts/check-i18n-surface.mjs` (new; wired into
+>   the `checks` CI job as `check:i18n-surface`) — a conservative static scan of
+>   every `src/components/**` file for a user-facing English string not wrapped
+>   in `t()` (a static JSX text node, or an `aria-label` / `title` /
+>   `placeholder` literal), with a small allowlist for format tokens shown
+>   verbatim by design. Mop-up it forced: `DistributionPanel`,
+>   `TerminationSparkline`, `BandChart`, `MobileOpenFileHint`, the shared
+>   `dialog.close` (mobile sheet + timeline sheet `✕`), the `LoopEdge`
+>   state / playback edge-label cues (`clamp` / `blocked` + their `title`
+>   tooltips + the transfer-breakdown tooltip), the orthogonal-route
+>   `invalidWaypoint` `!` badge name, and the `ReviewOverlay` "nothing new to
+>   apply" stamp. Catalogs → **374 keys**.
+> - **Functional KO acceptance** (`e2e/i18n-acceptance.spec.ts`) — per-surface,
+>   in KO: no document x-scroll, the container inside the viewport, a 60-char
+>   Korean label ellipsizes without widening the Inspector; every dialog / menu /
+>   overlay contained; the Review overlay; the mobile (390px) app + More sheet +
+>   Monte Carlo; an app-wide `en→ko→en` (×N, and again with each dialog open —
+>   switched through `i18n.setLocale` since a modal scrim covers the menu) that
+>   leaves the GraphDoc / digest / undo / redo / viewport / `simulationRev` /
+>   `SimState` byte-identical; `forced-colors` + `reduced-motion` KO spot checks.
+> - **KO typography of the small-caps semantic labels** (§L13 fix). The EN UI
+>   sets eyebrow / field / metric labels in `uppercase` + a small monospace face
+>   + wide `letter-spacing`; on Hangul that shrinks stroke-dense glyphs and
+>   splits a word into `실 행 횟 수`. A `:lang(ko)`-scoped block in `index.css`
+>   (so **no EN pixel moves**) gives those specific labels — Monte Carlo
+>   head / field / pools-head / cost labels, Review head / field labels / tags,
+>   the mobile sheet title, the play-strip + timeline-head labels — the sans
+>   face, `letter-spacing: 0`, `text-transform: none`, and (dialogs / overlays /
+>   sheet only) a 11–12px size bump. Numbers, seeds, memory values, raw enum
+>   tokens, the toolbar, and the Inspector body are untouched.
+> - **Representative KO screenshots** (`e2e/i18n-visual.spec.ts`, chromium +
+>   an inline-mobile block) — desktop full screen, mobile full screen, Inspector
+>   (node selected), Monte Carlo (metric labels shown, machine-specific values
+>   masked), Review overlay, a long Korean node label + a palette tooltip, the
+>   Export menu open. The build stamp / minimap / attribution are masked; the
+>   canvas transform is pinned so a fitView frame can't shift the shot.
+> - **README / positioning** — separate, non-localization, bundled here per
+>   Lumi. The repo's GitHub *About* + *Topics* were updated first (by the
+>   maintainer): About → "Browser-based visual systems editor and simulator for
+>   resource flows, state changes, probabilistic rules, and feedback loops.";
+>   Topics now carry `systems-modeling` / `discrete-simulation` / `resource-flow`
+>   alongside `game-economy-tools` / `game-design-tools` / `machinations`
+>   (`system-dynamics` deliberately left off — not a current capability). The
+>   README intro is aligned to that: first sentence mirrors the About, then
+>   "designed primarily for **game economies**, while the same step-based model
+>   can represent inventory / supply chains / production / queues / cash flows /
+>   energy / other resource-flow systems", then a one-line scope boundary
+>   ("deterministic, discrete-step … continuous-time equations and spatial
+>   physics are not directly supported") and a `Future directions` section
+>   (continuous-time / spatial / external-engine) that is explicitly **not** a
+>   committed roadmap. `Why` reframes game economies as the *representative*
+>   case. The `preview` badge is kept as-is (it reads as "pre-stable", not
+>   "demo").
+
 **Follow-up slices** — **guided first-run tour**, then **contextual inline
 help**, each on the finished base with its own design pass.
 

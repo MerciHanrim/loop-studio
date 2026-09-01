@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { useT } from '../../i18n'
 import { useDialogFocus } from '../useDialogFocus'
 
 // docs/mobile.md §MV5 — the shared bottom-sheet chrome: a scrim (tap to close),
@@ -18,6 +19,7 @@ export function MobileSheet({
   className?: string
   children: ReactNode
 }) {
+  const t = useT()
   const ref = useRef<HTMLDivElement>(null)
   useDialogFocus(true, ref, onClose, returnFocusTo)
   return (
@@ -31,7 +33,7 @@ export function MobileSheet({
       >
         <div className="sheet__head">
           <span className="sheet__title">{title}</span>
-          <button type="button" className="sheet__x" onClick={onClose} aria-label="Close">
+          <button type="button" className="sheet__x" onClick={onClose} aria-label={t('dialog.close')}>
             ✕
           </button>
         </div>

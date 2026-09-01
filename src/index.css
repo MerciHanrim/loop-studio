@@ -2812,3 +2812,52 @@ input[type='number']::-webkit-inner-spin-button {
 .review__hunk-dep--blocked {
   color: var(--warning);
 }
+
+/* ==== Korean typography — semantic small-caps labels ===================
+   docs/localization.md §L13. The EN UI leans on `uppercase` + a small
+   monospace face + wide `letter-spacing` for eyebrow / field / metric
+   labels (`MONTE CARLO`, `BASE SEED`, `LOCAL BENCHMARK`…). Applied to
+   Hangul the same recipe shrinks stroke-dense glyphs and pushes the
+   syllables apart, so a word reads as `실 행 횟 수`. These rules are
+   scoped to `:lang(ko)` (set by `<html lang>`), so no EN pixel moves;
+   they touch ONLY the small-caps semantic labels — never the toolbar,
+   the Inspector body, raw enum tokens, or any numeric / code value,
+   which stay monospace. Dialog / overlay labels also get a size bump;
+   the strip labels only lose the spacing so play-bar metrics don't grow. */
+:lang(ko) :is(
+  .mcdlg__head,
+  .mcdlg__field > span,
+  .mcdlg__poolshead,
+  .mcdlg__costlabel,
+  .review__head,
+  .review__field > span,
+  .review__field-tag,
+  .sheet__title,
+  .pstrip__field > span,
+  .timeline__head
+) {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+:lang(ko) .mcdlg__selectall {
+  letter-spacing: 0;
+}
+/* dialogs / overlays / sheet — grow the label so a Korean word is legible */
+:lang(ko) :is(
+  .mcdlg__head,
+  .mcdlg__field > span,
+  .mcdlg__poolshead,
+  .mcdlg__costlabel,
+  .review__head,
+  .review__field > span,
+  .review__field-tag,
+  .sheet__title
+) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+:lang(ko) .mcdlg__costlabel,
+:lang(ko) .review__field-tag {
+  font-size: 11px;
+}
