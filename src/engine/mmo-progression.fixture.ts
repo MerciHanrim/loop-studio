@@ -469,24 +469,26 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     z1_enc: { x: CX[0], y: 40 },
     z2_enc: { x: CX[1], y: 40 },
     z3_enc: { x: CX[2], y: 40 },
-    end15: { x: 2760, y: 40 },
-    completion_src: { x: 2560, y: 170 },
-    completion: { x: 2760, y: 170 },
-    clock: { x: 2560, y: 290 },
-    elapsed: { x: 2760, y: 290 },
+    // The completion / clock block sits well right of Highlands' right lane
+    // (`z3_xp_meter` / `z3_xp2lvl` at x 2440) so nothing overlaps `Clock` /
+    // `Completion pulse`.
+    end15: { x: 3020, y: 40 },
+    completion_src: { x: 2820, y: 170 },
+    completion: { x: 3020, y: 170 },
+    clock: { x: 2820, y: 290 },
+    elapsed: { x: 3020, y: 290 },
 
     // ── RIGHT EDGE: reporting / checks (no edges — a Register has no ports) ──
-    // One column at x 2960 (right of every other node), 150 px pitch so each
-    // Register's title + value + expression line reads clear of the next even at
-    // 100 % zoom. Clear of `Reached level 15` / the completion block on the left
-    // and of the economy below.
-    r_efflevel: { x: 2960, y: 40 },
-    r_huntshare: { x: 2960, y: 190 },
-    r_income: { x: 2960, y: 340 },
-    r_expense: { x: 2960, y: 490 },
-    r_netgold: { x: 2960, y: 640 },
-    r_items_acct: { x: 2960, y: 790 },
-    r_burned: { x: 2960, y: 940 },
+    // One column at x 3280 (right of every other node, including the completion
+    // block above), 150 px pitch so each Register's title + value + expression
+    // line reads clear of the next even at 100 % zoom.
+    r_efflevel: { x: 3280, y: 40 },
+    r_huntshare: { x: 3280, y: 190 },
+    r_income: { x: 3280, y: 340 },
+    r_expense: { x: 3280, y: 490 },
+    r_netgold: { x: 3280, y: 640 },
+    r_items_acct: { x: 3280, y: 790 },
+    r_burned: { x: 3280, y: 940 },
 
     // ── the HUB ROW (y 660 → shifted to 800): the only place zone columns merge ──
     drop: { x: 380, y: 660 },

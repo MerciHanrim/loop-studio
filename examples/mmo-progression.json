@@ -810,7 +810,7 @@
       "id": "elapsed",
       "type": "pool",
       "position": {
-        "x": 2760,
+        "x": 3020,
         "y": 290
       },
       "data": {
@@ -826,7 +826,7 @@
       "id": "clock",
       "type": "source",
       "position": {
-        "x": 2560,
+        "x": 2820,
         "y": 290
       },
       "data": {
@@ -840,7 +840,7 @@
       "id": "completion",
       "type": "pool",
       "position": {
-        "x": 2760,
+        "x": 3020,
         "y": 170
       },
       "data": {
@@ -856,7 +856,7 @@
       "id": "completion_src",
       "type": "source",
       "position": {
-        "x": 2560,
+        "x": 2820,
         "y": 170
       },
       "data": {
@@ -870,7 +870,7 @@
       "id": "end15",
       "type": "end",
       "position": {
-        "x": 2760,
+        "x": 3020,
         "y": 40
       },
       "data": {
@@ -1368,7 +1368,7 @@
       "id": "r_income",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 340
       },
       "data": {
@@ -1382,7 +1382,7 @@
       "id": "r_expense",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 490
       },
       "data": {
@@ -1396,7 +1396,7 @@
       "id": "r_netgold",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 640
       },
       "data": {
@@ -1410,7 +1410,7 @@
       "id": "r_huntshare",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 190
       },
       "data": {
@@ -1424,7 +1424,7 @@
       "id": "r_efflevel",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 40
       },
       "data": {
@@ -1438,7 +1438,7 @@
       "id": "r_items_acct",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 790
       },
       "data": {
@@ -1452,7 +1452,7 @@
       "id": "r_burned",
       "type": "register",
       "position": {
-        "x": 2960,
+        "x": 3280,
         "y": 940
       },
       "data": {
