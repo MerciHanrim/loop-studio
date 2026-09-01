@@ -164,6 +164,8 @@ UI language never leaks into model data — not on switch, and not on create.
 | **`unit`** and **`resourceType`** strings | **no** | advisory model data |
 | the **document title** and any **user description** | **no** | user prose |
 | the **raw model value** shown in the Inspector (a number, an expression result) | **no** | it is data being displayed, not chrome — only its *label* is keyed |
+| a **wire enum's `<option value>`** (`automatic`, `pushAny`, `deterministic`, `int`, …) | **no** — verbatim token | GraphDoc / digest unchanged; a locale switch fires no `change` |
+| a **wire enum's OPTION LABEL** — the human-readable text of that `<select>` | **yes** | `enum.<group>.<token>` — `자동`, `아무 경로로 보내기`, … (§L3.4a) |
 | the **`label` a template writes into the GraphDoc** (`Templates.tsx`) | **no** | a template's *menu name / description* is chrome (keyed); the labels it seeds into nodes are model defaults |
 | the **default `label` / value `defaultData()` produces** on "add node" (`src/model/factory.ts`) | **no** — a fixed English/ASCII default (`"Source"`, `"Pool"`, …) | in the `src/model/` layer, independent of the UI locale; the user renames it if they want |
 | example / fixture GraphDoc strings (`examples/*.json` labels) | **no** | a locale switch never rewrites `"Ore Stock"` |
@@ -178,6 +180,25 @@ and the seeded model label come from two different places on purpose.
 **The line:** anything the user or a file author wrote — or that Loop Studio
 *seeds as model data* — stays as written / as a fixed default; only what Loop
 Studio's own chrome *says about* it gets a key.
+
+**L3.4a — wire enum: stored value vs displayed label.** A wire enum's
+**stored value, its code, and any raw display of it** (the raw-data fallback
+textarea, a diagnostic `{code}`, the Canvas node's `automatic · pushAny`
+state readout) **never change** — those are the frozen token. But the
+**human-readable label of the `<select>` a person reads and picks from** is UI
+chrome and **is** localized, via an `enum.<group>.<token>` key, with the
+`<option value>` left as the bare token:
+
+```jsx
+<option value="automatic">{t('enum.activation.automatic')}</option>  // → "자동"
+<option value="pushAny">{t('enum.flowMode.pushAny')}</option>        // → "아무 경로로 보내기"
+```
+
+So: `value` = `automatic` / `pushAny` (GraphDoc + digest identical, a locale
+switch fires no `change` and no edit); displayed label = translated; the
+current selection, undo, and `simulationRev` are unaffected by the switch.
+A `<select>` that already shows `token — localized description` (edge **Type**,
+state **Mode**) is *already* value-separated and stays as it is.
 
 ## L4. Message format & the catalog runtime
 
@@ -593,8 +614,12 @@ the **§L7 user-facing engine-diagnostic `{ code, params }` mapping** lands
 > (params carry only atoms — a column number); an unknown code falls back to
 > `error.unknownCode`. **Not translated** (raw model data, shown as-is): every
 > node/edge `label`, expression text, `unit`, `resourceType`, an Inspector raw
-> value, and every wire enum token (`pullAny`, `deterministic`, `passive`,
-> `trigger`, the node-kind chip, …). **Deviations:** three edit-time hint notes
+> value, a wire enum's `<option value>` and its raw display (the raw-data
+> textarea, a `{code}`, the Canvas node's `automatic · pushAny` readout), and
+> the node-kind chip. A **follow-up** (`feat/i18n-inspector-enum-labels`)
+> localizes the *displayed label* of the Inspector's enum `<select>`s via
+> `enum.<group>.<token>` while keeping `value` = the token (§L3.4a).
+> **Deviations:** three edit-time hint notes
 > (trigger `delay`, Register canonical form, the deprecated `node`-mode note)
 > lose a decorative inline `<code>` box — an ICU message cannot carry markup
 > (§L4.1); text and values are preserved. The palette has no mobile surface

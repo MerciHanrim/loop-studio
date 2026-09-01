@@ -108,6 +108,26 @@ const ko = {
   'inspector.unreadable.detailFallback': '데이터가 읽을 수 있는 객체가 아님',
   'inspector.field.rawData': '원본 데이터',
 
+  // ── wire enum OPTION 표시명 — <select>의 사람이 읽는 텍스트. <option value>는
+  //    wire token 그대로, GraphDoc·digest 무변경 (docs/localization.md §L3.4).
+  //    원본 데이터 fallback, 진단 코드, Canvas raw 상태 표시는 토큰 유지.
+  'enum.activation.passive': '수동',
+  'enum.activation.automatic': '자동',
+  'enum.activation.onStart': '시작할 때',
+  'enum.activation.interactive': '대화형',
+  'enum.flowMode.pullAny': '아무 경로에서 당기기',
+  'enum.flowMode.pullAll': '모든 경로에서 당기기',
+  'enum.flowMode.pushAny': '아무 경로로 보내기',
+  'enum.flowMode.pushAll': '모든 경로로 보내기',
+  'enum.distribution.deterministic': '고정 비율',
+  'enum.distribution.probabilistic': '확률',
+  'enum.format.int': '정수',
+  'enum.format.float': '실수',
+  'enum.format.percent': '백분율',
+  'enum.stateMode.trigger': '트리거',
+  'enum.stateMode.activator': '액티베이터',
+  'enum.stateMode.label': '레이블',
+
   // ── 인스펙터 — 노드 필드 ────────────────────────────────────────────
   'inspector.field.activation': '활성화',
   'inspector.node.endNote': '자원이 도달하는 순간 실행을 종료합니다.',

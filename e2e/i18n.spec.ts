@@ -254,8 +254,12 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
       )
       g.setSelection('r1', null)
     })
-    await pickLocale(page, 'ko')
+    // the register node + its invalid outcome must be in the DOM before we read
+    await expect(page.locator('.react-flow__node[data-id="r1"]')).toBeVisible()
     const note = page.locator('aside.inspector .inspector__note--warn').first()
+    await expect(note).toContainText('M_REG_EVAL')
+    await pickLocale(page, 'ko')
+    // poll: the note re-renders when the KO catalog activates
     await expect(note).toContainText('M_REG_EVAL') // code — never translated
     await expect(note).toContainText('오류로 평가됩니다') // message — localized
     await expect(note).toContainText('단계에서 값 없음') // frame — localized
@@ -303,6 +307,52 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     })
     const before = await snapshot(page)
     for (const code of ['ko', 'en', 'ko', 'en']) await pickLocale(page, code)
+    expect(await snapshot(page)).toEqual(before)
+  })
+
+  test('Inspector <select> options: value = wire token, label = localized, switch is a no-op', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G)
+    await page.evaluate(() => (window as any).__loop.graph.getState().setSelection('pool', null))
+
+    const flowSel = page.locator('aside.inspector select').filter({ has: page.locator('option[value="pullAny"]') })
+    const actSel = page.locator('aside.inspector select').filter({ has: page.locator('option[value="automatic"]') })
+
+    // EN: option TEXT is the current display text; the stored value is the token
+    await expect(actSel).toHaveValue('passive') // pool default activation
+    await expect(flowSel).toHaveValue('pullAny')
+    await expect(actSel.locator('option[value="automatic"]')).toHaveText('automatic')
+    await expect(flowSel.locator('option[value="pushAny"]')).toHaveText('push any')
+
+    const before = await snapshot(page)
+    const inspW = () =>
+      page.evaluate(() => Math.round(document.querySelector('aside.inspector')!.getBoundingClientRect().width))
+    const w0 = await inspW()
+
+    await pickLocale(page, 'ko')
+
+    // KO: the option label is translated; the <select> VALUE is unchanged
+    await expect(actSel).toHaveValue('passive')
+    await expect(flowSel).toHaveValue('pullAny')
+    await expect(actSel.locator('option[value="automatic"]')).toHaveText('자동')
+    await expect(flowSel.locator('option[value="pushAny"]')).toHaveText('아무 경로로 보내기')
+    // every <option value> is still the bare wire token
+    const optValues = await page.evaluate(() =>
+      [...document.querySelectorAll('aside.inspector select option')].map((o) => (o as HTMLOptionElement).value),
+    )
+    expect(optValues).toContain('pullAny')
+    expect(optValues).toContain('automatic')
+    expect(optValues.some((v) => /[가-힣]/.test(v))).toBe(false)
+
+    // the switch alone fired no change / edit: GraphDoc, digest, undo, sim all held
+    expect(await snapshot(page)).toEqual(before)
+    // KO labels did not resize the Inspector
+    expect(await inspW()).toBe(w0)
+
+    await pickLocale(page, 'en')
     expect(await snapshot(page)).toEqual(before)
   })
 })
