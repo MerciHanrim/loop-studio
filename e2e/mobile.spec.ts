@@ -44,7 +44,10 @@ async function answerDialog(page: Page, choice: 'accept' | 'cancel', text?: RegE
   const dlg = page.locator('.mcdlg--confirm')
   await expect(dlg).toBeVisible()
   if (text) await expect(dlg).toContainText(text)
-  const name = choice === 'accept' ? /create link|replace|apply|링크 만들기|교체|적용/i : /^cancel$|^취소$/i
+  const name =
+    choice === 'accept'
+      ? /create link|replace|apply|load template|save workspace|save without|export revision/i
+      : /^cancel$|^취소$/i
   await dlg.getByRole('button', { name }).click()
   await expect(dlg).toHaveCount(0)
 }
@@ -511,17 +514,12 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     const before = await graphContent(page)
     const revBefore = await simRev(page)
 
-    let confirmed = false
-    page.on('dialog', (d) => {
-      confirmed = true
-      return void d.dismiss()
-    })
-
     await openTemplatesSheet(page)
     await page.locator('.sheet[aria-label="Templates"] .sheet__row').first().click()
 
     await expect(page.locator('.sheet[aria-label="Templates"]')).toBeHidden()
-    expect(confirmed, 'no confirm on the pristine sample').toBe(false)
+    // no confirm on the pristine sample — the in-app dialog never mounts
+    await expect(page.locator('.mcdlg--confirm')).toHaveCount(0)
     await expect(more(page)).toBeFocused()
     await expect.poll(() => graphContent(page)).not.toBe(before) // the template applied
     expect(await simRev(page), 'exactly one simulationRev bump').toBe(revBefore + 1)
@@ -535,11 +533,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
 
     // cancel — graph + run state + rev untouched, the sheet stays open
     await openTemplatesSheet(page)
-    page.once('dialog', (d) => {
-      expect(d.message()).toMatch(/replace/i)
-      return void d.dismiss()
-    })
     await templates.locator('.sheet__row').first().click()
+    await answerDialog(page, 'cancel', /replace/i)
     await page.waitForTimeout(150)
     expect(await graphContent(page), 'cancel keeps the graph').toBe(before)
     expect(await stepIndex(page)).toBe(0)
@@ -547,8 +542,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await expect(templates).toBeVisible()
 
     // accept — replaced with exactly one bump, the sheet closes, focus to More
-    page.once('dialog', (d) => void d.accept())
     await templates.locator('.sheet__row').first().click()
+    await answerDialog(page, 'accept', /replace/i)
     await expect(templates).toBeHidden()
     await expect(more(page)).toBeFocused()
     await expect.poll(() => graphContent(page)).not.toBe(before)

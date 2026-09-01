@@ -13,18 +13,20 @@ import {
   type WorkspaceFileOption,
 } from '../../store/workspaceIO'
 import { downloadText } from '../../ui/download'
-import {
-  PROJECT_REVISION_DISCLOSURE,
-  exportProjectRevision,
-  makeProposal,
-} from '../../ui/revisionActions'
+import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useT } from '../../i18n'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { LanguageSwitch } from '../LanguageSwitch'
+import { TEMPLATE_KEY } from '../templateKeys'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
+
+// docs/localization.md Slice 2b — Templates replace, the Project-revision
+// disclosure, and the Workspace-JSON summary are in-app ConfirmDialogs now;
+// `loadGraph` / `exportProjectRevision` / the download run only from Confirm.
+type PendingConfirm = { title: string; body: string; confirmLabel: string; run: () => void } | null
 
 // docs/mobile.md §MV6 — the compact top bar's "More" menu and its three
 // sub-sheets (Share result / Templates / Export), each an exclusive overlay
@@ -58,6 +60,7 @@ export function MobileMoreMenu({
   const [shareConfirm, setShareConfirm] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
   // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
   // now. `runShare` (export + link build + clipboard) starts only from Confirm.
@@ -89,22 +92,30 @@ export function MobileMoreMenu({
     }
   }
 
-  const pickTemplate = (id: string) => {
-    const tpl = TEMPLATES.find((t) => t.id === id)
+  const doLoadTemplate = (id: string) => {
+    const tpl = TEMPLATES.find((x) => x.id === id)
     if (!tpl) return
-    // docs/mobile.md §MV3b — confirm before replacing, unless the session is
-    // still the untouched first-boot sample. Cancel: the Templates sheet stays
-    // open and nothing changes (no pause, no load, no rev bump).
-    if (
-      !useGraphStore.getState().pristineSample &&
-      !window.confirm(`Replace the current diagram with "${tpl.name}"?`)
-    ) {
-      return
-    }
     useSimStore.getState().pause()
     loadGraph(tpl.graph) // the existing atomic path — exactly one bump
     useMcStore.getState().applyRecommended(tpl.recommendedRunConfig)
-    closeOverlay() // accept: the sheet closes, focus returns to the More button
+    closeOverlay()
+  }
+
+  const pickTemplate = (id: string) => {
+    // docs/mobile.md §MV3b — confirm before replacing, unless the session is
+    // still the untouched first-boot sample. Cancel leaves everything untouched.
+    if (useGraphStore.getState().pristineSample) {
+      doLoadTemplate(id)
+      return
+    }
+    setPendingConfirm({
+      title: t('templates.replace.title'),
+      body: t('templates.replace.body', {
+        name: t(TEMPLATE_KEY[id as keyof typeof TEMPLATE_KEY].name),
+      }),
+      confirmLabel: t('templates.replace.confirm'),
+      run: () => doLoadTemplate(id),
+    })
   }
 
   const graphJSON = () => {
@@ -113,10 +124,16 @@ export function MobileMoreMenu({
   }
 
   const projectRevision = () => {
-    closeOverlay()
-    if (!window.confirm(PROJECT_REVISION_DISCLOSURE)) return
-    const r = exportProjectRevision()
-    if (!r.ok) window.alert(r.message)
+    setPendingConfirm({
+      title: t('export.projectRevision.disclosure.title'),
+      body: t('export.projectRevision.disclosure.body'),
+      confirmLabel: t('export.projectRevision.disclosure.confirm'),
+      run: () => {
+        closeOverlay()
+        const r = exportProjectRevision()
+        if (!r.ok) window.alert(r.message)
+      },
+    })
   }
 
   const proposal = () => {
@@ -134,34 +151,65 @@ export function MobileMoreMenu({
         WORKSPACE_MAX_BYTES)
       : WORKSPACE_MAX_BYTES
     const decision = decideWorkspaceExport(full, lean, cap)
-
-    const included: string[] = ['run config']
-    if (mc.status === 'done' && mc.result) included.push(`the ${mc.config.runs}-run distribution`)
-    included.push('the timeline view', 'the canvas position', `the live run at step ${sim.stepIndex}`)
-    const summary =
-      `Save this workspace?\n\nIncludes: ${included.join(', ')}.\n` +
-      `Not included: undo history, selection, theme.`
-    const write = (opt: WorkspaceFileOption) => downloadText(opt.text, 'loop-studio-workspace.json')
+    const write = (opt: WorkspaceFileOption) => () => {
+      downloadText(opt.text, 'loop-studio-workspace.json')
+      closeOverlay()
+    }
 
     if (decision.kind === 'reject') {
       window.alert(
-        `This workspace is ${MiB(decision.bytes)} — over the ${MiB(WORKSPACE_MAX_BYTES)} limit even without the distribution. ` +
-          `Trim the graph, or use Graph JSON.`,
+        t('export.workspace.reject', { size: MiB(decision.bytes), limit: MiB(WORKSPACE_MAX_BYTES) }),
       )
-    } else if (decision.kind === 'confirm-omit') {
-      if (
-        window.confirm(
-          `${summary}\n\nThe distribution makes this ${MiB(decision.full.bytes)} — over the ${MiB(WORKSPACE_MAX_BYTES)} limit. ` +
-            `Save without the distribution (${MiB(decision.lean.bytes)})?`,
-        )
-      ) {
-        write(decision.lean)
-      }
-    } else if (window.confirm(summary)) {
-      write(decision.option)
+      closeOverlay()
+      return
     }
-    closeOverlay()
+
+    const items = [t('export.workspace.item.runConfig')]
+    if (mc.status === 'done' && mc.result)
+      items.push(t('export.workspace.item.distribution', { runs: mc.config.runs }))
+    items.push(
+      t('export.workspace.item.timeline'),
+      t('export.workspace.item.canvas'),
+      t('export.workspace.item.liveRun', { step: sim.stepIndex }),
+    )
+    const summary = `${t('export.workspace.included', { items: items.join(', ') })}\n${t('export.workspace.excluded')}`
+
+    if (decision.kind === 'confirm-omit') {
+      setPendingConfirm({
+        title: t('export.workspace.title'),
+        body: `${summary}\n\n${t('export.workspace.omit.body', {
+          full: MiB(decision.full.bytes),
+          limit: MiB(WORKSPACE_MAX_BYTES),
+          lean: MiB(decision.lean.bytes),
+        })}`,
+        confirmLabel: t('export.workspace.omit.confirm'),
+        run: write(decision.lean),
+      })
+      return
+    }
+    setPendingConfirm({
+      title: t('export.workspace.title'),
+      body: summary,
+      confirmLabel: t('export.workspace.confirm'),
+      run: write(decision.option),
+    })
   }
+
+  const pendingDlg = (
+    <ConfirmDialog
+      open={pendingConfirm != null}
+      title={pendingConfirm?.title ?? ''}
+      body={pendingConfirm?.body ?? ''}
+      confirmLabel={pendingConfirm?.confirmLabel ?? ''}
+      onConfirm={() => {
+        const p = pendingConfirm
+        setPendingConfirm(null)
+        p?.run()
+      }}
+      onCancel={() => setPendingConfirm(null)}
+      returnFocusTo={backToMore}
+    />
+  )
 
   if (overlay === 'more') {
     return (
@@ -182,14 +230,14 @@ export function MobileMoreMenu({
             fileInputRef.current?.click()
           }}
         >
-          Import file
-          <span className="sheet__row-sub">Graph or Workspace JSON</span>
+          {t('mobile.more.import')}
+          <span className="sheet__row-sub">{t('mobile.more.importSub')}</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('export')}>
-          Export<span className="sheet__row-sub">▸</span>
+          {t('export.menuLabel')}<span className="sheet__row-sub">▸</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('templates')}>
-          Templates<span className="sheet__row-sub">▸</span>
+          {t('templates.menuLabel')}<span className="sheet__row-sub">▸</span>
         </button>
         <div className="sheet__row" style={{ cursor: 'default' }}>
           {t('theme.rowLabel')}<span className="sheet__row-sub"><ThemeToggle /></span>
@@ -211,38 +259,45 @@ export function MobileMoreMenu({
         onCancel={() => setShareConfirm(false)}
         returnFocusTo={() => document.querySelector<HTMLButtonElement>('.sheet__row--first')}
       />
+      {pendingDlg}
       </>
     )
   }
 
   if (overlay === 'templates') {
     return (
+      <>
       <MobileSheet
-        title="Templates"
+        title={t('templates.menuLabel')}
         onClose={() => closeOverlay('templates')}
         returnFocusTo={backToMore}
       >
-        {TEMPLATES.map((t) => (
-          <button key={t.id} type="button" className="sheet__row" onClick={() => pickTemplate(t.id)}>
-            {t.name}
-            <span className="sheet__row-sub">{t.blurb}</span>
+        {TEMPLATES.map((tpl) => (
+          <button key={tpl.id} type="button" className="sheet__row" onClick={() => pickTemplate(tpl.id)}>
+            {t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].name)}
+            <span className="sheet__row-sub">
+              {t(TEMPLATE_KEY[tpl.id as keyof typeof TEMPLATE_KEY].blurb)}
+            </span>
           </button>
         ))}
       </MobileSheet>
+      {pendingDlg}
+      </>
     )
   }
 
   if (overlay === 'export') {
     return (
-      <MobileSheet title="Export" onClose={() => closeOverlay('export')} returnFocusTo={backToMore}>
+      <>
+      <MobileSheet title={t('export.menuLabel')} onClose={() => closeOverlay('export')} returnFocusTo={backToMore}>
         <button type="button" className="sheet__row" onClick={graphJSON}>
-          Graph JSON<span className="sheet__row-sub">diagram + run settings</span>
+          {t('export.graphJson.name')}<span className="sheet__row-sub">{t('export.graphJson.blurb')}</span>
         </button>
         <button type="button" className="sheet__row" onClick={workspaceJSON}>
-          Workspace JSON<span className="sheet__row-sub">graph + distribution + view</span>
+          {t('export.workspaceJson.name')}<span className="sheet__row-sub">{t('export.workspaceJson.blurb')}</span>
         </button>
         <button type="button" className="sheet__row" onClick={projectRevision}>
-          Project revision<span className="sheet__row-sub">graph + project id &amp; lineage</span>
+          {t('export.projectRevision.name')}<span className="sheet__row-sub">{t('export.projectRevision.blurb')}</span>
         </button>
         <button
           type="button"
@@ -250,13 +305,15 @@ export function MobileMoreMenu({
           onClick={proposal}
           disabled={!projectOpen}
         >
-          Make a proposal<span className="sheet__row-sub">a copy to edit and send back</span>
+          {t('export.proposal.name')}<span className="sheet__row-sub">{t('export.proposal.blurb')}</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => setAuthorOpen(true)}>
-          Author for exports…<span className="sheet__row-sub">device-local, unverified label</span>
+          {t('export.author.name')}<span className="sheet__row-sub">{t('export.author.blurb')}</span>
         </button>
         <AuthorDialog open={authorOpen} onClose={() => setAuthorOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>
+      {pendingDlg}
+      </>
     )
   }
 
