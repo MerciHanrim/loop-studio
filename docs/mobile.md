@@ -162,6 +162,26 @@ Pan or pinch-zoom **within the same orientation never re-fits** — a
 `lastOrientation` ref gates step 2 so the user's chosen viewport is preserved
 until they actually rotate.
 
+### MV3e. The desktop edit-lock reuses MV3a
+
+On **desktop**, `uiStore.canvasLocked` applies the same allow / deny split as
+the mobile lock (MV3a): `nodesDraggable` / `nodesConnectable` /
+`edgesReconnectable` off, `onConnect` omitted, `deleteKeyCode` null, the drop /
+context-menu handlers off, structural keyboard shortcuts (`Shortcuts`) suppressed,
+and the desktop Inspector wrapped in `<fieldset disabled>` (read-only, values
+visible). `elementsSelectable` stays **true** — selection, the read-only
+Inspector, pan / zoom, the minimap, the Timeline and the simulation all keep
+working. It replaces React Flow's built-in "interactive" toggle
+(`<Controls showInteractive={false}>` + our own `.rf-lock` `ControlButton`),
+because that toggle also kills selection.
+
+`canvasLocked` is a **UI preference**, never the GraphDoc / `loop-revision/*`
+digest / undo / `simulationRev`. A document can request it with
+`recommendedRunConfig.canvasLocked: true` (advisory, applied on load, written
+back by Export, preserved through Graph / Workspace / Share round-trips —
+`src/model/serialize.ts`); the user flips the `.rf-lock` control at any time.
+The mobile layout is unaffected — it is always view-only regardless of the field.
+
 ## MV4. Bottom run bar
 
 - The existing PlayBar (`.pstrip`) becomes `position: fixed; bottom: 0`,

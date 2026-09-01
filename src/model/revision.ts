@@ -671,10 +671,10 @@ function diffRunConfig(
   const p = proposed ?? {}
   const out: RunConfigChange[] = []
   for (const k of new Set([...Object.keys(b), ...Object.keys(p)]).values()) {
-    // `timelineSeries` is a Timeline display preference, never revision content —
-    // it is excluded from the digest (`projectRunConfig`) and never shown as a
-    // proposal change.
-    if (k === 'timelineSeries') continue
+    // `timelineSeries` / `canvasLocked` are UI display preferences, never
+    // revision content — excluded from the digest (`projectRunConfig`) and never
+    // shown as a proposal change.
+    if (k === 'timelineSeries' || k === 'canvasLocked') continue
     const inB = k in b
     const inP = k in p
     if (inB && !inP) out.push({ kind: 'removed', key: k, base: b[k] })

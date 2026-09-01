@@ -96,6 +96,8 @@ const ko = {
 
   // ── 캔버스 ────────────────────────────────────────────────────────────
   'canvas.minimap': '그래프 미니맵',
+  'canvas.lock.lock': '편집 잠금 — 선택과 조회는 계속 가능',
+  'canvas.lock.unlock': '편집 잠금 해제 — 이동·연결·값 수정 가능',
   'canvas.route.invalidFlag': '잘못된 경로 — 경로 점이 노드 안에 있습니다',
   // 상태 / 재생 단계의 캔버스 내 연결 라벨 주석
   'canvas.edgeLabel.clamp': '클램프',

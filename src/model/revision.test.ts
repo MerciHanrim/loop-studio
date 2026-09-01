@@ -178,6 +178,21 @@ describe('canonical content & digest (§R4 / R14.3)', () => {
       computeRevisionDiff(canonicalContent(withTs), canonicalContent(withTs2)).runConfig,
     ).toEqual([])
   })
+
+  it('canvasLocked (a UI preference) is invisible to the digest and the diff', async () => {
+    const plain = doc([pool('p1')], [], { baseSeed: 1, runs: 200, steps: 30, tracked: ['p1'] })
+    const locked = doc([pool('p1')], [], {
+      baseSeed: 1,
+      runs: 200,
+      steps: 30,
+      tracked: ['p1'],
+      canvasLocked: true,
+    })
+    expect(await fullContentDigest(locked)).toBe(await fullContentDigest(plain))
+    const d = computeRevisionDiff(canonicalContent(plain), canonicalContent(locked))
+    expect(d.runConfig).toEqual([])
+    expect(d.summary.empty).toBe(true)
+  })
 })
 
 // ── deterministic diff ─────────────────────────────────────────────────────
