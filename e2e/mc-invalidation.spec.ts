@@ -97,6 +97,7 @@ test.describe('MC / sim invalidation', () => {
 
     await page.getByRole('button', { name: /Templates/ }).click()
     await page.getByRole('menuitem', { name: 'Flowing equilibrium' }).click()
+    await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
 
     // graph replaced
     await expect(page.locator('.react-flow__node')).toHaveCount(7)
@@ -124,6 +125,7 @@ test.describe('MC / sim invalidation', () => {
 
     await page.getByRole('button', { name: /Templates/ }).click()
     await page.getByRole('menuitem', { name: 'Bottleneck deadlock' }).click()
+    await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
     await expect(page.locator('.react-flow__node')).toHaveCount(6)
 
     const m = await mc(page)
@@ -139,6 +141,7 @@ test.describe('MC / sim invalidation', () => {
 
     await page.getByRole('button', { name: /Templates/ }).click()
     await page.getByRole('menuitem', { name: 'Flowing equilibrium' }).click()
+    await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
     await expect(page.locator('.react-flow__node')).toHaveCount(7)
 
     const s = await simSnapshot(page)

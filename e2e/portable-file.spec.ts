@@ -90,11 +90,11 @@ async function exportJsonText(page: Page): Promise<string> {
   return json!.text
 }
 
-/** toolbar `Export ▾` → `Workspace JSON` (accepts the summary confirm) */
+/** toolbar `Export ▾` → `Workspace JSON` (accepts the in-app summary dialog) */
 async function exportWorkspaceText(page: Page): Promise<string> {
-  page.once('dialog', (d) => d.accept().catch(() => {}))
   await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
   await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Workspace JSON' }).click()
+  await page.locator('.mcdlg--confirm').getByRole('button', { name: /save workspace/i }).click()
   const exports = await capturedExports(page)
   const ws = exports.findLast((e) => e.name === 'loop-studio-workspace.json')
   expect(ws, 'a workspace export was captured on file://').toBeTruthy()

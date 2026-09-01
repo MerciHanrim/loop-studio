@@ -17,16 +17,8 @@ import { downloadText } from './download'
 
 const mib = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
 
-export const PROJECT_REVISION_DISCLOSURE =
-  'Export a Project revision?\n\n' +
-  'The file is a normal Graph JSON that also carries a project identity and ' +
-  "this revision's lineage, so a collaborator can diff and apply your changes " +
-  'entirely offline. No account and no server — everything travels in the file.'
-
-export const AUTHOR_DISCLOSURE =
-  'This name is stored only on this device. It is attached — unverified — to ' +
-  'every Project revision and proposal you export and travels inside the file ' +
-  'you send. Anyone can edit it; treat it as a label, not an identity.'
+// The Project-revision disclosure and the author-info disclosure are now
+// in-app dialog copy, keyed in the i18n catalog (docs/localization.md Slice 2b).
 
 export type ExportStatus = { ok: true } | { ok: false; message: string }
 

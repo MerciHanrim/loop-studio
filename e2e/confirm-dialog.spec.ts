@@ -47,6 +47,8 @@ const snapshot = (page: Page) =>
       values: JSON.stringify(s.values),
       hash: location.hash,
       href: location.href,
+      project: JSON.stringify(l.project?.getState?.().open ?? null),
+      nodes: g.nodes.length,
     }
   })
 
@@ -130,4 +132,48 @@ test('double-clicking Confirm runs the effect once', async ({ page }) => {
   await expect(page.locator('.share-pop')).toBeVisible()
   // exactly one clipboard write — the second click hit a closed dialog / busy guard
   expect(await clip(page)).toHaveLength(1)
+})
+
+// docs/localization.md Slice 2b — one E2E per destructive flow proving nothing
+// runs before Confirm (Lumi's 2b-2 acceptance condition).
+const exportItem = (page: Page, name: RegExp) =>
+  page.locator('.toolbar__actions .menu__pop .menu__item').filter({ has: page.locator('.menu__name', { hasText: name }) })
+
+test('Templates replace: Cancel loads nothing (no graph change, no rev bump)', async ({ page }) => {
+  const before = await snapshot(page)
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu__pop .menu__item').first().click()
+  await expect(dlg(page)).toBeVisible()
+  expect(await snapshot(page)).toEqual(before) // dialog OPEN — still nothing loaded
+  await dlg(page).getByRole('button', { name: /^cancel$/i }).click()
+  await expect(dlg(page)).toHaveCount(0)
+  expect(await snapshot(page)).toEqual(before)
+})
+
+test('Export Project revision: Cancel writes no file and no project header', async ({ page }) => {
+  const before = await snapshot(page)
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Export ▾$/ }).click()
+  const dl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
+  await exportItem(page, /Project revision/).click()
+  await expect(dlg(page)).toBeVisible()
+  await dlg(page).getByRole('button', { name: /^cancel$/i }).click()
+  await expect(dlg(page)).toHaveCount(0)
+  expect(await dl).toBeNull() // no download
+  expect(await snapshot(page)).toEqual(before) // no exportProjectRevision side effect
+})
+
+test('Export Workspace JSON: Cancel writes no file', async ({ page }) => {
+  await page.evaluate(() => {
+    const s = (window as any).__loop.sim.getState()
+    s.advance()
+    s.advance()
+  })
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Export ▾$/ }).click()
+  const dl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
+  await exportItem(page, /Workspace JSON/).click()
+  await expect(dlg(page)).toBeVisible()
+  await expect(dlg(page)).toContainText(/save this workspace/i)
+  await dlg(page).getByRole('button', { name: /^cancel$/i }).click()
+  await expect(dlg(page)).toHaveCount(0)
+  expect(await dl).toBeNull()
 })

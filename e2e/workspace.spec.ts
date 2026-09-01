@@ -21,12 +21,28 @@ function autoAcceptDialogs(page: Page) {
   })
 }
 
-/** open Export ▾ and click one of its items; returns the resulting download (or
- *  null if none fired). The caller sets the dialog policy. */
-async function exportVia(page: Page, item: RegExp | string) {
+/** open Export ▾ and click one of its items; answer the in-app summary dialog
+ *  (Slice 2b — Workspace JSON / Project revision confirm via ConfirmDialog) and
+ *  return the resulting download (or null if none fired). */
+async function exportVia(
+  page: Page,
+  item: RegExp | string,
+  choice: 'accept' | 'cancel' | 'omit' | null = 'accept',
+) {
   await exportBtn(page).click()
   const wait = page.waitForEvent('download', { timeout: 3000 }).catch(() => null)
   await exportItem(page, item).click()
+  const dlg = page.locator('.mcdlg--confirm')
+  if (choice && (await dlg.isVisible().catch(() => false))) {
+    const name =
+      choice === 'cancel'
+        ? /^cancel$/i
+        : choice === 'omit'
+          ? /save without it/i
+          : /save workspace|export revision/i
+    await dlg.getByRole('button', { name }).click()
+    await expect(dlg).toHaveCount(0)
+  }
   return wait
 }
 
@@ -99,10 +115,9 @@ test.describe('Export ▾ — Graph JSON vs Workspace JSON', () => {
   })
 
   test('the summary confirm can be cancelled — 0 downloads, 0 state change', async ({ page }) => {
-    page.on('dialog', (d) => d.dismiss().catch(() => {}))
     const before = await state(page)
-    const dl = await exportVia(page, 'Workspace JSON')
-    expect(dl).toBeNull() // dialog dismissed ⇒ no download
+    const dl = await exportVia(page, 'Workspace JSON', 'cancel')
+    expect(dl).toBeNull() // dialog cancelled ⇒ no download
     expect(await state(page)).toEqual(before)
   })
 
@@ -143,7 +158,7 @@ test.describe('§W4 size prompts (dev cap)', () => {
       const plan = (window as unknown as Bridge).__loop.io.planWorkspaceExport({ x: 0, y: 0, zoom: 1 }) as any
       ;(window as any).__workspaceMaxBytes = Math.floor((plan.full.bytes + plan.lean.bytes) / 2)
     })
-    const dl = await exportVia(page, 'Workspace JSON') // dialog accepted ⇒ save without result
+    const dl = await exportVia(page, 'Workspace JSON', 'omit') // "Save without it"
     expect(dl).toBeTruthy()
     const ws = JSON.parse(await textOf(dl!)).workspace
     expect(ws.mc.resultOmitted).toBe('size-limit')

@@ -22,11 +22,23 @@ const exportItem = (page: Page, name: RegExp | string) =>
     .locator('.toolbar__actions .menu__pop .menu__item')
     .filter({ has: page.locator('.menu__name', { hasText: name }) })
 
-/** open Export ▾, click an item, return the download it produced (or null). */
-async function exportVia(page: Page, item: RegExp | string): Promise<Download | null> {
+/** open Export ▾, click an item, answer the in-app disclosure dialog if it
+ *  appears (Slice 2b — Project revision now discloses via ConfirmDialog), and
+ *  return the download it produced (or null). */
+async function exportVia(
+  page: Page,
+  item: RegExp | string,
+  choice: 'accept' | 'cancel' | null = 'accept',
+): Promise<Download | null> {
   await exportBtn(page).click()
   const wait = page.waitForEvent('download', { timeout: 3000 }).catch(() => null)
   await exportItem(page, item).click()
+  const dlg = page.locator('.mcdlg--confirm')
+  if (choice && (await dlg.isVisible().catch(() => false))) {
+    const name = choice === 'cancel' ? /^cancel$/i : /export revision|save workspace/i
+    await dlg.getByRole('button', { name }).click()
+    await expect(dlg).toHaveCount(0)
+  }
   return wait
 }
 

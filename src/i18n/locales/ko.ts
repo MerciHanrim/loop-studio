@@ -309,6 +309,72 @@ const ko = {
   'rf.node.a11yKeyboard':
     'Enter나 Space로 이 노드를 선택한 뒤 화살표 키로 이동합니다. Delete로 제거, Escape로 취소합니다.',
   'rf.edge.a11y': 'Enter나 Space로 이 연결을 선택합니다. Delete로 제거, Escape로 취소합니다.',
+
+  // ═══ Slice 2b-2a — 템플릿 · 내보내기/워크스페이스 · 작성자 dialog ═══════
+
+  // ── 모바일 더 보기 시트 행 ──
+  'mobile.more.import': '파일 가져오기',
+  'mobile.more.importSub': 'Graph 또는 Workspace JSON',
+
+  // ── 템플릿 선택 ──────────────────────────────────────────────────────
+  'templates.button': '템플릿 ▾',
+  'templates.menuLabel': '템플릿',
+  'templates.equilibrium.name': '균형 잡힌 흐름',
+  'templates.equilibrium.blurb':
+    '소스가 보관함을 채우고, 게이트가 2:1로 정제기와 드레인에 나눠 보내며, 두 번째 드레인이 제품을 빼냅니다. 정상 상태(보관함 3, 제품 1)로 수렴합니다.',
+  'templates.deadlock.name': '병목 교착',
+  'templates.deadlock.blurb':
+    '같은 시스템에서 제품 풀에 출구가 없는 경우. 용량까지 차오르면 게이트가 멈추고 보관함이 역류하며 소스가 0으로 조여집니다 — 안정적으로 얼어붙은 상태.',
+  'templates.replace.title': '현재 다이어그램을 교체할까요?',
+  'templates.replace.body': '“{name}”을(를) 불러오면 지금 캔버스에 있는 내용이 대체됩니다.',
+  'templates.replace.confirm': '템플릿 불러오기',
+
+  // ── 내보내기 메뉴 (§W8) ──
+  'export.button': '내보내기 ▾',
+  'export.menuLabel': '내보내기',
+  'export.graphJson.name': 'Graph JSON',
+  'export.graphJson.blurb': '다이어그램 + 권장 실행 설정',
+  'export.workspaceJson.name': 'Workspace JSON',
+  'export.workspaceJson.blurb': '그래프 + 분포 + 보기 + 실시간 실행',
+  'export.projectRevision.name': 'Project revision',
+  'export.projectRevision.blurb': '다이어그램 + 프로젝트 id·계보, 오프라인 협업용',
+  'export.proposal.name': '제안 만들기',
+  'export.proposal.blurb': '편집해서 돌려보낼 사본',
+  'export.proposal.needRevision': '먼저 Project revision을 내보내세요',
+  'export.author.name': '내보내기 작성자…',
+  'export.author.blurb': '기기 로컬 이름표를 파일에 검증 없이 첨부',
+
+  // ── Project revision 고지 → ConfirmDialog (SEMANTICS-R.md §R2.1) ──
+  'export.projectRevision.disclosure.title': 'Project revision을 내보낼까요?',
+  'export.projectRevision.disclosure.body':
+    '이 파일은 일반 Graph JSON에 프로젝트 식별자와 이 리비전의 계보를 함께 담아, 협업자가 완전히 오프라인에서 변경을 비교하고 적용할 수 있게 합니다. 계정도 서버도 없이 모든 것이 파일 안에서 이동합니다.',
+  'export.projectRevision.disclosure.confirm': '리비전 내보내기',
+
+  // ── Workspace JSON 요약 → ConfirmDialog (§W4) ──
+  'export.workspace.title': '이 워크스페이스를 저장할까요?',
+  'export.workspace.included': '포함: {items}.',
+  'export.workspace.excluded': '미포함: 실행 취소 기록, 선택, 테마.',
+  'export.workspace.confirm': '워크스페이스 저장',
+  'export.workspace.item.runConfig': '실행 설정',
+  'export.workspace.item.distribution': '{runs}회 실행 분포',
+  'export.workspace.item.timeline': '타임라인 보기',
+  'export.workspace.item.canvas': '캔버스 위치',
+  'export.workspace.item.liveRun': '{step}단계의 실시간 실행',
+  'export.workspace.omit.body':
+    '분포를 포함하면 {full}이(가) 되어 {limit} 한도를 넘습니다. 분포 없이 저장할까요 ({lean})?',
+  'export.workspace.omit.confirm': '분포 없이 저장',
+  'export.workspace.reject':
+    '이 워크스페이스는 {size}로, 분포를 빼도 {limit} 한도를 넘습니다. 그래프를 줄이거나 Graph JSON을 사용하세요.',
+
+  // ── 내보내기 작성자 dialog (SEMANTICS-R.md §R8) ──
+  'author.title': '내보내기 작성자',
+  'author.name': '이름',
+  'author.namePlaceholder': '예: Alex',
+  'author.note': '메모 (선택)',
+  'author.notePlaceholder': '파일과 함께 이동하는 짧은 메시지',
+  'author.disclosure':
+    '이 이름은 이 기기에만 저장됩니다. 내보내는 모든 Project revision과 제안에 검증 없이 첨부되어 보내는 파일 안에서 함께 이동하므로, 받는 사람 누구나 읽을 수 있습니다. 누구나 편집할 수 있으니 신원이 아니라 이름표로 여기세요.',
+  'author.save': '저장',
 } satisfies MessageCatalog
 
 export default ko

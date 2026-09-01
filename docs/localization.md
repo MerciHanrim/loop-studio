@@ -663,10 +663,19 @@ Split into two PRs (size / review):
 > and the Export **project-revision** disclosure. `routeImport` warning strings
 > stay English for now (no `{code}` — a later pass).
 >
-> **2b-2** — Templates (name / blurb keying + its replace-confirm → dialog),
-> Export / Workspace menus + the project-revision disclosure → dialog,
-> `ReviewOverlay`, `MonteCarloDialog`, `AuthorDialog`, and the remaining mobile
-> More-sheet rows.
+> **2b-2a (`feat/i18n-slice2b2`) — implemented.** Templates (button + the two
+> template names / blurbs, keyed by `id` in `templateKeys.ts`; the replace
+> confirm → `ConfirmDialog`, `loadGraph` only from Confirm), the whole Export
+> menu (items + blurbs), the **Project-revision disclosure** and the
+> **Workspace-JSON summary** (all three `confirm` branches — save / omit /
+> reject; the download runs inside the Confirm click, the reject stays a keyed
+> native `alert`), `AuthorDialog`, and the mobile More-sheet rows +
+> Templates / Export sheets. `PROJECT_REVISION_DISCLOSURE` /
+> `AUTHOR_DISCLOSURE` consts removed. One E2E per destructive flow proves
+> nothing runs before Confirm (`confirm-dialog.spec.ts`).
+>
+> **2b-2b** — `ReviewOverlay`, `MonteCarloDialog` (already in-app dialogs —
+> string localization only), and any remaining empty / error states.
 
 **Slice 3 — acceptance validation.** The **full string inventory** reconciled
 (every surface accounted for); the **KO / EN × desktop / mobile visual matrix**

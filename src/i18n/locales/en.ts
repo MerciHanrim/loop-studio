@@ -343,6 +343,72 @@ const en = {
     'Press Enter or Space to select this node, then the arrow keys to move it. Press Delete to remove it, Escape to cancel.',
   'rf.edge.a11y':
     'Press Enter or Space to select this connection. Press Delete to remove it, Escape to cancel.',
+
+  // ═══ Slice 2b-2a — Templates · Export / Workspace · Author dialog ═══════
+
+  // ── Mobile More sheet rows ───────────────────────────────────────────
+  'mobile.more.import': 'Import file',
+  'mobile.more.importSub': 'Graph or Workspace JSON',
+
+  // ── Templates picker ──────────────────────────────────────────────────
+  'templates.button': 'Templates ▾',
+  'templates.menuLabel': 'Templates',
+  'templates.equilibrium.name': 'Flowing equilibrium',
+  'templates.equilibrium.blurb':
+    'Source feeds a vault, a gate splits 2:1 into a refiner and a drain, and a second drain bleeds the product. Settles to a steady state (Vault 3, Product 1).',
+  'templates.deadlock.name': 'Bottleneck deadlock',
+  'templates.deadlock.blurb':
+    'The same system with no outlet on the product pool. It fills to capacity, the gate stalls, the vault backs up, and the source is throttled to zero — a stable frozen state.',
+  'templates.replace.title': 'Replace the current diagram?',
+  'templates.replace.body': 'Loading “{name}” replaces what is on the canvas now.',
+  'templates.replace.confirm': 'Load template',
+
+  // ── Export menu (§W8) ────────────────────────────────────────────────
+  'export.button': 'Export ▾',
+  'export.menuLabel': 'Export',
+  'export.graphJson.name': 'Graph JSON',
+  'export.graphJson.blurb': 'the diagram + recommended run settings',
+  'export.workspaceJson.name': 'Workspace JSON',
+  'export.workspaceJson.blurb': 'graph + distribution + view + the live run',
+  'export.projectRevision.name': 'Project revision',
+  'export.projectRevision.blurb': 'diagram + project id & lineage, for offline collaboration',
+  'export.proposal.name': 'Make a proposal',
+  'export.proposal.blurb': 'a copy to edit and send back for review',
+  'export.proposal.needRevision': 'Export a Project revision first',
+  'export.author.name': 'Author for exports…',
+  'export.author.blurb': 'device-local label attached, unverified, to the file',
+
+  // ── Project-revision disclosure → ConfirmDialog (SEMANTICS-R.md §R2.1) ──
+  'export.projectRevision.disclosure.title': 'Export a Project revision?',
+  'export.projectRevision.disclosure.body':
+    'The file is a normal Graph JSON that also carries a project identity and this revision’s lineage, so a collaborator can diff and apply your changes entirely offline. No account and no server — everything travels in the file.',
+  'export.projectRevision.disclosure.confirm': 'Export revision',
+
+  // ── Workspace-JSON summary → ConfirmDialog (§W4) ─────────────────────
+  'export.workspace.title': 'Save this workspace?',
+  'export.workspace.included': 'Includes: {items}.',
+  'export.workspace.excluded': 'Not included: undo history, selection, theme.',
+  'export.workspace.confirm': 'Save workspace',
+  'export.workspace.item.runConfig': 'run config',
+  'export.workspace.item.distribution': 'the {runs}-run distribution',
+  'export.workspace.item.timeline': 'the timeline view',
+  'export.workspace.item.canvas': 'the canvas position',
+  'export.workspace.item.liveRun': 'the live run at step {step}',
+  'export.workspace.omit.body':
+    'The distribution makes this {full} — over the {limit} limit. Save without the distribution ({lean})?',
+  'export.workspace.omit.confirm': 'Save without it',
+  'export.workspace.reject':
+    'This workspace is {size} — over the {limit} limit even without the distribution. Trim the graph, or use Graph JSON.',
+
+  // ── Author-for-exports dialog (SEMANTICS-R.md §R8) ──────────────────
+  'author.title': 'Author for exports',
+  'author.name': 'Name',
+  'author.namePlaceholder': 'e.g. Alex',
+  'author.note': 'Note (optional)',
+  'author.notePlaceholder': 'a short message that travels with the file',
+  'author.disclosure':
+    'This name is stored only on this device. It is attached — unverified — to every Project revision and proposal you export and travels inside the file you send. Anyone can edit it; treat it as a label, not an identity.',
+  'author.save': 'Save',
 } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */
