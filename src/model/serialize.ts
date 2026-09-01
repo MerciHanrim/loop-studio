@@ -20,6 +20,17 @@ export type RecommendedRunConfig = {
   steps?: number
   /** Pool ids to track; `[]` means every Pool. Filtered to the loaded graph. */
   tracked?: string[]
+  /**
+   * Advisory Timeline display default: the series shown when the document is
+   * opened — Pool **and** Register ids, sorted. Absent ⇒ every series is shown
+   * (unchanged behaviour). Distinct from `tracked` (that is Monte-Carlo).
+   *
+   * A pure display preference: applied on document / template / Workspace /
+   * Share / revision load, and written back by every graph Export, but NEVER
+   * part of the GraphDoc proper, the `loop-revision/*` digest, undo, or
+   * `simulationRev`. Unknown / deleted ids are ignored, not an error.
+   */
+  timelineSeries?: string[]
 }
 
 export type GraphDoc = {

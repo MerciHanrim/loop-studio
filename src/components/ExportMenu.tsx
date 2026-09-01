@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { WORKSPACE_MAX_BYTES } from '../model/workspace'
 import { useGraphStore } from '../store/graphStore'
-import { useMcStore } from '../store/mcStore'
+import { recommendedRunConfigForExport, useMcStore } from '../store/mcStore'
 import { useProjectStore } from '../store/projectStore'
 import { useSimStore } from '../store/simStore'
 import {
@@ -64,7 +64,7 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
   }, [open])
 
   const graphJSON = () => {
-    download(exportJSON({ ...useMcStore.getState().config }), 'loop-studio-graph.json')
+    download(exportJSON(recommendedRunConfigForExport()), 'loop-studio-graph.json')
     setOpen(false)
   }
 

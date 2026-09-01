@@ -150,6 +150,34 @@ describe('canonical content & digest (§R4 / R14.3)', () => {
     expect(d.runConfig).toEqual([{ kind: 'changed', key: 'runs', base: 200, proposed: 500 }])
     expect(d.summary.runConfigChanged).toBe(true)
   })
+
+  it('timelineSeries (a Timeline display preference) is invisible to the digest and the diff', async () => {
+    const plain = doc([pool('p1')], [], { baseSeed: 1, runs: 200, steps: 30, tracked: ['p1'] })
+    const withTs = doc([pool('p1')], [], {
+      baseSeed: 1,
+      runs: 200,
+      steps: 30,
+      tracked: ['p1'],
+      timelineSeries: ['p1', 'ghost-register'],
+    })
+    // same digest — `projectRunConfig` never lets `timelineSeries` into the canonical form
+    expect(await fullContentDigest(withTs)).toBe(await fullContentDigest(plain))
+    // and a proposal never reports it as a run-config change
+    const d = computeRevisionDiff(canonicalContent(plain), canonicalContent(withTs))
+    expect(d.runConfig).toEqual([])
+    expect(d.summary.empty).toBe(true)
+    // even a *changed* timelineSeries is not a diff
+    const withTs2 = doc([pool('p1')], [], {
+      baseSeed: 1,
+      runs: 200,
+      steps: 30,
+      tracked: ['p1'],
+      timelineSeries: ['p1'],
+    })
+    expect(
+      computeRevisionDiff(canonicalContent(withTs), canonicalContent(withTs2)).runConfig,
+    ).toEqual([])
+  })
 })
 
 // ── deterministic diff ─────────────────────────────────────────────────────

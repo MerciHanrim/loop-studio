@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGraphStore } from '../store/graphStore'
-import { useMcStore } from '../store/mcStore'
+import { recommendedRunConfigForExport } from '../store/mcStore'
 import { prepareShareLink, shareKb } from '../ui/shareAction'
 import { useT } from '../i18n'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -51,7 +51,7 @@ export function ShareButton() {
     if (busy) return
     setBusy(true)
     try {
-      const doc = exportJSON({ ...useMcStore.getState().config })
+      const doc = exportJSON(recommendedRunConfigForExport())
       const result = await prepareShareLink(doc)
 
       if (result.status === 'too-large') {

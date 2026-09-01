@@ -75,8 +75,12 @@ type SimStore = {
 
   series: { step: number; values: SimValues }[]
 
-  /** which pools the timeline plots — 'all' or an explicit id list */
-  trackedIds: 'all' | string[]
+  /** which series the timeline plots by default — 'all' or an explicit id list
+   *  of Pool AND Register ids. Applied from `recommendedRunConfig.timelineSeries`
+   *  on document / template load; a legend toggle updates it in place. UI-only —
+   *  never in the GraphDoc, the loop-revision/* digest, undo, or `simulationRev`,
+   *  and distinct from the Monte-Carlo `tracked` list. */
+  timelineSeries: 'all' | string[]
 
   // ── playback state machine (docs/simulation-playback.md) ──────────────
   /** monotonic, session-scoped; bumped on every committed-state replacement
@@ -115,7 +119,14 @@ type SimStore = {
   restoreSnapshot: (snap: SimSnapshot) => void
   setSpeed: (ms: number) => void
   setSeed: (seed: number) => void
-  toggleTracked: (id: string, allPoolIds: string[]) => void
+  /** flip one Pool or Register in the default visible set; collapses back to
+   *  'all' when every series is on again. A legend action only — no GraphDoc /
+   *  undo / digest effect. */
+  toggleTimelineSeries: (id: string, allSeriesIds: string[]) => void
+  /** set the default visible series from a file's
+   *  `recommendedRunConfig.timelineSeries` (undefined / empty ⇒ 'all'). Sorted +
+   *  de-duped; unknown ids are kept verbatim and simply not drawn. */
+  setTimelineSeries: (ids: readonly string[] | undefined) => void
 
   /** §PB2.7 — PURE: compute the next step; commit nothing, mint no id, move no
    *  counter. Repeat calls return a fully-identical result. */
@@ -404,7 +415,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     stateEvents: [],
     arrivedPoolIds: [],
     series: [],
-    trackedIds: 'all',
+    timelineSeries: 'all',
     commitEpoch: 0,
     transition: null,
     activeTransitionId: null,
@@ -506,15 +517,24 @@ export const useSimStore = create<SimStore>((set, get) => {
       get().reset()
     },
 
-    toggleTracked: (id, allPoolIds) => {
-      const cur = get().trackedIds
-      const list = cur === 'all' ? allPoolIds.slice() : cur.slice()
+    toggleTimelineSeries: (id, allSeriesIds) => {
+      const cur = get().timelineSeries
+      const list = cur === 'all' ? allSeriesIds.slice() : cur.slice()
       const i = list.indexOf(id)
       if (i >= 0) list.splice(i, 1)
       else list.push(id)
-      // back to 'all' when every pool is selected again
-      const isAll = allPoolIds.length > 0 && allPoolIds.every((p) => list.includes(p))
-      set({ trackedIds: isAll ? 'all' : list })
+      // back to 'all' when every series is selected again
+      const isAll = allSeriesIds.length > 0 && allSeriesIds.every((s) => list.includes(s))
+      set({ timelineSeries: isAll ? 'all' : [...list].sort() })
+    },
+
+    setTimelineSeries: (ids) => {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        set({ timelineSeries: 'all' })
+        return
+      }
+      const uniq = [...new Set(ids.filter((s): s is string => typeof s === 'string'))].sort()
+      set({ timelineSeries: uniq.length > 0 ? uniq : 'all' })
     },
   }
 })
