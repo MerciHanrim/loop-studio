@@ -169,6 +169,17 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await expect(chip).toHaveAccessibleName('소스')
   })
 
+  test('the Toolbar height is identical in EN and KO (CJK metrics are capped)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const h = () =>
+      page.evaluate(() => Math.round(document.querySelector('.toolbar')!.getBoundingClientRect().height * 100) / 100)
+    const en = await h()
+    await pickLocale(page, 'ko')
+    expect(await h()).toBe(en)
+    await pickLocale(page, 'en') // leave the session in EN for the next spec
+  })
+
   test('showing a palette tip (hover / focus) moves no Toolbar height, viewport, node box, or edge d', async ({
     page,
   }) => {
