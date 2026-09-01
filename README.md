@@ -384,6 +384,12 @@ engine + UI.
 
 ## Credits
 
-By Hanrim · [Cozy Shelter](https://cozyshelter.tistory.com). Not affiliated with
-Machinations.io. The diagram notation and execution model derive from the
-publicly documented academic work, not from Machinations' software.
+Created by Hanrim · [Cozy Shelter](https://cozyshelter.tistory.com/).
+
+Loop Studio is an independent project and is not affiliated with or
+endorsed by Machinations.io. Its modeling approach is informed by
+publicly documented academic work on game-economy diagrams.
+
+## Copyright
+
+Copyright © 2026 Hanrim. All rights reserved.
