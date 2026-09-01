@@ -113,15 +113,5 @@ export function reviewModel(p: PendingProposal): ReviewModel {
   }
 }
 
-/** §R7A.4 — the loss statement for a non-`exact` whole apply. */
-export function confirmationText(m: ReviewModel): string {
-  const rel =
-    m.classification === 'unknown'
-      ? ", and their relationship can't be determined from the files"
-      : ''
-  return (
-    `This proposal was made from an earlier revision${rel}. Applying the whole ` +
-    `proposal replaces your graph with its version — your changes since then are ` +
-    `lost. Undo reverts it.`
-  )
-}
+// §R7A.4 — the loss statement for a non-`exact` whole apply is now the keyed
+// `review.confirm.default` / `review.confirm.unknown` (rendered in ReviewOverlay).

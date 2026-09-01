@@ -409,6 +409,100 @@ const en = {
   'author.disclosure':
     'This name is stored only on this device. It is attached — unverified — to every Project revision and proposal you export and travels inside the file you send. Anyone can edit it; treat it as a label, not an identity.',
   'author.save': 'Save',
+
+  // ═══ Slice 2b-2b — Monte Carlo dialog · Review proposal ════════════════
+  // Only the UI chrome (titles / buttons / descriptions / empty states / a11y
+  // names). Diff hunk contents, field values, stats, and revision ids are shown
+  // verbatim.
+
+  // ── Monte Carlo setup dialog ─────────────────────────────────────────
+  'mc.title': 'Monte Carlo',
+  'mc.close': 'Close',
+  'mc.closeKeepRunning': 'Close (keep running)',
+  'mc.field.runs': 'runs',
+  'mc.field.steps': 'steps',
+  'mc.field.baseSeed': 'base seed',
+  'mc.pools.head': 'tracked pools',
+  'mc.pools.headAll': 'tracked · all pools',
+  'mc.pools.headSome': 'tracked · {n} of {total}',
+  'mc.pools.selectAll': 'Select all',
+  'mc.pools.none': 'No Pools in the graph — add one to run.',
+  'mc.pools.group': 'Tracked Pools',
+  'mc.pools.keepOne': 'At least one Pool must stay tracked.',
+  'mc.cost.estimating': 'estimating…',
+  'mc.cost.measured': 'Measured (last run)',
+  'mc.cost.benchmark': 'Local benchmark',
+  'mc.cost.execution': 'Execution',
+  'mc.cost.parallel': 'Parallel, {workers} workers',
+  'mc.cost.localPause': 'Local · may briefly pause',
+  'mc.cost.local': 'Local',
+  'mc.cost.memory': 'Memory',
+  'mc.cost.overLimit': ' — over the limit, reduce runs / steps',
+  'mc.run': 'Run {runs} runs',
+  'mc.cancel': 'Cancel',
+
+  // ── Review proposal (SEMANTICS-R.md §R7 / §R7A / §R10.5) ────────────
+  'review.title': 'Review proposal',
+  'review.close': 'Close',
+  'review.byPrefix': 'Proposed by',
+  'review.byAnon': 'Proposal',
+  'review.unverified': '· unverified',
+  'review.fileSays': 'file says: {stamp}',
+  'review.differentProject': 'Different project id from the one you have open.',
+  'review.diff.none': 'No graph changes.',
+  'review.diff.nodes': 'Nodes',
+  'review.diff.edges': 'Edges',
+  'review.diff.runConfig': 'run config',
+  'review.gate.wrongProject':
+    'This proposal belongs to a different project. You can still open it as a document.',
+  'review.gate.noTarget': 'No project is open. Open this proposal as a document, or cancel.',
+  'review.gate.targetIsProposal':
+    'You currently have a proposal open. Export it as a Project revision before applying another proposal onto it.',
+  'review.class.exact': 'Your open revision is exactly the base this proposal was made from.',
+  'review.class.divergent':
+    'Your open revision has changes that overlap this proposal. Applying the whole proposal discards them.',
+  'review.class.unknown':
+    "Your open revision has changes and the files can't prove how the two are related. No field conflicts were found.",
+  'review.confirm.default':
+    'This proposal was made from an earlier revision. Applying the whole proposal replaces your graph with its version — your changes since then are lost. Undo reverts it.',
+  'review.confirm.unknown':
+    "This proposal was made from an earlier revision, and their relationship can't be determined from the files. Applying the whole proposal replaces your graph with its version — your changes since then are lost. Undo reverts it.",
+  'review.err.targetMoved':
+    'The document changed since you confirmed — review the change and apply again.',
+  'review.err.targetMovedList':
+    'The document changed while you were choosing — the list below is updated. Review and apply again.',
+  'review.err.noEffect': "Those choices don't change anything — nothing to apply.",
+  'review.err.generic': 'Could not apply ({reason}).',
+  'review.fail.wrongProject': 'This proposal is for a different project.',
+  'review.fail.noTarget': 'No project is open to apply onto.',
+  'review.fail.targetIsProposal': 'Export the open proposal as a Project revision first.',
+  'review.fail.payloadInvalid': 'This proposal file failed its integrity check — re-import it.',
+  'review.fail.invalidSelection':
+    "That selection can't be applied — an accepted edge needs a node you didn't include. Adjust the choices and try again.",
+  'review.hunk.add': 'Add',
+  'review.hunk.remove': 'Remove',
+  'review.hunk.change': 'Change',
+  'review.hunk.bothChanged': ' · both sides changed this',
+  'review.hunk.youDeleted': ' · you deleted this',
+  'review.hunk.alsoRemove': 'also remove or retarget edge',
+  'review.hunk.cantRemove': "can't remove — yours added edge",
+  'review.hunk.toThisNode': 'to this node',
+  'review.field.base': 'base',
+  'review.field.yours': 'yours',
+  'review.field.theirs': 'theirs',
+  'review.field.takeTheirs': 'take theirs',
+  'review.field.keepMine': 'keep mine',
+  'review.action.applyAnyway': 'Apply anyway',
+  'review.action.applyProposal': 'Apply proposal',
+  'review.action.applySelected': 'Apply {count} selected',
+  'review.action.chooseChanges': 'Choose changes',
+  'review.action.wholeProposal': 'Whole proposal',
+  'review.action.openAsDoc': 'Open as a document',
+  'review.action.cancel': 'Cancel',
+  'review.foot.hunks':
+    'Applies the target plus the changes you pick makes a new local revision (parent {parent}); one Undo reverts it. Nothing is written to a file.',
+  'review.foot.whole':
+    'Apply makes a new local revision (parent {parent}); one Undo reverts it. Nothing is written to a file.',
 } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */

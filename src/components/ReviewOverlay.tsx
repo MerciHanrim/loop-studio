@@ -12,8 +12,11 @@ import {
 } from '../store/revisionIO'
 import { useSimStore } from '../store/simStore'
 import { useIsMobile } from '../ui/media'
-import { confirmationText, reviewModel, type ReviewModel } from '../ui/revisionActions'
+import { reviewModel, type ReviewModel } from '../ui/revisionActions'
+import { useT, type MessageKey } from '../i18n'
 import { MobileSheet } from './mobile/MobileSheet'
+
+type TFn = ReturnType<typeof useT>
 
 // SEMANTICS-R.md §R7 / §R7A / §R10.5 — the non-destructive Review surface. The
 // desktop dialog and the mobile sheet render the SAME body and use the SAME
@@ -21,25 +24,23 @@ import { MobileSheet } from './mobile/MobileSheet'
 // this; nothing in the graph / sim / undo / project moves until Apply or "Open
 // as a document".
 
-const GATE_MSG: Record<Exclude<ReviewModel['gate'], 'ok'>, string> = {
-  'wrong-project': 'This proposal belongs to a different project. You can still open it as a document.',
-  'no-target': 'No project is open. Open this proposal as a document, or cancel.',
-  'target-is-proposal':
-    'You currently have a proposal open. Export it as a Project revision before applying another proposal onto it.',
+const GATE_KEY: Record<Exclude<ReviewModel['gate'], 'ok'>, MessageKey> = {
+  'wrong-project': 'review.gate.wrongProject',
+  'no-target': 'review.gate.noTarget',
+  'target-is-proposal': 'review.gate.targetIsProposal',
 }
 
-const CLASS_MSG: Record<NonNullable<ReviewModel['classification']>, string> = {
-  exact: 'Your open revision is exactly the base this proposal was made from.',
-  divergent:
-    'Your open revision has changes that overlap this proposal. Applying the whole proposal discards them.',
-  unknown:
-    "Your open revision has changes and the files can't prove how the two are related. No field conflicts were found.",
+const CLASS_KEY: Record<NonNullable<ReviewModel['classification']>, MessageKey> = {
+  exact: 'review.class.exact',
+  divergent: 'review.class.divergent',
+  unknown: 'review.class.unknown',
 }
 
 function DiffSummary({ m }: { m: ReviewModel }) {
+  const t = useT()
   const n = m.diff.summary.nodes
   const e = m.diff.summary.edges
-  if (m.diff.summary.empty) return <p className="review__diff">No graph changes.</p>
+  if (m.diff.summary.empty) return <p className="review__diff">{t('review.diff.none')}</p>
   const part = (label: string, s: { added: number; removed: number; changed: number }) =>
     s.added || s.removed || s.changed ? (
       <span className="review__diff-part">
@@ -50,9 +51,11 @@ function DiffSummary({ m }: { m: ReviewModel }) {
     ) : null
   return (
     <p className="review__diff">
-      {part('Nodes', n)}
-      {part('Edges', e)}
-      {m.diff.summary.runConfigChanged ? <span className="review__diff-part">run config</span> : null}
+      {part(t('review.diff.nodes'), n)}
+      {part(t('review.diff.edges'), e)}
+      {m.diff.summary.runConfigChanged ? (
+        <span className="review__diff-part">{t('review.diff.runConfig')}</span>
+      ) : null}
     </p>
   )
 }
@@ -134,6 +137,7 @@ function HunkRow({
   onToggleAccept: (id: string, v: boolean) => void
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
 }) {
+  const t = useT()
   if (h.kind !== 'change') {
     const blocked = !!h.blockedBy?.length
     return (
@@ -146,20 +150,22 @@ function HunkRow({
             onChange={(e) => onToggleAccept(h.id, e.target.checked)}
           />
           <span>
-            {h.kind === 'add' ? 'Add' : 'Remove'} {h.elementType} <code>{h.id}</code>
+            {h.kind === 'add' ? t('review.hunk.add') : t('review.hunk.remove')} {h.elementType}{' '}
+            <code>{h.id}</code>
             {h.verdict === 'conflict' && !blocked ? (
-              <span className="review__hunk-tag"> · both sides changed this</span>
+              <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span>
             ) : null}
           </span>
         </label>
         {h.dependents?.length ? (
           <div className="review__hunk-dep">
-            also remove or retarget edge {h.dependents.map((e) => <code key={e}>{e}</code>)}
+            {t('review.hunk.alsoRemove')} {h.dependents.map((e) => <code key={e}>{e}</code>)}
           </div>
         ) : null}
         {blocked ? (
           <div className="review__hunk-dep review__hunk-dep--blocked">
-            can’t remove — yours added edge {h.blockedBy!.map((e) => <code key={e}>{e}</code>)} to this node
+            {t('review.hunk.cantRemove')} {h.blockedBy!.map((e) => <code key={e}>{e}</code>)}{' '}
+            {t('review.hunk.toThisNode')}
           </div>
         ) : null}
       </div>
@@ -168,8 +174,10 @@ function HunkRow({
   return (
     <div>
       <div className="review__hunk-head">
-        Change {h.elementType} <code>{h.id}</code>
-        {h.yours === null ? <span className="review__hunk-tag"> · you deleted this</span> : null}
+        {t('review.hunk.change')} {h.elementType} <code>{h.id}</code>
+        {h.yours === null ? (
+          <span className="review__hunk-tag">{t('review.hunk.youDeleted')}</span>
+        ) : null}
       </div>
       <div className="review__fields">
         {(h.fields ?? [])
@@ -183,8 +191,9 @@ function HunkRow({
                 </span>
                 {f.verdict === 'conflict' ? (
                   <span className="review__field-vals">
-                    base <code>{shortVal(f.base)}</code> · yours <code>{shortVal(f.yours)}</code> · theirs{' '}
-                    <code>{shortVal(f.proposed)}</code>
+                    {t('review.field.base')} <code>{shortVal(f.base)}</code> ·{' '}
+                    {t('review.field.yours')} <code>{shortVal(f.yours)}</code> ·{' '}
+                    {t('review.field.theirs')} <code>{shortVal(f.proposed)}</code>
                   </span>
                 ) : (
                   <span className="review__field-vals">
@@ -199,7 +208,7 @@ function HunkRow({
                       checked={choice === 'proposed'}
                       onChange={() => onField(h.id, f.field, 'proposed')}
                     />
-                    take theirs
+                    {t('review.field.takeTheirs')}
                   </label>
                   <label>
                     <input
@@ -208,7 +217,7 @@ function HunkRow({
                       checked={choice === 'yours'}
                       onChange={() => onField(h.id, f.field, 'yours')}
                     />
-                    keep mine
+                    {t('review.field.keepMine')}
                   </label>
                 </span>
               </div>
@@ -219,19 +228,24 @@ function HunkRow({
   )
 }
 
-const FAIL_MSG: Record<
+const FAIL_KEY: Record<
   Exclude<ApplyFailReason, 'needs-confirmation' | 'target-moved' | 'no-effective-change'>,
-  string
+  MessageKey
 > = {
-  'wrong-project': 'This proposal is for a different project.',
-  'no-target': 'No project is open to apply onto.',
-  'target-is-proposal': 'Export the open proposal as a Project revision first.',
-  'payload-invalid': 'This proposal file failed its integrity check — re-import it.',
-  'invalid-selection':
-    'That selection can’t be applied — an accepted edge needs a node you didn’t include. Adjust the choices and try again.',
+  'wrong-project': 'review.fail.wrongProject',
+  'no-target': 'review.fail.noTarget',
+  'target-is-proposal': 'review.fail.targetIsProposal',
+  'payload-invalid': 'review.fail.payloadInvalid',
+  'invalid-selection': 'review.fail.invalidSelection',
+}
+
+/** the §R7A whole-proposal confirmation copy — was `confirmationText()` */
+function confirmText(t: TFn, m: ReviewModel): string {
+  return t(m.classification === 'unknown' ? 'review.confirm.unknown' : 'review.confirm.default')
 }
 
 export function ReviewOverlay() {
+  const t = useT()
   const pending = useReviewStore((s) => s.pending)
   const close = useReviewStore((s) => s.close)
   const isMobile = useIsMobile()
@@ -309,12 +323,16 @@ export function ReviewOverlay() {
       // arm (or re-arm) against the snapshot the store just evaluated
       setArmed({ cls: res.classification ?? 'divergent', digest: res.targetDigest ?? null })
       if (res.reason === 'target-moved') {
-        setErr('The document changed since you confirmed — review the change and apply again.')
+        setErr(t('review.err.targetMoved'))
       }
       return
     }
     setArmed(null)
-    setErr((FAIL_MSG as Record<string, string>)[res.reason] ?? `Could not apply (${res.reason}).`)
+    setErr(
+      res.reason in FAIL_KEY
+        ? t(FAIL_KEY[res.reason as keyof typeof FAIL_KEY])
+        : t('review.err.generic', { reason: res.reason }),
+    )
   }
 
   const doApplySelected = () => {
@@ -329,18 +347,24 @@ export function ReviewOverlay() {
     }
     if (res.reason === 'target-moved') {
       // planCtx/sel already re-seed from the fresh plan (deps below) — just say so
-      setErr('The document changed while you were choosing — the list below is updated. Review and apply again.')
+      setErr(t('review.err.targetMovedList'))
       return
     }
     if (res.reason === 'no-effective-change') {
-      setErr('Those choices don’t change anything — nothing to apply.')
+      setErr(t('review.err.noEffect'))
       return
     }
     if (res.reason === 'invalid-selection') {
-      setErr((res.reasons?.length ? res.reasons.join(' ') : res.detail) ?? FAIL_MSG['invalid-selection'])
+      // `res.reasons` / `res.detail` are structural specifics from the model
+      // layer (English) — kept verbatim; the generic phrasing is localized.
+      setErr((res.reasons?.length ? res.reasons.join(' ') : res.detail) ?? t('review.fail.invalidSelection'))
       return
     }
-    setErr(FAIL_MSG[res.reason as keyof typeof FAIL_MSG] ?? `Could not apply (${res.reason}).`)
+    setErr(
+      res.reason in FAIL_KEY
+        ? t(FAIL_KEY[res.reason as keyof typeof FAIL_KEY])
+        : t('review.err.generic', { reason: res.reason }),
+    )
   }
 
   const setField = (id: string, field: string, choice: 'proposed' | 'yours') =>
@@ -369,17 +393,19 @@ export function ReviewOverlay() {
       <p className="review__by">
         {model.authorName ? (
           <>
-            Proposed by <strong>{model.authorName}</strong>
+            {t('review.byPrefix')} <strong>{model.authorName}</strong>
           </>
         ) : (
-          'Proposal'
+          t('review.byAnon')
         )}{' '}
-        <span className="review__unverified">· unverified</span>
+        <span className="review__unverified">{t('review.unverified')}</span>
       </p>
       {model.authorNote ? <p className="review__note">“{model.authorNote}”</p> : null}
-      {model.createdAt ? <p className="review__stamp">file says: {model.createdAt}</p> : null}
+      {model.createdAt ? (
+        <p className="review__stamp">{t('review.fileSays', { stamp: model.createdAt })}</p>
+      ) : null}
       {!model.sameProject && model.gate !== 'no-target' ? (
-        <p className="review__stamp">Different project id from the one you have open.</p>
+        <p className="review__stamp">{t('review.differentProject')}</p>
       ) : null}
 
       <DiffSummary m={model} />
@@ -387,15 +413,15 @@ export function ReviewOverlay() {
       {model.gate === 'ok' ? (
         model.classification ? (
           <p className={`review__class review__class--${model.classification}`}>
-            {CLASS_MSG[model.classification]}
+            {t(CLASS_KEY[model.classification])}
           </p>
         ) : null
       ) : (
-        <p className="review__class review__class--blocked">{GATE_MSG[model.gate]}</p>
+        <p className="review__class review__class--blocked">{t(GATE_KEY[model.gate])}</p>
       )}
 
       {armed ? (
-        <p className="review__warn">{confirmationText({ ...model, classification: armed.cls })}</p>
+        <p className="review__warn">{confirmText(t, { ...model, classification: armed.cls })}</p>
       ) : null}
       {err ? <p className="review__warn">{err}</p> : null}
 
@@ -408,12 +434,12 @@ export function ReviewOverlay() {
       <div className="review__actions">
         {canApply && mode === 'whole' ? (
           <button type="button" className="btn btn--primary" onClick={doApply}>
-            {armed ? 'Apply anyway' : 'Apply proposal'}
+            {armed ? t('review.action.applyAnyway') : t('review.action.applyProposal')}
           </button>
         ) : null}
         {canApply && mode === 'hunks' ? (
           <button type="button" className="btn btn--primary" onClick={doApplySelected}>
-            Apply {selectionCount(sel)} selected
+            {t('review.action.applySelected', { count: selectionCount(sel) })}
           </button>
         ) : null}
         {canApply && !model.diff.summary.empty ? (
@@ -426,27 +452,27 @@ export function ReviewOverlay() {
               setMode((m) => (m === 'whole' ? 'hunks' : 'whole'))
             }}
           >
-            {mode === 'whole' ? 'Choose changes' : 'Whole proposal'}
+            {mode === 'whole' ? t('review.action.chooseChanges') : t('review.action.wholeProposal')}
           </button>
         ) : null}
         <button type="button" className="btn" onClick={doOpenDoc}>
-          Open as a document
+          {t('review.action.openAsDoc')}
         </button>
         <button type="button" className="btn btn--ghost" onClick={close}>
-          Cancel
+          {t('review.action.cancel')}
         </button>
       </div>
       <p className="review__foot">
-        {mode === 'hunks' ? 'Applies the target plus the changes you pick' : 'Apply'} makes a new
-        local revision (parent {openRev ? shortId(openRev) : '—'}); one Undo reverts it. Nothing is
-        written to a file.
+        {t(mode === 'hunks' ? 'review.foot.hunks' : 'review.foot.whole', {
+          parent: openRev ? shortId(openRev) : '—',
+        })}
       </p>
     </div>
   )
 
   if (isMobile) {
     return (
-      <MobileSheet title="Review proposal" onClose={close} className="sheet--review">
+      <MobileSheet title={t('review.title')} onClose={close} className="sheet--review">
         {body}
       </MobileSheet>
     )
@@ -458,12 +484,12 @@ export function ReviewOverlay() {
         ref={dialogRef}
         className="review"
         role="dialog"
-        aria-label="Review proposal"
+        aria-label={t('review.title')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="review__head">
-          <span className="review__title">Review proposal</span>
-          <button type="button" className="btn btn--icon" onClick={close} aria-label="Close">
+          <span className="review__title">{t('review.title')}</span>
+          <button type="button" className="btn btn--icon" onClick={close} aria-label={t('review.close')}>
             ✕
           </button>
         </div>

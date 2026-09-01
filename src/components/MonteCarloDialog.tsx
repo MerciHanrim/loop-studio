@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { estimateMonteCarloCost, type CostEstimate } from '../engine'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
+import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 
 // P2 — Monte-Carlo setup. Opens from the simulation strip (an execution mode,
@@ -14,6 +15,7 @@ const fmtBytes = (b: number) =>
   b < 1e6 ? `${Math.round(b / 1e3)} KB` : `${(b / 1e6).toFixed(b < 1e7 ? 1 : 0)} MB`
 
 export function MonteCarloDialog() {
+  const t = useT()
   const open = useMcStore((s) => s.dialogOpen)
   const close = useMcStore((s) => s.closeDialog)
   const config = useMcStore((s) => s.config)
@@ -108,15 +110,15 @@ export function MonteCarloDialog() {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mcdlg__head">
-          <span id="mcdlg-title">Monte Carlo</span>
-          <button type="button" className="mcdlg__x" onClick={close} aria-label="Close">
+          <span id="mcdlg-title">{t('mc.title')}</span>
+          <button type="button" className="mcdlg__x" onClick={close} aria-label={t('mc.close')}>
             ✕
           </button>
         </div>
 
         <div className="mcdlg__body">
           <label className="mcdlg__field">
-            <span>runs</span>
+            <span>{t('mc.field.runs')}</span>
             <input
               type="number"
               min={1}
@@ -127,7 +129,7 @@ export function MonteCarloDialog() {
             />
           </label>
           <label className="mcdlg__field">
-            <span>steps</span>
+            <span>{t('mc.field.steps')}</span>
             <input
               type="number"
               min={1}
@@ -138,7 +140,7 @@ export function MonteCarloDialog() {
             />
           </label>
           <label className="mcdlg__field">
-            <span>base seed</span>
+            <span>{t('mc.field.baseSeed')}</span>
             <input
               type="number"
               min={0}
@@ -152,21 +154,27 @@ export function MonteCarloDialog() {
           </label>
           <div className="mcdlg__pools">
             <div className="mcdlg__poolshead">
-              <span>{noPools ? 'tracked pools' : trackAll ? 'tracked · all pools' : `tracked · ${onCount} of ${graphPools.length}`}</span>
+              <span>
+                {noPools
+                  ? t('mc.pools.head')
+                  : trackAll
+                    ? t('mc.pools.headAll')
+                    : t('mc.pools.headSome', { n: onCount, total: graphPools.length })}
+              </span>
               <button
                 type="button"
                 className="mcdlg__selectall"
                 disabled={running || trackAll || noPools}
                 onClick={() => setConfig({ tracked: [] })}
               >
-                Select all
+                {t('mc.pools.selectAll')}
               </button>
             </div>
             {noPools ? (
-              <p className="mcdlg__note">No Pools in the graph — add one to run.</p>
+              <p className="mcdlg__note">{t('mc.pools.none')}</p>
             ) : (
               <>
-                <div className="mcdlg__poollist" role="group" aria-label="Tracked Pools">
+                <div className="mcdlg__poollist" role="group" aria-label={t('mc.pools.group')}>
                   {graphPools.map((p) => {
                     const on = isTracked(p.id)
                     const last = on && onCount === 1
@@ -174,7 +182,7 @@ export function MonteCarloDialog() {
                       <label
                         key={p.id}
                         className="mcdlg__pool"
-                        title={last ? 'At least one Pool must stay tracked' : undefined}
+                        title={last ? t('mc.pools.keepOne') : undefined}
                       >
                         <input
                           type="checkbox"
@@ -187,39 +195,37 @@ export function MonteCarloDialog() {
                     )
                   })}
                 </div>
-                <p className="mcdlg__note">At least one Pool must stay tracked.</p>
+                <p className="mcdlg__note">{t('mc.pools.keepOne')}</p>
               </>
             )}
           </div>
 
           <div className={`mcdlg__cost${overLimit ? ' is-over' : ''}`}>
             {estimating && !estimate ? (
-              <span>estimating…</span>
+              <span>{t('mc.cost.estimating')}</span>
             ) : estimate ? (
               <>
                 <span className="mcdlg__costline">
                   <span className="mcdlg__costlabel">
-                    {estimate.source === 'measured' ? 'Measured (last run)' : 'Local benchmark'}
+                    {estimate.source === 'measured' ? t('mc.cost.measured') : t('mc.cost.benchmark')}
                   </span>
                   <b>~{fmtMs(estimate.lowMs)}–{fmtMs(estimate.highMs)}</b>
                 </span>
                 <span className="mcdlg__costline">
-                  <span className="mcdlg__costlabel">Execution</span>
+                  <span className="mcdlg__costlabel">{t('mc.cost.execution')}</span>
                   <span className="mcdlg__path">
                     {estimate.path === 'parallel'
-                      ? `Parallel, ${estimate.workers} workers`
+                      ? t('mc.cost.parallel', { workers: estimate.workers })
                       : estimate.fileProtocol
-                        ? 'Local · may briefly pause'
-                        : 'Local'}
+                        ? t('mc.cost.localPause')
+                        : t('mc.cost.local')}
                   </span>
                 </span>
                 <span className="mcdlg__costline">
-                  <span className="mcdlg__costlabel">Memory</span>
+                  <span className="mcdlg__costlabel">{t('mc.cost.memory')}</span>
                   <span>
                     ~{fmtBytes(estimate.memoryBytes)}
-                    {overLimit ? (
-                      <span className="mcdlg__over"> — over the limit, reduce runs / steps</span>
-                    ) : null}
+                    {overLimit ? <span className="mcdlg__over">{t('mc.cost.overLimit')}</span> : null}
                   </span>
                 </span>
               </>
@@ -248,7 +254,7 @@ export function MonteCarloDialog() {
         <div className="mcdlg__foot">
           {running ? (
             <button type="button" className="btn" onClick={cancel}>
-              Cancel
+              {t('mc.cancel')}
             </button>
           ) : (
             <button
@@ -257,11 +263,11 @@ export function MonteCarloDialog() {
               disabled={overLimit || noPools || (estimating && !estimate)}
               onClick={() => void run()}
             >
-              Run {config.runs} runs
+              {t('mc.run', { runs: config.runs })}
             </button>
           )}
           <button type="button" className="btn" onClick={close}>
-            {running ? 'Close (keep running)' : 'Close'}
+            {running ? t('mc.closeKeepRunning') : t('mc.close')}
           </button>
         </div>
       </div>

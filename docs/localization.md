@@ -674,8 +674,21 @@ Split into two PRs (size / review):
 > `AUTHOR_DISCLOSURE` consts removed. One E2E per destructive flow proves
 > nothing runs before Confirm (`confirm-dialog.spec.ts`).
 >
-> **2b-2b** — `ReviewOverlay`, `MonteCarloDialog` (already in-app dialogs —
-> string localization only), and any remaining empty / error states.
+> **2b-2b (`feat/i18n-slice2b2b`) — implemented.** `MonteCarloDialog` (title,
+> field labels, tracked-pool head / select-all / empty state, the cost readout
+> labels — *Measured (last run)* / *Local benchmark* / *Execution* / *Parallel,
+> N workers* / *Memory* / over-limit note, the run / cancel / close buttons)
+> and `ReviewOverlay` (title + Close, the gate / classification messages, the
+> §R7A whole-apply confirmation copy — `confirmationText()` retired to
+> `review.confirm.default` / `.unknown`, the apply-fail messages, the diff
+> summary labels *Nodes* / *Edges* / *run config* / *No graph changes*, the
+> hunk verbs *Add* / *Remove* / *Change* + tags, the field-choice labels
+> *take theirs* / *keep mine* / *base* / *yours* / *theirs*, every action
+> button, the footer). **Not translated** (shown verbatim): every diff hunk id
+> and `elementType`, all `shortVal()` field values, the time / memory / run
+> numbers, the parent revision id, the author name / note, and the
+> `invalid-selection` structural specifics (`res.reasons` / `res.detail` from
+> the model layer). Catalogs → 343 keys.
 
 **Slice 3 — acceptance validation.** The **full string inventory** reconciled
 (every surface accounted for); the **KO / EN × desktop / mobile visual matrix**
