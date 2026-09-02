@@ -1,0 +1,520 @@
+{
+  "schema": "loop-studio/graph/2",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "daily_customers",
+      "type": "parameter",
+      "position": {
+        "x": 40,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Daily customers",
+        "value": 90
+      }
+    },
+    {
+      "id": "daily_roast_kg",
+      "type": "parameter",
+      "position": {
+        "x": 320,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Daily roast amount (kg)",
+        "value": 26
+      }
+    },
+    {
+      "id": "online_orders",
+      "type": "parameter",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Online bean orders (kg/day)",
+        "value": 10
+      }
+    },
+    {
+      "id": "green_wholesale_kg",
+      "type": "parameter",
+      "position": {
+        "x": 880,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Green wholesale orders (kg)",
+        "value": 6
+      }
+    },
+    {
+      "id": "dessert_prep",
+      "type": "parameter",
+      "position": {
+        "x": 1160,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "Daily dessert prep",
+        "value": 22
+      }
+    },
+    {
+      "id": "green_delivery",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 200
+      },
+      "data": {
+        "kind": "source",
+        "label": "Green bean delivery",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "green_stock",
+      "type": "pool",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Green bean stock",
+        "activation": "passive",
+        "initial": 90,
+        "capacity": 130,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "green_wholesale",
+      "type": "drain",
+      "position": {
+        "x": 300,
+        "y": 360
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Green wholesale",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "roasting",
+      "type": "gate",
+      "position": {
+        "x": 540,
+        "y": 200
+      },
+      "data": {
+        "kind": "gate",
+        "label": "Roasting · 82% yield",
+        "activation": "automatic",
+        "distribution": "deterministic"
+      }
+    },
+    {
+      "id": "roasted_stock",
+      "type": "pool",
+      "position": {
+        "x": 780,
+        "y": 200
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Roasted bean stock",
+        "activation": "passive",
+        "initial": 30,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "roast_loss",
+      "type": "drain",
+      "position": {
+        "x": 540,
+        "y": 360
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Roasting weight loss",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "online_sales",
+      "type": "drain",
+      "position": {
+        "x": 1020,
+        "y": 160
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Online bagged-bean sales",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "cafe_retail",
+      "type": "drain",
+      "position": {
+        "x": 780,
+        "y": 360
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Cafe & retail bean use",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "roasted_bleed",
+      "type": "drain",
+      "position": {
+        "x": 1020,
+        "y": 300
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Staff, cupping & sampling",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "cafe_footfall",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 470
+      },
+      "data": {
+        "kind": "source",
+        "label": "Cafe footfall",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "cafe_demand",
+      "type": "pool",
+      "position": {
+        "x": 300,
+        "y": 470
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Customers to date",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "dessert_prep_src",
+      "type": "source",
+      "position": {
+        "x": 40,
+        "y": 620
+      },
+      "data": {
+        "kind": "source",
+        "label": "Dessert prep",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "dessert_stock",
+      "type": "pool",
+      "position": {
+        "x": 300,
+        "y": 620
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Dessert stock",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "dessert_sales",
+      "type": "drain",
+      "position": {
+        "x": 540,
+        "y": 620
+      },
+      "data": {
+        "kind": "drain",
+        "label": "Dessert sales",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "dessert_wrapup",
+      "type": "drain",
+      "position": {
+        "x": 540,
+        "y": 760
+      },
+      "data": {
+        "kind": "drain",
+        "label": "End-of-day leftover",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "total_revenue",
+      "type": "register",
+      "position": {
+        "x": 1320,
+        "y": 0
+      },
+      "data": {
+        "kind": "register",
+        "label": "Total revenue",
+        "expr": "@daily_customers * 4.6 + @online_orders * 17 + @green_wholesale_kg * 9 + 60"
+      }
+    },
+    {
+      "id": "total_cost",
+      "type": "register",
+      "position": {
+        "x": 1320,
+        "y": 120
+      },
+      "data": {
+        "kind": "register",
+        "label": "Total cost",
+        "expr": "(@daily_roast_kg + @green_wholesale_kg) * 5.5 + @dessert_prep * 1.4 + 140"
+      }
+    },
+    {
+      "id": "operating_profit",
+      "type": "register",
+      "position": {
+        "x": 1320,
+        "y": 240
+      },
+      "data": {
+        "kind": "register",
+        "label": "Operating profit",
+        "expr": "@total_revenue - @total_cost"
+      }
+    },
+    {
+      "id": "roasted_supply_margin",
+      "type": "register",
+      "position": {
+        "x": 1320,
+        "y": 360
+      },
+      "data": {
+        "kind": "register",
+        "label": "Roasted supply margin",
+        "expr": "@roasted_stock - (@daily_customers * 0.09 + @online_orders) * 2.1"
+      }
+    },
+    {
+      "id": "dessert_prep_margin",
+      "type": "register",
+      "position": {
+        "x": 1320,
+        "y": 480
+      },
+      "data": {
+        "kind": "register",
+        "label": "Dessert prep margin",
+        "expr": "@dessert_prep - (@daily_customers * 0.14 + 5)"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_green_in",
+      "source": "green_delivery",
+      "target": "green_stock",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "34"
+      }
+    },
+    {
+      "id": "e_green_wholesale",
+      "source": "green_stock",
+      "target": "green_wholesale",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@green_wholesale_kg"
+      }
+    },
+    {
+      "id": "e_green_roast",
+      "source": "green_stock",
+      "target": "roasting",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@daily_roast_kg"
+      }
+    },
+    {
+      "id": "e_roast_yield",
+      "source": "roasting",
+      "target": "roasted_stock",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "82"
+      }
+    },
+    {
+      "id": "e_roast_loss",
+      "source": "roasting",
+      "target": "roast_loss",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "18"
+      }
+    },
+    {
+      "id": "e_online",
+      "source": "roasted_stock",
+      "target": "online_sales",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@online_orders"
+      }
+    },
+    {
+      "id": "e_cafe_retail",
+      "source": "roasted_stock",
+      "target": "cafe_retail",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "6"
+      }
+    },
+    {
+      "id": "e_roasted_bleed",
+      "source": "roasted_stock",
+      "target": "roasted_bleed",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "14%"
+      }
+    },
+    {
+      "id": "e_footfall",
+      "source": "cafe_footfall",
+      "target": "cafe_demand",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@daily_customers"
+      }
+    },
+    {
+      "id": "e_dessert_in",
+      "source": "dessert_prep_src",
+      "target": "dessert_stock",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "@dessert_prep"
+      }
+    },
+    {
+      "id": "e_dessert_sales",
+      "source": "dessert_stock",
+      "target": "dessert_sales",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "16"
+      }
+    },
+    {
+      "id": "e_dessert_wrap",
+      "source": "dessert_stock",
+      "target": "dessert_wrapup",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "55%"
+      }
+    }
+  ],
+  "recommendedRunConfig": {
+    "baseSeed": 1,
+    "runs": 200,
+    "steps": 30,
+    "tracked": [
+      "green_stock",
+      "roasted_stock",
+      "dessert_stock"
+    ],
+    "timelineSeries": [
+      "dessert_prep_margin",
+      "dessert_stock",
+      "green_stock",
+      "operating_profit",
+      "roasted_stock",
+      "roasted_supply_margin",
+      "total_cost",
+      "total_revenue"
+    ]
+  }
+}

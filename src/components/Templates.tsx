@@ -40,8 +40,8 @@ export function Templates() {
     useSimStore.getState().pause() // stop any run before the swap
     // docs/template-label-overlay.md — a deep clone with the current locale's
     // node-label overlay; the canonical TEMPLATES[i] is never touched.
-    const { graph, recommendedRunConfig } = openTemplate(tpl)
-    loadGraph(graph) // one history entry; sim resets off structureRev
+    const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
+    loadGraph(graph, modelVersion) // one history entry; sim resets off structureRev
     useMcStore.getState().applyRecommended(recommendedRunConfig)
   }
 

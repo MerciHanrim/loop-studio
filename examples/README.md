@@ -14,6 +14,7 @@ Graphs with different jobs:
 | `playback-choreography.json` | **Simulation Playback demo** — one graph that reproduces every choreography cue at once (resource token, `trigger` bead, `activator` settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a 65-edge fan that pushes past the 60-token budget | yes |
 | `mmo-progression.json` | **product demo / Templates entry** — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve | yes (also in **Templates ▾**) |
 | `mmo-progression.ko.json` | **Korean-language independent derived copy** of the file above — display-only node `label` / `resourceType` strings translated, everything else (ids, structure, positions, expressions, edges, `recommendedRunConfig`, schema/version) byte-identical, so it reproduces the exact same run. **Not registered in Templates ▾ or anywhere in the app** — a separate file for a Korean-labelled read of the same example, imported manually | yes (Import only — not a Templates entry) |
+| `coffee-roastery.json` | **product demo / Templates entry** — "Coffee roastery operations flow": a small operating-flow simulation (buy green → roast at 82 % yield → sell through cafe / online / retail + a dessert line) with **five surfaced daily levers** wired as `loop-model/2` `@parameter` flow references. The **first bundled file at `schema` `loop-studio/graph/2`**. A simplified simulation example — **not** an ERP or real-time monitoring system | yes (also in **Templates ▾**) |
 
 ---
 
@@ -554,4 +555,78 @@ re-picked without a "regression" as long as the identities and the window hold.
 
 ```bash
 GEN_MMO_PROGRESSION=1 npx vitest run src/engine/mmo-progression.test.ts
+```
+
+---
+
+# 7 — Coffee roastery operations flow
+
+`coffee-roastery.json` — the fourth **Templates ▾** entry and the first bundled
+file authored at **`schema` `loop-studio/graph/2`** (`loop-model/2`). Design:
+`docs/example-coffee-roastery.md` (settled, non-frozen). A small, **assumption-
+based** model for changing a few operating conditions and watching how green /
+roasted stock, sales and profit relate — a **simplified simulation example, not
+an ERP or real-time monitoring system** (`단순화한 시뮬레이션 예제이며 ERP나
+실시간 모니터링 시스템이 아닙니다.`). It is an experimental Template at the
+`preview` stage.
+
+Built + verified by `src/engine/coffee-roastery.fixture.ts`; it is **not** a
+value oracle (no `*.expected.json`) — `src/engine/coffee-roastery.test.ts` pins
+structure, the mass-conserving roasting split, "every Register finite from step
+0 / no engine diagnostics", determinism, and the **§CR9.1 scenario directions**
+(a real deterministic run before / after each single `@param` change).
+
+## The five surfaced levers (each = exactly one `resource`-edge `flow` `@<id>`)
+
+| lever (`parameter` id) | the one edge whose `flow` is `@<id>` | engine role |
+|---|---|---|
+| **Daily customers** (`daily_customers`) | `cafe_footfall → cafe_demand` | Source push amount — cafe footfall per day |
+| **Daily roast amount (kg)** (`daily_roast_kg`) | `green_stock → roasting` | deterministic-Gate pull amount — kg of green put to roast per day |
+| **Online bean orders (kg/day)** (`online_orders`) | `roasted_stock → online_sales` | Drain pull amount — roasted kg leaving to online per day |
+| **Green wholesale orders (kg)** (`green_wholesale_kg`) | `green_stock → green_wholesale` | Drain pull amount — green kg sold on per day |
+| **Daily dessert prep** (`dessert_prep`) | `dessert_prep_src → dessert_stock` | Source push amount — dessert units prepared per day |
+
+`green_wholesale` and `roasting` draw the **same** green pool, so wholesale
+genuinely competes with the roaster for green beans. **Roasting is a
+deterministic Gate, not a Converter** — under frozen Engine A a Converter's
+output is `f·outRate` with `f ∈ [0, 1]` (I2), so `@daily_roast_kg` on a Converter
+input edge would stop mattering once green is not the binding constraint; a Gate
+carries the day's roast intake exactly and splits it 82 % → roasted stock,
+18 % → **roasting weight loss** (moisture / chaff — a real process drain, never
+"waste"). See `docs/example-coffee-roastery.md` §CR6.1.
+
+## The Summary (five Registers, `loop-expr/1`: `+ - * /` and `@id` only)
+
+`Total revenue`, `Total cost`, `Operating profit`, and two **signed proxies**
+(`docs/example-coffee-roastery.md` §CR3.5) — **`Roasted supply margin`** (`+` the
+live roasted-stock level covers the demand buffer · `−` running short) and
+**`Dessert prep margin`** (`+` prepared more than the day sold · `−` sold out).
+Both are operating cues, **not** measured losses / waste / accounting figures,
+and are never labelled `missed sales` / `waste` / `폐기`.
+
+## Manual check in the app
+
+This file carries a `recommendedRunConfig`, so **Import (or pick it from
+Templates ▾) fills the Monte Carlo dialog** with `200 × 30, base seed 1` and sets
+the Timeline's default eight series. It opens **editable** (no edit-lock) — the
+five levers are meant to be changed.
+
+```
+Templates ▾ → "Coffee roastery operations flow" (or Import examples/coffee-roastery.json)
+
+Live — Play → green stock holds near its opening level; roasted stock settles
+              around its shelf level; Roasted supply margin ≈ 0 at the defaults
+Edit  daily_roast_kg → 14 → roasted stock falls; Roasted supply margin goes negative
+Edit  green_wholesale_kg → 18 → green stock drawn down; the roaster is starved;
+              roasted stock falls; wholesale revenue (in Total revenue) rises
+Edit  online_orders → 22 → roasted stock draws down faster; online revenue and
+              Operating profit rise; Roasted supply margin goes negative
+Edit  dessert_prep → 34 → dessert stock climbs; Dessert prep margin more positive;
+              Total cost rises
+```
+
+## Regenerating
+
+```bash
+GEN_COFFEE_ROASTERY=1 npx vitest run src/engine/coffee-roastery.test.ts
 ```

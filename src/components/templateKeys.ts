@@ -11,4 +11,8 @@ export const TEMPLATE_KEY = {
     name: 'templates.mmoProgression.name',
     blurb: 'templates.mmoProgression.blurb',
   },
+  'coffee-roastery': {
+    name: 'templates.coffeeRoastery.name',
+    blurb: 'templates.coffeeRoastery.blurb',
+  },
 } satisfies Record<string, { name: MessageKey; blurb: MessageKey }>

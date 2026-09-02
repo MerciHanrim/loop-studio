@@ -393,6 +393,9 @@ const en = {
   'templates.mmoProgression.name': 'Early MMO progression (levels 1–15)',
   'templates.mmoProgression.blurb':
     'A connected play economy: three zone lanes (1–5 / 5–10 / 10–15), probabilistic combat with wins, setbacks and deaths, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve. Run it or Monte-Carlo it to see how wide the time-to-15 spreads.',
+  'templates.coffeeRoastery.name': 'Coffee roastery operations flow',
+  'templates.coffeeRoastery.blurb':
+    'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail. Change five daily operating values and watch stock and profit move. A simplified simulation example — not an ERP or real-time monitoring system.',
   'templates.replace.title': 'Replace the current diagram?',
   'templates.replace.body': 'Loading “{name}” replaces what is on the canvas now.',
   'templates.replace.confirm': 'Load template',
