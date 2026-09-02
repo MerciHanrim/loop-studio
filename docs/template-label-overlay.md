@@ -180,6 +180,12 @@ Result:
   - and, on the sibling call, a fresh copy of **`tpl.recommendedRunConfig`**
     (its `timelineSeries` / `tracked` arrays not shared) before
     `applyRecommended`.
+  - The clone is `JSON.parse(JSON.stringify(x))` — the payload is pure JSON
+    (numbers, strings, booleans, arrays, nested objects; no `Date` / `Map` /
+    `Set` / cycles), this matches the existing house idiom (`cloneEl` in
+    `src/model/revision.ts`), and it keeps the browser floor where it already
+    is — the feature introduces **no** `structuredClone` (Safari 15.4+)
+    dependency.
 - On the cloned copy only, for each node,
   `data.label = dict[activeLocale]?.[tpl.id]?.[node.id] ?? node.data.label`.
   The **current `activeLocale`** dictionary only. Nothing else on any

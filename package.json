@@ -16,6 +16,7 @@
     "check:mobile-query": "node scripts/check-mobile-query.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
   "check:i18n-surface": "node scripts/check-i18n-surface.mjs",
+    "check:template-labels": "node scripts/check-template-labels.mjs",
     "check:no-pwa": "node scripts/check-no-pwa.mjs",
     "check:pwa-closure": "node scripts/check-pwa-closure.mjs",
     "lint": "oxlint",

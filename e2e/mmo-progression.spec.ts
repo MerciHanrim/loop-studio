@@ -142,7 +142,7 @@ test.describe('Early MMO progression example', () => {
     await expect(aside.locator('input').first()).toBeEnabled()
   })
 
-  test('the Templates menu name + blurb render in EN and KO (§L3.4 — node labels stay verbatim)', async ({ page }) => {
+  test('the Templates menu name + blurb render in EN and KO; the graph opens with the current locale\'s node labels (docs/template-label-overlay.md)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
@@ -161,17 +161,36 @@ test.describe('Early MMO progression example', () => {
     await expect(koItem.locator('.menu__blurb')).toContainText('플레이 경제')
     await page.keyboard.press('Escape')
 
-    // load it in KO and confirm the seeded node labels are the authored English
-    await setLocale(page, 'ko')
+    const labels = () =>
+      page.evaluate(() =>
+        (window as unknown as { __loop: Loop }).__loop.graph
+          .getState()
+          .nodes.map((n: any) => n.data.label),
+      )
+    const useLocale = async (code: string) => {
+      await setLocale(page, code)
+      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+    }
+
+    // opened in KO ⇒ Korean node labels (from the ko dictionary)
+    await useLocale('ko')
     await pickDesktopTemplate(page, KO_NAME)
-    const labels = await page.evaluate(() =>
-      (window as unknown as { __loop: Loop }).__loop.graph
-        .getState()
-        .nodes.map((n: any) => n.data.label),
-    )
-    expect(labels).toContain('Level')
-    expect(labels).toContain('Gold')
-    expect(labels).toContain('Reached level 15')
+    let l = await labels()
+    expect(l).toContain('레벨')
+    expect(l).toContain('골드')
+    expect(l).toContain('15레벨 도달')
+    expect(l).not.toContain('Level')
+
+    // opened in EN ⇒ the canonical English labels (reset first so the second
+    // pick loads without a replace-confirm)
+    await resetAll(page)
+    await useLocale('en')
+    await pickDesktopTemplate(page, EN_NAME)
+    l = await labels()
+    expect(l).toContain('Level')
+    expect(l).toContain('Gold')
+    expect(l).toContain('Reached level 15')
+    expect(l).not.toContain('레벨')
   })
 
   test('runs to Level 15 through the End, deterministically, and the §EM10.1 identities hold', async ({ page }) => {

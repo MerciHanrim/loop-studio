@@ -1,4 +1,5 @@
 import { useState, type RefObject } from 'react'
+import { openTemplate } from '../../i18n/templateLabels'
 import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useGraphStore } from '../../store/graphStore'
@@ -100,8 +101,10 @@ export function MobileMoreMenu({
     const tpl = TEMPLATES.find((x) => x.id === id)
     if (!tpl) return
     useSimStore.getState().pause()
-    loadGraph(tpl.graph) // the existing atomic path — exactly one bump
-    useMcStore.getState().applyRecommended(tpl.recommendedRunConfig)
+    // docs/template-label-overlay.md — deep clone + current-locale label overlay
+    const { graph, recommendedRunConfig } = openTemplate(tpl)
+    loadGraph(graph) // the existing atomic path — exactly one bump
+    useMcStore.getState().applyRecommended(recommendedRunConfig)
     closeOverlay()
   }
 
