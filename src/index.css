@@ -1027,6 +1027,16 @@ body {
   background: var(--signal-primary-soft);
   box-shadow: inset 0 0 0 2px var(--signal-primary);
 }
+/* §LGR9 — a UA colour override drops `box-shadow` and the token fill, so the
+   ON state would lose its tell. An `outline` survives forced-colors; `Highlight`
+   is the "active / selected" system colour. This is the non-colour-dependent
+   tell (a ring is present, or it is not). */
+@media (forced-colors: active) {
+  .react-flow__controls-button.rf-focus[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
 
 /* the "arm" hint — shown only while Focus is ON but nothing is selected, so the
    canvas has not visibly changed yet. A React Flow top-centre Panel; never

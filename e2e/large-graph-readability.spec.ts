@@ -332,4 +332,20 @@ test.describe('large-graph readability — Slice 1', () => {
     expect(dash).not.toBe('none')
     expect(dash.trim().length).toBeGreaterThan(0)
   })
+
+  test('forced-colors: the Focus ON toggle keeps a tell that is not just colour', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await load(page)
+    const outline = () =>
+      focusBtn(page).evaluate((el) => {
+        const s = getComputedStyle(el)
+        return `${s.outlineStyle} ${s.outlineWidth}`
+      })
+    expect(await outline()).toMatch(/none|0px/) // OFF: no outline
+    await focusBtn(page).click()
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    const on = await outline()
+    expect(on).not.toMatch(/none/)
+    expect(on).not.toMatch(/\b0px\b/) // ON: a solid outline survives the colour override
+  })
 })
