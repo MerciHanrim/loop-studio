@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { EDGE_CLASSES, NODE_KINDS, UNTYPED, type EdgeClass } from '../store/filterStore'
-import { computeHidden, graphEdgeClasses, graphResourceTypes } from './filterSet'
+import { computeHidden, graphEdgeClasses, graphNodeKinds, graphResourceTypes } from './filterSet'
 
 // docs/large-graph-readability.md §LGR3.2 — the transient-filter view layer.
 // Pure: turn the filter selections into the ids React Flow renders `hidden`.
@@ -82,6 +82,27 @@ describe('graphEdgeClasses — only the classes present in the graph, canonical 
     expect(
       graphEdgeClasses([resEdge('a', 'x', 'y'), stateEdge('b', 'y', 'x'), hintEdge('h', 'x', 'y')]),
     ).toEqual(['resource', 'state', 'hint'])
+  })
+})
+
+describe('graphNodeKinds — only the kinds present in the graph, canonical order (§LGR3.2)', () => {
+  it('lists present kinds in canonical order; internal 8-kind support is unchanged', () => {
+    expect(graphNodeKinds([node('a', 'pool'), node('s', 'source'), node('e', 'end')])).toEqual([
+      'source',
+      'pool',
+      'end',
+    ])
+    expect(graphNodeKinds([node('r', 'register')])).toEqual(['register'])
+    expect(graphNodeKinds([])).toEqual([])
+    expect([...NODE_KINDS]).toHaveLength(8)
+  })
+
+  it('each of the eight kinds, when present, is independently filterable (computeHidden)', () => {
+    const ns = NODE_KINDS.map((k, i) => node(`n${i}`, k))
+    for (let i = 0; i < NODE_KINDS.length; i++) {
+      const h = computeHidden(ns, [], sel({ nodeKinds: [NODE_KINDS[i]] }))!
+      expect([...h.nodes]).toEqual([`n${i}`])
+    }
   })
 })
 
