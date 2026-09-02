@@ -93,6 +93,65 @@ async function load(page: Page): Promise<void> {
 }
 
 const focusBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-focus')
+const filterBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-filter')
+const resetViewBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-resetview')
+const filterPanel = (page: Page) => page.locator('.lgr-filter')
+// a checkbox row in the panel, by its exact visible label text
+const filterRow = (page: Page, label: string) =>
+  filterPanel(page).getByRole('checkbox', { name: label, exact: true })
+// an edge's drawn path — the reliable "is this edge rendered" probe (the wrapper
+// <g> is not a Playwright-"visible" element on its own).
+const edgePath = (page: Page, id: string) =>
+  edge(page, id).locator('path.react-flow__edge-path')
+
+// docs/large-graph-readability.md §LGR3.2 — a graph with typed pools / edges, a
+// state edge, and an End, for the resource-type / edge-class / node-kind axes.
+// `st1` (state) shares the `gold` endpoint so a currency filter also drags it.
+const GRAPH_RT = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'gold', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'Gold', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', resourceType: 'currency' } },
+    { id: 'mana', type: 'pool', position: { x: 480, y: 0 }, data: { kind: 'pool', label: 'Mana', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', resourceType: 'power' } },
+    { id: 'plain', type: 'pool', position: { x: 240, y: 200 }, data: { kind: 'pool', label: 'Plain', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'end', type: 'end', position: { x: 720, y: 0 }, data: { kind: 'end', label: 'End', activation: 'automatic' } },
+  ],
+  edges: [
+    { id: 're1', type: 'loop', source: 'src', target: 'gold', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', resourceType: 'currency' } },
+    { id: 're2', type: 'loop', source: 'gold', target: 'mana', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 're3', type: 'loop', source: 'mana', target: 'end', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1', resourceType: 'power' } },
+    { id: 'rp', type: 'loop', source: 'plain', target: 'mana', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'st1', type: 'loop', source: 'gold', target: 'src', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '>= 1' } },
+  ],
+})
+
+async function loadRT(page: Page): Promise<void> {
+  await openApp(page)
+  await resetAll(page)
+  await page.evaluate(() => {
+    try {
+      localStorage.removeItem('loop-studio:focus-mode')
+      localStorage.removeItem('loop-studio:filter-panel')
+    } catch {
+      /* ignore */
+    }
+    const w = window as unknown as { __loop: { ui: { setState: (p: object) => void }; filter: { getState: () => { clear: () => void } } } }
+    w.__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
+    w.__loop.filter.getState().clear()
+  })
+  await importGraph(page, GRAPH_RT)
+  await expect(node(page, 'gold')).toBeVisible()
+  await expect(edgePath(page, 're1')).toHaveCount(1)
+  // a fixed viewport so the graph is laid out and every edge path is drawn
+  await page.evaluate(() => {
+    ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+      { x: 120, y: 220, zoom: 1 },
+      { duration: 0 },
+    )
+  })
+  await expect(edgePath(page, 'st1')).toHaveCount(1)
+}
 
 test.describe('large-graph readability — Slice 1', () => {
   test('Focus toggle: default off, persists to the one global key', async ({ page }) => {
@@ -347,5 +406,173 @@ test.describe('large-graph readability — Slice 1', () => {
     const on = await outline()
     expect(on).not.toMatch(/none/)
     expect(on).not.toMatch(/\b0px\b/) // ON: a solid outline survives the colour override
+  })
+})
+
+test.describe('large-graph readability — Slice 2 (transient filters)', () => {
+  test('panel toggle: default closed, open state persists to its own key (§LGR3.4)', async ({ page }) => {
+    await loadRT(page)
+    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'false')
+    await expect(filterPanel(page)).toHaveCount(0)
+    await filterBtn(page).click()
+    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await expect(filterPanel(page)).toBeVisible()
+    expect(await page.evaluate(() => localStorage.getItem('loop-studio:filter-panel'))).toBe('1')
+    // the panel's own × closes it
+    await filterPanel(page).locator('.lgr-filter__x').click()
+    await expect(filterPanel(page)).toHaveCount(0)
+    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  test('resource-type list is built from the graph — exactly its strings + untyped (§LGR3.2 / §LGR10.5)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Resource type' })
+    await expect(group.locator('.lgr-filter__row span')).toHaveText(['currency', 'power', 'untyped'])
+    // no built-in palette leakage
+    await expect(group).not.toContainText('Gold')
+    await expect(group).not.toContainText('XP')
+    await expect(group).not.toContainText('Energy')
+  })
+
+  test('hide an edge class → state edges go, resource edges + nodes stay (§LGR3.2)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    await expect(edgePath(page, 'st1')).toHaveCount(1)
+    await filterRow(page, 'State').check()
+    await expect(edge(page, 'st1')).toHaveCount(0)
+    for (const id of ['re1', 're2', 're3', 'rp']) await expect(edgePath(page, id)).toHaveCount(1)
+    for (const id of ['src', 'gold', 'mana', 'plain', 'end']) await expect(node(page, id)).toBeVisible()
+  })
+
+  test('hide a resource type → only that type of pool / edge, incident edges too (§LGR3.2 / §LGR10.5)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    await filterRow(page, 'currency').check()
+    await expect(node(page, 'gold')).toHaveCount(0) // the currency pool
+    await expect(edge(page, 're1')).toHaveCount(0) // currency-typed edge
+    await expect(edge(page, 're2')).toHaveCount(0) // incident to gold
+    await expect(edge(page, 'st1')).toHaveCount(0) // state edge incident to gold
+    // the rest is untouched
+    for (const id of ['src', 'mana', 'plain', 'end']) await expect(node(page, id)).toBeVisible()
+    for (const id of ['re3', 'rp']) await expect(edgePath(page, id)).toHaveCount(1)
+  })
+
+  test('hide a node kind → the node and its incident edges go; the 8 kinds all show (§LGR3.2 / §LGR10.5)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    // `Drain` is offered even though this graph has none (the fixed 8-kind list)
+    await expect(filterRow(page, 'Drain')).toHaveCount(1)
+    await filterRow(page, 'End').check()
+    await expect(node(page, 'end')).toHaveCount(0)
+    await expect(edge(page, 're3')).toHaveCount(0) // was mana → end
+    await expect(node(page, 'mana')).toBeVisible()
+  })
+
+  test('Clear filters restores everything and the count reads back', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    await filterRow(page, 'currency').check()
+    await filterRow(page, 'End').check()
+    await expect(filterPanel(page).locator('.lgr-filter__count')).not.toHaveText(/Nothing hidden/)
+    await filterPanel(page).locator('.lgr-filter__clear').click()
+    for (const id of ['src', 'gold', 'mana', 'plain', 'end']) await expect(node(page, id)).toBeVisible()
+    await expect(filterPanel(page).locator('.lgr-filter__count')).toHaveText('Nothing hidden')
+    await expect(filterPanel(page).locator('.lgr-filter__clear')).toBeDisabled()
+  })
+
+  test('filter selections are cleared on a graph reload; the panel toggle survives (§LGR3.4)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    await filterRow(page, 'State').check()
+    await expect(edge(page, 'st1')).toHaveCount(0)
+    // re-import the same graph — a whole-graph (re)load
+    await importGraph(page, GRAPH_RT)
+    await expect(edgePath(page, 'st1')).toHaveCount(1) // selections gone
+    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true') // panel open state kept
+    await expect(filterPanel(page).locator('.lgr-filter__count')).toHaveText('Nothing hidden')
+  })
+
+  test('Reset view clears filters + the focused node, keeps the Focus MODE toggle (§LGR3.4 / LGR-D4)', async ({ page }) => {
+    await loadRT(page)
+    await focusBtn(page).click() // Focus MODE on
+    await node(page, 'gold').click() // a focused anchor
+    await filterBtn(page).click()
+    await filterRow(page, 'State').check()
+    await expect(edge(page, 'st1')).toHaveCount(0)
+    await expect(selection(page)).resolves.toMatchObject({ node: 'gold' })
+
+    await resetViewBtn(page).click()
+    await expect(edgePath(page, 'st1')).toHaveCount(1) // filters cleared
+    await expect(selection(page)).resolves.toEqual({ node: null, edge: null }) // anchor cleared
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true') // MODE preference kept
+  })
+
+  test('composition: filter hides, then Focus dims the remainder (§LGR3.3)', async ({ page }) => {
+    await loadRT(page)
+    await focusBtn(page).click()
+    await filterBtn(page).click()
+    await filterRow(page, 'State').check() // st1 gone
+    await node(page, 'gold').click() // focus set = {gold, src, mana} + {re1, re2}
+    await expect(edge(page, 'st1')).toHaveCount(0) // hidden wins — not merely dimmed
+    await expect(node(page, 'end')).toHaveClass(/lgr-deemph/) // outside the set, still visible → dimmed
+    await expect(node(page, 'gold')).not.toHaveClass(/lgr-deemph/)
+  })
+
+  test('invariance: GraphDoc / undo / viewport unchanged by any filter (LGR-INV-1/-2)', async ({ page }) => {
+    await loadRT(page)
+    const before = await snapshot(page)
+    const vpBefore = await viewport(page)
+    await filterBtn(page).click()
+    for (const l of ['State', 'currency', 'End']) await filterRow(page, l).check()
+    await filterPanel(page).locator('.lgr-filter__clear').click()
+    const after = await snapshot(page)
+    expect(after.graph).toBe(before.graph)
+    expect(after.canUndo).toBe(before.canUndo)
+    expect(await viewport(page)).toEqual(vpBefore)
+  })
+
+  test('a hidden element is out of the hit path (§LGR4.2)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    await filterRow(page, 'End').check()
+    await expect(node(page, 'end')).toHaveCount(0)
+    // clicking where `end` was selects nothing (it is not in the DOM at all)
+    const box = await node(page, 'mana').boundingBox()
+    if (!box) throw new Error('no layout')
+    await page.mouse.click(box.x + box.width + 240, box.y + box.height / 2)
+    await expect(selection(page)).resolves.toEqual({ node: null, edge: null })
+  })
+
+  test('mobile: Filters + Reset view are in the More sheet, not the canvas controls (§LGR9)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 })
+    await loadRT(page)
+    await expect(filterBtn(page)).toHaveCount(0) // no canvas control on mobile
+    await page.locator('.mob-more').click()
+    await expect(page.locator('.sheet__row').filter({ hasText: /^Reset view/ })).toBeVisible()
+    await page.locator('.sheet__row').filter({ hasText: /^Filters/ }).click()
+    await expect(page.locator('.lgr-filter__body')).toBeVisible()
+    await page
+      .locator('.lgr-filter__body')
+      .getByRole('checkbox', { name: 'State', exact: true })
+      .check()
+    // it takes effect live behind the sheet
+    await expect(edge(page, 'st1')).toHaveCount(0)
+  })
+
+  test('forced-colors: the Filters ON toggle keeps a non-colour tell (§LGR9)', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadRT(page)
+    const outline = () =>
+      filterBtn(page).evaluate((el) => {
+        const s = getComputedStyle(el)
+        return `${s.outlineStyle} ${s.outlineWidth}`
+      })
+    expect(await outline()).toMatch(/none|0px/)
+    await filterBtn(page).click()
+    await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    const on = await outline()
+    expect(on).not.toMatch(/none/)
+    expect(on).not.toMatch(/\b0px\b/)
   })
 })

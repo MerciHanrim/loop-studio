@@ -38,6 +38,12 @@ type GraphStore = {
    *  store watch this (to reset / to mark results stale). */
   simulationRev: number
 
+  /** bumped only when the WHOLE graph is (re)loaded — `newGraph`, `loadGraph`,
+   *  `loadDoc` (so: doc open, template load, Share / Workspace import, revision
+   *  Apply). NOT an edit. docs/large-graph-readability.md §LGR3.4 — the filter
+   *  store watches this to drop its ephemeral selections on a graph swap. */
+  loadRev: number
+
   /** true only while this session is still showing the untouched first-run
    *  sample (no `localStorage` graph at boot, nothing changed since). Cleared
    *  permanently by any edit / Import / Template / undo / redo / restore. A
@@ -257,6 +263,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     selectedNodeId: null,
     selectedEdgeId: null,
     simulationRev: 0,
+    loadRev: 0,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
     past: [],
@@ -439,7 +446,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
-      set({ nodes: [], edges: [], selectedNodeId: null, selectedEdgeId: null, modelVersion: 1 })
+      set({
+        nodes: [],
+        edges: [],
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        modelVersion: 1,
+        loadRev: get().loadRev + 1,
+      })
       bump()
       persist()
     },
@@ -450,7 +464,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
-      set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null, modelVersion })
+      set({
+        nodes,
+        edges,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        modelVersion,
+        loadRev: get().loadRev + 1,
+      })
       bump()
       persist()
     },
@@ -468,7 +489,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
-      set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null, modelVersion })
+      set({
+        nodes,
+        edges,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        modelVersion,
+        loadRev: get().loadRev + 1,
+      })
       bump()
       persist()
     },

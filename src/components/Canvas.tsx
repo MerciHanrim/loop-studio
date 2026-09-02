@@ -15,10 +15,13 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
+import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 import { EdgeMarkers } from './edges/EdgeMarkers'
 import { useFocusSet } from './focusSet'
+import { useHiddenSet } from './filterSet'
+import { FilterPanel } from './FilterPanel'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -66,32 +69,43 @@ export function Canvas() {
   const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
   const focusMode = useUiStore((s) => s.focusMode)
   const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
+  const filterPanelOpen = useUiStore((s) => s.filterPanelOpen)
+  const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
   const t = useT()
 
-  // docs/large-graph-readability.md §LGR2 / §LGR3 — with Focus on and a node
-  // selected, everything outside its 1-hop set renders de-emphasised. This only
-  // tags the objects React Flow RENDERS with a class; the graphStore arrays that
-  // serialize / diff / undo are never touched (LGR-INV-1), and React Flow's
-  // change events still flow back to the store unchanged.
+  // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
+  // hides first (removes from the canvas), then focus dims the remainder. Both
+  // only tag the objects React Flow RENDERS (`hidden` / a class); the graphStore
+  // arrays that serialize / diff / undo are never touched (LGR-INV-1), and React
+  // Flow's change events still flow back to the store unchanged.
   const focusSet = useFocusSet()
-  const rfNodes = useMemo(
-    () =>
-      focusSet
-        ? nodes.map((n) =>
-            focusSet.nodes.has(n.id) ? n : { ...n, className: withDeemph(n.className) },
-          )
-        : nodes,
-    [nodes, focusSet],
-  )
-  const rfEdges = useMemo(
-    () =>
-      focusSet
-        ? edges.map((e) =>
-            focusSet.edges.has(e.id) ? e : { ...e, className: withDeemph(e.className) },
-          )
-        : edges,
-    [edges, focusSet],
-  )
+  const hidden = useHiddenSet()
+  const rfNodes = useMemo(() => {
+    if (!hidden && !focusSet) return nodes
+    return nodes.map((n) => {
+      if (hidden?.nodes.has(n.id)) return { ...n, hidden: true }
+      if (focusSet && !focusSet.nodes.has(n.id)) return { ...n, className: withDeemph(n.className) }
+      return n
+    })
+  }, [nodes, hidden, focusSet])
+  const rfEdges = useMemo(() => {
+    if (!hidden && !focusSet) return edges
+    return edges.map((e) => {
+      if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
+      if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
+      return e
+    })
+  }, [edges, hidden, focusSet])
+
+  // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view: one UI-only
+  // action that fits the graph and clears the exploration lens (filter
+  // selections + the focused node). The Focus *mode* on/off preference is left
+  // alone, and nothing touches the GraphDoc / digest / undo.
+  const resetView = useCallback(() => {
+    useFilterStore.getState().clear()
+    setSelection(null, null)
+    void fitView({ padding: 0.3, maxZoom: 1.2 })
+  }, [setSelection, fitView])
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
   // desktop Canvas is edit-locked (uiStore.canvasLocked). Selection, pan / zoom,
@@ -213,6 +227,9 @@ export function Canvas() {
             {t('canvas.focus.hint')}
           </Panel>
         )}
+        {/* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel,
+            desktop only (mobile controls live in the More sheet, §LGR9). */}
+        {!isMobile && filterPanelOpen && <FilterPanel />}
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
             phone and eats space — not rendered in the mobile layout */}
         {!isMobile && (
@@ -234,7 +251,26 @@ export function Canvas() {
             also kills selection (so the Inspector can't open). `canvasLocked`
             keeps selection + a read-only Inspector; it only blocks structural
             edits. Hidden on mobile — the mobile layout is always view-only. */}
-        <Controls showInteractive={false}>
+        <Controls showInteractive={false} showFitView={false}>
+          {/* docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view:
+              fit the graph + clear the exploration lens (filters + focused
+              node). Replaces React Flow's plain fit-view button. */}
+          <ControlButton
+            onClick={resetView}
+            title={t('canvas.resetView')}
+            aria-label={t('canvas.resetView')}
+            className="rf-resetview"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path
+                d="M2 5V2h3M14 5V2h-3M2 11v3h3M14 11v3h-3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </ControlButton>
           {/* docs/large-graph-readability.md §LGR2.1 / §LGR9 — the Focus toggle.
               A global UI preference (uiStore, persisted), default off. Desktop:
               here in the canvas controls. Mobile: in the More sheet
@@ -248,6 +284,28 @@ export function Canvas() {
               className="rf-focus"
             >
               ⌖
+            </ControlButton>
+          )}
+          {/* docs/large-graph-readability.md §LGR3.2 / §LGR9 — the Filters
+              toggle (desktop). Opens / closes the panel; the open state is a
+              sticky preference. Mobile: the More sheet. */}
+          {!isMobile && (
+            <ControlButton
+              onClick={toggleFilterPanel}
+              title={filterPanelOpen ? t('canvas.filter.close') : t('canvas.filter.open')}
+              aria-label={filterPanelOpen ? t('canvas.filter.close') : t('canvas.filter.open')}
+              aria-pressed={filterPanelOpen}
+              className="rf-filter"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M2 3h12l-4.6 5.6v4L6.6 14V8.6z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </ControlButton>
           )}
           {!isMobile && (
