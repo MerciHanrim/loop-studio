@@ -20,6 +20,14 @@ import { BASE_LOCALE } from '../registry'
 import { useI18n } from '../store'
 import { ko } from './ko'
 
+/** Deep clone of a plain-JSON payload — the whole Template graph and its
+ *  `recommendedRunConfig` are pure data (numbers, strings, booleans, arrays,
+ *  nested objects; no `Date` / `Map` / `Set` / cycles). Matches the existing
+ *  house idiom (`cloneEl` in `src/model/revision.ts`) and keeps the browser
+ *  floor where it already is — no `structuredClone` (Safari 15.4+) dependency
+ *  introduced by this feature (§TLO3). */
+const cloneJSON = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
+
 /** `templateId -> (nodeId -> localized label)` for one locale. */
 export type TemplateLabelDict = Record<string, Record<string, string>>
 
@@ -52,7 +60,7 @@ export function openTemplate(
   locale: string = useI18n.getState().activeLocale,
 ): OpenedTemplate {
   // Full deep clone of the whole payload — nothing shared with TEMPLATES[i].
-  const graph = structuredClone(tpl.graph) as { nodes: LoopNode[]; edges: LoopEdge[] }
+  const graph = cloneJSON(tpl.graph) as { nodes: LoopNode[]; edges: LoopEdge[] }
 
   const dict = locale === BASE_LOCALE ? undefined : DICTS[locale]?.[tpl.id]
   if (dict) {
@@ -65,7 +73,7 @@ export function openTemplate(
   return {
     graph,
     recommendedRunConfig: tpl.recommendedRunConfig
-      ? structuredClone(tpl.recommendedRunConfig)
+      ? cloneJSON(tpl.recommendedRunConfig)
       : undefined,
   }
 }
