@@ -300,57 +300,36 @@ This doc:
 
 ## PD11. External read — fix the use purpose before the target industry *(added 2026-09-02)*
 
-During the coffee-Template design ([`docs/example-coffee-roastery.md`](example-coffee-roastery.md)),
-an **external, domain-informed reader** — shown Loop Studio and reading it as a
-production / operations tool — gave feedback that matters at the **direction**
-level, not just for the coffee example. Recorded here **anonymised**; the value
-is the judgement, not a coffee feature list.
+During the coffee-Template design
+([`docs/example-coffee-roastery.md`](example-coffee-roastery.md)), an
+**external, domain-informed reader** — shown Loop Studio and reading it as a
+production / operations tool — warned that a real system in that space is large
+(lot / varietal tracking, vendor management, real-time stock, WIP + lead-time,
+reorder point / BEP, auto cost-accounting output) and that showing only a few
+disconnected stages *"may be valued as an artwork, but not as a practical
+tool."* Their recommendation: **decide the concrete field of use and the use
+purpose first — who, in what setting, for what decision — before mapping the
+work onto an industry.** Recorded here anonymised; the value is the judgement,
+not a feature list.
 
-### PD11.1 What they said (paraphrased)
+**Two conclusions carried into product work:**
 
-- Loop Studio "basically looks suited to **process management and shop-floor /
-  work management**."
-- But a real system in that space is **large**: for a roastery, lot- and
-  varietal-level tracking, import → warehousing → cleaning/sorting → packing →
-  receiving → delivery, **vendor / trade-partner management**, real-time stock,
-  **WIP and lead-time monitoring**, per-stage progress, and a financial layer
-  (reorder point, safety stock, BEP, cost / cost-estimate / cost-accounting
-  figures, inventory-asset values linked to the financial statements) — all
-  **auto-produced**, not hand-keyed. Manual keyboard entry at each step would
-  make it "complex and cumbersome," lowering real adoption.
-- Showing only a few disconnected stages of a real distribution chain has
-  limited operational usefulness: *"expressing only some particular aspects — it
-  may be valued as an artwork, but is hard to rate as a practical tool."*
-- Recommendation: **decide the concrete field of use and the use purpose
-  first** — *who, in what setting, for what decision* — keep extensibility open,
-  and only then map the current work onto that field's vocabulary: production &
-  operations management, process control, managerial / cost accounting.
-- They also saw a longer path toward **PERT / CPM** project-network scheduling
-  (large events — games organising committees, biennale committees, national
-  sports festivals). "Whether it becomes a big hit depends on the purpose and
-  concept it is built with."
+1. **Every domain example is a *limited operating-flow simulation*, framed as a
+   simplified model — never billed as that field's management / operations
+   system.** Confirms §PD6. *Partial but realistic-looking is worse than
+   clearly scoped.* The coffee entry adopts this wording
+   (`docs/example-coffee-roastery.md` §CR2.0).
+2. **Fix a concrete user + use purpose + decision problem before widening to an
+   industry.** "It could be used in many places" is not a direction; one named
+   purpose, validated against the current structure, is. This is the bar the
+   module-system pass (§PD8-B) and any future domain template must meet.
 
-### PD11.2 What we take from it
+*Noted, not adopted:* the reader also saw a path toward **PERT / CPM**
+project-network scheduling. That is a **different core model** (task precedence
++ durations + critical path, not resource / stock flow) — recorded as a
+separate, later, spec-first candidate only; not folded into the current model
+or any planned pass.
 
-- **Confirms §PD6.** Loop Studio is an **experiment / simulation tool over a
-  verified model**, not a live-data operations system or ERP. The reader's
-  warning — *partial but realistic-looking is worse than clearly scoped* —
-  is now an explicit rule: every domain example is **framed as a simplified
-  model**, and never named as that field's management system. Coffee adopts
-  this wording (`docs/example-coffee-roastery.md` §CR2.0).
-- **Adds a sequencing rule.** Before widening toward an industry (roastery ops,
-  cost accounting, …), **fix one concrete use purpose and validate that the
-  current structure usefully solves it.** "It could be used in many places" is
-  not a direction; a named purpose is. This is the standard the module-system
-  pass (§PD8-B) and any future domain template must meet.
-- **PERT / CPM is parked, not adopted.** Task precedence + durations + critical
-  path is a **different core model** from the current resource / stock flow. It
-  is recorded here as a **separate future market + design candidate**, to be
-  taken up (if at all) only after a spec-first evaluation — not folded into the
-  current flow model or the module-system pass.
-
-### PD11.3 Not changed by this
-
-The five §PD9 decisions stand. No `src/` change, no `loop-*/N`, nothing
-serialized. §PD11 narrows *how a domain example is positioned and validated*; it
-does not add scope.
+**Not changed by this:** the five §PD9 decisions stand; no `src/` change, no
+`loop-*/N`, nothing serialized. §PD11 narrows *how a domain example is
+positioned and validated*; it adds no scope.

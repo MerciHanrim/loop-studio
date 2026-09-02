@@ -24,11 +24,13 @@ a §CR16 decision; **CR-D12** is added. The size budget (§CR5), the domain scop
 pending*, like [`docs/large-graph-readability.md`](large-graph-readability.md)
 and [`docs/example-mmo-progression.md`](example-mmo-progression.md).
 
-**rev 6 is docs-only** — this doc + the one README roadmap line. Implementation
-stays **two** PRs, in order:
-**(1)** the shared label overlay — **merged** (PR #100, `b938aed`); **(2)** this
-Template — `examples/coffee-roastery.json` (English canonical labels), a Korean
-label dictionary, a fixture test, `src/model/templates.ts`,
+**rev 6 is docs-only** — this doc + a `docs/product-direction.md` §PD11 note.
+**No README change in rev 6** — the roadmap line and the general README
+positioning are checked *last*, once the model + positioning are settled and the
+coffee Template is implemented and validated. Implementation stays **two** PRs,
+in order: **(1)** the shared label overlay — **merged** (PR #100, `b938aed`);
+**(2)** this Template — `examples/coffee-roastery.json` (English canonical
+labels), a Korean label dictionary, a fixture test, `src/model/templates.ts`,
 `src/components/templateKeys.ts`, **two** name/blurb keys in `en.ts` + `ko.ts`.
 **Nothing else** in `src/`: no engine, schema, wire / `loop-revision/N`.
 
