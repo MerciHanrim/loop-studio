@@ -1,13 +1,16 @@
 # Template label overlay (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 2.** rev 1 fixed the
-mechanism; **rev 2** pins four review points: the **first-implementation
-Template scope** (KO dicts for MMO + coffee; templates 1 & 2 EN-fallback
-allow-listed — §TLO2.1), the **completeness-conditional** CI rule (no dict = OK;
-a dict must be complete — no missing / stale / duplicate id — §TLO7), the **MMO
-migration boundary** (`label` only, not `resourceType`; the `.ko.json` file is
-not deleted — §TLO2.2), and **canonical immutability across repeated opens**
-(deep copy incl. `node.data`; a re-open-isolation test — §TLO3 / INV-7 / §TLO8).
+**Status: settled design — implementation pending. rev 3.** rev 1 fixed the
+mechanism; rev 2 pinned four review points; **rev 3** makes the
+canonical-immutability boundary unambiguous — `loadGraph` gets a **full
+structural deep clone of the whole `{ nodes, edges }` payload** (every node /
+`position` / `data`, every edge / `data` / `route` / `waypoints`) plus a fresh
+`recommendedRunConfig`, so no overlay, React Flow runtime state (`selected` /
+`dragging` / `measured`), or user edit can reach `TEMPLATES[i]` (§TLO3 / INV-7 /
+TLO-D10), backed by a re-open-isolation test **and** a no-shared-references unit
+test (§TLO8). rev 2's other three points stand: first-impl scope (§TLO2.1),
+the completeness-conditional CI rule (§TLO7), the `label`-only MMO migration
+(§TLO2.2).
 A **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — merging as
 *settled design, implementation pending*, like
 [`docs/localization.md`](localization.md) and
@@ -167,17 +170,30 @@ Result:
 - The **only** trigger is opening a bundled Template from the Templates menu:
   `src/components/Templates.tsx` / `src/components/mobile/MobileMoreMenu.tsx`
   `doLoadTemplate` → `loadGraph(tpl.graph)`.
-- At that moment, build the document graph as a **deep copy** of `tpl.graph` —
-  each node and its `data` object cloned, so the copy shares **no** reference
-  back into the canonical — then, for each copied node,
+- At that moment, hand `loadGraph` a **full structural deep clone of the entire
+  graph payload** `{ nodes, edges }` — **not** just the node array. Every
+  mutable object and array is fresh, sharing **no** reference back into
+  `TEMPLATES[i]`:
+  - each **node**, and its **`position`** and **`data`** objects;
+  - each **edge**, and its **`data`** — including nested values such as
+    `route` / `waypoints`;
+  - and, on the sibling call, a fresh copy of **`tpl.recommendedRunConfig`**
+    (its `timelineSeries` / `tracked` arrays not shared) before
+    `applyRecommended`.
+- On the cloned copy only, for each node,
   `data.label = dict[activeLocale]?.[tpl.id]?.[node.id] ?? node.data.label`.
-  The **current `activeLocale`** dictionary only.
-- The canonical `TEMPLATES[i].graph` object — and every `node.data` inside it —
-  is **never mutated**. The overlay reads the canonical and writes only to the
-  fresh copy handed to `loadGraph`, so repeated opens (any locale order) always
-  start from the pristine English canonical.
-- Nothing else in the node/edge is changed. `recommendedRunConfig` is applied
-  exactly as today.
+  The **current `activeLocale`** dictionary only. Nothing else on any
+  node/edge is changed.
+- Why the whole payload, not just labels: the overlay never edits an edge, but
+  React Flow and the store later write **runtime state** (`selected`,
+  `dragging`, `measured`, …) onto the objects they are given. If the open
+  document shared the canonical's node/edge objects, that runtime state — and a
+  future locale's labels — would pollute `TEMPLATES[i]`, and the *next*
+  fresh-open (any locale, EN included) would start dirty. The deep clone makes
+  every open start from the pristine English canonical.
+- `recommendedRunConfig` is applied exactly as today, from its fresh copy.
+- If `activeLocale` is `en` (or has no dictionary), the copy's labels equal the
+  canonical → the load is **byte-identical to today** (§TLO6-INV-1).
 - If `activeLocale` is `en` (or has no dictionary), the copy's labels equal the
   canonical → the load is **byte-identical to today** (§TLO6-INV-1).
 
@@ -231,11 +247,14 @@ further times:
 6. **Templates 1 / 2 / 3 unchanged.** Their graphs, behaviour, and digests are
    identical; a dictionary for them (if added) affects only a *future* non-EN
    fresh-open, never an EN one.
-7. **Canonical immutable across opens.** After a `ko` fresh-open of a Template,
-   a subsequent `en` fresh-open of the same Template yields **all English
-   canonical labels** (no Korean leakage), and a later `ko` fresh-open still
-   yields the correct Korean — the canonical `TEMPLATES[i].graph` and its
-   `data` are untouched by any prior open (§TLO3).
+7. **Canonical immutable across opens.** No open ever mutates `TEMPLATES[i]` —
+   not its `graph`, its `nodes` / `edges` / `position` / `data` (incl. edge
+   `data`, `route`, `waypoints`), nor its `recommendedRunConfig` arrays. After
+   a `ko` fresh-open — even after the user selects / drags / edits nodes and
+   edges in that document — a subsequent `en` fresh-open of the same Template
+   yields the **pristine English canonical** (all English labels, no runtime
+   state, no Korean leakage), and a later `ko` fresh-open still yields the
+   correct Korean (§TLO3).
 
 ---
 
@@ -277,10 +296,17 @@ The rule is **completeness-conditional**:
   still Korean, structure identical.
 - **EN parity golden**: an `en` fresh-open of every Template is byte-identical
   to the committed pre-feature baseline.
-- **Re-open isolation** (§TLO6-INV-7): fresh-open Template X in `ko`, then
-  fresh-open X again in `en` → the second document's labels are **all English
-  canonical** (no Korean leakage); a third fresh-open in `ko` still yields the
-  correct Korean. Proves the canonical graph + `data` were not mutated.
+- **Re-open isolation** (§TLO6-INV-7): fresh-open Template X in `ko`, **mutate
+  the open document** — change a node `label` and `position`, select and drag a
+  node, select an edge, change an edge's `data` — then fresh-open X again in
+  `en` → the second document is the **pristine English canonical** (all English
+  labels, no `selected` / `dragging` / `measured`, no moved positions, no edge
+  edits); a third fresh-open in `ko` still yields the correct Korean.
+- **No shared references** (unit): after a fresh-open, assert the document's
+  `nodes` / `edges` arrays, each `node` / `node.data` / `node.position` /
+  `edge` / `edge.data`, and the applied `recommendedRunConfig` (incl.
+  `timelineSeries`) are **not `===`** to the corresponding `TEMPLATES[i]`
+  object / array.
 - **MMO KO fresh-open** (§TLO2.2): node/edge set / `position`s / `canvasLocked`
   / `recommendedRunConfig` / **`resourceType`** / deterministic run result
   identical to an EN fresh-open; every node `label` equals the value harvested
@@ -302,7 +328,7 @@ The rule is **completeness-conditional**:
 | **TLO-D7** | GraphDoc / engine / format | **no change** — overlay acts on the in-memory copy handed to `loadGraph` (§TLO6). |
 | **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO **`label`s** are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; **`resourceType` is not harvested**; the canonical MMO graph / layout / lock / `recommendedRunConfig` / `resourceType` are untouched; the `.ko.json` file is **kept unwired, not deleted** (§TLO2.2). |
 | **TLO-D9** | which Templates get a KO dict in the first implementation? | **MMO + coffee.** Templates 1 & 2 (`equilibrium`, `deadlock`) go on the **EN-fallback allow-list** — a KO dict for them is an optional follow-up, never a blocker (§TLO2.1). |
-| **TLO-D10** | canonical mutation | **None.** `loadGraph` gets a **deep copy** (nodes + `data` cloned); the canonical `TEMPLATES[i].graph` is never written. Re-opening in any locale order always starts from the pristine English canonical, asserted by a re-open-isolation test (§TLO3 / INV-7 / §TLO8). |
+| **TLO-D10** | canonical mutation | **None.** `loadGraph` gets a **full structural deep clone of the whole `{ nodes, edges }` payload** — every node / `position` / `data`, every edge / `data` / `route` / `waypoints` — plus a fresh `recommendedRunConfig` (arrays not shared). No overlay, RF runtime state, or user edit can reach `TEMPLATES[i]`. Asserted by a re-open-isolation test **and** a no-shared-references unit test (§TLO3 / INV-7 / §TLO8). |
 
 ---
 
