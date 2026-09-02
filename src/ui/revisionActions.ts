@@ -100,7 +100,7 @@ export function reviewModel(p: PendingProposal): ReviewModel {
   const proposed = deserialize(p.proposedText)
   const diff = computeRevisionDiff(
     p.base.content,
-    canonicalContent({ nodes: proposed.nodes, edges: proposed.edges }),
+    canonicalContent({ nodes: proposed.nodes, edges: proposed.edges }, { modelVersion: proposed.modelVersion }),
   )
   return {
     authorName: p.project.meta?.author?.name,

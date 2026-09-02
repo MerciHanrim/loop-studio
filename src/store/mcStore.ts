@@ -199,8 +199,11 @@ export const useMcStore = create<McStore>((set, get) => ({
       })
       const wallMs = performance.now() - t0
       const denom = Math.max(1, result.completedRuns * config.steps)
-      // §W3.2 — the digest is minted here, from the graph this run executed on
-      const resultGraphDigest = await semanticDigest({ nodes, edges })
+      // §W3.2 — the digest is minted here, from the graph this run executed on.
+      // loop-model/2 (SEMANTICS-M2.md §M2-8): fold in the model-semantics version
+      // so a result computed under v1 is not mistaken for a current v2 result
+      // (and vice versa) after a promotion / cross-version Import.
+      const resultGraphDigest = await semanticDigest({ nodes, edges }, config.modelVersion)
       set({
         status: 'done',
         result,

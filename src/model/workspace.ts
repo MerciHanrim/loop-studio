@@ -128,11 +128,18 @@ export function stableStringify(value: unknown): string {
   return `{${body}}`
 }
 
-/** the exact string that is hashed for `semanticDigest` (exported for tests) */
-export function canonicalGraphString(graph: { nodes: LoopNode[]; edges: LoopEdge[] }): string {
+/** the exact string that is hashed for `semanticDigest` (exported for tests).
+ *  loop-model/2 (SEMANTICS-M2.md §M2-8): a v2 document adds a trailing
+ *  `modelSemantics: "loop-model/2"` key so the same `flow: "@p"` — a v1 fallback
+ *  vs. a resolved Parameter — hashes differently. Absent ⇒ v1 bytes untouched. */
+export function canonicalGraphString(
+  graph: { nodes: LoopNode[]; edges: LoopEdge[] },
+  modelVersion?: 1 | 2,
+): string {
   return stableStringify({
     nodes: [...graph.nodes].map(projectNode).sort(byId),
     edges: [...graph.edges].map(projectEdge).sort(byId),
+    ...(modelVersion === 2 ? { modelSemantics: 'loop-model/2' } : {}),
   })
 }
 
@@ -142,8 +149,11 @@ export function canonicalGraphString(graph: { nodes: LoopNode[]; edges: LoopEdge
  * in the tests; the pure-JS path (`sha256Js`) is used where `crypto.subtle` is
  * absent (some `file://` contexts).
  */
-export async function semanticDigest(graph: { nodes: LoopNode[]; edges: LoopEdge[] }): Promise<string> {
-  return sha256Hex(utf8Bytes(canonicalGraphString(graph)))
+export async function semanticDigest(
+  graph: { nodes: LoopNode[]; edges: LoopEdge[] },
+  modelVersion?: 1 | 2,
+): Promise<string> {
+  return sha256Hex(utf8Bytes(canonicalGraphString(graph, modelVersion)))
 }
 
 // ── SHA-256 ──────────────────────────────────────────────────────────────

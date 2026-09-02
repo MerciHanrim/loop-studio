@@ -214,6 +214,66 @@ at the existing `flow`-parse point, **before Phase 0**. Therefore:
 
 ---
 
+## M2-8. Revision & workspace digest — the model-semantics discriminator
+
+The `loop-revision` canonical projection and the `loop-workspace` semantic
+digest are **"same engine-affecting input ⇒ same digest"** contracts. A v1
+document and a byte-identical v2 document with `flow: "@p"` compute **different**
+runs (v1 fallback `1` vs. the resolved Parameter), so they **must** hash
+differently. `schema` being a serialisation envelope is beside the point: a
+discriminator that changes execution results belongs **in the engine
+projection**.
+
+### M2-8.1 The rule
+
+Both canonical projections gain **one trailing key**, emitted **iff** the
+document declares model-semantics version 2:
+
+```jsonc
+// loop-revision canonical content (SEMANTICS-R.md §R4.2 CanonicalContent):
+{ "nodes": [...], "edges": [...], "recommendedRunConfig": {...},
+  "modelSemantics": "loop-model/2" }   // ← v2 only, LAST key
+
+// loop-workspace semantic-digest projection (SEMANTICS-W.md §W3.1):
+{ "edges": [...], "modelSemantics": "loop-model/2", "nodes": [...] }  // ← v2 only
+```
+
+- **v1 documents: absolutely nothing changes.** No key is added, so
+  `canonicalJson` / `canonicalGraphString` bytes — and every `fullContentDigest`
+  / `semanticDigest` / `digestOfCanonical` — are **identical** to
+  `loop-revision/3` / `loop-workspace/1` (M2-INV-9). This holds even for a v1
+  document that already stores a stray `@foo` flow (it is v1 content; §M2-1.1).
+- **v2 documents:** the trailing `modelSemantics: "loop-model/2"` is folded into
+  the hashed bytes. A stored base snapshot / proposal side that carries it is
+  kept verbatim so its stored digest still verifies.
+- The model-semantics version is **declared** (from `schema`), never inferred
+  from `{nodes, edges}` — the two byte-identical graphs above are only
+  distinguishable by what the file declares.
+
+### M2-8.2 Freeze vehicle — `loop-revision/4`
+
+This projection change is **ratified as `loop-revision/4`** (successor to
+`loop-revision/3` / `SEMANTICS-R3.md`), and the analogous `loop-workspace`
+projection change is an additive amendment here — exactly as `loop-model/1`
+fixed the `loop-revision/2` projection delta in `SEMANTICS-M.md` §M8.1 before
+`SEMANTICS-R2.md` ratified it. `readRevisionSide` classifies a side whose
+declared version is 2 as **`loop-revision/4`** and verifies it against the
+discriminated projection. A **v1 ↔ v2 cross-version Proposal / three-way merge**
+is **not defined** by `loop-model/2`: the differing `modelSemantics` makes the
+stored digest mismatch, which prevents a silent apply.
+
+### M2-8.3 `simulationRev` and Monte-Carlo staleness
+
+An explicit v1 → v2 promotion (§M2-1.1) is a `flow`-string edit through
+`setEdgeData`, which is never cosmetic, so it **bumps `simulationRev`**. The
+Monte-Carlo store marks its result **stale** on any `simulationRev` change, so a
+result computed under v1 semantics is flagged the moment the document is
+promoted. The stored `resultGraphDigest` (§W3.2) folds in the model version, so
+a v1 result also fails the digest match after a promotion or a cross-version
+Import.
+
+---
+
 ## M2-6. Scope — what `loop-model/2` does **not** add
 
 - `@` references in any field other than a `resource` edge's `flow` (`initial`,
@@ -232,9 +292,13 @@ at the existing `flow`-parse point, **before Phase 0**. Therefore:
 | id | statement |
 |---|---|
 | **M2-INV-1** | **v1 identity.** For any document whose `schema` is `"loop-studio/graph"`: `parseFlow(raw, 1)` equals `loop-model/1` for every `raw` (a leading-`@` string ⇒ `const 1`, no diagnostic); no resolve pass runs; the deterministic run, the serialised bytes, and the `loop-revision` digest are **identical** to `loop-model/1`. |
-| **M2-INV-2** | **Conservative extension.** A v2 document with **no** `param` / `paramBad` flow runs and digests **identically** to the same graph read as v1. There is no discontinuity at the boundary. |
+| **M2-INV-2** | **Conservative extension — runtime only.** A v2 document with **no** `param` / `paramBad` flow **runs** identically to the same graph read as v1. Its **digest** carries the §M2-8 discriminator (it is *declared* v2), so it is **not** digest-identical to the v1 form — the digest identifies the declared execution semantics, not just this run's numbers. |
 | **M2-INV-3** | **Identical-literal.** For a finite `p.value = v`, an edge `flow: "@p"` yields a run identical to `flow: "<v>"` as a literal (M2-3.1) — including `v < 0` ⇒ `1`. |
-| **M2-INV-4** | **`schema` is not content.** The `schema` string is not part of the `loop-revision` canonical projection or `fullContentDigest`. |
+| **M2-INV-4** | **`schema` is not content.** The `schema` *string* is not part of the canonical projection; the model-semantics version it encodes **is**, as the §M2-8 `modelSemantics` discriminator (v2 only). |
+| **M2-INV-9** | **v1 digest byte-identity.** For every v1 document (any content, including a stray `@foo` flow), `canonicalJson(canonicalContent(doc))` and `canonicalGraphString(graph)` — and thus every derived digest — are **byte-identical** to `loop-revision/3` / `loop-workspace/1`. |
+| **M2-INV-10** | **v1 ≠ v2 for the same payload.** Two documents with identical `{nodes, edges}` and a `flow: "@p"`, one v1 and one v2, have **different** `fullContentDigest` and **different** `semanticDigest`. |
+| **M2-INV-11** | **Round-trip digest stability.** For a v2 document, the digest is unchanged across Export→Import, Share encode→decode, Workspace export→import, and autosave→reload — the declared model version rides `schema` and is re-derived on every load. |
+| **M2-INV-12** | **Promotion invalidates stale state.** An explicit v1→v2 promotion bumps `simulationRev`; a completed Monte-Carlo result is marked stale; its stored `resultGraphDigest` no longer matches. |
 | **M2-INV-5** | **Round-trip version stability.** Export→Import, Share encode→decode, Workspace export→import, and autosave→reload all preserve the model version; the reloaded document's `schema` and the store's model version are unchanged. |
 | **M2-INV-6** | **Fail-closed.** A reader that does not recognise `"loop-studio/graph/2"` rejects the document; it never runs a v2 document under v1 semantics. |
 | **M2-INV-7** | **Determinism.** With `param` edges present (resolved, degraded-to-`0`, or negative-to-`1`), the same seed reproduces an identical trajectory, and a Monte-Carlo run reproduces byte-identical `series` / `endedRuns` / `final`. |

@@ -111,7 +111,7 @@ export async function importFile(text: string): Promise<ImportOutcome> {
   // one uninterrupted synchronous pass (§W5.1).
   const graphDigest =
     parsed.workspace != null
-      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges })
+      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion)
       : ''
 
   // ── from here: synchronous ──────────────────────────────────────────

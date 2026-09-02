@@ -45,6 +45,14 @@ describe('graphStore.modelVersion', () => {
     expect(mv()).toBe(2) // still promoted — the edge will run 0 + a diagnostic, never 1
   })
 
+  it('an explicit v1 → v2 promotion bumps simulationRev (⇒ any MC result goes stale) (M2-INV-12)', () => {
+    const { edgeId } = base()
+    const before = g().simulationRev
+    g().setEdgeData(edgeId, { kind: 'resource', flow: '@p' })
+    expect(mv()).toBe(2)
+    expect(g().simulationRev).toBeGreaterThan(before)
+  })
+
   it('an ordinary literal flow edit does NOT promote', () => {
     const { edgeId } = base()
     g().setEdgeData(edgeId, { kind: 'resource', flow: '3' })

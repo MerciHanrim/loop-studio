@@ -141,6 +141,37 @@ test.describe('loop-model/2 — parameter-driven flow', () => {
     expect(await step1PoolValue(page)).toBe(12)
   })
 
+  test('promoting a graph to v2 marks a completed Monte-Carlo result stale (§M2-8.3)', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await openApp(page)
+    await resetAll(page)
+    const edgeId = await sourcePoolGraph(page)
+
+    // a tiny deterministic Monte-Carlo run over the still-v1 graph
+    await page.evaluate(() => {
+      const mc = (window as any).__loop.mc.getState()
+      mc.setConfig({ baseSeed: 1, runs: 3, steps: 2, tracked: [] })
+    })
+    await page.evaluate(() => (window as any).__loop.mc.getState().run())
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__loop.mc.getState().status))
+      .toBe('done')
+    expect(await page.evaluate(() => (window as any).__loop.mc.getState().stale)).toBe(false)
+
+    // an explicit leading-@ commit promotes to v2 AND invalidates the result
+    await page.evaluate(
+      (id) =>
+        (window as any).__loop.graph
+          .getState()
+          .setEdgeData(id, { kind: 'resource', flow: '@p' }),
+      edgeId,
+    )
+    expect(await modelVersion(page)).toBe(2)
+    expect(await page.evaluate(() => (window as any).__loop.mc.getState().stale)).toBe(true)
+  })
+
   test('an unknown / newer schema is rejected (fail-closed) — never a silent load', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await openApp(page)

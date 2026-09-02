@@ -80,7 +80,11 @@ export async function routeImport(text: string): Promise<RouteResult> {
   // defensive read (structural gate) → version predicate → version-appropriate
   // projection. A malformed model payload (§R2-5.1) never blocks the graph and
   // never enters Review / Apply.
-  const side = readRevisionSide({ nodes: parsed.nodes, edges: parsed.edges, recommendedRunConfig: parsed.recommendedRunConfig })
+  const side = readRevisionSide(
+    { nodes: parsed.nodes, edges: parsed.edges, recommendedRunConfig: parsed.recommendedRunConfig },
+    undefined,
+    parsed.modelVersion,
+  )
   if (!side.ok) {
     const outcome = await importFile(text)
     useProjectStore.getState().clear()
@@ -121,9 +125,9 @@ export async function routeImport(text: string): Promise<RouteResult> {
 export type PendingProposal = Extract<RouteResult, { kind: 'proposal' }>
 
 /** the proposed graph carried by a routed proposal (deserialised once) */
-function proposedGraph(p: PendingProposal): { nodes: LoopNode[]; edges: LoopEdge[] } {
-  const { nodes, edges } = deserialize(p.proposedText)
-  return { nodes, edges }
+function proposedGraph(p: PendingProposal): { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: 1 | 2 } {
+  const { nodes, edges, modelVersion } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */
@@ -139,10 +143,11 @@ export function classifyPendingProposal(p: PendingProposal) {
  *  proposal), for the Review UI's hunk list. Pure read; nothing mutated. */
 export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
   const g = useGraphStore.getState()
+  const proposed = proposedGraph(p)
   return computeThreeWay(
     p.base.content,
-    canonicalContent({ nodes: g.nodes, edges: g.edges }),
-    canonicalContent(proposedGraph(p)),
+    canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }),
+    canonicalContent(proposed, { modelVersion: proposed.modelVersion }),
   )
 }
 
@@ -151,7 +156,7 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
  *  (`target-moved`) instead of silently re-using a stale selection. */
 export function currentTargetDigest(): string {
   const g = useGraphStore.getState()
-  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
+  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
 }
 
 /** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for

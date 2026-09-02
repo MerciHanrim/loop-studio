@@ -126,14 +126,14 @@ type ProjectState = {
   openProposalAsDocument: (
     project: ProjectPayload,
     base: ProposalBase,
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[] },
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 },
   ) => void
   /** §R7A.2 — classify a proposal against the open revision without applying
    *  (for the Review UI). Same gates as `applyProposal`. */
   classifyProposal: (input: {
     project: ProjectPayload
     base: ProposalBase
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[] }
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 }
   }) =>
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
@@ -155,7 +155,7 @@ type ProjectState = {
     input: {
       project: ProjectPayload
       base: ProposalBase
-      proposed: { nodes: LoopNode[]; edges: LoopEdge[] }
+      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 }
     },
     opts?: {
       now?: string
@@ -245,7 +245,7 @@ function parseHeader(raw: unknown): OpenProject | null {
  *  reliance on the debounced flag) */
 function liveDigest(): string {
   const g = useGraphStore.getState()
-  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
+  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
 }
 
 function persist(open: OpenProject | null): void {
@@ -258,14 +258,14 @@ function persist(open: OpenProject | null): void {
 function classifyAgainst(
   o: OpenProject,
   base: ProposalBase,
-  proposed: { nodes: LoopNode[]; edges: LoopEdge[] },
+  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 },
 ): ApplyClassification {
   const g = useGraphStore.getState()
-  const target = canonicalContent({ nodes: g.nodes, edges: g.edges })
+  const target = canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion })
   const exact =
     o.revisionId === base.revisionId && digestOfCanonical(target) === base.contentDigest
   if (exact) return 'exact'
-  const nConf = countThreeWayConflicts(base.content, target, canonicalContent(proposed))
+  const nConf = countThreeWayConflicts(base.content, target, canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
   return nConf >= 1 ? 'divergent' : 'unknown'
 }
 
@@ -317,7 +317,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
       const g = useGraphStore.getState()
-      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
+      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
       const o = get().open
       const isDirty = o != null && snapDigest !== o.baselineDigest
 
@@ -337,6 +337,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         baseBaselineDigest = null
         pr = planRevisionExport({
           doc: { nodes: g.nodes, edges: g.edges },
+          modelVersion: g.modelVersion,
           project: { projectId, revisionId: mkId('rev'), parentId: null, lineage: [] },
           dirty: false,
           meta: authoredMeta({ createdAt: now }),
@@ -350,6 +351,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         baseBaselineDigest = o.baselineDigest
         pr = planRevisionExport({
           doc: { nodes: g.nodes, edges: g.edges },
+          modelVersion: g.modelVersion,
           project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
           dirty: isDirty,
           meta: authoredMeta(o.meta),
@@ -421,11 +423,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
       const g = useGraphStore.getState()
-      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }))
+      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
       const isDirty = snapDigest !== o.baselineDigest
       if (get().dirty !== isDirty) set({ dirty: isDirty })
 
       return planProposalExport({
+        modelVersion: g.modelVersion,
         doc: { nodes: g.nodes, edges: g.edges },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
         dirty: isDirty,
@@ -460,7 +463,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // graphStore history sidecar captures this header on the frame it creates,
       // so undo restores the prior document AND its header.
       useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
-      const digest = digestOfCanonical(canonicalContent(proposed))
+      const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
       const next: OpenProject = {
         projectId: project.projectId,
         revisionId: project.revisionId,
@@ -495,7 +498,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
 
       // §R6 / §R10 — the proposal payload must still hash to its own digests
-      const proposedCanon = canonicalContent(proposed)
+      const proposedCanon = canonicalContent(proposed, { modelVersion: proposed.modelVersion })
       if (
         digestOfCanonical(base.content) !== base.contentDigest ||
         (project.contentDigest != null && digestOfCanonical(proposedCanon) !== project.contentDigest)
@@ -522,7 +525,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         }
         const plan = computeThreeWay(
           base.content,
-          canonicalContent({ nodes: g.nodes, edges: g.edges }),
+          canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }),
           proposedCanon,
         )
         const built = buildSelectiveApply({
@@ -537,7 +540,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         const valid = validateResultGraph(built.nodes, built.edges)
         if (!valid.ok) return { ok: false, reason: 'invalid-selection', reasons: valid.reasons }
         // an effective no-op mints no revision / undo entry / simulationRev bump
-        if (digestOfCanonical(canonicalContent({ nodes: built.nodes, edges: built.edges })) === targetDigest) {
+        if (
+          digestOfCanonical(
+            canonicalContent({ nodes: built.nodes, edges: built.edges }, { modelVersion: g.modelVersion }),
+          ) === targetDigest
+        ) {
           return { ok: false, reason: 'no-effective-change' }
         }
         resultNodes = built.nodes
@@ -566,7 +573,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // undo entry. The history sidecar captures `preHeader` on that frame, so a
       // single Undo restores the pre-apply graph AND this header together.
       useGraphStore.getState().loadDoc({ nodes: resultNodes, edges: resultEdges })
-      const postGraphDigest = digestOfCanonical(canonicalContent({ nodes: resultNodes, edges: resultEdges }))
+      const postGraphDigest = digestOfCanonical(
+        canonicalContent({ nodes: resultNodes, edges: resultEdges }, { modelVersion: g.modelVersion }),
+      )
 
       // §R7.1 — a brand-new revision derived from the target
       const meta: ProjectMeta = { ...preHeader.meta, tool: TOOL, createdAt: now }
