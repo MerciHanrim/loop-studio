@@ -232,7 +232,7 @@ export const useSimStore = create<SimStore>((set, get) => {
   const prepareTransition = (): PreparedResult => {
     const g = graph()
     const h = head()
-    const r = step(g.nodes, g.edges, h, get().seed)
+    const r = step(g.nodes, g.edges, h, get().seed, g.modelVersion)
     return {
       fromStep: h.step,
       expectedCommitEpoch: get().commitEpoch,

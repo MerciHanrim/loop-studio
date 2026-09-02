@@ -27,6 +27,11 @@ export type RunConfig = {
   steps: number
   /** Pool ids to record; [] means every Pool in the graph */
   tracked: string[]
+  /** loop-model/2 (SEMANTICS-M2.md) — the document's model-semantics version;
+   *  threaded to `step()`. Absent / `1` ⇒ loop-model/1 execution (no `@id` flow
+   *  resolution), byte-identical to before. A transient run input, not a
+   *  persisted config field. */
+  modelVersion?: 1 | 2
 }
 
 export type RunOptions = {
@@ -210,7 +215,7 @@ export function runRange(
     let ended = false
     for (let t = 1; t <= config.steps; t++) {
       if (!ended) {
-        st = step(nodes, edges, st, seed).state
+        st = step(nodes, edges, st, seed, config.modelVersion ?? 1).state
         if (st.ended) {
           ended = true
           endedAt[lr] = t
@@ -269,7 +274,7 @@ function fillOneRun(f: RunFill, i: number): void {
   let ended = false
   for (let t = 1; t <= config.steps; t++) {
     if (!ended) {
-      st = step(nodes, edges, st, seed).state
+      st = step(nodes, edges, st, seed, config.modelVersion ?? 1).state
       if (st.ended) {
         ended = true
         endedAt[i] = t

@@ -1,5 +1,5 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
-import { evalDet, evalRand, parseFlow, rateOf, type FlowExpr } from './flow'
+import { evalDet, evalRand, type ModelVersion, parseFlow, rateOf, type FlowExpr } from './flow'
 import { categorical, sample } from './rng'
 import { ACT_WHY, LABEL_WHY, parseActivatorExpr, parseDelay, parseLabelExpr } from './stateExpr'
 import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResult, type TriggerQueueEntry } from './types'
@@ -48,6 +48,7 @@ export function step(
   edges: LoopEdge[],
   prev: SimState,
   seed = 1,
+  modelVersion: ModelVersion = 1,
 ): StepResult {
   const curStep = prev.step + 1 // the step being computed — the RNG key's `step`
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -58,8 +59,55 @@ export function step(
   const liveEdges = edges.filter((e) => !modelId(e.source) && !modelId(e.target))
   const resEdges = liveEdges.filter((e) => (e.data?.kind ?? 'resource') === 'resource')
   const flowOf = new Map<string, FlowExpr>(
-    resEdges.map((e) => [e.id, parseFlow(e.data?.kind === 'resource' ? e.data.flow : '1')]),
+    resEdges.map((e) => [
+      e.id,
+      parseFlow(e.data?.kind === 'resource' ? e.data.flow : '1', modelVersion),
+    ]),
   )
+  // loop-model/2 (SEMANTICS-M2.md §M2-3): in a v2 document, resolve every
+  // `@id` / malformed-`@…` flow to a `const` once, before any phase. Every
+  // unresolved reference contributes 0 + one diagnostic; a resolved finite
+  // value follows the identical-literal rules (§M2-3.1). Deduped per edge.
+  const paramDiagnostics: string[] = []
+  if (modelVersion === 2) {
+    for (const e of resEdges) {
+      const fx = flowOf.get(e.id)!
+      if (fx.kind !== 'param' && fx.kind !== 'paramBad') continue
+      if (fx.kind === 'paramBad') {
+        flowOf.set(e.id, { kind: 'const', value: 0 })
+        paramDiagnostics.push(
+          `Edge "${e.id}" flow "${fx.raw}" is not a valid parameter reference; contributes 0.`,
+        )
+        continue
+      }
+      const target = byId.get(fx.id)
+      if (!target) {
+        flowOf.set(e.id, { kind: 'const', value: 0 })
+        paramDiagnostics.push(
+          `Edge "${e.id}" flow "@${fx.id}" references an unknown parameter; contributes 0.`,
+        )
+        continue
+      }
+      if (target.data.kind !== 'parameter') {
+        flowOf.set(e.id, { kind: 'const', value: 0 })
+        paramDiagnostics.push(
+          `Edge "${e.id}" flow "@${fx.id}" must reference a parameter node (got ${target.data.kind}); contributes 0.`,
+        )
+        continue
+      }
+      const v = (target.data as { value?: unknown }).value
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        flowOf.set(e.id, { kind: 'const', value: 0 })
+        paramDiagnostics.push(
+          `Edge "${e.id}" flow "@${fx.id}": parameter value is not a finite number; contributes 0.`,
+        )
+        continue
+      }
+      // §M2-3.1 — the identical-literal rule: `parseFlow`'s literal gate is
+      // `n >= 0`, so a negative resolves exactly as the literal "-2" does (⇒ 1).
+      flowOf.set(e.id, { kind: 'const', value: v >= 0 ? v : 1 })
+    }
+  }
   const fe = (e: LoopEdge) => flowOf.get(e.id)!
   const isRandExpr = (e: LoopEdge) => {
     const k = fe(e).kind
@@ -98,7 +146,7 @@ export function step(
   const events: StepResult['report']['events'] = []
   const activated = new Set<string>()
   const fired = new Set<string>()
-  const diagnostics: string[] = []
+  const diagnostics: string[] = [...paramDiagnostics]
   let ended = prev.ended
 
   // ── Engine B: one draw per random edge per step (SEMANTICS-B1.md §B3) ─────

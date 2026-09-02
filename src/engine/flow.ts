@@ -4,6 +4,15 @@
 // It is parsed once into a structured `FlowExpr` that the editor, serialisation,
 // and both engines share. Engine A can evaluate const / all / percent; ranges
 // and dice parse but contribute 0 (SEMANTICS.md §8).
+//
+// loop-model/2 (SEMANTICS-M2.md): in a **v2 document** a flow string may be a
+// single parameter reference — `@id` / `@{id}` (the loop-expr/1 §X3 form). It
+// parses to `param` (well-formed) or `paramBad` (any other leading-`@` string);
+// `step()` resolves it to a `const` once per step (M2-3). With `modelVersion`
+// 1 (the default) a leading `@` is just an unparseable literal ⇒ `const 1`,
+// exactly as in loop-model/1 — v1 execution is untouched.
+
+import { tokenize } from '../model/expr/tokenize'
 
 export type FlowExpr =
   | { kind: 'const'; value: number }
@@ -11,11 +20,30 @@ export type FlowExpr =
   | { kind: 'percent'; frac: number }
   | { kind: 'range'; lo: number; hi: number }
   | { kind: 'dice'; count: number; sides: number }
+  | { kind: 'param'; id: string } // loop-model/2 — a well-formed `@id` reference; not yet a number
+  | { kind: 'paramBad'; raw: string } // loop-model/2 — a leading-`@` string that is NOT a well-formed reference
+
+export type ModelVersion = 1 | 2
 
 const NUM = /^\d+(?:\.\d+)?$/
 
-export function parseFlow(raw: string | undefined): FlowExpr {
-  const s = (raw ?? '').trim().toLowerCase()
+/** A `flow` string whose trimmed form is a single well-formed `@id` / `@{id}`
+ *  reference (loop-expr/1 §X3, same tokeniser) ⇒ the decoded target id;
+ *  otherwise `null`. Used only in a v2 document. */
+function parseParamRef(trimmed: string): string | null {
+  const r = tokenize(trimmed)
+  if (!r.ok) return null
+  const t = r.tokens
+  return t.length === 2 && t[0].type === 'ref' && t[1].type === 'eof' ? t[0].id : null
+}
+
+export function parseFlow(raw: string | undefined, modelVersion: ModelVersion = 1): FlowExpr {
+  const trimmed = (raw ?? '').trim()
+  if (modelVersion === 2 && trimmed.startsWith('@')) {
+    const id = parseParamRef(trimmed)
+    return id != null ? { kind: 'param', id } : { kind: 'paramBad', raw: trimmed }
+  }
+  const s = trimmed.toLowerCase()
   if (s === '') return { kind: 'const', value: 1 }
   if (s === 'all') return { kind: 'all' }
 
@@ -71,6 +99,9 @@ export function evalDet(e: FlowExpr, available: number, snapshot: number): numbe
     case 'range':
     case 'dice':
       return 0 // random flow is inactive in Engine A
+    case 'param':
+    case 'paramBad':
+      return 0 // loop-model/2: step() resolves these to `const` before evaluation
   }
 }
 
@@ -91,6 +122,9 @@ export function rateOf(e: FlowExpr): number {
     case 'range':
     case 'dice':
       return 0
+    case 'param':
+    case 'paramBad':
+      return 0 // loop-model/2: step() resolves these to `const` before evaluation
   }
 }
 

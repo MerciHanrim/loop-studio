@@ -110,7 +110,7 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
 
   // ---- apply (§U5.5): stop any run, then exactly one loadDoc -------------
   useSimStore.getState().pause() // first point that run state changes
-  useGraphStore.getState().loadDoc({ nodes: parsed.nodes, edges: parsed.edges }) // the ONE bump
+  useGraphStore.getState().loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
 
   strip()

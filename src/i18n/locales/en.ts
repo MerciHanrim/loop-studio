@@ -216,6 +216,15 @@ const en = {
   'inspector.edge.type.state': 'state — reads a value, modifies target',
   'inspector.field.flow': 'Flow',
   'inspector.edge.flowPlaceholder': '1, all, 2D6, 1-3, 25%',
+  'inspector.edge.flowParam.pickLabel': 'Drive with a parameter',
+  'inspector.edge.flowParam.literalOption': '— literal value —',
+  'inspector.edge.flowParam.resolved': '= {value}',
+  'inspector.edge.flowParam.unknown': 'no parameter “{id}” — this connection contributes 0',
+  'inspector.edge.flowParam.notParam': '“{id}” is not a parameter — this connection contributes 0',
+  'inspector.edge.flowParam.malformed':
+    'not a valid parameter reference — this connection contributes 0',
+  'inspector.edge.flowParam.hint':
+    'A parameter reference is kept by id: renaming the parameter is fine; deleting it leaves the reference dangling (it is not rewritten).',
   'inspector.field.route': 'Route',
   'inspector.edge.route.curved': 'Curved',
   'inspector.edge.route.orthogonal': 'Orthogonal',

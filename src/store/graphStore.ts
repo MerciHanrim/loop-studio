@@ -11,6 +11,7 @@ import { createNode, defaultData, nextId } from '../model/factory'
 import {
   deserialize,
   loadFromStorage,
+  type ModelSemanticsVersion,
   normalizeGraph,
   saveToStorage,
   serialize,
@@ -44,6 +45,13 @@ type GraphStore = {
    *  (SEMANTICS-U.md §U5.6 / D5). */
   pristineSample: boolean
 
+  /** loop-model/2 (SEMANTICS-M2.md §M2-1) — the current document's
+   *  model-semantics version. Set from the loaded `schema`, latched to `2` by
+   *  the first leading-`@` `flow` commit (§M2-1.1), reset to `1` by `newGraph`.
+   *  Passed to `serialize()` / autosave and to `step()` / Monte-Carlo. One-way
+   *  per document: never returns to `1` except on a full new / v1 load. */
+  modelVersion: ModelSemanticsVersion
+
   past: HistoryEntry[]
   future: HistoryEntry[]
   canUndo: boolean
@@ -62,8 +70,11 @@ type GraphStore = {
   removeEdge: (id: string) => void
   setSelection: (nodeId: string | null, edgeId: string | null) => void
   newGraph: () => void
-  loadGraph: (snapshot: Snapshot) => void
-  loadDoc: (doc: { nodes: LoopNode[]; edges: LoopEdge[] }) => void
+  loadGraph: (snapshot: Snapshot, modelVersion?: ModelSemanticsVersion) => void
+  loadDoc: (
+    doc: { nodes: LoopNode[]; edges: LoopEdge[] },
+    modelVersion?: ModelSemanticsVersion,
+  ) => void
   /** returns the file's `recommendedRunConfig` (if any) for the caller to apply */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
   exportJSON: (recommendedRunConfig?: RecommendedRunConfig) => string
@@ -95,7 +106,7 @@ export function setAutosaveProjectHeader(header: unknown): void {
   autosaveProjectHeader = header ?? null
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries)
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion)
 }
 
 /** Persist the Timeline visible-series default into the autosave record and
@@ -107,7 +118,7 @@ export function setAutosaveTimelineSeries(ts: 'all' | readonly string[]): void {
   autosaveTimelineSeries = ts === 'all' ? 'all' : [...ts]
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries)
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion)
 }
 
 /** The raw project header from the last autosave record — read once by
@@ -190,6 +201,7 @@ function makeSample(): Snapshot {
 export const useGraphStore = create<GraphStore>((set, get) => {
   const stored = loadFromStorage()
   const boot = normalizeGraph(stored ?? makeSample())
+  const bootModelVersion: ModelSemanticsVersion = stored?.modelVersion ?? 1
   autosaveProjectHeader = stored?.project ?? null
   const bootTs = stored?.recommendedRunConfig?.timelineSeries
   autosaveTimelineSeries = Array.isArray(bootTs) && bootTs.length > 0 ? [...bootTs] : 'all'
@@ -198,7 +210,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       const s = get()
-      saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries)
+      saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion)
     }, 400)
   }
   /** any full-document swap starts with "no project"; a project-aware caller
@@ -246,6 +258,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     selectedEdgeId: null,
     simulationRev: 0,
     pristineSample: stored == null,
+    modelVersion: bootModelVersion,
     past: [],
     future: [],
     canUndo: false,
@@ -384,6 +397,20 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const touched = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(
         (k) => !Object.is(before?.[k], after[k]),
       )
+      // loop-model/2 (SEMANTICS-M2.md §M2-1.1) — the leading-`@` commit boundary:
+      // the user editing a resource-edge `flow` and committing a value whose
+      // trimmed form starts with `@` (reference well-formed OR malformed) is the
+      // explicit action that promotes a v1 document to v2. One-way; opening /
+      // saving a stored `@…` string never triggers this (it never calls here).
+      if (
+        get().modelVersion === 1 &&
+        after.kind === 'resource' &&
+        typeof after.flow === 'string' &&
+        after.flow.trim().startsWith('@') &&
+        !Object.is(before?.flow, after.flow)
+      ) {
+        set({ modelVersion: 2 })
+      }
       if (touched.length === 0 || !touched.every((k) => COSMETIC.has(k))) bump()
       persist()
     },
@@ -412,41 +439,48 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
-      set({ nodes: [], edges: [], selectedNodeId: null, selectedEdgeId: null })
+      set({ nodes: [], edges: [], selectedNodeId: null, selectedEdgeId: null, modelVersion: 1 })
       bump()
       persist()
     },
 
-    loadGraph: (snapshot) => {
+    loadGraph: (snapshot, modelVersion = 1) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       commit('')
       lastTag = ''
       dropProjectHeader()
-      set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
+      set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null, modelVersion })
       bump()
       persist()
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig } = deserialize(text)
-      get().loadDoc({ nodes, edges })
+      const { nodes, edges, recommendedRunConfig, modelVersion } = deserialize(text)
+      get().loadDoc({ nodes, edges }, modelVersion)
       return recommendedRunConfig
     },
 
     /** load already-deserialized (and normalized) nodes/edges — one `bump()`.
      *  Used by `loadJSON` and by the Workspace importer so the whole restore is
      *  a single `simulationRev` step (SEMANTICS-W.md §W5.1). */
-    loadDoc: ({ nodes, edges }) => {
+    loadDoc: ({ nodes, edges }, modelVersion = 1) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
-      set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null })
+      set({ nodes, edges, selectedNodeId: null, selectedEdgeId: null, modelVersion })
       bump()
       persist()
     },
 
     exportJSON: (recommendedRunConfig) =>
-      serialize(get().nodes, get().edges, recommendedRunConfig),
+      serialize(
+        get().nodes,
+        get().edges,
+        recommendedRunConfig,
+        undefined,
+        undefined,
+        get().modelVersion,
+      ),
   }
 })

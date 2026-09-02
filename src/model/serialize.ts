@@ -4,8 +4,29 @@ import { readParameterData, readRegisterData } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
 
 export const STORAGE_KEY = 'loop-studio:graph:v1'
-const SCHEMA = 'loop-studio/graph'
+
+/** loop-model/2 (SEMANTICS-M2.md §M2-1) — the model-semantics version rides the
+ *  `schema` string, NOT `version`: a reader that does not recognise a `schema`
+ *  value already rejects the file, so a pre-`loop-model/2` client fail-closes on
+ *  a v2 document with no code change. `version` stays `1` for both (the JSON
+ *  envelope shape is unchanged). */
+export const SCHEMA_V1 = 'loop-studio/graph'
+export const SCHEMA_V2 = 'loop-studio/graph/2'
 const SCHEMA_VERSION = 1
+
+export type ModelSemanticsVersion = 1 | 2
+
+const SCHEMA_BY_MODEL_VERSION: Record<ModelSemanticsVersion, string> = {
+  1: SCHEMA_V1,
+  2: SCHEMA_V2,
+}
+/** The model-semantics version a `schema` string denotes, or `null` if the
+ *  string is not a Loop Studio graph schema at all (⇒ the reader rejects it). */
+export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | null {
+  if (schema === SCHEMA_V1) return 1
+  if (schema === SCHEMA_V2) return 2
+  return null
+}
 
 /**
  * Advisory execution defaults saved alongside the graph so a shared file
@@ -204,9 +225,10 @@ export function serialize(
   recommendedRunConfig?: RecommendedRunConfig,
   workspace?: unknown,
   project?: unknown,
+  modelVersion: ModelSemanticsVersion = 1,
 ): string {
   const doc: GraphDoc = {
-    schema: SCHEMA,
+    schema: SCHEMA_BY_MODEL_VERSION[modelVersion] ?? SCHEMA_V1,
     version: SCHEMA_VERSION,
     nodes: nodes.map(toDocNode),
     edges: edges.map(toDocEdge),
@@ -226,6 +248,8 @@ export function serialize(
 export function deserialize(text: string): {
   nodes: LoopNode[]
   edges: LoopEdge[]
+  /** loop-model/2 — the model-semantics version this file declares (from `schema`). */
+  modelVersion: ModelSemanticsVersion
   recommendedRunConfig?: RecommendedRunConfig
   /** raw, unvalidated — the Workspace reader checks it against the loaded graph */
   workspace?: unknown
@@ -242,7 +266,10 @@ export function deserialize(text: string): {
     throw new Error('Unexpected file contents.')
   }
   const obj = raw as Partial<GraphDoc>
-  if (obj.schema !== SCHEMA) {
+  const modelVersion = modelVersionForSchema(obj.schema)
+  if (modelVersion == null) {
+    // Unknown schema — including a newer `loop-studio/graph/N` a pre-N client
+    // does not know (SEMANTICS-M2.md §M2-1: fail-closed, never a silent run).
     throw new Error('This does not look like a Loop Studio graph file.')
   }
   if (!Array.isArray(obj.nodes) || !Array.isArray(obj.edges)) {
@@ -262,6 +289,7 @@ export function deserialize(text: string): {
       : undefined
   return {
     ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
+    modelVersion,
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
     ...(project ? { project } : {}),
@@ -280,20 +308,30 @@ export function saveToStorage(
   edges: LoopEdge[],
   project?: unknown,
   timelineSeries?: 'all' | readonly string[],
+  modelVersion: ModelSemanticsVersion = 1,
 ): void {
   try {
     const rrc: RecommendedRunConfig | undefined =
       Array.isArray(timelineSeries) && timelineSeries.length > 0
         ? { timelineSeries: [...timelineSeries] }
         : undefined
-    localStorage.setItem(STORAGE_KEY, serialize(nodes, edges, rrc, undefined, project))
+    localStorage.setItem(
+      STORAGE_KEY,
+      serialize(nodes, edges, rrc, undefined, project, modelVersion),
+    )
   } catch {
     /* storage unavailable (private mode, quota) — silently skip */
   }
 }
 
 export function loadFromStorage():
-  | { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: RecommendedRunConfig; project?: unknown }
+  | {
+      nodes: LoopNode[]
+      edges: LoopEdge[]
+      modelVersion: ModelSemanticsVersion
+      recommendedRunConfig?: RecommendedRunConfig
+      project?: unknown
+    }
   | null {
   try {
     const text = localStorage.getItem(STORAGE_KEY)

@@ -86,7 +86,20 @@ export type CanonicalContent = {
   nodes: CanonicalNode[]
   edges: CanonicalEdge[]
   recommendedRunConfig?: Record<string, unknown>
+  /**
+   * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
+   * Present (as the literal `"loop-model/2"`) **iff** the document declares
+   * model-semantics version 2. Absent for every v1 document, so a v1 graph's
+   * canonical bytes — and its `fullContentDigest` — are **unchanged**. A v2
+   * document and a byte-identical v1 document therefore hash differently, as
+   * they must: the same `flow: "@p"` runs the v1 fallback in one and resolves
+   * the Parameter in the other. Ratified into `loop-revision/4`.
+   */
+  modelSemantics?: 'loop-model/2'
 }
+
+/** loop-model/2 — the document model-semantics version a projection is taken at. */
+export type CanonModelVersion = 1 | 2
 
 export type ProposalBase = {
   revisionId: string
@@ -356,7 +369,7 @@ export function canonicalContent(
     edges: LoopEdge[]
     recommendedRunConfig?: RecommendedRunConfig
   },
-  opts: { modelLayer?: boolean } = {},
+  opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
   // `modelLayer` defaults to `true` — the conservative `loop-revision/2`
   // projection, byte-identical to `loop-revision/1` for a graph with no model
@@ -370,6 +383,9 @@ export function canonicalContent(
   }
   const rrc = projectRunConfig(doc.recommendedRunConfig)
   if (rrc) out.recommendedRunConfig = rrc
+  // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
+  // v2 document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
+  if (opts.modelVersion === 2) out.modelSemantics = 'loop-model/2'
   return out
 }
 
@@ -386,12 +402,15 @@ export function canonicalJson(x: CanonicalContent): string {
 /** §R4.4 — `fullContentDigest` = SHA-256 (lowercase hex) of the UTF-8 bytes of
  *  `canonicalJson(canonicalContent(doc))`. Web Crypto where present, pure-JS
  *  fallback elsewhere (shared with `loop-workspace/1`). */
-export async function fullContentDigest(doc: {
-  nodes: LoopNode[]
-  edges: LoopEdge[]
-  recommendedRunConfig?: RecommendedRunConfig
-}): Promise<string> {
-  return sha256Hex(utf8Bytes(canonicalJson(canonicalContent(doc))))
+export async function fullContentDigest(
+  doc: {
+    nodes: LoopNode[]
+    edges: LoopEdge[]
+    recommendedRunConfig?: RecommendedRunConfig
+  },
+  modelVersion?: CanonModelVersion,
+): Promise<string> {
+  return sha256Hex(utf8Bytes(canonicalJson(canonicalContent(doc, { modelVersion }))))
 }
 
 /** synchronous digest of an already-built `CanonicalContent` (pure-JS SHA-256).
@@ -402,7 +421,11 @@ export function digestOfCanonical(c: CanonicalContent): string {
 
 // ── §R2-5 — the ordered read pipeline for one revision / proposal side ─────
 
-export type SideVersion = 'loop-revision/1' | 'loop-revision/2' | 'loop-revision/3'
+export type SideVersion =
+  | 'loop-revision/1'
+  | 'loop-revision/2'
+  | 'loop-revision/3'
+  | 'loop-revision/4' // loop-model/2 — the doc declares model-semantics v2 (SEMANTICS-M2.md §M2-8)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -448,6 +471,10 @@ export type RevisionSideResult = RevisionSideOk | RevisionSideFail
 export function readRevisionSide(
   graph: { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: RecommendedRunConfig },
   storedDigest?: string,
+  /** loop-model/2 — the model-semantics version the side's `schema` declared
+   *  (from `deserialize`). `2` ⇒ the side is `loop-revision/4` content and its
+   *  projection carries the §M2-8 discriminator. Absent / `1` ⇒ unchanged. */
+  modelVersion?: CanonModelVersion,
 ): RevisionSideResult {
   // 1 + 2 — normalise, then the structural gate (BEFORE any projection)
   const g = normalizeGraph({ nodes: graph.nodes, edges: graph.edges })
@@ -477,11 +504,19 @@ export function readRevisionSide(
     nodes: g.nodes as { data?: { kind?: unknown; resourceType?: unknown } | null }[],
     edges: g.edges as { data?: { kind?: unknown; resourceType?: unknown } | null }[],
   })
-  const version: SideVersion = hasRouting
-    ? 'loop-revision/3'
-    : hasModel
-      ? 'loop-revision/2'
-      : 'loop-revision/1'
+  // loop-model/2 (SEMANTICS-M2.md §M2-8): the model-semantics version is
+  // declared (via `schema`), NOT inferred from `{nodes,edges}` — a v1 doc with a
+  // stray `@foo` and a v2 doc with a `@foo` reference are byte-identical here.
+  // A v2 declaration ⇒ `loop-revision/4`, which supersedes the v2/v3 label for
+  // this side's projection + digest.
+  const declaredV2 = modelVersion === 2
+  const version: SideVersion = declaredV2
+    ? 'loop-revision/4'
+    : hasRouting
+      ? 'loop-revision/3'
+      : hasModel
+        ? 'loop-revision/2'
+        : 'loop-revision/1'
 
   // 4 — project under the version-appropriate field set and verify the digest
   if (version === 'loop-revision/1') {
@@ -497,14 +532,18 @@ export function readRevisionSide(
     return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
   }
 
-  // v2 + v3 both use the conservative projection; the label distinguishes them
-  // for the loss report / UI (§R3-5).
-  const v2 = canonicalContent(graph, { modelLayer: true })
+  // v2 / v3 / v4 all use the conservative projection; v4 additionally carries the
+  // §M2-8 model-semantics discriminator. The label distinguishes them for the
+  // loss report / UI (§R3-5).
+  const v2 = canonicalContent(graph, {
+    modelLayer: true,
+    ...(declaredV2 ? { modelVersion: 2 as const } : {}),
+  })
   if (storedDigest !== undefined && digestOfCanonical(v2) !== storedDigest) {
     return {
       ok: false,
       stage: 'digest',
-      detail: `stored digest does not match the ${version === 'loop-revision/3' ? 'loop-revision/3' : 'loop-revision/2'} projection`,
+      detail: `stored digest does not match the ${version} projection`,
     }
   }
   return { ok: true, version, content: v2, digestVerified: storedDigest !== undefined }
@@ -1318,6 +1357,10 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (o.recommendedRunConfig && typeof o.recommendedRunConfig === 'object') {
     out.recommendedRunConfig = o.recommendedRunConfig as Record<string, unknown>
   }
+  // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
+  // document carries the trailing discriminator; keep it verbatim (after rrc,
+  // the same key order `canonicalContent` emits) so the stored digest verifies.
+  if (o.modelSemantics === 'loop-model/2') out.modelSemantics = 'loop-model/2'
   return out
 }
 
@@ -1384,6 +1427,8 @@ export type RevisionExportResult = RevisionExportPlan | ExportTooLarge
  */
 export function planRevisionExport(input: {
   doc: Omit<GraphDocInput, 'schema' | 'version'>
+  /** loop-model/2 (SEMANTICS-M2.md §M2-8) — the doc's model-semantics version. */
+  modelVersion?: CanonModelVersion
   project: { projectId: string; revisionId: string; parentId: string | null; lineage: string[] }
   dirty: boolean
   meta: ProjectMeta
@@ -1396,7 +1441,7 @@ export function planRevisionExport(input: {
   maxBytes?: number
 }): RevisionExportResult {
   const cap = input.maxBytes ?? REVISION_FILE_MAX_BYTES
-  const canon = canonicalContent(input.doc)
+  const canon = canonicalContent(input.doc, { modelVersion: input.modelVersion })
   const baselineDigest = digestOfCanonical(canon)
   const mkId = input.mint ?? ((p: 'rev') => mintId(p))
 
@@ -1471,6 +1516,8 @@ export type ProposalExportResult = ProposalExportPlan | ExportTooLarge | ExportD
 export function planProposalExport(input: {
   /** the proposed content (top-level graph of the file) */
   doc: Omit<GraphDocInput, 'schema' | 'version'>
+  /** loop-model/2 (SEMANTICS-M2.md §M2-8) — the doc's model-semantics version. */
+  modelVersion?: CanonModelVersion
   project: { projectId: string; revisionId: string; lineage: string[] }
   /** origin dirtiness — only checked when `pinnedBase` is absent (a first
    *  `Make a proposal` from an open revision) */
@@ -1490,7 +1537,7 @@ export function planProposalExport(input: {
 }): ProposalExportResult {
   const cap = input.maxBytes ?? REVISION_FILE_MAX_BYTES
   const mkId = input.mint ?? ((p: 'rev') => mintId(p))
-  const proposedDigest = digestOfCanonical(canonicalContent(input.doc))
+  const proposedDigest = digestOfCanonical(canonicalContent(input.doc, { modelVersion: input.modelVersion }))
 
   // resolve the base BEFORE minting — a dirty-origin refusal mints no id (R14.5)
   let base: ProposalBase
