@@ -102,6 +102,33 @@ describe('openTemplate — the label overlay', () => {
   })
 })
 
+describe('openTemplate — model-semantics version (loop-model/2, §CR2.1a)', () => {
+  it('coffee-roastery opens as v2; the v1 templates open as v1', () => {
+    expect(openTemplate(tpl('coffee-roastery'), 'en').modelVersion).toBe(2)
+    for (const id of ['equilibrium', 'deadlock', 'mmo-progression']) {
+      expect(openTemplate(tpl(id), 'en').modelVersion).toBe(1)
+    }
+  })
+
+  it('ko: every coffee node label equals the ko dictionary value; the five `@param` flows are untouched', () => {
+    const src = tpl('coffee-roastery')
+    const dict = ko['coffee-roastery']
+    const { graph } = openTemplate(src, 'ko')
+    for (const n of graph.nodes) expect((n.data as { label: string }).label).toBe(dict[n.id])
+    // overlay is label-only — the parameter-reference flows stay English / stable
+    const atFlows = graph.edges
+      .filter((e) => String((e.data as { flow?: string }).flow ?? '').startsWith('@'))
+      .map((e) => (e.data as { flow: string }).flow)
+    expect(atFlows.sort()).toEqual([
+      '@cafe_retail_demand_kg',
+      '@daily_roast_kg',
+      '@dessert_prep',
+      '@green_wholesale_kg',
+      '@online_orders',
+    ])
+  })
+})
+
 describe('openTemplate — re-open isolation (§TLO6-INV-7)', () => {
   it('mutating a ko document does not leak into a later en / ko open', () => {
     const src = tpl('mmo-progression')

@@ -13,7 +13,7 @@
 // `data.label` ONLY — not id / expression / `resourceType` / `unit` / edge
 // data / position / `recommendedRunConfig` (§TLO-D4).
 
-import type { RecommendedRunConfig } from '../../model/serialize'
+import type { ModelSemanticsVersion, RecommendedRunConfig } from '../../model/serialize'
 import type { Template } from '../../model/templates'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
@@ -49,6 +49,10 @@ export const templateLabelDicts: Readonly<Record<string, TemplateLabelDict>> = D
 export type OpenedTemplate = {
   graph: { nodes: LoopNode[]; edges: LoopEdge[] }
   recommendedRunConfig?: RecommendedRunConfig
+  /** loop-model/2 — the model-semantics version to load this Template as
+   *  (from the Template's `modelVersion`, i.e. its file's `schema`). v1 unless
+   *  the Template is authored at `loop-studio/graph/2`. */
+  modelVersion: ModelSemanticsVersion
 }
 
 /**
@@ -75,5 +79,6 @@ export function openTemplate(
     recommendedRunConfig: tpl.recommendedRunConfig
       ? cloneJSON(tpl.recommendedRunConfig)
       : undefined,
+    modelVersion: tpl.modelVersion ?? 1,
   }
 }

@@ -102,8 +102,8 @@ export function MobileMoreMenu({
     if (!tpl) return
     useSimStore.getState().pause()
     // docs/template-label-overlay.md — deep clone + current-locale label overlay
-    const { graph, recommendedRunConfig } = openTemplate(tpl)
-    loadGraph(graph) // the existing atomic path — exactly one bump
+    const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
+    loadGraph(graph, modelVersion) // the existing atomic path — exactly one bump
     useMcStore.getState().applyRecommended(recommendedRunConfig)
     closeOverlay()
   }

@@ -356,6 +356,9 @@ const ko = {
   'templates.mmoProgression.name': '초반 MMO 성장 (1–15레벨)',
   'templates.mmoProgression.blurb':
     '서로 연결된 플레이 경제: 세 개의 지역 구간(1–5 / 5–10 / 10–15), 승리·비치명적 실패·사망으로 갈리는 확률 전투, 분류된 전리품, 수리와 재보급 비용이 드는 골드 경제, 그리고 레벨마다 오르는 XP 곡선. 실행하거나 몬테카를로로 돌려 15레벨 도달 시간이 얼마나 퍼지는지 확인하세요.',
+  'templates.coffeeRoastery.name': '커피 로스터리 운영 흐름',
+  'templates.coffeeRoastery.blurb':
+    '로스팅·판매·재고의 관계를 단순화해 살펴보는 운영 흐름 시뮬레이션: 생두가 입고되고, 일부는 납품으로 나가며, 나머지는 로스팅해 카페·온라인·리테일로 판매됩니다. 하루 운영 값 다섯 개를 바꾸며 재고 궤적과 예상 지표가 어떻게 움직이는지 살펴보세요. 단순화한 시뮬레이션 예제이며 ERP나 실시간 모니터링 시스템이 아닙니다.',
   'templates.replace.title': '현재 다이어그램을 교체할까요?',
   'templates.replace.body': '“{name}”을(를) 불러오면 지금 캔버스에 있는 내용이 대체됩니다.',
   'templates.replace.confirm': '템플릿 불러오기',

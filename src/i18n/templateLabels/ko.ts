@@ -106,5 +106,33 @@ export const ko: TemplateLabelDict = {
     r_items_acct: '아이템 정산',
     r_burned: '소비한 소모품',
   },
-  // 'coffee-roastery' — added in implementation PR (2).
+  // "Coffee roastery operations flow" (docs/example-coffee-roastery.md §CR12.1).
+  // Physical-flow terms use natural industry Korean; the two signed-proxy
+  // read-outs use "… 여유" — never `놓친 판매` / `품절 손실` / `폐기`. `label`
+  // only — ids / expressions / positions stay English (§TLO-D4).
+  'coffee-roastery': {
+    cafe_retail_demand_kg: '카페·리테일 원두 수요량 (kg/일)',
+    daily_roast_kg: '하루 로스팅량 (kg)',
+    online_orders: '온라인 원두 주문량 (kg/일)',
+    green_wholesale_kg: '생두 납품 주문량 (kg)',
+    dessert_prep: '하루 디저트 준비량',
+    green_delivery: '생두 입고',
+    green_stock: '생두 재고',
+    green_wholesale: '생두 납품',
+    roasting: '로스팅 · 수율 82%',
+    roasted_stock: '로스팅 원두 재고',
+    roast_loss: '로스팅 중량 감소',
+    online_sales: '온라인 포장 원두 판매',
+    cafe_retail: '카페·리테일 원두 사용',
+    roasted_bleed: '직원·커핑·샘플용',
+    dessert_prep_src: '디저트 준비',
+    dessert_stock: '디저트 재고',
+    dessert_sales: '디저트 판매',
+    dessert_wrapup: '마감 잔량',
+    projected_revenue: '하루 예상 매출',
+    planned_cost: '하루 계획 비용',
+    projected_operating_margin: '하루 예상 운영차익',
+    roasted_supply_margin: '로스팅 원두 수급 여유',
+    dessert_prep_margin: '디저트 준비 여유',
+  },
 }

@@ -1,6 +1,12 @@
+import coffeeRoasteryDoc from '../../examples/coffee-roastery.json'
 import mmoProgressionDoc from '../../examples/mmo-progression.json'
 import { defaultData } from './factory'
-import { normalizeGraph, type RecommendedRunConfig } from './serialize'
+import {
+  modelVersionForSchema,
+  normalizeGraph,
+  type ModelSemanticsVersion,
+  type RecommendedRunConfig,
+} from './serialize'
 import type { LoopEdge, LoopNode, NodeData, NodeKind } from './types'
 
 export type Template = {
@@ -10,6 +16,10 @@ export type Template = {
   graph: { nodes: LoopNode[]; edges: LoopEdge[] }
   /** applied to the Monte-Carlo config on load, same as a file's field */
   recommendedRunConfig?: RecommendedRunConfig
+  /** loop-model/2 — the model-semantics version this Template is authored in
+   *  (from its file's `schema`). Absent ⇒ v1. A bundled v2 Template loads as v2
+   *  as authored — not the explicit-user-promotion path (§CR2.1a). */
+  modelVersion?: ModelSemanticsVersion
 }
 
 type XY = { x: number; y: number }
@@ -89,5 +99,23 @@ export const TEMPLATES: Template[] = [
     graph: normalizeGraph(mmoProgressionDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] }),
     recommendedRunConfig: (mmoProgressionDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
+  },
+  // "Coffee roastery operations flow" — the first bundled Template authored at
+  // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are
+  // `resource`-edge `flow` parameter references (`@<id>`). The canonical graph is
+  // examples/coffee-roastery.json (built + verified by
+  // src/engine/coffee-roastery.fixture.ts); docs/example-coffee-roastery.md is
+  // the settled design. Opens EDITABLE — no `canvasLocked` (§CR2.1).
+  {
+    id: 'coffee-roastery',
+    name: 'Coffee roastery operations flow',
+    blurb:
+      'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail. Change five daily operating values and the stock trajectories and projected results move. A simplified simulation example — not an ERP or real-time monitoring system.',
+    graph: normalizeGraph(
+      coffeeRoasteryDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] },
+    ),
+    recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
+      .recommendedRunConfig,
+    modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
   },
 ]
