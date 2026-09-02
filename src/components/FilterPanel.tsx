@@ -1,15 +1,14 @@
 import { Panel } from '@xyflow/react'
 import { useT, type MessageKey } from '../i18n'
 import type { NodeKind } from '../model/types'
-import {
-  NODE_KINDS,
-  UNTYPED,
-  filtersActive,
-  useFilterStore,
-  type EdgeClass,
-} from '../store/filterStore'
+import { UNTYPED, filtersActive, useFilterStore, type EdgeClass } from '../store/filterStore'
 import { useUiStore } from '../store/uiStore'
-import { useGraphEdgeClasses, useGraphResourceTypes, useHiddenSet } from './filterSet'
+import {
+  useGraphEdgeClasses,
+  useGraphNodeKinds,
+  useGraphResourceTypes,
+  useHiddenSet,
+} from './filterSet'
 
 // literal MessageKey maps (dynamic `t(\`…${k}\`)` is invisible to check-i18n)
 const EDGE_CLASS_LABEL: Record<EdgeClass, MessageKey> = {
@@ -54,6 +53,7 @@ function Row({
 export function FilterControls() {
   const t = useT()
   const edgeClasses = useGraphEdgeClasses()
+  const nodeKinds = useGraphNodeKinds()
   const resourceTypes = useGraphResourceTypes()
   const hidden = useHiddenSet()
   const hiddenEdgeClasses = useFilterStore((s) => s.hiddenEdgeClasses)
@@ -102,17 +102,19 @@ export function FilterControls() {
         />
       </fieldset>
 
-      <fieldset className="lgr-filter__group">
-        <legend>{t('canvas.filter.groupNodeKind')}</legend>
-        {NODE_KINDS.map((k) => (
-          <Row
-            key={k}
-            checked={hiddenNodeKinds.has(k)}
-            label={t(NODE_KIND_LABEL[k])}
-            onChange={() => toggleNodeKind(k)}
-          />
-        ))}
-      </fieldset>
+      {nodeKinds.length > 0 && (
+        <fieldset className="lgr-filter__group">
+          <legend>{t('canvas.filter.groupNodeKind')}</legend>
+          {nodeKinds.map((k) => (
+            <Row
+              key={k}
+              checked={hiddenNodeKinds.has(k)}
+              label={t(NODE_KIND_LABEL[k])}
+              onChange={() => toggleNodeKind(k)}
+            />
+          ))}
+        </fieldset>
+      )}
 
       <div className="lgr-filter__foot">
         <span className="lgr-filter__count">

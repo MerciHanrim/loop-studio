@@ -491,11 +491,16 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     for (const id of ['re3', 'rp']) await expect(edgePath(page, id)).toHaveCount(1)
   })
 
-  test('hide a node kind → the node and its incident edges go; the 8 kinds all show (§LGR3.2 / §LGR10.5)', async ({ page }) => {
+  test('the node-kind list is graph-derived — GRAPH_RT shows Source / Pool / End only, no dead options (§LGR3.2 / §LGR10.5)', async ({ page }) => {
     await loadRT(page)
     await filterBtn(page).click()
-    // `Drain` is offered even though this graph has none (the fixed 8-kind list)
-    await expect(filterRow(page, 'Drain')).toHaveCount(1)
+    const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Node kind' })
+    await expect(group.locator('.lgr-filter__row span')).toHaveText(['Source', 'Pool', 'End'])
+    // kinds the graph does not contain are not offered
+    for (const dead of ['Gate', 'Converter', 'Drain', 'Parameter', 'Register']) {
+      await expect(group).not.toContainText(dead)
+    }
+    // hiding a present kind removes the node + its incident edges
     await filterRow(page, 'End').check()
     await expect(node(page, 'end')).toHaveCount(0)
     await expect(edge(page, 're3')).toHaveCount(0) // was mana → end

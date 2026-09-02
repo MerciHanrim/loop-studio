@@ -21,7 +21,10 @@ import { useGraphStore } from './graphStore'
 export type EdgeClass = 'resource' | 'state' | 'hint'
 export const EDGE_CLASSES: readonly EdgeClass[] = ['resource', 'state', 'hint']
 
-/** The eight node kinds (`src/model/types.ts`), in reading order (§LGR3.2). */
+/** The eight node kinds (`src/model/types.ts`), in reading order (§LGR3.2).
+ *  Internally all eight are filterable; the panel only lists the kinds actually
+ *  present in the open graph (`graphNodeKinds`), like the edge-class and
+ *  resource-type lists — never a dead always-0 option. */
 export const NODE_KINDS: readonly NodeKind[] = [
   'source',
   'pool',

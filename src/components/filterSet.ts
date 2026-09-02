@@ -2,7 +2,13 @@ import { useMemo } from 'react'
 import { normalizeResourceType } from '../model/model/resourceType'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useGraphStore } from '../store/graphStore'
-import { EDGE_CLASSES, UNTYPED, useFilterStore, type EdgeClass } from '../store/filterStore'
+import {
+  EDGE_CLASSES,
+  NODE_KINDS,
+  UNTYPED,
+  useFilterStore,
+  type EdgeClass,
+} from '../store/filterStore'
 
 // docs/large-graph-readability.md §LGR3.2 — the transient-filter view layer.
 // PURE + hooks, mirroring focusSet.ts: turns the ephemeral filter selections
@@ -42,6 +48,18 @@ export function graphEdgeClasses(edges: readonly LoopEdge[]): EdgeClass[] {
   const present = new Set<EdgeClass>()
   for (const e of edges) present.add(edgeClassOf(e))
   return EDGE_CLASSES.filter((c) => present.has(c))
+}
+
+/**
+ * The node kinds **actually present in the open graph**, canonical order
+ * (§LGR3.2). Same graph-derived rule as the edge-class and resource-type lists —
+ * a filter never offers a kind the current graph does not contain (no dead
+ * always-0 option). Internally all eight kinds stay supported.
+ */
+export function graphNodeKinds(nodes: readonly LoopNode[]): NodeKind[] {
+  const present = new Set<NodeKind>()
+  for (const n of nodes) present.add(n.data.kind)
+  return NODE_KINDS.filter((k) => present.has(k))
 }
 
 export function graphResourceTypes(
@@ -138,6 +156,12 @@ export function useGraphResourceTypes(): string[] {
 export function useGraphEdgeClasses(): EdgeClass[] {
   const edges = useGraphStore((s) => s.edges)
   return useMemo(() => graphEdgeClasses(edges), [edges])
+}
+
+/** The node kinds present in the open graph, canonical order. */
+export function useGraphNodeKinds(): NodeKind[] {
+  const nodes = useGraphStore((s) => s.nodes)
+  return useMemo(() => graphNodeKinds(nodes), [nodes])
 }
 
 /** The live hidden set: `null` unless a filter is active. Recomputes only when
