@@ -278,6 +278,88 @@ describe('saveToStorage / loadFromStorage — the Timeline display default', () 
   })
 })
 
+describe('React Flow renderer state never reaches the document', () => {
+  // React Flow writes `measured` (its ResizeObserver result) and `selected` /
+  // `dragging` back onto the live node/edge objects the store then hands to
+  // `serialize()`. Those depend on viewport size, fonts and render timing — they
+  // are not document data and must not appear in any exported / persisted form.
+  const dirtyNode = (): LoopNode =>
+    ({
+      ...(n('p', 'pool') as LoopNode),
+      measured: { width: 118, height: 64 },
+      selected: true,
+      dragging: false,
+      width: 118,
+      height: 64,
+      positionAbsolute: { x: 0, y: 0 },
+    }) as unknown as LoopNode
+  const dirtyEdge = (): LoopEdge =>
+    ({
+      id: 'e',
+      source: 'p',
+      target: 'p',
+      sourceHandle: 'out',
+      targetHandle: 'in',
+      type: 'loop',
+      // real document content lives in `data` — routing intent + the model tag
+      data: {
+        kind: 'resource',
+        flow: '1',
+        resourceType: 'gold',
+        route: 'orthogonal',
+        waypoints: [{ x: 10, y: 20 }],
+      },
+      selected: true,
+    }) as unknown as LoopEdge
+
+  it('serialize drops measured / selected / dragging and other RF-owned keys', () => {
+    const text = serialize([dirtyNode()], [dirtyEdge()])
+    for (const key of ['measured', 'selected', 'dragging', 'positionAbsolute', '"width"', '"height"']) {
+      expect(text).not.toContain(key)
+    }
+    const parsed = JSON.parse(text) as GraphDoc
+    expect(Object.keys(parsed.nodes[0])).toEqual(['id', 'type', 'position', 'data'])
+    expect(Object.keys(parsed.edges[0])).toEqual([
+      'id',
+      'source',
+      'target',
+      'sourceHandle',
+      'targetHandle',
+      'type',
+      'data',
+    ])
+  })
+
+  it('keeps the authored `data` payload whole — route / waypoints / resourceType survive', () => {
+    const parsed = JSON.parse(serialize([dirtyNode()], [dirtyEdge()])) as GraphDoc
+    expect(parsed.edges[0].data).toEqual({
+      kind: 'resource',
+      flow: '1',
+      resourceType: 'gold',
+      route: 'orthogonal',
+      waypoints: [{ x: 10, y: 20 }],
+    })
+  })
+
+  it('an export before RF has measured is byte-identical to one after', () => {
+    // the flake `e2e/i18n.spec.ts` caught: `en1` was captured pre-measurement,
+    // `en2` after RF wrote `measured` onto the same store objects.
+    const clean = serialize([n('p', 'pool') as LoopNode], [])
+    const afterMeasure = serialize([dirtyNode()], [])
+    expect(afterMeasure).toBe(clean)
+  })
+
+  it('the document fields (id / type / position / data) are untouched', () => {
+    const parsed = JSON.parse(serialize([dirtyNode()], [])) as GraphDoc
+    expect(parsed.nodes[0]).toEqual({
+      id: 'p',
+      type: 'pool',
+      position: { x: 0, y: 0 },
+      data: { kind: 'pool', label: 'p' },
+    })
+  })
+})
+
 beforeEach(() => {
   useGraphStore.getState().newGraph()
 })

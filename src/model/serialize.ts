@@ -167,6 +167,37 @@ export function normalizeGraph(g: { nodes: LoopNode[]; edges: LoopEdge[] }): {
   return { nodes: g.nodes.map(normalizeNode), edges: g.edges.map(normalizeEdge) }
 }
 
+/**
+ * Project a live React Flow node / edge down to just the fields the document
+ * owns. React Flow writes renderer state straight back onto the objects it is
+ * given — `measured` (its ResizeObserver result), plus `selected` / `dragging`
+ * as the user interacts — and those objects are the very ones the store hands to
+ * `serialize()`. None of that belongs in a saved or shared graph: `measured`
+ * depends on viewport size, fonts and *when* RF got round to measuring, so
+ * letting it through makes the same graph export to different bytes on different
+ * machines and even on the same machine before vs. after the first layout pass
+ * (it broke the "a locale switch changes no exported byte" invariant the moment
+ * RF finished measuring). `serialize()` is the single write boundary for every
+ * persisted / exported form — Graph JSON, Share, Workspace, autosave — so the
+ * projection to the schema shape (types.ts `LoopNode` / `LoopEdge`) happens here
+ * once. Key order matches the committed example files.
+ */
+function toDocNode(n: LoopNode): LoopNode {
+  return { id: n.id, type: n.type, position: n.position, data: n.data } as LoopNode
+}
+
+function toDocEdge(e: LoopEdge): LoopEdge {
+  return {
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    sourceHandle: e.sourceHandle,
+    targetHandle: e.targetHandle,
+    type: e.type,
+    data: e.data,
+  } as LoopEdge
+}
+
 export function serialize(
   nodes: LoopNode[],
   edges: LoopEdge[],
@@ -174,7 +205,12 @@ export function serialize(
   workspace?: unknown,
   project?: unknown,
 ): string {
-  const doc: GraphDoc = { schema: SCHEMA, version: SCHEMA_VERSION, nodes, edges }
+  const doc: GraphDoc = {
+    schema: SCHEMA,
+    version: SCHEMA_VERSION,
+    nodes: nodes.map(toDocNode),
+    edges: edges.map(toDocEdge),
+  }
   if (recommendedRunConfig && typeof recommendedRunConfig === 'object') {
     doc.recommendedRunConfig = recommendedRunConfig
   }
