@@ -1,28 +1,32 @@
 # Example — "Coffee roastery operations" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 2.** rev 1 fixed the
-model, the size budget, and the boundary; **rev 2** adds the **comprehension
-check** — a coffee-business reviewer ("MJ") reads the graph unaided, a 6-step
-protocol and a concrete success bar (§CR11) — and the **language decision**:
-the prototype ships as one **Korean-display** file `examples/coffee-roastery.ko.json`
-with **stable English node ids** (§CR12), so the check measures the *model*, not
-English comprehension. This is a **non-frozen** design doc — no `loop-*/N` id,
-no `Frozen` marker — and merges as *settled design, implementation pending*,
-like [`docs/large-graph-readability.md`](large-graph-readability.md) and
+**Status: settled design — implementation pending. rev 3.** rev 1 fixed the
+model, size budget, and boundary; rev 2 added the **comprehension check** (§CR11)
+and the **Korean-display / English-id** language rule (§CR12); **rev 3** changes
+the delivery: an unprompted signal from an outside reader (§CR0) makes this the
+**first external validation** of Loop Studio as a *real-business* tool, so the
+coffee model ships **registered as the 4th Templates entry from the start** —
+the reviewer picks it from the menu, no file / Import / Share step (§CR2, §CR13).
+This is a **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — and
+merges as *settled design, implementation pending*, like
+[`docs/large-graph-readability.md`](large-graph-readability.md) and
 [`docs/example-mmo-progression.md`](example-mmo-progression.md).
 
-**Docs-only.** No app code, no GraphDoc / engine / schema change, no
-`loop-revision/N`, no i18n-catalog change. The graph JSON is built in a
-**separate implementation PR** after this design is approved (§CR13).
+**Docs-only (this PR).** The graph JSON **and** its Templates-menu registration
+land in **one separate implementation PR** after this design is approved (§CR13).
+That impl PR touches **only** what a menu entry needs — the JSON, its fixture
+test, `src/model/templates.ts`, `src/components/templateKeys.ts`, and **two**
+name/blurb keys in `en.ts` + `ko.ts` — and **nothing else**: no engine, no
+schema, no wire / `loop-revision/N`, no other `src/`.
 
-This is a **product-direction validation prototype**
+This is the **first external product-direction validation**
 ([`docs/product-direction.md`](product-direction.md) §PD2 / §PD6), **not** a
-re-run of the *Early MMO progression* exercise. Early MMO proved the expressive
-ceiling of a large model. This one asks the opposite question:
+re-run of the *Early MMO progression* exercise (which proved the expressive
+ceiling of a large model). It asks:
 
-> Can a **general user** grasp a realistic business flow in **1–2 minutes** and,
-> by changing **a few values**, watch the results move in a way they can
-> predict?
+> Can someone with **no game framing and no Loop Studio vocabulary** grasp a
+> realistic business flow in **1–2 minutes** and, by changing **a few values**,
+> read the results in a way they can predict?
 
 ---
 
@@ -30,13 +34,22 @@ ceiling of a large model. This one asks the opposite question:
 
 The Productization track's premise is that blank-canvas authoring is
 impractical, so the default path is *adjust a verified template* (§PD2). Before
-building the Slice-2 filter UI, it is worth having **one concrete Template
-candidate** in a real, non-game domain to test that premise against a person.
+building the Slice-2 filter UI, it is worth one concrete Template in a real,
+non-game domain to test that premise against a person.
 
-A coffee roastery is a good fit: the operation is a short left-to-right flow
-(buy green beans → roast → sell), the levers are intuitive (how much to roast,
-how many desserts to prep), and the failure modes are familiar (run out of
-roasted stock, throw away unsold cake).
+**The trigger.** An outside reader (`mjcafe`), shown Loop Studio with a *game*
+framing, said the game vocabulary meant nothing to them — but, from the screen
+alone, guessed it might be for **real production processes / work flow**,
+**budgeting**, **organisation / HR management**, or **asset & logistics flow**.
+That is a strong signal that Loop Studio reads as a **real-business tool** to a
+non-gamer, and also that the current positioning + samples do not *say* so. A
+coffee-roastery Template answers that with a screen, not a paragraph: green
+beans arrive, some are sold on, some are roasted and sold through cafe / online
+/ retail, and stock and profit move as you experiment.
+
+A coffee roastery is a good fit: a short left-to-right flow (buy green beans →
+roast → sell), intuitive levers (how much to roast, how many desserts to prep),
+and familiar failure modes (run out of roasted stock, throw away unsold cake).
 
 ---
 
@@ -44,49 +57,66 @@ roasted stock, throw away unsold cake).
 
 **In**
 
-- the **contract** for one importable Graph JSON: the model shape (§CR3), the
-  size budget (§CR5), the five user-facing Parameters (§CR6), the recommended
-  Timeline (§CR7), the Summary read-outs (§CR8), the validation scenarios
-  (§CR9), and the completion criteria (§CR10);
+- the **contract** for one Graph JSON registered as the 4th Templates entry:
+  the model shape (§CR3), the size budget (§CR5), the five user-facing
+  Parameters (§CR6), the recommended Timeline (§CR7), the Summary read-outs
+  (§CR8), the validation scenarios (§CR9), and the completion criteria (§CR10);
 - the **comprehension check** (§CR11), the **language decision** (§CR12), the
-  **product role and boundary** (§CR2), and the **build order** (§CR13).
+  **product role and boundary** (§CR2), and the **build order** (§CR13);
+- **the 4th Templates entry** — name / blurb / role / default state (§CR2) — and
+  the **minimal** registration code the impl PR adds (`templates.ts`,
+  `templateKeys.ts`, two `en.ts` + `ko.ts` keys).
 
 **Out**
 
-- **Templates-menu registration.** v1 is an **Import-only** file. Whether it
-  ever becomes a menu entry is decided *after* the comprehension check (§CR2,
-  §CR11).
 - **Asking the reviewer to edit or "fix" the graph.** The first check is
   read → adjust values → interpret results *only* (§CR11). Structural-editing
   viability is a later question.
-- **The Example / Template system itself.** This is a single JSON file, not the
-  packaging / surfaced-inputs work of §PD8-B.
-- **App code, GraphDoc, engine, schema, i18n catalog.** None change.
+- **The Example / Template system itself.** This is a single JSON file + a menu
+  entry, not the packaging / surfaced-inputs work of §PD8-B.
+- **Any engine / schema / wire / `loop-revision/N` change, and any `src/`
+  change beyond the registration files above.**
 - **The modelling complexity in §CR4** — deliberately excluded.
-- **LGR Slice 2+** — on hold until this prototype's comprehension check is done.
+- **A formal English canonical + label overlay** — deferred (§CR12); the first
+  build is Korean-first because no overlay mechanism exists yet.
+- **LGR Slice 2+** — on hold until MJ's comprehension check (§CR11) is done.
 
 ---
 
 ## CR2. Product role & boundary
 
-- **File:** `examples/coffee-roastery.ko.json` — a real Graph JSON that opens
-  and runs via **Import**, alongside `risky-factory.json`,
-  `mmo-progression.json`, etc. Korean display names, stable English node ids
-  (§CR12). The `.ko` suffix marks it a **validation build**, not a formal
-  Korean canonical.
-- **NOT registered** in the Templates menu (`templateKeys.ts` untouched). No
-  `canvasLocked`; it opens editable.
-- **Role: a Template candidate** ([`docs/product-direction.md`](product-direction.md)
-  §PD3) — the user changes the five surfaced values (§CR6) and re-runs.
-  *Not* an Example (Early MMO is the locked Example); *not* a Building block.
-- The three shipped Templates entries are **untouched**:
+- **File:** `examples/coffee-roastery.ko.json` — a real Graph JSON, **wired as
+  the 4th Templates entry** (`templates.ts` imports it), alongside
+  `risky-factory.json` / `mmo-progression.json` in `examples/`. **Korean
+  display names, stable English node ids** (§CR12); the `.ko` suffix records
+  that it is the Korean-first **validation build**, not a finished bilingual
+  canonical.
+- **Role: a Template** ([`docs/product-direction.md`](product-direction.md)
+  §PD3) — the user changes the five surfaced values (§CR6) and re-runs. *Not*
+  an Example (Early MMO is the locked Example); *not* a Building block.
+- **Opens editable** — **no `canvasLocked`** (unlike the MMO Example). The
+  reviewer is meant to change values.
+- The three shipped entries are **untouched** and keep their distinct jobs:
   1. `equilibrium` — "Flowing equilibrium": the engine's basic steady flow.
   2. `deadlock` — "Bottleneck deadlock": a stall / back-pressure failure.
   3. `mmo-progression` — "Early MMO progression": large-model expressiveness,
      locked, run-and-observe.
-  4. *(candidate)* `coffee-roastery` — "Coffee roastery operations": a small
-     real-business model to adjust. Added as the **4th** menu entry **only if**
-     the comprehension check passes, in its own later PR (§CR11).
+- **The 4th entry**:
+
+  | field | value |
+  |---|---|
+  | id | `coffee-roastery` |
+  | `templates.coffeeRoastery.name` | KO: **커피 로스터리 운영** · EN: **Coffee roastery operations** |
+  | `templates.coffeeRoastery.blurb` | KO: **생두 조달부터 로스팅, 카페·원두·디저트 판매와 재고·이익까지** · EN: a one-line equivalent |
+  | graph node labels | **Korean only** (no overlay yet — §CR12) |
+  | role | a small Template for adjusting a real business flow |
+  | default state | editable (no `canvasLocked`) |
+  | adjustable | the five top-row Parameters (§CR6) |
+  | `recommendedRunConfig` | `timelineSeries` = the ≤ 8 series in §CR7; a modest `steps` / `baseSeed` |
+
+  It is an **experimental Template** at the `preview` stage — its language
+  limitation is recorded in §CR12 and revisited when the overlay structure is
+  designed.
 
 ---
 
@@ -267,7 +297,9 @@ At minimum, these changes must reproduce **intuitively**:
   semantics are unchanged**;
 - a **deterministic-seed run** plus the core stock ↔ revenue relationships are
   **pinned by tests** (a fixture spec, like `mmo-progression.test.ts`);
-- it **works via Import** with **no Templates registration and no app change**.
+- it **loads from `Templates ▾ → 커피 로스터리 운영`** and applies its
+  `recommendedRunConfig`; **no engine / schema / wire change**, only the
+  registration files (§CR2, §CR15).
 
 ---
 
@@ -277,15 +309,20 @@ The engine tests verify *the arithmetic is correct*. This check verifies *a
 person who knows the real business accepts the model as natural* — the
 validation Loop Studio needs more right now.
 
-**Reviewer:** **MJ**, who is believed to have real coffee-business experience. A
-domain expert saying "I can't tell what this means" is a **failure**; reading it
-briefly and explaining the flow + an adjustment result is a **strong success
-signal**. One person is not the whole general population, but a domain expert is
-the sharpest single signal available.
+**Reviewer:** **MJ** (`mjcafe`), a plausible coffee-business person — the name
+and the unprompted "real production / operations" read (§CR0) make them a
+natural first external reviewer. A person who knows the domain saying "I can't
+tell what this means" is a **failure**; reading it briefly and explaining the
+flow + an adjustment result is a **strong success signal**. One person is not
+the whole population, but this is the sharpest single signal available, and it
+is a *real outside* reader, not the team.
 
-### CR11.1 Protocol — no long pre-explanation, then ask only
+### CR11.1 Protocol — hand over the site, then ask only
 
-1. Describe what business flow this screen represents.
+Send just the Loop Studio URL and one line: *"open `Templates ▾ → 커피 로스터리
+운영`"*. **No feature explanation, no Import / Share / file steps.** Then ask:
+
+1. What business flow does this screen represent?
 2. Point to where green beans **enter** and where they **leave**.
 3. Predict what happens if the **roast amount is too low**.
 4. What does **raising green wholesale** do to cafe / bean sales?
@@ -334,13 +371,31 @@ a structural problem. So the first build is **Korean-display**.
 
 - **No bilingual labels on one node** — one language per name; the screen stays
   legible.
-- **One file only** at the prototype stage: `examples/coffee-roastery.ko.json`.
-  The `.ko` marks it a **validation Import file**, *not* a formal Korean
-  canonical. If MJ's check passes and it is promoted to the 4th entry, the
-  final structure — an English canonical + a human-authored KO label overlay,
-  or a separate derived file (as with
+- **One file:** `examples/coffee-roastery.ko.json`, wired as the 4th Templates
+  entry (§CR2). The `.ko` records that it is the **Korean-first validation
+  build**.
+- **English-user promotion is deferred.** Loop Studio has **no template label
+  overlay** today, so a menu entry carries the labels baked into its JSON. This
+  entry ships **Korean-only** on purpose — the point is to check whether the
+  *model* reads without English or Loop Studio vocabulary. A proper bilingual
+  form — an English canonical + a human-authored KO label overlay, or a
+  separate derived file (as with
   [`examples/mmo-progression.ko.json`](../examples/mmo-progression.ko.json)) — is
   decided **with the module / template-system design** (§PD8-B), not here.
+- This is acceptable at the `preview` stage: the limitation is recorded, and a
+  real external comprehension check is worth more right now than bilingual
+  polish. The impl PR's README / `examples/README.md` note says the entry is a
+  Korean-first experiment.
+- **What "Korean-first" scopes:** the **graph's node / Parameter / Register
+  labels** are Korean (baked into the JSON, no overlay). The **menu chrome**
+  (the entry's name + blurb) is per-locale like every other Template — the
+  impl PR adds exactly **two** keys, `templates.coffeeRoastery.name` and
+  `.blurb`, to **`en.ts` and `ko.ts`** (EN: "Coffee roastery operations" / a
+  one-line EN blurb; KO: 커피 로스터리 운영 / 생두 조달부터 로스팅, 카페·원두·
+  디저트 판매와 재고·이익까지), mirroring `templates.equilibrium.*` etc. No
+  other catalog change; `check:i18n` parity holds. An EN-locale user therefore
+  sees an English menu entry that opens a Korean-labelled graph — the recorded
+  `preview` limitation, fixed when the overlay lands.
 
 ### CR12.1 Terminology — natural industry Korean
 
@@ -362,15 +417,25 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 ## CR13. Build order
 
 1. **this design doc** → **docs-only Draft PR** → review → settle.
-2. **implementation PR** (separate): `examples/coffee-roastery.ko.json` +
-   a fixture / deterministic-run test + an `examples/README.md` entry. No app
-   code.
-3. **MJ comprehension check** (§CR11) — Hanrim runs the protocol with MJ.
-4. **only if it passes** → a **later PR** decides the language structure
-   (§CR12) and registers it as the **4th** Templates entry (`templateKeys.ts`
-   id-map + EN/KO name & blurb, same pattern as `equilibrium` / `deadlock` /
-   `mmo-progression`), with a `recommendedRunConfig` (Timeline series from
-   §CR7). Not before.
+2. **one implementation PR** — builds the graph **and** registers the menu
+   entry in the same PR:
+   - `examples/coffee-roastery.ko.json` (Korean labels, English ids);
+   - a fixture / deterministic-run test (like `mmo-progression.test.ts`) +
+     an `examples/README.md` entry noting it is a Korean-first experiment;
+   - `src/model/templates.ts` — a 4th `TEMPLATES[]` item importing the JSON,
+     with `recommendedRunConfig` (§CR7 series);
+   - `src/components/templateKeys.ts` — a 4th `TEMPLATE_KEY` id → name/blurb
+     entry;
+   - `src/i18n/locales/en.ts` + `ko.ts` — the two keys (§CR12).
+   Nothing else in `src/`; no engine / schema / wire change.
+3. **Hanrim pre-check** — locally or in the PR preview, confirm the entry loads,
+   reads L→R, the five values are obvious, and the §CR9 scenarios behave.
+4. **merge + Production deploy.**
+5. **MJ comprehension check** (§CR11) — send the URL + "open `Templates ▾ →
+   커피 로스터리 운영`", nothing else, and run the protocol.
+6. **after the check** — if it exposes model problems, fix in a follow-up PR;
+   the bilingual / overlay structure (§CR12) is settled later with the module /
+   template-system design; **LGR Slice 2** starts once step 5 is done.
 
 ---
 
@@ -378,30 +443,33 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 
 | id | question | decision |
 |---|---|---|
-| **CR-D1** | replace an existing template? | **No.** New, separate file; 1 / 2 / 3 untouched (§CR2). |
-| **CR-D2** | Example or Template? | **Template candidate** — the user adjusts 5 values (§CR2). |
-| **CR-D3** | menu-registered from the start? | **No** — Import-only until the comprehension check passes (§CR2, §CR11). |
+| **CR-D1** | replace an existing template? | **No.** New file + a **4th** entry; 1 / 2 / 3 untouched (§CR2). |
+| **CR-D2** | Example or Template? | **Template** — editable, the user adjusts 5 values (§CR2). |
+| **CR-D3** | menu-registered when? | **From the start** — registered as the 4th entry in the impl PR, so MJ just picks it from the menu (no Import / Share). Was "Import-only until validated" in rev 2; changed in rev 3 because the comprehension check *is* the point and a menu pick is the fastest route (§CR2, §CR13). |
 | **CR-D4** | time unit | **one day.** |
 | **CR-D5** | multiple green-bean types in v1? | **No** — one aggregate green stock; per-varietal is a prose-only future extension (§CR3.6). |
 | **CR-D6** | node budget | **≤ 20–25 total**, Summary Registers included; short on nodes ⇒ cut a result, never add a feature (§CR5). |
 | **CR-D7** | the 5 user values | daily customers · daily roast amount · online bean orders · green wholesale orders · daily dessert prep (§CR6). |
 | **CR-D8** | prices / costs / yield | fixed, clearly-labelled constants in v1 — not surfaced as expressions (§CR6). |
-| **CR-D9** | app / wire / engine impact | **none**; docs-only PR now, JSON-only PR later. |
-| **CR-D10** | who verifies comprehension? | **MJ**, a likely coffee-business expert — read → adjust → interpret only; not asked to edit the graph (§CR11). |
-| **CR-D11** | language of the validation build | **Korean display names, stable English node ids**, one file `examples/coffee-roastery.ko.json` — a validation build, not a formal KO canonical (§CR12). |
+| **CR-D9** | `src/` / wire / engine impact | **only** the registration files (`templates.ts`, `templateKeys.ts`, 2 keys × en+ko); **no** engine / schema / wire / `loop-revision/N` (§CR15). |
+| **CR-D10** | who verifies comprehension? | **MJ** (`mjcafe`) — read → adjust → interpret only; not asked to edit the graph (§CR11). |
+| **CR-D11** | language | graph node labels **Korean only** (no overlay yet); menu name/blurb per-locale (EN + KO keys). One file `examples/coffee-roastery.ko.json` — a Korean-first validation build; EN-user promotion deferred to the overlay design (§CR12). |
 
 ---
 
 ## CR15. Scope boundary
 
-- This doc **is** the model + size + surfaced-value + result contract for one
-  importable Graph JSON, plus the comprehension-check protocol (§CR11) and the
-  validation-build language rule (§CR12). It **is not** a spec for the Example /
-  Template system (§PD8-B), and it registers nothing in the app.
-- The impl PR adds **only** `examples/coffee-roastery.ko.json`, its test, and an
-  `examples/README.md` entry — **no `src/` change**.
-- The final language structure for a promoted 4th entry (English canonical +
-  overlay vs. derived file) is decided **later**, with the module / template
+- This doc **is** the model + size + surfaced-value + result contract, plus the
+  comprehension-check protocol (§CR11), the language rule (§CR12), and the 4th
+  Templates entry's fields (§CR2). It **is not** a spec for the Example /
+  Template system (§PD8-B).
+- The impl PR adds **only**: `examples/coffee-roastery.ko.json`, its fixture
+  test, an `examples/README.md` entry, a `TEMPLATES[]` item in
+  `src/model/templates.ts`, a `TEMPLATE_KEY` entry in
+  `src/components/templateKeys.ts`, and two keys in `en.ts` + `ko.ts`. **No
+  other `src/` change; no engine / schema / wire / `loop-revision/N`.**
+- The final bilingual structure for the entry (English canonical + overlay vs.
+  derived file) is decided **later**, with the module / template
   system — not here.
 - **LGR Slice 2** does not start until MJ's comprehension check (§CR11) is
   complete.
