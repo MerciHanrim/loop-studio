@@ -16,7 +16,7 @@ revised freely, like [`docs/visual-language.md`](visual-language.md),
 | **Trigger** | strategic review after the *Early MMO progression* example ([`docs/example-mmo-progression.md`](example-mmo-progression.md)) |
 | **State** | engine + editor + playback + Monte-Carlo + revision + localization all shipped; general-user authoring unproven |
 | **Decides** | primary usage mode · content roles · large-graph stance · exposed editing surface · positioning |
-| **Does not decide** | any UI, any layout algorithm, any wire change, the order of the two follow-on design passes |
+| **Does not decide** | any UI, any layout algorithm, the block insert / merge mechanism, any wire change, the order of the two follow-on design passes |
 
 §PD9 is the decision record. §PD10 is the scope boundary. §PD8 is the one
 sequencing question left open on purpose.
@@ -75,6 +75,12 @@ adding capability. This doc pins the direction that phase serves.
 - Any wire-contract change. No `loop-*/N`. The Example / Template / Building
   block distinction is **editorial and packaging**, not a new file kind — every
   one of them is a plain Graph JSON (§PD3).
+- **Any block-assembly mechanism.** Deciding that *Building block* is a product
+  role (§PD3) does **not** authorise the insert / merge implementation:
+  id-collision handling, placement, selection / undo integration,
+  connection-boundary rules between block and host, and any save metadata a
+  block file carries are all the *small module / template system* pass. This
+  doc changes nothing in GraphDoc.
 - Re-labelling, re-locking, or restructuring the existing templates now (§PD7).
 
 ---
@@ -88,7 +94,9 @@ building blocks_. The blank canvas stays, as an advanced path, unchanged.**
   1. **Adjust a template** — open a verified model, change a few surfaced
      values, run, compare. *Primary.*
   2. **Assemble building blocks** — drop in a small pre-wired piece (one combat
-     loop, one level-up, one drop→sell), connect it to what is there. *Primary.*
+     loop, one level-up, one drop→sell), connect it to what is there. *Primary
+     as an intended path; the insert / merge mechanism is not specified here —
+     see §PD3 and §PD8-B.*
   3. **Blank canvas** — every node kind, every expression, free placement.
      *Advanced; unchanged; never removed.*
 - The blank canvas is not deprecated and gets no warning gate. It simply stops
@@ -115,6 +123,15 @@ own default open-state and its own messaging in the Templates menu.**
   and blurb, as today) plus the existing `canvasLocked` field for Examples.
   Whether a lightweight `role` tag is worth adding is a question for the
   *module system* design pass, not this doc.
+- **What "Building block" decides — and what it does not.** *Decided here:* it
+  is a product role, ~8–15 nodes, editable, listed in the Templates menu.
+  *Not decided here:* how a block is **inserted into an existing graph** —
+  id-collision resolution, placement, selection / undo, the connection boundary
+  between block and host — and any **save metadata** a block file carries. Those
+  are the *small module / template system* design pass (§PD8-B). Until that pass
+  ships, a Building block is just a small Graph JSON opened like any other
+  template; "assemble" names the intent, not an approved feature, and this doc
+  authorises no GraphDoc change to support one.
 - The Templates menu must **not** message an Example as "modify this to reuse".
   That is the single messaging bug this table exists to prevent.
 - *Early MMO progression* stays an **Example**, stays edit-locked, is **not**
@@ -219,9 +236,9 @@ design pass is **one of**:
 - **A. Large-graph readability** — focus view, connection de-emphasis, group
   frames (§PD4 short-term). Render-only. Makes the *existing* Examples legible.
 - **B. Small module / template system** — Example / Template / Building block
-  packaging, surfaced inputs + result Summary (§PD3, §PD5), a connection helper,
-  a staged build flow, the localization overlay (§PD7). Larger; shapes how new
-  models get made.
+  packaging, surfaced inputs + result Summary (§PD3, §PD5), **block insert /
+  merge + any block save metadata** (§PD3), a connection helper, a staged build
+  flow, the localization overlay (§PD7). Larger; shapes how new models get made.
 
 Pick one as the next design doc once this direction is agreed.
 
@@ -236,6 +253,7 @@ Pick one as the next design doc once this direction is agreed.
 | Q3 | One canvas vs split | **One canvas, one file. Readability affordances (focus view, connection de-emphasis, group frames) first, render-only. Collapsible composite nodes are a later, format-touching question — not authorised here.** (§PD4) |
 | Q4 | Surface key variables | **Yes. Surfaced inputs + result Summary presented separately from the raw graph. Raw nodes / expressions stay reachable via advanced editing. Expressions get a plain-language description + `계산식 보기`.** (§PD5) |
 | Q5 | Expert modeller vs experiment tool | **Experiment tool: "load a verified system, adjust it, compare the run." `preview` badge stays. No "model anything" claims.** (§PD6) |
+| — | Building-block assembly | **Role decided (§PD3). The insert / merge mechanism — id-collision rules, placement, selection / undo, connection boundary — and any block save metadata are deferred to the module-system pass. No GraphDoc change here.** (§PD1, §PD3) |
 | — | Format change | **None. No `loop-*/N`. No `src/` change. Editorial + packaging only.** (§PD1) |
 | — | Next pass order | **Left open on purpose — A (readability) or B (module system).** (§PD8) |
 
@@ -251,6 +269,8 @@ This doc:
 - **does not** change the engine, `R(t)`, expressions, state semantics,
   Monte-Carlo, the revision / proposal format, Share, the Workspace format, or
   any serialized byte;
+- **does not** authorise any block insert / merge implementation, or any
+  GraphDoc change to support one;
 - **carries no `loop-*/N` id** and freezes nothing;
 - **is superseded in part** by each follow-on design doc as it lands — those
   docs own the details; this one owns only the direction they must not

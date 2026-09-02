@@ -169,10 +169,7 @@ classification, or apply decision depends on them.
   - ✅ Full-app localization + acceptance validation — Toolbar, Canvas, Inspector, Timeline, Templates, Import / Export, Share, revision, PWA, dialogs, errors, empty states, accessibility text, KO typography, desktop / mobile visual references, invariance tests, and CI guards for catalog parity and hardcoded UI strings
   - ✅ Guided first-run tour ([`docs/guided-tour.md`](docs/guided-tour.md)) — a read-only six-step overlay (desktop + a separate mobile script), a Welcome card on the first run (`localStorage`-only, never serialized), and a Help (`?`) menu with `Take a tour` + `About Loop Studio`
   - ✅ "Early MMO progression (levels 1–15)" example ([`docs/example-mmo-progression.md`](docs/example-mmo-progression.md)) — a shipped play-economy demo graph (three zone lanes, probabilistic combat with wins / setbacks / deaths, categorised loot, a gold economy with repair and resupply costs, a rising XP curve) as the third **Templates** entry, EN + KO; generalised, not game-specific, with by-construction accounting invariants and a tuned reach-15 window
-  - ◐ Product direction ([`docs/product-direction.md`](docs/product-direction.md)) — settled direction for the authoring phase: adjust-a-template / assemble-building-blocks as the default path with the blank canvas kept as an advanced one, the Example / Template / Building block editorial roles, one canvas with readability affordances first, surfaced inputs + a result Summary separated from the raw graph, and positioning as an experiment tool over a verified model. A direction doc only — no app code, no wire change. Gates the two follow-on design passes below
-  - ☐ Large-graph readability — design pass; render-only focus view, connection de-emphasis / filtering, and cosmetic group frames over the single existing canvas
-  - ☐ Small module / template system — design pass; Example / Template / Building block packaging, surfaced inputs + result Summary, a connection helper, a staged build flow, and the per-locale template label overlay
-  - ☐ Contextual inline help and documentation — built on the localization base, after the structure above is settled
+  - ☐ Contextual inline help and documentation — built on the localization base; sequenced after the Productization track below lands its structure
 - ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
@@ -203,6 +200,11 @@ classification, or apply decision depends on them.
   - ✅ Reproducible demo fixture + QA checklist ([`examples/playback-choreography.json`](examples/README.md)) + `e2e/playback-fixture.spec.ts` + the acceptance matrix (`e2e/playback-*.spec.ts`)
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
+- ◐ Productization track — making the tool usable by a general planner, not only its author; a separate track from Onboarding. Design-first: each pass is its own doc and PR
+  - ◐ Product direction ([`docs/product-direction.md`](docs/product-direction.md)) — the settled direction the passes below must not contradict: adjust-a-template / assemble-building-blocks as the default path with the blank canvas kept as an unchanged advanced one, the Example / Template / Building block editorial roles, one canvas with render-only readability affordances first, surfaced inputs + a result Summary separated from the raw graph, and positioning as an experiment tool over a verified model. A direction doc only — no app code, no `src/` change, no wire change, no `loop-*/N`
+  - ☐ Large-graph readability — design pass; render-only focus view, connection de-emphasis / filtering, and cosmetic group frames over the single existing canvas
+  - ☐ Small module / template system — design pass; Example / Template / Building block packaging, surfaced inputs + result Summary, a connection helper, a staged build flow, and the per-locale template label overlay. Building-block **insertion / merge** (id collisions, placement, selection / undo, connection boundary) and any save metadata are scoped **in this pass**, not in the direction doc
+  - order of the two passes above is deliberately open ([`docs/product-direction.md`](docs/product-direction.md) §PD8)
 
 ## Future directions
 
