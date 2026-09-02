@@ -1,13 +1,16 @@
 # Large-Graph Readability (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending.** rev 2. rev 1 fixed the
-direction; **rev 2** closes the four review blockers — a **global hit-test
-rule** that fixes selection *before* Focus is on (§LGR4), the internally
-consistent Focus definition + closed hop decisions for Slice 1 (§LGR2), a
-per-item **persistence table** across every lifecycle event (§LGR3.4), and the
-tightened `evaluated` contract (derived-only, no execution-path instrumentation,
-§LGR5) — and explicitly holds the **auto-frame** clustering + naming design for
-Slice 4b (§LGR6). This doc fixes the **behaviour contract** for reading and
+**Status: settled design — implementation pending.** rev 3. rev 1 fixed the
+direction; rev 2 closed the four structural blockers (global hit-test rule
+§LGR4, consistent Focus definition + closed hop decisions §LGR2, per-item
+persistence table §LGR3.4, derived-only `evaluated` §LGR5) and held the
+auto-frame clustering design for Slice 4b (§LGR6); **rev 3** aligns two
+contracts with the **actual source**: `evaluated` is now defined **only** by
+`StepReport.activated \ fired` (a **node-only** weight — the committed result
+has no zero-flow edge or gate-branch data, §LGR5.1), and the **resource-type
+filter** is built from the free-form `resourceType` strings **present in the
+open graph**, not a fixed palette; the node-kind list is the real eight
+`NodeKind` values (§LGR3.2). This doc fixes the **behaviour contract** for reading and
 navigating a large model *before* any implementation. It is a **non-frozen**
 design doc — no `loop-*/N` id, no `Frozen` marker — and merges as *settled
 design, implementation pending*, like [`docs/localization.md`](localization.md),
@@ -86,10 +89,10 @@ template's surfaced inputs and result Summary (§PD5).
   (§LGR2);
 - **de-emphasis + transient filters** — dim everything outside the focus set;
   hide by edge class / resource type / node kind (§LGR3);
-- a **run distinction** — `evaluated` (derivable "the engine computed this to
-  zero / no change") vs `effective` (a non-zero transfer / change happened), as
-  two weights on the existing playback cue vocabulary — **derived from the
-  committed step result only** (§LGR5);
+- a **run distinction** — `effective` (in `StepReport.fired` / `events` /
+  `stateEvents`) vs `evaluated` (a **node** in `activated` but not `fired`), two
+  weights read straight off the committed `StepReport`; an edge is `effective`
+  or gets no cue (§LGR5);
 - a **past-step cue policy** — each step clears the previous; an opt-in activity
   overlay is the only accumulation (§LGR6-cues);
 - **group frames** — the transient / auto / saved decision and the wire
@@ -197,10 +200,19 @@ exempt and stays full-strength.
 
 A filter panel (toolbar / More sheet) toggles visibility by:
 
-- **edge class** — resource / state / dependency-hint;
-- **resource type** — the §VL5.1 set (Gold, Energy, XP, Player, Item, untyped);
-- **node kind** — source / pool / gate / converter / drain / parameter /
-  register / drain, etc.
+- **edge class** — `resource` / `state` / dependency-hint;
+- **resource type** — **the distinct normalised `resourceType` strings actually
+  present in the open graph, plus an *untyped* bucket.** `resourceType` is a
+  **free-form string** (`SEMANTICS-M.md` §M4.1), not a fixed palette — the
+  shipped examples alone use `Gold`, `Mana`, `currency`, `power`, `supply`, and
+  non-Latin values. The filter list is **built from the graph**: collect
+  `edge.data.resourceType` / `pool.data.resourceType`, normalise (trim; the
+  §VL5 hue/icon mapping is a *display* concern and does not narrow the filter),
+  dedupe, sort; `undefined` / `""` → the *untyped* bucket. An empty graph shows
+  just *untyped*.
+- **node kind** — the eight `NodeKind` values (`src/model/types.ts`):
+  `source` · `pool` · `gate` · `converter` · `drain` · `end` · `parameter` ·
+  `register`.
 
 Filters **hide** (not dim): a filtered element is removed from the canvas
 (`hidden`, not painted, not hit-testable). Hiding an edge leaves its endpoint
@@ -298,39 +310,42 @@ keyboard graph-nav is a later follow-up (`LGR-D5`).
 
 Today a resource edge carrying flow shows a travelling bead and an acting node
 shows a "fired" glow (§VL6, [`docs/simulation-playback.md`](simulation-playback.md)).
-On a large graph a step lights up too much at once. This pass splits the run cue
-into **two weights**:
+On a large graph a step lights up too much at once. This pass adds a **lighter
+weight for a node that the engine *evaluated* but that did not *act***.
 
-| Weight | Meaning | Cue |
-|---|---|---|
-| **`effective`** | a **non-zero** transfer or change happened here this step — resources moved, a pool value changed, a state event fired | the full "fired" glow + the bead / arrival cue (unchanged from PB) |
-| **`evaluated`** | the committed step result shows this element **was computed and its contribution was zero / no change** — e.g. a resource edge whose `flow` resolved to `0`, a gate branch the committed split gave `0`, a converter that did not fire | a faint outline tick / low-opacity pulse; **no** travelling bead |
-| *(no cue)* | the element cannot be shown to have been computed this step from the committed result | nothing — it is not marked |
+### LGR5.1 The v1 contract — exactly what `StepReport` already provides
 
-### LGR5.1 Derived-only — the closed contract
+`StepReport` (`src/engine/types.ts`) carries, and only carries:
 
-**The distinction is a pure read of the committed engine step result plus the
-already-emitted playback event stream (PB1). Slice 3 adds no field to the engine
-and no field to the playback event builder, and does not instrument the
-execution path.**
+- `events: FlowEvent[]` — transfers with `amount > EPSILON`, `{edgeId, from,
+  to, amount}`;
+- `activated: string[]` — nodes **evaluated as execution targets** this step;
+- `fired: string[]` — nodes that **actually moved / produced / consumed**
+  `> EPSILON`;
+- `stateEvents: StateEvent[]` — state connections that **took effect**.
 
-- Where the committed result distinguishes "computed to zero" from "not
-  visited" — resource-edge `flow` values, the committed gate split, converter
-  fire/no-fire, pool deltas, state events — the element gets `evaluated` or
-  `effective` accordingly.
-- Where it does **not** (e.g. a branch the engine short-circuited before
-  weighing), the element gets **no cue**. `evaluated` is a bonus shown where it
-  is derivable; `effective` is the signal that always holds. Recording "the
-  engine looked here but produced nothing" would be execution-path
-  instrumentation, not a derivation — **out of scope** (`LGR-D6`).
-- A resource edge whose committed `flow` is `0` → `evaluated`. A gate whose
-  committed split sent everything down one branch → taken branch `effective`,
-  the branch with committed `0` → `evaluated`, a branch absent from the split →
-  no cue.
+There is **no** zero-flow edge value and **no** per-gate-branch split in the
+committed result. So the v1 mapping is:
+
+| Element | `effective` | `evaluated` | no cue |
+|---|---|---|---|
+| **node** | id ∈ `fired` | id ∈ `activated` and **∉** `fired` | id ∉ `activated` |
+| **resource edge** | id appears in `events` (a `> EPSILON` transfer) | — *(not derivable in v1)* | not in `events` |
+| **state edge** | identified by a `stateEvents` entry | — | no `stateEvents` entry |
+
+- **`evaluated` is a node-only weight in v1.** A zero-flow resource edge and an
+  unselected gate branch get **no cue** — the data to mark them does not exist
+  without adding engine instrumentation, which is out of scope (`LGR-D6`). An
+  `evaluated` weight for edges is **deferred to a later engine-observation
+  design**, not this pass.
+- **Pure read.** Slice 3 reads `StepReport` (already committed) and the
+  existing playback stream. It adds **no** engine field, **no** playback-event
+  field, and does **not** instrument the execution path (PB1).
 - **Display only** — nothing here changes the engine, `R(t)`, state semantics,
   the semantic digest, or Monte-Carlo.
 - **`prefers-reduced-motion`:** both become static — `evaluated` a faint static
-  tick, `effective` the static highlighted end-segment from §VL9.
+  tick on the node, `effective` the existing static highlighted end-segment
+  (§VL9).
 - **`forced-colors`:** `evaluated` vs `effective` are told apart by **glyph /
   line-style**, not opacity or hue alone.
 
@@ -427,8 +442,8 @@ members.
 | **focus set** | the selected node(s) + their **1-hop drawn-edge** neighbours + the joining edges (§LGR2.2); everything in it is full-strength |
 | **de-emphasis tier** | elements **outside** the focus set, at `--deemphasis-opacity`, badges hidden, §VL7.1 required set exempt (§LGR3.1) |
 | **global hit-test rule** | node-over-edge / node-over-badge priority that holds with Focus off (§LGR4.1) |
-| **filter** | an **ephemeral** (in-memory, cleared on reload / Reset view) hide by edge class / resource type / node kind (§LGR3.2 / §LGR3.4) |
-| **`evaluated` / `effective`** | the two run-cue weights, derived from the committed step result only (§LGR5) |
+| **filter** | an **ephemeral** (in-memory, cleared on reload / Reset view) hide by edge class / **graph-present** resource-type string / one of the 8 node kinds (§LGR3.2 / §LGR3.4) |
+| **`evaluated` / `effective`** | run-cue weights read from `StepReport`: `effective` = `fired` / `events` / `stateEvents`; `evaluated` = a node in `activated` \ `fired` (node-only in v1) (§LGR5.1) |
 | **transient / auto / saved frame** | session-only / derived / file-saved group-frame models (§LGR6.1) |
 | **activity overlay** | the opt-in, never-persisted cross-step `effective`-frequency tint (§LGR6-cues) |
 
@@ -521,16 +536,22 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
    focus set** selects it and recomputes the set around it; a de-emphasised
    edge and an out-of-focus badge do **not** intercept that click;
    empty-canvas click clears focus. (§LGR4.2.)
-5. **Filter.** Hide `state` edges → every dashed edge and its `✳` / `≥…` / `±…`
-   chips are gone; resource edges and node bodies intact. Hide resource-type
-   *Gold* → only gold-typed pools / edges removed. **Browser-refresh the same
-   graph → all filter selections are gone** (start unfiltered); the Focus /
-   Auto-groups / Activity toggles are unchanged. (LGR-D4, §LGR3.4.)
-6. **Run distinction.** At a step where the committed gate split sends all flow
-   to one branch, the taken branch shows `effective` + bead, the branch whose
-   committed value is `0` shows `evaluated` only (no bead); a converter with no
-   committed activity shows **no cue** (not `evaluated`). Nothing about the cue
-   changes the engine result / digest / MC. (§LGR5.1.)
+5. **Filter.** The resource-type list rendered for `mmo-progression.json` is
+   exactly the `resourceType` strings in that file (`currency`, `supply`,
+   `power`, …) **plus *untyped*** — no `Gold` / `Energy` / `XP` entry that the
+   file does not use. Hide `state` edges → every dashed edge and its `✳` /
+   `≥…` / `±…` chips are gone; resource edges and node bodies intact. Hide
+   resource-type `currency` → only `currency`-typed pools / edges removed. Hide
+   node kind `end` → the end node goes; `drain` appears once in the list.
+   **Browser-refresh the same graph → all filter selections are gone** (start
+   unfiltered); the Focus / Auto-groups / Activity toggles are unchanged.
+   (LGR-D4, §LGR3.2, §LGR3.4.)
+6. **Run distinction.** Step to **mid**. Every node id in `StepReport.fired`
+   shows `effective`; every id in `activated` but **not** `fired` shows the
+   `evaluated` tick; a node in neither shows no cue. Every edge id in
+   `events` shows `effective` + bead; an edge **absent** from `events` shows
+   **no cue** (there is no edge `evaluated` weight in v1). Toggling the cue
+   changes nothing in the engine result / digest / MC. (§LGR5.1.)
 7. **Past-step.** Single-step from **mid**: step *N* cues are absent at *N+1*
    (no accumulation). Enable the Activity overlay; step 10× — tint builds on
    the busy hunt / loot edges, decays on idle ones; **sim Reset clears the
@@ -569,9 +590,9 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 | **LGR-D1** | what triggers focus? | **Selection**, gated by a **toolbar toggle, default off**. The toggle is a **global UI preference** (one `localStorage` key, like theme / locale), **not** per graph. Hover never triggers it. |
 | **LGR-D2** | focus depth | **Fixed 1 hop in v1 — closed, not a tuning parameter.** A 1–2 hop control is an **explicit later follow-up**, not part of Slice 1. |
 | **LGR-D3** | do expression `depends-on` links count as a hop? | **No, in v1 — closed.** The focus traversal is over the **drawn edge graph only** (no expression parsing). Parameter / Register nodes stay visible-but-dimmed and are selected directly. "Include expression dependencies" is a later follow-up shared with the module system's connection helper. |
-| **LGR-D4** | filters — dim or hide? persisted? | **Hide** (removed from paint + hit path). Filter **selections** are **ephemeral** — in memory, cleared on every graph (re)load and by Reset view, not serialized, not undoable. The filter **panel** open/closed state is a global UI pref. |
+| **LGR-D4** | filters — dim or hide? what do they enumerate? | **Hide** (removed from paint + hit path). Filter **selections** are **ephemeral** — in memory, cleared on every graph (re)load and by Reset view, not serialized, not undoable; the **panel** open/closed state is a global UI pref. **Enumeration:** edge class (`resource` / `state` / dependency-hint); **the distinct normalised `resourceType` strings present in the open graph + *untyped*** (free-form field, *not* the §VL5 palette); the eight `NodeKind` values (`source` `pool` `gate` `converter` `drain` `end` `parameter` `register`). |
 | **LGR-D5** | keyboard graph-nav | v1: toggle shortcut + *select next / previous connected node*. Tab order unchanged. Deeper nav is a follow-up. |
-| **LGR-D6** | run distinction — where does `evaluated` come from? | **Derived from the committed step result only** (+ the already-emitted playback stream). **No engine field, no new playback-builder field, no execution-path instrumentation.** Where "computed to zero" is not derivable, the element gets **no cue** (§LGR5.1). |
+| **LGR-D6** | run distinction — what is the v1 source? | **`StepReport` only, as it already exists** (`events` / `activated` / `fired` / `stateEvents`). **`effective`** = node in `fired`, or edge in `events`, or state edge in `stateEvents`. **`evaluated`** = a **node** in `activated` but not `fired` — **node-only**. A zero-flow edge / unselected gate branch gets **no cue** (the committed result has no such data; marking them would need engine instrumentation — deferred). No engine field, no playback-builder field, no execution-path instrumentation. |
 | **LGR-D7** | past-step cues | **Cleared each step.** The only accumulation is an **opt-in Activity overlay**, off by default, **never persisted**; window length + decay curve are a Slice-4a tuning detail. |
 | **LGR-D8** | group frames — which models ship, when? | **Transient (session-only, in memory) in Slice 4a — fully specified here.** **Auto** frames in **Slice 4b** — the clustering algorithm + label generation are **their own detailed design pass**; this doc fixes only their boundary (§LGR6.3), not the algorithm. **Saved** frames in **Slice 5**, behind a **Frozen `loop-revision/N` cosmetic `frames` contract** (§LGR6.4). |
 | **LGR-D9** | can a frame move its members? | **No** in v1 — a frame drags as a rectangle only. "Move the group" is a later layout feature. |
@@ -583,9 +604,11 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 Open (none block Slice 1): the 1–2 hop control and its default (follow-up); the
 Activity-overlay window + decay constants (Slice 4a); per-phase readability
 thresholds (§LGR10.12, recorded in Slice 1); whether a `transient` frame can be
-renamed after creation (leaning: yes). The **entire auto-frame clustering +
-naming design** is deferred to the Slice-4b pass, not listed here as a loose
-end.
+renamed after creation (leaning: yes). Deferred to a **later
+engine-observation design**, not this pass: an `evaluated` weight for a
+zero-flow edge or an unselected gate branch (needs data `StepReport` does not
+carry). The **entire auto-frame clustering + naming design** is deferred to the
+Slice-4b pass.
 
 ---
 
@@ -597,13 +620,14 @@ end.
    the dim tier with badges hidden and the §VL7.1 required set exempt, the
    "dimmed node outside the set still clickable" walk gesture, the toggle +
    shortcut. Render / UI-only; no wire, no engine, no z-order change.
-2. **Transient filters** — the edge-class / resource-type / node-kind panel,
-   hide semantics, ephemeral selections (cleared on reload / Reset view), the
-   panel's global open/closed pref.
-3. **Run distinction** — the `evaluated` / `effective` two-weight cue, a pure
-   read of the committed step result + the existing playback stream; the
-   reduced-motion and forced-colors variants. **No engine or playback-builder
-   field.**
+2. **Transient filters** — the panel: edge class, **resource-type strings built
+   from the open graph** + *untyped*, the eight node kinds; hide semantics;
+   ephemeral selections (cleared on reload / Reset view); the panel's global
+   open/closed pref.
+3. **Run distinction** — read `StepReport` (`fired` / `activated` / `events` /
+   `stateEvents`): node `effective` / node `evaluated` / edge `effective`; no
+   edge `evaluated` weight; the reduced-motion and forced-colors variants.
+   **No engine or playback-builder field, no execution-path instrumentation.**
 4a. **Transient frames + activity overlay** — draw / label a session-only
    rectangle (in memory, no wire); **Clear frames**; the opt-in Activity
    overlay with its window + decay.
@@ -634,10 +658,13 @@ Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subse
   (§PB). This composes with them; the run distinction is a new *weight* on the
   existing PB cue vocabulary, not a new choreography.
 - **The engine decides everything.** The run distinction is a **pure read** of
-  the committed step result + the already-emitted playback stream (§LGR5.1). It
-  adds **no** engine field, **no** playback-event-builder field, and does **not
-  instrument** the execution path. Where "computed to zero" is not derivable,
-  the element simply gets no cue.
+  `StepReport` as it exists today (`events` / `activated` / `fired` /
+  `stateEvents`) plus the already-emitted playback stream (§LGR5.1). It adds
+  **no** engine field, **no** playback-event-builder field, and does **not
+  instrument** the execution path. `evaluated` is therefore a **node-only**
+  weight in v1; a zero-flow edge / unselected gate branch gets no cue, and an
+  edge `evaluated` weight is a **later engine-observation design**, not this
+  pass.
 - **Auto-frame clustering** is out of scope for *this* doc — Slice 4b is its
   own design pass (§LGR6.3). This doc fixes only the boundary auto frames must
   honour.
