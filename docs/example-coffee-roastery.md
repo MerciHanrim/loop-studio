@@ -1,14 +1,13 @@
 # Example — "Coffee roastery operations" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 4.** rev 1 fixed the
-model, size budget, and boundary; rev 2 added the **comprehension check** (§CR11);
-rev 3 shipped it as the **4th Templates entry** from the start; **rev 4**
-corrects the *language delivery*: a Korean-only graph would leave English users
-with a mixed menu, so the canonical graph carries **English labels** and Korean
-(and future locales') labels come from a **shared fresh-open label overlay** —
-its own design + implementation, merged **before** this Template
-([`docs/template-label-overlay.md`](template-label-overlay.md)). Only §CR12 /
-§CR13 / §CR15 change from rev 3. This is a **non-frozen** design doc — no
+**Status: settled design — implementation pending. rev 5.** rev 1–3 fixed the
+model, the comprehension check, and shipping as the 4th Templates entry; rev 4
+moved the Korean labels to a **shared fresh-open label overlay**
+([`docs/template-label-overlay.md`](template-label-overlay.md)); **rev 5** aligns
+the build order with that doc's review (§CR13): impl PR (1) also EN-fallback
+allow-lists Templates 1 & 2, and the MMO migration takes `label` only. Only
+§CR12 / §CR13 / §CR15 differ from rev 3; the model (§CR3–§CR10) is unchanged
+since rev 2. This is a **non-frozen** design doc — no
 `loop-*/N` id, no `Frozen` marker — and merges as *settled design, implementation
 pending*, like [`docs/large-graph-readability.md`](large-graph-readability.md)
 and [`docs/example-mmo-progression.md`](example-mmo-progression.md).
@@ -411,12 +410,15 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
    line → review → settle **both**.
 2. **implementation PR (1) — the shared label overlay**
    ([`docs/template-label-overlay.md`](template-label-overlay.md)): the
-   `templateLabels/<locale>` dictionaries, the `doLoadTemplate` apply step, the
-   CI drift check, the tests. Also **migrates Template 3** — the Korean labels
-   from `examples/mmo-progression.ko.json` move into `templateLabels/ko.ts` for
-   `mmo-progression`; the English canonical MMO graph, its layout / lock /
-   `recommendedRunConfig`, and existing user documents are untouched
-   (§TLO-D8).
+   `templateLabels/<locale>` dictionaries, the `doLoadTemplate` deep-copy +
+   apply step, the completeness-conditional CI check, the tests. Also:
+   **migrates Template 3** — the Korean node **`label`s** (only, not
+   `resourceType`) from `examples/mmo-progression.ko.json` move into
+   `templateLabels/ko.ts` for `mmo-progression`; the canonical MMO graph, its
+   layout / lock / `recommendedRunConfig` / `resourceType`, existing user
+   documents, and the `.ko.json` file itself are untouched (§TLO2.2). And
+   **EN-fallback allow-lists Templates 1 & 2** (`equilibrium`, `deadlock`) —
+   no KO dict required for them in v1 (§TLO2.1).
 3. **implementation PR (2) — this Template**, after PR (1) merges:
    - `examples/coffee-roastery.json` (English canonical labels, English ids);
    - the `mmo-progression`-style KO dictionary entries for its nodes

@@ -1,8 +1,16 @@
 # Template label overlay (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 1.** A **non-frozen**
-design doc — no `loop-*/N` id, no `Frozen` marker — merging as *settled design,
-implementation pending*, like [`docs/localization.md`](localization.md) and
+**Status: settled design — implementation pending. rev 2.** rev 1 fixed the
+mechanism; **rev 2** pins four review points: the **first-implementation
+Template scope** (KO dicts for MMO + coffee; templates 1 & 2 EN-fallback
+allow-listed — §TLO2.1), the **completeness-conditional** CI rule (no dict = OK;
+a dict must be complete — no missing / stale / duplicate id — §TLO7), the **MMO
+migration boundary** (`label` only, not `resourceType`; the `.ko.json` file is
+not deleted — §TLO2.2), and **canonical immutability across repeated opens**
+(deep copy incl. `node.data`; a re-open-isolation test — §TLO3 / INV-7 / §TLO8).
+A **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — merging as
+*settled design, implementation pending*, like
+[`docs/localization.md`](localization.md) and
 [`docs/large-graph-readability.md`](large-graph-readability.md).
 
 **Docs-only in this PR** (shared with [`docs/example-coffee-roastery.md`](example-coffee-roastery.md)).
@@ -85,7 +93,7 @@ language handling, missing-translation fallback, edit-conflict rules) — is a
   `resourceType`, `unit`, edge `data`, `position`, handles, or
   `recommendedRunConfig`.
 - A full per-locale JSON graph. The `.ko.json` full-copy approach is **retired**.
-  Template 3 (MMO) **adopts the overlay** in the same impl PR (§TLO2.1); the
+  Template 3 (MMO) **adopts the overlay** in the same impl PR (§TLO2.2); the
   existing `examples/mmo-progression.ko.json` file is kept, unwired, as an
   Import artifact until separately revisited.
 - **Any user-facing translation-authoring feature** — attaching a translation
@@ -115,23 +123,42 @@ language handling, missing-translation fallback, edit-conflict rules) — is a
   localization.md's "new locale = one file" rule; any `if (locale === 'ko')`
   two-way branch is a bug).
 
-### TLO2.1 Migrating Template 3 (MMO)
+### TLO2.1 First-implementation Template scope
 
-The MMO Example is finished; it is **not** rebuilt or edited. The overlay impl
-PR does one mechanical step: **harvest the Korean `label`s from the existing
+Impl PR (1) ships a **`ko` dictionary for `mmo-progression`** (harvested,
+below). Impl PR (2) adds a **`ko` dictionary for `coffee-roastery`**.
+**Templates 1 & 2 (`equilibrium`, `deadlock`) are on the EN-fallback
+allow-list** (§TLO7) in PR (1) — their handful of generic labels ("Faucet",
+"Vault", "Split", …) stay English for now; a `ko` dictionary for them is an
+optional later follow-up, never a blocker. So the first implementation gives a
+Korean user localized labels for **MMO and coffee**; templates 1 & 2 open in
+English in every locale (unchanged from today).
+
+### TLO2.2 Migrating Template 3 (MMO)
+
+The MMO Example is finished; it is **not** rebuilt or edited. Impl PR (1) does
+one mechanical step: **harvest the Korean node `label`s from the existing
 `examples/mmo-progression.ko.json` into `templateLabels/ko.ts` for the
-`mmo-progression` id** (matched by node `id`). Then:
+`mmo-progression` id**, matched **by node `id`**.
+
+- **`label` only.** Nothing else is taken from `mmo-progression.ko.json` —
+  **not** its translated `resourceType` (`화폐` / `보급품` / `전투력` …), not
+  edge data, not anything. The overlay is `label`-scoped (§TLO-D4); the MMO
+  Template keeps its canonical English/advisory `resourceType` in every locale.
+- The `mmo-progression.ko.json` **file is not deleted** — it is retained as an
+  unwired Import artifact. Its [[mmo-ko-derived-example]] hand-parity
+  maintenance rule now applies only to that standalone file; the CI drift check
+  (§TLO7) covers label parity for the *Template*.
+
+Result:
 
 - **EN fresh-open** → the finished English MMO, byte-identical to today
   (§TLO6-INV-1);
-- **KO fresh-open** → the same MMO graph — layout, `canvasLocked`,
-  `recommendedRunConfig`, Timeline, deterministic run result all unchanged —
-  with the harvested Korean labels applied;
-- already-saved user MMO documents → untouched;
-- the `mmo-progression.ko.json` **file** → retained as an unwired Import
-  artifact; its [[mmo-ko-derived-example]] hand-parity maintenance rule now
-  applies only to that standalone file, not to the menu Template (the CI drift
-  check, §TLO7, covers label parity for the Template).
+- **KO fresh-open** → the same MMO graph — node/edge set, `position`s,
+  `canvasLocked`, `recommendedRunConfig`, `resourceType`, Timeline,
+  deterministic run result all unchanged — with the harvested Korean `label`s
+  applied;
+- already-saved user MMO documents → untouched.
 
 ---
 
@@ -140,11 +167,15 @@ PR does one mechanical step: **harvest the Korean `label`s from the existing
 - The **only** trigger is opening a bundled Template from the Templates menu:
   `src/components/Templates.tsx` / `src/components/mobile/MobileMoreMenu.tsx`
   `doLoadTemplate` → `loadGraph(tpl.graph)`.
-- At that moment, build the document graph as a **copy** of `tpl.graph` where,
-  for each node, `data.label = dict[activeLocale]?.[tpl.id]?.[node.id]
-  ?? node.data.label`. The **current `activeLocale`** dictionary only.
-- The canonical `TEMPLATES[i].graph` object is **never mutated** — the overlay
-  acts on the copy handed to `loadGraph`.
+- At that moment, build the document graph as a **deep copy** of `tpl.graph` —
+  each node and its `data` object cloned, so the copy shares **no** reference
+  back into the canonical — then, for each copied node,
+  `data.label = dict[activeLocale]?.[tpl.id]?.[node.id] ?? node.data.label`.
+  The **current `activeLocale`** dictionary only.
+- The canonical `TEMPLATES[i].graph` object — and every `node.data` inside it —
+  is **never mutated**. The overlay reads the canonical and writes only to the
+  fresh copy handed to `loadGraph`, so repeated opens (any locale order) always
+  start from the pristine English canonical.
 - Nothing else in the node/edge is changed. `recommendedRunConfig` is applied
   exactly as today.
 - If `activeLocale` is `en` (or has no dictionary), the copy's labels equal the
@@ -200,21 +231,33 @@ further times:
 6. **Templates 1 / 2 / 3 unchanged.** Their graphs, behaviour, and digests are
    identical; a dictionary for them (if added) affects only a *future* non-EN
    fresh-open, never an EN one.
+7. **Canonical immutable across opens.** After a `ko` fresh-open of a Template,
+   a subsequent `en` fresh-open of the same Template yields **all English
+   canonical labels** (no Korean leakage), and a later `ko` fresh-open still
+   yields the correct Korean — the canonical `TEMPLATES[i].graph` and its
+   `data` are untouched by any prior open (§TLO3).
 
 ---
 
 ## TLO7. CI drift check
 
-A `checks`-stage script (`check:template-labels`, or folded into `check:i18n`):
+A `checks`-stage script (`check:template-labels`, or folded into `check:i18n`).
+The rule is **completeness-conditional**:
 
-- for every `TEMPLATES` entry and every registered non-EN locale, every
-  user-facing canonical node id **has** a dictionary entry **or** is on an
-  explicit *EN-fallback-intended* allow-list — otherwise **fail** (missing
-  translation);
-- every dictionary key that is **not** a current canonical node id **fails**
-  (stale overlay after a canonical edit);
-- annotation-only nodes with no user-facing label are exempt **by rule**, not
-  silently.
+- **A (Template, locale) with no dictionary at all → OK.** The Template opens
+  fully in English in that locale (full fallback). Templates 1 & 2 are here for
+  now (§TLO2.1).
+- **A (Template, locale) that *has* a dictionary → it must be complete:**
+  - **missing** — every user-facing canonical node id of that Template has an
+    entry, **or** is on an explicit *EN-fallback-intended* allow-list for that
+    (Template, locale); otherwise **fail**;
+  - **stale** — every dictionary key maps to a **current** canonical node id;
+    a key for a node id that no longer exists (renamed / removed in the
+    canonical) **fails**;
+  - **duplicate** — the same node id keyed twice within one (Template, locale)
+    dictionary **fails** (also caught by TS, asserted here too).
+- **Annotation-only nodes** with no user-facing label are exempt **by rule**,
+  listed explicitly, not skipped silently.
 
 ---
 
@@ -234,10 +277,15 @@ A `checks`-stage script (`check:template-labels`, or folded into `check:i18n`):
   still Korean, structure identical.
 - **EN parity golden**: an `en` fresh-open of every Template is byte-identical
   to the committed pre-feature baseline.
-- **MMO KO fresh-open** (§TLO2.1): structure / `position`s / `canvasLocked` /
-  `recommendedRunConfig` / deterministic run result identical to an EN
-  fresh-open; every node `label` equals the value harvested from
-  `mmo-progression.ko.json`.
+- **Re-open isolation** (§TLO6-INV-7): fresh-open Template X in `ko`, then
+  fresh-open X again in `en` → the second document's labels are **all English
+  canonical** (no Korean leakage); a third fresh-open in `ko` still yields the
+  correct Korean. Proves the canonical graph + `data` were not mutated.
+- **MMO KO fresh-open** (§TLO2.2): node/edge set / `position`s / `canvasLocked`
+  / `recommendedRunConfig` / **`resourceType`** / deterministic run result
+  identical to an EN fresh-open; every node `label` equals the value harvested
+  from `mmo-progression.ko.json`; `resourceType` is **not** taken from that
+  file.
 
 ---
 
@@ -252,7 +300,9 @@ A `checks`-stage script (`check:template-labels`, or folded into `check:i18n`):
 | **TLO-D5** | menu name / blurb | **unchanged** — app i18n catalog, separate from this overlay. |
 | **TLO-D6** | missing / stale entries | EN fallback at runtime; **CI fails** on an un-allowlisted missing id or a stale key (§TLO7). |
 | **TLO-D7** | GraphDoc / engine / format | **no change** — overlay acts on the in-memory copy handed to `loadGraph` (§TLO6). |
-| **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO labels are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; the canonical MMO graph / layout / lock / `recommendedRunConfig` are untouched; the `.ko.json` file is kept unwired (§TLO2.1). |
+| **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO **`label`s** are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; **`resourceType` is not harvested**; the canonical MMO graph / layout / lock / `recommendedRunConfig` / `resourceType` are untouched; the `.ko.json` file is **kept unwired, not deleted** (§TLO2.2). |
+| **TLO-D9** | which Templates get a KO dict in the first implementation? | **MMO + coffee.** Templates 1 & 2 (`equilibrium`, `deadlock`) go on the **EN-fallback allow-list** — a KO dict for them is an optional follow-up, never a blocker (§TLO2.1). |
+| **TLO-D10** | canonical mutation | **None.** `loadGraph` gets a **deep copy** (nodes + `data` cloned); the canonical `TEMPLATES[i].graph` is never written. Re-opening in any locale order always starts from the pristine English canonical, asserted by a re-open-isolation test (§TLO3 / INV-7 / §TLO8). |
 
 ---
 
