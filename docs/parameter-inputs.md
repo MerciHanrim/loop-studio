@@ -35,6 +35,14 @@ simulation computes. It exists because the frozen engine today ignores
   gives the **same** result as the literal `-2` (which `parseFlow` gates to `1`
   via `n >= 0`); the Parameter path is **never** separately clamped, floored, or
   diagnosed for a negative (§PI5.3).
+- **rev 3** also pins the **leading-`@` commit boundary** (§PI8.2 / PI-D11): if
+  the user edits a `flow` input and commits a value that starts with `@` —
+  well-formed **or** malformed — the document promotes to v2, so a fresh typo
+  like `@{visitor` runs `0` + a diagnostic, **never** the v1 fallback `1`. A
+  pre-existing v1 `@…` string is **not** promoted by open / save / autosave —
+  only by the user actually editing and re-committing it. The exact v2 `schema`
+  token may be frozen in the `SEMANTICS-M2.md` design, but **must** be finalised
+  before implementation and **must** be a value already-deployed readers reject.
 
 This doc **fixes the behaviour contract before any engine code**. It is a
 **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — and merges as
@@ -419,16 +427,31 @@ upgrade without an explicit user action"**. So:
   document) the bytes **exactly as they were**.
 - **A document becomes v2 only on an explicit user action:**
   1. creating a parameter reference with the picker (§PI9.1), **or**
-  2. entering a raw `@id` in the `flow` field and committing it, which the
-     editor treats as "make this a reference".
+  2. **the user editing a `flow` input and committing a value whose trimmed
+     form starts with `@`** — *whether the reference is well-formed **or**
+     malformed*.
   Either is an undo-tracked graph edit that **latches the document's model
   version to v2**; the next `serialize()` writes the v2 `schema`.
+- **The leading-`@` commit boundary — new typos are safe, existing v1 strings
+  are preserved:**
+  - editing the `flow` field and committing `@{visitor` (a typo) in a v1
+    document → the document is **promoted to v2** and that edge runs under v2
+    rules → **`0` + a diagnostic** (§PI5.1), **not** the v1 fallback `1`. A
+    fresh mistake never silently runs at `1`.
+  - an `@…` string **already stored** in an existing v1 document is **not**
+    promoted by opening, saving, or autosave — it keeps its v1 meaning
+    (`const 1`, no diagnostic). Only when the **user actually edits that stored
+    string and re-commits it** as a `flow` value (still starting with `@`) does
+    the explicit v2 transition happen.
+  This is what makes *"a new typo is safely `0`"* and *"existing v1 semantics
+  preserved"* both hold. *(Decision PI-D10 / PI-D11.)*
 - **v2 is a one-way latch.** Once v2, a document stays v2 even if every reference
   is later removed (a v2 document with no live reference runs and digests
   identically to v1 — §PI8.5–§PI8.6 — so staying v2 costs nothing, and an auto-downgrade
   would be a second kind of silent format change). *(Decision PI-D10.)*
 - **Leading `@` is a reference only in a v2 document** (§PI2). A v1 document's
-  `@…` is never re-interpreted.
+  stored `@…` is never re-interpreted **until the user edits and re-commits it**
+  (which promotes the document, per the boundary above).
 
 ### PI8.3 The store holds and preserves the model version
 
@@ -484,8 +507,11 @@ Frozen**, layered on `loop-model/1` as `SEMANTICS-S2.md` / `loop-state/2` is on
 `loop-state/1`. It fixes: the `@` reference grammar in a **v2** `flow`, the
 `modelVersion` argument to `parseFlow` / `step`, the top-of-step resolve timing,
 the "every unresolved `@…` → `0`" and "finite value follows the identical-literal
-rules" rules (§PI5), the **`schema`-based v1/v2 discriminator** + the explicit,
-user-action-only, one-way promotion + the store-held `modelVersion`, and the
+rules" rules (§PI5), the **`schema`-based v1/v2 discriminator** — including the
+**exact v2 `schema` token** (frozen there, but it **must** be settled before the
+implementation code and **must** be rejected by every already-deployed reader) —
+the explicit, user-action-only, one-way promotion (incl. the leading-`@` commit
+boundary, §PI8.2) + the store-held `modelVersion`, and the
 conservative-extension invariant (a v2 graph with no live reference runs and
 digests identically to `loop-model/1`).
 
@@ -507,9 +533,15 @@ is not.
    options.
 2. **After selection, show the Parameter label and the current resolved value**
    at the input, e.g. `Daily roast amount → 40`.
-3. **Raw `@id` entry is also allowed.** Typing `@daily_roast_kg` / `@{daily roast kg}`
-   directly and committing it is accepted, treated identically to a pick, and
-   **latches a v1 document to v2** (§PI8.2).
+3. **Raw `@…` entry is also allowed, and any committed leading-`@` value
+   latches v2.** Typing `@daily_roast_kg` / `@{daily roast kg}` — **or a
+   mistyped `@{visitor`** — into the `flow` field and committing it is a `flow`
+   edit whose trimmed value starts with `@`, so it **latches a v1 document to
+   v2** (§PI8.2) and the edge then runs under v2 rules (a well-formed reference
+   resolves; a malformed one → `0` + a diagnostic, **never** the v1 fallback
+   `1`). Editing an `@…` string that was **already stored** in a v1 document and
+   re-committing it does the same; opening / saving / autosaving that stored
+   string alone does **not**.
 4. **Non-blocking warning near the input** for a **deleted**, **wrong-kind**, or
    **malformed** (`@{visitor`) reference: a visible flag at the field, but the
    graph still saves and runs (the edge degrades to `0`, §PI5.1). Never a modal,
@@ -585,9 +617,18 @@ is not.
 
 - **explicit promotion only** — opening a v1 fixture and calling `serialize()`
   again (no edit) yields **byte-identical** output with `schema:
-  "loop-studio/graph"`; only after a picker selection **or** a committed raw
-  `@id` does the store's `modelVersion` become `2` and the next `serialize()`
-  write the v2 `schema`;
+  "loop-studio/graph"`; only after a picker selection **or** a committed
+  leading-`@` `flow` value does the store's `modelVersion` become `2` and the
+  next `serialize()` write the v2 `schema`;
+- **leading-`@` commit boundary (§PI8.2 / PI-D11):**
+  - in a **v1** fixture, editing a `flow` field and committing **`@{visitor`**
+    (a typo) → the document is now v2, and that edge runs `0` + a diagnostic —
+    **not** `1`;
+  - a v1 fixture that **already carries** `flow: "@foo"` on some edge, opened and
+    re-serialized with **no edit to that field**, stays v1 and that edge still
+    runs `const 1` with **no** diagnostic;
+  - editing that same stored `@foo` (even re-typing it identically) and
+    committing it → the document promotes to v2 and the edge runs under v2 rules;
 - **no downgrade** — remove every reference from a v2 document → it still
   serializes with the v2 `schema` (`modelVersion` stays `2`), and a run is
   identical to the equivalent v1 graph (conservative extension);
@@ -661,8 +702,9 @@ Register artefact. Shortfall read-outs ("missed sales", "dessert waste") remain
 | **PI-D3** | value used when a `@…` string does not resolve to a finite number | **`0` + one deduped diagnostic — for every `@…` failure** (v2 documents): unknown id, non-`parameter` node, non-finite `value`, **and** a malformed `@…` string (`@{visitor`, `@p%`, `@p*2`, …). A legitimate finite `value` of `0` is normal and silent. A **v1** document's `@…` string is a plain literal → `const 1`, no diagnostic (unchanged). |
 | **PI-D3b** | value used when a `@id` resolves to a *finite* number | **Follows the identical-literal rules — no Parameter-only clamp.** `>= 0` → that value; **`< 0` → `1`** (exactly `parseFlow`'s `n >= 0` literal gate; a negative literal also → `1`); a decimal flows as itself. `@p` with `p.value = -2` runs identically to the literal `-2` (§PI5.3). |
 | **PI-D4** | when read | **Once per step**, at the existing `parseFlow` point, before Phase 0; resolved from the step's `nodes` snapshot. A run-constant, so no drift / ordering effect. The resolve pass runs **only** when `modelVersion === 2`. |
-| **PI-D5** | freeze vehicle + discriminator | **Both.** (a) a new frozen spec **`SEMANTICS-M2.md` / `loop-model/2`**, additive over `loop-model/1`. (b) The model-semantics version rides the **`schema`** string — **not** `version` — because an already-installed reader validates `schema` and **ignores `version`**: v1 = `"loop-studio/graph"` (unchanged), v2 = a **new** distinct value (proposed `"loop-studio/graph/2"`). An already-installed reader's existing `schema !== "loop-studio/graph"` check **rejects** a v2 document — **fail-closed with no code update**. A new reader accepts both and runs the matching semantics. `version` may be carried but is informational only. *(revised — `version` could not fail-close a cached client.)* |
-| **PI-D10** | how a document becomes v2 | **Only on an explicit user action** — a picker selection **or** a committed raw `@id`. Opening + re-saving / autosaving a v1 document does **not** promote it, and a v1 `@…` string is **never** re-interpreted (it keeps legacy `const 1`). Promotion is a one undo-tracked edit that also sets `modelVersion`. **One-way latch** — a v2 document with every reference removed stays v2 (it still runs identically to v1, and an auto-downgrade would be a second silent format change). The store holds `modelVersion: 1 \| 2`, sets it from the loaded `schema`, passes it to `serialize()` / `step()`, and re-derives it on every Import / Share / Workspace / autosave load — identical before and after every round-trip. |
+| **PI-D5** | freeze vehicle + discriminator | **Both.** (a) a new frozen spec **`SEMANTICS-M2.md` / `loop-model/2`**, additive over `loop-model/1`. (b) The model-semantics version rides the **`schema`** string — **not** `version` — because an already-installed reader validates `schema` and **ignores `version`**: v1 = `"loop-studio/graph"` (unchanged), v2 = a **new** distinct value. **The exact v2 token may be frozen in the `SEMANTICS-M2.md` design** (proposed `"loop-studio/graph/2"`), but it **must** be finalised **before implementation** and **must** be a value every already-deployed reader's `schema !== "loop-studio/graph"` check **rejects** — fail-closed with no code update. A new reader accepts both and runs the matching semantics. `version` may be carried but is informational only. |
+| **PI-D10** | how a document becomes v2 | **Only on an explicit user action** — a picker selection **or** the user editing a `flow` input and committing a value whose trimmed form starts with `@`. Opening + re-saving / autosaving a v1 document does **not** promote it, and a v1 `@…` string already stored is **never** re-interpreted (it keeps legacy `const 1`) — *until the user edits and re-commits it*. Promotion is one undo-tracked edit that also sets `modelVersion`. **One-way latch** — a v2 document with every reference removed stays v2 (it still runs identically to v1, and an auto-downgrade would be a second silent format change). The store holds `modelVersion: 1 \| 2`, sets it from the loaded `schema`, passes it to `serialize()` / `step()`, and re-derives it on every Import / Share / Workspace / autosave load — identical before and after every round-trip. |
+| **PI-D11** | the leading-`@` commit boundary | **A committed leading-`@` `flow` value promotes the document to v2 whether the reference is well-formed or malformed.** So a fresh typo (`@{visitor` typed and committed) runs under v2 → **`0` + a diagnostic**, never the v1 fallback `1`. A pre-existing v1 `@…` string is promoted **only** when the user actually edits and re-commits it — not by open / save / autosave. This is what makes *"a new typo is safely `0`"* and *"existing v1 semantics preserved"* both hold (§PI8.2). |
 | **PI-D6** | `loop-revision` | **No format change.** `flow` is already an engine-affecting string; `@id` digests as its literal text. `schema` is GraphDoc envelope, **not** projected content — not in the digest; a v2 graph with no live reference has the same digest as its v1 form. Reference is by `id`; a rename/delete does not auto-rewrite a `flow`. |
 | **PI-D7** | restart on value change | **Reuses `simulationRev`.** Editing a referenced `value`, or the `flow` string (incl. the reference-introducing edit that also latches v2), already bumps it → live run resets, MC result goes stale. No new machinery. |
 | **PI-D8** | editor | **Required scope for PR (1.5)** (§PI9.1): pick a Parameter from the `flow` input (which latches v1 → v2); show its label + current resolved value; allow raw `@id` entry (also latches); non-blocking warning at the field for deleted / wrong-kind / malformed; label rename does not affect the reference; **no auto-rewrite on id change or deletion**, and no downgrade (stated in help text + a test). On-canvas "= n" affordance stays optional. |
