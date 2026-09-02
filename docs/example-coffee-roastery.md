@@ -1,45 +1,55 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 6.** rev 1–3 fixed the
+**Status: settled design — implementation pending. rev 7.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
 ([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
-the build order with that doc's review. **rev 6** resolves a contract conflict
-found at the start of impl PR (2): the model as written in rev 1–5 assumed the
-five surfaced Parameters *drive the operational simulation*, but the **frozen**
-`loop-model/1` + `loop-expr/1` engine does not permit that (a `parameter` node
-changes no simulated number; resource-edge `flow` takes no `@ref`; `loop-expr/1`
-has no `max` / `min`). **§CR16 is new**: it states the constraint and records the
-**decision — Direction 1**: a minimal, *general* `parameter → simulation input`
-capability, designed and shipped as its **own spec-first PR, before** impl PR (2).
-**§CR2.0 (new)** repositions the Template as a *simplified operating-flow
-simulation example* — not an operations / ERP system — after an external
-reader's two pre-comments (recorded anonymised in
-[`docs/product-direction.md`](product-direction.md) §PD11). **§CR3.5 / §CR6 /
-§CR8 / §CR9** carry "blocked pending the §CR16 feature" notes; **§CR10 / §CR11.1
-/ §CR11.2** re-set the external-check success bar (a "not a real system" reaction
-is normal, but "toy" alone is not a pass — realism of the simplified flow, lever
-discovery + operation, and per-lever result explanation stay on the bar); the
-menu name / blurb / limitation strings are settled in §CR2; **§CR13** marks
-steps 1–2 done and inserts the §CR16 feature PR before impl PR (2); **CR-D12** is
-updated. The size budget (§CR5), the domain scope (§CR3–§CR4), and the language
-mechanism (§CR12) are unchanged. This is a **non-frozen** design doc — no
-`loop-*/N` id, no `Frozen` marker — and merges as *settled design, implementation
-pending*, like [`docs/large-graph-readability.md`](large-graph-readability.md)
-and [`docs/example-mmo-progression.md`](example-mmo-progression.md).
+the build order; **rev 6** found the frozen-engine contract conflict (a
+`parameter` node changed no simulated number) and decided **Direction 1** — a
+minimal, general `parameter → simulation input` capability in its own prior PR —
+plus the §CR2.0 repositioning as a *simplified operating-flow simulation
+example* (recorded anonymised in
+[`docs/product-direction.md`](product-direction.md) §PD11).
 
-**rev 6 is docs-only** — this doc + a `docs/product-direction.md` §PD11 note.
-**No feature code in this PR**; **no README change in rev 6** — the roadmap line
-and the general README positioning are checked *last*, once the model +
-positioning are settled and the coffee Template is implemented and validated.
-Implementation is now **three** PRs, in order: **(1)** the shared label overlay —
-**merged** (PR #100, `b938aed`); **(1.5)** the general `parameter → simulation
-input` feature — its **own spec-first PR** (§CR16); **(2)** this Template —
-`examples/coffee-roastery.json` (English canonical labels), a Korean label
-dictionary, a fixture test, `src/model/templates.ts`,
-`src/components/templateKeys.ts`, **two** name/blurb keys in `en.ts` + `ko.ts`.
-**Nothing else** in `src/` for PR (2): no engine, schema, wire / `loop-revision/N`
-beyond what PR (1.5) already landed.
+**rev 7 — the §CR16 feature has shipped, so the "blocked" notes come out.**
+`loop-model/2` ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge
+`c194629`) lets a **v2 document**'s `resource`-edge `flow` be a single
+`@parameter-id` reference the engine resolves once per step. **rev 7:**
+
+- **§CR2.1a (new)** — this Template is the **first bundled `loop-model/2` /
+  schema `loop-studio/graph/2` entry**.
+- **§CR6** — the five levers are **locked to concrete `@param` references**
+  (which node, which edge — §CR6.1); each `flow` is a **single bare
+  `@parameter-id`** and nothing else.
+- **§CR3.5 / §CR8 / §CR9** — the "blocked / pending PR (1.5)" notes are removed;
+  §CR9 now names, per scenario, **which Parameter changes and which result
+  moves** (§CR9.1). The two `supply − demand` read-outs are renamed to
+  **roasted supply margin** / **dessert prep margin** — signed *proxies* with an
+  explicit `+` / `−` meaning, **never** called "missed sales" or "waste"
+  (they are operating cues, not measured losses or accounting figures — §CR3.5).
+- **§CR13** — steps 1–2 (this doc PR) and the §CR16 feature PR are done; the
+  next step is the Coffee Template impl PR.
+- **CR-D12 / §CR16** are marked **resolved**.
+
+The size budget (§CR5), the domain scope (§CR3–§CR4), the language mechanism
+(§CR12), the §CR2.0 positioning, the limitation marker, and the §CR10 / §CR11
+success bar are unchanged. Still **no Coffee-specific engine logic and no new
+expression grammar** — the Template only *consumes* `loop-model/2`. This is a
+**non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — and merges as
+*settled design, implementation pending*, like
+[`docs/large-graph-readability.md`](large-graph-readability.md) and
+[`docs/example-mmo-progression.md`](example-mmo-progression.md).
+
+**rev 7 is docs-only** — this doc. **No feature code, no README change** (the
+roadmap line and the general positioning are checked *last*, §CR13 step 10).
+Implementation was **three** PRs: **(1)** the shared label overlay — merged
+(PR #100, `b938aed`); **(1.5)** the general `parameter → simulation input`
+feature = `loop-model/2` — merged (PR #103, `c194629`); **(2)** this Template —
+`examples/coffee-roastery.json` (schema `loop-studio/graph/2`), a Korean label
+block, a fixture test, `src/model/templates.ts`, `src/components/templateKeys.ts`,
+**two** name/blurb keys in `en.ts` + `ko.ts`. **Nothing else** in `src/` for
+impl PR (2): no engine, schema, wire / `loop-revision/N` beyond what
+`loop-model/2` landed.
 
 This is the **first external product-direction validation**
 ([`docs/product-direction.md`](product-direction.md) §PD2 / §PD6), **not** a
@@ -71,7 +81,8 @@ beans arrive, some are sold on, some are roasted and sold through cafe / online
 
 A coffee roastery is a good fit: a short left-to-right flow (buy green beans →
 roast → sell), intuitive levers (how much to roast, how many desserts to prep),
-and familiar failure modes (run out of roasted stock, throw away unsold cake).
+and familiar tensions (running short of roasted stock; over- or under-preparing
+dessert).
 
 ---
 
@@ -143,8 +154,9 @@ Template is **not** one, and is not a step toward claiming to be one. It is an
 - **not** a WIP / lead-time / reorder-point / BEP / cost-accounting engine;
 - **not** a replacement for any part of running a roastery;
 - **is** a small, assumption-based model for changing a few operating
-  assumptions and watching how green / roasted stock, sales, stockouts, waste,
-  and profit relate.
+  assumptions and watching how green / roasted stock, sales, the roasted
+  supply margin, the dessert prep margin and profit relate (§CR3.5 — signed
+  proxies, not measured losses).
 
 **Positioning (adopted for the product, not just this example — §PD11):**
 Loop Studio is not an ERP that manages live business data; it composes
@@ -161,6 +173,29 @@ one-day operating model*, not a roastery management system.
 | limitation marker (Template surface / `examples/README.md`, §CR13) | `단순화한 시뮬레이션 예제이며 ERP나 실시간 모니터링 시스템이 아닙니다.` | a simplified simulation example — not an ERP or real-time monitoring system |
 
 Never use "operations management" / "운영 관리" for this entry.
+
+### CR2.1a First bundled `loop-model/2` entry *(rev 7)*
+
+`examples/coffee-roastery.json` is the **first bundled Template that declares
+model-semantics version 2**: its top-level `schema` is **`loop-studio/graph/2`**
+([`SEMANTICS-M2.md`](../SEMANTICS-M2.md) §M2-1), and its five surfaced levers are
+`resource`-edge `flow` **parameter references** (`@<parameter-id>`, §CR6.1)
+resolved by the engine once per step.
+
+- **The overlay is unaffected** — the shared fresh-open label overlay
+  ([`docs/template-label-overlay.md`](template-label-overlay.md)) still touches
+  node `data.label` only; `flow` strings, `@ids`, `schema`, and every
+  serialized byte are English / stable across locales.
+- **`openTemplate` / `loadGraph` set the model version from the file** — opening
+  this Template from the menu loads it as v2 (the store's `modelVersion` comes
+  from the file's `schema`, exactly as an Import does; it is **not** the
+  "explicit user promotion" path — a bundled v2 Template is v2 as authored).
+- **Engine-affecting digest** — a v2 document carries the `loop-model/2`
+  discriminator in the `loop-revision` / `loop-workspace` engine digest
+  (§M2-8); a v2 graph and a byte-identical v1 graph hash differently.
+- **No new engine code** — the Template consumes `loop-model/2`; the impl PR
+  touches only `examples/coffee-roastery.json`, its fixture test, the four
+  registration files, and `examples/README.md` (§CR15).
 
 ### CR2.1 File & wiring
 
@@ -191,7 +226,7 @@ Never use "operations management" / "운영 관리" for this entry.
   | graph node labels | **English canonical**, localized on fresh-open by the overlay (§CR12) — KO in a KO UI, EN in an EN UI |
   | role | a small Template for changing a few operating assumptions and reading the result |
   | default state | editable (no `canvasLocked`) |
-  | adjustable | the five operational levers (§CR6) — **delivered by the §CR16 general `parameter → simulation input` feature (its own prior PR)** |
+  | adjustable | the five operational levers (§CR6) — each a `resource`-edge `flow: "@<parameter-id>"` (§CR6.1), delivered by `loop-model/2` |
   | `recommendedRunConfig` | `timelineSeries` = the ≤ 8 series in §CR7; a modest `steps` / `baseSeed` |
 
   It is an **experimental Template** at the `preview` stage.
@@ -229,27 +264,49 @@ Only the essential branches:
 
 ### CR3.4 Dessert
 
-- a daily **dessert prep** quantity;
-- **in-store + takeaway** dessert sales;
-- **leftover dessert is discarded** at end of day (a drain).
+- a daily **dessert prep** quantity (`@dessert_prep`);
+- **in-store + takeaway** dessert sales, bounded by that day's dessert demand;
+- **unsold dessert leaves the day's stock at end of day** (a drain) — a
+  simplifying assumption, surfaced as the signed *dessert prep margin* proxy
+  (§CR3.5), **not** as a "waste" figure.
 
 ### CR3.5 Results
 
-- **revenue per channel**;
-- **total cost**;
-- **operating profit**;
-- **stockouts / missed sales**;
-- **waste quantity** (roast loss is expected; dessert waste is the signal).
+Changing any of the five levers (§CR6) is a real `flow`-simulation change — the
+`@parameter-id` on that edge resolves to the new `value` and the stock
+trajectory and channel sales move accordingly. All results are **Registers**
+(`loop-expr/1`), read from the right-hand Summary block (§CR8):
 
-> **rev 6 — pending PR (1.5).** These results move when the user changes one of
-> the five operational levers (§CR6). That now happens through the general
-> `parameter → simulation input` feature (§CR16, Direction 1), delivered by
-> **PR (1.5)** before impl PR (2). This section's exact wording — a real
-> flow-simulation effect for the stock trajectory, and whether "missed sales" /
-> "dessert waste" are signed headroom Registers or real drains (`loop-expr/1`
-> has no `max` / `min`) — is finalised in the step-5 doc fold-in. Do **not**
-> implement a version where only a Register's displayed number changes while the
-> stock trajectory does not.
+| Register | English label | KO label | value | sign meaning |
+|---|---|---|---|---|
+| revenue per channel | Cafe / Retail / Online revenue | 카페·리테일·온라인 매출 | `units_sold_pool × unit_price` | — |
+| total cost | Total cost | 총비용 | Σ costs | — |
+| operating profit | Operating profit | 영업이익 | revenue − cost | `+` profit · `−` loss |
+| roasted supply margin | **Roasted supply margin** | **로스팅 원두 수급 여유** | `roasted_supply_per_day − (cafe + retail + online) demand` | **`+` supply covers demand (slack)** · **`−` demand exceeds roasting output / stock** |
+| dessert prep margin | **Dessert prep margin** | **디저트 준비 여유** | `@dessert_prep − dessert_demand_per_day` | **`+` prepared more than the day sold (leftover)** · **`−` demand outran prep (sold out)** |
+
+**The last two are signed *proxies*, not measured business figures.**
+`loop-model/2` adds **no `max` / `min`** (it is a single-reference feature, not
+an expression layer — §M2-6), so they are plain signed `supply − demand`
+readings:
+
+- **A `−` roasted supply margin is an *unmet-demand signal*, not a counted
+  lost-sale quantity or lost revenue** — the model has fixed demand, one green
+  pool, and a one-day step, so the number is an operating-judgement cue, not an
+  accounting figure.
+- **A `+` dessert prep margin is a *leftover* amount, not a confirmed discard
+  weight** — the "discard all leftovers at end of day" rule (§CR3.4) is an
+  assumption; real leftovers may sell later or be given away. A `−` value means
+  the day sold out.
+- **Never labelled `missed sales`, `lost sales`, `waste`, or `폐기`** anywhere —
+  in a Register title, a **node label** (impl PR (2) must use the exact
+  EN / KO labels in the table above), the menu blurb, the Timeline series
+  (§CR7), or a §CR9 scenario (§CR9.1). The limitation marker (§CR2) already says
+  this Template is not a real measurement / accounting tool; these labels keep
+  that true.
+
+The physical roast weight-loss stays a real `drain` in the flow simulation
+(§CR3.2) — expected process loss, not a signal or a Register.
 
 ### CR3.6 Multiple green-bean types — prose only
 
@@ -302,7 +359,7 @@ Indicative breakdown (the impl PR finalises the exact set within the cap):
 | green wholesale channel | 1–2 |
 | roasting — input, weight-loss, roasted stock | 3 |
 | roasted sales — cafe drinks, retail bags, online bags | 3 |
-| dessert — prep, sales, waste | 3 |
+| dessert — prep, sales, day-end drain | 3 |
 | Summary Registers (§CR8) | 4–6 |
 | **total** | **~22–25** |
 
@@ -320,23 +377,42 @@ that a roastery adjusts — laid out clearly in **one row along the top**:
    per day.
 5. **Daily dessert prep** — dessert units prepared per day.
 
-Prices, unit costs, and the roast yield are **stable fixed values** in v1 (in
-node data or a couple of clearly-labelled constants) — **not** surfaced as
+Prices, unit costs, and the roast yield are **stable fixed values** (in node
+data or a couple of clearly-labelled constants) — **not** surfaced as
 hard-to-read expressions.
 
-> **rev 6 — delivered by PR (1.5).** These five are **operational levers**, not
-> display-calculation constants. Changing one moves the stock / sales / stockout
-> / waste / profit flow — that experience *is* the point of the Template (§CR0).
-> The frozen engine does not let a `parameter` node do that today, so the general
-> `parameter → simulation input` feature (§CR16, Direction 1) is built first as
-> **PR (1.5)**; the five are then wired through it. rev 6 does **not** redefine
-> the five as prices / unit costs / yield.
+### CR6.1 The five references — locked *(rev 7)*
+
+Each lever is **one `parameter` node** in the top row, referenced by **exactly
+one `resource`-edge `flow` string that is a single bare `@<parameter-id>`** and
+nothing else (no compound, no arithmetic — `loop-model/2` M2-2). The `id`s below
+are the canonical English node ids in `examples/coffee-roastery.json`; the impl
+PR may only rename them, never change the wiring.
+
+| # | Parameter (`id`) | the **one** edge whose `flow` is `@<id>` | engine role of that edge |
+|---|---|---|---|
+| 1 | **daily customers** (`daily_customers`) | the **cafe-demand `Source` → cafe-demand pool** edge | `Source` push amount — cafe drink demand per day |
+| 2 | **daily roast amount** (`daily_roast_kg`) | the **green-bean stock pool → roasting `Converter`** input edge | `Converter` consume rate — kg of green beans put to roast per day |
+| 3 | **online bean orders** (`online_orders`) | the **roasted-bean stock pool → online-sales drain** edge | `Drain` pull amount — bags leaving roasted stock to online sales per day |
+| 4 | **green wholesale orders** (`green_wholesale_kg`) | the **green-bean stock pool → wholesale drain** edge | `Drain` pull amount — kg of green beans leaving green stock to wholesale per day |
+| 5 | **daily dessert prep** (`dessert_prep`) | the **dessert-prep `Source` → dessert stock pool** edge | `Source` push amount — dessert units prepared per day |
+
+- **Levers 2 and 4 both draw from the same green-bean stock pool.** Raising
+  `green_wholesale_kg` genuinely removes green beans that would otherwise be
+  available for roasting (§CR9.1 scenario 2) — the competition is **real in the
+  run**, not a Register artefact, and the impl PR must not add a second green
+  pool to sidestep it (§CR3.6 / §CR4).
+- **A dangling / mistyped reference contributes `0` + a diagnostic** (never `1`);
+  the impl PR's fixture test asserts every `@id` resolves to a live `parameter`
+  (`SEMANTICS-M2.md` §M2-3).
+- Prices / unit costs / roast yield stay **literal constants** — they are read
+  by the Summary Registers (§CR3.5), not by a `flow`.
 
 ---
 
 ## CR7. Recommended Timeline
 
-At most **8** recommended series:
+At most **9** recommended series (the impl PR finalises the exact set):
 
 - green-bean stock
 - roasted-bean stock
@@ -344,7 +420,8 @@ At most **8** recommended series:
 - retail bagged-bean sales
 - online bagged-bean sales
 - green wholesale (kg delivered)
-- dessert waste
+- roasted supply margin (§CR3.5 — signed proxy)
+- dessert prep margin (§CR3.5 — signed proxy)
 - operating profit
 
 ---
@@ -356,39 +433,52 @@ The right-hand result area: **4–6 Registers**, no more.
 - total revenue
 - total cost
 - operating profit
-- missed sales
-- dessert waste
+- **roasted supply margin** — signed proxy; `+` slack, `−` demand exceeds
+  roasting output / stock (an unmet-demand *signal*, not a lost-sale count) — §CR3.5
+- **dessert prep margin** — signed proxy; `+` leftover, `−` sold out — §CR3.5
 - *(optional)* ending roasted-bean stock
 
-**Human-readable titles and outcomes take priority over the formulas.**
+The last two are `supply − demand` **proxies** with an explicit sign meaning —
+**not** "missed sales" / "waste" figures (§CR3.5). `loop-model/2` adds no
+`max` / `min`, so they are never clamped at zero; the sign carries the meaning.
 
-> **rev 6 — pending PR (1.5).** "missed sales" and "dessert waste" as
-> `loop-expr/1` Registers cannot be `max(0, …)` — the §CR16 feature adds **no**
-> `min` / `max` (§CR16.3). So each is either a **signed headroom** read-out
-> (negative = short) or a **real drain** in the flow simulation. The step-5
-> doc fold-in picks per result. Do not ship a version that displays a clamped
-> number the expression cannot produce.
+**Human-readable titles and outcomes take priority over the formulas.**
 
 ---
 
 ## CR9. Validation scenarios
 
-At minimum, these changes must reproduce **intuitively**:
+At minimum, these changes must reproduce **intuitively** (using the §CR3.5
+terms — a `−` **roasted supply margin** is an unmet-demand signal, a `+`
+**dessert prep margin** is leftover; neither is a "waste" / "lost sales" count):
 
-1. **Roast amount too low** → roasted-bean stockouts and missed sales rise.
+1. **Roast amount too low** → roasted supply margin turns negative (demand
+   outruns roasting); ending roasted stock falls.
 2. **Raise green wholesale orders** → wholesale revenue rises, but green beans
-   for roasting can run short.
-3. **Dessert prep above demand** → dessert waste rises.
-4. **Online orders rise** → roasted-bean stock and operating profit move in a
-   predictable direction.
-5. **At a sensible roast amount** → both stockouts and overstock ease.
+   for roasting run short (roasted supply margin trends negative).
+3. **Dessert prep above demand** → dessert prep margin turns more positive
+   (bigger leftover); dessert-line cost rises without matching sales.
+4. **Online orders rise** → roasted stock draws down faster; online revenue and
+   operating profit rise until roasted supply margin turns negative.
+5. **At a sensible roast amount** → roasted supply margin sits near zero — both
+   the shortage signal and the overstock ease.
 
-> **rev 6 — met via PR (1.5).** Every scenario here is "change a §CR6 operational
-> lever → a stock / sales / stockout / waste / profit result moves." That needs a
-> lever to reach the simulation — the general `parameter → simulation input`
-> feature (§CR16, Direction 1). These scenarios stay as the acceptance target; a
-> build where the numbers only *look* like they moved (Register text changes,
-> trajectory does not) does **not** satisfy this section.
+### CR9.1 Which Parameter, which result *(rev 7)*
+
+Each scenario is **one `@param` change → a real trajectory move**, verified by
+the impl PR's fixture test (a deterministic run before / after the change):
+
+| # | change | Parameter (§CR6.1) | what must move (direction) |
+|---|---|---|---|
+| 1 | roast amount too low | `daily_roast_kg` ↓ | roasted-bean stock inflow ↓ → **roasted supply margin → negative** (unmet-demand signal); ending roasted stock ↓ |
+| 2 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → **green available for roasting ↓** → roasted supply margin trends negative; wholesale revenue ↑ |
+| 3 | dessert prep above demand | `dessert_prep` ↑ | dessert made per day ↑ while dessert sales are demand-bounded → **dessert prep margin → more positive** (larger leftover); total cost ↑ |
+| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **ending roasted stock ↓**, online revenue ↑, operating profit ↑ (until roasted supply margin turns negative) |
+| 5 | roast amount at a sensible level | `daily_roast_kg` → tuned value | **roasted supply margin near zero** → the shortage signal and the overstock both ease |
+
+A build where the numbers only *look* like they moved (a Register's text
+changes but the stock trajectory does not) does **not** satisfy this section
+(`loop-model/2` §M2-3 — the `@id` resolves to a real number the engine uses).
 
 ---
 
@@ -420,8 +510,8 @@ At minimum, these changes must reproduce **intuitively**:
   **pinned by tests** (a fixture spec, like `mmo-progression.test.ts`);
 - it **loads from `Templates ▾ → 커피 로스터리 운영 흐름`** and applies
   its `recommendedRunConfig`; **no engine / schema / wire change** in impl PR (2)
-  itself, only the registration files (§CR2, §CR15) — the §CR16 Direction-1
-  general engine feature is its own separate prior **PR (1.5)**.
+  itself, only the registration files (§CR2, §CR15) — the engine feature
+  (`loop-model/2`, §CR16) merged separately as PR #103.
 
 ---
 
@@ -494,7 +584,7 @@ that it covers a full roastery operation.
 - a part that is **over-simplified**;
 - an **inventory metric that should be read before revenue**;
 - whether the **green wholesale ↔ roasting allocation** is realistic;
-- whether the **dessert-waste model** is believable.
+- whether the **dessert prep margin** (leftover proxy) is a believable operating cue.
 
 ### CR11.4 Scope of this first check
 
@@ -532,6 +622,10 @@ Template. So:
 
 ### CR12.1 Terminology — natural industry Korean (the KO dictionary)
 
+Physical-flow terms use natural industry Korean; the two `supply − demand`
+**proxy** read-outs (§CR3.5) use a neutral "여유 (margin)" wording with the sign
+meaning spelled out — **never** `놓친 판매` / `품절 손실` / `폐기`.
+
 | English | Korean |
 |---|---|
 | green beans | 생두 |
@@ -539,8 +633,8 @@ Template. So:
 | roast yield | 로스팅 수율 |
 | wholesale green beans | 생두 납품 |
 | packaged beans | 포장 원두 |
-| lost / missed sales | 놓친 판매 (품절 손실) |
-| dessert waste | 디저트 폐기 |
+| **roasted supply margin** (proxy) | **로스팅 원두 수급 여유** — 양수 = 여유, 음수 = 수요가 로스팅 공급을 초과(미충족 수요 신호) |
+| **dessert prep margin** (proxy) | **디저트 준비 여유** — 양수 = 잔량, 음수 = 준비 부족(품절) |
 
 The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · 하루
 로스팅량 · 온라인 원두 주문량 · 생두 납품 주문량 · 하루 디저트 준비량**.
@@ -554,38 +648,43 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 2. ~~implementation PR (1) — the shared label overlay + the Template-3 KO-label
    migration + EN-fallback allow-list for Templates 1 & 2.~~ **Done**
    (PR #100, `b938aed`; `main` CI green).
-3. **design PR — rev 6 (docs-only, THIS PR):** §CR2.0 repositioning + settled
-   name / blurb / limitation strings (§CR2) + §CR16 (engine constraint +
-   **Direction 1 decision**). No `src/` or `examples/` change, **no README**.
-4. **PR (1.5) — the general `parameter → simulation input` feature** (§CR16.3):
-   its own spec / design note **+** engine implementation **+** tests. General,
-   not Coffee-specific. **No** `loop-expr/1` expansion, **no** `min` / `max`,
-   **no** Coffee file touched. Reviewed on its own merits.
-5. **fold PR (1.5) into this doc** — a small doc PR: §CR3.5 / §CR6 / §CR8 / §CR9
-   lose the "blocked" notes and state how a lever reaches the run; CR-D12 → done.
+3. ~~design PR — rev 6 (docs-only): §CR2.0 repositioning + settled strings +
+   §CR16 Direction-1 decision.~~ **Done** (PR #101, `26f4de5`).
+4. ~~**PR (1.5)** — the general `parameter → simulation input` feature: a spec
+   (`SEMANTICS-M2.md`, Frozen, `loop-model/2`) + engine implementation + tests.
+   General, not Coffee-specific; no `loop-expr/1` expansion, no `min` / `max`,
+   no Coffee file.~~ **Done** (PR #103, merge `c194629`; `main` CI green).
+5. ~~**fold PR (1.5) into this doc** (docs-only, THIS PR): §CR3.5 / §CR6 (new
+   §CR6.1) / §CR8 / §CR9 (new §CR9.1) lose the "blocked" notes and lock the five
+   `@param` references; §CR2.1a marks Coffee the first `loop-model/2` entry;
+   CR-D12 / §CR16 → resolved.~~ **This PR.**
 6. **implementation PR (2) — this Template**, only **after** step 5:
-   - `examples/coffee-roastery.json` (English canonical labels, English ids;
-     the five levers wired through the PR-(1.5) mechanism);
+   - `examples/coffee-roastery.json` — **`schema: "loop-studio/graph/2"`**,
+     English canonical labels + English ids; the five levers wired as the
+     §CR6.1 `flow: "@<parameter-id>"` references;
    - the `mmo-progression`-style KO dictionary entries for its nodes (§CR12.1);
    - a fixture / deterministic-run test (like `mmo-progression.test.ts`) + an
      `examples/README.md` entry that carries the **§CR2 limitation marker**
      (`단순화한 시뮬레이션 예제이며 ERP나 실시간 모니터링 시스템이 아닙니다.`);
    - `src/model/templates.ts` — a 4th `TEMPLATES[]` item with
-     `recommendedRunConfig` (§CR7 series);
+     `recommendedRunConfig` (§CR7 series); `openTemplate` / `loadGraph` set the
+     store's `modelVersion` from the file's `schema` (v2 — §CR2.1a);
    - `src/components/templateKeys.ts` — a 4th `TEMPLATE_KEY` entry;
+   - `src/i18n/templateLabels/ko.ts` — a `coffee-roastery` KO node-label block;
    - `src/i18n/locales/en.ts` + `ko.ts` — the two menu keys (§CR2 strings —
      **`커피 로스터리 운영 흐름`**, never "운영 관리").
-   **No engine / schema / wire change in PR (2)** beyond what PR (1.5) landed;
-   **no Coffee-specific engine hardcoding.**
-7. **Hanrim pre-check** — locally or in the PR-(2) preview, in both EN and KO:
-   the entry loads, reads L→R, the five values are obvious, the §CR9 scenarios
-   **really** move the trajectory, and EN/KO differ only in labels.
-8. **merge + Production deploy.**
+   **No engine / schema / wire change in PR (2)** beyond what `loop-model/2`
+   landed; **no Coffee-specific engine hardcoding.**
+7. **Hanrim pre-merge hands-on check** — locally or in the PR-(2) preview, in
+   both EN and KO: the entry loads, reads L→R, the five values are obvious, the
+   §CR9.1 scenarios **really** move the trajectory (a before/after run), and
+   EN/KO differ only in labels.
+8. **merge + Production check.**
 9. **external comprehension check** (§CR11) — send the URL + "open `Templates ▾
    → 커피 로스터리 운영 흐름`", nothing else, run the §CR11.1 protocol with the
-   **rev-6 framing** (§CR10 / §CR11.2 — believable + legible; realism of the
-   simplified flow, lever discovery + operation, per-lever result explanation
-   all on the bar; "not a real system" is fine, "toy" alone is not a pass).
+   **§CR10 / §CR11.2 framing** (believable + legible; realism of the simplified
+   flow, lever discovery + operation, per-lever result explanation all on the
+   bar; "not a real system" is fine, "toy" alone is not a pass).
 10. **README final check** — the roadmap line + general positioning, once
     the model and the check are done.
 11. **after the check** — if it exposes model problems, fix in a follow-up PR.
@@ -606,10 +705,11 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 | **CR-D6** | node budget | **≤ 20–25 total**, Summary Registers included; short on nodes ⇒ cut a result, never add a feature (§CR5). |
 | **CR-D7** | the 5 user values | daily customers · daily roast amount · online bean orders · green wholesale orders · daily dessert prep (§CR6). |
 | **CR-D8** | prices / costs / yield | fixed, clearly-labelled constants in v1 — not surfaced as expressions (§CR6). |
-| **CR-D9** | `src/` / wire / engine impact | impl PR (2) touches **only** `examples/coffee-roastery.json`, its test, `templates.ts`, `templateKeys.ts`, the KO dictionary entries, 2 menu keys × en+ko; **no** engine / schema / wire / `loop-revision/N` (§CR15). The *general* `parameter → simulation input` feature (§CR16, Direction 1) is a **separate prior PR (1.5)** with its own spec; impl PR (2) itself still touches only this list. |
+| **CR-D9** | `src/` / wire / engine impact | impl PR (2) touches **only** `examples/coffee-roastery.json`, its fixture test, `templates.ts`, `templateKeys.ts`, `templateLabels/ko.ts`, 2 menu keys × en+ko, and `examples/README.md`; **no** engine / schema / wire / `loop-revision/N` (§CR15). The engine change is `loop-model/2` (`SEMANTICS-M2.md`, PR #103, merged `c194629`) — a separate, already-shipped, general feature. |
 | **CR-D10** | who verifies comprehension? | an **external, domain-informed reviewer** (identity not recorded) — read → adjust → interpret only; not asked to edit the graph (§CR11). |
 | **CR-D11** | language | **one English-canonical `examples/coffee-roastery.json`**; Korean (and later locales') node **labels** via the shared fresh-open overlay ([`docs/template-label-overlay.md`](template-label-overlay.md)), built first. `label` only — ids / expr / `resourceType` / positions stay English. No `.ko.json` for this Template. Menu name/blurb per-locale via the app catalog (§CR12). |
-| **CR-D12** | *(rev 6)* the five levers can't reach the frozen engine — what now? | **Direction 1 (decided).** The five stay **operational levers** (visitors · roast kg · online orders · wholesale kg · dessert prep), **not** redefined as price / cost / yield constants. A minimal, **general** `parameter → simulation input` capability is designed + built as its **own spec-first PR (1.5)**, before impl PR (2), then this Template consumes it. **Excluded** from that feature: Coffee-specific hardcoding; a Register-display-only workaround; widening the `loop-expr/1` expression language; adding `min` / `max`. Direction 2 (redesign around the unchanged engine) considered and not chosen — its levers fail the "immediately identifiable" bar (§CR16.3). |
+| **CR-D12** | the five levers can't reach the frozen engine — what now? | **RESOLVED (rev 7).** Direction 1 shipped: `loop-model/2` (`SEMANTICS-M2.md`, Frozen; PR #103, merge `c194629`) lets a **v2** `resource`-edge `flow` be a single `@parameter-id`. The five stay **operational levers** — locked to concrete edges in §CR6.1 — never redefined as price / cost / yield. The feature added **no** Coffee-specific code, **no** `loop-expr/1` expansion, **no** `min` / `max`. Direction 2 (redesign around the unchanged engine) was considered and not chosen. |
+| **CR-D13** | *(rev 7)* Coffee is the first bundled v2 Template — any risk? | **No.** `openTemplate` / `loadGraph` already accept a model version; a bundled v2 file loads as v2 as authored (not the "explicit user promotion" path). The label overlay is `label`-only, so it is unaffected. The v2 `loop-revision` / `loop-workspace` digest discriminator (§M2-8) means the Coffee graph's identity is distinct from any v1 graph — expected. |
 
 ---
 
@@ -622,16 +722,17 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
   not this doc. Neither is a spec for the module / template system (§PD8-B).
 - **Impl PR (1)** = the shared overlay (`docs/template-label-overlay.md` §TLO)
   + the Template-3 KO-label migration. **Merged** (#100, `b938aed`).
-- **PR (1.5)** = the general `parameter → simulation input` feature (§CR16,
-  Direction 1) — its own spec + implementation + tests. **This is where the
+- **`loop-model/2`** (`SEMANTICS-M2.md`, Frozen; PR #103, merge `c194629`) —
+  the general `parameter → simulation input` engine feature. **This is where the
   engine change lives**; it is not Coffee-specific and not part of impl PR (2).
-- **Impl PR (2)** adds **only**: `examples/coffee-roastery.json`, its fixture
-  test, an `examples/README.md` entry (with the §CR2 limitation marker), this
-  Template's KO dictionary entries, a `TEMPLATES[]` item in
+- **Impl PR (2)** adds **only**: `examples/coffee-roastery.json` (schema
+  `loop-studio/graph/2`), its fixture test, an `examples/README.md` entry (with
+  the §CR2 limitation marker), the `coffee-roastery` block in
+  `src/i18n/templateLabels/ko.ts`, a `TEMPLATES[]` item in
   `src/model/templates.ts`, a `TEMPLATE_KEY` entry in
   `src/components/templateKeys.ts`, and two menu keys in `en.ts` + `ko.ts`.
   **No other `src/` change; no engine / schema / wire / `loop-revision/N`
-  beyond what PR (1.5) already landed.**
+  beyond what `loop-model/2` already landed.**
 - Templates **1 / 2 / 3** keep their graphs, behaviour, and digests unchanged
   (the overlay only affects a *non-EN fresh-open*, §TLO6).
 - **LGR Slice 2** does not start until the external comprehension check (§CR11)
@@ -639,15 +740,22 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
   complete.
 - If the check fails, the file stays an `examples/` reference and is **not**
   promoted — no menu entry, no further scope.
-- **rev 6:** impl PR (2) does not start until PR (1.5) has merged and §CR3.5 /
-  §CR6 / §CR8 / §CR9 are updated with the real mechanism.
+- impl PR (2) starts now that `loop-model/2` is merged and §CR3.5 / §CR6.1 /
+  §CR8 / §CR9.1 state the real mechanism (rev 7, this PR).
 - **README** (the roadmap line and the general positioning text) is checked
-  **last**, after the coffee Template is implemented and the external check has
-  run — not in rev 6, not in PR (1.5).
+  **last** — after the coffee Template is implemented and the external check has
+  run.
 
 ---
 
-## CR16. Engine constraint & model architecture *(rev 6)*
+## CR16. Engine constraint & model architecture *(rev 6 — RESOLVED in rev 7)*
+
+> **Resolved.** The constraint below is the reason `loop-model/2`
+> ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge `c194629`)
+> exists. In a **v2 document** a `resource`-edge `flow` may be a single
+> `@parameter-id` the engine resolves once per step — so the five §CR6 levers
+> reach the run (§CR6.1). This section is kept as the design record; §CR6.1 /
+> §CR9.1 / CR-D12 carry the settled outcome.
 
 ### CR16.1 What was found
 
@@ -690,12 +798,14 @@ Template's PRs.
 
 ### CR16.3 Decision — Direction 1: a minimal, general `parameter → simulation input` feature
 
-**Decided (rev 6 review).** Build a small, spec'd, **engine-level** capability
-that lets a `parameter` `value` be referenced where a **rate** is read today —
-so a Parameter can genuinely drive the run. It is **general** (any graph
-benefits), designed and shipped as its **own spec-first PR, before** impl PR (2)
-(§CR13 step "PR (1.5)"). This Template then consumes it; it adds no engine code
-of its own.
+**Decided (rev 6 review); shipped as `loop-model/2` (rev 7).** A small, spec'd,
+**engine-level** capability that lets a `parameter` `value` be referenced where a
+**rate** is read — so a Parameter genuinely drives the run. It is **general**
+(any graph benefits) and shipped as its own spec-first PR **before** impl PR (2)
+([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), PR #103, merge `c194629`). This
+Template consumes it; it adds no engine code of its own. The as-shipped shape
+below matches the sketch, with one narrowing: **`flow` only** (a Source's rate
+*is* its out-edge `flow`), and a **v2-document** gate.
 
 **Shape (for the feature's own spec to pin down — sketch only here):**
 
@@ -722,9 +832,10 @@ of its own.
 - **widening the `loop-expr/1` expression language** — no new operators, no
   functions, no general expressions on edges / sources; this is a *reference to
   one parameter's value*, not an expression layer;
-- **adding `min` / `max` / clamping** — out of scope here; the §CR8 "missed
-  sales" / "dessert waste" shortfall read-outs stay signed headroom, or become a
-  real drain in the flow, per §CR3.5.
+- **adding `min` / `max` / clamping** — out of scope here; the §CR8 **roasted
+  supply margin** / **dessert prep margin** read-outs are plain signed
+  `supply − demand` *proxies* with an explicit sign meaning, per §CR3.5 —
+  never labelled "missed sales" or "waste".
 
 **Also out of scope (different product, per §CR2.0 / §PD11):** green-bean-variety
 CRUD, real-time stock entry, POS / sensor / order integration, statistics
@@ -735,14 +846,13 @@ considered and **not** chosen: the "edit a value the reader must first hunt for"
 mechanisms it depended on fail the §CR10 "five values immediately identifiable"
 bar, the same reason "select an edge, edit its flow" is rejected in §CR16.2.)*
 
-### CR16.4 Work order
+### CR16.4 Work order — done
 
-1. **PR (1.5) — the `parameter → simulation input` feature.** Its own design
-   note (or a `SEMANTICS-*` amendment if the freeze rules require one — the
-   feature's PR decides) **+** implementation **+** tests, reviewed on its own
-   merits. Not part of impl PR (2).
-2. After PR (1.5) merges, **fold the mechanism into this doc** — §CR3.5 / §CR6 /
-   §CR8 / §CR9 lose their "blocked" notes and state how a lever reaches the run;
-   CR-D12 is set to "Direction 1, delivered by PR (1.5)".
-3. **Then impl PR (2)** per §CR13 — the JSON + registration only, consuming the
-   feature.
+1. ~~**PR (1.5) — the `parameter → simulation input` feature.**~~ Shipped as
+   **`SEMANTICS-M2.md`** (Frozen, `loop-model/2`) + engine implementation +
+   tests + the `loop-revision/4` digest discriminator (§M2-8). PR #103, merge
+   `c194629`, `main` CI green.
+2. ~~**fold the mechanism into this doc.**~~ **This PR (rev 7)** — §CR3.5 /
+   §CR6.1 / §CR8 / §CR9.1 state the real mechanism; §CR2.1a; CR-D12 → resolved.
+3. **Then impl PR (2)** per §CR13 — the JSON (schema `loop-studio/graph/2`) +
+   registration only, consuming `loop-model/2`.
