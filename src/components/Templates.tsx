@@ -4,6 +4,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
+import { openTemplate } from '../i18n/templateLabels'
 import { ConfirmDialog } from './ConfirmDialog'
 import { TEMPLATE_KEY } from './templateKeys'
 
@@ -37,8 +38,11 @@ export function Templates() {
     const tpl = TEMPLATES.find((x) => x.id === id)
     if (!tpl) return
     useSimStore.getState().pause() // stop any run before the swap
-    loadGraph(tpl.graph) // one history entry; sim resets off structureRev
-    useMcStore.getState().applyRecommended(tpl.recommendedRunConfig)
+    // docs/template-label-overlay.md — a deep clone with the current locale's
+    // node-label overlay; the canonical TEMPLATES[i] is never touched.
+    const { graph, recommendedRunConfig } = openTemplate(tpl)
+    loadGraph(graph) // one history entry; sim resets off structureRev
+    useMcStore.getState().applyRecommended(recommendedRunConfig)
   }
 
   const pick = (id: string) => {
