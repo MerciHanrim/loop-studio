@@ -610,6 +610,24 @@ test.describe('i18n — export / storage boundary (§L12 #5 extended)', () => {
     const en2 = await capture()
 
     expect(en2).toEqual(en1)
+
+    // By now React Flow's ResizeObserver has written `measured` onto the live
+    // store nodes (the four locale switches above take far longer than a layout
+    // pass). A clean payload here therefore proves `serialize()` strips that
+    // renderer state — it is not a lucky pre-measurement capture. This is the
+    // real defect the byte-identity check first surfaced: `measured` depends on
+    // viewport / fonts / timing and must never be part of the document.
+    const measured = await page.evaluate(() =>
+      (window as unknown as Bridge).__loop.graph
+        .getState()
+        .nodes.every((node: { measured?: { width?: number } }) => (node.measured?.width ?? 0) > 0),
+    )
+    expect(measured, 'React Flow has measured the nodes by now').toBe(true)
+    for (const key of ['"measured"', '"selected"', '"dragging"']) {
+      expect(en2.graphJSON, `graphJSON must not contain ${key}`).not.toContain(key)
+      expect(en2.workspace, `workspace must not contain ${key}`).not.toContain(key)
+    }
+
     for (const [name, blob] of Object.entries(en2)) {
       for (const tok of ['loop-studio/ui-locale/1', 'activeLocale', 'requestedLocale', '"locale"', 'ui-locale']) {
         expect(blob, `${name} must not contain "${tok}"`).not.toContain(tok)
