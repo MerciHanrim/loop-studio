@@ -59,7 +59,7 @@ export function collectWorkspacePayload(canvas: Viewport): WorkspacePayload {
 /** The full file string for a Workspace Export (graph + optional workspace). */
 export function serializeWorkspaceFile(payload: WorkspacePayload): string {
   const g = useGraphStore.getState()
-  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload)
+  return serialize(g.nodes, g.edges, recommendedRunConfigForExport(), payload, undefined, g.modelVersion)
 }
 
 // ── §W4 size handling ───────────────────────────────────────────────────
@@ -75,10 +75,10 @@ export function planWorkspaceExport(canvas: Viewport): {
   const g = useGraphStore.getState()
   const cfg = recommendedRunConfigForExport()
   const payload = collectWorkspacePayload(canvas)
-  const fullText = serialize(g.nodes, g.edges, cfg, payload)
+  const fullText = serialize(g.nodes, g.edges, cfg, payload, undefined, g.modelVersion)
   const full: WorkspaceFileOption = { text: fullText, bytes: utf8ByteLength(fullText), resultOmitted: false }
   if (payload.mc.result === undefined) return { full, lean: null }
-  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload))
+  const leanText = serialize(g.nodes, g.edges, cfg, omitResult(payload), undefined, g.modelVersion)
   return { full, lean: { text: leanText, bytes: utf8ByteLength(leanText), resultOmitted: true } }
 }
 
@@ -115,7 +115,7 @@ export async function importFile(text: string): Promise<ImportOutcome> {
       : ''
 
   // ── from here: synchronous ──────────────────────────────────────────
-  useGraphStore.getState().loadDoc({ nodes: parsed.nodes, edges: parsed.edges }) // the ONE bump
+  useGraphStore.getState().loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
 
   if (parsed.workspace == null) {

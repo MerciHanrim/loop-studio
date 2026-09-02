@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import {
   parseActivatorExpr,
   parseDelay,
+  parseFlow,
   parseLabelExpr,
   type ActivatorParse,
   type LabelParse,
@@ -239,13 +240,13 @@ export function Inspector() {
 
         {ed.kind === 'resource' ? (
           <>
-            <Field label={t('inspector.field.flow')}>
-              <input
-                value={ed.flow}
-                onChange={(e) => setData({ ...ed, kind: 'resource', flow: e.target.value })}
-                placeholder={t('inspector.edge.flowPlaceholder')}
-              />
-            </Field>
+            <EdgeFlowField
+              flow={ed.flow}
+              params={nodes
+                .filter((n) => (n.data as { kind?: string }).kind === 'parameter')
+                .map((n) => ({ id: n.id, label: (n.data as { label?: string }).label || n.id }))}
+              onChange={(flow) => setData({ ...ed, kind: 'resource', flow })}
+            />
             <ResourceTypeField
               value={ed.resourceType}
               onChange={(v) => setData({ ...ed, kind: 'resource', resourceType: v })}
@@ -280,6 +281,87 @@ export function Inspector() {
         <p className="inspector__hint">{t('inspector.empty.hint')}</p>
       </div>
     </aside>
+  )
+}
+
+// ── resource-edge flow, incl. a loop-model/2 parameter reference ─────────
+// docs/parameter-inputs.md §PI9.1 — the `flow` field accepts a literal or a
+// single `@id` parameter reference. A picker writes `@id`; raw entry is also
+// allowed. Committing any leading-`@` value promotes a v1 document to v2 (the
+// graphStore latch); a dangling / wrong-kind / malformed reference is flagged
+// here without blocking save, and the connection contributes 0 at run time.
+function EdgeFlowField({
+  flow,
+  params,
+  onChange,
+}: {
+  flow: string
+  params: { id: string; label: string }[]
+  onChange: (flow: string) => void
+}) {
+  const t = useT()
+  const trimmed = flow.trim()
+  const isRef = trimmed.startsWith('@')
+  const fx = isRef ? parseFlow(flow, 2) : null
+  const refId = fx?.kind === 'param' ? fx.id : null
+  const target = refId != null ? params.find((p) => p.id === refId) : undefined
+
+  let status: { text: string; warn: boolean } | null = null
+  if (fx?.kind === 'paramBad') {
+    status = { text: t('inspector.edge.flowParam.malformed'), warn: true }
+  } else if (refId != null) {
+    const node = useGraphStore.getState().nodes.find((n) => n.id === refId)
+    if (!node) status = { text: t('inspector.edge.flowParam.unknown', { id: refId }), warn: true }
+    else if ((node.data as { kind?: string }).kind !== 'parameter')
+      status = { text: t('inspector.edge.flowParam.notParam', { id: refId }), warn: true }
+    else {
+      const v = (node.data as { value?: unknown }).value
+      status = {
+        text: `${t('inspector.edge.flowParam.resolved', {
+          value: typeof v === 'number' && Number.isFinite(v) ? String(v >= 0 ? v : 1) : '0',
+        })}${target ? `  (${target.label})` : ''}`,
+        warn: !(typeof v === 'number' && Number.isFinite(v)),
+      }
+    }
+  }
+
+  return (
+    <Field label={t('inspector.field.flow')}>
+      {params.length > 0 && (
+        <select
+          aria-label={t('inspector.edge.flowParam.pickLabel')}
+          value={refId ?? ''}
+          onChange={(e) => {
+            const id = e.target.value
+            if (id === '') {
+              if (isRef) onChange('1')
+            } else onChange(`@${id}`)
+          }}
+        >
+          <option value="">{t('inspector.edge.flowParam.literalOption')}</option>
+          {params.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      )}
+      <input
+        value={flow}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t('inspector.edge.flowPlaceholder')}
+      />
+      {status && (
+        <span
+          className={
+            status.warn ? 'inspector__note inspector__note--warn' : 'inspector__note'
+          }
+        >
+          {status.text}
+        </span>
+      )}
+      {isRef && <span className="inspector__note">{t('inspector.edge.flowParam.hint')}</span>}
+    </Field>
   )
 }
 

@@ -363,3 +363,51 @@ describe('React Flow renderer state never reaches the document', () => {
 beforeEach(() => {
   useGraphStore.getState().newGraph()
 })
+
+// ── loop-model/2 — the schema-based model-semantics discriminator ──────────
+describe('loop-model/2 — schema discriminator (SEMANTICS-M2.md §M2-1)', () => {
+  const g1 = [n('p', 'pool') as LoopNode]
+
+  it('serialize(..., 1) writes schema "loop-studio/graph" (unchanged bytes)', () => {
+    const s = serialize(g1, [])
+    expect(JSON.parse(s).schema).toBe('loop-studio/graph')
+    expect(JSON.parse(s).version).toBe(1)
+    expect(serialize(g1, [], undefined, undefined, undefined, 1)).toBe(s) // explicit 1 == default
+  })
+
+  it('serialize(..., 2) writes schema "loop-studio/graph/2"; version stays 1', () => {
+    const parsed = JSON.parse(serialize(g1, [], undefined, undefined, undefined, 2))
+    expect(parsed.schema).toBe('loop-studio/graph/2')
+    expect(parsed.version).toBe(1)
+  })
+
+  it('deserialize returns the model version from schema; v2 survives a round-trip', () => {
+    expect(deserialize(serialize(g1, [])).modelVersion).toBe(1)
+    const back1 = deserialize(serialize(g1, [], undefined, undefined, undefined, 2))
+    expect(back1.modelVersion).toBe(2)
+    // re-serialise with the version the reader returned ⇒ still the v2 schema, and a fixpoint
+    const reser = serialize(back1.nodes, back1.edges, undefined, undefined, undefined, back1.modelVersion)
+    expect(JSON.parse(reser).schema).toBe('loop-studio/graph/2')
+    const back2 = deserialize(reser)
+    expect(back2.modelVersion).toBe(2)
+    expect(serialize(back2.nodes, back2.edges, undefined, undefined, undefined, back2.modelVersion)).toBe(reser)
+  })
+
+  it('an unknown schema (incl. a newer loop-studio/graph/N) is rejected — fail-closed (§M2-INV-6)', () => {
+    const v99 = JSON.stringify({ schema: 'loop-studio/graph/99', version: 1, nodes: [], edges: [] })
+    expect(() => deserialize(v99)).toThrow(/does not look like a Loop Studio graph file/)
+    expect(() => deserialize(JSON.stringify({ schema: 'something-else', version: 1, nodes: [], edges: [] }))).toThrow()
+  })
+
+  it('a v1 document with a stray "@foo" flow round-trips byte-identically and stays v1 (§M2-INV-1)', () => {
+    const src = doc([n('a', 'source'), n('b', 'pool')], [
+      { id: 'e', source: 'a', target: 'b', type: 'loop', data: { kind: 'resource', flow: '@foo' } } as unknown as LoopEdge,
+    ])
+    const back = deserialize(src)
+    expect(back.modelVersion).toBe(1)
+    const reser = serialize(back.nodes, back.edges, undefined, undefined, undefined, back.modelVersion)
+    expect(JSON.parse(reser).schema).toBe('loop-studio/graph')
+    // the flow string is kept verbatim
+    expect((JSON.parse(reser).edges[0].data as { flow: string }).flow).toBe('@foo')
+  })
+})

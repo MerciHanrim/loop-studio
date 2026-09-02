@@ -175,7 +175,9 @@ export const useMcStore = create<McStore>((set, get) => ({
     const nodes = g.nodes.map((n) => ({ ...n }))
     const edges = g.edges.map((e) => ({ ...e }))
     const rev = g.simulationRev
-    const config = get().config
+    // loop-model/2 — thread the document's model-semantics version into this
+    // run only (never stored on `config`, never in `recommendedRunConfig`).
+    const config = { ...get().config, modelVersion: g.modelVersion }
 
     useSimStore.getState().pause() // the live run yields to the batch
 
