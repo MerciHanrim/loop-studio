@@ -99,9 +99,10 @@ const ko = {
   'canvas.lock.lock': '편집 잠금 — 선택과 조회는 계속 가능',
   'canvas.lock.unlock': '편집 잠금 해제 — 이동·연결·값 수정 가능',
   // docs/large-graph-readability.md §LGR2.1 — 집중 토글 (데스크톱은 캔버스
-  // 컨트롤, 모바일은 More 시트)
-  'canvas.focus.on': '선택한 노드에 집중 — 연결되지 않은 요소는 흐리게',
-  'canvas.focus.off': '전체 그래프 다시 보기',
+  // 컨트롤, 모바일은 More 시트). `.on` / `.off` 는 현재 상태 기준: OFF일 때 `.on`
+  'canvas.focus.on': 'Focus 꺼짐 — 눌러서 선택한 노드에 집중',
+  'canvas.focus.off': 'Focus 켜짐 — 눌러서 전체 그래프 보기',
+  'canvas.focus.hint': '집중해서 볼 노드를 선택하세요',
   'canvas.focus.rowLabel': '선택 집중',
   'canvas.focus.stateOn': '켬',
   'canvas.focus.stateOff': '끔',

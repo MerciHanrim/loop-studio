@@ -1018,10 +1018,29 @@ body {
   }
 }
 
-/* the Focus toggle in the React Flow controls — pressed state reads as the
-   signal colour (the glyph alone is not a strong enough tell). */
-.react-flow__controls-button.rf-focus[aria-pressed='true'] {
+/* docs/large-graph-readability.md §LGR2.1 — the Focus toggle. It is a MODE, not
+   a momentary action, so its ON state must read at a glance: a signal-coloured
+   glyph, a soft-tint fill, and a persistent inset ring (kept on hover). */
+.react-flow__controls-button.rf-focus[aria-pressed='true'],
+.react-flow__controls-button.rf-focus[aria-pressed='true']:hover {
   color: var(--signal-primary);
+  background: var(--signal-primary-soft);
+  box-shadow: inset 0 0 0 2px var(--signal-primary);
+}
+
+/* the "arm" hint — shown only while Focus is ON but nothing is selected, so the
+   canvas has not visibly changed yet. A React Flow top-centre Panel; never
+   takes the pointer, never shifts layout. */
+.lgr-focus-hint {
+  pointer-events: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--signal-primary);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--elev-label);
 }
 
 /* state: keyboard focus — outer ring, sits beyond the selection outline */

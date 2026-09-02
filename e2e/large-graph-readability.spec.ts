@@ -106,6 +106,57 @@ test.describe('large-graph readability — Slice 1', () => {
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:focus-mode'))).toBe('0')
   })
 
+  test('Focus toggle: ON state is a persistent visual + a state-aware tooltip', async ({ page }) => {
+    await load(page)
+    const btn = focusBtn(page)
+
+    const style = () =>
+      btn.evaluate((el) => {
+        const s = getComputedStyle(el)
+        return { bg: s.backgroundColor, shadow: s.boxShadow }
+      })
+    const offStyle = await style()
+    const offTip = await btn.getAttribute('title')
+
+    await btn.click()
+    await expect(btn).toHaveAttribute('aria-pressed', 'true')
+    const onStyle = await style()
+    const onTip = await btn.getAttribute('title')
+
+    // the ON state must look different (background + a persistent inset ring)
+    expect(onStyle.bg).not.toBe(offStyle.bg)
+    expect(onStyle.shadow).not.toBe(offStyle.shadow)
+    expect(onStyle.shadow).not.toBe('none')
+    // …and the tooltip names the current state, not just the action
+    expect(offTip).not.toBe(onTip)
+    expect(offTip?.toLowerCase()).toContain('off')
+    expect(onTip?.toLowerCase()).toContain('on')
+  })
+
+  test('Focus armed with no selection shows a hint; it clears on selection / toggle-off', async ({ page }) => {
+    await load(page)
+    const hint = page.locator('.lgr-focus-hint')
+    await expect(hint).toHaveCount(0)
+
+    await focusBtn(page).click() // ON, nothing selected
+    await expect(hint).toBeVisible()
+    expect(await hint.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none')
+
+    await node(page, 'b').click() // a selection ⇒ the canvas changes, hint goes
+    await expect(hint).toHaveCount(0)
+
+    // deselect ⇒ armed again, hint back
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { graph: { getState: () => { setSelection: (a: null, b: null) => void } } } }).__loop.graph
+        .getState()
+        .setSelection(null, null),
+    )
+    await expect(hint).toBeVisible()
+
+    await focusBtn(page).click() // OFF ⇒ no hint
+    await expect(hint).toHaveCount(0)
+  })
+
   test('Focus off ⇒ nothing is de-emphasised even with a selection', async ({ page }) => {
     await load(page)
     await node(page, 'b').click()
