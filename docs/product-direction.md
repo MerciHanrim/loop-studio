@@ -3,7 +3,9 @@
 **Status: settled direction — no implementation.** This doc fixes *what Loop
 Studio is for* and *who it is for* before the next two design passes
 (large-graph readability, small module / template system) begin, so that they
-do not pull in different directions. It changes **no app code**, adds **no
+do not pull in different directions. It is **complete on merge** — the five
+decisions in §PD9 are the deliverable; after that it is revised only if one of
+those decisions changes, not tracked as ongoing work. It changes **no app code**, adds **no
 `loop-*/N` id**, and touches nothing the engine computes or serializes. It is
 revised freely, like [`docs/visual-language.md`](visual-language.md),
 [`docs/localization.md`](localization.md), and [`docs/edge-routing.md`](edge-routing.md).
