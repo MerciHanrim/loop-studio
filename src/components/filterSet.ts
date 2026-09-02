@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { normalizeResourceType } from '../model/model/resourceType'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useGraphStore } from '../store/graphStore'
-import { UNTYPED, useFilterStore, type EdgeClass } from '../store/filterStore'
+import { EDGE_CLASSES, UNTYPED, useFilterStore, type EdgeClass } from '../store/filterStore'
 
 // docs/large-graph-readability.md §LGR3.2 — the transient-filter view layer.
 // PURE + hooks, mirroring focusSet.ts: turns the ephemeral filter selections
@@ -31,6 +31,19 @@ const readResourceType = (raw: unknown): string => normalizeResourceType(raw).va
  * The untyped bucket is a separate always-present entry (rendered by the panel),
  * so this returns only the typed strings.
  */
+/**
+ * The edge classes **actually present in the open graph**, in canonical order
+ * (§LGR3.2). Like the resource-type list, this is derived from the graph — so a
+ * plain canvas offers only `resource` / `state`, and `hint` (a Review-only
+ * dotted edge, `docs/visual-language.md` §VL6) shows up only if such an edge is
+ * ever fed in. An empty graph offers no edge-class filter at all.
+ */
+export function graphEdgeClasses(edges: readonly LoopEdge[]): EdgeClass[] {
+  const present = new Set<EdgeClass>()
+  for (const e of edges) present.add(edgeClassOf(e))
+  return EDGE_CLASSES.filter((c) => present.has(c))
+}
+
 export function graphResourceTypes(
   nodes: readonly LoopNode[],
   edges: readonly LoopEdge[],
@@ -119,6 +132,12 @@ export function useGraphResourceTypes(): string[] {
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   return useMemo(() => graphResourceTypes(nodes, edges), [nodes, edges])
+}
+
+/** The edge classes present in the open graph, canonical order. */
+export function useGraphEdgeClasses(): EdgeClass[] {
+  const edges = useGraphStore((s) => s.edges)
+  return useMemo(() => graphEdgeClasses(edges), [edges])
 }
 
 /** The live hidden set: `null` unless a filter is active. Recomputes only when

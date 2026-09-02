@@ -435,15 +435,37 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(group).not.toContainText('Energy')
   })
 
-  test('the edge-class axis offers all three: Resource / State / Dependency hint (§LGR3.2 / LGR-D4)', async ({ page }) => {
+  test('the edge-class list is graph-derived — Resource / State only on a plain canvas, no dead Dependency hint (§LGR3.2 / LGR-D4)', async ({ page }) => {
     await loadRT(page)
     await filterBtn(page).click()
     const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Edge type' })
+    await expect(group.locator('.lgr-filter__row span')).toHaveText(['Resource', 'State'])
+    await expect(filterPanel(page)).not.toContainText('Dependency hint')
+
+    // inject a dependency-hint edge (Review-only; can't arrive via Import) —
+    // the row appears, and it hides that edge
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { edges: unknown[] }; setState: (p: object) => void } } }).__loop.graph
+      const st = g.getState()
+      g.setState({
+        edges: [
+          ...st.edges,
+          {
+            id: 'dh',
+            source: 'gold',
+            target: 'mana',
+            sourceHandle: 'out',
+            targetHandle: 'in',
+            type: 'loop',
+            data: { kind: 'hint' },
+          },
+        ],
+      })
+    })
     await expect(group.locator('.lgr-filter__row span')).toHaveText(['Resource', 'State', 'Dependency hint'])
-    // a plain canvas has no dependency-hint edge, so ticking it hides nothing
     await filterRow(page, 'Dependency hint').check()
+    await expect(edge(page, 'dh')).toHaveCount(0)
     for (const id of ['re1', 're2', 're3', 'rp', 'st1']) await expect(edgePath(page, id)).toHaveCount(1)
-    await expect(filterPanel(page).locator('.lgr-filter__count')).toHaveText('Nothing hidden')
   })
 
   test('hide an edge class → state edges go, resource edges + nodes stay (§LGR3.2)', async ({ page }) => {

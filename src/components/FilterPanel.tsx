@@ -2,7 +2,6 @@ import { Panel } from '@xyflow/react'
 import { useT, type MessageKey } from '../i18n'
 import type { NodeKind } from '../model/types'
 import {
-  EDGE_CLASSES,
   NODE_KINDS,
   UNTYPED,
   filtersActive,
@@ -10,7 +9,7 @@ import {
   type EdgeClass,
 } from '../store/filterStore'
 import { useUiStore } from '../store/uiStore'
-import { useGraphResourceTypes, useHiddenSet } from './filterSet'
+import { useGraphEdgeClasses, useGraphResourceTypes, useHiddenSet } from './filterSet'
 
 // literal MessageKey maps (dynamic `t(\`…${k}\`)` is invisible to check-i18n)
 const EDGE_CLASS_LABEL: Record<EdgeClass, MessageKey> = {
@@ -54,6 +53,7 @@ function Row({
 
 export function FilterControls() {
   const t = useT()
+  const edgeClasses = useGraphEdgeClasses()
   const resourceTypes = useGraphResourceTypes()
   const hidden = useHiddenSet()
   const hiddenEdgeClasses = useFilterStore((s) => s.hiddenEdgeClasses)
@@ -71,17 +71,19 @@ export function FilterControls() {
     <div className="lgr-filter__body">
       <p className="lgr-filter__hint">{t('canvas.filter.checkboxHint')}</p>
 
-      <fieldset className="lgr-filter__group">
-        <legend>{t('canvas.filter.groupEdgeClass')}</legend>
-        {EDGE_CLASSES.map((c) => (
-          <Row
-            key={c}
-            checked={hiddenEdgeClasses.has(c)}
-            label={t(EDGE_CLASS_LABEL[c])}
-            onChange={() => toggleEdgeClass(c)}
-          />
-        ))}
-      </fieldset>
+      {edgeClasses.length > 0 && (
+        <fieldset className="lgr-filter__group">
+          <legend>{t('canvas.filter.groupEdgeClass')}</legend>
+          {edgeClasses.map((c) => (
+            <Row
+              key={c}
+              checked={hiddenEdgeClasses.has(c)}
+              label={t(EDGE_CLASS_LABEL[c])}
+              onChange={() => toggleEdgeClass(c)}
+            />
+          ))}
+        </fieldset>
+      )}
 
       <fieldset className="lgr-filter__group">
         <legend>{t('canvas.filter.groupResourceType')}</legend>

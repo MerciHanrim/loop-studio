@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { EDGE_CLASSES, NODE_KINDS, UNTYPED, type EdgeClass } from '../store/filterStore'
-import { computeHidden, graphResourceTypes } from './filterSet'
+import { computeHidden, graphEdgeClasses, graphResourceTypes } from './filterSet'
 
 // docs/large-graph-readability.md §LGR3.2 — the transient-filter view layer.
 // Pure: turn the filter selections into the ids React Flow renders `hidden`.
@@ -65,6 +65,23 @@ describe('graphResourceTypes — built from the graph, not a fixed palette (§LG
 
   it('an empty graph has no typed entries', () => {
     expect(graphResourceTypes([], [])).toEqual([])
+  })
+})
+
+describe('graphEdgeClasses — only the classes present in the graph, canonical order (§LGR3.2)', () => {
+  it('a plain canvas offers resource / state only — never a dead `hint` option', () => {
+    expect(graphEdgeClasses([resEdge('a', 'x', 'y'), stateEdge('b', 'y', 'x')])).toEqual([
+      'resource',
+      'state',
+    ])
+    expect(graphEdgeClasses([stateEdge('b', 'y', 'x')])).toEqual(['state'])
+    expect(graphEdgeClasses([])).toEqual([])
+  })
+
+  it('`hint` shows up iff a dependency-hint edge is actually present', () => {
+    expect(
+      graphEdgeClasses([resEdge('a', 'x', 'y'), stateEdge('b', 'y', 'x'), hintEdge('h', 'x', 'y')]),
+    ).toEqual(['resource', 'state', 'hint'])
   })
 })
 
