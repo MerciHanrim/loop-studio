@@ -40,7 +40,7 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 //       a `Water < restock` activator.
 //     Repair: a wear-clearing Converter + a gold-metering Converter, both opened
 //       by a `Gear wear > repair` activator.
-//     Clock Source → Elapsed time (+ Fail/Death time penalties).
+//     Clock Source → Elapsed steps (+ Fail/Death step penalties).
 //     Completion Source → Completion Pool → End, opened by `Level ≥ 15`.
 //     seven reporting Registers (loop-expr/1: + - * / and @id only).
 //
@@ -62,9 +62,10 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 //     so item counts are integral in a single run (§EM13.6).
 //   • `Hunt XP share` divides by `(@hunt_xp + @quest_xp + 0.001)` so R(t) is a
 //     clean `0%` before the first reward, not a `/0` diagnostic on opening.
-//   • `XP pace (starter-levels)` (id `r_efflevel`) is NOT a level estimate —
-//     real Level is Converter-driven and piecewise, which an expression cannot
-//     reproduce — it is total XP earned in first-zone level-costs.
+//   • `XP pace index` (id `r_efflevel`) is NOT a level estimate — real Level is
+//     Converter-driven and piecewise, which an expression cannot reproduce — it
+//     is total XP earned expressed in first-zone level-costs (a dimensionless
+//     index, so it carries no `unit`).
 //
 // Every "how much total" quantity is a cumulative counter Pool a flow only adds
 // to; every balance Pool that is both filled and drained (Gold / Water / Food)
@@ -249,7 +250,9 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   // combat outcome counters
   N(pool('combat_wins', 'Combat wins', { x: 1660, y: 500 }))
   N(pool('combat_fails', 'Combat fails', { x: 1660, y: 560 }))
-  N(pool('deaths', 'Deaths', { x: 1660, y: 620 }))
+  // `Deaths` is on the default Timeline — a short " (count)" keeps the line from
+  // reading as an abstract score next to Gold / XP. Label-only (overlay-carried).
+  N(pool('deaths', 'Deaths (count)', { x: 1660, y: 620 }))
 
   // gold economy
   N(pool('gold', 'Gold', { x: 1900, y: 460 }, { initial: P.goldStart, resourceType: 'currency' }))
@@ -264,8 +267,10 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   N(pool('food', 'Food', { x: 1900, y: 800 }, { initial: P.foodStart, resourceType: 'supply' }))
   N(pool('water_bought', 'Water bought', { x: 2080, y: 720 }))
   N(pool('food_bought', 'Food bought', { x: 2080, y: 800 }))
-  N(pool('water_consumed', 'Water consumed', { x: 1720, y: 720 }))
-  N(pool('food_consumed', 'Food consumed', { x: 1720, y: 800 }))
+  // both on the default Timeline + the §EM10.1 water / food identities — a
+  // " (units)" suffix names the otherwise unit-less quantity. Label-only.
+  N(pool('water_consumed', 'Water consumed (units)', { x: 1720, y: 720 }))
+  N(pool('food_consumed', 'Food consumed (units)', { x: 1720, y: 800 }))
   N(mkNode('converter', 'water_upkeep', 'Water upkeep', { x: 1800, y: 720 }))
   N(mkNode('converter', 'food_upkeep', 'Food upkeep', { x: 1800, y: 800 }))
   E(res('e_water_up', 'water', 'water_upkeep', num(P.waterPerStep)))
@@ -351,7 +356,9 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   E(res('e_rare_rev', 'rare_conv', 'vendor_revenue', num(P.rareValue)))
 
   // clock + completion / End
-  N(pool('elapsed', 'Elapsed time', { x: 2080, y: 40 }))
+  // a per-step accumulator — its number is a STEP COUNT, so it reads "Elapsed
+  // steps" (not "time": there is no wall-clock minute / hour basis).
+  N(pool('elapsed', 'Elapsed steps', { x: 2080, y: 40 }))
   N(mkNode('source', 'clock', 'Clock', { x: 1900, y: 40 }))
   E(res('e_clock', 'clock', 'elapsed', num(P.timePerStep)))
   N(pool('completion', 'Completion', { x: 1900, y: 120 }, { capacity: 3 }))
@@ -433,19 +440,23 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   E(act('a_starter_open', 'active_char', 'z1_enc_src', '>= 1'))
 
   // ── reporting Registers (loop-expr/1 canonical form) ────────────────────
-  N(reg('r_income', 'Total income', '@gold_earned', { x: 2280, y: 400 }, { format: 'int' }))
-  N(reg('r_expense', 'Total expense', '@repair_spend + @resupply_spend + @training_spend', { x: 2280, y: 460 }, { format: 'int' }))
-  N(reg('r_netgold', 'Net gold check', '@gold_earned - @repair_spend - @resupply_spend - @training_spend', { x: 2280, y: 520 }, { format: 'int' }))
+  // `unit` is an advisory display hint (renders as the Register's sub-line) — it
+  // does not change the value or the format. The three gold checks read `gold`,
+  // the two tallies read `items` / `units`. `unit` is NOT overlay-translated, so
+  // it is one canonical token in every locale (like the coffee `kKRW/day` hint).
+  N(reg('r_income', 'Total income', '@gold_earned', { x: 2280, y: 400 }, { format: 'int', unit: 'gold' }))
+  N(reg('r_expense', 'Total expense', '@repair_spend + @resupply_spend + @training_spend', { x: 2280, y: 460 }, { format: 'int', unit: 'gold' }))
+  N(reg('r_netgold', 'Net gold check', '@gold_earned - @repair_spend - @resupply_spend - @training_spend', { x: 2280, y: 520 }, { format: 'int', unit: 'gold' }))
   // `+ 0.001` keeps the denominator non-zero so R(t) is a clean `0%` before the
   // first reward instead of an invalid `/0` (no diagnostic on opening the file);
   // the term is negligible once XP flows.
   N(reg('r_huntshare', 'Hunt XP share', '@hunt_xp / (@hunt_xp + @quest_xp + 0.001)', { x: 2280, y: 300 }, { format: 'percent' }))
   // NOT a level estimate (real Level is Converter-driven and piecewise, which an
   // expression can't reproduce) — total XP earned expressed in first-zone
-  // level-costs, i.e. a pace / effort index.
-  N(reg('r_efflevel', 'XP pace (starter-levels)', `@xp_earned / ${num(P.xpPerLevel[0])}`, { x: 2280, y: 40 }, { format: 'float' }))
-  N(reg('r_items_acct', 'Items accounted', '@items_equipped + @items_sold + @items_consumed', { x: 2280, y: 900 }, { format: 'float' }))
-  N(reg('r_burned', 'Consumables burned', '@water_consumed + @food_consumed', { x: 2280, y: 720 }, { format: 'int' }))
+  // level-costs, i.e. a dimensionless pace / effort INDEX (hence "index", no unit).
+  N(reg('r_efflevel', 'XP pace index', `@xp_earned / ${num(P.xpPerLevel[0])}`, { x: 2280, y: 40 }, { format: 'float' }))
+  N(reg('r_items_acct', 'Items accounted', '@items_equipped + @items_sold + @items_consumed', { x: 2280, y: 900 }, { format: 'float', unit: 'items' }))
+  N(reg('r_burned', 'Consumables burned', '@water_consumed + @food_consumed', { x: 2280, y: 720 }, { format: 'int', unit: 'units' }))
 
   // ── layout (§EM2.7 / §EM13.1) ─────────────────────────────────────────────
   //   TOP     spine: Character → Starter → Foothills → Highlands → Reached 15

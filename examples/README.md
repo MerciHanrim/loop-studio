@@ -454,7 +454,7 @@ landmark; the shared economy is a band across the middle-bottom; the seven
 reporting Registers sit in a small **corner block**, off the main path.
 
 The Timeline opens on a curated **10-series** default
-(`recommendedRunConfig.timelineSeries`): Level, Elapsed time, XP earned, Gold,
+(`recommendedRunConfig.timelineSeries`): Level, Elapsed steps, XP earned, Gold,
 Deaths, Gear score, Water/Food consumed, Items sold, and the **Net gold check**
 Register. The full accounting counters are still in the graph — one **`+N more`**
 click away in the legend. The Monte-Carlo `tracked` list stays wide (for the
@@ -477,8 +477,8 @@ three parallel ZONE LANES — exactly one live at a time (Level activators):
 each lane:
   Encounters Source → Encounter Pool → Combat Gate (probabilistic, 3 branches)
      ├─ win   → Victory Pool → Win amp Converter → Reward Pool + Combat wins + a loot roll
-     ├─ fail  → shared Setbacks Pool  → Setback cost  (Gear wear, Elapsed time, Combat fails)
-     └─ death → shared Deaths queue   → Death cost    (Deaths, Elapsed time, Gear wear)
+     ├─ fail  → shared Setbacks Pool  → Setback cost  (Gear wear, Elapsed steps, Combat fails)
+     └─ death → shared Deaths queue   → Death cost    (Deaths, Elapsed steps, Gear wear)
   Loot roll Pool → Loot Gate (probabilistic drop_rate) → shared Drops Pool
   XP → `pull all` XP-meter Gate → Level Converter (rising xp_per_level: 10 / 19 / 27,
        so Level is a whole number in a single run) ; a per-step Training gold sink
@@ -495,7 +495,7 @@ shared economy:
   Water / Food upkeep Converters → Water / Food consumed
   Resupply Converter (Gold → Water/Food + bought + Resupply spend), opened by Water < 5
   Repair: a wear-clearing Converter + a gold-metering Converter, opened by Gear wear > 6
-  Clock Source → Elapsed time  ;  Completion Source → Completion Pool → End (opened by Level ≥ 15)
+  Clock Source → Elapsed steps  ;  Completion Source → Completion Pool → End (opened by Level ≥ 15)
   seven reporting Registers (loop-expr/1: + - * / and @id only)
 ```
 
@@ -529,12 +529,12 @@ Live — seed 1, Play → the Character-creation Source fires once; from step 2 
 Live — Replay with the same seed → identical run; a different seed ends on a different step
 
 Monte Carlo → dialog is pre-filled: runs 200, steps 150, base seed 1
-  tracked: Elapsed time, Level, Deaths, Combat wins / fails, Water / Food consumed,
+  tracked: Elapsed steps, Level, Deaths, Combat wins / fails, Water / Food consumed,
            Items looted / equipped / sold / consumed, Gold earned, Repair / Resupply /
            Training spend, Gold, Vendor revenue, Gear score, Quest XP, Hunt XP
   Run → DISTRIBUTION:
     • ≥ 95 % of runs reach Level 15 inside 150 steps; the median lands ~90–100
-    • Elapsed time (time-to-15) shows a real p10–p90 spread — drop luck and combat
+    • Elapsed steps (steps-to-15) shows a real p10–p90 spread — drop luck and combat
       variance move it
     • Gold trends near zero for much of the run (repair + resupply pressure), then
       loosens; Deaths and Combat fails climb faster in the higher lanes
@@ -611,12 +611,14 @@ carries the day's roast intake exactly and splits it 82 % → roasted stock,
   than the day sold · `−` sold out). Operating cues, **not** measured losses /
   waste / accounting figures — never labelled `missed sales` / `waste` / `폐기`.
 - Three **planning proxies** — **`Projected daily revenue`**,
-  **`Planned daily cost`**, **`Projected daily operating margin`**. Computed from
-  the *ordered / planned* levers assuming every unit of demand is met, so they
-  are **not** realised revenue, cost, or accounting operating profit. When
-  roasted stock runs short the projected-revenue line still rises with the order
-  lever — the shortfall shows in the roasted-stock trajectory and the
-  roasted-supply-margin proxy going negative, not in these figures.
+  **`Planned daily cost`**, **`Projected daily operating margin`**, each with a
+  **`kKRW/day`** display-unit hint (thousands of KRW per day — the defaults read
+  `464` / `346.8` / `117.2`). Computed from the *ordered / planned* levers
+  assuming every unit of demand is met, so they are **not** realised revenue,
+  cost, or accounting operating profit. When roasted stock runs short the
+  projected-revenue line still rises with the order lever — the shortfall shows
+  in the roasted-stock trajectory and the roasted-supply-margin proxy going
+  negative, not in these figures.
 
 ## Manual check in the app
 
