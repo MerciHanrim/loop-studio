@@ -21,7 +21,9 @@ revised freely, like [`docs/visual-language.md`](visual-language.md),
 | **Does not decide** | any UI, any layout algorithm, the block insert / merge mechanism, any wire change, the order of the two follow-on design passes |
 
 §PD9 is the decision record. §PD10 is the scope boundary. §PD8 is the one
-sequencing question left open on purpose.
+sequencing question left open on purpose. **§PD11** (added 2026-09-02) records
+an external reader's take that arrived during the coffee-Template design:
+*fix the concrete use purpose before the target industry.*
 
 ---
 
@@ -270,6 +272,7 @@ Pick one as the next design doc once this direction is agreed.
 | — | Building-block assembly | **Role decided (§PD3). The insert / merge mechanism — id-collision rules, placement, selection / undo, connection boundary — and any block save metadata are deferred to the module-system pass. No GraphDoc change here.** (§PD1, §PD3) |
 | — | Format change | **None. No `loop-*/N`. No `src/` change. Editorial + packaging only.** (§PD1) |
 | — | Next pass order | **Left open on purpose — A (readability) or B (module system).** (§PD8) |
+| — | Positioning, restated (§PD11) | **Loop Studio is not an ERP / live-data manager. It composes connected operating flows visually and compares outcomes as a few conditions change — an operating-flow simulation. Any domain example (coffee, …) is a simplified model, never billed as that field's management system. Fix the concrete use purpose — who, in what setting, for what decision — before widening to an industry.** (§PD11) |
 
 ---
 
@@ -292,3 +295,62 @@ This doc:
 - **is superseded in part** by each follow-on design doc as it lands — those
   docs own the details; this one owns only the direction they must not
   contradict.
+
+---
+
+## PD11. External read — fix the use purpose before the target industry *(added 2026-09-02)*
+
+During the coffee-Template design ([`docs/example-coffee-roastery.md`](example-coffee-roastery.md)),
+an **external, domain-informed reader** — shown Loop Studio and reading it as a
+production / operations tool — gave feedback that matters at the **direction**
+level, not just for the coffee example. Recorded here **anonymised**; the value
+is the judgement, not a coffee feature list.
+
+### PD11.1 What they said (paraphrased)
+
+- Loop Studio "basically looks suited to **process management and shop-floor /
+  work management**."
+- But a real system in that space is **large**: for a roastery, lot- and
+  varietal-level tracking, import → warehousing → cleaning/sorting → packing →
+  receiving → delivery, **vendor / trade-partner management**, real-time stock,
+  **WIP and lead-time monitoring**, per-stage progress, and a financial layer
+  (reorder point, safety stock, BEP, cost / cost-estimate / cost-accounting
+  figures, inventory-asset values linked to the financial statements) — all
+  **auto-produced**, not hand-keyed. Manual keyboard entry at each step would
+  make it "complex and cumbersome," lowering real adoption.
+- Showing only a few disconnected stages of a real distribution chain has
+  limited operational usefulness: *"expressing only some particular aspects — it
+  may be valued as an artwork, but is hard to rate as a practical tool."*
+- Recommendation: **decide the concrete field of use and the use purpose
+  first** — *who, in what setting, for what decision* — keep extensibility open,
+  and only then map the current work onto that field's vocabulary: production &
+  operations management, process control, managerial / cost accounting.
+- They also saw a longer path toward **PERT / CPM** project-network scheduling
+  (large events — games organising committees, biennale committees, national
+  sports festivals). "Whether it becomes a big hit depends on the purpose and
+  concept it is built with."
+
+### PD11.2 What we take from it
+
+- **Confirms §PD6.** Loop Studio is an **experiment / simulation tool over a
+  verified model**, not a live-data operations system or ERP. The reader's
+  warning — *partial but realistic-looking is worse than clearly scoped* —
+  is now an explicit rule: every domain example is **framed as a simplified
+  model**, and never named as that field's management system. Coffee adopts
+  this wording (`docs/example-coffee-roastery.md` §CR2.0).
+- **Adds a sequencing rule.** Before widening toward an industry (roastery ops,
+  cost accounting, …), **fix one concrete use purpose and validate that the
+  current structure usefully solves it.** "It could be used in many places" is
+  not a direction; a named purpose is. This is the standard the module-system
+  pass (§PD8-B) and any future domain template must meet.
+- **PERT / CPM is parked, not adopted.** Task precedence + durations + critical
+  path is a **different core model** from the current resource / stock flow. It
+  is recorded here as a **separate future market + design candidate**, to be
+  taken up (if at all) only after a spec-first evaluation — not folded into the
+  current flow model or the module-system pass.
+
+### PD11.3 Not changed by this
+
+The five §PD9 decisions stand. No `src/` change, no `loop-*/N`, nothing
+serialized. §PD11 narrows *how a domain example is positioned and validated*; it
+does not add scope.

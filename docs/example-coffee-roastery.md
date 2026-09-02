@@ -11,11 +11,15 @@ five surfaced Parameters *drive the operational simulation*, but the **frozen**
 changes no simulated number; resource-edge `flow` takes no `@ref`; `loop-expr/1`
 has no `max` / `min`). **§CR16 is new**: it states the constraint and lays out
 **two candidate directions for the reviewers to choose between** — it does not
-pick one. **§CR2 (new §CR2.0 repositioning) / §CR3.5 / §CR6 / §CR8 / §CR9 /
-§CR11.1 / §CR13** carry "blocked pending §CR16" notes and the
-operational-flow-simulation wording; **CR-D12** is added. The size budget
-(§CR5), the domain scope (§CR3–§CR4), and the language mechanism (§CR12) are
-unchanged. This is a **non-frozen** design doc — no
+pick one. **§CR2.0 (new)** repositions the Template as an *operational-flow
+simulation example* — not an operations / ERP system — after an external
+reader's two pre-comments (recorded anonymised in
+[`docs/product-direction.md`](product-direction.md) §PD11). **§CR3.5 / §CR6 /
+§CR8 / §CR9** carry "blocked pending §CR16" notes; **§CR10 / §CR11.1 / §CR11.2**
+lower the external-check success bar to *"is the simplified flow legible"*, not
+*"usable in the field"*; **§CR13** marks steps 1–2 done and gates impl PR (2) on
+a §CR16 decision; **CR-D12** is added. The size budget (§CR5), the domain scope
+(§CR3–§CR4), and the language mechanism (§CR12) are unchanged. This is a **non-frozen** design doc — no
 `loop-*/N` id, no `Frozen` marker — and merges as *settled design, implementation
 pending*, like [`docs/large-graph-readability.md`](large-graph-readability.md)
 and [`docs/example-mmo-progression.md`](example-mmo-progression.md).
@@ -99,29 +103,52 @@ and familiar failure modes (run out of roasted stock, throw away unsold cake).
 
 ### CR2.0 What this is — and is not (rev 6)
 
-An **external reader commented before even opening the example** that a real
-roastery-cafe operations system needs far more than a flow picture: daily
-inventory counts, green-bean ordering / procurement / intake, roast-batch input,
-roasted-bean production and real-time consumption, plus create / edit / delete /
-save for **each green-bean variety** — and that keyboard-and-monitor manual data
-entry would make such a tool cumbersome enough to lower its real adoption.
+An **external, domain-informed reader commented twice before the example was even
+sent to them.** The substance (recorded anonymised in
+[`docs/product-direction.md`](product-direction.md) §PD11):
 
-That critique is right **about an operations-management system**, and this
-Template is **not** one. It is an **operational-flow simulation example**:
+- A real roastery operations system would need lot- and varietal-level tracking,
+  import / warehousing / cleaning-sorting / delivery, **vendor / trade-partner
+  management**, real-time stock, **WIP and lead-time monitoring**, per-stage
+  progress, and a financial layer — reorder point, safety stock, BEP, cost /
+  cost-estimate / cost-accounting figures, and inventory-asset values that link
+  to the financial statements — **auto-produced**, not hand-keyed. Manual
+  keyboard-and-monitor entry would make such a tool too cumbersome to adopt.
+- Showing only a few disconnected stages of the real distribution chain has
+  limited operational usefulness: *"expressing only some particular aspects —
+  that may be valued as an artwork, but not as a practical tool."*
+- The stronger recommendation: **decide the concrete use purpose first** — *who,
+  in what setting, for what decision* — and only then map the current work onto
+  that field's vocabulary (production & operations management, process control,
+  managerial / cost accounting; the reader also saw a path toward **PERT / CPM**
+  project-network scheduling for large events). Keep extensibility open, but fix
+  the purpose before the target industry.
+
+That critique is right **about an operations-management / ERP system**, and this
+Template is **not** one, and is not a step toward claiming to be one. It is an
+**operational-flow simulation example**:
 
 - **not** a system for entering real daily intake / stock;
-- **not** green-bean-variety CRUD or product management;
+- **not** lot / varietal / vendor management or product CRUD;
 - **not** connected to a POS, inventory sensors, or an order system;
+- **not** a WIP / lead-time / reorder-point / BEP / cost-accounting engine;
 - **not** a replacement for any part of running a roastery;
 - **is** a small, assumption-based model for changing a few operating
   assumptions and watching how green / roasted stock, sales, stockouts, waste,
   and profit relate.
 
-The Template name, blurb, and README line must say **"operational-flow
-simulation"** (KO: **운영 흐름 시뮬레이션**), never "operations management"
-(KO: **운영 관리**); and the Template surface (an on-canvas note or the
-`examples/README.md` entry, §CR13) must state plainly: **an assumption-based
-model, not a real-time inventory / POS / ERP tool.**
+**Positioning (adopted for the product, not just this example — §PD11):**
+Loop Studio is not an ERP that manages live business data; it composes
+**connected operating flows visually and compares outcomes as you change a few
+conditions** — an operating-flow simulation. The coffee entry is a *simplified
+one-day operating model*, not a roastery management system.
+
+The Template name, blurb, and README line say **"operational-flow simulation"**
+(KO: **운영 흐름 시뮬레이션**), never "operations management" (KO: **운영 관리**);
+and the Template surface (an on-canvas note or the `examples/README.md` entry,
+§CR13) states plainly, KO verbatim: **운영 흐름 시뮬레이션 예제이며 ERP·실시간
+모니터링 시스템이 아님** (an operational-flow simulation example — not an ERP or
+real-time monitoring system).
 
 ### CR2.1 File & wiring
 
@@ -354,10 +381,18 @@ At minimum, these changes must reproduce **intuitively**:
 
 ## CR10. Completion criteria
 
+> **rev 6 — the success bar is lowered.** The headline criterion is **not**
+> "usable in the field right now" (§CR2.0 — the reader's own warning against a
+> partial-but-real-looking tool). It is: **can a domain reader understand the
+> simplified flow and how the variables relate.** "I can't tell what this means"
+> is still a failure; "this is a toy, not my real system" is **expected and fine**
+> as long as the flow and the lever→result relationships read clearly.
+
 - **the headline criterion** — a reviewer **with coffee-business experience**,
   given **no** Loop Studio or graph-modelling instruction, can **explain the
   core flow within 1–2 minutes** and **interpret the result change from
-  adjusting at least one input value** (§CR11);
+  adjusting at least one input value** (§CR11), and recognises it as a
+  **simplified model**, not mistaking it for an operations system;
 - the **five values to change are immediately identifiable** with no prompting;
 - for each value, **the direction of the result change is predictable**;
 - the reviewer never needs the words *Pool* / *Gate* / *Register* to use it;
@@ -420,7 +455,14 @@ The four questions are framed as **"is the model believable and legible"**, not
 - understands roasted beans **split into cafe / retail / online**;
 - **finds the five adjustable values** with no guidance;
 - after changing a value, can **say why** the result moved;
-- uses it **without** knowing Loop Studio's internal node vocabulary.
+- uses it **without** knowing Loop Studio's internal node vocabulary;
+- reads it as a **simplified operating model** — not expecting live stock,
+  lots / varieties, vendors, WIP, or accounting output (§CR2.0). Saying "this
+  is not my real system" is **not** a failure; failing to follow the flow or
+  the lever→result link is.
+
+Not on the bar (rev 6): that the reviewer would **use it in real work**, or
+that it covers a full roastery operation.
 
 ### CR11.3 Realism sub-check (the reviewer has domain experience)
 
