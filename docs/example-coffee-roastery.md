@@ -23,7 +23,10 @@ example* (recorded anonymised in
   `@parameter-id`** and nothing else.
 - **§CR3.5 / §CR8 / §CR9** — the "blocked / pending PR (1.5)" notes are removed;
   §CR9 now names, per scenario, **which Parameter changes and which result
-  moves** (§CR9.1).
+  moves** (§CR9.1). The two `supply − demand` read-outs are renamed to
+  **roasted supply margin** / **dessert prep margin** — signed *proxies* with an
+  explicit `+` / `−` meaning, **never** called "missed sales" or "waste"
+  (they are operating cues, not measured losses or accounting figures — §CR3.5).
 - **§CR13** — steps 1–2 (this doc PR) and the §CR16 feature PR are done; the
   next step is the Coffee Template impl PR.
 - **CR-D12 / §CR16** are marked **resolved**.
@@ -78,7 +81,8 @@ beans arrive, some are sold on, some are roasted and sold through cafe / online
 
 A coffee roastery is a good fit: a short left-to-right flow (buy green beans →
 roast → sell), intuitive levers (how much to roast, how many desserts to prep),
-and familiar failure modes (run out of roasted stock, throw away unsold cake).
+and familiar tensions (running short of roasted stock; over- or under-preparing
+dessert).
 
 ---
 
@@ -150,8 +154,9 @@ Template is **not** one, and is not a step toward claiming to be one. It is an
 - **not** a WIP / lead-time / reorder-point / BEP / cost-accounting engine;
 - **not** a replacement for any part of running a roastery;
 - **is** a small, assumption-based model for changing a few operating
-  assumptions and watching how green / roasted stock, sales, stockouts, waste,
-  and profit relate.
+  assumptions and watching how green / roasted stock, sales, the roasted
+  supply margin, the dessert prep margin and profit relate (§CR3.5 — signed
+  proxies, not measured losses).
 
 **Positioning (adopted for the product, not just this example — §PD11):**
 Loop Studio is not an ERP that manages live business data; it composes
@@ -259,30 +264,49 @@ Only the essential branches:
 
 ### CR3.4 Dessert
 
-- a daily **dessert prep** quantity;
-- **in-store + takeaway** dessert sales;
-- **leftover dessert is discarded** at end of day (a drain).
+- a daily **dessert prep** quantity (`@dessert_prep`);
+- **in-store + takeaway** dessert sales, bounded by that day's dessert demand;
+- **unsold dessert leaves the day's stock at end of day** (a drain) — a
+  simplifying assumption, surfaced as the signed *dessert prep margin* proxy
+  (§CR3.5), **not** as a "waste" figure.
 
 ### CR3.5 Results
 
 Changing any of the five levers (§CR6) is a real `flow`-simulation change — the
 `@parameter-id` on that edge resolves to the new `value` and the stock
-trajectory, channel sales, stockouts and waste move accordingly. All results are
-**Registers** (`loop-expr/1`), read from the right-hand Summary block (§CR8):
+trajectory and channel sales move accordingly. All results are **Registers**
+(`loop-expr/1`), read from the right-hand Summary block (§CR8):
 
-- **revenue per channel** — `units_sold_pool × unit_price_param`;
-- **total cost**;
-- **operating profit**;
-- **roasted-stock headroom** — `roasted_supply_per_day − cafe_and_retail_and_online_demand`;
-  **negative ⇒ a stockout / missed sale** that day;
-- **dessert headroom** — `dessert_sold_per_day − @dessert_prep`;
-  **negative ⇒ dessert waste**.
+| Register | English label | KO label | value | sign meaning |
+|---|---|---|---|---|
+| revenue per channel | Cafe / Retail / Online revenue | 카페·리테일·온라인 매출 | `units_sold_pool × unit_price` | — |
+| total cost | Total cost | 총비용 | Σ costs | — |
+| operating profit | Operating profit | 영업이익 | revenue − cost | `+` profit · `−` loss |
+| roasted supply margin | **Roasted supply margin** | **로스팅 원두 수급 여유** | `roasted_supply_per_day − (cafe + retail + online) demand` | **`+` supply covers demand (slack)** · **`−` demand exceeds roasting output / stock** |
+| dessert prep margin | **Dessert prep margin** | **디저트 준비 여유** | `@dessert_prep − dessert_demand_per_day` | **`+` prepared more than the day sold (leftover)** · **`−` demand outran prep (sold out)** |
 
+**The last two are signed *proxies*, not measured business figures.**
 `loop-model/2` adds **no `max` / `min`** (it is a single-reference feature, not
-an expression layer — §M2-6), so the two "shortfall" results are **signed
-headroom** Registers — positive = slack, negative = short — not a clamped-at-zero
-quantity. The physical roast weight-loss stays a real `drain` in the flow
-simulation (§CR3.2) — expected loss, not a signal.
+an expression layer — §M2-6), so they are plain signed `supply − demand`
+readings:
+
+- **A `−` roasted supply margin is an *unmet-demand signal*, not a counted
+  lost-sale quantity or lost revenue** — the model has fixed demand, one green
+  pool, and a one-day step, so the number is an operating-judgement cue, not an
+  accounting figure.
+- **A `+` dessert prep margin is a *leftover* amount, not a confirmed discard
+  weight** — the "discard all leftovers at end of day" rule (§CR3.4) is an
+  assumption; real leftovers may sell later or be given away. A `−` value means
+  the day sold out.
+- **Never labelled `missed sales`, `lost sales`, `waste`, or `폐기`** anywhere —
+  in a Register title, a **node label** (impl PR (2) must use the exact
+  EN / KO labels in the table above), the menu blurb, the Timeline series
+  (§CR7), or a §CR9 scenario (§CR9.1). The limitation marker (§CR2) already says
+  this Template is not a real measurement / accounting tool; these labels keep
+  that true.
+
+The physical roast weight-loss stays a real `drain` in the flow simulation
+(§CR3.2) — expected process loss, not a signal or a Register.
 
 ### CR3.6 Multiple green-bean types — prose only
 
@@ -335,7 +359,7 @@ Indicative breakdown (the impl PR finalises the exact set within the cap):
 | green wholesale channel | 1–2 |
 | roasting — input, weight-loss, roasted stock | 3 |
 | roasted sales — cafe drinks, retail bags, online bags | 3 |
-| dessert — prep, sales, waste | 3 |
+| dessert — prep, sales, day-end drain | 3 |
 | Summary Registers (§CR8) | 4–6 |
 | **total** | **~22–25** |
 
@@ -388,7 +412,7 @@ PR may only rename them, never change the wiring.
 
 ## CR7. Recommended Timeline
 
-At most **8** recommended series:
+At most **9** recommended series (the impl PR finalises the exact set):
 
 - green-bean stock
 - roasted-bean stock
@@ -396,7 +420,8 @@ At most **8** recommended series:
 - retail bagged-bean sales
 - online bagged-bean sales
 - green wholesale (kg delivered)
-- dessert waste
+- roasted supply margin (§CR3.5 — signed proxy)
+- dessert prep margin (§CR3.5 — signed proxy)
 - operating profit
 
 ---
@@ -408,15 +433,14 @@ The right-hand result area: **4–6 Registers**, no more.
 - total revenue
 - total cost
 - operating profit
-- missed sales
-- dessert waste
+- **roasted supply margin** — signed proxy; `+` slack, `−` demand exceeds
+  roasting output / stock (an unmet-demand *signal*, not a lost-sale count) — §CR3.5
+- **dessert prep margin** — signed proxy; `+` leftover, `−` sold out — §CR3.5
 - *(optional)* ending roasted-bean stock
 
-"missed sales" and "dessert waste" are the **signed headroom** Registers from
-§CR3.5 (`roasted-stock headroom`, `dessert headroom`): negative = short.
-`loop-model/2` adds no `max` / `min`, so they are **not** clamped at zero — a
-negative value *is* the missed-sale / waste signal. Do not ship a clamped
-number the expression cannot produce.
+The last two are `supply − demand` **proxies** with an explicit sign meaning —
+**not** "missed sales" / "waste" figures (§CR3.5). `loop-model/2` adds no
+`max` / `min`, so they are never clamped at zero; the sign carries the meaning.
 
 **Human-readable titles and outcomes take priority over the formulas.**
 
@@ -424,15 +448,20 @@ number the expression cannot produce.
 
 ## CR9. Validation scenarios
 
-At minimum, these changes must reproduce **intuitively**:
+At minimum, these changes must reproduce **intuitively** (using the §CR3.5
+terms — a `−` **roasted supply margin** is an unmet-demand signal, a `+`
+**dessert prep margin** is leftover; neither is a "waste" / "lost sales" count):
 
-1. **Roast amount too low** → roasted-bean stockouts and missed sales rise.
+1. **Roast amount too low** → roasted supply margin turns negative (demand
+   outruns roasting); ending roasted stock falls.
 2. **Raise green wholesale orders** → wholesale revenue rises, but green beans
-   for roasting can run short.
-3. **Dessert prep above demand** → dessert waste rises.
-4. **Online orders rise** → roasted-bean stock and operating profit move in a
-   predictable direction.
-5. **At a sensible roast amount** → both stockouts and overstock ease.
+   for roasting run short (roasted supply margin trends negative).
+3. **Dessert prep above demand** → dessert prep margin turns more positive
+   (bigger leftover); dessert-line cost rises without matching sales.
+4. **Online orders rise** → roasted stock draws down faster; online revenue and
+   operating profit rise until roasted supply margin turns negative.
+5. **At a sensible roast amount** → roasted supply margin sits near zero — both
+   the shortage signal and the overstock ease.
 
 ### CR9.1 Which Parameter, which result *(rev 7)*
 
@@ -441,11 +470,11 @@ the impl PR's fixture test (a deterministic run before / after the change):
 
 | # | change | Parameter (§CR6.1) | what must move (direction) |
 |---|---|---|---|
-| 1 | roast amount too low | `daily_roast_kg` ↓ | roasted-bean stock inflow ↓ → **roasted-stock headroom goes negative** (missed sales); ending roasted stock ↓ |
-| 2 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → **green available for roasting ↓** → roasted-stock headroom trends negative; wholesale revenue ↑ |
-| 3 | dessert prep above demand | `dessert_prep` ↑ | dessert made per day ↑ while dessert sold is demand-bounded → **dessert headroom goes negative** (waste ↑) |
-| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **ending roasted stock ↓**, online revenue ↑, operating profit ↑ (until roasted-stock headroom turns negative) |
-| 5 | roast amount at a sensible level | `daily_roast_kg` → tuned value | roasted-stock headroom near zero → **both stockouts and overstock ease** |
+| 1 | roast amount too low | `daily_roast_kg` ↓ | roasted-bean stock inflow ↓ → **roasted supply margin → negative** (unmet-demand signal); ending roasted stock ↓ |
+| 2 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → **green available for roasting ↓** → roasted supply margin trends negative; wholesale revenue ↑ |
+| 3 | dessert prep above demand | `dessert_prep` ↑ | dessert made per day ↑ while dessert sales are demand-bounded → **dessert prep margin → more positive** (larger leftover); total cost ↑ |
+| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **ending roasted stock ↓**, online revenue ↑, operating profit ↑ (until roasted supply margin turns negative) |
+| 5 | roast amount at a sensible level | `daily_roast_kg` → tuned value | **roasted supply margin near zero** → the shortage signal and the overstock both ease |
 
 A build where the numbers only *look* like they moved (a Register's text
 changes but the stock trajectory does not) does **not** satisfy this section
@@ -555,7 +584,7 @@ that it covers a full roastery operation.
 - a part that is **over-simplified**;
 - an **inventory metric that should be read before revenue**;
 - whether the **green wholesale ↔ roasting allocation** is realistic;
-- whether the **dessert-waste model** is believable.
+- whether the **dessert prep margin** (leftover proxy) is a believable operating cue.
 
 ### CR11.4 Scope of this first check
 
@@ -593,6 +622,10 @@ Template. So:
 
 ### CR12.1 Terminology — natural industry Korean (the KO dictionary)
 
+Physical-flow terms use natural industry Korean; the two `supply − demand`
+**proxy** read-outs (§CR3.5) use a neutral "여유 (margin)" wording with the sign
+meaning spelled out — **never** `놓친 판매` / `품절 손실` / `폐기`.
+
 | English | Korean |
 |---|---|
 | green beans | 생두 |
@@ -600,8 +633,8 @@ Template. So:
 | roast yield | 로스팅 수율 |
 | wholesale green beans | 생두 납품 |
 | packaged beans | 포장 원두 |
-| lost / missed sales | 놓친 판매 (품절 손실) |
-| dessert waste | 디저트 폐기 |
+| **roasted supply margin** (proxy) | **로스팅 원두 수급 여유** — 양수 = 여유, 음수 = 수요가 로스팅 공급을 초과(미충족 수요 신호) |
+| **dessert prep margin** (proxy) | **디저트 준비 여유** — 양수 = 잔량, 음수 = 준비 부족(품절) |
 
 The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · 하루
 로스팅량 · 온라인 원두 주문량 · 생두 납품 주문량 · 하루 디저트 준비량**.
@@ -799,9 +832,10 @@ below matches the sketch, with one narrowing: **`flow` only** (a Source's rate
 - **widening the `loop-expr/1` expression language** — no new operators, no
   functions, no general expressions on edges / sources; this is a *reference to
   one parameter's value*, not an expression layer;
-- **adding `min` / `max` / clamping** — out of scope here; the §CR8 "missed
-  sales" / "dessert waste" shortfall read-outs stay signed headroom, or become a
-  real drain in the flow, per §CR3.5.
+- **adding `min` / `max` / clamping** — out of scope here; the §CR8 **roasted
+  supply margin** / **dessert prep margin** read-outs are plain signed
+  `supply − demand` *proxies* with an explicit sign meaning, per §CR3.5 —
+  never labelled "missed sales" or "waste".
 
 **Also out of scope (different product, per §CR2.0 / §PD11):** green-bean-variety
 CRUD, real-time stock entry, POS / sensor / order integration, statistics
