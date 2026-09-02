@@ -9,6 +9,7 @@ import {
 import { useT } from '../../i18n'
 import { useGraphStore } from '../../store/graphStore'
 import { useSimStore } from '../../store/simStore'
+import { useUiStore } from '../../store/uiStore'
 import { currentRouteMap } from '../../store/routeMap'
 import { useLod } from '../lod'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
@@ -62,6 +63,8 @@ const reducedMotion = () =>
 
 function LoopEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -199,8 +202,20 @@ function LoopEdge({
   const sx = sourceX + (targetX - sourceX) * 0.08
   const sy = sourceY + (targetY - sourceY) * 0.08
 
+  // docs/large-graph-readability.md §LGR3.1 — while Focus is on, an edge OUTSIDE
+  // the selected node's 1-hop set is de-emphasised; its label BADGE (flow /
+  // condition chip, expression) is hidden entirely — not just faded — to strip
+  // the numeric noise on a large graph. The edge path is still shown (dimmed,
+  // via the `.react-flow__edge.lgr-deemph` class Canvas puts on the group). The
+  // label lives in a portal outside the edge group, so it is gated here, not in
+  // CSS. In focus set ⇔ the edge touches the selected node.
+  const focusMode = useUiStore((s) => s.focusMode)
+  const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
+  const outOfFocus =
+    focusMode && selectedNodeId != null && source !== selectedNodeId && target !== selectedNodeId
+
   // labels drop out when zoomed out to scan structure — kept for a selected edge
-  const showLabel = !lowZoom || selected
+  const showLabel = (!lowZoom || selected) && !outOfFocus
 
   const baseStroke = selected
     ? 'var(--edge-selected)'

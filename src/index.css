@@ -969,29 +969,37 @@ body {
    never take the pointer; the clamp / blocked hover titles are advisory and
    also live in the Inspector. */
 
-/* §LGR3.1 — a node OUTSIDE the focus set: fade the body / silhouette / handles
-   only. Opacity is set per sub-element, never on the `.react-flow__node`
-   wrapper, so the §VL7.1 required set — the selection ring (`.nodef__sel`),
-   the keyboard-focus ring (`.nodef__focus`), the `invalid` outline + flag
+/* §LGR3.1 — a node OUTSIDE the focus set: fade the body / silhouette / handles.
+   Opacity is set per sub-element, never on the `.react-flow__node` wrapper, so
+   the §VL7.1 required set — the selection ring (`.nodef__sel`), the
+   keyboard-focus ring (`.nodef__focus`), the `invalid` outline + flag
    (`.nodef__invalid` / `.nodef__flag`), and the run cues (`.nodef__wave` /
    `.nodef__arrival`) — is NOT dimmed (a faded parent would clamp them). */
 .react-flow__node.lgr-deemph .nodef__fill,
 .react-flow__node.lgr-deemph .nodef__stroke,
 .react-flow__node.lgr-deemph .nodef__endbar,
-.react-flow__node.lgr-deemph .nodef__cdot,
 .react-flow__node.lgr-deemph .nodef__body,
 .react-flow__node.lgr-deemph .react-flow__handle {
   opacity: 0.26;
+}
+/* §LGR3.1 — the type-dot BADGE is *hidden* while dimmed, not just faded (it is
+   the numeric-noise this pass removes). `visibility` keeps the box so nothing
+   reflows. The role silhouette stays (required set). */
+.react-flow__node.lgr-deemph .nodef__chip,
+.react-flow__node.lgr-deemph .nodef__cdot {
+  visibility: hidden;
 }
 /* a dimmed node stays fully clickable — selecting it re-centres the focus set
    ("walk the graph", §LGR4.2). Only its sub-elements fade; no `pointer-events`
    change on the node itself. */
 
-/* §LGR3.1 — an edge OUTSIDE the focus set: fade the path + label. The
-   route-invalid `!` flag (`.route-invalid-flag`) is left alone (required set).
-   §LGR4.2 — a dimmed edge is not selectable while Focus is on. */
-.react-flow__edge.lgr-deemph .react-flow__edge-path,
-.react-flow__edge.lgr-deemph .edge-label {
+/* §LGR3.1 — an edge OUTSIDE the focus set: fade the path. Its label BADGE is
+   removed entirely (not painted) — but the label lives in a React Flow portal
+   *outside* the `.react-flow__edge` group, so that is gated in `LoopEdge`
+   (`showLabel`), not here. The route-invalid `!` flag (`.route-invalid-flag`,
+   required set) is left alone. §LGR4.2 — a dimmed edge is not selectable while
+   Focus is on. */
+.react-flow__edge.lgr-deemph .react-flow__edge-path {
   opacity: 0.26;
 }
 .react-flow__edge.lgr-deemph {

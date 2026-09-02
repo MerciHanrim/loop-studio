@@ -32,6 +32,9 @@ const GRAPH = JSON.stringify({
 
 const node = (page: Page, id: string) => page.locator(`.react-flow__node[data-id="${id}"]`)
 const edge = (page: Page, id: string) => page.locator(`.react-flow__edge[data-id="${id}"]`)
+// the edge label renders in a React Flow portal (not inside `.react-flow__edge`);
+// it carries `data-edge-id`.
+const edgeLabel = (page: Page, id: string) => page.locator(`.edge-label[data-edge-id="${id}"]`)
 
 const selection = (page: Page) =>
   page.evaluate(() => {
@@ -78,6 +81,15 @@ async function load(page: Page): Promise<void> {
   await importGraph(page, GRAPH)
   await expect(node(page, 'b')).toBeVisible()
   await expect(edge(page, 'e_bc').locator('path.react-flow__edge-path')).toHaveCount(1)
+  // a fixed, L2 (≥ 0.8) zoom so edge flow chips render and node hit-boxes are
+  // where the geometry math expects (deterministic across runs).
+  await page.evaluate(() => {
+    ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+      { x: 120, y: 260, zoom: 1 },
+      { duration: 0 },
+    )
+  })
+  await expect(edgeLabel(page, 'e_bc')).toHaveCount(1)
 }
 
 const focusBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-focus')
@@ -152,6 +164,95 @@ test.describe('large-graph readability — Slice 1', () => {
       .first()
       .evaluate((el) => getComputedStyle(el).pointerEvents)
     expect(pe).toBe('none')
+  })
+
+  test('out-of-focus badges are HIDDEN, not just dimmed (§LGR3.1)', async ({ page }) => {
+    await load(page)
+    // all four flow chips render at this zoom, Focus off
+    for (const id of ['e_ab', 'e_bc', 'e_cd', 'e_across']) {
+      await expect(edgeLabel(page, id)).toHaveCount(1)
+    }
+    await focusBtn(page).click()
+    await node(page, 'b').click()
+    // e_cd / e_across are outside the focus set → their flow chips are gone
+    await expect(edgeLabel(page, 'e_cd')).toHaveCount(0)
+    await expect(edgeLabel(page, 'e_across')).toHaveCount(0)
+    // in-focus edges keep their chips
+    await expect(edgeLabel(page, 'e_ab')).toHaveCount(1)
+    await expect(edgeLabel(page, 'e_bc')).toHaveCount(1)
+    // a de-emphasised node's type dot is hidden (visibility, so no reflow)
+    const chip = await node(page, 'd')
+      .locator('.nodef__chip')
+      .evaluate((el) => getComputedStyle(el).visibility)
+    expect(chip).toBe('hidden')
+    const keptChip = await node(page, 'a')
+      .locator('.nodef__chip')
+      .evaluate((el) => getComputedStyle(el).visibility)
+    expect(keptChip).toBe('visible')
+  })
+
+  test('keyboard: bare `f` toggles; a text field and Ctrl/Cmd-F are left alone (§LGR4.3)', async ({ page }) => {
+    await load(page)
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
+
+    await page.locator('body').press('f')
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await page.locator('body').press('f')
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
+
+    // Ctrl/Cmd-F must NOT toggle (browser find is left to the UA)
+    await page.locator('body').press('ControlOrMeta+f')
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
+
+    // inside a text field, `f` types and does not toggle
+    await node(page, 'b').click()
+    const field = page.locator('.inspector .field input:not([type="number"])').first()
+    await field.click()
+    await field.press('f')
+    await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  test('keyboard: `]` / `[` step the selection through drawn-edge neighbours (§LGR4.3)', async ({ page }) => {
+    await load(page)
+    // b's neighbours sorted by id: [a, c]
+    await node(page, 'b').click()
+    await page.locator('body').press(']')
+    await expect(selection(page)).resolves.toMatchObject({ node: 'a' })
+    // continue the walk from b — next neighbour
+    await page.locator('body').press(']')
+    await expect(selection(page)).resolves.toMatchObject({ node: 'c' })
+    // wraps
+    await page.locator('body').press(']')
+    await expect(selection(page)).resolves.toMatchObject({ node: 'a' })
+    // reverse
+    await page.locator('body').press('[')
+    await expect(selection(page)).resolves.toMatchObject({ node: 'c' })
+    // an isolated node has no neighbours → no-op
+    await node(page, 'lone').click()
+    await page.locator('body').press(']')
+    await expect(selection(page)).resolves.toMatchObject({ node: 'lone' })
+  })
+
+  test('mobile: the Focus toggle is in the More sheet, not the canvas controls (§LGR9)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openApp(page)
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('loop-studio:focus-mode')
+      } catch {
+        /* ignore */
+      }
+      ;(window as unknown as { __loop: { ui: { setState: (p: object) => void } } }).__loop.ui.setState({ focusMode: false })
+    })
+    // not in the canvas controls on mobile
+    await expect(page.locator('.react-flow__controls-button.rf-focus')).toHaveCount(0)
+    // …in the More sheet instead
+    await page.locator('.mob-more').click()
+    const toggle = page.locator('.sheet__row', { hasText: 'Focus selection' }).locator('button')
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(await page.evaluate(() => localStorage.getItem('loop-studio:focus-mode'))).toBe('1')
   })
 
   test('invariance: GraphDoc / undo / viewport unchanged by focus (LGR-INV-1/-2)', async ({ page }) => {

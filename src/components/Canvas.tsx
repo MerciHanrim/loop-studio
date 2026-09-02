@@ -226,18 +226,21 @@ export function Canvas() {
             keeps selection + a read-only Inspector; it only blocks structural
             edits. Hidden on mobile — the mobile layout is always view-only. */}
         <Controls showInteractive={false}>
-          {/* docs/large-graph-readability.md §LGR2.1 — the Focus toggle. A
-              global UI preference (uiStore, persisted), default off; available
-              on desktop and mobile. */}
-          <ControlButton
-            onClick={toggleFocusMode}
-            title={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
-            aria-label={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
-            aria-pressed={focusMode}
-            className="rf-focus"
-          >
-            ⌖
-          </ControlButton>
+          {/* docs/large-graph-readability.md §LGR2.1 / §LGR9 — the Focus toggle.
+              A global UI preference (uiStore, persisted), default off. Desktop:
+              here in the canvas controls. Mobile: in the More sheet
+              (MobileMoreMenu), not here. */}
+          {!isMobile && (
+            <ControlButton
+              onClick={toggleFocusMode}
+              title={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
+              aria-label={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
+              aria-pressed={focusMode}
+              className="rf-focus"
+            >
+              ⌖
+            </ControlButton>
+          )}
           {!isMobile && (
             <ControlButton
               onClick={toggleCanvasLocked}
