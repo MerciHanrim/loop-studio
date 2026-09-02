@@ -1,6 +1,6 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 7.** rev 1–3 fixed the
+**Status: settled design — implementation landing. rev 8.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
 ([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
@@ -9,7 +9,27 @@ the build order; **rev 6** found the frozen-engine contract conflict (a
 minimal, general `parameter → simulation input` capability in its own prior PR —
 plus the §CR2.0 repositioning as a *simplified operating-flow simulation
 example* (recorded anonymised in
-[`docs/product-direction.md`](product-direction.md) §PD11).
+[`docs/product-direction.md`](product-direction.md) §PD11); **rev 7** folded
+`loop-model/2` in and locked the five `@param` references.
+
+**rev 8 — the roasting node is a deterministic `Gate`, not a `Converter`.**
+Building impl PR (2) surfaced that a **`Converter`** cannot carry
+"daily roast amount (kg)": under frozen Engine A a Converter's output is
+`producedₖ = f·outRateₖ` with a single `f ∈ [0, 1]` and ≤ 1 activation/step
+([`SEMANTICS.md`](../SEMANTICS.md) I2), so a Converter whose **input** edge is
+`@daily_roast_kg` produces at most its constant `outRate` — the lever stops
+mattering the moment green beans are not the binding constraint, and moves the
+output *backwards* when they are (raising the lever lowers `f`). A **deterministic
+Gate** expresses the quantity exactly and is *the* correct model, not a
+work-around: the **one** input edge `green_stock → roasting` carries
+`@daily_roast_kg` (still exactly one `@param` reference, §CR6.1), the Gate pulls
+`T = min(@daily_roast_kg, green available)`, and two fixed weights split T into
+82 % roasted-bean stock and 18 % roasting weight loss — mass-conserving
+(`0.82·T + 0.18·T = T`). **When green stock is short, T falls, so the roasted
+output and the weight-loss path fall together.** rev 8 updates §CR6.1, §CR9.1
+and §CR3.5 (the roasted-supply-margin proxy now reads the live roasted-stock
+level) and adds **CR-D14**. No other lever changes; no engine / schema / wire
+change.
 
 **rev 7 — the §CR16 feature has shipped, so the "blocked" notes come out.**
 `loop-model/2` ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge
@@ -282,7 +302,7 @@ trajectory and channel sales move accordingly. All results are **Registers**
 | revenue per channel | Cafe / Retail / Online revenue | 카페·리테일·온라인 매출 | `units_sold_pool × unit_price` | — |
 | total cost | Total cost | 총비용 | Σ costs | — |
 | operating profit | Operating profit | 영업이익 | revenue − cost | `+` profit · `−` loss |
-| roasted supply margin | **Roasted supply margin** | **로스팅 원두 수급 여유** | `roasted_supply_per_day − (cafe + retail + online) demand` | **`+` supply covers demand (slack)** · **`−` demand exceeds roasting output / stock** |
+| roasted supply margin | **Roasted supply margin** | **로스팅 원두 수급 여유** | `@roasted_stock − (cafe + online) daily demand × cover-days` *(rev 8 — reads the LIVE roasted-stock level, so a green shortage that starves the roaster genuinely moves it; §CR9.1 #2)* | **`+` the shelf covers the demand buffer (slack)** · **`−` demand exceeds roasting output / stock (running short)** |
 | dessert prep margin | **Dessert prep margin** | **디저트 준비 여유** | `@dessert_prep − dessert_demand_per_day` | **`+` prepared more than the day sold (leftover)** · **`−` demand outran prep (sold out)** |
 
 **The last two are signed *proxies*, not measured business figures.**
@@ -392,16 +412,34 @@ PR may only rename them, never change the wiring.
 | # | Parameter (`id`) | the **one** edge whose `flow` is `@<id>` | engine role of that edge |
 |---|---|---|---|
 | 1 | **daily customers** (`daily_customers`) | the **cafe-demand `Source` → cafe-demand pool** edge | `Source` push amount — cafe drink demand per day |
-| 2 | **daily roast amount** (`daily_roast_kg`) | the **green-bean stock pool → roasting `Converter`** input edge | `Converter` consume rate — kg of green beans put to roast per day |
+| 2 | **daily roast amount** (`daily_roast_kg`) | the **green-bean stock pool → roasting deterministic `Gate`** input edge | `Gate` pull / demand amount — kg of green beans put to roast per day *(rev 8: `Gate`, was `Converter`)* |
 | 3 | **online bean orders** (`online_orders`) | the **roasted-bean stock pool → online-sales drain** edge | `Drain` pull amount — bags leaving roasted stock to online sales per day |
 | 4 | **green wholesale orders** (`green_wholesale_kg`) | the **green-bean stock pool → wholesale drain** edge | `Drain` pull amount — kg of green beans leaving green stock to wholesale per day |
 | 5 | **daily dessert prep** (`dessert_prep`) | the **dessert-prep `Source` → dessert stock pool** edge | `Source` push amount — dessert units prepared per day |
 
+- **rev 8 — roasting is a deterministic `Gate`.** A `Converter` cannot carry
+  lever 2: its output is `f·outRate` with `f ∈ [0, 1]` and ≤ 1 activation/step
+  ([`SEMANTICS.md`](../SEMANTICS.md) I2), so `@daily_roast_kg` on a Converter
+  input edge stops changing the roasted output once green is not the binding
+  constraint (and moves it *backwards* when it is). The deterministic Gate is
+  the accurate model of "kg put to roast per day": it still uses **exactly one**
+  `@param` reference (its single input edge), pulls
+  `T = min(@daily_roast_kg, green available)`, and splits T by two fixed weights
+  — 82 % → roasted-bean stock, 18 % → the roasting **weight-loss** drain
+  (moisture / chaff — a real process loss, never "waste"). Mass is conserved
+  (`0.82·T + 0.18·T = T`).
 - **Levers 2 and 4 both draw from the same green-bean stock pool.** Raising
   `green_wholesale_kg` genuinely removes green beans that would otherwise be
   available for roasting (§CR9.1 scenario 2) — the competition is **real in the
   run**, not a Register artefact, and the impl PR must not add a second green
-  pool to sidestep it (§CR3.6 / §CR4).
+  pool to sidestep it (§CR3.6 / §CR4). The `wholesale` drain's node id sorts
+  before `roasting`, so on a short-green day the wholesale contract is filled
+  first and the roaster takes what is left.
+- **Green short ⇒ input and output fall together.** Because the roasting Gate's
+  `T` is `min(@daily_roast_kg, green available)`, a green shortage lowers both
+  the green pulled *and* (proportionally) the roasted output and the weight-loss
+  path — there is no regime where the roaster keeps producing on green it did
+  not actually consume.
 - **A dangling / mistyped reference contributes `0` + a diagnostic** (never `1`);
   the impl PR's fixture test asserts every `@id` resolves to a live `parameter`
   (`SEMANTICS-M2.md` §M2-3).
@@ -470,11 +508,16 @@ the impl PR's fixture test (a deterministic run before / after the change):
 
 | # | change | Parameter (§CR6.1) | what must move (direction) |
 |---|---|---|---|
-| 1 | roast amount too low | `daily_roast_kg` ↓ | roasted-bean stock inflow ↓ → **roasted supply margin → negative** (unmet-demand signal); ending roasted stock ↓ |
-| 2 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → **green available for roasting ↓** → roasted supply margin trends negative; wholesale revenue ↑ |
+| 1 | roast amount too low | `daily_roast_kg` ↓ | the roasting `Gate` pulls less green ⇒ roasted-bean stock inflow ↓ ⇒ the live roasted-stock level falls → **roasted supply margin → negative** (unmet-demand signal) |
+| 2 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → the roasting `Gate` is starved (wholesale is filled first) → roasted-stock level ↓ → **roasted supply margin trends negative**; wholesale revenue ↑ |
 | 3 | dessert prep above demand | `dessert_prep` ↑ | dessert made per day ↑ while dessert sales are demand-bounded → **dessert prep margin → more positive** (larger leftover); total cost ↑ |
-| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **ending roasted stock ↓**, online revenue ↑, operating profit ↑ (until roasted supply margin turns negative) |
-| 5 | roast amount at a sensible level | `daily_roast_kg` → tuned value | **roasted supply margin near zero** → the shortage signal and the overstock both ease |
+| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **roasted-stock level ↓**, online revenue ↑, operating profit ↑, **roasted supply margin → negative** |
+| 5 | roast amount at a sensible level | `daily_roast_kg` → the shipped default | the roasting `Gate` output ≈ the day's roasted demand ⇒ the roasted-stock level holds near its buffer → **roasted supply margin near zero** — the shortage signal and the overstock both ease |
+
+*(rev 8 — the fixture test runs a real deterministic run before / after each
+single `@param` change and asserts these directions on the committed
+`examples/coffee-roastery.json`: `src/engine/coffee-roastery.test.ts`
+`§CR9.1 — each lever change moves a real trajectory in the stated direction`.)*
 
 A build where the numbers only *look* like they moved (a Register's text
 changes but the stock trajectory does not) does **not** satisfy this section
@@ -710,6 +753,7 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 | **CR-D11** | language | **one English-canonical `examples/coffee-roastery.json`**; Korean (and later locales') node **labels** via the shared fresh-open overlay ([`docs/template-label-overlay.md`](template-label-overlay.md)), built first. `label` only — ids / expr / `resourceType` / positions stay English. No `.ko.json` for this Template. Menu name/blurb per-locale via the app catalog (§CR12). |
 | **CR-D12** | the five levers can't reach the frozen engine — what now? | **RESOLVED (rev 7).** Direction 1 shipped: `loop-model/2` (`SEMANTICS-M2.md`, Frozen; PR #103, merge `c194629`) lets a **v2** `resource`-edge `flow` be a single `@parameter-id`. The five stay **operational levers** — locked to concrete edges in §CR6.1 — never redefined as price / cost / yield. The feature added **no** Coffee-specific code, **no** `loop-expr/1` expansion, **no** `min` / `max`. Direction 2 (redesign around the unchanged engine) was considered and not chosen. |
 | **CR-D13** | *(rev 7)* Coffee is the first bundled v2 Template — any risk? | **No.** `openTemplate` / `loadGraph` already accept a model version; a bundled v2 file loads as v2 as authored (not the "explicit user promotion" path). The label overlay is `label`-only, so it is unaffected. The v2 `loop-revision` / `loop-workspace` digest discriminator (§M2-8) means the Coffee graph's identity is distinct from any v1 graph — expected. |
+| **CR-D14** | *(rev 8)* lever 2 on a `Converter` input edge can't satisfy §CR9.1 under frozen semantics — what now? | **Model `roasting` as a deterministic `Gate`.** [`SEMANTICS.md`](../SEMANTICS.md) I2 fixes a Converter's output at `f·outRate`, `f ∈ [0, 1]`, ≤ 1 activation/step, so `@daily_roast_kg` on a Converter input edge stops changing the roasted output once green is not the binding constraint. A deterministic Gate carries "kg put to roast per day" exactly — **still one `@param` reference** (the single input edge), `T = min(@daily_roast_kg, green available)`, split 82 : 18 into roasted stock and the weight-loss drain, mass-conserving, and green-short limits input + output together. Not a work-around — it is the accurate model. Rejected: a second `@param` edge on the Converter output (breaks "exactly one edge per lever"); Coffee-specific engine code (§CR16.2); keeping the Converter and accepting a dead lever (fails §CR9.1). §CR3.5's roasted-supply-margin proxy now reads the live `@roasted_stock` level so a green-starvation move (§CR9.1 #2) is visible. |
 
 ---
 
