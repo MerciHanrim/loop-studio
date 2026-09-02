@@ -16,6 +16,7 @@ import { useGraphResourceTypes, useHiddenSet } from './filterSet'
 const EDGE_CLASS_LABEL: Record<EdgeClass, MessageKey> = {
   resource: 'canvas.filter.edgeClass.resource',
   state: 'canvas.filter.edgeClass.state',
+  hint: 'canvas.filter.edgeClass.hint',
 }
 const NODE_KIND_LABEL: Record<NodeKind, MessageKey> = {
   source: 'canvas.nodeKind.source',

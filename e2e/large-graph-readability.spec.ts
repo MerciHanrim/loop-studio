@@ -435,6 +435,17 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(group).not.toContainText('Energy')
   })
 
+  test('the edge-class axis offers all three: Resource / State / Dependency hint (§LGR3.2 / LGR-D4)', async ({ page }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    const group = filterPanel(page).locator('.lgr-filter__group', { hasText: 'Edge type' })
+    await expect(group.locator('.lgr-filter__row span')).toHaveText(['Resource', 'State', 'Dependency hint'])
+    // a plain canvas has no dependency-hint edge, so ticking it hides nothing
+    await filterRow(page, 'Dependency hint').check()
+    for (const id of ['re1', 're2', 're3', 'rp', 'st1']) await expect(edgePath(page, id)).toHaveCount(1)
+    await expect(filterPanel(page).locator('.lgr-filter__count')).toHaveText('Nothing hidden')
+  })
+
   test('hide an edge class → state edges go, resource edges + nodes stay (§LGR3.2)', async ({ page }) => {
     await loadRT(page)
     await filterBtn(page).click()
@@ -508,18 +519,33 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true') // MODE preference kept
   })
 
-  test('composition: filter hides, then Focus dims the remainder (§LGR3.3)', async ({ page }) => {
+  test('Reset view re-fits the screen viewport but never the GraphDoc / node positions / undo (LGR-D4 vs LGR-INV-2)', async ({ page }) => {
     await loadRT(page)
-    await focusBtn(page).click()
+    const before = await snapshot(page)
+    // pan / zoom well away from a fitted view
+    await page.evaluate(() => {
+      ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+        { x: -900, y: -700, zoom: 0.35 },
+        { duration: 0 },
+      )
+    })
+    const offFit = await viewport(page)
+
     await filterBtn(page).click()
-    await filterRow(page, 'State').check() // st1 gone
-    await node(page, 'gold').click() // focus set = {gold, src, mana} + {re1, re2}
-    await expect(edge(page, 'st1')).toHaveCount(0) // hidden wins — not merely dimmed
-    await expect(node(page, 'end')).toHaveClass(/lgr-deemph/) // outside the set, still visible → dimmed
-    await expect(node(page, 'gold')).not.toHaveClass(/lgr-deemph/)
+    await filterRow(page, 'State').check()
+    await resetViewBtn(page).click()
+
+    // the on-screen viewport IS changed — that is the point of Reset view
+    const afterVp = await viewport(page)
+    expect(afterVp).not.toEqual(offFit)
+
+    // …but nothing that serializes / undoes / re-lays-out moved
+    const after = await snapshot(page)
+    expect(after.graph).toBe(before.graph) // GraphDoc + every node.position
+    expect(after.canUndo).toBe(before.canUndo) // the pan/zoom is not an undo entry
   })
 
-  test('invariance: GraphDoc / undo / viewport unchanged by any filter (LGR-INV-1/-2)', async ({ page }) => {
+  test('filter set / clear never touches the GraphDoc / undo / viewport (LGR-INV-1/-2)', async ({ page }) => {
     await loadRT(page)
     const before = await snapshot(page)
     const vpBefore = await viewport(page)
@@ -529,7 +555,18 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     const after = await snapshot(page)
     expect(after.graph).toBe(before.graph)
     expect(after.canUndo).toBe(before.canUndo)
-    expect(await viewport(page)).toEqual(vpBefore)
+    expect(await viewport(page)).toEqual(vpBefore) // a filter never moves the viewport
+  })
+
+  test('composition: filter hides, then Focus dims the remainder (§LGR3.3)', async ({ page }) => {
+    await loadRT(page)
+    await focusBtn(page).click()
+    await filterBtn(page).click()
+    await filterRow(page, 'State').check() // st1 gone
+    await node(page, 'gold').click() // focus set = {gold, src, mana} + {re1, re2}
+    await expect(edge(page, 'st1')).toHaveCount(0) // hidden wins — not merely dimmed
+    await expect(node(page, 'end')).toHaveClass(/lgr-deemph/) // outside the set, still visible → dimmed
+    await expect(node(page, 'gold')).not.toHaveClass(/lgr-deemph/)
   })
 
   test('a hidden element is out of the hit path (§LGR4.2)', async ({ page }) => {

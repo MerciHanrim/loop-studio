@@ -31,6 +31,11 @@ const stateEdge = (id: string, source: string, target: string): LoopEdge =>
     data: { kind: 'state', mode: 'activator', expr: '>= 1' },
   }) as LoopEdge
 
+// a synthetic dependency-hint edge (§VL6 / §LGR3.2). No such edge survives
+// `normalizeEdge` on the real canvas, but the class must still compose.
+const hintEdge = (id: string, source: string, target: string): LoopEdge =>
+  ({ id, source, target, type: 'loop', data: { kind: 'hint' } }) as unknown as LoopEdge
+
 const sel = (o: {
   edgeClasses?: EdgeClass[]
   resourceTypes?: string[]
@@ -95,6 +100,20 @@ describe('computeHidden', () => {
     expect([...h.edges]).toEqual(['s_gold_src'])
   })
 
+  it('the dependency-hint class composes even though no canvas edge is `hint` (§VL6 / §LGR3.2)', () => {
+    const withHint = [...edges, hintEdge('dh1', 'gold', 'mana')]
+    // hiding `hint` catches only the hint edge; `resource` / `state` leave it alone
+    expect([...computeHidden(nodes, withHint, sel({ edgeClasses: ['hint'] }))!.edges]).toEqual(['dh1'])
+    expect(
+      [...computeHidden(nodes, withHint, sel({ edgeClasses: ['resource'] }))!.edges].includes('dh1'),
+    ).toBe(false)
+    // a plain graph with no hint edge: hiding `hint` matches nothing (the
+    // filter is "active" so not null, but the hidden set is empty)
+    const empty = computeHidden(nodes, edges, sel({ edgeClasses: ['hint'] }))!
+    expect(empty.edges.size).toBe(0)
+    expect(empty.nodes.size).toBe(0)
+  })
+
   it('hide a resource type → typed pools + typed resource edges + incident edges', () => {
     const h = computeHidden(nodes, edges, sel({ resourceTypes: ['currency'] }))!
     expect([...h.nodes]).toEqual(['gold']) // the currency pool
@@ -118,8 +137,8 @@ describe('computeHidden', () => {
 })
 
 describe('constants', () => {
-  it('EDGE_CLASSES / NODE_KINDS are the documented sets (§LGR3.2)', () => {
-    expect([...EDGE_CLASSES]).toEqual(['resource', 'state'])
+  it('EDGE_CLASSES / NODE_KINDS are the documented sets (§LGR3.2 / LGR-D4)', () => {
+    expect([...EDGE_CLASSES]).toEqual(['resource', 'state', 'hint'])
     expect([...NODE_KINDS]).toEqual([
       'source',
       'pool',

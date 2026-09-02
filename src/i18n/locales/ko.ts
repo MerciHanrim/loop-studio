@@ -115,6 +115,7 @@ const ko = {
   'canvas.filter.groupNodeKind': '노드 종류',
   'canvas.filter.edgeClass.resource': '자원',
   'canvas.filter.edgeClass.state': '상태',
+  'canvas.filter.edgeClass.hint': '의존 힌트',
   'canvas.filter.untyped': '유형 없음',
   'canvas.filter.clear': '필터 지우기',
   'canvas.filter.hiddenCount': '{n}개 숨김',

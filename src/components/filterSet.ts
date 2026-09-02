@@ -9,8 +9,15 @@ import { UNTYPED, useFilterStore, type EdgeClass } from '../store/filterStore'
 // into the set of node / edge ids React Flow should render `hidden`. No
 // GraphDoc / store mutation, no expression parsing.
 
-const edgeClassOf = (e: Pick<LoopEdge, 'data'>): EdgeClass =>
-  e.data?.kind === 'state' ? 'state' : 'resource'
+const edgeClassOf = (e: Pick<LoopEdge, 'data'>): EdgeClass => {
+  // `hint` is not in `LoopEdgeData` — it only exists on the revision Review
+  // surface (§VL6). Read `kind` structurally so a future dependency-hint edge
+  // still composes; a canvas edge is only ever `resource` / `state`.
+  const k = (e.data as { kind?: string } | undefined)?.kind
+  if (k === 'state') return 'state'
+  if (k === 'hint') return 'hint'
+  return 'resource'
+}
 
 const isResourceEdge = (e: Pick<LoopEdge, 'data'>): boolean =>
   (e.data?.kind ?? 'resource') === 'resource'

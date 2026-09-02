@@ -141,6 +141,7 @@ const en = {
   'canvas.filter.groupNodeKind': 'Node kind',
   'canvas.filter.edgeClass.resource': 'Resource',
   'canvas.filter.edgeClass.state': 'State',
+  'canvas.filter.edgeClass.hint': 'Dependency hint',
   'canvas.filter.untyped': 'untyped',
   'canvas.filter.clear': 'Clear filters',
   'canvas.filter.hiddenCount': '{n} hidden',

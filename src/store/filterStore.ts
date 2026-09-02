@@ -8,11 +8,16 @@ import { useGraphStore } from './graphStore'
 // view. Filters HIDE (remove from the canvas, not hit-testable); Focus DIMS.
 // The panel's open/closed state is a separate sticky preference (uiStore).
 
-/** Edge classes the filter can hide. The graph today draws only `resource` and
- *  `state` edges; §LGR3.2 also lists a dependency-`hint` class for when such an
- *  edge is ever rendered — add it here then. */
-export type EdgeClass = 'resource' | 'state'
-export const EDGE_CLASSES: readonly EdgeClass[] = ['resource', 'state']
+/** Edge classes the filter can hide (§LGR3.2 / LGR-D4):
+ *  - `resource` / `state` — the two classes a canvas edge can currently have.
+ *  - `hint` — the dependency-hint dotted edge (`docs/visual-language.md` §VL6:
+ *    "removing this node also removes / retargets this edge"). It renders only
+ *    inside the revision Review surface, never on the normal canvas, and
+ *    `normalizeEdge` collapses any imported non-`state` edge to `resource`. The
+ *    option is offered per the design doc and is future-proof; on a plain graph
+ *    it matches nothing. */
+export type EdgeClass = 'resource' | 'state' | 'hint'
+export const EDGE_CLASSES: readonly EdgeClass[] = ['resource', 'state', 'hint']
 
 /** The eight node kinds (`src/model/types.ts`), in reading order (§LGR3.2). */
 export const NODE_KINDS: readonly NodeKind[] = [
