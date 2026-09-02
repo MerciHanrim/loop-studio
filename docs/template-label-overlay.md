@@ -21,6 +21,30 @@ leaves the rest of §L3.4 intact: a running locale switch still never rewrites a
 open document, an `examples/*.json` graph, a Share/Workspace graph, or
 `defaultData()`.
 
+### What this is / is not
+
+**A shared system for every bundled Example / Template / Building block** —
+keyed on `(templateId, nodeId, locale)`, **not** coffee-specific. Every current
+and future menu entry can use it with no per-entry code.
+
+**A general user benefits with zero setup:**
+
+- open a bundled Template in Korean → Korean labels; in English → English
+  labels; the same for the MMO Example, `equilibrium` / `deadlock`, and future
+  Building blocks;
+- after it opens, the user edits any label freely — it is their document;
+- Save / Share / Export keep the labels currently shown.
+
+**v1 does NOT let a user localize *their own* graph.** No per-graph translation
+dictionary, no authoring per-locale labels, no translating a user document on a
+language switch, no translation-file export/import, no auto / AI translation.
+The overlay dictionaries are **trusted, maker-managed, in-repo data**. A
+user-facing translation-authoring feature — with its own cost (marking which
+label is the user's source, storing per-locale user labels, a GraphDoc or
+translation-file contract, an Inspector translate-edit UI, Share/Export
+language handling, missing-translation fallback, edit-conflict rules) — is a
+**separate future product feature**, only if real demand appears.
+
 ---
 
 ## TLO0. Why
@@ -41,6 +65,10 @@ open document, an `examples/*.json` graph, a Share/Workspace graph, or
 
 **In**
 
+- a **generic** mechanism reusable by **every** bundled entry — the current
+  four (`equilibrium`, `deadlock`, `mmo-progression`, `coffee-roastery`) and
+  any future Template / Building block — driven by `(templateId, nodeId)`, with
+  **no** per-entry code;
 - the overlay **data shape** (§TLO2);
 - the **apply rule** — current-locale labels, bundled-Template fresh-open only
   (§TLO3);
@@ -60,6 +88,10 @@ open document, an `examples/*.json` graph, a Share/Workspace graph, or
   Template 3 (MMO) **adopts the overlay** in the same impl PR (§TLO2.1); the
   existing `examples/mmo-progression.ko.json` file is kept, unwired, as an
   Import artifact until separately revisited.
+- **Any user-facing translation-authoring feature** — attaching a translation
+  dictionary to a *user's own* graph, per-locale user labels, translating a
+  user document on a language switch, translation-file export/import, auto / AI
+  translation. Separate future product feature, only on real demand.
 - Re-translating an already-open document — ever.
 - The Template **menu name / blurb** — those stay in the app i18n catalog
   (`src/components/templateKeys.ts` + `en.ts` / `ko.ts`), unchanged (§TLO-D5).
@@ -226,9 +258,11 @@ A `checks`-stage script (`check:template-labels`, or folded into `check:i18n`):
 
 ## TLO10. Scope boundary
 
-- A **fresh-open seeding** mechanism for bundled Templates. **Not** a document
-  translation feature, and **not** part of the module / template system
-  (§PD8-B) — though that pass may build on it.
+- A **fresh-open seeding** mechanism for **bundled** Templates / Examples /
+  Building blocks — a general user opens them in their language, no setup. It
+  is **not** a feature for a user to localize **their own** graph (that is a
+  separate future product feature, §TLO1 Out), and **not** part of the module /
+  template system (§PD8-B) — though that pass may build on it.
 - Touches `src/` only: the dictionaries, the `doLoadTemplate` apply step, and
   the CI check. **No** engine, schema, wire, `loop-revision/N`, GraphDoc shape,
   or save-format change.
