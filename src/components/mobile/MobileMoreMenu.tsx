@@ -1,7 +1,9 @@
 import { useState, type RefObject } from 'react'
+import { useReactFlow } from '@xyflow/react'
 import { openTemplate } from '../../i18n/templateLabels'
 import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
+import { useFilterStore } from '../../store/filterStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -21,6 +23,7 @@ import { useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { FilterControls } from '../FilterPanel'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { TEMPLATE_KEY } from '../templateKeys'
 import { MobileSheet } from './MobileSheet'
@@ -55,10 +58,20 @@ export function MobileMoreMenu({
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const focusMode = useUiStore((s) => s.focusMode)
   const t = useT()
+  const { fitView } = useReactFlow()
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
   const loadGraph = useGraphStore((s) => s.loadGraph)
   const projectOpen = useProjectStore((s) => s.open)
+
+  // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view (mobile): fit
+  // the graph + clear the exploration lens (filters + focused node). UI-only.
+  const resetView = () => {
+    useFilterStore.getState().clear()
+    useGraphStore.getState().setSelection(null, null)
+    void fitView({ padding: 0.3, maxZoom: 1.2 })
+    closeOverlay('more')
+  }
 
   const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
   const [shareConfirm, setShareConfirm] = useState(false)
@@ -262,6 +275,14 @@ export function MobileMoreMenu({
             </button>
           </span>
         </div>
+        {/* docs/large-graph-readability.md §LGR3.2 / §LGR9 — Filters + Reset view
+            on mobile. Filters opens a sub-sheet; Reset view is a one-shot. */}
+        <button type="button" className="sheet__row" onClick={() => openOverlay('filter')}>
+          {t('canvas.filter.rowLabel')}<span className="sheet__row-sub">▸</span>
+        </button>
+        <button type="button" className="sheet__row" onClick={resetView}>
+          {t('canvas.resetView')}
+        </button>
         <div className="sheet__row" style={{ cursor: 'default' }}>
           {t('theme.rowLabel')}<span className="sheet__row-sub"><ThemeToggle /></span>
         </div>
@@ -365,6 +386,20 @@ export function MobileMoreMenu({
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>
       </>
+    )
+  }
+
+  // docs/large-graph-readability.md §LGR3.2 / §LGR9 — the mobile Filters
+  // sub-sheet. Same ephemeral `filterStore` as desktop.
+  if (overlay === 'filter') {
+    return (
+      <MobileSheet
+        title={t('canvas.filter.title')}
+        onClose={() => closeOverlay('filter')}
+        returnFocusTo={backToMore}
+      >
+        <FilterControls />
+      </MobileSheet>
     )
   }
 

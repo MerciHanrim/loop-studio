@@ -18,6 +18,7 @@ export type Overlay =
   | 'templates'
   | 'export'
   | 'help' // docs/guided-tour.md §GT7 — the mobile Help sub-sheet
+  | 'filter' // docs/large-graph-readability.md §LGR9 — the mobile Filters sub-sheet
   | 'inspector' // Slice 3
 
 type UiState = {
@@ -50,25 +51,39 @@ type UiState = {
   focusMode: boolean
   setFocusMode: (v: boolean) => void
   toggleFocusMode: () => void
+
+  /**
+   * docs/large-graph-readability.md §LGR3.2 / §LGR3.4 — the transient-filter
+   * panel's open/closed state. A **global UI preference** (its own
+   * `localStorage` key, like `focusMode`), default **closed**. The filter
+   * *selections* are separate ephemeral state (`filterStore`), never persisted.
+   */
+  filterPanelOpen: boolean
+  setFilterPanelOpen: (v: boolean) => void
+  toggleFilterPanel: () => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
+const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
 
-function readFocusMode(): boolean {
+function readBoolKey(key: string): boolean {
   try {
-    return localStorage.getItem(FOCUS_MODE_KEY) === '1'
+    return localStorage.getItem(key) === '1'
   } catch {
     return false
   }
 }
 
-function writeFocusMode(v: boolean): void {
+function writeBoolKey(key: string, v: boolean): void {
   try {
-    localStorage.setItem(FOCUS_MODE_KEY, v ? '1' : '0')
+    localStorage.setItem(key, v ? '1' : '0')
   } catch {
     /* storage unavailable — the toggle still works for the session */
   }
 }
+
+const readFocusMode = (): boolean => readBoolKey(FOCUS_MODE_KEY)
+const writeFocusMode = (v: boolean): void => writeBoolKey(FOCUS_MODE_KEY, v)
 
 function dismissMcDialog(): void {
   if (useMcStore.getState().dialogOpen) useMcStore.getState().closeDialog()
@@ -109,6 +124,20 @@ export const useUiStore = create<UiState>((set, get) => ({
       const v = !s.focusMode
       writeFocusMode(v)
       return { focusMode: v }
+    }),
+
+  filterPanelOpen: readBoolKey(FILTER_PANEL_KEY),
+  setFilterPanelOpen: (v) =>
+    set((s) => {
+      if (s.filterPanelOpen === v) return s
+      writeBoolKey(FILTER_PANEL_KEY, v)
+      return { filterPanelOpen: v }
+    }),
+  toggleFilterPanel: () =>
+    set((s) => {
+      const v = !s.filterPanelOpen
+      writeBoolKey(FILTER_PANEL_KEY, v)
+      return { filterPanelOpen: v }
     }),
 }))
 

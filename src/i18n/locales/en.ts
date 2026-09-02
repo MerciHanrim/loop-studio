@@ -128,6 +128,38 @@ const en = {
   'canvas.focus.rowLabel': 'Focus selection',
   'canvas.focus.stateOn': 'On',
   'canvas.focus.stateOff': 'Off',
+  // docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. Toggle
+  // in the canvas controls on desktop, the More sheet on mobile. Selections are
+  // ephemeral (cleared on graph reload / Reset view); the panel open state is a
+  // sticky preference.
+  'canvas.filter.open': 'Filters — hide parts of the graph while exploring',
+  'canvas.filter.close': 'Close the filter panel',
+  'canvas.filter.title': 'Filters',
+  'canvas.filter.rowLabel': 'Filters',
+  'canvas.filter.groupEdgeClass': 'Edge type',
+  'canvas.filter.groupResourceType': 'Resource type',
+  'canvas.filter.groupNodeKind': 'Node kind',
+  'canvas.filter.edgeClass.resource': 'Resource',
+  'canvas.filter.edgeClass.state': 'State',
+  'canvas.filter.edgeClass.hint': 'Dependency hint',
+  'canvas.filter.untyped': 'untyped',
+  'canvas.filter.clear': 'Clear filters',
+  'canvas.filter.hiddenCount': '{n} hidden',
+  'canvas.filter.none': 'Nothing hidden',
+  'canvas.filter.checkboxHint': 'checked = hidden',
+  // node-kind names (title case) — reused as the filter list labels
+  'canvas.nodeKind.source': 'Source',
+  'canvas.nodeKind.pool': 'Pool',
+  'canvas.nodeKind.gate': 'Gate',
+  'canvas.nodeKind.converter': 'Converter',
+  'canvas.nodeKind.drain': 'Drain',
+  'canvas.nodeKind.end': 'End',
+  'canvas.nodeKind.parameter': 'Parameter',
+  'canvas.nodeKind.register': 'Register',
+  // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — one action: fit the graph
+  // to the viewport and clear the exploration lens (filter selections + the
+  // focused node). The Focus mode on/off preference is left as-is.
+  'canvas.resetView': 'Reset view — fit the graph and clear filters / focus',
   'canvas.route.invalidFlag': 'invalid route — a route point is inside a node',
   // in-canvas edge-label annotations for a state / playback step
   'canvas.edgeLabel.clamp': 'clamp',

@@ -1053,6 +1053,120 @@ body {
   box-shadow: var(--elev-label);
 }
 
+/* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. A React
+   Flow top-left Panel; scrolls internally so a long resource-type list never
+   pushes it off-canvas. Ephemeral: it changes nothing that serializes. */
+.lgr-filter {
+  width: 220px;
+  /* stay clear of the bottom-left React Flow Controls even on a short canvas —
+     the panel is top-left, the controls stack (zoom×2 + reset + focus + filter)
+     is ~165px tall and sits ~15px off the bottom */
+  max-height: min(calc(100% - 195px), 460px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: var(--elev-panel, var(--elev-label));
+  font-size: 12px;
+  overflow: hidden;
+}
+.lgr-filter__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.lgr-filter__title {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.lgr-filter__x {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.lgr-filter__x:hover {
+  color: var(--text-primary);
+}
+.lgr-filter__body {
+  overflow-y: auto;
+  padding: 8px 10px 10px;
+}
+.lgr-filter__hint {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.lgr-filter__group {
+  border: 0;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.lgr-filter__group legend {
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 10px;
+  margin-bottom: 2px;
+  padding: 0;
+}
+.lgr-filter__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.lgr-filter__row input {
+  margin: 0;
+  flex: none;
+}
+.lgr-filter__row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lgr-filter__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-hairline);
+}
+.lgr-filter__count {
+  color: var(--text-secondary);
+}
+.lgr-filter__clear {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+/* the Filters toggle ON state — same "mode is on" treatment as Focus (§LGR2.1 /
+   §LGR9): signal glyph + soft tint + a persistent inset ring, with an
+   `outline` fallback under a forced-colors override. */
+.react-flow__controls-button.rf-filter[aria-pressed='true'],
+.react-flow__controls-button.rf-filter[aria-pressed='true']:hover {
+  color: var(--signal-primary);
+  background: var(--signal-primary-soft);
+  box-shadow: inset 0 0 0 2px var(--signal-primary);
+}
+@media (forced-colors: active) {
+  .react-flow__controls-button.rf-filter[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
 /* state: keyboard focus — outer ring, sits beyond the selection outline */
 .react-flow__node:focus-visible {
   outline: 2px solid var(--line-focus);
