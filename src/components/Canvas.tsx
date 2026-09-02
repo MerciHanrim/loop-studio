@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import type { DragEvent } from 'react'
 import {
   Background,
@@ -17,6 +17,14 @@ import { useT } from '../i18n'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
 import { EdgeMarkers } from './edges/EdgeMarkers'
+import { useFocusSet } from './focusSet'
+
+// docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
+// out-of-focus node / edge. It fades only the body / silhouette / label; the
+// §VL7.1 required set (rings, invalid flag, run cues) is left full-strength.
+const DEEMPH_CLASS = 'lgr-deemph'
+const withDeemph = (base: string | undefined): string =>
+  base ? `${base} ${DEEMPH_CLASS}` : DEEMPH_CLASS
 
 const DND_TYPE = 'application/loop-node'
 
@@ -55,7 +63,34 @@ export function Canvas() {
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
   const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
+  const focusMode = useUiStore((s) => s.focusMode)
+  const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
   const t = useT()
+
+  // docs/large-graph-readability.md §LGR2 / §LGR3 — with Focus on and a node
+  // selected, everything outside its 1-hop set renders de-emphasised. This only
+  // tags the objects React Flow RENDERS with a class; the graphStore arrays that
+  // serialize / diff / undo are never touched (LGR-INV-1), and React Flow's
+  // change events still flow back to the store unchanged.
+  const focusSet = useFocusSet()
+  const rfNodes = useMemo(
+    () =>
+      focusSet
+        ? nodes.map((n) =>
+            focusSet.nodes.has(n.id) ? n : { ...n, className: withDeemph(n.className) },
+          )
+        : nodes,
+    [nodes, focusSet],
+  )
+  const rfEdges = useMemo(
+    () =>
+      focusSet
+        ? edges.map((e) =>
+            focusSet.edges.has(e.id) ? e : { ...e, className: withDeemph(e.className) },
+          )
+        : edges,
+    [edges, focusSet],
+  )
 
   // structural editing is off on mobile (docs/mobile.md §MV3a) OR when the
   // desktop Canvas is edit-locked (uiStore.canvasLocked). Selection, pan / zoom,
@@ -147,8 +182,8 @@ export function Canvas() {
       onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
     >
       <ReactFlow<LoopNode, LoopEdge>
-        nodes={nodes}
-        edges={edges}
+        nodes={rfNodes}
+        edges={rfEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
@@ -191,6 +226,18 @@ export function Canvas() {
             keeps selection + a read-only Inspector; it only blocks structural
             edits. Hidden on mobile — the mobile layout is always view-only. */}
         <Controls showInteractive={false}>
+          {/* docs/large-graph-readability.md §LGR2.1 — the Focus toggle. A
+              global UI preference (uiStore, persisted), default off; available
+              on desktop and mobile. */}
+          <ControlButton
+            onClick={toggleFocusMode}
+            title={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
+            aria-label={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
+            aria-pressed={focusMode}
+            className="rf-focus"
+          >
+            ⌖
+          </ControlButton>
           {!isMobile && (
             <ControlButton
               onClick={toggleCanvasLocked}

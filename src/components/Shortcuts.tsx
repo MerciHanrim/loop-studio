@@ -38,5 +38,22 @@ export function Shortcuts() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [isMobile, canvasLocked])
+
+  // docs/large-graph-readability.md §LGR4.3 — a bare `f` toggles the Focus view.
+  // A pure view control, so it is NOT gated on the edit-lock; it still yields to
+  // a text field and to a modifier combo (so Ctrl/Cmd-F browser find is left
+  // alone). Not wired on mobile (no hardware keyboard in the view/run layout).
+  useEffect(() => {
+    if (isMobile) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        useUiStore.getState().toggleFocusMode()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isMobile])
   return null
 }

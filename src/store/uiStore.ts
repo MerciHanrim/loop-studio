@@ -38,6 +38,36 @@ type UiState = {
   canvasLocked: boolean
   setCanvasLocked: (v: boolean) => void
   toggleCanvasLocked: () => void
+
+  /**
+   * docs/large-graph-readability.md §LGR2 — the selection-driven focus view.
+   * A **global UI preference** (persisted like theme / locale, one
+   * `localStorage` key — never per graph), default **off**. When on, selecting
+   * a node dims everything outside its 1-hop drawn-edge focus set (§LGR2.2).
+   * UI-only: never the GraphDoc, the `loop-revision/*` digest, undo, the
+   * viewport, `SimState`, or node z-order (§LGR8).
+   */
+  focusMode: boolean
+  setFocusMode: (v: boolean) => void
+  toggleFocusMode: () => void
+}
+
+const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
+
+function readFocusMode(): boolean {
+  try {
+    return localStorage.getItem(FOCUS_MODE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeFocusMode(v: boolean): void {
+  try {
+    localStorage.setItem(FOCUS_MODE_KEY, v ? '1' : '0')
+  } catch {
+    /* storage unavailable — the toggle still works for the session */
+  }
 }
 
 function dismissMcDialog(): void {
@@ -66,6 +96,20 @@ export const useUiStore = create<UiState>((set, get) => ({
   canvasLocked: false,
   setCanvasLocked: (v) => set((s) => (s.canvasLocked === v ? s : { canvasLocked: v })),
   toggleCanvasLocked: () => set((s) => ({ canvasLocked: !s.canvasLocked })),
+
+  focusMode: readFocusMode(),
+  setFocusMode: (v) =>
+    set((s) => {
+      if (s.focusMode === v) return s
+      writeFocusMode(v)
+      return { focusMode: v }
+    }),
+  toggleFocusMode: () =>
+    set((s) => {
+      const v = !s.focusMode
+      writeFocusMode(v)
+      return { focusMode: v }
+    }),
 }))
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay

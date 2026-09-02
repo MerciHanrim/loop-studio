@@ -119,6 +119,9 @@ const en = {
   // the Canvas edit-lock toggle in the React Flow controls
   'canvas.lock.lock': 'Lock editing — selecting and reading stay on',
   'canvas.lock.unlock': 'Unlock editing — move, connect, and change values',
+  // docs/large-graph-readability.md §LGR2.1 — the Focus toggle in the controls
+  'canvas.focus.on': 'Focus the selected node — dim everything it does not touch',
+  'canvas.focus.off': 'Show the whole graph again',
   'canvas.route.invalidFlag': 'invalid route — a route point is inside a node',
   // in-canvas edge-label annotations for a state / playback step
   'canvas.edgeLabel.clamp': 'clamp',
