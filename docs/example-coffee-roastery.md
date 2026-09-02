@@ -1,6 +1,6 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation landing. rev 8.** rev 1–3 fixed the
+**Status: settled design — implementation landing. rev 9.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
 ([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
@@ -28,8 +28,31 @@ work-around: the **one** input edge `green_stock → roasting` carries
 (`0.82·T + 0.18·T = T`). **When green stock is short, T falls, so the roasted
 output and the weight-loss path fall together.** rev 8 updates §CR6.1, §CR9.1
 and §CR3.5 (the roasted-supply-margin proxy now reads the live roasted-stock
-level) and adds **CR-D14**. No other lever changes; no engine / schema / wire
-change.
+level) and adds **CR-D14**.
+
+**rev 9 — two blockers found in Hanrim's screen review of the impl PR.**
+
+1. **Lever 1 (`daily_customers` footfall) drove no product flow.** It pushed a
+   `@daily_customers` amount into a stand-alone `cafe_demand` tally Pool and was
+   read by the Register formulas, but the roasted-stock / dessert trajectories
+   barely moved — a "the Register numbers move only" pseudo-link, exactly what
+   §CR16.2 rules out. **Fix:** replace it with **`cafe_retail_demand_kg`** (kg of
+   roasted beans the cafe + retail counter sell per day), wired straight onto the
+   **`roasted_stock → cafe_retail`** edge as a `Drain` pull. The disconnected
+   `cafe_footfall` Source and `cafe_demand` Pool are removed — **25 → 23 nodes**,
+   and now **every one of the five levers moves a real Pool trajectory**.
+2. **`Total revenue` / `Total cost` / `Operating profit` read like realised
+   figures.** They are computed from the *ordered / planned* levers assuming all
+   demand is met, so revenue keeps rising even when roasted stock cannot fill the
+   orders. **Fix:** rename them to **`Projected daily revenue`** /
+   **`Planned daily cost`** / **`Projected daily operating margin`** and state
+   plainly (here, §CR3.5, §CR8, and every scenario) that they are **planning
+   proxies, not realised revenue / cost / accounting operating profit**. Never
+   shown as `actual` / `realised` / `실제 매출` / `이익` in a title, label,
+   blurb, Timeline series, or §CR9 scenario.
+
+rev 9 updates §CR3.5, §CR6, §CR6.1, §CR7, §CR8, §CR9 / §CR9.1, §CR11.1, §CR12.1
+and adds **CR-D15**. No engine / schema / wire change.
 
 **rev 7 — the §CR16 feature has shipped, so the "blocked" notes come out.**
 `loop-model/2` ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge
@@ -297,33 +320,32 @@ Changing any of the five levers (§CR6) is a real `flow`-simulation change — t
 trajectory and channel sales move accordingly. All results are **Registers**
 (`loop-expr/1`), read from the right-hand Summary block (§CR8):
 
-| Register | English label | KO label | value | sign meaning |
+| Register | English label | KO label | value | sign / kind |
 |---|---|---|---|---|
-| revenue per channel | Cafe / Retail / Online revenue | 카페·리테일·온라인 매출 | `units_sold_pool × unit_price` | — |
-| total cost | Total cost | 총비용 | Σ costs | — |
-| operating profit | Operating profit | 영업이익 | revenue − cost | `+` profit · `−` loss |
-| roasted supply margin | **Roasted supply margin** | **로스팅 원두 수급 여유** | `@roasted_stock − (cafe + online) daily demand × cover-days` *(rev 8 — reads the LIVE roasted-stock level, so a green shortage that starves the roaster genuinely moves it; §CR9.1 #2)* | **`+` the shelf covers the demand buffer (slack)** · **`−` demand exceeds roasting output / stock (running short)** |
-| dessert prep margin | **Dessert prep margin** | **디저트 준비 여유** | `@dessert_prep − dessert_demand_per_day` | **`+` prepared more than the day sold (leftover)** · **`−` demand outran prep (sold out)** |
+| projected revenue | **Projected daily revenue** | **하루 예상 매출** | `@cafe_retail_demand_kg·price + @online_orders·price + @green_wholesale_kg·price + fixed` | **planning proxy** — assumes all demand met; **not** realised revenue |
+| planned cost | **Planned daily cost** | **하루 계획 비용** | `(@daily_roast_kg + @green_wholesale_kg)·green-cost + @dessert_prep·dessert-cost + fixed` | **planning proxy** — planned spend at the current levers; **not** an accounting cost figure |
+| projected operating margin | **Projected daily operating margin** | **하루 예상 운영차익** | `@projected_revenue − @planned_cost` | **planning proxy** — `+` plan is in the black · `−` in the red; **not** accounting operating profit, and a fulfilment shortfall does not reduce it |
+| roasted supply margin | **Roasted supply margin** | **로스팅 원두 수급 여유** | `@roasted_stock − (@cafe_retail_demand_kg + @online_orders) × cover-days` *(rev 8 — reads the LIVE roasted-stock level, so a green shortage that starves the roaster genuinely moves it; §CR9.1)* | **signed proxy** — `+` the shelf covers the demand buffer (slack) · `−` demand exceeds roasting output / stock (running short) |
+| dessert prep margin | **Dessert prep margin** | **디저트 준비 여유** | `@dessert_prep − dessert_demand_per_day` | **signed proxy** — `+` prepared more than the day sold (leftover) · `−` demand outran prep (sold out) |
 
-**The last two are signed *proxies*, not measured business figures.**
-`loop-model/2` adds **no `max` / `min`** (it is a single-reference feature, not
-an expression layer — §M2-6), so they are plain signed `supply − demand`
-readings:
+**None of the five is a realised business figure.**
 
-- **A `−` roasted supply margin is an *unmet-demand signal*, not a counted
-  lost-sale quantity or lost revenue** — the model has fixed demand, one green
-  pool, and a one-day step, so the number is an operating-judgement cue, not an
-  accounting figure.
-- **A `+` dessert prep margin is a *leftover* amount, not a confirmed discard
-  weight** — the "discard all leftovers at end of day" rule (§CR3.4) is an
-  assumption; real leftovers may sell later or be given away. A `−` value means
-  the day sold out.
-- **Never labelled `missed sales`, `lost sales`, `waste`, or `폐기`** anywhere —
-  in a Register title, a **node label** (impl PR (2) must use the exact
-  EN / KO labels in the table above), the menu blurb, the Timeline series
-  (§CR7), or a §CR9 scenario (§CR9.1). The limitation marker (§CR2) already says
-  this Template is not a real measurement / accounting tool; these labels keep
-  that true.
+- **The three money Registers are *planning proxies* (rev 9).** They are
+  computed from the *ordered / planned* lever values and assume every unit of
+  demand is met — so `Projected daily revenue` keeps rising as you raise
+  `@online_orders` even when roasted stock cannot fill those orders. The
+  fulfilment shortfall shows up in the **roasted-stock trajectory** and the
+  **roasted supply margin** going negative, **not** in these figures. Never
+  labelled `actual` / `realised` / `실제 매출` / `이익` in a title, node label,
+  blurb, Timeline series (§CR7), or §CR9 scenario.
+- **The two "… margin" Registers are signed proxies.** `loop-model/2` adds
+  **no `max` / `min`** (§M2-6), so they are plain signed `supply − demand`
+  readings: a `−` roasted supply margin is an *unmet-demand signal*, not a
+  counted lost-sale quantity; a `+` dessert prep margin is a *leftover* amount,
+  not a confirmed discard weight (the "discard leftovers at end of day" rule,
+  §CR3.4, is an assumption). **Never labelled `missed sales`, `lost sales`,
+  `waste`, or `폐기`** anywhere. impl PR (2) must use the exact EN / KO labels
+  in the table above.
 
 The physical roast weight-loss stays a real `drain` in the flow simulation
 (§CR3.2) — expected process loss, not a signal or a Register.
@@ -375,24 +397,27 @@ Indicative breakdown (the impl PR finalises the exact set within the cap):
 | group | ~count |
 |---|---|
 | Parameters (§CR6) | 5 |
-| green side — intake, stock, allocation split | 3 |
-| green wholesale channel | 1–2 |
-| roasting — input, weight-loss, roasted stock | 3 |
-| roasted sales — cafe drinks, retail bags, online bags | 3 |
-| dessert — prep, sales, day-end drain | 3 |
-| Summary Registers (§CR8) | 4–6 |
-| **total** | **~22–25** |
+| green side — delivery Source + green stock | 2 |
+| green wholesale channel — one Drain | 1 |
+| roasting — Gate, weight-loss drain, roasted stock | 3 |
+| roasted sales — cafe/retail Drain, online Drain, staff/cupping Drain | 3 |
+| dessert — prep Source, stock, sales Drain, day-end Drain | 4 |
+| Summary Registers (§CR8) | 5 |
+| **total** | **23** *(rev 9 — was ~25; the disconnected footfall Source + tally Pool removed, §CR6.1)* |
 
 ---
 
 ## CR6. The five values the user changes
 
 The five surfaced values are **operational levers** — real physical quantities
-that a roastery adjusts — laid out clearly in **one row along the top**:
+that a roastery adjusts — laid out clearly in **one row along the top**. **Every
+one sits on an edge the engine reads as a rate, so changing it moves a Pool
+trajectory, not just a Register readout (rev 9).**
 
-1. **Daily customers** — cafe footfall.
+1. **Cafe & retail bean demand** — kg of roasted beans the cafe counter + retail
+   shelf sell per day *(rev 9 — was "Daily customers" footfall)*.
 2. **Daily roast amount** — kg of green beans put to roast per day.
-3. **Online bean orders** — bags ordered online per day.
+3. **Online bean orders** — kg of roasted beans ordered online per day.
 4. **Green wholesale orders** — kg of green beans ordered by other businesses
    per day.
 5. **Daily dessert prep** — dessert units prepared per day.
@@ -401,7 +426,7 @@ Prices, unit costs, and the roast yield are **stable fixed values** (in node
 data or a couple of clearly-labelled constants) — **not** surfaced as
 hard-to-read expressions.
 
-### CR6.1 The five references — locked *(rev 7)*
+### CR6.1 The five references — locked *(rev 7; row 1 changed rev 9)*
 
 Each lever is **one `parameter` node** in the top row, referenced by **exactly
 one `resource`-edge `flow` string that is a single bare `@<parameter-id>`** and
@@ -411,11 +436,19 @@ PR may only rename them, never change the wiring.
 
 | # | Parameter (`id`) | the **one** edge whose `flow` is `@<id>` | engine role of that edge |
 |---|---|---|---|
-| 1 | **daily customers** (`daily_customers`) | the **cafe-demand `Source` → cafe-demand pool** edge | `Source` push amount — cafe drink demand per day |
+| 1 | **cafe & retail bean demand** (`cafe_retail_demand_kg`) | the **roasted-bean stock pool → cafe/retail-use drain** edge | `Drain` pull amount — kg of roasted beans the cafe + retail counter sell per day *(rev 9: this replaces the old `daily_customers` footfall lever, which fed only a tally Pool + the Register formulas — CR-D15)* |
 | 2 | **daily roast amount** (`daily_roast_kg`) | the **green-bean stock pool → roasting deterministic `Gate`** input edge | `Gate` pull / demand amount — kg of green beans put to roast per day *(rev 8: `Gate`, was `Converter`)* |
-| 3 | **online bean orders** (`online_orders`) | the **roasted-bean stock pool → online-sales drain** edge | `Drain` pull amount — bags leaving roasted stock to online sales per day |
+| 3 | **online bean orders** (`online_orders`) | the **roasted-bean stock pool → online-sales drain** edge | `Drain` pull amount — kg leaving roasted stock to online sales per day |
 | 4 | **green wholesale orders** (`green_wholesale_kg`) | the **green-bean stock pool → wholesale drain** edge | `Drain` pull amount — kg of green beans leaving green stock to wholesale per day |
 | 5 | **daily dessert prep** (`dessert_prep`) | the **dessert-prep `Source` → dessert stock pool** edge | `Source` push amount — dessert units prepared per day |
+
+- **rev 9 — every lever moves a real Pool trajectory.** The old lever 1
+  (`daily_customers`) pushed into a stand-alone `cafe_demand` tally Pool and was
+  read by the money-Register formulas, but no roasted-stock / dessert trajectory
+  responded to it — a "Register numbers move only" pseudo-link (§CR16.2). It is
+  now `cafe_retail_demand_kg` on the `roasted_stock → cafe_retail` Drain edge, so
+  raising it draws roasted stock down (§CR9.1 #1). The disconnected
+  `cafe_footfall` Source and `cafe_demand` Pool are removed — **25 → 23 nodes**.
 
 - **rev 8 — roasting is a deterministic `Gate`.** A `Converter` cannot carry
   lever 2: its output is `f·outRate` with `f ∈ [0, 1]` and ≤ 1 activation/step
@@ -450,69 +483,78 @@ PR may only rename them, never change the wiring.
 
 ## CR7. Recommended Timeline
 
-At most **9** recommended series (the impl PR finalises the exact set):
+At most **9** recommended series (the impl PR finalises the exact set). Every
+name uses the §CR3.5 wording — the money lines are **projected / planned**, never
+"revenue" / "profit" bare:
 
 - green-bean stock
 - roasted-bean stock
-- cafe drink sales
-- retail bagged-bean sales
-- online bagged-bean sales
-- green wholesale (kg delivered)
+- dessert stock
 - roasted supply margin (§CR3.5 — signed proxy)
 - dessert prep margin (§CR3.5 — signed proxy)
-- operating profit
+- projected daily revenue (§CR3.5 — planning proxy)
+- planned daily cost (§CR3.5 — planning proxy)
+- projected daily operating margin (§CR3.5 — planning proxy)
 
 ---
 
 ## CR8. Summary
 
-The right-hand result area: **4–6 Registers**, no more.
+The right-hand result area: **5 Registers** (§CR3.5 for the exact labels).
 
-- total revenue
-- total cost
-- operating profit
-- **roasted supply margin** — signed proxy; `+` slack, `−` demand exceeds
-  roasting output / stock (an unmet-demand *signal*, not a lost-sale count) — §CR3.5
-- **dessert prep margin** — signed proxy; `+` leftover, `−` sold out — §CR3.5
-- *(optional)* ending roasted-bean stock
+- **Projected daily revenue** — planning proxy; ordered/planned levers ×
+  price + fixed, assumes all demand met. **Not** realised revenue.
+- **Planned daily cost** — planning proxy; planned spend at the current levers.
+- **Projected daily operating margin** — planning proxy; projected revenue −
+  planned cost. **Not** accounting operating profit; a fulfilment shortfall does
+  not reduce it.
+- **Roasted supply margin** — signed proxy; `+` slack, `−` demand exceeds
+  roasting output / stock (an unmet-demand *signal*, not a lost-sale count).
+- **Dessert prep margin** — signed proxy; `+` leftover, `−` sold out.
 
-The last two are `supply − demand` **proxies** with an explicit sign meaning —
-**not** "missed sales" / "waste" figures (§CR3.5). `loop-model/2` adds no
-`max` / `min`, so they are never clamped at zero; the sign carries the meaning.
-
-**Human-readable titles and outcomes take priority over the formulas.**
+None of the five is a realised figure. The two "… margin" proxies are never
+clamped at zero (`loop-model/2` has no `max` / `min`); the sign carries the
+meaning. **Human-readable titles take priority over the formulas.**
 
 ---
 
 ## CR9. Validation scenarios
 
 At minimum, these changes must reproduce **intuitively** (using the §CR3.5
-terms — a `−` **roasted supply margin** is an unmet-demand signal, a `+`
-**dessert prep margin** is leftover; neither is a "waste" / "lost sales" count):
+terms — a `−` **roasted supply margin** is an unmet-demand signal; a `+`
+**dessert prep margin** is leftover; the money lines are **projected / planned**,
+so they may rise even when stock cannot fulfil the plan):
 
-1. **Roast amount too low** → roasted supply margin turns negative (demand
-   outruns roasting); ending roasted stock falls.
-2. **Raise green wholesale orders** → wholesale revenue rises, but green beans
-   for roasting run short (roasted supply margin trends negative).
-3. **Dessert prep above demand** → dessert prep margin turns more positive
-   (bigger leftover); dessert-line cost rises without matching sales.
-4. **Online orders rise** → roasted stock draws down faster; online revenue and
-   operating profit rise until roasted supply margin turns negative.
-5. **At a sensible roast amount** → roasted supply margin sits near zero — both
-   the shortage signal and the overstock ease.
+1. **Cafe/retail demand up** → the cafe/retail drain pulls more roasted beans →
+   roasted stock falls → roasted supply margin turns negative.
+2. **Roast amount too low** → roasted supply margin turns negative (demand
+   outruns roasting); roasted stock falls.
+3. **Raise green wholesale orders** → the roaster is starved → roasted stock
+   falls; **projected** revenue rises (plan only — the roasted-stock line shows
+   the plan is not fulfillable).
+4. **Online orders rise** → roasted stock draws down faster → roasted supply
+   margin turns negative; **projected** revenue / operating margin rise (plan
+   only).
+5. **Dessert prep above demand** → dessert prep margin turns more positive
+   (bigger leftover); planned dessert-line cost rises.
+6. **At a sensible roast amount** (the shipped default) → roasted supply margin
+   sits near zero — both the shortage signal and the overstock ease.
 
-### CR9.1 Which Parameter, which result *(rev 7)*
+### CR9.1 Which Parameter, which result *(rev 7; rows re-worked rev 9)*
 
-Each scenario is **one `@param` change → a real trajectory move**, verified by
-the impl PR's fixture test (a deterministic run before / after the change):
+Each scenario is **one `@param` change → a real Pool trajectory move**, verified
+by the impl PR's fixture test (a deterministic run before / after the change).
+A build where a Register's text changes but the Pool trajectory does not does
+**not** satisfy this section.
 
 | # | change | Parameter (§CR6.1) | what must move (direction) |
 |---|---|---|---|
-| 1 | roast amount too low | `daily_roast_kg` ↓ | the roasting `Gate` pulls less green ⇒ roasted-bean stock inflow ↓ ⇒ the live roasted-stock level falls → **roasted supply margin → negative** (unmet-demand signal) |
-| 2 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → the roasting `Gate` is starved (wholesale is filled first) → roasted-stock level ↓ → **roasted supply margin trends negative**; wholesale revenue ↑ |
-| 3 | dessert prep above demand | `dessert_prep` ↑ | dessert made per day ↑ while dessert sales are demand-bounded → **dessert prep margin → more positive** (larger leftover); total cost ↑ |
-| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **roasted-stock level ↓**, online revenue ↑, operating profit ↑, **roasted supply margin → negative** |
-| 5 | roast amount at a sensible level | `daily_roast_kg` → the shipped default | the roasting `Gate` output ≈ the day's roasted demand ⇒ the roasted-stock level holds near its buffer → **roasted supply margin near zero** — the shortage signal and the overstock both ease |
+| 1 | cafe/retail demand up | `cafe_retail_demand_kg` ↑ | the `roasted_stock → cafe_retail` Drain pulls more ⇒ **roasted-stock trajectory ↓** → **roasted supply margin → negative** |
+| 2 | roast amount too low | `daily_roast_kg` ↓ | the roasting `Gate` pulls less green ⇒ roasted inflow ↓ ⇒ **roasted-stock trajectory ↓** → **roasted supply margin → negative** |
+| 3 | more green wholesale | `green_wholesale_kg` ↑ | green-stock drawdown ↑ → the roasting `Gate` is starved (wholesale filled first) → **green-stock ↓ and roasted-stock ↓**; **projected daily revenue ↑** — plan only, the roasted-stock line shows it is not fulfillable |
+| 4 | more online orders | `online_orders` ↑ | roasted-stock outflow ↑ → **roasted-stock trajectory ↓** → **roasted supply margin → negative**; **projected daily revenue / operating margin ↑** — plan only |
+| 5 | dessert prep above demand | `dessert_prep` ↑ | dessert made per day ↑ while dessert sales are demand-bounded → **dessert-stock trajectory ↑** → **dessert prep margin → more positive**; planned daily cost ↑ |
+| 6 | roast amount at a sensible level | `daily_roast_kg` → the shipped default | the roasting `Gate` output ≈ the day's roasted demand ⇒ the roasted-stock level holds near its buffer → **roasted supply margin near zero** — shortage signal and overstock both ease |
 
 *(rev 8 — the fixture test runs a real deterministic run before / after each
 single `@param` change and asserts these directions on the committed
@@ -583,8 +625,8 @@ ask:
 2. Point to where green beans **enter** and where they **leave**.
 3. Predict what happens if the **roast amount is too low**.
 4. What does **raising green wholesale** do to cafe / bean sales?
-5. Change **daily customers** *or* **daily roast amount** yourself and read the
-   result.
+5. Change **cafe & retail bean demand** *or* **daily roast amount** yourself and
+   read the result.
 6. Name any node, term, or result you **could not** understand.
 
 The questions are framed as **"is the simplified model realistic and legible"**,
@@ -667,7 +709,9 @@ Template. So:
 
 Physical-flow terms use natural industry Korean; the two `supply − demand`
 **proxy** read-outs (§CR3.5) use a neutral "여유 (margin)" wording with the sign
-meaning spelled out — **never** `놓친 판매` / `품절 손실` / `폐기`.
+meaning spelled out — **never** `놓친 판매` / `품절 손실` / `폐기`. The three
+money Registers use **예상 / 계획** (projected / planned) wording, **never**
+`실제 매출` / `이익` bare (rev 9).
 
 | English | Korean |
 |---|---|
@@ -676,11 +720,15 @@ meaning spelled out — **never** `놓친 판매` / `품절 손실` / `폐기`.
 | roast yield | 로스팅 수율 |
 | wholesale green beans | 생두 납품 |
 | packaged beans | 포장 원두 |
-| **roasted supply margin** (proxy) | **로스팅 원두 수급 여유** — 양수 = 여유, 음수 = 수요가 로스팅 공급을 초과(미충족 수요 신호) |
-| **dessert prep margin** (proxy) | **디저트 준비 여유** — 양수 = 잔량, 음수 = 준비 부족(품절) |
+| **roasted supply margin** (signed proxy) | **로스팅 원두 수급 여유** — 양수 = 여유, 음수 = 수요가 로스팅 공급을 초과(미충족 수요 신호) |
+| **dessert prep margin** (signed proxy) | **디저트 준비 여유** — 양수 = 잔량, 음수 = 준비 부족(품절) |
+| **projected daily revenue** (planning proxy) | **하루 예상 매출** — 주문·계획값 기준, 수요가 모두 충족된다는 가정. 실제 매출 아님 |
+| **planned daily cost** (planning proxy) | **하루 계획 비용** — 현재 레버 기준 계획 지출. 회계상 비용 아님 |
+| **projected daily operating margin** (planning proxy) | **하루 예상 운영차익** — 예상 매출 − 계획 비용. 회계상 영업이익 아님 |
 
-The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · 하루
-로스팅량 · 온라인 원두 주문량 · 생두 납품 주문량 · 하루 디저트 준비량**.
+The five surfaced Parameters (§CR6), in Korean *(row 1 changed rev 9)*:
+**카페·리테일 원두 수요량 (kg/일) · 하루 로스팅량 · 온라인 원두 주문량 · 생두
+납품 주문량 · 하루 디저트 준비량**.
 
 ---
 
@@ -746,7 +794,7 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 | **CR-D4** | time unit | **one day.** |
 | **CR-D5** | multiple green-bean types in v1? | **No** — one aggregate green stock; per-varietal is a prose-only future extension (§CR3.6). |
 | **CR-D6** | node budget | **≤ 20–25 total**, Summary Registers included; short on nodes ⇒ cut a result, never add a feature (§CR5). |
-| **CR-D7** | the 5 user values | daily customers · daily roast amount · online bean orders · green wholesale orders · daily dessert prep (§CR6). |
+| **CR-D7** | the 5 user values | cafe & retail bean demand *(rev 9 — was "daily customers")* · daily roast amount · online bean orders · green wholesale orders · daily dessert prep (§CR6). Each sits on an edge the engine reads as a rate (§CR6.1). |
 | **CR-D8** | prices / costs / yield | fixed, clearly-labelled constants in v1 — not surfaced as expressions (§CR6). |
 | **CR-D9** | `src/` / wire / engine impact | impl PR (2) touches **only** `examples/coffee-roastery.json`, its fixture test, `templates.ts`, `templateKeys.ts`, `templateLabels/ko.ts`, 2 menu keys × en+ko, and `examples/README.md`; **no** engine / schema / wire / `loop-revision/N` (§CR15). The engine change is `loop-model/2` (`SEMANTICS-M2.md`, PR #103, merged `c194629`) — a separate, already-shipped, general feature. |
 | **CR-D10** | who verifies comprehension? | an **external, domain-informed reviewer** (identity not recorded) — read → adjust → interpret only; not asked to edit the graph (§CR11). |
@@ -754,6 +802,7 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 | **CR-D12** | the five levers can't reach the frozen engine — what now? | **RESOLVED (rev 7).** Direction 1 shipped: `loop-model/2` (`SEMANTICS-M2.md`, Frozen; PR #103, merge `c194629`) lets a **v2** `resource`-edge `flow` be a single `@parameter-id`. The five stay **operational levers** — locked to concrete edges in §CR6.1 — never redefined as price / cost / yield. The feature added **no** Coffee-specific code, **no** `loop-expr/1` expansion, **no** `min` / `max`. Direction 2 (redesign around the unchanged engine) was considered and not chosen. |
 | **CR-D13** | *(rev 7)* Coffee is the first bundled v2 Template — any risk? | **No.** `openTemplate` / `loadGraph` already accept a model version; a bundled v2 file loads as v2 as authored (not the "explicit user promotion" path). The label overlay is `label`-only, so it is unaffected. The v2 `loop-revision` / `loop-workspace` digest discriminator (§M2-8) means the Coffee graph's identity is distinct from any v1 graph — expected. |
 | **CR-D14** | *(rev 8)* lever 2 on a `Converter` input edge can't satisfy §CR9.1 under frozen semantics — what now? | **Model `roasting` as a deterministic `Gate`.** [`SEMANTICS.md`](../SEMANTICS.md) I2 fixes a Converter's output at `f·outRate`, `f ∈ [0, 1]`, ≤ 1 activation/step, so `@daily_roast_kg` on a Converter input edge stops changing the roasted output once green is not the binding constraint. A deterministic Gate carries "kg put to roast per day" exactly — **still one `@param` reference** (the single input edge), `T = min(@daily_roast_kg, green available)`, split 82 : 18 into roasted stock and the weight-loss drain, mass-conserving, and green-short limits input + output together. Not a work-around — it is the accurate model. Rejected: a second `@param` edge on the Converter output (breaks "exactly one edge per lever"); Coffee-specific engine code (§CR16.2); keeping the Converter and accepting a dead lever (fails §CR9.1). §CR3.5's roasted-supply-margin proxy now reads the live `@roasted_stock` level so a green-starvation move (§CR9.1 #2) is visible. |
+| **CR-D15** | *(rev 9)* Hanrim's screen review found lever 1 (`daily_customers` footfall) moved no product flow, and the three money Registers read like realised figures. | **(a) Replace lever 1** with `cafe_retail_demand_kg` on the `roasted_stock → cafe_retail` Drain edge — so it draws roasted stock down (§CR9.1 #1) instead of only feeding a tally Pool + the Register formulas (a "Register numbers move only" pseudo-link, §CR16.2). Remove the disconnected `cafe_footfall` Source + `cafe_demand` Pool (25 → 23 nodes). **(b) Rename** `Total revenue` / `Total cost` / `Operating profit` → `Projected daily revenue` / `Planned daily cost` / `Projected daily operating margin`, and state everywhere (titles, §CR3.5, §CR8, every scenario, §CR12.1) that they are **planning proxies** computed on the ordered/planned levers assuming all demand is met — **not** realised revenue / cost / accounting operating profit, and never shown as `실제 매출` / `이익`. A fulfilment shortfall shows in the roasted-stock trajectory + roasted supply margin, not these figures. Rejected: computing an actual fulfilled-sales pool (adds nodes + complexity beyond §CR5, and the proxy framing is enough for a §CR11 comprehension check). |
 
 ---
 
