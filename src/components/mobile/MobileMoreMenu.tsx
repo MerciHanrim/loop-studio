@@ -52,6 +52,7 @@ export function MobileMoreMenu({
   const overlay = useUiStore(selectOverlay)
   const openOverlay = useUiStore((s) => s.openOverlay)
   const closeOverlay = useUiStore((s) => s.closeOverlay)
+  const focusMode = useUiStore((s) => s.focusMode)
   const t = useT()
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
@@ -242,6 +243,22 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => openOverlay('templates')}>
           {t('templates.menuLabel')}<span className="sheet__row-sub">▸</span>
         </button>
+        {/* docs/large-graph-readability.md §LGR9 — the Focus toggle lives here
+            on mobile (not in the canvas controls). Same uiStore.focusMode. */}
+        <div className="sheet__row" style={{ cursor: 'default' }}>
+          {t('canvas.focus.rowLabel')}
+          <span className="sheet__row-sub">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => useUiStore.getState().toggleFocusMode()}
+              aria-pressed={focusMode}
+              title={focusMode ? t('canvas.focus.off') : t('canvas.focus.on')}
+            >
+              {focusMode ? t('canvas.focus.stateOn') : t('canvas.focus.stateOff')}
+            </button>
+          </span>
+        </div>
         <div className="sheet__row" style={{ cursor: 'default' }}>
           {t('theme.rowLabel')}<span className="sheet__row-sub"><ThemeToggle /></span>
         </div>

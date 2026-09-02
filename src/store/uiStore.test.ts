@@ -72,3 +72,36 @@ describe('uiStore — canvasLocked (edit-lock, UI-only)', () => {
     expect(useUiStore.getState()).toBe(before)
   })
 })
+
+describe('uiStore — focusMode (large-graph readability, UI-only)', () => {
+  beforeEach(() => {
+    try {
+      localStorage.removeItem('loop-studio:focus-mode')
+    } catch {
+      /* jsdom always has it */
+    }
+    useUiStore.setState({ focusMode: false })
+  })
+
+  it('defaults to false; set / toggle flip it', () => {
+    const s = () => useUiStore.getState()
+    expect(s().focusMode).toBe(false)
+    s().setFocusMode(true)
+    expect(s().focusMode).toBe(true)
+    s().toggleFocusMode()
+    expect(s().focusMode).toBe(false)
+    s().toggleFocusMode()
+    expect(s().focusMode).toBe(true)
+  })
+
+  it('setFocusMode to the same value is a no-op (stable reference)', () => {
+    useUiStore.getState().setFocusMode(true)
+    const before = useUiStore.getState()
+    useUiStore.getState().setFocusMode(true)
+    expect(useUiStore.getState()).toBe(before)
+  })
+
+  // localStorage persistence to `loop-studio:focus-mode` (§LGR3.4) is covered by
+  // e2e/large-graph-readability.spec.ts — the store test env has no localStorage
+  // and the read/write helpers are try/catch-guarded for exactly that.
+})

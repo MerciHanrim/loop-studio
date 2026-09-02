@@ -98,6 +98,13 @@ const ko = {
   'canvas.minimap': '그래프 미니맵',
   'canvas.lock.lock': '편집 잠금 — 선택과 조회는 계속 가능',
   'canvas.lock.unlock': '편집 잠금 해제 — 이동·연결·값 수정 가능',
+  // docs/large-graph-readability.md §LGR2.1 — 집중 토글 (데스크톱은 캔버스
+  // 컨트롤, 모바일은 More 시트)
+  'canvas.focus.on': '선택한 노드에 집중 — 연결되지 않은 요소는 흐리게',
+  'canvas.focus.off': '전체 그래프 다시 보기',
+  'canvas.focus.rowLabel': '선택 집중',
+  'canvas.focus.stateOn': '켬',
+  'canvas.focus.stateOff': '끔',
   'canvas.route.invalidFlag': '잘못된 경로 — 경로 점이 노드 안에 있습니다',
   // 상태 / 재생 단계의 캔버스 내 연결 라벨 주석
   'canvas.edgeLabel.clamp': '클램프',
