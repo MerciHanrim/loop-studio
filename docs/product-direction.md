@@ -146,20 +146,31 @@ own default open-state and its own messaging in the Templates menu.**
 **Decision: keep one canvas and one file. Improve readability _on top of_ that
 first. Do not commit to any serialization-format change in this doc.**
 
-- **Short term (the readability design pass):** presentation-only affordances
-  over the existing single graph —
+- **Short term (the readability design pass):** affordances layered over the
+  existing single graph. Two are clear render / UI-only candidates:
   - a **focus view** — select a node / region, everything else dims;
   - **connection de-emphasis / filtering** — fade or hide edge classes not
-    currently of interest;
-  - **group frames** — a visual boundary + label around a set of nodes, purely
-    cosmetic, no semantic nesting.
+    currently of interest; a transient, non-persisted view state.
+  A third is **not** settled here:
+  - **group frames** — a labelled boundary around a set of nodes. Whether a
+    frame is *auto-inferred* or *session-transient* (no persistence, UI-only)
+    or *user-authored and saved* (its position, size, and membership have to be
+    serialized somewhere) is a **readability-design-pass decision**. A saved
+    frame would likely need its own **cosmetic wire contract** — the pattern
+    `route` / `waypoints` set in `loop-revision/3` (projected + diffed, never
+    engine-affecting). This doc authorises **neither** that storage mechanism
+    **nor** an assumption that group frames come for free.
 - **Long term (revisit later, not now):** collapsible **composite nodes** /
   sub-graphs that actually fold a region into one node. This *would* touch the
   wire contract and needs its own frozen amendment when — and if — it is taken
   up.
-- **This doc does not authorise** any format-changing feature. The readability
-  pass is expected to stay render-only, like the Canvas Visual Refresh and
-  orthogonal routing did.
+- **What this doc fixes:** one canvas, one file; the focus view and transient
+  filters are the render-only starting point. Anything that *persists* new
+  user-authored structure — a saved group frame now, a composite node later —
+  is a wire-contract question for the pass that builds it, **not** pre-approved
+  as render-only here. The readability pass is *expected* to lean render-only
+  (as the Canvas Visual Refresh and orthogonal routing did), but this doc does
+  not mandate it for a persisted frame.
 
 ---
 
@@ -235,8 +246,9 @@ Recorded here so the follow-on passes inherit them, not so they are done now:
 Deliberately not answered here. After this doc merges, the first implementation
 design pass is **one of**:
 
-- **A. Large-graph readability** — focus view, connection de-emphasis, group
-  frames (§PD4 short-term). Render-only. Makes the *existing* Examples legible.
+- **A. Large-graph readability** — focus view + transient filters (render-only),
+  and a decision on the group-frame persistence model (§PD4 short-term). Makes
+  the *existing* Examples legible.
 - **B. Small module / template system** — Example / Template / Building block
   packaging, surfaced inputs + result Summary (§PD3, §PD5), **block insert /
   merge + any block save metadata** (§PD3), a connection helper, a staged build
@@ -252,7 +264,7 @@ Pick one as the next design doc once this direction is agreed.
 |---|---|---|
 | Q1 | Build from scratch vs adjust | **Adjust template / assemble blocks = default path. Blank canvas kept as an unchanged advanced path.** (§PD2) |
 | Q2 | Example / Template / Building block | **Three editorial roles over the same Graph JSON. Example opens edit-locked; Template surfaces 3–5 values; Building block is ~8–15 nodes. Templates menu must not tell users to edit an Example.** (§PD3) |
-| Q3 | One canvas vs split | **One canvas, one file. Readability affordances (focus view, connection de-emphasis, group frames) first, render-only. Collapsible composite nodes are a later, format-touching question — not authorised here.** (§PD4) |
+| Q3 | One canvas vs split | **One canvas, one file. Focus view + transient edge filters are the render-only start. A user-saved group frame's persistence — and any cosmetic wire contract it needs — is a readability-pass decision, not pre-approved as render-only here. Collapsible composite nodes are a later, format-touching question.** (§PD4) |
 | Q4 | Surface key variables | **Yes. Surfaced inputs + result Summary presented separately from the raw graph. Raw nodes / expressions stay reachable via advanced editing. Expressions get a plain-language description + `계산식 보기`.** (§PD5) |
 | Q5 | Expert modeller vs experiment tool | **Experiment tool: "load a verified system, adjust it, compare the run." `preview` badge stays. No "model anything" claims.** (§PD6) |
 | — | Building-block assembly | **Role decided (§PD3). The insert / merge mechanism — id-collision rules, placement, selection / undo, connection boundary — and any block save metadata are deferred to the module-system pass. No GraphDoc change here.** (§PD1, §PD3) |
@@ -273,6 +285,9 @@ This doc:
   any serialized byte;
 - **does not** authorise any block insert / merge implementation, or any
   GraphDoc change to support one;
+- **does not** pre-approve a persisted group frame as render-only, nor
+  authorise any wire contract for one — the readability pass decides whether a
+  frame is transient or saved, and what a saved frame costs (§PD4);
 - **carries no `loop-*/N` id** and freezes nothing;
 - **is superseded in part** by each follow-on design doc as it lands — those
   docs own the details; this one owns only the direction they must not
