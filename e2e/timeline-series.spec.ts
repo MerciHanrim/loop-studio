@@ -91,6 +91,110 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     await expect(legend.locator('.timeline__key--more')).toHaveText(/\+1 more/)
   })
 
+  // A plain browser reload restores the graph from the autosave (localStorage)
+  // record. The `timelineSeries` display default must ride that record too —
+  // otherwise the legend falls back to "every series shown" with NO "+N more"
+  // and NO "show fewer", the one state that is neither intended view.
+  test('a plain reload keeps the recommended subset + "+N more" (never "all shown, no collapse")', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, ['p1']) // 1 shown, 3 hidden (P2, Reg A, Reg B)
+    expect(await seriesState(page)).toEqual(['p1'])
+    await showTimeline(page)
+
+    const legend = page.locator('.timeline__legend')
+    await expect(legend.locator('.timeline__key--more')).toHaveText(/\+3 more/)
+    // expand the hidden set (component-local view state — transient by design)
+    await legend.locator('.timeline__key--more').click()
+    await expect(legend.locator('.timeline__key--more')).toHaveText(/show fewer/i)
+
+    // ── the bug repro: a plain refresh ──────────────────────────────────────
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    await showTimeline(page)
+
+    const legend2 = page.locator('.timeline__legend')
+    // the recommended-subset identity survived the reload
+    expect(await seriesState(page)).toEqual(['p1'])
+    await expect(legend2.locator('.timeline__key', { hasText: 'P1' })).toBeVisible()
+    await expect(legend2.locator('.timeline__key--more')).toHaveText(/\+3 more/)
+    // …and it is NOT the broken state: the hidden series are not all on screen
+    await expect(legend2.locator('.timeline__key', { hasText: 'P2' })).toHaveCount(0)
+    // …and "show fewer" is reachable again (was gone before the fix)
+    await legend2.locator('.timeline__key--more').click()
+    await expect(legend2.locator('.timeline__key--more')).toHaveText(/show fewer/i)
+    await expect(legend2.locator('.timeline__key.is-off', { hasText: 'P2' })).toBeVisible()
+  })
+
+  test('a document with NO recommended list reloads to the plain "all" default', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page) // no timelineSeries field
+    expect(await seriesState(page)).toBe('all')
+
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    await showTimeline(page)
+
+    expect(await seriesState(page)).toBe('all')
+    for (const label of ['P1', 'P2', 'Reg A', 'Reg B']) {
+      await expect(page.locator('.timeline__legend .timeline__key', { hasText: label })).toBeVisible()
+    }
+    await expect(page.locator('.timeline__legend .timeline__key--more')).toHaveCount(0)
+  })
+
+  test('a user who explicitly returns the legend to "all" reloads to "all" (no resurrected subset)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, ['p1']) // starts on a recommended subset
+    await showTimeline(page)
+
+    const legend = page.locator('.timeline__legend')
+    await legend.locator('.timeline__key--more').click() // expand
+    // turn every hidden series back on → the selection collapses to 'all'
+    for (const label of ['P2', 'Reg A', 'Reg B']) {
+      await legend.locator('.timeline__key.is-off', { hasText: label }).click()
+    }
+    expect(await seriesState(page)).toBe('all')
+
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    await showTimeline(page)
+
+    expect(await seriesState(page)).toBe('all')
+    await expect(page.locator('.timeline__legend .timeline__key--more')).toHaveCount(0)
+  })
+
+  test('reload restores ONLY timelineSeries — canvasLocked and the MC config are not re-applied', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, ['p1'])
+    // put the session into a non-default canvasLock + MC config, the way a
+    // template load would (applyRecommended), then reload.
+    await page.evaluate(() => {
+      const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      l.mc.getState().applyRecommended({ canvasLocked: true, baseSeed: 123, runs: 777, steps: 55, timelineSeries: ['p1'] })
+    })
+    expect(await page.evaluate(() => (window as any).__loop.ui.getState().canvasLocked)).toBe(true)
+
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+
+    // timelineSeries came back…
+    expect(await seriesState(page)).toEqual(['p1'])
+    // …but canvasLocked did NOT (unchanged behaviour — autosave never carried it)
+    expect(await page.evaluate(() => (window as any).__loop.ui.getState().canvasLocked)).toBe(false)
+    // …and the MC config is back to its defaults, not the values above
+    const cfg = await page.evaluate(() => ({ ...(window as any).__loop.mc.getState().config }))
+    expect(cfg.baseSeed).not.toBe(123)
+    expect(cfg.runs).not.toBe(777)
+    expect(cfg.steps).not.toBe(55)
+  })
+
   test('no timelineSeries ⇒ every series shown, no "+N more" (older-file behaviour)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)

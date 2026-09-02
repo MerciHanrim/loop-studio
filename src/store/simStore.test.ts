@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { serialize } from '../model/serialize'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { STORAGE_KEY, serialize } from '../model/serialize'
 import { TEMPLATES } from '../model/templates'
 import { useGraphStore } from './graphStore'
 import { useSimStore } from './simStore'
@@ -150,5 +150,65 @@ describe('timelineSeries — the Timeline default visible set (UI-only)', () => 
     expect(s().timelineSeries).toBe('all')
     s().toggleTimelineSeries('c', all)
     expect(s().timelineSeries).toEqual(['a', 'b'])
+  })
+})
+
+// The current selection is mirrored into the graph autosave record immediately —
+// no graph edit and no debounce needed — so a plain reload restores it. Toggling
+// back to "all" clears the field. (serialize.ts owns the record shape.)
+describe('timelineSeries — immediate autosave into the graph record', () => {
+  class MemStorage {
+    m = new Map<string, string>()
+    getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null }
+    setItem(k: string, v: string) { this.m.set(k, String(v)) }
+    removeItem(k: string) { this.m.delete(k) }
+    clear() { this.m.clear() }
+    key(i: number) { return [...this.m.keys()][i] ?? null }
+    get length() { return this.m.size }
+  }
+  const rec = () => {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  }
+  const s = () => useSimStore.getState()
+
+  beforeEach(() => {
+    vi.useFakeTimers() // neutralise the graphStore `persist()` debounce
+    vi.stubGlobal('localStorage', new MemStorage())
+    useGraphStore.getState().newGraph()
+    useGraphStore.getState().addNodeAt('pool', { x: 0, y: 0 })
+    useSimStore.getState().setTimelineSeries(undefined) // selection back to 'all'
+    localStorage.clear() // start from a known-empty record
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('setTimelineSeries writes the selection with NO intervening graph edit', () => {
+    s().setTimelineSeries(['p1'])
+    expect(rec().recommendedRunConfig).toEqual({ timelineSeries: ['p1'] })
+    // the record is a full graph record, not a stray fragment
+    expect(Array.isArray(rec().nodes)).toBe(true)
+  })
+
+  it('toggleTimelineSeries writes on every flip; collapsing to "all" clears the field', () => {
+    const all = ['a', 'b']
+    s().toggleTimelineSeries('a', all) // ⇒ ['b']
+    expect(rec().recommendedRunConfig).toEqual({ timelineSeries: ['b'] })
+    s().toggleTimelineSeries('a', all) // every id on again ⇒ 'all'
+    expect(rec()).not.toHaveProperty('recommendedRunConfig')
+  })
+
+  it('an explicit setTimelineSeries(undefined) — user chose "all" — also clears the field', () => {
+    s().setTimelineSeries(['p1'])
+    expect(rec().recommendedRunConfig.timelineSeries).toEqual(['p1'])
+    s().setTimelineSeries(undefined)
+    expect(rec()).not.toHaveProperty('recommendedRunConfig')
+  })
+
+  it('the autosave write never adds canvasLocked or MC fields', () => {
+    s().setTimelineSeries(['p1'])
+    expect(Object.keys(rec().recommendedRunConfig)).toEqual(['timelineSeries'])
   })
 })

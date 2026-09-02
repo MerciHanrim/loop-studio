@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGraphStore } from '../store/graphStore'
-import { deserialize, normalizeGraph, serialize } from './serialize'
+import { STORAGE_KEY, deserialize, loadFromStorage, normalizeGraph, saveToStorage, serialize } from './serialize'
 import type { GraphDoc } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
@@ -211,6 +211,70 @@ describe('recommendedRunConfig round-trip', () => {
     expect(twice.recommendedRunConfig).toEqual(rrc)
     const plain = deserialize(serialize(g().nodes, g().edges, { baseSeed: 1, runs: 1, steps: 1 }))
     expect(plain.recommendedRunConfig).not.toHaveProperty('canvasLocked')
+  })
+})
+
+// ── autosave record: only the `timelineSeries` slice of recommendedRunConfig
+//    rides `localStorage`; the MC fields + canvasLocked never do ────────────────
+describe('saveToStorage / loadFromStorage — the Timeline display default', () => {
+  class MemStorage {
+    m = new Map<string, string>()
+    getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null }
+    setItem(k: string, v: string) { this.m.set(k, String(v)) }
+    removeItem(k: string) { this.m.delete(k) }
+    clear() { this.m.clear() }
+    key(i: number) { return [...this.m.keys()][i] ?? null }
+    get length() { return this.m.size }
+  }
+  const nodes = [n('p', 'pool') as LoopNode]
+  const edges: LoopEdge[] = []
+
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', new MemStorage())
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('an explicit timelineSeries list is written and comes back on restore', () => {
+    saveToStorage(nodes, edges, null, ['p', 'reg_a'])
+    const rec = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    expect(rec.recommendedRunConfig).toEqual({ timelineSeries: ['p', 'reg_a'] })
+    expect(loadFromStorage()?.recommendedRunConfig?.timelineSeries).toEqual(['p', 'reg_a'])
+  })
+
+  it("'all' (the default) writes no recommendedRunConfig at all", () => {
+    saveToStorage(nodes, edges, null, 'all')
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('recommendedRunConfig')
+    saveToStorage(nodes, edges, null, []) // empty list ⇒ same as 'all'
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('recommendedRunConfig')
+    saveToStorage(nodes, edges) // omitted ⇒ same
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('recommendedRunConfig')
+  })
+
+  it('the project header and the timelineSeries slice land in ONE record', () => {
+    saveToStorage(nodes, edges, { schema: 'loop-revision/1', revisionId: 'rev_x' }, ['p'])
+    const rec = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    expect(rec.project.revisionId).toBe('rev_x')
+    expect(rec.recommendedRunConfig.timelineSeries).toEqual(['p'])
+  })
+
+  it('the written recommendedRunConfig carries ONLY timelineSeries — no MC fields, no canvasLocked', () => {
+    saveToStorage(nodes, edges, null, ['p', 'reg_a'])
+    const rec = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    expect(Object.keys(rec.recommendedRunConfig)).toEqual(['timelineSeries'])
+    for (const k of ['baseSeed', 'runs', 'steps', 'tracked', 'canvasLocked']) {
+      expect(rec.recommendedRunConfig).not.toHaveProperty(k)
+    }
+  })
+
+  it('the graph bytes in the record are exactly a plain serialize (autosave adds nothing to nodes/edges)', () => {
+    saveToStorage(nodes, edges, null, ['p'])
+    const rec = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    const plain = JSON.parse(serialize(nodes, edges))
+    expect(rec.nodes).toEqual(plain.nodes)
+    expect(rec.edges).toEqual(plain.edges)
+    expect({ schema: rec.schema, version: rec.version }).toEqual({ schema: plain.schema, version: plain.version })
   })
 })
 
