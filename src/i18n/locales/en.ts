@@ -120,9 +120,11 @@ const en = {
   'canvas.lock.lock': 'Lock editing — selecting and reading stay on',
   'canvas.lock.unlock': 'Unlock editing — move, connect, and change values',
   // docs/large-graph-readability.md §LGR2.1 — the Focus toggle (canvas controls
-  // on desktop, the More sheet on mobile)
-  'canvas.focus.on': 'Focus the selected node — dim everything it does not touch',
-  'canvas.focus.off': 'Show the whole graph again',
+  // on desktop, the More sheet on mobile). `.on` / `.off` name the CURRENT
+  // state so the tooltip reads as "state — action": shown OFF ⇒ `.on`.
+  'canvas.focus.on': 'Focus off — click to focus the selected node',
+  'canvas.focus.off': 'Focus on — click to show the whole graph',
+  'canvas.focus.hint': 'Select a node to focus on',
   'canvas.focus.rowLabel': 'Focus selection',
   'canvas.focus.stateOn': 'On',
   'canvas.focus.stateOff': 'Off',

@@ -5,6 +5,7 @@ import {
   ControlButton,
   Controls,
   MiniMap,
+  Panel,
   ReactFlow,
   useReactFlow,
   useStore,
@@ -204,6 +205,14 @@ export function Canvas() {
       >
         <EdgeMarkers />
         <LodGrid />
+        {/* docs/large-graph-readability.md §LGR2.1 — Focus is armed but no node
+            is selected yet, so nothing on the canvas has changed. Tell the user
+            the mode is on and waiting. Never takes the pointer. */}
+        {focusMode && !focusSet && (
+          <Panel position="top-center" className="lgr-focus-hint">
+            {t('canvas.focus.hint')}
+          </Panel>
+        )}
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
             phone and eats space — not rendered in the mobile layout */}
         {!isMobile && (
