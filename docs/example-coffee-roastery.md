@@ -1,4 +1,4 @@
-# Example — "Coffee roastery operating flow" (non-frozen design doc — DRAFT)
+# Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
 **Status: settled design — implementation pending. rev 6.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
@@ -156,7 +156,7 @@ one-day operating model*, not a roastery management system.
 
 | surface | KO | EN |
 |---|---|---|
-| menu name | `커피 로스터리 운영 흐름` | `Coffee roastery operating flow` |
+| menu name | `커피 로스터리 운영 흐름` | `Coffee roastery operations flow` |
 | menu blurb | `로스팅·판매·재고의 관계를 단순화해 살펴보는 운영 흐름 시뮬레이션` | an operating-flow simulation for looking at how roasting, sales and stock relate, simplified |
 | limitation marker (Template surface / `examples/README.md`, §CR13) | `단순화한 시뮬레이션 예제이며 ERP나 실시간 모니터링 시스템이 아닙니다.` | a simplified simulation example — not an ERP or real-time monitoring system |
 
@@ -185,7 +185,7 @@ Never use "operations management" / "운영 관리" for this entry.
   | field | value |
   |---|---|
   | id | `coffee-roastery` |
-  | `templates.coffeeRoastery.name` | KO: **커피 로스터리 운영 흐름** · EN: **Coffee roastery operating flow** |
+  | `templates.coffeeRoastery.name` | KO: **커피 로스터리 운영 흐름** · EN: **Coffee roastery operations flow** |
   | `templates.coffeeRoastery.blurb` | KO: **로스팅·판매·재고의 관계를 단순화해 살펴보는 운영 흐름 시뮬레이션** · EN: an operating-flow simulation for looking at how roasting, sales and stock relate, simplified |
   | limitation marker (on-canvas note / `examples/README.md`) | KO: **단순화한 시뮬레이션 예제이며 ERP나 실시간 모니터링 시스템이 아닙니다.** · EN: a simplified simulation example — not an ERP or real-time monitoring system |
   | graph node labels | **English canonical**, localized on fresh-open by the overlay (§CR12) — KO in a KO UI, EN in an EN UI |
