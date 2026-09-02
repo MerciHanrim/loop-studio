@@ -1,24 +1,32 @@
-# Example — "Coffee roastery operations" (non-frozen design doc — DRAFT)
+# Example — "Coffee roastery — operational-flow simulation" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending. rev 5.** rev 1–3 fixed the
+**Status: settled design — implementation pending. rev 6.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
-([`docs/template-label-overlay.md`](template-label-overlay.md)); **rev 5** aligns
-the build order with that doc's review (§CR13): impl PR (1) also EN-fallback
-allow-lists Templates 1 & 2, and the MMO migration takes `label` only. Only
-§CR12 / §CR13 / §CR15 differ from rev 3; the model (§CR3–§CR10) is unchanged
-since rev 2. This is a **non-frozen** design doc — no
+([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
+the build order with that doc's review. **rev 6** resolves a contract conflict
+found at the start of impl PR (2): the model as written in rev 1–5 assumed the
+five surfaced Parameters *drive the operational simulation*, but the **frozen**
+`loop-model/1` + `loop-expr/1` engine does not permit that (a `parameter` node
+changes no simulated number; resource-edge `flow` takes no `@ref`; `loop-expr/1`
+has no `max` / `min`). **§CR16 is new**: it states the constraint and lays out
+**two candidate directions for the reviewers to choose between** — it does not
+pick one. **§CR2 (new §CR2.0 repositioning) / §CR3.5 / §CR6 / §CR8 / §CR9 /
+§CR11.1 / §CR13** carry "blocked pending §CR16" notes and the
+operational-flow-simulation wording; **CR-D12** is added. The size budget
+(§CR5), the domain scope (§CR3–§CR4), and the language mechanism (§CR12) are
+unchanged. This is a **non-frozen** design doc — no
 `loop-*/N` id, no `Frozen` marker — and merges as *settled design, implementation
 pending*, like [`docs/large-graph-readability.md`](large-graph-readability.md)
 and [`docs/example-mmo-progression.md`](example-mmo-progression.md).
 
-**Docs-only (this PR)** — this doc + [`docs/template-label-overlay.md`](template-label-overlay.md)
-+ one README line. Implementation is **two** PRs, in order: **(1)** the shared
-label overlay, **(2)** this Template — `examples/coffee-roastery.json` (English
-canonical labels), a Korean label dictionary, a fixture test,
-`src/model/templates.ts`, `src/components/templateKeys.ts`, **two** name/blurb
-keys in `en.ts` + `ko.ts`. **Nothing else** in `src/`: no engine, schema, wire /
-`loop-revision/N`.
+**rev 6 is docs-only** — this doc + the one README roadmap line. Implementation
+stays **two** PRs, in order:
+**(1)** the shared label overlay — **merged** (PR #100, `b938aed`); **(2)** this
+Template — `examples/coffee-roastery.json` (English canonical labels), a Korean
+label dictionary, a fixture test, `src/model/templates.ts`,
+`src/components/templateKeys.ts`, **two** name/blurb keys in `en.ts` + `ko.ts`.
+**Nothing else** in `src/`: no engine, schema, wire / `loop-revision/N`.
 
 This is the **first external product-direction validation**
 ([`docs/product-direction.md`](product-direction.md) §PD2 / §PD6), **not** a
@@ -89,6 +97,34 @@ and familiar failure modes (run out of roasted stock, throw away unsold cake).
 
 ## CR2. Product role & boundary
 
+### CR2.0 What this is — and is not (rev 6)
+
+An **external reader commented before even opening the example** that a real
+roastery-cafe operations system needs far more than a flow picture: daily
+inventory counts, green-bean ordering / procurement / intake, roast-batch input,
+roasted-bean production and real-time consumption, plus create / edit / delete /
+save for **each green-bean variety** — and that keyboard-and-monitor manual data
+entry would make such a tool cumbersome enough to lower its real adoption.
+
+That critique is right **about an operations-management system**, and this
+Template is **not** one. It is an **operational-flow simulation example**:
+
+- **not** a system for entering real daily intake / stock;
+- **not** green-bean-variety CRUD or product management;
+- **not** connected to a POS, inventory sensors, or an order system;
+- **not** a replacement for any part of running a roastery;
+- **is** a small, assumption-based model for changing a few operating
+  assumptions and watching how green / roasted stock, sales, stockouts, waste,
+  and profit relate.
+
+The Template name, blurb, and README line must say **"operational-flow
+simulation"** (KO: **운영 흐름 시뮬레이션**), never "operations management"
+(KO: **운영 관리**); and the Template surface (an on-canvas note or the
+`examples/README.md` entry, §CR13) must state plainly: **an assumption-based
+model, not a real-time inventory / POS / ERP tool.**
+
+### CR2.1 File & wiring
+
 - **File:** `examples/coffee-roastery.json` — a real Graph JSON with **English
   canonical node labels**, **wired as the 4th Templates entry** (`templates.ts`
   imports it), alongside `risky-factory.json` / `mmo-progression.json`. Korean
@@ -110,17 +146,15 @@ and familiar failure modes (run out of roasted stock, throw away unsold cake).
   | field | value |
   |---|---|
   | id | `coffee-roastery` |
-  | `templates.coffeeRoastery.name` | KO: **커피 로스터리 운영** · EN: **Coffee roastery operations** |
-  | `templates.coffeeRoastery.blurb` | KO: **생두 조달부터 로스팅, 카페·원두·디저트 판매와 재고·이익까지** · EN: a one-line equivalent |
+  | `templates.coffeeRoastery.name` | KO: **커피 로스터리 운영 흐름 시뮬레이션** · EN: **Coffee roastery — operational-flow simulation** |
+  | `templates.coffeeRoastery.blurb` | KO: **가정 기반 모델 — 생두·원두 재고, 판매·품절·폐기·이익의 관계를 흐름으로 살펴봄 (실시간 재고/POS/ERP 아님)** · EN: an assumption-based model of how green / roasted stock, sales, stockouts, waste and profit relate — not a real-time inventory / POS / ERP tool |
   | graph node labels | **English canonical**, localized on fresh-open by the overlay (§CR12) — KO in a KO UI, EN in an EN UI |
-  | role | a small Template for adjusting a real business flow |
+  | role | a small Template for changing a few operating assumptions and reading the result |
   | default state | editable (no `canvasLocked`) |
-  | adjustable | the five top-row Parameters (§CR6) |
+  | adjustable | the five operational levers (§CR6) — **delivery mechanism blocked pending §CR16** |
   | `recommendedRunConfig` | `timelineSeries` = the ≤ 8 series in §CR7; a modest `steps` / `baseSeed` |
 
-  It is an **experimental Template** at the `preview` stage — its language
-  limitation is recorded in §CR12 and revisited when the overlay structure is
-  designed.
+  It is an **experimental Template** at the `preview` stage.
 
 ---
 
@@ -166,6 +200,14 @@ Only the essential branches:
 - **operating profit**;
 - **stockouts / missed sales**;
 - **waste quantity** (roast loss is expected; dessert waste is the signal).
+
+> **rev 6 — blocked pending §CR16.** rev 1–5 assumed these results move when the
+> user changes one of the five operational levers (§CR6). Whether that is
+> achievable, and by what mechanism (a real flow-simulation effect vs. a
+> Register-only read-out; a clamped shortfall vs. signed headroom, since
+> `loop-expr/1` has no `max` / `min`), depends on which direction §CR16 settles.
+> Do **not** implement a version where only a Register's displayed number
+> changes while the stock trajectory does not.
 
 ### CR3.6 Multiple green-bean types — prose only
 
@@ -226,7 +268,8 @@ Indicative breakdown (the impl PR finalises the exact set within the cap):
 
 ## CR6. The five values the user changes
 
-Five **Parameter** nodes, laid out clearly in **one row along the top**:
+The five surfaced values are **operational levers** — real physical quantities
+that a roastery adjusts — laid out clearly in **one row along the top**:
 
 1. **Daily customers** — cafe footfall.
 2. **Daily roast amount** — kg of green beans put to roast per day.
@@ -238,6 +281,16 @@ Five **Parameter** nodes, laid out clearly in **one row along the top**:
 Prices, unit costs, and the roast yield are **stable fixed values** in v1 (in
 node data or a couple of clearly-labelled constants) — **not** surfaced as
 hard-to-read expressions.
+
+> **rev 6 — this list is the approved intent; its delivery is blocked pending
+> §CR16.** These five are **operational levers**, not display-calculation
+> constants. Changing one must move the stock / sales / stockout / waste / profit
+> flow — that experience *is* the point of the Template (§CR0). The frozen engine
+> does not let a `parameter` node do that today (§CR16). rev 6 does **not**
+> resolve this by redefining the five as prices / unit costs / yield — that would
+> quietly swap the approved model for a different one. The two candidate
+> directions and their cost are in §CR16; the five stay as written above until
+> one is chosen.
 
 ---
 
@@ -269,6 +322,12 @@ The right-hand result area: **4–6 Registers**, no more.
 
 **Human-readable titles and outcomes take priority over the formulas.**
 
+> **rev 6 — blocked pending §CR16.** "missed sales" and "dessert waste" as
+> `loop-expr/1` Registers cannot be `max(0, …)` (no `max`/`min`, §CR16.1 #3);
+> pending the §CR16 direction they are either a signed headroom read-out or a
+> real drain in the flow simulation. Do not ship a version that displays a
+> clamped number the expression cannot actually produce.
+
 ---
 
 ## CR9. Validation scenarios
@@ -282,6 +341,14 @@ At minimum, these changes must reproduce **intuitively**:
 4. **Online orders rise** → roasted-bean stock and operating profit move in a
    predictable direction.
 5. **At a sensible roast amount** → both stockouts and overstock ease.
+
+> **rev 6 — blocked pending §CR16.** Every scenario here is "change a §CR6
+> operational lever → a stock / sales / stockout / waste / profit result moves."
+> That requires a lever to reach the simulation, which the frozen engine does not
+> allow for a `parameter` node (§CR16). These scenarios stay as the acceptance
+> target; how they are met is the §CR16 decision. A build where the numbers only
+> *look* like they moved (Register text changes, trajectory does not) does **not**
+> satisfy this section.
 
 ---
 
@@ -301,9 +368,10 @@ At minimum, these changes must reproduce **intuitively**:
   semantics are unchanged**;
 - a **deterministic-seed run** plus the core stock ↔ revenue relationships are
   **pinned by tests** (a fixture spec, like `mmo-progression.test.ts`);
-- it **loads from `Templates ▾ → 커피 로스터리 운영`** and applies its
-  `recommendedRunConfig`; **no engine / schema / wire change**, only the
-  registration files (§CR2, §CR15).
+- it **loads from `Templates ▾ → 커피 로스터리 운영 흐름 시뮬레이션`** and applies
+  its `recommendedRunConfig`; **no engine / schema / wire change** in impl PR (2)
+  itself, only the registration files (§CR2, §CR15) — a §CR16 direction-1
+  general engine feature, if chosen, is its own separate prior PR.
 
 ---
 
@@ -325,7 +393,8 @@ the reviewer's identity; results are reported in aggregate.)
 ### CR11.1 Protocol — hand over the site, then ask only
 
 Send just the Loop Studio URL and one line: *"open `Templates ▾ → 커피 로스터리
-운영`"*. **No feature explanation, no Import / Share / file steps.** Then ask:
+운영 흐름 시뮬레이션`"*. **No feature explanation, no Import / Share / file
+steps.** Then ask:
 
 1. What business flow does this screen represent?
 2. Point to where green beans **enter** and where they **leave**.
@@ -334,6 +403,15 @@ Send just the Loop Studio URL and one line: *"open `Templates ▾ → 커피 로
 5. Change **daily customers** *or* **daily roast amount** yourself and read the
    result.
 6. Name any node, term, or result you **could not** understand.
+
+The four questions are framed as **"is the model believable and legible"**, not
+**"is it usable in real work today"** (rev 6, after §CR2.0):
+
+- does the **overall flow** broadly match how a roastery really works, or is it
+  badly wrong somewhere?
+- is a **key step missing**?
+- are the **five operational levers** meaningful for an operating decision?
+- are the **result changes easy to understand**?
 
 ### CR11.2 Pass bar
 
@@ -405,39 +483,41 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 
 ## CR13. Build order
 
-1. **this design PR** — **docs-only**: this doc **+**
-   [`docs/template-label-overlay.md`](template-label-overlay.md) + one README
-   line → review → settle **both**.
-2. **implementation PR (1) — the shared label overlay**
-   ([`docs/template-label-overlay.md`](template-label-overlay.md)): the
-   `templateLabels/<locale>` dictionaries, the `doLoadTemplate` deep-copy +
-   apply step, the completeness-conditional CI check, the tests. Also:
-   **migrates Template 3** — the Korean node **`label`s** (only, not
-   `resourceType`) from `examples/mmo-progression.ko.json` move into
-   `templateLabels/ko.ts` for `mmo-progression`; the canonical MMO graph, its
-   layout / lock / `recommendedRunConfig` / `resourceType`, existing user
-   documents, and the `.ko.json` file itself are untouched (§TLO2.2). And
-   **EN-fallback allow-lists Templates 1 & 2** (`equilibrium`, `deadlock`) —
-   no KO dict required for them in v1 (§TLO2.1).
-3. **implementation PR (2) — this Template**, after PR (1) merges:
+1. ~~design PR — docs-only: this doc + `docs/template-label-overlay.md` + one
+   README line.~~ **Done** (PR #99, `d131948`).
+2. ~~implementation PR (1) — the shared label overlay + the Template-3 KO-label
+   migration + EN-fallback allow-list for Templates 1 & 2.~~ **Done**
+   (PR #100, `b938aed`; `main` CI green).
+3. **design PR — rev 6 (docs-only, THIS PR):** §CR2.0 repositioning +
+   §CR16 (engine constraint + the two candidate directions + their cost). No
+   `src/` or `examples/` change. Review → **pick a §CR16 direction** → settle.
+4. **implementation PR (2) — this Template**, only **after** step 3 settles a
+   §CR16 direction:
    - `examples/coffee-roastery.json` (English canonical labels, English ids);
-   - the `mmo-progression`-style KO dictionary entries for its nodes
-     (§CR12.1);
+   - the `mmo-progression`-style KO dictionary entries for its nodes (§CR12.1);
    - a fixture / deterministic-run test (like `mmo-progression.test.ts`) + an
-     `examples/README.md` entry;
+     `examples/README.md` entry that **states the §CR2.0 boundary** (an
+     assumption-based model, not a real-time inventory / POS / ERP tool);
    - `src/model/templates.ts` — a 4th `TEMPLATES[]` item with
      `recommendedRunConfig` (§CR7 series);
    - `src/components/templateKeys.ts` — a 4th `TEMPLATE_KEY` entry;
-   - `src/i18n/locales/en.ts` + `ko.ts` — the two menu keys (§CR12).
-   Nothing else in `src/`; no engine / schema / wire change.
-4. **Hanrim pre-check** — locally or in the PR-(2) preview, in both EN and KO:
+   - `src/i18n/locales/en.ts` + `ko.ts` — the two menu keys (§CR12), using the
+     **"operational-flow simulation"** wording (§CR2.0), not "operations
+     management".
+   Plus **whatever the chosen §CR16 direction requires** (direction 1 adds a
+   general engine feature in its own prior PR; direction 2 adds nothing beyond
+   the list above). **No Coffee-specific engine hardcoding either way.**
+5. **Hanrim pre-check** — locally or in the PR-(2) preview, in both EN and KO:
    the entry loads, reads L→R, the five values are obvious, the §CR9 scenarios
-   behave, and EN/KO differ only in labels.
-5. **merge + Production deploy.**
-6. **external comprehension check** (§CR11) — send the URL + "open `Templates ▾
-   → 커피 로스터리 운영`", nothing else, run the protocol.
-7. **after the check** — if it exposes model problems, fix in a follow-up PR.
-   **LGR Slice 2** starts once step 6 is done. **Not recorded as a success
+   behave (really — the trajectory moves, §CR6 / §CR9 rev-6 notes), and EN/KO
+   differ only in labels.
+6. **merge + Production deploy.**
+7. **external comprehension check** (§CR11) — send the URL + "open `Templates ▾
+   → 커피 로스터리 운영 흐름 시뮬레이션`", nothing else, run the §CR11.1 protocol
+   with the **rev-6 framing** (believable + legible, not "usable in real work
+   today").
+8. **after the check** — if it exposes model problems, fix in a follow-up PR.
+   **LGR Slice 2** starts once step 7 is done. **Not recorded as a success
    until the external check passes.**
 
 ---
@@ -454,9 +534,10 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
 | **CR-D6** | node budget | **≤ 20–25 total**, Summary Registers included; short on nodes ⇒ cut a result, never add a feature (§CR5). |
 | **CR-D7** | the 5 user values | daily customers · daily roast amount · online bean orders · green wholesale orders · daily dessert prep (§CR6). |
 | **CR-D8** | prices / costs / yield | fixed, clearly-labelled constants in v1 — not surfaced as expressions (§CR6). |
-| **CR-D9** | `src/` / wire / engine impact | impl PR (2) touches **only** `examples/coffee-roastery.json`, its test, `templates.ts`, `templateKeys.ts`, the KO dictionary entries, 2 menu keys × en+ko; **no** engine / schema / wire / `loop-revision/N` (§CR15). |
+| **CR-D9** | `src/` / wire / engine impact | impl PR (2) touches **only** `examples/coffee-roastery.json`, its test, `templates.ts`, `templateKeys.ts`, the KO dictionary entries, 2 menu keys × en+ko; **no** engine / schema / wire / `loop-revision/N` (§CR15). **rev 6:** if §CR16 direction 1 is chosen, the *general* engine feature is a **separate prior PR** with its own spec; impl PR (2) itself still touches only this list. |
 | **CR-D10** | who verifies comprehension? | an **external, domain-informed reviewer** (identity not recorded) — read → adjust → interpret only; not asked to edit the graph (§CR11). |
 | **CR-D11** | language | **one English-canonical `examples/coffee-roastery.json`**; Korean (and later locales') node **labels** via the shared fresh-open overlay ([`docs/template-label-overlay.md`](template-label-overlay.md)), built first. `label` only — ids / expr / `resourceType` / positions stay English. No `.ko.json` for this Template. Menu name/blurb per-locale via the app catalog (§CR12). |
+| **CR-D12** | *(rev 6)* the five levers can't reach the frozen engine — what now? | **Pause impl PR (2); do this rev-6 doc PR first.** The five stay **operational levers** (visitors · roast kg · online orders · wholesale kg · dessert prep), **not** redefined as price / cost / yield constants. §CR16 documents the boundary and compares **direction 1** (a minimal *general* `parameter → simulation input` feature) vs **direction 2** (a smaller engine-unchanged model that is still factually right and first-user-legible). **Rejected:** Coffee-specific hardcoding; a "simulation" where only Register text moves; direction-B flat-Register spreadsheet; direction-C edit-the-edge-in-the-Inspector. Code starts only after a §CR16 direction is reviewed and approved. |
 
 ---
 
@@ -481,3 +562,93 @@ The five surfaced Parameters (§CR6), in Korean: **하루 방문 고객 수 · �
   complete.
 - If the check fails, the file stays an `examples/` reference and is **not**
   promoted — no menu entry, no further scope.
+- **rev 6:** impl PR (2) does not start until §CR16 settles a direction.
+
+---
+
+## CR16. Engine constraint & model architecture *(rev 6)*
+
+### CR16.1 What was found
+
+At the start of impl PR (2), the model as specified in rev 1–5 could not be
+built on the **frozen** engine. Three facts, from the current source and the
+frozen specs:
+
+| # | fact | source |
+|---|---|---|
+| 1 | The engine **skips `parameter` and `register` nodes entirely** — no ports, no `activation`, they never fire. A Parameter's `value` changes **no** number the simulation computes. | `src/engine/step.ts` (`MODEL = new Set(['parameter','register'])`, excluded from every phase); `SEMANTICS-M.md` §M1.3 — "participates only by being **referenced** from expressions". |
+| 2 | A resource edge's **`flow`** string is only `const \| all \| percent \| range \| dice`. There is **no `@id` reference** in a flow. So a Parameter cannot be a flow rate, a Source push rate, a Converter ratio, or a Gate weight. | `src/engine/flow.ts` (`parseFlow`); `SEMANTICS-M.md` §M0 Out — "expressions on Gate / Source / Converter — a later amendment". |
+| 3 | `loop-expr/1` (Register expressions) has **`+ - * /`, unary `-`, `@id`, parentheses — and nothing else**. No `max` / `min` / comparison / conditional (deferred to `loop-expr/1.1`). A Register cannot clamp a shortfall at zero. | `SEMANTICS-X.md` §X0 / §X2. |
+
+Consequence: with a `parameter` node, the five §CR6 levers can only change what a
+**Register displays** — never green / roasted stock, channel sales, stockouts, or
+waste in the run. The §CR9 scenarios, as "change a lever → a flow result moves",
+are **not achievable** this way. `SEMANTICS-M.md` / `SEMANTICS-X.md` are
+**Frozen**; §CR1 / §CR15 forbid any engine / schema / wire change in this
+Template's PRs.
+
+### CR16.2 What is **not** an acceptable resolution
+
+- **Redefining the five levers as price / unit-cost / yield constants** (so a
+  Parameter only feeds a revenue Register). This keeps the letter of "5
+  Parameters" but drops the approved model: the point of the Template (§CR0) is
+  that changing an **operating condition** moves stock / stockout / waste /
+  profit. Silently swapping that for price-sensitivity is a different Template.
+- **A "simulation" where only Register text changes** while the Timeline
+  trajectory is fixed. An example that *looks* like a live operations model but
+  whose numbers move only decoratively is the worst outcome — especially given
+  the external reader's warning (§CR2.0) that partial-but-realistic-looking is
+  worse than clearly-scoped.
+- **Coffee-specific engine hardcoding** — a code path that special-cases this
+  file.
+- **A flat wall of ~15 non-interactive Registers** (a spreadsheet with no
+  evolving state) — hard to read, fails "explain the flow in 1–2 min".
+- **"Select an edge, edit its `flow` in the Inspector" as the five inputs** —
+  a first-time reader (the §CR11 reviewer) will not find them; fails "the five
+  values are immediately identifiable".
+
+### CR16.3 The two directions to cost out (this rev-6 PR asks the reviewers to pick)
+
+**Direction 1 — a minimal, *general* "Parameter drives a simulation input"
+feature.** A small, spec'd, engine-level capability that lets a `parameter`
+`value` be referenced where a rate is read today — e.g. `@param_id` accepted in a
+resource-edge `flow` (and/or a Source push rate), evaluated once per step like a
+constant. General (any graph benefits), not Coffee-specific. Its own spec id +
+doc + PR, reviewed on its own merits, **before** impl PR (2). Cost to scope:
+grammar + `parseFlow` extension, engine wiring in the pull/push phases,
+`loop-revision` field projection + digest, editor affordance, `normalizeGraph`
+handling of a dangling `@ref`, tests, and a decision on whether random / `all` /
+`percent` compose with it. Benefit: the coffee model (and future Templates) works
+as designed; the five stay real levers.
+
+**Direction 2 — a smaller Coffee model that needs no engine change, is still
+factually right, and a first-time reader can understand.** Accept that a
+`parameter` node can't drive the run, and re-design the Template around what the
+frozen engine *does* allow. Candidate mechanisms, to be weighed in the rev-6
+review (not pre-decided here):
+
+- the operating levers as the literal push rates of a small top row of **Source**
+  nodes, read/edited on the **node** in the Inspector — **only if** the Inspector
+  actually surfaces a Source's rate on the node (needs checking; if it is
+  edge-only, the §CR10 "five values immediately identifiable" bar is at risk and
+  this mechanism is out);
+- fewer than five levers, if that is what stays honest and legible;
+- a narrower "what you adjust" (e.g. the built-in day is fixed and the reader
+  compares two or three preset day shapes) rather than free-value tuning.
+
+Registers stay read-outs only. Cost to scope: mostly model re-design + layout +
+tuning + one Inspector check; smallest code footprint. Risk: any version that
+keeps "edit a value the reader must first hunt for" (an edge label, a buried
+field) fails the external-comprehension goal — the same reason direction C was
+rejected in §CR16.2.
+
+**Out of scope for both:** green-bean-variety CRUD, real-time stock entry,
+POS / sensor / order integration, statistics dashboards — all correctly raised
+by the external reader (§CR2.0) and all belonging to a different product, not
+this example.
+
+### CR16.4 After a direction is chosen
+
+Fold the decision back into §CR3.5 / §CR6 / §CR8 / §CR9 (remove the
+"blocked pending §CR16" notes, state the real mechanism), set CR-D12 to the
+chosen direction, and only then start impl PR (2) per §CR13 step 4.
