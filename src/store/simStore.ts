@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { MAX_SERIES } from '../model/limits'
-import { useGraphStore } from './graphStore'
+import { bootTimelineSeries, setAutosaveTimelineSeries, useGraphStore } from './graphStore'
 
 export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
 
@@ -77,9 +77,12 @@ type SimStore = {
 
   /** which series the timeline plots by default — 'all' or an explicit id list
    *  of Pool AND Register ids. Applied from `recommendedRunConfig.timelineSeries`
-   *  on document / template load; a legend toggle updates it in place. UI-only —
-   *  never in the GraphDoc, the loop-revision/* digest, undo, or `simulationRev`,
-   *  and distinct from the Monte-Carlo `tracked` list. */
+   *  on document / template load; a legend toggle updates it in place. The
+   *  current value is also restored across a plain reload via the `localStorage`
+   *  autosave record (seeded here by `bootTimelineSeries()`, written back by
+   *  `setAutosaveTimelineSeries`). UI-only — never in the GraphDoc, the
+   *  loop-revision/* digest, undo, or `simulationRev`, and distinct from the
+   *  Monte-Carlo `tracked` list. */
   timelineSeries: 'all' | string[]
 
   // ── playback state machine (docs/simulation-playback.md) ──────────────
@@ -415,7 +418,9 @@ export const useSimStore = create<SimStore>((set, get) => {
     stateEvents: [],
     arrivedPoolIds: [],
     series: [],
-    timelineSeries: 'all',
+    // seeded from the autosave record (serialize.ts) so a plain reload keeps the
+    // Timeline legend's visible set; 'all' when the record has none.
+    timelineSeries: bootTimelineSeries(),
     commitEpoch: 0,
     transition: null,
     activeTransitionId: null,
@@ -525,16 +530,19 @@ export const useSimStore = create<SimStore>((set, get) => {
       else list.push(id)
       // back to 'all' when every series is selected again
       const isAll = allSeriesIds.length > 0 && allSeriesIds.every((s) => list.includes(s))
-      set({ timelineSeries: isAll ? 'all' : [...list].sort() })
+      const next: 'all' | string[] = isAll ? 'all' : [...list].sort()
+      set({ timelineSeries: next })
+      setAutosaveTimelineSeries(next) // ride the autosave record so a reload keeps it
     },
 
     setTimelineSeries: (ids) => {
-      if (!Array.isArray(ids) || ids.length === 0) {
-        set({ timelineSeries: 'all' })
-        return
+      let next: 'all' | string[] = 'all'
+      if (Array.isArray(ids) && ids.length > 0) {
+        const uniq = [...new Set(ids.filter((s): s is string => typeof s === 'string'))].sort()
+        if (uniq.length > 0) next = uniq
       }
-      const uniq = [...new Set(ids.filter((s): s is string => typeof s === 'string'))].sort()
-      set({ timelineSeries: uniq.length > 0 ? uniq : 'all' })
+      set({ timelineSeries: next })
+      setAutosaveTimelineSeries(next)
     },
   }
 })

@@ -10,9 +10,14 @@ const SCHEMA_VERSION = 1
 /**
  * Advisory execution defaults saved alongside the graph so a shared file
  * reproduces the run the author intended. NOT read by the engine — the app
- * applies the valid fields to the Monte-Carlo config on an explicit
- * document / template load only (never on localStorage restore). Every field
- * is optional; an unknown-shaped value is ignored on load.
+ * applies the Monte-Carlo fields (`baseSeed` / `runs` / `steps` / `tracked`)
+ * and `canvasLocked` on an explicit document / template load only (never on
+ * localStorage restore). Separately, the app's autosave record persists the
+ * *current* in-app Timeline series selection under a one-field
+ * `recommendedRunConfig` `{ timelineSeries }`, purely so a plain reload restores
+ * that selection (see `saveToStorage`) — this is reload state, not a change to
+ * the file-level meaning of any field here. Every field is optional; an
+ * unknown-shaped value is ignored on load.
  */
 export type RecommendedRunConfig = {
   baseSeed?: number
@@ -25,10 +30,14 @@ export type RecommendedRunConfig = {
    * opened — Pool **and** Register ids, sorted. Absent ⇒ every series is shown
    * (unchanged behaviour). Distinct from `tracked` (that is Monte-Carlo).
    *
-   * A pure display preference: applied on document / template / Workspace /
-   * Share / revision load, and written back by every graph Export, but NEVER
-   * part of the GraphDoc proper, the `loop-revision/*` digest, undo, or
-   * `simulationRev`. Unknown / deleted ids are ignored, not an error.
+   * A pure display preference: on document / template / Workspace / Share /
+   * revision load it seeds the visible set, and every graph Export writes the
+   * current value back. The app's autosave record ALSO persists whatever the
+   * current selection is — the only `recommendedRunConfig` slice that does —
+   * purely so a plain reload restores it (recommended subset + "+N more", never
+   * the incoherent "every series shown, no collapse"). NEVER part of the
+   * GraphDoc proper, the `loop-revision/*` digest, undo, or `simulationRev`.
+   * Unknown / deleted ids are ignored, not an error.
    */
   timelineSeries?: string[]
 
@@ -224,17 +233,31 @@ export function deserialize(text: string): {
 }
 
 /** Autosave record — the graph and, atomically in the same write, the
- *  lightweight `project` header (or nothing). One `localStorage.setItem`. */
-export function saveToStorage(nodes: LoopNode[], edges: LoopEdge[], project?: unknown): void {
+ *  lightweight `project` header (or nothing) and the current Timeline series
+ *  selection (as a one-field `recommendedRunConfig` `{ timelineSeries }`, or
+ *  nothing while it is the "all" default) so a plain reload restores it. One
+ *  `localStorage.setItem`. The Monte-Carlo fields and `canvasLocked` are
+ *  deliberately NOT persisted here — they apply on an explicit document /
+ *  template load only. */
+export function saveToStorage(
+  nodes: LoopNode[],
+  edges: LoopEdge[],
+  project?: unknown,
+  timelineSeries?: 'all' | readonly string[],
+): void {
   try {
-    localStorage.setItem(STORAGE_KEY, serialize(nodes, edges, undefined, undefined, project))
+    const rrc: RecommendedRunConfig | undefined =
+      Array.isArray(timelineSeries) && timelineSeries.length > 0
+        ? { timelineSeries: [...timelineSeries] }
+        : undefined
+    localStorage.setItem(STORAGE_KEY, serialize(nodes, edges, rrc, undefined, project))
   } catch {
     /* storage unavailable (private mode, quota) — silently skip */
   }
 }
 
 export function loadFromStorage():
-  | { nodes: LoopNode[]; edges: LoopEdge[]; project?: unknown }
+  | { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: RecommendedRunConfig; project?: unknown }
   | null {
   try {
     const text = localStorage.getItem(STORAGE_KEY)

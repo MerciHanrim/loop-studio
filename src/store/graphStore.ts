@@ -78,6 +78,16 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined
 // `setAutosaveProjectHeader`; graphStore just carries the opaque value.
 let autosaveProjectHeader: unknown = null
 
+// The CURRENT Timeline visible-series selection (simStore, UI-only) rides in the
+// SAME autosave record as the graph — the only `recommendedRunConfig` slice that
+// survives a `localStorage` restore (serialize.ts), so a plain reload restores
+// the selection instead of falling back to "every series shown, no collapse".
+// This is reload state, not a reinterpretation of the file-level field.
+// `simStore` is the only writer, via `setAutosaveTimelineSeries`; graphStore
+// just carries the value so its own graph-edit saves don't drop it. Seeded from
+// the boot record below.
+let autosaveTimelineSeries: 'all' | string[] = 'all'
+
 /** Set (or clear with `null`) the project header persisted alongside the graph,
  *  and flush it immediately with the current graph in one write. Called by
  *  `projectStore` on commit / open / clear. */
@@ -85,13 +95,32 @@ export function setAutosaveProjectHeader(header: unknown): void {
   autosaveProjectHeader = header ?? null
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader)
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries)
+}
+
+/** Persist the Timeline visible-series default into the autosave record and
+ *  flush it immediately with the current graph in one write (mirrors
+ *  `setAutosaveProjectHeader`). Called by `simStore` on every legend toggle /
+ *  `setTimelineSeries`, so the choice survives a plain reload even with no
+ *  intervening graph edit. `'all'` clears the field. */
+export function setAutosaveTimelineSeries(ts: 'all' | readonly string[]): void {
+  autosaveTimelineSeries = ts === 'all' ? 'all' : [...ts]
+  clearTimeout(saveTimer)
+  const s = useGraphStore.getState()
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries)
 }
 
 /** The raw project header from the last autosave record — read once by
  *  `projectStore` on boot. */
 export function bootProjectHeader(): unknown {
   return loadFromStorage()?.project ?? null
+}
+
+/** The Timeline visible-series selection from the last autosave record — read
+ *  once by `simStore` to seed its initial `timelineSeries`. `'all'` when the
+ *  record is absent / has no `timelineSeries`. */
+export function bootTimelineSeries(): 'all' | string[] {
+  return autosaveTimelineSeries
 }
 
 // The undo history carries an opaque per-frame "sidecar" alongside the graph.
@@ -162,12 +191,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   const stored = loadFromStorage()
   const boot = normalizeGraph(stored ?? makeSample())
   autosaveProjectHeader = stored?.project ?? null
+  const bootTs = stored?.recommendedRunConfig?.timelineSeries
+  autosaveTimelineSeries = Array.isArray(bootTs) && bootTs.length > 0 ? [...bootTs] : 'all'
 
   const persist = () => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       const s = get()
-      saveToStorage(s.nodes, s.edges, autosaveProjectHeader)
+      saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries)
     }, 400)
   }
   /** any full-document swap starts with "no project"; a project-aware caller
