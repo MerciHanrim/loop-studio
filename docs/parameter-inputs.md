@@ -1,6 +1,6 @@
 # Parameter-driven inputs (non-frozen design doc — DRAFT)
 
-**Status: design only — implementation pending. rev 2.** This is **PR (1.5)** in
+**Status: design only — implementation pending. rev 3.** This is **PR (1.5)** in
 [`docs/example-coffee-roastery.md`](example-coffee-roastery.md) §CR13: a
 **minimal, general** capability that lets a `parameter` node's `value` drive a
 **resource-edge `flow`**, so changing a Parameter genuinely changes what the
@@ -8,16 +8,33 @@ simulation computes. It exists because the frozen engine today ignores
 `parameter` / `register` nodes entirely (`src/engine/step.ts`, `SEMANTICS-M.md`
 §M6.1) and a resource-edge `flow` accepts no reference (`src/engine/flow.ts`).
 
-**rev 2** settles three points from review: **PI-D3** — *every* unresolved `@…`
-string (unknown id, wrong kind, non-finite value, **and** a malformed `@…` typo)
-contributes **`0` + a diagnostic**, never `1`; only non-`@` strings keep the
-legacy behaviour (§PI2 / §PI5.1). **PI-D5** — the feature ships **`loop-model/2`
-(`SEMANTICS-M2.md`) *and* a stored wire-level discriminator** (`version: 2` in
-the GraphDoc, plus a deserializer version-ceiling check so a v1-only client
-refuses a v2 doc instead of silently mis-running it) — §PI8. **PI-D8** — the
-**Parameter picker + resolved-value display + non-blocking warnings** are
-**required** scope for the implementation PR, not "desirable" — §PI9. §PI10 now
-enumerates the required test boundaries.
+- **rev 2** settled: PI-D3 — every unresolved `@…` (incl. a malformed `@…` typo)
+  → `0` + a diagnostic, never `1`; PI-D8 — the Parameter picker is required
+  scope; §PI10 test boundaries.
+- **rev 3** fixes two compatibility blockers in PI-D5:
+  1. **the discriminator must be one an already-installed client already
+     checks.** A cached PWA / prior deploy does **not** validate `version`, so
+     `version: 2` would not fail-close it — it would read `@param` as a
+     malformed flow and run it as `1`. So the model-semantics version rides the
+     **`schema`** string (v1 = today's `"loop-studio/graph"`, v2 = a **new**
+     schema value); an old reader rejects the unknown v2 schema through its
+     existing `schema` check. `version` may be carried too, but is **not** the
+     fail-closed gate (§PI8).
+  2. **no silent v1 → v2 upgrade, and no re-interpretation of an existing
+     `@…`.** In v1 a `flow` is an arbitrary string, so an existing document may
+     already hold `@foo` as a malformed value whose v1 meaning is `1`. A v1
+     document keeps **legacy** semantics for that string; a document becomes v2
+     **only on an explicit user action** (creating a reference via the picker,
+     or committing a raw `@id`); merely opening and re-saving a v1 document does
+     **not** promote it. The model-semantics version is **explicit and
+     preserved at runtime** and through Import / Share / Workspace / autosave
+     (§PI8). Leading `@` is a reference **only in a v2 document**.
+- **rev 3** also pins the **negative / decimal** result explicitly: a **finite**
+  value obtained from a reference follows the **same** normalisation and
+  execution rules as the identical numeric literal — `@p` with `p.value = -2`
+  gives the **same** result as the literal `-2` (which `parseFlow` gates to `1`
+  via `n >= 0`); the Parameter path is **never** separately clamped, floored, or
+  diagnosed for a negative (§PI5.3).
 
 This doc **fixes the behaviour contract before any engine code**. It is a
 **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — and merges as
@@ -26,11 +43,11 @@ This doc **fixes the behaviour contract before any engine code**. It is a
 [`docs/template-label-overlay.md`](template-label-overlay.md). The implementation
 PR ratifies the settled parts as a **new frozen spec `loop-model/2`**
 (`SEMANTICS-M2.md`), layered on `loop-model/1` exactly as `loop-state/2`
-(`SEMANTICS-S2.md`) is layered on `loop-state/1` — §PI8.5.
+(`SEMANTICS-S2.md`) is layered on `loop-state/1` — §PI8.6.
 
-**No code in this PR.** No engine change, no `parseFlow` change, no `version`
-change, no editor change, no Coffee file. Those land in the implementation PR
-after this design is reviewed and approved.
+**No code in this PR.** No engine change, no `parseFlow` change, no `schema` /
+`version` change, no editor change, no Coffee file. Those land in the
+implementation PR after this design is reviewed and approved.
 
 ---
 
@@ -63,13 +80,17 @@ an expression layer.
   (§PI2);
 - the **exact set of inputs** the reference is valid in (§PI3);
 - **when** in a step the value is read (§PI4);
-- **missing / wrong-kind / malformed** reference handling — *every* unresolved
-  `@…` → `0` + a diagnostic; why **no cycle** is possible (§PI5);
-- the **restart rule** when a referenced `value` changes (§PI6);
+- **missing / wrong-kind / malformed / negative** reference handling — *every*
+  unresolved `@…` → `0` + a diagnostic; a **finite** value follows the
+  identical-literal rules; why **no cycle** is possible (§PI5);
+- the **restart rule** when a referenced `value` (or the `flow` string) changes
+  (§PI6);
 - **save / Share / Workspace / Export / autosave** behaviour and **old-document
   compatibility** (§PI7);
-- the **wire-level discriminator** (`version: 2` + a reader ceiling check),
-  `SEMANTICS-M2.md`, and the `loop-revision` non-impact (§PI8);
+- the **`schema`-based model-semantics discriminator** (an already-installed
+  client fail-closes on the new `schema`), **explicit user-action-only, one-way**
+  v1 → v2 promotion, the store-held `modelVersion`, `SEMANTICS-M2.md`, and the
+  `loop-revision` non-impact (§PI8);
 - the **required editor scope** — pick a Parameter, see the resolved value,
   non-blocking warnings, no auto-rewrite (§PI9);
 - the **required test boundaries**, including v1 invariance, determinism +
@@ -93,9 +114,15 @@ an expression layer.
 
 ---
 
-## PI2. Reference syntax
+## PI2. Reference syntax — and it is only a reference in a **v2** document
 
-A resource-edge `flow` string is **either** a literal (today's
+A parameter reference is recognised **only when the document's model-semantics
+version is v2** (§PI8). In a **v1** document a `flow` is exactly what it is
+today — an arbitrary string — and a leading `@` carries **no** meaning:
+`parseFlow` runs unchanged and `@foo` falls through to `const 1` with **no
+diagnostic**, preserving v1 byte- and run-identity (§PI10.1).
+
+In a **v2** document, a resource-edge `flow` is **either** a literal (today's
 `const | all | percent | range | dice`, unchanged) **or** a single **parameter
 reference** and nothing else:
 
@@ -105,28 +132,28 @@ paramref  = "@" ( safe-id | "{" braced-id "}" )
 ```
 
 - `safe-id` / `braced-id` are **exactly** the `loop-expr/1` §X3 reference forms
-  (`@daily_roast`, `@{daily roast kg}`), so a reader who has seen a Register
+  (`@daily_roast`, `@{daily roast kg}`) — a reader who has seen a Register
   expression already knows this syntax. The braced form escapes `}` / `\` per
   `loop-expr/1` §X3.1.
 - The reference resolves **by node `id`** (stable), never by `label`. `@{...}`
   brackets an **id** that is not a bare `safe-id`, not a label.
-- **The leading `@` marks reference intent.** A `flow` string whose **trimmed
-  form starts with `@`** is an *intended parameter reference*:
+- **In a v2 document, a leading `@` marks reference intent:**
   - a well-formed `@safe-id` / `@{braced-id}` resolves (§PI5.1);
   - **any other** `@…` string — `@`, `@ name`, `@{visitor` (unclosed), `@p%`,
     `@p-@q`, `@p*2`, `@p 2` — is a **malformed reference** → the edge contributes
     **`0`** + one diagnostic (§PI5.1). It does **not** fall back to `const 1`.
-  Rationale: a typo like `@{visitor` silently running at `1` would be the
-  hardest defect to find.
-- **A string that does not start with `@`** is a plain literal and keeps
-  `parseFlow`'s exact current behaviour, including the legacy `const 1` for an
-  unparseable literal (`garbage`, `2D@p`, `1..2`). v1 compatibility is untouched
-  for every non-`@` string.
-- **No composition.** `@p%`, `@p-@q`, `-@p`, `@p*2` all start with `@`, so each
-  is a malformed reference → `0` + diagnostic. Adding compound / arithmetic
-  forms is explicitly out (§PI1).
+  Rationale: in a v2 document a typo like `@{visitor` silently running at `1`
+  would be the hardest defect to find.
+- **A string that does not start with `@`** (in a v1 *or* v2 document) is a
+  plain literal and keeps `parseFlow`'s exact current behaviour, including the
+  legacy `const 1` for an unparseable literal (`garbage`, `2D@p`, `1..2`).
+- **No composition.** `@p%`, `@p-@q`, `-@p`, `@p*2` all start with `@`, so in a
+  v2 document each is a malformed reference → `0` + diagnostic. Adding compound /
+  arithmetic forms is explicitly out (§PI1).
 
-**FlowExpr.** `parseFlow` gains one kind:
+**FlowExpr.** `parseFlow(raw, modelVersion)` gains a **`modelVersion`** argument
+(default `1`, so every existing caller and test is byte-identical) and two kinds
+that are produced **only when `modelVersion === 2`**:
 
 ```ts
 type FlowExpr =
@@ -135,9 +162,16 @@ type FlowExpr =
   | { kind: 'percent'; frac: number }
   | { kind: 'range'; lo: number; hi: number }
   | { kind: 'dice'; count: number; sides: number }
-  | { kind: 'param'; id: string }        // NEW — a well-formed reference; not yet a number
-  | { kind: 'paramBad'; raw: string }    // NEW — a `@…` string that is NOT a well-formed reference
+  | { kind: 'param'; id: string }        // v2 only — a well-formed reference; not yet a number
+  | { kind: 'paramBad'; raw: string }    // v2 only — a `@…` string that is NOT a well-formed reference
 ```
+
+- With `modelVersion === 1` (the default), `parseFlow` is **literally today's
+  function** — a leading `@` is an unparseable string → `const 1`. `param` /
+  `paramBad` are **never** produced.
+- With `modelVersion === 2`, a leading-`@` string → `{kind:'param', id}` (well
+  formed) or `{kind:'paramBad', raw}` (any other `@…`); everything else is
+  unchanged.
 
 - `parseFlow` returns `{kind:'param', id}` for a well-formed `@safe-id` /
   `@{braced-id}`, `{kind:'paramBad', raw}` for any **other** string that trims
@@ -168,11 +202,11 @@ and one mechanism covers both. Nothing else (`initial`, `capacity`,
 `activation`, state-edge `expr` / `delay`, `distribution`) accepts a reference in
 this feature.
 
-A `{kind:'param'}` value, once resolved, is treated **exactly** as
-`{kind:'const', value: <resolved>}` everywhere `parseFlow`'s result is consumed
-(`evalDet`, `rateOf`, `sumInRate`, the Source `amountOf`, …). It does **not**
-compose with `all` / `percent` / `range` / `dice` because a `flow` is never a
-compound (§PI2).
+A resolved reference feeds `parseFlow`'s result consumers (`evalDet`, `rateOf`,
+`sumInRate`, the Source `amountOf`, …) **through the same normalisation the
+identical numeric literal would** (§PI5.3) — never a Parameter-only clamp. It
+does **not** compose with `all` / `percent` / `range` / `dice` because a `flow`
+is never a compound (§PI2).
 
 ---
 
@@ -182,18 +216,27 @@ compound (§PI2).
 `src/engine/step.ts`, `step()` builds `flowOf` once at the top:
 
 ```ts
-const flowOf = new Map(resEdges.map(e => [e.id, parseFlow(e.data.flow)]))
+const flowOf = new Map(resEdges.map(e => [e.id, parseFlow(e.data.flow, modelVersion)]))
 ```
 
-The implementation runs a **resolve pass** over that map **right there**, before
-Phase 0, reading referenced nodes' `data.value` from the `nodes` array passed to
-`step()`:
+`step()` gains a **`modelVersion`** input (the loaded document's model-semantics
+version, §PI8; the store threads it in, default `1`). It is passed to
+`parseFlow`, so in a **v1** document no `param` / `paramBad` is ever produced and
+the map is exactly today's.
 
-- `{kind:'param', id}` that resolves to a finite number → `{kind:'const',
-  value: <that number>}` for the rest of the step;
-- `{kind:'param', id}` that does **not** resolve to a finite number (unknown id,
-  non-`parameter` node, non-finite `value`) **and** every `{kind:'paramBad'}`
-  → `{kind:'const', value: 0}` + one deduped diagnostic (§PI5.1);
+In a **v2** document, the implementation runs a **resolve pass** over that map
+**right there**, before Phase 0, reading referenced nodes' `data.value` from the
+`nodes` array passed to `step()`:
+
+- `{kind:'param', id}` where `id` names a live `parameter` whose `value` is a
+  **finite number** → that value, **routed through the same literal
+  normalisation** (§PI5.3): `value >= 0` → `{kind:'const', value}`;
+  `value < 0` → `{kind:'const', value: 1}` (exactly `parseFlow`'s `n >= 0`
+  literal gate — no diagnostic, matching a negative literal);
+- `{kind:'param', id}` that does **not** resolve to a finite number — unknown
+  id, non-`parameter` node, or a **non-finite** `value` (`NaN` / `±Infinity`) —
+  **and** every `{kind:'paramBad'}` → `{kind:'const', value: 0}` + one deduped
+  diagnostic (§PI5.1);
 - resolution is **a pure function of the step's `nodes` snapshot** — a Parameter
   `value` is *a constant for the whole run* (`SEMANTICS-M.md` §M1.1), so the
   value is identical on every step of a run; there is **no per-step drift** and
@@ -212,35 +255,34 @@ run-constant literal, so the frozen "no engine phase reads a Register" statement
 
 ## PI5. Missing / wrong-kind / dangling references — and why there is no cycle
 
-### PI5.1 Resolution outcomes
+### PI5.1 Resolution outcomes (v2 documents only)
 
 At the top-of-step resolve pass, for an edge whose `flow` string trims to a
-leading `@`:
+leading `@`, **in a v2 document**:
 
 | case | value used | diagnostic (one per edge per step) |
 |---|---|---|
-| well-formed `@id`, `id` names a live `parameter`, `value` **is a finite number** | that `value` (including a legitimate **`0`**) | **none** |
+| well-formed `@id`, `id` names a live `parameter`, `value` is a **finite number ≥ 0** | that `value` (incl. a legitimate **`0`** / a **decimal**) | **none** |
+| well-formed `@id`, `parameter` `value` is a **finite negative** number | **as the identical literal** — `parseFlow`'s `n >= 0` gate → **`1`** (§PI5.3) | **none** (a negative *literal* is also silent) |
 | well-formed `@id`, `parameter` `value` **missing / non-finite** (`NaN` / `±Infinity`) | **`0`** | `Edge "<edgeId>" flow "@<id>": parameter value is not a finite number; contributes 0.` |
 | well-formed `@id`, **no such node** | **`0`** | `Edge "<edgeId>" flow "@<id>" references an unknown parameter; contributes 0.` |
 | well-formed `@id`, node is **not a `parameter`** (pool / source / register / …) | **`0`** | `Edge "<edgeId>" flow "@<id>" must reference a parameter node (got <kind>); contributes 0.` |
 | **malformed** `@…` string (`@`, `@ x`, `@{visitor`, `@p%`, `@p*2`, …) | **`0`** | `Edge "<edgeId>" flow "<raw>" is not a valid parameter reference; contributes 0.` |
-| string does **not** start with `@` | **unchanged** — exactly today's `parseFlow` (`const`/`all`/`%`/`range`/`dice`, or `const 1` for a non-`@` unparseable literal) | unchanged from today |
+| string does **not** start with `@` | **unchanged** — exactly today's `parseFlow` | unchanged from today |
 
-- **Every `@…` string that does not resolve to a finite number → `0`** — an
-  unknown id, a wrong-kind reference, a non-finite `value`, and a malformed
-  `@…` typo all contribute nothing. A legitimate `value` of **`0`** is a normal
-  value and produces **no diagnostic**. Rationale: a typo or a deleted Parameter
-  must never cause production / sales that should not exist; and `@{visitor`
-  running at `1` would be the worst kind of silent defect.
-- **Non-`@` strings are the *only* exception** — they keep `parseFlow`'s exact
-  current behaviour (including the legacy `const 1` for an unparseable non-`@`
-  literal) so v1 compatibility is byte- and run-identical (§PI10).
+- **Every `@…` string that does not resolve to a *finite* number → `0`** — an
+  unknown id, a wrong-kind reference, a non-finite `value`, and a malformed `@…`
+  typo all contribute nothing + a diagnostic. A legitimate finite `value` of
+  **`0`** is a normal value and is silent. A **finite negative** `value` is
+  *not* a resolve failure — it routes through the identical literal path
+  (§PI5.3), no special Parameter clamp, no diagnostic.
+- **In a v1 document** a leading-`@` string is a plain unparseable literal →
+  `const 1`, **no diagnostic**, exactly as today (§PI2 / §PI10.1).
 - **Never `invalid`, never a throw.** Consistent with `parseFlow` (which never
-  throws) and Parameter's "never `invalid`" rule (§M1.1). Every failure degrades
-  to `0` + a diagnostic and the run continues.
+  throws) and Parameter's "never `invalid`" rule (§M1.1).
 - Diagnostics are **deduped per edge per step** (like `badRandom` in `step.ts`).
-- **Determinism.** `0` is a constant, so a degraded edge is fully deterministic
-  and a Monte-Carlo run over it is reproducible (§PI10).
+- **Determinism.** `0` and `1` are constants, so a degraded / negative edge is
+  fully deterministic and a Monte-Carlo run over it is reproducible (§PI10.3).
 
 ### PI5.2 No new cycle class
 
@@ -254,6 +296,27 @@ A cycle would need `flow → parameter → … → flow`. It cannot form:
 So the reference graph from `flow` to `parameter` is **depth 1, always acyclic**.
 No topological pass, no cycle diagnostic, nothing to add to the router-DAG cycle
 handling in `step.ts`.
+
+### PI5.3 A resolved finite value follows the identical-literal rules
+
+**A finite number obtained from a reference is normalised and executed by the
+*exact same* rules as the identical numeric literal — the Parameter path adds no
+clamp, floor, cap, or special case of its own.**
+
+- `parseFlow`'s literal gate is `Number.isFinite(n) && n >= 0`. A resolved
+  `value`:
+  - `>= 0` → `{kind:'const', value}` (a decimal like `2.5` flows as `2.5`,
+    exactly as the literal `2.5` does);
+  - `< 0` → `{kind:'const', value: 1}` — because the literal `-2` also does
+    (`parseFlow("-2")` fails the regex → `const 1`). **`@p` with `p.value = -2`
+    produces a run identical to a literal `-2` in the same position.**
+- Downstream (`evalDet`, `rateOf`, `sumInRate`, capacity clamps in `step.ts`,
+  the Commit-phase `[0, capacity]` clamp) is **untouched** — a Parameter-fed
+  edge and a literal-fed edge of the same effective number produce the
+  **same** `values` and `events`.
+- Pinned by a test: for `v ∈ {-2, 0, 0.5, 2, 100}`, a graph with `flow: "@p"`
+  (`p.value = v`) runs **step-for-step identical** to the same graph with
+  `flow: "<v>"` written as a literal.
 
 ---
 
@@ -272,11 +335,15 @@ engine edit does today.** No new machinery:
   same as editing a literal `flow`, a Pool `initial`, or a gate weight today;
 - editing the `flow` string itself (adding / removing `@ref`) goes through
   `setEdgeData`, which `bump()`s unless the change is cosmetic-only
-  (`route` / `waypoints`) — a `flow` edit is never cosmetic, so it also resets.
+  (`route` / `waypoints`) — a `flow` edit is never cosmetic, so it also resets;
+- **the first `flow` edit that introduces a reference also latches the document
+  to v2** (§PI8.2) — one undo-tracked edit does both (writes the string, sets
+  `modelVersion = 2`); undoing it reverts both.
 
 The contract to state in `loop-model/2`: **a change to a `value` that any live
-`flow` references is a simulation-relevant change** (already true by the
-`updateNodeData` rule; the spec just names it).
+`flow` references — and any edit that adds or removes a reference — is a
+simulation-relevant change** (already true by the `updateNodeData` /
+`setEdgeData` rules; the spec just names it).
 
 ---
 
@@ -284,110 +351,142 @@ The contract to state in `loop-model/2`: **a change to a `value` that any live
 
 `flow` is already a serialized string on `ResourceEdgeData`
 (`src/model/serialize.ts` `toDocEdge` keeps `flow: … ?? '1'`). A `@paramId`
-value is just a different string in that field — like `2D6` or `25%`.
+value is just a different string in that field — like `2D6` or `25%`. What
+changes is the **document's model-semantics version**, carried on the `schema`
+string (§PI8).
 
-- **Graph JSON / Share (`#g1=`) / Workspace / autosave** carry the `flow` string
-  verbatim; a round-trip is byte-identical (§PI10).
-- **Old documents** (no `@` in any `flow`) are **completely unaffected** — every
-  `flow` parses to the same `FlowExpr`, the digest is unchanged, and the doc
-  stays `version: 1` (§PI8).
+- **Graph JSON / Share (`#g1=`) / Workspace / autosave** carry the whole
+  `GraphDoc` — `schema` string included — verbatim; a round-trip preserves the
+  model version and is byte-identical for an unchanged document (§PI10.1 / §PI10.4).
+- **Existing (v1) documents are completely unaffected** — every `flow` parses to
+  the same `FlowExpr` (a stray `@foo` still → `const 1`, no diagnostic), the
+  digest is unchanged, and the `schema` stays `"loop-studio/graph"` (§PI8.2).
 - A Share link that references a Parameter carries that Parameter node too (the
-  whole graph is in the fragment), so it opens self-consistently.
-- **Import of a graph whose `@ref` dangles** (the Parameter was deleted before
-  export): `normalizeGraph` leaves the `flow` string as-authored; at run time it
-  degrades to `0` + a diagnostic (§PI5.1). It is **not** rewritten on load.
+  whole graph is in the fragment), so it opens self-consistently; the fragment
+  stays `#g1=` (`loop-share/1`) — the inner `GraphDoc.schema` is the model
+  discriminator (§PI8.4).
+- **Import of a v2 graph whose `@ref` dangles** (the Parameter was deleted
+  before export): `normalizeGraph` leaves the `flow` string as-authored; at run
+  time it degrades to `0` + a diagnostic (§PI5.1). It is **not** rewritten.
 - **`serialize()` allowlist** (`docs/serialize-schema-allowlist.md`): `flow` is
-  already inside the projected edge shape. The **only** serialization-boundary
-  change is the graph-level `version` field (§PI8) — a `GraphDoc` literal edit,
-  the exact kind that doc flags.
-- The **discriminator (`version`, §PI8) is preserved through every path**
-  because it lives on the `GraphDoc` that Share / Workspace / autosave / Export
-  all embed verbatim. Pinned by round-trip tests (§PI10).
+  already inside the projected edge shape. The serialization-boundary change is
+  the graph-level **`schema`** value becoming `"loop-studio/graph"` **or** the v2
+  string, chosen from the document's model version (a `GraphDoc` literal edit —
+  the exact kind that doc flags).
+- **The model version is preserved through every path** because it lives on the
+  `GraphDoc.schema` that Share / Workspace / autosave / Export all embed
+  verbatim, and the store re-derives it on every load (§PI8.3). Pinned by
+  round-trip tests (§PI10.4).
 
 ---
 
-## PI8. Versioning & compatibility — the wire-level discriminator
+## PI8. Model-semantics versioning & compatibility
 
 `loop-model/2` execution differs *observably* from `loop-model/1` for the same
-bytes: a client that does not understand `@param` would run `parseFlow("@x")`
-through its **current** unparseable path → `const 1`, so the **same document
-produces a different result on an older client**. That breaks the product's
-"reproducible simulation" promise, so — unlike `loop-model/1`'s *inferred*
-`loop-revision/2` predicate (`SEMANTICS-M.md` §M8.1), whose only failure mode is
-digest classification caught by verification — `loop-model/2` needs a **stored,
-checkable** marker.
+`flow` bytes (`@x` → resolved vs. `@x` → `const 1`). So the same document must
+not silently produce different numbers on different clients — and the
+already-installed client (a cached PWA, a prior deploy) is the one that matters,
+because we cannot ship it new code.
 
-### PI8.1 The marker
+### PI8.1 The discriminator rides `schema` — not `version`
 
-- The `GraphDoc` envelope already carries `"schema": "loop-studio/graph"` and
-  `"version": <n>` (`src/model/serialize.ts` `SCHEMA` / `SCHEMA_VERSION = 1`).
-- **`serialize()` writes `"version": 2` iff the graph contains at least one
-  `resource` edge whose `data.flow`, trimmed, starts with `@`** (a well-formed
-  *or* malformed reference — anything §PI2 treats as reference intent).
-  Otherwise it writes `"version": 1`, exactly as today.
-- **Existing documents are byte-identical.** No `@` flow ⇒ `version: 1` ⇒ the
-  serializer emits the same bytes it does now (§PI10).
-- **Inferred → stored is one-way per save.** A doc *becomes* `version: 2` the
-  first time it is serialized while holding a `flow` reference (writing one in
-  the editor, or opening a v2 bundled Template and saving / autosaving). If every
-  reference is later removed, the next serialize drops back to `version: 1`.
+An already-deployed reader validates **`schema`** (`deserialize`:
+`if (obj.schema !== 'loop-studio/graph') throw`) and **ignores `version`
+entirely**. So `version` cannot fail-close an old client. The model-semantics
+version therefore rides the **`schema`** string:
 
-### PI8.2 What a reader does with it
-
-The deserializer (`src/model/serialize.ts` `deserialize`, and the Share /
-Workspace / autosave readers) currently checks `schema` but **not** `version`.
-The implementation PR adds a **version ceiling check**:
-
-| `version` | reader (Graph JSON / Share / Workspace Import) | autosave-restore |
+| | v1 | v2 |
 |---|---|---|
-| `1` (or absent) | load normally — `loop-model/1` semantics | restore normally |
-| `2`, client supports v2 | load normally — `loop-model/2` semantics | restore normally |
-| `> client's max supported` (a v2 doc on a v1-only build) | **refuse with a clear message** — *"This graph uses a newer Loop Studio feature (needs format v2; this version supports v1). Update Loop Studio to open it."* No partial load, no silent run. | **do not restore** — fall back to the first-run sample + a one-line notice; the too-new record is left untouched on disk |
+| `GraphDoc.schema` | `"loop-studio/graph"` (unchanged) | a **new** distinct value — proposed **`"loop-studio/graph/2"`** (the exact token is the `SEMANTICS-M2.md` PR's call; the hard constraint is that every already-deployed reader's `schema !== "loop-studio/graph"` check **rejects** it) |
+| a **new** reader | accepts | accepts — and runs `loop-model/2` |
+| an **already-installed** reader | accepts | **rejects** via its existing `schema` check → its "This does not look like a Loop Studio graph file." error. **Fail-closed, with no code update.** |
 
-So a v1-only client **cannot silently run a v2 document with different numbers** —
-it stops at the door.
+`version` MAY still be written (`1` for both, or `2` alongside the v2 schema) but
+it is **informational only** — it is never the gate. A new reader treats
+`schema` as authoritative.
 
-### PI8.3 The unavoidable transition gap (stated honestly)
+### PI8.2 No silent v1 → v2 upgrade, and no re-reading of an existing `@…`
 
-A client **built before `loop-model/2` ships** has no ceiling check and would
-still load a `version: 2` doc and run `@param` as `1`. This cannot be fixed
-retroactively. It is bounded and one-time:
+In v1 a `flow` is an arbitrary string, so an existing document may already carry
+`@foo` as a malformed value whose v1 meaning is the fallback `1`. Automatically
+reading that as a reference, or promoting the document to v2 because it "contains
+`@`", would break **v1 byte identity**, **v1 run identity**, and **"no format
+upgrade without an explicit user action"**. So:
 
-- the ceiling check ships **in the same release as** the first ability to
-  *write* a `flow` reference, so from that release on every client is safe;
-- **no v2 content is distributed before then** — the coffee Template (the first
-  v2 artefact) ships *after* this feature, by design (§PI14 / `example-coffee-roastery.md` §CR13);
-- a pre-v2 client opening a hand-crafted v2 file is the only residual case, and
-  the diagnostics (§PI5.1) at least make a `@param`-as-`1` run visibly noisy.
+- **A v1 document stays v1.** Its `schema` is `"loop-studio/graph"`, its `@foo`
+  keeps legacy semantics (`const 1`, no diagnostic), and opening + re-saving it —
+  or autosaving it — leaves the `schema` and (for an otherwise-unchanged
+  document) the bytes **exactly as they were**.
+- **A document becomes v2 only on an explicit user action:**
+  1. creating a parameter reference with the picker (§PI9.1), **or**
+  2. entering a raw `@id` in the `flow` field and committing it, which the
+     editor treats as "make this a reference".
+  Either is an undo-tracked graph edit that **latches the document's model
+  version to v2**; the next `serialize()` writes the v2 `schema`.
+- **v2 is a one-way latch.** Once v2, a document stays v2 even if every reference
+  is later removed (a v2 document with no live reference runs and digests
+  identically to v1 — §PI8.5–§PI8.6 — so staying v2 costs nothing, and an auto-downgrade
+  would be a second kind of silent format change). *(Decision PI-D10.)*
+- **Leading `@` is a reference only in a v2 document** (§PI2). A v1 document's
+  `@…` is never re-interpreted.
 
-### PI8.4 `loop-revision` — no format change
+### PI8.3 The store holds and preserves the model version
+
+- `graphStore` carries a **`modelVersion: 1 | 2`** field (next to
+  `simulationRev` / `pristineSample`), set on load from the document's `schema`,
+  latched to `2` by the first reference-creating edit (§PI8.2), and **passed to
+  `serialize()`** on every write (Graph JSON export, Share encode, Workspace
+  export, autosave) and **to `step()` / `parseFlow`** for every run.
+- `deserialize()` (and the Share / Workspace / autosave readers) **return** the
+  model version derived from the incoming `schema`. Import / Share-open /
+  Workspace-import / autosave-restore all set the store's `modelVersion` from
+  the loaded document — so the version is **identical before and after every
+  round-trip** (pinned, §PI10.4).
+- A new reader that sees the v2 `schema` but was somehow built without v2 support
+  refuses with a clear message (belt-and-braces; the primary gate is the old
+  reader's `schema` rejection).
+- **autosave-restore of a v2 record on a v1-only client:** the old
+  `loadFromStorage` `deserialize` throws on the unknown `schema`; that is caught
+  and returns `null` → the app boots the first-run sample; the v2 record is left
+  on disk untouched.
+
+### PI8.4 Share / Workspace fragment versions
+
+- The Share fragment stays **`#g1=`** (`loop-share/1`) — it is a container for a
+  `GraphDoc`, and the `GraphDoc.schema` inside it is the model discriminator. An
+  old client decoding `#g1=<v2 doc>` decompresses fine, then its `deserialize`
+  rejects the unknown `schema`. No `#g2=` needed.
+- **`loop-workspace/1` is unchanged** — it embeds the `GraphDoc` verbatim
+  (`SEMANTICS-M.md` §M8.2 reasoning), so an old client reading a workspace with a
+  v2 `GraphDoc` rejects it at the inner `schema` check.
+
+### PI8.5 `loop-revision` — no format change
 
 - `flow` is already an **`engineAffecting`** edge field in the canonical
   projection; a `@paramId` string **digests as its literal text**, exactly like
   `2D6` / `25%` / `1-3`. `loop-expr/1`'s AST-canonical form is **not** applied to
   `flow` (only to Register `expr`).
-- The `version` field is **GraphDoc envelope, not projected content** — it does
-  **not** enter the `loop-revision` digest, so a v1 graph's `fullContentDigest`
-  is unchanged and there is no discontinuity at the boundary (matches
-  `SEMANTICS-M.md` §M8.1c M-INV-9).
+- `schema` is **GraphDoc envelope, not projected content** — it does **not**
+  enter the `loop-revision` digest, so a v1 graph's `fullContentDigest` is
+  unchanged and a v2 graph with no live reference has the **same** digest as its
+  v1 form (conservative extension, matching `SEMANTICS-M.md` §M8.1c M-INV-9).
 - **Reference is by `id`.** A Proposal / three-way diff that renames or removes a
-  Parameter does **not** auto-rewrite a `flow` that references it — the `flow`
-  hunk is independent; a dangling result is a runtime diagnostic, not a merge
-  error.
+  Parameter does **not** auto-rewrite a `flow` — the `flow` hunk is independent;
+  a dangling result is a runtime diagnostic, not a merge error.
 - `loop-model/1` §M8.1 field tags are unchanged; this feature adds no field to
-  `parameter`.
-- The **inferred `loop-revision/2` predicate (§M8.1) is unaffected** — a graph
-  with `parameter` nodes is already `loop-revision/2` content; a `flow`
-  reference does not add a new predicate clause.
+  `parameter`. The inferred `loop-revision/2` predicate (§M8.1) is unaffected —
+  a graph with `parameter` nodes is already `loop-revision/2` content.
 
-### PI8.5 `SEMANTICS-M2.md`
+### PI8.6 `SEMANTICS-M2.md`
 
 The implementation PR writes **`SEMANTICS-M2.md`, spec id `loop-model/2`,
-Frozen**, layered on `loop-model/1` exactly as `SEMANTICS-S2.md` /
-`loop-state/2` is layered on `loop-state/1`. It fixes: the `@` reference grammar
-in `flow`, the top-of-step resolve timing, the "every unresolved `@…` → `0`"
-rule, the `version: 2` write predicate + reader ceiling check, and the
-conservative-extension invariant (a graph with no `flow` reference runs and
+Frozen**, layered on `loop-model/1` as `SEMANTICS-S2.md` / `loop-state/2` is on
+`loop-state/1`. It fixes: the `@` reference grammar in a **v2** `flow`, the
+`modelVersion` argument to `parseFlow` / `step`, the top-of-step resolve timing,
+the "every unresolved `@…` → `0`" and "finite value follows the identical-literal
+rules" rules (§PI5), the **`schema`-based v1/v2 discriminator** + the explicit,
+user-action-only, one-way promotion + the store-held `modelVersion`, and the
+conservative-extension invariant (a v2 graph with no live reference runs and
 digests identically to `loop-model/1`).
 
 ---
@@ -395,17 +494,22 @@ digests identically to `loop-model/1`).
 ## PI9. Editor — **required** scope for the implementation PR
 
 A pure text field where the user must know and type `@id` from memory hides the
-feature. The following is the **minimum in scope for PR (1.5)** — not "desirable",
-not deferred. Visual polish is impl-time; presence is not.
+feature. The following (**§PI9.1 items 1–6**) is the **minimum in scope for
+PR (1.5)** — not "desirable", not deferred. Visual polish is impl-time; presence
+is not.
+
+### PI9.1 Required items
 
 1. **Pick a Parameter from the connection's `flow` input.** The edge Inspector's
    `flow` control offers the graph's `parameter` nodes (by label) as a choice;
-   selecting one writes the `@id` string. A graph with no `parameter` node simply
-   shows no options.
+   selecting one writes the `@id` string **and, if the document is still v1,
+   latches it to v2** (§PI8.2). A graph with no `parameter` node simply shows no
+   options.
 2. **After selection, show the Parameter label and the current resolved value**
    at the input, e.g. `Daily roast amount → 40`.
 3. **Raw `@id` entry is also allowed.** Typing `@daily_roast_kg` / `@{daily roast kg}`
-   directly is accepted and treated identically to a pick.
+   directly and committing it is accepted, treated identically to a pick, and
+   **latches a v1 document to v2** (§PI8.2).
 4. **Non-blocking warning near the input** for a **deleted**, **wrong-kind**, or
    **malformed** (`@{visitor`) reference: a visible flag at the field, but the
    graph still saves and runs (the edge degrades to `0`, §PI5.1). Never a modal,
@@ -415,9 +519,10 @@ not deferred. Visual polish is impl-time; presence is not.
 6. **No auto-rewrite on `id` change or deletion.** If a referenced Parameter's
    `id` changes or the node is deleted, the `flow` string is left exactly as
    authored and the edge degrades to `0` + a diagnostic. This rule is stated in
-   the Inspector help text and pinned by a test.
+   the Inspector help text and pinned by a test. (The document does **not**
+   downgrade to v1 — §PI8.2.)
 
-Also:
+### PI9.2 Also
 
 - **Parameter nodes stay portless.** The reference is a field on the edge, not a
   drawn wire — consistent with `SEMANTICS-M.md` §M1.3 (a Parameter "cannot be an
@@ -431,30 +536,36 @@ Also:
 
 ## PI10. Test boundaries — required in the implementation PR
 
-### PI10.1 v1 invariance (existing literals untouched)
+### PI10.1 v1 invariance (existing documents completely untouched)
 
 - **byte identity** — `serialize(load(doc)) === doc` for every existing
-  `examples/*.json` and fixture; every such doc stays `version: 1`;
+  `examples/*.json` and fixture; every such doc keeps `schema:
+  "loop-studio/graph"` and is **never** promoted by a plain open + re-save /
+  autosave;
 - **digest identity** — the `loop-revision` canonical digest of every existing
   graph is unchanged;
-- **`parseFlow` identity** — `"2"`, `"all"`, `"25%"`, `"1-3"`, `"2D6"`, `""`,
-  and a non-`@` unparseable literal (`"garbage"`) produce the **same `FlowExpr`**
-  as today (the non-`@` `const 1` fallback is preserved);
+- **`parseFlow(raw, 1)` identity** — `"2"`, `"all"`, `"25%"`, `"1-3"`, `"2D6"`,
+  `""`, a non-`@` unparseable literal (`"garbage"`), **and a stray `"@foo"`**
+  each produce the **same `FlowExpr`** as today (a v1 `@foo` → `const 1`, **no
+  diagnostic**);
 - **run identity** — a full deterministic run of `engine-b-verification` /
   `mmo-progression` / `risky-factory` is **step-for-step identical**;
-- a graph with **zero** `@` flows exercises **no** new `step()` path beyond a
-  `Map` scan that resolves nothing, and its serialize emits `version: 1`.
+- a v1 document exercises **no** new `step()` path (no resolve pass runs when
+  `modelVersion === 1`).
 
-### PI10.2 The reference itself
+### PI10.2 The reference itself (v2 documents)
 
 - **one Parameter, many edges** — several `resource` edges each with
   `flow: "@p"` all read the same `value` in one step; changing `p` moves all of
   them; determinism holds;
-- **value shapes** — `value` of `0` (normal, no diagnostic), a **negative**
-  number, a **decimal**, and a **non-finite** (`NaN` / `∞`, after
-  `normalizeGraph`'s `PARAM_VALUE_FIXED` → `0`) each behave per §PI5.1;
-  a negative or fractional `value` flows through `evalDet` / `rateOf` exactly as
-  a negative or fractional literal does today (no new clamping — §PI1);
+- **finite value = identical literal** — for `v ∈ {-2, 0, 0.5, 2, 100}`, a graph
+  with `flow: "@p"` (`p.value = v`) runs **step-for-step identical** to the same
+  graph with `flow: "<v>"` as a literal; in particular `@p` with `v = -2` gives
+  the **same** result as the literal `-2` (→ `1`, no diagnostic, no Parameter-only
+  clamp — §PI5.3);
+- **non-finite value** — `NaN` / `±Infinity` (after `normalizeGraph`'s
+  `PARAM_VALUE_FIXED` → `0`, or if it slips through) → the edge contributes `0` +
+  a diagnostic;
 - **failure modes** — unknown id, wrong node kind (`@somePool`), and a malformed
   `@…` string each → the edge contributes `0`, exactly one deduped diagnostic
   per edge per step, run continues, no throw, no `invalid`;
@@ -464,33 +575,41 @@ Also:
 ### PI10.3 Determinism
 
 - **run** — same seed ⇒ identical trajectory with `@param` edges present,
-  including degraded (`→ 0`) edges;
+  including degraded (`→ 0`) and negative (`→ 1`) edges;
 - **Monte Carlo** — a graph using `@param` flows produces byte-identical
   `series` / `endedRuns` / `final` across two runs of the same config
   (the `mmo-progression`-style determinism test, applied to a small
   reference-bearing fixture).
 
-### PI10.4 v2 round-trips (same result through every path)
+### PI10.4 Model-version promotion & preservation
 
-For a fixture graph that **uses** a `flow` reference (`version: 2`):
+- **explicit promotion only** — opening a v1 fixture and calling `serialize()`
+  again (no edit) yields **byte-identical** output with `schema:
+  "loop-studio/graph"`; only after a picker selection **or** a committed raw
+  `@id` does the store's `modelVersion` become `2` and the next `serialize()`
+  write the v2 `schema`;
+- **no downgrade** — remove every reference from a v2 document → it still
+  serializes with the v2 `schema` (`modelVersion` stays `2`), and a run is
+  identical to the equivalent v1 graph (conservative extension);
+- **round-trip preserves the version** for a v2 fixture through **Export →
+  Import**, **Share (`#g1=`) encode → decode**, **Workspace Export → Import**,
+  and **autosave → reload**: reload is byte-identical, the store's
+  `modelVersion` is `2` after each, and a run is step-for-step identical.
 
-- **Export → Import** — reload is byte-identical and a run is step-for-step
-  identical;
-- **Share (`#g1=`) encode → decode** — same;
-- **Workspace Export → Import** — same (the GraphDoc, incl. `version: 2`, is
-  embedded verbatim);
-- **autosave → reload** — same;
-- in every case the **`version: 2` discriminator survives** the round-trip.
+### PI10.5 Cross-version safety (the already-installed client)
 
-### PI10.5 Cross-version safety
-
-- a **`version: 2` doc opened by a v1-only reader** (simulated by a reader whose
-  supported ceiling is 1) is **refused with the clear message** (§PI8.2) — it
-  does **not** load and run with `@param` treated as `1`;
-- a **`version: 1` doc opened by a v2 reader** loads and runs exactly as before
-  (no v2 path touched);
-- autosave-restore of a **too-new** record falls back to the sample + a notice,
-  leaving the record on disk.
+- a **v2 document** (`schema: "loop-studio/graph/2"`) fed to a reader that only
+  knows `"loop-studio/graph"` (i.e. today's `deserialize` unchanged) is
+  **rejected** by its existing `schema` check — it does **not** load and run
+  `@param` as `1`;
+- a **new (v2-capable) reader** accepts both `schema` values and runs the
+  matching semantics;
+- a **v1 document** opened by a v2 reader loads and runs exactly as before (the
+  resolve pass never runs);
+- **autosave-restore of a v2 record on a v1-only client** — `loadFromStorage`'s
+  `deserialize` throws on the unknown `schema`, the throw is caught, `null` is
+  returned, the app boots the first-run sample, and the v2 record is left on
+  disk untouched.
 
 ---
 
@@ -539,12 +658,14 @@ Register artefact. Shortfall read-outs ("missed sales", "dessert waste") remain
 |---|---|---|
 | **PI-D1** | reference syntax | **Reuse `loop-expr/1` §X3 `@safe-id` / `@{braced-id}`**, by node `id`. A `flow` is a *single* bare reference or a literal — never a compound. |
 | **PI-D2** | which fields accept it | **Only a `resource` edge's `flow`.** That one field is every rate the engine reads (Source amount, Drain/End amount, Converter rate, Gate weight). Nothing else. |
-| **PI-D3** | value used when a `@…` string does not resolve to a finite number | **`0` + one deduped diagnostic — for every `@…` failure**: unknown id, non-`parameter` node, non-finite `value`, **and** a malformed `@…` string (`@{visitor`, `@p%`, `@p*2`, …). A legitimate `value` of `0` is normal and silent. **Only non-`@` strings** keep `parseFlow`'s current behaviour, including the legacy `const 1` for a non-`@` unparseable literal (v1 compat). *(revised — a `@`-prefixed typo must never run at `1`.)* |
-| **PI-D4** | when read | **Once per step**, at the existing `parseFlow` point, before Phase 0; resolved from the step's `nodes` snapshot. A run-constant, so no drift / ordering effect. |
-| **PI-D5** | freeze vehicle + discriminator | **Both.** (a) a new frozen spec **`SEMANTICS-M2.md` / `loop-model/2`**, additive over `loop-model/1`; (b) a **stored wire-level discriminator**: `serialize()` writes GraphDoc **`version: 2` iff any `resource`-edge `flow` starts with `@`**, else `version: 1` (existing docs byte-identical); (c) the deserializer gains a **version-ceiling check** — a doc newer than the client's max is **refused with a clear message**, never partially loaded or silently run; too-new autosave restores the sample + a notice; (d) the discriminator rides the GraphDoc through Share / Workspace / autosave / Export verbatim. The pre-`loop-model/2`-client gap (§PI8.3) is stated and bounded (no v2 content distributed before the check ships). *(revised — was "open for review".)* |
-| **PI-D6** | `loop-revision` | **No format change.** `flow` is already an engine-affecting string; `@id` digests as its literal text. `version` is GraphDoc envelope, **not** projected content — not in the digest. Reference is by `id`; a rename/delete does not auto-rewrite a `flow`. |
-| **PI-D7** | restart on value change | **Reuses `simulationRev`.** Editing a referenced `value` (or the `flow` string) already bumps it → live run resets, MC result goes stale. No new machinery. |
-| **PI-D8** | editor | **Required scope for PR (1.5)** (§PI9): pick a Parameter from the `flow` input; show its label + current resolved value; allow raw `@id` entry; non-blocking warning at the field for deleted / wrong-kind / malformed; label rename does not affect the reference; **no auto-rewrite on id change or deletion** (stated in help text + a test). On-canvas "= n" affordance stays optional. *(revised — was "desirable".)* |
+| **PI-D3** | value used when a `@…` string does not resolve to a finite number | **`0` + one deduped diagnostic — for every `@…` failure** (v2 documents): unknown id, non-`parameter` node, non-finite `value`, **and** a malformed `@…` string (`@{visitor`, `@p%`, `@p*2`, …). A legitimate finite `value` of `0` is normal and silent. A **v1** document's `@…` string is a plain literal → `const 1`, no diagnostic (unchanged). |
+| **PI-D3b** | value used when a `@id` resolves to a *finite* number | **Follows the identical-literal rules — no Parameter-only clamp.** `>= 0` → that value; **`< 0` → `1`** (exactly `parseFlow`'s `n >= 0` literal gate; a negative literal also → `1`); a decimal flows as itself. `@p` with `p.value = -2` runs identically to the literal `-2` (§PI5.3). |
+| **PI-D4** | when read | **Once per step**, at the existing `parseFlow` point, before Phase 0; resolved from the step's `nodes` snapshot. A run-constant, so no drift / ordering effect. The resolve pass runs **only** when `modelVersion === 2`. |
+| **PI-D5** | freeze vehicle + discriminator | **Both.** (a) a new frozen spec **`SEMANTICS-M2.md` / `loop-model/2`**, additive over `loop-model/1`. (b) The model-semantics version rides the **`schema`** string — **not** `version` — because an already-installed reader validates `schema` and **ignores `version`**: v1 = `"loop-studio/graph"` (unchanged), v2 = a **new** distinct value (proposed `"loop-studio/graph/2"`). An already-installed reader's existing `schema !== "loop-studio/graph"` check **rejects** a v2 document — **fail-closed with no code update**. A new reader accepts both and runs the matching semantics. `version` may be carried but is informational only. *(revised — `version` could not fail-close a cached client.)* |
+| **PI-D10** | how a document becomes v2 | **Only on an explicit user action** — a picker selection **or** a committed raw `@id`. Opening + re-saving / autosaving a v1 document does **not** promote it, and a v1 `@…` string is **never** re-interpreted (it keeps legacy `const 1`). Promotion is a one undo-tracked edit that also sets `modelVersion`. **One-way latch** — a v2 document with every reference removed stays v2 (it still runs identically to v1, and an auto-downgrade would be a second silent format change). The store holds `modelVersion: 1 \| 2`, sets it from the loaded `schema`, passes it to `serialize()` / `step()`, and re-derives it on every Import / Share / Workspace / autosave load — identical before and after every round-trip. |
+| **PI-D6** | `loop-revision` | **No format change.** `flow` is already an engine-affecting string; `@id` digests as its literal text. `schema` is GraphDoc envelope, **not** projected content — not in the digest; a v2 graph with no live reference has the same digest as its v1 form. Reference is by `id`; a rename/delete does not auto-rewrite a `flow`. |
+| **PI-D7** | restart on value change | **Reuses `simulationRev`.** Editing a referenced `value`, or the `flow` string (incl. the reference-introducing edit that also latches v2), already bumps it → live run resets, MC result goes stale. No new machinery. |
+| **PI-D8** | editor | **Required scope for PR (1.5)** (§PI9.1): pick a Parameter from the `flow` input (which latches v1 → v2); show its label + current resolved value; allow raw `@id` entry (also latches); non-blocking warning at the field for deleted / wrong-kind / malformed; label rename does not affect the reference; **no auto-rewrite on id change or deletion**, and no downgrade (stated in help text + a test). On-canvas "= n" affordance stays optional. |
 | **PI-D9** | scope guard | **Excluded:** Coffee-specific code, `min` / `max`, compound / general expressions on edges, a Register-display-only approach, references in any field other than `flow`. |
 
 ---
@@ -554,17 +675,25 @@ Register artefact. Shortfall read-outs ("missed sales", "dessert waste") remain
 1. **this design PR** — docs-only, review → settle §PI2–§PI13.
 2. **implementation PR**, all in one:
    - **`SEMANTICS-M2.md`** (`loop-model/2`, Frozen);
-   - `parseFlow` → `param` / `paramBad` kinds (pure, text-only);
-   - the **top-of-step resolve pass** in `step.ts` (§PI4) + the "every unresolved
-     `@…` → `0`" rule + deduped diagnostics (§PI5.1);
-   - `serialize()` writes `version: 1 | 2` by the `@`-flow predicate; the
-     **deserializer version-ceiling check** for Graph JSON / Share / Workspace /
-     autosave (§PI8.2); `GraphDoc` literal updated per
-     `docs/serialize-schema-allowlist.md`;
-   - the **required editor scope** (§PI9 items 1–6);
-   - the **test boundaries** in §PI10 (v1 invariance, the reference itself,
-     determinism incl. Monte Carlo, v2 round-trips, cross-version safety) + the
-     §PI11 lever table as an engine test.
+   - `parseFlow(raw, modelVersion)` → `param` / `paramBad` kinds **only when
+     `modelVersion === 2`** (pure, text-only; default `1` = today's function);
+   - the **v2 top-of-step resolve pass** in `step.ts` (§PI4) + the "every
+     unresolved `@…` → `0`" rule + the "finite value = identical literal" rule
+     (§PI5.3) + deduped diagnostics;
+   - `step()` gains a `modelVersion` input; the store threads it in;
+   - **`schema`-based discriminator**: `serialize()` writes the v1 or v2 `schema`
+     from the store's `modelVersion`; `deserialize()` (+ Share / Workspace /
+     autosave readers) accept both `schema` values and return the model version;
+     a new-but-non-v2 build refuses the v2 `schema` with a clear message;
+     `GraphDoc` literal updated per `docs/serialize-schema-allowlist.md`;
+   - **`graphStore.modelVersion`** + explicit, user-action-only, one-way v1 → v2
+     promotion (§PI8.2 / §PI9.1);
+   - the **required editor scope** (§PI9.1 items 1–6);
+   - the **test boundaries** in §PI10 (v1 invariance incl. a stray `@foo` still
+     → `const 1`; the reference itself incl. the negative = literal test;
+     determinism incl. Monte Carlo; promotion is explicit + one-way; v2
+     round-trips preserve the version; an already-installed reader rejects a v2
+     `schema`) + the §PI11 lever table as an engine test.
    **No Coffee file.**
 3. **doc fold-in** — `docs/example-coffee-roastery.md` §CR3.5 / §CR6 / §CR8 /
    §CR9 / CR-D12 lose their "blocked" notes and state the real mechanism.
@@ -576,13 +705,14 @@ Register artefact. Shortfall read-outs ("missed sales", "dessert waste") remain
 ## PI15. Scope boundary
 
 - This doc fixes the **behaviour contract** for a parameter reference in a
-  resource-edge `flow`, plus the **compatibility contract** (the `version: 2`
-  discriminator + reader ceiling check, §PI8). It is **not** the frozen spec
-  (that is `SEMANTICS-M2.md`, written in the implementation PR) and **not** a
-  detailed UI design — §PI9 fixes *what must exist*, not the pixels.
-- It adds **no** capability beyond "a `flow` may be one parameter reference,
-  resolved to a number once per step" and the versioning needed to keep that
-  reproducible across clients.
+  resource-edge `flow`, plus the **compatibility contract** (the `schema`-based
+  model-semantics discriminator, explicit one-way v1 → v2 promotion, and the
+  store-held `modelVersion`, §PI8). It is **not** the frozen spec (that is
+  `SEMANTICS-M2.md`, written in the implementation PR) and **not** a detailed UI
+  design — §PI9 fixes *what must exist*, not the pixels.
+- It adds **no** capability beyond "in a v2 document, a `flow` may be one
+  parameter reference, resolved to a number once per step" and the versioning
+  needed to keep that reproducible across clients.
 - Everything in §PI1 **Out** and §PI12 stays out.
 - `docs/example-coffee-roastery.md` impl PR (2) does not start until the
   implementation PR here has merged and §CR13 step 3 (the doc fold-in) is done.
