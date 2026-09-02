@@ -111,7 +111,7 @@ export const ko: TemplateLabelDict = {
   // read-outs use "… 여유" — never `놓친 판매` / `품절 손실` / `폐기`. `label`
   // only — ids / expressions / positions stay English (§TLO-D4).
   'coffee-roastery': {
-    daily_customers: '하루 방문 고객 수',
+    cafe_retail_demand_kg: '카페·리테일 원두 수요량 (kg/일)',
     daily_roast_kg: '하루 로스팅량 (kg)',
     online_orders: '온라인 원두 주문량 (kg/일)',
     green_wholesale_kg: '생두 납품 주문량 (kg)',
@@ -125,15 +125,13 @@ export const ko: TemplateLabelDict = {
     online_sales: '온라인 포장 원두 판매',
     cafe_retail: '카페·리테일 원두 사용',
     roasted_bleed: '직원·커핑·샘플용',
-    cafe_footfall: '카페 방문',
-    cafe_demand: '누적 방문 고객',
     dessert_prep_src: '디저트 준비',
     dessert_stock: '디저트 재고',
     dessert_sales: '디저트 판매',
     dessert_wrapup: '마감 잔량',
-    total_revenue: '총매출',
-    total_cost: '총비용',
-    operating_profit: '영업이익',
+    projected_revenue: '하루 예상 매출',
+    planned_cost: '하루 계획 비용',
+    projected_operating_margin: '하루 예상 운영차익',
     roasted_supply_margin: '로스팅 원두 수급 여유',
     dessert_prep_margin: '디저트 준비 여유',
   },

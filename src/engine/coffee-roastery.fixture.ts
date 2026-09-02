@@ -9,49 +9,51 @@ import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 // engine resolves once per step.
 //
 // This is a PRODUCT DEMO, not a value oracle: coffee-roastery.test.ts pins
-// structural invariants (25 nodes, one `@param` edge per lever, mass-conserving
+// structural invariants (23 nodes, one `@param` edge per lever, mass-conserving
 // roasting split) and the §CR9.1 scenario *directions* — a deterministic run
 // before / after each single `@param` change — never specific numbers.
 //
+// ── every lever moves a real stock trajectory (rev 9) ──────────────────────
+// The five `@param` references sit on edges that the engine actually reads as a
+// rate, so changing any one of them moves a Pool trajectory, not just a Register
+// readout:
+//   cafe_retail_demand_kg — Drain pull off roasted-bean stock  (§CR6.1 #1)
+//   daily_roast_kg        — deterministic-Gate pull off green   (§CR6.1 #2)
+//   online_orders         — Drain pull off roasted-bean stock   (§CR6.1 #3)
+//   green_wholesale_kg    — Drain pull off green-bean stock     (§CR6.1 #4)
+//   dessert_prep          — Source push into the dessert pool   (§CR6.1 #5)
+// rev 9 replaced the old `daily_customers` footfall lever — it drove only a
+// cumulative-tally Pool and the Register formulas, never the roasted-stock
+// trajectory (a "Register numbers move only" pseudo-link, exactly what §CR16.2
+// rules out). It is now `cafe_retail_demand_kg`, wired straight onto the
+// `roasted_stock → cafe_retail` edge, and the disconnected footfall Source +
+// tally Pool are gone (25 → 23 nodes).
+//
 // ── the roasting node: a deterministic Gate, not a Converter (§CR6.1 rev 8) ──
 // "Daily roast amount (kg)" is *how much green goes to roast per day*. Under
-// frozen Engine A a Converter cannot carry that: I2 fixes `producedₖ = f·outRateₖ`
-// with a single `f ∈ [0, 1]` and ≤ 1 activation/step, so a Converter whose input
-// edge is `@daily_roast_kg` produces at most its constant `outRate` — the lever
-// stops mattering the moment green is not the binding constraint, and moves the
-// output *backwards* when it is. A deterministic Gate expresses the quantity
-// exactly: the ONE input edge `green_stock → roasting` carries `@daily_roast_kg`
-// (the day's roast intake), the Gate pulls `T = min(@daily_roast_kg, green
-// available)`, and two fixed weights split T into 82 % roasted-bean stock and
-// 18 % roasting weight loss. Raising / lowering the lever raises / lowers the
-// roasted inflow directly; when green stock is short, T — and therefore BOTH
-// the roasted output and the weight-loss path — fall together. Mass is
-// conserved (T kg green in, 0.82·T + 0.18·T out). The weight loss is a real
-// process drain (moisture / chaff), never labelled "waste".
+// frozen Engine A a Converter's output is `f·outRate` with `f ∈ [0, 1]` and
+// ≤ 1 activation/step (SEMANTICS.md I2), so a Converter whose input edge is
+// `@daily_roast_kg` produces at most its constant `outRate` — the lever stops
+// mattering once green is not the binding constraint, and moves the output
+// *backwards* when it is. A deterministic Gate expresses the quantity exactly:
+// the ONE input edge `green_stock → roasting` carries `@daily_roast_kg`, the
+// Gate pulls `T = min(@daily_roast_kg, green available)`, and two fixed weights
+// split T into 82 % roasted-bean stock and 18 % roasting weight loss (moisture /
+// chaff — a real process drain, never "waste"). Mass is conserved
+// (`0.82·T + 0.18·T = T`). `green_wholesale` sorts before `roasting`, so on a
+// short-green day the wholesale contract is filled first and the roaster is
+// genuinely starved (§CR9.1 #2).
 //
-// The Gate carries an activator `roasted_stock < roastTarget`: a roastery roasts
-// to keep the shelf stocked, so roasting pauses once roasted stock is at the
-// target and `@daily_roast_kg` sets the batch size on the days it does run. This
-// bounds roasted stock and makes the "roasted supply margin" proxy meaningful —
-// it reads how far the live roasted-stock level sits above / below the day's
-// demand buffer. `green_wholesale` sorts before `roasting` (id order), so on a
-// short-green day wholesale contracts are filled first and roasting takes what
-// is left — raising `green_wholesale_kg` genuinely starves the roaster (§CR9.1 #2).
-//
-// ── the other four levers ──
-//   daily_customers    — Source push amount into the cafe-demand pool (§CR6.1 #1)
-//   online_orders      — Drain pull amount off roasted-bean stock       (§CR6.1 #3)
-//   green_wholesale_kg — Drain pull amount off green-bean stock         (§CR6.1 #4)
-//   dessert_prep       — Source push amount into the dessert-stock pool (§CR6.1 #5)
-// green_wholesale_kg and daily_roast_kg both draw the SAME green-bean pool, so
-// wholesale genuinely competes with roasting for green beans (§CR9.1 #2) — there
-// is deliberately no second green pool.
-//
-// ── the Summary (five Registers, loop-expr/1: + - * / and @id only) ──
-// Four are formulas over the five Parameters + fixed prices / costs; one reads
-// the live roasted-stock level. The two "… margin" read-outs are SIGNED PROXIES
-// (docs/example-coffee-roastery.md §CR3.5) — `+` slack / leftover, `−` short /
-// sold out — never "missed sales" or "waste".
+// ── the Summary — five Registers (loop-expr/1: + - * / and @id only) ────────
+// Two signed PROXIES (§CR3.5) — `roasted supply margin` (reads the live
+// roasted-stock level) and `dessert prep margin`. THREE PLANNING PROXIES —
+// `projected revenue` / `planned cost` / `projected operating margin` are
+// computed from the *ordered / planned* levers assuming every unit of demand is
+// met; they are NOT realised revenue, cost, or accounting operating profit, and
+// must never be shown as such in a Register title, node label, blurb, Timeline
+// series, or §CR9 scenario. When roasted stock runs short the projected-revenue
+// line still rises with the order lever — the shortfall shows up in the
+// roasted-stock trajectory and the roasted-supply-margin proxy going negative.
 
 // ── tunable parameters (own invented numbers, one consistent unit: kg) ──────
 // Tuned so a 30-day run holds every Register finite from step 0, keeps green and
@@ -61,7 +63,7 @@ export const P = {
   steps: 30,
 
   // the five surfaced levers — their DEFAULT values (the reviewer changes these)
-  dailyCustomers: 90, // cafe drink demand per day
+  cafeRetailDemandKg: 6, // kg of roasted beans the cafe + retail counter sell per day
   dailyRoastKg: 26, // kg of green beans put to roast per day
   onlineOrders: 10, // kg of roasted beans leaving to online sales per day
   greenWholesaleKg: 6, // kg of green beans sold on to other businesses per day
@@ -74,23 +76,19 @@ export const P = {
   roastedStart: 30, // opening roasted-bean stock (kg)
   roastYieldPct: 82, // Gate weight → roasted-bean stock
   roastLossPct: 18, // Gate weight → roasting weight loss (moisture / chaff)
-  cafeRetailKg: 6, // steady cafe-drink + retail-bag bean use per day (kg)
   roastedBleedPct: 14, // % of roasted stock to staff / cupping / sampling per day
   dessertSales: 16, // dessert units the day's demand absorbs
   dessertWrapPct: 55, // % of the day's leftover dessert that does not carry over
 
-  // prices / unit costs — literal constants, read only by the Summary Registers
-  cafeRevenuePerCustomer: 4.6, // cafe drink + attached retail, per customer
+  // prices / unit costs — PLANNING constants, read only by the proxy Registers
+  cafeRetailPricePerKg: 30,
   onlineRevenuePerKg: 17,
   wholesaleRevenuePerKg: 9,
   greenCostPerKg: 5.5,
   dessertCostPerUnit: 1.4,
-  fixedDailyOther: 60, // misc. daily revenue not tied to a lever
+  fixedDailyOther: 60, // misc. planned daily revenue not tied to a lever
   fixedDailyCost: 140, // rent / staff / utilities baseline per day
-  roastedCoverDays: 2.1, // roasted-supply-margin buffer = this many days of demand
-  cafeKgPerCustomer: 0.09, // kg of roasted beans per cafe customer (margin demand term)
-  dessertAttachPerCustomer: 0.14, // dessert units demanded per customer
-  dessertBaseDemand: 5,
+  roastedCoverDays: 2.35, // roasted-supply-margin buffer = this many days of demand
 }
 
 export type CoffeeParams = typeof P
@@ -144,7 +142,7 @@ export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   const E = (e: LoopEdge) => (edges.push(e), e)
 
   // ── the five surfaced levers — one clear row along the top (§CR6) ──────────
-  N(param('daily_customers', 'Daily customers', { x: 40, y: 0 }, P.dailyCustomers))
+  N(param('cafe_retail_demand_kg', 'Cafe & retail bean demand (kg/day)', { x: 40, y: 0 }, P.cafeRetailDemandKg))
   N(param('daily_roast_kg', 'Daily roast amount (kg)', { x: 320, y: 0 }, P.dailyRoastKg))
   N(param('online_orders', 'Online bean orders (kg/day)', { x: 600, y: 0 }, P.onlineOrders))
   N(param('green_wholesale_kg', 'Green wholesale orders (kg)', { x: 880, y: 0 }, P.greenWholesaleKg))
@@ -184,26 +182,22 @@ export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   // online bagged beans — a Drain metered by lever #3 (§CR6.1 #3)
   N(mkNode('drain', 'online_sales', 'Online bagged-bean sales', { x: 1020, y: 160 }))
   E(res('e_online', 'roasted_stock', 'online_sales', '@online_orders'))
-  // cafe drinks + retail bags — a steady daily draw (not a surfaced lever)
+  // cafe drinks + retail bags — a Drain metered by lever #1 (§CR6.1 #1). This is
+  // the demand the cafe counter + retail shelf actually pull off roasted stock
+  // each day, so raising it draws roasted stock down (§CR9.1 #1).
   N(mkNode('drain', 'cafe_retail', 'Cafe & retail bean use', { x: 780, y: 360 }))
-  E(res('e_cafe_retail', 'roasted_stock', 'cafe_retail', num(P.cafeRetailKg)))
+  E(res('e_cafe_retail', 'roasted_stock', 'cafe_retail', '@cafe_retail_demand_kg'))
   // staff coffee / cupping / sampling — a small draw that scales with what is on
   // the shelf, so roasted stock settles to a level instead of running away.
   N(mkNode('drain', 'roasted_bleed', 'Staff, cupping & sampling', { x: 1020, y: 300 }))
   E(res('e_roasted_bleed', 'roasted_stock', 'roasted_bleed', `${num(P.roastedBleedPct)}%`))
 
-  // ── cafe footfall: lever #1 pushes demand into the cafe-demand pool (§CR6.1 #1)
-  // The pool is a running footfall tally — raising `daily_customers` steepens it.
-  N(mkNode('source', 'cafe_footfall', 'Cafe footfall', { x: 40, y: 470 }))
-  N(pool('cafe_demand', 'Customers to date', { x: 300, y: 470 }))
-  E(res('e_footfall', 'cafe_footfall', 'cafe_demand', '@daily_customers'))
-
   // ── dessert: lever #5 preps into the dessert pool; sales are demand-bounded,
   // most of the day's leftover does not carry over (§CR3.4). ────────────────
-  N(mkNode('source', 'dessert_prep_src', 'Dessert prep', { x: 40, y: 620 }))
-  N(pool('dessert_stock', 'Dessert stock', { x: 300, y: 620 }))
-  N(mkNode('drain', 'dessert_sales', 'Dessert sales', { x: 540, y: 620 }))
-  N(mkNode('drain', 'dessert_wrapup', 'End-of-day leftover', { x: 540, y: 760 }))
+  N(mkNode('source', 'dessert_prep_src', 'Dessert prep', { x: 40, y: 520 }))
+  N(pool('dessert_stock', 'Dessert stock', { x: 300, y: 520 }))
+  N(mkNode('drain', 'dessert_sales', 'Dessert sales', { x: 540, y: 520 }))
+  N(mkNode('drain', 'dessert_wrapup', 'End-of-day leftover', { x: 540, y: 660 }))
   E(res('e_dessert_in', 'dessert_prep_src', 'dessert_stock', '@dessert_prep'))
   E(res('e_dessert_sales', 'dessert_stock', 'dessert_sales', num(P.dessertSales)))
   // `dessert_sales` sorts before `dessert_wrapup` (id order), so the day's
@@ -212,36 +206,47 @@ export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } 
 
   // ── Summary — five Registers (loop-expr/1), one clean column, no ports ─────
   const rx = 1320
+  // PLANNING PROXY — projected on the ordered / planned levers, assumes all
+  // demand is met. NOT realised revenue (§CR3.5 / §CR8).
   N(
     reg(
-      'total_revenue',
-      'Total revenue',
-      `@daily_customers * ${num(P.cafeRevenuePerCustomer)} + @online_orders * ${num(
+      'projected_revenue',
+      'Projected daily revenue',
+      `@cafe_retail_demand_kg * ${num(P.cafeRetailPricePerKg)} + @online_orders * ${num(
         P.onlineRevenuePerKg,
       )} + @green_wholesale_kg * ${num(P.wholesaleRevenuePerKg)} + ${num(P.fixedDailyOther)}`,
       { x: rx, y: 0 },
     ),
   )
+  // PLANNING PROXY — the planned daily spend at the current levers. NOT a
+  // realised or accounting cost figure.
   N(
     reg(
-      'total_cost',
-      'Total cost',
+      'planned_cost',
+      'Planned daily cost',
       `(@daily_roast_kg + @green_wholesale_kg) * ${num(P.greenCostPerKg)} + @dessert_prep * ${num(
         P.dessertCostPerUnit,
       )} + ${num(P.fixedDailyCost)}`,
       { x: rx, y: 120 },
     ),
   )
-  N(reg('operating_profit', 'Operating profit', '@total_revenue - @total_cost', { x: rx, y: 240 }))
+  // PLANNING PROXY — projected revenue minus planned cost. NOT accounting
+  // operating profit; a shortfall in fulfilment does not reduce it.
+  N(
+    reg(
+      'projected_operating_margin',
+      'Projected daily operating margin',
+      '@projected_revenue - @planned_cost',
+      { x: rx, y: 240 },
+    ),
+  )
   // signed PROXY — reads the LIVE roasted-stock level against a demand buffer.
   // `+` = comfortable cover · `−` = below the buffer / running short (§CR3.5).
   N(
     reg(
       'roasted_supply_margin',
       'Roasted supply margin',
-      `@roasted_stock - (@daily_customers * ${num(P.cafeKgPerCustomer)} + @online_orders) * ${num(
-        P.roastedCoverDays,
-      )}`,
+      `@roasted_stock - (@cafe_retail_demand_kg + @online_orders) * ${num(P.roastedCoverDays)}`,
       { x: rx, y: 360 },
     ),
   )
@@ -251,9 +256,7 @@ export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     reg(
       'dessert_prep_margin',
       'Dessert prep margin',
-      `@dessert_prep - (@daily_customers * ${num(P.dessertAttachPerCustomer)} + ${num(
-        P.dessertBaseDemand,
-      )})`,
+      `@dessert_prep - ${num(P.dessertSales)}`,
       { x: rx, y: 480 },
     ),
   )
@@ -268,16 +271,17 @@ export const COFFEE_ROASTERY_MC = {
   steps: P.steps,
   tracked: ['green_stock', 'roasted_stock', 'dessert_stock'],
   // the Timeline's default visible set (Pool + Register ids, sorted) — the two
-  // headline inventories, the two signed-proxy margins, and the money line.
+  // headline inventories, the dessert pool, the two signed-proxy margins, and
+  // the three planning-proxy money lines.
   timelineSeries: [
     'dessert_prep_margin',
     'dessert_stock',
     'green_stock',
-    'operating_profit',
+    'planned_cost',
+    'projected_operating_margin',
+    'projected_revenue',
     'roasted_stock',
     'roasted_supply_margin',
-    'total_cost',
-    'total_revenue',
   ],
   // opens EDITABLE (§CR2.1) — the reviewer is meant to change the five levers,
   // so there is deliberately no `canvasLocked`.

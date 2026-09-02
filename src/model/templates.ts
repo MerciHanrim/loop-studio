@@ -110,7 +110,7 @@ export const TEMPLATES: Template[] = [
     id: 'coffee-roastery',
     name: 'Coffee roastery operations flow',
     blurb:
-      'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail, and stock and profit move as you change five daily operating values. A simplified simulation example — not an ERP or real-time monitoring system.',
+      'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail. Change five daily operating values and the stock trajectories and projected results move. A simplified simulation example — not an ERP or real-time monitoring system.',
     graph: normalizeGraph(
       coffeeRoasteryDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] },
     ),

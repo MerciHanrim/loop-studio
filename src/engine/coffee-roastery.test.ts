@@ -91,8 +91,8 @@ describe('coffee-roastery example', () => {
     expect(rrc && 'canvasLocked' in rrc).toBe(false)
   })
 
-  it('is ≤ 25 nodes, reads left → right, Registers sit in one clean column with no edges (§CR5)', () => {
-    expect(nodes.length).toBeLessThanOrEqual(25)
+  it('is ≤ 25 nodes (23 after rev 9), reads left → right, Registers sit in one clean column with no edges (§CR5)', () => {
+    expect(nodes.length).toBe(23)
     expect(nodes.length).toBe(built.nodes.length)
 
     const params = nodes.filter((n) => n.data.kind === 'parameter')
@@ -118,15 +118,16 @@ describe('coffee-roastery example', () => {
     expect(regs.every((r) => r.position.x > otherMaxX)).toBe(true)
   })
 
+  const LEVERS = [
+    'cafe_retail_demand_kg',
+    'daily_roast_kg',
+    'online_orders',
+    'green_wholesale_kg',
+    'dessert_prep',
+  ]
+
   it('each of the five levers is exactly one resource-edge flow `@<id>`, and nothing else (§CR6.1)', () => {
-    const levers = [
-      'daily_customers',
-      'daily_roast_kg',
-      'online_orders',
-      'green_wholesale_kg',
-      'dessert_prep',
-    ]
-    for (const id of levers) {
+    for (const id of LEVERS) {
       expect(byId.get(id)?.data.kind).toBe('parameter')
       const refs = edges.filter(
         (e) => e.data?.kind === 'resource' && (e.data.flow ?? '').trim() === `@${id}`,
@@ -139,7 +140,35 @@ describe('coffee-roastery example', () => {
     )
     expect(atFlows).toHaveLength(5)
     for (const e of atFlows) {
-      expect(levers).toContain((e.data as { flow: string }).flow.trim().slice(1))
+      expect(LEVERS).toContain((e.data as { flow: string }).flow.trim().slice(1))
+    }
+  })
+
+  it('every lever sits on an edge the engine reads as a rate — a Pool, not just a Register (rev 9)', () => {
+    // rev 9: no lever may drive only Register formulas. Each `@lever` edge must
+    // pull from / push into a Pool via a flow-router node (Source / Gate / Drain).
+    const flowKinds = new Set(['source', 'gate', 'drain'])
+    for (const id of LEVERS) {
+      const e = edges.find(
+        (x) => x.data?.kind === 'resource' && (x.data.flow ?? '').trim() === `@${id}`,
+      )!
+      const src = byId.get(e.source)!.data.kind
+      const tgt = byId.get(e.target)!.data.kind
+      // one endpoint is a Pool, the other a flow-router that meters the rate
+      const touchesPool = src === 'pool' || tgt === 'pool'
+      const touchesRouter = flowKinds.has(src) || flowKinds.has(tgt)
+      expect(touchesPool && touchesRouter, `${id}: ${e.source}(${src}) → ${e.target}(${tgt})`).toBe(true)
+    }
+  })
+
+  it('the three money Registers are named as PLANNING PROXIES, not realised figures (rev 9 / §CR3.5)', () => {
+    const label = (id: string) => (byId.get(id)!.data as { label: string }).label
+    expect(label('projected_revenue')).toMatch(/Projected/)
+    expect(label('planned_cost')).toMatch(/Planned/)
+    expect(label('projected_operating_margin')).toMatch(/Projected/)
+    // never presented as actual / realised revenue or profit
+    for (const id of ['projected_revenue', 'planned_cost', 'projected_operating_margin']) {
+      expect(label(id).toLowerCase()).not.toMatch(/\bactual\b|\brealis|revenue earned|profit\b/)
     }
   })
 
@@ -232,39 +261,52 @@ describe('coffee-roastery example', () => {
     expect(trace()).toBe(trace())
   })
 
-  describe('§CR9.1 — each lever change moves a real trajectory in the stated direction', () => {
+  describe('§CR9.1 — each lever change moves a real Pool trajectory in the stated direction', () => {
     const base = runWith({})
 
-    it('1. roast amount too low (`daily_roast_kg` ↓): roasted-stock ↓, roasted supply margin → negative', () => {
+    it('1. cafe / retail demand up (`cafe_retail_demand_kg` ↑): roasted-stock trajectory ↓, roasted supply margin → negative', () => {
+      const more = runWith({ cafe_retail_demand_kg: 16 })
+      expect(more.pools.roasted_stock).toBeLessThan(base.pools.roasted_stock)
+      expect(more.reg('roasted_supply_margin')).toBeLessThan(base.reg('roasted_supply_margin'))
+      expect(more.reg('roasted_supply_margin')).toBeLessThan(0)
+    })
+
+    it('2. roast amount too low (`daily_roast_kg` ↓): roasted-stock ↓, roasted supply margin → negative', () => {
       const low = runWith({ daily_roast_kg: 14 })
       expect(low.pools.roasted_stock).toBeLessThan(base.pools.roasted_stock)
       expect(low.reg('roasted_supply_margin')).toBeLessThan(base.reg('roasted_supply_margin'))
       expect(low.reg('roasted_supply_margin')).toBeLessThan(0)
     })
 
-    it('2. more green wholesale (`green_wholesale_kg` ↑): green stock ↓, green for roasting ↓ → roasted stock ↓, wholesale revenue ↑', () => {
+    it('3. more green wholesale (`green_wholesale_kg` ↑): green stock ↓, the roaster is starved → roasted stock ↓; projected revenue ↑ (plan only)', () => {
       const more = runWith({ green_wholesale_kg: 18 })
       expect(more.pools.green_stock).toBeLessThan(base.pools.green_stock)
       expect(more.pools.roasted_stock).toBeLessThan(base.pools.roasted_stock)
-      expect(more.reg('total_revenue')).toBeGreaterThan(base.reg('total_revenue'))
+      // projected_revenue is a PLANNING proxy — it rises with the order lever
+      // even though roasted stock (above) shows the plan is not fulfillable.
+      expect(more.reg('projected_revenue')).toBeGreaterThan(base.reg('projected_revenue'))
     })
 
-    it('3. dessert prep above demand (`dessert_prep` ↑): dessert stock ↑, dessert prep margin more positive, total cost ↑', () => {
+    it('4. dessert prep above demand (`dessert_prep` ↑): dessert stock ↑, dessert prep margin more positive, planned cost ↑', () => {
       const more = runWith({ dessert_prep: 34 })
       expect(more.pools.dessert_stock).toBeGreaterThan(base.pools.dessert_stock)
       expect(more.reg('dessert_prep_margin')).toBeGreaterThan(base.reg('dessert_prep_margin'))
-      expect(more.reg('total_cost')).toBeGreaterThan(base.reg('total_cost'))
+      expect(more.reg('planned_cost')).toBeGreaterThan(base.reg('planned_cost'))
     })
 
-    it('4. more online orders (`online_orders` ↑): roasted stock ↓, online revenue ↑, operating profit ↑', () => {
+    it('5. more online orders (`online_orders` ↑): roasted stock ↓, roasted supply margin → negative; projected revenue / margin ↑ (plan only)', () => {
       const more = runWith({ online_orders: 22 })
       expect(more.pools.roasted_stock).toBeLessThan(base.pools.roasted_stock)
-      expect(more.reg('total_revenue')).toBeGreaterThan(base.reg('total_revenue'))
-      expect(more.reg('operating_profit')).toBeGreaterThan(base.reg('operating_profit'))
       expect(more.reg('roasted_supply_margin')).toBeLessThan(base.reg('roasted_supply_margin'))
+      // planning proxies — projected, not realised (roasted stock above shows
+      // the shortfall the projected figures do not net out).
+      expect(more.reg('projected_revenue')).toBeGreaterThan(base.reg('projected_revenue'))
+      expect(more.reg('projected_operating_margin')).toBeGreaterThan(
+        base.reg('projected_operating_margin'),
+      )
     })
 
-    it('5. roast amount at a sensible level (the default): roasted supply margin sits nearer zero than the too-low / too-high cases', () => {
+    it('6. roast amount at a sensible level (the default): roasted supply margin sits nearer zero than the too-low / too-high cases', () => {
       const low = Math.abs(runWith({ daily_roast_kg: 14 }).reg('roasted_supply_margin'))
       const tuned = Math.abs(base.reg('roasted_supply_margin')) // the shipped default IS the sensible point
       const high = Math.abs(runWith({ daily_roast_kg: 42 }).reg('roasted_supply_margin'))

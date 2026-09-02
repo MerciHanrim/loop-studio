@@ -3,7 +3,7 @@
   "version": 1,
   "nodes": [
     {
-      "id": "daily_customers",
+      "id": "cafe_retail_demand_kg",
       "type": "parameter",
       "position": {
         "x": 40,
@@ -11,8 +11,8 @@
       },
       "data": {
         "kind": "parameter",
-        "label": "Daily customers",
-        "value": 90
+        "label": "Cafe & retail bean demand (kg/day)",
+        "value": 6
       }
     },
     {
@@ -198,41 +198,11 @@
       }
     },
     {
-      "id": "cafe_footfall",
-      "type": "source",
-      "position": {
-        "x": 40,
-        "y": 470
-      },
-      "data": {
-        "kind": "source",
-        "label": "Cafe footfall",
-        "activation": "automatic",
-        "mode": "pushAny"
-      }
-    },
-    {
-      "id": "cafe_demand",
-      "type": "pool",
-      "position": {
-        "x": 300,
-        "y": 470
-      },
-      "data": {
-        "kind": "pool",
-        "label": "Customers to date",
-        "activation": "passive",
-        "initial": 0,
-        "capacity": null,
-        "mode": "pullAny"
-      }
-    },
-    {
       "id": "dessert_prep_src",
       "type": "source",
       "position": {
         "x": 40,
-        "y": 620
+        "y": 520
       },
       "data": {
         "kind": "source",
@@ -246,7 +216,7 @@
       "type": "pool",
       "position": {
         "x": 300,
-        "y": 620
+        "y": 520
       },
       "data": {
         "kind": "pool",
@@ -262,7 +232,7 @@
       "type": "drain",
       "position": {
         "x": 540,
-        "y": 620
+        "y": 520
       },
       "data": {
         "kind": "drain",
@@ -276,7 +246,7 @@
       "type": "drain",
       "position": {
         "x": 540,
-        "y": 760
+        "y": 660
       },
       "data": {
         "kind": "drain",
@@ -286,7 +256,7 @@
       }
     },
     {
-      "id": "total_revenue",
+      "id": "projected_revenue",
       "type": "register",
       "position": {
         "x": 1320,
@@ -294,12 +264,12 @@
       },
       "data": {
         "kind": "register",
-        "label": "Total revenue",
-        "expr": "@daily_customers * 4.6 + @online_orders * 17 + @green_wholesale_kg * 9 + 60"
+        "label": "Projected daily revenue",
+        "expr": "@cafe_retail_demand_kg * 30 + @online_orders * 17 + @green_wholesale_kg * 9 + 60"
       }
     },
     {
-      "id": "total_cost",
+      "id": "planned_cost",
       "type": "register",
       "position": {
         "x": 1320,
@@ -307,12 +277,12 @@
       },
       "data": {
         "kind": "register",
-        "label": "Total cost",
+        "label": "Planned daily cost",
         "expr": "(@daily_roast_kg + @green_wholesale_kg) * 5.5 + @dessert_prep * 1.4 + 140"
       }
     },
     {
-      "id": "operating_profit",
+      "id": "projected_operating_margin",
       "type": "register",
       "position": {
         "x": 1320,
@@ -320,8 +290,8 @@
       },
       "data": {
         "kind": "register",
-        "label": "Operating profit",
-        "expr": "@total_revenue - @total_cost"
+        "label": "Projected daily operating margin",
+        "expr": "@projected_revenue - @planned_cost"
       }
     },
     {
@@ -334,7 +304,7 @@
       "data": {
         "kind": "register",
         "label": "Roasted supply margin",
-        "expr": "@roasted_stock - (@daily_customers * 0.09 + @online_orders) * 2.1"
+        "expr": "@roasted_stock - (@cafe_retail_demand_kg + @online_orders) * 2.35"
       }
     },
     {
@@ -347,7 +317,7 @@
       "data": {
         "kind": "register",
         "label": "Dessert prep margin",
-        "expr": "@dessert_prep - (@daily_customers * 0.14 + 5)"
+        "expr": "@dessert_prep - 16"
       }
     }
   ],
@@ -433,7 +403,7 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "6"
+        "flow": "@cafe_retail_demand_kg"
       }
     },
     {
@@ -446,18 +416,6 @@
       "data": {
         "kind": "resource",
         "flow": "14%"
-      }
-    },
-    {
-      "id": "e_footfall",
-      "source": "cafe_footfall",
-      "target": "cafe_demand",
-      "sourceHandle": "out",
-      "targetHandle": "in",
-      "type": "loop",
-      "data": {
-        "kind": "resource",
-        "flow": "@daily_customers"
       }
     },
     {
@@ -510,11 +468,11 @@
       "dessert_prep_margin",
       "dessert_stock",
       "green_stock",
-      "operating_profit",
+      "planned_cost",
+      "projected_operating_margin",
+      "projected_revenue",
       "roasted_stock",
-      "roasted_supply_margin",
-      "total_cost",
-      "total_revenue"
+      "roasted_supply_margin"
     ]
   }
 }

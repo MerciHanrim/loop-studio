@@ -120,7 +120,7 @@ describe('openTemplate — model-semantics version (loop-model/2, §CR2.1a)', ()
       .filter((e) => String((e.data as { flow?: string }).flow ?? '').startsWith('@'))
       .map((e) => (e.data as { flow: string }).flow)
     expect(atFlows.sort()).toEqual([
-      '@daily_customers',
+      '@cafe_retail_demand_kg',
       '@daily_roast_kg',
       '@dessert_prep',
       '@green_wholesale_kg',

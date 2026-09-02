@@ -564,11 +564,11 @@ GEN_MMO_PROGRESSION=1 npx vitest run src/engine/mmo-progression.test.ts
 `coffee-roastery.json` — the fourth **Templates ▾** entry and the first bundled
 file authored at **`schema` `loop-studio/graph/2`** (`loop-model/2`). Design:
 `docs/example-coffee-roastery.md` (settled, non-frozen). A small, **assumption-
-based** model for changing a few operating conditions and watching how green /
-roasted stock, sales and profit relate — a **simplified simulation example, not
-an ERP or real-time monitoring system** (`단순화한 시뮬레이션 예제이며 ERP나
-실시간 모니터링 시스템이 아닙니다.`). It is an experimental Template at the
-`preview` stage.
+based** model (23 nodes) for changing a few operating conditions and watching how
+green / roasted / dessert stock and the projected results relate — a
+**simplified simulation example, not an ERP or real-time monitoring system**
+(`단순화한 시뮬레이션 예제이며 ERP나 실시간 모니터링 시스템이 아닙니다.`). It is
+an experimental Template at the `preview` stage.
 
 Built + verified by `src/engine/coffee-roastery.fixture.ts`; it is **not** a
 value oracle (no `*.expected.json`) — `src/engine/coffee-roastery.test.ts` pins
@@ -578,13 +578,21 @@ structure, the mass-conserving roasting split, "every Register finite from step
 
 ## The five surfaced levers (each = exactly one `resource`-edge `flow` `@<id>`)
 
+Every lever sits on an edge the engine reads as a rate, so changing any one of
+them moves a **Pool trajectory**, not just a Register readout (rev 9).
+
 | lever (`parameter` id) | the one edge whose `flow` is `@<id>` | engine role |
 |---|---|---|
-| **Daily customers** (`daily_customers`) | `cafe_footfall → cafe_demand` | Source push amount — cafe footfall per day |
+| **Cafe & retail bean demand (kg/day)** (`cafe_retail_demand_kg`) | `roasted_stock → cafe_retail` | Drain pull amount — roasted kg the cafe + retail counter sell per day |
 | **Daily roast amount (kg)** (`daily_roast_kg`) | `green_stock → roasting` | deterministic-Gate pull amount — kg of green put to roast per day |
 | **Online bean orders (kg/day)** (`online_orders`) | `roasted_stock → online_sales` | Drain pull amount — roasted kg leaving to online per day |
 | **Green wholesale orders (kg)** (`green_wholesale_kg`) | `green_stock → green_wholesale` | Drain pull amount — green kg sold on per day |
 | **Daily dessert prep** (`dessert_prep`) | `dessert_prep_src → dessert_stock` | Source push amount — dessert units prepared per day |
+
+*(rev 9 replaced the earlier `daily_customers` footfall lever — it fed only a
+cumulative-tally Pool and the Register formulas, never the roasted-stock
+trajectory. The disconnected footfall Source + tally Pool were removed, 25 → 23
+nodes.)*
 
 `green_wholesale` and `roasting` draw the **same** green pool, so wholesale
 genuinely competes with the roaster for green beans. **Roasting is a
@@ -597,12 +605,18 @@ carries the day's roast intake exactly and splits it 82 % → roasted stock,
 
 ## The Summary (five Registers, `loop-expr/1`: `+ - * /` and `@id` only)
 
-`Total revenue`, `Total cost`, `Operating profit`, and two **signed proxies**
-(`docs/example-coffee-roastery.md` §CR3.5) — **`Roasted supply margin`** (`+` the
-live roasted-stock level covers the demand buffer · `−` running short) and
-**`Dessert prep margin`** (`+` prepared more than the day sold · `−` sold out).
-Both are operating cues, **not** measured losses / waste / accounting figures,
-and are never labelled `missed sales` / `waste` / `폐기`.
+- Two **signed proxies** (`docs/example-coffee-roastery.md` §CR3.5) —
+  **`Roasted supply margin`** (`+` the live roasted-stock level covers the demand
+  buffer · `−` running short) and **`Dessert prep margin`** (`+` prepared more
+  than the day sold · `−` sold out). Operating cues, **not** measured losses /
+  waste / accounting figures — never labelled `missed sales` / `waste` / `폐기`.
+- Three **planning proxies** — **`Projected daily revenue`**,
+  **`Planned daily cost`**, **`Projected daily operating margin`**. Computed from
+  the *ordered / planned* levers assuming every unit of demand is met, so they
+  are **not** realised revenue, cost, or accounting operating profit. When
+  roasted stock runs short the projected-revenue line still rises with the order
+  lever — the shortfall shows in the roasted-stock trajectory and the
+  roasted-supply-margin proxy going negative, not in these figures.
 
 ## Manual check in the app
 
@@ -616,13 +630,15 @@ Templates ▾ → "Coffee roastery operations flow" (or Import examples/coffee-r
 
 Live — Play → green stock holds near its opening level; roasted stock settles
               around its shelf level; Roasted supply margin ≈ 0 at the defaults
+Edit  cafe_retail_demand_kg → 16 → roasted stock falls; Roasted supply margin negative
 Edit  daily_roast_kg → 14 → roasted stock falls; Roasted supply margin goes negative
 Edit  green_wholesale_kg → 18 → green stock drawn down; the roaster is starved;
-              roasted stock falls; wholesale revenue (in Total revenue) rises
-Edit  online_orders → 22 → roasted stock draws down faster; online revenue and
-              Operating profit rise; Roasted supply margin goes negative
+              roasted stock falls; Projected daily revenue rises (plan only —
+              roasted stock shows the plan is not fulfillable)
+Edit  online_orders → 22 → roasted stock draws down faster; Roasted supply margin
+              goes negative; Projected daily revenue / operating margin rise (plan only)
 Edit  dessert_prep → 34 → dessert stock climbs; Dessert prep margin more positive;
-              Total cost rises
+              Planned daily cost rises
 ```
 
 ## Regenerating
