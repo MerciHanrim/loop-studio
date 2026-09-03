@@ -103,17 +103,27 @@ where to look."
 | # | Criterion | How it is evaluated |
 |---|---|---|
 | S1 | A reader shown the MMO example with auto frames on can point to "roughly where combat / rewards / economy / progression happen" **faster** than with frames off | timed comprehension check, same protocol family as §CR11 — read → describe the major areas; frames-on vs frames-off, counterbalanced |
-| S2 | Frame **count** on a 90-node graph is in a **legible band** — target **3–6**, hard fail outside **2–10** | assertion on the dry-run + a CI test on the MMO fixture |
-| S3 | **No mega-frame** — no single auto frame contains **> 60 %** of the framed nodes | assertion |
-| S4 | **No confetti** — no auto frame contains **< 3** nodes (tiny groups are merged or dropped, §AF3.6) | assertion |
-| S5 | Re-running **Suggest frames** on an unchanged `(graph, positions)` produces byte-identical frames (rects, labels, order) | determinism test (§AF8) |
-| S6 | A sim run, a Step, toggling Activity, changing Focus, or applying a Filter **never** changes the auto frames | recompute-trigger test (§AF4) |
-| S7 | Expected shape on the three bundled graphs is met (§AF3.7 table) | dry-run recorded in this doc + a fixture test |
+| S2 | On the **MMO fixture** the frame count lands in the legible band **3–6** (`MAX_FRAMES` caps the top; ≥ 3 is expected for this graph's structure) | assertion on the dry-run + a CI test **on the MMO fixture** |
+| S3 | **No mega-frame** — no single auto frame contains **> 55 %** of a component's framed nodes. *This one **is** a runtime property* — enforced by §AF3.6 rule 2 (split-big) on every graph | assertion + a runtime property of the algorithm |
+| S4 | **No confetti** — no auto frame contains **< 3** nodes. *Also a runtime property* — §AF3.6 rule 1 merges or drops tiny groups on every graph | assertion + a runtime property of the algorithm |
+| S5 | Re-running **Suggest frames** on an unchanged `(graph, positions)` produces byte-identical frames (rects, labels, order) — a runtime property | determinism test (§AF8) |
+| S6 | A sim run, a Step, toggling Activity, changing Focus, or applying a Filter **never** changes the auto frames — a runtime property | recompute-trigger test (§AF4) |
+| S7 | Expected shape on the **three bundled fixtures** is met (§AF3.6 dry-run table) — a regression check on graphs we know | dry-run recorded in this doc + a fixture test |
+
+**Fixture criteria vs runtime properties.** S3, S4, S5, S6 are **runtime
+properties** — the algorithm upholds them on *any* graph. S1, S2, S7 (and the
+`framed fraction ≥ 0.5` check, §AF3.6) are **fixture criteria** — they say what
+the current algorithm should produce on the Coffee / MMO / default graphs, to
+catch a quality regression. They are **not** guarantees for an arbitrary user
+graph: a user graph with little clean structure may legitimately yield 1–2
+frames or **none**, and that is a normal successful `Suggest` result, not a
+failure (§AF10.4). The algorithm never merges or fabricates a cluster to hit a
+count or a coverage number.
 
 **Explicitly NOT a success criterion:** that the frames "correctly classify the
 domain meaning" of each region. The frames are structural; the labels say so
 (§AF9.2). A region that a domain expert would draw differently is **not** a
-failure as long as S1–S7 hold.
+failure as long as the runtime properties hold.
 
 ### AF2.4 Failure modes to detect
 
@@ -282,9 +292,24 @@ component**:
 | MMO | `[28, 18, 13, 10, 7, 7, 4, 3]` | `[28, 18, 13, 10, 7, 7, 7]` (the two 3–4 groups merge up into their densest neighbour) | `[28, 18, 13, 10, 7, 7, 7]` — the 28-group is 0.31 of 90, **under** 0.55, so **no split** | `[28, 18, 13, 10, 7, 7]` — the 7th group (the lowest-ranked 7-node group) is **dropped**, ~63 of 90 nodes framed | **6** | meets S2 (3–6), S3 (largest ≈ 31 %), S4 (min 6); ~27 MMO nodes intentionally unframed |
 
 The dropped MMO group is a low-density 7-node cluster; leaving it unframed is
-preferable to a 7th frame or to bloating a neighbour. A CI assertion on the MMO
-fixture pins **count = 6** and **framed fraction ≥ 0.5** (so "drop the rest"
-never degenerates into framing almost nothing).
+preferable to a 7th frame or to bloating a neighbour.
+
+**`framed fraction ≥ 0.5` is a *fixture quality bar*, not a runtime invariant.**
+A CI assertion on the **Coffee and MMO fixtures** pins the expected frame count
+(3 and 6) and `framed fraction ≥ 0.5` — its only job is to catch an *algorithm
+quality regression* on graphs we know well ("did a change start dropping groups
+it used to keep"). It is **not** applied to arbitrary user graphs and it never
+changes what the algorithm does:
+
+- The algorithm **never** merges or fabricates a weak cluster to reach 50 %
+  coverage. Rules 1–3 (§AF3.6) run purely on cluster quality; the framed
+  fraction is only *observed* afterward, never *targeted*.
+- On a user graph whose structure yields few reliable clusters, a **low framed
+  fraction, a handful of frames, or "no frames to suggest" are all valid
+  normal results** — `Suggest frames` completes successfully, no error, no
+  failure state (§AF10.4).
+- The 0.5 number lives only in the fixture tests. It carries no meaning for a
+  live graph.
 
 ### AF3.7 Dry-run source
 
@@ -471,7 +496,9 @@ toggle, a sim step, and input-array order reversed (extends LGR-INV-7):
   auto frames.
 - **fixture** — Coffee → exactly **3** auto frames with the recorded member
   sets; MMO → exactly **6** frames, no frame > S3 fraction, none < S4 size,
-  **framed fraction ≥ 0.5** (the cap dropped groups but did not gut the graph).
+  **framed fraction ≥ 0.5** — a **fixture quality bar only** (catches an
+  algorithm regression on these two known graphs; never asserted on arbitrary
+  user graphs, never a runtime invariant — §AF3.6).
 - **e2e** — Suggest frames from the desktop control + the mobile More sheet;
   auto set replaced on re-infer; manual frames preserved (§AF5 R3); a committed
   rename/resize promotes to manual, a cancelled edit stays auto (§AF5 R5/R6);
@@ -599,8 +626,9 @@ suggestFrames(graph, positions):
 | graph below the §AF2.2 floor | Suggest yields 0–1 frames; the control does not nag |
 | a component that resists splitting (no gap ≥ MIN_SPLIT_GAP) | leave the large frame whole; record it; do not cut arbitrarily |
 | LP does not converge in 20 rounds | stop at round 20 (deterministic); the partition at that point is used |
-| every node is a model node | 0 auto frames; a short "nothing to group" note |
-| more than 6 candidate groups survive 1–2 | keep the 6 highest-ranked; **drop** the rest — those nodes stay unframed (§AF3.6 rule 3). A `framed fraction ≥ 0.5` assertion guards against dropping almost everything |
+| every node is a model node | 0 auto frames; a short "nothing to group" note — a **normal** result, not an error |
+| a user graph with few reliable clusters (framed fraction < 0.5, or only 1–2 frames, or none) | **valid normal output** — `Suggest frames` completes with no error; the algorithm never merges / fabricates a cluster to raise coverage. The `framed fraction ≥ 0.5` check is a **fixture-only** quality bar (§AF3.6), not applied here |
+| more than 6 candidate groups survive 1–2 | keep the 6 highest-ranked; **drop** the rest — those nodes stay unframed (§AF3.6 rule 3) |
 | Suggest invoked twice with no change | identical frames (S5); the second invoke is a no-op visually |
 | a node deleted after Suggest so a frame's member set is empty | that auto frame is dropped on the next re-infer; until then it renders at its last rect with the staleness indicator shown |
 
