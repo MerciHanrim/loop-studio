@@ -411,3 +411,136 @@ describe('loop-model/2 — schema discriminator (SEMANTICS-M2.md §M2-1)', () =>
     expect((JSON.parse(reser).edges[0].data as { flow: string }).flow).toBe('@foo')
   })
 })
+
+// ── LGR Slice 5 — saved frames (SEMANTICS-R5.md §R5-1.1 / §R5-2) ────────────
+describe('serialize / deserialize — saved frames (loop-revision/5)', () => {
+  const G = () => {
+    const s = useGraphStore.getState()
+    s.newGraph()
+    s.addNodeAt('pool', { x: 0, y: 0 })
+    return useGraphStore.getState()
+  }
+  const F = (over: Partial<import('./serialize').SavedFrame> = {}): import('./serialize').SavedFrame => ({
+    id: 'f1',
+    label: 'Zone',
+    rect: { x: 10, y: 20, w: 300, h: 200 },
+    ...over,
+  })
+
+  it('no frames ⇒ NO `frames` key; byte-identical to a pre-Slice-5 write', () => {
+    const g = G()
+    const withoutArg = serialize(g.nodes, g.edges)
+    const withEmpty = serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, [])
+    expect(JSON.parse(withoutArg)).not.toHaveProperty('frames')
+    expect(withEmpty).toBe(withoutArg)
+  })
+
+  it('serialize writes `frames` (canonical key order id/label/rect/color); color omitted when neutral', () => {
+    const g = G()
+    const out = JSON.parse(
+      serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, [
+        F(),
+        F({ id: 'f2', label: 'Rewards', color: 'rose' }),
+      ]),
+    )
+    expect(out.frames).toEqual([
+      { id: 'f1', label: 'Zone', rect: { x: 10, y: 20, w: 300, h: 200 } },
+      { id: 'f2', label: 'Rewards', rect: { x: 10, y: 20, w: 300, h: 200 }, color: 'rose' },
+    ])
+    // key order on the coloured frame
+    expect(Object.keys(out.frames[1])).toEqual(['id', 'label', 'rect', 'color'])
+    expect(Object.keys(out.frames[1].rect)).toEqual(['x', 'y', 'w', 'h'])
+  })
+
+  it('round-trips label / rect / color; file order preserved; `n` never on the wire', () => {
+    const g = G()
+    const frames = [F({ id: 'a', label: 'One' }), F({ id: 'b', label: 'Two', color: 'gold' })]
+    const back = deserialize(serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, frames))
+    expect(back.frames).toEqual(frames)
+    expect(back.frames[0]).not.toHaveProperty('n')
+  })
+
+  it('deserialize of a file with no `frames` ⇒ frames: []', () => {
+    expect(deserialize(doc([n('p', 'pool')], [])).frames).toEqual([])
+  })
+
+  it('§R5-1.1 defensive read — a bad entry is DROPPED, the graph is KEPT', () => {
+    const raw = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [n('p', 'pool')],
+      edges: [],
+      frames: [
+        { id: 'ok', label: 'good', rect: { x: 1, y: 2, w: 100, h: 50 }, color: 'sage' },
+        { id: 'nan', label: 'x', rect: { x: NaN, y: 0, w: 10, h: 10 } }, // non-finite → drop
+        { id: 'zero', label: 'x', rect: { x: 0, y: 0, w: 0, h: 10 } }, // w<=0 → drop
+        { id: 'norect', label: 'x' }, // no rect → drop
+        'nope', // not an object → drop
+        { id: 'badcolor', label: 'x', rect: { x: 0, y: 0, w: 5, h: 5 }, color: 'chartreuse' }, // kept, color dropped
+        { id: 'ok', label: 'dup', rect: { x: 9, y: 9, w: 9, h: 9 } }, // dup id → fresh id, kept
+        { label: 'noid', rect: { x: 3, y: 3, w: 3, h: 3 } }, // missing id → fresh id, kept
+        { id: 'long', label: 'y'.repeat(200), rect: { x: 0, y: 0, w: 4, h: 4 } }, // label capped
+      ],
+    })
+    const back = deserialize(raw)
+    expect(back.nodes).toHaveLength(1) // graph kept
+    const labels = back.frames.map((f) => f.label)
+    expect(labels).toEqual(['good', 'x', 'dup', 'noid', 'y'.repeat(120)])
+    expect(back.frames.find((f) => f.label === 'x')?.color).toBeUndefined() // unknown color dropped
+    // ids are all present + unique
+    const ids = back.frames.map((f) => f.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids.every((i) => typeof i === 'string' && i.length > 0)).toBe(true)
+  })
+
+  it('§R5-1.1 — at most SF_FRAMES_MAX (200) entries survive', () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({
+      id: `f${i}`,
+      label: `${i}`,
+      rect: { x: i, y: 0, w: 10, h: 10 },
+    }))
+    const raw = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [n('p', 'pool')], edges: [], frames: many })
+    expect(deserialize(raw).frames).toHaveLength(200)
+  })
+
+  it('`frames: []` / not-an-array in the file ⇒ frames: []', () => {
+    for (const v of [[], 'x', 42, {}, null]) {
+      const raw = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [n('p', 'pool')], edges: [], frames: v })
+      expect(deserialize(raw).frames).toEqual([])
+    }
+  })
+
+  it('a coloured frame with rect keys out of order still projects x/y/w/h in order', () => {
+    const g = G()
+    const out = JSON.parse(
+      serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, [
+        { id: 'f', label: '', rect: { h: 1, w: 2, y: 3, x: 4 } as never },
+      ]),
+    )
+    expect(Object.keys(out.frames[0].rect)).toEqual(['x', 'y', 'w', 'h'])
+    expect(out.frames[0].rect).toEqual({ x: 4, y: 3, w: 2, h: 1 })
+  })
+
+  describe('saveToStorage / loadFromStorage carry frames', () => {
+    class Mem {
+      m = new Map<string, string>()
+      getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null }
+      setItem(k: string, v: string) { this.m.set(k, String(v)) }
+      removeItem(k: string) { this.m.delete(k) }
+      clear() { this.m.clear() }
+      key(i: number) { return [...this.m.keys()][i] ?? null }
+      get length() { return this.m.size }
+    }
+    beforeEach(() => vi.stubGlobal('localStorage', new Mem()))
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('the current frames ride the autosave write atomically; an empty set writes no key', () => {
+      const g = G()
+      saveToStorage(g.nodes, g.edges, undefined, undefined, 1, [F({ color: 'violet' })])
+      expect(loadFromStorage()!.frames).toEqual([F({ color: 'violet' })])
+      saveToStorage(g.nodes, g.edges, undefined, undefined, 1, [])
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('frames')
+      expect(loadFromStorage()!.frames).toEqual([])
+    })
+  })
+})

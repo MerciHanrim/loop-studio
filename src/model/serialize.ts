@@ -73,12 +73,38 @@ export type RecommendedRunConfig = {
   canvasLocked?: boolean
 }
 
+/**
+ * LGR Slice 5 (`SEMANTICS-R5.md` / `docs/large-graph-readability-saved-frames.md`)
+ * — a saved group frame. A labelled rectangle with an optional preset accent
+ * and **no membership** (§LGR6.5). Graph-level, `loop-revision/5` **cosmetic**
+ * content: it never reaches the engine, `SimState`, or the semantic digest, and
+ * `frames` absent / empty ⇒ the file is byte-identical to a pre-Slice-5 file.
+ * Only a MANUAL frame (drawn, or an auto frame the user promoted — §AF5 R5) is
+ * ever written here; a pure suggested frame stays session-only.
+ */
+export const SF_FRAME_COLORS = ['slate', 'sage', 'gold', 'violet', 'rose'] as const
+export type SavedFrameColor = (typeof SF_FRAME_COLORS)[number]
+/** §R5-1.1 — the defensive-read caps. */
+export const SF_LABEL_MAX = 120
+export const SF_FRAMES_MAX = 200
+
+export type SavedFrame = {
+  id: string
+  label: string
+  rect: { x: number; y: number; w: number; h: number }
+  color?: SavedFrameColor
+}
+
 export type GraphDoc = {
   schema: string
   version: number
   nodes: LoopNode[]
   edges: LoopEdge[]
   recommendedRunConfig?: RecommendedRunConfig
+  /** LGR Slice 5 (`loop-revision/5`, SEMANTICS-R5.md) — the saved manual group
+   *  frames. Emitted only when non-empty; absent ⇒ no frames, byte-identical to
+   *  a pre-Slice-5 file. Read defensively (`readSavedFrames`). */
+  frames?: SavedFrame[]
   /** loop-workspace/1 extension (SEMANTICS-W.md) — an opaque blob here; the
    *  Workspace reader validates it against the loaded graph. Absent on a plain
    *  Graph Export. */
@@ -88,6 +114,65 @@ export type GraphDoc = {
    *  lightweight project *header* (never `base.content`, never `workspace`) so
    *  the graph + its project lineage are one atomic `localStorage` write. */
   project?: unknown
+}
+
+let sfSeq = 0
+const freshFrameId = (): string => `frame_${Date.now().toString(36)}_${(sfSeq++).toString(36)}`
+
+/**
+ * `SEMANTICS-R5.md §R5-1.1` — the defensive read of `GraphDoc.frames`. Drops a
+ * bad ENTRY, never the graph. A file-clashing / missing `id` is replaced with a
+ * fresh session id (the file's id string is not trusted for identity). `label`
+ * is coerced + capped, `rect` kept verbatim (finite, positive size), `color`
+ * kept only if it is a palette id. At most `SF_FRAMES_MAX` entries survive.
+ * The `n` ordinal is never read — the store re-derives it from array order.
+ */
+export function readSavedFrames(raw: unknown): SavedFrame[] {
+  if (!Array.isArray(raw)) return []
+  const out: SavedFrame[] = []
+  const seen = new Set<string>()
+  for (const entry of raw) {
+    if (out.length >= SF_FRAMES_MAX) break
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
+    const e = entry as Record<string, unknown>
+    const r = e.rect as Record<string, unknown> | undefined
+    if (!r || typeof r !== 'object') continue
+    const x = r.x
+    const y = r.y
+    const w = r.w
+    const h = r.h
+    if (
+      typeof x !== 'number' || !Number.isFinite(x) ||
+      typeof y !== 'number' || !Number.isFinite(y) ||
+      typeof w !== 'number' || !Number.isFinite(w) || w <= 0 ||
+      typeof h !== 'number' || !Number.isFinite(h) || h <= 0
+    ) {
+      continue
+    }
+    let id = typeof e.id === 'string' ? e.id : ''
+    if (id === '' || seen.has(id)) id = freshFrameId()
+    seen.add(id)
+    let label = typeof e.label === 'string' ? e.label : e.label == null ? '' : String(e.label)
+    if (label.length > SF_LABEL_MAX) label = label.slice(0, SF_LABEL_MAX)
+    const frame: SavedFrame = {
+      id,
+      label,
+      rect: { x: x === 0 ? 0 : x, y: y === 0 ? 0 : y, w, h },
+    }
+    if (typeof e.color === 'string' && (SF_FRAME_COLORS as readonly string[]).includes(e.color)) {
+      frame.color = e.color as SavedFrameColor
+    }
+    out.push(frame)
+  }
+  return out
+}
+
+/** Project a live frame to the wire shape (`§R5-2.1` key order): `id`, `label`,
+ *  `rect` (`x, y, w, h`), then `color` only when set. `n` / `selectedId` etc.
+ *  are never emitted. */
+function toDocFrame(f: SavedFrame): SavedFrame {
+  const rect = { x: f.rect.x, y: f.rect.y, w: f.rect.w, h: f.rect.h }
+  return f.color ? { id: f.id, label: f.label, rect, color: f.color } : { id: f.id, label: f.label, rect }
 }
 
 const FLOW_KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
@@ -226,6 +311,9 @@ export function serialize(
   workspace?: unknown,
   project?: unknown,
   modelVersion: ModelSemanticsVersion = 1,
+  /** LGR Slice 5 — the saved MANUAL frames. Absent / empty ⇒ no `frames` key,
+   *  byte-identical to a pre-Slice-5 file (`SEMANTICS-R5.md` R5-INV-2). */
+  frames?: readonly SavedFrame[],
 ): string {
   const doc: GraphDoc = {
     schema: SCHEMA_BY_MODEL_VERSION[modelVersion] ?? SCHEMA_V1,
@@ -235,6 +323,10 @@ export function serialize(
   }
   if (recommendedRunConfig && typeof recommendedRunConfig === 'object') {
     doc.recommendedRunConfig = recommendedRunConfig
+  }
+  // §R5-2.1 — `frames` after `recommendedRunConfig`, only when non-empty.
+  if (Array.isArray(frames) && frames.length > 0) {
+    doc.frames = frames.map(toDocFrame)
   }
   if (workspace && typeof workspace === 'object') {
     doc.workspace = workspace
@@ -251,6 +343,10 @@ export function deserialize(text: string): {
   /** loop-model/2 — the model-semantics version this file declares (from `schema`). */
   modelVersion: ModelSemanticsVersion
   recommendedRunConfig?: RecommendedRunConfig
+  /** LGR Slice 5 — the saved manual frames, already run through `readSavedFrames`
+   *  (bad entries dropped, ids resolved, labels capped). `[]` when the file has
+   *  none. The store re-derives the `n` ordinal from array order. */
+  frames: SavedFrame[]
   /** raw, unvalidated — the Workspace reader checks it against the loaded graph */
   workspace?: unknown
   /** raw, unvalidated — the revision reader (loop-revision/1) validates it */
@@ -290,6 +386,7 @@ export function deserialize(text: string): {
   return {
     ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
     modelVersion,
+    frames: readSavedFrames(obj.frames), // §R5-1.1 — [] when absent / all-bad
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
     ...(project ? { project } : {}),
@@ -309,6 +406,9 @@ export function saveToStorage(
   project?: unknown,
   timelineSeries?: 'all' | readonly string[],
   modelVersion: ModelSemanticsVersion = 1,
+  /** LGR Slice 5 — the current saved manual frames, atomically in the same
+   *  write. Absent / empty ⇒ no `frames` key. */
+  frames?: readonly SavedFrame[],
 ): void {
   try {
     const rrc: RecommendedRunConfig | undefined =
@@ -317,7 +417,7 @@ export function saveToStorage(
         : undefined
     localStorage.setItem(
       STORAGE_KEY,
-      serialize(nodes, edges, rrc, undefined, project, modelVersion),
+      serialize(nodes, edges, rrc, undefined, project, modelVersion, frames),
     )
   } catch {
     /* storage unavailable (private mode, quota) — silently skip */
@@ -330,6 +430,7 @@ export function loadFromStorage():
       edges: LoopEdge[]
       modelVersion: ModelSemanticsVersion
       recommendedRunConfig?: RecommendedRunConfig
+      frames: SavedFrame[]
       project?: unknown
     }
   | null {
