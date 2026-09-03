@@ -408,7 +408,11 @@ export const useSimStore = create<SimStore>((set, get) => {
 
   return {
     status: 'idle',
-    speedMs: 600,
+    // docs/simulation-playback.md §PB6 — the per-step beat for normal playback
+    // ONLY (never the engine / RNG / Monte-Carlo result). Default is the
+    // slowest slider stop (~2400 ms/step) so a fresh document / template plays
+    // at a follow-by-eye pace; the user drags up for the old speeds.
+    speedMs: 2400,
     seed: 1,
     stepIndex: 0,
     values: null,

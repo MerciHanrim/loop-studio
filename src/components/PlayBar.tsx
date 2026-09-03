@@ -5,8 +5,14 @@ import { useT } from '../i18n'
 // P2 — playback lives in the chart-header strip, treated as part of the time
 // axis rather than the editing toolbar.
 
+// The slider maps to `speedMs` (the per-step beat, docs/simulation-playback.md
+// §PB6 — wall-clock only; the engine / RNG / MC result is byte-identical at any
+// speed). Range: 120 ms/step (fastest) … 2400 ms/step (slowest — ~1 change you
+// can follow by eye). The 120 → 1600 band is unchanged so the user can drag
+// straight up to the old speeds; 2400 just extends the slow end and is the new
+// default (simStore).
 const SPEED_MIN = 120
-const SPEED_MAX = 1600
+const SPEED_MAX = 2400
 const toSlider = (ms: number) => SPEED_MIN + SPEED_MAX - ms
 const fromSlider = (v: number) => SPEED_MIN + SPEED_MAX - v
 
