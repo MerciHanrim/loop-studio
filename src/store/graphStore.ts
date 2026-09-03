@@ -44,6 +44,15 @@ type GraphStore = {
    *  store watches this to drop its ephemeral selections on a graph swap. */
   loadRev: number
 
+  /** bumped only by `loadGraph` — a Templates load or a pasted graph: a
+   *  whole-graph swap that carries NO viewport of its own and lands on top of
+   *  another graph the user was already looking at. The Canvas watches this to
+   *  re-fit the camera to the new graph once React Flow has measured it.
+   *  Excluded on purpose: `newGraph` (empty canvas, nothing to fit) and
+   *  `loadDoc` (file / Workspace / Share / revision import — a Workspace
+   *  restores its own saved view, a plain file import keeps the camera). */
+  fitRev: number
+
   /** true only while this session is still showing the untouched first-run
    *  sample (no `localStorage` graph at boot, nothing changed since). Cleared
    *  permanently by any edit / Import / Template / undo / redo / restore. A
@@ -264,6 +273,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     selectedEdgeId: null,
     simulationRev: 0,
     loadRev: 0,
+    fitRev: 0,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
     past: [],
@@ -453,6 +463,10 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedEdgeId: null,
         modelVersion: 1,
         loadRev: get().loadRev + 1,
+        // `newGraph` does NOT bump `fitRev`: an empty canvas has nothing to fit,
+        // and every e2e `resetAll()` calls this right before an `importGraph` —
+        // bumping `fitRev` here would arm the Canvas re-fit against the graph
+        // that import then loads.
       })
       bump()
       persist()
@@ -471,6 +485,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedEdgeId: null,
         modelVersion,
         loadRev: get().loadRev + 1,
+        fitRev: get().fitRev + 1,
       })
       bump()
       persist()

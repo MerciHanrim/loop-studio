@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { DragEvent } from 'react'
 import {
   Background,
@@ -7,6 +7,7 @@ import {
   MiniMap,
   Panel,
   ReactFlow,
+  useNodesInitialized,
   useReactFlow,
   useStore,
 } from '@xyflow/react'
@@ -71,7 +72,54 @@ export function Canvas() {
   const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
   const filterPanelOpen = useUiStore((s) => s.filterPanelOpen)
   const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
+  const fitRev = useGraphStore((s) => s.fitRev)
+  const loadRev = useGraphStore((s) => s.loadRev)
+  const nodesInitialized = useNodesInitialized()
   const t = useT()
+
+  // A Templates load / pasted-graph swap bumps `graphStore.fitRev` — a
+  // whole-graph replacement that carries NO viewport of its own and lands on
+  // top of a graph the user was already looking at. React Flow keeps the
+  // previous camera on a swap, so a new template can open panned to the *old*
+  // graph's viewport (a blank / clipped first impression). Re-fit once per
+  // swap, AFTER React Flow has laid out and MEASURED the new nodes
+  // (`useNodesInitialized`), so the bounds are real — no `setTimeout`, no
+  // retry. Excluded upstream: `newGraph` and `loadDoc` (file / Workspace /
+  // Share / revision import — a Workspace restores its own saved view). Skipped
+  // if a `loadDoc` landed after the arm, or if the camera was moved between the
+  // swap and the measure (a deliberate pan wins). The initial mount is left to
+  // `<ReactFlow fitView>`. Pan / zoom, "Reset view", Focus, filters and the
+  // mobile orientation re-fit are untouched; nothing here reads or writes the
+  // GraphDoc / node positions / undo / digest.
+  const seenFitRev = useRef<number | null>(null)
+  const armedSwap = useRef<{
+    rev: number
+    atLoadRev: number
+    fromVp: { x: number; y: number; zoom: number }
+  } | null>(null)
+  useEffect(() => {
+    if (seenFitRev.current === null) {
+      seenFitRev.current = fitRev // first run: adopt the mount's graph
+      return
+    }
+    if (fitRev !== seenFitRev.current && armedSwap.current?.rev !== fitRev) {
+      seenFitRev.current = fitRev
+      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: getViewport() }
+    }
+    const armed = armedSwap.current
+    if (!armed || !nodesInitialized) return // wait for the measure pass
+    armedSwap.current = null
+    // a `loadDoc` (file / Workspace / Share / revision import) that landed
+    // AFTER this swap was armed bumps `loadRev` but not `fitRev` — it owns the
+    // camera (or restores a saved one), so drop the pending fit.
+    if (armed.atLoadRev !== loadRev) return
+    const now = getViewport()
+    const untouched =
+      Math.abs(now.x - armed.fromVp.x) < 0.5 &&
+      Math.abs(now.y - armed.fromVp.y) < 0.5 &&
+      Math.abs(now.zoom - armed.fromVp.zoom) < 1e-6
+    if (untouched) void fitView({ padding: 0.3, maxZoom: 1.2 })
+  }, [fitRev, loadRev, nodesInitialized, fitView, getViewport])
 
   // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
   // hides first (removes from the canvas), then focus dims the remainder. Both
