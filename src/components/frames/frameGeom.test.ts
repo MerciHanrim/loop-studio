@@ -59,7 +59,7 @@ describe('frameIsCreatable — BOTH the min-size AND ≥1 fully-contained node',
 })
 
 describe('activityOpacityById — recent-frequency, linear recency weight', () => {
-  const S = (...ids: string[]) => new Set(ids)
+  const S = <T = string>(...ids: T[]) => new Set<T>(ids)
 
   it('empty history ⇒ empty map', () => {
     expect(activityOpacityById([]).size).toBe(0)
