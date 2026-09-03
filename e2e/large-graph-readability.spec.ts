@@ -947,10 +947,16 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
   })
 })
 
-// docs/large-graph-readability.md §LGR6 — Slice 4a: TRANSIENT group frames +
-// the opt-in Activity overlay. Session-only readability UI: no GraphDoc / wire /
-// digest / undo / node-position change (§LGR8 / LGR-INV-1); frame create /
-// label / resize / delete are not undo entries; a whole-graph swap drops them.
+// docs/large-graph-readability.md §LGR6 — Slice 4a: group frames + the opt-in
+// Activity overlay. Render / UI-only against the *engine*: no wire / node
+// position / SimState / engine-digest change (§LGR8 / LGR-INV-1); the Activity
+// overlay is session-only. NOTE (LGR Slice 5 / `SEMANTICS-R5.md`): a MANUAL
+// frame's id / label / rect / color is now DOCUMENT content — create / rename /
+// resize / recolour / delete each push ONE graph undo entry and persist; only
+// a *pure* auto (suggested) frame stays session-only. A whole-graph swap to a
+// frame-free doc still clears frames. `currentTargetDigest()` covers nodes /
+// edges only, so it is unaffected by frames (that is the engine digest; the
+// full `loop-revision/5` content digest is what carries them).
 
 type FrameHead = { frames: { id: string; n: number; label: string; color?: string; rect: { x: number; y: number; w: number; h: number } }[]; toolArmed: boolean; selectedId: string | null }
 const frameHead = (page: Page) =>
@@ -2164,3 +2170,244 @@ async function loadFCVisual(page: Page, theme: 'light' | 'dark') {
   await fcSelect(page, rose)
   await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
 }
+
+// docs/large-graph-readability-saved-frames.md (SF) / SEMANTICS-R5.md — LGR
+// Slice 5: a MANUAL frame's id / label / rect / color is DOCUMENT content that
+// round-trips reload / Export/Import / autosave as loop-revision/5 cosmetic
+// content, and every create / rename / resize / recolour / delete / "Clear all"
+// is ONE graph undo entry at the SF11.1 granularity. A pure suggested frame is
+// never persisted; promoting one is a single undo entry that does NOT revive
+// the suggestion when undone.
+test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
+  const sfState = (page: Page) =>
+    page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => Record<string, unknown> }> }).__loop
+      return {
+        frames: (L.frame.getState().frames as { id: string; n: number; label: string; color?: string; rect: object }[]).map((f) => ({ ...f })),
+        past: (L.graph.getState().past as unknown[]).length,
+        simRev: L.graph.getState().simulationRev as number,
+        target: (L.revisionIO.currentTargetDigest as () => string)(),
+        exported: (L.graph.getState().exportJSON as () => string)(),
+      }
+    })
+  // the `frames` block as persisted in the debounced autosave record
+  const sfRec = (page: Page): Promise<unknown> =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('loop-studio:graph:v1')
+      return raw ? ((JSON.parse(raw).frames as unknown) ?? null) : null
+    })
+  const sfRecSettled = async (page: Page): Promise<unknown[]> => {
+    await expect.poll(async () => Array.isArray(await sfRec(page))).toBe(true)
+    return (await sfRec(page)) as unknown[]
+  }
+  const sfUndo = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { undo: () => void } } } }).__loop.graph.getState().undo())
+  const sfRedo = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { redo: () => void } } } }).__loop.graph.getState().redo())
+  const sfRemove = (page: Page, id: string) =>
+    page.evaluate((i) => (window as unknown as { __loop: { frame: { getState: () => { removeFrame: (i: string) => void } } } }).__loop.frame.getState().removeFrame(i), id)
+  const sfClearAll = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __loop: { frame: { getState: () => { clearFrames: () => void } } } }).__loop.frame.getState().clearFrames())
+  // promote a suggested frame exactly as FrameLayer.pickColor does for an auto
+  // frame (adoptFrame + removeAuto), driven through the store so no canvas
+  // control can intercept the swatch (§AF5 R5).
+  const sfPromote = (page: Page, autoId: string, color: string) =>
+    page.evaluate(
+      ([aid, c]) => {
+        const L = window as unknown as {
+          __loop: {
+            autoFrame: { getState: () => { autoFrames: { id: string; label: string; rect: object }[]; removeAuto: (i: string) => void } }
+            frame: { getState: () => { adoptFrame: (r: object, l: string, c?: string) => string } }
+          }
+        }
+        const af = L.__loop.autoFrame.getState()
+        const f = af.autoFrames.find((x) => x.id === aid)!
+        const id = L.__loop.frame.getState().adoptFrame(f.rect, f.label ?? '', c || undefined)
+        af.removeAuto(aid)
+        return id
+      },
+      [autoId, color] as const,
+    )
+
+  test('a named + sized + coloured manual frame is in the autosave record and comes back on RELOAD (SF5 / SF6)', async ({ page }) => {
+    await loadAF(page)
+    const id = await fcAdd(page, { x: 40, y: -40, w: 420, h: 220 }, 'Economy', 'violet')
+    await expect
+      .poll(() => sfRec(page))
+      .toEqual([{ id, label: 'Economy', rect: { x: 40, y: -40, w: 420, h: 220 }, color: 'violet' }])
+
+    await page.reload()
+    await openApp(page)
+    await expect(page.locator('.lgr-frame-back rect.lgr-frame__fill[data-color="violet"]')).toHaveCount(1)
+    const fr = (await sfState(page)).frames
+    expect(fr).toHaveLength(1)
+    expect(fr[0]).toMatchObject({ id, label: 'Economy', rect: { x: 40, y: -40, w: 420, h: 220 }, color: 'violet', n: 1 })
+  })
+
+  test('frame ORDER survives Export -> New -> Import; `n` is re-derived from array order (SF6 / boundary 1)', async ({ page }) => {
+    await loadAF(page)
+    await fcAdd(page, { x: 0, y: 0, w: 100, h: 60 }, 'One')
+    await fcAdd(page, { x: 200, y: 0, w: 100, h: 60 }, 'Two', 'sage')
+    await fcAdd(page, { x: 400, y: 0, w: 100, h: 60 }, 'Three')
+    const text = (await sfState(page)).exported
+    expect(JSON.parse(text).frames.map((f: { label: string }) => f.label)).toEqual(['One', 'Two', 'Three'])
+
+    await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { newGraph: () => void } } } }).__loop.graph.getState().newGraph())
+    expect((await sfState(page)).frames).toEqual([])
+    await page.evaluate((t) => (window as unknown as { __loop: { graph: { getState: () => { loadJSON: (t: string) => void } } } }).__loop.graph.getState().loadJSON(t), text)
+    const fr = (await sfState(page)).frames
+    expect(fr.map((f) => f.label)).toEqual(['One', 'Two', 'Three'])
+    expect(fr.map((f) => f.n)).toEqual([1, 2, 3])
+  })
+
+  test('a pure suggested frame is NEVER persisted; a promoted one is (SF2 / boundary 6)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+    // wait out the autosave debounce — suggestions must not reach the record
+    await page.waitForTimeout(500)
+    expect(await sfRec(page)).toBeNull()
+
+    // promote one by giving it an accent (§AF5 R5)
+    const autoId = (await afHead(page)).autoFrames[0].id
+    await sfPromote(page, autoId, 'gold')
+    expect((await afHead(page)).autoFrames.length).toBe(1)
+
+    const rec = (await sfRecSettled(page)) as { color?: string }[]
+    expect(rec).toHaveLength(1)
+    expect(rec[0]).toMatchObject({ color: 'gold' })
+
+    await page.reload()
+    await openApp(page)
+    expect((await afHead(page)).autoFrames.length).toBe(0) // suggestions gone
+    expect((await sfState(page)).frames).toHaveLength(1) // the promoted frame is back
+  })
+
+  test('undo units — create / delete / "Clear all" / promote each move `past` by exactly one; undo/redo restore content AND the on-screen store; the engine digest never moves (SF11.1 / boundaries 4-6-8)', async ({ page }) => {
+    await loadAF(page)
+    const base = await sfState(page)
+
+    // create = +1 ; undo removes it + the store ; redo re-creates it
+    const a = await fcAdd(page, { x: 0, y: 0, w: 120, h: 70 }, 'Keep', 'rose')
+    expect((await sfState(page)).past - base.past).toBe(1)
+    // a frame MUTATION itself is not a simulation change (§SF11.3)
+    expect((await sfState(page)).simRev).toBe(base.simRev)
+    await sfUndo(page)
+    expect((await sfState(page)).frames).toEqual([])
+    await sfRedo(page)
+    expect(((await sfState(page)).frames)[0]).toMatchObject({ id: a, label: 'Keep', color: 'rose' })
+
+    // delete = +1 ; undo restores label + rect + colour intact ; redo re-deletes
+    const beforeDel = await sfState(page)
+    await sfRemove(page, a)
+    expect((await sfState(page)).frames).toEqual([])
+    expect((await sfState(page)).past - beforeDel.past).toBe(1)
+    await sfUndo(page)
+    expect(((await sfState(page)).frames)[0]).toMatchObject({ id: a, label: 'Keep', rect: { x: 0, y: 0, w: 120, h: 70 }, color: 'rose' })
+    await sfRedo(page)
+    expect((await sfState(page)).frames).toEqual([])
+    await sfUndo(page) // leave the frame in place
+
+    // "Clear all" with 3 frames = EXACTLY one entry ; one undo brings all 3 back
+    await fcAdd(page, { x: 200, y: 0, w: 80, h: 40 }, 'B')
+    await fcAdd(page, { x: 400, y: 0, w: 80, h: 40 }, 'C')
+    const beforeClear = await sfState(page)
+    expect(beforeClear.frames).toHaveLength(3)
+    await sfClearAll(page)
+    expect((await sfState(page)).frames).toEqual([])
+    expect((await sfState(page)).past - beforeClear.past).toBe(1)
+    await sfUndo(page)
+    expect((await sfState(page)).frames.map((f) => f.label)).toEqual(['Keep', 'B', 'C'])
+
+    // promote a suggestion = +1 ; undo removes ONLY the manual frame and does
+    // NOT revive the suggestion (§SF11.2)
+    await suggestBtn(page).click()
+    const autoCount = (await afHead(page)).autoFrames.length
+    expect(autoCount).toBeGreaterThan(0)
+    const autoId = (await afHead(page)).autoFrames[0].id
+    const beforePromote = await sfState(page)
+    await sfPromote(page, autoId, 'slate')
+    expect((await afHead(page)).autoFrames.length).toBe(autoCount - 1)
+    expect((await sfState(page)).past - beforePromote.past).toBe(1)
+    const manualCount = (await sfState(page)).frames.length
+    await sfUndo(page)
+    expect((await sfState(page)).frames.length).toBe(manualCount - 1) // manual frame gone
+    expect((await afHead(page)).autoFrames.length).toBe(autoCount - 1) // suggestion NOT revived
+    await sfRedo(page)
+    expect((await sfState(page)).frames.length).toBe(manualCount) // redo re-creates the manual frame
+
+    // through ALL of the above the engine (target) digest never moved — frames
+    // are cosmetic, so no frame undo/redo changes the engine result (§SF11.3).
+    // (`simulationRev` does tick on any undo/redo — that is pre-existing, and
+    // only schedules a recompute to the identical StepReport.)
+    expect((await sfState(page)).target).toBe(base.target)
+  })
+
+  test('Import adds ONE undo entry, never one-per-frame; pure Suggest / Dismiss / Clear suggested add none and never touch the doc digest or the record (SF11.3 / boundaries 4-7)', async ({ page }) => {
+    await loadAF(page)
+    await fcAdd(page, { x: 0, y: 0, w: 100, h: 60 }, 'One')
+    await fcAdd(page, { x: 200, y: 0, w: 100, h: 60 }, 'Two')
+    await sfRecSettled(page) // let the create autosave land first
+    const before = await sfState(page)
+
+    // a whole-graph import that CARRIES two frames = still exactly one entry
+    await page.evaluate((t) => (window as unknown as { __loop: { graph: { getState: () => { loadJSON: (t: string) => void } } } }).__loop.graph.getState().loadJSON(t), before.exported)
+    expect((await sfState(page)).frames.map((f) => f.label)).toEqual(['One', 'Two'])
+    expect((await sfState(page)).past - before.past).toBe(1)
+
+    // pure Suggest / Dismiss / Clear suggested — no undo entry, digest + record frozen
+    const recMid = await sfRecSettled(page)
+    const mid = await sfState(page)
+    await suggestBtn(page).click()
+    await page.locator('.lgr-frame--auto .lgr-frame__edge-hit').first().click()
+    await page.locator('.lgr-frame--auto .lgr-frame__del').first().click() // Dismiss one
+    await clearSuggestedBtn(page).click()
+    await page.waitForTimeout(450) // let any (unexpected) autosave fire
+    const after = await sfState(page)
+    expect(after.past).toBe(mid.past)
+    expect(after.target).toBe(mid.target)
+    expect(after.simRev).toBe(mid.simRev)
+    expect(await sfRec(page)).toEqual(recMid)
+  })
+
+  test('two docs differing ONLY in frames: identical engine digest + simulationRev; only the exported bytes gain the `frames` block (boundary 8)', async ({ page }) => {
+    await loadAF(page)
+    const plain = await sfState(page)
+    await fcAdd(page, { x: 0, y: 0, w: 100, h: 60 }, 'Zone', 'gold')
+    const withF = await sfState(page)
+
+    const a = JSON.parse(plain.exported)
+    const b = JSON.parse(withF.exported)
+    expect(JSON.stringify(a.nodes)).toBe(JSON.stringify(b.nodes))
+    expect(JSON.stringify(a.edges)).toBe(JSON.stringify(b.edges))
+    expect(a.frames).toBeUndefined()
+    expect(b.frames).toEqual([{ id: expect.any(String), label: 'Zone', rect: { x: 0, y: 0, w: 100, h: 60 }, color: 'gold' }])
+    // adding a saved frame is NOT a simulation change and does not move the
+    // engine (target) digest
+    expect(withF.simRev).toBe(plain.simRev)
+    expect(withF.target).toBe(plain.target)
+  })
+
+  test('a hostile autosave record — non-finite rect + unknown colour — loses the bad frames but still loads the graph + the good frames (SF9 / R5-1.1 / boundary 9)', async ({ page }) => {
+    await loadAF(page)
+    const doc = JSON.parse((await sfState(page)).exported)
+    doc.frames = [
+      { id: 'ok1', label: 'Good', rect: { x: 1, y: 2, w: 100, h: 50 }, color: 'sage' },
+      { id: 'bad-nonfinite', label: 'x', rect: { x: null, y: 0, w: 10, h: 10 } },
+      { id: 'bad-flat', label: 'x', rect: { x: 0, y: 0, w: 10, h: 0 } },
+      { id: 'ok2', label: 'y'.repeat(200), rect: { x: 5, y: 5, w: 20, h: 20 }, color: 'not-a-colour' },
+    ]
+    await page.evaluate((raw) => localStorage.setItem('loop-studio:graph:v1', raw), JSON.stringify(doc))
+    await page.reload()
+    await openApp(page)
+
+    const fr = (await sfState(page)).frames
+    expect(fr.map((f) => f.label.slice(0, 4))).toEqual(['Good', 'yyyy']) // both bad rects dropped
+    expect(fr[0].color).toBe('sage')
+    expect(fr[1].label).toHaveLength(120) // SF_LABEL_MAX
+    expect('color' in fr[1]).toBe(false) // unknown colour dropped
+    expect((await sfState(page)).frames.length).toBe(2)
+    // the graph itself loaded fine
+    await expect(node(page, 'b0_0')).toBeVisible()
+  })
+})

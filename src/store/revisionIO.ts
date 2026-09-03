@@ -10,7 +10,7 @@ import {
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize } from '../model/serialize'
+import { deserialize, type SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { useGraphStore } from './graphStore'
 import { useProjectStore, type ApplyResult } from './projectStore'
@@ -124,10 +124,15 @@ export async function routeImport(text: string): Promise<RouteResult> {
 /** A routed proposal awaiting a Review-panel decision. */
 export type PendingProposal = Extract<RouteResult, { kind: 'proposal' }>
 
-/** the proposed graph carried by a routed proposal (deserialised once) */
-function proposedGraph(p: PendingProposal): { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: 1 | 2 } {
-  const { nodes, edges, modelVersion } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion }
+/** the proposed graph carried by a routed proposal (deserialised once).
+ *  LGR Slice 5 — `frames` rides along so a whole-proposal Apply / "Open as a
+ *  document" adopts the proposal's saved frames atomically (`SEMANTICS-R5.md`
+ *  §R5-6); `deserialize` always yields an array (`[]` when the file has none). */
+function proposedGraph(
+  p: PendingProposal,
+): { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: 1 | 2; frames: SavedFrame[] } {
+  const { nodes, edges, modelVersion, frames } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion, frames }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */

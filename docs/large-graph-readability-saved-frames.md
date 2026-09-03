@@ -432,9 +432,31 @@ Everything in §SF4 / §SF5 / §SF6 stands as written; §SF11 is now closed.
 
 1. **This design pass** — docs-only Draft PR (this file + the LGR / AF / FC
    cross-refs). §SF11 decided (Option A + the fixed undo units, §SF11.1);
-   §SF5 confirmed. Merged before the impl PR opens.
+   §SF5 confirmed. **MERGED** (`a10ae75`).
 2. **Impl PR** — Freeze `SEMANTICS-R5.md`; `serialize` + `revision` + store
-   wiring + §SF9 fixtures; held as Draft.
+   wiring + §SF9 fixtures; held as Draft. **BUILT (Draft PR #122).** Landed:
+   `SEMANTICS-R5.md` Frozen; `serialize` / `deserialize` / `saveToStorage` /
+   `loadFromStorage` `frames` boundary (`SF_FRAME_COLORS` / `SF_LABEL_MAX 120` /
+   `SF_FRAMES_MAX 200`, `readSavedFrames` defensive read); `canonicalContent`
+   trailing `frames` key + `computeRevisionDiff` one cosmetic `frames` hunk
+   (`summary.framesChanged`, never `engineAffecting` / `advisoryAffecting`);
+   a second graph-undo **sidecar** (`setFrameHistorySidecar`) so one graph
+   undo / redo restores the graph AND its saved frames together; `frameStore`
+   self-commits at the §SF11.1 units (`commitHistory('')` discrete,
+   `commitHistory('frame:gesture:<id>')` coalesces a resize/move gesture),
+   `loadFrames` / `snapshot`, cold-boot seed; `graphStore.loadDoc(…, frames)`
+   (`undefined` keeps, array replaces) threaded through `loadJSON` /
+   `workspaceIO` / revision **whole-proposal** Apply + "Open as a document"
+   (atomic array swap — §R5-6); `planRevisionExport` / `planProposalExport` /
+   `buildFile` write `frames` and its `contentDigest` covers them (frame-free
+   ⇒ byte-identical, R5-INV-2). Golden vector `test/revision-v5-fixture.test.ts`
+   (SG0–SG5) + `examples/revision-v5/`; unit deltas in `serialize.test.ts`,
+   `revision.test.ts`, `frameStore.test.ts`; e2e in
+   `e2e/large-graph-readability.spec.ts` (persist / reload / Export·Import /
+   undo-unit / hostile-record). **Still deferred** (documented in the PR body):
+   the per-hunk `computeThreeWay` frames verdict + `buildSelectiveApply`
+   selective frames apply + a `ReviewOverlay` frames row — a selective Apply
+   leaves the target's frames untouched for now.
 3. **After Slice 5 ships** — the **B module / template-composition** design
    pass (unchanged as the next item).
 

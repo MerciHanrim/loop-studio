@@ -16,7 +16,7 @@ import {
   saveToStorage,
   serialize,
 } from '../model/serialize'
-import type { RecommendedRunConfig } from '../model/serialize'
+import type { RecommendedRunConfig, SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
 type XY = { x: number; y: number }
@@ -73,6 +73,16 @@ type GraphStore = {
   canRedo: boolean
   undo: () => void
   redo: () => void
+  /** LGR Slice 5 (§SF11) — `frameStore` calls this BEFORE a saved-frame
+   *  mutation so the graph undo history gets one entry at the §SF11.1
+   *  granularity. `framesOverride` pins the PRE-gesture frames (a resize/move
+   *  commits once, at the first move). The entry's node/edge snapshot is the
+   *  current graph; its sidecar carries the given (or current) frames. */
+  commitHistory: (tag: string, framesOverride?: unknown) => void
+  /** LGR Slice 5 — `frameStore` calls this AFTER a mutation so a frame-only
+   *  change still schedules the autosave write (which serialises the live
+   *  `frameStore.frames`). */
+  notifyFrameChange: () => void
 
   onNodesChange: (changes: NodeChange<LoopNode>[]) => void
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
@@ -89,6 +99,10 @@ type GraphStore = {
   loadDoc: (
     doc: { nodes: LoopNode[]; edges: LoopEdge[] },
     modelVersion?: ModelSemanticsVersion,
+    /** LGR Slice 5 — the doc's saved manual frames (already defensively read).
+     *  Absent ⇒ `[]`. Loaded into `frameStore` as part of this ONE `loadDoc`
+     *  (no separate undo entry — §SF11). */
+    frames?: readonly SavedFrame[],
   ) => void
   /** returns the file's `recommendedRunConfig` (if any) for the caller to apply */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
@@ -121,7 +135,7 @@ export function setAutosaveProjectHeader(header: unknown): void {
   autosaveProjectHeader = header ?? null
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion)
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion, liveFrames())
 }
 
 /** Persist the Timeline visible-series default into the autosave record and
@@ -133,7 +147,7 @@ export function setAutosaveTimelineSeries(ts: 'all' | readonly string[]): void {
   autosaveTimelineSeries = ts === 'all' ? 'all' : [...ts]
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion)
+  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion, liveFrames())
 }
 
 /** The raw project header from the last autosave record — read once by
@@ -149,19 +163,40 @@ export function bootTimelineSeries(): 'all' | string[] {
   return autosaveTimelineSeries
 }
 
-// The undo history carries an opaque per-frame "sidecar" alongside the graph.
-// `projectStore` registers a get/set pair: `get()` reads the current project
-// header when a frame is captured, `set(h)` restores the header a frame carries
-// when undo/redo lands on it. This keeps the header lineage correct across any
-// sequence of Apply + plain edits + undo/redo (SEMANTICS-R.md §R7.3) without a
-// single global "last apply" variable. Not store state — no re-renders.
-let historySidecar: { get: () => unknown; set: (h: unknown) => void } | null = null
-export function setHistorySidecar(
-  s: { get: () => unknown; set: (h: unknown) => void } | null,
-): void {
-  historySidecar = s
+// The undo history carries opaque per-frame "sidecars" alongside the graph.
+// `projectStore` registers one (the loop-revision/1 project header lineage,
+// SEMANTICS-R.md §R7.3); LGR Slice 5 (`SEMANTICS-R5.md` / §SF11) registers a
+// second (the saved manual `frameStore.frames`), so a single undo / redo
+// restores the graph AND its saved frames together. Each is a `get`/`set`
+// pair — not store state, no re-renders.
+type Sidecar = { get: () => unknown; set: (h: unknown) => void }
+let projectSidecar: Sidecar | null = null
+let frameSidecar: Sidecar | null = null
+export function setHistorySidecar(s: Sidecar | null): void {
+  projectSidecar = s
 }
-const sidecarNow = (): unknown => historySidecar?.get() ?? null
+/** LGR Slice 5 — `frameStore` registers its saved-frames snapshot/restore pair
+ *  here so a graph undo / redo carries the frames with it (§SF11). */
+export function setFrameHistorySidecar(s: Sidecar | null): void {
+  frameSidecar = s
+}
+type SidecarBundle = { p: unknown; f: unknown }
+const sidecarNow = (framesOverride?: unknown): SidecarBundle => ({
+  p: projectSidecar?.get() ?? null,
+  f: framesOverride !== undefined ? framesOverride : (frameSidecar?.get() ?? null),
+})
+const restoreSidecar = (sc: unknown): void => {
+  const b = (sc ?? { p: null, f: null }) as SidecarBundle
+  projectSidecar?.set(b.p ?? null)
+  frameSidecar?.set(b.f ?? null)
+}
+/** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
+ *  `frameStore` snapshot is already `SavedFrame`-shaped (id / label / rect /
+ *  color; no `n`). `undefined` when no frames or before `frameStore` registers. */
+const liveFrames = (): readonly SavedFrame[] | undefined => {
+  const f = frameSidecar?.get()
+  return Array.isArray(f) && f.length > 0 ? (f as SavedFrame[]) : undefined
+}
 
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
@@ -225,7 +260,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       const s = get()
-      saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion)
+      saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion, liveFrames())
     }, 400)
   }
   /** any full-document swap starts with "no project"; a project-aware caller
@@ -240,8 +275,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (get().pristineSample) set({ pristineSample: false })
   }
 
-  /** Snapshot the CURRENT state into history before a mutation is applied. */
-  const commit = (tag: string) => {
+  /** Snapshot the CURRENT state into history before a mutation is applied.
+   *  `framesOverride` (LGR Slice 5) lets a caller pin the PRE-gesture saved
+   *  frames — e.g. a frame resize/move commits once, at the first move, with
+   *  the rect the frame had when the drag started (§SF11.1). */
+  const commit = (tag: string, framesOverride?: unknown) => {
     const now = Date.now()
     const coalesce = tag !== '' && tag === lastTag && now - lastTagAt < COALESCE_MS
     lastTag = tag
@@ -253,7 +291,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (coalesce) return
     const { nodes, edges } = get()
     set({
-      past: [...get().past, { nodes, edges, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -267,6 +305,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   }
 
   return {
+    commitHistory: (tag, framesOverride) => commit(tag, framesOverride),
+    notifyFrameChange: () => persist(),
+
     nodes: boot.nodes,
     edges: boot.edges,
     selectedNodeId: null,
@@ -298,7 +339,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump()
       persist()
-      historySidecar?.set(prev.sidecar) // restore the project header this frame carried
+      restoreSidecar(prev.sidecar) // restore the project header + saved frames this entry carried
     },
 
     redo: () => {
@@ -318,7 +359,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       })
       bump()
       persist()
-      historySidecar?.set(next.sidecar) // restore the project header this frame carried
+      restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
     },
 
     onNodesChange: (changes) => {
@@ -468,6 +509,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // bumping `fitRev` here would arm the Canvas re-fit against the graph
         // that import then loads.
       })
+      frameSidecar?.set([]) // §SF6 — an empty canvas has no saved frames
       bump()
       persist()
     },
@@ -487,20 +529,27 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
       })
+      // a Template / pasted graph carries no `frames` block (§SF2) — clear.
+      frameSidecar?.set([])
       bump()
       persist()
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion } = deserialize(text)
-      get().loadDoc({ nodes, edges }, modelVersion)
+      const { nodes, edges, recommendedRunConfig, modelVersion, frames } = deserialize(text)
+      get().loadDoc({ nodes, edges }, modelVersion, frames)
       return recommendedRunConfig
     },
 
     /** load already-deserialized (and normalized) nodes/edges — one `bump()`.
-     *  Used by `loadJSON` and by the Workspace importer so the whole restore is
-     *  a single `simulationRev` step (SEMANTICS-W.md §W5.1). */
-    loadDoc: ({ nodes, edges }, modelVersion = 1) => {
+     *  Used by `loadJSON`, the Workspace importer, and revision Apply so the
+     *  whole restore is a single `simulationRev` step (SEMANTICS-W.md §W5.1).
+     *  LGR Slice 5 — `frames`: an array (incl. `[]`) REPLACES `frameStore` with
+     *  the doc's saved frames; `undefined` KEEPS the current frames (a revision
+     *  Apply that carries no `frames` change must not wipe them). Either way
+     *  this is part of the ONE `loadDoc` history entry — no per-frame undo
+     *  entry (§SF11). */
+    loadDoc: ({ nodes, edges }, modelVersion = 1, frames) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
@@ -512,6 +561,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion,
         loadRev: get().loadRev + 1,
       })
+      if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
       bump()
       persist()
     },
@@ -524,6 +574,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         undefined,
         undefined,
         get().modelVersion,
+        liveFrames(),
       ),
   }
 })

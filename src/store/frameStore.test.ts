@@ -75,17 +75,30 @@ describe('frameStore — creation / label / lifecycle', () => {
   })
 })
 
-describe('frameStore — a whole-graph swap drops every frame (§LGR3.4)', () => {
+describe('frameStore — a whole-graph swap loads / clears the saved frames (§SF6)', () => {
   beforeEach(reset)
 
-  it('a `loadRev` bump clears the frames and the ordinal', () => {
+  it('`newGraph` clears the frames and the ordinal (empty canvas has none)', () => {
     useFrameStore.getState().addFrame({ x: 0, y: 0, w: 50, h: 50 })
     useFrameStore.getState().addFrame({ x: 0, y: 0, w: 50, h: 50 })
     expect(useFrameStore.getState().frames).toHaveLength(2)
-    // the subscription in frameStore watches graphStore.loadRev
-    useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
+    useGraphStore.getState().newGraph()
     expect(useFrameStore.getState().frames).toEqual([])
     expect(useFrameStore.getState().nextN).toBe(1)
+  })
+
+  it('`loadDoc` REPLACES the frame set from the doc; `n` re-derived from order', () => {
+    useFrameStore.getState().addFrame({ x: 9, y: 9, w: 9, h: 9 }) // stale session frame
+    useGraphStore.getState().loadDoc({ nodes: [], edges: [] }, 1, [
+      { id: 'a', label: 'One', rect: { x: 1, y: 2, w: 100, h: 50 } },
+      { id: 'b', label: 'Two', rect: { x: 3, y: 4, w: 60, h: 40 }, color: 'gold' },
+    ])
+    const fs = useFrameStore.getState()
+    expect(fs.frames.map((f) => [f.id, f.label, f.n, f.color])).toEqual([
+      ['a', 'One', 1, undefined],
+      ['b', 'Two', 2, 'gold'],
+    ])
+    expect(fs.nextN).toBe(3)
   })
 })
 
@@ -151,13 +164,13 @@ describe('frameStore — §FC accent colour', () => {
     expect('color' in f).toBe(false)
   })
 
-  it('clearFrames and a loadRev bump drop accented frames like any other', () => {
+  it('clearFrames and a whole-graph swap drop accented frames like any other', () => {
     const id = useFrameStore.getState().adoptFrame(R, 'x', 'violet')
     expect(useFrameStore.getState().frames[0].color).toBe('violet')
     useFrameStore.getState().clearFrames()
     expect(useFrameStore.getState().frames).toEqual([])
     const id2 = useFrameStore.getState().adoptFrame(R, 'y', 'gold')
-    useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
+    useGraphStore.getState().newGraph()
     expect(useFrameStore.getState().frames).toEqual([])
     void id
     void id2
@@ -165,5 +178,109 @@ describe('frameStore — §FC accent colour', () => {
 
   it('FRAME_COLORS is the 5-entry palette, in a stable order', () => {
     expect(FRAME_COLORS).toEqual(['slate', 'sage', 'gold', 'violet', 'rose'])
+  })
+})
+
+// ── LGR Slice 5 — §SF11 undo units (Option A) ──────────────────────────────
+describe('frameStore — §SF11.1 undo units', () => {
+  const G = () => useGraphStore.getState()
+  beforeEach(() => {
+    G().newGraph() // clears frames + history
+    reset()
+    useGraphStore.setState({ past: [], future: [], canUndo: false, canRedo: false })
+  })
+  const R = (x = 0) => ({ x, y: 0, w: 80, h: 40 })
+  const pastLen = () => G().past.length
+
+  it('create = ONE entry; undo removes the frame, redo restores it', () => {
+    const id = useFrameStore.getState().addFrame(R())
+    expect(pastLen()).toBe(1)
+    expect(G().canUndo).toBe(true)
+    G().undo()
+    expect(useFrameStore.getState().frames).toEqual([])
+    G().redo()
+    expect(useFrameStore.getState().frames.map((f) => f.id)).toEqual([id])
+  })
+
+  it('rename commit = ONE entry; an unchanged rename = NO entry', () => {
+    const id = useFrameStore.getState().addFrame(R())
+    useGraphStore.setState({ past: [] })
+    useFrameStore.getState().renameFrame(id, 'Economy')
+    expect(pastLen()).toBe(1)
+    useFrameStore.getState().renameFrame(id, 'Economy') // same value
+    expect(pastLen()).toBe(1)
+    G().undo()
+    expect(useFrameStore.getState().frames[0].label).toBe('')
+  })
+
+  it('a resize GESTURE (many calls, one tick) = ONE entry; unchanged = NONE', () => {
+    const id = useFrameStore.getState().addFrame(R())
+    useGraphStore.setState({ past: [] })
+    useFrameStore.getState().resizeFrame(id, { x: 0, y: 0, w: 120, h: 40 })
+    useFrameStore.getState().resizeFrame(id, { x: 0, y: 0, w: 160, h: 60 })
+    useFrameStore.getState().resizeFrame(id, { x: 0, y: 0, w: 200, h: 90 })
+    expect(pastLen()).toBe(1) // coalesced
+    useFrameStore.getState().resizeFrame(id, { x: 0, y: 0, w: 200, h: 90 }) // no change
+    expect(pastLen()).toBe(1)
+    G().undo()
+    expect(useFrameStore.getState().frames[0].rect).toEqual(R()) // back to the original
+  })
+
+  it('colour set / change / Neutral = ONE entry each; re-picking the current = NONE', () => {
+    const id = useFrameStore.getState().addFrame(R())
+    useGraphStore.setState({ past: [] })
+    useFrameStore.getState().setFrameColor(id, 'slate')
+    useFrameStore.getState().setFrameColor(id, 'slate') // no-op
+    useFrameStore.getState().setFrameColor(id, 'rose')
+    useFrameStore.getState().setFrameColor(id, null) // → neutral
+    expect(pastLen()).toBe(3)
+    G().undo() // back to rose
+    expect(useFrameStore.getState().frames[0].color).toBe('rose')
+  })
+
+  it('delete = ONE entry per frame; undo restores it whole', () => {
+    const a = useFrameStore.getState().addFrame(R(0))
+    useFrameStore.getState().renameFrame(a, 'Keep me')
+    useFrameStore.getState().setFrameColor(a, 'gold')
+    useGraphStore.setState({ past: [] })
+    useFrameStore.getState().removeFrame(a)
+    expect(pastLen()).toBe(1)
+    G().undo()
+    expect(useFrameStore.getState().frames[0]).toMatchObject({ id: a, label: 'Keep me', color: 'gold' })
+  })
+
+  it('`Clear all frames` = exactly ONE atomic entry; one undo brings back all N', () => {
+    useFrameStore.getState().addFrame(R(0))
+    useFrameStore.getState().addFrame(R(100))
+    useFrameStore.getState().addFrame(R(200))
+    useGraphStore.setState({ past: [] })
+    useFrameStore.getState().clearFrames()
+    expect(pastLen()).toBe(1) // NOT 3
+    expect(useFrameStore.getState().frames).toEqual([])
+    G().undo()
+    expect(useFrameStore.getState().frames).toHaveLength(3)
+  })
+
+  it('promote = ONE entry; undo removes ONLY the manual frame (§SF11.2)', () => {
+    // simulate an auto frame being promoted by a rename/resize/colour commit
+    useGraphStore.setState({ past: [] })
+    const mid = useFrameStore.getState().adoptFrame(R(), 'Rewards', 'rose')
+    expect(pastLen()).toBe(1)
+    expect(useFrameStore.getState().frames.find((f) => f.id === mid)?.color).toBe('rose')
+    G().undo()
+    expect(useFrameStore.getState().frames).toEqual([]) // manual frame gone
+    G().redo()
+    expect(useFrameStore.getState().frames.find((f) => f.id === mid)).toMatchObject({ label: 'Rewards', color: 'rose' })
+  })
+
+  it('a frame op undo/redo never touches nodes / edges', () => {
+    G().addNodeAt('pool', { x: 0, y: 0 })
+    const nodesBefore = JSON.stringify(G().nodes)
+    useFrameStore.getState().addFrame(R())
+    useFrameStore.getState().setFrameColor(useFrameStore.getState().frames[0].id, 'violet')
+    G().undo()
+    G().undo()
+    G().redo()
+    expect(JSON.stringify(G().nodes)).toBe(nodesBefore)
   })
 })

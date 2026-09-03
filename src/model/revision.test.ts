@@ -355,6 +355,42 @@ describe('planProposalExport (§R6 / R14.5)', () => {
     }
   })
 
+  it('loop-revision/5 — a doc with saved `frames` writes the `frames` key and its `contentDigest` covers them; a frame-free doc is byte-identical (§R5-2 / R5-INV-2)', () => {
+    const frames = [
+      { id: 'f1', label: 'Intake', rect: { x: 1, y: 2, w: 100, h: 50 } },
+      { id: 'f2', label: 'Rewards', rect: { x: 5, y: 6, w: 80, h: 40 }, color: 'rose' as const },
+    ]
+    const bare = planProposalExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    const withF = planProposalExport({ doc: { ...g, frames }, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!bare.ok || !withF.ok) throw new Error('plan failed')
+    const bareFile = JSON.parse(bare.text)
+    const withFile = JSON.parse(withF.text)
+
+    // frame-free ⇒ no `frames` key, unchanged digest (conservative extension)
+    expect(bareFile).not.toHaveProperty('frames')
+    expect(bareFile.project.contentDigest).toBe(digestOfCanonical(canonicalContent({ nodes: bareFile.nodes, edges: bareFile.edges })))
+
+    // frames present ⇒ trailing key (after nodes/edges, before `project`) in file
+    // order + §R5-2.1 per-entry shape; the header digest covers them
+    expect(withFile.frames).toEqual([
+      { id: 'f1', label: 'Intake', rect: { x: 1, y: 2, w: 100, h: 50 } },
+      { id: 'f2', label: 'Rewards', rect: { x: 5, y: 6, w: 80, h: 40 }, color: 'rose' },
+    ])
+    expect(withFile.project.contentDigest).toBe(
+      digestOfCanonical(canonicalContent({ nodes: withFile.nodes, edges: withFile.edges, frames })),
+    )
+    expect(withFile.project.contentDigest).not.toBe(bareFile.project.contentDigest)
+    // node / edge bytes are the same — only `frames` was added
+    expect(JSON.stringify(withFile.nodes)).toBe(JSON.stringify(bareFile.nodes))
+    expect(JSON.stringify(withFile.edges)).toBe(JSON.stringify(bareFile.edges))
+    // …and the frames-only change is a non-empty cosmetic diff, never engine
+    const d = computeRevisionDiff(
+      canonicalContent({ nodes: withFile.nodes, edges: withFile.edges }),
+      canonicalContent({ nodes: withFile.nodes, edges: withFile.edges, frames }),
+    )
+    expect(d.summary).toMatchObject({ framesChanged: true, engineAffecting: false, advisoryAffecting: false, empty: false })
+  })
+
   it('an edit to the proposed graph shows up as a diff against the carried base', () => {
     const p = planProposalExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
     if (!p.ok) throw new Error('plan failed')
@@ -594,10 +630,31 @@ describe('loop-revision/5 — saved frames (SEMANTICS-R5.md §R5-2 / §R5-4)', (
       canonicalContent(base),
       canonicalContent({ ...base, frames: [fr('f1')] }),
     )
-    // node/edge buckets are untouched by a pure frames change
     expect(d.summary.nodes).toEqual({ added: 0, removed: 0, changed: 0 })
     expect(d.summary.edges).toEqual({ added: 0, removed: 0, changed: 0 })
     expect(d.summary.engineAffecting).toBe(false)
     expect(d.summary.advisoryAffecting).toBe(false)
+    // §R5-6 — but it IS a real (cosmetic) change: framesChanged, not empty, one hunk
+    expect(d.summary.framesChanged).toBe(true)
+    expect(d.summary.empty).toBe(false)
+    expect(d.frames).toEqual({ base: null, proposed: [{ id: 'f1', label: 'f1', rect: { x: 1, y: 2, w: 100, h: 50 } }] })
+  })
+
+  it('an unchanged frames array ⇒ no hunk, empty diff', () => {
+    const withF = canonicalContent({ ...base, frames: [fr('f1', { color: 'rose' })] })
+    const d = computeRevisionDiff(withF, withF)
+    expect(d.frames).toBeNull()
+    expect(d.summary.framesChanged).toBe(false)
+    expect(d.summary.empty).toBe(true)
+  })
+
+  it('v5 -> v4 (frames removed) ⇒ one hunk base=array proposed=null', () => {
+    const d = computeRevisionDiff(
+      canonicalContent({ ...base, frames: [fr('f1')] }),
+      canonicalContent(base),
+    )
+    expect(d.frames?.base).toHaveLength(1)
+    expect(d.frames?.proposed).toBeNull()
+    expect(d.summary.framesChanged).toBe(true)
   })
 })

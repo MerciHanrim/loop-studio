@@ -43,12 +43,16 @@ Slice 5), a Frozen `loop-revision/5` **cosmetic** amendment designed in
 6. **Slice 4b** — *auto* group frames — clustering algorithm + label
    generation are **their own detailed design pass**, held here (§LGR6.3);
 7. **Slice 5** — *saved* group frames, behind a Frozen **`loop-revision/5`**
-   cosmetic `frames` contract. **Design pass:
-   `docs/large-graph-readability-saved-frames.md` (`SF`).**
+   cosmetic `frames` contract. Design pass:
+   `docs/large-graph-readability-saved-frames.md` (`SF`); **built in Draft PR
+   #122** (`SEMANTICS-R5.md` Frozen). One deferred piece — per-hunk selective
+   frames Apply / `ReviewOverlay` row — is called out in §SF12.
 
 Slices 1–4a carry no wire change and no engine change. Slice 4b needs its own
-design pass before build. Slice 5 does not start until `SEMANTICS-R5.md` is
-Frozen (its design is settled in `…-saved-frames.md`).
+design pass before build. Slice 5 did not start until `SEMANTICS-R5.md` was
+Frozen (its design is settled in `…-saved-frames.md`); a **saved** manual frame
+is the one deliberate exception to "readability slices touch no document byte"
+— it is `loop-revision/5` **cosmetic** content (§SF / §LGR6.4).
 
 ---
 
@@ -378,7 +382,7 @@ persists (`LGR-D7`).
 |---|---|---|---|
 | **transient** | the user draws a rectangle around some nodes and labels it *for the current session* | **in memory only** — gone on a full browser refresh (§LGR3.4); never GraphDoc / digest / Share / revision | **Slice 4a**, fully specified here |
 | **auto** | the app infers clusters and draws labelled frames with generated names | **derived, never stored** — recomputed from the layout, like the orthogonal route map (§ER3.9) | **Slice 4b** — algorithm + naming are their own design pass (§LGR6.3) |
-| **saved** | the user creates / labels / resizes frames that survive reload, Share, and a Project revision | serialized — needs a wire contract (§LGR6.4) | **Slice 5** — deferred behind a Frozen contract |
+| **saved** | the user creates / labels / resizes frames that survive reload, Share, and a Project revision | serialized — needs a wire contract (§LGR6.4) | **Slice 5 — built (PR #122)** behind Frozen `loop-revision/5` |
 
 ### LGR6.2 Decision
 
@@ -398,7 +402,11 @@ persists (`LGR-D7`).
   does **not** claim the algorithm is settled.
 - **Saved frames are Slice 5**, gated on a Frozen wire contract (§LGR6.4).
   Demand arrived (a user's named + sized + coloured manual frame vanished on
-  reload); the design pass is `docs/large-graph-readability-saved-frames.md`.
+  reload); the design pass is `docs/large-graph-readability-saved-frames.md`,
+  **built in Draft PR #122** (`SEMANTICS-R5.md` Frozen; `id` + `label` + `rect`
+  + `color` persist as a graph-level `loop-revision/5` cosmetic `frames` array;
+  every create / rename / resize / recolour / delete / `Clear all` is one graph
+  undo entry, §SF11).
 
 ### LGR6.3 Auto frames — the boundary the Slice-4b design must honour
 
@@ -662,10 +670,11 @@ Slice-4b pass.
    manual/auto relationship, determinism, session-only boundary). The impl PR
    is not built from *this* doc alone; it follows the `AF` doc once its open
    choices are reviewed.
-5. **Saved group frames** — **designed** in `docs/large-graph-readability-saved-frames.md`.
-   A Frozen `loop-revision/5` cosmetic `frames` contract first
-   (conservative-extension golden, defensive reader, `loop-workspace`
-   unchanged); manual + promoted frames only. Its own impl PR.
+5. **Saved group frames** — designed in `docs/large-graph-readability-saved-frames.md`,
+   **built in Draft PR #122**. A Frozen `loop-revision/5` cosmetic `frames`
+   contract (`SEMANTICS-R5.md`; conservative-extension golden SG0–SG5, defensive
+   reader, `loop-workspace` unchanged); manual + promoted frames only; §SF11
+   undo units. Deferred: the per-hunk selective-Apply frames verdict (§SF12).
 
 Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subset.
 

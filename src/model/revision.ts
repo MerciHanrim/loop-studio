@@ -14,7 +14,7 @@ import {
   readRegisterData,
 } from './model'
 import { normalizeGraph, readSavedFrames } from './serialize'
-import type { RecommendedRunConfig } from './serialize'
+import type { RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -633,15 +633,31 @@ export type RunConfigChange =
   | { kind: 'removed'; key: string; base: unknown }
   | { kind: 'changed'; key: string; base: unknown; proposed: unknown }
 
+/** `loop-revision/5` (`SEMANTICS-R5.md` §R5-6) — the whole projected `frames`
+ *  array compared as ONE `cosmetic` top-level hunk (no per-entry granularity on
+ *  the wire — §R5-D7). Present on the diff **only when the arrays differ**;
+ *  `base` / `proposed` are the projected arrays (`null` = the side had none). */
+export type FramesChange = {
+  base: NonNullable<CanonicalContent['frames']> | null
+  proposed: NonNullable<CanonicalContent['frames']> | null
+}
+
 export type RevisionDiff = {
   nodes: ElementBuckets<CanonicalNode>
   edges: ElementBuckets<CanonicalEdge>
   runConfig: RunConfigChange[]
+  /** `loop-revision/5` — `null` when the saved frames are equal; otherwise the
+   *  before / after arrays (one atomic cosmetic hunk). */
+  frames: FramesChange | null
   workspaceDiffers: boolean
   summary: {
     nodes: { added: number; removed: number; changed: number }
     edges: { added: number; removed: number; changed: number }
     runConfigChanged: boolean
+    /** `loop-revision/5` — the saved `frames` array differs. `cosmetic`: feeds
+     *  `dirty` / the diff / `nConf`, but never `engineAffecting` /
+     *  `advisoryAffecting`. */
+    framesChanged: boolean
     engineAffecting: boolean
     /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-3 / R2-D1) — any `advisory`-tagged
      *  hunk (a tuning hint or a `resourceType` tag). Separate from
@@ -775,6 +791,11 @@ export function computeRevisionDiff(
   const nodes = bucket('node', base.nodes, proposed.nodes)
   const edges = bucket('edge', base.edges, proposed.edges)
   const runConfig = diffRunConfig(base.recommendedRunConfig, proposed.recommendedRunConfig)
+  // §R5-6 — the whole `frames` array as one cosmetic hunk.
+  const framesChanged = !deepEq(base.frames ?? null, proposed.frames ?? null)
+  const frames: FramesChange | null = framesChanged
+    ? { base: base.frames ?? null, proposed: proposed.frames ?? null }
+    : null
 
   const anyEngine =
     nodes.added.length > 0 ||
@@ -798,19 +819,22 @@ export function computeRevisionDiff(
     edges.added.length === 0 &&
     edges.removed.length === 0 &&
     edges.changed.length === 0 &&
-    runConfig.length === 0
+    runConfig.length === 0 &&
+    !framesChanged // §R5-6 — a frames-only change is NOT an empty diff
 
   return {
     nodes,
     edges,
     runConfig,
+    frames,
     workspaceDiffers: opts.workspaceDiffers ?? false,
     summary: {
       nodes: { added: nodes.added.length, removed: nodes.removed.length, changed: nodes.changed.length },
       edges: { added: edges.added.length, removed: edges.removed.length, changed: edges.changed.length },
       runConfigChanged: runConfig.length > 0,
-      engineAffecting: anyEngine,
-      advisoryAffecting: anyAdvisory,
+      framesChanged,
+      engineAffecting: anyEngine, // §R5-3 — `frames` NEVER sets this
+      advisoryAffecting: anyAdvisory, // §R5-3 — nor this
       empty,
     },
   }
@@ -1427,6 +1451,10 @@ export type GraphDocInput = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   recommendedRunConfig?: RecommendedRunConfig
+  /** LGR Slice 5 (`SEMANTICS-R5.md` §R5-2) — the doc's saved MANUAL frames.
+   *  Absent / empty ⇒ no `frames` key in the file and no contribution to the
+   *  content digest (R5-INV-2 conservative extension). */
+  frames?: readonly SavedFrame[]
   workspace?: unknown
 }
 
@@ -1622,6 +1650,9 @@ function buildFile(doc: Omit<GraphDocInput, 'schema' | 'version'>, project: Proj
   if (doc.recommendedRunConfig && typeof doc.recommendedRunConfig === 'object') {
     file.recommendedRunConfig = doc.recommendedRunConfig
   }
+  // §R5-2.1 — `frames` after `recommendedRunConfig`, only when non-empty, so a
+  // frame-free revision / proposal file is byte-identical to a pre-Slice-5 one.
+  if (Array.isArray(doc.frames) && doc.frames.length > 0) file.frames = doc.frames
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

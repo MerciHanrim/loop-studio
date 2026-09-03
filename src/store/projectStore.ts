@@ -28,7 +28,9 @@ import {
   type RevisionExportPlan,
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
+import type { SavedFrame } from '../model/serialize'
 import { bootProjectHeader, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
+import { useFrameStore } from './frameStore'
 
 // SEMANTICS-R.md §R2 / §R3 / §R6 / §R10 — the OPEN revision, the `dirty` flag,
 // and the two-phase Export transaction. Slice 1B (+ review round 2). NO UI.
@@ -126,14 +128,14 @@ type ProjectState = {
   openProposalAsDocument: (
     project: ProjectPayload,
     base: ProposalBase,
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 },
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] },
   ) => void
   /** §R7A.2 — classify a proposal against the open revision without applying
    *  (for the Review UI). Same gates as `applyProposal`. */
   classifyProposal: (input: {
     project: ProjectPayload
     base: ProposalBase
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 }
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] }
   }) =>
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
@@ -155,7 +157,7 @@ type ProjectState = {
     input: {
       project: ProjectPayload
       base: ProposalBase
-      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 }
+      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] }
     },
     opts?: {
       now?: string
@@ -336,7 +338,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         baseRevisionId = null
         baseBaselineDigest = null
         pr = planRevisionExport({
-          doc: { nodes: g.nodes, edges: g.edges },
+          doc: { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
           modelVersion: g.modelVersion,
           project: { projectId, revisionId: mkId('rev'), parentId: null, lineage: [] },
           dirty: false,
@@ -350,7 +352,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         baseRevisionId = o.revisionId
         baseBaselineDigest = o.baselineDigest
         pr = planRevisionExport({
-          doc: { nodes: g.nodes, edges: g.edges },
+          doc: { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
           modelVersion: g.modelVersion,
           project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
           dirty: isDirty,
@@ -429,7 +431,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
       return planProposalExport({
         modelVersion: g.modelVersion,
-        doc: { nodes: g.nodes, edges: g.edges },
+        doc: { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
         dirty: isDirty,
         // §R6 — re-exporting an edited proposal keeps the ORIGINAL pinned base,
@@ -462,7 +464,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // `proposal` header that PINS the original base for §R6 re-export. The
       // graphStore history sidecar captures this header on the frame it creates,
       // so undo restores the prior document AND its header.
-      useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges })
+      // LGR Slice 5 — adopt the proposal's saved frames too (`[]` when it has
+      // none ⇒ a clean replace); part of the same one `loadDoc` history entry.
+      useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges }, undefined, proposed.frames)
       const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
       const next: OpenProject = {
         projectId: project.projectId,
@@ -513,6 +517,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // ── build the resulting graph ──
       let resultNodes: LoopNode[]
       let resultEdges: LoopEdge[]
+      // LGR Slice 5 (§R5-6) — `frames` is ONE atomic cosmetic hunk: a
+      // whole-proposal Apply adopts the proposal's saved frames wholesale;
+      // a per-hunk selective Apply leaves the target's frames untouched
+      // (`undefined` ⇒ `loadDoc` keeps them).
+      let resultFrames: readonly SavedFrame[] | undefined
       let partial = false
       if (opts.selection) {
         // §R7.2 / §R7A.4 — per-hunk: the selection is the consent, no
@@ -549,6 +558,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         }
         resultNodes = built.nodes
         resultEdges = built.edges
+        resultFrames = undefined // keep the target's frames — no per-hunk frames apply yet
         partial = true
       } else {
         // §R7 whole-proposal: re-classify, gate the confirmation
@@ -562,6 +572,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         }
         resultNodes = proposed.nodes
         resultEdges = proposed.edges
+        resultFrames = proposed.frames // adopt the proposal's saved frames atomically
       }
 
       const now = opts.now ?? new Date().toISOString()
@@ -572,7 +583,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0, one
       // undo entry. The history sidecar captures `preHeader` on that frame, so a
       // single Undo restores the pre-apply graph AND this header together.
-      useGraphStore.getState().loadDoc({ nodes: resultNodes, edges: resultEdges })
+      useGraphStore.getState().loadDoc({ nodes: resultNodes, edges: resultEdges }, undefined, resultFrames)
       const postGraphDigest = digestOfCanonical(
         canonicalContent({ nodes: resultNodes, edges: resultEdges }, { modelVersion: g.modelVersion }),
       )
