@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent } from 'react'
 import {
   Background,
@@ -25,6 +25,8 @@ import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
 import { useFrameStore, hasFrames } from '../store/frameStore'
+import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
+import { WORTH_IT_FLOOR } from './frames/autoFrames'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -82,6 +84,35 @@ export function Canvas() {
   const clearFrames = useFrameStore((s) => s.clearFrames)
   const selectFrame = useFrameStore((s) => s.selectFrame)
   const framesExist = useFrameStore(hasFrames)
+  // docs/large-graph-readability-auto-frames.md §AF — "Suggest frames" (P1: an
+  // explicit action, never auto) + its derived set.
+  const suggestFrames = useAutoFrameStore((s) => s.suggest)
+  const clearAutoFrames = useAutoFrameStore((s) => s.clearAuto)
+  const autoFramesExist = useAutoFrameStore(hasAutoFrames)
+  const autoSuggestSignature = useAutoFrameStore((s) => s.lastSignature)
+  // §AF9.2 — the "structural, not domain meaning" note, dismissible for the
+  // session (a plain component-state flag — resets on a full reload).
+  const [suggestNoteDismissed, setSuggestNoteDismissed] = useState(false)
+  const graphEditRev = useGraphStore((s) => s.nodes)
+  // §AF2.2 — the "Suggest frames" control only appears when the whole graph is
+  // big enough for the feature to help (below the floor it would only ever
+  // produce nothing). Also keeps the controls column from growing on a small
+  // graph.
+  const suggestEligible = useMemo(
+    () =>
+      graphEditRev.filter((n) => {
+        const k = (n.data as { kind?: string } | undefined)?.kind ?? String(n.type)
+        return k !== 'parameter' && k !== 'register'
+      }).length >= WORTH_IT_FLOOR,
+    [graphEditRev],
+  )
+  const suggestStale = useMemo(
+    () => autoFramesStale(autoSuggestSignature),
+    // re-check whenever the graph's node array identity changes (an edit) or a
+    // new suggest resets the signature; positions are read live inside.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [autoSuggestSignature, graphEditRev],
+  )
   const fitRev = useGraphStore((s) => s.fitRev)
   const loadRev = useGraphStore((s) => s.loadRev)
   const nodesInitialized = useNodesInitialized()
@@ -301,6 +332,22 @@ export function Canvas() {
             {t('canvas.focus.hint')}
           </Panel>
         )}
+        {/* docs/…-auto-frames.md §AF9.2 — while suggested frames are on screen,
+            a one-line note that they are STRUCTURAL, not domain regions. Never
+            takes the pointer. */}
+        {autoFramesExist && !suggestNoteDismissed && (
+          <Panel position="top-center" className="lgr-suggest-note">
+            <span>{t('canvas.frame.suggestNote')}</span>
+            <button
+              type="button"
+              className="lgr-suggest-note__x"
+              aria-label={t('canvas.frame.suggestNoteDismiss')}
+              onClick={() => setSuggestNoteDismissed(true)}
+            >
+              ✕
+            </button>
+          </Panel>
+        )}
         {/* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel,
             desktop only (mobile controls live in the More sheet, §LGR9). */}
         {!isMobile && filterPanelOpen && <FilterPanel />}
@@ -409,11 +456,35 @@ export function Canvas() {
               </svg>
             </ControlButton>
           )}
-          {!isMobile && framesExist && (
+          {/* docs/…-auto-frames.md §AF4.1 — "Suggest frames": an EXPLICIT
+              action (P1). Never runs on a sim / Activity / Focus / Filter
+              change or on a graph edit. `is-stale` = the structure or a node
+              moved since the last Suggest (§AF4.3) — a hint, still no
+              auto-recompute. */}
+          {!isMobile && (suggestEligible || autoFramesExist) && (
             <ControlButton
-              onClick={() => clearFrames()}
-              title={t('canvas.frame.clear')}
-              aria-label={t('canvas.frame.clear')}
+              onClick={() => suggestFrames()}
+              title={suggestStale ? t('canvas.frame.suggestStale') : t('canvas.frame.suggest')}
+              aria-label={suggestStale ? t('canvas.frame.suggestStale') : t('canvas.frame.suggest')}
+              className={`rf-suggest${suggestStale ? ' is-stale' : ''}`}
+              data-stale={suggestStale ? '' : undefined}
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <rect x="1.5" y="2.5" width="6" height="5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="1.6 1.4" />
+                <rect x="8.5" y="8.5" width="6" height="5" rx="1" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="1.6 1.4" />
+              </svg>
+            </ControlButton>
+          )}
+          {/* §AF5 R4 — the DEFAULT clear removes BOTH kinds ("Clear all frames").
+              Shown when either a manual or an auto frame exists. */}
+          {!isMobile && (framesExist || autoFramesExist) && (
+            <ControlButton
+              onClick={() => {
+                clearFrames()
+                clearAutoFrames()
+              }}
+              title={t('canvas.frame.clearAll')}
+              aria-label={t('canvas.frame.clearAll')}
               className="rf-frame-clear"
             >
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -424,6 +495,22 @@ export function Canvas() {
                   strokeWidth="1.6"
                   strokeLinecap="round"
                 />
+              </svg>
+            </ControlButton>
+          )}
+          {/* §AF5 R4 — the auxiliary "Clear suggested frames": only the derived
+              auto set, keeps every manual frame. Shown only when auto frames
+              exist. */}
+          {!isMobile && autoFramesExist && (
+            <ControlButton
+              onClick={() => clearAutoFrames()}
+              title={t('canvas.frame.clearSuggested')}
+              aria-label={t('canvas.frame.clearSuggested')}
+              className="rf-suggest-clear"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="2.2 1.8" />
+                <path d="M6 6l4 4M10 6l-4 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
             </ControlButton>
           )}

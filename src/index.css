@@ -1090,6 +1090,39 @@ body {
   font-weight: 600;
   box-shadow: var(--elev-label);
 }
+/* docs/…-auto-frames.md §AF9.2 — the "structural, not domain meaning" note that
+   sits with suggested frames. Same chrome as the focus hint, muted border. */
+.lgr-suggest-note {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-raised);
+  border: 1px dashed var(--line-strong);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 4px 6px 4px 10px;
+  font-size: 12px;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: var(--elev-label);
+}
+.lgr-suggest-note__x {
+  pointer-events: auto;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lgr-suggest-note__x:hover {
+  background: var(--surface-sunken);
+}
 
 /* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. A React
    Flow top-left Panel; scrolls internally so a long resource-type list never
@@ -1239,6 +1272,13 @@ body {
   stroke-dasharray: 5 4;
   fill-opacity: 0.04;
 }
+/* docs/…-auto-frames.md §AF5 R1 — a SUGGESTED (auto) frame reads the same, but
+   its border is DASHED (manual = solid). The word in the label ("Area N" vs
+   "Group N") is the second tell. */
+.lgr-frame__fill--auto {
+  stroke-dasharray: 6 5;
+  stroke-opacity: 0.42;
+}
 @media (forced-colors: active) {
   /* fill washes out under a colour override — the outline carries the frame */
   .lgr-frame__fill {
@@ -1248,6 +1288,10 @@ body {
   }
   .lgr-frame__fill.is-selected {
     stroke: Highlight;
+  }
+  /* keep the dashed-vs-solid manual/auto distinction under forced-colors */
+  .lgr-frame__fill--auto {
+    stroke-dasharray: 6 5;
   }
 }
 
@@ -1310,6 +1354,11 @@ body {
   color: var(--signal-primary);
   border-color: var(--signal-primary);
 }
+/* §AF-INV-7 — a mobile auto-frame label is display-only */
+.lgr-frame__label--static {
+  pointer-events: none;
+  cursor: default;
+}
 .lgr-frame__label--edit {
   cursor: text;
   font: inherit;
@@ -1361,6 +1410,28 @@ body {
   .react-flow__controls-button.rf-activity[aria-pressed='true'] {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+}
+/* docs/…-auto-frames.md §AF4.3 — the "Suggest frames" control shows a small
+   corner dot when the graph changed since the last Suggest. A non-colour tell
+   (shape, present-or-absent); it never triggers a recompute. */
+.react-flow__controls-button.rf-suggest {
+  position: relative;
+}
+.react-flow__controls-button.rf-suggest.is-stale::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal-primary);
+}
+@media (forced-colors: active) {
+  .react-flow__controls-button.rf-suggest.is-stale::after {
+    background: Highlight;
+    outline: 1px solid CanvasText;
   }
 }
 /* while the Frame tool is armed the pane draws instead of panning */
