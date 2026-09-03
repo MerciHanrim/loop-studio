@@ -23,9 +23,10 @@ revised freely, like [`docs/visual-language.md`](visual-language.md),
 §PD9 is the decision record. §PD10 is the scope boundary. §PD8 is the one
 sequencing question left open on purpose. **§PD11** (added 2026-09-02) records
 an external reader's take that arrived during the coffee-Template design:
-*fix the concrete use purpose before the target industry.* **§PD12** (added
-2026-09-03) records a game-design / PD reviewer's read of the Early MMO example
-and four spec-first candidates derived from it — none adopted.
+*fix the concrete use purpose before the target industry* — with **§PD11.1**
+(added 2026-09-03) recording the coffee comprehension check's partial pass.
+**§PD12** (added 2026-09-03) records a game-design / PD reviewer's read of the
+Early MMO example and four spec-first candidates derived from it — none adopted.
 
 ---
 
@@ -335,6 +336,36 @@ or any planned pass.
 **Not changed by this:** the five §PD9 decisions stand; no `src/` change, no
 `loop-*/N`, nothing serialized. §PD11 narrows *how a domain example is
 positioned and validated*; it adds no scope.
+
+### PD11.1 Second coffee-domain read — comprehension-check result *(added 2026-09-03)*
+
+The coffee Template's external comprehension check
+([`docs/example-coffee-roastery.md`](example-coffee-roastery.md) §CR11.5)
+returned a **partial pass**: the simplified flow, the naming (within the
+Template's stated scope), and the five levers were understood; a completed
+before/after run explaining the direction of each lever's result was not
+demonstrated. Two observations carried into product work — **one external
+reviewer's domain judgement, not a market finding:**
+
+1. **The stronger potential the reviewer saw is in education / explanation /
+   scenario comparison, not a real operations system.** The reviewer expects
+   limited real-work pull across small, mid-size, and large operators — each
+   for a different reason (too complex for a busy small cafe; a large roaster
+   already has its own stock system; a mid-size roastery carries far more item
+   types than a few levers hold).
+2. **Trying to absorb every multi-item / by-scale / by-vendor reality makes
+   scope and complexity spike** and blurs the model's purpose. A domain example
+   stays a simplified operating-flow simulation (consistent with §PD6 and
+   §PD11).
+
+*Noted, not adopted:* follow-up candidates surfaced — **scenario /
+point-in-time diagram comparison**, **clean soft-copy and print export**, and a
+**multi-item summary report** — kept as **separate**, later, spec-first
+candidates only; no roadmap slot, no implementation approval, not folded into
+the coffee Template or any planned pass.
+
+No "field usefulness verified" / "real-roastery suitable" / "passed external
+validation" claim is made from this read.
 
 ---
 

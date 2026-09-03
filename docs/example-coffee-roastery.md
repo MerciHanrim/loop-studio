@@ -1,6 +1,6 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation landing. rev 10.** rev 1–3 fixed the
+**Status: settled design — implementation landing. rev 11.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
 ([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
@@ -63,6 +63,18 @@ renders as the Register's sub-line — **no label duplication**, no value / defa
 / trajectory change, planning-proxy framing unchanged (§CR3.5 / §CR8). The two
 signed stock proxies stay unitless. Pinned in `coffee-roastery.test.ts` and the
 committed `examples/coffee-roastery.json`. No engine / schema / wire change.
+
+**rev 11 — the external comprehension check ran (2026-09-03): partial pass.**
+§CR11 build-order step 9 completed. Flow, naming (within the Template's stated
+simplified scope), and lever discovery passed; a completed before/after
+explanation of each lever's result direction was **not demonstrated**;
+real-operations suitability is **not** claimed (one reviewer expects limited
+real-work pull across small / mid / large operators, and sees an
+education / explanation / scenario-comparison potential — a positive
+observation, not verified market fit). rev 11 adds **§CR11.5** (the result) and
+**CR-D16**, updates §CR13 steps 9–11, and mirrors two anonymised observations
+into [`docs/product-direction.md`](product-direction.md) §PD11.1. Docs only — no
+Coffee JSON / engine / UI / i18n / test change.
 
 **rev 7 — the §CR16 feature has shipped, so the "blocked" notes come out.**
 `loop-model/2` ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge
@@ -696,6 +708,58 @@ that it covers a full roastery operation.
 to edit or "fix" the graph. Whether structural editing is viable is examined
 **only after** this check passes.
 
+### CR11.5 Result — external check ran, partial pass *(2026-09-03)*
+
+The comprehension check was sent and returned. Verdict against the §CR11.2 pass
+bar, at the current evidence:
+
+| §CR11.2 item | Result |
+|---|---|
+| Explains the whole flow, roughly | **pass** — the reviewer follows the buy-green → roast → sell path |
+| Naming and represented flow not badly wrong | **pass for the Template's stated simplified scope** — naming and the represented flow were not found materially awkward; the reviewer separately noted bean varieties, blending, and process differences as realities a broader operational model would need. This is *not* a finding that every core stage of a real roastery is present. |
+| Finds the five levers with no guidance | **pass** — the five adjustable values are found easily |
+| After changing a lever, can say *why* the result moved | **not demonstrated** — the reviewer understood the intended change → re-run → stock/result relationship, but did not report a completed before/after comparison or explain the direction of each lever's result change |
+
+Two further reads from the same reviewer, outside the pass bar — **one external
+reviewer's domain judgement and expectation, not a market finding:**
+
+- **Real-operations usefulness — the reviewer expects limited real-work pull
+  across small, mid-size, and large operators.** A small self-roasting cafe:
+  too complex, little reason to run a model in a busy shift. A large roaster:
+  already has its own stock system, and this does not fully model reality. A
+  mid-size roastery: carries far more item types (ingredients, packaging,
+  consumables) than a few levers hold. Interesting to look at, not an operations
+  tool.
+- **Education / explanation / scenario comparison — positive observation /
+  potential identified** (not verified market fit). Clear potential for teaching
+  in a cafe / shop context, especially if a diagram at one point in time versus
+  another could be exported cleanly for soft copy and print; a wider item set
+  would want a summary report.
+
+**Status: external comprehension check complete; overall pass bar = _partial /
+lever-to-result comprehension not demonstrated_.** This is **not** recorded as
+"field usefulness verified", "suitable for a real roastery", or "passed external
+validation". The §CR2.0 positioning — a simplified operating-flow simulation,
+not an ERP or real-time monitoring system — is consistent with this read.
+
+**Carried as separate follow-ups** (each its own candidate; not this Template's
+scope; no roadmap slot or implementation approval implied):
+
+- scenario / point-in-time diagram comparison;
+- clean soft-copy and print export;
+- multi-item summary report;
+- long Korean-label node-box layout — an observation to check against the
+  current ellipsis / LOD behaviour and real layout;
+- before/after comparison experience and the Monte-Carlo explanation — review
+  the current guidance (what to re-run, where to read the difference) before
+  considering any new feature; the "you'd have to run it several times"
+  reaction may be a guidance gap, not a missing capability.
+
+Bean varieties, multi-item inventory, blending, and per-vendor process
+differences are **not** added to this Coffee Template. They are recorded here
+only as the basis for the scope limit: expanding toward a real operations system
+makes complexity spike and blurs the model's purpose.
+
 ---
 
 ## CR12. Language — via the shared fresh-open overlay
@@ -790,16 +854,16 @@ The five surfaced Parameters (§CR6), in Korean *(row 1 changed rev 9)*:
    §CR9.1 scenarios **really** move the trajectory (a before/after run), and
    EN/KO differ only in labels.
 8. **merge + Production check.**
-9. **external comprehension check** (§CR11) — send the URL + "open `Templates ▾
-   → 커피 로스터리 운영 흐름`", nothing else, run the §CR11.1 protocol with the
-   **§CR10 / §CR11.2 framing** (believable + legible; realism of the simplified
-   flow, lever discovery + operation, per-lever result explanation all on the
-   bar; "not a real system" is fine, "toy" alone is not a pass).
-10. **README final check** — the roadmap line + general positioning, once
-    the model and the check are done.
+9. **external comprehension check** (§CR11) — **ran; result in §CR11.5
+   (2026-09-03): partial pass.** Flow, naming (within the simplified scope), and
+   lever discovery passed; a completed before/after explanation of each lever's
+   result direction was not demonstrated; real-operations suitability is not
+   claimed. Recorded as CR-D16.
+10. **README final check** — the roadmap line + general positioning; states the
+    check ran and is a partial pass, with no real-operations-suitability claim.
 11. **after the check** — if it exposes model problems, fix in a follow-up PR.
-    **LGR Slice 2** starts once step 9 is done. **Not recorded as a success
-    until the external check passes.**
+    **LGR Slice 2** starts once step 9 is done (it has). The check running is
+    **not** recorded as field-usefulness validation or a full §CR11.2 pass.
 
 ---
 
@@ -822,6 +886,7 @@ The five surfaced Parameters (§CR6), in Korean *(row 1 changed rev 9)*:
 | **CR-D13** | *(rev 7)* Coffee is the first bundled v2 Template — any risk? | **No.** `openTemplate` / `loadGraph` already accept a model version; a bundled v2 file loads as v2 as authored (not the "explicit user promotion" path). The label overlay is `label`-only, so it is unaffected. The v2 `loop-revision` / `loop-workspace` digest discriminator (§M2-8) means the Coffee graph's identity is distinct from any v1 graph — expected. |
 | **CR-D14** | *(rev 8)* lever 2 on a `Converter` input edge can't satisfy §CR9.1 under frozen semantics — what now? | **Model `roasting` as a deterministic `Gate`.** [`SEMANTICS.md`](../SEMANTICS.md) I2 fixes a Converter's output at `f·outRate`, `f ∈ [0, 1]`, ≤ 1 activation/step, so `@daily_roast_kg` on a Converter input edge stops changing the roasted output once green is not the binding constraint. A deterministic Gate carries "kg put to roast per day" exactly — **still one `@param` reference** (the single input edge), `T = min(@daily_roast_kg, green available)`, split 82 : 18 into roasted stock and the weight-loss drain, mass-conserving, and green-short limits input + output together. Not a work-around — it is the accurate model. Rejected: a second `@param` edge on the Converter output (breaks "exactly one edge per lever"); Coffee-specific engine code (§CR16.2); keeping the Converter and accepting a dead lever (fails §CR9.1). §CR3.5's roasted-supply-margin proxy now reads the live `@roasted_stock` level so a green-starvation move (§CR9.1 #2) is visible. |
 | **CR-D15** | *(rev 9)* Hanrim's screen review found lever 1 (`daily_customers` footfall) moved no product flow, and the three money Registers read like realised figures. | **(a) Replace lever 1** with `cafe_retail_demand_kg` on the `roasted_stock → cafe_retail` Drain edge — so it draws roasted stock down (§CR9.1 #1) instead of only feeding a tally Pool + the Register formulas (a "Register numbers move only" pseudo-link, §CR16.2). Remove the disconnected `cafe_footfall` Source + `cafe_demand` Pool (25 → 23 nodes). **(b) Rename** `Total revenue` / `Total cost` / `Operating profit` → `Projected daily revenue` / `Planned daily cost` / `Projected daily operating margin`, and state everywhere (titles, §CR3.5, §CR8, every scenario, §CR12.1) that they are **planning proxies** computed on the ordered/planned levers assuming all demand is met — **not** realised revenue / cost / accounting operating profit, and never shown as `실제 매출` / `이익`. A fulfilment shortfall shows in the roasted-stock trajectory + roasted supply margin, not these figures. Rejected: computing an actual fulfilled-sales pool (adds nodes + complexity beyond §CR5, and the proxy framing is enough for a §CR11 comprehension check). |
+| **CR-D16** | *(2026-09-03)* the external comprehension check (§CR11) returned. | **The check has run; it is not "external validation passed".** Fixed: (1) the check **returned**; (2) **flow, naming (within the Template's stated simplified scope), and lever discovery passed** — naming / represented flow were not found materially awkward, with bean varieties / blending / process differences noted separately as a broader model's concerns, *not* a finding that every core stage is present; (3) **lever-to-result explanation was not demonstrated** — the reviewer grasped the change → re-run → result relationship but did not report a completed before/after comparison or state each lever's result direction; (4) **real-operations suitability is not claimed** — one reviewer expects limited real-work pull across small / mid / large operators, and sees education / explanation / scenario-comparison potential (a positive observation, not verified market fit). Overall §CR11.2 verdict: **partial / lever-to-result comprehension not demonstrated.** Follow-up candidates (scenario / point-in-time comparison, clean soft-copy + print export, multi-item summary report, long-KO-label layout, before/after + Monte-Carlo guidance review) are recorded in §CR11.5 and `docs/product-direction.md` §PD11.1 — none adopted. Bean varieties / multi-item / blending / per-vendor process are **not** Coffee-Template work items; they stand only as the basis for the scope limit. |
 
 ---
 
