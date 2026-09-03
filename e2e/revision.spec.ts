@@ -764,3 +764,162 @@ test.describe('loop-revision/1 — Slice 2 per-hunk apply', () => {
     expect(after.edgeTarget).toBe(built.dId)
   })
 })
+
+
+// ── SEMANTICS-R5.md §R5-6 — the graph-level saved-`frames` hunk through the
+// Review UI (cosmetic diff row + per-hunk selective apply). ──────────────────
+test.describe('loop-revision/5 — saved frames in Review', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      L.project.getState().clear()
+      L.review.getState().close()
+      L.frame.getState().loadFrames(null)
+    })
+    page.on('dialog', (d) => {
+      d.accept().catch(() => {})
+    })
+  })
+
+  const liveFrames = (page: Page) =>
+    page.evaluate(() =>
+      (window as unknown as { __loop: any }).__loop.frame.getState().frames.map((f: any) => ({ ...f, n: undefined })),
+    )
+
+  /** a proposal file carrying a top-level `frames` array (digest recomputed to
+   *  cover it). Planned while the origin is clean. `seedFrames` seeds the editor
+   *  + the committed base first; `mutateNodes` can also edit a node. */
+  const framedProposal = (
+    page: Page,
+    proposedFrames: unknown,
+    opts: { seedFrames?: unknown; changeSeededInitial?: number } = {},
+  ) =>
+    page.evaluate(
+      async ([pf, o]) => {
+        const M = await import('/src/model/revision.ts')
+        const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+        const G = L.graph.getState()
+        G.newGraph()
+        G.addNodeAt('pool', { x: 0, y: 0 })
+        G.addNodeAt('drain', { x: 200, y: 0 })
+        const opt = o as { seedFrames?: unknown; changeSeededInitial?: number }
+        if (opt.seedFrames) L.frame.getState().loadFrames(opt.seedFrames)
+        const P = L.project.getState()
+        P.commitRevisionExport(P.planRevision({}).plan)
+        const r0 = L.project.getState().open.revisionId
+        const sid = L.graph.getState().nodes[0].id
+        const f = JSON.parse(P.planProposal({}).text)
+        if (typeof opt.changeSeededInitial === 'number') {
+          f.nodes.find((n: { id: string }) => n.id === sid).data.initial = opt.changeSeededInitial
+        }
+        if (pf === null) delete f.frames
+        else f.frames = pf
+        f.project.contentDigest = M.digestOfCanonical(
+          M.canonicalContent({ nodes: f.nodes, edges: f.edges, frames: f.frames }),
+        )
+        return { text: JSON.stringify(f), r0, sid }
+      },
+      [proposedFrames, opts] as const,
+    )
+
+  const F = [
+    { id: 'zf1', label: 'Intake', rect: { x: 0, y: 0, w: 120, h: 60 } },
+    { id: 'zf2', label: 'Output', rect: { x: 200, y: 0, w: 90, h: 50 }, color: 'gold' },
+  ]
+
+  test('a frames-only proposal: the diff names it "frames", "Choose changes" shows one Saved-frames row, checking it swaps the whole array in atomically; one undo restores', async ({ page }) => {
+    const { r0, text } = await framedProposal(page, F)
+    await setFile(page, 'p.json', text)
+    await expect(page.locator('.review')).toBeVisible()
+    // the whole-diff summary calls it a cosmetic "frames" change (not empty)
+    await expect(page.locator('.review__diff')).toContainText('frames')
+    await expect(page.locator('.review__diff')).not.toContainText('Nodes')
+
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const framesRow = page.locator('.review__hunk', { hasText: 'Saved frames' })
+    await expect(framesRow).toHaveCount(1)
+    await expect(page.locator('.review__hunk')).toHaveCount(1) // no node/edge hunks
+    const box = framesRow.locator('input[type=checkbox]')
+    await expect(box).toBeChecked() // a CLEAN frames hunk is pre-accepted
+
+    const simRevBefore = await page.evaluate(
+      () => (window as unknown as { __loop: any }).__loop.graph.getState().simulationRev,
+    )
+    await page.locator('.review__actions button', { hasText: /^Apply \d+ selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+
+    expect(await liveFrames(page)).toEqual(F.map((f) => ({ ...f, n: undefined })))
+    const after = await page.evaluate(() => {
+      const L = (window as unknown as { __loop: any }).__loop
+      return { simRev: L.graph.getState().simulationRev, step: L.sim.getState().stepIndex, parent: L.project.getState().open.parentId }
+    })
+    expect(after.simRev).toBe(simRevBefore + 1) // ONE atomic step
+    expect(after.step).toBe(0)
+    expect(after.parent).toBe(r0)
+
+    // one undo restores the pre-apply (empty) frames AND the r0 header together
+    await page.evaluate(() => (window as unknown as { __loop: any }).__loop.graph.getState().undo())
+    expect(await liveFrames(page)).toEqual([])
+    expect(
+      await page.evaluate(() => (window as unknown as { __loop: any }).__loop.project.getState().open.revisionId),
+    ).toBe(r0)
+  })
+
+  test('leaving the frames row unchecked keeps the editor’s frames while a node change still applies', async ({ page }) => {
+    const { sid, text } = await framedProposal(page, F, { changeSeededInitial: 77 })
+    await setFile(page, 'p.json', text)
+    await expect(page.locator('.review')).toBeVisible()
+    // give the editor its own local frame (unrelated to the proposal)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: any }).__loop.frame
+        .getState()
+        .loadFrames([{ id: 'mine', label: 'Mine', rect: { x: 1, y: 1, w: 9, h: 9 } }]),
+    )
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    // the frames hunk vs. a local frame is a CONFLICT — NOT pre-accepted; leave it
+    const framesRow = page.locator('.review__hunk', { hasText: 'Saved frames' })
+    await expect(framesRow).toHaveClass(/review__hunk--conflict/)
+    await expect(framesRow.locator('input[type=checkbox]')).not.toBeChecked()
+    // the node change (data.initial) is clean ⇒ its "take theirs" radio is pre-set
+    const changeRow = page.locator('.review__hunk', { hasText: 'Change node' })
+    await expect(changeRow.locator('input[type=radio]').first()).toBeChecked()
+    await page.locator('.review__actions button', { hasText: /^Apply 1 selected/ }).click()
+    await expect(page.locator('.review')).toBeHidden()
+
+    expect(
+      await page.evaluate(
+        (id) =>
+          (window as unknown as { __loop: any }).__loop.graph
+            .getState()
+            .nodes.find((n: any) => n.id === id).data.initial,
+        sid,
+      ),
+    ).toBe(77) // the node change applied
+    expect(await liveFrames(page)).toEqual([{ id: 'mine', label: 'Mine', rect: { x: 1, y: 1, w: 9, h: 9 }, n: undefined }]) // frames KEPT
+  })
+
+  test('a divergent frames edit is a conflict row and gates the whole Apply behind a confirmation', async ({ page }) => {
+    const { text } = await framedProposal(page, [{ id: 'zf1', label: 'Intake (theirs)', rect: { x: 0, y: 0, w: 120, h: 60 } }], { seedFrames: F })
+    await setFile(page, 'p.json', text)
+    await expect(page.locator('.review')).toBeVisible()
+    // diverge the editor's frames locally (a third array)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: any }).__loop.frame
+        .getState()
+        .loadFrames([{ id: 'zf1', label: 'Intake (mine)', rect: { x: 0, y: 0, w: 120, h: 60 } }]),
+    )
+    await expect(page.locator('.review__class')).toContainText('overlap') // divergent copy
+    await page.locator('.review__actions button', { hasText: 'Choose changes' }).click()
+    const framesRow = page.locator('.review__hunk', { hasText: 'Saved frames' })
+    await expect(framesRow).toHaveClass(/review__hunk--conflict/)
+    await expect(framesRow.locator('input[type=checkbox]')).not.toBeChecked() // a conflict is NOT pre-accepted
+
+    // the whole-proposal path now needs the explicit confirmation
+    await page.locator('.review__actions button', { hasText: 'Whole proposal' }).click()
+    await page.locator('.review__actions button', { hasText: 'Apply proposal' }).click()
+    await expect(page.locator('.review__warn')).toBeVisible()
+    await expect(page.locator('.review__actions button', { hasText: 'Apply anyway' })).toBeVisible()
+  })
+})

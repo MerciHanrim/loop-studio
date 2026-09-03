@@ -13,8 +13,8 @@ import {
   readParameterData,
   readRegisterData,
 } from './model'
-import { normalizeGraph } from './serialize'
-import type { RecommendedRunConfig } from './serialize'
+import { normalizeGraph, readSavedFrames } from './serialize'
+import type { RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -86,6 +86,15 @@ export type CanonicalContent = {
   nodes: CanonicalNode[]
   edges: CanonicalEdge[]
   recommendedRunConfig?: Record<string, unknown>
+  /**
+   * loop-revision/5 (SEMANTICS-R5.md §R5-2.1) — the saved MANUAL group frames.
+   * A trailing key AFTER `recommendedRunConfig`, BEFORE `modelSemantics`;
+   * present **iff** ≥ 1 entry survives the §R5-1.1 read AND the projection runs
+   * under the model layer (v2+). Absent ⇒ ≤ v4 canonical bytes / digest
+   * unchanged (R5-INV-2). `cosmetic`: never `engineAffecting` /
+   * `advisoryAffecting`. Array order is file order — not re-sorted.
+   */
+  frames?: { id: string; label: string; rect: { x: number; y: number; w: number; h: number }; color?: string }[]
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as the literal `"loop-model/2"`) **iff** the document declares
@@ -368,6 +377,9 @@ export function canonicalContent(
     nodes: LoopNode[]
     edges: LoopEdge[]
     recommendedRunConfig?: RecommendedRunConfig
+    /** loop-revision/5 — raw or already-clean saved frames (§R5-1.1 is applied
+     *  here defensively, so a caller may pass either). */
+    frames?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -383,6 +395,27 @@ export function canonicalContent(
   }
   const rrc = projectRunConfig(doc.recommendedRunConfig)
   if (rrc) out.recommendedRunConfig = rrc
+  // loop-revision/5 (SEMANTICS-R5.md §R5-2.1) — `frames` AFTER
+  // `recommendedRunConfig`, BEFORE `modelSemantics`. Only under the model layer
+  // (v2+), only when ≥ 1 entry survives §R5-1.1. Array in FILE ORDER (not
+  // re-sorted); per-entry key order id / label / rect(x,y,w,h) / color?; `color`
+  // only when a palette id. Absent ⇒ ≤ v4 bytes untouched (R5-INV-2).
+  if (modelLayer) {
+    const frames = readSavedFrames(doc.frames)
+    if (frames.length > 0) {
+      out.frames = frames.map((f) => {
+        const rect = {
+          x: numOrThrow(f.rect.x, `frame ${f.id} rect.x`),
+          y: numOrThrow(f.rect.y, `frame ${f.id} rect.y`),
+          w: numOrThrow(f.rect.w, `frame ${f.id} rect.w`),
+          h: numOrThrow(f.rect.h, `frame ${f.id} rect.h`),
+        }
+        return f.color
+          ? { id: f.id, label: f.label, rect, color: f.color }
+          : { id: f.id, label: f.label, rect }
+      })
+    }
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
   // v2 document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
   if (opts.modelVersion === 2) out.modelSemantics = 'loop-model/2'
@@ -407,6 +440,9 @@ export async function fullContentDigest(
     nodes: LoopNode[]
     edges: LoopEdge[]
     recommendedRunConfig?: RecommendedRunConfig
+    /** loop-revision/5 — carried into the projection (§R5-2.1). Absent ⇒ the
+     *  digest is unchanged from ≤ v4 (R5-INV-2). */
+    frames?: unknown
   },
   modelVersion?: CanonModelVersion,
 ): Promise<string> {
@@ -426,6 +462,7 @@ export type SideVersion =
   | 'loop-revision/2'
   | 'loop-revision/3'
   | 'loop-revision/4' // loop-model/2 — the doc declares model-semantics v2 (SEMANTICS-M2.md §M2-8)
+  | 'loop-revision/5' // SEMANTICS-R5.md — the side carries ≥ 1 surviving graph-level `frames` entry
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -469,7 +506,15 @@ export type RevisionSideResult = RevisionSideOk | RevisionSideFail
  * until the editor-wiring slice moves it into `normalizeNode`.
  */
 export function readRevisionSide(
-  graph: { nodes: LoopNode[]; edges: LoopEdge[]; recommendedRunConfig?: RecommendedRunConfig },
+  graph: {
+    nodes: LoopNode[]
+    edges: LoopEdge[]
+    recommendedRunConfig?: RecommendedRunConfig
+    /** SEMANTICS-R5.md §R5-1.1 / §R5-5.1 step 2 — the side's raw graph-level
+     *  saved frames (from `deserialize`). The defensive read happens inside
+     *  `canonicalContent`; ≥ 1 surviving entry makes the side `loop-revision/5`. */
+    frames?: readonly SavedFrame[]
+  },
   storedDigest?: string,
   /** loop-model/2 — the model-semantics version the side's `schema` declared
    *  (from `deserialize`). `2` ⇒ the side is `loop-revision/4` content and its
@@ -510,13 +555,22 @@ export function readRevisionSide(
   // A v2 declaration ⇒ `loop-revision/4`, which supersedes the v2/v3 label for
   // this side's projection + digest.
   const declaredV2 = modelVersion === 2
-  const version: SideVersion = declaredV2
-    ? 'loop-revision/4'
-    : hasRouting
-      ? 'loop-revision/3'
-      : hasModel
-        ? 'loop-revision/2'
-        : 'loop-revision/1'
+  // SEMANTICS-R5.md §R5-5.1 step 3 — ≥ 1 surviving `frames` entry ⇒ the side is
+  // `loop-revision/5` (checked first). A `loop-model/2` declaration still makes
+  // it *also* v4 content — both are served by the one `{ modelLayer: true }`
+  // projection below (with the §M2-8 discriminator when declared), so the label
+  // is the only thing v5-vs-v4 changes here. A `frames` block whose entries
+  // were all dropped leaves nothing and the side infers as ≤ v4 (R5-INV-2).
+  const hasFrames = readSavedFrames(graph.frames).length > 0
+  const version: SideVersion = hasFrames
+    ? 'loop-revision/5'
+    : declaredV2
+      ? 'loop-revision/4'
+      : hasRouting
+        ? 'loop-revision/3'
+        : hasModel
+          ? 'loop-revision/2'
+          : 'loop-revision/1'
 
   // 4 — project under the version-appropriate field set and verify the digest
   if (version === 'loop-revision/1') {
@@ -597,15 +651,31 @@ export type RunConfigChange =
   | { kind: 'removed'; key: string; base: unknown }
   | { kind: 'changed'; key: string; base: unknown; proposed: unknown }
 
+/** `loop-revision/5` (`SEMANTICS-R5.md` §R5-6) — the whole projected `frames`
+ *  array compared as ONE `cosmetic` top-level hunk (no per-entry granularity on
+ *  the wire — §R5-D7). Present on the diff **only when the arrays differ**;
+ *  `base` / `proposed` are the projected arrays (`null` = the side had none). */
+export type FramesChange = {
+  base: NonNullable<CanonicalContent['frames']> | null
+  proposed: NonNullable<CanonicalContent['frames']> | null
+}
+
 export type RevisionDiff = {
   nodes: ElementBuckets<CanonicalNode>
   edges: ElementBuckets<CanonicalEdge>
   runConfig: RunConfigChange[]
+  /** `loop-revision/5` — `null` when the saved frames are equal; otherwise the
+   *  before / after arrays (one atomic cosmetic hunk). */
+  frames: FramesChange | null
   workspaceDiffers: boolean
   summary: {
     nodes: { added: number; removed: number; changed: number }
     edges: { added: number; removed: number; changed: number }
     runConfigChanged: boolean
+    /** `loop-revision/5` — the saved `frames` array differs. `cosmetic`: feeds
+     *  `dirty` / the diff / `nConf`, but never `engineAffecting` /
+     *  `advisoryAffecting`. */
+    framesChanged: boolean
     engineAffecting: boolean
     /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-3 / R2-D1) — any `advisory`-tagged
      *  hunk (a tuning hint or a `resourceType` tag). Separate from
@@ -739,6 +809,11 @@ export function computeRevisionDiff(
   const nodes = bucket('node', base.nodes, proposed.nodes)
   const edges = bucket('edge', base.edges, proposed.edges)
   const runConfig = diffRunConfig(base.recommendedRunConfig, proposed.recommendedRunConfig)
+  // §R5-6 — the whole `frames` array as one cosmetic hunk.
+  const framesChanged = !deepEq(base.frames ?? null, proposed.frames ?? null)
+  const frames: FramesChange | null = framesChanged
+    ? { base: base.frames ?? null, proposed: proposed.frames ?? null }
+    : null
 
   const anyEngine =
     nodes.added.length > 0 ||
@@ -762,19 +837,22 @@ export function computeRevisionDiff(
     edges.added.length === 0 &&
     edges.removed.length === 0 &&
     edges.changed.length === 0 &&
-    runConfig.length === 0
+    runConfig.length === 0 &&
+    !framesChanged // §R5-6 — a frames-only change is NOT an empty diff
 
   return {
     nodes,
     edges,
     runConfig,
+    frames,
     workspaceDiffers: opts.workspaceDiffers ?? false,
     summary: {
       nodes: { added: nodes.added.length, removed: nodes.removed.length, changed: nodes.changed.length },
       edges: { added: edges.added.length, removed: edges.removed.length, changed: edges.changed.length },
       runConfigChanged: runConfig.length > 0,
-      engineAffecting: anyEngine,
-      advisoryAffecting: anyAdvisory,
+      framesChanged,
+      engineAffecting: anyEngine, // §R5-3 — `frames` NEVER sets this
+      advisoryAffecting: anyAdvisory, // §R5-3 — nor this
       empty,
     },
   }
@@ -831,11 +909,38 @@ export type ProposalHunk = {
    *  hunk `verdict` is `conflict`, and it feeds `nConf` (⇒ `divergent`). */
   blockedBy?: string[]
 }
+/** SEMANTICS-R5.md §R5-6 — the single graph-level `frames` hunk in a three-way
+ *  plan. The whole projected array is compared as ONE atomic `cosmetic` unit
+ *  (§R5-D7): `noop` = the target already holds the proposed array; `clean` =
+ *  the target still holds the base array, so taking the proposal is loss-free;
+ *  `conflict` = the target holds a third array (base and both sides diverged).
+ *  `proposed` / `base` / `yours` are the projected arrays (`null` = that side
+ *  had no surviving frames). Present on the plan ONLY when `proposed` and
+ *  `base` differ. */
+export type FramesHunk = {
+  kind: 'frames'
+  verdict: ThreeWayFieldVerdict
+  base: NonNullable<CanonicalContent['frames']> | null
+  proposed: NonNullable<CanonicalContent['frames']> | null
+  yours: NonNullable<CanonicalContent['frames']> | null
+}
 export type ThreeWayPlan = {
   hunks: ProposalHunk[]
-  /** §R7A.2 `nConf` — conflicting whole-hunks (`add`/`remove`) + conflicting
-   *  fields of `change` hunks (a `change` whose target element was deleted
-   *  counts once). `0` ⇒ `unknown ancestry`, `≥ 1` ⇒ `divergent`. */
+  /** SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk. Absent when the
+   *  base and proposed `frames` arrays are equal (nothing to offer). */
+  frames?: FramesHunk
+  /** §R7A.2 `nConf` — the number of **revision conflicts the user must resolve
+   *  before a whole Apply** (NOT a count of *engine* conflicts). `0` ⇒
+   *  `unknown ancestry`, `≥ 1` ⇒ `divergent` (the whole Apply is gated behind
+   *  an explicit confirmation). Sources: conflicting whole-hunks
+   *  (`add`/`remove`) + conflicting fields of `change` hunks (a `change` whose
+   *  target element was deleted counts once) + a **conflicting `frames` hunk**
+   *  (`SEMANTICS-R5.md` §R5-6 / R5-D9 — the base and both sides changed the
+   *  array divergently: applying the whole proposal would silently discard the
+   *  user's frame edits, so it must be confirmed — exactly like a divergent
+   *  `label` rename). A `clean` / `noop` `frames` hunk adds nothing. `frames`
+   *  is still `cosmetic`: it never sets `engineAffecting` / `advisoryAffecting`
+   *  and never moves the engine / structure digest. */
   nConf: number
 }
 
@@ -843,7 +948,10 @@ export type ThreeWayPlan = {
  * §R7A.3 — the full three-way plan for every proposal hunk. `base.content`,
  * `canonicalContent(open graph)` and `canonicalContent(proposal top-level)`,
  * all three. Pure and deterministic (id-sorted). `recommendedRunConfig` plays
- * no part (the exporters never emit it into a revision's content).
+ * no part (the exporters never emit it into a revision's content). The graph-
+ * level saved `frames` array IS part of the compare (each `CanonicalContent`
+ * carries it): the caller must pass a `target` that includes the live editor's
+ * frames so the `frames` hunk verdict is right (`SEMANTICS-R5.md` §R5-6).
  */
 export function computeThreeWay(
   base: CanonicalContent,
@@ -921,7 +1029,28 @@ export function computeThreeWay(
     }
   }
 
-  return { hunks, nConf }
+  // SEMANTICS-R5.md §R5-6 / R5-D9 — the graph-level `frames` hunk. One atomic
+  // unit: compared whole (§R5-D7), verdict against the target exactly like a
+  // `change` field. A `conflict` (base and both sides diverged — the live
+  // editor holds a third array) is added to `nConf` so a whole-proposal Apply
+  // is gated and the user's frame edits are not silently overwritten. `nConf`
+  // = revision conflicts to resolve, NOT engine conflicts; `frames` never sets
+  // `engineAffecting`. Emitted only when base and proposed arrays differ.
+  const bFrames = base.frames ?? null
+  const pFrames = proposed.frames ?? null
+  let frames: FramesHunk | undefined
+  if (!deepEq(bFrames, pFrames)) {
+    const yFrames = target.frames ?? null
+    const verdict: ThreeWayFieldVerdict = deepEq(yFrames, pFrames)
+      ? 'noop'
+      : deepEq(yFrames, bFrames)
+        ? 'clean'
+        : 'conflict'
+    frames = { kind: 'frames', verdict, base: bFrames, proposed: pFrames, yours: yFrames }
+    if (verdict === 'conflict') nConf += 1
+  }
+
+  return { hunks, ...(frames ? { frames } : {}), nConf }
 }
 
 /** §R7A.2 `nConf` — the conflict count only (see {@link computeThreeWay}). */
@@ -952,9 +1081,23 @@ export type HunkSelection = {
   /** `change` hunk id → field name → 'proposed' (take theirs) | 'yours' (keep
    *  mine, the default for any unlisted field) */
   fieldChoices: Record<string, Record<string, 'proposed' | 'yours'>>
+  /** SEMANTICS-R5.md §R5-6 — the single graph-level `frames` hunk. `'proposed'`
+   *  swaps in the proposal's WHOLE array (including an empty array ⇒ clear every
+   *  frame); `'yours'` / absent keeps the target's array. Never a per-entry
+   *  choice (§R5-D7). */
+  frames?: 'proposed' | 'yours'
 }
 export type SelectiveApplyResult =
-  | { ok: true; nodes: LoopNode[]; edges: LoopEdge[] }
+  | {
+      ok: true
+      nodes: LoopNode[]
+      edges: LoopEdge[]
+      /** SEMANTICS-R5.md §R5-6 — set ONLY when the `frames` hunk was accepted
+       *  (`selection.frames === 'proposed'`): the proposal's whole `frames`
+       *  array (`[]` = clear). `undefined` ⇒ the caller keeps the target's
+       *  frames (`graphStore.loadDoc(…, undefined)` semantics). */
+      frames?: readonly SavedFrame[]
+    }
   | { ok: false; reason: 'invalid-selection'; detail: string }
 
 /**
@@ -973,7 +1116,14 @@ export type SelectiveApplyResult =
  */
 export function buildSelectiveApply(input: {
   target: { nodes: LoopNode[]; edges: LoopEdge[] }
-  proposedFull: { nodes: LoopNode[]; edges: LoopEdge[] }
+  proposedFull: {
+    nodes: LoopNode[]
+    edges: LoopEdge[]
+    /** SEMANTICS-R5.md §R5-6 — the proposal's saved frames, swapped in wholesale
+     *  when `selection.frames === 'proposed'`. Absent / `[]` ⇒ selecting the
+     *  hunk clears every frame. */
+    frames?: readonly SavedFrame[]
+  }
   plan: ThreeWayPlan
   selection: HunkSelection
 }): SelectiveApplyResult {
@@ -1070,7 +1220,14 @@ export function buildSelectiveApply(input: {
   for (const e of target.edges) if (edges.has(e.id)) outEdges.push(edges.get(e.id)!)
   for (const e of proposedFull.edges) if (edges.has(e.id) && !target.edges.some((t) => t.id === e.id)) outEdges.push(edges.get(e.id)!)
 
-  return { ok: true, nodes: outNodes, edges: outEdges }
+  // SEMANTICS-R5.md §R5-6 — the `frames` hunk is one atomic swap. Accepting it
+  // takes the proposal's WHOLE array (an empty array ⇒ clear every frame);
+  // leaving it unselected returns `frames: undefined` so the caller keeps the
+  // target's frames. No per-entry merge, ever.
+  const frames: readonly SavedFrame[] | undefined =
+    selection.frames === 'proposed' ? (proposedFull.frames ?? []).map(cloneEl) : undefined
+
+  return { ok: true, nodes: outNodes, edges: outEdges, ...(frames !== undefined ? { frames } : {}) }
 }
 
 // ── §2 — validate the WHOLE result before it can be applied ────────────────
@@ -1357,6 +1514,15 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (o.recommendedRunConfig && typeof o.recommendedRunConfig === 'object') {
     out.recommendedRunConfig = o.recommendedRunConfig as Record<string, unknown>
   }
+  // loop-revision/5 (SEMANTICS-R5.md §R5-2.1) — a stored base snapshot from a v5
+  // document carries the trailing `frames` array in its canonical form (after
+  // `recommendedRunConfig`, before `modelSemantics`). Keep it VERBATIM — like
+  // `recommendedRunConfig`, the file supplies the canonical bytes and the
+  // `digestOfCanonical(content) === contentDigest` check below rejects a
+  // tampered one.
+  if (Array.isArray(o.frames) && o.frames.length > 0) {
+    out.frames = o.frames as NonNullable<CanonicalContent['frames']>
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
@@ -1391,6 +1557,10 @@ export type GraphDocInput = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   recommendedRunConfig?: RecommendedRunConfig
+  /** LGR Slice 5 (`SEMANTICS-R5.md` §R5-2) — the doc's saved MANUAL frames.
+   *  Absent / empty ⇒ no `frames` key in the file and no contribution to the
+   *  content digest (R5-INV-2 conservative extension). */
+  frames?: readonly SavedFrame[]
   workspace?: unknown
 }
 
@@ -1586,6 +1756,9 @@ function buildFile(doc: Omit<GraphDocInput, 'schema' | 'version'>, project: Proj
   if (doc.recommendedRunConfig && typeof doc.recommendedRunConfig === 'object') {
     file.recommendedRunConfig = doc.recommendedRunConfig
   }
+  // §R5-2.1 — `frames` after `recommendedRunConfig`, only when non-empty, so a
+  // frame-free revision / proposal file is byte-identical to a pre-Slice-5 one.
+  if (Array.isArray(doc.frames) && doc.frames.length > 0) file.frames = doc.frames
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

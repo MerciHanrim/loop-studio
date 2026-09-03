@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import type { HunkSelection, ProposalHunk, ThreeWayPlan } from '../model/revision'
+import type { FramesHunk, HunkSelection, ProposalHunk, ThreeWayPlan } from '../model/revision'
+import { useFrameStore } from '../store/frameStore'
 import { useGraphStore } from '../store/graphStore'
 import { useProjectStore, type ApplyClassification, type ApplyFailReason } from '../store/projectStore'
 import { useReviewStore } from '../store/reviewStore'
@@ -56,6 +57,10 @@ function DiffSummary({ m }: { m: ReviewModel }) {
       {m.diff.summary.runConfigChanged ? (
         <span className="review__diff-part">{t('review.diff.runConfig')}</span>
       ) : null}
+      {/* SEMANTICS-R5.md §R5-6 — the graph-level saved `frames` array (cosmetic) */}
+      {m.diff.summary.framesChanged ? (
+        <span className="review__diff-part">{t('review.diff.frames')}</span>
+      ) : null}
     </p>
   )
 }
@@ -91,13 +96,55 @@ function defaultSelection(plan: ThreeWayPlan): HunkSelection {
       if (h.kind === 'remove' && h.elementType === 'node') for (const d of deps) accept[d] = true
     }
   }
-  return { accept, fieldChoices }
+  // SEMANTICS-R5.md §R5-6 — pre-accept a CLEAN `frames` hunk (target still at
+  // base); leave a `conflict` (a third array) for the user; `noop` is nothing.
+  const frames: HunkSelection['frames'] = plan.frames?.verdict === 'clean' ? 'proposed' : 'yours'
+  return { accept, fieldChoices, frames }
 }
 
 function selectionCount(sel: HunkSelection): number {
   let n = Object.values(sel.accept).filter(Boolean).length
   for (const fc of Object.values(sel.fieldChoices)) n += Object.values(fc).filter((c) => c === 'proposed').length
+  if (sel.frames === 'proposed') n += 1
   return n
+}
+
+/** SEMANTICS-R5.md §R5-6 — the single graph-level saved-`frames` hunk. One
+ *  checkbox: checked ⇒ take the proposal's WHOLE array (or clear it); unchecked
+ *  ⇒ keep the target's. Never a per-entry choice (§R5-D7). */
+function FramesHunkRow({
+  h,
+  sel,
+  onFrames,
+}: {
+  h: FramesHunk
+  sel: HunkSelection
+  onFrames: (choice: 'proposed' | 'yours') => void
+}) {
+  const t = useT()
+  const yours = h.yours?.length ?? 0
+  const theirs = h.proposed?.length ?? 0
+  return (
+    <div>
+      <label className="review__hunk-head">
+        <input
+          type="checkbox"
+          checked={sel.frames === 'proposed'}
+          onChange={(e) => onFrames(e.target.checked ? 'proposed' : 'yours')}
+        />
+        <span>
+          {t('review.hunk.framesTitle')}{' '}
+          {theirs === 0
+            ? t('review.hunk.framesClear', { yours })
+            : t('review.hunk.framesTake', { yours, theirs })}
+          <span className="review__field-tag">{t('review.diff.frames')}</span>
+          {h.verdict === 'conflict' ? (
+            <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span>
+          ) : null}
+        </span>
+      </label>
+    </div>
+  )
 }
 
 function HunkList({
@@ -105,17 +152,20 @@ function HunkList({
   sel,
   onToggleAccept,
   onField,
+  onFrames,
 }: {
   plan: ThreeWayPlan
   sel: HunkSelection
   onToggleAccept: (id: string, v: boolean) => void
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
+  onFrames: (choice: 'proposed' | 'yours') => void
 }) {
   const t = useT()
   const actionable = plan.hunks.filter(
     (h) => h.verdict !== 'noop' || (h.fields ?? []).some((f) => f.verdict !== 'noop'),
   )
-  if (!actionable.length) return <p className="review__stamp">{t('review.hunks.none')}</p>
+  const framesRow = plan.frames && plan.frames.verdict !== 'noop' ? plan.frames : null
+  if (!actionable.length && !framesRow) return <p className="review__stamp">{t('review.hunks.none')}</p>
   return (
     <ul className="review__hunks">
       {actionable.map((h) => (
@@ -123,6 +173,11 @@ function HunkList({
           <HunkRow h={h} sel={sel} onToggleAccept={onToggleAccept} onField={onField} />
         </li>
       ))}
+      {framesRow ? (
+        <li key="graph:frames" className={`review__hunk review__hunk--${framesRow.verdict}`}>
+          <FramesHunkRow h={framesRow} sel={sel} onFrames={onFrames} />
+        </li>
+      ) : null}
     </ul>
   )
 }
@@ -265,10 +320,14 @@ export function ReviewOverlay() {
   const openRev = useProjectStore((s) => s.open?.revisionId ?? null)
   const openRole = useProjectStore((s) => s.open?.role ?? null)
   const simRev = useGraphStore((s) => s.simulationRev)
+  // SEMANTICS-R5.md §R5-6 — the saved `frames` array is revision content: a
+  // frame edit while Review is open must recompute the diff / three-way plan
+  // (it does NOT bump `simulationRev`).
+  const liveFrames = useFrameStore((s) => s.frames)
   const model = useMemo(
     () => (pending ? reviewModel(pending) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pending, openRev, openRole, simRev],
+    [pending, openRev, openRole, simRev, liveFrames],
   )
   const planCtx = useMemo(
     () =>
@@ -276,7 +335,7 @@ export function ReviewOverlay() {
         ? { plan: threeWayForPending(pending), digest: currentTargetDigest() }
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pending, openRev, openRole, simRev, model?.gate],
+    [pending, openRev, openRole, simRev, liveFrames, model?.gate],
   )
   const plan = planCtx?.plan ?? null
 
@@ -370,6 +429,8 @@ export function ReviewOverlay() {
 
   const setField = (id: string, field: string, choice: 'proposed' | 'yours') =>
     setSel((s) => ({ ...s, fieldChoices: { ...s.fieldChoices, [id]: { ...(s.fieldChoices[id] ?? {}), [field]: choice } } }))
+  // SEMANTICS-R5.md §R5-6 — the atomic graph-level `frames` choice
+  const setFramesChoice = (choice: 'proposed' | 'yours') => setSel((s) => ({ ...s, frames: choice }))
   const toggleAccept = (id: string, v: boolean) =>
     setSel((s) => {
       const accept = { ...s.accept, [id]: v }
@@ -428,7 +489,13 @@ export function ReviewOverlay() {
 
       {canApply && mode === 'hunks' && plan ? (
         <div className="review__pick">
-          <HunkList plan={plan} sel={sel} onToggleAccept={toggleAccept} onField={setField} />
+          <HunkList
+            plan={plan}
+            sel={sel}
+            onToggleAccept={toggleAccept}
+            onField={setField}
+            onFrames={setFramesChoice}
+          />
         </div>
       ) : null}
 

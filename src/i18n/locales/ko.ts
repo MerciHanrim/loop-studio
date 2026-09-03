@@ -502,6 +502,7 @@ const ko = {
   'review.diff.nodes': '노드',
   'review.diff.edges': '엣지',
   'review.diff.runConfig': '실행 설정',
+  'review.diff.frames': '프레임',
   'review.gate.wrongProject':
     '이 제안은 다른 프로젝트의 것입니다. 문서로는 열 수 있습니다.',
   'review.gate.noTarget': '열려 있는 프로젝트가 없습니다. 이 제안을 문서로 열거나 취소하세요.',
@@ -536,6 +537,9 @@ const ko = {
   'review.hunk.alsoRemove': '다음 엣지도 제거하거나 다시 연결:',
   'review.hunk.cantRemove': '제거 불가 — 내가 추가한 엣지',
   'review.hunk.toThisNode': '— 이 노드로',
+  'review.hunk.framesTitle': '저장된 프레임',
+  'review.hunk.framesTake': '제안의 프레임 사용 ({yours}개 → {theirs}개)',
+  'review.hunk.framesClear': '제안의 프레임 사용 ({yours}개 모두 지움)',
   'review.field.base': '기준',
   'review.field.yours': '내 것',
   'review.field.theirs': '상대 것',

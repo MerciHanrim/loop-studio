@@ -643,8 +643,11 @@ Machine-checkable, mirroring the Visual Refresh specs.
 
 **Waypoints (Slice 2)**
 15. Add / move / delete / Reset are one undo entry each; `waypoints` appears in
-    the three-way diff as a **cosmetic** change, never feeds `nConf`, never
-    changes `engineAffecting`.
+    the three-way diff as a **cosmetic** change and never sets
+    `engineAffecting` / `advisoryAffecting`. A **divergent conflict** on it is
+    still counted in `nConf` (`SEMANTICS-R3.md` §ER6 — revision conflicts to
+    resolve before a whole Apply, exactly like a `label` rename), so a whole
+    Apply cannot silently discard the user's manual routing.
 16. A waypoint dragged inside a node shows the `invalid` edge cue, the value is
     kept, and the affected span uses the fallback; dragging it out clears the
     cue. Moving a node leaves the waypoints fixed and re-routes the spans.

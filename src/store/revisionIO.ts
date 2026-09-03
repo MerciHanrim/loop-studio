@@ -10,8 +10,9 @@ import {
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize } from '../model/serialize'
+import { deserialize, type SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
 import { useProjectStore, type ApplyResult } from './projectStore'
 import { importFile, type ImportOutcome, type Viewport } from './workspaceIO'
@@ -81,7 +82,15 @@ export async function routeImport(text: string): Promise<RouteResult> {
   // projection. A malformed model payload (§R2-5.1) never blocks the graph and
   // never enters Review / Apply.
   const side = readRevisionSide(
-    { nodes: parsed.nodes, edges: parsed.edges, recommendedRunConfig: parsed.recommendedRunConfig },
+    // SEMANTICS-R5.md §R5-5.1 — `frames` is part of the side; ≥ 1 surviving
+    // entry makes this a `loop-revision/5` side and its digest is verified
+    // WITH `frames` projected.
+    {
+      nodes: parsed.nodes,
+      edges: parsed.edges,
+      recommendedRunConfig: parsed.recommendedRunConfig,
+      frames: parsed.frames,
+    },
     undefined,
     parsed.modelVersion,
   )
@@ -124,10 +133,15 @@ export async function routeImport(text: string): Promise<RouteResult> {
 /** A routed proposal awaiting a Review-panel decision. */
 export type PendingProposal = Extract<RouteResult, { kind: 'proposal' }>
 
-/** the proposed graph carried by a routed proposal (deserialised once) */
-function proposedGraph(p: PendingProposal): { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: 1 | 2 } {
-  const { nodes, edges, modelVersion } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion }
+/** the proposed graph carried by a routed proposal (deserialised once).
+ *  LGR Slice 5 — `frames` rides along so a whole-proposal Apply / "Open as a
+ *  document" adopts the proposal's saved frames atomically (`SEMANTICS-R5.md`
+ *  §R5-6); `deserialize` always yields an array (`[]` when the file has none). */
+function proposedGraph(
+  p: PendingProposal,
+): { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: 1 | 2; frames: SavedFrame[] } {
+  const { nodes, edges, modelVersion, frames } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion, frames }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */
@@ -146,17 +160,30 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
   const proposed = proposedGraph(p)
   return computeThreeWay(
     p.base.content,
-    canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }),
+    // SEMANTICS-R5.md §R5-6 — the LIVE target must carry the on-screen saved
+    // frames so the `frames` hunk verdict (noop / clean / conflict) is right.
+    canonicalContent(
+      { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+      { modelVersion: g.modelVersion },
+    ),
     canonicalContent(proposed, { modelVersion: proposed.modelVersion }),
   )
 }
 
 /** the live target digest a hunk selection is being built against — passed back
  *  to `applyProposal` as `expectTargetDigest` so a moved target is rejected
- *  (`target-moved`) instead of silently re-using a stale selection. */
+ *  (`target-moved`) instead of silently re-using a stale selection. Includes the
+ *  live saved `frames` (SEMANTICS-R5.md §R5-6 — a frame edit flips `dirty` and
+ *  moves this digest, exactly like a `label` rename); it must stay identical to
+ *  `projectStore`'s `liveDigest()`, which is what Apply checks it against. */
 export function currentTargetDigest(): string {
   const g = useGraphStore.getState()
-  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
+  return digestOfCanonical(
+    canonicalContent(
+      { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+      { modelVersion: g.modelVersion },
+    ),
+  )
 }
 
 /** §R7 — whole-proposal Apply. `confirmed` is the §R7A.4 consent (required for
