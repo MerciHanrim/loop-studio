@@ -4,6 +4,7 @@ import { openTemplate } from '../../i18n/templateLabels'
 import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useFilterStore } from '../../store/filterStore'
+import { useFrameStore, hasFrames } from '../../store/frameStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -57,6 +58,8 @@ export function MobileMoreMenu({
   const openOverlay = useUiStore((s) => s.openOverlay)
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const focusMode = useUiStore((s) => s.focusMode)
+  const activityOverlay = useUiStore((s) => s.activityOverlay)
+  const framesExist = useFrameStore(hasFrames)
   const t = useT()
   const { fitView } = useReactFlow()
 
@@ -280,6 +283,35 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => openOverlay('filter')}>
           {t('canvas.filter.rowLabel')}<span className="sheet__row-sub">▸</span>
         </button>
+        {/* docs/large-graph-readability.md §LGR6 / §LGR9 — on mobile the
+            Activity overlay toggles here, and drawn frames can be viewed +
+            cleared; frame *drawing* is desktop-only. */}
+        <div className="sheet__row" style={{ cursor: 'default' }}>
+          {t('canvas.activity.rowLabel')}
+          <span className="sheet__row-sub">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => useUiStore.getState().toggleActivityOverlay()}
+              aria-pressed={activityOverlay}
+              title={activityOverlay ? t('canvas.activity.on') : t('canvas.activity.off')}
+            >
+              {activityOverlay ? t('canvas.focus.stateOn') : t('canvas.focus.stateOff')}
+            </button>
+          </span>
+        </div>
+        {framesExist && (
+          <button
+            type="button"
+            className="sheet__row"
+            onClick={() => {
+              useFrameStore.getState().clearFrames()
+              closeOverlay('more')
+            }}
+          >
+            {t('canvas.frame.clearRow')}
+          </button>
+        )}
         <button type="button" className="sheet__row" onClick={resetView}>
           {t('canvas.resetView')}
         </button>
