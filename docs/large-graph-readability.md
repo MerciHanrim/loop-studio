@@ -395,7 +395,12 @@ persists (`LGR-D7`).
 
 ### LGR6.3 Auto frames — the boundary the Slice-4b design must honour
 
-Whatever clustering + naming Slice 4b lands:
+The Slice-4b design pass is
+[`docs/large-graph-readability-auto-frames.md`](large-graph-readability-auto-frames.md)
+(`AF` prefix). It compares the clustering heuristics on the Coffee + MMO
+fixtures, fixes the recompute-trigger and manual/auto-frame-relationship
+policies, and keeps 4b session-only + derived. This section stays the boundary
+it must not cross:
 
 - **derived, never stored** — recomputed from (graph, layout); no bytes in the
   GraphDoc, the digest, Share, `SimState`, or `localStorage`;
@@ -631,9 +636,12 @@ Slice-4b pass.
 4a. **Transient frames + activity overlay** — draw / label a session-only
    rectangle (in memory, no wire); **Clear frames**; the opt-in Activity
    overlay with its window + decay.
-4b. **Auto group frames** — *needs its own detailed design pass first*
-   (clustering algorithm, tie-breaks, determinism proof, label generation),
-   inside the boundary of §LGR6.3. Not built from this doc alone.
+4b. **Auto group frames** — its own detailed design pass:
+   [`docs/large-graph-readability-auto-frames.md`](large-graph-readability-auto-frames.md)
+   (`AF` prefix — heuristic comparison + Coffee/MMO dry-runs, recompute policy,
+   manual/auto relationship, determinism, session-only boundary). The impl PR
+   is not built from *this* doc alone; it follows the `AF` doc once its open
+   choices are reviewed.
 5. **Saved group frames** — *only on demand*. A Frozen `loop-revision/N`
    cosmetic `frames` contract first (conservative-extension golden, defensive
    reader, `loop-workspace` unchanged), then the create / label / resize UI.
