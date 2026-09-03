@@ -53,6 +53,17 @@ function useFiring(id: string): boolean {
   return useSimStore((s) => s.firedNodeIds.includes(id))
 }
 
+// docs/large-graph-readability.md §LGR5 — the lighter run weight: a node the
+// engine *evaluated* as an execution target this step but that did **not** act
+// (`activated \ fired`). Node-only in v1, flow-execution nodes only (Parameter /
+// Register are never in `activated`). Always on when a committed `StepReport`
+// exists; cleared on the next commit / Reset with the rest of the run cues.
+function useEvaluated(id: string): boolean {
+  return useSimStore(
+    (s) => s.activatedNodeIds.includes(id) && !s.firedNodeIds.includes(id),
+  )
+}
+
 /** 'up' | 'down' for ~320ms after `value` changes */
 function useValueDir(value: number): 'up' | 'down' | null {
   const prev = useRef(value)
@@ -80,6 +91,10 @@ type FrameProps = {
   sub?: string
   selected?: boolean
   firing?: boolean
+  /** §LGR5 — `evaluated`: activated this step but did not fire. A small static
+   *  hollow-ring glyph, lower weight than `firing`'s outline pulse; ignored
+   *  while `firing` is true. */
+  evaluated?: boolean
   arriving?: boolean
   /** §VL3 — the model layer's `invalid` state (a Register the engine can't
    *  evaluate, or an unreadable model node). A `--warning` dashed outline + a
@@ -98,6 +113,7 @@ function NodeFrame({
   sub,
   selected,
   firing,
+  evaluated,
   arriving,
   invalid,
   stepKey,
@@ -213,6 +229,16 @@ function NodeFrame({
         </span>
       ) : null}
 
+      {/* §LGR5 — `evaluated`: a small static hollow ring in the BOTTOM-right
+          corner (clear of the chip top-left, the `!` flag top-right, the value
+          text, the side / state handles, and the selection ring). Not
+          lod-gated — a run cue stays at every zoom (§VL7.1). No animation, in
+          any motion mode; the ring shape (not colour) is the forced-colors
+          tell, and it reads as "evaluated", never a success check. */}
+      {evaluated && !firing ? (
+        <span className="nodef__eval" aria-hidden="true" title={tip('node.evaluatedCue')} />
+      ) : null}
+
       {/* The body is ALWAYS in the DOM so the node's footprint / hit target is
           byte-identical across L2 / L1 / L0 (§VL7.1). The `lod-*` class fades
           the elided text: L1 hides `sub`, L0 hides the whole body — the
@@ -253,6 +279,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
         sub={d.capacity != null ? `≤ ${d.capacity}` : undefined}
         selected={selected}
         firing={useFiring(id)}
+        evaluated={useEvaluated(id)}
         arriving={arriving}
         stepKey={stepKey}
       />
@@ -273,6 +300,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
         sub={`${d.activation} · ${d.mode}`}
         selected={selected}
         firing={useFiring(id)}
+        evaluated={useEvaluated(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -293,6 +321,7 @@ function DrainNode({ id, data, selected }: NodeProps) {
         sub={`${d.activation} · ${d.mode}`}
         selected={selected}
         firing={useFiring(id)}
+        evaluated={useEvaluated(id)}
         stepKey={stepKey}
       />
     </>
@@ -312,6 +341,7 @@ function GateNode({ id, data, selected }: NodeProps) {
         sub={d.distribution}
         selected={selected}
         firing={useFiring(id)}
+        evaluated={useEvaluated(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -332,6 +362,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         sub={d.mode}
         selected={selected}
         firing={useFiring(id)}
+        evaluated={useEvaluated(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -351,6 +382,7 @@ function EndNode({ id, data, selected }: NodeProps) {
         title={d.label}
         selected={selected}
         firing={useFiring(id)}
+        evaluated={useEvaluated(id)}
         stepKey={stepKey}
       />
     </>

@@ -43,6 +43,10 @@ export type PreparedResult = {
      *  layer sums per edge and shows the breakdown on hover (Slice 2, §PB4.5). */
     events: FlowEvent[]
     firedNodeIds: string[]
+    /** `StepReport.activated` — nodes the engine evaluated as execution targets
+     *  this step. `fired ⊆ activated`; the difference drives the Slice-3
+     *  `evaluated` run cue (docs/large-graph-readability.md §LGR5.1). */
+    activatedNodeIds: string[]
     stateEvents: StateEvent[]
     arrivedPoolIds: string[]
     triggerQueue: TriggerQueueEntry[]
@@ -64,6 +68,12 @@ type SimStore = {
   values: SimValues | null
   activeByEdge: Record<string, number>
   firedNodeIds: string[]
+  /** `StepReport.activated` from the step that produced the current head —
+   *  nodes the engine evaluated this step. `[]` at step 0, after Reset, and
+   *  after a Workspace snapshot restore (the snapshot carries `fired` only).
+   *  A node in here but NOT in `firedNodeIds` shows the `evaluated` run cue
+   *  (docs/large-graph-readability.md §LGR5.1). */
+  activatedNodeIds: string[]
   /** pending delayed state triggers, carried between steps (SEMANTICS-S.md §S8) */
   triggerQueue: TriggerQueueEntry[]
   /** state-edge effects from the step that produced the current head — drives
@@ -222,6 +232,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       activeByEdge,
       events: [...r.report.events],
       firedNodeIds: [...r.report.fired],
+      activatedNodeIds: [...r.report.activated],
       stateEvents: [...r.report.stateEvents],
       arrivedPoolIds: [...arrived],
       triggerQueue: [...r.state.triggerQueue],
@@ -273,6 +284,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       triggerQueue: [...p.toState.triggerQueue],
       activeByEdge: { ...p.derived.activeByEdge },
       firedNodeIds: [...p.derived.firedNodeIds],
+      activatedNodeIds: [...p.derived.activatedNodeIds],
       stateEvents: [...p.derived.stateEvents],
       arrivedPoolIds: [...p.derived.arrivedPoolIds],
       series: [...s.series, { step: p.toState.step, values: p.toState.values }].slice(-MAX_SERIES),
@@ -418,6 +430,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     values: null,
     activeByEdge: {},
     firedNodeIds: [],
+    activatedNodeIds: [],
     triggerQueue: [],
     stateEvents: [],
     arrivedPoolIds: [],
@@ -476,6 +489,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         values: init.values,
         activeByEdge: {},
         firedNodeIds: [],
+        activatedNodeIds: [],
         triggerQueue: [],
         stateEvents: [],
         arrivedPoolIds: [],
@@ -492,6 +506,9 @@ export const useSimStore = create<SimStore>((set, get) => {
         stepIndex: snap.step,
         values: snap.values,
         firedNodeIds: snap.fired,
+        // a Workspace snapshot carries `fired` only — no `activated`. The
+        // `evaluated` cue simply re-derives on the next Step (§LGR5.1).
+        activatedNodeIds: [],
         triggerQueue: snap.triggerQueue,
         stateEvents: snap.stateEvents,
         // exactly the file's (validated) history — never fabricated. The chart

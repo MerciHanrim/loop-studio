@@ -282,6 +282,7 @@ const ko = {
   'node.unreadable.title': '읽을 수 없는 {kind}',
   'node.unreadable.sub': '데이터를 읽을 수 없음 — 파일에서 고치세요',
   'node.invalidFlag': '이 노드는 무효입니다',
+  'node.evaluatedCue': '이번 단계에서 평가됐지만 동작하지 않음',
 
   // ── 진단 — 안정적인 {code}에 대한 사용자 노출 안내문 (§L7) ──
   'error.unknownCode': '표현식이 올바르지 않습니다',

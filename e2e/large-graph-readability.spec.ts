@@ -640,3 +640,197 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     expect(on).not.toMatch(/\b0px\b/)
   })
 })
+
+// docs/large-graph-readability.md §LGR5 — Slice 3: the run distinction. A
+// committed step lights `effective` (a node in `StepReport.fired`) and the
+// lighter `evaluated` (a node in `activated` but NOT `fired`). Node-only, and
+// flow-execution nodes only — Parameter / Register are never in `activated`.
+// Pure read of the committed `StepReport`; no engine / builder / GraphDoc /
+// serialize / digest change (§LGR13).
+//
+//   feed ─3→ store(5) ─1→ busy      feed pushes, busy pulls 1        → effective
+//   dry(0) ─1→ idle ─1→ waste       dry is empty, so idle + waste are
+//                                   evaluated as targets but move nothing → evaluated
+//   store                           receives + is pulled from, but is neither
+//                                   `activated` nor `fired` in the report      → no cue
+//   iso                             an isolated pool — never activated         → no cue
+//   p1 (parameter) · r1 (register)  model nodes — never activated              → no cue
+const GRAPH_RUN = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'feed', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Feed', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'store', type: 'pool', position: { x: 220, y: 0 }, data: { kind: 'pool', label: 'Store', activation: 'passive', initial: 5, capacity: null, mode: 'pullAny' } },
+    { id: 'busy', type: 'drain', position: { x: 440, y: 0 }, data: { kind: 'drain', label: 'Busy', activation: 'automatic', mode: 'pullAny' } },
+    { id: 'dry', type: 'pool', position: { x: 0, y: 170 }, data: { kind: 'pool', label: 'Dry', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'idle', type: 'gate', position: { x: 220, y: 170 }, data: { kind: 'gate', label: 'Idle', activation: 'automatic', distribution: 'deterministic' } },
+    { id: 'waste', type: 'drain', position: { x: 440, y: 170 }, data: { kind: 'drain', label: 'Waste', activation: 'automatic', mode: 'pullAny' } },
+    { id: 'iso', type: 'pool', position: { x: 660, y: 20 }, data: { kind: 'pool', label: 'Iso', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'p1', type: 'parameter', position: { x: 0, y: 320 }, data: { kind: 'parameter', label: 'P1', value: 2 } },
+    { id: 'r1', type: 'register', position: { x: 220, y: 320 }, data: { kind: 'register', label: 'R1', expr: '@store', format: 'int' } },
+  ],
+  edges: [
+    { id: 'e_feed', type: 'loop', source: 'feed', target: 'store', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '3' } },
+    { id: 'e_sb', type: 'loop', source: 'store', target: 'busy', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'e_dg', type: 'loop', source: 'dry', target: 'idle', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'e_gw', type: 'loop', source: 'idle', target: 'waste', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+  ],
+})
+
+type SimHead = { firedNodeIds: string[]; activatedNodeIds: string[] }
+const simHead = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as { __loop: { sim: { getState: () => SimHead } } }).__loop.sim.getState()
+    return { firedNodeIds: [...s.firedNodeIds].sort(), activatedNodeIds: [...s.activatedNodeIds].sort() }
+  })
+
+async function loadRUN(page: Page): Promise<void> {
+  await openApp(page)
+  await resetAll(page)
+  await page.evaluate(() => {
+    const w = window as unknown as { __loop: { ui: { setState: (p: object) => void } } }
+    w.__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
+  })
+  await importGraph(page, GRAPH_RUN)
+  await expect(edgePath(page, 'e_feed')).toHaveCount(1)
+  await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+      { x: 120, y: 90, zoom: 1 },
+      { duration: 0 },
+    ),
+  )
+}
+
+/** commit one engine step. Reduced motion makes `stepOnce()` settle instantly,
+ *  so the committed `StepReport` cues are on screen with no wait. */
+async function commitOneStep(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void } } } }).__loop.sim.getState().stepOnce(),
+  )
+  await expect
+    .poll(async () => (await simHead(page)).firedNodeIds.length)
+    .toBeGreaterThan(0)
+}
+
+const hasWave = (page: Page, id: string) => node(page, id).locator('.nodef__wave')
+const hasEval = (page: Page, id: string) => node(page, id).locator('.nodef__eval')
+
+test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => {
+  test.use({ reducedMotion: 'reduce' })
+
+  test('every fired node shows `effective`, every activated-not-fired shows `evaluated`, the rest show no cue (§LGR5.1 / §LGR10.6)', async ({ page }) => {
+    await loadRUN(page)
+    await commitOneStep(page)
+    const { firedNodeIds, activatedNodeIds } = await simHead(page)
+
+    // the fixture must actually exercise all three weights, or it proves nothing
+    const evaluatedOnly = activatedNodeIds.filter((id) => !firedNodeIds.includes(id))
+    expect(firedNodeIds.length, 'some node fired').toBeGreaterThan(0)
+    expect(evaluatedOnly.length, 'some node was evaluated but did not fire').toBeGreaterThan(0)
+
+    for (const id of firedNodeIds) {
+      await expect(hasWave(page, id), `${id} ∈ fired → effective`).toHaveCount(1)
+      await expect(hasEval(page, id), `${id} ∈ fired → not the evaluated ring`).toHaveCount(0)
+    }
+    for (const id of evaluatedOnly) {
+      await expect(hasEval(page, id), `${id} ∈ activated∖fired → evaluated`).toHaveCount(1)
+      await expect(hasWave(page, id), `${id} not fired → no effective wave`).toHaveCount(0)
+    }
+    // nodes in neither set — no cue at all. `store` is the interesting one: its
+    // value changes this step (push in, pull out) yet the report lists it in
+    // neither `activated` nor `fired`, so the run distinction gives it no cue
+    // (the value bump already signals the change). `iso` is fully idle.
+    for (const id of ['store', 'iso']) {
+      expect(firedNodeIds, id).not.toContain(id)
+      expect(activatedNodeIds, id).not.toContain(id)
+      await expect(hasWave(page, id)).toHaveCount(0)
+      await expect(hasEval(page, id)).toHaveCount(0)
+    }
+  })
+
+  test('Parameter / Register never carry a flow-run cue, even mid-run (§LGR5 — flow-execution only)', async ({ page }) => {
+    await loadRUN(page)
+    await commitOneStep(page)
+    const { firedNodeIds, activatedNodeIds } = await simHead(page)
+    for (const id of ['p1', 'r1']) {
+      expect(firedNodeIds, `${id} is not a flow node`).not.toContain(id)
+      expect(activatedNodeIds, `${id} is not a flow node`).not.toContain(id)
+      await expect(hasWave(page, id)).toHaveCount(0)
+      await expect(hasEval(page, id)).toHaveCount(0)
+    }
+  })
+
+  test('the run cue is a pure read — stepping never touches GraphDoc / undo, and Reset clears both weights', async ({ page }) => {
+    await loadRUN(page)
+    const before = await snapshot(page)
+    await commitOneStep(page)
+    const after = await snapshot(page)
+    expect(after.graph).toBe(before.graph) // serialized GraphDoc byte-identical
+    expect(after.canUndo).toBe(before.canUndo)
+
+    // at least one of each cue is on screen …
+    await expect(page.locator('.nodef__wave').first()).toBeVisible()
+    await expect(page.locator('.nodef__eval').first()).toBeVisible()
+
+    // … and Reset drops every run cue (the StepReport lifecycle, §LGR5.1)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
+    )
+    await expect(page.locator('.nodef__wave')).toHaveCount(0)
+    await expect(page.locator('.nodef__eval')).toHaveCount(0)
+  })
+
+  test('`evaluated` survives Focus de-emphasis — a run cue is never dimmed away (LGR-INV-6)', async ({ page }) => {
+    await loadRUN(page)
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const target = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+
+    // Focus on a DIFFERENT node (`iso`) so `target` is outside the 1-hop set
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { ui: { setState: (p: object) => void } } }).__loop.ui.setState({ focusMode: true }),
+    )
+    await node(page, 'iso').click()
+    await expect(node(page, target)).toHaveClass(/lgr-deemph/)
+    await expect(hasEval(page, target), 'evaluated ring stays under de-emphasis').toHaveCount(1)
+    await expect(hasEval(page, target)).toBeVisible()
+  })
+
+  test('VISUAL — evaluated / effective / selected+evaluated / no-cue, plus reduced-motion + forced-colors', async ({ page }) => {
+    await loadRUN(page)
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const evalTarget = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    await node(page, evalTarget).click() // selected + evaluated
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 5 } }) // then deselect to keep the shot stable
+    await node(page, evalTarget).click()
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    await expect(page.locator('.react-flow')).toHaveScreenshot('run-distinction-states.png', {
+      mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
+      maxDiffPixelRatio: 0.02,
+    })
+  })
+
+  test('forced-colors: `evaluated` stays distinct from `effective` by shape, not colour (§LGR5.1 / §LGR9)', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadRUN(page)
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const evalTarget = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    const firedTarget = head.firedNodeIds[0]
+    // `effective` is the full-silhouette stroke pulse; `evaluated` is a small
+    // bordered corner ring — different elements, different shapes.
+    await expect(hasWave(page, firedTarget)).toHaveCount(1)
+    const ring = hasEval(page, evalTarget)
+    await expect(ring).toHaveCount(1)
+    const box = await ring.evaluate((el) => {
+      const s = getComputedStyle(el)
+      const r = el.getBoundingClientRect()
+      return { border: s.borderTopStyle, w: Math.round(r.width), radius: s.borderTopLeftRadius }
+    })
+    expect(box.border).toBe('solid')
+    expect(box.w).toBeLessThan(20) // a small corner mark, not a full outline
+    expect(box.radius).not.toBe('0px') // a ring, not a square
+  })
+})

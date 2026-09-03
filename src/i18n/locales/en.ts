@@ -317,6 +317,7 @@ const en = {
   'node.unreadable.title': 'unreadable {kind}',
   'node.unreadable.sub': 'data cannot be read — fix it in the file',
   'node.invalidFlag': 'This node is invalid',
+  'node.evaluatedCue': 'Evaluated this step but did not act',
 
   // ── Diagnostics — user-facing message text for a stable {code} (§L7) ──
   // The CODE itself is shown verbatim by the caller; this is only the prose.
