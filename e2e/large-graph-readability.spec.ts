@@ -1263,32 +1263,48 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
     for (let i = 0; i < 3; i++) await commitOneStep(page)
 
     const head = await simHead(page)
-    // a node that fired ⇒ carries the tint class + a positive --lgr-activity
+    // a node that fired ⇒ its silhouette carries a `.nodef__activity` <path>
+    // with a positive opacity (a shape tint, NOT a rectangle on the wrapper).
     const firedId = head.firedNodeIds[0]
-    const tint = await node(page, firedId).evaluate((el) => ({
-      cls: el.classList.contains('lgr-active-tint'),
-      op: getComputedStyle(el).getPropertyValue('--lgr-activity').trim(),
-    }))
-    expect(tint.cls).toBe(true)
-    expect(Number(tint.op)).toBeGreaterThan(0)
+    const firedTint = node(page, firedId).locator('.nodef__activity')
+    await expect(firedTint).toHaveCount(1)
+    expect(
+      Number(await firedTint.evaluate((el) => getComputedStyle(el).opacity)),
+    ).toBeGreaterThan(0)
 
     // an evaluated-but-not-fired node ⇒ NO tint (activity is `effective`-only)
     const evalOnly = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
-    await expect(node(page, evalOnly)).not.toHaveClass(/lgr-active-tint/)
+    await expect(node(page, evalOnly).locator('.nodef__activity')).toHaveCount(0)
     // a fully idle node ⇒ no tint
-    await expect(node(page, 'iso')).not.toHaveClass(/lgr-active-tint/)
+    await expect(node(page, 'iso').locator('.nodef__activity')).toHaveCount(0)
+
+    // AND the edges: `e_feed` carries flow every step (in StepReport.events) ⇒
+    // its <path> gets the tint class + a positive --lgr-activity. React Flow
+    // hands the edge object's style to the component, not the wrapper, so this
+    // proves LoopEdge applies the tint itself. `e_dg` is on the dead `dry`
+    // branch (no transfer) ⇒ no tint.
+    const activeEdgePath = page.locator('.react-flow__edge[data-id="e_feed"] .react-flow__edge-path')
+    await expect(activeEdgePath).toHaveClass(/lgr-active-tint/)
+    expect(
+      Number(await activeEdgePath.evaluate((el) => getComputedStyle(el).getPropertyValue('--lgr-activity').trim())),
+    ).toBeGreaterThan(0)
+    await expect(
+      page.locator('.react-flow__edge[data-id="e_dg"] .react-flow__edge-path'),
+    ).not.toHaveClass(/lgr-active-tint/)
+
+    const anyTint = () => page.locator('.nodef__activity, .react-flow__edge-path.lgr-active-tint')
 
     // sim Reset empties the accumulated tint, toggle stays on
     await page.evaluate(() =>
       (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
     )
-    await expect(page.locator('.lgr-active-tint')).toHaveCount(0)
+    await expect(anyTint()).toHaveCount(0)
     await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
 
     // a graph reload also clears it
     await commitOneStep(page)
-    await expect(page.locator('.lgr-active-tint').first()).toBeVisible()
+    expect(await anyTint().count()).toBeGreaterThan(0)
     await importGraph(page, GRAPH_RUN)
-    await expect(page.locator('.lgr-active-tint')).toHaveCount(0)
+    await expect(anyTint()).toHaveCount(0)
   })
 })

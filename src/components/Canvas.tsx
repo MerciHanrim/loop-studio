@@ -24,7 +24,6 @@ import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
-import { useActivityTint } from './frames/useActivityTint'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
@@ -139,43 +138,31 @@ export function Canvas() {
   // Flow's change events still flow back to the store unchanged.
   const focusSet = useFocusSet()
   const hidden = useHiddenSet()
-  // §LGR6-cues — the opt-in Activity overlay tint (id → opacity, or empty when
-  // the toggle is off). Composes AFTER hide (a filtered element is gone, tint
-  // and all) and independently of dim (a de-emphasised element keeps its tint,
-  // which just reads faintly at the dim opacity).
-  const activity = useActivityTint()
-  const withActivity = <T extends { id: string; className?: string; style?: React.CSSProperties }>(
-    o: T,
-  ): T => {
-    const op = activity.get(o.id)
-    return op
-      ? {
-          ...o,
-          className: o.className ? `${o.className} lgr-active-tint` : 'lgr-active-tint',
-          style: { ...o.style, ['--lgr-activity' as string]: op },
-        }
-      : o
-  }
+  // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
+  // filtered element is gone, tint and all) and independently of dim (a
+  // de-emphasised element keeps its tint, which just reads faintly at the dim
+  // opacity). Canvas does NOT apply it: React Flow v12 forwards a node object's
+  // `style` to `.react-flow__node`, which is an auto-width wrapper (a
+  // rectangular overlay on it overflows the visible silhouette), and an edge
+  // object's `style` never reaches the path at all. So `NodeFrame` and
+  // `LoopEdge` each read their own opacity (`useNode/EdgeActivityOpacity`) and
+  // draw a shape-accurate tint themselves.
   const rfNodes = useMemo(() => {
-    if (!hidden && !focusSet && activity.size === 0) return nodes
+    if (!hidden && !focusSet) return nodes
     return nodes.map((n) => {
       if (hidden?.nodes.has(n.id)) return { ...n, hidden: true }
-      let out = n
-      if (focusSet && !focusSet.nodes.has(n.id)) out = { ...out, className: withDeemph(out.className) }
-      return withActivity(out)
+      if (focusSet && !focusSet.nodes.has(n.id)) return { ...n, className: withDeemph(n.className) }
+      return n
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, hidden, focusSet, activity])
+  }, [nodes, hidden, focusSet])
   const rfEdges = useMemo(() => {
-    if (!hidden && !focusSet && activity.size === 0) return edges
+    if (!hidden && !focusSet) return edges
     return edges.map((e) => {
       if (hidden?.edges.has(e.id)) return { ...e, hidden: true }
-      let out = e
-      if (focusSet && !focusSet.edges.has(e.id)) out = { ...out, className: withDeemph(out.className) }
-      return withActivity(out)
+      if (focusSet && !focusSet.edges.has(e.id)) return { ...e, className: withDeemph(e.className) }
+      return e
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edges, hidden, focusSet, activity])
+  }, [edges, hidden, focusSet])
 
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view: one UI-only
   // action that fits the graph and clears the exploration lens (filter

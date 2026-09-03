@@ -1370,46 +1370,38 @@ body {
 
 /* ── §LGR6-cues — the opt-in Activity overlay tint ──────────────────────────
    A per-element wash proportional to how often the element was `effective`
-   over the trailing window (`--lgr-activity`, 0…0.15). It NEVER covers the
-   required set: selection / focus rings, invalid / blocked flags, and the
-   effective / evaluated run cues all sit above it. */
-.react-flow__node.lgr-active-tint {
-  position: relative;
-}
-.react-flow__node.lgr-active-tint::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--signal-primary);
-  opacity: var(--lgr-activity, 0);
+   over the trailing window (opacity 0…~0.15). It NEVER covers the required
+   set: selection / focus rings, invalid / blocked flags, and the effective /
+   evaluated run cues all sit above it. `NodeFrame` / `LoopEdge` draw it (see
+   useActivityTint.ts) — the node tint is a shape `<path>`, so it can't
+   overflow the auto-width `.react-flow__node` wrapper; the edge tell is a
+   faint primary glow (the path's `stroke` is set inline by `LoopEdge`). */
+.nodef__activity {
+  fill: var(--signal-primary);
   pointer-events: none;
 }
-.react-flow__edge.lgr-active-tint .react-flow__edge-path {
-  stroke: var(--signal-primary);
-  /* blend toward the tint: a faint always-there under-colour, scaled by the
-     activity var but kept subtle */
+.react-flow__edge-path.lgr-active-tint {
   filter: drop-shadow(0 0 calc(var(--lgr-activity, 0) * 26px) var(--signal-primary));
 }
 @media (forced-colors: active) {
-  /* opacity is unreliable under a UA colour override — mark active elements
-     with a dotted outline instead */
-  .react-flow__node.lgr-active-tint::after {
-    opacity: 0;
+  /* opacity / a coloured fill is unreliable under a UA colour override — the
+     tell becomes a dashed shape outline / dashed stroke instead */
+  .nodef__activity {
+    fill: none;
+    stroke: Highlight;
+    stroke-width: 2;
+    stroke-dasharray: 2 2;
+    opacity: 1 !important;
   }
-  .react-flow__node.lgr-active-tint {
-    outline: 1px dotted Highlight;
-    outline-offset: 1px;
-  }
-  .react-flow__edge.lgr-active-tint .react-flow__edge-path {
+  .react-flow__edge-path.lgr-active-tint {
     stroke-dasharray: 1 3;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   /* the tint steps between static states with the committed step; no animated
      decay (it is recomputed, not transitioned) */
-  .react-flow__node.lgr-active-tint::after,
-  .react-flow__edge.lgr-active-tint .react-flow__edge-path {
+  .nodef__activity,
+  .react-flow__edge-path.lgr-active-tint {
     transition: none;
   }
 }
