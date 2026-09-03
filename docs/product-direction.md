@@ -23,7 +23,9 @@ revised freely, like [`docs/visual-language.md`](visual-language.md),
 §PD9 is the decision record. §PD10 is the scope boundary. §PD8 is the one
 sequencing question left open on purpose. **§PD11** (added 2026-09-02) records
 an external reader's take that arrived during the coffee-Template design:
-*fix the concrete use purpose before the target industry.*
+*fix the concrete use purpose before the target industry.* **§PD12** (added
+2026-09-03) records a game-design / PD reviewer's read of the Early MMO example
+and four spec-first candidates derived from it — none adopted.
 
 ---
 
@@ -333,3 +335,134 @@ or any planned pass.
 **Not changed by this:** the five §PD9 decisions stand; no `src/` change, no
 `loop-*/N`, nothing serialized. §PD11 narrows *how a domain example is
 positioned and validated*; it adds no scope.
+
+---
+
+## PD12. External review — game-design / PD reviewer *(added 2026-09-03)*
+
+An **external reviewer with game-design and PD experience** was shown Loop
+Studio and the Early MMO example
+([`docs/example-mmo-progression.md`](example-mmo-progression.md)) over four
+rounds of feedback. Recorded here anonymised; the value is the judgement, not a
+feature list. This section records **only** that reviewer's input — MJ's coffee
+comprehension check is a separate Coffee external-check result and is not folded
+in here.
+
+### PD12.1 What the reviewer directly observed
+
+- Performance looks good.
+- The current screen's complexity is very high — *"like looking at Opus
+  Magnum"*, and at the same time *"like a well-built Blueprint"*.
+- Step-by-step **show / hide of detail** seems needed, while the top-level
+  Master / Root context stays visible throughout.
+- If the per-level stat / balance / formula-input tables a real project keeps in
+  **Excel or Google Sheets** could be connected by a **unique key**, the tool's
+  general real-world applicability would grow.
+- They located, by domain meaning: **base / input**, **level and its attached
+  information / state**, **activity / process such as combat or quests**, and
+  **results such as level or revenue**.
+- In the current structure a **gacha simulator** looks like an attractive
+  concrete use case.
+
+### PD12.2 The core reading — a navigation gap
+
+A first-time reader traced the model by *domain* meaning:
+**base / input → level and its attached information / state → activity / process
+such as combat or quests → results such as level or revenue**. The current
+canvas is precise about node *kinds* and wiring but weak on **domain regions** —
+a newcomer cannot quickly answer "what is the premise, what do I adjust, where
+does the process happen, which output do I read". The **Node-kind filter does
+not close this**: engine classes (`source` / `pool` / `gate` / `register`) are a
+different axis from the user's domain classes (base / process / result).
+
+### PD12.3 Candidates we derived from this feedback
+
+The items below are **our product interpretation of the feedback**, expressed as
+**separate, later, spec-first candidates** — the reviewer did not request or
+decide any of them as a feature. None is adopted; none changes the §PD9
+decisions or the LGR slice order (Slices 1–3 shipped, 4a in review, 4b its own
+design pass, 5 deferred); no `src/` change, no `loop-*/N`, nothing serialized.
+
+**A. Semantic sections / authored landmarks.** A **template author** names
+regions (base / input, state / level, activity / process, result) to guide a
+first-time reader. Distinct from **Slice-4a transient group frames**, which are
+session-only, pure-visual, and dropped on any whole-graph swap — they cannot be
+an *authored* landmark. A **saved authored region** may touch GraphDoc /
+serialize / digest / undo, so it is its own spec-first pass. Review questions to
+carry:
+
+1. Can a first-time user find input / process / result in about ten seconds?
+2. Can regions be marked by *domain* meaning rather than engine node kind?
+3. Should each region summarise its representative result / I/O at a high level?
+4. How are saved regions distinguished from session-only frames?
+5. Do these regions, combined with Focus / Filter / Activity / run-errors, still
+   never hide a selection, an error, or a run signal?
+
+**B. Hierarchical groups / collapsible subgraphs.** Keep a top-level overview
+while expanding / collapsing detail steps, with the Master / Root context always
+visible. Undecided and needing its own design: whether a collapsed group is a
+filter that hides nodes or a real subgraph; how a collapsed group's boundary
+edges connect; how run cues / errors / selection summarise up to the parent.
+Related to (A) but not the same feature.
+
+**C. Key-based external data binding.** Map a **unique key + columns** of an
+external table to Loop Studio inputs — e.g. a source `character_stats`, key
+`class=warrior, level=15`, columns `attack_power` / `armor` / `stamina`,
+consumed by a `parameter` or a calc input. Domain-general (product id → price /
+stock / lead-time; bean-lot id → qty / cost / yield; task id → duration /
+resource / progress), **not** a hard-coded game or domain. A spec-first pass
+must separate: a **snapshot** import (CSV / JSON pinned into the doc) versus a
+**live** link (Excel / Sheets); the row-finding key with duplicate / missing
+handling; number / string / unit / empty / wrong-type values; a source that
+changed or was deleted; a Share / Workspace opener without source access;
+pinning which data version a run used, for reproducibility; when an
+external-data change makes a sim / Monte-Carlo result stale; how Import /
+Export / autosave / digest / revision represent source versus snapshot; whether
+a review-and-confirm step is needed before external values reach the engine.
+Our initial leaning (not decided): a **CSV / JSON snapshot import** is a smaller
+first step than a live Google Sheets link.
+
+**D. Gacha-simulator example Template.** Recorded as: a **small independent**
+Template (not added to the MMO example); a **generalised** probabilistic
+item-draw model with no commercial game's names, data, images, or exact odds;
+framed as *observing the outcome distribution of authored probabilities and
+rules*, never "predicting a real game's rates". It exercises the core (per-tier
+odds branching, resource flow, repeated runs, Parameter tuning, result
+Registers, a Monte-Carlo distribution) on a small graph and makes base →
+process → result obvious: **base / input** = owned currency, per-draw cost,
+per-tier odds; **process** = spend currency → probabilistic draw → per-tier
+result; **result** = per-tier counts, total currency spent, whether / after how
+many tries a target tier is hit. Our proposed first scope would be
+**independent draws only**; prior-state rules (pity / guaranteed pickup /
+50:50-then-guaranteed) would be checked against current engine expressiveness
+first and **excluded from the first scope if unsupported**. Positioned as a
+model for **understanding and verifying** a probability structure and its
+resource cost — **not** a monetisation / revenue-optimisation tool. Test
+boundaries to carry: probability-sum, invalid input, seed reproducibility, run
+count, Monte-Carlo interpretation. Engine-feasibility questions to answer
+*before* any spec:
+
+1. How is a single draw represented?
+2. Do multi-tier probability branches compose exactly?
+3. Is one step equal to one draw?
+4. Can "first time the target tier is obtained" be recorded?
+5. Can pity-style state (remembering the prior failure count) be expressed?
+6. Can Monte-Carlo show the key user-facing results with the current Registers
+   and charts alone?
+
+### PD12.4 On the MMO example and "game formula" wording
+
+- The Early MMO example is a **growth / resource / economy-flow** example, **not
+  a combat simulator**.
+- The absence of attack / defense / health is **not** an error in the current
+  scope.
+- If a **future** combat example references a published game's formula, it must
+  state the **exact version, formula, and scope** it borrows.
+- Such a combat example is reviewed as a **separate small example**, never
+  appended to the 97-node MMO example.
+- This document adopts **no** combat example and **no** formula.
+
+**Not changed by this:** the five §PD9 decisions stand; the LGR slice order is
+unchanged; §PD12 records external input plus four independent, later,
+spec-first candidates — it adopts nothing and adds no scope. No `src/` change,
+no `loop-*/N`, nothing serialized.
