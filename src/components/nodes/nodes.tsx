@@ -92,8 +92,8 @@ type FrameProps = {
   selected?: boolean
   firing?: boolean
   /** §LGR5 — `evaluated`: activated this step but did not fire. A small static
-   *  hollow-ring glyph, lower weight than `firing`'s outline pulse; ignored
-   *  while `firing` is true. */
+   *  bottom-left corner bracket, lower weight than `firing`'s outline pulse;
+   *  ignored while `firing` is true. */
   evaluated?: boolean
   arriving?: boolean
   /** §VL3 — the model layer's `invalid` state (a Register the engine can't
@@ -229,12 +229,15 @@ function NodeFrame({
         </span>
       ) : null}
 
-      {/* §LGR5 — `evaluated`: a small static hollow ring in the BOTTOM-right
-          corner (clear of the chip top-left, the `!` flag top-right, the value
-          text, the side / state handles, and the selection ring). Not
-          lod-gated — a run cue stays at every zoom (§VL7.1). No animation, in
-          any motion mode; the ring shape (not colour) is the forced-colors
-          tell, and it reads as "evaluated", never a success check. */}
+      {/* §LGR5 — `evaluated`: activated this step but did not act. A small
+          BOTTOM-LEFT corner bracket (a rounded L: border-left + border-bottom
+          only) — deliberately NOT a closed ring and NOT a circle, so it reads
+          as neither a connection handle / type dot (circles), nor the
+          selection / focus / invalid rings (full perimeter), nor the top-right
+          `!` flag. Lower weight than the `firing` outline pulse; static in
+          every motion mode; a `forced-colors` rule keeps the two strokes.
+          Ignored while `firing`; not lod-gated — a run cue stays at every zoom
+          (§VL7.1) and is exempt from `lgr-deemph` dimming (LGR-INV-6). */}
       {evaluated && !firing ? (
         <span className="nodef__eval" aria-hidden="true" title={tip('node.evaluatedCue')} />
       ) : null}

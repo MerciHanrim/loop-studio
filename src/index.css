@@ -789,25 +789,31 @@ body {
   border-radius: 50%;
   pointer-events: none;
 }
-/* docs/large-graph-readability.md §LGR5 — `evaluated`: a static hollow ring in
-   the bottom-right corner, opposite the top-right `!` flag so error + evaluated
-   never overlap. No animation in any motion mode; lower weight than the fired
-   `nodef__wave` outline pulse; the ring shape (a border, kept under a UA colour
-   override) is the forced-colors tell. */
+/* docs/large-graph-readability.md §LGR5 — `evaluated`: activated but did not
+   act. A small BOTTOM-LEFT corner bracket — a rounded L drawn with only
+   `border-left` + `border-bottom` (+ one rounded corner). Deliberately NOT a
+   closed ring and NOT a circle: the selection / focus / invalid rings are
+   full-perimeter, the type dot / connection handles / arrival cue are circles,
+   and the `!` flag is a top-right disc — so an open corner bracket at the
+   opposite corner is unmistakable. Static in every motion mode; thinner +
+   lower-contrast than the fired `nodef__wave` outline pulse. */
 .nodef__eval {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
+  left: -3px;
+  bottom: -3px;
   width: 11px;
   height: 11px;
-  border: 1.5px solid var(--text-tertiary);
-  border-radius: 50%;
-  background: transparent;
+  border-left: 1.75px solid var(--text-secondary);
+  border-bottom: 1.75px solid var(--text-secondary);
+  border-bottom-left-radius: 6px;
+  opacity: 0.9;
   pointer-events: none;
 }
 @media (forced-colors: active) {
+  /* the two strokes (not colour) carry the tell */
   .nodef__eval {
     border-color: CanvasText;
+    opacity: 1;
   }
 }
 /* state: fired — diffusing pulse, outside the selection ring, one step */
@@ -1005,8 +1011,8 @@ body {
    the §VL7.1 required set — the selection ring (`.nodef__sel`), the
    keyboard-focus ring (`.nodef__focus`), the `invalid` outline + flag
    (`.nodef__invalid` / `.nodef__flag`), and the run cues (`.nodef__wave` /
-   `.nodef__arrival` / the §LGR5 `.nodef__eval` ring) — is NOT dimmed (a faded
-   parent would clamp them). */
+   `.nodef__arrival` / the §LGR5 `.nodef__eval` corner bracket) — is NOT dimmed
+   (a faded parent would clamp them). */
 .react-flow__node.lgr-deemph .nodef__fill,
 .react-flow__node.lgr-deemph .nodef__stroke,
 .react-flow__node.lgr-deemph .nodef__endbar,
