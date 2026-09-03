@@ -4,6 +4,12 @@ import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQue
 import { MAX_SERIES } from '../model/limits'
 import { bootTimelineSeries, setAutosaveTimelineSeries, useGraphStore } from './graphStore'
 
+// docs/large-graph-readability.md §LGR6-cues — the trailing Activity-overlay
+// window length. Kept in sync with `ACTIVITY_WINDOW` in
+// `components/frames/frameGeom.ts` (the render / scoring side); a Slice-4a
+// tuning value, never a persisted contract (§LGR11).
+const ACTIVITY_WINDOW = 8
+
 export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
 
 // docs/simulation-playback.md — Slice 1 (the state machine; minimal visuals).
@@ -82,6 +88,14 @@ type SimStore = {
   stateEvents: StateEvent[]
   /** pools that received resources on the last step — drives the arrival cue */
   arrivedPoolIds: string[]
+
+  /** docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
+   *  history: a ring buffer (OLDEST first, ≤ 8 entries) of the ids that were
+   *  `effective` on each committed step — fired node ids + `events` edge ids +
+   *  `stateEvents` edge ids. Accumulates on Step / Play; HELD on pause / end;
+   *  emptied on sim Reset and on a graph reload. View-only, never serialized
+   *  (§LGR3.4). (There is no "seek" today; a future jump-to-step must clear it.) */
+  activitySteps: string[][]
 
   series: { step: number; values: SimValues }[]
 
@@ -287,6 +301,19 @@ export const useSimStore = create<SimStore>((set, get) => {
       activatedNodeIds: [...p.derived.activatedNodeIds],
       stateEvents: [...p.derived.stateEvents],
       arrivedPoolIds: [...p.derived.arrivedPoolIds],
+      // §LGR6-cues — this committed step's `effective` id set, appended to the
+      // trailing Activity-overlay window (fired nodes + resource-edge ids from
+      // `events` + state-edge ids from `stateEvents`).
+      activitySteps: [
+        ...s.activitySteps,
+        [
+          ...new Set<string>([
+            ...p.derived.firedNodeIds,
+            ...Object.keys(p.derived.activeByEdge),
+            ...p.derived.stateEvents.map((e) => e.edgeId),
+          ]),
+        ].sort(),
+      ].slice(-ACTIVITY_WINDOW),
       series: [...s.series, { step: p.toState.step, values: p.toState.values }].slice(-MAX_SERIES),
       status: p.toState.ended ? 'ended' : s.status === 'idle' ? 'paused' : s.status,
       commitEpoch: s.commitEpoch + 1,
@@ -434,6 +461,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     triggerQueue: [],
     stateEvents: [],
     arrivedPoolIds: [],
+    activitySteps: [],
     series: [],
     // seeded from the autosave record (serialize.ts) so a plain reload keeps the
     // Timeline legend's visible set; 'all' when the record has none.
@@ -493,6 +521,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: [],
         stateEvents: [],
         arrivedPoolIds: [],
+    activitySteps: [],
         series: [{ step: 0, values: init.values }],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
@@ -516,6 +545,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         series: snap.series,
         activeByEdge: {},
         arrivedPoolIds: [],
+    activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
         ...(snap.seed != null ? { seed: snap.seed } : {}),

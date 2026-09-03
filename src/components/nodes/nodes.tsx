@@ -21,6 +21,7 @@ import type {
   SourceData,
 } from '../../model/types'
 import { useLod } from '../lod'
+import { useNodeActivityOpacity } from '../frames/useActivityTint'
 
 // ── N1 "Vessel" silhouettes ──────────────────────────────────────────────
 // The outer shape carries the node's role. Type colour is used only on a small
@@ -95,6 +96,10 @@ type FrameProps = {
    *  bottom-left corner bracket, lower weight than `firing`'s outline pulse;
    *  ignored while `firing` is true. */
   evaluated?: boolean
+  /** §LGR6-cues — the opt-in Activity overlay's per-node tint: a faint
+   *  primary-fill copy of the silhouette at this opacity (0…~0.15). 0 / absent
+   *  ⇒ nothing renders. Never covers the run cues / rings (drawn after it). */
+  activity?: number
   arriving?: boolean
   /** §VL3 — the model layer's `invalid` state (a Register the engine can't
    *  evaluate, or an unreadable model node). A `--warning` dashed outline + a
@@ -114,6 +119,7 @@ function NodeFrame({
   selected,
   firing,
   evaluated,
+  activity,
   arriving,
   invalid,
   stepKey,
@@ -203,6 +209,13 @@ function NodeFrame({
 
       <svg className="nodef__shape" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">
         <path className="nodef__fill" d={path} />
+        {/* §LGR6-cues — the opt-in Activity overlay tint: a faint primary-fill
+            copy of the silhouette, above the fill but UNDER the stroke and
+            every run / selection / focus cue below. Shape-accurate (never a
+            rectangle overflowing an auto-width node wrapper). */}
+        {activity ? (
+          <path className="nodef__activity" d={path} style={{ opacity: activity }} />
+        ) : null}
         <path className="nodef__stroke" d={path} />
         {kind === 'end' ? (
           <line className="nodef__endbar" x1="95" y1="15" x2="95" y2="49" />
@@ -283,6 +296,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
+        activity={useNodeActivityOpacity(id)}
         arriving={arriving}
         stepKey={stepKey}
       />
@@ -304,6 +318,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
+        activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -325,6 +340,7 @@ function DrainNode({ id, data, selected }: NodeProps) {
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
+        activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
     </>
@@ -345,6 +361,7 @@ function GateNode({ id, data, selected }: NodeProps) {
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
+        activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -366,6 +383,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
+        activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
       <Handle type="source" position={Position.Right} id="out" className="h h--out" />
@@ -386,6 +404,7 @@ function EndNode({ id, data, selected }: NodeProps) {
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
+        activity={useNodeActivityOpacity(id)}
         stepKey={stepKey}
       />
     </>

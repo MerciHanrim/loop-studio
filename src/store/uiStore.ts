@@ -61,10 +61,21 @@ type UiState = {
   filterPanelOpen: boolean
   setFilterPanelOpen: (v: boolean) => void
   toggleFilterPanel: () => void
+
+  /**
+   * docs/large-graph-readability.md §LGR6-cues / LGR-D7 — the opt-in Activity
+   * overlay's ON/OFF. A **global UI preference** (its own `localStorage` key,
+   * like `focusMode`), **default off**. The accumulated tint itself lives in
+   * `simStore.activitySteps` and is never persisted (§LGR3.4).
+   */
+  activityOverlay: boolean
+  setActivityOverlay: (v: boolean) => void
+  toggleActivityOverlay: () => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
 const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
+const ACTIVITY_OVERLAY_KEY = 'loop-studio:activity-overlay'
 
 function readBoolKey(key: string): boolean {
   try {
@@ -138,6 +149,20 @@ export const useUiStore = create<UiState>((set, get) => ({
       const v = !s.filterPanelOpen
       writeBoolKey(FILTER_PANEL_KEY, v)
       return { filterPanelOpen: v }
+    }),
+
+  activityOverlay: readBoolKey(ACTIVITY_OVERLAY_KEY),
+  setActivityOverlay: (v) =>
+    set((s) => {
+      if (s.activityOverlay === v) return s
+      writeBoolKey(ACTIVITY_OVERLAY_KEY, v)
+      return { activityOverlay: v }
+    }),
+  toggleActivityOverlay: () =>
+    set((s) => {
+      const v = !s.activityOverlay
+      writeBoolKey(ACTIVITY_OVERLAY_KEY, v)
+      return { activityOverlay: v }
     }),
 }))
 

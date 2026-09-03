@@ -1205,6 +1205,207 @@ body {
   }
 }
 
+/* ── docs/large-graph-readability.md §LGR6 — transient group frames ──────────
+   TWO layers:
+     .lgr-frame-back  — a full-pane <svg> at z-index 0, BELOW the RF pane
+       (z-index 1), so a frame always paints behind every node and edge and its
+       body is never hit-testable.
+     .lgr-frame       — the interactive chrome, in a ViewportPortal (on top):
+       four thin edge hit-strips + the label chip + (when selected) a resize
+       corner and a delete ✕. The frame interior has no element here, so a
+       click on it passes straight through to the node / edge / pane beneath. */
+.lgr-frame-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.lgr-frame__fill {
+  fill: var(--signal-primary);
+  fill-opacity: 0.05;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  stroke-opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.lgr-frame__fill.is-selected {
+  stroke: var(--signal-primary);
+  stroke-opacity: 0.9;
+}
+.lgr-frame__fill--draft {
+  stroke-dasharray: 5 4;
+  fill-opacity: 0.04;
+}
+@media (forced-colors: active) {
+  /* fill washes out under a colour override — the outline carries the frame */
+  .lgr-frame__fill {
+    fill: none;
+    stroke: CanvasText;
+    stroke-opacity: 1;
+  }
+  .lgr-frame__fill.is-selected {
+    stroke: Highlight;
+  }
+}
+
+.lgr-frame {
+  position: absolute;
+  pointer-events: none; /* interior falls through to nodes / edges / pane */
+}
+.lgr-frame__edge-hit {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+}
+.lgr-frame__edge-hit--top,
+.lgr-frame__edge-hit--bottom {
+  left: 0;
+  right: 0;
+  height: 12px;
+}
+.lgr-frame__edge-hit--top {
+  top: -6px;
+}
+.lgr-frame__edge-hit--bottom {
+  bottom: -6px;
+}
+.lgr-frame__edge-hit--left,
+.lgr-frame__edge-hit--right {
+  top: 0;
+  bottom: 0;
+  width: 12px;
+}
+.lgr-frame__edge-hit--left {
+  left: -6px;
+}
+.lgr-frame__edge-hit--right {
+  right: -6px;
+}
+.lgr-frame__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateY(-100%);
+  max-width: 100%;
+  padding: 1px 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-hairline);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  cursor: text;
+}
+.lgr-frame.is-selected .lgr-frame__label {
+  color: var(--signal-primary);
+  border-color: var(--signal-primary);
+}
+.lgr-frame__label--edit {
+  cursor: text;
+  font: inherit;
+  color: var(--text-primary);
+  outline: none;
+}
+.lgr-frame__del {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--warning);
+  background: var(--surface-raised);
+  border: 1px solid var(--warning);
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.lgr-frame__resize {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--signal-primary);
+  border-bottom: 2px solid var(--signal-primary);
+  border-bottom-right-radius: 4px;
+  cursor: nwse-resize;
+  pointer-events: auto;
+}
+
+/* the Frame-tool + Activity toggles — same "pressed" tell as Focus / Filters */
+.react-flow__controls-button.rf-frame[aria-pressed='true'],
+.react-flow__controls-button.rf-frame[aria-pressed='true']:hover,
+.react-flow__controls-button.rf-activity[aria-pressed='true'],
+.react-flow__controls-button.rf-activity[aria-pressed='true']:hover {
+  color: var(--signal-primary);
+  background: var(--signal-primary-soft);
+  box-shadow: inset 0 0 0 2px var(--signal-primary);
+}
+@media (forced-colors: active) {
+  .react-flow__controls-button.rf-frame[aria-pressed='true'],
+  .react-flow__controls-button.rf-activity[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+/* while the Frame tool is armed the pane draws instead of panning */
+.react-flow.frame-arming .react-flow__pane {
+  cursor: crosshair;
+}
+
+/* ── §LGR6-cues — the opt-in Activity overlay tint ──────────────────────────
+   A per-element wash proportional to how often the element was `effective`
+   over the trailing window (opacity 0…~0.15). It NEVER covers the required
+   set: selection / focus rings, invalid / blocked flags, and the effective /
+   evaluated run cues all sit above it. `NodeFrame` / `LoopEdge` draw it (see
+   useActivityTint.ts) — the node tint is a shape `<path>`, so it can't
+   overflow the auto-width `.react-flow__node` wrapper; the edge tell is a
+   faint primary glow (the path's `stroke` is set inline by `LoopEdge`). */
+.nodef__activity {
+  fill: var(--signal-primary);
+  pointer-events: none;
+}
+.react-flow__edge-path.lgr-active-tint {
+  filter: drop-shadow(0 0 calc(var(--lgr-activity, 0) * 26px) var(--signal-primary));
+}
+@media (forced-colors: active) {
+  /* opacity / a coloured fill is unreliable under a UA colour override — the
+     tell becomes a dashed shape outline / dashed stroke instead */
+  .nodef__activity {
+    fill: none;
+    stroke: Highlight;
+    stroke-width: 2;
+    stroke-dasharray: 2 2;
+    opacity: 1 !important;
+  }
+  .react-flow__edge-path.lgr-active-tint {
+    stroke-dasharray: 1 3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* the tint steps between static states with the committed step; no animated
+     decay (it is recomputed, not transitioned) */
+  .nodef__activity,
+  .react-flow__edge-path.lgr-active-tint {
+    transition: none;
+  }
+}
+
 /* state: keyboard focus — outer ring, sits beyond the selection outline */
 .react-flow__node:focus-visible {
   outline: 2px solid var(--line-focus);

@@ -160,6 +160,17 @@ const en = {
   // to the viewport and clear the exploration lens (filter selections + the
   // focused node). The Focus mode on/off preference is left as-is.
   'canvas.resetView': 'Reset view — fit the graph and clear filters / focus',
+  // docs/large-graph-readability.md §LGR6 — transient group frames + the opt-in
+  // activity overlay. Session-only readability aids; never in the saved doc.
+  'canvas.frame.draw': 'Group frame — drag on empty canvas to draw one',
+  'canvas.frame.drawing': 'Group frame — drawing; drag on empty canvas, Esc to cancel',
+  'canvas.frame.defaultName': 'Group {n}',
+  'canvas.frame.clear': 'Clear all group frames',
+  'canvas.frame.clearRow': 'Clear group frames',
+  'canvas.frame.delete': 'Delete this frame',
+  'canvas.activity.off': 'Activity overlay off — click to tint recently active parts',
+  'canvas.activity.on': 'Activity overlay on — click to hide the tint',
+  'canvas.activity.rowLabel': 'Activity overlay',
   'canvas.route.invalidFlag': 'invalid route — a route point is inside a node',
   // in-canvas edge-label annotations for a state / playback step
   'canvas.edgeLabel.clamp': 'clamp',

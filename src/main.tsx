@@ -17,6 +17,7 @@ import * as revisionIO from './store/revisionIO'
 import { __resetRouteCache, __routeGenCount, currentRouteMap } from './store/routeMap'
 import * as shareLink from './store/shareLink'
 import { useFilterStore } from './store/filterStore'
+import { useFrameStore } from './store/frameStore'
 import { useSimStore } from './store/simStore'
 import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
@@ -31,6 +32,7 @@ if (import.meta.env.DEV) {
     mc: useMcStore,
     ui: useUiStore,
     filter: useFilterStore,
+    frame: useFrameStore,
     pwa: usePwaStore,
     project: useProjectStore,
     review: useReviewStore,

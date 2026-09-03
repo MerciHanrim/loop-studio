@@ -946,3 +946,669 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     expect(sh.radiusBL).not.toBe('0px')
   })
 })
+
+// docs/large-graph-readability.md §LGR6 — Slice 4a: TRANSIENT group frames +
+// the opt-in Activity overlay. Session-only readability UI: no GraphDoc / wire /
+// digest / undo / node-position change (§LGR8 / LGR-INV-1); frame create /
+// label / resize / delete are not undo entries; a whole-graph swap drops them.
+
+type FrameHead = { frames: { id: string; n: number; label: string; rect: { x: number; y: number; w: number; h: number } }[]; toolArmed: boolean; selectedId: string | null }
+const frameHead = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as { __loop: { frame: { getState: () => FrameHead } } }).__loop.frame.getState()
+    return { frames: s.frames.map((f) => ({ ...f })), toolArmed: s.toolArmed, selectedId: s.selectedId }
+  })
+
+const frameToolBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-frame')
+const activityBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-activity')
+const clearFramesBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-frame-clear')
+
+/** drag on the pane from one node's centre-ish to another's, padded out, so the
+ *  rect fully encloses the nodes between (a real mouse drag — not a synthetic
+ *  event). Assumes the Frame tool is already armed. */
+async function drawFrame(page: Page, fromId: string, toId: string, pad = 40) {
+  const a = (await node(page, fromId).boundingBox())!
+  const b = (await node(page, toId).boundingBox())!
+  const x1 = Math.min(a.x, b.x) - pad
+  const y1 = Math.min(a.y, b.y) - pad
+  const x2 = Math.max(a.x + a.width, b.x + b.width) + pad
+  const y2 = Math.max(a.y + a.height, b.y + b.height) + pad
+  await page.mouse.move(x1, y1)
+  await page.mouse.down()
+  await page.mouse.move((x1 + x2) / 2, (y1 + y2) / 2, { steps: 4 })
+  await page.mouse.move(x2, y2, { steps: 4 })
+  await page.mouse.up()
+}
+
+const gDigest = (page: Page) =>
+  page.evaluate(() =>
+    (window as unknown as { __loop: { revisionIO: { currentTargetDigest: () => string } } }).__loop.revisionIO.currentTargetDigest(),
+  )
+
+// A graph that exercises every Activity-overlay source in one committed step:
+//   • `feed` fires every step                         → a `fired` NODE
+//   • `rf` (feed → tank) carries flow                 → an `events` resource EDGE
+//   • `act` (tank ⇢ feed, activator) emits each step  → a `stateEvents` state EDGE
+//   • `rz` (feed → dead, flow 0) — incident to the fired `feed`, but its own
+//     transfer is 0 and it is not a state edge        → the NEGATIVE boundary
+//   • `dry0 → gate0 → sink0` never transfers; `gate0` is `activated`-not-`fired`
+//                                                     → an `evaluated`-only NODE
+const GRAPH_ACT = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'feed', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Feed', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'tank', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'Tank', activation: 'passive', initial: 5, capacity: null, mode: 'pullAny' } },
+    { id: 'use', type: 'drain', position: { x: 480, y: 0 }, data: { kind: 'drain', label: 'Use', activation: 'automatic', mode: 'pullAny' } },
+    { id: 'dead', type: 'pool', position: { x: 240, y: 150 }, data: { kind: 'pool', label: 'Dead', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'dry0', type: 'pool', position: { x: 0, y: 300 }, data: { kind: 'pool', label: 'Dry', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'gate0', type: 'gate', position: { x: 240, y: 300 }, data: { kind: 'gate', label: 'Idle', activation: 'automatic', distribution: 'deterministic' } },
+    { id: 'sink0', type: 'drain', position: { x: 480, y: 300 }, data: { kind: 'drain', label: 'Waste', activation: 'automatic', mode: 'pullAny' } },
+  ],
+  edges: [
+    { id: 'rf', type: 'loop', source: 'feed', target: 'tank', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '3' } },
+    { id: 'ru', type: 'loop', source: 'tank', target: 'use', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'rz', type: 'loop', source: 'feed', target: 'dead', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '0' } },
+    { id: 'dg', type: 'loop', source: 'dry0', target: 'gate0', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'gs', type: 'loop', source: 'gate0', target: 'sink0', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'act', type: 'loop', source: 'tank', target: 'feed', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'activator', expr: '>= 1' } },
+  ],
+})
+
+async function loadAct(page: Page): Promise<void> {
+  await openApp(page)
+  await resetAll(page)
+  await page.evaluate(() => {
+    const w = window as unknown as { __loop: { ui: { setState: (p: object) => void } } }
+    w.__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
+  })
+  await importGraph(page, GRAPH_ACT)
+  await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+      { x: 120, y: 90, zoom: 1 },
+      { duration: 0 },
+    ),
+  )
+  await expect(edgePath(page, 'act')).toHaveCount(1)
+}
+
+test.describe('LGR Slice 4a — transient group frames', () => {
+  test('draw a frame around some nodes — labelled, and the GraphDoc / digest / undo are untouched (§LGR10.8)', async ({ page }) => {
+    await load(page)
+    const before = await snapshot(page)
+    const digestBefore = await gDigest(page)
+
+    await frameToolBtn(page).click()
+    await expect(frameToolBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await drawFrame(page, 'a', 'b')
+
+    const fh = await frameHead(page)
+    expect(fh.frames).toHaveLength(1)
+    expect(fh.toolArmed, 'the tool is one-shot').toBe(false) // auto-disarmed
+    expect(fh.frames[0].n).toBe(1)
+    // default label `Group N` shows on the chip (empty stored value)
+    await expect(page.locator('.lgr-frame__label').first()).toHaveText('Group 1')
+    // it renders BEHIND the nodes and on its own layer
+    await expect(page.locator('.lgr-frame-back .lgr-frame__fill')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame')).toHaveCount(1)
+
+    const after = await snapshot(page)
+    expect(after.graph).toBe(before.graph)
+    expect(after.canUndo).toBe(before.canUndo)
+    expect(await gDigest(page)).toBe(digestBefore)
+  })
+
+  test('a too-small drag, and a drag with no node inside, both make NO frame (§LGR6 answer)', async ({ page }) => {
+    await load(page)
+    const pane = page.locator('.react-flow__pane')
+    const pb = (await pane.boundingBox())!
+
+    // tiny drag
+    await frameToolBtn(page).click()
+    await page.mouse.move(pb.x + 300, pb.y + 200)
+    await page.mouse.down()
+    await page.mouse.move(pb.x + 320, pb.y + 215, { steps: 3 })
+    await page.mouse.up()
+    expect((await frameHead(page)).frames).toHaveLength(0)
+    expect((await frameHead(page)).toolArmed, 'a failed draw disarms the tool').toBe(false)
+
+    // big drag over empty canvas (no node fully inside)
+    await frameToolBtn(page).click()
+    await page.mouse.move(pb.x + 8, pb.y + pb.height - 8)
+    await page.mouse.down()
+    await page.mouse.move(pb.x + 120, pb.y + pb.height - 120, { steps: 4 })
+    await page.mouse.up()
+    expect((await frameHead(page)).frames).toHaveLength(0)
+  })
+
+  test('a drag that STARTS on a node is a normal node interaction, not a frame draw', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    const nb = (await node(page, 'b').boundingBox())!
+    await page.mouse.move(nb.x + nb.width / 2, nb.y + nb.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(nb.x + nb.width / 2 + 80, nb.y + nb.height / 2 + 60, { steps: 4 })
+    await page.mouse.up()
+    // no frame; the node still selected / moved as usual (position may change —
+    // that's the node drag, nothing to do with frames)
+    expect((await frameHead(page)).frames).toHaveLength(0)
+  })
+
+  test('direction-agnostic — a right-to-left / bottom-to-top drag makes the same frame', async ({ page }) => {
+    await load(page)
+    const a = (await node(page, 'a').boundingBox())!
+    const b = (await node(page, 'b').boundingBox())!
+    const x1 = Math.min(a.x, b.x) - 40
+    const y1 = Math.min(a.y, b.y) - 40
+    const x2 = Math.max(a.x + a.width, b.x + b.width) + 40
+    const y2 = Math.max(a.y + a.height, b.y + b.height) + 40
+    await frameToolBtn(page).click()
+    await page.mouse.move(x2, y2) // start bottom-right
+    await page.mouse.down()
+    await page.mouse.move(x1, y1, { steps: 6 }) // drag up-left
+    await page.mouse.up()
+    const r = (await frameHead(page)).frames[0].rect
+    expect(r.w).toBeGreaterThan(0)
+    expect(r.h).toBeGreaterThan(0)
+  })
+
+  test('no membership — moving a node out of the frame leaves the frame exactly where it is (LGR-D9)', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'a', 60) // a small frame around just `a`
+    const r0 = (await frameHead(page)).frames[0].rect
+    // drag `a` far away
+    const nb = (await node(page, 'a').boundingBox())!
+    await page.mouse.move(nb.x + nb.width / 2, nb.y + nb.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(nb.x + 400, nb.y + 250, { steps: 6 })
+    await page.mouse.up()
+    const r1 = (await frameHead(page)).frames[0].rect
+    expect(r1).toEqual(r0) // frame did not react to the node leaving
+    expect((await frameHead(page)).frames).toHaveLength(1)
+  })
+
+  test('a node inside a frame is still selectable; the border selects the frame; the interior click clears it', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'c', 50) // wide frame over a, b, c
+
+    // the node still selects
+    await node(page, 'b').click()
+    expect(await selection(page)).toMatchObject({ node: 'b' })
+
+    // the top border hit-strip selects the frame
+    const strip = page.locator('.lgr-frame__edge-hit--top').first()
+    await strip.click({ position: { x: 10, y: 6 } })
+    expect((await frameHead(page)).selectedId).not.toBeNull()
+
+    // a click on a genuinely empty patch of canvas (outside every node, inside
+    // the frame) goes to the pane → the frame deselects
+    const fr = (await page.locator('.lgr-frame').first().boundingBox())!
+    await page.mouse.click(fr.x + fr.width - 12, fr.y + 12) // top-right interior corner
+    expect((await frameHead(page)).selectedId).toBeNull()
+  })
+
+  test('select → resize handle resizes; delete ✕ removes; Clear frames removes all', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'b')
+    // select via border
+    await page.locator('.lgr-frame__edge-hit--left').first().click({ position: { x: 6, y: 20 } })
+    await expect(page.locator('.lgr-frame__resize')).toHaveCount(1)
+
+    const r0 = (await frameHead(page)).frames[0].rect
+    const rh = (await page.locator('.lgr-frame__resize').boundingBox())!
+    await page.mouse.move(rh.x + 6, rh.y + 6)
+    await page.mouse.down()
+    await page.mouse.move(rh.x + 90, rh.y + 70, { steps: 5 })
+    await page.mouse.up()
+    const r1 = (await frameHead(page)).frames[0].rect
+    expect(r1.w).toBeGreaterThan(r0.w)
+    expect(r1.h).toBeGreaterThan(r0.h)
+    expect({ x: r1.x, y: r1.y }).toEqual({ x: r0.x, y: r0.y }) // top-left pinned
+
+    await page.locator('.lgr-frame__del').click()
+    expect((await frameHead(page)).frames).toHaveLength(0)
+
+    // two more, then Clear frames
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'a', 40)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'c', 'c', 40)
+    expect((await frameHead(page)).frames).toHaveLength(2)
+    await clearFramesBtn(page).click()
+    expect((await frameHead(page)).frames).toHaveLength(0)
+    await expect(clearFramesBtn(page)).toHaveCount(0) // the button hides with no frames
+  })
+
+  test('labels — rename, empty ⇒ default, duplicates ok, deleted number not reused; a graph swap clears frames + resets the counter', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'a', 40)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b', 'b', 40)
+
+    // rename #1 → "Loop"
+    await page.locator('.lgr-frame__label').first().click()
+    await page.locator('.lgr-frame__label--edit').fill('  Loop  ')
+    await page.keyboard.press('Enter')
+    expect((await frameHead(page)).frames[0].label).toBe('Loop') // trimmed
+
+    // rename #2 → "Loop" too (duplicates allowed)
+    await page.locator('.lgr-frame__label').nth(1).click()
+    await page.locator('.lgr-frame__label--edit').fill('Loop')
+    await page.keyboard.press('Enter')
+    expect((await frameHead(page)).frames.map((f) => f.label)).toEqual(['Loop', 'Loop'])
+
+    // empty rename on #1 ⇒ falls back to its default
+    await page.locator('.lgr-frame__label').first().click()
+    await page.locator('.lgr-frame__label--edit').fill('')
+    await page.keyboard.press('Enter')
+    expect((await frameHead(page)).frames[0].label).toBe('')
+    await expect(page.locator('.lgr-frame__label').first()).toHaveText('Group 1')
+
+    // delete #1, add another ⇒ the new one is "Group 3" (1 is not reused)
+    await page.locator('.lgr-frame__edge-hit--top').first().click({ position: { x: 8, y: 6 } })
+    await page.locator('.lgr-frame__del').click()
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'c', 'c', 40)
+    const ns = (await frameHead(page)).frames.map((f) => f.n)
+    expect(ns).toEqual([2, 3])
+
+    // a language switch does NOT re-translate an existing label
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (c: string) => void } } } }).__loop.i18n
+        .getState()
+        .setLocale('ko'),
+    )
+    expect((await frameHead(page)).frames.find((f) => f.label === 'Loop')).toBeTruthy()
+
+    // re-import the graph (whole-graph swap) ⇒ every frame gone, counter back to 1
+    await importGraph(page, GRAPH)
+    expect((await frameHead(page)).frames).toEqual([])
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'a', 40)
+    expect((await frameHead(page)).frames[0].n).toBe(1)
+  })
+
+  test('overlap + z — a frame drawn later sits on top of an earlier one; a click in the overlap still reaches the node', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'c', 60) // big
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b', 'b', 30) // small, inside the big one
+
+    const chrome = page.locator('.lgr-frame')
+    await expect(chrome).toHaveCount(2)
+    // later frame is later in the DOM (paints on top)
+    const order = await chrome.evaluateAll((els) => els.map((e) => e.querySelector('.lgr-frame__label')?.textContent))
+    expect(order).toEqual(['Group 1', 'Group 2'])
+
+    // a click on `b` (in the overlap of both frames) still selects the node
+    await node(page, 'b').click()
+    expect(await selection(page)).toMatchObject({ node: 'b' })
+  })
+
+  test('survives sim Reset and Reset view; a graph swap drops it; render-only across a run', async ({ page }) => {
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'b')
+    expect((await frameHead(page)).frames).toHaveLength(1)
+
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
+    )
+    expect((await frameHead(page)).frames, 'kept across sim Reset').toHaveLength(1)
+
+    await resetViewBtn(page).click()
+    expect((await frameHead(page)).frames, 'kept across Reset view').toHaveLength(1)
+
+    const digestBefore = await gDigest(page)
+    await importGraph(page, GRAPH)
+    expect((await frameHead(page)).frames, 'dropped on a whole-graph swap').toHaveLength(0)
+    // and the digest of an identical graph is unchanged by having had a frame
+    await expect.poll(() => gDigest(page)).toBe(digestBefore)
+  })
+
+  test('forced-colors — a frame border keeps a non-colour tell', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await load(page)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'a', 'b')
+    const stroke = await page
+      .locator('.lgr-frame__fill')
+      .first()
+      .evaluate((el) => {
+        const s = getComputedStyle(el)
+        return { stroke: s.stroke, width: parseFloat(s.strokeWidth) }
+      })
+    expect(stroke.stroke).not.toBe('none')
+    expect(stroke.width).toBeGreaterThan(0)
+  })
+})
+
+test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
+  test('off by default; the toggle persists and survives sim Reset', async ({ page }) => {
+    await load(page)
+    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'false')
+    expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).not.toBe('1')
+
+    await activityBtn(page).click()
+    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).toBe('1')
+
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
+    )
+    await expect(activityBtn(page), 'toggle survives Reset').toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('with the overlay ON, stepping tints the parts that were `effective`; sim Reset clears the tint but keeps the toggle; a graph reload clears it', async ({ page }) => {
+    await loadRun(page)
+    await activityBtn(page).click()
+    for (let i = 0; i < 3; i++) await commitOneStep(page)
+
+    const head = await simHead(page)
+    // a node that fired ⇒ its silhouette carries a `.nodef__activity` <path>
+    // with a positive opacity (a shape tint, NOT a rectangle on the wrapper).
+    const firedId = head.firedNodeIds[0]
+    const firedTint = node(page, firedId).locator('.nodef__activity')
+    await expect(firedTint).toHaveCount(1)
+    expect(
+      Number(await firedTint.evaluate((el) => getComputedStyle(el).opacity)),
+    ).toBeGreaterThan(0)
+
+    // an evaluated-but-not-fired node ⇒ NO tint (activity is `effective`-only)
+    const evalOnly = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    await expect(node(page, evalOnly).locator('.nodef__activity')).toHaveCount(0)
+    // a fully idle node ⇒ no tint
+    await expect(node(page, 'iso').locator('.nodef__activity')).toHaveCount(0)
+
+    // AND the edges: `e_feed` carries flow every step (in StepReport.events) ⇒
+    // its <path> gets the tint class + a positive --lgr-activity. React Flow
+    // hands the edge object's style to the component, not the wrapper, so this
+    // proves LoopEdge applies the tint itself. `e_dg` is on the dead `dry`
+    // branch (no transfer) ⇒ no tint.
+    const activeEdgePath = page.locator('.react-flow__edge[data-id="e_feed"] .react-flow__edge-path')
+    await expect(activeEdgePath).toHaveClass(/lgr-active-tint/)
+    expect(
+      Number(await activeEdgePath.evaluate((el) => getComputedStyle(el).getPropertyValue('--lgr-activity').trim())),
+    ).toBeGreaterThan(0)
+    await expect(
+      page.locator('.react-flow__edge[data-id="e_dg"] .react-flow__edge-path'),
+    ).not.toHaveClass(/lgr-active-tint/)
+
+    const anyTint = () => page.locator('.nodef__activity, .react-flow__edge-path.lgr-active-tint')
+
+    // sim Reset empties the accumulated tint, toggle stays on
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
+    )
+    await expect(anyTint()).toHaveCount(0)
+    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+
+    // a graph reload also clears it
+    await commitOneStep(page)
+    expect(await anyTint().count()).toBeGreaterThan(0)
+    await importGraph(page, GRAPH_RUN)
+    await expect(anyTint()).toHaveCount(0)
+  })
+
+  test('a state-event edge gets the tint too; a fired-neighbour edge with no event of its own does NOT (§LGR5.1)', async ({ page }) => {
+    await loadAct(page)
+    await activityBtn(page).click()
+    for (let i = 0; i < 3; i++) await commitOneStep(page)
+
+    // sanity: what the engine actually reported this step
+    const rep = await page.evaluate(() => {
+      const s = (window as unknown as { __loop: { sim: { getState: () => { firedNodeIds: string[]; activeByEdge: Record<string, number>; stateEvents: { edgeId: string }[] } } } }).__loop.sim.getState()
+      return { fired: [...s.firedNodeIds], eventEdges: Object.keys(s.activeByEdge), stateEdges: s.stateEvents.map((e) => e.edgeId) }
+    })
+    expect(rep.fired).toContain('feed')
+    expect(rep.eventEdges).toContain('rf')
+    expect(rep.stateEdges).toContain('act') // the activator edge emits every step
+    expect(rep.eventEdges).not.toContain('rz')
+
+    const tintClass = (id: string) => edgePath(page, id).evaluate((el) => el.classList.contains('lgr-active-tint'))
+    // a resource edge that carried flow ⇒ tinted
+    expect(await tintClass('rf')).toBe(true)
+    // a STATE edge that appeared in StepReport.stateEvents ⇒ tinted (same path)
+    expect(await tintClass('act')).toBe(true)
+    expect(
+      Number(await edgePath(page, 'act').evaluate((el) => getComputedStyle(el).getPropertyValue('--lgr-activity').trim())),
+    ).toBeGreaterThan(0)
+    // `rz` touches the fired `feed` but carried 0 and is not a state edge ⇒ NO tint
+    expect(await tintClass('rz')).toBe(false)
+    // the dead evaluated-only branch ⇒ NO tint, on the edge OR the gate node
+    expect(await tintClass('dg')).toBe(false)
+    await expect(node(page, 'gate0').locator('.nodef__activity')).toHaveCount(0)
+  })
+
+  test('pause holds the tint; a normal end holds it; only Reset clears it — the toggle survives all three (§LGR6-cues)', async ({ page }) => {
+    const anyTint = () => page.locator('.nodef__activity, .react-flow__edge-path.lgr-active-tint')
+    const historyLen = () =>
+      page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { activitySteps: string[][] } } } }).__loop.sim.getState().activitySteps.length)
+
+    // ── pause ──────────────────────────────────────────────────────────────
+    await loadRun(page)
+    await activityBtn(page).click()
+    for (let i = 0; i < 2; i++) await commitOneStep(page)
+    expect(await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { status: string } } } }).__loop.sim.getState().status)).toBe('paused')
+    expect(await historyLen()).toBeGreaterThan(0)
+    expect(await anyTint().count()).toBeGreaterThan(0)
+    // more idle time at `paused` — still held
+    await page.waitForTimeout(200)
+    expect(await historyLen()).toBeGreaterThan(0)
+    expect(await anyTint().count()).toBeGreaterThan(0)
+
+    // ── a normal end ──────────────────────────────────────────────────────
+    await importGraph(page, GRAPH_END) // fresh graph clears history…
+    await expect(anyTint()).toHaveCount(0)
+    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true') // …toggle kept
+    await commitOneStep(page)
+    expect(await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { status: string } } } }).__loop.sim.getState().status)).toBe('ended')
+    const endHistory = await historyLen()
+    expect(endHistory).toBeGreaterThan(0)
+    expect(await anyTint().count()).toBeGreaterThan(0)
+    // still `ended`, still held after idle time
+    await page.waitForTimeout(200)
+    expect(await historyLen()).toBe(endHistory)
+    expect(await anyTint().count()).toBeGreaterThan(0)
+
+    // ── only Reset clears it ──────────────────────────────────────────────
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
+    )
+    expect(await historyLen()).toBe(0)
+    await expect(anyTint()).toHaveCount(0)
+    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('forced-colors: an active node = a dashed SHAPE outline, an active edge = a dashed stroke; the run cues still sit on top (§LGR6-cues / §LGR9)', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadRun(page)
+    await activityBtn(page).click()
+    for (let i = 0; i < 2; i++) await commitOneStep(page)
+    const head = await simHead(page)
+
+    // an active NODE: `.nodef__activity` becomes a dashed stroked outline of the
+    // silhouette (no coloured fill) — a non-colour tell.
+    const firedTint = node(page, head.firedNodeIds[0]).locator('.nodef__activity')
+    await expect(firedTint).toHaveCount(1)
+    const nf = await firedTint.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return { fill: s.fill, stroke: s.stroke, dash: s.strokeDasharray, tag: el.tagName.toLowerCase() }
+    })
+    expect(nf.tag).toBe('path') // the shape, not a rectangle
+    expect(nf.fill).toBe('none')
+    expect(nf.dash).not.toBe('none')
+    expect(nf.dash.trim().length).toBeGreaterThan(0)
+
+    // an active resource EDGE path: a dashed stroke under the UA override
+    const ep = await edgePath(page, 'e_feed').evaluate((el) => getComputedStyle(el).strokeDasharray)
+    expect(ep).not.toBe('none')
+    expect(ep.trim().length).toBeGreaterThan(0)
+
+    // the required set stays ABOVE the tint: on a fired node the effective pulse
+    // is still present; on an evaluated-only node the Slice-3 bracket is still
+    // present and that node has NO activity tint.
+    await expect(hasWave(page, head.firedNodeIds[0])).toHaveCount(1)
+    const evalOnly = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    await expect(hasEval(page, evalOnly)).toHaveCount(1)
+    await expect(node(page, evalOnly).locator('.nodef__activity')).toHaveCount(0)
+    // DOM order proof: the tint <path> precedes the stroke + every cue in the svg
+    const order = await node(page, head.firedNodeIds[0]).evaluate((n) => {
+      const kids = [...n.querySelectorAll('.nodef__shape > *')].map((k) => k.getAttribute('class'))
+      return { act: kids.findIndex((c) => c?.includes('nodef__activity')), stroke: kids.findIndex((c) => c?.includes('nodef__stroke')) }
+    })
+    expect(order.act).toBeGreaterThanOrEqual(0)
+    expect(order.act).toBeLessThan(order.stroke)
+  })
+
+  test('reduced-motion: the activity tint has no transition or animation (§LGR6-cues)', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await loadRun(page)
+    await activityBtn(page).click()
+    for (let i = 0; i < 2; i++) await commitOneStep(page)
+    const head = await simHead(page)
+
+    const nodeMotion = await node(page, head.firedNodeIds[0])
+      .locator('.nodef__activity')
+      .evaluate((el) => {
+        const s = getComputedStyle(el)
+        return { td: s.transitionDuration, an: s.animationName }
+      })
+    expect(nodeMotion.td).toMatch(/^0s(,\s*0s)*$/)
+    expect(nodeMotion.an).toBe('none')
+
+    const edgeMotion = await edgePath(page, 'e_feed').evaluate((el) => {
+      const s = getComputedStyle(el)
+      return { td: s.transitionDuration, an: s.animationName }
+    })
+    expect(edgeMotion.td).toMatch(/^0s(,\s*0s)*$/)
+    expect(edgeMotion.an).toBe('none')
+  })
+
+  test('VISUAL — frames-activity.png: overlapping frames (one selected), real nodes/edges inside, a tinted fired node + resource + state-event edge tint, an evaluated-only node with only the Slice-3 bracket (minimap hidden)', async ({ page }) => {
+    await loadAct(page)
+    await page.addStyleTag({
+      content: '.react-flow__minimap,.react-flow__attribution{display:none!important}',
+    })
+    // a dedicated viewport so both frame labels clear the left control column
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+        { x: 220, y: 70, zoom: 0.9 },
+        { duration: 0 },
+      ),
+    )
+    await activityBtn(page).click()
+    for (let i = 0; i < 3; i++) await commitOneStep(page)
+
+    // two partly-overlapping frames via real pointer drags (the tool is one-shot):
+    // one across the top row, one running top→bottom that clips its right side
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'feed', 'tank', 26)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'tank', 'gate0', 20)
+    const fh = await frameHead(page)
+    expect(fh.frames.length).toBe(2)
+    // select the FIRST-drawn (earlier paint order) so its resize handle shows
+    await page.evaluate((id) =>
+      (window as unknown as { __loop: { frame: { getState: () => { selectFrame: (i: string) => void } } } }).__loop.frame.getState().selectFrame(id),
+      fh.frames[0].id,
+    )
+    await expect(page.locator('.lgr-frame.is-selected .lgr-frame__resize')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__label')).toHaveCount(2)
+    // the tints are actually on screen for the baseline to capture
+    await expect(node(page, 'feed').locator('.nodef__activity')).toHaveCount(1)
+    await expect(edgePath(page, 'rf')).toHaveClass(/lgr-active-tint/)
+    await expect(edgePath(page, 'act')).toHaveClass(/lgr-active-tint/)
+    await expect(hasEval(page, 'gate0')).toHaveCount(1)
+    await expect(node(page, 'gate0').locator('.nodef__activity')).toHaveCount(0)
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+
+    await expect(page.locator('.react-flow')).toHaveScreenshot('frames-activity.png', {
+      maxDiffPixelRatio: 0.02,
+    })
+  })
+})
+
+test.describe('LGR Slice 4a — a Filter that hides a frame’s nodes leaves the frame alone', () => {
+  test('hide every node in a frame → the frame + label stay, rect + count unchanged; clearing the filter brings the nodes back and never recomputed the frame', async ({ page }) => {
+    await loadRT(page)
+    // draw a frame around `gold` (currency) — its own creation guard needs a
+    // fully-contained node; after that the frame is a pure rectangle.
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'gold', 'gold', 46)
+    const before = await frameHead(page)
+    expect(before.frames.length).toBe(1)
+    const rect0 = before.frames[0].rect
+
+    // hide the `currency` resource type → `gold` (and its incident edges) go
+    await filterBtn(page).click()
+    await filterRow(page, 'currency').check()
+    await expect(node(page, 'gold')).toHaveCount(0)
+
+    // the frame + its label are untouched
+    await expect(page.locator('.lgr-frame')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__label')).toHaveCount(1)
+    const during = await frameHead(page)
+    expect(during.frames.length).toBe(1)
+    expect(during.frames[0].rect).toEqual(rect0) // no recompute / resize
+    expect(during.frames[0].id).toBe(before.frames[0].id)
+
+    // clear the filter → the node returns; the frame still hasn't moved
+    await filterRow(page, 'currency').uncheck()
+    await expect(node(page, 'gold')).toBeVisible()
+    const after = await frameHead(page)
+    expect(after.frames.length).toBe(1)
+    expect(after.frames[0].rect).toEqual(rect0)
+  })
+})
+
+test.describe('LGR Slice 4a — mobile (the More sheet)', () => {
+  test('no frame / activity canvas control on mobile; a seeded frame still renders; the More sheet toggles the overlay (sticky) and clears frames', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 })
+    await loadRun(page)
+
+    // §LGR9 — frame drawing + the activity toggle are NOT canvas controls on mobile
+    await expect(frameToolBtn(page)).toHaveCount(0)
+    await expect(activityBtn(page)).toHaveCount(0)
+    await expect(clearFramesBtn(page)).toHaveCount(0)
+
+    // an existing (session) frame still RENDERS on the mobile canvas
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { frame: { getState: () => { addFrame: (r: object) => string } } } }).__loop.frame
+        .getState()
+        .addFrame({ x: 0, y: 0, w: 220, h: 130 }),
+    )
+    await expect(page.locator('.lgr-frame')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__label')).toHaveCount(1)
+
+    const more = () => page.locator('.mob-more')
+    const sheetRow = (re: RegExp) => page.locator('.sheet__row').filter({ hasText: re })
+
+    // Activity overlay row — visible, toggles, and the preference is sticky
+    await more().click()
+    const actRow = sheetRow(/Activity overlay/)
+    await expect(actRow).toBeVisible()
+    const actToggle = actRow.locator('button')
+    await expect(actToggle).toHaveAttribute('aria-pressed', 'false')
+    await actToggle.click()
+    await expect(actToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).toBe('1')
+
+    // Clear group frames row — present because a frame exists → tap → frame gone
+    const clearRow = sheetRow(/Clear group frames/)
+    await expect(clearRow).toBeVisible()
+    await clearRow.click()
+    await expect(page.locator('.lgr-frame')).toHaveCount(0)
+
+    // re-open: the frame row is gone; the activity toggle kept its sticky state
+    await more().click()
+    await expect(sheetRow(/Clear group frames/)).toHaveCount(0)
+    await expect(sheetRow(/Activity overlay/).locator('button')).toHaveAttribute('aria-pressed', 'true')
+  })
+})

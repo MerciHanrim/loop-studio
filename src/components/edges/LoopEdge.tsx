@@ -12,6 +12,7 @@ import { useSimStore } from '../../store/simStore'
 import { useUiStore } from '../../store/uiStore'
 import { currentRouteMap } from '../../store/routeMap'
 import { useLod } from '../lod'
+import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { usePlaybackTravelBudget } from './playbackBudget'
 import type { LoopEdgeData } from '../../model/types'
@@ -94,6 +95,11 @@ function LoopEdge({
   const path = route ? route.d : bezierPath
   const labelX = route ? route.mid.x : bezierLabelX
   const labelY = route ? route.mid.y : bezierLabelY
+
+  // docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
+  // per-edge tint. Read here (not via the edge object's `style`, which v12 does
+  // not forward to `.react-flow__edge`) so `--lgr-activity` lands on the path.
+  const activityOp = useEdgeActivityOpacity(id)
 
   const amount = useSimStore((s) => s.activeByEdge[id] ?? 0)
   const stepIndex = useSimStore((s) => s.stepIndex)
@@ -240,17 +246,19 @@ function LoopEdge({
         id={id}
         path={path}
         markerEnd={`url(#${markerId})`}
-        className={
-          route
-            ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}`
-            : undefined
-        }
+        className={[
+          route ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}` : '',
+          activityOp > 0 ? 'lgr-active-tint' : '',
+        ]
+          .filter(Boolean)
+          .join(' ') || undefined}
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,
           strokeDasharray: isState ? '4 4' : undefined,
           strokeLinecap: isState ? 'butt' : 'round',
           opacity: activatorOn === false ? 0.5 : 1,
+          ...(activityOp > 0 ? { ['--lgr-activity' as string]: activityOp } : null),
         }}
       />
 

@@ -23,6 +23,8 @@ import { EdgeMarkers } from './edges/EdgeMarkers'
 import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
+import { FrameLayer } from './frames/FrameLayer'
+import { useFrameStore, hasFrames } from '../store/frameStore'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -72,6 +74,14 @@ export function Canvas() {
   const toggleFocusMode = useUiStore((s) => s.toggleFocusMode)
   const filterPanelOpen = useUiStore((s) => s.filterPanelOpen)
   const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
+  const activityOverlay = useUiStore((s) => s.activityOverlay)
+  const toggleActivityOverlay = useUiStore((s) => s.toggleActivityOverlay)
+  const frameToolArmed = useFrameStore((s) => s.toolArmed)
+  const armFrameTool = useFrameStore((s) => s.armTool)
+  const disarmFrameTool = useFrameStore((s) => s.disarmTool)
+  const clearFrames = useFrameStore((s) => s.clearFrames)
+  const selectFrame = useFrameStore((s) => s.selectFrame)
+  const framesExist = useFrameStore(hasFrames)
   const fitRev = useGraphStore((s) => s.fitRev)
   const loadRev = useGraphStore((s) => s.loadRev)
   const nodesInitialized = useNodesInitialized()
@@ -128,6 +138,15 @@ export function Canvas() {
   // Flow's change events still flow back to the store unchanged.
   const focusSet = useFocusSet()
   const hidden = useHiddenSet()
+  // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
+  // filtered element is gone, tint and all) and independently of dim (a
+  // de-emphasised element keeps its tint, which just reads faintly at the dim
+  // opacity). Canvas does NOT apply it: React Flow v12 forwards a node object's
+  // `style` to `.react-flow__node`, which is an auto-width wrapper (a
+  // rectangular overlay on it overflows the visible silhouette), and an edge
+  // object's `style` never reaches the path at all. So `NodeFrame` and
+  // `LoopEdge` each read their own opacity (`useNode/EdgeActivityOpacity`) and
+  // draw a shape-accurate tint themselves.
   const rfNodes = useMemo(() => {
     if (!hidden && !focusSet) return nodes
     return nodes.map((n) => {
@@ -264,9 +283,16 @@ export function Canvas() {
         fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
         minZoom={0.2}
         maxZoom={2}
+        // §LGR6 — while the Frame tool is armed, a pane drag draws a frame
+        // instead of panning the canvas.
+        panOnDrag={!frameToolArmed}
+        onPaneClick={() => selectFrame(null)}
       >
         <EdgeMarkers />
         <LodGrid />
+        {/* docs/large-graph-readability.md §LGR6 — transient group frames
+            (behind the nodes) + their interactive chrome. Render / UI-only. */}
+        <FrameLayer />
         {/* docs/large-graph-readability.md §LGR2.1 — Focus is armed but no node
             is selected yet, so nothing on the canvas has changed. Tell the user
             the mode is on and waiting. Never takes the pointer. */}
@@ -351,6 +377,73 @@ export function Canvas() {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </ControlButton>
+          )}
+          {/* docs/large-graph-readability.md §LGR6 — the one-shot "draw a group
+              frame" tool (desktop only; frame drawing is not on mobile, §LGR9).
+              Armed ⇒ a pane drag rubber-bands a labelled rectangle behind the
+              nodes. Transient, session-only, never in the GraphDoc / undo. */}
+          {!isMobile && (
+            <ControlButton
+              onClick={() => (frameToolArmed ? disarmFrameTool() : armFrameTool())}
+              title={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
+              aria-label={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
+              aria-pressed={frameToolArmed}
+              className="rf-frame"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <rect
+                  x="2.5"
+                  y="3.5"
+                  width="11"
+                  height="9"
+                  rx="1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeDasharray="2.4 2"
+                />
+              </svg>
+            </ControlButton>
+          )}
+          {!isMobile && framesExist && (
+            <ControlButton
+              onClick={() => clearFrames()}
+              title={t('canvas.frame.clear')}
+              aria-label={t('canvas.frame.clear')}
+              className="rf-frame-clear"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M4 4l8 8M12 4l-8 8"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </ControlButton>
+          )}
+          {/* docs/large-graph-readability.md §LGR6-cues — the opt-in Activity
+              overlay toggle (a sticky global pref, default off). */}
+          {!isMobile && (
+            <ControlButton
+              onClick={toggleActivityOverlay}
+              title={activityOverlay ? t('canvas.activity.on') : t('canvas.activity.off')}
+              aria-label={activityOverlay ? t('canvas.activity.on') : t('canvas.activity.off')}
+              aria-pressed={activityOverlay}
+              className="rf-activity"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M1 9h3l2-5 3 8 2-4h4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
