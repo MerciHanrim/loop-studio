@@ -640,3 +640,309 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     expect(on).not.toMatch(/\b0px\b/)
   })
 })
+
+// docs/large-graph-readability.md §LGR5 — Slice 3: the run distinction. A
+// committed step lights `effective` (a node in `StepReport.fired`) and the
+// lighter `evaluated` (a node in `activated` but NOT `fired`). Node-only, and
+// flow-execution nodes only — Parameter / Register are never in `activated`.
+// Pure read of the committed `StepReport`; no engine / builder / GraphDoc /
+// serialize / digest change (§LGR13).
+//
+//   feed ─3→ store(5) ─1→ busy      feed pushes, busy pulls 1        → effective
+//   dry(0) ─1→ idle ─1→ waste       dry is empty, so idle + waste are
+//                                   evaluated as targets but move nothing → evaluated
+//   store                           receives + is pulled from, but is neither
+//                                   `activated` nor `fired` in the report      → no cue
+//   iso                             an isolated pool — never activated         → no cue
+//   p1 (parameter) · r1 (register) · r_bad (invalid register)
+//                                   model nodes — never activated             → no cue
+const GRAPH_RUN = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'feed', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Feed', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'store', type: 'pool', position: { x: 220, y: 0 }, data: { kind: 'pool', label: 'Store', activation: 'passive', initial: 5, capacity: null, mode: 'pullAny' } },
+    { id: 'busy', type: 'drain', position: { x: 440, y: 0 }, data: { kind: 'drain', label: 'Busy', activation: 'automatic', mode: 'pullAny' } },
+    { id: 'dry', type: 'pool', position: { x: 0, y: 170 }, data: { kind: 'pool', label: 'Dry', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'idle', type: 'gate', position: { x: 220, y: 170 }, data: { kind: 'gate', label: 'Idle', activation: 'automatic', distribution: 'deterministic' } },
+    { id: 'waste', type: 'drain', position: { x: 440, y: 170 }, data: { kind: 'drain', label: 'Waste', activation: 'automatic', mode: 'pullAny' } },
+    { id: 'iso', type: 'pool', position: { x: 660, y: 20 }, data: { kind: 'pool', label: 'Iso', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'p1', type: 'parameter', position: { x: 0, y: 320 }, data: { kind: 'parameter', label: 'P1', value: 2 } },
+    { id: 'r1', type: 'register', position: { x: 220, y: 320 }, data: { kind: 'register', label: 'R1', expr: '@store', format: 'int' } },
+    // an INVALID register — carries the `!` flag; must NOT also carry the
+    // `evaluated` arc (model nodes are never in `activated`): the "error +
+    // evaluated" comparison cell is really "error, and no evaluated cue".
+    { id: 'r_bad', type: 'register', position: { x: 440, y: 320 }, data: { kind: 'register', label: 'Rbad', expr: '1 / (@store - @store)', format: 'float' } },
+  ],
+  edges: [
+    { id: 'e_feed', type: 'loop', source: 'feed', target: 'store', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '3' } },
+    { id: 'e_sb', type: 'loop', source: 'store', target: 'busy', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'e_dg', type: 'loop', source: 'dry', target: 'idle', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'e_gw', type: 'loop', source: 'idle', target: 'waste', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+  ],
+})
+
+// a graph that ENDS on step 1: `p` starts with 1, so the End pulls it and the
+// run finishes the same step (`src` also fires, pushing into `p`).
+const GRAPH_END = JSON.stringify({
+  schema: 'loop-studio/graph',
+  version: 1,
+  nodes: [
+    { id: 'src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+    { id: 'p', type: 'pool', position: { x: 220, y: 0 }, data: { kind: 'pool', label: 'P', activation: 'passive', initial: 1, capacity: null, mode: 'pullAny' } },
+    { id: 'fin', type: 'end', position: { x: 440, y: 0 }, data: { kind: 'end', label: 'Fin', activation: 'automatic' } },
+  ],
+  edges: [
+    { id: 'e_sp', type: 'loop', source: 'src', target: 'p', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+    { id: 'e_pf', type: 'loop', source: 'p', target: 'fin', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+  ],
+})
+
+type SimHead = { firedNodeIds: string[]; activatedNodeIds: string[]; status: string }
+const simHead = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as { __loop: { sim: { getState: () => SimHead } } }).__loop.sim.getState()
+    return {
+      firedNodeIds: [...s.firedNodeIds].sort(),
+      activatedNodeIds: [...s.activatedNodeIds].sort(),
+      status: s.status,
+    }
+  })
+
+const anyRunCue = (page: Page) =>
+  page.evaluate(
+    () => document.querySelectorAll('.nodef__wave, .nodef__eval').length,
+  )
+
+async function loadRun(page: Page, graph = GRAPH_RUN): Promise<void> {
+  await openApp(page)
+  await resetAll(page)
+  await page.evaluate(() => {
+    const w = window as unknown as { __loop: { ui: { setState: (p: object) => void } } }
+    w.__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
+  })
+  await importGraph(page, graph)
+  await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+      { x: 120, y: 90, zoom: 1 },
+      { duration: 0 },
+    ),
+  )
+}
+
+/** commit one engine step. Reduced motion makes `stepOnce()` settle instantly,
+ *  so the committed `StepReport` cues are on screen with no wait. */
+async function commitOneStep(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void } } } }).__loop.sim.getState().stepOnce(),
+  )
+  await expect
+    .poll(async () => (await simHead(page)).firedNodeIds.length)
+    .toBeGreaterThan(0)
+}
+
+const hasWave = (page: Page, id: string) => node(page, id).locator('.nodef__wave')
+const hasEval = (page: Page, id: string) => node(page, id).locator('.nodef__eval')
+/** the evaluated mark is an OPEN corner bracket — only two borders (left +
+ *  bottom) and one rounded corner, never a closed ring or a circle. */
+const evalShape = (page: Page, id: string) =>
+  hasEval(page, id).evaluate((el) => {
+    const s = getComputedStyle(el)
+    return {
+      left: s.borderLeftStyle,
+      bottom: s.borderBottomStyle,
+      top: s.borderTopStyle,
+      right: s.borderRightStyle,
+      radiusBL: s.borderBottomLeftRadius,
+      radiusTR: s.borderTopRightRadius,
+      opacity: Number(s.opacity),
+      w: Math.round(el.getBoundingClientRect().width),
+    }
+  })
+
+test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => {
+  test.use({ reducedMotion: 'reduce' })
+
+  test('every fired node shows `effective`, every activated-not-fired shows `evaluated`, the rest show no cue (§LGR5.1 / §LGR10.6)', async ({ page }) => {
+    await loadRun(page)
+    await commitOneStep(page)
+    const { firedNodeIds, activatedNodeIds } = await simHead(page)
+
+    // the fixture must actually exercise all three weights, or it proves nothing
+    const evaluatedOnly = activatedNodeIds.filter((id) => !firedNodeIds.includes(id))
+    expect(firedNodeIds.length, 'some node fired').toBeGreaterThan(0)
+    expect(evaluatedOnly.length, 'some node was evaluated but did not fire').toBeGreaterThan(0)
+
+    for (const id of firedNodeIds) {
+      await expect(hasWave(page, id), `${id} ∈ fired → effective`).toHaveCount(1)
+      await expect(hasEval(page, id), `${id} ∈ fired → not the evaluated arc`).toHaveCount(0)
+    }
+    for (const id of evaluatedOnly) {
+      await expect(hasEval(page, id), `${id} ∈ activated∖fired → evaluated`).toHaveCount(1)
+      await expect(hasWave(page, id), `${id} not fired → no effective wave`).toHaveCount(0)
+      // it is an OPEN corner bracket: left + bottom borders only, one rounded
+      // corner — not a closed ring, not a circle, not the top-right `!` disc
+      const sh = await evalShape(page, id)
+      expect(sh.left, `${id} bracket left stroke`).toBe('solid')
+      expect(sh.bottom, `${id} bracket bottom stroke`).toBe('solid')
+      expect(sh.top, `${id} bracket has no top stroke`).toBe('none')
+      expect(sh.right, `${id} bracket has no right stroke`).toBe('none')
+      expect(sh.radiusBL, `${id} rounded at the bracket corner`).not.toBe('0px')
+      expect(sh.radiusTR, `${id} not a full-radius ring`).toBe('0px')
+      expect(sh.w, `${id} small mark`).toBeLessThan(18)
+    }
+    // nodes in neither set — no cue at all. `store` is the interesting one: its
+    // value changes this step (push in, pull out) yet the report lists it in
+    // neither `activated` nor `fired`, so the run distinction gives it no cue
+    // (the value bump already signals the change). `iso` is fully idle.
+    for (const id of ['store', 'iso']) {
+      expect(firedNodeIds, id).not.toContain(id)
+      expect(activatedNodeIds, id).not.toContain(id)
+      await expect(hasWave(page, id)).toHaveCount(0)
+      await expect(hasEval(page, id)).toHaveCount(0)
+    }
+  })
+
+  test('Parameter / Register (incl. an invalid one) never carry a flow-run cue, even mid-run (§LGR5 — flow-execution only)', async ({ page }) => {
+    await loadRun(page)
+    await commitOneStep(page)
+    const { firedNodeIds, activatedNodeIds } = await simHead(page)
+    for (const id of ['p1', 'r1', 'r_bad']) {
+      expect(firedNodeIds, `${id} is not a flow node`).not.toContain(id)
+      expect(activatedNodeIds, `${id} is not a flow node`).not.toContain(id)
+      await expect(hasWave(page, id)).toHaveCount(0)
+      await expect(hasEval(page, id)).toHaveCount(0)
+    }
+    // the invalid register still shows its OWN cue (the `!` flag) — "error"
+    // and "evaluated" simply never co-occur (error, and no evaluated arc)
+    await expect(node(page, 'r_bad').locator('.nodef__flag')).toHaveText('!')
+  })
+
+  test('the run cue is a pure read — stepping never touches GraphDoc / undo', async ({ page }) => {
+    await loadRun(page)
+    const before = await snapshot(page)
+    await commitOneStep(page)
+    const after = await snapshot(page)
+    expect(after.graph).toBe(before.graph) // serialized GraphDoc byte-identical
+    expect(after.canUndo).toBe(before.canUndo)
+    expect(await anyRunCue(page)).toBeGreaterThan(0)
+  })
+
+  test('run-cue lifecycle — none before a run; the committed step`s cues held through pause / end; gone on Reset or a new graph', async ({ page }) => {
+    await loadRun(page)
+    // before a run — no cue
+    expect(await anyRunCue(page), 'no run cue before the first step').toBe(0)
+
+    // right after a committed step — the StepReport`s cues are on screen
+    await commitOneStep(page)
+    const firstHead = await simHead(page)
+    expect(firstHead.firedNodeIds.length).toBeGreaterThan(0)
+    await expect(page.locator('.nodef__wave').first()).toHaveCount(1)
+    await expect(page.locator('.nodef__eval').first()).toHaveCount(1)
+
+    // paused (stepOnce leaves status 'paused') — the last committed step`s cues
+    // stay; an explicit pause() is a no-op that must not clear them
+    expect(firstHead.status).toBe('paused')
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { pause: () => void } } } }).__loop.sim.getState().pause(),
+    )
+    expect(await anyRunCue(page), 'cues kept while paused').toBeGreaterThan(0)
+
+    // Reset — every run cue goes (the StepReport lifecycle, §LGR5.1)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { reset: () => void } } } }).__loop.sim.getState().reset(),
+    )
+    await expect(page.locator('.nodef__wave')).toHaveCount(0)
+    await expect(page.locator('.nodef__eval')).toHaveCount(0)
+
+    // a fresh graph load also starts with no run cue
+    await commitOneStep(page)
+    expect(await anyRunCue(page)).toBeGreaterThan(0)
+    await importGraph(page, GRAPH_RUN)
+    await expect(page.locator('.nodef__wave')).toHaveCount(0)
+    await expect(page.locator('.nodef__eval')).toHaveCount(0)
+
+    // ── ended: a graph that finishes on step 1 keeps its last cues ──
+    await loadRun(page, GRAPH_END)
+    await commitOneStep(page)
+    expect((await simHead(page)).status).toBe('ended')
+    const endedCues = await anyRunCue(page)
+    expect(endedCues, 'ended keeps the last committed step`s cues').toBeGreaterThan(0)
+    // a further step is a no-op while ended — the cues do not change
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void } } } }).__loop.sim.getState().stepOnce(),
+    )
+    expect(await anyRunCue(page)).toBe(endedCues)
+  })
+
+  test('`evaluated` survives Focus de-emphasis, but a Filter still hides the node (LGR-INV-6 / §LGR3.2)', async ({ page }) => {
+    await loadRun(page)
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const target = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+
+    // Focus on a DIFFERENT node (`iso`) so `target` is outside the 1-hop set —
+    // it de-emphasises, but its run cue must NOT fade with it
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { ui: { setState: (p: object) => void } } }).__loop.ui.setState({ focusMode: true }),
+    )
+    await node(page, 'iso').click()
+    await expect(node(page, target)).toHaveClass(/lgr-deemph/)
+    await expect(hasEval(page, target), 'evaluated bracket stays under de-emphasis').toHaveCount(1)
+    expect((await evalShape(page, target)).opacity, 'bracket not dimmed toward invisible').toBeGreaterThan(0.5)
+
+    // a Filter that hides the node's kind removes the node — cue and all.
+    // `target` is `idle` (first activated∖fired in id order), a Gate.
+    expect(target).toBe('idle')
+    await page.evaluate(() => {
+      const w = window as unknown as { __loop: { ui: { setState: (p: object) => void } } }
+      w.__loop.ui.setState({ focusMode: false, filterPanelOpen: true })
+    })
+    await filterPanel(page).locator('.lgr-filter__body').getByRole('checkbox', { name: 'Gate', exact: true }).check()
+    await expect(node(page, target)).toHaveCount(0)
+  })
+
+  test('VISUAL — a committed step: effective / evaluated / selected+evaluated / invalid / idle / model-nodes, minimap hidden (§LGR10.6 / §LGR9)', async ({ page }) => {
+    await loadRun(page)
+    // hide the minimap + attribution so the shot is the real canvas, no mask
+    await page.addStyleTag({
+      content: '.react-flow__minimap,.react-flow__attribution{display:none!important}',
+    })
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const evalTarget = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    // selected + evaluated on `evalTarget`; the other evaluated node stays plain
+    await node(page, evalTarget).click()
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    // The frame reads, left→right: Feed/Busy = effective · Idle(selected)+Waste
+    // = evaluated · Store = value changed, no cue · Iso = idle · P1/R1/Rbad =
+    // model nodes, no cue (Rbad also carries the `!` flag).
+    await expect(page.locator('.react-flow')).toHaveScreenshot('run-distinction-states.png', {
+      maxDiffPixelRatio: 0.02,
+    })
+  })
+
+  test('forced-colors: `evaluated` stays distinct from `effective` by shape, not colour (§LGR5.1 / §LGR9)', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadRun(page)
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const evalTarget = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    const firedTarget = head.firedNodeIds[0]
+
+    // `effective` is a full-silhouette <path> pulse (`.nodef__wave`, an SVG
+    // stroke); `evaluated` is an open two-border corner bracket. Different
+    // element, different shape — the distinction does not rely on colour.
+    await expect(hasWave(page, firedTarget)).toHaveCount(1)
+    await expect(hasEval(page, evalTarget)).toHaveCount(1)
+    const waveTag = await hasWave(page, firedTarget).evaluate((el) => el.tagName.toLowerCase())
+    expect(waveTag).toBe('path') // full outline
+    const sh = await evalShape(page, evalTarget)
+    expect(sh.left).toBe('solid')
+    expect(sh.bottom).toBe('solid')
+    expect(sh.top).toBe('none') // an OPEN bracket, not a closed ring
+    expect(sh.right).toBe('none')
+    expect(sh.radiusBL).not.toBe('0px')
+  })
+})
