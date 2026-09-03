@@ -8,12 +8,24 @@ import { useGraphStore } from './graphStore'
 //     Share / revision / SimState / localStorage (§LGR3.4 / LGR-INV-1);
 //   - it has NO membership model (LGR-D9 / §LGR6.5): `{ id, n, label, rect }`
 //     only. Nothing is "in" a frame; moving nodes never changes it;
-//   - creating / renaming / resizing / deleting a frame is NOT an undo entry;
+//   - creating / renaming / resizing / deleting / RECOLOURING a frame is NOT an
+//     undo entry;
 //   - a frame survives sim Reset and "Reset view"; only an explicit
 //     `clearFrames()` removes them, and a whole-graph (re)load drops them.
 // The `rect` is in FLOW coordinates so the frame stays put under pan / zoom.
+//
+// docs/large-graph-readability-frame-colour.md (§FC) — a MANUAL frame may carry
+// an optional accent `color` from a fixed 5-entry preset palette (absent =
+// neutral). Same lifetime as the frame: in memory only, dropped on `loadRev`,
+// never serialized. A pure auto (suggested) frame never holds a `color`; an
+// accent picked on an auto frame is chosen only at the moment it is promoted.
 
 export type FrameRect = { x: number; y: number; w: number; h: number }
+
+/** §FC1 — the preset accent palette. Absence of a `color` = neutral (the 4a
+ *  look). NOT a free colour picker; NOT a node-kind label. */
+export type FrameColor = 'slate' | 'sage' | 'gold' | 'violet' | 'rose'
+export const FRAME_COLORS: readonly FrameColor[] = ['slate', 'sage', 'gold', 'violet', 'rose']
 
 export type Frame = {
   id: string
@@ -24,6 +36,8 @@ export type Frame = {
    *  `n`. Identity is `id` ONLY — duplicates are allowed. */
   label: string
   rect: FrameRect
+  /** §FC — optional preset accent. Absent ⇒ neutral. Session-only. */
+  color?: FrameColor
 }
 
 type FrameStore = {
@@ -47,10 +61,15 @@ type FrameStore = {
   /** Slice 4b (§AF5 R5) — adopt a *suggested* (auto) frame as a transient
    *  manual frame: same as `addFrame` but keeps the given label and does NOT
    *  touch the tool. The new frame gets the next `Group N` ordinal for its
-   *  empty-label fallback. Returns the new id. */
-  adoptFrame: (rect: FrameRect, label: string) => string
+   *  empty-label fallback. An optional `color` is carried when the promotion
+   *  was triggered by picking an accent (§FC5). Returns the new id. */
+  adoptFrame: (rect: FrameRect, label: string, color?: FrameColor) => string
   renameFrame: (id: string, label: string) => void
   resizeFrame: (id: string, rect: FrameRect) => void
+  /** §FC — set / change / clear (`null`) a MANUAL frame's preset accent.
+   *  Not an undo entry; rect / label / ordinal untouched. No-op for an id that
+   *  is not a manual frame. */
+  setFrameColor: (id: string, color: FrameColor | null) => void
   removeFrame: (id: string) => void
   clearFrames: () => void
 }
@@ -80,11 +99,11 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
     return id
   },
 
-  adoptFrame: (rect, label) => {
+  adoptFrame: (rect, label, color) => {
     const id = newId()
     const n = get().nextN
     set((s) => ({
-      frames: [...s.frames, { id, n, label, rect }],
+      frames: [...s.frames, color ? { id, n, label, rect, color } : { id, n, label, rect }],
       nextN: s.nextN + 1,
       selectedId: id,
     }))
@@ -96,6 +115,22 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
 
   resizeFrame: (id, rect) =>
     set((s) => ({ frames: s.frames.map((f) => (f.id === id ? { ...f, rect } : f)) })),
+
+  setFrameColor: (id, color) =>
+    set((s) => {
+      if (!s.frames.some((f) => f.id === id)) return s
+      return {
+        frames: s.frames.map((f) => {
+          if (f.id !== id) return f
+          if (color === null) {
+            if (f.color === undefined) return f
+            const { color: _drop, ...rest } = f
+            return rest
+          }
+          return f.color === color ? f : { ...f, color }
+        }),
+      }
+    }),
 
   removeFrame: (id) =>
     set((s) => ({

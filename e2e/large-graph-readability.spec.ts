@@ -952,7 +952,7 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
 // digest / undo / node-position change (§LGR8 / LGR-INV-1); frame create /
 // label / resize / delete are not undo entries; a whole-graph swap drops them.
 
-type FrameHead = { frames: { id: string; n: number; label: string; rect: { x: number; y: number; w: number; h: number } }[]; toolArmed: boolean; selectedId: string | null }
+type FrameHead = { frames: { id: string; n: number; label: string; color?: string; rect: { x: number; y: number; w: number; h: number } }[]; toolArmed: boolean; selectedId: string | null }
 const frameHead = (page: Page) =>
   page.evaluate(() => {
     const s = (window as unknown as { __loop: { frame: { getState: () => FrameHead } } }).__loop.frame.getState()
@@ -1942,3 +1942,225 @@ test.describe('LGR Slice 4b — mobile (the More sheet)', () => {
     await expect(sheetRow(page, /Suggest frames/)).toHaveCount(0)
   })
 })
+
+// docs/large-graph-readability-frame-colour.md §FC — a MANUAL frame's optional
+// preset accent (and its promote-on-commit for auto frames). Render / UI-only:
+// no GraphDoc / schema / serialize / digest / undo / engine change; the colour
+// is session-only and dropped on a graph reload.
+type FCFrame = { id: string; n: number; label: string; color?: string; rect: object }
+function fcFind(fh: { frames: { id: string }[] }, id: string): FCFrame | undefined {
+  return fh.frames.find((f) => f.id === id) as FCFrame | undefined
+}
+const fcAdd = (page: Page, rect: object, label?: string, color?: string) =>
+  page.evaluate(
+    ([r, l, c]) =>
+      (
+        window as unknown as {
+          __loop: { frame: { getState: () => { adoptFrame: (r: object, l: string, c?: string) => string } } }
+        }
+      ).__loop.frame.getState().adoptFrame(r as object, (l as string) ?? '', (c as string) || undefined),
+    [rect, label, color] as const,
+  )
+const fcSelect = (page: Page, id: string | null) =>
+  page.evaluate(
+    (i) =>
+      (
+        window as unknown as {
+          __loop: { frame: { getState: () => { selectFrame: (i: string | null) => void } } }
+        }
+      ).__loop.frame.getState().selectFrame(i as string | null),
+    id,
+  )
+const fcCanUndo = (page: Page) =>
+  page.evaluate(
+    () =>
+      (window as unknown as { __loop: { graph: { getState: () => { canUndo: boolean } } } }).__loop.graph.getState()
+        .canUndo,
+  )
+
+test.describe('LGR frame colour (§FC)', () => {
+  const swatch = (page: Page, c: string) => page.locator(`.lgr-frame__swatch[data-color="${c}"]`)
+  const neutralSwatch = (page: Page) => page.locator('.lgr-frame__swatch:not([data-color])')
+  const cssOf = (page: Page, sel: string) =>
+    page.evaluate((s) => {
+      const el = document.querySelector(s)
+      if (!el) return null
+      const cs = getComputedStyle(el)
+      return { fill: cs.fill, stroke: cs.stroke, color: cs.color, borderColor: cs.borderTopColor, dash: cs.strokeDasharray }
+    }, sel)
+
+  test('pick an accent on a selected MANUAL frame — border + label + fill carry it; aria-pressed moves; GraphDoc / digest / undo untouched', async ({ page }) => {
+    await loadAF(page)
+    const digestBefore = await gDigest(page)
+    const undoBefore = await fcCanUndo(page)
+    const id = await fcAdd(page, { x: 0, y: -40, w: 700, h: 200 }, 'Zone')
+    await fcSelect(page, id)
+    await expect(page.locator('.lgr-frame.is-selected')).toHaveCount(1)
+    await expect(neutralSwatch(page)).toHaveAttribute('aria-pressed', 'true')
+
+    await swatch(page, 'violet').click()
+    expect((await frameHead(page)).frames.find((f) => f.id === id)?.color).toBe('violet')
+    await expect(swatch(page, 'violet')).toHaveAttribute('aria-pressed', 'true')
+    await expect(neutralSwatch(page)).toHaveAttribute('aria-pressed', 'false')
+
+    const back = await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill[data-color="violet"]')
+    const label = await cssOf(page, '.lgr-frame[data-color="violet"] .lgr-frame__label')
+    expect(back?.stroke).toBe(back?.fill)
+    expect(back?.fill).not.toBe('rgba(0, 0, 0, 0)')
+    expect(label?.color).toBe(label?.borderColor)
+
+    await neutralSwatch(page).click()
+    expect('color' in (fcFind(await frameHead(page), id) ?? {})).toBe(false)
+    await expect(page.locator('.lgr-frame__fill[data-color]')).toHaveCount(0)
+
+    expect(await gDigest(page)).toBe(digestBefore)
+    expect(await fcCanUndo(page)).toBe(undoBefore)
+  })
+
+  test('pick an accent on an AUTO frame -> it PROMOTES: leaves the auto set, becomes a SOLID manual Group frame with that colour (§AF5 R5)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+    const autoId = (await afHead(page)).autoFrames[0].id
+    await fcSelect(page, autoId)
+    await swatch(page, 'gold').click()
+
+    expect((await afHead(page)).autoFrames.length).toBe(1)
+    const manual = (await frameHead(page)).frames
+    expect(manual).toHaveLength(1)
+    expect(manual[0].color).toBe('gold')
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)[data-color="gold"]')).toHaveCount(1)
+    const dash = (await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill[data-color="gold"]'))?.dash
+    expect(dash === 'none' || dash === '' || dash == null).toBe(true)
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto) .lgr-frame__label')).toHaveText(/Group \d+/)
+  })
+
+  test('open the picker on an AUTO frame then pick NEUTRAL / Esc — stays auto, rect + label unchanged (§AF5 R6)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    const before = await afHead(page)
+    await fcSelect(page, before.autoFrames[0].id)
+    // the picker opens on the selected auto frame, neutral pre-selected …
+    await expect(page.locator('.lgr-frame--auto .lgr-frame__swatches')).toHaveCount(1)
+    await expect(neutralSwatch(page)).toHaveAttribute('aria-pressed', 'true')
+    // … picking neutral is a no-op for an auto frame; Esc / deselect = cancel
+    await page.evaluate(() => {
+      const el = document.querySelector('.lgr-frame__swatch:not([data-color])') as HTMLButtonElement | null
+      el?.click()
+    })
+    await page.keyboard.press('Escape')
+    await fcSelect(page, null)
+
+    const after = await afHead(page)
+    expect(after.autoFrames.length).toBe(before.autoFrames.length)
+    expect(after.autoFrames.map((f) => [f.rect, f.members])).toEqual(
+      before.autoFrames.map((f) => [f.rect, f.members]),
+    )
+    expect((await frameHead(page)).frames).toHaveLength(0)
+  })
+
+  test('an accented manual frame survives Suggest + Clear suggested; Clear all removes it; a graph reload drops the colour', async ({ page }) => {
+    await loadAF(page)
+    await fcAdd(page, { x: 0, y: 0, w: 400, h: 200 }, 'Kept', 'rose')
+    await suggestBtn(page).click()
+    expect((await frameHead(page)).frames.find((f) => f.label === 'Kept')?.color).toBe('rose')
+    await clearSuggestedBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(0)
+    expect((await frameHead(page)).frames.find((f) => f.label === 'Kept')?.color).toBe('rose')
+
+    await clearAllBtn(page).click()
+    expect((await frameHead(page)).frames).toHaveLength(0)
+
+    await fcAdd(page, { x: 0, y: 0, w: 400, h: 200 }, 'Gone', 'slate')
+    await importGraph(page, GRAPH_AF)
+    expect((await frameHead(page)).frames).toHaveLength(0)
+  })
+
+  test('a Filter that hides every node inside an accented frame leaves the frame + colour + rect unchanged; a sim Step never changes the colour', async ({ page }) => {
+    await loadAF(page)
+    const id = await fcAdd(page, { x: -30, y: -60, w: 760, h: 260 }, 'Zone', 'sage')
+    await fcSelect(page, null)
+    const before = fcFind(await frameHead(page), id)
+    await page.evaluate(() =>
+      (
+        window as unknown as {
+          __loop: { filter: { getState: () => { toggleNodeKind: (k: string) => void } } }
+        }
+      ).__loop.filter.getState().toggleNodeKind('pool'),
+    )
+    await page.evaluate(() =>
+      (
+        window as unknown as { __loop: { sim: { getState: () => { step?: () => void } } } }
+      ).__loop.sim.getState().step?.(),
+    )
+    expect(fcFind(await frameHead(page), id)).toEqual(before)
+  })
+
+  test('forced-colors: the accent is dropped; manual (solid) vs auto (dashed) vs selected (outline) are still all distinguishable', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadAF(page)
+    await suggestBtn(page).click()
+    await fcAdd(page, { x: 0, y: 0, w: 300, h: 160 }, 'M', 'rose')
+    const manual = await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill[data-color]')
+    const auto = (await cssOf(page, '.lgr-frame-back rect.lgr-frame__fill--auto'))?.dash
+    expect(manual?.fill).toBe('none')
+    expect(manual?.dash === 'none' || manual?.dash === '').toBe(true)
+    expect(auto).not.toBe('none')
+    const outline = await page.evaluate(() => {
+      const el = document.querySelector('.lgr-frame.is-selected')
+      return el ? getComputedStyle(el).outlineStyle : null
+    })
+    expect(outline).toBe('dashed')
+    await page.emulateMedia({ forcedColors: null })
+  })
+
+  test('mobile: a selected manual frame shows NO swatch row; a desktop-set accent still renders', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 })
+    await loadAF(page)
+    await fcAdd(page, { x: 0, y: 0, w: 300, h: 160 }, 'M', 'violet')
+    await expect(page.locator('.lgr-frame-back rect.lgr-frame__fill[data-color="violet"]')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__swatches')).toHaveCount(0)
+  })
+
+  test('VISUAL — frame-colours.png (light): a neutral frame + one per accent + a pure auto frame + one accent frame selected', async ({ page }) => {
+    await loadFCVisual(page, 'light')
+    await expect(page.locator('.lgr-frame__fill[data-color]')).toHaveCount(5)
+    await expect(page.locator('.lgr-frame__fill--auto')).toHaveCount(2)
+    await expect(page).toHaveScreenshot('frame-colours.png', { maxDiffPixelRatio: 0.02 })
+  })
+
+  test('VISUAL — frame-colours-dark.png: the same arrangement, dark theme', async ({ page }) => {
+    await loadFCVisual(page, 'dark')
+    await expect(page).toHaveScreenshot('frame-colours-dark.png', { maxDiffPixelRatio: 0.02 })
+  })
+
+  test('VISUAL — frame-colours-overlap.png: two accented frames overlapping still pass nodes / edges through', async ({ page }) => {
+    await loadAF(page)
+    await fcAdd(page, { x: -40, y: -80, w: 520, h: 320 }, 'One', 'slate')
+    await fcAdd(page, { x: 300, y: -60, w: 520, h: 320 }, 'Two', 'gold')
+    await fcSelect(page, null)
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    await expect(page).toHaveScreenshot('frame-colours-overlap.png', { maxDiffPixelRatio: 0.02 })
+  })
+
+  test('VISUAL — frame-colours-forced.png: forced-colors — manual / auto / selected still tell apart with the palette dropped', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadFCVisual(page, 'light')
+    await expect(page).toHaveScreenshot('frame-colours-forced.png', { maxDiffPixelRatio: 0.02 })
+    await page.emulateMedia({ forcedColors: null })
+  })
+})
+
+async function loadFCVisual(page: Page, theme: 'light' | 'dark') {
+  await page.emulateMedia({ colorScheme: theme })
+  await loadAF(page)
+  await suggestBtn(page).click()
+  await fcAdd(page, { x: -40, y: -70, w: 220, h: 150 }, 'Neutral')
+  await fcAdd(page, { x: 200, y: -70, w: 200, h: 150 }, 'Slate', 'slate')
+  await fcAdd(page, { x: 420, y: -70, w: 200, h: 150 }, 'Sage', 'sage')
+  await fcAdd(page, { x: -40, y: 110, w: 200, h: 150 }, 'Gold', 'gold')
+  await fcAdd(page, { x: 200, y: 110, w: 200, h: 150 }, 'Violet', 'violet')
+  const rose = await fcAdd(page, { x: 420, y: 110, w: 200, h: 150 }, 'Rose', 'rose')
+  await fcSelect(page, rose)
+  await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+}

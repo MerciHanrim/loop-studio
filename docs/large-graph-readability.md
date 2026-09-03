@@ -245,7 +245,7 @@ Two classes of state, and nothing in between (persistent-but-not-in-file is
 | **Filter panel** open/closed | kept | kept | kept | unaffected | unaffected | → default **closed** |
 | **Filter selections** (which classes/types hidden) | **cleared** | **cleared** | **cleared** | unaffected | **cleared** | n/a (not stored) |
 | **Focus selection** (which nodes) | cleared | cleared | cleared | unaffected | cleared | n/a |
-| **Transient frames** (drawn rects + labels) | cleared | cleared | **cleared** | unaffected | kept *(only an explicit **Clear frames** removes them)* | n/a |
+| **Transient frames** (drawn rects + labels + accent colour) | cleared | cleared | **cleared** | unaffected | kept *(only an explicit **Clear frames** removes them)* | n/a |
 | **Activity-overlay tint** (accumulated) | cleared | cleared | cleared | **cleared** | cleared | n/a |
 
 - **Transient frames are session-only** — in memory, gone on a full browser
@@ -383,7 +383,10 @@ persists (`LGR-D7`).
   with zero format risk. Contract: draw a rect, type a label; it groups no
   behaviour; it is not undoable; it survives sim Reset and Reset view; an
   explicit **Clear frames** removes it; a full reload drops it (§LGR3.4). It
-  **never moves or resizes a node** (§LGR6.5).
+  **never moves or resizes a node** (§LGR6.5). *(Follow-up: a transient frame
+  may also carry a session-only **accent colour** from a fixed preset palette —
+  see `docs/large-graph-readability-frame-colour.md`; same lifetime as the
+  frame, never serialized.)*
 - **Auto frames are held for Slice 4b.** "Connected component + coarse spatial
   clustering → the MMO's three zone lanes + stable labels" is a *goal*, not a
   settled algorithm: the clustering method, the tie-breaks, the determinism
