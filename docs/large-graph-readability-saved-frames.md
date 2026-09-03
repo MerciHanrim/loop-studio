@@ -29,8 +29,13 @@ manual frames into the document (§LGR6.2, §LGR6.4).
   auto frame the user *promoted* via a committed rename / resize / colour —
   §AF5 R5) persists.
 - **Any engine, run, or model-semantics change.** `frames` never reaches the
-  engine, `SimState`, the Monte-Carlo digest, `simulationRev`, the timeline, or
-  `nConf` (§SF4.3, §SF5).
+  engine, `SimState`, the Monte-Carlo digest, `simulationRev`, or the timeline
+  (§SF4.3, §SF5). It **never** sets `engineAffecting` / `advisoryAffecting`.
+  The one place a `frames` change is visible to Apply gating is a **divergent
+  three-way conflict**, which is counted in `nConf` to protect the user's
+  frame edits from a silent whole-proposal overwrite — `nConf` is a count of
+  *revision* conflicts to resolve before Apply, not of engine conflicts
+  (§SF4.3).
 - **A frame grouping any behaviour.** A saved frame is still a labelled
   rectangle with no membership (§LGR6.5) — `id`, `label`, `rect`, optional
   `color`, nothing else.
@@ -155,18 +160,32 @@ quarantine drops the payload and keeps the graph, a `loop-revision/5` read rule
 frame is pure user intent about *what to display* — so it is **`cosmetic`**,
 beside `label`, `position`, `route`, `waypoints`:
 
-| projected field | tag | projected & diffed | `engineAffecting` | feeds `nConf` |
+| projected field | tag | projected & diffed | `engineAffecting` / `advisoryAffecting` | feeds `nConf` |
 |---|---|---|---|---|
-| `doc.frames[*]` (whole array) | `cosmetic` | **yes** | **no** | **no** |
+| `doc.frames[*]` (whole array) | `cosmetic` | **yes** | **no** | **only a divergent three-way conflict** (see below) |
 
 - **Projected & diffed:** the canonical `loop-revision/5` projection includes
   `frames`; a Review UI shows a frame change as a **"frames" / "cosmetic"**
   hunk in the three-way diff (§SF-S6).
 - **Dirty-tracked:** adding / renaming / resizing / recolouring / deleting a
   saved frame marks the document dirty (it is document content now).
-- **Never `engineAffecting`, never feeds `nConf`:** the engine, the MC digest,
-  `simulationRev`, `SimState`, and the timeline are computed from a projection
-  that omits `frames` entirely (§SF5).
+- **Never `engineAffecting` / `advisoryAffecting`:** the engine, the MC digest,
+  `simulationRev`, `SimState`, the timeline, **and the engine / structure
+  digest** are computed from a projection that omits `frames` entirely (§SF5).
+  Two documents that differ only in `frames` have the identical simulation
+  result and engine digest.
+- **`nConf` — the one exception.** `nConf` is the count of **revision
+  conflicts the user must resolve before a whole Apply** (`≥ 1` ⇒ the class is
+  `divergent`, the whole Apply is gated behind an explicit confirmation) — it
+  is **not** a count of *engine* conflicts. A `frames` **conflict** (the base
+  and **both** sides changed the array divergently — the live editor holds a
+  third array) is counted in `nConf`, exactly like a divergent `label` rename
+  under `loop-revision/1`: applying the whole proposal would silently discard
+  the user's frame edits, so it must be confirmed. This exists **solely to
+  protect document-edit data**; it still never sets `engineAffecting` /
+  `advisoryAffecting` and never moves the engine digest. A `clean` / `noop`
+  `frames` hunk adds nothing to `nConf`. Per-hunk (selective) Apply is never
+  gated by `nConf` at all — the hunk selection *is* the consent.
 
 ### SF4.4 Conservative extension + the golden vector
 
@@ -207,7 +226,8 @@ Every oracle digest is **pinned to a literal** in the fixture (the
 | **Share** | The Share blob is `serialize()` output ⇒ includes `frames`. Opening a shared link populates `frameStore`. Share's "never re-translate an open doc" rules are untouched — `frames` just rides along. |
 | **Workspace** | `serializeWorkspaceFile` already calls `serialize()` ⇒ `frames` is in the Workspace file. `loop-workspace/*` (`SEMANTICS-W.md`) is **unchanged** — a frame adds **nothing** to `SimState`, the restore contract, or the Workspace validator. `frames` restores as part of the graph, before the `SimState` restore. |
 | **engine / step / Monte-Carlo / timeline** | never read `frames`. No change. |
-| **semantic / engine digest, `simulationRev`, `nConf`** | computed from a projection **without** `frames`. No change (§SF4.3, SG1). |
+| **semantic / engine digest, `simulationRev`** | computed from a projection **without** `frames`. No change (§SF4.3, SG1). Two docs that differ only in `frames` have the identical engine digest + simulation result. |
+| **`nConf`** | a `frames` change adds to `nConf` **only** when the three-way is a divergent conflict (base + both sides changed the array) — to protect the user's frame edits from a silent whole-proposal overwrite. `nConf` counts *revision* conflicts to resolve before Apply, not engine conflicts (§SF4.3). |
 | **`loop-revision` canonical projection + its digest** | **includes** `frames` as a `cosmetic` field under `loop-revision/5` (§SF4.3). A frame change moves this digest (dirty flag + diff react) but not the engine digest. |
 | **Project revision — Apply** | a revision snapshot is the canonical projection ⇒ it carries `frames`. Apply restores `frameStore.frames` from the snapshot, same as it restores `label` / `position` / `route`. |
 | **`recommendedRunConfig`** | untouched — `frames` is real document content, not an advisory run default, so it is **not** placed under `recommendedRunConfig`. |
@@ -267,8 +287,12 @@ extension", extends `SEMANTICS-R3.md`. It fixes precisely, mirroring R3:
 - **R5-2 Extended canonical projection** — one graph-level `frames` row after
   the edge rows; exact field order `id, label, rect{x,y,w,h}, color?`; emitted
   only when non-empty; `color` omitted when neutral.
-- **R5-3 Field tag** — `frames` is `cosmetic` (§SF4.3), `engineAffecting:
-  false`, does not feed `nConf`.
+- **R5-3 Field tag** — `frames` is `cosmetic` (§SF4.3), never
+  `engineAffecting` / `advisoryAffecting`; a **divergent three-way conflict**
+  on `frames` is counted in `nConf` (revision conflicts to resolve before a
+  whole Apply — not engine conflicts), so the whole Apply is gated and the
+  user's frame edits are not silently overwritten. A clean / noop `frames`
+  hunk adds nothing.
 - **R5-4 Conservative extension + golden vector** — SG0–SG3 (§SF4.4), every
   oracle digest pinned.
 - **R5-5 Per-side discrimination & validation order** — verify a v1–v4 side

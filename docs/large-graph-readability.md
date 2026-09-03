@@ -437,7 +437,11 @@ boundary, updated for what 4a/4b/§FC actually shipped:
 - a **graph-level** `frames?: { id, label, rect: {x,y,w,h}, color? }[]` block —
   **no `members`** (4a/4b removed the membership model); `color` is the §FC
   preset accent. **User intent only**, tagged **cosmetic** — projected, diffed,
-  dirty-tracked, **never** `engineAffecting`, never feeds `nConf`;
+  dirty-tracked, **never** `engineAffecting` / `advisoryAffecting`; a
+  **divergent three-way conflict** on `frames` *is* counted in `nConf`
+  (revision conflicts to resolve before a whole Apply — not engine conflicts;
+  `SEMANTICS-R5.md` §R5-D9) so the whole Apply is gated and the user's frame
+  edits are not silently overwritten;
 - behind **`loop-revision/5`** (`SEMANTICS-R5.md`, Draft → Frozen at the top of
   the impl PR), modelled exactly on `route` / `waypoints` (§ER6 /
   `SEMANTICS-R3.md`); **no `schema` bump** — additive, forward-compatible;
@@ -503,7 +507,11 @@ engine computes.)*
    nothing else; it never touches a graph or its lineage record.
 5. **Saved frames (Slice 5).** Touch only their own `loop-revision/5` cosmetic
    `frames` block (`docs/large-graph-readability-saved-frames.md`): a graph that has never had a frame serialises and digests
-   exactly as today. Cosmetic ⇒ never `engineAffecting`, never feeds `nConf`.
+   exactly as today. Cosmetic ⇒ never `engineAffecting` / `advisoryAffecting`,
+   never moves the engine / structure digest or the simulation result — but a
+   **divergent three-way `frames` conflict** is counted in `nConf` (revision
+   conflicts to resolve, §R5-D9) so a whole Apply can't silently overwrite the
+   user's frame edits.
 6. **Required set survives dimming.** De-emphasis / filter never removes the
    §VL7.1 required set from a still-present element — selection / focus rings,
    `invalid` / conflict / blocked flags, and the run cue stay full-strength on

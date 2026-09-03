@@ -929,10 +929,18 @@ export type ThreeWayPlan = {
   /** SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk. Absent when the
    *  base and proposed `frames` arrays are equal (nothing to offer). */
   frames?: FramesHunk
-  /** §R7A.2 `nConf` — conflicting whole-hunks (`add`/`remove`) + conflicting
-   *  fields of `change` hunks (a `change` whose target element was deleted
-   *  counts once) + a conflicting `frames` hunk (§R5-6 — feeds `nConf` like a
-   *  `label` conflict). `0` ⇒ `unknown ancestry`, `≥ 1` ⇒ `divergent`. */
+  /** §R7A.2 `nConf` — the number of **revision conflicts the user must resolve
+   *  before a whole Apply** (NOT a count of *engine* conflicts). `0` ⇒
+   *  `unknown ancestry`, `≥ 1` ⇒ `divergent` (the whole Apply is gated behind
+   *  an explicit confirmation). Sources: conflicting whole-hunks
+   *  (`add`/`remove`) + conflicting fields of `change` hunks (a `change` whose
+   *  target element was deleted counts once) + a **conflicting `frames` hunk**
+   *  (`SEMANTICS-R5.md` §R5-6 / R5-D9 — the base and both sides changed the
+   *  array divergently: applying the whole proposal would silently discard the
+   *  user's frame edits, so it must be confirmed — exactly like a divergent
+   *  `label` rename). A `clean` / `noop` `frames` hunk adds nothing. `frames`
+   *  is still `cosmetic`: it never sets `engineAffecting` / `advisoryAffecting`
+   *  and never moves the engine / structure digest. */
   nConf: number
 }
 
@@ -940,7 +948,10 @@ export type ThreeWayPlan = {
  * §R7A.3 — the full three-way plan for every proposal hunk. `base.content`,
  * `canonicalContent(open graph)` and `canonicalContent(proposal top-level)`,
  * all three. Pure and deterministic (id-sorted). `recommendedRunConfig` plays
- * no part (the exporters never emit it into a revision's content).
+ * no part (the exporters never emit it into a revision's content). The graph-
+ * level saved `frames` array IS part of the compare (each `CanonicalContent`
+ * carries it): the caller must pass a `target` that includes the live editor's
+ * frames so the `frames` hunk verdict is right (`SEMANTICS-R5.md` §R5-6).
  */
 export function computeThreeWay(
   base: CanonicalContent,
@@ -1018,10 +1029,13 @@ export function computeThreeWay(
     }
   }
 
-  // SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk. One atomic unit:
-  // compared whole (§R5-D7), verdict against the target exactly like a `change`
-  // field, and a `conflict` feeds `nConf` like a `label` conflict. Emitted only
-  // when the base and proposed arrays differ (nothing to offer otherwise).
+  // SEMANTICS-R5.md §R5-6 / R5-D9 — the graph-level `frames` hunk. One atomic
+  // unit: compared whole (§R5-D7), verdict against the target exactly like a
+  // `change` field. A `conflict` (base and both sides diverged — the live
+  // editor holds a third array) is added to `nConf` so a whole-proposal Apply
+  // is gated and the user's frame edits are not silently overwritten. `nConf`
+  // = revision conflicts to resolve, NOT engine conflicts; `frames` never sets
+  // `engineAffecting`. Emitted only when base and proposed arrays differ.
   const bFrames = base.frames ?? null
   const pFrames = proposed.frames ?? null
   let frames: FramesHunk | undefined

@@ -184,8 +184,11 @@ displays — so it is `cosmetic`, alongside `label`, `position`, `route`,
 
 - Editing `frames` — adding, renaming, resizing, recolouring, deleting a
   frame, or `Clear all frames` — is full revision content: it flips `dirty`,
-  mints a new `revisionId` on export, produces a diff hunk, and its conflicts
-  feed `nConf` — exactly as a `label` rename does under `loop-revision/1`.
+  mints a new `revisionId` on export, produces a diff hunk, and a **divergent
+  three-way conflict** on it is counted in `nConf` — exactly as a `label`
+  rename does under `loop-revision/1`. `nConf` is the number of **revision
+  conflicts to resolve before a whole Apply**, not a count of engine
+  conflicts (see §R5-6).
 - It **never** sets `summary.engineAffecting` and **never** sets
   `summary.advisoryAffecting`. A `RevisionDiff` whose only change is `frames`
   is *not* `summary.empty`, is neither engine- nor advisory-affecting, and a
@@ -309,9 +312,19 @@ from `engine` fields is that it sets neither `engineAffecting` nor
 - **Per-hunk Apply.** The `frames` hunk is one selectable unit — applying it
   swaps the whole array; not applying it keeps the base array. There is no
   sub-entry hunk on the wire.
-- **`nConf`.** A `frames` conflict (base and both sides changed the array
-  divergently) feeds `nConf` like a `label` conflict; it never makes the
-  merge `engineAffecting`.
+- **`nConf`.** `nConf` is the count of **revision conflicts the user must
+  resolve before a whole Apply** (`≥ 1` ⇒ the class is `divergent` and the
+  whole Apply is gated behind an explicit confirmation) — it is **not** a
+  count of *engine* conflicts. A `frames` conflict (the base and **both**
+  sides changed the array divergently — the local editor holds a third array)
+  is counted in `nConf`, exactly like a divergent `label` rename under
+  `loop-revision/1`: applying the whole proposal would silently discard the
+  user's frame edits, so it must be confirmed. This is the **one exception**
+  to "a `cosmetic` field is invisible to Apply gating" — it exists solely to
+  protect document-edit data, and it still **never** sets `engineAffecting` /
+  `advisoryAffecting`, never moves the engine / structure digest, and never
+  changes the simulation result. A `clean` / `noop` `frames` hunk contributes
+  nothing to `nConf` (there is nothing to resolve).
 - **Undo.** Editor-side only, `docs/large-graph-readability-saved-frames.md`
   §SF11 — not a wire rule. A frame undo entry restores the `frames` array to
   its prior state and moves the `loop-revision/5` cosmetic digest, never the
@@ -368,3 +381,4 @@ by SG5.
 | **R5-D6** | `frames` array order is **file order**, not re-sorted — user intent, like `waypoints`. |
 | **R5-D7** | The wire diff compares the **whole** projected `frames` array as one `cosmetic` hunk; per-entry granularity is UI-only. |
 | **R5-D8** | `loop-workspace/1` not bumped; `SimState` / engine digest unaffected. |
+| **R5-D9** | A **divergent three-way conflict** on `frames` **is counted in `nConf`** (⇒ the whole Apply is `divergent` / gated). `nConf` is the number of *revision* conflicts the user must resolve before a whole Apply, **not** a count of engine conflicts — this exception exists solely to keep a whole-proposal Apply from silently discarding the user's frame edits. `frames` still **never** sets `engineAffecting` / `advisoryAffecting` and never moves the engine / structure digest or the simulation result. A `clean` / `noop` `frames` hunk adds nothing to `nConf`; per-hunk selective Apply is never gated by `nConf`. (Supersedes the `SF` design pass's "never feeds `nConf`" line — the implemented behaviour is the contract.) |

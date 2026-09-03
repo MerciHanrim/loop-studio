@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildSelectiveApply,
   canonicalContent,
+  computeRevisionDiff,
   computeThreeWay,
   countThreeWayConflicts,
   validateResultGraph,
@@ -373,5 +374,18 @@ describe('computeThreeWay / buildSelectiveApply — the `frames` hunk (§R5-6)',
   it('countThreeWayConflicts includes a frames conflict', () => {
     const mine = canonicalContent({ nodes: [pool('a')], edges: [], frames: [{ id: 'f1', label: 'M', rect: { x: 0, y: 0, w: 9, h: 9 } }] as never })
     expect(countThreeWayConflicts(ccf(F1), mine, ccf(F2))).toBe(1)
+  })
+
+  it('the contract (§R5-D9): a frames conflict feeds `nConf` (a REVISION conflict to resolve) yet is NEVER engineAffecting / advisoryAffecting', () => {
+    const base = ccf(F1)
+    const mine = canonicalContent({ nodes: [pool('a')], edges: [], frames: [{ id: 'f1', label: 'mine', rect: { x: 0, y: 0, w: 9, h: 9 } }] as never })
+    const theirs = ccf(F2)
+    // three-way: the conflict is counted so a whole Apply is gated
+    expect(computeThreeWay(base, mine, theirs).nConf).toBe(1)
+    // whole diff of the SAME frames-only change: cosmetic, never engine/advisory
+    const d = computeRevisionDiff(base, theirs)
+    expect(d.summary).toMatchObject({ framesChanged: true, engineAffecting: false, advisoryAffecting: false })
+    // a non-divergent (clean) frames change contributes 0 to nConf
+    expect(computeThreeWay(base, base, theirs).nConf).toBe(0)
   })
 })
