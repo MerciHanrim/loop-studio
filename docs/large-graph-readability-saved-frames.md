@@ -449,14 +449,26 @@ Everything in §SF4 / §SF5 / §SF6 stands as written; §SF11 is now closed.
    `workspaceIO` / revision **whole-proposal** Apply + "Open as a document"
    (atomic array swap — §R5-6); `planRevisionExport` / `planProposalExport` /
    `buildFile` write `frames` and its `contentDigest` covers them (frame-free
-   ⇒ byte-identical, R5-INV-2). Golden vector `test/revision-v5-fixture.test.ts`
-   (SG0–SG5) + `examples/revision-v5/`; unit deltas in `serialize.test.ts`,
+   ⇒ byte-identical, R5-INV-2).
+   **The full revision contract is closed** (§R5-6): `computeThreeWay` emits the
+   single graph-level `FramesHunk` (`clean` / `noop` / `conflict` against the
+   live target, a `conflict` feeding `nConf` like a `label` conflict);
+   `HunkSelection.frames` (`'proposed'` swaps the whole array in — an empty
+   array clears — `'yours'` keeps the target's); `buildSelectiveApply` returns
+   `frames` only when the hunk is accepted; `ReviewOverlay` shows a **"frames"**
+   part in the diff summary and a **"Saved frames"** hunk row; `readRevisionSide`
+   infers `loop-revision/5` from a surviving `frames` block and verifies the
+   digest with the v5 projection; `readCanonicalContent` carries a stored base's
+   `frames`; `liveDigest` / `currentTargetDigest` and every `dirty` snapshot
+   include the on-screen saved frames.
+   Golden vector `test/revision-v5-fixture.test.ts`
+   (**SG0–SG5**; SG4 = the v4↔v5 three-way / selective-apply combinations) +
+   `examples/revision-v5/`; unit deltas in `serialize.test.ts`,
+   `threeway.test.ts`, `revisionApply.test.ts`,
    `revision.test.ts`, `frameStore.test.ts`; e2e in
    `e2e/large-graph-readability.spec.ts` (persist / reload / Export·Import /
-   undo-unit / hostile-record). **Still deferred** (documented in the PR body):
-   the per-hunk `computeThreeWay` frames verdict + `buildSelectiveApply`
-   selective frames apply + a `ReviewOverlay` frames row — a selective Apply
-   leaves the target's frames untouched for now.
+   undo-unit / hostile-record) and `e2e/revision.spec.ts` (the cosmetic diff
+   row + per-hunk swap / keep / conflict-gate through the Review UI).
 3. **After Slice 5 ships** — the **B module / template-composition** design
    pass (unchanged as the next item).
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { canonicalContent, digestOfCanonical } from '../model/revision'
 import { STORAGE_KEY } from '../model/serialize'
 import { useGraphStore } from './graphStore'
+import { useFrameStore } from './frameStore'
 import { useProjectStore } from './projectStore'
 import {
   applyPendingProposal,
@@ -708,5 +709,126 @@ describe('per-hunk selective apply (§R7.2)', () => {
     const g = useGraphStore.getState()
     expect(g.nodes.some((n) => n.id === mid.id)).toBe(false)
     expect(g.edges.find((e) => e.id === eid)!.target).toBe(d.id)
+  })
+})
+
+
+// ── SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk end-to-end ─────────
+describe('per-hunk selective apply — the `frames` hunk (§R5-6)', () => {
+  const F = [
+    { id: 'zf1', label: 'Intake', rect: { x: 0, y: 0, w: 120, h: 60 } },
+    { id: 'zf2', label: 'Output', rect: { x: 200, y: 0, w: 90, h: 50 }, color: 'gold' as const },
+  ]
+  const liveFrames = () => useFrameStore.getState().snapshot()
+
+  /** a proposal file whose top-level `frames` array is set to `frames` (or
+   *  removed when `null`), with `project.contentDigest` recomputed to COVER it.
+   *  Planned while the origin is clean, so no `dirty-origin` refusal. */
+  const framedProposalFile = (frames: unknown, mutate: (f: Record<string, unknown>) => void = () => {}): string => {
+    const res = useProjectStore.getState().planProposal({ now: 'p', mint })
+    if (!('text' in res) || !res.ok) throw new Error(`proposal plan (${'reason' in res ? res.reason : '?'})`)
+    const f = JSON.parse(res.text) as Record<string, unknown>
+    mutate(f)
+    if (frames === null) delete f.frames
+    else f.frames = frames
+    ;(f.project as Record<string, unknown>).contentDigest = digestOfCanonical(
+      canonicalContent({ nodes: f.nodes as never, edges: f.edges as never, frames: (f.frames ?? undefined) as never }),
+    )
+    return JSON.stringify(f)
+  }
+
+  it('select the frames hunk ⇒ the graph adopts the proposal’s WHOLE array; one atomic loadDoc; one undo restores; NO separate frame undo entry', async () => {
+    const r0 = promote() // clean origin, no frames anywhere
+    const p = await importProposal(framedProposalFile(F))
+
+    const plan = threeWayForPending(p)
+    expect(plan.hunks).toHaveLength(0) // frames-only proposal — no node/edge hunk
+    expect(plan.frames).toMatchObject({ kind: 'frames', verdict: 'clean', base: null, yours: null })
+
+    const pastBefore = useGraphStore.getState().past.length
+    const simRevBefore = useGraphStore.getState().simulationRev
+
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: {}, frames: 'proposed' },
+      expectTargetDigest: currentTargetDigest(),
+    })
+    expect(res.ok).toBe(true)
+    if (!res.ok) return
+    expect(res.partial).toBe(true)
+    expect(res.newRevisionId).not.toBe(r0)
+
+    expect(liveFrames()).toEqual(F) // the graph now holds the proposal's frames
+    // §R7.3 atomicity — ONE history entry, ONE simulationRev bump
+    expect(useGraphStore.getState().past.length).toBe(pastBefore + 1)
+    expect(useGraphStore.getState().simulationRev).toBe(simRevBefore + 1)
+
+    // ONE undo restores the pre-apply header AND the (empty) frames together —
+    // there is no separate frame undo step
+    useGraphStore.getState().undo()
+    expect(useProjectStore.getState().open!.revisionId).toBe(r0)
+    expect(liveFrames()).toEqual([])
+    useGraphStore.getState().redo()
+    expect(liveFrames()).toEqual(F)
+    expect(useProjectStore.getState().open!.revisionId).toBe(res.newRevisionId)
+  })
+
+  it('do NOT select the frames hunk ⇒ target frames are untouched (a real node change still applies)', async () => {
+    promote()
+    const sid = seededId()
+    const p = await importProposal(
+      framedProposalFile(F, (f) => {
+        const s = (f.nodes as Array<Record<string, unknown>>).find((n) => n.id === sid)!
+        ;(s.data as Record<string, unknown>).initial = 33
+      }),
+    )
+    // give the editor a local frame AFTER import (no re-plan ⇒ no dirty-origin)
+    useFrameStore.getState().loadFrames([{ id: 'mine', label: 'Mine', rect: { x: 1, y: 1, w: 9, h: 9 } }])
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: { [sid]: { 'data.initial': 'proposed' } } }, // frames NOT selected
+      expectTargetDigest: currentTargetDigest(),
+    })
+    expect(res.ok).toBe(true)
+    expect(nodeInitial(sid)).toBe(33)
+    expect(liveFrames()).toEqual([{ id: 'mine', label: 'Mine', rect: { x: 1, y: 1, w: 9, h: 9 } }]) // KEPT
+  })
+
+  it('select the frames hunk against a proposal with NO frames ⇒ every frame is cleared (empty array swap)', async () => {
+    useFrameStore.getState().loadFrames(F) // the editor + the committed base carry F
+    promote()
+    const p = await importProposal(framedProposalFile(null)) // proposal strips `frames`
+    const plan = threeWayForPending(p)
+    expect(plan.frames).toMatchObject({ verdict: 'clean', proposed: null })
+    expect(plan.frames?.base).toHaveLength(2)
+
+    const res = applyPendingProposal(p, {
+      selection: { accept: {}, fieldChoices: {}, frames: 'proposed' },
+      expectTargetDigest: currentTargetDigest(),
+    })
+    expect(res.ok).toBe(true)
+    expect(liveFrames()).toEqual([]) // cleared
+  })
+
+  it('a frames conflict makes the WHOLE-proposal class `divergent` and feeds the confirmation gate', async () => {
+    useFrameStore.getState().loadFrames(F) // base = F
+    promote()
+    const p = await importProposal(
+      framedProposalFile([{ id: 'zf1', label: 'Intake (theirs)', rect: { x: 0, y: 0, w: 120, h: 60 } }]),
+    )
+    // diverge the editor's frames locally (a third array) AFTER import
+    useFrameStore.getState().loadFrames([{ id: 'zf1', label: 'Intake (mine)', rect: { x: 0, y: 0, w: 120, h: 60 } }])
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'divergent' })
+    expect(threeWayForPending(p).frames?.verdict).toBe('conflict')
+    expect(applyPendingProposal(p)).toMatchObject({ ok: false, reason: 'needs-confirmation', classification: 'divergent' })
+  })
+
+  it('base === proposed frames ⇒ no hunk; selecting a frames choice cannot mint an empty apply', async () => {
+    useFrameStore.getState().loadFrames(F)
+    promote()
+    const p = await importProposal(framedProposalFile(F)) // base = F, proposed = F, target = F
+    expect(threeWayForPending(p).frames).toBeUndefined() // nothing to offer
+    const pastBefore = useGraphStore.getState().past.length
+    expect(applyPendingProposal(p, { selection: { accept: {}, fieldChoices: {}, frames: 'proposed' } }))
+      .toEqual({ ok: false, reason: 'no-effective-change' })
+    expect(useGraphStore.getState().past.length).toBe(pastBefore)
   })
 })

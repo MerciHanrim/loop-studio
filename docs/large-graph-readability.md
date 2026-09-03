@@ -45,8 +45,9 @@ Slice 5), a Frozen `loop-revision/5` **cosmetic** amendment designed in
 7. **Slice 5** — *saved* group frames, behind a Frozen **`loop-revision/5`**
    cosmetic `frames` contract. Design pass:
    `docs/large-graph-readability-saved-frames.md` (`SF`); **built in Draft PR
-   #122** (`SEMANTICS-R5.md` Frozen). One deferred piece — per-hunk selective
-   frames Apply / `ReviewOverlay` row — is called out in §SF12.
+   #122** (`SEMANTICS-R5.md` Frozen). The full revision contract is closed —
+   three-way `FramesHunk`, per-hunk selective swap/keep/clear, the
+   `ReviewOverlay` diff row + hunk row, and frames-aware `dirty` / digest.
 
 Slices 1–4a carry no wire change and no engine change. Slice 4b needs its own
 design pass before build. Slice 5 did not start until `SEMANTICS-R5.md` was
@@ -674,7 +675,9 @@ Slice-4b pass.
    **built in Draft PR #122**. A Frozen `loop-revision/5` cosmetic `frames`
    contract (`SEMANTICS-R5.md`; conservative-extension golden SG0–SG5, defensive
    reader, `loop-workspace` unchanged); manual + promoted frames only; §SF11
-   undo units. Deferred: the per-hunk selective-Apply frames verdict (§SF12).
+   undo units; the full revision contract closed — three-way `FramesHunk`,
+   per-hunk swap/keep/clear, `ReviewOverlay` diff + hunk row, frames-aware
+   `dirty` / digest.
 
 Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subset.
 

@@ -2,10 +2,14 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  buildSelectiveApply,
   canonicalContent,
   canonicalJson,
   computeRevisionDiff,
+  computeThreeWay,
   digestOfCanonical,
+  readRevisionSide,
+  validateResultGraph,
 } from '../src/model/revision'
 import { deserialize, serialize, readSavedFrames } from '../src/model/serialize'
 import { buildWorkspacePayload, readWorkspace } from '../src/model/workspace'
@@ -149,6 +153,108 @@ describe('loop-revision/5 golden vector (SEMANTICS-R5.md §R5-4)', () => {
     expect(back.frames.find((f) => f.label.startsWith('y'))?.label).toHaveLength(120) // capped
     expect(back.frames.find((f) => f.label.startsWith('y'))).not.toHaveProperty('color') // unknown dropped
     expect(readSavedFrames(undefined)).toEqual([]) // absent ⇒ []
+  })
+
+  // SG4 — the v4 ↔ v5 combinations replayed through `computeThreeWay` /
+  // `buildSelectiveApply` / `validateResultGraph` (SEMANTICS-R5.md §R5-4 /
+  // §R5-6). `sel(frames?)` is a bare hunk selection; `withFrames(f)` a canonical
+  // content with a `frames` array; `bare` = the ≤ v4 canonical content.
+  const bare = canonicalContent(SG0_GRAPH)
+  const withFrames = (f: unknown) => canonicalContent({ ...SG0_GRAPH, frames: f as never })
+  const sel = (frames?: 'proposed' | 'yours') => ({ accept: {}, fieldChoices: {}, ...(frames ? { frames } : {}) })
+
+  it('SG4a — v4 base, v5 proposed: ONE clean cosmetic `frames` hunk; selecting it swaps the whole array in, no node/edge byte moves; not selecting keeps none', () => {
+    const plan = computeThreeWay(bare, bare, withFrames(FRAMES))
+    expect(plan.hunks).toHaveLength(0) // no node / edge change
+    expect(plan.nConf).toBe(0) // a CLEAN frames hunk never feeds nConf
+    expect(plan.frames).toMatchObject({ kind: 'frames', verdict: 'clean', base: null, yours: null })
+    expect(plan.frames?.proposed).toHaveLength(2)
+
+    // select the frames hunk ⇒ the proposal's whole array, node/edge untouched
+    const taken = buildSelectiveApply({
+      target: SG0_GRAPH,
+      proposedFull: { ...SG0_GRAPH, frames: FRAMES },
+      plan,
+      selection: sel('proposed'),
+    })
+    if (!taken.ok) throw new Error(taken.detail)
+    expect(JSON.stringify(taken.nodes)).toBe(JSON.stringify(SG0_GRAPH.nodes))
+    expect(JSON.stringify(taken.edges)).toBe(JSON.stringify(SG0_GRAPH.edges))
+    expect(taken.frames).toEqual(FRAMES)
+    expect(taken.frames).not.toBe(FRAMES) // deep-cloned, not aliased
+    expect(validateResultGraph(taken.nodes, taken.edges).ok).toBe(true)
+    // the applied result's digest is SG1's (v4 + the two frames)
+    expect(
+      digestOfCanonical(canonicalContent({ nodes: taken.nodes, edges: taken.edges, frames: taken.frames })),
+    ).toBe(SG1_DIGEST)
+
+    // NOT selecting it ⇒ `frames` undefined ⇒ the caller keeps the target (none)
+    const kept = buildSelectiveApply({ target: SG0_GRAPH, proposedFull: { ...SG0_GRAPH, frames: FRAMES }, plan, selection: sel() })
+    if (!kept.ok) throw new Error(kept.detail)
+    expect(kept.frames).toBeUndefined()
+  })
+
+  it('SG4b — v5 base, v4 proposed: the `frames` hunk CLEARS the array; the applied digest returns to SG0 exactly', () => {
+    const v5 = withFrames(FRAMES)
+    const plan = computeThreeWay(v5, v5, bare)
+    expect(plan.hunks).toHaveLength(0)
+    expect(plan.nConf).toBe(0)
+    expect(plan.frames).toMatchObject({ kind: 'frames', verdict: 'clean', proposed: null })
+    expect(plan.frames?.base).toHaveLength(2)
+
+    const cleared = buildSelectiveApply({
+      target: SG0_GRAPH, // structurally identical; the v5 target's frames live outside the graph arrays
+      proposedFull: { ...SG0_GRAPH }, // no `frames` ⇒ selecting the hunk clears
+      plan,
+      selection: sel('proposed'),
+    })
+    if (!cleared.ok) throw new Error(cleared.detail)
+    expect(cleared.frames).toEqual([]) // an explicit empty array = "clear every frame"
+    expect(
+      digestOfCanonical(canonicalContent({ nodes: cleared.nodes, edges: cleared.edges, frames: cleared.frames })),
+    ).toBe(SG0_DIGEST)
+  })
+
+  it('SG4c — v5 ↔ v5: a `frames` reorder / relabel with a divergent local edit is a CONFLICT and feeds nConf', () => {
+    const base = withFrames(FRAMES)
+    const mine = withFrames([{ ...FRAMES[0], label: 'Intake (mine)' }, FRAMES[1]]) // I renamed f1 locally
+    const theirs = withFrames([FRAMES[1], { ...FRAMES[0], label: 'Intake (theirs)' }]) // they reordered + renamed
+    const plan = computeThreeWay(base, mine, theirs)
+    expect(plan.frames?.verdict).toBe('conflict')
+    expect(plan.nConf).toBe(1) // §R5-6 — a frames conflict feeds nConf like a label conflict
+    // a NON-divergent case (target still at base) is clean, nConf 0
+    const clean = computeThreeWay(base, base, theirs)
+    expect(clean.frames?.verdict).toBe('clean')
+    expect(clean.nConf).toBe(0)
+    // target already at the proposal ⇒ the hunk exists but is `noop` (the UI
+    // filters `verdict === 'noop'` out of the actionable list)
+    const noop = computeThreeWay(base, theirs, theirs)
+    expect(noop.frames?.verdict).toBe('noop')
+    expect(noop.nConf).toBe(0)
+  })
+
+  it('SG4d — ≤ v4 ↔ ≤ v4: no `frames` anywhere ⇒ the plan is byte-for-byte what loop-revision/3 · /4 produced', () => {
+    const plan = computeThreeWay(bare, bare, bare)
+    expect(plan.frames).toBeUndefined()
+    expect(plan.nConf).toBe(0)
+    expect(plan.hunks).toHaveLength(0)
+  })
+
+  it('SG4e — `readRevisionSide` version predicate: a surviving `frames` block ⇒ loop-revision/5; its digest verifies with the v5 projection', () => {
+    const v5doc = { nodes: SG0_GRAPH.nodes, edges: SG0_GRAPH.edges, frames: FRAMES }
+    const digest = digestOfCanonical(canonicalContent(v5doc))
+    const side = readRevisionSide(v5doc, digest, 1)
+    expect(side.ok && side.version).toBe('loop-revision/5')
+    expect(side.ok && side.digestVerified).toBe(true)
+    if (side.ok) expect(side.content.frames).toHaveLength(2)
+    // a block whose entries were ALL dropped leaves nothing ⇒ the side infers
+    // as ≤ v4 (here `loop-revision/2` — SG0_GRAPH's `a` carries a `resourceType`)
+    const brokenOnly = readRevisionSide(
+      { nodes: SG0_GRAPH.nodes, edges: SG0_GRAPH.edges, frames: [{ id: 'x', label: 'x', rect: { x: NaN, y: 0, w: 1, h: 1 } }] as never },
+      undefined,
+      1,
+    )
+    expect(brokenOnly.ok && brokenOnly.version).toBe('loop-revision/2')
   })
 
   it('SG5 — loop-workspace/1 round-trip: no `frames` in workspace.simulation; the graph keeps its frames', () => {

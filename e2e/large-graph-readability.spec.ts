@@ -986,10 +986,19 @@ async function drawFrame(page: Page, fromId: string, toId: string, pad = 40) {
   await page.mouse.up()
 }
 
+// the ENGINE / structure digest — nodes + edges only, NEVER the saved `frames`
+// (LGR Slice 5 / SEMANTICS-R5.md §R5-6: a manual frame is `loop-revision/5`
+// cosmetic content, so it moves `revisionIO.currentTargetDigest()` — the full
+// revision digest — but must never move this one). Slice 4a / 4b / FC assert a
+// frame op leaves THIS untouched.
 const gDigest = (page: Page) =>
-  page.evaluate(() =>
-    (window as unknown as { __loop: { revisionIO: { currentTargetDigest: () => string } } }).__loop.revisionIO.currentTargetDigest(),
-  )
+  page.evaluate(async () => {
+    const M = await import('/src/model/revision.ts')
+    const g = (window as unknown as { __loop: { graph: { getState: () => { nodes: unknown[]; edges: unknown[]; modelVersion: 1 | 2 } } } }).__loop.graph.getState()
+    return M.digestOfCanonical(
+      M.canonicalContent({ nodes: g.nodes as never, edges: g.edges as never }, { modelVersion: g.modelVersion }),
+    )
+  })
 
 // A graph that exercises every Activity-overlay source in one committed step:
 //   • `feed` fires every step                         → a `fired` NODE
@@ -2179,17 +2188,23 @@ async function loadFCVisual(page: Page, theme: 'light' | 'dark') {
 // never persisted; promoting one is a single undo entry that does NOT revive
 // the suggestion when undone.
 test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
-  const sfState = (page: Page) =>
-    page.evaluate(() => {
+  const sfState = async (page: Page) => {
+    const struct = await gDigest(page) // frames-free engine/structure digest
+    return page.evaluate((structDigest) => {
       const L = (window as unknown as { __loop: Record<string, { getState: () => Record<string, unknown> }> }).__loop
       return {
         frames: (L.frame.getState().frames as { id: string; n: number; label: string; color?: string; rect: object }[]).map((f) => ({ ...f })),
         past: (L.graph.getState().past as unknown[]).length,
         simRev: L.graph.getState().simulationRev as number,
-        target: (L.revisionIO.currentTargetDigest as () => string)(),
+        // the FULL loop-revision/5 digest — a manual frame IS content, so it
+        // moves this (SEMANTICS-R5.md §R5-6)…
+        rev: (L.revisionIO.currentTargetDigest as () => string)(),
+        // …but never the engine/structure digest
+        struct: structDigest,
         exported: (L.graph.getState().exportJSON as () => string)(),
       }
-    })
+    }, struct)
+  }
   // the `frames` block as persisted in the debounced autosave record
   const sfRec = (page: Page): Promise<unknown> =>
     page.evaluate(() => {
@@ -2336,11 +2351,13 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     await sfRedo(page)
     expect((await sfState(page)).frames.length).toBe(manualCount) // redo re-creates the manual frame
 
-    // through ALL of the above the engine (target) digest never moved — frames
-    // are cosmetic, so no frame undo/redo changes the engine result (§SF11.3).
-    // (`simulationRev` does tick on any undo/redo — that is pre-existing, and
-    // only schedules a recompute to the identical StepReport.)
-    expect((await sfState(page)).target).toBe(base.target)
+    // through ALL of the above the ENGINE / structure digest never moved —
+    // frames are `loop-revision/5` cosmetic, so no frame undo/redo changes the
+    // engine result (§SF11.3). The FULL revision digest (`rev`) DID move with
+    // the frames, and returns to baseline once the frames match again.
+    // (`simulationRev` also ticks on any undo/redo — pre-existing, and only
+    // schedules a recompute to the identical StepReport.)
+    expect((await sfState(page)).struct).toBe(base.struct)
   })
 
   test('Import adds ONE undo entry, never one-per-frame; pure Suggest / Dismiss / Clear suggested add none and never touch the doc digest or the record (SF11.3 / boundaries 4-7)', async ({ page }) => {
@@ -2365,12 +2382,13 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     await page.waitForTimeout(450) // let any (unexpected) autosave fire
     const after = await sfState(page)
     expect(after.past).toBe(mid.past)
-    expect(after.target).toBe(mid.target)
+    expect(after.rev).toBe(mid.rev) // pure Suggest/Dismiss/Clear touches NOTHING on the doc
+    expect(after.struct).toBe(mid.struct)
     expect(after.simRev).toBe(mid.simRev)
     expect(await sfRec(page)).toEqual(recMid)
   })
 
-  test('two docs differing ONLY in frames: identical engine digest + simulationRev; only the exported bytes gain the `frames` block (boundary 8)', async ({ page }) => {
+  test('two docs differing ONLY in frames: SAME engine/structure digest + simulationRev; the FULL revision digest differs; exported bytes gain the `frames` block (boundary 8)', async ({ page }) => {
     await loadAF(page)
     const plain = await sfState(page)
     await fcAdd(page, { x: 0, y: 0, w: 100, h: 60 }, 'Zone', 'gold')
@@ -2383,9 +2401,11 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     expect(a.frames).toBeUndefined()
     expect(b.frames).toEqual([{ id: expect.any(String), label: 'Zone', rect: { x: 0, y: 0, w: 100, h: 60 }, color: 'gold' }])
     // adding a saved frame is NOT a simulation change and does not move the
-    // engine (target) digest
+    // engine / structure digest …
     expect(withF.simRev).toBe(plain.simRev)
-    expect(withF.target).toBe(plain.target)
+    expect(withF.struct).toBe(plain.struct)
+    // … but it DOES move the full loop-revision/5 content digest (§R5-6)
+    expect(withF.rev).not.toBe(plain.rev)
   })
 
   test('a hostile autosave record — non-finite rect + unknown colour — loses the bad frames but still loads the graph + the good frames (SF9 / R5-1.1 / boundary 9)', async ({ page }) => {

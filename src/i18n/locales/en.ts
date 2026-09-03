@@ -550,6 +550,7 @@ const en = {
   'review.diff.nodes': 'Nodes',
   'review.diff.edges': 'Edges',
   'review.diff.runConfig': 'run config',
+  'review.diff.frames': 'frames',
   'review.gate.wrongProject':
     'This proposal belongs to a different project. You can still open it as a document.',
   'review.gate.noTarget': 'No project is open. Open this proposal as a document, or cancel.',
@@ -585,6 +586,9 @@ const en = {
   'review.hunk.alsoRemove': 'also remove or retarget edge',
   'review.hunk.cantRemove': "can't remove — yours added edge",
   'review.hunk.toThisNode': 'to this node',
+  'review.hunk.framesTitle': 'Saved frames',
+  'review.hunk.framesTake': 'Take the proposal’s frames ({yours} → {theirs})',
+  'review.hunk.framesClear': 'Take the proposal’s frames (clear all {yours})',
   'review.field.base': 'base',
   'review.field.yours': 'yours',
   'review.field.theirs': 'theirs',

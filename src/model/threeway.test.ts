@@ -282,3 +282,96 @@ describe('validateResultGraph — full-GraphDoc check (Slice 2 review round 2)',
     if (!r.ok) expect(r.reasons.join(' ')).toMatch(/not already normalized/)
   })
 })
+
+// ── SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk ────────────────────
+describe('computeThreeWay / buildSelectiveApply — the `frames` hunk (§R5-6)', () => {
+  const F1 = [{ id: 'f1', label: 'Zone A', rect: { x: 0, y: 0, w: 100, h: 60 } }]
+  const F2 = [
+    { id: 'f1', label: 'Zone A', rect: { x: 0, y: 0, w: 100, h: 60 } },
+    { id: 'f2', label: 'Zone B', rect: { x: 200, y: 0, w: 80, h: 40 }, color: 'rose' as const },
+  ]
+  const ccf = (frames: unknown, nodes: LoopNode[] = [pool('a')]) =>
+    canonicalContent({ nodes, edges: [], frames: frames as never })
+
+  it('no hunk when base and proposed `frames` are equal', () => {
+    expect(computeThreeWay(ccf(F1), ccf(F1), ccf(F1)).frames).toBeUndefined()
+    expect(computeThreeWay(cc([pool('a')]), cc([pool('a')]), cc([pool('a')])).frames).toBeUndefined()
+  })
+
+  it('verdict clean / noop / conflict against the target, and only `conflict` feeds nConf', () => {
+    // proposal adds frames; target still frame-free ⇒ clean
+    const clean = computeThreeWay(cc([pool('a')]), cc([pool('a')]), ccf(F2))
+    expect(clean.frames).toMatchObject({ kind: 'frames', verdict: 'clean', base: null })
+    expect(clean.frames?.proposed).toHaveLength(2)
+    expect(clean.nConf).toBe(0)
+
+    // target already holds the proposed array ⇒ noop
+    expect(computeThreeWay(cc([pool('a')]), ccf(F2), ccf(F2)).frames?.verdict).toBe('noop')
+
+    // target holds a THIRD array (local relabel) ⇒ conflict, +1 nConf
+    const mine = ccf([{ ...F2[0], label: 'Zone A (mine)' }, F2[1]])
+    const conflict = computeThreeWay(ccf(F2), mine, ccf(F1))
+    expect(conflict.frames?.verdict).toBe('conflict')
+    expect(conflict.nConf).toBe(1)
+  })
+
+  it('the frames hunk is independent of node/edge hunks and their nConf', () => {
+    const base = cc([pool('a', { initial: 1 })])
+    const target = cc([pool('a', { initial: 2 })]) // local edit
+    const proposed = ccf(F1, [pool('a', { initial: 3 })]) // their edit + frames
+    const p = computeThreeWay(base, target, proposed)
+    expect(p.frames?.verdict).toBe('clean') // target frame-free == base
+    expect(p.nConf).toBe(1) // ONLY the data.initial conflict — frames clean adds nothing
+  })
+
+  it('buildSelectiveApply: select ⇒ whole proposed array (deep-cloned); deselect ⇒ undefined (keep target)', () => {
+    const plan = computeThreeWay(cc([pool('a')]), cc([pool('a')]), ccf(F2))
+    const taken = buildSelectiveApply({
+      target: { nodes: [pool('a')], edges: [] },
+      proposedFull: { nodes: [pool('a')], edges: [], frames: F2 },
+      plan,
+      selection: { accept: {}, fieldChoices: {}, frames: 'proposed' },
+    })
+    expect(taken.ok && taken.frames).toEqual(F2)
+    expect(taken.ok && taken.frames).not.toBe(F2)
+
+    const kept = buildSelectiveApply({
+      target: { nodes: [pool('a')], edges: [] },
+      proposedFull: { nodes: [pool('a')], edges: [], frames: F2 },
+      plan,
+      selection: { accept: {}, fieldChoices: {} }, // frames absent ⇒ 'yours'
+    })
+    expect(kept.ok && kept.frames).toBeUndefined()
+  })
+
+  it('buildSelectiveApply: selecting the hunk when the proposal has NO frames = an explicit empty array (clear all)', () => {
+    const plan = computeThreeWay(ccf(F2), ccf(F2), cc([pool('a')]))
+    const cleared = buildSelectiveApply({
+      target: { nodes: [pool('a')], edges: [] },
+      proposedFull: { nodes: [pool('a')], edges: [] }, // no frames
+      plan,
+      selection: { accept: {}, fieldChoices: {}, frames: 'proposed' },
+    })
+    expect(cleared.ok && cleared.frames).toEqual([])
+  })
+
+  it('buildSelectiveApply: the frames choice never touches nodes / edges', () => {
+    const plan = computeThreeWay(cc([pool('a')]), cc([pool('a')]), ccf(F2))
+    const r = buildSelectiveApply({
+      target: { nodes: [pool('a'), pool('b')], edges: [rEdge('e', 'a', 'b')] },
+      proposedFull: { nodes: [pool('a'), pool('b')], edges: [rEdge('e', 'a', 'b')], frames: F2 },
+      plan,
+      selection: { accept: {}, fieldChoices: {}, frames: 'proposed' },
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.nodes.map((n) => n.id)).toEqual(['a', 'b'])
+      expect(r.edges.map((e) => e.id)).toEqual(['e'])
+    }
+  })
+
+  it('countThreeWayConflicts includes a frames conflict', () => {
+    const mine = canonicalContent({ nodes: [pool('a')], edges: [], frames: [{ id: 'f1', label: 'M', rect: { x: 0, y: 0, w: 9, h: 9 } }] as never })
+    expect(countThreeWayConflicts(ccf(F1), mine, ccf(F2))).toBe(1)
+  })
+})

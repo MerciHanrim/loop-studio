@@ -243,11 +243,21 @@ function parseHeader(raw: unknown): OpenProject | null {
   }
 }
 
-/** the live graph's canonical digest — computed fresh every call (§R2, no
- *  reliance on the debounced flag) */
-function liveDigest(): string {
+/** the live graph's canonical content — nodes + edges + the on-screen saved
+ *  `frames` (SEMANTICS-R5.md §R5-6: a frame edit is full revision content, it
+ *  flips `dirty` and moves this digest exactly like a `label` rename). Computed
+ *  fresh every call (§R2, no reliance on the debounced flag). */
+function liveContent() {
   const g = useGraphStore.getState()
-  return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
+  return canonicalContent(
+    { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+    { modelVersion: g.modelVersion },
+  )
+}
+/** the live graph's canonical digest — see {@link liveContent}. Kept identical
+ *  to `revisionIO.currentTargetDigest()`, the value Apply checks it against. */
+function liveDigest(): string {
+  return digestOfCanonical(liveContent())
 }
 
 function persist(open: OpenProject | null): void {
@@ -260,10 +270,12 @@ function persist(open: OpenProject | null): void {
 function classifyAgainst(
   o: OpenProject,
   base: ProposalBase,
-  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2 },
+  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] },
 ): ApplyClassification {
-  const g = useGraphStore.getState()
-  const target = canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion })
+  // SEMANTICS-R5.md §R5-6 — the target carries the live saved `frames`, so a
+  // frames-only local divergence flips it off `exact` and a `frames` conflict
+  // feeds `nConf` (⇒ `divergent`), exactly like a `label` conflict.
+  const target = liveContent()
   const exact =
     o.revisionId === base.revisionId && digestOfCanonical(target) === base.contentDigest
   if (exact) return 'exact'
@@ -319,7 +331,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
       const g = useGraphStore.getState()
-      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
+      const snapDigest = liveDigest() // §R5-6 — includes the on-screen saved frames
       const o = get().open
       const isDirty = o != null && snapDigest !== o.baselineDigest
 
@@ -425,7 +437,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       const now = opts.now ?? new Date().toISOString()
       const mkId = opts.mint ?? mintId
       const g = useGraphStore.getState()
-      const snapDigest = digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
+      const snapDigest = liveDigest() // §R5-6 — includes the on-screen saved frames
       const isDirty = snapDigest !== o.baselineDigest
       if (get().dirty !== isDirty) set({ dirty: isDirty })
 
@@ -532,14 +544,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         if (opts.expectTargetDigest != null && opts.expectTargetDigest !== targetDigest) {
           return { ok: false, reason: 'target-moved', targetDigest }
         }
-        const plan = computeThreeWay(
-          base.content,
-          canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }),
-          proposedCanon,
-        )
+        const plan = computeThreeWay(base.content, liveContent(), proposedCanon)
         const built = buildSelectiveApply({
           target: { nodes: g.nodes, edges: g.edges },
-          proposedFull: proposed,
+          proposedFull: proposed, // carries `frames` — the atomic `frames` hunk source (§R5-6)
           plan,
           selection: opts.selection,
         })
@@ -548,17 +556,24 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         // must not need to repair it (review round 2)
         const valid = validateResultGraph(built.nodes, built.edges)
         if (!valid.ok) return { ok: false, reason: 'invalid-selection', reasons: valid.reasons }
-        // an effective no-op mints no revision / undo entry / simulationRev bump
-        if (
-          digestOfCanonical(
-            canonicalContent({ nodes: built.nodes, edges: built.edges }, { modelVersion: g.modelVersion }),
-          ) === targetDigest
-        ) {
+        // SEMANTICS-R5.md §R5-6 — selecting the `frames` hunk yields
+        // `built.frames` (the proposal's whole array, `[]` = clear);
+        // `undefined` ⇒ keep the target's frames.
+        resultFrames = built.frames
+        // an effective no-op mints no revision / undo entry / simulationRev bump.
+        // The `frames` swap counts: compare the WHOLE resulting content
+        // (nodes + edges + the effective frames) against the live target.
+        const resultDigest = digestOfCanonical(
+          canonicalContent(
+            { nodes: built.nodes, edges: built.edges, frames: resultFrames ?? useFrameStore.getState().snapshot() },
+            { modelVersion: g.modelVersion },
+          ),
+        )
+        if (resultDigest === targetDigest) {
           return { ok: false, reason: 'no-effective-change' }
         }
         resultNodes = built.nodes
         resultEdges = built.edges
-        resultFrames = undefined // keep the target's frames — no per-hunk frames apply yet
         partial = true
       } else {
         // §R7 whole-proposal: re-classify, gate the confirmation
@@ -584,8 +599,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // undo entry. The history sidecar captures `preHeader` on that frame, so a
       // single Undo restores the pre-apply graph AND this header together.
       useGraphStore.getState().loadDoc({ nodes: resultNodes, edges: resultEdges }, undefined, resultFrames)
+      // the new baseline is the WHOLE post-apply content — `frameStore` now
+      // holds the effective frames (swapped when `resultFrames` was set, kept
+      // otherwise), so read them back here (SEMANTICS-R5.md §R5-6).
       const postGraphDigest = digestOfCanonical(
-        canonicalContent({ nodes: resultNodes, edges: resultEdges }, { modelVersion: g.modelVersion }),
+        canonicalContent(
+          { nodes: resultNodes, edges: resultEdges, frames: useFrameStore.getState().snapshot() },
+          { modelVersion: g.modelVersion },
+        ),
       )
 
       // §R7.1 — a brand-new revision derived from the target
