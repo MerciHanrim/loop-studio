@@ -127,21 +127,43 @@ that finding the major pieces is a real problem:
 |---|---|---|
 | S1 | A reader shown the MMO example with auto frames on can point to "roughly where combat / rewards / economy / progression happen" **faster** than with frames off | timed comprehension check, same protocol family as §CR11 — read → describe the major areas; frames-on vs frames-off, counterbalanced |
 | S2 | On the **MMO fixture** the frame count lands in the legible band **3–6** (`MAX_FRAMES` caps the top; ≥ 3 is expected for this graph's structure) | assertion on the dry-run + a CI test **on the MMO fixture** |
-| S3 | **No mega-frame** — no single auto frame contains **> 55 %** of the whole eligible framed-node total. *This one **is** a runtime property* — enforced by §AF3.6 rule 2 (split-big) on every graph | assertion + a runtime property of the algorithm |
-| S4 | **No confetti** — no auto frame contains **< 3** nodes. *Also a runtime property* — §AF3.6 rule 1 merges or drops tiny groups on every graph | assertion + a runtime property of the algorithm |
+| S3 | **No mega-frame** — no retained auto frame contains **> 55 %** of the eligible node count. *Runtime property* — enforced by §AF3.6 rule 2 (split-big) **and** rule 3b (a survivor that still exceeds the fraction after split-big's depth cap is **dropped**, not drawn) | assertion + a runtime property |
+| S4 | **No confetti** — no auto frame contains **< 3** nodes. *Runtime property* — §AF3.6 rule 1 merges or drops tiny groups; a spatial cut never leaves a `< 3` side | assertion + a runtime property |
 | S5 | Re-running **Suggest frames** on an unchanged `(graph, positions)` produces byte-identical frames (rects, labels, order) — a runtime property | determinism test (§AF8) |
 | S6 | A sim run, a Step, toggling Activity, changing Focus, or applying a Filter **never** changes the auto frames — a runtime property | recompute-trigger test (§AF4) |
-| S7 | Expected shape on the **three bundled fixtures** is met (§AF3.6 dry-run table) — a regression check on graphs we know | dry-run recorded in this doc + a fixture test |
+| S7 | Expected shape on the **three bundled fixtures** is met (§AF3.6 Table A raw-LP partition **and** Table B final frames) — a regression check on graphs we know | dry-run recorded in this doc + a fixture test |
+| S8 | **Every retained frame is spatially clean** — `foreignCount ≤ max(2, floor(memberCount × 0.5))`, where `foreignCount` = non-member, non-model node centres inside the frame's member bounding box. *Runtime property* — §AF3.6 rule 3 splits a contaminated group and **drops** it if it cannot be cleanly bisected | assertion on the final set, on **every** fixture + synthetic |
+| S9 | **Geometry is locale-, font-, browser-, zoom- and render-timing-independent.** Membership, split, ranking, drop and rect are computed from node `position` + a fixed canonical footprint only — never React Flow's live `measured` size (§AF8) | determinism test: same `(GraphDoc, positions)` with `measured` = 150×40 / unset / 320×96 / 1×1 → byte-identical frames |
 
-**Fixture criteria vs runtime properties.** S3, S4, S5, S6 are **runtime
-properties** — the algorithm upholds them on *any* graph. S1, S2, S7 (and the
-`framed fraction ≥ 0.5` check, §AF3.6) are **fixture criteria** — they say what
-the current algorithm should produce on the Coffee / MMO / default graphs, to
-catch a quality regression. They are **not** guarantees for an arbitrary user
-graph: a user graph with little clean structure may legitimately yield 1–2
-frames or **none**, and that is a normal successful `Suggest` result, not a
-failure (§AF10.4). The algorithm never merges or fabricates a cluster to hit a
-count or a coverage number.
+**Fixture criteria vs runtime properties.** S3, S4, S5, S6, S8, S9 are **runtime
+properties** — the algorithm upholds them on *any* graph. S1, S2, S7 are
+**fixture criteria** — they say what the current algorithm should produce on
+the Coffee / MMO / default graphs, to catch a quality regression. They are
+**not** guarantees for an arbitrary user graph: a user graph with little clean
+structure may legitimately yield 1–2 frames or **none**, and that is a normal
+successful `Suggest` result, not a failure (§AF10.4). The algorithm never
+merges or fabricates a cluster to hit a count or a coverage number.
+
+**Coverage is NOT a success criterion** *(review boundary 5)*. An early
+implementation framed **92 %** of MMO's eligible nodes and the result was a
+**worse** screen than no frames (§AF2.4). So:
+
+- **raw-LP coverage / membership** — an *algorithm-regression observation*
+  only (§AF3.6 Table A), pinned so a change to LP or the multigraph adjacency
+  is caught;
+- **final suggested-frame coverage** — a **reported metric**, never a forced
+  minimum. The `framed fraction ≥ 0.5` fixture assertion is **removed**. On the
+  MMO fixture the final coverage is **≈ 0.43** — every group that would push it
+  higher is either spatially contaminated past S8 or out-ranked past the
+  `MAX_FRAMES` ceiling, and is correctly dropped;
+- **`MAX_FRAMES = 6` is a ceiling, not a target.** Fewer than 6 frames, or
+  none, is a valid result. The algorithm never lowers a quality bar or merges a
+  weak cluster to *reach* 6;
+- **final-frame quality** is the S8 acceptance rule (contamination) then S3
+  (no mega-frame) then overlap — decided *before* coverage is even measured;
+- **few good frames, or zero frames, is a normal result.** Coffee's clean 3
+  are preserved unchanged; MMO's coverage falling from 0.92 to ≈ 0.43 is the
+  intended effect, not a regression.
 
 **Explicitly NOT a success criterion:** that the frames "correctly classify the
 domain meaning" of each region. The frames are structural; the labels say so
@@ -150,13 +172,23 @@ failure as long as the runtime properties hold.
 
 ### AF2.4 Failure modes to detect
 
-| Failure | Detector |
-|---|---|
-| one giant frame (CC-style collapse) | S2 + S3 |
-| dozens of 1–2 node frames | S2 + S4 |
-| frames that jump on every run / edit | S5 + S6 |
-| frames overlapping so heavily the labels are unreadable | a max-overlap-ratio assertion on the dry-run |
-| a frame that contains only Parameter / Register nodes | model nodes are excluded from membership (§AF3.5) — assertion that no auto frame's member set is all-model |
+| Failure | What it looked like (measured) | Detector | After the fix (measured) |
+|---|---|---|---|
+| one giant frame (CC-style collapse) | connected components alone → MMO **one 90-node frame** | S2 + S3 | not reachable — LP + rule 3b |
+| dozens of 1–2 node frames | — | S2 + S4 | — |
+| frames that jump on every run / edit | — | S5 + S6 | — |
+| **frames overlapping / contaminated so the regions are unreadable** | raw LP + bbox rects on MMO: **max pairwise overlap 100 %** (one rect fully inside another), **12 of 15 pairs overlap > 10 %**, **10–57 foreign node centres** inside each 7–28-member frame, **max foreign/member ratio 8.1** | **S8** — every retained frame satisfies `foreignCount ≤ max(2, floor(memberCount × 0.5))`; §AF3.6 rule 3 splits a contaminated group and **drops** it if it cannot be cleanly bisected; rule 4 then drops any candidate overlapping a kept frame > 50 % of the smaller rect | MMO: **6 frames, max pairwise overlap 0 %, foreign 0–3 per frame (all within budget), max foreign/member 0.50**; coverage 0.92 → **0.43**, 13 candidates dropped |
+| **a spatially-clean mega-frame slips through split-big's depth cap** | a degenerate synthetic (9 dense blobs strung on single-edge bridges) collapses under LP into one blob; split-big recurses only twice, leaving a **42-of-54-node** frame that is *spatially* clean (foreign 0) so contamination does not catch it | **S3 rule 3b** — after split-big and spatial cohesion, a group still holding > 55 % of the eligible count is **dropped** | that synthetic → 2 small frames + the 42-group dropped (`exceeds MAX_FRAME_FRACTION`), coverage 0.22 |
+| a frame that contains only Parameter / Register nodes | — | model nodes are excluded from membership (§AF3.5) — assertion that no auto frame's member set is all-model | — |
+| geometry shifts with locale / font / browser / zoom / `measured` readiness | a centre computed as `position + measured/2` moves when `measured` is unset vs 150×40 vs the real DOM size, changing which foreign centres fall in a bbox | **S9** — all geometry uses `position` + a fixed canonical footprint; `measured` is never read | byte-identical frames for `measured` ∈ {150×40, unset, 320×96, 1×1} on both fixtures |
+
+The raw-LP numbers above are why §AF3.6 has a spatial-cohesion pass: LP finds
+*topological* communities, and the MMO layout interleaves them spatially, so
+each community's axis-aligned bounding box sweeps a wide area full of other
+communities' nodes. Membership and count were correct; the drawn rectangles
+were not. The fix keeps the LP membership as the regression baseline (Table A)
+and makes the **final** set — after split, drop, overlap-resolution and the
+ceiling — the thing S8 / S3 / S5 / S9 assert on.
 
 ---
 
@@ -232,9 +264,12 @@ fixture test (§AF3.7).
   - MMO (resource only): `[31, 30, 13, 7, 4, 3, 2]`, 0 isolated.
   - MMO (+ state): `[28, 18, 13, 10, 7, 7, 4, 3]`, 0 isolated.
 - **Verdict: RECOMMENDED core**, with §AF3.6's post-pass. Coffee already lands
-  at a clean 3 frames; MMO needs the small groups merged and — optionally — the
-  ~28 group split. This is the only candidate that is both deterministic
-  without an RNG **and** produces a legible count on MMO.
+  at a clean 3 frames and its groups are spatially clean, so the post-pass is a
+  no-op there; MMO needs the small groups dropped at the cap **and** the
+  spatially-interleaved communities broken up by the spatial-cohesion pass
+  (§AF3.6 step 3 — the raw MMO bboxes overlap 100 %, §AF2.4). This is the only
+  candidate that is both deterministic without an RNG **and** produces a legible
+  count on MMO.
 
 ### AF3.3 Candidate C — directional reachability / flow corridors
 
@@ -288,93 +323,187 @@ fixture test (§AF3.7).
   sit visually inside a frame's rect without being "in" it (frames have no
   membership at render time anyway, §AF1).
 
-### AF3.6 The post-pass — merge small, split big
+### AF3.6 The post-pass — merge small, split big, **spatial-cohesion split**, cap + overlap-resolution
 
 Applied **once, graph-wide**, to the raw partition from the single
-label-propagation run (Candidate B):
+label-propagation run (Candidate B). **The raw LP membership is preserved** —
+LP is never replaced by spatial clustering; every step below runs on the LP
+groups.
 
-1. **Drop / merge small.** Any group with `< MIN_FRAME_NODES` (default **3**,
-   S4) — i.e. a group of **1 or 2** nodes — is merged into the neighbouring
-   group it shares the most drawn edges with; tie-break = lowest
-   group-representative node id. A group with **no inter-group edge** — which
-   includes any small group sitting in its own disconnected component — is
-   **dropped, not relocated**: it is never force-merged into a component it has
-   no edge to. Groups of 3+ are left alone here.
-2. **Split big.** Any group holding `> MAX_FRAME_FRACTION` (default **0.55**,
-   S3) of the **whole eligible framed-node total** is sub-divided by a
-   **single spatial cut** along the group's longer bounding-box axis at the
-   **largest positional gap** (the widest empty band between sorted node
-   centres on that axis). Recurse at most **twice**. If no gap ≥
-   `MIN_SPLIT_GAP` (default 120 px) exists — or a cut would leave a side with
-   `< MIN_FRAME_NODES` — the group is left whole (a large-but-not-mega frame is
-   accepted over an arbitrary cut).
-3. **Cap count — drop, do not force-merge.** `MAX_FRAMES = 6` for the **whole
-   graph** (**decided**). If, after 1–2, more than `MAX_FRAMES` groups remain,
-   keep the `MAX_FRAMES` **highest-quality** groups and **drop the rest — no
-   frame**; a dropped group's nodes are left unframed. **Never** merge a
-   leftover group into a kept one to hit the cap. "Quality" rank = group size
-   first, then intra-group edge density (edges among members ÷ members), then
-   lowest representative node id.
-4. **Rect.** Each surviving group's rect = the axis-aligned bounding box of its
-   member node rects, expanded by `FRAME_PAD` (default 24 px, flow units) on
-   every side. No rect is smaller than `FRAME_MIN` (matches the 4a
-   `FRAME_MIN_SCREEN_PX` intent at zoom 1).
+**All geometry is CANONICAL (§AF8 / S9).** Every measurement below — a node
+centre, a member bounding box, a spatial gap, a rect, an overlap area — is
+computed from the node's **`position`** and a **fixed canonical footprint**
+`CANON_NODE_W × CANON_NODE_H = 150 × 40` flow units. React Flow's live
+`measured` width/height is **never read**. So the output is identical whatever
+the locale, label length, font, font-load timing, browser, viewport, zoom, or
+whether `measured` has populated — no "±1–2" wobble.
 
-**Dry-run after the post-pass** — one graph-wide LP run, multigraph adjacency,
-state edges included, `MAX_FRAMES = 6`, drop-not-merge. Reproduced by the impl
-PR's fixture test (`src/components/frames/autoFrames.fixture.test.ts`) running
-the **§AF10.2 procedure verbatim** on the committed `examples/*.json`:
+1. **Drop / merge small.** Any group of **1 or 2** nodes is merged into the
+   neighbouring group it shares the most drawn edges with; tie-break = lowest
+   group-representative node id. A group with **no inter-group edge** (which
+   includes a tiny group in its own disconnected component) is **dropped, not
+   relocated**. Groups of 3+ are left alone here.
+2. **Split big (fraction).** Any group holding `> MAX_FRAME_FRACTION` (default
+   **0.55**) of the **whole eligible framed-node total** is cut once along its
+   longer bounding-box axis at the widest gap; recurse ≤ twice; left whole if
+   no gap ≥ `MIN_SPLIT_GAP` (120) or a cut would leave a `< MIN_FRAME_NODES`
+   side. (Rarely fires — MMO's largest LP group is 28 / 90 = 0.31.)
+3. **Spatial-cohesion split — split, or DROP** *(review boundary 5)*. For each
+   group, measure **contamination** = the count of **non-member, non-model node
+   centres inside the group's member bounding box** (`foreign`). The group is
+   **contaminated** when
 
-| Graph | Eligible nodes | Raw LP groups | merge-small (`< 3` only) | split-big (`> 0.55` of eligible framed) | cap → keep 6, drop rest | **Final** | Notes |
+   > `foreign > max(2, floor(memberCount × 0.5))`
+
+   An **uncontaminated** group is a candidate as-is. A **contaminated** group is
+   **bisected** and each side re-checked (recursively). A contaminated group
+   that **cannot be bisected** — no gap ≥ `MIN_SPLIT_GAP` leaving two
+   `≥ MIN_FRAME_NODES` sides, or still contaminated at `SPATIAL_MAX_DEPTH = 6`
+   — is **DROPPED. It is never kept as a final frame.** Its nodes are left
+   unframed.
+   - **The threshold** `foreign ≤ max(2, floor(memberCount × 0.5))` was picked
+     from the sweep in §AF3.7: it keeps Coffee's 3 frames untouched (0 foreign
+     each) and removes MMO's 100 %-overlap / 10–57-foreign pathology.
+     `foreign / members ≤ 1.0` was too loose (MMO still overlapped 48 %); the
+     ratio and abs forms are identical on every fixture, so the abs form — with
+     its `max(2, …)` floor that tolerates ≤ 2 strays in a tiny group — is the
+     definition. This is **S8**, asserted on the final set.
+   - **The cut.** From the member centres, take the largest **normalized gap**
+     (raw gap ÷ axis span) on x and on y; use the axis with the larger
+     normalized gap (**tie → x**). Within that axis, scan gaps **descending by
+     raw size**; take the first whose split leaves **both** sides
+     ≥ `MIN_FRAME_NODES` **and** whose raw gap ≥ `MIN_SPLIT_GAP`. Gap-size
+     ties → **smaller lower-bound coordinate**, then **smaller min node id**.
+     Because a valid cut always leaves both sides ≥ 3, a split never produces a
+     sub-`MIN_FRAME_NODES` fragment.
+   - **Multiple clean islands from one group?** Keep **each** as its own
+     candidate — never "keep only the largest sub-cluster". Step 4 ranks them.
+3b. **S3 acceptance gate — no mega-frame.** After steps 2–3, a surviving group
+   still holding `> MAX_FRAME_FRACTION` of the eligible node count is **dropped**
+   (`exceeds MAX_FRAME_FRACTION: not spatially separable`). Split-big recurses
+   only twice; on a degenerate graph whose LP collapsed a long weak chain into
+   one blob, a spatially-*clean* 42-of-54-node group can reach this point — and
+   is dropped rather than drawn.
+4. **Overlap-resolution + the `MAX_FRAMES` ceiling.** Rank every remaining
+   candidate `(size desc, intra-group edge density desc, min node id asc)`. Walk
+   the ranked list, keeping a candidate **unless** it overlaps an already-kept
+   frame by `> MAX_OVERLAP_FRAC` (**0.5**) of the **smaller** rect's area — then
+   drop it. **Stop at `MAX_FRAMES = 6` kept.** Never shrink a kept frame, merge
+   a dropped one in, or backfill to reach 6 with a lower-ranked candidate.
+   **`MAX_FRAMES` is a ceiling, not a target** — if fewer than 6 candidates
+   survive steps 1–3b, the result has fewer than 6 frames, and that is correct.
+5. **Rect.** Each kept group's rect = the canonical-footprint bounding box of
+   its members, expanded by `AUTO_FRAME_PAD` (24) each side; never smaller than
+   `AUTO_FRAME_MIN` (48); integer coordinates. Frames ordered
+   `(rect.y, rect.x, min member id)`; 1-based `Area N`.
+
+**The acceptance contract.** After step 5, **every** retained frame satisfies
+*all* of: `foreignCount ≤ max(2, floor(memberCount × 0.5))` (S8) ·
+`memberCount ≥ MIN_FRAME_NODES` (S4) · `memberCount ≤ MAX_FRAME_FRACTION ×
+eligibleCount` (S3) · no pair overlapping > 0.5 of the smaller rect · at most
+`MAX_FRAMES`. A candidate that cannot meet the contract is **unframed** — that
+is the normal, correct outcome, even when it drives the frame count below 6 or
+coverage well below 0.5.
+
+**Three regression layers** — Table A (topology), Table A′ (split stage),
+Table B (final) — pinned separately by the impl PR's fixture test
+(`autoFrames.fixture.test.ts`), all run verbatim to §AF10.2 on the committed
+`examples/*.json`:
+
+**Table A — raw LP + merge-small + split-big (topology-algorithm regression):**
+
+| Graph | Eligible | Raw LP groups | after steps 1–2 |
+|---|---|---|---|
+| default | 3 | `[3]` | below `WORTH_IT_FLOOR` → `[]` |
+| Coffee | 13 (`9 + 4`) | `[5, 4, 4]` | `[5, 4, 4]` (nothing < 3; largest 0.38 < 0.55) |
+| MMO | 90 | `[28, 18, 13, 10, 7, 7, 4, 3]` | `[28, 18, 13, 10, 7, 7, 4, 3]` (nothing < 3; largest 0.31 < 0.55) |
+
+**Table A′ — the spatial-candidate stage (after step 3, before ranking / the ceiling):** a split-stage regression guard, independent of step 4.
+
+| Graph | Contaminated LP/split groups | Outcome |
+|---|---|---|
+| Coffee | none (0 foreign in every group) | 3 candidates pass through unchanged |
+| MMO | the 28 / 18 / 13 / 10 / 7 / 7 raw groups all fail S8 once bisected | recursive bisection yields **12 clean candidates** (`{10, 8, 7, 6, 4, 4, 4, 4, 3, 3, 3, 3}`) + **7 dropped** (`no valid spatial gap`: sizes 3, 4, 3, 7, 4, 4, 6) |
+
+**Table B — final suggested frames (measured, after steps 3b – 5):**
+
+| Graph | Final frames | Sizes | Per-frame member / foreign (budget) | Max foreign / member | Max pairwise overlap | Coverage | Dropped candidates |
 |---|---|---|---|---|---|---|---|
-| default | 3 | `[3]` | `[3]` | `[3]` | `[3]` | **0** | 3 < `WORTH_IT_FLOOR` (8) → `Suggest` returns nothing (§AF2.2) |
-| Coffee | 13 (`9 + 4` across two components) | `[5, 4, 4]` | `[5, 4, 4]` (no group `< 3`) | `[5, 4, 4]` (largest 5 = 0.38 of 13, under 0.55) | `[5, 4, 4]` (3 ≤ 6) | **3** | all **13** eligible nodes framed; the 10 model nodes never take part |
-| MMO | 90 (one component) | `[28, 18, 13, 10, 7, 7, 4, 3]` | `[28, 18, 13, 10, 7, 7, 4, 3]` — **unchanged**: rule 1 only touches groups of 1–2; the 4- and 3-node groups survive | `[28, 18, 13, 10, 7, 7, 4, 3]` — unchanged: largest 28 = 0.31 of 90, under 0.55 | `[28, 18, 13, 10, 7, 7]` — 8 groups > 6, so the two lowest-ranked (sizes 4 and 3) are **dropped, not merged** | **6** | **83** of 90 nodes framed (0.92); largest 28 ≈ 31 % (S3 OK); every kept frame ≥ 7 nodes (S4 OK); the 7 unframed nodes are the two dropped low-rank groups |
+| default | **0** | — | — | — | — | — | — (below floor) |
+| Coffee | **3** | `{5, 4, 4}` | 5/0 (2) · 4/0 (2) · 4/0 (2) | **0.00** | **0 %** (0/3 pairs) | **13 / 13 = 1.00** | **none** — no LP group is contaminated, spatial pass is a no-op |
+| MMO | **6** | `{10, 8, 7, 6, 4, 4}` | 10/2 (5) · 8/3 (4) · 7/0 (3) · 6/2 (3) · 4/0 (2) · 4/2 (2) | **0.50** | **0 %** (0/15 pairs) | **39 / 90 = 0.43** | **13**: 7 × `contaminated: no valid spatial gap` (sizes 3, 4, 3, 7, 4, 4, 6 — foreign 6, 16, 10, 5, 5, 11, 10) + 6 × `MAX_FRAMES ceiling reached` (sizes 4, 4, 3, 3, 3, 3 — clean but out-ranked) |
 
-The two dropped MMO groups (4 + 3 nodes, low density) are left unframed —
-preferable to a 7th/8th frame or to bloating a neighbour. The earlier draft of
-this table wrongly showed merge-small folding the 3–4-node groups upward; rule 1
-only merges groups of **1 or 2**, so the drop happens at the **cap**, and the
-framed total is **83**, not the "~63" the earlier draft implied.
+**Synthetic checks (also in the fixture test):**
 
-**`framed fraction ≥ 0.5` is a *fixture quality bar*, not a runtime invariant.**
-A CI assertion on the **Coffee and MMO fixtures** pins the expected frame count
-(3 and 6) and `framed fraction ≥ 0.5` — its only job is to catch an *algorithm
-quality regression* on graphs we know well ("did a change start dropping groups
-it used to keep"). It is **not** applied to arbitrary user graphs and it never
-changes what the algorithm does:
+| Synthetic | Final frames | Coverage | Notes |
+|---|---|---|---|
+| 2 interleaved communities (MMO pathology, miniature) | **1** — `{3}` | 3 / 16 = 0.19 | 2 × size-5 contaminated groups (foreign 4 > budget 2) dropped `no valid spatial gap`; 1 × size-3 dropped for overlap. A pathological graph yielding almost nothing **is the correct result**. |
+| 3 clean blobs, far apart | **3** — `{6, 6, 6}` | 18 / 18 = 1.00 | uncontaminated → untouched |
+| 9 clean blobs on single-edge bridges (LP over-merges) | **2** — `{6, 6}` | 12 / 54 = 0.22 | the collapsed 42-of-54-node blob is spatially clean but hits the **S3 gate (3b)** → dropped `exceeds MAX_FRAME_FRACTION` |
 
-- The algorithm **never** merges or fabricates a weak cluster to reach 50 %
-  coverage. Rules 1–3 (§AF3.6) run purely on cluster quality; the framed
-  fraction is only *observed* afterward, never *targeted*.
-- On a user graph whose structure yields few reliable clusters, a **low framed
-  fraction, a handful of frames, or "no frames to suggest" are all valid
-  normal results** — `Suggest frames` completes successfully, no error, no
-  failure state (§AF10.4).
-- The 0.5 number lives only in the fixture tests. It carries no meaning for a
-  live graph.
+Every row of Table B and the synthetics has been verified to satisfy the
+acceptance contract (`every retained frame clean`) and
+`input-order-reversed → identical`.
 
-### AF3.7 Dry-run source
+Deterministic renders of the Coffee and MMO final frames (node dots + dashed
+rects, straight from `suggestFrames` output) are attached to the PR.
+
+### AF3.7 Dry-run source, and the contamination-threshold sweep
 
 The numbers above were first established by a throwaway analysis over the
 committed `examples/*.json` (connected components, degree histogram, hub list,
 deterministic label propagation). The dry-run is **not** shipped as a loose
 script — it lives as a committed **fixture test**,
 `src/components/frames/autoFrames.fixture.test.ts` (impl PR), which runs the
-§AF10.2 `suggestFrames` procedure verbatim on the same two files and pins
-`[5, 4, 4]` / `[28, 18, 13, 10, 7, 7]`, the framed totals (13 / 83), and
+§AF10.2 `suggestFrames` procedure verbatim on the same two files and pins the
+**Table A** raw-LP partition (`[5, 4, 4]` / `[28, 18, 13, 10, 7, 7, 4, 3]`), the
+**Table B** final frame sizes and their coverage / overlap / foreign counts, and
 determinism under array reversal. Key raw facts:
 
 - Coffee: 13 eligible nodes across **two** components (`9 + 4`); **10 degree-0
-  model nodes**; no hubs. Both components clear the whole-graph floor.
+  model nodes**; no hubs. Both components clear the whole-graph floor. Neither
+  LP group is contaminated (0 foreign nodes each), so the spatial-cohesion pass
+  is a **no-op** on Coffee — its 3 frames are identical before and after
+  review boundary 5.
 - MMO: **1 component of 90** eligible nodes + 7 degree-0 Registers; hubs
   `level` (13), `gold` (10), `xp` (5), `hunt_payout` (6), `quest_payout` (6),
   `resupply` (6), … — which is why plain connected components fails.
 - MMO has **9 node-pairs joined by 2–3 parallel wires**; counting them with
   multiplicity (§AF3.2) is what makes the raw LP partition
   `[28, 18, 13, 10, 7, 7, 4, 3]` reproducible.
-- MMO x-position histogram has natural empty bands at x≈800–1200 and
-  x≈2400–2800 → a spatial split (§AF3.6 rule 2) has real gaps to cut on.
+- MMO's raw LP communities are **topological, and MMO interleaves them
+  spatially** — the level / gold / xp progression corridors run left-to-right
+  across the same vertical band — so each raw group's bbox swallows 10–57 nodes
+  of the other groups. That is the pathology §AF2.4 forbids and the
+  spatial-cohesion pass (§AF3.6 step 3) exists to break.
+
+#### The sweep (review boundary 5)
+
+A deterministic sweep over Coffee, MMO, and synthetic fixtures compares the
+candidate contamination thresholds. It is committed as a prints-only fixture
+(`autoFrames.sweep.test.ts` / `autoFrames.report.test.ts`). For each threshold
+it records final frame count + sizes, coverage, max pairwise overlap (as a
+fraction of the smaller rect), foreign nodes / frame, max foreign / member
+ratio, and every dropped candidate with its reason.
+
+| Threshold | Coffee | MMO | `interleaved` synthetic |
+|---|---|---|---|
+| **raw LP + bbox** (no spatial pass) | `{5,4,4}` · cover 1.00 · overlap **0 %** · foreign 0 | `{28,18,13,10,7,7}` · cover 0.92 · overlap **100 %** · foreign **10–57** · maxF/M **8.1** | one frame over both communities · foreign huge |
+| `foreign / members ≤ 1.0` (split-or-drop) | `{5,4,4}` · cover 1.00 · overlap 0 % · foreign 0 | still **48 %** max overlap · foreign up to 22 · maxF/M **5.5** — several frames stay contaminated | still one contaminated frame |
+| **`foreign ≤ max(2, floor(members × 0.5))`** *(adopted; ≡ ratio ≤ 0.5)* | `{5,4,4}` · cover **1.00** · overlap **0 %** · foreign **0** | `{10,8,7,6,4,4}` · cover **0.43** · overlap **0 %** · foreign **0–3 (all ≤ budget)** · maxF/M **0.50** · **13 dropped** | `{3}` · cover 0.19 · overlap **0 %** · foreign 2 (= budget) · 3 dropped |
+
+`ratio ≤ 0.5` and the abs form `foreign ≤ max(2, floor(members × 0.5))` produce
+**identical** partitions on every fixture; the abs form — with its `max(2, …)`
+tiny-group floor — is the definition. `ratio ≤ 1.0` still left MMO frames
+overlapping 48 % with 5.5× foreign density, so it does **not** clear §AF2.4.
+
+**Adopted (§AF3.6 step 3): `foreign ≤ max(2, floor(memberCount × 0.5))`, split
+the contaminated group or — if it will not bisect cleanly — drop it.** It leaves
+Coffee's 3 frames identical and brings MMO from "one rect fully inside another,
+10–57 strays per frame" to **6 frames, 0 % pairwise overlap, ≤ 3 strays each
+(all within budget)**. The MMO coverage falling to **0.43** is the accepted cost
+(§AF2.3) — the 0.92 version was the worse screen, and 51 unframed MMO nodes is a
+correct result, not a gap to backfill.
 
 ---
 
@@ -515,41 +644,67 @@ Invariants (extend §LGR8; every one gets an e2e in the impl PR):
 
 For an identical `(GraphDoc, node positions)` the following must be **exactly**
 equal across reloads, machines, browser JS iteration order, hover, theme
-toggle, a sim step, and input-array order reversed (extends LGR-INV-7):
+toggle, a sim step, input-array order reversed, **any UI locale (EN / KO), any
+label text, any font or font-load timing, any viewport / zoom, and whether or
+not React Flow's `measured` sizes have populated** (extends LGR-INV-7):
 
 - cluster membership (which node is in which group);
 - frame count;
 - each frame rect (`x, y, w, h`);
 - each frame's generated label and the frames' order;
-- paint order.
+- paint order;
+- which candidates were dropped, and why.
 
 **Fixing the sources of non-determinism:**
 
 | Source | Rule |
 |---|---|
-| adjacency | a **multigraph** built from all drawn edges — a parallel edge is kept, not collapsed (§AF3.2); this must match between the algorithm and any dry-run |
+| **node geometry** | **canonical footprint only** — `CANON_NODE_W × CANON_NODE_H = 150 × 40` at the node's `position`. React Flow's live `measured` width/height is **never read** by membership, split, contamination, ranking, overlap, or the rect. (The render layer may *draw* a slightly larger visual if a real node body exceeds the canonical box, but that never feeds back into the algorithm.) |
+| adjacency | a **multigraph** built from all drawn edges — a parallel edge is kept, not collapsed (§AF3.2) |
 | label-propagation scope | **one run over every eligible node id** (no per-component split); components stay apart because no edge joins them |
 | label-propagation processing order | iterate nodes in **ascending node-id** (lexical, `<`) order, every round |
-| label-propagation tie-break | when two neighbour labels have equal weighted frequency, pick the **lexically smallest label id** |
-| post-pass "merge into most-connected neighbour" tie | pick the neighbour group whose **representative node id** (its lexically smallest member) is smallest |
-| spatial split axis when bbox is square (spanX == spanY) | split on **x** |
-| spatial split gap ties | the gap with the **smaller lower-bound coordinate** |
-| coordinate rounding | all rect coordinates rounded to **integer flow units** with `Math.round`; half-up |
-| frame order | frames sorted by `(rect.y, rect.x, representativeNodeId)` ascending; the ordinal label follows this order |
-| keep-top-N rank | `(size desc, intra-group density desc, representativeNodeId asc)` |
+| label-propagation tie-break | equal weighted frequency → **lexically smallest label id** |
+| merge-small "most-connected neighbour" tie | neighbour group with the **smallest representative node id** |
+| **contamination measure** (§AF3.6 step 3) | `foreign` = count of non-member, non-model node **centres** inside the member-centre bbox (canonical centres); contaminated iff `foreign > max(2, floor(memberCount × 0.5))` |
+| **spatial-cohesion split axis** | the axis with the larger **normalized** largest-gap (`raw gap ÷ (max centre − min centre)` on that axis); tie (incl. a square-ish bbox) → **x** |
+| **spatial-cohesion split point** | on the chosen axis, scan gaps **descending by raw size**; take the first whose two sides are each ≥ `MIN_FRAME_NODES` **and** whose raw gap ≥ `MIN_SPLIT_GAP` (120); gap-size ties → **smaller lower-bound coordinate**, then **smaller min node id**. A valid cut always leaves both sides ≥ 3, so no sub-`MIN_FRAME_NODES` fragment is ever produced. |
+| **spatial-cohesion recursion** | recurse into a still-contaminated subgroup; depth cap `SPATIAL_MAX_DEPTH = 6`. A contaminated group that **cannot be bisected** (no valid gap) or is **still contaminated at the depth cap** is **DROPPED** — never kept as a final frame, never merged. |
+| **S3 acceptance gate** (rule 3b) | after steps 2–3, a group still holding `> MAX_FRAME_FRACTION` (0.55) of the eligible count is **dropped** (reason `exceeds MAX_FRAME_FRACTION`) |
+| **overlap-resolution + ceiling** (§AF3.6 step 4) | rank `(size desc, intra-group density desc, min node id asc)`; walk ranked, keep unless the candidate overlaps an already-kept frame by `> MAX_OVERLAP_FRAC = 0.5` of the **smaller** rect area; **stop at `MAX_FRAMES = 6`**; never shrink / merge / backfill |
+| coordinate rounding | rect coordinates via `Math.round` (half-up), integer flow units |
+| frame order | `(rect.y, rect.x, representativeNodeId)` ascending; the ordinal label follows this order |
 
 **Test surface the impl PR must include:**
 
-- **unit** — `autoFrameGeom` (or equivalent): LP fixpoint on a hand graph;
-  tie-break cases; merge-small; split-big gap detection; rect + pad; the
-  order/label rules; **input-order-reversed → identical output**.
+- **unit** — LP fixpoint on a hand graph; tie-break cases; merge-small;
+  split-big gap detection; `bestSpatialCut` axis / gap / tie rules; rect + pad;
+  the order/label rules; **input-order-reversed → identical output**.
 - **unit** — model-node exclusion; a graph of only Parameters/Registers → 0
   auto frames.
-- **fixture** — Coffee → exactly **3** auto frames with the recorded member
-  sets; MMO → exactly **6** frames, no frame > S3 fraction, none < S4 size,
-  **framed fraction ≥ 0.5** — a **fixture quality bar only** (catches an
-  algorithm regression on these two known graphs; never asserted on arbitrary
-  user graphs, never a runtime invariant — §AF3.6).
+- **unit (S9 — canonical geometry)** — the same `(GraphDoc, positions)` run
+  with every node's `measured` set to `150×40`, unset, `320×96`, and `1×1`
+  produces **byte-identical** `AutoFrameResult[]` on both the Coffee and MMO
+  fixtures. (Proven — see §AF3.6 Table B footnote.)
+- **fixture (Table A — topology regression)** — the raw LP + merge-small +
+  split-big partition is pinned: Coffee `[5, 4, 4]`, MMO
+  `[28, 18, 13, 10, 7, 7, 4, 3]`.
+- **fixture (spatial-candidate stage)** — the set of groups **after step 3**
+  (before overlap-resolution and the ceiling): pins that the contaminated MMO
+  groups are split or dropped as recorded, so a split-stage regression is
+  caught independently of the ranking.
+- **fixture (Table B — final frames + the acceptance assertion)** — Coffee →
+  exactly **3** frames with the recorded member sets; MMO → exactly **6**
+  frames with sizes `{10, 8, 7, 6, 4, 4}` and the recorded 13 drop reasons. On
+  **every** fixture and synthetic the test asserts the **acceptance contract**
+  for every retained frame: `foreignCount ≤ max(2, floor(memberCount × 0.5))`
+  (S8), `memberCount ≥ 3` (S4), `memberCount ≤ 0.55 × eligibleCount` (S3), no
+  pair overlapping > 0.5 of the smaller rect, ≤ 6 frames — not just the count.
+  Coverage is recorded and asserted only as a **range** (Coffee `0.95–1.0`,
+  MMO `0.35–0.5`); a change that pushes MMO back toward 0.92 **fails** the
+  test (it means the spatial pass stopped dropping).
+- **fixture (threshold sweep)** — prints-only: Coffee / MMO / `interleaved` /
+  clean-blobs under raw, `ratio ≤ 1.0`, and the adopted `abs` rule; documents
+  why `abs` was chosen (§AF3.7).
 - **e2e** — Suggest frames from the desktop control + the mobile More sheet;
   auto set replaced on re-infer; manual frames preserved (§AF5 R3); a committed
   rename/resize promotes to manual, a cancelled edit stays auto (§AF5 R5/R6);
@@ -560,10 +715,13 @@ toggle, a sim step, and input-array order reversed (extends LGR-INV-7):
   (selection ring / effective pulse / evaluated bracket above a frame);
   AF-INV-4 (survives Reset view + sim Reset, dropped on Template load); Focus
   de-emphasis (AF-INV-8).
-- **visual** — one baseline `auto-frames.png`: the MMO fixture (or a trimmed
-  stand-in) with auto frames on — dashed borders, ordinal labels, a promoted
-  (solid) frame among them, minimap hidden. Catches a regression where the
-  dashed/solid tell is lost or a frame covers a node.
+- **visual** — **two** baselines (review boundary 3):
+  `auto-frames.png` — a fresh Suggest on the e2e fixture: dashed borders,
+  ordinal `Area N` labels, one frame selected with its ✕ + resize corner, the
+  first-Suggest note shown; and `auto-frames-mixed.png` — a promoted (solid)
+  frame plus a manual frame overlapping an auto frame, proving auto paints
+  behind manual and the stale-hint dot renders. Catch a regression where the
+  dashed/solid tell is lost, paint order flips, or a frame covers a node.
 - **determinism e2e** — Suggest, snapshot the frame rects+labels; reload;
   Suggest again; assert byte-identical.
 
@@ -607,9 +765,23 @@ existing `canvas.frame.*` key family gains `canvas.frame.suggest` + a
 - [x] §AF3 — heuristic comparison table (A–E) with determinism / complexity /
       isolated / bridge-hub / state+hint / Param-Register / merge-split / and
       **Coffee + MMO dry-run counts** per candidate
-- [x] §AF3.6 — the chosen post-pass + the after-post-pass dry-run table.
-      **DECIDED: `MAX_FRAMES = 6`; the cap drops leftover groups, never
-      force-merges them** (Coffee → 3, MMO → 6, ~27 MMO nodes left unframed)
+- [x] §AF3.6 — the post-pass: merge-small → split-big → **spatial-cohesion
+      (split, or DROP if not cleanly bisectable)** → **S3 acceptance gate** →
+      **overlap-resolution + the `MAX_FRAMES` ceiling**, plus **Table A**
+      (raw-LP topology baseline), a **spatial-candidate stage** table, and
+      **Table B** (measured final frames). **Review boundary 5, round 2:**
+      every retained frame satisfies the acceptance contract — `foreign ≤
+      max(2, floor(members × 0.5))` (S8), `≤ 0.55 × eligible` (S3), `≥ 3` (S4),
+      no > 0.5 overlap, ≤ 6 frames; a candidate that can't is **unframed**.
+      **`MAX_FRAMES = 6` is a ceiling, not a target.** All geometry is
+      **canonical** (`CANON_NODE_W×H = 150×40`), never `measured` (S9).
+      Coffee → 3 unchanged (0 foreign); MMO → 6, sizes `{10,8,7,6,4,4}`,
+      **0 % pairwise overlap, foreign 0–3 (all ≤ budget), coverage 0.43, 13
+      candidates dropped** — the raw-LP 0.92 / 100 %-overlap version is
+      rejected (§AF2.4)
+- [x] §AF3.7 — the contamination-threshold **sweep** (raw / `ratio ≤ 1.0` /
+      adopted `abs = foreign ≤ max(2, floor(members × 0.5))`) + the
+      split-or-drop rationale
 - [x] §AF4 — recompute-trigger policy. **DECIDED: P1 only** (explicit
       `Suggest frames`; no Template-open one-shot; run / Activity / Focus /
       Filter never recompute) + the per-action effect table
@@ -630,38 +802,76 @@ existing `canvas.frame.*` key family gains `canvas.frame.suggest` + a
 
 ### AF10.2 Pseudocode of the algorithm
 
-This procedure and the §AF3.6 dry-run table describe the **same computation** —
-the impl PR's fixture test runs exactly this on the committed `examples/*.json`
-and pins `[5, 4, 4]` (Coffee) and `[28, 18, 13, 10, 7, 7]` (MMO).
+This procedure and the §AF3.6 tables describe the **same computation** — the
+impl PR's fixture test runs exactly this on the committed `examples/*.json` and
+pins Table A (`[5,4,4]` / `[28,18,13,10,7,7,4,3]`), the spatial-candidate stage,
+and Table B (Coffee 3 / MMO 6 `{10,8,7,6,4,4}` + the 13 drop reasons + the
+acceptance assertion).
 
 ```
-suggestFrames(graph, positions):
+CANON_NODE_W, CANON_NODE_H = 150, 40      # the ONLY node size the algorithm uses
+centre(n)   = (n.position.x + 75, n.position.y + 20)          # canonical, never `measured`
+canonRect(n)= (n.position.x, n.position.y, 150, 40)
+
+suggestFrames(graph):
   eligible = graph.nodes without kind in {parameter, register}
-  if eligible.length < WORTH_IT_FLOOR:  return []       # §AF2.2 — GRAPH-LEVEL gate
-  adj  = multigraph adjacency over eligible, from ALL drawn edges
-         (resource + state); a parallel edge adds the neighbour AGAIN (§AF3.2);
-         self-loops and edges to an excluded node are skipped
-  # ONE run over every eligible id, ascending lexical order, every round.
-  # Disconnected components can't share a label (no edge between them), so the
-  # component partition falls out for free — no per-component loop, no
-  # per-component size gate.
-  groups = labelPropagation(eligible.ids, adj)          # §AF3.2, low-label tie-break, <= 20 rounds
-  groups = mergeSmall(groups, adj)                      # §AF3.6 r1 — only groups of 1-2;
-                                                        #   no inter-group edge => DROP (never relocate
-                                                        #   into another component)
+  if eligible.length < WORTH_IT_FLOOR:  return []              # §AF2.2 — graph-level gate
+  adj = multigraph adjacency over eligible from ALL drawn edges (§AF3.2)
+  # ONE LP run, ascending lexical id order, low-label tie-break, <= 20 rounds.
+  groups = labelPropagation(eligible.ids, adj)
+  groups = mergeSmall(groups, adj)                             # r1 — only groups of 1-2; no inter-group edge => DROP
   framedTotal = sum(|g| for g in groups)
-  groups = splitBig(groups, positions, framedTotal,     # §AF3.6 r2 — fraction is GRAPH-WIDE
+  groups = splitBig(groups, centre, framedTotal,               # r2 — fraction is graph-wide
                     MAX_FRAME_FRACTION=0.55, MIN_SPLIT_GAP=120, depth<=2)
-  groups = keepTopN(groups, adj, MAX_FRAMES=6,          # §AF3.6 r3 — GRAPH-WIDE cap;
-                    rankBy=(size, density, repId))      #   DROP the rest, never force-merge
-  frames = []
-  for g in groups where |g| >= MIN_FRAME_NODES:
-      rect = boundingBox(g.memberRects(positions)) expandedBy AUTO_FRAME_PAD(24)
-      rect = growToMin(rect, AUTO_FRAME_MIN=48);  rect = round(rect)   # integer flow units
-      frames.push({ kind: 'auto', members: g, rect })
-  frames.sort by (rect.y, rect.x, min member id)
-  assignOrdinalLabels(frames)                           # "Area N" / "구역 N"
-  return frames        # derived, in-memory only — never serialized
+  #  >>> TABLE A captured here (groups) <<<
+
+  # --- r3: spatial cohesion — SPLIT the contaminated, or DROP it --------------
+  candidates = []
+  for g in groups:  candidates += spatialCohesion(g, depth=0)
+  #  >>> SPATIAL-CANDIDATE STAGE captured here (candidates + drops) <<<
+
+  spatialCohesion(g, depth):
+    foreign = count of non-member, non-model centres inside bbox(centre(m) for m in g)
+    if foreign <= max(2, floor(|g| * 0.5)):  return [g]        # clean → candidate as-is
+    if depth >= SPATIAL_MAX_DEPTH (6):        drop(g, "depth cap"); return []
+    cut = bestSpatialCut(g)            # §AF8: normalized-gap axis (tie x); descending raw gap;
+                                       #  both sides >= MIN_FRAME_NODES; raw gap >= MIN_SPLIT_GAP;
+                                       #  gap tie -> smaller low coord -> smaller min id
+    if cut is none:                          drop(g, "no valid spatial gap"); return []
+    return spatialCohesion(cut.a, depth+1) ++ spatialCohesion(cut.b, depth+1)
+    # a valid cut always leaves both sides >= 3, so no sub-3 fragment is created
+
+  # --- r3b: S3 acceptance gate — no mega-frame -------------------------------
+  candidates = [g for g in candidates
+                if |g| <= MAX_FRAME_FRACTION * eligible.length
+                else drop(g, "exceeds MAX_FRAME_FRACTION")]
+
+  # --- r4: overlap-resolution + the MAX_FRAMES ceiling ---------------------
+  rank candidates by (|g| desc, intraDensity(g,adj) desc, minMemberId asc)
+  kept = []
+  for g in ranked:
+      if kept.length == MAX_FRAMES (6):  drop(g, "MAX_FRAMES ceiling reached"); continue
+      rect_g = round(growToMin(bboxOf(canonRect(m) for m in g) padded by AUTO_FRAME_PAD 24,
+                               AUTO_FRAME_MIN 48))
+      if exists k in kept with overlapArea(rect_g, k.rect)
+                               > MAX_OVERLAP_FRAC (0.5) * min(area(rect_g), area(k.rect)):
+          drop(g, "overlap > MAX_OVERLAP_FRAC of a kept frame"); continue
+      kept.push({members: g, rect: rect_g})
+
+  # --- order + labels -----------------------------------------------------
+  kept.sort by (rect.y, rect.x, minMemberId)
+  return [{area: i+1, rect, members} for i, k in kept]   # derived, in-memory only
+
+# ACCEPTANCE CONTRACT — asserted on every retained frame, every fixture:
+#   foreign(frame) <= max(2, floor(|frame| * 0.5))     (S8)
+#   |frame| >= MIN_FRAME_NODES                          (S4)
+#   |frame| <= MAX_FRAME_FRACTION * eligible.length     (S3)
+#   no kept pair overlaps > 0.5 of the smaller rect
+#   kept.length <= MAX_FRAMES
+# A candidate that cannot satisfy it is UNFRAMED. Fewer than 6 frames, or 0,
+# or coverage well below 0.5, is a correct result — never backfilled.
+# Termination: every spatialCohesion call strictly shrinks a group, depth <= 6;
+# r3b and r4 are single passes. No RNG, no `measured`, no wall-clock.
 ```
 
 ### AF10.3 Out of scope for the Slice-4b implementation PR
@@ -675,8 +885,12 @@ suggestFrames(graph, positions):
 - Expression-`@id` traversal as a grouping or membership input.
 - Remembering a dismissal across a re-infer or a reload; a dedicated `pin`
   control (a kept frame is a promoted manual frame instead — §AF5 R8).
-- Force-merging a leftover cluster into a kept frame to hit `MAX_FRAMES` — the
-  cap **drops** low-quality groups (§AF3.6 rule 3).
+- Force-merging a leftover cluster into a kept frame to hit `MAX_FRAMES`, or
+  keeping a contaminated / mega group because "some frame is better than none" —
+  the post-pass **drops** every candidate that fails the acceptance contract
+  (§AF3.6). Fewer than 6 frames, or 0, is a valid result.
+- Reading React Flow's live `measured` node size anywhere in membership, split,
+  ranking, or drop — all geometry is the canonical footprint (§AF8 / S9).
 - Any auto-recompute on Template / file open, on a structural edit, or on a
   sim / Activity / Focus / Filter change (§AF4.1).
 - Louvain / any RNG-seeded community method (determinism cost — §AF3.2).
@@ -688,11 +902,14 @@ suggestFrames(graph, positions):
 | Situation | Behaviour |
 |---|---|
 | graph below the §AF2.2 floor | Suggest yields 0–1 frames; the control does not nag |
-| a component that resists splitting (no gap ≥ MIN_SPLIT_GAP) | leave the large frame whole; record it; do not cut arbitrarily |
+| an uncontaminated group holding > MAX_FRAME_FRACTION that split-big could not break (degenerate LP collapse) | **dropped** by the S3 acceptance gate (rule 3b) — `exceeds MAX_FRAME_FRACTION`; its nodes stay unframed |
+| a **contaminated** group (§AF3.6 step 3) with no valid spatial cut, or still contaminated at `SPATIAL_MAX_DEPTH` (6) | **dropped** — never kept as a final frame, never merged; nodes stay unframed |
+| a spatial cut — by construction leaves both sides ≥ MIN_FRAME_NODES | no sub-3 fragment is ever produced (the cut is only taken when both sides clear the floor) |
 | LP does not converge in 20 rounds | stop at round 20 (deterministic); the partition at that point is used |
 | every node is a model node | 0 auto frames; a short "nothing to group" note — a **normal** result, not an error |
-| a user graph with few reliable clusters (framed fraction < 0.5, or only 1–2 frames, or none) | **valid normal output** — `Suggest frames` completes with no error; the algorithm never merges / fabricates a cluster to raise coverage. The `framed fraction ≥ 0.5` check is a **fixture-only** quality bar (§AF3.6), not applied here |
-| more than 6 candidate groups survive 1–2 | keep the 6 highest-ranked; **drop** the rest — those nodes stay unframed (§AF3.6 rule 3) |
+| a user graph with few reliable clusters (low framed fraction, or only 1–2 frames, or none) | **valid normal output** — `Suggest frames` completes with no error; the algorithm never merges / fabricates a cluster to raise coverage. Coverage is a **reported metric, never a floor** (§AF2.3) |
+| more than 6 clean candidates survive steps 1–3b | keep the 6 highest-ranked non-overlapping; **drop** the rest (`MAX_FRAMES ceiling reached`) — those nodes stay unframed. `MAX_FRAMES` is a ceiling, not a target |
+| a fixture's final coverage jumps back up (e.g. MMO → 0.92) | **fixture failure** — the spatial pass stopped dropping; a regression, not an improvement (§AF2.4) |
 | Suggest invoked twice with no change | identical frames (S5); the second invoke is a no-op visually |
 | a node deleted after Suggest so a frame's member set is empty | that auto frame is dropped on the next re-infer; until then it renders at its last rect with the staleness indicator shown |
 
@@ -700,15 +917,32 @@ suggestFrames(graph, positions):
 
 ## AF11. Order this feeds into
 
-Merges as *settled design*. The decisions are fixed: `MAX_FRAMES = 6` with a
-drop (not force-merge) cap (§AF3.6), **P1-only** recompute (§AF4.1), §AF5's
-R1–R8, and — from this correction — a **whole-graph** `WORTH_IT_FLOOR`, one
-label-propagation run over all eligible nodes, and multigraph adjacency
-(§AF2.2 / §AF3.2 / §AF3.6 / §AF10.2). The **implementation PR still requires
-explicit approval before it starts** — it is render / UI-only, no `src/` wire
-change, no engine change, one PR with the §AF8 test set (unit + fixture that
-pins `[5,4,4]` / `[28,18,13,10,7,7]` + e2e + one `auto-frames.png` visual
-baseline + a determinism e2e).
+Merges as *settled design*. The decisions are fixed: `MAX_FRAMES = 6` as a
+**ceiling** with a drop (never force-merge) cap, **P1-only** recompute
+(§AF4.1), §AF5's R1–R8, a **whole-graph** `WORTH_IT_FLOOR`, one
+label-propagation run over all eligible nodes, multigraph adjacency, and —
+from **review boundary 5** —
+
+- **canonical geometry** (`CANON_NODE_W × CANON_NODE_H = 150 × 40`), never
+  React Flow's `measured` size, so the result is locale-, font-, browser-,
+  zoom- and render-timing-independent (S9);
+- a **deterministic recursive spatial-cohesion pass** that **splits** any group
+  whose member bbox holds `> max(2, floor(members × 0.5))` foreign node centres,
+  and **drops** it outright if it cannot be cleanly bisected;
+- an **S3 acceptance gate** that drops a surviving group still > 55 % of the
+  eligible count;
+- **overlap-resolution + the ceiling** that drops any candidate stacking > 0.5
+  of the smaller rect on a kept frame and stops at 6;
+- the **acceptance contract** (§AF3.6): every retained frame is clean, in
+  range, non-overlapping — a candidate that can't be is unframed, and fewer
+  than 6 frames (or 0, or coverage well below 0.5) is a correct result.
+
+MMO's fixture coverage moves **0.92 → 0.43** by design (§AF2.3). The
+**implementation PR still requires explicit approval before it starts** — it is
+render / UI-only, no `src/` wire change, no engine change, one PR with the §AF8
+test set (Table A + spatial-candidate-stage + Table B fixtures with the
+per-frame acceptance assertion + the threshold sweep + the S9 canonical-geometry
+unit test + e2e + **two** visual baselines + a determinism e2e).
 
 Slice 5 (`saved` frames) and the §PD12 authored-sections / hierarchical-groups
 candidates remain **separate, later** passes and are not unblocked by this doc.
