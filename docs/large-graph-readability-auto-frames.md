@@ -1,11 +1,23 @@
 # LGR Slice 4b — Auto group frames (non-frozen design doc — DRAFT)
 
-**Status: design review — no implementation.** This is the own-design-pass that
+**Status: design settled — implementation pending review.** This is the
+own-design-pass that
 [`docs/large-graph-readability.md`](large-graph-readability.md) §LGR6.3 / §LGR12
 (slice 4b) and §LGR-D8 defer to. It decides the clustering heuristic, the
 recompute policy, the relationship to the shipped Slice-4a manual frames, the
-persistence boundary, composition, determinism, and the user-facing wording —
-or puts each on the table as an explicit choice with a recommendation.
+persistence boundary, composition, determinism, and the user-facing wording.
+
+**Correction (this revision):** an early attempt to implement §AF10.2 verbatim
+surfaced a contradiction between the pseudocode (which gated *each connected
+component* on `WORTH_IT_FLOOR` and ran label propagation per component) and the
+§AF3.6 dry-run table (computed by running LP once over the whole eligible node
+set). This revision fixes the contradiction — **`WORTH_IT_FLOOR` is a
+whole-graph eligibility gate, LP runs once over all eligible nodes, and the
+adjacency is a multigraph** — so the pseudocode and the dry-run now describe
+the same computation, reproduced by the impl PR's fixture test. This is a
+correction, **not** a new product direction: it settles what
+"`WORTH_IT_FLOOR`" means ("is this graph worth the feature", not "is each
+fragment big enough").
 
 It changes **no** `src/`, GraphDoc, schema, `serialize`, digest, undo, or
 engine. It merges as *settled design, implementation pending*, like
@@ -87,16 +99,27 @@ Filters (§LGR3.2) need the reader to already know what to hide. Auto frames
 give an **unprompted** first pass: "here are ~4 areas, roughly, so you know
 where to look."
 
-### AF2.2 Where it is worth showing
+### AF2.2 Where it is worth showing — a GRAPH-LEVEL gate
 
-- **Below ~25 drawn-edge-connected nodes**: not worth it — the whole graph
-  fits one screen; **Suggest frames** may still run but is expected to produce
-  0–2 frames and the UI should not push it.
-- **~25–60 nodes**: the primary target (a Building block chain, a medium
-  Template).
-- **60+ nodes** (MMO): the case that motivated the feature.
-- Coffee (23 nodes, 11 edges) is a **deliberate small-case check**, not the
-  target — see the dry-run (§AF3.7).
+`Suggest frames` is worth offering when the graph, *as a whole*, is big enough
+that finding the major pieces is a real problem:
+
+- **`WORTH_IT_FLOOR` is a whole-graph threshold**, **not** a per-component one:
+  if the total **eligible** node count (every node except `parameter` /
+  `register`) is below `WORTH_IT_FLOOR` (**8**), `Suggest frames` produces
+  nothing. At or above it, the algorithm runs.
+- **There is no "each connected component must be ≥ 8" rule.** A small
+  disconnected component of an otherwise-large graph is a perfectly valid
+  frame candidate — it is simply never *force-merged* into another component
+  (§AF3.6). Disconnected components stay apart for free: label propagation has
+  no edge to cross between them.
+- Rough guidance on where it *helps*: little value below ~25 eligible nodes
+  (the graph fits a screen); the primary target is a medium Template / Building
+  block chain; the 97-node MMO example is the case that motivated it.
+- Coffee (13 eligible nodes, split `9 + 4` across two components) is a
+  **deliberate small-case check**, not the target — it clears the whole-graph
+  floor (13 ≥ 8), so **both** components are eligible and the dry-run frames
+  all 13 (§AF3.6).
 
 ### AF2.3 Success criteria
 
@@ -104,7 +127,7 @@ where to look."
 |---|---|---|
 | S1 | A reader shown the MMO example with auto frames on can point to "roughly where combat / rewards / economy / progression happen" **faster** than with frames off | timed comprehension check, same protocol family as §CR11 — read → describe the major areas; frames-on vs frames-off, counterbalanced |
 | S2 | On the **MMO fixture** the frame count lands in the legible band **3–6** (`MAX_FRAMES` caps the top; ≥ 3 is expected for this graph's structure) | assertion on the dry-run + a CI test **on the MMO fixture** |
-| S3 | **No mega-frame** — no single auto frame contains **> 55 %** of a component's framed nodes. *This one **is** a runtime property* — enforced by §AF3.6 rule 2 (split-big) on every graph | assertion + a runtime property of the algorithm |
+| S3 | **No mega-frame** — no single auto frame contains **> 55 %** of the whole eligible framed-node total. *This one **is** a runtime property* — enforced by §AF3.6 rule 2 (split-big) on every graph | assertion + a runtime property of the algorithm |
 | S4 | **No confetti** — no auto frame contains **< 3** nodes. *Also a runtime property* — §AF3.6 rule 1 merges or drops tiny groups on every graph | assertion + a runtime property of the algorithm |
 | S5 | Re-running **Suggest frames** on an unchanged `(graph, positions)` produces byte-identical frames (rects, labels, order) — a runtime property | determinism test (§AF8) |
 | S6 | A sim run, a Step, toggling Activity, changing Focus, or applying a Filter **never** changes the auto frames — a runtime property | recompute-trigger test (§AF4) |
@@ -142,8 +165,9 @@ failure as long as the runtime properties hold.
 All candidates run on the **same fixture set**: `examples/coffee-roastery.json`
 (23 nodes / 11 edges / 0 state edges / schema v2) and
 `examples/mmo-progression.json` (97 nodes / 144 edges / 27 state edges), plus
-the built-in 3-node default graph as a floor case. Numbers below are from a
-dry-run script over the committed files (§AF3.7 has the script's output).
+the built-in 3-node default graph as a floor case. Numbers below are the output
+of the §AF10.2 procedure on the committed files, pinned by the impl PR's
+fixture test (§AF3.7).
 
 ### AF3.1 Candidate A — connected components (drawn-edge graph)
 
@@ -163,15 +187,26 @@ dry-run script over the committed files (§AF3.7 has the script's output).
 - **Dry-run:** Coffee → `[9, 4]` + 10 isolated. MMO → **`[90]`** + 7 isolated.
 - **Verdict: REJECTED as the primary heuristic.** MMO collapses to one
   mega-frame (S3 hard-fail) because `level` (deg 13) and `gold` (deg 10) bridge
-  every subsystem. Kept only as a **pre-filter**: run the real heuristic
-  **per connected component** so two disconnected diagrams never share a frame.
+  every subsystem. Connected components are **not** used as a pre-filter or a
+  per-component gate either (§AF2.2 is whole-graph): label propagation runs
+  once over all eligible nodes and two disconnected diagrams never share a
+  label because no edge joins them — the component split is a free by-product,
+  not a step.
 
 ### AF3.2 Candidate B — deterministic community detection (label propagation)
 
-- **How:** synchronous-free label propagation over the drawn-edge graph with a
-  **fixed processing order** (node id, lexical) and a **fixed tie-break**
-  (lowest label id wins); model nodes excluded from the graph; iterate to a
-  fixpoint or 20 rounds.
+- **How:** one asynchronous label-propagation run over the **whole eligible
+  drawn-edge graph** (not per component) with a **fixed processing order**
+  (node id, lexical, every round) and a **fixed tie-break** (lowest label id
+  wins); model nodes excluded; iterate to a fixpoint or 20 rounds. Disconnected
+  components never adopt each other's label because no edge joins them, so one
+  run keeps them apart on its own — there is no per-component pre-filter.
+- **The drawn graph is a MULTIGRAPH.** Each drawn edge contributes weight 1,
+  so a **parallel edge counts again** — MMO has 9 node-pairs joined by 2–3
+  wires (e.g. `level ⇄ z2_xp2lvl` ×3), and each extra wire adds 1 to that
+  neighbour's pull in the frequency count. Collapsing parallels to a single
+  adjacency changes the partition; the dry-run below (and the impl PR's fixture
+  test) count them with multiplicity.
 - **Determinism:** total, *given* the fixed order + tie-break (§AF8). This is
   the whole reason to use label propagation over Louvain — Louvain's greedy
   moves are order-sensitive and need a seeded RNG to be reproducible; LP with a
@@ -255,44 +290,52 @@ dry-run script over the committed files (§AF3.7 has the script's output).
 
 ### AF3.6 The post-pass — merge small, split big
 
-Applied to the raw community partition (Candidate B) **per connected
-component**:
+Applied **once, graph-wide**, to the raw partition from the single
+label-propagation run (Candidate B):
 
 1. **Drop / merge small.** Any group with `< MIN_FRAME_NODES` (default **3**,
-   S4): merge it into the neighbouring group it shares the most drawn edges
-   with; tie-break = lowest group-representative node id. A group with no
-   inter-group edge (a tiny isolated cluster) is **dropped** — no frame.
-2. **Split big.** Any group with `> MAX_FRAME_FRACTION` of the component's
-   framed nodes (default **0.55**, S3): sub-divide by a **single spatial cut**
-   along the group's longer bounding-box axis at the **largest positional gap**
-   (the biggest empty band between sorted node centres on that axis). Recurse
-   at most **twice**. If no gap ≥ `MIN_SPLIT_GAP` (default 120 px) exists, the
-   group is left whole and flagged in the dry-run (accepting a large-but-not-
-   mega frame over an arbitrary cut).
-3. **Cap count — drop, do not force-merge.** `MAX_FRAMES = 6` (**decided**). If,
-   after 1–2, the component still yields more than `MAX_FRAMES` frames, keep the
-   `MAX_FRAMES` **highest-quality** groups and **drop the rest — no frame**. A
-   dropped group's nodes are simply left unframed. **Never** merge a leftover
-   group into a kept one to hit the cap: forcing a weak cluster into a large
-   frame is exactly the "auto frames become new visual complexity" failure the
-   count limit exists to avoid. "Quality" rank = group size first, then
-   intra-group edge density (edges among members / members), then lowest
-   representative node id.
+   S4) — i.e. a group of **1 or 2** nodes — is merged into the neighbouring
+   group it shares the most drawn edges with; tie-break = lowest
+   group-representative node id. A group with **no inter-group edge** — which
+   includes any small group sitting in its own disconnected component — is
+   **dropped, not relocated**: it is never force-merged into a component it has
+   no edge to. Groups of 3+ are left alone here.
+2. **Split big.** Any group holding `> MAX_FRAME_FRACTION` (default **0.55**,
+   S3) of the **whole eligible framed-node total** is sub-divided by a
+   **single spatial cut** along the group's longer bounding-box axis at the
+   **largest positional gap** (the widest empty band between sorted node
+   centres on that axis). Recurse at most **twice**. If no gap ≥
+   `MIN_SPLIT_GAP` (default 120 px) exists — or a cut would leave a side with
+   `< MIN_FRAME_NODES` — the group is left whole (a large-but-not-mega frame is
+   accepted over an arbitrary cut).
+3. **Cap count — drop, do not force-merge.** `MAX_FRAMES = 6` for the **whole
+   graph** (**decided**). If, after 1–2, more than `MAX_FRAMES` groups remain,
+   keep the `MAX_FRAMES` **highest-quality** groups and **drop the rest — no
+   frame**; a dropped group's nodes are left unframed. **Never** merge a
+   leftover group into a kept one to hit the cap. "Quality" rank = group size
+   first, then intra-group edge density (edges among members ÷ members), then
+   lowest representative node id.
 4. **Rect.** Each surviving group's rect = the axis-aligned bounding box of its
    member node rects, expanded by `FRAME_PAD` (default 24 px, flow units) on
    every side. No rect is smaller than `FRAME_MIN` (matches the 4a
    `FRAME_MIN_SCREEN_PX` intent at zoom 1).
 
-**Dry-run after the post-pass (`MAX_FRAMES = 6`, drop-not-merge, state edges included):**
+**Dry-run after the post-pass** — one graph-wide LP run, multigraph adjacency,
+state edges included, `MAX_FRAMES = 6`, drop-not-merge. Reproduced by the impl
+PR's fixture test (`src/components/frames/autoFrames.fixture.test.ts`) running
+the **§AF10.2 procedure verbatim** on the committed `examples/*.json`:
 
-| Graph | Raw LP groups | After merge-small (< 3) | After split-big (> 0.55) | After cap (keep 6, drop rest) | **Final frame count** | Notes |
-|---|---|---|---|---|---|---|
-| default (3 nodes) | `[3]` | `[3]` | `[3]` | `[3]` | **1** (or 0 — below the "worth it" floor, §AF2.2) | UI does not push Suggest here |
-| Coffee | `[5, 4, 4]` | `[5, 4, 4]` | `[5, 4, 4]` | `[5, 4, 4]` | **3** | meets S2–S4; the 10 model nodes are unframed |
-| MMO | `[28, 18, 13, 10, 7, 7, 4, 3]` | `[28, 18, 13, 10, 7, 7, 7]` (the two 3–4 groups merge up into their densest neighbour) | `[28, 18, 13, 10, 7, 7, 7]` — the 28-group is 0.31 of 90, **under** 0.55, so **no split** | `[28, 18, 13, 10, 7, 7]` — the 7th group (the lowest-ranked 7-node group) is **dropped**, ~63 of 90 nodes framed | **6** | meets S2 (3–6), S3 (largest ≈ 31 %), S4 (min 6); ~27 MMO nodes intentionally unframed |
+| Graph | Eligible nodes | Raw LP groups | merge-small (`< 3` only) | split-big (`> 0.55` of eligible framed) | cap → keep 6, drop rest | **Final** | Notes |
+|---|---|---|---|---|---|---|---|
+| default | 3 | `[3]` | `[3]` | `[3]` | `[3]` | **0** | 3 < `WORTH_IT_FLOOR` (8) → `Suggest` returns nothing (§AF2.2) |
+| Coffee | 13 (`9 + 4` across two components) | `[5, 4, 4]` | `[5, 4, 4]` (no group `< 3`) | `[5, 4, 4]` (largest 5 = 0.38 of 13, under 0.55) | `[5, 4, 4]` (3 ≤ 6) | **3** | all **13** eligible nodes framed; the 10 model nodes never take part |
+| MMO | 90 (one component) | `[28, 18, 13, 10, 7, 7, 4, 3]` | `[28, 18, 13, 10, 7, 7, 4, 3]` — **unchanged**: rule 1 only touches groups of 1–2; the 4- and 3-node groups survive | `[28, 18, 13, 10, 7, 7, 4, 3]` — unchanged: largest 28 = 0.31 of 90, under 0.55 | `[28, 18, 13, 10, 7, 7]` — 8 groups > 6, so the two lowest-ranked (sizes 4 and 3) are **dropped, not merged** | **6** | **83** of 90 nodes framed (0.92); largest 28 ≈ 31 % (S3 OK); every kept frame ≥ 7 nodes (S4 OK); the 7 unframed nodes are the two dropped low-rank groups |
 
-The dropped MMO group is a low-density 7-node cluster; leaving it unframed is
-preferable to a 7th frame or to bloating a neighbour.
+The two dropped MMO groups (4 + 3 nodes, low density) are left unframed —
+preferable to a 7th/8th frame or to bloating a neighbour. The earlier draft of
+this table wrongly showed merge-small folding the 3–4-node groups upward; rule 1
+only merges groups of **1 or 2**, so the drop happens at the **cap**, and the
+framed total is **83**, not the "~63" the earlier draft implied.
 
 **`framed fraction ≥ 0.5` is a *fixture quality bar*, not a runtime invariant.**
 A CI assertion on the **Coffee and MMO fixtures** pins the expected frame count
@@ -313,17 +356,23 @@ changes what the algorithm does:
 
 ### AF3.7 Dry-run source
 
-The numbers above are from a script over the committed `examples/*.json`
-(connected components, degree histogram, hub list, deterministic
-label-propagation with model nodes excluded). It is reproduced in the PR
-description and will be committed as `scripts/lgr-autoframe-dryrun.mjs` **only
-if** the heuristic is approved (it is a design artefact, not shipped code).
-Key raw facts it established:
+The numbers above were first established by a throwaway analysis over the
+committed `examples/*.json` (connected components, degree histogram, hub list,
+deterministic label propagation). The dry-run is **not** shipped as a loose
+script — it lives as a committed **fixture test**,
+`src/components/frames/autoFrames.fixture.test.ts` (impl PR), which runs the
+§AF10.2 `suggestFrames` procedure verbatim on the same two files and pins
+`[5, 4, 4]` / `[28, 18, 13, 10, 7, 7]`, the framed totals (13 / 83), and
+determinism under array reversal. Key raw facts:
 
-- Coffee: 1 component of 9 + 1 of 4 + **10 degree-0 model nodes**; no hubs.
-- MMO: **1 component of 90** + 7 degree-0 Registers; hubs `level` (13),
-  `gold` (10), `xp` (5), `hunt_payout` (6), `quest_payout` (6),
-  `resupply` (6), … — which is exactly why connected components fails.
+- Coffee: 13 eligible nodes across **two** components (`9 + 4`); **10 degree-0
+  model nodes**; no hubs. Both components clear the whole-graph floor.
+- MMO: **1 component of 90** eligible nodes + 7 degree-0 Registers; hubs
+  `level` (13), `gold` (10), `xp` (5), `hunt_payout` (6), `quest_payout` (6),
+  `resupply` (6), … — which is why plain connected components fails.
+- MMO has **9 node-pairs joined by 2–3 parallel wires**; counting them with
+  multiplicity (§AF3.2) is what makes the raw LP partition
+  `[28, 18, 13, 10, 7, 7, 4, 3]` reproducible.
 - MMO x-position histogram has natural empty bands at x≈800–1200 and
   x≈2400–2800 → a spatial split (§AF3.6 rule 2) has real gaps to cut on.
 
@@ -478,14 +527,16 @@ toggle, a sim step, and input-array order reversed (extends LGR-INV-7):
 
 | Source | Rule |
 |---|---|
+| adjacency | a **multigraph** built from all drawn edges — a parallel edge is kept, not collapsed (§AF3.2); this must match between the algorithm and any dry-run |
+| label-propagation scope | **one run over every eligible node id** (no per-component split); components stay apart because no edge joins them |
 | label-propagation processing order | iterate nodes in **ascending node-id** (lexical, `<`) order, every round |
-| label-propagation tie-break | when two neighbour labels are equally frequent, pick the **lexically smallest label id** |
+| label-propagation tie-break | when two neighbour labels have equal weighted frequency, pick the **lexically smallest label id** |
 | post-pass "merge into most-connected neighbour" tie | pick the neighbour group whose **representative node id** (its lexically smallest member) is smallest |
-| spatial split axis when bbox is square (w == h) | split on **x** |
+| spatial split axis when bbox is square (spanX == spanY) | split on **x** |
 | spatial split gap ties | the gap with the **smaller lower-bound coordinate** |
 | coordinate rounding | all rect coordinates rounded to **integer flow units** with `Math.round`; half-up |
 | frame order | frames sorted by `(rect.y, rect.x, representativeNodeId)` ascending; the ordinal label follows this order |
-| connected-component order (the pre-filter) | components sorted by `(size desc, smallest-member-id asc)` |
+| keep-top-N rank | `(size desc, intra-group density desc, representativeNodeId asc)` |
 
 **Test surface the impl PR must include:**
 
@@ -577,27 +628,40 @@ existing `canvas.frame.*` key family gains `canvas.frame.suggest` + a
 - [x] cross-reference lines added in `docs/large-graph-readability.md` §LGR6.3
       and §LGR12 (slice 4b) pointing here — **in this PR**
 
-### AF10.2 Pseudocode of the recommended algorithm
+### AF10.2 Pseudocode of the algorithm
+
+This procedure and the §AF3.6 dry-run table describe the **same computation** —
+the impl PR's fixture test runs exactly this on the committed `examples/*.json`
+and pins `[5, 4, 4]` (Coffee) and `[28, 18, 13, 10, 7, 7]` (MMO).
 
 ```
 suggestFrames(graph, positions):
-  drawn = graph.edges                        # resource + state, weight 1 each
-  nodes = graph.nodes without kind in {parameter, register}
+  eligible = graph.nodes without kind in {parameter, register}
+  if eligible.length < WORTH_IT_FLOOR:  return []       # §AF2.2 — GRAPH-LEVEL gate
+  adj  = multigraph adjacency over eligible, from ALL drawn edges
+         (resource + state); a parallel edge adds the neighbour AGAIN (§AF3.2);
+         self-loops and edges to an excluded node are skipped
+  # ONE run over every eligible id, ascending lexical order, every round.
+  # Disconnected components can't share a label (no edge between them), so the
+  # component partition falls out for free — no per-component loop, no
+  # per-component size gate.
+  groups = labelPropagation(eligible.ids, adj)          # §AF3.2, low-label tie-break, <= 20 rounds
+  groups = mergeSmall(groups, adj)                      # §AF3.6 r1 — only groups of 1-2;
+                                                        #   no inter-group edge => DROP (never relocate
+                                                        #   into another component)
+  framedTotal = sum(|g| for g in groups)
+  groups = splitBig(groups, positions, framedTotal,     # §AF3.6 r2 — fraction is GRAPH-WIDE
+                    MAX_FRAME_FRACTION=0.55, MIN_SPLIT_GAP=120, depth<=2)
+  groups = keepTopN(groups, adj, MAX_FRAMES=6,          # §AF3.6 r3 — GRAPH-WIDE cap;
+                    rankBy=(size, density, repId))      #   DROP the rest, never force-merge
   frames = []
-  for comp in connectedComponents(nodes, drawn) sorted by (size desc, minId asc):
-      if comp.size < WORTH_IT_FLOOR: continue          # §AF2.2 (default ~8)
-      groups = labelPropagation(comp, drawn)           # §AF3.2, id-ordered, low-label tie-break
-      groups = mergeSmall(groups, MIN_FRAME_NODES=3)   # §AF3.6 rule 1
-      groups = splitBig(groups, MAX_FRAME_FRACTION=0.55, MIN_SPLIT_GAP=120, depth<=2)
-      groups = keepTopN(groups, MAX_FRAMES=6, rankBy=(size, density, minId))
-               # §AF3.6 rule 3 — DROP the rest; never merge a leftover into a kept group
-      for g in groups:
-          rect = boundingBox(g.memberRects(positions)) expandedBy FRAME_PAD(24)
-          rect = max(rect, FRAME_MIN)
-          frames.push({ kind: 'auto', members: g, rect: round(rect) })
-  frames.sort by (rect.y, rect.x, representativeNodeId)
-  assignOrdinalLabels(frames)                          # "Area N" / "구역 N"
-  return frames        # derived, in-memory only
+  for g in groups where |g| >= MIN_FRAME_NODES:
+      rect = boundingBox(g.memberRects(positions)) expandedBy AUTO_FRAME_PAD(24)
+      rect = growToMin(rect, AUTO_FRAME_MIN=48);  rect = round(rect)   # integer flow units
+      frames.push({ kind: 'auto', members: g, rect })
+  frames.sort by (rect.y, rect.x, min member id)
+  assignOrdinalLabels(frames)                           # "Area N" / "구역 N"
+  return frames        # derived, in-memory only — never serialized
 ```
 
 ### AF10.3 Out of scope for the Slice-4b implementation PR
@@ -636,15 +700,15 @@ suggestFrames(graph, positions):
 
 ## AF11. Order this feeds into
 
-Merges as *settled design*. The three open choices are now **fixed**:
-`MAX_FRAMES = 6` with a drop (not force-merge) cap (§AF3.6), **P1-only** recompute
-(§AF4.1), and §AF5's R1–R8. The **implementation PR still requires explicit
-approval before it starts** — it is render / UI-only, no `src/` wire change, no
-engine change, one PR with the §AF8 test set (unit + fixture + e2e + one
-`auto-frames.png` visual baseline + a determinism e2e).
-
-Slice 5 (`saved` frames) and the §PD12 authored-sections / hierarchical-groups
-candidates remain **separate, later** passes and are not unblocked by this doc.
+Merges as *settled design*. The decisions are fixed: `MAX_FRAMES = 6` with a
+drop (not force-merge) cap (§AF3.6), **P1-only** recompute (§AF4.1), §AF5's
+R1–R8, and — from this correction — a **whole-graph** `WORTH_IT_FLOOR`, one
+label-propagation run over all eligible nodes, and multigraph adjacency
+(§AF2.2 / §AF3.2 / §AF3.6 / §AF10.2). The **implementation PR still requires
+explicit approval before it starts** — it is render / UI-only, no `src/` wire
+change, no engine change, one PR with the §AF8 test set (unit + fixture that
+pins `[5,4,4]` / `[28,18,13,10,7,7]` + e2e + one `auto-frames.png` visual
+baseline + a determinism e2e).
 
 Slice 5 (`saved` frames) and the §PD12 authored-sections / hierarchical-groups
 candidates remain **separate, later** passes and are not unblocked by this doc.
