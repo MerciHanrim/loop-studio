@@ -31,7 +31,7 @@ implementation PR does **not** start until these decisions are reviewed.
 | **For** | Hanrim · Lumi |
 | **Prefix** | `AF` (auto-frames) |
 | **Depends on** | Slice 4a (`transient` frames + Activity overlay), shipped — PR #113, merge `f6c9d8d` |
-| **Feeds** | Slice 5 (`saved` frames) is still gated on a Frozen `loop-revision/N` `frames` contract (§LGR6.4); this doc does **not** open it |
+| **Feeds** | Slice 5 (`saved` frames) — designed in `docs/large-graph-readability-saved-frames.md`, behind a Frozen `loop-revision/5` `frames` contract (§LGR6.4); this doc does **not** open it |
 
 ---
 
@@ -611,12 +611,13 @@ Three categories, kept explicitly distinct:
 | Category | What it is | Lives in | Persists? | Touches GraphDoc / serialize / digest / undo? |
 |---|---|---|---|---|
 | **derived auto frame** | recomputed from `(graph, node positions)` by Suggest | a new in-memory derived selector / store (not `frameStore`) | **no** — gone on `loadRev` and on refresh; rebuilt by Suggest | **no** |
-| **edited transient manual frame** | a 4a frame, or a promoted auto frame (§AF5 R5) | `frameStore.frames` (existing 4a store) | **no** — session-only, gone on `loadRev` / refresh | **no** |
-| **future saved authored region** | a frame (or a semantic section) the user wants to keep across reload / Share / revision | — | **yes** | **yes** — needs the Frozen `loop-revision/N` `frames` contract (§LGR6.4) or the §PD12.3-A authored-sections design |
+| **manual frame** (4a-drawn, or a promoted auto frame — §AF5 R5) | its `id` / `label` / `rect` / `color` | `frameStore.frames` | **session-only in 4a/4b; SAVED from LGR Slice 5** (`docs/large-graph-readability-saved-frames.md`) — restored from the doc on load | 4a/4b: **no**. Slice 5: a `loop-revision/5` **cosmetic** `frames` block — projected + diffed + dirty-tracked, **`Ctrl+Z`-able** at the §SF11.1 granularity, **never** `engineAffecting`, no `SimState` / engine-digest change |
+| **future authored region** | a semantic section the user labels for meaning | — | — | §PD12.3-A authored-sections design (separate) |
 
-**Hard rule:** if any 4b behaviour (a remembered dismissal, a pinned frame that
-survives reload, a saved label) needs to persist, it is **out of Slice 4b** and
-moves to Slice 5 or the §PD12 authored-sections pass. This doc's
+**Hard rule for 4b:** if any 4b behaviour (a remembered dismissal, a pinned
+frame) needs to persist, it is **out of Slice 4b**. A manual frame's own
+`id` / `label` / `rect` / `color` is what **Slice 5** persists; a *pure
+suggested* frame stays session-only forever. This doc's
 implementation must add **zero** bytes to the GraphDoc, the digest, Share,
 `SimState`, `localStorage`, or the undo stack — **including no new `localStorage`
 key** (P3, the only key that was contemplated, is rejected — §AF4.1). Slice 4b

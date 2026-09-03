@@ -26,9 +26,9 @@ a dependency of the later assembly screen ([`docs/product-direction.md`](product
 
 A **render / UI layer**, with **one** staged exception (§LGR6): everything here
 is view state that changes nothing the engine computes, nothing that is
-serialized, and no wire contract — *except* a future **saved group frame**,
-which is deferred behind its own Frozen `loop-revision/N` **cosmetic** amendment
-and is **not** part of the first implementation. §LGR11 is the decision record,
+serialized, and no wire contract — *except* the **saved group frame** (LGR
+Slice 5), a Frozen `loop-revision/5` **cosmetic** amendment designed in
+`docs/large-graph-readability-saved-frames.md` and built in its own impl PR. §LGR11 is the decision record,
 §LGR10 the acceptance / E2E set, §LGR12 the slices, §LGR13 the scope boundary.
 
 **Build order (settled with Lumi):**
@@ -42,11 +42,13 @@ and is **not** part of the first implementation. §LGR11 is the decision record,
    overlay — fully specified here;
 6. **Slice 4b** — *auto* group frames — clustering algorithm + label
    generation are **their own detailed design pass**, held here (§LGR6.3);
-7. **Slice 5** — *saved* group frames, **only** behind a Frozen
-   `loop-revision/N` cosmetic `frames` contract; deferred, revisited on demand.
+7. **Slice 5** — *saved* group frames, behind a Frozen **`loop-revision/5`**
+   cosmetic `frames` contract. **Design pass:
+   `docs/large-graph-readability-saved-frames.md` (`SF`).**
 
 Slices 1–4a carry no wire change and no engine change. Slice 4b needs its own
-design pass before build. Slice 5 does not start until its contract is Frozen.
+design pass before build. Slice 5 does not start until `SEMANTICS-R5.md` is
+Frozen (its design is settled in `…-saved-frames.md`).
 
 ---
 
@@ -96,9 +98,9 @@ template's surfaced inputs and result Summary (§PD5).
 - a **past-step cue policy** — each step clears the previous; an opt-in activity
   overlay is the only accumulation (§LGR6-cues);
 - **group frames** — the transient / auto / saved decision and the wire
-  boundary; **transient** frames ship in Slice 4a, **auto** frames' algorithm +
-  naming are held for a Slice-4b design pass, **saved** is deferred behind a
-  Frozen cosmetic contract (§LGR6);
+  boundary; **transient** frames shipped in Slice 4a, **auto** frames in Slice
+  4b, **saved** frames in Slice 5 behind a Frozen `loop-revision/5` cosmetic
+  contract (§LGR6.4 / `docs/large-graph-readability-saved-frames.md`);
 - a **per-item persistence table** — what each toggle / selection / frame does
   across doc switch, graph reopen, browser refresh, sim Reset, Reset view, and
   `localStorage` clear (§LGR3.4);
@@ -245,7 +247,8 @@ Two classes of state, and nothing in between (persistent-but-not-in-file is
 | **Filter panel** open/closed | kept | kept | kept | unaffected | unaffected | → default **closed** |
 | **Filter selections** (which classes/types hidden) | **cleared** | **cleared** | **cleared** | unaffected | **cleared** | n/a (not stored) |
 | **Focus selection** (which nodes) | cleared | cleared | cleared | unaffected | cleared | n/a |
-| **Transient frames** (drawn rects + labels + accent colour) | cleared | cleared | **cleared** | unaffected | kept *(only an explicit **Clear frames** removes them)* | n/a |
+| **Transient frames** — a pure auto (suggested) frame, and, *until Slice 5*, every manual frame | cleared | cleared | **cleared** | unaffected | kept *(only an explicit **Clear frames** removes them)* | n/a |
+| **Saved frames** (Slice 5 — a manual / promoted frame's `id` + `label` + `rect` + `color`) | **restored from the doc** | **restored from the doc** | **restored from the doc** | unaffected | kept | n/a (in the file, not `localStorage`) |
 | **Activity-overlay tint** (accumulated) | cleared | cleared | cleared | **cleared** | cleared | n/a |
 
 - **Transient frames are session-only** — in memory, gone on a full browser
@@ -393,8 +396,9 @@ persists (`LGR-D7`).
   proof, and the label-generation rules need their own detailed design before
   build. This doc fixes only the **boundary** they must honour (§LGR6.3); it
   does **not** claim the algorithm is settled.
-- **Saved frames are deferred to Slice 5**, gated on a Frozen wire contract
-  (§LGR6.4). Not worth a wire amendment until there is demand.
+- **Saved frames are Slice 5**, gated on a Frozen wire contract (§LGR6.4).
+  Demand arrived (a user's named + sized + coloured manual frame vanished on
+  reload); the design pass is `docs/large-graph-readability-saved-frames.md`.
 
 ### LGR6.3 Auto frames — the boundary the Slice-4b design must honour
 
@@ -416,30 +420,39 @@ it must not cross:
   frames;
 - toggled off by default; purely an overlay.
 
-### LGR6.4 If `saved` is taken up — the wire boundary
+### LGR6.4 The `saved` wire boundary — now designed (`SF`)
 
-A saved frame gets a **`loop-revision/N` cosmetic** amendment modelled exactly
-on `route` / `waypoints` (§ER6):
+Slice 5 is designed in **`docs/large-graph-readability-saved-frames.md`**. The
+boundary, updated for what 4a/4b/§FC actually shipped:
 
-- a `frames?: { id, label, rect: {x,y,w,h}, members: nodeId[] }[]` block,
-  **stored on the graph, user intent only**, tagged **cosmetic** — projected,
-  diffed, dirty-tracked, **never** `engineAffecting`, never feeds `nConf`;
+- a **graph-level** `frames?: { id, label, rect: {x,y,w,h}, color? }[]` block —
+  **no `members`** (4a/4b removed the membership model); `color` is the §FC
+  preset accent. **User intent only**, tagged **cosmetic** — projected, diffed,
+  dirty-tracked, **never** `engineAffecting`, never feeds `nConf`;
+- behind **`loop-revision/5`** (`SEMANTICS-R5.md`, Draft → Frozen at the top of
+  the impl PR), modelled exactly on `route` / `waypoints` (§ER6 /
+  `SEMANTICS-R3.md`); **no `schema` bump** — additive, forward-compatible;
+- only **manual** frames persist (drawn, or an auto frame the user promoted via
+  §AF5 R5). A pure suggested frame stays session-only;
 - a **conservative-extension golden** — a graph with no `frames` is byte- and
   digest-identical under the amended projection;
-- a **defensive reader** — a malformed frame is dropped, the graph is kept;
-  `members` entries pointing at absent node ids are dropped on read;
+- a **defensive reader** — a malformed frame (non-finite / non-positive `rect`,
+  unknown `color`, clashing `id`) is dropped / normalised, the graph is kept;
 - **`loop-workspace` unchanged** — a frame adds nothing to `SimState` or the
   restore contract;
-- **Frozen before Slice 5 starts.**
+- **`SEMANTICS-R5.md` Frozen before any serialization code lands.**
 
 ### LGR6.5 What a frame is *not*
 
 A frame is a labelled rectangle. It is **not** semantic nesting: it never
 changes what a node connects to, never scopes an expression, never affects the
-engine, the semantic digest content, undo of graph edits, or `SimState`. It
-**never moves or resizes a node** (§LGR13) — "move the whole group" is a layout
-feature for a later pass. Dragging a frame in v1 moves the frame only, not its
-members.
+engine, the semantic (engine) digest, or `SimState`. It **never moves or
+resizes a node** (§LGR13) — "move the whole group" is a layout feature for a
+later pass. Dragging a frame in v1 moves the frame only, not its members.
+*(From LGR Slice 5, a **saved** manual frame is document content — it is
+`Ctrl+Z`-able and moves the `loop-revision/5` **cosmetic** digest, per §SF11 /
+`docs/large-graph-readability-saved-frames.md`. It still touches nothing the
+engine computes.)*
 
 ---
 
@@ -460,11 +473,15 @@ members.
 ## LGR8. Invariants (LGR-INV)
 
 1. **View-only.** The global hit-test rule, Focus, de-emphasis, filters, the
-   activity overlay, and transient + auto frames produce **zero** change to the
-   serialized GraphDoc, the `loop-revision/*` digest, `canUndo` / the undo
+   activity overlay, and **transient + auto** frames produce **zero** change to
+   the serialized GraphDoc, the `loop-revision/*` digest, `canUndo` / the undo
    stack, node z-order, the engine step result, `R(t)`, state events, and the
    Monte-Carlo digest. Load every `examples/**`, toggle every control, run to
-   the end — all byte-identical to before.
+   the end — all byte-identical to before. *(A **saved** frame — LGR Slice 5,
+   `loop-revision/5` cosmetic — is the one deliberate exception: it enters the
+   serialized doc, the `loop-revision/*` digest, and the undo stack, but still
+   never touches the engine step result, `R(t)`, state events, the MC digest,
+   or `SimState` — §SF.)*
 2. **Viewport untouched.** Selecting a node, toggling Focus, applying a filter,
    or drawing a frame never changes pan / zoom. Only an explicit "fit / frame
    selection" moves the viewport, unchanged from today.
@@ -475,8 +492,8 @@ members.
    selection, transient frames, and the activity tint are **in memory only**.
    A cleared `localStorage` resets exactly the toggles (to their defaults) and
    nothing else; it never touches a graph or its lineage record.
-5. **Saved frames (Slice 5).** Touch only their own `loop-revision/N` cosmetic
-   `frames` block: a graph that has never had a frame serialises and digests
+5. **Saved frames (Slice 5).** Touch only their own `loop-revision/5` cosmetic
+   `frames` block (`docs/large-graph-readability-saved-frames.md`): a graph that has never had a frame serialises and digests
    exactly as today. Cosmetic ⇒ never `engineAffecting`, never feeds `nConf`.
 6. **Required set survives dimming.** De-emphasis / filter never removes the
    §VL7.1 required set from a still-present element — selection / focus rings,
@@ -602,7 +619,7 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 | **LGR-D5** | keyboard graph-nav | v1: toggle shortcut + *select next / previous connected node*. Tab order unchanged. Deeper nav is a follow-up. |
 | **LGR-D6** | run distinction — what is the v1 source? | **`StepReport` only, as it already exists** (`events` / `activated` / `fired` / `stateEvents`). **`effective`** = node in `fired`, or edge in `events`, or state edge in `stateEvents`. **`evaluated`** = a **node** in `activated` but not `fired` — **node-only**. A zero-flow edge / unselected gate branch gets **no cue** (the committed result has no such data; marking them would need engine instrumentation — deferred). No engine field, no playback-builder field, no execution-path instrumentation. |
 | **LGR-D7** | past-step cues | **Cleared each step.** The only accumulation is an **opt-in Activity overlay**, off by default, **never persisted**; window length + decay curve are a Slice-4a tuning detail. |
-| **LGR-D8** | group frames — which models ship, when? | **Transient (session-only, in memory) in Slice 4a — fully specified here.** **Auto** frames in **Slice 4b** — the clustering algorithm + label generation are **their own detailed design pass**; this doc fixes only their boundary (§LGR6.3), not the algorithm. **Saved** frames in **Slice 5**, behind a **Frozen `loop-revision/N` cosmetic `frames` contract** (§LGR6.4). |
+| **LGR-D8** | group frames — which models ship, when? | **Transient (session-only, in memory) in Slice 4a — fully specified here.** **Auto** frames in **Slice 4b** — the clustering algorithm + label generation are **their own detailed design pass**; this doc fixes only their boundary (§LGR6.3), not the algorithm. **Saved** frames in **Slice 5**, behind a **Frozen `loop-revision/5` cosmetic `frames` contract** — designed in `docs/large-graph-readability-saved-frames.md` (§LGR6.4). |
 | **LGR-D9** | can a frame move its members? | **No** in v1 — a frame drags as a rectangle only. "Move the group" is a later layout feature. |
 | **LGR-D10** | does anything here move / resize / reorder a node? | **Never** — including node z-order. (§LGR13.) |
 | **LGR-D11** | does selecting / focusing / filtering move the viewport? | **Never.** Only an explicit "fit / frame selection" does, unchanged. |
@@ -645,10 +662,10 @@ Slice-4b pass.
    manual/auto relationship, determinism, session-only boundary). The impl PR
    is not built from *this* doc alone; it follows the `AF` doc once its open
    choices are reviewed.
-5. **Saved group frames** — *only on demand*. A Frozen `loop-revision/N`
-   cosmetic `frames` contract first (conservative-extension golden, defensive
-   reader, `loop-workspace` unchanged), then the create / label / resize UI.
-   **Not part of the first implementation PR.**
+5. **Saved group frames** — **designed** in `docs/large-graph-readability-saved-frames.md`.
+   A Frozen `loop-revision/5` cosmetic `frames` contract first
+   (conservative-extension golden, defensive reader, `loop-workspace`
+   unchanged); manual + promoted frames only. Its own impl PR.
 
 Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subset.
 

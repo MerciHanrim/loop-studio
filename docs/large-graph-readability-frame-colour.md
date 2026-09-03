@@ -23,15 +23,20 @@ R5/R6) and the back-layer render are all already established by 4a/4b.
 - **Committing a colour on an auto frame promotes it to a transient manual
   frame** (§AF5 R5), exactly like a committed rename / resize. **Cancelling the
   picker keeps it auto** with its rect and label unchanged (§AF5 R6).
-- The colour is **session-only**: in memory on `frameStore` only, dropped on a
-  whole-graph (re)load (`graphStore.loadRev`), same as the frame itself
-  (§LGR3.4). Never `localStorage`, never a URL param.
-- **No change** to GraphDoc / schema / `serialize` / digest / revision / undo /
-  engine / Monte-Carlo / Share / Workspace / autosave. A colour change is **not
-  a graph undo entry** (frames never are).
-- Persistent / *saved* colour is out of scope — it belongs to **Slice 5**
-  (`saved` frames behind a Frozen `loop-revision/N` cosmetic contract, §LGR6.4)
-  or an authored-region design, neither started.
+- The colour is **session-only in §FC**: in memory on `frameStore` only,
+  dropped on a whole-graph (re)load (`graphStore.loadRev`), same as the frame
+  itself (§LGR3.4). Never `localStorage`, never a URL param.
+  **→ LGR Slice 5** (`docs/large-graph-readability-saved-frames.md`) makes a
+  **manual** frame's `color` persist *with the frame*, in the doc, as
+  `loop-revision/5` cosmetic content. The §FC contract below is unchanged —
+  Slice 5 only adds a serialization boundary for the manual `frameStore.frames`.
+- **§FC changes nothing** in GraphDoc / schema / `serialize` / digest /
+  revision / undo / engine / Monte-Carlo / Share / Workspace / autosave, and a
+  colour change is **not a graph undo entry**. (**LGR Slice 5** — §SF11 —
+  reverses this for a *saved* manual frame: a colour commit / Neutral return
+  becomes **one undo entry each** and moves the `loop-revision/5` cosmetic
+  digest. The engine result is still untouched.)
+- A *pure auto* (untouched suggested) frame never persists, in §FC or Slice 5.
 
 ---
 
