@@ -13,7 +13,7 @@ import {
   readParameterData,
   readRegisterData,
 } from './model'
-import { normalizeGraph } from './serialize'
+import { normalizeGraph, readSavedFrames } from './serialize'
 import type { RecommendedRunConfig } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
@@ -86,6 +86,15 @@ export type CanonicalContent = {
   nodes: CanonicalNode[]
   edges: CanonicalEdge[]
   recommendedRunConfig?: Record<string, unknown>
+  /**
+   * loop-revision/5 (SEMANTICS-R5.md §R5-2.1) — the saved MANUAL group frames.
+   * A trailing key AFTER `recommendedRunConfig`, BEFORE `modelSemantics`;
+   * present **iff** ≥ 1 entry survives the §R5-1.1 read AND the projection runs
+   * under the model layer (v2+). Absent ⇒ ≤ v4 canonical bytes / digest
+   * unchanged (R5-INV-2). `cosmetic`: never `engineAffecting` /
+   * `advisoryAffecting`. Array order is file order — not re-sorted.
+   */
+  frames?: { id: string; label: string; rect: { x: number; y: number; w: number; h: number }; color?: string }[]
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as the literal `"loop-model/2"`) **iff** the document declares
@@ -368,6 +377,9 @@ export function canonicalContent(
     nodes: LoopNode[]
     edges: LoopEdge[]
     recommendedRunConfig?: RecommendedRunConfig
+    /** loop-revision/5 — raw or already-clean saved frames (§R5-1.1 is applied
+     *  here defensively, so a caller may pass either). */
+    frames?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -383,6 +395,27 @@ export function canonicalContent(
   }
   const rrc = projectRunConfig(doc.recommendedRunConfig)
   if (rrc) out.recommendedRunConfig = rrc
+  // loop-revision/5 (SEMANTICS-R5.md §R5-2.1) — `frames` AFTER
+  // `recommendedRunConfig`, BEFORE `modelSemantics`. Only under the model layer
+  // (v2+), only when ≥ 1 entry survives §R5-1.1. Array in FILE ORDER (not
+  // re-sorted); per-entry key order id / label / rect(x,y,w,h) / color?; `color`
+  // only when a palette id. Absent ⇒ ≤ v4 bytes untouched (R5-INV-2).
+  if (modelLayer) {
+    const frames = readSavedFrames(doc.frames)
+    if (frames.length > 0) {
+      out.frames = frames.map((f) => {
+        const rect = {
+          x: numOrThrow(f.rect.x, `frame ${f.id} rect.x`),
+          y: numOrThrow(f.rect.y, `frame ${f.id} rect.y`),
+          w: numOrThrow(f.rect.w, `frame ${f.id} rect.w`),
+          h: numOrThrow(f.rect.h, `frame ${f.id} rect.h`),
+        }
+        return f.color
+          ? { id: f.id, label: f.label, rect, color: f.color }
+          : { id: f.id, label: f.label, rect }
+      })
+    }
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
   // v2 document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
   if (opts.modelVersion === 2) out.modelSemantics = 'loop-model/2'
@@ -407,6 +440,9 @@ export async function fullContentDigest(
     nodes: LoopNode[]
     edges: LoopEdge[]
     recommendedRunConfig?: RecommendedRunConfig
+    /** loop-revision/5 — carried into the projection (§R5-2.1). Absent ⇒ the
+     *  digest is unchanged from ≤ v4 (R5-INV-2). */
+    frames?: unknown
   },
   modelVersion?: CanonModelVersion,
 ): Promise<string> {

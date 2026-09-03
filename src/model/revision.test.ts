@@ -520,3 +520,84 @@ describe('helpers', () => {
   })
 })
 
+
+// ── loop-revision/5 — saved frames (SEMANTICS-R5.md) ───────────────────────
+describe('loop-revision/5 — saved frames (SEMANTICS-R5.md §R5-2 / §R5-4)', () => {
+  const base = doc([pool('a'), pool('b')], [rEdge('e', 'a', 'b')])
+  const fr = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    label: id,
+    rect: { x: 1, y: 2, w: 100, h: 50 },
+    ...over,
+  })
+
+  it('SG0 — no `frames` ⇒ v5 digest === ≤ v4 digest (conservative extension, R5-INV-2)', async () => {
+    const withUndef = { ...base, frames: undefined }
+    const withEmpty = { ...base, frames: [] }
+    expect(await fullContentDigest(withUndef)).toBe(await fullContentDigest(base))
+    expect(await fullContentDigest(withEmpty)).toBe(await fullContentDigest(base))
+    expect(canonicalContent(withEmpty)).not.toHaveProperty('frames')
+  })
+
+  it('SG1 — `frames` present ⇒ trailing key, file order, id/label/rect(x,y,w,h)/color?; digest differs', async () => {
+    const withFrames = { ...base, frames: [fr('f1'), fr('f2', { color: 'rose' })] }
+    const c = canonicalContent(withFrames)
+    expect(c.frames).toEqual([
+      { id: 'f1', label: 'f1', rect: { x: 1, y: 2, w: 100, h: 50 } },
+      { id: 'f2', label: 'f2', rect: { x: 1, y: 2, w: 100, h: 50 }, color: 'rose' },
+    ])
+    // `frames` is the last key after nodes/edges/recommendedRunConfig
+    const keys = Object.keys(c)
+    expect(keys[keys.length - 1]).toBe('frames')
+    expect(await fullContentDigest(withFrames)).not.toBe(await fullContentDigest(base))
+    // nodes / edges bytes unchanged vs SG0
+    expect(JSON.stringify(c.nodes)).toBe(JSON.stringify(canonicalContent(base).nodes))
+    expect(JSON.stringify(c.edges)).toBe(JSON.stringify(canonicalContent(base).edges))
+  })
+
+  it('SG2 — v4 → v5 → v4: removing every frame returns the digest exactly', async () => {
+    const withFrames = { ...base, frames: [fr('f1', { color: 'gold' })] }
+    const cleared = { ...base, frames: [] }
+    expect(await fullContentDigest(withFrames)).not.toBe(await fullContentDigest(base))
+    expect(await fullContentDigest(cleared)).toBe(await fullContentDigest(base))
+  })
+
+  it('SG3 — malformed `frames` entries are dropped in the projection; the good one survives', () => {
+    const c = canonicalContent({
+      ...base,
+      frames: [
+        fr('good', { color: 'sage' }),
+        { id: 'nan', label: 'x', rect: { x: NaN, y: 0, w: 1, h: 1 } },
+        { id: 'zero', label: 'x', rect: { x: 0, y: 0, w: 0, h: 1 } },
+        fr('good', { label: 'dup' }), // dup id → resolved to a fresh id on read
+        { id: 'badcolor', label: 'x', rect: { x: 0, y: 0, w: 5, h: 5 }, color: 'teal' },
+      ],
+    })
+    expect(c.frames?.map((f) => f.label)).toEqual(['good', 'dup', 'x'])
+    expect(c.frames?.find((f) => f.label === 'x')).not.toHaveProperty('color') // unknown dropped
+    const ids = c.frames!.map((f) => f.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('neutral frame projects `{ id, label, rect }` with no `color` key', () => {
+    const c = canonicalContent({ ...base, frames: [fr('n')] })
+    expect(Object.keys(c.frames![0])).toEqual(['id', 'label', 'rect'])
+  })
+
+  it('the literal v1 projection (`modelLayer: false`) never emits `frames`', () => {
+    const c = canonicalContent({ ...base, frames: [fr('f')] }, { modelLayer: false })
+    expect(c).not.toHaveProperty('frames')
+  })
+
+  it('`frames` is a `cosmetic` top-level change — SG1 diff has no engine hunk', () => {
+    const d = computeRevisionDiff(
+      canonicalContent(base),
+      canonicalContent({ ...base, frames: [fr('f1')] }),
+    )
+    // node/edge buckets are untouched by a pure frames change
+    expect(d.summary.nodes).toEqual({ added: 0, removed: 0, changed: 0 })
+    expect(d.summary.edges).toEqual({ added: 0, removed: 0, changed: 0 })
+    expect(d.summary.engineAffecting).toBe(false)
+    expect(d.summary.advisoryAffecting).toBe(false)
+  })
+})
