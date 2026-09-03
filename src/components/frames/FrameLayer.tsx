@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ViewportPortal, useReactFlow, useStore } from '@xyflow/react'
-import { useFrameStore, type FrameRect } from '../../store/frameStore'
+import {
+  useFrameStore,
+  FRAME_COLORS,
+  type FrameRect,
+  type FrameColor,
+} from '../../store/frameStore'
 import { useAutoFrameStore } from '../../store/autoFrameStore'
 import { useGraphStore } from '../../store/graphStore'
-import { useT } from '../../i18n'
+import { useT, type MessageKey } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeom'
 
@@ -28,6 +33,16 @@ import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeo
 type Pt = { x: number; y: number }
 const rectEq = (a: FrameRect, b: FrameRect) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
 
+// §FC4 — accessible names for the swatch buttons (colour is never the sole tell)
+const COLOR_KEY: Record<'neutral' | FrameColor, MessageKey> = {
+  neutral: 'canvas.frame.color.neutral',
+  slate: 'canvas.frame.color.slate',
+  sage: 'canvas.frame.color.sage',
+  gold: 'canvas.frame.color.gold',
+  violet: 'canvas.frame.color.violet',
+  rose: 'canvas.frame.color.rose',
+}
+
 export function FrameLayer() {
   const frames = useFrameStore((s) => s.frames)
   const selectedId = useFrameStore((s) => s.selectedId)
@@ -38,6 +53,7 @@ export function FrameLayer() {
   const selectFrame = useFrameStore((s) => s.selectFrame)
   const renameFrame = useFrameStore((s) => s.renameFrame)
   const resizeFrame = useFrameStore((s) => s.resizeFrame)
+  const setFrameColor = useFrameStore((s) => s.setFrameColor)
   const removeFrame = useFrameStore((s) => s.removeFrame)
 
   const autoFrames = useAutoFrameStore((s) => s.autoFrames)
@@ -170,8 +186,22 @@ export function FrameLayer() {
       if (isAuto) setAutoDraft({ id, rect: orig })
     }
 
-  type RenderFrame = { id: string; rect: FrameRect; label: string; ord: number; auto: boolean }
-  const manualRF: RenderFrame[] = frames.map((f) => ({ id: f.id, rect: f.rect, label: f.label, ord: f.n, auto: false }))
+  type RenderFrame = {
+    id: string
+    rect: FrameRect
+    label: string
+    ord: number
+    auto: boolean
+    color?: FrameColor
+  }
+  const manualRF: RenderFrame[] = frames.map((f) => ({
+    id: f.id,
+    rect: f.rect,
+    label: f.label,
+    ord: f.n,
+    auto: false,
+    color: f.color,
+  }))
   const autoRF: RenderFrame[] = autoFrames.map((f) => ({
     id: f.id,
     rect: autoDraft && autoDraft.id === f.id ? autoDraft.rect : f.rect,
@@ -194,6 +224,19 @@ export function FrameLayer() {
     }
   }
 
+  // §FC5 — pick an accent (or `null` for neutral). On a MANUAL frame it just
+  // sets the colour. On an AUTO frame, picking an accent PROMOTES it (§AF5 R5);
+  // picking neutral is a no-op — the frame stays auto (§AF5 R6).
+  const pickColor = (rf: RenderFrame, color: FrameColor | null) => {
+    if (rf.auto) {
+      if (color === null) return
+      adoptFrame(rf.rect, rf.label, color)
+      removeAuto(rf.id)
+    } else {
+      setFrameColor(rf.id, color)
+    }
+  }
+
   return (
     <>
       {/* BEHIND — visual only, below the pane, never hit-testable */}
@@ -203,6 +246,7 @@ export function FrameLayer() {
             <rect
               key={rf.id}
               className={`lgr-frame__fill${rf.auto ? ' lgr-frame__fill--auto' : ''}${rf.id === selectedId ? ' is-selected' : ''}`}
+              data-color={rf.color ?? undefined}
               x={rf.rect.x}
               y={rf.rect.y}
               width={rf.rect.w}
@@ -231,10 +275,13 @@ export function FrameLayer() {
           const def = rf.auto
             ? t('canvas.frame.areaName', { n: rf.ord })
             : t('canvas.frame.defaultName', { n: rf.ord })
+          // §FC4 — the accent picker: desktop only, on a selected frame.
+          const showSwatches = sel && interactive && !isMobile
           return (
             <div
               key={rf.id}
               className={`lgr-frame${rf.auto ? ' lgr-frame--auto' : ''}${sel ? ' is-selected' : ''}`}
+              data-color={rf.color ?? undefined}
               style={{ transform: `translate(${rf.rect.x}px, ${rf.rect.y}px)`, width: rf.rect.w, height: rf.rect.h }}
             >
               {interactive
@@ -280,6 +327,33 @@ export function FrameLayer() {
                     onPointerDown={startChromeDrag('resize', rf.id, rf.rect, rf.auto, rf.label)}
                   />
                 </>
+              ) : null}
+
+              {showSwatches ? (
+                <div
+                  className="lgr-frame__swatches"
+                  role="group"
+                  aria-label={t('canvas.frame.colorRow')}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  {([null, ...FRAME_COLORS] as (FrameColor | null)[]).map((c) => {
+                    const active = (rf.color ?? null) === c
+                    return (
+                      <button
+                        key={c ?? 'neutral'}
+                        type="button"
+                        className={`lgr-frame__swatch${active ? ' is-active' : ''}`}
+                        data-color={c ?? undefined}
+                        aria-label={t(COLOR_KEY[c ?? 'neutral'])}
+                        aria-pressed={active}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          pickColor(rf, c)
+                        }}
+                      />
+                    )
+                  })}
+                </div>
               ) : null}
             </div>
           )

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useGraphStore } from './graphStore'
-import { hasFrames, useFrameStore } from './frameStore'
+import { FRAME_COLORS, hasFrames, useFrameStore } from './frameStore'
 
 // docs/large-graph-readability.md §LGR6 — the transient group-frame store.
 // Session-only, no membership, no undo, no persistence; reset on a graph swap.
@@ -86,5 +86,84 @@ describe('frameStore — a whole-graph swap drops every frame (§LGR3.4)', () =>
     useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
     expect(useFrameStore.getState().frames).toEqual([])
     expect(useFrameStore.getState().nextN).toBe(1)
+  })
+})
+
+// docs/large-graph-readability-frame-colour.md §FC — the optional preset accent.
+describe('frameStore — §FC accent colour', () => {
+  beforeEach(reset)
+  const R = { x: 0, y: 0, w: 100, h: 60 }
+
+  it('a new manual frame has NO color (neutral)', () => {
+    const id = useFrameStore.getState().addFrame(R)
+    const f = useFrameStore.getState().frames[0]
+    expect(f.color).toBeUndefined()
+    expect(Object.keys(f).sort()).toEqual(['id', 'label', 'n', 'rect'])
+    void id
+  })
+
+  it('setFrameColor sets, changes, and clears (null) a manual frame accent', () => {
+    const id = useFrameStore.getState().addFrame(R)
+    useFrameStore.getState().setFrameColor(id, 'slate')
+    expect(useFrameStore.getState().frames[0].color).toBe('slate')
+    useFrameStore.getState().setFrameColor(id, 'violet')
+    expect(useFrameStore.getState().frames[0].color).toBe('violet')
+    useFrameStore.getState().setFrameColor(id, null)
+    expect(useFrameStore.getState().frames[0].color).toBeUndefined()
+    // key is gone, not left as `undefined`
+    expect('color' in useFrameStore.getState().frames[0]).toBe(false)
+  })
+
+  it('cycling neutral → accent → other → neutral leaves rect / label / n identical', () => {
+    const id = useFrameStore.getState().addFrame({ x: 10, y: 20, w: 300, h: 200 })
+    useFrameStore.getState().renameFrame(id, 'Economy')
+    const before = { ...useFrameStore.getState().frames[0] }
+    for (const c of ['slate', 'gold', null, 'rose', null] as const) {
+      useFrameStore.getState().setFrameColor(id, c)
+      const f = useFrameStore.getState().frames[0]
+      expect(f.rect).toEqual(before.rect)
+      expect(f.label).toBe(before.label)
+      expect(f.n).toBe(before.n)
+      expect(f.id).toBe(before.id)
+    }
+  })
+
+  it('setFrameColor is a no-op for an unknown id', () => {
+    const id = useFrameStore.getState().addFrame(R)
+    const snap = useFrameStore.getState().frames
+    useFrameStore.getState().setFrameColor('nope', 'sage')
+    expect(useFrameStore.getState().frames).toBe(snap) // identity unchanged
+    void id
+  })
+
+  it('adoptFrame(rect, label, color) creates an accented manual frame, selected, next ordinal', () => {
+    useFrameStore.getState().addFrame(R) // n=1
+    const id = useFrameStore.getState().adoptFrame({ x: 5, y: 5, w: 80, h: 40 }, 'Rewards', 'rose')
+    const f = useFrameStore.getState().frames.find((x) => x.id === id)!
+    expect(f).toMatchObject({ label: 'Rewards', color: 'rose', n: 2 })
+    expect(useFrameStore.getState().selectedId).toBe(id)
+  })
+
+  it('adoptFrame WITHOUT a color creates a NEUTRAL manual frame (rename-promote path)', () => {
+    const id = useFrameStore.getState().adoptFrame({ x: 0, y: 0, w: 50, h: 50 }, 'Area 3')
+    const f = useFrameStore.getState().frames.find((x) => x.id === id)!
+    expect(f.color).toBeUndefined()
+    expect('color' in f).toBe(false)
+  })
+
+  it('clearFrames and a loadRev bump drop accented frames like any other', () => {
+    const id = useFrameStore.getState().adoptFrame(R, 'x', 'violet')
+    expect(useFrameStore.getState().frames[0].color).toBe('violet')
+    useFrameStore.getState().clearFrames()
+    expect(useFrameStore.getState().frames).toEqual([])
+    const id2 = useFrameStore.getState().adoptFrame(R, 'y', 'gold')
+    useGraphStore.setState({ loadRev: useGraphStore.getState().loadRev + 1 })
+    expect(useFrameStore.getState().frames).toEqual([])
+    void id
+    void id2
+  })
+
+  it('FRAME_COLORS is the 5-entry palette, in a stable order', () => {
+    expect(FRAME_COLORS).toEqual(['slate', 'sage', 'gold', 'violet', 'rose'])
   })
 })

@@ -60,6 +60,15 @@
   --hue-converter: #78678f;
   --hue-end: #756f68;
 
+  /* docs/large-graph-readability-frame-colour.md §FC1 — the group-frame accent
+     palette. Four reuse a node hue; rose is its own value. Deliberately NOT
+     teal (--signal-primary) or red/orange (--warning) — those are signal cues. */
+  --frame-accent-slate: #527a91;
+  --frame-accent-sage: #66805e;
+  --frame-accent-gold: #9a7639;
+  --frame-accent-violet: #78678f;
+  --frame-accent-rose: #9e5a83;
+
   /* — flow token / trail = the mineral signal — */
   --flow-strength: var(--signal-primary); /* ~5:1 on canvas */
   --flow-trail: rgba(47, 116, 110, 0.22);
@@ -159,6 +168,12 @@
     --hue-converter: #a99bc0;
     --hue-end: #a6a099;
 
+    --frame-accent-slate: #78a6be;
+    --frame-accent-sage: #91af85;
+    --frame-accent-gold: #c6a05b;
+    --frame-accent-violet: #a99bc0;
+    --frame-accent-rose: #c58bab;
+
     --flow-strength: var(--signal-primary);
     --flow-trail: rgba(118, 183, 174, 0.2);
     --dist-band-mix: 15%;
@@ -214,6 +229,12 @@
   --hue-gate: #c6a05b;
   --hue-converter: #a99bc0;
   --hue-end: #a6a099;
+
+  --frame-accent-slate: #78a6be;
+  --frame-accent-sage: #91af85;
+  --frame-accent-gold: #c6a05b;
+  --frame-accent-violet: #a99bc0;
+  --frame-accent-rose: #c58bab;
 
   --flow-strength: var(--signal-primary);
   --flow-trail: rgba(118, 183, 174, 0.2);
@@ -1264,9 +1285,39 @@ body {
   stroke-opacity: 0.5;
   vector-effect: non-scaling-stroke;
 }
+/* docs/large-graph-readability-frame-colour.md §FC2 — a MANUAL frame's optional
+   preset accent drives the back-rect border + a barely-there fill (0.06, below
+   the 0.15 Activity ceiling). A pure auto frame never carries one. */
+.lgr-frame__fill[data-color] {
+  fill-opacity: 0.06;
+  stroke-opacity: 0.7;
+}
+.lgr-frame__fill[data-color='slate'] {
+  fill: var(--frame-accent-slate);
+  stroke: var(--frame-accent-slate);
+}
+.lgr-frame__fill[data-color='sage'] {
+  fill: var(--frame-accent-sage);
+  stroke: var(--frame-accent-sage);
+}
+.lgr-frame__fill[data-color='gold'] {
+  fill: var(--frame-accent-gold);
+  stroke: var(--frame-accent-gold);
+}
+.lgr-frame__fill[data-color='violet'] {
+  fill: var(--frame-accent-violet);
+  stroke: var(--frame-accent-violet);
+}
+.lgr-frame__fill[data-color='rose'] {
+  fill: var(--frame-accent-rose);
+  stroke: var(--frame-accent-rose);
+}
+/* §FC3 — selection is its OWN channel (a dashed outline on the chrome, below)
+   plus a weight + opacity bump here, in WHATEVER colour the frame already is —
+   never a hue override, so an accent still shows when the frame is selected. */
 .lgr-frame__fill.is-selected {
-  stroke: var(--signal-primary);
-  stroke-opacity: 0.9;
+  stroke-width: 2.25;
+  stroke-opacity: 0.95;
 }
 .lgr-frame__fill--draft {
   stroke-dasharray: 5 4;
@@ -1280,14 +1331,13 @@ body {
   stroke-opacity: 0.42;
 }
 @media (forced-colors: active) {
-  /* fill washes out under a colour override — the outline carries the frame */
-  .lgr-frame__fill {
+  /* fill washes out under a colour override — the outline carries the frame;
+     the accent palette is DROPPED entirely (§FC6) */
+  .lgr-frame__fill,
+  .lgr-frame__fill[data-color] {
     fill: none;
     stroke: CanvasText;
     stroke-opacity: 1;
-  }
-  .lgr-frame__fill.is-selected {
-    stroke: Highlight;
   }
   /* keep the dashed-vs-solid manual/auto distinction under forced-colors */
   .lgr-frame__fill--auto {
@@ -1298,6 +1348,12 @@ body {
 .lgr-frame {
   position: absolute;
   pointer-events: none; /* interior falls through to nodes / edges / pane */
+}
+/* §FC3 — the selection tell is a dashed OUTLINE (its own channel, orthogonal to
+   the accent border colour, and it survives forced-colors). */
+.lgr-frame.is-selected {
+  outline: 2px dashed var(--focus-ring);
+  outline-offset: 3px;
 }
 .lgr-frame__edge-hit {
   position: absolute;
@@ -1350,9 +1406,37 @@ body {
   pointer-events: auto;
   cursor: text;
 }
-.lgr-frame.is-selected .lgr-frame__label {
-  color: var(--signal-primary);
-  border-color: var(--signal-primary);
+/* §FC2 — an accented frame tints its label chip (text + border) with the same
+   accent. Selection no longer recolours the label — the outline is the tell. */
+.lgr-frame[data-color='slate'] .lgr-frame__label {
+  color: var(--frame-accent-slate);
+  border-color: var(--frame-accent-slate);
+}
+.lgr-frame[data-color='sage'] .lgr-frame__label {
+  color: var(--frame-accent-sage);
+  border-color: var(--frame-accent-sage);
+}
+.lgr-frame[data-color='gold'] .lgr-frame__label {
+  color: var(--frame-accent-gold);
+  border-color: var(--frame-accent-gold);
+}
+.lgr-frame[data-color='violet'] .lgr-frame__label {
+  color: var(--frame-accent-violet);
+  border-color: var(--frame-accent-violet);
+}
+.lgr-frame[data-color='rose'] .lgr-frame__label {
+  color: var(--frame-accent-rose);
+  border-color: var(--frame-accent-rose);
+}
+@media (forced-colors: active) {
+  /* accent dropped — the label falls back to the system palette */
+  .lgr-frame[data-color] .lgr-frame__label {
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+  .lgr-frame.is-selected {
+    outline-color: Highlight;
+  }
 }
 /* §AF-INV-7 — a mobile auto-frame label is display-only */
 .lgr-frame__label--static {
@@ -1394,6 +1478,76 @@ body {
   border-bottom-right-radius: 4px;
   cursor: nwse-resize;
   pointer-events: auto;
+}
+
+/* docs/large-graph-readability-frame-colour.md §FC4 — the accent picker: a
+   compact swatch row under a selected frame's bottom-left corner. Desktop only
+   (not rendered on mobile, not for a pure auto frame on mobile). */
+.lgr-frame__swatches {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 5px;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-hairline);
+  border-radius: 5px;
+  pointer-events: auto;
+}
+.lgr-frame__swatch {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+  background: var(--surface-sunken);
+}
+/* neutral = a small diagonal so it is not just "empty" */
+.lgr-frame__swatch:not([data-color]) {
+  background-image: linear-gradient(
+    135deg,
+    transparent 45%,
+    var(--line-strong) 45%,
+    var(--line-strong) 55%,
+    transparent 55%
+  );
+}
+.lgr-frame__swatch[data-color='slate'] {
+  background: var(--frame-accent-slate);
+}
+.lgr-frame__swatch[data-color='sage'] {
+  background: var(--frame-accent-sage);
+}
+.lgr-frame__swatch[data-color='gold'] {
+  background: var(--frame-accent-gold);
+}
+.lgr-frame__swatch[data-color='violet'] {
+  background: var(--frame-accent-violet);
+}
+.lgr-frame__swatch[data-color='rose'] {
+  background: var(--frame-accent-rose);
+}
+/* §FC4 — a NON-hue "active" tell (a ring) for forced-colors + colour-blind use */
+.lgr-frame__swatch.is-active {
+  box-shadow:
+    0 0 0 2px var(--surface-raised),
+    0 0 0 3px var(--text-primary);
+}
+@media (forced-colors: active) {
+  .lgr-frame__swatches {
+    border-color: ButtonText;
+  }
+  .lgr-frame__swatch {
+    border-color: ButtonText;
+  }
+  .lgr-frame__swatch.is-active {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+  }
 }
 
 /* the Frame-tool + Activity toggles — same "pressed" tell as Focus / Filters */
