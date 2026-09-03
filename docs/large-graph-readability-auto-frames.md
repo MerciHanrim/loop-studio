@@ -574,8 +574,8 @@ there is nothing stale — the control is just "Suggest frames".
 | R2 | Overlap + paint order between the two kinds | all frames (both kinds) paint in the existing 4a back-layer, **behind** nodes / edges. Among frames: **manual always paints over auto** (the user's own rectangle wins the visual tie); within a kind, later-created over earlier (the 4a rule). |
 | R3 | Does invoking Suggest preserve manual frames? | **Yes. Suggest never modifies, moves, relabels, or deletes a manual frame** — including a manual frame that was promoted from an earlier auto frame. |
 | R4 | Clear semantics | **Default control = `Clear all frames`** — removes both kinds (this is the existing 4a "Clear group frames" control, renamed). **One auxiliary action, shown only when auto frames exist: `Clear suggested frames`** — removes just the derived auto set, keeps every manual frame. There is **no** bulk "clear manual only" control — a manual frame is removed individually by its ✕ (the 4a affordance) or by `Clear all`. Two Clear entries at most; the default is unambiguous. |
-| R5 | Rename / resize an auto frame | **Committing a rename or a resize of an auto frame converts it to a transient manual frame:** it moves out of the derived set into `frameStore.frames`, keeps its current rect and label (an unlabelled one takes the next `Group N` identity), gains the solid border, and is thereafter an ordinary 4a frame — it survives a re-infer and counts as manual for R3 / R4. |
-| R6 | Cancelling an in-progress edit | **If the user cancels** (Escape on the rename input, or a resize drag that ends unchanged / is reverted), the frame **stays auto** — no promotion. Only a *committed* change promotes. |
+| R5 | Rename / resize / **recolour** an auto frame | **Committing a rename, a resize, _or an accent colour_ (`docs/large-graph-readability-frame-colour.md`) on an auto frame converts it to a transient manual frame:** it moves out of the derived set into `frameStore.frames`, keeps its current rect and label (an unlabelled one takes the next `Group N` identity), gains the solid border (and the committed accent, if any), and is thereafter an ordinary 4a frame — it survives a re-infer and counts as manual for R3 / R4. |
+| R6 | Cancelling an in-progress edit | **If the user cancels** (Escape on the rename input, a resize drag that ends unchanged / is reverted, or dismissing the colour picker without choosing an accent), the frame **stays auto** — no promotion, rect + label unchanged. Only a *committed* change promotes. |
 | R7 | Re-infer behaviour | a new **Suggest** replaces **only the auto set**: the previous un-promoted auto frames are discarded and a fresh auto set is computed. Promoted (now-manual) frames are untouched (R3). |
 | R8 | Dismiss a single auto frame; no `pin` | **Dismiss** removes just that one frame from the **current** auto set for this session. It is **not remembered** — the **next Suggest may re-propose the same cluster**. There is **no dedicated `pin` control in Slice 4b**: to keep a suggested frame, the user renames or resizes it (R5), which promotes it to a manual frame. A dismissal or a pin that survives a re-infer or a reload is **persistent state → Slice 5 or the §PD12 authored-region design** (§AF6). |
 
@@ -588,8 +588,9 @@ text, alongside R1's border.
 | From | Event | To |
 |---|---|---|
 | (no frames) | Suggest frames | *N* ≤ 6 **auto** frames in the derived set (dashed) |
-| auto frame | user **commits** a rename or resize | **manual** frame in `frameStore.frames` (promoted, solid); leaves the derived set |
-| auto frame | user starts then **cancels** a rename / resize | **stays auto** (no promotion) |
+| auto frame | user **commits** a rename, a resize, or an **accent colour** | **manual** frame in `frameStore.frames` (promoted, solid, + the accent if one was picked); leaves the derived set |
+| auto frame | user starts then **cancels** a rename / resize / colour pick | **stays auto** (no promotion); rect + label unchanged |
+| manual frame | user sets / changes / clears its **accent colour** | same frame, new `color` (or none) — rect / label / ordinal unchanged; **not** an undo entry |
 | auto frame | user Dismisses it | removed from the current derived set (session); **not** remembered |
 | auto frame | Suggest frames (re-infer) | discarded; a fresh auto set is computed (may re-propose an equivalent cluster) |
 | manual frame (incl. a promoted one) | Suggest frames (re-infer) | **unchanged** |
@@ -631,7 +632,7 @@ Invariants (extend §LGR8; every one gets an e2e in the impl PR):
 |---|---|
 | AF-INV-1 | **A Filter never recomputes an auto frame's membership or rect.** A hidden node is removed from paint + hit-test (§LGR-D4); the auto frame it was in keeps its exact rect and stays visible — even if **every** member is hidden. Only Suggest (re-infer), Clear, or `loadRev` change the auto set. |
 | AF-INV-2 | **Activity and sim results are not grouping inputs.** `firedNodeIds`, `activatedNodeIds`, `activitySteps`, `StepReport` — none feed the clustering. (`activated` still feeds only the Slice-3 evaluated cue.) |
-| AF-INV-3 | **A frame never covers a required signal.** Both frame kinds paint in the 4a back-layer, behind nodes and edges; selection / focus rings, `invalid` / `blocked` flags, the `effective` pulse and the `evaluated` bracket, and diagnostic markers all render above every frame and every Activity tint (unchanged from 4a). |
+| AF-INV-3 | **A frame never covers a required signal.** Both frame kinds — and a manual frame's optional **accent colour** (`docs/large-graph-readability-frame-colour.md`, fill ≤ 0.06) — paint in the 4a back-layer, behind nodes and edges; selection / focus rings, `invalid` / `blocked` flags, the `effective` pulse and the `evaluated` bracket, and diagnostic markers all render above every frame, every accent, and every Activity tint (unchanged from 4a). The accent palette deliberately excludes the teal (`--signal-primary`) and red / orange (`--danger` / `--warning`) hues those cues use. |
 | AF-INV-4 | **Reset view** clears Focus + Filters, **keeps** all frames (4a + auto). **sim Reset** clears run cues + the Activity history, **keeps** all frames. **graph reload** (`loadRev`) drops **all** frames. **full refresh** drops all frames. |
 | AF-INV-5 | **reduced-motion:** frames and any staleness indicator are static; a re-infer swaps the set with no transition/animation (same as the 4a Activity tint rule). |
 | AF-INV-6 | **forced-colors:** the manual-vs-auto tell is **dashed vs solid border** (not colour); frame fills wash out and the border carries the frame; two overlapping borders stay distinguishable. |
@@ -753,6 +754,10 @@ existing `canvas.frame.*` key family gains `canvas.frame.suggest` + a
 - On first Suggest per session, a one-line note near the control:
   *"Suggested structural groups — they may not match how you'd divide the work."*
   Dismissible; not shown again that session.
+- A manual frame's optional **accent colour** (`docs/large-graph-readability-frame-colour.md`)
+  is a **redundant** "which region is which" aid — the label is always shown and
+  is never replaced by colour; a frame with no label still shows its
+  `Group N` / `Area N` default.
 
 ---
 
