@@ -1600,15 +1600,345 @@ test.describe('LGR Slice 4a — mobile (the More sheet)', () => {
     await expect(actToggle).toHaveAttribute('aria-pressed', 'true')
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).toBe('1')
 
-    // Clear group frames row — present because a frame exists → tap → frame gone
-    const clearRow = sheetRow(/Clear group frames/)
+    // §AF5 R4 — the 4a "Clear group frames" mobile row is now "Clear all frames"
+    // (removes both kinds). Present because a manual frame exists → tap → gone.
+    const clearRow = sheetRow(/Clear all frames/)
     await expect(clearRow).toBeVisible()
     await clearRow.click()
     await expect(page.locator('.lgr-frame')).toHaveCount(0)
 
-    // re-open: the frame row is gone; the activity toggle kept its sticky state
+    // re-open: the clear row is gone; the activity toggle kept its sticky state
     await more().click()
-    await expect(sheetRow(/Clear group frames/)).toHaveCount(0)
+    await expect(sheetRow(/Clear all frames/)).toHaveCount(0)
     await expect(sheetRow(/Activity overlay/).locator('button')).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+// docs/large-graph-readability-auto-frames.md §AF — Slice 4b: AUTO (suggested)
+// group frames. A derived, session-only overlay computed only on an explicit
+// "Suggest frames" (P1). No GraphDoc / schema / serialize / digest / undo /
+// engine change.
+
+// two dense blobs of 6 pools, far apart on x with one thin bridge, plus 2 model
+// nodes (must never be framed). 12 eligible >= WORTH_IT_FLOOR (8).
+const GRAPH_AF = (() => {
+  const nodes: unknown[] = []
+  const edges: unknown[] = []
+  for (let b = 0; b < 2; b++) {
+    const baseX = b === 0 ? 0 : 980
+    for (let i = 0; i < 6; i++) {
+      nodes.push({
+        id: `b${b}_${i}`,
+        type: 'pool',
+        position: { x: baseX + i * 120, y: b * 40 },
+        data: { kind: 'pool', label: `B${b}-${i}`, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' },
+      })
+      for (let j = i + 1; j < 6; j++)
+        edges.push({ id: `b${b}_${i}_${j}`, type: 'loop', source: `b${b}_${i}`, target: `b${b}_${j}`, sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } })
+    }
+  }
+  edges.push({ id: 'bridge', type: 'loop', source: 'b0_5', target: 'b1_0', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } })
+  nodes.push({ id: 'p_a', type: 'parameter', position: { x: 0, y: 400 }, data: { kind: 'parameter', label: 'Pa', value: 1 } })
+  nodes.push({ id: 'r_a', type: 'register', position: { x: 200, y: 400 }, data: { kind: 'register', label: 'Ra', expr: '1', format: 'int' } })
+  return JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes, edges })
+})()
+
+type AFHead = { autoFrames: { id: string; area: number; label: string; rect: { x: number; y: number; w: number; h: number }; members: string[] }[]; lastSignature: string | null }
+const afHead = (page: Page) =>
+  page.evaluate(() => {
+    const s = (window as unknown as { __loop: { autoFrame: { getState: () => AFHead } } }).__loop.autoFrame.getState()
+    return { autoFrames: s.autoFrames.map((f) => ({ ...f, members: [...f.members] })), lastSignature: s.lastSignature }
+  })
+const suggestBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-suggest')
+const clearAllBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-frame-clear')
+const clearSuggestedBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-suggest-clear')
+
+async function loadAF(page: Page): Promise<void> {
+  await openApp(page)
+  await resetAll(page)
+  await page.evaluate(() => {
+    ;(window as unknown as { __loop: { ui: { setState: (p: object) => void } } }).__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
+  })
+  await importGraph(page, GRAPH_AF)
+  await page.evaluate(() =>
+    (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: 40, y: 150, zoom: 0.62 }, { duration: 0 }),
+  )
+  await expect(node(page, 'b0_0')).toBeVisible()
+}
+
+test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
+  test('Suggest frames (desktop) — a derived dashed set; model nodes excluded; deterministic; GraphDoc / digest / undo untouched', async ({ page }) => {
+    await loadAF(page)
+    const digest0 = await gDigest(page)
+    const canUndo0 = await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { canUndo: boolean } } } }).__loop.graph.getState().canUndo)
+
+    await expect(suggestBtn(page)).toBeVisible()
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(0)
+    await suggestBtn(page).click()
+
+    const h = await afHead(page)
+    expect(h.autoFrames.length).toBe(2)
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
+    await expect(page.locator('.lgr-frame__fill--auto')).toHaveCount(2)
+    for (const f of h.autoFrames) {
+      expect(f.members).not.toContain('p_a')
+      expect(f.members).not.toContain('r_a')
+      expect(f.members.length).toBeGreaterThanOrEqual(3)
+    }
+    await suggestBtn(page).click()
+    const h2 = await afHead(page)
+    expect(h2.autoFrames.map((f) => [f.rect, f.members])).toEqual(h.autoFrames.map((f) => [f.rect, f.members]))
+    expect(await gDigest(page)).toBe(digest0)
+    expect(await page.evaluate(() => (window as unknown as { __loop: { graph: { getState: () => { canUndo: boolean } } } }).__loop.graph.getState().canUndo)).toBe(canUndo0)
+  })
+
+  test('re-Suggest replaces only the auto set; a manual frame is preserved (AF5 R3/R7)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    expect((await frameHead(page)).frames.length).toBe(1)
+    await suggestBtn(page).click()
+    expect((await frameHead(page)).frames.length).toBe(1)
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+  })
+
+  test('rename an auto frame → promotes to a manual (solid) frame; a re-infer keeps it (AF5 R5)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    const beforeManual = (await frameHead(page)).frames.length
+    await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
+    await page.locator('.lgr-frame__label--edit').fill('Combat')
+    await page.locator('.lgr-frame__label--edit').press('Enter')
+    expect((await afHead(page)).autoFrames.length).toBe(1)
+    const fh = await frameHead(page)
+    expect(fh.frames.length).toBe(beforeManual + 1)
+    expect(fh.frames.some((f) => f.label === 'Combat')).toBe(true)
+    await suggestBtn(page).click()
+    expect((await frameHead(page)).frames.some((f) => f.label === 'Combat')).toBe(true)
+  })
+
+  test('Dismiss removes one from the current set; the next Suggest may re-propose it (AF5 R8)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+    await page.locator('.lgr-frame--auto .lgr-frame__edge-hit--top').first().click()
+    await page.locator('.lgr-frame--auto .lgr-frame__del').first().click()
+    expect((await afHead(page)).autoFrames.length).toBe(1)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+  })
+
+  test('Clear suggested frames removes only the auto set; Clear all removes both (AF5 R4)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    expect((await frameHead(page)).frames.length).toBe(1)
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+    await clearSuggestedBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(0)
+    expect((await frameHead(page)).frames.length).toBe(1)
+    await suggestBtn(page).click()
+    await clearAllBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(0)
+    expect((await frameHead(page)).frames.length).toBe(0)
+  })
+
+  test('composition: Filter hides every framed node → the auto frame + rect + count unchanged; Step / Reset / Activity never recompute (AF-INV-1/2/4)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    const before = await afHead(page)
+    expect(before.autoFrames.length).toBe(2)
+
+    // hide the Pool kind via the filter store (Slice 2 covers the panel UI; this
+    // test is about the auto frame's reaction) — every framed node is a pool.
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { filter: { getState: () => { toggleNodeKind: (k: string) => void } } } }).__loop.filter.getState().toggleNodeKind('pool'),
+    )
+    await expect(node(page, 'b0_0')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
+    expect((await afHead(page)).autoFrames.map((f) => f.rect)).toEqual(before.autoFrames.map((f) => f.rect))
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { filter: { getState: () => { toggleNodeKind: (k: string) => void } } } }).__loop.filter.getState().toggleNodeKind('pool'),
+    )
+
+    await activityBtn(page).click()
+    await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void; reset: () => void } } } }).__loop.sim.getState().stepOnce())
+    await page.evaluate(() => (window as unknown as { __loop: { sim: { getState: () => { stepOnce: () => void; reset: () => void } } } }).__loop.sim.getState().reset())
+    expect((await afHead(page)).autoFrames.map((f) => f.rect)).toEqual(before.autoFrames.map((f) => f.rect))
+
+    await resetViewBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+    await importGraph(page, GRAPH_AF)
+    expect((await afHead(page)).autoFrames.length).toBe(0)
+  })
+
+  test('the "recompute available" hint appears after a structural edit and clears on re-Suggest (AF4.3)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    await page.evaluate(() => {
+      const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] }; setState: (p: object) => void } } }).__loop.graph
+      const nodes = G.getState().nodes.map((n) => (n.id === 'b0_0' ? { ...n, position: { x: n.position.x + 500, y: n.position.y } } : n))
+      G.setState({ nodes })
+    })
+    await expect(suggestBtn(page)).toHaveClass(/is-stale/)
+    await suggestBtn(page).click()
+    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+  })
+
+  test('forced-colors: an auto frame border stays DASHED, distinct from a manual (solid) frame (AF-INV-6)', async ({ page }) => {
+    await page.emulateMedia({ forcedColors: 'active' })
+    await loadAF(page)
+    await suggestBtn(page).click()
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    const autoDash = await page.locator('.lgr-frame__fill--auto').first().evaluate((el) => getComputedStyle(el).strokeDasharray)
+    const manualDash = await page.locator('.lgr-frame__fill:not(.lgr-frame__fill--auto)').first().evaluate((el) => getComputedStyle(el).strokeDasharray)
+    expect(autoDash).not.toBe('none')
+    expect(autoDash.trim().length).toBeGreaterThan(0)
+    expect(manualDash === 'none' || manualDash.trim() === '' || manualDash !== autoDash).toBe(true)
+  })
+
+  test('a Filter that hides framed nodes does NOT mark the auto set stale (review boundary 2)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { filter: { getState: () => { toggleNodeKind: (k: string) => void } } } }).__loop.filter.getState().toggleNodeKind('pool'),
+    )
+    await expect(node(page, 'b0_0')).toHaveCount(0)
+    await expect(suggestBtn(page)).not.toHaveClass(/is-stale/)
+    const before = await afHead(page)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.map((f) => [f.rect, f.members])).toEqual(before.autoFrames.map((f) => [f.rect, f.members]))
+  })
+
+  test('eligible drops below the floor after an edit — Suggest stays while a stale set exists, then clears to 0 and keeps manual frames (review boundary 1)', async ({ page }) => {
+    await loadAF(page)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b0_0', 'b0_5', 24)
+    expect((await frameHead(page)).frames.length).toBe(1)
+
+    await page.evaluate(() => {
+      const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string }[]; edges: { source: string; target: string }[] }; setState: (p: object) => void } } }).__loop.graph
+      const keep = new Set(['b0_0', 'b0_1', 'b0_2', 'b1_0', 'b1_1', 'p_a', 'r_a'])
+      G.setState({
+        nodes: G.getState().nodes.filter((n) => keep.has(n.id)),
+        edges: G.getState().edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
+      })
+    })
+    await expect(suggestBtn(page)).toBeVisible()
+    await expect(suggestBtn(page)).toHaveClass(/is-stale/)
+    await suggestBtn(page).click()
+    expect((await afHead(page)).autoFrames.length).toBe(0)
+    expect((await frameHead(page)).frames.length).toBe(1)
+    await expect(suggestBtn(page)).toHaveCount(0)
+    await expect(clearSuggestedBtn(page)).toHaveCount(0)
+    await clearAllBtn(page).click()
+    expect((await frameHead(page)).frames.length).toBe(0)
+  })
+
+  test('VISUAL — auto-frames.png: fresh Suggest — dashed Area N frames, one selected (x + resize), the structural-only note, minimap hidden', async ({ page }) => {
+    await loadAF(page)
+    await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
+    await suggestBtn(page).click()
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
+    await page.locator('.lgr-frame--auto .lgr-frame__edge-hit--top').first().click()
+    await expect(page.locator('.lgr-frame--auto.is-selected .lgr-frame__resize')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame--auto.is-selected .lgr-frame__del')).toHaveCount(1)
+    await expect(page.locator('.lgr-suggest-note')).toBeVisible()
+    await expect(page.locator('.lgr-frame--auto .lgr-frame__label')).toHaveText([/Area 1/, /Area 2/])
+    await page.evaluate(() => window.getSelection()?.removeAllRanges())
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    await expect(page.locator('.react-flow')).toHaveScreenshot('auto-frames.png', { maxDiffPixelRatio: 0.02 })
+  })
+
+  test('VISUAL — auto-frames-mixed.png: a promoted solid Group N frame + a manual frame overlapping an auto frame (auto behind manual) + the stale dot on Suggest', async ({ page }) => {
+    await loadAF(page)
+    await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
+    await suggestBtn(page).click()
+    await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
+    await page.locator('.lgr-frame__label--edit').press('Enter')
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto) .lgr-frame__label')).toHaveText([/Group 1/])
+    await frameToolBtn(page).click()
+    await drawFrame(page, 'b1_0', 'b1_5', 30)
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)')).toHaveCount(2)
+    await page.evaluate(() => {
+      const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] }; setState: (p: object) => void } } }).__loop.graph
+      const nodes = G.getState().nodes.map((n) => (n.id === 'b0_2' ? { ...n, position: { x: n.position.x + 400, y: n.position.y } } : n))
+      G.setState({ nodes })
+    })
+    await expect(suggestBtn(page)).toHaveClass(/is-stale/)
+    await page.evaluate(() => window.getSelection()?.removeAllRanges())
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+    await expect(page.locator('.react-flow')).toHaveScreenshot('auto-frames-mixed.png', { maxDiffPixelRatio: 0.02 })
+  })
+})
+
+test.describe('LGR Slice 4b — mobile (the More sheet)', () => {
+  const more = (page: Page) => page.locator('.mob-more')
+  const sheetRow = (page: Page, re: RegExp) => page.locator('.sheet__row').filter({ hasText: re })
+
+  test('Suggest from the More sheet; Area frames render DISPLAY-ONLY (no edit / resize / x); the note dismisses; Clear suggested vs Clear all', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 })
+    await loadAF(page)
+    await expect(suggestBtn(page)).toHaveCount(0)
+
+    await more(page).click()
+    await expect(sheetRow(page, /Suggest frames/)).toBeVisible()
+    await sheetRow(page, /Suggest frames/).click()
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
+
+    await expect(page.locator('.lgr-frame--auto .lgr-frame__edge-hit')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame--auto .lgr-frame__resize')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame--auto .lgr-frame__del')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame--auto .lgr-frame__label--static')).toHaveCount(2)
+
+    await expect(page.locator('.lgr-suggest-note')).toBeVisible()
+    await page.locator('.lgr-suggest-note__x').click()
+    await expect(page.locator('.lgr-suggest-note')).toHaveCount(0)
+
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { frame: { getState: () => { addFrame: (r: object) => string } } } }).__loop.frame.getState().addFrame({ x: 0, y: 0, w: 200, h: 120 }),
+    )
+    await more(page).click()
+    await sheetRow(page, /Clear suggested frames/).click()
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)')).toHaveCount(1)
+
+    await more(page).click()
+    await sheetRow(page, /Suggest frames/).click()
+    await more(page).click()
+    await sheetRow(page, /Clear all frames/).click()
+    await expect(page.locator('.lgr-frame')).toHaveCount(0)
+  })
+
+  test('below the floor: no Suggest row on a small graph; an existing auto set that drops below the floor keeps the row so it can be recomputed to 0', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 })
+    await loadAF(page)
+    await more(page).click()
+    await expect(sheetRow(page, /Suggest frames/)).toBeVisible()
+    await sheetRow(page, /Suggest frames/).click()
+    expect((await afHead(page)).autoFrames.length).toBe(2)
+
+    await page.evaluate(() => {
+      const G = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string }[]; edges: { source: string; target: string }[] }; setState: (p: object) => void } } }).__loop.graph
+      const keep = new Set(['b0_0', 'b0_1', 'b0_2', 'b1_0', 'b1_1', 'p_a', 'r_a'])
+      G.setState({
+        nodes: G.getState().nodes.filter((n) => keep.has(n.id)),
+        edges: G.getState().edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
+      })
+    })
+    await more(page).click()
+    await expect(sheetRow(page, /Suggest frames/)).toBeVisible()
+    await sheetRow(page, /Suggest frames/).click()
+    expect((await afHead(page)).autoFrames.length).toBe(0)
+    await more(page).click()
+    await expect(sheetRow(page, /Suggest frames/)).toHaveCount(0)
   })
 })

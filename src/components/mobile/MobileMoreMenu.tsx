@@ -5,6 +5,8 @@ import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useFilterStore } from '../../store/filterStore'
 import { useFrameStore, hasFrames } from '../../store/frameStore'
+import { useAutoFrameStore, hasAutoFrames } from '../../store/autoFrameStore'
+import { WORTH_IT_FLOOR } from '../frames/autoFrames'
 import { useGraphStore } from '../../store/graphStore'
 import { useMcStore } from '../../store/mcStore'
 import { useProjectStore } from '../../store/projectStore'
@@ -60,6 +62,16 @@ export function MobileMoreMenu({
   const focusMode = useUiStore((s) => s.focusMode)
   const activityOverlay = useUiStore((s) => s.activityOverlay)
   const framesExist = useFrameStore(hasFrames)
+  const autoFramesExist = useAutoFrameStore(hasAutoFrames)
+  // §AF2.2 — "Suggest frames" only offered when the whole graph is big enough
+  const suggestEligible =
+    useGraphStore(
+      (s) =>
+        s.nodes.filter((n) => {
+          const k = (n.data as { kind?: string } | undefined)?.kind ?? String(n.type)
+          return k !== 'parameter' && k !== 'register'
+        }).length,
+    ) >= WORTH_IT_FLOOR
   const t = useT()
   const { fitView } = useReactFlow()
 
@@ -300,16 +312,43 @@ export function MobileMoreMenu({
             </button>
           </span>
         </div>
-        {framesExist && (
+        {/* docs/…-auto-frames.md §AF-INV-7 — on mobile, "Suggest frames" is a
+            More-sheet action (no canvas control); auto frames still render. */}
+        {(suggestEligible || autoFramesExist) && (
+          <button
+            type="button"
+            className="sheet__row"
+            onClick={() => {
+              useAutoFrameStore.getState().suggest()
+              closeOverlay('more')
+            }}
+          >
+            {t('canvas.frame.suggestRow')}
+          </button>
+        )}
+        {autoFramesExist && (
+          <button
+            type="button"
+            className="sheet__row"
+            onClick={() => {
+              useAutoFrameStore.getState().clearAuto()
+              closeOverlay('more')
+            }}
+          >
+            {t('canvas.frame.clearSuggestedRow')}
+          </button>
+        )}
+        {(framesExist || autoFramesExist) && (
           <button
             type="button"
             className="sheet__row"
             onClick={() => {
               useFrameStore.getState().clearFrames()
+              useAutoFrameStore.getState().clearAuto()
               closeOverlay('more')
             }}
           >
-            {t('canvas.frame.clearRow')}
+            {t('canvas.frame.clearAll')}
           </button>
         )}
         <button type="button" className="sheet__row" onClick={resetView}>

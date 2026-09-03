@@ -44,6 +44,11 @@ type FrameStore = {
   /** create a frame from a (already normalised, already validated) flow rect.
    *  Returns the new id; disarms the tool. */
   addFrame: (rect: FrameRect) => string
+  /** Slice 4b (§AF5 R5) — adopt a *suggested* (auto) frame as a transient
+   *  manual frame: same as `addFrame` but keeps the given label and does NOT
+   *  touch the tool. The new frame gets the next `Group N` ordinal for its
+   *  empty-label fallback. Returns the new id. */
+  adoptFrame: (rect: FrameRect, label: string) => string
   renameFrame: (id: string, label: string) => void
   resizeFrame: (id: string, rect: FrameRect) => void
   removeFrame: (id: string) => void
@@ -70,6 +75,17 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
       frames: [...s.frames, { id, n, label: '', rect }],
       nextN: s.nextN + 1,
       toolArmed: false,
+      selectedId: id,
+    }))
+    return id
+  },
+
+  adoptFrame: (rect, label) => {
+    const id = newId()
+    const n = get().nextN
+    set((s) => ({
+      frames: [...s.frames, { id, n, label, rect }],
+      nextN: s.nextN + 1,
       selectedId: id,
     }))
     return id

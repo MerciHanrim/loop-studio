@@ -18,6 +18,7 @@ import { __resetRouteCache, __routeGenCount, currentRouteMap } from './store/rou
 import * as shareLink from './store/shareLink'
 import { useFilterStore } from './store/filterStore'
 import { useFrameStore } from './store/frameStore'
+import { useAutoFrameStore } from './store/autoFrameStore'
 import { useSimStore } from './store/simStore'
 import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
@@ -33,6 +34,7 @@ if (import.meta.env.DEV) {
     ui: useUiStore,
     filter: useFilterStore,
     frame: useFrameStore,
+    autoFrame: useAutoFrameStore,
     pwa: usePwaStore,
     project: useProjectStore,
     review: useReviewStore,
