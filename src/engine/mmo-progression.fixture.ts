@@ -263,10 +263,14 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   N(pool('training_spend', 'Training spend', { x: 2080, y: 640 }))
 
   // consumables
-  N(pool('water', 'Water', { x: 1900, y: 720 }, { initial: P.waterStart, resourceType: 'supply' }))
-  N(pool('food', 'Food', { x: 1900, y: 800 }, { initial: P.foodStart, resourceType: 'supply' }))
-  N(pool('water_bought', 'Water bought', { x: 2080, y: 720 }))
-  N(pool('food_bought', 'Food bought', { x: 2080, y: 800 }))
+  // the live supply balances + their "bought" counters — Hanrim's screen review
+  // flagged the bare numbers as unit-ambiguous, so each carries a " (units)"
+  // suffix (label-only, overlay-carried; same undefined-unit quantity as
+  // `Water consumed` / `Food consumed`).
+  N(pool('water', 'Water (units)', { x: 1900, y: 720 }, { initial: P.waterStart, resourceType: 'supply' }))
+  N(pool('food', 'Food (units)', { x: 1900, y: 800 }, { initial: P.foodStart, resourceType: 'supply' }))
+  N(pool('water_bought', 'Water bought (units)', { x: 2080, y: 720 }))
+  N(pool('food_bought', 'Food bought (units)', { x: 2080, y: 800 }))
   // both on the default Timeline + the §EM10.1 water / food identities — a
   // " (units)" suffix names the otherwise unit-less quantity. Label-only.
   N(pool('water_consumed', 'Water consumed (units)', { x: 1720, y: 720 }))

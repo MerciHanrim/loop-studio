@@ -915,6 +915,16 @@ body {
 .nodef__value--down {
   animation: nodeBump 0.32s ease-out;
 }
+/* loop-model/2 §M2 — the advisory unit that trails `value` (e.g. `464 kKRW/day`).
+   Sans + lighter + smaller so it reads as a label, not part of the number; it
+   shares the value span's `nowrap` / ellipsis, so a long unit never widens the
+   node — it just truncates with the value. */
+.nodef__unit {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
 @keyframes nodeBump {
   from {
     transform: scale(1.16);

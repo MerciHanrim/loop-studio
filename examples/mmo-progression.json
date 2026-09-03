@@ -354,7 +354,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Water",
+        "label": "Water (units)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -371,7 +371,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Food",
+        "label": "Food (units)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -388,7 +388,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Water bought",
+        "label": "Water bought (units)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -404,7 +404,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Food bought",
+        "label": "Food bought (units)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,

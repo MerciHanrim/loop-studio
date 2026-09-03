@@ -273,11 +273,28 @@ default / trajectory / Timeline change**, and the Template label overlay stays
   format); `XP pace index` stays unit-less.
 - **Pool label suffix** (carried through the overlay, so KO gets its own form),
   only on the directly-displayed / identity-relevant quantities that otherwise
-  read as bare integers: `Deaths (count)` / `사망 (회)`,
-  `Water consumed (units)` / `소비한 물 (단위)`,
-  `Food consumed (units)` / `소비한 식량 (단위)`. Pools whose label already
-  carries the unit word (`Gold`, `XP earned`, `Items sold`, `Gear score`) are
-  left alone — no mechanical suffixing.
+  read as bare integers:
+  - `Deaths (count)` / `사망 (회)`
+  - `Water (units)` / `물 (단위)`, `Food (units)` / `식량 (단위)`
+  - `Water bought (units)` / `구매한 물 (단위)`,
+    `Food bought (units)` / `구매한 식량 (단위)`
+  - `Water consumed (units)` / `소비한 물 (단위)`,
+    `Food consumed (units)` / `소비한 식량 (단위)`
+
+  The whole water / food row is suffixed together (Hanrim's screen review found
+  the bare balances unit-ambiguous, and the §EM10.1 water / food identities read
+  across all six). Pools whose label already carries the unit word (`Gold`,
+  `XP earned`, `Items sold`, `Gear score`) are left alone — no mechanical
+  suffixing.
+
+### Register `unit` on the canvas
+
+`RegisterNode` renders `unit` right after the value (`464 kKRW/day`,
+`64 gold`) — a lighter, smaller sans suffix that shares the value line's
+ellipsis, so a long unit truncates with the value and never widens the node.
+The `= @…` expression stays on the sub-line; the Inspector `unit` field is
+unchanged. `ParameterNode` still shows its `unit` on the sub-line as before.
+No engine / schema / serialization / digest change.
 
 ## EM7. Monte Carlo
 

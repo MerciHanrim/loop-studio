@@ -354,7 +354,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "물",
+        "label": "물 (단위)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -371,7 +371,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "식량",
+        "label": "식량 (단위)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -388,7 +388,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "구매한 물",
+        "label": "구매한 물 (단위)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -404,7 +404,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "구매한 식량",
+        "label": "구매한 식량 (단위)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,

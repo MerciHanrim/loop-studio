@@ -14,8 +14,8 @@ const GRAPH = JSON.stringify({
   nodes: [
     { id: 'gold', type: 'pool', position: { x: 40, y: 40 }, data: { kind: 'pool', label: 'Gold', activation: 'passive', initial: 3, capacity: null, mode: 'pullAny' } },
     { id: 'p_rate', type: 'parameter', position: { x: 40, y: 200 }, data: { kind: 'parameter', label: 'Sale price', value: 4.5, min: 0, max: 10, step: 0.5, unit: 'gold' } },
-    { id: 'r_ok', type: 'register', position: { x: 320, y: 200 }, data: { kind: 'register', label: 'Revenue', expr: '@gold * @p_rate', format: 'float' } },
-    { id: 'r_bad', type: 'register', position: { x: 560, y: 200 }, data: { kind: 'register', label: 'Ratio', expr: '1 / (@gold - @gold)' } },
+    { id: 'r_ok', type: 'register', position: { x: 320, y: 200 }, data: { kind: 'register', label: 'Revenue', expr: '@gold * @p_rate', format: 'float', unit: 'kKRW/day' } },
+    { id: 'r_bad', type: 'register', position: { x: 560, y: 200 }, data: { kind: 'register', label: 'Ratio', expr: '1 / (@gold - @gold)', unit: 'gold' } },
   ],
   edges: [],
 })
@@ -46,6 +46,24 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     await expect(node(page, 'p_rate')).toContainText('4.5')
     await expect(node(page, 'p_rate')).toContainText('gold')
     await expect(node(page, 'r_ok')).toContainText('= @gold * @p_rate')
+  })
+
+  test('Register `unit` trails the value; the expression stays on the sub-line', async ({ page }) => {
+    await load(page)
+    // `unit` renders inside the value span, right after the number (§M2) …
+    const okValue = node(page, 'r_ok').locator('.nodef__value')
+    await expect(okValue.locator('.nodef__unit')).toHaveText('kKRW/day')
+    await expect(okValue).toContainText(/13\.5\s*kKRW\/day/) // 3 * 4.5, value + space + unit
+    // … and does NOT replace the `= expr` sub-line
+    await expect(node(page, 'r_ok').locator('.nodef__sub')).toHaveText('= @gold * @p_rate')
+
+    // an INVALID Register shows the `—` placeholder and NO unit (§M6.2)
+    await expect(node(page, 'r_bad')).toContainText('—')
+    await expect(node(page, 'r_bad').locator('.nodef__unit')).toHaveCount(0)
+
+    // a Register with no `unit` renders exactly as before — value span is just
+    // the number, no trailing unit span
+    await expect(node(page, 'p_rate').locator('.nodef__value .nodef__unit')).toHaveCount(0)
   })
 
   test('invalid Register — dashed --warning outline + corner flag, value is —', async ({ page }) => {
