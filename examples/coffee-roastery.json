@@ -265,7 +265,8 @@
       "data": {
         "kind": "register",
         "label": "Projected daily revenue",
-        "expr": "@cafe_retail_demand_kg * 30 + @online_orders * 17 + @green_wholesale_kg * 9 + 60"
+        "expr": "@cafe_retail_demand_kg * 30 + @online_orders * 17 + @green_wholesale_kg * 9 + 60",
+        "unit": "kKRW/day"
       }
     },
     {
@@ -278,7 +279,8 @@
       "data": {
         "kind": "register",
         "label": "Planned daily cost",
-        "expr": "(@daily_roast_kg + @green_wholesale_kg) * 5.5 + @dessert_prep * 1.4 + 140"
+        "expr": "(@daily_roast_kg + @green_wholesale_kg) * 5.5 + @dessert_prep * 1.4 + 140",
+        "unit": "kKRW/day"
       }
     },
     {
@@ -291,7 +293,8 @@
       "data": {
         "kind": "register",
         "label": "Projected daily operating margin",
-        "expr": "@projected_revenue - @planned_cost"
+        "expr": "@projected_revenue - @planned_cost",
+        "unit": "kKRW/day"
       }
     },
     {

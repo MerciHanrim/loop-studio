@@ -73,6 +73,10 @@ type FrameProps = {
   title: string
   value?: string
   valueDir?: 'up' | 'down' | null
+  /** loop-model/2 §M2 — an advisory display unit shown right after `value`
+   *  (space + unit, e.g. `464 kKRW/day`). Absent ⇒ the value renders exactly as
+   *  before. Never engine- / digest-affecting. */
+  unit?: string
   sub?: string
   selected?: boolean
   firing?: boolean
@@ -90,6 +94,7 @@ function NodeFrame({
   title,
   value,
   valueDir,
+  unit,
   sub,
   selected,
   firing,
@@ -220,6 +225,7 @@ function NodeFrame({
         {value != null ? (
           <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}>
             {value}
+            {unit ? <span className="nodef__unit">{' '}{unit}</span> : null}
           </span>
         ) : null}
         {sub ? <span className="nodef__sub">{sub}</span> : null}
@@ -416,6 +422,7 @@ function RegisterNode({ id, data, selected }: NodeProps) {
       title={d.label || 'Register'}
       value={invalid ? '—' : formatRegisterValue(numeric, d.format)}
       valueDir={invalid ? null : dir}
+      unit={invalid ? undefined : d.unit || undefined}
       sub={`= ${d.expr}`}
       selected={selected}
       invalid={invalid}

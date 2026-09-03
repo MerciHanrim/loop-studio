@@ -1,6 +1,6 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation landing. rev 9.** rev 1–3 fixed the
+**Status: settled design — implementation landing. rev 10.** rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
 ([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
@@ -53,6 +53,16 @@ level) and adds **CR-D14**.
 
 rev 9 updates §CR3.5, §CR6, §CR6.1, §CR7, §CR8, §CR9 / §CR9.1, §CR11.1, §CR12.1
 and adds **CR-D15**. No engine / schema / wire change.
+
+**rev 10 — the three money proxies get a display unit.** They read as bare
+numbers today, which looks like an abstract score. **Fix:** set the advisory
+`unit` hint to the locale-common string **`kKRW/day`** on `projected_revenue` /
+`planned_cost` / `projected_operating_margin` (the `P` price constants are in
+thousands of KRW; the defaults read `464` / `346.8` / `117.2` kKRW/day). `unit`
+renders as the Register's sub-line — **no label duplication**, no value / default
+/ trajectory change, planning-proxy framing unchanged (§CR3.5 / §CR8). The two
+signed stock proxies stay unitless. Pinned in `coffee-roastery.test.ts` and the
+committed `examples/coffee-roastery.json`. No engine / schema / wire change.
 
 **rev 7 — the §CR16 feature has shipped, so the "blocked" notes come out.**
 `loop-model/2` ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge
@@ -338,6 +348,15 @@ trajectory and channel sales move accordingly. All results are **Registers**
   **roasted supply margin** going negative, **not** in these figures. Never
   labelled `actual` / `realised` / `실제 매출` / `이익` in a title, node label,
   blurb, Timeline series (§CR7), or §CR9 scenario.
+  - **Display unit (rev 10).** The three money proxies carry the advisory
+    `unit` hint **`kKRW/day`** (thousands of KRW per day — the `P` price
+    constants are in thousands of won: at the defaults the proxies read
+    `464` / `346.8` / `117.2` kKRW/day, i.e. roughly ₩464k / ₩347k / ₩117k a
+    day). It is one canonical, locale-common string shown as the Register's
+    sub-line — it does **not** change the value, is **not** duplicated into the
+    label, and does **not** make the proxy a realised or accounting figure. The
+    two signed stock proxies stay unitless (they live in kg / dessert-unit
+    space, not money).
 - **The two "… margin" Registers are signed proxies.** `loop-model/2` adds
   **no `max` / `min`** (§M2-6), so they are plain signed `supply − demand`
   readings: a `−` roasted supply margin is an *unmet-demand signal*, not a

@@ -75,7 +75,7 @@ Two engine facts drive the shape:
 
 | Element | Node(s) | Notes |
 |---|---|---|
-| Time | `Elapsed time` **counter Pool** ← a clock Source adds `time_per_step` each step; the death branch adds `death_time_penalty` | terminal value across runs = the time-to-15 distribution |
+| Time | `Elapsed steps` **counter Pool** ← a clock Source adds `time_per_step` each step; the death branch adds `death_time_penalty` | terminal value across runs = the time-to-15 distribution |
 | XP (live) | `XP` **Pool** — filled by the reward router, drained by whichever zone's Level Converter is active | not a counter — see `XP earned` below |
 | XP earned | `XP earned` **counter Pool** — fed the same reward amounts, never drained | so `total XP = f(level path)` is verifiable |
 | Level | `Level` **Pool** — raised **+1** by the zone's **`pull all` XP-meter Gate → level-up Converter** (§EM13.4); each lane has its own, with its own rising `xp_per_level[zone]` (§EM2.5) | whole number in a single run — the meter Gate pulls `xp_per_level` atomically and the Converter emits 1 |
@@ -90,8 +90,8 @@ branches:
 | Branch | weight | effect (every branch also increments its counter) |
 |---|---|---|
 | **Win** | `w_win[zone]` | `Combat wins` += 1; `XP` + `XP earned` (+`xp_per_kill[zone]`), `Gold` + `Gold earned` (+`gold_per_kill[zone]`), a `Recovery` converter spends `water_per_fight` + `food_per_fight` (and adds them to `Water consumed` / `Food consumed`), and the **Loot roll** fires |
-| **Non-fatal fail** | `w_fail[zone]` | `Combat fails` += 1; no XP, no gold, no loot; `Gear wear` += `wear_per_fail`; a little `Elapsed time` += `fail_time_cost`. **No death.** |
-| **Death** | `w_death[zone]` | `Deaths` += 1; `Elapsed time` += `death_time_penalty`; `Gear wear` += `wear_per_death`; no reward |
+| **Non-fatal fail** | `w_fail[zone]` | `Combat fails` += 1; no XP, no gold, no loot; `Gear wear` += `wear_per_fail`; a little `Elapsed steps` += `fail_time_cost`. **No death.** |
+| **Death** | `w_death[zone]` | `Deaths` += 1; `Elapsed steps` += `death_time_penalty`; `Gear wear` += `wear_per_death`; no reward |
 
 `Combat wins`, `Combat fails`, `Deaths` are cumulative counter Pools;
 `total combats = wins + fails + deaths`. Splitting fail from death keeps the
@@ -164,14 +164,14 @@ level-scaled lane could not draw them cleanly).
 
 Shared across all three lanes: `Level`, `XP` / `XP earned`, `Gold` + all its
 counters, `Water` / `Food` + counters, `Gear wear`, `Gear score`, `Deaths`,
-`Elapsed time`, `Items *`, `Quest XP` / `Hunt XP`, and the level-15 End.
+`Elapsed steps`, `Items *`, `Quest XP` / `Hunt XP`, and the level-15 End.
 
 ### EM2.7 Layout
 
 Left-to-right: **Starter lane** (top band), **Foothills lane** (middle),
 **Highlands lane** (bottom), each with its own combat → loot → recovery row;
 the **shared economy** (`Level`, `Gold` + counters, `Water`/`Food` + counters,
-`Gear`, `Deaths`, `Elapsed time`, the Registers, the End) runs down the right
+`Gear`, `Deaths`, `Elapsed steps`, the Registers, the End) runs down the right
 edge. Reads as three stacked economies feeding one progression column at L1.
 
 ## EM3. One combat cycle (within the active zone lane)
@@ -188,8 +188,8 @@ encounter (this lane's Encounters Source — per step, only while the lane is op
       │                   └─ rare reward    → Gold (+ Gold earned, + Vendor revenue) ; Items sold +1
       │           → Recovery converter: Water -= water_per_fight (+ Water consumed) ;
       │                                 Food  -= food_per_fight  (+ Food consumed)
-      ├─ non-fatal fail → Gear wear += wear_per_fail ; Elapsed time += fail_time_cost
-      └─ death          → Deaths +1 ; Elapsed time += death_time_penalty ; Gear wear += wear_per_death
+      ├─ non-fatal fail → Gear wear += wear_per_fail ; Elapsed steps += fail_time_cost
+      └─ death          → Deaths +1 ; Elapsed steps += death_time_penalty ; Gear wear += wear_per_death
   → Reward router (deterministic): Quest route / Hunt route  →  XP (+ XP earned) , Quest XP / Hunt XP
   → Resupply activator (Water|Food < restock_threshold): Gold → Water/Food (+ counters)
   → Repair activator (Gear wear > repair_threshold): Gear wear → 0 , Gold -= repair_cost (+ Repair spend)
@@ -199,7 +199,7 @@ encounter (this lane's Encounters Source — per step, only while the lane is op
 ```
 
 Every step is one such cycle in whichever lane `Level` currently sits in;
-`Elapsed time` advances by `time_per_step` plus any fail / death penalty.
+`Elapsed steps` advances by `time_per_step` plus any fail / death penalty.
 
 ## EM4. Zones
 
@@ -248,13 +248,53 @@ only — no `floor` / `min` / `max` / conditionals. Every Register here is
   keeps the denominator non-zero so R(t) is a clean `0%` before the first reward
   instead of a `/0` diagnostic on opening (§EM13.6); the term is negligible once
   XP flows.
-- `XP pace (starter-levels)` = `@xp_earned / @xp_per_level_1` — **not** a level
-  estimate (the real `Level` Pool is Converter-driven and piecewise, which an
-  expression can't reproduce): total XP earned expressed in first-zone
-  level-costs, a pace / effort index.
+- `XP pace index` = `@xp_earned / @xp_per_level_1` — **not** a level estimate
+  (the real `Level` Pool is Converter-driven and piecewise, which an expression
+  can't reproduce): total XP earned expressed in first-zone level-costs, a
+  dimensionless pace / effort **index** (hence the name; no `unit`).
 - `Items accounted` = `@items_equipped + @items_sold + @items_consumed` — vs
   `@items_looted` (the §EM10 loot invariant).
 - `Consumables burned` = `@water_consumed + @food_consumed`.
+
+### Display units (rev — `example display units` PR)
+
+Reporting numbers that read as bare scores get a light unit cue; **no calc /
+default / trajectory / Timeline change**, and the Template label overlay stays
+`label`-only (§TLO-D4).
+
+- **`Elapsed time` → `Elapsed steps`** (KO `경과 시간` → `경과 단계`). It is a
+  per-step accumulator — a step count, with no wall-clock minute / hour basis.
+- **`XP pace (starter-levels)` → `XP pace index`** (KO → `경험치 진행 지수`) —
+  see above; it names the value as an index and drops the unit question.
+- **Register `unit` hint** (advisory, renders as the node's sub-line, one
+  canonical token per locale — like the coffee `kKRW/day` hint): `Total income`
+  / `Total expense` / `Net gold check` → `gold`; `Items accounted` → `items`;
+  `Consumables burned` → `units`. `Hunt XP share` keeps its `%` (percent
+  format); `XP pace index` stays unit-less.
+- **Pool label suffix** (carried through the overlay, so KO gets its own form),
+  only on the directly-displayed / identity-relevant quantities that otherwise
+  read as bare integers:
+  - `Deaths (count)` / `사망 (회)`
+  - `Water (units)` / `물 (단위)`, `Food (units)` / `식량 (단위)`
+  - `Water bought (units)` / `구매한 물 (단위)`,
+    `Food bought (units)` / `구매한 식량 (단위)`
+  - `Water consumed (units)` / `소비한 물 (단위)`,
+    `Food consumed (units)` / `소비한 식량 (단위)`
+
+  The whole water / food row is suffixed together (Hanrim's screen review found
+  the bare balances unit-ambiguous, and the §EM10.1 water / food identities read
+  across all six). Pools whose label already carries the unit word (`Gold`,
+  `XP earned`, `Items sold`, `Gear score`) are left alone — no mechanical
+  suffixing.
+
+### Register `unit` on the canvas
+
+`RegisterNode` renders `unit` right after the value (`464 kKRW/day`,
+`64 gold`) — a lighter, smaller sans suffix that shares the value line's
+ellipsis, so a long unit truncates with the value and never widens the node.
+The `= @…` expression stays on the sub-line; the Inspector `unit` field is
+unchanged. `ParameterNode` still shows its `unit` on the sub-line as before.
+No engine / schema / serialization / digest change.
 
 ## EM7. Monte Carlo
 
@@ -264,7 +304,7 @@ fields `timelineSeries` (§EM13.3) and `canvasLocked` (§EM13.8):
 
 | tracked Pool | reads as |
 |---|---|
-| `Elapsed time` | **time to level 15** — a run that hits 15 ends early, so its terminal `Elapsed time` is its levelling time; a run that doesn't reach 15 in 150 steps contributes its LOCF terminal value |
+| `Elapsed steps` | **time to level 15** — a run that hits 15 ends early, so its terminal `Elapsed steps` is its levelling time; a run that doesn't reach 15 in 150 steps contributes its LOCF terminal value |
 | `Level` | did the run finish (terminal = 15) or stall (< 15) |
 | `Deaths` | deaths per run |
 | `Combat wins` + `Combat fails` (counter Pools) | total fights and the win/fail split (with `Deaths` = the third outcome) |
@@ -283,7 +323,7 @@ fields `timelineSeries` (§EM13.3) and `canvasLocked` (§EM13.8):
   `Repair spend` climbing);
 - quest vs hunt reward balance (`Hunt XP share`);
 - how much drop-rate luck moves the levelling time (`Items *` spread vs
-  `Elapsed time` spread).
+  `Elapsed steps` spread).
 
 ## EM8. What Loop Studio deliberately does not model here
 
@@ -459,7 +499,7 @@ picker (out of scope); it is the graph's start marker.
 ### EM13.3 Timeline default (`recommendedRunConfig.timelineSeries`)
 
 The file ships a curated **10-series** Timeline default — `Level`,
-`Elapsed time`, `XP earned`, `Gold`, `Deaths`, `Gear score`, `Water consumed`,
+`Elapsed steps`, `XP earned`, `Gold`, `Deaths`, `Gear score`, `Water consumed`,
 `Food consumed`, `Items sold`, and the **`Net gold check`** Register — so a
 first-run Timeline shows the story, not 47 counters. The rest are one `+N more`
 click away. The Monte-Carlo `tracked` list (§EM7) stays wide for the
@@ -490,10 +530,10 @@ Noted in the fixture header comment:
    item counts are integral in a single run.
 4. **`Hunt XP share` denominator has a `+ 0.001` guard** so R(t) reads a clean
    `0%` from the initial state — no `/0` diagnostic when the template is opened.
-5. **`XP pace (starter-levels)`** (Register id `r_efflevel`) replaces the earlier
-   "Effective level" name — it is a pace / effort index (`@xp_earned /
-   xp_per_level_1`), not a level estimate, since real growth cost is piecewise
-   and an expression can't reproduce it.
+5. **`XP pace index`** (Register id `r_efflevel`) replaces the earlier
+   "Effective level" / "XP pace (starter-levels)" names — it is a dimensionless
+   pace / effort index (`@xp_earned / xp_per_level_1`), not a level estimate,
+   since real growth cost is piecewise and an expression can't reproduce it.
 
 ### EM13.5.1 Layout acceptance (settled with review, revised after the spacing pass)
 
@@ -536,7 +576,7 @@ across all four categories and a single run shows fractional
 one** category bucket Pool per step. In a single seeded run
 `Items looted`, `Items equipped`, `Items sold`, `Items consumed`, and each
 bucket count are **whole numbers**; only a Monte-Carlo average is fractional.
-Continuous quantities (`Gear score`, `Gold`, `XP`, `Elapsed time`) stay
+Continuous quantities (`Gear score`, `Gold`, `XP`, `Elapsed steps`) stay
 fractional, which is fine. `mmo-progression.test.ts` asserts the item counters
 are integral for six seeds. (Weights re-tuned with the change:
 `drop_rate` 38 / 38 / 44, category odds 38 : 40 : 18 : 4, `gear_gate_10` 4 —

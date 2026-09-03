@@ -241,7 +241,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "사망",
+        "label": "사망 (회)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -354,7 +354,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "물",
+        "label": "물 (단위)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -371,7 +371,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "식량",
+        "label": "식량 (단위)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -388,7 +388,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "구매한 물",
+        "label": "구매한 물 (단위)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -404,7 +404,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "구매한 식량",
+        "label": "구매한 식량 (단위)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -420,7 +420,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "소비한 물",
+        "label": "소비한 물 (단위)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -436,7 +436,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "소비한 식량",
+        "label": "소비한 식량 (단위)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -815,7 +815,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "경과 시간",
+        "label": "경과 단계",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -1375,7 +1375,8 @@
         "kind": "register",
         "label": "총 수입",
         "expr": "@gold_earned",
-        "format": "int"
+        "format": "int",
+        "unit": "gold"
       }
     },
     {
@@ -1389,7 +1390,8 @@
         "kind": "register",
         "label": "총 지출",
         "expr": "@repair_spend + @resupply_spend + @training_spend",
-        "format": "int"
+        "format": "int",
+        "unit": "gold"
       }
     },
     {
@@ -1403,7 +1405,8 @@
         "kind": "register",
         "label": "순 골드 검산",
         "expr": "@gold_earned - @repair_spend - @resupply_spend - @training_spend",
-        "format": "int"
+        "format": "int",
+        "unit": "gold"
       }
     },
     {
@@ -1429,7 +1432,7 @@
       },
       "data": {
         "kind": "register",
-        "label": "경험치 진행 속도 (초원 지대 기준)",
+        "label": "경험치 진행 지수",
         "expr": "@xp_earned / 10",
         "format": "float"
       }
@@ -1445,7 +1448,8 @@
         "kind": "register",
         "label": "아이템 정산",
         "expr": "@items_equipped + @items_sold + @items_consumed",
-        "format": "float"
+        "format": "float",
+        "unit": "items"
       }
     },
     {
@@ -1459,7 +1463,8 @@
         "kind": "register",
         "label": "소비한 소모품",
         "expr": "@water_consumed + @food_consumed",
-        "format": "int"
+        "format": "int",
+        "unit": "units"
       }
     }
   ],

@@ -241,7 +241,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Deaths",
+        "label": "Deaths (count)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -354,7 +354,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Water",
+        "label": "Water (units)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -371,7 +371,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Food",
+        "label": "Food (units)",
         "activation": "passive",
         "initial": 12,
         "capacity": null,
@@ -388,7 +388,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Water bought",
+        "label": "Water bought (units)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -404,7 +404,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Food bought",
+        "label": "Food bought (units)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -420,7 +420,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Water consumed",
+        "label": "Water consumed (units)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -436,7 +436,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Food consumed",
+        "label": "Food consumed (units)",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -815,7 +815,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Elapsed time",
+        "label": "Elapsed steps",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -1375,7 +1375,8 @@
         "kind": "register",
         "label": "Total income",
         "expr": "@gold_earned",
-        "format": "int"
+        "format": "int",
+        "unit": "gold"
       }
     },
     {
@@ -1389,7 +1390,8 @@
         "kind": "register",
         "label": "Total expense",
         "expr": "@repair_spend + @resupply_spend + @training_spend",
-        "format": "int"
+        "format": "int",
+        "unit": "gold"
       }
     },
     {
@@ -1403,7 +1405,8 @@
         "kind": "register",
         "label": "Net gold check",
         "expr": "@gold_earned - @repair_spend - @resupply_spend - @training_spend",
-        "format": "int"
+        "format": "int",
+        "unit": "gold"
       }
     },
     {
@@ -1429,7 +1432,7 @@
       },
       "data": {
         "kind": "register",
-        "label": "XP pace (starter-levels)",
+        "label": "XP pace index",
         "expr": "@xp_earned / 10",
         "format": "float"
       }
@@ -1445,7 +1448,8 @@
         "kind": "register",
         "label": "Items accounted",
         "expr": "@items_equipped + @items_sold + @items_consumed",
-        "format": "float"
+        "format": "float",
+        "unit": "items"
       }
     },
     {
@@ -1459,7 +1463,8 @@
         "kind": "register",
         "label": "Consumables burned",
         "expr": "@water_consumed + @food_consumed",
-        "format": "int"
+        "format": "int",
+        "unit": "units"
       }
     }
   ],

@@ -172,6 +172,22 @@ describe('coffee-roastery example', () => {
     }
   })
 
+  it('the three money proxies carry a `kKRW/day` unit and evaluate to 464 / 346.8 / 117.2 at the defaults (rev 10)', () => {
+    // `unit` is an advisory display hint only — it does not change the value or
+    // make the proxy a realised / accounting figure (§CR3.5 / §CR8).
+    for (const id of ['projected_revenue', 'planned_cost', 'projected_operating_margin']) {
+      expect((byId.get(id)!.data as { unit?: string }).unit).toBe('kKRW/day')
+    }
+    // the two signed stock proxies stay unitless (kg / dessert-unit space)
+    for (const id of ['roasted_supply_margin', 'dessert_prep_margin']) {
+      expect((byId.get(id)!.data as { unit?: string }).unit).toBeUndefined()
+    }
+    const base = runWith({})
+    expect(base.reg('projected_revenue')).toBeCloseTo(464, 6)
+    expect(base.reg('planned_cost')).toBeCloseTo(346.8, 6)
+    expect(base.reg('projected_operating_margin')).toBeCloseTo(117.2, 6)
+  })
+
   it('roasting is a deterministic Gate — one `@daily_roast_kg` input, a fixed 82:18 split (§CR6.1 rev 8)', () => {
     const g = byId.get('roasting')!
     expect(g.data.kind).toBe('gate')
