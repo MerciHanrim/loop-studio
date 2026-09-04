@@ -83,6 +83,12 @@ type UiState = {
   toggleInputsPanel: () => void
   summaryPanelOpen: boolean
   toggleSummaryPanel: () => void
+
+  /** SPIKE (docs/dense-graph-pan.md) — desktop Pan mode: a left-drag anywhere
+   *  (nodes / edges / frames included) pans; edit gestures are suppressed.
+   *  Session-only `uiStore` state — never persisted. */
+  panMode: boolean
+  togglePanMode: () => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
@@ -194,6 +200,12 @@ export const useUiStore = create<UiState>((set, get) => ({
       writeBoolKey(SUMMARY_PANEL_KEY, v)
       return { summaryPanelOpen: v }
     }),
+
+  // SPIKE (docs/dense-graph-pan.md D5) — desktop Pan mode. Sticky within a
+  // session but NOT persisted (no localStorage, nothing serialized); every
+  // fresh load starts in edit mode.
+  panMode: false,
+  togglePanMode: () => set((s) => ({ panMode: !s.panMode })),
 }))
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay

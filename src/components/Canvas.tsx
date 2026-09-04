@@ -25,6 +25,7 @@ import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
+import { PanSurface } from './PanSurface'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
@@ -84,6 +85,8 @@ export function Canvas() {
   const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
   const activityOverlay = useUiStore((s) => s.activityOverlay)
   const toggleActivityOverlay = useUiStore((s) => s.toggleActivityOverlay)
+  const panMode = useUiStore((s) => s.panMode)
+  const togglePanMode = useUiStore((s) => s.togglePanMode)
   const frameToolArmed = useFrameStore((s) => s.toolArmed)
   const armFrameTool = useFrameStore((s) => s.armTool)
   const disarmFrameTool = useFrameStore((s) => s.disarmTool)
@@ -216,6 +219,12 @@ export function Canvas() {
   // the minimap, the Timeline and the sim are unaffected either way.
   const noEdit = isMobile || canvasLocked
 
+  // SPIKE (docs/dense-graph-pan.md) — the pan-capture overlay is live on mobile
+  // (always) and on desktop while Pan mode is on. The Frame tool takes
+  // precedence (a pane drag draws a frame). While it is live, node dragging is
+  // off so a replayed tap can never start a drag.
+  const panSurfaceActive = (isMobile || panMode) && !frameToolArmed
+
   // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
   // nodes / edges, the handle label) — localized via the one config prop
   // (docs/localization.md Slice 2b). The MiniMap keeps its explicit `ariaLabel`.
@@ -323,7 +332,7 @@ export function Canvas() {
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
-        nodesDraggable={!noEdit}
+        nodesDraggable={!noEdit && !panSurfaceActive}
         nodesConnectable={!noEdit}
         edgesReconnectable={!noEdit}
         zoomOnDoubleClick={!isMobile}
@@ -567,8 +576,34 @@ export function Canvas() {
               {canvasLocked ? '🔒' : '🔓'}
             </ControlButton>
           )}
+          {/* SPIKE (docs/dense-graph-pan.md D5) — desktop Pan mode toggle. */}
+          {!isMobile && (
+            <ControlButton
+              onClick={togglePanMode}
+              title={panMode ? 'Pan mode on — drag anywhere to pan' : 'Pan mode — drag anywhere to pan'}
+              aria-label="Pan mode"
+              aria-pressed={panMode}
+              className="rf-panmode"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M8 2v5M8 7l-2-1M8 7l2-1M4 8H2m0 0 1.5-1.5M2 8l1.5 1.5M12 8h2m0 0-1.5-1.5M14 8l-1.5 1.5M8 14V9m0 0-2 1m2-1 2 1"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </ControlButton>
+          )}
         </Controls>
       </ReactFlow>
+      {/* SPIKE — the pan-capture overlay. Sibling of <ReactFlow>, absolute
+          inset:0; `pointer-events` only when active so edit gestures are
+          untouched otherwise. Fed the connected `setViewport` / `getViewport`
+          from this component's `useReactFlow()`. */}
+      <PanSurface active={panSurfaceActive} setViewport={setViewport} getViewport={getViewport} />
     </div>
   )
 }

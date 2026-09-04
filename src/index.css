@@ -610,6 +610,24 @@ body {
   min-width: 0;
 }
 
+/* SPIKE (docs/dense-graph-pan.md) — the pan-capture overlay. Above the node /
+   edge layer, BELOW React Flow's Controls / Panels / MiniMap (z-index 5) so
+   those stay clickable. Transparent to pointers unless active. */
+.pan-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.pan-surface--active {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+.pan-surface--active:active {
+  cursor: grabbing;
+}
+
 .react-flow {
   background: var(--surface-canvas);
 }
