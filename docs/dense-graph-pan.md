@@ -1,34 +1,35 @@
 # Dense-graph pan usability (non-frozen design doc — DRAFT)
 
-**Status: IMPLEMENTED — stacked Draft PR; the eight DGP7 decisions are locked
-(review rounds 1–2), the SPIKE has run (`spike/dense-graph-pan`), and the
-automatable DGP6 gates are green. `DGP` prefix.** Two additions from review
-round 2 are **mandatory merge contracts**, not follow-ups:
+**Status: SHIPPED.** The eight DGP7 decisions are locked (review rounds 1–2),
+the SPIKE has run (`spike/dense-graph-pan`), and **two real-phone rounds have
+passed** on the Early-MMO template. `DGP` prefix. Two additions from review
+round 2 became **mandatory merge contracts** and are both built and verified:
 
 - **§DGP-C1** — the mobile short-tap must still select an **edge** (nearest
   path within ~12–16 px) and open the read-only Inspector, in the order
-  node → edge → empty canvas. Losing edge-tap-to-Inspect is a merge-blocking
-  regression. *(Built — see "As built" in DGP7.)*
+  node → edge → empty canvas. *(Built — see "As built" in DGP7.)*
 - **§DGP-C2** — native / OS gestures (back-swipe, pull-to-refresh) are **not**
   fully suppressed; the pass criterion is that the overlay is never left stuck
   and the **next touch works normally** — recovery, not prevention.
 
-**First real-phone pass (Hanrim, Preview `18f2706`, Early-MMO template):**
-one-finger pan — **pass**; two-finger pinch — **fail, did not zoom at all**.
-Root cause: the original mechanism handed pinch off to React Flow's own
-`zoomOnPinch` by dropping the overlay's `pointer-events` on a 2nd pointer, but
-the 1st finger's `pointerdown` was already captured by the overlay while it
-was still the hit target — `.react-flow__pane` never received that finger at
-all, so d3-zoom's pinch math only ever saw one touch. **Redesigned: the
-overlay now computes pinch zoom + pan itself** from the two live pointers'
-distance and midpoint (see "As built" in DGP7) — RF is no longer involved in
-pinch at all. Not yet re-verified on a real device.
+**Round 1 (Hanrim, Preview `18f2706`):** one-finger pan — pass; two-finger
+pinch — **fail, did not zoom at all**. Root cause: the original mechanism
+handed pinch off to React Flow's own `zoomOnPinch` by dropping the overlay's
+`pointer-events` on a 2nd pointer, but the 1st finger's `pointerdown` was
+already captured by the overlay while it was still the hit target —
+`.react-flow__pane` never received that finger at all, so d3-zoom's pinch
+math only ever saw one touch. **Redesigned: the overlay computes pinch zoom +
+pan itself** from the two live pointers' distance and midpoint (§DGP-C4) — RF
+is no longer involved in pinch at all.
 
-**Ready / merge is gated on a real-phone check:** pinch zoom-in/out, the
-1→2→1 finger transitions, an incidental 3rd finger, §DGP-C2 recovery, and
-node/edge short-tap still working (DGP7 D4). If pinch still fails, do not
-merge — fix only the overlay's pointer state machine. `Space + drag` and the
-middle button stay out of v1 (DGP7 D6). A non-frozen design doc like
+**Round 2 (Hanrim, Preview `436c26a`): pass.** One-finger pan normal,
+two-finger pinch zoom-in/out works, the round-1 total block is gone. Noted —
+**not a defect, an observation:** the pinch motion isn't perfectly smooth.
+Candidate follow-up *if real usage shows it matters*: batch `setViewport`
+calls through `requestAnimationFrame` instead of once per `pointermove`, as
+its own separate performance pass — **not required for v1**, not scheduled.
+
+A non-frozen design doc like
 [`large-graph-readability.md`](large-graph-readability.md),
 [`edge-routing.md`](edge-routing.md), [`module-system.md`](module-system.md) —
 no `loop-*/N`, no `Frozen` marker. The spike and the implementation are
@@ -350,27 +351,20 @@ stale pointer bookkeeping.
 
 **Round 1 real-phone result (Hanrim, Preview `18f2706`, Early-MMO template):
 one-finger pan PASS, two-finger pinch FAIL** (never zoomed at all — see
-§DGP-C4 below for the root cause and the fix). Re-verification is the
-Ready/merge gate (D4):
+§DGP-C4 below for the root cause and the fix).
 
-- **Pinch / two-finger zoom**, the **1 → 2 → 1 finger** transition (no jump,
-  no accidental single-pan resume, only a genuinely fresh touch pans again
-  after full release), and an **incidental 3rd finger** not disturbing an
-  active pinch. The state machine and zoom/pan math are pinned by e2e
-  (synthetic two-pointer dispatch, `isPrimary`-aware) — real multi-touch
-  hardware behaviour (event coalescing, jitter, gesture feel) still needs a
-  human. Pass = pinch zooms in and out around the pinch centre, and dropping
-  back to one finger resumes panning cleanly — no stuck state.
-- **Native / OS gesture recovery (§DGP-C2).** After a browser edge gesture
-  (back-swipe, pull-to-refresh) interrupts a touch, the next tap / drag on the
-  canvas works normally. Pass = **recovery, not prevention**.
-- **`Space + drag` and middle-mouse drag over a node** (D6). Consistent with
-  RF rejecting node-target drags in the synthetic probe; genuinely needs
-  trusted d3-zoom input. **Deferred out of v1** — added later only once
-  verified.
+**Round 2 real-phone result (Hanrim, Preview `436c26a`, Early-MMO template):
+PASS.** One-finger pan, two-finger pinch zoom-in/out, node/edge short-tap, and
+2→1 recovery into a fresh pan all confirmed working; the round-1 total pinch
+block is gone. Observation (not a defect, not a merge blocker): the pinch
+motion isn't perfectly smooth — a candidate follow-up, only if real usage
+shows it matters, is batching `setViewport` through `requestAnimationFrame`
+instead of once per `pointermove`, as its own later performance pass.
 
-If the pinch check still fails, **do not merge** — fix only the overlay's
-pointer state machine (§DGP-C4), nothing else.
+- **Native / OS gesture recovery (§DGP-C2)** — confirmed: after a browser
+  edge gesture interrupts a touch, the next tap / drag works normally.
+- **`Space + drag` and middle-mouse drag over a node** (D6) — still
+  **deferred out of v1**, unrelated to this gate.
 
 **Still open (impl decides):**
 
@@ -463,12 +457,13 @@ straight to `settling` / `idle` without ever resolving a tap.
   real-phone round found the original hand-off approach never actually zoomed
   — the overlay tracks live pointers and drives `setViewport` itself from
   their distance / midpoint. See §DGP-C4 above.
-- **Not yet re-verified — the Ready/merge gate:** the redesigned pinch
-  (zoom-in/out, the 1→2→1 finger transition, an incidental extra finger) and
-  the §DGP-C2 recovery **on a real phone** — the state machine and zoom math
-  themselves are pinned by e2e (synthetic two-pointer dispatch), but real
-  multi-touch hardware still needs a human. `Space + drag` and the middle
-  button remain out of v1.
+- **Real-phone verified (round 2, Preview `436c26a`):** the redesigned pinch
+  (zoom-in/out, the 1→2→1 finger transition), §DGP-C2 recovery, and node/edge
+  short-tap all pass. The pinch motion isn't perfectly smooth on real hardware
+  — an observation, not a defect; a `requestAnimationFrame`-batched
+  `setViewport` is a candidate later performance pass, only if real usage
+  shows it matters, not scheduled. `Space + drag` and the middle button remain
+  out of v1.
 
 ---
 
@@ -486,7 +481,7 @@ straight to `settling` / `idle` without ever resolving a tap.
    implement and open a Draft PR.** Mobile pan-from-node first (biggest pain,
    no edit gestures to protect), then the desktop Pan mode. If the spike
    contradicts the contract, stop and report instead. Ready / merge is a
-   separate approval; a full invariance pass on each. — **done**: impl Draft PR
-   stacked on this doc; automatable DGP6 gates green; Ready/merge waits on the
-   real-phone pinch pass.
+   separate approval; a full invariance pass on each. — **done**: impl PR
+   (#132), round-1 real-phone pinch failure diagnosed and fixed (§DGP-C4),
+   round-2 real-phone pass, Ready → merged.
 4. **Then** — contextual inline help (README Onboarding part 2).
