@@ -1,13 +1,15 @@
 # Small Module / Template System (non-frozen design doc — DRAFT)
 
-**Status: DESIGN PASS — no implementation.** `MS` prefix. This doc closes the
-decisions [`docs/product-direction.md`](product-direction.md) deferred to the
+**Status: DESIGN PASS — no implementation. Review round 1 decisions folded in
+(2026-09-04).** `MS` prefix. This doc closes the decisions
+[`docs/product-direction.md`](product-direction.md) deferred to the
 **"small module / template system"** pass (§PD8-B): how part of a graph becomes
 a **reusable module**, how a module is **inserted into an existing graph**
 (id-collision, placement, connection boundary), the **surfaced inputs +
 result Summary** separation (§PD5), the requirement that a whole insert is
 **one `Ctrl+Z`**, and — first — **whether a module needs its own save format /
-metadata at all**.
+metadata at all**. The **§MS7** forks are now **decided** (all seven), and
+**§MS4a** records five explicit boundaries added in review round 1.
 
 It is the second Productization-track design pass; the first,
 [`docs/large-graph-readability.md`](large-graph-readability.md), shipped in
@@ -41,11 +43,13 @@ free, because nothing about any file changes.
   guarantee.
 - **MS4** — save format + old-file compatibility (the "is metadata needed"
   judgement, in full).
-- **MS5** — the **Inputs panel** + **Summary panel** (§PD5) — presentation,
-  where the data comes from, persistence (none).
-- **MS6** — the assembly surface for v1 (an *Insert module…* menu, not a
-  dedicated screen).
-- **MS7** — open forks for review.
+- **MS4a** — the five explicit boundaries added in review round 1.
+- **MS5** — the **Inputs panel** + **Summary panel** (§PD5) — presentation and
+  data source. **Its implementation is a separate follow-up slice** (MS7-5),
+  after module insert / extract lands; this doc fixes the design only.
+- **MS6** — the assembly surface for v1 (an *Insert module…* menu — **bundled
+  modules + file only**, no `#g1=` link — not a dedicated screen).
+- **MS7** — the seven fork decisions (all resolved).
 - **MS8** — test / acceptance scope for the impl PR.
 - **MS9** — slice / build order.
 
@@ -101,9 +105,9 @@ maintained.** Walking the candidate fields:
 | candidate field | why it was considered | verdict |
 |---|---|---|
 | `role: "block" \| "template" \| "example"` | tell the Templates menu how to open / message the entry | **Not needed.** The Templates **registry** already carries name + blurb + `recommendedRunConfig.canvasLocked` (the Example lock). A standalone file opened from disk has no role and needs none — it opens as an editable graph. An advisory `role` string could be an additive cosmetic field *later*; it is not required for insert, packaging, or messaging to work. |
-| `surfacedInputs: nodeId[]` | tell the Inputs panel which values to show, in what order | **Not needed for v1.** The Inputs panel shows **every `parameter` node** (and, for a v2 graph, every resource edge whose `flow` is `@param`) — see §MS5. The coffee Template's "five surfaced levers" *are already* exactly its five Parameters. Hand-picking a **subset** or a **custom order** is the only thing this field would add; it is a possible additive cosmetic follow-up (§MS7 fork), not a v1 requirement. |
+| `surfacedInputs: nodeId[]` | tell the Inputs panel which values to show, in what order | **Not needed for v1.** The Inputs panel shows **every `parameter` node** (and, for a v2 graph, every resource edge whose `flow` is `@param`) — see §MS5. The coffee Template's "five surfaced levers" *are already* exactly its five Parameters. Hand-picking a **subset** or a **custom order** is the only thing this field would add; it is a possible additive cosmetic follow-up (MS7-4 keeps it out of v1), not a v1 requirement. |
 | `summaryOutputs: nodeId[]` | tell the Summary panel which outcomes to show | **Not needed.** Same argument: the Summary panel shows **every `register` node** with its `unit`. Registers already *are* "the outcome numbers that matter" (§PD5). |
-| `ports: { edgeId, endpoint }[]` | remember where boundary edges attached, to help reconnection on insert | **Not needed for v1.** §MS2.3 drops boundary edges so the module file is a **self-contained valid graph**; reconnection to the host is a manual step. Recording ports as advisory hints is a §MS7 fork. |
+| `ports: { edgeId, endpoint }[]` | remember where boundary edges attached, to help reconnection on insert | **Not needed for v1.** §MS2.3 drops boundary edges so the module file is a **self-contained valid graph**; reconnection to the host is a manual step. Recording ports as advisory hints is out of v1 (MS7-3) — a possible later addition. |
 | a module-manifest / `module: {…}` block | a home for all of the above | **Not needed.** With every row above resolved to "no", there is nothing to put in it. |
 
 **Conclusion: the first cut serialises no module metadata.** The design is
@@ -128,10 +132,10 @@ built so that "insert" and "surface the inputs / summary" both work off the
 ### MS2.1 The gesture
 
 With a set of nodes selected on the canvas (marquee or shift-click), a new
-command **"Extract selection as module…"** produces a **new Graph JSON**
-(offered as a download and/or opened in a new tab — same delivery as
-`Export ▾`). **The source graph is not modified** — Extract is copy-out, never
-cut, so it mints **no undo entry**.
+command **"Extract selection as module…"** produces a **new Graph JSON**,
+**offered as a download only** (MS7-6). Opening the result in a new tab is a
+follow-up to review later, not v1. **The source graph is not modified** —
+Extract is copy-out, never cut, so it mints **no undo entry**.
 
 ### MS2.2 What the module file contains
 
@@ -140,47 +144,41 @@ cut, so it mints **no undo entry**.
 - **Positions:** translated so the selection's bounding-box top-left sits at a
   fixed origin (e.g. `(0, 0)`), so §MS3.2 placement is predictable. Relative
   layout is preserved exactly.
-- **`recommendedRunConfig`:** omitted (a module is a fragment, not a run
-  configuration). `canvasLocked` is never carried.
-- **`frames`:** omitted — a module fragment carries no saved frames
-  (consistent with "a pasted graph carries no `frames` block", `SF` §SF2).
+- **`recommendedRunConfig`:** **omitted** — a module is a fragment, not a run
+  configuration. `canvasLocked` is never carried. (Insert also ignores any
+  `recommendedRunConfig` a hand-made module file carries — §MS3.7 / §MS4a-B2.)
+- **`frames`:** **omitted** — a module fragment carries no saved frames
+  (`SF` §SF2). If the source graph *has* saved frames, the Extract confirmation
+  **states that frames are not included** before it produces the file, so no
+  loss is silent (§MS4a-B3).
 - **`schema`:** `loop-studio/graph/2` iff a surviving edge's `flow` is an
-  `@param` reference **and** every referenced Parameter is inside the selection
-  (otherwise the reference would dangle — see §MS2.4); else
-  `loop-studio/graph`.
+  `@param` reference (every referenced Parameter is guaranteed inside the
+  selection, because a dangling reference **refuses** the Extract — §MS2.4);
+  else `loop-studio/graph`.
 
-### MS2.3 Boundary edges (the port question)
+### MS2.3 Boundary edges
 
 An edge with **exactly one** endpoint in the selection is a **boundary edge**.
-A Graph JSON with an edge pointing at a missing node is invalid (the loader
-isolates it with a warning). Options:
+**Decision (MS7-3): boundary edges are dropped.** The module file is a
+self-contained valid graph; its "ports" are simply the nodes that previously
+had an external connection, and the user reconnects them to the host after
+insert (§MS3.3). **No `portHints` metadata is written in v1** — recording ports
+is a possible later addition, not part of this pass.
 
-- **(a) Drop boundary edges.** The module file is a self-contained valid graph;
-  its "ports" are simply the nodes that had an external connection, and the
-  user reconnects them to the host after insert (§MS3.3).
-- **(b) Record boundary edges as advisory `portHints`** metadata (which node,
-  which handle, the dropped edge's `kind` / `flow`), shown on insert as
-  "this block expects a connection here".
+### MS2.4 Dangling references — Extract is refused (§MS4a-B1)
 
-**Leaning: (a) for v1** — it needs no metadata (§MS1.2), keeps the module a
-normal graph, and matches how "assemble" is currently only an *intent*
-(§PD3). (b) is a §MS7 fork.
+If a **selected** `register`'s expression, or a **selected** edge's v2 `@param`
+`flow`, references a node id that is **not** in the selection, the reference
+would dangle in the module. **Extract is refused.** The command reports which
+node(s) hold the offending reference(s) and which target id is out of the
+selection, so the user can either widen the selection to include the target or
+deselect the referencing node. **There is no "extract anyway" override** —
+dropping only the boundary *edges* (§MS2.3) while leaving a dangling `@ref`
+would produce a module that is structurally fine but silently mis-computes, and
+that is exactly what this boundary prevents.
 
-### MS2.4 Dangling references inside the extracted set
-
-If a selected `register`'s expression, or a selected edge's `@param` `flow`,
-references a node id **not** in the selection, that reference would dangle in
-the module. Handling:
-
-- **Warn and offer to widen the selection** to include the referenced node(s),
-  or
-- **Extract anyway** — the reference is kept as text; on load into any graph
-  it resolves to `0` with the existing "unknown reference" diagnostic (this is
-  already defined behaviour, `SEMANTICS-M.md`). The module is still a valid
-  file.
-
-**Leaning: warn + offer to widen; allow "extract anyway" as the explicit
-override.**
+(A boundary *edge* being dropped is fine — an edge carries no expression to
+mis-resolve; a dangling `@ref` inside a kept node's `data` is not.)
 
 ---
 
@@ -190,28 +188,29 @@ The core new editor operation: **merge** a module's content into the open
 graph. `insertGraph(moduleDoc, opts)` — pure at the model layer
 (`src/model/`), driven by one store action.
 
-### MS3.1 Id-collision resolution
+### MS3.1 Id re-issue — every id, always (MS7-1)
 
-For every node id and edge id in the module that **already exists in the
-host**, mint a **fresh id** (`nextId(kind)` — the existing time+seq scheme, so
-uniqueness is guaranteed) and build a `Map<oldId, newId>`. Then rewrite, in the
-module's content only:
+**Every** node id and edge id in the module is re-issued to a **fresh id**
+(`nextId(kind)` — the existing time+seq scheme, uniqueness guaranteed),
+**regardless of whether it collides with a host id.** A module insert is always
+an **independent instance**; inserting the same module twice yields two fully
+separate copies with no shared id. Build a `Map<oldId, newId>` and rewrite, in
+the module's content only:
 
 - every internal edge's `source` / `target`;
-- every `register` `data.expr` and every `@param` edge `flow` — parse with the
-  existing `parse()` (`src/model/expr/`), walk the AST, replace each `ref` id
-  that is in the map, re-serialise with `canonicalPrint` / `canonicalRef`
-  (helpers already exist: `refsOf`, `canonicalRef`);
-- any `recommendedRunConfig.tracked` — **not applicable**, since §MS2.2 omits
-  `recommendedRunConfig` from a module.
+- every `register` `data.expr` and every v2 `@param` edge `flow` — parse with
+  the existing `parse()` (`src/model/expr/`), walk the AST, replace each `ref`
+  id via the map, re-serialise with `canonicalPrint` / `canonicalRef` (helpers
+  already exist: `refsOf`, `canonicalRef`). A dangling `@ref` cannot reach this
+  point — Extract refused it (§MS2.4) and Insert's §MS3.6 validation would
+  refuse a hand-made one.
+- `recommendedRunConfig` — **not present** (§MS2.2) and **ignored if a
+  hand-made file carries one** (§MS3.7).
 
-**Fork (§MS7): remap only colliding ids** (leaning — keeps readable ids stable
-on a first insert; a second insert of the same module remaps because the first
-insert's ids now exist) **vs. remap all ids unconditionally** (dead simple,
-fully deterministic, but a first insert's ids stop matching the module file).
-
-**Non-collision case:** if no id collides, no remap happens and no expression
-is rewritten — a first insert into an empty-ish graph is byte-clean.
+**Redo reuses the first insert's ids.** `Ctrl+Shift+Z` restores the *same*
+post-insert snapshot, so the ids minted on the original insert come back
+verbatim (§MS3.5). Only a *fresh* re-insert (choosing the module from the menu
+again) mints another new set.
 
 ### MS3.2 Placement
 
@@ -234,45 +233,74 @@ separate later pass (§MS10). The module and host are, until the user connects
 them, two disjoint components in one graph — which the engine runs fine
 (disconnected pools simply don't exchange).
 
-### MS3.4 Model-version interaction
+### MS3.4 Model-version interaction — consent before apply (MS7-2)
 
 | host | module | result |
 |---|---|---|
 | v1 | v1 | stays v1 |
 | v2 | v1 | stays v2 (v1 content is a subset of v2) |
 | v2 | v2 | stays v2 |
-| **v1** | **v2** (`@param` flow) | **the host promotes to v2** |
+| **v1** | **v2** (`@param` flow) | **confirm dialog → on confirm, promote + insert as one Undo unit; on cancel, nothing changes** |
 
-Inserting a v2 module into a v1 document is an **explicit user action**, which
-is exactly the `loop-model/2` promotion trigger (`SEMANTICS-M2.md §M2-1.1` — v1
-→ v2 is user-action-only, one-way). So the insert **auto-promotes the host to
-v2** and shows a one-line notice ("this block uses parameter-driven flow — the
-document is now a v2 model"). **Fork (§MS7):** auto-promote + notice (leaning)
-vs. refuse the insert with a prompt to promote first.
+Inserting a v2 module into a v1 document *is* the `loop-model/2` promotion
+trigger (`SEMANTICS-M2.md §M2-1.1` — v1 → v2 is user-action-only, one-way), but
+promotion is significant enough that it is **not silent**. Before anything is
+applied, a confirmation states: *this block uses parameter-driven flow; the
+document will become a v2 model (the model-semantics digest changes; v1 → v2 is
+one-way)*.
 
-### MS3.5 One undo entry — the hard requirement
+- **Confirm** → the v2 promotion **and** the insert are performed as **one**
+  history transaction (§MS3.5) — a single `Ctrl+Z` undoes both together, back to
+  a v1 document with no inserted nodes.
+- **Cancel** → **nothing changes**: the host graph, `modelVersion`, undo
+  history, and selection are all exactly as before.
 
-`insertGraph` is **one** history transaction:
+The other three rows apply with no dialog.
+
+### MS3.5 One atomic Undo/Redo transaction — the hard requirement
+
+`insertGraph` is **one** history transaction covering **everything** it does:
 
 1. `commit('')` once (empty tag ⇒ never coalesces ⇒ its own entry);
-2. one `set({ nodes: [...host, ...remapped], edges: [...host, ...remappedInternal], selectedNodeId: … })`;
+2. one `set({ nodes: [...host, ...reissued], edges: [...host, ...reissuedInternal], modelVersion: <promoted?>, selectedNodeId/selectedEdgeId: <the inserted set> })`;
 3. `bump()` (one `simulationRev` step) + `persist()`.
 
-This mirrors `loadDoc` exactly, but **merges** instead of replacing. A single
-`Ctrl+Z` removes **every** inserted node and edge together and restores the
-prior selection; `Ctrl+Shift+Z` re-inserts them with the **same** remapped ids
-(the redo entry holds the post-insert snapshot). `frameStore` is untouched
-(a module carries no frames). No new undo mechanism — it reuses the
-snapshot-based history already in `graphStore`.
+Bound into that **single** entry: the **re-issued ids**, the **v2 promotion**
+(when §MS3.4 confirmed), the **entire inserted node + edge set**, and the
+**selection change**. One `Ctrl+Z` removes every inserted node and edge, reverts
+`modelVersion`, and restores the prior selection — all together. `Ctrl+Shift+Z`
+restores the identical post-insert snapshot (same re-issued ids, same
+`modelVersion`, same selection). `frameStore` is untouched. No new undo
+mechanism — it reuses `graphStore`'s snapshot history, exactly like `loadDoc`
+but **merging** instead of replacing.
 
-### MS3.6 Validation on insert
+### MS3.6 Build the full candidate, validate, then apply once — or change nothing
 
-Before the `set`, the merged result is checked exactly as a selective revision
-Apply already checks its result (`validateResultGraph` — no edge incident to a
-`parameter` / `register`, handles match edge kind, finite numbers, id-sorted).
-A module file that fails (hand-edited / hostile) is **refused with a reason**,
-and the host graph is untouched — nothing is mutated in place; the merge is
-built in scratch maps first.
+The merge is built **entirely in scratch** (maps / arrays), never in place:
+
+1. re-issue all ids (§MS3.1), rewrite every internal endpoint and every
+   `@ref` / `@param flow`;
+2. compute the placed positions (§MS3.2);
+3. form the candidate `{ nodes, edges, modelVersion }`;
+4. run `validateResultGraph` on it — the same full-GraphDoc check a selective
+   revision Apply runs (no edge incident to a `parameter` / `register`, handles
+   match edge kind, finite numbers, id-sorted) **plus** expression parse of
+   every rewritten `expr` / `@param flow`.
+
+Only if step 4 passes does the single `set` (§MS3.5) run. **On any failure the
+host graph, its `modelVersion`, the undo history, and the selection state are
+left completely unchanged** — no partial insert, no orphan id, no history
+entry. The failure is reported with the specific reason.
+
+### MS3.7 What insert ignores / drops (§MS4a-B2 / B3)
+
+- **`recommendedRunConfig`** in a module file (a hand-made one might have it) —
+  **ignored**. The **host's** run config is kept as-is; the insert never
+  touches `mcStore` / the Timeline selection / `canvasLocked`.
+- **`frames`** in a module file — **dropped**. If the module Graph JSON carries
+  a saved-frames block, the pre-apply confirmation **states that its frames are
+  not carried into the host** (no silent loss), then insert proceeds without
+  them. `frameStore` is untouched either way.
 
 ---
 
@@ -298,7 +326,27 @@ From §MS1.2: **v1 serialises no module metadata.** Therefore:
 
 ---
 
+## MS4a. Explicit boundaries (review round 1)
+
+Five boundaries added so that no loss or partial change is silent. Each is
+stated where it applies above; collected here for review.
+
+| id | boundary |
+|---|---|
+| **B1** | **A dangling `@ref` refuses Extract.** If a selected `register` expr or a selected v2 `@param flow` targets a node outside the selection, Extract is **refused** and the offending reference(s) are shown. Dropping only the boundary *edges* while leaving a broken `@ref` is not allowed. There is no override. (§MS2.4) |
+| **B2** | **A module's `recommendedRunConfig` is ignored on insert; the host's run config is kept.** Insert never touches `mcStore`, the Timeline selection, or `canvasLocked`. Extract omits `recommendedRunConfig` from the module file. (§MS2.2 / §MS3.7) |
+| **B3** | **Saved frames are never carried through a v1 module insert / extract.** If the source graph (extract) or the module file (insert) has a `frames` block, the confirmation **states the frames are excluded** before the operation runs — no silent loss. `frameStore` is untouched. (§MS2.2 / §MS3.7) |
+| **B4** | **Build the full candidate (all ids + `@ref` rewritten), validate it, then apply once — or change nothing.** On any validation / parse failure the host graph, its `modelVersion`, the undo history, and the selection state are **all** left completely unchanged. (§MS3.6) |
+| **B5** | **One atomic Undo/Redo contract, tested as one.** The id re-issue result, the v2 promotion (when confirmed), the entire inserted node/edge set, and the selection change are a **single** history entry — one `Ctrl+Z` reverts all of them, `Ctrl+Shift+Z` restores all of them (same ids, same `modelVersion`, same selection). (§MS3.5 / §MS8) |
+
+---
+
 ## MS5. Inputs panel + Summary panel (§PD5)
+
+> **Design here; implementation is its own follow-up slice (MS7-5), after
+> module insert / extract lands.** This section fixes what the panels are and
+> where their data comes from; it is not part of the first module-system impl
+> PR.
 
 Two collapsible side panels, **UI-only, no persistence**, recomputed from the
 live graph each render. They are useful for **any** graph, not only modules /
@@ -314,8 +362,8 @@ templates — the module system is what introduces them.
   (read-only pointer; editing is on the Parameter row).
 - Each row is **read-through**: clicking it selects + centres the node on the
   canvas.
-- Ordering: by the node's canonical id order (deterministic). A curated order
-  is the §MS7 fork.
+- Ordering: by the node's canonical id order (deterministic). A curated
+  subset / order is **not** in v1 (MS7-4) — see §MS4.
 
 ### MS5.2 Summary panel
 
@@ -340,10 +388,11 @@ templates — the module system is what introduces them.
 ## MS6. The assembly surface for v1
 
 - The Templates menu area gains an **"Insert module…"** action (a submenu, or
-  a section in the existing Templates menu): the **bundled Building blocks**
-  (each a small Graph JSON in `examples/`, registered like a Template) plus
-  **"From file…"** (a file picker) and, if a Share payload is in scope,
-  **"From a `#g1=` link…"**.
+  a section in the existing Templates menu) with **exactly two sources**
+  (MS7-7): the **bundled Building blocks** (each a small Graph JSON in
+  `examples/`, registered like a Template) and **"From file…"** (a Graph JSON
+  file picker). **`#g1=` Share-link insert is excluded from v1** — a later
+  follow-up if wanted.
 - Picking one runs `insertGraph` (§MS3) at the viewport centre; dragging a
   block entry onto the canvas runs it at the drop point.
 - **That is the whole assembly surface for v1.** No dedicated screen, no
@@ -355,78 +404,127 @@ templates — the module system is what introduces them.
 
 ---
 
-## MS7. Open forks for review
+## MS7. Fork decisions (all resolved, review round 1 — 2026-09-04)
 
-| id | fork | leaning |
+| id | question | **decision** |
 |---|---|---|
-| **MS7-1** | §MS3.1 — remap **only colliding** ids vs **all** ids on insert | only colliding (stable ids on first insert; deterministic because `nextId` is unique) |
-| **MS7-2** | §MS3.4 — v2 module into v1 host: **auto-promote + notice** vs **refuse + prompt** | auto-promote + notice (it *is* the explicit-action promotion trigger) |
-| **MS7-3** | §MS2.3 — boundary edges on Extract: **drop** vs **record `portHints`** | drop (no metadata; module stays a normal graph) |
-| **MS7-4** | §MS1.2 / §MS5.1 — **no** serialised surfaced-input list for v1 (panel shows all Parameters / Registers) — confirm acceptable, or is a curated subset/order needed on day one? | no serialised list for v1; add later as one additive `cosmetic` field if usage demands it |
-| **MS7-5** | §MS5 — are the Inputs / Summary panels **part of this pass's impl PR**, or a **separate slice** after Insert lands? | same pass — they are small and are the concrete §PD5 deliverable |
-| **MS7-6** | §MS2.1 — Extract delivery: **download only**, **new tab only**, or **both** (matching `Export ▾`) | both, matching `Export ▾` |
-| **MS7-7** | §MS6 — does "From a `#g1=` link…" belong in v1, or Graph-JSON-file insert only? | file only for v1; link insert is a small follow-up |
+| **MS7-1** | §MS3.1 — remap only colliding ids vs **all** ids on insert | **All ids, always re-issued** — regardless of collision. A repeat insert is always an independent instance. **Redo reuses the ids minted on the first insert** (it restores that snapshot). |
+| **MS7-2** | §MS3.4 — v2 module into a v1 host | **Consent before apply.** Show the promotion fact + impact and ask; on **confirm**, the v2 promotion **and** insert are **one** Undo unit; on **cancel**, nothing changes. |
+| **MS7-3** | §MS2.3 — boundary edges on Extract | **Dropped.** No `portHints` in v1. |
+| **MS7-4** | §MS1.2 / §MS5.1 — a serialised surfaced-input list for v1 | **Not added.** The panel shows every Parameter / Register; a curated subset/order is a possible later additive `cosmetic` field only. |
+| **MS7-5** | §MS5 — Inputs / Summary panels in this pass's impl PR, or a later slice | **A separate follow-up slice**, after module insert / extract lands. Not in the first module-system impl PR. |
+| **MS7-6** | §MS2.1 — Extract delivery | **Download only** in v1. New-tab is a later follow-up. |
+| **MS7-7** | §MS6 — `#g1=` link insert in v1 | **Excluded.** v1 insert = bundled modules + Graph JSON file only. |
 
 ---
 
 ## MS8. Test / acceptance scope (for the impl PR)
 
-- **Insert — id remap:** inserting a module whose ids all collide with the host
-  → every node/edge gets a fresh id; every internal edge endpoint, every
-  `register` expr `@ref`, every `@param` `flow` is rewritten to the new id; no
-  host node/edge changes; the merged graph validates.
-- **Insert — no collision:** inserting into an empty / disjoint graph → ids
-  unchanged, no expression rewritten.
-- **Insert — one undo:** insert → `simulationRev` +1, one history entry; one
-  `Ctrl+Z` removes exactly the inserted set and restores selection; redo
-  re-inserts with identical remapped ids; `frameStore` untouched throughout.
-- **Insert — v1 host + v2 module:** host promotes to v2 (per MS7-2 outcome),
-  `modelVersion` = 2, `@param` flows resolve.
-- **Insert — invalid module:** a module with an edge onto a `parameter`, or a
-  non-finite number, is refused; the host graph is byte-identical before/after
-  the refusal.
-- **Extract:** selection → module file has exactly the selected nodes + fully
-  internal edges, positions normalised to origin, no `recommendedRunConfig`, no
-  `frames`; the source graph is unchanged and no undo entry is minted; a
-  dangling `@ref` triggers the widen/override prompt.
-- **Round-trip:** Extract a module → Insert it back into the same graph →
-  (with remap) a second disjoint copy of the block; the two copies run
-  independently.
-- **Panels:** Inputs panel lists every Parameter with an editable value +
-  read-through select; Summary panel lists every Register + `unit` +
-  `계산식 보기`; both absent when the graph has no Parameter / Register; neither
-  writes to any file or digest.
-- **Invariance:** a full `vitest` + e2e pass showing no change to any
-  `loop-revision/*` / `loop-workspace/*` / Share digest or fixture (there is no
-  format change to break).
-- **i18n:** new UI strings (menu labels, panel headers, the v2-promotion
-  notice, the extract/insert confirmations) added to `en` + `ko` with the CI
-  parity + surface checks.
+**Id re-issue (MS7-1):**
+- Insert → **every** node/edge id is a fresh id (whether or not it collided);
+  every internal edge endpoint, every `register` expr `@ref`, every v2
+  `@param flow` is rewritten to the new id; no host node/edge changes; the
+  merged graph validates and parses.
+- Insert the **same module twice** → two fully disjoint copies, no shared id;
+  each runs independently.
+
+**One atomic Undo/Redo contract (§MS4a-B5 — tested as one):**
+- Insert → `simulationRev` +1, exactly **one** history entry.
+- One `Ctrl+Z` removes **every** inserted node + edge, reverts `modelVersion`
+  (if it was promoted), and restores the exact prior selection — all together.
+- `Ctrl+Shift+Z` restores the identical post-insert snapshot: **same** re-issued
+  ids, **same** `modelVersion`, **same** selection.
+- `frameStore` is unchanged before, during, and after; no `frameStore` history
+  entry.
+
+**v2-into-v1 consent (MS7-2):**
+- v1 host + v2 module → the confirmation is shown *before* any change.
+- **Confirm** → `modelVersion` = 2, `@param` flows resolve, and a **single**
+  `Ctrl+Z` returns a v1 document with no inserted nodes (promotion + insert in
+  one entry).
+- **Cancel** → host graph, `modelVersion`, undo history, and selection are
+  byte-identical to before (§MS4a-B4).
+
+**Build-validate-then-apply / atomicity (§MS4a-B4):**
+- A module with an edge incident to a `parameter` / `register`, a non-finite
+  number, an unparseable `expr` after rewrite, or a bad handle → **refused**;
+  the host graph, `modelVersion`, undo history, and selection are **all**
+  byte-identical before / after the refusal (nothing partial, no orphan id).
+
+**Extract (§MS2 / MS7-3 / MS7-6):**
+- Selection → module file has exactly the selected nodes + fully-internal edges,
+  positions normalised to origin, **no `recommendedRunConfig`**, **no
+  `frames`**; the source graph is unchanged and **no undo entry** is minted.
+- Delivered as a **download** (no new-tab path).
+- **Boundary edges dropped**; no `portHints` key in the output.
+
+**Dangling-`@ref` refusal (§MS4a-B1):**
+- A selected `register` expr or v2 `@param flow` targeting a node outside the
+  selection → Extract is **refused**, the offending reference(s) reported, and
+  no file is produced. No "extract anyway" path exists.
+
+**Run-config isolation (§MS4a-B2):**
+- Inserting a (hand-made) module file that carries a `recommendedRunConfig` →
+  `mcStore` config, the Timeline selection, and `canvasLocked` are unchanged.
+
+**Frames-exclusion notice (§MS4a-B3):**
+- Extract from a graph that **has** saved frames → the confirmation states the
+  frames are not included, then the file is produced without them.
+- Insert a module file that **has** a `frames` block → the confirmation states
+  the frames are not carried into the host, then insert proceeds without them;
+  `frameStore` untouched.
+
+**Round-trip:** Extract → Insert back into the same graph → a second disjoint
+copy; the two copies run independently.
+
+**Panels (the later slice, MS7-5):** Inputs panel lists every Parameter with an
+editable value + read-through select; Summary panel lists every Register +
+`unit` + `계산식 보기`; both absent with no Parameter / Register; neither writes
+to any file or digest.
+
+**Invariance:** a full `vitest` + e2e pass showing **no change** to any
+`loop-revision/*` / `loop-workspace/*` / Share digest, projection, or golden
+fixture — there is no format change to break.
+
+**i18n:** every new UI string (menu labels, the v2-promotion consent copy, the
+extract / insert / frames-exclusion confirmations, panel headers) added to
+`en` + `ko` with the CI catalog-parity + hardcoded-string checks.
 
 ---
 
 ## MS9. Slice / build order (for the impl PR — pending separate approval)
 
+**Impl PR 1 — module insert / extract:**
+
 1. **Model layer** — `insertGraph(hostDoc, moduleDoc, opts)` pure function:
-   id-remap map, expr-ref rewrite, placement offset, merged-result build +
-   `validateResultGraph`. Unit-tested against hand-built fixtures. No store, no
-   UI.
-2. **Store + one-undo** — a `graphStore.insertGraph` action wrapping (1) in a
-   single `commit('')` → `set` → `bump` transaction; the v2-promotion path.
-3. **Extract** — `extractModule(doc, selectedIds)` pure function + a store
-   command that produces the file (download / tab); the dangling-ref prompt.
+   full id re-issue map (§MS3.1), expr-`@ref` / `@param flow` rewrite,
+   placement offset, `recommendedRunConfig` / `frames` stripped from the module
+   input, the full candidate build + `validateResultGraph` + expr parse
+   (§MS3.6). Unit-tested against hand-built fixtures. No store, no UI.
+2. **Store + one atomic transaction** — a `graphStore.insertGraph` action
+   wrapping (1) in a single `commit('')` → `set` (nodes + edges + `modelVersion`
+   + selection) → `bump` (§MS3.5); the v2-into-v1 **consent** gate (§MS3.4) that
+   changes nothing on cancel.
+3. **Extract** — `extractModule(doc, selectedIds)` pure function
+   (fully-internal edges only, positions to origin, no rrc, no frames) + a
+   store command that produces the **download**; the **dangling-`@ref`
+   refusal** (§MS2.4); the **frames-exclusion notice** (§MS4a-B3).
 4. **Assembly surface** — the *Insert module…* menu (bundled blocks + From
-   file…), drag-to-insert on the canvas.
-5. **Inputs / Summary panels** (MS7-5 → same pass) — two side panels reading
-   `parameter` / `register` nodes, read-through select, no persistence.
-6. **Bundled Building blocks** — 2–4 small generalised blocks (~8–15 nodes
+   file…, **no `#g1=`**), drag-to-insert on the canvas.
+5. **Bundled Building blocks** — 2–4 small generalised blocks (~8–15 nodes
    each) in `examples/`, registered like Templates, EN + KO names via the
    existing label overlay.
-7. **Docs** — README roadmap (`Small module / template-composition system`
+6. **Docs** — README roadmap (`Small module / template-composition system`
    → `◐` / `✅`), `examples/README.md`, and this doc's status.
 
-Each slice is its own commit; the whole is one PR held as **Draft** until the
-acceptance set (§MS8) is green, then a separate merge approval.
+**Impl PR 2 (later slice, MS7-5) — the panels:**
+
+7. **Inputs / Summary panels** — two side panels reading `parameter` /
+   `register` nodes, read-through select, no persistence. Separate PR after
+   PR 1 lands.
+
+Each PR is held as **Draft** until its acceptance subset (§MS8) is green, then
+a separate merge approval.
 
 ---
 
@@ -461,24 +559,29 @@ acceptance set (§MS8) is green, then a separate merge approval.
 |---|---|---|
 | MS-Q1 | Is a module a new file kind / schema? | **No.** A module is a plain Graph JSON (`loop-studio/graph` / `graph/2`). No new `schema`, `version`, extension, or `loop-*/N`. |
 | MS-Q2 | Does a module carry save metadata (`role` / `surfacedInputs` / `ports` / manifest)? | **No, for v1.** Every candidate field resolves to "not needed" (§MS1.2). A curated surfaced-input subset/order is the only plausible future addition — then, as one additive `cosmetic` field, not now. |
-| MS-Q3 | How are surfaced inputs + the result Summary presented, and from what? | **Two UI-only side panels** (§MS5): Inputs = every `parameter` node (+ v2 `@param` flows) with editable values; Summary = every `register` node with `unit` + `계산식 보기`. No persistence, no file, no digest. |
-| MS-Q4 | How is a module inserted into an existing graph? | **`insertGraph` merge** (§MS3): fresh ids for colliding node/edge ids, expression `@ref` + `@param` `flow` rewritten to the new ids, placed at the drop point / viewport centre with no host node moved, inserted nodes selected, no automatic wiring. |
-| MS-Q5 | Id-collision resolution? | **Remap only colliding ids** to a fresh `nextId(kind)` (MS7-1 leaning); rewrite every internal endpoint and every expression reference to match; validate the merged result before applying. |
-| MS-Q6 | Is a whole insert one `Ctrl+Z`? | **Yes.** One `commit('')` → one `set` → one `bump` (§MS3.5), mirroring `loadDoc` but merging; a single Undo removes the entire inserted set; redo re-inserts with identical ids. Reuses the existing history mechanism. |
-| MS-Q7 | Extract — does it cut or copy, and what about boundary edges? | **Copy-out** (source unchanged, no undo entry). Boundary edges are **dropped** (MS7-3 leaning) so the module file is a self-contained valid graph; reconnection to a host is manual after insert. |
-| MS-Q8 | v2 module into a v1 host? | **Auto-promote the host to v2 with a notice** (MS7-2 leaning) — inserting is the explicit user action that `loop-model/2` promotion requires. |
+| MS-Q3 | How are surfaced inputs + the result Summary presented, and from what? | **Two UI-only side panels** (§MS5) — designed here, **built as a separate follow-up slice** (MS7-5): Inputs = every `parameter` node (+ v2 `@param` flows) with editable values; Summary = every `register` node with `unit` + `계산식 보기`. No persistence, no file, no digest. |
+| MS-Q4 | How is a module inserted into an existing graph? | **`insertGraph` merge** (§MS3): **every** node/edge id re-issued (not only colliding — MS7-1), `@ref` / `@param flow` rewritten to the new ids, placed at the drop point / viewport centre with no host node moved, inserted nodes selected, no automatic wiring. |
+| MS-Q5 | Id resolution? | **Re-issue every id, always** (MS7-1). A repeat insert is always an independent instance; **Redo reuses the first insert's ids** (it restores that snapshot). Rewrite every internal endpoint and every `@ref` to match; validate the full candidate before applying. |
+| MS-Q6 | Is a whole insert one `Ctrl+Z`? | **Yes — one atomic transaction** (§MS3.5 / §MS4a-B5): the re-issued ids, the v2 promotion (when confirmed), the whole inserted node/edge set, and the selection change are **one** history entry. One Undo reverts all; Redo restores all (same ids, `modelVersion`, selection). Reuses `graphStore`'s snapshot history. |
+| MS-Q7 | Extract — cut or copy; boundary edges; delivery? | **Copy-out** (source unchanged, no undo entry). Boundary edges **dropped**, no `portHints` (MS7-3). **Download only** (MS7-6). A **dangling `@ref` refuses** Extract — no override (§MS4a-B1). No `recommendedRunConfig`, no `frames` (with a pre-op frames-exclusion notice — §MS4a-B3). |
+| MS-Q8 | v2 module into a v1 host? | **Consent before apply** (MS7-2): show the promotion fact + impact, ask. **Confirm** → promotion + insert as **one** Undo unit. **Cancel** → nothing changes (§MS4a-B4). |
 | MS-Q9 | Old-file / old-client compatibility? | **Preserved for free** — no file format changes at all (MS-Q1 / MS-Q2). Every existing graph / template / revision / Share / Workspace file and every digest is byte-for-byte unaffected. |
-| MS-Q10 | The v1 assembly surface? | **An *Insert module…* menu** (bundled blocks + From file…) and drag-to-insert on the open canvas (§MS6). **No dedicated assembly screen** — that is a later, separate pass. |
+| MS-Q10 | The v1 assembly surface? | **An *Insert module…* menu** — bundled blocks + Graph JSON file only, **no `#g1=` link** (MS7-7) — and drag-to-insert on the open canvas (§MS6). **No dedicated assembly screen** (later, separate pass). |
+| MS-Q11 | On any validation failure? | **Nothing changes** (§MS4a-B4): the host graph, `modelVersion`, undo history, and selection are all byte-identical before / after the refusal — the merge is built and checked entirely in scratch first. |
+| MS-Q12 | A module's `recommendedRunConfig` on insert? | **Ignored** (§MS4a-B2). The host's run config, Timeline selection, and `canvasLocked` are untouched; insert never calls into `mcStore`. |
 
 ---
 
 ## MS12. Order this feeds into
 
-1. **This design pass** — docs-only Draft PR (this file). Review the §MS7
-   forks; settle MS-Q1…MS-Q10.
-2. **Impl PR** — §MS9 slices, held Draft; separate merge approval. No
-   serialized change; a full invariance pass proving so.
-3. **After it ships** — contextual inline help (README, Onboarding part 2) can
+1. **This design pass** — docs-only Draft PR. **Review round 1 (2026-09-04)**
+   settled all seven §MS7 forks and added the five §MS4a boundaries; MS-Q1…Q12
+   are the decision record.
+2. **Impl PR 1** — §MS9 steps 1–6 (module insert / extract + assembly menu +
+   bundled blocks), held Draft; separate merge approval. **No serialized
+   change**; a full invariance pass proving so.
+3. **Impl PR 2** — §MS9 step 7 (the Inputs / Summary panels), after PR 1 lands.
+4. **After both ship** — contextual inline help (README, Onboarding part 2) can
    start, now that the app's structure is fixed. The §PD12.3 candidates
    (external data binding, gacha Template, authored landmark regions) are
    reviewed against this shape.
