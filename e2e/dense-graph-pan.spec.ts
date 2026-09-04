@@ -1,5 +1,12 @@
+import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+
+/** the bundled Early-MMO Template — 97 nodes / 144 edges, real Bézier +
+ *  orthogonal routing, real crossings. Used only for the dense-graph
+ *  edge-tap performance regression test below. */
+const readMmoProgression = (): string =>
+  readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8')
 
 // docs/dense-graph-pan.md — the pan-capture overlay (`PanSurface`).
 //
@@ -212,6 +219,91 @@ test.describe('dense-graph pan — desktop Pan mode', () => {
     await page.mouse.up()
     expect(await selectedEdge(page)).toBeNull()
     expect(await selectedId(page)).toBeNull()
+  })
+
+  test('a dense graph: the endpoint-bbox pre-filter still resolves the tapped edge, and repeats stay correct', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    // a 6×5 grid of pools, each wired to its right and down neighbour → ~49 edges
+    const COLS = 6
+    const ROWS = 5
+    const nodes = []
+    const edges = []
+    for (let r = 0; r < ROWS; r += 1)
+      for (let c = 0; c < COLS; c += 1) {
+        const id = `p_${r}_${c}`
+        nodes.push({ id, type: 'pool', position: { x: c * 220, y: r * 160 }, data: { kind: 'pool', label: id, activation: 'passive', initial: 0, mode: 'pullAny' } })
+        if (c < COLS - 1)
+          edges.push({ id: `e_${r}_${c}_R`, type: 'loop', source: id, target: `p_${r}_${c + 1}`, sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } })
+        if (r < ROWS - 1)
+          edges.push({ id: `e_${r}_${c}_D`, type: 'loop', source: id, target: `p_${r + 1}_${c}`, sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } })
+      }
+    await importGraph(page, JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes, edges }))
+    await page.waitForFunction(
+      (n) => {
+        const ns = (window as unknown as Bridge).__loop.graph.getState().nodes as { measured?: { width?: number } }[]
+        return ns.length === n && ns.every((x) => Boolean(x.measured?.width && x.measured.width > 0))
+      },
+      nodes.length,
+    )
+    await expect(page.locator('.react-flow__edge path.react-flow__edge-path')).toHaveCount(edges.length)
+    await page.evaluate(() => {
+      ;(window as unknown as Bridge).__loop.rf.setViewport({ x: 60, y: 60, zoom: 0.7 }, { duration: 0 })
+    })
+    await setPanMode(page, true)
+
+    // tap three different interior edges in a row; each must resolve to itself
+    for (const eid of ['e_2_2_R', 'e_1_3_D', 'e_3_1_R']) {
+      const p = await edgePoint(page, eid, 0.5)
+      await page.mouse.move(p.x, p.y)
+      await page.mouse.down()
+      await page.mouse.up()
+      expect(await selectedEdge(page), `tap on ${eid}`).toBe(eid)
+    }
+  })
+
+  test('perf regression — an edge tap on the 144-edge Early-MMO example resolves well under a second', async ({
+    page,
+  }) => {
+    // Hanrim 2026-09-04: the first cut of `edgeAt` cost ~110ms on a dense
+    // crossing here (all of it `getPointAtLength` call volume). Route-aware
+    // candidate padding + tolerance-scaled sampling brought a worst case to
+    // < 40ms on a dev machine — this pins it well clear of a CI-slow re-run
+    // without being a flaky tight bound.
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, readMmoProgression())
+    await page.waitForFunction(() => {
+      const ns = (window as unknown as Bridge).__loop.graph.getState().nodes as { measured?: { width?: number } }[]
+      return ns.length > 0 && ns.every((x) => Boolean(x.measured?.width && x.measured.width > 0))
+    })
+    await setPanMode(page, true)
+
+    const ms = await page.evaluate(() => {
+      const el = document.querySelector('.pan-surface') as HTMLElement
+      const paths = [...document.querySelectorAll('.react-flow__edge path.react-flow__edge-path')] as SVGPathElement[]
+      // 6 scattered edge midpoints, screen coords via each path's own CTM
+      const points = [0.05, 0.25, 0.45, 0.6, 0.8, 0.95].map((frac) => {
+        const p = paths[Math.floor(frac * paths.length)]
+        const len = p.getTotalLength()
+        const mid = p.getPointAtLength(len / 2)
+        const ctm = p.getScreenCTM()!
+        return { x: ctm.a * mid.x + ctm.c * mid.y + ctm.e, y: ctm.b * mid.x + ctm.d * mid.y + ctm.f }
+      })
+      const pe = (t: string, x: number, y: number) =>
+        new PointerEvent(t, { pointerId: 1, clientX: x, clientY: y, bubbles: true, cancelable: true, button: 0, pointerType: 'mouse' })
+      let worst = 0
+      for (const { x, y } of points) {
+        const t0 = performance.now()
+        el.dispatchEvent(pe('pointerdown', x, y))
+        el.dispatchEvent(pe('pointerup', x, y)) // no move → a tap → runs nodeAt then edgeAt synchronously
+        worst = Math.max(worst, performance.now() - t0)
+      }
+      return worst
+    })
+    expect(ms, 'slowest of 6 taps on a 144-edge graph').toBeLessThan(1000)
   })
 
   test('the overlay self-heals after a stolen gesture — the next tap still works (§DGP-C2)', async ({ page }) => {
