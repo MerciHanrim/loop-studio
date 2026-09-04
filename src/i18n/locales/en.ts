@@ -679,9 +679,13 @@ const en = {
   'tour.help.menuLabel': 'Help',
   'tour.help.takeTour': 'Take a tour',
   'tour.help.about': 'About Loop Studio',
-  // About dialog (the product name, version line, Cozy Shelter link text/href,
-  // and the copyright line are shown verbatim in every locale — not keyed)
+  // About dialog. The product name, version line, and the copyright line are
+  // shown verbatim in every locale — not keyed. `about.repo` (the GitHub link
+  // text) and `about.repoAria` (its accessible name) ARE localized; the href is
+  // the fixed repository URL.
   'about.createdBy': 'Created by',
+  'about.repo': 'GitHub repository',
+  'about.repoAria': 'Loop Studio GitHub repository',
   'about.notAffiliated': 'Loop Studio is an independent project and is not affiliated with or endorsed by Machinations.io.',
 } as const
 

@@ -29,7 +29,6 @@ const ALLOW = new Set([
   // docs/guided-tour.md §GT7.1 — the About dialog copyright line is shown
   // byte-identical in every locale (like a wire token); never translated.
   'Copyright © 2026 Hanrim. All rights reserved.',
-  'Cozy Shelter',
 ])
 // substrings that mark a line as SVG / URL / comment / import noise — NOT a
 // blanket "has an attribute" skip (a real JSX text node often shares its line
