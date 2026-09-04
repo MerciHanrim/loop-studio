@@ -436,6 +436,22 @@ const ko = {
     '현재 그래프에는 저장된 그룹 프레임이 있습니다. 프레임은 모듈 파일에 기록되지 않으며, 선택한 노드와 그 내부 연결만 포함됩니다.',
   'modules.frames.continue': '계속',
 
+  // ── 입력 / 요약 패널 (docs/module-system.md §MS5) ──
+  'panels.inputs.title': '입력',
+  'panels.summary.title': '요약',
+  'panels.inputs.collapse': '입력 패널 접기',
+  'panels.inputs.expand': '입력 패널 펼치기',
+  'panels.summary.collapse': '요약 패널 접기',
+  'panels.summary.expand': '요약 패널 펼치기',
+  'panels.inputs.paramValue': '{label} 값',
+  'panels.inputs.flowVia': '흐름: {param}',
+  'panels.inputs.reveal': '캔버스에서 보기',
+  'panels.summary.showCalc': '계산식 보기',
+  'panels.summary.hideCalc': '계산식 숨기기',
+  'panels.summary.noValue': '— {step}단계에서 값 없음',
+  'panels.empty.inputs': '이 그래프에는 파라미터가 없습니다.',
+  'panels.empty.summary': '이 그래프에는 레지스터가 없습니다.',
+
   // ── 내보내기 메뉴 (§W8) ──
   'export.button': '내보내기 ▾',
   'export.menuLabel': '내보내기',

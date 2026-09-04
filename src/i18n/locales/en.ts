@@ -483,6 +483,25 @@ const en = {
     'Your graph has saved group frames. They are not written into the module file — only the selected nodes and their internal connections are.',
   'modules.frames.continue': 'Continue',
 
+  // ── Inputs / Summary panels (docs/module-system.md §MS5) ──────────────
+  'panels.inputs.title': 'Inputs',
+  'panels.summary.title': 'Summary',
+  'panels.inputs.collapse': 'Collapse the Inputs panel',
+  'panels.inputs.expand': 'Expand the Inputs panel',
+  'panels.summary.collapse': 'Collapse the Summary panel',
+  'panels.summary.expand': 'Expand the Summary panel',
+  // the Parameter's / Register's own label is raw model data, rendered as-is
+  // (§L3.4) — not a catalog string.
+  'panels.inputs.paramValue': 'Value of {label}',
+  // a v2 resource edge whose flow is a parameter reference — read-only pointer
+  'panels.inputs.flowVia': 'flow via {param}',
+  'panels.inputs.reveal': 'Show on the canvas',
+  'panels.summary.showCalc': 'Show calculation',
+  'panels.summary.hideCalc': 'Hide calculation',
+  'panels.summary.noValue': '— no value at step {step}',
+  'panels.empty.inputs': 'No Parameters in this graph.',
+  'panels.empty.summary': 'No Registers in this graph.',
+
   // ── Export menu (§W8) ────────────────────────────────────────────────
   'export.button': 'Export ▾',
   'export.menuLabel': 'Export',

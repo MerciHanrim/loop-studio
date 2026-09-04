@@ -2266,6 +2266,27 @@ body {
   letter-spacing: 0.08em;
 }
 
+/* ---- desktop right column: Inputs/Summary panels + Inspector ---- */
+.rightcol {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-panel);
+  border-left: 1px solid var(--line-hairline);
+}
+/* inside `.rightcol` the Inspector fills the remaining height and scrolls; the
+   fixed width / border / bg now live on `.rightcol` (works through the
+   `display: contents` lock fieldset too — descendant selector, not child). */
+.rightcol .inspector {
+  width: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-left: 0;
+  background: transparent;
+}
+
 /* ---- inspector ---- */
 .inspector {
   width: 300px;
@@ -2274,6 +2295,168 @@ body {
   border-left: 1px solid var(--line-hairline);
   padding: 14px;
   overflow-y: auto;
+}
+
+/* ---- docs/module-system.md §MS5 — Inputs / Summary panels ---- */
+.mpanels {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 55%;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.mpanel + .mpanel {
+  border-top: 1px solid var(--line-hairline);
+}
+.mpanel__head {
+  margin: 0;
+  font-size: 11px;
+}
+.mpanel__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.mpanel__toggle:hover {
+  color: var(--text-primary);
+}
+.mpanel__caret {
+  font-size: 9px;
+  color: var(--text-tertiary);
+}
+.mpanel__count {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.mpanel__body {
+  padding: 0 12px 10px;
+}
+.mpanel__empty {
+  margin: 0;
+  padding: 2px 0 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.mpanel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.mp-row__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.mp-row__label:hover {
+  text-decoration: underline;
+}
+.mp-row__val {
+  flex: 0 0 78px;
+  width: 78px;
+  font-size: 12px;
+  text-align: right;
+}
+.mp-row--reg {
+  flex-wrap: wrap;
+}
+/* v2 `@param` flow edges — a compact read-only pointer, one line, both halves
+   truncate rather than wrap */
+.mp-row--flow {
+  gap: 6px;
+  padding: 2px 0;
+}
+.mp-row--flow .mp-row__label {
+  flex: 1 1 55%;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.mp-row__via {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.mp-row--reg .mp-row__main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+}
+.mp-row--reg .mp-row__val {
+  flex: 0 0 auto;
+  width: auto;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.mp-row__val--invalid {
+  color: var(--text-tertiary);
+}
+.mp-row__calc {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.mp-row__calcbtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.mp-row__calcbtn:hover {
+  color: var(--text-secondary);
+}
+.mp-row__expr {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+.mp-row__code {
+  width: 100%;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--line-invalid, var(--text-tertiary));
 }
 /* Canvas edit-lock (uiStore.canvasLocked): the desktop Inspector is wrapped in a
    `<fieldset disabled>`; `display: contents` drops the fieldset box so the inner
