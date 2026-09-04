@@ -12,6 +12,7 @@ import {
   useStore,
 } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
+import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
@@ -36,6 +37,10 @@ const withDeemph = (base: string | undefined): string =>
   base ? `${base} ${DEEMPH_CLASS}` : DEEMPH_CLASS
 
 const DND_TYPE = 'application/loop-node'
+// docs/module-system.md §MS3.2 — a Building block dragged from the Insert-module
+// menu (kept in sync with `ModuleMenu.tsx`, mirroring the `DND_TYPE` duplication
+// between this file and `Toolbar.tsx`).
+const MODULE_DND_TYPE = 'application/loop-module'
 
 // docs/visual-language.md §VL7.2 — "Grid fades out entering L1". The dot grid is
 // a scan aid for the detail view only; below the L2 threshold it is dropped so
@@ -67,6 +72,7 @@ export function Canvas() {
   const onEdgesChange = useGraphStore((s) => s.onEdgesChange)
   const onConnect = useGraphStore((s) => s.onConnect)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
+  const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
   const isMobile = useIsMobile()
@@ -270,11 +276,25 @@ export function Canvas() {
   const handleDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault()
+      const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      // docs/module-system.md §MS3.2 — a bundled Building block dragged from the
+      // Insert-module menu drops at the pointer. Blocks are v1 + self-contained,
+      // so no consent / notice path is reachable here; a validation refusal
+      // (never expected for a bundled block) just alerts.
+      const moduleId = e.dataTransfer.getData(MODULE_DND_TYPE)
+      if (moduleId) {
+        const block = BUNDLED_MODULES.find((m) => m.id === moduleId)
+        if (block) {
+          const r = insertModule(cloneModuleDoc(block), { at })
+          if (!r.ok) window.alert(r.reason)
+        }
+        return
+      }
       const kind = e.dataTransfer.getData(DND_TYPE) as NodeKind
       if (!kind) return
-      addNodeAt(kind, screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+      addNodeAt(kind, at)
     },
-    [addNodeAt, screenToFlowPosition],
+    [addNodeAt, insertModule, screenToFlowPosition],
   )
 
   const handleDragOver = useCallback((e: DragEvent) => {

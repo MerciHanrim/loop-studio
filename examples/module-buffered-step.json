@@ -1,0 +1,122 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "supply",
+      "type": "source",
+      "position": { "x": 0, "y": 120 },
+      "data": { "kind": "source", "label": "Supply", "activation": "automatic", "mode": "pushAny" }
+    },
+    {
+      "id": "inbox",
+      "type": "pool",
+      "position": { "x": 200, "y": 110 },
+      "data": { "kind": "pool", "label": "Inbox", "activation": "passive", "initial": 0, "capacity": 50, "mode": "pullAny" }
+    },
+    {
+      "id": "intake",
+      "type": "gate",
+      "position": { "x": 400, "y": 110 },
+      "data": { "kind": "gate", "label": "Intake", "activation": "automatic", "distribution": "deterministic" }
+    },
+    {
+      "id": "process",
+      "type": "converter",
+      "position": { "x": 600, "y": 60 },
+      "data": { "kind": "converter", "label": "Process", "activation": "automatic", "mode": "pullAny" }
+    },
+    {
+      "id": "spoilage",
+      "type": "drain",
+      "position": { "x": 600, "y": 240 },
+      "data": { "kind": "drain", "label": "Spoilage", "activation": "automatic", "mode": "pullAny" }
+    },
+    {
+      "id": "outbox",
+      "type": "pool",
+      "position": { "x": 800, "y": 60 },
+      "data": { "kind": "pool", "label": "Outbox", "activation": "passive", "initial": 0, "capacity": 50, "mode": "pullAny" }
+    },
+    {
+      "id": "shipped",
+      "type": "drain",
+      "position": { "x": 1000, "y": 60 },
+      "data": { "kind": "drain", "label": "Shipped", "activation": "automatic", "mode": "pullAny" }
+    },
+    {
+      "id": "batch_size",
+      "type": "parameter",
+      "position": { "x": 200, "y": 300 },
+      "data": { "kind": "parameter", "label": "Batch size", "value": 2 }
+    },
+    {
+      "id": "in_system",
+      "type": "register",
+      "position": { "x": 400, "y": 300 },
+      "data": { "kind": "register", "label": "Units in system", "expr": "@inbox + @outbox", "format": "int" }
+    },
+    {
+      "id": "planned_run",
+      "type": "register",
+      "position": { "x": 400, "y": 380 },
+      "data": { "kind": "register", "label": "Planned run", "expr": "@batch_size * 10", "format": "int" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_supply_inbox",
+      "source": "supply",
+      "target": "inbox",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "3" }
+    },
+    {
+      "id": "e_inbox_intake",
+      "source": "inbox",
+      "target": "intake",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "all" }
+    },
+    {
+      "id": "e_intake_process",
+      "source": "intake",
+      "target": "process",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "2" }
+    },
+    {
+      "id": "e_intake_spoilage",
+      "source": "intake",
+      "target": "spoilage",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1" }
+    },
+    {
+      "id": "e_process_outbox",
+      "source": "process",
+      "target": "outbox",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1" }
+    },
+    {
+      "id": "e_outbox_shipped",
+      "source": "outbox",
+      "target": "shipped",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "2" }
+    }
+  ]
+}

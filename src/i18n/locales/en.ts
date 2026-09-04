@@ -460,6 +460,29 @@ const en = {
   'templates.replace.body': 'Loading “{name}” replaces what is on the canvas now.',
   'templates.replace.confirm': 'Load template',
 
+  // ── Insert module menu (docs/module-system.md §MS6) ───────────────────
+  'modules.button': 'Insert module ▾',
+  'modules.menuLabel': 'Insert module',
+  'modules.fromFile': 'From file…',
+  'modules.extract': 'Extract selection as module…',
+  'modules.bufferedStep.name': 'Buffered production step',
+  'modules.bufferedStep.blurb':
+    'Supply into an inbox pool, an intake gate that splits into a 2→1 converter and a spoilage drain, then an outbox pool that ships out — with readouts for units in system and a planned run size.',
+  'modules.rewardSplit.name': 'Reward split loop',
+  'modules.rewardSplit.blurb':
+    'Activity feeds a wallet; an allocate gate splits it 2:1 into spending and savings, savings bleeds through withdrawals, and two registers track net worth and progress toward a target.',
+  'modules.error.title': 'Could not insert the module',
+  'modules.promote.title': 'Make this a parameter-driven (v2) model?',
+  'modules.promote.body':
+    'This block drives a flow from a parameter, so inserting it turns the document into a v2 model. The model-semantics digest changes and v1 → v2 is one-way. A single undo reverses the promotion and the insert together.',
+  'modules.promote.confirm': 'Promote and insert',
+  'modules.frames.title': 'Saved frames are not included',
+  'modules.frames.insertBody':
+    'This file has saved group frames. Inserting it as a module does not bring frames into your graph — everything else is inserted as usual.',
+  'modules.frames.extractBody':
+    'Your graph has saved group frames. They are not written into the module file — only the selected nodes and their internal connections are.',
+  'modules.frames.continue': 'Continue',
+
   // ── Export menu (§W8) ────────────────────────────────────────────────
   'export.button': 'Export ▾',
   'export.menuLabel': 'Export',
