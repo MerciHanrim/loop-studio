@@ -1,20 +1,25 @@
 # Large-Graph Readability (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation pending.** rev 3. rev 1 fixed the
-direction; rev 2 closed the four structural blockers (global hit-test rule
-§LGR4, consistent Focus definition + closed hop decisions §LGR2, per-item
-persistence table §LGR3.4, derived-only `evaluated` §LGR5) and held the
-auto-frame clustering design for Slice 4b (§LGR6); **rev 3** aligns two
-contracts with the **actual source**: `evaluated` is now defined **only** by
+**Status: IMPLEMENTED — all slices shipped in `v0.8.0-dev`.** rev 3 (design).
+rev 1 fixed the direction; rev 2 closed the four structural blockers (global
+hit-test rule §LGR4, consistent Focus definition + closed hop decisions §LGR2,
+per-item persistence table §LGR3.4, derived-only `evaluated` §LGR5) and held the
+auto-frame clustering design for Slice 4b (§LGR6); **rev 3** aligned two
+contracts with the **actual source**: `evaluated` is defined **only** by
 `StepReport.activated \ fired` (a **node-only** weight — the committed result
 has no zero-flow edge or gate-branch data, §LGR5.1), and the **resource-type
 filter** is built from the free-form `resourceType` strings **present in the
 open graph**, not a fixed palette; the node-kind list is the real eight
-`NodeKind` values (§LGR3.2). This doc fixes the **behaviour contract** for reading and
-navigating a large model *before* any implementation. It is a **non-frozen**
-design doc — no `loop-*/N` id, no `Frozen` marker — and merges as *settled
-design, implementation pending*, like [`docs/localization.md`](localization.md),
-[`docs/guided-tour.md`](guided-tour.md), and [`docs/edge-routing.md`](edge-routing.md).
+`NodeKind` values (§LGR3.2). Ship status: **Slice 1** `1ce599f` · **Slice 2**
+`c6109d7` · **Slice 3** `91eb273` · **Slice 4a** `f6c9d8d` · **Slice 4b**
+`7b17cfb` · **frame accent colour (§FC)** `6b08035` · **Slice 5 (saved frames,
+`loop-revision/5` / [`SEMANTICS-R5.md`](../SEMANTICS-R5.md) Frozen)** `3fe7072`,
+Production-verified. Slice 5's design detail lives in
+[`large-graph-readability-saved-frames.md`](large-graph-readability-saved-frames.md)
+(`SF`), the `nConf` contract for a `frames` conflict in `SEMANTICS-R5.md` §R5-6
+/ R5-D9. This doc is retained as the **behaviour contract** for the shipped
+feature set; it is **non-frozen** (no `loop-*/N` id) — the wire contract for
+saved frames is `SEMANTICS-R5.md`.
 
 This is the first design pass of the **Productization track** (README roadmap),
 chosen ahead of the small module / template system because the read / select
@@ -24,12 +29,16 @@ smaller scope and lower serialization risk. Its focus / filter substrate is also
 a dependency of the later assembly screen ([`docs/product-direction.md`](product-direction.md)
 §PD8-B).
 
-A **render / UI layer**, with **one** staged exception (§LGR6): everything here
-is view state that changes nothing the engine computes, nothing that is
-serialized, and no wire contract — *except* the **saved group frame** (LGR
-Slice 5), a Frozen `loop-revision/5` **cosmetic** amendment designed in
-`docs/large-graph-readability-saved-frames.md` and built in its own impl PR. §LGR11 is the decision record,
-§LGR10 the acceptance / E2E set, §LGR12 the slices, §LGR13 the scope boundary.
+An **engine-neutral readability / UI layer**, with **one** serialized addition
+(§LGR6 / Slice 5): everything here is view state that changes nothing the engine
+computes and no engine / structure digest — *except* the **saved group frame**
+(LGR Slice 5), a Frozen `loop-revision/5` **cosmetic** field (`GraphDoc.frames`)
+designed in `docs/large-graph-readability-saved-frames.md` and formalised at the
+wire level in `SEMANTICS-R5.md`. A `frames` change flips `dirty` and moves the
+`loop-revision/5` **content** digest, but never `engineAffecting` /
+`advisoryAffecting`, the engine / structure digest, or the simulation result.
+§LGR11 is the decision record, §LGR10 the acceptance / E2E set, §LGR12 the
+slices, §LGR13 the scope boundary.
 
 **Build order (settled with Lumi):**
 1. this design doc → review → settle;
@@ -722,9 +731,10 @@ Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subse
 
 ## LGR14. Order this feeds into
 
-Merges as *settled design, implementation pending*. Slice 1 starts after the
-merge — render / UI-only, no `src/` wire change, no engine change. The small
-module / template system (§PD8-B) is the **next** design pass after this one;
-the focus / filter substrate from Slices 1–2 is a dependency of its assembly
-screen. `Contextual inline help` (README, Onboarding part 2) comes after the
-Productization track's structure is in place.
+**All slices shipped in `v0.8.0-dev`** (Slice 1 `1ce599f` → Slice 5 `3fe7072`,
+Production-verified). Slices 1–4b + §FC changed nothing serialized; Slice 5
+added the `loop-revision/5` cosmetic `GraphDoc.frames` field (`SEMANTICS-R5.md`).
+The small module / template-composition system (§PD8-B) is the **next** design
+pass — not started; the focus / filter substrate from Slices 1–2 is a dependency
+of its assembly screen. `Contextual inline help` (README, Onboarding part 2)
+comes after the Productization track's structure is in place.
