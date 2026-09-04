@@ -630,8 +630,11 @@ const ko = {
   'tour.help.menuLabel': '도움말',
   'tour.help.takeTour': '둘러보기',
   'tour.help.about': 'Loop Studio 정보',
-  // About 대화상자 (제품명·버전 줄·Cozy Shelter 링크·저작권 줄은 번역하지 않고 모든 로케일에서 그대로 표시)
+  // About 대화상자 (제품명·버전 줄·저작권 줄은 번역하지 않고 모든 로케일에서 그대로 표시.
+  // GitHub 링크 문구 about.repo 와 접근성 이름 about.repoAria 는 번역 대상, href 는 고정 URL)
   'about.createdBy': '제작:',
+  'about.repo': 'GitHub 저장소',
+  'about.repoAria': 'Loop Studio GitHub 저장소',
   'about.notAffiliated': 'Loop Studio는 독립 프로젝트이며 Machinations.io와 제휴하거나 보증받은 프로젝트가 아닙니다.',
 } satisfies MessageCatalog
 

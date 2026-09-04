@@ -680,13 +680,21 @@ test.describe('guided tour — About dialog (§GT7.1)', () => {
     const sha = stamp.replace(/^v[\d.\-a-z]+\s*·?\s*/, '').trim()
     if (sha) await expect(dlg.locator('.about__version')).toContainText(sha)
     await expect(dlg).toContainText('Copyright © 2026 Hanrim. All rights reserved.')
-    await expect(dlg.locator('a')).toHaveAttribute('href', 'https://cozyshelter.tistory.com/')
+    // the GitHub repository link — fixed href, opens in a new tab, EN text + aria
+    const repoLink = dlg.locator('.about__by a')
+    await expect(repoLink).toHaveAttribute('href', 'https://github.com/MerciHanrim/loop-studio')
+    await expect(repoLink).toHaveAttribute('target', '_blank')
+    await expect(repoLink).toHaveText('GitHub repository')
+    await expect(repoLink).toHaveAttribute('aria-label', 'Loop Studio GitHub repository')
     const enNote = await dlg.locator('.about__note').innerText()
 
-    // KO: copyright line byte-identical; the note switches
+    // KO: copyright line byte-identical; the note + the repo link text/aria switch
     await page.evaluate(() => (window as unknown as Bridge).__loop.i18n.getState().setLocale('ko'))
     await expect(dlg).toContainText('Copyright © 2026 Hanrim. All rights reserved.')
     await expect(dlg.locator('.about__by')).toContainText('제작:')
+    await expect(repoLink).toHaveText('GitHub 저장소')
+    await expect(repoLink).toHaveAttribute('aria-label', 'Loop Studio GitHub 저장소')
+    await expect(repoLink).toHaveAttribute('href', 'https://github.com/MerciHanrim/loop-studio') // href never changes
     expect(await dlg.locator('.about__note').innerText()).not.toBe(enNote)
 
     // §GT9 case 19 — each of Escape / backdrop / close returns focus to the Help trigger

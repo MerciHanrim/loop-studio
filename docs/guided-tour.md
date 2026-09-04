@@ -343,7 +343,7 @@ Loop Studio
 v0.8.0-dev · build 2b6d504
 
 Created by Hanrim
-Cozy Shelter
+GitHub repository
 
 Copyright © 2026 Hanrim.
 All rights reserved.
@@ -359,7 +359,7 @@ Loop Studio
 v0.8.0-dev · 빌드 2b6d504
 
 제작: Hanrim
-Cozy Shelter
+GitHub 저장소
 
 Copyright © 2026 Hanrim.
 All rights reserved.
@@ -375,9 +375,14 @@ Loop Studio는 독립 프로젝트이며 Machinations.io와
   stamp** (`__APP_VERSION__` / `__BUILD_SHA__`) — one source of truth, so they
   can never disagree with the header.
 - **`Created by` / `제작:`** and the non-affiliation sentence are localized.
-- **`Cozy Shelter` is a link** to `https://cozyshelter.tistory.com/` — the same
-  target as `README.md`, in every locale and every build. **No GitHub /
-  repository link is included.**
+- **The GitHub link** points at the project repository,
+  `https://github.com/MerciHanrim/loop-studio` — a fixed href in every locale
+  and every build. It **opens in a new tab** (`target="_blank"`,
+  `rel="noreferrer noopener"`). Its **visible text is localized** (`GitHub
+  repository` / `GitHub 저장소`, key `about.repo`) and its **accessible name**
+  identifies the project (`Loop Studio GitHub repository` / `Loop Studio GitHub
+  저장소`, key `about.repoAria`). It replaces the earlier Cozy Shelter blog
+  link, which is no longer shown here.
 
 **Behaviour**
 
@@ -411,12 +416,14 @@ and KO `satisfies MessageCatalog`, e.g.:
   `inspector` · `playback` · `timeline` · `files`
 - `tour.mobile.<step>.title` / `.body` for the six mobile steps
 - `tour.help.menuLabel` · `tour.help.takeTour` · `tour.help.about`
-- `about.createdBy` (= `"Created by"` / `"제작:"`) ·
-  `about.notAffiliated` (the Machinations.io sentence). The product name,
-  `v{version} · build {sha}` line, the `Cozy Shelter` link (text **and** its
-  `https://cozyshelter.tistory.com/` href), and `Copyright © 2026 Hanrim. All
-  rights reserved.` are **not** catalog strings — they are shown verbatim in
-  every locale (the version/SHA come from `__APP_VERSION__` / `__BUILD_SHA__`).
+- `about.createdBy` (= `"Created by"` / `"제작:"`), `about.repo` (the GitHub
+  link text, `"GitHub repository"` / `"GitHub 저장소"`), `about.repoAria` (its
+  accessible name), and `about.notAffiliated` (the Machinations.io sentence).
+  The product name, `v{version} · build {sha}` line, the GitHub link **href**
+  (`https://github.com/MerciHanrim/loop-studio`), and `Copyright © 2026 Hanrim.
+  All rights reserved.` are **not** catalog strings — they are shown verbatim
+  in every locale (the version/SHA come from `__APP_VERSION__` /
+  `__BUILD_SHA__`).
 
 No string concatenation of translatable fragments; `{n}` / `{total}` are ICU
 arguments. The tour adds **no** exception to any localization invariant
@@ -487,8 +494,10 @@ The implementation slice must ship E2E covering:
     More → Help entry both open it. It shows the same `v{version} · build {sha}`
     as the toolbar build stamp; the `Copyright © 2026 Hanrim. All rights
     reserved.` line is **byte-identical in EN and KO**, while `Created by` /
-    `제작:` and the non-affiliation sentence switch with the locale; the
-    `Cozy Shelter` line links to `https://cozyshelter.tistory.com/`.
+    `제작:`, the non-affiliation sentence, and the GitHub link's text
+    (`GitHub repository` / `GitHub 저장소`) + accessible name switch with the
+    locale; the link's href is the fixed
+    `https://github.com/MerciHanrim/loop-studio` and it opens in a new tab.
     **Each** of `Escape`, a backdrop click, and the close button dismisses the
     dialog, and after **each** of those three paths focus is on the **Help
     (`?`) trigger** (the Help menu having closed when About opened). Opening then
@@ -534,8 +543,10 @@ The implementation slice must ship E2E covering:
   user never sees. A small static read-only dialog fixes it, homed in the same
   Help menu. Version + build SHA come from the same `__APP_VERSION__` /
   `__BUILD_SHA__` as the header; `Copyright © 2026 Hanrim. All rights reserved.`
-  is not translated; `Cozy Shelter` **is a link** to
-  `https://cozyshelter.tistory.com/` (matching `README.md`), no GitHub link;
+  is not translated; the dialog carries **a link to the project GitHub
+  repository** (`https://github.com/MerciHanrim/loop-studio`, opens in a new
+  tab; localized text + accessible name) — it replaced the earlier Cozy Shelter
+  blog link, which is no longer shown here (`README.md` still keeps its byline);
   opening About closes the Help menu, so `Escape` / backdrop / close each return
   focus to the **Help (`?`) trigger**; opening / closing it mutates nothing and
   leaves no persisted state. *(Lumi, rev 3.)*

@@ -8,11 +8,13 @@ import { useDialogFocus } from './useDialogFocus'
 // Escape / backdrop / close button each dismiss; focus returns to the Help
 // trigger (the Help menu having closed when About opened).
 //
-// The product name, the `v… · build …` line, the Cozy Shelter link, and the
-// `Copyright © …` line are shown VERBATIM in every locale — not catalog strings
-// (§GT8). Version + build SHA come from the same globals as the toolbar stamp.
+// The product name, the `v… · build …` line, and the `Copyright © …` line are
+// shown VERBATIM in every locale — not catalog strings (§GT8). Version + build
+// SHA come from the same globals as the toolbar stamp. The GitHub link points
+// at the project repository; its visible text and accessible name are keyed
+// (`about.repo` / `about.repoAria`), the href is fixed. It opens in a new tab.
 
-const COZY_SHELTER_URL = 'https://cozyshelter.tistory.com/'
+const REPO_URL = 'https://github.com/MerciHanrim/loop-studio'
 
 type Props = {
   open: boolean
@@ -51,8 +53,13 @@ export function AboutDialog({ open, onClose, returnFocusTo }: Props) {
           <p className="about__by">
             {t('about.createdBy')} Hanrim
             <br />
-            <a href={COZY_SHELTER_URL} target="_blank" rel="noreferrer noopener">
-              Cozy Shelter
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={t('about.repoAria')}
+            >
+              {t('about.repo')}
             </a>
           </p>
           <p className="about__copyright">Copyright © 2026 Hanrim. All rights reserved.</p>
