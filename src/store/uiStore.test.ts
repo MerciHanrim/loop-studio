@@ -137,3 +137,52 @@ describe('uiStore — Inputs / Summary panels (docs/module-system.md §MS5)', ()
   // localStorage persistence (`loop-studio:inputs-panel` / `:summary-panel`) is
   // covered by e2e/model-panels.spec.ts — same reason as focusMode above.
 })
+
+describe('uiStore — panMode (docs/dense-graph-pan.md — session-only)', () => {
+  beforeEach(() => useUiStore.setState({ panMode: false }))
+
+  it('defaults to false; set / toggle flip it', () => {
+    const s = () => useUiStore.getState()
+    expect(s().panMode).toBe(false)
+    s().togglePanMode()
+    expect(s().panMode).toBe(true)
+    s().togglePanMode()
+    expect(s().panMode).toBe(false)
+    s().setPanMode(true)
+    expect(s().panMode).toBe(true)
+  })
+
+  it('setPanMode to the same value is a no-op (stable reference)', () => {
+    useUiStore.getState().setPanMode(true)
+    const before = useUiStore.getState()
+    useUiStore.getState().setPanMode(true)
+    expect(useUiStore.getState()).toBe(before)
+  })
+
+  it('never touches localStorage — session-only', () => {
+    // the node test env has no `localStorage`; give it one and assert the
+    // panMode setters read/write nothing (focusMode etc. would call setItem).
+    const calls: string[] = []
+    const fake = {
+      getItem: (k: string) => {
+        calls.push(`get:${k}`)
+        return null
+      },
+      setItem: (k: string) => {
+        calls.push(`set:${k}`)
+      },
+      removeItem: (k: string) => {
+        calls.push(`remove:${k}`)
+      },
+    }
+    vi.stubGlobal('localStorage', fake)
+    try {
+      useUiStore.getState().togglePanMode()
+      useUiStore.getState().setPanMode(false)
+      useUiStore.getState().setPanMode(true)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+    expect(calls).toEqual([])
+  })
+})

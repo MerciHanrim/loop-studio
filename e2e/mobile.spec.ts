@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import {
   expect,
   graphSnapshot,
@@ -27,6 +27,17 @@ async function loadDiagram(page: Page): Promise<void> {
   await resetAll(page)
   await importGraph(page, readRiskyFactory())
   await expect(page.locator('.react-flow__node').first()).toBeVisible()
+}
+
+/** A tap at a node's screen centre. docs/dense-graph-pan.md — on mobile the
+ *  pan-capture overlay sits over the canvas, so a node is reached by tapping
+ *  *through* it (a short press → the overlay resolves the node and selects it),
+ *  not by `locator.click()` (which the overlay would intercept). */
+async function tapNode(page: Page, node: Locator): Promise<void> {
+  const b = (await node.boundingBox())!
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  await page.mouse.down()
+  await page.mouse.up()
 }
 
 /** document does not scroll sideways */
@@ -411,7 +422,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     expect(await graphContent(page), 'after drag').toBe(before)
 
     // 2 — select + Delete / Backspace
-    await node.click()
+    await tapNode(page, node)
     await page.keyboard.press('Delete')
     await page.keyboard.press('Backspace')
     expect(await graphContent(page), 'after Delete/Backspace').toBe(before)
@@ -428,9 +439,10 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
       expect(await graphContent(page), 'after connect attempt').toBe(before)
     }
 
-    // 4 / 5 — double-click + right-click (context menu)
-    await node.dblclick()
-    await node.click({ button: 'right' })
+    // 4 / 5 — double-click + right-click (context menu). `force` — the pan
+    // overlay is the hit target on mobile; the point is that neither mutates.
+    await node.dblclick({ force: true })
+    await node.click({ button: 'right', force: true })
     expect(await graphContent(page), 'after dblclick + context menu').toBe(before)
 
     const snap1 = await graphSnapshot(page)
@@ -458,7 +470,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
     const node = page.locator('.react-flow__node').first()
 
-    await node.click()
+    await tapNode(page, node)
     await expect(inspector).toBeVisible()
     // <fieldset disabled> disables descendants functionally (no per-control
     // attribute), so assert via the :enabled pseudo-class, not [disabled].
@@ -472,7 +484,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await inspector.locator('.sheet__x').click()
     await expect(inspector).toBeHidden()
 
-    await node.click()
+    await tapNode(page, node)
     await expect(inspector).toBeVisible()
     // the dimmed canvas above the sheet is the scrim — a tap there dismisses
     // the sheet and clears the selection (§MV5)

@@ -106,6 +106,10 @@ const ko = {
   'canvas.focus.rowLabel': '선택 집중',
   'canvas.focus.stateOn': '켬',
   'canvas.focus.stateOff': '끔',
+  // docs/dense-graph-pan.md — 데스크톱 Pan 모드 토글. 세션 한정, 저장 안 함.
+  'canvas.panMode.off': 'Pan 모드 꺼짐 — 빈 캔버스를 끌어 이동',
+  'canvas.panMode.on': 'Pan 모드 켜짐 — 어디서든 끌어 이동',
+  'canvas.panMode.rowLabel': 'Pan 모드',
   'canvas.filter.open': '필터 — 탐색하는 동안 그래프 일부를 숨깁니다',
   'canvas.filter.close': '필터 패널 닫기',
   'canvas.filter.title': '필터',
