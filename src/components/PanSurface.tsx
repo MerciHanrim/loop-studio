@@ -17,13 +17,38 @@ import type { LoopEdge, LoopNode } from '../model/types'
 //     bounding box narrows the candidates to a handful first, then only those
 //     paths are sampled (`getPointAtLength` → shared `getScreenCTM()`), so a
 //     graph with hundreds of edges still resolves a tap in well under a frame.
-// A second pointer drops the overlay's `pointer-events` so React Flow's own
-// pinch-zoom runs; it is restored when every pointer lifts.
 //
-// Zoom is deliberately left untouched (DGP0): `wheel` (plain and ctrl/trackpad-
-// pinch) is forwarded to `.react-flow__pane` so d3-zoom still runs under the
-// overlay. Double-click-to-zoom is suppressed while Pan mode is on — wheel /
-// pinch / the Controls +/- cover it.
+// PINCH IS HANDLED HERE, NOT HANDED OFF TO REACT FLOW. The first cut dropped
+// `pointer-events` on a 2nd pointer so RF's own pane would see both touches
+// and run its own `zoomOnPinch` — real-device testing showed this never
+// actually zooms. Root cause: the 1st finger's `pointerdown` was captured by
+// THIS element (`setPointerCapture`) while the overlay was still the hit
+// target, so `.react-flow__pane` never receives that finger's down/move at
+// all, capture or no capture — d3-zoom's pinch math needs both touches on the
+// SAME element and only ever sees the 2nd. So the overlay now computes pinch
+// zoom itself from the two live pointers' distance and midpoint, incrementally
+// each move (previous distance/midpoint → this move's, not a fixed gesture-
+// start baseline — that also naturally covers translating while pinching).
+//
+// The mode state machine:
+//   0 pointers down  → 'idle'
+//   1 pointer down    → 'pan' (existing tap-vs-drag path)
+//   2 pointers down   → 'pinch' (cancels any in-progress 'pan'; a 3rd+ finger
+//                        is tracked but ignored — the first two pointer ids
+//                        that started the pinch keep driving it)
+//   2 → 1 (mid-pinch)  → 'settling': the remaining finger does NOTHING (no pan
+//                        resumes, no jump) until it also lifts
+//   settling → 0        → 'idle', ready for a genuinely fresh gesture
+// A `pointercancel` / `lostpointercapture` at any point resets straight to
+// 'idle' without resolving a tap (§DGP-C2) — the next fresh pointerdown always
+// starts clean, whichever mode the interruption happened in.
+//
+// Zoom via wheel is deliberately left untouched (DGP0): `wheel` (plain and
+// ctrl/trackpad-pinch) is forwarded to `.react-flow__pane` so d3-zoom still
+// runs under the overlay for that input — wheel is a single continuous stream
+// on one element, so it doesn't hit the two-touches-on-two-elements problem
+// pinch does. Double-click-to-zoom is suppressed while Pan mode is on — wheel
+// / pinch / the Controls +/- cover it.
 //
 // `setViewport` / `getViewport` come from `Canvas`'s `useReactFlow()` (the
 // connected one — a bare `useReactFlow()` from a component rendered outside
@@ -34,15 +59,22 @@ const DEFAULT_W = 60
 const DEFAULT_H = 40
 /** how close (screen px) a tap must land to an edge path to select it */
 const EDGE_TAP_TOL = 14
+/** below this pointer separation (px) a distance RATIO is too noisy to trust —
+ *  hold the zoom steady rather than divide by a near-zero denominator */
+const PINCH_MIN_DIST = 4
 
 export function PanSurface({
   active,
   setViewport,
   getViewport,
+  minZoom,
+  maxZoom,
 }: {
   active: boolean
   setViewport: (vp: Viewport) => void
   getViewport: () => Viewport
+  minZoom: number
+  maxZoom: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -50,16 +82,29 @@ export function PanSurface({
     const el = ref.current
     if (!el || !active) return
 
-    let pointerId: number | null = null
+    type Mode = 'idle' | 'pan' | 'pinch' | 'settling'
+    let mode: Mode = 'idle'
+    const pointers = new Map<number, { x: number; y: number }>()
+
+    // 'pan' state
+    let panId: number | null = null
     let startX = 0
     let startY = 0
     let startVp: Viewport = { x: 0, y: 0, zoom: 1 }
     let moved = false
-    let multi = false
-    const down = new Set<number>()
 
-    const restorePE = () => {
-      el.style.pointerEvents = ''
+    // 'pinch' state — the two pointer ids driving it, and the PREVIOUS
+    // midpoint / distance (updated every move) so zoom + pan are computed
+    // incrementally frame-to-frame, not against a fixed gesture-start baseline
+    let pinchIds: [number, number] | null = null
+    let pinchMid = { x: 0, y: 0 }
+    let pinchDist = 0
+
+    const resetAll = () => {
+      pointers.clear()
+      mode = 'idle'
+      panId = null
+      pinchIds = null
     }
 
     /** screen point → id of the top-most (last-painted) visible node whose box
@@ -202,30 +247,75 @@ export function PanSurface({
       if (ec.length) g.onEdgesChange(ec)
     }
 
-    const onDown = (e: PointerEvent) => {
-      down.add(e.pointerId)
-      if (down.size >= 2) {
-        // a second finger — abandon any pan; drop our pointer-events so both
-        // touches reach React Flow's pane and its pinch-zoom runs.
-        multi = true
-        pointerId = null
-        el.style.pointerEvents = 'none'
+    const startPinch = (id1: number, id2: number) => {
+      mode = 'pinch'
+      pinchIds = [id1, id2]
+      const p1 = pointers.get(id1)!
+      const p2 = pointers.get(id2)!
+      pinchMid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+      pinchDist = Math.hypot(p2.x - p1.x, p2.y - p1.y)
+    }
+
+    /** distance-ratio zoom + midpoint-tracks-the-same-flow-point pan, computed
+     *  incrementally from THIS move's distance/midpoint vs the previous one —
+     *  not a fixed gesture-start baseline, so translating while pinching (real
+     *  fingers rarely hold a perfectly still centre) falls out for free. */
+    const updatePinch = () => {
+      if (!pinchIds) return
+      const p1 = pointers.get(pinchIds[0])
+      const p2 = pointers.get(pinchIds[1])
+      if (!p1 || !p2) return
+      const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y)
+      if (dist < PINCH_MIN_DIST || pinchDist < PINCH_MIN_DIST) {
+        pinchMid = mid
+        pinchDist = dist
         return
       }
-      pointerId = e.pointerId
-      startX = e.clientX
-      startY = e.clientY
-      startVp = getViewport()
-      moved = false
+      const vp = getViewport()
+      const zoom = Math.min(maxZoom, Math.max(minZoom, vp.zoom * (dist / pinchDist)))
+      // the flow point under the PREVIOUS midpoint, read against the CURRENT
+      // (pre-update) viewport, re-anchored under THIS move's midpoint
+      const flowX = (pinchMid.x - vp.x) / vp.zoom
+      const flowY = (pinchMid.y - vp.y) / vp.zoom
+      setViewport({ x: mid.x - flowX * zoom, y: mid.y - flowY * zoom, zoom })
+      pinchMid = mid
+      pinchDist = dist
+    }
+
+    const onDown = (e: PointerEvent) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       try {
         el.setPointerCapture(e.pointerId)
       } catch {
         /* capture unsupported — window listeners below still finish the gesture */
       }
+      if (pointers.size === 1) {
+        if (mode === 'settling') return // still waiting for the last finger to lift
+        mode = 'pan'
+        panId = e.pointerId
+        startX = e.clientX
+        startY = e.clientY
+        startVp = getViewport()
+        moved = false
+      } else if (pointers.size === 2) {
+        // a 2nd finger — abandon any single-pointer pan and start pinch;
+        // ignore a 3rd+ (kept in `pointers` so it un-wedges cleanly on lift,
+        // but the original pair keeps driving the gesture)
+        panId = null
+        const ids = [...pointers.keys()]
+        startPinch(ids[0], ids[1])
+      }
     }
 
     const onMove = (e: PointerEvent) => {
-      if (multi || e.pointerId !== pointerId) return
+      if (!pointers.has(e.pointerId)) return
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (mode === 'pinch') {
+        updatePinch()
+        return
+      }
+      if (mode !== 'pan' || e.pointerId !== panId) return
       const dx = e.clientX - startX
       const dy = e.clientY - startY
       if (!moved && Math.hypot(dx, dy) < PAN_SLOP) return
@@ -234,44 +324,90 @@ export function PanSurface({
       setViewport({ x: startVp.x + dx, y: startVp.y + dy, zoom: startVp.zoom })
     }
 
+    /** a pointer physically lifted — may resolve a tap. Never runs the tap
+     *  path out of a pinch (or its 2→1 `settling` tail): only a clean single-
+     *  pointer 'pan' gesture that never crossed `PAN_SLOP` is a tap. */
     const onUp = (e: PointerEvent) => {
-      const wasTracked = down.delete(e.pointerId)
-      if (down.size === 0 && multi) {
-        multi = false
-        restorePE()
-      }
-      if (e.pointerId !== pointerId) return
-      pointerId = null
+      const wasTracked = pointers.delete(e.pointerId)
+      // the window-level listeners exist to catch OUR pointer releasing
+      // outside the element's box — an id we never tracked is unrelated
+      // window noise and must not perturb `mode` (e.g. a stray up firing
+      // mid-pinch that isn't one of the two pinching fingers).
+      if (!wasTracked) return
       try {
         el.releasePointerCapture(e.pointerId)
       } catch {
         /* not captured */
       }
-      if (!wasTracked || moved || multi) return // a pan (or a stale event) — no selection change
+      if (mode === 'pinch') {
+        // only a release of one of the two DRIVING fingers ends the pinch —
+        // an incidental 3rd finger lifting leaves the actual pinch untouched
+        const wasDriver = pinchIds != null && (e.pointerId === pinchIds[0] || e.pointerId === pinchIds[1])
+        if (wasDriver) {
+          mode = pointers.size === 0 ? 'idle' : 'settling' // 2→1: wait, don't resume a pan
+          if (pointers.size === 0) pinchIds = null
+        }
+        return
+      }
+      if (mode === 'settling') {
+        if (pointers.size === 0) mode = 'idle'
+        return
+      }
+      // mode === 'pan'
+      if (e.pointerId !== panId) return
+      panId = null
+      mode = 'idle'
+      if (moved) return // a completed drag — no selection change
       // a tap — node beats edge beats empty canvas (§DGP-C1)
       const nid = nodeAt(e.clientX, e.clientY)
       applySelection(nid, nid ? null : edgeAt(e.clientX, e.clientY))
     }
 
-    // Belt-and-braces: if a pointerup / cancel is ever missed (capture lost, an
-    // OS gesture stole it) the `down` set would wedge the overlay into the
-    // two-finger hand-off. A fresh single-pointer down with leftovers present
-    // clears them; window-level up / cancel catches releases outside the box.
+    // Belt-and-braces: if a pointerup / cancel is ever missed (an OS gesture
+    // stole it without one) leftover entries would wedge the overlay. The
+    // signal is `isPrimary` — the user agent's OWN "no other same-type
+    // pointer is currently active" flag (spec-defined, unaffected by whether
+    // our own `setPointerCapture` calls happened to succeed — capture can
+    // silently not take, and a synthetic test event never gets it at all, so
+    // that isn't a reliable "is this pointer still really down" signal). A
+    // pointerdown the browser itself considers primary while we still have
+    // tracked pointers means those are ghosts from a missed cleanup — clear
+    // them (§DGP-C2); window-level up / cancel catches releases outside the
+    // box for pointers that ARE still legitimately ours.
     const onDownGuard = (e: PointerEvent) => {
-      if (down.size > 0 && !multi && ![...down].some((id) => el.hasPointerCapture?.(id))) {
-        down.clear()
+      if (e.isPrimary && pointers.size > 0) {
+        resetAll()
       }
       onDown(e)
     }
+    // A cancel is an INTERRUPTION (the OS took the touch), never a completed
+    // gesture — clean up but never resolve a tap (§DGP-C2).
     const onCancel = (e: PointerEvent) => {
-      moved = false
-      onUp(e)
+      const wasTracked = pointers.delete(e.pointerId)
+      try {
+        el.releasePointerCapture(e.pointerId)
+      } catch {
+        /* not captured */
+      }
+      if (!wasTracked) return
+      if (pointers.size === 0) {
+        resetAll()
+        return
+      }
+      if (mode === 'pan' && e.pointerId === panId) {
+        mode = 'settling' // the panning finger itself was interrupted
+        panId = null
+      } else if (mode === 'pinch') {
+        // same "only a driving finger ends it" rule as onUp
+        const wasDriver = pinchIds != null && (e.pointerId === pinchIds[0] || e.pointerId === pinchIds[1])
+        if (wasDriver) {
+          mode = 'settling'
+          pinchIds = null
+        }
+      }
     }
     const onLost = () => {
-      down.clear()
-      pointerId = null
-      multi = false
-      restorePE()
+      resetAll()
     }
 
     // Zoom stays with React Flow (DGP0). d3-zoom's wheel handler is bound to
@@ -315,9 +451,8 @@ export function PanSurface({
       el.removeEventListener('wheel', onWheel)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
-      restorePE()
     }
-  }, [active, setViewport, getViewport])
+  }, [active, setViewport, getViewport, minZoom, maxZoom])
 
   return <div ref={ref} className={`pan-surface${active ? ' pan-surface--active' : ''}`} aria-hidden="true" />
 }

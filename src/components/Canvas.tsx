@@ -43,6 +43,12 @@ const DND_TYPE = 'application/loop-node'
 // between this file and `Toolbar.tsx`).
 const MODULE_DND_TYPE = 'application/loop-module'
 
+// the <ReactFlow> zoom clamp — shared with PanSurface's own pinch-zoom math
+// (docs/dense-graph-pan.md) so a pinch can never take the viewport past what
+// the Controls +/- or wheel-zoom would allow.
+const MIN_ZOOM = 0.2
+const MAX_ZOOM = 2
+
 // docs/visual-language.md §VL7.2 — "Grid fades out entering L1". The dot grid is
 // a scan aid for the detail view only; below the L2 threshold it is dropped so
 // the map view stays clean. Pure function of zoom — a threshold round-trip
@@ -341,8 +347,8 @@ export function Canvas() {
         ariaLabelConfig={ariaLabelConfig}
         fitView
         fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
-        minZoom={0.2}
-        maxZoom={2}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
         // §LGR6 — while the Frame tool is armed, a pane drag draws a frame
         // instead of panning the canvas.
         panOnDrag={!frameToolArmed}
@@ -354,8 +360,17 @@ export function Canvas() {
             below every `.react-flow__panel` (Controls / MiniMap / hints, z 5)
             so those stay clickable while Pan mode is on. `pointer-events` only
             while active — edit gestures are untouched otherwise. Fed the
-            connected `setViewport` / `getViewport` from this component. */}
-        <PanSurface active={panSurfaceActive} setViewport={setViewport} getViewport={getViewport} />
+            connected `setViewport` / `getViewport` from this component, and
+            the same zoom clamp <ReactFlow> uses so its own pinch-zoom math
+            (real-device pinch showed React Flow's own never actually ran with
+            the overlay capturing the first finger) can't exceed it. */}
+        <PanSurface
+          active={panSurfaceActive}
+          setViewport={setViewport}
+          getViewport={getViewport}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+        />
         <EdgeMarkers />
         <LodGrid />
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
