@@ -15,6 +15,14 @@ Graphs with different jobs:
 | `mmo-progression.json` | **product demo / Templates entry** — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve | yes (also in **Templates ▾**) |
 | `mmo-progression.ko.json` | **Korean-language independent derived copy** of the file above — display-only node `label` / `resourceType` strings translated, everything else (ids, structure, positions, expressions, edges, `recommendedRunConfig`, schema/version) byte-identical, so it reproduces the exact same run. **Not registered in Templates ▾ or anywhere in the app** — a separate file for a Korean-labelled read of the same example, imported manually | yes (Import only — not a Templates entry) |
 | `coffee-roastery.json` | **product demo / Templates entry** — "Coffee roastery operations flow": a small operating-flow simulation (buy green → roast at 82 % yield → sell through cafe / online / retail + a dessert line) with **five surfaced daily levers** wired as `loop-model/2` `@parameter` flow references. The **first bundled file at `schema` `loop-studio/graph/2`**. A simplified simulation example — **not** an ERP or real-time monitoring system | yes (also in **Templates ▾**) |
+| `module-buffered-step.json` | **bundled Building block** ([`docs/module-system.md`](../docs/module-system.md) `MS`) — a ~10-node v1 fragment: supply → inbox pool → an intake gate that splits into a 2→1 converter and a spoilage drain → outbox pool → shipped, plus two readout Registers and a `batch_size` Parameter. Generalised, no domain names | yes (also in **Insert module ▾**) |
+| `module-reward-split.json` | **bundled Building block** — a ~9-node v1 fragment: activity → wallet pool → an allocate gate splitting 2:1 into spending and savings, savings bleeding through withdrawals, and two Registers (`net worth`, `progress to target`) reading a `savings target` Parameter | yes (also in **Insert module ▾**) |
+
+A **Building block** is just a plain Graph JSON — there is no `module` schema or
+metadata. **Insert module ▾** re-issues every id, rewrites expression
+references, and merges it into the open graph as one undo step; **Extract
+selection as module…** writes the reverse (selected nodes + their internal
+edges only, no `recommendedRunConfig`, no `frames`).
 
 ---
 

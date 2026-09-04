@@ -37,7 +37,6 @@ export function ModuleMenu() {
   const [framesNotice, setFramesNotice] = useState<FramesNotice | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
   const insertModule = useGraphStore((s) => s.insertModule)
   const { screenToFlowPosition } = useReactFlow()
 
@@ -82,25 +81,37 @@ export function ModuleMenu() {
     if (block) runInsert(cloneModuleDoc(block), false)
   }
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
+  const handleFileText = (text: string) => {
+    const r = readModuleFile(text)
+    if (!r.ok) {
+      window.alert(`${t('modules.error.title')}\n${r.reason}`)
+      return
+    }
+    // §MS3.7 / B3 — a module file with saved frames: state the exclusion first,
+    // then insert without them.
+    if (r.hadFrames) setFramesNotice({ dir: 'insert', doc: r.module })
+    else runInsert(r.module, false)
+  }
+
+  // A transient `<input type=file>` — created, clicked, and discarded per pick —
+  // so there is never a second standing file input in the toolbar (the app has
+  // exactly one, the Import button's; e2e and other callers rely on that).
+  const pickFile = () => {
     setOpen(false)
-    if (!file) return
-    file.text().then(
-      (text) => {
-        const r = readModuleFile(text)
-        if (!r.ok) {
-          window.alert(`${t('modules.error.title')}\n${r.reason}`)
-          return
-        }
-        // §MS3.7 / B3 — a module file with saved frames: state the exclusion
-        // first, then insert without them.
-        if (r.hadFrames) setFramesNotice({ dir: 'insert', doc: r.module })
-        else runInsert(r.module, false)
-      },
-      () => window.alert(t('modules.error.title')),
-    )
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.style.display = 'none'
+    input.addEventListener('change', () => {
+      const file = input.files?.[0] // captured before removal — the File stays valid
+      input.remove()
+      if (file) file.text().then(handleFileText, () => window.alert(t('modules.error.title')))
+    })
+    // a dismissed picker fires no `change`; sweep the element once the window is
+    // focused again, deferred so a real `change` runs first.
+    window.addEventListener('focus', () => setTimeout(() => input.remove(), 200), { once: true })
+    document.body.appendChild(input)
+    input.click()
   }
 
   const extract = () => {
@@ -148,12 +159,7 @@ export function ModuleMenu() {
               <span className="menu__blurb">{t(MODULE_KEY[m.id as keyof typeof MODULE_KEY].blurb)}</span>
             </button>
           ))}
-          <button
-            type="button"
-            className="menu__item"
-            role="menuitem"
-            onClick={() => fileRef.current?.click()}
-          >
+          <button type="button" className="menu__item" role="menuitem" onClick={pickFile}>
             <span className="menu__name">{t('modules.fromFile')}</span>
           </button>
           <button type="button" className="menu__item" role="menuitem" onClick={extract}>
@@ -161,8 +167,6 @@ export function ModuleMenu() {
           </button>
         </div>
       ) : null}
-
-      <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
 
       <ConfirmDialog
         open={promoteDoc != null}

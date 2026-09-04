@@ -1,7 +1,8 @@
 # Small Module / Template System (non-frozen design doc — DRAFT)
 
-**Status: DESIGN PASS — no implementation. Review round 1 decisions folded in
-(2026-09-04).** `MS` prefix. This doc closes the decisions
+**Status: DESIGN settled (review round 1, 2026-09-04). Impl PR 1 (module insert
+/ extract — §MS9 steps 1–6) is in build; the Inputs / Summary panels (§MS9 step
+7) remain a separate later slice.** `MS` prefix. This doc closes the decisions
 [`docs/product-direction.md`](product-direction.md) deferred to the
 **"small module / template system"** pass (§PD8-B): how part of a graph becomes
 a **reusable module**, how a module is **inserted into an existing graph**
@@ -516,6 +517,41 @@ extract / insert / frames-exclusion confirmations, panel headers) added to
    existing label overlay.
 6. **Docs** — README roadmap (`Small module / template-composition system`
    → `◐` / `✅`), `examples/README.md`, and this doc's status.
+
+### As built (impl PR 1)
+
+- **Model layer** — `src/model/moduleGraph.ts`: `insertGraph(host, mod, opts)` +
+  `extractModule(src, selectedIds)`, both pure. `insertGraph` re-issues **every**
+  id (`nextId(kind)` / `nextId('e')`), rewrites `register` `expr` and v2 `@param`
+  `flow` (`parse` → walk the AST replacing each `ref` id → `canonicalPrint`),
+  offsets to the drop point, then `validateResultGraph` + `canonicalContent` the
+  whole candidate before returning. `moduleGraph.test.ts` (16).
+- **Store** — `graphStore.insertModule(module, { at, confirmedPromotion? })`:
+  one `commit('')` → one `set` → `bump`. **`HistoryEntry` gained
+  `modelVersion`** (undo / redo now restore it) so a promoting insert — and the
+  existing leading-`@` flow latch — is reverted as one unit; no existing test
+  regressed. Without consent a v2-into-v1 insert returns
+  `{ ok: false, reason: 'needs-v2-consent' }` and changes nothing.
+  `moduleInsert.test.ts` (6).
+- **IO** — `src/store/moduleIO.ts`: `readModuleFile` (any Graph JSON is a
+  module; reports `hadFrames` / `hadRunConfig`), `planSelectionAsModule`
+  (serialise the selection via `extractModule`; no rrc / no frames), and
+  `selectedNodeIds` (marquee selection, single-Inspector fallback).
+- **UI** — `src/components/ModuleMenu.tsx` (an *Insert module ▾* menu next to
+  Templates: the bundled blocks, *From file…*, *Extract selection as module…*;
+  the v2 promotion consent + the frames-exclusion notice reuse `ConfirmDialog`).
+  `Canvas.tsx` `handleDrop` also accepts the `application/loop-module` payload
+  for drag-to-insert. Desktop only — the mobile bar has no structural editing.
+- **Blocks** — `examples/module-buffered-step.json`,
+  `examples/module-reward-split.json` (v1, generalised), read by
+  `src/model/modules.ts`, menu name / blurb keyed in
+  `src/components/moduleKeys.ts` + `modules.*` in `en` / `ko`. Seeded node
+  labels stay English in every locale for v1 (like `equilibrium` / `deadlock`);
+  a KO node-label overlay for blocks is a later follow-up.
+- **e2e** — `e2e/module-system.spec.ts` (7): menu contents, insert (fresh ids /
+  selected set / one entry), one-undo + redo-same-ids, twice-disjoint, the v2
+  consent gate (no-op / cancel / promote+insert one undo unit), extract to a
+  download (internal edges only, no rrc / frames), dangling-`@ref` refusal.
 
 **Impl PR 2 (later slice, MS7-5) — the panels:**
 
