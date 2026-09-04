@@ -259,7 +259,11 @@ design pass is **one of**:
   merge + any block save metadata** (§PD3), a connection helper, a staged build
   flow, the localization overlay (§PD7). Larger; shapes how new models get made.
 
-Pick one as the next design doc once this direction is agreed.
+**Settled:** A went first and shipped in `v0.8.0-dev`
+([`docs/large-graph-readability.md`](large-graph-readability.md)). B is the
+current design pass — [`docs/module-system.md`](module-system.md) (`MS`); its
+headline finding is that the first cut needs **no** new file format or block
+save metadata.
 
 ---
 
