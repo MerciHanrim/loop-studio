@@ -369,11 +369,22 @@ hand-off (`down` set / `pointer-events` restore), nothing else.
 - **The tap resolves node → edge → empty (§DGP-C1).** Edges are inside
   `.react-flow__viewport` (`pointer-events: none` while
   `nodesDraggable={false}`), so they are not in `elementsFromPoint` and not a
-  box test. The overlay instead samples each `.react-flow__edge-path` with
-  `getPointAtLength`, maps every sample to screen space through the path's
-  `getScreenCTM()`, and takes the **nearest** edge within `EDGE_TAP_TOL`
-  (~14 px). A fast screen-bbox reject skips edges nowhere near the tap. Node
-  box wins over an overlapping edge; nothing near either → an empty-canvas tap.
+  box test. Two passes keep it fast on a dense graph: **(1)** a
+  pure-arithmetic reject on every edge's *endpoint* bounding box (the
+  `source` / `target` node boxes from the store — plus any `waypoints` — padded
+  route-aware: ~60 flow-units for a default Bézier's bulge, ~220 for an
+  orthogonal detour) — no DOM, no layout; **(2)** only the few survivors get
+  the precise test — sample the drawn `.react-flow__edge-path` with
+  `getPointAtLength` roughly every half a tolerance-width of path length, map
+  each sample to screen space through the shared `getScreenCTM()` (one matrix
+  for all edge paths), take the **nearest** within `EDGE_TAP_TOL` (~14 px).
+  Pass 2 is authoritative; pass 1 only widens the set, so a detour that
+  escapes the padded box just costs one extra precise test. Node box wins over
+  an overlapping edge; nothing near either → empty-canvas tap.
+  **Profiled on the 144-edge Early-MMO example: a first, un-tuned cut of this
+  algorithm cost ~110ms on a dense-crossing tap (`getPointAtLength` call
+  volume, not layout, was the entire cost) — route-aware padding + tolerance-
+  scaled sampling brought a worst-case tap to < 40ms.**
 - **Filter panel clearance.** The Pan-mode button lengthens the bottom-left
   Controls stack by one; `.lgr-filter`'s fixed reserve went 195px → 224px so
   its last row still clears the buttons on a short canvas.

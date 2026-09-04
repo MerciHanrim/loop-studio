@@ -11,10 +11,12 @@ import type { LoopEdge, LoopNode } from '../model/types'
 //   - node: GEOMETRICALLY — screen → flow coords → each node's
 //     `{ position, measured }` box. DOM `elementFromPoint` can't be used
 //     because React Flow makes non-draggable nodes non-hit-testable.
-//   - edge: the nearest `.react-flow__edge-path` within `EDGE_TAP_TOL`, by
-//     sampling the path with `getPointAtLength` and mapping each sample to
-//     screen space through the path's `getScreenCTM()` (edges are inside the
-//     `pointer-events: none` viewport, so they aren't hit-testable either).
+//   - edge: the nearest `.react-flow__edge-path` within `EDGE_TAP_TOL` (edges
+//     are inside the `pointer-events: none` viewport, so `elementFromPoint`
+//     misses them too). A pure-arithmetic reject on each edge's endpoint
+//     bounding box narrows the candidates to a handful first, then only those
+//     paths are sampled (`getPointAtLength` → shared `getScreenCTM()`), so a
+//     graph with hundreds of edges still resolves a tap in well under a frame.
 // A second pointer drops the overlay's `pointer-events` so React Flow's own
 // pinch-zoom runs; it is restored when every pointer lifts.
 //
@@ -80,32 +82,94 @@ export function PanSurface({
     }
 
     /** screen point → id of the nearest edge whose drawn path passes within
-     *  `EDGE_TAP_TOL` px, or null. Samples each `.react-flow__edge-path` and
-     *  maps every sample to screen space via the path's own screen CTM, so it
-     *  is independent of the viewport transform and of what user-space the
-     *  path `d` is authored in. */
+     *  `EDGE_TAP_TOL` px, or null.
+     *
+     *  Two passes so a dense graph (many hundreds of edges) stays snappy on a
+     *  tap:
+     *   1. a pure-arithmetic reject on each edge's ENDPOINT bounding box — the
+     *      `source` / `target` node boxes from the store, generously padded for
+     *      Bézier bulge / orthogonal detours. No DOM, no layout.
+     *   2. only for the few survivors, the precise test: sample the drawn
+     *      `.react-flow__edge-path` and map each sample to screen space through
+     *      the shared `getScreenCTM()` (every edge path sits in the one
+     *      `.react-flow__viewport`, so the matrix is computed once).
+     *  Pass 2 is authoritative; pass 1 only widens the candidate set, so a
+     *  detour that escapes the padded box just costs one extra precise test.
+     *
+     *  Profiled against the 144-edge Early-MMO example: `getPointAtLength` is
+     *  the entire cost (~28µs/call — DOM read, not layout) — arithmetic,
+     *  `querySelectorAll`, `getTotalLength` are each < 2ms even unfiltered. So
+     *  BOTH levers that cut total `getPointAtLength` calls matter: a tight
+     *  pass-1 pad (route-aware — a default Bézier bulges far less than an
+     *  orthogonal detour) and sampling every ~half an `EDGE_TAP_TOL` of path
+     *  length instead of a fixed fraction of it (a full-tolerance spacing
+     *  measured faster but occasionally picked the wrong one of two edges
+     *  crossing a few px apart — this density is where that stopped). On the
+     *  144-edge Early-MMO example a worst-case tap (dense crossing, ~35
+     *  candidates) now costs ~900 total `getPointAtLength` calls / < 40ms —
+     *  down from the un-tuned first pass's 3,887 calls / ~110ms. */
+    const BEZIER_PAD = 60
+    const ORTHOGONAL_PAD = 220
     const edgeAt = (clientX: number, clientY: number): string | null => {
       const rf = el.closest('.react-flow')
       if (!rf) return null
+      const g = useGraphStore.getState()
+      const rect = el.getBoundingClientRect()
+      const vp = getViewport()
+      const fx = (clientX - rect.left - vp.x) / vp.zoom
+      const fy = (clientY - rect.top - vp.y) / vp.zoom
+      const tapTolFlow = EDGE_TAP_TOL / vp.zoom
+
+      const nbox = new Map<string, { x: number; y: number; w: number; h: number }>()
+      for (const n of g.nodes as LoopNode[]) {
+        if (n.hidden) continue
+        nbox.set(n.id, {
+          x: n.position.x,
+          y: n.position.y,
+          w: n.measured?.width ?? DEFAULT_W,
+          h: n.measured?.height ?? DEFAULT_H,
+        })
+      }
+      const candidates = new Set<string>()
+      for (const e of g.edges) {
+        const s = nbox.get(e.source)
+        const t = nbox.get(e.target)
+        if (!s || !t) continue
+        let minX = Math.min(s.x, t.x)
+        let maxX = Math.max(s.x + s.w, t.x + t.w)
+        let minY = Math.min(s.y, t.y)
+        let maxY = Math.max(s.y + s.h, t.y + t.h)
+        const routing = (e.data as { route?: 'orthogonal'; waypoints?: { x: number; y: number }[] } | undefined) ?? {}
+        for (const w of routing.waypoints ?? []) {
+          minX = Math.min(minX, w.x)
+          maxX = Math.max(maxX, w.x)
+          minY = Math.min(minY, w.y)
+          maxY = Math.max(maxY, w.y)
+        }
+        const pad = tapTolFlow + (routing.route === 'orthogonal' ? ORTHOGONAL_PAD : BEZIER_PAD)
+        if (fx >= minX - pad && fx <= maxX + pad && fy >= minY - pad && fy <= maxY + pad) candidates.add(e.id)
+      }
+      if (!candidates.size) return null
+
+      // one forward scan of the (already-existing) edge list, skipping non-
+      // candidates by a Set lookup — NOT one `querySelector` per candidate,
+      // which on a dense graph was slower than the single-pass original.
       let hit: string | null = null
       let bestD = EDGE_TAP_TOL
-      for (const g of rf.querySelectorAll<SVGGElement>('.react-flow__edge')) {
-        const id = g.getAttribute('data-id')
-        const path = g.querySelector<SVGPathElement>('path.react-flow__edge-path')
-        if (!id || !path || typeof path.getTotalLength !== 'function') continue
-        // fast reject: nowhere near this edge's screen bounding box
-        const bb = path.getBoundingClientRect()
-        if (
-          clientX < bb.left - EDGE_TAP_TOL ||
-          clientX > bb.right + EDGE_TAP_TOL ||
-          clientY < bb.top - EDGE_TAP_TOL ||
-          clientY > bb.bottom + EDGE_TAP_TOL
-        )
-          continue
-        const ctm = path.getScreenCTM()
+      let ctm: DOMMatrix | null = null
+      for (const gEl of rf.querySelectorAll<SVGGElement>('.react-flow__edge')) {
+        const id = gEl.getAttribute('data-id')
+        if (!id || !candidates.has(id)) continue
+        const path = gEl.querySelector<SVGPathElement>('path.react-flow__edge-path')
+        if (!path || typeof path.getTotalLength !== 'function') continue
+        if (!ctm) ctm = path.getScreenCTM()
         const len = path.getTotalLength()
         if (!ctm || !len || !Number.isFinite(len)) continue
-        const steps = Math.min(120, Math.max(8, Math.round(len / 6)))
+        // spaced ~half a tolerance-width apart. A full tolerance-width spacing
+        // (half this density) measured faster but occasionally picked the
+        // wrong one of two edges crossing within a few px of each other — this
+        // is the density where that stopped happening on a 144-edge profile.
+        const steps = Math.min(48, Math.max(6, Math.ceil(len / Math.max(tapTolFlow / 2, 8))))
         for (let i = 0; i <= steps; i += 1) {
           const p = path.getPointAtLength((len * i) / steps)
           const sx = ctm.a * p.x + ctm.c * p.y + ctm.e
