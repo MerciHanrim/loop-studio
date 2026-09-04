@@ -1,8 +1,10 @@
 # Dense-graph pan usability (non-frozen design doc — DRAFT)
 
-**Status: DESIGN — direction approved (review round 1). The eight DGP7
-decisions are locked; the mechanism + a few UX points are settled by a spike
-next. `DGP` prefix.** A non-frozen design doc like
+**Status: DESIGN — direction approved (review round 1); the eight DGP7
+decisions are locked and the SPIKE has run (`spike/dense-graph-pan`): the
+pan-capture overlay + geometric tap resolution is proven with real input for
+the mobile / Pan-mode paths. Pinch and `Space` / middle-drag still need a
+real-device check (DGP7). `DGP` prefix.** A non-frozen design doc like
 [`large-graph-readability.md`](large-graph-readability.md),
 [`edge-routing.md`](edge-routing.md), [`module-system.md`](module-system.md) —
 no `loop-*/N`, no `Frozen` marker. **It changes no `src/` file yet.** The spike,
@@ -257,14 +259,49 @@ restores Pan mode.
 | D7 | **Pan mode OFF ⇒ node move, connect, frame drawing, delete, marquee are byte-for-byte unchanged.** |
 | D8 | **Independent of Focus, Filter, frames, Activity overlay, selection, undo, and every digest.** |
 
-**Still open (the spike / impl decides):**
+**Settled by the spike (`spike/dense-graph-pan`):**
 
-- **Mobile mechanism** — pan-capture overlay (DGP3-1) vs `pointer-events`
-  toggling (DGP3-2) vs forking RF's zoom `filter` (DGP3-3). The spike proves one.
+- **Mechanism = DGP3-1, the pan-capture overlay** — a transparent `<div>` over
+  the canvas (`z-index: 4`, below RF Controls / Panels / MiniMap;
+  `pointer-events` only when active). Verified with **real** input:
+  - a drag **starting on a node** pans by the delta; the node does not move;
+    no selection change — **PASS**
+  - a **short tap on a node selects it** and opens the Inspector; no pan —
+    **PASS**
+  - with the overlay **inactive** (Pan mode off) a node drag moves the node
+    normally — **PASS**
+- **The tap → select must be geometric, not `elementFromPoint`.** When
+  `nodesDraggable={false}` React Flow makes non-draggable nodes
+  non-hit-testable — `elementFromPoint` / `elementsFromPoint` never return a
+  node. So the overlay converts the tap's screen point to flow coords via the
+  live viewport and tests it against each node's `{ position, measured }` box
+  (last painted wins), then selects that node directly.
+- **`setViewport` must come from `Canvas`'s `useReactFlow()`** — a bare
+  `useReactFlow()` from a component outside `<ReactFlow>`'s subtree no-ops
+  (same issue `ModelPanels` hit). Canvas passes `setViewport` / `getViewport`
+  into the overlay as props.
+
+**Could NOT be verified with automation — need a real device / browser (a
+follow-up, not a v1 blocker per D6):**
+
+- **Pinch / two-finger zoom** with the overlay present. The overlay's hand-off
+  (drop `pointer-events` on the 2nd pointer so RF's own pinch runs) is coded,
+  but real multi-touch cannot be driven headlessly. **A human must confirm
+  before the mobile impl merges.**
+- **`Space + drag` and middle-mouse drag over a node** (D6). Consistent with
+  RF rejecting node-target drags in the synthetic probe; genuinely needs
+  trusted d3-zoom input. **Deferred out of v1** — added later only once
+  verified.
+
+**Still open (impl decides):**
+
 - **Does Pan mode auto-engage under `canvasLocked`** on desktop (locked ⇒
   view-only), or stay a wholly separate toggle?
-- **Discoverability** — cursor change, the Controls button icon / label, a
-  one-time hint.
+- **Discoverability** — cursor change (`grab` is wired), the Controls button
+  icon / label, a one-time hint.
+- **Robustness** — the overlay must reset its pointer bookkeeping if a
+  `pointerup` / `pointercancel` is ever missed (a stale entry currently wedges
+  it into the two-finger hand-off state).
 
 ---
 
