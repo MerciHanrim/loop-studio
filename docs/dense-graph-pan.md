@@ -1,16 +1,26 @@
 # Dense-graph pan usability (non-frozen design doc — DRAFT)
 
-**Status: DESIGN — direction approved (review round 1); the eight DGP7
-decisions are locked and the SPIKE has run (`spike/dense-graph-pan`): the
-pan-capture overlay + geometric tap resolution is proven with real input for
-the mobile / Pan-mode paths. Pinch and `Space` / middle-drag still need a
-real-device check (DGP7). `DGP` prefix.** A non-frozen design doc like
+**Status: DESIGN — direction approved (review rounds 1–2); the eight DGP7
+decisions are locked, the SPIKE has run (`spike/dense-graph-pan`), and the
+implementation is up as a stacked Draft PR. `DGP` prefix.** Two additions from
+review round 2 are **mandatory merge contracts**, not follow-ups:
+
+- **§DGP-C1** — the mobile short-tap must still select an **edge** (nearest
+  path within ~12–16 px) and open the read-only Inspector, in the order
+  node → edge → empty canvas. Losing edge-tap-to-Inspect is a merge-blocking
+  regression.
+- **§DGP-C2** — native / OS gestures (back-swipe, pull-to-refresh) are **not**
+  fully suppressed; the pass criterion is that the overlay is never left stuck
+  and the **next touch works normally** — recovery, not prevention.
+
+Pinch (+ 1→2→1 finger) and the §DGP-C2 recovery still need a **real-phone**
+check — that is the Ready/merge gate (DGP7 D4). `Space` / middle-drag stay out
+of v1. A non-frozen design doc like
 [`large-graph-readability.md`](large-graph-readability.md),
 [`edge-routing.md`](edge-routing.md), [`module-system.md`](module-system.md) —
-no `loop-*/N`, no `Frozen` marker. **It changes no `src/` file yet.** The spike,
-then implementation, are **separate PRs each needing separate approval**; this
-doc locks the problem, the current React Flow input surface, the conflicts, and
-the direction.
+no `loop-*/N`, no `Frozen` marker. The spike and the implementation are
+**separate PRs each needing separate approval**; this doc locks the problem,
+the current React Flow input surface, the conflicts, and the direction.
 
 Ordered **before** contextual inline help (README Onboarding part 2): the
 read/pan problem is already reproducible in the shipped Early-MMO and Coffee
@@ -112,6 +122,7 @@ Anything the fix adds has to coexist with:
 | **Focus / Filter / frames / Activity overlay** | render-only; their panels are RF `<Panel>` / `<Controls>` (outside the pane, carry `nopan`) | a pan gesture must not clear a focus target, a filter selection, the armed states, **or the current selection** |
 | **`zoomOnPinch`** | RF's own touch listeners on the pane | a two-finger gesture must still zoom; it must never be read as a one-finger pan or a tap |
 | **`preventScrolling` / page scroll** | `touch-action: none` on the pane | any capture surface the fix adds needs the right `touch-action` so a canvas drag never scrolls the page, and a gesture that starts on the toolbar / a sheet still scrolls normally |
+| **Native / OS edge gestures** (back-swipe, pull-to-refresh) | the browser may claim a touch mid-gesture | **not suppressed** (§DGP-C2); the overlay must self-heal — a missed `pointerup` / `pointercancel` is cleared on the next `pointerdown`, so the next touch is normal |
 | **Read-through jump** (`ModelPanels`, `setViewport`) | writes the viewport | independent; unaffected |
 | **Minimap `pannable`** | its own drag surface | unchanged, stays the secondary aid |
 
@@ -132,6 +143,21 @@ Mobile is already `nodesDraggable={false}` and has no edit gestures to protect:
 - **Two fingers / pinch** → RF's `zoomOnPinch`, unchanged. A two-finger gesture
   is never read as a one-finger pan or a tap; a second finger landing mid-pan
   hands off to pinch without a jump.
+
+**Tap resolution order — a mandatory contract (§DGP-C1).** Mobile has no editing,
+so *reading the graph* is its whole job, and today a tap can select **either** a
+node **or an edge** and open the read-only Inspector — edge included, because
+that is the only way on a phone to read a connection's `flow` value and its
+state condition. The pan overlay must preserve that. A short tap resolves in
+this order:
+
+1. **Inside a node's box** → select that node.
+2. **Else within a small tolerance of an edge path** (~12–16 px, screen space) →
+   select the **nearest** such edge.
+3. **Neither** → an empty-canvas tap (clear selection, close the sheet).
+
+Losing edge-tap-to-Inspect on mobile is a **merge-blocking regression, not a
+follow-up** — the pan gain does not outweigh it.
 
 **Mechanism — decided by the spike (DGP8).** Candidates:
 
@@ -207,8 +233,12 @@ restores Pan mode.
   moved, selection does not change, no Inspector sheet opens.
 - a one-finger drag that starts on an **edge** or a **frame** pans.
 - a **tap** (moved < `PAN_SLOP` ≈ 8 px before lift) on a node still selects it
-  and opens the Inspector sheet; an empty-canvas tap still clears + closes it; a
-  long press that never moves is still a tap.
+  and opens the Inspector sheet; **a tap on (or within ~12–16 px of) an edge
+  still selects that edge and opens the Inspector sheet** (§DGP-C1); an
+  empty-canvas tap still clears + closes it; a long press that never moves is
+  still a tap.
+- **node beats edge**: a tap where a node box and an edge overlap selects the
+  node.
 - a drag that ends near where it started (< `PAN_SLOP`) resolves to **tap**, not
   a jitter-pan.
 - the **page never scrolls** during a canvas drag; a drag that starts on the
@@ -218,6 +248,15 @@ restores Pan mode.
 - a **two-finger** gesture zooms (RF `zoomOnPinch`) with the capture layer
   present; it is never read as a one-finger pan or a tap.
 - a second finger landing mid-pan hands off to pinch without a jump.
+
+**Native / OS gestures (mobile) — §DGP-C2.** The app **does not** try to fully
+suppress a browser's own edge gestures (back-swipe, pull-to-refresh, the
+Android nav bar): that is neither always possible nor desirable. The pass
+criterion is **recovery, not prevention** — if the browser claims a gesture
+mid-touch, the overlay must not be left in a stuck state (no wedged
+`pointer-events: none`, no half-open pan), and **the very next touch behaves
+normally** (a tap selects, a drag pans). A missed `pointerup` / `pointercancel`
+must self-heal: the next `pointerdown` clears any stale pointer bookkeeping.
 
 **Desktop — Pan mode:**
 - **On:** a left-drag over a node pans (node not moved); a drag from a handle
@@ -281,17 +320,24 @@ restores Pan mode.
   (same issue `ModelPanels` hit). Canvas passes `setViewport` / `getViewport`
   into the overlay as props.
 
-**Could NOT be verified with automation — need a real device / browser (a
-follow-up, not a v1 blocker per D6):**
+**Could NOT be verified with automation — a real-phone check is the
+Ready/merge gate (D4):**
 
-- **Pinch / two-finger zoom** with the overlay present. The overlay's hand-off
-  (drop `pointer-events` on the 2nd pointer so RF's own pinch runs) is coded,
-  but real multi-touch cannot be driven headlessly. **A human must confirm
-  before the mobile impl merges.**
+- **Pinch / two-finger zoom** with the overlay present, and the **1 → 2 → 1
+  finger** transitions. The overlay's hand-off (drop `pointer-events` on the
+  2nd pointer so RF's own pinch runs, restore when every pointer lifts) is
+  coded, but real multi-touch cannot be driven headlessly. Pass = pinch zooms
+  in and out, and dropping back to one finger resumes panning — no stuck state.
+- **Native / OS gesture recovery (§DGP-C2).** After a browser edge gesture
+  (back-swipe, pull-to-refresh) interrupts a touch, the next tap / drag on the
+  canvas works normally. Pass = **recovery, not prevention**.
 - **`Space + drag` and middle-mouse drag over a node** (D6). Consistent with
   RF rejecting node-target drags in the synthetic probe; genuinely needs
   trusted d3-zoom input. **Deferred out of v1** — added later only once
   verified.
+
+If the pinch check fails, **do not merge** — fix only the overlay's pointer
+hand-off (`down` set / `pointer-events` restore), nothing else.
 
 **Still open (impl decides):**
 
