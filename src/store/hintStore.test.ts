@@ -31,6 +31,7 @@ const reset = () => {
     hasInteracted: false,
     largeGraphDelayElapsed: false,
     postTourCooldownActive: false,
+    focusOrFilterEverUsed: false,
   })
   useTourStore.setState({ phase: 'idle', step: 0, platform: 'desktop', replay: false, appSettled: false })
 }
@@ -150,6 +151,20 @@ describe('hintStore — session-only interaction flag (§CIH3 #4)', () => {
     run().markInteracted()
     expect(() => run().markInteracted()).not.toThrow()
     expect(run().hasInteracted).toBe(true)
+  })
+})
+
+describe('hintStore — Focus/Filter "ever used" latch (§CIH3 #4)', () => {
+  it('starts false and latches true on markFocusOrFilterUsed', () => {
+    expect(run().focusOrFilterEverUsed).toBe(false)
+    run().markFocusOrFilterUsed()
+    expect(run().focusOrFilterEverUsed).toBe(true)
+  })
+
+  it('is idempotent, and stays true even after the underlying toggle goes back off', () => {
+    run().markFocusOrFilterUsed()
+    expect(() => run().markFocusOrFilterUsed()).not.toThrow()
+    expect(run().focusOrFilterEverUsed).toBe(true)
   })
 })
 

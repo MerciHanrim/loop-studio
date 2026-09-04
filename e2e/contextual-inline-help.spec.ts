@@ -215,7 +215,7 @@ test.describe('contextual inline help — Focus/Filter discovery (§CIH3 #4)', (
     await expect(hintNote(page)).toHaveCount(0)
   })
 
-  test('yields the shared top-center slot to an existing LGR notice (tier 2 over tier 3, §CIH2.3a)', async ({ page }) => {
+  test('yields the shared top-center slot to an existing LGR notice, then re-evaluates once it clears (tier 2 over tier 3, §CIH2.3a)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await settleTour(page)
@@ -229,6 +229,67 @@ test.describe('contextual inline help — Focus/Filter discovery (§CIH3 #4)', (
     await page.locator('.canvas').dispatchEvent('pointerdown')
     await page.waitForTimeout(150)
     await expect(hintNote(page)).toHaveCount(0) // the discovery hint stays out of the way
+    // clearing the LGR notice frees the slot — the discovery hint was only
+    // ever WAITING (`ready` gate), never permanently burned by the wait
+    await page.evaluate(() => (window as unknown as Bridge).__loop.autoFrame.setState({ autoFrames: [] }))
+    await expect(page.locator('.lgr-suggest-note')).toHaveCount(0)
+    await expect(hintNote(page)).toBeVisible()
+  })
+
+  test('already discovered before the hint ever got a chance to show ⇒ never appears afterward', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await settleTour(page)
+    // Focus is toggled on-then-off WHILE still under WORTH_IT_FLOOR, well
+    // before any of the hint's gates could possibly let it show
+    await page.evaluate(() => {
+      const ui = (window as unknown as Bridge).__loop.ui.getState()
+      ui.toggleFocusMode()
+      ui.toggleFocusMode()
+    })
+    await importGraph(page, GRAPH_9)
+    await page.locator('.canvas').dispatchEvent('pointerdown')
+    await page.waitForTimeout(150)
+    await expect(hintNote(page)).toHaveCount(0) // never shows — already "discovered"
+  })
+
+  test('ready flips off mid-tour and back on after it ends + the cooldown clears — the hint is not lost, only delayed', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await settleTour(page)
+    await importGraph(page, GRAPH_9)
+    await page.locator('.canvas').dispatchEvent('pointerdown')
+    await expect(hintNote(page)).toBeVisible() // trigger + ready both true
+    await page.evaluate(() => (window as unknown as Bridge).__loop.tour.setState({ phase: 'running' }))
+    await expect(hintNote(page)).toHaveCount(0) // ready → false while the tour runs; NOT burned
+    await page.evaluate(() => (window as unknown as Bridge).__loop.tour.setState({ phase: 'idle' }))
+    await expect(hintNote(page)).toHaveCount(0) // still inside the post-tour cooldown
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.hint.getState().postTourCooldownActive), {
+        timeout: 3000,
+      })
+      .toBe(false)
+    await expect(hintNote(page)).toBeVisible() // reappears — trigger was never cleared, only gated
+  })
+
+  test('a localStorage write failure never blocks the hint or the app', async ({ page }) => {
+    await page.addInitScript(() => {
+      const t = () => {
+        throw new Error('quota')
+      }
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        value: { getItem: () => null, setItem: t, removeItem: t, clear: t, key: t, length: 0 },
+      })
+    })
+    await openApp(page)
+    await resetAll(page)
+    await settleTour(page)
+    await importGraph(page, GRAPH_9)
+    await page.locator('.canvas').dispatchEvent('pointerdown')
+    await expect(hintNote(page)).toBeVisible()
+    await hintNote(page).getByRole('button').click()
+    await expect(page.locator('.canvas')).toBeVisible() // still usable
   })
 })
 

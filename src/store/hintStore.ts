@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { useTourStore } from './tourStore'
+import { useUiStore } from './uiStore'
 
 // docs/contextual-inline-help.md — situational, dismissible hints that fill
 // the gap the guided tour (docs/guided-tour.md) deliberately left (§CIH0): an
@@ -71,6 +72,18 @@ type HintState = {
   /** session-only — true for `POST_TOUR_COOLDOWN_MS` right after the guided
    *  tour closes (§CIH2.3a), suppressing tier-3 (discovery) hints. */
   postTourCooldownActive: boolean
+
+  /** session-only — true the moment Focus or Filter is turned on for the
+   *  FIRST time, on either platform (shared `uiStore` state). This is
+   *  distinct from `seen['focus-filter-discovery']`: a user can discover and
+   *  use Focus/Filter before the hint ever got a chance to show (still
+   *  cooling down, still under `WORTH_IT_FLOOR`, tour running, …) — without
+   *  this flag the hint would show anyway once its other gates finally
+   *  cleared, even though the user already knows the feature. §CIH3 #4's
+   *  trigger checks this instead of the current on/off state, so toggling
+   *  Focus off again later does not make the situation look "undiscovered". */
+  focusOrFilterEverUsed: boolean
+  markFocusOrFilterUsed: () => void
 }
 
 export const useHintStore = create<HintState>((set, get) => ({
@@ -95,6 +108,11 @@ export const useHintStore = create<HintState>((set, get) => ({
   },
   largeGraphDelayElapsed: false,
   postTourCooldownActive: false,
+
+  focusOrFilterEverUsed: false,
+  markFocusOrFilterUsed: () => {
+    if (!get().focusOrFilterEverUsed) set({ focusOrFilterEverUsed: true })
+  },
 }))
 
 // §CIH3 #4 — start the delay clock once the app has settled (the same
@@ -119,6 +137,19 @@ useTourStore.subscribe((state, prev) => {
     cooldownTimer = setTimeout(() => {
       useHintStore.setState({ postTourCooldownActive: false })
     }, POST_TOUR_COOLDOWN_MS)
+  }
+})
+
+// §CIH3 #4 — a zustand subscription, not a React effect: a `toggleFocusMode`
+// call and its immediate undo (or any other same-tick on-then-off) are two
+// separate synchronous `setState` notifications here, so a transient "on" is
+// never missed. A `useEffect` watching the rendered boolean would only see
+// the FINAL value after React batches the commits, which can be "off" again
+// even though the user did turn it on (caught by an e2e test doing exactly
+// that in the same tick).
+useUiStore.subscribe((state, prev) => {
+  if ((state.focusMode && !prev.focusMode) || (state.filterPanelOpen && !prev.filterPanelOpen)) {
+    useHintStore.getState().markFocusOrFilterUsed()
   }
 })
 

@@ -22,7 +22,7 @@ import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
-import { useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
+import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
 import { useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
@@ -86,14 +86,15 @@ export function MobileMoreMenu({
   // mobile's one-line note above the More sheet's Focus/Filter rows. Shares
   // the `focus-filter-discovery` hintId (and its `seen` flag) with the
   // desktop canvas Panel version — whichever platform shows it first is
-  // enough. `filterPanelOpen` doesn't have a clean mobile analogue (Filter
-  // is a full sub-sheet, not a sticky toggle), so `!focusMode` alone stands
-  // in for "hasn't already discovered these" here.
+  // enough. `focusOrFilterEverUsed` (Canvas.tsx marks it, either platform —
+  // shared `uiStore` state) covers Filter too even though it has no sticky
+  // mobile toggle of its own.
   const nodeCount = useGraphStore((s) => s.nodes.length)
   const tourIdleMobile = useTourStore((s) => s.phase === 'idle')
   const tier3ReadyMobile = useTier3Ready()
   const largeGraphGateMobile = useLargeGraphInteractionGate()
-  const focusFilterHintTrigger = nodeCount >= WORTH_IT_FLOOR && !focusMode
+  const focusOrFilterEverUsed = useHintStore((s) => s.focusOrFilterEverUsed)
+  const focusFilterHintTrigger = nodeCount >= WORTH_IT_FLOOR && !focusOrFilterEverUsed
   const focusFilterHintReady = tourIdleMobile && tier3ReadyMobile && largeGraphGateMobile
 
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view (mobile): fit

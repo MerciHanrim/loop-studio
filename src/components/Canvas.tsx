@@ -120,6 +120,7 @@ export function Canvas() {
   const tourIdle = useTourStore((s) => s.phase === 'idle')
   const tier3Ready = useTier3Ready()
   const largeGraphInteractionGate = useLargeGraphInteractionGate()
+  const focusOrFilterEverUsed = useHintStore((s) => s.focusOrFilterEverUsed)
   const graphEditRev = useGraphStore((s) => s.nodes)
   // §AF2.2 — the "Suggest frames" control only appears when the whole graph is
   // big enough for the feature to help (below the floor it would only ever
@@ -454,11 +455,13 @@ export function Canvas() {
             (§CIH2.3a / §CIH3 #4) — otherwise a freshly-opened large Template
             would show this at the exact same instant as the auto-frame
             suggestion. Clears itself the moment Focus or Filter is actually
-            used — see hintStore's `seen`-on-render note. */}
+            used, and stays cleared even if it was used-then-off before the
+            hint ever got a chance to show (`focusOrFilterEverUsed`, latched
+            above — not the current on/off state). */}
         {!isMobile && (
           <CanvasHintNote
             id="focus-filter-discovery"
-            trigger={nodes.length >= WORTH_IT_FLOOR && !focusMode && !filterPanelOpen}
+            trigger={nodes.length >= WORTH_IT_FLOOR && !focusOrFilterEverUsed}
             ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing}
           >
             {t('hint.focusFilter.body')}
