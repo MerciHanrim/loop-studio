@@ -1,12 +1,14 @@
 # Dense-graph pan usability (non-frozen design doc — DRAFT)
 
-**Status: DESIGN PROPOSAL — no implementation. `DGP` prefix.** A non-frozen
-design doc like [`large-graph-readability.md`](large-graph-readability.md),
+**Status: DESIGN — direction approved (review round 1). The eight DGP7
+decisions are locked; the mechanism + a few UX points are settled by a spike
+next. `DGP` prefix.** A non-frozen design doc like
+[`large-graph-readability.md`](large-graph-readability.md),
 [`edge-routing.md`](edge-routing.md), [`module-system.md`](module-system.md) —
-no `loop-*/N`, no `Frozen` marker. **It changes no `src/` file yet.**
-Implementation is a **separate PR that needs separate approval**; this doc only
-locks the problem, the current React Flow input surface, the conflicts, and the
-direction.
+no `loop-*/N`, no `Frozen` marker. **It changes no `src/` file yet.** The spike,
+then implementation, are **separate PRs each needing separate approval**; this
+doc locks the problem, the current React Flow input surface, the conflicts, and
+the direction.
 
 Ordered **before** contextual inline help (README Onboarding part 2): the
 read/pan problem is already reproducible in the shipped Early-MMO and Coffee
@@ -113,22 +115,23 @@ Anything the fix adds has to coexist with:
 
 ---
 
-## DGP3. Direction — mobile (view / run only)
+## DGP3. Direction — mobile (view / run only)  *(decided — review round 1)*
 
-Mobile is already `nodesDraggable={false}` and has no edit gestures to protect,
-so the rule is simple:
+Mobile is already `nodesDraggable={false}` and has no edit gestures to protect:
 
-- **A one-finger drag pans the canvas even when it starts on a node or an
-  edge.**
-- **A short tap** (moved < ~`TAP_SLOP` px, held < ~`TAP_TIME` ms) keeps today's
-  behaviour: it selects the node / edge and opens the read-only Inspector sheet
-  (empty-canvas tap still clears + closes).
-- Once a drag passes `TAP_SLOP`, it is a **pan** and the pending tap is
-  cancelled (no selection change).
-- **Two fingers** → RF's `zoomOnPinch`, untouched. A second finger landing
-  mid-drag hands off to pinch.
+- **No toggle.** A one-finger drag is the **default pan**, and it pans **even
+  when it starts on a node, an edge, or a frame**.
+- **Tap vs drag by distance.** A pointer that moves **< `PAN_SLOP` (~8 px)**
+  before it lifts is a **tap** — today's behaviour: it selects the node / edge
+  and opens the read-only Inspector sheet (an empty-canvas tap still clears +
+  closes). Time is not a factor — a long press that never moves is still a tap.
+- **Once the pointer passes `PAN_SLOP` it is a pan**, and the pending tap is
+  cancelled: **no selection change, no Inspector open**.
+- **Two fingers / pinch** → RF's `zoomOnPinch`, unchanged. A two-finger gesture
+  is never read as a one-finger pan or a tap; a second finger landing mid-pan
+  hands off to pinch without a jump.
 
-**Mechanism (DGP7 fork).** Candidates:
+**Mechanism — decided by the spike (DGP8).** Candidates:
 
 1. **A transparent pan-capture layer** over the RF canvas that does the
    tap-vs-drag discrimination itself: on `pointerup` within the tap window it
@@ -145,48 +148,52 @@ so the rule is simple:
    `nodesDraggable` is false. Smallest surface if RF exposes it; 12.11.5 does
    not (it is internal).
 
-Lean **(1)** unless a spike shows **(2)** is reliable.
+Lean **(1)** unless the spike shows **(2)** is reliable and simpler.
 
 ---
 
-## DGP4. Direction — desktop (edit + view)
+## DGP4. Direction — desktop (edit + view)  *(decided — review round 1)*
 
-Edit gestures are sacred, so the pan-from-node behaviour is **opt-in**, two
-ways:
+Edit gestures are sacred, so the pan-from-node behaviour is **opt-in**:
 
-- **Space + drag** — a *held-key temporary* pan. RF's `panActivationKeyCode` is
-  already `'Space'`; if a real check (DGP7) shows it does **not** pan over a
-  node, the DGP3 mechanism is reused while Space is held. Works regardless of the
-  toggle below. Nothing about the graph changes; releasing Space restores the
-  edit cursor.
-- **Pan mode** — an explicit sticky toggle, a `uiStore` preference in its own
-  `localStorage` key, **exactly like `focusMode` / `filterPanelOpen`**, surfaced
-  as a button in the canvas `<Controls>` column (next to Focus / Filter).
-  **On:** the cursor is `grab` / `grabbing`; a left-drag anywhere — over nodes
-  and edges included — pans; node drag-to-move and edge-from-handle are
-  suppressed; a short click still selects (read-only inspect). **Off:** the
-  editor is byte-for-byte as it is today.
-- *(Fork)* **middle-mouse drag** as a no-mode extra (`panOnDrag={[0, 1]}` or
-  `[1, 2]`). Whether a middle-drag pans *over a node* in 12.11.5 is unverified
-  (DGP7).
+- **Pan mode** — a **sticky, session-only** toggle. It stays engaged until the
+  user turns it off, **but it is *not* persisted**: it lives in `uiStore` only
+  (no `localStorage` key, unlike `focusMode` / `filterPanelOpen`; nothing in the
+  GraphDoc), so **every fresh load starts in edit mode**. Surfaced as a button
+  in the canvas `<Controls>` column (next to Focus / Filter).
+  - **On:** the cursor is `grab` / `grabbing`; a left-drag anywhere — over nodes,
+    edges, and frames included — pans; node drag-to-move and edge-from-handle are
+    **suppressed**; a short click still selects (read-only inspect).
+  - **Off:** the editor is **byte-for-byte as it is today** — node move, connect,
+    frame drawing, delete, marquee all unchanged.
+- **`Space + drag`** — a held-key temporary pan (works regardless of Pan mode).
+  **Supported only if the spike (DGP8) confirms it pans over a node in a real
+  browser.** If RF's built-in `panActivationKeyCode: 'Space'` does not reach
+  over a node, the DGP3 mechanism is reused while Space is held.
+- **Middle-mouse drag** — a no-mode extra. **Supported only if the spike
+  confirms** a middle-button drag pans *over a node* in 12.11.5
+  (`panOnDrag={[0, 1]}` / `[1, 2]`).
 
-Mobile does **not** get the toggle — it is effectively always in Pan mode.
+Mobile does **not** get the toggle — it is effectively always panning (DGP3).
 
-The **Frame tool armed** state wins over Pan mode: while a frame is being drawn,
-Pan mode is inert (or the Frame tool auto-exits Pan mode).
+The **Frame tool armed** state takes precedence: while a frame is being drawn a
+pane / node drag draws the frame and Pan mode is inert; disarming the Frame tool
+restores Pan mode.
 
 ---
 
 ## DGP5. Independence guarantees
 
 - **No GraphDoc / `loop-revision/*` digest / undo / `simulationRev` / node
-  z-order change.** Pan mode is a UI preference; a pan writes only the viewport
-  (already non-persisted session state).
-- **Selection is preserved across a pan** — panning never selects, deselects, or
-  re-centres anything on its own.
-- **Orthogonal to Focus, Filter, frames, Activity overlay** — the fix reads none
-  of their state and clears none of it; a pan while any of them is active leaves
-  them exactly as they were.
+  z-order change.** Pan mode is **session-only** `uiStore` state (no
+  `localStorage`, nothing serialized); a pan writes only the viewport (already
+  non-persisted session state).
+- **Selection is preserved across a pan** — panning never selects, deselects,
+  or re-centres anything on its own; and once a drag is established the tap that
+  would have selected the row's node is not fired.
+- **Orthogonal to Focus, Filter, frames, Activity overlay, undo** — the fix
+  reads none of their state and clears none of it; a pan while any of them is
+  active leaves them exactly as they were.
 - **The read-through jump** (`ModelPanels`) and **Reset view** are unaffected.
 
 ---
@@ -195,12 +202,13 @@ Pan mode is inert (or the Frame tool auto-exits Pan mode).
 
 **Touch (mobile):**
 - a one-finger drag **that starts on a node** pans the canvas; the node is not
-  moved, selection does not change.
-- a one-finger drag that starts on an **edge** pans.
-- a **short tap** on a node still selects it and opens the Inspector sheet; an
-  empty-canvas tap still clears + closes it.
-- a drag that ends near where it started (< `TAP_SLOP`) resolves to **tap**, not
-  a jitter-pan (define + pin the threshold).
+  moved, selection does not change, no Inspector sheet opens.
+- a one-finger drag that starts on an **edge** or a **frame** pans.
+- a **tap** (moved < `PAN_SLOP` ≈ 8 px before lift) on a node still selects it
+  and opens the Inspector sheet; an empty-canvas tap still clears + closes it; a
+  long press that never moves is still a tap.
+- a drag that ends near where it started (< `PAN_SLOP`) resolves to **tap**, not
+  a jitter-pan.
 - the **page never scrolls** during a canvas drag; a drag that starts on the
   top bar / a sheet scrolls that element normally.
 
@@ -211,18 +219,21 @@ Pan mode is inert (or the Frame tool auto-exits Pan mode).
 
 **Desktop — Pan mode:**
 - **On:** a left-drag over a node pans (node not moved); a drag from a handle
-  does **not** start an edge; a plain click still selects; `Space + drag` still
-  pans; the cursor is `grab`.
+  does **not** start an edge; a plain click still selects; the cursor is `grab`.
 - **Off:** import a fixture, toggle Pan mode on then off, assert the **GraphDoc
   bytes and every node position are identical**; drag-move, connect, delete,
-  marquee are unaffected.
-- `Space + drag` pans over a node **without** Pan mode on, and edit behaviour is
-  unchanged after Space is released.
+  frame drawing, marquee are unaffected.
+- **Session-only:** Pan mode on → reload → the editor is back in **edit mode**
+  (nothing persisted).
+- **`Space + drag` / middle-drag** — only if the spike wired them: `Space + drag`
+  pans over a node without Pan mode on and edit behaviour is unchanged after
+  Space is released.
 
 **Cross-mode:**
 - pan works with **Focus** on (focus target unchanged), with **Filter** hiding
-  nodes (hidden set unchanged), with the **Activity overlay** on, and with a
-  node **selected** (selection unchanged after the pan).
+  nodes (hidden set unchanged), with the **Activity overlay** on, with a node
+  **selected** (selection unchanged after the pan), and does not touch the
+  **undo** stack.
 - with the **Frame tool armed**, a pane / node drag draws a frame (Pan mode
   inert); disarming restores Pan mode.
 
@@ -231,33 +242,45 @@ Pan mode is inert (or the Frame tool auto-exits Pan mode).
 
 ---
 
-## DGP7. Forks for the review
+## DGP7. Decisions (review round 1) + what the spike still settles
 
-1. **Mobile mechanism** — pan-capture overlay (DGP3-1) vs `pointer-events`
-   toggling (DGP3-2) vs a request to expose RF's zoom `filter` (DGP3-3).
-2. **Desktop shape** — ship **both** the Pan-mode toggle *and* Space+drag, or is
-   Space+drag (+ maybe middle-drag) enough without a mode? The steer says
-   *review both*.
-3. **Real-device checks before building**: does **Space + drag** pan over a node
-   in 12.11.5? does a **middle-mouse drag** over a node pan? (Both would shrink
-   the fix.)
-4. **Thresholds** — `TAP_SLOP` (px) and `TAP_TIME` (ms); one pair for touch and
-   mouse, or separate.
-5. **Pan-mode persistence** — sticky across reload (like Focus), or per-session.
-6. **Discoverability** — a one-time hint, a cursor change, the Controls button
-   label / icon; and whether `Space` is announced anywhere.
-7. **Does Pan mode auto-engage under `canvasLocked`** on desktop (locked ⇒
-   view-only ⇒ behave like mobile), or stay a separate toggle?
+**Decided:**
+
+| # | decision |
+|---|---|
+| D1 | **Mobile: no toggle.** A one-finger drag is the default pan and works from on top of a node / edge / frame (DGP3). |
+| D2 | **Tap vs drag by distance: `PAN_SLOP` ≈ 8 px.** Below it → today's tap-select; at/over it → a pan. Time is not a factor. |
+| D3 | **Once a drag is established the row's node is NOT selected and the Inspector does NOT open.** |
+| D4 | **Pinch / two-finger zoom keep today's behaviour**, and a two-finger gesture is never read as a one-finger pan or a tap. |
+| D5 | **Desktop Pan mode is sticky but session-only** — `uiStore` in memory, **no `localStorage`, nothing serialized**; every fresh load starts in **edit mode**. |
+| D6 | **`Space + drag` and middle-button drag are supported only if the spike confirms** they pan over a node in a real browser / on a real device. |
+| D7 | **Pan mode OFF ⇒ node move, connect, frame drawing, delete, marquee are byte-for-byte unchanged.** |
+| D8 | **Independent of Focus, Filter, frames, Activity overlay, selection, undo, and every digest.** |
+
+**Still open (the spike / impl decides):**
+
+- **Mobile mechanism** — pan-capture overlay (DGP3-1) vs `pointer-events`
+  toggling (DGP3-2) vs forking RF's zoom `filter` (DGP3-3). The spike proves one.
+- **Does Pan mode auto-engage under `canvasLocked`** on desktop (locked ⇒
+  view-only), or stay a wholly separate toggle?
+- **Discoverability** — cursor change, the Controls button icon / label, a
+  one-time hint.
 
 ---
 
 ## DGP8. Order this feeds into
 
-1. **This design pass** — docs-only Draft PR. Review settles DGP7.
-2. **Spike (small, throwaway or a tiny PR)** — the DGP7-3 real-device checks +
-   a proof of the chosen mobile mechanism. No product code kept unless it is the
-   real thing.
-3. **Impl PR(s)** — mobile pan-from-node first (biggest pain, smallest risk —
-   no edit gestures to protect), then the desktop Pan mode / Space+drag. Each
-   held Draft; separate merge approval; a full invariance pass.
+1. **This design pass** — Draft PR, decisions above folded in.
+2. **Spike** (throwaway, or a tiny branch) — must show, at minimum:
+   **(a)** a pan that starts on a node / edge / frame,
+   **(b)** a short tap still selects,
+   **(c)** pinch still zooms,
+   **(d)** no edit-mode regression,
+   plus the D6 real-browser checks for `Space + drag` / middle-drag. Kept code
+   only if it is the real mechanism.
+3. **If the spike result + the mechanism it needs match this doc's contract →
+   implement and open a Draft PR.** Mobile pan-from-node first (biggest pain,
+   no edit gestures to protect), then the desktop Pan mode. If the spike
+   contradicts the contract, stop and report instead. Ready / merge is a
+   separate approval; a full invariance pass on each.
 4. **Then** — contextual inline help (README Onboarding part 2).
