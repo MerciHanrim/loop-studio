@@ -8,6 +8,7 @@ import {
 } from '@xyflow/react'
 import { create } from 'zustand'
 import { createNode, defaultData, nextId } from '../model/factory'
+import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
 import {
   deserialize,
   loadFromStorage,
@@ -21,10 +22,24 @@ import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
 type XY = { x: number; y: number }
 type Snapshot = { nodes: LoopNode[]; edges: LoopEdge[] }
-/** one undo-history frame: the graph AND an opaque sidecar (the loop-revision/1
- *  project header at that instant), so a single undo/redo restores both together
- *  even across several Apply / edit steps (SEMANTICS-R.md §R7.3). */
-type HistoryEntry = { nodes: LoopNode[]; edges: LoopEdge[]; sidecar: unknown }
+/** docs/module-system.md §MS3 — `insertModule`'s outcome. `reason:
+ *  'needs-v2-consent'` is the one non-error refusal: the caller re-invokes with
+ *  `confirmedPromotion: true` once the user accepts the v1 → v2 promotion. */
+export type InsertModuleResult =
+  | { ok: true; insertedNodeIds: string[]; promotedToV2: boolean }
+  | { ok: false; reason: string }
+/** one undo-history frame: the graph, its `modelVersion`, AND an opaque sidecar
+ *  (the loop-revision/1 project header at that instant), so a single undo/redo
+ *  restores all of them together even across several Apply / edit steps
+ *  (SEMANTICS-R.md §R7.3). `modelVersion` rides along so an insert that promoted
+ *  v1 → v2 (docs/module-system.md §MS3.5) — or the leading-`@` flow commit that
+ *  latches v2 — is reverted as one unit by the same Ctrl+Z that removes it. */
+type HistoryEntry = {
+  nodes: LoopNode[]
+  edges: LoopEdge[]
+  modelVersion: ModelSemanticsVersion
+  sidecar: unknown
+}
 
 type GraphStore = {
   nodes: LoopNode[]
@@ -89,6 +104,20 @@ type GraphStore = {
   onConnect: (conn: Connection) => void
 
   addNodeAt: (kind: NodeKind, position: XY) => void
+  /** docs/module-system.md §MS3 — merge a module (a plain graph fragment) into
+   *  the open graph as ONE atomic history entry: every module node/edge id is
+   *  re-issued, every `register` expr `@ref` / v2 `@param` flow is rewritten,
+   *  and the whole candidate is validated FIRST — on any failure nothing
+   *  changes (§MS3.6 / B4). The inserted nodes end up selected, nothing else
+   *  (§MS3.3). A v1 host + v2 module needs `opts.confirmedPromotion` (the caller
+   *  shows the consent dialog — §MS3.4 / MS7-2); without it the call returns
+   *  `{ ok: false, reason: 'needs-v2-consent' }` and changes nothing.
+   *  `recommendedRunConfig` / `frames` are not part of `GraphDocLike` — insert
+   *  never touches `mcStore` or `frameStore` (§MS4a-B2 / B3). */
+  insertModule: (
+    module: GraphDocLike,
+    opts: { at: XY; confirmedPromotion?: boolean },
+  ) => InsertModuleResult
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
   removeNode: (id: string) => void
@@ -289,9 +318,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     if (tag === 'remove') queueMicrotask(() => { if (lastTag === 'remove') lastTag = '' })
     clearPristine() // any edit / load / template — even a coalesced one — ends "pristine"
     if (coalesce) return
-    const { nodes, edges } = get()
+    const { nodes, edges, modelVersion } = get()
     set({
-      past: [...get().past, { nodes, edges, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
+      past: [...get().past, { nodes, edges, modelVersion, sidecar: sidecarNow(framesOverride) }].slice(-HISTORY_MAX),
       future: [], // a fresh action discards the redo branch AND its sidecars
       canUndo: true,
       canRedo: false,
@@ -323,15 +352,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     canRedo: false,
 
     undo: () => {
-      const { past, future, nodes, edges } = get()
+      const { past, future, nodes, edges, modelVersion } = get()
       if (!past.length) return
       const prev = past[past.length - 1]
       lastTag = ''
       set({
         nodes: prev.nodes,
         edges: prev.edges,
+        modelVersion: prev.modelVersion,
         past: past.slice(0, -1),
-        future: [{ nodes, edges, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
+        future: [{ nodes, edges, modelVersion, sidecar: sidecarNow() }, ...future].slice(0, HISTORY_MAX),
         canUndo: past.length > 1,
         canRedo: true,
         selectedNodeId: null,
@@ -343,14 +373,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     redo: () => {
-      const { past, future, nodes, edges } = get()
+      const { past, future, nodes, edges, modelVersion } = get()
       if (!future.length) return
       const next = future[0]
       lastTag = ''
       set({
         nodes: next.nodes,
         edges: next.edges,
-        past: [...past, { nodes, edges, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
+        modelVersion: next.modelVersion,
+        past: [...past, { nodes, edges, modelVersion, sidecar: sidecarNow() }].slice(-HISTORY_MAX),
         future: future.slice(1),
         canUndo: true,
         canRedo: future.length > 1,
@@ -564,6 +595,44 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
       bump()
       persist()
+    },
+
+    insertModule: (mod, opts) => {
+      const g = get()
+      const built = insertGraph(
+        { nodes: g.nodes, edges: g.edges, modelVersion: g.modelVersion },
+        mod,
+        { at: opts.at },
+      )
+      if (!built.ok) return { ok: false, reason: built.reason }
+      // §MS3.4 / MS7-2 — a v1 host + v2 module promotion is never silent. Bail
+      // (changing nothing) until the caller re-invokes with the user's consent.
+      if (built.promotedToV2 && !opts.confirmedPromotion) {
+        return { ok: false, reason: 'needs-v2-consent' }
+      }
+      // §MS3.5 / B5 — ONE history entry. `commit('')` snapshots the pre-insert
+      // nodes + edges + `modelVersion` + both sidecars; the single `set` below
+      // binds the re-issued ids, the v2 promotion, the whole inserted set, and
+      // the selection change together. One Ctrl+Z reverts all of it.
+      commit('')
+      lastTag = ''
+      const inserted = new Set(built.insertedNodeIds)
+      set({
+        nodes: built.nodes.map((n) =>
+          inserted.has(n.id)
+            ? { ...n, selected: true }
+            : n.selected
+              ? { ...n, selected: false } // §MS3.3 — inserted nodes, and nothing else
+              : n,
+        ),
+        edges: built.edges,
+        modelVersion: built.modelVersion,
+        selectedNodeId: built.insertedNodeIds.length === 1 ? built.insertedNodeIds[0] : null,
+        selectedEdgeId: null,
+      })
+      bump()
+      persist()
+      return { ok: true, insertedNodeIds: built.insertedNodeIds, promotedToV2: built.promotedToV2 }
     },
 
     exportJSON: (recommendedRunConfig) =>

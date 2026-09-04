@@ -413,6 +413,29 @@ const ko = {
   'templates.replace.body': '“{name}”을(를) 불러오면 지금 캔버스에 있는 내용이 대체됩니다.',
   'templates.replace.confirm': '템플릿 불러오기',
 
+  // ── 모듈 삽입 메뉴 (docs/module-system.md §MS6) ──
+  'modules.button': '모듈 삽입 ▾',
+  'modules.menuLabel': '모듈 삽입',
+  'modules.fromFile': '파일에서…',
+  'modules.extract': '선택 항목을 모듈로 내보내기…',
+  'modules.bufferedStep.name': '버퍼가 있는 생산 단계',
+  'modules.bufferedStep.blurb':
+    '공급이 인박스 풀로 들어가고, 인테이크 게이트가 2→1 변환기와 폐기 드레인으로 나눈 뒤, 아웃박스 풀에서 출하됩니다. 시스템 내 수량과 계획 생산량을 보여주는 레지스터가 함께 있습니다.',
+  'modules.rewardSplit.name': '보상 분배 루프',
+  'modules.rewardSplit.blurb':
+    '활동이 지갑을 채우고, 배분 게이트가 2:1로 지출과 저축으로 나눕니다. 저축은 인출로 빠져나가며, 두 레지스터가 순자산과 목표 대비 진행도를 추적합니다.',
+  'modules.error.title': '모듈을 삽입할 수 없습니다',
+  'modules.promote.title': '파라미터 기반(v2) 모델로 전환할까요?',
+  'modules.promote.body':
+    '이 블록은 파라미터로 흐름을 제어하므로, 삽입하면 문서가 v2 모델이 됩니다. 모델 시맨틱스 다이제스트가 바뀌며 v1 → v2 전환은 되돌릴 수 없습니다. 실행 취소 한 번으로 전환과 삽입이 함께 되돌아갑니다.',
+  'modules.promote.confirm': '전환하고 삽입',
+  'modules.frames.title': '저장된 프레임은 포함되지 않습니다',
+  'modules.frames.insertBody':
+    '이 파일에는 저장된 그룹 프레임이 있습니다. 모듈로 삽입해도 프레임은 그래프로 들어오지 않으며, 나머지는 평소대로 삽입됩니다.',
+  'modules.frames.extractBody':
+    '현재 그래프에는 저장된 그룹 프레임이 있습니다. 프레임은 모듈 파일에 기록되지 않으며, 선택한 노드와 그 내부 연결만 포함됩니다.',
+  'modules.frames.continue': '계속',
+
   // ── 내보내기 메뉴 (§W8) ──
   'export.button': '내보내기 ▾',
   'export.menuLabel': '내보내기',

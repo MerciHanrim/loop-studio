@@ -1,0 +1,107 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "activity",
+      "type": "source",
+      "position": { "x": 0, "y": 100 },
+      "data": { "kind": "source", "label": "Activity", "activation": "automatic", "mode": "pushAny" }
+    },
+    {
+      "id": "wallet",
+      "type": "pool",
+      "position": { "x": 200, "y": 90 },
+      "data": { "kind": "pool", "label": "Wallet", "activation": "passive", "initial": 0, "capacity": null, "mode": "pullAny" }
+    },
+    {
+      "id": "allocate",
+      "type": "gate",
+      "position": { "x": 400, "y": 90 },
+      "data": { "kind": "gate", "label": "Allocate", "activation": "automatic", "distribution": "deterministic" }
+    },
+    {
+      "id": "spending",
+      "type": "drain",
+      "position": { "x": 600, "y": 20 },
+      "data": { "kind": "drain", "label": "Spending", "activation": "automatic", "mode": "pullAny" }
+    },
+    {
+      "id": "savings",
+      "type": "pool",
+      "position": { "x": 600, "y": 190 },
+      "data": { "kind": "pool", "label": "Savings", "activation": "passive", "initial": 0, "capacity": null, "mode": "pullAny" }
+    },
+    {
+      "id": "withdrawals",
+      "type": "drain",
+      "position": { "x": 800, "y": 190 },
+      "data": { "kind": "drain", "label": "Withdrawals", "activation": "passive", "mode": "pullAny" }
+    },
+    {
+      "id": "target_savings",
+      "type": "parameter",
+      "position": { "x": 200, "y": 300 },
+      "data": { "kind": "parameter", "label": "Savings target", "value": 100 }
+    },
+    {
+      "id": "net_worth",
+      "type": "register",
+      "position": { "x": 400, "y": 300 },
+      "data": { "kind": "register", "label": "Net worth", "expr": "@wallet + @savings", "format": "int" }
+    },
+    {
+      "id": "progress",
+      "type": "register",
+      "position": { "x": 400, "y": 380 },
+      "data": { "kind": "register", "label": "Progress to target", "expr": "@savings / @target_savings", "format": "percent" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_activity_wallet",
+      "source": "activity",
+      "target": "wallet",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "3" }
+    },
+    {
+      "id": "e_wallet_allocate",
+      "source": "wallet",
+      "target": "allocate",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "all" }
+    },
+    {
+      "id": "e_allocate_spending",
+      "source": "allocate",
+      "target": "spending",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "2" }
+    },
+    {
+      "id": "e_allocate_savings",
+      "source": "allocate",
+      "target": "savings",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1" }
+    },
+    {
+      "id": "e_savings_withdrawals",
+      "source": "savings",
+      "target": "withdrawals",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1" }
+    }
+  ]
+}

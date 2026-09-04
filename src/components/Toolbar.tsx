@@ -13,6 +13,7 @@ import { HelpMenu } from './HelpMenu'
 import { LanguageSwitch } from './LanguageSwitch'
 import { Logo } from './Logo'
 import { MobileTopBar } from './mobile/MobileTopBar'
+import { ModuleMenu } from './ModuleMenu'
 import { RevisionChip } from './RevisionChip'
 import { ShareButton } from './ShareButton'
 import { Templates } from './Templates'
@@ -161,6 +162,7 @@ export function Toolbar() {
           ↷
         </button>
         <Templates />
+        <ModuleMenu />
         <ThemeToggle />
         <LanguageSwitch />
         <button
