@@ -735,6 +735,24 @@ const en = {
   'about.repo': 'GitHub repository',
   'about.repoAria': 'Loop Studio GitHub repository',
   'about.notAffiliated': 'Loop Studio is an independent project and is not affiliated with or endorsed by Machinations.io.',
+  // Contextual inline help — docs/contextual-inline-help.md
+  'hint.close': 'Dismiss this note',
+  'hint.emptyCanvas.body': 'Start from a Template, or drag node types in from the left panel.',
+  'hint.mc.body': 'Monte Carlo runs the model many times and shows a spread of outcomes, not a single prediction.',
+  'hint.review.body': 'Reviewing a proposal never changes your open project — nothing moves until you apply it.',
+  'hint.focusFilter.body': 'Graph getting busy? Focus dims everything but one node’s neighbourhood; Filter hides node or connection types.',
+  'help.contextual.menuLabel': 'Contextual help',
+  'help.contextual.title': 'Contextual help',
+  'help.contextual.intro': 'Loop Studio shows a few short notes the first time each of these comes up. Re-arm one to see it again next time it applies.',
+  'help.contextual.rearm': 'Show again next time',
+  'help.contextual.hint.emptyCanvas.name': 'Empty canvas',
+  'help.contextual.hint.emptyCanvas.desc': 'Shown on a blank canvas, before any node exists.',
+  'help.contextual.hint.mc.name': 'Monte Carlo',
+  'help.contextual.hint.mc.desc': 'Shown the first time the Monte Carlo dialog opens.',
+  'help.contextual.hint.review.name': 'Review',
+  'help.contextual.hint.review.desc': 'Shown the first time a shared proposal opens for review.',
+  'help.contextual.hint.focusFilter.name': 'Focus / Filter',
+  'help.contextual.hint.focusFilter.desc': 'Shown once a graph is large enough that Focus and Filter start to help.',
 } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */

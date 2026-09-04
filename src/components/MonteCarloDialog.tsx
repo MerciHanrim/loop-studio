@@ -4,6 +4,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
+import { InlineHintNote } from './HintNote'
 
 // P2 — Monte-Carlo setup. Opens from the simulation strip (an execution mode,
 // not an authoring command). Shows an exact memory projection and a time RANGE
@@ -122,6 +123,12 @@ export function MonteCarloDialog() {
             ✕
           </button>
         </div>
+
+        {/* docs/contextual-inline-help.md §CIH3 #2 — first-open orientation
+            for a dialog the guided tour deliberately skips (§GT10). */}
+        <InlineHintNote id="mc-first-open" trigger={open}>
+          {t('hint.mc.body')}
+        </InlineHintNote>
 
         <div className="mcdlg__body">
           <label className="mcdlg__field">

@@ -1166,6 +1166,47 @@ body {
   background: var(--surface-sunken);
 }
 
+/* docs/contextual-inline-help.md §CIH2 — the shared situational-hint note.
+   Same chrome as .lgr-suggest-note (its tier-2 sibling for the shared
+   top-center canvas slot, §CIH2.3a); never pointer-events:none since its ✕
+   is the only dismiss path. */
+.hint-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-raised);
+  border: 1px dashed var(--line-strong);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 4px 6px 4px 10px;
+  font-size: 12px;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: var(--elev-label);
+}
+/* the dialog/sheet-embedded shape — a block inside an already-scrolling
+   body, so it grows to the container width instead of capping at 360px. */
+.hint-note--inline {
+  max-width: none;
+  text-align: left;
+  margin-bottom: 12px;
+}
+.hint-note__x {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+.hint-note__x:hover {
+  background: var(--surface-sunken);
+}
+
 /* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. A React
    Flow top-left Panel; scrolls internally so a long resource-type list never
    pushes it off-canvas. Ephemeral: it changes nothing that serializes. */
@@ -3900,6 +3941,50 @@ input[type='number']::-webkit-inner-spin-button {
 .about__note {
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+/* Contextual help dialog — reuses the .mcdlg shell (docs/contextual-inline-help.md §CIH4) */
+.mcdlg--contextual-help {
+  width: min(420px, calc(100vw - 24px));
+}
+.contextual-help__intro {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.contextual-help__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.contextual-help__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-hairline);
+}
+.contextual-help__row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+.contextual-help__name {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.contextual-help__desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.contextual-help__rearm {
+  flex: none;
 }
 
 @media (forced-colors: active) {

@@ -679,6 +679,24 @@ const ko = {
   'about.repo': 'GitHub 저장소',
   'about.repoAria': 'Loop Studio GitHub 저장소',
   'about.notAffiliated': 'Loop Studio는 독립 프로젝트이며 Machinations.io와 제휴하거나 보증받은 프로젝트가 아닙니다.',
+  // 상황별 도움말 — docs/contextual-inline-help.md
+  'hint.close': '이 안내 닫기',
+  'hint.emptyCanvas.body': '템플릿으로 시작하거나, 왼쪽 패널에서 노드 유형을 끌어다 놓으세요.',
+  'hint.mc.body': '몬테카를로는 모델을 여러 번 실행해 결과의 분포를 보여줍니다. 단일 예측이 아닙니다.',
+  'hint.review.body': '제안을 검토해도 현재 열린 프로젝트는 바뀌지 않습니다 — 적용하기 전까지는 아무것도 변경되지 않습니다.',
+  'hint.focusFilter.body': '그래프가 복잡해졌나요? 포커스는 선택한 노드 주변만 남기고 나머지를 흐리게 하고, 필터는 노드나 연결 유형을 숨깁니다.',
+  'help.contextual.menuLabel': '상황별 도움말',
+  'help.contextual.title': '상황별 도움말',
+  'help.contextual.intro': 'Loop Studio는 아래 상황이 처음 발생할 때 짧은 안내를 한 번 보여줍니다. 다시 보고 싶으면 재활성화하세요.',
+  'help.contextual.rearm': '다음에 다시 보기',
+  'help.contextual.hint.emptyCanvas.name': '빈 캔버스',
+  'help.contextual.hint.emptyCanvas.desc': '노드가 하나도 없는 빈 캔버스에서 표시됩니다.',
+  'help.contextual.hint.mc.name': '몬테카를로',
+  'help.contextual.hint.mc.desc': '몬테카를로 대화상자를 처음 열 때 표시됩니다.',
+  'help.contextual.hint.review.name': '검토',
+  'help.contextual.hint.review.desc': '공유된 제안을 처음 검토할 때 표시됩니다.',
+  'help.contextual.hint.focusFilter.name': '포커스 / 필터',
+  'help.contextual.hint.focusFilter.desc': '그래프가 포커스와 필터가 도움이 될 만큼 커지면 한 번 표시됩니다.',
 } satisfies MessageCatalog
 
 export default ko

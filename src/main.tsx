@@ -19,6 +19,7 @@ import * as shareLink from './store/shareLink'
 import { useFilterStore } from './store/filterStore'
 import { useFrameStore } from './store/frameStore'
 import { useAutoFrameStore } from './store/autoFrameStore'
+import { useHintStore } from './store/hintStore'
 import { useSimStore } from './store/simStore'
 import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
@@ -39,6 +40,7 @@ if (import.meta.env.DEV) {
     project: useProjectStore,
     review: useReviewStore,
     tour: useTourStore,
+    hint: useHintStore,
     i18n: useI18n,
     io: workspaceIO,
     revisionIO,

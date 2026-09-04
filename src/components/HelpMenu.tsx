@@ -2,15 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
 import { AboutDialog } from './AboutDialog'
+import { ContextualHelpDialog } from './ContextualHelpDialog'
 
-// docs/guided-tour.md §GT7 — the desktop Help (`?`) menu. Two working entries:
-// `Take a tour` (replays the tour; never rewrites the stored key, §GT6.4) and
-// `About Loop Studio`. `Contextual help` is NOT shown (later slice).
+// docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
+// desktop Help (`?`) menu: `Take a tour` (replays the tour; never rewrites
+// the stored key, §GT6.4), `Contextual help`, and `About Loop Studio`.
 
 export function HelpMenu() {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [contextualOpen, setContextualOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const startReplay = useTourStore((s) => s.startReplay)
@@ -62,6 +64,17 @@ export function HelpMenu() {
             role="menuitem"
             onClick={() => {
               setOpen(false)
+              setContextualOpen(true)
+            }}
+          >
+            <span className="menu__name">{t('help.contextual.menuLabel')}</span>
+          </button>
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
               setAboutOpen(true)
             }}
           >
@@ -70,6 +83,11 @@ export function HelpMenu() {
         </div>
       ) : null}
 
+      <ContextualHelpDialog
+        open={contextualOpen}
+        onClose={() => setContextualOpen(false)}
+        returnFocusTo={() => btnRef.current}
+      />
       <AboutDialog
         open={aboutOpen}
         onClose={() => setAboutOpen(false)}
