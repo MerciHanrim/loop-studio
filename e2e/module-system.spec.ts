@@ -144,6 +144,11 @@ test('a v2 module into a v1 host: consent gate — no-op without, one undo unit 
   await expect(dlg).toBeVisible()
   expect((await gs(page)).modelVersion).toBe(1)
   expect((await gs(page)).nodes).toHaveLength(1)
+  // the copy must not contradict itself — it says the change is undoable, never
+  // that it is "one-way" (that latch property is out of scope for this dialog)
+  const body = await dlg.locator('.mcdlg__note').innerText()
+  expect(body).toMatch(/reverses the model change and the insert together/i)
+  expect(body).not.toMatch(/one[- ]way/i)
 
   // cancel → still nothing
   await dlg.getByRole('button', { name: /^cancel$/i }).click()

@@ -474,7 +474,7 @@ const en = {
   'modules.error.title': 'Could not insert the module',
   'modules.promote.title': 'Make this a parameter-driven (v2) model?',
   'modules.promote.body':
-    'This block drives a flow from a parameter, so inserting it turns the document into a v2 model. The model-semantics digest changes and v1 → v2 is one-way. A single undo reverses the promotion and the insert together.',
+    'Inserting this block turns the document into a v2 model and the model-semantics digest changes. A single undo reverses the model change and the insert together.',
   'modules.promote.confirm': 'Promote and insert',
   'modules.frames.title': 'Saved frames are not included',
   'modules.frames.insertBody':

@@ -1,8 +1,11 @@
 # Small Module / Template System (non-frozen design doc — DRAFT)
 
-**Status: DESIGN settled (review round 1, 2026-09-04). Impl PR 1 (module insert
-/ extract — §MS9 steps 1–6) is in build; the Inputs / Summary panels (§MS9 step
-7) remain a separate later slice.** `MS` prefix. This doc closes the decisions
+**Status: DESIGN settled. Impl PR 1 (module insert / extract — §MS9 steps 1–6)
+SHIPPED in `v0.8.0-dev` (PR #125, merge `eda6380`); Production hands-check is
+functionally PASS. A follow-up PR corrects the v2-promotion consent copy (no
+self-contradiction) and writes the mobile-exclusion contract (§MS6.1). The
+Inputs / Summary panels (§MS9 step 7) remain a separate later slice (impl PR
+2).** `MS` prefix. This doc closes the decisions
 [`docs/product-direction.md`](product-direction.md) deferred to the
 **"small module / template system"** pass (§PD8-B): how part of a graph becomes
 a **reusable module**, how a module is **inserted into an existing graph**
@@ -244,11 +247,15 @@ them, two disjoint components in one graph — which the engine runs fine
 | **v1** | **v2** (`@param` flow) | **confirm dialog → on confirm, promote + insert as one Undo unit; on cancel, nothing changes** |
 
 Inserting a v2 module into a v1 document *is* the `loop-model/2` promotion
-trigger (`SEMANTICS-M2.md §M2-1.1` — v1 → v2 is user-action-only, one-way), but
-promotion is significant enough that it is **not silent**. Before anything is
-applied, a confirmation states: *this block uses parameter-driven flow; the
-document will become a v2 model (the model-semantics digest changes; v1 → v2 is
-one-way)*.
+trigger (`SEMANTICS-M2.md §M2-1.1` — v1 → v2 is a user-action latch: removing an
+`@` reference later, or a plain open / save, never downgrades), but promotion is
+significant enough that it is **not silent**. Before anything is applied, a
+confirmation states: *inserting this block turns the document into a v2 model
+and the model-semantics digest changes; a single undo reverses the model change
+and the insert together*. The dialog does **not** call the change "one-way" —
+in this transaction it is explicitly undoable (§MS3.5); the latch property
+(§M2-1.1) is about auto-downgrade, not about undo, and is out of scope for this
+confirmation.
 
 - **Confirm** → the v2 promotion **and** the insert are performed as **one**
   history transaction (§MS3.5) — a single `Ctrl+Z` undoes both together, back to
@@ -403,6 +410,25 @@ templates — the module system is what introduces them.
 - The **dedicated assembly screen** with its own focus / filter substrate
   (§PD8-B) is explicitly a **later, separate pass** — §MS0 / §MS10.
 
+### MS6.1 Mobile — no module UI (existing policy)
+
+Module insert / extract is a **structural editing** feature, and structural
+editing is **desktop-only** (`docs/mobile.md §MV3a`). Therefore, by design:
+
+- **No Insert-module menu, no *From file…*, no *Extract selection as module…*,
+  and no drag-to-insert on mobile / at a narrow viewport.** The `<ModuleMenu>`
+  renders after the Toolbar's `if (isMobile) return <MobileTopBar/>` early
+  return, and the mobile More sheet carries none of it.
+- Mobile stays **view / run only**, unchanged — "view & run — edit on desktop".
+- The only mobile requirement for this feature is **negative**: at 375 px the
+  module code must not break the top bar or the More menu (it adds nothing
+  there). Locked by `e2e/module-system.spec.ts` — *"the module menu is
+  desktop-only — absent on a narrow (mobile) viewport"* (`.toolbar--mobile`
+  visible, the *Insert module ▾* button count is 0).
+
+A mobile module surface is **not planned** — if it is ever wanted it is its own
+pass, gated on mobile structural editing existing at all.
+
 ---
 
 ## MS7. Fork decisions (all resolved, review round 1 — 2026-09-04)
@@ -478,6 +504,14 @@ templates — the module system is what introduces them.
 **Round-trip:** Extract → Insert back into the same graph → a second disjoint
 copy; the two copies run independently.
 
+**Mobile — negative only (§MS6.1):**
+- At 375 px the mobile top bar renders and the *Insert module ▾* button count is
+  **0** — no module menu, no *From file…*, no *Extract*, no drag-to-insert.
+- The module code adds nothing to the mobile top bar or the More sheet and does
+  not clip or push either.
+- There is **no** mobile insert / extract path to test — mobile is view / run
+  only (`docs/mobile.md §MV3a`).
+
 **Panels (the later slice, MS7-5):** Inputs panel lists every Parameter with an
 editable value + read-through select; Summary panel lists every Register +
 `unit` + `계산식 보기`; both absent with no Parameter / Register; neither writes
@@ -541,17 +575,26 @@ extract / insert / frames-exclusion confirmations, panel headers) added to
   Templates: the bundled blocks, *From file…*, *Extract selection as module…*;
   the v2 promotion consent + the frames-exclusion notice reuse `ConfirmDialog`).
   `Canvas.tsx` `handleDrop` also accepts the `application/loop-module` payload
-  for drag-to-insert. Desktop only — the mobile bar has no structural editing.
+  for drag-to-insert. **Desktop only** (§MS6.1) — `<ModuleMenu>` renders after
+  the Toolbar's `if (isMobile) return <MobileTopBar/>`, so mobile has no module
+  UI at all.
 - **Blocks** — `examples/module-buffered-step.json`,
   `examples/module-reward-split.json` (v1, generalised), read by
   `src/model/modules.ts`, menu name / blurb keyed in
   `src/components/moduleKeys.ts` + `modules.*` in `en` / `ko`. Seeded node
   labels stay English in every locale for v1 (like `equilibrium` / `deadlock`);
   a KO node-label overlay for blocks is a later follow-up.
-- **e2e** — `e2e/module-system.spec.ts` (7): menu contents, insert (fresh ids /
-  selected set / one entry), one-undo + redo-same-ids, twice-disjoint, the v2
-  consent gate (no-op / cancel / promote+insert one undo unit), extract to a
-  download (internal edges only, no rrc / frames), dangling-`@ref` refusal.
+- **e2e** — `e2e/module-system.spec.ts` (12): menu contents; insert (fresh ids /
+  selected set / one entry); one-undo + redo-same-ids; twice-disjoint; the v2
+  consent gate (no-op / cancel / promote+insert one undo unit); a module file
+  with `frames` + its own run config (notice, then host frames / MC config /
+  Timeline untouched); drag-to-insert == the menu result; failure leaves the
+  viewport untouched; Import → Module *From file…* → Import again in sequence;
+  Extract to a download (internal edges only, no rrc / frames, positions to
+  origin); dangling-`@ref` refusal (no download); **the module menu is absent
+  at a 375-px mobile viewport** (§MS6.1). Plus `moduleGraph.test.ts` (18) and
+  `moduleInsert.test.ts` (9) and the `graphStore.modelVersion` history
+  regression (+3).
 
 **Impl PR 2 (later slice, MS7-5) — the panels:**
 
@@ -614,8 +657,16 @@ a separate merge approval.
    settled all seven §MS7 forks and added the five §MS4a boundaries; MS-Q1…Q12
    are the decision record.
 2. **Impl PR 1** — §MS9 steps 1–6 (module insert / extract + assembly menu +
-   bundled blocks), held Draft; separate merge approval. **No serialized
-   change**; a full invariance pass proving so.
+   bundled blocks). **Shipped** (PR #125, merge `eda6380`, `v0.8.0-dev`). **No
+   serialized change** — a full invariance pass proved so. Production
+   hands-check: functionally PASS across the six core flows (bundled insert +
+   undo/redo · twice-disjoint · file insert · v2 consent + cancel · Extract +
+   external-ref refusal · 375-px mobile layout). Closed after the follow-up
+   below.
+2a. **Follow-up (post-#125)** — fix the `modules.promote.body` copy so it no
+   longer says the change is "one-way" in the same breath as "one undo reverses
+   it" (EN + KO), and record the **mobile-exclusion contract** (§MS6.1) in this
+   doc + the acceptance scope. Copy / docs only.
 3. **Impl PR 2** — §MS9 step 7 (the Inputs / Summary panels), after PR 1 lands.
 4. **After both ship** — contextual inline help (README, Onboarding part 2) can
    start, now that the app's structure is fixed. The §PD12.3 candidates
