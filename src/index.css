@@ -2279,15 +2279,18 @@ body {
      300px box (no visual/measurement change to the Inspector). */
   box-shadow: -1px 0 0 var(--line-hairline);
 }
-/* inside `.rightcol` the Inspector fills the height and scrolls; the fixed
-   width / bg now live on `.rightcol` (works through the `display: contents`
-   lock fieldset too — descendant selector, not child). */
+/* inside `.rightcol` the Inspector fills the height and scrolls. It keeps its
+   own opaque `background` (identical to `.rightcol`'s, so the seam is
+   invisible), and its 1px left border becomes TRANSPARENT rather than being
+   removed — the visible divider is `.rightcol`'s box-shadow, but the 1px of
+   layout the border used to occupy must stay or every `.inspector` screenshot
+   shifts 1px left. Only width / flex / border colour change here. Works through
+   the `display: contents` lock fieldset — descendant, not child. */
 .rightcol .inspector {
   width: auto;
   flex: 1 1 auto;
   min-height: 0;
-  border-left: 0;
-  background: transparent;
+  border-left-color: transparent;
 }
 
 /* ---- inspector ---- */
