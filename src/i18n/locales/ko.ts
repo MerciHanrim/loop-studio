@@ -427,7 +427,7 @@ const ko = {
   'modules.error.title': '모듈을 삽입할 수 없습니다',
   'modules.promote.title': '파라미터 기반(v2) 모델로 전환할까요?',
   'modules.promote.body':
-    '이 블록은 파라미터로 흐름을 제어하므로, 삽입하면 문서가 v2 모델이 됩니다. 모델 시맨틱스 다이제스트가 바뀌며 v1 → v2 전환은 되돌릴 수 없습니다. 실행 취소 한 번으로 전환과 삽입이 함께 되돌아갑니다.',
+    '이 블록을 삽입하면 문서가 v2 모델이 되고 모델 시맨틱스 다이제스트가 변경됩니다. 실행 취소 한 번으로 모델 전환과 삽입을 함께 되돌릴 수 있습니다.',
   'modules.promote.confirm': '전환하고 삽입',
   'modules.frames.title': '저장된 프레임은 포함되지 않습니다',
   'modules.frames.insertBody':
