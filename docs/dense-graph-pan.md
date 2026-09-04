@@ -1,21 +1,22 @@
 # Dense-graph pan usability (non-frozen design doc — DRAFT)
 
-**Status: DESIGN — direction approved (review rounds 1–2); the eight DGP7
-decisions are locked, the SPIKE has run (`spike/dense-graph-pan`), and the
-implementation is up as a stacked Draft PR. `DGP` prefix.** Two additions from
-review round 2 are **mandatory merge contracts**, not follow-ups:
+**Status: IMPLEMENTED — stacked Draft PR; the eight DGP7 decisions are locked
+(review rounds 1–2), the SPIKE has run (`spike/dense-graph-pan`), and the
+automatable DGP6 gates are green. `DGP` prefix.** Two additions from review
+round 2 are **mandatory merge contracts**, not follow-ups:
 
 - **§DGP-C1** — the mobile short-tap must still select an **edge** (nearest
   path within ~12–16 px) and open the read-only Inspector, in the order
   node → edge → empty canvas. Losing edge-tap-to-Inspect is a merge-blocking
-  regression.
+  regression. *(Built — see "As built" in DGP7.)*
 - **§DGP-C2** — native / OS gestures (back-swipe, pull-to-refresh) are **not**
   fully suppressed; the pass criterion is that the overlay is never left stuck
   and the **next touch works normally** — recovery, not prevention.
 
-Pinch (+ 1→2→1 finger) and the §DGP-C2 recovery still need a **real-phone**
-check — that is the Ready/merge gate (DGP7 D4). `Space` / middle-drag stay out
-of v1. A non-frozen design doc like
+**Ready / merge is gated on a real-phone check:** pinch zoom-in/out, the
+1→2→1 finger transitions, and §DGP-C2 recovery (DGP7 D4). If pinch fails, do
+not merge — fix only the overlay's pointer hand-off. `Space + drag` and the
+middle button stay out of v1 (DGP7 D6). A non-frozen design doc like
 [`large-graph-readability.md`](large-graph-readability.md),
 [`edge-routing.md`](edge-routing.md), [`module-system.md`](module-system.md) —
 no `loop-*/N`, no `Frozen` marker. The spike and the implementation are
@@ -342,12 +343,49 @@ hand-off (`down` set / `pointer-events` restore), nothing else.
 **Still open (impl decides):**
 
 - **Does Pan mode auto-engage under `canvasLocked`** on desktop (locked ⇒
-  view-only), or stay a wholly separate toggle?
+  view-only), or stay a wholly separate toggle? — kept a **separate toggle**
+  for v1; auto-engage can come later without a contract change.
 - **Discoverability** — cursor change (`grab` is wired), the Controls button
-  icon / label, a one-time hint.
+  icon / label, a one-time hint. — v1 ships the `grab` cursor + a Controls
+  button (four-arrows icon, `aria-pressed`); the one-time hint is deferred.
 - **Robustness** — the overlay must reset its pointer bookkeeping if a
-  `pointerup` / `pointercancel` is ever missed (a stale entry currently wedges
-  it into the two-finger hand-off state).
+  `pointerup` / `pointercancel` is ever missed. — done: an `onDownGuard` clears
+  a stale `down` set, `window`-level `pointerup` / `pointercancel` catch
+  releases outside the box, and `lostpointercapture` resets everything.
+
+### As built (impl PR, stacked on this doc)
+
+- **Overlay = a child of `.react-flow`, not a sibling of `<ReactFlow>`.**
+  `.react-flow` is its own `z-index: 0` stacking context, so a sibling at any
+  `z-index ≥ 1` paints over the Controls too. As a child, `z-index: 4` ties it
+  with `.react-flow__renderer` and — later in the DOM — it paints above the
+  nodes / edges but still below every `.react-flow__panel` (Controls, MiniMap,
+  the hint panels), which stay clickable.
+- **Zoom is forwarded, not lost.** d3-zoom's `wheel` handler is bound to
+  `.react-flow__pane`, which the overlay covers, so the overlay re-dispatches a
+  clone of every `wheel` (deltas + client point + `ctrlKey` for trackpad
+  pinch) to the pane. Double-click-to-zoom is suppressed while Pan mode is on —
+  wheel / pinch / the Controls +/- cover it.
+- **The tap resolves node → edge → empty (§DGP-C1).** Edges are inside
+  `.react-flow__viewport` (`pointer-events: none` while
+  `nodesDraggable={false}`), so they are not in `elementsFromPoint` and not a
+  box test. The overlay instead samples each `.react-flow__edge-path` with
+  `getPointAtLength`, maps every sample to screen space through the path's
+  `getScreenCTM()`, and takes the **nearest** edge within `EDGE_TAP_TOL`
+  (~14 px). A fast screen-bbox reject skips edges nowhere near the tap. Node
+  box wins over an overlapping edge; nothing near either → an empty-canvas tap.
+- **Filter panel clearance.** The Pan-mode button lengthens the bottom-left
+  Controls stack by one; `.lgr-filter`'s fixed reserve went 195px → 224px so
+  its last row still clears the buttons on a short canvas.
+- **Native-gesture recovery (§DGP-C2).** No attempt to suppress the browser's
+  own edge gestures. The overlay self-heals instead: `window`-level `pointerup`
+  / `pointercancel`, a `lostpointercapture` reset, and an `onDownGuard` that
+  clears a stale `down` set on the next `pointerdown` — so a touch the browser
+  stole never wedges it. An e2e simulates a mid-drag `pointercancel` and
+  asserts the next tap still selects.
+- **Not yet verified — the Ready/merge gate:** two-finger pinch (zoom-in/out),
+  the 1→2→1 finger transitions, and the §DGP-C2 recovery **on a real phone**.
+  `Space + drag` and the middle button remain out of v1.
 
 ---
 
@@ -365,5 +403,7 @@ hand-off (`down` set / `pointer-events` restore), nothing else.
    implement and open a Draft PR.** Mobile pan-from-node first (biggest pain,
    no edit gestures to protect), then the desktop Pan mode. If the spike
    contradicts the contract, stop and report instead. Ready / merge is a
-   separate approval; a full invariance pass on each.
+   separate approval; a full invariance pass on each. — **done**: impl Draft PR
+   stacked on this doc; automatable DGP6 gates green; Ready/merge waits on the
+   real-phone pinch pass.
 4. **Then** — contextual inline help (README Onboarding part 2).
