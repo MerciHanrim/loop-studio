@@ -100,6 +100,73 @@ describe('graphStore.modelVersion', () => {
     expect(mv()).toBe(1)
   })
 
+  // docs/module-system.md §MS3.5 — `HistoryEntry` carries `modelVersion`, so
+  // undo / redo restore it alongside the graph. Every history entry must capture
+  // the `modelVersion` that was live when it was pushed.
+  describe('modelVersion rides the undo history', () => {
+    it('a purely-v1 session stays v1 across every undo and redo', () => {
+      g().newGraph()
+      g().addNodeAt('pool', { x: 0, y: 0 })
+      g().addNodeAt('pool', { x: 100, y: 0 })
+      g().addNodeAt('pool', { x: 200, y: 0 })
+      expect(mv()).toBe(1)
+      for (let i = 0; i < 3; i++) {
+        g().undo()
+        expect(mv()).toBe(1)
+      }
+      for (let i = 0; i < 3; i++) {
+        g().redo()
+        expect(mv()).toBe(1)
+      }
+    })
+
+    it('undo of the promoting edit reverts to v1; redo brings v2 back; deeper history stays v1', () => {
+      const { edgeId } = base() // source + pool + edge, all committed as v1 entries
+      expect(mv()).toBe(1)
+      g().setEdgeData(edgeId, { kind: 'resource', flow: '@p' }) // the promotion
+      expect(mv()).toBe(2)
+      g().addNodeAt('pool', { x: 400, y: 0 }) // one more edit, its entry captures v2
+      expect(mv()).toBe(2)
+
+      g().undo() // drop the extra pool — still v2
+      expect(mv()).toBe(2)
+      g().undo() // undo the promoting flow edit — back to v1
+      expect(mv()).toBe(1)
+      g().undo() // deeper into the v1-era history
+      expect(mv()).toBe(1)
+
+      g().redo() // re-add the edge
+      expect(mv()).toBe(1)
+      g().redo() // re-apply the promoting flow edit — v2 again
+      expect(mv()).toBe(2)
+      g().redo() // re-add the extra pool
+      expect(mv()).toBe(2)
+    })
+
+    it('undo of a v2-document load restores the pre-load v1', () => {
+      const v2 = serialize(
+        [
+          { id: 'a', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'a' } } as never,
+          { id: 'b', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'b' } } as never,
+        ],
+        [{ id: 'e', source: 'a', target: 'b', type: 'loop', data: { kind: 'resource', flow: '@p' } } as never],
+        undefined,
+        undefined,
+        undefined,
+        2,
+      )
+      g().newGraph()
+      g().addNodeAt('pool', { x: 0, y: 0 })
+      expect(mv()).toBe(1)
+      g().loadJSON(v2)
+      expect(mv()).toBe(2)
+      g().undo() // the load's history entry captured the pre-load v1
+      expect(mv()).toBe(1)
+      g().redo()
+      expect(mv()).toBe(2)
+    })
+  })
+
   it('a v1 document whose flow ALREADY contains "@foo" is not promoted by loading it', () => {
     const v1 = serialize(
       [

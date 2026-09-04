@@ -118,6 +118,31 @@ describe('insertGraph — expression rewrite', () => {
     expect((flowEdge.data as { flow: string }).flow).toBe(`@${r.idMap['m_rate']}`)
   })
 
+  it('two inserts of a module with a `@ref`: each instance’s register points at its OWN param', () => {
+    const mod = doc([param('m_lever', 5), register('m_out', '@m_lever * 2')], [], 1)
+    const host0 = host()
+    const first = insertGraph(host0, mod, { at: { x: 0, y: 0 } })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = insertGraph(
+      { ...host0, nodes: first.nodes, edges: first.edges },
+      mod,
+      { at: { x: 500, y: 500 } },
+    )
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+
+    const regA = first.nodes.find((n) => n.id === first.idMap['m_out'])!
+    const regB = second.nodes.find((n) => n.id === second.idMap['m_out'])!
+    expect((regA.data as { expr: string }).expr).toBe(`@${first.idMap['m_lever']} * 2`)
+    expect((regB.data as { expr: string }).expr).toBe(`@${second.idMap['m_lever']} * 2`)
+    // no crosstalk — B's expr never names an A id and vice versa
+    expect((regA.data as { expr: string }).expr).not.toContain(second.idMap['m_lever'])
+    expect((regB.data as { expr: string }).expr).not.toContain(first.idMap['m_lever'])
+    // the two lever ids are genuinely different
+    expect(first.idMap['m_lever']).not.toBe(second.idMap['m_lever'])
+  })
+
   it('a v2 host + v1 module stays v2 and does not report a promotion', () => {
     const v2host: GraphDocLike = { ...host(), modelVersion: 2 }
     const r = insertGraph(v2host, doc([pool('a'), pool('b')], [rEdge('e', 'a', 'b')], 1), { at: { x: 0, y: 0 } })
@@ -200,6 +225,24 @@ describe('extractModule — §MS2', () => {
     if (r.ok) return
     expect(r.dangling).toEqual([{ from: 'out', targetId: 'far' }])
     expect(r.reason).toMatch(/outside/)
+  })
+
+  it('refuses when a selected internal v2 `@param` flow edge references a Parameter outside the selection (§MS2.4 / B1)', () => {
+    const g = doc(
+      [
+        param('rate', 3, { x: 0, y: 0 }),
+        pool('a', {}, { x: 100, y: 0 }),
+        pool('b', {}, { x: 200, y: 0 }),
+      ],
+      [{ ...rEdge('f', 'a', 'b', '@rate') }],
+      2,
+    )
+    // a and b are selected (so `f` is a fully-internal edge) but its @param flow
+    // names `rate`, which is not
+    const r = extractModule(g, ['a', 'b'])
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.dangling).toEqual([{ from: 'f', targetId: 'rate' }])
   })
 
   it('marks the module v2 only when a surviving edge carries an `@param` flow', () => {

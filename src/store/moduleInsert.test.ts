@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { GraphDocLike } from '../model/moduleGraph'
+import { serialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
+import { readModuleFile } from './moduleIO'
+import { useSimStore } from './simStore'
 
 // docs/module-system.md §MS8 — the `graphStore.insertModule` transaction:
 // one atomic history entry (§MS3.5 / B5), the v1 → v2 consent gate (§MS3.4 /
@@ -71,6 +74,36 @@ describe('insertModule — one atomic transaction (§MS3.5 / B5)', () => {
     for (const id of insertedIds) expect(g().nodes.some((n) => n.id === id)).toBe(true)
     expect(g().nodes.filter((n) => n.selected).map((n) => n.id).sort()).toEqual([...insertedIds].sort())
   })
+
+  it('two inserts of the same module: one undo removes ONLY the second; redo restores the second’s same ids', () => {
+    const block = () => mod([pool('a'), pool('b')], [rEdge('e', 'a', 'b')])
+
+    const first = g().insertModule(block(), { at: { x: 0, y: 0 } })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const firstIds = [...first.insertedNodeIds]
+
+    const second = g().insertModule(block(), { at: { x: 300, y: 300 } })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    const secondIds = [...second.insertedNodeIds]
+
+    // disjoint id sets
+    expect(secondIds.some((id) => firstIds.includes(id))).toBe(false)
+    expect(g().nodes).toHaveLength(5) // 1 host + 2 + 2
+
+    // one undo drops the SECOND insert only
+    g().undo()
+    expect(g().nodes).toHaveLength(3)
+    for (const id of firstIds) expect(g().nodes.some((n) => n.id === id)).toBe(true)
+    for (const id of secondIds) expect(g().nodes.some((n) => n.id === id)).toBe(false)
+
+    // redo restores the second insert with the SAME ids it first minted
+    g().redo()
+    expect(g().nodes).toHaveLength(5)
+    for (const id of secondIds) expect(g().nodes.some((n) => n.id === id)).toBe(true)
+    expect(g().nodes.filter((n) => n.selected).map((n) => n.id).sort()).toEqual([...secondIds].sort())
+  })
 })
 
 describe('insertModule — v1 → v2 consent gate (§MS3.4 / MS7-2)', () => {
@@ -81,13 +114,25 @@ describe('insertModule — v1 → v2 consent gate (§MS3.4 / MS7-2)', () => {
       [{ ...rEdge('e', 'a', 'b'), data: { kind: 'resource', flow: '@rate' } }],
       2,
     )
-    const nodesBefore = g().nodes
-    const pastBefore = g().past.length
+    g().setSelection(g().nodes[0].id, null)
+    const before = {
+      nodes: g().nodes,
+      edges: g().edges,
+      mv: g().modelVersion,
+      past: g().past.length,
+      sel: g().selectedNodeId,
+      rev: g().simulationRev,
+      frames: useFrameStore.getState().snapshot(),
+    }
     const r = g().insertModule(m, { at: { x: 0, y: 0 } })
     expect(r).toEqual({ ok: false, reason: 'needs-v2-consent' })
-    expect(g().nodes).toBe(nodesBefore)
-    expect(g().modelVersion).toBe(1)
-    expect(g().past.length).toBe(pastBefore)
+    expect(g().nodes).toBe(before.nodes)
+    expect(g().edges).toBe(before.edges)
+    expect(g().modelVersion).toBe(before.mv)
+    expect(g().past.length).toBe(before.past)
+    expect(g().selectedNodeId).toBe(before.sel)
+    expect(g().simulationRev).toBe(before.rev)
+    expect(useFrameStore.getState().snapshot()).toEqual(before.frames)
   })
 
   it('with confirmedPromotion the promotion + insert are ONE undo unit back to a v1 document', () => {
@@ -123,6 +168,7 @@ describe('insertModule — nothing changes on failure (§MS3.6 / B4)', () => {
       past: g().past.length,
       sel: g().selectedNodeId,
       rev: g().simulationRev,
+      frames: useFrameStore.getState().snapshot(),
     }
     const bad = mod(
       [pool('p'), { id: 'lever', type: 'parameter', position: { x: 0, y: 0 }, data: { kind: 'parameter', label: 'lever', value: 1 } } as LoopNode],
@@ -136,6 +182,21 @@ describe('insertModule — nothing changes on failure (§MS3.6 / B4)', () => {
     expect(g().past.length).toBe(snap.past)
     expect(g().selectedNodeId).toBe(snap.sel)
     expect(g().simulationRev).toBe(snap.rev)
+    expect(useFrameStore.getState().snapshot()).toEqual(snap.frames)
+    // viewport is a React Flow concern (no store) — covered in e2e
+  })
+
+  it('a broken `@ref` in a hand-made module is refused with no change', () => {
+    const rev = g().simulationRev
+    const past = g().past.length
+    const r = g().insertModule(
+      mod([{ id: 'r', type: 'register', position: { x: 0, y: 0 }, data: { kind: 'register', label: 'r', expr: '@ghost + 1' } } as LoopNode]),
+      { at: { x: 0, y: 0 } },
+    )
+    expect(r.ok).toBe(false)
+    expect(g().nodes).toHaveLength(1)
+    expect(g().simulationRev).toBe(rev)
+    expect(g().past.length).toBe(past)
   })
 })
 
@@ -147,5 +208,36 @@ describe('insertModule — isolation (§MS4a-B2 / B3)', () => {
     expect(r.ok).toBe(true)
     expect(JSON.stringify(useMcStore.getState().config)).toBe(mcBefore)
     expect(useFrameStore.getState().snapshot()).toEqual(framesBefore)
+  })
+
+  it('a module FILE carrying its own recommendedRunConfig + frames: neither reaches the host', () => {
+    // host has its own MC config, a non-default Timeline selection, and a frame
+    useMcStore.getState().setConfig({ runs: 999, steps: 77 })
+    useSimStore.getState().setTimelineSeries([g().nodes[0].id])
+    useFrameStore.getState().adoptFrame({ x: 0, y: 0, w: 100, h: 100 }, 'Host zone')
+    const mcBefore = JSON.stringify(useMcStore.getState().config)
+    const tlBefore = JSON.stringify(useSimStore.getState().timelineSeries)
+    const framesBefore = useFrameStore.getState().snapshot()
+
+    const file = serialize(
+      [pool('a'), pool('b')],
+      [rEdge('e', 'a', 'b')],
+      { baseSeed: 5, runs: 3, steps: 4, tracked: [] }, // the module file's own run config
+      undefined,
+      undefined,
+      1,
+      [{ id: 'mf1', label: 'Module zone', rect: { x: 10, y: 10, w: 50, h: 50 } }], // and its own frames
+    )
+    const read = readModuleFile(file)
+    expect(read.ok).toBe(true)
+    if (!read.ok) return
+    expect(read.hadRunConfig).toBe(true)
+    expect(read.hadFrames).toBe(true)
+
+    const r = g().insertModule(read.module, { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    expect(JSON.stringify(useMcStore.getState().config)).toBe(mcBefore) // §MS4a-B2
+    expect(JSON.stringify(useSimStore.getState().timelineSeries)).toBe(tlBefore)
+    expect(useFrameStore.getState().snapshot()).toEqual(framesBefore) // §MS4a-B3
   })
 })

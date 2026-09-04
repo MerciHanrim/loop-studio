@@ -164,8 +164,26 @@ test('a v2 module into a v1 host: consent gate — no-op without, one undo unit 
   expect(s.nodes).toHaveLength(1)
 })
 
-test('a module file with a frames block: the exclusion notice appears, then insert proceeds without frames', async ({ page }) => {
+test('a module file with a frames block + its own run config: the exclusion notice appears; host frames / run config / Timeline untouched', async ({ page }) => {
   await seedHost(page)
+  // give the host a frame, a non-default MC config, and a non-default Timeline selection
+  await page.evaluate(() => {
+    const l = (window as any).__loop
+    l.frame.getState().adoptFrame({ x: 0, y: 0, w: 100, h: 100 }, 'Host zone')
+    l.mc.getState().setConfig({ runs: 999, steps: 77 })
+    l.sim.getState().setTimelineSeries([l.graph.getState().nodes[0].id])
+  })
+  const hostState = () =>
+    page.evaluate(() => {
+      const l = (window as any).__loop
+      return {
+        frames: l.frame.getState().snapshot(),
+        mc: JSON.stringify(l.mc.getState().config),
+        timeline: JSON.stringify(l.sim.getState().timelineSeries),
+      }
+    })
+  const before = await hostState()
+
   const framed = JSON.stringify({
     schema: 'loop-studio/graph',
     version: 1,
@@ -174,6 +192,7 @@ test('a module file with a frames block: the exclusion notice appears, then inse
       { id: 'b', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'B' } },
     ],
     edges: [{ id: 'e', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } }],
+    recommendedRunConfig: { baseSeed: 5, runs: 3, steps: 4, tracked: [] },
     frames: [{ id: 'f1', label: 'Zone', rect: { x: -20, y: -20, w: 260, h: 120 } }],
   })
 
@@ -184,14 +203,15 @@ test('a module file with a frames block: the exclusion notice appears, then inse
 
   const dlg = page.locator('.mcdlg--confirm')
   await expect(dlg).toContainText(/frames are not/i)
-  // nothing applied yet, and the editor has no frames
-  expect((await gs(page)).nodes).toHaveLength(1)
-  expect(await page.evaluate(() => (window as any).__loop.frame.getState().snapshot().length)).toBe(0)
+  expect((await gs(page)).nodes).toHaveLength(1) // nothing applied yet
 
   await dlg.getByRole('button', { name: 'Continue' }).click()
-  const s = await gs(page)
-  expect(s.nodes).toHaveLength(3) // 2 inserted, no frame
-  expect(await page.evaluate(() => (window as any).__loop.frame.getState().snapshot().length)).toBe(0)
+  expect((await gs(page)).nodes).toHaveLength(3) // 2 inserted, no frame added
+
+  const after = await hostState()
+  expect(after.frames).toEqual(before.frames) // §MS4a-B3 — host's own frame kept, module's dropped
+  expect(after.mc).toBe(before.mc) // §MS4a-B2 — module run config ignored
+  expect(after.timeline).toBe(before.timeline)
 })
 
 test('Extract selection as module → a Graph JSON download with internal edges only, no run config / frames', async ({ page }) => {
@@ -250,7 +270,117 @@ test('Extract refuses when a selected register references a node outside the sel
     void d.accept()
   })
 
+  const noDownload = page.waitForEvent('download', { timeout: 1500 }).then(() => 'downloaded', () => 'none')
   await openMenu(page)
   await moduleMenu(page).locator('.menu__name', { hasText: 'Extract selection as module…' }).click()
   await expect.poll(() => alerted).toMatch(/references nodes outside it/)
+  expect(await noDownload).toBe('none') // a refusal produces no file
+})
+
+test('drag-to-insert on the canvas gives the same result as the menu, as one history entry', async ({ page }) => {
+  await seedHost(page)
+  const before = await gs(page)
+
+  await openMenu(page) // the block menu items must exist to start the drag
+  await page.evaluate(() => {
+    const item = [...document.querySelectorAll('.toolbar__actions .menu__item')].find((el) =>
+      el.querySelector('.menu__name')?.textContent?.includes('Buffered production step'),
+    ) as HTMLElement
+    const dt = new DataTransfer()
+    item.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
+    const canvas = document.querySelector('.canvas') as HTMLElement
+    const r = canvas.getBoundingClientRect()
+    const at = { clientX: r.left + 300, clientY: r.top + 220, bubbles: true, dataTransfer: dt }
+    canvas.dispatchEvent(new DragEvent('dragover', at))
+    canvas.dispatchEvent(new DragEvent('drop', at))
+  })
+
+  const after = await gs(page)
+  expect(after.nodes.length).toBe(before.nodes.length + 10) // same as the menu path
+  expect(after.edges.length).toBe(before.edges.length + 6)
+  expect(after.past.length).toBe(before.past.length + 1) // one atomic history entry
+  expect(after.nodes.filter((n) => n.selected)).toHaveLength(10)
+})
+
+test('failure leaves the viewport untouched', async ({ page }) => {
+  await seedHost(page)
+  // pan the camera somewhere non-default
+  await page.evaluate(() => (window as any).__loop.graph.getState())
+  await page.mouse.move(700, 400)
+  await page.mouse.down()
+  await page.mouse.move(560, 300, { steps: 8 })
+  await page.mouse.up()
+  const vpBefore = await page.locator('.react-flow__viewport').getAttribute('style')
+
+  // a From-file insert of a structurally-broken module (edge onto a parameter)
+  const bad = JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 'p', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'P' } },
+      { id: 'lever', type: 'parameter', position: { x: 100, y: 0 }, data: { kind: 'parameter', label: 'lever', value: 1 } },
+    ],
+    edges: [{ id: 'bad', source: 'p', target: 'lever', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } }],
+  })
+  let alerted = ''
+  page.removeAllListeners('dialog')
+  page.on('dialog', (d) => {
+    alerted = d.message()
+    void d.accept()
+  })
+  await openMenu(page)
+  const chooserP = page.waitForEvent('filechooser')
+  await moduleMenu(page).locator('.menu__name', { hasText: 'From file…' }).click()
+  ;(await chooserP).setFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from(bad, 'utf8') })
+
+  await expect.poll(() => alerted).toMatch(/Could not insert/)
+  expect((await gs(page)).nodes).toHaveLength(1) // nothing inserted
+  expect(await page.locator('.react-flow__viewport').getAttribute('style')).toBe(vpBefore)
+})
+
+test('Import graph → Module From file → Import graph again all work in sequence (one file input)', async ({ page }) => {
+  await resetAll(page)
+  const graphJson = (label: string) =>
+    JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [{ id: 'n1', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label } }],
+      edges: [],
+    })
+  const moduleJson = JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 'a', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'A' } },
+      { id: 'b', type: 'pool', position: { x: 120, y: 0 }, data: { kind: 'pool', label: 'B' } },
+    ],
+    edges: [{ id: 'e', source: 'a', target: 'b', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } }],
+  })
+
+  // 1) toolbar Import — the app's one standing file input
+  await page.setInputFiles('.toolbar__actions input[type=file]', {
+    name: 'g1.json', mimeType: 'application/json', buffer: Buffer.from(graphJson('First'), 'utf8'),
+  })
+  await expect.poll(async () => (await gs(page)).nodes.length).toBe(1)
+
+  // 2) Module → From file — a transient input, no collision with the above
+  await openMenu(page)
+  const chooserP = page.waitForEvent('filechooser')
+  await moduleMenu(page).locator('.menu__name', { hasText: 'From file…' }).click()
+  ;(await chooserP).setFiles({ name: 'm.json', mimeType: 'application/json', buffer: Buffer.from(moduleJson, 'utf8') })
+  await expect.poll(async () => (await gs(page)).nodes.length).toBe(3) // 1 + 2 inserted
+
+  // 3) toolbar Import again — still works, replaces the graph
+  await page.setInputFiles('.toolbar__actions input[type=file]', {
+    name: 'g2.json', mimeType: 'application/json', buffer: Buffer.from(graphJson('Second'), 'utf8'),
+  })
+  await expect.poll(async () => (await gs(page)).nodes.length).toBe(1)
+  expect((await gs(page)).nodes[0].data?.label).toBe('Second')
+})
+
+test('the module menu is desktop-only — absent on a narrow (mobile) viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 900 }) // < the 720px mobile breakpoint
+  await page.reload()
+  await expect(page.locator('.toolbar--mobile')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Insert module ▾' })).toHaveCount(0)
 })
