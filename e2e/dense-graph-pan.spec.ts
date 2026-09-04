@@ -328,9 +328,7 @@ test.describe('dense-graph pan — desktop Pan mode', () => {
     await page.mouse.down()
     await page.mouse.up()
     expect(await selectedId(page)).toBe('a')
-    expect(
-      await panSurface(page).evaluate((el) => getComputedStyle(el).pointerEvents),
-    ).toBe('auto') // not wedged into the two-finger hand-off
+    expect(await panSurface(page).evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('auto') // never wedged
   })
 
   test('Pan mode ON: a tap on empty canvas clears the selection', async ({ page }) => {
@@ -351,6 +349,196 @@ test.describe('dense-graph pan — desktop Pan mode', () => {
     await page.mouse.down()
     await page.mouse.up()
     expect(await selectedId(page)).toBeNull()
+  })
+
+  test.describe('two-finger pinch — computed by PanSurface itself, not handed off to React Flow', () => {
+    // real-device testing (Hanrim, 2026-09-04, Preview 18f2706) found the
+    // hand-off approach never actually zoomed: the 1st finger's pointerdown
+    // was captured by the overlay while it was still the hit target, so
+    // `.react-flow__pane` never received that finger at all and d3-zoom's
+    // pinch math only ever saw one touch. These dispatch synthetic two-
+    // pointer sequences (real multi-touch hardware itself still needs a
+    // human) to pin the state machine and the zoom/pan math.
+    // `primary` matters ONLY on a 'pointerdown' — it's the §DGP-C2 self-heal
+    // guard's ghost-pointer signal (real touch hardware sets it correctly per
+    // spec: true for a touch that starts while no other same-type pointer is
+    // active, false otherwise — a manually-constructed event needs it spelled
+    // out explicitly to model that).
+    const fire = (page: Page, seq: { t: string; id: number; x: number; y: number; primary?: boolean }[]) =>
+      page.evaluate((events) => {
+        const el = document.querySelector('.pan-surface') as HTMLElement
+        for (const { t, id, x, y, primary } of events)
+          el.dispatchEvent(
+            new PointerEvent(t, {
+              pointerId: id,
+              clientX: x,
+              clientY: y,
+              bubbles: true,
+              cancelable: true,
+              button: 0,
+              pointerType: 'touch',
+              isPrimary: primary ?? true,
+            }),
+          )
+      }, seq)
+
+    async function canvasCentre(page: Page): Promise<{ x: number; y: number }> {
+      const r = (await page.locator('.canvas').boundingBox())!
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    }
+
+    test('spreading two fingers zooms in around the pinch centre; no node move, no selection', async ({ page }) => {
+      await load(page)
+      await setPanMode(page, true)
+      await expect(panSurface(page)).toHaveClass(/pan-surface--active/) // wait for the overlay's listeners to attach
+      const { x: cx, y: cy } = await canvasCentre(page)
+      const before = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      const posBefore = await nodePos(page, 'a')
+
+      await fire(page, [
+        { t: 'pointerdown', id: 1, x: cx - 20, y: cy },
+        { t: 'pointerdown', id: 2, x: cx + 20, y: cy, primary: false },
+        { t: 'pointermove', id: 1, x: cx - 50, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 50, y: cy },
+        { t: 'pointermove', id: 1, x: cx - 90, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 90, y: cy },
+        { t: 'pointerup', id: 1, x: cx - 90, y: cy },
+        { t: 'pointerup', id: 2, x: cx + 90, y: cy },
+      ])
+
+      const after = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      expect(after.zoom, 'fingers spread apart -> zoomed in').toBeGreaterThan(before.zoom)
+      expect(await nodePos(page, 'a')).toEqual(posBefore)
+      expect(await selectedId(page)).toBeNull()
+      expect(await selectedEdge(page)).toBeNull()
+    })
+
+    test('pinching two fingers together zooms out, and the zoom clamps to the same min/max as the Controls', async ({
+      page,
+    }) => {
+      await load(page)
+      await setPanMode(page, true)
+      await expect(panSurface(page)).toHaveClass(/pan-surface--active/)
+      const { x: cx, y: cy } = await canvasCentre(page)
+      await page.evaluate(() => {
+        ;(window as unknown as Bridge).__loop.rf.setViewport({ x: 200, y: 150, zoom: 1 }, { duration: 0 })
+      })
+      const before = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+
+      await fire(page, [
+        { t: 'pointerdown', id: 1, x: cx - 120, y: cy },
+        { t: 'pointerdown', id: 2, x: cx + 120, y: cy, primary: false },
+        { t: 'pointermove', id: 1, x: cx - 60, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 60, y: cy },
+        { t: 'pointermove', id: 1, x: cx - 20, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 20, y: cy },
+        { t: 'pointerup', id: 1, x: cx - 20, y: cy },
+        { t: 'pointerup', id: 2, x: cx + 20, y: cy },
+      ])
+      const afterOut = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      expect(afterOut.zoom, 'fingers pinched together -> zoomed out').toBeLessThan(before.zoom)
+
+      // an extreme spread must clamp to the same maxZoom as <ReactFlow>, not overshoot it
+      await fire(page, [
+        { t: 'pointerdown', id: 3, x: cx - 5, y: cy }, // 1 & 2 fully released already — fresh, primary
+        { t: 'pointerdown', id: 4, x: cx + 5, y: cy, primary: false },
+        { t: 'pointermove', id: 3, x: cx - 400, y: cy },
+        { t: 'pointermove', id: 4, x: cx + 400, y: cy },
+        { t: 'pointerup', id: 3, x: cx - 400, y: cy },
+        { t: 'pointerup', id: 4, x: cx + 400, y: cy },
+      ])
+      const afterClamp = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      expect(afterClamp.zoom).toBeLessThanOrEqual(2) // Canvas's maxZoom
+    })
+
+    test('1→2→1: releasing one finger mid-pinch does not jump or resume a single-finger pan; only a fresh touch pans again', async ({
+      page,
+    }) => {
+      await load(page)
+      await setPanMode(page, true)
+      await expect(panSurface(page)).toHaveClass(/pan-surface--active/)
+      const { x: cx, y: cy } = await canvasCentre(page)
+
+      // pinch-zoom in with fingers 1 & 2
+      await fire(page, [
+        { t: 'pointerdown', id: 1, x: cx - 20, y: cy },
+        { t: 'pointerdown', id: 2, x: cx + 20, y: cy, primary: false },
+        { t: 'pointermove', id: 1, x: cx - 70, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 70, y: cy },
+      ])
+      const midPinch = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+
+      // finger 1 lifts (2→1) — the pinch ends into "settling"; finger 2 alone
+      // moving a long way must NOT pan (no accidental single-pan resume)
+      await fire(page, [
+        { t: 'pointerup', id: 1, x: cx - 70, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 300, y: cy + 300 },
+      ])
+      const stillSettling = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      expect(stillSettling).toEqual(midPinch) // no jump, no stray pan while settling
+
+      // finger 2 also lifts — fully idle now
+      await fire(page, [{ t: 'pointerup', id: 2, x: cx + 300, y: cy + 300 }])
+
+      // a genuinely FRESH single-finger touch pans normally
+      await fire(page, [
+        { t: 'pointerdown', id: 5, x: cx, y: cy },
+        { t: 'pointermove', id: 5, x: cx + 120, y: cy + 40 },
+        { t: 'pointerup', id: 5, x: cx + 120, y: cy + 40 },
+      ])
+      const afterFreshPan = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      expect(afterFreshPan.x - midPinch.x, 'a fresh single-finger drag pans').toBeGreaterThan(80)
+    })
+
+    test('an incidental 3rd finger does not disturb an active pinch, and lifting it does not end it', async ({
+      page,
+    }) => {
+      await load(page)
+      await setPanMode(page, true)
+      await expect(panSurface(page)).toHaveClass(/pan-surface--active/)
+      const { x: cx, y: cy } = await canvasCentre(page)
+
+      await fire(page, [
+        { t: 'pointerdown', id: 1, x: cx - 20, y: cy },
+        { t: 'pointerdown', id: 2, x: cx + 20, y: cy, primary: false },
+        { t: 'pointerdown', id: 3, x: cx, y: cy + 150, primary: false }, // an incidental extra finger
+      ])
+      const beforeExtraLift = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      await fire(page, [{ t: 'pointerup', id: 3, x: cx, y: cy + 150 }])
+
+      // the original pinch pair must still drive zoom after the extra lifts
+      await fire(page, [
+        { t: 'pointermove', id: 1, x: cx - 80, y: cy },
+        { t: 'pointermove', id: 2, x: cx + 80, y: cy },
+      ])
+      const afterContinuedPinch = await page.evaluate(() => (window as unknown as Bridge).__loop.rf.getViewport())
+      expect(afterContinuedPinch.zoom, 'the pinch kept responding after the incidental finger lifted').toBeGreaterThan(
+        beforeExtraLift.zoom,
+      )
+    })
+
+    test('a pointercancel mid-pinch self-heals — the next tap still works (§DGP-C2)', async ({ page }) => {
+      await load(page)
+      await setPanMode(page, true)
+      await expect(panSurface(page)).toHaveClass(/pan-surface--active/)
+
+      await fire(page, [
+        { t: 'pointerdown', id: 1, x: 200, y: 200 },
+        { t: 'pointerdown', id: 2, x: 260, y: 200, primary: false },
+        { t: 'pointermove', id: 1, x: 150, y: 200 },
+        { t: 'pointermove', id: 2, x: 310, y: 200 },
+      ])
+      await fire(page, [
+        { t: 'pointercancel', id: 1, x: 150, y: 200 },
+        { t: 'pointercancel', id: 2, x: 310, y: 200 },
+      ])
+
+      const box = (await node(page, 'a').boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.up()
+      expect(await selectedId(page)).toBe('a')
+    })
   })
 
   test('Pan mode OFF (default): a node drag still moves the node — no edit regression (DGP D7)', async ({
