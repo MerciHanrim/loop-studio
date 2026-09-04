@@ -105,3 +105,35 @@ describe('uiStore — focusMode (large-graph readability, UI-only)', () => {
   // e2e/large-graph-readability.spec.ts — the store test env has no localStorage
   // and the read/write helpers are try/catch-guarded for exactly that.
 })
+
+describe('uiStore — Inputs / Summary panels (docs/module-system.md §MS5)', () => {
+  beforeEach(() => {
+    try {
+      localStorage.removeItem('loop-studio:inputs-panel')
+      localStorage.removeItem('loop-studio:summary-panel')
+    } catch {
+      /* node env has no localStorage */
+    }
+    useUiStore.setState({ inputsPanelOpen: true, summaryPanelOpen: true })
+  })
+
+  it('both default open; each toggle flips independently', () => {
+    const s = () => useUiStore.getState()
+    expect(s().inputsPanelOpen).toBe(true)
+    expect(s().summaryPanelOpen).toBe(true)
+
+    s().toggleInputsPanel()
+    expect(s().inputsPanelOpen).toBe(false)
+    expect(s().summaryPanelOpen).toBe(true) // unaffected
+
+    s().toggleSummaryPanel()
+    expect(s().inputsPanelOpen).toBe(false)
+    expect(s().summaryPanelOpen).toBe(false)
+
+    s().toggleInputsPanel()
+    expect(s().inputsPanelOpen).toBe(true)
+  })
+
+  // localStorage persistence (`loop-studio:inputs-panel` / `:summary-panel`) is
+  // covered by e2e/model-panels.spec.ts — same reason as focusMode above.
+})
