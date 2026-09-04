@@ -118,16 +118,32 @@ test('Summary shows R(t) + unit and a Show-calculation toggle; an invalid Regist
   await expect(bad).toContainText(/no value/i)
 })
 
-test('read-through: clicking a row label selects the node and centres the canvas on it', async ({ page }) => {
-  const { rOk } = await seedModelGraph(page)
-  const vpBefore = await page.locator('.react-flow__viewport').getAttribute('style')
+test('read-through: clicking a row label selects the node and jumps the canvas to it', async ({ page }) => {
+  await seedModelGraph(page) // a cluster near the origin; the camera fits it
+  // add one Parameter far away — centring it needs a big translate change
+  const farId = await page.evaluate(() => {
+    const g = () => (window as any).__loop.graph.getState()
+    g().addNodeAt('parameter', { x: 2400, y: 1600 })
+    const id = g().nodes[g().nodes.length - 1].id
+    g().updateNodeData(id, { label: 'Far' })
+    return id
+  })
+  const translate = async () => {
+    const s = (await page.locator('.react-flow__viewport').getAttribute('style')) ?? ''
+    const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(s)
+    return { x: Number(m?.[1] ?? 0), y: Number(m?.[2] ?? 0) }
+  }
+  const before = await translate()
 
-  await summaryPanel(page).locator('.mp-row--reg').filter({ hasText: 'Total' }).locator('.mp-row__label').click()
+  await inputsPanel(page).locator('.mp-row__label', { hasText: 'Far' }).click()
 
-  await expect.poll(async () => (await gs(page)).nodes.find((n) => n.id === rOk)?.selected).toBe(true)
-  await expect(async () => {
-    expect(await page.locator('.react-flow__viewport').getAttribute('style')).not.toBe(vpBefore)
-  }).toPass()
+  await expect.poll(async () => (await gs(page)).nodes.find((n) => n.id === farId)?.selected).toBe(true)
+  await expect
+    .poll(async () => {
+      const now = await translate()
+      return Math.hypot(now.x - before.x, now.y - before.y)
+    })
+    .toBeGreaterThan(400) // the canvas jumped to the far node
 })
 
 test('collapse state persists across a reload (own localStorage keys)', async ({ page }) => {
