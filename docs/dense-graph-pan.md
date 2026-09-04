@@ -13,9 +13,21 @@ round 2 are **mandatory merge contracts**, not follow-ups:
   fully suppressed; the pass criterion is that the overlay is never left stuck
   and the **next touch works normally** — recovery, not prevention.
 
+**First real-phone pass (Hanrim, Preview `18f2706`, Early-MMO template):**
+one-finger pan — **pass**; two-finger pinch — **fail, did not zoom at all**.
+Root cause: the original mechanism handed pinch off to React Flow's own
+`zoomOnPinch` by dropping the overlay's `pointer-events` on a 2nd pointer, but
+the 1st finger's `pointerdown` was already captured by the overlay while it
+was still the hit target — `.react-flow__pane` never received that finger at
+all, so d3-zoom's pinch math only ever saw one touch. **Redesigned: the
+overlay now computes pinch zoom + pan itself** from the two live pointers'
+distance and midpoint (see "As built" in DGP7) — RF is no longer involved in
+pinch at all. Not yet re-verified on a real device.
+
 **Ready / merge is gated on a real-phone check:** pinch zoom-in/out, the
-1→2→1 finger transitions, and §DGP-C2 recovery (DGP7 D4). If pinch fails, do
-not merge — fix only the overlay's pointer hand-off. `Space + drag` and the
+1→2→1 finger transitions, an incidental 3rd finger, §DGP-C2 recovery, and
+node/edge short-tap still working (DGP7 D4). If pinch still fails, do not
+merge — fix only the overlay's pointer state machine. `Space + drag` and the
 middle button stay out of v1 (DGP7 D6). A non-frozen design doc like
 [`large-graph-readability.md`](large-graph-readability.md),
 [`edge-routing.md`](edge-routing.md), [`module-system.md`](module-system.md) —
@@ -121,7 +133,7 @@ Anything the fix adds has to coexist with:
 | **Edit mode** (desktop, unlocked) | `nodesDraggable` / `nodesConnectable` true — node drag-to-move, edge-from-handle, delete key, (future) marquee | with the fix **off / not engaged**, every edit gesture is byte-identical |
 | **Edit-lock** (`canvasLocked`) | already `noEdit` → view-only on desktop | the fix should make locked-desktop pan like mobile |
 | **Focus / Filter / frames / Activity overlay** | render-only; their panels are RF `<Panel>` / `<Controls>` (outside the pane, carry `nopan`) | a pan gesture must not clear a focus target, a filter selection, the armed states, **or the current selection** |
-| **`zoomOnPinch`** | RF's own touch listeners on the pane | a two-finger gesture must still zoom; it must never be read as a one-finger pan or a tap |
+| **`zoomOnPinch`** | RF's own touch listeners on the pane — but the overlay covers the pane, so a hand-off to them failed on a real device (§DGP-C4); the overlay computes pinch itself | a two-finger gesture must still zoom; it must never be read as a one-finger pan or a tap |
 | **`preventScrolling` / page scroll** | `touch-action: none` on the pane | any capture surface the fix adds needs the right `touch-action` so a canvas drag never scrolls the page, and a gesture that starts on the toolbar / a sheet still scrolls normally |
 | **Native / OS edge gestures** (back-swipe, pull-to-refresh) | the browser may claim a touch mid-gesture | **not suppressed** (§DGP-C2); the overlay must self-heal — a missed `pointerup` / `pointercancel` is cleared on the next `pointerdown`, so the next touch is normal |
 | **Read-through jump** (`ModelPanels`, `setViewport`) | writes the viewport | independent; unaffected |
@@ -141,9 +153,10 @@ Mobile is already `nodesDraggable={false}` and has no edit gestures to protect:
   closes). Time is not a factor — a long press that never moves is still a tap.
 - **Once the pointer passes `PAN_SLOP` it is a pan**, and the pending tap is
   cancelled: **no selection change, no Inspector open**.
-- **Two fingers / pinch** → RF's `zoomOnPinch`, unchanged. A two-finger gesture
-  is never read as a one-finger pan or a tap; a second finger landing mid-pan
-  hands off to pinch without a jump.
+- **Two fingers / pinch** → the overlay computes it directly (not RF's
+  `zoomOnPinch` — see "As built"). A two-finger gesture is never read as a
+  one-finger pan or a tap; a second finger landing mid-pan cancels the pan and
+  starts a pinch without a jump.
 
 **Tap resolution order — a mandatory contract (§DGP-C1).** Mobile has no editing,
 so *reading the graph* is its whole job, and today a tap can select **either** a
@@ -245,10 +258,21 @@ restores Pan mode.
 - the **page never scrolls** during a canvas drag; a drag that starts on the
   top bar / a sheet scrolls that element normally.
 
-**Pinch:**
-- a **two-finger** gesture zooms (RF `zoomOnPinch`) with the capture layer
-  present; it is never read as a one-finger pan or a tap.
-- a second finger landing mid-pan hands off to pinch without a jump.
+**Pinch — computed by the overlay itself, not RF's `zoomOnPinch` (see DGP7
+"As built" for why the hand-off approach failed on a real phone):**
+- spreading two fingers zooms **in**, pinching them together zooms **out**,
+  around the pinch midpoint; it is never read as a one-finger pan or a tap.
+- a second finger landing mid-pan cancels the pan and starts a pinch without
+  the viewport jumping.
+- **2 → 1 (one finger lifts mid-pinch):** the remaining finger does nothing —
+  no jump, no accidental single-finger pan resuming — until it *also* lifts;
+  only a genuinely fresh touch afterward pans again.
+- an **incidental 3rd finger** (or more) is tracked but does not disturb the
+  pinch; releasing it does not end the pinch — only releasing one of the two
+  fingers actually driving it does.
+- zoom clamps to the same `minZoom` / `maxZoom` `<ReactFlow>` itself uses.
+- a `pointercancel` on a pinch finger never resolves a tap, and self-heals the
+  same as the single-finger path (below).
 
 **Native / OS gestures (mobile) — §DGP-C2.** The app **does not** try to fully
 suppress a browser's own edge gestures (back-swipe, pull-to-refresh, the
@@ -257,7 +281,10 @@ criterion is **recovery, not prevention** — if the browser claims a gesture
 mid-touch, the overlay must not be left in a stuck state (no wedged
 `pointer-events: none`, no half-open pan), and **the very next touch behaves
 normally** (a tap selects, a drag pans). A missed `pointerup` / `pointercancel`
-must self-heal: the next `pointerdown` clears any stale pointer bookkeeping.
+must self-heal: the next `pointerdown` the browser itself considers *primary*
+(no other same-type pointer active — the user agent's own signal, not
+dependent on whether our `setPointerCapture` happened to succeed) clears any
+stale pointer bookkeeping.
 
 **Desktop — Pan mode:**
 - **On:** a left-drag over a node pans (node not moved); a drag from a handle
@@ -293,7 +320,7 @@ must self-heal: the next `pointerdown` clears any stale pointer bookkeeping.
 | D1 | **Mobile: no toggle.** A one-finger drag is the default pan and works from on top of a node / edge / frame (DGP3). |
 | D2 | **Tap vs drag by distance: `PAN_SLOP` ≈ 8 px.** Below it → today's tap-select; at/over it → a pan. Time is not a factor. |
 | D3 | **Once a drag is established the row's node is NOT selected and the Inspector does NOT open.** |
-| D4 | **Pinch / two-finger zoom keep today's behaviour**, and a two-finger gesture is never read as a one-finger pan or a tap. |
+| D4 | **Pinch / two-finger zoom keep today's behaviour**, and a two-finger gesture is never read as a one-finger pan or a tap. — the "keep RF's own pinch" mechanism failed a real-phone pass; the overlay now computes pinch itself (§DGP-C4, "As built") — the *behaviour* target is unchanged, the *mechanism* is not. |
 | D5 | **Desktop Pan mode is sticky but session-only** — `uiStore` in memory, **no `localStorage`, nothing serialized**; every fresh load starts in **edit mode**. |
 | D6 | **`Space + drag` and middle-button drag are supported only if the spike confirms** they pan over a node in a real browser / on a real device. |
 | D7 | **Pan mode OFF ⇒ node move, connect, frame drawing, delete, marquee are byte-for-byte unchanged.** |
@@ -321,14 +348,19 @@ must self-heal: the next `pointerdown` clears any stale pointer bookkeeping.
   (same issue `ModelPanels` hit). Canvas passes `setViewport` / `getViewport`
   into the overlay as props.
 
-**Could NOT be verified with automation — a real-phone check is the
-Ready/merge gate (D4):**
+**Round 1 real-phone result (Hanrim, Preview `18f2706`, Early-MMO template):
+one-finger pan PASS, two-finger pinch FAIL** (never zoomed at all — see
+§DGP-C4 below for the root cause and the fix). Re-verification is the
+Ready/merge gate (D4):
 
-- **Pinch / two-finger zoom** with the overlay present, and the **1 → 2 → 1
-  finger** transitions. The overlay's hand-off (drop `pointer-events` on the
-  2nd pointer so RF's own pinch runs, restore when every pointer lifts) is
-  coded, but real multi-touch cannot be driven headlessly. Pass = pinch zooms
-  in and out, and dropping back to one finger resumes panning — no stuck state.
+- **Pinch / two-finger zoom**, the **1 → 2 → 1 finger** transition (no jump,
+  no accidental single-pan resume, only a genuinely fresh touch pans again
+  after full release), and an **incidental 3rd finger** not disturbing an
+  active pinch. The state machine and zoom/pan math are pinned by e2e
+  (synthetic two-pointer dispatch, `isPrimary`-aware) — real multi-touch
+  hardware behaviour (event coalescing, jitter, gesture feel) still needs a
+  human. Pass = pinch zooms in and out around the pinch centre, and dropping
+  back to one finger resumes panning cleanly — no stuck state.
 - **Native / OS gesture recovery (§DGP-C2).** After a browser edge gesture
   (back-swipe, pull-to-refresh) interrupts a touch, the next tap / drag on the
   canvas works normally. Pass = **recovery, not prevention**.
@@ -337,8 +369,8 @@ Ready/merge gate (D4):**
   trusted d3-zoom input. **Deferred out of v1** — added later only once
   verified.
 
-If the pinch check fails, **do not merge** — fix only the overlay's pointer
-hand-off (`down` set / `pointer-events` restore), nothing else.
+If the pinch check still fails, **do not merge** — fix only the overlay's
+pointer state machine (§DGP-C4), nothing else.
 
 **Still open (impl decides):**
 
@@ -349,9 +381,41 @@ hand-off (`down` set / `pointer-events` restore), nothing else.
   icon / label, a one-time hint. — v1 ships the `grab` cursor + a Controls
   button (four-arrows icon, `aria-pressed`); the one-time hint is deferred.
 - **Robustness** — the overlay must reset its pointer bookkeeping if a
-  `pointerup` / `pointercancel` is ever missed. — done: an `onDownGuard` clears
-  a stale `down` set, `window`-level `pointerup` / `pointercancel` catch
-  releases outside the box, and `lostpointercapture` resets everything.
+  `pointerup` / `pointercancel` is ever missed. — done, and hardened after
+  round 1: an `onDownGuard` clears leftover pointer state on the next
+  `pointerdown` the browser itself marks `isPrimary` (not
+  `hasPointerCapture` — that call can silently not take even for a
+  legitimate pointer, which is exactly what broke a first cut of the pinch
+  e2e tests), `window`-level `pointerup` / `pointercancel` catch releases
+  outside the box, and `lostpointercapture` resets everything.
+
+### §DGP-C4 — pinch is computed by the overlay, not handed off to RF
+
+Added after the round-1 real-phone failure. The original mechanism dropped
+the overlay's `pointer-events` on a 2nd pointer so both touches would reach
+`.react-flow__pane` and React Flow's own `zoomOnPinch` would run. **This never
+actually zoomed on a real device.** Root cause: the 1st finger's `pointerdown`
+was captured by the overlay (`setPointerCapture`) while the overlay was still
+the hit target — dropping `pointer-events` later doesn't retroactively deliver
+that finger's down/move to the pane, capture or no capture. `.react-flow__pane`
+only ever received the 2nd finger; d3-zoom's pinch math needs both touches on
+the *same* element and never got a legitimate pair.
+
+**Fix:** `PanSurface` now tracks every live pointer itself and computes pinch
+zoom + pan directly — RF is not involved in pinch at all. A `Mode = 'idle' |
+'pan' | 'pinch' | 'settling'` state machine: 0 pointers → idle, 1 → pan
+(unchanged tap-vs-drag path), 2 → pinch (cancels any in-progress pan; a 3rd+
+finger is tracked but does not affect which two fingers drive the gesture),
+2 → 1 mid-pinch → `settling` (the remaining finger does nothing until it also
+lifts — no accidental pan resume), settling → 0 → idle. Zoom is a distance
+ratio between the two driving pointers, computed **incrementally each move**
+against the *previous* move's distance/midpoint (not a fixed gesture-start
+baseline), so panning while pinching — real fingers rarely hold a perfectly
+still centre — falls out for free; the flow point under the previous midpoint
+is re-anchored under the new one, and the result is clamped to the same
+`minZoom` / `maxZoom` `<ReactFlow>` itself uses (passed into the overlay as
+props from `Canvas`). `pointercancel` on a driving finger, at any point, drops
+straight to `settling` / `idle` without ever resolving a tap.
 
 ### As built (impl PR, stacked on this doc)
 
@@ -391,12 +455,20 @@ hand-off (`down` set / `pointer-events` restore), nothing else.
 - **Native-gesture recovery (§DGP-C2).** No attempt to suppress the browser's
   own edge gestures. The overlay self-heals instead: `window`-level `pointerup`
   / `pointercancel`, a `lostpointercapture` reset, and an `onDownGuard` that
-  clears a stale `down` set on the next `pointerdown` — so a touch the browser
-  stole never wedges it. An e2e simulates a mid-drag `pointercancel` and
-  asserts the next tap still selects.
-- **Not yet verified — the Ready/merge gate:** two-finger pinch (zoom-in/out),
-  the 1→2→1 finger transitions, and the §DGP-C2 recovery **on a real phone**.
-  `Space + drag` and the middle button remain out of v1.
+  clears leftover tracked pointers on the next `pointerdown` the browser marks
+  `isPrimary` — so a touch the browser stole never wedges it. e2e simulates a
+  mid-drag `pointercancel` and a `pointercancel` mid-pinch, each asserting the
+  next tap still selects.
+- **Pinch is computed by the overlay, not RF (§DGP-C4).** Added after a
+  real-phone round found the original hand-off approach never actually zoomed
+  — the overlay tracks live pointers and drives `setViewport` itself from
+  their distance / midpoint. See §DGP-C4 above.
+- **Not yet re-verified — the Ready/merge gate:** the redesigned pinch
+  (zoom-in/out, the 1→2→1 finger transition, an incidental extra finger) and
+  the §DGP-C2 recovery **on a real phone** — the state machine and zoom math
+  themselves are pinned by e2e (synthetic two-pointer dispatch), but real
+  multi-touch hardware still needs a human. `Space + drag` and the middle
+  button remain out of v1.
 
 ---
 
