@@ -1,11 +1,10 @@
 # Small Module / Template System (non-frozen design doc — DRAFT)
 
 **Status: DESIGN settled. Impl PR 1 (module insert / extract — §MS9 steps 1–6)
-SHIPPED in `v0.8.0-dev` (PR #125, merge `eda6380`); Production hands-check is
-functionally PASS. A follow-up PR corrects the v2-promotion consent copy (no
-self-contradiction) and writes the mobile-exclusion contract (§MS6.1). The
-Inputs / Summary panels (§MS9 step 7) remain a separate later slice (impl PR
-2).** `MS` prefix. This doc closes the decisions
+SHIPPED in `v0.8.0-dev` (PR #125, merge `eda6380`) + a follow-up (`1812762`,
+v2-promotion consent copy + §MS6.1 mobile-exclusion contract); Production
+hands-check functionally PASS. Impl PR 2 (the Inputs / Summary panels — §MS9
+step 7) is in build.** `MS` prefix. This doc closes the decisions
 [`docs/product-direction.md`](product-direction.md) deferred to the
 **"small module / template system"** pass (§PD8-B): how part of a graph becomes
 a **reusable module**, how a module is **inserted into an existing graph**
@@ -351,10 +350,8 @@ stated where it applies above; collected here for review.
 
 ## MS5. Inputs panel + Summary panel (§PD5)
 
-> **Design here; implementation is its own follow-up slice (MS7-5), after
-> module insert / extract lands.** This section fixes what the panels are and
-> where their data comes from; it is not part of the first module-system impl
-> PR.
+> **Built as impl PR 2 (MS7-5), after module insert / extract landed.** The "As
+> built" note at the end of this section records the shipped shape.
 
 Two collapsible side panels, **UI-only, no persistence**, recomputed from the
 live graph each render. They are useful for **any** graph, not only modules /
@@ -376,20 +373,58 @@ templates — the module system is what introduces them.
 ### MS5.2 Summary panel
 
 - Lists **every `register` node**: `label`, current `R(t)` value + `unit`, and
-  the existing **`계산식 보기` / show-calculation** toggle to reveal the
-  expression (plain-language description first, literal formula behind the
-  toggle — §PD5, already the model-language behaviour).
-- A register whose `R(t)` is invalid this step shows the same "—" / error tell
-  it shows on the canvas (never bridged, never hidden).
+  a **`계산식 보기` / Show-calculation** toggle to reveal the expression. A
+  plain-language description ahead of the literal formula is a **§PD5
+  follow-up** — not built here; the toggle reveals the **canonical expression
+  text** for now.
+- A register whose `R(t)` is invalid this step shows the same "—" / no-value
+  tell it shows on the canvas (never bridged, never hidden), plus its
+  diagnostic code.
 - Read-through to the canvas, same as §MS5.1.
 
 ### MS5.3 What they are not
 
 - Not a new editor mode; the canvas stays the primary surface and advanced
   editing (add / connect / expressions) is unchanged.
-- Not persisted, not in any file, not in any digest.
+- Not persisted, not in any file, not in any digest. The only stored state is
+  each panel's collapsed/expanded flag — a **UI preference** in its own
+  `localStorage` key (`loop-studio:inputs-panel` / `:summary-panel`), like the
+  filter panel; never the GraphDoc.
 - Not gated to templates — shown whenever the graph has ≥ 1 `parameter` or
   ≥ 1 `register`.
+- **Desktop only** — the panels mount in the desktop right column
+  (`DesktopInspector`); mobile stays view / run only, and the read-only mobile
+  Inspector sheet is unchanged. A read-only mobile Summary is a possible later
+  add.
+
+### MS5.4 As built (impl PR 2)
+
+- **`src/components/ModelPanels.tsx`** — `<ModelPanels/>` renders two `<section>`
+  panels (Inputs, Summary) at the top of a single scrolling `.rightcol` that
+  also holds the Inspector (`DesktopInspector` now wraps both; the fixed width /
+  border / background moved from `.inspector` to `.rightcol`). Renders `null`
+  when the graph has no `parameter` and no `register` (§MS5.3).
+- **Inputs** — every `parameter` sorted by id: label (read-through button) + a
+  number `<input>` writing `updateNodeData(id, { value })` — one history entry
+  per commit, exactly like the Inspector, `disabled` under `canvasLocked`. For
+  a v2 graph, every resource edge whose `flow` starts with `@` is listed as a
+  compact one-line pointer *"src → tgt · flow via &lt;Parameter&gt;"* with no
+  editable field.
+- **Summary** — every `register` sorted by id: label + `R(t)` (from
+  `useRegisterOutcomes()`) + `unit`, and a Show-/Hide-calculation toggle
+  (per-row local state) revealing the canonical expression. Invalid ⇒
+  *"— no value at step N"* + the `M_REG_*` code.
+- **Read-through** — a row label click calls `setSelection`, sets the React
+  Flow `selected` ring, and `setCenter`s the viewport on the node. The panels
+  sit **outside** the edit-lock `<fieldset disabled>`, so read-through and the
+  calc toggle stay usable under `canvasLocked`.
+- **Collapse** — `uiStore.inputsPanelOpen` / `summaryPanelOpen`, default open,
+  own `localStorage` keys (`readBoolKey(key, true)`).
+- **Tests** — `src/store/uiStore.test.ts` (the two toggles) +
+  `e2e/model-panels.spec.ts` (9): presence gate, value-edit one-undo, v2
+  `@param` flow rows, R(t)/unit + calc toggle + invalid tell, read-through
+  select + centre, collapse persistence, edit-lock behaviour, no
+  `simulationRev` / export impact, desktop-only.
 
 ---
 
@@ -596,14 +631,16 @@ extract / insert / frames-exclusion confirmations, panel headers) added to
   `moduleInsert.test.ts` (9) and the `graphStore.modelVersion` history
   regression (+3).
 
-**Impl PR 2 (later slice, MS7-5) — the panels:**
+**Impl PR 2 (MS7-5) — the panels (in build):**
 
-7. **Inputs / Summary panels** — two side panels reading `parameter` /
-   `register` nodes, read-through select, no persistence. Separate PR after
-   PR 1 lands.
+7. **Inputs / Summary panels** — `<ModelPanels/>` in the desktop right column
+   above the Inspector: Inputs = every `parameter` (+ v2 `@param` flow pointers),
+   Summary = every `register` (R(t) + unit + Show-calculation). Read-through
+   select, per-panel collapse (`localStorage`), no GraphDoc / digest / undo
+   impact beyond the value edits themselves. See §MS5.4 for the shipped shape.
 
-Each PR is held as **Draft** until its acceptance subset (§MS8) is green, then
-a separate merge approval.
+Each PR is held as **Draft** until its acceptance subset (§MS8 / §MS5.4) is
+green, then a separate merge approval.
 
 ---
 
@@ -667,7 +704,10 @@ a separate merge approval.
    longer says the change is "one-way" in the same breath as "one undo reverses
    it" (EN + KO), and record the **mobile-exclusion contract** (§MS6.1) in this
    doc + the acceptance scope. Copy / docs only.
-3. **Impl PR 2** — §MS9 step 7 (the Inputs / Summary panels), after PR 1 lands.
+3. **Impl PR 2** — §MS9 step 7 / §MS5.4 (the Inputs / Summary panels). **In
+   build** — `<ModelPanels/>` + `uiStore` prefs + `e2e/model-panels.spec.ts`;
+   no serialized change (a per-panel collapse flag in its own `localStorage`
+   key is the only stored state). Held Draft; separate merge approval.
 4. **After both ship** — contextual inline help (README, Onboarding part 2) can
    start, now that the app's structure is fixed. The §PD12.3 candidates
    (external data binding, gacha Template, authored landmark regions) are

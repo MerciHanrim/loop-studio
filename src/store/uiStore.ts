@@ -71,17 +71,32 @@ type UiState = {
   activityOverlay: boolean
   setActivityOverlay: (v: boolean) => void
   toggleActivityOverlay: () => void
+
+  /**
+   * docs/module-system.md §MS5 — the Inputs / Summary panels' collapsed state
+   * (desktop right column, above the Inspector). Two **global UI preferences**
+   * (own `localStorage` keys, like `filterPanelOpen`), default **open**. The
+   * panels themselves are pure reads of the live `parameter` / `register`
+   * nodes — no persistence, no file, no digest (§MS5.3).
+   */
+  inputsPanelOpen: boolean
+  toggleInputsPanel: () => void
+  summaryPanelOpen: boolean
+  toggleSummaryPanel: () => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
 const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
 const ACTIVITY_OVERLAY_KEY = 'loop-studio:activity-overlay'
+const INPUTS_PANEL_KEY = 'loop-studio:inputs-panel'
+const SUMMARY_PANEL_KEY = 'loop-studio:summary-panel'
 
-function readBoolKey(key: string): boolean {
+function readBoolKey(key: string, dflt = false): boolean {
   try {
-    return localStorage.getItem(key) === '1'
+    const v = localStorage.getItem(key)
+    return v == null ? dflt : v === '1'
   } catch {
-    return false
+    return dflt
   }
 }
 
@@ -163,6 +178,21 @@ export const useUiStore = create<UiState>((set, get) => ({
       const v = !s.activityOverlay
       writeBoolKey(ACTIVITY_OVERLAY_KEY, v)
       return { activityOverlay: v }
+    }),
+
+  inputsPanelOpen: readBoolKey(INPUTS_PANEL_KEY, true),
+  toggleInputsPanel: () =>
+    set((s) => {
+      const v = !s.inputsPanelOpen
+      writeBoolKey(INPUTS_PANEL_KEY, v)
+      return { inputsPanelOpen: v }
+    }),
+  summaryPanelOpen: readBoolKey(SUMMARY_PANEL_KEY, true),
+  toggleSummaryPanel: () =>
+    set((s) => {
+      const v = !s.summaryPanelOpen
+      writeBoolKey(SUMMARY_PANEL_KEY, v)
+      return { summaryPanelOpen: v }
     }),
 }))
 
