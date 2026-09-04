@@ -25,6 +25,7 @@ import { useFocusSet } from './focusSet'
 import { useHiddenSet } from './filterSet'
 import { FilterPanel } from './FilterPanel'
 import { FrameLayer } from './frames/FrameLayer'
+import { PanSurface } from './PanSurface'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
@@ -84,6 +85,8 @@ export function Canvas() {
   const toggleFilterPanel = useUiStore((s) => s.toggleFilterPanel)
   const activityOverlay = useUiStore((s) => s.activityOverlay)
   const toggleActivityOverlay = useUiStore((s) => s.toggleActivityOverlay)
+  const panMode = useUiStore((s) => s.panMode)
+  const togglePanMode = useUiStore((s) => s.togglePanMode)
   const frameToolArmed = useFrameStore((s) => s.toolArmed)
   const armFrameTool = useFrameStore((s) => s.armTool)
   const disarmFrameTool = useFrameStore((s) => s.disarmTool)
@@ -216,6 +219,12 @@ export function Canvas() {
   // the minimap, the Timeline and the sim are unaffected either way.
   const noEdit = isMobile || canvasLocked
 
+  // docs/dense-graph-pan.md — the pan-capture overlay is live on mobile (always
+  // — view / run only) and on desktop while Pan mode is on. The Frame tool
+  // takes precedence (a pane drag draws a frame). While it is live, node
+  // dragging is off so a resolved tap can never start a drag.
+  const panSurfaceActive = (isMobile || panMode) && !frameToolArmed
+
   // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
   // nodes / edges, the handle label) — localized via the one config prop
   // (docs/localization.md Slice 2b). The MiniMap keeps its explicit `ariaLabel`.
@@ -323,7 +332,7 @@ export function Canvas() {
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
-        nodesDraggable={!noEdit}
+        nodesDraggable={!noEdit && !panSurfaceActive}
         nodesConnectable={!noEdit}
         edgesReconnectable={!noEdit}
         zoomOnDoubleClick={!isMobile}
@@ -339,6 +348,14 @@ export function Canvas() {
         panOnDrag={!frameToolArmed}
         onPaneClick={() => selectFrame(null)}
       >
+        {/* docs/dense-graph-pan.md — the pan-capture overlay. A child of
+            <ReactFlow> so it sits inside the `.react-flow` stacking context:
+            above the node / edge renderer (equal z-index, later in the DOM),
+            below every `.react-flow__panel` (Controls / MiniMap / hints, z 5)
+            so those stay clickable while Pan mode is on. `pointer-events` only
+            while active — edit gestures are untouched otherwise. Fed the
+            connected `setViewport` / `getViewport` from this component. */}
+        <PanSurface active={panSurfaceActive} setViewport={setViewport} getViewport={getViewport} />
         <EdgeMarkers />
         <LodGrid />
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
@@ -565,6 +582,28 @@ export function Canvas() {
               className="rf-lock"
             >
               {canvasLocked ? '🔒' : '🔓'}
+            </ControlButton>
+          )}
+          {/* docs/dense-graph-pan.md — desktop Pan mode. Session-only; not on
+              mobile (mobile is always effectively panning). */}
+          {!isMobile && (
+            <ControlButton
+              onClick={togglePanMode}
+              title={panMode ? t('canvas.panMode.on') : t('canvas.panMode.off')}
+              aria-label={t('canvas.panMode.rowLabel')}
+              aria-pressed={panMode}
+              className="rf-panmode"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path
+                  d="M8 1.5v13M1.5 8h13M8 1.5 5.6 4M8 1.5 10.4 4M8 14.5 5.6 12M8 14.5 10.4 12M1.5 8 4 5.6M1.5 8 4 10.4M14.5 8 12 5.6M14.5 8 12 10.4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </ControlButton>
           )}
         </Controls>

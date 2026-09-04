@@ -128,6 +128,12 @@ const en = {
   'canvas.focus.rowLabel': 'Focus selection',
   'canvas.focus.stateOn': 'On',
   'canvas.focus.stateOff': 'Off',
+  // docs/dense-graph-pan.md — the desktop Pan mode toggle (canvas controls).
+  // `.on` / `.off` name the CURRENT state, like the Focus toggle: shown OFF ⇒
+  // `.off` text. Session-only, never persisted.
+  'canvas.panMode.off': 'Pan mode off — drag empty canvas to pan',
+  'canvas.panMode.on': 'Pan mode on — drag anywhere to pan',
+  'canvas.panMode.rowLabel': 'Pan mode',
   // docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. Toggle
   // in the canvas controls on desktop, the More sheet on mobile. Selections are
   // ephemeral (cleared on graph reload / Reset view); the panel open state is a

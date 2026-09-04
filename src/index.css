@@ -610,6 +610,27 @@ body {
   min-width: 0;
 }
 
+/* docs/dense-graph-pan.md — the pan-capture overlay. Rendered as a child of
+   `.react-flow` (which is its own `z-index: 0` stacking context): z-index 4
+   ties it with `.react-flow__renderer` and, being later in the DOM, it paints
+   ABOVE the nodes / edges but still BELOW every `.react-flow__panel` (Controls /
+   MiniMap / hints, z-index 5) so those stay clickable while Pan mode is on.
+   Transparent to pointers unless active. */
+.pan-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.pan-surface--active {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+.pan-surface--active:active {
+  cursor: grabbing;
+}
+
 .react-flow {
   background: var(--surface-canvas);
 }
@@ -1151,9 +1172,11 @@ body {
 .lgr-filter {
   width: 220px;
   /* stay clear of the bottom-left React Flow Controls even on a short canvas —
-     the panel is top-left, the controls stack (zoom×2 + reset + focus + filter)
-     is ~165px tall and sits ~15px off the bottom */
-  max-height: min(calc(100% - 195px), 460px);
+     the panel is top-left, the controls stack (zoom×2 + reset + focus + filter +
+     lock + Pan mode, docs/dense-graph-pan.md) is ~190px tall and sits ~15px off
+     the bottom. The reserve leaves a row of clearance so the panel scrolls
+     rather than overlapping the buttons. */
+  max-height: min(calc(100% - 224px), 460px);
   display: flex;
   flex-direction: column;
   background: var(--surface-raised);

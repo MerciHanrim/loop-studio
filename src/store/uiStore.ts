@@ -83,6 +83,20 @@ type UiState = {
   toggleInputsPanel: () => void
   summaryPanelOpen: boolean
   toggleSummaryPanel: () => void
+
+  /**
+   * docs/dense-graph-pan.md — the desktop Pan mode. While on, a left-drag
+   * anywhere on the canvas (over nodes / edges / frames) pans and node
+   * dragging / edge authoring are suppressed; a short click still selects.
+   * **Sticky within a session but NOT persisted** — no `localStorage`, nothing
+   * in the GraphDoc; every fresh load starts in edit mode. Independent of
+   * Focus / Filter / frames / Activity overlay / selection / undo / every
+   * digest. On mobile the equivalent behaviour is always on (view / run only),
+   * so this flag is desktop-only.
+   */
+  panMode: boolean
+  setPanMode: (v: boolean) => void
+  togglePanMode: () => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
@@ -194,6 +208,11 @@ export const useUiStore = create<UiState>((set, get) => ({
       writeBoolKey(SUMMARY_PANEL_KEY, v)
       return { summaryPanelOpen: v }
     }),
+
+  // docs/dense-graph-pan.md — session-only, no persistence.
+  panMode: false,
+  setPanMode: (v) => set((s) => (s.panMode === v ? s : { panMode: v })),
+  togglePanMode: () => set((s) => ({ panMode: !s.panMode })),
 }))
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay
