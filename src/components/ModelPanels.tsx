@@ -31,24 +31,31 @@ const byId = <T extends { id: string }>(a: T, b: T): number =>
 const labelOf = (n: { id: string; data?: unknown } | undefined): string =>
   ((n?.data as { label?: unknown } | undefined)?.label as string | undefined) ?? n?.id ?? ''
 
-/** select a node / edge and centre the canvas on it (read-through — §MS5.1). */
+/** select a node / edge and jump the canvas to it, keeping the current zoom
+ *  (read-through — §MS5.1). Computes the target viewport and applies it with a
+ *  plain (instant) `setViewport` — `fitView` / `setCenter`, and even
+ *  `setViewport` with a `{ duration }` transition, silently no-op here because
+ *  the pan runs from outside `<ReactFlow>`'s own subtree. An instant jump is
+ *  also the snappier behaviour for a list → canvas action. */
 function useReveal(): (nodeId: string | null, edgeId: string | null) => void {
   const setSelection = useGraphStore((s) => s.setSelection)
   const nodes = useGraphStore((s) => s.nodes)
-  const { setCenter, setNodes } = useReactFlow()
+  const { setViewport, getViewport, setNodes } = useReactFlow()
   return (nodeId, edgeId) => {
     setSelection(nodeId, edgeId)
     // mirror the click-selection ring on the canvas (same pattern as the mobile
-    // Inspector sheet's dismiss)
+    // Inspector sheet's dismiss) — round-trips through `onNodesChange`
     setNodes((ns) =>
       ns.map((n) => (n.selected === (n.id === nodeId) ? n : { ...n, selected: n.id === nodeId })),
     )
     const n = nodeId ? nodes.find((x) => x.id === nodeId) : null
-    if (n) {
+    const pane = document.querySelector('.react-flow')?.getBoundingClientRect()
+    if (n && pane) {
       const m = (n as { measured?: { width?: number; height?: number } }).measured
-      void setCenter(n.position.x + (m?.width ?? 0) / 2, n.position.y + (m?.height ?? 0) / 2, {
-        duration: 250,
-      })
+      const cx = n.position.x + (m?.width ?? 60) / 2
+      const cy = n.position.y + (m?.height ?? 30) / 2
+      const { zoom } = getViewport()
+      void setViewport({ x: pane.width / 2 - cx * zoom, y: pane.height / 2 - cy * zoom, zoom })
     }
   }
 }
