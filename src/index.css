@@ -2274,11 +2274,14 @@ body {
   flex-direction: column;
   min-height: 0;
   background: var(--surface-panel);
-  border-left: 1px solid var(--line-hairline);
+  /* the left divider is a box-shadow, NOT a border, so it takes no layout width
+     — `.rightcol` stays exactly 300px and `.inspector` inside keeps its former
+     300px box (no visual/measurement change to the Inspector). */
+  box-shadow: -1px 0 0 var(--line-hairline);
 }
-/* inside `.rightcol` the Inspector fills the remaining height and scrolls; the
-   fixed width / border / bg now live on `.rightcol` (works through the
-   `display: contents` lock fieldset too — descendant selector, not child). */
+/* inside `.rightcol` the Inspector fills the height and scrolls; the fixed
+   width / bg now live on `.rightcol` (works through the `display: contents`
+   lock fieldset too — descendant selector, not child). */
 .rightcol .inspector {
   width: auto;
   flex: 1 1 auto;
