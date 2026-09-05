@@ -1,5 +1,7 @@
 # Loop Studio
 
+![Loop Studio — the Coffee roastery Template, three steps in, with results building up in the Timeline](docs/assets/hero-coffee.png)
+
 Loop Studio is a browser-based **visual systems editor and simulator** for
 resource flows, state changes, probabilistic rules, and feedback loops. It is
 designed primarily for **game economies**, while the same step-based model can
@@ -80,6 +82,20 @@ continuous-time equations and spatial physics are not directly supported (see
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
 > delete) is desktop-only ([`docs/mobile.md`](docs/mobile.md)).
+
+## Screenshots
+
+**The Coffee roastery Template** — a small operations-flow economy: green
+beans arrive, get roasted, and leave as café/retail/online/dessert sales,
+with day-to-day Parameters driving five computed Register outputs.
+
+![Coffee roastery Template — the full operations flow](docs/assets/coffee-flow.png)
+
+**Focus on a large graph** — the *Early MMO progression* example has 97 nodes.
+Selecting one and turning Focus on dims everything outside its immediate
+neighbourhood, so a dense graph stays readable without hiding anything.
+
+![Focus mode on the Early MMO progression example — the selected node stays sharp, the rest dims](docs/assets/mmo-focus.png)
 
 ## Why
 
