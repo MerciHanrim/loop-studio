@@ -1210,14 +1210,25 @@ body {
 /* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. A React
    Flow top-left Panel; scrolls internally so a long resource-type list never
    pushes it off-canvas. Ephemeral: it changes nothing that serializes. */
-.lgr-filter {
+/* `.react-flow__panel.top` / `.left` (React Flow's own stylesheet) each carry
+   2-class specificity for `top` / `left` — a bare `.lgr-filter` rule loses to
+   them regardless of source order. Repeating the actual class list RF renders
+   (`react-flow__panel top left lgr-filter`) is the override. */
+.react-flow__panel.top.left.lgr-filter {
+  /* the previous fix reserved a fixed ~224px at the bottom, assuming the
+     React Flow Controls stack (bottom-left) stayed ~190px tall — it grew past
+     that as later LGR slices added the frame tool / Suggest / Clear (all) /
+     Clear suggested / Activity buttons, so a long filter list could overlap
+     Controls again. Sitting to its RIGHT instead is immune to that: Controls'
+     WIDTH (~28px buttons + the RF panel's 15px margin) never changes with its
+     button count, only its height does. `margin: 0` replaces RF's own 15px
+     panel margin so `top` / `left` / `bottom` below are the true offsets. */
+  margin: 0;
+  left: 51px;
+  top: 15px;
+  bottom: 15px;
   width: 220px;
-  /* stay clear of the bottom-left React Flow Controls even on a short canvas —
-     the panel is top-left, the controls stack (zoom×2 + reset + focus + filter +
-     lock + Pan mode, docs/dense-graph-pan.md) is ~190px tall and sits ~15px off
-     the bottom. The reserve leaves a row of clearance so the panel scrolls
-     rather than overlapping the buttons. */
-  max-height: min(calc(100% - 224px), 460px);
+  max-width: calc(100% - 51px - 15px);
   display: flex;
   flex-direction: column;
   background: var(--surface-raised);
@@ -1253,6 +1264,12 @@ body {
 .lgr-filter__body {
   overflow-y: auto;
   padding: 8px 10px 10px;
+  /* the panel's height is now pinned between `top` / `bottom` (its own fixed
+     header/footer stay put); this is what actually scrolls. `min-height: 0`
+     is required for a flex child to shrink below its content instead of
+     pushing the panel past `bottom`. */
+  flex: 1;
+  min-height: 0;
 }
 .lgr-filter__hint {
   margin: 0 0 6px;
