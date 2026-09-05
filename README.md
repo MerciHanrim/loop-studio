@@ -85,17 +85,19 @@ continuous-time equations and spatial physics are not directly supported (see
 
 ## Screenshots
 
-**The Coffee roastery Template** — a small operations-flow economy: green
-beans arrive, get roasted, and leave as café/retail/online/dessert sales,
-with day-to-day Parameters driving five computed Register outputs.
+**The model** — the Coffee roastery Template is a small operations-flow
+economy: green beans arrive, get roasted (82 % yield), and leave as
+café / retail / online / dessert sales, with five day-to-day Parameters
+feeding five computed Register outputs (projected revenue, cost, operating
+margin, roasted-bean supply margin, dessert-prep margin).
 
-![Coffee roastery Template — the full operations flow](docs/assets/coffee-flow.png)
+![The full Coffee roastery graph — a Parameters row across the top, the roast-and-sell flow through the middle, a dessert sub-chain below, and a column of Register outputs on the right](docs/assets/coffee-flow.png)
 
-**Focus on a large graph** — the *Early MMO progression* example has 97 nodes.
-Selecting one and turning Focus on dims everything outside its immediate
-neighbourhood, so a dense graph stays readable without hiding anything.
+**Reading a large graph** — the *Early MMO progression* example has 97 nodes.
+Select one, turn Focus on, and everything outside its one-hop neighbourhood
+dims — nothing is hidden, so structure stays legible without losing context.
 
-![Focus mode on the Early MMO progression example — the selected node stays sharp, the rest dims](docs/assets/mmo-focus.png)
+![The 97-node Early MMO progression graph with Focus on: the selected "Level" pool and its direct neighbours are drawn solid, the other ~80 nodes are faded to a light grey](docs/assets/mmo-focus.png)
 
 ## Why
 
