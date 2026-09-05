@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   parseActivatorExpr,
   parseDelay,
@@ -732,7 +732,20 @@ function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
 
 function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patch }) {
   const t = useT()
-  const parsed = parseExpr(d.expr)
+  // A momentarily-unparseable expression (true of nearly every expression at
+  // some point while it's being typed, e.g. "@x * " before the right operand)
+  // is a normal in-progress edit, NOT a corrupt file (that's §R2-1.1's
+  // `readRegisterData` payload gate — unchanged, still guards a genuinely
+  // malformed *loaded* node). `draft` is local-only and never reaches
+  // `set()` — so `updateNodeData`/GraphDoc/simulationRev/digest/dirty — until
+  // it parses; the model always holds the last valid `expr`. Switching to a
+  // different node (or an external undo/redo) resets `draft` from the fresh
+  // `d.expr` prop, so an invalid in-progress draft never leaks across nodes.
+  const [draft, setDraft] = useState(d.expr)
+  useEffect(() => {
+    setDraft(d.expr)
+  }, [id, d.expr])
+  const parsed = parseExpr(draft)
   const read = readRegisterData(d)
   const notices = read.ok ? read.notices : []
   const outcome = useRegisterOutcome(id)
@@ -741,10 +754,14 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
     <>
       <Field label={t('inspector.field.expression')}>
         <input
-          value={d.expr}
+          value={draft}
           spellCheck={false}
           style={{ fontFamily: 'var(--font-mono, monospace)' }}
-          onChange={(e) => set({ expr: e.target.value })}
+          onChange={(e) => {
+            const v = e.target.value
+            setDraft(v)
+            if (parseExpr(v).ok) set({ expr: v })
+          }}
         />
       </Field>
       {!parsed.ok ? (
@@ -752,7 +769,7 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
           {parsed.error.code} · {t(EXPR_CODE_KEY[parsed.error.code], { column: parsed.error.column })}
         </p>
       ) : (
-        parsed.expr.canonical !== d.expr && (
+        parsed.expr.canonical !== draft && (
           <p className="inspector__note">
             {t('inspector.register.canonical', { canonical: parsed.expr.canonical })}
           </p>
