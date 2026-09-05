@@ -1550,6 +1550,79 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
   })
 })
 
+// PR #142 — a dense/dark graph compounds the Activity edge glow's opaque
+// drop-shadow into a wash at hub nodes (many simultaneously-active edges
+// converging). Fixed by attenuating ONLY the glow's colour in dark theme via
+// a dedicated --activity-edge-glow token; light theme, the 26px blur-radius
+// factor, and the whole activity-frequency calculation (frameGeom.ts) are
+// untouched by design. This locks the token contract with computed-style
+// checks (screenshots don't cover this — the fixtures above run light-theme
+// only, which is deliberately a no-op under this change).
+test.describe('Activity overlay edge glow — dark-only attenuation contract (§LGR6-cues, PR #142)', () => {
+  const resolvedColor = (page: Page, cssValue: string) =>
+    page.evaluate((v) => {
+      const el = document.createElement('div')
+      el.style.color = v
+      document.body.appendChild(el)
+      const c = getComputedStyle(el).color
+      el.remove()
+      return c
+    }, cssValue)
+
+  test('light theme: --activity-edge-glow resolves to the same colour as --signal-primary (unchanged, opaque)', async ({ page }) => {
+    await load(page)
+    const [glow, signal] = await Promise.all([
+      resolvedColor(page, 'var(--activity-edge-glow)'),
+      resolvedColor(page, 'var(--signal-primary)'),
+    ])
+    expect(glow).toBe(signal)
+  })
+
+  test('dark theme: --activity-edge-glow is the attenuated rgba(118, 183, 174, 0.35) — distinct from the opaque --signal-primary', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await load(page)
+    const [glow, signal] = await Promise.all([
+      resolvedColor(page, 'var(--activity-edge-glow)'),
+      resolvedColor(page, 'var(--signal-primary)'),
+    ])
+    expect(glow).toBe('rgba(118, 183, 174, 0.35)')
+    expect(glow).not.toBe(signal)
+  })
+
+  test('the drop-shadow blur radius still scales at the 26px factor, unchanged in both themes', async ({ page }) => {
+    const radiusAt = (activity: number) =>
+      page.evaluate((a) => {
+        const el = document.createElement('div')
+        el.className = 'react-flow__edge-path lgr-active-tint'
+        el.style.setProperty('--lgr-activity', String(a))
+        document.body.appendChild(el)
+        const filter = getComputedStyle(el).filter
+        el.remove()
+        const matches = filter.match(/([\d.]+)px/g) ?? []
+        return matches.length ? parseFloat(matches[matches.length - 1]) : NaN
+      }, activity)
+
+    await load(page)
+    expect(await radiusAt(0.1)).toBeCloseTo(2.6, 2)
+    expect(await radiusAt(0.15)).toBeCloseTo(3.9, 2)
+
+    await page.emulateMedia({ colorScheme: 'dark' })
+    expect(await radiusAt(0.1)).toBeCloseTo(2.6, 2)
+    expect(await radiusAt(0.15)).toBeCloseTo(3.9, 2)
+  })
+
+  test('a real active edge in dark theme carries the attenuated glow colour end to end', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await loadAct(page)
+    await activityBtn(page).click()
+    await commitOneStep(page)
+    const rf = edgePath(page, 'rf')
+    await expect(rf).toHaveClass(/lgr-active-tint/)
+    const filter = await rf.evaluate((el) => getComputedStyle(el).filter)
+    expect(filter).toContain('rgba(118, 183, 174, 0.35)')
+  })
+})
+
 test.describe('LGR Slice 4a — a Filter that hides a frame’s nodes leaves the frame alone', () => {
   test('hide every node in a frame → the frame + label stay, rect + count unchanged; clearing the filter brings the nodes back and never recomputed the frame', async ({ page }) => {
     await loadRT(page)
