@@ -42,9 +42,11 @@ continuous-time equations and spatial physics are not directly supported (see
 > **Onboarding, part 2** — a **KO / EN localization** base (a runtime language
 > switch on a single bundle; the chosen language is a `localStorage`-only UI
 > setting that never enters the GraphDoc, Workspace, Share link, or
-> `loop-revision/*` digest), full-app localization, a guided first-run tour, and
-> the *Early MMO progression* example are all shipped; contextual inline help is
-> the one item left.
+> `loop-revision/*` digest), full-app localization, a guided first-run tour, the
+> *Early MMO progression* example, and **contextual inline help** — four
+> situational, one-shot hints (an empty canvas, Monte Carlo's first open,
+> Review's first open, Focus/Filter discovery) plus a `Contextual help`
+> Help-menu entry — are all shipped.
 >
 > **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
 > — an engine-neutral readability / UI feature set: a global hit-test rule +
@@ -69,7 +71,10 @@ continuous-time equations and spatial physics are not directly supported (see
 > module…**. No file-format change (a module is a plain Graph JSON). Impl PR 2
 > shipped the **Inputs / Summary panels** — every Parameter with an editable
 > value and every Register with its value, unit and calculation, in the desktop
-> right column, each row read-through to the canvas.
+> right column, each row read-through to the canvas. **Dense-graph pan
+> usability** ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md), `DGP`,
+> real-phone verified) makes a packed graph pannable and pinch-zoomable even
+> when there is no empty canvas left to grab.
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -194,12 +199,12 @@ classification, or apply decision depends on them.
   - ✅ Activator + comparison conditions
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
-- ◐ Onboarding, part 2 — **v0.8.0-dev** ([`docs/localization.md`](docs/localization.md)) — the localization base, full-app localization, the guided first-run tour, and the Early MMO example have all shipped; contextual inline help is the one item left, and it waits for the Productization track below to settle the app's structure first
+- ✅ Onboarding, part 2 — **v0.8.0-dev** ([`docs/localization.md`](docs/localization.md)) — the localization base, full-app localization, the guided first-run tour, the Early MMO example, and contextual inline help have all shipped
   - ✅ Extensible localization base — registry-driven N-language structure with EN + KO as the first shipped locales; runtime language menu, atomic catalog activation, ICU formatting, EN fallback, and `localStorage`-only locale persistence. Locale state never enters GraphDoc / Workspace / Share / revision / digest / undo / simulation state
   - ✅ Full-app localization + acceptance validation — Toolbar, Canvas, Inspector, Timeline, Templates, Import / Export, Share, revision, PWA, dialogs, errors, empty states, accessibility text, KO typography, desktop / mobile visual references, invariance tests, and CI guards for catalog parity and hardcoded UI strings
   - ✅ Guided first-run tour ([`docs/guided-tour.md`](docs/guided-tour.md)) — a read-only six-step overlay (desktop + a separate mobile script), a Welcome card on the first run (`localStorage`-only, never serialized), and a Help (`?`) menu with `Take a tour` + `About Loop Studio`
   - ✅ "Early MMO progression (levels 1–15)" example ([`docs/example-mmo-progression.md`](docs/example-mmo-progression.md)) — a shipped play-economy demo graph (three zone lanes, probabilistic combat with wins / setbacks / deaths, categorised loot, a gold economy with repair and resupply costs, a rising XP curve) as the third **Templates** entry, EN + KO; generalised, not game-specific, with by-construction accounting invariants and a tuned reach-15 window
-  - ☐ Contextual inline help ([`docs/contextual-inline-help.md`](docs/contextual-inline-help.md), `CIH`) — **design proposal, not started**. Fills the gap the guided tour deliberately left: situational, one-shot hints for an empty canvas, Monte Carlo's first open, Review's first open, and Focus/Filter discovery on a graph past the auto-frame threshold — plus the `Contextual help` Help-menu entry both Help surfaces already reserve a slot for. Not a docs site, not video, not an interactive tutorial; presentation-only, same contract as the tour (§GT12)
+  - ✅ Contextual inline help ([`docs/contextual-inline-help.md`](docs/contextual-inline-help.md), `CIH`) — fills the gap the guided tour deliberately left: four situational, one-shot hints — an empty canvas, Monte Carlo's first open, Review's first open, and Focus/Filter discovery once a graph passes the auto-frame threshold — each shown once and re-armable ("Show again next time") from a **`Contextual help`** entry now live in both Help surfaces (desktop `?` menu, mobile More → Help). A three-tier priority defers to an open Monte Carlo / Review hint first, then an existing large-graph notice, then its own discovery hints, with a short cooldown after the guided tour closes so nothing piles up. Not a docs site, not video, not an interactive tutorial; presentation-only, same contract as the tour (§GT12) — no GraphDoc / digest / undo / simulation effect
 - ✅ Ship — **v0.4.0**
   - ✅ Workspace Export / Import (`loop-workspace/1`) — a graph file plus the run config, last distribution, timeline view, canvas, and a verified sim snapshot
   - ✅ Shareable URL (`loop-share/1`) — a `Share` button that copies a `#g1=` link carrying the whole diagram; opened links load defensively, always paused
