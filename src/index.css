@@ -82,6 +82,19 @@
   /* — elevation (light leans on faint shadow; dark drops it entirely) — */
   --elev-node: drop-shadow(0 1px 1.5px rgba(20, 20, 20, 0.05));
   --elev-label: 0 1px 2px rgba(20, 20, 20, 0.08);
+  /* docs/visual-language.md §VL0 follow-up — a dedicated shadow for the edge
+     flow/condition chip only, kept separate from --elev-label (shared by ~12
+     unrelated surfaces) so strengthening the chip's canvas-vs-chip boundary
+     never ripples into tooltips / badges / panels. */
+  --elev-edge-label: 0 1px 3px rgba(20, 20, 20, 0.14);
+
+  /* docs/visual-language.md §VL0 follow-up — the node-type hue wash: a single
+     opacity constant (flat across themes, like the frame accent fill), so the
+     six --hue-* tokens (already theme-tuned) read as a faint ambient fill
+     without a second per-theme value to keep in sync. Tunable in one place;
+     must stay below the frame accent's fill-opacity (0.05–0.06) so the type
+     wash never outweighs a group frame's own colour. */
+  --node-hue-opacity: 0.04;
 
   --radius: 10px;
 
@@ -181,6 +194,7 @@
 
     --elev-node: none;
     --elev-label: none;
+    --elev-edge-label: none;
   }
 }
 
@@ -241,6 +255,7 @@
 
   --elev-node: none;
   --elev-label: none;
+  --elev-edge-label: none;
 }
 
 * {
@@ -756,6 +771,27 @@ body {
 .nodef__fill {
   fill: var(--surface-raised);
 }
+/* docs/visual-language.md §VL0 follow-up — the node-type hue wash: a faint
+   ambient fill (see --node-hue-opacity) drawn between the plain fill and the
+   Activity overlay, so a currently-active node's Activity tint always reads
+   as the stronger signal. Parameter / Register carry no flow hue (§VL0
+   `--node-hue` is `--line-structure` there), so this renders as a neutral,
+   effectively invisible wash on annotation nodes — no special-casing needed.
+   Shape + the existing `.nodef__chip` stay the primary, colour-independent
+   type tell; this is a secondary assist only. */
+.nodef__hue {
+  fill: var(--node-hue, transparent);
+  fill-opacity: var(--node-hue-opacity);
+  pointer-events: none;
+}
+@media (forced-colors: active) {
+  /* a coloured wash is unreliable under a UA colour override, same as the
+     Activity tint and the frame accent — drop it; shape + chip still carry
+     the type. */
+  .nodef__hue {
+    display: none;
+  }
+}
 .nodef__stroke {
   fill: none;
   stroke: var(--line-structure);
@@ -1056,6 +1092,7 @@ body {
    `.nodef__arrival` / the §LGR5 `.nodef__eval` corner bracket) — is NOT dimmed
    (a faded parent would clamp them). */
 .react-flow__node.lgr-deemph .nodef__fill,
+.react-flow__node.lgr-deemph .nodef__hue,
 .react-flow__node.lgr-deemph .nodef__stroke,
 .react-flow__node.lgr-deemph .nodef__endbar,
 .react-flow__node.lgr-deemph .nodef__body,
@@ -2280,14 +2317,14 @@ body {
      Inspector. */
   pointer-events: none;
   background: var(--surface-raised);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
   padding: 0 5px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--elev-edge-label);
 }
 .edge-label--state {
   color: var(--text-tertiary);
