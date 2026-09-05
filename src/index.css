@@ -72,6 +72,10 @@
   /* — flow token / trail = the mineral signal — */
   --flow-strength: var(--signal-primary); /* ~5:1 on canvas */
   --flow-trail: rgba(47, 116, 110, 0.22);
+  /* docs/large-graph-readability.md §LGR6-cues — the Activity overlay's edge
+     glow colour. Light stays the plain opaque signal (never a problem here);
+     dark gets its own attenuated value below — see the two overrides. */
+  --activity-edge-glow: var(--signal-primary);
 
   /* p10–p90 distribution band fill (data, not decoration) */
   --dist-band-mix: 11%;
@@ -189,6 +193,7 @@
 
     --flow-strength: var(--signal-primary);
     --flow-trail: rgba(118, 183, 174, 0.2);
+    --activity-edge-glow: rgba(118, 183, 174, 0.35);
     --dist-band-mix: 15%;
     --minimap-mask: rgba(0, 0, 0, 0.28);
 
@@ -252,6 +257,7 @@
 
   --flow-strength: var(--signal-primary);
   --flow-trail: rgba(118, 183, 174, 0.2);
+  --activity-edge-glow: rgba(118, 183, 174, 0.35);
 
   --elev-node: none;
   --elev-label: none;
@@ -1718,13 +1724,16 @@ body {
    evaluated run cues all sit above it. `NodeFrame` / `LoopEdge` draw it (see
    useActivityTint.ts) — the node tint is a shape `<path>`, so it can't
    overflow the auto-width `.react-flow__node` wrapper; the edge tell is a
-   faint primary glow (the path's `stroke` is set inline by `LoopEdge`). */
+   faint primary glow (the path's `stroke` is set inline by `LoopEdge`). On a
+   dense/dark graph, many overlapping opaque glows compound into a wash at
+   hub nodes — `--activity-edge-glow` (dark: alpha 0.35) attenuates just that
+   colour; the radius, the activity math, and the light theme are untouched. */
 .nodef__activity {
   fill: var(--signal-primary);
   pointer-events: none;
 }
 .react-flow__edge-path.lgr-active-tint {
-  filter: drop-shadow(0 0 calc(var(--lgr-activity, 0) * 26px) var(--signal-primary));
+  filter: drop-shadow(0 0 calc(var(--lgr-activity, 0) * 26px) var(--activity-edge-glow));
 }
 @media (forced-colors: active) {
   /* opacity / a coloured fill is unreliable under a UA colour override — the
