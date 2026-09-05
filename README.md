@@ -2,6 +2,8 @@
 
 ![Loop Studio — the Coffee roastery Template, three steps in, with results building up in the Timeline](docs/assets/hero-coffee.png)
 
+![A ~16-second walkthrough: loading the Coffee roastery Template, running it a few steps while the Timeline fills in, switching to the 97-node Early MMO progression example, then selecting a node and turning Focus on to dim everything outside its neighbourhood](docs/assets/demo.gif)
+
 Loop Studio is a browser-based **visual systems editor and simulator** for
 resource flows, state changes, probabilistic rules, and feedback loops. It is
 designed primarily for **game economies**, while the same step-based model can
