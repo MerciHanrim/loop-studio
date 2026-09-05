@@ -1,10 +1,12 @@
-# Small Module / Template System (non-frozen design doc — DRAFT)
+# Small Module / Template System (non-frozen design doc)
 
-**Status: DESIGN settled. Impl PR 1 (module insert / extract — §MS9 steps 1–6)
-SHIPPED in `v0.8.0-dev` (PR #125, merge `eda6380`) + a follow-up (`1812762`,
-v2-promotion consent copy + §MS6.1 mobile-exclusion contract); Production
-hands-check functionally PASS. Impl PR 2 (the Inputs / Summary panels — §MS9
-step 7) is in build.** `MS` prefix. This doc closes the decisions
+**Status: DESIGN settled; both implementation PRs SHIPPED in `v0.8.0`.** Impl
+PR 1 (module insert / extract — §MS9 steps 1–6) shipped (PR #125, merge
+`eda6380`) + a follow-up (`1812762`, v2-promotion consent copy + §MS6.1
+mobile-exclusion contract); Production hands-check functionally PASS. Impl
+PR 2 (the Inputs / Summary panels — §MS9 step 7) shipped (PR #128, merge
+`90e1eab`) + a follow-up (`cc0162a`, the read-through jump fix); Production
+hands-check functionally PASS. `MS` prefix. This doc closes the decisions
 [`docs/product-direction.md`](product-direction.md) deferred to the
 **"small module / template system"** pass (§PD8-B): how part of a graph becomes
 a **reusable module**, how a module is **inserted into an existing graph**
@@ -16,7 +18,7 @@ metadata at all**. The **§MS7** forks are now **decided** (all seven), and
 
 It is the second Productization-track design pass; the first,
 [`docs/large-graph-readability.md`](large-graph-readability.md), shipped in
-`v0.8.0-dev`. It is a **non-frozen** design doc — no `loop-*/N` id, no `Frozen`
+`v0.8.0`. It is a **non-frozen** design doc — no `loop-*/N` id, no `Frozen`
 marker — like `large-graph-readability.md`, `edge-routing.md`,
 `simulation-playback.md`, `localization.md`. **It changes no `src/` file, no
 component, no style token, no localization string, and no serialized byte.**
@@ -694,7 +696,7 @@ green, then a separate merge approval.
    settled all seven §MS7 forks and added the five §MS4a boundaries; MS-Q1…Q12
    are the decision record.
 2. **Impl PR 1** — §MS9 steps 1–6 (module insert / extract + assembly menu +
-   bundled blocks). **Shipped** (PR #125, merge `eda6380`, `v0.8.0-dev`). **No
+   bundled blocks). **Shipped** (PR #125, merge `eda6380`, `v0.8.0`). **No
    serialized change** — a full invariance pass proved so. Production
    hands-check: functionally PASS across the six core flows (bundled insert +
    undo/redo · twice-disjoint · file insert · v2 consent + cancel · Extract +
@@ -704,11 +706,13 @@ green, then a separate merge approval.
    longer says the change is "one-way" in the same breath as "one undo reverses
    it" (EN + KO), and record the **mobile-exclusion contract** (§MS6.1) in this
    doc + the acceptance scope. Copy / docs only.
-3. **Impl PR 2** — §MS9 step 7 / §MS5.4 (the Inputs / Summary panels). **In
-   build** — `<ModelPanels/>` + `uiStore` prefs + `e2e/model-panels.spec.ts`;
-   no serialized change (a per-panel collapse flag in its own `localStorage`
-   key is the only stored state). Held Draft; separate merge approval.
-4. **After both ship** — contextual inline help (README, Onboarding part 2) can
-   start, now that the app's structure is fixed. The §PD12.3 candidates
-   (external data binding, gacha Template, authored landmark regions) are
-   reviewed against this shape.
+3. **Impl PR 2** — §MS9 step 7 / §MS5.4 (the Inputs / Summary panels).
+   **Shipped** (PR #128, merge `90e1eab`, `v0.8.0`) + a follow-up (`cc0162a`,
+   the read-through jump fix) — `<ModelPanels/>` + `uiStore` prefs +
+   `e2e/model-panels.spec.ts`; no serialized change (a per-panel collapse flag
+   in its own `localStorage` key is the only stored state). Production
+   hands-check functionally PASS.
+4. **After both shipped** — contextual inline help (`docs/contextual-inline-help.md`,
+   README Onboarding part 2) started and shipped in `v0.8.0` too. The §PD12.3
+   candidates (external data binding, gacha Template, authored landmark
+   regions) remain to be reviewed against this shape.

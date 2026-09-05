@@ -14,8 +14,8 @@ continuous-time equations and spatial physics are not directly supported (see
 
 **Run it now — the live web app: <https://cozy-loop-studio.pages.dev>**
 
-> Status: **working preview** — `v0.8.0-dev`; the last tagged release is
-> **v0.7.0**. The diagram editor and the simulation engine — deterministic,
+> Status: **working preview** — **v0.8.0**. The diagram editor and the
+> simulation engine — deterministic,
 > seeded randomness, Monte Carlo, and executable state connections (`trigger` /
 > `activator` / `label`) — are all usable today, plus Workspace Export/Import,
 > shareable `#g1=` links, an installable offline PWA, and file-based **project
@@ -36,8 +36,7 @@ continuous-time equations and spatial physics are not directly supported (see
 > that leaves the deterministic engine result untouched. Execution semantics are
 > pinned down in frozen spec documents (see [Semantics](#semantics)).
 >
-> **`v0.8.0-dev`** is the deployed working preview — not a tagged release; the
-> last tag is `v0.7.0`. It adds three tracks:
+> **New in v0.8.0:** three tracks —
 >
 > **Onboarding, part 2** — a **KO / EN localization** base (a runtime language
 > switch on a single bundle; the chosen language is a `localStorage`-only UI
@@ -62,7 +61,9 @@ continuous-time equations and spatial physics are not directly supported (see
 >
 > **Productization track** (design-first) — the settled *product direction*, a
 > *template label overlay*, the *Coffee roastery operations flow* Template (the
-> first bundled `loop-model/2` graph), and example display-unit hints. The
+> first bundled `loop-model/2` graph — a real **model-semantics** extension: a
+> resource edge's `flow` may reference a Parameter's value, resolved once per
+> step, not a cosmetic wire field), and example display-unit hints. The
 > **small module / template-composition system**
 > ([`docs/module-system.md`](docs/module-system.md), `MS`): impl PR 1 has
 > shipped an **Insert module ▾** menu — insert any Graph JSON (a bundled
@@ -199,7 +200,7 @@ classification, or apply decision depends on them.
   - ✅ Activator + comparison conditions
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
-- ✅ Onboarding, part 2 — **v0.8.0-dev** ([`docs/localization.md`](docs/localization.md)) — the localization base, full-app localization, the guided first-run tour, the Early MMO example, and contextual inline help have all shipped
+- ✅ Onboarding, part 2 — **v0.8.0** ([`docs/localization.md`](docs/localization.md)) — the localization base, full-app localization, the guided first-run tour, the Early MMO example, and contextual inline help have all shipped
   - ✅ Extensible localization base — registry-driven N-language structure with EN + KO as the first shipped locales; runtime language menu, atomic catalog activation, ICU formatting, EN fallback, and `localStorage`-only locale persistence. Locale state never enters GraphDoc / Workspace / Share / revision / digest / undo / simulation state
   - ✅ Full-app localization + acceptance validation — Toolbar, Canvas, Inspector, Timeline, Templates, Import / Export, Share, revision, PWA, dialogs, errors, empty states, accessibility text, KO typography, desktop / mobile visual references, invariance tests, and CI guards for catalog parity and hardcoded UI strings
   - ✅ Guided first-run tour ([`docs/guided-tour.md`](docs/guided-tour.md)) — a read-only six-step overlay (desktop + a separate mobile script), a Welcome card on the first run (`localStorage`-only, never serialized), and a Help (`?`) menu with `Take a tour` + `About Loop Studio`
@@ -233,12 +234,12 @@ classification, or apply decision depends on them.
   - ✅ Accessibility & `forced-colors` — one always-mounted polite live region announcing the committed run state; every cue distinguishable without hue by shape tells
   - ✅ Performance ceiling — one global `MAX_PLAYBACK_TOKENS_TOTAL = 60` budget across resource + `trigger` + `label` travelling cues, chosen deterministically and sorted once per transition; `MAX_PLAYBACK_TOKENS = 12` breakdown chips; an idle edge never re-renders on a τ frame
   - ✅ Reproducible demo fixture + QA checklist ([`examples/playback-choreography.json`](examples/README.md)) + `e2e/playback-fixture.spec.ts` + the acceptance matrix (`e2e/playback-*.spec.ts`)
-  - ✅ Slower default playback (`v0.8.0-dev`) — a fresh document's per-step beat starts near **1 s** (was ~0.6 s) so the node / edge changes are followable, with one extra slower stop; every faster stop is unchanged. Wall-clock only — the engine result, RNG, and Monte Carlo are untouched, and the speed is not persisted
+  - ✅ Slower default playback (`v0.8.0`) — a fresh document's per-step beat starts near **1 s** (was ~0.6 s) so the node / edge changes are followable, with one extra slower stop; every faster stop is unchanged. Wall-clock only — the engine result, RNG, and Monte Carlo are untouched, and the speed is not persisted
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
 - ◐ Productization track — making the tool usable by a general planner, not only its author; a separate track from Onboarding. Design-first: each pass is its own doc and PR
   - ✅ Product direction ([`docs/product-direction.md`](docs/product-direction.md)) — the settled direction the passes below must not contradict: adjust-a-template / assemble-building-blocks as the default path with the blank canvas kept as an unchanged advanced one, the Example / Template / Building block editorial roles, one canvas with readability affordances first, surfaced inputs + a result Summary separated from the raw graph, and positioning as an experiment tool over a verified model. A direction doc only — no app code, no `src/` change, no wire change, no `loop-*/N`. Complete when the five decisions (§PD9) are settled; the doc is then revised only if a decision changes
-  - ✅ Large-graph readability ([`docs/large-graph-readability.md`](docs/large-graph-readability.md)) — **v0.8.0-dev**; an **engine-neutral** readability / UI feature set: no node re-layout, and no change to the engine, its digest, or any simulation result. Its one serialized addition is the Slice 5 `frames` block — a `loop-revision/5` **cosmetic** field that moves the revision content digest and the `dirty` flag but not the engine / structure digest.
+  - ✅ Large-graph readability ([`docs/large-graph-readability.md`](docs/large-graph-readability.md)) — **v0.8.0**; an **engine-neutral** readability / UI feature set: no node re-layout, and no change to the engine, its digest, or any simulation result. Its one serialized addition is the Slice 5 `frames` block — a `loop-revision/5` **cosmetic** field that moves the revision content digest and the `dirty` flag but not the engine / structure digest.
     - ✅ Slice 1 — a global hit-test rule (a node beats an overlapping edge / badge with Focus off — the mis-click fix) and a selection-driven 1-hop focus view
     - ✅ Slice 2 — ephemeral **filters** that hide by edge class / resource type / node kind, every list built from the open graph (not a fixed palette), cleared on graph reload and Reset view
     - ✅ Slice 3 — the **run distinction**: a committed step marks a node `effective` (in `StepReport.fired`) or the lighter `evaluated` (in `activated` but not `fired`), read straight off the committed `StepReport`, node-only, flow-execution nodes only; always on, static, cleared with the run cues
@@ -247,7 +248,7 @@ classification, or apply decision depends on them.
     - ✅ Frame accent colour ([`docs/large-graph-readability-frame-colour.md`](docs/large-graph-readability-frame-colour.md)) — a five-preset accent palette. On a **manual or promoted** frame the `color` is saved with the frame (part of the Slice 5 `loop-revision/5` `frames` block, so it moves the revision digest); a **pure suggested** frame never carries one and is session-only
     - ✅ Slice 5 — **saved frames** ([`docs/large-graph-readability-saved-frames.md`](docs/large-graph-readability-saved-frames.md), `loop-revision/5` [`SEMANTICS-R5.md`](SEMANTICS-R5.md) Frozen): a manual or promoted frame's `id` / `label` / `rect` / `color` is document content — it round-trips reload / Export·Import / Share / Workspace / a Project revision, every create / rename / resize / recolour / delete / `Clear all` is one graph undo entry, and the revision three-way carries a `frames` hunk (`clean` / `noop` / `conflict`; a divergent conflict gates a whole Apply). It moves the `loop-revision/5` content digest and `dirty` but never the engine / structure digest or the simulation result. Merged in `3fe7072` and Production-verified
   - ◐ Small module / template-composition system ([`docs/module-system.md`](docs/module-system.md), `MS`) — the next pass now that large-graph readability is complete. **Design settled** (all seven §MS7 forks + the five §MS4a boundaries): a module is a **plain Graph JSON** — no new schema, no file kind, no serialized module metadata, so every existing file / digest is byte-for-byte unaffected
-    - ✅ Impl PR 1 — module insert / extract (`v0.8.0-dev`): an **Insert module ▾** menu (bundled Building blocks + *From file…*, no `#g1=`), **drag-to-insert** on the canvas, and **Extract selection as module…** (download). Insert re-issues **every** node/edge id, rewrites `register` expr `@ref` + v2 `@param` flow, validates the whole candidate first (nothing changes on failure), and is **one atomic undo entry** (ids + v2 promotion + inserted set + selection). A v1 host + v2 module shows a **promotion consent** dialog first (undoable — one Ctrl+Z reverts the model change and the insert together); saved frames and a module's `recommendedRunConfig` are never carried in (a pre-op notice states the frames exclusion). Desktop only. Two bundled blocks (`module-buffered-step`, `module-reward-split`); block node labels are English in every locale for v1
+    - ✅ Impl PR 1 — module insert / extract (`v0.8.0`): an **Insert module ▾** menu (bundled Building blocks + *From file…*, no `#g1=`), **drag-to-insert** on the canvas, and **Extract selection as module…** (download). Insert re-issues **every** node/edge id, rewrites `register` expr `@ref` + v2 `@param` flow, validates the whole candidate first (nothing changes on failure), and is **one atomic undo entry** (ids + v2 promotion + inserted set + selection). A v1 host + v2 module shows a **promotion consent** dialog first (undoable — one Ctrl+Z reverts the model change and the insert together); saved frames and a module's `recommendedRunConfig` are never carried in (a pre-op notice states the frames exclusion). Desktop only. Two bundled blocks (`module-buffered-step`, `module-reward-split`); block node labels are English in every locale for v1
     - ✅ Impl PR 2 — the **Inputs** panel (every Parameter with an editable value; v2 `@param` flow edges as read-only pointers) + **Summary** panel (every Register with its `R(t)` value, `unit`, and a Show-calculation toggle). Two collapsible sections at the top of the desktop right column, above the Inspector; each row is **read-through** — a click selects the node and jumps the canvas to it; per-panel collapse is a `localStorage` UI preference — nothing else is persisted, filed, or digested. Desktop only. Production-verified on `cc0162a`
     - ☐ Later (§MS10) — a dedicated assembly screen, a connection auto-helper, collapsible composite nodes, and any serialized `role` / `surfacedInputs` / `ports` field
   - ✅ Dense-graph pan usability ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md), `DGP`) — **shipped, real-phone verified**. On a packed graph there is no empty canvas to grab, so panning used to be near-impossible (mobile especially; the minimap is only a secondary aid). A transparent pan-capture overlay handles it: a one-finger drag past ~8px pans even when it starts on a node, live on mobile always and on desktop behind a session-only Pan mode toggle. A shorter tap still selects a **node** — or, failing that, the **nearest edge** within ~14px — and opens the Inspector (§DGP-C1). Two-finger pinch zoom is computed by the overlay itself (a first cut handing it to React Flow's own pinch never actually zoomed on a real device — §DGP-C4); wheel / trackpad-pinch zoom (mouse) is forwarded untouched; edit gestures are byte-for-byte unchanged when Pan mode is off. Native OS gestures are not suppressed but never leave the overlay stuck (§DGP-C2). Independent of Focus / Filter / frames / Activity overlay / selection; no GraphDoc / digest / undo change. Was sequenced **before** contextual inline help
@@ -268,6 +269,73 @@ recorded here so the scope boundary above is explicit rather than implied:
   fluids, particles)
 
 ## Releases
+
+**v0.8.0 — Onboarding, part 2 & the Productization track.** Localization, the
+guided first-run tour, the Early MMO example, and contextual inline help
+complete Onboarding, part 2; large-graph readability, a small module /
+template-composition system, dense-graph pan usability, and a first
+`loop-model/2` Template complete this cycle's slice of the Productization
+track. Two backward-compatible wire-contract extensions ship — `loop-model/2`
+(a real **model-semantics** addition: a resource edge's `flow` may reference a
+Parameter's value) and `loop-revision/5` (a **revision storage / comparison
+contract** addition: saved frames) — neither changes what an existing graph
+computes, and neither moves a document's digest unless it actually uses the
+new capability.
+
+- **Onboarding, part 2** — an N-language-extensible **localization** base
+  shipping EN + KO (a runtime language menu; the chosen language is a
+  `localStorage`-only UI setting, never in the GraphDoc / Workspace / Share /
+  revision / digest / undo / simulation state), full-app translation with CI
+  guards against catalog drift and hardcoded strings, a read-only **six-step
+  guided first-run tour** (desktop + a separate mobile script), the **"Early
+  MMO progression (levels 1–15)"** example as a third Template, and
+  **contextual inline help**: four one-shot situational hints (an empty
+  canvas, Monte Carlo's first open, Review's first open, Focus/Filter
+  discovery past the auto-frame threshold), each re-armable ("Show again next
+  time") from a `Contextual help` entry now on both Help surfaces, with a
+  three-tier priority and a post-tour cooldown so nothing piles up.
+- **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
+  — a global hit-test fix (a node beats an overlapping edge / badge) plus a
+  selection-driven 1-hop focus view, ephemeral filters by edge class /
+  resource type / node kind, the `effective` / `evaluated` run distinction
+  read straight off the committed step result, manual **and** auto-suggested
+  group frames with a five-preset accent colour, and **saved frames**
+  (`loop-revision/5`, [`SEMANTICS-R5.md`](SEMANTICS-R5.md), Frozen) — a manual
+  or promoted frame's `id` / `label` / `rect` / `color` becomes real document
+  content that round-trips reload / Export·Import / Share / Workspace / a
+  Project revision. It moves the `loop-revision/5` content digest and the
+  `dirty` flag — never the engine or structure digest, and never the
+  simulation result.
+- **Small module / template-composition system** ([`docs/module-system.md`](docs/module-system.md))
+  — an **Insert module ▾** menu (bundled Building blocks or a file) and
+  **Extract selection as module…**, both desktop only: every id is
+  re-issued, the whole candidate validates before anything changes, and a
+  v1 → v2 promotion (when needed) is undoable together with the insert as one
+  atomic step. A module is a plain Graph JSON — no new file kind, no
+  serialized module metadata. Alongside it, desktop **Inputs** (every
+  Parameter, editable) and **Summary** (every Register, with its value / unit
+  / calculation) panels, each row read-through to the canvas.
+- **The Coffee roastery operations flow Template** — the first bundled
+  `loop-model/2` graph ([`SEMANTICS-M2.md`](SEMANTICS-M2.md), Frozen): a
+  resource edge's `flow` may be a single Parameter reference the engine
+  resolves once per step, so its five surfaced Parameters drive a real stock
+  trajectory. `loop-model/2` and its digest ratification `loop-revision/4`
+  are conservative extensions — a v1-only document's canonical content and
+  digest are unchanged.
+- **Dense-graph pan usability** ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md))
+  — a pan-capture overlay (a drag past ~8px pans even starting on a node) and
+  a self-computed two-finger pinch zoom make a packed graph pannable and
+  zoomable on both desktop and mobile, real-phone verified; a short tap still
+  selects a node or, failing that, the nearest edge.
+
+**Known limitations in this release:** module **Insert** / **Extract** are
+desktop only, with no mobile flow yet; a Graph or Workspace file re-saved by
+an **older build** does not preserve fields it doesn't recognise (e.g.
+`timelineSeries`) — there is no forward-compatible unknown-field passthrough.
+
+**Scenario Compare**, an advanced Monte-Carlo worker-count setting, **manual
+waypoint editing**, and the module system's later assembly-screen work are
+deliberately *not* in this release; each remains its own future project.
 
 **v0.7.0 — orthogonal routing & simulation playback.** Two render-layer
 additions on top of the same engine — the deterministic simulation result and
