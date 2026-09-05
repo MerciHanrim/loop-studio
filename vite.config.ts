@@ -99,7 +99,9 @@ export default defineConfig(({ mode }) => {
     // `npm test` is the vitest unit suite only; the Playwright specs under e2e/
     // run via `npm run e2e`.
     test: {
-      exclude: [...configDefaults.exclude, 'e2e/**'],
+      // Robust to nested worktree checkouts under .claude/worktrees/, which
+      // otherwise leak their own e2e/ Playwright specs into this glob.
+      exclude: [...configDefaults.exclude, 'e2e/**', '**/.claude/worktrees/**'],
     },
   }
 })
