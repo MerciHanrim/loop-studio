@@ -16,6 +16,7 @@ import { useIsMobile } from '../ui/media'
 import { reviewModel, type ReviewModel } from '../ui/revisionActions'
 import { useT, type MessageKey } from '../i18n'
 import { MobileSheet } from './mobile/MobileSheet'
+import { InlineHintNote } from './HintNote'
 
 type TFn = ReturnType<typeof useT>
 
@@ -452,6 +453,13 @@ export function ReviewOverlay() {
 
   const body = (
     <div className="review__body">
+      {/* docs/contextual-inline-help.md §CIH3 #3 — first-open orientation for
+          a surface the guided tour deliberately skips (§GT11); one insertion
+          point covers both the desktop dialog and the mobile sheet below,
+          since both render this same `body`. */}
+      <InlineHintNote id="review-first-open" trigger={true}>
+        {t('hint.review.body')}
+      </InlineHintNote>
       <p className="review__by">
         {model.authorName ? (
           <>

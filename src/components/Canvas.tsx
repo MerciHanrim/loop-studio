@@ -29,6 +29,9 @@ import { PanSurface } from './PanSurface'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
+import { CanvasHintNote } from './HintNote'
+import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
+import { useTourStore } from '../store/tourStore'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -73,6 +76,9 @@ const MINIMAP_HUE: Record<NodeKind, string> = {
 }
 
 export function Canvas() {
+  // docs/contextual-inline-help.md §CIH3 #4 — the `.canvas` element, for a
+  // one-shot "did the user ever touch this" interaction listener.
+  const canvasRef = useRef<HTMLDivElement>(null)
   const nodes = useGraphStore((s) => s.nodes)
   const edges = useGraphStore((s) => s.edges)
   const onNodesChange = useGraphStore((s) => s.onNodesChange)
@@ -108,6 +114,13 @@ export function Canvas() {
   // §AF9.2 — the "structural, not domain meaning" note, dismissible for the
   // session (a plain component-state flag — resets on a full reload).
   const [suggestNoteDismissed, setSuggestNoteDismissed] = useState(false)
+  // docs/contextual-inline-help.md §CIH2.3a — tier-3 (CIH's own discovery
+  // canvas hints) needs the tour idle + past its post-tour cooldown; §CIH3
+  // #4 additionally needs a real interaction or the fallback delay.
+  const tourIdle = useTourStore((s) => s.phase === 'idle')
+  const tier3Ready = useTier3Ready()
+  const largeGraphInteractionGate = useLargeGraphInteractionGate()
+  const focusOrFilterEverUsed = useHintStore((s) => s.focusOrFilterEverUsed)
   const graphEditRev = useGraphStore((s) => s.nodes)
   // §AF2.2 — the "Suggest frames" control only appears when the whole graph is
   // big enough for the feature to help (below the floor it would only ever
@@ -183,6 +196,10 @@ export function Canvas() {
   // arrays that serialize / diff / undo are never touched (LGR-INV-1), and React
   // Flow's change events still flow back to the store unchanged.
   const focusSet = useFocusSet()
+  // docs/contextual-inline-help.md §CIH2.3a — the two LGR notices below are
+  // TIER 2; CIH's own canvas hints (empty-canvas, Focus/Filter discovery) are
+  // TIER 3 and yield the shared top-center slot to either of these.
+  const lgrNoticeShowing = (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed)
   const hidden = useHiddenSet()
   // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
   // filtered element is gone, tint and all) and independently of dim (a
@@ -256,6 +273,22 @@ export function Canvas() {
     if (w.__loop) w.__loop.rf = { setViewport, getViewport, fitView }
   }, [setViewport, getViewport, fitView])
 
+  // docs/contextual-inline-help.md §CIH3 #4 — any real canvas interaction
+  // (a pan, a pinch/wheel zoom, a node drag, a tap-select) satisfies the
+  // Focus/Filter hint's interaction-or-delay gate immediately. One-shot,
+  // session-only; markInteracted() no-ops once already true.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const mark = () => useHintStore.getState().markInteracted()
+    el.addEventListener('pointerdown', mark, { once: true, capture: true })
+    el.addEventListener('wheel', mark, { once: true, capture: true, passive: true })
+    return () => {
+      el.removeEventListener('pointerdown', mark, true)
+      el.removeEventListener('wheel', mark, true)
+    }
+  }, [])
+
   // docs/mobile.md §MV3d: on a real orientation flip, re-fit the whole diagram
   // exactly once. Pan / pinch-zoom within one orientation never re-fits — the
   // re-fit is gated on the portrait/landscape flag actually changing.
@@ -323,6 +356,7 @@ export function Canvas() {
   // Inspector sheet.
   return (
     <div
+      ref={canvasRef}
       className={`canvas${canvasLocked ? ' canvas--locked' : ''}`}
       data-tour="canvas"
       onDrop={noEdit ? undefined : handleDrop}
@@ -399,6 +433,39 @@ export function Canvas() {
               ✕
             </button>
           </Panel>
+        )}
+        {/* docs/contextual-inline-help.md #1 — a genuinely empty canvas, the
+            first thing a new/blank graph shows and the one situation no
+            first-run tour step could demonstrate (nothing existed on the
+            canvas yet when the tour ran). Desktop only (§CIH6) —
+            `MobileOpenFileHint` already owns this moment on mobile. */}
+        {!isMobile && (
+          <CanvasHintNote
+            id="empty-canvas"
+            trigger={nodes.length === 0}
+            ready={tourIdle && tier3Ready && !lgrNoticeShowing}
+          >
+            {t('hint.emptyCanvas.body')}
+          </CanvasHintNote>
+        )}
+        {/* docs/contextual-inline-help.md #4 — Focus / Filter discovery once a
+            graph is dense enough (WORTH_IT_FLOOR) that they'd actually help.
+            Waits for the tour + its cooldown, a real interaction or the
+            fallback delay, and yields the slot to a tier-2 LGR notice
+            (§CIH2.3a / §CIH3 #4) — otherwise a freshly-opened large Template
+            would show this at the exact same instant as the auto-frame
+            suggestion. Clears itself the moment Focus or Filter is actually
+            used, and stays cleared even if it was used-then-off before the
+            hint ever got a chance to show (`focusOrFilterEverUsed`, latched
+            above — not the current on/off state). */}
+        {!isMobile && (
+          <CanvasHintNote
+            id="focus-filter-discovery"
+            trigger={nodes.length >= WORTH_IT_FLOOR && !focusOrFilterEverUsed}
+            ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing}
+          >
+            {t('hint.focusFilter.body')}
+          </CanvasHintNote>
         )}
         {/* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel,
             desktop only (mobile controls live in the More sheet, §LGR9). */}

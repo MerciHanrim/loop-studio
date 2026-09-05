@@ -152,15 +152,16 @@ test.describe('guided tour — first run', () => {
 
 // ── 3 / 4 — Help menu re-entry & contents ───────────────────────────────────
 test.describe('guided tour — Help menu', () => {
-  test('exactly two working items; no "Contextual help"', async ({ page }) => {
+  // docs/contextual-inline-help.md §CIH4 — the reserved 3rd slot is now live.
+  test('exactly three working items, in order: Take a tour, Contextual help, About', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
     await openHelp(page)
     const items = page.locator('.menu__pop[role="menu"] .menu__item')
-    await expect(items).toHaveCount(2)
+    await expect(items).toHaveCount(3)
     await expect(items.nth(0)).toHaveText(/Take a tour|둘러보기/)
-    await expect(items.nth(1)).toHaveText(/About Loop Studio|Loop Studio 정보/)
-    await expect(page.locator('.menu__pop')).not.toContainText(/Contextual help|문맥/)
+    await expect(items.nth(1)).toHaveText(/Contextual help|상황별 도움말/)
+    await expect(items.nth(2)).toHaveText(/About Loop Studio|Loop Studio 정보/)
   })
 
   test('Take a tour re-opens the tour at step 1 and never rewrites the key', async ({ page }) => {

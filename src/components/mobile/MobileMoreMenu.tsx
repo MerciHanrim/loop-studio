@@ -22,11 +22,14 @@ import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
+import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
 import { useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { ContextualHelpDialog } from '../ContextualHelpDialog'
 import { FilterControls } from '../FilterPanel'
+import { InlineHintNote } from '../HintNote'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { TEMPLATE_KEY } from '../templateKeys'
 import { MobileSheet } from './MobileSheet'
@@ -79,6 +82,21 @@ export function MobileMoreMenu({
   const loadGraph = useGraphStore((s) => s.loadGraph)
   const projectOpen = useProjectStore((s) => s.open)
 
+  // docs/contextual-inline-help.md §CIH3 #4 / §CIH6 — Focus/Filter discovery,
+  // mobile's one-line note above the More sheet's Focus/Filter rows. Shares
+  // the `focus-filter-discovery` hintId (and its `seen` flag) with the
+  // desktop canvas Panel version — whichever platform shows it first is
+  // enough. `focusOrFilterEverUsed` (Canvas.tsx marks it, either platform —
+  // shared `uiStore` state) covers Filter too even though it has no sticky
+  // mobile toggle of its own.
+  const nodeCount = useGraphStore((s) => s.nodes.length)
+  const tourIdleMobile = useTourStore((s) => s.phase === 'idle')
+  const tier3ReadyMobile = useTier3Ready()
+  const largeGraphGateMobile = useLargeGraphInteractionGate()
+  const focusOrFilterEverUsed = useHintStore((s) => s.focusOrFilterEverUsed)
+  const focusFilterHintTrigger = nodeCount >= WORTH_IT_FLOOR && !focusOrFilterEverUsed
+  const focusFilterHintReady = tourIdleMobile && tier3ReadyMobile && largeGraphGateMobile
+
   // docs/large-graph-readability.md §LGR3.4 / LGR-D4 — Reset view (mobile): fit
   // the graph + clear the exploration lens (filters + focused node). UI-only.
   const resetView = () => {
@@ -93,6 +111,7 @@ export function MobileMoreMenu({
   const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [contextualOpen, setContextualOpen] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
   // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
@@ -274,6 +293,9 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => openOverlay('templates')}>
           {t('templates.menuLabel')}<span className="sheet__row-sub">▸</span>
         </button>
+        <InlineHintNote id="focus-filter-discovery" trigger={focusFilterHintTrigger} ready={focusFilterHintReady}>
+          {t('hint.focusFilter.body')}
+        </InlineHintNote>
         {/* docs/large-graph-readability.md §LGR9 — the Focus toggle lives here
             on mobile (not in the canvas controls). Same uiStore.focusMode. */}
         <div className="sheet__row" style={{ cursor: 'default' }}>
@@ -435,8 +457,8 @@ export function MobileMoreMenu({
     )
   }
 
-  // docs/guided-tour.md §GT7 — the mobile Help sub-sheet: `Take a tour` +
-  // `About Loop Studio`. `Contextual help` is not shown (later slice).
+  // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
+  // mobile Help sub-sheet: `Take a tour`, `Contextual help`, `About Loop Studio`.
   if (overlay === 'help') {
     return (
       <>
@@ -451,9 +473,17 @@ export function MobileMoreMenu({
         >
           {t('tour.help.takeTour')}
         </button>
+        <button type="button" className="sheet__row" onClick={() => setContextualOpen(true)}>
+          {t('help.contextual.menuLabel')}
+        </button>
         <button type="button" className="sheet__row" onClick={() => setAboutOpen(true)}>
           {t('tour.help.about')}
         </button>
+        <ContextualHelpDialog
+          open={contextualOpen}
+          onClose={() => setContextualOpen(false)}
+          returnFocusTo={backToMore}
+        />
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
       </MobileSheet>
       </>
