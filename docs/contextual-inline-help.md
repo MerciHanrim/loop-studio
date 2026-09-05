@@ -1,16 +1,30 @@
-# Contextual inline help (non-frozen design doc — DRAFT)
+# Contextual inline help (non-frozen design doc)
 
-**Status: DESIGN — direction approved, review round 2 locked four boundaries
-(§CIH2.2, §CIH2.3, §CIH3, §CIH4).** `CIH` prefix. A non-frozen design doc like
+**Status: SHIPPED in `v0.8.0`.** `CIH` prefix. A non-frozen design doc like
 [`guided-tour.md`](guided-tour.md), [`dense-graph-pan.md`](dense-graph-pan.md),
-[`module-system.md`](module-system.md) — no `loop-*/N` id, no `Frozen` marker,
-merges as *settled design, implementation pending*. **It changes no `src/`
-file yet.** Implementation is a **separate PR needing separate approval**.
+[`module-system.md`](module-system.md) — no `loop-*/N` id, no `Frozen` marker.
+The design below (direction approved, review round 2 locked the four
+boundaries in §CIH2.2 / §CIH2.3 / §CIH3 / §CIH4) merged as PR #133 (`1048df5`);
+the implementation — `hintStore`, `<HintNote>`, the four v1 hints, and the
+`Contextual help` Help-menu entry on both surfaces — merged as PR #134
+(`23ad159`).
+
+**Two defects were found live-testing this feature during the `v0.8.0`
+pre-release usability audit and fixed before tagging** (both are stabilization
+fixes, not scope changes to the design below): a Register expression field
+elsewhere in the app locked up mid-edit whenever a hint's own re-render timing
+exposed it (PR #136, `b8f54eb`) — unrelated to this feature's own code, but
+found while exercising it; and the Contextual Help dialog's disabled "Show
+again next time" button read identically whether a hint had never shown or
+had just been re-armed, with no way to tell the two apart (PR #137,
+`278da6a`) — a genuine bug in this feature, fixed by relabeling the disabled
+state "Waiting to show next time" with no change to the re-arm mechanism
+itself.
 
 This is the item [`guided-tour.md`](guided-tour.md) §GT11 named and deferred:
 *"Later slice — contextual inline help. Separate design + PR; adds
-`Contextual help` to the Help menu."* It is also the last item on the
-Onboarding, part 2 roadmap line.
+`Contextual help` to the Help menu."* It was also the last item on the
+Onboarding, part 2 roadmap line — that track is now complete.
 
 ---
 
@@ -462,13 +476,12 @@ confirmed deliberate, not an oversight.
    global priority (open-screen hint → existing LGR notices → CIH discovery
    hints) plus a post-tour cooldown.
 
-**Still open:**
-- **The empty-canvas hint's exact copy / entry points named** (palette vs.
-  Template vs. Import vs. module Building blocks) — a wording decision, not
-  a structural one, best settled with real copy in front of it.
-- **The two placeholder timing constants** (`POST_TOUR_COOLDOWN_MS`,
-  `LARGE_GRAPH_HINT_DELAY_MS`, §CIH5) — UX-tuning values, not locked by this
-  doc; the implementation PR can adjust them without a design amendment.
+**Settled during implementation (PR #134), not a design amendment:**
+- The empty-canvas hint's copy points at the palette and Templates: "Start
+  from a Template, or drag node types in from the left panel."
+- The two timing constants landed at `POST_TOUR_COOLDOWN_MS = 2000` and
+  `LARGE_GRAPH_HINT_DELAY_MS = 4000` (`src/store/hintStore.ts`) — UX-tuning
+  values, changeable without a design amendment, per §CIH5.
 
 ---
 
@@ -477,11 +490,13 @@ confirmed deliberate, not an oversight.
 1. **This design pass** — Draft PR, no code.
 2. **Review** — round 1 locked the v1 hint set and the tier rule; round 2
    locked the four boundaries in §CIH9. — **done.**
-3. **Implementation** — a Draft PR: `hintStore` + `<HintNote>` + the four v1
-   hints (with the §CIH2.3a priority order and §CIH3 #4 timing gate wired in
-   from the start, not bolted on after) + the `Contextual help` Help-menu
-   entry (desktop + mobile) + i18n + the §CIH8 test set. Ready / merge is a
-   separate approval, same as every prior slice.
-4. **Then** — Onboarding, part 2 is complete; the only work left on the
+3. **Implementation** — `hintStore` + `<HintNote>` + the four v1 hints (with
+   the §CIH2.3a priority order and §CIH3 #4 timing gate wired in from the
+   start, not bolted on after) + the `Contextual help` Help-menu entry
+   (desktop + mobile) + i18n + the §CIH8 test set. **Shipped** — PR #134
+   (`23ad159`); two stabilization fixes found in the `v0.8.0` pre-release
+   audit followed as PR #136 (`b8f54eb`) and PR #137 (`278da6a`), see the
+   Status line above.
+4. **Then** — Onboarding, part 2 is complete. The only work left on the
    current roadmap is the Productization-track follow-ups already named
    elsewhere (module-system §MS10 items).

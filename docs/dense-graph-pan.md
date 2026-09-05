@@ -1,4 +1,4 @@
-# Dense-graph pan usability (non-frozen design doc — DRAFT)
+# Dense-graph pan usability (non-frozen design doc)
 
 **Status: SHIPPED.** The eight DGP7 decisions are locked (review rounds 1–2),
 the SPIKE has run (`spike/dense-graph-pan`), and **two real-phone rounds have

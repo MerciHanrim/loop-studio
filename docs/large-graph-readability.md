@@ -1,6 +1,6 @@
-# Large-Graph Readability (non-frozen design doc — DRAFT)
+# Large-Graph Readability (non-frozen design doc)
 
-**Status: IMPLEMENTED — all slices shipped in `v0.8.0-dev`.** rev 3 (design).
+**Status: IMPLEMENTED — all slices shipped in `v0.8.0`.** rev 3 (design).
 rev 1 fixed the direction; rev 2 closed the four structural blockers (global
 hit-test rule §LGR4, consistent Focus definition + closed hop decisions §LGR2,
 per-item persistence table §LGR3.4, derived-only `evaluated` §LGR5) and held the
@@ -731,7 +731,7 @@ Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subse
 
 ## LGR14. Order this feeds into
 
-**All slices shipped in `v0.8.0-dev`** (Slice 1 `1ce599f` → Slice 5 `3fe7072`,
+**All slices shipped in `v0.8.0`** (Slice 1 `1ce599f` → Slice 5 `3fe7072`,
 Production-verified). Slices 1–4b + §FC changed nothing serialized; Slice 5
 added the `loop-revision/5` cosmetic `GraphDoc.frames` field (`SEMANTICS-R5.md`).
 The small module / template-composition system (§PD8-B) is the **next** design
