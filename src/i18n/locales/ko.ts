@@ -689,6 +689,8 @@ const ko = {
   'help.contextual.title': '상황별 도움말',
   'help.contextual.intro': 'Loop Studio는 아래 상황이 처음 발생할 때 짧은 안내를 한 번 보여줍니다. 다시 보고 싶으면 재활성화하세요.',
   'help.contextual.rearm': '다음에 다시 보기',
+  'help.contextual.rearmWaiting': '다음 표시 대기 중',
+  'help.contextual.rearmWaitingHint': '다음 적합한 상황에서 저절로 다시 표시됩니다.',
   'help.contextual.hint.emptyCanvas.name': '빈 캔버스',
   'help.contextual.hint.emptyCanvas.desc': '노드가 하나도 없는 빈 캔버스에서 표시됩니다.',
   'help.contextual.hint.mc.name': '몬테카를로',

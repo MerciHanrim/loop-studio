@@ -8,6 +8,15 @@ import { useHintStore, type HintId } from '../store/hintStore'
 // lets the user re-arm one (§CIH4: "Show again next time" clears the
 // persisted `seen` flag — it does NOT force the hint to render; the hint's
 // own trigger / tier / cooldown rules decide when it next shows).
+//
+// v0.8.0 usability audit — a disabled rearm button looked identical whether
+// the hint had simply never shown yet or had just been successfully
+// re-armed a moment ago, with no way to tell them apart. Both are exactly
+// the same underlying state (`!seen[id]`, pending its next eligible
+// trigger), so the fix is just a truthful label for that state, not new
+// bookkeeping: enabled reads "Show again next time" (an action); disabled
+// reads "Waiting to show next time" (a status), with a `title` hint
+// spelling out that it reappears on its own next appropriate occasion.
 
 // docs/localization.md §L7 precedent (REG_CODE_KEY in Inspector.tsx) — a
 // `Record`-typed map of literal `MessageKey`s, so `check-i18n.mjs`'s call-site
@@ -65,8 +74,9 @@ export function ContextualHelpDialog({ open, onClose, returnFocusTo }: Props) {
                   className="btn contextual-help__rearm"
                   disabled={!seen[h.id]}
                   onClick={() => rearm(h.id)}
+                  title={seen[h.id] ? undefined : t('help.contextual.rearmWaitingHint')}
                 >
-                  {t('help.contextual.rearm')}
+                  {seen[h.id] ? t('help.contextual.rearm') : t('help.contextual.rearmWaiting')}
                 </button>
               </li>
             ))}
