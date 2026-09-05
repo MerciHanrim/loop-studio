@@ -209,6 +209,11 @@ function NodeFrame({
 
       <svg className="nodef__shape" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">
         <path className="nodef__fill" d={path} />
+        {/* docs/visual-language.md §VL0 follow-up — the node-type hue wash: a
+            faint (see --node-hue-opacity) ambient fill, always weaker than the
+            Activity tint drawn right after it. Shape + `.nodef__chip` remain
+            the primary type tell; this is a secondary assist only. */}
+        <path className="nodef__hue" d={path} />
         {/* §LGR6-cues — the opt-in Activity overlay tint: a faint primary-fill
             copy of the silhouette, above the fill but UNDER the stroke and
             every run / selection / focus cue below. Shape-accurate (never a
