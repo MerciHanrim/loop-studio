@@ -745,6 +745,8 @@ const en = {
   'help.contextual.title': 'Contextual help',
   'help.contextual.intro': 'Loop Studio shows a few short notes the first time each of these comes up. Re-arm one to see it again next time it applies.',
   'help.contextual.rearm': 'Show again next time',
+  'help.contextual.rearmWaiting': 'Waiting to show next time',
+  'help.contextual.rearmWaitingHint': 'It will show again on its own, the next appropriate time it applies.',
   'help.contextual.hint.emptyCanvas.name': 'Empty canvas',
   'help.contextual.hint.emptyCanvas.desc': 'Shown on a blank canvas, before any node exists.',
   'help.contextual.hint.mc.name': 'Monte Carlo',

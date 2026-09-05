@@ -341,15 +341,24 @@ test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
     await expect(dlg).toBeVisible()
     await expect(dlg.locator('.contextual-help__row')).toHaveCount(4)
 
+    // never-yet-shown (Review) and just-rearmed (empty-canvas, below) are the
+    // SAME underlying state (`!seen[id]`) — both read "Waiting to show next
+    // time", not the enabled "Show again next time" label (v0.8.0 audit).
+    const reviewRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Review' })
+    const reviewBtn = reviewRow.getByRole('button', { name: 'Waiting to show next time' })
+    await expect(reviewBtn).toBeDisabled()
+    await expect(reviewBtn).toHaveAttribute('title', /next appropriate time/)
+
     const emptyRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Empty canvas' })
-    await expect(emptyRow.getByRole('button', { name: 'Show again next time' })).toBeEnabled()
-    await emptyRow.getByRole('button', { name: 'Show again next time' }).click()
+    const emptyBtnEnabled = emptyRow.getByRole('button', { name: 'Show again next time' })
+    await expect(emptyBtnEnabled).toBeEnabled()
+    await emptyBtnEnabled.click()
     expect(await seenKeys(page)).not.toContain('empty-canvas')
     // rearm ≠ immediate render — the canvas has 9 nodes right now, condition false
     await expect(hintNote(page)).toHaveCount(0)
-
-    const reviewRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Review' })
-    await expect(reviewRow.getByRole('button', { name: 'Show again next time' })).toBeDisabled()
+    // and the button now visibly reflects the wait, instead of looking identical
+    // to before it was ever shown
+    await expect(emptyRow.getByRole('button', { name: 'Waiting to show next time' })).toBeDisabled()
   })
 })
 
@@ -391,6 +400,10 @@ test.describe('contextual inline help — mobile (§CIH6)', () => {
     await page.locator('.mob-more').click()
     await page.locator('.sheet__row').filter({ hasText: 'Help' }).click()
     await page.locator('.sheet__row').filter({ hasText: 'Contextual help' }).click()
-    await expect(page.locator('.mcdlg--contextual-help')).toBeVisible()
+    const dlg = page.locator('.mcdlg--contextual-help')
+    await expect(dlg).toBeVisible()
+    // same shared component as desktop — the waiting-state label applies here too
+    const reviewRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Review' })
+    await expect(reviewRow.getByRole('button', { name: 'Waiting to show next time' })).toBeDisabled()
   })
 })
