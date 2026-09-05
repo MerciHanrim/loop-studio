@@ -47,6 +47,36 @@ async function settleTour(page: Page): Promise<void> {
   })
 }
 
+/** A localStorage where every WRITE throws but reads still work — the
+ *  literal "write failure" scenario (e.g. quota exceeded), unlike blanking
+ *  the whole API. Pre-seeded with the tour key already `dismissed`: reading
+ *  it *works* here (only writing doesn't), and `GuidedTour.tsx`'s
+ *  `readTourKey() != null` guard needs that real read to skip scheduling its
+ *  own 250ms auto-offer check — otherwise that timer can fire mid-test (a
+ *  real race caught on a slower CI runner, not a product bug) and permanently
+ *  flip the tour out of idle from underneath an unrelated hint assertion. */
+function installWriteOnlyFailure(page: Page): Promise<void> {
+  return page.addInitScript(() => {
+    const store = new Map<string, string>([['loop-studio/guided-tour/1', 'dismissed']])
+    const t = () => {
+      throw new Error('quota')
+    }
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        removeItem: (k: string) => store.delete(k),
+        key: (i: number) => [...store.keys()][i] ?? null,
+        setItem: t,
+        clear: t,
+        get length() {
+          return store.size
+        },
+      },
+    })
+  })
+}
+
 // a dense, 9-node graph — past WORTH_IT_FLOOR (8) — for the Focus/Filter hint.
 const GRAPH_9 = (() => {
   const nodes: unknown[] = []
@@ -119,15 +149,7 @@ test.describe('contextual inline help — empty canvas (§CIH3 #1)', () => {
   })
 
   test('a localStorage write failure never blocks the app (non-fatal try/catch)', async ({ page }) => {
-    await page.addInitScript(() => {
-      const t = () => {
-        throw new Error('quota')
-      }
-      Object.defineProperty(window, 'localStorage', {
-        configurable: true,
-        value: { getItem: () => null, setItem: t, removeItem: t, clear: t, key: t, length: 0 },
-      })
-    })
+    await installWriteOnlyFailure(page)
     await openApp(page)
     await resetAll(page)
     await settleTour(page)
@@ -273,15 +295,7 @@ test.describe('contextual inline help — Focus/Filter discovery (§CIH3 #4)', (
   })
 
   test('a localStorage write failure never blocks the hint or the app', async ({ page }) => {
-    await page.addInitScript(() => {
-      const t = () => {
-        throw new Error('quota')
-      }
-      Object.defineProperty(window, 'localStorage', {
-        configurable: true,
-        value: { getItem: () => null, setItem: t, removeItem: t, clear: t, key: t, length: 0 },
-      })
-    })
+    await installWriteOnlyFailure(page)
     await openApp(page)
     await resetAll(page)
     await settleTour(page)
