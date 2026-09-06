@@ -4,7 +4,7 @@
 // language = one `LOCALES` entry + one `src/i18n/locales/<code>.ts` file, no
 // edits elsewhere.
 
-import type { MessageCatalog } from './locales/en'
+import type { MessageCatalog, MessageKey } from './locales/en'
 import en from './locales/en'
 import ko from './locales/ko'
 
@@ -15,11 +15,15 @@ export type LocaleEntry = {
   code: string
   /** for docs / logs */
   englishName: string
-  /** the language's own name, written in that language (endonym) — the primary
-   *  label in the switch UI. Never a catalog lookup: it must read correctly
-   *  regardless of the active UI language. The name shown IN the active UI
-   *  language is a separate, later addition alongside the selector work. */
+  /** the language's own name, written in that language (endonym) — the switch
+   *  UI's primary label. Never a catalog lookup: it must read correctly
+   *  regardless of the active UI language. */
   nativeName: string
+  /** catalog key for this language's name IN THE ACTIVE UI LANGUAGE — the
+   *  switch UI's secondary label (e.g. `language.korean` → "Korean" / "한국어").
+   *  Required: adding a locale must add its `language.<name>` key to every
+   *  catalog, so `check-i18n` fails on a half-added language. */
+  displayNameKey: MessageKey
   /** `<html dir>` — metadata only in v0.8.0 (§L9); no RTL layout is promised */
   direction: LocaleDir
   /** BCP-47 tag handed to `Intl.*` when a UI-chrome number is formatted (§L8);
@@ -39,6 +43,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     code: 'en',
     englishName: 'English',
     nativeName: 'English',
+    displayNameKey: 'language.english',
     direction: 'ltr',
     numberLocale: 'en',
     enabled: true,
@@ -48,6 +53,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     code: 'ko',
     englishName: 'Korean',
     nativeName: '한국어',
+    displayNameKey: 'language.korean',
     direction: 'ltr',
     numberLocale: 'ko',
     enabled: true,
@@ -68,6 +74,9 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       code: 'en-XA',
       englishName: 'Pseudo (QA)',
       nativeName: 'Pseudo (QA)',
+      // DEV-only QA locale; its catalog is `en` verbatim, so it reuses the
+      // English display key rather than adding a prod catalog key for it.
+      displayNameKey: 'language.english',
       direction: 'ltr',
       numberLocale: 'en',
       enabled: true,

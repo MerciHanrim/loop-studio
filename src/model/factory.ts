@@ -53,6 +53,19 @@ export function defaultData<K extends NodeKind>(kind: K): DataByKind[K] {
   return map[kind]
 }
 
-export function createNode(kind: NodeKind, position: { x: number; y: number }): LoopNode {
-  return { id: nextId(kind), type: kind, position, data: defaultData(kind) }
+export function createNode(
+  kind: NodeKind,
+  position: { x: number; y: number },
+  /** the resolved display label (docs/localization.md §L3.4a — locale-aware,
+   *  de-duplicated by the caller). Omitted ⇒ the English `defaultData` label,
+   *  for fixtures / tests / any non-UI caller. */
+  label?: string,
+): LoopNode {
+  const data = defaultData(kind)
+  return {
+    id: nextId(kind),
+    type: kind,
+    position,
+    data: label != null ? ({ ...data, label } as typeof data) : data,
+  }
 }

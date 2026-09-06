@@ -7,7 +7,10 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import { create } from 'zustand'
+import { useI18n } from '../i18n/store'
+import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { createNode, defaultData, nextId } from '../model/factory'
+import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
 import {
   deserialize,
@@ -452,7 +455,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     addNodeAt: (kind, position) => {
       commit('')
-      const node = createNode(kind, position)
+      // docs/localization.md §L3.4a — the name is resolved for the CURRENT UI
+      // language at placement, then de-duplicated against the graph's display
+      // names. This is the only node-creation path that localizes a name;
+      // import / template / duplicate / paste keep their stored names.
+      const base = defaultNodeLabel(kind, useI18n.getState().activeCatalog)
+      const label = uniqueNodeLabel(
+        base,
+        get().nodes.map((n) => n.data.label),
+      )
+      const node = createNode(kind, position, label)
       set({
         nodes: [...get().nodes, node],
         selectedNodeId: node.id,

@@ -2,8 +2,9 @@ import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/localization.md Slice 1 + the language-menu follow-up.
-//   • the language control is a trigger button + a registry-driven overlay menu
-//     (menu / menuitemradio); it changes no Toolbar height and no Canvas geometry;
+//   • the language control is a trigger button + a registry-driven overlay
+//     `listbox` (search box appears at 6+ enabled locales); it changes no
+//     Toolbar height and no Canvas geometry;
 //   • `<html lang>` tracks the active locale; the choice persists at
 //     `loop-studio/ui-locale/1` and survives a reload; a corrupt stored value is
 //     ignored (browser locale → en);
@@ -103,16 +104,51 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
     await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ 재생')
   })
 
-  test('creating a node in a Korean UI stores the locale-independent default label', async ({ page }) => {
+  test('a new node in a Korean UI gets the Korean default name, fixed at placement (§L3.4a)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await pickLocale(page, 'ko')
     await page.locator('.toolbar__palette .chip--source').click()
-    const label = await page.evaluate(() => {
-      const g = (window as unknown as Bridge).__loop.graph.getState()
-      return g.nodes[g.nodes.length - 1]?.data?.label
+    const lastLabel = () =>
+      page.evaluate(() => {
+        const g = (window as unknown as Bridge).__loop.graph.getState()
+        return g.nodes[g.nodes.length - 1]?.data?.label
+      })
+    expect(await lastLabel()).toBe('공급원') // node.default.source (ko), resolved at placement
+    // switching the UI language afterwards never renames a placed node
+    await pickLocale(page, 'en')
+    expect(await lastLabel()).toBe('공급원')
+  })
+
+  test('auto-names number per language and reuse a freed number (§L3.4a)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    const g = () => (window as unknown as Bridge).__loop.graph.getState()
+    const labels = () => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().nodes.map((n: any) => n.data.label))
+
+    // three pools in EN → Pool, Pool 2, Pool 3
+    await pickLocale(page, 'en')
+    for (let i = 0; i < 3; i++) await page.locator('.toolbar__palette .chip--pool').click()
+    expect(await labels()).toEqual(['Pool', 'Pool 2', 'Pool 3'])
+
+    // switch to KO and add two → 저장소, 저장소 2 — independent of the EN Pools
+    await pickLocale(page, 'ko')
+    for (let i = 0; i < 2; i++) await page.locator('.toolbar__palette .chip--pool').click()
+    expect(await labels()).toEqual(['Pool', 'Pool 2', 'Pool 3', '저장소', '저장소 2'])
+
+    // delete "Pool 2", then add one more EN pool → the freed number is reused
+    await pickLocale(page, 'en')
+    await page.evaluate(() => {
+      const s = (window as unknown as Bridge).__loop.graph.getState()
+      const id = s.nodes.find((n: any) => n.data.label === 'Pool 2').id
+      s.removeNode(id)
     })
-    expect(label).toBe('Source') // NOT '소스' — model data is not translated (§L3.4)
+    await page.locator('.toolbar__palette .chip--pool').click()
+    expect(await labels()).toContain('Pool 2')
+
+    // a language switch renamed nothing that already existed
+    expect(await labels()).toEqual(expect.arrayContaining(['Pool', 'Pool 3', '저장소', '저장소 2', 'Pool 2']))
+    void g
   })
 
   test('a locale switch (×4) moves no GraphDoc / digest / undo / viewport / SimState', async ({ page }) => {
@@ -495,39 +531,44 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(trigger).not.toBeFocused() // focus advanced past the trigger, not trapped
   })
 
-  test('menu a11y contract — haspopup / expanded / menuitemradio / aria-checked / keyboard', async ({ page }) => {
+  test('language switch a11y — haspopup listbox / expanded / option / aria-selected / keyboard', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     const trigger = page.locator('.toolbar .lang-switch')
-    await expect(trigger).toHaveAttribute('aria-haspopup', 'menu')
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'listbox')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 
-    // Enter opens; focus lands on the active item; it is aria-checked
+    // Enter opens; below the search threshold there is no search box and focus
+    // lands on the listbox container, which drives aria-activedescendant
     await trigger.focus()
     await page.keyboard.press('Enter')
     await expect(trigger).toHaveAttribute('aria-expanded', 'true')
-    const menu = page.locator('.lang-menu__pop')
-    await expect(menu).toHaveAttribute('role', 'menu')
-    const items = menu.locator('[role="menuitemradio"]')
-    await expect(items).toHaveCount(3) // en, ko, en-XA (dev pseudo)
-    await expect(menu.locator('[data-locale="en"]')).toHaveAttribute('aria-checked', 'true')
-    await expect(menu.locator('[data-locale="ko"]')).toHaveAttribute('aria-checked', 'false')
+    const pop = page.locator('.lang-menu__pop')
+    const list = pop.locator('[role="listbox"]')
+    await expect(list).toBeVisible()
+    await expect(pop.locator('input[role="combobox"]')).toHaveCount(0)
+    await expect(list).toBeFocused()
+    const opts = list.locator('[role="option"]')
+    await expect(opts).toHaveCount(3) // en, ko, en-XA (dev pseudo)
+    await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
+    await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
 
-    // ArrowDown / End / Home move focus without changing the selection
+    // ArrowDown / End / Home move the active option, not the selection
+    const activeId = () => list.getAttribute('aria-activedescendant')
     await page.keyboard.press('ArrowDown')
-    await expect(menu.locator('[data-locale="ko"]')).toBeFocused()
+    await expect.poll(activeId).toContain('opt-ko')
     await page.keyboard.press('End')
-    await expect(menu.locator('[data-locale="en-XA"]')).toBeFocused()
+    await expect.poll(activeId).toContain('opt-en-XA')
     await page.keyboard.press('Home')
-    await expect(menu.locator('[data-locale="en"]')).toBeFocused()
+    await expect.poll(activeId).toContain('opt-en')
     expect(await htmlLang(page)).toBe('en') // nothing selected yet
 
     // Escape closes and returns focus to the trigger
     await page.keyboard.press('Escape')
-    await expect(menu).toBeHidden()
+    await expect(pop).toBeHidden()
     await expect(trigger).toBeFocused()
 
-    // Space opens, Enter on ko selects, focus returns to the trigger
+    // Space opens, ArrowDown + Enter selects ko, focus returns to the trigger
     await page.keyboard.press(' ')
     await expect(page.locator('.lang-menu__pop')).toBeVisible()
     await page.keyboard.press('ArrowDown')
@@ -542,9 +583,9 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await resetAll(page)
     await pickLocale(page, 'en-XA')
     expect(await htmlLang(page)).toBe('en-XA')
-    // the menu now checks en-XA
+    // the list now marks en-XA selected
     await page.locator('.toolbar .lang-switch').click()
-    await expect(page.locator('.lang-menu__item[data-locale="en-XA"]')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.locator('.lang-menu__item[data-locale="en-XA"]')).toHaveAttribute('aria-selected', 'true')
   })
 
   test('rapid selections settle on the last request; label / <html lang> / catalog agree', async ({ page }) => {

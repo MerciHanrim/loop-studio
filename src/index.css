@@ -2951,13 +2951,51 @@ body {
   width: max-content;
   min-width: 150px;
   max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 360px);
+  padding: 4px;
 }
 .sheet .lang-menu__pop {
   left: auto;
   right: 0;
 }
-.lang-menu__item[aria-checked='true'] .menu__name {
+/* only the option list scrolls; the search box stays pinned */
+.lang-menu__list {
+  overflow-y: auto;
+  min-height: 0;
+  outline: none;
+}
+.lang-menu__search {
+  flex: none;
+  margin: 2px 2px 6px;
+  padding: 5px 8px;
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-sunken, var(--surface-1, transparent));
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+}
+.lang-menu__search:focus-visible {
+  border-color: var(--signal-primary, var(--text-primary));
+}
+.lang-menu__empty {
+  padding: 8px 10px;
+  color: var(--text-tertiary);
+}
+/* focus lives on the search box / listbox container, so the active option is
+   marked with data-active rather than :focus */
+.lang-menu__item[data-active] {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.14));
+}
+.lang-menu__item[aria-selected='true'] .menu__name {
   color: var(--signal-primary, var(--text-primary));
+}
+@media (forced-colors: active) {
+  .lang-menu__item[data-active] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 /* Monte-Carlo cost block — labelled rows */

@@ -24,6 +24,11 @@ const ui = {
   'lang.title': '언어',
   'lang.menuLabel': '언어 선택',
   'lang.loading': '불러오는 중…',
+  'lang.search': '언어 검색',
+  'lang.noResults': '일치하는 언어 없음',
+  // a language's own name in the ACTIVE UI language (registry `displayNameKey`)
+  'language.english': '영어',
+  'language.korean': '한국어',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',
