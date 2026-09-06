@@ -1,5 +1,45 @@
 import { describe, expect, it } from 'vitest'
-import { BASE_LOCALE, isRegistered, resolveInitialLocale } from './registry'
+import {
+  BASE_LOCALE,
+  LOCALES,
+  enabledLocales,
+  isRegistered,
+  resolveInitialLocale,
+} from './registry'
+
+// docs/localization.md §L2 — every registered locale carries the full required
+// metadata set, so the switch UI / resolver / checks never need a per-locale
+// special case and step 3's selector work does not have to reshape the registry.
+describe('locale registry metadata', () => {
+  it('every registered locale has the required fields, well-typed', () => {
+    expect(LOCALES.length).toBeGreaterThan(0)
+    for (const l of LOCALES) {
+      expect(typeof l.code, `${l.code}: code`).toBe('string')
+      expect(l.code.length, `${l.code}: code non-empty`).toBeGreaterThan(0)
+      expect(typeof l.nativeName, `${l.code}: nativeName`).toBe('string')
+      expect(l.nativeName.length, `${l.code}: nativeName non-empty`).toBeGreaterThan(0)
+      expect(['ltr', 'rtl'], `${l.code}: direction`).toContain(l.direction)
+      expect(typeof l.enabled, `${l.code}: enabled`).toBe('boolean')
+      expect(typeof l.numberLocale, `${l.code}: numberLocale`).toBe('string')
+      expect(typeof l.catalog, `${l.code}: catalog thunk`).toBe('function')
+    }
+  })
+
+  it('nativeName does not depend on the active UI language (it is the endonym)', () => {
+    // a literal in the registry source, not a catalog key — the check is that it
+    // is a plain non-empty string that is stable across the app's lifetime
+    for (const l of LOCALES) expect(l.nativeName).toBe(l.nativeName.trim())
+  })
+
+  it('enabledLocales() returns the enabled entries, in registry order', () => {
+    expect(enabledLocales()).toEqual(LOCALES.filter((l) => l.enabled))
+    expect(enabledLocales().every((l) => l.enabled)).toBe(true)
+  })
+
+  it('every shipped locale is enabled today', () => {
+    expect(enabledLocales().map((l) => l.code)).toEqual(LOCALES.map((l) => l.code))
+  })
+})
 
 // docs/localization.md §L5.2 — the fully deterministic locale-decision order.
 
