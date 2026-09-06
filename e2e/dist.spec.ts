@@ -136,4 +136,35 @@ test.describe('production build (Cloudflare Pages shape)', () => {
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
+
+  test('the language switch offers exactly the shipped locales — the dev pseudo-locale never reaches Production', async ({
+    page,
+  }) => {
+    const { bad } = await openProd(page)
+
+    await page.locator('.toolbar .lang-switch').click()
+    const opts = page.locator('.lang-menu__pop [role="option"]')
+    await expect(opts).toHaveCount(3) // en, ko, ja — NO en-XA
+    await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
+    const codes = await opts.evaluateAll((els) =>
+      els.map((e) => (e as HTMLElement).dataset.locale).sort(),
+    )
+    expect(codes).toEqual(['en', 'ja', 'ko'])
+
+    // pick JA, reload — it persists, and still only the three are offered
+    await page.locator('.lang-menu__item[data-locale="ja"]').click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ja')
+    await page.reload()
+    await expect(page.locator('.toolbar')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe('ja')
+
+    // a hand-planted 'en-XA' in storage is not a registered code in Production —
+    // the resolver ignores it and falls back rather than selecting it
+    await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'en-XA'))
+    await page.reload()
+    await expect(page.locator('.toolbar')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.lang)).not.toBe('en-XA')
+
+    expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
 })
