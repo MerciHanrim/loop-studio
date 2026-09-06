@@ -4,7 +4,7 @@
 // language = one `LOCALES` entry + one `src/i18n/locales/<code>.ts` file, no
 // edits elsewhere.
 
-import type { MessageCatalog } from './locales/en'
+import type { MessageCatalog, MessageKey } from './locales/en'
 import en from './locales/en'
 import ko from './locales/ko'
 
@@ -15,13 +15,22 @@ export type LocaleEntry = {
   code: string
   /** for docs / logs */
   englishName: string
-  /** shown in the switch UI, written in that language */
+  /** the language's own name, written in that language (endonym) — the primary
+   *  label in the switch UI */
   nativeName: string
+  /** optional catalog key for this language's name IN THE ACTIVE UI LANGUAGE —
+   *  the switch UI's secondary label (e.g. "Korean" / "영어"). Undefined until
+   *  the locale-aware selector work populates it; no such keys exist yet. */
+  displayNameKey?: MessageKey
   /** `<html dir>` — metadata only in v0.8.0 (§L9); no RTL layout is promised */
   dir: LocaleDir
   /** BCP-47 tag handed to `Intl.*` when a UI-chrome number is formatted (§L8);
    *  never touches stored / digested data */
   numberLocale: string
+  /** offered to users. `false` = registered (resolver / checks still see it)
+   *  but hidden from the switch UI. Every shipped locale is `true` today; the
+   *  selector work is what will consume this. */
+  enabled: boolean
   /** the async seam (§L4.5). Static in v0.8.0 (both catalogs are in the one
    *  bundle); a later move to per-locale chunks swaps this body only. */
   catalog: () => Promise<MessageCatalog>
@@ -34,6 +43,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     nativeName: 'English',
     dir: 'ltr',
     numberLocale: 'en',
+    enabled: true,
     catalog: () => Promise.resolve(en),
   },
   {
@@ -42,6 +52,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     nativeName: '한국어',
     dir: 'ltr',
     numberLocale: 'ko',
+    enabled: true,
     catalog: () => Promise.resolve(ko),
   },
 ]
@@ -61,6 +72,7 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       nativeName: 'Pseudo (QA)',
       dir: 'ltr',
       numberLocale: 'en',
+      enabled: true,
       catalog: () => Promise.resolve(en),
     },
   ]
@@ -80,6 +92,12 @@ export const LOCALE_STORAGE_KEY = 'loop-studio/ui-locale/1'
 
 export function getEntry(code: string): LocaleEntry | undefined {
   return LOCALES.find((l) => l.code === code)
+}
+
+/** the locales a user may pick — `enabled` registry entries, in registry order.
+ *  Everything is enabled today; the switch UI is what will call this. */
+export function enabledLocales(): readonly LocaleEntry[] {
+  return LOCALES.filter((l) => l.enabled)
 }
 
 export function isRegistered(code: string | null | undefined): boolean {

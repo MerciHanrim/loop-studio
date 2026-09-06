@@ -17,7 +17,7 @@
 //   • no `t('key')` literal refers to a key absent from the base catalog
 //   • every base key is referenced somewhere in src/ (no dead keys)
 
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { validateCatalog } from '../src/i18n/validate.ts'
@@ -43,18 +43,48 @@ if (!BASE_LOCALE) {
 }
 
 const localesDir = resolve(root, 'src/i18n/locales')
-const CODES = readdirSync(localesDir)
-  .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f))
-  .map((f) => f.replace(/\.ts$/, ''))
+
+// A locale's entry point is EITHER `locales/<code>.ts` (one flat file) OR
+// `locales/<code>/index.ts` (a folder that merges its domain slices —
+// ui / canvas / inspector / templates). Both forms coexist; the loop never
+// names a locale literally (§L12).
+const DOMAIN_FILES = ['ui', 'canvas', 'inspector', 'templates']
+const entries = []
+for (const name of readdirSync(localesDir)) {
+  if (/\.test\.ts$/.test(name)) continue
+  const p = resolve(localesDir, name)
+  if (statSync(p).isDirectory()) {
+    if (existsSync(resolve(p, 'index.ts'))) entries.push({ code: name, entry: resolve(p, 'index.ts'), dir: p })
+  } else if (/\.ts$/.test(name)) {
+    entries.push({ code: name.replace(/\.ts$/, ''), entry: p, dir: null })
+  }
+}
+const CODES = entries.map((e) => e.code)
 if (!CODES.includes(BASE_LOCALE)) {
-  fail(`base locale "${BASE_LOCALE}" has no src/i18n/locales/${BASE_LOCALE}.ts`)
+  fail(`base locale "${BASE_LOCALE}" has no src/i18n/locales/${BASE_LOCALE}.ts or ${BASE_LOCALE}/index.ts`)
   process.exit(1)
 }
 
+// Node's raw ESM loader (this script) resolves TS with type-stripping only — it
+// will not follow an extensionless relative VALUE import, which is exactly what
+// `<code>/index.ts` uses to pull its slices. So for a folder locale, import the
+// four self-contained domain files here and merge them the same way `index.ts`
+// does (spread in ui → canvas → inspector → templates order). `tsc` already
+// proves `index.ts` itself compiles and that `ko` still `satisfies MessageCatalog`.
 const catalogs = new Map()
-for (const code of CODES) {
-  const mod = await import(pathToFileURL(resolve(localesDir, `${code}.ts`)).href)
-  catalogs.set(code, mod.default)
+for (const { code, entry, dir } of entries) {
+  let cat
+  if (dir) {
+    const parts = {}
+    for (const d of DOMAIN_FILES) {
+      parts[d] = (await import(pathToFileURL(resolve(dir, `${d}.ts`)).href)).default
+    }
+    cat = Object.assign({}, ...DOMAIN_FILES.map((d) => parts[d]))
+    if (!existsSync(resolve(dir, 'index.ts'))) fail(`${code}: folder locale has no index.ts`)
+  } else {
+    cat = (await import(pathToFileURL(entry).href)).default
+  }
+  catalogs.set(code, cat)
 }
 const base = catalogs.get(BASE_LOCALE)
 if (!base) {
@@ -69,6 +99,34 @@ for (const [code, cat] of catalogs) {
   for (const p of problems) fail(p)
   if (!problems.length) {
     ok(`${code}: ${Object.keys(cat).length} keys, ICU + argument shape match ${BASE_LOCALE}`)
+  }
+}
+
+// ── split-locale integrity (§L3.3) — for a folder locale: every key is
+//    declared in EXACTLY ONE domain file, and the slices merge to the full
+//    base key set. A key dropped from every slice would silently fall back to
+//    `en` at runtime (§L4.4); a key in two slices is a latent merge-order bug.
+const keyDeclRe = /^\s*'([a-zA-Z][\w.]*)'\s*:/gm
+for (const { code, dir } of entries) {
+  if (!dir) continue
+  const where = new Map() // key -> [domain, …]
+  for (const d of DOMAIN_FILES) {
+    const dp = resolve(dir, `${d}.ts`)
+    if (!existsSync(dp)) {
+      fail(`${code}: missing domain file ${d}.ts`)
+      continue
+    }
+    for (const m of readFileSync(dp, 'utf8').matchAll(keyDeclRe)) {
+      where.set(m[1], [...(where.get(m[1]) ?? []), d])
+    }
+  }
+  const dupes = [...where].filter(([, ds]) => ds.length > 1)
+  for (const [k, ds] of dupes) fail(`${code}: key "${k}" declared in multiple domain files (${ds.join(', ')})`)
+  const mergedCount = Object.keys(catalogs.get(code)).length
+  if (mergedCount !== baseKeys.size) {
+    fail(`${code}: merged catalog has ${mergedCount} keys, base has ${baseKeys.size} — a domain slice dropped or added a key`)
+  } else if (!dupes.length) {
+    ok(`${code}: ${DOMAIN_FILES.length} domain slices, ${where.size} keys, no cross-file duplication, merges to base`)
   }
 }
 

@@ -87,8 +87,9 @@ literally (except `en` as the designated base, §L3.1).
 }
 ```
 
-Adding a language = append one entry + add one `locales/<code>.ts` file. No
-existing file changes.
+Adding a language = append one entry + add one `locales/<code>` catalog
+(either a single `locales/<code>.ts` file or a `locales/<code>/` folder of
+domain slices, §L3.3). No existing file changes.
 
 **L2.3 — the base and fallback locale.** `en` is the **base**: its catalog
 defines the canonical key set (§L3.1) and is the **final fallback** for any key
@@ -106,32 +107,52 @@ the keys that `en` has — no missing, no extra. This is enforced in CI for
 `error.M_REG_EVAL.message`, `a11y.playback.status.stepN`. Keys are ASCII and
 never built from user data or file content at a call site.
 
-**L3.3 — per-language files, TS module + `satisfies` (Q1 — decided).**
-`src/i18n/locales/en.ts`, `src/i18n/locales/ko.ts`, … — each a TypeScript module
-default-exporting a plain object literal. `en.ts` is authored first and **is**
-the canonical shape:
+**L3.3 — per-language catalog, TS module + `satisfies` (Q1 — decided).**
+`src/i18n/locales/<code>` — a TypeScript module default-exporting a plain
+object literal. Two forms, both valid and detected by the CI script (§L12):
+
+- **single file** — `locales/<code>.ts`;
+- **domain folder** — `locales/<code>/{ui,canvas,inspector,templates}.ts`
+  merged by `locales/<code>/index.ts` (spread in that order). Split is by
+  the first key namespace (`toolbar.*` → `ui`, `canvas.*` → `canvas`,
+  `inspector.*` / `enum.*` → `inspector`, `templates.*` / `modules.*` →
+  `templates`); a genuinely shared string lives in `ui`. `en` and `ko` use
+  this form. The four slices merge to **exactly** the flat key set — a key
+  in two slices, or dropped from all four, fails CI (§L12 #1).
+
+`en` is authored first and **is** the canonical shape:
 
 ```ts
-// locales/en.ts
-const en = {
-  'toolbar.export': 'Export',
-  'playback.status.stepN': 'Step {n}',
-  // …
-} as const
-export type MessageCatalog = Record<keyof typeof en, string>
+// locales/en/ui.ts
+const ui = { 'toolbar.export': 'Export', /* … */ } as const
+export type UiKey = keyof typeof ui
+export default ui
+
+// locales/en/index.ts
+import ui from './ui'; import canvas from './canvas'
+import inspector from './inspector'; import templates from './templates'
+const en = { ...ui, ...canvas, ...inspector, ...templates } as const
+export type MessageKey = keyof typeof en
+export type MessageCatalog = Record<MessageKey, string>
 export default en
 ```
 
 ```ts
-// locales/ko.ts
-import type { MessageCatalog } from './en'
-const ko = {
-  'toolbar.export': '내보내기',
-  'playback.status.stepN': '{n}단계',
-  // …
-} satisfies MessageCatalog          // ← tsc errors on a missing OR an extra key
+// locales/ko/ui.ts — one slice; the same for canvas / inspector / templates
+import type { UiKey } from '../en/ui'
+const ui = { 'toolbar.export': '내보내기', /* … */ } satisfies Record<UiKey, string>
+export default ui
+
+// locales/ko/index.ts
+import type { MessageCatalog } from '../en'
+import ui from './ui' /* … */
+const ko = { ...ui, ...canvas, ...inspector, ...templates } satisfies MessageCatalog
 export default ko
 ```
+
+Each `ko` slice `satisfies Record<<Domain>Key, string>` against its
+`../en/<domain>` counterpart, so `tsc` fails on a per-slice missing / extra
+key; the merged `ko` also `satisfies MessageCatalog` as a whole.
 
 - **compile-time key parity:** `satisfies MessageCatalog` on every non-`en`
   catalog makes `tsc` fail the build on a missing or an extra key in the object
@@ -807,12 +828,15 @@ green. Implementation begins at Slice 1 (§L13) after that merge.
 - an **extensible localization base**; EN + KO are the first two shipped
   locales, not the scope. No two-way `if (lang === 'ko')` anywhere.
 - a **locale registry** with per-entry metadata (code, English + native name,
-  `dir`, number locale, catalog thunk); the switch UI, tests, and fallback all
-  read the registry.
+  optional `displayNameKey` for the name in the active UI language, `dir`,
+  number locale, `enabled`, catalog thunk); the switch UI, tests, and fallback
+  all read the registry. `enabled` is `true` for every shipped locale today —
+  the selector work is what consumes it.
 - **`en` is the base** — canonical key set and final fallback.
 - **one key set for all locales**, CI-enforced for every registered locale.
-- **per-language files** (`src/i18n/locales/<code>.ts`); a new language = one
-  file + one registry line, zero edits elsewhere.
+- **per-language catalog** (`src/i18n/locales/<code>.ts`, or a
+  `locales/<code>/` domain folder — §L3.3); a new language = one catalog +
+  one registry line, zero edits elsewhere.
 - **message format with plural / select / named slots from day one** (the
   formatter itself is decided in rev 2, Q2); string concatenation of
   translatable fragments is banned.
