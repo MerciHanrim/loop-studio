@@ -29,6 +29,7 @@ const ui = {
   // a language's own name in the ACTIVE UI language (registry `displayNameKey`)
   'language.english': '영어',
   'language.korean': '한국어',
+  'language.japanese': '일본어',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',
