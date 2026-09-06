@@ -9,6 +9,10 @@ type Ast = MessageFormatElement[]
 type ArgKind = 'slot' | 'number' | 'date' | 'time' | 'plural' | 'select' | 'selectordinal'
 export type CatalogLike = Record<string, string>
 
+/** Korean "write both particles" hedges — banned; restructure the sentence. */
+const JOSA_ALTERNATION =
+  /을\(를\)|를\(을\)|이\(가\)|가\(이\)|은\(는\)|는\(은\)|와\(과\)|과\(와\)|\(으\)로|으로\(로\)|로\(으로\)/
+
 type Analysis = { args: Map<string, ArgKind>; hasTag: boolean; missingOther: string[] }
 
 function analyze(ast: Ast, key: string, code: string, acc?: Analysis): Analysis {
@@ -66,6 +70,16 @@ export function validateCatalog(base: CatalogLike, code: string, catalog: Catalo
     if (typeof msg !== 'string' || msg.length === 0) {
       problems.push(`${code}:${key} — empty translation`)
       continue
+    }
+    // A Korean dual-particle placeholder (`을(를)`, `이(가)`, `은(는)`, `와(과)`,
+    // `(으)로`, …) means the sentence dodged josa selection instead of being
+    // restructured — an ambiguous read in any catalog that contains Korean.
+    // Rewrite so no particle follows a `{slot}` (docs/localization.md §L4.2).
+    if (JOSA_ALTERNATION.test(msg)) {
+      problems.push(
+        `${code}:${key} — dual-particle placeholder ("${JOSA_ALTERNATION.exec(msg)?.[0]}"); ` +
+          `restructure so no Korean particle follows a {slot}`,
+      )
     }
     let ast: Ast
     try {

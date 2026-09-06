@@ -144,7 +144,7 @@ const ui = {
   'export.workspace.item.timeline': '타임라인 보기',
   'export.workspace.item.canvas': '캔버스 위치',
   'export.workspace.item.liveRun': '{step}단계의 실시간 실행',
-  'export.workspace.omit.body': '분포를 포함하면 {full}이(가) 되어 {limit} 한도를 넘습니다. 분포 없이 저장할까요 ({lean})?',
+  'export.workspace.omit.body': '분포를 포함하면 크기가 {full}, {limit} 한도를 넘습니다. 분포 없이 저장할까요 ({lean})?',
   'export.workspace.omit.confirm': '분포 없이 저장',
   'export.workspace.reject': '이 워크스페이스는 {size}로, 분포를 빼도 {limit} 한도를 넘습니다. 그래프를 줄이거나 Graph JSON을 사용하세요.',
   'author.title': '내보내기 작성자',
