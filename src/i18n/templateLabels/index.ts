@@ -18,6 +18,7 @@ import type { Template } from '../../model/templates'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
 import { useI18n } from '../store'
+import { ja } from './ja'
 import { ko } from './ko'
 
 /** Deep clone of a plain-JSON payload — the whole Template graph and its
@@ -34,7 +35,7 @@ export type TemplateLabelDict = Record<string, Record<string, string>>
 /** Registered non-base locales that have a dictionary. English (`BASE_LOCALE`)
  *  never has one — it is the fallback. A new locale = one more entry here plus
  *  its `<locale>.ts` file (§TLO2). */
-const DICTS: Readonly<Record<string, TemplateLabelDict>> = { ko }
+const DICTS: Readonly<Record<string, TemplateLabelDict>> = { ja, ko }
 
 /** Templates that intentionally ship with NO dictionary for a locale — they
  *  open in English in every locale. `check:template-labels` treats a missing

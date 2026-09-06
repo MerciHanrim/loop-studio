@@ -549,9 +549,10 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(pop.locator('input[role="combobox"]')).toHaveCount(0)
     await expect(list).toBeFocused()
     const opts = list.locator('[role="option"]')
-    await expect(opts).toHaveCount(3) // en, ko, en-XA (dev pseudo)
+    await expect(opts).toHaveCount(4) // en, ko, ja, en-XA (dev pseudo)
     await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
     await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
+    await expect(list.locator('[data-locale="ja"] .menu__name')).toHaveText('日本語')
 
     // ArrowDown / End / Home move the active option, not the selection
     const activeId = () => list.getAttribute('aria-activedescendant')
