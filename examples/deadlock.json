@@ -1,0 +1,123 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "tpl-src",
+      "type": "source",
+      "position": { "x": 40, "y": 190 },
+      "data": {
+        "kind": "source",
+        "label": "Raw material supply",
+        "activation": "automatic",
+        "mode": "pushAny"
+      }
+    },
+    {
+      "id": "tpl-vault",
+      "type": "pool",
+      "position": { "x": 250, "y": 180 },
+      "data": {
+        "kind": "pool",
+        "label": "Raw material inventory",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 10,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-gate",
+      "type": "gate",
+      "position": { "x": 470, "y": 180 },
+      "data": {
+        "kind": "gate",
+        "label": "Production allocation",
+        "activation": "automatic",
+        "distribution": "deterministic"
+      }
+    },
+    {
+      "id": "tpl-conv",
+      "type": "converter",
+      "position": { "x": 690, "y": 110 },
+      "data": {
+        "kind": "converter",
+        "label": "Processing",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-prod",
+      "type": "pool",
+      "position": { "x": 910, "y": 110 },
+      "data": {
+        "kind": "pool",
+        "label": "Finished goods inventory",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": 3,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "tpl-spill",
+      "type": "drain",
+      "position": { "x": 690, "y": 300 },
+      "data": {
+        "kind": "drain",
+        "label": "Scrap",
+        "activation": "automatic",
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "tpl-e1",
+      "source": "tpl-src",
+      "target": "tpl-vault",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "3" }
+    },
+    {
+      "id": "tpl-e2",
+      "source": "tpl-vault",
+      "target": "tpl-gate",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "all" }
+    },
+    {
+      "id": "tpl-e3",
+      "source": "tpl-gate",
+      "target": "tpl-conv",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "2" }
+    },
+    {
+      "id": "tpl-e4",
+      "source": "tpl-gate",
+      "target": "tpl-spill",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1" }
+    },
+    {
+      "id": "tpl-e5",
+      "source": "tpl-conv",
+      "target": "tpl-prod",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": { "kind": "resource", "flow": "1" }
+    }
+  ]
+}

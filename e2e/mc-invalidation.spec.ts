@@ -96,7 +96,7 @@ test.describe('MC / sim invalidation', () => {
     expect((await mc(page)).stale).toBe(false)
 
     await page.getByRole('button', { name: /Templates/ }).click()
-    await page.getByRole('menuitem', { name: 'Flowing equilibrium' }).click()
+    await page.getByRole('menuitem', { name: 'Balanced production line' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
 
     // graph replaced
@@ -124,7 +124,7 @@ test.describe('MC / sim invalidation', () => {
     expect((await mc(page)).tracked).toEqual([])
 
     await page.getByRole('button', { name: /Templates/ }).click()
-    await page.getByRole('menuitem', { name: 'Bottleneck deadlock' }).click()
+    await page.getByRole('menuitem', { name: 'Capacity deadlock' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
     await expect(page.locator('.react-flow__node')).toHaveCount(6)
 
@@ -140,7 +140,7 @@ test.describe('MC / sim invalidation', () => {
     await expect.poll(() => simSnapshot(page).then((s) => s.status)).toBe('running')
 
     await page.getByRole('button', { name: /Templates/ }).click()
-    await page.getByRole('menuitem', { name: 'Flowing equilibrium' }).click()
+    await page.getByRole('menuitem', { name: 'Balanced production line' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i }).click()
     await expect(page.locator('.react-flow__node')).toHaveCount(7)
 
