@@ -89,12 +89,18 @@ describe('openTemplate — the label overlay', () => {
     }
   })
 
-  it('a template with no dictionary for the locale stays English (allow-listed 1 & 2)', () => {
-    for (const id of ['equilibrium', 'deadlock']) {
+  it('ko: the two production-line samples take their ko dictionary labels', () => {
+    for (const id of ['equilibrium', 'deadlock'] as const) {
       const src = tpl(id)
+      const dict = ko[id]
       const { graph } = openTemplate(src, 'ko')
+      for (const n of graph.nodes) {
+        expect((n.data as { label: string }).label).toBe(dict[n.id])
+      }
+      // en open is the canonical (no dictionary lookup)
+      const en = openTemplate(src, 'en').graph
       for (let i = 0; i < src.graph.nodes.length; i++) {
-        expect((graph.nodes[i].data as { label: string }).label).toBe(
+        expect((en.nodes[i].data as { label: string }).label).toBe(
           (src.graph.nodes[i].data as { label: string }).label,
         )
       }

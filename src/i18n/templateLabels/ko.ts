@@ -1,12 +1,32 @@
-// docs/template-label-overlay.md §TLO2.2 — the Korean node-`label` overlay for
-// bundled Templates. Harvested once from `examples/mmo-progression.ko.json`
-// (label only — never `resourceType`, which stays the canonical English
-// advisory value in every locale). The `.ko.json` file itself is kept, unwired.
-// `check:template-labels` keeps this in sync with the canonical graphs.
+// docs/template-label-overlay.md §TLO2 — the Korean node-`label` overlay for
+// bundled Templates. `label` only — never `resourceType`, which stays the
+// canonical English advisory value in every locale. `mmo-progression` was
+// harvested once from `examples/mmo-progression.ko.json` (that file is kept,
+// unwired). `check:template-labels` keeps every block in sync with its
+// canonical graph (`examples/<id>.json`).
 
 import type { TemplateLabelDict } from './index'
 
 export const ko: TemplateLabelDict = {
+  // The two production-line samples — structure is the frozen SEMANTICS §14
+  // Variant A / Variant B; only the labels carry the production framing.
+  'equilibrium': {
+    'tpl-src': '원료 공급',
+    'tpl-vault': '원료 재고',
+    'tpl-gate': '생산 배분',
+    'tpl-conv': '가공',
+    'tpl-prod': '완제품 재고',
+    'tpl-spill': '폐기',
+    'tpl-consume': '출하',
+  },
+  'deadlock': {
+    'tpl-src': '원료 공급',
+    'tpl-vault': '원료 재고',
+    'tpl-gate': '생산 배분',
+    'tpl-conv': '가공',
+    'tpl-prod': '완제품 재고',
+    'tpl-spill': '폐기',
+  },
   'mmo-progression': {
     level: '레벨',
     xp: '경험치',

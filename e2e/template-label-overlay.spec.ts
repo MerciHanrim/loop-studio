@@ -76,23 +76,32 @@ test.describe('template label overlay', () => {
     expect(l).not.toContain('레벨')
   })
 
-  test('an EN-fallback-listed template (equilibrium) opens in English even under a KO locale', async ({ page }) => {
+  test('the equilibrium sample opens with KO node labels under a KO locale, EN canonical under EN', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+
+    // KO menu open → the Korean production-line labels
     await setLocale(page, 'ko')
-
-    // the equilibrium entry's KO menu name — resolve it from the store
-    const koName = await page.evaluate(() => {
-      const l = (window as unknown as { __loop: Loop }).__loop
-      const t = l.i18n.getState()
-      return t.activeCatalog['templates.equilibrium.name'] ?? 'Flowing equilibrium'
-    })
+    const koName = await page.evaluate(
+      () =>
+        (window as unknown as { __loop: Loop }).__loop.i18n.getState().activeCatalog[
+          'templates.equilibrium.name'
+        ] as string,
+    )
     await pickTemplate(page, koName)
+    let l = await labels(page)
+    expect(l).toContain('원료 재고')
+    expect(l).toContain('가공')
+    expect(l).not.toContain('Raw inventory')
 
-    const l = await labels(page)
-    // canonical English labels ("Faucet", "Vault", "Split", "Refine", "Product", "Spill", "Consume")
-    expect(l).toContain('Vault')
-    expect(l).toContain('Refine')
+    // fresh EN open → the English canonical
+    await resetAll(page)
+    await setLocale(page, 'en')
+    await pickTemplate(page, 'Balanced production line')
+    l = await labels(page)
+    expect(l).toContain('Raw inventory')
+    expect(l).toContain('Processing')
+    expect(l).not.toContain('원료 재고')
   })
 
   test('overlay is menu-only: an Import under KO keeps the file\'s own labels', async ({ page }) => {

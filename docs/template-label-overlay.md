@@ -130,12 +130,15 @@ language handling, missing-translation fallback, edit-conflict rules) — is a
 
 Impl PR (1) ships a **`ko` dictionary for `mmo-progression`** (harvested,
 below). Impl PR (2) adds a **`ko` dictionary for `coffee-roastery`**.
-**Templates 1 & 2 (`equilibrium`, `deadlock`) are on the EN-fallback
-allow-list** (§TLO7) in PR (1) — their handful of generic labels ("Faucet",
-"Vault", "Split", …) stay English for now; a `ko` dictionary for them is an
-optional later follow-up, never a blocker. So the first implementation gives a
-Korean user localized labels for **MMO and coffee**; templates 1 & 2 open in
-English in every locale (unchanged from today).
+Templates 1 & 2 (`equilibrium`, `deadlock`) were on the EN-fallback
+allow-list (§TLO7) in PR (1) — the optional follow-up. **Done 2026-09:**
+both were reframed as a production line, extracted to
+`examples/equilibrium.json` / `examples/deadlock.json`, given a `ko`
+dictionary, and removed from `EN_FALLBACK_TEMPLATES` (now empty). The
+frozen SEMANTICS §14 Variant A / Variant B structure and engine numbers
+are unchanged — only labels and the menu name/blurb carry the framing;
+`src/model/templates.trajectory.test.ts` pins the §14 trajectory of the
+extracted JSON.
 
 ### TLO2.2 Migrating Template 3 (MMO)
 
@@ -333,7 +336,7 @@ The rule is **completeness-conditional**:
 | **TLO-D6** | missing / stale entries | EN fallback at runtime; **CI fails** on an un-allowlisted missing id or a stale key (§TLO7). |
 | **TLO-D7** | GraphDoc / engine / format | **no change** — overlay acts on the in-memory copy handed to `loadGraph` (§TLO6). |
 | **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO **`label`s** are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; **`resourceType` is not harvested**; the canonical MMO graph / layout / lock / `recommendedRunConfig` / `resourceType` are untouched; the `.ko.json` file is **kept unwired, not deleted** (§TLO2.2). |
-| **TLO-D9** | which Templates get a KO dict in the first implementation? | **MMO + coffee.** Templates 1 & 2 (`equilibrium`, `deadlock`) go on the **EN-fallback allow-list** — a KO dict for them is an optional follow-up, never a blocker (§TLO2.1). |
+| **TLO-D9** | which Templates get a KO dict in the first implementation? | **MMO + coffee.** Templates 1 & 2 (`equilibrium`, `deadlock`) went on the **EN-fallback allow-list** as an optional follow-up — **done 2026-09**: production-line reframe + extracted to `examples/*.json` + `ko` dict added; `EN_FALLBACK_TEMPLATES` is now empty (§TLO2.1). |
 | **TLO-D10** | canonical mutation | **None.** `loadGraph` gets a **full structural deep clone of the whole `{ nodes, edges }` payload** — every node / `position` / `data`, every edge / `data` / `route` / `waypoints` — plus a fresh `recommendedRunConfig` (arrays not shared). No overlay, RF runtime state, or user edit can reach `TEMPLATES[i]`. Asserted by a re-open-isolation test **and** a no-shared-references unit test (§TLO3 / INV-7 / §TLO8). |
 
 ---

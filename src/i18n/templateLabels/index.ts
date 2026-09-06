@@ -38,10 +38,9 @@ const DICTS: Readonly<Record<string, TemplateLabelDict>> = { ko }
 
 /** Templates that intentionally ship with NO dictionary for a locale — they
  *  open in English in every locale. `check:template-labels` treats a missing
- *  dictionary as an error UNLESS the template id is listed here (§TLO2.1). */
-export const EN_FALLBACK_TEMPLATES: Readonly<Record<string, readonly string[]>> = {
-  ko: ['equilibrium', 'deadlock'],
-}
+ *  dictionary as an error UNLESS the template id is listed here (§TLO2.1).
+ *  Empty today: `equilibrium` / `deadlock` were localized into `ko` (2026-09). */
+export const EN_FALLBACK_TEMPLATES: Readonly<Record<string, readonly string[]>> = {}
 
 /** Read-only view for the CI drift check (`scripts/check-template-labels.mjs`). */
 export const templateLabelDicts: Readonly<Record<string, TemplateLabelDict>> = DICTS
