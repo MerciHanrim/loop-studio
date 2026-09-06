@@ -452,10 +452,10 @@ const en = {
   'templates.menuLabel': 'Templates',
   'templates.equilibrium.name': 'Balanced production line',
   'templates.equilibrium.blurb':
-    'Raw material flows in, production is split between processing and scrap, and finished goods ship out. Re-run it: raw material inventory and finished goods inventory settle within a few steps and the Timeline holds flat.',
+    'Material flows in, production is split between processing and scrap, and finished goods ship out. Run it: raw and finished-goods inventory settle within a few steps and the Timeline holds flat.',
   'templates.deadlock.name': 'Capacity deadlock',
   'templates.deadlock.blurb':
-    'The same line with no shipment step, so finished goods have nowhere to go. Re-run it: finished goods inventory fills to capacity, raw material inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
+    'The same line with no shipment step, so finished goods have nowhere to go. Run it: finished-goods inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
   'templates.mmoProgression.name': 'Early MMO progression (levels 1–15)',
   'templates.mmoProgression.blurb':
     'A connected play economy: three zone lanes (1–5 / 5–10 / 10–15), probabilistic combat with wins, setbacks and deaths, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve. Run it or Monte-Carlo it to see how wide the time-to-15 spreads.',

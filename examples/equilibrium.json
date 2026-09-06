@@ -5,10 +5,13 @@
     {
       "id": "tpl-src",
       "type": "source",
-      "position": { "x": 40, "y": 190 },
+      "position": {
+        "x": 40,
+        "y": 190
+      },
       "data": {
         "kind": "source",
-        "label": "Raw material supply",
+        "label": "Material supply",
         "activation": "automatic",
         "mode": "pushAny"
       }
@@ -16,10 +19,13 @@
     {
       "id": "tpl-vault",
       "type": "pool",
-      "position": { "x": 250, "y": 180 },
+      "position": {
+        "x": 268,
+        "y": 180
+      },
       "data": {
         "kind": "pool",
-        "label": "Raw material inventory",
+        "label": "Raw inventory",
         "activation": "passive",
         "initial": 0,
         "capacity": 10,
@@ -29,10 +35,13 @@
     {
       "id": "tpl-gate",
       "type": "gate",
-      "position": { "x": 470, "y": 180 },
+      "position": {
+        "x": 479,
+        "y": 180
+      },
       "data": {
         "kind": "gate",
-        "label": "Production allocation",
+        "label": "Production split",
         "activation": "automatic",
         "distribution": "deterministic"
       }
@@ -40,7 +49,10 @@
     {
       "id": "tpl-conv",
       "type": "converter",
-      "position": { "x": 690, "y": 110 },
+      "position": {
+        "x": 740,
+        "y": 110
+      },
       "data": {
         "kind": "converter",
         "label": "Processing",
@@ -51,10 +63,13 @@
     {
       "id": "tpl-prod",
       "type": "pool",
-      "position": { "x": 910, "y": 110 },
+      "position": {
+        "x": 934,
+        "y": 110
+      },
       "data": {
         "kind": "pool",
-        "label": "Finished goods inventory",
+        "label": "Finished goods",
         "activation": "passive",
         "initial": 0,
         "capacity": 3,
@@ -64,7 +79,10 @@
     {
       "id": "tpl-spill",
       "type": "drain",
-      "position": { "x": 690, "y": 300 },
+      "position": {
+        "x": 740,
+        "y": 300
+      },
       "data": {
         "kind": "drain",
         "label": "Scrap",
@@ -75,7 +93,10 @@
     {
       "id": "tpl-consume",
       "type": "drain",
-      "position": { "x": 1130, "y": 110 },
+      "position": {
+        "x": 1153,
+        "y": 110
+      },
       "data": {
         "kind": "drain",
         "label": "Shipment",
@@ -92,7 +113,10 @@
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
-      "data": { "kind": "resource", "flow": "3" }
+      "data": {
+        "kind": "resource",
+        "flow": "3"
+      }
     },
     {
       "id": "tpl-e2",
@@ -101,7 +125,10 @@
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
-      "data": { "kind": "resource", "flow": "all" }
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
     },
     {
       "id": "tpl-e3",
@@ -110,7 +137,10 @@
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
-      "data": { "kind": "resource", "flow": "2" }
+      "data": {
+        "kind": "resource",
+        "flow": "2"
+      }
     },
     {
       "id": "tpl-e4",
@@ -119,7 +149,10 @@
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
-      "data": { "kind": "resource", "flow": "1" }
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
     },
     {
       "id": "tpl-e5",
@@ -128,7 +161,10 @@
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
-      "data": { "kind": "resource", "flow": "1" }
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
     },
     {
       "id": "tpl-e6",
@@ -137,7 +173,10 @@
       "sourceHandle": "out",
       "targetHandle": "in",
       "type": "loop",
-      "data": { "kind": "resource", "flow": "1" }
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
     }
   ]
 }

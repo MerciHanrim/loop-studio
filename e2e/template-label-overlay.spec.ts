@@ -92,14 +92,14 @@ test.describe('template label overlay', () => {
     let l = await labels(page)
     expect(l).toContain('원료 재고')
     expect(l).toContain('가공')
-    expect(l).not.toContain('Raw material inventory')
+    expect(l).not.toContain('Raw inventory')
 
     // fresh EN open → the English canonical
     await resetAll(page)
     await setLocale(page, 'en')
     await pickTemplate(page, 'Balanced production line')
     l = await labels(page)
-    expect(l).toContain('Raw material inventory')
+    expect(l).toContain('Raw inventory')
     expect(l).toContain('Processing')
     expect(l).not.toContain('원료 재고')
   })

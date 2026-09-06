@@ -32,9 +32,9 @@ export type Template = {
 // src/model/templates.trajectory.test.ts. English `label`s in the JSON are the
 // canonical; the KO overlay (src/i18n/templateLabels/ko.ts) seeds Korean at
 // menu open. The menu name / blurb are i18n keys (src/components/templateKeys.ts).
-//   Supply ─3→ Raw inventory(cap10) ─all→ Allocation ─w2→ Processing(2→1) ─1→ Finished(cap3)
-//                                                      └─w1→ Scrap
-//   "Balanced production line" adds: Finished ─1→ Shipment
+//   Material supply ─3→ Raw inventory(cap10) ─all→ Production split ─w2→
+//     Processing(2→1) ─1→ Finished goods(cap3)   └─w1→ Scrap
+//   "Balanced production line" adds: Finished goods ─1→ Shipment
 
 export const TEMPLATES: Template[] = [
   {
