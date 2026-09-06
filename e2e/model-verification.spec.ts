@@ -35,6 +35,19 @@ const inspector = (page: Page) =>
 
 const stepLabel = (page: Page) => page.locator('.pstrip__step').first()
 
+// the desktop play bar shows "step N"; the compact mobile run bar shows the
+// number only, with "step N" as its aria-label. Assert whichever this layout uses.
+async function expectStepReached(page: Page, n: number): Promise<void> {
+  const el = stepLabel(page)
+  await expect
+    .poll(async () => {
+      const text = ((await el.textContent()) ?? '').trim()
+      const aria = (await el.getAttribute('aria-label')) ?? ''
+      return text.includes(`step ${n}`) || aria.includes(`step ${n}`) || text === String(n)
+    })
+    .toBe(true)
+}
+
 async function openTimeline(page: Page): Promise<void> {
   if (isMobile(page)) {
     const tl = page.locator('.pstrip--mobile .pstrip__tl, .pstrip--mobile button[aria-label*="imeline" i]').first()
@@ -57,7 +70,7 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     }
     const before = await digest(page)
     await stepN(page, 6)
-    await expect(stepLabel(page)).toContainText('step 6')
+    await expectStepReached(page, 6)
     // Registers store nothing — the GraphDoc / revision digest is unchanged by a run
     expect(await digest(page)).toBe(before)
   })
@@ -100,7 +113,7 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     // r_loop self-cycles ⇒ M_REG_CYCLE at every step, and the run kept going
     await select(page, 'r_loop')
     await expect(inspector(page)).toContainText('M_REG_CYCLE')
-    await expect(stepLabel(page)).toContainText('step 3')
+    await expectStepReached(page, 3)
   })
 
   test('loop-workspace/1 round-trip: a stepped Workspace saves no Register state; re-Import restores S(t) and R(t) recomputes to the same values', async ({ page }) => {
@@ -129,7 +142,7 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     await page.evaluate((t) => (window as unknown as { __loop: any }).__loop.io.importFile(t), ws)
 
     // step index + pool state restored
-    await expect(stepLabel(page)).toContainText('step 3')
+    await expectStepReached(page, 3)
     const goldNow = await page.evaluate(() => {
       const L = (window as unknown as { __loop: any }).__loop
       const g = L.graph.getState()
