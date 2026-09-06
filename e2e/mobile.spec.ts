@@ -280,14 +280,18 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     expect(bb!.y + bb!.height).toBeLessThanOrEqual(PORTRAIT.height + 1)
 
     await bar.getByRole('button', { name: 'Advance one step' }).click()
-    await expect(page.locator('.pstrip__step')).toContainText('step 1')
+    // the bar is tight, so the step counter shows the number only; the full
+    // "step N" phrase is its accessible name
+    await expect(page.locator('.pstrip__step')).toHaveText('1')
+    await expect(page.locator('.pstrip__step')).toHaveAttribute('aria-label', 'step 1')
 
     await bar.getByRole('button', { name: /Play/ }).click()
     await expect(bar.getByRole('button', { name: /Pause/ })).toBeVisible()
     await bar.getByRole('button', { name: /Pause/ }).click()
 
     await bar.getByRole('button', { name: 'Reset to step 0' }).click()
-    await expect(page.locator('.pstrip__step')).toContainText('step 0')
+    await expect(page.locator('.pstrip__step')).toHaveText('0')
+    await expect(page.locator('.pstrip__step')).toHaveAttribute('aria-label', 'step 0')
   })
 
   test('Monte Carlo dialog fits the viewport and its body scrolls', async ({ page }) => {

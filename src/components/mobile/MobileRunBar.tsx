@@ -77,8 +77,17 @@ export function MobileRunBar() {
         </button>
       </div>
 
-      <span className="pstrip__step">
-        {ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}
+      {/* the run bar is tight at 390px; a CJK "step N" / "Monte Carlo" label
+          crowds the row. Show a compact glyph, keep the full phrase as the
+          accessible name (docs/mobile.md §MV4). */}
+      <span
+        className="pstrip__step"
+        aria-label={
+          ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })
+        }
+        title={t('playbar.step', { n: stepIndex })}
+      >
+        {ended ? `${stepIndex} ·` : stepIndex}
       </span>
 
       {mcRunning ? (
@@ -91,8 +100,9 @@ export function MobileRunBar() {
           className="pb-btn"
           onClick={openMcDialog}
           title={t('playbar.mc.title')}
+          aria-label={t('playbar.mc')}
         >
-          {t('playbar.mc')}
+          MC
         </button>
       )}
 

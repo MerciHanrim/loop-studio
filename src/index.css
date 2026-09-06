@@ -351,9 +351,11 @@ body {
    §L12 #5). The clamp trims at most a sub-pixel of glyph descender. */
 .toolbar .chip {
   max-height: 27px;
+  flex-shrink: 0;
 }
 .toolbar .btn {
   max-height: 28px;
+  flex-shrink: 0;
 }
 
 .toolbar__brand {
@@ -443,6 +445,9 @@ body {
   border: 1px solid var(--line-structure);
   border-radius: 8px;
   cursor: grab;
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
 }
 
 .chip:hover {
@@ -516,6 +521,11 @@ body {
   border: 1px solid var(--line-structure);
   border-radius: 8px;
   cursor: pointer;
+  /* keep a label on one line — a CJK label (no spaces) otherwise breaks
+     character-by-character and stacks vertically inside the button. The row
+     wraps whole buttons instead (the toolbar is `flex-wrap: wrap`). */
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .btn:hover:not(:disabled) {
@@ -2045,6 +2055,9 @@ body {
   border: 1px solid var(--line-structure);
   border-radius: 7px;
   cursor: pointer;
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
 }
 .pb-btn:hover:not(:disabled) {
   border-color: var(--line-strong);
@@ -2069,6 +2082,9 @@ body {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
 }
 .pstrip__field {
   display: flex;
@@ -3354,7 +3370,7 @@ input[type='number']::-webkit-inner-spin-button {
     min-height: var(--mob-runbar-h);
     padding: 6px calc(10px + var(--sai-right)) calc(6px + var(--sai-bottom))
       calc(10px + var(--sai-left));
-    gap: 10px;
+    gap: 8px;
     border-top: 1px solid var(--line-structure);
   }
   .pstrip--mobile .pb-btn {

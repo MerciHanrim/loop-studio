@@ -338,6 +338,74 @@ test.describe('i18n Slice 3 — KO under forced-colors', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// JA responsive regression — a CJK button label has no spaces, so a too-narrow
+// container used to break it character-by-character and stack it vertically.
+// `.btn` / `.pb-btn` / `.chip` are now `white-space: nowrap; word-break: keep-all;
+// flex-shrink: 0` so a whole button drops to the next row instead. The tight
+// mobile run bar additionally shows compact glyphs (docs/mobile.md §MV4).
+const notCharStacked = async (page: Page, selector: string) => {
+  const rows = await page.locator(selector).evaluateAll((els) =>
+    els
+      .filter((e) => (e as HTMLElement).offsetParent !== null)
+      .map((e) => ({ t: (e.textContent ?? '').trim().slice(0, 16), h: (e as HTMLElement).clientHeight })),
+  )
+  for (const r of rows) {
+    // a single line of a toolbar/run-bar control is ~28px; a stacked CJK label
+    // is 3–6× that. 40px is a safe ceiling for "one line".
+    expect(r.h, `"${r.t}" is ${r.h}px tall — the label is stacking vertically`).toBeLessThanOrEqual(40)
+  }
+}
+
+test.describe('i18n Slice 3 — JA responsive: tablet (820×800)', () => {
+  test.use({ viewport: { width: 820, height: 800 } })
+
+  test('the toolbar wraps whole buttons — no CJK label breaks character-by-character', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickLocale(page, 'ja')
+
+    await notCharStacked(page, '.toolbar .btn')
+    await notCharStacked(page, '.toolbar .chip')
+    // the document itself never scrolls sideways
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    )
+    expect(overflow, 'the page scrolls horizontally in JA at 820px').toBe(false)
+  })
+})
+
+test.describe('i18n Slice 3 — JA responsive: mobile (390×844)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+
+  test('the fixed run bar fits in one row and no label stacks; language pick + template + run work', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+
+    // contract: on mobile JA is verified for language pick / template open / run
+    await page.locator('.mob-more').click()
+    await pickLocale(page, 'ja', '.sheet')
+    await page.locator('.sheet__x').click()
+
+    const bar = page.locator('.pstrip--mobile')
+    await expect(bar).toBeVisible()
+    await notCharStacked(page, '.pstrip--mobile .pb-btn')
+    await notCharStacked(page, '.pstrip--mobile .pstrip__step')
+    const barOverflow = await bar.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+    expect(barOverflow, 'the mobile run bar overflows its row in JA at 390px').toBe(false)
+
+    // run works from the compact bar
+    await bar.getByRole('button', { name: /1 ステップ進める|Advance one step/ }).click()
+    await expect(bar.locator('.pstrip__step')).toHaveText('1')
+    // the MC button shows a compact glyph but keeps its full accessible name
+    await expect(bar.getByRole('button', { name: /モンテカルロ|Monte Carlo/ })).toBeVisible()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 test.describe('i18n Slice 3 — KO under reduced-motion', () => {
   test.use({ reducedMotion: 'reduce' })
 
