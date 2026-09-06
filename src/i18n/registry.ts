@@ -4,7 +4,7 @@
 // language = one `LOCALES` entry + one `src/i18n/locales/<code>.ts` file, no
 // edits elsewhere.
 
-import type { MessageCatalog, MessageKey } from './locales/en'
+import type { MessageCatalog } from './locales/en'
 import en from './locales/en'
 import ko from './locales/ko'
 
@@ -16,14 +16,12 @@ export type LocaleEntry = {
   /** for docs / logs */
   englishName: string
   /** the language's own name, written in that language (endonym) — the primary
-   *  label in the switch UI */
+   *  label in the switch UI. Never a catalog lookup: it must read correctly
+   *  regardless of the active UI language. The name shown IN the active UI
+   *  language is a separate, later addition alongside the selector work. */
   nativeName: string
-  /** optional catalog key for this language's name IN THE ACTIVE UI LANGUAGE —
-   *  the switch UI's secondary label (e.g. "Korean" / "영어"). Undefined until
-   *  the locale-aware selector work populates it; no such keys exist yet. */
-  displayNameKey?: MessageKey
   /** `<html dir>` — metadata only in v0.8.0 (§L9); no RTL layout is promised */
-  dir: LocaleDir
+  direction: LocaleDir
   /** BCP-47 tag handed to `Intl.*` when a UI-chrome number is formatted (§L8);
    *  never touches stored / digested data */
   numberLocale: string
@@ -41,7 +39,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     code: 'en',
     englishName: 'English',
     nativeName: 'English',
-    dir: 'ltr',
+    direction: 'ltr',
     numberLocale: 'en',
     enabled: true,
     catalog: () => Promise.resolve(en),
@@ -50,7 +48,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     code: 'ko',
     englishName: 'Korean',
     nativeName: '한국어',
-    dir: 'ltr',
+    direction: 'ltr',
     numberLocale: 'ko',
     enabled: true,
     catalog: () => Promise.resolve(ko),
@@ -70,7 +68,7 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       code: 'en-XA',
       englishName: 'Pseudo (QA)',
       nativeName: 'Pseudo (QA)',
-      dir: 'ltr',
+      direction: 'ltr',
       numberLocale: 'en',
       enabled: true,
       catalog: () => Promise.resolve(en),

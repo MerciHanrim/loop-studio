@@ -79,10 +79,13 @@ literally (except `en` as the designated base, §L3.1).
 {
   code:        'en',            // BCP-47 primary subtag; the catalog key
   englishName: 'English',       // for docs / logs
-  nativeName:  'English',       // shown in the switch UI, in that language
-  dir:         'ltr',           // 'ltr' | 'rtl' — metadata only in v0.8.0 (§L9)
+  nativeName:  'English',       // the endonym — the switch UI's primary label,
+                                // stable regardless of the active UI language
+  direction:   'ltr',           // 'ltr' | 'rtl' — metadata only in v0.8.0 (§L9)
   numberLocale:'en',            // BCP-47 tag for Intl.* when UI-chrome numbers
                                 // are formatted (§L8); never touches stored data
+  enabled:     true,            // offered in the switch UI; false = registered
+                                // but hidden. All shipped locales are true today.
   catalog:     () => import('./locales/en'),   // see L3.3 (static today)
 }
 ```
@@ -828,10 +831,11 @@ green. Implementation begins at Slice 1 (§L13) after that merge.
 - an **extensible localization base**; EN + KO are the first two shipped
   locales, not the scope. No two-way `if (lang === 'ko')` anywhere.
 - a **locale registry** with per-entry metadata (code, English + native name,
-  optional `displayNameKey` for the name in the active UI language, `dir`,
-  number locale, `enabled`, catalog thunk); the switch UI, tests, and fallback
-  all read the registry. `enabled` is `true` for every shipped locale today —
-  the selector work is what consumes it.
+  `direction` `ltr`/`rtl`, number locale, `enabled`, catalog thunk); the switch
+  UI, tests, and fallback all read the registry. `enabled` is `true` for every
+  shipped locale today — the selector work is what consumes it. The language's
+  name *in the active UI language* is a separate, later addition alongside that
+  selector work.
 - **`en` is the base** — canonical key set and final fallback.
 - **one key set for all locales**, CI-enforced for every registered locale.
 - **per-language catalog** (`src/i18n/locales/<code>.ts`, or a

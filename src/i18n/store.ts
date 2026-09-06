@@ -32,7 +32,7 @@ function applyHtml(code: string): void {
   if (typeof document === 'undefined') return
   const el = document.documentElement
   el.setAttribute('lang', code)
-  el.setAttribute('dir', getEntry(code)?.dir ?? 'ltr')
+  el.setAttribute('dir', getEntry(code)?.direction ?? 'ltr')
 }
 
 export const useI18n = create<I18nState>((set, get) => ({
