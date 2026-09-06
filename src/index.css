@@ -632,6 +632,9 @@ body {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  /* nothing in the column (a too-wide run bar, a wide node) may paint over the
+     Inspector to its right */
+  overflow: hidden;
 }
 
 .canvas {
@@ -2033,17 +2036,26 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 40px;
-  padding: 0 12px;
+  row-gap: 6px;
+  min-height: 40px;
+  padding: 5px 12px;
   background: var(--surface-panel);
   border-top: 1px solid var(--line-hairline);
   font-size: 12px;
   color: var(--text-secondary);
   flex: none;
+  /* on a narrow desktop (canvas column shrunk by the Inspector) the controls
+     don't fit one row — especially in a CJK locale. Wrap whole control groups
+     to a second row rather than overflowing the column under the Inspector. */
+  flex-wrap: wrap;
+}
+.pstrip > * {
+  flex-shrink: 0;
 }
 .pstrip__group {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 .pb-btn {
   font-family: var(--font-sans);

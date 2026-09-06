@@ -374,6 +374,41 @@ test.describe('i18n Slice 3 — JA responsive: tablet (820×800)', () => {
     )
     expect(overflow, 'the page scrolls horizontally in JA at 820px').toBe(false)
   })
+
+  test('the run bar stays inside the canvas column — no control is hidden behind the Inspector', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, G) // ensure the Inspector column is present
+    await pickLocale(page, 'ja')
+
+    const report = await page.evaluate(() => {
+      const bar = document.querySelector('.pstrip') as HTMLElement
+      const barR = bar.getBoundingClientRect()
+      const insp = document.querySelector('.inspector')?.getBoundingClientRect() ?? null
+      // every essential control in the desktop run bar
+      const ctrls = [...bar.querySelectorAll('.pb-btn, .pstrip__step, .pstrip__field')] as HTMLElement[]
+      return ctrls.map((el) => {
+        const r = el.getBoundingClientRect()
+        const cx = Math.round(r.left + r.width / 2)
+        const cy = Math.round(r.top + r.height / 2)
+        const hit = document.elementFromPoint(cx, cy) as HTMLElement | null
+        return {
+          t: (el.textContent ?? '').trim().slice(0, 12),
+          withinBar: r.right <= barR.right + 1 && r.left >= barR.left - 1,
+          overlapsInspector: insp ? r.right > insp.left + 1 : false,
+          hitIsInspector: Boolean(hit?.closest('.inspector')),
+        }
+      })
+    })
+
+    for (const c of report) {
+      expect(c.withinBar, `"${c.t}" spills outside the run bar`).toBe(true)
+      expect(c.overlapsInspector, `"${c.t}" overlaps the Inspector`).toBe(false)
+      expect(c.hitIsInspector, `"${c.t}" is covered by the Inspector (hit-test)`).toBe(false)
+    }
+  })
 })
 
 test.describe('i18n Slice 3 — JA responsive: mobile (390×844)', () => {
