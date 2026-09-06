@@ -63,4 +63,19 @@ describe('validateCatalog', () => {
     const c = { ...good, 'toolbar.new': 'New <b>graph</b>' }
     expect(validateCatalog(base, 'xx', c).some((p) => p.includes('rich-text tag'))).toBe(true)
   })
+
+  it('flags a Korean dual-particle placeholder', () => {
+    for (const bad of ['“{v}”을(를) 불러옵니다', '{n}이(가) 됩니다', '{m}(으)로 변환', '{x}은(는) 없음']) {
+      const c = { ...good, 'toolbar.new': bad }
+      expect(
+        validateCatalog(base, 'xx', c).some((p) => p.includes('dual-particle')),
+        bad,
+      ).toBe(true)
+    }
+  })
+
+  it('does not flag a normal parenthetical', () => {
+    const c = { ...good, 'toolbar.new': 'New graph (unsaved)' }
+    expect(validateCatalog(base, 'xx', c).some((p) => p.includes('dual-particle'))).toBe(false)
+  })
 })

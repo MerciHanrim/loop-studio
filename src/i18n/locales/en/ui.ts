@@ -24,6 +24,11 @@ const ui = {
   'lang.title': 'Language',
   'lang.menuLabel': 'Choose a language',
   'lang.loading': 'loading…',
+  'lang.search': 'Search languages',
+  'lang.noResults': 'No matching language',
+  // a language's own name in the ACTIVE UI language (registry `displayNameKey`)
+  'language.english': 'English',
+  'language.korean': 'Korean',
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': '▶ Play',

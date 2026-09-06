@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import en from './locales/en'
 import {
   BASE_LOCALE,
   LOCALES,
@@ -22,6 +23,10 @@ describe('locale registry metadata', () => {
       expect(typeof l.enabled, `${l.code}: enabled`).toBe('boolean')
       expect(typeof l.numberLocale, `${l.code}: numberLocale`).toBe('string')
       expect(typeof l.catalog, `${l.code}: catalog thunk`).toBe('function')
+      // displayNameKey must resolve in the base catalog — a half-added locale
+      // (registry entry but no `language.<name>` key) fails here and in CI.
+      expect(l.displayNameKey, `${l.code}: displayNameKey`).toMatch(/^language\./)
+      expect(en[l.displayNameKey], `${l.code}: displayNameKey resolves`).toBeTruthy()
     }
   })
 
