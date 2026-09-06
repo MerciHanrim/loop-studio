@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import {
   LANGUAGE_SEARCH_THRESHOLD,
   enabledLocales,
+  labelsEquivalent,
   matchesLanguageQuery,
   useI18n,
   useT,
@@ -199,6 +200,8 @@ export function LanguageSwitch() {
               filtered.map((l, i) => {
                 const isActive = l.code === active
                 const isLoading = loading && l.code === requested
+                const secondary = displayName(l)
+                const showSecondary = !labelsEquivalent(l.nativeName, secondary)
                 return (
                   <div
                     key={l.code}
@@ -218,7 +221,7 @@ export function LanguageSwitch() {
                       {l.nativeName}
                       {isLoading ? ` · ${t('lang.loading')}` : ''}
                     </span>
-                    <span className="menu__blurb">{displayName(l)}</span>
+                    {showSecondary ? <span className="menu__blurb">{secondary}</span> : null}
                   </div>
                 )
               })

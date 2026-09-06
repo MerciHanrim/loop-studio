@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { LANGUAGE_SEARCH_THRESHOLD, matchesLanguageQuery } from './languageOptions'
+import {
+  LANGUAGE_SEARCH_THRESHOLD,
+  labelsEquivalent,
+  matchesLanguageQuery,
+} from './languageOptions'
 
 // docs/localization.md §L5.3 — the switch's shared search logic.
 const KO = { code: 'ko', englishName: 'Korean', nativeName: '한국어' }
@@ -34,6 +38,20 @@ describe('matchesLanguageQuery', () => {
 
   it('returns false when nothing matches', () => {
     expect(matchesLanguageQuery(KO, 'Korean', 'français')).toBe(false)
+  })
+})
+
+describe('labelsEquivalent — hide the redundant second line', () => {
+  it('true when the endonym and the UI-language name read the same', () => {
+    expect(labelsEquivalent('한국어', '한국어')).toBe(true) // KO UI: 한국어 / 한국어
+    expect(labelsEquivalent('English', 'English')).toBe(true) // EN UI: English / English
+    expect(labelsEquivalent(' English ', 'english')).toBe(true) // trim + case
+  })
+
+  it('false when they differ — the second line carries meaning', () => {
+    expect(labelsEquivalent('한국어', 'Korean')).toBe(false) // EN UI row for KO
+    expect(labelsEquivalent('English', '영어')).toBe(false) // KO UI row for EN
+    expect(labelsEquivalent('日本語', 'Japanese')).toBe(false)
   })
 })
 
