@@ -1,8 +1,14 @@
-# Template label overlay (non-frozen design doc — DRAFT)
+# Template label overlay (non-frozen design doc)
 
-**Status: settled design — implementation pending. rev 3.** rev 1 fixed the
-mechanism; rev 2 pinned four review points; **rev 3** makes the
-canonical-immutability boundary unambiguous — `loadGraph` gets a **full
+**Status: implemented. rev 4.** rev 1 fixed the
+mechanism; rev 2 pinned four review points; rev 3 made the
+canonical-immutability boundary unambiguous; **rev 4** adds **§TLO11** — a
+narrow, deliberate exception to "a language switch never re-translates an open
+document": the OFFICIAL bundled-template labels (and only those, decided by an
+exact string match) follow a UI-language change, in the live graph and the
+undo/redo history.
+
+rev 3's canonical-immutability boundary: `loadGraph` gets a **full
 structural deep clone of the whole `{ nodes, edges }` payload** (every node /
 `position` / `data`, every edge / `data` / `route` / `waypoints`) plus a fresh
 `recommendedRunConfig`, so no overlay, React Flow runtime state (`selected` /
@@ -11,8 +17,7 @@ TLO-D10), backed by a re-open-isolation test **and** a no-shared-references unit
 test (§TLO8). rev 2's other three points stand: first-impl scope (§TLO2.1),
 the completeness-conditional CI rule (§TLO7), the `label`-only MMO migration
 (§TLO2.2).
-A **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — merging as
-*settled design, implementation pending*, like
+A **non-frozen** design doc — no `loop-*/N` id, no `Frozen` marker — like
 [`docs/localization.md`](localization.md) and
 [`docs/large-graph-readability.md`](large-graph-readability.md).
 
@@ -26,10 +31,12 @@ one English-canonical Template graph + a per-locale `nodeId → label` dictionar
 applied **once**, at the moment the Template is opened from the menu. After that
 the graph is the user's document.
 
-It **extends [`docs/localization.md`](localization.md) §L3.4** in one narrow
-way — a *bundled Template*'s node `label`s are locale-seeded at open — and
-leaves the rest of §L3.4 intact: a running locale switch still never rewrites an
-open document, an `examples/*.json` graph, a Share/Workspace graph, or
+It **extends [`docs/localization.md`](localization.md) §L3.4** in two narrow
+ways — a *bundled Template*'s node `label`s are locale-seeded at open (§TLO3),
+and on a later UI-language change the *official* bundled-template labels in the
+open document follow the new language (§TLO11) — and leaves the rest of §L3.4
+intact: a running locale switch still never rewrites a *user's own* label, an
+`examples/*.json` graph's arbitrary labels, a Share/Workspace graph, or
 `defaultData()`.
 
 ### What this is / is not
@@ -208,20 +215,23 @@ Result:
 
 ---
 
-## TLO4. Not re-applied, not re-translated
+## TLO4. Not re-applied — except the §TLO11 official-label re-seed
 
-Once the document is open it is a **user document**. The overlay runs **zero**
-further times:
+Once the document is open it is a **user document**. `openTemplate` (the menu
+overlay) runs **zero** further times:
 
-- **Changing the app language** afterwards: the open document's labels do not
-  change.
 - **Import** (a `.json`), **Share** (`#g1=`) load, **Workspace** import,
-  **autosave** (`localStorage`) restore: **no** overlay pass — those files
-  already carry their own labels (localization.md — a locale switch never
-  rewrites `examples/*.json` or a shared graph).
-- A **user-edited** label is never touched (there is no re-apply pass at all;
-  stated for completeness).
+  **autosave** (`localStorage`) restore: **no** `openTemplate` pass — those
+  files already carry their own labels.
 - Revision / proposal apply operates on the already-open document; no overlay.
+- **Changing the app language** afterwards does **not** re-run `openTemplate`.
+  It does, per **§TLO11**, re-seed the *official* bundled-template labels — a
+  node whose `id` is a known bundled-template id **and** whose current `label`
+  is exactly one of that id's shipped-locale strings. A **user-edited** label
+  (anything that is not one of those official strings) is never touched. This is
+  the single, deliberate crack in "a switch never re-translates an open
+  document"; every other label — a user rename, an `examples/*.json` label, a
+  shared graph — stays as written.
 
 ---
 
@@ -249,8 +259,14 @@ further times:
 3. **Engine indifference.** A **deterministic-seed run** of a fresh-opened
    Template yields the **same** engine result and the same Timeline /
    Monte-Carlo output in every locale (the engine never reads `label`).
-4. **No live re-translation.** After a Template is open, changing `activeLocale`
-   changes nothing in that document.
+4. **Bounded live re-translation (§TLO11).** After a Template is open, changing
+   `activeLocale` re-seeds **only** the OFFICIAL bundled-template node labels —
+   a known bundled-template node `id` whose current `label` is exactly one of
+   that id's shipped-locale strings. A user rename, a `Foo 2` de-dup suffix, a
+   user-made node, and every non-template label are unchanged. Label-only: no
+   `simulationRev` / `loadRev` / `pristineSample` change, no undo entry; the
+   undo/redo snapshots are re-seeded the same way so an undo cannot resurrect
+   the previous language.
 5. **Overlay is menu-only.** Import / Share / Workspace / autosave-restore never
    invoke it.
 6. **Templates 1 / 2 / 3 unchanged.** Their graphs, behaviour, and digests are
@@ -305,6 +321,30 @@ The rule is **completeness-conditional**:
   still Korean, structure identical.
 - **EN parity golden**: an `en` fresh-open of every Template is byte-identical
   to the committed pre-feature baseline.
+- **§TLO11 official-label locale switch:**
+  - open a Template in `ko`, switch `ko → ja → en` → the official node labels
+    follow each switch; a fresh EN open afterwards is still the canonical;
+  - rename one node to a string of the user's own, then switch → that node keeps
+    the user string, every other official node follows;
+  - a user-made node and a `Foo 2` de-dup name never switch;
+  - an **Imported** unmodified template graph (EN labels, no menu open) also
+    switches on a later language change — the rule is provenance-agnostic, no
+    session flag;
+  - a non-template node id whose label happens to equal an official string
+    (e.g. `sample-pool` = `"Gold"`) is **not** switched;
+  - `simulationRev` / `loadRev` / `pristineSample` unchanged; a deterministic
+    run is identical before and after the switch;
+  - the undo/redo history is re-seeded — an undo after a switch restores the
+    node in the **active** language, not the previous one;
+  - Timeline legend / Summary / CSV header (they read `node.data.label` live)
+    reflect the switched labels with no extra wiring;
+  - boot: a stored `ja` preference against a `ko`-labelled autosaved template
+    graph settles on `ja` immediately after boot;
+  - re-selecting the active locale, or a same-locale boot, writes nothing (no
+    extra `persist`).
+- **Shared-id drift contract** (`check:template-labels`): a node id shared by
+  two bundled templates must resolve to the **same** official label in every
+  locale, or it can never be switched — CI fails on divergence.
 - **Re-open isolation** (§TLO6-INV-7): fresh-open Template X in `ko`, **mutate
   the open document** — change a node `label` and `position`, select and drag a
   node, select an edge, change an edge's `data` — then fresh-open X again in
@@ -330,7 +370,7 @@ The rule is **completeness-conditional**:
 |---|---|---|
 | **TLO-D1** | per-locale full JSON, or an overlay? | **Overlay** — one EN canonical graph + `nodeId → label` dicts. The `.ko.json` full-copy approach is retired for new Templates. |
 | **TLO-D2** | when applied? | **Only** on a bundled-Template fresh-open from the menu, current locale only (§TLO3). |
-| **TLO-D3** | after open? | A **user document** — never re-overlaid, never live-re-translated (§TLO4). |
+| **TLO-D3** | after open? | A **user document** — `openTemplate` is never re-run. A UI-language change re-seeds the OFFICIAL bundled-template labels only (exact string match, no per-document flag — §TLO11); every user label / non-template label is left as written. |
 | **TLO-D4** | translation scope | node `data.label` **only** (§TLO1). |
 | **TLO-D5** | menu name / blurb | **unchanged** — app i18n catalog, separate from this overlay. |
 | **TLO-D6** | missing / stale entries | EN fallback at runtime; **CI fails** on an un-allowlisted missing id or a stale key (§TLO7). |
@@ -338,6 +378,55 @@ The rule is **completeness-conditional**:
 | **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO **`label`s** are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; **`resourceType` is not harvested**; the canonical MMO graph / layout / lock / `recommendedRunConfig` / `resourceType` are untouched; the `.ko.json` file is **kept unwired, not deleted** (§TLO2.2). |
 | **TLO-D9** | which Templates get a KO dict in the first implementation? | **MMO + coffee.** Templates 1 & 2 (`equilibrium`, `deadlock`) went on the **EN-fallback allow-list** as an optional follow-up — **done 2026-09**: production-line reframe + extracted to `examples/*.json` + `ko` dict added; `EN_FALLBACK_TEMPLATES` is now empty (§TLO2.1). |
 | **TLO-D10** | canonical mutation | **None.** `loadGraph` gets a **full structural deep clone of the whole `{ nodes, edges }` payload** — every node / `position` / `data`, every edge / `data` / `route` / `waypoints` — plus a fresh `recommendedRunConfig` (arrays not shared). No overlay, RF runtime state, or user edit can reach `TEMPLATES[i]`. Asserted by a re-open-isolation test **and** a no-shared-references unit test (§TLO3 / INV-7 / §TLO8). |
+
+---
+
+## TLO11. Official-template-label locale switch
+
+**Rule.** When `activeLocale` changes, walk the open graph. A node's `label` is
+replaced with the target locale's official label **iff**:
+
+1. `node.id` is a **known bundled-template node id** (any of the four bundled
+   templates), **and**
+2. `node.data.label` is **exactly** (`===`, no trim / case-fold — these are
+   canonical strings) **one of that id's official labels in some shipped
+   locale**, the English canonical included.
+
+The target label is that id's official label for the target locale (the English
+canonical when the target locale has no dictionary entry for it). No match →
+the node is left untouched. The precise preservation contract is **"preserve a
+label that is not one of the official strings"** — so a user rename that happens
+to land exactly on another locale's official label *is*, by this rule, switched;
+that is an accepted, rare consequence of having no per-document provenance flag.
+
+**No per-document state.** The mechanism keys only on `(node id, current label)`
+against an index built from `TEMPLATES` (English canonical) + the
+`templateLabels/<locale>.ts` dictionaries. There is no "this doc came from a
+menu open" flag — an Imported / Shared unmodified template graph switches too.
+
+**What it does not touch.** `position`, edges, handles, expressions, `unit`,
+`resourceType`, values, run state, selection, Timeline-series ids, `frames`,
+`recommendedRunConfig`. Label-only. No undo entry, no `simulationRev` /
+`loadRev` / `pristineSample` change. The undo/redo snapshots (`past` / `future`)
+are re-seeded the same way, so an undo across a switch cannot bring the previous
+language back. A single `persist()` fires only when a label actually changed;
+re-selecting the active locale and a same-locale boot write nothing.
+
+**Where.** `src/i18n/templateLabels/relabel.ts` (the pure index + mapper) and a
+`useI18n.subscribe` reaction at the bottom of `src/store/graphStore.ts`. The
+reaction also covers the **boot** pass — `initI18n`'s `setState` runs it once
+with the resolved locale (the graphStore module is evaluated before `initI18n`).
+
+**A note on an open project.** A language switch that changes labels moves the
+serialized bytes, so `projectStore`'s normal dirty tracking may flip an open
+project to "unsaved" — this is honest (an Export would now differ) and is not
+suppressed.
+
+**Drift contract.** A node id shared by two bundled templates (today
+`equilibrium` / `deadlock` share six) must resolve to the **same** official
+label in every locale — otherwise the id is marked ambiguous and never
+switched. `check:template-labels` fails on any divergence; a unit test asserts
+the built index has an empty `ambiguous` set.
 
 ---
 

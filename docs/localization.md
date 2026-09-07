@@ -190,7 +190,7 @@ UI language never leaks into model data — not on switch, and not on create.
 | the **raw model value** shown in the Inspector (a number, an expression result) | **no** | it is data being displayed, not chrome — only its *label* is keyed |
 | a **wire enum's `<option value>`** (`automatic`, `pushAny`, `deterministic`, `int`, …) | **no** — verbatim token | GraphDoc / digest unchanged; a locale switch fires no `change` |
 | a **wire enum's OPTION LABEL** — the human-readable text of that `<select>` | **yes** | `enum.<group>.<token>` — `자동`, `아무 경로로 보내기`, … (§L3.4a) |
-| the **`label` a template writes into the GraphDoc** (`Templates.tsx`) | **no** | a template's *menu name / description* is chrome (keyed); the labels it seeds into nodes are model defaults |
+| the **`label` a template writes into the GraphDoc** (`Templates.tsx`) | **no** | a template's *menu name / description* is chrome (keyed); the labels it seeds into nodes are model defaults. **One bounded exception:** [`docs/template-label-overlay.md` §TLO11](template-label-overlay.md) — a *bundled* template's OFFICIAL node labels (an exact string match against the shipped-locale dictionaries) follow a later UI-language change; a user rename never does |
 | the **default `label` / value `defaultData()` produces** on "add node" (`src/model/factory.ts`) | **no** — a fixed English/ASCII default (`"Source"`, `"Pool"`, …) | in the `src/model/` layer, independent of the UI locale; the user renames it if they want |
 | example / fixture GraphDoc strings (`examples/*.json` labels) | **no** | a locale switch never rewrites `"Ore Stock"` |
 | `schema` id, `kind`, `mode`, wire keys, file metadata, the `tool` string | **no** | ASCII / English forever |
@@ -203,7 +203,10 @@ and the seeded model label come from two different places on purpose.
 
 **The line:** anything the user or a file author wrote — or that Loop Studio
 *seeds as model data* — stays as written / as a fixed default; only what Loop
-Studio's own chrome *says about* it gets a key.
+Studio's own chrome *says about* it gets a key. The lone bounded exception is a
+*bundled* template's own OFFICIAL node labels, which follow a UI-language change
+by exact string match ([`template-label-overlay.md` §TLO11](template-label-overlay.md));
+a user's own label — even inside a template graph — never does.
 
 **L3.4a — wire enum: stored value vs displayed label.** A wire enum's
 **stored value, its code, and any raw display of it** (the raw-data fallback
@@ -858,8 +861,10 @@ green. Implementation begins at Slice 1 (§L13) after that merge.
 - stored / digested / canonical-form numbers never reformatted; only UI-chrome
   numbers via `Intl` and only where needed (§L8).
 - scope surfaces (§L6); CI blocks missing **and** unused keys; per-locale visual
-  matrix; locale switch + locale addition leave GraphDoc / digest / undo /
-  viewport / sim state invariant (§L12).
+  matrix; locale switch + locale addition leave viewport / sim state / undo
+  invariant (§L12) — a switch's one write is the bounded §TLO11 official-
+  bundled-template-label re-seed, which is label-only and touches no sim / undo
+  step ([`template-label-overlay.md`](template-label-overlay.md)).
 - guided tour + inline help are later slices on the finished base (§L13).
 
 **Decided in rev 2 (Lumi — the five questions + the loader):**
