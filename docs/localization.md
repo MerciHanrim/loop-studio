@@ -592,6 +592,13 @@ key, and the identifiers are **tree-shaken out entirely**.
 8. **"Add a locale" smoke (unit).** A throwaway `xx` locale registered in a test
    with a partial catalog: checks #1 fails loudly on the gaps, the switch UI
    lists `xx`, `t()` falls back to `en`, and **no product-data snapshot moves**.
+9. **Locale-independent toolbar layout (Playwright).** At a fixed viewport the
+   desktop toolbar's row count and the Canvas top are **identical for every
+   shipped locale** — a longer katakana palette collapses more controls into the
+   `⋯` overflow menu, but does not add a row. See
+   [`docs/toolbar-responsive.md`](toolbar-responsive.md); tested by
+   `e2e/toolbar-responsive.spec.ts` at 1920 / 1600 / 1280 / 820 px and across a
+   resize sweep.
 
 ## L13. Slices
 

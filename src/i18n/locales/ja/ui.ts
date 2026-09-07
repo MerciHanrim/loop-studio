@@ -18,6 +18,7 @@ const ui = {
   'toolbar.redo.title': 'やり直す（Ctrl/Cmd+Shift+Z）',
   'toolbar.new': '新規',
   'toolbar.import': 'インポート',
+  'toolbar.more': 'その他の操作',
   'toolbar.newGraph.title': '新しいグラフを開始しますか？',
   'toolbar.newGraph.body': '現在のグラフは置き換えられます。',
   'toolbar.newGraph.confirm': '新しいグラフ',

@@ -111,9 +111,9 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     const { bad } = await openProd(page)
 
     // Templates ▾ is the first `.menu` in the toolbar actions
-    await page.locator('.toolbar__actions > .menu').first().locator('> button').click()
+    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
     await page
-      .locator('.toolbar__actions > .menu')
+      .locator('.toolbar__actions .menu')
       .first()
       .locator('.menu__pop [role="menuitem"]', { hasText: 'Early MMO progression' })
       .click()

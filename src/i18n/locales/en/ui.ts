@@ -12,6 +12,7 @@ const ui = {
   'toolbar.redo.title': 'Redo (Ctrl/Cmd+Shift+Z)',
   'toolbar.new': 'New',
   'toolbar.import': 'Import',
+  'toolbar.more': 'More actions',
   'toolbar.newGraph.title': 'Start a new graph?',
   'toolbar.newGraph.body': 'Your current graph will be replaced.',
   'toolbar.newGraph.confirm': 'New graph',

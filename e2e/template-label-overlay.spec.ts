@@ -32,11 +32,11 @@ async function setLocale(page: Page, code: string) {
 
 // Templates ▾ is the first `.menu` in the toolbar actions (locale-agnostic).
 const templatesBtn = (page: Page) =>
-  page.locator('.toolbar__actions > .menu').first().locator('> button')
+  page.locator('.toolbar__actions .menu').first().locator('> button')
 async function pickTemplate(page: Page, hasText: string) {
   await templatesBtn(page).click()
   await page
-    .locator('.toolbar__actions > .menu').first()
+    .locator('.toolbar__actions .menu').first()
     .locator('.menu__pop [role="menuitem"]', { hasText })
     .click()
   // pristine first boot loads without a confirm; if a confirm appears, accept it
