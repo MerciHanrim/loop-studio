@@ -12,6 +12,7 @@ const ui = {
   'toolbar.redo.title': '다시 실행 (Ctrl/Cmd+Shift+Z)',
   'toolbar.new': '새로 만들기',
   'toolbar.import': '가져오기',
+  'toolbar.more': '추가 작업',
   'toolbar.newGraph.title': '새 그래프를 시작할까요?',
   'toolbar.newGraph.body': '현재 그래프가 대체됩니다.',
   'toolbar.newGraph.confirm': '새 그래프',

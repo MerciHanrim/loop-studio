@@ -335,11 +335,53 @@ body {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 18px;
+  /* tighter BETWEEN brand / palette / actions (helps the one-row fit); the
+     row-gap stays at the historic 18px so the two-row layout's height — and
+     every committed full-canvas visual snapshot taken at that width — is
+     unchanged. */
+  column-gap: 8px;
+  row-gap: 18px;
   padding: 8px 14px;
   background: var(--surface-panel);
   border-bottom: 1px solid var(--line-hairline);
   flex-wrap: wrap;
+}
+
+/* The toolbar locale-independent responsive contract (src/components/toolbar/).
+   The overflow controller picks the mode purely from the viewport width, never
+   from the active language, and the ⋯ menu absorbs the trailing controls so the
+   row COUNT and the Canvas top are identical for EN / KO / JA at any width.
+   - row  : one line. `nowrap` + `overflow: hidden` guard against a 1-frame
+            spill before the ResizeObserver settles; the controller guarantees
+            the content fits.
+   - wrap : two lines. The palette drops to its own second line; brand + the
+            (further-collapsed) actions stay on line 1. */
+.toolbar[data-toolbar-mode='row'] {
+  flex-wrap: nowrap;
+  /* NOT `overflow: hidden` — that would clip every toolbar dropdown (Templates,
+     Insert module, Export, Help, Language, ⋯). A brief pre-settle horizontal
+     spill during a resize is already absorbed by `#root { overflow-x: clip }`
+     (the measurement pass is pre-paint, so it should not be visible anyway). */
+}
+.toolbar[data-toolbar-mode='wrap'] {
+  flex-wrap: wrap;
+}
+/* the one pre-paint measurement frame: everything expanded, nothing clipped or
+   squeezed, so every region reports its true natural width */
+.toolbar[data-measuring] {
+  flex-wrap: nowrap;
+  overflow: visible;
+}
+.toolbar[data-measuring] .toolbar__palette {
+  flex-wrap: nowrap;
+  flex-basis: auto;
+}
+.toolbar[data-toolbar-mode='wrap'] .toolbar__actions {
+  order: 1;
+}
+.toolbar[data-toolbar-mode='wrap'] .toolbar__palette {
+  order: 2;
+  flex-basis: 100%;
 }
 
 /* Cap the Toolbar control heights. Under `<html lang="ko">` the browser resolves
@@ -363,6 +405,9 @@ body {
   align-items: center;
   gap: 8px;
   color: var(--text-primary);
+  /* never squeezed by flex pressure — a stable width is what lets the overflow
+     controller measure the real space the actions have to fit into */
+  flex-shrink: 0;
 }
 
 .toolbar__mark {
@@ -389,13 +434,21 @@ body {
   border-radius: 3px;
 }
 
-/* version · build sha — quietest thing in the brand row, selectable for copy */
+/* version · build sha — quietest thing in the brand row, selectable for copy.
+   `[data-collapsed]` = the responsive controller has hidden it as its last
+   space-saving step (still in About + the brand `title`); kept in the DOM,
+   out of flow, so its width stays measurable. */
 .toolbar__build {
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
   user-select: text;
+}
+.toolbar__build[data-collapsed] {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* ---- L1 Broken Orbit ---- */
@@ -422,14 +475,79 @@ body {
 
 .toolbar__palette {
   display: flex;
-  gap: 6px;
+  gap: 3px;
   flex-wrap: wrap;
+  flex-shrink: 0;
+}
+/* in one-row mode the palette holds its natural width (the ⋯ menu, not a
+   palette squeeze, absorbs any shortfall); in two-row mode it spans line 2 */
+.toolbar[data-toolbar-mode='row'] .toolbar__palette {
+  flex-wrap: nowrap;
 }
 
 .toolbar__actions {
   margin-left: auto;
   display: flex;
   gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+/* the never-collapsed action core (undo · redo · Templates · revision chip) */
+.toolbar__actions-core {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* one measurable, non-shrinking slot per collapsible control */
+.toolbar__slot {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* the ⋯ overflow menu. Not `.menu` (so a `.toolbar__actions .menu` query still
+   means "a real dropdown"), but it needs the same positioning context for its
+   `.menu__pop`. `[data-ghost]` = nothing is collapsed yet: keep the trigger in
+   the DOM (so its width stays measurable) but out of layout flow. */
+.toolbar__overflow {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.toolbar__overflow[data-ghost] {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+.toolbar__overflow-pop {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  min-width: 208px;
+  overflow: visible;
+}
+/* controls dropped into the ⋯ popup are near the viewport's right edge, so
+   their own dropdowns must open leftward to stay on screen (same reason the
+   mobile More sheet flips `.lang-menu__pop`). `.menu__pop` (Export / Help) is
+   already `right: 0`; the Language pop defaults to `left: 0`, so re-anchor it. */
+.toolbar__overflow-pop .lang-menu__pop {
+  left: auto;
+  right: 0;
+}
+/* controls dropped into the ⋯ popup sit full-width, left-aligned */
+.toolbar__overflow-pop > .menu,
+.toolbar__overflow-pop > .btn {
+  width: 100%;
+}
+.toolbar__overflow-pop > .menu > .btn,
+.toolbar__overflow-pop .lang-switch {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .chip {

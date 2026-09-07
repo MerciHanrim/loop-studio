@@ -30,7 +30,7 @@ type Loop = Record<string, { getState: () => any }>
 const L = (page: Page) => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop && true)
 
 const templatesBtn = (page: Page) =>
-  page.locator('.toolbar__actions > .menu').first().locator('> button')
+  page.locator('.toolbar__actions .menu').first().locator('> button')
 
 /** click the "replace the current graph?" confirm if it appears (it only shows
  *  when a graph is already loaded). */
@@ -43,7 +43,7 @@ async function confirmReplaceIfShown(page: Page) {
 async function pickDesktopTemplate(page: Page, name: string, waitForNodeId: string) {
   await templatesBtn(page).click()
   await page
-    .locator('.toolbar__actions > .menu')
+    .locator('.toolbar__actions .menu')
     .first()
     .locator('.menu__pop [role="menuitem"]', { hasText: name })
     .click()

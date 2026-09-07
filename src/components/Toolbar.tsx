@@ -3,9 +3,11 @@ import type { ChangeEvent, DragEvent } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { NodeKind } from '../model/types'
+import { useProjectStore } from '../store/projectStore'
 import { useReviewStore } from '../store/reviewStore'
 import { routeImport } from '../store/revisionIO'
 import { useIsMobile } from '../ui/media'
+import { useI18n } from '../i18n/store'
 import { useT, type MessageKey } from '../i18n'
 import { ConfirmDialog } from './ConfirmDialog'
 import { ExportMenu } from './ExportMenu'
@@ -18,6 +20,9 @@ import { RevisionChip } from './RevisionChip'
 import { ShareButton } from './ShareButton'
 import { Templates } from './Templates'
 import { ThemeToggle } from './ThemeToggle'
+import { OverflowMenu } from './toolbar/OverflowMenu'
+import { isInline, type OverflowItem } from './toolbar/toolbarOverflow'
+import { useToolbarOverflow } from './toolbar/useToolbarOverflow'
 
 const DND_TYPE = 'application/loop-node'
 
@@ -50,6 +55,19 @@ export function Toolbar() {
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
   const isMobile = useIsMobile()
   const t = useT()
+  const activeLocale = useI18n((s) => s.activeLocale)
+  const projectOpen = useProjectStore((s) => s.open != null)
+  const {
+    layout,
+    measuring,
+    setToolbar,
+    setBrand,
+    setStamp,
+    setPalette,
+    setCore,
+    setMore,
+    setItem,
+  } = useToolbarOverflow(activeLocale, projectOpen)
 
   const addCentered = (kind: NodeKind) => {
     const rect = document.querySelector('.canvas')?.getBoundingClientRect()
@@ -97,9 +115,36 @@ export function Toolbar() {
   // with a compact bar (Logo + a More menu). Desktop is untouched below.
   if (isMobile) return <MobileTopBar />
 
+  // ── the toolbar locale-independent responsive contract ──────────────────────
+  // The overflow controller decides the row count (viewport-driven, NOT
+  // locale-driven), which trailing controls sit in the ⋯ menu, and whether the
+  // build stamp is shown. `measuring` is one pre-paint pass with everything
+  // expanded so widths can be read; it never paints.
+  const collapsed = measuring ? 0 : layout.collapsed
+  const stampGhost = measuring ? false : layout.hideStamp
+  const inline = (id: OverflowItem) => isInline(id, collapsed)
+
+  const buildTitle = t('toolbar.buildTitle', { version: __APP_VERSION__, sha: __BUILD_SHA__ })
+
+  const importButton = (
+    <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
+      {t('toolbar.import')}
+    </button>
+  )
+  const newButton = (
+    <button ref={newBtnRef} type="button" className="btn" onClick={() => setConfirmNew(true)}>
+      {t('toolbar.new')}
+    </button>
+  )
+
   return (
-    <header className="toolbar">
-      <div className="toolbar__brand">
+    <header
+      className="toolbar"
+      data-toolbar-mode={layout.mode}
+      data-measuring={measuring ? '' : undefined}
+      ref={setToolbar}
+    >
+      <div className="toolbar__brand" title={buildTitle} aria-label={buildTitle} ref={setBrand}>
         <span className="toolbar__mark">
           <Logo />
         </span>
@@ -107,14 +152,16 @@ export function Toolbar() {
         <span className="toolbar__tag">{t('toolbar.preview')}</span>
         <span
           className="toolbar__build"
-          title={t('toolbar.buildTitle', { version: __APP_VERSION__, sha: __BUILD_SHA__ })}
+          data-collapsed={stampGhost ? '' : undefined}
+          title={buildTitle}
+          ref={setStamp}
         >
           v{__APP_VERSION__}
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </span>
       </div>
 
-      <div className="toolbar__palette" data-tour="palette">
+      <div className="toolbar__palette" data-tour="palette" ref={setPalette}>
         {PALETTE.map((p) => (
           <span key={p.kind} className="palette-item">
             <button
@@ -130,9 +177,6 @@ export function Toolbar() {
               </span>
               {t(p.nameKey)}
             </button>
-            {/* overlay tip — three separate lines, absolutely positioned so the
-                Toolbar height and Canvas geometry never change (§L13). Shown on
-                hover AND keyboard focus via `.palette-item:hover / :focus-within`. */}
             <span className="palette-tip" role="tooltip" id={`palette-tip-${p.kind}`}>
               <span className="palette-tip__name">{t(p.nameKey)}</span>
               <span className="palette-tip__desc">{t(p.descKey)}</span>
@@ -143,43 +187,81 @@ export function Toolbar() {
       </div>
 
       <div className="toolbar__actions" data-tour="files">
-        <button
-          type="button"
-          className="btn btn--icon"
-          onClick={undo}
-          disabled={!canUndo}
-          title={t('toolbar.undo.title')}
-        >
-          ↶
-        </button>
-        <button
-          type="button"
-          className="btn btn--icon"
-          onClick={redo}
-          disabled={!canRedo}
-          title={t('toolbar.redo.title')}
-        >
-          ↷
-        </button>
-        <Templates />
-        <ModuleMenu />
-        <ThemeToggle />
-        <LanguageSwitch />
-        <button
-          ref={newBtnRef}
-          type="button"
-          className="btn"
-          onClick={() => setConfirmNew(true)}
-        >
-          {t('toolbar.new')}
-        </button>
-        <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
-          {t('toolbar.import')}
-        </button>
-        <RevisionChip />
-        <ShareButton />
-        <ExportMenu getViewport={getViewport} />
-        <HelpMenu />
+        <div className="toolbar__actions-core" ref={setCore}>
+          <button
+            type="button"
+            className="btn btn--icon"
+            onClick={undo}
+            disabled={!canUndo}
+            title={t('toolbar.undo.title')}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            className="btn btn--icon"
+            onClick={redo}
+            disabled={!canRedo}
+            title={t('toolbar.redo.title')}
+          >
+            ↷
+          </button>
+          <Templates />
+          <RevisionChip />
+        </div>
+
+        {inline('module') && (
+          <span className="toolbar__slot" ref={setItem('module')}>
+            <ModuleMenu />
+          </span>
+        )}
+        {inline('theme') && (
+          <span className="toolbar__slot" ref={setItem('theme')}>
+            <ThemeToggle />
+          </span>
+        )}
+        {inline('language') && (
+          <span className="toolbar__slot" ref={setItem('language')}>
+            <LanguageSwitch />
+          </span>
+        )}
+        {inline('new') && (
+          <span className="toolbar__slot" ref={setItem('new')}>
+            {newButton}
+          </span>
+        )}
+        {inline('import') && (
+          <span className="toolbar__slot" ref={setItem('import')}>
+            {importButton}
+          </span>
+        )}
+        {inline('share') && (
+          <span className="toolbar__slot" ref={setItem('share')}>
+            <ShareButton />
+          </span>
+        )}
+        {inline('export') && (
+          <span className="toolbar__slot" ref={setItem('export')}>
+            <ExportMenu getViewport={getViewport} />
+          </span>
+        )}
+        {inline('help') && (
+          <span className="toolbar__slot" ref={setItem('help')}>
+            <HelpMenu />
+          </span>
+        )}
+
+        <OverflowMenu ghost={collapsed === 0} buttonRef={setMore}>
+          {!inline('help') && <HelpMenu />}
+          {!inline('export') && <ExportMenu getViewport={getViewport} />}
+          {!inline('share') && <ShareButton />}
+          {!inline('import') && importButton}
+          {!inline('theme') && <ThemeToggle />}
+          {!inline('language') && <LanguageSwitch />}
+          {!inline('new') && newButton}
+          {!inline('module') && <ModuleMenu />}
+        </OverflowMenu>
+
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
       </div>
 
