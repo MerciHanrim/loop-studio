@@ -42,6 +42,9 @@ export default defineConfig({
         /dist\.spec\.ts/,
         /pwa\.spec\.ts/,
         /mobile\.spec\.ts/,
+        // docs/mmo-multilingual-layout.md §MML4 — a review-artifact producer, not
+        // an assertion test; run explicitly by the `mml-visuals` CI job.
+        /mml-visuals\.spec\.ts/,
       ],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
@@ -68,6 +71,14 @@ export default defineConfig({
       testMatch: /portable-file\.spec\.ts/,
       dependencies: ['build-portable'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, baseURL: undefined },
+    },
+    {
+      // docs/mmo-multilingual-layout.md §MML4 — the review-artifact producer,
+      // run on demand by the `mml-visuals` CI job (`--project=mml-visuals`),
+      // never by the default sharded `e2e` run.
+      name: 'mml-visuals',
+      testMatch: /mml-visuals\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: {

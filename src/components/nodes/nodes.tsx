@@ -14,6 +14,8 @@ import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
 import { useT } from '../../i18n'
+import { useI18n } from '../../i18n/store'
+import { usePhrasedTitle } from './phraseTitle'
 import type {
   ConverterData,
   DrainData,
@@ -118,6 +120,9 @@ function NodeFrame({
   const tip = useT()
   const lod = useLod()
   const mapOnly = lod === 'L0' // no text at all — silhouette + type dot
+  // §MML1 — render-time phrase segmentation for JA / ZH titles (display only)
+  const locale = useI18n((s) => s.activeLocale)
+  const { node: titleNode, phrased } = usePhrasedTitle(title, locale)
   // per-direction: is a state edge already wired to this node's in / out port?
   const stateInWired = useStore((s) =>
     s.edges.some((e) => e.target === nodeId && e.targetHandle === 'state-target'),
@@ -307,7 +312,12 @@ function NodeFrame({
         <div className="nodef__stack" ref={stackRef}>
         <span className="nodef__head">
           <span className="nodef__chip" />
-          <span className="nodef__title" ref={titleRef}>{title}</span>
+          <span
+            className={phrased ? 'nodef__title nodef__title--phrased' : 'nodef__title'}
+            ref={titleRef}
+          >
+            {titleNode}
+          </span>
         </span>
         {value != null ? (
           <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}>

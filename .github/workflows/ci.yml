@@ -162,3 +162,33 @@ jobs:
           test "${{ needs.e2e-shard.result }}" = "success" \
             && test "${{ needs.e2e-dist.result }}" = "success" \
             && test "${{ needs.e2e-pwa.result }}" = "success"
+
+  # docs/mmo-multilingual-layout.md §MML4 — produce the visual-review capture set
+  # (silhouettes 64/2-line/3-line, MMO + Coffee EN/KO/JA, MMO initial screen at
+  # 1920/1280/820, selected / invalid / Focus, light + dark) and upload it as an
+  # artifact for the reviewer. Not a gate — `continue-on-error` so a flaky
+  # screenshot never blocks the branch; the assertion specs are the real gate.
+  mml-visuals:
+    name: mml-visuals (review artifact)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install chromium
+      - name: Capture §MML review screenshots
+        run: npx playwright test --project=mml-visuals --workers=1
+      - name: Upload the capture set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mml-visuals
+          path: test-results/mml-visuals/
+          retention-days: 14
+          if-no-files-found: warn

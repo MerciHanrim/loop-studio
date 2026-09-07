@@ -120,35 +120,80 @@ EN / KO / JA exactly like MMO. "Coffee 배치 불변" (acceptance #9) means:
 
 ## MML2. MMO canonical coordinates
 
-- In `examples/mmo-progression.json`, widen the `position` deltas of the
-  chronically-overlapping sibling groups (combat row, water / food rows, upkeep
-  row, consumed row, reward-router fan-out) so **every node pair clears a
-  measured minimum gap of ≥ 40px horizontal / ≥ 24px vertical** at the EN / JA
-  worst-case rendered width.
+- **Scope (revised):** after MML1, take the **union of every still-too-close
+  pair across EN / KO / JA** (not only the five chronic groups) and resolve all
+  of them. The measure uses the **worst-case box per node** — `max(w, h)` over
+  the three locales — so a solve that clears the union clears every individual
+  locale.
+- Target: **0 AABB overlaps** and **0 label↔other-node-handle collisions** in
+  all three locales; near-sibling / serial nodes clear **≥ 40px H / ≥ 24px V**
+  of real margin. After each node move, all 97 are re-measured so a correction
+  never creates a new overlap.
+- **As built:** the layout lives in the `LAYOUT` table of
+  `src/engine/mmo-progression.fixture.ts` (`examples/mmo-progression.json` is
+  generated from it — `GEN_MMO_PROGRESSION=1`). **43 nodes** in the hub row and
+  the two bottom economy bands move, each on a **10px grid**, `max |Δ| = 90px`
+  (`reward_router` −90 x); the graph grows from ≈ 3500 × 1524 to ≈ 3500 × 1554.
+  Every changed entry is marked `// §MML2`.
+- **Frozen:** the top spine, the three parametric zone lanes (`z1_* / z2_* /
+  z3_*`), and the seven-Register column are untouched — so the fixture
+  invariants in `mmo-progression.test.ts` (spine Y-spread ≤ 20, zone columns
+  disjoint in x, one Register column at ≥ 100px pitch) still hold verbatim. A
+  sub-margin gap between two *different-zone* lane nodes (≈ 31px, e.g.
+  `z1_xp_meter`↔`z2_win`) is left as-is — they are neither siblings nor serial.
 - **Unchanged:** the tier structure, the left-to-right progression, the branch
   order, every edge, and every engine-relevant value (`initial`, `capacity`,
-  `flow`, expressions, `mode`, …).
+  `flow`, expressions, `mode`, …). Left/right and up/down order of every pair is
+  preserved (the solver only ever moves a node away from its neighbour).
 - **The engine trajectory is NOT re-pinned.** `src/model/templates.trajectory.test.ts`
-  keeps its current numeric expectations and must pass **as-is** — a position
-  change moves nothing the engine computes. Only a dedicated *layout / position*
-  snapshot (if one exists) has its expectation refreshed.
-- KO structural parity of `examples/mmo-progression.ko.json` is re-verified by
-  hand per the [[mmo-ko-derived-example]] rule.
+  keeps its current numeric expectations and passes **as-is** — a position
+  change moves nothing the engine computes. `autoFrames.fixture.test.ts` (the
+  one spatial-layout snapshot) also passes unchanged: the ×10 nudges are small
+  enough that the auto-frame communities are identical.
+- `examples/mmo-progression.ko.json` (the retired hand-made KO derived copy) is
+  **removed in this PR** — with the layout shared it held no unique information
+  and would only be a bad precedent for per-locale graph copies. Korean labels
+  stay covered by `templateLabels/ko.ts` + §TLO11; `check:template-labels`
+  checks label parity against the one canonical `examples/mmo-progression.json`.
 
 ## MML3. Initial camera
 
-- When MMO is opened **fresh from the Templates menu**, the initial view is the
-  **early progression band** (character creation → zone 1 → the level / XP
-  meters), centred and zoomed so labels are readable (**zoom ≥ the L1
-  threshold**), instead of fit-all.
-- The centre is a **fixed graph-coordinate point** — **no branch on locale**.
-  The zoom may differ per viewport width, but **for one viewport width the
-  centre and zoom are identical for EN / KO / JA**.
+- When MMO is opened **fresh from the Templates menu**, the initial view frames
+  just the **first steps** (character creation → active character → the Starter
+  zone's landmark + encounter / first-combat cluster), at a **readable** zoom,
+  instead of fit-all.
+- The framing is a **fixed graph-coordinate rectangle** — **no branch on
+  locale**. The zoom may differ per viewport width, but **for one viewport
+  width the framing is identical for EN / KO / JA**.
+- The framed nodes must **not sit under the minimap** — the fit uses the pane
+  MINUS the fixed overlays (minimap bottom-right, zoom Controls left), and
+  left-aligns the rect (a progression graph reads beginning-first).
 - The camera is **not** re-initialised on: a language change, a plain reload, an
   Import / Share / Workspace restore, or Undo / Redo. A viewport the user has
   panned or zoomed is **never** overwritten by a language change.
 - The rest of the graph stays reachable through the minimap and panning (and
   Focus).
+
+**As built:** `Template.initialView = { rect, minZoom }` (`src/model/templates.ts`)
+— rect `x[0,880] × y[0,360]` (bbox of Character creation → Active character →
+the Starter zone's landmark + first-combat cluster) and `minZoom = 0.6` (a
+**readability floor**, above the L1 threshold `LOD_L1_MIN` = 0.45).
+`Templates.tsx` / `MobileMoreMenu.tsx` pass it as the third arg of `loadGraph`,
+which parks it in a **transient** `graphStore.pendingInitialView` (never
+serialized / diffed / undone; `null` for a paste or any other Template; cleared
+by `newGraph` / `loadDoc`). On the next `fitRev` swap `Canvas.tsx`
+`applyInitialView` frames `rect` into the **usable pane** — `paneW − 44 (left
+Controls) − 224 (minimap), paneH − 176 (minimap, skipped when the pane is <
+360 px tall)` — clamps the zoom to `[minZoom, 1.2]`, left-aligns `rect` at the
+Controls edge and centres it vertically. On a small pane it frames fewer of the
+rect's columns rather than let the right edge fall under the minimap. Pure
+function of the rect + pane size, so EN / KO / JA get an identical camera at a
+given width. Measured: 1920 → zoom 1.2; 1280 → ≈ 0.76 (readable, clear of the
+minimap); 820 → floors to 0.6 and shows just the first two nodes clear of the
+minimap (an inherent limit of a ~520 × 150 pane). A plain reload boots a fresh
+store (`pendingInitialView = null`) → normal mount-time `fitView`; a language
+change / Undo / Import never call `loadGraph`,
+so the camera is untouched.
 
 ## MML4. Acceptance (all verified in the one PR)
 
