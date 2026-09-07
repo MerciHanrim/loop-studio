@@ -70,12 +70,12 @@ const runToEnd = (page: Page, seed: number, cap = 200) =>
   )
 
 // Templates is the first `.menu` in the toolbar actions (locale-agnostic).
-const templatesBtn = (page: Page) => page.locator('.toolbar__actions > .menu').first().locator('> button')
+const templatesBtn = (page: Page) => page.locator('.toolbar__actions .menu').first().locator('> button')
 
 async function pickDesktopTemplate(page: Page, name: string) {
   await templatesBtn(page).click()
   await page
-    .locator('.toolbar__actions > .menu').first()
+    .locator('.toolbar__actions .menu').first()
     .locator('.menu__pop [role="menuitem"]', { hasText: name })
     .click()
 }
@@ -146,7 +146,7 @@ test.describe('Early MMO progression example', () => {
     await openApp(page)
     await resetAll(page)
 
-    const menuPop = page.locator('.toolbar__actions > .menu').first().locator('.menu__pop')
+    const menuPop = page.locator('.toolbar__actions .menu').first().locator('.menu__pop')
 
     await templatesBtn(page).click()
     const enItem = menuPop.locator('[role="menuitem"]', { hasText: EN_NAME })

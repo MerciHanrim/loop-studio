@@ -180,3 +180,109 @@ test.describe('toolbar — locale-independent responsive', () => {
     await expect(page.locator('.toolbar__overflow-pop')).toBeVisible()
   })
 })
+
+// A `row`-mode layout (≥ the breakpoint) is where the toolbar dropdowns were
+// regressed: an `overflow: hidden` guard on the toolbar clipped every menu
+// (Templates / Insert module / Export / Help / Language / ⋯) to the ~45px
+// strip. These open a real dropdown at a wide viewport and assert it is fully
+// on screen.
+const fullyInViewport = (page: Page, selector: string) =>
+  page.evaluate((sel) => {
+    const el = [...document.querySelectorAll(sel)].filter(
+      (e) => (e as HTMLElement).getBoundingClientRect().height > 0,
+    ).pop() as HTMLElement | undefined
+    if (!el) return { found: false, ok: false }
+    const r = el.getBoundingClientRect()
+    return {
+      found: true,
+      ok:
+        r.top >= -2 &&
+        r.left >= -2 &&
+        r.right <= window.innerWidth + 2 &&
+        r.bottom <= window.innerHeight + 2,
+      h: Math.round(r.height),
+    }
+  }, selector)
+
+test.describe('toolbar — dropdowns are never clipped by the responsive layout', () => {
+  for (const width of [1920, 1280]) {
+    test(`Templates + Language open fully on screen at ${width}px, every locale`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await openApp(page)
+      await resetAll(page)
+
+      for (const code of ['en', 'ja', 'ko']) {
+        await setLocale(page, code)
+
+        await page
+          .locator('.toolbar__actions .menu > button')
+          .first()
+          .click() // Templates ▾
+        const tpl = await fullyInViewport(page, '.toolbar__actions .menu__pop:not(.toolbar__overflow-pop)')
+        expect(tpl.found, `${code} @ ${width} — Templates pop`).toBe(true)
+        expect(tpl.ok, `${code} @ ${width} — Templates pop on screen`).toBe(true)
+        await page.keyboard.press('Escape')
+
+        // Language — inline at these widths
+        const langBtn = page.locator('.toolbar__slot .lang-switch')
+        await langBtn.click()
+        const lang = await fullyInViewport(page, '.lang-menu__pop')
+        expect(lang.found, `${code} @ ${width} — Language pop`).toBe(true)
+        expect(lang.ok, `${code} @ ${width} — Language pop on screen`).toBe(true)
+        await page.keyboard.press('Escape')
+      }
+    })
+  }
+
+  test('⋯ → Language: opens on screen, selecting a locale closes both menus', async ({ page }) => {
+    await page.setViewportSize({ width: 726, height: 640 })
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'ja')
+
+    const moreBtn = page.locator('.toolbar__overflow-btn')
+    await moreBtn.click()
+    const overflowPop = page.locator('.toolbar__overflow-pop')
+    await expect(overflowPop).toBeVisible()
+
+    const langBtn = overflowPop.locator('.lang-switch')
+    await expect(langBtn).toBeVisible()
+    await langBtn.click()
+    const lang = await fullyInViewport(page, '.lang-menu__pop')
+    expect(lang.found).toBe(true)
+    expect(lang.ok, 'nested Language pop on screen').toBe(true)
+
+    // Escape: first the Language menu (focus back to its trigger)…
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.lang-menu__pop')).toBeHidden()
+    await expect(langBtn).toBeFocused()
+    // …then the ⋯ menu (focus back to its trigger)
+    await page.keyboard.press('Escape')
+    await expect(overflowPop).toBeHidden()
+    await expect(moreBtn).toBeFocused()
+
+    // re-open and actually pick English → both menus gone, locale changed
+    await moreBtn.click()
+    await overflowPop.locator('.lang-switch').click()
+    await page.locator('.lang-menu__pop [role="option"][data-locale="en"]').click()
+    await expect.poll(() => htmlLang(page)).toBe('en')
+    await expect(page.locator('.lang-menu__pop')).toBeHidden()
+    await expect(page.locator('.toolbar__overflow-pop')).toBeHidden()
+  })
+
+  test('a nested Export dropdown from ⋯ stays on screen', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 })
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'ja')
+
+    await page.locator('.toolbar__overflow-btn').click()
+    const exportBtn = page
+      .locator('.toolbar__overflow-pop .menu > button')
+      .filter({ hasText: /エクスポート/ })
+    await exportBtn.click()
+    const exp = await fullyInViewport(page, '.toolbar__overflow-pop .menu__pop:not(.toolbar__overflow-pop)')
+    expect(exp.found).toBe(true)
+    expect(exp.ok, 'nested Export pop on screen').toBe(true)
+  })
+})

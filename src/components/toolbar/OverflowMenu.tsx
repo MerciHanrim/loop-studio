@@ -29,17 +29,27 @@ export function OverflowMenu({ children, buttonRef, ghost }: Props) {
     const onDown = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
     }
+    // Capture phase — runs BEFORE any nested control's own (bubble-phase) Escape
+    // handler. If a nested dropdown (Export / Help / Language) is still open, let
+    // this Escape fall through to close just that one; the ⋯ menu takes the next
+    // Escape. React 18 flushes discrete events synchronously, so a bubble-phase
+    // check here would always see the nested menu already gone.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false)
-        btnRef.current?.focus()
-      }
+      if (e.key !== 'Escape') return
+      if (
+        wrapRef.current?.querySelector(
+          '.toolbar__overflow-pop [aria-expanded="true"], .toolbar__overflow-pop .menu__pop:not(.toolbar__overflow-pop)',
+        )
+      )
+        return
+      setOpen(false)
+      btnRef.current?.focus()
     }
     window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
     return () => {
       window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
     }
   }, [open])
 

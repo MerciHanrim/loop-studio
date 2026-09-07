@@ -353,7 +353,10 @@ body {
             (further-collapsed) actions stay on line 1. */
 .toolbar[data-toolbar-mode='row'] {
   flex-wrap: nowrap;
-  overflow: hidden;
+  /* NOT `overflow: hidden` — that would clip every toolbar dropdown (Templates,
+     Insert module, Export, Help, Language, ⋯). A brief pre-settle horizontal
+     spill during a resize is already absorbed by `#root { overflow-x: clip }`
+     (the measurement pass is pre-paint, so it should not be visible anyway). */
 }
 .toolbar[data-toolbar-mode='wrap'] {
   flex-wrap: wrap;
@@ -500,10 +503,10 @@ body {
   flex-shrink: 0;
 }
 
-/* the ⋯ overflow menu. Not `.menu` (so `.toolbar__actions > .menu` selectors
-   keep meaning "a real dropdown"), but it needs the same positioning context
-   for its `.menu__pop`. `[data-ghost]` = nothing is collapsed yet: keep the
-   trigger in the DOM (so its width stays measurable) but out of layout flow. */
+/* the ⋯ overflow menu. Not `.menu` (so a `.toolbar__actions .menu` query still
+   means "a real dropdown"), but it needs the same positioning context for its
+   `.menu__pop`. `[data-ghost]` = nothing is collapsed yet: keep the trigger in
+   the DOM (so its width stays measurable) but out of layout flow. */
 .toolbar__overflow {
   position: relative;
   display: inline-flex;
@@ -522,6 +525,14 @@ body {
   padding: 8px;
   min-width: 208px;
   overflow: visible;
+}
+/* controls dropped into the ⋯ popup are near the viewport's right edge, so
+   their own dropdowns must open leftward to stay on screen (same reason the
+   mobile More sheet flips `.lang-menu__pop`). `.menu__pop` (Export / Help) is
+   already `right: 0`; the Language pop defaults to `left: 0`, so re-anchor it. */
+.toolbar__overflow-pop .lang-menu__pop {
+  left: auto;
+  right: 0;
 }
 /* controls dropped into the ⋯ popup sit full-width, left-aligned */
 .toolbar__overflow-pop > .menu,
