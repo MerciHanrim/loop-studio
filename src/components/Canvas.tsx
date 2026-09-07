@@ -148,23 +148,29 @@ export function Canvas() {
   const paneH = useStore((s) => s.height)
   const t = useT()
 
-  // docs/mmo-multilingual-layout.md §MML3 — a menu-opened Template can carry a
-  // fixed graph-coordinate `rect` to frame instead of fit-all. Fit `rect` into
-  // the pane MINUS the fixed overlays (the minimap, ~217×167 bottom-right; the
-  // zoom Controls, ~44 wide on the left), so the framed nodes never sit under
-  // the minimap. Left-align `rect` horizontally (a progression graph reads
-  // beginning-first) and centre it vertically; clamp the zoom to
-  // `[minZoom, 1.2]`. Pure function of the rect + pane size — identical for
-  // every UI language, and unchanged on a language switch (this only runs on a
-  // `fitRev` swap).
+  // docs/mobile.md §MV-D10 / docs/mmo-multilingual-layout.md §MML3 — the minimap
+  // (a fixed ~202×152 overlay) only earns its space on a canvas large enough to
+  // want an overview. Below this it is hidden (like on mobile), so a small
+  // desktop window / split view is not two-thirds minimap.
+  const minimapFits = !isMobile && paneW >= 640 && paneH >= 380
+
+  // §MML3 — a menu-opened Template can carry a fixed graph-coordinate `rect` to
+  // frame instead of fit-all. Fit `rect` into the pane MINUS the fixed overlays
+  // (the minimap — only when it renders; the zoom Controls, ~44 wide on the
+  // left), so the framed nodes never sit under the minimap. Left-align `rect`
+  // horizontally (a progression graph reads beginning-first); centre it
+  // vertically, or top-align when it is taller than the usable height. Clamp
+  // the zoom to `[minZoom, 1.2]`. Pure function of the rect + pane size —
+  // identical for every UI language, and unchanged on a language switch (this
+  // only runs on a `fitRev` swap).
   const applyInitialView = useCallback(
     (iv: { rect: { x: number; y: number; width: number; height: number }; minZoom: number }) => {
       if (paneW <= 0 || paneH <= 0) return void fitView({ padding: 0.3, maxZoom: 1.2 })
       const INSET_L = 44 // zoom Controls
-      const INSET_R = 224 // minimap + its margin
-      const INSET_B = paneH > 360 ? 176 : 0 // minimap height — skipped on a very short pane
+      const INSET_R = minimapFits ? 224 : 0 // minimap + its margin
+      const INSET_B = minimapFits ? 176 : 0 // minimap height
       const usableW = Math.max(160, paneW - INSET_L - INSET_R)
-      const usableH = Math.max(140, paneH - INSET_B)
+      const usableH = Math.max(120, paneH - INSET_B)
       // on a small pane, frame fewer of the rect's columns rather than let the
       // right edge fall under the minimap at the floor zoom
       const rectW = Math.min(iv.rect.width, (usableW - 8) / iv.minZoom)
@@ -173,16 +179,20 @@ export function Canvas() {
         1.2,
         Math.max(iv.minZoom, Math.min(usableW / (rectW * pad), usableH / (iv.rect.height * pad))),
       )
+      const contentH = iv.rect.height * zoom
       setViewport(
         {
           x: INSET_L + 8 - iv.rect.x * zoom,
-          y: usableH / 2 - (iv.rect.y + iv.rect.height / 2) * zoom,
+          y:
+            contentH <= usableH
+              ? usableH / 2 - (iv.rect.y + iv.rect.height / 2) * zoom
+              : 12 - iv.rect.y * zoom,
           zoom,
         },
         { duration: 0 },
       )
     },
-    [paneW, paneH, setViewport, fitView],
+    [paneW, paneH, minimapFits, setViewport, fitView],
   )
 
   // A Templates load / pasted-graph swap bumps `graphStore.fitRev` — a
@@ -514,8 +524,9 @@ export function Canvas() {
             desktop only (mobile controls live in the More sheet, §LGR9). */}
         {!isMobile && filterPanelOpen && <FilterPanel />}
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
-            phone and eats space — not rendered in the mobile layout */}
-        {!isMobile && (
+            phone (or a small desktop window — see `minimapFits`) and eats
+            space — not rendered there */}
+        {minimapFits && (
           <MiniMap
             pannable
             zoomable

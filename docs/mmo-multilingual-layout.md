@@ -183,17 +183,25 @@ which parks it in a **transient** `graphStore.pendingInitialView` (never
 serialized / diffed / undone; `null` for a paste or any other Template; cleared
 by `newGraph` / `loadDoc`). On the next `fitRev` swap `Canvas.tsx`
 `applyInitialView` frames `rect` into the **usable pane** — `paneW − 44 (left
-Controls) − 224 (minimap), paneH − 176 (minimap, skipped when the pane is <
-360 px tall)` — clamps the zoom to `[minZoom, 1.2]`, left-aligns `rect` at the
-Controls edge and centres it vertically. On a small pane it frames fewer of the
-rect's columns rather than let the right edge fall under the minimap. Pure
-function of the rect + pane size, so EN / KO / JA get an identical camera at a
-given width. Measured: 1920 → zoom 1.2; 1280 → ≈ 0.76 (readable, clear of the
-minimap); 820 → floors to 0.6 and shows just the first two nodes clear of the
-minimap (an inherent limit of a ~520 × 150 pane). A plain reload boots a fresh
-store (`pendingInitialView = null`) → normal mount-time `fitView`; a language
-change / Undo / Import never call `loadGraph`,
-so the camera is untouched.
+Controls)` and, **only while the minimap renders**, `− 224` horizontal and
+`− 176` vertical for it. It clamps the zoom to `[minZoom, 1.2]`, left-aligns
+`rect` at the Controls edge, and centres it vertically OR top-aligns it (12 px
+margin) when `rect` is taller than the usable height. On a small pane it frames
+fewer of the rect's columns rather than let the right edge fall under the
+minimap. Pure function of the rect + pane size, so EN / KO / JA get an
+identical camera at a given width.
+
+**Minimap on a small pane.** The minimap is a fixed ~202 × 152 px overlay; on a
+~520 × 150 px pane (a browser at 820 px, timeline + toolbar open) it would cover
+most of the canvas. So `Canvas.tsx` `minimapFits` hides it below ~640 × 380 px
+of pane (same treatment as mobile, docs/mobile.md §MV-D10), and
+`applyInitialView` then drops the minimap insets — the framing uses the whole
+width. Measured: 1920 → zoom 1.2; 1280 → ≈ 0.76 (readable, clear of the
+minimap); 820 → minimap hidden, `rect` top-left-aligned at the floor zoom 0.6
+so Character creation → Active character read unobstructed. A plain reload boots
+a fresh store (`pendingInitialView = null`) → normal mount-time `fitView`; a
+language change / Undo / Import never call `loadGraph`, so the camera is
+untouched.
 
 ## MML4. Acceptance (all verified in the one PR)
 

@@ -354,7 +354,7 @@ opening. Its mobile placement rules:
 | MV-D7 | run bar | fixed bottom: Reset / Step / Play·Pause / Monte Carlo + `step N`; **no** speed slider or seed field |
 | MV-D8 | Timeline | collapsible bottom sheet, collapsed by default |
 | MV-D9 | secondary actions | a `More` menu (Share / Import / Export / Templates / Theme / stamp); palette + undo/redo + New not rendered |
-| MV-D10 | MiniMap | **not rendered** on mobile |
+| MV-D10 | MiniMap | **not rendered** on mobile — and, on desktop, hidden when the canvas pane is smaller than ~640 × 380 px (`Canvas.tsx` `minimapFits`), where the fixed ~202 × 152 overlay would dominate rather than help |
 | MV-D11 | exclusive overlays | Inspector / Timeline / `More` / MC dialog / **Share result / Templates / Export** are **mutually exclusive** (opening one closes the others); each has `aria-expanded` on its trigger, a 44 px Close, Escape-to-close, focus-return |
 | MV-D12 | safe area | **reserved as real padding** on both bars and the canvas pane, not just visually honoured |
 | MV-D13 | rotation | close open exclusive overlays, `fitView` **once**; no re-fit on pan/zoom within an orientation |

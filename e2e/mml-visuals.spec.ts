@@ -90,14 +90,20 @@ const frameMML3 = (page: Page) =>
   page.evaluate((iv) => {
     const rf = document.querySelector('.react-flow') as HTMLElement
     const pw = rf.clientWidth, ph = rf.clientHeight
-    const INSET_L = 44, INSET_R = 224, INSET_B = ph > 360 ? 176 : 0
+    const minimapFits = pw >= 640 && ph >= 380 // mirrors Canvas.tsx `minimapFits` (non-mobile here)
+    const INSET_L = 44, INSET_R = minimapFits ? 224 : 0, INSET_B = minimapFits ? 176 : 0
     const uw = Math.max(160, pw - INSET_L - INSET_R)
-    const uh = Math.max(140, ph - INSET_B)
+    const uh = Math.max(120, ph - INSET_B)
     const rectW = Math.min(iv.rect.width, (uw - 8) / iv.minZoom)
     const pad = 1.06
     const z = Math.min(1.2, Math.max(iv.minZoom, Math.min(uw / (rectW * pad), uh / (iv.rect.height * pad))))
+    const contentH = iv.rect.height * z
     ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
-      { x: INSET_L + 8 - iv.rect.x * z, y: uh / 2 - (iv.rect.y + iv.rect.height / 2) * z, zoom: z },
+      {
+        x: INSET_L + 8 - iv.rect.x * z,
+        y: contentH <= uh ? uh / 2 - (iv.rect.y + iv.rect.height / 2) * z : 12 - iv.rect.y * z,
+        zoom: z,
+      },
       { duration: 0 },
     )
   }, MML3)
@@ -185,7 +191,9 @@ for (const theme of ['light', 'dark'] as const) {
         await page.setViewportSize({ width: w, height: Math.round(w * 0.62) })
         await openApp(page)
         await resetAll(page)
-        await hideChrome(page)
+        // NOTE: the minimap is deliberately left visible here — the review needs
+        // to see whether the §MML3 framing sits clear of it (and that it is
+        // auto-hidden at the smallest pane).
         for (const loc of ['en', 'ko', 'ja'] as const) {
           await setLocale(page, 'en')
           await importGraph(page, MMO)
