@@ -78,6 +78,11 @@ export default defineConfig({
       // never by the default sharded `e2e` run.
       name: 'mml-visuals',
       testMatch: /mml-visuals\.spec\.ts/,
+      // each capture drives three locales (EN/KO/JA) back-to-back with a real
+      // catalog load + re-render between them; the 820 px cell also re-lays-out
+      // for the small-pane minimap hide. 30 s is not enough — this producer is
+      // not on the critical path, so give it generous headroom.
+      timeout: 120_000,
       use: { ...devices['Desktop Chrome'] },
     },
   ],
