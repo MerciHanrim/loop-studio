@@ -172,7 +172,15 @@ function NodeFrame({
     ro.observe(stack)
     return () => ro.disconnect()
   }, [kind])
+  // Only tell React Flow to re-measure a node when WE actually changed its
+  // height. The mount value (`BASE_NODE_H`) is the geometry RF already measures,
+  // so calling `updateNodeInternals` for it — ×97 on a dense graph load — just
+  // churns the measurement pass and can stall `nodesInitialized`. A ref-guard
+  // means a node that never grows never triggers it.
+  const notifiedH = useRef(BASE_NODE_H)
   useEffect(() => {
+    if (Math.abs(notifiedH.current - boxH) < 0.5) return
+    notifiedH.current = boxH
     updateNodeInternals(nodeId)
   }, [boxH, nodeId, updateNodeInternals])
   const grown = boxH > BASE_NODE_H
