@@ -63,17 +63,46 @@ general policy with **two representative fixtures: MMO and Coffee**.
 - **Handles reposition to the grown box** — side handles to the real vertical
   centre of the new height, top/bottom and kind-specific handles to their
   defined positions on the new box.
-- **Line breaking is the browser's:** EN wraps at word boundaries; JA uses the
-  browser's standard CJK line-break rules. **No custom "Japanese particle
-  guessing" algorithm.** `text-wrap: balance` plus an appropriate
-  `line-break` / `word-break` pair minimises an awkward one-character orphan
-  line.
+- **Line breaking is the browser's.** The wrap rule (note `word-break: keep-all`
+  would block breaking *between* JA characters, so it cannot be combined with
+  "browser CJK breaking"):
+  - base / EN / JA / ZH: `word-break: normal`, `overflow-wrap: normal`;
+  - JA / ZH: `line-break: strict` (or the standard CJK rule the browser
+    supports);
+  - **KO only:** `:lang(ko) { word-break: keep-all }` — Korean breaks between
+    eojeol, not syllables;
+  - all: `text-wrap: balance` to even the two lines / avoid a one-character
+    orphan.
+  No custom "Japanese particle guessing" algorithm.
 - The stored `data.label` and the graph schema are **never** modified — no
-  injected newlines, no zero-width characters, **no render hint of any kind**.
-  Purely a render change; Save / Share / Export / digest byte-identical.
+  injected `<br>`, no newlines, no zero-width spaces, **no render hint of any
+  kind**. Purely a render change; Save / Share / Export / digest byte-identical.
 - Regression: the existing **short** labels of the production-line templates and
   of ordinary user graphs **do not change size** — the ≤2-line / grow path only
   engages once a title exceeds one line at the soft-max.
+
+### MML1b. Height-parametric silhouettes
+
+The node vessel is a `preserveAspectRatio="none"` SVG that fills a fixed 64px
+box; simply scaling it on the Y axis distorts every shape. Instead:
+
+- a **per-kind path function** (all 7), not one shared Y-scale — the SVG
+  `viewBox` becomes `0 0 120 <h>` and each path is regenerated for `<h>`;
+- **stroke width, corner radius, the `parameter` notch, and the `end` endbar
+  thickness are fixed** — height-independent;
+- **`gate` and `converter` get a per-kind minimum aspect ratio** so the diamond
+  / waisted-hourglass form does not collapse as height grows (the middle stays
+  recognisable, no vertical band);
+- at **h = 64** every regenerated path is **pixel-identical** to the current
+  hard-coded silhouette;
+- the selection ring, invalid dashed outline, `evaluated` bracket, top-right
+  `!` flag and every `forced-colors` rule stay correct at the 2-line height
+  **and** at the longest expected height;
+- the render height is **computed, never written to `data`**;
+- a `ResizeObserver` on the body settles in **one** pass — no repeated
+  re-measurement, no visible jitter;
+- if React Flow does not re-fit the connected edges after a height change,
+  `useUpdateNodeInternals(id)` is called explicitly once the height settles.
 
 ### MML1a. Coffee is the second representative fixture
 
@@ -147,3 +176,5 @@ For EN / KO / JA, on the freshly-opened **MMO** and **Coffee** templates:
     overlap / handle collision / clipping; fitView centre and framing not
     materially changed.
 12. A locale switch on an open document leaves the viewport unchanged.
+13. **Deliverable:** a per-kind side-by-side of the 64px silhouette vs the
+    2-line silhouette, so the parametric shapes can be visually signed off.
