@@ -46,24 +46,48 @@ camera.** Each is fixed on its own terms; all are verified together in one PR.
 
 ---
 
-## MML1. Label rendering
+## MML1. Label rendering (general — the shared node renderer)
 
-- Node labels render on **up to 2 lines** with a **~130px soft-max target
-  width** — the target width used when the whole label fits in 2 lines, **not a
-  fixed hard cap**. A label that cannot fit in 2 lines at 130px widens the line
-  further; it is **never** ellipsised, truncated, or otherwise lost.
+Applies to **every** node in every graph, including user-created nodes. The
+measurement showed Coffee is as label-heavy as MMO (22 of 23 nodes > 140px
+wide), and FR will bring more — a per-template hack does not scale, so this is a
+general policy with **two representative fixtures: MMO and Coffee**.
+
+- Node titles render on **up to 2 lines** at a **~135px soft-max target width** —
+  the width aimed for when the whole title fits in two lines, **not a hard cap**.
+  A title that will not fit in two lines at 135px **widens the line as much as
+  needed**; it is **never** ellipsised, truncated, or otherwise lost.
+- **2-line (or wider) nodes grow in height to fit their content.** The fixed
+  64px node height is replaced by a content-driven height. The title must not
+  overlap the value / unit / sub-description for that node kind.
+- **Handles reposition to the grown box** — side handles to the real vertical
+  centre of the new height, top/bottom and kind-specific handles to their
+  defined positions on the new box.
 - **Line breaking is the browser's:** EN wraps at word boundaries; JA uses the
   browser's standard CJK line-break rules. **No custom "Japanese particle
   guessing" algorithm.** `text-wrap: balance` plus an appropriate
   `line-break` / `word-break` pair minimises an awkward one-character orphan
   line.
-- The stored `data.label` is **never** modified — no injected newlines, no
-  zero-width characters. This is a **render-only** change; Save / Share / Export
-  / digest are byte-identical.
-- If the change lands in the **general node renderer**, it must be regression-
-  verified that the existing short labels of the Coffee and production-line
-  templates, and of ordinary user graphs, **do not change size** — the ≤2-line
-  path only engages once a label exceeds one line at the soft-max width.
+- The stored `data.label` and the graph schema are **never** modified — no
+  injected newlines, no zero-width characters, **no render hint of any kind**.
+  Purely a render change; Save / Share / Export / digest byte-identical.
+- Regression: the existing **short** labels of the production-line templates and
+  of ordinary user graphs **do not change size** — the ≤2-line / grow path only
+  engages once a title exceeds one line at the soft-max.
+
+### MML1a. Coffee is the second representative fixture
+
+22 of Coffee's 23 nodes change (compact 2-line, narrower, taller). This is **not**
+a light regression check — Coffee is re-measured and visually reviewed in
+EN / KO / JA exactly like MMO. "Coffee 배치 불변" (acceptance #9) means:
+
+- stored node coordinates unchanged; edges, values and semantics unchanged;
+- the **initial-camera policy** unchanged (no MMO-style custom initial view for
+  Coffee);
+- the visual change of long nodes becoming narrower and two-line **is allowed**;
+- but **no new** node-box overlap, handle collision, or clipping;
+- a fitView pass may land on a slightly different zoom, but the **centre and the
+  overall framing must not materially change**.
 
 ## MML2. MMO canonical coordinates
 
@@ -99,20 +123,27 @@ camera.** Each is fixed on its own terms; all are verified together in one PR.
 
 ## MML4. Acceptance (all verified in the one PR)
 
-For EN / KO / JA, on the freshly-opened MMO template:
+For EN / KO / JA, on the freshly-opened **MMO** and **Coffee** templates:
 
-1. **0** node-box AABB overlaps across all 97 nodes.
+1. **0** node-box AABB overlaps across all nodes (97 for MMO, 23 for Coffee).
 2. **0** collisions of a node's label or handle with another node.
-3. Every official label fully visible, on **at most 2 lines**.
-4. The first and last segment of every edge that meets a node is visually
+3. Every official label fully visible, on **at most 2 lines**; no ellipsis.
+4. Title never overlaps the value / unit / sub-description; handles sit on the
+   real (grown) box centre / defined position.
+5. The first and last segment of every edge that meets a node is visually
    identifiable.
-5. Initial centre and LOD verified at **1920 / 1280 / 820** — same centre and
+6. MMO initial centre and LOD verified at **1920 / 1280 / 820** — same centre and
    zoom across the three locales at each width; zoom ≥ L1.
-6. Focus ON / OFF, and selection / error / Activity rendering, all still legible.
-7. **No graph-data diff outside `position`** — node/edge sets, `data`, handles,
-   `recommendedRunConfig` unchanged.
-8. The existing deterministic engine trajectory (`templates.trajectory.test.ts`)
-   passes with its current expectations.
-9. The **Coffee, equilibrium and deadlock** templates' layout and initial camera
-   are **unchanged**.
-10. A locale switch on an open document leaves the viewport unchanged.
+7. Focus ON / OFF, and selection / error / Activity rendering, all still legible.
+8. **No graph-data diff outside `position`** — node/edge sets, `data`, handles
+   config, `recommendedRunConfig`, schema unchanged.
+9. The existing deterministic engine trajectory (`templates.trajectory.test.ts`)
+   passes with its **current** expectations (a position change moves nothing the
+   engine computes).
+10. **equilibrium / deadlock**: layout, node sizes and initial camera unchanged
+    (their labels are short — the ≤2-line path does not engage).
+11. **Coffee**: stored coordinates, edges, values, semantics and initial-camera
+    policy unchanged; the narrower / two-line visual change is expected; no new
+    overlap / handle collision / clipping; fitView centre and framing not
+    materially changed.
+12. A locale switch on an open document leaves the viewport unchanged.
