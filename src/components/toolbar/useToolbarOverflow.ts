@@ -78,7 +78,8 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
     if (!tb) return null
     const cs = getComputedStyle(tb)
     const inner = tb.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
-    const topGap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 8
+    // the gap BETWEEN brand / palette / actions on one line is the column-gap
+    const topGap = parseFloat(cs.columnGap) || parseFloat(cs.gap) || 8
 
     // palette: sum the chips + their gaps — never a stretched wrap-mode box
     let palette = 0

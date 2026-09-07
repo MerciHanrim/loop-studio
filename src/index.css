@@ -335,7 +335,12 @@ body {
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* tighter BETWEEN brand / palette / actions (helps the one-row fit); the
+     row-gap stays at the historic 18px so the two-row layout's height — and
+     every committed full-canvas visual snapshot taken at that width — is
+     unchanged. */
+  column-gap: 8px;
+  row-gap: 18px;
   padding: 8px 14px;
   background: var(--surface-panel);
   border-bottom: 1px solid var(--line-hairline);
