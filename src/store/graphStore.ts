@@ -9,6 +9,7 @@ import {
 import { create } from 'zustand'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
+import { relabelNodesForLocale } from '../i18n/templateLabels/relabel'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
@@ -657,5 +658,53 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         get().modelVersion,
         liveFrames(),
       ),
+  }
+})
+
+// ── docs/template-label-overlay.md §TLO11 — official-template-label locale switch
+// When the UI language changes, re-seed the labels of OFFICIAL bundled-template
+// nodes (only a label that is EXACTLY one of that node id's shipped-locale
+// strings) in the live graph AND in every undo/redo snapshot, so a switch never
+// leaves a half-translated document and an undo cannot bring the old language
+// back. Label-only: no history entry, no `simulationRev` / `loadRev` /
+// `pristineSample` change. Idempotent — a re-select or a same-locale boot writes
+// nothing. Covers the boot pass too: `initI18n`'s `setState` runs this once with
+// the resolved locale (the graphStore module is evaluated before `initI18n`).
+let lastLocaleForLabels = useI18n.getState().activeLocale
+useI18n.subscribe((s) => {
+  if (s.activeLocale === lastLocaleForLabels) return
+  lastLocaleForLabels = s.activeLocale
+
+  const g = useGraphStore.getState()
+  const nodes = relabelNodesForLocale(g.nodes, s.activeLocale)
+  const remap = (h: HistoryEntry): HistoryEntry => {
+    const n = relabelNodesForLocale(h.nodes, s.activeLocale)
+    return n === h.nodes ? h : { ...h, nodes: n }
+  }
+  const past = g.past.map(remap)
+  const future = g.future.map(remap)
+
+  const nodesChanged = nodes !== g.nodes
+  const pastChanged = past.some((h, i) => h !== g.past[i])
+  const futureChanged = future.some((h, i) => h !== g.future[i])
+  if (!nodesChanged && !pastChanged && !futureChanged) return
+
+  useGraphStore.setState({
+    ...(nodesChanged ? { nodes } : {}),
+    ...(pastChanged ? { past } : {}),
+    ...(futureChanged ? { future } : {}),
+  })
+
+  if (nodesChanged) {
+    clearTimeout(saveTimer)
+    const st = useGraphStore.getState()
+    saveToStorage(
+      st.nodes,
+      st.edges,
+      autosaveProjectHeader,
+      autosaveTimelineSeries,
+      st.modelVersion,
+      liveFrames(),
+    )
   }
 })

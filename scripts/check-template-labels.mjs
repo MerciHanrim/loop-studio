@@ -81,6 +81,58 @@ function canonicalIds(tplId) {
   return (doc.nodes ?? []).map((n) => n.id)
 }
 
+// canonical `id -> English label` map for a template
+function canonicalLabels(tplId) {
+  const p = resolve(root, `examples/${tplId}.json`)
+  try {
+    const doc = JSON.parse(readFileSync(p, 'utf8'))
+    return new Map((doc.nodes ?? []).map((n) => [n.id, n?.data?.label]))
+  } catch {
+    return new Map()
+  }
+}
+
+// §TLO11 drift contract — the safe locale-switch (src/i18n/templateLabels/
+// relabel.ts) keys ONLY on node id, so a node id shared by two templates must
+// resolve to the SAME official label in every locale, or that id could never be
+// switched. Fail loudly if a shared id diverges (EN canonical or any dict).
+function checkSharedIdTargets() {
+  const raw = {} // locale -> id -> { label, template }
+  const record = (locale, id, label, tplId) => {
+    if (label == null || label === '') return
+    ;(raw[locale] ??= {})
+    const prev = raw[locale][id]
+    if (prev && prev.label !== label) {
+      fail(
+        `shared node id '${id}' resolves to different ${locale} labels — ` +
+          `'${prev.template}' → "${prev.label}" vs '${tplId}' → "${label}" (§TLO11)`,
+      )
+    } else if (!prev) {
+      raw[locale][id] = { label, template: tplId }
+    }
+  }
+  for (const tplId of TEMPLATE_IDS) {
+    const canon = canonicalLabels(tplId)
+    if (canon.size === 0) continue
+    for (const [id, enLabel] of canon) record(BASE_LOCALE, id, enLabel, tplId)
+    for (const locale of NON_BASE) {
+      if (!dictLocales.includes(locale)) continue
+      const dictSrc = read(`src/i18n/templateLabels/${locale}.ts`)
+      const block = new RegExp(`'${tplId}'\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(dictSrc)
+      const entries = new Map(
+        [
+          ...(block?.[1] ?? '').matchAll(
+            /^\s*([A-Za-z_$][\w$]*|'[^']+')\s*:\s*'([^']*)'/gm,
+          ),
+        ].map((m) => [m[1].replace(/'/g, ''), m[2]]),
+      )
+      for (const [id, enLabel] of canon) {
+        record(locale, id, entries.get(id) ?? enLabel, tplId)
+      }
+    }
+  }
+}
+
 for (const locale of NON_BASE) {
   if (!dictLocales.includes(locale)) {
     // no dictionary module for this locale at all → every template is EN
@@ -141,6 +193,8 @@ for (const locale of NON_BASE) {
     }
   }
 }
+
+checkSharedIdTargets()
 
 // the overlay function must not translate anything but `label` — guard the
 // source against an accidental `resourceType` / `expr` write in the apply loop

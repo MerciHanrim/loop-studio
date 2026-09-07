@@ -2,16 +2,20 @@ import type { Browser, Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/template-label-overlay.md — the shared fresh-open Template label overlay:
-// a bundled Template opens with the current locale's node `label`s; the overlay
-// is never re-applied to an already-open document, and never applied to an
+// a bundled Template opens with the current locale's node `label`s; `openTemplate`
+// (the menu overlay) is never re-run on an already-open document, and never on an
 // Import / Share / Workspace / autosave document.
+//
+// §TLO11: a UI-language change re-seeds the OFFICIAL bundled-template labels
+// (a label that is EXACTLY one of that node id's shipped-locale strings) in the
+// open document — and only those; a user rename is kept.
 //
 // Boundaries pinned here:
 //  - desktop menu open  → current-locale labels
 //  - MOBILE More → Templates open → current-locale labels (its own doLoadTemplate)
-//  - a language switch on an OPEN document does NOT re-translate it
-//  - a plain reload / autosave restore does NOT re-run the overlay (#97 guard)
-//  - Import keeps the file's own labels
+//  - a language switch re-seeds OFFICIAL labels only; a user rename survives (§TLO11)
+//  - a plain reload / autosave restore does NOT re-run the menu overlay (#97 guard)
+//  - Import keeps the file's own labels; a later language switch keeps them too
 //  - re-open in a different locale order → pristine English canonical
 
 type Loop = Record<string, { getState: () => any }>
@@ -51,7 +55,7 @@ const catValue = (page: Page, key: string) =>
   )
 
 test.describe('template label overlay', () => {
-  test('MMO opens with the current locale node labels; a later language switch does NOT re-translate', async ({ page }) => {
+  test('MMO opens with the current locale node labels; a later language switch re-seeds the OFFICIAL labels but keeps a user rename', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
@@ -62,17 +66,28 @@ test.describe('template label overlay', () => {
     expect(l).toContain('골드')
     expect(l).not.toContain('Level')
 
-    // switch the app language while the KO document is open — labels must stay
+    // the user renames the `gold` node to something of their own
+    await page.evaluate(() => {
+      const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+      const gold = gs.nodes.find((n: any) => n.id === 'gold')
+      gs.updateNodeData(gold.id, { label: '내 금고' })
+    })
+
+    // switch the app language while the KO document is open — the OFFICIAL
+    // template labels follow the new language (§TLO11); the user rename does not
     await setLocale(page, 'en')
     l = await labels(page)
-    expect(l).toContain('레벨') // unchanged — it is now a user document
-    expect(l).not.toContain('Level')
+    expect(l).toContain('Level') // 레벨 → Level
+    expect(l).not.toContain('레벨')
+    expect(l).toContain('내 금고') // the user rename is preserved
+    expect(l).not.toContain('Gold') // (that node is now '내 금고')
 
     // …and a fresh EN open is the canonical English
     await resetAll(page)
     await pickTemplate(page, MMO_EN)
     l = await labels(page)
     expect(l).toContain('Level')
+    expect(l).toContain('Gold')
     expect(l).not.toContain('레벨')
   })
 
@@ -198,23 +213,202 @@ test.describe('template label overlay', () => {
     }
   })
 
-  // #97 found a real autosave-restore defect — pin that "menu open is the ONLY
-  // trigger" holds across a language switch AND a plain reload.
-  test('a language switch and a plain reload never re-apply the overlay', async ({ page }) => {
+  // #97 found a real autosave-restore defect — pin that the MENU overlay
+  // (`openTemplate`) is not re-run on a language switch or a plain reload: a user
+  // rename must survive both. The §TLO11 official-label re-seed is separate.
+  test('a language switch re-seeds OFFICIAL labels; a plain reload keeps them and never re-runs the menu overlay', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
 
-    // KO menu open ⇒ Korean labels
+    // KO menu open ⇒ Korean labels; then the user renames a node
+    await setLocale(page, 'ko')
+    await pickTemplate(page, MMO_KO)
+    expect(await labels(page)).toContain('레벨')
+    await page.evaluate(() => {
+      const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+      const gold = gs.nodes.find((n: any) => n.id === 'gold')
+      gs.updateNodeData(gold.id, { label: '내 금고' })
+    })
+
+    // switch the app language to EN ⇒ OFFICIAL labels follow, the rename stays
+    await setLocale(page, 'en')
+    expect(await labels(page)).toContain('Level')
+    expect(await labels(page)).not.toContain('레벨')
+    expect(await labels(page)).toContain('내 금고')
+
+    // let the autosave debounce persist, then a plain reload
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (k) => localStorage.getItem(k)?.includes('내 금고') ?? false,
+          GRAPH_STORAGE_KEY,
+        ),
+      )
+      .toBe(true)
+    await page.reload()
+    await openApp(page)
+
+    // boots in EN (persisted preference); the restored graph is unchanged — the
+    // menu overlay is NOT re-run (the rename is intact), and the locale did not
+    // change so §TLO11 does nothing either
+    expect(await htmlLang(page)).toBe('en')
+    const restored = await labels(page)
+    expect(restored).toContain('Level')
+    expect(restored).toContain('Reached level 15') // official label followed the switch
+    expect(restored).toContain('내 금고') // the user rename survived the reload
+    expect(restored).not.toContain('레벨')
+
+    // and opening the English Template fresh from the menu is the canonical
+    await resetAll(page)
+    await pickTemplate(page, MMO_EN)
+    const en = await labels(page)
+    expect(en).toContain('Level')
+    expect(en).not.toContain('레벨')
+  })
+})
+
+// docs/template-label-overlay.md §TLO11 — the safe official-template-label
+// locale switch: exact string match on (node id + a shipped-locale label), no
+// per-document flag, live graph + undo history + persisted record.
+test.describe('official template label — locale switch (§TLO11)', () => {
+  const rename = (page: Page, id: string, label: string) =>
+    page.evaluate(
+      ([i, l]) => {
+        const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+        gs.updateNodeData(i, { label: l })
+      },
+      [id, label],
+    )
+  const simRev = (page: Page) =>
+    page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().simulationRev)
+
+  test('KO → JA → EN round-trips the official labels of the bundled templates', async ({ page }) => {
+    await openApp(page)
+    const cases = [
+      { pick: MMO_KO, ko: '레벨', ja: 'レベル', en: 'Level' },
+      { pick: '용량 교착', ko: '가공', ja: '加工', en: 'Processing' },
+    ]
+    for (const c of cases) {
+      await resetAll(page)
+      await setLocale(page, 'ko')
+      await pickTemplate(page, c.pick)
+      expect(await labels(page)).toContain(c.ko)
+      await setLocale(page, 'ja')
+      expect(await labels(page)).toContain(c.ja)
+      expect(await labels(page)).not.toContain(c.ko)
+      await setLocale(page, 'en')
+      expect(await labels(page)).toContain(c.en)
+      await setLocale(page, 'ko')
+      expect(await labels(page)).toContain(c.ko)
+    }
+  })
+
+  test('a user-created node and a `Foo 2` de-dup name never switch', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'en')
+    await pickTemplate(page, MMO_EN)
+
+    // rename one official node to exactly "<label> 2" and add a brand-new node
+    await rename(page, 'gold', 'Gold 2')
+    await page.evaluate(() => {
+      const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+      gs.addNodeAt('pool', { x: 40, y: 40 }) // English default label, e.g. "Pool"
+    })
+    expect(await labels(page)).toContain('Pool') // the added node's English default
+
+    await setLocale(page, 'ko')
+    const after = await labels(page)
+    // official labels moved to KO, but "Gold 2" and the new "Pool" are untouched
+    expect(after).toContain('Gold 2')
+    expect(after).toContain('Pool')
+    expect(after).toContain('레벨')
+  })
+
+  test('an Imported unmodified template graph also switches — no provenance flag', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'en')
+
+    const G = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [
+        { id: 'tpl-conv', type: 'converter', position: { x: 0, y: 0 }, data: { kind: 'converter', label: 'Processing', activation: 'automatic', inRate: '2', outRate: '1' } },
+        { id: 'tpl-prod', type: 'pool', position: { x: 240, y: 0 }, data: { kind: 'pool', label: 'Finished goods', activation: 'passive', initial: 0, mode: 'pullAny' } },
+      ],
+      edges: [
+        { id: 'e', type: 'loop', source: 'tpl-conv', target: 'tpl-prod', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow: '1' } },
+      ],
+    })
+    await importGraph(page, G)
+    expect((await labels(page)).sort()).toEqual(['Finished goods', 'Processing'])
+
+    await setLocale(page, 'ja')
+    expect((await labels(page)).sort()).toEqual(['加工', '完成品在庫'])
+  })
+
+  test('the switch does not bump simulationRev; an undo across it keeps the current UI language', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'en')
+    await pickTemplate(page, MMO_EN)
+
+    await rename(page, 'gold', 'stash') // one undoable edit, in EN
+    const revBeforeSwitch = await simRev(page)
+    await setLocale(page, 'ko')
+    expect(await simRev(page)).toBe(revBeforeSwitch) // the switch is label-only
+
+    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
+    const l = await labels(page)
+    expect(l).toContain('골드') // the pre-rename node came back — in the ACTIVE language
+    expect(l).not.toContain('Gold')
+    expect(l).toContain('레벨')
+  })
+
+  test('the Timeline legend follows the switched labels', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'en')
+    await pickTemplate(page, MMO_EN)
+    const legend = page.locator('.timeline__legend, .timeline .legend').first()
+    await expect(legend).toContainText('Level')
+
+    await setLocale(page, 'ko')
+    await expect(legend).toContainText('레벨')
+    await expect(legend).not.toContainText('Level')
+  })
+
+  test('a non-template node id is never switched — even when its label equals an official string', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    // `sample-pool` carries the exact string "Gold" (an official MMO label), but
+    // its id is not a bundled-template id → the switch must leave it alone.
+    await page.evaluate(() => {
+      const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+      gs.loadGraph({
+        nodes: [
+          { id: 'sample-source', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Faucet', activation: 'automatic', mode: 'pushAny' } },
+          { id: 'sample-pool', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'Gold', activation: 'passive', initial: 5, mode: 'pullAny' } },
+        ],
+        edges: [],
+      })
+    })
+    await setLocale(page, 'ko')
+    expect((await labels(page)).sort()).toEqual(['Faucet', 'Gold'])
+  })
+
+  test('boot reconciles a stored JA preference against KO template labels', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
     await setLocale(page, 'ko')
     await pickTemplate(page, MMO_KO)
     expect(await labels(page)).toContain('레벨')
 
-    // switch the app language to EN ⇒ the OPEN graph stays Korean
-    await setLocale(page, 'en')
-    expect(await labels(page)).toContain('레벨')
-    expect(await labels(page)).not.toContain('Level')
-
-    // let the autosave debounce persist, then a plain reload
+    // pin the language preference to JA, keep the KO-labelled graph, reload
+    await page.evaluate(() =>
+      localStorage.setItem('loop-studio/ui-locale/1', 'ja'),
+    )
     await expect
       .poll(() =>
         page.evaluate(
@@ -226,19 +420,9 @@ test.describe('template label overlay', () => {
     await page.reload()
     await openApp(page)
 
-    // boots in EN (persisted preference) and restores the KO-labelled graph —
-    // the overlay is NOT run on autosave restore
-    expect(await htmlLang(page)).toBe('en')
-    const restored = await labels(page)
-    expect(restored).toContain('레벨')
-    expect(restored).toContain('15레벨 도달')
-    expect(restored).not.toContain('Level')
-
-    // and opening the English Template fresh from the menu now gives English
-    await resetAll(page)
-    await pickTemplate(page, MMO_EN)
-    const en = await labels(page)
-    expect(en).toContain('Level')
-    expect(en).not.toContain('레벨')
+    expect(await htmlLang(page)).toBe('ja')
+    const l = await labels(page)
+    expect(l).toContain('レベル') // boot switched the official labels to JA
+    expect(l).not.toContain('레벨')
   })
 })
