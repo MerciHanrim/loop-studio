@@ -58,8 +58,10 @@ examples.
 ### Not in scope (named so they are not assumed)
 
 - **Requiring the minimap.** The minimap stays a *secondary* aid
-  (`docs/mobile.md §MV-D10` already drops it on phones); the fix must work with
-  it hidden.
+  (`docs/mobile.md §MV-D10` drops it on phones — and, since the §MML3 work, on
+  any desktop pane below ~640 × 380 px via `Canvas.tsx` `minimapFits`, where the
+  fixed ~202 × 152 overlay would dominate instead of help; regression cover in
+  `e2e/minimap-responsive.spec.ts`); the fix must work with it hidden.
 - **Auto-layout / node re-positioning** to create empty space. This doc is about
   *input*, not layout.
 - **A new saved viewport field.** The viewport is session state (Workspace
