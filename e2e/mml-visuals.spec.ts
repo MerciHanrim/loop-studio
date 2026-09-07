@@ -107,8 +107,9 @@ const frameMML3 = (page: Page) =>
       { duration: 0 },
     )
   }, MML3)
+const HIDE_HINTS = '.hint-note,.lgr-focus-hint,.lgr-suggest-note{display:none!important}'
 const hideChrome = (page: Page) =>
-  page.addStyleTag({ content: '.react-flow__minimap,.react-flow__controls,.canvas-hint,.hint-note{display:none!important}' })
+  page.addStyleTag({ content: `.react-flow__minimap,.react-flow__controls,${HIDE_HINTS}` })
 const shot = (page: Page, name: string) => page.locator('.react-flow').screenshot({ path: `${OUT}/${name}.png` })
 
 for (const theme of ['light', 'dark'] as const) {
@@ -144,8 +145,11 @@ for (const theme of ['light', 'dark'] as const) {
         await page.locator('.react-flow').screenshot({ path: `${OUT}/sil-${theme}-${kinds[i]}.png` })
       }
 
-      // one contact sheet (all rows) + the per-node line counts for the record
-      await setVp(page, { x: 40, y: 12, zoom: 0.78 })
+      // one contact sheet with ALL EIGHT rows in frame + the per-node line
+      // counts for the record. A tall pane so nothing is clipped at the bottom.
+      await page.setViewportSize({ width: 1200, height: 1560 })
+      await page.waitForTimeout(200)
+      await setVp(page, { x: 30, y: 16, zoom: 0.82 })
       await page.waitForTimeout(300)
       await shot(page, `contact-silhouettes-${theme}`)
       Object.assign(
@@ -191,9 +195,10 @@ for (const theme of ['light', 'dark'] as const) {
         await page.setViewportSize({ width: w, height: Math.round(w * 0.62) })
         await openApp(page)
         await resetAll(page)
-        // NOTE: the minimap is deliberately left visible here — the review needs
-        // to see whether the §MML3 framing sits clear of it (and that it is
-        // auto-hidden at the smallest pane).
+        // hide only the transient canvas hints — the minimap is deliberately
+        // left visible so the review sees whether the §MML3 framing sits clear
+        // of it (and that it is auto-hidden at the smallest pane)
+        await page.addStyleTag({ content: HIDE_HINTS })
         for (const loc of ['en', 'ko', 'ja'] as const) {
           await setLocale(page, 'en')
           await importGraph(page, MMO)
