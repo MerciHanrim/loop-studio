@@ -14,11 +14,19 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 //   • mobile: controls / run bar / update bar / node hit targets / direction
 //     marker all inside the viewport; zero horizontal document scroll.
 
-// a deliberately overflowing label. The VISIBLE (pre-ellipsis) part is Latin +
-// accents — covered by the bundled IBM Plex face, so the pixels are
-// deterministic across machines; the multi-script / emoji tail lives only in
-// the DOM (asserted separately) and never reaches the clip.
-const LONG = "Trésor d'or — a deliberately very long label that overflows · 黄金の保管庫 · Хранилище · 🪙"
+// docs/visual-language.md §VL11.2 — role separation, NOT a cut in multi-script
+// support. §MML1 made a long title WRAP in full (no ellipsis), so the whole
+// string now reaches the pixel clip. A CJK / Cyrillic / emoji tail then renders
+// with whatever glyphs the runner's OS fonts happen to provide — not
+// deterministic between Windows builds. So this pixel fixture uses a long
+// LATIN-only string (bundled IBM Plex, identical on every machine): it still
+// wraps to several lines with no ellipsis, grows the vessel to its ceiling, and
+// exercises the unbreakable-token fallback. The multi-script / CJK / Cyrillic /
+// emoji stress case moved to `node-long-label.spec.ts`, which asserts the same
+// guarantees (full string kept, no sideways spill, silhouette grows, handles
+// re-centre) from the DOM and never compares pixels.
+const LONG =
+  "Trésor d'or — a deliberately very long operating label that wraps across several lines, plus superlongunbreakabletokenwithnospaces"
 
 const FIXTURE = JSON.stringify({
   schema: 'loop-studio/graph',

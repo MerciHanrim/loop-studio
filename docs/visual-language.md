@@ -464,6 +464,18 @@ The visual system must not break the local / offline / deterministic posture.
   approved pixel tolerance).
 - **Snapshot matrix:** {light, dark} × {desktop, mobile} × {L2, L1, L0} over a
   fixed fixture, plus the per-state and per-edge-class frames from §VL12.
+- **The long-label fixture is LATIN-only — a role split, not a cut in
+  multi-script support.** §MML1 wraps a long title in full (no ellipsis), so the
+  whole string now reaches the pixel clip; a CJK / Cyrillic / emoji tail would
+  then render with whatever glyphs the CI runner's OS fonts supply and stop
+  being byte-deterministic between Windows builds. The pixel fixture
+  (`e2e/canvas-refresh-visual.spec.ts`) therefore uses a long Latin string
+  (bundled IBM Plex, identical everywhere) that still wraps to several lines,
+  grows the vessel to its ceiling, and force-breaks an unbreakable token. The
+  multi-script / CJK / Cyrillic / emoji stress case lives in
+  `e2e/node-long-label.spec.ts` as a **DOM** test — full string kept on the
+  element, no sideways spill, silhouette grows, handles re-centre — and never
+  compares pixels.
 - **Parameter / Register are in the committed matrix.** Their frames — `param`
   resting, `param` out-of-range, `register` valid mid-run, `register` `invalid`
   (each `M_REG_*` reason once), the Timeline gap — sit in the same {light, dark}
@@ -489,10 +501,12 @@ committed pixel matrix in `e2e/canvas-refresh-visual.spec.ts`:
 
 1. **Snapshot matrix** — a committed screenshot for every cell of
    {light, dark} × {desktop, mobile} × {L2, L1, L0} over one long-content
-   fixture (long multi-script label, large + negative values, unit, an
-   `invalid` Register, a selected + keyboard-focused node, a resource and a
+   fixture (a long Latin label that wraps full-height with an unbreakable-token
+   tail — see §VL11.2 for why not multi-script — large + negative values, unit,
+   an `invalid` Register, a selected + keyboard-focused node, a resource and a
    state edge, a live run cue), plus a `forced-colors: active` frame at L2 and
-   L0. Non-deterministic chrome (the build stamp) is outside the `.react-flow`
+   L0. The multi-script / CJK / Cyrillic / emoji long label is covered from the
+   DOM in `e2e/node-long-label.spec.ts`, not here. Non-deterministic chrome (the build stamp) is outside the `.react-flow`
    clip; the minimap + attribution are masked; fonts are awaited and the
    single-shot run cue is frozen before the shot. Tolerance and platform
    pinning as for the existing Distribution snapshots.
