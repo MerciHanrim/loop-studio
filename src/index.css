@@ -885,11 +885,15 @@ body {
   position: relative;
   display: inline-flex;
   min-width: 118px;
-  /* a long label / big value is ellipsised inside the vessel, never allowed to
-     stretch the silhouette (which `preserveAspectRatio="none"` would distort,
-     especially once the box is held across L2/L1/L0 — §VL7.1) */
+  /* a very long value is still ellipsised inside the vessel. The TITLE now
+     wraps to two lines (docs/mmo-multilingual-layout.md §MML1) instead of
+     widening indefinitely; the box then grows in HEIGHT and the vessel is
+     redrawn at that height by `./silhouette`, so `preserveAspectRatio="none"`
+     no longer distorts it. */
   max-width: 260px;
-  height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18) */
+  height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18).
+     A two-line title replaces this with an inline `height` (the measured body
+     height, capped per kind) and the vessel is redrawn at that height. */
   font-family: var(--font-sans);
   font-size: 12px;
   filter: var(--elev-node);
@@ -1077,10 +1081,19 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
   width: 100%;
   padding: 6px 16px;
   pointer-events: none;
+}
+/* the un-stretched content column — its natural height drives the box height
+   (docs/mmo-multilingual-layout.md §MML1) */
+.nodef__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
 }
 .nodef--source .nodef__body {
   padding-right: 26px;
@@ -1133,11 +1146,23 @@ body {
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 14px;
+  line-height: 1.15;
   color: var(--text-primary);
-  min-width: 0; /* let it shrink below its content so the ellipsis engages */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  /* docs/mmo-multilingual-layout.md §MML1 — up to two lines at a ~135px
+     soft-max; a title that will not fit in two lines widens the line rather
+     than being clipped. NEVER `overflow: hidden` / `text-overflow: ellipsis`. */
+  max-width: 135px;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+  line-break: strict;
+  text-wrap: balance;
+}
+/* Korean breaks between eojeol, not syllables; every other language (incl. JA /
+   ZH) keeps `word-break: normal` so the browser's CJK line-break rules apply. */
+:lang(ko) .nodef__title {
+  word-break: keep-all;
 }
 .nodef__value {
   font-family: var(--font-mono);

@@ -1,0 +1,83 @@
+// docs/mmo-multilingual-layout.md §MML1b — height-parametric vessel silhouettes.
+//
+// The node body can grow past the historic 64px once a title wraps to two
+// lines. A `preserveAspectRatio="none"` SVG would then distort every shape, so
+// each of the seven kinds gets its own path function: the top and bottom cap
+// regions keep their pixel offsets, corner radii / notch / endbar are fixed,
+// and only the straight middle stretches. At `h = 64` every function returns a
+// path pixel-identical to the previous hard-coded silhouette (asserted by
+// `silhouette.test.ts`).
+//
+// The SVG viewBox is `0 0 120 h`; the x geometry (width 120) never changes.
+
+import type { NodeKind } from '../../model/types'
+
+/** The design height every silhouette was drawn at. */
+export const BASE_NODE_H = 64
+
+/** Per-kind ceiling on the rendered height. `gate` / `converter` carry an
+ *  identity centre form (diamond / waisted hourglass); past this the middle
+ *  angle gets too steep and the shape stops reading, so the box stops growing
+ *  and the rare over-tall body is allowed to sit a hair proud of the vessel. */
+export const MAX_NODE_H: Record<NodeKind, number> = {
+  pool: 132,
+  source: 132,
+  drain: 132,
+  gate: 92,
+  converter: 96,
+  end: 120,
+  parameter: 120,
+  register: 120,
+}
+
+const n = (v: number) => Math.round(v * 100) / 100
+
+/** The exact historic paths, returned verbatim at the base height so every
+ *  non-grown node (equilibrium / deadlock, short user labels, most of Coffee)
+ *  is byte-identical to before this change — no visual-snapshot churn. */
+const BASE: Record<NodeKind, string> = {
+  pool: 'M32 6 H88 Q95 6 96 13 L112 52 Q113 58 107 58 H13 Q7 58 8 52 L24 13 Q25 6 32 6 Z',
+  source: 'M14 8 Q8 8 8 14 V50 Q8 56 14 56 H84 L114 32 L84 8 Z',
+  drain: 'M6 32 L34 8 H104 Q112 8 112 15 V49 Q112 56 104 56 H34 Z',
+  gate: 'M60 3 L117 32 L60 61 L3 32 Z',
+  converter:
+    'M14 8 H106 Q112 8 112 14 L82 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L38 32 L8 14 Q8 8 14 8 Z',
+  end: 'M28 8 H92 Q112 8 112 32 Q112 56 92 56 H28 Q8 56 8 32 Q8 8 28 8 Z',
+  parameter: 'M40 12 H100 Q108 12 108 20 V44 Q108 52 100 52 H40 L28 40 H18 V24 H28 L40 12 Z',
+  register: 'M30 12 H98 Q116 12 116 32 Q116 52 98 52 H30 Q14 52 14 32 Q14 12 30 12 Z',
+}
+
+/** The vessel outline for `kind` at body height `h` (viewBox `0 0 120 h`). */
+export function silhouettePath(kind: NodeKind, h = BASE_NODE_H): string {
+  const H = Math.max(BASE_NODE_H, Math.min(h, MAX_NODE_H[kind]))
+  if (H <= BASE_NODE_H) return BASE[kind]
+  const mid = n(H / 2)
+  switch (kind) {
+    case 'pool':
+      // top edge y6, shoulders y13; bottom edge y H-6, shoulders y H-12
+      return `M32 6 H88 Q95 6 96 13 L112 ${n(H - 12)} Q113 ${n(H - 6)} 107 ${n(H - 6)} H13 Q7 ${n(H - 6)} 8 ${n(H - 12)} L24 13 Q25 6 32 6 Z`
+    case 'source':
+      return `M14 8 Q8 8 8 14 V${n(H - 14)} Q8 ${n(H - 8)} 14 ${n(H - 8)} H84 L114 ${mid} L84 8 Z`
+    case 'drain':
+      return `M6 ${mid} L34 8 H104 Q112 8 112 15 V${n(H - 15)} Q112 ${n(H - 8)} 104 ${n(H - 8)} H34 Z`
+    case 'gate':
+      return `M60 3 L117 ${mid} L60 ${n(H - 3)} L3 ${mid} Z`
+    case 'converter':
+      return `M14 8 H106 Q112 8 112 14 L82 ${mid} L112 ${n(H - 14)} Q112 ${n(H - 8)} 106 ${n(H - 8)} H14 Q8 ${n(H - 8)} 8 ${n(H - 14)} L38 ${mid} L8 14 Q8 8 14 8 Z`
+    case 'end':
+      // fixed cap radius (Q through x112/y-cap); a straight V is inserted for growth
+      return `M28 8 H92 Q112 8 112 32 V${n(H - 32)} Q112 ${n(H - 8)} 92 ${n(H - 8)} H28 Q8 ${n(H - 8)} 8 ${n(H - 32)} V32 Q8 8 28 8 Z`
+    case 'parameter':
+      // left notch stays 10×16, centred on the left edge's vertical middle
+      return `M40 12 H100 Q108 12 108 20 V${n(H - 20)} Q108 ${n(H - 12)} 100 ${n(H - 12)} H40 L28 ${n(mid + 8)} H18 V${n(mid - 8)} H28 L40 12 Z`
+    case 'register':
+      return `M30 12 H98 Q116 12 116 32 V${n(H - 32)} Q116 ${n(H - 12)} 98 ${n(H - 12)} H30 Q14 ${n(H - 12)} 14 ${n(H - 32)} V32 Q14 12 30 12 Z`
+  }
+}
+
+/** Clamp a content height to this kind's silhouette range: never below the base
+ *  height, never above the per-kind ceiling. The caller decides *whether* to
+ *  grow at all (only when the title has actually wrapped). */
+export function clampNodeHeight(kind: NodeKind, measured: number): number {
+  return Math.max(BASE_NODE_H, Math.min(Math.round(measured), MAX_NODE_H[kind]))
+}
