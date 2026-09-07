@@ -184,6 +184,8 @@ jobs:
         run: npx playwright install chromium
       - name: Capture §MML review screenshots
         run: npx playwright test --project=mml-visuals --workers=1
+        env:
+          MML_VISUALS: '1'
       - name: Upload the capture set
         if: always()
         uses: actions/upload-artifact@v4

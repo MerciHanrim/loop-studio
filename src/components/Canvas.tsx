@@ -194,6 +194,23 @@ export function Canvas() {
     },
     [paneW, paneH, minimapFits, setViewport, fitView],
   )
+  // keep the re-fit effect's deps stable (fitRev / loadRev / a settle signal)
+  // — `applyInitialView` changes identity with the pane size and must not
+  // re-trigger or tear down the pending swap fit.
+  const applyInitialViewRef = useRef(applyInitialView)
+  applyInitialViewRef.current = applyInitialView
+
+  // §MML1 — a node whose title wraps grows its box ONE measure pass after
+  // `nodesInitialized` first turns true (and fires `updateNodeInternals`), so
+  // React Flow's node bounds keep moving for a beat. A cheap sum of the
+  // measured node sizes is a "layout settled" signal: hold the pending fit
+  // until it stops changing frame-to-frame, else a graph wider than `maxZoom`
+  // opens clipped (fitView clamps up and overflows).
+  const measuredSig = useStore((s) => {
+    let sig = 0
+    for (const n of s.nodeLookup.values()) sig += (n.measured?.width ?? 0) * 31 + (n.measured?.height ?? 0)
+    return Math.round(sig)
+  })
 
   // A Templates load / pasted-graph swap bumps `graphStore.fitRev` — a
   // whole-graph replacement that carries NO viewport of its own and lands on
@@ -201,20 +218,22 @@ export function Canvas() {
   // previous camera on a swap, so a new template can open panned to the *old*
   // graph's viewport (a blank / clipped first impression). Re-fit once per
   // swap, AFTER React Flow has laid out and MEASURED the new nodes
-  // (`useNodesInitialized`), so the bounds are real — no `setTimeout`, no
-  // retry. Excluded upstream: `newGraph` and `loadDoc` (file / Workspace /
-  // Share / revision import — a Workspace restores its own saved view). Skipped
-  // if a `loadDoc` landed after the arm, or if the camera was moved between the
-  // swap and the measure (a deliberate pan wins). The initial mount is left to
-  // `<ReactFlow fitView>`. Pan / zoom, "Reset view", Focus, filters and the
-  // mobile orientation re-fit are untouched; nothing here reads or writes the
-  // GraphDoc / node positions / undo / digest.
+  // (`useNodesInitialized`) AND those measurements have settled (§MML1) — no
+  // `setTimeout`, no retry loop. Excluded upstream: `newGraph` and `loadDoc`
+  // (file / Workspace / Share / revision import — a Workspace restores its own
+  // saved view). Skipped if a `loadDoc` landed after the arm, or if the camera
+  // was moved between the swap and the fit (a deliberate pan wins). The initial
+  // mount is left to `<ReactFlow fitView>`. Pan / zoom, "Reset view", Focus,
+  // filters and the mobile orientation re-fit are untouched; nothing here reads
+  // or writes the GraphDoc / node positions / undo / digest.
   const seenFitRev = useRef<number | null>(null)
   const armedSwap = useRef<{
     rev: number
     atLoadRev: number
     fromVp: { x: number; y: number; zoom: number }
+    sig: number | null
   } | null>(null)
+  const [settleTick, setSettleTick] = useState(0)
   useEffect(() => {
     if (seenFitRev.current === null) {
       seenFitRev.current = fitRev // first run: adopt the mount's graph
@@ -222,15 +241,24 @@ export function Canvas() {
     }
     if (fitRev !== seenFitRev.current && armedSwap.current?.rev !== fitRev) {
       seenFitRev.current = fitRev
-      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: getViewport() }
+      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: getViewport(), sig: null }
     }
     const armed = armedSwap.current
     if (!armed || !nodesInitialized) return // wait for the measure pass
-    armedSwap.current = null
     // a `loadDoc` (file / Workspace / Share / revision import) that landed
     // AFTER this swap was armed bumps `loadRev` but not `fitRev` — it owns the
     // camera (or restores a saved one), so drop the pending fit.
-    if (armed.atLoadRev !== loadRev) return
+    if (armed.atLoadRev !== loadRev) {
+      armedSwap.current = null
+      return
+    }
+    // hold until the measured node sizes are stable for one frame (§MML1)
+    if (armed.sig !== measuredSig) {
+      armed.sig = measuredSig
+      const id = requestAnimationFrame(() => setSettleTick((n) => n + 1))
+      return () => cancelAnimationFrame(id)
+    }
+    armedSwap.current = null
     const now = getViewport()
     const untouched =
       Math.abs(now.x - armed.fromVp.x) < 0.5 &&
@@ -239,9 +267,9 @@ export function Canvas() {
     if (!untouched) return
     // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
     const iv = useGraphStore.getState().pendingInitialView
-    if (iv) applyInitialView(iv)
+    if (iv) applyInitialViewRef.current(iv)
     else void fitView({ padding: 0.3, maxZoom: 1.2 })
-  }, [fitRev, loadRev, nodesInitialized, fitView, getViewport, applyInitialView])
+  }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
 
   // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
   // hides first (removes from the canvas), then focus dims the remainder. Both

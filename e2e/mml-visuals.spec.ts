@@ -112,6 +112,11 @@ const hideChrome = (page: Page) =>
   page.addStyleTag({ content: `.react-flow__minimap,.react-flow__controls,${HIDE_HINTS}` })
 const shot = (page: Page, name: string) => page.locator('.react-flow').screenshot({ path: `${OUT}/${name}.png` })
 
+// Only the dedicated `mml-visuals` CI job (which sets MML_VISUALS=1) runs this
+// producer. The default sharded `e2e` run walks every project, so without this
+// guard the heavy multi-locale captures would also execute — and fail — there.
+test.skip(!process.env.MML_VISUALS, 'review-artifact producer — run by the mml-visuals job only')
+
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`§MML visuals — ${theme}`, () => {
     test.use({ colorScheme: theme })
