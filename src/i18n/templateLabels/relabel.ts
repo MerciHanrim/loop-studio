@@ -24,7 +24,7 @@
 
 import { TEMPLATES } from '../../model/templates'
 import type { LoopNode } from '../../model/types'
-import { BASE_LOCALE, isRegistered } from '../registry'
+import { BASE_LOCALE } from '../registry'
 import { loadedTemplateLabelDict, templateLabelDictLocales } from './dicts'
 import { AMBIGUOUS_NODE_IDS, KNOWN_OFFICIAL_LABELS } from './known.generated'
 
@@ -64,9 +64,12 @@ function knownMap(): ReadonlyMap<string, ReadonlySet<string>> {
 const localeTargets = new Map<string, ReadonlyMap<string, string>>()
 
 /** Build (once, cached) the `id -> official label` map for `locale`.
- *  `undefined` for a non-base locale whose dictionary is not resident. */
+ *  `undefined` ONLY for a locale that HAS a dictionary loader whose chunk is not
+ *  resident (an invariant violation — the switch should have loaded it). A
+ *  locale with no dictionary at all (`BASE_LOCALE`, the dev pseudo-locale, a
+ *  future EN-fallback locale) resolves to the English canonical. */
 function targetsFor(locale: string): ReadonlyMap<string, string> | undefined {
-  if (locale === BASE_LOCALE) return baseTargets()
+  if (locale === BASE_LOCALE || !templateLabelDictLocales.includes(locale)) return baseTargets()
   const hit = localeTargets.get(locale)
   if (hit) return hit
   const dict = loadedTemplateLabelDict(locale)
@@ -110,30 +113,25 @@ export function __rebuildOfficialTemplateLabelIndex(): void {
  * (§TLO11). Returns the SAME array reference when nothing changed, so a caller
  * can skip the write — a re-select or a same-locale boot is a no-op.
  *
- * If `targetLocale` is a REGISTERED locale whose dictionary is not resident,
- * that is an invariant violation (`src/i18n/store.ts` loads it before the
- * switch): the nodes are left untouched (no half-English rewrite) and an error
- * is logged. An UNREGISTERED code falls back to the English canonical.
+ * `targetsFor` returns `undefined` only for a locale that HAS a dictionary
+ * loader whose chunk is not resident — an invariant violation (`store.ts` loads
+ * it before flipping `activeLocale`): the nodes are then left untouched (never a
+ * half-English rewrite) and an error is logged. Every other code — `en`, the
+ * dev pseudo-locale, a future EN-fallback locale, an unregistered code — maps
+ * to the English canonical.
  */
 export function relabelNodesForLocale(
   nodes: readonly LoopNode[],
   targetLocale: string,
 ): LoopNode[] {
   const known = knownMap()
-  let targets = targetsFor(targetLocale)
+  const targets = targetsFor(targetLocale)
   if (!targets) {
-    if (isRegistered(targetLocale)) {
-      // registered-but-not-loaded → do NOT rewrite to English (a visible
-      // half-switch). The store loads the dict before flipping `activeLocale`,
-      // so reaching here is an invariant violation.
-      console.error(
-        `[i18n] relabelNodesForLocale("${targetLocale}"): dictionary not resident — ` +
-          `nodes left unchanged. The locale switch should have loaded it first.`,
-      )
-      return nodes as LoopNode[]
-    }
-    // unregistered code (defensive / tests) → the English canonical
-    targets = baseTargets()
+    console.error(
+      `[i18n] relabelNodesForLocale("${targetLocale}"): dictionary not resident — ` +
+        `nodes left unchanged. The locale switch should have loaded it first.`,
+    )
+    return nodes as LoopNode[]
   }
   const ambiguous = new Set(AMBIGUOUS_NODE_IDS)
 
