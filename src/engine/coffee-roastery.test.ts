@@ -92,10 +92,10 @@ describe('coffee-roastery example', () => {
   })
 
   it('ships the three zone frames — non-overlapping, 18 nodes each in exactly one frame ≥24px, 5 params outside (§CR17)', () => {
-    const frames = (fixtureDoc as { frames?: typeof COFFEE_ROASTERY_FRAMES }).frames
+    type R = { x: number; y: number; w: number; h: number }
+    const frames = (fixtureDoc as { frames?: { id: string; label: string; rect: R }[] }).frames
     expect(frames).toEqual(COFFEE_ROASTERY_FRAMES)
 
-    type R = { x: number; y: number; w: number; h: number }
     const box = (r: R) => ({ l: r.x, r: r.x + r.w, t: r.y, b: r.y + r.h })
     const overlap = (
       a: { l: number; r: number; t: number; b: number },
