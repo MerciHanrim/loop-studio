@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 
 // docs/module-system.md §MS5 — the Inputs / Summary panels in the desktop right
@@ -197,4 +197,159 @@ test('the panels are desktop-only — absent at a narrow (mobile) viewport', asy
   await page.reload()
   await expect(page.locator('.toolbar--mobile')).toBeVisible()
   await expect(page.locator('.mpanels')).toHaveCount(0)
+})
+
+// docs/module-system.md §MS5 / the post-#153 UX cleanup — a long node name in a
+// panel row wraps to at most TWO lines (was hard-clipped to one), the full name
+// is available on hover, and the value column stays aligned. Flow-pointer rows
+// keep their single line.
+async function seedLongLabels(page: Page) {
+  return page.evaluate(() => {
+    const g = () => (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
+    g().newGraph()
+    g().addNodeAt('parameter', { x: 0, y: 0 })
+    g().addNodeAt('parameter', { x: 200, y: 0 })
+    g().addNodeAt('register', { x: 0, y: 200 })
+    g().addNodeAt('register', { x: 200, y: 200 })
+    g().addNodeAt('register', { x: 400, y: 200 })
+    const [pLong, pShort, rLong, rShort, rBig] = g().nodes.map((n: { id: string }) => n.id)
+    g().updateNodeData(pLong, {
+      label: 'Projected daily operating cost per finished batch including packaging and delivery',
+      value: 12,
+    })
+    g().updateNodeData(pShort, { label: 'Rate', value: 3 })
+    g().updateNodeData(rLong, { label: 'Projected daily operating margin', expr: `@${pShort} * 2`, unit: 'kKRW/day' })
+    g().updateNodeData(rShort, { label: 'Net', expr: `@${pShort}`, unit: 'kKRW/day' })
+    // a value wider than --mp-val-w (96px) — forces the grow path
+    g().updateNodeData(rBig, { label: 'Wide', expr: `@${pShort} * 100000`, unit: 'kKRW/day' })
+    return { pLong, pShort, rLong, rShort, rBig }
+  })
+}
+
+const lineCountOf = (loc: Locator) =>
+  loc.evaluate((el) => {
+    const cs = getComputedStyle(el)
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3
+    return Math.round((el as HTMLElement).getBoundingClientRect().height / lh)
+  })
+
+test.describe('panel rows — 2-line names + aligned value column', () => {
+  test('a long NAME label clamps to 2 lines; a short one stays 1; flow rows stay 1', async ({ page }) => {
+    await seedLongLabels(page)
+    await page.evaluate(() => document.fonts.ready)
+
+    const longReg = summaryPanel(page).locator('.mp-row--reg', { hasText: 'Projected daily operating margin' })
+    const clamp = await longReg.locator('.mp-row__label--name').evaluate((el) => {
+      const cs = getComputedStyle(el)
+      return { clamp: cs.webkitLineClamp, overflow: cs.overflow, ws: cs.whiteSpace }
+    })
+    expect(clamp).toMatchObject({ clamp: '2', overflow: 'hidden', ws: 'normal' })
+    expect(await lineCountOf(longReg.locator('.mp-row__label--name'))).toBe(2)
+    // clamped, not overflowing the row
+    const escapes = await longReg.evaluate((li) => {
+      const lab = li.querySelector('.mp-row__label--name')!.getBoundingClientRect()
+      return lab.bottom > li.getBoundingClientRect().bottom + 1
+    })
+    expect(escapes).toBe(false)
+
+    // a genuinely 3+-line name really clamped: scrollHeight beats clientHeight
+    const overflows = await inputsPanel(page)
+      .locator('.mp-row', { hasText: 'Projected daily operating cost per finished batch including' })
+      .locator('.mp-row__label--name')
+      .evaluate((el) => el.scrollHeight > el.clientHeight)
+    expect(overflows).toBe(true)
+
+    // short name = 1 line
+    const shortReg = summaryPanel(page).locator('.mp-row--reg', { hasText: 'Net' })
+    expect(await lineCountOf(shortReg.locator('.mp-row__label--name'))).toBe(1)
+  })
+
+  test('a v2 flow-pointer row keeps ONE line (base .mp-row__label, no --name)', async ({ page }) => {
+    await page.evaluate(() => {
+      const g = () => (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
+      g().newGraph()
+      g().addNodeAt('source', { x: 0, y: 0 })
+      g().addNodeAt('pool', { x: 200, y: 0 })
+      g().addNodeAt('parameter', { x: 0, y: 200 })
+      const [s, p, rate] = g().nodes.map((n: { id: string }) => n.id)
+      // long source/target names so the pointer text is long
+      g().updateNodeData(s, { label: 'Continuous green-bean intake source' })
+      g().updateNodeData(p, { label: 'Roasted finished-goods buffer stock' })
+      g().updateNodeData(rate, { label: 'Rate', value: 3 })
+      g().onConnect({ source: s, target: p, sourceHandle: 'out', targetHandle: 'in' })
+      g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: `@${rate}` })
+    })
+    await page.evaluate(() => document.fonts.ready)
+    const flowLabel = inputsPanel(page).locator('.mp-row--flow .mp-row__label')
+    await expect(flowLabel).not.toHaveClass(/mp-row__label--name/)
+    const info = await flowLabel.evaluate((el) => {
+      const cs = getComputedStyle(el)
+      const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3
+      return { ws: cs.whiteSpace, lines: Math.round(el.getBoundingClientRect().height / lh), title: el.getAttribute('title'), text: el.textContent }
+    })
+    expect(info.ws).toBe('nowrap')
+    expect(info.lines).toBe(1)
+    expect(info.title).toBe(info.text) // the rendered "A → B"
+  })
+
+  test('the full name is on the label as a title', async ({ page }) => {
+    await seedLongLabels(page)
+    const regLabel = summaryPanel(page)
+      .locator('.mp-row--reg', { hasText: 'Projected daily operating margin' })
+      .locator('.mp-row__label--name')
+    await expect(regLabel).toHaveAttribute('title', 'Projected daily operating margin')
+    const paramLabel = inputsPanel(page)
+      .locator('.mp-row', { hasText: 'Projected daily operating cost per finished batch including' })
+      .locator('.mp-row__label--name')
+    await expect(paramLabel).toHaveAttribute(
+      'title',
+      'Projected daily operating cost per finished batch including packaging and delivery',
+    )
+  })
+
+  test('normal register values form a fixed column — both edges align', async ({ page }) => {
+    await seedLongLabels(page)
+    await page.evaluate(() => document.fonts.ready)
+    const edges = await summaryPanel(page).evaluate((panel) => {
+      const vals = [...panel.querySelectorAll('.mp-row--reg .mp-row__val')] as HTMLElement[]
+      // exclude the deliberately-wide 'Wide' row
+      return vals
+        .filter((v) => !v.closest('.mp-row--reg')!.textContent!.includes('Wide'))
+        .map((v) => {
+          const r = v.getBoundingClientRect()
+          return { left: Math.round(r.left), right: Math.round(r.right) }
+        })
+    })
+    expect(edges.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(edges.map((e) => e.right)).size).toBe(1) // one right edge
+    expect(new Set(edges.map((e) => e.left)).size).toBe(1) // one left edge → fixed width
+  })
+
+  test('an over-long value grows the column left, never overlaps the name, no h-scroll', async ({ page }) => {
+    await seedLongLabels(page)
+    await page.evaluate(() => document.fonts.ready)
+    const m = await summaryPanel(page).evaluate((panel) => {
+      const wide = [...panel.querySelectorAll('.mp-row--reg')].find((li) => li.textContent!.includes('Wide'))!
+      const normal = [...panel.querySelectorAll('.mp-row--reg')].find((li) => li.textContent!.includes('Net'))!
+      const wr = wide.querySelector('.mp-row__val')!.getBoundingClientRect()
+      const wl = wide.querySelector('.mp-row__label--name')!.getBoundingClientRect()
+      const wm = wide.querySelector('.mp-row__main')!.getBoundingClientRect()
+      const nr = normal.querySelector('.mp-row__val')!.getBoundingClientRect()
+      const panelBox = panel.getBoundingClientRect()
+      return {
+        noOverlap: Math.round(wl.right) + 6 <= Math.round(wr.left),
+        insideMain: Math.round(wr.right) <= Math.round(wm.right) + 1,
+        grewLeft: Math.round(wr.left) < Math.round(nr.left),
+        rightAligned: Math.abs(Math.round(wr.right) - Math.round(nr.right)) <= 1,
+        hScroll: panel.scrollWidth - panel.clientWidth,
+        valInside: Math.round(wr.right) <= Math.round(panelBox.right) + 1,
+      }
+    })
+    expect(m.noOverlap).toBe(true)
+    expect(m.insideMain).toBe(true)
+    expect(m.grewLeft).toBe(true)
+    expect(m.rightAligned).toBe(true)
+    expect(m.hScroll).toBeLessThanOrEqual(1)
+    expect(m.valInside).toBe(true)
+  })
 })

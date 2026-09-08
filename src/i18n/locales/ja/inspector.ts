@@ -120,7 +120,6 @@ const inspector = {
   'panels.summary.expand': 'サマリーパネルを展開する',
   'panels.inputs.paramValue': '{label} の値',
   'panels.inputs.flowVia': '{param} 経由のフロー',
-  'panels.inputs.reveal': 'キャンバスに表示',
   'panels.summary.showCalc': '計算を表示',
   'panels.summary.hideCalc': '計算を隠す',
   'panels.summary.noValue': '— ステップ {step} に値がありません',

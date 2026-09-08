@@ -133,8 +133,8 @@ function InputsSection({
                   <li key={n.id} className="mp-row">
                     <button
                       type="button"
-                      className="mp-row__label"
-                      title={t('panels.inputs.reveal')}
+                      className="mp-row__label mp-row__label--name"
+                      title={label}
                       onClick={() => reveal(n.id, null)}
                     >
                       {label}
@@ -156,16 +156,18 @@ function InputsSection({
                 const param = refId
                   ? labelOf(nodes.find((n) => n.id === refId)) || refId
                   : e.flow
+                const flowText = `${labelOf(nodes.find((n) => n.id === e.source))} → ${labelOf(
+                  nodes.find((n) => n.id === e.target),
+                )}`
                 return (
                   <li key={e.id} className="mp-row mp-row--flow">
                     <button
                       type="button"
                       className="mp-row__label"
-                      title={t('panels.inputs.reveal')}
+                      title={flowText}
                       onClick={() => reveal(null, e.id)}
                     >
-                      {labelOf(nodes.find((n) => n.id === e.source))} →{' '}
-                      {labelOf(nodes.find((n) => n.id === e.target))}
+                      {flowText}
                     </button>
                     <span className="mp-row__via">{t('panels.inputs.flowVia', { param })}</span>
                   </li>
@@ -203,7 +205,12 @@ function SummaryRow({
   return (
     <li className="mp-row mp-row--reg">
       <div className="mp-row__main">
-        <button type="button" className="mp-row__label" title={t('panels.inputs.reveal')} onClick={onReveal}>
+        <button
+          type="button"
+          className="mp-row__label mp-row__label--name"
+          title={label}
+          onClick={onReveal}
+        >
           {label}
         </button>
         <span className={`mp-row__val${!outcome || outcome.invalid ? ' mp-row__val--invalid' : ''}`}>
