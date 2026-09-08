@@ -108,6 +108,9 @@ function MinimapCollapseButton({ onClick, label }: { onClick: () => void; label:
     setHost(document.querySelector<HTMLElement>('.react-flow__minimap'))
   }, [nodeCount])
   if (!host) return null
+  // the button is portalled as a SIBLING of `.react-flow__minimap-svg` (which
+  // owns the d3-zoom pan + the click-to-jump listener), so a press on it never
+  // reaches the minimap's navigation — no `stopPropagation` needed.
   return createPortal(
     <button
       type="button"

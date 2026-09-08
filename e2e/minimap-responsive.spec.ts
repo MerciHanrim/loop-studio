@@ -312,6 +312,15 @@ test.describe('minimap — the collapse / restore control', () => {
     expect(spy).toEqual({ fit: 0, set: 0 }) // no re-fit on a toggle
     expect(await viewport(page)).toEqual(vp0)
     expect(await nodePositions(page)).toEqual(pos0)
+
+    // a press + drag ON the button does not leak into a minimap pan / jump
+    const btn = await toggleBtn(page).boundingBox()
+    await page.mouse.move(btn!.x + btn!.width / 2, btn!.y + btn!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(btn!.x + btn!.width / 2 - 30, btn!.y + btn!.height / 2 + 20, { steps: 4 })
+    await page.mouse.up()
+    await page.waitForTimeout(100)
+    expect(await viewport(page)).toEqual(vp0)
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
