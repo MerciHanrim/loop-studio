@@ -98,18 +98,51 @@ and no injected `<link rel="manifest">` (§P9 D8a, Slice-1 criterion 5).
     'manifest.webmanifest',
     'icons/*.png',
   ],
-  globIgnores: ['**/*.map', '**/*.LICENSE.txt'],
-  maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // largest chunk ≈ 700 KB today
+  globIgnores: [
+    '**/*.map', '**/*.LICENSE.txt',
+    'assets/locale-*.js', 'assets/tmpl-labels-*.js',   // runtime-cached, see below
+  ],
+  runtimeCaching: [{
+    urlPattern: LOCALE_CHUNK_RE,          // shared from scripts/locale-chunk.mjs — the
+    handler: 'CacheFirst',                //   RegExp itself, not a callback (generateSW
+    options: {                            //   serialises this into sw.js)
+      cacheName: 'loop-locale-chunks',
+      expiration: { maxEntries: 24 },
+      cacheableResponse: { statuses: [0, 200] },
+    },
+  }],
+  maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
   cleanupOutdatedCaches: true,  // NOT a default — Workbox keeps old precaches unless told
   navigateFallback: 'index.html',
 }
 ```
 
 Explicitly **excluded**: source maps (`*.map`), any `stats.html` / bundle
-report, and anything outside `dist/` — Playwright's `test-results/` and
-`playwright-report/` are never in `dist/` and so never match.
+report, anything outside `dist/`, and — deliberately — the per-locale
+**`locale-*` / `tmpl-labels-*` chunks** (docs/localization.md §L4.5). Precaching
+every language would defeat the split; instead each is `CacheFirst`
+runtime-cached in `loop-locale-chunks`, fetched the first time that language is
+loaded.
 
-**Runtime caching** — none. There are no runtime requests to cache (§P3).
+**`check:pwa-closure`** enforces the split: every app-shell essential
+(`index.html`, the `index-*` JS/CSS, fonts, icons, manifest) **is** precached,
+**no** `locale-*` / `tmpl-labels-*` chunk is, and a locale chunk referenced by
+the main JS is accepted as runtime-cached (not "missing from precache").
+
+**Runtime caching** — one route: the locale chunks above. `index.html` still has
+its `NavigationRoute` app-shell fallback (see below).
+
+**Locale offline guarantee.** A language is offline-available once its chunks
+have been fetched **while the Service Worker controls the page** — i.e.
+immediately on any load where the SW is already active, and from the **next**
+load after the brand-new first visit (`clientsClaim: false`, so the SW does not
+control the page during the visit that installs it). Selecting a never-loaded
+language while offline is refused — the current language, node labels,
+`<html lang|dir>` and the stored preference are all kept, and
+`LocaleLoadNotice` explains why. There is no idle re-fetch: a re-`import()` of
+an already-resident module makes no request, and a locale loaded under an
+active SW is already in `loop-locale-chunks` (the boot / switch `import()` flows
+through the `CacheFirst` route).
 
 **Cache versioning** — Workbox writes one precache keyed to the build's revision
 hashes; with `cleanupOutdatedCaches: true` it deletes precaches from earlier

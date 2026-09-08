@@ -12,14 +12,25 @@
 // re-applied to an already-open document (§TLO4). Translated scope is node
 // `data.label` ONLY — not id / expression / `resourceType` / `unit` / edge
 // data / position / `recommendedRunConfig` (§TLO-D4).
+//
+// docs/localization.md §L4.5 — the per-locale dictionaries are lazy chunks
+// (./dicts.ts); `openTemplate` reads the resident one, which the atomic
+// locale-switch (src/i18n/store.ts) guarantees is loaded for the active locale.
 
 import type { ModelSemanticsVersion, RecommendedRunConfig } from '../../model/serialize'
 import type { Template } from '../../model/templates'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
 import { useI18n } from '../store'
-import { ja } from './ja'
-import { ko } from './ko'
+import { loadedTemplateLabelDict } from './dicts'
+
+export type { TemplateLabelDict } from './dicts'
+export {
+  ensureTemplateLabelDict,
+  loadedTemplateLabelDict,
+  templateLabelDictLocales,
+  __resetTemplateLabelDicts,
+} from './dicts'
 
 /** Deep clone of a plain-JSON payload — the whole Template graph and its
  *  `recommendedRunConfig` are pure data (numbers, strings, booleans, arrays,
@@ -29,22 +40,11 @@ import { ko } from './ko'
  *  introduced by this feature (§TLO3). */
 const cloneJSON = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 
-/** `templateId -> (nodeId -> localized label)` for one locale. */
-export type TemplateLabelDict = Record<string, Record<string, string>>
-
-/** Registered non-base locales that have a dictionary. English (`BASE_LOCALE`)
- *  never has one — it is the fallback. A new locale = one more entry here plus
- *  its `<locale>.ts` file (§TLO2). */
-const DICTS: Readonly<Record<string, TemplateLabelDict>> = { ja, ko }
-
 /** Templates that intentionally ship with NO dictionary for a locale — they
  *  open in English in every locale. `check:template-labels` treats a missing
  *  dictionary as an error UNLESS the template id is listed here (§TLO2.1).
  *  Empty today: `equilibrium` / `deadlock` were localized into `ko` (2026-09). */
 export const EN_FALLBACK_TEMPLATES: Readonly<Record<string, readonly string[]>> = {}
-
-/** Read-only view for the CI drift check (`scripts/check-template-labels.mjs`). */
-export const templateLabelDicts: Readonly<Record<string, TemplateLabelDict>> = DICTS
 
 export type OpenedTemplate = {
   graph: { nodes: LoopNode[]; edges: LoopEdge[] }
@@ -57,7 +57,8 @@ export type OpenedTemplate = {
 
 /**
  * Prepare a bundled Template for a fresh menu open. `locale` defaults to the
- * live `activeLocale`; pass it explicitly from tests.
+ * live `activeLocale` (whose dictionary is guaranteed resident). Pass it
+ * explicitly from tests — and `await ensureTemplateLabelDict(locale)` first.
  */
 export function openTemplate(
   tpl: Template,
@@ -66,7 +67,7 @@ export function openTemplate(
   // Full deep clone of the whole payload — nothing shared with TEMPLATES[i].
   const graph = cloneJSON(tpl.graph) as { nodes: LoopNode[]; edges: LoopEdge[] }
 
-  const dict = locale === BASE_LOCALE ? undefined : DICTS[locale]?.[tpl.id]
+  const dict = locale === BASE_LOCALE ? undefined : loadedTemplateLabelDict(locale)?.[tpl.id]
   if (dict) {
     for (const n of graph.nodes) {
       const label = dict[n.id]

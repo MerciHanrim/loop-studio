@@ -277,10 +277,39 @@ only diagnostic is a **dev-mode** `console.warn` naming the **key, the locale,
 and the error class** — not `err.message` (FormatJS embeds the pattern in it),
 not the params.
 
-**L4.5 — catalog loading & _atomic_ locale activation (decided).** In v0.8.0 EN
-and KO both ship in the one app deploy, so the "load" is synchronous today — but
-the activation is written as a small state machine for the async case from the
-start, so a later move to dynamic chunks is a loader swap only.
+**L4.5 — catalog loading & _atomic_ locale activation (shipped, now async).**
+Only the base (`en`) catalog is statically bundled — it is the fallback and must
+never fail to load. Every other locale is a **dynamic `import()` of its own
+chunk**: the UI message catalog (`assets/locale-<code>-<hash>.js`, from
+`registry.ts`'s `catalog()`) and the template-label dictionary
+(`assets/tmpl-labels-<code>-<hash>.js`, `templateLabels/dicts.ts`
+`ensureTemplateLabelDict`). Adding FR / zh is "add the locale files" — the
+loader map + the codegen pick them up, no cache-structure change.
+
+**A switch loads BOTH halves before it commits.** `setLocale(code)` waits on
+`Promise.all([entry.catalog(), ensureTemplateLabelDict(code)])`, so when
+`activeLocale` flips, the §TLO11 relabel (which runs synchronously off the
+`useI18n.subscribe` in `graphStore.ts`) always finds the target dictionary
+resident. `initI18n()` does the same before `createRoot().render()`.
+
+**Provenance-agnostic §TLO11 under lazy dicts.** `relabelNodesForLocale` needs,
+synchronously, "is this current label an official string in *some* shipped
+locale?". That classification set comes from a **build-time seed**,
+`src/i18n/templateLabels/known.generated.ts` (`npm run gen:known-labels`;
+`check:template-labels` fails on drift, so a newly-registered locale forces a
+regen). Only the *target* string is read from the lazily-loaded dictionary. The
+`known` set therefore stays complete no matter which chunks have loaded — an
+imported graph carrying a never-visited locale's official labels still relabels.
+
+**`preloadLocale(code)`** is a seam for future eager pre-loading (FR / zh) — it
+calls the real loaders and only fetches for a not-yet-resident locale; nothing
+calls it today.
+
+**Failure notice.** A failed catalog *or* dict load raises `loadError` on the
+i18n store; `src/components/LocaleLoadNotice.tsx` shows a dismissible
+`role="status"` banner (mirrors `BootNotice`) so a language that will not load
+does not read as a silent bug. Cleared on `dismissLoadError()` and on the next
+successful switch. The failure contract is otherwise unchanged (see Rules).
 
 **State (the minimum the provider holds):**
 
@@ -291,6 +320,7 @@ start, so a later move to dynamic chunks is a loader swap only.
   requestedLocale,     // the code the user last asked for (may === activeLocale)
   requestGeneration,   // monotonic counter, bumped on every switch request
   loading,             // bool — a request's catalog load is in flight
+  loadError,           // { code, current } | null — a failed load, for the notice
 }
 ```
 
@@ -328,15 +358,20 @@ start, so a later move to dynamic chunks is a loader swap only.
   dropped by the generation check. The end state is exactly as if only the last
   selection happened.
 - **the data boundary is unchanged regardless of load strategy:** no GraphDoc,
-  Workspace, Share, revision, or PWA-precache bytes depend on which catalogs are
-  loaded or when. The PWA precache set covers whatever catalogs the build
-  statically includes; a future dynamic chunk is a runtime fetch cached by the
-  runtime-caching rule, not part of the precache manifest — no `sw.js` contract
-  change for EN/KO.
+  Workspace, Share, revision bytes depend on which catalogs are loaded or when.
+  The PWA **precaches only EN + the app shell**; each non-EN `locale-*` /
+  `tmpl-labels-*` chunk is `CacheFirst` runtime-cached (`loop-locale-chunks`),
+  fetched on first `setLocale` / boot. See `docs/pwa.md` §P8 for the offline
+  guarantee. The shared name pattern lives in `scripts/locale-chunk.mjs`
+  (`LOCALE_CHUNK_RE`) so the Workbox rule and `check:pwa-closure` never drift.
 - a test drives a **deferred** catalog loader (a controllable promise) to assert
-  every rule above — atomic commit, generation-drop of a stale completion,
-  failure keeps the screen, boot-on-`en` fallback, no-op re-select,
-  last-request-wins burst — without needing real chunks.
+  every rule above — atomic commit (catalog **and** dict), generation-drop of a
+  stale completion, failure keeps the screen + raises `loadError`, a later
+  success clears it, boot-on-`en` fallback, no-op re-select, last-request-wins
+  burst. The production-bundle / PWA e2e specs assert the chunk shape (EN
+  first-load fetches no `locale-*`; a switch fetches exactly its chunk once;
+  runtime cache; offline reboot) — dev-server module URLs differ from the
+  Production output, so those live outside the unit + dev-e2e layer.
 
 ## L5. The language switch
 

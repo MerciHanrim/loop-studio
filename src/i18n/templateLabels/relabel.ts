@@ -15,91 +15,125 @@
 // those strings, so it is left untouched. The precise contract is "preserve a
 // user label that is not one of the official labels" — a rename that happens to
 // land exactly on another locale's official string is, by that rule, switched.
+//
+// docs/localization.md §L4.5 — per-locale template-label dicts are lazy, so the
+// "is this string official in SOME locale" classification (`known`) comes from
+// the build-time seed `known.generated.ts` (always complete). The TARGET string
+// for the language being switched TO is read from that language's dictionary,
+// which `src/i18n/store.ts` guarantees is resident before `activeLocale` flips.
 
 import { TEMPLATES } from '../../model/templates'
 import type { LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
-import { templateLabelDicts } from './index'
+import { loadedTemplateLabelDict, templateLabelDictLocales } from './dicts'
+import { AMBIGUOUS_NODE_IDS, KNOWN_OFFICIAL_LABELS } from './known.generated'
 
 export type OfficialTemplateLabelIndex = {
   /** node id → every string that is an official label for that id in SOME
-   *  shipped locale (the English canonical included). */
+   *  shipped locale (the English canonical included). From the build-time seed
+   *  — complete regardless of which locale chunks have loaded. */
   known: ReadonlyMap<string, ReadonlySet<string>>
   /** locale code → (node id → that locale's official label for the id; the
    *  English canonical when the locale has no dictionary entry for it).
-   *  `BASE_LOCALE` is always present. */
+   *  `BASE_LOCALE` is always present; a non-base locale's map exists only once
+   *  its dictionary chunk has been loaded. */
   byLocale: ReadonlyMap<string, ReadonlyMap<string, string>>
   /** node ids whose official target label is NOT identical across the templates
    *  that share the id — never switched (the CI drift check fails first). */
   ambiguous: ReadonlySet<string>
 }
 
-let cached: OfficialTemplateLabelIndex | null = null
+/** EN canonical `id -> label`, straight from the TEMPLATES graphs. Built once. */
+let enTargets: ReadonlyMap<string, string> | null = null
+function baseTargets(): ReadonlyMap<string, string> {
+  if (enTargets) return enTargets
+  const m = new Map<string, string>()
+  for (const tpl of TEMPLATES) for (const n of tpl.graph.nodes) m.set(n.id, n.data.label)
+  return (enTargets = m)
+}
 
-function build(): OfficialTemplateLabelIndex {
-  const known = new Map<string, Set<string>>()
-  const byLocale = new Map<string, Map<string, string>>()
-  const ambiguous = new Set<string>()
+let knownIndex: ReadonlyMap<string, ReadonlySet<string>> | null = null
+function knownMap(): ReadonlyMap<string, ReadonlySet<string>> {
+  if (knownIndex) return knownIndex
+  const m = new Map<string, ReadonlySet<string>>()
+  for (const [id, labels] of Object.entries(KNOWN_OFFICIAL_LABELS)) m.set(id, new Set(labels))
+  return (knownIndex = m)
+}
 
-  const dictLocales = Object.keys(templateLabelDicts)
-  for (const loc of [BASE_LOCALE, ...dictLocales]) {
-    if (!byLocale.has(loc)) byLocale.set(loc, new Map())
-  }
+/** cache: locale → its resolved `id -> official label` target map */
+const localeTargets = new Map<string, ReadonlyMap<string, string>>()
 
-  const addKnown = (id: string, label: string) => {
-    let s = known.get(id)
-    if (!s) known.set(id, (s = new Set()))
-    s.add(label)
-  }
-  const setTarget = (loc: string, id: string, label: string) => {
-    const m = byLocale.get(loc)!
-    const prev = m.get(id)
-    if (prev !== undefined && prev !== label) ambiguous.add(id)
-    else m.set(id, label)
-  }
-
+/** Build (once, cached) the `id -> official label` map for `locale`.
+ *  `undefined` ONLY for a locale that HAS a dictionary loader whose chunk is not
+ *  resident (an invariant violation — the switch should have loaded it). A
+ *  locale with no dictionary at all (`BASE_LOCALE`, the dev pseudo-locale, a
+ *  future EN-fallback locale) resolves to the English canonical. */
+function targetsFor(locale: string): ReadonlyMap<string, string> | undefined {
+  if (locale === BASE_LOCALE || !templateLabelDictLocales.includes(locale)) return baseTargets()
+  const hit = localeTargets.get(locale)
+  if (hit) return hit
+  const dict = loadedTemplateLabelDict(locale)
+  if (!dict) return undefined
+  const m = new Map<string, string>()
   for (const tpl of TEMPLATES) {
-    const canonical = new Map<string, string>()
-    for (const n of tpl.graph.nodes) canonical.set(n.id, n.data.label)
-
-    for (const [id, enLabel] of canonical) {
-      addKnown(id, enLabel)
-      setTarget(BASE_LOCALE, id, enLabel)
-    }
-    for (const loc of dictLocales) {
-      const dict = templateLabelDicts[loc][tpl.id]
-      for (const [id, enLabel] of canonical) {
-        const localized = dict?.[id]
-        if (localized !== undefined) addKnown(id, localized)
-        setTarget(loc, id, localized ?? enLabel)
-      }
-    }
+    const perTpl = dict[tpl.id]
+    for (const n of tpl.graph.nodes) m.set(n.id, perTpl?.[n.id] ?? n.data.label)
   }
-
-  return { known, byLocale, ambiguous }
+  localeTargets.set(locale, m)
+  return m
 }
 
-/** The lazily-built, process-wide index. */
+/** The lazily-built, process-wide index. `known` / `ambiguous` are static;
+ *  `byLocale` carries `BASE_LOCALE` plus every non-base locale whose dictionary
+ *  is currently resident. */
 export function officialTemplateLabelIndex(): OfficialTemplateLabelIndex {
-  return (cached ??= build())
+  const byLocale = new Map<string, ReadonlyMap<string, string>>()
+  byLocale.set(BASE_LOCALE, baseTargets())
+  for (const loc of templateLabelDictLocales) {
+    const t = targetsFor(loc) // builds + caches it if the dict is resident
+    if (t) byLocale.set(loc, t)
+  }
+  return {
+    known: knownMap(),
+    byLocale,
+    ambiguous: new Set(AMBIGUOUS_NODE_IDS),
+  }
 }
 
-/** Test seam — drop the cache so a stubbed `TEMPLATES` / dictionary is re-read. */
+/** Test seam — drop the caches so a stubbed `TEMPLATES` / dictionary / a
+ *  freshly-loaded locale is re-read. */
 export function __rebuildOfficialTemplateLabelIndex(): void {
-  cached = null
+  enTargets = null
+  knownIndex = null
+  localeTargets.clear()
 }
 
 /**
  * Re-seed the OFFICIAL bundled-template labels in `nodes` for `targetLocale`
  * (§TLO11). Returns the SAME array reference when nothing changed, so a caller
  * can skip the write — a re-select or a same-locale boot is a no-op.
+ *
+ * `targetsFor` returns `undefined` only for a locale that HAS a dictionary
+ * loader whose chunk is not resident — an invariant violation (`store.ts` loads
+ * it before flipping `activeLocale`): the nodes are then left untouched (never a
+ * half-English rewrite) and an error is logged. Every other code — `en`, the
+ * dev pseudo-locale, a future EN-fallback locale, an unregistered code — maps
+ * to the English canonical.
  */
 export function relabelNodesForLocale(
   nodes: readonly LoopNode[],
   targetLocale: string,
 ): LoopNode[] {
-  const { known, byLocale, ambiguous } = officialTemplateLabelIndex()
-  const targets = byLocale.get(targetLocale) ?? byLocale.get(BASE_LOCALE)!
+  const known = knownMap()
+  const targets = targetsFor(targetLocale)
+  if (!targets) {
+    console.error(
+      `[i18n] relabelNodesForLocale("${targetLocale}"): dictionary not resident — ` +
+        `nodes left unchanged. The locale switch should have loaded it first.`,
+    )
+    return nodes as LoopNode[]
+  }
+  const ambiguous = new Set(AMBIGUOUS_NODE_IDS)
 
   let changed = false
   const next = nodes.map((n) => {

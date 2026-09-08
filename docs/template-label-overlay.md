@@ -305,6 +305,17 @@ The rule is **completeness-conditional**:
 - **Annotation-only nodes** with no user-facing label are exempt **by rule**,
   listed explicitly, not skipped silently.
 
+**§L4.5 lazy dicts — the `known` seed drift check.** The per-locale
+dictionaries are lazy chunks (`templateLabels/dicts.ts` `DICT_LOADERS`), so the
+"is this string official in *some* locale" classification the §TLO11 relabel
+needs synchronously is frozen into `src/i18n/templateLabels/known.generated.ts`
+by `scripts/gen-known-labels.mjs` (`npm run gen:known-labels`; the file is
+GENERATED — never hand-edited). `check:template-labels` re-derives it in memory
+(`gen-known-labels.mjs --check`) and **fails on any drift** — so registering a
+new locale, or editing a template graph / a `<locale>.ts` dict, forces a regen.
+The *target* string for the language being switched to still comes from that
+language's (lazily-loaded) dictionary; only the classification data is frozen.
+
 ---
 
 ## TLO8. Tests
@@ -401,10 +412,20 @@ label that is not one of the official strings"** — so a user rename that happe
 to land exactly on another locale's official label *is*, by this rule, switched;
 that is an accepted, rare consequence of having no per-document provenance flag.
 
-**No per-document state.** The mechanism keys only on `(node id, current label)`
-against an index built from `TEMPLATES` (English canonical) + the
-`templateLabels/<locale>.ts` dictionaries. There is no "this doc came from a
-menu open" flag — an Imported / Shared unmodified template graph switches too.
+**No per-document state.** The mechanism keys only on `(node id, current label)`.
+The "is this label official in *some* locale" set comes from the build-time
+`known.generated.ts` seed (§TLO7, docs/localization.md §L4.5) — complete even
+though the `templateLabels/<locale>.ts` dictionaries are now lazy chunks — so an
+Imported / Shared unmodified template graph carrying a **never-visited** locale's
+official labels still switches. Only the *target* string is read from the (by
+then resident — the switch loads it first) dictionary. There is no "this doc
+came from a menu open" flag.
+
+A **registered locale whose dictionary somehow is not resident** at relabel time
+is an invariant violation (`store.ts` loads it before flipping `activeLocale`):
+`relabelNodesForLocale` then leaves every node untouched and logs — it never
+rewrites to English, which would be a visible half-switch (UI in the new
+language, nodes still English).
 
 **What it does not touch.** `position`, edges, handles, expressions, `unit`,
 `resourceType`, values, run state, selection, Timeline-series ids, `frames`,

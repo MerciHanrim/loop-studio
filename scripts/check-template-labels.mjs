@@ -17,6 +17,7 @@
 // attribute. Canonical node ids for a Template that HAS a dictionary come from
 // its `examples/<id>.json`.
 
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -53,18 +54,20 @@ if (TEMPLATE_IDS.length === 0) {
 }
 ok(`templates: ${TEMPLATE_IDS.join(', ')}`)
 
-// ── the overlay registration, from src/i18n/templateLabels/index.ts source ──
+// ── the overlay registration, from src/i18n/templateLabels/ source ──
 const overlaySrc = read('src/i18n/templateLabels/index.ts')
+const dictsSrc = read('src/i18n/templateLabels/dicts.ts')
 // EN_FALLBACK_TEMPLATES = { ko: ['equilibrium', 'deadlock'] }
 const enFallback = {}
 const efBlock = /EN_FALLBACK_TEMPLATES[^{]*\{([\s\S]*?)\n\}/.exec(overlaySrc)?.[1] ?? ''
 for (const m of efBlock.matchAll(/([a-zA-Z][\w-]*)\s*:\s*\[([^\]]*)\]/g)) {
   enFallback[m[1]] = [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1])
 }
-// DICTS = { ko }  →  which locales have a dictionary module
-const dictLocales = [
-  ...(/DICTS[^{]*\{([^}]*)\}/.exec(overlaySrc)?.[1] ?? '').matchAll(/\b([a-zA-Z][\w-]*)\b/g),
-].map((m) => m[1])
+// DICT_LOADERS = { ja: () => …, ko: () => … }  →  locales with a dictionary chunk
+const loaderBlock = /DICT_LOADERS[^{]*\{([\s\S]*?)\n\}/.exec(dictsSrc)?.[1] ?? ''
+const dictLocales = [...loaderBlock.matchAll(/^\s*'?([a-zA-Z][\w-]*)'?\s*:\s*\(\)/gm)].map(
+  (m) => m[1],
+)
 
 // node ids with no user-facing label — exempt from "missing". Empty today.
 const NO_LABEL_NODE_IDS = new Set()
@@ -200,6 +203,20 @@ checkSharedIdTargets()
 // source against an accidental `resourceType` / `expr` write in the apply loop
 if (/\.data\s*(?:as[^)]*)?\)?\.(resourceType|expr|unit)\s*=/.test(overlaySrc)) {
   fail('src/i18n/templateLabels/index.ts writes a non-label field — overlay is label-only (§TLO-D4)')
+}
+
+// ── docs/localization.md §L4.5 — the static `known.generated.ts` seed that lets
+// the §TLO11 relabel work with lazy per-locale dicts must be in sync with the
+// template graphs + every dict. `--check` re-derives it in memory and diffs.
+{
+  const r = spawnSync(process.execPath, [resolve(root, 'scripts/gen-known-labels.mjs'), '--check'], {
+    encoding: 'utf8',
+  })
+  if (r.status === 0) {
+    ok('known.generated.ts is in sync')
+  } else {
+    fail((r.stdout + r.stderr).trim() || 'known.generated.ts is stale — run `npm run gen:known-labels`')
+  }
 }
 
 // keep the void reference so an unused import never trips lint if edited later

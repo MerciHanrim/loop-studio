@@ -1,11 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { TEMPLATES } from '../../model/templates'
-import { openTemplate } from './index'
+import { ensureTemplateLabelDict, openTemplate } from './index'
 import { ko } from './ko'
 
 // docs/template-label-overlay.md §TLO3 / §TLO6 / §TLO8 — the fresh-open overlay:
 // a full deep clone of the canonical Template payload with the current locale's
 // node-label overlay applied (label only), never touching TEMPLATES[i].
+//
+// docs/localization.md §L4.5 — the per-locale dicts are lazy; a real menu open
+// in `ko` runs after the switch has loaded the `ko` dict, so load it here.
+
+beforeAll(async () => {
+  await ensureTemplateLabelDict('ko')
+  await ensureTemplateLabelDict('ja')
+})
 
 const tpl = (id: string) => {
   const t = TEMPLATES.find((x) => x.id === id)

@@ -15,8 +15,9 @@
 // the Workbox precache list (in sw.js) AND on disk. `sw.js` / `workbox-*.js`
 // are the service worker itself and are exempt from the "must be precached" rule.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { posix, relative, resolve } from 'node:path'
+import { LOCALE_CHUNK_RE } from './locale-chunk.mjs'
 
 const dir = resolve(process.cwd(), process.argv[2] ?? 'dist-pwa')
 let failed = false
@@ -86,7 +87,14 @@ while (queue.length) {
     fail(`referenced file does not exist on disk: ${rel}`)
     continue
   }
-  if (!SW_SELF.test(rel) && !precache.has(rel)) {
+  if (SW_SELF.test(rel)) {
+    // the service worker itself — not precached, expected
+  } else if (LOCALE_CHUNK_RE.test(rel)) {
+    // docs/pwa.md §P8 — a lazily-loaded locale chunk: deliberately NOT
+    // precached, served by the `loop-locale-chunks` CacheFirst route.
+    if (precache.has(rel)) fail(`locale chunk should be runtime-cached, not precached: ${rel}`)
+    else ok(`${rel} (runtime-cached)`)
+  } else if (!precache.has(rel)) {
     fail(`referenced file is NOT precached: ${rel}`)
   }
 
@@ -101,8 +109,28 @@ while (queue.length) {
   }
 }
 
+// ── app-shell inclusion / exclusion (not a brittle count) ────────────
+// Every essential the app needs to boot offline MUST be precached; no locale
+// chunk may be (docs/pwa.md §P8).
+const listDir = (d) => (existsSync(abs(d)) ? readdirSync(abs(d)).map((f) => `${d}/${f}`) : [])
+const assetFiles = listDir('assets')
+const shellEssentials = [
+  'index.html',
+  'manifest.webmanifest',
+  ...assetFiles.filter((f) => /^assets\/index-[\w-]+\.(js|css)$/.test(f)),
+  ...assetFiles.filter((f) => /\.woff2?$/.test(f)),
+  ...listDir('icons').filter((f) => f.endsWith('.png')),
+]
+for (const f of new Set(shellEssentials)) {
+  if (precache.has(f)) ok(`app-shell precached: ${f}`)
+  else fail(`app-shell essential NOT precached: ${f}`)
+}
+const strayLocale = [...precache].filter((p) => LOCALE_CHUNK_RE.test(p))
+if (strayLocale.length) fail(`locale chunk(s) in the precache list: ${strayLocale.join(', ')}`)
+else ok('no locale chunk is precached')
+
 if (failed) {
   console.error('\nprecache closure FAILED')
   process.exit(1)
 }
-console.log(`\nprecache closure passed — every local reference in ${relative(process.cwd(), dir)}/ is precached`)
+console.log(`\nprecache closure passed — app shell precached, locale chunks runtime-cached`)

@@ -6,8 +6,9 @@
 
 import type { MessageCatalog, MessageKey } from './locales/en'
 import en from './locales/en'
-import ja from './locales/ja'
-import ko from './locales/ko'
+// docs/localization.md §L4.5 — only the base (`en`) catalog is statically
+// bundled; every other locale is its own `import()`-ed chunk (see `catalog`
+// below).
 
 export type LocaleDir = 'ltr' | 'rtl'
 
@@ -34,8 +35,9 @@ export type LocaleEntry = {
    *  but hidden from the switch UI. Every shipped locale is `true` today; the
    *  selector work is what will consume this. */
   enabled: boolean
-  /** the async seam (§L4.5). Static in v0.8.0 (both catalogs are in the one
-   *  bundle); a later move to per-locale chunks swaps this body only. */
+  /** the async seam (§L4.5) — `en` resolves synchronously (statically bundled,
+   *  the fallback, must never fail to load); every other locale is a dynamic
+   *  `import()` of its own chunk, runtime-cached by the SW (docs/pwa.md §P8). */
   catalog: () => Promise<MessageCatalog>
 }
 
@@ -58,7 +60,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     direction: 'ltr',
     numberLocale: 'ko',
     enabled: true,
-    catalog: () => Promise.resolve(ko),
+    catalog: () => import('./locales/ko').then((m) => m.default),
   },
   {
     code: 'ja',
@@ -68,7 +70,7 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     direction: 'ltr',
     numberLocale: 'ja-JP',
     enabled: true,
-    catalog: () => Promise.resolve(ja),
+    catalog: () => import('./locales/ja').then((m) => m.default),
   },
 ]
 
