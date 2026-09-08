@@ -23,6 +23,8 @@ const canvas = {
   'palette.register.description': 'Shows a value computed from the current step by an expression. It stores nothing and has no ports.',
   'palette.addAction': 'Click, or drag onto the canvas, to add one.',
   'canvas.minimap': 'Graph minimap',
+  'canvas.minimap.hide': 'Hide the minimap',
+  'canvas.minimap.show': 'Show the minimap',
   'canvas.lock.lock': 'Lock editing — selecting and reading stay on',
   'canvas.lock.unlock': 'Unlock editing — move, connect, and change values',
   'canvas.focus.on': 'Focus off — click to focus the selected node',

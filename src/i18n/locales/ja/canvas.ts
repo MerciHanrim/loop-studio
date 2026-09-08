@@ -34,6 +34,8 @@ const canvas = {
     '式で現在ステップから計算した値を表示します。何も保存せず、ポートもありません。',
   'palette.addAction': 'クリック、またはキャンバスへドラッグして追加します。',
   'canvas.minimap': 'グラフのミニマップ',
+  'canvas.minimap.hide': 'ミニマップを隠す',
+  'canvas.minimap.show': 'ミニマップを表示',
   'canvas.lock.lock': '編集をロック — 選択と閲覧は有効なまま',
   'canvas.lock.unlock': '編集をロック解除 — 移動・接続・値の変更ができます',
   'canvas.focus.on': 'フォーカス オフ — クリックで選択ノードにフォーカス',

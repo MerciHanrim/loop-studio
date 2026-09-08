@@ -23,6 +23,8 @@ const canvas = {
   'palette.register.description': '현재 단계에서 표현식으로 계산한 값을 표시합니다. 아무것도 저장하지 않고 포트도 없습니다.',
   'palette.addAction': '클릭하거나 캔버스로 끌어다 놓아 추가하세요.',
   'canvas.minimap': '그래프 미니맵',
+  'canvas.minimap.hide': '미니맵 숨기기',
+  'canvas.minimap.show': '미니맵 보기',
   'canvas.lock.lock': '편집 잠금 — 선택과 조회는 계속 가능',
   'canvas.lock.unlock': '편집 잠금 해제 — 이동·연결·값 수정 가능',
   'canvas.focus.on': 'Focus 꺼짐 — 눌러서 선택한 노드에 집중',
