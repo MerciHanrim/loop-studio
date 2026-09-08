@@ -1,3 +1,4 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
@@ -21,11 +22,15 @@ type Props = {
   onToggleCollapse: () => void
 }
 
+const intersects = (a: DOMRect, b: DOMRect) =>
+  a.left < b.right - 0.5 && a.right > b.left + 0.5 && a.top < b.bottom - 0.5 && a.bottom > b.top + 0.5
+
 export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const status = useSimStore((s) => s.status)
   const stepIndex = useSimStore((s) => s.stepIndex)
   const speedMs = useSimStore((s) => s.speedMs)
   const seed = useSimStore((s) => s.seed)
+  const steadyState = useSimStore((s) => s.steadyState)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -44,6 +49,43 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const running = status === 'running'
   const ended = status === 'ended'
 
+  // docs/simulation-playback-ordering.md §PBO5 — the "Steady state — flows
+  // continue" chip. It is `position: absolute` (out of flow — it never shifts a
+  // control or the strip height, appearing or not) and only shows when it fits
+  // WITHOUT overlapping any control; when the strip is too tight it is hidden.
+  const stripRef = useRef<HTMLDivElement>(null)
+  const chipRef = useRef<HTMLDivElement>(null)
+  const [chipFits, setChipFits] = useState(false)
+  const wantChip = steadyState && running
+
+  useLayoutEffect(() => {
+    const strip = stripRef.current
+    const chip = chipRef.current
+    if (!strip || !chip) return
+    const measure = () => {
+      const cr = chip.getBoundingClientRect()
+      const sr = strip.getBoundingClientRect()
+      if (cr.width === 0 || cr.left < sr.left + 4 || cr.right > sr.right - 2) {
+        setChipFits(false)
+        return
+      }
+      const controls = strip.querySelectorAll<HTMLElement>(
+        '.pstrip__group, .pstrip__step, .pstrip__field, .pstrip__mc, .pstrip__collapse',
+      )
+      for (const el of controls) {
+        if (intersects(cr, el.getBoundingClientRect())) {
+          setChipFits(false)
+          return
+        }
+      }
+      setChipFits(true)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(strip)
+    return () => ro.disconnect()
+  }, [steadyState, running, mcRunning, mcMessage, collapsed, t])
+
   const onPrimary = () => {
     if (ended) {
       reset()
@@ -55,8 +97,21 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     }
   }
 
+  // §PBO5 accessibility — announce ONCE on the false → true edge; while steady
+  // persists across many committed steps the text does not change, so a screen
+  // reader is not re-notified every step.
+  const [announce, setAnnounce] = useState('')
+  useEffect(() => {
+    setAnnounce(steadyState ? t('playbar.steady') : '')
+  }, [steadyState, t])
+
   return (
-    <div className="pstrip" data-placeholder="P2 — chart-header strip" data-tour="playback">
+    <div
+      ref={stripRef}
+      className="pstrip"
+      data-placeholder="P2 — chart-header strip"
+      data-tour="playback"
+    >
       <div className="pstrip__group">
         <button type="button" className="pb-btn" onClick={reset} title={t('playbar.reset.title')}>
           ⟲
@@ -137,6 +192,20 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       >
         {collapsed ? '▴' : '▾'}
       </button>
+
+      {/* out of flow; always rendered so its box can be measured, shown only
+          when it fits with no overlap (§PBO5) */}
+      <div
+        ref={chipRef}
+        className={`pstrip__steady${wantChip && chipFits ? ' is-on' : ''}`}
+        aria-hidden="true"
+      >
+        {t('playbar.steady')}
+      </div>
+
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announce}
+      </div>
     </div>
   )
 }

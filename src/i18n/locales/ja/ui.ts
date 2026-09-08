@@ -53,6 +53,7 @@ const ui = {
   'playbar.mc.progress': 'モンテカルロ {pct}%',
   'playbar.mc.progress.title': 'モンテカルロ実行中',
   'playbar.cancel': 'キャンセル',
+  'playbar.steady': '定常状態 — フローは継続',
   'playbar.timeline.show': 'タイムラインを表示',
   'playbar.timeline.hide': 'タイムラインを隠す',
   'runbar.ariaLabel': '実行操作',

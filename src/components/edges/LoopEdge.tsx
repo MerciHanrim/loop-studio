@@ -170,12 +170,17 @@ function LoopEdge({
   // docs/simulation-playback-ordering.md §PBO2 — this edge's cue runs on its own
   // LOCAL τ, offset by its (phase, condensation-rank) bucket onset within the
   // bounded window `[0, STAGGER_SPAN]`. The store keeps the ONE global τ / wall
-  // clock / single settle; only the per-edge mapping changes here.
+  // clock / single settle; only the per-edge mapping changes here. A bucket-0
+  // edge (onset 0 — every Phase-1 push, and any unstaggered step) runs in exact
+  // lockstep with the global τ; a staggered bucket compresses `[onset, SETTLE]`
+  // back onto `[0, 1]` so it still completes its arrive before the shared settle.
   const pbOnset = transition && !isState ? (transition.onsetByEdge[id] ?? 0) : 0
   const pbStarted = !!transition && !isState && transition.tau >= pbOnset
-  const pbLocalTau = pbStarted
-    ? Math.max(0, Math.min(1, (transition!.tau - pbOnset) / (BEAT_SETTLE - pbOnset)))
-    : 0
+  const pbLocalTau = !pbStarted
+    ? 0
+    : pbOnset <= 0
+      ? Math.max(0, Math.min(1, transition!.tau))
+      : Math.max(0, Math.min(1, (transition!.tau - pbOnset) / (BEAT_SETTLE - pbOnset)))
   const pbLocalPhase: PlaybackPhase | null = !pbStarted
     ? null
     : pbLocalTau < BEAT_DEPART_END

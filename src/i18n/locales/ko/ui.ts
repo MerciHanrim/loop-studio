@@ -48,6 +48,7 @@ const ui = {
   'playbar.mc.progress': '몬테카를로 {pct}%',
   'playbar.mc.progress.title': '몬테카를로 실행 중',
   'playbar.cancel': '취소',
+  'playbar.steady': '정상 상태 — 흐름은 계속됨',
   'playbar.timeline.show': '타임라인 표시',
   'playbar.timeline.hide': '타임라인 숨기기',
   'runbar.ariaLabel': '실행 컨트롤',
