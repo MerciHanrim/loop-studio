@@ -41,13 +41,17 @@ const MapIcon = () => (
   </svg>
 )
 
+// "collapse this panel" — a single downward chevron. Drawn in a 24 viewBox with
+// the glyph kept to x/y 7‥17 so the stroke (incl. round caps) always has ≥ 3 px
+// of breathing inside the 13 px render box, at any zoom / forced-colors. A fixed
+// SVG, not a font glyph, so position and weight never drift by platform.
 const CollapseIcon = () => (
-  <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false">
+  <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false">
     <path
-      d="M13 3 3 13M8.5 13H3v-5.5M13 3h-5.5"
+      d="M7 10 L12 15 L17 10"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="2.2"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
