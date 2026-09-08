@@ -42,9 +42,6 @@ export default defineConfig({
         /dist\.spec\.ts/,
         /pwa\.spec\.ts/,
         /mobile\.spec\.ts/,
-        // docs/mmo-multilingual-layout.md §MML4 — a review-artifact producer, not
-        // an assertion test; run explicitly by the `mml-visuals` CI job.
-        /mml-visuals\.spec\.ts/,
       ],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
@@ -71,19 +68,6 @@ export default defineConfig({
       testMatch: /portable-file\.spec\.ts/,
       dependencies: ['build-portable'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 }, baseURL: undefined },
-    },
-    {
-      // docs/mmo-multilingual-layout.md §MML4 — the review-artifact producer,
-      // run on demand by the `mml-visuals` CI job (`--project=mml-visuals`),
-      // never by the default sharded `e2e` run.
-      name: 'mml-visuals',
-      testMatch: /mml-visuals\.spec\.ts/,
-      // each capture drives three locales (EN/KO/JA) back-to-back with a real
-      // catalog load + re-render between them; the 820 px cell also re-lays-out
-      // for the small-pane minimap hide. 30 s is not enough — this producer is
-      // not on the critical path, so give it generous headroom.
-      timeout: 120_000,
-      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: {
