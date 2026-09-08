@@ -2079,14 +2079,51 @@ body {
   transform-box: fill-box;
   transform-origin: center;
 }
+/* docs/simulation-playback-ordering.md §PBO3 — `absorb`: arriving into a Drain
+   / End, the token dissolves rather than landing. */
+.pb-move--absorb .flow-bead {
+  animation: pb-bead-dissolve 220ms ease-in forwards;
+}
+@keyframes pb-bead-dissolve {
+  from {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .pb-move--depart .flow-bead,
   .pb-move--arrive .flow-bead {
     transition: transform 90ms ease-out;
   }
 }
+/* docs/simulation-playback-ordering.md §PBO4 — the reduced-motion role tells.
+   Real distinct SVG geometry (triangle / filled dot / hollow gapped ring), held
+   for the committed step, no motion. Differ by shape under forced-colors. */
+.pb-rm-tell {
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+.pb-rm-tell--emit {
+  fill: var(--flow-strength);
+}
+.pb-rm-tell--converge {
+  fill: var(--flow-strength);
+}
+.pb-rm-tell--absorb {
+  fill: none;
+  stroke: var(--flow-strength);
+  stroke-width: 1.5;
+  stroke-dasharray: 2.5 2;
+}
 /* the source / target cue rings — a phase tell that does not depend on the
-   moving dot, so `depart` and `arrive` read at a glance. */
+   moving dot, so the beat reads at a glance. docs/simulation-playback-ordering.md
+   §PBO3 — the three roles differ by GEOMETRY, not hue: `emit` expands OUTWARD
+   from the source, `converge` collapses INWARD onto the target, `absorb`
+   collapses inward and vanishes (Drain / End). Distinct under forced-colors. */
 .pb-cue {
   fill: none;
   stroke: var(--flow-strength);
@@ -2095,10 +2132,53 @@ body {
   vector-effect: non-scaling-stroke;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .pb-cue {
-    animation: pb-cue-ping 260ms ease-out;
+  .pb-cue--depart,
+  .pb-cue[data-cue-role='emit'] {
+    animation: pb-cue-emit 260ms ease-out;
+  }
+  .pb-cue--converge {
+    animation: pb-cue-converge 240ms ease-in;
+  }
+  .pb-cue--absorb {
+    animation: pb-cue-absorb 260ms ease-in forwards;
+  }
+  /* an arrive cue with no role class yet (defensive) keeps the old ping */
+  .pb-cue--arrive:not(.pb-cue--converge):not(.pb-cue--absorb) {
+    animation: pb-cue-emit 260ms ease-out;
   }
 }
+@keyframes pb-cue-emit {
+  from {
+    opacity: 0.9;
+    r: 2;
+  }
+  to {
+    opacity: 0.25;
+    r: 9;
+  }
+}
+@keyframes pb-cue-converge {
+  from {
+    opacity: 0.3;
+    r: 9;
+  }
+  to {
+    opacity: 0.9;
+    r: 3;
+  }
+}
+@keyframes pb-cue-absorb {
+  from {
+    opacity: 0.55;
+    r: 9;
+  }
+  to {
+    opacity: 0;
+    r: 0;
+  }
+}
+/* the symmetric expand-and-fade ring — still used by the state-edge activator
+   cue (`.state-cue--activator`), which is not part of the resource cascade. */
 @keyframes pb-cue-ping {
   from {
     opacity: 0.9;
@@ -2243,6 +2323,16 @@ body {
   .pb-l0-pulse {
     stroke: CanvasText;
     stroke-dasharray: 6 4;
+    forced-color-adjust: none;
+  }
+  /* §PBO4 — the role tells stay distinct by geometry; only the ink is remapped */
+  .pb-rm-tell--emit,
+  .pb-rm-tell--converge {
+    fill: CanvasText;
+    forced-color-adjust: none;
+  }
+  .pb-rm-tell--absorb {
+    stroke: CanvasText;
     forced-color-adjust: none;
   }
 }

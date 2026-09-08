@@ -8,7 +8,8 @@ import {
 } from '@xyflow/react'
 import { useT } from '../../i18n'
 import { useGraphStore } from '../../store/graphStore'
-import { useSimStore } from '../../store/simStore'
+import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
+import type { CueRole } from '../../store/playbackRank'
 import { useUiStore } from '../../store/uiStore'
 import { currentRouteMap } from '../../store/routeMap'
 import { useLod } from '../lod'
@@ -61,6 +62,17 @@ const travelFraction = (tau: number): number => {
 const reducedMotion = () =>
   typeof window !== 'undefined' &&
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+
+// docs/simulation-playback-ordering.md §PBO4 — the reduced-motion `emit` tell is
+// a small triangle pointing from the source toward the target (a static shape,
+// held for the committed step). Geometry, not hue — survives forced-colors.
+function rmEmitTriangle(sx: number, sy: number, tx: number, ty: number): string {
+  const ang = Math.atan2(ty - sy, tx - sx)
+  const tip = [sx + Math.cos(ang) * 5.5, sy + Math.sin(ang) * 5.5]
+  const bl = [sx + Math.cos(ang + 2.5) * 4.5, sy + Math.sin(ang + 2.5) * 4.5]
+  const br = [sx + Math.cos(ang - 2.5) * 4.5, sy + Math.sin(ang - 2.5) * 4.5]
+  return `${tip[0]},${tip[1]} ${bl[0]},${bl[1]} ${br[0]},${br[1]}`
+}
 
 function LoopEdge({
   id,
@@ -155,17 +167,38 @@ function LoopEdge({
   // state `label` beads. Past it an edge keeps its committed label and its
   // settle cue, it just does not animate.
   const travelBudget = usePlaybackTravelBudget(id)
-  const pbPhase = transition && !isState ? transition.phase : null
+  // docs/simulation-playback-ordering.md §PBO2 — this edge's cue runs on its own
+  // LOCAL τ, offset by its (phase, condensation-rank) bucket onset within the
+  // bounded window `[0, STAGGER_SPAN]`. The store keeps the ONE global τ / wall
+  // clock / single settle; only the per-edge mapping changes here.
+  const pbOnset = transition && !isState ? (transition.onsetByEdge[id] ?? 0) : 0
+  const pbStarted = !!transition && !isState && transition.tau >= pbOnset
+  const pbLocalTau = pbStarted
+    ? Math.max(0, Math.min(1, (transition!.tau - pbOnset) / (BEAT_SETTLE - pbOnset)))
+    : 0
+  const pbLocalPhase: PlaybackPhase | null = !pbStarted
+    ? null
+    : pbLocalTau < BEAT_DEPART_END
+      ? 'depart'
+      : pbLocalTau < BEAT_ARRIVE
+        ? 'travel'
+        : 'arrive'
   const pbFlow = transition && !isState ? (transition.flowByEdge[id] ?? 0) : 0
-  // the ordered phase cues (depart ring · travel path-pulse · arrive ring) —
-  // shown whenever a resource transition is in flight, motion is allowed, and
-  // this edge is within the global travel budget; at every zoom including L0.
-  const pbCueOn = pbFlow > 0 && !rm && !!pbPhase && travelBudget.has(id)
+  // §PBO3 — the arrive cue collapses INWARD (`converge`), or inward + dissolve
+  // into a Drain / End (`absorb`); `emit` is always the depart side.
+  const targetIsSink = gNodes.some(
+    (n) => n.id === target && (n.data.kind === 'drain' || n.data.kind === 'end'),
+  )
+  const arriveCueRole: CueRole = targetIsSink ? 'absorb' : 'converge'
+  // the ordered phase cues (emit burst · travel path-pulse · converge/absorb) —
+  // shown once this edge's bucket onset is reached, while a resource transition
+  // is in flight, motion is allowed, and it is within the global travel budget.
+  const pbCueOn = pbFlow > 0 && !rm && !!pbLocalPhase && travelBudget.has(id)
   // the travelling dot itself — elided at L0 (§PB4.4).
   const pbToken = pbCueOn && !atL0
-  const pbFrac = transition ? travelFraction(transition.tau) : 0
+  const pbFrac = travelFraction(pbLocalTau)
   const pbPt = pbToken ? pointOnPath(path, pbFrac) : null
-  const pbEndPt = pbCueOn && pbPhase === 'arrive' ? pointOnPath(path, 1) : null
+  const pbEndPt = pbCueOn && pbLocalPhase === 'arrive' ? pointOnPath(path, 1) : null
   const pbAll = selected && transition && !isState ? transition.events.filter((e) => e.edgeId === id) : []
   const pbBreakdown = pbAll.slice(0, MAX_PLAYBACK_TOKENS)
   const pbBreakdownRest = pbAll.length - pbBreakdown.length
@@ -346,18 +379,19 @@ function LoopEdge({
           arrive cues below still play in order (§PB4.4). */}
       {pbCueOn ? (
         <>
-          {/* depart: a cue at the source */}
-          {pbPhase === 'depart' ? (
+          {/* emit: an OUTWARD burst at the source handle (§PBO3) */}
+          {pbLocalPhase === 'depart' ? (
             <circle
               className="pb-cue pb-cue--depart"
               data-playback-phase="depart"
+              data-cue-role="emit"
               cx={sourceX}
               cy={sourceY}
               r="6"
             />
           ) : null}
           {/* travel, L0 only: a directional path pulse in place of the dot */}
-          {pbPhase === 'travel' && atL0 ? (
+          {pbLocalPhase === 'travel' && atL0 ? (
             <path
               className="pb-l0-pulse"
               data-playback-phase="travel"
@@ -365,11 +399,13 @@ function LoopEdge({
               fill="none"
             />
           ) : null}
-          {/* arrive: a cue at the target */}
-          {pbPhase === 'arrive' && pbEndPt ? (
+          {/* arrive: an INWARD collapse onto the target — `converge`, or
+              `absorb` (inward + dissolve) into a Drain / End (§PBO3) */}
+          {pbLocalPhase === 'arrive' && pbEndPt ? (
             <circle
-              className="pb-cue pb-cue--arrive"
+              className={`pb-cue pb-cue--arrive pb-cue--${arriveCueRole}`}
               data-playback-phase="arrive"
+              data-cue-role={arriveCueRole}
               cx={pbEndPt.x}
               cy={pbEndPt.y}
               r="6"
@@ -377,8 +413,10 @@ function LoopEdge({
           ) : null}
           {pbToken && pbPt ? (
             <g
-              className={`pb-move pb-move--${pbPhase}`}
-              data-playback-phase={pbPhase}
+              className={`pb-move pb-move--${pbLocalPhase}${
+                pbLocalPhase === 'arrive' && targetIsSink ? ' pb-move--absorb' : ''
+              }`}
+              data-playback-phase={pbLocalPhase}
               transform={`translate(${pbPt.x} ${pbPt.y})`}
             >
               <circle className="flow-bead" r="3.6" />
@@ -398,18 +436,48 @@ function LoopEdge({
           once" — not padded). `data-playback-phase` still tracks the live beat.
           Clears on settle; the held post-settle pulse below takes over. */}
       {transition && !isState && pbFlow > 0 && rm && travelBudget.has(id) ? (
-        <g key={`pbrm-${id}-${transition.fromStep}`} data-playback-phase={pbPhase}>
-          <path className="flow-edge-pulse" data-playback-phase={pbPhase} d={path} fill="none" />
-          <circle className="pb-cue pb-cue--depart" cx={sourceX} cy={sourceY} r="5" />
-          <circle className="pb-cue pb-cue--arrive" cx={targetX} cy={targetY} r="5" />
+        <g key={`pbrm-${id}-${transition.fromStep}`} data-playback-phase={pbLocalPhase ?? undefined}>
+          <path
+            className="flow-edge-pulse"
+            data-playback-phase={pbLocalPhase ?? undefined}
+            d={path}
+            fill="none"
+          />
         </g>
       ) : null}
       {/* reduced motion: the held static substitute for the travelling token —
           shown once the step has settled, kept through Pause, cleared on Reset
           (§PB9 / docs/visual-language.md §VL9). A synchronous Step-from-idle
-          under reduced motion settles instantly and lands straight here. */}
+          under reduced motion settles instantly and lands straight here.
+          §PBO4 — the role tell (emit ▸ / converge ▪ / absorb ◌) is a static
+          SVG shape, distinct by geometry, held for the whole committed step. */}
       {rmHeldPulse && transition == null ? (
-        <path key={`p-${id}-${stepIndex}`} className="flow-edge-pulse" d={path} fill="none" />
+        <g key={`p-${id}-${stepIndex}`}>
+          <path className="flow-edge-pulse" d={path} fill="none" />
+          <polygon
+            className="pb-rm-tell pb-rm-tell--emit"
+            data-cue-role="emit"
+            points={rmEmitTriangle(sourceX, sourceY, targetX, targetY)}
+          />
+          {targetIsSink ? (
+            <circle
+              className="pb-rm-tell pb-rm-tell--absorb"
+              data-cue-role="absorb"
+              cx={targetX}
+              cy={targetY}
+              r="4.5"
+              fill="none"
+            />
+          ) : (
+            <circle
+              className="pb-rm-tell pb-rm-tell--converge"
+              data-cue-role="converge"
+              cx={targetX}
+              cy={targetY}
+              r="3.4"
+            />
+          )}
+        </g>
       ) : null}
 
       {showLabel ? (

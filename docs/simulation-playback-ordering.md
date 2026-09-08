@@ -45,40 +45,61 @@ Playing `report.events` one-by-one in emission order is **rejected**: it
 serialises genuinely-parallel sibling branches (e.g. a gate's *process* and
 *scrap* outputs) and blows a wide step (MMO progression) far past the beat.
 
-**Rank — over the condensation DAG (feedback loops are allowed).** Loop Studio
-permits feedback loops, so a plain topological sort of the router graph does not
-exist in general. The rank is defined on the **condensation DAG**:
+**Emission order alone is also rejected as the bucket order.** The engine's
+Phase-2 walk is a Kahn sort of the *router → router* graph with an ascending-id
+frontier tiebreak; a Drain whose input arrives through a Pool is indegree-0 in
+that graph, so it is visited *early*. Verified trace of `examples/equilibrium.json`
+at steady state — emission order is
+`tpl-e1 (supply) → tpl-e6 (shipment) → tpl-e2 (split) → tpl-e3/e4 → tpl-e5`:
+the shipment Drain's pull is emitted *second*. Bucketing by first appearance in
+`report.events` would therefore read `supply → shipment → split → process`,
+which fails §PBO11. Layered Kahn depth over the *router-only* graph has the same
+defect (the shipment Drain is a root there too, tying `rank 1` with the split
+gate).
 
-1. take the **router → router resource-edge graph** — the same graph `step.ts`
-   builds for its Kahn walk;
-2. find its **strongly connected components** (SCCs). Every non-trivial SCC (a
-   feedback cycle) is contracted to **one condensation node**;
-3. the condensation graph **is** a DAG — compute the **layered** (Kahn-level)
-   depth `L` on it: process the whole current frontier as one layer, then
-   advance, so **all same-depth condensation nodes share a level**;
-4. an event's rank is:
-   - **Phase-1** (Source → its immediate targets): `rank = 0`;
-   - **Phase-2**: `rank = 1 + L`, where `L` is the level of the condensation
-     node that contains the event's *routing node* (`from` for a push out of a
-     router, `to` for a pull into one — §PBO10-D2).
+**Rank — longest-predecessor depth over the FULL resource-edge condensation
+DAG.** Pools are included in the graph, and the depth is the *longest* path from
+a start node, not the shortest (a merge / short-circuit edge could otherwise rank
+a node below its own upstream):
+
+1. take the **full resource-edge digraph** — every `kind === "resource"` edge,
+   Pools and all node kinds included (the same predicate `step.ts` uses for
+   `resEdges`);
+2. contract its **strongly connected components** (SCCs) — every feedback loop,
+   which in this model always runs *through a Pool*, becomes one condensation
+   node. The condensation graph **is** a DAG;
+3. **longest-predecessor depth** on it: `depth(s) = 0` for every indegree-0
+   condensation node (so a Source-less initial-stock → Drain graph, and every
+   disconnected component, still gets a depth); otherwise
+   `depth(v) = max(depth(pred) + 1)` over the topological order. Every
+   condensation edge then points **strictly deeper** — the cascade can never run
+   backward (PBO-D2);
+4. bucket assignment:
+   - **Phase-1** (an event whose `from` is a Source): the **Phase-1 bucket**,
+     always first;
+   - **Phase-2**: group by the SCC of the event's *routing node* (`from` for a
+     push out of a router, `to` for a pull into one — §PBO10-D2). A routing
+     node's bucket is ordered by `depth(its SCC)`.
 
 **Events whose routing node falls in the same SCC share the same bucket** — the
 animation shows a feedback cycle's edges moving together, never an invented order
-inside the loop.
+inside the loop. A router's *pull in* and its *push out* also share its bucket
+(one routing subject).
 
 Rank is a **pure function of the step-start graph** (nodes + resource edges + the
 push/pull split), computed in the playback layer — it adds **nothing** to
 `FlowEvent`, `StepReport`, the Workspace sim-snapshot, or any digest. It is
 computed **once**, from the graph **snapshot taken at the moment the transition
 is prepared** (a graph edit mid-transition cancels playback — §PB7 — so the
-snapshot is never stale during a run). Reusing the engine's own router plan
-instead of a re-derivation is acceptable if it can be surfaced without a digest
-or Workspace change (§PBO10-D3).
+snapshot is never stale during a run).
 
-**Bucket.** Events are grouped into ordered buckets by `(phase, rank)`. Let `B`
-be the count of non-empty buckets this step. Same bucket ⇒ **identical onset**
-(parallel siblings, and every edge inside one SCC, move together). Bucket order
-is `phase` then ascending `rank`.
+**Bucket.** Events are grouped into ordered buckets: the Phase-1 bucket first,
+then one bucket per distinct Phase-2 routing-SCC, ordered by that SCC's
+longest-predecessor depth (id-ascending tiebreak). Let `B` be the count of
+non-empty buckets this step. Same bucket ⇒ **identical onset** (parallel
+siblings, and every edge inside one SCC, move together). Only the depths that
+actually occur are kept, then the list is compressed to consecutive indices and
+clamped to `STAGGER_MAX_BUCKETS` (deeper ranks fold into the last bucket).
 
 **PBO1.1 — the stagger is a visual narration, not a physical route.** Every value
 is computed **atomically against `S(t)`** (I7) — Phase-2 processing consumes what
@@ -101,12 +122,12 @@ grows the step**. The next step still begins only after this step's single
 
 Within the transition's `τ ∈ [0, 1]`:
 
-- a fixed fraction `STAGGER_SPAN` (proposed **0.30**, one constants block) is
+- a fixed fraction `STAGGER_SPAN` (**0.30**, one constants block in `playbackRank.ts`) is
   reserved for spreading bucket onsets across `[0, STAGGER_SPAN]`;
 - bucket `k` (0-indexed, `0 … B−1`) has onset
   `onsetₖ = STAGGER_SPAN · k / max(1, B−1)` — bucket 0 at `τ = 0`, the last
   bucket at `τ = STAGGER_SPAN`, regardless of how large `B` is;
-- **cap:** `B` is clamped to `STAGGER_MAX_BUCKETS` (proposed **6**); ranks past
+- **cap:** `B` is clamped to `STAGGER_MAX_BUCKETS` (**6**); ranks past
   the cap fold into the last bucket. Onsets are therefore always in
   `[0, 0.30]` no matter the graph width;
 - each event's **local τ** is
@@ -119,11 +140,13 @@ Within the transition's `τ ∈ [0, 1]`:
   logic untouched). The count-up / delta chips still resolve against the
   just-committed `S(t+1)` for the whole step at once.
 
-`transition` gains a render-time `bucketOf: (edgeId) => number` (or a
-`onsetByEdge` map), computed **once per transition** (keyed on the
-`flowByEdge` identity, like the §PB4.5 budget sort) so a τ-only frame and every
-edge consumer share one result. `LoopEdge` reads its own onset and derives `τₗ`;
-no per-frame graph work.
+`transition` gains `onsetByEdge: Record<string, number>` and `bucketCount`,
+computed **once per transition** in `beginTransition` from the step-start graph
+snapshot (`computeStagger(nodes, edges, events)` in `src/store/playbackRank.ts`)
+and carried by reference across every τ tick (like `flowByEdge` / `events`), so a
+τ-only frame does no graph work. `LoopEdge` reads its own onset, gates its cue on
+`τ ≥ onset`, and derives `τₗ`. The immediate `advance()` path (Monte-Carlo /
+tests) has no animation and skips the computation.
 
 Pause (§PB5) freezes the global `τ` — every bucket freezes in place. Speed change
 mid-transition (§PB6.2) re-rates the shared wall clock; local τ follows. LOD /
@@ -221,10 +244,10 @@ presentation-only — no GraphDoc / digest / undo / autosave / Workspace effect.
 
 | id | statement |
 |---|---|
-| **PBO-INV-1** | The stagger is a pure function of `report.events` and the graph's `(phase, condensation-DAG rank)` order — the engine's own emission order. Playback **never invents an order** (SCCs share a bucket), **never changes which events animate** (only *when each starts*), and computes the schedule **once** from the step-start graph snapshot. No `FlowEvent` / `StepReport` / Workspace / digest field is added. |
+| **PBO-INV-1** | The stagger is a pure function of `report.events` and the graph's `(phase, longest-predecessor depth over the FULL resource-edge condensation DAG)` order. Playback **never invents an order** (SCCs share a bucket; a router's pull-in and push-out share its bucket), **never changes which events animate** (only *when each starts*), and computes the schedule **once** from the step-start graph snapshot. No `FlowEvent` / `StepReport` / Workspace / digest field is added. |
 | **PBO-INV-1a** | The stagger is a **visual narration of the execution phase + reading direction**, not a physical route (§PBO1.1). Values are atomic vs `S(t)`. Tokens on different edges are **separate cues** — no shared path, no hand-off, a visible time+space gap between an upstream `arrive` and a downstream `emit`; they must never read as one continuous moving object. |
 | **PBO-INV-2** | Total step wall time is **independent of rank count** — bucket onsets are always in `[0, STAGGER_SPAN]`, `B` clamped to `STAGGER_MAX_BUCKETS`. The step is never longer than `beatDuration()`. |
-| **PBO-INV-3** | Same `(phase, rank)` bucket ⇒ identical onset ⇒ parallel siblings — and every edge inside one SCC — depart and arrive together. |
+| **PBO-INV-3** | Same bucket ⇒ identical onset ⇒ parallel siblings — and every edge inside one SCC — depart and arrive together. Every condensation-DAG edge points **strictly deeper**, so the cascade never runs backward (PBO-D2, structural). |
 | **PBO-INV-4** | `settle` commits **exactly once** per transition at `τ ≥ BEAT_SETTLE` (PB-INV-6 verbatim — `arriveFired` / `lastSettledTransitionId` untouched); the whole step's count-up / chips resolve against `S(t+1)` at once. |
 | **PBO-INV-5** | `emit` / `converge` / `absorb` are distinguishable by **geometry** under `forced-colors` and by a **static shape tell** under `prefers-reduced-motion`. |
 | **PBO-INV-6** | Steady-state is **presentation-only** and session-only: no engine, RNG, GraphDoc, digest, undo, autosave, or Workspace effect. It is never "one step's net Δ = 0" — it needs **3 consecutive** committed steps with the pool vector *and* the whole edge-flow vector pairwise ε-equal *and* Σ flow > 0. The consecutive counter zeroes on `reset()` / template load / graph edit / seed change. |
@@ -239,20 +262,28 @@ line screen is used **only** as the human visual-review scene (§PBO11), not in
 an assertion.
 
 1. **Ordered cascade — Balanced production line** (`examples/equilibrium.json`).
-   Play; capture each edge's first `emit`-cue onset by `edge.id`. With ids
+   Play; read `transition.onsetByEdge` by `edge.id`. With ids
    `tpl-e1` (src→vault) · `tpl-e2` (vault→gate) · `tpl-e3` (gate→conv) +
    `tpl-e4` (gate→spill) · `tpl-e5` (conv→prod) · `tpl-e6` (prod→consume),
-   assert onsets are non-decreasing in that rank order **and**
-   `onset(tpl-e3) === onset(tpl-e4)` (± 1 frame) — the scrap branch departs with
-   the process branch (same condensation-DAG level).
+   assert onsets are non-decreasing in that depth order **and**
+   `onset(tpl-e2) === onset(tpl-e3) === onset(tpl-e4)` — the split's pull-in, its
+   process branch, and its scrap branch are one routing subject (the gate) —
+   **and** `onset(tpl-e5) > onset(tpl-e3)` **and** `onset(tpl-e6) > onset(tpl-e5)`
+   (the shipment Drain is deepest by longest-predecessor depth, *not* early as
+   its emission order would suggest).
 2. **Bounded step — MMO progression** (`examples/mmo-progression.json`). A wide
-   step (many ranks); assert the last bucket's onset ≤ `STAGGER_SPAN` and the
-   total transition wall time ≤ `beatDuration()` (± one frame), i.e. width does
-   not stretch the step. Keyed on node/edge ids.
-2a. **Cyclic graph — a feedback loop.** A fixture with a router SCC (e.g.
-   `A → B → C → A`): assert every edge whose routing node is in the SCC gets the
-   **same** bucket onset (± 1 frame), and the schedule is computed once
-   (no per-frame recompute; PBO-INV-7).
+   step (many ranks); assert `max(onsetByEdge) ≤ STAGGER_SPAN`,
+   `bucketCount ≤ STAGGER_MAX_BUCKETS`, and `series.length === stepIndex + 1`
+   after a run (one `settle` per step — width does not stretch the step). Keyed
+   on node/edge ids.
+2a. **Cyclic graph — a feedback loop through a Pool** (pure `computeStagger`
+   unit test with synthetic `nodes` / `edges` / `events` — a live *router-only*
+   cycle carries no flow, since this engine declares a zero-storage router cycle
+   dead, so it cannot be exercised end-to-end). Assert: every event whose
+   routing node is in one SCC gets the **same** onset · no invented order inside
+   the SCC · the function terminates (no infinite walk) · it is computed once
+   (`__staggerComputes` +1). The SCC-condensation code stays a defensive mirror
+   of the engine's own `cyclic` fallback (`step.ts`).
 3. **`settle` exactly once** — the §PB7.7 double-beat / giant-gap / speed-change
    matrix still yields one commit; `stepIndex` still moves only at `settle`.
 4. **Pause mid-stagger** — Pause with bucket 2 still in `travel`: all buckets
@@ -261,8 +292,8 @@ an assertion.
    target, `absorb` at a Drain / End target; the three have distinct bounding
    geometry. Holds under `emulateMedia({ forcedColors: 'active' })` and
    `{ reducedMotion: 'reduce' }` (static shape tells).
-6. **Determinism** — same seed + graph ⇒ identical bucket assignment and onset
-   timeline across runs (`originalEventIndex` order unchanged; §PB-INV-1).
+6. **Determinism** — same seed + graph ⇒ identical `onsetByEdge` across runs
+   (every traversal in `computeStagger` is id-sorted; PBO-INV-1).
 7. **Steady-state (PR 3)** — 3 consecutive all-equal committed steps raise
    "Steady state — flows continue"; two equal steps do **not**; a single-step
    stall does **not**; a run that has stopped (Σ flow = 0) does **not**;
@@ -288,8 +319,8 @@ an assertion.
 | id | question | decision |
 |---|---|---|
 | **PBO-D1** | serialise the per-event order? | **No.** Rank is derived in the playback layer from the graph; nothing is added to `FlowEvent` / `StepReport` / Workspace / any `loop-*` digest (PBO-INV-1). If a future need forces a field onto a serialised structure it **stops** and gets its own review — not pre-authorised here. |
-| **PBO-D2** | which node's rank for a Phase-2 event? | The **routing node** the engine is visiting when it emits: for a push *out of* a router use `from`; for a pull *into* a router use `to`. A CI test asserts monotonicity on every bundled example + fixture — no event's routing rank is *lower* than its predecessor in `report.events` (the cascade never runs backward). |
-| **PBO-D3** | cyclic router region? | Loop Studio allows feedback loops, so there is no global topological order. Rank is computed on the **condensation DAG**: contract each SCC of the router→router resource-edge graph to one node, then take the layered depth of the DAG (§PBO1). **Every event whose routing node is in one SCC shares that SCC's rank / bucket** — the loop's edges animate together, no invented inner order. Reusing the engine's own router plan (it already Kahn-sorts + has a cycle fallback for the *values*) instead of a playback re-derivation is fine **iff** it can be surfaced without touching a serialised structure or any `loop-*` digest; otherwise the playback layer recomputes SCC + condensation from the step-start snapshot, with a CI monotonicity test on every bundled example + fixture. |
+| **PBO-D2** | which node's rank for a Phase-2 event, and how is "never backward" enforced? | The **routing node** the engine is visiting when it emits: for a push *out of* a router use `from`; for a pull *into* a router use `to`. "Never backward" is **structural, not an emission-order check**: with longest-predecessor depth over the full condensation DAG, *every* condensation edge `u → v` has `depth(v) > depth(u)`. The CI test (`playbackRank.bundled.test.ts`) asserts exactly that on every bundled example + fixture. (An earlier draft checked monotonicity along `report.events`; the verified `equilibrium.json` trace emits the shipment Drain's pull *second*, so that check was wrong — the depth labelling is the correct invariant.) |
+| **PBO-D3** | cyclic / feedback region? | Feedback loops in this model always run **through a Pool**, so the ordering graph must include Pools. Rank is computed on the **condensation DAG of the FULL resource-edge graph**: contract every SCC to one node, then take longest-predecessor depth (§PBO1). **Every event whose routing node is in one SCC shares that SCC's bucket** — the loop's edges animate together, no invented inner order. The playback layer recomputes SCC + condensation from the step-start snapshot (a pure function; nothing on any serialised structure or `loop-*` digest). A live *router-only* cycle carries no flow (the engine declares a zero-storage router cycle dead), so the SCC-contraction path is a defensive mirror of the engine's own `cyclic` fallback, covered by a `computeStagger` unit test rather than e2e. |
 | **PBO-D4** | `STAGGER_SPAN` / `STAGGER_MAX_BUCKETS` / `N` / `ε` values | Tunable constants blocks, **not** structural. Proposed 0.30 / 6 / 3 / a small absolute+relative ε; final values set during impl against the Balanced production line and MMO cascades. |
 | **PBO-D5** | is this a new `loop-*/N`? | **No.** Display layer only — no engine result, no digest, no wire, no Workspace field. Same status as the parent doc. If impl surfaces a genuine wire need it halts and gets a frozen id then. |
 | **PBO-D6** | steady-state in the same PR? | **No** — split (§PBO9). A one-step net-zero is not equilibrium; the multi-step three-condition test needs its own verification and shouldn't gate the cascade work. |
