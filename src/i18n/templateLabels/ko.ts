@@ -7,7 +7,7 @@
 // `check:template-labels` keeps every block in sync with its canonical graph
 // (`examples/<id>.json`).
 
-import type { TemplateLabelDict } from './index'
+import type { TemplateLabelDict, TemplateLabelMap } from './index'
 
 export const ko: TemplateLabelDict = {
   // The two production-line samples — structure is the frozen SEMANTICS §14
@@ -158,3 +158,10 @@ export const ko: TemplateLabelDict = {
     dessert_prep_margin: '디저트 준비 여유',
   },
 }
+
+// docs/template-label-overlay.md §TLO12 — the Korean group-frame TITLE overlay,
+// `templateId -> (frameId -> title)`. Flat sibling of `ko` above so the
+// source-text checks parse it independently. Empty until a template ships
+// `frames` (#4B); `check:template-labels` fails if a shipped frame lacks an
+// entry here.
+export const koFrames: TemplateLabelMap = {}

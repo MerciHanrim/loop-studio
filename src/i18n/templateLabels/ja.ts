@@ -5,7 +5,7 @@
 // Terminology follows the confirmed JA table; a native-JA pass is recommended
 // before Production.
 
-import type { TemplateLabelDict } from './index'
+import type { TemplateLabelDict, TemplateLabelMap } from './index'
 
 export const ja: TemplateLabelDict = {
   'equilibrium': {
@@ -150,3 +150,9 @@ export const ja: TemplateLabelDict = {
     dessert_prep_margin: 'デザート仕込みの余裕',
   },
 }
+
+// docs/template-label-overlay.md §TLO12 — the Japanese group-frame TITLE overlay,
+// `templateId -> (frameId -> title)`. Flat sibling of `ja` above. Empty until a
+// template ships `frames` (#4B); `check:template-labels` fails if a shipped
+// frame lacks an entry here.
+export const jaFrames: TemplateLabelMap = {}

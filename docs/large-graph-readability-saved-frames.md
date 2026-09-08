@@ -254,6 +254,15 @@ Workspace restore, Share restore, revision Apply):
 4. A plain in-app **edit** never bumps `loadRev`, so frames persist across
    editing exactly as in 4a; autosave (§SF5) is what writes them out.
 
+**§SF2 addendum (#4A).** A bundled **Template MAY now ship `frames`** in its
+`examples/<id>.json`, read once through the same `readSavedFrames` §R5-1.1
+normalisation the Import path uses (no raw cast). They reach `frameStore` via an
+optional 4th arg to `graphStore.loadGraph` — `undefined` still clears the set, so
+a frame-less template is byte-identical to before. Frame **titles** are then
+user-visible template copy and follow the label overlay
+(`docs/template-label-overlay.md` §TLO12): localised on menu open and re-seeded
+(live + `past`/`future`) on a language switch, with user renames preserved.
+
 ---
 
 ## SF7. Migration

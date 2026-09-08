@@ -11,20 +11,32 @@
 
 import { BASE_LOCALE } from '../registry'
 
-/** `templateId -> (nodeId -> localized label)` for one locale. */
-export type TemplateLabelDict = Record<string, Record<string, string>>
+/** `templateId -> (id -> localized string)`. Used for both the node-label map
+ *  and the frame-title map. */
+export type TemplateLabelMap = Record<string, Record<string, string>>
+/** back-compat alias — the node-label map shape. */
+export type TemplateLabelDict = TemplateLabelMap
+
+/** One locale's full template overlay: node labels + frame titles. Each
+ *  `<locale>.ts` keeps FLAT exports (`ko` = nodes, `koFrames` = frames) so the
+ *  source-text checks stay simple; this consumer shape is composed here. */
+export type TemplateOverlay = {
+  nodes: TemplateLabelMap
+  frames: TemplateLabelMap
+}
 
 /** Registered non-base locales that ship a dictionary chunk. English
  *  (`BASE_LOCALE`) never has one — it is the fallback. A new locale = one more
  *  entry here plus its `<locale>.ts` file (§TLO2). The value is a dynamic
- *  `import()` so the dict is its own lazily-loaded chunk. */
-const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateLabelDict>>> = {
-  ja: () => import('./ja').then((m) => m.ja),
-  ko: () => import('./ko').then((m) => m.ko),
+ *  `import()` so the dict is its own lazily-loaded chunk; the ONE `import()`
+ *  yields both maps, so the atomic catalog+dict load contract is unchanged. */
+const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
+  ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),
+  ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
 }
 
-/** The loaded dictionaries, filled by `ensureTemplateLabelDict`. */
-const DICTS: Record<string, TemplateLabelDict> = {}
+/** The loaded overlays, filled by `ensureTemplateLabelDict`. */
+const DICTS: Record<string, TemplateOverlay> = {}
 const inFlight = new Map<string, Promise<void>>()
 
 /** Load the `<loc>` template-label dictionary chunk if it is not already
@@ -52,9 +64,20 @@ export async function ensureTemplateLabelDict(loc: string): Promise<void> {
   return p
 }
 
-/** A resident dictionary, or `undefined` if `<loc>` has not been loaded. */
-export function loadedTemplateLabelDict(loc: string): TemplateLabelDict | undefined {
+/** A resident locale's full overlay (`{ nodes, frames }`), or `undefined` if
+ *  `<loc>` has not been loaded. */
+export function loadedTemplateOverlay(loc: string): TemplateOverlay | undefined {
   return DICTS[loc]
+}
+
+/** A resident locale's NODE-label map, or `undefined` if not loaded. */
+export function loadedTemplateLabelDict(loc: string): TemplateLabelMap | undefined {
+  return DICTS[loc]?.nodes
+}
+
+/** A resident locale's FRAME-title map, or `undefined` if not loaded. */
+export function loadedTemplateFrameLabelDict(loc: string): TemplateLabelMap | undefined {
+  return DICTS[loc]?.frames
 }
 
 /** The locales that HAVE a dictionary loader (for checks / diagnostics).

@@ -72,6 +72,13 @@ const dictLocales = [...loaderBlock.matchAll(/^\s*'?([a-zA-Z][\w-]*)'?\s*:\s*\(\
 // node ids with no user-facing label — exempt from "missing". Empty today.
 const NO_LABEL_NODE_IDS = new Set()
 
+// §TLO12 — frame constants, mirrored from src/model/serialize.ts. A CANONICAL
+// example file must be clean AS WRITTEN (readSavedFrames returns it unchanged) —
+// it may not lean on the runtime defensive repair.
+const SF_FRAMES_MAX = 200
+const SF_LABEL_MAX = 120
+const SF_FRAME_COLORS = new Set(['slate', 'sage', 'gold', 'violet', 'rose'])
+
 // canonical node ids for a template that has a dictionary
 function canonicalIds(tplId) {
   const p = resolve(root, `examples/${tplId}.json`)
@@ -92,6 +99,140 @@ function canonicalLabels(tplId) {
     return new Map((doc.nodes ?? []).map((n) => [n.id, n?.data?.label]))
   } catch {
     return new Map()
+  }
+}
+
+// ── §TLO12 — group-frame TITLE overlay checks ─────────────────────────────
+
+// raw `doc.frames` of a template, or null if the file has no frames key
+function canonicalFramesRaw(tplId) {
+  try {
+    const doc = JSON.parse(readFileSync(resolve(root, `examples/${tplId}.json`), 'utf8'))
+    return Array.isArray(doc.frames) ? doc.frames : null
+  } catch {
+    return null
+  }
+}
+
+// the `export const <locale>Frames = { … }` slice → `'<tplId>': { … }` block
+function frameDictEntries(locale, tplId) {
+  const src = read(`src/i18n/templateLabels/${locale}.ts`)
+  const start = src.search(new RegExp(`export const ${locale}Frames\\b`))
+  if (start < 0) return null // no frame dict at all for this locale
+  const rest = src.slice(start)
+  const nextExport = rest.slice(1).search(/\nexport const /)
+  const slice = nextExport < 0 ? rest : rest.slice(0, nextExport + 1)
+  const block = new RegExp(`'${tplId}'\\s*:\\s*\\{([\\s\\S]*?)\\n\\s*\\}`).exec(slice)
+  if (!block) return { present: false, ids: [], values: [] }
+  const kv = [...block[1].matchAll(/^\s*([A-Za-z_$][\w$]*|'[^']+')\s*:\s*'([^']*)'/gm)]
+  return { present: true, ids: kv.map((m) => m[1].replace(/'/g, '')), values: kv.map((m) => m[2]) }
+}
+
+// A canonical example's `frames` must be clean AS AUTHORED (§R5-1.1 would
+// otherwise silently repair a dup id / bad rect on load).
+function checkFrameShapes() {
+  for (const tplId of TEMPLATE_IDS) {
+    const raw = canonicalFramesRaw(tplId)
+    if (raw == null) continue // no frames key — fine
+    if (raw.length > SF_FRAMES_MAX)
+      fail(`${tplId}: ${raw.length} frames exceeds SF_FRAMES_MAX (${SF_FRAMES_MAX})`)
+    const seen = new Set()
+    raw.forEach((f, i) => {
+      const at = `${tplId} frames[${i}]`
+      if (typeof f !== 'object' || f == null || Array.isArray(f)) return fail(`${at}: not an object`)
+      if (typeof f.id !== 'string' || f.id === '') fail(`${at}: id must be a non-empty string`)
+      else if (seen.has(f.id)) fail(`${at}: duplicate id '${f.id}'`)
+      else seen.add(f.id)
+      if (typeof f.label !== 'string') fail(`${at}: label must be a string`)
+      else if (f.label.length > SF_LABEL_MAX) fail(`${at}: label longer than ${SF_LABEL_MAX}`)
+      const r = f.rect
+      if (typeof r !== 'object' || r == null) fail(`${at}: rect must be an object`)
+      else {
+        for (const k of ['x', 'y']) {
+          if (typeof r[k] !== 'number' || !Number.isFinite(r[k])) fail(`${at}: rect.${k} must be finite`)
+        }
+        for (const k of ['w', 'h']) {
+          if (typeof r[k] !== 'number' || !Number.isFinite(r[k]) || r[k] <= 0)
+            fail(`${at}: rect.${k} must be a positive finite number`)
+        }
+      }
+      if (f.color !== undefined && !SF_FRAME_COLORS.has(f.color))
+        fail(`${at}: color '${f.color}' is not a palette id`)
+    })
+  }
+}
+
+// Per (template, dict-shipping locale): a frame-less template must have NO (or an
+// empty) frame dict; a template WITH frames must have a dict whose id set EQUALS
+// the canonical frame-id set exactly — no missing / stale / duplicate / empty.
+function checkFrameTranslations() {
+  for (const locale of NON_BASE) {
+    if (!dictLocales.includes(locale)) continue
+    for (const tplId of TEMPLATE_IDS) {
+      const raw = canonicalFramesRaw(tplId)
+      const canonIds = raw ? raw.map((f) => f.id) : []
+      const entry = frameDictEntries(locale, tplId)
+
+      if (canonIds.length === 0) {
+        if (entry?.present && entry.ids.length > 0) {
+          fail(`${tplId} / ${locale}: frame dict has ${entry.ids.length} entr(y/ies) but the template ships no frames`)
+        } else {
+          ok(`${tplId} / ${locale}: no frames — no frame dict (as expected)`)
+        }
+        continue
+      }
+
+      if (!entry || !entry.present) {
+        fail(`${tplId} / ${locale}: template ships ${canonIds.length} frame(s) but there is no ${locale}Frames['${tplId}'] block (§TLO12)`)
+        continue
+      }
+
+      const seen = new Set()
+      const dup = entry.ids.filter((id) => (seen.has(id) ? true : (seen.add(id), false)))
+      if (dup.length) fail(`${tplId} / ${locale}: duplicate frame key(s): ${[...new Set(dup)].join(', ')}`)
+      const empty = entry.values.flatMap((v, i) => (v.trim() ? [] : [entry.ids[i]]))
+      if (empty.length) fail(`${tplId} / ${locale}: empty frame title for: ${empty.join(', ')}`)
+      const canonSet = new Set(canonIds)
+      const keySet = new Set(entry.ids)
+      const missing = canonIds.filter((id) => !keySet.has(id))
+      if (missing.length) fail(`${tplId} / ${locale}: missing frame title for: ${missing.join(', ')}`)
+      const stale = entry.ids.filter((id) => !canonSet.has(id))
+      if (stale.length) fail(`${tplId} / ${locale}: stale frame key(s) — no such canonical frame: ${stale.join(', ')}`)
+
+      if (!dup.length && !empty.length && !missing.length && !stale.length)
+        ok(`${tplId} / ${locale}: ${entry.ids.length} frame title(s), complete`)
+    }
+  }
+}
+
+// §TLO12 drift — `relabelFramesForLocale` keys ONLY on frame id, so a frame id
+// shared by two templates must resolve to the SAME official title in every
+// locale, or it could never be switched. Fail if a shared id diverges.
+function checkSharedFrameIdTargets() {
+  const raw = {} // locale -> id -> { title, template }
+  const record = (locale, id, title, tplId) => {
+    if (title == null || title === '') return
+    ;(raw[locale] ??= {})
+    const prev = raw[locale][id]
+    if (prev && prev.title !== title) {
+      fail(
+        `shared frame id '${id}' resolves to different ${locale} titles — ` +
+          `'${prev.template}' → "${prev.title}" vs '${tplId}' → "${title}" (§TLO12)`,
+      )
+    } else if (!prev) {
+      raw[locale][id] = { title, template: tplId }
+    }
+  }
+  for (const tplId of TEMPLATE_IDS) {
+    const framesRaw = canonicalFramesRaw(tplId)
+    if (!framesRaw || framesRaw.length === 0) continue
+    for (const f of framesRaw) record(BASE_LOCALE, f.id, f.label, tplId)
+    for (const locale of NON_BASE) {
+      if (!dictLocales.includes(locale)) continue
+      const entry = frameDictEntries(locale, tplId)
+      const m = new Map((entry?.ids ?? []).map((id, i) => [id, entry.values[i]]))
+      for (const f of framesRaw) record(locale, f.id, m.get(f.id) ?? f.label, tplId)
+    }
   }
 }
 
@@ -198,6 +339,9 @@ for (const locale of NON_BASE) {
 }
 
 checkSharedIdTargets()
+checkFrameShapes()
+checkFrameTranslations()
+checkSharedFrameIdTargets()
 
 // the overlay function must not translate anything but `label` — guard the
 // source against an accidental `resourceType` / `expr` write in the apply loop

@@ -17,17 +17,19 @@
 // (./dicts.ts); `openTemplate` reads the resident one, which the atomic
 // locale-switch (src/i18n/store.ts) guarantees is loaded for the active locale.
 
-import type { ModelSemanticsVersion, RecommendedRunConfig } from '../../model/serialize'
+import type { ModelSemanticsVersion, RecommendedRunConfig, SavedFrame } from '../../model/serialize'
 import type { Template } from '../../model/templates'
 import type { LoopEdge, LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
 import { useI18n } from '../store'
-import { loadedTemplateLabelDict } from './dicts'
+import { loadedTemplateOverlay } from './dicts'
 
-export type { TemplateLabelDict } from './dicts'
+export type { TemplateLabelDict, TemplateLabelMap, TemplateOverlay } from './dicts'
 export {
   ensureTemplateLabelDict,
   loadedTemplateLabelDict,
+  loadedTemplateFrameLabelDict,
+  loadedTemplateOverlay,
   templateLabelDictLocales,
   __resetTemplateLabelDicts,
 } from './dicts'
@@ -47,7 +49,7 @@ const cloneJSON = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 export const EN_FALLBACK_TEMPLATES: Readonly<Record<string, readonly string[]>> = {}
 
 export type OpenedTemplate = {
-  graph: { nodes: LoopNode[]; edges: LoopEdge[] }
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; frames?: SavedFrame[] }
   recommendedRunConfig?: RecommendedRunConfig
   /** loop-model/2 — the model-semantics version to load this Template as
    *  (from the Template's `modelVersion`, i.e. its file's `schema`). v1 unless
@@ -65,13 +67,28 @@ export function openTemplate(
   locale: string = useI18n.getState().activeLocale,
 ): OpenedTemplate {
   // Full deep clone of the whole payload — nothing shared with TEMPLATES[i].
-  const graph = cloneJSON(tpl.graph) as { nodes: LoopNode[]; edges: LoopEdge[] }
+  const graph = cloneJSON(tpl.graph) as {
+    nodes: LoopNode[]
+    edges: LoopEdge[]
+    frames?: SavedFrame[]
+  }
 
-  const dict = locale === BASE_LOCALE ? undefined : loadedTemplateLabelDict(locale)?.[tpl.id]
-  if (dict) {
+  const overlay = locale === BASE_LOCALE ? undefined : loadedTemplateOverlay(locale)
+  const nodeDict = overlay?.nodes[tpl.id]
+  if (nodeDict) {
     for (const n of graph.nodes) {
-      const label = dict[n.id]
+      const label = nodeDict[n.id]
       if (label != null) (n.data as { label?: string }).label = label
+    }
+  }
+  // §TLO12 — frame titles follow the same rule: overlay a localized string onto
+  // a frame whose id has an entry; a frame with no entry keeps its EN canonical
+  // title (defense-in-depth — `check:template-labels` fails first on a gap).
+  const frameDict = overlay?.frames[tpl.id]
+  if (frameDict && graph.frames) {
+    for (const f of graph.frames) {
+      const label = frameDict[f.id]
+      if (label != null) f.label = label
     }
   }
 

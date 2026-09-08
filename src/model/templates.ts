@@ -5,8 +5,10 @@ import mmoProgressionDoc from '../../examples/mmo-progression.json'
 import {
   modelVersionForSchema,
   normalizeGraph,
+  readSavedFrames,
   type ModelSemanticsVersion,
   type RecommendedRunConfig,
+  type SavedFrame,
 } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
@@ -28,7 +30,13 @@ export type Template = {
   id: string
   name: string
   blurb: string
-  graph: { nodes: LoopNode[]; edges: LoopEdge[] }
+  /** `frames` (docs/large-graph-readability-saved-frames.md) — a Template MAY
+   *  ship group frames (§SF2 addendum). Read once here through the same
+   *  `readSavedFrames` normalisation the Import path uses, so a malformed
+   *  canonical entry is dropped/repaired identically. Absent ⇒ no frames, the
+   *  pre-#4A behaviour. Titles are localised by the label overlay
+   *  (docs/template-label-overlay.md §TLO12). */
+  graph: { nodes: LoopNode[]; edges: LoopEdge[]; frames?: SavedFrame[] }
   /** applied to the Monte-Carlo config on load, same as a file's field */
   recommendedRunConfig?: RecommendedRunConfig
   /** §MML3 — a menu-open camera framing (else the camera fits the whole graph) */
@@ -52,22 +60,33 @@ export type Template = {
 //     Processing(2→1) ─1→ Finished goods(cap3)   └─w1→ Scrap
 //   "Balanced production line" adds: Finished goods ─1→ Shipment
 
+/** Build a Template `graph` from a canonical example doc: `normalizeGraph` for
+ *  nodes/edges (unchanged), plus `frames` run through the same `readSavedFrames`
+ *  §R5-1.1 normalisation the Import path uses. `frames` is attached only when the
+ *  doc ships a non-empty, valid set — a frame-less doc yields `{ nodes, edges }`
+ *  exactly as before (#4A). Titles are EN canonical here; the label overlay
+ *  localises them at menu open (§TLO12). */
+function tplGraph(doc: unknown): Template['graph'] {
+  const d = doc as { nodes: LoopNode[]; edges: LoopEdge[]; frames?: unknown }
+  const base = normalizeGraph({ nodes: d.nodes, edges: d.edges })
+  const frames = readSavedFrames(d.frames)
+  return frames.length > 0 ? { ...base, frames } : base
+}
+
 export const TEMPLATES: Template[] = [
   {
     id: 'equilibrium',
     name: 'Balanced production line',
     blurb:
       'Raw material flows in, production is split between processing and scrap, and finished goods ship out. Raw and finished inventory settle within a few steps and hold flat.',
-    graph: normalizeGraph(
-      equilibriumDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] },
-    ),
+    graph: tplGraph(equilibriumDoc),
   },
   {
     id: 'deadlock',
     name: 'Capacity deadlock',
     blurb:
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
-    graph: normalizeGraph(deadlockDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] }),
+    graph: tplGraph(deadlockDoc),
   },
   // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
   // The canonical graph is examples/mmo-progression.json (built + verified by
@@ -78,7 +97,7 @@ export const TEMPLATES: Template[] = [
     name: 'Early MMO progression (levels 1–15)',
     blurb:
       'A connected play economy: three zone lanes, probabilistic combat, categorised loot, a gold economy with repair and resupply costs, and a rising XP-per-level curve.',
-    graph: normalizeGraph(mmoProgressionDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] }),
+    graph: tplGraph(mmoProgressionDoc),
     recommendedRunConfig: (mmoProgressionDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
     // §MML3 — this graph is ~3500 px wide; fit-all opens it as an unreadable
@@ -104,9 +123,7 @@ export const TEMPLATES: Template[] = [
     name: 'Coffee roastery operations flow',
     blurb:
       'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail. Change five daily operating values and the stock trajectories and projected results move. A simplified simulation example — not an ERP or real-time monitoring system.',
-    graph: normalizeGraph(
-      coffeeRoasteryDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] },
-    ),
+    graph: tplGraph(coffeeRoasteryDoc),
     recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
     modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
