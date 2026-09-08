@@ -2677,6 +2677,11 @@ body {
   max-height: 55%;
   overflow-y: auto;
   border-bottom: 1px solid var(--line-hairline);
+  /* fixed Summary-value column width — measured (fonts loaded) from the widest
+     realistic register value across EN/KO/JA: `346.8 kKRW/day` ≈ 91px in the
+     Coffee template. `min-width`, so a longer value grows the column leftward
+     rather than spilling over the name. */
+  --mp-val-w: 96px;
 }
 .mpanel + .mpanel {
   border-top: 1px solid var(--line-hairline);
@@ -2739,6 +2744,12 @@ body {
   gap: 8px;
   padding: 3px 0;
 }
+/* an Inputs param row (label + number input) — top-align so a 2-line name sits
+   with its first line by the input, not centred against the taller box. NOT the
+   flow row (one line) and NOT `--reg` (its own `__main` handles alignment). */
+.mp-row:not(.mp-row--flow):not(.mp-row--reg) {
+  align-items: start;
+}
 .mp-row__label {
   flex: 1 1 auto;
   min-width: 0;
@@ -2754,6 +2765,20 @@ body {
   text-overflow: ellipsis;
   cursor: pointer;
 }
+/* a NODE-NAME label (Inputs param + Summary register) — up to two lines, then
+   ellipsis; the generic base rule (one-line, still used by the flow row) is
+   left alone. */
+.mp-row__label--name {
+  min-width: 0;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
 .mp-row__label:hover {
   text-decoration: underline;
 }
@@ -2762,6 +2787,7 @@ body {
   width: 78px;
   font-size: 12px;
   text-align: right;
+  align-self: start;
 }
 .mp-row--reg {
   flex-wrap: wrap;
@@ -2788,13 +2814,21 @@ body {
 }
 .mp-row--reg .mp-row__main {
   display: flex;
-  align-items: baseline;
+  align-items: start;
   gap: 8px;
   width: 100%;
 }
+/* fixed value column: normal values sit at exactly `--mp-val-w` (both edges
+   align); a longer value grows the column leftward and the `min-width: 0` name
+   yields space, so the value text never draws over the name and every row's
+   RIGHT edge still lines up. */
 .mp-row--reg .mp-row__val {
   flex: 0 0 auto;
   width: auto;
+  min-width: var(--mp-val-w);
+  text-align: right;
+  align-self: start;
+  white-space: nowrap;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }

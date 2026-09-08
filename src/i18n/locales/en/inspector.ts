@@ -108,7 +108,6 @@ const inspector = {
   'panels.summary.expand': 'Expand the Summary panel',
   'panels.inputs.paramValue': 'Value of {label}',
   'panels.inputs.flowVia': 'flow via {param}',
-  'panels.inputs.reveal': 'Show on the canvas',
   'panels.summary.showCalc': 'Show calculation',
   'panels.summary.hideCalc': 'Hide calculation',
   'panels.summary.noValue': '— no value at step {step}',

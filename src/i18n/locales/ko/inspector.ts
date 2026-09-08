@@ -108,7 +108,6 @@ const inspector = {
   'panels.summary.expand': '요약 패널 펼치기',
   'panels.inputs.paramValue': '{label} 값',
   'panels.inputs.flowVia': '흐름: {param}',
-  'panels.inputs.reveal': '캔버스에서 보기',
   'panels.summary.showCalc': '계산식 보기',
   'panels.summary.hideCalc': '계산식 숨기기',
   'panels.summary.noValue': '— {step}단계에서 값 없음',
