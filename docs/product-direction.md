@@ -229,9 +229,10 @@ Recorded here so the follow-on passes inherit them, not so they are done now:
 
 - **Template localization overlay** — a human-authored per-locale
   `nodeId → label` dictionary applied only when a fresh template is opened
-  (see the `mmo-progression.ko.json` reasoning). **Decided inside the *module
-  system* design pass**, alongside how Templates carry their surfaced inputs —
-  not built as a standalone slice first.
+  (the shipped answer to the retired per-locale-graph-copy idea; see
+  [`template-label-overlay.md`](template-label-overlay.md)). **Decided inside
+  the *module system* design pass**, alongside how Templates carry their
+  surfaced inputs — not built as a standalone slice first.
 - **Contextual inline help** — designed **after** the structure above is fixed.
   Help placed before structure would only *explain* the complexity instead of
   *reducing* it. It stays the last item under Onboarding part 2 in the README

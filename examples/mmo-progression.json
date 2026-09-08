@@ -102,7 +102,7 @@
       "id": "reward_router",
       "type": "gate",
       "position": {
-        "x": 1680,
+        "x": 1590,
         "y": 940
       },
       "data": {
@@ -116,8 +116,8 @@
       "id": "hunt_payout",
       "type": "converter",
       "position": {
-        "x": 1840,
-        "y": 900
+        "x": 1820,
+        "y": 890
       },
       "data": {
         "kind": "converter",
@@ -130,7 +130,7 @@
       "id": "quest_payout",
       "type": "converter",
       "position": {
-        "x": 1840,
+        "x": 1800,
         "y": 1000
       },
       "data": {
@@ -144,8 +144,8 @@
       "id": "hunt_xp",
       "type": "pool",
       "position": {
-        "x": 2000,
-        "y": 900
+        "x": 2030,
+        "y": 890
       },
       "data": {
         "kind": "pool",
@@ -160,8 +160,8 @@
       "id": "quest_xp",
       "type": "pool",
       "position": {
-        "x": 2000,
-        "y": 1000
+        "x": 2030,
+        "y": 980
       },
       "data": {
         "kind": "pool",
@@ -176,7 +176,7 @@
       "id": "fail_conv",
       "type": "converter",
       "position": {
-        "x": 720,
+        "x": 730,
         "y": 940
       },
       "data": {
@@ -190,7 +190,7 @@
       "id": "death_conv",
       "type": "converter",
       "position": {
-        "x": 880,
+        "x": 900,
         "y": 940
       },
       "data": {
@@ -204,8 +204,8 @@
       "id": "combat_wins",
       "type": "pool",
       "position": {
-        "x": 560,
-        "y": 920
+        "x": 550,
+        "y": 890
       },
       "data": {
         "kind": "pool",
@@ -220,7 +220,7 @@
       "id": "combat_fails",
       "type": "pool",
       "position": {
-        "x": 560,
+        "x": 550,
         "y": 980
       },
       "data": {
@@ -236,8 +236,8 @@
       "id": "deaths",
       "type": "pool",
       "position": {
-        "x": 560,
-        "y": 1040
+        "x": 570,
+        "y": 1070
       },
       "data": {
         "kind": "pool",
@@ -253,7 +253,7 @@
       "type": "pool",
       "position": {
         "x": 1500,
-        "y": 1140
+        "y": 1130
       },
       "data": {
         "kind": "pool",
@@ -301,8 +301,8 @@
       "id": "repair_spend",
       "type": "pool",
       "position": {
-        "x": 1500,
-        "y": 1260
+        "x": 1520,
+        "y": 1250
       },
       "data": {
         "kind": "pool",
@@ -317,8 +317,8 @@
       "id": "resupply_spend",
       "type": "pool",
       "position": {
-        "x": 1680,
-        "y": 1360
+        "x": 1700,
+        "y": 1340
       },
       "data": {
         "kind": "pool",
@@ -334,7 +334,7 @@
       "type": "pool",
       "position": {
         "x": 1860,
-        "y": 1260
+        "y": 1250
       },
       "data": {
         "kind": "pool",
@@ -349,8 +349,8 @@
       "id": "water",
       "type": "pool",
       "position": {
-        "x": 1520,
-        "y": 1440
+        "x": 1540,
+        "y": 1430
       },
       "data": {
         "kind": "pool",
@@ -367,7 +367,7 @@
       "type": "pool",
       "position": {
         "x": 1520,
-        "y": 1500
+        "y": 1530
       },
       "data": {
         "kind": "pool",
@@ -383,7 +383,7 @@
       "id": "water_bought",
       "type": "pool",
       "position": {
-        "x": 1700,
+        "x": 1720,
         "y": 1480
       },
       "data": {
@@ -399,7 +399,7 @@
       "id": "food_bought",
       "type": "pool",
       "position": {
-        "x": 1880,
+        "x": 1940,
         "y": 1480
       },
       "data": {
@@ -416,7 +416,7 @@
       "type": "pool",
       "position": {
         "x": 1200,
-        "y": 1300
+        "y": 1220
       },
       "data": {
         "kind": "pool",
@@ -431,8 +431,8 @@
       "id": "food_consumed",
       "type": "pool",
       "position": {
-        "x": 1200,
-        "y": 1360
+        "x": 1130,
+        "y": 1400
       },
       "data": {
         "kind": "pool",
@@ -447,8 +447,8 @@
       "id": "water_upkeep",
       "type": "converter",
       "position": {
-        "x": 1360,
-        "y": 1300
+        "x": 1330,
+        "y": 1310
       },
       "data": {
         "kind": "converter",
@@ -461,8 +461,8 @@
       "id": "food_upkeep",
       "type": "converter",
       "position": {
-        "x": 1360,
-        "y": 1360
+        "x": 1370,
+        "y": 1400
       },
       "data": {
         "kind": "converter",
@@ -475,8 +475,8 @@
       "id": "resupply",
       "type": "converter",
       "position": {
-        "x": 1680,
-        "y": 1260
+        "x": 1700,
+        "y": 1250
       },
       "data": {
         "kind": "converter",
@@ -490,7 +490,7 @@
       "type": "pool",
       "position": {
         "x": 2340,
-        "y": 1060
+        "y": 1080
       },
       "data": {
         "kind": "pool",
@@ -507,7 +507,7 @@
       "type": "pool",
       "position": {
         "x": 2160,
-        "y": 1060
+        "y": 1080
       },
       "data": {
         "kind": "pool",
@@ -523,7 +523,7 @@
       "type": "pool",
       "position": {
         "x": 2160,
-        "y": 820
+        "y": 800
       },
       "data": {
         "kind": "pool",
@@ -538,8 +538,8 @@
       "id": "repair_wear",
       "type": "converter",
       "position": {
-        "x": 2160,
-        "y": 900
+        "x": 2190,
+        "y": 890
       },
       "data": {
         "kind": "converter",
@@ -552,8 +552,8 @@
       "id": "repair_gold",
       "type": "converter",
       "position": {
-        "x": 2160,
-        "y": 980
+        "x": 2220,
+        "y": 990
       },
       "data": {
         "kind": "converter",
@@ -582,8 +582,8 @@
       "id": "loot_feed",
       "type": "pool",
       "position": {
-        "x": 380,
-        "y": 1060
+        "x": 370,
+        "y": 1070
       },
       "data": {
         "kind": "pool",
@@ -598,7 +598,7 @@
       "id": "loot_dispatch",
       "type": "converter",
       "position": {
-        "x": 380,
+        "x": 370,
         "y": 940
       },
       "data": {
@@ -626,7 +626,7 @@
       "id": "bucket_equip",
       "type": "pool",
       "position": {
-        "x": 300,
+        "x": 270,
         "y": 1300
       },
       "data": {
@@ -642,7 +642,7 @@
       "id": "bucket_vendor",
       "type": "pool",
       "position": {
-        "x": 460,
+        "x": 440,
         "y": 1300
       },
       "data": {
@@ -658,7 +658,7 @@
       "id": "bucket_consumable",
       "type": "pool",
       "position": {
-        "x": 620,
+        "x": 640,
         "y": 1300
       },
       "data": {
@@ -674,7 +674,7 @@
       "id": "bucket_rare",
       "type": "pool",
       "position": {
-        "x": 780,
+        "x": 850,
         "y": 1300
       },
       "data": {
@@ -706,8 +706,8 @@
       "id": "items_equipped",
       "type": "pool",
       "position": {
-        "x": 120,
-        "y": 1300
+        "x": 80,
+        "y": 1290
       },
       "data": {
         "kind": "pool",
@@ -722,8 +722,8 @@
       "id": "items_sold",
       "type": "pool",
       "position": {
-        "x": 120,
-        "y": 1380
+        "x": 100,
+        "y": 1390
       },
       "data": {
         "kind": "pool",
@@ -738,8 +738,8 @@
       "id": "items_consumed",
       "type": "pool",
       "position": {
-        "x": 120,
-        "y": 1460
+        "x": 90,
+        "y": 1480
       },
       "data": {
         "kind": "pool",
@@ -754,7 +754,7 @@
       "id": "equip_conv",
       "type": "converter",
       "position": {
-        "x": 300,
+        "x": 290,
         "y": 1420
       },
       "data": {
@@ -768,7 +768,7 @@
       "id": "vendor_conv",
       "type": "converter",
       "position": {
-        "x": 460,
+        "x": 450,
         "y": 1420
       },
       "data": {
@@ -782,7 +782,7 @@
       "id": "consumable_conv",
       "type": "converter",
       "position": {
-        "x": 620,
+        "x": 630,
         "y": 1420
       },
       "data": {
@@ -796,7 +796,7 @@
       "id": "rare_conv",
       "type": "converter",
       "position": {
-        "x": 780,
+        "x": 830,
         "y": 1420
       },
       "data": {
@@ -840,7 +840,7 @@
       "id": "completion",
       "type": "pool",
       "position": {
-        "x": 3020,
+        "x": 3030,
         "y": 170
       },
       "data": {
@@ -856,7 +856,7 @@
       "id": "completion_src",
       "type": "source",
       "position": {
-        "x": 2820,
+        "x": 2810,
         "y": 170
       },
       "data": {

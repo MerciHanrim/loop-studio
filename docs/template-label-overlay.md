@@ -104,8 +104,9 @@ language handling, missing-translation fallback, edit-conflict rules) — is a
   `recommendedRunConfig`.
 - A full per-locale JSON graph. The `.ko.json` full-copy approach is **retired**.
   Template 3 (MMO) **adopts the overlay** in the same impl PR (§TLO2.2); the
-  existing `examples/mmo-progression.ko.json` file is kept, unwired, as an
-  Import artifact until separately revisited.
+  `examples/mmo-progression.ko.json` file was kept unwired only as the harvest
+  source and has since been **removed** (2026-09-07) — once the layout is shared
+  it holds no unique information and would only be a bad precedent.
 - **Any user-facing translation-authoring feature** — attaching a translation
   dictionary to a *user's own* graph, per-locale user labels, translating a
   user document on a language switch, translation-file export/import, auto / AI
@@ -158,10 +159,11 @@ one mechanical step: **harvest the Korean node `label`s from the existing
   **not** its translated `resourceType` (`화폐` / `보급품` / `전투력` …), not
   edge data, not anything. The overlay is `label`-scoped (§TLO-D4); the MMO
   Template keeps its canonical English/advisory `resourceType` in every locale.
-- The `mmo-progression.ko.json` **file is not deleted** — it is retained as an
-  unwired Import artifact. Its [[mmo-ko-derived-example]] hand-parity
-  maintenance rule now applies only to that standalone file; the CI drift check
-  (§TLO7) covers label parity for the *Template*.
+- The `mmo-progression.ko.json` file was retained unwired only as the harvest
+  source and has since been **removed** (2026-09-07). Its former
+  hand-parity maintenance rule no longer applies to anything; the CI drift
+  check (§TLO7) covers label parity for the *Template* against the one canonical
+  `examples/mmo-progression.json`.
 
 Result:
 
@@ -375,7 +377,7 @@ The rule is **completeness-conditional**:
 | **TLO-D5** | menu name / blurb | **unchanged** — app i18n catalog, separate from this overlay. |
 | **TLO-D6** | missing / stale entries | EN fallback at runtime; **CI fails** on an un-allowlisted missing id or a stale key (§TLO7). |
 | **TLO-D7** | GraphDoc / engine / format | **no change** — overlay acts on the in-memory copy handed to `loadGraph` (§TLO6). |
-| **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO **`label`s** are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; **`resourceType` is not harvested**; the canonical MMO graph / layout / lock / `recommendedRunConfig` / `resourceType` are untouched; the `.ko.json` file is **kept unwired, not deleted** (§TLO2.2). |
+| **TLO-D8** | MMO (Template 3) | **adopts the overlay in the same impl PR** — its KO **`label`s** are harvested from `mmo-progression.ko.json` into `templateLabels/ko.ts`; **`resourceType` is not harvested**; the canonical MMO graph / layout / lock / `recommendedRunConfig` / `resourceType` are untouched; the `.ko.json` file was **removed after the harvest** (2026-09-07, §TLO2.2). |
 | **TLO-D9** | which Templates get a KO dict in the first implementation? | **MMO + coffee.** Templates 1 & 2 (`equilibrium`, `deadlock`) went on the **EN-fallback allow-list** as an optional follow-up — **done 2026-09**: production-line reframe + extracted to `examples/*.json` + `ko` dict added; `EN_FALLBACK_TEMPLATES` is now empty (§TLO2.1). |
 | **TLO-D10** | canonical mutation | **None.** `loadGraph` gets a **full structural deep clone of the whole `{ nodes, edges }` payload** — every node / `position` / `data`, every edge / `data` / `route` / `waypoints` — plus a fresh `recommendedRunConfig` (arrays not shared). No overlay, RF runtime state, or user edit can reach `TEMPLATES[i]`. Asserted by a re-open-isolation test **and** a no-shared-references unit test (§TLO3 / INV-7 / §TLO8). |
 

@@ -22,6 +22,7 @@ import {
   serialize,
 } from '../model/serialize'
 import type { RecommendedRunConfig, SavedFrame } from '../model/serialize'
+import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
 type XY = { x: number; y: number }
@@ -71,6 +72,15 @@ type GraphStore = {
    *  `loadDoc` (file / Workspace / Share / revision import — a Workspace
    *  restores its own saved view, a plain file import keeps the camera). */
   fitRev: number
+
+  /** docs/mmo-multilingual-layout.md §MML3 — a one-shot camera-framing hint set
+   *  only by `loadGraph` when a Template carries `initialView` (currently just
+   *  the MMO demo). The Canvas consumes it on the next `fitRev` swap instead of
+   *  fit-all, then it is left in place but never re-read (a plain reload boots a
+   *  fresh store with `null` here; language change / Undo / Import never call
+   *  `loadGraph`). NOT part of the GraphDoc — never serialized, diffed or
+   *  undone. `null` for a pasted graph or any Template without a framing. */
+  pendingInitialView: InitialView | null
 
   /** true only while this session is still showing the untouched first-run
    *  sample (no `localStorage` graph at boot, nothing changed since). Cleared
@@ -128,7 +138,11 @@ type GraphStore = {
   removeEdge: (id: string) => void
   setSelection: (nodeId: string | null, edgeId: string | null) => void
   newGraph: () => void
-  loadGraph: (snapshot: Snapshot, modelVersion?: ModelSemanticsVersion) => void
+  loadGraph: (
+    snapshot: Snapshot,
+    modelVersion?: ModelSemanticsVersion,
+    initialView?: InitialView | null,
+  ) => void
   loadDoc: (
     doc: { nodes: LoopNode[]; edges: LoopEdge[] },
     modelVersion?: ModelSemanticsVersion,
@@ -348,6 +362,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     simulationRev: 0,
     loadRev: 0,
     fitRev: 0,
+    pendingInitialView: null,
     pristineSample: stored == null,
     modelVersion: bootModelVersion,
     past: [],
@@ -548,6 +563,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedEdgeId: null,
         modelVersion: 1,
         loadRev: get().loadRev + 1,
+        pendingInitialView: null, // §MML3 — no menu framing survives a New
         // `newGraph` does NOT bump `fitRev`: an empty canvas has nothing to fit,
         // and every e2e `resetAll()` calls this right before an `importGraph` —
         // bumping `fitRev` here would arm the Canvas re-fit against the graph
@@ -558,7 +574,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    loadGraph: (snapshot, modelVersion = 1) => {
+    loadGraph: (snapshot, modelVersion = 1, initialView = null) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       commit('')
@@ -572,6 +588,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         modelVersion,
         loadRev: get().loadRev + 1,
         fitRev: get().fitRev + 1,
+        // §MML3 — a menu-opened Template's framing hint; `null` for a paste
+        pendingInitialView: initialView,
       })
       // a Template / pasted graph carries no `frames` block (§SF2) — clear.
       frameSidecar?.set([])
@@ -604,6 +622,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedEdgeId: null,
         modelVersion,
         loadRev: get().loadRev + 1,
+        pendingInitialView: null, // §MML3 — file / Share / Workspace keeps its own camera
       })
       if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
       bump()

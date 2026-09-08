@@ -1,17 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Handle,
   Position,
   useConnection,
   useStore,
+  useUpdateNodeInternals,
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
+import { BASE_NODE_H, clampNodeHeight, silhouettePath } from './silhouette'
 import { formatRegisterValue, readParameterData, readRegisterData } from '../../model/model'
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
 import { useT } from '../../i18n'
+import { useI18n } from '../../i18n/store'
+import { usePhrasedTitle } from './phraseTitle'
 import type {
   ConverterData,
   DrainData,
@@ -26,21 +30,10 @@ import { useNodeActivityOpacity } from '../frames/useActivityTint'
 // ── N1 "Vessel" silhouettes ──────────────────────────────────────────────
 // The outer shape carries the node's role. Type colour is used only on a small
 // chip, never to fill the silhouette. Selection and firing are separate cues.
-// viewBox is 120×64; stroke stays crisp via non-scaling-stroke.
-const SILHOUETTE: Record<NodeKind, string> = {
-  pool: 'M32 6 H88 Q95 6 96 13 L112 52 Q113 58 107 58 H13 Q7 58 8 52 L24 13 Q25 6 32 6 Z',
-  source: 'M14 8 Q8 8 8 14 V50 Q8 56 14 56 H84 L114 32 L84 8 Z',
-  drain: 'M6 32 L34 8 H104 Q112 8 112 15 V49 Q112 56 104 56 H34 Z',
-  gate: 'M60 3 L117 32 L60 61 L3 32 Z',
-  converter:
-    'M14 8 H106 Q112 8 112 14 L82 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L38 32 L8 14 Q8 8 14 8 Z',
-  end: 'M28 8 H92 Q112 8 112 32 Q112 56 92 56 H28 Q8 56 8 32 Q8 8 28 8 Z',
-  // loop-model/1 — docs/visual-language.md §VL2.1. `parameter`: a rounded tag
-  // with a notched left edge + a short stub. `register`: a plain lozenge (its
-  // leading `=` glyph is drawn separately in the node body, not the outline).
-  parameter: 'M40 12 H100 Q108 12 108 20 V44 Q108 52 100 52 H40 L28 40 H18 V24 H28 L40 12 Z',
-  register: 'M30 12 H98 Q116 12 116 32 Q116 52 98 52 H30 Q14 52 14 32 Q14 12 30 12 Z',
-}
+// The viewBox is `0 0 120 h` — `h` is the measured body height (>= 64 once a
+// title wraps to two lines). `./silhouette` regenerates each of the seven paths
+// for `h`, keeping stroke / radius / notch fixed (docs/mmo-multilingual-layout.md
+// §MML1b); at h = 64 it returns the historic path verbatim.
 
 // docs/visual-language.md §VL7.2 — three detail levels at fixed world-zoom
 // thresholds; the classifier lives in ../lod so nodes, edges and playback all
@@ -127,6 +120,9 @@ function NodeFrame({
   const tip = useT()
   const lod = useLod()
   const mapOnly = lod === 'L0' // no text at all — silhouette + type dot
+  // §MML1 — render-time phrase segmentation for JA / ZH titles (display only)
+  const locale = useI18n((s) => s.activeLocale)
+  const { node: titleNode, phrased } = usePhrasedTitle(title, locale)
   // per-direction: is a state edge already wired to this node's in / out port?
   const stateInWired = useStore((s) =>
     s.edges.some((e) => e.target === nodeId && e.targetHandle === 'state-target'),
@@ -145,6 +141,50 @@ function NodeFrame({
   const isSelected = useGraphStore((s) => s.selectedNodeId === nodeId)
   const frameRef = useRef<HTMLDivElement>(null)
 
+  // docs/mmo-multilingual-layout.md §MML1b — the body grows once a title wraps
+  // to two lines. Measure the resolved box height (layout px, pre-zoom — the
+  // React Flow zoom transform is on an ancestor), clamp it to this kind's
+  // silhouette range, and redraw the vessel + handles at that height. The
+  // ResizeObserver settles in one pass: the SVG is `position: absolute`, so a
+  // viewBox change never feeds back into the box height.
+  const updateNodeInternals = useUpdateNodeInternals()
+  const stackRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLSpanElement>(null)
+  const [boxH, setBoxH] = useState(BASE_NODE_H)
+  useLayoutEffect(() => {
+    const stack = stackRef.current
+    const label = titleRef.current
+    if (!stack || !label) return
+    const read = () => {
+      // The box only grows once the TITLE actually wraps (offsetHeight past ~1.5
+      // lines). A one-line title + a `sub` line stays at the 64px base — its
+      // content sits within the vessel exactly as before. When the title wraps,
+      // the box takes the real content height + the body's 12px padding + a few
+      // px of breathing room, clamped to this kind's silhouette range.
+      const oneLine = label.offsetHeight < 24
+      const next = oneLine
+        ? BASE_NODE_H
+        : clampNodeHeight(kind, stack.offsetHeight + 12 + 4)
+      setBoxH((prev) => (Math.abs(prev - next) > 0.5 ? next : prev))
+    }
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(stack)
+    return () => ro.disconnect()
+  }, [kind])
+  // Only tell React Flow to re-measure a node when WE actually changed its
+  // height. The mount value (`BASE_NODE_H`) is the geometry RF already measures,
+  // so calling `updateNodeInternals` for it — ×97 on a dense graph load — just
+  // churns the measurement pass and can stall `nodesInitialized`. A ref-guard
+  // means a node that never grows never triggers it.
+  const notifiedH = useRef(BASE_NODE_H)
+  useEffect(() => {
+    if (Math.abs(notifiedH.current - boxH) < 0.5) return
+    notifiedH.current = boxH
+    updateNodeInternals(nodeId)
+  }, [boxH, nodeId, updateNodeInternals])
+  const grown = boxH > BASE_NODE_H
+
   // keyboard focus lands on React Flow's node wrapper, an ancestor of this div
   useEffect(() => {
     const rfNode = frameRef.current?.closest('.react-flow__node')
@@ -159,7 +199,7 @@ function NodeFrame({
     }
   }, [])
 
-  const path = SILHOUETTE[kind]
+  const path = silhouettePath(kind, boxH)
   // state ports are invisible at rest; they surface on hover / selection /
   // keyboard focus / while a state wire is being dragged. A port that already
   // carries a state edge stays faintly visible so the wiring reads.
@@ -188,6 +228,7 @@ function NodeFrame({
         (invalid ? ' is-invalid' : '')
       }
       data-invalid={invalid ? '' : undefined}
+      style={grown ? { height: boxH } : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -207,7 +248,12 @@ function NodeFrame({
         style={{ opacity: opOut }}
       />
 
-      <svg className="nodef__shape" viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true">
+      <svg
+        className="nodef__shape"
+        viewBox={`0 0 120 ${boxH}`}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
         <path className="nodef__fill" d={path} />
         {/* docs/visual-language.md §VL0 follow-up — the node-type hue wash: a
             faint (see --node-hue-opacity) ambient fill, always weaker than the
@@ -223,7 +269,7 @@ function NodeFrame({
         ) : null}
         <path className="nodef__stroke" d={path} />
         {kind === 'end' ? (
-          <line className="nodef__endbar" x1="95" y1="15" x2="95" y2="49" />
+          <line className="nodef__endbar" x1="95" y1="15" x2="95" y2={boxH - 15} />
         ) : null}
         {/* §VL3 — invalid: a --warning dashed outline (dash pattern is the
             non-colour tell). Sits under the selection / focus rings. */}
@@ -234,10 +280,16 @@ function NodeFrame({
         {focused ? <path className="nodef__focus" d={path} /> : null}
         {firing ? <path key={`w${stepKey}`} className="nodef__wave" d={path} /> : null}
         {arriving ? (
-          <circle key={`a${stepKey}`} className="nodef__arrival" cx="60" cy="32" r="15" />
+          <circle
+            key={`a${stepKey}`}
+            className="nodef__arrival"
+            cx="60"
+            cy={boxH / 2}
+            r="15"
+          />
         ) : null}
         {/* L0 map: type colour collapses to one dot inside the silhouette */}
-        {mapOnly ? <circle className="nodef__cdot" cx="60" cy="32" r="9" /> : null}
+        {mapOnly ? <circle className="nodef__cdot" cx="60" cy={boxH / 2} r="9" /> : null}
       </svg>
 
       {/* §VL4 — one persistent flag, top-right, non-colour tell for `invalid` */}
@@ -265,9 +317,15 @@ function NodeFrame({
           the elided text: L1 hides `sub`, L0 hides the whole body — the
           silhouette + `cdot` carry the map view. */}
       <div className="nodef__body">
+        <div className="nodef__stack" ref={stackRef}>
         <span className="nodef__head">
           <span className="nodef__chip" />
-          <span className="nodef__title">{title}</span>
+          <span
+            className={phrased ? 'nodef__title nodef__title--phrased' : 'nodef__title'}
+            ref={titleRef}
+          >
+            {titleNode}
+          </span>
         </span>
         {value != null ? (
           <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}>
@@ -276,6 +334,7 @@ function NodeFrame({
           </span>
         ) : null}
         {sub ? <span className="nodef__sub">{sub}</span> : null}
+        </div>
       </div>
     </div>
   )

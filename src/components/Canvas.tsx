@@ -144,7 +144,73 @@ export function Canvas() {
   const fitRev = useGraphStore((s) => s.fitRev)
   const loadRev = useGraphStore((s) => s.loadRev)
   const nodesInitialized = useNodesInitialized()
+  const paneW = useStore((s) => s.width)
+  const paneH = useStore((s) => s.height)
   const t = useT()
+
+  // docs/mobile.md §MV-D10 / docs/mmo-multilingual-layout.md §MML3 — the minimap
+  // (a fixed ~202×152 overlay) only earns its space on a canvas large enough to
+  // want an overview. Below this it is hidden (like on mobile), so a small
+  // desktop window / split view is not two-thirds minimap.
+  const minimapFits = !isMobile && paneW >= 640 && paneH >= 380
+
+  // §MML3 — a menu-opened Template can carry a fixed graph-coordinate `rect` to
+  // frame instead of fit-all. Fit `rect` into the pane MINUS the fixed overlays
+  // (the minimap — only when it renders; the zoom Controls, ~44 wide on the
+  // left), so the framed nodes never sit under the minimap. Left-align `rect`
+  // horizontally (a progression graph reads beginning-first); centre it
+  // vertically, or top-align when it is taller than the usable height. Clamp
+  // the zoom to `[minZoom, 1.2]`. Pure function of the rect + pane size —
+  // identical for every UI language, and unchanged on a language switch (this
+  // only runs on a `fitRev` swap).
+  const applyInitialView = useCallback(
+    (iv: { rect: { x: number; y: number; width: number; height: number }; minZoom: number }) => {
+      if (paneW <= 0 || paneH <= 0) return void fitView({ padding: 0.3, maxZoom: 1.2 })
+      const INSET_L = 44 // zoom Controls
+      const INSET_R = minimapFits ? 224 : 0 // minimap + its margin
+      const INSET_B = minimapFits ? 176 : 0 // minimap height
+      const usableW = Math.max(160, paneW - INSET_L - INSET_R)
+      const usableH = Math.max(120, paneH - INSET_B)
+      // on a small pane, frame fewer of the rect's columns rather than let the
+      // right edge fall under the minimap at the floor zoom
+      const rectW = Math.min(iv.rect.width, (usableW - 8) / iv.minZoom)
+      const pad = 1.06
+      const zoom = Math.min(
+        1.2,
+        Math.max(iv.minZoom, Math.min(usableW / (rectW * pad), usableH / (iv.rect.height * pad))),
+      )
+      const contentH = iv.rect.height * zoom
+      setViewport(
+        {
+          x: INSET_L + 8 - iv.rect.x * zoom,
+          y:
+            contentH <= usableH
+              ? usableH / 2 - (iv.rect.y + iv.rect.height / 2) * zoom
+              : 12 - iv.rect.y * zoom,
+          zoom,
+        },
+        { duration: 0 },
+      )
+    },
+    [paneW, paneH, minimapFits, setViewport, fitView],
+  )
+  // keep the re-fit effect's deps stable (fitRev / loadRev / a settle signal)
+  // — `applyInitialView` changes identity with the pane size and must not
+  // re-trigger or tear down the pending swap fit.
+  const applyInitialViewRef = useRef(applyInitialView)
+  applyInitialViewRef.current = applyInitialView
+
+  // §MML1 — a node whose title wraps grows its box ONE measure pass after
+  // `nodesInitialized` first turns true (and fires `updateNodeInternals`), so
+  // React Flow's node bounds keep moving for a beat. A cheap sum of the
+  // measured node sizes is a "layout settled" signal: hold the pending fit
+  // until it stops changing frame-to-frame, else a graph wider than `maxZoom`
+  // opens clipped (fitView clamps up and overflows).
+  const measuredSig = useStore((s) => {
+    let sig = 0
+    for (const n of s.nodeLookup.values()) sig += (n.measured?.width ?? 0) * 31 + (n.measured?.height ?? 0)
+    return Math.round(sig)
+  })
 
   // A Templates load / pasted-graph swap bumps `graphStore.fitRev` — a
   // whole-graph replacement that carries NO viewport of its own and lands on
@@ -152,20 +218,22 @@ export function Canvas() {
   // previous camera on a swap, so a new template can open panned to the *old*
   // graph's viewport (a blank / clipped first impression). Re-fit once per
   // swap, AFTER React Flow has laid out and MEASURED the new nodes
-  // (`useNodesInitialized`), so the bounds are real — no `setTimeout`, no
-  // retry. Excluded upstream: `newGraph` and `loadDoc` (file / Workspace /
-  // Share / revision import — a Workspace restores its own saved view). Skipped
-  // if a `loadDoc` landed after the arm, or if the camera was moved between the
-  // swap and the measure (a deliberate pan wins). The initial mount is left to
-  // `<ReactFlow fitView>`. Pan / zoom, "Reset view", Focus, filters and the
-  // mobile orientation re-fit are untouched; nothing here reads or writes the
-  // GraphDoc / node positions / undo / digest.
+  // (`useNodesInitialized`) AND those measurements have settled (§MML1) — no
+  // `setTimeout`, no retry loop. Excluded upstream: `newGraph` and `loadDoc`
+  // (file / Workspace / Share / revision import — a Workspace restores its own
+  // saved view). Skipped if a `loadDoc` landed after the arm, or if the camera
+  // was moved between the swap and the fit (a deliberate pan wins). The initial
+  // mount is left to `<ReactFlow fitView>`. Pan / zoom, "Reset view", Focus,
+  // filters and the mobile orientation re-fit are untouched; nothing here reads
+  // or writes the GraphDoc / node positions / undo / digest.
   const seenFitRev = useRef<number | null>(null)
   const armedSwap = useRef<{
     rev: number
     atLoadRev: number
     fromVp: { x: number; y: number; zoom: number }
+    sig: number | null
   } | null>(null)
+  const [settleTick, setSettleTick] = useState(0)
   useEffect(() => {
     if (seenFitRev.current === null) {
       seenFitRev.current = fitRev // first run: adopt the mount's graph
@@ -173,22 +241,35 @@ export function Canvas() {
     }
     if (fitRev !== seenFitRev.current && armedSwap.current?.rev !== fitRev) {
       seenFitRev.current = fitRev
-      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: getViewport() }
+      armedSwap.current = { rev: fitRev, atLoadRev: loadRev, fromVp: getViewport(), sig: null }
     }
     const armed = armedSwap.current
     if (!armed || !nodesInitialized) return // wait for the measure pass
-    armedSwap.current = null
     // a `loadDoc` (file / Workspace / Share / revision import) that landed
     // AFTER this swap was armed bumps `loadRev` but not `fitRev` — it owns the
     // camera (or restores a saved one), so drop the pending fit.
-    if (armed.atLoadRev !== loadRev) return
+    if (armed.atLoadRev !== loadRev) {
+      armedSwap.current = null
+      return
+    }
+    // hold until the measured node sizes are stable for one frame (§MML1)
+    if (armed.sig !== measuredSig) {
+      armed.sig = measuredSig
+      const id = requestAnimationFrame(() => setSettleTick((n) => n + 1))
+      return () => cancelAnimationFrame(id)
+    }
+    armedSwap.current = null
     const now = getViewport()
     const untouched =
       Math.abs(now.x - armed.fromVp.x) < 0.5 &&
       Math.abs(now.y - armed.fromVp.y) < 0.5 &&
       Math.abs(now.zoom - armed.fromVp.zoom) < 1e-6
-    if (untouched) void fitView({ padding: 0.3, maxZoom: 1.2 })
-  }, [fitRev, loadRev, nodesInitialized, fitView, getViewport])
+    if (!untouched) return
+    // §MML3 — a menu-opened Template may frame a sub-region instead of fit-all
+    const iv = useGraphStore.getState().pendingInitialView
+    if (iv) applyInitialViewRef.current(iv)
+    else void fitView({ padding: 0.3, maxZoom: 1.2 })
+  }, [fitRev, loadRev, nodesInitialized, measuredSig, settleTick, fitView, getViewport])
 
   // docs/large-graph-readability.md §LGR3.3 — the two lenses COMPOSE: filter
   // hides first (removes from the canvas), then focus dims the remainder. Both
@@ -471,8 +552,9 @@ export function Canvas() {
             desktop only (mobile controls live in the More sheet, §LGR9). */}
         {!isMobile && filterPanelOpen && <FilterPanel />}
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
-            phone and eats space — not rendered in the mobile layout */}
-        {!isMobile && (
+            phone (or a small desktop window — see `minimapFits`) and eats
+            space — not rendered there */}
+        {minimapFits && (
           <MiniMap
             pannable
             zoomable

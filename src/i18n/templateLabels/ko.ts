@@ -1,9 +1,11 @@
 // docs/template-label-overlay.md §TLO2 — the Korean node-`label` overlay for
 // bundled Templates. `label` only — never `resourceType`, which stays the
-// canonical English advisory value in every locale. `mmo-progression` was
-// harvested once from `examples/mmo-progression.ko.json` (that file is kept,
-// unwired). `check:template-labels` keeps every block in sync with its
-// canonical graph (`examples/<id>.json`).
+// canonical English advisory value in every locale. `mmo-progression`'s Korean
+// labels were harvested once from a hand-made `examples/mmo-progression.ko.json`
+// derived copy; that harvest is permanent and the file was removed (an
+// independent per-locale graph would only be a bad precedent — §TLO-D1).
+// `check:template-labels` keeps every block in sync with its canonical graph
+// (`examples/<id>.json`).
 
 import type { TemplateLabelDict } from './index'
 

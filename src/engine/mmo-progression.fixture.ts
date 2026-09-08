@@ -488,8 +488,8 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     // (`z3_xp_meter` / `z3_xp2lvl` at x 2440) so nothing overlaps `Clock` /
     // `Completion pulse`.
     end15: { x: 3020, y: 40 },
-    completion_src: { x: 2820, y: 170 },
-    completion: { x: 3020, y: 170 },
+    completion_src: { x: 2810, y: 170 }, // §MML2
+    completion: { x: 3030, y: 170 }, // §MML2
     clock: { x: 2820, y: 290 },
     elapsed: { x: 3020, y: 290 },
 
@@ -516,54 +516,60 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     reward: { x: 1720, y: 660 },
     void: { x: 1920, y: 640 },
 
-    // ── BOTTOM-LEFT: the loot chain (x 100–1150, y 800–1360) ──
-    loot_dispatch: { x: 380, y: 800 },
+    // ── BOTTOM-LEFT: the loot chain (x 80–1150, y 800–1360) ──
+    // §MML2: the loose 160 px × 60–80 px grid below was drawn for 118 px / 64 px
+    // nodes; the widest localized (JA / KO) titles push several boxes past that,
+    // so the crowded entries are nudged (all deltas ≤ 90 px, ×10 grid, marked
+    // `§MML2`) until every worst-case box clears its neighbour by 40 px H / 24 px
+    // V in EN, KO and JA. Left/right and up/down order, the spine, the three zone
+    // lanes and the Register column are unchanged.
+    loot_dispatch: { x: 370, y: 800 }, // §MML2
     items_looted: { x: 200, y: 800 },
-    loot_feed: { x: 380, y: 920 },
+    loot_feed: { x: 370, y: 930 }, // §MML2
     loot_category: { x: 380, y: 1040 },
-    bucket_equip: { x: 300, y: 1160 },
-    bucket_vendor: { x: 460, y: 1160 },
-    bucket_consumable: { x: 620, y: 1160 },
-    bucket_rare: { x: 780, y: 1160 },
-    equip_conv: { x: 300, y: 1280 },
-    vendor_conv: { x: 460, y: 1280 },
-    consumable_conv: { x: 620, y: 1280 },
-    rare_conv: { x: 780, y: 1280 },
-    items_equipped: { x: 120, y: 1160 },
-    items_sold: { x: 120, y: 1240 },
-    items_consumed: { x: 120, y: 1320 },
+    bucket_equip: { x: 270, y: 1160 }, // §MML2
+    bucket_vendor: { x: 440, y: 1160 }, // §MML2
+    bucket_consumable: { x: 640, y: 1160 }, // §MML2
+    bucket_rare: { x: 850, y: 1160 }, // §MML2
+    equip_conv: { x: 290, y: 1280 }, // §MML2
+    vendor_conv: { x: 450, y: 1280 }, // §MML2
+    consumable_conv: { x: 630, y: 1280 }, // §MML2
+    rare_conv: { x: 830, y: 1280 }, // §MML2
+    items_equipped: { x: 80, y: 1150 }, // §MML2
+    items_sold: { x: 100, y: 1250 }, // §MML2
+    items_consumed: { x: 90, y: 1340 }, // §MML2
 
     // ── BOTTOM-CENTRE: setback / death, reward router, gold, gear, upkeep ──
-    combat_wins: { x: 560, y: 780 },
-    combat_fails: { x: 560, y: 840 },
-    deaths: { x: 560, y: 900 },
-    fail_conv: { x: 720, y: 800 },
-    death_conv: { x: 880, y: 800 },
-    reward_router: { x: 1680, y: 800 },
-    hunt_payout: { x: 1840, y: 760 },
-    quest_payout: { x: 1840, y: 860 },
-    hunt_xp: { x: 2000, y: 760 },
-    quest_xp: { x: 2000, y: 860 },
-    gold: { x: 1500, y: 1000 },
+    combat_wins: { x: 550, y: 750 }, // §MML2
+    combat_fails: { x: 550, y: 840 }, // §MML2
+    deaths: { x: 570, y: 930 }, // §MML2
+    fail_conv: { x: 730, y: 800 }, // §MML2
+    death_conv: { x: 900, y: 800 }, // §MML2
+    reward_router: { x: 1590, y: 800 }, // §MML2
+    hunt_payout: { x: 1820, y: 750 }, // §MML2
+    quest_payout: { x: 1800, y: 860 }, // §MML2
+    hunt_xp: { x: 2030, y: 750 }, // §MML2
+    quest_xp: { x: 2030, y: 840 }, // §MML2
+    gold: { x: 1500, y: 990 }, // §MML2
     gold_earned: { x: 1680, y: 1000 },
     vendor_revenue: { x: 1860, y: 1000 },
-    repair_wear: { x: 2160, y: 760 },
-    wear_cleared: { x: 2160, y: 680 },
-    repair_gold: { x: 2160, y: 840 },
-    gear_wear: { x: 2160, y: 920 },
-    gear_score: { x: 2340, y: 920 },
-    repair_spend: { x: 1500, y: 1120 },
-    resupply: { x: 1680, y: 1120 },
-    resupply_spend: { x: 1680, y: 1220 },
-    training_spend: { x: 1860, y: 1120 },
-    water_consumed: { x: 1200, y: 1160 },
-    food_consumed: { x: 1200, y: 1220 },
-    water_upkeep: { x: 1360, y: 1160 },
-    food_upkeep: { x: 1360, y: 1220 },
-    water: { x: 1520, y: 1300 },
-    food: { x: 1520, y: 1360 },
-    water_bought: { x: 1700, y: 1340 },
-    food_bought: { x: 1880, y: 1340 },
+    repair_wear: { x: 2190, y: 750 }, // §MML2
+    wear_cleared: { x: 2160, y: 660 }, // §MML2
+    repair_gold: { x: 2220, y: 850 }, // §MML2
+    gear_wear: { x: 2160, y: 940 }, // §MML2
+    gear_score: { x: 2340, y: 940 }, // §MML2
+    repair_spend: { x: 1520, y: 1110 }, // §MML2
+    resupply: { x: 1700, y: 1110 }, // §MML2
+    resupply_spend: { x: 1700, y: 1200 }, // §MML2
+    training_spend: { x: 1860, y: 1110 }, // §MML2
+    water_consumed: { x: 1200, y: 1080 }, // §MML2
+    food_consumed: { x: 1130, y: 1260 }, // §MML2
+    water_upkeep: { x: 1330, y: 1170 }, // §MML2
+    food_upkeep: { x: 1370, y: 1260 }, // §MML2
+    water: { x: 1540, y: 1290 }, // §MML2
+    food: { x: 1520, y: 1390 }, // §MML2
+    water_bought: { x: 1720, y: 1340 }, // §MML2
+    food_bought: { x: 1940, y: 1340 }, // §MML2
   }
   for (let z = 0; z < 3; z++) {
     const cx = CX[z]

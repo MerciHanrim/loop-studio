@@ -602,40 +602,26 @@ preserved across Graph / Workspace / Share round-trips. Absent (every older file
 ⇒ unlocked, unchanged. The Canvas view-lock itself landed in a separate
 prerequisite PR (#89); this template only opts in.
 
-### EM14 `mmo-progression.ko.json` — an independent Korean-language derived file
+### EM14 Korean labels come from the overlay — no per-locale graph file
 
-A Korean-labelled copy of `mmo-progression.json` exists at
-`examples/mmo-progression.ko.json` (PR #92) — only the display `label` on every
-node and the advisory `resourceType` on `Gold` / `Water` / `Food` / `Gear score`
-are translated. Confirmed before translating: `resourceType` is **computation-
-neutral, advisory-only** (`src/model/model/resourceType.ts` — normalised,
-case-sensitive match against a small built-in styled set for colour, any other
-string is "a valid custom type" with a generic swatch; §M4.2 "changes no number,
-deletes no connection, blocks no run"). The MMO fixture's values (`currency`,
-`supply`, `power`) are not in the built-in set in either language, so
-translating them changes no styling and no behaviour. Everything else — node
-ids/kinds/positions, every expression, the full `edges` array,
-`recommendedRunConfig`, `schema`/`version` — is byte-identical to the English
-file; a fresh run of either file with the same seed produces the identical
-result (Level 15 at step 88).
+A hand-made `examples/mmo-progression.ko.json` (PR #92) briefly held a
+Korean-labelled copy of the graph. Its **only** job was to harvest the Korean
+node `label`s into `src/i18n/templateLabels/ko.ts`; that harvest is permanent,
+and the file has been **removed**. `resourceType` was never taken from it — it
+stays the canonical English advisory value in every locale (computation-neutral,
+`src/model/model/resourceType.ts`; §M4.2 "changes no number, deletes no
+connection, blocks no run").
 
-It is **not** registered anywhere in the app — not in `templateKeys.ts` /
-`TEMPLATES`, no i18n catalog entry, no CI coverage beyond existing generically-
-scanned example checks. It is a file to `Import` directly, kept only because the
-app cannot currently do this the "right" way:
-
-**Why the Templates entry doesn't switch file by locale (Lumi, 2026-09-02).**
-Loading a different JSON for the same Templates entry per active locale was
-considered and rejected for now: it would make the English and Korean files two
-parallel canonical copies that must be kept in sync by hand (positions,
-expressions, edges, `recommendedRunConfig`) every time either is edited, blur
-whether switching the app's language should replace an already-open document
-(it must not — a loaded document is the user's, not re-selected by locale), and
-require a full duplicate JSON for every future language. The better long-term
-shape is a **single canonical graph + a per-locale label-overlay dictionary**
-(`nodeId → translated display label / resourceType`, human-authored, never
-machine-translated at the semantic-token level) applied only at the moment a
-Templates entry is freshly opened — never retroactively to a document already
-open or edited. That is template-localization, a separate feature with its own
-design; `mmo-progression.ko.json` stays a manually-`Import`ed derived file until
-it exists.
+**Why there is no per-locale graph file (Lumi, 2026-09-02; confirmed 2026-09-07).**
+Loading a different JSON per active locale for the same Templates entry was
+considered and rejected: two parallel canonical copies to keep in sync by hand
+(positions, expressions, edges, `recommendedRunConfig`) on every edit, ambiguity
+over whether a language switch replaces an already-open document (it must not),
+and a full duplicate JSON per future language. The shipped shape instead is a
+**single canonical graph + a per-locale label-overlay dictionary** (`nodeId →
+translated display label`, human-authored) applied on fresh open
+([`template-label-overlay.md`](template-label-overlay.md)) plus the §TLO11 safe
+locale-switch that re-seeds only the official labels of an open bundled-template
+graph. Once the layout is shared, a separate KO graph file carries no unique
+information and would only be a precedent for the retired per-locale-copy
+pattern (§TLO-D1) — hence the deletion.

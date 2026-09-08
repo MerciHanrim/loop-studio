@@ -10,6 +10,20 @@ import {
 } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
+/** docs/mmo-multilingual-layout.md §MML3 — a fixed graph-coordinate rectangle
+ *  the camera frames when this Template is opened FROM THE MENU, instead of
+ *  fit-all. Locale-independent (graph coords, never a label branch); the zoom
+ *  that frames `rect` for the current pane is used, clamped to
+ *  `[minZoom, 1.2]`. `minZoom` is a READABILITY floor (chosen by eye so the
+ *  smallest supported viewport still shows legible labels), not the L1 LOD
+ *  threshold. Applied once per menu-open only — not on language change, reload,
+ *  Import / Share / Workspace restore, or Undo / Redo (see Canvas.tsx
+ *  `pendingInitialView`). */
+export type InitialView = {
+  rect: { x: number; y: number; width: number; height: number }
+  minZoom: number
+}
+
 export type Template = {
   id: string
   name: string
@@ -17,6 +31,8 @@ export type Template = {
   graph: { nodes: LoopNode[]; edges: LoopEdge[] }
   /** applied to the Monte-Carlo config on load, same as a file's field */
   recommendedRunConfig?: RecommendedRunConfig
+  /** §MML3 — a menu-open camera framing (else the camera fits the whole graph) */
+  initialView?: InitialView
   /** loop-model/2 — the model-semantics version this Template is authored in
    *  (from its file's `schema`). Absent ⇒ v1. A bundled v2 Template loads as v2
    *  as authored — not the explicit-user-promotion path (§CR2.1a). */
@@ -65,6 +81,17 @@ export const TEMPLATES: Template[] = [
     graph: normalizeGraph(mmoProgressionDoc as unknown as { nodes: LoopNode[]; edges: LoopEdge[] }),
     recommendedRunConfig: (mmoProgressionDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
+    // §MML3 — this graph is ~3500 px wide; fit-all opens it as an unreadable
+    // map. Frame just the FIRST steps instead — Character creation → Active
+    // character → the Starter zone's landmark + encounter / first-combat
+    // cluster (bbox ≈ x[40,850] × y[40,400]). Canvas.tsx fits this into the
+    // pane MINUS the fixed overlays (minimap bottom-right, Controls left) so
+    // the framed nodes never sit under the minimap, left-aligned so the graph
+    // reads from its start. `minZoom` is a READABILITY floor (above the L1
+    // threshold `LOD_L1_MIN` = 0.45); tuned by eye at 1280 / 820 px. The rest
+    // of the graph is one pan / minimap away. Fixed graph coords, no locale
+    // branch.
+    initialView: { rect: { x: 0, y: 0, width: 880, height: 360 }, minZoom: 0.6 },
   },
   // "Coffee roastery operations flow" — the first bundled Template authored at
   // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are

@@ -13,7 +13,6 @@ Graphs with different jobs:
 | `model-verification.expected.json` | test oracle for the above — read by `test/model-verification.test.ts` and by a human comparing `R(t)` | **no** (not a graph) |
 | `playback-choreography.json` | **Simulation Playback demo** — one graph that reproduces every choreography cue at once (resource token, `trigger` bead, `activator` settle cue, signed `label` deltas), on Bézier **and** orthogonal edges, with a 65-edge fan that pushes past the 60-token budget | yes |
 | `mmo-progression.json` | **product demo / Templates entry** — "Early MMO progression (levels 1–15)": a connected play economy with three zone lanes, probabilistic combat, categorised loot, a gold economy with repair / resupply costs, and a rising XP curve | yes (also in **Templates ▾**) |
-| `mmo-progression.ko.json` | **Korean-language independent derived copy** of the file above — display-only node `label` / `resourceType` strings translated, everything else (ids, structure, positions, expressions, edges, `recommendedRunConfig`, schema/version) byte-identical, so it reproduces the exact same run. **Not registered in Templates ▾ or anywhere in the app** — a separate file for a Korean-labelled read of the same example, imported manually | yes (Import only — not a Templates entry) |
 | `coffee-roastery.json` | **product demo / Templates entry** — "Coffee roastery operations flow": a small operating-flow simulation (buy green → roast at 82 % yield → sell through cafe / online / retail + a dessert line) with **five surfaced daily levers** wired as `loop-model/2` `@parameter` flow references. The **first bundled file at `schema` `loop-studio/graph/2`**. A simplified simulation example — **not** an ERP or real-time monitoring system | yes (also in **Templates ▾**) |
 | `module-buffered-step.json` | **bundled Building block** ([`docs/module-system.md`](../docs/module-system.md) `MS`) — a ~10-node v1 fragment: supply → inbox pool → an intake gate that splits into a 2→1 converter and a spoilage drain → outbox pool → shipped, plus two readout Registers and a `batch_size` Parameter. Generalised, no domain names | yes (also in **Insert module ▾**) |
 | `module-reward-split.json` | **bundled Building block** — a ~9-node v1 fragment: activity → wallet pool → an allocate gate splitting 2:1 into spending and savings, savings bleeding through withdrawals, and two Registers (`net worth`, `progress to target`) reading a `savings target` Parameter | yes (also in **Insert module ▾**) |
@@ -437,15 +436,14 @@ It is **generalised** — its own invented numbers and generic labels ("Starter
 encounters", "Sell to vendor", "Repair (bill)"). No World-of-Warcraft names,
 tuning values, or assets; it does not present itself as official or affiliated.
 
-`mmo-progression.ko.json` is an **independent Korean-language derived copy** —
-the same graph with only its display `label` / `resourceType` strings
-translated (structure, positions, expressions, edges, `recommendedRunConfig`,
-schema/version, and every run result are unchanged). It is **not** part of the
-Templates ▾ entry or wired into the app in any way; it exists purely as a
-Korean-labelled file to `Import` directly. The app does not switch a Templates
-entry's underlying file by locale (see `docs/example-mmo-progression.md`
-§EM14 for why, and the longer-term single-graph-plus-translation-overlay idea
-that would replace this pattern).
+Korean (and other locales') node **labels** for this example come from the
+shared fresh-open overlay (`src/i18n/templateLabels/ko.ts`,
+[`docs/template-label-overlay.md`](../docs/template-label-overlay.md)) plus the
+§TLO11 safe locale-switch — one English-canonical `mmo-progression.json`, no
+per-locale graph file. A hand-made `mmo-progression.ko.json` derived copy was
+used **once** to harvest those Korean labels and has since been removed:
+per-locale full-graph copies are a retired pattern (§TLO-D1) and, once the
+canonical layout is shared, such a file carries no unique information.
 
 ## How to read it
 

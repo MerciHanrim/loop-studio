@@ -146,18 +146,55 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     )
   })
 
-  test('desktop: the reverse — small Coffee graph → open MMO → the large graph fits too', async ({ page }) => {
+  // docs/mmo-multilingual-layout.md §MML3 — the MMO demo is ~3500 px wide, so
+  // fit-all opens it as an unreadable map. Opened FROM THE MENU it instead
+  // frames the early-progression band (Character creation → Starter zone → the
+  // Level / XP pools) at ≥ the L1 detail zoom. Fixed graph coords, no locale
+  // branch; positions / undo still untouched.
+  test('desktop: open MMO from the menu → the camera frames the early band (§MML3), not fit-all', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await pickDesktopTemplate(page, COFFEE_EN, COFFEE_R)
     await setVp(page, { x: 300, y: 200, zoom: 1.6 }) // zoomed in on the small graph
     const before = await getVp(page)
 
-    await pickDesktopTemplate(page, MMO_EN, MMO_R)
-    await waitForFit(page, MMO_L, MMO_R)
+    // wait on a band node, not `end15` (which §MML3 deliberately leaves off screen)
+    await pickDesktopTemplate(page, MMO_EN, MMO_L)
+    await expect.poll(() => nodeOnScreen(page, MMO_L)).toBe(true)
     const after = await getVp(page)
+
+    // the camera moved, opened at ≥ L1 detail, and framed the early band:
+    // Character creation is on screen, the far-right End marker is not
     expect(after).not.toEqual(before)
+    expect(after.zoom, 'opens at or above the L1 detail zoom').toBeGreaterThanOrEqual(0.45)
+    expect(await nodeOnScreen(page, 'char_creation')).toBe(true)
+    expect(await nodeOnScreen(page, 'z1_enc')).toBe(true)
+    expect(await nodeOnScreen(page, MMO_R), 'rest of the graph is off screen (pan / minimap / Focus)').toBe(false)
+
+    // camera-only: positions are exactly the file's, and the framing is not an
+    // undo entry (one undo lands past MMO on the previous Coffee graph)
     expect((await graphSig(page)).positions).toEqual(filePositions(MMO))
+    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
+    const afterUndo = await page.evaluate(() =>
+      (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.map((n: any) => n.id).sort(),
+    )
+    expect(afterUndo, 'undo skips past the MMO framing').not.toEqual(MMO.nodes.map((n) => n.id).sort())
+  })
+
+  test('desktop: a language change after a menu open never moves the camera (§MML3)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, MMO_EN, MMO_L)
+    await expect.poll(() => nodeOnScreen(page, MMO_L)).toBe(true)
+    const opened = await getVp(page)
+    for (const code of ['ko', 'ja', 'en']) {
+      await page.evaluate(
+        (c) => (window as unknown as { __loop: Loop }).__loop.i18n.getState().setLocale(c),
+        code,
+      )
+      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+      expect(await getVp(page), `viewport unchanged under ${code}`).toEqual(opened)
+    }
   })
 
   test('mobile: More → Templates re-fits the same way', async ({ browser }) => {

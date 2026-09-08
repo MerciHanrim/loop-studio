@@ -36,3 +36,6 @@ dist-ssr
 /playwright-report/
 /blob-report/
 /e2e/.auth/
+
+# ad-hoc capture / solver scripts + their output (not part of the repo)
+scratch/

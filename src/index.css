@@ -885,11 +885,15 @@ body {
   position: relative;
   display: inline-flex;
   min-width: 118px;
-  /* a long label / big value is ellipsised inside the vessel, never allowed to
-     stretch the silhouette (which `preserveAspectRatio="none"` would distort,
-     especially once the box is held across L2/L1/L0 — §VL7.1) */
+  /* a very long value is still ellipsised inside the vessel. The TITLE now
+     wraps to two lines (docs/mmo-multilingual-layout.md §MML1) instead of
+     widening indefinitely; the box then grows in HEIGHT and the vessel is
+     redrawn at that height by `./silhouette`, so `preserveAspectRatio="none"`
+     no longer distorts it. */
   max-width: 260px;
-  height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18) */
+  height: 64px; /* +4px to seat the Plex type scale (title 14 / value 18).
+     A two-line title replaces this with an inline `height` (the measured body
+     height, capped per kind) and the vessel is redrawn at that height. */
   font-family: var(--font-sans);
   font-size: 12px;
   filter: var(--elev-node);
@@ -1077,10 +1081,19 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
   width: 100%;
   padding: 6px 16px;
   pointer-events: none;
+}
+/* the un-stretched content column — its natural height drives the box height
+   (docs/mmo-multilingual-layout.md §MML1) */
+.nodef__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
 }
 .nodef--source .nodef__body {
   padding-right: 26px;
@@ -1133,11 +1146,47 @@ body {
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 14px;
+  line-height: 1.15;
   color: var(--text-primary);
-  min-width: 0; /* let it shrink below its content so the ellipsis engages */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  /* docs/mmo-multilingual-layout.md §MML1 — up to two lines at a ~135px
+     soft-max; a title that will not fit in two lines widens the line rather
+     than being clipped. NEVER `overflow: hidden` / `text-overflow: ellipsis`. */
+  max-width: 135px;
+  white-space: normal;
+  /* EN etc.: break at word boundaries. */
+  word-break: normal;
+  /* last-resort only: an abnormally long single token (a user label with no
+     spaces) is force-broken so it can never spill outside the vessel. */
+  overflow-wrap: break-word;
+  line-break: strict;
+  text-wrap: balance;
+}
+/* Korean breaks between eojeol (spaces / particles), never mid-syllable. */
+:lang(ko) .nodef__title {
+  word-break: keep-all;
+}
+/* §MML1 — Japanese / Chinese must break on MEANING units, not between arbitrary
+   kana / hanzi (`word-break: normal` alone splits `レ|ベル`, `経|験値`). Baseline:
+   `NodeFrame` segments the title with `Intl.Segmenter(granularity:'word')` and
+   injects `<wbr>` between segments, then `keep-all` restricts breaks to exactly
+   those opportunities (kinsoku still handled by `line-break: strict`). */
+.nodef__title--phrased {
+  word-break: keep-all;
+}
+/* Progressive upgrade: where the engine ships a line-break dictionary, let it
+   phrase-break directly (the injected `<wbr>` stay harmless). */
+@supports (word-break: auto-phrase) {
+  :lang(ja) .nodef__title,
+  :lang(zh) .nodef__title {
+    word-break: auto-phrase;
+  }
+}
+/* Fallback only (no `Intl.Segmenter`, no `auto-phrase`): allow CJK to wrap
+   rather than overflow — imperfect splits, but the box never spills. */
+:lang(ja) .nodef__title:not(.nodef__title--phrased),
+:lang(zh) .nodef__title:not(.nodef__title--phrased) {
+  word-break: normal;
 }
 .nodef__value {
   font-family: var(--font-mono);
