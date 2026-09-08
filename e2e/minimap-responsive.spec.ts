@@ -150,3 +150,238 @@ test.describe('minimap — visible only when the pane can host it', () => {
     expect(await noHScroll()).toBe(true)
   })
 })
+
+// docs/large-graph-readability.md — the user-facing minimap collapse control
+// (MinimapDock). A persisted UI preference (`uiStore.minimapCollapsed`,
+// `localStorage` key `loop-studio:minimap-collapsed`), independent of the
+// `< 640 × 380` auto-hide. Collapsing / expanding never moves the camera; the
+// NEXT Template open frames against whatever the minimap state is then.
+
+// §MML3 — MMO's Template.initialView.minZoom (src/model/templates.ts); a stable
+// value also pinned by e2e/template-load-viewport.spec.ts.
+const MMO_MIN_ZOOM = 0.6
+const MMO_NAME = 'Early MMO progression (levels 1–15)'
+
+const uiState = (p: Page) =>
+  p.evaluate(() => (window as unknown as { __loop: { ui: { getState: () => { minimapCollapsed: boolean } } } }).__loop.ui.getState())
+const toggleBtn = (p: Page) => p.locator('.minimap-toggle')
+
+/** open MMO through the real Templates menu (the §MML3 framing path) */
+async function openMmoFromMenu(page: Page): Promise<void> {
+  await page.locator('.toolbar__actions .menu').first().locator('> button').click()
+  await page
+    .locator('.toolbar__actions .menu')
+    .first()
+    .locator('.menu__pop [role="menuitem"]', { hasText: MMO_NAME })
+    .click()
+  const confirm = page.locator('.mcdlg--confirm').getByRole('button', { name: /load template/i })
+  await confirm.waitFor({ state: 'visible', timeout: 1200 }).catch(() => {})
+  if (await confirm.count()) await confirm.click()
+  await expect(page.locator('.react-flow__node[data-id="char_creation"]')).toBeVisible()
+  await page.waitForTimeout(500) // let the fit / measurement-settle effect land
+}
+
+const lastInitialView = (p: Page) =>
+  p.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __loop: { canvas?: { lastInitialView: () => { insetR: number; insetB: number; zoom: number } | null } }
+        }
+      ).__loop.canvas?.lastInitialView() ?? null,
+  )
+
+const onScreen = (p: Page, id: string) =>
+  p.evaluate((nid) => {
+    const pane = document.querySelector('.react-flow')
+    const el = document.querySelector(`.react-flow__node[data-id="${nid}"]`)
+    if (!pane || !el) return false
+    const a = pane.getBoundingClientRect()
+    const b = el.getBoundingClientRect()
+    return b.right > a.left + 2 && b.left < a.right - 2 && b.bottom > a.top + 2 && b.top < a.bottom - 2
+  }, id)
+
+test.describe('minimap — the collapse / restore control', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    // start from a known-expanded minimap (a prior test may have persisted it)
+    await page.evaluate(() => {
+      try {
+        localStorage.removeItem('loop-studio:minimap-collapsed')
+      } catch {
+        /* opaque origin */
+      }
+      ;(window as unknown as { __loop: { ui: { getState: () => { setMinimapCollapsed: (v: boolean) => void } } } }).__loop.ui
+        .getState()
+        .setMinimapCollapsed(false)
+    })
+    await resetAll(page)
+    await importGraph(page, GRAPH)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.waitForTimeout(150)
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+  })
+
+  test('collapse hides the minimap to a same-corner restore button, and the choice persists', async ({ page }) => {
+    const mmCorner = await page.evaluate(() => {
+      const rf = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const m = document.querySelector('.react-flow__minimap')!.getBoundingClientRect()
+      return { right: rf.right - m.right, bottom: rf.bottom - m.bottom }
+    })
+
+    await toggleBtn(page).click()
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    const collapsed = toggleBtn(page)
+    await expect(collapsed).toHaveClass(/is-collapsed/)
+    await expect(collapsed).toBeVisible()
+    // the restore tile sits where the minimap's own bottom-right corner was
+    const btnCorner = await page.evaluate(() => {
+      const rf = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const b = document.querySelector('.minimap-toggle')!.getBoundingClientRect()
+      return { right: rf.right - b.right, bottom: rf.bottom - b.bottom }
+    })
+    expect(Math.abs(btnCorner.right - mmCorner.right)).toBeLessThanOrEqual(4)
+    expect(Math.abs(btnCorner.bottom - mmCorner.bottom)).toBeLessThanOrEqual(4)
+    expect((await uiState(page)).minimapCollapsed).toBe(true)
+
+    // persists across a reload
+    await page.reload()
+    await page.waitForTimeout(300)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(toggleBtn(page)).toHaveClass(/is-collapsed/)
+
+    // the collapsed button restores it
+    await toggleBtn(page).click()
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+    await expect(toggleBtn(page)).not.toHaveClass(/is-collapsed/)
+    expect((await uiState(page)).minimapCollapsed).toBe(false)
+  })
+
+  test('the auto-hide and the user choice are independent', async ({ page }) => {
+    // user leaves it EXPANDED, then shrinks below the line → nothing docked
+    await page.setViewportSize({ width: 560, height: 700 })
+    await page.waitForTimeout(150)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(0)
+    // grow back → last state was expanded
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.waitForTimeout(150)
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+
+    // now COLLAPSE, shrink, grow → restored collapsed
+    await toggleBtn(page).click()
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await page.setViewportSize({ width: 560, height: 700 })
+    await page.waitForTimeout(150)
+    await expect(page.locator('.minimap-toggle')).toHaveCount(0)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.waitForTimeout(150)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await expect(toggleBtn(page)).toHaveClass(/is-collapsed/)
+  })
+
+  test('toggling moves nothing — viewport, nodes, no re-fit, no h-scroll', async ({ page }) => {
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+        { x: -80, y: 33, zoom: 1.24 },
+        { duration: 0 },
+      ),
+    )
+    // count camera calls from here on
+    await page.evaluate(() => {
+      const rf = (window as unknown as { __loop: { rf: Record<string, (...a: unknown[]) => unknown> } }).__loop.rf
+      const w = window as unknown as { __mmSpy: { fit: number; set: number } }
+      w.__mmSpy = { fit: 0, set: 0 }
+      const f = rf.fitView, s = rf.setViewport
+      rf.fitView = (...a: unknown[]) => (w.__mmSpy.fit++, f(...a))
+      rf.setViewport = (...a: unknown[]) => (w.__mmSpy.set++, s(...a))
+    })
+    const vp0 = await viewport(page)
+    const pos0 = await nodePositions(page)
+
+    await toggleBtn(page).click() // collapse
+    await page.waitForTimeout(120)
+    await toggleBtn(page).click() // expand
+    await page.waitForTimeout(120)
+    await toggleBtn(page).click() // collapse
+    await page.waitForTimeout(120)
+
+    const spy = await page.evaluate(
+      () => (window as unknown as { __mmSpy: { fit: number; set: number } }).__mmSpy,
+    )
+    expect(spy).toEqual({ fit: 0, set: 0 }) // no re-fit on a toggle
+    expect(await viewport(page)).toEqual(vp0)
+    expect(await nodePositions(page)).toEqual(pos0)
+
+    // a press + drag ON the button does not leak into a minimap pan / jump
+    const btn = await toggleBtn(page).boundingBox()
+    await page.mouse.move(btn!.x + btn!.width / 2, btn!.y + btn!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(btn!.x + btn!.width / 2 - 30, btn!.y + btn!.height / 2 + 20, { steps: 4 })
+    await page.mouse.up()
+    await page.waitForTimeout(100)
+    expect(await viewport(page)).toEqual(vp0)
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      ),
+    ).toBe(true)
+  })
+
+  test('a Template opened while collapsed reserves NO minimap gap; expanded it does', async ({ page }) => {
+    // expanded run
+    await openMmoFromMenu(page)
+    const ivExpanded = await lastInitialView(page)
+    expect(ivExpanded, 'applyInitialView ran').not.toBeNull()
+    expect(ivExpanded!.insetR).toBe(224)
+    expect(ivExpanded!.insetB).toBe(176)
+    expect(ivExpanded!.zoom).toBeGreaterThanOrEqual(MMO_MIN_ZOOM - 1e-6)
+    expect(await onScreen(page, 'char_creation')).toBe(true)
+    expect(await onScreen(page, 'z1_enc')).toBe(true)
+    expect(await onScreen(page, 'end15')).toBe(false)
+    // sanity: the framed early band does not sit under the minimap
+    const clearOfMinimap = await page.evaluate(() => {
+      const m = document.querySelector('.react-flow__minimap')!.getBoundingClientRect()
+      return ['char_creation', 'active_char', 'z1_enc'].every((id) => {
+        const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
+        return !el || el.getBoundingClientRect().right <= m.left + 1
+      })
+    })
+    expect(clearOfMinimap).toBe(true)
+
+    // collapse, re-open the same Template at the same pane size
+    await toggleBtn(page).click()
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    await openMmoFromMenu(page)
+    const ivCollapsed = await lastInitialView(page)
+    expect(ivCollapsed!.insetR).toBe(0) // no gap for an invisible minimap
+    expect(ivCollapsed!.insetB).toBe(0)
+    expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(MMO_MIN_ZOOM - 1e-6)
+    // a wider usable width ⇒ same-or-larger fit zoom for the same rect
+    expect(ivCollapsed!.zoom).toBeGreaterThanOrEqual(ivExpanded!.zoom - 1e-6)
+    expect(await onScreen(page, 'char_creation')).toBe(true)
+    expect(await onScreen(page, 'z1_enc')).toBe(true)
+    expect(await onScreen(page, 'end15')).toBe(false)
+  })
+
+  test('the toggle is keyboard operable with a visible focus ring', async ({ page }) => {
+    const btn = toggleBtn(page)
+    await btn.focus()
+    await expect(btn).toBeFocused()
+    const ring = await btn.evaluate((el) => {
+      el.focus()
+      const s = getComputedStyle(el)
+      return { width: s.outlineWidth, style: s.outlineStyle }
+    })
+    expect(parseFloat(ring.width)).toBeGreaterThan(0)
+    expect(ring.style).not.toBe('none')
+
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(0)
+    // the button element is swapped for the collapsed variant — focus it and
+    // confirm Space restores
+    await toggleBtn(page).focus()
+    await page.keyboard.press('Space')
+    await expect(page.locator('.react-flow__minimap')).toBeVisible()
+  })
+})

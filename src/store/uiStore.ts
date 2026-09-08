@@ -53,6 +53,18 @@ type UiState = {
   toggleFocusMode: () => void
 
   /**
+   * The graph minimap's collapsed / expanded state. A **global UI preference**
+   * (its own `localStorage` key, like `focusMode`), default **false** =
+   * expanded / shown. Independent of the small-pane auto-hide
+   * (`Canvas.tsx` `minimapFits`, pane `< 640 × 380`): when the pane grows back
+   * over that line the minimap returns to whichever state this flag holds.
+   * UI-only — never the GraphDoc, viewport, or node coordinates.
+   */
+  minimapCollapsed: boolean
+  setMinimapCollapsed: (v: boolean) => void
+  toggleMinimapCollapsed: () => void
+
+  /**
    * docs/large-graph-readability.md §LGR3.2 / §LGR3.4 — the transient-filter
    * panel's open/closed state. A **global UI preference** (its own
    * `localStorage` key, like `focusMode`), default **closed**. The filter
@@ -102,6 +114,7 @@ type UiState = {
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
 const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
 const ACTIVITY_OVERLAY_KEY = 'loop-studio:activity-overlay'
+const MINIMAP_COLLAPSED_KEY = 'loop-studio:minimap-collapsed'
 const INPUTS_PANEL_KEY = 'loop-studio:inputs-panel'
 const SUMMARY_PANEL_KEY = 'loop-studio:summary-panel'
 
@@ -164,6 +177,20 @@ export const useUiStore = create<UiState>((set, get) => ({
       const v = !s.focusMode
       writeFocusMode(v)
       return { focusMode: v }
+    }),
+
+  minimapCollapsed: readBoolKey(MINIMAP_COLLAPSED_KEY),
+  setMinimapCollapsed: (v) =>
+    set((s) => {
+      if (s.minimapCollapsed === v) return s
+      writeBoolKey(MINIMAP_COLLAPSED_KEY, v)
+      return { minimapCollapsed: v }
+    }),
+  toggleMinimapCollapsed: () =>
+    set((s) => {
+      const v = !s.minimapCollapsed
+      writeBoolKey(MINIMAP_COLLAPSED_KEY, v)
+      return { minimapCollapsed: v }
     }),
 
   filterPanelOpen: readBoolKey(FILTER_PANEL_KEY),

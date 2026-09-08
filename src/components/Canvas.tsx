@@ -4,7 +4,6 @@ import {
   Background,
   ControlButton,
   Controls,
-  MiniMap,
   Panel,
   ReactFlow,
   useNodesInitialized,
@@ -30,6 +29,7 @@ import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
 import { CanvasHintNote } from './HintNote'
+import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
 import { useTourStore } from '../store/tourStore'
 
@@ -59,20 +59,6 @@ const MAX_ZOOM = 2
 function LodGrid() {
   const showGrid = useStore((s) => s.transform[2] >= 0.8)
   return showGrid ? <Background gap={16} color="var(--line-hairline)" /> : null
-}
-
-// minimap node fill by kind — resolved from the theme tokens (var() in an inline
-// style property stays theme-reactive)
-const MINIMAP_HUE: Record<NodeKind, string> = {
-  pool: 'var(--hue-pool)',
-  source: 'var(--hue-source)',
-  drain: 'var(--hue-drain)',
-  gate: 'var(--hue-gate)',
-  converter: 'var(--hue-converter)',
-  end: 'var(--hue-end)',
-  // loop-model/1 — annotation nodes read as structure, not a flow hue
-  parameter: 'var(--line-structure)',
-  register: 'var(--line-structure)',
 }
 
 export function Canvas() {
@@ -153,22 +139,36 @@ export function Canvas() {
   // want an overview. Below this it is hidden (like on mobile), so a small
   // desktop window / split view is not two-thirds minimap.
   const minimapFits = !isMobile && paneW >= 640 && paneH >= 380
+  // the user can collapse the minimap (persisted); `minimapVisible` is whether
+  // it is ACTUALLY on screen right now — the value `applyInitialView` reserves
+  // space for. Read through a ref inside the callback so a collapse / expand
+  // never changes `applyInitialView`'s identity and so cannot re-run the
+  // (untouched) §MML1 fit / measurement-settle effect.
+  const minimapCollapsed = useUiStore((s) => s.minimapCollapsed)
+  const minimapVisible = minimapFits && !minimapCollapsed
+  const minimapVisibleRef = useRef(minimapVisible)
+  minimapVisibleRef.current = minimapVisible
+  // DEV / E2E only — the last `applyInitialView` result, so a test can assert
+  // whether the minimap inset was reserved. Tree-shaken from the production /
+  // portable bundle with the rest of `import.meta.env.DEV`.
+  const lastInitialViewRef = useRef<{ insetR: number; insetB: number; zoom: number } | null>(null)
 
   // §MML3 — a menu-opened Template can carry a fixed graph-coordinate `rect` to
   // frame instead of fit-all. Fit `rect` into the pane MINUS the fixed overlays
-  // (the minimap — only when it renders; the zoom Controls, ~44 wide on the
-  // left), so the framed nodes never sit under the minimap. Left-align `rect`
-  // horizontally (a progression graph reads beginning-first); centre it
-  // vertically, or top-align when it is taller than the usable height. Clamp
-  // the zoom to `[minZoom, 1.2]`. Pure function of the rect + pane size —
-  // identical for every UI language, and unchanged on a language switch (this
-  // only runs on a `fitRev` swap).
+  // (the minimap — only when it is actually visible; the zoom Controls, ~44
+  // wide on the left), so the framed nodes never sit under the minimap.
+  // Left-align `rect` horizontally (a progression graph reads beginning-first);
+  // centre it vertically, or top-align when it is taller than the usable
+  // height. Clamp the zoom to `[minZoom, 1.2]`. Pure function of the rect + pane
+  // size — identical for every UI language, and unchanged on a language switch
+  // (this only runs on a `fitRev` swap).
   const applyInitialView = useCallback(
     (iv: { rect: { x: number; y: number; width: number; height: number }; minZoom: number }) => {
       if (paneW <= 0 || paneH <= 0) return void fitView({ padding: 0.3, maxZoom: 1.2 })
+      const mmOn = minimapVisibleRef.current
       const INSET_L = 44 // zoom Controls
-      const INSET_R = minimapFits ? 224 : 0 // minimap + its margin
-      const INSET_B = minimapFits ? 176 : 0 // minimap height
+      const INSET_R = mmOn ? 224 : 0 // minimap + its margin
+      const INSET_B = mmOn ? 176 : 0 // minimap height
       const usableW = Math.max(160, paneW - INSET_L - INSET_R)
       const usableH = Math.max(120, paneH - INSET_B)
       // on a small pane, frame fewer of the rect's columns rather than let the
@@ -191,8 +191,9 @@ export function Canvas() {
         },
         { duration: 0 },
       )
+      if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: INSET_R, insetB: INSET_B, zoom }
     },
-    [paneW, paneH, minimapFits, setViewport, fitView],
+    [paneW, paneH, setViewport, fitView],
   )
   // keep the re-fit effect's deps stable (fitRev / loadRev / a settle signal)
   // — `applyInitialView` changes identity with the pane size and must not
@@ -351,7 +352,12 @@ export function Canvas() {
   useEffect(() => {
     if (!import.meta.env.DEV) return
     const w = window as unknown as { __loop?: Record<string, unknown> }
-    if (w.__loop) w.__loop.rf = { setViewport, getViewport, fitView }
+    if (w.__loop) {
+      w.__loop.rf = { setViewport, getViewport, fitView }
+      // the last `applyInitialView` result — lets an e2e assert the minimap
+      // inset was / was not reserved on a menu-open framing (ux/minimap-collapse)
+      w.__loop.canvas = { lastInitialView: () => lastInitialViewRef.current }
+    }
   }, [setViewport, getViewport, fitView])
 
   // docs/contextual-inline-help.md §CIH3 #4 — any real canvas interaction
@@ -553,22 +559,9 @@ export function Canvas() {
         {!isMobile && filterPanelOpen && <FilterPanel />}
         {/* docs/mobile.md §MV3 / §MV-D10: the minimap is too small to help on a
             phone (or a small desktop window — see `minimapFits`) and eats
-            space — not rendered there */}
-        {minimapFits && (
-          <MiniMap
-            pannable
-            zoomable
-            ariaLabel={t('canvas.minimap')}
-            nodeColor={(n) => MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)'}
-            nodeStrokeColor="var(--line-strong)"
-            nodeStrokeWidth={2}
-            nodeBorderRadius={2}
-            maskColor="var(--minimap-mask)"
-            maskStrokeColor="var(--signal-primary)"
-            maskStrokeWidth={1}
-            bgColor="var(--surface-raised)"
-          />
-        )}
+            space — not docked there. When it IS docked the user can collapse it
+            to a single restore button (MinimapDock, persisted). */}
+        {minimapFits && <MinimapDock />}
         {/* our own edit-lock replaces React Flow's "interactive" toggle, which
             also kills selection (so the Inspector can't open). `canvasLocked`
             keeps selection + a read-only Inspector; it only blocks structural

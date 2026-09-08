@@ -853,6 +853,51 @@ body {
 .react-flow__minimap:active {
   cursor: grabbing;
 }
+
+/* docs/large-graph-readability.md — the minimap collapse / restore control
+   (MinimapDock). Same look in every locale + theme.
+   - expanded: portalled INTO `.react-flow__minimap`, pinned to its own
+     top-right corner (so it tracks the minimap's dynamic size);
+   - collapsed: a compact tile at the pane's bottom-right corner (React Flow's
+     15 px panel offset), where the minimap's corner would be. */
+.minimap-toggle {
+  position: absolute;
+  z-index: 6; /* above the minimap svg, below dialogs */
+  display: grid;
+  place-items: center;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  top: 4px;
+  right: 4px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--line-structure);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.minimap-toggle:hover {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+.minimap-toggle.is-collapsed {
+  top: auto;
+  width: 28px;
+  height: 28px;
+  right: 15px;
+  bottom: 15px;
+}
+.minimap-toggle svg {
+  display: block;
+}
+@media (forced-colors: active) {
+  .minimap-toggle {
+    border: 1px solid ButtonBorder;
+    color: ButtonText;
+    background: ButtonFace;
+  }
+}
+
 .react-flow__minimap-mask {
   fill: var(--minimap-mask);
   fill-opacity: 1;
