@@ -40,7 +40,11 @@ export function initSim(nodes: LoopNode[]): SimState {
   return { step: 0, values, ended: false, fired: [], triggerQueue: [] }
 }
 
-const ROUTER_KINDS = new Set(['gate', 'converter', 'drain', 'end'])
+// The node kinds that actively move resources in Phase 2 (a "routing node").
+// Exported for the playback-ordering layer (docs/simulation-playback-ordering.md
+// §PBO1) so it derives the cascade rank from the SAME kind set the engine walks,
+// with no risk of the two drifting apart.
+export const ROUTER_KINDS = new Set(['gate', 'converter', 'drain', 'end'])
 const TRIGGERABLE = new Set(['passive', 'interactive'])
 
 export function step(

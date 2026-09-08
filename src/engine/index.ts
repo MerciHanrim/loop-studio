@@ -1,4 +1,4 @@
-export { initSim, step } from './step'
+export { initSim, step, ROUTER_KINDS } from './step'
 export {
   ACT_HINT,
   LABEL_HINT,

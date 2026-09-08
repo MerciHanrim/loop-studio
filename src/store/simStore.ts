@@ -3,6 +3,7 @@ import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { MAX_SERIES } from '../model/limits'
 import { bootTimelineSeries, setAutosaveTimelineSeries, useGraphStore } from './graphStore'
+import { computeStagger } from './playbackRank'
 
 // docs/large-graph-readability.md §LGR6-cues — the trailing Activity-overlay
 // window length. Kept in sync with `ACTIVITY_WINDOW` in
@@ -21,10 +22,12 @@ export type SimStatus = 'idle' | 'running' | 'paused' | 'ended'
 // that the legacy immediate callers (Step from idle, tests) use unchanged
 // (§PB2.8 / PB-INV-18).
 
-/** the fixed beat fractions on the τ ∈ [0,1] axis (§PB2.1). */
-const BEAT_DEPART_END = 0.15
-const BEAT_ARRIVE = 0.8
-const BEAT_SETTLE = 0.95
+/** the fixed beat fractions on the τ ∈ [0,1] axis (§PB2.1). Exported so the edge
+ *  layer can derive each cue's LOCAL τ from the shared clock
+ *  (docs/simulation-playback-ordering.md §PBO2). */
+export const BEAT_DEPART_END = 0.15
+export const BEAT_ARRIVE = 0.8
+export const BEAT_SETTLE = 0.95
 export type PlaybackPhase = 'depart' | 'travel' | 'arrive'
 const phaseOf = (tau: number): PlaybackPhase =>
   tau < BEAT_DEPART_END ? 'depart' : tau < BEAT_ARRIVE ? 'travel' : 'arrive'
@@ -129,6 +132,14 @@ type SimStore = {
         events: FlowEvent[]
         /** state-edge effects for THIS step */
         stateEvents: StateEvent[]
+        /** docs/simulation-playback-ordering.md §PBO2 — edgeId → the fraction of
+         *  τ at which this edge's cue begins (∈ [0, STAGGER_SPAN]); its LOCAL τ
+         *  is `(tau − onset) / (BEAT_SETTLE − onset)`. Computed ONCE per
+         *  transition from the step-start graph snapshot; carried by reference
+         *  across every τ tick (PBO-INV-7). */
+        onsetByEdge: Record<string, number>
+        /** count of non-empty onset buckets this step (observable for tests) */
+        bucketCount: number
       }
     | null
   /** id of the current preparedTransition, or null (§PB7.3) */
@@ -359,6 +370,11 @@ export const useSimStore = create<SimStore>((set, get) => {
     prepared = p
     arriveFired = false
     tauStartedAt = now()
+    // docs/simulation-playback-ordering.md §PBO1/§PBO2 — derive the ordered
+    // cascade schedule ONCE from the step-start graph snapshot. The immediate
+    // `advance()` path (Monte-Carlo / tests) has no animation and skips this.
+    const g0 = graph()
+    const { onsetByEdge, bucketCount } = computeStagger(g0.nodes, g0.edges, p.derived.events)
     set({
       transition: {
         fromStep: p.fromStep,
@@ -367,6 +383,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         flowByEdge: { ...p.derived.activeByEdge },
         events: p.derived.events,
         stateEvents: p.derived.stateEvents,
+        onsetByEdge,
+        bucketCount,
       },
     })
   }
