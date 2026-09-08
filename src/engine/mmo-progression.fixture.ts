@@ -640,21 +640,11 @@ export const MMO_PROGRESSION_MC = {
   ],
   // the Timeline's DEFAULT visible set (loop-studio/timelineSeries — Pool + Register
   // ids, sorted). The MC `tracked` list above stays wide for analysis; this keeps
-  // the first-run Timeline to the story: Level, time, XP, Gold, Deaths, Gear,
-  // consumables burned, Items sold, and the Net gold check Register. The rest are
-  // one "+N more" click away.
-  timelineSeries: [
-    'deaths',
-    'elapsed',
-    'food_consumed',
-    'gear_score',
-    'gold',
-    'items_sold',
-    'level',
-    'r_netgold',
-    'water_consumed',
-    'xp_earned',
-  ],
+  // the first-run Timeline to the five story series — Level (growth pace),
+  // XP earned (its cause), Gold (economy), Deaths (risk), Gear score (power).
+  // Upkeep, loot routing, per-zone counters and the accounting Registers are one
+  // "+N more" click away.
+  timelineSeries: ['deaths', 'gear_score', 'gold', 'level', 'xp_earned'],
   // the layout is part of the explanation — open in a view-safe EDIT-LOCK so a
   // stray drag can't move a node. Selection + the read-only Inspector + pan /
   // zoom / minimap / Timeline / the sim all still work; the user flips the 🔓

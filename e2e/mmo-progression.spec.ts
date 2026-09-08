@@ -107,8 +107,53 @@ test.describe('Early MMO progression example', () => {
     // the curated Timeline default (recommendedRunConfig.timelineSeries) is applied
     const ts = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().timelineSeries)
     expect(ts).toEqual([...DOC.recommendedRunConfig.timelineSeries])
-    expect(ts).toContain('r_netgold') // a Register in the default set
+    expect(ts).toEqual(['deaths', 'gear_score', 'gold', 'level', 'xp_earned']) // the 5 story series
     expect(ts.length).toBeLessThan(DOC.recommendedRunConfig.tracked.length) // fewer than MC tracks
+  })
+
+  test('desktop: the first-run Timeline legend shows the 5 story series + "+N more" for the rest', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+
+    const legend = page.locator('.timeline__legend')
+    await expect(legend).toBeVisible()
+
+    // exactly the 5 curated keys are on the legend, in the structural order the
+    // component renders (all Pools, graph-node order) — array order is not used
+    const keyText = await legend.locator('.timeline__key:not(.timeline__key--more)').allInnerTexts()
+    const names = keyText.map((t) => t.replace(/\s+\S+$/, '').trim())
+    expect(names).toEqual(['Level', 'XP earned', 'Deaths (count)', 'Gold', 'Gear score'])
+
+    // the other 50 series (48 Pools + 7 Registers − 5 shown) are behind the expander
+    await expect(legend.locator('.timeline__key--more')).toHaveText(/\+50 more/)
+
+    // run a few steps so the chart draws lines, then expand + reveal a hidden series
+    await page.evaluate(() => {
+      const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
+      s.reset()
+      for (let i = 0; i < 6; i++) (window as unknown as { __loop: Loop }).__loop.sim.getState().stepOnce()
+    })
+    const poolLines = page.locator('.timeline__line:not(.timeline__line--register)')
+    await expect(poolLines).toHaveCount(5) // the 5 story Pools
+
+    await legend.locator('.timeline__key--more').click()
+    const hiddenElapsed = legend.locator('.timeline__key.is-off', { hasText: 'Elapsed steps' })
+    await expect(hiddenElapsed).toBeVisible()
+    await hiddenElapsed.click()
+
+    // the revealed Pool now draws its own line, and it is in the selection
+    await expect(poolLines).toHaveCount(6)
+    const ts2 = await page.evaluate(
+      () => (window as unknown as { __loop: Loop }).__loop.sim.getState().timelineSeries,
+    )
+    expect(ts2).toContain('elapsed')
+    expect(ts2.length).toBe(6)
+    // (a fresh template open resetting the legend to the recommended 5 is covered
+    //  by the "Templates ▾ loads the canonical graph + its recommended MC config"
+    //  test above, and the reload path by timeline-series.spec.ts.)
   })
 
   test('opens edit-locked — a node still selects into a read-only Inspector; unlock → editable', async ({ page }) => {

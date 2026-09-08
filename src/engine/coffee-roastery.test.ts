@@ -91,6 +91,29 @@ describe('coffee-roastery example', () => {
     expect(rrc && 'canvasLocked' in rrc).toBe(false)
   })
 
+  it('the Timeline default (timelineSeries) is the curated 4-series story set, sorted (§CR7)', () => {
+    const ts = (fixtureDoc as { recommendedRunConfig: { timelineSeries: string[] } })
+      .recommendedRunConfig.timelineSeries
+    // one profitability proxy + the three real stock trajectories
+    expect(ts).toEqual([
+      'dessert_stock',
+      'green_stock',
+      'projected_operating_margin',
+      'roasted_stock',
+    ])
+    expect([...ts]).toEqual([...ts].sort()) // the store keeps timelineSeries sorted
+    // revenue, cost and the two per-line signed margins are behind "+N more"
+    for (const id of [
+      'projected_revenue',
+      'planned_cost',
+      'roasted_supply_margin',
+      'dessert_prep_margin',
+    ])
+      expect(ts).not.toContain(id)
+    const ids = new Set(nodes.map((n) => n.id))
+    for (const id of ts) expect(ids.has(id), id).toBe(true)
+  })
+
   it('is ≤ 25 nodes (23 after rev 9), reads left → right, Registers sit in one clean column with no edges (§CR5)', () => {
     expect(nodes.length).toBe(23)
     expect(nodes.length).toBe(built.nodes.length)
