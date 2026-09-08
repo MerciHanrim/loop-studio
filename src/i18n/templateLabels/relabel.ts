@@ -22,11 +22,17 @@
 // for the language being switched TO is read from that language's dictionary,
 // which `src/i18n/store.ts` guarantees is resident before `activeLocale` flips.
 
+import type { SavedFrame } from '../../model/serialize'
 import { TEMPLATES } from '../../model/templates'
 import type { LoopNode } from '../../model/types'
 import { BASE_LOCALE } from '../registry'
-import { loadedTemplateLabelDict, templateLabelDictLocales } from './dicts'
-import { AMBIGUOUS_NODE_IDS, KNOWN_OFFICIAL_LABELS } from './known.generated'
+import { loadedTemplateFrameLabelDict, loadedTemplateLabelDict, templateLabelDictLocales } from './dicts'
+import {
+  AMBIGUOUS_FRAME_IDS,
+  AMBIGUOUS_NODE_IDS,
+  KNOWN_OFFICIAL_FRAME_LABELS,
+  KNOWN_OFFICIAL_LABELS,
+} from './known.generated'
 
 export type OfficialTemplateLabelIndex = {
   /** node id → every string that is an official label for that id in SOME
@@ -100,12 +106,90 @@ export function officialTemplateLabelIndex(): OfficialTemplateLabelIndex {
   }
 }
 
+// ── §TLO12 — frame titles, an exact mirror of the node path above ──────────
+
+/** EN canonical `frameId -> title`, from the TEMPLATES graphs' `frames`. */
+let enFrameTargets: ReadonlyMap<string, string> | null = null
+function baseFrameTargets(): ReadonlyMap<string, string> {
+  if (enFrameTargets) return enFrameTargets
+  const m = new Map<string, string>()
+  for (const tpl of TEMPLATES) for (const f of tpl.graph.frames ?? []) m.set(f.id, f.label)
+  return (enFrameTargets = m)
+}
+
+let knownFrameIndex: ReadonlyMap<string, ReadonlySet<string>> | null = null
+function knownFrameMap(): ReadonlyMap<string, ReadonlySet<string>> {
+  if (knownFrameIndex) return knownFrameIndex
+  const m = new Map<string, ReadonlySet<string>>()
+  for (const [id, labels] of Object.entries(KNOWN_OFFICIAL_FRAME_LABELS)) m.set(id, new Set(labels))
+  return (knownFrameIndex = m)
+}
+
+const localeFrameTargets = new Map<string, ReadonlyMap<string, string>>()
+
+/** `frameId -> official title` for `locale`; `undefined` only for a registered
+ *  locale whose dict chunk is not resident. `BASE_LOCALE` / unregistered → EN. */
+function framesTargetsFor(locale: string): ReadonlyMap<string, string> | undefined {
+  if (locale === BASE_LOCALE || !templateLabelDictLocales.includes(locale)) return baseFrameTargets()
+  const hit = localeFrameTargets.get(locale)
+  if (hit) return hit
+  const dict = loadedTemplateFrameLabelDict(locale)
+  if (!dict) return undefined
+  const m = new Map<string, string>()
+  for (const tpl of TEMPLATES) {
+    const perTpl = dict[tpl.id]
+    for (const f of tpl.graph.frames ?? []) m.set(f.id, perTpl?.[f.id] ?? f.label)
+  }
+  localeFrameTargets.set(locale, m)
+  return m
+}
+
+/**
+ * §TLO12 — re-seed the OFFICIAL bundled-template FRAME titles in `frames` for
+ * `targetLocale`. Same contract as `relabelNodesForLocale`: a frame is switched
+ * iff its `id` is a known official frame id AND its current `label` is EXACTLY
+ * one of that id's official titles in some shipped locale. A user rename, a `""`
+ * default, or an ambiguous id (shared across templates with divergent titles) is
+ * left untouched. Returns the SAME array reference when nothing changed.
+ */
+export function relabelFramesForLocale(
+  frames: readonly SavedFrame[],
+  targetLocale: string,
+): SavedFrame[] {
+  if (frames.length === 0) return frames as SavedFrame[]
+  const known = knownFrameMap()
+  const targets = framesTargetsFor(targetLocale)
+  if (!targets) {
+    console.error(
+      `[i18n] relabelFramesForLocale("${targetLocale}"): frame dictionary not resident — ` +
+        `frames left unchanged. The locale switch should have loaded it first.`,
+    )
+    return frames as SavedFrame[]
+  }
+  const ambiguous = new Set(AMBIGUOUS_FRAME_IDS)
+
+  let changed = false
+  const next = frames.map((f) => {
+    if (ambiguous.has(f.id)) return f
+    const official = known.get(f.id)
+    if (!official || !official.has(f.label)) return f // a user rename / "" default
+    const want = targets.get(f.id)
+    if (want === undefined || want === f.label) return f
+    changed = true
+    return { ...f, label: want }
+  })
+  return changed ? next : (frames as SavedFrame[])
+}
+
 /** Test seam — drop the caches so a stubbed `TEMPLATES` / dictionary / a
  *  freshly-loaded locale is re-read. */
 export function __rebuildOfficialTemplateLabelIndex(): void {
   enTargets = null
   knownIndex = null
   localeTargets.clear()
+  enFrameTargets = null
+  knownFrameIndex = null
+  localeFrameTargets.clear()
 }
 
 /**

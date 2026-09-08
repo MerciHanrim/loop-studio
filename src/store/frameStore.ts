@@ -76,6 +76,13 @@ type FrameStore = {
    *  `[]`). Re-derives `n` from array order (§SF6). NOT an undo entry — the
    *  caller (`graphStore.loadDoc` / undo·redo) owns the history boundary. */
   loadFrames: (saved: readonly SavedFrame[] | null) => void
+  /** docs/template-label-overlay.md §TLO12 — rewrite ONLY the `label` of the
+   *  frames whose id is a key in `titles`, in place. NOT an undo entry, NO
+   *  autosave schedule (the locale-switch subscription in `graphStore` owns the
+   *  persist decision), and `selectedId` / `toolArmed` / `nextN` / `n` / `rect`
+   *  / `color` are untouched. No-op (same `frames` ref) when nothing matches or
+   *  every match already holds its target title. */
+  relabelTitles: (titles: Readonly<Record<string, string>>) => void
   /** LGR Slice 5 — the wire-shaped snapshot for `serialize` / autosave / the
    *  undo sidecar. `SavedFrame[]` — `id / label / rect / color?`, no `n`. */
   snapshot: () => SavedFrame[]
@@ -184,6 +191,20 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
     afterChange()
   },
 
+  // docs/template-label-overlay.md §TLO12 — locale-switch title remap. Label
+  // only; leaves selection / tool / ordinal / geometry / colour alone; no undo
+  // entry, no autosave (the graphStore subscription persists once if needed).
+  relabelTitles: (titles) => {
+    let changed = false
+    const next = get().frames.map((f) => {
+      const want = titles[f.id]
+      if (want === undefined || want === f.label) return f
+      changed = true
+      return { ...f, label: want }
+    })
+    if (changed) set({ frames: next })
+  },
+
   // ── LGR Slice 5 — document load / undo sidecar (NO history of their own) ──
   loadFrames: (saved) => {
     const list = Array.isArray(saved) ? saved : []
@@ -218,6 +239,8 @@ export const hasFrames = (s: FrameStore): boolean => s.frames.length > 0
 setFrameHistorySidecar({
   get: () => useFrameStore.getState().snapshot(),
   set: (snap) => useFrameStore.getState().loadFrames(snap as SavedFrame[] | null),
+  // §TLO12 — label-only retitle for a locale switch (no undo entry / autosave).
+  relabel: (titles) => useFrameStore.getState().relabelTitles(titles),
 })
 
 // Cold boot — `graphStore` seeds nodes/edges from the autosave record before

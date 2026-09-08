@@ -9,7 +9,7 @@ import {
 import { create } from 'zustand'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
-import { relabelNodesForLocale } from '../i18n/templateLabels/relabel'
+import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
@@ -142,6 +142,11 @@ type GraphStore = {
     snapshot: Snapshot,
     modelVersion?: ModelSemanticsVersion,
     initialView?: InitialView | null,
+    /** docs/template-label-overlay.md §TLO12 — a bundled Template MAY ship group
+     *  frames (already run through `readSavedFrames`). Absent / undefined ⇒
+     *  `frameStore` is cleared, exactly as before (#4A). A pasted graph never
+     *  passes this. */
+    frames?: readonly SavedFrame[],
   ) => void
   loadDoc: (
     doc: { nodes: LoopNode[]; edges: LoopEdge[] },
@@ -217,14 +222,19 @@ export function bootTimelineSeries(): 'all' | string[] {
 // restores the graph AND its saved frames together. Each is a `get`/`set`
 // pair — not store state, no re-renders.
 type Sidecar = { get: () => unknown; set: (h: unknown) => void }
+/** LGR Slice 5 + §TLO12 — the frame sidecar also exposes a label-only remap so
+ *  a locale switch can retitle the live frames without a `loadFrames` (which
+ *  would reset selection / tool / ordinal). */
+type FrameSidecar = Sidecar & { relabel: (titles: Readonly<Record<string, string>>) => void }
 let projectSidecar: Sidecar | null = null
-let frameSidecar: Sidecar | null = null
+let frameSidecar: FrameSidecar | null = null
 export function setHistorySidecar(s: Sidecar | null): void {
   projectSidecar = s
 }
 /** LGR Slice 5 — `frameStore` registers its saved-frames snapshot/restore pair
- *  here so a graph undo / redo carries the frames with it (§SF11). */
-export function setFrameHistorySidecar(s: Sidecar | null): void {
+ *  (plus the §TLO12 `relabel`) here so a graph undo / redo carries the frames
+ *  with it (§SF11) and a locale switch can retitle them. */
+export function setFrameHistorySidecar(s: FrameSidecar | null): void {
   frameSidecar = s
 }
 type SidecarBundle = { p: unknown; f: unknown }
@@ -574,7 +584,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       persist()
     },
 
-    loadGraph: (snapshot, modelVersion = 1, initialView = null) => {
+    loadGraph: (snapshot, modelVersion = 1, initialView = null, frames) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       commit('')
@@ -591,8 +601,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // §MML3 — a menu-opened Template's framing hint; `null` for a paste
         pendingInitialView: initialView,
       })
-      // a Template / pasted graph carries no `frames` block (§SF2) — clear.
-      frameSidecar?.set([])
+      // §TLO12 — a Template MAY ship group frames; a pasted graph never does.
+      // `undefined` ⇒ clear, byte-identical to the pre-#4A behaviour.
+      frameSidecar?.set(frames ? [...frames] : [])
       bump()
       persist()
     },
@@ -680,41 +691,78 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   }
 })
 
-// ── docs/template-label-overlay.md §TLO11 — official-template-label locale switch
-// When the UI language changes, re-seed the labels of OFFICIAL bundled-template
-// nodes (only a label that is EXACTLY one of that node id's shipped-locale
-// strings) in the live graph AND in every undo/redo snapshot, so a switch never
-// leaves a half-translated document and an undo cannot bring the old language
-// back. Label-only: no history entry, no `simulationRev` / `loadRev` /
-// `pristineSample` change. Idempotent — a re-select or a same-locale boot writes
-// nothing. Covers the boot pass too: `initI18n`'s `setState` runs this once with
-// the resolved locale (the graphStore module is evaluated before `initI18n`).
+// ── docs/template-label-overlay.md §TLO11 + §TLO12 — official-template label /
+// frame-title locale switch.
+// When the UI language changes, re-seed the OFFICIAL bundled-template node
+// labels AND frame titles (only a string that is EXACTLY one of that id's
+// shipped-locale strings) in the live graph and in every undo/redo snapshot, so
+// a switch never leaves a half-translated document and an undo cannot bring the
+// old language back. String-only: no history entry, no `simulationRev` /
+// `loadRev` / `fitRev` / `pristineSample` change, no recommended-config touch.
+// Idempotent — a re-select or a same-locale boot writes nothing. Three change
+// axes are judged independently: `liveNodesChanged`, `liveFramesChanged`,
+// `historyChanged` (nodes OR the frame sidecar in any past/future entry). A
+// history-only diff still commits the new `past` / `future`; autosave (which
+// stores the LIVE doc only) fires once, and only when something LIVE changed.
 let lastLocaleForLabels = useI18n.getState().activeLocale
 useI18n.subscribe((s) => {
   if (s.activeLocale === lastLocaleForLabels) return
   lastLocaleForLabels = s.activeLocale
+  const loc = s.activeLocale
 
   const g = useGraphStore.getState()
-  const nodes = relabelNodesForLocale(g.nodes, s.activeLocale)
+
+  // live nodes
+  const nodes = relabelNodesForLocale(g.nodes, loc)
+  const liveNodesChanged = nodes !== g.nodes
+
+  // live frames (via the sidecar — `relabelFramesForLocale` keeps the ref when
+  // unchanged, so identity is a safe "changed?" signal)
+  const curFrames = (frameSidecar?.get() as SavedFrame[] | null) ?? []
+  const relFrames = relabelFramesForLocale(curFrames, loc)
+  const liveFramesChanged = relFrames !== curFrames
+
+  // history — remap BOTH the node labels and the frame sidecar of every entry
   const remap = (h: HistoryEntry): HistoryEntry => {
-    const n = relabelNodesForLocale(h.nodes, s.activeLocale)
-    return n === h.nodes ? h : { ...h, nodes: n }
+    const n = relabelNodesForLocale(h.nodes, loc)
+    const sc = h.sidecar as { p: unknown; f: unknown } | null | undefined
+    const f0 = (sc?.f as SavedFrame[] | null) ?? null
+    const f1 = f0 ? relabelFramesForLocale(f0, loc) : f0
+    const nChg = n !== h.nodes
+    const fChg = f1 !== f0
+    if (!nChg && !fChg) return h
+    return {
+      ...h,
+      ...(nChg ? { nodes: n } : {}),
+      ...(fChg ? { sidecar: { ...(sc ?? { p: null, f: null }), f: f1 } } : {}),
+    }
   }
   const past = g.past.map(remap)
   const future = g.future.map(remap)
-
-  const nodesChanged = nodes !== g.nodes
   const pastChanged = past.some((h, i) => h !== g.past[i])
   const futureChanged = future.some((h, i) => h !== g.future[i])
-  if (!nodesChanged && !pastChanged && !futureChanged) return
+  const historyChanged = pastChanged || futureChanged
 
-  useGraphStore.setState({
-    ...(nodesChanged ? { nodes } : {}),
-    ...(pastChanged ? { past } : {}),
-    ...(futureChanged ? { future } : {}),
-  })
+  if (!liveNodesChanged && !liveFramesChanged && !historyChanged) return
 
-  if (nodesChanged) {
+  // live frame titles: a label-only remap — no undo entry, no autosave here
+  if (liveFramesChanged) {
+    const titles: Record<string, string> = {}
+    for (const f of relFrames) titles[f.id] = f.label
+    frameSidecar?.relabel(titles)
+  }
+
+  if (liveNodesChanged || historyChanged) {
+    useGraphStore.setState({
+      ...(liveNodesChanged ? { nodes } : {}),
+      ...(pastChanged ? { past } : {}),
+      ...(futureChanged ? { future } : {}),
+    })
+  }
+
+  // persist once — autosave stores the LIVE doc, so a history-only remap needs
+  // no write.
+  if (liveNodesChanged || liveFramesChanged) {
     clearTimeout(saveTimer)
     const st = useGraphStore.getState()
     saveToStorage(

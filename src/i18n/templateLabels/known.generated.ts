@@ -143,3 +143,13 @@ export const KNOWN_OFFICIAL_LABELS: Readonly<Record<string, readonly string[]>> 
  *  identical across every locale — never switched (the CI drift check fails
  *  first, so this is empty today). */
 export const AMBIGUOUS_NODE_IDS: readonly string[] = []
+
+/** §TLO12 — frame id → every string that is an official frame title for that id
+ *  in SOME shipped locale (the EN canonical included). Empty until a
+ *  template ships `frames` (#4B). */
+export const KNOWN_OFFICIAL_FRAME_LABELS: Readonly<Record<string, readonly string[]>> = {}
+
+/** §TLO12 — frame ids shared by two templates whose official title is not
+ *  identical across every locale — never switched (the CI drift check fails
+ *  first). */
+export const AMBIGUOUS_FRAME_IDS: readonly string[] = []

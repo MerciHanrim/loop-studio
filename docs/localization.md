@@ -290,7 +290,10 @@ loader map + the codegen pick them up, no cache-structure change.
 `Promise.all([entry.catalog(), ensureTemplateLabelDict(code)])`, so when
 `activeLocale` flips, the §TLO11 relabel (which runs synchronously off the
 `useI18n.subscribe` in `graphStore.ts`) always finds the target dictionary
-resident. `initI18n()` does the same before `createRoot().render()`.
+resident. `initI18n()` does the same before `createRoot().render()`. The one
+`import('./<code>')` now yields BOTH the node-label map and the group-frame
+title map (`<code>` + `<code>Frames`; `dicts.ts` composes `{ nodes, frames }`) —
+so §TLO12 (frame-title overlay) adds no new chunk and rides the same atomic load.
 
 **Provenance-agnostic §TLO11 under lazy dicts.** `relabelNodesForLocale` needs,
 synchronously, "is this current label an official string in *some* shipped

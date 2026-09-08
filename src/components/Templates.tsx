@@ -39,10 +39,11 @@ export function Templates() {
     if (!tpl) return
     useSimStore.getState().pause() // stop any run before the swap
     // docs/template-label-overlay.md — a deep clone with the current locale's
-    // node-label overlay; the canonical TEMPLATES[i] is never touched.
+    // node-label + frame-title overlay; the canonical TEMPLATES[i] is never touched.
     const { graph, recommendedRunConfig, modelVersion } = openTemplate(tpl)
-    // §MML3 — a Template may frame a sub-region on menu-open instead of fit-all
-    loadGraph(graph, modelVersion, tpl.initialView ?? null) // one history entry; sim resets off structureRev
+    // §MML3 — a Template may frame a sub-region on menu-open instead of fit-all.
+    // §TLO12 — and may carry group `frames` (undefined ⇒ frameStore cleared, as before).
+    loadGraph(graph, modelVersion, tpl.initialView ?? null, graph.frames) // one history entry; sim resets off structureRev
     useMcStore.getState().applyRecommended(recommendedRunConfig)
   }
 

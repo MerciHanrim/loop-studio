@@ -428,12 +428,13 @@ rewrites to English, which would be a visible half-switch (UI in the new
 language, nodes still English).
 
 **What it does not touch.** `position`, edges, handles, expressions, `unit`,
-`resourceType`, values, run state, selection, Timeline-series ids, `frames`,
-`recommendedRunConfig`. Label-only. No undo entry, no `simulationRev` /
-`loadRev` / `pristineSample` change. The undo/redo snapshots (`past` / `future`)
-are re-seeded the same way, so an undo across a switch cannot bring the previous
-language back. A single `persist()` fires only when a label actually changed;
-re-selecting the active locale and a same-locale boot write nothing.
+`resourceType`, values, run state, selection, Timeline-series ids, frame
+geometry / colour / selection, `recommendedRunConfig`. Node-`label`-only (frame
+*titles* are §TLO12, same subscription). No undo entry, no `simulationRev` /
+`loadRev` / `fitRev` / `pristineSample` change. The undo/redo snapshots (`past` /
+`future`) are re-seeded the same way, so an undo across a switch cannot bring the
+previous language back. A single `persist()` fires only when a label actually
+changed; re-selecting the active locale and a same-locale boot write nothing.
 
 **Where.** `src/i18n/templateLabels/relabel.ts` (the pure index + mapper) and a
 `useI18n.subscribe` reaction at the bottom of `src/store/graphStore.ts`. The
@@ -450,6 +451,54 @@ suppressed.
 label in every locale — otherwise the id is marked ambiguous and never
 switched. `check:template-labels` fails on any divergence; a unit test asserts
 the built index has an empty `ambiguous` set.
+
+---
+
+## TLO12. Group-frame title overlay
+
+A bundled Template MAY ship group **frames** (`docs/large-graph-readability-saved-frames.md`
+§SF2 — a labelled rectangle: `{ id, label, rect, color? }`). A frame `label` is
+user-visible template copy, so it is localised on exactly the same two occasions
+and by exactly the same rule as a node label:
+
+1. **Fresh menu open** (`openTemplate`) — the deep-cloned frames take the active
+   locale's title for each `frame.id` that has an entry; a frame with no entry
+   keeps its EN canonical title. The canonical `TEMPLATES[i].graph.frames` is
+   never mutated.
+2. **Language switch** — the same `useI18n.subscribe` reaction re-seeds the
+   OFFICIAL frame titles (exact `===` match against that id's official strings in
+   some shipped locale), in the LIVE frame set **and** the frame sidecar of every
+   `past` / `future` history entry. A user rename or the `""` default is left
+   alone; an ambiguous shared id is never switched.
+
+**Data.** Each `templateLabels/<locale>.ts` keeps its flat node map (`ko`) and
+adds a flat sibling frame map (`koFrames`: `templateId → frameId → title`).
+`dicts.ts` composes the consumer shape `{ nodes, frames }` from the one lazy
+`import('./<locale>')` — the atomic catalog+dict load contract (docs/localization.md
+§L4.5) is unchanged. `known.generated.ts` gains `KNOWN_OFFICIAL_FRAME_LABELS` /
+`AMBIGUOUS_FRAME_IDS` (empty until a template ships frames).
+
+**Three independent change axes.** The subscription judges `liveNodesChanged`,
+`liveFramesChanged`, `historyChanged` (nodes OR the frame sidecar of any entry)
+separately. A history-only diff still commits the new `past` / `future`; the one
+autosave write fires only when something LIVE changed (autosave stores the live
+doc). No undo entry, no `simulationRev` / `loadRev` / `fitRev` change, no
+`recommendedRunConfig` touch. `frameStore.relabelTitles` rewrites `label` only —
+`selectedId` / `toolArmed` / `nextN` / geometry / colour are untouched.
+
+**Load path.** A Template's `frames` (already run through `readSavedFrames`, the
+same §R5-1.1 normalisation Import uses — no raw cast) reach `frameStore` via a
+new optional 4th arg to `graphStore.loadGraph`. `undefined` ⇒ the frame set is
+cleared, byte-identical to the pre-#4A behaviour (a pasted graph never passes it).
+
+**CI.** `check:template-labels` also enforces, per (template, dict-shipping
+locale): a frame-less template has no (or an empty) frame dict; a template with
+frames has a dict whose id set EQUALS the canonical frame-id set exactly (no
+missing / stale / duplicate / empty). A canonical example's `frames` must also be
+clean *as authored* (valid id / finite rect with `w,h > 0` / string label /
+palette colour / no dup id / ≤ `SF_FRAMES_MAX`). A frame id shared across
+templates whose official title diverges in any locale fails CI (the runtime EN
+fallback in `relabelFramesForLocale` is defense-in-depth only).
 
 ---
 
