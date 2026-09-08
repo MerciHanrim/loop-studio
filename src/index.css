@@ -2119,11 +2119,16 @@ body {
   stroke-width: 1.5;
   stroke-dasharray: 2.5 2;
 }
-/* the source / target cue rings — a phase tell that does not depend on the
-   moving dot, so the beat reads at a glance. docs/simulation-playback-ordering.md
-   §PBO3 — the three roles differ by GEOMETRY, not hue: `emit` expands OUTWARD
-   from the source, `converge` collapses INWARD onto the target, `absorb`
-   collapses inward and vanishes (Drain / End). Distinct under forced-colors. */
+/* the source / target cues — a phase tell that does not depend on the moving
+   dot, so the beat reads at a glance. docs/simulation-playback-ordering.md §PBO3
+   — the three roles differ by GEOMETRY, not hue, and must be distinguishable in
+   FULL motion (not only reduced-motion / forced-colors):
+     • `emit`     — a solid ring bursts OUTWARD from the source;
+     • `converge` — a SOLID ring collapses inward and settles as a small FILLED
+                    dot at the target (it "lands");
+     • `absorb`   — a BROKEN (dashed) ring collapses inward and vanishes
+                    completely, together with the dissolving token (Drain / End:
+                    nothing lands). */
 .pb-cue {
   fill: none;
   stroke: var(--flow-strength);
@@ -2131,16 +2136,24 @@ body {
   pointer-events: none;
   vector-effect: non-scaling-stroke;
 }
+/* converge ends as a filled dot; absorb's ring is dashed. These hold even
+   without the keyframes (reduced-motion path renders its own `.pb-rm-tell`). */
+.pb-cue--converge {
+  fill: var(--flow-strength);
+}
+.pb-cue--absorb {
+  stroke-dasharray: 3 2.5;
+}
 @media (prefers-reduced-motion: no-preference) {
   .pb-cue--depart,
   .pb-cue[data-cue-role='emit'] {
     animation: pb-cue-emit 260ms ease-out;
   }
   .pb-cue--converge {
-    animation: pb-cue-converge 240ms ease-in;
+    animation: pb-cue-converge 260ms ease-in forwards;
   }
   .pb-cue--absorb {
-    animation: pb-cue-absorb 260ms ease-in forwards;
+    animation: pb-cue-absorb 280ms ease-in forwards;
   }
   /* an arrive cue with no role class yet (defensive) keeps the old ping */
   .pb-cue--arrive:not(.pb-cue--converge):not(.pb-cue--absorb) {
@@ -2157,24 +2170,35 @@ body {
     r: 9;
   }
 }
+/* solid ring shrinks, its stroke fades, and a filled dot resolves in its place */
 @keyframes pb-cue-converge {
   from {
-    opacity: 0.3;
     r: 9;
+    fill-opacity: 0;
+    stroke-opacity: 0.55;
+  }
+  55% {
+    r: 3.5;
+    fill-opacity: 0.85;
+    stroke-opacity: 0.2;
   }
   to {
-    opacity: 0.9;
-    r: 3;
+    r: 2.5;
+    fill-opacity: 1;
+    stroke-opacity: 0;
   }
 }
+/* broken ring collapses inward and disappears — nothing is left */
 @keyframes pb-cue-absorb {
   from {
-    opacity: 0.55;
     r: 9;
+    opacity: 0.6;
+    stroke-dashoffset: 0;
   }
   to {
-    opacity: 0;
     r: 0;
+    opacity: 0;
+    stroke-dashoffset: 9;
   }
 }
 /* the symmetric expand-and-fade ring — still used by the state-edge activator
@@ -2318,6 +2342,18 @@ body {
   }
   .pb-cue {
     stroke: CanvasText;
+    forced-color-adjust: none;
+  }
+  /* §PBO3 — keep the full-motion role split under forced-colors: converge is a
+     SOLID ring / filled dot, absorb is a BROKEN ring that vanishes */
+  .pb-cue--converge {
+    fill: CanvasText;
+    forced-color-adjust: none;
+  }
+  .pb-cue--absorb {
+    fill: none;
+    stroke: CanvasText;
+    stroke-dasharray: 3 2.5;
     forced-color-adjust: none;
   }
   .pb-l0-pulse {

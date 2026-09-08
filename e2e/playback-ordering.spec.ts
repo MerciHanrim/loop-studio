@@ -173,16 +173,29 @@ test.describe('playback — ordered cascade & role cues', () => {
 
     const roles: Record<string, Set<string>> = {}
     let sawAbsorbMove = false
+    // the FULL-motion geometry split (not just the data attr): converge paints a
+    // fill (lands as a dot), absorb has a dashed stroke and no fill (vanishes).
+    const geom: { converge?: { fill: boolean; dashed: boolean }; absorb?: { fill: boolean; dashed: boolean } } = {}
     const deadline = Date.now() + 12000
     while (Date.now() < deadline) {
       const snap = await page.evaluate(() => {
         const out: Record<string, string[]> = {}
+        const g: Record<string, { fill: boolean; dashed: boolean }> = {}
         for (const el of document.querySelectorAll('.react-flow__edge .pb-cue[data-cue-role]')) {
           const id = el.closest('.react-flow__edge')?.getAttribute('data-id') ?? '?'
-          ;(out[id] ??= []).push(el.getAttribute('data-cue-role')!)
+          const role = el.getAttribute('data-cue-role')!
+          ;(out[id] ??= []).push(role)
+          if (role === 'converge' || role === 'absorb') {
+            const cs = getComputedStyle(el as Element)
+            g[role] = {
+              fill: cs.fill !== 'none' && !cs.fill.includes('rgba(0, 0, 0, 0)'),
+              dashed: cs.strokeDasharray !== 'none' && cs.strokeDasharray !== '',
+            }
+          }
         }
         return {
           out,
+          g,
           absorbMove: !!document.querySelector(
             '.react-flow__edge[data-id="tpl-e6"] .pb-move--absorb',
           ),
@@ -193,6 +206,7 @@ test.describe('playback — ordered cascade & role cues', () => {
         roles[id] ??= new Set()
         for (const r of rs) roles[id].add(r)
       }
+      Object.assign(geom, snap.g)
       if (snap.absorbMove) sawAbsorbMove = true
       if (snap.step >= 8) break
       await page.waitForTimeout(20)
@@ -203,6 +217,13 @@ test.describe('playback — ordered cascade & role cues', () => {
     expect([...(roles['tpl-e6'] ?? [])].sort()).toEqual(['absorb', 'emit']) // into Shipment (drain)
     expect([...(roles['tpl-e4'] ?? [])]).toContain('absorb') // into Scrap (drain)
     expect(sawAbsorbMove).toBe(true) // the token dissolves into the drain
+
+    // full-motion geometry: converge fills (a dot lands), absorb is a dashed
+    // ring with no fill (it vanishes) — the two are distinct without hue
+    expect(geom.converge?.fill).toBe(true)
+    expect(geom.converge?.dashed).toBe(false)
+    expect(geom.absorb?.fill).toBe(false)
+    expect(geom.absorb?.dashed).toBe(true)
   })
 
   test('§PBO8-5 role difference survives forced-colors and reduced-motion', async ({ page }) => {

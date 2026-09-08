@@ -159,11 +159,18 @@ Today `depart` and `arrive` are the **same** ring (`@keyframes pb-cue-ping`,
 "outflow cue" / "inflow cue" is not visually realised. Replace with three
 geometrically distinct cues, each carrying a stable `data-cue-role`:
 
-| role | when | shape |
+| role | when | shape (full motion) |
 |---|---|---|
-| **emit** | `depart`, at the source handle | an **outward** burst — a ring that expands *away* from the handle, or short radial ticks pointing out |
-| **converge** | `arrive` into a Pool / Gate / Converter | an **inward** collapse — a ring contracting *onto* the target handle; the token's `arrive` scale-up (1.2×) stays |
-| **absorb** | `arrive` into a **Drain / End** | inward collapse **+ the token dissolves** — a brief fade-to-nothing at the handle; nothing "lands" |
+| **emit** | `depart`, at the source handle | a **solid** ring bursts **outward** from the handle (r 2 → 9, fading) |
+| **converge** | `arrive` into a Pool / Gate / Converter | a **solid** ring collapses **inward** (r 9 → 2.5) and its stroke fades as a small **filled dot** resolves in its place — it "lands"; the token's `arrive` scale-up (1.2×) stays |
+| **absorb** | `arrive` into a **Drain / End** | a **broken (dashed)** ring collapses inward (r 9 → 0) and **vanishes completely**, together with the dissolving token — nothing "lands" |
+
+The `converge` / `absorb` split must read in **full motion**, not only under
+reduced-motion / forced-colors: the distinction is *solid ring → filled dot*
+versus *dashed ring → nothing*. Under `forced-colors: active` the same geometry
+holds (`fill: CanvasText` on `converge`, `stroke-dasharray` + vanish on
+`absorb`); under `prefers-reduced-motion` the static `▸ / ▪ / ◌` tells apply
+(§PBO4).
 
 - **Same-rank branches move together** (§PBO1) — a gate's *process* and *scrap*
   tokens depart on the same onset and their `emit` cues fire together at the
@@ -249,7 +256,7 @@ presentation-only — no GraphDoc / digest / undo / autosave / Workspace effect.
 | **PBO-INV-2** | Total step wall time is **independent of rank count** — bucket onsets are always in `[0, STAGGER_SPAN]`, `B` clamped to `STAGGER_MAX_BUCKETS`. The step is never longer than `beatDuration()`. |
 | **PBO-INV-3** | Same bucket ⇒ identical onset ⇒ parallel siblings — and every edge inside one SCC — depart and arrive together. Every condensation-DAG edge points **strictly deeper**, so the cascade never runs backward (PBO-D2, structural). |
 | **PBO-INV-4** | `settle` commits **exactly once** per transition at `τ ≥ BEAT_SETTLE` (PB-INV-6 verbatim — `arriveFired` / `lastSettledTransitionId` untouched); the whole step's count-up / chips resolve against `S(t+1)` at once. |
-| **PBO-INV-5** | `emit` / `converge` / `absorb` are distinguishable by **geometry** under `forced-colors` and by a **static shape tell** under `prefers-reduced-motion`. |
+| **PBO-INV-5** | `emit` / `converge` / `absorb` are distinguishable by **geometry** in full motion (solid ring → filled dot vs dashed ring → nothing), under `forced-colors`, and by a **static shape tell** (`▸ / ▪ / ◌`) under `prefers-reduced-motion` — never by hue alone. |
 | **PBO-INV-6** | Steady-state is **presentation-only** and session-only: no engine, RNG, GraphDoc, digest, undo, autosave, or Workspace effect. It is never "one step's net Δ = 0" — it needs **3 consecutive** committed steps with the pool vector *and* the whole edge-flow vector pairwise ε-equal *and* Σ flow > 0. The consecutive counter zeroes on `reset()` / template load / graph edit / seed change. |
 | **PBO-INV-7** | The bucket map and (later) the steady-state window are recomputed **once per transition / commit**, not per frame; a τ-only frame does no graph work. |
 
