@@ -152,7 +152,12 @@ export const ja: TemplateLabelDict = {
 }
 
 // docs/template-label-overlay.md §TLO12 — the Japanese group-frame TITLE overlay,
-// `templateId -> (frameId -> title)`. Flat sibling of `ja` above. Empty until a
-// template ships `frames` (#4B); `check:template-labels` fails if a shipped
-// frame lacks an entry here.
-export const jaFrames: TemplateLabelMap = {}
+// `templateId -> (frameId -> title)`. Flat sibling of `ja` above. `check:template-labels`
+// fails if a shipped frame lacks an entry here (or vice-versa).
+export const jaFrames: TemplateLabelMap = {
+  'coffee-roastery': {
+    zone_supply: '供給・在庫',
+    zone_roasting: '焙煎・販売',
+    zone_forecast: '予測指標',
+  },
+}

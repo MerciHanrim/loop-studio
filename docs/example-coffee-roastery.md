@@ -1,6 +1,13 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — shipped. rev 12.** rev 12 narrowed the §CR7
+**Status: settled design — shipped. rev 13.** rev 13 adds **§CR17** — three
+group frames (`Supply & inventory` / `Roasting & sales` / `Forecast metrics`,
+localised EN / KO / JA via §TLO12) and shifts the five Registers +80 px right so
+the column clears the widest `dessert_prep` render and sits inside its frame
+(also retiring a pre-existing ~21 px Parameter↔Register overlap). Visual coords
+only — no engine / value / wiring / schema change; the graph is ~80 px wider so
+the initial fit zoom drops from ≈ 0.49 to ≈ 0.465 at 1280 (still above the L1
+LOD floor). rev 12 narrowed the §CR7
 Timeline default from 8 series to 4 (a legend-density pass — one-row legend in
 EN / KO / JA; the rest behind `+N more`, no engine / schema / wire change).
 rev 1–3 fixed the
@@ -1051,3 +1058,49 @@ bar, the same reason "select an edge, edit its flow" is rejected in §CR16.2.)*
    §CR6.1 / §CR8 / §CR9.1 state the real mechanism; §CR2.1a; CR-D12 → resolved.
 3. **Then impl PR (2)** per §CR13 — the JSON (schema `loop-studio/graph/2`) +
    registration only, consuming `loop-model/2`.
+
+---
+
+## CR17. Zone frames (rev 13)
+
+Three `GraphDoc.frames` (`docs/large-graph-readability-saved-frames.md` §SF;
+loaded via the §TLO12 template-frame path) give the left→right pipeline a
+vertical three-band read:
+
+| id | EN | KO | JA | contains |
+|---|---|---|---|---|
+| `zone_supply` | **Supply & inventory** | **공급·재고** | **供給・在庫** | green delivery + green / dessert stock + wholesale (5 nodes) |
+| `zone_roasting` | **Roasting & sales** | **로스팅·판매** | **焙煎・販売** | the roast Gate + weight-loss + roasted stock + every sale Drain — cafe/retail, online, staff bleed, dessert sales, end-of-day leftover (8 nodes) |
+| `zone_forecast` | **Forecast metrics** | **예측 지표** | **予測指標** | all five Registers (5 nodes) |
+
+**Rects** (flow units, in the committed file):
+
+| id | `{x, y, w, h}` | box |
+|---|---|---|
+| `zone_supply` | `{16, 176, 473, 432}` | [16, 176]–[489, 608] |
+| `zone_roasting` | `{516, 136, 719, 612}` | [516, 136]–[1235, 748] |
+| `zone_forecast` | `{1376, -24, 308, 614}` | [1376, -24]–[1684, 590] |
+
+- Derived from the **union of the rendered node AABBs across EN / KO / JA** —
+  Coffee nodes auto-size to their label, so the boxes differ per locale and each
+  frame clears the widest. Every one of the **18** non-Parameter nodes keeps
+  ≥ 24 px margin inside exactly one frame.
+- The **five y = 0 Parameters** sit outside all three (planning inputs, not a
+  pipeline stage): frames 1 & 2 start below the Parameter row; frame 3 starts to
+  its right. This is why the Register column moved **+80 px** (`rx` 1320 → 1400
+  in the fixture) — in JA `dessert_prep` renders 181 px wide (right edge ≈ 1341),
+  which used to overlap the Register column and would sit inside any frame that
+  reached the Registers. The move is visual-only: Registers have **no ports or
+  edges**, so no engine / value / wiring effect. It also removes the old
+  ~21 px Parameter↔Register overlap.
+- Frame-to-frame gaps: **27 px** (`zone_supply` → `zone_roasting`), **141 px**
+  (`zone_roasting` → `zone_forecast`); frame boxes never overlap.
+- Frame titles render as a chip **above** the frame's top-left corner: flow y
+  ≈ 157.6 / 117.6 / -42.4. None is clipped by a node or by the top of the screen
+  under the frame-less fit-all (verified at 1280 & 1920 in EN / KO / JA).
+- **Localisation:** the titles follow §TLO12 — seeded on menu open, re-seeded
+  (live + `past`/`future`) on a language switch, a user rename preserved. IDs +
+  titles are pinned in `src/i18n/templateLabels/{ko,ja}.ts` `*Frames`,
+  `known.generated.ts`, and `check:template-labels`.
+- Pinned by `src/engine/coffee-roastery.test.ts` (static geometry) and
+  `e2e/coffee-zone-frames.spec.ts` (live per-locale re-measurement).

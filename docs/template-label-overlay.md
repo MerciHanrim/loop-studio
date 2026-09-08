@@ -476,7 +476,9 @@ adds a flat sibling frame map (`koFrames`: `templateId → frameId → title`).
 `dicts.ts` composes the consumer shape `{ nodes, frames }` from the one lazy
 `import('./<locale>')` — the atomic catalog+dict load contract (docs/localization.md
 §L4.5) is unchanged. `known.generated.ts` gains `KNOWN_OFFICIAL_FRAME_LABELS` /
-`AMBIGUOUS_FRAME_IDS` (empty until a template ships frames).
+`AMBIGUOUS_FRAME_IDS`. **First user:** the Coffee roastery Template
+(`docs/example-coffee-roastery.md` §CR17) — three zone frames
+(`zone_supply` / `zone_roasting` / `zone_forecast`), localised EN / KO / JA.
 
 **Three independent change axes.** The subscription judges `liveNodesChanged`,
 `liveFramesChanged`, `historyChanged` (nodes OR the frame sidecar of any entry)

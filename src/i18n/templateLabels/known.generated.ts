@@ -147,7 +147,11 @@ export const AMBIGUOUS_NODE_IDS: readonly string[] = []
 /** §TLO12 — frame id → every string that is an official frame title for that id
  *  in SOME shipped locale (the EN canonical included). Empty until a
  *  template ships `frames` (#4B). */
-export const KNOWN_OFFICIAL_FRAME_LABELS: Readonly<Record<string, readonly string[]>> = {}
+export const KNOWN_OFFICIAL_FRAME_LABELS: Readonly<Record<string, readonly string[]>> = {
+  "zone_forecast": ["Forecast metrics", "予測指標", "예측 지표"],
+  "zone_roasting": ["Roasting & sales", "焙煎・販売", "로스팅·판매"],
+  "zone_supply": ["Supply & inventory", "供給・在庫", "공급·재고"],
+}
 
 /** §TLO12 — frame ids shared by two templates whose official title is not
  *  identical across every locale — never switched (the CI drift check fails

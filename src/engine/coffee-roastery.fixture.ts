@@ -210,7 +210,13 @@ export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } 
   E(res('e_dessert_wrap', 'dessert_stock', 'dessert_wrapup', `${P.dessertWrapPct}%`))
 
   // ── Summary — five Registers (loop-expr/1), one clean column, no ports ─────
-  const rx = 1320
+  // §CR17: shifted +80 px right (was 1320) so the Register column clears the
+  // `dessert_prep` Parameter's widest render (JA, right edge ≈ 1341) — this also
+  // retires a pre-existing ~21 px Parameter↔Register overlap — and the whole
+  // column sits inside `zone_forecast` with a 24 px margin. Registers have no
+  // ports / edges, so the move is purely visual (no engine / value / wiring
+  // effect). Pinned by coffee-roastery.test.ts + coffee-zone-frames.spec.ts.
+  const rx = 1400
   // PLANNING PROXY — projected on the ordered / planned levers, assumes all
   // demand is met. NOT realised revenue (§CR3.5 / §CR8).
   N(
@@ -286,3 +292,22 @@ export const COFFEE_ROASTERY_MC = {
   // opens EDITABLE (§CR2.1) — the reviewer is meant to change the five levers,
   // so there is deliberately no `canvasLocked`.
 }
+
+// ── the three group frames saved into the file (docs/example-coffee-roastery.md
+//    §CR17; docs/template-label-overlay.md §TLO12) ──────────────────────────────
+// A vertical 3-band read of the left→right pipeline: material in & held →
+// roasting + every sale drain → the forecast Register column. Rects are in FLOW
+// units, derived from the UNION of the rendered node AABBs measured in EN / KO /
+// JA (2026-09-08) — Coffee nodes auto-size to their label, so the boxes differ
+// per locale and the frame must clear the widest. Every one of the 18
+// non-Parameter nodes keeps ≥ 24 px margin inside exactly one frame; the five
+// y = 0 Parameter nodes sit OUTSIDE all three (planning inputs, not a pipeline
+// stage) — frames 1 & 2 start below the Parameter row, frame 3 to its right
+// (the Register column was moved +80 px for exactly this clearance). Frame gaps:
+// 27 px (1→2), 141 px (2→3); overlap: 0. Titles are EN canonical; the label
+// overlay localises them (§TLO12).
+export const COFFEE_ROASTERY_FRAMES = [
+  { id: 'zone_supply', label: 'Supply & inventory', rect: { x: 16, y: 176, w: 473, h: 432 } },
+  { id: 'zone_roasting', label: 'Roasting & sales', rect: { x: 516, y: 136, w: 719, h: 612 } },
+  { id: 'zone_forecast', label: 'Forecast metrics', rect: { x: 1376, y: -24, w: 308, h: 614 } },
+] as const
