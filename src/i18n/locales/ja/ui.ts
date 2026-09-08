@@ -12,6 +12,7 @@ import type { UiKey } from '../en/ui'
 
 const ui = {
   'i18n.messageError': 'テキストを表示できません（{key}）',
+  'i18n.loadFailed': '{language} を読み込めませんでした。{current} の表示を維持します。',
   'toolbar.preview': 'プレビュー',
   'toolbar.buildTitle': 'Loop Studio v{version} · ビルド {sha}',
   'toolbar.undo.title': '元に戻す（Ctrl/Cmd+Z）',

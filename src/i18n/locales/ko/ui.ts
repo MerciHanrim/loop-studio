@@ -6,6 +6,7 @@ import type { UiKey } from '../en/ui'
 
 const ui = {
   'i18n.messageError': '문구를 표시할 수 없음 ({key})',
+  'i18n.loadFailed': '{language} 불러오기에 실패했습니다. 현재 언어({current})를 유지합니다.',
   'toolbar.preview': '미리보기',
   'toolbar.buildTitle': 'Loop Studio v{version} · 빌드 {sha}',
   'toolbar.undo.title': '실행 취소 (Ctrl/Cmd+Z)',

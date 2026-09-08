@@ -1,11 +1,14 @@
 // docs/localization.md §L4.5 — the atomic-activation state machine. Selecting a
 // locale (a) persists the preference and (b) starts an activation request;
 // `activeLocale` / `activeCatalog` / `<html lang>` / `<html dir>` change in ONE
-// commit, and ONLY after the target catalog has loaded. A late completion whose
-// generation is stale is dropped; a failed load keeps the current screen.
+// commit, and ONLY after BOTH the target UI catalog AND its template-label
+// dictionary have loaded. A late completion whose generation is stale is
+// dropped; a failed load keeps the current screen and raises `loadError` so the
+// UI can show a dismissible notice.
 
 import { create } from 'zustand'
 import type { MessageCatalog } from './locales/en'
+import { ensureTemplateLabelDict } from './templateLabels/dicts'
 import {
   BASE_CATALOG,
   BASE_ENTRY,
@@ -23,9 +26,15 @@ type I18nState = {
   requestedLocale: string
   requestGeneration: number
   loading: boolean
+  /** set when a locale's catalog OR template-label dict fails to load — the
+   *  screen stays on `activeLocale`. `code` is the language that failed,
+   *  `current` the one still shown. Cleared by `dismissLoadError` and by the
+   *  next successful `setLocale`. */
+  loadError: { code: string; current: string } | null
   /** (a) persist the preference, (b) start an activation request. Re-selecting
    *  the active locale (while not mid-load) is a no-op. Unknown codes ignored. */
   setLocale: (code: string) => void
+  dismissLoadError: () => void
 }
 
 function applyHtml(code: string): void {
@@ -35,12 +44,22 @@ function applyHtml(code: string): void {
   el.setAttribute('dir', getEntry(code)?.direction ?? 'ltr')
 }
 
+/** Both halves a locale needs before it can be activated: its UI catalog and
+ *  its template-label dictionary. `ensureTemplateLabelDict` is a no-op for the
+ *  base locale and for a locale with no dictionary. */
+function loadLocaleAssets(code: string): Promise<MessageCatalog> {
+  const entry = getEntry(code)
+  if (!entry) return Promise.reject(new Error(`unregistered locale "${code}"`))
+  return Promise.all([entry.catalog(), ensureTemplateLabelDict(code)]).then(([cat]) => cat)
+}
+
 export const useI18n = create<I18nState>((set, get) => ({
   activeLocale: BASE_LOCALE,
   activeCatalog: BASE_CATALOG,
   requestedLocale: BASE_LOCALE,
   requestGeneration: 0,
   loading: false,
+  loadError: null,
 
   setLocale: (code) => {
     const s = get()
@@ -53,22 +72,24 @@ export const useI18n = create<I18nState>((set, get) => ({
     const gen = s.requestGeneration + 1 // (b) an activation request
     set({ requestedLocale: code, requestGeneration: gen, loading: true })
 
-    entry.catalog().then(
+    loadLocaleAssets(code).then(
       (cat) => {
         if (get().requestGeneration !== gen) return // stale — dropped whole
-        set({ activeLocale: code, activeCatalog: cat, loading: false }) // ONE commit
+        set({ activeLocale: code, activeCatalog: cat, loading: false, loadError: null }) // ONE commit
         applyHtml(code)
       },
       () => {
         if (get().requestGeneration !== gen) return
-        set({ loading: false }) // keep activeLocale / activeCatalog / <html lang>
-        // Slice 1: a console notice. A visible non-blocking bar is Slice 2b.
+        // keep activeLocale / activeCatalog / <html lang|dir> / the stored value
+        set({ loading: false, loadError: { code, current: get().activeLocale } })
         console.warn(
-          `[i18n] failed to load the "${code}" catalog; staying on "${get().activeLocale}"`,
+          `[i18n] failed to load the "${code}" language; staying on "${get().activeLocale}"`,
         )
       },
     )
   },
+
+  dismissLoadError: () => set({ loadError: null }),
 }))
 
 /** DEV / E2E ONLY — `?lang=<code>` forces a registered locale for the session
@@ -88,14 +109,16 @@ function devLocaleOverride(): string | null {
 }
 
 /** §L5.2 — resolve + load the initial catalog BEFORE React mounts. Falls back
- *  to the embedded `en` if the chosen non-`en` catalog rejects at boot. */
+ *  to the embedded `en` if the chosen non-`en` locale's assets reject at boot
+ *  (and raises `loadError` so the returning user learns their saved language
+ *  could not load this time). */
 export async function initI18n(): Promise<void> {
   const code =
     (import.meta.env.DEV ? devLocaleOverride() : null) ??
     resolveInitialLocale(readStoredLocale(), navigatorLanguages())
   const entry = getEntry(code) ?? BASE_ENTRY
   try {
-    const cat = await entry.catalog()
+    const cat = await loadLocaleAssets(entry.code)
     useI18n.setState({
       activeLocale: entry.code,
       activeCatalog: cat,
@@ -107,8 +130,22 @@ export async function initI18n(): Promise<void> {
       activeLocale: BASE_LOCALE,
       activeCatalog: BASE_CATALOG,
       requestedLocale: BASE_LOCALE,
+      loadError: entry.code === BASE_LOCALE ? null : { code: entry.code, current: BASE_LOCALE },
     })
     applyHtml(BASE_LOCALE)
-    console.warn(`[i18n] failed to load the "${code}" catalog at boot; started on "${BASE_LOCALE}"`)
+    console.warn(`[i18n] failed to load the "${code}" language at boot; started on "${BASE_LOCALE}"`)
+  }
+}
+
+/** docs/localization.md §L4.5 — a future seam for pre-loading a locale's chunks
+ *  (UI catalog + template-label dict) WITHOUT activating it. Only meaningful for
+ *  a not-yet-loaded language: an already-resident one resolves without a
+ *  network request. Not called anywhere yet — the FR / zh preloading work will
+ *  use it. Swallows a rejection: a failed prefetch must never surface. */
+export async function preloadLocale(code: string): Promise<void> {
+  try {
+    await loadLocaleAssets(code)
+  } catch {
+    console.warn(`[i18n] preloadLocale("${code}") failed; will retry on demand`)
   }
 }

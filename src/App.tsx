@@ -3,6 +3,7 @@ import { BootNotice } from './components/BootNotice'
 import { Canvas } from './components/Canvas'
 import { DesktopInspector } from './components/DesktopInspector'
 import { GuidedTour } from './components/GuidedTour'
+import { LocaleLoadNotice } from './components/LocaleLoadNotice'
 import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
@@ -21,6 +22,7 @@ export default function App() {
       <Shortcuts />
       <PwaUpdateBar />
       <BootNotice />
+      <LocaleLoadNotice />
       <div className="app">
         <Toolbar />
         <div className="app__body">

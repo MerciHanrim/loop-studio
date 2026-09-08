@@ -7,6 +7,23 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { configDefaults, defineConfig } from 'vitest/config'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { manifest } from './src/pwa/manifest.ts'
+import { LOCALE_CHUNK_RE } from './scripts/locale-chunk.mjs'
+
+// docs/localization.md §L4.5 — each non-`en` UI catalog and template-label dict
+// is its own chunk (`assets/locale-<code>-<hash>.js` /
+// `assets/tmpl-labels-<code>-<hash>.js`) so the PWA can runtime-cache them
+// instead of precaching every language. `<code>` may carry a script subtag
+// (`zh-Hans`) — keep the segment permissive.
+function localeChunkOf(id: string): string | undefined {
+  const path = id.replace(/\\/g, '/')
+  const ui = /\/src\/i18n\/locales\/([^/]+)\//.exec(path)
+  if (ui && ui[1] !== 'en') return `locale-${ui[1]}`
+  const tl = /\/src\/i18n\/templateLabels\/([^/]+)\.ts$/.exec(path)
+  if (tl && !/^(index|relabel|dicts|known\.generated)$/.test(tl[1]) && !tl[1].endsWith('.test')) {
+    return `tmpl-labels-${tl[1]}`
+  }
+  return undefined
+}
 
 const appVersion: string = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
@@ -80,7 +97,30 @@ export default defineConfig(({ mode }) => {
                   'manifest.webmanifest',
                   'icons/*.png',
                 ],
-                globIgnores: ['**/*.map', '**/*.LICENSE.txt'],
+                // docs/localization.md §L4.5 / docs/pwa.md §P8 — the per-locale
+                // catalog + template-label chunks are NOT precached; they are
+                // `CacheFirst` runtime-cached, fetched on first use.
+                globIgnores: [
+                  '**/*.map',
+                  '**/*.LICENSE.txt',
+                  'assets/locale-*.js',
+                  'assets/tmpl-labels-*.js',
+                ],
+                runtimeCaching: [
+                  {
+                    // Pass the RegExp itself — `generateSW` serialises
+                    // `runtimeCaching` into `sw.js`, so a callback that closed
+                    // over an imported const would lose the reference. The
+                    // pattern matches a full request URL as well as a pathname.
+                    urlPattern: LOCALE_CHUNK_RE,
+                    handler: 'CacheFirst',
+                    options: {
+                      cacheName: 'loop-locale-chunks',
+                      expiration: { maxEntries: 24 },
+                      cacheableResponse: { statuses: [0, 200] },
+                    },
+                  },
+                ],
                 maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
                 cleanupOutdatedCaches: true,
                 navigateFallback: 'index.html',
@@ -92,10 +132,15 @@ export default defineConfig(({ mode }) => {
         : []),
     ],
     build: portable
-      ? { outDir: 'dist-portable', emptyOutDir: true }
-      : mode === 'pwa'
-        ? { outDir: 'dist-pwa', emptyOutDir: true } // the `--mode pwa` test build; Production still emits dist/
-        : {},
+      ? { outDir: 'dist-portable', emptyOutDir: true } // viteSingleFile inlines everything — no manual chunks
+      : {
+          // docs/localization.md §L4.5 — split each non-`en` UI catalog and
+          // template-label dict into its own stably-named chunk.
+          rollupOptions: {
+            output: { manualChunks: (id: string) => localeChunkOf(id) },
+          },
+          ...(mode === 'pwa' ? { outDir: 'dist-pwa', emptyOutDir: true } : {}),
+        },
     // `npm test` is the vitest unit suite only; the Playwright specs under e2e/
     // run via `npm run e2e`.
     test: {

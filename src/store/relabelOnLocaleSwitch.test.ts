@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { MessageCatalog } from '../i18n/locales/en'
 import enCatalog from '../i18n/locales/en'
 import jaCatalog from '../i18n/locales/ja'
 import koCatalog from '../i18n/locales/ko'
 import { useI18n } from '../i18n/store'
+import { ensureTemplateLabelDict } from '../i18n/templateLabels/dicts'
 import type { LoopNode } from '../model/types'
 import { useGraphStore } from './graphStore'
 
@@ -12,6 +13,15 @@ import { useGraphStore } from './graphStore'
 // history. Label-only: no `simulationRev` bump, no history entry. Idempotent.
 // The `useI18n.subscribe` wiring lives at the bottom of graphStore.ts; importing
 // the store here registers it.
+//
+// docs/localization.md §L4.5 — `setLocale` loads the target template-label dict
+// BEFORE it flips `activeLocale`; `activate()` below mirrors the post-load
+// commit, so the dicts are pre-loaded once here.
+
+beforeAll(async () => {
+  await ensureTemplateLabelDict('ko')
+  await ensureTemplateLabelDict('ja')
+})
 
 const node = (id: string, label: string): LoopNode =>
   ({ id, type: 'pool', position: { x: 0, y: 0 }, data: { label } }) as unknown as LoopNode

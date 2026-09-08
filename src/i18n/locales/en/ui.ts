@@ -6,6 +6,7 @@
 
 const ui = {
   'i18n.messageError': 'text unavailable ({key})',
+  'i18n.loadFailed': 'Couldn’t load {language}. Still showing {current}.',
   'toolbar.preview': 'preview',
   'toolbar.buildTitle': 'Loop Studio v{version} · build {sha}',
   'toolbar.undo.title': 'Undo (Ctrl/Cmd+Z)',
