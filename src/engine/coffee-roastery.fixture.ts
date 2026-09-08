@@ -278,19 +278,11 @@ export const COFFEE_ROASTERY_MC = {
   runs: 200,
   steps: P.steps,
   tracked: ['green_stock', 'roasted_stock', 'dessert_stock'],
-  // the Timeline's default visible set (Pool + Register ids, sorted) — the two
-  // headline inventories, the dessert pool, the two signed-proxy margins, and
-  // the three planning-proxy money lines.
-  timelineSeries: [
-    'dessert_prep_margin',
-    'dessert_stock',
-    'green_stock',
-    'planned_cost',
-    'projected_operating_margin',
-    'projected_revenue',
-    'roasted_stock',
-    'roasted_supply_margin',
-  ],
+  // the Timeline's default visible set (Pool + Register ids, sorted) — the four
+  // story series: the operating-margin planning proxy (projected revenue −
+  // planned cost) plus the three real stock trajectories. Projected revenue,
+  // planned cost and the two per-line signed margins sit behind "+N more".
+  timelineSeries: ['dessert_stock', 'green_stock', 'projected_operating_margin', 'roasted_stock'],
   // opens EDITABLE (§CR2.1) — the reviewer is meant to change the five levers,
   // so there is deliberately no `canvasLocked`.
 }

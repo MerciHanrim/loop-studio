@@ -459,12 +459,13 @@ first zone. Each zone's combat / loot / level-up hangs directly **below** its
 landmark; the shared economy is a band across the middle-bottom; the seven
 reporting Registers sit in a small **corner block**, off the main path.
 
-The Timeline opens on a curated **10-series** default
-(`recommendedRunConfig.timelineSeries`): Level, Elapsed steps, XP earned, Gold,
-Deaths, Gear score, Water/Food consumed, Items sold, and the **Net gold check**
-Register. The full accounting counters are still in the graph — one **`+N more`**
-click away in the legend. The Monte-Carlo `tracked` list stays wide (for the
-distributions); the two are independent.
+The Timeline opens on a curated **5-series** default
+(`recommendedRunConfig.timelineSeries`): Level, XP earned, Gold, Deaths, Gear
+score — growth pace, its cause, economy, risk, power, on one legend row. Every
+other series (Elapsed steps, Water/Food consumed, Items sold, the reporting
+Registers, all 55 in total) is one **`+N more`** click away in the legend and
+adds its line back when selected. The Monte-Carlo `tracked` list stays wide (for
+the distributions); the two are independent.
 
 The Canvas opens **edit-locked** (`recommendedRunConfig.canvasLocked: true`): the
 layout is part of this example, so a first read can't nudge a node by accident.
@@ -522,7 +523,7 @@ Items looted = Items equipped + Items sold + Items consumed + <held in the loot 
 
 This file carries a `recommendedRunConfig`, so **Import (or pick it from
 Templates ▾) already fills the Monte Carlo dialog** with `200 × 150, base seed 1`
-and the tracked Pools below, sets the Timeline's default 10 series, and opens the
+and the tracked Pools below, sets the Timeline's default 5 series, and opens the
 Canvas edit-locked (unlock with the Controls 🔒 toggle).
 
 ```

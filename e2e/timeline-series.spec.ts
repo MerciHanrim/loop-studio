@@ -333,4 +333,31 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     expect(applied.series).toEqual(['p2', 'reg_a'])
     expect(applied.nodeIds).toEqual(['p1', 'p2', 'reg_a', 'reg_b', 'snk', 'src'])
   })
+
+  // Curating the legend must NOT narrow the run CSV — `downloadCsv` writes every
+  // Pool column regardless of `timelineSeries`.
+  test('the run CSV keeps every Pool column even when the legend shows a subset', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, ['p1']) // legend shows only P1; P2 is behind "+N more"
+    await showTimeline(page)
+
+    // a run so the CSV button enables (hasRun = series.length >= 2)
+    await page.evaluate(() => {
+      const s = (window as unknown as Bridge).__loop.sim.getState() as any
+      s.reset()
+      for (let i = 0; i < 4; i++) (window as unknown as Bridge).__loop.sim.getState().stepOnce()
+    })
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('.timeline__legend .timeline__csv').click(),
+    ])
+    expect(download.suggestedFilename()).toBe('loop-studio-run.csv')
+    const fs = await import('node:fs/promises')
+    const csv = await fs.readFile(await download.path(), 'utf8')
+    const header = csv.split('\n')[0].split(',')
+    // both Pools present, not just the one shown in the legend
+    expect(header).toEqual(['step', 'P1', 'P2'])
+  })
 })

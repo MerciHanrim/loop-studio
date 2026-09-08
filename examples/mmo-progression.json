@@ -3283,14 +3283,9 @@
     ],
     "timelineSeries": [
       "deaths",
-      "elapsed",
-      "food_consumed",
       "gear_score",
       "gold",
-      "items_sold",
       "level",
-      "r_netgold",
-      "water_consumed",
       "xp_earned"
     ],
     "canvasLocked": true

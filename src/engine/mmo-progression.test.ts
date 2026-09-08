@@ -83,18 +83,20 @@ describe('mmo-progression example', () => {
     )
   })
 
-  it('the Timeline default (timelineSeries) is a curated ~10-series set of real ids, sorted', () => {
+  it('the Timeline default (timelineSeries) is the curated 5-series story set, sorted', () => {
     const ts = (fixtureDoc as unknown as { recommendedRunConfig: { timelineSeries: string[] } })
       .recommendedRunConfig.timelineSeries
-    expect(ts.length).toBeGreaterThanOrEqual(9)
-    expect(ts.length).toBeLessThanOrEqual(12)
-    expect([...ts]).toEqual([...ts].sort()) // sorted
+    // growth pace + its cause, economy, risk, power — nothing else
+    expect(ts).toEqual(['deaths', 'gear_score', 'gold', 'level', 'xp_earned'])
+    expect([...ts]).toEqual([...ts].sort()) // the store keeps timelineSeries sorted
     const ids = new Set(nodes.map((n) => n.id))
     for (const id of ts) expect(ids.has(id), id).toBe(true)
-    // the story metrics + the Net gold check Register
-    for (const id of ['level', 'elapsed', 'gold', 'deaths', 'r_netgold']) expect(ts).toContain(id)
+    // the crowding series are dropped into "+N more", not the default legend
+    for (const id of ['elapsed', 'r_netgold', 'water_consumed', 'food_consumed', 'items_sold'])
+      expect(ts).not.toContain(id)
     // it is NOT the same list as the Monte-Carlo tracked set (different purpose)
     expect([...ts].sort()).not.toEqual([...MMO_PROGRESSION_MC.tracked].sort())
+    expect(ts.length).toBeLessThan(MMO_PROGRESSION_MC.tracked.length)
   })
 
   it('opens edit-locked (recommendedRunConfig.canvasLocked) — the layout is part of the explanation', () => {

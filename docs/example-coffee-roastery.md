@@ -1,6 +1,9 @@
 # Example — "Coffee roastery operations flow" (non-frozen design doc — DRAFT)
 
-**Status: settled design — implementation landing. rev 11.** rev 1–3 fixed the
+**Status: settled design — shipped. rev 12.** rev 12 narrowed the §CR7
+Timeline default from 8 series to 4 (a legend-density pass — one-row legend in
+EN / KO / JA; the rest behind `+N more`, no engine / schema / wire change).
+rev 1–3 fixed the
 model, the comprehension check, and shipping as the 4th Templates entry; rev 4
 moved the Korean labels to a **shared fresh-open label overlay**
 ([`docs/template-label-overlay.md`](template-label-overlay.md)); rev 5 aligned
@@ -292,7 +295,7 @@ resolved by the engine once per step.
   | role | a small Template for changing a few operating assumptions and reading the result |
   | default state | editable (no `canvasLocked`) |
   | adjustable | the five operational levers (§CR6) — each a `resource`-edge `flow: "@<parameter-id>"` (§CR6.1), delivered by `loop-model/2` |
-  | `recommendedRunConfig` | `timelineSeries` = the ≤ 8 series in §CR7; a modest `steps` / `baseSeed` |
+  | `recommendedRunConfig` | `timelineSeries` = the 4 default series in §CR7 (rest behind `+N more`); a modest `steps` / `baseSeed` |
 
   It is an **experimental Template** at the `preview` stage.
 
@@ -514,18 +517,33 @@ PR may only rename them, never change the wiring.
 
 ## CR7. Recommended Timeline
 
-At most **9** recommended series (the impl PR finalises the exact set). Every
-name uses the §CR3.5 wording — the money lines are **projected / planned**, never
-"revenue" / "profit" bare:
+**rev 12 — narrowed to a 4-series default (legend-density pass).** The legend
+first shows one profitability read plus the three real stock trajectories, so it
+sits on a single row in EN / KO / JA; the other four series are one `+N more`
+click away and add their line back when selected. Every name uses the §CR3.5
+wording — the money lines are **projected / planned**, never "revenue" /
+"profit" bare.
 
+Default visible (`recommendedRunConfig.timelineSeries`, kept sorted by the
+store):
+
+- projected daily operating margin (§CR3.5 — planning proxy; projected revenue − planned cost)
 - green-bean stock
 - roasted-bean stock
 - dessert stock
-- roasted supply margin (§CR3.5 — signed proxy)
-- dessert prep margin (§CR3.5 — signed proxy)
+
+Behind `+N more`:
+
 - projected daily revenue (§CR3.5 — planning proxy)
 - planned daily cost (§CR3.5 — planning proxy)
-- projected daily operating margin (§CR3.5 — planning proxy)
+- roasted supply margin (§CR3.5 — signed proxy)
+- dessert prep margin (§CR3.5 — signed proxy)
+
+The legend renders in the component's structural order — every shown Pool, then
+every shown Register, each in graph-node order — so the operating-margin
+Register sits at the end of the row, read after the three stock trajectories.
+The Timeline computation, the run CSV (every Pool column), and the Monte-Carlo
+`tracked` set are all unaffected by this display default.
 
 ---
 

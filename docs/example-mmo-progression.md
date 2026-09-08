@@ -498,14 +498,19 @@ picker (out of scope); it is the graph's start marker.
 
 ### EM13.3 Timeline default (`recommendedRunConfig.timelineSeries`)
 
-The file ships a curated **10-series** Timeline default — `Level`,
-`Elapsed steps`, `XP earned`, `Gold`, `Deaths`, `Gear score`, `Water consumed`,
-`Food consumed`, `Items sold`, and the **`Net gold check`** Register — so a
-first-run Timeline shows the story, not 47 counters. The rest are one `+N more`
-click away. The Monte-Carlo `tracked` list (§EM7) stays wide for the
-distributions; the two are independent (`timelineSeries` is UI-only display
-state — never the GraphDoc / digest / undo). The field itself landed in a
-separate prerequisite PR.
+The file ships a curated **5-series** Timeline default — `Level` (growth pace),
+`XP earned` (its cause), `Gold` (economy), `Deaths` (risk), `Gear score`
+(power) — so a first-run Timeline shows the story on one legend row, not 55
+counters. Everything else, including the earlier default's `Elapsed steps`,
+`Water consumed` / `Food consumed`, `Items sold` and the `Net gold check`
+Register, is one `+N more` click away and adds its line back when selected. The
+Monte-Carlo `tracked` list (§EM7) stays wide for the distributions; the two are
+independent (`timelineSeries` is UI-only display state — never the GraphDoc /
+digest / undo). The array stays sorted (the store keeps it so); the legend
+renders in the component's structural order — every shown Pool, then every shown
+Register, each in graph-node order — not array order. The field itself landed in
+a separate prerequisite PR; the narrowing from 10 to 5 was a later legend-density
+pass.
 
 ### EM13.4 Engine-shaped model choices (all conservation-safe)
 

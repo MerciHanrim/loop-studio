@@ -468,14 +468,10 @@
       "dessert_stock"
     ],
     "timelineSeries": [
-      "dessert_prep_margin",
       "dessert_stock",
       "green_stock",
-      "planned_cost",
       "projected_operating_margin",
-      "projected_revenue",
-      "roasted_stock",
-      "roasted_supply_margin"
+      "roasted_stock"
     ]
   }
 }
