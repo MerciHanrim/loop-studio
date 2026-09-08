@@ -161,7 +161,12 @@ export const ko: TemplateLabelDict = {
 
 // docs/template-label-overlay.md §TLO12 — the Korean group-frame TITLE overlay,
 // `templateId -> (frameId -> title)`. Flat sibling of `ko` above so the
-// source-text checks parse it independently. Empty until a template ships
-// `frames` (#4B); `check:template-labels` fails if a shipped frame lacks an
-// entry here.
-export const koFrames: TemplateLabelMap = {}
+// source-text checks parse it independently. `check:template-labels` fails if a
+// shipped frame lacks an entry here (or vice-versa).
+export const koFrames: TemplateLabelMap = {
+  'coffee-roastery': {
+    zone_supply: '공급·재고',
+    zone_roasting: '로스팅·판매',
+    zone_forecast: '예측 지표',
+  },
+}

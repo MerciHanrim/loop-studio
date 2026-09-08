@@ -259,7 +259,7 @@
       "id": "projected_revenue",
       "type": "register",
       "position": {
-        "x": 1320,
+        "x": 1400,
         "y": 0
       },
       "data": {
@@ -273,7 +273,7 @@
       "id": "planned_cost",
       "type": "register",
       "position": {
-        "x": 1320,
+        "x": 1400,
         "y": 120
       },
       "data": {
@@ -287,7 +287,7 @@
       "id": "projected_operating_margin",
       "type": "register",
       "position": {
-        "x": 1320,
+        "x": 1400,
         "y": 240
       },
       "data": {
@@ -301,7 +301,7 @@
       "id": "roasted_supply_margin",
       "type": "register",
       "position": {
-        "x": 1320,
+        "x": 1400,
         "y": 360
       },
       "data": {
@@ -314,7 +314,7 @@
       "id": "dessert_prep_margin",
       "type": "register",
       "position": {
-        "x": 1320,
+        "x": 1400,
         "y": 480
       },
       "data": {
@@ -473,5 +473,37 @@
       "projected_operating_margin",
       "roasted_stock"
     ]
-  }
+  },
+  "frames": [
+    {
+      "id": "zone_supply",
+      "label": "Supply & inventory",
+      "rect": {
+        "x": 16,
+        "y": 176,
+        "w": 473,
+        "h": 432
+      }
+    },
+    {
+      "id": "zone_roasting",
+      "label": "Roasting & sales",
+      "rect": {
+        "x": 516,
+        "y": 136,
+        "w": 719,
+        "h": 612
+      }
+    },
+    {
+      "id": "zone_forecast",
+      "label": "Forecast metrics",
+      "rect": {
+        "x": 1376,
+        "y": -24,
+        "w": 308,
+        "h": 614
+      }
+    }
+  ]
 }

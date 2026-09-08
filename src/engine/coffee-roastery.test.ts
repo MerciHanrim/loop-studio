@@ -3,7 +3,7 @@ import fixtureDoc from '../../examples/coffee-roastery.json'
 import { registersOfSnapshot } from '../model/model'
 import { normalizeGraph, serialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
-import { buildCoffeeRoastery, COFFEE_ROASTERY_MC, P } from './coffee-roastery.fixture'
+import { buildCoffeeRoastery, COFFEE_ROASTERY_FRAMES, COFFEE_ROASTERY_MC, P } from './coffee-roastery.fixture'
 import { initSim, step } from './step'
 
 // `examples/coffee-roastery.json` is the "Coffee roastery operations flow"
@@ -65,7 +65,7 @@ describe('coffee-roastery example', () => {
       const fs = await import('node:' + 'fs')
       fs.writeFileSync(
         new URL('../../examples/coffee-roastery.json', import.meta.url),
-        serialize(built.nodes, built.edges, RECOMMENDED, undefined, undefined, 2) + '\n',
+        serialize(built.nodes, built.edges, RECOMMENDED, undefined, undefined, 2, COFFEE_ROASTERY_FRAMES) + '\n',
       )
     })
     return
@@ -80,7 +80,7 @@ describe('coffee-roastery example', () => {
     expect((fixtureDoc as { schema: string }).schema).toBe('loop-studio/graph/2')
     expect((fixtureDoc as { version: number }).version).toBe(1)
     expect(fixtureDoc).toEqual(
-      JSON.parse(serialize(built.nodes, built.edges, RECOMMENDED, undefined, undefined, 2)),
+      JSON.parse(serialize(built.nodes, built.edges, RECOMMENDED, undefined, undefined, 2, COFFEE_ROASTERY_FRAMES)),
     )
   })
 
@@ -89,6 +89,68 @@ describe('coffee-roastery example', () => {
       .recommendedRunConfig
     expect(rrc).toEqual(RECOMMENDED)
     expect(rrc && 'canvasLocked' in rrc).toBe(false)
+  })
+
+  it('ships the three zone frames — non-overlapping, 18 nodes each in exactly one frame ≥24px, 5 params outside (§CR17)', () => {
+    const frames = (fixtureDoc as { frames?: typeof COFFEE_ROASTERY_FRAMES }).frames
+    expect(frames).toEqual(COFFEE_ROASTERY_FRAMES)
+
+    type R = { x: number; y: number; w: number; h: number }
+    const box = (r: R) => ({ l: r.x, r: r.x + r.w, t: r.y, b: r.y + r.h })
+    const overlap = (
+      a: { l: number; r: number; t: number; b: number },
+      b: { l: number; r: number; t: number; b: number },
+    ) => !(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t)
+
+    for (const f of frames!) {
+      expect(f.rect.w).toBeGreaterThan(0)
+      expect(f.rect.h).toBeGreaterThan(0)
+    }
+    // zero overlap between the three frame boxes
+    expect(overlap(box(frames![0].rect), box(frames![1].rect))).toBe(false)
+    expect(overlap(box(frames![1].rect), box(frames![2].rect))).toBe(false)
+    expect(overlap(box(frames![0].rect), box(frames![2].rect))).toBe(false)
+
+    // rendered node box SIZES `[maxW, maxH]` — the UNION of what the node renders
+    // at in EN / KO / JA (Coffee nodes auto-size to their label; measured
+    // 2026-09-08). The e2e (coffee-zone-frames.spec.ts) re-measures the live
+    // boxes per locale and fails if any drifts past these.
+    const NODE_WH: Record<string, [number, number]> = {
+      green_delivery: [186.3, 64], dessert_prep_src: [168, 64], green_stock: [159.1, 64],
+      green_wholesale: [164.8, 64], dessert_stock: [134.2, 64],
+      roasting: [207.2, 64], roast_loss: [189.2, 64], dessert_sales: [146.6, 64],
+      dessert_wrapup: [182.3, 64], roasted_stock: [172.9, 64], cafe_retail: [191, 64],
+      online_sales: [191, 64], roasted_bleed: [191, 80],
+      projected_revenue: [260, 86], planned_cost: [260, 64], projected_operating_margin: [248, 86],
+      roasted_supply_margin: [260, 86], dessert_prep_margin: [181, 86],
+    }
+    const PARAM_WH: [number, number] = [181, 70] // widest / tallest Parameter render
+
+    const MARGIN = 24
+    const nonParams = nodes.filter((n) => n.data.kind !== 'parameter')
+    expect(nonParams).toHaveLength(18)
+    for (const n of nonParams) {
+      const wh = NODE_WH[n.id]
+      expect(wh, `no measured box for ${n.id}`).toBeDefined()
+      const nb = { l: n.position.x, r: n.position.x + wh[0], t: n.position.y, b: n.position.y + wh[1] }
+      const inside = frames!.filter((f) => {
+        const fb = box(f.rect)
+        return (
+          nb.l >= fb.l + MARGIN && nb.r <= fb.r - MARGIN && nb.t >= fb.t + MARGIN && nb.b <= fb.b - MARGIN
+        )
+      })
+      expect(inside.length, `${n.id} (${n.data.kind}) should sit in exactly one frame with ≥${MARGIN}px margin`).toBe(1)
+    }
+
+    // the FIVE Parameter nodes touch no frame box (they render up to 181×70)
+    const params = nodes.filter((n) => n.data.kind === 'parameter')
+    expect(params).toHaveLength(5)
+    for (const p of params) {
+      const pb = { l: p.position.x, r: p.position.x + PARAM_WH[0], t: p.position.y, b: p.position.y + PARAM_WH[1] }
+      for (const f of frames!) {
+        expect(overlap(pb, box(f.rect)), `${p.id} must not touch ${f.id}`).toBe(false)
+      }
+    }
   })
 
   it('the Timeline default (timelineSeries) is the curated 4-series story set, sorted (§CR7)', () => {
