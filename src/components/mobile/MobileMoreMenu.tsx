@@ -1,5 +1,6 @@
 import { useState, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
+import { FEEDBACK_URL } from '../../feedback'
 import { openTemplate } from '../../i18n/templateLabels'
 import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
@@ -458,7 +459,8 @@ export function MobileMoreMenu({
   }
 
   // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
-  // mobile Help sub-sheet: `Take a tour`, `Contextual help`, `About Loop Studio`.
+  // mobile Help sub-sheet: `Take a tour`, `Contextual help`, `Send feedback`
+  // (external link, new tab), `About Loop Studio`.
   if (overlay === 'help') {
     return (
       <>
@@ -476,6 +478,15 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => setContextualOpen(true)}>
           {t('help.contextual.menuLabel')}
         </button>
+        <a
+          className="sheet__row"
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t('tour.help.feedbackAria')}
+        >
+          {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">↗</span>
+        </a>
         <button type="button" className="sheet__row" onClick={() => setAboutOpen(true)}>
           {t('tour.help.about')}
         </button>

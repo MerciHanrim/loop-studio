@@ -153,15 +153,33 @@ test.describe('guided tour — first run', () => {
 // ── 3 / 4 — Help menu re-entry & contents ───────────────────────────────────
 test.describe('guided tour — Help menu', () => {
   // docs/contextual-inline-help.md §CIH4 — the reserved 3rd slot is now live.
-  test('exactly three working items, in order: Take a tour, Contextual help, About', async ({ page }) => {
+  test('exactly four items, in order: Take a tour, Contextual help, Send feedback, About', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
     await openHelp(page)
     const items = page.locator('.menu__pop[role="menu"] .menu__item')
-    await expect(items).toHaveCount(3)
+    await expect(items).toHaveCount(4)
     await expect(items.nth(0)).toHaveText(/Take a tour|둘러보기/)
     await expect(items.nth(1)).toHaveText(/Contextual help|상황별 도움말/)
-    await expect(items.nth(2)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    await expect(items.nth(2)).toHaveText(/Send feedback|피드백 보내기/)
+    await expect(items.nth(3)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+  })
+
+  test('the Send feedback item is a fixed external link opening a new tab', async ({ page }) => {
+    await seedKey(page, 'completed')
+    await openApp(page)
+    await openHelp(page)
+    const link = page.locator('.menu__pop[role="menu"] a.menu__item', {
+      hasText: /Send feedback|피드백 보내기/,
+    })
+    await expect(link).toHaveAttribute('href', 'https://form.typeform.com/to/zMG3huYC')
+    await expect(link).toHaveAttribute('target', '_blank')
+    const rel = (await link.getAttribute('rel')) ?? ''
+    expect(rel).toContain('noopener')
+    expect(rel).toContain('noreferrer')
+    // the ↗ marker is decorative — the accessible name carries "new tab"
+    await expect(link).toHaveAttribute('aria-label', /new tab|새 탭|新しいタブ/)
+    await expect(link.locator('.menu__ext')).toHaveAttribute('aria-hidden', 'true')
   })
 
   test('Take a tour re-opens the tour at step 1 and never rewrites the key', async ({ page }) => {

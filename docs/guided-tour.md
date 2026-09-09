@@ -312,20 +312,33 @@ is **not persisted** — a reload mid-tour does not force-resume from the middle
 ## GT7. The Help menu — `Take a tour` + `About Loop Studio`
 
 Add a small **Help (`?`)** control to the toolbar actions cluster (desktop) and
-an equivalent **row in the More sheet** (mobile). It has **two working entries**:
+an equivalent **row in the More sheet** (mobile). Current entries (desktop and
+mobile identical):
 
 ```
 ? Help
  ├─ Take a tour
+ ├─ Contextual help
+ ├─ Send feedback ↗
  └─ About Loop Studio
 ```
 
 - **`Take a tour`** — restarts the tour at step 1. It always runs the
   platform-appropriate script (desktop on desktop, mobile on mobile) regardless
   of the stored key, and per §GT6.4 never rewrites it.
+- **`Contextual help`** — opens the inline-help re-arm dialog (added by the
+  inline-help slice; `docs/contextual-inline-help.md` §CIH4).
+- **`Send feedback`** — a fixed **external link** (`src/feedback.ts` `FEEDBACK_URL`,
+  the same const in both the desktop menu and the mobile Help sub-sheet) opening
+  the feedback form in a **new tab** (`target="_blank"`, `rel="noopener
+  noreferrer"` — the referring URL is not sent; the new tab gets no `opener`).
+  A decorative `↗` marks the external link; the accessible name says "opens in a
+  new tab". The form is Korean-language for now, noted in the EN/JA label
+  (`Send feedback (Korean form)` / `フィードバックを送る（韓国語フォーム）`); the KO
+  label is `피드백 보내기`. Loop Studio attaches no model content, document data,
+  user identifier, or current-page information to the URL — it is a plain link
+  with no query string.
 - **`About Loop Studio`** — opens the About dialog (§GT7.1).
-- **`Contextual help` is NOT shown** — not a disabled row, not a placeholder. It
-  is added by the later inline-help slice (its own design + PR).
 
 If the Help menu opens as a popover, the tour scrim (§GT4) still blocks the rest
 of the UI while a tour launched from it is running.
