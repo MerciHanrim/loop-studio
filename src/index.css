@@ -3188,15 +3188,18 @@ a.sheet__row {
 .regexpr__inputwrap {
   position: relative;
 }
-/* the "＋ Insert reference" secondary action — a small labelled button under
-   the input, never on the input's row (its text must not shrink the field). */
-.regexpr__pick {
-  display: inline-flex;
-  align-items: center;
+/* §RXA8b — the operator / paren quick-insert row, directly under the input */
+.regexpr__ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: 6px;
-  padding: 3px 9px;
-  font-size: 11px;
-  font-weight: 600;
+}
+.regexpr__op {
+  min-width: 30px;
+  padding: 2px 7px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
   line-height: 1.5;
   border: 1px solid var(--line-structure);
   border-radius: 6px;
@@ -3204,9 +3207,36 @@ a.sheet__row {
   color: var(--text-secondary);
   cursor: pointer;
 }
-.regexpr__pick:hover {
+.regexpr__op:hover {
   color: var(--text-primary);
   border-color: var(--line-strong);
+}
+.regexpr__op:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 1px;
+}
+/* the "＋ Insert reference" secondary action — a labelled MODE toggle, not a
+   text-insert button like the operator chips above it: sits further below the
+   operator row, is a recessed accent-tinted pill (matches its armed state),
+   never glyph-only. */
+.regexpr__pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid color-mix(in srgb, var(--state-focus) 45%, var(--line-structure));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--state-focus) 10%, var(--surface-raised));
+  color: var(--state-focus);
+  cursor: pointer;
+}
+.regexpr__pick:hover {
+  background: color-mix(in srgb, var(--state-focus) 18%, var(--surface-raised));
+  border-color: var(--state-focus);
 }
 .regexpr__pick.is-armed {
   background: var(--state-focus);

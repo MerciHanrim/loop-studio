@@ -148,6 +148,16 @@ const inspector = {
   'regExpr.insert.cancelled': '参照の挿入を取り消しました。',
   'regExpr.insert.done': '{name} への参照を挿入しました。',
   'regExpr.insert.wrongKind': 'プール・パラメーター・レジスターのみ挿入できます。',
+  // §RXA8b — 数式入力欄の下の演算子・かっこボタン
+  'regExpr.op.groupName': '演算子ボタン',
+  'regExpr.op.add': '加算',
+  'regExpr.op.sub': '減算',
+  'regExpr.op.mul': '乗算',
+  'regExpr.op.div': '除算',
+  'regExpr.op.group': 'かっこ',
+  'regExpr.op.inserts': '{name} — 数式に {sym} を挿入',
+  'regExpr.op.groupTitle': 'かっこ — 選択部分を囲む、または ( ) を追加',
+  'regExpr.op.inserted': '{name} を挿入しました',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

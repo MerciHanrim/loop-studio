@@ -93,9 +93,11 @@ language menu; the choice is a local UI preference only). Four bundled
 > (Pool / Parameter / Register only; self and any dependent Register are shown
 > disabled with the reason), a two-line read-back that spells a stored formula
 > out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`),
-> and a **`＋ Insert reference`** button that inserts an `@id` at the caret when
-> you click that node on the canvas — `@id` stays the only stored form and the
-> `loop-revision/2` digest is unchanged. **Content-aware Register / Parameter
+> a **`＋ Insert reference`** button that inserts an `@id` at the caret when you
+> click that node on the canvas, and an **`＋ − × ÷ ( )`** button row so a
+> non-developer need not know `×` is `*` or reach for Shift — `@id` stays the
+> only stored form and the `loop-revision/2` digest is unchanged. **Content-aware
+> Register / Parameter
 > shells** now keep the title, value, and `= expression` line inside the drawn
 > vessel across widths and locales. **Ordered playback** — a step's
 > transfers now cascade in dependency order with emit / converge / absorb role
@@ -333,7 +335,11 @@ wire-contract, or digest change, and no new `loop-*/N` id.
   node. A **`＋ Insert reference`** button then arms a one-shot mode — the next
   click on a Pool / Parameter / Register node inserts its `@id` at the caret,
   keeps the same Register selected, returns focus, and is a single undo entry.
-  Alongside it, **content-aware Register / Parameter shells**
+  A short **`＋ − × ÷ ( )`** button row under the input inserts the arithmetic
+  itself — `×` / `÷` write the grammar's `*` / `/`, an operator lands with a
+  space on each side, `( )` wraps the selection or drops an empty pair — so a
+  non-developer need not know the grammar or reach for Shift; keyboard entry is
+  unchanged. Alongside these, **content-aware Register / Parameter shells**
   ([`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md))
   keep the title, value, and `= expression` line inside the drawn vessel across
   widths and locales (a height that tracks the measured content, a re-cut
