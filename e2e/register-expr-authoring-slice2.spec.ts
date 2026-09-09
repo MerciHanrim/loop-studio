@@ -234,6 +234,31 @@ test('§RXA8.7 — provided only in the desktop unlocked state: the edit lock re
   await expect(pickBtn(page)).toBeVisible()
 })
 
+test('§RXA8.7b — the insert action carries VISIBLE text (not just a glyph), on its own line under the input, and its accessible name is that text with no duplication', async ({ page }) => {
+  const btn = pickBtn(page)
+  // visible label, idle
+  await expect(btn).toHaveText(/Insert reference/)
+  const idleText = (await btn.textContent())?.trim() ?? ''
+  expect(idleText.length).toBeGreaterThan(2) // not a bare "＋"
+  await expect(btn).toHaveAccessibleName(idleText) // no aria-label / title doubling the text
+  await expect(btn).not.toHaveAttribute('title', /.+/)
+  await expect(btn).not.toHaveAttribute('aria-label', /.+/)
+  // it sits BELOW the input, not on its row (its bottom is past the input's)
+  const inputBox = await expr(page).boundingBox()
+  const btnBox = await btn.boundingBox()
+  expect(btnBox!.y).toBeGreaterThanOrEqual(inputBox!.y + inputBox!.height - 1)
+  // the input keeps a sane width — the button never squeezed it
+  expect(inputBox!.width).toBeGreaterThan(180)
+
+  // armed: a distinct visible label + the active style; still one clean AX name
+  await btn.click()
+  await expect(btn).toHaveText(/Selecting a reference/)
+  await expect(btn).toHaveClass(/is-armed/)
+  const armedText = (await btn.textContent())?.trim() ?? ''
+  await expect(btn).toHaveAccessibleName(armedText)
+  await expect(btn).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('§RXA8.8 — the mode announces enter / block-reason / insert to the status region', async ({ page }) => {
   await expr(page).fill('0')
   await caretTo(page, 1)
@@ -249,12 +274,20 @@ test('§RXA8.8 — the mode announces enter / block-reason / insert to the statu
   await expect(expr(page)).toHaveValue('0@wallet')
 })
 
+const PICK_LABEL = {
+  en: { idle: /^＋ Insert reference$/, armed: /^Selecting a reference$/ },
+  ko: { idle: /^＋ 참조 삽입$/, armed: /^참조 선택 중$/ },
+  ja: { idle: /^＋ 参照を挿入$/, armed: /^参照を選択中$/ },
+} as const
+
 for (const loc of ['en', 'ko', 'ja'] as const) {
-  test(`§RXA8.9 — the ＋ affordance, hint, and block reason localise (${loc})`, async ({ page }) => {
+  test(`§RXA8.9 — the insert button label, hint, and block reason localise (${loc})`, async ({ page }) => {
     await setLocale(page, loc)
+    await expect(pickBtn(page)).toHaveText(PICK_LABEL[loc].idle)
     await expr(page).fill('0')
     await caretTo(page, 1)
     await pickBtn(page).click()
+    await expect(pickBtn(page)).toHaveText(PICK_LABEL[loc].armed)
     await expect(hint(page)).toBeVisible()
     await expect(hint(page)).not.toHaveText(/regExpr\.insert/) // a real string, not the key
     await node(page, 'src').click()

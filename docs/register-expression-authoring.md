@@ -227,13 +227,17 @@ peek block is **not** ported — a one-reference `flow` already shows its
 
 ## RXA8. Slice 2 — insert a reference from the canvas (shipped, separate PR)
 
-- A small "＋" affordance beside the expression input. Pressing it **arms** a
-  one-shot mode: it captures the current caret / selection, then the next click
-  on a `pool` / `parameter` / `register` node on the canvas inserts that node's
-  canonical `@id` at the captured position — replacing the captured selection if
-  there was one — and disarms immediately. Only `@id` is inserted: no operator
-  or whitespace is ever synthesised. After the insert, focus and the caret
-  return to the input (just past the inserted token).
+- A labelled secondary button **on the line under** the expression input —
+  `＋ Insert reference` / `＋ 참조 삽입` / `＋ 参照を挿入` (never on the input's
+  row: its text must not shrink the field). Its visible text is its accessible
+  name — no `title` / `aria-label` doubling it. Pressing it **arms** a one-shot
+  mode (label → `Selecting a reference` / `참조 선택 중` / `参照を選択中` +
+  active style, `aria-pressed`): it captures the current caret / selection, then
+  the next click on a `pool` / `parameter` / `register` node on the canvas
+  inserts that node's canonical `@id` at the captured position — replacing the
+  captured selection if there was one — and disarms immediately. Only `@id` is
+  inserted: no operator or whitespace is ever synthesised. After the insert,
+  focus and the caret return to the input (just past the inserted token).
 - Disarms on: `Esc`, a click on empty canvas, the edit lock, selecting a
   different Inspector target, and any template load / graph reset (the field
   unmounts). **Not** on the input blurring — the pick click necessarily blurs
@@ -249,9 +253,10 @@ peek block is **not** ported — a one-reference `flow` already shows its
   parse — RXA-INV-5) exactly as hand-typing would, one undo entry, digest a
   function of the canonical AST only (RXA-INV-1). A screen-reader status region
   announces arm / cancel / insert / each block reason once.
-- New i18n: `regExpr.insert.{title,armedTitle,hint,armed,cancelled,done,wrongKind}`
-  (EN / KO / JA); `regExpr.block.{self,cycle}` reused. No grammar / storage /
-  evaluation / digest change.
+- New i18n: `regExpr.insert.{title,armedLabel,hint,armed,cancelled,done,wrongKind}`
+  (EN / KO / JA; `title` = the idle button label, `armedLabel` = the armed one);
+  `regExpr.block.{self,cycle}` reused. No grammar / storage / evaluation / digest
+  change.
 
 ## RXA9. Acceptance / E2E
 
@@ -312,9 +317,15 @@ Keyed on **node / edge ids**, never rendered labels.
     canonical digest equals the hand-typed control.
 17. **No canvas regression** — unarmed a node click still selects; armed a node
     click never selects it and node positions / edges are untouched.
-18. **Desktop-unlocked only** — the edit lock removes the `＋` (and the input).
+18. **Desktop-unlocked only** — the edit lock removes the insert button (and
+    the input).
+18b. **Labelled action** — the button carries visible text (not a bare glyph),
+    sits on the line *below* the input (its bottom past the input's) without
+    shrinking the input, and its accessible name equals that text with no
+    `title` / `aria-label` doubling; armed shows a distinct label + `is-armed`.
 19. **SR + localisation** — the status region announces arm / block / insert;
-    the `＋` title, hint, and block reason are real strings in EN / KO / JA.
+    the button's idle + armed labels, the hint, and the block reason are real
+    strings in EN / KO / JA.
 
 ## RXA10. Decisions
 

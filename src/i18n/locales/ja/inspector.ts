@@ -141,8 +141,8 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— 無効な参照に依存しています',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — キャンバスのクリックで参照を挿入
-  'regExpr.insert.title': 'ノードをクリックして参照を挿入',
-  'regExpr.insert.armedTitle': 'キャンバスでプール・パラメーター・レジスターをクリックしてください。取り消すには Esc',
+  'regExpr.insert.title': '＋ 参照を挿入',
+  'regExpr.insert.armedLabel': '参照を選択中',
   'regExpr.insert.hint': 'キャンバスでプール・パラメーター・レジスターをクリックすると参照が挿入されます。',
   'regExpr.insert.armed': '参照の挿入を待機しています。キャンバスでノードをクリックするか、Esc で取り消してください。',
   'regExpr.insert.cancelled': '参照の挿入を取り消しました。',

@@ -3183,24 +3183,23 @@ a.sheet__row {
 .regexpr {
   position: relative;
 }
-/* §RXA8 — the input + "＋ reference" button row */
-.regexpr__row {
-  display: flex;
-  align-items: stretch;
-  gap: 4px;
+/* §RXA8 — the input owns its own positioning context so the `@` listbox sits
+   right under it, with the labelled insert button on the line below. */
+.regexpr__inputwrap {
+  position: relative;
 }
-.regexpr__row input {
-  flex: 1 1 auto;
-  min-width: 0;
-}
+/* the "＋ Insert reference" secondary action — a small labelled button under
+   the input, never on the input's row (its text must not shrink the field). */
 .regexpr__pick {
-  flex: none;
-  width: 30px;
-  padding: 0;
-  font-size: 15px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
   border: 1px solid var(--line-structure);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--surface-raised);
   color: var(--text-secondary);
   cursor: pointer;

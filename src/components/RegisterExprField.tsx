@@ -601,7 +601,7 @@ export function RegisterExprField({
       <label className="field__label" htmlFor={`${listId}-input`}>
         {label}
       </label>
-      <div className="regexpr__row">
+      <div className="regexpr__inputwrap">
         <input
           id={`${listId}-input`}
           ref={inputRef}
@@ -642,28 +642,28 @@ export function RegisterExprField({
             }
           }}
         />
-        {/* §RXA8 — arm a one-shot "click a node on the canvas" insert */}
-        <button
-          type="button"
-          className={`regexpr__pick${armed ? ' is-armed' : ''}`}
-          aria-pressed={armed}
-          title={armed ? t('regExpr.insert.armedTitle') : t('regExpr.insert.title')}
-          aria-label={armed ? t('regExpr.insert.armedTitle') : t('regExpr.insert.title')}
-          onClick={toggleArm}
-        >
-          ＋
-        </button>
+        {at != null && (
+          <RefListbox
+            id={listId}
+            candidates={candidates}
+            query={at.query}
+            activeIndex={active}
+            onActiveIndexChange={setActive}
+            onPick={pick}
+          />
+        )}
       </div>
-      {at != null && (
-        <RefListbox
-          id={listId}
-          candidates={candidates}
-          query={at.query}
-          activeIndex={active}
-          onActiveIndexChange={setActive}
-          onPick={pick}
-        />
-      )}
+      {/* §RXA8 — a labelled secondary action under the input: arm a one-shot
+          "click a node on the canvas" insert. Kept off the input row so its
+          text never squeezes the field. */}
+      <button
+        type="button"
+        className={`regexpr__pick${armed ? ' is-armed' : ''}`}
+        aria-pressed={armed}
+        onClick={toggleArm}
+      >
+        {armed ? t('regExpr.insert.armedLabel') : t('regExpr.insert.title')}
+      </button>
       {armed && (
         <p className="regexpr__hint">
           {armHint
