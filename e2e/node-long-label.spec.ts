@@ -246,15 +246,15 @@ test.describe('content ⊂ vessel (node-shell height)', () => {
         const id = nf.getAttribute('data-id')!
         const kind = (nf.querySelector('.nodef')?.className.match(/nodef--(\w+)/) || [])[1]
         const stroke = nf.querySelector('.nodef__stroke') as SVGPathElement // the DRAWN outline
-        const chip = nf.querySelector('.nodef__chip') as HTMLElement
-        const sub = nf.querySelector('.nodef__sub, .nodef__value') as HTMLElement
-        if (!stroke || !chip || !sub) continue
+        // `.nodef__stack` is the real rendered content AABB (chip / title /
+        // value / `= expr` sub, tightly wrapped)
+        const stack = nf.querySelector('.nodef__stack') as HTMLElement
+        if (!stroke || !stack) continue
         const v = stroke.getBoundingClientRect()
-        const top = chip.getBoundingClientRect().top
-        const bot = sub.getBoundingClientRect().bottom
-        // positive spill = content past the outline (vertical is the bug this
-        // fixes; sideways is covered by the §MML1 tests above)
-        out[id] = { kind, top: +(v.top - top).toFixed(1), bot: +(bot - v.bottom).toFixed(1) }
+        const s = stack.getBoundingClientRect()
+        // positive spill = content AABB past the outline (vertical is the bug
+        // this fixes; sideways is covered by the §MML1 tests above)
+        out[id] = { kind, top: +(v.top - s.top).toFixed(1), bot: +(s.bottom - v.bottom).toFixed(1) }
       }
       return out
     })
