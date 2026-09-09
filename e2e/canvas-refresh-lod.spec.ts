@@ -131,9 +131,10 @@ test.describe('Canvas Refresh PR 3 — zoom LOD (§VL7)', () => {
     await zoomTo(page, 0.3)
     expect(await lodOf(page, 'r_flip')).toBe('lod-L0')
 
-    // role silhouette — parameter's notch path vs register's lozenge, still drawn
-    await expect(page.locator('.react-flow__node[data-id="p_rate"] .nodef--parameter .nodef__stroke')).toHaveAttribute('d', /M40 12/)
-    await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /M30 12/)
+    // role silhouette — parameter's tab path (`M14 12 … H1 …`) vs register's
+    // flattened lozenge (`M14 12 H110 …`), still drawn
+    await expect(page.locator('.react-flow__node[data-id="p_rate"] .nodef--parameter .nodef__stroke')).toHaveAttribute('d', /^M14 12 .* H1 /)
+    await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /^M14 12 H110 /)
 
     // edge class + direction — solid vs dashed + the tokenised arrow, unchanged
     const res = await page.locator('.react-flow__edge[data-id="e_sg"] path.react-flow__edge-path').evaluate((el) => getComputedStyle(el).strokeDasharray)
