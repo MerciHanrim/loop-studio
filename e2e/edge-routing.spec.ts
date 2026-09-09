@@ -425,6 +425,9 @@ test.describe('edge routing — Slice 1', () => {
   })
 
   test('every path consumer reads the same d; reduced-motion leaves only a static cue', async ({ page }) => {
+    // the running-sim step below deliberately runs the playback beat at a very
+    // slow rate so the token can be sampled mid-`travel` without a timing race.
+    test.setTimeout(45_000)
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G2({ route: true }))
@@ -456,9 +459,19 @@ test.describe('edge routing — Slice 1', () => {
       // prime one step (tokenless) so `gold` holds a unit and the drain edge `e_gd`
       // actually carries flow on the step we then choreograph
       await page.evaluate(() => (window as any).__loop.sim.getState().advance())
-      await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(2200))
+      // TEST-ONLY speed, purely to widen the CI observation window: not a value
+      // the user can pick (the PlayBar slider clamps to 2400) — but this test
+      // checks path progression + animation survival across a selection change,
+      // not the speed UI. At 10 s/beat the `travel` phase spans several
+      // wall-clock seconds, so sampling the token mid-flight is reliable even on
+      // a loaded runner. `setSpeed` accepts any finite ms; the clock is
+      // wall-clock driven, so a slow CI box does not compress the window.
+      await page.evaluate(() => (window as any).__loop.sim.getState().setSpeed(10000))
       await page.locator('.pstrip button[title="Advance one step"]').click()
-      // wait for the token mid-travel and check its position sits on the rendered d
+
+      // the token's live position, its beat phase, and both the nearest distance
+      // to the rendered `.react-flow__edge-path` d and the path fraction of that
+      // nearest point (0 = source, 1 = target).
       const tokenOnPath = () =>
         page.evaluate(() => {
           const g = document.querySelector('.react-flow__edge[data-id="e_gd"] .pb-move') as SVGGElement | null
@@ -469,21 +482,37 @@ test.describe('edge routing — Slice 1', () => {
           const pt = { x: +m[1], y: +m[2] }
           const total = vis.getTotalLength()
           let best = Infinity
-          for (let i = 0; i <= 200; i++) {
-            const p = vis.getPointAtLength((i / 200) * total)
-            best = Math.min(best, Math.hypot(p.x - pt.x, p.y - pt.y))
+          let bestFrac = 0
+          for (let i = 0; i <= 400; i++) {
+            const p = vis.getPointAtLength((i / 400) * total)
+            const dd = Math.hypot(p.x - pt.x, p.y - pt.y)
+            if (dd < best) {
+              best = dd
+              bestFrac = i / 400
+            }
           }
-          return { dist: best, phase: g.getAttribute('data-playback-phase') }
+          return { dist: best, frac: bestFrac, phase: g.getAttribute('data-playback-phase') }
         })
-      await expect.poll(() => tokenOnPath().then((t) => (t && t.phase === 'travel' ? t.dist : 99)), { timeout: 8000 }).toBeLessThan(2)
+
+      // Wait until the token has ENTERED the `travel` phase (it need not be
+      // caught on the first observation — the slow beat keeps it travelling for
+      // seconds) and confirm that sampled point lies on the rendered d.
+      await expect
+        .poll(() => tokenOnPath().then((t) => (t && t.phase === 'travel' ? t.dist : 99)), { timeout: 18000 })
+        .toBeLessThan(2)
       const t1 = await tokenOnPath()
+      expect(t1!.phase).toBe('travel')
+      // genuinely walking the path — not parked at either endpoint
+      expect(t1!.frac).toBeGreaterThan(0.05)
+      expect(t1!.frac).toBeLessThan(0.95)
+
       await page.evaluate(() => (window as any).__loop.sim.getState().pause())
       const frozen = await tokenOnPath()
       await page.evaluate(() => (window as any).__loop.graph.getState().setSelection(null, 'e_gd'))
       await page.waitForTimeout(60)
       const afterSelect = await tokenOnPath()
       expect(afterSelect!.dist).toBeCloseTo(frozen!.dist, 1) // no restart / jump
-      void t1
+      expect(afterSelect!.frac).toBeCloseTo(frozen!.frac, 1) // same point on the path
       await page.evaluate(() => (window as any).__loop.sim.getState().reset())
     })
 
