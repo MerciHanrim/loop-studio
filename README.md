@@ -335,11 +335,10 @@ wire-contract, or digest change, and no new `loop-*/N` id.
   node. A **`＋ Insert reference`** button then arms a one-shot mode — the next
   click on a Pool / Parameter / Register node inserts its `@id` at the caret,
   keeps the same Register selected, returns focus, and is a single undo entry.
-  A short **`＋ − × ÷ ( )`** button row under the input inserts the arithmetic
-  itself — `×` / `÷` write the grammar's `*` / `/`, an operator lands with a
-  space on each side, `( )` wraps the selection or drops an empty pair — so a
-  non-developer need not know the grammar or reach for Shift; keyboard entry is
-  unchanged. Alongside these, **content-aware Register / Parameter shells**
+  An **operator keypad** (`＋ − × ÷ ( )`) inserts expression-safe syntax,
+  supports selection wrapping with parentheses, and preserves the
+  draft-until-valid undo contract. Alongside these, **content-aware Register /
+  Parameter shells**
   ([`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md))
   keep the title, value, and `= expression` line inside the drawn vessel across
   widths and locales (a height that tracks the measured content, a re-cut
