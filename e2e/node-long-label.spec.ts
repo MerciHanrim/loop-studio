@@ -217,12 +217,20 @@ test.describe('§MML1 — long node labels stay inside the box', () => {
 })
 
 // docs/node-shell-content-in-vessel.md — the rendered content (chip + title +
-// value + `= expr` sub) must sit INSIDE the drawn vessel outline, not just the
-// invisible bounding box. The Parameter / Register capsule paths inset ~12 px
-// top and bottom, so a title + value + sub stack (~54 px) spilled past the
-// outline at both ends while the box stayed pinned at 64 px. The box height now
-// tracks the real stack height + the per-kind vessel inset + a min clear gap.
-test.describe('content ⊂ vessel (node-shell height)', () => {
+// value + `= expr` sub) must sit INSIDE the DRAWN vessel FILL, not just the
+// invisible rectangular bounding box. #167 fixed the VERTICAL case (the box
+// height now tracks the real stack height + vessel inset + a clear gap), but
+// the Parameter / Register left+right edges are ROUNDED and the SVG viewBox is
+// a fixed `0 0 120 H` while the CSS box width varies, so on a wide node a
+// content corner could still sit inside the bbox yet OUTSIDE the rounded fill.
+// The follow-up re-cut both silhouettes to near-full-width rounded rectangles
+// and gave the two bodies a width-scaled `padding-inline`, so every content
+// corner is now path-verified inside the fill with a CSS-px safety margin.
+test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
+  // long titles are widened by a unit / expr so they wrap to ≤ 2 lines and
+  // never hit MAX_NODE_H (that ceiling clamp is a separate, pre-existing
+  // tradeoff — asserted against below so a fixture that starts clamping fails
+  // loudly instead of silently changing what this test exercises).
   const SHELL = JSON.stringify({
     schema: 'loop-studio/graph',
     version: 1,
@@ -232,49 +240,165 @@ test.describe('content ⊂ vessel (node-shell height)', () => {
       { id: 'src', type: 'source', position: { x: 560, y: 40 }, data: { kind: 'source', label: 'Activity', activation: 'automatic', mode: 'pushAny' } },
       { id: 'param', type: 'parameter', position: { x: 40, y: 240 }, data: { kind: 'parameter', label: 'Daily rate', value: 12.5, unit: 'kKRW/day' } },
       { id: 'paramBare', type: 'parameter', position: { x: 300, y: 240 }, data: { kind: 'parameter', label: 'Target', value: 100 } },
+      // wide parameter — a long title + a big value + unit push it near its
+      // widest, so the rounded left/right corners are exercised
+      { id: 'paramWide', type: 'parameter', position: { x: 560, y: 240 }, data: { kind: 'parameter', label: 'Projected operating margin', value: 3468.2, unit: 'kKRW/day' } },
       { id: 'regNoExpr', type: 'register', position: { x: 40, y: 440 }, data: { kind: 'register', label: 'X', expr: '1', format: 'integer' } },
       { id: 'regExpr', type: 'register', position: { x: 300, y: 440 }, data: { kind: 'register', label: 'Net worth', expr: '@poolPlain + @poolCap', format: 'integer' } },
       { id: 'regUnit', type: 'register', position: { x: 620, y: 440 }, data: { kind: 'register', label: 'Progress to target', expr: '@poolCap / @paramBare', format: 'percent', unit: '%' } },
+      // the worst case: a long `= expr` (no break opportunity) drives the node
+      // to its 260 px max-width, so the content bbox reaches deepest toward
+      // BOTH rounded ends
+      { id: 'regWide', type: 'register', position: { x: 40, y: 640 }, data: { kind: 'register', label: 'Bleed rate', expr: '@poolPlain + @poolCap + @regExpr - 300 + @poolCap - @regNoExpr + 42', format: 'integer' } },
     ],
     edges: [],
   })
 
-  async function spills(page: Page) {
+  // For every parameter / register node: map the 4 corners of the content AABB
+  // (`.nodef__stack`) AND the 4 corners of `.nodef__chip` into viewBox space and
+  // walk each one OUTWARD (away from the node centre) against `.nodef__fill`
+  // (`SVGGeometryElement.isPointInFill`). Reports the smallest surviving margin
+  // in CSS px. A negative margin = that corner is already outside the fill.
+  async function fillMargins(page: Page) {
     return page.evaluate(() => {
-      const out: Record<string, { kind: string; top: number; bot: number }> = {}
+      const out: Record<
+        string,
+        { kind: string; w: number; h: number; boxH: number; minMarginCss: number; clamped: boolean; subEllipsis: boolean }
+      > = {}
       for (const nf of document.querySelectorAll<HTMLElement>('.react-flow__node')) {
         const id = nf.getAttribute('data-id')!
-        const kind = (nf.querySelector('.nodef')?.className.match(/nodef--(\w+)/) || [])[1]
-        const stroke = nf.querySelector('.nodef__stroke') as SVGPathElement // the DRAWN outline
-        // `.nodef__stack` is the real rendered content AABB (chip / title /
-        // value / `= expr` sub, tightly wrapped)
+        const el = nf.querySelector('.nodef') as HTMLElement | null
+        if (!el) continue
+        const kind = (el.className.match(/nodef--(\w+)/) || [])[1]
+        if (kind !== 'parameter' && kind !== 'register') continue
+        const svg = nf.querySelector('.nodef__shape') as SVGSVGElement
+        const fill = nf.querySelector('.nodef__fill') as SVGGeometryElement
         const stack = nf.querySelector('.nodef__stack') as HTMLElement
-        if (!stroke || !stack) continue
-        const v = stroke.getBoundingClientRect()
-        const s = stack.getBoundingClientRect()
-        // positive spill = content AABB past the outline (vertical is the bug
-        // this fixes; sideways is covered by the §MML1 tests above)
-        out[id] = { kind, top: +(v.top - s.top).toFixed(1), bot: +(s.bottom - v.bottom).toFixed(1) }
+        const chip = nf.querySelector('.nodef__chip') as HTMLElement
+        const sub = nf.querySelector('.nodef__sub') as HTMLElement | null
+        const vb = svg.viewBox.baseVal
+        const box = svg.getBoundingClientRect()
+        const sx = box.width / vb.width
+        const sy = box.height / vb.height
+        const toVB = (cx: number, cy: number) => ({
+          x: vb.x + ((cx - box.left) / box.width) * vb.width,
+          y: vb.y + ((cy - box.top) / box.height) * vb.height,
+        })
+        const cornersVB = (elm: Element) => {
+          const r = elm.getBoundingClientRect()
+          const a = toVB(r.left, r.top)
+          const b = toVB(r.right, r.bottom)
+          return [
+            { x: a.x, y: a.y },
+            { x: b.x, y: a.y },
+            { x: b.x, y: b.y },
+            { x: a.x, y: b.y },
+          ]
+        }
+        const pts = [...cornersVB(stack), ...cornersVB(chip)]
+        const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
+        const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
+        const P = svg.createSVGPoint()
+        const inside = (x: number, y: number) => {
+          P.x = x
+          P.y = y
+          return fill.isPointInFill(P)
+        }
+        let minMarginCss = Infinity
+        for (const p of pts) {
+          const dx = Math.sign(p.x - cx)
+          const dy = Math.sign(p.y - cy)
+          if (!inside(p.x, p.y)) {
+            minMarginCss = -0.5
+            break
+          }
+          let m = 0
+          for (let k = 0.25; k <= 16; k += 0.25) {
+            if (!inside(p.x + dx * (k / sx), p.y + dy * (k / sy))) break
+            m = k
+          }
+          minMarginCss = Math.min(minMarginCss, m)
+        }
+        const title = nf.querySelector('.nodef__title') as HTMLElement | null
+        const value = nf.querySelector('.nodef__value') as HTMLElement | null
+        out[id] = {
+          kind,
+          w: Math.round(el.offsetWidth),
+          h: Math.round(el.offsetHeight),
+          boxH: vb.height,
+          minMarginCss: +minMarginCss.toFixed(2),
+          clamped: vb.height >= 120, // MAX_NODE_H.parameter / .register
+          subEllipsis: sub ? sub.scrollWidth > sub.clientWidth + 1 : false,
+          titleEllipsis: title ? title.scrollWidth > title.clientWidth + 1 : false,
+          valueEllipsis: value ? value.scrollWidth > value.clientWidth + 1 : false,
+        }
       }
       return out
     })
   }
 
   for (const loc of ['en', 'ko', 'ja'] as const) {
-    test(`every shell contains its content — ${loc}`, async ({ page }) => {
+    test(`every parameter / register corner is inside the fill — ${loc}`, async ({ page }) => {
       await openApp(page)
       await resetAll(page)
       await page.evaluate((l) => (window as any).__loop.i18n.getState().setLocale(l), loc)
       await importGraph(page, SHELL)
       await page.evaluate(() => document.fonts.ready)
-      await page.waitForTimeout(400)
-      const s = await spills(page)
-      expect(Object.keys(s).length).toBe(8)
+      await page.waitForTimeout(450)
+      const m = await fillMargins(page)
+      // param + paramBare + paramWide + regNoExpr + regExpr + regUnit + regWide
+      expect(Object.keys(m).length).toBe(7)
+      for (const [id, v] of Object.entries(m)) {
+        // the fixture must exercise the curve corners, NOT the MAX_NODE_H clamp
+        expect(v.clamped, `${id} unexpectedly at the height ceiling — re-widen the fixture`).toBe(false)
+        // every stack + chip corner is inside the drawn fill with ≥ 2 CSS px to
+        // spare (measured margin is 3.25 – 3.75; a plain "point in fill" test
+        // would pass with zero clearance, which is the bug this replaces)
+        expect(
+          v.minMarginCss,
+          `${id} (${v.kind}, ${v.w}px) nearest content corner vs fill boundary`,
+        ).toBeGreaterThanOrEqual(2)
+        // the title / value / unit never ellipsise (§MML1 — only the `= expr`
+        // sub line may, and only at max width; a NEW title/value clip would mean
+        // the width-scaled inset stole readable space)
+        expect(v.titleEllipsis, `${id} title must not clip`).toBe(false)
+        expect(v.valueEllipsis, `${id} value must not clip`).toBe(false)
+      }
+      // the 260 px register ellipsises its long `= expr` — the documented cost
+      // of the width-scaled inset (docs/node-shell-content-in-vessel.md)
+      expect(m.regWide.w).toBeGreaterThanOrEqual(240)
+      expect(m.regWide.subEllipsis, 'regWide expr ellipsises at max width').toBe(true)
+    })
+  }
+
+  // #167 regression — the vertical containment it fixed must still hold: the
+  // content AABB clears the drawn stroke top and bottom.
+  for (const loc of ['en', 'ko', 'ja'] as const) {
+    test(`content clears the vessel top / bottom — ${loc}`, async ({ page }) => {
+      await openApp(page)
+      await resetAll(page)
+      await page.evaluate((l) => (window as any).__loop.i18n.getState().setLocale(l), loc)
+      await importGraph(page, SHELL)
+      await page.evaluate(() => document.fonts.ready)
+      await page.waitForTimeout(450)
+      const s = await page.evaluate(() => {
+        const out: Record<string, { kind: string; top: number; bot: number }> = {}
+        for (const nf of document.querySelectorAll<HTMLElement>('.react-flow__node')) {
+          const id = nf.getAttribute('data-id')!
+          const kind = (nf.querySelector('.nodef')?.className.match(/nodef--(\w+)/) || [])[1]
+          const stroke = nf.querySelector('.nodef__stroke') as SVGPathElement
+          const stack = nf.querySelector('.nodef__stack') as HTMLElement
+          if (!stroke || !stack) continue
+          const v = stroke.getBoundingClientRect()
+          const c = stack.getBoundingClientRect()
+          out[id] = { kind, top: +(v.top - c.top).toFixed(1), bot: +(c.bottom - v.bottom).toFixed(1) }
+        }
+        return out
+      })
+      expect(Object.keys(s).length).toBe(10)
       for (const [id, v] of Object.entries(s)) {
-        // the chip's top and the sub/value's bottom clear the drawn outline by
-        // ≥ 3 px (VESSEL_MIN_PAD_Y = 4 design px, minus render tolerance)
-        expect(v.top, `${id} (${v.kind}) content top vs outline`).toBeLessThanOrEqual(-3)
-        expect(v.bot, `${id} (${v.kind}) content bottom vs outline`).toBeLessThanOrEqual(-3)
+        expect(v.top, `${id} (${v.kind}) content top vs stroke`).toBeLessThanOrEqual(-3)
+        expect(v.bot, `${id} (${v.kind}) content bottom vs stroke`).toBeLessThanOrEqual(-3)
       }
     })
   }

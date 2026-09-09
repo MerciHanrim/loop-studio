@@ -28,14 +28,18 @@ const HISTORIC: Record<NodeKind, string> = {
   converter:
     'M14 8 H106 Q112 8 112 14 L82 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L38 32 L8 14 Q8 8 14 8 Z',
   end: 'M28 8 H92 Q112 8 112 32 Q112 56 92 56 H28 Q8 56 8 32 Q8 8 28 8 Z',
-  parameter: 'M40 12 H100 Q108 12 108 20 V44 Q108 52 100 52 H40 L28 40 H18 V24 H28 L40 12 Z',
-  register: 'M30 12 H98 Q116 12 116 32 Q116 52 98 52 H30 Q14 52 14 32 Q14 12 30 12 Z',
+  parameter: 'M14 12 H106 Q112 12 112 18 V46 Q112 52 106 52 H14 Q8 52 8 46 V40 H1 V24 H8 V18 Q8 12 14 12 Z',
+  register: 'M14 12 H110 Q118 12 118 32 Q118 52 110 52 H14 Q6 52 6 32 Q6 12 14 12 Z',
 }
 
 // pull every number out of a path string, in order
 const nums = (d: string) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number)
-// the top cap of every shape lives in y ∈ [3, 20] and must not move as h grows
-const topCapYs = (d: string) => nums(d).filter((v, i) => i % 2 === 1 && v <= 20)
+// the top cap of every shape lives in y ∈ [3, 20] and must not move as h grows.
+// It is always drawn by the `M` + the first curve, so only the leading 8
+// numbers are examined — past that a lone `H`/`V` can shift the x/y parity a
+// grown path inserts a vertical-growth command into (a re-cut register with a
+// bottom-edge `H14` would otherwise read its x as a y).
+const topCapYs = (d: string) => nums(d).slice(0, 8).filter((v, i) => i % 2 === 1 && v <= 20)
 
 describe('silhouettePath — base height is byte-identical', () => {
   for (const k of KINDS) {
