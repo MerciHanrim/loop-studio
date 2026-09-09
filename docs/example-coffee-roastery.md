@@ -1079,12 +1079,18 @@ vertical three-band read:
 |---|---|---|
 | `zone_supply` | `{16, 176, 473, 432}` | [16, 176]–[489, 608] |
 | `zone_roasting` | `{516, 136, 719, 612}` | [516, 136]–[1235, 748] |
-| `zone_forecast` | `{1376, -24, 308, 614}` | [1376, -24]–[1684, 590] |
+| `zone_forecast` | `{1376, -24, 308, 634}` | [1376, -24]–[1684, 610] |
 
 - Derived from the **union of the rendered node AABBs across EN / KO / JA** —
   Coffee nodes auto-size to their label, so the boxes differ per locale and each
   frame clears the widest. Every one of the **18** non-Parameter nodes keeps
   ≥ 24 px margin inside exactly one frame.
+- `zone_forecast`'s bottom was extended **+20 px** (`h` 614 → 634) on
+  2026-09-09 after the node-shell height fix
+  (`docs/node-shell-content-in-vessel.md`): a Register now renders at its true
+  content height, so the JA 2-line-title `dessert_prep_margin` grew ~16 px and
+  needed the extra room to keep its ≥ 24 px bottom margin. Top / left / right and
+  the other two zones are unchanged.
 - The **five y = 0 Parameters** sit outside all three (planning inputs, not a
   pipeline stage): frames 1 & 2 start below the Parameter row; frame 3 starts to
   its right. This is why the Register column moved **+80 px** (`rx` 1320 → 1400
@@ -1094,7 +1100,8 @@ vertical three-band read:
   edges**, so no engine / value / wiring effect. It also removes the old
   ~21 px Parameter↔Register overlap.
 - Frame-to-frame gaps: **27 px** (`zone_supply` → `zone_roasting`), **141 px**
-  (`zone_roasting` → `zone_forecast`); frame boxes never overlap.
+  (`zone_roasting` → `zone_forecast` — unchanged by the +20 px bottom
+  extension); frame boxes never overlap.
 - Frame titles render as a chip **above** the frame's top-left corner: flow y
   ≈ 157.6 / 117.6 / -42.4. None is clipped by a node or by the top of the screen
   under the frame-less fit-all (verified at 1280 & 1920 in EN / KO / JA).

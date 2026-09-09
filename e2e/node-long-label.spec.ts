@@ -215,3 +215,80 @@ test.describe('§MML1 — long node labels stay inside the box', () => {
     expect(b.titleRect!.right).toBeLessThanOrEqual(b.nfRect!.right + 1)
   })
 })
+
+// docs/node-shell-content-in-vessel.md — the rendered content (chip + title +
+// value + `= expr` sub) must sit INSIDE the drawn vessel outline, not just the
+// invisible bounding box. The Parameter / Register capsule paths inset ~12 px
+// top and bottom, so a title + value + sub stack (~54 px) spilled past the
+// outline at both ends while the box stayed pinned at 64 px. The box height now
+// tracks the real stack height + the per-kind vessel inset + a min clear gap.
+test.describe('content ⊂ vessel (node-shell height)', () => {
+  const SHELL = JSON.stringify({
+    schema: 'loop-studio/graph',
+    version: 1,
+    nodes: [
+      { id: 'poolPlain', type: 'pool', position: { x: 40, y: 40 }, data: { kind: 'pool', label: 'Wallet', activation: 'passive', initial: 3, capacity: null, mode: 'pullAny' } },
+      { id: 'poolCap', type: 'pool', position: { x: 300, y: 40 }, data: { kind: 'pool', label: 'Savings', activation: 'passive', initial: 34, capacity: 100, mode: 'pullAny' } },
+      { id: 'src', type: 'source', position: { x: 560, y: 40 }, data: { kind: 'source', label: 'Activity', activation: 'automatic', mode: 'pushAny' } },
+      { id: 'param', type: 'parameter', position: { x: 40, y: 240 }, data: { kind: 'parameter', label: 'Daily rate', value: 12.5, unit: 'kKRW/day' } },
+      { id: 'paramBare', type: 'parameter', position: { x: 300, y: 240 }, data: { kind: 'parameter', label: 'Target', value: 100 } },
+      { id: 'regNoExpr', type: 'register', position: { x: 40, y: 440 }, data: { kind: 'register', label: 'X', expr: '1', format: 'integer' } },
+      { id: 'regExpr', type: 'register', position: { x: 300, y: 440 }, data: { kind: 'register', label: 'Net worth', expr: '@poolPlain + @poolCap', format: 'integer' } },
+      { id: 'regUnit', type: 'register', position: { x: 620, y: 440 }, data: { kind: 'register', label: 'Progress to target', expr: '@poolCap / @paramBare', format: 'percent', unit: '%' } },
+    ],
+    edges: [],
+  })
+
+  async function spills(page: Page) {
+    return page.evaluate(() => {
+      const out: Record<string, { kind: string; top: number; bot: number }> = {}
+      for (const nf of document.querySelectorAll<HTMLElement>('.react-flow__node')) {
+        const id = nf.getAttribute('data-id')!
+        const kind = (nf.querySelector('.nodef')?.className.match(/nodef--(\w+)/) || [])[1]
+        const stroke = nf.querySelector('.nodef__stroke') as SVGPathElement // the DRAWN outline
+        // `.nodef__stack` is the real rendered content AABB (chip / title /
+        // value / `= expr` sub, tightly wrapped)
+        const stack = nf.querySelector('.nodef__stack') as HTMLElement
+        if (!stroke || !stack) continue
+        const v = stroke.getBoundingClientRect()
+        const s = stack.getBoundingClientRect()
+        // positive spill = content AABB past the outline (vertical is the bug
+        // this fixes; sideways is covered by the §MML1 tests above)
+        out[id] = { kind, top: +(v.top - s.top).toFixed(1), bot: +(s.bottom - v.bottom).toFixed(1) }
+      }
+      return out
+    })
+  }
+
+  for (const loc of ['en', 'ko', 'ja'] as const) {
+    test(`every shell contains its content — ${loc}`, async ({ page }) => {
+      await openApp(page)
+      await resetAll(page)
+      await page.evaluate((l) => (window as any).__loop.i18n.getState().setLocale(l), loc)
+      await importGraph(page, SHELL)
+      await page.evaluate(() => document.fonts.ready)
+      await page.waitForTimeout(400)
+      const s = await spills(page)
+      expect(Object.keys(s).length).toBe(8)
+      for (const [id, v] of Object.entries(s)) {
+        // the chip's top and the sub/value's bottom clear the drawn outline by
+        // ≥ 3 px (VESSEL_MIN_PAD_Y = 4 design px, minus render tolerance)
+        expect(v.top, `${id} (${v.kind}) content top vs outline`).toBeLessThanOrEqual(-3)
+        expect(v.bot, `${id} (${v.kind}) content bottom vs outline`).toBeLessThanOrEqual(-3)
+      }
+    })
+  }
+
+  test('a Source / plain Pool are unchanged — still the 64 px base box', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, SHELL)
+    await page.waitForTimeout(300)
+    const h = await page.evaluate(() => ({
+      src: (document.querySelector('.react-flow__node[data-id="src"] .nodef') as HTMLElement).offsetHeight,
+      poolPlain: (document.querySelector('.react-flow__node[data-id="poolPlain"] .nodef') as HTMLElement).offsetHeight,
+    }))
+    expect(h.src).toBe(64)
+    expect(h.poolPlain).toBe(64)
+  })
+})

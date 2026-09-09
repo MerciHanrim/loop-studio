@@ -309,5 +309,10 @@ export const COFFEE_ROASTERY_MC = {
 export const COFFEE_ROASTERY_FRAMES = [
   { id: 'zone_supply', label: 'Supply & inventory', rect: { x: 16, y: 176, w: 473, h: 432 } },
   { id: 'zone_roasting', label: 'Roasting & sales', rect: { x: 516, y: 136, w: 719, h: 612 } },
-  { id: 'zone_forecast', label: 'Forecast metrics', rect: { x: 1376, y: -24, w: 308, h: 614 } },
+  // bottom extended +20 (614 → 634) after the node-shell height fix
+  // (docs/node-shell-content-in-vessel.md): a Register now renders at its true
+  // content height, so the JA 2-line-title `dessert_prep_margin` grew ~16px and
+  // needed the frame to keep its ≥24 px bottom margin (§CR17). Top / left /
+  // right and the other two zones are unchanged.
+  { id: 'zone_forecast', label: 'Forecast metrics', rect: { x: 1376, y: -24, w: 308, h: 634 } },
 ] as const

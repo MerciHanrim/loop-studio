@@ -8,7 +8,13 @@ import {
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
-import { BASE_NODE_H, clampNodeHeight, silhouettePath } from './silhouette'
+import {
+  BASE_NODE_H,
+  clampNodeHeight,
+  silhouettePath,
+  VESSEL_INSET_Y,
+  VESSEL_MIN_PAD_Y,
+} from './silhouette'
 import { formatRegisterValue, readParameterData, readRegisterData } from '../../model/model'
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
@@ -141,30 +147,29 @@ function NodeFrame({
   const isSelected = useGraphStore((s) => s.selectedNodeId === nodeId)
   const frameRef = useRef<HTMLDivElement>(null)
 
-  // docs/mmo-multilingual-layout.md §MML1b — the body grows once a title wraps
-  // to two lines. Measure the resolved box height (layout px, pre-zoom — the
-  // React Flow zoom transform is on an ancestor), clamp it to this kind's
-  // silhouette range, and redraw the vessel + handles at that height. The
-  // ResizeObserver settles in one pass: the SVG is `position: absolute`, so a
-  // viewBox change never feeds back into the box height.
+  // docs/mmo-multilingual-layout.md §MML1b + docs/node-shell-content-in-vessel.md —
+  // the box height is driven by the RENDERED content, so the stack always sits
+  // inside the DRAWN vessel (not the 64px bounding box): the vessel path insets
+  // its own top/bottom caps (`VESSEL_INSET_Y`) and a `parameter` / `register`
+  // capsule is only ~40px tall inside the 64px box, so a title + value + `= expr`
+  // stack spilled past the outline at both ends. Measure `.nodef__stack`'s real
+  // height, add the vessel inset + a min clear gap top and bottom, clamp to the
+  // kind's silhouette range, and redraw the vessel + handles at that height.
+  // `clampNodeHeight` floors at `BASE_NODE_H`, so a short node (Source / Drain /
+  // Gate, a plain Pool) is byte-identical to before. The ResizeObserver settles
+  // in one pass: the SVG is `position: absolute`, so a viewBox change never
+  // feeds back into the box height.
   const updateNodeInternals = useUpdateNodeInternals()
   const stackRef = useRef<HTMLDivElement>(null)
-  const titleRef = useRef<HTMLSpanElement>(null)
   const [boxH, setBoxH] = useState(BASE_NODE_H)
   useLayoutEffect(() => {
     const stack = stackRef.current
-    const label = titleRef.current
-    if (!stack || !label) return
+    if (!stack) return
     const read = () => {
-      // The box only grows once the TITLE actually wraps (offsetHeight past ~1.5
-      // lines). A one-line title + a `sub` line stays at the 64px base — its
-      // content sits within the vessel exactly as before. When the title wraps,
-      // the box takes the real content height + the body's 12px padding + a few
-      // px of breathing room, clamped to this kind's silhouette range.
-      const oneLine = label.offsetHeight < 24
-      const next = oneLine
-        ? BASE_NODE_H
-        : clampNodeHeight(kind, stack.offsetHeight + 12 + 4)
+      const next = clampNodeHeight(
+        kind,
+        stack.offsetHeight + VESSEL_INSET_Y[kind] + 2 * VESSEL_MIN_PAD_Y,
+      )
       setBoxH((prev) => (Math.abs(prev - next) > 0.5 ? next : prev))
     }
     read()
@@ -320,10 +325,7 @@ function NodeFrame({
         <div className="nodef__stack" ref={stackRef}>
         <span className="nodef__head">
           <span className="nodef__chip" />
-          <span
-            className={phrased ? 'nodef__title nodef__title--phrased' : 'nodef__title'}
-            ref={titleRef}
-          >
+          <span className={phrased ? 'nodef__title nodef__title--phrased' : 'nodef__title'}>
             {titleNode}
           </span>
         </span>

@@ -15,6 +15,29 @@ import type { NodeKind } from '../../model/types'
 /** The design height every silhouette was drawn at. */
 export const BASE_NODE_H = 64
 
+/** How many px the drawn vessel path leaves EMPTY at the top + bottom of its
+ *  `0 0 120 H` viewBox — the `y` where the top cap's straight run begins and
+ *  `H − y` where the bottom cap's begins, summed (independent of `H`, since
+ *  `silhouettePath` keeps the cap offsets fixed and only stretches the middle).
+ *  The body's content must be laid out to `H − VESSEL_INSET_Y[kind]`, not the
+ *  full box, or a stack taller than that inner height spills past the outline
+ *  (worst for `parameter` / `register`: a 40px vessel inside the 64px box). */
+export const VESSEL_INSET_Y: Record<NodeKind, number> = {
+  pool: 12, // path y 6 … H−6
+  source: 16, // y 8 … H−8
+  drain: 16, // y 8 … H−8
+  gate: 6, // diamond apexes y 3 … H−3
+  converter: 16, // y 8 … H−8
+  end: 16, // y 8 … H−8
+  parameter: 24, // tag body y 12 … H−12
+  register: 24, // capsule y 12 … H−12
+}
+
+/** Minimum clear gap (px) the design keeps between the rendered content's
+ *  top / bottom edge and the vessel outline. Pinned so the `content ⊂ vessel`
+ *  e2e can assert it. */
+export const VESSEL_MIN_PAD_Y = 4
+
 /** Per-kind ceiling on the rendered height. `gate` / `converter` carry an
  *  identity centre form (diamond / waisted hourglass); past this the middle
  *  angle gets too steep and the shape stops reading, so the box stops growing
