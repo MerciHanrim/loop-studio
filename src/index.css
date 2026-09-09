@@ -1015,6 +1015,33 @@ a.sheet__row {
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
+/* docs/register-expression-authoring.md §RXA3.4 — the Inspector expression
+   reference "peek": a wide, soft, shape-hugging halo drawn UNDER the crisp
+   outline and every run / selection / focus cue. Transient preview only. */
+.nodef__peek {
+  fill: none;
+  stroke: var(--state-focus);
+  stroke-width: 7;
+  stroke-opacity: 0.32;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+@media (forced-colors: active) {
+  /* a translucent wash is unreliable under a UA colour override — fall back to
+     a plain dashed outline */
+  .nodef__peek {
+    stroke: CanvasText;
+    stroke-opacity: 1;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nodef__peek {
+    transition: none;
+  }
+}
 /* state: keyboard focus — DASHED ring, scaled INSIDE the selection ring so
    both read at once (§VL3 stacking: "focus inside selected"); solid-vs-dashed
    is the non-colour tell. */
@@ -3150,6 +3177,140 @@ a.sheet__row {
 .field__hint--bad {
   color: var(--state-warning);
 }
+
+/* docs/register-expression-authoring.md §RXA3 — the reference-aware Register
+   expression editor: the `@` picker popover + the two read-back lines. */
+.regexpr {
+  position: relative;
+}
+/* the `@` autocomplete listbox (also used by EdgeFlowField, §RXA7) */
+.regref {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  margin: 2px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  box-shadow: var(--elev-popover, 0 6px 20px rgb(0 0 0 / 0.18));
+}
+.regref__opt {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.regref__opt.is-active {
+  background: var(--surface-sunk, rgb(0 0 0 / 0.06));
+}
+.regref__opt.is-blocked {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+.regref__name {
+  color: var(--text-primary);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.regref__kind {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.regref__val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.regref__reason {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  color: var(--state-warning);
+}
+.regref__empty,
+.regref__more {
+  padding: 6px 7px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* the name read-back (line 1) + value breakdown (line 2), shown together */
+.regrb {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.regrb--parse {
+  color: var(--state-warning);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.regrb--empty {
+  color: var(--text-tertiary);
+}
+.regrb__line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.regrb__line--meaning {
+  color: var(--text-primary);
+}
+.regrb__line--result {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.regrb__line--bad {
+  color: var(--state-warning);
+}
+.regrb__op {
+  white-space: pre-wrap;
+}
+.regrb__chip {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--surface-sunk, rgb(0 0 0 / 0.06));
+  color: var(--text-primary);
+  cursor: default;
+}
+.regrb__chip:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 1px;
+}
+.regrb__chip--warn {
+  background: color-mix(in srgb, var(--state-warning) 18%, transparent);
+  color: var(--state-warning);
+}
+.regrb__valref {
+  white-space: nowrap;
+}
+.regrb__valname {
+  color: var(--text-tertiary);
+}
+.regrb__num {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+.regrb__total {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.regrb__total--bad {
+  color: var(--state-warning);
+}
+
 .inspector__legacy {
   display: flex;
   flex-direction: column;

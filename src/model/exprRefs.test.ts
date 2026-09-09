@@ -108,6 +108,10 @@ describe('readBackExpr', () => {
     expect(rb.meaning.map((t) => (t.t === 'ref' ? t.name : t.s)).join('')).toBe('Wallet + Savings · Pool')
     expect(rb.result.kind).toBe('value')
     if (rb.result.kind === 'value') {
+      // §RXA3.3 line 2 — `<name> <value>` per reference
+      expect(rb.result.parts.map((t: any) => (t.t === 'val' ? `${t.name} ${t.s}` : t.s)).join('')).toBe(
+        'Wallet 3 + Savings · Pool 34',
+      )
       expect(rb.result.parts.map((t: any) => (t.t === 'val' ? t.s : t.s)).join('')).toBe('3 + 34')
       expect(rb.result.total).toBe('= 37')
     }

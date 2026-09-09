@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   parseActivatorExpr,
   parseDelay,
@@ -7,10 +7,8 @@ import {
   type ActivatorParse,
   type LabelParse,
 } from '../engine'
-import { parseExpr } from '../model/expr'
 import {
   BUILTIN_RESOURCE_TYPES,
-  formatRegisterValue,
   isBuiltinResourceType,
   normalizeResourceType,
   RESOURCE_TYPE_MAX_BYTES,
@@ -21,9 +19,8 @@ import {
 } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
-import { useSimStore } from '../store/simStore'
+import { RegisterExprField } from './RegisterExprField'
 import { useT, type MessageKey } from '../i18n'
-import type { ExprParseCode } from '../model/expr'
 import type {
   ConverterData,
   DrainData,
@@ -41,29 +38,6 @@ const ACTIVATIONS = ['passive', 'automatic', 'onStart', 'interactive'] as const
 /** modes the engine executes; `node` (and anything unknown) is inert legacy data */
 const KNOWN_STATE_MODES: readonly StateMode[] = ['trigger', 'activator', 'label']
 
-// docs/localization.md §L7 — a stable diagnostic CODE (shown verbatim by the
-// caller) → the user-facing message key. An unknown code falls back to the
-// generic `error.unknownCode`; a code that needs per-cause wording gets a new
-// key here, never a mutated code string. Every value is a literal so the
-// call-site scan in check-i18n.mjs sees the key as referenced.
-const REG_CODE_KEY: Record<string, MessageKey> = {
-  M_REG_PARSE: 'error.M_REG_PARSE.message',
-  M_REG_EVAL: 'error.M_REG_EVAL.message',
-  M_REG_UNKNOWN_REF: 'error.M_REG_UNKNOWN_REF.message',
-  M_REG_WRONG_KIND: 'error.M_REG_WRONG_KIND.message',
-  M_REG_INVALID_ID: 'error.M_REG_INVALID_ID.message',
-  M_REG_CYCLE: 'error.M_REG_CYCLE.message',
-  M_REG_DEPENDS_ON_INVALID: 'error.M_REG_DEPENDS_ON_INVALID.message',
-}
-const EXPR_CODE_KEY: Record<ExprParseCode, MessageKey> = {
-  EXPR_EMPTY: 'error.EXPR_EMPTY.message',
-  EXPR_SYNTAX: 'error.EXPR_SYNTAX.message',
-  EXPR_UNCLOSED_PAREN: 'error.EXPR_UNCLOSED_PAREN.message',
-  EXPR_UNCLOSED_REF: 'error.EXPR_UNCLOSED_REF.message',
-  EXPR_BAD_ESCAPE: 'error.EXPR_BAD_ESCAPE.message',
-  EXPR_NUMBER_RANGE: 'error.EXPR_NUMBER_RANGE.message',
-  EXPR_BAD_TOKEN: 'error.EXPR_BAD_TOKEN.message',
-}
 // docs/localization.md §L3.4 (refined) — a wire enum's OPTION LABEL is localized
 // UI text; the `<option value>` stays the token, so GraphDoc / digest are
 // unchanged and a locale switch fires no `change`. Raw-data fallback + the
@@ -244,7 +218,14 @@ export function Inspector() {
               flow={ed.flow}
               params={nodes
                 .filter((n) => (n.data as { kind?: string }).kind === 'parameter')
-                .map((n) => ({ id: n.id, label: (n.data as { label?: string }).label || n.id }))}
+                .map((n) => {
+                  const v = (n.data as { value?: unknown }).value
+                  return {
+                    id: n.id,
+                    label: (n.data as { label?: string }).label || n.id,
+                    value: typeof v === 'number' && Number.isFinite(v) ? v : null,
+                  }
+                })}
               onChange={(flow) => setData({ ...ed, kind: 'resource', flow })}
             />
             <ResourceTypeField
@@ -296,10 +277,14 @@ function EdgeFlowField({
   onChange,
 }: {
   flow: string
-  params: { id: string; label: string }[]
+  params: { id: string; label: string; value: number | null }[]
   onChange: (flow: string) => void
 }) {
   const t = useT()
+  // §RXA7 — the picker lists candidates in the same shape as the Register `@`
+  // list (`Name · Parameter · = value`); it still writes a single `@id` and the
+  // rest of the `flow` field (literal entry, status line) is unchanged.
+  const paramKind = t('canvas.nodeKind.parameter')
   const trimmed = flow.trim()
   const isRef = trimmed.startsWith('@')
   const fx = isRef ? parseFlow(flow, 2) : null
@@ -341,7 +326,7 @@ function EdgeFlowField({
           <option value="">{t('inspector.edge.flowParam.literalOption')}</option>
           {params.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.label}
+              {p.label} · {paramKind} · = {p.value == null ? '—' : String(p.value)}
             </option>
           ))}
         </select>
@@ -732,68 +717,23 @@ function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
 
 function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patch }) {
   const t = useT()
-  // A momentarily-unparseable expression (true of nearly every expression at
-  // some point while it's being typed, e.g. "@x * " before the right operand)
-  // is a normal in-progress edit, NOT a corrupt file (that's §R2-1.1's
-  // `readRegisterData` payload gate — unchanged, still guards a genuinely
-  // malformed *loaded* node). `draft` is local-only and never reaches
-  // `set()` — so `updateNodeData`/GraphDoc/simulationRev/digest/dirty — until
-  // it parses; the model always holds the last valid `expr`. Switching to a
-  // different node (or an external undo/redo) resets `draft` from the fresh
-  // `d.expr` prop, so an invalid in-progress draft never leaks across nodes.
-  const [draft, setDraft] = useState(d.expr)
-  useEffect(() => {
-    setDraft(d.expr)
-  }, [id, d.expr])
-  const parsed = parseExpr(draft)
+  // docs/register-expression-authoring.md §RXA3 — the expression field is now
+  // the reference-aware editor: `@` autocomplete + a name read-back + a live
+  // value breakdown. It owns its own `draft`-until-parseable commit gate
+  // (unchanged semantics — local-only until it parses, reset from `d.expr` on a
+  // node switch / undo), so RegisterFields just forwards `set({ expr })`.
   const read = readRegisterData(d)
   const notices = read.ok ? read.notices : []
   const outcome = useRegisterOutcome(id)
-  const stepIndex = useSimStore((s) => s.stepIndex)
   return (
     <>
-      <Field label={t('inspector.field.expression')}>
-        <input
-          value={draft}
-          spellCheck={false}
-          style={{ fontFamily: 'var(--font-mono, monospace)' }}
-          onChange={(e) => {
-            const v = e.target.value
-            setDraft(v)
-            if (parseExpr(v).ok) set({ expr: v })
-          }}
-        />
-      </Field>
-      {!parsed.ok ? (
-        <p className="inspector__note inspector__note--warn">
-          {parsed.error.code} · {t(EXPR_CODE_KEY[parsed.error.code], { column: parsed.error.column })}
-        </p>
-      ) : (
-        parsed.expr.canonical !== draft && (
-          <p className="inspector__note">
-            {t('inspector.register.canonical', { canonical: parsed.expr.canonical })}
-          </p>
-        )
-      )}
-
-      {/* §M3.5 — R(currentStepIndex); §M6.2 — an invalid Register shows NO value */}
-      {outcome && outcome.invalid ? (
-        <p className="inspector__note inspector__note--warn">
-          {t('inspector.register.invalidAtStep', {
-            code: outcome.code,
-            reason: t(REG_CODE_KEY[outcome.code] ?? 'error.unknownCode'),
-            step: stepIndex,
-          })}
-        </p>
-      ) : outcome ? (
-        <p className="inspector__note">
-          {t('inspector.register.valueAtStep', {
-            step: stepIndex,
-            value: formatRegisterValue(outcome.value, d.format),
-          })}{' '}
-          <span className="inspector__hint">{t('inspector.register.recomputed')}</span>
-        </p>
-      ) : null}
+      <RegisterExprField
+        id={id}
+        expr={d.expr}
+        outcome={outcome}
+        onCommit={(expr) => set({ expr })}
+        label={t('inspector.field.expression')}
+      />
 
       <Field label={t('inspector.field.unit')}>
         <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
