@@ -309,7 +309,7 @@ is **not persisted** — a reload mid-tour does not force-resume from the middle
   capped to once per session by the in-memory flag. The unrecognised value is
   **left in place** and never rewritten until the user makes a real choice.
 
-## GT7. The Help menu — `Take a tour` + `About Loop Studio`
+## GT7. The Help menu
 
 Add a small **Help (`?`)** control to the toolbar actions cluster (desktop) and
 an equivalent **row in the More sheet** (mobile). Current entries (desktop and
@@ -428,7 +428,10 @@ and KO `satisfies MessageCatalog`, e.g.:
 - `tour.desktop.<step>.title` / `.body` for steps `pieces` · `canvas` ·
   `inspector` · `playback` · `timeline` · `files`
 - `tour.mobile.<step>.title` / `.body` for the six mobile steps
-- `tour.help.menuLabel` · `tour.help.takeTour` · `tour.help.about`
+- `tour.help.menuLabel` · `tour.help.takeTour` · `tour.help.about` ·
+  `tour.help.feedback` (the "Send feedback" link text — EN/JA note the
+  Korean-only form) · `tour.help.feedbackAria` (its accessible name, which
+  repeats the visible text and adds "opens in a new tab")
 - `about.createdBy` (= `"Created by"` / `"제작:"`), `about.repo` (the GitHub
   link text, `"GitHub repository"` / `"GitHub 저장소"`), `about.repoAria` (its
   accessible name), and `about.notAffiliated` (the Machinations.io sentence).

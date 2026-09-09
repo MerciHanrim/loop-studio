@@ -297,7 +297,7 @@ const ui = {
   'tour.help.takeTour': 'Take a tour',
   'tour.help.about': 'About Loop Studio',
   'tour.help.feedback': 'Send feedback (Korean form)',
-  'tour.help.feedbackAria': 'Send feedback — a Korean-language form, opens in a new tab',
+  'tour.help.feedbackAria': 'Send feedback (Korean form) — opens in a new tab',
   'about.createdBy': 'Created by',
   'about.repo': 'GitHub repository',
   'about.repoAria': 'Loop Studio GitHub repository',

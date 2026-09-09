@@ -297,7 +297,7 @@ const ui = {
   'tour.help.takeTour': '둘러보기',
   'tour.help.about': 'Loop Studio 정보',
   'tour.help.feedback': '피드백 보내기',
-  'tour.help.feedbackAria': '피드백 보내기 — 새 탭에서 양식 열림',
+  'tour.help.feedbackAria': '피드백 보내기 — 새 탭에서 열림',
   'about.createdBy': '제작:',
   'about.repo': 'GitHub 저장소',
   'about.repoAria': 'Loop Studio GitHub 저장소',

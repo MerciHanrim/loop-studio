@@ -272,6 +272,15 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     expect(rel).toContain('noreferrer')
     await expect(link).toHaveAttribute('aria-label', /new tab|새 탭|新しいタブ/)
     await expect(link.locator('.menu__ext')).toHaveAttribute('aria-hidden', 'true')
+
+    // tapping it opens the form in a new tab AND closes the Help sheet (parity
+    // with the desktop menu, which closes on click). The form request is
+    // aborted so CI never actually hits Typeform.
+    await page.context().route('**form.typeform.com**', (r) => r.abort())
+    const [popup] = await Promise.all([page.waitForEvent('popup'), link.click()])
+    await popup.close()
+    await expect(help).toBeHidden()
+    await page.context().unroute('**form.typeform.com**')
   })
 
   test('exclusive overlays: opening one closes any other (Timeline / More / Export / MC dialog)', async ({ page }) => {

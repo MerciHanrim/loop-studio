@@ -484,6 +484,7 @@ export function MobileMoreMenu({
           target="_blank"
           rel="noopener noreferrer"
           aria-label={t('tour.help.feedbackAria')}
+          onClick={() => closeOverlay('help')}
         >
           {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">↗</span>
         </a>
