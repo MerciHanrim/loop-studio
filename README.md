@@ -24,7 +24,7 @@ language menu; the choice is a local UI preference only). Four bundled
 *Capacity deadlock*, *Early MMO progression (levels 1–15)* (97 nodes), and
 *Coffee roastery operations flow*.
 
-> Status: **working preview** — **v0.8.0**. The diagram editor and the
+> Status: **working preview** — **v0.9.0**. The diagram editor and the
 > simulation engine — deterministic,
 > seeded randomness, Monte Carlo, and executable state connections (`trigger` /
 > `activator` / `label`) — are all usable today, plus Workspace Export/Import,
@@ -92,6 +92,18 @@ language menu; the choice is a local UI preference only). Four bundled
 > usability** ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md), `DGP`,
 > real-phone verified) makes a packed graph pannable and pinch-zoomable even
 > when there is no empty canvas left to grab.
+>
+> **New in v0.9.0:** **Register expression authoring** — an `@` autocomplete
+> (Pool / Parameter / Register only; self and any dependent Register are shown
+> disabled with the reason), a two-line read-back that spells a stored formula
+> out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`),
+> and a **`＋ Insert reference`** button that inserts an `@id` at the caret when
+> you click that node on the canvas — `@id` stays the only stored form and the
+> `loop-revision/2` digest is unchanged. **Ordered playback** — a step's
+> transfers now cascade in dependency order with emit / converge / absorb role
+> cues and a "flows continue" **steady-state** chip once the run settles. A
+> **`Send feedback`** entry in the Help menu. And **日本語** as a third shipped
+> locale, loaded as its own chunk on demand.
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -267,7 +279,7 @@ classification, or apply decision depends on them.
   - ✅ Performance ceiling — one global `MAX_PLAYBACK_TOKENS_TOTAL = 60` budget across resource + `trigger` + `label` travelling cues, chosen deterministically and sorted once per transition; `MAX_PLAYBACK_TOKENS = 12` breakdown chips; an idle edge never re-renders on a τ frame
   - ✅ Reproducible demo fixture + QA checklist ([`examples/playback-choreography.json`](examples/README.md)) + `e2e/playback-fixture.spec.ts` + the acceptance matrix (`e2e/playback-*.spec.ts`)
   - ✅ Slower default playback (`v0.8.0`) — a fresh document's per-step beat starts near **1 s** (was ~0.6 s) so the node / edge changes are followable, with one extra slower stop; every faster stop is unchanged. Wall-clock only — the engine result, RNG, and Monte Carlo are untouched, and the speed is not persisted
-  - ✅ Ordered playback cascade + role cues + steady-state ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md), non-`frozen`, no `loop-*/N`) — within one step the transfers now depart / arrive in **dependency order** (staggered `τ` by longest-predecessor depth over the graph's SCC condensation) instead of one simultaneous pulse, with distinct **emit / converge / absorb** cues per role, and a "flows continue" **steady-state** chip once the run settles. Presentation-only — no engine / RNG / state-semantics / GraphDoc / `loop-revision/*` digest / undo change; `settle` stays one atomic commit
+  - ✅ Ordered playback cascade + role cues + steady-state (`v0.9.0`, [`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md), non-`frozen`, no `loop-*/N`) — within one step the transfers now depart / arrive in **dependency order** (staggered `τ` by longest-predecessor depth over the graph's SCC condensation) instead of one simultaneous pulse, with distinct **emit / converge / absorb** cues per role, and a "flows continue" **steady-state** chip once the run settles. Presentation-only — no engine / RNG / state-semantics / GraphDoc / `loop-revision/*` digest / undo change; `settle` stays one atomic commit
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
 - ◐ Productization track — making the tool usable by a general planner, not only its author; a separate track from Onboarding. Design-first: each pass is its own doc and PR
@@ -290,7 +302,7 @@ classification, or apply decision depends on them.
   - ✅ "Coffee roastery operations flow" Template ([`docs/example-coffee-roastery.md`](docs/example-coffee-roastery.md)) — a **simplified operating-flow simulation**, not an ERP or a real-time monitoring system: a small Graph JSON (~23 nodes, one-day step, buy green beans → roast → sell across cafe / retail / online + dessert) shipped as the **4th Templates entry**, opens editable and in the current UI language (English / 한국어 / 日本語) through the label overlay — its node labels and its three **zone-frame titles** alike. The **first bundled `loop-model/2` graph** (schema `loop-studio/graph/2`): its **five surfaced Parameters** are `@param` flow references the engine resolves once per step, so changing any one moves a real stock trajectory — and a Summary of **planning-proxy** Registers (projected daily revenue / cost / operating margin in `kKRW/day`, plus two signed stock-cover proxies), which are projections on the planned levers, not realised or accounting figures. An external comprehension check has run ([`docs/example-coffee-roastery.md`](docs/example-coffee-roastery.md) §CR11.5): the simplified flow, naming, and five levers were understood; a completed before/after explanation of each lever's result direction was not demonstrated, so the result is partial and real-operations suitability is not claimed. No engine / schema / wire change
   - ✅ Example display units — the money Registers above read `kKRW/day`; the Early MMO example's reporting Registers read `gold` / `items` / `units`, its clock Pool is `Elapsed steps` (a step count, not wall time), and its water / food Pools carry a `(units)` suffix. Advisory display hints only — no calculation, trajectory, or Timeline change
   - ✅ Template-load fit — opening a Template now re-fits the camera to the new graph instead of keeping the previous one's pan / zoom (desktop and the mobile More → Templates path). Render-only; a file / Workspace import and manual pan are untouched
-  - ✅ Register expression authoring ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`) — editing a Register formula after unlock no longer means reading and typing raw `@pool_mttqb36u_2` ids. **Slice 1**: an `@` autocomplete listing only Pool / Parameter / Register nodes (self and any dependent Register shown disabled with the reason), a two-line read-back that spells the stored expression out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`), reference chips, and a transient canvas peek halo. **Slice 2**: a `＋ Insert reference` button under the input arms a one-shot mode — the next click on a Pool / Parameter / Register node inserts that node's `@id` at the caret, keeps the same Register selected, returns focus, and is a single undo entry. Presentation-only — `@id` stays the sole stored form and the `loop-revision/2` digest is unchanged (`RXA-INV-1`); English / 한국어 / 日本語
+  - ✅ Register expression authoring (`v0.9.0`, [`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`) — editing a Register formula after unlock no longer means reading and typing raw `@pool_mttqb36u_2` ids. **Slice 1**: an `@` autocomplete listing only Pool / Parameter / Register nodes (self and any dependent Register shown disabled with the reason), a two-line read-back that spells the stored expression out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`), reference chips, and a transient canvas peek halo. **Slice 2**: a `＋ Insert reference` button under the input arms a one-shot mode — the next click on a Pool / Parameter / Register node inserts that node's `@id` at the caret, keeps the same Register selected, returns focus, and is a single undo entry. Presentation-only — `@id` stays the sole stored form and the `loop-revision/2` digest is unchanged (`RXA-INV-1`); English / 한국어 / 日本語
 
 ## Future directions
 
@@ -303,6 +315,38 @@ recorded here so the scope boundary above is explicit rather than implied:
   fluids, particles)
 
 ## Releases
+
+**v0.9.0 — expression authoring, ordered playback & in-app feedback.** Four
+backward-compatible additions on top of v0.8.0 — no engine, schema,
+wire-contract, or digest change, and no new `loop-*/N` id.
+
+- **Register expression authoring** ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`)
+  — editing a Register formula after unlock no longer means reading and typing
+  raw `@pool_mttqb36u_2` ids. An **`@` autocomplete** lists only Pool /
+  Parameter / Register nodes (self and any dependent Register shown disabled
+  with the reason); a **two-line read-back** spells the stored expression out
+  by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`);
+  reference chips and a transient canvas peek halo tie each `@id` back to its
+  node. A **`＋ Insert reference`** button then arms a one-shot mode — the next
+  click on a Pool / Parameter / Register node inserts its `@id` at the caret,
+  keeps the same Register selected, returns focus, and is a single undo entry.
+  Presentation-only: `@id` stays the sole stored form and the `loop-revision/2`
+  digest is unchanged (`RXA-INV-1`). EN / KO / JA.
+- **Ordered playback cascade + steady-state** ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md))
+  — within a step the transfers now depart and arrive in **dependency order**
+  (a staggered `τ` by longest-predecessor depth over the graph's SCC
+  condensation) instead of one simultaneous pulse, with distinct **emit /
+  converge / absorb** cues by role, and a "flows continue" **steady-state**
+  chip once the run settles into a repeating state. Still a display layer only
+  — no engine / RNG / state-semantics / GraphDoc / `loop-revision/*` change,
+  and `settle` stays one atomic commit.
+- **In-app feedback** — a **`Send feedback`** entry in the Help menu (desktop
+  `?` and mobile More → Help) opens the feedback form in a new tab.
+- **日本語 as a third shipped locale** + per-locale lazy-loading — the `ja`
+  catalog and template labels load as their own chunk on demand (`en` stays in
+  the main bundle); the *Early MMO progression* and *Coffee roastery* Templates
+  open in JA, and the Coffee Template's three labelled **zone-frame** titles
+  follow the language switch.
 
 **v0.8.0 — Onboarding, part 2 & the Productization track.** Localization, the
 guided first-run tour, the Early MMO example, and contextual inline help
@@ -328,9 +372,8 @@ new capability.
   discovery past the auto-frame threshold), each re-armable ("Show again next
   time") from a `Contextual help` entry now on both Help surfaces, with a
   three-tier priority and a post-tour cooldown so nothing piles up.
-  *(Since v0.8.0: **日本語** has been added as a third shipped locale, and the
-  Coffee roastery Template now groups its graph into three labelled zone
-  frames whose titles follow the language switch.)*
+  *(日本語, per-locale lazy-loading, and the Coffee Template's zone frames
+  followed after the v0.8.0 tag — see the v0.9.0 notes above.)*
 - **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
   — a global hit-test fix (a node beats an overlapping edge / badge) plus a
   selection-driven 1-hop focus view, ephemeral filters by edge class /
