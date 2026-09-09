@@ -10,7 +10,8 @@ Sections: **§RXA0** why · **§RXA1** scope · **§RXA2** invariants · **§RXA
 Slice 1 — the reference-aware editor · **§RXA4** naming & disambiguation ·
 **§RXA5** keyboard / SR / IME / mobile · **§RXA6** large-graph performance ·
 **§RXA7** `EdgeFlowField` reuse · **§RXA8** Slice 2 — insert from canvas ·
-**§RXA9** acceptance · **§RXA10** decisions · **§RXA11** work order.
+**§RXA8b** operator / paren buttons · **§RXA9** acceptance · **§RXA10**
+decisions · **§RXA11** work order.
 
 ---
 
@@ -258,6 +259,31 @@ peek block is **not** ported — a one-reference `flow` already shows its
   `regExpr.block.{self,cycle}` reused. No grammar / storage / evaluation / digest
   change.
 
+## RXA8b. Operator / paren buttons (shipped, `feat/register-expr-operators`)
+
+Slice 2 made *reference selection* easy, but the arithmetic around a reference
+still assumed the user knew `loop-expr/1`: multiply is `*`, divide is `/`, and
+`+` / `*` want Shift. A short always-visible button row **under the input** —
+`＋ − × ÷ ( )` — inserts them.
+
+- `×` / `÷` write the grammar operators `*` / `/`. Each button's **visible face
+  is the math glyph**; its **accessible name / tooltip** is the localised word
+  (`Multiply — inserts * into the formula`), so the mapping is discoverable.
+- An operator is inserted with **one space on each side**, skipped where the
+  neighbour is already whitespace, or (leading space only) at the very start.
+- `( )` **wraps the current selection** in `( … )`; with no selection it
+  inserts `()` and puts the caret **between** the parens.
+- After any press, **focus and the caret return to the input** (caret just past
+  what was inserted). Keyboard entry of `* / ( )` is unchanged.
+- Pure text edit — it runs the **same draft-until-valid commit gate** as
+  typing, so an incomplete expression stays local, `@id` remains the sole
+  stored form, and the `loop-revision/2` digest is unchanged (RXA-INV-1/5).
+  One press is **one undo entry**; the row is hidden on mobile / under the edit
+  lock with the rest of the field.
+- Pure helper `src/model/exprEdit.ts` `insertOperator(value, start, end, kind)`
+  → `{ value, caret }`; new i18n `regExpr.op.{groupName,add,sub,mul,div,group,inserts,groupTitle,inserted}`
+  (EN / KO / JA). No grammar / storage / evaluation / digest change.
+
 ## RXA9. Acceptance / E2E
 
 Keyed on **node / edge ids**, never rendered labels.
@@ -327,6 +353,20 @@ Keyed on **node / edge ids**, never rendered labels.
     the button's idle + armed labels, the hint, and the block reason are real
     strings in EN / KO / JA.
 
+### §RXA8b operators — `src/model/exprEdit.test.ts` + `e2e/register-expr-operators.spec.ts`
+
+20. **`insertOperator` (unit)** — space on each side, no doubled space, no
+    leading space at index 0; selection replaced; `group` wraps a selection
+    (caret after `)`) or inserts `()` (caret between); indices clamped.
+21. **`×` / `÷` → `*` / `/`** — five buttons; a press writes the grammar
+    operator, at the caret, with spacing; focus + caret return to the input.
+22. **`( )`** — wraps a selection; with none, `()` + caret between.
+23. **Draft-until-valid + undo** — an incomplete result does not commit; one
+    press is one undo entry; keyboard `* / ( )` entry unchanged.
+24. **Desktop-unlocked only** — the edit lock removes the row with the input.
+25. **Localisation** — each button's accessible name is the localised word
+    (not the glyph) in EN / KO / JA; the glyph stays the visible face.
+
 ## RXA10. Decisions
 
 | id | question | decision |
@@ -348,4 +388,7 @@ Keyed on **node / edge ids**, never rendered labels.
 2. **Slice 1 verification** — the §RXA9 acceptance set incl. IME + MMO
    performance, then merge. ✅ shipped (PR #170, `10b846a`).
 3. **Slice 2** — arm-and-click insert a reference from the canvas (§RXA8),
-   behind §RXA9 rows 12–19. ✅ shipped (`feat/register-expr-authoring-slice2`).
+   behind §RXA9 rows 12–19. ✅ shipped (`feat/register-expr-authoring-slice2`,
+   PR #171 → `a02d6ee`).
+4. **§RXA8b operator / paren buttons** — the `＋ − × ÷ ( )` row, behind §RXA9
+   rows 20–25. ✅ shipped (`feat/register-expr-operators`).
