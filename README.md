@@ -95,7 +95,9 @@ language menu; the choice is a local UI preference only). Four bundled
 > out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`),
 > and a **`＋ Insert reference`** button that inserts an `@id` at the caret when
 > you click that node on the canvas — `@id` stays the only stored form and the
-> `loop-revision/2` digest is unchanged. **Ordered playback** — a step's
+> `loop-revision/2` digest is unchanged. **Content-aware Register / Parameter
+> shells** now keep the title, value, and `= expression` line inside the drawn
+> vessel across widths and locales. **Ordered playback** — a step's
 > transfers now cascade in dependency order with emit / converge / absorb role
 > cues and a "flows continue" **steady-state** chip once the run settles. A
 > **`Send feedback`** entry in the Help menu. **日本語** as a third shipped
@@ -321,7 +323,7 @@ recorded here so the scope boundary above is explicit rather than implied:
 backward-compatible additions on top of v0.8.0 — no engine, schema,
 wire-contract, or digest change, and no new `loop-*/N` id.
 
-- **Register expression authoring** ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`)
+- **Register expression authoring & readability** ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`)
   — editing a Register formula after unlock no longer means reading and typing
   raw `@pool_mttqb36u_2` ids. An **`@` autocomplete** lists only Pool /
   Parameter / Register nodes (self and any dependent Register shown disabled
@@ -331,8 +333,13 @@ wire-contract, or digest change, and no new `loop-*/N` id.
   node. A **`＋ Insert reference`** button then arms a one-shot mode — the next
   click on a Pool / Parameter / Register node inserts its `@id` at the caret,
   keeps the same Register selected, returns focus, and is a single undo entry.
-  Presentation-only: `@id` stays the sole stored form and the `loop-revision/2`
-  digest is unchanged (`RXA-INV-1`). EN / KO / JA.
+  Alongside it, **content-aware Register / Parameter shells**
+  ([`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md))
+  keep the title, value, and `= expression` line inside the drawn vessel across
+  widths and locales (a height that tracks the measured content, a re-cut
+  silhouette, and proportional inset padding). Presentation-only: `@id` stays
+  the sole stored form and the `loop-revision/2` digest is unchanged
+  (`RXA-INV-1`). EN / KO / JA.
 - **Ordered playback cascade + steady-state** ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md))
   — within a step the transfers now depart and arrive in **dependency order**
   (a staggered `τ` by longest-predecessor depth over the graph's SCC
