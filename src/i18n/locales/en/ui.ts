@@ -48,6 +48,7 @@ const ui = {
   'playbar.mc.progress': 'Monte Carlo {pct}%',
   'playbar.mc.progress.title': 'Monte-Carlo run in progress',
   'playbar.cancel': 'Cancel',
+  'playbar.steady': 'Steady state — flows continue',
   'playbar.timeline.show': 'Show timeline',
   'playbar.timeline.hide': 'Hide timeline',
   'runbar.ariaLabel': 'Run controls',

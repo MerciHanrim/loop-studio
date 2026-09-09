@@ -2386,6 +2386,8 @@ body {
   font-size: 12px;
   color: var(--text-secondary);
   flex: none;
+  /* anchor for the out-of-flow §PBO5 steady-state chip */
+  position: relative;
   /* on a narrow desktop (canvas column shrunk by the Inspector) the controls
      don't fit one row — especially in a CJK locale. Wrap whole control groups
      to a second row rather than overflowing the column under the Inspector. */
@@ -2470,6 +2472,35 @@ body {
 .pstrip__collapse {
   margin-left: auto;
   padding: 3px 8px;
+}
+
+/* docs/simulation-playback-ordering.md §PBO5 — "Steady state — flows continue".
+   Absolutely positioned so it never shifts a control or the strip height,
+   appearing or not; anchored just left of the collapse toggle, vertically
+   centred. Always in the DOM (so its box can be measured for the overlap
+   guard); `.is-on` reveals it only when it is steady, running, AND fits with
+   no control overlap — otherwise it stays measured-but-invisible. */
+.pstrip__steady {
+  position: absolute;
+  right: 46px; /* clears the collapse toggle; sits in the MC↔collapse gap */
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 46%;
+  padding: 2px 7px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 999px;
+  background: var(--surface-raised, var(--surface-panel));
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  visibility: hidden;
+}
+.pstrip__steady.is-on {
+  visibility: visible;
 }
 
 /* ==== A — timeline chart (separate observation panel, not canvas) ======= */

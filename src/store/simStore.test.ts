@@ -212,3 +212,94 @@ describe('timelineSeries — immediate autosave into the graph record', () => {
     expect(Object.keys(rec().recommendedRunConfig)).toEqual(['timelineSeries'])
   })
 })
+
+// docs/simulation-playback-ordering.md §PBO5 — steady-state detection.
+describe('steadyState — §PBO5', () => {
+  /** Source ─N→ Pool ─all→ Drain — settles to a fixed point after the drain
+   *  starts pulling; from then on pools + flow are constant every step. */
+  function fixedPointGraph(n = 4) {
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('pool', { x: 200, y: 0 })
+    g.addNodeAt('drain', { x: 400, y: 0 })
+    const [src, pool, drn] = useGraphStore.getState().nodes
+    const gs = useGraphStore.getState()
+    gs.onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
+    gs.onConnect({ source: pool.id, target: drn.id, sourceHandle: 'out', targetHandle: 'in' })
+    const edges = useGraphStore.getState().edges
+    const sp = edges.find((e) => e.source === src.id)!
+    const pd = edges.find((e) => e.source === pool.id)!
+    useGraphStore.getState().setEdgeData(sp.id, { kind: 'resource', flow: String(n) })
+    useGraphStore.getState().setEdgeData(pd.id, { kind: 'resource', flow: 'all' })
+    return { srcId: src.id, poolId: pool.id }
+  }
+
+  /** advance until steady (bounded), returning the committed step it flipped on */
+  function runToSteady(max = 10) {
+    for (let i = 1; i <= max; i++) {
+      sim().advance()
+      if (sim().steadyState) return i
+    }
+    return -1
+  }
+
+  it('cannot be steady before 3 committed steps; becomes true at a fixed point and holds', () => {
+    fixedPointGraph()
+    expect(sim().steadyState).toBe(false)
+    sim().advance()
+    sim().advance()
+    expect(sim().steadyState).toBe(false) // only 2 samples — never enough
+    expect(runToSteady()).toBeGreaterThan(0) // reaches steady
+    sim().advance()
+    sim().advance()
+    expect(sim().steadyState).toBe(true) // holds across further steps
+  })
+
+  it('a simulation-relevant graph edit clears the window and the verdict', () => {
+    const { poolId } = fixedPointGraph()
+    expect(runToSteady()).toBeGreaterThan(0)
+    // change the inflow expression — a real simulationRev bump → sim resets
+    const spId = useGraphStore.getState().edges.find((e) => e.target === poolId)!.id
+    useGraphStore.getState().setEdgeData(spId, { kind: 'resource', flow: '7' })
+    expect(sim().steadyState).toBe(false)
+    expect(sim().stepIndex).toBe(0) // the sim reset too
+  })
+
+  it('reset() and setSeed() both clear it', () => {
+    fixedPointGraph()
+    expect(runToSteady()).toBeGreaterThan(0)
+    sim().reset()
+    expect(sim().steadyState).toBe(false)
+
+    expect(runToSteady()).toBeGreaterThan(0)
+    sim().setSeed(sim().seed + 1)
+    expect(sim().steadyState).toBe(false)
+  })
+
+  it('a prepared step that fails the commit ladder never enters the window', () => {
+    fixedPointGraph()
+    expect(runToSteady()).toBeGreaterThan(0)
+    const p = sim().armPrepared(sim().prepareTransition())
+    sim().reset() // bumps commitEpoch, empties the window + clears the flag
+    expect(sim().commitPrepared(p)).not.toBe('committed')
+    expect(sim().steadyState).toBe(false)
+  })
+
+  it('is not steady while flow continues but a pool balance is still climbing', () => {
+    // Source ─2→ Pool(cap 100), no outflow: pool rises 2 per step forever
+    const g = useGraphStore.getState()
+    g.newGraph()
+    g.addNodeAt('source', { x: 0, y: 0 })
+    g.addNodeAt('pool', { x: 200, y: 0 })
+    const [src, pool] = useGraphStore.getState().nodes
+    useGraphStore.getState().updateNodeData(pool.id, { capacity: 100 })
+    useGraphStore
+      .getState()
+      .onConnect({ source: src.id, target: pool.id, sourceHandle: 'out', targetHandle: 'in' })
+    const e = useGraphStore.getState().edges[0]
+    useGraphStore.getState().setEdgeData(e.id, { kind: 'resource', flow: '2' })
+    for (let i = 0; i < 6; i++) sim().advance()
+    expect(sim().steadyState).toBe(false) // pool vector keeps changing
+  })
+})

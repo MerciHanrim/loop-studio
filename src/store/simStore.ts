@@ -4,6 +4,7 @@ import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQue
 import { MAX_SERIES } from '../model/limits'
 import { bootTimelineSeries, setAutosaveTimelineSeries, useGraphStore } from './graphStore'
 import { computeStagger } from './playbackRank'
+import { flowTotals, isSteady, STEADY_N, type SteadySample } from './steadyState'
 
 // docs/large-graph-readability.md §LGR6-cues — the trailing Activity-overlay
 // window length. Kept in sync with `ACTIVITY_WINDOW` in
@@ -91,6 +92,14 @@ type SimStore = {
   stateEvents: StateEvent[]
   /** pools that received resources on the last step — drives the arrival cue */
   arrivedPoolIds: string[]
+
+  /** docs/simulation-playback-ordering.md §PBO5 — true once the last
+   *  `STEADY_N` consecutive committed steps have a pairwise-ε-equal Pool vector
+   *  AND edge-flow vector AND each carries positive flow. Session-only,
+   *  presentation-only: read by the PlayBar "Steady state — flows continue"
+   *  chip; never serialized, no digest / undo / autosave effect. Cleared on
+   *  reset / snapshot restore / graph edit / seed change. */
+  steadyState: boolean
 
   /** docs/large-graph-readability.md §LGR6-cues — the opt-in Activity overlay's
    *  history: a ring buffer (OLDEST first, ≤ 8 entries) of the ids that were
@@ -199,6 +208,10 @@ let nextTransitionId = 1
 let prepared: PreparedTransition | null = null
 let tauStartedAt = 0
 let arriveFired = false
+// §PBO5 — the last ≤ STEADY_N committed samples. Module-private (only the
+// derived `steadyState` boolean is reactive). A prepared step that fails the
+// commit ladder never enters this window.
+let steadyWindow: SteadySample[] = []
 
 const now = (): number =>
   typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -301,11 +314,25 @@ export const useSimStore = create<SimStore>((set, get) => {
     ) {
       return 'stale'
     }
+    // §PBO5 — the steady-state verdict for the step about to commit. Computed as
+    // a CANDIDATE here; `steadyWindow` is only replaced on the `'committed'`
+    // path below, so a step that never commits never enters the window.
+    const nextWindow = [
+      ...steadyWindow,
+      {
+        step: p.toState.step,
+        pools: p.toState.values,
+        flow: flowTotals(p.derived.events), // raw Σ FlowEvent.amount per edge
+      } satisfies SteadySample,
+    ].slice(-STEADY_N)
+    const nextSteadyState = isSteady(nextWindow)
+
     // one atomic transaction (§PB1.2 / PB-INV-2). `p.toState` / `p.derived` are
     // frozen (dev); everything is copied by value / reference into fresh fields.
     set((s) => ({
       values: p.toState.values,
       stepIndex: p.toState.step,
+      steadyState: nextSteadyState,
       triggerQueue: [...p.toState.triggerQueue],
       activeByEdge: { ...p.derived.activeByEdge },
       firedNodeIds: [...p.derived.firedNodeIds],
@@ -332,6 +359,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       activeTransitionId: null,
       transition: null,
     }))
+    steadyWindow = nextWindow // reached only on a successful commit
     return 'committed'
   }
 
@@ -480,6 +508,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     stateEvents: [],
     arrivedPoolIds: [],
     activitySteps: [],
+    steadyState: false,
     series: [],
     // seeded from the autosave record (serialize.ts) so a plain reload keeps the
     // Timeline legend's visible set; 'all' when the record has none.
@@ -528,6 +557,8 @@ export const useSimStore = create<SimStore>((set, get) => {
 
     reset: () => {
       discardTransition()
+      steadyWindow = [] // §PBO5 — covers Reset, setSeed (calls reset), and every
+      // graph edit / template load (the simulationRev subscription calls reset)
       const init = initSim(graph().nodes)
       set((s) => ({
         status: 'idle',
@@ -540,6 +571,7 @@ export const useSimStore = create<SimStore>((set, get) => {
         stateEvents: [],
         arrivedPoolIds: [],
     activitySteps: [],
+        steadyState: false,
         series: [{ step: 0, values: init.values }],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
@@ -548,10 +580,12 @@ export const useSimStore = create<SimStore>((set, get) => {
 
     restoreSnapshot: (snap) => {
       discardTransition()
+      steadyWindow = [] // §PBO5 — a restored head starts a fresh window
       set((s) => ({
         status: snap.ended ? 'ended' : 'paused',
         stepIndex: snap.step,
         values: snap.values,
+        steadyState: false,
         firedNodeIds: snap.fired,
         // a Workspace snapshot carries `fired` only — no `activated`. The
         // `evaluated` cue simply re-derives on the next Step (§LGR5.1).

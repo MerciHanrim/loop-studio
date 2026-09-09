@@ -1,6 +1,6 @@
-# Simulation Playback — ordered cascade & role cues (non-frozen design doc — DRAFT)
+# Simulation Playback — ordered cascade & role cues (non-frozen design doc)
 
-**Status: proposed.** A follow-up slice of
+**Status: shipped** (PR 1 — ordered cascade + role cues + verification; PR 2 — steady-state). A follow-up slice of
 [`docs/simulation-playback.md`](simulation-playback.md) (the shipped v0.7.0
 choreography). It **revises §PB2.1 / §PB2.6** — today every `FlowEvent` of a step
 rides the *same* `τ`, so `supply → split → process → stock → ship` all depart and
@@ -11,7 +11,7 @@ commit. Carries no `loop-*/N` id and is revised freely.
 
 Sections: **§PBO1** the ordering source · **§PBO2** the staggered-τ model (bounded)
 · **§PBO3** role cues · **§PBO4** reduced-motion / forced-colors · **§PBO5**
-steady-state (designed here, **shipped in its own PR**) · **§PBO6** spec deltas ·
+steady-state (**shipped**, its own PR) · **§PBO6** spec deltas ·
 **§PBO7** invariants · **§PBO8** acceptance · **§PBO9** work order · **§PBO10**
 decisions.
 
@@ -130,11 +130,12 @@ Within the transition's `τ ∈ [0, 1]`:
 - **cap:** `B` is clamped to `STAGGER_MAX_BUCKETS` (**6**); ranks past
   the cap fold into the last bucket. Onsets are therefore always in
   `[0, 0.30]` no matter the graph width;
-- each event's **local τ** is
-  `τₗ = clamp01((τ − onsetₖ) / (BEAT_SETTLE − onsetₖ))`, then fed to the
-  existing `phaseOf` / `travelFraction`. Because every `onsetₖ ≤ STAGGER_SPAN <
-  BEAT_ARRIVE`, **every bucket completes `depart → travel → arrive` before the
-  shared `settle`** at `τ ≥ BEAT_SETTLE`.
+- each event's **local τ** is: `τₗ = τ` when `onsetₖ = 0` (bucket 0 — every
+  Phase-1 push and any unstaggered step run in exact lockstep with the global
+  clock), otherwise `τₗ = clamp01((τ − onsetₖ) / (BEAT_SETTLE − onsetₖ))`. It is
+  then fed to the existing `phaseOf` / `travelFraction`. Because every
+  `onsetₖ ≤ STAGGER_SPAN < BEAT_ARRIVE`, **every bucket completes
+  `depart → travel → arrive` before the shared `settle`** at `τ ≥ BEAT_SETTLE`.
 - `settle` remains **one** global atomic commit at `τ ≥ BEAT_SETTLE`
   (PB-INV-6 unchanged — exactly once, `arriveFired`/`lastSettledTransitionId`
   logic untouched). The count-up / delta chips still resolve against the
@@ -198,38 +199,61 @@ Held for the whole committed step, no fade (matches §VL6 / §VL9).
 vs inward vs hollow), never by hue; stroke is `currentColor` / `ButtonText`. A
 greyscale / high-contrast user still tells emit from absorb.
 
-## PBO5. Steady-state — "Steady state — flows continue" (own PR)
+## PBO5. Steady-state — "Steady state — flows continue" (own PR — SHIPPED)
 
-Designed here; **implemented as a separate small PR after §PBO2/§PBO3 land and
-verify.** Rationale for splitting: a one-step "net Δ = 0" is *not* equilibrium —
-an accidental one-step stall would be mislabelled.
+Shipped as its own PR after §PBO2/§PBO3 verified. Rationale for the split: a
+one-step "net Δ = 0" is *not* equilibrium — an accidental one-step stall would be
+mislabelled. Code: `src/store/steadyState.ts` (pure `isSteady` / `flowTotals`) +
+a module-private window in `simStore` updated at the single commit point.
 
-**Detection.** Look at the last **3 consecutive committed steps** (`N = 3`; a
-constants block, tunable, not structural). The system is *steady* iff, for **both**
-adjacent pairs `(t−2, t−1)` and `(t−1, t)`, **all three** hold:
+**Detection.** Look at the last **`STEADY_N = 3`** consecutive committed steps
+(a constants block, tunable, not structural). The window holds
+`{ step, pools, flow }`; a prepared step that fails the §PB7.7 commit ladder
+never enters it. The system is *steady* iff **all** hold:
 
-1. `‖pools(t) − pools(t−1)‖∞ ≤ ε` — the Pool value vector is pairwise unchanged
-   within tolerance;
-2. `flowByEdge(t)` equals `flowByEdge(t−1)` per edge within `ε` — the whole
-   edge-flow vector is pairwise unchanged;
-3. `Σ flowByEdge(t) > 0` — total flow is above zero.
+1. the three samples are **consecutive** (`stepᵢ = stepᵢ₋₁ + 1`);
+2. for **both** adjacent pairs, the **Pool vector** is pairwise ε-equal — over
+   the union of `node.id`s, missing ⇒ 0;
+3. for **both** adjacent pairs, the **whole edge-flow vector** is pairwise
+   ε-equal — over the union of the three samples' `edge.id`s, missing ⇒ 0. The
+   flow map is the raw `Σ FlowEvent.amount` per edge (`flowTotals(events)`) —
+   never a render-filtered / LOD / token-capped map;
+4. **every** sample has `Σ flow > STEADY_MIN_FLOW` — a stopped line (Σ ≈ 0
+   anywhere in the window) is *not* steady, it is stopped, and gets no label.
 
-So a frozen line (nothing moving) is **not** "steady" — it is stopped, and gets
-no label. `ε` is a small combined absolute + relative tolerance (final value set
-during impl).
+**ε** — pinned, not "tuned during impl":
+`approxEqual(a, b) = |a − b| ≤ STEADY_ABS_EPS + STEADY_REL_EPS · max(|a|, |b|)`
+with `STEADY_ABS_EPS = 1e-6`, `STEADY_REL_EPS = 1e-9`, `STEADY_MIN_FLOW = 1e-6`
+(abs term looser than the engine `EPSILON = 1e-9` to absorb float accumulation in
+the stored `series`). ε-tolerant equality: sub-ε variation is treated as
+unchanged *by design* — not a guarantee about any particular run.
 
-**The consecutive-step counter resets to zero on:** `reset()`, a template load
-(`loadGraph`), any graph edit (a `simulationRev` bump), and a seed change. So an
-equilibrium claim is always about ≥ 3 steps of the **current** graph + seed, from
-step 0 or the last disruption — never carried across a change.
+**The window + verdict reset to empty / false on:** `reset()` (which also covers
+`setSeed`, and every graph edit / template load — the `simulationRev`
+subscription calls `reset()`), and `restoreSnapshot()` (Workspace import). So an
+equilibrium claim is always about ≥ 3 steps of the **current** graph + seed.
 
-**Display.** A quiet strip / chip near the Timeline or PlayBar reading
-**"Steady state — flows continue"** (localised EN / KO / JA). It appears once the
-3-step test passes and **clears the moment any condition breaks** (a lever
-change, a stock draining, a probabilistic swing) or the counter resets.
-Session-only,
+**Display.** `simStore.steadyState: boolean`. A pill chip in the PlayBar reading
+**"Steady state — flows continue"** (`playbar.steady`, localised EN / KO / JA),
+shown only when `steadyState && status === 'running'` — so Pause hides it while
+**preserving** the verdict, and Resume shows it again immediately (before the
+next commit re-confirms it). The chip is **`position: absolute`** (out of flow —
+it shifts no control and no strip height, appearing or not) and a
+render-time + `resize` overlap guard hides it entirely when it cannot sit clear
+of every control. Accessibility: a separate `role="status"` `aria-live="polite"`
+region is spoken **once, on first entry into `steadyState && running`** — if the
+detector turns true while stopped (a manual Step to a fixed point) nothing is
+said (the chip is hidden and "flows continue" while paused would be wrong);
+pressing Play then announces it once. Pause → Resume is the same verdict → no
+re-announce. The "announced" flag resets only when `steadyState` goes false, so a
+genuine re-settle after a disruption announces again. Session-only,
 presentation-only — no GraphDoc / digest / undo / autosave / Workspace effect.
-`N` / `ε` are tunable and not a structural decision.
+
+> Follow-up fix folded into this PR: a bucket-0 edge (`onset === 0` — every
+> Phase-1 push, any unstaggered step) now uses the global τ **directly** for its
+> local τ, instead of `(τ − 0) / (BEAT_SETTLE − 0)` which ran it ~5 % fast and
+> could momentarily disagree with the global phase (`§PBO2`). Staggered buckets
+> (`onset > 0`) keep the `(τ − onset) / (BEAT_SETTLE − onset)` compression.
 
 ## PBO6. Spec deltas to `docs/simulation-playback.md`
 
@@ -312,14 +336,14 @@ an assertion.
 ## PBO9. Work order
 
 1. **Ordered playback + role cues** — §PBO1 rank + §PBO2 staggered local-τ +
-   §PBO3 emit/converge/absorb, behind §PBO8 rows 1–6. One PR (or two if the
-   cue-CSS review is heavy — ordering first, then cues).
-2. **Visual / performance / accessibility verification** — the §PB12 matrix
-   re-run, the LOD × RM × forced-colors grid, a frame-cost check that the
-   per-transition bucket map adds no per-frame graph work (PBO-INV-7), and a
-   screenshot/interaction review of the Balanced production line cascade.
+   §PBO3 emit/converge/absorb, behind §PBO8 rows 1–6. **SHIPPED** (one PR).
+2. **Visual / performance / accessibility verification** — real-time cascade
+   timing across slow / default / fast beats, no-baton-pass, MMO per-frame /
+   token cost, and the full-motion `converge` / `absorb` geometry split.
+   **SHIPPED** (folded into PR 1's branch as `playback-ordering-timing.spec.ts`
+   + the converge/absorb CSS revision).
 3. **Steady-state detection + label** — §PBO5, its own small PR, gated on
-   §PBO8 row 7.
+   §PBO8 row 7. **SHIPPED.**
 
 ## PBO10. Decisions
 
