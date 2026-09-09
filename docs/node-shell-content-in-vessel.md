@@ -84,19 +84,23 @@ with no break opportunity pushes the node to its 260 px `max-width`), where
 
 Two coupled changes, both scoped to `parameter` / `register`:
 
-1. **The silhouettes are re-cut** (`src/components/nodes/silhouette.ts`) to
-   near-full-width rounded rectangles — the drawn fill now nearly fills the
-   bounding box instead of insetting ~14 viewBox px on each side:
+1. **The silhouettes are re-cut** (`src/components/nodes/silhouette.ts`) so the
+   drawn fill nearly fills the bounding box instead of insetting ~14 viewBox px
+   on each side — but each keeps its identity: the top / bottom **edges** are
+   pulled almost full-width so the content-facing run is flat, and the ends
+   still carry the shape:
 
-   | | before (leftmost · rightmost · corner) | after |
+   | | before (edge start · extreme · corner) | after |
    |---|---|---|
-   | register | `x14 · x116` · elliptical end r≈18 | `x8 · x116` · **r8** |
-   | parameter | `x18 · x108` · chamfered tab | `x8 · x112` · **r6** + a left tab `x1…8 × mid±8` |
+   | register | edges `x30…98`, elliptical ends to `x14` / `x116` | edges **`x14…110`**, elliptical ends bulging to **`x6` / `x118`** at mid-height (a flattened lozenge) |
+   | parameter | body `x40…108`, chamfered tab out to `x18` | body **`x8…112`** r6 + a left tab **`x1…8 × mid±8`** (the historic notch height) |
 
    The top / bottom cap offsets are **unchanged** (`y12 … H−12`,
    `VESSEL_INSET_Y` still 24) — the #167 height growth and every `boxH`
-   calculation are untouched. Register still reads as a soft rounded pill,
-   Parameter still carries its left tab (the historic notch height).
+   calculation are untouched. A **true stadium** (semicircular ends) cannot be
+   used: it pinches in exactly where the chip / title corner sits, 4 px below
+   the top edge — so Register is a flatter, wider lozenge rather than a full
+   pill. Parameter keeps its left tab as the kind tell.
 
 2. **A width-scaled `padding-inline`** on the two bodies
    (`.nodef--parameter/.nodef--register .nodef__body`) —
@@ -118,8 +122,9 @@ its Registers at 260 px, so measured EN / KO / JA node sizes and the
 
 Measured smallest CSS-px gap from any content corner (`.nodef__stack` **and**
 `.nodef__chip`, four each) to the fill boundary, after the re-cut:
-**≥ 3.25 px** at every width 118 – 260, EN / KO / JA (a plain "is the point in
-the fill" test would have passed at 0 px — which was the latent bug).
+**≥ 3.75 px** (register) / **≥ 2.75 px** (parameter) at every width 118 – 260,
+EN / KO / JA — a plain "is the point in the fill" test would have passed at
+0 px, which was the latent bug.
 
 ## Regression tests
 

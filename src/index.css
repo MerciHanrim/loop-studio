@@ -1177,14 +1177,16 @@ a.sheet__row {
    toward the rounded rim as the node widens: on a wide register / parameter the
    chip · title · value corners land outside the drawn fill. A percentage
    padding resolves against this node's own width, so the content's left / right
-   edge sits at a CONSTANT viewBox x (~14) at every width; `14 / 120` ⇒ that
-   x ≈ 14. `clamp` floors it at 15 px on the min-width (118 px) node and caps it
-   at 32 px so a 260 px node keeps a sane text column. Pairs with the re-cut
-   `parameter` / `register` silhouettes in ./silhouette. */
+   edge sits at a CONSTANT viewBox x at every width — 11.6667 % ≈ 14 / 120, i.e.
+   viewBox x ≈ 14. `clamp` floors it at 15 px on the min-width (118 px) node and
+   caps it at 32 px so a 260 px node keeps a sane text column. The node's OUTER
+   width is unchanged (shrink-to-fit ignores % padding when sizing, then carves
+   it from the content column). Pairs with the re-cut `parameter` (flatter tag)
+   / `register` (flattened lozenge) silhouettes in ./silhouette. */
 .nodef--parameter .nodef__body,
 .nodef--register .nodef__body {
-  padding-left: clamp(15px, calc(100% * 14 / 120), 32px);
-  padding-right: clamp(15px, calc(100% * 14 / 120), 32px);
+  padding-left: clamp(15px, 11.6667%, 32px);
+  padding-right: clamp(15px, 11.6667%, 32px);
 }
 
 .nodef__head {

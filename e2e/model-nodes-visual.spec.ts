@@ -56,11 +56,11 @@ const node = (page: Page, id: string) => page.locator(`.react-flow__node[data-id
 test.describe('Parameter / Register — chrome & states (hue-independent)', () => {
   test('distinct silhouettes + lighter annotation chrome', async ({ page }) => {
     await load(page)
-    // parameter: rounded-rect body + left tab (`M14 12 … H1 …`); register: plain
-    // rounded rectangle (`M16 12 …`) — docs/node-shell-content-in-vessel.md
+    // parameter: flatter tag body + left tab (`M14 12 … H1 …`); register:
+    // flattened lozenge (`M14 12 H110 …`, no tab) — docs/node-shell-content-in-vessel.md
     // "curved corner" re-cut (§VL2.1)
     await expect(node(page, 'p_rate').locator('.nodef--parameter .nodef__stroke')).toHaveAttribute('d', /^M14 12 .* H1 /)
-    await expect(node(page, 'r_ok').locator('.nodef--register .nodef__stroke')).toHaveAttribute('d', /^M16 12 /)
+    await expect(node(page, 'r_ok').locator('.nodef--register .nodef__stroke')).toHaveAttribute('d', /^M14 12 H110 /)
     // no resource / state port handles rendered as connectable dots on a model node
     await expect(node(page, 'p_rate').locator('.h--in, .h--out')).toHaveCount(0)
     // the value + unit / expression rows are present
