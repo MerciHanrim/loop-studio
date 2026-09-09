@@ -128,6 +128,14 @@ const inspector = {
   'regExpr.row.notFinite': '→ 유한한 수가 아님',
   'regExpr.row.dependsInvalid': '— 잘못된 참조에 의존함',
   'regExpr.row.generic': '— {code}',
+  // docs/register-expression-authoring.md §RXA8 — 캔버스 클릭 참조 삽입
+  'regExpr.insert.title': '＋ 참조 삽입',
+  'regExpr.insert.armedLabel': '참조 선택 중',
+  'regExpr.insert.hint': '캔버스에서 풀·파라미터·레지스터를 클릭하면 참조가 삽입됩니다.',
+  'regExpr.insert.armed': '참조 삽입 대기 중입니다. 캔버스에서 노드를 클릭하거나 Esc로 취소하세요.',
+  'regExpr.insert.cancelled': '참조 삽입을 취소했습니다.',
+  'regExpr.insert.done': '{name} 참조를 삽입했습니다.',
+  'regExpr.insert.wrongKind': '풀·파라미터·레지스터만 삽입할 수 있습니다.',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

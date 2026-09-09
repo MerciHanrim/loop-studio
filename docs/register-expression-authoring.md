@@ -1,6 +1,6 @@
 # Register expression authoring (design doc)
 
-**Status: proposed.** A usability layer over `loop-expr/1` (`SEMANTICS-X.md`) /
+**Status: shipped (Slice 1 + Slice 2).** A usability layer over `loop-expr/1` (`SEMANTICS-X.md`) /
 `loop-model/1` (`SEMANTICS-M.md` §M3) — the Register `expression` field. The
 language, the stored form, evaluation, and the `loop-revision/2` digest are
 **unchanged**; this doc only pins how a person reads, understands, and edits an
@@ -225,21 +225,38 @@ candidates identically (`Name · Parameter · = n`). The full read-back / chips 
 peek block is **not** ported — a one-reference `flow` already shows its
 `(label)` + resolved value inline.
 
-## RXA8. Slice 2 — insert a reference from the canvas (separate PR)
+## RXA8. Slice 2 — insert a reference from the canvas (shipped, separate PR)
 
-- A small "＋ reference" affordance beside the expression input. Pressing it
-  **arms** a one-shot mode: the next click on a `pool` / `parameter` /
-  `register` node on the canvas inserts that node's canonical reference at the
-  last caret position and disarms. `Esc` / clicking empty canvas / blurring the
-  input disarms.
-- While armed: referenceable nodes get a faint "pick me" affordance (reuse
-  `.is-ref-peek` styling), the cursor is a crosshair, and a one-line hint sits
-  under the input. Arming sets **no** selection and is session-only
-  (RXA-INV-3).
-- A node that would self-reference or cycle is not insertable while armed (same
-  rule as RXA-INV-4) — clicking it shows the disabled reason in the hint and
-  stays armed.
-- Everything else (grammar, storage, digest) unchanged.
+- A labelled secondary button **on the line under** the expression input —
+  `＋ Insert reference` / `＋ 참조 삽입` / `＋ 参照を挿入` (never on the input's
+  row: its text must not shrink the field). Its visible text is its accessible
+  name — no `title` / `aria-label` doubling it. Pressing it **arms** a one-shot
+  mode (label → `Selecting a reference` / `참조 선택 중` / `参照を選択中` +
+  active style, `aria-pressed`): it captures the current caret / selection, then
+  the next click on a `pool` / `parameter` / `register` node on the canvas
+  inserts that node's canonical `@id` at the captured position — replacing the
+  captured selection if there was one — and disarms immediately. Only `@id` is
+  inserted: no operator or whitespace is ever synthesised. After the insert,
+  focus and the caret return to the input (just past the inserted token).
+- Disarms on: `Esc`, a click on empty canvas, the edit lock, selecting a
+  different Inspector target, and any template load / graph reset (the field
+  unmounts). **Not** on the input blurring — the pick click necessarily blurs
+  it. The pick never changes which Register the Inspector shows
+  (`elementsSelectable` / `nodesFocusable` are frozen while armed).
+- While armed: referenceable nodes (except the edited Register) get the faint
+  `.is-ref-peek` affordance, the canvas cursor is a crosshair, and a one-line
+  hint sits under the input. Arming sets **no** selection, undo, `simulationRev`
+  or serialization and is session-only (`uiStore.refInsert`, RXA-INV-3).
+- A node that would self-reference, cycle, or is the wrong kind is not
+  insertable — clicking it shows the reason in the hint and **stays armed**.
+- The insert is one ordinary edit: it commits (or not, if the result doesn't
+  parse — RXA-INV-5) exactly as hand-typing would, one undo entry, digest a
+  function of the canonical AST only (RXA-INV-1). A screen-reader status region
+  announces arm / cancel / insert / each block reason once.
+- New i18n: `regExpr.insert.{title,armedLabel,hint,armed,cancelled,done,wrongKind}`
+  (EN / KO / JA; `title` = the idle button label, `armedLabel` = the armed one);
+  `regExpr.block.{self,cycle}` reused. No grammar / storage / evaluation / digest
+  change.
 
 ## RXA9. Acceptance / E2E
 
@@ -285,6 +302,31 @@ Keyed on **node / edge ids**, never rendered labels.
 11. **Localisation** — every new string present in EN / KO / JA; the edge-case
     rows checked per locale.
 
+### Slice 2 (§RXA8) — `e2e/register-expr-authoring-slice2.spec.ts`
+
+12. **Arm + pick** — `＋` arms (`aria-pressed`, `.canvas--ref-insert`); clicking
+    a Pool inserts `@id` at the caret; the edited Register stays selected; one
+    undo entry; focus + caret return to the input; disarms.
+13. **Caret vs selection** — a captured selection is replaced, otherwise insert
+    at the caret; the inserted text is exactly `@id` (no operator / whitespace).
+14. **Blocked** — clicking self / a cyclic Register / a Source shows the reason
+    in the hint and the mode stays armed; a valid pick still works after.
+15. **Cancel** — `Esc`, an empty-canvas click, and switching Inspector target
+    each disarm; `Esc` announces the cancel.
+16. **Combined** — pick from the `@` list, then arm-and-click, in one edit;
+    canonical digest equals the hand-typed control.
+17. **No canvas regression** — unarmed a node click still selects; armed a node
+    click never selects it and node positions / edges are untouched.
+18. **Desktop-unlocked only** — the edit lock removes the insert button (and
+    the input).
+18b. **Labelled action** — the button carries visible text (not a bare glyph),
+    sits on the line *below* the input (its bottom past the input's) without
+    shrinking the input, and its accessible name equals that text with no
+    `title` / `aria-label` doubling; armed shows a distinct label + `is-armed`.
+19. **SR + localisation** — the status region announces arm / block / insert;
+    the button's idle + armed labels, the hint, and the block reason are real
+    strings in EN / KO / JA.
+
 ## RXA10. Decisions
 
 | id | question | decision |
@@ -304,6 +346,6 @@ Keyed on **node / edge ids**, never rendered labels.
    canvas halo, the §RXA3.5 edge-case rows, `EdgeFlowField` picker reuse. Behind
    §RXA9 rows 1–7, 9–11.
 2. **Slice 1 verification** — the §RXA9 acceptance set incl. IME + MMO
-   performance, then merge.
+   performance, then merge. ✅ shipped (PR #170, `10b846a`).
 3. **Slice 2** — arm-and-click insert a reference from the canvas (§RXA8),
-   behind §RXA9 rows 3–4 extended for the armed mode.
+   behind §RXA9 rows 12–19. ✅ shipped (`feat/register-expr-authoring-slice2`).
