@@ -519,6 +519,75 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(filterPanel(page).locator('.lgr-filter__clear')).toBeDisabled()
   })
 
+  test('the panel is content-height with nothing filtered — no fixed full-height gap (§LGR3.2)', async ({
+    page,
+  }) => {
+    await loadRT(page)
+    await filterBtn(page).click()
+    await expect(filterPanel(page)).toBeVisible()
+    const g = await filterPanel(page).evaluate((p) => {
+      const body = p.querySelector('.lgr-filter__body') as HTMLElement
+      const head = p.querySelector('.lgr-filter__head') as HTMLElement
+      const rf = document.querySelector('.react-flow') as HTMLElement
+      const pr = p.getBoundingClientRect()
+      return {
+        panelH: pr.height,
+        contentH: head.getBoundingClientRect().height + body.scrollHeight,
+        panelBottom: pr.bottom,
+        canvasBottom: rf.getBoundingClientRect().bottom,
+        bodyScrolls: body.scrollHeight > body.clientHeight + 1,
+      }
+    })
+    // the panel wraps its content — not stretched to the full canvas height
+    expect(g.panelH).toBeLessThanOrEqual(g.contentH + 2)
+    expect(g.bodyScrolls).toBe(false) // short list ⇒ no internal scroll
+    // and it does not reach down over the canvas toward the Timeline
+    expect(g.canvasBottom - g.panelBottom).toBeGreaterThan(80)
+  })
+
+  test('a resource-type list too long to fit caps at max-height and scrolls inside — header stays put (§LGR3.2)', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate(() => {
+      const w = window as unknown as { __loop: { ui: { setState: (p: object) => void } } }
+      w.__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
+    })
+    // one pool per distinct resourceType — 30 rows, well past any viewport
+    const nodes = Array.from({ length: 30 }, (_, i) => ({
+      id: `p${i}`,
+      type: 'pool',
+      position: { x: (i % 6) * 180, y: Math.floor(i / 6) * 140 },
+      data: { kind: 'pool', label: `P${i}`, activation: 'passive', initial: 0, capacity: null, mode: 'pullAny', resourceType: `type-${i}` },
+    }))
+    await importGraph(page, JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes, edges: [] }))
+    await filterBtn(page).click()
+    await expect(filterPanel(page)).toBeVisible()
+    const g = await filterPanel(page).evaluate((p) => {
+      const body = p.querySelector('.lgr-filter__body') as HTMLElement
+      const head = p.querySelector('.lgr-filter__head') as HTMLElement
+      const rf = document.querySelector('.react-flow') as HTMLElement
+      const pr = p.getBoundingClientRect()
+      const rfr = rf.getBoundingClientRect()
+      return {
+        panelH: pr.height,
+        cap: rfr.height - 30,
+        headH: head.getBoundingClientRect().height,
+        headTop: head.getBoundingClientRect().top,
+        panelTop: pr.top,
+        bodyScrolls: body.scrollHeight > body.clientHeight + 1,
+        panelBottom: pr.bottom,
+        canvasBottom: rfr.bottom,
+      }
+    })
+    expect(g.bodyScrolls).toBe(true) // the long list scrolls INSIDE the body
+    expect(g.panelH).toBeLessThanOrEqual(g.cap + 2) // never past the max-height cap
+    expect(g.panelBottom).toBeLessThanOrEqual(g.canvasBottom - 13) // clear of the Timeline
+    expect(Math.abs(g.headTop - g.panelTop)).toBeLessThan(2) // header pinned, not scrolled away
+    expect(g.headH).toBeGreaterThan(10)
+  })
+
   test('filter selections are cleared on a graph reload; the panel toggle survives (§LGR3.4)', async ({ page }) => {
     await loadRT(page)
     await filterBtn(page).click()
