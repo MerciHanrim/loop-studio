@@ -239,10 +239,14 @@ shown only when `steadyState && status === 'running'` — so Pause hides it whil
 **preserving** the verdict, and Resume shows it again immediately (before the
 next commit re-confirms it). The chip is **`position: absolute`** (out of flow —
 it shifts no control and no strip height, appearing or not) and a
-`useLayoutEffect` + `ResizeObserver` overlap guard hides it entirely when it
-cannot sit clear of every control. Accessibility: a separate `role="status"`
-`aria-live="polite"` region gets the string once on the false → true edge and is
-cleared on true → false — no per-step repeat while steady persists. Session-only,
+render-time + `resize` overlap guard hides it entirely when it cannot sit clear
+of every control. Accessibility: a separate `role="status"` `aria-live="polite"`
+region is spoken **once, on first entry into `steadyState && running`** — if the
+detector turns true while stopped (a manual Step to a fixed point) nothing is
+said (the chip is hidden and "flows continue" while paused would be wrong);
+pressing Play then announces it once. Pause → Resume is the same verdict → no
+re-announce. The "announced" flag resets only when `steadyState` goes false, so a
+genuine re-settle after a disruption announces again. Session-only,
 presentation-only — no GraphDoc / digest / undo / autosave / Workspace effect.
 
 > Follow-up fix folded into this PR: a bucket-0 edge (`onset === 0` — every

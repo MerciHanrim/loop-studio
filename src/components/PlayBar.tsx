@@ -58,6 +58,11 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const [chipFits, setChipFits] = useState(false)
   const wantChip = steadyState && running
 
+  // Re-check after every render (PlayBar re-renders on step / status / speed /
+  // seed / MC changes — frequent enough during a run that a stale verdict
+  // self-corrects within a frame) and on window resize. No ResizeObserver — a
+  // measure that also `setState`s inside an RO callback trips the benign
+  // "ResizeObserver loop" warning, and the render-driven re-check is enough here.
   useLayoutEffect(() => {
     const strip = stripRef.current
     const chip = chipRef.current
@@ -65,26 +70,24 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     const measure = () => {
       const cr = chip.getBoundingClientRect()
       const sr = strip.getBoundingClientRect()
-      if (cr.width === 0 || cr.left < sr.left + 4 || cr.right > sr.right - 2) {
-        setChipFits(false)
-        return
-      }
-      const controls = strip.querySelectorAll<HTMLElement>(
-        '.pstrip__group, .pstrip__step, .pstrip__field, .pstrip__mc, .pstrip__collapse',
-      )
-      for (const el of controls) {
-        if (intersects(cr, el.getBoundingClientRect())) {
-          setChipFits(false)
-          return
+      let fits = cr.width > 0 && cr.left >= sr.left + 4 && cr.right <= sr.right - 2
+      if (fits) {
+        for (const el of strip.querySelectorAll<HTMLElement>(
+          '.pstrip__group, .pstrip__step, .pstrip__field, .pstrip__mc, .pstrip__collapse',
+        )) {
+          if (intersects(cr, el.getBoundingClientRect())) {
+            fits = false
+            break
+          }
         }
       }
-      setChipFits(true)
+      setChipFits(fits) // React bails when the value is unchanged
     }
     measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(strip)
-    return () => ro.disconnect()
-  }, [steadyState, running, mcRunning, mcMessage, collapsed, t])
+    const onResize = () => requestAnimationFrame(measure)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  })
 
   const onPrimary = () => {
     if (ended) {
@@ -97,13 +100,26 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
     }
   }
 
-  // §PBO5 accessibility — announce ONCE on the false → true edge; while steady
-  // persists across many committed steps the text does not change, so a screen
-  // reader is not re-notified every step.
+  // §PBO5 accessibility — announce ONCE on first entry into `steadyState &&
+  // running`. If the detector turns true while stopped (e.g. the user stepped
+  // manually to a fixed point) nothing is spoken — the chip is hidden and it
+  // would be wrong to read "flows continue" while paused; pressing Play then
+  // announces it. Pause → Resume is the same steady verdict → no re-announce.
+  // The "already announced" flag resets only when `steadyState` goes false, so
+  // a genuine re-settle after a disruption does announce again.
   const [announce, setAnnounce] = useState('')
+  const announcedRef = useRef(false)
   useEffect(() => {
-    setAnnounce(steadyState ? t('playbar.steady') : '')
-  }, [steadyState, t])
+    if (!steadyState) {
+      announcedRef.current = false
+      setAnnounce('') // '' → string next time is a real change, so SR re-announces
+      return
+    }
+    if (running && !announcedRef.current) {
+      announcedRef.current = true
+      setAnnounce(t('playbar.steady'))
+    }
+  }, [steadyState, running, t])
 
   return (
     <div

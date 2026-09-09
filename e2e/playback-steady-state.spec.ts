@@ -91,24 +91,39 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     await call(page, 'pause')
   })
 
-  test('screen reader is told once on entering steady, not every step', async ({ page }) => {
+  test('screen reader: silent while stepping to steady; announced once on Play; not per step', async ({
+    page,
+  }) => {
     await setup(page)
     const srText = () =>
       page.evaluate(
         () => document.querySelector('.pstrip [role="status"]')?.textContent?.trim() ?? '',
       )
     expect(await srText()).toBe('')
+
+    // manual Step to a fixed point — detector true, chip hidden, and NOTHING
+    // spoken (reading "flows continue" while stopped would be wrong)
     await advanceToSteady(page)
+    expect((await sim(page)).steadyState).toBe(true)
+    expect(await chipShown(page)).toBe(false)
+    expect(await srText()).toBe('')
+
+    // pressing Play announces it exactly once
     await call(page, 'play')
     await expect.poll(srText, { timeout: 4000 }).toBe('Steady state — flows continue')
-    // several more committed steps — the text must not churn (aria-live re-announces on change)
     const seen = new Set<string>()
     for (let i = 0; i < 6; i++) {
       seen.add(await srText())
       await page.waitForTimeout(120)
     }
-    await call(page, 'pause')
     expect([...seen]).toEqual(['Steady state — flows continue'])
+
+    // Pause → Resume is the same steady verdict → no second announcement
+    await call(page, 'pause')
+    await call(page, 'play')
+    await page.waitForTimeout(300)
+    expect(await srText()).toBe('Steady state — flows continue') // unchanged text ⇒ no re-announce
+    await call(page, 'pause')
   })
 
   test('the chip never shifts a control or the strip height, and never overlaps a control', async ({
