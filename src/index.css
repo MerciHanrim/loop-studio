@@ -3188,6 +3188,33 @@ a.sheet__row {
 .regexpr__inputwrap {
   position: relative;
 }
+/* §RXA8b — the operator / paren quick-insert row, directly under the input */
+.regexpr__ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.regexpr__op {
+  min-width: 30px;
+  padding: 2px 7px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--line-structure);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.regexpr__op:hover {
+  color: var(--text-primary);
+  border-color: var(--line-strong);
+}
+.regexpr__op:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 1px;
+}
 /* the "＋ Insert reference" secondary action — a small labelled button under
    the input, never on the input's row (its text must not shrink the field). */
 .regexpr__pick {

@@ -136,6 +136,16 @@ const inspector = {
   'regExpr.insert.cancelled': '참조 삽입을 취소했습니다.',
   'regExpr.insert.done': '{name} 참조를 삽입했습니다.',
   'regExpr.insert.wrongKind': '풀·파라미터·레지스터만 삽입할 수 있습니다.',
+  // §RXA8b — 수식 입력창 아래의 연산자·괄호 버튼
+  'regExpr.op.groupName': '연산자 버튼',
+  'regExpr.op.add': '더하기',
+  'regExpr.op.sub': '빼기',
+  'regExpr.op.mul': '곱하기',
+  'regExpr.op.div': '나누기',
+  'regExpr.op.group': '괄호',
+  'regExpr.op.inserts': '{name} — 수식에 {sym} 삽입',
+  'regExpr.op.groupTitle': '괄호 — 선택한 부분을 감싸거나 ( ) 추가',
+  'regExpr.op.inserted': '{name} 삽입됨',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

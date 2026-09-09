@@ -26,6 +26,7 @@ import {
   type RefResolveKind,
 } from '../model/exprRefs'
 import { canonicalRef } from '../model/expr'
+import { insertOperator, type OpKind } from '../model/exprEdit'
 import { initialPoolValues, type RegisterOutcome } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcomes } from '../store/registers'
@@ -36,6 +37,24 @@ import { useT, type MessageKey } from '../i18n'
 
 /** §RXA6 / RXA-D7 — popover ceiling; the rest is a "+N — keep typing" footer. */
 const RXA_MAX_ROWS = 12
+
+// §RXA8b — the operator / paren buttons. `glyph` is the (untranslated) button
+// face; `key` is the i18n label used for the accessible name + tooltip. `×` / `÷`
+// map to the grammar's `*` / `/`. Literal keys so check-i18n sees them referenced.
+const OP_KEY: Record<OpKind, MessageKey> = {
+  '+': 'regExpr.op.add',
+  '-': 'regExpr.op.sub',
+  '*': 'regExpr.op.mul',
+  '/': 'regExpr.op.div',
+  group: 'regExpr.op.group',
+}
+const OPS: ReadonlyArray<{ kind: OpKind; glyph: string; sym: string }> = [
+  { kind: '+', glyph: '＋', sym: '+' },
+  { kind: '-', glyph: '−', sym: '-' },
+  { kind: '*', glyph: '×', sym: '*' },
+  { kind: '/', glyph: '÷', sym: '/' },
+  { kind: 'group', glyph: '( )', sym: '( )' },
+]
 
 // the `loop-expr/1` parse-error codes → the shared `error.EXPR_*` message keys
 // (moved here from Inspector with the old RegisterFields). Literal values so the
@@ -361,6 +380,22 @@ export function RegisterExprField({
   const [draft, setDraft] = useState(expr)
   useEffect(() => setDraft(expr), [id, expr])
 
+  // §RXA8b — after a button-driven edit (an operator / paren insert), put the
+  // caret back once the DOM actually carries the new value. A ref consumed by a
+  // `[draft]` effect, not a bare rAF from the click handler, so it lands after
+  // the controlled-input re-render rather than racing it. Only `applyOp` sets
+  // it, so the `@`-list pick and the §RXA8 canvas insert paths are untouched.
+  const pendingCaretRef = useRef<number | null>(null)
+  useEffect(() => {
+    const c = pendingCaretRef.current
+    if (c == null) return
+    pendingCaretRef.current = null
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(c, c)
+  }, [draft])
+
   const [at, setAt] = useState<AtMatch>(null)
   const [active, setActive] = useState(0)
   // the `@…` token start the user dismissed with Esc — don't re-open the popover
@@ -547,6 +582,23 @@ export function RegisterExprField({
     armRefInsert({ editingId: id, caretStart, caretEnd })
   }, [armed, disarmRefInsert, armRefInsert, id, draft.length])
 
+  // §RXA8b — the operator / paren buttons under the input. A non-developer
+  // should not have to know that × is `*` and ÷ is `/`, or reach for Shift.
+  const applyOp = useCallback(
+    (kind: OpKind) => {
+      const el = inputRef.current
+      const base = el?.value ?? draft
+      const start = el?.selectionStart ?? base.length
+      const endSel = el?.selectionEnd ?? start
+      const { value: next, caret } = insertOperator(base, start, endSel, kind)
+      setAt(null)
+      pendingCaretRef.current = caret // restored by the `[draft]` effect above
+      commitIfValid(next)
+      setSrMsg(t('regExpr.op.inserted', { name: t(OP_KEY[kind]) }))
+    },
+    [draft, commitIfValid, t],
+  )
+
   const onKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
       if (!at || ranked.length === 0 || composingRef.current) {
@@ -652,6 +704,26 @@ export function RegisterExprField({
             onPick={pick}
           />
         )}
+      </div>
+      {/* §RXA8b — quick operator / paren inserts, so a non-developer need not
+          know × is `*` or reach for Shift. Keyboard entry still works. */}
+      <div className="regexpr__ops" role="group" aria-label={t('regExpr.op.groupName')}>
+        {OPS.map(({ kind, glyph, sym }) => (
+          <button
+            key={kind}
+            type="button"
+            className="regexpr__op"
+            aria-label={t(OP_KEY[kind])}
+            title={
+              kind === 'group'
+                ? t('regExpr.op.groupTitle')
+                : t('regExpr.op.inserts', { name: t(OP_KEY[kind]), sym })
+            }
+            onClick={() => applyOp(kind)}
+          >
+            {glyph}
+          </button>
+        ))}
       </div>
       {/* §RXA8 — a labelled secondary action under the input: arm a one-shot
           "click a node on the canvas" insert. Kept off the input row so its

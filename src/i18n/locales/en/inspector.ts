@@ -137,6 +137,16 @@ const inspector = {
   'regExpr.insert.cancelled': 'Reference insert cancelled.',
   'regExpr.insert.done': 'Inserted a reference to {name}.',
   'regExpr.insert.wrongKind': 'Only a Pool, Parameter, or Register can be inserted.',
+  // §RXA8b — the operator / parenthesis buttons under the expression input
+  'regExpr.op.groupName': 'Operator buttons',
+  'regExpr.op.add': 'Add',
+  'regExpr.op.sub': 'Subtract',
+  'regExpr.op.mul': 'Multiply',
+  'regExpr.op.div': 'Divide',
+  'regExpr.op.group': 'Parentheses',
+  'regExpr.op.inserts': '{name} — inserts {sym} into the formula',
+  'regExpr.op.groupTitle': 'Parentheses — wrap the selected part, or add ( )',
+  'regExpr.op.inserted': '{name} inserted',
 } as const
 
 export type InspectorKey = keyof typeof inspector
