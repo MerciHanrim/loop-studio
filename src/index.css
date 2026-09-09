@@ -703,6 +703,20 @@ body {
 .menu__item:hover {
   background: var(--surface-sunken);
 }
+/* a menu row that is an external link (e.g. Send feedback) — kill the UA
+   anchor look so it matches the button rows */
+a.menu__item,
+a.sheet__row {
+  text-decoration: none;
+  color: inherit;
+}
+/* the "opens in a new tab" marker (↗). aria-hidden — the accessible name on
+   the link already says "opens in a new tab". */
+.menu__ext {
+  margin-inline-start: 3px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
 .menu__name {
   font-weight: 600;
   font-size: 12px;

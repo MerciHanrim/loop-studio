@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { FEEDBACK_URL } from '../feedback'
 import { useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
 import { AboutDialog } from './AboutDialog'
@@ -6,7 +7,8 @@ import { ContextualHelpDialog } from './ContextualHelpDialog'
 
 // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
 // desktop Help (`?`) menu: `Take a tour` (replays the tour; never rewrites
-// the stored key, §GT6.4), `Contextual help`, and `About Loop Studio`.
+// the stored key, §GT6.4), `Contextual help`, `Send feedback` (an external
+// link to the feedback form, opens a new tab), and `About Loop Studio`.
 
 export function HelpMenu() {
   const t = useT()
@@ -69,6 +71,19 @@ export function HelpMenu() {
           >
             <span className="menu__name">{t('help.contextual.menuLabel')}</span>
           </button>
+          <a
+            className="menu__item"
+            role="menuitem"
+            href={FEEDBACK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('tour.help.feedbackAria')}
+            onClick={() => setOpen(false)}
+          >
+            <span className="menu__name">
+              {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">↗</span>
+            </span>
+          </a>
           <button
             type="button"
             className="menu__item"

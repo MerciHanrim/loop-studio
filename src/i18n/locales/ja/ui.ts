@@ -327,6 +327,8 @@ const ui = {
   'tour.help.menuLabel': 'ヘルプ',
   'tour.help.takeTour': 'ツアーを見る',
   'tour.help.about': 'Loop Studio について',
+  'tour.help.feedback': 'フィードバックを送る（韓国語フォーム）',
+  'tour.help.feedbackAria': 'フィードバックを送る（韓国語フォーム）— 新しいタブで開きます',
   'about.createdBy': '作成者',
   'about.repo': 'GitHub リポジトリ',
   'about.repoAria': 'Loop Studio の GitHub リポジトリ',
