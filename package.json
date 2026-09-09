@@ -1,7 +1,7 @@
 {
   "name": "loop-studio",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -16,7 +16,7 @@
     "check:icons": "node scripts/check-icons.mjs",
     "check:mobile-query": "node scripts/check-mobile-query.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
-  "check:i18n-surface": "node scripts/check-i18n-surface.mjs",
+    "check:i18n-surface": "node scripts/check-i18n-surface.mjs",
     "check:template-labels": "node scripts/check-template-labels.mjs",
     "check:no-pwa": "node scripts/check-no-pwa.mjs",
     "check:pwa-closure": "node scripts/check-pwa-closure.mjs",

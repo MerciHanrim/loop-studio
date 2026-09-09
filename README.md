@@ -24,7 +24,7 @@ language menu; the choice is a local UI preference only). Four bundled
 *Capacity deadlock*, *Early MMO progression (levels 1–15)* (97 nodes), and
 *Coffee roastery operations flow*.
 
-> Status: **working preview** — **v0.8.0**. The diagram editor and the
+> Status: **working preview** — **v0.9.0**. The diagram editor and the
 > simulation engine — deterministic,
 > seeded randomness, Monte Carlo, and executable state connections (`trigger` /
 > `activator` / `label`) — are all usable today, plus Workspace Export/Import,
@@ -48,8 +48,8 @@ language menu; the choice is a local UI preference only). Four bundled
 >
 > **New in v0.8.0:** three tracks —
 >
-> **Onboarding, part 2** — a runtime **localization** base now shipping
-> **English, 한국어, and 日本語** (the chosen language is a `localStorage`-only UI
+> **Onboarding, part 2** — a runtime **localization** base shipping
+> **English and 한국어** (the chosen language is a `localStorage`-only UI
 > setting that never enters the GraphDoc, Workspace, Share link, or
 > `loop-revision/*` digest), full-app localization, a guided first-run tour, the
 > *Early MMO progression* example, and **contextual inline help** — four
@@ -57,17 +57,13 @@ language menu; the choice is a local UI preference only). Four bundled
 > Review's first open, Focus/Filter discovery) plus a `Contextual help`
 > Help-menu entry — are all shipped. Bundled **Templates** — including
 > *Early MMO progression* and the *Coffee roastery operations flow* — open in
-> the current language, and the Coffee Template also carries three labelled
-> **zone frames** whose titles follow the language switch.
+> the current language.
 >
 > **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
 > — an engine-neutral readability / UI feature set: a global hit-test rule +
 > 1-hop focus view, graph-derived filters, the `effective` / `evaluated` run
 > distinction, manual group frames + an opt-in activity overlay, an explicit
 > *Suggest frames* auto-clustering pass, and a five-preset frame accent colour.
-> Around it: a **collapsible minimap**, and a **Timeline series picker** so a
-> Template's first-run chart shows a curated set of pools / registers with the
-> rest one `+N more` click away.
 > **Saved frames** make a manual or promoted frame's `id` / `label` / `rect` /
 > `color` part of the document as a `loop-revision/5` **cosmetic** `frames`
 > block ([`SEMANTICS-R5.md`](SEMANTICS-R5.md), Frozen): it round-trips reload /
@@ -92,6 +88,25 @@ language menu; the choice is a local UI preference only). Four bundled
 > usability** ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md), `DGP`,
 > real-phone verified) makes a packed graph pannable and pinch-zoomable even
 > when there is no empty canvas left to grab.
+>
+> **New in v0.9.0:** **Register expression authoring** — an `@` autocomplete
+> (Pool / Parameter / Register only; self and any dependent Register are shown
+> disabled with the reason), a two-line read-back that spells a stored formula
+> out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`),
+> and a **`＋ Insert reference`** button that inserts an `@id` at the caret when
+> you click that node on the canvas — `@id` stays the only stored form and the
+> `loop-revision/2` digest is unchanged. **Content-aware Register / Parameter
+> shells** now keep the title, value, and `= expression` line inside the drawn
+> vessel across widths and locales. **Ordered playback** — a step's
+> transfers now cascade in dependency order with emit / converge / absorb role
+> cues and a "flows continue" **steady-state** chip once the run settles. A
+> **`Send feedback`** entry in the Help menu. **日本語** as a third shipped
+> locale, loaded as its own chunk on demand, with a **multilingual node layout**
+> — two-line titles and height-parametric node shells so EN / KO / JA labels fit
+> the same graph without overlap. And two large-graph readability follow-ups: a
+> **collapsible minimap** and a **Timeline series picker** (a Template's
+> first-run chart shows a curated set of series, the rest one `+N more` click
+> away).
 >
 > **Desktop-first editor.** Mobile browsers get a **view & run** layout —
 > pan/zoom, play, Monte Carlo, inspect a node; editing (add / move / connect /
@@ -233,7 +248,7 @@ classification, or apply decision depends on them.
   - ✅ Label modifier — value semantics `loop-state/1`, event report `loop-state/2`
   - ✅ Inspector fields + in-canvas pulse / tint / flash
 - ✅ Onboarding, part 2 — **v0.8.0** ([`docs/localization.md`](docs/localization.md)) — the localization base, full-app localization, the guided first-run tour, the Early MMO example, and contextual inline help have all shipped
-  - ✅ Extensible localization base — a registry-driven N-language structure shipping **English, 한국어, and 日本語**; runtime language menu, atomic catalog activation, ICU formatting, EN fallback, and `localStorage`-only locale persistence. Locale state never enters GraphDoc / Workspace / Share / revision / digest / undo / simulation state
+  - ✅ Extensible localization base — a registry-driven N-language structure shipping **English and 한국어** at the v0.8.0 tag (**日本語** followed as a third locale post-tag — see the v0.9.0 release notes); runtime language menu, atomic catalog activation, ICU formatting, EN fallback, and `localStorage`-only locale persistence. Locale state never enters GraphDoc / Workspace / Share / revision / digest / undo / simulation state
   - ✅ Full-app localization + acceptance validation — Toolbar, Canvas, Inspector, Timeline, Templates, Import / Export, Share, revision, PWA, dialogs, errors, empty states, accessibility text, KO typography, desktop / mobile visual references, invariance tests, and CI guards for catalog parity and hardcoded UI strings
   - ✅ Guided first-run tour ([`docs/guided-tour.md`](docs/guided-tour.md)) — a read-only six-step overlay (desktop + a separate mobile script), a Welcome card on the first run (`localStorage`-only, never serialized), and a Help (`?`) menu — `Take a tour`, `Contextual help`, `Send feedback` (external link, new tab), and `About Loop Studio` (desktop `?` menu and mobile More → Help)
   - ✅ "Early MMO progression (levels 1–15)" example ([`docs/example-mmo-progression.md`](docs/example-mmo-progression.md)) — a shipped play-economy demo graph (three zone lanes, probabilistic combat with wins / setbacks / deaths, categorised loot, a gold economy with repair and resupply costs, a rising XP curve) as the third **Templates** entry, opening in the current language; generalised, not game-specific, with by-construction accounting invariants and a tuned reach-15 window
@@ -267,7 +282,7 @@ classification, or apply decision depends on them.
   - ✅ Performance ceiling — one global `MAX_PLAYBACK_TOKENS_TOTAL = 60` budget across resource + `trigger` + `label` travelling cues, chosen deterministically and sorted once per transition; `MAX_PLAYBACK_TOKENS = 12` breakdown chips; an idle edge never re-renders on a τ frame
   - ✅ Reproducible demo fixture + QA checklist ([`examples/playback-choreography.json`](examples/README.md)) + `e2e/playback-fixture.spec.ts` + the acceptance matrix (`e2e/playback-*.spec.ts`)
   - ✅ Slower default playback (`v0.8.0`) — a fresh document's per-step beat starts near **1 s** (was ~0.6 s) so the node / edge changes are followable, with one extra slower stop; every faster stop is unchanged. Wall-clock only — the engine result, RNG, and Monte Carlo are untouched, and the speed is not persisted
-  - ✅ Ordered playback cascade + role cues + steady-state ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md), non-`frozen`, no `loop-*/N`) — within one step the transfers now depart / arrive in **dependency order** (staggered `τ` by longest-predecessor depth over the graph's SCC condensation) instead of one simultaneous pulse, with distinct **emit / converge / absorb** cues per role, and a "flows continue" **steady-state** chip once the run settles. Presentation-only — no engine / RNG / state-semantics / GraphDoc / `loop-revision/*` digest / undo change; `settle` stays one atomic commit
+  - ✅ Ordered playback cascade + role cues + steady-state (`v0.9.0`, [`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md), non-`frozen`, no `loop-*/N`) — within one step the transfers now depart / arrive in **dependency order** (staggered `τ` by longest-predecessor depth over the graph's SCC condensation) instead of one simultaneous pulse, with distinct **emit / converge / absorb** cues per role, and a "flows continue" **steady-state** chip once the run settles. Presentation-only — no engine / RNG / state-semantics / GraphDoc / `loop-revision/*` digest / undo change; `settle` stays one atomic commit
 - ☐ Scenario Compare — results per Parameter combination (save format, run budget, comparison basis, chart semantics). Its own spec-first project; not started
 - ☐ Advanced Monte-Carlo worker-count setting
 - ◐ Productization track — making the tool usable by a general planner, not only its author; a separate track from Onboarding. Design-first: each pass is its own doc and PR
@@ -287,10 +302,10 @@ classification, or apply decision depends on them.
   - ✅ Dense-graph pan usability ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md), `DGP`) — **shipped, real-phone verified**. On a packed graph there is no empty canvas to grab, so panning used to be near-impossible (mobile especially; the minimap is only a secondary aid). A transparent pan-capture overlay handles it: a one-finger drag past ~8px pans even when it starts on a node, live on mobile always and on desktop behind a session-only Pan mode toggle. A shorter tap still selects a **node** — or, failing that, the **nearest edge** within ~14px — and opens the Inspector (§DGP-C1). Two-finger pinch zoom is computed by the overlay itself (a first cut handing it to React Flow's own pinch never actually zoomed on a real device — §DGP-C4); wheel / trackpad-pinch zoom (mouse) is forwarded untouched; edit gestures are byte-for-byte unchanged when Pan mode is off. Native OS gestures are not suppressed but never leave the overlay stuck (§DGP-C2). Independent of Focus / Filter / frames / Activity overlay / selection; no GraphDoc / digest / undo change. Was sequenced **before** contextual inline help
   - order settled ([`docs/product-direction.md`](docs/product-direction.md) §PD8): large-graph readability first (done — the read/select problem was already reproducible in the shipped Early MMO example, it is smaller in scope with lower serialization risk, and its focus/filter substrate is a dependency of the module system's assembly screen), then the small module / template-composition system
   - ✅ Template label overlay ([`docs/template-label-overlay.md`](docs/template-label-overlay.md)) — a shared **fresh-open** overlay so a bundled Template opens in the user's language from **one** English-canonical graph (no per-locale JSON copies). Applied once, on a menu open, current locale only; never re-translates an open / Imported / Shared / Workspace / autosaved document; user-visible **text only** — node labels, and the Coffee Template's group-frame titles — never ids / expr / `resourceType` / positions; a CI drift check for missing / stale entries. Both the Early MMO and Coffee Templates open through it, and the same rule re-seeds the titles when the language is switched (a user rename is kept). No engine / schema / wire / save-format change
-  - ✅ "Coffee roastery operations flow" Template ([`docs/example-coffee-roastery.md`](docs/example-coffee-roastery.md)) — a **simplified operating-flow simulation**, not an ERP or a real-time monitoring system: a small Graph JSON (~23 nodes, one-day step, buy green beans → roast → sell across cafe / retail / online + dessert) shipped as the **4th Templates entry**, opens editable and in the current UI language (English / 한국어 / 日本語) through the label overlay — its node labels and its three **zone-frame titles** alike. The **first bundled `loop-model/2` graph** (schema `loop-studio/graph/2`): its **five surfaced Parameters** are `@param` flow references the engine resolves once per step, so changing any one moves a real stock trajectory — and a Summary of **planning-proxy** Registers (projected daily revenue / cost / operating margin in `kKRW/day`, plus two signed stock-cover proxies), which are projections on the planned levers, not realised or accounting figures. An external comprehension check has run ([`docs/example-coffee-roastery.md`](docs/example-coffee-roastery.md) §CR11.5): the simplified flow, naming, and five levers were understood; a completed before/after explanation of each lever's result direction was not demonstrated, so the result is partial and real-operations suitability is not claimed. No engine / schema / wire change
+  - ✅ "Coffee roastery operations flow" Template ([`docs/example-coffee-roastery.md`](docs/example-coffee-roastery.md)) — a **simplified operating-flow simulation**, not an ERP or a real-time monitoring system: a small Graph JSON (~23 nodes, one-day step, buy green beans → roast → sell across cafe / retail / online + dessert) shipped as the **4th Templates entry**, opens editable and in the current UI language (English / 한국어 / 日本語) through the label overlay (the three **zone-frame titles** followed post-v0.8.0 — see the v0.9.0 notes). The **first bundled `loop-model/2` graph** (schema `loop-studio/graph/2`): its **five surfaced Parameters** are `@param` flow references the engine resolves once per step, so changing any one moves a real stock trajectory — and a Summary of **planning-proxy** Registers (projected daily revenue / cost / operating margin in `kKRW/day`, plus two signed stock-cover proxies), which are projections on the planned levers, not realised or accounting figures. An external comprehension check has run ([`docs/example-coffee-roastery.md`](docs/example-coffee-roastery.md) §CR11.5): the simplified flow, naming, and five levers were understood; a completed before/after explanation of each lever's result direction was not demonstrated, so the result is partial and real-operations suitability is not claimed. No engine / schema / wire change
   - ✅ Example display units — the money Registers above read `kKRW/day`; the Early MMO example's reporting Registers read `gold` / `items` / `units`, its clock Pool is `Elapsed steps` (a step count, not wall time), and its water / food Pools carry a `(units)` suffix. Advisory display hints only — no calculation, trajectory, or Timeline change
   - ✅ Template-load fit — opening a Template now re-fits the camera to the new graph instead of keeping the previous one's pan / zoom (desktop and the mobile More → Templates path). Render-only; a file / Workspace import and manual pan are untouched
-  - ✅ Register expression authoring ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`) — editing a Register formula after unlock no longer means reading and typing raw `@pool_mttqb36u_2` ids. **Slice 1**: an `@` autocomplete listing only Pool / Parameter / Register nodes (self and any dependent Register shown disabled with the reason), a two-line read-back that spells the stored expression out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`), reference chips, and a transient canvas peek halo. **Slice 2**: a `＋ Insert reference` button under the input arms a one-shot mode — the next click on a Pool / Parameter / Register node inserts that node's `@id` at the caret, keeps the same Register selected, returns focus, and is a single undo entry. Presentation-only — `@id` stays the sole stored form and the `loop-revision/2` digest is unchanged (`RXA-INV-1`); English / 한국어 / 日本語
+  - ✅ Register expression authoring (`v0.9.0`, [`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`) — editing a Register formula after unlock no longer means reading and typing raw `@pool_mttqb36u_2` ids. **Slice 1**: an `@` autocomplete listing only Pool / Parameter / Register nodes (self and any dependent Register shown disabled with the reason), a two-line read-back that spells the stored expression out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`), reference chips, and a transient canvas peek halo. **Slice 2**: a `＋ Insert reference` button under the input arms a one-shot mode — the next click on a Pool / Parameter / Register node inserts that node's `@id` at the caret, keeps the same Register selected, returns focus, and is a single undo entry. Presentation-only — `@id` stays the sole stored form and the `loop-revision/2` digest is unchanged (`RXA-INV-1`); English / 한국어 / 日本語
 
 ## Future directions
 
@@ -303,6 +318,53 @@ recorded here so the scope boundary above is explicit rather than implied:
   fluids, particles)
 
 ## Releases
+
+**v0.9.0 — expression authoring, ordered playback & in-app feedback.** Four
+backward-compatible additions on top of v0.8.0 — no engine, schema,
+wire-contract, or digest change, and no new `loop-*/N` id.
+
+- **Register expression authoring & readability** ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md), `RXA`)
+  — editing a Register formula after unlock no longer means reading and typing
+  raw `@pool_mttqb36u_2` ids. An **`@` autocomplete** lists only Pool /
+  Parameter / Register nodes (self and any dependent Register shown disabled
+  with the reason); a **two-line read-back** spells the stored expression out
+  by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`);
+  reference chips and a transient canvas peek halo tie each `@id` back to its
+  node. A **`＋ Insert reference`** button then arms a one-shot mode — the next
+  click on a Pool / Parameter / Register node inserts its `@id` at the caret,
+  keeps the same Register selected, returns focus, and is a single undo entry.
+  Alongside it, **content-aware Register / Parameter shells**
+  ([`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md))
+  keep the title, value, and `= expression` line inside the drawn vessel across
+  widths and locales (a height that tracks the measured content, a re-cut
+  silhouette, and proportional inset padding). Presentation-only: `@id` stays
+  the sole stored form and the `loop-revision/2` digest is unchanged
+  (`RXA-INV-1`). EN / KO / JA.
+- **Ordered playback cascade + steady-state** ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md))
+  — within a step the transfers now depart and arrive in **dependency order**
+  (a staggered `τ` by longest-predecessor depth over the graph's SCC
+  condensation) instead of one simultaneous pulse, with distinct **emit /
+  converge / absorb** cues by role, and a "flows continue" **steady-state**
+  chip once the run settles into a repeating state. Still a display layer only
+  — no engine / RNG / state-semantics / GraphDoc / `loop-revision/*` change,
+  and `settle` stays one atomic commit.
+- **In-app feedback** — a **`Send feedback`** entry in the Help menu (desktop
+  `?` and mobile More → Help) opens the feedback form in a new tab.
+- **日本語 as a third shipped locale + multilingual layout** — the `ja` catalog
+  and template labels load as their own chunk on demand (`en` stays in the main
+  bundle); the *Early MMO progression* and *Coffee roastery* Templates open in
+  JA, and the Coffee Template's three labelled **zone-frame** titles follow the
+  language switch. **Two-line node titles** and **height-parametric node shells**
+  ([`docs/mmo-multilingual-layout.md`](docs/mmo-multilingual-layout.md), §MML)
+  let EN / KO / JA labels fit the same graph without overlap; the MMO example
+  carries locale-independent canonical coordinates and a JA phrase-wrap that
+  respects kinsoku (no `<wbr>` at a line-head-forbidden boundary). Render-only —
+  no GraphDoc / digest / trajectory / undo change.
+- **Large-graph readability follow-ups** — a **collapsible minimap** (a persisted
+  `localStorage` UI preference; the initial-view inset follows it) and a
+  **Timeline series picker** so a Template's first-run chart shows a curated set
+  of series with the rest one `+N more` click away. Both are UI-only — nothing
+  is filed, digested, or run differently.
 
 **v0.8.0 — Onboarding, part 2 & the Productization track.** Localization, the
 guided first-run tour, the Early MMO example, and contextual inline help
@@ -328,9 +390,6 @@ new capability.
   discovery past the auto-frame threshold), each re-armable ("Show again next
   time") from a `Contextual help` entry now on both Help surfaces, with a
   three-tier priority and a post-tour cooldown so nothing piles up.
-  *(Since v0.8.0: **日本語** has been added as a third shipped locale, and the
-  Coffee roastery Template now groups its graph into three labelled zone
-  frames whose titles follow the language switch.)*
 - **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
   — a global hit-test fix (a node beats an overlapping edge / badge) plus a
   selection-driven 1-hop focus view, ephemeral filters by edge class /
