@@ -109,7 +109,7 @@ function atTokenBefore(value: string, caret: number): AtMatch {
 
 function candidateName(t: ReturnType<typeof useT>, c: RefCandidate): string {
   const kind = t(`canvas.nodeKind.${c.kind}` as MessageKey)
-  const val = c.value == null ? '—' : String(c.value)
+  const val = c.valueText
   const reason = c.block
     ? c.block.reason === 'self'
       ? t('regExpr.block.self')
@@ -187,7 +187,7 @@ function RefListbox({
           <span className={`regref__kind regref__kind--${c.kind}`}>
             {t(`canvas.nodeKind.${c.kind}` as MessageKey)}
           </span>
-          <span className="regref__val">= {c.value == null ? '—' : String(c.value)}</span>
+          <span className="regref__val">= {c.valueText}</span>
           {c.block && (
             <span className="regref__reason">
               {c.block.reason === 'self'

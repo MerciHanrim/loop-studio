@@ -29,6 +29,11 @@ export type RefCandidate = {
   kind: RefResolveKind
   /** current value, or `null` when non-finite / the Register is invalid */
   value: number | null
+  /** the value as the node itself displays it (§RXA3.2) — `formatRegisterValue`
+   *  for a Register, integers-verbatim / trimmed-float for a Pool / Parameter,
+   *  `—` for non-finite / unresolved. Use this for BOTH the row text and the
+   *  option's accessible name. */
+  valueText: string
   /** `format` for a Register value, so the caller renders it the node's way */
   format?: RegisterFormat
   /** the canonical spelling to insert (`@id` or `@{id}`) */
@@ -131,6 +136,20 @@ function refValue(
   return { kind: null, value: null }
 }
 
+type RefValue = ReturnType<typeof refValue>
+
+/** The display string for a referenceable node's current value — the SAME
+ *  presentation the node itself uses: `formatRegisterValue` for a Register
+ *  (no re-evaluation — the number is already `useRegisterOutcome`'s, RXA-INV-8),
+ *  and integers-verbatim / trimmed-float for a Pool count or Parameter value.
+ *  `NaN` / `±Infinity` / an unresolved reference → `—`. Screen text and the
+ *  option's accessible name both use this (§RXA3.2). */
+export function refValueText(rv: RefValue): string {
+  if (rv.value == null || !Number.isFinite(rv.value)) return '—'
+  if (rv.kind === 'register') return formatRegisterValue(rv.value, rv.format)
+  return Number.isInteger(rv.value) ? String(rv.value) : String(Number(rv.value.toFixed(6)))
+}
+
 /**
  * The `@` autocomplete list (RXA-INV-4): every Pool / Parameter / Register.
  * `editingId`'s own row is present but `block: {reason:'self'}`; any Register
@@ -162,6 +181,7 @@ export function referenceCandidates(
       name: names.get(n.id) ?? n.id,
       kind,
       value: rv.value,
+      valueText: refValueText(rv),
       format: rv.format,
       insert: canonicalRef(n.id),
       block,
@@ -345,7 +365,7 @@ function valueParts(
       t: 'val',
       id: t.id,
       name: names.get(t.id) ?? labelOf(byId.get(t.id)?.data) ?? t.id,
-      s: rv.value == null ? '—' : String(rv.value),
+      s: refValueText(rv), // the node's own display format — never a raw float
     })
   }
   return parts

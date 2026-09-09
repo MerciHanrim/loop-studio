@@ -230,6 +230,45 @@ test('§RXA9.9 — the EdgeFlowField picker lists `Name · Parameter · = value`
   expect(await page.evaluate(() => (window as any).__loop.graph.getState().edges[0].data.flow)).toBe('@p')
 })
 
+test('§RXA3.2 cond. 5 — a self-candidate shows the FORMATTED value; no raw float in the DOM or accessible names', async ({ page }) => {
+  // the Coffee `roasted_supply_margin` case, minimised: 30 - (6 + 10) * 2.35
+  // evaluates to -7.6 but arrives as -7.600000000000001 (FP residue).
+  await importGraph(page, JSON.stringify({
+    schema: 'loop-studio/graph', version: 1,
+    nodes: [
+      { id: 'stock', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Stock', activation: 'passive', initial: 30, capacity: null, mode: 'pullAny' } },
+      { id: 'demand', type: 'pool', position: { x: 0, y: 160 }, data: { kind: 'pool', label: 'Demand', activation: 'passive', initial: 6, capacity: null, mode: 'pullAny' } },
+      { id: 'orders', type: 'pool', position: { x: 0, y: 320 }, data: { kind: 'pool', label: 'Orders', activation: 'passive', initial: 10, capacity: null, mode: 'pullAny' } },
+      { id: 'margin', type: 'register', position: { x: 260, y: 160 }, data: { kind: 'register', label: 'Supply margin', expr: '@stock - (@demand + @orders) * 2.35', format: 'float' } },
+    ],
+    edges: [],
+  }))
+  await select(page, 'margin')
+
+  // the read-back total is already formatted (the reported-good path)
+  await expect(result(page)).toContainText('= -7.6')
+
+  // open the `@` list WITHOUT replacing the (valid) stored expression — a
+  // trailing `@` does not parse, so nothing commits and `margin` stays -7.6
+  await expr(page).click()
+  await expr(page).fill('@stock + @')
+  await expect(listbox(page)).toBeVisible()
+  const selfRow = rows(page).filter({ has: page.locator('.regref__name', { hasText: /^Supply margin$/ }) })
+  // the self-candidate shows the SAME formatted value as the read-back…
+  await expect(selfRow.locator('.regref__val')).toHaveText('= -7.6')
+  // …in its accessible name too (§RXA3.2 cond. 4)
+  await expect(selfRow.locator('.sr-only')).toContainText('current value -7.6')
+  await expect(selfRow.locator('.sr-only')).not.toContainText('-7.600000000000001')
+
+  // restore the valid expr → the read-back's value line renders the format…
+  await expr(page).fill('@stock - (@demand + @orders) * 2.35')
+  await expect(result(page)).toContainText('Stock 30')
+  await expect(result(page)).toContainText('= -7.6')
+  // …and the raw float appears NOWHERE in the Inspector DOM (text or aria)
+  const inspectorHtml = await page.locator('aside.inspector').evaluate((el) => el.outerHTML)
+  expect(inspectorHtml).not.toContain('-7.600000000000001')
+})
+
 for (const loc of ['en', 'ko', 'ja'] as const) {
   test(`§RXA9.11 — the read-back + @-list localise (${loc})`, async ({ page }) => {
     await setLocale(page, loc)

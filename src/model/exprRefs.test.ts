@@ -3,6 +3,7 @@ import type { RegisterOutcome } from './model'
 import {
   buildRefNames,
   readBackExpr,
+  refValueText,
   referenceCandidates,
   scoreCandidate,
 } from './exprRefs'
@@ -157,5 +158,35 @@ describe('readBackExpr', () => {
     // report the OUTCOME's verdict, not recompute
     const rb = readBackExpr('@wallet + @savings', GRAPH, poolValue, OUTCOMES, { invalid: false, value: 999 }, 'net', KL)
     expect(rb.ok && rb.result.kind === 'value' && rb.result.total).toBe('= 999')
+  })
+})
+
+describe('refValueText — never leaks a raw float / NaN / Infinity (§RXA3.2, cond. 1/3)', () => {
+  it('a Register value uses formatRegisterValue for its format — FP residue trimmed', () => {
+    // the Coffee `roasted_supply_margin` case: -7.6 arrives as -7.600000000000001
+    expect(refValueText({ kind: 'register', value: -7.600000000000001, format: 'float' })).toBe('-7.6')
+    expect(refValueText({ kind: 'register', value: 3.14159265, format: 'int' })).toBe('3')
+    expect(refValueText({ kind: 'register', value: 0.125, format: 'percent' })).toBe('12.5%')
+  })
+  it('a Pool / Parameter value: integers verbatim, otherwise a short decimal', () => {
+    expect(refValueText({ kind: 'pool', value: 34 })).toBe('34')
+    expect(refValueText({ kind: 'parameter', value: 0.1 + 0.2 })).toBe('0.3') // not 0.30000000000000004
+  })
+  it('non-finite or unresolved ⇒ "—" for every kind', () => {
+    expect(refValueText({ kind: 'register', value: Number.NaN, format: 'float' })).toBe('—')
+    expect(refValueText({ kind: 'pool', value: Infinity })).toBe('—')
+    expect(refValueText({ kind: 'parameter', value: -Infinity })).toBe('—')
+    expect(refValueText({ kind: null, value: null })).toBe('—')
+  })
+  it('a candidate row carries the formatted value, not the raw number', () => {
+    const g: LoopNode[] = [
+      N('p', 'pool', 'P'),
+      N('r', 'register', 'R', { expr: '@p' }),
+    ]
+    const outs = new Map<string, RegisterOutcome>([['r', { invalid: false, value: -7.600000000000001 }]])
+    const cands = referenceCandidates(g, () => 3, outs, null, KL)
+    const r = cands.find((c) => c.id === 'r')!
+    expect(r.valueText).toBe('-7.6')
+    expect(r.valueText).not.toContain('-7.600000000000001')
   })
 })
