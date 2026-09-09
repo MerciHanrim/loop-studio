@@ -170,6 +170,9 @@ function RefListbox({
           role="option"
           aria-selected={i === activeIndex}
           aria-disabled={c.block ? true : undefined}
+          // ONE clean accessible name — the visible fragments below are
+          // `aria-hidden` so they are not re-concatenated into it (§RXA5)
+          aria-label={candidateName(t, c)}
           className={
             'regref__opt' +
             (i === activeIndex ? ' is-active' : '') +
@@ -183,19 +186,20 @@ function RefListbox({
           }}
           onMouseEnter={() => onActiveIndexChange(i)}
         >
-          <span className="regref__name">{c.name}</span>
-          <span className={`regref__kind regref__kind--${c.kind}`}>
-            {t(`canvas.nodeKind.${c.kind}` as MessageKey)}
-          </span>
-          <span className="regref__val">= {c.valueText}</span>
-          {c.block && (
-            <span className="regref__reason">
-              {c.block.reason === 'self'
-                ? t('regExpr.block.self')
-                : t('regExpr.block.cycle', { name: c.block.withName })}
+          <span className="regref__row" aria-hidden="true">
+            <span className="regref__name">{c.name}</span>
+            <span className={`regref__kind regref__kind--${c.kind}`}>
+              {t(`canvas.nodeKind.${c.kind}` as MessageKey)}
             </span>
-          )}
-          <span className="sr-only">{candidateName(t, c)}</span>
+            <span className="regref__val">= {c.valueText}</span>
+            {c.block && (
+              <span className="regref__reason">
+                {c.block.reason === 'self'
+                  ? t('regExpr.block.self')
+                  : t('regExpr.block.cycle', { name: c.block.withName })}
+              </span>
+            )}
+          </span>
         </li>
       ))}
       {overflow > 0 && (

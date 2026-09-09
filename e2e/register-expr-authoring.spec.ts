@@ -70,8 +70,8 @@ test('§RXA9.2 — the `@` list is Pool/Parameter/Register only; self + a depend
   )
   expect(names, 'a Source is never a candidate').not.toContain('Income')
 
-  // target rows by their exact display name (the sr-only text of a cycle row
-  // also contains "Net worth", so `hasText` alone matches two rows)
+  // target rows by their exact display name (a cycle row's reason text also
+  // contains "Net worth", so `hasText` alone would match two rows)
   const rowNamed = (name: string) =>
     rows(page).filter({ has: page.locator('.regref__name', { hasText: new RegExp(`^${name}$`) }) })
 
@@ -230,7 +230,7 @@ test('§RXA9.9 — the EdgeFlowField picker lists `Name · Parameter · = value`
   expect(await page.evaluate(() => (window as any).__loop.graph.getState().edges[0].data.flow)).toBe('@p')
 })
 
-test('§RXA3.2 cond. 5 — a self-candidate shows the FORMATTED value; no raw float in the DOM or accessible names', async ({ page }) => {
+test('§RXA3.2 cond. 4/5 — the self-candidate value is formatted; its accessible name reads name · kind · value · reason ONCE, no raw float', async ({ page }) => {
   // the Coffee `roasted_supply_margin` case, minimised: 30 - (6 + 10) * 2.35
   // evaluates to -7.6 but arrives as -7.600000000000001 (FP residue).
   await importGraph(page, JSON.stringify({
@@ -254,11 +254,19 @@ test('§RXA3.2 cond. 5 — a self-candidate shows the FORMATTED value; no raw fl
   await expr(page).fill('@stock + @')
   await expect(listbox(page)).toBeVisible()
   const selfRow = rows(page).filter({ has: page.locator('.regref__name', { hasText: /^Supply margin$/ }) })
-  // the self-candidate shows the SAME formatted value as the read-back…
+
+  // the visible value fragment is formatted
   await expect(selfRow.locator('.regref__val')).toHaveText('= -7.6')
-  // …in its accessible name too (§RXA3.2 cond. 4)
-  await expect(selfRow.locator('.sr-only')).toContainText('current value -7.6')
-  await expect(selfRow.locator('.sr-only')).not.toContainText('-7.600000000000001')
+
+  // the option's ACCESSIBLE NAME is one clean sentence — name, kind, value and
+  // the disabled reason each appear exactly once (the visible fragments are
+  // `aria-hidden`, so nothing is double-read), and never the raw float
+  await expect(selfRow).toHaveAccessibleName('Supply margin, Register, current value -7.6, cannot reference itself')
+  const axName = (await selfRow.getAttribute('aria-label')) ?? ''
+  expect((axName.match(/-7\.6/g) ?? []).length, 'the value appears once').toBe(1)
+  expect((axName.match(/Supply margin/g) ?? []).length, 'the name appears once').toBe(1)
+  expect((axName.match(/cannot reference itself/g) ?? []).length, 'the reason appears once').toBe(1)
+  expect(axName).not.toContain('-7.600000000000001')
 
   // restore the valid expr → the read-back's value line renders the format…
   await expr(page).fill('@stock - (@demand + @orders) * 2.35')
