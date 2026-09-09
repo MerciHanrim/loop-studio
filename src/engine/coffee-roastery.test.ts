@@ -112,19 +112,22 @@ describe('coffee-roastery example', () => {
     expect(overlap(box(frames![0].rect), box(frames![2].rect))).toBe(false)
 
     // rendered node box SIZES `[maxW, maxH]` — the UNION of what the node renders
-    // at in EN / KO / JA (Coffee nodes auto-size to their label; measured
-    // 2026-09-08). The e2e (coffee-zone-frames.spec.ts) re-measures the live
-    // boxes per locale and fails if any drifts past these.
+    // at in EN / KO / JA (Coffee nodes auto-size to their label; heights
+    // re-measured 2026-09-09 after the node-shell fix
+    // (docs/node-shell-content-in-vessel.md) — a Register / Parameter now sizes
+    // to its true content height so the whole stack sits inside the drawn
+    // vessel). The e2e (coffee-zone-frames.spec.ts) re-measures the live boxes
+    // per locale and fails if any drifts past these.
     const NODE_WH: Record<string, [number, number]> = {
-      green_delivery: [186.3, 64], dessert_prep_src: [168, 64], green_stock: [159.1, 64],
+      green_delivery: [186.3, 64], dessert_prep_src: [168, 64], green_stock: [159.1, 74],
       green_wholesale: [164.8, 64], dessert_stock: [134.2, 64],
       roasting: [207.2, 64], roast_loss: [189.2, 64], dessert_sales: [146.6, 64],
-      dessert_wrapup: [182.3, 64], roasted_stock: [172.9, 64], cafe_retail: [191, 64],
-      online_sales: [191, 64], roasted_bleed: [191, 80],
-      projected_revenue: [260, 86], planned_cost: [260, 64], projected_operating_margin: [248, 86],
-      roasted_supply_margin: [260, 86], dessert_prep_margin: [181, 86],
+      dessert_wrapup: [182.3, 64], roasted_stock: [172.9, 64], cafe_retail: [191, 72],
+      online_sales: [191, 72], roasted_bleed: [191, 88],
+      projected_revenue: [260, 102], planned_cost: [260, 86], projected_operating_margin: [248, 102],
+      roasted_supply_margin: [260, 102], dessert_prep_margin: [181, 102],
     }
-    const PARAM_WH: [number, number] = [181, 70] // widest / tallest Parameter render
+    const PARAM_WH: [number, number] = [181, 86] // widest / tallest Parameter render
 
     const MARGIN = 24
     const nonParams = nodes.filter((n) => n.data.kind !== 'parameter')
