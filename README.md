@@ -383,9 +383,6 @@ new capability.
   discovery past the auto-frame threshold), each re-armable ("Show again next
   time") from a `Contextual help` entry now on both Help surfaces, with a
   three-tier priority and a post-tour cooldown so nothing piles up.
-  *(日本語, per-locale lazy-loading, the multilingual node layout, the
-  collapsible minimap, the Timeline series picker, and the Coffee Template's
-  zone frames all shipped after the v0.8.0 tag — see the v0.9.0 notes above.)*
 - **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
   — a global hit-test fix (a node beats an overlapping edge / badge) plus a
   selection-driven 1-hop focus view, ephemeral filters by edge class /
