@@ -1171,6 +1171,21 @@ a.sheet__row {
 .nodef--end .nodef__body {
   padding-right: 24px;
 }
+/* docs/node-shell-content-in-vessel.md "curved corner" follow-up — the vessel
+   path is authored in a fixed `0 0 120 H` viewBox but the CSS box width varies
+   (118–260 px), so a FIXED horizontal padding maps to a viewBox x that creeps
+   toward the rounded rim as the node widens: on a wide register / parameter the
+   chip · title · value corners land outside the drawn fill. A percentage
+   padding resolves against this node's own width, so the content's left / right
+   edge sits at a CONSTANT viewBox x (~14) at every width; `14 / 120` ⇒ that
+   x ≈ 14. `clamp` floors it at 15 px on the min-width (118 px) node and caps it
+   at 32 px so a 260 px node keeps a sane text column. Pairs with the re-cut
+   `parameter` / `register` silhouettes in ./silhouette. */
+.nodef--parameter .nodef__body,
+.nodef--register .nodef__body {
+  padding-left: clamp(15px, calc(100% * 14 / 120), 32px);
+  padding-right: clamp(15px, calc(100% * 14 / 120), 32px);
+}
 
 .nodef__head {
   display: flex;

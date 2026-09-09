@@ -57,7 +57,20 @@ const n = (v: number) => Math.round(v * 100) / 100
 
 /** The exact historic paths, returned verbatim at the base height so every
  *  non-grown node (equilibrium / deadlock, short user labels, most of Coffee)
- *  is byte-identical to before this change — no visual-snapshot churn. */
+ *  is byte-identical to before this change — no visual-snapshot churn.
+ *
+ *  `parameter` / `register` were RE-CUT (docs/node-shell-content-in-vessel.md
+ *  "curved corner" follow-up): the old capsule / tag inset its left+right edges
+ *  ~14 px into the viewBox, but the rendered content is laid out to the CSS box
+ *  (`.nodef__body` padding), which maps to a viewBox x that SHRINKS toward the
+ *  rim as the node widens — so on a 180–260 px node the chip / title / value
+ *  corners fell OUTSIDE the drawn fill even though inside the bounding box. The
+ *  two shapes are now near-full-width rounded rectangles (register: `x8…116`
+ *  r8; parameter: `x8…112` r6 + a left tab) that, together with a width-scaled
+ *  `padding-inline` on the two bodies, keep every content corner ≥ 2 CSS px
+ *  inside the fill at all widths / locales. The top+bottom cap offsets are
+ *  UNCHANGED (`y12 … H−12`, `VESSEL_INSET_Y` still 24) — #167's height growth is
+ *  untouched. */
 const BASE: Record<NodeKind, string> = {
   pool: 'M32 6 H88 Q95 6 96 13 L112 52 Q113 58 107 58 H13 Q7 58 8 52 L24 13 Q25 6 32 6 Z',
   source: 'M14 8 Q8 8 8 14 V50 Q8 56 14 56 H84 L114 32 L84 8 Z',
@@ -66,8 +79,8 @@ const BASE: Record<NodeKind, string> = {
   converter:
     'M14 8 H106 Q112 8 112 14 L82 32 L112 50 Q112 56 106 56 H14 Q8 56 8 50 L38 32 L8 14 Q8 8 14 8 Z',
   end: 'M28 8 H92 Q112 8 112 32 Q112 56 92 56 H28 Q8 56 8 32 Q8 8 28 8 Z',
-  parameter: 'M40 12 H100 Q108 12 108 20 V44 Q108 52 100 52 H40 L28 40 H18 V24 H28 L40 12 Z',
-  register: 'M30 12 H98 Q116 12 116 32 Q116 52 98 52 H30 Q14 52 14 32 Q14 12 30 12 Z',
+  parameter: 'M14 12 H106 Q112 12 112 18 V46 Q112 52 106 52 H14 Q8 52 8 46 V40 H1 V24 H8 V18 Q8 12 14 12 Z',
+  register: 'M16 12 H108 Q116 12 116 20 V44 Q116 52 108 52 H16 Q8 52 8 44 V20 Q8 12 16 12 Z',
 }
 
 /** The vessel outline for `kind` at body height `h` (viewBox `0 0 120 h`). */
@@ -91,10 +104,12 @@ export function silhouettePath(kind: NodeKind, h = BASE_NODE_H): string {
       // fixed cap radius (Q through x112/y-cap); a straight V is inserted for growth
       return `M28 8 H92 Q112 8 112 32 V${n(H - 32)} Q112 ${n(H - 8)} 92 ${n(H - 8)} H28 Q8 ${n(H - 8)} 8 ${n(H - 32)} V32 Q8 8 28 8 Z`
     case 'parameter':
-      // left notch stays 10×16, centred on the left edge's vertical middle
-      return `M40 12 H100 Q108 12 108 20 V${n(H - 20)} Q108 ${n(H - 12)} 100 ${n(H - 12)} H40 L28 ${n(mid + 8)} H18 V${n(mid - 8)} H28 L40 12 Z`
+      // body `x8…112` r6; left tab `x1…8` × `mid ± 8` (historic notch height),
+      // centred on the left edge's vertical middle
+      return `M14 12 H106 Q112 12 112 18 V${n(H - 18)} Q112 ${n(H - 12)} 106 ${n(H - 12)} H14 Q8 ${n(H - 12)} 8 ${n(H - 18)} V${n(mid + 8)} H1 V${n(mid - 8)} H8 V18 Q8 12 14 12 Z`
     case 'register':
-      return `M30 12 H98 Q116 12 116 32 V${n(H - 32)} Q116 ${n(H - 12)} 98 ${n(H - 12)} H30 Q14 ${n(H - 12)} 14 ${n(H - 32)} V32 Q14 12 30 12 Z`
+      // body `x8…116` r8 (near-full-width rounded rectangle)
+      return `M16 12 H108 Q116 12 116 20 V${n(H - 20)} Q116 ${n(H - 12)} 108 ${n(H - 12)} H16 Q8 ${n(H - 12)} 8 ${n(H - 20)} V20 Q8 12 16 12 Z`
   }
 }
 

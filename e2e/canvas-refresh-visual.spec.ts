@@ -196,9 +196,10 @@ for (const level of ['L2', 'L0'] as const) {
     expect(await dash('.react-flow__node[data-id="r_bad"] .nodef__invalid'), 'invalid dashed').toMatch(/\d/)
     await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__flag')).toHaveText('!')
 
-    // Parameter notch silhouette vs Register lozenge — the non-colour kind tell
-    await expect(page.locator('.react-flow__node[data-id="p_big"] .nodef--parameter .nodef__stroke')).toHaveAttribute('d', /M40 12/)
-    await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /M30 12/)
+    // Parameter tab silhouette (`M14 12 … H1 …`) vs Register rounded rectangle
+    // (`M16 12 …`) — the non-colour kind tell (docs/node-shell-content-in-vessel.md)
+    await expect(page.locator('.react-flow__node[data-id="p_big"] .nodef--parameter .nodef__stroke')).toHaveAttribute('d', /^M14 12 .* H1 /)
+    await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /^M16 12 /)
 
     await expect(page.locator('.react-flow')).toHaveScreenshot(`forced-colors-${level}.png`, shotOpts(page))
     await page.emulateMedia({ forcedColors: null })

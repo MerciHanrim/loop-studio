@@ -1,10 +1,12 @@
 # Node shell — content inside the drawn vessel
 
-**Status: fixed.** A rendering-layer defect in `NodeFrame`
-(`src/components/nodes/nodes.tsx`): a node's content (chip · title · value ·
-`= expr` sub) could sit a few px **outside** the drawn vessel outline — most
-visibly on every result-bearing **Register** (title straddling the top edge,
-`= @pool…` hanging below), at every zoom and in every example.
+**Status: fixed** (vertical: #167; curved corner: follow-up). A rendering-layer
+defect in `NodeFrame` (`src/components/nodes/nodes.tsx`): a node's content
+(chip · title · value · `= expr` sub) could sit a few px **outside** the drawn
+vessel outline — most visibly on every result-bearing **Register** (title
+straddling the top edge, `= @pool…` hanging below), at every zoom and in every
+example. #167 fixed the vertical overhang; the **"Follow-up — the CURVED
+corner"** section below closes the horizontal case at the rounded ends.
 
 ## Cause
 
@@ -66,11 +68,69 @@ visible AABB.
 - **MMO** — Registers grow the same way; no node-node overlap (97 nodes), no
   stored frames (auto-frames recompute from the AABBs).
 
+## Follow-up — the CURVED corner (horizontal containment)
+
+The height fix above closed the **vertical** overhang, but the Parameter /
+Register left + right edges are **rounded**, and the content is still laid out
+to the CSS box while the vessel path lives in a **fixed** `0 0 120 H` viewBox.
+The two coordinate systems diverge as the node widens: a fixed CSS
+`padding-left: 16px` maps to a viewBox x of `16 · 120 / nodeWidth`, which
+shrinks toward the rim — from ≈ 16 on a 118 px node down to ≈ 7 on a 260 px one
+— so on a wide Register / Parameter the chip · title · value corners fell
+**outside the rounded fill** even though inside the rectangular bbox
+(`.nodef__stroke.getBBox()`). Worst on the widest Registers (a long `= expr`
+with no break opportunity pushes the node to its 260 px `max-width`), where
+*all four* corners of the content AABB were outside the fill.
+
+Two coupled changes, both scoped to `parameter` / `register`:
+
+1. **The silhouettes are re-cut** (`src/components/nodes/silhouette.ts`) to
+   near-full-width rounded rectangles — the drawn fill now nearly fills the
+   bounding box instead of insetting ~14 viewBox px on each side:
+
+   | | before (leftmost · rightmost · corner) | after |
+   |---|---|---|
+   | register | `x14 · x116` · elliptical end r≈18 | `x8 · x116` · **r8** |
+   | parameter | `x18 · x108` · chamfered tab | `x8 · x112` · **r6** + a left tab `x1…8 × mid±8` |
+
+   The top / bottom cap offsets are **unchanged** (`y12 … H−12`,
+   `VESSEL_INSET_Y` still 24) — the #167 height growth and every `boxH`
+   calculation are untouched. Register still reads as a soft rounded pill,
+   Parameter still carries its left tab (the historic notch height).
+
+2. **A width-scaled `padding-inline`** on the two bodies
+   (`.nodef--parameter/.nodef--register .nodef__body`) —
+   `clamp(15px, calc(100% * 14 / 120), 32px)`. The percentage resolves against
+   the node's own width, so the content's left / right edge sits at a
+   **constant** viewBox x (≈ 14) at every width, EN / KO / JA. Pure CSS — the
+   browser resolves it in one layout pass, so there is **no measure→pad→measure
+   feedback loop** and nothing to converge (a JS width→padding coupling would
+   have needed damping and could oscillate).
+
+**Cost.** On a node already at the 260 px `max-width` the wider inset costs the
+`= expr` sub line ≈ 26 px of column — it ellipsises a few characters sooner
+(the full expression is always in the Inspector, and §RXA will rework the
+on-canvas presentation). The title, value and unit never lose space — only the
+`= expr` sub, and only at max width. Sub-`max-width` nodes are unaffected in
+practice: Coffee's Parameters are already pinned at the 118 px `min-width` and
+its Registers at 260 px, so measured EN / KO / JA node sizes and the
+`Forecast metrics` frame's 24 px margins are unchanged.
+
+Measured smallest CSS-px gap from any content corner (`.nodef__stack` **and**
+`.nodef__chip`, four each) to the fill boundary, after the re-cut:
+**≥ 3.25 px** at every width 118 – 260, EN / KO / JA (a plain "is the point in
+the fill" test would have passed at 0 px — which was the latent bug).
+
 ## Regression tests
 
-- `e2e/node-long-label.spec.ts` "content ⊂ vessel" — for every node kind, in EN
-  / KO / JA, the chip's top and the sub / value's bottom clear the drawn
-  `.nodef__stroke` outline by ≥ 3 px; a Source and a plain Pool stay at the
-  64 px base box.
+- `e2e/node-long-label.spec.ts` "content ⊂ vessel — path-aware (isPointInFill)"
+  — for every Parameter / Register, in EN / KO / JA, all four corners of
+  `.nodef__stack` **and** `.nodef__chip` are mapped into viewBox space and
+  walked outward against `.nodef__fill.isPointInFill()`; the nearest surviving
+  gap must be **≥ 2 CSS px**. Plus the #167 vertical check (content clears the
+  `.nodef__stroke` top / bottom by ≥ 3 px) and the "Source / plain Pool stay at
+  the 64 px base box" guard. The fixture asserts none of its nodes hit
+  `MAX_NODE_H` (that ceiling clamp is a separate, pre-existing tradeoff).
 - `e2e/coffee-zone-frames.spec.ts` (EN / KO / JA) + `coffee-roastery.test.ts`
-  §CR17 — every Forecast node keeps ≥ 24 px frame margin at the new heights.
+  §CR17 — every Forecast node keeps ≥ 24 px frame margin (unchanged by the
+  re-cut).
