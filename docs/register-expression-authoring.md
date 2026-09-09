@@ -67,6 +67,8 @@ exists for a full Register expression.
 | **RXA-INV-3** | The canvas **peek** highlight is a transient preview: it sets no selection, does not enter Focus, bumps no `simulationRev` / `loadRev`, creates no undo entry, and is never serialized. It clears on blur / mouse-leave / Inspector close. |
 | **RXA-INV-4** | Autocomplete lists **only** `pool` / `parameter` / `register` nodes. The Register being edited, and any Register that (transitively) depends on it, appear **disabled with a reason**, never hidden. |
 | **RXA-INV-5** | The editor never blocks a save. An in-progress unparseable draft stays local (the existing `draft` gate); a parseable expression with a dangling / wrong-kind / cyclic / divide-by-zero reference is **committed** and flagged, exactly as today. |
+| **RXA-INV-8** | The read-back's valid/invalid verdict and error text are a **presentation of the existing `evaluateRegisters` outcome** — the same `RegisterOutcome` (`useRegisterOutcome`) the Inspector and Canvas already show. The read-back adds only a per-reference value lookup, resolved against the **same snapshot view** (`RegisterSnapshotView` — `poolCount` / `paramValue` / `refKind`). No second parser or evaluator runs and none can reach a different classification: if `evaluateRegisters` says `invalid: false, value: 37`, line 2 ends `= 37`; if it says `invalid: true, code: …`, line 2 shows exactly that code's §RXA3.5 row. |
+| **RXA-INV-9** | The **meaning line never shows two identical bare names.** When any referenced ids share a trimmed label, every occurrence of that label in the meaning line (and the autocomplete) is rendered `Label · Kind`, and `Label · Kind …idTail` if the kind also collides (§RXA4). `Savings + Savings` is not a possible render. |
 | **RXA-INV-6** | Fully keyboard-operable and screen-reader-labelled; the popover does not trap focus or fight an IME composition (§RXA5). |
 | **RXA-INV-7** | Building the candidate list + filtering + the dependent-Register set is **O(nodes + register-deps)** and memoised per `(nodes, S(t))` identity — no per-keystroke graph walk on an MMO-sized graph (§RXA6). |
 
@@ -118,12 +120,16 @@ Wallet 3 + Savings 34 = 37
   also learns how their input normalises (this replaces today's separate
   "canonical:" hint).
 - **Line 2 — result.** The same structure with each reference replaced by its
-  **resolved value at the current step**, ending in `= <R(step)>`. It is
-  produced from the same `evaluateRegisters` outcome the Inspector already shows
-  (`useRegisterOutcome`), plus a per-reference value map (a thin addition:
-  resolve each id in `refsOf(ast)` against the same snapshot view). When the
-  Register is `invalid`, line 2 is replaced by the **specific reason at the
-  offending reference** (§RXA3.5), e.g. `Wallet 3 + Savings target 0 → cannot divide by 0`.
+  **resolved value at the current step**, ending in `= <R(step)>`. The final
+  value and the valid/invalid verdict are **read straight from
+  `useRegisterOutcome(id)`** — the read-back never re-parses or re-evaluates the
+  whole expression, so it cannot disagree with the Canvas / Timeline / M3.5 pass
+  (RXA-INV-8). The only addition is a per-reference lookup: for each id in
+  `refsOf(ast)`, `poolCount` / `paramValue` / another Register's outcome from
+  the **same `RegisterSnapshotView`**. When the outcome is `invalid`, line 2 is
+  replaced by that outcome's §RXA3.5 row — e.g.
+  `Wallet 3 + Savings target 0 → cannot divide by 0` for `EVAL_DIV_ZERO`,
+  attributing the failing reference from `refsOf` order + the outcome code.
 - Both lines wrap; on a very long expression line 2 is capped with a "…" and the
   full breakdown is in the title.
 - While the draft does not parse, line 1/2 are replaced by the existing
@@ -255,7 +261,14 @@ Keyed on **node / edge ids**, never rendered labels.
    clears it. A full-graph snapshot before == after.
 5. **Edge cases** — deleted ref, wrong-kind ref, `@x / @zero`, a loaded cyclic
    Register: each shows its §RXA3.5 row; the Register still **saves** and the
-   engine result is unchanged from today.
+   engine result is unchanged from today. **Parity (RXA-INV-8):** the read-back's
+   verdict equals `useRegisterOutcome(id)` — `invalid` flag and code — for every
+   fixture row; a fuzz set of expressions shows no case where the read-back says
+   valid while the outcome says invalid or vice-versa.
+5a. **No bare duplicate (RXA-INV-9)** — two referenceable nodes both labelled
+   `Savings` (one Pool, one Register), a Register `@a + @b`: the meaning line is
+   `Savings · Pool + Savings · Register`, never `Savings + Savings`; if both were
+   Pools it is `Savings · Pool …tail1 + Savings · Pool …tail2`.
 6. **Keyboard + SR** — `@ ↓ ↓ Enter` inserts the third candidate; `Esc` leaves
    the raw text; `role="combobox"` / `aria-expanded` / `aria-activedescendant`
    present; the read-back live-region announces the value line (debounced).
