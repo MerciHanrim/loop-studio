@@ -196,6 +196,35 @@ export function referenceCandidates(
   return out
 }
 
+/**
+ * §RXA8 — can `targetId` be inserted into `editingId`'s expression by an
+ * arm-and-click canvas pick? Same rules as the `@` list (RXA-INV-4): only a
+ * Pool / Parameter / Register, never the Register itself, never a Register that
+ * already (transitively) depends on it. Returns `{ ok: true }` or a
+ * localised-reason string via `kindLabel` for the cycle case.
+ */
+export type InsertVerdict =
+  | { ok: true }
+  | { ok: false; reason: 'self' }
+  | { ok: false; reason: 'kind' }
+  | { ok: false; reason: 'cycle'; withName: string }
+
+export function refInsertVerdict(
+  nodes: readonly LoopNode[],
+  editingId: string,
+  targetId: string,
+  kindLabel: (k: RefResolveKind) => string,
+): InsertVerdict {
+  const target = nodes.find((n) => n.id === targetId)
+  const k = kindOf(target?.data) as RefResolveKind
+  if (!REFERENCEABLE.includes(k)) return { ok: false, reason: 'kind' }
+  if (targetId === editingId) return { ok: false, reason: 'self' }
+  if (k === 'register' && registerDependsOn(nodes)(targetId, editingId)) {
+    return { ok: false, reason: 'cycle', withName: buildRefNames(nodes, kindLabel).get(editingId) ?? editingId }
+  }
+  return { ok: true }
+}
+
 /** rank a candidate against a filter query (higher = better; -1 = no match).
  *  name-prefix > name-substring > id-substring (RXA §RXA3.2). */
 export function scoreCandidate(c: RefCandidate, q: string): number {

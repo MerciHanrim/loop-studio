@@ -3,6 +3,7 @@ import type { RegisterOutcome } from './model'
 import {
   buildRefNames,
   readBackExpr,
+  refInsertVerdict,
   refValueText,
   referenceCandidates,
   scoreCandidate,
@@ -188,5 +189,47 @@ describe('refValueText — never leaks a raw float / NaN / Infinity (§RXA3.2, c
     const r = cands.find((c) => c.id === 'r')!
     expect(r.valueText).toBe('-7.6')
     expect(r.valueText).not.toContain('-7.600000000000001')
+  })
+})
+
+describe('refInsertVerdict — §RXA8 arm-and-click gate', () => {
+  it('a Pool / Parameter / other Register is insertable', () => {
+    expect(refInsertVerdict(GRAPH, 'net', 'wallet', KL)).toEqual({ ok: true })
+    expect(refInsertVerdict(GRAPH, 'net', 'target', KL)).toEqual({ ok: true })
+    expect(refInsertVerdict(GRAPH, 'prog', 'net', KL)).toEqual({ ok: true })
+  })
+
+  it('the Register being edited cannot reference itself', () => {
+    expect(refInsertVerdict(GRAPH, 'net', 'net', KL)).toEqual({ ok: false, reason: 'self' })
+  })
+
+  it('Source / Drain / Gate / Converter / End are never insertable', () => {
+    expect(refInsertVerdict(GRAPH, 'net', 'src', KL)).toEqual({ ok: false, reason: 'kind' })
+    const g = [...GRAPH, N('g1', 'gate', 'G'), N('c1', 'converter', 'C'), N('e1', 'end', 'E')]
+    expect(refInsertVerdict(g, 'net', 'g1', KL)).toEqual({ ok: false, reason: 'kind' })
+    expect(refInsertVerdict(g, 'net', 'c1', KL)).toEqual({ ok: false, reason: 'kind' })
+    expect(refInsertVerdict(g, 'net', 'e1', KL)).toEqual({ ok: false, reason: 'kind' })
+  })
+
+  it('an unknown target id is treated as wrong-kind', () => {
+    expect(refInsertVerdict(GRAPH, 'net', 'ghost', KL)).toEqual({ ok: false, reason: 'kind' })
+  })
+
+  it('a Register that (transitively) depends on the edited one is a cycle, with its name', () => {
+    // `prog` = `@net / @target`, so inserting `prog` into `net` would loop
+    expect(refInsertVerdict(GRAPH, 'net', 'prog', KL)).toEqual({
+      ok: false,
+      reason: 'cycle',
+      withName: 'Net worth',
+    })
+    // transitive: a → b → c, editing `a`, picking `c`
+    const g = [
+      N('a', 'register', 'A', { expr: '1' }),
+      N('b', 'register', 'B', { expr: '@a' }),
+      N('c', 'register', 'C', { expr: '@b' }),
+    ]
+    expect(refInsertVerdict(g, 'a', 'c', KL)).toEqual({ ok: false, reason: 'cycle', withName: 'A' })
+    // the reverse direction (`a` picking a register that does NOT reach it) is fine
+    expect(refInsertVerdict(g, 'c', 'a', KL)).toEqual({ ok: true })
   })
 })

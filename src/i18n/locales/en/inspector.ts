@@ -129,6 +129,14 @@ const inspector = {
   'regExpr.row.notFinite': '→ not a finite number',
   'regExpr.row.dependsInvalid': '— depends on an invalid reference',
   'regExpr.row.generic': '— {code}',
+  // docs/register-expression-authoring.md §RXA8 — arm-and-click canvas insert
+  'regExpr.insert.title': 'Insert a reference by clicking a node',
+  'regExpr.insert.armedTitle': 'Click a Pool, Parameter, or Register on the canvas — or press Esc to cancel',
+  'regExpr.insert.hint': 'Click a Pool, Parameter, or Register on the canvas to insert its reference.',
+  'regExpr.insert.armed': 'Reference insert armed. Click a node on the canvas, or press Escape to cancel.',
+  'regExpr.insert.cancelled': 'Reference insert cancelled.',
+  'regExpr.insert.done': 'Inserted a reference to {name}.',
+  'regExpr.insert.wrongKind': 'Only a Pool, Parameter, or Register can be inserted.',
 } as const
 
 export type InspectorKey = keyof typeof inspector

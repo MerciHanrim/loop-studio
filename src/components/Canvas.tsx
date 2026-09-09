@@ -12,10 +12,11 @@ import {
 } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
+import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-import { useT } from '../i18n'
+import { useT, type MessageKey } from '../i18n'
 import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
@@ -85,6 +86,12 @@ export function Canvas() {
   const toggleActivityOverlay = useUiStore((s) => s.toggleActivityOverlay)
   const panMode = useUiStore((s) => s.panMode)
   const togglePanMode = useUiStore((s) => s.togglePanMode)
+  // docs/register-expression-authoring.md §RXA8 — arm-and-click reference insert
+  const refInsert = useUiStore((s) => s.refInsert)
+  const pickRefInsert = useUiStore((s) => s.pickRefInsert)
+  const setRefInsertHint = useUiStore((s) => s.setRefInsertHint)
+  const disarmRefInsert = useUiStore((s) => s.disarmRefInsert)
+  const refInsertArmed = refInsert != null
   const frameToolArmed = useFrameStore((s) => s.toolArmed)
   const armFrameTool = useFrameStore((s) => s.armTool)
   const disarmFrameTool = useFrameStore((s) => s.disarmTool)
@@ -403,10 +410,39 @@ export function Canvas() {
 
   const onSelectionChange = useCallback(
     ({ nodes: sn, edges: se }: { nodes: { id: string }[]; edges: { id: string }[] }) => {
+      // while a §RXA8 pick is armed, selection is frozen (elementsSelectable is
+      // off) — ignore any stray selection-change so the edited Register stays put
+      if (useUiStore.getState().refInsert) return
       setSelection(sn[0]?.id ?? null, se[0]?.id ?? null)
     },
     [setSelection],
   )
+
+  // §RXA8 — a click on a node while armed inserts its `@id` (or explains why it
+  // cannot); Esc / an empty-canvas click disarm. The click never changes which
+  // Register the Inspector shows.
+  const kindLabel = useCallback((k: RefResolveKind) => t(`canvas.nodeKind.${k}` as MessageKey), [t])
+  const onArmedNodeClick = useCallback(
+    (nodeId: string) => {
+      const arm = useUiStore.getState().refInsert
+      if (!arm) return
+      const v = refInsertVerdict(useGraphStore.getState().nodes, arm.editingId, nodeId, kindLabel)
+      if (v.ok) pickRefInsert(nodeId)
+      else setRefInsertHint(v.reason === 'cycle' ? { reason: 'cycle', name: v.withName } : { reason: v.reason })
+    },
+    [kindLabel, pickRefInsert, setRefInsertHint],
+  )
+  useEffect(() => {
+    if (!refInsertArmed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        disarmRefInsert()
+      }
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [refInsertArmed, disarmRefInsert])
 
   const handleDrop = useCallback(
     (e: DragEvent) => {
@@ -444,7 +480,7 @@ export function Canvas() {
   return (
     <div
       ref={canvasRef}
-      className={`canvas${canvasLocked ? ' canvas--locked' : ''}`}
+      className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}`}
       data-tour="canvas"
       onDrop={noEdit ? undefined : handleDrop}
       onDragOver={noEdit ? undefined : handleDragOver}
@@ -459,9 +495,15 @@ export function Canvas() {
         onEdgesChange={onEdgesChange}
         onConnect={noEdit ? undefined : onConnect}
         onSelectionChange={onSelectionChange}
-        nodesDraggable={!noEdit && !panSurfaceActive}
-        nodesConnectable={!noEdit}
+        // §RXA8 — while armed, freeze selection (the edited Register stays
+        // selected), node dragging, and node focus (so the caret returns to the
+        // expression input after a pick); a click still fires `onNodeClick`
+        elementsSelectable={!refInsertArmed}
+        nodesFocusable={!refInsertArmed}
+        nodesDraggable={!noEdit && !panSurfaceActive && !refInsertArmed}
+        nodesConnectable={!noEdit && !refInsertArmed}
         edgesReconnectable={!noEdit}
+        onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
         zoomOnDoubleClick={!isMobile}
         deleteKeyCode={noEdit ? null : undefined}
         defaultEdgeOptions={{ type: 'loop' }}
@@ -473,7 +515,10 @@ export function Canvas() {
         // §LGR6 — while the Frame tool is armed, a pane drag draws a frame
         // instead of panning the canvas.
         panOnDrag={!frameToolArmed}
-        onPaneClick={() => selectFrame(null)}
+        onPaneClick={() => {
+          if (useUiStore.getState().refInsert) disarmRefInsert()
+          selectFrame(null)
+        }}
       >
         {/* docs/dense-graph-pan.md — the pan-capture overlay. A child of
             <ReactFlow> so it sits inside the `.react-flow` stacking context:

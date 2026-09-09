@@ -150,7 +150,16 @@ function NodeFrame({
   // a Register expression reference is hovered / focused in the Inspector.
   // Boolean selector ⇒ only the peeked nodes re-render. Purely visual
   // (RXA-INV-3): no selection / Focus / undo / digest effect.
-  const refPeek = useUiStore((s) => s.peekRefNodeIds.includes(nodeId))
+  // §RXA8 — while an arm-and-click insert is armed, every referenceable node
+  // (Pool / Parameter / Register, except the one being edited) gets the same
+  // faint "pick me" affordance.
+  const refPeek = useUiStore(
+    (s) =>
+      s.peekRefNodeIds.includes(nodeId) ||
+      (s.refInsert != null &&
+        s.refInsert.editingId !== nodeId &&
+        (kind === 'pool' || kind === 'parameter' || kind === 'register')),
+  )
   const frameRef = useRef<HTMLDivElement>(null)
 
   // docs/mmo-multilingual-layout.md §MML1b + docs/node-shell-content-in-vessel.md —

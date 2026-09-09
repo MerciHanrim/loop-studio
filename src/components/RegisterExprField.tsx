@@ -25,6 +25,7 @@ import {
   type RefCandidate,
   type RefResolveKind,
 } from '../model/exprRefs'
+import { canonicalRef } from '../model/expr'
 import { initialPoolValues, type RegisterOutcome } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcomes } from '../store/registers'
@@ -366,8 +367,34 @@ export function RegisterExprField({
   // for the same token on the next keyup / click (cleared on any value change)
   const dismissedStartRef = useRef<number | null>(null)
 
+  // §RXA8 — arm-and-click reference insertion
+  const armRefInsert = useUiStore((s) => s.armRefInsert)
+  const disarmRefInsert = useUiStore((s) => s.disarmRefInsert)
+  const clearRefInsertPick = useUiStore((s) => s.clearRefInsertPick)
+  const armed = useUiStore((s) => s.refInsert?.editingId === id)
+  const armHint = useUiStore((s) => (s.refInsert?.editingId === id ? s.refInsert.hint : null))
+  const pendingPick = useUiStore((s) => (s.refInsertPick?.editingId === id ? s.refInsertPick : null))
+  const [srMsg, setSrMsg] = useState('')
+  // the exact `refInsertPick` object this field has already inserted — guards
+  // the consume effect against a re-run (a fresh `onCommit` identity from the
+  // parent re-render) before the store clear lands, which would double-insert
+  // the same `@id`. Identity, not `seq`: the seq resets when the pick clears.
+  const consumedPick = useRef<unknown>(null)
+  // true between a completed pick and the next arm — so the disarm that a pick
+  // triggers is not also announced as "cancelled"
+  const justInsertedRef = useRef(false)
+
   // clear the canvas peek whenever this field goes away (RXA-INV-3)
   useEffect(() => () => setPeek([]), [setPeek])
+
+  // disarm arm-and-click when this field goes away (edit lock, a different
+  // Inspector target, a template load / graph reset — all unmount it)
+  useEffect(
+    () => () => {
+      if (useUiStore.getState().refInsert?.editingId === id) disarmRefInsert()
+    },
+    [id, disarmRefInsert],
+  )
 
   // a pointer press anywhere outside this field closes the popover (standard
   // combobox dismissal — covers a click that doesn't move DOM focus)
@@ -456,6 +483,70 @@ export function RegisterExprField({
       .map((x) => x.c)
   }, [at, candidates])
 
+  // ── §RXA8 arm-and-click: consume a canvas pick, announce the mode ─────────
+  useEffect(() => {
+    if (!pendingPick || pendingPick === consumedPick.current) return
+    consumedPick.current = pendingPick
+    const el = inputRef.current
+    const ins = canonicalRef(pendingPick.nodeId)
+    if (el) {
+      const s = Math.min(pendingPick.caretStart, el.value.length)
+      const e = Math.min(pendingPick.caretEnd, el.value.length)
+      const next = el.value.slice(0, s) + ins + el.value.slice(e)
+      commitIfValid(next)
+      const newCaret = s + ins.length
+      // return focus + caret to the input once React and React Flow have
+      // finished re-rendering from the disarm (RF re-enables node focus on the
+      // same tick, so a bare rAF can lose the race — settle on a macrotask).
+      const refocus = () => {
+        const e2 = inputRef.current
+        if (!e2) return
+        e2.focus()
+        e2.setSelectionRange(newCaret, newCaret)
+      }
+      requestAnimationFrame(refocus)
+      setTimeout(refocus, 0)
+    }
+    const nm = candidates.find((c) => c.id === pendingPick.nodeId)?.name ?? pendingPick.nodeId
+    justInsertedRef.current = true
+    setSrMsg(t('regExpr.insert.done', { name: nm }))
+    clearRefInsertPick()
+  }, [pendingPick, candidates, commitIfValid, clearRefInsertPick, t])
+
+  useEffect(() => {
+    if (armed) {
+      justInsertedRef.current = false
+      setSrMsg(t('regExpr.insert.armed'))
+    } else if (!justInsertedRef.current) {
+      // any disarm that is NOT a completed pick (Esc, empty-canvas click, focus
+      // loss to the lock / another target) — the pick effect above runs first
+      setSrMsg((m) => (m ? t('regExpr.insert.cancelled') : m))
+    }
+  }, [armed, t])
+
+  useEffect(() => {
+    if (!armHint) return
+    setSrMsg(
+      armHint.reason === 'self'
+        ? t('regExpr.block.self')
+        : armHint.reason === 'cycle'
+          ? t('regExpr.block.cycle', { name: armHint.name ?? '' })
+          : t('regExpr.insert.wrongKind'),
+    )
+  }, [armHint, t])
+
+  const toggleArm = useCallback(() => {
+    if (armed) {
+      disarmRefInsert()
+      inputRef.current?.focus()
+      return
+    }
+    const el = inputRef.current
+    const caretStart = el?.selectionStart ?? draft.length
+    const caretEnd = el?.selectionEnd ?? draft.length
+    armRefInsert({ editingId: id, caretStart, caretEnd })
+  }, [armed, disarmRefInsert, armRefInsert, id, draft.length])
+
   const onKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
       if (!at || ranked.length === 0 || composingRef.current) {
@@ -506,48 +597,63 @@ export function RegisterExprField({
   }
 
   return (
-    <div className="field regexpr" ref={rootRef}>
+    <div className={`field regexpr${armed ? ' regexpr--arming' : ''}`} ref={rootRef}>
       <label className="field__label" htmlFor={`${listId}-input`}>
         {label}
       </label>
-      <input
-        id={`${listId}-input`}
-        ref={inputRef}
-        value={draft}
-        spellCheck={false}
-        autoComplete="off"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={at != null && ranked.length > 0}
-        aria-controls={listId}
-        aria-activedescendant={
-          at != null && ranked.length > 0 && active >= 0 ? `${listId}-opt-${active}` : undefined
-        }
-        style={{ fontFamily: 'var(--font-mono, monospace)' }}
-        onChange={(e) => {
-          commitIfValid(e.target.value)
-          recomputeAt()
-        }}
-        onKeyUp={recomputeAt}
-        onClick={recomputeAt}
-        onKeyDown={onKeyDown}
-        onCompositionStart={() => {
-          composingRef.current = true
-          setAt(null)
-        }}
-        onCompositionEnd={() => {
-          composingRef.current = false
-          recomputeAt()
-        }}
-        onFocus={peekAllOnFocus}
-        onBlur={(e) => {
-          // keep the popover if focus went into it (pointer pick handles its own)
-          if (!e.relatedTarget || !(e.relatedTarget as HTMLElement).closest?.('.regref')) {
-            setAt(null)
-            setPeek([])
+      <div className="regexpr__row">
+        <input
+          id={`${listId}-input`}
+          ref={inputRef}
+          value={draft}
+          spellCheck={false}
+          autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={at != null && ranked.length > 0}
+          aria-controls={listId}
+          aria-activedescendant={
+            at != null && ranked.length > 0 && active >= 0 ? `${listId}-opt-${active}` : undefined
           }
-        }}
-      />
+          style={{ fontFamily: 'var(--font-mono, monospace)' }}
+          onChange={(e) => {
+            commitIfValid(e.target.value)
+            recomputeAt()
+          }}
+          onKeyUp={recomputeAt}
+          onClick={recomputeAt}
+          onKeyDown={onKeyDown}
+          onCompositionStart={() => {
+            composingRef.current = true
+            setAt(null)
+          }}
+          onCompositionEnd={() => {
+            composingRef.current = false
+            recomputeAt()
+          }}
+          onFocus={peekAllOnFocus}
+          onBlur={(e) => {
+            // keep the popover if focus went into it (pointer pick handles its own).
+            // NOT disarming the §RXA8 mode here — the next click is on the canvas,
+            // which necessarily blurs this input.
+            if (!e.relatedTarget || !(e.relatedTarget as HTMLElement).closest?.('.regref')) {
+              setAt(null)
+              if (!armed) setPeek([])
+            }
+          }}
+        />
+        {/* §RXA8 — arm a one-shot "click a node on the canvas" insert */}
+        <button
+          type="button"
+          className={`regexpr__pick${armed ? ' is-armed' : ''}`}
+          aria-pressed={armed}
+          title={armed ? t('regExpr.insert.armedTitle') : t('regExpr.insert.title')}
+          aria-label={armed ? t('regExpr.insert.armedTitle') : t('regExpr.insert.title')}
+          onClick={toggleArm}
+        >
+          ＋
+        </button>
+      </div>
       {at != null && (
         <RefListbox
           id={listId}
@@ -558,6 +664,20 @@ export function RegisterExprField({
           onPick={pick}
         />
       )}
+      {armed && (
+        <p className="regexpr__hint">
+          {armHint
+            ? armHint.reason === 'self'
+              ? t('regExpr.block.self')
+              : armHint.reason === 'cycle'
+                ? t('regExpr.block.cycle', { name: armHint.name ?? '' })
+                : t('regExpr.insert.wrongKind')
+            : t('regExpr.insert.hint')}
+        </p>
+      )}
+      <span className="sr-only" role="status" aria-live="polite">
+        {srMsg}
+      </span>
       <ReadBackBlock rb={rb} onPeek={setPeek} errText={errText} />
     </div>
   )

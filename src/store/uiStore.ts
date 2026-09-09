@@ -120,6 +120,39 @@ type UiState = {
    */
   peekRefNodeIds: readonly string[]
   setPeekRefNodeIds: (ids: readonly string[]) => void
+
+  /**
+   * docs/register-expression-authoring.md §RXA8 — arm-and-click reference
+   * insertion. Pressing "＋ reference" beside a Register's expression input
+   * captures the input caret and arms a ONE-SHOT mode: the next click on a
+   * Pool / Parameter / Register node on the canvas inserts that node's `@id`
+   * at the captured caret (or replaces the captured selection) and disarms.
+   * `editingId` is the Register being edited (its Inspector selection is NOT
+   * changed by a canvas pick). `hint` carries the reason a just-clicked node is
+   * not insertable (self / wrong kind / would cycle) — the arm stays active.
+   * Session-only, never persisted; sets no selection / Focus / undo / digest
+   * effect until the insertion itself, which is one normal edit (RXA-INV-3/5).
+   * Disarms on Esc, an empty-canvas click, the edit lock, a different Inspector
+   * target, and any graph load / reset (the field unmounts). NOT on the input
+   * blurring — the very next click lands on the canvas, which blurs it.
+   */
+  refInsert:
+    | {
+        editingId: string
+        caretStart: number
+        caretEnd: number
+        hint: null | { reason: 'self' | 'kind' | 'cycle'; name?: string }
+      }
+    | null
+  armRefInsert: (a: { editingId: string; caretStart: number; caretEnd: number }) => void
+  setRefInsertHint: (hint: { reason: 'self' | 'kind' | 'cycle'; name?: string }) => void
+  disarmRefInsert: () => void
+  /** the result of a successful canvas pick — the field consumes it (inserts
+   *  `@nodeId` at `caretStart..caretEnd`) then clears it. Each call is a fresh
+   *  object; the consumer de-dupes on identity. */
+  refInsertPick: { nodeId: string; editingId: string; caretStart: number; caretEnd: number } | null
+  pickRefInsert: (nodeId: string) => void
+  clearRefInsertPick: () => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
@@ -259,6 +292,29 @@ export const useUiStore = create<UiState>((set, get) => ({
       if (a.length === ids.length && a.every((x, i) => x === ids[i])) return s
       return { peekRefNodeIds: [...ids] }
     }),
+
+  refInsert: null,
+  armRefInsert: ({ editingId, caretStart, caretEnd }) =>
+    set({ refInsert: { editingId, caretStart, caretEnd, hint: null }, refInsertPick: null }),
+  setRefInsertHint: (hint) =>
+    set((s) => (s.refInsert ? { refInsert: { ...s.refInsert, hint } } : s)),
+  disarmRefInsert: () => set((s) => (s.refInsert ? { refInsert: null } : s)),
+
+  refInsertPick: null,
+  pickRefInsert: (nodeId) =>
+    set((s) => {
+      if (!s.refInsert) return s
+      return {
+        refInsert: null,
+        refInsertPick: {
+          nodeId,
+          editingId: s.refInsert.editingId,
+          caretStart: s.refInsert.caretStart,
+          caretEnd: s.refInsert.caretEnd,
+        },
+      }
+    }),
+  clearRefInsertPick: () => set((s) => (s.refInsertPick ? { refInsertPick: null } : s)),
 }))
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay

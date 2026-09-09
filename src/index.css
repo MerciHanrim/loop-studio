@@ -3183,6 +3183,55 @@ a.sheet__row {
 .regexpr {
   position: relative;
 }
+/* §RXA8 — the input + "＋ reference" button row */
+.regexpr__row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.regexpr__row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.regexpr__pick {
+  flex: none;
+  width: 30px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  border: 1px solid var(--line-structure);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.regexpr__pick:hover {
+  color: var(--text-primary);
+  border-color: var(--line-strong);
+}
+.regexpr__pick.is-armed {
+  background: var(--state-focus);
+  border-color: var(--state-focus);
+  color: #fff;
+}
+.regexpr__pick:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 1px;
+}
+.regexpr__hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--state-focus);
+}
+.regexpr--arming .regexpr__hint {
+  color: var(--state-focus);
+}
+/* while armed, the canvas is a target picker */
+.canvas--ref-insert .react-flow__pane,
+.canvas--ref-insert .react-flow__node {
+  cursor: crosshair;
+}
 /* the `@` autocomplete listbox (also used by EdgeFlowField, §RXA7) */
 .regref {
   position: absolute;
