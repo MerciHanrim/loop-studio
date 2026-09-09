@@ -109,6 +109,17 @@ type UiState = {
   panMode: boolean
   setPanMode: (v: boolean) => void
   togglePanMode: () => void
+
+  /**
+   * docs/register-expression-authoring.md §RXA3.4 — the ids of the nodes a
+   * Register expression currently references, hovered / focused in the
+   * Inspector read-back. Canvas node rendering adds `.is-ref-peek` for these.
+   * A TRANSIENT PREVIEW only: sets no selection, no Focus, no undo entry, no
+   * `simulationRev` / digest / serialization effect (RXA-INV-3). Session-only,
+   * never persisted. Cleared on blur / mouse-leave / Inspector close.
+   */
+  peekRefNodeIds: readonly string[]
+  setPeekRefNodeIds: (ids: readonly string[]) => void
 }
 
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
@@ -240,6 +251,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   panMode: false,
   setPanMode: (v) => set((s) => (s.panMode === v ? s : { panMode: v })),
   togglePanMode: () => set((s) => ({ panMode: !s.panMode })),
+
+  peekRefNodeIds: [],
+  setPeekRefNodeIds: (ids) =>
+    set((s) => {
+      const a = s.peekRefNodeIds
+      if (a.length === ids.length && a.every((x, i) => x === ids[i])) return s
+      return { peekRefNodeIds: [...ids] }
+    }),
 }))
 
 export const selectOverlay = (s: UiState): Overlay => s.overlay
