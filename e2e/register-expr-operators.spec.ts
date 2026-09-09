@@ -104,25 +104,43 @@ test('§RXA8b.3 — ( ) wraps the current selection; with no selection it insert
   await expect(expr(page)).toHaveValue('1 + (@wallet)')
 })
 
-test('§RXA8b.4 — draft-until-valid holds, and one button press is one undo entry', async ({ page }) => {
+test('§RXA8b.4 — undo follows the valid commit, not the button: an incomplete press saves nothing; completing it is one entry', async ({ page }) => {
   await setInput(page, '@wallet', 7) // a bare @ref is a valid expression — this commits
   await page.waitForTimeout(700) // past COALESCE_MS so the next commit is its own entry
   const past0 = await pastLen(page)
 
-  // press × — "@wallet * " does not parse, so nothing commits (RXA-INV-5)
+  // press × — "@wallet * " does not parse, so NOTHING commits and there is no
+  // new undo entry (RXA-INV-5); a button never force-saves an invalid expr
   await opByGlyph(page, '×').click()
   await expect(expr(page)).toHaveValue('@wallet * ')
   expect(await modelExpr(page, 'net')).toBe('@wallet') // still the last valid commit
   expect(await pastLen(page)).toBe(past0)
 
-  // complete it → exactly one new history entry, reverted by one undo
+  // add a number → valid again → ONE entry spanning "@wallet" → "@wallet * 2"
   await expr(page).pressSequentially('2')
   await expect(expr(page)).toHaveValue('@wallet * 2')
   expect(await modelExpr(page, 'net')).toBe('@wallet * 2')
   expect(await pastLen(page)).toBe(past0 + 1)
+
+  // one Undo returns to the last valid formula from before the operator
   await page.evaluate(() => (window as any).__loop.graph.getState().undo())
   expect(await pastLen(page)).toBe(past0)
   expect(await modelExpr(page, 'net')).toBe('@wallet')
+})
+
+test('§RXA8b.4b — a press that stays valid (wrapping a whole formula in parens) is one undo entry', async ({ page }) => {
+  await setInput(page, '@wallet + @savings_pool', 23) // valid — commits
+  await page.waitForTimeout(700)
+  const past0 = await pastLen(page)
+
+  await setInput(page, '@wallet + @savings_pool', 0, 23) // select the whole formula
+  await opByGlyph(page, '( )').click()
+  await expect(expr(page)).toHaveValue('(@wallet + @savings_pool)')
+  expect(await modelExpr(page, 'net')).toBe('(@wallet + @savings_pool)') // still valid ⇒ committed
+  expect(await pastLen(page)).toBe(past0 + 1)
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+  expect(await modelExpr(page, 'net')).toBe('@wallet + @savings_pool')
 })
 
 test('§RXA8b.5 — keyboard entry of * and ( still works unchanged', async ({ page }) => {

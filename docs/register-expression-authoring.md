@@ -276,10 +276,16 @@ still assumed the user knew `loop-expr/1`: multiply is `*`, divide is `/`, and
 - After any press, **focus and the caret return to the input** (caret just past
   what was inserted). Keyboard entry of `* / ( )` is unchanged.
 - Pure text edit — it runs the **same draft-until-valid commit gate** as
-  typing, so an incomplete expression stays local, `@id` remains the sole
-  stored form, and the `loop-revision/2` digest is unchanged (RXA-INV-1/5).
-  One press is **one undo entry**; the row is hidden on mobile / under the edit
-  lock with the rest of the field.
+  typing, so `@id` remains the sole stored form and the `loop-revision/2` digest
+  is unchanged (RXA-INV-1/5). **Undo follows the commit, not the button**
+  (RXA-INV-5): a press that leaves the expression immediately valid (e.g.
+  wrapping a complete formula in `( )`) is **one undo entry**; a press that
+  leaves an incomplete draft (`@a +`) commits **nothing** — it stays local
+  until a reference or number completes it, and *that* commit is one undo entry
+  spanning from the last valid formula to the completed one; a single Undo then
+  returns to the last valid formula from before the operator. A button never
+  force-saves an invalid expression. The row is hidden on mobile / under the
+  edit lock with the rest of the field.
 - Pure helper `src/model/exprEdit.ts` `insertOperator(value, start, end, kind)`
   → `{ value, caret }`; new i18n `regExpr.op.{groupName,add,sub,mul,div,group,inserts,groupTitle,inserted}`
   (EN / KO / JA). No grammar / storage / evaluation / digest change.
@@ -361,8 +367,11 @@ Keyed on **node / edge ids**, never rendered labels.
 21. **`×` / `÷` → `*` / `/`** — five buttons; a press writes the grammar
     operator, at the caret, with spacing; focus + caret return to the input.
 22. **`( )`** — wraps a selection; with none, `()` + caret between.
-23. **Draft-until-valid + undo** — an incomplete result does not commit; one
-    press is one undo entry; keyboard `* / ( )` entry unchanged.
+23. **Draft-until-valid + undo per commit** — a press that leaves the
+    expression incomplete commits nothing and adds no undo entry; completing it
+    (or a press that stays valid, e.g. `( )` around a whole formula) is **one**
+    entry from the last valid formula to the new one, reverted by a single
+    Undo. Keyboard `* / ( )` entry unchanged.
 24. **Desktop-unlocked only** — the edit lock removes the row with the input.
 25. **Localisation** — each button's accessible name is the localised word
     (not the glyph) in EN / KO / JA; the glyph stays the visible face.

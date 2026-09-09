@@ -3215,25 +3215,28 @@ a.sheet__row {
   outline: 2px solid var(--line-focus);
   outline-offset: 1px;
 }
-/* the "＋ Insert reference" secondary action — a small labelled button under
-   the input, never on the input's row (its text must not shrink the field). */
+/* the "＋ Insert reference" secondary action — a labelled MODE toggle, not a
+   text-insert button like the operator chips above it: sits further below the
+   operator row, is a recessed accent-tinted pill (matches its armed state),
+   never glyph-only. */
 .regexpr__pick {
   display: inline-flex;
   align-items: center;
-  margin-top: 6px;
-  padding: 3px 9px;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 3px 10px;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.5;
-  border: 1px solid var(--line-structure);
-  border-radius: 6px;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--state-focus) 45%, var(--line-structure));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--state-focus) 10%, var(--surface-raised));
+  color: var(--state-focus);
   cursor: pointer;
 }
 .regexpr__pick:hover {
-  color: var(--text-primary);
-  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--state-focus) 18%, var(--surface-raised));
+  border-color: var(--state-focus);
 }
 .regexpr__pick.is-armed {
   background: var(--state-focus);
