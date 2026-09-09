@@ -89,37 +89,43 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     }
   })
 
-  test('Inspector recomputes R(t) from the graph at the current step, and shows the invalid code past the ÷0', async ({ page }) => {
+  test('the Inspector read-back recomputes R(t) at the current step; an invalid Register shows a localised verdict, no raw code past the ÷0 (docs/register-expression-authoring.md §RXA3.5)', async ({ page }) => {
     const rowAt = (t: number, id: string) => ORACLE.registers[t][id]
+    // scope to the visible Inspector surface (desktop aside / mobile sheet)
+    const readback = (p: Page) => inspector(p).locator('.regrb__line--result').first()
+    const badLine = (p: Page) => inspector(p).locator('.regrb__line--bad')
 
-    // r_reserve is valid throughout — the Inspector value tracks the step
+    // r_reserve is valid throughout — line 2 ends `= R(step)` and tracks the step
     await select(page, 'r_reserve')
     await stepN(page, 1)
-    await expect(inspector(page)).toContainText('Value at step 1')
-    await expect(inspector(page)).toContainText(String(rowAt(1, 'r_reserve')))
-    await expect(inspector(page)).toContainText('recomputed from the graph — never stored')
+    await expect(readback(page)).toContainText(`= ${rowAt(1, 'r_reserve')}`)
 
-    // r_ratio: valid at step 1 (Mana = 1), M_REG_EVAL from step 2 (Mana = 0)
+    // r_ratio: valid at step 1 (Mana = 1), evaluates invalid from step 2 (÷ Mana = 0)
     await select(page, 'r_ratio')
-    await expect(inspector(page)).toContainText(String(rowAt(1, 'r_ratio')))
+    await expect(readback(page)).toContainText(String(rowAt(1, 'r_ratio')))
     await stepN(page, 2) // → step 3
-    await expect(inspector(page)).toContainText('M_REG_EVAL')
-    await expect(inspector(page)).toContainText('no value at step 3')
+    await expect(readback(page)).toContainText('→') // a `→ <verdict>` line
+    await expect(readback(page)).not.toContainText('M_REG_EVAL') // raw code never shown
+    await expect(readback(page)).not.toContainText('EVAL_DIV_ZERO')
 
-    // r_gap depends on r_ratio ⇒ cascades
+    // r_gap depends on r_ratio ⇒ cascades to an invalid row (localised)
     await select(page, 'r_gap')
-    await expect(inspector(page)).toContainText('M_REG_DEPENDS_ON_INVALID')
+    await expect(badLine(page)).toBeVisible()
+    await expect(inspector(page)).not.toContainText('M_REG_DEPENDS_ON_INVALID')
 
-    // r_loop self-cycles ⇒ M_REG_CYCLE at every step, and the run kept going
+    // r_loop self-cycles ⇒ an invalid "cycle" row at every step; the run kept going
     await select(page, 'r_loop')
-    await expect(inspector(page)).toContainText('M_REG_CYCLE')
+    await expect(badLine(page)).toContainText(/cycle|순환|循環/i)
+    await expect(inspector(page)).not.toContainText('M_REG_CYCLE')
     await expectStepReached(page, 3)
   })
 
   test('loop-workspace/1 round-trip: a stepped Workspace saves no Register state; re-Import restores S(t) and R(t) recomputes to the same values', async ({ page }) => {
     await stepN(page, 3)
     await select(page, 'r_reserve')
-    await expect(inspector(page)).toContainText('Value at step 3')
+    await expect(inspector(page).locator('.regrb__line--result').first()).toContainText(
+      `= ${ORACLE.registers[3].r_reserve}`,
+    )
     const beforeText = await inspector(page).innerText()
 
     // Export a Workspace via the real format path (bridge, works desktop + mobile)
@@ -152,10 +158,13 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
 
     // R(t) recomputed from the restored S(t) — identical to before the Export
     await select(page, 'r_reserve')
-    await expect(inspector(page)).toContainText('Value at step 3')
+    await expect(page.locator('aside.inspector .regrb__line--result').first()).toContainText(
+      `= ${ORACLE.registers[3].r_reserve}`,
+    )
     expect(await inspector(page).innerText()).toBe(beforeText)
     await select(page, 'r_ratio')
-    await expect(inspector(page)).toContainText('M_REG_EVAL')
+    // r_ratio ÷0 at step 3 → the read-back keeps a value line with a `→` verdict
+    await expect(inspector(page).locator('.regrb__total--bad')).toBeVisible()
   })
 
   test('the advisory resourceType mismatch is surfaced on the edge Inspector and does not change the run', async ({ page }) => {

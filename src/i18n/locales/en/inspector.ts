@@ -50,10 +50,6 @@ const inspector = {
   'inspector.parameter.outOfRange': 'The value is outside the advisory min/max — kept as-is, not clamped.',
   'inspector.parameter.hintIncoherent': 'An advisory hint is incoherent and will be dropped on export.',
   'inspector.parameter.noPorts': 'A Parameter has no ports — reference it by id from an expression.',
-  'inspector.register.canonical': 'Canonical form: {canonical} (saved on export)',
-  'inspector.register.invalidAtStep': '{code} · {reason} — no value at step {step}.',
-  'inspector.register.valueAtStep': 'Value at step {step}: {value}',
-  'inspector.register.recomputed': '(recomputed from the graph — never stored)',
   'inspector.register.formatInvalid': 'Unrecognised format — will fall back to float on export.',
   'inspector.register.noStore': 'A Register stores nothing and has no ports.',
   'inspector.edge.kindLink': '{kind} link',
@@ -113,6 +109,26 @@ const inspector = {
   'panels.summary.noValue': '— no value at step {step}',
   'panels.empty.inputs': 'No Parameters in this graph.',
   'panels.empty.summary': 'No Registers in this graph.',
+
+  // docs/register-expression-authoring.md §RXA3 — the reference-aware Register
+  // expression editor: the `@` picker, the two read-back lines, edge-case rows.
+  'regExpr.pick.listLabel': 'Reference a Pool, Parameter, or Register',
+  'regExpr.pick.optionAria': '{name}, {kind}, current value {value}',
+  'regExpr.pick.noMatch': 'No matching node',
+  'regExpr.pick.more': '+{n} more — keep typing',
+  'regExpr.block.self': 'cannot reference itself',
+  'regExpr.block.cycle': 'would create a cycle with {name}',
+  'regExpr.empty': 'The expression is empty.',
+  'regExpr.chip.deleted': '(deleted)',
+  'regExpr.chip.wrongKind': '(not usable)',
+  'regExpr.row.unknownRef': '— reference "{id}" not found',
+  'regExpr.row.wrongKind': '— "{name}" is not a Pool, Parameter, or Register',
+  'regExpr.row.invalidId': '— "{id}" is not a valid reference',
+  'regExpr.row.cycle': '— cycle: {name} → … → {name}',
+  'regExpr.row.divZero': '→ cannot divide by 0',
+  'regExpr.row.notFinite': '→ not a finite number',
+  'regExpr.row.dependsInvalid': '— depends on an invalid reference',
+  'regExpr.row.generic': '— {code}',
 } as const
 
 export type InspectorKey = keyof typeof inspector

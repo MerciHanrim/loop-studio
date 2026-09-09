@@ -58,10 +58,6 @@ const inspector = {
     '値が参考の最小 / 最大の範囲外です — そのまま保持され、クランプされません。',
   'inspector.parameter.hintIncoherent': '参考ヒントに矛盾があり、書き出し時に削除されます。',
   'inspector.parameter.noPorts': 'パラメーターにポートはありません — 式から id で参照します。',
-  'inspector.register.canonical': '正規形：{canonical}（書き出し時に保存されます）',
-  'inspector.register.invalidAtStep': '{code} · {reason} — ステップ {step} に値がありません。',
-  'inspector.register.valueAtStep': 'ステップ {step} の値：{value}',
-  'inspector.register.recomputed': '（グラフから再計算 — 保存はされません）',
   'inspector.register.formatInvalid': '認識できない書式です — 書き出し時に小数へフォールバックします。',
   'inspector.register.noStore': 'レジスターは何も保存せず、ポートもありません。',
   'inspector.edge.kindLink': '{kind} 接続',
@@ -125,6 +121,25 @@ const inspector = {
   'panels.summary.noValue': '— ステップ {step} に値がありません',
   'panels.empty.inputs': 'このグラフにはパラメーターがありません。',
   'panels.empty.summary': 'このグラフにはレジスターがありません。',
+
+  // docs/register-expression-authoring.md §RXA3 — 参照認識レジスター式エディター
+  'regExpr.pick.listLabel': 'プール・パラメーター・レジスターを参照',
+  'regExpr.pick.optionAria': '{name}、{kind}、現在の値 {value}',
+  'regExpr.pick.noMatch': '一致するノードなし',
+  'regExpr.pick.more': '他 {n} 件 — 入力を続けてください',
+  'regExpr.block.self': '自分自身は参照できません',
+  'regExpr.block.cycle': '{name} と循環参照になります',
+  'regExpr.empty': '式が空です。',
+  'regExpr.chip.deleted': '（削除済み）',
+  'regExpr.chip.wrongKind': '（使用不可）',
+  'regExpr.row.unknownRef': '— 参照「{id}」が見つかりません',
+  'regExpr.row.wrongKind': '— 「{name}」はプール・パラメーター・レジスターではありません',
+  'regExpr.row.invalidId': '— 「{id}」は有効な参照ではありません',
+  'regExpr.row.cycle': '— 循環: {name} → … → {name}',
+  'regExpr.row.divZero': '→ 0 で割ることはできません',
+  'regExpr.row.notFinite': '→ 有限の数ではありません',
+  'regExpr.row.dependsInvalid': '— 無効な参照に依存しています',
+  'regExpr.row.generic': '— {code}',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

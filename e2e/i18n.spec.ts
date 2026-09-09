@@ -275,12 +275,11 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await expect(insp.locator('.inspector__kind')).toHaveText('source')
   })
 
-  test('a register diagnostic shows the stable CODE verbatim + a localized message', async ({ page }) => {
+  test('register diagnostics localise: a parse error keeps the raw CODE; an eval verdict is a localized message (docs/register-expression-authoring.md §RXA3.5)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await page.evaluate(() => {
       const g = (window as any).__loop.graph.getState()
-      // structurally readable expr, but it evaluates invalid ⇒ M_REG_EVAL
       g.loadJSON(
         JSON.stringify({
           schema: 'loop-studio/graph',
@@ -293,15 +292,20 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
       )
       g.setSelection('r1', null)
     })
-    // the register node + its invalid outcome must be in the DOM before we read
     await expect(page.locator('.react-flow__node[data-id="r1"]')).toBeVisible()
-    const note = page.locator('aside.inspector .inspector__note--warn').first()
-    await expect(note).toContainText('M_REG_EVAL')
+
+    // eval verdict — the read-back's `→` line, localised (never the raw EVAL code)
+    const result = page.locator('aside.inspector .regrb__line--result')
+    await expect(result).toContainText('1 / 0')
     await pickLocale(page, 'ko')
-    // poll: the note re-renders when the KO catalog activates
-    await expect(note).toContainText('M_REG_EVAL') // code — never translated
-    await expect(note).toContainText('오류로 평가됩니다') // message — localized
-    await expect(note).toContainText('단계에서 값 없음') // frame — localized
+    await expect(result).toContainText('0으로 나눌 수 없음') // localised verdict
+    await expect(result).not.toContainText('EVAL_DIV_ZERO') // raw code never shown
+
+    // a PARSE error still surfaces the stable CODE verbatim + a localised message
+    await page.locator('.regexpr input[role="combobox"]').fill('1 +')
+    const parse = page.locator('aside.inspector .regrb--parse')
+    await expect(parse).toContainText(/EXPR_[A-Z_]+/) // code — never translated
+    await expect(parse).toContainText('열') // KO "column" — message localised
   })
 
   test('Timeline chrome localizes; the EN axis text stays "step N"', async ({ page }) => {

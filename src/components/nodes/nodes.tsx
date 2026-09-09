@@ -19,6 +19,7 @@ import { formatRegisterValue, readParameterData, readRegisterData } from '../../
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
+import { useUiStore } from '../../store/uiStore'
 import { useT } from '../../i18n'
 import { useI18n } from '../../i18n/store'
 import { usePhrasedTitle } from './phraseTitle'
@@ -145,6 +146,11 @@ function NodeFrame({
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const isSelected = useGraphStore((s) => s.selectedNodeId === nodeId)
+  // docs/register-expression-authoring.md §RXA3.4 — a transient "peek" halo while
+  // a Register expression reference is hovered / focused in the Inspector.
+  // Boolean selector ⇒ only the peeked nodes re-render. Purely visual
+  // (RXA-INV-3): no selection / Focus / undo / digest effect.
+  const refPeek = useUiStore((s) => s.peekRefNodeIds.includes(nodeId))
   const frameRef = useRef<HTMLDivElement>(null)
 
   // docs/mmo-multilingual-layout.md §MML1b + docs/node-shell-content-in-vessel.md —
@@ -230,7 +236,8 @@ function NodeFrame({
         `nodef nodef--${kind} lod-${lod}` +
         (selected ? ' is-selected' : '') +
         (focused ? ' is-focused' : '') +
-        (invalid ? ' is-invalid' : '')
+        (invalid ? ' is-invalid' : '') +
+        (refPeek ? ' is-ref-peek' : '')
       }
       data-invalid={invalid ? '' : undefined}
       style={grown ? { height: boxH } : undefined}
@@ -265,6 +272,10 @@ function NodeFrame({
             Activity tint drawn right after it. Shape + `.nodef__chip` remain
             the primary type tell; this is a secondary assist only. */}
         <path className="nodef__hue" d={path} />
+        {/* §RXA3.4 — the Inspector expression-reference peek halo. A wide soft
+            stroke UNDER the crisp outline + every run / selection cue; a
+            transient preview only (RXA-INV-3). */}
+        {refPeek ? <path className="nodef__peek" d={path} /> : null}
         {/* §LGR6-cues — the opt-in Activity overlay tint: a faint primary-fill
             copy of the silhouette, above the fill but UNDER the stroke and
             every run / selection / focus cue below. Shape-accurate (never a

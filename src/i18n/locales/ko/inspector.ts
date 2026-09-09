@@ -50,10 +50,6 @@ const inspector = {
   'inspector.parameter.outOfRange': '값이 참고용 최소/최대 범위를 벗어났습니다 — 그대로 두며 잘라내지 않습니다.',
   'inspector.parameter.hintIncoherent': '참고용 힌트가 서로 맞지 않아 내보낼 때 제거됩니다.',
   'inspector.parameter.noPorts': '파라미터는 포트가 없습니다 — 표현식에서 id로 참조하세요.',
-  'inspector.register.canonical': '표준형: {canonical} (내보낼 때 저장됨)',
-  'inspector.register.invalidAtStep': '{code} · {reason} — {step}단계에서 값 없음.',
-  'inspector.register.valueAtStep': '{step}단계의 값: {value}',
-  'inspector.register.recomputed': '(그래프에서 다시 계산됨 — 저장되지 않음)',
   'inspector.register.formatInvalid': '알 수 없는 형식 — 내보낼 때 float으로 되돌립니다.',
   'inspector.register.noStore': '레지스터는 아무것도 저장하지 않고 포트도 없습니다.',
   'inspector.edge.kindLink': '{kind} 연결',
@@ -113,6 +109,25 @@ const inspector = {
   'panels.summary.noValue': '— {step}단계에서 값 없음',
   'panels.empty.inputs': '이 그래프에는 파라미터가 없습니다.',
   'panels.empty.summary': '이 그래프에는 레지스터가 없습니다.',
+
+  // docs/register-expression-authoring.md §RXA3 — 참조 인식 레지스터 수식 편집기
+  'regExpr.pick.listLabel': '풀·파라미터·레지스터 참조',
+  'regExpr.pick.optionAria': '{name}, {kind}, 현재 값 {value}',
+  'regExpr.pick.noMatch': '일치하는 노드 없음',
+  'regExpr.pick.more': '+{n}개 더 — 계속 입력',
+  'regExpr.block.self': '자기 자신은 참조할 수 없음',
+  'regExpr.block.cycle': '{name} 사이에 순환 참조가 생김',
+  'regExpr.empty': '수식이 비어 있습니다.',
+  'regExpr.chip.deleted': '(삭제됨)',
+  'regExpr.chip.wrongKind': '(사용 불가)',
+  'regExpr.row.unknownRef': '— 참조 "{id}"를 찾을 수 없음',
+  'regExpr.row.wrongKind': '— 풀·파라미터·레지스터가 아님: "{name}"',
+  'regExpr.row.invalidId': '— "{id}"는 올바른 참조가 아님',
+  'regExpr.row.cycle': '— 순환: {name} → … → {name}',
+  'regExpr.row.divZero': '→ 0으로 나눌 수 없음',
+  'regExpr.row.notFinite': '→ 유한한 수가 아님',
+  'regExpr.row.dependsInvalid': '— 잘못된 참조에 의존함',
+  'regExpr.row.generic': '— {code}',
 } satisfies Record<InspectorKey, string>
 
 export default inspector
