@@ -172,7 +172,7 @@ test.describe('guided tour — Help menu', () => {
     const link = page.locator('.menu__pop[role="menu"] a.menu__item', {
       hasText: /Send feedback|피드백 보내기/,
     })
-    await expect(link).toHaveAttribute('href', 'https://form.typeform.com/to/zMG3huYC')
+    await expect(link).toHaveAttribute('href', 'https://tally.so/r/9qkk6Y')
     await expect(link).toHaveAttribute('target', '_blank')
     const rel = (await link.getAttribute('rel')) ?? ''
     expect(rel).toContain('noopener')

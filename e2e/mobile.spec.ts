@@ -265,7 +265,7 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await expect(rows.nth(3)).toHaveText(/About Loop Studio|Loop Studio 정보/)
 
     const link = help.locator('a.sheet__row', { hasText: /Send feedback|피드백 보내기/ })
-    await expect(link).toHaveAttribute('href', 'https://form.typeform.com/to/zMG3huYC')
+    await expect(link).toHaveAttribute('href', 'https://tally.so/r/9qkk6Y')
     await expect(link).toHaveAttribute('target', '_blank')
     const rel = (await link.getAttribute('rel')) ?? ''
     expect(rel).toContain('noopener')
@@ -275,12 +275,12 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
 
     // tapping it opens the form in a new tab AND closes the Help sheet (parity
     // with the desktop menu, which closes on click). The form request is
-    // aborted so CI never actually hits Typeform.
-    await page.context().route('**form.typeform.com**', (r) => r.abort())
+    // aborted so CI never actually hits the Tally host.
+    await page.context().route('**tally.so**', (r) => r.abort())
     const [popup] = await Promise.all([page.waitForEvent('popup'), link.click()])
     await popup.close()
     await expect(help).toBeHidden()
-    await page.context().unroute('**form.typeform.com**')
+    await page.context().unroute('**tally.so**')
   })
 
   test('exclusive overlays: opening one closes any other (Timeline / More / Export / MC dialog)', async ({ page }) => {
