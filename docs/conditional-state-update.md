@@ -1,18 +1,19 @@
-# Conditional state update & same-step counter reset (design draft — DRAFT)
+# Conditional state update & same-step counter reset (design draft)
 
-**Status: design draft — for review. rev 3.** rev 3 closes the five blockers
-Hanrim raised on rev 2 (ceiling off-by-one; the `ssr_hit` / `miss` **Converter**
-partial-activation bug; the `applied` vs byte-identical contradiction; a
-fail-open `phase0` + `when`; clamp-attribution / schema wording) and turns
-CSU9-D1..D6 from open questions into **final decisions**, so this can merge as
-*settled design, implementation pending*. rev 2 introduced the **post-pull
-conditional `label`** (Phase 2.5); rev 1's Phase-0 `when` + `phase: "post"`
-activator is abandoned.
+**Status: settled design — implementation pending. rev 4.** rev 4 closes the
+three points Hanrim raised on rev 3: a user-editable `HARD_PITY` Parameter that
+does not actually drive routing is removed (the ceiling is a fixed design
+constant until `@parameter` activator support lands); the I1′ identity is
+corrected to separate the state term from resource movement; and `timing` /
+`when` are reclassified as **engine-affecting** fields (they change the run), not
+a `route` / `waypoints` / `frames` cosmetic precedent. rev 2/3 established the
+**post-pull conditional `label`** (Phase 2.5); rev 1's Phase-0 `when` +
+`phase: "post"` activator is abandoned.
 
-No `loop-*/N` id, no `Frozen` marker. Extends `loop-state/1`
+No `loop-*/N` id yet. Extends `loop-state/1`
 ([`SEMANTICS-S.md`](../SEMANTICS-S.md)) / `loop-state/2`
-([`SEMANTICS-S2.md`](../SEMANTICS-S2.md)). Ships only under a new
-`SEMANTICS-S*.md` revision + a `loop-revision/N` decision (**CSU3-6**).
+([`SEMANTICS-S2.md`](../SEMANTICS-S2.md)); ships under a new `SEMANTICS-S*.md`
+revision + a `loop-revision/N` decision (**CSU9-D4**).
 
 Prefix `CSU`. Sections: **CSU0** why · **CSU1** what today's primitives do ·
 **CSU2** why they can't · **CSU3** proposed contract · **CSU4** how a hard pity
@@ -70,8 +71,8 @@ Then Phase 1 (push), Phase 2 (pull, builds `fired`), Commit (clamp every Pool).
   always one pull behind the roll the user just saw. (rev 1's Phase-0 scheme did
   not fix this — it only stopped the *routing* double-fire, not the *value*.)
 - **An `activator` comparison is literal-only** — `>= @cap` is not in the
-  grammar (`SEMANTICS-S.md` §S6). A ceiling threshold must be written as a
-  number.
+  grammar (`SEMANTICS-S.md` §S6). A ceiling threshold must be a number, and a
+  Parameter cannot drive it (CSU9-D2).
 
 ## CSU3. Proposed contract (draft — for review)
 
@@ -133,7 +134,7 @@ To keep `loop-state/2` reports **byte-identical** for every existing graph
   - `applied: true` — the edit ran; `delta` is its raw requested change.
   - `applied: false` — the `when` gate was not satisfied; `delta: 0`,
     `clampAdjustment: 0`, **always** (an inert edge never carries a clamp
-    correction — CSU3-5).
+    correction — CSU3-6).
 - a consumer reads **absent `applied` as `true`**.
 
 ### CSU3-5. Validation (each ⇒ the edge is inert + exactly one diagnostic)
@@ -152,31 +153,61 @@ To keep `loop-state/2` reports **byte-identical** for every existing graph
   (`label "<id>" when "<v>" is not supported`).
 - unknown `timing` — inert (`label "<id>" timing "<v>" is not supported`).
 
-### CSU3-6. Clamp attribution
+### CSU3-6. Clamp attribution & the I1′ identity
 
-When several **applied** `afterPull` labels edit one Pool and the Commit clamp
-then corrects it, the correction is attributed to **that target's last applied
-`afterPull` edge** (ascending `edge.id`), as `clampAdjustment` on its effect —
-exactly the `SEMANTICS-S2.md` §S2-9 rule for Phase-0 labels, but scoped to the
-Phase-2.5 edits. An **inert** edge is never the attribution target. I1′ holds:
-`Σ (applied delta) + clampAdjustment = final − start` per Pool per step, summed
-across Phase-0 **and** Phase-2.5 edits.
+**Attribution.** When several **applied** `afterPull` labels edit one Pool and
+the Commit clamp then corrects it, the correction is attributed to **that
+target's last applied `afterPull` edge** (ascending `edge.id`), as
+`clampAdjustment` on its effect — the `SEMANTICS-S2.md` §S2-9 rule, scoped to
+the Phase-2.5 edits. An **inert** edge is never the attribution target.
 
-### CSU3-7. Schema surface
+**I1′.** `label` deltas are an external source/sink term, separate from resource
+movement (`SEMANTICS-S.md` §S5, §S12 I1′). A Pool's per-step balance change
+decomposes into **three** disjoint terms:
+
+```
+final − start  =  (Σ resource in − Σ resource out)              ← Phase 1 + Phase 2, `report.events`
+              +  (postPhase0 − start)                           ← Phase-0 label term
+              +  (commit − postPhase2Working)                    ← Phase-2.5 label term
+```
+
+- **Phase-0 label term** `= Σ (phase0 delta) + phase0 clampAdjustment` for that
+  Pool (unchanged from `loop-state/2`).
+- **Phase-2.5 label term** `= Σ (applied afterPull delta) + afterPull clampAdjustment`
+  for that Pool.
+
+The single equation `Σ (applied delta) + clampAdjustment = final − start` holds
+**only for a Pool with no incident resource edges** — e.g. `pity`, which is
+touched exclusively by `label`. For any Pool that also moves resource, the
+three-term decomposition above is the invariant.
+
+### CSU3-7. Schema & digest surface — `timing` / `when` are engine-affecting
 
 `timing` and `when` are **new recognised fields on a `state` edge's `data`**.
-The GraphDoc envelope, `schema` string, and model version are **unchanged**;
-`serialize()` already carries `data` whole (see [[serialize-schema-allowlist]]),
-so the fields round-trip. This is a **state-edge schema extension**, not a
-file-format change — and it needs its own `loop-revision/N` decision
-(**CSU9-D4**).
+The GraphDoc envelope, `schema` string, `model` version, and node kinds are
+**unchanged**; `serialize()` already carries `data` whole (see
+[[serialize-schema-allowlist]]), so the fields round-trip. But — unlike `route`
+/ `waypoints` / `frames`, which never touch a simulated number — **`timing` /
+`when` change the run**. They are therefore **engine-affecting** fields:
+
+- they move the **content digest** and set `dirty` (like any edit), **and**
+- they move the **engine / semantic digest** and **`simulationRev`**.
+- Only a graph with **no `afterPull` edge** produces an engine digest and a
+  `report` byte-identical to `loop-state/2`.
+
+The new `SEMANTICS-S*` revision's `loop-revision/N` projection **classifies
+`timing` / `when` as engine-affecting** (CSU9-D4).
 
 ## CSU4. How a hard pity expresses
 
-Parameters: `HARD_PITY = 3` (a "3-pull ceiling" — the **3rd** pull is
-guaranteed). Because an `activator` expr can't reference a Parameter, the two
-routing activators use the **literal `HARD_PITY − 1 = 2`**; the Template must
-keep the two in sync and the acceptance fixture asserts it (**CSU9-D2**).
+The ceiling is a **fixed design constant `HARD_PITY = 3`** — a "3-pull ceiling":
+the **3rd** consecutive non-SSR pull is a guaranteed SSR. It is **not** a
+`parameter` node — the `activator` grammar is literal-only, so a Parameter would
+be editable but never reach routing, a misleading contract (CSU9-D2). The two
+routing activators carry the literal `HARD_PITY − 1 = 2`; the acceptance fixture
+asserts both the literal and the 3-pull behaviour. A user-tunable ceiling waits
+for `@parameter` activator support (CSU7, a prerequisite for the 3-zone
+Template).
 
 Nodes — all shipped kinds:
 
@@ -245,8 +276,8 @@ Timeline shows for that frame.
    committed step, all integral.
 2. **Below the ceiling** — `roll_gate` routes by probability; `forced_ssr` inert.
 3. **At the ceiling** — on the `HARD_PITY`-th consecutive non-SSR pull the
-   routing reads `S[pity] = HARD_PITY − 1`, `forced_ssr` fires, that pull is a
-   guaranteed SSR.
+   routing reads `S[pity] = HARD_PITY − 1 = 2`, `forced_ssr` fires, that pull is
+   a guaranteed SSR.
 4. **Same-frame reset** — the committed `pity` is `0` at the end of **every**
    SSR step (natural or forced), with no intervening frame at a non-zero value.
 5. **Same-frame increment** — the committed `pity` rises by exactly 1 at the end
@@ -254,33 +285,38 @@ Timeline shows for that frame.
    never exceeds `HARD_PITY − 1` at a routing read.
 6. **No off-by-one routing** — the forced route fires on exactly one step per
    ceiling hit; the SSR-to-SSR gap never exceeds `HARD_PITY`.
-7. **Determinism** — same graph + seed ⇒ byte-identical run incl. the Phase 2.5
-   order; Reset returns every value to step 0; the `loop-revision/*` engine
-   digest is unmoved by running.
+7. **Determinism & digest** — same graph + seed ⇒ byte-identical run incl. the
+   Phase 2.5 order; Reset returns every value to step 0. A graph **with** an
+   `afterPull` edge has a **new** `simulationRev` / engine digest (the fields
+   are engine-affecting, CSU3-7); a graph **without** one is byte-identical to
+   `loop-state/2` in engine digest **and** `report`.
 8. **Backward compat** — a `label` with no `timing` (or `timing: "phase0"`)
    behaves byte-identically to `loop-state/1`, **and its report effect keeps the
    exact `loop-state/2` shape (no `applied` field)**; every existing state test
-   passes unchanged; `SEMANTICS-S.md` §14 vectors re-run; a graph with no
-   `afterPull` edge has a byte-identical engine digest **and** a byte-identical
-   `report`.
+   passes unchanged; `SEMANTICS-S.md` §14 vectors re-run.
 9. **Reporting** — every `afterPull` effect carries `applied`; an inert
    `afterPull` edge is exactly `{ applied: false, delta: 0, clampAdjustment: 0 }`;
    a clamp correction is attributed only to the target's last **applied**
    `afterPull` edge.
-10. **I1′ conservation** — `Σ (applied delta) + clampAdjustment = final − start`
-    per Pool per step, across Phase-0 and Phase-2.5 edits together.
+10. **I1′ conservation** — the **three-term** decomposition of CSU3-6 holds for
+    every Pool every step: `final − start = (Σ resource in − Σ resource out) +
+    (postPhase0 − start) + (commit − postPhase2Working)`, with each label term
+    equal to `Σ (applied delta) + clampAdjustment` for its phase. The single
+    `Σ delta + clampAdjustment = final − start` form is asserted **only** for
+    `pity` and any other Pool with no incident resource edge.
 
 The `gacha-pity-timing.probe.test.ts` tripwire is rewritten to the **positive**
 case (the CSU5 trace) and kept.
 
 ## CSU7. Deliberately out of scope
 
+- **`@param` in an `activator` expression** (`>= @cap`) — the grammar is
+  literal-only. This is a small `loop-model`-style extension and a **prerequisite
+  for the public 3-zone Template** (a tunable ceiling per banner); it is **not**
+  part of CSU. GS10-3 uses the fixed `HARD_PITY = 3` constant.
 - **Soft pity** (a rate that ramps near the ceiling) — needs a Gate branch
   **weight** that reads state; `loop-model` / Engine-B territory (GS11-D2), not
   `loop-state`. CSU3 makes it *reachable* later; it is not built here.
-- **`@param` in an `activator` expression** (`>= @cap`) — the grammar is
-  literal-only. A separate, tiny `loop-model`-style extension; v1 uses a literal
-  and states the coupling (CSU9-D2).
 - **`when` forms other than `"source-fired"`** — e.g. a comparison against a
   Pool. Add later only if a concrete use case earns it (CSU9-D3).
 - **`afterPull` label targeting a resource edge's flow, or a non-Pool target** —
@@ -292,29 +328,36 @@ case (the CSU5 trace) and kept.
 
 ## CSU8. Slices
 
-1. **Design** — this doc. Merges as *settled design, implementation pending*.
+1. **Design** — this doc. Merges as *settled design — implementation pending*.
 2. **Engine impl** — Phase 2.5 in `src/engine/step.ts`; `timing` / `when` parse
    + the CSU3-5 validation in `src/engine/stateExpr.ts` (shared with the
    Inspector); the `applied` field on the `afterPull` label effect
    (`src/engine/types.ts` + `SEMANTICS-S2.md`); a new `SEMANTICS-S*.md`
-   revision + the `loop-revision/N` decision (CSU9-D4); the positive pity
-   probe. **No** node-kind or file-format change.
+   revision whose `loop-revision/N` projection **classifies `timing` / `when`
+   as engine-affecting** (moves `simulationRev` + the engine digest); the
+   positive pity probe. **No GraphDoc envelope / `schema`-string /
+   `model`-version or node-kind change; the recognised state-edge `data`
+   contract and the revision projection are extended.**
 3. **Inspector** — `timing` / `when` authoring on a `state` edge; read-back
    copy; an `applied: false` Timeline cue.
 4. **Gacha hard pity (GS10-3)** — `roll_gate` / `forced_ssr` + `ssr_hit` /
    `sr_hit` / `r_hit` Gates + the three `afterPull` labels of CSU4 land in
-   `examples/gacha-simulator.json` and its fixture; §GS9's pity conditions
-   return; `HARD_PITY` Parameter + the paired literal `2`.
-5. **3-zone gacha Template** — general / premium-standard / premium-pickup,
-   pickup guarantee, pity carry-over. Own design doc; consumes CSU3 + GS10-3.
+   `examples/gacha-simulator.json` and its fixture; the ceiling is the **fixed
+   constant `HARD_PITY = 3`** with the paired activator literal `2` (no
+   `parameter` node); §GS9's pity conditions return.
+5. **`@parameter` activator support** — the prerequisite from CSU7, before the
+   public Template so the ceiling can be a per-banner Parameter.
+6. **3-zone gacha Template** — general / premium-standard / premium-pickup,
+   pickup guarantee, pity carry-over. Own design doc; consumes CSU3 + GS10-3 +
+   slice 5.
 
 ## CSU9. Decisions
 
 | id | decision |
 |---|---|
 | **CSU9-D1** | `pity` is an **uncapped** Pool. A capacity would make the Commit clamp a second writer of the counter (`pity + 1 → cap` on the ceiling step). Uncapped keeps `pity_reset =0` the single source of truth and the Timeline shows the raw count. |
-| **CSU9-D2** | The routing threshold is a **literal** in the `activator` expr (`< 2` / `>= 2` for a 3-pull ceiling). The example carries a `HARD_PITY` Parameter for documentation and cost math; the Template keeps `activator literal == HARD_PITY − 1` and the acceptance fixture asserts the pair. A `@param`-in-`activator` grammar extension is out of scope (CSU7). |
+| **CSU9-D2** | The routing threshold is a **fixed literal** in the `activator` expr (`< 2` / `>= 2` for the 3-pull ceiling). **No `HARD_PITY` `parameter` node** — the `activator` grammar is literal-only, so an editable Parameter would change docs / cost math but not routing, a misleading contract. `HARD_PITY = 3` is a design constant in the doc and the fixture; the fixture asserts `activator literal == HARD_PITY − 1` and the 3-pull behaviour. A tunable per-banner ceiling waits for `@parameter` activator support (CSU7 / slice 5). |
 | **CSU9-D3** | The only `when` value in v1 is **`"source-fired"`**. It unblocks the hard pity and the pickup-guarantee state; a comparison form (`when: ">= n" @pool`) is deferred until a concrete use case. |
-| **CSU9-D4** | A `timing` / `when` field is **document content**: it changes the *run*, so it moves the **full `loop-revision/*` document digest** and sets `dirty` (the `route` / `waypoints` / `frames` precedent). A graph with **no** `afterPull` edge has a byte-identical **engine** digest and a byte-identical `report`. The exact digest projection is fixed in slice 2's `SEMANTICS-S*` revision. |
-| **CSU9-D5** | `applied` is added **only** to `afterPull` label effects; `phase0` / untyped label effects keep the exact `loop-state/2` shape. Consumers treat a missing `applied` as `true`. This preserves "byte-identical report for every existing graph"; a report shape does **not** change for anyone who does not use `afterPull`. |
+| **CSU9-D4** | `timing` / `when` are **engine-affecting** document content, **not** a cosmetic (`route` / `waypoints` / `frames`) field: they change the run, so they move the **content digest** + `dirty` **and** the **engine / semantic digest** + **`simulationRev`**. The new `SEMANTICS-S*` `loop-revision/N` projection classifies them as engine-affecting. Only a graph with **no `afterPull` edge** stays byte-identical to `loop-state/2` in engine digest and `report`. |
+| **CSU9-D5** | `applied` is added **only** to `afterPull` label effects; `phase0` / untyped label effects keep the exact `loop-state/2` shape. Consumers treat a missing `applied` as `true`. So a `report` shape does **not** change for anyone who does not use `afterPull`. |
 | **CSU9-D6** | Phase 2.5 walks all `afterPull` edges for a target in ascending `edge.id` against the running `working[target]`; intermediate out-of-range values are allowed and the single **Commit** clamp is the only clamp — identical semantics to `SEMANTICS-S.md` §S5(d), scoped to Phase 2.5. If a malformed graph makes two of `ssr_hit` / `sr_hit` / `r_hit` fire in one step, both labels apply in `edge.id` order (`=` last-wins, `+` sums); the gacha fixture asserts exactly one fires, and with `roll_gate` / `forced_ssr` routing exactly one branch this cannot occur in a valid graph. |
