@@ -253,6 +253,25 @@ Per node, across **all** its input edges plus its output headroom:
 
 `push all` is the Source mirror: full push on every outgoing edge, or nothing.
 
+A `pull all` **Converter**'s atomicity has to hold even when the shortfall is
+only visible *through upstream routers* — an upstream Gate that has already
+routed a partial amount into the Converter's inbox must not leave it stranded.
+The engine guarantees this by running Phase 2 as a **probe** first (a shadow
+pass that mutates nothing and reuses the same branch picks and random draws),
+marking every `pull all` Converter that fails to reach `f = 1`, then running the
+real Phase 2 once with those Converters treated as non-accepting. Disabling a
+short Converter only frees resource for the rest, so the marked set is monotone
+and settles within `#pull-all Converters + 1` probes; among Converters
+contending for one Pool the canonical-order winner keeps its fill and the losers
+are the ones marked. Graphs with no `pull all` Converter skip the probe and run
+exactly one committed pass.
+
+A probe must not change what the run *reports*: a probe reuses the memoised
+random draw / branch pick, and a diagnostic (a malformed `range` / `dice` flow,
+an inert probabilistic gate) is published **only** by the committed pass and
+**exactly once** — a bad flow evaluated only on a probe-visited path that is
+then disabled raises nothing.
+
 ---
 
 ## 10. Contention & ordering (Q2)
