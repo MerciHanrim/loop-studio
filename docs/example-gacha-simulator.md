@@ -1,136 +1,211 @@
 # Example — "Gacha banner simulator" (non-frozen design doc — DRAFT)
 
-**Status: design draft — for review.** No `loop-*/N` id, no `Frozen` marker;
-this merges as *settled design, implementation pending* like
+**Status: design draft — for review.** No `loop-*/N` id and no `Frozen`
+marker. This may merge as *settled design, implementation pending*, like
 [`docs/example-mmo-progression.md`](example-mmo-progression.md) and
 [`docs/example-coffee-roastery.md`](example-coffee-roastery.md).
 
-Prefix `GS`. The example is a **product demo / Templates entry** built on
-**shipped engine primitives** — Engine B probabilistic Gate + seeded RNG +
-Monte Carlo + `loop-state/1` connections. It doubles as the concrete artifact
-that **derives the external-table contract** (Appendix GSA) rather than that
-contract being designed in the abstract first.
+Prefix `GS`. The example is a product demo and bundled Template built from
+shipped primitives: `loop-model/2` Parameter-backed resource-edge flows,
+Engine B probabilistic Gates and seeded RNG, Monte Carlo, and `loop-state/1`
+connections. It also supplies the concrete Parameter table from which a later
+external-table import contract can be derived (Appendix GSA).
 
-> **v1 does not model a hard pity.** A guaranteed-SSR ceiling was probed against
-> the current primitives and does **not** express with correct timing — see
-> **GS11-D1** (proved) and **GS7**. v1 is *pull-until-first-SSR*; the ceiling is
-> a candidate engine follow-up, evaluated on its own.
+> **v1 does not model hard or soft pity.** A guaranteed-SSR ceiling was probed
+> against the current primitives and cannot be expressed with correct timing;
+> see **GS7** and **GS11-D1**. v1 runs until the first SSR **or until the
+> available budget is exhausted**. Hard pity remains a separate engine-design
+> follow-up.
 
-Sections: **GS0** why · **GS1** scope · **GS2** the model · **GS3** one pull ·
-**GS4** parameters (the table) · **GS5** registers · **GS6** Monte Carlo ·
-**GS7** not modelled · **GS8** naming / IP · **GS9** verification · **GS10**
-slices · **GS11** decisions · **GSA** appendix — external-table contract
-(proposed).
+Sections: **GS0** purpose · **GS1** scope · **GS2** model · **GS3** step trace ·
+**GS4** Parameters · **GS5** read-outs · **GS6** Monte Carlo · **GS7** omitted
+features · **GS8** naming / IP · **GS9** verification · **GS10** slices ·
+**GS11** decisions · **GSA** proposed external-table appendix.
 
 ---
 
 ## GS0. Why
 
-**This example simulates *pulling until your first SSR*** — not a single pull.
-That framing is what makes the cost distribution and Monte Carlo compelling:
-"how many pulls, and how much currency, until I hit an SSR — and how wide is
-the spread?" (Hanrim's call; a single-pull demo has almost nothing to run.)
+This example asks:
 
-A gacha banner is the archetypal **probability table + Monte-Carlo** question,
-exactly the shape a reviewer (김형준, DCInside feedback) called "가챠 시뮬레이터로
-너무 매력적으로 보입니다": enter a rarity table, run it many times, read back the
-chance of the outcome you want, the **average cost**, and the spread. Loop
-Studio has the pieces on the shelf — a probabilistic Gate for the categorical
-draw, cumulative counter Pools for the tally, an `activator`-gated `End` for the
-stop condition, and Monte Carlo for the distribution.
+> With this rarity table, pull cost, and budget, how many pulls and how much
+> currency will it take to obtain the first SSR — and how often will the budget
+> run out first?
 
-It is **not** a precision instrument or a test oracle. Its numbers are generic
-placeholders (GS8). Its second job is to be the real Parameter table that the
-data-import work (Appendix GSA, Track 2) is designed against — "표 연동을 먼저
-추상적으로 설계하기보다, 실제 가챠 데이터 표 하나를 기준으로 계약을 도출."
+That question makes the graph, stop condition, cost accounting, and Monte
+Carlo distribution meaningful. A single-pull example would demonstrate only
+one categorical draw.
+
+A gacha banner is a compact **probability table + repeated trial + stopping
+condition** model. It matches the use case identified in external feedback
+(김형준, DCInside) without claiming to reproduce a real game. The same example
+also gives the future table-import work a real
+`key / label / value / unit / group` table to design against instead of
+inventing a generic schema in isolation.
+
+This example is explanatory, not a precision instrument or test oracle for a
+commercial title.
 
 ## GS1. Scope
 
 **In:**
 
-- **One banner, one currency.** A wallet Pool drains a fixed cost per pull.
-- **One pull per step, until the first SSR** — the run pulls once per step and
-  an `activator`-gated `End` stops it the step after `ssr_count` reaches 1, so a
-  run's length *is* its pulls-to-first-SSR.
-- **A categorical rarity roll** — `SSR` / `SR` / `R` — by a **probabilistic
-  Gate** whose branch weights are Parameters.
-- **Cumulative tallies** — pulls made, SSR / SR / R counts, currency spent.
-- **Monte Carlo** — K seeded runs → the distribution of **pulls to the first
-  SSR** (the geometric curve) and **currency spent to the first SSR**, plus the
-  chance of running out of budget first.
+- One generic banner and one currency.
+- A configurable starting budget and fixed cost per pull.
+- At most one paid pull per simulation step.
+- A probabilistic `SSR / SR / R` categorical draw whose weights are
+  Parameters.
+- Cumulative Pools for pulls, spending, and rarity outcomes.
+- Two terminal outcomes: first SSR, or budget exhausted before an SSR.
+- Seeded replay and Monte Carlo over the resulting capped geometric process.
 
-**Out (GS7 expands):** a **hard pity / guaranteed-SSR ceiling** (not expressible
-today — GS11-D1), soft pity, the 50-50 featured-vs-standard split, rate-up,
-multi-banner, wishlist / selector, pity carry-over, dupes → dust, and any real
-game's names or numbers.
+**Out:** hard pity, soft pity, featured / standard 50-50, rate-up guarantees,
+multi-banner selection, pity carry-over, duplicates-to-dust, real game names,
+real published rates, and external-table import code.
 
-## GS2. The model — element → node
+## GS2. The model — element to node
 
-All nodes use only shipped kinds. Labels below are the English canonical (the
-Template opens localized through the label overlay, GS10).
+All labels below are canonical English labels. A fresh Template open applies
+the existing EN / KO / JA label overlay
+([`docs/template-label-overlay.md`](template-label-overlay.md)). All
+Parameter-backed resource flows require the shipped `loop-model/2` path.
 
-### GS2.1 The pull
+### GS2.1 Funding and one atomic purchase
 
-| element | node(s) |
-|---|---|
-| currency on hand | `wallet` **Pool**, `initial` = `@budget` |
-| cost of one pull | `pull_cost` **Parameter** |
-| currency leaving per pull | `wallet` → `spent` **resource edge**, `flow` = `@pull_cost`, into a `spent` **Drain** (currency drained; the wallet only falls) |
-| pulls counted | `pull` → `pulls_made` **resource edge**, `flow` = `1`, into `pulls_made` **Pool** (a cumulative counter — every pull ever) |
+`budget` cannot be written directly into a Pool's `initial` field: per
+`loop-model/2` a Parameter reference is valid **only** in a resource edge's
+`flow` field. Funding therefore uses:
 
-One unit of "pull demand" per step is produced by a `pull_tick` **Source**
-(`activation: automatic`, `flow` = `1`) into a transient `pull` **Pool**. Each
-step that pull unit is consumed once — it feeds `roll_gate` (GS2.2), ticks
-`pulls_made` by `1`, and gates the `wallet → spent` drain of `@pull_cost`. When
-`wallet < @pull_cost` the drain is back-pressured and the run naturally stops
-pulling (the banner "runs out of money") — a real readable end condition, not an
-error. `pulls_made` therefore counts *pulls*, not currency, and
-`total_spent` (GS5) is `@pulls_made * @pull_cost`.
+- `fund_budget` — an `onStart` Source.
+- `wallet` — a currency Pool, initially `0`.
+- `fund_budget → wallet`, `flow = @budget`.
 
-### GS2.2 The roll
+The funding step is setup only; the first pull begins on the following step.
 
-`roll_gate` — a **`distribution: 'probabilistic'` Gate**, `activation: automatic`
-(one firing per step, no trigger needed). Its outgoing edges in `edge.id` order
-carry the branch weights `w_ssr` / `w_sr` / `w_r` (§GS4). Per §B4 the Gate moves
-**exactly one** branch per step, chosen by inverse-CDF sampling of
-`pⱼ = wⱼ / Σw`. So `p(SSR) = w_ssr / (w_ssr + w_sr + w_r)`. There is no pity
-route — see GS7.
+Each paid pull is one activation of `buy_pull`, an automatic Converter in
+`pullAll` mode:
 
-### GS2.3 Rarity tally
+- `wallet → buy_pull`, `flow = @pull_cost`.
+- `buy_pull → roll_gate`, `flow = 1`.
+- `buy_pull → pulls_made`, `flow = 1`.
+- `buy_pull → spent_total`, `flow = @pull_cost`.
 
-Each rarity branch drains into a cumulative counter Pool: `ssr_count`,
-`sr_count`, `r_count` (`activation: passive`, no capacity, `mode: pullAny`).
-These only ever grow.
+`pullAll` is essential: when the wallet cannot supply the entire pull cost,
+the Converter must consume nothing and produce no roll, count, or spending
+entry. One activation therefore commits all four facts atomically:
 
-### GS2.4 Stop at the first SSR
+1. the wallet falls by one full pull cost;
+2. exactly one roll token reaches `roll_gate`;
+3. `pulls_made` rises by exactly `1`; and
+4. `spent_total` rises by exactly `pull_cost`.
 
-An **`End` node** `got_ssr` with an `activator` state connection `ssr_count`
-→ `got_ssr`, `expr` `>= 1`. Per `loop-state/1` I10-S a firing End ends the run;
-the activator reads `S[ssr_count]` (the previous step's commit), so the run ends
-**the step after** the SSR lands. Every counter is frozen at that point, and
-Monte Carlo records the step index and `total_spent`.
+The implementation slice must add a focused regression test for the Converter
+`pullAll` short-input case before relying on it. If the implementation consumes
+a partial input while producing no outputs, that is a bug against the frozen
+pull-all contract and must be fixed separately or before the example ships; it
+is not a new gacha semantic. (The bundled default keeps `budget` an exact
+multiple of `pull_cost`, so the default run never reaches a partial-cost
+wallet state — GS4.)
 
-`pulls_made` is the cumulative pull counter (the `pull → pulls_made` edge,
-`flow` = `1`, §GS2.1). With "stop at first SSR" there is only ever one SSR, so no
-pity counter or reset is needed in v1 — which is what keeps v1 inside the
-shipped primitives (GS11-D1).
+An activator `ssr_count → buy_pull`, expression `< 1`, disables purchasing on
+the terminal step after an SSR. This prevents an extra charged pull while the
+End node observes the previous committed snapshot.
 
-## GS3. One pull cycle (step trace)
+### GS2.2 The rarity roll
 
-1. `pull_tick` produces `1` into `pull`; the pull unit ticks `pulls_made` by `1`
-   and drains `@pull_cost` from `wallet` (if it can afford it).
-2. `roll_gate` (probabilistic) draws exactly one branch — say `R` (p ≈ 0.943)
-   ⇒ `r_count += 1`.
-3. Commit. `got_ssr`'s activator reads `S[ssr_count]` = `0` ⇒ run continues.
-4. …some pulls later a draw lands `SSR` ⇒ `ssr_count` = `1`.
-5. **Next step:** `got_ssr`'s activator reads `S[ssr_count]` = `1` ⇒ `got_ssr`
-   fires ⇒ run ends. The step index and `total_spent` are the run's outputs.
+`roll_gate` is an automatic probabilistic Gate. It receives exactly one unit
+from `buy_pull` and routes the whole unit to exactly one of:
 
-## GS4. Parameters — the table (GSA's driving artifact)
+- `ssr_count` Pool, branch weight `@w_ssr`;
+- `sr_count` Pool, branch weight `@w_sr`; or
+- `r_count` Pool, branch weight `@w_r`.
 
-Placeholders for review; every one is a generic dial, none copied from a real
-game (GS8). This table **is** the `key / label / value / unit / group` shape of
-Appendix GSA.
+The outgoing resource edges are ordered canonically by edge id. Per §B4 Engine
+B draws one categorical branch with
+
+`p(j) = w_j / (w_ssr + w_sr + w_r)`.
+
+The result Pools are uncapped cumulative counters. Because the probabilistic
+Gate moves the complete one-unit input down one branch, each paid pull adds
+exactly one result and never produces a fractional rarity count.
+
+### GS2.3 A valid End pulse
+
+An activator alone does not fire an End — a `loop-state/1` End ends the run
+only on a step it actually *receives* resource (I10-S; the engine sets
+`ended` only when the End's inflow `> 0`). A Source also cannot push directly
+to a non-Pool target. The stop path therefore uses a stored pulse:
+
+- `completion_tick` — automatic Source, `flow = 1`.
+- `completion_pulse` — Pool with capacity `1`.
+- `completion_tick → completion_pulse`.
+- `completion_pulse → got_ssr`, `flow = 1`.
+- `completion_pulse → budget_exhausted`, `flow = 1`.
+
+`got_ssr` and `budget_exhausted` are automatic Ends. Their resource input is
+present from the setup step onward but is retained in `completion_pulse` until
+one End is enabled by its activator.
+
+`got_ssr` has one activator:
+
+- `ssr_count → got_ssr`, expression `>= 1`.
+
+`budget_exhausted` has two activators, AND-combined per the existing rule:
+
+- `wallet → budget_exhausted`, expression `<= 0`;
+- `pulls_made → budget_exhausted`, expression `>= 1`.
+
+The second condition prevents the initially empty wallet from ending the run
+before `fund_budget` has populated it. The default budget is an exact multiple
+of the default pull cost, so a valid default run reaches wallet `0` without a
+fractional remainder.
+
+If the last affordable pull is also an SSR, both Ends become eligible on the
+next step. Their ids must give `got_ssr` deterministic priority for the shared
+completion pulse. The terminal classification still comes from
+`ssr_count == 1`, not merely from which End appears first in a report.
+
+### GS2.4 What is state and what is derived
+
+Pools recorded in simulation state:
+
+- `wallet`
+- `pulls_made`
+- `spent_total`
+- `ssr_count`
+- `sr_count`
+- `r_count`
+- `completion_pulse`
+
+Parameters and Registers store no per-step state. Monte Carlo `loop-mc/1`
+aggregates **Pools only** (`resolveTracked` drops any non-Pool id), so every
+quantity its final distributions need is deliberately present as a Pool, not
+only as a Register.
+
+## GS3. Step trace
+
+Let `M = budget / pull_cost` for the default integer-multiple configuration.
+
+1. **Setup step:** `fund_budget` puts `budget` into `wallet`; the completion
+   Source fills `completion_pulse`. `buy_pull` sees the step-start wallet of `0`
+   and does not pull yet.
+2. **Pull step:** `buy_pull` consumes one full cost and emits one roll token,
+   one pull-count unit, and one full cost into `spent_total`.
+3. `roll_gate` sends the roll token to exactly one rarity Pool.
+4. Commit. If the result was not SSR and money remains, the next pull proceeds.
+5. If SSR landed, the next step observes `ssr_count >= 1`, disables `buy_pull`,
+   and lets `got_ssr` consume the stored completion pulse and end the run.
+6. If the wallet reached `0` without SSR, the next step observes both
+   exhaustion activators, produces no further purchase, and lets
+   `budget_exhausted` end the run.
+
+Consequently the terminal engine step count includes one setup step and one
+observation / End step. **It is not the pull count.** `pulls_made` is the sole
+authoritative pulls-to-terminal value.
+
+## GS4. Parameters — the driving table
+
+The values are generic placeholders, not copied from a real title.
 
 | key | label | value | unit | group |
 |---|---|---:|---|---|
@@ -140,238 +215,296 @@ Appendix GSA.
 | `w_sr` | SR weight | 51 | weight | Rarity odds |
 | `w_r` | R weight | 943 | weight | Rarity odds |
 
-Weights are **relative** — `6 : 51 : 943` ⇒ `p(SSR) = 0.6 %`, `p(SR) = 5.1 %`,
-`p(R) = 94.3 %`. Using weights (not probabilities) matches §B4 exactly and lets
-a user retune one rarity without renormalizing the rest by hand. A `rate`
-read-out is a Register (GS5), so the user still *sees* the percentages.
-`budget` is sized so a run can go ~200 pulls before the wallet empties (the
-mean pulls-to-SSR at 0.6 % is ~166), so "run out of budget" is a real but not
-routine outcome. `pity_cap` returns with the hard-pity follow-up (GS7).
+Weights are relative: `6 : 51 : 943` means SSR `0.6 %`, SR `5.1 %`, and R
+`94.3 %`. The default budget permits `M = 200` complete pulls.
 
-## GS5. Registers (derived read-outs only)
+At SSR probability `p = 0.006`, the probability of exhausting all 200 pulls
+without an SSR is
 
-| register | expression | unit |
+`(1 - p)^M = 0.994^200 ≈ 0.3001`.
+
+The corresponding chance of obtaining an SSR within budget is approximately
+`69.99 %`. This substantial censored tail is intentional: it makes the budget
+question visible in a 2,000-run Monte Carlo sample.
+
+The default Parameter hints should keep `budget >= 0`, `pull_cost > 0`, and
+weights non-negative, but hints are advisory. Invalid operational combinations
+(zero pull cost, zero total weight, or a budget not divisible by the pull cost)
+must remain safe and diagnosable; the bundled default and acceptance fixture use
+the exact values above.
+
+## GS5. Registers — explanatory read-outs
+
+| register | expression | format / unit |
 |---|---|---|
 | `ssr_rate_shown` | `@w_ssr / (@w_ssr + @w_sr + @w_r)` | percent |
 | `sr_rate_shown` | `@w_sr / (@w_ssr + @w_sr + @w_r)` | percent |
-| `total_spent` | `@pulls_made * @pull_cost` | currency |
-| `budget_left` | `@budget - @total_spent` | currency |
+| `budget_left` | `@wallet` | currency |
 | `pulls_so_far` | `@pulls_made` | pulls |
+| `spent_so_far` | `@spent_total` | currency |
 
-Registers store nothing and have no ports (`loop-expr/1`); `budget - spent`
-reads fine from step 0. `pulls_so_far` is a plain mirror of the counter Pool so
-the "pulls to first SSR" value is a named Timeline series and a Monte-Carlo
-output.
+These Registers improve the Canvas, Summary, and Timeline presentation. They
+are **not** listed as Monte Carlo tracked ids because `loop-mc/1` tracks Pool
+ids only. The underlying Pools carry the Monte Carlo data.
 
-## GS6. Monte Carlo
+## GS6. Monte Carlo — a capped geometric process
 
-The whole point. `recommendedRunConfig` sets the horizon long enough that almost
-every run reaches its first SSR before it ends (`N ≈ 260`), and **K = 2000
-seeds**. The Timeline default surfaces `pulls_so_far`, `total_spent`,
-`ssr_count`. Because each run **ends on the first SSR** (GS2.4), the final
-committed frame of every run carries exactly what matters, and Monte Carlo
-aggregates it per §B2 (`loop-mc/1`):
+`recommendedRunConfig` uses `K = 2000` runs and a horizon long enough to cover:
 
-- **pulls to the first SSR** — the final `pulls_so_far` per run. Its
-  distribution is the geometric "how many pulls until I hit SSR" curve, with the
-  mean near `1 / p(SSR) ≈ 166` and a long tail.
-- **currency spent to the first SSR** — the final `total_spent` (`= pulls ·
-  pull_cost`); the same shape in money.
-- **ran out of budget first** — the fraction of runs whose `wallet` empties
-  (pulls stop, `got_ssr` never fires) before an SSR. With GS4's `budget = 60000`
-  and cost `300` (~200 pulls) that is a real minority outcome, the "bad luck"
-  tail made visible.
+- one funding / setup step;
+- at most `M = 200` paid pulls; and
+- one final observation / End step.
 
-## GS7. What Loop Studio deliberately does not model here
+Use a small explicit safety margin (for example `steps = 205`), not a `260`
+approximation. The tracked Pool set is:
 
-- **A hard pity / guaranteed-SSR ceiling.** **Not expressible with the current
-  primitives** — probed and confirmed, **GS11-D1**. A counter that increments
-  per pull, *resets on SSR*, and forces the routing on the ceiling pull needs
-  (a) a **conditional** `label` (today's `label` applies every step,
-  unconditionally — a self-reset just pins the counter) and (b) the reset to be
-  visible to the *next* step's routing (a `trigger → Drain` reset lands one step
-  late and double-fires the forced route). Left out of v1; a candidate engine
-  follow-up, designed on its own, never bolted on to ship this example.
-- **Soft pity** (a rising SSR rate near a threshold) — would need a Gate branch
-  weight that reads a Register of the pity counter (GS11-D2), plus the same
-  reset problem; deferred with the hard pity.
-- **50-50 / featured vs standard**, **rate-up**, **guaranteed-featured after a
-  lost 50-50** — a second probabilistic Gate on the SSR branch; a clean later
-  extension.
-- **Multi-banner, wishlist / selector, pity carry-over, dupes → dust.**
-- Any real title's names, art, or published rates.
+- `pulls_made`
+- `spent_total`
+- `ssr_count`
+- `sr_count`
+- `r_count`
+- `wallet`
 
-## GS8. Naming & IP boundary
+The result is **not an uncensored geometric distribution**. Runs stop at the
+first SSR or at 200 affordable pulls, so `pulls_made` follows `min(T, M)` where
+`T ~ Geometric(p)` on support `1, 2, …`.
 
-Rarities are the generic `SSR` / `SR` / `R`. The banner is "Standard banner".
-Numbers in GS4 are round placeholders chosen to read clearly (0.6 % SSR), not
-lifted from any game. No character names, no set names, no logos — same rule as
-the MMO example (§EM9).
+For the defaults:
 
-## GS9. Verification (acceptance — not an oracle)
+- `P(exhausted) = (1 - p)^M ≈ 30.01 %`;
+- `P(SSR within budget) = 1 - (1 - p)^M ≈ 69.99 %`;
+- `E[min(T, M)] = (1 - (1 - p)^M) / p ≈ 116.65` pulls;
+- among successful runs only, `E[T | T <= M] ≈ 80.91` pulls.
 
-Implementation is accepted only when all of these hold. `K = 2000` seeds,
-horizon `N ≈ 260` (GS6).
+Therefore the final-pull distribution has a right-censoring spike at `200`.
+The document and UI must never describe its overall mean as `1 / p ≈ 166.67`;
+that is the theoretical mean of an *unlimited-budget* geometric process.
 
-1. **One result per pull** — every step that pulls moves **exactly one**
-   `roll_gate` branch; `ssr_count + sr_count + r_count == pulls_made` exactly at
-   every step of every run.
-2. **Stops on the first SSR** — the run ends the step after `ssr_count` first
-   reaches `1`; no run records a second SSR; no counter changes after the end.
-3. **Determinism** — same seed ⇒ byte-identical run, including the draw sequence
-   (§B4.4 — the draw is keyed and pure); Reset returns every value to step 0 and
-   never moves the `loop-revision/*` digest.
-4. **Rate is right** — pooled over all K runs, the SSR / SR / R shares are
-   within a tolerance band of `0.6 % / 5.1 % / 94.3 %`; `ssr_rate_shown` reads
-   `0.6 %`, `sr_rate_shown` `5.1 %`.
-5. **Cost is right** — `total_spent == pulls_made · pull_cost` exactly every
-   step; `budget_left == budget − total_spent`.
-6. **The outputs read** — pulls-to-SSR and spend-to-SSR are named Timeline
-   series and appear in the Monte-Carlo distribution; the "ran out of budget"
-   fraction is reported.
-7. **Geometric shape** — the mean pulls-to-SSR is `1 / p(SSR) ± tolerance`
-   (`≈ 166`); the distribution has the expected right tail.
+`ssr_count` is binary at termination. Its final distribution directly reports
+the success / exhaustion split (`1` = SSR within budget, `0` = exhausted
+first). `spent_total` gives the money distribution without asking Monte Carlo
+to evaluate a Register.
 
-*(Not applicable in v1 — return with the hard pity, GS7: "the SSR gap never
-exceeds the ceiling", "the ceiling pull is a guaranteed SSR", "pity is exactly 0
-after every SSR, natural or forced", "pity only increments on a non-SSR pull".)*
+## GS7. Deliberately not modelled
 
-A reproducible fixture (`examples/gacha-simulator.fixture.ts` +
-`gacha-simulator.expected.json`) pins 1–5 as an oracle, like the Coffee and
-Engine-B fixtures.
+- **Hard pity / guaranteed SSR.** The current unconditional `label` and
+  delayed-`trigger` semantics cannot reset a pity counter conditionally with
+  correct next-pull timing — proved, **GS11-D1**.
+- **Soft pity.** Additionally requires a dynamic branch weight derived from the
+  pity counter and inherits the same reset problem.
+- Featured / standard 50-50 and guaranteed-featured-after-loss.
+- Rate-up characters, multiple banners, selectors, carry-over, and duplicate
+  conversion.
+- Live spreadsheet binding or import.
+- Any real title's names, artwork, or published rates.
+
+## GS8. Naming and IP boundary
+
+Use only generic labels: "Standard banner", `SSR`, `SR`, and `R`. Rates and
+costs are round demonstration values. No character names, game logos, set
+names, screenshots, or claims that the defaults reproduce a real service —
+same rule as the MMO example (§EM9).
+
+## GS9. Verification
+
+The implementation is accepted only when all of the following hold for the
+default configuration.
+
+1. **Atomic purchase.** Below a full pull cost, `buy_pull` consumes `0` and
+   emits `0` on every output. At or above the full cost it consumes exactly
+   `pull_cost` and emits all three accounting / roll outputs once.
+2. **One result per paid pull.** At every committed snapshot,
+   `ssr_count + sr_count + r_count == pulls_made` exactly.
+3. **No terminal over-pull.** After a snapshot first reaches `ssr_count == 1`,
+   the next step ends without changing wallet, spending, pull count, or rarity
+   counts.
+4. **Budget stop.** A no-SSR run makes exactly `200` pulls, spends exactly
+   `60000`, leaves wallet `0`, and ends on the following observation step.
+5. **First-SSR stop.** A successful run contains exactly one SSR and no counter
+   changes after termination. A success on the 200th pull is classified as
+   success, not exhaustion.
+6. **Determinism.** Same graph and seed produce byte-identical states and
+   reports; Reset returns to step 0 without changing revision identity (the
+   `loop-revision/*` digest).
+7. **Rates.** Across a fixed 2,000-seed fixture, pooled branch shares fall
+   within pre-declared statistical tolerances around `0.6 % / 5.1 % / 94.3 %`.
+   Tolerances are fixed *before* observing the implementation result.
+8. **Censoring math.** Exhaustion share and mean final `pulls_made` are within
+   fixed tolerances of `30.01 %` and `116.65`; do **not** assert an uncensored
+   mean of `166.67`.
+9. **Readable outputs.** Timeline defaults expose pull count, spending, wallet,
+   and SSR result. Monte Carlo final distributions expose `pulls_made`,
+   `spent_total`, and binary `ssr_count`.
+10. **Memory budget.** The recommended run stays below the existing
+    `CELL_LIMIT` for the exact runs, steps, and tracked-Pool count.
+
+A deterministic engine fixture (`examples/gacha-simulator.fixture.ts` +
+`gacha-simulator.expected.json`) pins the structural and seed-specific facts,
+like the Coffee and Engine-B fixtures. Prefer direct assertions over the fixed
+seed trajectories to a large generated JSON oracle where they are smaller and
+clearer.
+
+Hard-pity-only acceptance returns with its own design (GS10-3): the SSR gap
+never exceeds the ceiling, the ceiling pull is a guaranteed SSR, pity resets
+after both natural and forced SSR, and pity increments only after a non-SSR
+pull.
 
 ## GS10. Slices
 
-1. **Design** — this doc. Merges as *settled design, implementation pending*.
-2. **Implementation** — `examples/gacha-simulator.json` (the graph), a `TEMPLATES`
-   entry in `src/model/templates.ts` (5th bundled Template), localized labels in
-   `src/i18n/templateLabels/{en,ko,ja}.ts`, `recommendedRunConfig` (horizon / K
-   + the Timeline default), the verification fixture, and e2e (§GS9). No engine
-   change — v1 is entirely shipped primitives (GS11-D1).
-3. **Hard-pity engine follow-up** — its own design pass: a **conditional
-   `label`** (a `label` edge that only applies while an `activator` condition
-   holds) *and* a same-step-visible reset story, so the ceiling pull's routing
-   sees the post-SSR counter. Only then does the pity version of GS9 come back.
-   Not part of slices 1–2.
-4. **External-table contract** — after slice 2 ships, promote Appendix GSA to
-   its own design doc (`docs/data-import.md`), split **Track 2A** (import only)
-   from **Track 2B** (bind + refresh), each its own PR. Not touched before then.
-5. **Model explorability (Track 1)** — decided *after* looking at the running
-   gacha screen: whether a ~4-tier model (`Budget → odds → roll → tally`) needs
-   true hierarchical group collapse, or whether the existing Filter panel plus a
-   user-assigned "tier" axis with a pinned base tier is enough. Its own doc when
+1. **Design** — this document and the negative timing probe
+   ([`src/engine/gacha-pity-timing.probe.test.ts`](../src/engine/gacha-pity-timing.probe.test.ts)).
+   No Template or engine feature ships here.
+2. **Implementation** — `examples/gacha-simulator.json` (the graph), a fifth
+   `TEMPLATES` entry in `src/model/templates.ts`, EN / KO / JA label overlays
+   (`src/i18n/templateLabels/{en,ko,ja}.ts`) and catalogue text,
+   `recommendedRunConfig`, the focused engine fixture, and e2e for GS9. No new
+   engine semantics. A genuine mismatch between the Converter `pullAll`
+   implementation and its frozen contract is fixed and reviewed as an engine
+   bug, not hidden in example data.
+3. **Hard-pity engine design** — separately define conditional state mutation
+   *and* same-step visibility before touching `loop-state/*`. Do not assume a
+   "conditional `label`" alone is sufficient. Only then does the pity version of
+   GS9 return. Not part of slices 1–2.
+4. **External-table contract** — after the example ships, promote Appendix GSA
+   into `docs/data-import.md`; Track 2A and Track 2B stay separate PRs. Not
+   touched before then.
+5. **Model explorability (Track 1)** — decide, after looking at the completed
+   graph, whether it needs hierarchical group collapse, a lighter tier
+   field / filter with a pinned base tier, or no new feature. Its own doc when
    that call is made.
 
 ## GS11. Decisions
 
-### GS11-D1 — a hard pity is NOT expressible with the current primitives (**proved**)
+### GS11-D1 — a hard pity is not expressible with current timing (**proved**)
 
-A guaranteed-SSR ceiling needs a `pity` counter that **increments per pull,
-resets on SSR, and forces the routing on the ceiling pull**. Probed directly
-against the engine — the two cases run as
-[`src/engine/gacha-pity-timing.probe.test.ts`](../src/engine/gacha-pity-timing.probe.test.ts),
-kept as a tripwire so a future engine change that changes either result flags
-the GS10-3 follow-up:
+The retained probe
+[`src/engine/gacha-pity-timing.probe.test.ts`](../src/engine/gacha-pity-timing.probe.test.ts)
+records two negative results:
 
-- **`label` is unconditional.** `step.ts` applies every `label` edge in Phase 0
-  every step, ungated by "did the source fire". A `pity → pity` self-`label`
-  with `-S` therefore subtracts the pity value *every step* — the counter can
-  never climb past the single-step increment (`[0, 1, 1, 1, …]`), so a
-  conditional reset is impossible. There is no `label` form that means "set to 0
-  only when …".
-- **A `trigger → Drain` reset lands one step late.** `pity → pity_drain`
-  (passive Drain, pull-all), triggered by the SSR branch: the SSR fires at step
-  *t*, the trigger delivers at *t+1*, the drain empties `pity` at *t+1* — but
-  the routing at *t+1* has already read `S[pity]` committed at *t* (still at the
-  ceiling). The probe fires the "forced SSR" route on **two consecutive steps**
-  (`ceiling fired at steps: [6, 7]` for `cap = 5`) — i.e. **two guaranteed SSRs
-  at the ceiling instead of one**.
+- A `pity → pity` `label` with `-S` applies **every step** (Phase 0,
+  unconditionally), so the counter resets every step and can never climb —
+  observed `[0, 1, 1, 1, …]`. There is no `label` form meaning "set to 0 only
+  when …".
+- An SSR-triggered `trigger → Drain` reset lands **one step late**: the SSR
+  fires at step *t*, the drain empties `pity` at *t+1*, but the routing at
+  *t+1* has already read `S[pity]` committed at *t* (still at the ceiling). The
+  probe fires the forced-SSR route on two consecutive steps
+  (`ceiling fired at steps: [6, 7]` for `cap = 5`) — two guaranteed SSRs
+  instead of one.
 
-**Conclusion:** v1 drops the hard pity and simulates *pull-until-first-SSR*
-(GS0 / GS2.4), which needs no counter reset and stays entirely within shipped
-primitives. The hard pity returns only with the GS10-3 engine follow-up (a
-conditional `label` + a same-step reset). The phrases "current engine only" and
-"not a blocker" are removed from this doc for the pity.
+These are regression tripwires, not production feature tests. If later engine
+work changes either result, the hard-pity design must re-evaluate the complete
+ordering contract rather than merely delete the probe.
 
-### GS11-D2 — `@register` as a Gate branch weight? (open, deferred)
+**Conclusion:** v1 drops the hard pity and runs *pull-until-first-SSR-or-budget*
+(GS0 / GS2.3), which needs no counter reset and stays entirely within shipped
+primitives. The phrases "current engine only" and "not a blocker" are removed
+from this doc for the pity.
 
-Is `@register` legal as a probabilistic-Gate branch weight, or only `@param` /
-literal / `range` / `dice`? v1 does not need it (weights are Parameters). The
-answer gates the soft-pity extension (GS7).
+### GS11-D2 — dynamic Gate weights are deferred
+
+v1 uses Parameter-backed outgoing edge flows, already supported by
+`loop-model/2`. Soft pity would need a weight derived from current simulation
+state or a Register; that is a separate engine amendment and is not implied by
+this example. (Also open: whether `@register` is legal as a probabilistic-Gate
+branch weight at all, or only `@param` / literal / `range` / `dice`.)
+
+### GS11-D3 — the run has two terminal outcomes
+
+"Pull until first SSR" is bounded by the configured budget. The precise v1
+statement is therefore "first SSR **or** budget exhausted". All distribution
+text uses capped / right-censored geometric terminology.
 
 ---
 
-## GSA. Appendix — external-table contract (**proposed**, not implemented here)
+## GSA. Proposed external-table contract (**not implemented here**)
 
-Derived from GS4. **Status: proposed.** This appendix is a sketch to be
-*validated by building GS10-2*, then promoted to its own doc. Nothing in it is
-built as part of this example.
+This appendix is a hypothesis derived from GS4. It is validated by *building
+the example* (GS10-2) and then promoted to its own design document. Nothing
+below ships with the gacha Template.
 
-### GSA0. Why snapshot, not a live connection
+### GSA0. Snapshot first
 
-Loop Studio is local-first, account-less, and its runs are reproducible. A live
-Google Sheets binding would pull in OAuth, private-sheet access, network
-failure, and "the source changed mid-analysis" reproducibility questions all at
-once. **Import a snapshot + refresh on demand** keeps every one of those out of
-the execution path. Direct Sheets connection, if ever, is strictly after Track
-2B.
+Loop Studio is local-first and its simulations are reproducible. Start with a
+CSV file or a pasted spreadsheet range. Do **not** add Google OAuth,
+private-sheet access, background refresh, or network-dependent execution to
+Track 2A. A direct Sheets connection, if ever, is strictly after Track 2B.
 
-### GSA1. Track 2A — import only (nearly schema-free)
+### GSA1. Track 2A — import only
 
-- **Input:** a CSV file upload, or a range copied from a spreadsheet and pasted.
-- **Columns:** `key`, `label`, `value`, `unit`, `group`. `key` + `value`
-  required; `label` defaults to `key`; `unit` / `group` optional.
-- **Effect:** each row with a finite numeric `value` becomes **one Parameter** —
-  a fresh Loop-Studio node id is generated (see GSA3); `data.label` = `label`,
-  `data.value` = `value`; `unit` → the advisory display unit; `group` → optional
-  frame (GSA4).
-- **Validation before anything changes** (a preview step, refuse on error):
-  duplicate `key`, missing `key` / `value`, non-numeric / non-finite `value`,
-  `key` outside an id-safe charset.
-- **After import it is an ordinary model.** No source link, no `lastImported`,
-  no refresh. This barely touches `serialize()` or the digest — the Parameters
-  are just Parameters.
+- Columns: `key`, `label`, `value`, `unit`, `group`.
+- `key` and `value` required; `label` defaults to `key`; `unit` and `group`
+  optional.
+- Each row becomes one fresh Parameter with an internally generated node id.
+- `value` must be finite numeric data.
+- Validate the entire preview before changing the graph: empty keys, duplicate
+  keys after normalization, invalid values, oversized labels / units, and row
+  limits.
+- Because an external key is **not** a node id (GSA3), do **not** impose the
+  node-id-safe character set on it. The future import design must instead
+  specify trimming, Unicode normalization, control-character rejection, maximum
+  UTF-8 length, and whether key comparison is case-sensitive.
+- After import, the Parameters are ordinary model data. Track 2A stores no
+  binding and offers no refresh.
 
-### GSA2. Track 2B — bind & refresh (a real new stored schema)
+### GSA2. Track 2B — binding and explicit refresh
 
-- A bound Parameter gains **`sourceId`** (which import), **`sourceKey`** (the
-  row's `key`), **`lastImportedValue`** (the value at the last import). This is
-  a genuine schema addition — it needs a `serialize()` allowlist entry and a
-  `loop-revision/N` decision.
-- **Re-import** → per `sourceKey` a three-way:
-  - `base` = `lastImportedValue`
-  - `local` = the Parameter's current `data.value`
-  - `incoming` = the new row's `value`
-- **Auto-apply** where there is no conflict (`local == base`, or `incoming ==
-  base`, or `local == incoming`). **User resolves** only true conflicts
-  (`local ≠ base ∧ incoming ≠ base ∧ local ≠ incoming`) — reuse the Project-
-  revision three-way UI, not a new one.
-- **Only the materialized `data.value` has simulation meaning and enters the
-  digest.** `sourceId` / `sourceKey` / `lastImportedValue` are provenance:
-  serialized, round-tripped, shown in the Inspector, but **excluded from
-  execution semantics and the engine digest** (the `route` / `waypoints`
-  cosmetic-field precedent). A source *URL*, if added, is provenance too.
+A refreshable binding needs persisted base state. At minimum it requires:
 
-### GSA3. `sourceKey` is not the node id
+- a document-level import-source record identified by `sourceId`;
+- per bound Parameter: `sourceId`, `sourceKey`, and `lastImportedValue`.
 
-The external `key` (`gacha_ssr_rate`) is **user data**; a Loop Studio node id is
-an **internal identifier**. They are kept separate: import generates the node id
-its own way, matching on `sourceKey`. This means the user can rename a Parameter
-freely, restructure the graph, and re-import still binds correctly; and two
-different sheets can carry the same `key` for different imports without a
-collision.
+For each normalized `sourceKey`:
 
-### GSA4. `group` → frame is optional
+- `base = lastImportedValue`
+- `local = current Parameter data.value`
+- `incoming = newly imported value`
 
-Auto-creating a frame per distinct `group` value is offered **as a checkbox in
-the import preview**, default *ask*. A user often wants the imported Parameters
-dropped into an **existing** frame instead, or none.
+Auto-apply when only one side changed, or both sides agree. Ask the user only
+for a true conflict where `local` and `incoming` both differ from `base` and
+from each other. The Project-revision three-way is a precedent for the
+interaction; code / UI reuse is a later implementation decision.
+
+This is a genuine stored-schema addition. It needs normalization and
+serialization rules, backward compatibility, diff field tags, deletion and
+missing-row behaviour, and explicit identity decisions. Do not conflate:
+
+- `data.value` affects simulation and must bump simulation revision state;
+- provenance does not affect engine evaluation or simulation results;
+- serialized provenance is still user document content and will *ordinarily*
+  affect document / revision identity, the way labels and positions are
+  revision content without affecting the engine (the `GraphDoc.frames`
+  precedent — a frame edit moves the full revision digest but not the engine
+  digest).
+
+The promoted Track 2B design must decide the canonical revision projection. It
+must **not** simply state that provenance is "excluded from the digest".
+
+Source URLs may contain sensitive identifiers. Store them only after a privacy
+and portability decision; a local source label plus a content fingerprint may
+be safer for file / paste imports.
+
+### GSA3. External key is not the node id
+
+`sourceKey` is user data used for row matching. Loop Studio generates its own
+node id. Two sources may use the same key without collision, and renaming or
+moving a Parameter does not break a future binding.
+
+### GSA4. Group-to-frame is optional
+
+The import preview offers three explicit destinations:
+
+1. create a frame per distinct `group`;
+2. place the imported nodes in one selected existing frame; or
+3. create no frames.
+
+Do not silently generate frames from `group`.
 
 ### GSA5. Deliberately out of this contract
 
-- Real-time Sheets / Excel connection.
-- A `value` that is an **expression** → a Register (per-level combat formulas,
-  2-D stat tables). v1 is numeric `value` → Parameter only; a flattened key
-  (`player_hp_lv10`) is the supported shape for now.
-- Writing back to the source.
-- Binding to anything other than a Parameter.
+- Live Google Sheets / Excel synchronization.
+- OAuth and private-sheet access.
+- Expression rows that create Registers.
+- Multi-dimensional stat tables, except flattened rows such as `player_hp_lv10`.
+- Write-back to the source.
+- Binding to kinds other than Parameter.
