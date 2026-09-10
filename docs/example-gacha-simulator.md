@@ -65,10 +65,13 @@ real published rates, and external-table import code.
 
 ## GS2. The model — element to node
 
-All labels below are canonical English labels. A fresh Template open applies
-the existing EN / KO / JA label overlay
-([`docs/template-label-overlay.md`](template-label-overlay.md)). All
-Parameter-backed resource flows require the shipped `loop-model/2` path.
+All labels below are the **canonical English labels stored in the Template
+graph JSON** — English has no separate `en.ts` overlay. A fresh Template open
+applies the existing KO / JA label overlays
+(`src/i18n/templateLabels/{ko,ja}.ts`,
+[`docs/template-label-overlay.md`](template-label-overlay.md)); catalogue name
+and description strings stay localized EN / KO / JA. All Parameter-backed
+resource flows require the shipped `loop-model/2` path.
 
 ### GS2.1 Funding and one atomic purchase
 
@@ -338,11 +341,13 @@ default configuration.
 10. **Memory budget.** The recommended run stays below the existing
     `CELL_LIMIT` for the exact runs, steps, and tracked-Pool count.
 
-A deterministic engine fixture (`examples/gacha-simulator.fixture.ts` +
-`gacha-simulator.expected.json`) pins the structural and seed-specific facts,
-like the Coffee and Engine-B fixtures. Prefer direct assertions over the fixed
-seed trajectories to a large generated JSON oracle where they are smaller and
-clearer.
+A deterministic engine fixture at `src/engine/gacha-simulator.fixture.ts`
+(alongside `mmo-progression.fixture.ts` / `coffee-roastery.fixture.ts`) pins
+the structural and seed-specific facts. It has **no** separate generated
+`*.expected.json` unless implementation review shows a compact golden vector
+adds value beyond direct fixed-seed assertions — the MMO and Coffee fixtures
+deliberately have none (the `*.expected.json` files under `examples/` belong to
+the frozen-semantics verification vectors, not the example Templates).
 
 Hard-pity-only acceptance returns with its own design (GS10-3): the SSR gap
 never exceeds the ceiling, the ceiling pull is a guaranteed SSR, pity resets
@@ -354,13 +359,14 @@ pull.
 1. **Design** — this document and the negative timing probe
    ([`src/engine/gacha-pity-timing.probe.test.ts`](../src/engine/gacha-pity-timing.probe.test.ts)).
    No Template or engine feature ships here.
-2. **Implementation** — `examples/gacha-simulator.json` (the graph), a fifth
-   `TEMPLATES` entry in `src/model/templates.ts`, EN / KO / JA label overlays
-   (`src/i18n/templateLabels/{en,ko,ja}.ts`) and catalogue text,
-   `recommendedRunConfig`, the focused engine fixture, and e2e for GS9. No new
-   engine semantics. A genuine mismatch between the Converter `pullAll`
-   implementation and its frozen contract is fixed and reviewed as an engine
-   bug, not hidden in example data.
+2. **Implementation** — `examples/gacha-simulator.json` (the graph, carrying the
+   canonical English labels), a fifth `TEMPLATES` entry in
+   `src/model/templates.ts`, KO / JA label overlays in
+   `src/i18n/templateLabels/{ko,ja}.ts`, EN / KO / JA catalogue text,
+   `recommendedRunConfig`, `src/engine/gacha-simulator.fixture.ts` + focused
+   engine tests, and e2e for GS9. No new engine semantics. A genuine mismatch
+   between the Converter `pullAll` implementation and its frozen contract is
+   fixed and reviewed as an engine bug, not hidden in example data.
 3. **Hard-pity engine design** — separately define conditional state mutation
    *and* same-step visibility before touching `loop-state/*`. Do not assume a
    "conditional `label`" alone is sufficient. Only then does the pity version of
