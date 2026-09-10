@@ -1,14 +1,18 @@
-# Conditional state update & same-step counter reset (design draft)
+# Conditional state update & same-step counter reset
 
-**Status: settled design — implementation pending. rev 4.** rev 4 closes the
-three points Hanrim raised on rev 3: a user-editable `HARD_PITY` Parameter that
-does not actually drive routing is removed (the ceiling is a fixed design
-constant until `@parameter` activator support lands); the I1′ identity is
-corrected to separate the state term from resource movement; and `timing` /
-`when` are reclassified as **engine-affecting** fields (they change the run), not
-a `route` / `waypoints` / `frames` cosmetic precedent. rev 2/3 established the
-**post-pull conditional `label`** (Phase 2.5); rev 1's Phase-0 `when` +
-`phase: "post"` activator is abandoned.
+**Status: settled design — implementation pending. rev 5.** rev 5 is a wording
+fix, not a design change: the "byte-identical to `loop-state/2`" condition is
+tightened from "no `afterPull` edge" to "**fully legacy graph** — every `label`
+with no `when` and no `timing` (or a `timing` normalising to `phase0`)", because
+CSU3-5's fail-closed handling of `phase0` + `when` already diverges from
+`loop-state/1` with zero `afterPull` edges (CSU3-7, CSU6-7/8, CSU9-D4). rev 4
+had closed the three rev-3 points: the phantom user-editable `HARD_PITY`
+Parameter is removed (fixed design constant until `@parameter` activator support
+lands); the I1′ identity separates the state term from resource movement; and
+`timing` / `when` are **engine-affecting**, not a `route` / `waypoints` /
+`frames` cosmetic precedent. rev 2/3 established the **post-pull conditional
+`label`** (Phase 2.5); rev 1's Phase-0 `when` + `phase: "post"` activator is
+abandoned.
 
 No `loop-*/N` id yet. Extends `loop-state/1`
 ([`SEMANTICS-S.md`](../SEMANTICS-S.md)) / `loop-state/2`
@@ -192,11 +196,21 @@ The GraphDoc envelope, `schema` string, `model` version, and node kinds are
 
 - they move the **content digest** and set `dirty` (like any edit), **and**
 - they move the **engine / semantic digest** and **`simulationRev`**.
-- Only a graph with **no `afterPull` edge** produces an engine digest and a
-  `report` byte-identical to `loop-state/2`.
+
+**Byte-identical only for a fully legacy graph.** An engine digest and `report`
+byte-identical to `loop-state/2` are produced **only** by a graph in which
+**every `label` edge has no `when`, and no `timing` (or a `timing` that
+normalises to the legacy `phase0`)**. This is stricter than "no `afterPull`
+edge": a `phase0` `label` carrying a `when`, an unknown `timing`, or any other
+leftover CSU field changes execution **or** a diagnostic (CSU3-5 is
+fail-closed — such an edge goes inert where `loop-state/1` would have applied
+it), so it is engine-digest-affecting even with zero `afterPull` edges.
 
 The new `SEMANTICS-S*` revision's `loop-revision/N` projection **classifies
-`timing` / `when` as engine-affecting** (CSU9-D4).
+`timing` / `when` as engine-affecting** (CSU9-D4). Slice 2's contract also
+decides whether an **explicit `timing: "phase0"`** is *omitted* from the digest
+projection — i.e. normalised to "absent" so a graph that only ever sets the
+default stays byte-identical.
 
 ## CSU4. How a hard pity expresses
 
@@ -286,14 +300,16 @@ Timeline shows for that frame.
 6. **No off-by-one routing** — the forced route fires on exactly one step per
    ceiling hit; the SSR-to-SSR gap never exceeds `HARD_PITY`.
 7. **Determinism & digest** — same graph + seed ⇒ byte-identical run incl. the
-   Phase 2.5 order; Reset returns every value to step 0. A graph **with** an
-   `afterPull` edge has a **new** `simulationRev` / engine digest (the fields
-   are engine-affecting, CSU3-7); a graph **without** one is byte-identical to
-   `loop-state/2` in engine digest **and** `report`.
-8. **Backward compat** — a `label` with no `timing` (or `timing: "phase0"`)
-   behaves byte-identically to `loop-state/1`, **and its report effect keeps the
-   exact `loop-state/2` shape (no `applied` field)**; every existing state test
-   passes unchanged; `SEMANTICS-S.md` §14 vectors re-run.
+   Phase 2.5 order; Reset returns every value to step 0. A **fully legacy
+   graph** — every `label` with no `when` and no `timing` (or a `timing` that
+   normalises to `phase0`) — is byte-identical to `loop-state/2` in engine
+   digest **and** `report`. Any graph with an `afterPull` edge, a `phase0` +
+   `when` edge, or an unknown `timing` has a **new** `simulationRev` / engine
+   digest — the fields are engine-affecting (CSU3-7).
+8. **Backward compat** — a `label` with no `timing` (or `timing: "phase0"`) and
+   **no `when`** behaves byte-identically to `loop-state/1`, **and its report
+   effect keeps the exact `loop-state/2` shape (no `applied` field)**; every
+   existing state test passes unchanged; `SEMANTICS-S.md` §14 vectors re-run.
 9. **Reporting** — every `afterPull` effect carries `applied`; an inert
    `afterPull` edge is exactly `{ applied: false, delta: 0, clampAdjustment: 0 }`;
    a clamp correction is attributed only to the target's last **applied**
@@ -358,6 +374,6 @@ case (the CSU5 trace) and kept.
 | **CSU9-D1** | `pity` is an **uncapped** Pool. A capacity would make the Commit clamp a second writer of the counter (`pity + 1 → cap` on the ceiling step). Uncapped keeps `pity_reset =0` the single source of truth and the Timeline shows the raw count. |
 | **CSU9-D2** | The routing threshold is a **fixed literal** in the `activator` expr (`< 2` / `>= 2` for the 3-pull ceiling). **No `HARD_PITY` `parameter` node** — the `activator` grammar is literal-only, so an editable Parameter would change docs / cost math but not routing, a misleading contract. `HARD_PITY = 3` is a design constant in the doc and the fixture; the fixture asserts `activator literal == HARD_PITY − 1` and the 3-pull behaviour. A tunable per-banner ceiling waits for `@parameter` activator support (CSU7 / slice 5). |
 | **CSU9-D3** | The only `when` value in v1 is **`"source-fired"`**. It unblocks the hard pity and the pickup-guarantee state; a comparison form (`when: ">= n" @pool`) is deferred until a concrete use case. |
-| **CSU9-D4** | `timing` / `when` are **engine-affecting** document content, **not** a cosmetic (`route` / `waypoints` / `frames`) field: they change the run, so they move the **content digest** + `dirty` **and** the **engine / semantic digest** + **`simulationRev`**. The new `SEMANTICS-S*` `loop-revision/N` projection classifies them as engine-affecting. Only a graph with **no `afterPull` edge** stays byte-identical to `loop-state/2` in engine digest and `report`. |
+| **CSU9-D4** | `timing` / `when` are **engine-affecting** document content, **not** a cosmetic (`route` / `waypoints` / `frames`) field: they change the run, so they move the **content digest** + `dirty` **and** the **engine / semantic digest** + **`simulationRev`**. The new `SEMANTICS-S*` `loop-revision/N` projection classifies them as engine-affecting. Byte-identical to `loop-state/2` (engine digest **and** `report`) holds **only for a fully legacy graph**: every `label` with no `when` and no `timing` (or a `timing` normalising to `phase0`). A `phase0` + `when` edge, an unknown `timing`, or any leftover CSU field changes execution or a diagnostic (CSU3-5 fail-closed) and is engine-digest-affecting even with zero `afterPull` edges. Slice 2 also decides whether an explicit `timing: "phase0"` is omitted from the projection (normalised to "absent"). |
 | **CSU9-D5** | `applied` is added **only** to `afterPull` label effects; `phase0` / untyped label effects keep the exact `loop-state/2` shape. Consumers treat a missing `applied` as `true`. So a `report` shape does **not** change for anyone who does not use `afterPull`. |
 | **CSU9-D6** | Phase 2.5 walks all `afterPull` edges for a target in ascending `edge.id` against the running `working[target]`; intermediate out-of-range values are allowed and the single **Commit** clamp is the only clamp — identical semantics to `SEMANTICS-S.md` §S5(d), scoped to Phase 2.5. If a malformed graph makes two of `ssr_hit` / `sr_hit` / `r_hit` fire in one step, both labels apply in `edge.id` order (`=` last-wins, `+` sums); the gacha fixture asserts exactly one fires, and with `roll_gate` / `forced_ssr` routing exactly one branch this cannot occur in a valid graph. |
