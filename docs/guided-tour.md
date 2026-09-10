@@ -328,12 +328,13 @@ mobile identical):
   of the stored key, and per §GT6.4 never rewrites it.
 - **`Contextual help`** — opens the inline-help re-arm dialog (added by the
   inline-help slice; `docs/contextual-inline-help.md` §CIH4).
-- **`Send feedback`** — a fixed **external link** (`src/feedback.ts` `FEEDBACK_URL`,
-  the same const in both the desktop menu and the mobile Help sub-sheet) opening
-  the feedback form in a **new tab** (`target="_blank"`, `rel="noopener
-  noreferrer"` — the referring URL is not sent; the new tab gets no `opener`).
-  A decorative `↗` marks the external link; the accessible name says "opens in a
-  new tab". The form is Korean-language for now, noted in the EN/JA label
+- **`Send feedback`** — a fixed **external link** (`src/feedback.ts` `FEEDBACK_URL`
+  — a **Tally form**; the same const in both the desktop menu and the mobile Help
+  sub-sheet) opening the feedback form in a **new tab** (`target="_blank"`,
+  `rel="noopener noreferrer"` — the referring URL is not sent; the new tab gets
+  no `opener`). A decorative `↗` marks the external link; the accessible name
+  says "opens in a new tab". The form is Korean-language for now, noted in the
+  EN/JA label
   (`Send feedback (Korean form)` / `フィードバックを送る（韓国語フォーム）`); the KO
   label is `피드백 보내기`. Loop Studio attaches no model content, document data,
   user identifier, or current-page information to the URL — it is a plain link
