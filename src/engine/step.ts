@@ -153,18 +153,47 @@ export function step(
   const diagnostics: string[] = [...paramDiagnostics]
   let ended = prev.ended
 
+  // A random draw / gate pick is memoised at `step()` scope so the shadow probe
+  // pass (see `pullPass`) reuses the SAME result as the real pass — no extra
+  // draw. Its *diagnostic* must not leak the same way: a probe rewinds
+  // `diagnostics`, so a bad `range` / `dice` flow or an inert probabilistic gate
+  // first seen during a probe would record then discard its reason, and the
+  // committed pass would read only the cached value and never re-surface it.
+  // So the reason is cached alongside the value and flushed to `diagnostics`
+  // (exactly once) only when the cache is actually consumed with `emitDiag`
+  // true — i.e. during the committed pass, on a path that really executes.
+  let emitDiag = true // false only for the duration of a probe pullPass
+  const randReason = new Map<string, string>() // edgeId → its bad-random diagnostic
+  const gateInertReason = new Map<string, string>() // gateId → its inert-gate diagnostic
+  const diagShown = new Set<string>() // `rand:<edgeId>` / `gate:<gateId>` already flushed
+  const surfaceRandDiag = (edgeId: string) => {
+    const key = `rand:${edgeId}`
+    if (emitDiag && randReason.has(edgeId) && !diagShown.has(key)) {
+      diagnostics.push(randReason.get(edgeId)!)
+      diagShown.add(key)
+    }
+  }
+  const surfaceGateDiag = (gateId: string) => {
+    const key = `gate:${gateId}`
+    if (emitDiag && gateInertReason.has(gateId) && !diagShown.has(key)) {
+      diagnostics.push(gateInertReason.get(gateId)!)
+      diagShown.add(key)
+    }
+  }
+
   // ── Engine B: one draw per random edge per step (SEMANTICS-B1.md §B3) ─────
   // `sampled` holds the drawn value for `range`/`dice` edges only; it is filled
   // on first touch (whether as an amount or as a weight) and reused everywhere.
   const sampled = new Map<string, number>()
-  const badRandom = new Set<string>()
   const drawnValue = (e: LoopEdge): number => {
     const hit = sampled.get(e.id)
-    if (hit !== undefined) return hit
+    if (hit !== undefined) {
+      surfaceRandDiag(e.id)
+      return hit
+    }
     const v = evalRand(fe(e), 0, 0, (purpose, i) => sample(seed, curStep, e.id, purpose, i).u, (reason) => {
-      if (badRandom.has(e.id)) return
-      badRandom.add(e.id)
-      diagnostics.push(`Edge "${e.id}" ${reason}; contributes 0.`)
+      if (!randReason.has(e.id)) randReason.set(e.id, `Edge "${e.id}" ${reason}; contributes 0.`)
+      surfaceRandDiag(e.id)
     })
     sampled.set(e.id, v)
     return v
@@ -490,18 +519,25 @@ export function step(
   const gatePick = new Map<string, LoopEdge | null>()
   const pickBranch = (g: LoopNode): LoopEdge | null => {
     const memo = gatePick.get(g.id)
-    if (memo !== undefined) return memo
+    if (memo !== undefined) {
+      if (memo === null) surfaceGateDiag(g.id)
+      return memo
+    }
     const outs = outOf(g.id)
       .filter((e) => !dead.has(e.id))
       .sort(cmpId) // canonical order: edge.id ascending (§B4.2)
     const weights = outs.map((e) => rateOfCached(e))
     const idx = categorical(weights, sample(seed, curStep, g.id, 'gate-route', 0).u)
     if (idx < 0) {
-      diagnostics.push(
-        weights.some((w) => !Number.isFinite(w) || w < 0)
-          ? `Probabilistic gate "${g.data.label}": invalid branch weight; gate is inert this step.`
-          : `Probabilistic gate "${g.data.label}": no positive branch weight; gate is inert this step.`,
-      )
+      if (!gateInertReason.has(g.id)) {
+        gateInertReason.set(
+          g.id,
+          weights.some((w) => !Number.isFinite(w) || w < 0)
+            ? `Probabilistic gate "${g.data.label}": invalid branch weight; gate is inert this step.`
+            : `Probabilistic gate "${g.data.label}": no positive branch weight; gate is inert this step.`,
+        )
+      }
+      surfaceGateDiag(g.id)
       gatePick.set(g.id, null)
       return null
     }
@@ -509,10 +545,16 @@ export function step(
     return outs[idx]
   }
 
+  // `pullAll` Converters proven unfillable by the probe pass (see `pullPass`).
+  // Rebuilt each iteration of the feasibility fixpoint; empty for the common
+  // no-`pullAll`-Converter graph, so behaviour there is byte-identical.
+  let disabledPullAll = new Set<string>()
+
   // `accept(id)` — max the node can take on its input side, live. Memo is valid
   // only while `working`/`reserved` are stable, so it is rebuilt per router turn.
   const makeAccept = () => {
     const memo = new Map<string, number>()
+
     const accept = (id: string): number => {
       if (memo.has(id)) return memo.get(id)!
       const k = kindOf(id)
@@ -522,6 +564,15 @@ export function step(
       else if (k === 'pool') v = Math.max(0, headroom(id))
       else if (k === 'drain' || k === 'end') v = Infinity
       else if (k === 'converter') {
+        // SEMANTICS.md §9 — a `pullAll` Converter is all-or-nothing. The probe
+        // pass has already decided which ones cannot reach f = 1 this step; an
+        // upstream router must route NOTHING into those (§11 / I5). Checked
+        // before reading any input edge so a disabled Converter's edges are not
+        // even evaluated on the committed pass.
+        if (disabledPullAll.has(id)) {
+          memo.set(id, 0)
+          return 0
+        }
         const sumIn = sumInRate(id)
         let fmax = 1
         for (const e of outOf(id)) {
@@ -595,162 +646,295 @@ export function step(
     // drain / end / pool: nothing further to reserve
   }
 
-  for (const id of order) {
-    const n = byId.get(id)!
-    activated.add(id)
-    const k = n.data.kind
-    const accept = makeAccept()
+  // ── Phase 2 as a re-runnable pass ───────────────────────────────────────
+  // `pullPass` walks the canonical router `order` exactly once. With
+  // `commit = false` it is a *probe*: every mutation lands on a shadow copy of
+  // `working` / `taken` / `reserved` / `inbox` / `ownReserve` / `activated` /
+  // `fired`, `events` / `diagnostics` are rewound, `ended` is restored, and the
+  // set of `pullAll` Converters that could not reach f = 1 is returned. The
+  // probabilistic branch picks (`gatePick`) and random-flow draws (`sampled`)
+  // are memoised at `step()` scope, so a probe reuses the SAME results as the
+  // real pass — no extra draws; `emitDiag = false` keeps a probe from
+  // publishing a diagnostic (`surfaceRandDiag` / `surfaceGateDiag` flush it on
+  // the committed pass instead). `disabledPullAll` (closed over by
+  // `makeAccept`) selects which `pullAll` Converters are non-accepting.
+  const cloneOwn = (m: Map<string, Map<string, number>>) =>
+    new Map([...m].map(([k, v]) => [k, new Map(v)]))
+  const pullPass = (commit: boolean): Set<string> => {
+    const pullShort = new Set<string>()
+    const prevEmitDiag = emitDiag
+    emitDiag = commit
+    const snap = commit
+      ? null
+      : {
+          working: { ...working },
+          taken: new Map(taken),
+          reserved: new Map(reserved),
+          inbox: new Map(inbox),
+          ownReserve: cloneOwn(ownReserve),
+          activated: new Set(activated),
+          fired: new Set(fired),
+          eventsLen: events.length,
+          diagLen: diagnostics.length,
+          ended,
+        }
 
-    if (k === 'drain' || k === 'end') {
-      let got = inbox.get(id) ?? 0
-      const ins = inOf(id)
-        .filter((e) => isPool(e.source) && !dead.has(e.id))
-        .sort(cmpEdge)
-      const mode = (n.data as { mode?: 'pullAny' | 'pullAll' }).mode ?? 'pullAny'
-      const wants = ins.map((e) => ({
-        e,
-        want: amountOf(e, availOf(e.source), S[e.source] ?? 0),
-      }))
-      const feasible =
-        mode === 'pullAll' ? wants.every((w) => availOf(w.e.source) >= w.want - EPSILON) : true
-      if (feasible) {
+    for (const id of order) {
+      const n = byId.get(id)!
+      activated.add(id)
+      const k = n.data.kind
+      const accept = makeAccept()
+
+      if (k === 'drain' || k === 'end') {
+        let got = inbox.get(id) ?? 0
+        const ins = inOf(id)
+          .filter((e) => isPool(e.source) && !dead.has(e.id))
+          .sort(cmpEdge)
+        const mode = (n.data as { mode?: 'pullAny' | 'pullAll' }).mode ?? 'pullAny'
+        const wants = ins.map((e) => ({
+          e,
+          want: amountOf(e, availOf(e.source), S[e.source] ?? 0),
+        }))
+        const feasible =
+          mode === 'pullAll' ? wants.every((w) => availOf(w.e.source) >= w.want - EPSILON) : true
+        if (feasible) {
+          for (const w of wants) {
+            const a =
+              mode === 'pullAll'
+                ? nz(w.want)
+                : nz(Math.max(0, Math.min(w.want, availOf(w.e.source))))
+            if (a > 0) {
+              takeFrom(w.e.source, a)
+              got += a
+              emit(w.e, w.e.source, id, a)
+            }
+          }
+        }
+        if (got > EPSILON) {
+          fired.add(id)
+          if (k === 'end') ended = true
+        }
+        continue
+      }
+
+      if (k === 'gate') {
+        const mode = n.data.mode ?? 'pullAny'
+        const probabilistic = isProbGate(n)
+        // invalid / zero-sum weights ⇒ the gate is inert this step (diagnostic
+        // already pushed by pickBranch); do not touch the input pools.
+        const sel = probabilistic ? pickBranch(n) : null
+        if (probabilistic && !sel) continue
+
+        let inb = inbox.get(id) ?? 0
+        const ins = inOf(id)
+          .filter((e) => isPool(e.source) && !dead.has(e.id))
+          .sort(cmpEdge)
+        let demand = inb
+        let inputAvail = inb
+        const wants = ins.map((e) => {
+          const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
+          demand += w
+          inputAvail += availOf(e.source)
+          return { e, want: w }
+        })
+
+        let T = nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
+        if (mode === 'pullAll' && T < demand - EPSILON) T = 0
+        if (T <= EPSILON) continue
+
+        // consume inbox first, then pull the rest from pools in (source, edge) order
+        let need = T
+        const fromInbox = Math.min(need, inb)
+        need -= fromInbox
+        inbox.set(id, inb - fromInbox)
+        inb -= fromInbox
         for (const w of wants) {
-          const a =
-            mode === 'pullAll'
-              ? nz(w.want)
-              : nz(Math.max(0, Math.min(w.want, availOf(w.e.source))))
+          if (need <= EPSILON) break
+          const a = nz(Math.min(need, availOf(w.e.source), w.want))
           if (a > 0) {
             takeFrom(w.e.source, a)
-            got += a
+            need -= a
             emit(w.e, w.e.source, id, a)
           }
         }
-      }
-      if (got > EPSILON) {
-        fired.add(id)
-        if (k === 'end') ended = true
-      }
-      continue
-    }
 
-    if (k === 'gate') {
-      const mode = n.data.mode ?? 'pullAny'
-      const probabilistic = isProbGate(n)
-      // invalid / zero-sum weights ⇒ the gate is inert this step (diagnostic
-      // already pushed by pickBranch); do not touch the input pools.
-      const sel = probabilistic ? pickBranch(n) : null
-      if (probabilistic && !sel) continue
-
-      let inb = inbox.get(id) ?? 0
-      const ins = inOf(id)
-        .filter((e) => isPool(e.source) && !dead.has(e.id))
-        .sort(cmpEdge)
-      let demand = inb
-      let inputAvail = inb
-      const wants = ins.map((e) => {
-        const w = amountOf(e, availOf(e.source), S[e.source] ?? 0)
-        demand += w
-        inputAvail += availOf(e.source)
-        return { e, want: w }
-      })
-
-      let T = nz(Math.max(0, Math.min(demand, inputAvail, accept(id))))
-      if (mode === 'pullAll' && T < demand - EPSILON) T = 0
-      if (T <= EPSILON) continue
-
-      // consume inbox first, then pull the rest from pools in (source, edge) order
-      let need = T
-      const fromInbox = Math.min(need, inb)
-      need -= fromInbox
-      inbox.set(id, inb - fromInbox)
-      inb -= fromInbox
-      for (const w of wants) {
-        if (need <= EPSILON) break
-        const a = nz(Math.min(need, availOf(w.e.source), w.want))
-        if (a > 0) {
-          takeFrom(w.e.source, a)
-          need -= a
-          emit(w.e, w.e.source, id, a)
+        if (probabilistic) {
+          // the whole of T goes down the one selected branch (§B4.3)
+          if (isPool(sel!.target)) {
+            working[sel!.target] = (working[sel!.target] ?? 0) + T
+          } else {
+            inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
+            planReserve(sel!.target, T)
+          }
+          emit(sel!, id, sel!.target, T)
+          fired.add(id)
+          continue
         }
-      }
 
-      if (probabilistic) {
-        // the whole of T goes down the one selected branch (§B4.3)
-        if (isPool(sel!.target)) {
-          working[sel!.target] = (working[sel!.target] ?? 0) + T
-        } else {
-          inbox.set(sel!.target, (inbox.get(sel!.target) ?? 0) + T)
-          planReserve(sel!.target, T)
+        const outs = outOf(id).filter((e) => !skipDet(e.id))
+        const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
+        for (const e of outs) {
+          const share =
+            sumW > EPSILON ? nz((T * rateOfCached(e)) / sumW) : nz(T / Math.max(1, outs.length))
+          if (share <= 0) continue
+          if (isPool(e.target)) {
+            working[e.target] = (working[e.target] ?? 0) + share
+          } else {
+            inbox.set(e.target, (inbox.get(e.target) ?? 0) + share)
+            planReserve(e.target, share)
+          }
+          emit(e, id, e.target, share)
         }
-        emit(sel!, id, sel!.target, T)
         fired.add(id)
         continue
       }
 
-      const outs = outOf(id).filter((e) => !skipDet(e.id))
-      const sumW = outs.reduce((s, e) => s + rateOfCached(e), 0)
-      for (const e of outs) {
-        const share =
-          sumW > EPSILON ? nz((T * rateOfCached(e)) / sumW) : nz(T / Math.max(1, outs.length))
-        if (share <= 0) continue
-        if (isPool(e.target)) {
-          working[e.target] = (working[e.target] ?? 0) + share
-        } else {
-          inbox.set(e.target, (inbox.get(e.target) ?? 0) + share)
-          planReserve(e.target, share)
+      if (k === 'converter') {
+        // A `pullAll` Converter the fixpoint has already disabled moves nothing
+        // — skip it before any edge is read, so its flows are not evaluated on
+        // the committed pass (a diagnostic from a branch only this Converter
+        // would have consumed must not surface).
+        if (disabledPullAll.has(id)) continue
+        const mode = n.data.mode ?? 'pullAny'
+        const inboxHave = inbox.get(id) ?? 0
+        // pool-fed inputs: pull up to the per-activation rate
+        const poolIns = inOf(id)
+          .filter((e) => isPool(e.source) && !dead.has(e.id))
+          .sort(cmpEdge)
+        const sumIn = sumInRate(id)
+        // f is bounded by the input side; recheck output headroom, adding back
+        // this converter's own reservation so it is not blocked by itself.
+        const own = ownReserve.get(id)
+        // Dry run: what fraction *would* this converter run at, without moving
+        // anything yet? SEMANTICS.md §9 — a `pullAll` Converter that cannot reach
+        // f = 1 must move 0 from every edge (atomic). Computing f before the pull
+        // keeps a short-fed `pullAll` Converter from draining its input Pools for
+        // a partial amount and then emitting nothing (§11 / I5 — a blocked router
+        // accumulates nothing and destroys nothing). `dryAvail` mirrors the real
+        // loop's per-source depletion so two edges off one Pool see the same
+        // remaining balance here as they will below.
+        let wouldReceive = inboxHave
+        const dryAvail = new Map<string, number>()
+        for (const e of poolIns) {
+          const left = dryAvail.get(e.source) ?? availOf(e.source)
+          const a = nz(Math.max(0, Math.min(rateOfCached(e), left)))
+          dryAvail.set(e.source, left - a)
+          wouldReceive += a
         }
-        emit(e, id, e.target, share)
+        let fDry = sumIn > EPSILON ? wouldReceive / sumIn : 0
+        for (const e of outOf(id)) {
+          if (skipDet(e.id)) continue
+          const r = rateOfCached(e)
+          if (r <= EPSILON) continue
+          const back = own?.get(e.target) ?? 0
+          fDry = Math.min(fDry, (headroom(e.target) + back) / r)
+        }
+        fDry = nz(Math.max(0, Math.min(1, fDry)))
+        if (mode === 'pullAll' && fDry < 1 - EPSILON) {
+          pullShort.add(id) // probe pass: this pullAll Converter cannot reach f = 1
+          continue
+        }
+        if (fDry <= EPSILON) continue
+
+        let received = inboxHave
+        inbox.set(id, 0)
+        for (const e of poolIns) {
+          const r = rateOfCached(e)
+          const a = nz(Math.max(0, Math.min(r, availOf(e.source))))
+          if (a > 0) {
+            takeFrom(e.source, a)
+            received += a
+            emit(e, e.source, id, a)
+          }
+        }
+        let f = sumIn > EPSILON ? received / sumIn : 0
+        for (const e of outOf(id)) {
+          if (skipDet(e.id)) continue
+          const r = rateOfCached(e)
+          if (r <= EPSILON) continue
+          const back = own?.get(e.target) ?? 0
+          f = Math.min(f, (headroom(e.target) + back) / r)
+        }
+        f = nz(Math.max(0, Math.min(1, f)))
+        if (mode === 'pullAll' && f < 1 - EPSILON) {
+          pullShort.add(id)
+          f = 0
+        }
+        if (f <= EPSILON) continue
+
+        for (const e of outOf(id)) {
+          if (skipDet(e.id)) continue
+          const q = nz(f * rateOfCached(e))
+          if (q <= 0) continue
+          const held = Math.min(q, reservedOf(e.target))
+          reserved.set(e.target, reservedOf(e.target) - held)
+          working[e.target] = (working[e.target] ?? 0) + q
+          emit(e, id, e.target, q)
+        }
+        fired.add(id)
+        continue
       }
-      fired.add(id)
-      continue
     }
 
-    if (k === 'converter') {
-      const mode = n.data.mode ?? 'pullAny'
-      let received = inbox.get(id) ?? 0
-      inbox.set(id, 0)
-      // pool-fed inputs: pull up to the per-activation rate
-      const poolIns = inOf(id)
-        .filter((e) => isPool(e.source) && !dead.has(e.id))
-        .sort(cmpEdge)
-      for (const e of poolIns) {
-        const r = rateOfCached(e)
-        const a = nz(Math.max(0, Math.min(r, availOf(e.source))))
-        if (a > 0) {
-          takeFrom(e.source, a)
-          received += a
-          emit(e, e.source, id, a)
+    if (snap) {
+      for (const key of Object.keys(working)) delete working[key]
+      Object.assign(working, snap.working)
+      taken.clear()
+      for (const [key, v] of snap.taken) taken.set(key, v)
+      reserved.clear()
+      for (const [key, v] of snap.reserved) reserved.set(key, v)
+      inbox.clear()
+      for (const [key, v] of snap.inbox) inbox.set(key, v)
+      ownReserve.clear()
+      for (const [key, v] of snap.ownReserve) ownReserve.set(key, v)
+      activated.clear()
+      for (const v of snap.activated) activated.add(v)
+      fired.clear()
+      for (const v of snap.fired) fired.add(v)
+      events.length = snap.eventsLen
+      diagnostics.length = snap.diagLen // no-op while emitDiag is false, kept as a guard
+      ended = snap.ended
+    }
+    emitDiag = prevEmitDiag
+    return pullShort
+  }
+
+  // ── Phase 2 feasibility fixpoint ────────────────────────────────────────
+  // Only `pullAll` Converters can force a re-run; without any, this is a single
+  // committed pass identical to before. Disabling a short `pullAll` Converter
+  // only ever frees resource for the rest, so the disabled set grows monotonic-
+  // ally and must settle within `#pullAll Converters + 1` probes (SEMANTICS.md
+  // §9 / §11). A canonical-order winner among Converters contending for one Pool
+  // fills first in the probe and stays enabled; the loser lands in the set.
+  const isPullAllConverter = (id: string) =>
+    kindOf(id) === 'converter' &&
+    ((byId.get(id)?.data as { mode?: string } | undefined)?.mode ?? 'pullAny') === 'pullAll'
+  const pullAllConverterCount = order.filter(isPullAllConverter).length
+  if (pullAllConverterCount > 0) {
+    const capIters = pullAllConverterCount + 1
+    let settled = false
+    for (let i = 0; i < capIters; i++) {
+      const short = pullPass(false)
+      let grew = false
+      for (const id of short) {
+        if (!disabledPullAll.has(id)) {
+          disabledPullAll = new Set(disabledPullAll).add(id)
+          grew = true
         }
       }
-      const sumIn = sumInRate(id)
-      // f is bounded by the input side; recheck output headroom, adding back
-      // this converter's own reservation so it is not blocked by itself.
-      const own = ownReserve.get(id)
-      let f = sumIn > EPSILON ? received / sumIn : 0
-      for (const e of outOf(id)) {
-        if (skipDet(e.id)) continue
-        const r = rateOfCached(e)
-        if (r <= EPSILON) continue
-        const back = own?.get(e.target) ?? 0
-        f = Math.min(f, (headroom(e.target) + back) / r)
+      if (!grew) {
+        settled = true
+        break
       }
-      f = nz(Math.max(0, Math.min(1, f)))
-      if (mode === 'pullAll' && f < 1 - EPSILON) f = 0
-      if (f <= EPSILON) continue
-
-      for (const e of outOf(id)) {
-        if (skipDet(e.id)) continue
-        const q = nz(f * rateOfCached(e))
-        if (q <= 0) continue
-        const held = Math.min(q, reservedOf(e.target))
-        reserved.set(e.target, reservedOf(e.target) - held)
-        working[e.target] = (working[e.target] ?? 0) + q
-        emit(e, id, e.target, q)
-      }
-      fired.add(id)
-      continue
+    }
+    if (!settled) {
+      diagnostics.push(
+        `pull-all feasibility did not settle within ${capIters} probe passes; ` +
+          `results for this step may be approximate.`,
+      )
     }
   }
+  pullPass(true)
 
   // ── Commit ──────────────────────────────────────────────────────────────
   for (const nid of Object.keys(working)) {
