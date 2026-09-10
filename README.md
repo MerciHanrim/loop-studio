@@ -1,8 +1,6 @@
 # Loop Studio
 
-![Loop Studio — the Coffee roastery Template grouped into three labelled zone frames (supply & inventory, roasting & sales, forecast metrics), a few steps into a run with the Timeline filling in](docs/assets/hero-coffee.png)
-
-![A ~16-second walkthrough: loading the Coffee roastery Template, running it a few steps while the Timeline fills in, switching to the 97-node Early MMO progression example, then selecting a node and turning Focus on to dim everything outside its neighbourhood](docs/assets/demo.gif)
+![Loop Studio v0.9.0 — the Coffee roastery Template grouped into three labelled zone frames (supply & inventory, roasting & sales, forecast metrics), a few steps into a run with the Timeline filling in](docs/assets/hero-coffee.png)
 
 Loop Studio is a browser-based **visual systems editor and simulator** for
 resource flows, state changes, probabilistic rules, and feedback loops. It is
@@ -120,15 +118,18 @@ language menu; the choice is a local UI preference only). Four bundled
 economy: green beans arrive, get roasted (82 % yield), and leave as
 café / retail / online / dessert sales, with five day-to-day Parameters
 feeding five computed Register outputs (projected revenue, cost, operating
-margin, roasted-bean supply margin, dessert-prep margin).
+margin, roasted-bean supply margin, dessert-prep margin). The desktop right
+column surfaces those as editable **Inputs** and a read-through **Summary**;
+selecting a Register opens its expression editor — a name/value read-back, the
+`＋ − × ÷ ( )` operator keypad, and `＋ Insert reference`.
 
-![The full Coffee roastery graph — a Parameters row across the top, the roast-and-sell flow through the middle, a dessert sub-chain below, and a column of Register outputs on the right](docs/assets/coffee-flow.png)
+![The Coffee roastery Template with the Inputs and Summary panels open in the right column and a Register's expression editor selected — showing the name/value read-back, the ＋ − × ÷ ( ) operator keypad and ＋ Insert reference — three labelled zone frames behind the graph and the Timeline filling in below](docs/assets/coffee-flow.png)
 
 **Reading a large graph** — the *Early MMO progression* example has 97 nodes.
 Select one, turn Focus on, and everything outside its one-hop neighbourhood
 dims — nothing is hidden, so structure stays legible without losing context.
 
-![The 97-node Early MMO progression graph with Focus on: the selected "Level" pool and its direct neighbours are drawn solid, the other ~80 nodes are faded to a light grey](docs/assets/mmo-focus.png)
+![The 97-node Early MMO progression graph with Focus on: the selected "Gold" pool and its direct neighbours are drawn solid, the other ~80 nodes are faded to a light grey, and the minimap sits in the bottom-right corner](docs/assets/mmo-focus.png)
 
 ## Why
 
