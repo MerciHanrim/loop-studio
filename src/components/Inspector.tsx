@@ -1,11 +1,16 @@
 import { useState, type ReactNode } from 'react'
 import {
+  classifyLabelTiming,
+  eligibleLabelPreset,
   parseActivatorExpr,
   parseDelay,
   parseFlow,
   parseLabelExpr,
   type ActivatorParse,
   type LabelParse,
+  type LabelPresetReasonA,
+  type LabelPresetReasonB,
+  type LabelTimingClass,
 } from '../engine'
 import {
   BUILTIN_RESOURCE_TYPES,
@@ -19,6 +24,8 @@ import {
 } from '../model/model'
 import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
+import { useUiStore } from '../store/uiStore'
+import { useIsMobile } from '../ui/media'
 import { RegisterExprField } from './RegisterExprField'
 import { useT, type MessageKey } from '../i18n'
 import type {
@@ -26,6 +33,7 @@ import type {
   DrainData,
   GateData,
   LoopEdgeData,
+  NodeKind,
   ParameterData,
   PoolData,
   RegisterData,
@@ -69,6 +77,18 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="field__label">{label}</span>
       {children}
     </label>
+  )
+}
+
+/** Same shape/classes as `Field`, but a `<div>` — for a field whose content
+ *  already contains its own `<label>` elements (e.g. a radiogroup): a
+ *  `<label>` cannot validly contain another `<label>`. */
+function FieldDiv({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="field">
+      <span className="field__label">{label}</span>
+      {children}
+    </div>
   )
 }
 
@@ -235,7 +255,12 @@ export function Inspector() {
             />
           </>
         ) : (
-          <StateEdgeFields ed={ed} setData={setData} />
+          <StateEdgeFields
+            ed={ed}
+            setData={setData}
+            sourceKind={(nodes.find((n) => n.id === edge.source)?.data as { kind?: NodeKind } | undefined)?.kind}
+            targetKind={(nodes.find((n) => n.id === edge.target)?.data as { kind?: NodeKind } | undefined)?.kind}
+          />
         )}
 
         <RouteField
@@ -374,12 +399,17 @@ function RouteField({
 function StateEdgeFields({
   ed,
   setData,
+  sourceKind,
+  targetKind,
 }: {
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
+  sourceKind: NodeKind | undefined
+  targetKind: NodeKind | undefined
 }) {
   const t = useT()
   if (!KNOWN_STATE_MODES.includes(ed.mode)) return <LegacyStateEdge ed={ed} setData={setData} />
+  const labelClass = ed.mode === 'label' ? classifyLabelTiming(ed.timing, ed.when) : undefined
   return (
     <>
       <Field label={t('inspector.field.mode')}>
@@ -395,7 +425,10 @@ function StateEdgeFields({
 
       {ed.mode === 'trigger' && <TriggerFields ed={ed} setData={setData} />}
       {ed.mode === 'activator' && <ExprField ed={ed} setData={setData} kind="activator" />}
-      {ed.mode === 'label' && <ExprField ed={ed} setData={setData} kind="label" />}
+      {ed.mode === 'label' && <ExprField ed={ed} setData={setData} kind="label" labelClass={labelClass} />}
+      {ed.mode === 'label' && (
+        <LabelTimingField ed={ed} setData={setData} sourceKind={sourceKind} targetKind={targetKind} />
+      )}
     </>
   )
 }
@@ -449,10 +482,16 @@ function ExprField({
   ed,
   setData,
   kind,
+  labelClass,
 }: {
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
   kind: 'activator' | 'label'
+  /** docs/label-timing-authoring.md §LTA5 path 2 — only meaningful for
+   *  `kind: 'label'`: when the edge is classified `afterPull` and the parsed
+   *  modifier is an `S`-form, this field's own hint (not just the radiogroup)
+   *  says so, per free-text-input rules (never blocks the commit). */
+  labelClass?: LabelTimingClass
 }) {
   const t = useT()
   const raw = ed.expr ?? ''
@@ -461,16 +500,24 @@ function ExprField({
       ? ({ t: 'activator', p: parseActivatorExpr(raw) } as const)
       : ({ t: 'label', p: parseLabelExpr(raw) } as const)
 
+  // §LTA5 path 2 — an S-form modifier under "On source fire" still commits
+  // (free-text input, never blocked, RXA-INV-5 precedent) but is flagged like
+  // any other no-effect state, not the normal "describes the effect" hint.
+  const sFormUnderAfterPull =
+    kind === 'label' && labelClass === 'afterPull' && res.p.ok && 'token' in res.p && res.p.token === 'S'
   let hint: string
   if (res.t === 'activator') {
     hint = res.p.ok
       ? describeActivator(t, res.p)
       : t('inspector.stateExpr.noEffect', { hint: t(ACT_HINT_KEY[res.p.reason]) })
+  } else if (sFormUnderAfterPull) {
+    hint = t('inspector.labelTiming.warnSForm')
   } else {
     hint = res.p.ok
       ? describeLabel(t, res.p)
       : t('inspector.stateExpr.noEffect', { hint: t(LABEL_HINT_KEY[res.p.reason]) })
   }
+  const hintOk = res.p.ok && !sFormUnderAfterPull
 
   return (
     <Field
@@ -488,8 +535,145 @@ function ExprField({
         aria-invalid={!res.p.ok}
         onChange={(e) => setData({ ...ed, expr: e.target.value })}
       />
-      <p className={`field__hint ${res.p.ok ? 'field__hint--ok' : 'field__hint--bad'}`}>{hint}</p>
+      <p className={`field__hint ${hintOk ? 'field__hint--ok' : 'field__hint--bad'}`}>{hint}</p>
     </Field>
+  )
+}
+
+// ── docs/label-timing-authoring.md — the label-timing preset control ───────
+// CSU8 slice 3. Bundles `timing` / `when` into one native two-option radio
+// group (LTA-D1/D10) so the control can never freshly author a
+// SEMANTICS-S3.md §S3-5 fail-closed combination (LTA-INV-1/3). See
+// `classifyLabelTiming` / `eligibleLabelPreset` (src/engine/stateExpr.ts) —
+// the ONE shared source for what a stored value means and what the current
+// graph context allows (LTA-D8/D12).
+
+const REASON_KEY: Record<LabelPresetReasonA | LabelPresetReasonB, MessageKey> = {
+  'target-not-pool': 'inspector.labelTiming.warnTargetNotPool',
+  'modifier-invalid': 'inspector.labelTiming.warnModifierInvalid',
+  'source-not-pool': 'inspector.labelTiming.warnSourceNotPool',
+  'source-not-router': 'inspector.labelTiming.warnSourceNotRouter',
+  's-form': 'inspector.labelTiming.warnSForm',
+}
+
+/** raw stored value for the §LTA4.4 unsupported message — never blank, never
+ *  a non-string coerced silently; anything other than a string reads as "—"
+ *  (an existing "no value" convention in this app, e.g. `panels.summary.noValue`). */
+const rawOrDash = (v: unknown): string => (typeof v === 'string' ? v : '—')
+
+function LabelTimingField({
+  ed,
+  setData,
+  sourceKind,
+  targetKind,
+}: {
+  ed: StateEdgeData
+  setData: (data: LoopEdgeData) => void
+  sourceKind: NodeKind | undefined
+  targetKind: NodeKind | undefined
+}) {
+  const t = useT()
+  // two separate hook calls (never short-circuited) — Rules of Hooks
+  const isMobile = useIsMobile()
+  const lockedDesktop = useUiStore((s) => s.canvasLocked)
+  const readOnly = isMobile || lockedDesktop
+  const classified = classifyLabelTiming(ed.timing, ed.when)
+  const modifier = parseLabelExpr(ed.expr ?? '')
+  const { eligible, reasonA, reasonB } = eligibleLabelPreset({ targetKind, sourceKind, modifier })
+
+  const pickAlways = () => {
+    const { timing: _timing, when: _when, ...rest } = ed
+    setData(rest as LoopEdgeData)
+  }
+  const pickAfterPull = () => setData({ ...ed, timing: 'afterPull', when: 'source-fired' })
+
+  // §LTA6.2 — the ONE line under the group: `unsupported` takes priority over
+  // any eligibility reason; otherwise the CHECKED option's own reason (if it
+  // has one) is reused verbatim; otherwise the normal preview for whichever
+  // preset is checked.
+  const checkedReason = classified === 'phase0' ? reasonA : classified === 'afterPull' ? reasonB : undefined
+  const isWarningLine = classified === 'unsupported' || !!checkedReason
+  const groupLine =
+    classified === 'unsupported'
+      ? t('inspector.labelTiming.unsupported', { timing: rawOrDash(ed.timing), when: rawOrDash(ed.when) })
+      : checkedReason
+        ? t(REASON_KEY[checkedReason])
+        : t(classified === 'phase0' ? 'inspector.labelTiming.previewAlways' : 'inspector.labelTiming.previewAfterPull')
+
+  if (readOnly) {
+    // LTA-INV-4 — mobile / locked: plain text, same content, no radios.
+    return (
+      <FieldDiv label={t('inspector.field.labelTiming')}>
+        <p className="field__hint">
+          {classified === 'phase0'
+            ? t('inspector.labelTiming.always')
+            : classified === 'afterPull'
+              ? t('inspector.labelTiming.afterPull')
+              : t('inspector.labelTiming.unsupported', { timing: rawOrDash(ed.timing), when: rawOrDash(ed.when) })}
+        </p>
+        <p className={`field__hint labeltiming__groupline ${isWarningLine ? 'field__hint--bad' : 'field__hint--ok'}`}>
+          {groupLine}
+        </p>
+      </FieldDiv>
+    )
+  }
+
+  // §LTA7/LTA-D9 — the group line is a STATIC description (`aria-describedby`)
+  // of the checked-and-eligible option when it's just the normal preview; it
+  // becomes an `aria-live` region only while it's a warning (`unsupported`, or
+  // the checked option's own eligibility reason), since only THAT case can
+  // change as a side effect of an edit elsewhere (source/target/modifier)
+  // without the radiogroup itself receiving focus. Avoids double-announcing
+  // the same text an option's accessible name (or its own reason paragraph)
+  // already carries.
+  const groupLineId = 'labelTiming-groupline'
+  const describedByA = reasonA ? 'labelTiming-reasonA' : classified === 'phase0' && !isWarningLine ? groupLineId : undefined
+  const describedByB = reasonB ? 'labelTiming-reasonB' : classified === 'afterPull' && !isWarningLine ? groupLineId : undefined
+
+  return (
+    <FieldDiv label={t('inspector.field.labelTiming')}>
+      <div role="radiogroup" aria-label={t('inspector.field.labelTiming')} className="labeltiming">
+        <label className="labeltiming__option">
+          <input
+            type="radio"
+            name="labelTiming"
+            checked={classified === 'phase0'}
+            disabled={eligible !== 'A'}
+            aria-describedby={describedByA}
+            onChange={pickAlways}
+          />
+          {t('inspector.labelTiming.always')}
+        </label>
+        {reasonA && (
+          <p id="labelTiming-reasonA" className="field__hint field__hint--bad labeltiming__reason">
+            {t(REASON_KEY[reasonA])}
+          </p>
+        )}
+        <label className="labeltiming__option">
+          <input
+            type="radio"
+            name="labelTiming"
+            checked={classified === 'afterPull'}
+            disabled={eligible !== 'B'}
+            aria-describedby={describedByB}
+            onChange={pickAfterPull}
+          />
+          {t('inspector.labelTiming.afterPull')}
+        </label>
+        {reasonB && (
+          <p id="labelTiming-reasonB" className="field__hint field__hint--bad labeltiming__reason">
+            {t(REASON_KEY[reasonB])}
+          </p>
+        )}
+      </div>
+      <p
+        id={groupLineId}
+        {...(isWarningLine ? { 'aria-live': 'polite' as const } : {})}
+        className={`field__hint labeltiming__groupline ${isWarningLine ? 'field__hint--bad' : 'field__hint--ok'}`}
+      >
+        {groupLine}
+      </p>
+    </FieldDiv>
   )
 }
 
