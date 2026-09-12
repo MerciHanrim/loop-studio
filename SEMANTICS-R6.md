@@ -257,6 +257,16 @@ mirroring `examples/revision-v5/`:
   **different** unrecognised `timing` locally, and the proposed is CG1
   produces a `conflict` on `data.timing` and feeds `nConf` — the ordinary
   engine-field rule, no `frames`-style carve-out.
+- **CG7a / CG7b — selective Apply removes AND adds `timing` / `when`
+  (R6-D7).** CG7a: base = target = CG1 (CSU), proposed = CG0 (legacy);
+  selecting `"proposed"` on `data.timing` and `data.when` must **delete** both
+  keys from the applied edge — `isCsuContent` on the result is `false` and its
+  digest returns to CG0's exactly. CG7b is the reverse direction (legacy →
+  CSU): selecting `"proposed"` **adds** both keys, matching CG1's digest
+  exactly. Both round through `validateResultGraph` clean. This is the
+  regression coverage for R6-D7 — before the fix, CG7a's applied edge kept
+  `timing` / `when` because `OPTIONAL_PROJECTED_KEYS` did not name them, so
+  `setField`'s `proposed === undefined ⇒ delete the key` branch never ran.
 
 Every ≤ v5 oracle digest is **pinned to a literal** in the fixture.
 
@@ -304,9 +314,12 @@ other (`expr`, `flow`, `mode`, …):
 - **Whole / per-hunk Apply.** No special casing — a `change` hunk carrying a
   `data.timing` / `data.when` field goes through `computeThreeWay` /
   `buildSelectiveApply` exactly like any other field-level change, including
-  the `OPTIONAL_PROJECTED_KEYS` "proposed: undefined removes the key" rule
-  (both are in that set already, alongside `route` / `waypoints` /
-  `resourceType` / `delay`).
+  the `OPTIONAL_PROJECTED_KEYS` "proposed: undefined removes the key" rule —
+  `timing` and `when` **must be members of that set**, alongside `route` /
+  `waypoints` / `resourceType` / `delay`, or a per-field "take theirs" that
+  drops back to legacy (`proposed: undefined`) silently fails to delete the
+  stored key and leaves the CSU edit in place (R6-D7 — found and fixed during
+  review; see `CG7a` / `CG7b` in the golden vector, §R6-4).
 - **`nConf`.** A divergent `timing` / `when` field is a `conflict` and is
   counted in `nConf` under the **existing** `change`-hunk rule — there is no
   `frames`-style (§R5-D9) exception to invent.
@@ -352,3 +365,4 @@ the run really would produce different numbers.
 | **R6-D4** | **`engine`, not `cosmetic`.** The opposite classification from `route` / `waypoints` (§R3-3) and `frames` (§R5-3) — deliberately, because these fields change what a step computes. No `nConf` carve-out is needed or added. |
 | **R6-D5** | The CSU predicate (§R6-1) is checked **first**, ahead of `frames` / `loop-model/2` / routing, because it is the only one of the four that can be true on a graph with *none* of the others (a pure engine-only pity-counter). This ordering is a labelling convenience only — every v2 … v6 side shares one projection. |
 | **R6-D6** | `loop-workspace/1` **is** bumped (contrast R5-D8) — `timing` / `when` are real inputs to what a run computes. |
+| **R6-D7** | `timing` and `when` are members of `OPTIONAL_PROJECTED_KEYS` — required so a per-field selective Apply that takes a legacy (`proposed: undefined`) value actually **deletes** the stored key, rather than leaving the prior CSU edit in place. Found in review (a divergent-review round on this document) and closed with the `CG7a` / `CG7b` golden-vector cases, §R6-4. |

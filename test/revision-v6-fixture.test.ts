@@ -2,12 +2,14 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  buildSelectiveApply,
   canonicalContent,
   computeRevisionDiff,
   computeThreeWay,
   digestOfCanonical,
   isCsuContent,
   readRevisionSide,
+  validateResultGraph,
 } from '../src/model/revision'
 import { deserialize, serialize } from '../src/model/serialize'
 import type { LoopEdge, LoopNode } from '../src/model/types'
@@ -182,6 +184,57 @@ describe('loop-revision/6 golden vector (SEMANTICS-R6.md §R6-4)', () => {
     const timingField = hunk.fields?.find((f) => f.field === 'data.timing')
     expect(timingField?.verdict).toBe('conflict')
     expect(timingField?.tag).toBe('engine')
+  })
+
+  // CG7 — a regression for a bug Hanrim's second review round found: selective
+  // Apply could not REMOVE `timing` / `when` (they were missing from
+  // `OPTIONAL_PROJECTED_KEYS`, so a hunk field whose `proposed` is `undefined`
+  // never deleted the stored key) — a CSU -> legacy "take theirs" per-field
+  // selection silently left the CSU edit in place.
+  it('CG7a — selective Apply CSU -> legacy: choosing "theirs" on data.timing/data.when REMOVES both keys; result returns to CG0 exactly', () => {
+    const base = canonicalContent(CG1_GRAPH) // base === target === CSU (nothing changed locally)
+    const proposed = canonicalContent(CG0_GRAPH) // proposal drops timing/when back to legacy
+    const plan = computeThreeWay(base, base, proposed)
+    const hunk = plan.hunks.find((h) => h.elementType === 'edge' && h.id === 'm')!
+    expect(hunk.verdict).toBe('clean') // target still at base — loss-free to take
+    const fieldNames = (hunk.fields ?? []).map((f) => f.field)
+    expect(fieldNames).toEqual(expect.arrayContaining(['data.timing', 'data.when']))
+
+    const result = buildSelectiveApply({
+      target: CG1_GRAPH,
+      proposedFull: CG0_GRAPH,
+      plan,
+      selection: { accept: {}, fieldChoices: { m: { 'data.timing': 'proposed', 'data.when': 'proposed' } } },
+    })
+    if (!result.ok) throw new Error(result.detail)
+    const edge = result.edges.find((e) => e.id === 'm')!
+    expect('timing' in (edge.data as Record<string, unknown>)).toBe(false)
+    expect('when' in (edge.data as Record<string, unknown>)).toBe(false)
+    expect(isCsuContent({ nodes: result.nodes, edges: result.edges })).toBe(false)
+    expect(digestOfCanonical(canonicalContent({ nodes: result.nodes, edges: result.edges }))).toBe(CG0_DIGEST)
+    expect(validateResultGraph(result.nodes, result.edges).ok).toBe(true)
+  })
+
+  it('CG7b — selective Apply legacy -> CSU (reverse direction): choosing "theirs" ADDS both keys; result matches CG1 exactly', () => {
+    const base = canonicalContent(CG0_GRAPH)
+    const proposed = canonicalContent(CG1_GRAPH)
+    const plan = computeThreeWay(base, base, proposed)
+    const hunk = plan.hunks.find((h) => h.elementType === 'edge' && h.id === 'm')!
+    expect(hunk.verdict).toBe('clean')
+
+    const result = buildSelectiveApply({
+      target: CG0_GRAPH,
+      proposedFull: CG1_GRAPH,
+      plan,
+      selection: { accept: {}, fieldChoices: { m: { 'data.timing': 'proposed', 'data.when': 'proposed' } } },
+    })
+    if (!result.ok) throw new Error(result.detail)
+    const edge = result.edges.find((e) => e.id === 'm')!
+    expect((edge.data as { timing?: unknown }).timing).toBe('afterPull')
+    expect((edge.data as { when?: unknown }).when).toBe('source-fired')
+    expect(isCsuContent({ nodes: result.nodes, edges: result.edges })).toBe(true)
+    expect(digestOfCanonical(canonicalContent({ nodes: result.nodes, edges: result.edges }))).toBe(CG1_DIGEST)
+    expect(validateResultGraph(result.nodes, result.edges).ok).toBe(true)
   })
 
   it('CG6 — round trip through Import -> Export preserves timing/when byte-for-byte', () => {

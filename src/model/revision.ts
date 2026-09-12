@@ -1126,7 +1126,7 @@ const cloneEl = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
  *  Everything else (`kind`, `flow`, `mode`, `expr`, `label`, `value`,
  *  `activation`, `capacity`, endpoints, handles, …) is always projected. */
 const OPTIONAL_PROJECTED_KEYS = new Set([
-  'route', 'waypoints', 'resourceType', 'delay', // edge data
+  'route', 'waypoints', 'resourceType', 'delay', 'timing', 'when', // edge data
   'min', 'max', 'step', 'unit', 'format', // parameter / register hints
 ])
 
