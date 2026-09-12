@@ -167,6 +167,71 @@ describe('graphStore.modelVersion', () => {
     })
   })
 
+  // docs/parameter-activator.md §PA11-D4 — the same one-way latch, triggered
+  // by a state-edge `activator` `expr` instead of a resource-edge `flow`.
+  describe('the SAME latch extends to a param-term activator (PA11-D4)', () => {
+    it('committing an activator whose RHS is a param-term latches v2', () => {
+      const { edgeId } = base()
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= @hard_pity - 1' })
+      expect(mv()).toBe(2)
+    })
+
+    it('a bare @id reference (no offset) also latches', () => {
+      const { edgeId } = base()
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= @hard_pity' })
+      expect(mv()).toBe(2)
+    })
+
+    it('an ordinary literal activator does NOT promote', () => {
+      const { edgeId } = base()
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= 5' })
+      expect(mv()).toBe(1)
+    })
+
+    it('a grammar-invalid string that merely contains an "@" does NOT promote (it is not a param-term)', () => {
+      const { edgeId } = base()
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= @a - @b' })
+      expect(mv()).toBe(1)
+    })
+
+    it('bumps simulationRev, same as the flow-reference promotion (M2-INV-12)', () => {
+      const { edgeId } = base()
+      const before = g().simulationRev
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= @hard_pity - 1' })
+      expect(mv()).toBe(2)
+      expect(g().simulationRev).toBeGreaterThan(before)
+    })
+
+    it('is a one-way latch — removing the reference does not downgrade', () => {
+      const { edgeId } = base()
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= @hard_pity - 1' })
+      expect(mv()).toBe(2)
+      g().setEdgeData(edgeId, { kind: 'state', mode: 'activator', expr: '>= 5' })
+      expect(mv()).toBe(2)
+    })
+
+    it('opening a v1 file that already contains a param-term-shaped expr does NOT promote it on load', () => {
+      const v1 = serialize(
+        [
+          { id: 'a', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'a' } } as never,
+          { id: 'b', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'b' } } as never,
+        ],
+        [
+          {
+            id: 'e', source: 'a', target: 'b', type: 'loop',
+            sourceHandle: 'state-source', targetHandle: 'state-target',
+            data: { kind: 'state', mode: 'activator', expr: '>= @hard_pity - 1' },
+          } as never,
+        ],
+      )
+      g().loadJSON(v1)
+      expect(mv()).toBe(1)
+      const out = JSON.parse(g().exportJSON())
+      expect(out.schema).toBe('loop-studio/graph')
+      expect(out.edges[0].data.expr).toBe('>= @hard_pity - 1')
+    })
+  })
+
   it('a v1 document whose flow ALREADY contains "@foo" is not promoted by loading it', () => {
     const v1 = serialize(
       [

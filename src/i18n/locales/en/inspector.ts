@@ -82,6 +82,18 @@ const inspector = {
   'inspector.expr.labelPlaceholder': '+1   ·   -2   ·   =S',
   'inspector.stateExpr.noEffect': '{hint} — until it parses, this connection has no effect.',
   'inspector.activator.describe': 'target is enabled while the source {op} {n}',
+  'inspector.activator.paramPicker.pickLabel': 'Drive with a parameter',
+  'inspector.activator.paramPicker.literalOption': '— literal value —',
+  'inspector.activator.offsetLabel': 'Offset',
+  'inspector.activator.preview.resolved':
+    'target is enabled while the source {op} {threshold} (= {paramLabel}{offsetText}, currently {paramValue})',
+  'inspector.activator.preview.unknown': 'no parameter “{id}” — this activator is currently blocking its target',
+  'inspector.activator.preview.notParam':
+    '“{id}” is not a parameter (it is a {kind}) — this activator is currently blocking its target',
+  'inspector.activator.preview.nonFinite':
+    'parameter “{id}” is not a finite number — this activator is currently blocking its target',
+  'inspector.activator.preview.overflow':
+    'parameter “{id}” resolves to a number too large to compare — this activator is currently blocking its target',
   'inspector.label.describe.set': 'sets the target Pool to {amount} each step',
   'inspector.label.describe.add': 'adds {amount} to the target Pool each step',
   'inspector.label.describe.subtract': 'subtracts {amount} from the target Pool each step',

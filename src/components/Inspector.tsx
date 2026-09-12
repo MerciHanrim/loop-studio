@@ -6,6 +6,7 @@ import {
   parseDelay,
   parseFlow,
   parseLabelExpr,
+  resolveParamRhs,
   type ActivatorParse,
   type ActivatorRhs,
   type LabelParse,
@@ -206,6 +207,19 @@ export function Inspector() {
   if (edge) {
     const ed = (edge.data as LoopEdgeData | undefined) ?? { kind: 'resource', flow: '1' }
     const setData = (data: LoopEdgeData) => setEdgeData(edge.id, data)
+    // shared by EdgeFlowField (`@id` in `flow`) and ActivatorField (`@id` in
+    // an activator `expr`, docs/parameter-activator.md §PA7) — ONE computed
+    // list, same shape, so the two `@`-reference pickers never drift.
+    const paramOptions = nodes
+      .filter((n) => (n.data as { kind?: string }).kind === 'parameter')
+      .map((n) => {
+        const v = (n.data as { value?: unknown }).value
+        return {
+          id: n.id,
+          label: (n.data as { label?: string }).label || n.id,
+          value: typeof v === 'number' && Number.isFinite(v) ? v : null,
+        }
+      })
     return (
       <aside className="inspector">
         <div className="inspector__head">
@@ -237,16 +251,7 @@ export function Inspector() {
           <>
             <EdgeFlowField
               flow={ed.flow}
-              params={nodes
-                .filter((n) => (n.data as { kind?: string }).kind === 'parameter')
-                .map((n) => {
-                  const v = (n.data as { value?: unknown }).value
-                  return {
-                    id: n.id,
-                    label: (n.data as { label?: string }).label || n.id,
-                    value: typeof v === 'number' && Number.isFinite(v) ? v : null,
-                  }
-                })}
+              params={paramOptions}
               onChange={(flow) => setData({ ...ed, kind: 'resource', flow })}
             />
             <ResourceTypeField
@@ -261,6 +266,7 @@ export function Inspector() {
             setData={setData}
             sourceKind={(nodes.find((n) => n.id === edge.source)?.data as { kind?: NodeKind } | undefined)?.kind}
             targetKind={(nodes.find((n) => n.id === edge.target)?.data as { kind?: NodeKind } | undefined)?.kind}
+            params={paramOptions}
           />
         )}
 
@@ -402,11 +408,13 @@ function StateEdgeFields({
   setData,
   sourceKind,
   targetKind,
+  params,
 }: {
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
   sourceKind: NodeKind | undefined
   targetKind: NodeKind | undefined
+  params: { id: string; label: string; value: number | null }[]
 }) {
   const t = useT()
   if (!KNOWN_STATE_MODES.includes(ed.mode)) return <LegacyStateEdge ed={ed} setData={setData} />
@@ -425,8 +433,8 @@ function StateEdgeFields({
       </Field>
 
       {ed.mode === 'trigger' && <TriggerFields ed={ed} setData={setData} />}
-      {ed.mode === 'activator' && <ExprField ed={ed} setData={setData} kind="activator" />}
-      {ed.mode === 'label' && <ExprField ed={ed} setData={setData} kind="label" labelClass={labelClass} />}
+      {ed.mode === 'activator' && <ActivatorField ed={ed} setData={setData} params={params} />}
+      {ed.mode === 'label' && <ExprField ed={ed} setData={setData} labelClass={labelClass} />}
       {ed.mode === 'label' && (
         <LabelTimingField ed={ed} setData={setData} sourceKind={sourceKind} targetKind={targetKind} />
       )}
@@ -468,15 +476,13 @@ function TriggerFields({
 
 type TFn = ReturnType<typeof useT>
 
-/** docs/parameter-activator.md §PA4 — a `param-term` RHS has no dedicated
- *  authoring UI yet (that is the follow-up Inspector PR's job); this reuses
- *  the existing `inspector.activator.describe` wording as-is, feeding it a
- *  symbolic `@id ± N` string instead of a number — `{n}` already accepts
- *  either (`FormatParams = Record<string, string | number>`), so the
- *  free-text `ExprField` path stays truthful about what a hand-typed
- *  `>= @hard_pity - 1` does, with no new i18n key. The live resolved-value
- *  preview (the actual off-by-one fix) is the follow-up PR's job (§PA7).
- */
+/** the literal-RHS hint (`ACT_RE`, unchanged, PA1) reuses the existing
+ *  `inspector.activator.describe` wording; `rhsDescribeText` also covers a
+ *  symbolic `@id ± N` shape (`{n}` accepts `string | number`) for a
+ *  param-term whose LIVE resolution isn't being shown (never actually
+ *  reached once `ActivatorField` is wired below, which always resolves a
+ *  param-term live — kept as the honest fallback if this is ever called on
+ *  an unresolved `ActivatorParse` some other way). */
 function rhsDescribeText(rhs: ActivatorRhs): string | number {
   if (rhs.kind === 'literal') return rhs.n
   if (rhs.offset === 0) return `@${rhs.id}`
@@ -493,61 +499,204 @@ function describeLabel(t: TFn, p: Extract<LabelParse, { ok: true }>): string {
     : t('inspector.label.describe.subtract', { amount })
 }
 
+// ── docs/parameter-activator.md §PA7 — the activator authoring surface ────
+// A Parameter picker mirroring `EdgeFlowField`'s shape (a `<select>` +
+// the existing literal `<input>`, both editing the SAME `expr` string) plus
+// an offset control and a LIVE resolved-value preview — the actual fix for
+// §PA2's off-by-one: an author sets the offset to `-1` and immediately SEES
+// the effective number (`pity ≥ 2`), rather than trusting `HARD_PITY - 1`
+// arithmetic by eye. The preview calls the SAME `resolveParamRhs` the engine
+// evaluates against (`stateExpr.ts`), so it can never show a number the
+// engine wouldn't actually gate on.
+function ActivatorField({
+  ed,
+  setData,
+  params,
+}: {
+  ed: StateEdgeData
+  setData: (data: LoopEdgeData) => void
+  params: { id: string; label: string; value: number | null }[]
+}) {
+  const t = useT()
+  // two separate hook calls (never short-circuited) — Rules of Hooks
+  const isMobile = useIsMobile()
+  const lockedDesktop = useUiStore((s) => s.canvasLocked)
+  const readOnly = isMobile || lockedDesktop
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const uid = useId()
+  // Register live-edit trap fix precedent (this session) — a controlled
+  // number input that round-trips through `Number(...)` on every keystroke
+  // corrupts a still-being-typed negative number (typing "-" alone would
+  // instantly snap to "0"). Keep a local draft string while focused; commit
+  // only once it parses as a whole number, and drop the draft on blur so the
+  // field snaps back to whatever is actually stored.
+  const [offsetDraft, setOffsetDraft] = useState<string | null>(null)
+
+  const raw = ed.expr ?? ''
+  const res = parseActivatorExpr(raw, modelVersion === 2 ? 2 : 1)
+  const paramKind = t('canvas.nodeKind.parameter')
+
+  const currentOp = res.ok ? res.op : '>='
+  const isParamForm = res.ok && res.rhs.kind === 'param'
+  const currentParamId = res.ok && res.rhs.kind === 'param' ? res.rhs.id : ''
+  const currentOffset = res.ok && res.rhs.kind === 'param' ? res.rhs.offset : 0
+
+  let hint: string
+  let hintOk: boolean
+  if (!res.ok) {
+    hint = t('inspector.stateExpr.noEffect', { hint: t(ACT_HINT_KEY[res.reason]) })
+    hintOk = false
+  } else if (res.rhs.kind === 'literal') {
+    hint = describeActivator(t, res)
+    hintOk = true
+  } else {
+    const rhs = res.rhs
+    const resolution = resolveParamRhs(rhs, (id) => {
+      const node = useGraphStore.getState().nodes.find((n) => n.id === id)
+      if (!node) return undefined
+      return { kind: (node.data as { kind?: string }).kind ?? '', value: (node.data as { value?: unknown }).value }
+    })
+    const offsetText = rhs.offset === 0 ? '' : ` ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`
+    if (resolution.ok) {
+      const target = params.find((p) => p.id === rhs.id)
+      hint = t('inspector.activator.preview.resolved', {
+        op: currentOp,
+        threshold: resolution.threshold,
+        paramLabel: target?.label ?? rhs.id,
+        offsetText,
+        // = resolution.threshold - rhs.offset, but reading the Parameter's
+        // own current value directly (rather than back-computing) stays
+        // correct even if a future rounding rule ever made the two diverge.
+        paramValue: target?.value ?? resolution.threshold - rhs.offset,
+      })
+      hintOk = true
+    } else {
+      const key: MessageKey =
+        resolution.reason === 'unknown'
+          ? 'inspector.activator.preview.unknown'
+          : resolution.reason === 'not-param'
+            ? 'inspector.activator.preview.notParam'
+            : resolution.reason === 'non-finite'
+              ? 'inspector.activator.preview.nonFinite'
+              : 'inspector.activator.preview.overflow'
+      hint = t(key, { id: rhs.id, kind: resolution.kind ?? '' })
+      hintOk = false
+    }
+  }
+
+  if (readOnly) {
+    return (
+      <FieldDiv label={t('inspector.field.condition')}>
+        <p className={`field__hint activatorfield__preview ${hintOk ? 'field__hint--ok' : 'field__hint--bad'}`}>
+          {hint}
+        </p>
+      </FieldDiv>
+    )
+  }
+
+  const writeOffset = (n: number) => {
+    const suffix = n === 0 ? '' : ` ${n > 0 ? '+' : '-'} ${Math.abs(n)}`
+    setData({ ...ed, expr: `${currentOp} @${currentParamId}${suffix}` })
+  }
+  const pickParam = (id: string) => {
+    setOffsetDraft(null)
+    if (id === '') {
+      setData({ ...ed, expr: `${currentOp} 0` }) // no sensible literal to guess — a plain 0 to edit from
+      return
+    }
+    const suffix = currentOffset === 0 ? '' : ` ${currentOffset > 0 ? '+' : '-'} ${Math.abs(currentOffset)}`
+    setData({ ...ed, expr: `${currentOp} @${id}${suffix}` })
+  }
+
+  return (
+    <FieldDiv label={t('inspector.field.condition')}>
+      {params.length > 0 && (
+        <select
+          id={`activatorParam-${uid}`}
+          className="activatorfield__param"
+          aria-label={t('inspector.activator.paramPicker.pickLabel')}
+          value={currentParamId}
+          onChange={(e) => pickParam(e.target.value)}
+        >
+          <option value="">{t('inspector.activator.paramPicker.literalOption')}</option>
+          {params.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label} · {paramKind} · = {p.value == null ? '—' : String(p.value)}
+            </option>
+          ))}
+        </select>
+      )}
+      <input
+        className="activatorfield__expr"
+        aria-label={t('inspector.field.condition')}
+        value={raw}
+        placeholder={t('inspector.expr.activatorPlaceholder')}
+        aria-invalid={!hintOk}
+        onChange={(e) => {
+          setOffsetDraft(null)
+          setData({ ...ed, expr: e.target.value })
+        }}
+      />
+      {isParamForm && (
+        <>
+          <span className="inspector__subfield-label" id={`activatorOffsetLabel-${uid}`}>
+            {t('inspector.activator.offsetLabel')}
+          </span>
+          <input
+            id={`activatorOffset-${uid}`}
+            className="activatorfield__offset"
+            aria-labelledby={`activatorOffsetLabel-${uid}`}
+            type="number"
+            step={1}
+            value={offsetDraft ?? String(currentOffset)}
+            onChange={(e) => {
+              const text = e.target.value
+              setOffsetDraft(text)
+              if (/^-?\d+$/.test(text)) writeOffset(Number(text))
+            }}
+            onBlur={() => setOffsetDraft(null)}
+          />
+        </>
+      )}
+      <p className={`field__hint activatorfield__preview ${hintOk ? 'field__hint--ok' : 'field__hint--bad'}`}>{hint}</p>
+    </FieldDiv>
+  )
+}
+
 function ExprField({
   ed,
   setData,
-  kind,
   labelClass,
 }: {
   ed: StateEdgeData
   setData: (data: LoopEdgeData) => void
-  kind: 'activator' | 'label'
-  /** docs/label-timing-authoring.md §LTA5 path 2 — only meaningful for
-   *  `kind: 'label'`: when the edge is classified `afterPull` and the parsed
-   *  modifier is an `S`-form, this field's own hint (not just the radiogroup)
-   *  says so, per free-text-input rules (never blocks the commit). */
+  /** docs/label-timing-authoring.md §LTA5 path 2 — when the edge is
+   *  classified `afterPull` and the parsed modifier is an `S`-form, this
+   *  field's own hint (not just the radiogroup) says so, per
+   *  free-text-input rules (never blocks the commit). */
   labelClass?: LabelTimingClass
 }) {
   const t = useT()
   const raw = ed.expr ?? ''
-  const res =
-    kind === 'activator'
-      ? ({ t: 'activator', p: parseActivatorExpr(raw) } as const)
-      : ({ t: 'label', p: parseLabelExpr(raw) } as const)
+  const res = parseLabelExpr(raw)
 
   // §LTA5 path 2 — an S-form modifier under "On source fire" still commits
   // (free-text input, never blocked, RXA-INV-5 precedent) but is flagged like
   // any other no-effect state, not the normal "describes the effect" hint.
-  const sFormUnderAfterPull =
-    kind === 'label' && labelClass === 'afterPull' && res.p.ok && 'token' in res.p && res.p.token === 'S'
-  let hint: string
-  if (res.t === 'activator') {
-    hint = res.p.ok
-      ? describeActivator(t, res.p)
-      : t('inspector.stateExpr.noEffect', { hint: t(ACT_HINT_KEY[res.p.reason]) })
-  } else if (sFormUnderAfterPull) {
-    hint = t('inspector.labelTiming.warnSForm')
-  } else {
-    hint = res.p.ok
-      ? describeLabel(t, res.p)
-      : t('inspector.stateExpr.noEffect', { hint: t(LABEL_HINT_KEY[res.p.reason]) })
-  }
-  const hintOk = res.p.ok && !sFormUnderAfterPull
+  const sFormUnderAfterPull = labelClass === 'afterPull' && res.ok && res.token === 'S'
+  const hint = sFormUnderAfterPull
+    ? t('inspector.labelTiming.warnSForm')
+    : res.ok
+      ? describeLabel(t, res)
+      : t('inspector.stateExpr.noEffect', { hint: t(LABEL_HINT_KEY[res.reason]) })
+  const hintOk = res.ok && !sFormUnderAfterPull
 
   return (
-    <Field
-      label={
-        kind === 'activator' ? t('inspector.field.condition') : t('inspector.field.modifier')
-      }
-    >
+    <Field label={t('inspector.field.modifier')}>
       <input
         value={raw}
-        placeholder={
-          kind === 'activator'
-            ? t('inspector.expr.activatorPlaceholder')
-            : t('inspector.expr.labelPlaceholder')
-        }
-        aria-invalid={!res.p.ok || sFormUnderAfterPull}
+        placeholder={t('inspector.expr.labelPlaceholder')}
+        aria-invalid={!res.ok || sFormUnderAfterPull}
         onChange={(e) => setData({ ...ed, expr: e.target.value })}
       />
       <p className={`field__hint ${hintOk ? 'field__hint--ok' : 'field__hint--bad'}`}>{hint}</p>

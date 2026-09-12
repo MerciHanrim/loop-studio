@@ -93,6 +93,19 @@ const inspector = {
   'inspector.expr.labelPlaceholder': '+1   ·   -2   ·   =S',
   'inspector.stateExpr.noEffect': '{hint} — 解析できるまで、この接続は効果がありません。',
   'inspector.activator.describe': 'ソースが {op} {n} の間、ターゲットが有効になります',
+  'inspector.activator.paramPicker.pickLabel': 'パラメーターで駆動',
+  'inspector.activator.paramPicker.literalOption': '— リテラル値 —',
+  'inspector.activator.offsetLabel': 'オフセット',
+  'inspector.activator.preview.resolved':
+    'ソースが {op} {threshold} の間、ターゲットが有効になります（= {paramLabel}{offsetText}、現在の値 {paramValue}）',
+  'inspector.activator.preview.unknown':
+    'パラメーター「{id}」がありません — この activator は現在ターゲットをブロックしています',
+  'inspector.activator.preview.notParam':
+    '「{id}」はパラメーターではなく {kind} です — この activator は現在ターゲットをブロックしています',
+  'inspector.activator.preview.nonFinite':
+    'パラメーター「{id}」の値が有限の数値ではありません — この activator は現在ターゲットをブロックしています',
+  'inspector.activator.preview.overflow':
+    'パラメーター「{id}」の値が比較できないほど大きな数になっています — この activator は現在ターゲットをブロックしています',
   'inspector.label.describe.set': '毎ステップ、ターゲットのプールを {amount} という値に設定します',
   'inspector.label.describe.add': '毎ステップ、ターゲットのプールに {amount} を加算します',
   'inspector.label.describe.subtract': '毎ステップ、ターゲットのプールから {amount} を減算します',

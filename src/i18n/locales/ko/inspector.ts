@@ -82,6 +82,18 @@ const inspector = {
   'inspector.expr.labelPlaceholder': '+1   ·   -2   ·   =S',
   'inspector.stateExpr.noEffect': '{hint} — 파싱되기 전까지 이 연결은 아무 효과가 없습니다.',
   'inspector.activator.describe': '소스가 {op} {n}인 동안 대상이 켜집니다',
+  'inspector.activator.paramPicker.pickLabel': '파라미터로 제어',
+  'inspector.activator.paramPicker.literalOption': '— 값 직접 입력 —',
+  'inspector.activator.offsetLabel': '오프셋',
+  'inspector.activator.preview.resolved':
+    '소스가 {op} {threshold}인 동안 대상이 켜집니다 (= {paramLabel}{offsetText}, 현재 값 {paramValue})',
+  'inspector.activator.preview.unknown': '“{id}” 파라미터가 없습니다 — 이 activator가 대상을 차단하고 있습니다',
+  'inspector.activator.preview.notParam':
+    '“{id}”: 파라미터가 아니라 {kind}입니다 — 이 activator가 대상을 차단하고 있습니다',
+  'inspector.activator.preview.nonFinite':
+    '“{id}” 파라미터 값이 유한한 숫자가 아닙니다 — 이 activator가 대상을 차단하고 있습니다',
+  'inspector.activator.preview.overflow':
+    '“{id}” 파라미터 값이 비교할 수 없을 만큼 큽니다 — 이 activator가 대상을 차단하고 있습니다',
   'inspector.label.describe.set': '매 단계 대상 풀을 {amount} 값으로 설정합니다',
   'inspector.label.describe.add': '매 단계 대상 풀에 {amount}만큼 더합니다',
   'inspector.label.describe.subtract': '매 단계 대상 풀에서 {amount}만큼 뺍니다',
