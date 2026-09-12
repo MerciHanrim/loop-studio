@@ -237,6 +237,27 @@ export function isModelLayerContent(doc: {
   return false
 }
 
+/**
+ * `SEMANTICS-R6.md` §R6-1 — the CSU / loop-state/3 wire-level content
+ * predicate, run on **normalised** edges. A doc is `loop-revision/6` content
+ * iff any `state` edge carries a `when` (any string — recognised or not) or a
+ * `timing` other than absent / the literal `"phase0"` — i.e. exactly the
+ * condition under which `projectEdge`'s `timing` / `when` branches (§R6-2)
+ * emit something. Inferred from content — never a stored header field. A
+ * doc may be both `loop-revision/6` and `loop-model/2` / have routing /
+ * frames; this predicate is independent of those.
+ */
+export function isCsuContent(doc: {
+  edges: { data?: { kind?: unknown; timing?: unknown; when?: unknown } | null }[]
+}): boolean {
+  for (const e of doc.edges) {
+    if (e.data?.kind !== 'state') continue
+    if (e.data?.when !== undefined) return true
+    if (e.data?.timing !== undefined && e.data.timing !== 'phase0') return true
+  }
+  return false
+}
+
 /** normalised node data: kind defaults filled, `mode` made explicit */
 function normNodeData(n: LoopNode): Record<string, unknown> {
   const kind = n.data.kind
@@ -342,15 +363,22 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       }
     }
     else if (f === 'timing') {
-      // CSU9-D4 (SEMANTICS-S3.md) — absent / "phase0" normalises away so a
-      // fully-legacy graph's canonical bytes are unchanged; only the
-      // recognised non-default value is emitted.
+      // SEMANTICS-R6.md §R6-2 — absent / the literal "phase0" normalises away
+      // so a fully-legacy graph's canonical bytes are unchanged; ANY OTHER
+      // stored value is emitted VERBATIM, valid or not. The engine fail-closes
+      // an unrecognised `timing` (CSU3-5) — that is a real behavioural
+      // difference from both a legacy label and a valid afterPull one, so it
+      // must move the digest too, not disappear like the recognised-only
+      // reading used to make it.
       if (!modelLayer) continue
-      if (src?.timing === 'afterPull') data.timing = 'afterPull'
+      if (src?.timing !== undefined && src.timing !== 'phase0') data.timing = src.timing
     }
     else if (f === 'when') {
+      // §R6-2 — any stored `when` is emitted verbatim (same reasoning: an
+      // unrecognised `when`, or a `when` on a `phase0` label — CSU3-5 row 2 —
+      // both change engine behaviour from the no-`when` default).
       if (!modelLayer) continue
-      if (src?.when === 'source-fired') data.when = 'source-fired'
+      if (src?.when !== undefined) data.when = src.when
     }
   }
   return {
@@ -477,6 +505,7 @@ export type SideVersion =
   | 'loop-revision/3'
   | 'loop-revision/4' // loop-model/2 — the doc declares model-semantics v2 (SEMANTICS-M2.md §M2-8)
   | 'loop-revision/5' // SEMANTICS-R5.md — the side carries ≥ 1 surviving graph-level `frames` entry
+  | 'loop-revision/6' // SEMANTICS-R6.md — the side carries CSU (loop-state/3) `timing` / `when` content
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -576,15 +605,26 @@ export function readRevisionSide(
   // is the only thing v5-vs-v4 changes here. A `frames` block whose entries
   // were all dropped leaves nothing and the side infers as ≤ v4 (R5-INV-2).
   const hasFrames = readSavedFrames(graph.frames).length > 0
-  const version: SideVersion = hasFrames
-    ? 'loop-revision/5'
-    : declaredV2
-      ? 'loop-revision/4'
-      : hasRouting
-        ? 'loop-revision/3'
-        : hasModel
-          ? 'loop-revision/2'
-          : 'loop-revision/1'
+  // SEMANTICS-R6.md §R6-1 — a CSU `timing` / `when` signal is checked FIRST
+  // (highest precedence): it is orthogonal to frames / model / routing (a
+  // pure engine-only pity-counter graph carries none of those), and before
+  // this predicate existed such a graph was wrongly classified as ≤ v5 by
+  // `isModelLayerContent` / `hasRouting` / `hasFrames` alone — its `{
+  // modelLayer: true }` projection (which DOES include `timing` / `when`)
+  // would then disagree with its own inferred-v1 projection and throw the
+  // R2-INV-2 assertion below. `isCsuContent` closes that gap.
+  const hasCsu = isCsuContent({ edges: g.edges as { data?: { kind?: unknown; timing?: unknown; when?: unknown } | null }[] })
+  const version: SideVersion = hasCsu
+    ? 'loop-revision/6'
+    : hasFrames
+      ? 'loop-revision/5'
+      : declaredV2
+        ? 'loop-revision/4'
+        : hasRouting
+          ? 'loop-revision/3'
+          : hasModel
+            ? 'loop-revision/2'
+            : 'loop-revision/1'
 
   // 4 — project under the version-appropriate field set and verify the digest
   if (version === 'loop-revision/1') {
@@ -600,9 +640,10 @@ export function readRevisionSide(
     return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
   }
 
-  // v2 / v3 / v4 all use the conservative projection; v4 additionally carries the
-  // §M2-8 model-semantics discriminator. The label distinguishes them for the
-  // loss report / UI (§R3-5).
+  // v2 / v3 / v4 / v5 / v6 all use the ONE conservative `{ modelLayer: true }`
+  // projection; v4 additionally carries the §M2-8 model-semantics
+  // discriminator. The label distinguishes them for the loss report / UI
+  // (§R3-5) — it does not change which fields the projection emits.
   const v2 = canonicalContent(graph, {
     modelLayer: true,
     ...(declaredV2 ? { modelVersion: 2 as const } : {}),

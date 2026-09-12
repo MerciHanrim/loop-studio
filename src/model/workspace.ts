@@ -80,12 +80,16 @@ type EdgeProjection = {
   mode?: string
   delay?: number | null
   expr?: string
-  /** CSU / loop-state/3 (SEMANTICS-S3.md, CSU9-D4) — `label` only, emitted only
-   *  when genuinely non-default so a fully-legacy graph's digest is unchanged.
-   *  Deliberately engine-affecting, unlike `route` / `waypoints`: they change
-   *  what a step computes. */
-  timing?: 'afterPull'
-  when?: 'source-fired'
+  /** CSU / loop-state/3 (SEMANTICS-S3.md, CSU9-D4; SEMANTICS-R6.md §R6-2) —
+   *  `label` only, emitted verbatim whenever stored and non-default (absent /
+   *  the literal `"phase0"` normalises away for `timing`; ANY stored `when`
+   *  is emitted) — including an unrecognised value, since the engine
+   *  fail-closes it (CSU3-5) rather than treating it as the default, a real
+   *  behavioural difference that must move this digest too. Deliberately
+   *  engine-affecting, unlike `route` / `waypoints`: they change what a step
+   *  computes. */
+  timing?: string
+  when?: string
 }
 
 function projectNode(n: LoopNode): NodeProjection {
@@ -116,11 +120,13 @@ function projectEdge(e: LoopEdge): EdgeProjection {
     p.mode = e.data.mode
     p.expr = e.data.expr ?? ''
     p.delay = e.data.delay ?? null
-    // CSU9-D4 — normalise absent / "phase0" (the legacy default) away so a
-    // fully-legacy graph's digest is byte-identical; emit only the genuinely
-    // recognised non-default values.
-    if (e.data.timing === 'afterPull') p.timing = 'afterPull'
-    if (e.data.when === 'source-fired') p.when = 'source-fired'
+    // SEMANTICS-R6.md §R6-2 — normalise absent / "phase0" (the legacy default)
+    // away so a fully-legacy graph's digest is byte-identical; otherwise carry
+    // the stored value VERBATIM, valid or not (an unrecognised value still
+    // changes what the engine does — CSU3-5 fail-closed — so it must move
+    // this digest too).
+    if (e.data.timing !== undefined && e.data.timing !== 'phase0') p.timing = e.data.timing
+    if (e.data.when !== undefined) p.when = e.data.when
   }
   return p
 }
