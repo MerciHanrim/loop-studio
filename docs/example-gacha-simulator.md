@@ -349,10 +349,20 @@ adds value beyond direct fixed-seed assertions — the MMO and Coffee fixtures
 deliberately have none (the `*.expected.json` files under `examples/` belong to
 the frozen-semantics verification vectors, not the example Templates).
 
-Hard-pity-only acceptance returns with its own design (GS10-3): the SSR gap
-never exceeds the ceiling, the ceiling pull is a guaranteed SSR, pity resets
-after both natural and forced SSR, and pity increments only after a non-SSR
-pull.
+**GS10-3 proof complete — public Template pending.**
+[`src/engine/gacha-hard-pity.test.ts`](../src/engine/gacha-hard-pity.test.ts)
+proves the hard-pity acceptance list in a realistic wallet-and-cost economy
+(not the probe's minimal binary chain): the SSR gap never exceeds the
+ceiling, the ceiling pull is a guaranteed SSR, pity resets after both natural
+and forced SSR (same step), pity increments only after a non-SSR pull, wallet
+spend/`spent_total`/`pulls_made` stay in lockstep (a natural and a forced SSR
+book identically; a wallet funded for exactly one pull buys exactly one), and
+a fixed-seed Timeline series is pinned against the existing no-ceiling
+baseline. This is a test-only proof, not a bundled Template or engine
+feature. Fixed `HARD_PITY = 3`; `@parameter` activators, the 3-zone public
+Template,
+soft pity, and a 10-pull guarantee stay out of scope (GS10 slices 2–3-later,
+4, 5).
 
 ## GS10. Slices
 
