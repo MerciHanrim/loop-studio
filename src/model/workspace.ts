@@ -80,6 +80,12 @@ type EdgeProjection = {
   mode?: string
   delay?: number | null
   expr?: string
+  /** CSU / loop-state/3 (SEMANTICS-S3.md, CSU9-D4) — `label` only, emitted only
+   *  when genuinely non-default so a fully-legacy graph's digest is unchanged.
+   *  Deliberately engine-affecting, unlike `route` / `waypoints`: they change
+   *  what a step computes. */
+  timing?: 'afterPull'
+  when?: 'source-fired'
 }
 
 function projectNode(n: LoopNode): NodeProjection {
@@ -110,6 +116,11 @@ function projectEdge(e: LoopEdge): EdgeProjection {
     p.mode = e.data.mode
     p.expr = e.data.expr ?? ''
     p.delay = e.data.delay ?? null
+    // CSU9-D4 — normalise absent / "phase0" (the legacy default) away so a
+    // fully-legacy graph's digest is byte-identical; emit only the genuinely
+    // recognised non-default values.
+    if (e.data.timing === 'afterPull') p.timing = 'afterPull'
+    if (e.data.when === 'source-fired') p.when = 'source-fired'
   }
   return p
 }

@@ -200,11 +200,14 @@ const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
 /** edge `data` keys, in the frozen emit order, by kind (§R4.2 EDGE_FIELDS_BY_KIND).
  *  `loop-revision/2` appends a trailing `resourceType` to `resource`;
  *  `loop-revision/3` (SEMANTICS-R3.md §R3-2.1) appends `route` then `waypoints`
- *  to **both** kinds — `resourceType` is NOT a `state`-edge field. Each new key
- *  is emitted only when non-default. */
+ *  to **both** kinds — `resourceType` is NOT a `state`-edge field. CSU /
+ *  loop-state/3 (SEMANTICS-S3.md, CSU9-D4) appends `timing` then `when`,
+ *  trailing, to `state` only — deliberately `engine` (§R5-3 `fieldTag`
+ *  default), not `cosmetic` like `route` / `waypoints`: they change what a
+ *  step computes. Each new key is emitted only when non-default. */
 const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
   resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints'],
-  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints'],
+  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints', 'timing', 'when'],
 }
 
 const MODEL_NODE_KINDS = new Set(['parameter', 'register'])
@@ -337,6 +340,17 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
           y: numOrThrow(p.y === 0 ? 0 : p.y, `edge ${e.id} data.waypoints.y`),
         }))
       }
+    }
+    else if (f === 'timing') {
+      // CSU9-D4 (SEMANTICS-S3.md) — absent / "phase0" normalises away so a
+      // fully-legacy graph's canonical bytes are unchanged; only the
+      // recognised non-default value is emitted.
+      if (!modelLayer) continue
+      if (src?.timing === 'afterPull') data.timing = 'afterPull'
+    }
+    else if (f === 'when') {
+      if (!modelLayer) continue
+      if (src?.when === 'source-fired') data.when = 'source-fired'
     }
   }
   return {

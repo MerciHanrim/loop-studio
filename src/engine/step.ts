@@ -1,7 +1,15 @@
 import type { Activation, LoopEdge, LoopNode } from '../model/types'
 import { evalDet, evalRand, type ModelVersion, parseFlow, rateOf, type FlowExpr } from './flow'
 import { categorical, sample } from './rng'
-import { ACT_WHY, LABEL_WHY, parseActivatorExpr, parseDelay, parseLabelExpr } from './stateExpr'
+import {
+  ACT_WHY,
+  LABEL_WHY,
+  parseActivatorExpr,
+  parseDelay,
+  parseLabelExpr,
+  parseLabelTiming,
+  parseLabelWhen,
+} from './stateExpr'
 import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResult, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
@@ -369,15 +377,66 @@ export function step(
   const labelEdges = stateEdges.filter(
     (e): e is LoopEdge & { data: { kind: 'state'; mode: 'label'; expr: string } } => e.data.mode === 'label',
   )
-  const labelTargets = new Set<string>()
-  const labelApplied: { e: LoopEdge; delta: number }[] = []
+  // CSU / loop-state/3 (SEMANTICS-S3.md) — a `label` may run `timing:
+  // "afterPull"` (Phase 2.5, after the pull, gated by `when`) instead of the
+  // default unconditional Phase 0. Split validation happens here, once, in
+  // `labelEdges`' existing ascending-`edge.id` order; `pendingAfterPull` is
+  // consumed after Phase 2 (see below). `timing`/`when` are validated
+  // fail-closed (CSU3-5): an edge whose declared intent cannot be honoured is
+  // fully inert — it NEVER falls back to running as a plain Phase-0 label.
+  const pendingAfterPull: { e: LoopEdge; op: '+' | '-' | '='; n: number }[] = []
+  const pendingPhase0: { e: LoopEdge; op: '+' | '-' | '='; token: 'N' | 'S'; n: number }[] = []
   for (const e of labelEdges) {
     if (!byId.has(e.source) || !byId.has(e.target)) {
       diagnostics.push(`Label "${e.id}" connects a removed node; ignored.`)
       continue
     }
-    if (!isPool(e.source)) {
-      diagnostics.push(`Label "${e.id}" needs a Pool source; ignored.`)
+    const rawTiming = (e.data as { timing?: unknown }).timing
+    const timingParse = parseLabelTiming(rawTiming)
+    if (!timingParse.ok) {
+      diagnostics.push(`Label "${e.id}" timing "${rawTiming}" is not supported; ignored.`)
+      continue
+    }
+    const rawWhen = (e.data as { when?: unknown }).when
+    if (timingParse.timing === 'phase0') {
+      // fail-closed (CSU3-5): a `when` on a `phase0` label is never silently
+      // dropped in favour of running unconditionally — the whole edge is inert.
+      if (rawWhen !== undefined) {
+        diagnostics.push(`Label "${e.id}" has a "when" but is not timing: "afterPull"; ignored.`)
+        continue
+      }
+      if (!isPool(e.source)) {
+        diagnostics.push(`Label "${e.id}" needs a Pool source; ignored.`)
+        continue
+      }
+      if (!isPool(e.target)) {
+        diagnostics.push(`Label "${e.id}" needs a Pool target; ignored.`)
+        continue
+      }
+      const raw = (e.data as { expr?: string }).expr ?? ''
+      const p = parseLabelExpr(raw)
+      if (!p.ok) {
+        diagnostics.push(`Label "${e.id}" expression "${raw}" ${LABEL_WHY[p.reason]}; ignored.`)
+        continue
+      }
+      pendingPhase0.push({ e, op: p.op, token: p.token, n: p.n })
+      continue
+    }
+    // timing === 'afterPull'
+    if (rawWhen === undefined) {
+      diagnostics.push(`Label "${e.id}" (timing: "afterPull") needs when: "source-fired"; ignored.`)
+      continue
+    }
+    const whenParse = parseLabelWhen(rawWhen)
+    if (!whenParse.ok) {
+      diagnostics.push(`Label "${e.id}" when "${rawWhen}" is not supported; ignored.`)
+      continue
+    }
+    const srcKind = kindOf(e.source)
+    if (!srcKind || !ROUTER_KINDS.has(srcKind)) {
+      diagnostics.push(
+        `Label "${e.id}" (timing: "afterPull") needs a Gate / Converter / Drain / End source; ignored.`,
+      )
       continue
     }
     if (!isPool(e.target)) {
@@ -390,9 +449,19 @@ export function step(
       diagnostics.push(`Label "${e.id}" expression "${raw}" ${LABEL_WHY[p.reason]}; ignored.`)
       continue
     }
-    const operand = p.token === 'S' ? S[e.source] ?? 0 : p.n
+    if (p.token === 'S') {
+      diagnostics.push(`Label "${e.id}" (timing: "afterPull") cannot read S; use a numeric literal; ignored.`)
+      continue
+    }
+    pendingAfterPull.push({ e, op: p.op, n: p.n })
+  }
+  const labelTargets = new Set<string>()
+  const labelApplied: { e: LoopEdge; delta: number }[] = []
+  for (const item of pendingPhase0) {
+    const e = item.e
+    const operand = item.token === 'S' ? S[e.source] ?? 0 : item.n
     const running = working[e.target] ?? 0
-    const delta = p.op === '+' ? operand : p.op === '-' ? -operand : operand - running
+    const delta = item.op === '+' ? operand : item.op === '-' ? -operand : operand - running
     working[e.target] = running + delta
     labelTargets.add(e.target)
     labelApplied.push({ e, delta })
@@ -935,6 +1004,60 @@ export function step(
     }
   }
   pullPass(true)
+
+  // ── Phase 2.5: afterPull labels (CSU / SEMANTICS-S3.md) ─────────────────
+  // Applied once, using THIS step's real, committed `fired` set (built above
+  // by Phase 1 push + the committed Phase 2 pull) — never a probe's. Ascending
+  // `edge.id` (labelEdges, and so pendingAfterPull, is already in that order);
+  // the running `working[target]` carries between edges into the same target,
+  // exactly like a Phase-0 label; intermediate out-of-range values are
+  // allowed. There is no separate Phase-2.5 clamp point — the correction is
+  // computed here (so it can be attributed and reported) using the identical
+  // §S5(d) formula the Commit clamp below would apply anyway, so Commit then
+  // finds the value already in range (a harmless no-op second pass).
+  const afterPullDelta = new Map<string, number>() // edgeId -> delta, applied edges only
+  const afterPullTargets = new Set<string>()
+  for (const item of pendingAfterPull) {
+    const e = item.e
+    if (!fired.has(e.source)) continue // `when` not satisfied this step — inert
+    const running = working[e.target] ?? 0
+    const delta = item.op === '+' ? item.n : item.op === '-' ? -item.n : item.n - running
+    working[e.target] = running + delta
+    afterPullDelta.set(e.id, delta)
+    afterPullTargets.add(e.target)
+  }
+  const afterPullClampByTarget = new Map<string, number>()
+  for (const tid of afterPullTargets) {
+    const unclamped = working[tid] ?? 0
+    const clamped = Math.min(cap(byId.get(tid)!), Math.max(0, unclamped))
+    working[tid] = clamped
+    afterPullClampByTarget.set(tid, nz(clamped - unclamped))
+  }
+  // clamp correction rides on the target's LAST APPLIED edge (CSU3-6); an
+  // inert edge is never the attribution target and always reports 0 / 0.
+  const lastAppliedIdxByTarget = new Map<string, number>()
+  pendingAfterPull.forEach((item, i) => {
+    if (afterPullDelta.has(item.e.id)) lastAppliedIdxByTarget.set(item.e.target, i)
+  })
+  pendingAfterPull.forEach((item, i) => {
+    const e = item.e
+    const applied = afterPullDelta.has(e.id)
+    stateEvents.push({
+      edgeId: e.id,
+      from: e.source,
+      to: e.target,
+      mode: 'label',
+      effect: {
+        kind: 'label',
+        applied,
+        delta: applied ? afterPullDelta.get(e.id)! : 0,
+        clampAdjustment:
+          applied && lastAppliedIdxByTarget.get(e.target) === i
+            ? afterPullClampByTarget.get(e.target) ?? 0
+            : 0,
+      },
+    })
+  })
 
   // ── Commit ──────────────────────────────────────────────────────────────
   for (const nid of Object.keys(working)) {

@@ -138,6 +138,14 @@ export type StateEdgeData = EdgeRoutingData & {
   /** `trigger` only: integer ≥ 0 steps before delivery (SEMANTICS-S.md §S6).
    *  `deliveryStep = firedStep + delay + 1`. Absent / invalid ⇒ 0. */
   delay?: number
+  /** CSU / loop-state/3 (SEMANTICS-S3.md) — `label` only. Absent / `"phase0"`
+   *  = the loop-state/1 unconditional Phase-0 label (default, byte-identical).
+   *  `"afterPull"` = Phase 2.5, after the pull, gated by `when`. Parser +
+   *  validation in `src/engine/stateExpr.ts`, shared with the Inspector. */
+  timing?: 'phase0' | 'afterPull'
+  /** `timing: "afterPull"` only, required there. The only value in v1:
+   *  `"source-fired"` — the edit applies iff `source` fired THIS step. */
+  when?: 'source-fired'
 }
 
 export type LoopEdgeData = ResourceEdgeData | StateEdgeData
