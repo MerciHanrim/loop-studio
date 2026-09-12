@@ -66,12 +66,12 @@ test.describe('state-verification.json — app import + feedback', () => {
 
     await selectEdge(page, 'a_ga_pd')
     await expect(page.locator('.inspector .field select').nth(1)).toHaveValue('activator')
-    await expect(page.locator('.inspector .field input:not([type="number"])')).toHaveValue('>= 3')
+    await expect(page.locator('.inspector .field input:not([type="number"]):not([type="radio"])')).toHaveValue('>= 3')
     await expect(page.locator('.inspector .field__hint--ok')).toBeVisible()
 
     await selectEdge(page, 'm_tank_addS')
     await expect(page.locator('.inspector .field select').nth(1)).toHaveValue('label')
-    await expect(page.locator('.inspector .field input:not([type="number"])')).toHaveValue('+S')
+    await expect(page.locator('.inspector .field input:not([type="number"]):not([type="radio"])')).toHaveValue('+S')
   })
 
   test('Pool values track expected.json for steps 1..6', async ({ page }) => {

@@ -4,12 +4,19 @@ import { categorical, sample } from './rng'
 import {
   ACT_WHY,
   LABEL_WHY,
+  ROUTER_KINDS,
   parseActivatorExpr,
   parseDelay,
   parseLabelExpr,
   parseLabelTiming,
   parseLabelWhen,
 } from './stateExpr'
+// docs/label-timing-authoring.md LTA-D13 — `ROUTER_KINDS`'s canonical home is
+// `stateExpr.ts` (shared with the Inspector's `eligibleLabelPreset`); this
+// re-export keeps `src/engine/index.ts`'s public `ROUTER_KINDS` path — and
+// every other direct `from './step'` import of it — unchanged. A bare
+// `import` does not re-export a name, so this line is required.
+export { ROUTER_KINDS } from './stateExpr'
 import { EPSILON, type SimState, type SimValues, type StateEvent, type StepResult, type TriggerQueueEntry } from './types'
 
 // Engine A — the deterministic core. Implements SEMANTICS.md §6 exactly:
@@ -48,11 +55,6 @@ export function initSim(nodes: LoopNode[]): SimState {
   return { step: 0, values, ended: false, fired: [], triggerQueue: [] }
 }
 
-// The node kinds that actively move resources in Phase 2 (a "routing node").
-// Exported for the playback-ordering layer (docs/simulation-playback-ordering.md
-// §PBO1) so it derives the cascade rank from the SAME kind set the engine walks,
-// with no risk of the two drifting apart.
-export const ROUTER_KINDS = new Set(['gate', 'converter', 'drain', 'end'])
 const TRIGGERABLE = new Set(['passive', 'interactive'])
 
 export function step(

@@ -535,6 +535,57 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     expect(sel).toBeNull()
   })
 
+  // docs/label-timing-authoring.md LTA-INV-4 / review round 5 (Hanrim) — the
+  // label-timing preset control's mobile read-only rendering was previously
+  // exercised only under the desktop `chromium` project (via a `canvasLocked`
+  // stand-in), never under the real `mobile` project / sheet. Also covers a
+  // real bug the same review found: on mobile BOTH the hidden desktop
+  // `.inspector` and MobileInspectorSheet's own `<Inspector />` are mounted at
+  // once, so a fixed DOM id on the control would duplicate — `useId()` fixed
+  // it (src/components/Inspector.tsx).
+  test('a selected label edge shows the read-only timing text in the mobile sheet — no radios anywhere, no duplicate DOM ids', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(
+      page,
+      JSON.stringify({
+        schema: 'loop-studio/graph',
+        version: 1,
+        nodes: [
+          { id: 'gate', type: 'gate', position: { x: 0, y: 0 }, data: { kind: 'gate', label: 'Gate', activation: 'automatic', distribution: 'deterministic' } },
+          { id: 'pool', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'Pool', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        ],
+        edges: [
+          {
+            id: 'm1', source: 'gate', target: 'pool', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop',
+            data: { kind: 'state', mode: 'label', expr: '+1', timing: 'afterPull', when: 'source-fired' },
+          },
+        ],
+      }),
+    )
+    await page.evaluate(
+      () => (window as unknown as { __loop: { graph: { getState: () => { setSelection: (n: string | null, e: string | null) => void } } } })
+        .__loop.graph.getState()
+        .setSelection(null, 'm1'),
+    )
+
+    const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
+    await expect(inspector).toBeVisible()
+    // no radio inputs ANYWHERE on the page — not just inside the visible
+    // sheet, since the hidden desktop Inspector is also mounted and must
+    // independently render its own read-only (radio-free) branch too.
+    await expect(page.locator('input[type="radio"]')).toHaveCount(0)
+    await expect(inspector).toContainText(/source fire/i) // the current preset, as plain text
+    await expect(inspector).toContainText(/applied once/i) // the normal preview line, per §LTA6.2
+
+    const duplicateIds = await page.evaluate(() => {
+      const counts = new Map<string, number>()
+      for (const el of document.querySelectorAll('[id]')) counts.set(el.id, (counts.get(el.id) ?? 0) + 1)
+      return [...counts.entries()].filter(([, n]) => n > 1).map(([id]) => id)
+    })
+    expect(duplicateIds).toEqual([])
+  })
+
   test('Import from the More menu confirms before replacing; cancel keeps the graph, accept swaps it', async ({ page }) => {
     await loadDiagram(page)
     const before = await graphContent(page)

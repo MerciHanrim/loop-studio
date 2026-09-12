@@ -116,7 +116,7 @@ test.describe('Slice 5 — Inspector editing', () => {
   test('activator / label: inline validation mirrors the engine, no auto-normalise', async ({ page }) => {
     await selectEdge(page, 'a_gate')
     const insp = page.locator('.inspector')
-    const expr = insp.locator('.field input:not([type="number"])')
+    const expr = insp.locator('.field input:not([type="number"]):not([type="radio"])')
     await expect(expr).toHaveValue('>= 3')
     await expect(insp.locator('.field__hint--ok')).toBeVisible()
 
@@ -129,21 +129,23 @@ test.describe('Slice 5 — Inspector editing', () => {
     await expect(insp.locator('.field__hint--bad')).toContainText('no effect')
 
     await selectEdge(page, 'm1')
-    const lexpr = page.locator('.inspector .field input:not([type="number"])')
+    const lexpr = page.locator('.inspector .field input:not([type="number"]):not([type="radio"])')
     await expect(lexpr).toHaveValue('+S')
-    await expect(page.locator('.inspector .field__hint--ok')).toBeVisible()
+    // .first() — a `label` edge now also shows the labelTiming group-line hint,
+    // which can independently carry `field__hint--ok` (docs/label-timing-authoring.md)
+    await expect(page.locator('.inspector .field__hint--ok').first()).toBeVisible()
     await lexpr.fill('*5')
     await expect(lexpr).toHaveAttribute('aria-invalid', 'true')
-    await expect(page.locator('.inspector .field__hint--bad')).toBeVisible()
+    await expect(page.locator('.inspector .field__hint--bad').first()).toBeVisible()
   })
 
   test('switching mode hides the other fields but keeps their stored values', async ({ page }) => {
     await selectEdge(page, 't_trig') // delay 0
     const modeSel = page.locator('.inspector .field select').nth(1)
     await modeSel.selectOption('activator')
-    await page.locator('.inspector .field input:not([type="number"])').fill('>= 9')
+    await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('>= 9')
     await modeSel.selectOption('label')
-    await page.locator('.inspector .field input:not([type="number"])').fill('+3')
+    await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('+3')
     await modeSel.selectOption('trigger')
 
     const d = await edgeData(page, 't_trig')
@@ -174,9 +176,9 @@ test.describe('Slice 5 — Inspector editing', () => {
     await selectEdge(page, 't_trig')
     await page.locator('.inspector input[type="number"]').fill('2')
     await selectEdge(page, 'a_gate')
-    await page.locator('.inspector .field input:not([type="number"])').fill('> 4')
+    await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('> 4')
     await selectEdge(page, 'm2')
-    await page.locator('.inspector .field input:not([type="number"])').fill('-2')
+    await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('-2')
 
     const json = await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().exportJSON())
     await page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().newGraph())
@@ -287,7 +289,7 @@ test.describe('Slice 5 — in-canvas feedback', () => {
 
     await stepN(page, 2)
     await selectEdge(page, 'a_gate')
-    await page.locator('.inspector .field input:not([type="number"])').fill('>= 1')
+    await page.locator('.inspector .field input:not([type="number"]):not([type="radio"])').fill('>= 1')
     await expect
       .poll(() => page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().stepIndex))
       .toBe(0)

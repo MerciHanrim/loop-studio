@@ -2,12 +2,18 @@ export { initSim, step, ROUTER_KINDS } from './step'
 export {
   ACT_HINT,
   LABEL_HINT,
+  classifyLabelTiming,
+  eligibleLabelPreset,
   parseActivatorExpr,
   parseDelay,
   parseLabelExpr,
   type ActivatorParse,
   type DelayParse,
   type LabelParse,
+  type LabelPresetEligibility,
+  type LabelPresetReasonA,
+  type LabelPresetReasonB,
+  type LabelTimingClass,
 } from './stateExpr'
 export {
   evalDet,
