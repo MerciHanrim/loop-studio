@@ -235,25 +235,30 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
   }
 
   test('⋯ → Language: opens on screen, selecting a locale closes both menus', async ({ page }) => {
-    // A 726px viewport (6px above the 720px mobile breakpoint — see
-    // src/ui/media.ts — the narrowest legal desktop width) used to be enough
-    // to push JA's own long labels (esp. "モジュールを挿入 ▾") past the
-    // toolbar's available width, forcing Language into the ⋯ overflow. That
-    // margin was font-metric-dependent: fixing the JA CJK font fallback
-    // (src/index.css :lang(ja)) legitimately renders JA more compactly on
-    // some platforms, and 726px stopped forcing the overflow there — with no
-    // narrower desktop width available to retry (below 720px flips to the
-    // entirely different mobile toolbar). So: keep the window comfortably
-    // desktop (`useIsMobile()`'s media query only reads `window.innerWidth`)
-    // and instead pin `.toolbar`'s own measured width directly via injected
-    // CSS — the actual thing `useToolbarOverflow` watches via
-    // ResizeObserver — to a width no locale's labels could ever fit,
-    // regardless of which CJK font any given platform substitutes.
-    await page.setViewportSize({ width: 1000, height: 640 })
+    // 726px (6px above the 720px mobile breakpoint — src/ui/media.ts — the
+    // narrowest legal desktop width) used to be enough on its own to push
+    // JA's own long labels (esp. "モジュールを挿入 ▾") past the toolbar's
+    // available width, forcing Language into the ⋯ overflow. That margin was
+    // font-metric-dependent: fixing the JA CJK font fallback (src/index.css
+    // :lang(ja)) legitimately renders JA more compactly on some platforms,
+    // and 726px alone stopped forcing the overflow there — with no narrower
+    // *desktop* width available to retry (below 720px flips to the entirely
+    // different mobile toolbar). Keeping the viewport AT 726px (still
+    // desktop) and additionally pinning `.toolbar`'s own measured width via
+    // injected CSS — the actual value `useToolbarOverflow`'s ResizeObserver
+    // watches — to a width no locale's labels could ever fit makes the
+    // overflow condition reproducible regardless of which CJK font any given
+    // platform substitutes, without touching any product CSS.
+    await page.setViewportSize({ width: 726, height: 640 })
     await openApp(page)
     await resetAll(page)
     await page.addStyleTag({ content: '.toolbar { max-width: 480px !important; }' })
     await setLocale(page, 'ja')
+
+    // still the desktop layout at this viewport, and the inline Language
+    // button (rendered when it fits) is genuinely gone, not just occluded
+    expect(await page.locator('.toolbar--mobile').count()).toBe(0)
+    expect(await page.locator('.toolbar__slot .lang-switch').count()).toBe(0)
 
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await moreBtn.click()
