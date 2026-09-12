@@ -387,6 +387,12 @@ graph" to "hand-typed in a text box," which is not a fix. The design:
 
 ## PA8. The 3-zone banner application (feasibility review only)
 
+**Superseded/continued by [`docs/gacha-banner-zones.md`](gacha-banner-zones.md)**
+(prefix `GZ`), which turns this feasibility review into the full 3-zone
+design — zone rules, Parameter tables, the pickup-guarantee mechanic (not
+reviewed here), and the Monte Carlo comparison metrics. This section's
+pity-only feasibility finding stands unchanged and is reused there (GZ4).
+
 Per `docs/example-gacha-simulator.md`'s banner table (General/Free · Premium
 Standard · Premium Pickup), each zone needs its **own independently tunable**
 hard-pity ceiling. Under this design that is simply: one Parameter node per

@@ -362,7 +362,9 @@ baseline. This is a test-only proof, not a bundled Template or engine
 feature. Fixed `HARD_PITY = 3`; `@parameter` activators, the 3-zone public
 Template,
 soft pity, and a 10-pull guarantee stay out of scope (GS10 slices 2–3-later,
-4, 5).
+4, 5). The 3-zone public Template's rules and Monte Carlo comparison metrics
+are now designed in [`docs/gacha-banner-zones.md`](gacha-banner-zones.md)
+(prefix `GZ`, design-only — implementation is its own later PR).
 
 ## GS10. Slices
 
