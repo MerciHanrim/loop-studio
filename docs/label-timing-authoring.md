@@ -104,12 +104,15 @@ are revised.
   (§LTA4.1/§LTA4.2) — they change what the Inspector shows, never what the
   engine accepts. **One narrow, non-behavioural exception (round 4,
   LTA-D13):** `step.ts`'s `ROUTER_KINDS` constant *definition* moves to
-  `stateExpr.ts`; `step.ts` imports it from there instead of declaring it
-  locally, and its existing `export { ROUTER_KINDS } from './step'`
-  re-export path (`src/engine/index.ts`) is unchanged. One line of `step.ts`
-  changes (an import), zero lines of `step.ts`'s *validation logic* change,
-  and the existing engine test suite (unchanged) verifies byte-for-byte
-  parity.
+  `stateExpr.ts`; `step.ts` **imports it and explicitly re-exports it**
+  (`import { ROUTER_KINDS, ... } from './stateExpr'` then
+  `export { ROUTER_KINDS } from './stateExpr'`) — a plain `import` alone does
+  not re-export a name, so the explicit `export` is required for
+  `src/engine/index.ts`'s existing `export { initSim, step, ROUTER_KINDS }
+  from './step'` to keep resolving (round-4 correction, Hanrim's mechanical
+  finding). Two lines of `step.ts` change (the import and the re-export),
+  zero lines of `step.ts`'s *validation logic* change, and the existing
+  engine test suite (unchanged) verifies byte-for-byte parity.
 - An "advanced" mode exposing `timing` / `when` as independent fields. Not
   designed here, not stubbed, not a hidden toggle. `SEMANTICS-S3.md` v1
   recognises exactly one non-default value per field, so a two-option preset
@@ -295,14 +298,28 @@ the problem there).
 
 **LTA-D13 (round 4, reversing round 3's "accepted duplication"):**
 `ROUTER_KINDS`'s canonical definition **moves** from `step.ts` to
-`stateExpr.ts`; `step.ts` imports it from there (`import { ROUTER_KINDS }
-from './stateExpr'`) instead of declaring it locally, and re-exports it
-exactly as before so `src/engine/index.ts`'s `export { ROUTER_KINDS } from
-'./step'` line — and every existing external import of it — is untouched.
-One line of `step.ts` changes; zero lines of `step.ts`'s CSU3-5 validation
-*logic* change; the existing engine test suite (unmodified) is the byte-parity
-check. Hanrim's reasoning: a design whose entire premise is "the engine and
-the Inspector share one predicate" should not ship a second, independently
+`stateExpr.ts`; `step.ts` **imports it and explicitly re-exports it**:
+
+```ts
+// step.ts
+import { ROUTER_KINDS, parseLabelTiming, parseLabelWhen, parseLabelExpr } from './stateExpr'
+export { ROUTER_KINDS } from './stateExpr'
+```
+
+A bare `import` does **not** implicitly re-export a name — an `export { … }
+from` line is required, or `src/engine/index.ts`'s existing `export {
+initSim, step, ROUTER_KINDS } from './step'` would fail to resolve
+`ROUTER_KINDS` and the build would not typecheck (round-4 correction, a
+mechanical finding: round 3's phrasing said "re-exports it exactly as
+before" without writing the line that actually does so). With the explicit
+`export` line added, `src/engine/index.ts` itself needs **zero** changes.
+Two lines of `step.ts` change (the import, and the re-export); zero lines of
+`step.ts`'s CSU3-5 validation *logic* change; the existing engine test suite
+(unmodified) is the byte-parity check, and the implementation PR additionally
+confirms both the `../engine` barrel import path and a direct `./step`
+import of `ROUTER_KINDS` still resolve (§LTA9 test 18). Hanrim's reasoning
+for doing this at all: a design whose entire premise is "the engine and the
+Inspector share one predicate" should not ship a second, independently
 maintained copy of that predicate's own vocabulary on day one — the "no
 `step.ts` change" boundary (§LTA1) was drawn too wide; it should protect
 `step.ts`'s *validation behaviour*, not a constant this document explicitly
@@ -737,13 +754,18 @@ round-2 draft's allow-then-warn stance):**
     `state.afterpull.test.ts` / `gacha-pity-timing.probe.test.ts` /
     `revision.csu.test.ts` / `revision-v6-fixture.test.ts` suites are
     unaffected and unmodified — this is the byte-parity check for
-    `ROUTER_KINDS`'s relocation (LTA-D13): the one permitted `step.ts` change
-    is an import line, and if that relocation altered its value or behaviour
-    in any way, one of these existing suites (which already exercise
-    `ROUTER_KINDS`-gated logic — the `afterPull` source-kind checks) would
-    fail. `step.ts`'s diff for this slice's implementation PR is exactly one
-    line (the import), reviewable at a glance; everything else that could
-    move CSU3-5 behaviour is untouched.
+    `ROUTER_KINDS`'s relocation (LTA-D13): the two permitted `step.ts` lines
+    are the import and its explicit re-export (§LTA4.2's code block), and if
+    the relocation altered `ROUTER_KINDS`'s value or behaviour in any way,
+    one of these existing suites (which already exercise `ROUTER_KINDS`-gated
+    logic — the `afterPull` source-kind checks) would fail. Additionally:
+    both `import { ROUTER_KINDS } from '../engine'` (the existing barrel
+    path) and `import { ROUTER_KINDS } from '../engine/step'` (direct)
+    resolve to the same value after the relocation — a one-line typecheck-
+    level assertion, guarding specifically against the missing-re-export
+    mistake this round's review caught. `step.ts`'s diff for this slice's
+    implementation PR is exactly those two lines, reviewable at a glance;
+    everything else that could move CSU3-5 behaviour is untouched.
 
 ## LTA10. Decisions
 
@@ -761,14 +783,14 @@ round-2 draft's allow-then-warn stance):**
 | **LTA-D10** | native `<input type="radio" disabled>`, or a custom `role="radio"` with hand-rolled roving focus so a disabled option stays arrow-reachable? | **Native, round 3 — reverses round 2's sketch.** (LTA-INV-6, §LTA7) Hanrim's finding #4: "arrow-navigable while disabled" is not one native contract, it's two incompatible ones layered together. Native radios are the simpler, standards-correct choice once the disabled reason is **always visible as plain text** (not gated behind reaching a focus state a disabled control cannot enter) — which §LTA4.3's "at most one option is ever enabled" already makes cheap to guarantee. A custom ARIA radio is reserved for a future need that actually requires arrow-navigating *onto* a disabled option, which this control does not have. |
 | **LTA-D11** | eligibility as two independent per-preset booleans, or one unified function? | **One function** (§LTA4.2). Round 2's two-boolean model could describe "both eligible," which Hanrim's finding #2 (round 3) shows is structurally impossible (A needs a Pool source, B needs a Router source — mutually exclusive by node-kind). A single function makes the impossible state unrepresentable rather than merely untested, and gives it a natural pure-unit-test surface (§LTA9 tests 7a/7b) independent of the live store — which is also how the unreachable deleted-target E2E gets resolved: the defensive "missing node" case moves to a synthetic-context unit test instead of an impossible UI interaction. |
 | **LTA-D12** | should the eligibility function return just `'A' \| 'B' \| null'`, or name each option's disqualifying reason? | **Name both reasons.** (§LTA4.2, round 4, Hanrim's finding #1) A bare tri-state return forces the Inspector to re-derive *why* the non-eligible option failed, to render its per-radio text (§LTA6.1) — silently reintroducing the "the engine and the Inspector must agree" risk this whole design exists to close (LTA-D8), one function later. `{ eligible, reasonA?, reasonB? }` makes the shared function the **only** place either question is answered, for both radios, every time. |
-| **LTA-D13** | relocate `ROUTER_KINDS` into `stateExpr.ts` now (a `step.ts` line changes), or keep the round-3 duplicated literal? | **Relocate now.** (§LTA4.2, round 4, reversing round 3's "accepted duplication") Hanrim's reasoning: a design whose central claim is "the engine and the Inspector share one predicate" should not ship, on day one, a second copy of that predicate's own vocabulary that could silently drift from the original. The refactor is one import line in `step.ts`, zero behavioural lines, and is verified by the existing (unmodified) engine test suite (§LTA9 test 18) — a cost low enough that "avoid touching `step.ts`" (§LTA1's original, too-wide boundary) is the wrong thing to optimise for here. |
+| **LTA-D13** | relocate `ROUTER_KINDS` into `stateExpr.ts` now (`step.ts` lines change), or keep the round-3 duplicated literal? | **Relocate now, via import + explicit re-export.** (§LTA4.2, round 4, reversing round 3's "accepted duplication"; the import/re-export split itself is a round-4 mechanical correction — a bare `import` doesn't re-export, so `src/engine/index.ts`'s existing `ROUTER_KINDS` export needs `step.ts` to carry an explicit `export { ROUTER_KINDS } from './stateExpr'` line, not just the import.) Hanrim's reasoning for the relocation itself: a design whose central claim is "the engine and the Inspector share one predicate" should not ship, on day one, a second copy of that predicate's own vocabulary that could silently drift from the original. The refactor is two lines in `step.ts` (import + re-export), zero behavioural lines, and is verified by the existing (unmodified) engine test suite plus a direct-vs-barrel import-resolution check (§LTA9 test 18) — a cost low enough that "avoid touching `step.ts`" (§LTA1's original, too-wide boundary) is the wrong thing to optimise for here. |
 
 ## LTA11. Work order
 
 1. **This design doc** — its own PR, reviewed and approved before any UI or
    `stateExpr.ts` code lands (Hanrim; round 4 in progress, 2026-09-12).
 2. **Implementation PR** — `ROUTER_KINDS`'s relocation to `stateExpr.ts` +
-   `step.ts`'s one-line import update (LTA-D13, verified against the
+   `step.ts`'s import + explicit re-export update (LTA-D13, verified against the
    unmodified existing engine suite); `classifyLabelTiming` +
    `eligibleLabelPreset` in `stateExpr.ts` (with unit tests, §LTA9 items 1–3,
    7a, 7b); the radiogroup (native radios, LTA-D10) + per-radio reason text +
