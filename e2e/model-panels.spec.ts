@@ -80,6 +80,22 @@ test('Inputs lists every Parameter; editing a value is one history entry and one
   expect((await gs(page)).nodes.find((n) => n.id === p1)!.data!.value).toBe(5)
 })
 
+test('a non-finite Parameter value (NaN / Infinity) renders the input blank, not as an invalid value prop', async ({
+  page,
+}) => {
+  const { p1 } = await seedModelGraph(page)
+  const field = inputsPanel(page)
+    .locator('.mp-row:not(.mp-row--flow)')
+    .filter({ hasText: 'Rate' })
+    .locator('input[type=number]')
+
+  await page.evaluate((id) => (window as any).__loop.graph.getState().updateNodeData(id, { value: NaN }), p1)
+  await expect(field).toHaveValue('') // the errors fixture also fails the test on any console.error
+
+  await page.evaluate((id) => (window as any).__loop.graph.getState().updateNodeData(id, { value: Infinity }), p1)
+  await expect(field).toHaveValue('')
+})
+
 test('v2 graph: Inputs also lists each @param flow edge as a read-only pointer', async ({ page }) => {
   await page.evaluate(() => {
     const g = () => (window as any).__loop.graph.getState()
