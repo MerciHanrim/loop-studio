@@ -1,6 +1,6 @@
 # Label timing authoring (design doc)
 
-**Status: design — pending review.** CSU8 slice 3
+**Status: design — pending review (round 2).** CSU8 slice 3
 (`docs/conditional-state-update.md`, `SEMANTICS-S3.md` §S3-8): the Inspector
 authoring surface for a `label` connection's `timing` / `when`
 (`loop-state/3`). The engine, the grammar, and the `loop-revision/6`
@@ -8,10 +8,10 @@ projection (`SEMANTICS-R6.md`) are **frozen and unchanged** by this document —
 this is authoring UX only.
 
 Sections: **§LTA0** why · **§LTA1** scope · **§LTA2** invariants · **§LTA3**
-the preset model · **§LTA4** eligibility & warnings · **§LTA5** the modifier
-field's S-form gate · **§LTA6** the preview sentence · **§LTA7** keyboard /
-SR / IME / mobile / locked · **§LTA8** i18n · **§LTA9** acceptance · **§LTA10**
-decisions · **§LTA11** work order.
+the preset model · **§LTA4** classification & eligibility · **§LTA5** the
+modifier field's `S`-form gate · **§LTA6** the preview / warning line ·
+**§LTA7** keyboard / SR / IME / mobile / locked · **§LTA8** i18n · **§LTA9**
+acceptance · **§LTA10** decisions · **§LTA11** work order.
 
 ---
 
@@ -33,7 +33,17 @@ freely construct `phase0 + when` — fail-closed and silently inert
 (`SEMANTICS-S3.md` §S3-5 row 2) — inside the tool that is supposed to prevent
 exactly that class of mistake. Hanrim's brief (2026-09-12) heads this off:
 collapse the two fields into a small, named set of author-facing outcomes, so
-every UI-reachable state is engine-valid by construction.
+every state the structured control can **freshly author** is engine-valid by
+construction.
+
+**Round 2 (Hanrim)** found this draft's first pass under-specified in five
+places: the invalid-state classification was incomplete (only one of four
+reachable bad combinations was named), the **target** eligibility rule was
+missing entirely (§S3-5 rows 6/7 apply to *both* presets, not just source),
+the "allow + warn" stance let the structured control **author** a
+known-bad state instead of only *inheriting* one, the mode-switch behaviour
+was described backwards from the actual code, and the atomicity /
+accessibility details were unstated. All five are fixed below.
 
 ## LTA1. Scope
 
@@ -42,22 +52,25 @@ every UI-reachable state is engine-valid by construction.
 - One new authoring control on a **`label`**-mode state edge in the desktop
   Inspector, replacing nothing (`ExprField` for the modifier stays; this is a
   new field alongside it, per §LTA3).
-- Live, non-blocking validation for the two states this control can put an
-  edge into that are *not* automatically engine-valid — an ineligible source
-  node, and an S-form modifier under the conditional option (§LTA4 / §LTA5) —
-  plus a read-only rendering of a **third** state: a value already on disk
-  that this control never writes (an unrecognised `timing` / `when` from a
-  hand-edited or externally-produced file, §LTA4.3).
-- A one-line, always-visible preview sentence stating in plain language when
-  the edit currently takes effect (§LTA6).
+- A shared, engine-agreeing **classifier** for what a stored `(timing, when)`
+  pair means — `phase0` / `afterPull` / `unsupported` — living in
+  `src/engine/stateExpr.ts`, not reimplemented in the Inspector (§LTA4.1 /
+  LTA-D8).
+- Live, non-blocking-where-free-text / blocking-where-structured validation
+  covering every one of `SEMANTICS-S3.md` §S3-5's eight rows that this
+  control's own choices can reach (§LTA4).
+- A one-line, always-visible preview / warning line stating in plain language
+  when the edit currently takes effect, or why it doesn't (§LTA6).
 - EN / KO / JA copy for all of the above (§LTA8).
 
 **Out:**
 
-- Any change to `src/engine/stateExpr.ts`, `step.ts`, `SEMANTICS-S3.md`, or
-  the `loop-revision/6` projection (`revision.ts` / `workspace.ts`,
-  `SEMANTICS-R6.md`). This document authors *existing*, frozen wire content —
-  it invents no new stored shape (LTA-INV-1).
+- Any change to `step.ts`, `SEMANTICS-S3.md`, or the `loop-revision/6`
+  projection (`revision.ts` / `workspace.ts`, `SEMANTICS-R6.md`). This
+  document authors *existing*, frozen wire content — it invents no new stored
+  shape (LTA-INV-1). The one addition to `stateExpr.ts` is a **pure
+  classification helper with no new recognised values** (§LTA4.1) — it
+  changes what the Inspector shows, never what the engine accepts.
 - An "advanced" mode exposing `timing` / `when` as independent fields. Not
   designed here, not stubbed, not a hidden toggle. `SEMANTICS-S3.md` v1
   recognises exactly one non-default value per field, so a two-option preset
@@ -72,13 +85,14 @@ every UI-reachable state is engine-valid by construction.
 
 | id | statement |
 |---|---|
-| **LTA-INV-1** | The control writes **exactly one of two shapes** on a `label` edge's `data`, never a third: (a) **no `timing` key, no `when` key** — the "Always" preset; (b) **`timing: "afterPull"`, `when: "source-fired"`** — the "On source fire" preset. Choosing (a) **deletes** both keys if present (never writes the literal `"phase0"`) — a label edge no author has ever touched this control on, and one where the author has explicitly chosen "Always", produce byte-identical `data`, byte-identical `fullContentDigest` / `semanticDigest`, and byte-identical engine `report` (`SEMANTICS-S3.md` §S3-7 / `SEMANTICS-R6.md` R6-INV-2). |
-| **LTA-INV-2** | No engine, grammar, schema, or digest change. This is an authoring surface over `SEMANTICS-S3.md` / `SEMANTICS-R6.md`, exactly as `docs/register-expression-authoring.md` is over `loop-expr/1` — the frozen documents are read, never amended, by this slice. |
-| **LTA-INV-3** | **Never a silent rewrite.** The control never auto-converts an `S`-form modifier to a literal, never auto-reconnects an edge to fix an ineligible source, and never auto-normalises an unrecognised stored `timing` / `when` on load. Every one of those states is shown and explained (§LTA4/§LTA5); the author acts on it explicitly, or leaves it as-is. Mirrors `SEMANTICS-S3.md` §S3-5's own governing rule, extended to the editor. |
-| **LTA-INV-4** | **Locked / mobile:** read-only. The current preset (or the unrecognised-value state) renders as text, with the same preview sentence as the editable state; no radios, no `select`, no keyboard target. Mirrors `docs/register-expression-authoring.md` §RXA5's mobile rule verbatim. |
-| **LTA-INV-5** | A preset switch is **one ordinary field edit** — it goes through the same `setEdgeData` → commit → `simulationRev` bump path as every other edge-data field, one undo entry, no special-cased history handling. |
-| **LTA-INV-6** | Fully keyboard-operable (`role="radiogroup"`, arrow-key navigation between the two options, `Tab` to enter/leave) and screen-reader labelled — each option's accessible name states its consequence, not its internal id (§LTA7). |
-| **LTA-INV-7** | EN / KO / JA copy ships in the same PR as the control (matching every other Inspector field). **No internal identifier — `phase0`, `afterPull`, `source-fired`, or the raw field names `timing` / `when` — appears in any user-facing string**, in any locale, in the normal-operation states. (The one narrow exception, and only there: the unrecognised-imported-value warning may echo the literal stored string so the author can see what a hand-edited file actually contains — §LTA4.3 / §LTA10-D5.) |
+| **LTA-INV-1** | A **fresh pick** through the structured radio control writes **exactly one of two shapes**, in **one** `setEdgeData` call (§LTA2 atomicity, LTA-INV-8): (a) **no `timing` key, no `when` key** — "Always"; (b) **`timing: "afterPull"`, `when: "source-fired"`** — "On source fire". Choosing (a) **deletes** both keys if present (never writes the literal `"phase0"`) — a label edge no author has ever touched this control on, and one where the author has explicitly chosen "Always", produce byte-identical `data`, byte-identical `fullContentDigest` / `semanticDigest`, and byte-identical engine `report` (`SEMANTICS-S3.md` §S3-7 / `SEMANTICS-R6.md` R6-INV-2). |
+| **LTA-INV-2** | No engine, grammar, schema, or digest change. `stateExpr.ts` gains one pure classification function (§LTA4.1) with no new recognised `timing` / `when` value and no change to `parseLabelTiming` / `parseLabelWhen` / `step.ts`'s own validation. This is an authoring surface over `SEMANTICS-S3.md` / `SEMANTICS-R6.md`, exactly as `docs/register-expression-authoring.md` is over `loop-expr/1` — the frozen documents are read, never amended, by this slice. |
+| **LTA-INV-3** | **The structured control never freshly authors a state its own classifier or eligibility check calls invalid** (§LTA4) — an option that is not *currently* valid for the edge's source / target / modifier is **disabled**, not silently committable (§LTA10-D2, reversing this document's first draft). Separately, and just as firmly: **an already-stored value that later becomes invalid — by a reconnect, an import, or a hand edit — is never auto-corrected.** It round-trips verbatim; only a warning changes. New wrongness is prevented at the point of a fresh, structured choice; existing wrongness is preserved and explained, never silently fixed. (Free-text entry — the modifier field itself — is a different contract, §LTA5 / RXA-INV-5: it can never be "disabled," so it stays warn-and-commit.) |
+| **LTA-INV-4** | **Locked / mobile:** read-only. The current classification (§LTA4.1) and any warning render as text, with the same line as the editable state; no radios, no `select`, no keyboard target. Mirrors `docs/register-expression-authoring.md` §RXA5's mobile rule verbatim. |
+| **LTA-INV-5** | Mode switches **preserve** `timing` / `when` on the edge's `data` — the control hides while `mode !== 'label'`, but nothing is deleted (matching the actual `{ ...ed, mode }` spread already in `Inspector.tsx`, and mirroring how `delay` already survives a switch away from `trigger`). Returning to `label` mode re-shows whichever classification (§LTA4.1) those preserved fields represent — never reset to "Always" — unless the author explicitly picks a preset. |
+| **LTA-INV-6** | Fully keyboard-operable (`role="radiogroup"`, arrow-key navigation between the two options including a *disabled* one being focusable-but-not-selectable per the native `role="radio"` `aria-disabled` pattern, `Tab` to enter/leave) and screen-reader labelled — each option's accessible name states its consequence, not its internal id (§LTA7). |
+| **LTA-INV-7** | EN / KO / JA copy ships in the same PR as the control (matching every other Inspector field). **No internal identifier — `phase0`, `afterPull`, `source-fired`, or the raw field names `timing` / `when` — appears in any user-facing string**, in any locale, in a normal-operation state. (The one narrow exception, and only there: the "unsupported combination" message may echo the literal stored values so the author can see what a hand-edited file actually contains — §LTA4.4 / §LTA10-D5.) |
+| **LTA-INV-8** | A preset switch is **one atomic edit**: one `setEdgeData` call carrying both keys' final state together (never one call per key), one commit, one undo entry, **exactly one** `simulationRev` bump. No intermediate render or saved state ever shows only one of `timing` / `when` present when the other is required — every render is one of: neither key, or both keys, or (only for a pre-existing / imported value) whatever the file actually had, verbatim. |
 
 ## LTA3. The preset model
 
@@ -104,166 +118,226 @@ field name (LTA-INV-7).
 - **Default for a brand-new label edge:** Preset A, unchanged from today — a
   new label edge has never had `timing` / `when`, so "new edge" and "Preset A
   selected" are the same state; no migration, no first-run prompt.
-- **A pre-existing label edge from before this feature:** reads as Preset A
-  (LTA-INV-1(a)) — every currently-saved graph opens with every label showing
+- **A pre-existing label edge from before this feature:** classifies as `A`
+  (§LTA4.1) — every currently-saved graph opens with every label showing
   "Always", the correct and only truthful reading.
 
 This closes Hanrim's ask #5 (bundle vs. independent fields) as: **bundle**.
 It structurally forecloses `phase0 + when` (§S3-5 row 2) and `afterPull` with
-no `when` / a foreign `when` (§S3-5 rows 3–4) — none of those shapes has a
-control that produces them.
+no `when` / a foreign `when` (§S3-5 rows 3–4) from ever being **freshly
+authored** — no control combination produces them (§LTA4.1/LTA-INV-3).
 
-## LTA4. Eligibility & warnings
+## LTA4. Classification & eligibility
 
-Two shapes remain reachable that this control does not by itself prevent,
-because they depend on **graph structure the author can change independently**
-(the edge's source node) or **the modifier field** (§LTA5) — not on the preset
-control in isolation. Per LTA-INV-3, neither is auto-fixed; both are shown.
+Two independent questions, deliberately kept separate because they are
+answered by different code and change for different reasons:
 
-### LTA4.1 Preset B needs a Phase-2 source
+1. **Classification (§LTA4.1)** — a pure function of the two stored fields
+   alone: does `(timing, when)` mean `phase0`, `afterPull`, or neither?
+2. **Eligibility (§LTA4.2)** — given the edge's *current graph context*
+   (its source node's kind, its target node's kind, its modifier's parsed
+   token), is the classified preset — or the *other*, not-yet-chosen preset —
+   one `SEMANTICS-S3.md` §S3-5 would actually run, or would it fail-close?
 
-`SEMANTICS-S3.md` §S3-5 row 5: an `afterPull` label's source must be a node
-that fires in Phase 2 — Gate, Converter, Drain, or End (`ROUTER_KINDS` in
-`src/engine/step.ts`). If Preset B is selected on an edge whose current
-source is a Pool or a Source, the edit is stored (LTA-INV-1(b) is still
-written verbatim — never silently refused) but currently has **no effect**.
-Shown as an inline warning under the radio group:
+A stored value can be classification-`unsupported` (bad on its own, rows
+1–4) while being eligibility-fine, or classification-valid (`phase0` /
+`afterPull`) while being eligibility-bad (rows 5–8, a graph-context problem).
+The control's rendering and its disable rules (§LTA4.3) combine both.
 
-> EN: "This connection's source is a Pool — 'On source fire' needs a Gate,
-> Converter, Drain, or End source. This edit has no effect until you
-> reconnect it."
-> KO: "이 연결의 소스가 Pool이에요 — '소스 실행 시'는 게이트·컨버터·드레인·엔드
-> 소스가 필요해요. 다시 연결하기 전까지 이 설정은 적용되지 않아요."
+### LTA4.1 Classification — a shared, engine-agreeing function
 
-The node-kind names (Pool / Gate / Converter / Drain / End) are existing
-Loop Studio vocabulary — every one already appears in the node palette and
-`inspector.edge.mode.*` — so this is not new jargon (contrast the internal
-identifiers LTA-INV-7 bars).
+New in `src/engine/stateExpr.ts` (alongside `parseLabelTiming` /
+`parseLabelWhen`, which it composes — no new grammar, LTA-INV-2):
 
-### LTA4.2 Preset A needs a Pool source (pre-existing rule, now surfaced)
+```ts
+export type LabelTimingClass = 'phase0' | 'afterPull' | 'unsupported'
 
-Not a new rule — `loop-state/1` has always required a `phase0` label's source
-to be a Pool. Today's Inspector doesn't check this at all, so a label wired
-from, say, a Gate has silently done nothing since before CSU existed. Since
-§LTA4.1 already computes the source node's kind to validate Preset B, doing
-the symmetric check for Preset A is nearly free and closes a real,
-pre-existing silent-failure gap:
+export function classifyLabelTiming(rawTiming: unknown, rawWhen: unknown): LabelTimingClass {
+  const t = parseLabelTiming(rawTiming)
+  if (!t.ok) return 'unsupported'                          // S3-5 row 1
+  if (t.timing === 'phase0') {
+    return rawWhen === undefined ? 'phase0' : 'unsupported' // S3-5 row 2
+  }
+  const w = parseLabelWhen(rawWhen)
+  return w.ok ? 'afterPull' : 'unsupported'                 // S3-5 rows 3 + 4
+}
+```
 
-> EN: "This connection's source isn't a Pool — 'Always' needs a Pool source.
-> This edit has no effect until you reconnect it."
-> KO: "이 연결의 소스가 Pool이 아니에요 — '항상'은 Pool 소스가 필요해요. 다시
-> 연결하기 전까지 이 설정은 적용되지 않아요."
+This is **exactly** `SEMANTICS-S3.md` §S3-5's rows 1–4, and only those rows —
+rows 5–8 are graph-context (§LTA4.2), not a property of `(timing, when)`
+alone. Both the engine (`step.ts`, indirectly — its own inline checks stay as
+they are; this function is not wired into `step.ts`, which needs no change,
+LTA-INV-2) and the Inspector read the **same** rows 1–4 logic because the
+Inspector calls this **one** function — never a re-derived condition living
+only in `Inspector.tsx` (LTA-D8). This directly answers Hanrim's finding #1:
+the four example bad combinations —
 
-(A source that is itself a `Source` node satisfies *neither* rule — both
-warnings' underlying conditions hold; only the one matching the **currently
-selected** preset is shown, since only one preset's warning is relevant at a
-time.)
+- `phase0 + source-fired` (row 2)
+- `afterPull` + no `when` (row 3)
+- no `timing` + `source-fired` (identical to the first — absent `timing`
+  normalises to `phase0` before the `when` check runs)
+- `afterPull` + an unrecognised `when` (row 4)
 
-**Decision (§LTA10-D2): allow, don't hard-disable.** Both radio options stay
-selectable regardless of the current source — hard-disabling one based on
-transient graph state adds real complexity (recompute on every reconnect,
-decide what happens to a disabled-but-already-selected option) for a case
-that is never destructive: an ineligible preset just means "no effect right
-now," identical in spirit to `docs/register-expression-authoring.md` §RXA3.5's
-"wrong kind" reference row (shown, flagged, still saved). The warning is the
-correction mechanism, not a lock.
+— are all four `unsupported` by this one function, alongside a genuinely
+unrecognised `timing` string (row 1). §LTA9 tests all four plus row 1
+explicitly, by id, not just "some bad value."
 
-### LTA4.3 An unrecognised stored value (imported / hand-edited file)
+### LTA4.2 Eligibility — four independent, graph-context conditions
 
-`SEMANTICS-S3.md` §S3-5 rows 1 and 4 — a `timing` that is neither absent,
-`"phase0"`, nor `"afterPull"`, or a `when` other than `"source-fired"`. This
-control **never writes** such a value (LTA-INV-1), so it is reachable only by
-opening a file that already has one (hand-edited, or produced by a future
-version / a bug). Per `SEMANTICS-R6.md` §R6-2.2 the value is preserved
-verbatim on load and through every save — it is not clobbered.
+| condition | required by | source of truth |
+|---|---|---|
+| **target is a Pool** (present, `data.kind === 'pool'`) | **both** presets | `SEMANTICS-S3.md` §S3-5 row 6 (`afterPull`) + the pre-existing `loop-state/1` rule (`phase0`, never before surfaced in the UI — Hanrim's finding #2) |
+| **source is a Pool** | preset A only | pre-existing `loop-state/1` rule |
+| **source is a Router** (`ROUTER_KINDS` — Gate / Converter / Drain / End) | preset B only | `SEMANTICS-S3.md` §S3-5 row 5 |
+| **modifier is not an `S`-form** (`parseLabelExpr(expr).token !== 'S'`) | preset B only | `SEMANTICS-S3.md` §S3-5 row 8 |
 
-The radiogroup shows **neither** preset as selected; a third, distinct
-message replaces the usual warning:
+A missing/deleted target or source node fails its respective condition (not
+a distinct third case) — "not a Pool" and "doesn't exist" render the same
+warning, since both mean the edge can't run as that preset right now.
 
-> EN: "This connection was imported with a value Loop Studio doesn't
-> recognise (`timing: "nope"`) — it currently has no effect. Choose one of
-> the two options above to replace it."
-> KO: "이 연결은 Loop Studio가 인식하지 못하는 값(`timing: "nope"`)으로
-> 가져왔어요 — 지금은 적용되지 않아요. 위 두 옵션 중 하나를 선택해서
-> 바꿔주세요."
+### LTA4.3 Combining classification + eligibility → what renders
 
-This is the **one** place the literal stored string is shown (§LTA10-D5) —
-it is diagnostic information about a file's actual content, in a state that
-by definition did not come from this UI, not a label for a normal choice.
-Selecting either preset overwrites the unrecognised value with that preset's
-exact shape (LTA-INV-1) — there is no "keep the unrecognised value" option,
-matching "never a silent rewrite, but a chosen one is fine."
+For each preset, computed independently:
+
+- **selected** — `classifyLabelTiming(ed.timing, ed.when) === 'phase0' | 'afterPull'` for that preset (never both; never for "unsupported").
+- **eligible** — every one of §LTA4.2's conditions that applies to that preset currently holds.
+- **enabled for a fresh pick** — always `eligible`. **Never** `eligible && !selected` alone — i.e. eligibility, not current selection, gates whether clicking that radio is allowed right now (LTA-INV-3).
+
+Rendering:
+
+| state | radio A | radio B | line under the group |
+|---|---|---|---|
+| classified `phase0`, both eligible | checked, enabled | unchecked, enabled | §LTA6 normal preview for A |
+| classified `phase0`, target/source-for-A ineligible | checked, **disabled** | unchecked, enabled/disabled per B's own conditions | the failing condition's warning (§LTA6) |
+| classified `afterPull`, both eligible | unchecked, enabled | checked, enabled | §LTA6 normal preview for B |
+| classified `afterPull`, target/source-for-B/modifier ineligible | unchecked, enabled/disabled per A's own conditions | checked, **disabled** | the failing condition's warning |
+| classified `unsupported` | unchecked, enabled iff A-eligible | unchecked, enabled iff B-eligible | §LTA4.4 unsupported message |
+
+A **checked** option can be **disabled** — this is the one place §LTA4.1 and
+§LTA4.2 interact for an *already-stored* value that graph editing elsewhere
+made ineligible (a reconnect, a deleted target). It stays checked (LTA-INV-3
+— never silently changed) and disabled (a fresh re-pick of the same,
+currently-bad option is not offered either — there is nothing to "re-pick,"
+the value is already there); the **other** radio, if eligible, stays a live
+escape hatch to fix it. If **neither** is eligible (e.g. the target was
+deleted), both are disabled and the line explains the more fundamental
+problem (target) rather than the preset-specific one (§LTA6 priority order).
+
+### LTA4.4 The `unsupported` classification
+
+Reached only by opening a file with a stored value `classifyLabelTiming`
+rejects (§LTA4.1) — this control never writes one (LTA-INV-1/3). Neither
+radio is checked; both raw stored values are preserved verbatim on every
+subsequent save (LTA-INV-3) until the author explicitly picks a preset (which
+overwrites both keys with that preset's exact shape, LTA-INV-1). The message
+is the **one** place raw field values appear (LTA-INV-7 / §LTA10-D5):
+
+> EN: "This connection has a timing/condition combination Loop Studio
+> doesn't support (currently: timing = `nope`, when = `source-fired`) — it
+> currently has no effect. Choose one of the two options above to replace
+> it."
+> KO: "이 연결의 적용 시점/조건 조합을 Loop Studio가 지원하지 않아요(현재
+> timing = `nope`, when = `source-fired`) — 지금은 적용되지 않아요. 위 두
+> 옵션 중 하나를 선택해서 바꿔주세요."
+
+The interpolated pair always shows **both** fields as currently stored
+(`(none)` for an absent one), regardless of which row of §LTA4.1 produced
+`unsupported` — one message, one wording, parameterised — rather than eight
+bespoke strings mirroring each `SEMANTICS-S3.md` §S3-5 row 1–4 sub-case. Row
+5–8 (eligibility) failures are never described here; they use §LTA4.2's own
+per-condition warnings even when they additionally co-occur with an
+`unsupported` classification (rare — an unsupported value is already going to
+be replaced by picking a preset, so eligibility for the *not-yet-chosen*
+preset is what the enabled/disabled state in §LTA4.3's last row already
+conveys).
 
 ## LTA5. The modifier field's `S`-form gate
 
-`SEMANTICS-S3.md` §S3-5 row 8: an `afterPull` label's `expr` must be a
-numeric literal (`+N -N =N`) — `+S -S =S` fail-close ("cannot read S" — an
-`afterPull` source is not a Pool, so `S[source]` has no meaning). This is
-reachable **live**, by typing, independent of §LTA4: an author on Preset B
-can type `+S` into the existing modifier field at any time.
+`SEMANTICS-S3.md` §S3-5 row 8. Two distinct paths reach an `S`-form under
+"On source fire," with **two different, deliberately different, contracts**
+(Hanrim's finding #3):
 
-`ExprField` (`src/components/Inspector.tsx`) currently applies the identical
-`parseLabelExpr` grammar regardless of `timing` — it has no reason to know
-about presets today. This slice adds one thing to it: when the edge is on
-Preset B and the parsed modifier's `token === 'S'`, show a distinct hint in
-place of the normal "describe the effect" hint:
+1. **A fresh switch from A to B while the modifier is already an `S`-form.**
+   This is a **structured** choice — §LTA4.2's fourth condition makes radio B
+   **disabled** in this state (with the reason "needs a fixed number, not
+   S"), exactly like the source/target conditions. The switch **cannot
+   happen** until the modifier is fixed. (Reverses this document's first
+   draft, which allowed the switch and warned after the fact.)
+2. **Typing `+S` directly into the free-text modifier field while already on
+   B.** This is **not** a structured control — it is the same `<input>` every
+   other expression uses, and per `docs/register-expression-authoring.md`
+   RXA-INV-5 ("the editor never blocks a save … committed and flagged,
+   exactly as today"), free text is never disabled or refused. It **commits**
+   (the value round-trips) and shows a distinct hint in place of the normal
+   "describe the effect" hint:
 
-> EN: "'On source fire' can only use a fixed number (e.g. +1, =0) — not S."
-> KO: "'소스 실행 시'는 고정된 숫자만 쓸 수 있어요(예: +1, =0) — S는 안 돼요."
+   > EN: "'On source fire' can only use a fixed number (e.g. +1, =0) — not S."
+   > KO: "'소스 실행 시'는 고정된 숫자만 쓸 수 있어요(예: +1, =0) — S는 안 돼요."
 
-**Decision (§LTA10-D3): warn, don't block the commit.** Consistent with
-§LTA4's "allow, don't hard-disable" and with `docs/register-expression-authoring.md`
-RXA-INV-5 ("the editor never blocks a save … committed and flagged, exactly
-as today") — an `S`-form modifier under Preset B still saves (the engine's
-own fail-closed handling is exactly as harmless as any other already-existing
-invalid-label state), it is just immediately, visibly explained instead of
-requiring a simulation run to discover.
+Both paths end at the *same stored state* (`afterPull` + `when` +
+an `S`-form `expr`) and the *same* §LTA4.2 "modifier ineligible" condition
+now also disables a **fresh** switch away-and-back on radio B — but path 1
+never lets that state be **created** through the radio, while path 2 (already
+on B, editing the free-text field) can still reach it, matching the
+established free-input precedent. No mutation happens in either direction:
+neither switching presets nor typing rewrites the *other* field to
+compensate.
 
-No mutation happens in either direction: switching Preset A → B with an
-existing `S`-form modifier does **not** rewrite the expression (it would be
-guessing what number the author meant); switching back to A makes the same
-`S`-form valid again with no edit needed, since `S` is legal there.
+## LTA6. The preview / warning line
 
-## LTA6. The preview sentence
+One line, always present under the radiogroup (or under the read-only
+classification text, per LTA-INV-4). Exactly one of the following, in this
+priority order (most fundamental problem first):
 
-One line, always present under the radiogroup (or under the read-only preset
-text, per LTA-INV-4), stating in plain language when the edit currently takes
-effect — this is Hanrim's ask #8 and doubles as the accessible description
-tying the whole control together (§LTA7):
+1. **Target ineligible** (§LTA4.2) — applies regardless of which preset is
+   selected or being considered; shown first since neither preset can work
+   until it's fixed.
+2. **The selected preset's own source/modifier condition is ineligible**
+   (§LTA4.2) — e.g. B selected but source isn't a Router.
+3. **`unsupported` classification** (§LTA4.4) — neither preset currently
+   applies.
+4. **Normal preview** — the selected preset is fully eligible.
 
-| state | EN preview |
+| state | EN line |
 |---|---|
-| Preset A, eligible source | "Applied at the start of every step." |
-| Preset B, eligible source | "Applied once this connection's source fires this step, right after this step's results are computed." |
-| Preset A, ineligible source | *(the §LTA4.2 warning stands in for this line)* |
-| Preset B, ineligible source | *(the §LTA4.1 warning stands in for this line)* |
-| Preset B, `S`-form modifier | *(the §LTA5 warning stands in for this line)* |
-| unrecognised stored value | *(the §LTA4.3 message stands in for this line)* |
+| target ineligible | "This connection's target isn't a Pool (or no longer exists) — neither option can take effect until it's reconnected to one." |
+| A selected, source ineligible | "This connection's source isn't a Pool — 'Always' needs a Pool source. This edit has no effect until you reconnect it." |
+| B selected, source ineligible | "This connection's source isn't a Gate, Converter, Drain, or End — 'On source fire' needs one of those. This edit has no effect until you reconnect it." |
+| B selected, modifier is `S`-form (reached via §LTA5 path 2) | the §LTA5 hint, shown here too so both paths agree |
+| `unsupported` | the §LTA4.4 message |
+| A selected, everything eligible | "Applied at the start of every step." |
+| B selected, everything eligible | "Applied once this connection's source fires this step, right after this step's results are computed." |
 
-i.e. exactly one line is ever shown per state — the ordinary preview when
-nothing is wrong, or the single most relevant warning when something is.
-(If more than one condition holds — e.g. an ineligible source **and** an
-`S`-form modifier on Preset B — the source-eligibility warning (§LTA4.1) takes
-priority, since fixing the source is the more fundamental blocker; the
-`S`-form warning appears once the source is fixed.)
+The node-kind names (Pool / Gate / Converter / Drain / End) are existing Loop
+Studio vocabulary — every one already appears in the node palette and
+`inspector.edge.mode.*` — so none of this is new jargon (contrast the internal
+identifiers LTA-INV-7 bars).
 
 ## LTA7. Keyboard, screen reader, IME, mobile, locked
 
 - **Keyboard:** the radiogroup follows the standard native radio pattern —
-  `↑`/`↓` (and `←`/`→`) move the selection between the two options and commit
-  immediately (no separate "apply" step, matching every other Inspector
-  `select`); `Tab` enters/leaves the group as one stop.
-- **Screen reader:** the group has an accessible name (the field label, §LTA3)
-  and each option's accessible name is its full outcome text (the EN strings
-  in §LTA3's table) — never the bare word "Always" / "On source fire" alone
-  without the "at the start of every step" / "after this step's results"
-  qualifier, so the consequence is in the name itself, not only in visible
-  text a screen reader might not reach. The preview sentence / warning
-  (§LTA4–§LTA6) is an `aria-live="polite"` region, debounced, mirroring
-  `docs/register-expression-authoring.md`'s read-back region.
-- **IME:** not applicable — this control has no free-text entry (the two
-  presets are chosen, not typed). The adjacent modifier field's existing IME
-  behaviour (none needed — it's a numeric/operator grammar) is unchanged.
+  `↑`/`↓` (and `←`/`→`) move focus between the two options; a **disabled**
+  option is reachable by arrow navigation (so its reason is discoverable) but
+  does not commit on `Space`/`Enter` and is not the initial focus target when
+  the other option is enabled. An enabled option commits immediately on
+  selection (no separate "apply" step, matching every other Inspector
+  `select`). `Tab` enters/leaves the group as one stop.
+- **Screen reader — two different ARIA mechanisms for two different jobs**
+  (Hanrim's minor-cleanup note): the normal preview line (§LTA6's last two
+  rows) is **not** a live region — it is static text the radiogroup already
+  points at via `aria-describedby`, since its content already restates each
+  option's consequence and a live region would double-announce what the
+  option's own accessible name just said. A **warning** (§LTA6's first four
+  rows) uses `aria-live="polite"`, because it can appear or change as a
+  *side effect* of an edit elsewhere (reconnecting the source, editing the
+  target, editing the modifier) without the radiogroup receiving focus, and
+  that change genuinely needs announcing. A disabled option's reason is in
+  its own accessible description (`aria-describedby` on that `role="radio"`),
+  not only in the shared line, so it is discoverable by navigating options
+  even before an attempted (refused) selection.
+- **IME:** not applicable to the radiogroup itself (no free-text entry — the
+  two presets are chosen, not typed). The adjacent modifier field's existing
+  IME behaviour (none needed — it's a numeric/operator grammar) is unchanged.
 - **Mobile:** LTA-INV-4 — read-only text, matching the established
   `docs/mobile.md` §MV3a edit-lock precedent exactly (canvas edit-locked on
   mobile ⇒ this field, like every other Inspector field, is not reachable to
@@ -273,23 +347,36 @@ priority, since fixing the source is the more fundamental blocker; the
 ## LTA8. i18n
 
 New keys (naming to match the existing `inspector.*` namespace convention;
-final key names are an implementation detail, not fixed by this document):
+final key names are an implementation detail, not fixed by this document).
+**Nine** keys, not six (correcting this document's first draft, Hanrim's
+minor note):
 
-- `inspector.field.labelTiming` — the field label ("When it applies" / "적용
-  시점" / "適用タイミング").
-- `inspector.labelTiming.always` / `inspector.labelTiming.afterPull` — the two
-  option texts (§LTA3 table).
-- `inspector.labelTiming.previewAlways` / `inspector.labelTiming.previewAfterPull`
-  — the two normal preview sentences (§LTA6).
-- `inspector.labelTiming.warnSourceNotRouter` / `inspector.labelTiming.warnSourceNotPool`
-  — §LTA4.1 / §LTA4.2 (each takes no dynamic content — the node-kind names
-  are fixed by the rule, not by the specific graph).
-- `inspector.labelTiming.warnSForm` — §LTA5.
-- `inspector.labelTiming.unrecognised` — §LTA4.3 (interpolates the raw stored
-  string — the one exception, LTA-INV-7 / §LTA10-D5).
+1. `inspector.field.labelTiming` — the field label ("When it applies" / "적용
+   시점" / "適用タイミング").
+2. `inspector.labelTiming.always` — preset A's option text (§LTA3).
+3. `inspector.labelTiming.afterPull` — preset B's option text (§LTA3).
+4. `inspector.labelTiming.previewAlways` — §LTA6 row "A selected, everything
+   eligible."
+5. `inspector.labelTiming.previewAfterPull` — §LTA6 row "B selected,
+   everything eligible."
+6. `inspector.labelTiming.warnTargetNotPool` — §LTA6 row "target ineligible"
+   — shared by both presets (Hanrim's finding #2), reused verbatim as the
+   disabled-reason text for both radios when this condition fails.
+7. `inspector.labelTiming.warnSourceNotPool` — §LTA6 row "A selected, source
+   ineligible," reused as A's disabled-reason text.
+8. `inspector.labelTiming.warnSourceNotRouter` — §LTA6 row "B selected,
+   source ineligible," reused as B's disabled-reason text.
+9. `inspector.labelTiming.warnSForm` — §LTA5 (both paths) / §LTA6, reused as
+   B's disabled-reason text when the modifier is already an `S`-form.
+10. `inspector.labelTiming.unsupported` — §LTA4.4 (interpolates the two raw
+    stored values — the one exception, LTA-INV-7 / §LTA10-D5).
 
-All six ship in EN / KO / JA in the same PR as the control (LTA-INV-7),
-following `docs/i18n.md`'s existing per-locale-file convention
+(Ten, in fact, once every reuse is counted as one key — the correction is
+that the first draft undercounted, not that the exact count is load-bearing;
+key *names* are an implementation detail per §LTA10-D7.)
+
+All ship in EN / KO / JA in the same PR as the control (LTA-INV-7), following
+`docs/i18n.md`'s existing per-locale-file convention
 (`src/i18n/locales/{en,ko,ja}/inspector.ts`) and checked by the existing
 `check-i18n.mjs` completeness gate — no exception requested.
 
@@ -298,76 +385,129 @@ following `docs/i18n.md`'s existing per-locale-file convention
 Keyed on node / edge ids, never rendered labels (matching every other
 Inspector E2E suite in this codebase).
 
-1. **Default / round-trip (LTA-INV-1a):** a freshly-created label edge shows
-   Preset A; its `data` carries no `timing` / `when` key; the file's
-   `fullContentDigest` after save equals the pre-feature digest for the same
-   graph.
-2. **Preset B write (LTA-INV-1b):** selecting Preset B on an eligible
-   (Gate/Converter/Drain/End-sourced) label sets `timing: "afterPull",
-   when: "source-fired"` exactly; the engine's next run shows the Phase 2.5
-   effect (cross-checked against `src/engine/state.afterpull.test.ts`'s
-   existing fixtures — this suite is not re-testing the engine, only that the
-   UI writes the shape the engine already accepts).
-3. **Round-trip back to A:** selecting Preset A on an edge currently on
-   Preset B deletes both keys (not `timing: "phase0"`); digest returns to
-   what it was before B was ever chosen.
-4. **Ineligible source warnings (§LTA4.1/4.2):** a label wired from a Pool
-   shows Preset-A-selected-by-default with no warning; switching it to
-   Preset B (without reconnecting) shows the §LTA4.1 warning and still saves
-   the CSU shape; reconnecting the source to a Gate clears the warning with no
-   further edit needed. The symmetric case for a Router-sourced label
-   defaulting to Preset A shows §LTA4.2.
-5. **S-form gate (§LTA5):** on Preset B, typing `+S` into the modifier shows
-   the §LTA5 hint instead of the normal describe-the-effect hint, and still
-   commits (the value round-trips on reload); switching to Preset A on the
-   same edge clears the warning with no expression change.
-6. **Unrecognised value (§LTA4.3):** loading a fixture with
-   `data: { kind: 'state', mode: 'label', expr: '+1', timing: 'nope' }` shows
-   neither preset selected and the §LTA4.3 message including the literal
-   `nope`; choosing Preset A replaces it with the clean shape (test 1);
-   choosing Preset B replaces it with the clean shape (test 2).
-7. **Only on `label` mode (§LTA1):** switching a state edge's mode away from
-   `label` (to `trigger` / `activator`) removes the control from view; no
-   `timing` / `when` key survives the mode switch (mirrors the existing
-   mode-switch key-dropping behaviour for `delay` / `expr`).
-8. **Locked / mobile (LTA-INV-4):** a selected label edge on a locked canvas
-   or mobile viewport shows the current preset (or the §LTA4.3 message) as
-   plain text with the preview sentence, no radio inputs, no keyboard target.
-9. **Keyboard + SR (LTA-INV-6):** `Tab` reaches the radiogroup; `↑`/`↓` moves
-   and commits selection; each option's accessible name includes its full
-   consequence text; the preview/warning region is `aria-live`.
-10. **Localisation (LTA-INV-7):** all six §LTA8 strings present and rendered
+**Classification (§LTA4.1), unit-level in `stateExpr.test.ts`:**
+
+1. `classifyLabelTiming(undefined, undefined)` and `('phase0', undefined)` →
+   `'phase0'`.
+2. `classifyLabelTiming('afterPull', 'source-fired')` → `'afterPull'`.
+3. Each of the four named bad combinations classifies `'unsupported'`,
+   individually asserted by name: `('phase0', 'source-fired')`,
+   `('afterPull', undefined)`, `(undefined, 'source-fired')`,
+   `('afterPull', 'level>=5')` — plus a fifth, `('nope', 'source-fired')`
+   (row 1, an unrecognised `timing`).
+
+**Round-trip / atomicity (Inspector-level):**
+
+4. **Default (LTA-INV-1a):** a freshly-created label edge classifies `A`; its
+   `data` carries no `timing` / `when` key; the file's `fullContentDigest`
+   after save equals the pre-feature digest for the same graph.
+5. **Preset B write (LTA-INV-1b) on an eligible edge:** selecting B sets
+   `timing: "afterPull", when: "source-fired"` exactly, in one call — spy on
+   `setEdgeData` and assert exactly one invocation, with both keys present in
+   its single argument (LTA-INV-8); one undo entry; `simulationRev` bumps by
+   exactly one.
+6. **Round-trip back to A:** selecting A on an edge currently on B deletes
+   both keys (not `timing: "phase0"`) in one call; digest returns to what it
+   was before B was ever chosen; one undo entry; one `simulationRev` bump.
+
+**Eligibility / disabling (§LTA4.2/4.3, reversing the first draft's
+allow-then-warn tests):**
+
+7. **Target ineligible:** a label whose target is a Gate (not a Pool) shows
+   **both** radios disabled and the target warning; attempting to click
+   either does nothing (no `setEdgeData` call). Deleting the target node
+   produces the same result.
+8. **Source ineligible for A:** a label sourced from a Gate, classified `A`
+   (e.g. a pre-existing file), shows A **checked and disabled**, B enabled;
+   clicking B (now eligible, since the source is a Router) switches to B
+   normally; the disabled A never becomes freshly selectable while the source
+   stays a Gate.
+9. **Source ineligible for B:** a label sourced from a Pool: clicking radio B
+   **does nothing** (it is disabled, per LTA-INV-3) — no `setEdgeData` call,
+   no digest change, `timing`/`when` stay exactly as before the click. This
+   replaces the first draft's "commits with a warning" test for this case.
+10. **Modifier `S`-form blocks a fresh switch to B (§LTA5 path 1):** a label
+    with modifier `-S`, currently classified `A`: radio B is disabled with
+    the §LTA5 reason; changing the modifier to `-1` enables B; only then does
+    clicking B commit.
+11. **Free-text `S` on an already-B edge still commits (§LTA5 path 2):**
+    typing `+S` into the modifier field while B is selected still commits the
+    expression change (round-trips on reload) and shows the §LTA5 hint; the
+    stored `timing`/`when` are untouched by this edit.
+12. **An already-stored value that becomes ineligible is preserved, never
+    auto-corrected:** start with a valid `B` edge (Router source); reconnect
+    its source to a Pool via the canvas (not through this control); reload
+    the Inspector selection — `timing`/`when` are **unchanged** on disk
+    (assert via the saved file / digest), radio B renders checked-and-disabled
+    with the source warning, and radio A (now eligible) is available to fix
+    it with one click.
+13. **Unsupported classification (§LTA4.4):** loading a fixture with
+    `data: { kind: 'state', mode: 'label', expr: '+1', timing: 'nope', when: 'source-fired' }`
+    shows neither preset checked, both raw values in the message, and (if
+    source/target are otherwise eligible) both radios enabled; choosing A
+    replaces it with the clean shape (test 4's assertions); choosing B
+    replaces it with the clean shape (test 5's assertions). A second fixture
+    using each of the other three named bad combinations (test 3) is checked
+    the same way.
+
+**Mode switch (LTA-INV-5, correcting the first draft's reversed claim):**
+
+14. Switching a state edge's mode away from `label` (to `trigger` /
+    `activator`) hides the control, but a subsequent inspection of the edge's
+    raw `data` shows `timing` / `when` **still present**, byte-for-byte
+    (mirroring `delay` surviving a switch away from `trigger` today).
+    Switching back to `label` re-shows the **same** classification (§LTA4.1)
+    those preserved fields represent — not reset to "Always."
+
+**Other:**
+
+15. **Locked / mobile (LTA-INV-4):** a selected label edge on a locked canvas
+    or mobile viewport shows the current classification (or the §LTA4.4
+    message) as plain text with the appropriate line from §LTA6, no radio
+    inputs, no keyboard target.
+16. **Keyboard + SR (LTA-INV-6/§LTA7):** `Tab` reaches the radiogroup; arrow
+    keys move focus including onto a disabled option (reason discoverable,
+    no commit); the static preview is reachable via `aria-describedby`
+    (present, correctly associated, **not** inside an `aria-live` region);
+    a warning appears inside an `aria-live="polite"` region and updates when
+    triggered by an edit elsewhere (e.g. test 12's reconnect) without the
+    radiogroup itself needing focus.
+17. **Localisation (LTA-INV-7):** all ten §LTA8 strings present and rendered
     correctly in EN / KO / JA; none of `phase0` / `afterPull` /
     `source-fired` / the bare words `timing` / `when` appears in any of the
-    non-`unrecognised` strings in any locale (a grep-based lint in the E2E
-    suite, mirroring the existing `check-i18n.mjs` style of mechanical checks).
-11. **No engine/digest regression (LTA-INV-2):** the full existing
+    non-`unsupported` strings in any locale (a grep-based lint in the E2E
+    suite, mirroring the existing `check-i18n.mjs` style of mechanical
+    checks).
+18. **No engine/digest regression (LTA-INV-2):** the full existing
     `state.afterpull.test.ts` / `gacha-pity-timing.probe.test.ts` /
     `revision.csu.test.ts` / `revision-v6-fixture.test.ts` suites are
-    unaffected — zero non-`.tsx` engine or model file touched by this slice's
-    implementation PR (a CI-checkable claim, like PR #181's "zero `.tsx` file
-    touched" note in reverse).
+    unaffected; `step.ts` is untouched by this slice's implementation PR (a
+    CI-checkable claim, like PR #181's "zero `.tsx` file touched" note in
+    reverse — here it is "zero `step.ts` line touched").
 
 ## LTA10. Decisions
 
 | id | question | decision |
 |---|---|---|
 | **LTA-D1** | independent `timing`/`when` fields, an "advanced" toggle, or a bundled preset? | **Bundled, two-option preset, no advanced mode.** (§LTA3) `loop-state/3` v1 has exactly one non-default value per field, so two named outcomes already cover the full valid space; an advanced mode would exist only to let an author construct a state `SEMANTICS-S3.md` §S3-5 already forbids. Revisit only if a future spec revision adds a second `when`. |
-| **LTA-D2** | hard-disable an ineligible preset, or allow + warn? | **Allow + warn.** (§LTA4.2) Matches `docs/register-expression-authoring.md`'s "disable + reason" for a *structurally impossible* choice (self/cycle reference) but that precedent is for a choice that can *never* be valid from that picker; an ineligible preset here becomes valid again the moment the source is reconnected, so a live warning is more honest than a lock that would need constant recomputation. |
-| **LTA-D3** | block committing an `S`-form modifier under Preset B, or warn only? | **Warn only, still commits.** (§LTA5) Matches RXA-INV-5's "never blocks a save" precedent; the failure mode is a no-op diagnostic, not data loss. |
+| **LTA-D2** | hard-disable a currently-ineligible preset for a *fresh* pick, or allow + warn? | **Hard-disable a fresh pick; never rewrite an existing one.** (§LTA4.3, LTA-INV-3) **Reverses this document's first draft.** Matches `docs/register-expression-authoring.md`'s "disable + reason" precedent for a wrong-kind autocomplete candidate more closely than this draft first judged: the structured radio, like the reference picker, is a *discrete, re-derivable-every-render* choice, not free text — there is no cost to recomputing its enabled state on every render, and doing so is strictly safer than letting the control author a combination `SEMANTICS-S3.md` already fail-closes. An *already-stored* value that becomes ineligible through unrelated graph edits is a different situation (nothing was freshly chosen) and is preserved + warned, never corrected (Hanrim's "새로운 잘못은 막고, 이미 존재하는 잘못은 조용히 고치지 않는다"). |
+| **LTA-D3** | block a fresh switch to B while the modifier is an `S`-form, or warn only? | **Block the switch (§LTA5 path 1); free-text entry of `S` while already on B still warns-and-commits (path 2), unchanged.** Two different input mechanisms, two different contracts — the radio is structured and re-derivable (§LTA-D2's reasoning applies identically), the modifier `<input>` is free text and RXA-INV-5 already governs it. |
 | **LTA-D4** | should selecting "Always" ever write the literal `timing: "phase0"`? | **No — delete both keys.** (LTA-INV-1a) Byte-identical to "never touched," which is both simpler to reason about and the only way every pre-existing graph's digest stays untouched by this feature shipping. |
-| **LTA-D5** | show the raw stored string for an unrecognised imported value? | **Yes, in that one message only.** (§LTA4.3) It is diagnostic content about a file the tool did not produce; hiding it would make an already-confusing state harder to debug, and it cannot leak into the two normal-operation strings LTA-INV-7 protects since those never carry the raw field name at all. |
-| **LTA-D6** | surface the pre-existing "Preset A needs a Pool source" gap now, or leave it alone since it predates CSU? | **Surface it now.** (§LTA4.2) The source-kind check for Preset B (§LTA4.1) already computes the information; leaving the symmetric, pre-existing silent-failure case unaddressed while shipping a brand-new warning for its sibling would be an inconsistent user experience for a near-zero marginal cost. |
+| **LTA-D5** | show the raw stored string(s) for an unsupported value? | **Yes, in that one message only, and now both fields together** (not just `timing` — this draft's first pass showed only the offending `timing` value; §LTA4.4 always shows the full `(timing, when)` pair since row 2's failure mode is a bad `when` on an otherwise-fine `phase0`). It is diagnostic content about a file the tool did not produce this way; hiding it would make an already-confusing state harder to debug, and it cannot leak into the normal-operation strings LTA-INV-7 protects since those never carry the raw field name at all. |
+| **LTA-D6** | surface the pre-existing "needs a Pool source/target" gaps now, or leave them alone since they predate CSU? | **Surface both now.** (§LTA4.2) The eligibility check for preset B already computes source kind; adding the symmetric source-for-A check, and the target-for-both check `SEMANTICS-S3.md` §S3-5 row 6 explicitly names (Hanrim's finding #2 — missing entirely from this draft's first pass), closes real, pre-existing silent-failure gaps for a near-zero marginal cost, and is more consistent than shipping only the brand-new B-source check. |
 | **LTA-D7** | exact i18n key names, warning copy wording, radiogroup visual styling | Not fixed here — implementation detail, finalised during the impl PR against the real Inspector layout (mirrors RXA10-D7's precedent for tunable constants). The **meaning** of each string (§LTA3/§LTA4/§LTA5/§LTA6/§LTA8) is what this document fixes. |
+| **LTA-D8** | where does the `phase0`/`afterPull`/`unsupported` classification logic live? | **`src/engine/stateExpr.ts`, one shared function (§LTA4.1), not re-derived in `Inspector.tsx`.** Follows the file's own stated charter ("the engine and the editor must always agree on what is recognised") to its logical conclusion: `parseLabelTiming` / `parseLabelWhen` already live there for exactly this reason; the composition of the two into the three-way answer the Inspector needs belongs beside them, not duplicated. |
+| **LTA-D9** | one `aria-live` region for everything, or split? | **Split.** (§LTA7) The static, always-true-while-selected preview is reached via `aria-describedby` (no live announcement — it would double the option's own accessible name); only a warning, which can appear as a side effect of an edit elsewhere, uses `aria-live="polite"`. Avoids the redundant-announcement issue Hanrim flagged. |
 
 ## LTA11. Work order
 
-1. **This design doc** — its own PR, reviewed and approved before any UI code
-   lands (Hanrim, 2026-09-12).
-2. **Implementation PR** — the radiogroup + warnings + preview sentence in
-   `Inspector.tsx`, the `ExprField` `S`-form-under-Preset-B hint, EN/KO/JA
-   copy, and the §LTA9 acceptance suite. No engine, `stateExpr.ts`, `step.ts`,
-   `revision.ts`, or `workspace.ts` change.
+1. **This design doc** — its own PR, reviewed and approved before any UI or
+   `stateExpr.ts` code lands (Hanrim; round 2 in progress, 2026-09-12).
+2. **Implementation PR** — `classifyLabelTiming` in `stateExpr.ts` (with unit
+   tests, §LTA9 items 1–3); the radiogroup + eligibility disabling +
+   preview/warning line + `ExprField`'s `S`-form hint in `Inspector.tsx`;
+   EN/KO/JA copy; the full §LTA9 acceptance suite. No `step.ts`, `revision.ts`,
+   or `workspace.ts` change.
 3. **README** — updated only after step 2 ships and is verified (per Hanrim:
    not yet, since the Inspector doesn't exist until then).
 4. Unblocks **GS10-3** (gacha hard-pity content) — the first real content
