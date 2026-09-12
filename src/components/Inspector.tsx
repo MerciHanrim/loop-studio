@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import {
   classifyLabelTiming,
   eligibleLabelPreset,
@@ -532,7 +532,7 @@ function ExprField({
             ? t('inspector.expr.activatorPlaceholder')
             : t('inspector.expr.labelPlaceholder')
         }
-        aria-invalid={!res.p.ok}
+        aria-invalid={!res.p.ok || sFormUnderAfterPull}
         onChange={(e) => setData({ ...ed, expr: e.target.value })}
       />
       <p className={`field__hint ${hintOk ? 'field__hint--ok' : 'field__hint--bad'}`}>{hint}</p>
@@ -557,9 +557,10 @@ const REASON_KEY: Record<LabelPresetReasonA | LabelPresetReasonB, MessageKey> = 
 }
 
 /** raw stored value for the §LTA4.4 unsupported message — never blank, never
- *  a non-string coerced silently; anything other than a string reads as "—"
- *  (an existing "no value" convention in this app, e.g. `panels.summary.noValue`). */
-const rawOrDash = (v: unknown): string => (typeof v === 'string' ? v : '—')
+ *  a non-string coerced silently; anything other than a non-empty string
+ *  reads as "—" (an existing "no value" convention in this app, e.g.
+ *  `panels.summary.noValue`). */
+const rawOrDash = (v: unknown): string => (typeof v === 'string' && v !== '' ? v : '—')
 
 function LabelTimingField({
   ed,
@@ -577,6 +578,17 @@ function LabelTimingField({
   const isMobile = useIsMobile()
   const lockedDesktop = useUiStore((s) => s.canvasLocked)
   const readOnly = isMobile || lockedDesktop
+  // On mobile, the hidden desktop `.inspector` and `MobileInspectorSheet`'s own
+  // Inspector can both be mounted at once — a fixed id/name would duplicate in
+  // the DOM (invalid HTML, an ambiguous `aria-describedby` target). `useId()`
+  // gives each mounted instance its own prefix; applied in both branches below
+  // (not just the editable one) so a hidden-vs-shown pair never collides
+  // regardless of which rendering path either instance takes.
+  const uid = useId()
+  const groupLineId = `labelTiming-groupline-${uid}`
+  const reasonAId = `labelTiming-reasonA-${uid}`
+  const reasonBId = `labelTiming-reasonB-${uid}`
+  const radioName = `labelTiming-${uid}`
   const classified = classifyLabelTiming(ed.timing, ed.when)
   const modifier = parseLabelExpr(ed.expr ?? '')
   const { eligible, reasonA, reasonB } = eligibleLabelPreset({ targetKind, sourceKind, modifier })
@@ -601,17 +613,18 @@ function LabelTimingField({
         : t(classified === 'phase0' ? 'inspector.labelTiming.previewAlways' : 'inspector.labelTiming.previewAfterPull')
 
   if (readOnly) {
-    // LTA-INV-4 — mobile / locked: plain text, same content, no radios.
+    // LTA-INV-4 — mobile / locked: plain text, same content, no radios. The
+    // `unsupported` message already states the whole situation on its own
+    // (§LTA4.4) — showing a preset-name line above it too would duplicate the
+    // same long sentence, so that line is only rendered for phase0/afterPull.
     return (
       <FieldDiv label={t('inspector.field.labelTiming')}>
-        <p className="field__hint">
-          {classified === 'phase0'
-            ? t('inspector.labelTiming.always')
-            : classified === 'afterPull'
-              ? t('inspector.labelTiming.afterPull')
-              : t('inspector.labelTiming.unsupported', { timing: rawOrDash(ed.timing), when: rawOrDash(ed.when) })}
-        </p>
-        <p className={`field__hint labeltiming__groupline ${isWarningLine ? 'field__hint--bad' : 'field__hint--ok'}`}>
+        {classified !== 'unsupported' && (
+          <p className="field__hint">
+            {classified === 'phase0' ? t('inspector.labelTiming.always') : t('inspector.labelTiming.afterPull')}
+          </p>
+        )}
+        <p id={groupLineId} className={`field__hint labeltiming__groupline ${isWarningLine ? 'field__hint--bad' : 'field__hint--ok'}`}>
           {groupLine}
         </p>
       </FieldDiv>
@@ -626,9 +639,8 @@ function LabelTimingField({
   // without the radiogroup itself receiving focus. Avoids double-announcing
   // the same text an option's accessible name (or its own reason paragraph)
   // already carries.
-  const groupLineId = 'labelTiming-groupline'
-  const describedByA = reasonA ? 'labelTiming-reasonA' : classified === 'phase0' && !isWarningLine ? groupLineId : undefined
-  const describedByB = reasonB ? 'labelTiming-reasonB' : classified === 'afterPull' && !isWarningLine ? groupLineId : undefined
+  const describedByA = reasonA ? reasonAId : classified === 'phase0' && !isWarningLine ? groupLineId : undefined
+  const describedByB = reasonB ? reasonBId : classified === 'afterPull' && !isWarningLine ? groupLineId : undefined
 
   return (
     <FieldDiv label={t('inspector.field.labelTiming')}>
@@ -636,7 +648,7 @@ function LabelTimingField({
         <label className="labeltiming__option">
           <input
             type="radio"
-            name="labelTiming"
+            name={radioName}
             checked={classified === 'phase0'}
             disabled={eligible !== 'A'}
             aria-describedby={describedByA}
@@ -645,14 +657,14 @@ function LabelTimingField({
           {t('inspector.labelTiming.always')}
         </label>
         {reasonA && (
-          <p id="labelTiming-reasonA" className="field__hint field__hint--bad labeltiming__reason">
+          <p id={reasonAId} className="field__hint field__hint--bad labeltiming__reason">
             {t(REASON_KEY[reasonA])}
           </p>
         )}
         <label className="labeltiming__option">
           <input
             type="radio"
-            name="labelTiming"
+            name={radioName}
             checked={classified === 'afterPull'}
             disabled={eligible !== 'B'}
             aria-describedby={describedByB}
@@ -661,7 +673,7 @@ function LabelTimingField({
           {t('inspector.labelTiming.afterPull')}
         </label>
         {reasonB && (
-          <p id="labelTiming-reasonB" className="field__hint field__hint--bad labeltiming__reason">
+          <p id={reasonBId} className="field__hint field__hint--bad labeltiming__reason">
             {t(REASON_KEY[reasonB])}
           </p>
         )}

@@ -20,6 +20,7 @@ const DEMO = JSON.stringify({
     { id: 'poolD', type: 'pool', position: { x: 440, y: 150 }, data: { kind: 'pool', label: 'D', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
     { id: 'poolE', type: 'pool', position: { x: 0, y: 300 }, data: { kind: 'pool', label: 'E', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
     { id: 'poolF', type: 'pool', position: { x: 220, y: 300 }, data: { kind: 'pool', label: 'F', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+    { id: 'poolG', type: 'pool', position: { x: 440, y: 300 }, data: { kind: 'pool', label: 'G', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
   ],
   edges: [
     { id: 'e_a_gate', source: 'poolA', target: 'gate', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '1' } },
@@ -40,6 +41,12 @@ const DEMO = JSON.stringify({
     { id: 'm_target_bad', source: 'gate', target: 'gate2', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'label', expr: '+1' } },
     // m_unsupported — an imported, hand-edited unsupported combination
     { id: 'm_unsupported', source: 'gate', target: 'poolE', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'label', expr: '+1', timing: 'nope', when: 'source-fired' } },
+    // m_router_valid — Router source, Pool target, N modifier, no timing yet:
+    // classified phase0 (A checked, but disabled — source isn't a Pool), B
+    // eligible. A single, isolated edit target for the A -> B Undo test (no
+    // preceding same-edge edit to risk graphStore's same-tag coalescing,
+    // COALESCE_MS in src/store/graphStore.ts).
+    { id: 'm_router_valid', source: 'gate', target: 'poolG', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'label', expr: '+5' } },
   ],
 })
 
@@ -57,9 +64,14 @@ const edgeData = (page: Page, id: string) =>
 const simulationRev = (page: Page) =>
   page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().simulationRev)
 
+const pastLength = (page: Page) =>
+  page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().past.length)
+
+const undo = (page: Page) => page.evaluate(() => (window as unknown as Bridge).__loop.graph.getState().undo())
+
 const load = async (page: Page) => {
   await importGraph(page, DEMO)
-  await expect(page.locator('.react-flow__node')).toHaveCount(8)
+  await expect(page.locator('.react-flow__node')).toHaveCount(9)
 }
 
 // the radiogroup: [0] = Always, [1] = On source fire
@@ -148,6 +160,41 @@ test.describe('label timing — preset radiogroup (docs/label-timing-authoring.m
     await expect(radios(page).nth(1)).toBeChecked() // still checked
     await expect(radios(page).nth(1)).toBeDisabled() // but now ineligible (s-form)
     expect(await edgeData(page, 'm_afterpull')).toMatchObject({ expr: '+S', timing: 'afterPull', when: 'source-fired' })
+    // fail-closed in MEANING (an afterPull source can't read S), so the
+    // modifier input itself is flagged invalid too, not just its hint text
+    await expect(expr).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  test('Undo contract — A -> B is one history entry; one Undo restores the exact prior shape', async ({ page }) => {
+    await selectEdge(page, 'm_router_valid')
+    const before = await edgeData(page, 'm_router_valid') // { kind, mode, expr: '+5' }, no timing/when
+    const pastBefore = await pastLength(page)
+
+    await radios(page).nth(1).check() // the ONLY edit in this test — A -> B
+    expect(await pastLength(page)).toBe(pastBefore + 1) // exactly one history entry
+    expect(await edgeData(page, 'm_router_valid')).toMatchObject({ timing: 'afterPull', when: 'source-fired' })
+
+    await undo(page)
+    expect(await edgeData(page, 'm_router_valid')).toEqual(before) // exact prior shape, byte-for-byte
+    // undo() clears the selection (graphStore.ts) — re-select to inspect the UI
+    await selectEdge(page, 'm_router_valid')
+    await expect(radios(page).nth(1)).not.toBeChecked()
+  })
+
+  test('Undo contract — B -> A is one history entry; one Undo restores the exact prior (afterPull) shape', async ({ page }) => {
+    await selectEdge(page, 'm_afterpull_poolsourced')
+    const before = await edgeData(page, 'm_afterpull_poolsourced') // the stored afterPull shape
+    const pastBefore = await pastLength(page)
+
+    await radios(page).nth(0).check() // the ONLY edit in this test — B -> A (the live escape hatch)
+    expect(await pastLength(page)).toBe(pastBefore + 1)
+    const afterData = await edgeData(page, 'm_afterpull_poolsourced')
+    expect('timing' in afterData).toBe(false)
+
+    await undo(page)
+    expect(await edgeData(page, 'm_afterpull_poolsourced')).toEqual(before) // timing/when restored exactly
+    await selectEdge(page, 'm_afterpull_poolsourced') // undo() clears the selection
+    await expect(radios(page).nth(1)).toBeChecked()
   })
 
   test('an unsupported stored combination: neither radio checked, the raw values appear in the message, eligibility still computed independently', async ({ page }) => {
@@ -189,6 +236,14 @@ test.describe('label timing — preset radiogroup (docs/label-timing-authoring.m
     await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(true))
     await expect(radios(page)).toHaveCount(0)
     await expect(page.locator('.inspector')).toContainText(/source fire|소스 실행/)
+  })
+
+  test('locked canvas + unsupported value: the long message renders exactly ONCE, not duplicated', async ({ page }) => {
+    await selectEdge(page, 'm_unsupported')
+    await page.evaluate(() => (window as unknown as Bridge).__loop.ui.getState().setCanvasLocked(true))
+    await expect(radios(page)).toHaveCount(0)
+    const occurrences = await page.locator('.inspector').getByText('nope').count()
+    expect(occurrences).toBe(1)
   })
 
   test('Export -> Import round-trips an afterPull edge byte-for-byte', async ({ page }) => {

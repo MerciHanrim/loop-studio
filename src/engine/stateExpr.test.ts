@@ -1,11 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { classifyLabelTiming, eligibleLabelPreset, parseLabelExpr } from './stateExpr'
+import { classifyLabelTiming, eligibleLabelPreset, parseLabelExpr, ROUTER_KINDS } from './stateExpr'
+import { ROUTER_KINDS as ROUTER_KINDS_VIA_STEP } from './step'
+import { ROUTER_KINDS as ROUTER_KINDS_VIA_BARREL } from '../engine'
 
 // docs/label-timing-authoring.md §LTA9 — the shared classification /
 // eligibility helpers behind the Inspector's label-timing radiogroup.
 // Pure, synchronous, no store — exactly the surface the design doc asks for
 // so the Inspector never re-derives what SEMANTICS-S3.md §S3-5 already
 // decided (LTA-D8 / LTA-D12).
+
+// LTA-D13 — ROUTER_KINDS' canonical home is stateExpr.ts; step.ts imports and
+// explicitly re-exports it (a bare `import` does not re-export) rather than
+// declaring its own copy, so `src/engine/index.ts`'s existing barrel export
+// keeps resolving. Both paths must be the SAME object, not just equal values,
+// or the engine and the Inspector could still silently drift apart.
+describe('ROUTER_KINDS — one canonical object, two resolvable import paths (LTA-D13)', () => {
+  it('the barrel (`../engine`) and the direct (`./step`) paths both resolve to the canonical stateExpr.ts object', () => {
+    expect(ROUTER_KINDS_VIA_STEP).toBe(ROUTER_KINDS)
+    expect(ROUTER_KINDS_VIA_BARREL).toBe(ROUTER_KINDS)
+  })
+})
 
 describe('classifyLabelTiming (§LTA4.1 — SEMANTICS-S3.md §S3-5 rows 1-4)', () => {
   it('absent timing, no when -> phase0', () => {
