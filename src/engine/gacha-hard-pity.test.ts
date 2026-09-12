@@ -25,6 +25,7 @@ import type { SimState } from './index'
 import { initSim, step } from './index'
 
 const HARD_PITY = 3
+const PULL_COST = 1
 
 const XY = { x: 0, y: 0 }
 const pool = (id: string, initial = 0): LoopNode => ({
@@ -34,10 +35,6 @@ const pool = (id: string, initial = 0): LoopNode => ({
 const gate = (id: string, distribution: 'deterministic' | 'probabilistic' = 'deterministic'): LoopNode => ({
   id, type: 'gate', position: XY,
   data: { kind: 'gate', label: id, activation: 'automatic', distribution, mode: 'pullAny' },
-})
-const converter = (id: string): LoopNode => ({
-  id, type: 'converter', position: XY,
-  data: { kind: 'converter', label: id, activation: 'automatic', mode: 'pullAll' },
 })
 const res = (id: string, s: string, t: string, flow: string): LoopEdge => ({
   id, source: s, target: t, type: 'loop', sourceHandle: 'out', targetHandle: 'in', data: { kind: 'resource', flow },
@@ -67,54 +64,38 @@ function run(nodes: LoopNode[], edges: LoopEdge[], n: number, seed = 1): Row[] {
 }
 
 // ── the shared economy (GS2.1) ──────────────────────────────────────────
-// `buy_pull` (pullAll Converter) consumes `pull_cost` from `wallet` and emits
-// one pulls_made unit + pull_cost into spent_total, atomically — the
-// bookkeeping half of GS2.1. `wallet` is a large-initial-value Pool rather
-// than GS2.1's literal `fund_budget` onStart Source: a Source's step-1 push
-// isn't pullable until step 2 (SEMANTICS.md §3), a funding-choreography
-// concern GS9 already covers separately (item 1) and orthogonal to what this
-// file tests (pity timing).
-//
-// `roll_gate`/`forced_ssr` pull their own unit directly from `wallet` too
-// (below), NOT from `buy_pull`'s output — `buy_pull` is a `pullAll`
-// Converter, all-or-nothing across every output (SEMANTICS.md §9), including
-// a disabled router's `accept() = 0` (§S4); since `roll_gate`/`forced_ssr`
-// are mutually exclusive (exactly one enabled per step, by the pity-ceiling
-// activators), wiring both off one Converter output would make the disabled
-// one's `accept() = 0` block the Converter from ever firing. Routing a Pool
-// (`roll_gate`/`forced_ssr`'s emitted mid-chain) into a Gate also proved to
-// cost a step of lag — a router-to-router push isn't visible to a further
-// pull until the pool is a chain LEAF, same rule as the Source delay above.
-// So both gates instead pull straight off `wallet`, exactly like
-// `gacha-pity-timing.probe.test.ts`'s `budget` Pool feeds its two gates: a
-// Pool's step-start balance is available to every independent puller the
-// same step, with no all-or-nothing coupling between them. `wallet`'s 100,000
-// balance covers `buy_pull` + both roll gates every step with room to spare,
-// so this doesn't model wallet exhaustion (out of scope here; GS10 later
-// slices own that).
-const PULL_COST = 1
-function economyNodesAndEdges() {
+// `wallet` is the sole funding Pool (a large-initial-value Pool rather than
+// GS2.1's literal `fund_budget` onStart Source: a Source's step-1 push isn't
+// pullable until step 2, SEMANTICS.md §3 — a funding-choreography concern GS9
+// already covers separately (item 1) and orthogonal to what this file tests,
+// pity timing). `pulls_made`/`spent_total` are declared here but populated
+// below, by the roll's own result gates — see the note there for why.
+function economyNodesAndEdges(walletInitial = 100_000) {
   const nodes: LoopNode[] = [
-    pool('wallet', 100_000), // effectively unlimited for these run lengths
-    converter('buy_pull'),
+    pool('wallet', walletInitial),
     pool('pulls_made', 0),
     pool('spent_total', 0),
   ]
-  const edges: LoopEdge[] = [
-    res('e_cost', 'wallet', 'buy_pull', String(PULL_COST)),
-    res('e_pulls', 'buy_pull', 'pulls_made', '1'),
-    res('e_spent', 'buy_pull', 'spent_total', String(PULL_COST)),
-  ]
-  return { nodes, edges }
+  return { nodes, edges: [] as LoopEdge[] }
 }
 
 // ── the hard-pity roll (GS2.2 + CSU) ────────────────────────────────────
-// `wallet` reaches exactly one of `roll_gate` (pity < ceiling) or
+// `wallet` pays for exactly one of `roll_gate` (pity < ceiling) or
 // `forced_ssr` (pity >= ceiling), gated by activators on `pity` — the same
 // pattern gacha-pity-timing.probe.test.ts already proved. `roll_gate` is a
 // PROBABILISTIC 3-way categorical (SSR / SR / R, GS4 weights 6:51:943); each
 // branch lands on its own single-output deterministic Gate so that Gate's own
 // `fired` status is a Phase-2.5 `afterPull` source (a Pool can't be one).
+//
+// `pulls_made`/`spent_total` are booked from these SAME four result gates
+// (`ssr_hit`/`sr_hit`/`r_hit`/`forced_ssr`), not from a separate Converter
+// upstream of the payment: an earlier draft paid `wallet` twice per pull (once
+// into a `buy_pull` Converter for the pulls_made/spent_total bookkeeping, once
+// again into whichever roll gate actually fired) and let payment and result
+// run as two independent, potentially-diverging pulls — since exactly one
+// result gate fires per pull, booking off that SAME gate's `fired` status
+// makes "a pull happened" and "the wallet was charged for it" the same event,
+// by construction (Hanrim, PR #184 review round 1).
 function hardPityRollNodesAndEdges(deterministicRoll: false | 'ssr' | 'non-ssr' = false) {
   const nodes: LoopNode[] = [
     pool('pity', 0),
@@ -134,9 +115,9 @@ function hardPityRollNodesAndEdges(deterministicRoll: false | 'ssr' | 'non-ssr' 
         ? { ssr: '0', sr: '0', r: '1' } // forces R every non-ceiling pull (never natural SSR)
         : { ssr: '6', sr: '51', r: '943' } // GS4's real weights
   const edges: LoopEdge[] = [
-    res('e_roll_in', 'wallet', 'roll_gate', '1'),
+    res('e_roll_in', 'wallet', 'roll_gate', String(PULL_COST)),
     act('a_roll', 'pity', 'roll_gate', `< ${HARD_PITY - 1}`),
-    res('e_forced_in', 'wallet', 'forced_ssr', '1'),
+    res('e_forced_in', 'wallet', 'forced_ssr', String(PULL_COST)),
     act('a_forced', 'pity', 'forced_ssr', `>= ${HARD_PITY - 1}`),
 
     res('e_roll_ssr', 'roll_gate', 'ssr_hit', rollWeights.ssr),
@@ -155,12 +136,25 @@ function hardPityRollNodesAndEdges(deterministicRoll: false | 'ssr' | 'non-ssr' 
     // a non-SSR result (SR or R) increments pity by exactly 1 this step.
     afterPullLabel('l_inc_sr', 'sr_hit', 'pity', '+1'),
     afterPullLabel('l_inc_r', 'r_hit', 'pity', '+1'),
+
+    // exactly one of these four fires per pull — booking pulls_made/spent_total
+    // off the SAME gate that produced the result (rather than a separate
+    // payment Converter) ties "a pull happened" and "it was paid for" to one
+    // event; see the function comment above.
+    afterPullLabel('l_pulls_ssr', 'ssr_hit', 'pulls_made', '+1'),
+    afterPullLabel('l_pulls_sr', 'sr_hit', 'pulls_made', '+1'),
+    afterPullLabel('l_pulls_r', 'r_hit', 'pulls_made', '+1'),
+    afterPullLabel('l_pulls_forced', 'forced_ssr', 'pulls_made', '+1'),
+    afterPullLabel('l_spent_ssr', 'ssr_hit', 'spent_total', `+${PULL_COST}`),
+    afterPullLabel('l_spent_sr', 'sr_hit', 'spent_total', `+${PULL_COST}`),
+    afterPullLabel('l_spent_r', 'r_hit', 'spent_total', `+${PULL_COST}`),
+    afterPullLabel('l_spent_forced', 'forced_ssr', 'spent_total', `+${PULL_COST}`),
   ]
   return { nodes, edges }
 }
 
-function hardPityGraph(deterministicRoll: false | 'ssr' | 'non-ssr' = false) {
-  const economy = economyNodesAndEdges()
+function hardPityGraph(deterministicRoll: false | 'ssr' | 'non-ssr' = false, walletInitial = 100_000) {
+  const economy = economyNodesAndEdges(walletInitial)
   const roll = hardPityRollNodesAndEdges(deterministicRoll)
   return { nodes: [...economy.nodes, ...roll.nodes], edges: [...economy.edges, ...roll.edges] }
 }
@@ -169,7 +163,8 @@ function hardPityGraph(deterministicRoll: false | 'ssr' | 'non-ssr' = false) {
 // `roll_gate` is unconditionally active (no `forced_ssr`, no activators, no
 // `pity`) — this is the "existing no-ceiling basic model" GS10-3 compares
 // against, built to the identical weights/economy so the comparison isolates
-// exactly the hard-pity mechanism's effect.
+// exactly the hard-pity mechanism's effect. `pulls_made`/`spent_total` are
+// booked off the three result gates, same reasoning as the hard-pity roll.
 function noPityBaselineGraph() {
   const economy = economyNodesAndEdges()
   const nodes: LoopNode[] = [
@@ -184,13 +179,19 @@ function noPityBaselineGraph() {
   ]
   const edges: LoopEdge[] = [
     ...economy.edges,
-    res('e_roll_in', 'wallet', 'roll_gate', '1'),
+    res('e_roll_in', 'wallet', 'roll_gate', String(PULL_COST)),
     res('e_roll_ssr', 'roll_gate', 'ssr_hit', '6'),
     res('e_roll_sr', 'roll_gate', 'sr_hit', '51'),
     res('e_roll_r', 'roll_gate', 'r_hit', '943'),
     res('e_ssr_out', 'ssr_hit', 'ssr_count', '1'),
     res('e_sr_out', 'sr_hit', 'sr_count', '1'),
     res('e_r_out', 'r_hit', 'r_count', '1'),
+    afterPullLabel('l_pulls_ssr', 'ssr_hit', 'pulls_made', '+1'),
+    afterPullLabel('l_pulls_sr', 'sr_hit', 'pulls_made', '+1'),
+    afterPullLabel('l_pulls_r', 'r_hit', 'pulls_made', '+1'),
+    afterPullLabel('l_spent_ssr', 'ssr_hit', 'spent_total', `+${PULL_COST}`),
+    afterPullLabel('l_spent_sr', 'sr_hit', 'spent_total', `+${PULL_COST}`),
+    afterPullLabel('l_spent_r', 'r_hit', 'spent_total', `+${PULL_COST}`),
   ]
   return { nodes, edges }
 }
@@ -255,6 +256,48 @@ describe('GS10-3 — hard pity in the realistic gacha economy (docs/example-gach
           const total = N(t[s].v, 'ssr_count') + N(t[s].v, 'sr_count') + N(t[s].v, 'r_count')
           expect(total).toBe(N(t[s].v, 'pulls_made'))
         }
+      }
+    })
+  })
+
+  describe('wallet accounting (Hanrim, PR #184 review round 1 — payment and result must be one event)', () => {
+    it('wallet spend and spent_total agree, and spent_total tracks pulls_made 1:1, every step', () => {
+      const { nodes, edges } = hardPityGraph(false)
+      const walletInitial = 100_000
+      const t = run(nodes, edges, 50)
+      for (let s = 1; s <= 50; s++) {
+        expect(walletInitial - N(t[s].v, 'wallet')).toBe(N(t[s].v, 'spent_total'))
+        expect(N(t[s].v, 'spent_total')).toBe(N(t[s].v, 'pulls_made') * PULL_COST)
+      }
+    })
+
+    it('a natural SSR and a forced SSR are booked identically: -PULL_COST wallet, +PULL_COST spent_total, +1 pulls_made', () => {
+      const natural = run(hardPityGraph('ssr').nodes, hardPityGraph('ssr').edges, 1)
+      const forced = run(hardPityGraph('non-ssr').nodes, hardPityGraph('non-ssr').edges, 3) // ceiling at step 3
+      expect(natural[1].fired).toContain('ssr_hit')
+      expect(natural[0].v.wallet - natural[1].v.wallet).toBe(PULL_COST)
+      expect(natural[1].v.spent_total).toBe(PULL_COST)
+      expect(natural[1].v.pulls_made).toBe(1)
+
+      expect(forced[3].fired).toContain('forced_ssr')
+      expect(forced[2].v.wallet - forced[3].v.wallet).toBe(PULL_COST)
+      expect(forced[3].v.spent_total - forced[2].v.spent_total).toBe(PULL_COST)
+      expect(forced[3].v.pulls_made - forced[2].v.pulls_made).toBe(1)
+    })
+
+    it('a wallet funded for exactly one pull buys exactly one pull, then every counter holds', () => {
+      const { nodes, edges } = hardPityGraph('ssr', PULL_COST) // wallet = PULL_COST, all-SSR roll
+      const t = run(nodes, edges, 5)
+      expect(t[1].fired).toContain('ssr_hit')
+      expect(t[1].v.wallet).toBe(0)
+      expect(t[1].v.spent_total).toBe(PULL_COST)
+      expect(t[1].v.pulls_made).toBe(1)
+      for (let s = 2; s <= 5; s++) {
+        expect(t[s].fired).not.toContain('ssr_hit')
+        expect(t[s].fired).not.toContain('forced_ssr')
+        expect(t[s].v.wallet).toBe(0)
+        expect(t[s].v.spent_total).toBe(PULL_COST)
+        expect(t[s].v.pulls_made).toBe(1)
       }
     })
   })
