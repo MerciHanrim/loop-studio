@@ -143,6 +143,31 @@ describe('resource handle ids', () => {
     expect(round.edges.find((e) => e.id === 'ac')?.data).toEqual({ kind: 'state', mode: 'activator', expr: '>= 5' })
   })
 
+  it('CSU / loop-state/3 — a label\'s `timing` + `when` survive import -> export -> import', () => {
+    // regression: normalizeEdge's state-edge branch used to REBUILD `data`
+    // from an explicit field list (kind/mode/expr/delay) with no catch-all —
+    // any field not on that list, including these, was silently dropped on
+    // every normalizeGraph pass (app boot, import, template open).
+    const first = deserialize(
+      doc(
+        [n('g', 'gate'), n('p', 'pool')],
+        [
+          {
+            id: 'ap', source: 'g', target: 'p', sourceHandle: 'state-source', targetHandle: 'state-target',
+            data: { kind: 'state', mode: 'label', expr: '+1', timing: 'afterPull', when: 'source-fired' },
+          },
+          { id: 'p0', source: 'p', target: 'p', sourceHandle: 'state-source', targetHandle: 'state-target', data: { kind: 'state', mode: 'label', expr: '+1' } },
+        ] as unknown as Partial<LoopEdge>[],
+      ),
+    )
+    const round = deserialize(serialize(first.nodes, first.edges))
+    expect(round.edges.find((e) => e.id === 'ap')?.data).toEqual({
+      kind: 'state', mode: 'label', expr: '+1', timing: 'afterPull', when: 'source-fired',
+    })
+    // a plain (phase0) label carries neither field — stays exactly as before
+    expect(round.edges.find((e) => e.id === 'p0')?.data).toEqual({ kind: 'state', mode: 'label', expr: '+1' })
+  })
+
   it('normalizeGraph backfills a template-style edge with no handles', () => {
     const { edges } = normalizeGraph({
       nodes: [],
