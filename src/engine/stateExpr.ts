@@ -110,6 +110,32 @@ export function parseActivatorExpr(raw: string, modelVersion: ModelVersion = 1):
   return { ok: false, reason: 'not-a-comparison' }
 }
 
+/** docs/parameter-activator.md §PA5 / SEMANTICS-S4.md §S4-2 — Class 2
+ *  resolution, the ONE shared implementation `step.ts` (the engine) and the
+ *  Inspector's live preview both call, so the preview a Parameter picker
+ *  shows can never drift from what the engine actually gates on — the whole
+ *  point of the off-by-one fix being a live number, not a trusted formula.
+ *  `findNode` is intentionally minimal (not a full `LoopNode`) so callers
+ *  with different node representations (the engine's `byId` map, the
+ *  Inspector's `useGraphStore` node list) can both supply it directly. */
+export type ActivatorResolution =
+  | { ok: true; threshold: number }
+  | { ok: false; reason: 'unknown' | 'not-param' | 'non-finite' | 'overflow'; kind?: string }
+
+export function resolveParamRhs(
+  rhs: Extract<ActivatorRhs, { kind: 'param' }>,
+  findNode: (id: string) => { kind: string; value?: unknown } | undefined,
+): ActivatorResolution {
+  const target = findNode(rhs.id)
+  if (!target) return { ok: false, reason: 'unknown' }
+  if (target.kind !== 'parameter') return { ok: false, reason: 'not-param', kind: target.kind }
+  const v = target.value
+  if (typeof v !== 'number' || !Number.isFinite(v)) return { ok: false, reason: 'non-finite' }
+  const threshold = v + rhs.offset
+  if (!Number.isFinite(threshold)) return { ok: false, reason: 'overflow' }
+  return { ok: true, threshold }
+}
+
 export type LabelReason = 'empty' | 'not-an-assignment' | 'non-finite'
 export type LabelParse =
   | { ok: true; op: '+' | '-' | '='; token: 'N' | 'S'; n: number } // `n` is meaningful only for token 'N'

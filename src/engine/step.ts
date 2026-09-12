@@ -10,6 +10,7 @@ import {
   parseLabelExpr,
   parseLabelTiming,
   parseLabelWhen,
+  resolveParamRhs,
 } from './stateExpr'
 // docs/label-timing-authoring.md LTA-D13 — `ROUTER_KINDS`'s canonical home is
 // `stateExpr.ts` (shared with the Inspector's `eligibleLabelPreset`); this
@@ -296,43 +297,34 @@ export function step(
     }
     // docs/parameter-activator.md §PA5 — a `param-term` RHS resolves once,
     // here, against this step's node map (never a prior step's — a Parameter
-    // edit must take effect the very next step). A resolution failure (Class
-    // 2: unknown id, wrong kind, non-finite value, or an overflowing
-    // `v ± offset`) is the OPPOSITE of Class 1: the activator still counts —
-    // it joins the AND as `satisfied: false`, fail-CLOSED, gating its target
-    // off — a syntactically valid `@id` is a declared gating intent, and a
-    // broken reference must stop resource movement, not silently remove the
-    // gate (PA11-D3).
+    // edit must take effect the very next step), via the SAME
+    // `resolveParamRhs` the Inspector's live preview calls — one predicate,
+    // so the preview can never drift from what the engine actually gates on.
+    // A resolution failure (Class 2: unknown id, wrong kind, non-finite
+    // value, or an overflowing `v ± offset`) is the OPPOSITE of Class 1: the
+    // activator still counts — it joins the AND as `satisfied: false`,
+    // fail-CLOSED, gating its target off — a syntactically valid `@id` is a
+    // declared gating intent, and a broken reference must stop resource
+    // movement, not silently remove the gate (PA11-D3).
     let n: number
     if (p.rhs.kind === 'literal') {
       n = p.rhs.n
     } else {
-      const { id: paramId, offset } = p.rhs
-      const target = byId.get(paramId)
-      let threshold: number | null = null
-      if (!target) {
-        diagnostics.push(
-          `Activator "${e.id}" references an unknown parameter "@${paramId}"; target not gated on this comparison.`,
-        )
-      } else if (target.data.kind !== 'parameter') {
-        diagnostics.push(
-          `Activator "${e.id}" reference "@${paramId}" must be a parameter node (got ${target.data.kind}); target not gated on this comparison.`,
-        )
-      } else {
-        const v = (target.data as { value?: unknown }).value
-        if (typeof v !== 'number' || !Number.isFinite(v)) {
-          diagnostics.push(
-            `Activator "${e.id}" parameter "@${paramId}" is not a finite number; target not gated on this comparison.`,
-          )
-        } else if (!Number.isFinite(v + offset)) {
-          diagnostics.push(
-            `Activator "${e.id}" parameter "@${paramId}" resolves to a non-finite threshold; target not gated on this comparison.`,
-          )
-        } else {
-          threshold = v + offset
-        }
-      }
-      if (threshold === null) {
+      const paramId = p.rhs.id
+      const resolution = resolveParamRhs(p.rhs, (id) => {
+        const node = byId.get(id)
+        return node ? { kind: node.data.kind, value: (node.data as { value?: unknown }).value } : undefined
+      })
+      if (!resolution.ok) {
+        const why =
+          resolution.reason === 'unknown'
+            ? `references an unknown parameter "@${paramId}"`
+            : resolution.reason === 'not-param'
+              ? `reference "@${paramId}" must be a parameter node (got ${resolution.kind})`
+              : resolution.reason === 'non-finite'
+                ? `parameter "@${paramId}" is not a finite number`
+                : `parameter "@${paramId}" resolves to a non-finite threshold`
+        diagnostics.push(`Activator "${e.id}" ${why}; target not gated on this comparison.`)
         const prevOk = enabledByNode.get(e.target)
         enabledByNode.set(e.target, prevOk === undefined ? false : prevOk && false)
         stateEvents.push({
@@ -341,7 +333,7 @@ export function step(
         })
         continue
       }
-      n = threshold
+      n = resolution.threshold
     }
     const satisfied = cmp(S[e.source] ?? 0, p.op, n)
     const prevOk = enabledByNode.get(e.target)

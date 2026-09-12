@@ -13,6 +13,7 @@ import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateL
 import { createNode, defaultData, nextId } from '../model/factory'
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
+import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
   loadFromStorage,
@@ -537,6 +538,25 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         !Object.is(before?.flow, after.flow)
       ) {
         set({ modelVersion: 2 })
+      }
+      // docs/parameter-activator.md §PA11-D4 — the SAME one-way latch extends
+      // to a state-edge `activator` whose committed `expr` is a `param-term`
+      // (`>= @hard_pity - 1`, PA4). Parsed under `modelVersion: 2` to detect
+      // whether the string MEANS a reference — the same asymmetry the
+      // resource-`flow` check above doesn't need, because a bare leading `@`
+      // has no OTHER meaning to parse under v1, while an activator's `@`
+      // sits after an operator and must be parsed to tell "a param-term" from
+      // "coincidentally contains an at-sign" (unreachable today, but the
+      // parse is cheap and exact rather than a heuristic substring check).
+      if (
+        get().modelVersion === 1 &&
+        after.kind === 'state' &&
+        after.mode === 'activator' &&
+        typeof after.expr === 'string' &&
+        !Object.is(before?.expr, after.expr)
+      ) {
+        const parsedAsV2 = parseActivatorExpr(after.expr, 2)
+        if (parsedAsV2.ok && parsedAsV2.rhs.kind === 'param') set({ modelVersion: 2 })
       }
       if (touched.length === 0 || !touched.every((k) => COSMETIC.has(k))) bump()
       persist()
