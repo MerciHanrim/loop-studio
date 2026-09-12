@@ -4,7 +4,8 @@ import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import type { GraphDocLike } from '../model/moduleGraph'
 import { useGraphStore } from '../store/graphStore'
 import { planSelectionAsModule, readModuleFile } from '../store/moduleIO'
-import { useT } from '../i18n'
+import { useI18n, useT } from '../i18n'
+import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { ConfirmDialog } from './ConfirmDialog'
 import { MODULE_KEY } from './moduleKeys'
 
@@ -78,7 +79,10 @@ export function ModuleMenu() {
   const insertBundled = (id: string) => {
     setOpen(false)
     const block = BUNDLED_MODULES.find((m) => m.id === id)
-    if (block) runInsert(cloneModuleDoc(block), false)
+    if (block) {
+      const locale = useI18n.getState().activeLocale
+      runInsert(cloneModuleDoc(block, moduleLabelOverlay(id, locale)), false)
+    }
   }
 
   const handleFileText = (text: string) => {

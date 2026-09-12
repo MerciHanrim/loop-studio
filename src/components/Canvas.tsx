@@ -16,7 +16,8 @@ import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-import { useT, type MessageKey } from '../i18n'
+import { useI18n, useT, type MessageKey } from '../i18n'
+import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
 import { edgeTypes } from './edges/LoopEdge'
@@ -456,7 +457,8 @@ export function Canvas() {
       if (moduleId) {
         const block = BUNDLED_MODULES.find((m) => m.id === moduleId)
         if (block) {
-          const r = insertModule(cloneModuleDoc(block), { at })
+          const locale = useI18n.getState().activeLocale
+          const r = insertModule(cloneModuleDoc(block, moduleLabelOverlay(moduleId, locale)), { at })
           if (!r.ok) window.alert(r.reason)
         }
         return
