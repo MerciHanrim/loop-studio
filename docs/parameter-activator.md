@@ -1,15 +1,17 @@
 # `@parameter` activator contract (design doc)
 
-**Status: design — pending review (draft 2).** GS10 slice 5 — the prerequisite
-named in [`docs/example-gacha-simulator.md`](example-gacha-simulator.md) GS11-D1
-rev 4 ("a tunable per-banner ceiling needs `@parameter` activator support = new
+**Status: design — approved, frozen (draft 3).** GS10 slice 5 — the
+prerequisite named in
+[`docs/example-gacha-simulator.md`](example-gacha-simulator.md) GS11-D1 rev 4
+("a tunable per-banner ceiling needs `@parameter` activator support = new
 slice, a prerequisite before the 3-zone Template") and confirmed as the next
-kickoff after GS10-3 (hard-pity content, PR #184). No engine code, no Inspector
-code ships in this PR — this document is the contract (including the frozen
-`loop-state/4` / `loop-revision/7` numbers, PA6); engine + Inspector
-implementation is a separate PR after this is approved, exactly as CSU
-(`docs/conditional-state-update.md` → PR #181) and label-timing
-(`docs/label-timing-authoring.md` → PR #182/#183) were each split.
+kickoff after GS10-3 (hard-pity content, PR #184). This document is the
+contract (including the frozen `loop-state/4` number, PA6); engine
+implementation shipped in PR #188 (`feat/parameter-activator-engine`,
+`SEMANTICS-S4.md`), exactly as CSU (`docs/conditional-state-update.md` →
+PR #181) and label-timing (`docs/label-timing-authoring.md` → PR #182/#183)
+were each split into design-then-implementation. Inspector authoring UI and
+the 3-zone Template are separate, later PRs.
 
 **Draft 2 (Hanrim, round 1)** fixed three problems in draft 1: (1) PA5/PA11-D3
 described fail-open reference resolution while the summary called it
@@ -17,11 +19,21 @@ fail-closed — a real contradiction, not a wording slip; resolved by splitting
 "grammar-invalid" from "grammar-valid-but-unresolvable" and giving them
 opposite outcomes (PA5). (2) The grammar was under-specified as an informal
 description rather than an unambiguous one — rewritten as a single fixed
-production with explicit, named rejections (PA4). (3) `loop-state/4` and
-`loop-revision/7` were left as "candidate, impl-PR's call" — frozen here
-instead, including the exact rule for which activators count as
-`loop-revision/7` content (PA6). A fourth point — which pity Pool the 3-zone
-review assumes — is also made explicit rather than left implicit (PA8).
+production with explicit, named rejections (PA4). (3) `loop-state/4` and a
+proposed `loop-revision/7` were left as "candidate, impl-PR's call" — the
+draft froze both. A fourth point — which pity Pool the 3-zone review assumes
+— is also made explicit rather than left implicit (PA8).
+
+**Draft 3 (Hanrim, round 2 — during PR #188's implementation)** REMOVES
+`loop-revision/7` entirely: the implementation found `activator`'s `expr`
+field carries no `modelLayer` gate in `projectEdge()` (unlike CSU's
+`timing`/`when`, which do), so a `param-term` string is already emitted
+identically at every projection level with zero data loss — no
+`SideVersion`-lift mismatch is possible, and `loop-model/2`'s existing
+`modelSemantics` declaration (`loop-revision/4`) already discriminates the
+v1-vs-v2 EXECUTION difference this feature needed distinguished. Verified
+directly (not just argued) in `src/model/parameter-activator-revision.test.ts`.
+PA6, PA10-7, and PA11-D5 are rewritten below; no other section changes.
 
 Prefix `PA`. Sections: **PA0** why · **PA1** today's activator contract ·
 **PA2** the off-by-one problem · **PA3** scope · **PA4** proposed grammar ·
@@ -99,10 +111,10 @@ acceptable design (PA4, PA7).
   computed threshold — and the fail-CLOSED consequence for the target
   (PA5), a genuinely different outcome from a grammar-invalid `expr`
   (unchanged, fail-open, PA1).
-- The `loop-revision`/`loop-state` numbers this raises: **frozen in this
-  document** (`loop-state/4`, `loop-revision/7`, including the exact
-  classification rule for the latter) — only the two files' prose and the
-  engine wiring are left to the implementation PR (PA6).
+- The `loop-state` number this raises: **frozen in this document**
+  (`loop-state/4`) — the file's prose and engine wiring are the
+  implementation PR's job. **No new `loop-revision/N`** — confirmed
+  unnecessary; PA6 has the reasoning.
 - The Inspector authoring surface: a Parameter picker mirroring
   `EdgeFlowField`'s existing `Name · Parameter · = value` pattern, plus a
   live resolved-value preview that is the actual fix for PA2 (PA7).
@@ -250,55 +262,54 @@ no new digest-affecting mechanism** for this part — PA6 covers the one part
 that IS new (document-`SideVersion` *classification*, a different question
 from digest *content*).
 
-## PA6. Revision / digest / the v1→v2 latch — frozen this round
-
-Per Hanrim's round-1 review, the version contract is decided NOW, not left to
-the implementation PR — mirroring how `SEMANTICS-R6.md` itself was a
-complete, numbered contract before PR #181 wrote a line of engine code.
+## PA6. Revision / digest / the v1→v2 latch
 
 **PA11-D6 — new engine-contract number: `loop-state/4`, `SEMANTICS-S4.md`.**
 This extends `SEMANTICS-S.md` §S6's activator grammar — same lineage as
-`SEMANTICS-S2.md` (report shape) and `SEMANTICS-S3.md` (CSU). The file is
-still *written and frozen in the implementation PR* (there is no engine yet
-to describe precisely in prose the way `SEMANTICS-S3.md`'s finished text
-was), but the **number** `loop-state/4` is fixed by this document, not left
-open.
+`SEMANTICS-S2.md` (report shape) and `SEMANTICS-S3.md` (CSU). Written and
+frozen in PR #188.
 
-**PA11-D5 — new document classification: `loop-revision/7`,
-`SEMANTICS-R7.md`, with the exact rule fixed here.** `revision.ts`'s
-`projectEdge()` already emits a state edge's `expr` **verbatim** for every
-kind of state edge, unconditionally (the same code path CSU's `timing`/`when`
-fields sit next to) — so the *byte content* of the digest needs zero new
-projection logic; a `>= @hard_pity - 1` string round-trips today with no
-changes. What DOES need a new `SideVersion` (`readRevisionSide` /
-`isCsuContent`-style precedence — the exact mechanism `SEMANTICS-R6.md` added
-for CSU) is that an activator `expr` can look like valid `param-term` syntax
-with **no resolvable Parameter behind it at all** (the id deleted, wrong
-kind, hand-edited JSON) — today that string is simply `not-a-comparison`,
-inert, zero behavioural weight (PA5 Class 1). Once this feature ships, the
-SAME stored string gains new engine meaning: it becomes a Class 2
-resolution failure that **actively gates its target off** (PA5) — a strictly
-bigger behavioural change than CSU3-5/R6-D2's own finding, since this one
-can newly *block* resource movement that used to happen unconditionally.
+**PA11-D5 (REVERSED in draft 3) — no new `loop-revision/N`.** Draft 2 proposed
+`loop-revision/7` on the CSU precedent (a stored value that used to be inert
+gaining new fail-closed weight must move the digest, per `SEMANTICS-R6.md`).
+PR #188's implementation checked the actual mechanism CSU's bug lived in and
+found it does not apply here, for two independent reasons (Hanrim):
 
-**The rule, fixed:** a state edge counts as `loop-revision/7` content **the
-moment its `expr` parses as `param-term` under PA4's grammar (`mode ===
-'activator'`, RHS matches `param-term`) — independent of whether the
-referenced id exists, is the right kind, or holds a finite value.**
-Classification is a syntactic check, not a resolution — it must not need a
-`byId` node lookup to decide the document's `SideVersion`, for the same
-reason `isCsuContent()` doesn't try to resolve anything either: classifying
-by RESOLVED state would make the digest depend on which OTHER nodes happen
-to exist elsewhere in the same document, an even worse coupling than the one
-being fixed. This mirrors CSU's own precedent exactly (a `label` with any
-non-default `timing`/`when` moved the digest regardless of whether the
-label's source/target were even the right kind — SEMANTICS-R6.md §R6-2) and
-gives the implementation PR a single, purely-syntactic predicate to add to
-`readRevisionSide`'s precedence list, checked before the existing
-model/routing/frames checks (same ordering CSU's `isCsuContent()` needed, and
-for the identical reason: a pure `loop-revision/7` graph may have no
-Parameter, Register, routing, or frame content at all — e.g. an
-`@hard_pity - 1` activator whose Parameter was since deleted).
+1. **No data loss to guard against.** `revision.ts`'s `projectEdge()` gates
+   `timing`/`when` behind `modelLayer` (`if (!modelLayer) continue`) — THAT
+   gate is what let a `loop-revision/1`-inferred graph's projection silently
+   omit CSU content that its `{modelLayer:true}` lift would then include,
+   producing the byte mismatch that crashed `R2-INV-2`. `expr` (`EDGE_FIELDS.
+   state`) carries **no such gate** — it is emitted verbatim at every
+   projection level, unconditionally, before and after this feature. A
+   `param-term`-shaped `expr` string is therefore byte-identical whether the
+   document infers as `loop-revision/1` or anything higher, with or without a
+   matching Parameter node. Verified directly, not just argued:
+   `src/model/parameter-activator-revision.test.ts` §1 compares
+   `canonicalContent({modelLayer:false})` against `{modelLayer:true}` for a
+   dangling `@ghost - 1` reference (no Parameter node in the graph at all —
+   exactly CSU's "pure, no other model content" edge case) and finds them
+   byte-identical, including the digest.
+2. **The v1-vs-v2 EXECUTION difference already has a discriminator.**
+   `loop-model/2`'s `modelSemantics` declaration (`declaredV2` →
+   `loop-revision/4`) already exists specifically to distinguish "this
+   document's `@`-syntax is live" from "it isn't" — CSU never had an
+   equivalent axis for `timing`/`when` (those are unconditionally live
+   the moment they're non-default, with no v1/v2 split at all), which is
+   *why* CSU needed its own new classification. `@parameter` activators
+   reuse `loop-model/2`'s EXISTING v1/v2 split (PA11-D4, S4-1) instead of
+   needing a second one. §3 of the same test file confirms the same
+   underlying graph classifies (and digests) differently purely from the
+   `modelVersion` declaration — `loop-revision/2` vs `loop-revision/4` — with
+   zero new code.
+
+`SEMANTICS-R7.md` is not written; no `SideVersion` gains a `loop-revision/7`
+entry. §4 and §5 of the same test file additionally confirm the full revision
+pipeline (`readRevisionSide`, `computeRevisionDiff`, `computeThreeWay`,
+`buildSelectiveApply`) handles a `param-term` activator — missing Parameter,
+wrong-kind Parameter, and an ordinary literal→param-term field edit — with no
+crash and no value loss, closing the concern draft 2's `loop-revision/7`
+proposal was trying to address, by a different (and simpler) route.
 
 **PA11-D4 — the v1→v2 latch extends to activator `expr`.** Today,
 `graphStore.ts`'s `setEdgeData` promotes `modelVersion` 1→2 only on a
@@ -312,12 +323,11 @@ the same one-way rule (never on load/open, only on the user's own edit) —
 reusing the existing single versioning axis rather than inventing a second
 one, exactly as `loop-model/2`'s own precedent argues for.
 
-**No new stored field, either version.** Both `loop-state/4` and
-`loop-revision/7` describe new MEANING attached to the existing `expr`
-string column — nothing new is written to a `LoopEdge`/`LoopNode` beyond
-what `activator`/`parameter` already store today (PA5's corrected digest
-note applies here too: `expr` and `parameter.value` are already
-unconditionally engine-affecting projection content).
+**No new stored field.** `loop-state/4` describes new MEANING attached to the
+existing `expr` string column — nothing new is written to a
+`LoopEdge`/`LoopNode` beyond what `activator`/`parameter` already store today
+(PA5's corrected digest note applies here too: `expr` and `parameter.value`
+are already unconditionally engine-affecting projection content).
 
 ## PA7. Inspector authoring UI
 
@@ -472,15 +482,19 @@ literal path are untouched (PA1).
    promotes `modelVersion` 1→2 exactly once, on the user's own edit, never
    on load (PA11-D4); loading a file that already contains one does not
    re-trigger the promotion path.
-7. A graph containing ONLY a `param-term` activator (its Parameter present,
-   absent, or wrong-kind — classification is syntactic, PA6) and no other
-   model-layer content classifies as `loop-revision/7`, and round-trips
-   through Apply / selective-Apply / the three-way merge without an
-   `R2-INV-2`-style assertion crash (the exact regression class
-   `SEMANTICS-R6.md` closed for CSU). A graph with ONLY literal activators
-   (PA1, unchanged) continues to classify exactly as it does today — this
-   feature's classification check must not fire for content it doesn't
-   apply to.
+7. **(Revised, draft 3 — no `loop-revision/7`.)** A graph containing ONLY a
+   `param-term` activator (its Parameter present, absent, or wrong-kind) and
+   no other model-layer content: (a) a `param-term`-shaped `expr` produces
+   byte-identical `canonicalContent` at `modelLayer:false` and
+   `modelLayer:true` — no `R2-INV-2`-style crash, because no field is
+   omitted at either level (PA6); (b) `readRevisionSide`, `computeRevisionDiff`,
+   `computeThreeWay`, and `buildSelectiveApply` all complete normally for a
+   missing or wrong-kind Parameter reference, with no crash and no value
+   loss on an `expr` field hunk; (c) the SAME graph classifies differently
+   (`loop-revision/2` vs `loop-revision/4`) purely from the existing
+   `modelVersion` declaration, confirming that axis — not a new one — already
+   carries the v1/v2 distinction. All five confirmed in
+   `src/model/parameter-activator-revision.test.ts`.
 8. Inspector: picking a Parameter from the dropdown, then setting an offset,
    is ONE additional Undo entry per field commit (not one per keystroke);
    the preview sentence updates live as the Parameter's own value changes
@@ -509,16 +523,16 @@ literal path are untouched (PA1).
 - **PA11-D4** — the v1→v2 `modelVersion` latch extends to a state-edge
   `activator` `expr` containing a `param-term`, reusing the one existing
   versioning axis rather than adding a second (PA6).
-- **PA11-D5 (frozen in draft 2)** — new document classification
-  `loop-revision/7` / `SEMANTICS-R7.md`. The rule is fixed here: a state
-  edge counts as `loop-revision/7` content the moment its `expr` parses as
-  `param-term` (PA4), independent of whether the reference resolves — a
-  purely syntactic check, mirroring `isCsuContent()`'s own precedent of
-  never resolving anything to decide `SideVersion` (PA6).
-- **PA11-D6 (frozen in draft 2)** — new engine-contract number
-  `loop-state/4` / `SEMANTICS-S4.md`. The number is fixed now; the file's
-  prose is written and frozen in the implementation PR, once there is an
-  engine to describe (PA6).
+- **PA11-D5 (CLOSED, reversed in draft 3 — no new classification).** Draft 2
+  froze a `loop-revision/7` here; PR #188's implementation found it
+  unnecessary and removed it. `expr` carries no `modelLayer` gate (unlike
+  CSU's `timing`/`when`), so no `SideVersion`-lift mismatch is possible; the
+  v1/v2 execution split this feature needs is already carried by
+  `loop-model/2`'s existing `modelSemantics` declaration
+  (`loop-revision/4`). No `SEMANTICS-R7.md` file exists. See PA6.
+- **PA11-D6 (frozen in draft 2, shipped in PR #188)** — new engine-contract
+  number `loop-state/4` / `SEMANTICS-S4.md`, written and frozen in PR #188
+  (PA6).
 - **PA11-D7** — the Inspector fixes the off-by-one (PA2) via a live
   resolved-value preview sentence, not a domain-specific "ceiling" preset —
   keeps `activator` generic; a pity-specific helper was considered and
@@ -531,22 +545,24 @@ literal path are untouched (PA1).
 
 ## PA12. Work order
 
-1. **This document** — design review, this PR. No code.
-2. **Engine implementation** — `SEMANTICS-S4.md` (`loop-state/4`, number
-   frozen here, prose written in this PR) + `SEMANTICS-R7.md` (`loop-revision/7`,
-   number and classification rule frozen here, `readRevisionSide` wiring
-   written in this PR), `param-term` parsing + Class-1/Class-2 resolution in
-   `stateExpr.ts`/`step.ts` (PA5), the `modelVersion` latch extension
-   (PA11-D4), and a golden-vector test mirroring
-   `revision-v6-fixture.test.ts`. Separate PR.
-3. **Inspector authoring UI** — the Parameter picker + offset control + live
-   preview (PA7), EN/KO/JA (PA9). Same PR as (2) or its own, per however the
-   implementation PR is scoped once started — not decided here.
+1. **This document** — design review. No code. MERGED (PR #187).
+2. **Engine implementation — SHIPPED (PR #188, `feat/parameter-activator-engine`).**
+   `SEMANTICS-S4.md` (`loop-state/4`, frozen), `param-term` parsing +
+   Class-1/Class-2 resolution in `stateExpr.ts`/`step.ts` (PA5), and the
+   revision-pipeline regression suite proving no new `loop-revision/N` is
+   needed (`src/model/parameter-activator-revision.test.ts`, PA6). The
+   `modelVersion` v1→v2 latch extension (PA11-D4) was NOT included — deferred
+   to (3), where it can actually be exercised (committing via the Inspector).
+3. **Inspector authoring UI** — its own separate PR, per Hanrim's explicit
+   sequencing (2026-09-13): engine → Inspector UI → 3-zone Template, never
+   bundled. The Parameter picker + offset control + live preview (PA7),
+   EN/KO/JA (PA9), and the `modelVersion` latch extension (PA11-D4) all land
+   here.
 4. **GS10-3's own fixture updated** to reference a Parameter instead of the
    literal `HARD_PITY - 1`, proving PA10-3 against the real gacha content
    (not just a synthetic engine test).
-5. **3-zone public Template** (GS10 slice 6) — after (2)/(3) ship. Not
-   started, not designed beyond PA8's feasibility note.
+5. **3-zone public Template** (GS10 slice 6) — its own separate PR, after
+   (2)/(3) ship. Not started, not designed beyond PA8's feasibility note.
 
 README stays untouched until (2)/(3) actually ship a user-visible feature
 (the established rule this session followed for every prior slice).
