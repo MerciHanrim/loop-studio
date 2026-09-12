@@ -235,9 +235,24 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
   }
 
   test('⋯ → Language: opens on screen, selecting a locale closes both menus', async ({ page }) => {
-    await page.setViewportSize({ width: 726, height: 640 })
+    // A 726px viewport (6px above the 720px mobile breakpoint — see
+    // src/ui/media.ts — the narrowest legal desktop width) used to be enough
+    // to push JA's own long labels (esp. "モジュールを挿入 ▾") past the
+    // toolbar's available width, forcing Language into the ⋯ overflow. That
+    // margin was font-metric-dependent: fixing the JA CJK font fallback
+    // (src/index.css :lang(ja)) legitimately renders JA more compactly on
+    // some platforms, and 726px stopped forcing the overflow there — with no
+    // narrower desktop width available to retry (below 720px flips to the
+    // entirely different mobile toolbar). So: keep the window comfortably
+    // desktop (`useIsMobile()`'s media query only reads `window.innerWidth`)
+    // and instead pin `.toolbar`'s own measured width directly via injected
+    // CSS — the actual thing `useToolbarOverflow` watches via
+    // ResizeObserver — to a width no locale's labels could ever fit,
+    // regardless of which CJK font any given platform substitutes.
+    await page.setViewportSize({ width: 1000, height: 640 })
     await openApp(page)
     await resetAll(page)
+    await page.addStyleTag({ content: '.toolbar { max-width: 480px !important; }' })
     await setLocale(page, 'ja')
 
     const moreBtn = page.locator('.toolbar__overflow-btn')
