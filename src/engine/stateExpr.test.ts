@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyLabelTiming, eligibleLabelPreset, parseLabelExpr, ROUTER_KINDS } from './stateExpr'
+import { classifyLabelTiming, eligibleLabelPreset, parseActivatorExpr, parseLabelExpr, ROUTER_KINDS } from './stateExpr'
 import { ROUTER_KINDS as ROUTER_KINDS_VIA_STEP } from './step'
 import { ROUTER_KINDS as ROUTER_KINDS_VIA_BARREL } from '../engine'
 
@@ -125,4 +125,71 @@ describe('eligibleLabelPreset (§LTA4.2 — SEMANTICS-S3.md §S3-5 rows 5-8)', (
       reasonB: 'source-not-router',
     })
   })
+})
+
+// docs/parameter-activator.md (PA) / SEMANTICS-S4.md — the `loop-state/4`
+// activator grammar extension. `parseActivatorExpr` stays pure (no node
+// lookup) — resolution is `step.ts`'s job (see parameter-activator.test.ts).
+describe('parseActivatorExpr — literal grammar (loop-state/1 §S6, unchanged)', () => {
+  it('a plain literal comparison parses to {kind: "literal", n} — locks the byte-identical shape', () => {
+    expect(parseActivatorExpr('>= 5')).toEqual({ ok: true, op: '>=', rhs: { kind: 'literal', n: 5 } })
+    expect(parseActivatorExpr('< -2.5')).toEqual({ ok: true, op: '<', rhs: { kind: 'literal', n: -2.5 } })
+  })
+  it('every existing failure reason is unchanged, with or without modelVersion 2', () => {
+    for (const mv of [1, 2] as const) {
+      expect(parseActivatorExpr('', mv)).toEqual({ ok: false, reason: 'empty' })
+      expect(parseActivatorExpr('>=', mv)).toEqual({ ok: false, reason: 'op-only' })
+      expect(parseActivatorExpr('banana', mv)).toEqual({ ok: false, reason: 'not-a-comparison' })
+      expect(parseActivatorExpr('>= abc', mv)).toEqual({ ok: false, reason: 'not-a-comparison' })
+    }
+  })
+})
+
+describe('parseActivatorExpr — @parameter param-term (PA4 / S4-1), modelVersion 2 only', () => {
+  it('a bare reference is @id + 0', () => {
+    expect(parseActivatorExpr('>= @hard_pity', 2)).toEqual({
+      ok: true, op: '>=', rhs: { kind: 'param', id: 'hard_pity', offset: 0 },
+    })
+  })
+  it('the headline case: a "- 1" offset, space-tolerant either way', () => {
+    expect(parseActivatorExpr('>= @hard_pity - 1', 2)).toEqual({
+      ok: true, op: '>=', rhs: { kind: 'param', id: 'hard_pity', offset: -1 },
+    })
+    expect(parseActivatorExpr('>= @hard_pity-1', 2)).toEqual({
+      ok: true, op: '>=', rhs: { kind: 'param', id: 'hard_pity', offset: -1 },
+    })
+  })
+  it('a "+" offset', () => {
+    expect(parseActivatorExpr('< @threshold + 2', 2)).toEqual({
+      ok: true, op: '<', rhs: { kind: 'param', id: 'threshold', offset: 2 },
+    })
+  })
+  it('the braced @{id} form', () => {
+    expect(parseActivatorExpr('== @{hard-pity} - 1', 2)).toEqual({
+      ok: true, op: '==', rhs: { kind: 'param', id: 'hard-pity', offset: -1 },
+    })
+  })
+  it('under modelVersion 1 (default), the exact same string is inert — not-a-comparison, unchanged', () => {
+    expect(parseActivatorExpr('>= @hard_pity - 1')).toEqual({ ok: false, reason: 'not-a-comparison' })
+    expect(parseActivatorExpr('>= @hard_pity - 1', 1)).toEqual({ ok: false, reason: 'not-a-comparison' })
+  })
+
+  // PA4's explicit rejection list — every one falls back to Class 1
+  // (not-a-comparison), never a crash, even under modelVersion 2.
+  const rejected = [
+    ['a doubled sign, "+ -1"', '>= @hard_pity + -1'],
+    ['a doubled sign, "- -1"', '>= @hard_pity - -1'],
+    ['a fractional offset', '>= @hard_pity - 1.5'],
+    ['scientific notation', '>= @hard_pity - 1e3'],
+    ['a second reference', '>= @a - @b'],
+    ['two offset terms', '>= @hard_pity - 1 - 1'],
+    ['parentheses', '>= (@hard_pity - 1)'],
+    ['multiplication', '>= @hard_pity * 2'],
+    ['an out-of-range offset', `>= @hard_pity - ${'9'.repeat(30)}`],
+  ] as const
+  for (const [label, expr] of rejected) {
+    it(`rejects ${label}: "${expr}"`, () => {
+      expect(parseActivatorExpr(expr, 2)).toEqual({ ok: false, reason: 'not-a-comparison' })
+    })
+  }
 })

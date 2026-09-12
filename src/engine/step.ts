@@ -285,12 +285,65 @@ export function step(
       continue
     }
     const rawExpr = (e.data as { expr?: string }).expr ?? ''
-    const p = parseActivatorExpr(rawExpr)
+    const p = parseActivatorExpr(rawExpr, modelVersion)
     if (!p.ok) {
+      // PA5 Class 1 — grammar-invalid `expr` (including every PA4 rejection:
+      // a doubled sign, a fractional/out-of-range offset, a second reference,
+      // parentheses). Unchanged from loop-state/1: inert, fail-OPEN for the
+      // target — this edge never enters `enabledByNode`.
       diagnostics.push(`Activator "${e.id}" expression "${rawExpr}" ${ACT_WHY[p.reason]}; ignored.`)
       continue
     }
-    const satisfied = cmp(S[e.source] ?? 0, p.op, p.n)
+    // docs/parameter-activator.md §PA5 — a `param-term` RHS resolves once,
+    // here, against this step's node map (never a prior step's — a Parameter
+    // edit must take effect the very next step). A resolution failure (Class
+    // 2: unknown id, wrong kind, non-finite value, or an overflowing
+    // `v ± offset`) is the OPPOSITE of Class 1: the activator still counts —
+    // it joins the AND as `satisfied: false`, fail-CLOSED, gating its target
+    // off — a syntactically valid `@id` is a declared gating intent, and a
+    // broken reference must stop resource movement, not silently remove the
+    // gate (PA11-D3).
+    let n: number
+    if (p.rhs.kind === 'literal') {
+      n = p.rhs.n
+    } else {
+      const { id: paramId, offset } = p.rhs
+      const target = byId.get(paramId)
+      let threshold: number | null = null
+      if (!target) {
+        diagnostics.push(
+          `Activator "${e.id}" references an unknown parameter "@${paramId}"; target not gated on this comparison.`,
+        )
+      } else if (target.data.kind !== 'parameter') {
+        diagnostics.push(
+          `Activator "${e.id}" reference "@${paramId}" must be a parameter node (got ${target.data.kind}); target not gated on this comparison.`,
+        )
+      } else {
+        const v = (target.data as { value?: unknown }).value
+        if (typeof v !== 'number' || !Number.isFinite(v)) {
+          diagnostics.push(
+            `Activator "${e.id}" parameter "@${paramId}" is not a finite number; target not gated on this comparison.`,
+          )
+        } else if (!Number.isFinite(v + offset)) {
+          diagnostics.push(
+            `Activator "${e.id}" parameter "@${paramId}" resolves to a non-finite threshold; target not gated on this comparison.`,
+          )
+        } else {
+          threshold = v + offset
+        }
+      }
+      if (threshold === null) {
+        const prevOk = enabledByNode.get(e.target)
+        enabledByNode.set(e.target, prevOk === undefined ? false : prevOk && false)
+        stateEvents.push({
+          edgeId: e.id, from: e.source, to: e.target, mode: 'activator',
+          effect: { kind: 'activator', satisfied: false },
+        })
+        continue
+      }
+      n = threshold
+    }
+    const satisfied = cmp(S[e.source] ?? 0, p.op, n)
     const prevOk = enabledByNode.get(e.target)
     enabledByNode.set(e.target, prevOk === undefined ? satisfied : prevOk && satisfied)
     stateEvents.push({

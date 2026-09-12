@@ -6,6 +6,8 @@
 // SEMANTICS-S2.md is unrelated (it only touches the label *report* shape).
 
 import type { NodeKind } from '../model/types'
+import { tokenize } from '../model/expr/tokenize'
+import type { ModelVersion } from './flow'
 
 // The node kinds that actively move resources in Phase 2 (a "routing node").
 // docs/label-timing-authoring.md §LTA4.2 / LTA-D13 — canonical home, so
@@ -23,7 +25,11 @@ export const ACT_OP_ONLY_RE = /^\s*(>=|<=|==|!=|>|<)\s*$/
 export const LABEL_RE = /^\s*([+\-=])\s*(\d+(?:\.\d+)?|S)\s*$/
 
 export type ActivatorReason = 'empty' | 'op-only' | 'not-a-comparison' | 'non-finite'
-export type ActivatorParse = { ok: true; op: string; n: number } | { ok: false; reason: ActivatorReason }
+/** docs/parameter-activator.md §PA4 — `loop-state/4`. A comparison's RHS is
+ *  either the original literal, or a reference to a Parameter node with at
+ *  most one signed integer offset (`@id`, `@id + N`, `@id - N`). */
+export type ActivatorRhs = { kind: 'literal'; n: number } | { kind: 'param'; id: string; offset: number }
+export type ActivatorParse = { ok: true; op: string; rhs: ActivatorRhs } | { ok: false; reason: ActivatorReason }
 
 /** the fragment the engine appends after `expression "<raw>" ` (frozen wording) */
 export const ACT_WHY: Record<ActivatorReason, string> = {
@@ -40,17 +46,68 @@ export const ACT_HINT: Record<ActivatorReason, string> = {
   'non-finite': 'the number must be finite',
 }
 
-export function parseActivatorExpr(raw: string): ActivatorParse {
+/** the operator prefix, split from its (possibly empty) remainder — used only
+ *  to attempt the `param-term` extension once the literal grammar (`ACT_RE`)
+ *  and the existing empty/op-only checks have already failed. */
+const ACT_OP_PREFIX_RE = /^\s*(>=|<=|==|!=|>|<)\s*(.*)$/
+
+/** docs/parameter-activator.md §PA4 — `ref [ws ("+"|"-") ws offset]`, where
+ *  `offset` is a non-negative safe integer (`/^\d+$/`, i.e. the token's raw
+ *  spelling has no sign, no decimal point, no exponent). Reuses the shared
+ *  `loop-expr/1` tokenizer (`flow.ts`'s `parseParamRef` / `RegisterExprField`
+ *  use the same one) so `@id` / `@{id}` decoding never drifts between
+ *  contexts. Returns `null` for anything else — a second reference, a second
+ *  operator, parentheses, a fractional or out-of-range offset, a doubled
+ *  sign (`+ -1`) — every one of which falls back to `not-a-comparison`
+ *  (PA5 Class 1, unchanged), never a crash. */
+function parseParamTerm(s: string): { id: string; offset: number } | null {
+  const r = tokenize(s)
+  if (!r.ok) return null
+  const t = r.tokens
+  if (t.length === 2 && t[0].type === 'ref' && t[1].type === 'eof') {
+    return { id: t[0].id, offset: 0 }
+  }
+  if (
+    t.length === 4 &&
+    t[0].type === 'ref' &&
+    t[1].type === 'op' &&
+    (t[1].op === '+' || t[1].op === '-') &&
+    t[2].type === 'number' &&
+    t[3].type === 'eof' &&
+    /^\d+$/.test(t[2].raw) &&
+    Number.isSafeInteger(t[2].value)
+  ) {
+    return { id: t[0].id, offset: t[1].op === '-' ? -t[2].value : t[2].value }
+  }
+  return null
+}
+
+/** docs/parameter-activator.md §PA4/§S4-1 — a `param-term` RHS is recognised
+ *  ONLY under `modelVersion: 2`, mirroring `flow.ts`'s `parseFlow` exactly:
+ *  a v1 document's stray `@hard_pity` string is `not-a-comparison`, inert,
+ *  UNCHANGED from before this grammar existed — the new production is
+ *  strictly opt-in via the same one versioning axis `loop-model/2`
+ *  established, never silently active for a document that never asked for
+ *  it. Default `1` so every existing call site (until threaded through) is
+ *  unaffected. */
+export function parseActivatorExpr(raw: string, modelVersion: ModelVersion = 1): ActivatorParse {
   const s = raw ?? ''
   const m = ACT_RE.exec(s)
-  if (!m) {
-    if (s.trim() === '') return { ok: false, reason: 'empty' }
-    if (ACT_OP_ONLY_RE.test(s)) return { ok: false, reason: 'op-only' }
-    return { ok: false, reason: 'not-a-comparison' }
+  if (m) {
+    const n = Number(m[2])
+    if (!Number.isFinite(n)) return { ok: false, reason: 'non-finite' }
+    return { ok: true, op: m[1], rhs: { kind: 'literal', n } }
   }
-  const n = Number(m[2])
-  if (!Number.isFinite(n)) return { ok: false, reason: 'non-finite' }
-  return { ok: true, op: m[1], n }
+  if (s.trim() === '') return { ok: false, reason: 'empty' }
+  if (ACT_OP_ONLY_RE.test(s)) return { ok: false, reason: 'op-only' }
+  if (modelVersion === 2) {
+    const opRhs = ACT_OP_PREFIX_RE.exec(s)
+    if (opRhs) {
+      const term = parseParamTerm(opRhs[2])
+      if (term) return { ok: true, op: opRhs[1], rhs: { kind: 'param', id: term.id, offset: term.offset } }
+    }
+  }
+  return { ok: false, reason: 'not-a-comparison' }
 }
 
 export type LabelReason = 'empty' | 'not-an-assignment' | 'non-finite'

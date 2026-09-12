@@ -8,6 +8,7 @@ export {
   parseDelay,
   parseLabelExpr,
   type ActivatorParse,
+  type ActivatorRhs,
   type DelayParse,
   type LabelParse,
   type LabelPresetEligibility,

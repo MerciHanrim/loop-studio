@@ -7,6 +7,7 @@ import {
   parseFlow,
   parseLabelExpr,
   type ActivatorParse,
+  type ActivatorRhs,
   type LabelParse,
   type LabelPresetReasonA,
   type LabelPresetReasonB,
@@ -467,8 +468,22 @@ function TriggerFields({
 
 type TFn = ReturnType<typeof useT>
 
+/** docs/parameter-activator.md §PA4 — a `param-term` RHS has no dedicated
+ *  authoring UI yet (that is the follow-up Inspector PR's job); this reuses
+ *  the existing `inspector.activator.describe` wording as-is, feeding it a
+ *  symbolic `@id ± N` string instead of a number — `{n}` already accepts
+ *  either (`FormatParams = Record<string, string | number>`), so the
+ *  free-text `ExprField` path stays truthful about what a hand-typed
+ *  `>= @hard_pity - 1` does, with no new i18n key. The live resolved-value
+ *  preview (the actual off-by-one fix) is the follow-up PR's job (§PA7).
+ */
+function rhsDescribeText(rhs: ActivatorRhs): string | number {
+  if (rhs.kind === 'literal') return rhs.n
+  if (rhs.offset === 0) return `@${rhs.id}`
+  return `@${rhs.id} ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`
+}
 function describeActivator(t: TFn, p: Extract<ActivatorParse, { ok: true }>): string {
-  return t('inspector.activator.describe', { op: p.op, n: p.n })
+  return t('inspector.activator.describe', { op: p.op, n: rhsDescribeText(p.rhs) })
 }
 function describeLabel(t: TFn, p: Extract<LabelParse, { ok: true }>): string {
   const amount = p.token === 'S' ? t('inspector.label.amountSource') : String(p.n)
