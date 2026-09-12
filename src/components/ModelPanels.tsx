@@ -128,7 +128,8 @@ function InputsSection({
                 const read = readParameterData(n.data)
                 const label = labelOf(n)
                 const raw = (n.data as { value?: unknown }).value
-                const value = read.ok ? read.data.value : typeof raw === 'number' ? raw : ''
+                const value =
+                  read.ok ? read.data.value : typeof raw === 'number' && Number.isFinite(raw) ? raw : ''
                 return (
                   <li key={n.id} className="mp-row">
                     <button
