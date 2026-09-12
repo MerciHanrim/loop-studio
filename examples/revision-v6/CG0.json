@@ -1,0 +1,80 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "a",
+      "type": "pool",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "a",
+        "activation": "passive",
+        "initial": 5,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "g",
+      "type": "gate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "gate",
+        "label": "g",
+        "activation": "automatic",
+        "distribution": "deterministic",
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "b",
+      "type": "pool",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "b",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e",
+      "source": "a",
+      "target": "g",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "1"
+      }
+    },
+    {
+      "id": "m",
+      "source": "g",
+      "target": "b",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "label",
+        "expr": "+1"
+      }
+    }
+  ]
+}

@@ -74,3 +74,37 @@ export type DelayParse = { ok: true; delay: number } | { ok: false }
 export function parseDelay(raw: unknown): DelayParse {
   return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? { ok: true, delay: raw } : { ok: false }
 }
+
+// ── CSU / loop-state/3 (SEMANTICS-S3.md) — conditional `label` timing ───────
+// A `label` edge may run `"afterPull"` — Phase 2.5, after the pull, gated by
+// `when` — instead of the default unconditional Phase 0. Grammar is a closed
+// set of string literals, not a parsed expression, but lives here for the same
+// reason as the rest of this file: the engine and the Inspector must agree on
+// exactly what is recognised, with no silent fallback to the legacy behaviour
+// for anything else (CSU3-5 — fail-closed).
+
+export type LabelTiming = 'phase0' | 'afterPull'
+export type TimingParse = { ok: true; timing: LabelTiming } | { ok: false }
+
+/** Absent or the literal `"phase0"` ⇒ the loop-state/1 unconditional Phase-0
+ *  label (the default — byte-identical to a document with no `timing` field
+ *  at all). `"afterPull"` ⇒ Phase 2.5, gated by `when` (`parseLabelWhen`).
+ *  Anything else is unsupported — the caller reports it as a diagnostic and
+ *  treats the edge as inert; it never falls back to `"phase0"` silently. */
+export function parseLabelTiming(raw: unknown): TimingParse {
+  if (raw === undefined || raw === 'phase0') return { ok: true, timing: 'phase0' }
+  if (raw === 'afterPull') return { ok: true, timing: 'afterPull' }
+  return { ok: false }
+}
+
+export type LabelWhen = 'source-fired'
+export type WhenParse = { ok: true; when: LabelWhen } | { ok: false }
+
+/** `when` on a `timing: "afterPull"` label. The only recognised value in v1
+ *  (CSU9-D3) — the edit applies iff `source ∈ fired` for the step just pulled
+ *  (THIS step's `fired`, built during Phase 2 — not `fired(t−1)`, which is
+ *  what `trigger` reads). */
+export function parseLabelWhen(raw: unknown): WhenParse {
+  if (raw === 'source-fired') return { ok: true, when: 'source-fired' }
+  return { ok: false }
+}

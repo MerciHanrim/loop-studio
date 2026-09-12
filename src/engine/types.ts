@@ -43,7 +43,17 @@ export type StateEvent = {
     // clamp correction, carried on the last label event into that target (0
     // elsewhere, 0 when the final value needed no clamp). Net external change on
     // the target = Σ(delta over its label edges) + clampAdjustment = final − start.
+    // This exact shape — no `applied` field — is what a `timing: "phase0"` (or
+    // untyped) label edge always reports (loop-state/3 CSU9-D5: byte-identical
+    // report for every legacy graph).
     | { kind: 'label'; delta: number; clampAdjustment: number }
+    // loop-state/3 (SEMANTICS-S3.md, CSU) — a `timing: "afterPull"` label only.
+    // `applied` distinguishes "the `when` gate held, `delta` / `clampAdjustment`
+    // are real" from "inert this step" (`applied: false` ⇒ always `delta: 0,
+    // clampAdjustment: 0` — an inert edge never carries a clamp correction). A
+    // consumer that does not know this variant should read a MISSING `applied`
+    // as `true` (`'applied' in effect ? effect.applied : true`).
+    | { kind: 'label'; applied: boolean; delta: number; clampAdjustment: number }
 }
 
 export type StepReport = {

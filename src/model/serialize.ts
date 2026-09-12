@@ -239,6 +239,14 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
         expr: prev?.expr ?? '',
         // `delay` (trigger only) is graph structure — keep it across a round-trip
         ...(typeof prev?.delay === 'number' ? { delay: prev.delay } : {}),
+        // CSU / loop-state/3 (SEMANTICS-S3.md) — `timing` / `when` (`label`
+        // only) are graph structure too, same precedent as `delay`: kept
+        // across a round-trip as authored, whatever the string is. The engine
+        // (src/engine/step.ts, via ./stateExpr) is the single source of truth
+        // for validating them — fail-closed with a diagnostic, never silently
+        // normalised here.
+        ...(typeof prev?.timing === 'string' ? { timing: prev.timing } : {}),
+        ...(typeof prev?.when === 'string' ? { when: prev.when } : {}),
         ...(routing.route ? { route: routing.route } : {}),
         ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
       },

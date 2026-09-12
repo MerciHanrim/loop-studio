@@ -140,6 +140,26 @@ describe('graphStore.simulationRev', () => {
     ).toBe(0)
   })
 
+  it('bumps: a state-edge `timing` / `when` edit (CSU — engine-affecting, NOT cosmetic like route/waypoints)', () => {
+    const { poolId } = base()
+    useGraphStore.getState().addNodeAt('gate', { x: 0, y: 0 })
+    const gid = useGraphStore.getState().nodes.at(-1)!.id
+    useGraphStore
+      .getState()
+      .onConnect({ source: gid, target: poolId, sourceHandle: 'state-source', targetHandle: 'state-target' })
+    const labelEdgeId = useGraphStore.getState().edges.at(-1)!.id
+    const set = (d: Record<string, unknown>) => useGraphStore.getState().setEdgeData(labelEdgeId, d as never)
+    expect(
+      bumped(() => set({ kind: 'state', mode: 'label', expr: '+1', timing: 'afterPull', when: 'source-fired' })),
+    ).toBeGreaterThan(0)
+    // and clearing them back to legacy `phase0` also bumps (a real change either way)
+    expect(bumped(() => set({ kind: 'state', mode: 'label', expr: '+1' }))).toBeGreaterThan(0)
+    // SEMANTICS-R6.md §R6-2 — an UNRECOGNISED timing/when is not cosmetic either:
+    // `COSMETIC` is a field-name set, not a value check, so a fail-closed-invalid
+    // edit still bumps `simulationRev` (the run really would differ).
+    expect(bumped(() => set({ kind: 'state', mode: 'label', expr: '+1', timing: 'nope' }))).toBeGreaterThan(0)
+  })
+
   it('a label rename mixed with a real field still bumps (only pure-label is exempt)', () => {
     const { poolId } = base()
     expect(
