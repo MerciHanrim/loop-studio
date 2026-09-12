@@ -139,6 +139,21 @@
   color: var(--text-primary);
 }
 
+/* Japanese CJK glyphs must not fall through to 'Noto Sans KR' — shared Han
+   characters render with the wrong regional (Korean) stroke shapes there, the
+   same class of font-fallback bug Hanrim flagged from the Cozy Shelter blog's
+   Google-Translate case. `:lang(ja)` overrides the `--font-sans` CUSTOM
+   PROPERTY (not each rule's `font-family`), so every existing
+   `font-family: var(--font-sans)` consumer picks this up for free. `en`/`ko`
+   keep the base stack above; `--font-mono` (code, numbers, expressions) is a
+   separate variable and is untouched either way. CSS-only for now — a
+   self-hosted `Noto Sans JP` subset is only worth adding later if OS-fallback
+   glyph variance across platforms actually becomes a real problem. */
+:lang(ja) {
+  --font-sans: 'IBM Plex Sans', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI',
+    'Yu Gothic', Meiryo, sans-serif;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     /* ── Warm Mineral Lab — DARK (night observation; higher L, lower chroma) ── */
