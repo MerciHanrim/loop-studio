@@ -141,22 +141,24 @@ three banner rule sets side by side under the same 200-pull budget:
 tunable **hard-pity ceiling** that forces an SSR by a fixed pull count, 80 by
 default), and **Premium Pickup** (the same hard-pity ceiling, plus a
 **pickup guarantee** on top — a missed pickup means the *next* SSR, whenever
-it lands, resolves as pickup rather than standard). Five comparison cards
-read the headline hit rate / pickup rate for all three zones at a glance;
-Step it or Monte-Carlo it to see how the pity ceiling and the guarantee
-reshape the outcome distribution.
+it lands, resolves as pickup rather than standard). Run all 200 pulls per
+zone (the global End auto-stops the run once every zone finishes) and the
+five comparison cards read the real headline hit rate / pickup rate for all
+three zones at a glance; Monte-Carlo it to see the outcome distribution
+across many runs instead of one.
 
-![The gacha Template's initial view: five comparison cards (pulls per zone, hit rate for each of the three zones, pickup rate for Premium Pickup) above the fully legible General/Free zone — ticket funding, a probabilistic roll gate, and SSR/SR/R counters — with Premium Standard's own roll structure visible at the right edge](docs/assets/gacha-overview.png)
+![The gacha Template after a completed 200-pull-per-zone run (step 202, ended): five comparison cards reading real hit-rate / pickup-rate percentages above the fully legible General/Free zone — ticket funding, a probabilistic roll gate, and non-zero SSR/SR/R counters — with Premium Standard's own roll structure visible at the right edge, a Timeline with real per-zone SSR/pickup curves below, and the selected "Pickup rate — Premium Pickup" Register's expression read-back open in the right column](docs/assets/gacha-overview.png)
 
-*Premium Pickup zone, framed on its own* — the hard-pity counter (`Pity`,
-ceiling 80) forces the next roll's SSR once it reaches the threshold; whether
-that forced SSR (or any ordinary probabilistic one) lands as pickup or
-standard depends on the guarantee flag, `Pickup owed`: while it is `0` an SSR
-splits by weight between `Pickup hit` and `Standard hit`, and a miss sets it
-to `1`, which routes the very next SSR straight to `Pickup hit` and resets the
-flag.
+*Premium Pickup zone, framed on its own, same completed run* — the hard-pity
+counter (`Pity`) forces the next roll's SSR once it reaches the ceiling
+(`Ceiling hits` reads `1` — it fired once in this run); whether a forced SSR
+(or any ordinary probabilistic one) lands as pickup or standard depends on
+the guarantee flag, `Pickup owed`: while it is `0` an SSR splits by weight
+between `Pickup hit` and `Standard hit`, and a miss sets it to `1`, which
+routes the very next SSR straight to `Pickup hit` and resets the flag —
+ending this run at `Pickup count 3` vs. `Standard count 1`.
 
-![The Premium Pickup zone on its own: four roll-gate variants (normal / forced × not-owed / owed), the hard-pity counter and ceiling, the Pickup-owed guarantee flag, and the Pickup hit / Standard hit split feeding the pickup-count and standard-count Registers](docs/assets/gacha-pickup-guarantee.png)
+![The Premium Pickup zone on its own after the same completed run: four roll-gate variants (normal / forced × not-owed / owed), the hard-pity counter reading 33 against its ceiling of 80, one real ceiling hit, the Pickup-owed guarantee flag, and a real 3-to-1 Pickup hit / Standard hit split — with the selected "Ceiling hits" Pool's Inspector open in the right column](docs/assets/gacha-pickup-guarantee.png)
 
 ## Why
 
