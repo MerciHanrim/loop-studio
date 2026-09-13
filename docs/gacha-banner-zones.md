@@ -1,6 +1,6 @@
 # 3-zone gacha Template — banner rules & Monte Carlo comparison (design doc)
 
-**Status: design draft — for review (draft 2).** GS10 slice 6, the public
+**Status: design draft — for review (draft 3).** GS10 slice 6, the public
 Template named throughout `docs/example-gacha-simulator.md` (GS's
 scope-revision section) and `docs/parameter-activator.md` §PA0/§PA8 as the
 reason `@parameter` activator support (`loop-state/4`, PR #187→#188→#189, all
@@ -28,9 +28,35 @@ fixes before re-review:
    directly against `src/engine/rng.ts` (`loop-rng/1`, frozen,
    `SEMANTICS-B1.md` §B1.2): there is no mutable PRNG stream in this engine at
    all — every draw is `sample(seed, step, elementId, purpose, drawIndex)`, a
-   pure function keyed by that element's OWN id. The independence claim
-   **survives verification** (GZ3.2) — strengthened with a citation and a new
-   acceptance test, rather than weakened.
+   pure function keyed by that element's OWN id (GZ3.2) — strengthened with a
+   citation and a new acceptance test, rather than weakened.
+
+**Draft 3 (Hanrim/Lumi, round 2)** approved draft 2's direction on points 1/3/4
+and the GZ-D5 removal outright, and required two more precise fixes before
+final approval — both applied below, no new engine feature needed:
+
+1. **"Independence" overclaimed what was actually verified.** A keyed,
+   domain-separated deterministic function guarantees that adding, removing,
+   or reordering another zone never perturbs this zone's own draw sequence —
+   that is **stream isolation**, not a mathematical proof of *statistical*
+   independence between the zones' outcome distributions. GZ3.2 (and every
+   other place draft 2 said "RNG independence") is reworded to this precise
+   claim. The proposed regression test is unchanged — it was already testing
+   the right thing (stream isolation), only the prose calling it
+   "independence" overreached.
+2. **The fixed horizon needed an exact, testable contract, not a "safety
+   margin."** GZ3.5 now pins `steps = pulls_per_zone + 1` exactly (1 funding
+   step, verified against `step.ts`'s `actOf(n) === 'onStart' && prev.step
+   === 0` — the onStart push commits during step 1, so `buy_pull_<zone>`
+   cannot pull until step 2, and GS1's own "at most one paid pull per step"
+   rule means pulls occupy steps `2..pulls_per_zone+1` — exactly
+   `pulls_per_zone` pull-steps), not "+1 funding step + a small safety
+   margin." GZ8 gains five concrete horizon acceptance tests (GZ8 item 3),
+   and GZ3.5 now explicitly distinguishes interactive Timeline playback
+   (idles with no "ended" indicator — this Template never sets
+   `SimState.ended`) from Monte Carlo (always completes at the fixed
+   horizon, since `runMonteCarlo`/`runRange` never depend on `ended` to stop
+   — they just run the configured `steps` count).
 3. **Comparison Registers were conflated with Monte Carlo output.** `loop-mc/1`
    tracks Pools only (`resolveTracked`, verified) with no derived/ratio
    aggregation; a Register can never appear in a Monte Carlo distribution.
@@ -51,7 +77,8 @@ dropped from v1** rather than resolved — the simplest, fastest path forward
 
 Prefix `GZ`. Sections: **GZ0** why a fixed-pull-count economy, not "first
 SSR" · **GZ1** scope · **GZ2** the three zones (fixed names/rules/currency) ·
-**GZ3** structural decisions (one graph, RNG independence, no `End` nodes) ·
+**GZ3** structural decisions (one graph, RNG stream isolation, no `End`
+nodes) ·
 **GZ4** engine mapping — pity · **GZ5** engine mapping — pickup guarantee ·
 **GZ6** Parameter tables · **GZ7** Monte Carlo comparison metrics · **GZ8**
 verification · **GZ9** decisions · **GZ10** slices / work order.
@@ -171,18 +198,25 @@ separated with `loop-revision/5` frames (shipped, LGR Slice 5):
   not colour-matched to any zone (it is shared output, not a zone).
 
 This lets a **single** seeded run or Monte Carlo pass simulate all three
-zones simultaneously and produce genuinely independent per-zone results in
-the same run (GZ3.2 proves this, not just asserts it) — no "Scenario
+zones simultaneously and produce per-zone results whose own draw sequences
+are isolated from one another — domain-separated by id, not merely observed
+side by side (GZ3.2 proves this, not just asserts it) — no "Scenario
 Compare" feature is needed (that feature was deferred after v0.7.0 and
 remains out of scope; nothing here depends on it). Frames are cosmetic-only
 (`loop-revision/5`, no engine meaning), so this costs nothing beyond visual
 organisation.
 
-### GZ3.2 Verified: cross-zone RNG independence (`loop-rng/1`)
+### GZ3.2 Verified: cross-zone RNG stream isolation (`loop-rng/1`)
 
-Draft 1 asserted the three zones' Monte Carlo distributions would be
-"independent" without checking the engine's actual randomness mechanism.
-Checked directly, `src/engine/rng.ts`:
+Draft 1 called this "RNG independence" without checking the engine's actual
+randomness mechanism, and draft 2's verification, while correct on the
+mechanism, kept that same overreaching word. **The precise claim (Hanrim/Lumi,
+round 2): each zone's random draws are domain-separated by id and
+deterministic — adding, removing, or reordering another zone never perturbs
+this zone's own draw sequence. That is stream isolation, a guarantee of
+non-interference — it is NOT a mathematical proof of statistical
+independence between the zones' outcome distributions**, and this document
+does not claim the latter. Checked directly, `src/engine/rng.ts`:
 
 > There is no PRNG object threaded through a run. Every random value is a
 > pure total function of a key (seed, step, elementId, purpose, drawIndex).
@@ -222,8 +256,8 @@ comparison this Template exists to produce. This mirrors
 `docs/parameter-activator.md` §PA8's already-reviewed "separate pity Pools
 per zone" decision — same reasoning, extended to currency (and, per GZ3.2,
 sharing state would ALSO be the only thing that could break the RNG
-independence proof above — Pools are read/write simulation state, unlike a
-Parameter, so a shared Pool genuinely would let one zone's activity change
+stream-isolation proof above — Pools are read/write simulation state, unlike
+a Parameter, so a shared Pool genuinely would let one zone's activity change
 what the other zone's own Gates see as their inputs, even though it would
 still not affect their draw KEYS).
 
@@ -273,11 +307,32 @@ backwards from "all three zones complete `N` pulls for comparison."
 
 **This Template has zero `End` nodes.** Each zone simply idles (GZ3.4) once
 its `ticket_<zone>` Pool empties; nothing in the graph ever sets `ended`.
-The shared Monte Carlo / Timeline step horizon is a fixed, precomputed
-constant (`N` pulls + 1 funding step + a small safety margin — GZ6) with no
-terminal condition at all. `SimState.ended` stays `false` for the entire run,
-always, by construction — stated here as a direct, checkable property
-(GZ8), not an incidental side effect.
+
+**The shared step horizon is exactly `steps = pulls_per_zone + 1`, not an
+approximate "safety margin."** Checked directly, `src/engine/step.ts`:
+`actOf(n) === 'onStart' && prev.step === 0` — an `onStart` Source fires
+during the FIRST `step()` call (which advances state from step 0 to step 1),
+so `fund_<zone>`'s push into `ticket_<zone>` commits at the end of step 1.
+`buy_pull_<zone>` reads the step-START snapshot, so it sees `ticket_<zone>
+== 0` at step 1 and cannot pull yet; at step 2 it sees step 1's committed
+`ticket_<zone> == pulls_per_zone` and pulling begins. Per GS1's own "at most
+one paid pull per simulation step" rule, pulls occupy steps
+`2 .. pulls_per_zone + 1` inclusive — exactly `pulls_per_zone` pull-steps.
+No CSU `afterPull` label needs an extra step beyond its own pull's step to
+settle (Phase 2.5 applies within the same step the pull happens), so no
+further margin is needed. `steps = pulls_per_zone + 1` is therefore the
+exact, minimal horizon at which every zone has completed all `pulls_per_zone`
+pulls and every pity/pickup mechanic has fully settled — asserted as five
+concrete acceptance tests in GZ8 item 3, not left as an approximation.
+
+`SimState.ended` stays `false` for the entire run, always, by construction.
+**In ordinary interactive Timeline playback, this means the run has no
+"ended" indicator at all** — it simply goes idle once every zone's ticket
+Pool is empty, since the UI's completion indicator reads `SimState.ended`
+directly. **Monte Carlo is unaffected by this distinction**: `runMonteCarlo`
+/ `runRange` run the configured `steps` count unconditionally and never
+consult `ended` to decide when to stop, so a Monte Carlo pass over this
+Template always completes at the fixed horizon regardless.
 
 ## GZ4. Engine mapping — the tunable pity ceiling (Zones 2–3)
 
@@ -341,9 +396,9 @@ shape as GZ4, one level downstream of the SSR result:
 
   Exactly one of the two is enabled per step (the activators are exact
   complements over `{0, 1}`), exactly as `roll_gate`/`forced_ssr` are in
-  GZ4 — the SAME proven pattern, not a new one, and independently covered by
-  GZ3.2's RNG-independence proof (this pair's ids are Zone-3-local, so its
-  own draws are just as unaffected by Zones 1–2 as GZ4's are).
+  GZ4 — the SAME proven pattern, not a new one, and separately covered by
+  GZ3.2's RNG stream-isolation proof (this pair's ids are Zone-3-local, so
+  its own draws are just as unaffected by Zones 1–2 as GZ4's are).
 - `missed_pickup_pickup` updates the SAME step the split resolves, via CSU
   `afterPull` labels sourced from `pickup_count`/`standard_count`/
   `guarantee_gate_pickup`:
@@ -449,13 +504,30 @@ Monte Carlo fixture seed that exercises it (not vanishingly rare at
 1. **Zone independence, structural.** No resource or state edge crosses
    between any two zones' node sets (Pools, Parameters, Gates — nothing
    shared except the read-only `pulls_per_zone` Parameter, GZ6).
-2. **Zone independence, RNG (GZ3.2).** Deleting any one zone's nodes and
+2. **Zone RNG stream isolation (GZ3.2).** Deleting any one zone's nodes and
    edges leaves the other two zones' per-step Pool values byte-identical,
    same seed, same step count — a direct, checkable regression test of the
-   `loop-rng/1` keyed-draw property, not merely a design assertion.
-3. **No `End` anywhere (GZ3.5).** `SimState.ended` is `false` at every step
-   of every run, for any seed, at the fixed step horizon computed from
-   `pulls_per_zone`.
+   `loop-rng/1` keyed-draw property. This tests stream isolation (draws are
+   domain-separated by id); it is not, and is not claimed to be, a proof of
+   statistical independence between the zones' outcome distributions.
+3. **The fixed horizon's exact contract (GZ3.5).** At `steps =
+   pulls_per_zone + 1`, for every seed:
+   - `pulls_made_<zone> == pulls_per_zone` for all three zones;
+   - `ticket_<zone>` is exactly `0` for all three zones;
+   - all three zones produced exactly `pulls_per_zone` roll results each
+     (implied by the conservation identity, item 6, but asserted here as its
+     own explicit horizon check);
+   - running the simulation for additional steps past the horizon changes no
+     Pool value and produces no further event, for any zone (idempotent
+     stability — nothing is still "in flight");
+   - `SimState.ended` is `false` at every step of every run, for any seed
+     (GZ3.5 — this Template has no `End` node, so nothing ever sets it).
+   In ordinary interactive Timeline playback (not Monte Carlo), the run
+   simply goes idle once every zone's ticket Pool is empty — there is no
+   "ended" indicator, since that reads `SimState.ended`, which this Template
+   never sets. Monte Carlo, by contrast, always completes: `runMonteCarlo` /
+   `runRange` run the configured `steps` count directly and never consult
+   `ended` to decide when to stop.
 4. **Pity ceiling holds per zone**, each with its OWN `hard_pity_<zone>`
    Parameter, using GZ4's exact acceptance shape from GS9's item set (gap
    never exceeds ceiling; ceiling pull is guaranteed SSR; pity resets
@@ -476,8 +548,8 @@ Monte Carlo fixture seed that exercises it (not vanishingly rare at
    zero-pickup edge cases (GZ7.2).
 9. **Memory budget.** The combined three-zone graph's Monte Carlo run (all
    tracked Pools across all three zones, at whatever `K` the implementation
-   PR sets, `steps = pulls_per_zone + 2`) stays under the existing
-   `CELL_LIMIT`.
+   PR sets, `steps = pulls_per_zone + 1` exactly, GZ3.5) stays under the
+   existing `CELL_LIMIT`.
 
 ## GZ9. Decisions
 
@@ -524,5 +596,5 @@ Monte Carlo fixture seed that exercises it (not vanishingly rare at
    `examples/gacha-simulator.json` as a second bundled Template — the
    implementation PR decides which), a `TEMPLATES` entry, KO/JA label
    overlays, `recommendedRunConfig`, an engine fixture (must include GZ8's
-   RNG-independence and no-`End` regression tests), and e2e coverage. No new
-   engine semantics — GZ4/GZ5 use only shipped primitives.
+   RNG stream-isolation and fixed-horizon regression tests), and e2e
+   coverage. No new engine semantics — GZ4/GZ5 use only shipped primitives.
