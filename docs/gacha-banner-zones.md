@@ -600,6 +600,39 @@ never simulation state and never appears in a `sample()` RNG key, GZ3.2):
 |---|---:|---|
 | `pulls_per_zone` | 200 | `N` — the fairness invariant (GZ0/GZ2); every zone's `ticket_<zone>` Pool is funded with exactly this many units |
 
+**Round 4 addition — `pulls_per_zone` must be a safe positive integer
+(`N >= 1`, `Number.isSafeInteger(N)`), and the global `End`'s
+`pulls_made_<zone> >= @pulls_per_zone` contract (GZ3.5) depends on it:**
+- **`N = 0`** funds every `ticket_<zone>` with `0`, so no zone ever pulls and
+  `pulls_made_<zone>` never leaves `0` — but `0 >= 0` is already true AT
+  `pulls_made_<zone>`'s starting value, so the global `End`'s AND-gate would
+  be satisfied from step 1 onward (reading `S[]` from step 0, where every
+  `pulls_made` is already `0`) — a premature-termination case distinct from,
+  but the same FAMILY of bug as, the `ticket_<zone> <= 0` false-positive
+  round 4 already rejected.
+- **A non-integer `N`** (e.g. `200.5`) funds `ticket_<zone>` with a
+  fractional amount; each pull still costs exactly `1` ticket (GZ3.4), so a
+  zone completes `floor(N)` pulls and then idles with an un-spendable
+  fractional remainder — `pulls_made_<zone>` tops out at `floor(N)` and can
+  never reach `N` itself, so `pulls_made_<zone> >= @pulls_per_zone` never
+  becomes true and the global `End` never fires — the exact "climbs forever"
+  symptom round 4 exists to fix, reintroduced through the Parameter's own
+  value rather than the wiring.
+- A negative `N` is nonsensical under the ticket abstraction (GZ3.4) for the
+  same reason a negative budget was never modelled in GS0.
+
+`pulls_per_zone` is an ordinary, user-editable Parameter (Inputs panel) —
+the engine does not itself restrict a Parameter's value to a safe positive
+integer. This is therefore a documented INPUT CONTRACT for this Template,
+not an engine-enforced invariant: the shipped default (`200`) satisfies it,
+and GZ8 gains an explicit acceptance test pinning the contract at a second,
+smaller safe integer (so the test doesn't merely re-confirm the shipped
+default) — but a user who edits the field to `0` or a fraction gets the
+"climbs forever" symptom back, same as before round 4, rather than a guarded
+error. Enforcing the contract in the UI (e.g. a numeric-step/integer
+constraint on this specific Parameter's input) is a possible follow-up, not
+in scope for the termination fix itself.
+
 **Per zone:**
 
 | zone | key | value | notes |
@@ -647,6 +680,15 @@ and there is no derived/ratio aggregation across tracked Pools.
 expected and intentional under GZ-D1/GZ3.4 — it is tracked purely so a
 Monte Carlo fixture can assert the whole Template ran to completion every
 seed, not because its distribution is interesting.
+
+**Round 4 addition — the global `End`'s standing fuel Pool is explicitly
+EXCLUDED from this tracked set, from `DEFAULT_TIMELINE_SERIES`, and (being
+neither a Parameter nor a Register) never appears in the Inputs or Summary
+panels either.** It is pure termination plumbing (GZ3.5) — always `1`,
+never changes, carries no comparison meaning — and tracking it would only
+add a flat, meaningless line to the Timeline / Monte Carlo distribution
+list, exactly the kind of noise GZ7 exists to keep out. The `End` node
+itself is not a Pool and was never eligible for tracking regardless.
 
 ### GZ7.2 Single-run display Registers — NOT Monte Carlo output
 
@@ -777,13 +819,22 @@ zero-SSR seed, exactly as this section already described.
    additionally: `pickup_count + standard_count == ssr_count`; Zones 2–3
    additionally: `ceiling_hits <= ssr_count`.
 7. **Determinism.** Same graph + seed ⇒ byte-identical states/reports across
-   all three zones simultaneously, in the one shared run.
+   all three zones simultaneously, in the one shared run — including a
+   Reset (back to step 0) and re-run: the SAME seed reproduces both the
+   SAME per-zone results AND the SAME termination step
+   (`pulls_per_zone + 2`, GZ3.5 round 4), not just the same final values.
 8. **Comparison Registers compute correctly**, including the zero-SSR /
    zero-pickup edge cases (GZ7.2).
 9. **Memory budget.** The combined three-zone graph's Monte Carlo run (all
    tracked Pools across all three zones, at whatever `K` the implementation
    PR sets, `steps = pulls_per_zone + 2` exactly, GZ3.5 round 4) stays under
    the existing `CELL_LIMIT`.
+10. **The `pulls_per_zone` input contract (GZ6 round 4 addition) holds at a
+    SECOND safe positive integer**, not just the shipped default `200` — a
+    smaller `N` (e.g. `5`) still reaches `pulls_made_<zone> == N` for all
+    three zones by step `N + 1` and `ended === true` at exactly `N + 2`,
+    confirming the termination contract scales with `N` rather than being
+    pinned to the default.
 
 ## GZ9. Decisions
 
