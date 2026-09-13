@@ -327,6 +327,108 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
+  test('comparison frame fully contains every comparison-row node, in EN/KO/JA, at both reviewed viewports', async ({
+    page,
+  }) => {
+    // Comparison-frame review (Hanrim, 2026-09-13): the frame's right edge
+    // used to cut through the last card because bbox() assumed a generic
+    // node footprint too small for the wide comparison Registers. This pins
+    // full containment (not just zero pairwise overlap, which the test above
+    // already covers) directly — the frame's own rect (graph coords) must
+    // enclose every comparison-row node's rendered box (screen coords),
+    // converted through the SAME viewport transform React Flow uses.
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+
+    type LoopWindow = {
+      __loop: {
+        rf: { fitView: (o: object) => void; getViewport: () => { x: number; y: number; zoom: number } }
+        frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] } }
+        i18n: { getState: () => { setLocale: (c: string) => void } }
+      }
+    }
+
+    const checkContainment = () =>
+      page.evaluate(() => {
+        const w = window as unknown as LoopWindow
+        const vp = w.__loop.rf.getViewport()
+        // `getViewport()` is relative to the `.react-flow` PANE's own
+        // top-left origin, but `getBoundingClientRect()` (used below) is
+        // relative to the whole page — the pane itself sits below the
+        // toolbar, so converting a graph coordinate to a page coordinate
+        // needs the pane's own on-page offset added, not just the viewport
+        // transform.
+        const pane = document.querySelector('.react-flow')!.getBoundingClientRect()
+        const frame = w.__loop.frame.getState().frames.find((f) => f.id === 'zone_comparison')!
+        const frameLeft = pane.left + vp.x + frame.rect.x * vp.zoom
+        const frameTop = pane.top + vp.y + frame.rect.y * vp.zoom
+        const frameRight = pane.left + vp.x + (frame.rect.x + frame.rect.w) * vp.zoom
+        const frameBottom = pane.top + vp.y + (frame.rect.y + frame.rect.h) * vp.zoom
+        const cardIds = [
+          'pulls_per_zone',
+          'cmp1_hit_rate_free',
+          'cmp2_hit_rate_standard',
+          'cmp3_hit_rate_pickup',
+          'cmp4_pickup_rate_pickup',
+          'termination_fuel',
+          'all_zones_done',
+        ]
+        return cardIds.map((id) => {
+          const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
+          const r = el!.getBoundingClientRect()
+          const TOL = 0.5 // sub-pixel float slack, not a real margin
+          return {
+            id,
+            containedX: r.left >= frameLeft - TOL && r.right <= frameRight + TOL,
+            containedY: r.top >= frameTop - TOL && r.bottom <= frameBottom + TOL,
+          }
+        })
+      })
+
+    const assertAllContained = async () => {
+      const results = await checkContainment()
+      for (const r of results) {
+        expect(r.containedX, `${r.id} escapes the comparison frame horizontally`).toBe(true)
+        expect(r.containedY, `${r.id} escapes the comparison frame vertically`).toBe(true)
+      }
+    }
+
+    const fitAll = () =>
+      page.evaluate(() => (window as unknown as LoopWindow).__loop.rf.fitView({ padding: 0.05, duration: 0 }))
+
+    // `fitView()` reads the pane's CURRENT size, which only updates a beat
+    // after `setViewportSize()` (a ResizeObserver tick) — without a settle
+    // wait, the store's `getViewport()` (what `checkContainment` uses to
+    // convert the frame's graph rect to screen coords) can be read before it
+    // matches the DOM's actual composed transform, comparing two different
+    // moments in time against each other. A fixed-point re-check (call
+    // fitView, read the viewport twice, only proceed once two reads agree)
+    // is more robust than a guessed timeout.
+    const fitAllSettled = async () => {
+      let last: { x: number; y: number; zoom: number } | null = null
+      for (let i = 0; i < 10; i++) {
+        await fitAll()
+        const vp = await page.evaluate(() => (window as unknown as LoopWindow).__loop.rf.getViewport())
+        if (last && last.x === vp.x && last.y === vp.y && last.zoom === vp.zoom) return
+        last = vp
+        await page.waitForTimeout(100)
+      }
+    }
+
+    for (const locale of ['en', 'ko', 'ja']) {
+      await page.evaluate((c) => (window as unknown as LoopWindow).__loop.i18n.getState().setLocale(c), locale)
+      for (const size of [
+        { width: 1280, height: 720 },
+        { width: 1600, height: 900 },
+      ]) {
+        await page.setViewportSize(size)
+        await fitAllSettled()
+        await assertAllContained()
+      }
+    }
+  })
+
   test('JA: the menu item and node labels localize', async ({ page }) => {
     await openApp(page)
     await resetAll(page)

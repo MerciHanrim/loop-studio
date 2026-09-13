@@ -7,7 +7,7 @@
       "type": "parameter",
       "position": {
         "x": 40,
-        "y": 0
+        "y": 40
       },
       "data": {
         "kind": "parameter",
@@ -20,7 +20,7 @@
       "type": "register",
       "position": {
         "x": 380,
-        "y": 0
+        "y": 40
       },
       "data": {
         "kind": "register",
@@ -34,7 +34,7 @@
       "type": "register",
       "position": {
         "x": 720,
-        "y": 0
+        "y": 40
       },
       "data": {
         "kind": "register",
@@ -48,7 +48,7 @@
       "type": "register",
       "position": {
         "x": 1060,
-        "y": 0
+        "y": 40
       },
       "data": {
         "kind": "register",
@@ -62,7 +62,7 @@
       "type": "register",
       "position": {
         "x": 1400,
-        "y": 0
+        "y": 40
       },
       "data": {
         "kind": "register",
@@ -76,7 +76,7 @@
       "type": "source",
       "position": {
         "x": 40,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "source",
@@ -90,7 +90,7 @@
       "type": "pool",
       "position": {
         "x": 230,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -106,7 +106,7 @@
       "type": "pool",
       "position": {
         "x": 40,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -122,7 +122,7 @@
       "type": "parameter",
       "position": {
         "x": 40,
-        "y": 590
+        "y": 730
       },
       "data": {
         "kind": "parameter",
@@ -135,7 +135,7 @@
       "type": "parameter",
       "position": {
         "x": 230,
-        "y": 590
+        "y": 730
       },
       "data": {
         "kind": "parameter",
@@ -148,7 +148,7 @@
       "type": "parameter",
       "position": {
         "x": 420,
-        "y": 590
+        "y": 730
       },
       "data": {
         "kind": "parameter",
@@ -161,7 +161,7 @@
       "type": "pool",
       "position": {
         "x": 800,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -177,7 +177,7 @@
       "type": "pool",
       "position": {
         "x": 800,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -193,7 +193,7 @@
       "type": "pool",
       "position": {
         "x": 800,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "pool",
@@ -209,7 +209,7 @@
       "type": "gate",
       "position": {
         "x": 420,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "gate",
@@ -224,7 +224,7 @@
       "type": "gate",
       "position": {
         "x": 610,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "gate",
@@ -239,7 +239,7 @@
       "type": "gate",
       "position": {
         "x": 610,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "gate",
@@ -254,7 +254,7 @@
       "type": "gate",
       "position": {
         "x": 610,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "gate",
@@ -269,7 +269,7 @@
       "type": "source",
       "position": {
         "x": 1260,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "source",
@@ -283,7 +283,7 @@
       "type": "pool",
       "position": {
         "x": 1450,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -299,7 +299,7 @@
       "type": "pool",
       "position": {
         "x": 1260,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -315,7 +315,7 @@
       "type": "parameter",
       "position": {
         "x": 1260,
-        "y": 590
+        "y": 730
       },
       "data": {
         "kind": "parameter",
@@ -328,7 +328,7 @@
       "type": "parameter",
       "position": {
         "x": 1450,
-        "y": 590
+        "y": 730
       },
       "data": {
         "kind": "parameter",
@@ -341,7 +341,7 @@
       "type": "parameter",
       "position": {
         "x": 1640,
-        "y": 590
+        "y": 730
       },
       "data": {
         "kind": "parameter",
@@ -354,7 +354,7 @@
       "type": "pool",
       "position": {
         "x": 2020,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -370,7 +370,7 @@
       "type": "pool",
       "position": {
         "x": 2020,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -386,7 +386,7 @@
       "type": "pool",
       "position": {
         "x": 2020,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "pool",
@@ -402,7 +402,7 @@
       "type": "gate",
       "position": {
         "x": 1640,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "gate",
@@ -417,7 +417,7 @@
       "type": "gate",
       "position": {
         "x": 1830,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "gate",
@@ -432,7 +432,7 @@
       "type": "gate",
       "position": {
         "x": 1830,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "gate",
@@ -447,7 +447,7 @@
       "type": "gate",
       "position": {
         "x": 1830,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "gate",
@@ -462,7 +462,7 @@
       "type": "pool",
       "position": {
         "x": 1260,
-        "y": 690
+        "y": 830
       },
       "data": {
         "kind": "pool",
@@ -478,7 +478,7 @@
       "type": "parameter",
       "position": {
         "x": 1450,
-        "y": 690
+        "y": 830
       },
       "data": {
         "kind": "parameter",
@@ -491,7 +491,7 @@
       "type": "gate",
       "position": {
         "x": 1640,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "gate",
@@ -506,7 +506,7 @@
       "type": "pool",
       "position": {
         "x": 1260,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "pool",
@@ -522,7 +522,7 @@
       "type": "source",
       "position": {
         "x": 2480,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "source",
@@ -536,7 +536,7 @@
       "type": "pool",
       "position": {
         "x": 2750,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -552,7 +552,7 @@
       "type": "pool",
       "position": {
         "x": 2480,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -568,7 +568,7 @@
       "type": "parameter",
       "position": {
         "x": 2480,
-        "y": 690
+        "y": 830
       },
       "data": {
         "kind": "parameter",
@@ -581,7 +581,7 @@
       "type": "parameter",
       "position": {
         "x": 2750,
-        "y": 690
+        "y": 830
       },
       "data": {
         "kind": "parameter",
@@ -594,7 +594,7 @@
       "type": "parameter",
       "position": {
         "x": 3020,
-        "y": 690
+        "y": 830
       },
       "data": {
         "kind": "parameter",
@@ -607,7 +607,7 @@
       "type": "pool",
       "position": {
         "x": 3560,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -623,7 +623,7 @@
       "type": "pool",
       "position": {
         "x": 3560,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -639,7 +639,7 @@
       "type": "pool",
       "position": {
         "x": 2480,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "pool",
@@ -655,7 +655,7 @@
       "type": "pool",
       "position": {
         "x": 2480,
-        "y": 790
+        "y": 930
       },
       "data": {
         "kind": "pool",
@@ -671,7 +671,7 @@
       "type": "parameter",
       "position": {
         "x": 2750,
-        "y": 790
+        "y": 930
       },
       "data": {
         "kind": "parameter",
@@ -684,7 +684,7 @@
       "type": "pool",
       "position": {
         "x": 2480,
-        "y": 530
+        "y": 670
       },
       "data": {
         "kind": "pool",
@@ -700,7 +700,7 @@
       "type": "pool",
       "position": {
         "x": 3020,
-        "y": 790
+        "y": 930
       },
       "data": {
         "kind": "pool",
@@ -716,7 +716,7 @@
       "type": "parameter",
       "position": {
         "x": 2480,
-        "y": 890
+        "y": 1030
       },
       "data": {
         "kind": "parameter",
@@ -729,7 +729,7 @@
       "type": "parameter",
       "position": {
         "x": 2750,
-        "y": 890
+        "y": 1030
       },
       "data": {
         "kind": "parameter",
@@ -742,7 +742,7 @@
       "type": "gate",
       "position": {
         "x": 3020,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "gate",
@@ -757,7 +757,7 @@
       "type": "gate",
       "position": {
         "x": 3020,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "gate",
@@ -772,7 +772,7 @@
       "type": "gate",
       "position": {
         "x": 3020,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "gate",
@@ -787,7 +787,7 @@
       "type": "gate",
       "position": {
         "x": 3020,
-        "y": 530
+        "y": 670
       },
       "data": {
         "kind": "gate",
@@ -802,7 +802,7 @@
       "type": "gate",
       "position": {
         "x": 3290,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "gate",
@@ -817,7 +817,7 @@
       "type": "gate",
       "position": {
         "x": 3560,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "gate",
@@ -832,7 +832,7 @@
       "type": "gate",
       "position": {
         "x": 3560,
-        "y": 530
+        "y": 670
       },
       "data": {
         "kind": "gate",
@@ -847,7 +847,7 @@
       "type": "gate",
       "position": {
         "x": 3290,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "gate",
@@ -862,7 +862,7 @@
       "type": "gate",
       "position": {
         "x": 3290,
-        "y": 430
+        "y": 570
       },
       "data": {
         "kind": "gate",
@@ -877,7 +877,7 @@
       "type": "pool",
       "position": {
         "x": 3830,
-        "y": 230
+        "y": 370
       },
       "data": {
         "kind": "pool",
@@ -893,7 +893,7 @@
       "type": "pool",
       "position": {
         "x": 3830,
-        "y": 330
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -908,8 +908,8 @@
       "id": "termination_fuel",
       "type": "pool",
       "position": {
-        "x": 1740,
-        "y": 0
+        "x": 40,
+        "y": 170
       },
       "data": {
         "kind": "pool",
@@ -924,8 +924,8 @@
       "id": "all_zones_done",
       "type": "end",
       "position": {
-        "x": 2080,
-        "y": 0
+        "x": 264,
+        "y": 170
       },
       "data": {
         "kind": "end",
@@ -1982,8 +1982,8 @@
       "rect": {
         "x": 0,
         "y": 0,
-        "w": 2230,
-        "h": 120
+        "w": 1720,
+        "h": 300
       }
     },
     {
@@ -1991,7 +1991,7 @@
       "label": "General / Free",
       "rect": {
         "x": 0,
-        "y": 190,
+        "y": 330,
         "w": 950,
         "h": 480
       },
@@ -2002,7 +2002,7 @@
       "label": "Premium Standard",
       "rect": {
         "x": 1220,
-        "y": 190,
+        "y": 330,
         "w": 950,
         "h": 580
       },
@@ -2013,7 +2013,7 @@
       "label": "Premium Pickup",
       "rect": {
         "x": 2440,
-        "y": 190,
+        "y": 330,
         "w": 1540,
         "h": 780
       },
