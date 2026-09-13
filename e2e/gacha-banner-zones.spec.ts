@@ -192,7 +192,71 @@ test.describe('3-zone gacha banner comparison Template', () => {
           .getState()
           .nodes.find((n: any) => n.id === 'zone3_pickup_hard_pity').data.label,
     )
-    expect(label).toBe('하드 천장') // no zone suffix — the frame title gives that context
+    // Parameter labels DO carry a zone tag (unlike every other node kind) —
+    // the flat Inputs panel has no frame context to fall back on.
+    expect(label).toBe('프리미엄 픽업 · 하드 천장')
+  })
+
+  test('no node overlaps: 1280×720 fit-all, 1600×900 fit-all, or any zone at its own 100% zoom', async ({ page }) => {
+    // Node-spacing review (Hanrim, 2026-09-13): the vertical zone stack made
+    // fit-to-view illegible, and the Pickup zone had real ~20px node-pair
+    // overlaps at its old column width. This is a DOM-geometry regression
+    // guard, not a pixel-perfect layout snapshot — it fails the instant any
+    // future layout change lets two nodes' drawn boxes intersect, at either
+    // of the two reviewed viewports or at any zone's own 100% zoom.
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+
+    type Rect = { id: string; x: number; y: number; w: number; h: number }
+    const nodeRects = (): Promise<Rect[]> =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll('.react-flow__node')).map((el) => {
+          const r = (el as HTMLElement).getBoundingClientRect()
+          return { id: el.getAttribute('data-id')!, x: r.x, y: r.y, w: r.width, h: r.height }
+        }),
+      )
+
+    function assertNoOverlaps(rects: Rect[]) {
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          const a = rects[i]
+          const b = rects[j]
+          const overlaps = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+          expect(overlaps, `${a.id} overlaps ${b.id}`).toBe(false)
+        }
+      }
+    }
+
+    const fitAll = () =>
+      page.evaluate(() => (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ padding: 0.05, duration: 0 }))
+
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await fitAll()
+    assertNoOverlaps(await nodeRects())
+
+    await page.setViewportSize({ width: 1600, height: 900 })
+    await fitAll()
+    assertNoOverlaps(await nodeRects())
+
+    const frames = await page.evaluate(
+      () =>
+        (window as unknown as { __loop: { frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] } } } })
+          .__loop.frame.getState().frames,
+    )
+    for (const zoneFrameId of ['zone_free', 'zone_standard', 'zone_pickup']) {
+      const frame = frames.find((f) => f.id === zoneFrameId)!
+      const cx = frame.rect.x + frame.rect.w / 2
+      const cy = frame.rect.y + frame.rect.h / 2
+      await page.evaluate(
+        ({ cx, cy }) => {
+          const rf = (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf
+          rf.setViewport({ x: window.innerWidth / 2 - cx, y: window.innerHeight / 2 - cy, zoom: 1 })
+        },
+        { cx, cy },
+      )
+      assertNoOverlaps(await nodeRects())
+    }
   })
 
   test('JA: the menu item and node labels localize', async ({ page }) => {

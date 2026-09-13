@@ -14,6 +14,7 @@ import type { LoopEdge, LoopNode } from '../model/types'
 import type { SimState } from './index'
 import { initSim, step } from './index'
 import {
+  HARD_PITY_PICKUP,
   HARD_PITY_STANDARD,
   PULLS_PER_ZONE,
   TRACKED_POOLS,
@@ -30,6 +31,20 @@ function run(nodes: LoopNode[], edges: LoopEdge[], n: number, seed: number): Sim
   let st: SimState = initSim(nodes)
   for (let i = 0; i < n; i++) st = step(nodes, edges, st, seed, 2).state
   return st
+}
+
+/** Per-step trace of a fixed set of ids' values — used by the RNG
+ *  stream-isolation tests (GZ8 item 2) to compare full step-by-step
+ *  histories, not just final totals (a coincidental match on the final sum
+ *  could hide diverging intermediate steps). */
+function runTrace(nodes: LoopNode[], edges: LoopEdge[], n: number, seed: number, ids: string[]): number[][] {
+  let st: SimState = initSim(nodes)
+  const trace: number[][] = []
+  for (let i = 0; i < n; i++) {
+    st = step(nodes, edges, st, seed, 2).state
+    trace.push(ids.map((id) => st.values[id] ?? 0))
+  }
+  return trace
 }
 
 function fullGraph() {
@@ -247,23 +262,40 @@ describe('GZ8 item 5 — the four-path pickup-guarantee structure holds (Zone 3 
     )
   })
 
-  it('after any standard (non-pickup) SSR, the very next SSR is pickup — natural or ceiling-forced alike', () => {
-    const { nodes, edges } = forcedSsrEverySplit()
+  // The single test this replaces ("after any standard SSR, the very next
+  // SSR is pickup — natural or ceiling-forced alike") never actually
+  // exercised the forced-owed branch: an all-SSR weighting resets pity to 0
+  // on every single pull, so pity can never climb to the ceiling. Split into
+  // two explicit, independently pinned cases — one per guarantee-fulfilling
+  // path — using `setInitial` to place each run directly at the boundary it
+  // claims to test, rather than hoping a long random run happens to pass
+  // through it.
+  it('owed + natural pity (pity=0): the natural-owed path fires and the SSR is a guaranteed pickup', () => {
+    const { nodes, edges } = forcedSsrEverySplit() // every natural roll is SSR
+    setInitial(nodes, 'pity_pickup', 0)
+    setInitial(nodes, 'missed_pickup_pickup', 1)
     let st: SimState = initSim(nodes)
-    let missedLastStep = false
-    for (let i = 0; i < HORIZON; i++) {
-      const r = step(nodes, edges, st, 1, 2)
-      st = r.state
-      if (missedLastStep) {
-        expect(r.report.fired.includes('pickup_hit_pickup')).toBe(true)
-        expect(r.report.fired.includes('standard_hit_pickup')).toBe(false)
-      }
-      missedLastStep = r.report.fired.includes('standard_hit_pickup')
-    }
-    // over 200 forced-SSR pulls at a fair 50/50 split, both a natural pickup
-    // and a guaranteed-after-a-miss pickup must have occurred at least once.
-    expect(st.values.pickup_count_pickup).toBeGreaterThan(0)
-    expect(st.values.standard_count_pickup).toBeGreaterThan(0)
+    st = step(nodes, edges, st, 1, 2).state // step 1 (GZ3.5): funding only
+    const r = step(nodes, edges, st, 1, 2) // step 2: the first real pull
+    expect(r.report.fired).toContain('roll_normal_owed_pickup')
+    expect(r.report.fired).toContain('pickup_hit_pickup')
+    expect(r.report.fired.includes('standard_hit_pickup')).toBe(false)
+    expect(r.state.values.missed_pickup_pickup).toBe(0) // guarantee clears same step
+  })
+
+  it('owed + ceiling pity (pity=H-1): the forced-owed path fires, the SSR is a guaranteed pickup, ceiling clears same step', () => {
+    const { nodes, edges } = forcedSsrEverySplit()
+    setInitial(nodes, 'pity_pickup', HARD_PITY_PICKUP - 1)
+    setInitial(nodes, 'missed_pickup_pickup', 1)
+    let st: SimState = initSim(nodes)
+    st = step(nodes, edges, st, 1, 2).state // step 1 (GZ3.5): funding only
+    const r = step(nodes, edges, st, 1, 2) // step 2: the first real pull
+    expect(r.report.fired).toContain('roll_forced_owed_pickup')
+    expect(r.report.fired).toContain('pickup_hit_pickup')
+    expect(r.report.fired.includes('standard_hit_pickup')).toBe(false)
+    expect(r.state.values.pity_pickup).toBe(0) // ceiling resets pity same step
+    expect(r.state.values.missed_pickup_pickup).toBe(0) // guarantee clears same step
+    expect(r.state.values.ceiling_hits_pickup).toBe(1)
   })
 
   it('the guarantee persists across any number of intervening SR/R pulls', () => {
@@ -346,35 +378,63 @@ describe('GZ8 item 5 — the four-path pickup-guarantee structure holds (Zone 3 
 })
 
 describe('GZ8 item 2 — RNG stream isolation (not a claim of statistical independence)', () => {
-  it.each([1, 2, 3])('seed %i: deleting Zones 2-3 leaves Zone 1’s own values byte-identical', (seed) => {
+  const FREE_IDS = ['pulls_made_free', 'ssr_count_free', 'sr_count_free', 'r_count_free']
+  const NON_FREE_IDS = ['standard', 'pickup'].flatMap((zone) =>
+    ['pulls_made', 'ssr_count', 'sr_count', 'r_count', 'pity', 'ceiling_hits'].map((role) => `${role}_${zone}`),
+  )
+  const ALL_ZONE_IDS = [
+    ...FREE_IDS,
+    ...['standard', 'pickup'].flatMap((zone) =>
+      ['pulls_made', 'ssr_count', 'sr_count', 'r_count'].map((role) => `${role}_${zone}`),
+    ),
+  ]
+
+  // Comparing only the FINAL summed totals (the previous version of these
+  // tests) could coincidentally pass even if intermediate steps diverged —
+  // two different per-step paths can land on the same final sum. Comparing
+  // the full per-step trace closes that gap.
+  it.each([1, 2, 3])('seed %i: deleting Zones 2-3 leaves Zone 1’s own full step trace byte-identical', (seed) => {
     const full = fullGraph()
-    const stFull = run(full.nodes, full.edges, HORIZON, seed)
+    const traceFull = runTrace(full.nodes, full.edges, HORIZON, seed, FREE_IDS)
 
     const soloFree = buildZone('free')
     const nodesSolo = [buildSharedParameter(), ...soloFree.nodes]
-    const stSolo = run(nodesSolo, soloFree.edges, HORIZON, seed)
+    const traceSolo = runTrace(nodesSolo, soloFree.edges, HORIZON, seed, FREE_IDS)
 
-    for (const id of ['pulls_made_free', 'ssr_count_free', 'sr_count_free', 'r_count_free']) {
-      expect(stSolo.values[id]).toBe(stFull.values[id])
-    }
+    expect(traceSolo).toEqual(traceFull)
   })
 
-  it.each([1, 2, 3])('seed %i: deleting Zone 1 leaves Zones 2-3’s own values byte-identical', (seed) => {
+  it.each([1, 2, 3])('seed %i: deleting Zone 1 leaves Zones 2-3’s own full step trace byte-identical', (seed) => {
     const full = fullGraph()
-    const stFull = run(full.nodes, full.edges, HORIZON, seed)
+    const traceFull = runTrace(full.nodes, full.edges, HORIZON, seed, NON_FREE_IDS)
 
     const standard = buildZone('standard')
     const pickup = buildZone('pickup')
     const nodesNoFree = [buildSharedParameter(), ...standard.nodes, ...pickup.nodes]
     const edgesNoFree = [...standard.edges, ...pickup.edges]
-    const stNoFree = run(nodesNoFree, edgesNoFree, HORIZON, seed)
+    const traceNoFree = runTrace(nodesNoFree, edgesNoFree, HORIZON, seed, NON_FREE_IDS)
 
-    for (const zone of ['standard', 'pickup']) {
-      for (const role of ['pulls_made', 'ssr_count', 'sr_count', 'r_count', 'pity', 'ceiling_hits']) {
-        const id = `${role}_${zone}`
-        expect(stNoFree.values[id]).toBe(stFull.values[id])
-      }
+    expect(traceNoFree).toEqual(traceFull)
+  })
+
+  // Deletion alone doesn't rule out an id-independent stream keyed by, say,
+  // array index or insertion order — reordering the SAME three zones in the
+  // nodes/edges arrays must also leave every zone's own trace untouched,
+  // since `sample()` keys purely off each element's own id (GZ3.2).
+  it.each([1, 2, 3])('seed %i: reordering the zones in the nodes/edges arrays changes no zone’s own trace', (seed) => {
+    const canonical = fullGraph()
+    const traceCanonical = runTrace(canonical.nodes, canonical.edges, HORIZON, seed, ALL_ZONE_IDS)
+
+    const free = buildZone('free')
+    const standard = buildZone('standard')
+    const pickup = buildZone('pickup')
+    const reordered = {
+      nodes: [buildSharedParameter(), ...pickup.nodes, ...standard.nodes, ...free.nodes],
+      edges: [...pickup.edges, ...standard.edges, ...free.edges],
     }
+    const traceReordered = runTrace(reordered.nodes, reordered.edges, HORIZON, seed, ALL_ZONE_IDS)
+
+    expect(traceReordered).toEqual(traceCanonical)
   })
 })
 
@@ -411,7 +471,7 @@ describe('GZ8 item 8 — comparison Registers compute correctly, including zero-
     }
     expect(st).toBeDefined()
     const registers = buildComparisonRegisters()
-    const hitRateFree = registers.find((r) => r.id === 'hit_rate_free')!
+    const hitRateFree = registers.find((r) => r.id === 'cmp1_hit_rate_free')!
     const parsed = parse((hitRateFree.data as { expr: string }).expr)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
@@ -419,11 +479,13 @@ describe('GZ8 item 8 — comparison Registers compute correctly, including zero-
     expect(result).toEqual({ ok: true, value: 0 })
   })
 
-  it('pickup_share_pickup is a defined evaluate-error (not NaN) when ssr_count_pickup is 0', () => {
+  it('cmp4_pickup_rate_pickup is well-defined (0) even when pickup_count_pickup is 0 — never a 0/0 at rest', () => {
     // an all-non-SSR pickup zone (weights 0:0:1) never lands a NATURAL SSR,
     // but the pity ceiling still forces one periodically regardless of
     // weights — push the ceiling out past the horizon too, so this run
-    // truly never lands any SSR at all.
+    // truly never lands any pickup at all. The denominator is the constant
+    // `pulls_per_zone`, not `ssr_count_pickup`, so this is well-defined even
+    // at the Template's very first, un-run open (the bug this formula fixes).
     const built = buildZone('pickup')
     const nodes = [buildSharedParameter(), ...built.nodes]
     const set = (id: string, value: number) => {
@@ -438,14 +500,27 @@ describe('GZ8 item 8 — comparison Registers compute correctly, including zero-
     expect(st.values.pickup_count_pickup).toBe(0)
 
     const registers = buildComparisonRegisters()
-    const share = registers.find((r) => r.id === 'pickup_share_pickup')!
-    const parsed = parse((share.data as { expr: string }).expr)
+    const rate = registers.find((r) => r.id === 'cmp4_pickup_rate_pickup')!
+    const parsed = parse((rate.data as { expr: string }).expr)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     const result = evaluate(parsed.ast, resolverFor(st.values, nodes))
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(Number.isFinite((result as unknown as { value?: number }).value ?? 0)).toBe(true)
+    expect(result).toEqual({ ok: true, value: 0 })
+  })
+
+  it('cmp4_pickup_rate_pickup is well-defined at the Template’s very first open, before any pull', () => {
+    // GZ7.2 display Registers read Pool VALUES, which default to their
+    // `initial` (0) before the graph is ever stepped — this is the exact
+    // "opened, not yet run" state the 0/0 bug surfaced in.
+    const { nodes } = buildGachaBannerZonesGraph()
+    const st = initSim(nodes)
+    const registers = buildComparisonRegisters()
+    const rate = registers.find((r) => r.id === 'cmp4_pickup_rate_pickup')!
+    const parsed = parse((rate.data as { expr: string }).expr)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const result = evaluate(parsed.ast, resolverFor(st.values, nodes))
+    expect(result).toEqual({ ok: true, value: 0 })
   })
 })
 

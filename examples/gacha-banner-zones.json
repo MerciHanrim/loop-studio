@@ -16,10 +16,10 @@
       }
     },
     {
-      "id": "hit_rate_free",
+      "id": "cmp1_hit_rate_free",
       "type": "register",
       "position": {
-        "x": 300,
+        "x": 380,
         "y": 0
       },
       "data": {
@@ -30,10 +30,10 @@
       }
     },
     {
-      "id": "hit_rate_standard",
+      "id": "cmp2_hit_rate_standard",
       "type": "register",
       "position": {
-        "x": 560,
+        "x": 720,
         "y": 0
       },
       "data": {
@@ -44,10 +44,10 @@
       }
     },
     {
-      "id": "hit_rate_pickup",
+      "id": "cmp3_hit_rate_pickup",
       "type": "register",
       "position": {
-        "x": 820,
+        "x": 1060,
         "y": 0
       },
       "data": {
@@ -58,16 +58,16 @@
       }
     },
     {
-      "id": "pickup_share_pickup",
+      "id": "cmp4_pickup_rate_pickup",
       "type": "register",
       "position": {
-        "x": 1080,
+        "x": 1400,
         "y": 0
       },
       "data": {
         "kind": "register",
-        "label": "Pickup share — Premium Pickup",
-        "expr": "@pickup_count_pickup / @ssr_count_pickup",
+        "label": "Pickup rate — Premium Pickup",
+        "expr": "@pickup_count_pickup / @pulls_per_zone",
         "format": "percent"
       }
     },
@@ -126,7 +126,7 @@
       },
       "data": {
         "kind": "parameter",
-        "label": "SSR weight",
+        "label": "General / Free · SSR weight",
         "value": 6
       }
     },
@@ -139,7 +139,7 @@
       },
       "data": {
         "kind": "parameter",
-        "label": "SR weight",
+        "label": "General / Free · SR weight",
         "value": 51
       }
     },
@@ -152,7 +152,7 @@
       },
       "data": {
         "kind": "parameter",
-        "label": "R weight",
+        "label": "General / Free · R weight",
         "value": 943
       }
     },
@@ -268,8 +268,8 @@
       "id": "fund_standard",
       "type": "source",
       "position": {
-        "x": 40,
-        "y": 780
+        "x": 1260,
+        "y": 230
       },
       "data": {
         "kind": "source",
@@ -282,8 +282,8 @@
       "id": "ticket_standard",
       "type": "pool",
       "position": {
-        "x": 230,
-        "y": 780
+        "x": 1450,
+        "y": 230
       },
       "data": {
         "kind": "pool",
@@ -298,8 +298,8 @@
       "id": "pulls_made_standard",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 880
+        "x": 1260,
+        "y": 330
       },
       "data": {
         "kind": "pool",
@@ -314,12 +314,12 @@
       "id": "zone2_standard_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 40,
-        "y": 1140
+        "x": 1260,
+        "y": 590
       },
       "data": {
         "kind": "parameter",
-        "label": "SSR weight",
+        "label": "Premium Standard · SSR weight",
         "value": 10
       }
     },
@@ -327,12 +327,12 @@
       "id": "zone2_standard_w_sr",
       "type": "parameter",
       "position": {
-        "x": 230,
-        "y": 1140
+        "x": 1450,
+        "y": 590
       },
       "data": {
         "kind": "parameter",
-        "label": "SR weight",
+        "label": "Premium Standard · SR weight",
         "value": 90
       }
     },
@@ -340,12 +340,12 @@
       "id": "zone2_standard_w_r",
       "type": "parameter",
       "position": {
-        "x": 420,
-        "y": 1140
+        "x": 1640,
+        "y": 590
       },
       "data": {
         "kind": "parameter",
-        "label": "R weight",
+        "label": "Premium Standard · R weight",
         "value": 900
       }
     },
@@ -353,8 +353,8 @@
       "id": "sr_count_standard",
       "type": "pool",
       "position": {
-        "x": 800,
-        "y": 780
+        "x": 2020,
+        "y": 230
       },
       "data": {
         "kind": "pool",
@@ -369,8 +369,8 @@
       "id": "r_count_standard",
       "type": "pool",
       "position": {
-        "x": 800,
-        "y": 880
+        "x": 2020,
+        "y": 330
       },
       "data": {
         "kind": "pool",
@@ -385,8 +385,8 @@
       "id": "ssr_count_standard",
       "type": "pool",
       "position": {
-        "x": 800,
-        "y": 980
+        "x": 2020,
+        "y": 430
       },
       "data": {
         "kind": "pool",
@@ -401,8 +401,8 @@
       "id": "roll_gate_standard",
       "type": "gate",
       "position": {
-        "x": 420,
-        "y": 780
+        "x": 1640,
+        "y": 230
       },
       "data": {
         "kind": "gate",
@@ -416,8 +416,8 @@
       "id": "ssr_hit_standard",
       "type": "gate",
       "position": {
-        "x": 610,
-        "y": 780
+        "x": 1830,
+        "y": 230
       },
       "data": {
         "kind": "gate",
@@ -431,8 +431,8 @@
       "id": "sr_hit_standard",
       "type": "gate",
       "position": {
-        "x": 610,
-        "y": 880
+        "x": 1830,
+        "y": 330
       },
       "data": {
         "kind": "gate",
@@ -446,8 +446,8 @@
       "id": "r_hit_standard",
       "type": "gate",
       "position": {
-        "x": 610,
-        "y": 980
+        "x": 1830,
+        "y": 430
       },
       "data": {
         "kind": "gate",
@@ -461,8 +461,8 @@
       "id": "pity_standard",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 1240
+        "x": 1260,
+        "y": 690
       },
       "data": {
         "kind": "pool",
@@ -477,12 +477,12 @@
       "id": "zone2_standard_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 230,
-        "y": 1240
+        "x": 1450,
+        "y": 690
       },
       "data": {
         "kind": "parameter",
-        "label": "Hard pity ceiling",
+        "label": "Premium Standard · Hard pity ceiling",
         "value": 80
       }
     },
@@ -490,8 +490,8 @@
       "id": "forced_ssr_standard",
       "type": "gate",
       "position": {
-        "x": 420,
-        "y": 880
+        "x": 1640,
+        "y": 330
       },
       "data": {
         "kind": "gate",
@@ -505,8 +505,8 @@
       "id": "ceiling_hits_standard",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 980
+        "x": 1260,
+        "y": 430
       },
       "data": {
         "kind": "pool",
@@ -521,8 +521,8 @@
       "id": "fund_pickup",
       "type": "source",
       "position": {
-        "x": 40,
-        "y": 1430
+        "x": 2480,
+        "y": 230
       },
       "data": {
         "kind": "source",
@@ -535,8 +535,8 @@
       "id": "ticket_pickup",
       "type": "pool",
       "position": {
-        "x": 230,
-        "y": 1430
+        "x": 2750,
+        "y": 230
       },
       "data": {
         "kind": "pool",
@@ -551,8 +551,8 @@
       "id": "pulls_made_pickup",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 1530
+        "x": 2480,
+        "y": 330
       },
       "data": {
         "kind": "pool",
@@ -567,12 +567,12 @@
       "id": "zone3_pickup_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 40,
-        "y": 1890
+        "x": 2480,
+        "y": 690
       },
       "data": {
         "kind": "parameter",
-        "label": "SSR weight",
+        "label": "Premium Pickup · SSR weight",
         "value": 10
       }
     },
@@ -580,12 +580,12 @@
       "id": "zone3_pickup_w_sr",
       "type": "parameter",
       "position": {
-        "x": 230,
-        "y": 1890
+        "x": 2750,
+        "y": 690
       },
       "data": {
         "kind": "parameter",
-        "label": "SR weight",
+        "label": "Premium Pickup · SR weight",
         "value": 90
       }
     },
@@ -593,12 +593,12 @@
       "id": "zone3_pickup_w_r",
       "type": "parameter",
       "position": {
-        "x": 420,
-        "y": 1890
+        "x": 3020,
+        "y": 690
       },
       "data": {
         "kind": "parameter",
-        "label": "R weight",
+        "label": "Premium Pickup · R weight",
         "value": 900
       }
     },
@@ -606,8 +606,8 @@
       "id": "sr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 800,
-        "y": 1430
+        "x": 3560,
+        "y": 230
       },
       "data": {
         "kind": "pool",
@@ -622,8 +622,8 @@
       "id": "r_count_pickup",
       "type": "pool",
       "position": {
-        "x": 800,
-        "y": 1530
+        "x": 3560,
+        "y": 330
       },
       "data": {
         "kind": "pool",
@@ -638,8 +638,8 @@
       "id": "ssr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 1630
+        "x": 2480,
+        "y": 430
       },
       "data": {
         "kind": "pool",
@@ -654,8 +654,8 @@
       "id": "pity_pickup",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 1990
+        "x": 2480,
+        "y": 790
       },
       "data": {
         "kind": "pool",
@@ -670,12 +670,12 @@
       "id": "zone3_pickup_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 230,
-        "y": 1990
+        "x": 2750,
+        "y": 790
       },
       "data": {
         "kind": "parameter",
-        "label": "Hard pity ceiling",
+        "label": "Premium Pickup · Hard pity ceiling",
         "value": 80
       }
     },
@@ -683,8 +683,8 @@
       "id": "ceiling_hits_pickup",
       "type": "pool",
       "position": {
-        "x": 40,
-        "y": 1730
+        "x": 2480,
+        "y": 530
       },
       "data": {
         "kind": "pool",
@@ -699,8 +699,8 @@
       "id": "missed_pickup_pickup",
       "type": "pool",
       "position": {
-        "x": 420,
-        "y": 1990
+        "x": 3020,
+        "y": 790
       },
       "data": {
         "kind": "pool",
@@ -715,12 +715,12 @@
       "id": "zone3_pickup_w_pickup",
       "type": "parameter",
       "position": {
-        "x": 40,
-        "y": 2090
+        "x": 2480,
+        "y": 890
       },
       "data": {
         "kind": "parameter",
-        "label": "Pickup weight",
+        "label": "Premium Pickup · Pickup weight",
         "value": 50
       }
     },
@@ -728,12 +728,12 @@
       "id": "zone3_pickup_w_standard",
       "type": "parameter",
       "position": {
-        "x": 420,
-        "y": 1240
+        "x": 2750,
+        "y": 890
       },
       "data": {
         "kind": "parameter",
-        "label": "Standard weight",
+        "label": "Premium Pickup · Standard weight",
         "value": 50
       }
     },
@@ -741,8 +741,8 @@
       "id": "roll_normal_open_pickup",
       "type": "gate",
       "position": {
-        "x": 420,
-        "y": 1430
+        "x": 3020,
+        "y": 230
       },
       "data": {
         "kind": "gate",
@@ -756,8 +756,8 @@
       "id": "roll_normal_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 420,
-        "y": 1530
+        "x": 3020,
+        "y": 330
       },
       "data": {
         "kind": "gate",
@@ -771,8 +771,8 @@
       "id": "roll_forced_open_pickup",
       "type": "gate",
       "position": {
-        "x": 420,
-        "y": 1630
+        "x": 3020,
+        "y": 430
       },
       "data": {
         "kind": "gate",
@@ -786,8 +786,8 @@
       "id": "roll_forced_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 420,
-        "y": 1730
+        "x": 3020,
+        "y": 530
       },
       "data": {
         "kind": "gate",
@@ -801,8 +801,8 @@
       "id": "ssr_split_open_pickup",
       "type": "gate",
       "position": {
-        "x": 610,
-        "y": 1430
+        "x": 3290,
+        "y": 230
       },
       "data": {
         "kind": "gate",
@@ -816,8 +816,8 @@
       "id": "pickup_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 800,
-        "y": 1630
+        "x": 3560,
+        "y": 430
       },
       "data": {
         "kind": "gate",
@@ -831,8 +831,8 @@
       "id": "standard_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 800,
-        "y": 1730
+        "x": 3560,
+        "y": 530
       },
       "data": {
         "kind": "gate",
@@ -846,8 +846,8 @@
       "id": "sr_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 610,
-        "y": 1530
+        "x": 3290,
+        "y": 330
       },
       "data": {
         "kind": "gate",
@@ -861,8 +861,8 @@
       "id": "r_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 610,
-        "y": 1630
+        "x": 3290,
+        "y": 430
       },
       "data": {
         "kind": "gate",
@@ -876,8 +876,8 @@
       "id": "pickup_count_pickup",
       "type": "pool",
       "position": {
-        "x": 990,
-        "y": 1430
+        "x": 3830,
+        "y": 230
       },
       "data": {
         "kind": "pool",
@@ -892,8 +892,8 @@
       "id": "standard_count_pickup",
       "type": "pool",
       "position": {
-        "x": 990,
-        "y": 1530
+        "x": 3830,
+        "y": 330
       },
       "data": {
         "kind": "pool",
@@ -1902,7 +1902,7 @@
       "rect": {
         "x": 0,
         "y": 0,
-        "w": 1230,
+        "w": 1550,
         "h": 120
       }
     },
@@ -1921,8 +1921,8 @@
       "id": "zone_standard",
       "label": "Premium Standard",
       "rect": {
-        "x": 0,
-        "y": 740,
+        "x": 1220,
+        "y": 190,
         "w": 950,
         "h": 580
       },
@@ -1932,9 +1932,9 @@
       "id": "zone_pickup",
       "label": "Premium Pickup",
       "rect": {
-        "x": 0,
-        "y": 1390,
-        "w": 1140,
+        "x": 2440,
+        "y": 190,
+        "w": 1540,
         "h": 780
       },
       "color": "rose"

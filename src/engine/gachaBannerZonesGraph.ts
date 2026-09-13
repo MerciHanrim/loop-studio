@@ -46,6 +46,22 @@
 // of interleaving by role. This changes ONLY the 13 Parameter ids that carry
 // a zone (`pulls_per_zone` itself sorts first unprefixed, already lexically
 // before `zoneN_...`); every other node id is unchanged.
+//
+// Implementation note 4 (Hanrim, 2026-09-13, live-preview review round 2):
+// note 3's zone-suffix drop went too far for Parameters specifically. The
+// `zoneN_` id prefix only controls Inputs-panel SORT ORDER — it is never
+// shown — so "SSR weight" / "SR weight" / "R weight" rendered three times,
+// indistinguishably, in the flat Inputs panel (frame context lives only on
+// the canvas, and the Inputs panel has no frames). `paramLabelFor` below
+// restores an explicit zone tag to Parameter LABELS ONLY; every other node
+// kind keeps the short `labelFor` label, since their ids already carry a
+// visible zone suffix on canvas via the frame they sit in. The 4 comparison
+// Registers separately gain a numbered `cmpN_` sort prefix on their IDS (not
+// just their labels) for the same reason `paramId` exists: the Summary
+// panel also sorts by raw id, and an alphabetical sort of `hit_rate_free` /
+// `hit_rate_pickup` / `hit_rate_standard` / `pickup_share_pickup` does not
+// land in the product's stated Free -> Standard -> Pickup order. The pickup
+// Register's formula also changes here — see `buildComparisonRegisters`.
 
 import type { LoopEdge, LoopNode } from '../model/types'
 
@@ -149,6 +165,10 @@ export const paramId = (zone: ZoneKey, role: string) => `zone${ZONE_ORDINAL[zone
  *  frame title already gives that context on canvas. */
 const labelFor = (role: string) => role
 
+/** Parameter LABEL text ONLY (implementation note 4) — regains an explicit
+ *  zone tag, since the Inputs panel is flat and carries no frame context. */
+const paramLabelFor = (zone: ZoneKey, role: string) => `${ZONE_TITLE[zone]} · ${role}`
+
 /**
  * One zone's nodes/edges (GZ3.4 funding shape + GZ4 pity + GZ5 pickup
  * guarantee, `pickup` only). `hasPity` is false only for `free` (GZ-D2).
@@ -178,9 +198,9 @@ export function buildZone(zone: ZoneKey): { nodes: LoopNode[]; edges: LoopEdge[]
   const wR = paramId(zone, 'w_r')
   const weights =
     zone === 'free' ? { ssr: 6, sr: 51, r: 943 } : { ssr: 10, sr: 90, r: 900 }
-  nodes.push(parameter(wSsr, labelFor('SSR weight'), weights.ssr))
-  nodes.push(parameter(wSr, labelFor('SR weight'), weights.sr))
-  nodes.push(parameter(wR, labelFor('R weight'), weights.r))
+  nodes.push(parameter(wSsr, paramLabelFor(zone, 'SSR weight'), weights.ssr))
+  nodes.push(parameter(wSr, paramLabelFor(zone, 'SR weight'), weights.sr))
+  nodes.push(parameter(wR, paramLabelFor(zone, 'R weight'), weights.r))
 
   const srCount = id('sr_count')
   const rCount = id('r_count')
@@ -227,7 +247,7 @@ export function buildZone(zone: ZoneKey): { nodes: LoopNode[]; edges: LoopEdge[]
   const forcedSsr = id('forced_ssr')
   const ceilingHits = id('ceiling_hits')
   nodes.push(pool(pity, labelFor('Pity')))
-  nodes.push(parameter(hardPity, labelFor('Hard pity ceiling'), HARD_PITY_STANDARD))
+  nodes.push(parameter(hardPity, paramLabelFor(zone, 'Hard pity ceiling'), HARD_PITY_STANDARD))
   nodes.push(gate(forcedSsr, labelFor('Forced SSR'), 'deterministic'))
   nodes.push(pool(ceilingHits, labelFor('Ceiling hits')))
 
@@ -279,14 +299,14 @@ function buildPickupRoll(ctx: {
   const ceilingHits = 'ceiling_hits_pickup'
   const missedPickup = 'missed_pickup_pickup'
   nodes.push(pool(pity, labelFor('Pity')))
-  nodes.push(parameter(hardPity, labelFor('Hard pity ceiling'), HARD_PITY_PICKUP))
+  nodes.push(parameter(hardPity, paramLabelFor('pickup', 'Hard pity ceiling'), HARD_PITY_PICKUP))
   nodes.push(pool(ceilingHits, labelFor('Ceiling hits')))
   nodes.push(pool(missedPickup, labelFor('Pickup owed'))) // GZ-D4: starts at 0
 
   const wPickup = paramId('pickup', 'w_pickup')
   const wStandard = paramId('pickup', 'w_standard')
-  nodes.push(parameter(wPickup, labelFor('Pickup weight'), 50))
-  nodes.push(parameter(wStandard, labelFor('Standard weight'), 50))
+  nodes.push(parameter(wPickup, paramLabelFor('pickup', 'Pickup weight'), 50))
+  nodes.push(parameter(wStandard, paramLabelFor('pickup', 'Standard weight'), 50))
 
   // The four paths (GZ5.1). Pity condition and guarantee condition
   // AND-combine on each (multiple activators on one target already AND
@@ -386,26 +406,40 @@ export function buildSharedParameter(): LoopNode {
 /** GZ7.2 — the single-run display Registers, NOT Monte Carlo tracked. These
  *  sit together in the shared comparison area, outside any per-zone frame,
  *  so — unlike every other node (implementation note 3) — they KEEP an
- *  explicit zone tag; it is the only thing telling them apart here. */
+ *  explicit zone tag; it is the only thing telling them apart here. IDs carry
+ *  a `cmpN_` sort prefix (implementation note 4) so the Summary panel's raw-
+ *  id sort (`ModelPanels.tsx`'s `byId`) lands in Free -> Standard -> Pickup
+ *  order instead of alphabetical (`hit_rate_free/pickup/standard` then
+ *  `pickup_share_pickup`).
+ *
+ *  The 4th Register was `pickup_share_pickup = pickup_count / ssr_count`
+ *  (share of Zone 3's own SSRs that were pickup) — that divides 0/0 the
+ *  moment the Template opens (before any pull), surfacing as a visible error
+ *  badge with no user action taken yet. Fixed to `pickup_count / pulls_per_zone`
+ *  — pickup rate per PULL, not per SSR — since `pulls_per_zone` is a non-zero
+ *  constant, this can never divide by zero at rest. This changes what the
+ *  number means (a rarer, lower rate than "share of SSRs"), not just its
+ *  formula — a "share of SSRs" framing has no well-defined value at rest, so
+ *  it was dropped rather than patched. */
 export function buildComparisonRegisters(): LoopNode[] {
   return [
-    register('hit_rate_free', `Hit rate — ${ZONE_TITLE.free}`, '@ssr_count_free / @pulls_per_zone', 'percent'),
+    register('cmp1_hit_rate_free', `Hit rate — ${ZONE_TITLE.free}`, '@ssr_count_free / @pulls_per_zone', 'percent'),
     register(
-      'hit_rate_standard',
+      'cmp2_hit_rate_standard',
       `Hit rate — ${ZONE_TITLE.standard}`,
       '@ssr_count_standard / @pulls_per_zone',
       'percent',
     ),
     register(
-      'hit_rate_pickup',
+      'cmp3_hit_rate_pickup',
       `Hit rate — ${ZONE_TITLE.pickup}`,
       '@ssr_count_pickup / @pulls_per_zone',
       'percent',
     ),
     register(
-      'pickup_share_pickup',
-      `Pickup share — ${ZONE_TITLE.pickup}`,
-      '@pickup_count_pickup / @ssr_count_pickup',
+      'cmp4_pickup_rate_pickup',
+      `Pickup rate — ${ZONE_TITLE.pickup}`,
+      '@pickup_count_pickup / @pulls_per_zone',
       'percent',
     ),
   ]

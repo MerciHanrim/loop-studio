@@ -485,19 +485,30 @@ does not propose.
 | Register | expression | format | zones |
 |---|---|---|---|
 | `hit_rate_<zone>` | `@ssr_count_<zone> / @pulls_per_zone` | percent | all 3 |
-| `pickup_share_pickup` | `@pickup_count_pickup / @ssr_count_pickup` | percent | Zone 3 only |
+| `pickup_rate_pickup` | `@pickup_count_pickup / @pulls_per_zone` | percent | Zone 3 only |
 
 `spent`/currency amounts are deliberately **not** given a cross-zone
 comparison Register — GZ2 already established the three zones' currencies
 share no unit, so "cost per SSR" would only ever be meaningful *within* one
 zone's own currency, and (per GZ3.4) it is trivially `1 / hit_rate` in
-tickets, not a separate quantity worth its own Register. A zero-SSR seed
-makes `hit_rate_<zone>` (or `pickup_share_pickup`) a `0 / N` (well-defined,
-not a divide-by-zero) or, for `pickup_share_pickup`, a genuine `0 / 0` when
-`ssr_count_pickup` is itself `0` — already a defined, handled Register state
-(`regExpr.row.divZero`); the implementation PR must include at least one
-Monte Carlo fixture seed that exercises it (not vanishingly rare at
-`p ≈ 0.01` over 200 pulls).
+tickets, not a separate quantity worth its own Register.
+
+**Round 4 correction (Hanrim, 2026-09-13, live-preview review of the
+implementation PR):** the 4th Register was originally specified as
+`pickup_share_pickup = @pickup_count_pickup / @ssr_count_pickup` — Zone 3's
+*share of its own SSRs* that were pickup. That divides `0 / 0` the instant
+the Template is opened, before any pull has happened, surfacing as a visible
+error badge with no user action taken — this document's own "already a
+defined, handled Register state" claim for that case was wrong; a `0 / 0`
+evaluate-error is a defined *state*, but it is not a well-formed *value* to
+show a first-time viewer at rest. Fixed to `pickup_rate_pickup =
+@pickup_count_pickup / @pulls_per_zone` — pickup rate **per pull**, not per
+SSR. `pulls_per_zone` is a non-zero constant, so this can never divide by
+zero. This changes what the number means (a rarer, lower rate than "share of
+SSRs"), not just its formula; "share of SSRs" has no well-defined value at
+rest, so it is dropped rather than patched. `hit_rate_<zone>` was never
+affected — it was already `/ pulls_per_zone`, well-defined (`0`) on a
+zero-SSR seed, exactly as this section already described.
 
 ## GZ8. Verification (binds the future implementation PR)
 
