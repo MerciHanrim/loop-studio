@@ -150,5 +150,18 @@ export const TEMPLATES: Template[] = [
     recommendedRunConfig: (gachaBannerZonesDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
     modelVersion: modelVersionForSchema((gachaBannerZonesDoc as { schema?: unknown }).schema) ?? 1,
+    // §MML3 (Hanrim, 2026-09-13, live-preview review) — the 3 zones sit side
+    // by side across ~3980 graph units (docs/gacha-banner-zones.md's layout
+    // round 2); at a 1280-wide pane, fitting all three at once caps out
+    // around 0.2-0.3 zoom no matter how the nodes are arranged — under the
+    // ~0.45 L1 readability floor MMO's own initialView is tuned against, so
+    // node labels read as noise, not text. Fit-all still shows every zone (no
+    // overlaps, e2e-checked) for anyone who zooms out; opened FROM THE MENU,
+    // frame the comparison row + the Free zone instead — the headline numbers
+    // for all 3 zones plus one fully-legible zone to read the roll/count
+    // pattern from, Standard/Pickup one pan to the right away, mirroring the
+    // MMO precedent's own "rest is a pan away" framing. Fixed graph coords
+    // (comparison row 0-1550 + Free zone 0-950x190-670), no locale branch.
+    initialView: { rect: { x: 0, y: 0, width: 1620, height: 740 }, minZoom: 0.6 },
   },
 ]

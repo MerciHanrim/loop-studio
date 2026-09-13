@@ -17,14 +17,23 @@ const COFFEE = JSON.parse(
 const MMO = JSON.parse(
   readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8'),
 ) as { nodes: { id: string; position: { x: number; y: number } }[] }
+const GACHA = JSON.parse(
+  readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8'),
+) as { nodes: { id: string; position: { x: number; y: number } }[] }
 
 const COFFEE_EN = 'Coffee roastery operations flow'
 const MMO_EN = 'Early MMO progression (levels 1–15)'
+const GACHA_EN = '3-zone gacha banner comparison'
 // the extreme left / right nodes of each graph — both must land on screen
 const COFFEE_L = 'cafe_retail_demand_kg'
 const COFFEE_R = 'projected_operating_margin'
 const MMO_L = 'char_creation'
 const MMO_R = 'end15'
+// gacha: a comparison-row node (always framed) and a Pickup-zone-only node
+// (deliberately left off screen — docs/gacha-banner-zones.md's layout round
+// 2 puts Pickup at the far right of the 3-zone row)
+const GACHA_L = 'cmp1_hit_rate_free'
+const GACHA_R = 'pickup_hit_pickup'
 
 type Loop = Record<string, { getState: () => any }>
 const L = (page: Page) => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop && true)
@@ -179,6 +188,39 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
       (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.map((n: any) => n.id).sort(),
     )
     expect(afterUndo, 'undo skips past the MMO framing').not.toEqual(MMO.nodes.map((n) => n.id).sort())
+  })
+
+  // docs/gacha-banner-zones.md's layout round 2 — the 3 zones sit side by side
+  // across ~3980 graph units; at a 1280-wide pane, fitting all three at once
+  // caps out around 0.2-0.3 zoom, under the ~0.45 L1 readability floor (found
+  // in live-preview review, Hanrim, 2026-09-13). Opened FROM THE MENU it
+  // instead frames the comparison row + the Free zone at ≥ that floor —
+  // Standard/Pickup one pan to the right away, same §MML3 pattern as MMO.
+  test('desktop: open the gacha banner Template from the menu → frames the comparison row + Free zone (§MML3), not fit-all', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, COFFEE_EN, COFFEE_R)
+    await setVp(page, { x: 300, y: 200, zoom: 1.6 }) // zoomed in on the small graph
+    const before = await getVp(page)
+
+    await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+    await expect.poll(() => nodeOnScreen(page, GACHA_L)).toBe(true)
+    const after = await getVp(page)
+
+    expect(after).not.toEqual(before)
+    expect(after.zoom, 'opens at or above the L1 detail zoom').toBeGreaterThanOrEqual(0.45)
+    expect(await nodeOnScreen(page, 'cmp1_hit_rate_free')).toBe(true)
+    expect(await nodeOnScreen(page, 'roll_gate_free')).toBe(true)
+    expect(await nodeOnScreen(page, GACHA_R), 'Pickup zone is off screen (pan / minimap / Focus)').toBe(false)
+
+    // camera-only: positions are exactly the file's, and the framing is not an
+    // undo entry (one undo lands past gacha on the previous Coffee graph)
+    expect((await graphSig(page)).positions).toEqual(filePositions(GACHA))
+    await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.graph.getState().undo())
+    const afterUndo = await page.evaluate(() =>
+      (window as unknown as { __loop: Loop }).__loop.graph.getState().nodes.map((n: any) => n.id).sort(),
+    )
+    expect(afterUndo, 'undo skips past the gacha framing').not.toEqual(GACHA.nodes.map((n) => n.id).sort())
   })
 
   test('desktop: a language change after a menu open never moves the camera (§MML3)', async ({ page }) => {
