@@ -7,6 +7,8 @@
 
 export {
   PARAM_UNIT_MAX_BYTES,
+  SOURCE_ID_MAX_BYTES,
+  SOURCE_KEY_MAX_BYTES,
   type ParamNotice,
   type ParamReadResult,
   type ParameterData,

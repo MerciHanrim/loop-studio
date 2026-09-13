@@ -3,8 +3,8 @@ import type { MessageCatalog } from '../i18n/locales/en'
 import enCatalog from '../i18n/locales/en'
 import jaCatalog from '../i18n/locales/ja'
 import { useI18n } from '../i18n/store'
-import type { SavedFrame } from '../model/serialize'
-import { STORAGE_KEY } from '../model/serialize'
+import type { ImportSourceTable, SavedFrame } from '../model/serialize'
+import { loadFromStorage, STORAGE_KEY } from '../model/serialize'
 
 // docs/template-label-overlay.md §TLO12 — the locale-switch subscription in
 // graphStore also re-titles OFFICIAL group frames: the LIVE set and the frame
@@ -70,6 +70,7 @@ vi.stubGlobal('localStorage', mem)
 
 const { useGraphStore } = await import('./graphStore')
 const { useFrameStore } = await import('./frameStore')
+const { useDataImportStore } = await import('./dataImportStore')
 
 const frame = (id: string, label: string, x = 0): SavedFrame => ({
   id,
@@ -95,6 +96,7 @@ const autosaveWrites = () => setItemSpy.mock.calls.filter(([k]) => k === STORAGE
 beforeEach(() => {
   activate('en', enCatalog)
   useFrameStore.getState().loadFrames([])
+  useDataImportStore.getState().loadTables([])
   useGraphStore.setState({
     nodes: [],
     edges: [],
@@ -111,6 +113,7 @@ beforeEach(() => {
 afterEach(() => {
   activate('en', enCatalog)
   useFrameStore.getState().loadFrames([])
+  useDataImportStore.getState().loadTables([])
   useGraphStore.setState({ nodes: [], past: [], future: [] })
 })
 
@@ -202,5 +205,27 @@ describe('§TLO12 — frame titles on a locale switch', () => {
     expect(g.loadRev).toBe(6)
     expect(g.simulationRev).toBe(7)
     expect(g.canUndo).toBe(false) // no undo entry was pushed
+  })
+
+  // SEMANTICS-R8.md — this subscription writes autosave DIRECTLY (not through
+  // `setAutosaveProjectHeader` / `setAutosaveTimelineSeries`), so it is its own
+  // separate call site that must ALSO pass `liveDataImports()`. Missing it
+  // would silently drop provenance from every locale-switch-triggered
+  // autosave write — a real gap the fixture below regression-guards.
+  it('a live node relabel (which fires this subscription’s own autosave write) preserves live dataImports', () => {
+    const table: ImportSourceTable = {
+      sourceTableId: 'srctable_items',
+      label: 'Items',
+      columns: [{ sourceColumnId: 'srccol_key', role: 'key', header: 'item_key' }],
+      rows: [{ sourceKey: 'itm_a', number: {}, label: {}, foreignKey: {} }],
+    }
+    useDataImportStore.getState().loadTables([table])
+    useGraphStore.setState({ nodes: [node('n1', 'Level')] }) // an official EN string ⇒ relabels on switch
+    setItemSpy.mockClear()
+
+    activate('ja', jaCatalog) // triggers liveNodesChanged ⇒ this subscription's own saveToStorage call
+
+    expect(autosaveWrites()).toBe(1)
+    expect(loadFromStorage()!.dataImports).toEqual([table])
   })
 })

@@ -1,0 +1,40 @@
+{
+  "schema": "loop-studio/graph",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "p",
+      "type": "parameter",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "parameter",
+        "label": "p",
+        "value": 1,
+        "sourceTableId": "srctable_1",
+        "sourceKey": "itm_blade_ssr",
+        "sourceColumnId": "srccol_1",
+        "labelAutoComposed": true
+      }
+    },
+    {
+      "id": "b",
+      "type": "pool",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "b",
+        "activation": "passive",
+        "initial": 0,
+        "capacity": null,
+        "mode": "pullAny"
+      }
+    }
+  ],
+  "edges": []
+}

@@ -3,10 +3,13 @@
 **Status: approved — settled design, implementation pending.** Draft 7
 (round 6) closed the last real conflict (the row/cell two-phase
 classification); Hanrim/Lumi confirmed no further blockers and approved
-this design after 6 review rounds. No `loop-*/N` id yet (§DI13 explains why
-one is likely needed) and no `Frozen` marker — that's minted at
-implementation time, per this project's established pattern
-(`docs/example-mmo-progression.md`, `docs/example-coffee-roastery.md`).
+this design after 6 review rounds. Phase 1A (the storage foundation; §DI13,
+§DI16) has since shipped its `loop-revision/N` id as `loop-revision/8`
+(`SEMANTICS-R8.md`) — see §DI13 for the settled shape. The rest of this
+design (Phase 1B's import UI and the refresh workflow) has no `Frozen`
+marker yet — that's minted at its own implementation time, per this
+project's established pattern (`docs/example-mmo-progression.md`,
+`docs/example-coffee-roastery.md`).
 Implementation is its own separate, later PR (§DI16), same as every other
 design-doc-first feature in this project — not started here, and not
 authorized to start without its own explicit kickoff. Prefix `DI`. Kicked
@@ -1126,16 +1129,27 @@ fields affect nothing the engine computes, but they are still real,
 serialized document content someone might git-diff or three-way-merge, so
 they **do** belong in the revision content digest.
 
-This will very likely need its **own new `loop-revision/N`** entry (a fresh
-`SideVersion`, `FIELDS_BY_KIND` row, and `serialize.ts` allowlist entry —
-following the exact pattern `SEMANTICS-R5.md` / `SEMANTICS-R6.md` already
-set) — stated here as the probable plan, **not** asserted as verified fact.
-The exact number, and whether it's cosmetic-tagged like `frames`/`route` or
-needs its own tag, is an implementation-time question to check against
-`src/model/revision.ts`'s real `projectNode` / `fieldTag` code, the same
+**Settled at Phase 1A implementation time (§DI16): this is `loop-revision/8`
+(`SEMANTICS-R8.md`).** A fresh `SideVersion`, a `dataImports` top-level
+`CanonicalContent` key (mirroring `frames`' `loop-revision/5` graph-array
+shape), a trailing `MODEL_NODE_FIELDS.parameter` row for the four fields
+above, and a `serialize.ts` allowlist entry — following the exact pattern
+`SEMANTICS-R5.md` / `SEMANTICS-R6.md` already set, verified directly against
+the real `src/model/revision.ts` code rather than assumed, the same
 discipline `docs/parameter-activator.md`'s `loop-revision/7` (proposed, then
 found unnecessary after checking the real code) is this project's own
 cautionary precedent for.
+
+These fields are **not** `cosmetic` like `frames`/`route`, nor `engine` like
+`timing`/`when`: they change nothing the engine computes, but they are real
+document content that changes the *meaning* of a future refresh (Phase 1B),
+a materially different claim than a purely presentational overlay. They get
+their own field tag, **`provenance`** (`FieldTag` in `src/model/revision.ts`).
+Version inference is by **presence, not validity** — an incoherent partial
+generating triple, or a `dataImports` entry with zero referencing
+Parameters, is still `loop-revision/8` content, never silently normalized
+back to a plain document. `loop-workspace/1` is unaffected (provenance is
+not a real input to what a run computes).
 
 ## DI14. Decisions
 

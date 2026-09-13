@@ -81,7 +81,13 @@ export type RegisterFormat = 'int' | 'float' | 'percent'
 
 /** loop-model/1 §M1 — a fixed, user-tuned numeric input. `value` is the only
  *  semantic field; `min` / `max` / `step` / `unit` are advisory hints. Never
- *  `invalid`. Has no ports; referenced only from expressions. */
+ *  `invalid`. Has no ports; referenced only from expressions.
+ *
+ *  docs/data-import.md §DI9 / §DI13 (`loop-revision/8`, SEMANTICS-R8.md) —
+ *  `sourceTableId` / `sourceKey` / `sourceColumnId` (the generating triple)
+ *  and `labelAutoComposed` are optional data-import provenance, absent on a
+ *  hand-created Parameter. Kept in sync with `src/model/model/parameter.ts`'s
+ *  own `ParameterData` (the canonical defensive-read shape). */
 export type ParameterData = {
   kind: 'parameter'
   label: string
@@ -90,6 +96,10 @@ export type ParameterData = {
   max?: number
   step?: number
   unit?: string
+  sourceTableId?: string
+  sourceKey?: string
+  sourceColumnId?: string
+  labelAutoComposed?: boolean
 }
 
 /** loop-model/1 §M2 — a derived readout: `expr` is a `loop-expr/1` string in

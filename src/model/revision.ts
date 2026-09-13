@@ -13,8 +13,8 @@ import {
   readParameterData,
   readRegisterData,
 } from './model'
-import { normalizeGraph, readSavedFrames } from './serialize'
-import type { RecommendedRunConfig, SavedFrame } from './serialize'
+import { normalizeGraph, readDataImports, readSavedFrames } from './serialize'
+import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
 
@@ -95,6 +95,17 @@ export type CanonicalContent = {
    * `advisoryAffecting`. Array order is file order — not re-sorted.
    */
   frames?: { id: string; label: string; rect: { x: number; y: number; w: number; h: number }; color?: string }[]
+  /**
+   * `loop-revision/8` (`SEMANTICS-R8.md` §R8-2.1) — the saved data-import
+   * source records. A trailing key AFTER `frames`, BEFORE `modelSemantics`;
+   * present **iff** ≥ 1 entry survives the §R8-1.1 read AND the projection
+   * runs under the model layer (v2+). Absent ⇒ ≤ v7 canonical bytes / digest
+   * unchanged (R8-INV-2). `provenance`-tagged (§R8-3): not `cosmetic` like
+   * `frames` — it doesn't affect the engine today, but it changes the MEANING
+   * of a future refresh, so it is real content someone might git-diff or
+   * three-way-merge. Array order is file order — not re-sorted.
+   */
+  dataImports?: ImportSourceTable[]
   /**
    * loop-model/2 (SEMANTICS-M2.md §M2-8) — the model-semantics discriminator.
    * Present (as the literal `"loop-model/2"`) **iff** the document declares
@@ -192,9 +203,18 @@ const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
   end: ['kind', 'label', 'activation', 'mode'],
 }
 /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-2.1) — new node kinds, exact field
- *  order. Only reached for a `data.kind` of `parameter` / `register`. */
+ *  order. Only reached for a `data.kind` of `parameter` / `register`.
+ *  `loop-revision/8` (`SEMANTICS-R8.md` §R8-2.2) appends `sourceTableId`,
+ *  `sourceKey`, `sourceColumnId`, `labelAutoComposed`, trailing, to
+ *  `parameter` only — each emitted only when `readParameterData` returns it
+ *  (i.e. non-default), so a Parameter with no data-import provenance projects
+ *  byte-identically to before (R8-INV-2), exactly like `resourceType` /
+ *  `route` / `timing` before it. */
 const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
-  parameter: ['kind', 'label', 'value', 'min', 'max', 'step', 'unit'],
+  parameter: [
+    'kind', 'label', 'value', 'min', 'max', 'step', 'unit',
+    'sourceTableId', 'sourceKey', 'sourceColumnId', 'labelAutoComposed',
+  ],
   register: ['kind', 'label', 'expr', 'unit', 'format'],
 }
 /** edge `data` keys, in the frozen emit order, by kind (§R4.2 EDGE_FIELDS_BY_KIND).
@@ -254,6 +274,50 @@ export function isCsuContent(doc: {
     if (e.data?.kind !== 'state') continue
     if (e.data?.when !== undefined) return true
     if (e.data?.timing !== undefined && e.data.timing !== 'phase0') return true
+  }
+  return false
+}
+
+/**
+ * `SEMANTICS-R8.md §R8-1` — the data-import wire-level content predicate. This
+ * predicate checks storage SHAPE ALONE — key presence, never whether an FK
+ * resolves, a row is well-formed, or a value's TYPE is even valid — matching
+ * the "presence, not validity" contract this doc's design settled on. A doc
+ * is `loop-revision/8` content iff any `parameter` node's `data` carries any
+ * of the four provenance keys, however invalid its value.
+ *
+ * Deliberately callable on EITHER raw or normalised node data — a key's mere
+ * presence is what matters, not whether it survives normalisation. This
+ * matters concretely: `readParameterData` (called from `normalizeNode`,
+ * called from `normalizeGraph`) drops a wrong-TYPED provenance value (e.g.
+ * `sourceTableId: 42`) before it ever reaches a normalised node's `data` —
+ * correct for the CANONICAL PROJECTION (an invalid value must never appear in
+ * emitted content), but wrong for CLASSIFICATION, which must still see the
+ * key. So `readRevisionSide` deliberately calls this on its OWN raw `graph.nodes`
+ * argument, before its internal `normalizeGraph` call — see that function's
+ * `hasDataImportNode` for why, and its `rawDataImportSignal` for the
+ * `deserialize`-fed case where even that raw argument has already been
+ * normalised once upstream. An INCOHERENT but validly-typed partial triple
+ * (e.g. `sourceKey` present, `sourceTableId` / `sourceColumnId` absent) is
+ * visible either way, since `readParameterData` keeps each such field
+ * independently verbatim (no cross-field coherence requirement, §DI9 / the
+ * parameter.ts header comment). The graph-level `dataImports` half of this
+ * predicate is checked separately in `readRevisionSide`, mirroring exactly
+ * how `hasFrames` is computed there.
+ */
+export function isDataImportContent(doc: {
+  nodes: { data?: { kind?: unknown; sourceTableId?: unknown; sourceKey?: unknown; sourceColumnId?: unknown; labelAutoComposed?: unknown } | null }[]
+}): boolean {
+  for (const n of doc.nodes) {
+    if (n.data?.kind !== 'parameter') continue
+    if (
+      n.data.sourceTableId !== undefined ||
+      n.data.sourceKey !== undefined ||
+      n.data.sourceColumnId !== undefined ||
+      n.data.labelAutoComposed !== undefined
+    ) {
+      return true
+    }
   }
   return false
 }
@@ -422,6 +486,9 @@ export function canonicalContent(
     /** loop-revision/5 — raw or already-clean saved frames (§R5-1.1 is applied
      *  here defensively, so a caller may pass either). */
     frames?: unknown
+    /** `loop-revision/8` — raw or already-clean data-import source records
+     *  (§R8-1.1 is applied here defensively, so a caller may pass either). */
+    dataImports?: unknown
   },
   opts: { modelLayer?: boolean; modelVersion?: CanonModelVersion } = {},
 ): CanonicalContent {
@@ -458,6 +525,38 @@ export function canonicalContent(
       })
     }
   }
+  // `loop-revision/8` (SEMANTICS-R8.md §R8-2.1) — `dataImports` AFTER
+  // `frames`, BEFORE `modelSemantics`. Only under the model layer (v2+), only
+  // when ≥ 1 entry survives §R8-1.1. Array in FILE ORDER (not re-sorted).
+  // Absent ⇒ ≤ v7 bytes untouched (R8-INV-2).
+  if (modelLayer) {
+    const dataImports = readDataImports(doc.dataImports)
+    if (dataImports.length > 0) {
+      out.dataImports = dataImports.map((t) => ({
+        sourceTableId: t.sourceTableId,
+        label: t.label,
+        columns: t.columns.map((c) =>
+          c.refTableId
+            ? { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header, refTableId: c.refTableId }
+            : { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header },
+        ),
+        // §R8-2.1 — each map's keys are sorted by `sourceColumnId` (never the
+        // live object's insertion order): two rows with equal values built in
+        // a different column order must project identical bytes, or their
+        // digests would differ for no real content difference.
+        rows: t.rows.map((r) => ({
+          sourceKey: r.sourceKey,
+          number: Object.fromEntries(
+            Object.keys(r.number)
+              .sort()
+              .map((k) => [k, numOrThrow(r.number[k], `dataImports row ${r.sourceKey} number.${k}`)]),
+          ),
+          label: Object.fromEntries(Object.keys(r.label).sort().map((k) => [k, r.label[k]])),
+          foreignKey: Object.fromEntries(Object.keys(r.foreignKey).sort().map((k) => [k, r.foreignKey[k]])),
+        })),
+      }))
+    }
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — trailing discriminator, ONLY for a
   // v2 document. Absent ⇒ v1 canonical bytes / digest are untouched (M2-INV-9).
   if (opts.modelVersion === 2) out.modelSemantics = 'loop-model/2'
@@ -485,6 +584,9 @@ export async function fullContentDigest(
     /** loop-revision/5 — carried into the projection (§R5-2.1). Absent ⇒ the
      *  digest is unchanged from ≤ v4 (R5-INV-2). */
     frames?: unknown
+    /** `loop-revision/8` — carried into the projection (§R8-2.1). Absent ⇒ the
+     *  digest is unchanged from ≤ v7 (R8-INV-2). */
+    dataImports?: unknown
   },
   modelVersion?: CanonModelVersion,
 ): Promise<string> {
@@ -506,6 +608,7 @@ export type SideVersion =
   | 'loop-revision/4' // loop-model/2 — the doc declares model-semantics v2 (SEMANTICS-M2.md §M2-8)
   | 'loop-revision/5' // SEMANTICS-R5.md — the side carries ≥ 1 surviving graph-level `frames` entry
   | 'loop-revision/6' // SEMANTICS-R6.md — the side carries CSU (loop-state/3) `timing` / `when` content
+  | 'loop-revision/8' // SEMANTICS-R8.md — the side carries data-import provenance content (§R8-1)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -557,6 +660,24 @@ export function readRevisionSide(
      *  saved frames (from `deserialize`). The defensive read happens inside
      *  `canonicalContent`; ≥ 1 surviving entry makes the side `loop-revision/5`. */
     frames?: readonly SavedFrame[]
+    /** `SEMANTICS-R8.md` §R8-1 — the side's raw graph-level data-import source
+     *  records (from `deserialize`). Same posture as `frames`: ≥ 1 surviving
+     *  entry makes the side (at least) `loop-revision/8`. */
+    dataImports?: readonly ImportSourceTable[]
+    /** `SEMANTICS-R8.md` §R8-1 — true when the file's RAW, pre-defensive-read
+     *  content carried a data-import provenance signal (an invalid-typed
+     *  provenance key, or a `dataImports` entry) that `readDataImports` /
+     *  `readParameterData` went on to discard as unreadable. A `deserialize`
+     *  caller (`revisionIO.ts`) MUST thread its `hasRawDataImportSignal`
+     *  through here — by the time `nodes` / `dataImports` above reach this
+     *  function they have ALREADY been through one normalisation pass inside
+     *  `deserialize`, so the raw shape a corrupted file had is gone; without
+     *  this flag such a file misclassifies as ≤ v7, contradicting "presence,
+     *  not validity" (§R8-1). A caller passing genuinely raw, not-yet-
+     *  normalised nodes directly (skipping `deserialize`) may omit this — see
+     *  `hasDataImportNode` below, which checks THIS function's own raw
+     *  `graph.nodes` argument for exactly that case. */
+    rawDataImportSignal?: boolean
   },
   storedDigest?: string,
   /** loop-model/2 — the model-semantics version the side's `schema` declared
@@ -605,26 +726,65 @@ export function readRevisionSide(
   // is the only thing v5-vs-v4 changes here. A `frames` block whose entries
   // were all dropped leaves nothing and the side infers as ≤ v4 (R5-INV-2).
   const hasFrames = readSavedFrames(graph.frames).length > 0
-  // SEMANTICS-R6.md §R6-1 — a CSU `timing` / `when` signal is checked FIRST
-  // (highest precedence): it is orthogonal to frames / model / routing (a
-  // pure engine-only pity-counter graph carries none of those), and before
-  // this predicate existed such a graph was wrongly classified as ≤ v5 by
-  // `isModelLayerContent` / `hasRouting` / `hasFrames` alone — its `{
-  // modelLayer: true }` projection (which DOES include `timing` / `when`)
-  // would then disagree with its own inferred-v1 projection and throw the
-  // R2-INV-2 assertion below. `isCsuContent` closes that gap.
+  // SEMANTICS-R6.md §R6-1 — a CSU `timing` / `when` signal: it is orthogonal to
+  // frames / model / routing (a pure engine-only pity-counter graph carries
+  // none of those), and before this predicate existed such a graph was
+  // wrongly classified as ≤ v5 by `isModelLayerContent` / `hasRouting` /
+  // `hasFrames` alone — its `{ modelLayer: true }` projection (which DOES
+  // include `timing` / `when`) would then disagree with its own inferred-v1
+  // projection and throw the R2-INV-2 assertion below. `isCsuContent` closes
+  // that gap. (SEMANTICS-R8.md §R8-D6: `hasDataImport` below now takes
+  // precedence OVER this — see that comment for why.)
   const hasCsu = isCsuContent({ edges: g.edges as { data?: { kind?: unknown; timing?: unknown; when?: unknown } | null }[] })
-  const version: SideVersion = hasCsu
-    ? 'loop-revision/6'
-    : hasFrames
-      ? 'loop-revision/5'
-      : declaredV2
-        ? 'loop-revision/4'
-        : hasRouting
-          ? 'loop-revision/3'
-          : hasModel
-            ? 'loop-revision/2'
-            : 'loop-revision/1'
+  // SEMANTICS-R8.md §R8-1 / §R8-D6 — data-import provenance, checked
+  // independently of all the above (a graph can be pure-data-import content
+  // with no other v2+ trigger — e.g. `dataImports` populated from
+  // lookup-only tables that materialize zero Parameters), and given the
+  // HIGHEST label precedence of every version below (it is the newest
+  // extension; every v2+ side shares the one `{ modelLayer: true }`
+  // projection regardless, so this ordering changes only the reported label,
+  // never a projected byte). Three independent sources, any one sufficient:
+  //  1. `hasDataImportTable` — the RAW `dataImports` array (this function's
+  //     own `graph.dataImports` argument) contains ≥ 1 entry, regardless of
+  //     whether `readDataImports` goes on to keep it (mirrors `hasFrames`,
+  //     but checks presence, not survival — a `dataImports` block every entry
+  //     of which is malformed must still classify as v8, never silently
+  //     fall back to plain, per the "presence not validity" contract).
+  //  2. `hasDataImportNode` — checked on THIS function's OWN raw `graph.nodes`
+  //     argument (before its `normalizeGraph` call above), not on `g.nodes`:
+  //     `normalizeNode` → `readParameterData` already drops a wrong-typed
+  //     provenance key by the time `g.nodes` exists, so checking `g.nodes`
+  //     would miss exactly the corrupted-but-present case this predicate
+  //     must catch. Correct for a caller passing genuinely raw nodes
+  //     directly; see `rawDataImportSignal` below for the `deserialize`-fed
+  //     case, where even `graph.nodes` has already been normalised once.
+  //  3. `graph.rawDataImportSignal` — an explicit flag a `deserialize` caller
+  //     (`revisionIO.ts`) threads through, computed by `deserialize` itself
+  //     from the file's genuinely raw, pre-normalisation JSON (see that
+  //     function's own doc comment) — the only place this signal survives
+  //     once `deserialize`'s own internal `normalizeGraph` call has stripped
+  //     it from `graph.nodes` / `graph.dataImports` before this function ever
+  //     sees them.
+  const hasDataImportTable = Array.isArray(graph.dataImports) && graph.dataImports.length > 0
+  const hasDataImportNode = isDataImportContent({
+    nodes: graph.nodes as {
+      data?: { kind?: unknown; sourceTableId?: unknown; sourceKey?: unknown; sourceColumnId?: unknown; labelAutoComposed?: unknown } | null
+    }[],
+  })
+  const hasDataImport = hasDataImportTable || hasDataImportNode || (graph.rawDataImportSignal ?? false)
+  const version: SideVersion = hasDataImport
+    ? 'loop-revision/8'
+    : hasCsu
+      ? 'loop-revision/6'
+      : hasFrames
+        ? 'loop-revision/5'
+        : declaredV2
+          ? 'loop-revision/4'
+          : hasRouting
+            ? 'loop-revision/3'
+            : hasModel
+              ? 'loop-revision/2'
+              : 'loop-revision/1'
 
   // 4 — project under the version-appropriate field set and verify the digest
   if (version === 'loop-revision/1') {
@@ -640,10 +800,11 @@ export function readRevisionSide(
     return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
   }
 
-  // v2 / v3 / v4 / v5 / v6 all use the ONE conservative `{ modelLayer: true }`
-  // projection; v4 additionally carries the §M2-8 model-semantics
-  // discriminator. The label distinguishes them for the loss report / UI
-  // (§R3-5) — it does not change which fields the projection emits.
+  // v2 / v3 / v4 / v5 / v6 / v8 all use the ONE conservative
+  // `{ modelLayer: true }` projection; v4 additionally carries the §M2-8
+  // model-semantics discriminator. The label distinguishes them for the loss
+  // report / UI (§R3-5) — it does not change which fields the projection
+  // emits.
   const v2 = canonicalContent(graph, {
     modelLayer: true,
     ...(declaredV2 ? { modelVersion: 2 as const } : {}),
@@ -660,14 +821,20 @@ export function readRevisionSide(
 
 // ── engine vs cosmetic (§R4.4 / §R5.2) ────────────────────────────────────
 
-export type FieldTag = 'engine' | 'cosmetic' | 'advisory'
+export type FieldTag = 'engine' | 'cosmetic' | 'advisory' | 'provenance'
 
 /**
  * `label` / `position` are `cosmetic`. `loop-revision/2` (`SEMANTICS-R2.md`
  * §R2-3) adds `advisory` — authored content that changes no computed value:
  * a Parameter tuning hint (`min` / `max` / `step` / `unit`), a Register display
- * hint (`unit` / `format`), or a `resourceType` tag. `parameter.value` and
- * `register.expr` stay `engine`. Everything else in the projection is `engine`.
+ * hint (`unit` / `format`), or a `resourceType` tag. `loop-revision/8`
+ * (`SEMANTICS-R8.md` §R8-3) adds `provenance` for the data-import generating
+ * triple + `labelAutoComposed` — deliberately its OWN tag, not `cosmetic` like
+ * `route` / `waypoints` / `frames`: it doesn't affect the engine today, but
+ * (unlike a purely presentational frame) it changes the MEANING of a future
+ * refresh, so lumping it in with "purely cosmetic" would understate what kind
+ * of content it is. `parameter.value` and `register.expr` stay `engine`.
+ * Everything else in the projection is `engine`.
  */
 export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
   if (kind === 'node' && (field === 'label' || field === 'position' || field === 'data.label')) {
@@ -686,6 +853,16 @@ export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
       field === 'data.format'
     ) {
       return 'advisory'
+    }
+    // `loop-revision/8` §R8-3 — provenance: real content, not engine-affecting,
+    // not purely cosmetic either.
+    if (
+      field === 'data.sourceTableId' ||
+      field === 'data.sourceKey' ||
+      field === 'data.sourceColumnId' ||
+      field === 'data.labelAutoComposed'
+    ) {
+      return 'provenance'
     }
   }
   return 'engine'
@@ -715,6 +892,16 @@ export type FramesChange = {
   proposed: NonNullable<CanonicalContent['frames']> | null
 }
 
+/** `loop-revision/8` (`SEMANTICS-R8.md` §R8-6) — the whole projected
+ *  `dataImports` array compared as ONE `provenance` top-level hunk (no
+ *  per-table / per-row granularity on the wire, mirroring `FramesChange`'s
+ *  own §R5-D7 precedent). Present on the diff **only when the arrays differ**;
+ *  `base` / `proposed` are the projected arrays (`null` = the side had none). */
+export type DataImportsChange = {
+  base: NonNullable<CanonicalContent['dataImports']> | null
+  proposed: NonNullable<CanonicalContent['dataImports']> | null
+}
+
 export type RevisionDiff = {
   nodes: ElementBuckets<CanonicalNode>
   edges: ElementBuckets<CanonicalEdge>
@@ -722,6 +909,9 @@ export type RevisionDiff = {
   /** `loop-revision/5` — `null` when the saved frames are equal; otherwise the
    *  before / after arrays (one atomic cosmetic hunk). */
   frames: FramesChange | null
+  /** `loop-revision/8` — `null` when the data-import source records are
+   *  equal; otherwise the before / after arrays (one atomic provenance hunk). */
+  dataImports: DataImportsChange | null
   workspaceDiffers: boolean
   summary: {
     nodes: { added: number; removed: number; changed: number }
@@ -731,12 +921,24 @@ export type RevisionDiff = {
      *  `dirty` / the diff / `nConf`, but never `engineAffecting` /
      *  `advisoryAffecting`. */
     framesChanged: boolean
+    /** `loop-revision/8` — the saved `dataImports` array differs.
+     *  `provenance`: feeds `dirty` / the diff / `nConf`, but never
+     *  `engineAffecting` / `advisoryAffecting` (§R8-3). */
+    dataImportsChanged: boolean
     engineAffecting: boolean
     /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-3 / R2-D1) — any `advisory`-tagged
      *  hunk (a tuning hint or a `resourceType` tag). Separate from
      *  `engineAffecting`: an advisory change is real revision content and feeds
      *  `dirty` / the diff / `nConf`, but never sets `engineAffecting`. */
     advisoryAffecting: boolean
+    /** `loop-revision/8` (`SEMANTICS-R8.md` §R8-3) — any `provenance`-tagged
+     *  changed field (the data-import generating triple / `labelAutoComposed`
+     *  on a Parameter) OR the graph-level `dataImports` hunk. Separate from
+     *  both `engineAffecting` and `advisoryAffecting`: real revision content,
+     *  never engine-affecting, and deliberately not folded into "advisory"
+     *  (§R8-3 — provenance changes the MEANING of a future refresh, unlike a
+     *  pure display hint). */
+    provenanceAffecting: boolean
     empty: boolean
   }
 }
@@ -869,6 +1071,11 @@ export function computeRevisionDiff(
   const frames: FramesChange | null = framesChanged
     ? { base: base.frames ?? null, proposed: proposed.frames ?? null }
     : null
+  // §R8-6 — the whole `dataImports` array as one provenance hunk, same shape.
+  const dataImportsChanged = !deepEq(base.dataImports ?? null, proposed.dataImports ?? null)
+  const dataImports: DataImportsChange | null = dataImportsChanged
+    ? { base: base.dataImports ?? null, proposed: proposed.dataImports ?? null }
+    : null
 
   const anyEngine =
     nodes.added.length > 0 ||
@@ -885,6 +1092,12 @@ export function computeRevisionDiff(
     nodes.changed.some((c) => c.fields.some((f) => f.tag === 'advisory')) ||
     edges.changed.some((c) => c.fields.some((f) => f.tag === 'advisory'))
 
+  // §R8-3 — any provenance-tagged changed field, OR the graph-level
+  // `dataImports` hunk. Real revision content, never engine- or
+  // advisory-affecting.
+  const anyProvenance =
+    nodes.changed.some((c) => c.fields.some((f) => f.tag === 'provenance')) || dataImportsChanged
+
   const empty =
     nodes.added.length === 0 &&
     nodes.removed.length === 0 &&
@@ -893,21 +1106,25 @@ export function computeRevisionDiff(
     edges.removed.length === 0 &&
     edges.changed.length === 0 &&
     runConfig.length === 0 &&
-    !framesChanged // §R5-6 — a frames-only change is NOT an empty diff
+    !framesChanged && // §R5-6 — a frames-only change is NOT an empty diff
+    !dataImportsChanged // §R8-6 — nor a dataImports-only change
 
   return {
     nodes,
     edges,
     runConfig,
     frames,
+    dataImports,
     workspaceDiffers: opts.workspaceDiffers ?? false,
     summary: {
       nodes: { added: nodes.added.length, removed: nodes.removed.length, changed: nodes.changed.length },
       edges: { added: edges.added.length, removed: edges.removed.length, changed: edges.changed.length },
       runConfigChanged: runConfig.length > 0,
       framesChanged,
-      engineAffecting: anyEngine, // §R5-3 — `frames` NEVER sets this
-      advisoryAffecting: anyAdvisory, // §R5-3 — nor this
+      dataImportsChanged,
+      engineAffecting: anyEngine, // §R5-3 / §R8-3 — neither `frames` nor `dataImports` ever sets this
+      advisoryAffecting: anyAdvisory, // nor this
+      provenanceAffecting: anyProvenance,
       empty,
     },
   }
@@ -979,11 +1196,24 @@ export type FramesHunk = {
   proposed: NonNullable<CanonicalContent['frames']> | null
   yours: NonNullable<CanonicalContent['frames']> | null
 }
+/** `SEMANTICS-R8.md` §R8-6 — the single graph-level `dataImports` hunk,
+ *  mirroring `FramesHunk` exactly (whole-array, `provenance` instead of
+ *  `cosmetic`). */
+export type DataImportsHunk = {
+  kind: 'dataImports'
+  verdict: ThreeWayFieldVerdict
+  base: NonNullable<CanonicalContent['dataImports']> | null
+  proposed: NonNullable<CanonicalContent['dataImports']> | null
+  yours: NonNullable<CanonicalContent['dataImports']> | null
+}
 export type ThreeWayPlan = {
   hunks: ProposalHunk[]
   /** SEMANTICS-R5.md §R5-6 — the graph-level `frames` hunk. Absent when the
    *  base and proposed `frames` arrays are equal (nothing to offer). */
   frames?: FramesHunk
+  /** `SEMANTICS-R8.md` §R8-6 — the graph-level `dataImports` hunk. Absent when
+   *  the base and proposed `dataImports` arrays are equal. */
+  dataImports?: DataImportsHunk
   /** §R7A.2 `nConf` — the number of **revision conflicts the user must resolve
    *  before a whole Apply** (NOT a count of *engine* conflicts). `0` ⇒
    *  `unknown ancestry`, `≥ 1` ⇒ `divergent` (the whole Apply is gated behind
@@ -993,9 +1223,10 @@ export type ThreeWayPlan = {
    *  (`SEMANTICS-R5.md` §R5-6 / R5-D9 — the base and both sides changed the
    *  array divergently: applying the whole proposal would silently discard the
    *  user's frame edits, so it must be confirmed — exactly like a divergent
-   *  `label` rename). A `clean` / `noop` `frames` hunk adds nothing. `frames`
-   *  is still `cosmetic`: it never sets `engineAffecting` / `advisoryAffecting`
-   *  and never moves the engine / structure digest. */
+   *  `label` rename) + a **conflicting `dataImports` hunk** (`SEMANTICS-R8.md`
+   *  §R8-6, same reasoning). A `clean` / `noop` `frames` / `dataImports` hunk
+   *  adds nothing. Neither ever sets `engineAffecting` / `advisoryAffecting`
+   *  and neither ever moves the engine / structure digest. */
   nConf: number
 }
 
@@ -1105,7 +1336,24 @@ export function computeThreeWay(
     if (verdict === 'conflict') nConf += 1
   }
 
-  return { hunks, ...(frames ? { frames } : {}), nConf }
+  // `SEMANTICS-R8.md` §R8-6 — the graph-level `dataImports` hunk, identical
+  // mechanics to `frames` above (whole-array, `provenance` instead of
+  // `cosmetic`, same `nConf` treatment).
+  const bDataImports = base.dataImports ?? null
+  const pDataImports = proposed.dataImports ?? null
+  let dataImports: DataImportsHunk | undefined
+  if (!deepEq(bDataImports, pDataImports)) {
+    const yDataImports = target.dataImports ?? null
+    const verdict: ThreeWayFieldVerdict = deepEq(yDataImports, pDataImports)
+      ? 'noop'
+      : deepEq(yDataImports, bDataImports)
+        ? 'clean'
+        : 'conflict'
+    dataImports = { kind: 'dataImports', verdict, base: bDataImports, proposed: pDataImports, yours: yDataImports }
+    if (verdict === 'conflict') nConf += 1
+  }
+
+  return { hunks, ...(frames ? { frames } : {}), ...(dataImports ? { dataImports } : {}), nConf }
 }
 
 /** §R7A.2 `nConf` — the conflict count only (see {@link computeThreeWay}). */
@@ -1128,6 +1376,13 @@ const cloneEl = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
 const OPTIONAL_PROJECTED_KEYS = new Set([
   'route', 'waypoints', 'resourceType', 'delay', 'timing', 'when', // edge data
   'min', 'max', 'step', 'unit', 'format', // parameter / register hints
+  // `loop-revision/8` (SEMANTICS-R8.md) — the data-import provenance fields.
+  // Explicitly listed here per PR #181's own lesson: a field missing from this
+  // set can't be DELETED by a selective "take theirs" (`proposed: undefined`
+  // is otherwise left as the target has it, never written as a literal
+  // `undefined`) — the exact bug that once let a CSU->legacy selective-Apply
+  // silently keep a stored `timing`/`when` it should have cleared.
+  'sourceTableId', 'sourceKey', 'sourceColumnId', 'labelAutoComposed',
 ])
 
 export type HunkSelection = {
@@ -1141,6 +1396,9 @@ export type HunkSelection = {
    *  frame); `'yours'` / absent keeps the target's array. Never a per-entry
    *  choice (§R5-D7). */
   frames?: 'proposed' | 'yours'
+  /** `SEMANTICS-R8.md` §R8-6 — the single graph-level `dataImports` hunk,
+   *  same mechanics as `frames`. */
+  dataImports?: 'proposed' | 'yours'
 }
 export type SelectiveApplyResult =
   | {
@@ -1152,6 +1410,9 @@ export type SelectiveApplyResult =
        *  array (`[]` = clear). `undefined` ⇒ the caller keeps the target's
        *  frames (`graphStore.loadDoc(…, undefined)` semantics). */
       frames?: readonly SavedFrame[]
+      /** `SEMANTICS-R8.md` §R8-6 — set ONLY when the `dataImports` hunk was
+       *  accepted, same posture as `frames`. */
+      dataImports?: readonly ImportSourceTable[]
     }
   | { ok: false; reason: 'invalid-selection'; detail: string }
 
@@ -1178,6 +1439,9 @@ export function buildSelectiveApply(input: {
      *  when `selection.frames === 'proposed'`. Absent / `[]` ⇒ selecting the
      *  hunk clears every frame. */
     frames?: readonly SavedFrame[]
+    /** `SEMANTICS-R8.md` §R8-6 — the proposal's saved data-import source
+     *  records, same posture as `frames`. */
+    dataImports?: readonly ImportSourceTable[]
   }
   plan: ThreeWayPlan
   selection: HunkSelection
@@ -1281,8 +1545,17 @@ export function buildSelectiveApply(input: {
   // target's frames. No per-entry merge, ever.
   const frames: readonly SavedFrame[] | undefined =
     selection.frames === 'proposed' ? (proposedFull.frames ?? []).map(cloneEl) : undefined
+  // `SEMANTICS-R8.md` §R8-6 — the `dataImports` hunk, identical mechanics.
+  const dataImports: readonly ImportSourceTable[] | undefined =
+    selection.dataImports === 'proposed' ? (proposedFull.dataImports ?? []).map(cloneEl) : undefined
 
-  return { ok: true, nodes: outNodes, edges: outEdges, ...(frames !== undefined ? { frames } : {}) }
+  return {
+    ok: true,
+    nodes: outNodes,
+    edges: outEdges,
+    ...(frames !== undefined ? { frames } : {}),
+    ...(dataImports !== undefined ? { dataImports } : {}),
+  }
 }
 
 // ── §2 — validate the WHOLE result before it can be applied ────────────────
@@ -1578,6 +1851,12 @@ function readCanonicalContent(x: unknown): CanonicalContent | null {
   if (Array.isArray(o.frames) && o.frames.length > 0) {
     out.frames = o.frames as NonNullable<CanonicalContent['frames']>
   }
+  // `SEMANTICS-R8.md` §R8-2.1 — a stored base snapshot from an R8 document
+  // carries the trailing `dataImports` array (after `frames`), same verbatim
+  // posture as `frames` above.
+  if (Array.isArray(o.dataImports) && o.dataImports.length > 0) {
+    out.dataImports = o.dataImports as NonNullable<CanonicalContent['dataImports']>
+  }
   // loop-model/2 (SEMANTICS-M2.md §M2-8) — a stored base snapshot from a v2
   // document carries the trailing discriminator; keep it verbatim (after rrc,
   // the same key order `canonicalContent` emits) so the stored digest verifies.
@@ -1616,6 +1895,10 @@ export type GraphDocInput = {
    *  Absent / empty ⇒ no `frames` key in the file and no contribution to the
    *  content digest (R5-INV-2 conservative extension). */
   frames?: readonly SavedFrame[]
+  /** `SEMANTICS-R8.md` §R8-2 — the doc's saved data-import source records.
+   *  Absent / empty ⇒ no `dataImports` key and no digest contribution
+   *  (R8-INV-2 conservative extension). */
+  dataImports?: readonly ImportSourceTable[]
   workspace?: unknown
 }
 
@@ -1814,6 +2097,8 @@ function buildFile(doc: Omit<GraphDocInput, 'schema' | 'version'>, project: Proj
   // §R5-2.1 — `frames` after `recommendedRunConfig`, only when non-empty, so a
   // frame-free revision / proposal file is byte-identical to a pre-Slice-5 one.
   if (Array.isArray(doc.frames) && doc.frames.length > 0) file.frames = doc.frames
+  // §R8-2.1 — `dataImports` after `frames`, only when non-empty, same posture.
+  if (Array.isArray(doc.dataImports) && doc.dataImports.length > 0) file.dataImports = doc.dataImports
   if (doc.workspace && typeof doc.workspace === 'object') file.workspace = doc.workspace
   file.project = project
   return file

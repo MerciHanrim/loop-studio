@@ -10,8 +10,9 @@ import {
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize, type SavedFrame } from '../model/serialize'
+import { deserialize, type ImportSourceTable, type SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
 import { useProjectStore, type ApplyResult } from './projectStore'
@@ -90,6 +91,17 @@ export async function routeImport(text: string): Promise<RouteResult> {
       edges: parsed.edges,
       recommendedRunConfig: parsed.recommendedRunConfig,
       frames: parsed.frames,
+      // `SEMANTICS-R8.md` §R8-5.1 — `dataImports` is part of the side too;
+      // ≥ 1 surviving entry (or a provenance-carrying Parameter) makes this a
+      // `loop-revision/8` side, same posture as `frames`.
+      dataImports: parsed.dataImports,
+      // §R8-1 — `parsed.nodes` / `parsed.dataImports` above have ALREADY been
+      // through one `normalizeGraph` pass inside `deserialize`, which strips a
+      // wrong-typed provenance key / a malformed `dataImports` entry before
+      // `readRevisionSide` ever sees them. Thread `deserialize`'s own raw-JSON
+      // signal through explicitly, or a corrupted-but-real provenance file
+      // misclassifies as ≤ v7 (see `readRevisionSide`'s own doc comment).
+      rawDataImportSignal: parsed.hasRawDataImportSignal,
     },
     undefined,
     parsed.modelVersion,
@@ -139,9 +151,15 @@ export type PendingProposal = Extract<RouteResult, { kind: 'proposal' }>
  *  §R5-6); `deserialize` always yields an array (`[]` when the file has none). */
 function proposedGraph(
   p: PendingProposal,
-): { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: 1 | 2; frames: SavedFrame[] } {
-  const { nodes, edges, modelVersion, frames } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion, frames }
+): {
+  nodes: LoopNode[]
+  edges: LoopEdge[]
+  modelVersion: 1 | 2
+  frames: SavedFrame[]
+  dataImports: ImportSourceTable[]
+} {
+  const { nodes, edges, modelVersion, frames, dataImports } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion, frames, dataImports }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */
@@ -163,7 +181,12 @@ export function threeWayForPending(p: PendingProposal): ThreeWayPlan {
     // SEMANTICS-R5.md §R5-6 — the LIVE target must carry the on-screen saved
     // frames so the `frames` hunk verdict (noop / clean / conflict) is right.
     canonicalContent(
-      { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+      {
+        nodes: g.nodes,
+        edges: g.edges,
+        frames: useFrameStore.getState().snapshot(),
+        dataImports: useDataImportStore.getState().snapshot(),
+      },
       { modelVersion: g.modelVersion },
     ),
     canonicalContent(proposed, { modelVersion: proposed.modelVersion }),
@@ -180,7 +203,12 @@ export function currentTargetDigest(): string {
   const g = useGraphStore.getState()
   return digestOfCanonical(
     canonicalContent(
-      { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+      {
+        nodes: g.nodes,
+        edges: g.edges,
+        frames: useFrameStore.getState().snapshot(),
+        dataImports: useDataImportStore.getState().snapshot(),
+      },
       { modelVersion: g.modelVersion },
     ),
   )

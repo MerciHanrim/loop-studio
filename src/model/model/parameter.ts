@@ -6,10 +6,39 @@
 // *file* (`payload-invalid`, SEMANTICS-R2.md §R2-1.1), not a node state.
 // `min` / `max` / `step` / `unit` are advisory hints, dropped when incoherent
 // (§M1.2), and — when they survive — part of the revision content.
+//
+// docs/data-import.md §DI9 / §DI13 (`loop-revision/8`, SEMANTICS-R8.md) —
+// `sourceTableId` / `sourceKey` / `sourceColumnId` are the generating triple a
+// data-import Parameter carries back to the row/column it was materialized
+// from; `labelAutoComposed` gates whether its label still auto-recomposes
+// from that source (§DI11). All four are optional, absent on a hand-created
+// Parameter, never `payload-invalid` (provenance never makes an otherwise-
+// valid Parameter unreadable) — but UNLIKE `min` / `max` (a coherent-pair-or-
+// drop rule), each of the four is read INDEPENDENTLY and kept VERBATIM
+// whenever its own type checks out, with no cross-field coherence
+// requirement. This mirrors the CSU `timing` / `when` precedent
+// (SEMANTICS-S3.md — kept "whatever the string is", valid or not), not the
+// `min`/`max` one: an incoherent PARTIAL triple is real, meaningful content
+// (arrived corrupted), not "the same as no provenance" — dropping it would
+// make it invisible to `isDataImportContent` (SEMANTICS-R8.md §R8-1), which
+// must classify by storage shape, not validity.
 
 import { trimUnicodeWhitespace, truncateUtf8, utf8Len } from './text'
 
 export const PARAM_UNIT_MAX_BYTES = 24
+/** §DI-D8 — deliberately its own limit, not a reuse of `PARAM_UNIT_MAX_BYTES`
+ *  or any node-label ceiling: a `sourceTableId` / `sourceColumnId` is always
+ *  our OWN `nextId()`-minted id (short, id-safe), so this is a generous
+ *  defensive ceiling against a corrupted/hand-edited file, not a real limit
+ *  a legitimate value ever approaches. */
+export const SOURCE_ID_MAX_BYTES = 128
+/** §DI-D8 — a `sourceKey` is arbitrary designer text (a spreadsheet row key),
+ *  not an internal id, so it gets a materially larger ceiling than
+ *  `SOURCE_ID_MAX_BYTES`. Also independent of `PARAM_UNIT_MAX_BYTES` — a unit
+ *  string and a spreadsheet key serve unrelated purposes and have no reason to
+ *  share a bound. Exact number is a defensive read ceiling, not the import-time
+ *  validation limit §DI6 describes (that is a Phase 1B UI concern). */
+export const SOURCE_KEY_MAX_BYTES = 256
 
 export type ParameterData = {
   kind: 'parameter'
@@ -19,6 +48,19 @@ export type ParameterData = {
   max?: number
   step?: number
   unit?: string
+  /** docs/data-import.md §DI9 — absent on a hand-created Parameter, or after
+   *  `unlink` (Phase 2). Each of the three is read and kept INDEPENDENTLY,
+   *  verbatim, whenever its own type checks out — NOT an all-or-none coherent
+   *  triple (unlike `min`/`max` above): an incoherent partial triple is real,
+   *  meaningful content (arrived corrupted), never silently dropped. See
+   *  `readParameterData`'s own comment for the full reasoning. */
+  sourceTableId?: string
+  sourceKey?: string
+  sourceColumnId?: string
+  /** §DI11 — semantically most useful alongside the triple above, but read
+   *  and kept independently of it too; never dropped merely because the
+   *  triple (or part of it) is absent. */
+  labelAutoComposed?: boolean
 }
 
 export type ParamNotice =
@@ -27,6 +69,8 @@ export type ParamNotice =
   | 'PARAM_RANGE_INVALID'
   | 'PARAM_UNIT_TOO_LONG'
   | 'PARAM_VALUE_OUT_OF_RANGE'
+  | 'PARAM_SOURCE_INVALID'
+  | 'PARAM_LABEL_AUTO_COMPOSED_INVALID'
 
 export type ReadOk<T> = { ok: true; data: T; notices: ParamNotice[] }
 export type ReadInvalid = { ok: false; reason: 'payload-invalid'; detail: string }
@@ -110,6 +154,41 @@ export function readParameterData(raw: unknown): ParamReadResult {
   // value vs [min, max] — kept as stored (never clamped); advisory notice only
   if (data.min !== undefined && data.max !== undefined && (value < data.min || value > data.max)) {
     notices.push('PARAM_VALUE_OUT_OF_RANGE')
+  }
+
+  // docs/data-import.md §DI9 / SEMANTICS-R8.md §R8-1 — the generating triple +
+  // `labelAutoComposed`. Each of the four is read INDEPENDENTLY and kept
+  // VERBATIM whenever its OWN type checks out — deliberately NOT a
+  // "coherent-pair-or-drop" rule like `min` / `max`. Reason: this project's own
+  // CSU precedent (`timing` / `when`, SEMANTICS-S3.md, kept "whatever the
+  // string is, valid or not") already settled this exact question — an
+  // incoherent PARTIAL triple (e.g. a hand-edited file missing just
+  // `sourceKey`) is real, meaningful revision content (data-import content
+  // that arrived corrupted), not "the same as no provenance at all". Silently
+  // dropping it would make `isDataImportContent` (SEMANTICS-R8.md §R8-1) blind
+  // to exactly the corrupted-but-clearly-intended-as-R8 case the design
+  // requires it to catch. A future refresh (Phase 2) is the right layer to
+  // decide what a partial triple MEANS; this reader's only job is not to erase
+  // it. Each field still gets its own basic type / length guard (unlike
+  // `timing`/`when`'s free-form string) since these are structured ids, not a
+  // closed-grammar token.
+  const isNonEmptyStr = (v: unknown, maxBytes: number): v is string =>
+    typeof v === 'string' && v.length > 0 && utf8Len(v) <= maxBytes
+  if (raw.sourceTableId !== undefined) {
+    if (isNonEmptyStr(raw.sourceTableId, SOURCE_ID_MAX_BYTES)) data.sourceTableId = raw.sourceTableId
+    else notices.push('PARAM_SOURCE_INVALID')
+  }
+  if (raw.sourceKey !== undefined) {
+    if (isNonEmptyStr(raw.sourceKey, SOURCE_KEY_MAX_BYTES)) data.sourceKey = raw.sourceKey
+    else notices.push('PARAM_SOURCE_INVALID')
+  }
+  if (raw.sourceColumnId !== undefined) {
+    if (isNonEmptyStr(raw.sourceColumnId, SOURCE_ID_MAX_BYTES)) data.sourceColumnId = raw.sourceColumnId
+    else notices.push('PARAM_SOURCE_INVALID')
+  }
+  if (raw.labelAutoComposed !== undefined) {
+    if (typeof raw.labelAutoComposed === 'boolean') data.labelAutoComposed = raw.labelAutoComposed
+    else notices.push('PARAM_LABEL_AUTO_COMPOSED_INVALID')
   }
 
   return { ok: true, data, notices }

@@ -1,7 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGraphStore } from '../store/graphStore'
-import { STORAGE_KEY, deserialize, loadFromStorage, normalizeGraph, saveToStorage, serialize } from './serialize'
-import type { GraphDoc } from './serialize'
+import { readParameterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES } from './model'
+import {
+  STORAGE_KEY,
+  deserialize,
+  hasRawDataImportTableSignal,
+  hasRawParameterProvenanceKeys,
+  loadFromStorage,
+  normalizeGraph,
+  readDataImports,
+  saveToStorage,
+  serialize,
+} from './serialize'
+import type { GraphDoc, ImportSourceTable } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -566,6 +577,299 @@ describe('serialize / deserialize — saved frames (loop-revision/5)', () => {
       saveToStorage(g.nodes, g.edges, undefined, undefined, 1, [])
       expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('frames')
       expect(loadFromStorage()!.frames).toEqual([])
+    })
+  })
+})
+
+// docs/data-import.md (`loop-revision/8`, SEMANTICS-R8.md §R8-1.1).
+describe('serialize / deserialize — data-import source records (loop-revision/8)', () => {
+  const G = () => {
+    const s = useGraphStore.getState()
+    s.newGraph()
+    s.addNodeAt('pool', { x: 0, y: 0 })
+    return useGraphStore.getState()
+  }
+  const T = (over: Partial<ImportSourceTable> = {}): ImportSourceTable => ({
+    sourceTableId: 'srctable_items',
+    label: 'Items',
+    columns: [
+      { sourceColumnId: 'srccol_key', role: 'key', header: 'item_key' },
+      { sourceColumnId: 'srccol_weight', role: 'number', header: 'weight' },
+    ],
+    rows: [{ sourceKey: 'itm_a', number: { srccol_weight: 10 }, label: {}, foreignKey: {} }],
+    ...over,
+  })
+
+  it('no data-import records ⇒ NO `dataImports` key; byte-identical to a pre-R8 write', () => {
+    const g = G()
+    const withoutArg = serialize(g.nodes, g.edges)
+    const withEmpty = serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [])
+    expect(JSON.parse(withoutArg)).not.toHaveProperty('dataImports')
+    expect(withEmpty).toBe(withoutArg)
+  })
+
+  it('serialize writes `dataImports` (canonical key order); round-trips through deserialize exactly', () => {
+    const g = G()
+    const table = T()
+    const out = JSON.parse(serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [table]))
+    expect(out.dataImports).toEqual([table])
+    expect(Object.keys(out.dataImports[0])).toEqual(['sourceTableId', 'label', 'columns', 'rows'])
+    const back = deserialize(serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [table]))
+    expect(back.dataImports).toEqual([table])
+  })
+
+  it('deserialize of a file with no `dataImports` ⇒ dataImports: []', () => {
+    expect(deserialize(doc([n('p', 'pool')], [])).dataImports).toEqual([])
+  })
+
+  it('§R8-1.1 defensive read — a bad table / column / row is DROPPED, the graph is KEPT', () => {
+    const raw = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [n('p', 'pool')],
+      edges: [],
+      dataImports: [
+        {
+          sourceTableId: 'ok',
+          label: 'Good',
+          columns: [
+            { sourceColumnId: 'k', role: 'key', header: 'key' },
+            { sourceColumnId: 'w', role: 'number', header: 'weight' },
+            { sourceColumnId: 'bad-role', role: 'nonsense', header: 'x' }, // unknown role → column dropped
+            { sourceColumnId: 'ig', role: 'ignored', header: 'y' }, // never a storable role → column dropped
+            { sourceColumnId: '', role: 'label', header: 'z' }, // missing id → column dropped (never regenerated)
+            { sourceColumnId: 'w', role: 'label', header: 'dup' }, // dup id → column dropped (never regenerated)
+          ],
+          rows: [
+            { sourceKey: 'r1', number: { w: 5 }, label: {}, foreignKey: {} },
+            { sourceKey: 'r1', number: { w: 999 }, label: {}, foreignKey: {} }, // dup key → dropped
+            { sourceKey: 'r2', number: { w: 'nope' }, label: {}, foreignKey: {} }, // bad type → value dropped
+            { sourceKey: 'r3', number: { unknownCol: 7 }, label: {}, foreignKey: {} }, // unknown column → value dropped
+            'nope', // not an object → dropped
+          ],
+        },
+        'not-a-table', // not an object → dropped
+        { sourceTableId: '', label: 'no-id', columns: [], rows: [] }, // missing table id → table dropped (never regenerated)
+        { sourceTableId: 'ok', label: 'dup', columns: [], rows: [] }, // dup table id → table dropped (never regenerated)
+      ],
+    })
+    const back = deserialize(raw)
+    expect(back.nodes).toHaveLength(1) // graph kept
+    expect(back.dataImports).toHaveLength(1) // only 'Good' survives — both the no-id and dup-id tables are DROPPED
+    const good = back.dataImports[0]
+    expect(good.label).toBe('Good')
+    expect(good.columns).toHaveLength(2) // unknown-role, ignored, missing-id, dup-id columns all dropped
+    expect(good.columns.map((c) => c.sourceColumnId)).toEqual(['k', 'w'])
+    expect(good.rows).toHaveLength(3) // the dup key + non-object row dropped
+    expect(good.rows.find((r) => r.sourceKey === 'r1')?.number.w).toBe(5) // first occurrence kept
+    expect(good.rows.find((r) => r.sourceKey === 'r2')?.number).toEqual({}) // bad-typed value dropped
+    expect(good.rows.find((r) => r.sourceKey === 'r3')?.number).toEqual({}) // unrecognised column dropped
+  })
+
+  it('reading the SAME raw file twice is a pure function — identical dataImports, no minted ids (regression: readDataImports used to mint fresh ids from Date.now())', () => {
+    const raw = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [n('p', 'pool')],
+      edges: [],
+      dataImports: [{ sourceTableId: 'srctable_1', label: 'T', columns: [], rows: [] }],
+    })
+    const a = deserialize(raw)
+    const b = deserialize(raw)
+    expect(a.dataImports).toEqual(b.dataImports)
+    expect(a.dataImports[0].sourceTableId).toBe('srctable_1') // never regenerated when present and unique
+  })
+
+  it('§R8-1.1 — a number-role value is only kept under a sourceColumnId that resolves to a `number`-role column IN THIS TABLE', () => {
+    const raw = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [n('p', 'pool')],
+      edges: [],
+      dataImports: [
+        {
+          sourceTableId: 't1',
+          label: 'T1',
+          columns: [{ sourceColumnId: 'k', role: 'key', header: 'k' }],
+          // 'k' is a KEY-role column, not number — a number value under it is dropped
+          rows: [{ sourceKey: 'r1', number: { k: 5 }, label: {}, foreignKey: {} }],
+        },
+      ],
+    })
+    expect(deserialize(raw).dataImports[0].rows[0].number).toEqual({})
+  })
+
+  it('`dataImports: []` / not-an-array in the file ⇒ dataImports: []', () => {
+    for (const v of [[], 'x', 42, {}, null]) {
+      const raw = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [n('p', 'pool')], edges: [], dataImports: v })
+      expect(deserialize(raw).dataImports).toEqual([])
+    }
+  })
+
+  it('readDataImports(undefined) ⇒ []', () => {
+    expect(readDataImports(undefined)).toEqual([])
+  })
+
+  it('§R8-2.1 — a row\'s number/label/foreignKey maps project with keys sorted by sourceColumnId, not insertion order', () => {
+    const g = G()
+    const tableA: ImportSourceTable = {
+      sourceTableId: 't1',
+      label: 'T',
+      columns: [
+        { sourceColumnId: 'zzz', role: 'number', header: 'z' },
+        { sourceColumnId: 'aaa', role: 'number', header: 'a' },
+      ],
+      rows: [{ sourceKey: 'r1', number: { zzz: 1, aaa: 2 }, label: {}, foreignKey: {} }],
+    }
+    const tableB: ImportSourceTable = {
+      ...tableA,
+      rows: [{ sourceKey: 'r1', number: { aaa: 2, zzz: 1 }, label: {}, foreignKey: {} }], // same values, built in the OTHER order
+    }
+    const outA = serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [tableA])
+    const outB = serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [tableB])
+    expect(outA).toBe(outB) // byte-identical regardless of the live object's insertion order
+    expect(Object.keys(JSON.parse(outA).dataImports[0].rows[0].number)).toEqual(['aaa', 'zzz'])
+  })
+
+  it('§R8-1 — hasRawParameterProvenanceKeys / hasRawDataImportTableSignal detect PRESENCE regardless of validity', () => {
+    expect(hasRawParameterProvenanceKeys([{ data: { kind: 'parameter', sourceTableId: 42 } }])).toBe(true) // wrong type, still present
+    expect(hasRawParameterProvenanceKeys([{ data: { kind: 'parameter', value: 1 } }])).toBe(false)
+    expect(hasRawParameterProvenanceKeys([{ type: 'parameter', data: { sourceKey: 'x' } }])).toBe(true) // kind via `type`
+    expect(hasRawParameterProvenanceKeys([{ data: { kind: 'pool', sourceTableId: 'x' } }])).toBe(false) // wrong kind, never read
+    expect(hasRawParameterProvenanceKeys(undefined)).toBe(false)
+    expect(hasRawParameterProvenanceKeys([])).toBe(false)
+
+    expect(hasRawDataImportTableSignal([{ garbage: true }])).toBe(true) // attempts a record, however malformed
+    expect(hasRawDataImportTableSignal(['not-an-object'])).toBe(false)
+    expect(hasRawDataImportTableSignal([])).toBe(false)
+    expect(hasRawDataImportTableSignal(undefined)).toBe(false)
+  })
+
+  it('deserialize().hasRawDataImportSignal survives even when readDataImports / readParameterData drop everything', () => {
+    // a wrong-typed provenance value on a Parameter — dropped by readParameterData, but the RAW key was present
+    const withBadParam = JSON.stringify({
+      schema: 'loop-studio/graph', version: 1,
+      nodes: [{ id: 'p', type: 'parameter', position: { x: 0, y: 0 }, data: { kind: 'parameter', label: 'p', value: 1, sourceTableId: 42 } }],
+      edges: [],
+    })
+    const a = deserialize(withBadParam)
+    expect((a.nodes[0].data as { sourceTableId?: unknown }).sourceTableId).toBeUndefined() // dropped from the projection
+    expect(a.hasRawDataImportSignal).toBe(true) // but still signalled
+
+    // a dataImports array whose only entry is missing its sourceTableId — dropped by readDataImports entirely
+    const withBadTable = JSON.stringify({
+      schema: 'loop-studio/graph', version: 1,
+      nodes: [n('p', 'pool')], edges: [],
+      dataImports: [{ label: 'no id', columns: [], rows: [] }],
+    })
+    const b = deserialize(withBadTable)
+    expect(b.dataImports).toEqual([]) // nothing survives readDataImports
+    expect(b.hasRawDataImportSignal).toBe(true) // but the raw array still attempted a record
+
+    // a plain document — no signal either way
+    const plain = deserialize(doc([n('p', 'pool')], []))
+    expect(plain.hasRawDataImportSignal).toBe(false)
+  })
+
+  // §DI-D8 review round 2 — `readDataImports` must enforce the SAME
+  // SOURCE_ID_MAX_BYTES / SOURCE_KEY_MAX_BYTES ceilings `readParameterData`
+  // already enforces on a Parameter's generating triple. Without this, an
+  // over-limit id could survive in a `dataImports` table record while a
+  // Parameter pointing at the SAME string gets it dropped — severing the
+  // link. Boundary values must be kept on BOTH sides; one byte over must be
+  // rejected on BOTH sides.
+  describe('§DI-D8 — sourceTableId / sourceColumnId / sourceKey share Parameter\'s own length ceilings', () => {
+    const tableWith = (over: Partial<ImportSourceTable> = {}): unknown => ({
+      sourceTableId: 't1',
+      label: 'T',
+      columns: [
+        { sourceColumnId: 'c1', role: 'foreignKey', header: 'ref' },
+      ],
+      rows: [{ sourceKey: 'r1', number: {}, label: {}, foreignKey: {} }],
+      ...over,
+    })
+
+    it('sourceTableId — exactly SOURCE_ID_MAX_BYTES survives on BOTH sides; +1 byte is dropped on BOTH sides', () => {
+      const ok = 'x'.repeat(SOURCE_ID_MAX_BYTES)
+      const tooLong = 'x'.repeat(SOURCE_ID_MAX_BYTES + 1)
+
+      expect(readDataImports([tableWith({ sourceTableId: ok })])).toHaveLength(1)
+      expect(readDataImports([tableWith({ sourceTableId: tooLong })])).toHaveLength(0)
+
+      const okParam = readParameterData({ label: 'x', value: 0, sourceTableId: ok })
+      const tooLongParam = readParameterData({ label: 'x', value: 0, sourceTableId: tooLong })
+      expect(okParam.ok && okParam.data.sourceTableId).toBe(ok)
+      expect(tooLongParam.ok && tooLongParam.data.sourceTableId).toBeUndefined()
+    })
+
+    it('sourceColumnId — exactly SOURCE_ID_MAX_BYTES survives on BOTH sides; +1 byte is dropped on BOTH sides', () => {
+      const ok = 'y'.repeat(SOURCE_ID_MAX_BYTES)
+      const tooLong = 'y'.repeat(SOURCE_ID_MAX_BYTES + 1)
+
+      const withOk = readDataImports([tableWith({ columns: [{ sourceColumnId: ok, role: 'key', header: 'k' }] })])
+      const withTooLong = readDataImports([tableWith({ columns: [{ sourceColumnId: tooLong, role: 'key', header: 'k' }] })])
+      expect(withOk[0]?.columns).toHaveLength(1)
+      expect(withTooLong[0]?.columns ?? []).toHaveLength(0)
+
+      const okParam = readParameterData({ label: 'x', value: 0, sourceColumnId: ok })
+      const tooLongParam = readParameterData({ label: 'x', value: 0, sourceColumnId: tooLong })
+      expect(okParam.ok && okParam.data.sourceColumnId).toBe(ok)
+      expect(tooLongParam.ok && tooLongParam.data.sourceColumnId).toBeUndefined()
+    })
+
+    it('a row\'s sourceKey — exactly SOURCE_KEY_MAX_BYTES survives on BOTH sides; +1 byte is dropped on BOTH sides', () => {
+      const ok = 'k'.repeat(SOURCE_KEY_MAX_BYTES)
+      const tooLong = 'k'.repeat(SOURCE_KEY_MAX_BYTES + 1)
+
+      const withOk = readDataImports([tableWith({ rows: [{ sourceKey: ok, number: {}, label: {}, foreignKey: {} }] })])
+      const withTooLong = readDataImports([tableWith({ rows: [{ sourceKey: tooLong, number: {}, label: {}, foreignKey: {} }] })])
+      expect(withOk[0]?.rows).toHaveLength(1)
+      expect(withTooLong[0]?.rows).toHaveLength(0)
+
+      const okParam = readParameterData({ label: 'x', value: 0, sourceKey: ok })
+      const tooLongParam = readParameterData({ label: 'x', value: 0, sourceKey: tooLong })
+      expect(okParam.ok && okParam.data.sourceKey).toBe(ok)
+      expect(tooLongParam.ok && tooLongParam.data.sourceKey).toBeUndefined()
+    })
+
+    it('an FK-referenced sourceKey (the target row\'s key) shares the same SOURCE_KEY_MAX_BYTES ceiling', () => {
+      const ok = 'k'.repeat(SOURCE_KEY_MAX_BYTES)
+      const tooLong = 'k'.repeat(SOURCE_KEY_MAX_BYTES + 1)
+      const withFk = (fkValue: string) =>
+        tableWith({ rows: [{ sourceKey: 'r1', number: {}, label: {}, foreignKey: { c1: fkValue } }] })
+
+      expect(readDataImports([withFk(ok)])[0]?.rows[0]?.foreignKey.c1).toBe(ok)
+      expect(readDataImports([withFk(tooLong)])[0]?.rows[0]?.foreignKey).toEqual({})
+    })
+
+    it('ids/keys are EXCLUDED, never truncated — an over-limit value never appears in any shortened form', () => {
+      const tooLong = 'z'.repeat(SOURCE_ID_MAX_BYTES + 1)
+      const out = readDataImports([tableWith({ sourceTableId: tooLong })])
+      expect(out).toHaveLength(0) // the whole table is gone, not present with a truncated id
+    })
+  })
+
+  describe('saveToStorage / loadFromStorage carry dataImports', () => {
+    class Mem {
+      m = new Map<string, string>()
+      getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null }
+      setItem(k: string, v: string) { this.m.set(k, String(v)) }
+      removeItem(k: string) { this.m.delete(k) }
+      clear() { this.m.clear() }
+      key(i: number) { return [...this.m.keys()][i] ?? null }
+      get length() { return this.m.size }
+    }
+    beforeEach(() => vi.stubGlobal('localStorage', new Mem()))
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('the current data-import records ride the autosave write atomically; an empty set writes no key', () => {
+      const g = G()
+      const table = T()
+      saveToStorage(g.nodes, g.edges, undefined, undefined, 1, undefined, [table])
+      expect(loadFromStorage()!.dataImports).toEqual([table])
+      saveToStorage(g.nodes, g.edges, undefined, undefined, 1, undefined, [])
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('dataImports')
+      expect(loadFromStorage()!.dataImports).toEqual([])
     })
   })
 })
