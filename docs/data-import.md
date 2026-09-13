@@ -1,6 +1,6 @@
 # Spreadsheet snapshot import — diff, provenance & change-proposal export (design doc)
 
-**Status: design draft — for review, draft 4.** No `loop-*/N` id yet (§DI13
+**Status: design draft — for review, draft 5.** No `loop-*/N` id yet (§DI13
 explains why one is likely needed) and no `Frozen` marker. Prefix `DI`.
 Kicked off by explicit instruction after the gacha Template's README
 documentation (PR #200) shipped, with the v1 scope fixed in that same
@@ -125,6 +125,46 @@ fixed below:
    never creates or edits ANY resource-edge flow, Register expression, or
    activator reference — a freshly imported Parameter is exactly as
    free-floating as one dragged in from the toolbar (§DI10, §DI-D13).
+
+**Draft 5 (Hanrim/Lumi, round 4)** confirmed the prior 5 items are closed and
+found 5 more refinements needed before approval — all fixed below:
+
+1. **Nothing linked an incoming cell's identity to the actual Parameter node
+   it produced.** The refresh identity `(sourceTableId, sourceKey,
+   sourceColumnId)` was well-defined, but DI13's stored shape never said
+   which `parameterNodeId` it pointed at — a real gap, since refresh cannot
+   even locate its target without this. Fixed: every generated Parameter now
+   stores its own generating triple directly (§DI9, §DI10, §DI13); `unlink`
+   clears it, and a re-added row after unlink mints a brand-new Parameter
+   rather than resurrecting the old one.
+2. **The auto-label's constituent list was incomplete.** DI10's actual label
+   format also embeds the table's display name and the number column's own
+   header text, not just the row/FK label text draft 4 covered. Fixed: all
+   four constituents are named, split correctly into the three that are
+   sheet-sourced (diffed base/incoming, §DI11) and the one
+   (`table.label`) that is a Loop-Studio-local setting recomposing
+   immediately on rename, never diffed at all (§DI10, §DI11).
+3. **A stale phrase survived the label-mechanism split.** The number-only
+   three-way's `local` definition still said "a Parameter's `data.value`, or
+   a generated label's current text" — the label half was already moved to
+   its own mechanism in draft 4 and shouldn't have still been here. Fixed
+   (§DI11).
+4. **FK re-pointing's base-movement and placement rules were unstated.**
+   Fixed with the exact rules given: accepting moves the FK's base to
+   `incoming`; rejecting leaves it at the OLD value (unlike a number
+   conflict's "keep mine," which still advances base — rejecting an FK
+   re-point is "not yet," not "acknowledged and different"); accepting
+   never moves the already-existing node's frame/position (§DI11); and
+   DI-D12's "never retroactively reframe" rule is now stated to cover BOTH
+   a changed group-by *setting* and a re-pointed group-by *FK value* on an
+   existing row, not just the former.
+5. **CSV Windows-compatibility was incomplete.** UTF-8 alone was requested
+   as UTF-8 **with a BOM** plus **CRLF** line endings, not just an encoding
+   name — fixed (§DI12.3, §DI-D14). Also added one line making explicit that
+   the formula-injection leading-`'` guard changes the field's raw bytes
+   (a display/paste-safety convention, not a byte-identical copy of
+   `source_key`) and must be stripped by any machine reader that needs the
+   original value.
 
 Implementation is explicitly **out of scope for this PR** — design only, per
 the same design-doc-first → approval → implementation split already used for
@@ -449,6 +489,28 @@ table's own key values are only unique WITHIN that table), not
 `(label, sourceKey)` (draft 2's bug), and not `(sourceTableId, sourceKey,
 <header text>)` (this round's bug).
 
+**A real gap, found this round: nothing linked that triple to the actual
+Parameter node it produced.** Knowing the identity of an incoming CELL is
+useless on refresh without also knowing WHICH existing node, if any, it
+corresponds to. Fixed: **every `number`-role-generated Parameter stores its
+own generating triple** — `(sourceTableId, sourceKey, sourceColumnId)` — on
+the node itself (§DI10, §DI13). This is a one-way pointer, Parameter →
+source; the per-row base projection (§DI11) is the reverse direction,
+source → stored base values, used for diffing. Together they're what makes
+a refresh actionable: given an incoming triple, find the Parameter(s)
+carrying that same triple (an implementation detail whether this is a
+linear scan or a maintained index — not specified here), then run the
+row-lifecycle / diff against its base.
+
+**Unlink (§DI11's `missing`-row case) clears exactly this pointer** — the
+Parameter's stored triple is removed (and its `labelAutoComposed` flag
+becomes moot, since nothing will ever recompose its label again), so it
+matches no future incoming cell. A consequence worth stating explicitly: if
+a row with the SAME `sourceKey` is later re-added after being unlinked, it
+mints a **brand-new** Parameter (§DI10) — it does not resurrect or re-link
+to the unlinked one, which by then is ordinary, fully independent hand-owned
+data.
+
 ## DI10. Materializing values as Parameters
 
 For every **(row, number-role column)** pair across every imported table, the
@@ -458,13 +520,35 @@ shipped — no engine change):
 - **id**: freshly minted (`nextId('parameter')`), per DI9 — never derived
   from the sourceKey, and never equal to `sourceTableId` or
   `sourceColumnId` (each serves a different purpose).
+- **its generating triple**: `(sourceTableId, sourceKey, sourceColumnId)`,
+  stored on the node itself (§DI9's fix this round) — the pointer a refresh
+  uses to find this Parameter again; cleared on `unlink` (§DI11), never
+  present on a hand-created Parameter.
 - **value**: the cell's numeric value at import time.
+- **`labelAutoComposed`**: `true` at creation (§DI11) — flips permanently to
+  `false` the moment a user hand-edits the label below, after which nothing
+  in this list ever recomposes it again.
 - **label**: `"<table label> · <row's label-role text(s), enriched via any
-  FK per §DI8, or the row's own key if none was mapped> · <column name>"` —
-  e.g. `"GachaPoolEntries · Ember Blade · Premium Pickup · weight"`,
-  `"Packages · Whale Pack · price_krw"`, `"PackageItems · pkg_starter →
-  Iron Blade · quantity"` (PackageItems has no label-role column of its own,
-  so it falls back to composing from its two FK targets' names).
+  FK per §DI8, or the row's own key if none was mapped> · <column's header
+  text>"` — e.g. `"GachaPoolEntries · Ember Blade · Premium Pickup ·
+  weight"`, `"Packages · Whale Pack · price_krw"`, `"PackageItems ·
+  pkg_starter → Iron Blade · quantity"` (PackageItems has no label-role
+  column of its own, so it falls back to composing from its two FK targets'
+  names). **Four independent things feed this string, all of which recompose
+  it while `labelAutoComposed` is `true`** (§DI11 fixes this — draft 4 only
+  named two of the four), and they split into two different mechanisms:
+  - **Sheet-sourced (three): the row's own label-role text, if the table has
+    one; each FK target's label-role text (§DI8); and the mapped number
+    column's header text.** All three arrive from a refresh's incoming
+    paste and go through the plain two-way base/incoming compare in §DI11 —
+    none of them can ever have a `local` divergence of their own, since none
+    is a directly user-editable field anywhere except through the composed
+    Parameter label itself.
+  - **Loop-Studio-local (one): the table's own display `label` (§DI5).**
+    This never comes from the sheet at all — it's metadata the user typed
+    when configuring the import binding — so there is no base/incoming pair
+    to diff; recomposition happens immediately whenever the user renames the
+    binding, not gated behind a refresh.
 - **unit**: left blank unless the column name or a future per-column unit
   hint supplies one (out of scope to design further here — same "advisory,
   optional" contract `ParameterData.unit` already has).
@@ -587,52 +671,78 @@ Every `sourceKey` present on either side falls into exactly one case:
 
 Draft 3 claimed a `label`/`foreignKey`-role column "follows the exact same
 rule" as a number. **This doesn't hold up**, for a reason specific to how a
-label is built: a generated Parameter's label is composed from **multiple**
-constituent texts across **multiple** tables (§DI10) — e.g.
-`ppe_pickup_blade_ssr`'s label draws on `Items.itm_blade_ssr.display_name`
-AND `Banners.premium_pickup.banner_name`, neither of which is itself a
-directly-editable field anywhere in Loop Studio (`Items`/`Banners` are
-pure-lookup tables — §DI4 — with no `number`-role column, so they never
-become Parameters a user could hand-edit). There is no possible `local`
-divergence for a raw constituent text, because nothing in the app lets a
-user edit it directly; the ONLY place local hand-editing can happen is on
-the **composed Parameter's own label field**, in the Inspector.
+label is built: a generated Parameter's label is composed from **four**
+constituents (§DI10, corrected this round — draft 4 only named two): the
+row's own label-role text if the table has one, each FK target's
+label-role text (§DI8), the mapped number column's header text, and the
+table's own display `label`. None of the first three is itself a
+directly-editable field anywhere in Loop Studio — `Items`/`Banners` are
+pure-lookup tables (§DI4) with no `number`-role column, so they never
+become Parameters a user could hand-edit, and a column header is display
+text, not a graph field. There is no possible `local` divergence for any of
+them; the ONLY place local hand-editing can happen is on the **composed
+Parameter's own label field**, in the Inspector. (The fourth constituent,
+the table's own `label`, is different again — see below.)
 
 This needs two separate, simpler mechanisms instead of one three-way table:
 
-1. **A constituent text change is a plain two-way compare, always
-   auto-appliable, never a conflict** — `base` vs. `incoming` for
-   `Items.itm_blade_ssr.display_name` (say). If it changed, recompose every
-   Parameter label that draws on it.
-2. **Whether that recomposition actually touches the Parameter's label is
-   gated by one stored flag: `labelAutoComposed` (default `true` at
-   creation).** The moment a user directly edits a generated Parameter's
+1. **A sheet-sourced constituent's text change is a plain two-way compare,
+   always auto-appliable, never a conflict** — `base` vs. `incoming` for
+   `Items.itm_blade_ssr.display_name`, or for `Banners.premium_pickup
+   .banner_name`, or for the `weight` column's own header text under an
+   explicit "same column, renamed" remap (§DI9). If any changed, recompose
+   every Parameter label that draws on it.
+2. **The table's own display `label` recomposes immediately on rename, no
+   diffing at all.** It never comes from the sheet (§DI5), so there is no
+   `base`/`incoming` pair for it — the moment the user renames the import
+   binding, every Parameter with `labelAutoComposed: true` that draws on it
+   is recomposed right away, independent of any refresh.
+3. **Whether either kind of recomposition actually touches the Parameter's
+   label is gated by one stored flag: `labelAutoComposed` (default `true`
+   at creation).** The moment a user directly edits a generated Parameter's
    label in the Inspector, `labelAutoComposed` flips to `false` — a
    permanent detach, mirroring "never silently clobber a hand edit"
-   everywhere else in this doc. While `true`, a constituent change (1)
+   everywhere else in this doc. While `true`, a constituent change
    recomposes and applies the new label with no prompt (there is nothing to
    conflict with — the label was never independently edited). While
    `false`, a constituent change is **skipped** for that Parameter and
    surfaced only as an FYI line in the refresh summary ("3 upstream names
    changed but these Parameters' labels are customized — not updated"),
    never a per-row prompt.
-3. **A foreign key's VALUE changing (the row re-points to a different key,
+4. **A foreign key's VALUE changing (the row re-points to a different key,
    not just that the pointed-to row's own text changed) is treated as its
    own, always-surfaced case — never auto-applied, regardless of
    `labelAutoComposed`.** `ppe_pickup_blade_ssr.item_key` changing from
    `itm_blade_ssr` to `itm_blade_sr` means this row is now conceptually
-   ABOUT a different item, not a cosmetic rename — the user explicitly
-   confirms accepting the re-point (which then also recomposes the label,
-   if still auto-composed) or rejecting it (this refresh leaves the FK
-   value at its old target; a future refresh asks again if the source still
-   disagrees).
+   ABOUT a different item, not a cosmetic rename. Base-movement and
+   placement rules, fixed this round (mirroring §DI11's number three-way and
+   §DI-D12's group-by scoping exactly, rather than inventing a third
+   pattern):
+   - **accept the re-point** — the FK's stored base moves to `incoming`;
+     the label recomposes from the new target, but ONLY if `labelAutoComposed`
+     is still `true`;
+   - **reject the re-point** — the FK's stored base stays at its OLD value,
+     so the SAME disagreement surfaces again on every future refresh until
+     either the source reverts or the user accepts it (this is the one
+     place base does NOT move on a resolved choice, unlike the number
+     three-way's "keep mine" — rejecting an FK re-point is "not yet
+     decided," not "acknowledged, staying different");
+   - **either way, the already-existing node's frame and position are never
+     touched** — this is the SAME rule §DI-D12 already states for a changed
+     "group by" *setting*, extended here to cover a changed "group by" *FK
+     value* on an existing row too: only a node materialized fresh after
+     accepting the re-point would ever be grouped/framed under the new
+     relationship.
 
 ### The complete base/local/incoming three-way — `number`-role columns only (corrected this round — one case and all base-movement rules were missing)
 
 ```
 base     = the stored value at last import/refresh
-local    = the current value in the graph (a Parameter's data.value, or a
-           generated label's current text) — may have been hand-tuned since
+local    = the Parameter's current data.value — may have been hand-tuned
+           since (label text is NOT this — it has its own mechanism above,
+           corrected this round: draft 4 still described `local` as
+           covering "a generated label's current text" too, left over from
+           before the label mechanism was split out)
 incoming = the freshly pasted/uploaded value
 ```
 
@@ -771,11 +881,18 @@ feeds to a script they already own) — Loop Studio never touches the source.
 This export is a new, from-scratch writer (unlike §DI12.1's already-shipped
 Pool CSVs), and it carries far more free-form text than those do —
 `source_key` and `source_table` are arbitrary designer-typed strings, not a
-controlled node-label vocabulary. Two requirements, settled here rather than
-left to an implementation PR's discretion:
+controlled node-label vocabulary. Requirements, settled here rather than
+left to an implementation PR's discretion — **expanded this round from
+"UTF-8" alone to the full Windows/Excel-compatible shape actually
+requested**:
 
-- **Encoding**: UTF-8, matching the Unicode-normalization discipline §DI6
-  already requires for keys.
+- **UTF-8 with a BOM** (`﻿` as the file's first three bytes) — plain
+  UTF-8 with no BOM is exactly the case Excel on Windows is known to
+  misinterpret (reads non-ASCII text as the system codepage instead), the
+  opposite of what a designer pasting Korean/Japanese item names back into
+  their sheet needs.
+- **CRLF line endings** (`\r\n`), not a bare `\n` — the other half of
+  practical Windows/Excel compatibility alongside the BOM.
 - **Proper RFC 4180 quoting, not the naive "strip the problem characters"
   approach.** A value containing a comma, a double quote, or a newline is
   wrapped in double quotes with internal quotes doubled — never replaced
@@ -792,6 +909,17 @@ left to an implementation PR's discretion:
   happens to start with `=` would execute as a formula (or worse) the moment
   it lands there, a real, not theoretical, risk given `source_key` is
   arbitrary designer-chosen text.
+- **The leading-`'` guard is a display/paste-safety convention, not a
+  byte-identical copy of the original key** — worth one explicit line
+  (added this round): a spreadsheet app treats a leading `'` as "the rest of
+  this cell is literal text, don't evaluate it" and hides the mark itself,
+  which is exactly the safe behavior wanted when pasting back in. But it
+  DOES mean the exported field's raw bytes differ from the true
+  `source_key` by that one prefix character. Any MACHINE processing of this
+  CSV that needs the exact original key (a script matching rows back to a
+  database, say) must strip a leading `'` before comparing — stated here so
+  an implementation doesn't have to rediscover it, and so a future consumer
+  of this format isn't surprised.
 
 ## DI13. Serialization / revision-digest impact
 
@@ -803,8 +931,11 @@ numeric base):
 - per imported row: `sourceKey`, and the stored base projection —
   `{ number: Record<sourceColumnId, number>, label: Record<sourceColumnId,
   string>, foreignKey: Record<sourceColumnId, sourceKey> }`,
-- per generated **Parameter**: `labelAutoComposed: boolean` (§DI11's
-  label-composition fix — new this round).
+- per generated **Parameter**: its generating triple —
+  `{ sourceTableId, sourceKey, sourceColumnId }` (§DI9's fix this round —
+  the pointer a refresh uses to find this node again; absent after
+  `unlink`) — and `labelAutoComposed: boolean` (§DI11's label-composition
+  fix, also new this round).
 
 This is a **genuine new stored schema**, not a UI-only feature. Restating
 GSA2's own explicit warning rather than repeating its mistake: this must
@@ -934,15 +1065,23 @@ per-table frame grouping (§DI8, §DI10) — restates and sharpens GSA4's "do
 not silently generate frames from group" for the multi-FK case draft 2 left
 unaddressed.
 
-### DI-D12 — changing the "group by" FK never retroactively moves already-existing nodes (new this round)
+### DI-D12 — neither a changed "group by" SETTING nor a re-pointed group-by FK VALUE ever retroactively moves an existing node (scope broadened this round)
 
-DI-D11 fixed the AMBIGUITY of picking a group-by FK; this closes the
-follow-up question of what happens if that pick changes LATER (a
-reconfiguration, or simply choosing differently on a fresh separate import
-of the same table). **Settled: a group-by change affects only nodes
-materialized AFTER the change** — any node/frame from an earlier import or
-refresh keeps its existing frame membership and position untouched,
-regardless of what a later "group by" setting would have produced for it.
+DI-D11 fixed the AMBIGUITY of picking a group-by FK; this closes two related
+follow-up questions with the SAME rule. **Settled: only a node materialized
+AFTER the change is ever grouped/framed under it** — any node/frame already
+on the canvas keeps its existing frame membership and position, regardless
+of either:
+
+- the **"group by" SETTING** changing later (a reconfiguration, or choosing
+  differently on a fresh separate import of the same table), or
+- the **specific FK VALUE** a group-by column actually holds being
+  re-pointed on a refresh and accepted (§DI11's label-composition fix,
+  item 4) — accepting `ppe_pickup_blade_ssr.banner_key` changing from
+  `premium_pickup` to `premium_standard` updates the stored data and, if
+  still auto-composed, the label, but does **not** move that node into a
+  different banner's frame.
+
 Reframing or repositioning already-existing nodes is ordinary manual frame
 editing (already fully supported — `docs/large-graph-readability*.md`), not
 something this import feature ever does automatically. Matches this doc's
@@ -958,15 +1097,19 @@ reference a newly materialized Parameter. Every connection into the
 pre-existing simulation is a manual follow-up step, indistinguishable from
 wiring up a Parameter a user typed in by hand (§DI10).
 
-### DI-D14 — the change-proposal CSV is UTF-8, RFC 4180-quoted, and formula-injection-safe (new this round)
+### DI-D14 — the change-proposal CSV is UTF-8-BOM/CRLF, RFC 4180-quoted, and formula-injection-safe (scope widened this round)
 
 Settled requirements for the one export this doc actually builds from
-scratch (§DI12.3): UTF-8 encoding, proper comma/quote/newline quoting (never
-"strip the character"), and a leading-`'` neutralizer on any text field
-that would otherwise read as a formula/command (`=`, `+`, `-`, `@`, a tab,
-or a CR) when pasted into a spreadsheet — directly relevant here since
-pasting this export back into the source sheet is the export's entire
-purpose (DI2).
+scratch (§DI12.3), widened from "UTF-8" alone to the full
+Windows/Excel-compatible shape: **UTF-8 with a BOM**, **CRLF line endings**,
+proper comma/quote/newline RFC 4180 quoting (never "strip the character"),
+and a leading-`'` neutralizer on any text field that would otherwise read as
+a formula/command (`=`, `+`, `-`, `@`, a tab, or a CR) when pasted into a
+spreadsheet — directly relevant here since pasting this export back into
+the source sheet is the export's entire purpose (DI2). The leading-`'`
+guard is display/paste-safety only; it changes the field's raw bytes, so
+any machine reader needing the exact original key must strip it first
+(§DI12.3).
 
 ## DI15. Out of scope for v1 (restated, consolidated)
 
