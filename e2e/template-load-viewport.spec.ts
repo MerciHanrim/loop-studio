@@ -279,6 +279,20 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
       }) => {
         const page = await browser.newPage({ viewport: size })
         try {
+          // A manually-created `browser.newPage()` skips the `test` fixture's
+          // own context-level guided-tour dismissal (support/loop.ts) — the
+          // tour's scrim then intercepts the Templates button click on a
+          // genuinely fresh profile (CI), even though a locally-reused
+          // browser profile can mask it. Same fix as the "mobile" test below.
+          await page.addInitScript(() => {
+            try {
+              if (!localStorage.getItem('loop-studio/guided-tour/1')) {
+                localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+              }
+            } catch {
+              /* private mode */
+            }
+          })
           await openApp(page)
           await resetAll(page)
           await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
