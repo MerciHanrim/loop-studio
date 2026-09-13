@@ -23,6 +23,9 @@ const templates = {
   'templates.coffeeRoastery.name': 'コーヒー焙煎所の運営フロー',
   'templates.coffeeRoastery.blurb':
     '焙煎・販売・在庫の関係を簡略化して見るための、運営フローのシミュレーションです。生豆が入荷し、一部は卸で出て、残りは焙煎してカフェ / オンライン / 小売で販売されます。1 日の運営値を 5 つ変更すると、在庫の推移と予測結果が動きます。簡略化したシミュレーション例であり、ERP やリアルタイム監視システムではありません。',
+  'templates.gachaBannerZones.name': '3ゾーン ガチャバナー比較',
+  'templates.gachaBannerZones.blurb':
+    '同じ 200 連の予算のもとで、3 種類のバナー規則を比較します。天井のない無料ゾーン、調整可能な天井を持つプレミアム恒常ゾーン、そしてピックアップ確定保証を加えたプレミアムピックアップゾーンです。実行またはモンテカルロで、天井と保証が結果の分布をどう変えるかを確認できます。',
   'templates.replace.title': 'このテンプレートを読み込みますか？',
   'templates.replace.body': '現在の作業を置き換えます。テンプレート：{name}',
   'templates.replace.confirm': 'テンプレートを読み込む',

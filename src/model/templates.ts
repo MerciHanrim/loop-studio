@@ -1,6 +1,7 @@
 import coffeeRoasteryDoc from '../../examples/coffee-roastery.json'
 import deadlockDoc from '../../examples/deadlock.json'
 import equilibriumDoc from '../../examples/equilibrium.json'
+import gachaBannerZonesDoc from '../../examples/gacha-banner-zones.json'
 import mmoProgressionDoc from '../../examples/mmo-progression.json'
 import {
   modelVersionForSchema,
@@ -88,6 +89,28 @@ export const TEMPLATES: Template[] = [
       'The same line with no shipment step, so finished goods have nowhere to go. Finished inventory fills to capacity, raw inventory backs up to its ceiling, supply is throttled to zero, and the whole line stops.',
     graph: tplGraph(deadlockDoc),
   },
+  // "Coffee roastery operations flow" — the first bundled Template authored at
+  // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are
+  // `resource`-edge `flow` parameter references (`@<id>`). The canonical graph is
+  // examples/coffee-roastery.json (built + verified by
+  // src/engine/coffee-roastery.fixture.ts); docs/example-coffee-roastery.md is
+  // the settled design. Opens EDITABLE — no `canvasLocked` (§CR2.1).
+  //
+  // Menu order (Hanrim, 2026-09-13): the small basic examples above, then
+  // Coffee → MMO → Gacha — realistic small model → large game economy →
+  // professional probability/pity verification, each entry a bigger and more
+  // specialised step than the last. Coffee moved ahead of MMO (was after it);
+  // template ids are unchanged, so no saved/shared file or digest is affected.
+  {
+    id: 'coffee-roastery',
+    name: 'Coffee roastery operations flow',
+    blurb:
+      'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail. Change five daily operating values and the stock trajectories and projected results move. A simplified simulation example — not an ERP or real-time monitoring system.',
+    graph: tplGraph(coffeeRoasteryDoc),
+    recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
+      .recommendedRunConfig,
+    modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
+  },
   // The "Early MMO progression (levels 1–15)" demo — a connected play economy.
   // The canonical graph is examples/mmo-progression.json (built + verified by
   // src/engine/mmo-progression.fixture.ts); this entry loads it, no inline copy
@@ -112,20 +135,33 @@ export const TEMPLATES: Template[] = [
     // branch.
     initialView: { rect: { x: 0, y: 0, width: 880, height: 360 }, minZoom: 0.6 },
   },
-  // "Coffee roastery operations flow" — the first bundled Template authored at
-  // schema `loop-studio/graph/2` (loop-model/2). Its five surfaced levers are
-  // `resource`-edge `flow` parameter references (`@<id>`). The canonical graph is
-  // examples/coffee-roastery.json (built + verified by
-  // src/engine/coffee-roastery.fixture.ts); docs/example-coffee-roastery.md is
-  // the settled design. Opens EDITABLE — no `canvasLocked` (§CR2.1).
+  // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison. The
+  // canonical graph is examples/gacha-banner-zones.json, built by
+  // scripts/gen-gacha-banner-zones-example.ts from the SAME graph builder the
+  // engine fixture (src/engine/gacha-banner-zones.test.ts) uses, so the
+  // shipped Template and the tested graph can never drift apart. Opens LOCKED
+  // (GZ2/GZ3 — every zone's own `recommendedRunConfig.canvasLocked`).
   {
-    id: 'coffee-roastery',
-    name: 'Coffee roastery operations flow',
+    id: 'gacha-banner-zones',
+    name: '3-zone gacha banner comparison',
     blurb:
-      'An operating-flow simulation for looking at how roasting, sales and stock relate, simplified: green beans arrive, some are sold on, the rest are roasted and sold through cafe / online / retail. Change five daily operating values and the stock trajectories and projected results move. A simplified simulation example — not an ERP or real-time monitoring system.',
-    graph: tplGraph(coffeeRoasteryDoc),
-    recommendedRunConfig: (coffeeRoasteryDoc as { recommendedRunConfig?: RecommendedRunConfig })
+      'Compare three banner rule sets under the same 200-pull budget: a free zone with no pity, a Premium Standard zone with a tunable hard-pity ceiling, and a Premium Pickup zone that adds a pickup-guarantee on top. Run it or Monte-Carlo it to see how pity and the guarantee reshape the outcome distribution.',
+    graph: tplGraph(gachaBannerZonesDoc),
+    recommendedRunConfig: (gachaBannerZonesDoc as { recommendedRunConfig?: RecommendedRunConfig })
       .recommendedRunConfig,
-    modelVersion: modelVersionForSchema((coffeeRoasteryDoc as { schema?: unknown }).schema) ?? 1,
+    modelVersion: modelVersionForSchema((gachaBannerZonesDoc as { schema?: unknown }).schema) ?? 1,
+    // §MML3 (Hanrim, 2026-09-13, live-preview review) — the 3 zones sit side
+    // by side across ~3980 graph units (docs/gacha-banner-zones.md's layout
+    // round 2); at a 1280-wide pane, fitting all three at once caps out
+    // around 0.2-0.3 zoom no matter how the nodes are arranged — under the
+    // ~0.45 L1 readability floor MMO's own initialView is tuned against, so
+    // node labels read as noise, not text. Fit-all still shows every zone (no
+    // overlaps, e2e-checked) for anyone who zooms out; opened FROM THE MENU,
+    // frame the comparison row + the Free zone instead — the headline numbers
+    // for all 3 zones plus one fully-legible zone to read the roll/count
+    // pattern from, Standard/Pickup one pan to the right away, mirroring the
+    // MMO precedent's own "rest is a pan away" framing. Fixed graph coords
+    // (comparison row 0-1550 + Free zone 0-950x190-670), no locale branch.
+    initialView: { rect: { x: 0, y: 0, width: 1620, height: 740 }, minZoom: 0.6 },
   },
 ]

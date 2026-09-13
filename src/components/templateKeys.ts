@@ -15,4 +15,8 @@ export const TEMPLATE_KEY = {
     name: 'templates.coffeeRoastery.name',
     blurb: 'templates.coffeeRoastery.blurb',
   },
+  'gacha-banner-zones': {
+    name: 'templates.gachaBannerZones.name',
+    blurb: 'templates.gachaBannerZones.blurb',
+  },
 } satisfies Record<string, { name: MessageKey; blurb: MessageKey }>
