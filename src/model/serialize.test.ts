@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGraphStore } from '../store/graphStore'
+import { readParameterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES } from './model'
 import {
   STORAGE_KEY,
   deserialize,
@@ -768,6 +769,84 @@ describe('serialize / deserialize — data-import source records (loop-revision/
     // a plain document — no signal either way
     const plain = deserialize(doc([n('p', 'pool')], []))
     expect(plain.hasRawDataImportSignal).toBe(false)
+  })
+
+  // §DI-D8 review round 2 — `readDataImports` must enforce the SAME
+  // SOURCE_ID_MAX_BYTES / SOURCE_KEY_MAX_BYTES ceilings `readParameterData`
+  // already enforces on a Parameter's generating triple. Without this, an
+  // over-limit id could survive in a `dataImports` table record while a
+  // Parameter pointing at the SAME string gets it dropped — severing the
+  // link. Boundary values must be kept on BOTH sides; one byte over must be
+  // rejected on BOTH sides.
+  describe('§DI-D8 — sourceTableId / sourceColumnId / sourceKey share Parameter\'s own length ceilings', () => {
+    const tableWith = (over: Partial<ImportSourceTable> = {}): unknown => ({
+      sourceTableId: 't1',
+      label: 'T',
+      columns: [
+        { sourceColumnId: 'c1', role: 'foreignKey', header: 'ref' },
+      ],
+      rows: [{ sourceKey: 'r1', number: {}, label: {}, foreignKey: {} }],
+      ...over,
+    })
+
+    it('sourceTableId — exactly SOURCE_ID_MAX_BYTES survives on BOTH sides; +1 byte is dropped on BOTH sides', () => {
+      const ok = 'x'.repeat(SOURCE_ID_MAX_BYTES)
+      const tooLong = 'x'.repeat(SOURCE_ID_MAX_BYTES + 1)
+
+      expect(readDataImports([tableWith({ sourceTableId: ok })])).toHaveLength(1)
+      expect(readDataImports([tableWith({ sourceTableId: tooLong })])).toHaveLength(0)
+
+      const okParam = readParameterData({ label: 'x', value: 0, sourceTableId: ok })
+      const tooLongParam = readParameterData({ label: 'x', value: 0, sourceTableId: tooLong })
+      expect(okParam.ok && okParam.data.sourceTableId).toBe(ok)
+      expect(tooLongParam.ok && tooLongParam.data.sourceTableId).toBeUndefined()
+    })
+
+    it('sourceColumnId — exactly SOURCE_ID_MAX_BYTES survives on BOTH sides; +1 byte is dropped on BOTH sides', () => {
+      const ok = 'y'.repeat(SOURCE_ID_MAX_BYTES)
+      const tooLong = 'y'.repeat(SOURCE_ID_MAX_BYTES + 1)
+
+      const withOk = readDataImports([tableWith({ columns: [{ sourceColumnId: ok, role: 'key', header: 'k' }] })])
+      const withTooLong = readDataImports([tableWith({ columns: [{ sourceColumnId: tooLong, role: 'key', header: 'k' }] })])
+      expect(withOk[0]?.columns).toHaveLength(1)
+      expect(withTooLong[0]?.columns ?? []).toHaveLength(0)
+
+      const okParam = readParameterData({ label: 'x', value: 0, sourceColumnId: ok })
+      const tooLongParam = readParameterData({ label: 'x', value: 0, sourceColumnId: tooLong })
+      expect(okParam.ok && okParam.data.sourceColumnId).toBe(ok)
+      expect(tooLongParam.ok && tooLongParam.data.sourceColumnId).toBeUndefined()
+    })
+
+    it('a row\'s sourceKey — exactly SOURCE_KEY_MAX_BYTES survives on BOTH sides; +1 byte is dropped on BOTH sides', () => {
+      const ok = 'k'.repeat(SOURCE_KEY_MAX_BYTES)
+      const tooLong = 'k'.repeat(SOURCE_KEY_MAX_BYTES + 1)
+
+      const withOk = readDataImports([tableWith({ rows: [{ sourceKey: ok, number: {}, label: {}, foreignKey: {} }] })])
+      const withTooLong = readDataImports([tableWith({ rows: [{ sourceKey: tooLong, number: {}, label: {}, foreignKey: {} }] })])
+      expect(withOk[0]?.rows).toHaveLength(1)
+      expect(withTooLong[0]?.rows).toHaveLength(0)
+
+      const okParam = readParameterData({ label: 'x', value: 0, sourceKey: ok })
+      const tooLongParam = readParameterData({ label: 'x', value: 0, sourceKey: tooLong })
+      expect(okParam.ok && okParam.data.sourceKey).toBe(ok)
+      expect(tooLongParam.ok && tooLongParam.data.sourceKey).toBeUndefined()
+    })
+
+    it('an FK-referenced sourceKey (the target row\'s key) shares the same SOURCE_KEY_MAX_BYTES ceiling', () => {
+      const ok = 'k'.repeat(SOURCE_KEY_MAX_BYTES)
+      const tooLong = 'k'.repeat(SOURCE_KEY_MAX_BYTES + 1)
+      const withFk = (fkValue: string) =>
+        tableWith({ rows: [{ sourceKey: 'r1', number: {}, label: {}, foreignKey: { c1: fkValue } }] })
+
+      expect(readDataImports([withFk(ok)])[0]?.rows[0]?.foreignKey.c1).toBe(ok)
+      expect(readDataImports([withFk(tooLong)])[0]?.rows[0]?.foreignKey).toEqual({})
+    })
+
+    it('ids/keys are EXCLUDED, never truncated — an over-limit value never appears in any shortened form', () => {
+      const tooLong = 'z'.repeat(SOURCE_ID_MAX_BYTES + 1)
+      const out = readDataImports([tableWith({ sourceTableId: tooLong })])
+      expect(out).toHaveLength(0) // the whole table is gone, not present with a truncated id
+    })
   })
 
   describe('saveToStorage / loadFromStorage carry dataImports', () => {

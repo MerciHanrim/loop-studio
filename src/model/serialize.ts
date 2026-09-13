@@ -1,6 +1,6 @@
 import { readRoutingPayload } from './edgeRouting'
 import { defaultData } from './factory'
-import { readParameterData, readRegisterData } from './model'
+import { readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
 
 export const STORAGE_KEY = 'loop-studio:graph:v1'
@@ -239,30 +239,45 @@ function toDocFrame(f: SavedFrame): SavedFrame {
 
 const IMPORT_COLUMN_ROLES: readonly ImportColumnRole[] = ['key', 'number', 'label', 'foreignKey']
 
+/** §DI-D8 — the SAME ceilings `readParameterData` enforces on a Parameter's
+ *  generating triple (`SOURCE_ID_MAX_BYTES` / `SOURCE_KEY_MAX_BYTES`,
+ *  `src/model/model/parameter.ts`), applied here too. Without this, a
+ *  129-byte `sourceTableId` (say) could survive in a `dataImports` table
+ *  record while being dropped by `readParameterData` on any Parameter
+ *  pointing at it — silently severing the exact linkage §DI9 depends on. An
+ *  over-limit identifier is EXCLUDED, never truncated: truncating would
+ *  produce a shorter id that might collide with, or simply no longer MATCH,
+ *  a Parameter's own (independently-truncated-or-not) stored value. */
+const isValidSourceId = (v: string): boolean => v !== '' && utf8Len(v) <= SOURCE_ID_MAX_BYTES
+const isValidSourceKey = (v: string): boolean => v !== '' && utf8Len(v) <= SOURCE_KEY_MAX_BYTES
+
 /**
  * `SEMANTICS-R8.md §R8-1.1` — the defensive read of `GraphDoc.dataImports`.
  * Drops a bad ENTRY (table, column, or row), never the graph — and drops
- * DETERMINISTICALLY: unlike `readSavedFrames`, a missing or clashing
- * `sourceTableId` / `sourceColumnId` is never minted a fresh replacement id.
- * Regenerating one would (a) make re-reading the SAME file twice produce a
- * DIFFERENT canonical projection and digest (the old design used
- * `Date.now()`), breaking the basic "a pure read is a pure function" property
- * every other `loop-revision/N` reader relies on, and (b) silently sever a
- * Parameter's stored generating triple from the table it names, the moment
- * that table's id happened to collide or go missing — exactly the linkage
- * `docs/data-import.md` §DI9 depends on staying stable. So a table missing or
- * duplicating its `sourceTableId`, or a column missing or duplicating its
- * `sourceColumnId` WITHIN its table, is dropped whole instead — the same
- * first-occurrence-wins rule already used for a duplicate row `sourceKey`
- * below. A column with an unrecognised `role` (this includes Phase 1B's own
- * transient `ignored` preview state, §DI-D6 — never a storable role) is
- * likewise dropped whole. A row's `number` / `label` / `foreignKey` values are
- * kept only under a `sourceColumnId` that resolves to a column of the
- * matching role IN THIS TABLE — a stray key naming no real column, or a
- * wrong-typed value (a `number` role's value not finite, a `label` /
- * `foreignKey` role's value not a string), is dropped, not coerced. At most
- * `DI_TABLES_MAX` tables, `DI_COLUMNS_MAX` columns per table, `DI_ROWS_MAX`
- * rows per table survive.
+ * DETERMINISTICALLY: unlike `readSavedFrames`, a missing, clashing, or
+ * OVER-LENGTH (`isValidSourceId` / `isValidSourceKey`) `sourceTableId` /
+ * `sourceColumnId` / row `sourceKey` / FK-referenced `sourceKey` is never
+ * minted a fresh replacement id, and never truncated. Regenerating one would
+ * (a) make re-reading the SAME file twice produce a DIFFERENT canonical
+ * projection and digest (the old design used `Date.now()`), breaking the
+ * basic "a pure read is a pure function" property every other
+ * `loop-revision/N` reader relies on, and (b) silently sever a Parameter's
+ * stored generating triple from the table it names, the moment that table's
+ * id happened to collide, go missing, or exceed the length ceiling —
+ * exactly the linkage `docs/data-import.md` §DI9 depends on staying stable.
+ * So a table missing / duplicating / over-length its `sourceTableId`, or a
+ * column missing / duplicating / over-length its `sourceColumnId` WITHIN its
+ * table, is dropped whole instead — the same first-occurrence-wins rule
+ * already used for a duplicate row `sourceKey` below. A column with an
+ * unrecognised `role` (this includes Phase 1B's own transient `ignored`
+ * preview state, §DI-D6 — never a storable role) is likewise dropped whole.
+ * A row's `number` / `label` / `foreignKey` values are kept only under a
+ * `sourceColumnId` that resolves to a column of the matching role IN THIS
+ * TABLE — a stray key naming no real column, or a wrong-typed value (a
+ * `number` role's value not finite, a `label` role's value not a string, a
+ * `foreignKey` role's value not a valid `sourceKey`), is dropped, not
+ * coerced. At most `DI_TABLES_MAX` tables, `DI_COLUMNS_MAX` columns per
+ * table, `DI_ROWS_MAX` rows per table survive.
  */
 export function readDataImports(raw: unknown): ImportSourceTable[] {
   if (!Array.isArray(raw)) return []
@@ -274,15 +289,16 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
     const e = entry as Record<string, unknown>
 
     const sourceTableId = typeof e.sourceTableId === 'string' ? e.sourceTableId : ''
-    if (sourceTableId === '' || seenTableIds.has(sourceTableId)) continue // missing / dup id → drop the table
+    // missing / dup / over-length id → drop the table (never regenerated, never truncated)
+    if (!isValidSourceId(sourceTableId) || seenTableIds.has(sourceTableId)) continue
     seenTableIds.add(sourceTableId)
 
     let label = typeof e.label === 'string' ? e.label : e.label == null ? '' : String(e.label)
     if (label.length > DI_LABEL_MAX) label = label.slice(0, DI_LABEL_MAX)
 
-    // columns — an unrecognised role, or a missing / duplicate sourceColumnId,
-    // drops the whole column (same deterministic-exclusion posture as the
-    // table id above — never regenerated).
+    // columns — an unrecognised role, or a missing / duplicate / over-length
+    // sourceColumnId, drops the whole column (same deterministic-exclusion
+    // posture as the table id above — never regenerated, never truncated).
     const columns: ImportColumn[] = []
     const seenColumnIds = new Set<string>()
     const roleByColumnId = new Map<string, ImportColumnRole>()
@@ -294,11 +310,16 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
         const role = c.role
         if (typeof role !== 'string' || !(IMPORT_COLUMN_ROLES as readonly string[]).includes(role)) continue
         const sourceColumnId = typeof c.sourceColumnId === 'string' ? c.sourceColumnId : ''
-        if (sourceColumnId === '' || seenColumnIds.has(sourceColumnId)) continue // missing / dup id → drop the column
+        if (!isValidSourceId(sourceColumnId) || seenColumnIds.has(sourceColumnId)) continue
         seenColumnIds.add(sourceColumnId)
         let header = typeof c.header === 'string' ? c.header : c.header == null ? '' : String(c.header)
         if (header.length > DI_HEADER_MAX) header = header.slice(0, DI_HEADER_MAX)
         const column: ImportColumn = { sourceColumnId, role: role as ImportColumnRole, header }
+        // `refTableId` is unchanged by this fix — out of the four fields
+        // Hanrim's review named (§DI-D8 §5), and a dangling/over-length
+        // reference here is already a tolerated, harmless state (an FK
+        // column matching no known table), unlike the Parameter-linkage
+        // severance the four bounded fields actually risk.
         if (role === 'foreignKey' && typeof c.refTableId === 'string' && c.refTableId !== '') {
           column.refTableId = c.refTableId
         }
@@ -316,7 +337,7 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
         if (rows.length >= DI_ROWS_MAX) break
         if (typeof rentry !== 'object' || rentry === null || Array.isArray(rentry)) continue
         const r = rentry as Record<string, unknown>
-        if (typeof r.sourceKey !== 'string' || r.sourceKey === '' || seenRowKeys.has(r.sourceKey)) continue
+        if (typeof r.sourceKey !== 'string' || !isValidSourceKey(r.sourceKey) || seenRowKeys.has(r.sourceKey)) continue
         seenRowKeys.add(r.sourceKey)
         const number: Record<string, number> = {}
         const rnum = r.number
@@ -338,7 +359,9 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
         const rfk = r.foreignKey
         if (rfk && typeof rfk === 'object' && !Array.isArray(rfk)) {
           for (const [cid, v] of Object.entries(rfk as Record<string, unknown>)) {
-            if (roleByColumnId.get(cid) === 'foreignKey' && typeof v === 'string') fk[cid] = v
+            // the FK value is itself a `sourceKey` (of the referenced table's
+            // row) — same ceiling as a row's own `sourceKey`, never truncated.
+            if (roleByColumnId.get(cid) === 'foreignKey' && typeof v === 'string' && isValidSourceKey(v)) fk[cid] = v
           }
         }
         rows.push({ sourceKey: r.sourceKey, number, label: label2, foreignKey: fk })

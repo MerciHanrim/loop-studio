@@ -41,20 +41,29 @@ the semantic digest backing the Monte-Carlo stale-result check is untouched
 **Added over `loop-revision/2` / `/3` / `/4` / `/5` / `/6`:**
 
 - a **dual wire-level version predicate** (§R8-1): a graph's content is
-  `loop-revision/8` iff, after normalisation, ANY `parameter` node carries
-  any of four provenance keys (any value — recognised or not), **or** the
-  graph carries ≥ 1 surviving `dataImports` entry — either condition alone
-  is sufficient, checked independently of each other and of every earlier
-  predicate;
+  `loop-revision/8` iff ANY `parameter` node's RAW, pre-`readParameterData`
+  data carries any of four provenance keys (any value — recognised or not,
+  even a wrong TYPE that `readParameterData` will go on to drop from the
+  projection), **or** the graph's RAW `dataImports` value carries ≥ 1 entry
+  that at least attempts to be a table record (whether or not
+  `readDataImports` goes on to keep it) — either condition alone is
+  sufficient, checked independently of each other and of every earlier
+  predicate. Classification reads RAW content; the CANONICAL PROJECTION
+  (§R8-2) is a separate, later step that runs on defensively-read,
+  normalised content and DOES drop an invalid value — see §R8-1's own
+  correction note for why these must not be conflated;
 - a **new top-level `CanonicalContent` key**, `dataImports` (§R8-2.1),
   mirroring `frames`' own §R5-2.1 shape exactly (a trailing array, file
   order, present only when non-empty);
 - **four new trailing fields on `MODEL_NODE_FIELDS.parameter`**
   (§R8-2.2) — `sourceTableId`, `sourceKey`, `sourceColumnId`,
-  `labelAutoComposed` — each emitted **verbatim** whenever
-  `readParameterData` returns it (i.e. present, of any value), mirroring
-  CSU's §R6-2.1 "verbatim, not re-validated" rule, not the `min`/`max`
-  coherent-pair-or-drop one;
+  `labelAutoComposed` — each emitted **verbatim, independently of the other
+  three,** once it passes `readParameterData`'s OWN per-field validation
+  (a basic type / length check — §DI-D8) — mirroring CSU's §R6-2.1
+  "verbatim, not re-validated" rule for CROSS-FIELD coherence (no
+  all-four-or-none requirement, unlike `min`/`max`'s coherent-pair-or-drop
+  rule), but NOT for per-field type/length checking, which CSU's free-form
+  `timing`/`when` strings don't need and these structured ids do;
 - a **new field tag, `provenance`** (§R8-3) — neither `cosmetic` (`frames`,
   `route`/`waypoints`) nor `engine` (`timing`/`when`, `value`, `expr`,
   `flow`) nor `advisory` (`min`/`max`/`step`/`unit`/`resourceType`): real
@@ -98,9 +107,23 @@ contract alone and `SEMANTICS-R6.md` is its revision contract alone.
 
 ## R8-1. Version inference — the dual wire-level predicate
 
-Run **after** `normalizeGraph()`, on the **normalised valid GraphDoc** —
-never on raw JSON, never on a stored header. Evaluated **per graph** and
-**per side** of a proposal. Two independent conditions, **either sufficient**:
+**Run on the side's RAW, pre-normalisation content — never a stored header,
+and, unlike every prior `loop-revision/N` predicate, deliberately NOT the
+already-normalised GraphDoc either.** This is a genuine departure from
+`isModelLayerContent` / `isCsuContent` (both of which run on normalised
+data) and this document's OWN first implementation got it wrong by following
+that same pattern. The reason it must differ: `readParameterData` /
+`readDataImports` don't just fill defaults, they also DROP a wrong-typed
+provenance key / an unreadable table record before normalisation finishes —
+so by the time a graph has been through `normalizeGraph()`, the very
+signal this predicate exists to catch may already be gone. Classification
+therefore reads the RAW value directly (see R8-D20 for exactly how
+`readRevisionSide` and a `deserialize`-fed caller each do this); the
+CANONICAL PROJECTION (§R8-2) is what runs on defensively-read, normalised
+content, and is where an invalid value is correctly dropped for good — the
+two steps look at two DIFFERENT reads of the same underlying value on
+purpose. Evaluated **per graph** and **per side** of a proposal. Two
+independent conditions, **either sufficient**:
 
 > A graph's content is **`loop-revision/8`** iff **(a)** any `parameter`-kind
 > node's `data` carries any of `sourceTableId`, `sourceKey`, `sourceColumnId`,
@@ -152,12 +175,16 @@ silently fall back to a plain document (R8-D20/R8-D21).
 
 - **Section 8-1.1 (defensive read).** `readDataImports` (§R8-1.1,
   `src/model/serialize.ts`) drops a malformed table / column / row **entry**,
-  never the graph. Unlike `readSavedFrames`'s §R5-1.1 posture, a missing or
-  duplicate `sourceTableId` / `sourceColumnId` is never given a freshly-minted
-  replacement id — it is dropped WHOLE, first-occurrence-wins, deterministic
-  (R8-D21). This defensively-read result feeds the CANONICAL PROJECTION
-  (§R8-2.1); it is deliberately NOT what condition (b) above is evaluated
-  against — see the correction above.
+  never the graph. Unlike `readSavedFrames`'s §R5-1.1 posture, a missing,
+  duplicate, or OVER-LENGTH `sourceTableId` / `sourceColumnId` / row
+  `sourceKey` / FK-referenced `sourceKey` — the SAME `SOURCE_ID_MAX_BYTES` /
+  `SOURCE_KEY_MAX_BYTES` ceilings `readParameterData` enforces on a
+  Parameter's generating triple, §DI-D8 — is never given a freshly-minted
+  replacement id and never truncated: it is dropped WHOLE,
+  first-occurrence-wins, deterministic (R8-D21/R8-D24). This
+  defensively-read result feeds the CANONICAL PROJECTION (§R8-2.1); it is
+  deliberately NOT what condition (b) above is evaluated against — see the
+  correction above.
 - The predicate is **monotone**: a v8 graph is also ≤ v6 in the earlier
   sense; all lift into one compare model (§R8-5).
 - Checked **independently** of `frames` / `loop-model/2` / routing / CSU —
@@ -514,6 +541,7 @@ doesn't.
 | **R8-D21** | **`readDataImports` never mints a replacement id.** A table/column missing or duplicating its `sourceTableId` / `sourceColumnId` is dropped WHOLE (first-occurrence-wins, the same rule already used for a duplicate row `sourceKey`), never given a freshly-minted id. Unlike `readSavedFrames`' `frames` (which DOES mint one), a data-import id is a stable cross-reference a Parameter's generating triple points at — minting a new one on every read would (a) make re-reading the same file twice produce a *different* canonical projection and digest, breaking the basic purity every other `loop-revision/N` reader relies on, and (b) silently sever that Parameter's triple from its table the moment an id happened to collide or go missing. |
 | **R8-D22** | **A row's `number` / `label` / `foreignKey` maps project with keys sorted by `sourceColumnId`**, never the live object's insertion order — two documents whose values are equal but were authored/edited in a different column order must still produce identical canonical bytes and digests. |
 | **R8-D23** | **`ignored` is never a storable `ImportColumnRole`.** It is Phase 1B's own transient preview-selection state (a column the user hasn't assigned a role to yet); `readDataImports` treats it exactly like any other unrecognised role (the column is dropped whole), so it can never appear in GraphDoc wire content — required by §DI-D6 / §R8-8, which this closes a gap against. |
+| **R8-D24** | **`readDataImports` enforces the SAME `SOURCE_ID_MAX_BYTES` / `SOURCE_KEY_MAX_BYTES` ceilings `readParameterData` already enforces** (§DI-D8) — on a table's `sourceTableId`, a column's `sourceColumnId`, a row's own `sourceKey`, and an FK column's referenced `sourceKey` value. Without this, a 129-byte `sourceTableId` (say) could survive in a `dataImports` table record while `readParameterData` drops it from any Parameter pointing at it — severing the exact linkage §DI9 depends on. An over-limit id/key is EXCLUDED (the table/column/row is dropped whole), never truncated — a truncated id could collide with, or simply no longer match, a Parameter's own stored value. `refTableId` (a column's OWN reference to another table) is deliberately NOT bounded by this fix — a dangling or over-length `refTableId` is already a tolerated, harmless state (an FK column matching no known table), unlike the Parameter-linkage severance the four bounded fields actually risk. |
 | **R8-D7** | `loop-workspace/1` is **NOT** bumped (contrast `SEMANTICS-R6.md` R6-D6) — provenance is not a real input to what a run computes; verified directly against `workspace.ts`'s existing field set rather than assumed (§R8-7). |
 | **R8-D8** | The four per-node provenance fields ARE members of `OPTIONAL_PROJECTED_KEYS` from the start (§R8-6.1) — proactively guarding against the exact `SEMANTICS-R6.md` R6-D7 class of bug (a selective "take theirs" that can't delete a field) rather than discovering it in a later review round. |
 | **R8-D9** | The graph-level `dataImports` array gets `frames`' whole-array-hunk treatment (§R8-6); the four per-node fields get the ORDINARY per-field `change`-hunk treatment (§R8-6.1) — the two halves of this extension are diffed by two genuinely different mechanisms, matching their two genuinely different shapes, not forced into one uniform rule. |
