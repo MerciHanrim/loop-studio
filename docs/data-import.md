@@ -1,6 +1,6 @@
 # Spreadsheet snapshot import — diff, provenance & change-proposal export (design doc)
 
-**Status: design draft — for review, draft 2.** No `loop-*/N` id yet (§DI13
+**Status: design draft — for review, draft 3.** No `loop-*/N` id yet (§DI13
 explains why one is likely needed) and no `Frozen` marker. Prefix `DI`.
 Kicked off by explicit instruction after the gacha Template's README
 documentation (PR #200) shipped, with the v1 scope fixed in that same
@@ -15,62 +15,75 @@ here, not covered by GSA: **multiple linked tables** (GSA1 was one flat
 table), the materialize-as-Parameter mechanic spelled out against real code,
 the two CSV exports, and a concrete multi-table gacha example throughout.
 
-**Draft 2 (Hanrim/Lumi, round 1)** held draft 1's direction but found real
-contract conflicts, all fixed below:
+**Draft 2 (Hanrim/Lumi, round 1)** fixed 6 real contract conflicts: renamed
+the feature from "Google Sheets import" to **spreadsheet/CSV/TSV snapshot
+import** (it was never a live connection); removed `Publish to web` guidance
+(a real privacy hazard); split the permanent write-back exclusion from the
+deferrable OAuth/live-connector question; fixed an unstable refresh-identity
+key (`(table label, sourceKey)` → a minted `sourceTableId`); rebuilt the
+worked example to fix a price-duplication modelling bug and give
+`banner_key` an actual table; and fixed the change-proposal CSV's fragile
+composite key into separate columns.
 
-1. **Name conflict: "Google Sheets import" described a CSV/TSV paste
-   mechanism, not an actual Sheets connection.** Draft 1's title and prose
-   called this "Google Sheets import" while its own §DI3 explicitly ruled
-   out any live connection to Sheets — the feature IS a spreadsheet
-   snapshot importer that happens to work well with data a designer keeps in
-   Sheets (or Excel, or anywhere else). Renamed throughout: **v1 is
-   `Spreadsheet snapshot import` / `CSV/TSV snapshot import`**, not "Sheets
-   import." Google Sheets is one common *origin* of the pasted data, never a
-   *destination* or a *live connection* (§DI2, §DI3).
-2. **`Publish to web` is a real privacy hazard, removed from all guidance.**
-   Draft 1 suggested `File → Share → Publish to web → CSV` as one way to get
-   data out of Sheets — but "publish to web" makes the sheet **publicly
-   readable by anyone with the link**, which is the wrong instruction to
-   give a designer whose gacha rate table is exactly the kind of unreleased,
-   confidential content they'd never want public. Removed entirely; §DI3 now
-   only names non-exposing paths (`File → Download`, or select a range and
-   `Copy`).
-3. **OAuth / private-sheet read access should not be a *permanent*
-   exclusion — only Sheet write-back is permanent.** Draft 1 lumped both
-   together under "permanently excluded." Corrected: **write-back to any
-   source is permanently excluded, forever** (unchanged) — but read-only
-   access to a private Sheet via OAuth is a *materially different, smaller*
-   promise (never writes anything) that a later, clearly-separate,
-   **optional** connector could reasonably add. v1 ships with paste/upload
-   only; a live connector is deferred, not foreclosed (§DI2, §DI-D5, §DI16).
-4. **The refresh-identity key was unstable.** Draft 1 matched a refreshed row
-   by `(table label, sourceKey)` — but a table's `label` is an ordinary,
-   user-editable display string (§DI5); renaming "Pools" to "Gacha pool
-   entries" would have silently broken every binding in that table. Fixed:
-   a freshly-minted, never-shown, never-editable **`sourceTableId`** is the
-   real match key; `label` is presentation only (§DI9).
-5. **The worked example had a real modelling bug the change-proposal export
-   would have inherited.** The original "Bundles" table repeated a
-   package's price on every one of its item rows, so importing it would have
-   materialized the SAME price as multiple different Parameters (one per
-   item row) instead of one Parameter per package. Rebuilt the example as
-   four properly normalized tables — `Items`, `Banners`, `GachaPoolEntries`,
-   `Packages`, `PackageItems` — so price lives in exactly one place (§DI4).
-   `banner_key` is now a real foreign key into an actual `Banners` table
-   (draft 1 called it a foreign key with no table for it to reference).
-6. **The change-proposal CSV's synthetic composite key was fragile.** Draft
-   1's `key` column concatenated table/row/column with `__`, which (a) does
-   not match any real row key a designer could search their sheet for and
-   (b) risks collision if a real key ever contains `__`. Fixed: separate
-   columns — `source_table,source_key,source_column,previous_value,new_value`
-   (§DI12.2).
+**Draft 3 (Hanrim/Lumi, round 2)** approved draft 2's direction and found 7
+more contract gaps before this can be settled — all fixed below:
 
-Also settled in this round, per explicit direction: **DI-D1 approved**
-(changed-rows-only), **DI-D2 approved** (cross-table FK only),
-**DI-D3 approved** (normalized long form only), **DI-D4 approved** (preserve
-+ warn on a missing row, never auto-delete) — plus a fuller row-lifecycle
-contract these decisions actually require (added / missing / key-changed /
-value-changed, §DI11), and an explicit provenance-privacy statement (§DI-D6).
+1. **DI1 and DI5 contradicted each other on scope wording.** DI1 still said
+   "Sheet / range / header-row selection"; DI5 said a Sheets-style range
+   doesn't apply. Unified into one list — table display name, the
+   pasted/uploaded data block, header row, delimiter, and an optional
+   in-preview row/column trim (§DI1, §DI5).
+2. **Column names need a stable id too, not just rows.** The refresh
+   identity was `(sourceTableId, sourceKey, sourceColumn)` with
+   `sourceColumn` as the raw header text — renaming `weight` to
+   `drop_weight` in the sheet would have made every value under it look
+   simultaneously `missing` (old header) and `added` (new header). Fixed:
+   a `sourceColumnId` is minted once per column-role mapping (§DI7, §DI9);
+   the header text is display/CSV only; a header change is handled as an
+   explicit remap, never inferred.
+3. **Stored base state was insufficient to detect a label/relationship
+   change.** Draft 2 only stored a numeric `lastImportedValue`. If a row's
+   `display_name` or an FK column's value changes upstream, the generated
+   Parameter's *label and meaning* change too, but there was nothing to
+   diff that against. Fixed: the base projection now stores the row's
+   mapped **key + number + label + foreign-key** values (still never the
+   full original row, an unmapped column, or a source file/URL — §DI11,
+   §DI13, §DI-D6 updated accordingly).
+4. **The three-way rule was missing a case and never specified where `base`
+   moves.** `local == incoming != base` (both sides independently converged
+   on the same new value) is not a conflict but wasn't handled; and none of
+   the four outcomes said whether `base` advances. Both fixed with a
+   complete case table (§DI11).
+5. **Multi-table atomicity and ambiguous FK grouping were unstated.**
+   Pure-lookup tables (`Items`, `Banners`) create zero Parameters of their
+   own — the doc needed to say explicitly that the whole first import (every
+   table together) validates and commits as one atomic step. Separately,
+   `GachaPoolEntries` has TWO foreign keys (`item_key`, `banner_key`), so
+   "one frame per FK group" was ambiguous — fixed by requiring an explicit
+   "group by" FK pick, never a silent default (§DI11, §DI-D10, §DI-D11).
+6. **"Reused from Project Revision's incident-edge precedent" overclaimed
+   what that precedent actually covers.** A Register expression, a
+   `loop-model/2` resource-edge `flow`, and a `loop-state/4` activator
+   `expr` can all reference a Parameter by `@id` **without being a graph
+   edge at all** — checked directly against `graphStore.ts`'s `removeNode`
+   (strips only literal incident edges, nothing else) and confirmed this is
+   a real, currently-unhandled gap even in today's ordinary node deletion,
+   not something Project Revision already solved. Restated honestly as NEW
+   required work, not reused (§DI11, §DI-D9).
+7. **Three wording/accuracy corrections**: DI12.1 overclaimed that a
+   Register appears in the CSV exports — checked directly against
+   `TimelineChart.tsx`'s `downloadCsv(pools, series)` call site (Registers
+   are handled in a completely separate path, never passed to `downloadCsv`)
+   and `montecarlo.ts`'s `resolveTracked` (Pool ids only) — both exports are
+   **Pool-only**; a Register's value is computed and shown on the Timeline
+   chart on-screen but is not in either CSV today (§DI12.1, stated as a
+   pre-existing gap, not something this doc fixes). The draft-2 changelog
+   said "four properly normalized tables" for a five-table rebuild — fixed.
+   And the junction-table explanation was imprecise: it's not that the two
+   FK columns' *combination* is non-unique, it's that **neither FK column
+   alone is unique, and v1 requires a single key column** — fixed (§DI4,
+   §DI6). `sourceKey`'s maximum length is now its own independent limit,
+   not a reuse of the unrelated node-label length ceiling (§DI-D8).
 
 Implementation is explicitly **out of scope for this PR** — design only, per
 the same design-doc-first → approval → implementation split already used for
@@ -80,11 +93,11 @@ the same design-doc-first → approval → implementation split already used for
 Sections: **DI1** scope · **DI2** exclusions · **DI3** snapshot mechanism ·
 **DI4** worked example · **DI5** per-table import config · **DI6** row key ·
 **DI7** column selection & type mapping · **DI8** cross-table key
-relationships · **DI9** stable identifiers (table / source key / node id) ·
-**DI10** materializing Parameters · **DI11** provenance, refresh & row
-lifecycle · **DI12** exports · **DI13** serialization / revision-digest
-impact · **DI14** decisions · **DI15** out of scope (restated) · **DI16**
-suggested implementation sequencing.
+relationships · **DI9** stable identifiers (table / column / source key /
+node id) · **DI10** materializing Parameters · **DI11** provenance, refresh,
+row lifecycle & atomicity · **DI12** exports · **DI13** serialization /
+revision-digest impact · **DI14** decisions · **DI15** out of scope
+(restated) · **DI16** suggested implementation sequencing.
 
 ---
 
@@ -94,18 +107,22 @@ suggested implementation sequencing.
    ever; DI2, DI15). Google Sheets, Excel, or any spreadsheet a designer
    already uses is a valid *origin* of the pasted data — there is no
    Sheets-specific mechanism.
-2. Sheet / range / header-row selection.
+2. **Table display name, the pasted/uploaded data block, header row,
+   delimiter, and an optional in-preview row/column trim** — unified this
+   round with §DI5's actual mechanism (there is no literal Sheets-style
+   `A1:D6` range; see §DI3/§DI5 for why).
 3. A designated **row unique key** per table.
 4. Selecting only the needed columns and mapping each to a type.
 5. **Cross-table key relationships** — items, gacha pool entries, and
    packages (with their own item-linking table) joined by shared keys.
-6. **Source identity kept separate from the internal node id** — and, as
-   corrected in this round, from the table's own display label too (§DI9).
+6. **Source identity kept separate from the internal node id, the table's
+   display label, AND a column's header text** (§DI9 — the label/header
+   parts were this round's and last round's fixes respectively).
 7. Numeric values **materialize as `parameter` nodes** (`loop-model/1`,
    already shipped — no new engine primitive).
 8. **Manual refresh** with a full **row lifecycle** (added / missing /
-   key-changed / value-changed) and a **base / local / incoming three-way
-   diff** for value changes.
+   key-changed / value-changed) and a complete **base / local / incoming
+   three-way diff** (§DI11).
 9. **Simulation-results CSV export.**
 10. A **change-proposal CSV** export: `source_table / source_key /
     source_column / previous value / new value`.
@@ -124,9 +141,9 @@ Item 9 turns out to be **already shipped and needs no new work** — see
 - **v1 ships no live connection at all** — no OAuth, no background refresh,
   no network fetch, no stored source URL (§DI3, §DI-D6). This is a
   **deferred**, not permanent, exclusion: a later, clearly-separate,
-  strictly **read-only** Google Sheets (or similar) connector is named as a
-  possible future phase in §DI16 / §DI-D5, distinct from — and never
-  reopening — the write-back exclusion above.
+  strictly **read-only** connector is named as a possible future phase in
+  §DI16 / §DI-D5, distinct from — and never reopening — the write-back
+  exclusion above.
 - Binding to any node kind other than `parameter` (restates GSA5).
 - Import rows that directly create `register` nodes or expressions (restates
   GSA5).
@@ -135,13 +152,13 @@ Item 9 turns out to be **already shipped and needs no new work** — see
 ## DI3. Snapshot mechanism
 
 **No live network fetch, no OAuth, no CORS-dependent `fetch()` against any
-spreadsheet host, and — this round's correction — no guidance that risks
-exposing a private table.** Contradicts Loop Studio's whole positioning
-(client-only, no accounts, works offline — README's "Why" section,
-`docs/pwa.md`) and doesn't even solve provenance cleanly (a background
-auto-refresh has no natural moment to run the row-lifecycle / diff, §DI11).
-GSA0 already reached this conclusion for the single-table case; it applies
-unchanged here, generalized beyond Sheets specifically.
+spreadsheet host, and no guidance that risks exposing a private table.**
+Contradicts Loop Studio's whole positioning (client-only, no accounts, works
+offline — README's "Why" section, `docs/pwa.md`) and doesn't even solve
+provenance cleanly (a background auto-refresh has no natural moment to run
+the row-lifecycle / diff, §DI11). GSA0 already reached this conclusion for
+the single-table case; it applies unchanged here, generalized beyond Sheets
+specifically.
 
 The import surface is a **pasted or uploaded CSV/TSV snapshot** — the same
 "moves only as files you export yourself" shape `SEMANTICS-R.md`'s Project
@@ -158,19 +175,22 @@ exposing it:
   CSV, or a plain copy-paste of a selected range — no app-specific mechanism
   needed, since the importer only ever sees delimited text.
 
+There is no Sheets-style `A1:D6` range address, because nothing here
+connects live to a Sheet — the whole pasted/uploaded block is the input, and
+any further trimming happens in the Preview (§DI5), same as trimming a CSV
+in a text editor before importing it anywhere else.
+
 "Manual refresh" (DI1 item 8) means: the user re-exports/re-copies the same
-range whenever they've changed it, pastes or re-uploads it into the SAME
+data whenever they've changed it, pastes or re-uploads it into the SAME
 import binding, and clicks **Refresh** — which re-runs the identical column
 mapping and walks the full row lifecycle (§DI11) against what's stored. No
 polling, no stored URL, no token, no background activity.
 
 ## DI4. Worked example — a real, normalized gacha item table set
 
-Rebuilt this round to fix draft 1's price-duplication bug (see the draft-2
-changelog above) and to give `banner_key` an actual table to reference.
-Every mechanic below is illustrated against this same example: five sheets a
-designer already has, linked by ordinary spreadsheet convention (a shared
-key column, no formulas).
+Five sheets a designer already has, linked by ordinary spreadsheet
+convention (a shared key column, no formulas). Every mechanic below is
+illustrated against this same example.
 
 **Sheet "Items"** (one row per catalogue item — a pure lookup table, no
 numeric columns mapped in this example):
@@ -201,7 +221,7 @@ Template's own `zone3_pickup_w_ssr`-style Parameters):
 | ppe_pickup_charm_r | premium_pickup | itm_charm_r | 900 |
 
 **Sheet "Packages"** (one row per **store package**, price lives here
-exactly once per package — this is the fix for draft 1's duplication bug):
+exactly once per package):
 
 | package_key | package_name | price_krw |
 |---|---|---:|
@@ -217,31 +237,42 @@ with one item it contains and how many — quantity only, no price):
 | pkgitem_starter_charm_r | pkg_starter | itm_charm_r | 3 |
 | pkgitem_whale_blade_ssr | pkg_whale | itm_blade_ssr | 1 |
 
-Note `pool_entry_key` and `package_item_key`: neither `banner_key`+`item_key`
-nor `package_key`+`item_key` is unique on its own (a banner has several
-items; a package contains several items) — every link/junction table needs
-its own synthetic per-row key. §DI6 states this as a requirement, not a
-special case.
+**Why `pool_entry_key` and `package_item_key` exist, precisely** (corrected
+this round): it is **not** that the *combination* of `banner_key`+`item_key`
+(or `package_key`+`item_key`) fails to be unique — in this well-formed data
+it IS unique per row. The real reason is narrower: **v1 requires a single
+key COLUMN** (§DI6), and *neither FK column alone* is unique (several items
+share a `banner_key`; several items share a `package_key`) — so a
+link/junction table needs its own synthetic single-column key. This is a
+consequence of v1's own constraint, not an inherent property of the data;
+§DI6 states it as a requirement for that reason.
 
 ## DI5. Per-table import configuration
 
-For each pasted/uploaded table, the user supplies:
+Unified this round with DI1 item 2 (draft 2 had these two sections
+contradicting each other). For each pasted/uploaded table, the user
+supplies:
 
-- a **label** for the table, typed by the user (a plain paste carries no
+- a **table display name**, typed by the user (a plain paste carries no
   sheet/tab name — "Items", "Banners", "GachaPoolEntries", "Packages",
   "PackageItems" above are user-typed labels, not detected from the
-  clipboard). **The label is presentation only and freely renameable at any
-  time** — it plays no role in matching a refresh; that's `sourceTableId`
-  (§DI9), minted once and never shown.
+  clipboard). **Presentation only, freely renameable at any time** — it
+  plays no role in matching a refresh; that's `sourceTableId` (§DI9), minted
+  once and never shown.
+- the **pasted or uploaded data block** itself (CSV/TSV text, or a file) —
+  this is the entire input; there is no separate "connect to a range"
+  step (§DI3).
 - the **header row** (usually row 1; a preview shows the first ~10 rows so
   the user can confirm before committing),
 - the **delimiter** (auto-detected from a pasted TSV vs. an uploaded CSV;
-  user-overridable for an unusual export).
-
-"Range" in the Sheets sense doesn't apply once the input is a pasted/uploaded
-snapshot (§DI3) — the whole pasted block **is** the range. A user who only
-wants part of a sheet exports/copies just that part first, the same way
-they'd trim a CSV before importing it anywhere else.
+  user-overridable for an unusual export),
+- an **optional, in-preview row/column trim** — e.g. drop a leading title
+  row a paste happened to include, exclude trailing summary rows, or narrow
+  which columns are even considered before DI7's per-column ROLE assignment
+  runs on whatever remains. This is a coarse structural trim, distinct from
+  DI7's semantic role assignment (key/number/label/FK/ignored), and is the
+  closest thing to a "range" in this contract — entirely local to the
+  pasted text, never a live Sheets address.
 
 ## DI6. Row unique key
 
@@ -256,15 +287,20 @@ anything touches the graph (restates GSA1):
   comparison is case-sensitive** (`itm_Blade_SSR` ≠ `itm_blade_ssr`; a
   designer relying on case-only distinction is vanishingly unlikely and
   case-INsensitive comparison risks silently merging two real rows),
-- no control characters, and a maximum length (reuses the existing label
-  length ceiling already enforced on node labels elsewhere in the app).
+- no control characters, and a maximum length — **its own independent
+  limit, decided at implementation time, not a reuse of the unrelated
+  node-label length ceiling** (corrected this round; a sourceKey and a
+  node label serve different purposes and may need different bounds —
+  §DI-D8).
 
-**A link/junction table needs a genuinely unique column, which often doesn't
-exist yet** — `GachaPoolEntries`/`PackageItems` above needed their own
-synthetic key added. The import preview's key-selection step, faced with no
-unique column, tells the user this directly (with the duplicate rows
-highlighted) rather than silently picking a non-unique column and producing
-a broken import.
+**A link/junction table needs a genuinely unique COLUMN, which often
+doesn't exist yet** — `GachaPoolEntries`/`PackageItems` above needed their
+own synthetic key added, precisely because v1 requires a single key column
+and neither of their FK columns is unique alone (§DI4's corrected
+explanation — not because the FK *combination* is non-unique). The import
+preview's key-selection step, faced with no unique column, tells the user
+this directly (with the duplicate rows highlighted) rather than silently
+picking a non-unique column and producing a broken import.
 
 ## DI7. Column selection & type mapping
 
@@ -278,6 +314,10 @@ imports 3, not 8) and assigns each a role:
 | **label** | human-readable text folded into a generated node's label | `display_name`, `banner_name`, `package_name` |
 | **foreign key** | references another table's key column (§DI8) | `GachaPoolEntries.item_key`→Items, `GachaPoolEntries.banner_key`→Banners, `PackageItems.package_key`→Packages, `PackageItems.item_key`→Items |
 | **ignored** | present in the sheet, not imported | `rarity`, `category` in this example (kept in the Sheet, absent from Loop Studio) |
+
+Assigning a role to a column mints that column's own stable
+**`sourceColumnId`** (§DI9) — the header text itself (`weight`,
+`price_krw`, …) is never the identity, only its current display name.
 
 A **number** column must parse as finite numeric data for every row (same
 validate-the-whole-preview-first discipline as GSA1); a bad cell is reported
@@ -306,10 +346,13 @@ than five disconnected flat tables:
   payoff of linking tables: a designer reading the Inputs panel sees real
   names, not opaque keys, even though the numeric data, the item name, and
   the banner name each live in a different sheet.
-- **Grouping.** Every row generated from one FK-linked group can share one
-  frame (§DI10's frame destination), so "everything about the Premium Pickup
-  banner" sits together on canvas regardless of which sheet each column came
-  from.
+- **Grouping — needs an explicit "group by" pick when a table has more than
+  one FK (new this round, §DI-D11).** `GachaPoolEntries` has TWO foreign
+  keys (`item_key`, `banner_key`); "one frame per FK group" is ambiguous
+  without saying which one groups. The import preview requires the user to
+  explicitly choose, e.g. **"Group by: banner_key"** → one frame per banner
+  (`Premium Pickup`, `Premium Standard`), never a silently-guessed default
+  (restates GSA4's "do not silently generate frames from group").
 - **Manual aggregation stays available, not automated.** A designer who
   wants "total weight of the Premium Pickup banner" as a Register can already
   write `@<id> + @<id> + @<id>` by hand with the shipped `@` autocomplete
@@ -321,25 +364,36 @@ than five disconnected flat tables:
   import's job stops at producing well-labelled, well-grouped Parameters;
   summarizing them is an ordinary follow-up edit like any other Register.
 
-FK relationships are **cross-table only** in v1, approved this round
-(§DI-D2) — a row referencing a key in its *own* table (a self-reference) is
-out of scope.
+FK relationships are **cross-table only** in v1, approved (§DI-D2) — a row
+referencing a key in its *own* table (a self-reference) is out of scope.
 
-## DI9. Stable identifiers — table, source key, and node id
+## DI9. Stable identifiers — table, column, source key, and node id
 
-Three separate identifiers are in play, corrected and clarified this round
-because draft 1 conflated two of them:
+Four separate identifiers are in play — a third was added this round
+(`sourceColumnId`) after `sourceTableId` (draft 2's fix) was found to have
+left column names with the exact same instability bug one level down:
 
 1. **`sourceTableId`** — freshly minted once, when a table is first bound
    (the same `nextId()` scheme as any other internal id, e.g.
-   `srctable_mtc00jt3_2`). **Never shown to the user, never editable.** This
-   is the ONLY thing a refresh matches a table against.
-2. **The table's `label`** (§DI5) — a plain, user-editable display string
-   ("GachaPoolEntries", "Packages"). Purely presentational. **Renaming a
-   table's label never breaks its binding** — this is exactly the bug
-   draft 1 had (matching on `(table label, sourceKey)`) and this round's
-   fix.
-3. **The internal node id** — restates GSA3, unchanged: `nextId('parameter')`
+   `srctable_mtc00jt3_2`). **Never shown to the user, never editable.** The
+   match key for a table across refreshes.
+2. **`sourceColumnId`** (new this round) — freshly minted once, when a
+   column is first assigned a role (§DI7) — e.g. `srccol_mtc00jt5_1` for
+   `GachaPoolEntries.weight`. **Never shown to the user, never editable.**
+   The header text (`weight`) is display/CSV-facing only. **A header rename
+   is an explicit remap, never inferred**: on refresh, if a previously-known
+   header text is missing, the user is asked "is this the same column under
+   a new name, or a different column?" — picking "same column" keeps the
+   existing `sourceColumnId` (only its display text updates); picking
+   "different column" mints a fresh `sourceColumnId` (the old one's values
+   then behave as ordinary missing rows, §DI11). A whole-column rename or
+   removal is surfaced **once, as one column-level event** — never smeared
+   into one `missing` prompt per row under that column.
+3. **The table's `label`** (§DI5) — a plain, user-editable display string
+   ("GachaPoolEntries", "Packages"). Purely presentational, exactly like a
+   column's header text. **Renaming a table's label never breaks its
+   binding** (draft 2's fix).
+4. **The internal node id** — restates GSA3, unchanged: `nextId('parameter')`
    (`src/model/factory.ts`) mints every generated Parameter's real id exactly
    the way dragging a Parameter onto the canvas already does
    (`parameter_mtc00jt3_2`-shaped). A `sourceKey` (e.g.
@@ -348,10 +402,11 @@ because draft 1 conflated two of them:
    into, a node id.
 
 **The refresh-matching identity for one imported value is the triple
-`(sourceTableId, sourceKey, sourceColumn)`** — not the bare `sourceKey`
-alone (a table's own key values are only unique WITHIN that table; `Items`
-and a hypothetical differently-shaped table could coincidentally reuse a
-key string), and not `(label, sourceKey)` (fixed this round, item 4 above).
+`(sourceTableId, sourceKey, sourceColumnId)`** — internal ids only, never
+raw display text on any of the three axes. Not the bare `sourceKey` alone (a
+table's own key values are only unique WITHIN that table), not
+`(label, sourceKey)` (draft 2's bug), and not `(sourceTableId, sourceKey,
+<header text>)` (this round's bug).
 
 ## DI10. Materializing values as Parameters
 
@@ -360,8 +415,8 @@ importer creates one fresh `parameter` node (`loop-model/1`, already
 shipped — no engine change):
 
 - **id**: freshly minted (`nextId('parameter')`), per DI9 — never derived
-  from the sourceKey, and never equal to `sourceTableId` (a different id
-  serving a different purpose).
+  from the sourceKey, and never equal to `sourceTableId` or
+  `sourceColumnId` (each serves a different purpose).
 - **value**: the cell's numeric value at import time.
 - **label**: `"<table label> · <row's label-role text(s), enriched via any
   FK per §DI8, or the row's own key if none was mapped> · <column name>"` —
@@ -374,9 +429,10 @@ shipped — no engine change):
   optional" contract `ParameterData.unit` already has).
 - **position / frame**: per the import preview's explicit choice — reused
   unchanged from GSA4's three destinations (never silently generated):
-  1. one frame per table (or per FK group, for a linked table) — the
-     default in this doc's worked example: a "GachaPoolEntries" frame, a
-     "Packages"/"PackageItems" frame;
+  1. one frame per table (or per explicit "group by" FK pick, per §DI8 —
+     required, never guessed, when a table has more than one FK) — the
+     default in this doc's worked example: a "GachaPoolEntries" frame
+     grouped by `banner_key`, a "Packages"/"PackageItems" frame;
   2. all imported nodes placed into one existing frame the user picks;
   3. no frames — a plain drop onto the canvas.
 
@@ -398,20 +454,41 @@ indistinguishable in the engine from a Parameter a user typed in by hand.
 Nothing about materialization is a new engine capability; it is entirely
 graph-construction plumbing on top of `loop-model/1`.
 
-## DI11. Provenance, manual refresh, and the full row lifecycle
+## DI11. Provenance, manual refresh, row lifecycle, and atomicity
 
-A binding that supports **refresh** (DI1 item 8) needs to remember what it
-last imported:
+### What's stored (expanded this round — a numeric base alone can't detect a label/relationship change)
 
 - one document-level **import-source record** per bound table: its
   `sourceTableId` (§DI9), its display `label`, and its declared
-  key/number/label/FK column roles (so re-pasting a fresh export from the
-  same sheet doesn't require re-answering DI5–DI8 every time),
-- per generated Parameter: `sourceTableId`, `sourceKey`, `sourceColumn`, and
-  `lastImportedValue` (a sketch, not final field names — see §DI13).
+  key/number/label/FK column roles + their `sourceColumnId`s (so re-pasting
+  a fresh export from the same sheet doesn't require re-answering DI5–DI8
+  every time),
+- per imported **row** (not just per generated Parameter): its `sourceKey`
+  plus the **base projection of every mapped column** —
+  `{ number: Record<sourceColumnId, number>, label: Record<sourceColumnId,
+  string>, foreignKey: Record<sourceColumnId, sourceKey> }` (a sketch, not
+  final field names — see §DI13). The **number** values are what §DI10's
+  Parameters diff against on refresh (draft 2 already had this, as
+  `lastImportedValue`); the **label** and **foreignKey** values are new this
+  round — without them, a changed `display_name` or a re-pointed FK has
+  nothing to compare against, and a generated Parameter's label would either
+  never update or update silently with no way to detect the change was even
+  real.
+- **Still never stored**: the full original row, any unmapped/ignored
+  column, or a source file/Sheet URL (GSA2, §DI-D6 — unchanged).
 
-Rejected this round: matching on `(label, sourceKey)` — fixed to
-`(sourceTableId, sourceKey, sourceColumn)`, §DI9.
+Rejected in draft 2: matching on `(label, sourceKey)`. Rejected this round:
+`sourceColumn` as raw header text instead of `sourceColumnId` (§DI9).
+
+### Column-level events, handled once (new this round)
+
+Before any per-row diffing: if a refresh's paste is missing a previously
+mapped header and the user confirms it's genuinely a different column (not
+a rename — §DI9), that whole column's prior values are dropped from
+matching in **one** column-level acknowledgement, never as N separate
+per-row `missing` prompts. A genuine rename (same `sourceColumnId`, new
+header text) is not a "change" in the diff sense at all — only the display
+text updates.
 
 ### The four things a refresh can see, per row
 
@@ -419,27 +496,23 @@ A fresh paste/upload is compared against the stored bindings for that table.
 Every `sourceKey` present on either side falls into exactly one case:
 
 1. **Added** — a `sourceKey` in the incoming snapshot with no matching
-   stored Parameter for this `sourceTableId`. Shown in the refresh preview
-   as `added`. **A Parameter is materialized only after the user explicitly
-   confirms** — the same "validate/preview the whole batch before touching
-   the graph" discipline as the first import (§DI7), not a silent auto-add.
-   (Confirming several adds at once, e.g. "add all 3 new rows," is a normal
-   UX convenience — the underlying rule is that nothing is created without
-   the user having seen and accepted it.)
-2. **Missing** — a stored Parameter's `sourceKey` is absent from the
-   incoming snapshot. **Never auto-deleted.** Shown as `missing from
-   source`; the user explicitly picks, per row (or per batch):
-   - **unlink** — keep the Parameter exactly as-is, drop only its
-     provenance, so it becomes ordinary hand-owned data no future refresh
-     will touch again, or
-   - **delete** — remove the node. If the node is referenced elsewhere (a
-     Register expression, a `loop-model/2` resource-edge `@id` flow), that
-     reference is surfaced first and must be resolved (removed or
-     retargeted) exactly the way Project Revision's selective Apply already
-     handles "removing a node surfaces its incident edges to remove or
-     retarget" — reused, not reinvented. **A referenced node is never
-     silently deleted**, matching Hanrim/Lumi's explicit instruction this
-     round.
+   stored row for this `sourceTableId`. Shown in the refresh preview as
+   `added`. **Materialized only after the user explicitly confirms** — the
+   same "validate/preview the whole batch before touching the graph"
+   discipline as the first import (§DI7), not a silent auto-add. (Confirming
+   several adds at once, e.g. "add all 3 new rows," is a normal UX
+   convenience — the underlying rule is that nothing is created without the
+   user having seen and accepted it.)
+2. **Missing** — a stored row's `sourceKey` is absent from the incoming
+   snapshot. **Never auto-deleted.** Shown as `missing from source`; the
+   user explicitly picks, per row (or per batch):
+   - **unlink** — keep every Parameter generated from this row exactly
+     as-is, drop only its provenance, so it becomes ordinary hand-owned
+     data no future refresh will touch again, or
+   - **delete** — remove the node(s). **Reference-checking here needs NEW
+     work, not a reuse of Project Revision's incident-edge precedent** —
+     see the correction below. **A referenced node is never silently
+     deleted.**
 3. **Key-changed** — modeled as **exactly Added + Missing together, no
    separate "rename" detection.** If a designer renames a spreadsheet row's
    key, the old key shows up as `missing` (case 2) and the new key shows up
@@ -448,73 +521,125 @@ Every `sourceKey` present on either side falls into exactly one case:
    row that got renamed"; guessing wrong (two unrelated rows that happen to
    swap-look-alike) would be worse than asking the user to redo the one
    Parameter's edits from a fresh materialization.
-4. **Value-changed** — a `sourceKey` present on both sides. Runs the
-   base/local/incoming three-way check below.
+4. **Value-changed** — a `sourceKey` present on both sides, with at least
+   one mapped column's incoming value differing from its stored base. Runs
+   the base/local/incoming three-way check below — **for every mapped
+   column type**, not just `number`: a `label`-role or `foreignKey`-role
+   column follows the exact same rule, applied to the generated Parameter's
+   *label text* instead of its numeric value (so a hand-renamed Parameter
+   label is protected by the same "ask only on a real conflict" logic a
+   hand-tuned number already gets).
 
-### Value-changed rows — the base/local/incoming three-way
+### The complete base/local/incoming three-way (corrected this round — one case and all base-movement rules were missing)
 
 ```
-base     = lastImportedValue        (what was imported last time)
-local    = current parameter.value  (what's in the graph now — may have
-                                      been hand-tuned since)
-incoming = the freshly pasted value
+base     = the stored value at last import/refresh
+local    = the current value in the graph (a Parameter's data.value, or a
+           generated label's current text) — may have been hand-tuned since
+incoming = the freshly pasted/uploaded value
 ```
 
-- `local == base` (never touched since import) and `incoming` differs ⇒
-  **auto-apply** the incoming value, no prompt.
-- `incoming == base` (the sheet didn't actually change this cell) ⇒ nothing
-  to do regardless of `local`.
-- `local != base` and `incoming != base` and `local != incoming` ⇒ a **real
-  three-way conflict** — the ONLY case in this category that asks the user
-  anything, exactly the Project-Revision precedent (`SEMANTICS-R.md`)
-  already established for `exact` / `divergent` / `unknown` classification.
-  Both values are shown; the user picks *keep mine* or *take incoming*, per
-  row.
+| case | condition | outcome | base after |
+|---|---|---|---|
+| unchanged | `local == base`, `incoming == base` | nothing to do | unchanged |
+| source-only changed | `local == base`, `incoming != base` | **auto-apply** incoming, no prompt | → incoming |
+| local-only changed | `local != base`, `incoming == base` | nothing to do (keep local) | unchanged |
+| **converged (new this round)** | `local != base`, `incoming != base`, `local == incoming` | nothing to do — **not** a conflict, both sides independently reached the same value | → incoming |
+| real conflict | `local != base`, `incoming != base`, `local != incoming` | ask the user: **apply incoming** (value → incoming) or **keep mine** (value stays local) | → incoming **either way** |
 
-**Proposed, not yet verified**: reuse the Project Revision three-way Apply
-machinery/UI (`src/model/revision.ts`, the Review panel) for this
-classification and resolution step (and, ideally, for the added/missing
-lifecycle above too, since "surface incident edges before removing a node"
-is already exactly that system's job) rather than writing a second diff
-engine from scratch. This needs implementation-time verification against the
-actual code — the existing three-way apply operates over `GraphDoc` id-keyed
-nodes/edges; whether the SAME functions can run over an in-memory synthetic
-"incoming GraphDoc fragment" built fresh from a pasted CSV (rather than a
-literal prior `project.revision`), or only the classification *logic* is
-reusable and the UI needs its own thinner surface, is exactly the kind of
-claim this project's history (`docs/parameter-activator.md`'s
-`loop-revision/7` reversal, `docs/gacha-banner-zones.md`'s `pickup_share`
-correction) says must be checked against real code before an implementation
-PR relies on it, not assumed from this design doc alone.
+The "converged" row and the "base after" column are this round's fixes.
+Moving `base` to `incoming` even on **keep mine** matters: it means the
+NEXT refresh, if the sheet hasn't changed further, sees `incoming == base`
+again and stays quiet — without this, the same already-acknowledged
+difference would re-prompt as a conflict every single refresh forever.
+
+**Proposed, not yet fully verified**: reuse the Project Revision three-way
+Apply *classification logic* (`src/model/revision.ts`, `SEMANTICS-R.md`'s
+`exact`/`divergent`/`unknown` shape) for the table above, rather than writing
+a second diff engine from scratch. Needs implementation-time verification
+against the actual code — whether the same functions run over an in-memory
+synthetic "incoming GraphDoc fragment" built fresh from a paste, or only the
+classification *logic* is reusable and the UI needs its own thinner surface,
+is exactly the kind of claim this project's history
+(`docs/parameter-activator.md`'s `loop-revision/7` reversal,
+`docs/gacha-banner-zones.md`'s `pickup_share` correction) says must be
+checked before an implementation PR relies on it.
+
+### Reference-checking before a delete (corrected this round — the prior claim overreached)
+
+Draft 2 said deleting a node on a `missing` row reuses "Project Revision's
+existing incident-edge-surfacing precedent." **Checked directly against the
+code, and this overclaimed what that precedent covers.**
+`src/store/graphStore.ts`'s `removeNode` strips only literal **incident
+edges** (`e.source !== id && e.target !== id`) — it does **not** scan for a
+Parameter's id appearing as an `@id` inside:
+
+- a Register's `expr` (`loop-expr/1`),
+- a `loop-model/2` resource-edge `flow`,
+- a `loop-state/4` activator `expr` (an `ActivatorRhs` `param-term`).
+
+(A `label` state edge's grammar — `+N -N =N +S -S =S` — has no `@id` form at
+all, verified against `stateExpr.ts`'s `parseLabelExpr`; labels are correctly
+excluded from this list, unlike the reviewer's original broader phrasing.)
+
+The engine already tolerates a dangling `@id` gracefully (an unknown
+reference fails closed to a visible error state and never halts the run,
+per `SEMANTICS-M.md`) — but the UI does not warn about it today, for ANY
+node deletion, imported or not. This is a **real, pre-existing gap**, not
+something Project Revision already solved. **This import feature needs a
+NEW reference-scanning utility** — walk every Register `expr`, every
+`loop-model/2` flow, and every `loop-state/4` activator `expr` for the
+target id, before offering `delete` on a missing row — flagged here as
+required new work (§DI-D9), not assumed to already exist or to be a trivial
+extension of the incident-edge check.
+
+### Multi-table atomicity (new this round)
+
+The **first import**, when it spans several tables at once (as the worked
+example does — five sheets bound together), validates every table's preview
+together and commits as **one atomic graph mutation with one undo entry** —
+the same discipline the shipped "Insert module" already uses (validate the
+whole candidate first, nothing changes on failure, one atomic undo;
+`docs/module-system.md`). Pure-lookup tables (`Items`, `Banners` here)
+create zero Parameters of their own but are still bound in this same atomic
+step, so their key/label data is available for FK enrichment (§DI8) both
+immediately and on every future refresh.
 
 ## DI12. Exports
 
-### DI12.1 Simulation-results CSV — already shipped, no new work
+### DI12.1 Simulation-results CSV — already shipped, no new work (correction this round: Pool-only, not "Pool or Register")
 
 Verified directly against the code rather than assumed: this requirement is
-**already fully satisfied**.
+**already fully satisfied** — but the earlier claim that a Register also
+appears was wrong and is corrected here.
 
-- `src/components/TimelineChart.tsx`'s `downloadCsv` already exports
-  `step, <one column per tracked Pool's label>` for the current single run
-  (the Timeline's **CSV** button).
+- `src/components/TimelineChart.tsx`'s `downloadCsv(pools, series)` already
+  exports `step, <one column per tracked Pool's label>` for the current
+  single run (the Timeline's **CSV** button). Checked the actual call site:
+  `pools` and `registers` are computed as two SEPARATE arrays in this file,
+  and only `pools` is ever passed to `downloadCsv` — a Register's value is
+  computed and shown on the Timeline **chart** on-screen
+  (`registersOfSnapshot`), but is **not** in this CSV.
 - `src/engine/montecarlo.ts`'s `toSeriesCsv` / `toFinalCsv` /
-  `toFinalSummaryCsv` already cover the Monte Carlo distribution (per-step
-  bands, per-run finals, and a final-value summary).
+  `toFinalSummaryCsv` already cover the Monte Carlo distribution — also
+  Pool-only, since `resolveTracked` filters to `n.data.kind === 'pool'`
+  before anything else runs.
 
-These are generic and label-driven — a Pool or Register fed by an imported
-Parameter needs no special handling to appear correctly in either export.
-(Parameters themselves are never MC-tracked — `resolveTracked` accepts Pool
-ids only, an already-verified fact from this project's own history — but
-that's exactly right: a Parameter is a tunable input, not a simulation
-result, so it was never expected to appear there.) This item is listed in
-DI1 only because it was part of the original fixed scope instruction; no
-implementation work follows from it.
+**Corrected statement**: both exports are **Pool-only**, full stop. A Pool
+fed by an imported Parameter (e.g. via a resource edge's `@id` flow) needs
+no special handling to appear correctly — but a Register that aggregates
+several imported Parameters (§DI8's manual-aggregation case) does **not**
+appear in either CSV today. This is a real, pre-existing limitation, stated
+honestly rather than papered over — fixing it is out of scope for this doc
+(it would be a change to `TimelineChart.tsx`/`montecarlo.ts` unrelated to
+import). This item is listed in DI1 only because it was part of the original
+fixed scope instruction; no implementation work follows from it here.
 
-### DI12.2 Change-proposal CSV — new, format corrected this round
+### DI12.2 Change-proposal CSV — new
 
 The actual answer to "how does a tuned value get back to the spreadsheet,"
 given DI2's permanent write-back exclusion: a small, new export producing
-**separate columns**, not draft 1's fragile `__`-joined composite key:
+**separate columns**, never a joined composite key:
 
 ```
 source_table,source_key,source_column,previous_value,new_value
@@ -532,34 +657,41 @@ Packages,pkg_whale,price_krw,49900,59900
 - **source_key** is the ORIGINAL `sourceKey` — never the internal node id —
   so a designer can find the row in their own sheet by eye or by their own
   spreadsheet lookup formula.
-- **source_column** is the original column name, so `weight` vs. `price_krw`
-  vs. `quantity` never collide even when several numeric columns exist on
-  one table.
-- **previous_value** is `lastImportedValue` (the base, §DI11).
-- **new_value** is the current `parameter.value`.
+- **source_column** is the column's CURRENT header text (display, like
+  `source_table` above) — never the internal `sourceColumnId` — so `weight`
+  vs. `price_krw` vs. `quantity` never collide even when several numeric
+  columns exist on one table.
+- **previous_value** is the stored base for that (row, column) — §DI11.
+- **new_value** is the current value.
 - Scoped to rows where `new_value != previous_value` **only** — approved
-  this round (§DI-D1).
+  (§DI-D1).
 
 This is a plain CSV a designer pastes back into their own sheet by hand (or
 feeds to a script they already own) — Loop Studio never touches the source.
 
 ## DI13. Serialization / revision-digest impact
 
-A new provenance shape on a `parameter` node's `data` (sketch, per DI11 —
-`sourceTableId` / `sourceKey` / `sourceColumn` / `lastImportedValue`, plus a
-document-level import-source record carrying `sourceTableId` / `label` /
-column-role config) is a **genuine new stored schema**, not a UI-only
-feature. Restating GSA2's own explicit warning rather than repeating its
-mistake: this must **not** be described as simply "excluded from the
-digest." The precedent is `GraphDoc.frames` (`loop-revision/5`,
-`SEMANTICS-R5.md`) — a frame edit moves the full revision **content** digest
-and `dirty`, but never the engine/structure digest or the simulation result,
-because a frame changes nothing the engine computes. Provenance is the same
-shape: `data.value` already affects simulation and already moves the
-existing digests through the ordinary Parameter-value path; the NEW
-provenance fields affect nothing the engine computes, but they are still
-real, serialized document content someone might git-diff or three-way-merge,
-so they **do** belong in the revision content digest.
+A new provenance shape (sketch, per DI11 — expanded this round beyond a bare
+numeric base):
+
+- per table: `sourceTableId`, `label`, column-role config (each column's
+  `sourceColumnId`, role, and current header text),
+- per imported row: `sourceKey`, and the stored base projection —
+  `{ number: Record<sourceColumnId, number>, label: Record<sourceColumnId,
+  string>, foreignKey: Record<sourceColumnId, sourceKey> }`.
+
+This is a **genuine new stored schema**, not a UI-only feature. Restating
+GSA2's own explicit warning rather than repeating its mistake: this must
+**not** be described as simply "excluded from the digest." The precedent is
+`GraphDoc.frames` (`loop-revision/5`, `SEMANTICS-R5.md`) — a frame edit
+moves the full revision **content** digest and `dirty`, but never the
+engine/structure digest or the simulation result, because a frame changes
+nothing the engine computes. Provenance is the same shape: a Parameter's
+`data.value` already affects simulation and already moves the existing
+digests through the ordinary Parameter-value path; the NEW provenance
+fields affect nothing the engine computes, but they are still real,
+serialized document content someone might git-diff or three-way-merge, so
+they **do** belong in the revision content digest.
 
 This will very likely need its **own new `loop-revision/N`** entry (a fresh
 `SideVersion`, `FIELDS_BY_KIND` row, and `serialize.ts` allowlist entry —
@@ -576,11 +708,10 @@ cautionary precedent for.
 
 ### DI-D1 — change-proposal CSV lists only CHANGED rows (**approved**)
 
-Only rows where the current value differs from `lastImportedValue`. An "all
+Only rows where the current value differs from the stored base. An "all
 mapped rows, changed or not" mode would make the export usable as a full
 current-state dump too, at the cost of being much noisier as a "here's what
 changed" artifact — which is the export's whole purpose per its name.
-Approved by Hanrim/Lumi this round.
 
 ### DI-D2 — foreign keys are cross-table only (**approved**)
 
@@ -588,7 +719,7 @@ A row referencing a key in its own table (a same-table self-reference, e.g.
 a hypothetical "parent item" column on Items) is out of scope for v1. The
 worked example never needs one, and it's a materially different UI problem
 (cycle detection, tree/hierarchy display) than the star-shaped linking this
-doc designs for. Approved by Hanrim/Lumi this round.
+doc designs for.
 
 ### DI-D3 — a link table is long/normalized form only (**approved**)
 
@@ -596,46 +727,86 @@ doc designs for. Approved by Hanrim/Lumi this round.
 example's shape), never as one row with a delimited multi-value cell
 (`item_key: "itm_blade_sr;itm_charm_r"`). The latter needs its own small
 parsing sub-language and isn't how most spreadsheet tools naturally produce
-this data; deferred, not designed here. Approved by Hanrim/Lumi this round.
+this data; deferred, not designed here.
 
 ### DI-D4 — a row missing on refresh: preserve + warn, never auto-delete (**approved**)
 
-GSA2 flagged "deletion and missing-row behaviour" as undecided; settled this
-round. A missing row is never silently removed — it surfaces as `missing
-from source` and the user explicitly chooses unlink-and-keep or delete
-(with reference-checking before any delete), per §DI11's row-lifecycle
-rules. Approved by Hanrim/Lumi this round.
+GSA2 flagged "deletion and missing-row behaviour" as undecided; settled. A
+missing row is never silently removed — it surfaces as `missing from
+source` and the user explicitly chooses unlink-and-keep or delete (with the
+NEW reference-checking of §DI-D9 before any delete), per §DI11's
+row-lifecycle rules.
 
-### DI-D5 — a live, read-only Sheets connector is a possible LATER phase, not v1 (new this round)
+### DI-D5 — a live, read-only connector is a possible LATER phase, not v1
 
-Corrects draft 1's "OAuth permanently excluded" framing (changelog item 3
-above). Write-back stays permanently excluded for every source, forever —
-that is not reopened. Read-only access to a private Sheet via OAuth is a
-smaller, later, and explicitly **optional** promise a future phase could add
-without changing anything in this contract: it would only ever produce the
-same kind of pasted-snapshot data this doc already designs for, just fetched
-instead of copy/pasted. Not designed further here; named so it isn't
-confused with, or blocked by, the permanent write-back exclusion.
+Write-back stays permanently excluded for every source, forever — not
+reopened by this. Read-only access to a private Sheet (or similar) via OAuth
+is a smaller, later, explicitly **optional** promise a future phase could
+add without changing anything in this contract: it would only ever produce
+the same kind of pasted-snapshot data this doc already designs for, just
+fetched instead of copy/pasted. Not designed further here.
 
-### DI-D6 — provenance data is ordinary shareable document content; store the minimum (new this round)
+### DI-D6 — provenance data is ordinary shareable document content; store the minimum (updated this round)
 
-Two points, both settled this round:
+- **Privacy**: `sourceTableId`, `sourceColumnId`, `sourceKey`, table/column
+  display text, and every stored base value are ordinary **user document
+  content** — exactly like a node's `label` or position today. If a Graph,
+  Workspace, or Project-revision file carrying these is exported, shared, or
+  committed to a Project revision, this provenance travels with it, the same
+  way any other document content does. Not a NEW risk class (labels already
+  do this) but worth stating plainly, since imported data often comes from
+  an internal, unshared spreadsheet the designer never intended to expose
+  via a shared Loop Studio file.
+- **Storage minimization (scope updated this round — DI11 now stores more
+  than a bare numeric base, but the boundary is unchanged)**: Loop Studio
+  stores the table-level binding config plus, per row, only the **mapped**
+  key/number/label/foreign-key base values (§DI11, §DI13). It does **not**
+  store the full original row, any **unmapped/ignored** column's value, or
+  a source file/Sheet URL. The set of columns eligible to be stored is
+  exactly the set the user explicitly gave a role to in §DI7 — nothing
+  entering through the back door.
 
-- **Privacy**: `sourceTableId`, `sourceKey`, the table's `label`, column
-  names, and `lastImportedValue` are ordinary **user document content** —
-  exactly like a node's `label` or position today. If a Graph, Workspace, or
-  Project-revision file carrying these is exported, shared, or committed to
-  a Project revision, this provenance travels with it, the same way any
-  other document content does. This is not a NEW risk class (labels already
-  do this) but is worth stating plainly, since imported data often comes
-  from an internal, unshared spreadsheet the designer never intended to
-  expose via a shared Loop Studio file.
-- **Storage minimization**: Loop Studio stores only the four-tuple
-  `(sourceTableId, sourceKey, sourceColumn, lastImportedValue)` per bound
-  Parameter, plus the table-level binding config (`sourceTableId`, `label`,
-  column-role mapping). It does **not** store the full original row, any
-  unmapped column's value, or a source file/Sheet URL. Locked in as a
-  decision, not left to an implementation PR's discretion.
+### DI-D7 — `sourceColumnId` is the real column identity; header rename is an explicit remap (new this round)
+
+A column's header text is display/CSV-facing only (§DI9). Renaming a header
+between refreshes is never inferred from position or fuzzy text matching —
+the user is asked once, explicitly, whether it's the same column renamed or
+a genuinely new one, exactly mirroring how a table's own rename is already
+handled (§DI9 item 3).
+
+### DI-D8 — `sourceKey`'s maximum length is its own independent limit (new this round)
+
+Not a reuse of the unrelated node-label length ceiling (a correction from
+draft 2, which conflated the two). The exact number is an implementation-time
+decision — a `sourceKey` and a display label serve different purposes and
+may reasonably need different bounds.
+
+### DI-D9 — deleting an imported node needs a NEW reference scan, not a reuse of the incident-edge precedent (new this round)
+
+Verified against `graphStore.ts`'s `removeNode`: it strips only literal
+incident edges. A Register `expr`, a `loop-model/2` resource-edge `flow`,
+and a `loop-state/4` activator `expr` can all reference a node by `@id`
+without being an edge — none of these are scanned today, by any node
+deletion path, imported or not. Building the delete-with-reference-check
+flow §DI11 requires means writing this scanner as new work — explicitly not
+assumed solved by Project Revision's existing (narrower) precedent.
+
+### DI-D10 — the first multi-table import is one atomic wizard/commit/undo (new this round)
+
+Mirrors the shipped Insert-module discipline: validate every bound table's
+preview together, commit every generated node across every table as one
+graph mutation, one undo entry. Pure-lookup tables that generate zero
+Parameters of their own (`Items`, `Banners`) are still part of this same
+atomic step, since their data feeds FK enrichment (§DI8) from the moment of
+import onward.
+
+### DI-D11 — a table with 2+ foreign keys requires an explicit "group by" pick (new this round)
+
+No silent default when a table like `GachaPoolEntries` has more than one FK
+column. The import preview requires the user to name which FK drives the
+per-table frame grouping (§DI8, §DI10) — restates and sharpens GSA4's "do
+not silently generate frames from group" for the multi-FK case draft 2 left
+unaddressed.
 
 ## DI15. Out of scope for v1 (restated, consolidated)
 
@@ -654,26 +825,31 @@ Two points, both settled this round:
 - Multi-dimensional stat tables beyond flattened rows (restates GSA5).
 - Auto-generated summary/aggregation Registers from FK grouping (§DI8) — the
   mechanism is available for a human to use by hand, not built automatically.
-- Storing the full original row or any source file/Sheet URL (DI-D6).
-- A "rename detection" heuristic for the key-changed case (§DI11) — modeled
-  as add + remove instead.
+- Storing the full original row, any unmapped column, or a source file/Sheet
+  URL (DI-D6).
+- A "rename detection" heuristic for the key-changed or column-renamed
+  cases (§DI9, §DI11) — both modeled as an explicit user choice instead.
+- A Register appearing in either CSV export (§DI12.1 — a pre-existing gap,
+  not fixed by this doc).
 
 ## DI16. Suggested implementation sequencing (non-binding)
 
-Three phases, corrected this round to separate the (deferred, optional)
-connector from the (v1, committed) offline work. Each is its own
-explicit-kickoff PR, not decided or started here:
+Three phases, separating the (deferred, optional) connector from the (v1,
+committed) offline work. Each is its own explicit-kickoff PR, not decided or
+started here:
 
 1. **Offline import** (§DI4–§DI10, §DI12.1's reuse confirmed) — paste/upload,
-   configure, validate, materialize Parameters. No provenance stored yet, no
-   refresh possible (matches GSA1's original Track 2A framing, extended to
-   multiple linked tables).
-2. **Provenance, refresh, the full row lifecycle, and the change-proposal
-   export** (§DI9, §DI11–§DI13, §DI12.2) — the stored binding, the
-   added/missing/key-changed/value-changed lifecycle, and both new
+   configure (including `sourceColumnId` minting, §DI9), validate,
+   materialize Parameters, one atomic commit across every bound table
+   (§DI-D10). No provenance stored yet, no refresh possible (matches GSA1's
+   original Track 2A framing, extended to multiple linked tables).
+2. **Provenance, refresh, the full row lifecycle, atomicity for refresh
+   batches, and the change-proposal export** (§DI9, §DI11–§DI13, §DI12.2) —
+   the stored binding (now including label/FK base values), the
+   added/missing/key-changed/value-changed lifecycle with the complete
+   three-way table, the NEW reference-scanner (§DI-D9), and both new
    CSV/digest work. Depends on (1) shipping first.
-3. **Optional, later: a read-only Google Sheets connector** (§DI-D5) —
-   fetches the same shape of snapshot phase 1/2 already handle, purely as a
-   convenience over manual paste/re-paste; never gains write access; not
-   committed, not designed further here, and does not block or get blocked
-   by (1)/(2).
+3. **Optional, later: a read-only connector** (§DI-D5) — fetches the same
+   shape of snapshot phases 1/2 already handle, purely as a convenience over
+   manual paste/re-paste; never gains write access; not committed, not
+   designed further here, and does not block or get blocked by (1)/(2).
