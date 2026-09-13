@@ -34,7 +34,14 @@ type UiState = {
    * and the simulation all still work. UI-only: never the GraphDoc, the
    * `loop-revision/*` digest, undo, or `simulationRev`. Seeded from
    * `recommendedRunConfig.canvasLocked` on document / template load; the toolbar
-   * / Controls lock toggle flips it.
+   * / Controls lock toggle flips it. Also persisted to `localStorage`
+   * (`CANVAS_LOCKED_KEY`, the same pattern as `focusMode`) so a plain refresh
+   * or a PWA update-and-reload preserves whatever lock state was in effect —
+   * it is a safety guard against accidental edits, so a reload the user did
+   * not ask to make must never silently drop it. Still never part of the
+   * GraphDoc/export/digest; a fresh Template open always re-seeds it from that
+   * Template's own `recommendedRunConfig.canvasLocked` regardless of what was
+   * persisted.
    */
   canvasLocked: boolean
   setCanvasLocked: (v: boolean) => void
@@ -155,6 +162,7 @@ type UiState = {
   clearRefInsertPick: () => void
 }
 
+const CANVAS_LOCKED_KEY = 'loop-studio:canvas-locked'
 const FOCUS_MODE_KEY = 'loop-studio:focus-mode'
 const FILTER_PANEL_KEY = 'loop-studio:filter-panel'
 const ACTIVITY_OVERLAY_KEY = 'loop-studio:activity-overlay'
@@ -205,9 +213,19 @@ export const useUiStore = create<UiState>((set, get) => ({
     set({ overlay: o })
   },
 
-  canvasLocked: false,
-  setCanvasLocked: (v) => set((s) => (s.canvasLocked === v ? s : { canvasLocked: v })),
-  toggleCanvasLocked: () => set((s) => ({ canvasLocked: !s.canvasLocked })),
+  canvasLocked: readBoolKey(CANVAS_LOCKED_KEY),
+  setCanvasLocked: (v) =>
+    set((s) => {
+      if (s.canvasLocked === v) return s
+      writeBoolKey(CANVAS_LOCKED_KEY, v)
+      return { canvasLocked: v }
+    }),
+  toggleCanvasLocked: () =>
+    set((s) => {
+      const v = !s.canvasLocked
+      writeBoolKey(CANVAS_LOCKED_KEY, v)
+      return { canvasLocked: v }
+    }),
 
   focusMode: readFocusMode(),
   setFocusMode: (v) =>
