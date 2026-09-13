@@ -437,6 +437,15 @@ text uses capped / right-censored geometric terminology.
 
 ## GSA. Proposed external-table contract (**not implemented here**)
 
+**Promoted (2026-09-13) to [`docs/data-import.md`](data-import.md)** per GS11
+item 4, kicked off by explicit instruction after the gacha Template (GS10
+slice 6) and its README documentation both shipped. GSA0–GSA5 below are kept
+verbatim as the historical record of the hypothesis this example produced;
+`docs/data-import.md` restates and extends them (multi-table key
+relationships, the materialize-as-Parameter mechanic, the two CSV exports,
+and a concrete worked example) as the real design doc. Read that doc first —
+this appendix is no longer the current contract.
+
 This appendix is a hypothesis derived from GS4. It is validated by *building
 the example* (GS10-2) and then promoted to its own design document. Nothing
 below ships with the gacha Template.
