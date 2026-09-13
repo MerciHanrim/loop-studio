@@ -1,7 +1,7 @@
 # 3-zone gacha Template — banner rules & Monte Carlo comparison (design doc)
 
-**Status: approved, with one round-3 correction (below) applied after
-approval.** GS10 slice 6, the public
+**Status: approved, with round-3 and round-4 corrections (below) applied
+after approval.** GS10 slice 6, the public
 Template named throughout `docs/example-gacha-simulator.md` (GS's
 scope-revision section) and `docs/parameter-activator.md` §PA0/§PA8 as the
 reason `@parameter` activator support (`loop-state/4`, PR #187→#188→#189, all
@@ -94,10 +94,60 @@ wiring was considered and explicitly rejected (GZ5.0): it would hide the bug
 and leave the very last pull's outcome feeling delayed by a step. GZ8 gains
 eight new acceptance tests for the four-path structure (item 5).
 
+**Round 4 (production finding, after #195 shipped — Hanrim noticed the step
+counter climbing forever, 400+, with every ticket long spent):** GZ3.5's
+"zero `End` nodes" decision was correct about the FAILURE MODE it was
+avoiding (a per-zone `End` freezing the other two zones) but wrong about the
+fix — the Template never signals completion at all, which reads as broken to
+a first-time viewer, not "idle by design." **GZ3.5 is rewritten**: exactly
+ONE global `End`, gated by all three zones having actually produced
+`pulls_per_zone` results (`pulls_made_<zone> >= @pulls_per_zone`, AND-combined
+directly on the `End` node — no per-zone `End`, so the "freezes the others"
+failure mode GZ3.5 originally identified still cannot occur). Two real
+engine-mechanics findings surfaced and were verified directly against
+`step.ts` before this rewrite, in order:
+1. A first attempt gated the `End` on `ticket_<zone> <= 0` (rather than
+   `pulls_made`) and relayed the pulse through `Source → Pool → End`. Both
+   are wrong. **A `Source`'s outgoing edge must target a Pool** — `step.ts`
+   drops any push to a non-Pool outright (`"pushes to a non-Pool; ignored in
+   Engine A"`), so `Source → End` directly is not constructible at all.
+   Routing through an intermediate Pool doesn't fix that and adds a NEW bug:
+   Pool pull-availability reads `S[]`, the previous step's already-committed
+   value (`availOf(id) = S[id] - taken`), so a Pool's OWN this-step arrival
+   is invisible to anything pulling from it until the FOLLOWING step — the
+   exact `ssr_landed_pickup` lag GZ5 round 3 already found and fixed,
+   recurring in a new spot. `Source → Pool → End` would therefore fire the
+   global `End` a full step later than intended.
+2. **`ticket_<zone> <= 0` is ALSO true before the Template ever starts** —
+   every ticket Pool's `initial` is `0`; `fund_<zone>` (an `onStart` Source)
+   only commits its funding at the END of step 1 (GZ3.5's own horizon
+   derivation). An activator reads `S[source]`, the state as of the START of
+   the step it gates — so at step 1, `ticket_<zone> <= 0` for all three zones
+   is ALREADY satisfied, and gating the global `End` on ticket-emptiness
+   would open it immediately, ending the Template before a single pull. Fixed
+   by gating on `pulls_made_<zone> >= @pulls_per_zone` instead — `pulls_made`
+   starts at `0` and can only reach `pulls_per_zone` after `pulls_per_zone`
+   real pulls have actually resolved, so the gate cannot open before step
+   `pulls_per_zone + 2` under any seed. This is also a strictly more correct
+   completion signal than ticket-emptiness: it certifies each zone actually
+   PRODUCED its `N` results, rather than merely that its funding is spent (a
+   zone whose result-production were somehow blocked would not be
+   miscounted as complete).
+
+The corrected shape has no live pulse to relay at all: the global `End`
+pulls from a small STANDING Pool (`initial: 1, capacity: 1`, untouched by
+anything else in the graph) whose balance has been committed since long
+before the gate could ever open — so the moment the AND-gate is first
+satisfied, `availOf` already sees it, with no relay step in between. GZ8
+gains four new acceptance tests (item 3): no premature termination at step
+1, `ended` still `false` at `pulls_per_zone + 1`, `ended` becomes `true` at
+exactly `pulls_per_zone + 2`, and every zone's `pulls_made == pulls_per_zone`
+at that point.
+
 Prefix `GZ`. Sections: **GZ0** why a fixed-pull-count economy, not "first
 SSR" · **GZ1** scope · **GZ2** the three zones (fixed names/rules/currency) ·
-**GZ3** structural decisions (one graph, RNG stream isolation, no `End`
-nodes) ·
+**GZ3** structural decisions (one graph, RNG stream isolation, ONE global
+`End` gated by all-zones-complete) ·
 **GZ4** engine mapping — pity · **GZ5** engine mapping — pickup guarantee ·
 **GZ6** Parameter tables · **GZ7** Monte Carlo comparison metrics · **GZ8**
 verification · **GZ9** decisions · **GZ10** slices / work order.
@@ -128,8 +178,11 @@ don't share a unit (GZ2).
 This is a deliberate divergence from GS0/GS2.3's End-node design (`got_ssr` /
 `budget_exhausted`), not an oversight — flagged here for explicit review
 since it changes the narrative GS0 established for the single-banner case,
-and it structurally REQUIRES no `End` node exist anywhere in this Template
-(GZ3.5).
+and it structurally REQUIRES no PER-ZONE `End` node exist anywhere in this
+Template (`SimState.ended` is one global boolean — a per-zone `End` would
+freeze the other two zones the moment the fastest one finished). A single
+GLOBAL `End`, gated on all three zones' own completion together, is fine and
+is what GZ3.5 (round 4) actually specifies.
 
 ## GZ1. Scope
 
@@ -310,7 +363,7 @@ activator needed to gate it off). Per **GZ-D1**, nothing else stops it early
 — it runs until the ticket Pool is exhausted, always after exactly `N` pulls
 by construction.
 
-### GZ3.5 No `End` nodes anywhere in this Template
+### GZ3.5 One global `End`, gated by all three zones having actually completed
 
 Checked directly, `src/engine/step.ts` (`if (k === 'end') ended = true`) and
 `src/engine/montecarlo.ts`'s `runRange` (`if (!ended) { st = step(...); if
@@ -322,36 +375,72 @@ simulation stops advancing — every zone, not just the one whose `End` fired.
 A per-zone `End` (mirroring GS2.3's `got_ssr` / `budget_exhausted`, the
 obvious naive translation of "this zone is done") would therefore freeze the
 other two zones the moment the fastest zone finished its `N` pulls — exactly
-backwards from "all three zones complete `N` pulls for comparison."
+backwards from "all three zones complete `N` pulls for comparison." **This
+failure mode is still avoided** — see round 4's changelog note above — by
+using exactly ONE `End`, gated on ALL three zones' own completion together,
+never a per-zone one.
 
-**This Template has zero `End` nodes.** Each zone simply idles (GZ3.4) once
-its `ticket_<zone>` Pool empties; nothing in the graph ever sets `ended`.
+**Round 4 correction (production finding — the original "zero `End` nodes"
+design left the Template with no completion signal at all, which a
+first-time viewer reads as broken, not idle-by-design: the step counter
+climbs forever past `pulls_per_zone + 1` with every ticket long spent).**
+The global `End`'s activation is gated by three activators, AND-combined
+directly on the `End` node itself (the same "multiple activators on one
+target AND together" mechanism GZ4/GZ5 already use — no new engine
+capability):
 
-**The shared step horizon is exactly `steps = pulls_per_zone + 1`, not an
-approximate "safety margin."** Checked directly, `src/engine/step.ts`:
-`actOf(n) === 'onStart' && prev.step === 0` — an `onStart` Source fires
-during the FIRST `step()` call (which advances state from step 0 to step 1),
-so `fund_<zone>`'s push into `ticket_<zone>` commits at the end of step 1.
-`buy_pull_<zone>` reads the step-START snapshot, so it sees `ticket_<zone>
-== 0` at step 1 and cannot pull yet; at step 2 it sees step 1's committed
-`ticket_<zone> == pulls_per_zone` and pulling begins. Per GS1's own "at most
-one paid pull per simulation step" rule, pulls occupy steps
-`2 .. pulls_per_zone + 1` inclusive — exactly `pulls_per_zone` pull-steps.
-No CSU `afterPull` label needs an extra step beyond its own pull's step to
-settle (Phase 2.5 applies within the same step the pull happens), so no
-further margin is needed. `steps = pulls_per_zone + 1` is therefore the
-exact, minimal horizon at which every zone has completed all `pulls_per_zone`
-pulls and every pity/pickup mechanic has fully settled — asserted as five
-concrete acceptance tests in GZ8 item 3, not left as an approximation.
+```
+pulls_made_free    >= @pulls_per_zone ─┐
+pulls_made_standard >= @pulls_per_zone ─┼─ AND → global End
+pulls_made_pickup   >= @pulls_per_zone ─┘
+```
 
-`SimState.ended` stays `false` for the entire run, always, by construction.
-**In ordinary interactive Timeline playback, this means the run has no
-"ended" indicator at all** — it simply goes idle once every zone's ticket
-Pool is empty, since the UI's completion indicator reads `SimState.ended`
-directly. **Monte Carlo is unaffected by this distinction**: `runMonteCarlo`
-/ `runRange` run the configured `steps` count unconditionally and never
-consult `ended` to decide when to stop, so a Monte Carlo pass over this
-Template always completes at the fixed horizon regardless.
+`pulls_made_<zone> >= @pulls_per_zone` (not `ticket_<zone> <= 0`) is the
+correct completion signal, verified for two independent reasons (both found
+and fixed before this was written — see the round 4 changelog note):
+ticket-emptiness is ALSO true before step 1 even funds anything (an
+immediate false-positive termination), and `pulls_made` more precisely means
+"this zone actually produced `N` results" rather than merely "this zone's
+funding is spent."
+
+The `End` pulls from a small **standing** Pool — `all_zones_done_fuel`
+(name illustrative), `initial: 1, capacity: 1`, fed by nothing and drained by
+nothing else in the graph. Its balance has been committed (via `S[]`) since
+step 1, long before the AND-gate can ever open, so there is no live pulse to
+relay and no Pool-arrival-lag to worry about (see the round 4 changelog
+note's engine-verification for why a `Source → Pool → End` relay was
+rejected instead).
+
+**The pull horizon is unchanged: `pulls_per_zone + 1`.** Checked directly,
+`src/engine/step.ts`: `actOf(n) === 'onStart' && prev.step === 0` — an
+`onStart` Source fires during the FIRST `step()` call (which advances state
+from step 0 to step 1), so `fund_<zone>`'s push into `ticket_<zone>` commits
+at the end of step 1. `buy_pull_<zone>` reads the step-START snapshot, so it
+sees `ticket_<zone> == 0` at step 1 and cannot pull yet; at step 2 it sees
+step 1's committed `ticket_<zone> == pulls_per_zone` and pulling begins. Per
+GS1's own "at most one paid pull per simulation step" rule, pulls occupy
+steps `2 .. pulls_per_zone + 1` inclusive — exactly `pulls_per_zone`
+pull-steps, and every zone's `pulls_made` reaches `pulls_per_zone` by the end
+of step `pulls_per_zone + 1`.
+
+**The global `End`'s own horizon is `pulls_per_zone + 2` — one step later,
+by construction.** An activator reads `S[source]`, the state as of the
+START of the step it gates (verified directly, `step.ts`'s activator-eval
+loop: `cmp(S[e.source] ?? 0, p.op, n)`) — so the earliest step at which
+`pulls_made_<zone> >= pulls_per_zone` can be OBSERVED true for all three
+zones is the step immediately after they all reach it, i.e.
+`pulls_per_zone + 2`. This is the exact, minimal termination horizon, not an
+approximation — asserted as four concrete acceptance tests in GZ8 item 3.
+
+`SimState.ended` is `false` for every step through `pulls_per_zone + 1` and
+becomes `true` at exactly `pulls_per_zone + 2`, for every seed. **In ordinary
+interactive Timeline playback, this means Play now auto-stops** at
+`pulls_per_zone + 2`, one step past the last real pull, instead of climbing
+forever. **Monte Carlo's own configured `steps` must be `pulls_per_zone + 2`
+now** (was `+ 1`) — `runMonteCarlo` / `runRange` run the configured count
+unconditionally and never consult `ended` mid-run to decide when to stop,
+but the recommended config should match the Template's own real completion
+point exactly, not stop one step short of it.
 
 ## GZ4. Engine mapping — the tunable pity ceiling (Zones 2–3)
 
@@ -609,24 +698,39 @@ zero-SSR seed, exactly as this section already described.
    `loop-rng/1` keyed-draw property. This tests stream isolation (draws are
    domain-separated by id); it is not, and is not claimed to be, a proof of
    statistical independence between the zones' outcome distributions.
-3. **The fixed horizon's exact contract (GZ3.5).** At `steps =
+3. **The fixed horizon's exact contract (GZ3.5, round 4).** At `steps =
    pulls_per_zone + 1`, for every seed:
    - `pulls_made_<zone> == pulls_per_zone` for all three zones;
    - `ticket_<zone>` is exactly `0` for all three zones;
    - all three zones produced exactly `pulls_per_zone` roll results each
      (implied by the conservation identity, item 6, but asserted here as its
      own explicit horizon check);
-   - running the simulation for additional steps past the horizon changes no
-     Pool value and produces no further event, for any zone (idempotent
-     stability — nothing is still "in flight");
-   - `SimState.ended` is `false` at every step of every run, for any seed
-     (GZ3.5 — this Template has no `End` node, so nothing ever sets it).
-   In ordinary interactive Timeline playback (not Monte Carlo), the run
-   simply goes idle once every zone's ticket Pool is empty — there is no
-   "ended" indicator, since that reads `SimState.ended`, which this Template
-   never sets. Monte Carlo, by contrast, always completes: `runMonteCarlo` /
-   `runRange` run the configured `steps` count directly and never consult
-   `ended` to decide when to stop.
+   - `SimState.ended` is still `false` (the global `End`'s own AND-gate reads
+     `S[]` from the START of this step, i.e. the PREVIOUS step's values —
+     `pulls_made` only just reached `pulls_per_zone` AT this step, so the
+     gate cannot yet observe it satisfied).
+   At `steps = pulls_per_zone + 2` — one step later, exactly:
+   - `SimState.ended` is `true`, for every seed (the AND-gate now reads
+     last step's `pulls_made_<zone> == pulls_per_zone` for all three zones);
+   - every zone's `pulls_made` / `ticket` / roll-result values are UNCHANGED
+     from `pulls_per_zone + 1` (the `End` firing stops the run; it moves no
+     resource in any zone);
+   - running the simulation for additional steps past `pulls_per_zone + 2`
+     changes no Pool value and produces no further event, for any zone
+     (idempotent stability — nothing is still "in flight").
+   - **no premature termination**: at every step `1..pulls_per_zone`,
+     `SimState.ended` is `false`, for any seed — in particular NOT at step 1
+     (the `ticket_<zone> <= 0` false-positive round 4 found and rejected
+     would have opened the gate here, before any pull).
+   In ordinary interactive Timeline playback, Play now auto-stops at
+   `pulls_per_zone + 2` — one step past the last real pull — instead of
+   advancing forever. Monte Carlo's own `steps` config must be
+   `pulls_per_zone + 2` to match (GZ7.1's `recommendedRunConfig`); a Monte
+   Carlo run always completes regardless, since `runMonteCarlo` / `runRange`
+   run the configured `steps` count directly and never consult `ended`
+   mid-run to decide when to stop — but a `steps` value short of
+   `pulls_per_zone + 2` would never let the tracked `ended` distribution
+   reflect the Template's real completion point.
 4. **Pity ceiling holds per zone**, each with its OWN `hard_pity_<zone>`
    Parameter, using GZ4's exact acceptance shape from GS9's item set (gap
    never exceeds ceiling; ceiling pull is guaranteed SSR; pity resets
@@ -678,8 +782,8 @@ zero-SSR seed, exactly as this section already described.
    zero-pickup edge cases (GZ7.2).
 9. **Memory budget.** The combined three-zone graph's Monte Carlo run (all
    tracked Pools across all three zones, at whatever `K` the implementation
-   PR sets, `steps = pulls_per_zone + 1` exactly, GZ3.5) stays under the
-   existing `CELL_LIMIT`.
+   PR sets, `steps = pulls_per_zone + 2` exactly, GZ3.5 round 4) stays under
+   the existing `CELL_LIMIT`.
 
 ## GZ9. Decisions
 
@@ -726,6 +830,21 @@ zero-SSR seed, exactly as this section already described.
   nicety. No new engine capability either way (both shapes only ever use
   activator AND-combination and `afterPull` labels); this is a graph-wiring
   correction, not an engine-contract change.
+- **GZ-D8 (round 4)** — exactly ONE global `End`, gated by
+  `pulls_made_<zone> >= @pulls_per_zone` AND-combined for all three zones
+  directly on the `End` node, pulling a small standing pre-funded Pool (no
+  live pulse, no relay). Two alternatives were checked directly against
+  `step.ts` and rejected: gating on `ticket_<zone> <= 0` false-positives at
+  step 1 (every ticket Pool starts at `0`, before `fund_<zone>` ever
+  commits); relaying through `Source → Pool → End` both fails outright (a
+  Source may only push to a Pool — `step.ts` drops any other target) and,
+  even patched to route through a Pool, reproduces GZ5 round 3's own
+  Pool-arrival-lag bug (`availOf` reads `S[]`, the previous step's committed
+  value — a Pool's same-step arrival is invisible to anything pulling from
+  it until the FOLLOWING step). No new engine capability in the shape that
+  was kept: `end` is already gated by `isEnabled`/activators exactly like a
+  Gate (`ROUTER_KINDS` membership, unchanged), and a Pool with a nonzero
+  `initial` is already ordinary Pool behaviour.
 
 ## GZ10. Slices / work order
 
