@@ -1,6 +1,6 @@
 # Spreadsheet snapshot import — diff, provenance & change-proposal export (design doc)
 
-**Status: design draft — for review, draft 6.** No `loop-*/N` id yet (§DI13
+**Status: design draft — for review, draft 7.** No `loop-*/N` id yet (§DI13
 explains why one is likely needed) and no `Frozen` marker. Prefix `DI`.
 Kicked off by explicit instruction after the gacha Template's README
 documentation (PR #200) shipped, with the v1 scope fixed in that same
@@ -196,6 +196,29 @@ node (rev 5) itself newly exposed — **not a reopening of anything earlier**
    edit + its `labelAutoComposed` flip is one atomic Undo entry; a
    table-rename recompose cascade touching many Parameters is one atomic
    Undo entry for the whole batch, not one per Parameter (§DI11, §DI-D19).
+
+**Draft 7 (Hanrim/Lumi, round 6)** confirmed the 4 lifecycle fixes and Undo
+contract from draft 6 landed as intended, and found one real conflict left
+in the new 5th state, plus one small cleanup — both fixed below:
+
+1. **`locally deleted` and `value-changed` were not mutually exclusive.**
+   Concretely: stored base `10`, the user deletes the Parameter node, the
+   next paste's incoming value is `25` — that cell is simultaneously
+   "locally deleted" (no node) and "value-changed" (`10 → 25`) under a flat
+   list of cases, with no principled tiebreak between "recreate from
+   base" and "run the number three-way." **Fixed by splitting into two
+   ordered phases**: phase 1 classifies the ROW itself
+   (`added`/`missing`/`present`) from `sourceKey` presence alone —
+   `missing` wins outright even if the local node also happens to be
+   deleted; only phase 2, for a `present` row's individual
+   `number`-role CELLS, distinguishes "node exists → three-way" from "node
+   doesn't exist → `locally deleted`" — genuinely exclusive now, since a
+   cell can't be both `missing`'s row-level outcome and phase 2's cell-level
+   one at once (§DI11, §DI-D17).
+2. **Copy/duplicate/module-extract stripped the triple but not
+   `labelAutoComposed`.** A "fully ordinary Parameter" (the claimed result)
+   has neither field — leaving one behind contradicted that. Fixed: both
+   strip together (§DI9, §DI-D15).
 
 Implementation is explicitly **out of scope for this PR** — design only, per
 the same design-doc-first → approval → implementation split already used for
@@ -540,12 +563,16 @@ time** (§DI-D15). Two consequences, both settled here rather than left to
 an implementation PR's discretion:
 
 - **Copying, duplicating, or extracting a triple-carrying Parameter into a
-  module (`docs/module-system.md`) strips the triple from the COPY.** Only
-  the original keeps it; the duplicate becomes an ordinary, fully
-  independent hand-owned Parameter from the moment it's created — otherwise
-  copy-paste alone would silently create two "active" nodes for one triple,
-  and a refresh would have no principled way to choose which one to update.
-  A module that once contained an imported Parameter carries a plain
+  module (`docs/module-system.md`) strips BOTH the triple AND
+  `labelAutoComposed` from the COPY** (the second field named explicitly
+  this round — a plain hand-created Parameter has neither field at all, so
+  "becomes a fully ordinary Parameter" means dropping the complete
+  provenance shape, not just its identity half). Only the original keeps
+  either field; the duplicate becomes an ordinary, fully independent
+  hand-owned Parameter from the moment it's created — otherwise copy-paste
+  alone would silently create two "active" nodes for one triple, and a
+  refresh would have no principled way to choose which one to update. A
+  module that once contained an imported Parameter carries a plain
   Parameter on **Insert** too, for the same reason (a module is portable
   graph data meant to enter a possibly-different document; the triple is
   meaningful only within the specific binding it came from).
@@ -694,13 +721,19 @@ per-row `missing` prompts. A genuine rename (same `sourceColumnId`, new
 header text) is not a "change" in the diff sense at all — only the display
 text updates.
 
-### The five things a refresh can see, per (row, column) cell (a 5th case added this round)
+### Row existence, then per-cell state — a two-phase classification (restructured this round: `locally deleted` and `value-changed` were NOT mutually exclusive as one flat list)
 
-A fresh paste/upload is compared against the stored bindings for that table.
-Every `sourceKey` present on either side falls into exactly one case — the
-first four are keyed at the ROW level (a whole row's `sourceKey`), the 5th
-(new this round) is keyed at the finer **(row, column)** cell level, per the
-same triple identity §DI9 already uses everywhere else:
+A single flat list of "cases," as earlier drafts had, breaks down for a
+concrete scenario: stored base `10`, the user deletes the Parameter node
+directly on the canvas, and the next paste's incoming value is `25`. That
+one `(row, column)` cell is simultaneously "locally deleted" (no node) AND
+"value-changed" (`10 → 25`) under a flat classification — ambiguous, with
+no principled way to decide whether "recreate from stored base" or "the
+number three-way" governs. **Fixed by splitting into two ordered phases**,
+so every cell lands in exactly one place:
+
+**Phase 1 — row existence** (`sourceKey` presence, ROW-level, unchanged from
+earlier drafts):
 
 1. **Added** — a `sourceKey` in the incoming snapshot with no matching
    stored row for this `sourceTableId`. Shown in the refresh preview as
@@ -711,16 +744,19 @@ same triple identity §DI9 already uses everywhere else:
    convenience — the underlying rule is that nothing is created without the
    user having seen and accepted it.)
 2. **Missing** — a stored row's `sourceKey` is absent from the incoming
-   snapshot. **Never auto-deleted.** Shown as `missing from source`; the
-   user explicitly picks, per row (or per batch):
+   snapshot. **Takes priority over everything in phase 2** — if the row is
+   gone from the SOURCE too, it's `missing`, full stop, even if the local
+   node also happens to be deleted (that combination is not a special
+   third thing; the source-side absence already answers the question).
+   **Never auto-deleted.** Shown as `missing from source`; the user
+   explicitly picks, per row (or per batch):
    - **unlink** — keep every Parameter generated from this row exactly
      as-is (values, labels, positions untouched), but clear ALL THREE of
      §DI9's fixed set together, atomically: every affected Parameter's
      generating triple, the row's entire stored base projection, and any
      other linkage bookkeeping — so it becomes ordinary hand-owned data no
      future refresh will touch again, AND the same `sourceKey` reappearing
-     later correctly registers as `added`, not as an already-known row
-     (§DI9's corrected fix this round), or
+     later correctly registers as `added`, not as an already-known row, or
    - **delete** — remove the node(s). **Reference-checking here needs NEW
      work, not a reuse of Project Revision's incident-edge precedent** —
      see the correction below. **A referenced node is never silently
@@ -733,44 +769,45 @@ same triple identity §DI9 already uses everywhere else:
    row that got renamed"; guessing wrong (two unrelated rows that happen to
    swap-look-alike) would be worse than asking the user to redo the one
    Parameter's edits from a fresh materialization.
-4. **Value-changed** — a `sourceKey` present on both sides, with at least
-   one mapped column's incoming value differing from its stored base. A
-   `number`-role column runs the base/local/incoming three-way below
-   directly. A `label`-role or `foreignKey`-role column is **not** the same
-   shape — see the correction below (a real gap, not just a restatement of
-   the numeric rule).
-5. **Locally deleted / detached (new this round)** — the row's `sourceKey`
-   is still present on BOTH sides (source and stored base agree it exists),
-   but the Parameter it once produced for a given `number`-role column is
-   gone from the graph — the user deleted it directly on the canvas, through
-   ordinary node deletion, entirely outside this feature's own
-   `unlink`/`delete` flow. Detected the same way any other case is: scan
-   for a Parameter carrying triple `(sourceTableId, sourceKey,
-   sourceColumnId)` and find none, while the import-source record still has
-   a base projection for it. **Never silently recreated** — that would
-   violate this doc's own repeated "never silently regenerate something the
-   user might have touched" stance (GSA4, §DI-D4, §DI-D12). Shown as its
-   own distinct state, `locally deleted`, never conflated with `missing`
-   (which means the reverse — the SOURCE side lost the row, not the local
-   side losing the node). The user explicitly picks:
-   - **recreate** — materialize a fresh Parameter for this exact
-     `(row, column)` cell (a new id — the deleted node's original id is
-     simply gone; Loop Studio's own Undo, if the deletion is still on that
-     stack, is a separate, unrelated recovery path outside this feature's
-     scope), using the current stored base/row data, or
+4. **Present** — the `sourceKey` exists on both sides. Proceed to phase 2,
+   independently, for every one of this row's mapped columns — a
+   `number`-role column per the rules below; a `label`-role or
+   `foreignKey`-role column per its own separate mechanism (§"Label
+   composition," next) — all processed in the SAME refresh batch, and one
+   cell's outcome never blocks or alters another's.
+
+**Phase 2 — per `number`-role cell, only for a `present` row:**
+
+5. **Node exists** (a Parameter carries this cell's `(sourceTableId,
+   sourceKey, sourceColumnId)` triple) → runs the ordinary
+   base/local/incoming three-way below, unaffected by whether the row's
+   OTHER cells are in a different state.
+6. **Node doesn't exist — `locally deleted / detached`** (the user deleted
+   the Parameter directly on the canvas, through ordinary node deletion,
+   entirely outside this feature's own `unlink`/`delete` flow; detected by
+   finding zero Parameters carrying this cell's triple while a base
+   projection for it still exists). **Never silently recreated** — that
+   would violate this doc's own repeated "never silently regenerate
+   something the user might have touched" stance (GSA4, §DI-D4, §DI-D12).
+   Not a three-way at all (there is no `local` — the node is gone). The
+   user explicitly picks, per cell:
+   - **recreate** — materialize a fresh Parameter (a new id — the deleted
+     node's original id is simply gone; Loop Studio's own Undo, if the
+     deletion is still on that stack, is a separate, unrelated recovery
+     path outside this feature's scope) using the CURRENT incoming value,
+     **and moves this cell's stored base to that same incoming value** — the
+     new Parameter starts with base and value in sync, exactly like a fresh
+     first-time import, or
    - **discard the link** — remove this ONE cell's base-projection entry
      (not the whole row's, unless every one of its number columns is in
-     this state) from the import-source record, so future refreshes stop
-     asking about it; the rest of the row's other columns, if any, are
-     unaffected.
+     this state) so future refreshes stop asking about it.
 
-   **Per-cell, not per-row, granularity matters here specifically because a
-   row can have more than one `number`-role column** (none of this doc's
+   **Per-cell, not per-row, granularity matters specifically because a row
+   can have more than one `number`-role column** (none of this doc's
    worked-example tables do, but the mechanism must not assume otherwise):
-   deleting only ONE of a row's several generated Parameters on canvas
-   puts only THAT `(row, column)` cell into `locally deleted` — the row's
-   other still-existing Parameters are untouched and continue diffing
-   normally.
+   deleting only ONE of a row's several generated Parameters on canvas puts
+   only THAT cell into `locally deleted` — the row's other still-existing
+   Parameters are untouched and run phase 2's node-exists path normally.
 
 ### Label composition has a different diff unit than a number (corrected this round — draft 3 wrongly said "the exact same rule")
 
@@ -1238,10 +1275,12 @@ here).
 
 `(sourceTableId, sourceKey, sourceColumnId)` identifies at most one ACTIVE
 Parameter at any time. Copying, duplicating, or module-extracting a
-triple-carrying Parameter strips the triple from the copy — only the
-original stays bound. A document ever found with two Parameters sharing one
-triple is a data-integrity error: refresh blocks for that specific triple
-and surfaces it, rather than silently updating both (§DI9).
+triple-carrying Parameter strips BOTH the triple and `labelAutoComposed`
+from the copy (corrected this round — dropping only the triple would have
+left a "fully ordinary Parameter" with a field plain Parameters never have)
+— only the original stays bound. A document ever found with two Parameters
+sharing one triple is a data-integrity error: refresh blocks for that
+specific triple and surfaces it, rather than silently updating both (§DI9).
 
 ### DI-D16 — unlink clears the node triple, the row's base projection, and its linkage together, atomically (new this round)
 
@@ -1252,15 +1291,25 @@ record, would survive and make the same `sourceKey` register as an
 already-known row (not `added`) on a later refresh. All three clear
 together as one operation (§DI9, §DI11).
 
-### DI-D17 — a 5th row-lifecycle state, "locally deleted / detached," at (row, column) granularity, never silently recreated (new this round)
+### DI-D17 — row existence and per-cell state are two SEPARATE phases, not one flat list; `locally deleted` is phase 2, never confused with `missing` (corrected this round)
 
 A Parameter deleted directly on the canvas (outside this feature's own
 unlink/delete flow) while its source row and stored base survive is neither
-`added` nor `missing` — it's its own case. Never silently recreated; the
-user explicitly picks recreate (a fresh id) or discard-the-link. Tracked
-per `(row, column)` cell, not per row, since a row can have more than one
-`number`-role column and only one of its generated Parameters might be the
-one a user deleted (§DI11).
+`added` nor `missing`. Originally added to a flat 5-case list alongside
+`value-changed` — but that made the two NOT mutually exclusive (a cell can
+be both "locally deleted" and "its incoming value differs from base" at
+once, with no principled tiebreak). **Fixed: two ordered phases.** Phase 1
+classifies the ROW (`added` / `missing` / `present`) from `sourceKey`
+presence alone — `missing` wins outright if the row is gone from the
+source, regardless of whether the local node also happens to be deleted.
+Only a `present` row proceeds to phase 2, which classifies each
+`number`-role CELL independently: a Parameter still carrying the cell's
+triple runs the ordinary three-way; no Parameter carrying it is
+`locally deleted` (never silently recreated — the user explicitly picks
+recreate, moving base to the current incoming value in the same step, or
+discard-the-link). Tracked per `(row, column)` cell, not per row, since a
+row can have more than one `number`-role column and only one of its
+generated Parameters might be the one a user deleted (§DI11).
 
 ### DI-D18 — the change-proposal CSV's formula-injection guard is applied unconditionally, to every text field, for lossless reversibility (new this round)
 
