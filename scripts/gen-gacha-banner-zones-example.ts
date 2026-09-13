@@ -40,8 +40,24 @@
 // `bbox()` takes a footprint override so the comparison frame is sized from
 // these instead of the generic default; the shared row sits at `y: PAD`
 // (was `0`) so the frame gets an actual top margin instead of clamping it
-// away; `zoneRowY` is now the comparison frame's REAL bottom edge + one PAD,
-// not an independent guess.
+// away; `zoneRowY` is derived directly from the comparison frame's OWN
+// computed bbox (`frame.y + frame.h` + a deliberate seam), not a hand-rolled
+// formula duplicating that math.
+//
+// Layout round 4 (Hanrim/Lumi review of PR #198, after GZ3.5 round 4 added
+// two termination-plumbing nodes — `termination_fuel`, `all_zones_done` —
+// to the graph): those two are NOT comparison content (GZ7.1 explicitly
+// excludes them from every tracked/display set) and must read as auxiliary,
+// not compete with the 4 real metric cards. Putting them in the SAME
+// `CARD_GAP_X`-pitched row as the wide comparison cards was wrong on two
+// counts: it visually equated them with the real metrics, and it grew the
+// comparison frame's width enough to threaten the Template's own
+// `initialView` contract (`src/model/templates.ts` — 1280×720 must still
+// frame the comparison row + Free zone at ≥ the 0.6 zoom floor). Fixed: the
+// two termination nodes now sit in their own small, tightly-pitched strip
+// BELOW the main 5-card row, inside the same comparison frame (still fine —
+// Hanrim confirmed — just not fighting for the same visual weight or pitch).
+// The main row's own positions are completely unchanged from round 3.
 //
 // Run: npx tsx scripts/gen-gacha-banner-zones-example.ts
 
@@ -75,6 +91,15 @@ const CARD_GAP_X = 340 // comparison-row card pitch (was 260 — cards nearly to
 // safety margin for a future translation that wraps a touch wider/taller.
 const COMPARISON_CARD_W = 280
 const COMPARISON_CARD_H = 110
+// The termination strip's own small pitch/size assumption (layout round 4) —
+// deliberately much tighter than the wide comparison-card pitch, since these
+// two nodes are auxiliary plumbing, not comparison content. Measured max
+// real size (EN/KO/JA, zoom 1): ~177×74px; a little buffer for future label
+// changes.
+const TERMINATION_NODE_W = 200
+const TERMINATION_NODE_H = 90
+const TERMINATION_STRIP_GAP_X = 24
+const TERMINATION_STRIP_GAP_Y = 20 // between the main card row and this strip
 
 // The comparison-area ids checked FIRST and explicitly: the shared Parameter
 // plus the 4 `cmpN_...` Registers all carry a real per-zone suffix (like
@@ -88,6 +113,11 @@ const COMPARISON_IDS = new Set([
   'cmp3_hit_rate_pickup',
   'cmp4_pickup_rate_pickup',
 ])
+// GZ3.5 round 4's termination plumbing — NOT comparison content (GZ7.1
+// excludes both from every tracked/display set), but still sits inside the
+// same comparison frame as a small, visually secondary strip (layout round
+// 4) rather than being scattered into a zone's own frame.
+const TERMINATION_IDS = new Set(['termination_fuel', 'all_zones_done'])
 
 // Checked in `zoneN_` PREFIX order FIRST: a role name can itself contain
 // another zone's name as a suffix (`zone3_pickup_w_standard` ends with
@@ -97,7 +127,7 @@ const COMPARISON_IDS = new Set([
 // and always wins now; suffix match is only a fallback for the ids (Pool /
 // Gate / Source) that carry no `zoneN_` prefix at all.
 function zoneOf(id: string): ZoneKey | 'shared' {
-  if (COMPARISON_IDS.has(id)) return 'shared'
+  if (COMPARISON_IDS.has(id) || TERMINATION_IDS.has(id)) return 'shared'
   if (id.startsWith('zone1_')) return 'free'
   if (id.startsWith('zone2_')) return 'standard'
   if (id.startsWith('zone3_')) return 'pickup'
@@ -132,19 +162,43 @@ for (const n of nodes) depthOf(n.id, new Set())
 // ── comparison row: the 4 Registers + the shared Parameter, side by side,
 // above everything (its own frame, not colour-matched to any zone). Sits at
 // `y: PAD`, not `0`, so the frame below gets a real top margin instead of
-// clamping a negative one away. ────────────────────────────────────────────
-const sharedNodes = nodes.filter((n) => zoneOf(n.id) === 'shared')
+// clamping a negative one away. The two termination-plumbing nodes (layout
+// round 4) sit in their own small, tightly-pitched strip BELOW this row —
+// same frame, deliberately secondary visual weight, not stretched across the
+// wide comparison-card pitch. ───────────────────────────────────────────────
 const positions = new Map<string, { x: number; y: number }>()
-sharedNodes.forEach((n, i) => positions.set(n.id, { x: PAD + i * CARD_GAP_X, y: PAD }))
-// The comparison frame's REAL bottom edge (not a hardcoded guess) — its own
-// footprint's height already includes the PAD top margin (see `bbox`'s
-// `footprint` param below), so this is directly `frame.y + frame.h`.
-const comparisonFrameBottom = PAD + PAD + COMPARISON_CARD_H
+const mainCardNodes = nodes.filter((n) => COMPARISON_IDS.has(n.id))
+mainCardNodes.forEach((n, i) => positions.set(n.id, { x: PAD + i * CARD_GAP_X, y: PAD }))
+const terminationStripY = PAD + COMPARISON_CARD_H + TERMINATION_STRIP_GAP_Y
+const terminationNodes = nodes.filter((n) => TERMINATION_IDS.has(n.id))
+terminationNodes.forEach((n, i) =>
+  positions.set(n.id, { x: PAD + i * (TERMINATION_NODE_W + TERMINATION_STRIP_GAP_X), y: terminationStripY }),
+)
+
 // A real, deliberate seam between the comparison frame and the zone row
 // below it — small enough to read as connected, not zero (which would make
 // the two frame borders touch) and nowhere near the old ~110px gap the
-// footprint bug produced.
+// original footprint bug produced.
 const COMPARISON_TO_ZONE_GAP = 30
+
+// The comparison frame's REAL bottom edge — computed from the ACTUAL
+// positions just assigned above (main row + termination strip), via the same
+// `bbox()`/footprint machinery used for the final frame rect below, not a
+// hand-rolled formula that could silently drift out of sync with it. Reads
+// straight from the `positions` Map since the zones haven't been placed yet.
+function earlyBBoxBottom(ids: string[], footprint: { w: number; h: number }): number {
+  const ys = ids.map((id) => positions.get(id)!.y)
+  return Math.max(...ys) + footprint.h
+}
+// Reused below for the FINAL comparison frame rect too (`bbox()`'s footprint
+// param) — one definition, so the two can never silently drift apart. `h` is
+// `PAD + TERMINATION_NODE_H` (not `COMPARISON_CARD_H`) because the strip,
+// not the card row, is now the comparison area's lowest content.
+const COMPARISON_FOOTPRINT = { w: PAD + COMPARISON_CARD_W, h: PAD + TERMINATION_NODE_H }
+const comparisonFrameBottom = earlyBBoxBottom(
+  [...mainCardNodes.map((n) => n.id), ...terminationNodes.map((n) => n.id)],
+  COMPARISON_FOOTPRINT,
+)
 
 // ── the three zones, laid out SIDE BY SIDE (not stacked — see layout round
 // 2 above). Each zone keeps its own flow band (upper, depth/row-based) then
@@ -228,11 +282,6 @@ function bbox(
 }
 
 const idsByZone = (zone: ZoneKey | 'shared') => positioned.filter((n) => zoneOf(n.id) === zone).map((n) => n.id)
-
-// footprint.w/h = PAD + the real max card size, so the frame's right/bottom
-// margin past the last card comes out exactly PAD too (matching its own
-// left/top margin) — see the layout round 3 header note for the derivation.
-const COMPARISON_FOOTPRINT = { w: PAD + COMPARISON_CARD_W, h: PAD + COMPARISON_CARD_H }
 
 const frames: SavedFrame[] = [
   { id: 'zone_comparison', label: 'Comparison', rect: bbox(idsByZone('shared'), COMPARISON_FOOTPRINT) },
