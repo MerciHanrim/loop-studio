@@ -1,11 +1,19 @@
 # Spreadsheet snapshot import — diff, provenance & change-proposal export (design doc)
 
-**Status: design draft — for review, draft 7.** No `loop-*/N` id yet (§DI13
-explains why one is likely needed) and no `Frozen` marker. Prefix `DI`.
-Kicked off by explicit instruction after the gacha Template's README
-documentation (PR #200) shipped, with the v1 scope fixed in that same
-instruction (§DI1) and a concrete gacha item table required as the worked
-example (§DI4) before anything else in this doc.
+**Status: approved — settled design, implementation pending.** Draft 7
+(round 6) closed the last real conflict (the row/cell two-phase
+classification); Hanrim/Lumi confirmed no further blockers and approved
+this design after 6 review rounds. No `loop-*/N` id yet (§DI13 explains why
+one is likely needed) and no `Frozen` marker — that's minted at
+implementation time, per this project's established pattern
+(`docs/example-mmo-progression.md`, `docs/example-coffee-roastery.md`).
+Implementation is its own separate, later PR (§DI16), same as every other
+design-doc-first feature in this project — not started here, and not
+authorized to start without its own explicit kickoff. Prefix `DI`. Kicked
+off by explicit instruction after the gacha Template's README documentation
+(PR #200) shipped, with the v1 scope fixed in that same instruction (§DI1)
+and a concrete gacha item table required as the worked example (§DI4)
+before anything else in this doc.
 
 This document **promotes and extends** Appendix GSA of
 [`docs/example-gacha-simulator.md`](example-gacha-simulator.md) (GS11 item 4)
@@ -219,6 +227,12 @@ in the new 5th state, plus one small cleanup — both fixed below:
    `labelAutoComposed`.** A "fully ordinary Parameter" (the claimed result)
    has neither field — leaving one behind contradicted that. Fixed: both
    strip together (§DI9, §DI-D15).
+
+**Final approval (Hanrim/Lumi, after round 6):** confirmed the two-phase
+split resolves the exact conflicting scenario cleanly, the recreate/base
+sync is correct, the triple/`labelAutoComposed` strip is now complete, and
+nothing contradicts the existing added/missing, number three-way, Undo, or
+CSV rules. No further blockers — **this design is approved.**
 
 Implementation is explicitly **out of scope for this PR** — design only, per
 the same design-doc-first → approval → implementation split already used for
