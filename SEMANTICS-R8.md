@@ -174,15 +174,20 @@ the DEFENSIVELY-READ result (≥ 1 entry must *survive* `readSavedFrames`);
 silently fall back to a plain document (R8-D20/R8-D21).
 
 - **Section 8-1.1 (defensive read).** `readDataImports` (§R8-1.1,
-  `src/model/serialize.ts`) drops a malformed table / column / row **entry**,
-  never the graph. Unlike `readSavedFrames`'s §R5-1.1 posture, a missing,
-  duplicate, or OVER-LENGTH `sourceTableId` / `sourceColumnId` / row
-  `sourceKey` / FK-referenced `sourceKey` — the SAME `SOURCE_ID_MAX_BYTES` /
+  `src/model/serialize.ts`) drops a malformed table / column / row / FK-map
+  **entry**, never the graph. Unlike `readSavedFrames`'s §R5-1.1 posture, a
+  missing, duplicate, or OVER-LENGTH id/key — the SAME `SOURCE_ID_MAX_BYTES` /
   `SOURCE_KEY_MAX_BYTES` ceilings `readParameterData` enforces on a
   Parameter's generating triple, §DI-D8 — is never given a freshly-minted
-  replacement id and never truncated: it is dropped WHOLE,
-  first-occurrence-wins, deterministic (R8-D21/R8-D24). This
-  defensively-read result feeds the CANONICAL PROJECTION (§R8-2.1); it is
+  replacement and never truncated: it is dropped, first-occurrence-wins,
+  deterministic, at the granularity of WHATEVER it names (R8-D21/R8-D24):
+  a bad `sourceTableId` drops the whole TABLE; a bad `sourceColumnId` drops
+  just that COLUMN (the table and its other columns survive); a bad row
+  `sourceKey` drops just that ROW (the table and its other rows survive); a
+  bad FK-referenced `sourceKey` drops only that ONE MAP ENTRY inside the
+  row's `foreignKey` object (the row itself, and its `number` / `label`
+  values, survive untouched). This defensively-read result feeds the
+  CANONICAL PROJECTION (§R8-2.1); it is
   deliberately NOT what condition (b) above is evaluated against — see the
   correction above.
 - The predicate is **monotone**: a v8 graph is also ≤ v6 in the earlier
@@ -541,7 +546,7 @@ doesn't.
 | **R8-D21** | **`readDataImports` never mints a replacement id.** A table/column missing or duplicating its `sourceTableId` / `sourceColumnId` is dropped WHOLE (first-occurrence-wins, the same rule already used for a duplicate row `sourceKey`), never given a freshly-minted id. Unlike `readSavedFrames`' `frames` (which DOES mint one), a data-import id is a stable cross-reference a Parameter's generating triple points at — minting a new one on every read would (a) make re-reading the same file twice produce a *different* canonical projection and digest, breaking the basic purity every other `loop-revision/N` reader relies on, and (b) silently sever that Parameter's triple from its table the moment an id happened to collide or go missing. |
 | **R8-D22** | **A row's `number` / `label` / `foreignKey` maps project with keys sorted by `sourceColumnId`**, never the live object's insertion order — two documents whose values are equal but were authored/edited in a different column order must still produce identical canonical bytes and digests. |
 | **R8-D23** | **`ignored` is never a storable `ImportColumnRole`.** It is Phase 1B's own transient preview-selection state (a column the user hasn't assigned a role to yet); `readDataImports` treats it exactly like any other unrecognised role (the column is dropped whole), so it can never appear in GraphDoc wire content — required by §DI-D6 / §R8-8, which this closes a gap against. |
-| **R8-D24** | **`readDataImports` enforces the SAME `SOURCE_ID_MAX_BYTES` / `SOURCE_KEY_MAX_BYTES` ceilings `readParameterData` already enforces** (§DI-D8) — on a table's `sourceTableId`, a column's `sourceColumnId`, a row's own `sourceKey`, and an FK column's referenced `sourceKey` value. Without this, a 129-byte `sourceTableId` (say) could survive in a `dataImports` table record while `readParameterData` drops it from any Parameter pointing at it — severing the exact linkage §DI9 depends on. An over-limit id/key is EXCLUDED (the table/column/row is dropped whole), never truncated — a truncated id could collide with, or simply no longer match, a Parameter's own stored value. `refTableId` (a column's OWN reference to another table) is deliberately NOT bounded by this fix — a dangling or over-length `refTableId` is already a tolerated, harmless state (an FK column matching no known table), unlike the Parameter-linkage severance the four bounded fields actually risk. |
+| **R8-D24** | **`readDataImports` enforces the SAME `SOURCE_ID_MAX_BYTES` / `SOURCE_KEY_MAX_BYTES` ceilings `readParameterData` already enforces** (§DI-D8), each excluded at the granularity of what it names, never truncated: an over-length `sourceTableId` drops the whole TABLE; an over-length `sourceColumnId` drops just that COLUMN; an over-length row `sourceKey` drops just that ROW; an over-length FK-referenced `sourceKey` value drops only that ONE ENTRY inside the row's `foreignKey` map (the row, and its other fields, survive). Without this, a 129-byte `sourceTableId` (say) could survive in a `dataImports` table record while `readParameterData` drops it from any Parameter pointing at it — severing the exact linkage §DI9 depends on. Truncating instead of excluding was rejected — a truncated id could collide with, or simply no longer match, a Parameter's own stored value. `refTableId` (a column's OWN reference to another table) is deliberately NOT bounded by this fix — it is not a Parameter's generating triple, and a dangling or over-length `refTableId` is already a tolerated, harmless state (an FK column matching no known table), unlike the Parameter-linkage severance the four bounded fields actually risk. |
 | **R8-D7** | `loop-workspace/1` is **NOT** bumped (contrast `SEMANTICS-R6.md` R6-D6) — provenance is not a real input to what a run computes; verified directly against `workspace.ts`'s existing field set rather than assumed (§R8-7). |
 | **R8-D8** | The four per-node provenance fields ARE members of `OPTIONAL_PROJECTED_KEYS` from the start (§R8-6.1) — proactively guarding against the exact `SEMANTICS-R6.md` R6-D7 class of bug (a selective "take theirs" that can't delete a field) rather than discovering it in a later review round. |
 | **R8-D9** | The graph-level `dataImports` array gets `frames`' whole-array-hunk treatment (§R8-6); the four per-node fields get the ORDINARY per-field `change`-hunk treatment (§R8-6.1) — the two halves of this extension are diffed by two genuinely different mechanisms, matching their two genuinely different shapes, not forced into one uniform rule. |
