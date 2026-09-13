@@ -494,10 +494,16 @@ export const useSimStore = create<SimStore>((set, get) => {
   return {
     status: 'idle',
     // docs/simulation-playback.md §PB6 — the per-step beat for normal playback
-    // ONLY (never the engine / RNG / Monte-Carlo result). Default is the
-    // slowest slider stop (~2400 ms/step) so a fresh document / template plays
-    // at a follow-by-eye pace; the user drags up for the old speeds.
-    speedMs: 2400,
+    // ONLY (never the engine / RNG / Monte-Carlo result). The slowest slider
+    // stop (2400 ms/step, PlayBar.tsx SPEED_MAX) stays available for detailed
+    // step-by-step observation or debugging, but is no longer the default: a
+    // fresh document / template opening at the slowest possible speed reads
+    // as sluggish for the common case (a large graph, or a many-run Monte
+    // Carlo comparison like the gacha Template) where the point is to see
+    // the aggregate result quickly, not linger on every single step. 600
+    // ms/step is a brisk-but-still-followable middle ground — clearly on the
+    // fast half of the 120–2400 range, but nowhere near instantaneous.
+    speedMs: 600,
     seed: 1,
     stepIndex: 0,
     values: null,

@@ -9,9 +9,12 @@ import { useT } from '../i18n'
 // The slider maps to `speedMs` (the per-step beat, docs/simulation-playback.md
 // §PB6 — wall-clock only; the engine / RNG / MC result is byte-identical at any
 // speed). Range: 120 ms/step (fastest) … 2400 ms/step (slowest — ~1 change you
-// can follow by eye). The 120 → 1600 band is unchanged so the user can drag
-// straight up to the old speeds; 2400 just extends the slow end and is the new
-// default (simStore).
+// can follow by eye), still available for detailed step-by-step observation
+// or debugging. The default (simStore, `speedMs`) is 600 — a brisk-but-still-
+// followable middle ground, NOT the slowest stop: a fresh document / template
+// opening at the slowest possible speed reads as sluggish for the common case
+// (a large graph, or a many-run Monte Carlo comparison) where the point is to
+// see the aggregate result quickly, not linger on every single step.
 const SPEED_MIN = 120
 const SPEED_MAX = 2400
 const toSlider = (ms: number) => SPEED_MIN + SPEED_MAX - ms
