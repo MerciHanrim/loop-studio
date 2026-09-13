@@ -1,6 +1,6 @@
 # Spreadsheet snapshot import — diff, provenance & change-proposal export (design doc)
 
-**Status: design draft — for review, draft 5.** No `loop-*/N` id yet (§DI13
+**Status: design draft — for review, draft 6.** No `loop-*/N` id yet (§DI13
 explains why one is likely needed) and no `Frozen` marker. Prefix `DI`.
 Kicked off by explicit instruction after the gacha Template's README
 documentation (PR #200) shipped, with the v1 scope fixed in that same
@@ -165,6 +165,37 @@ found 5 more refinements needed before approval — all fixed below:
    (a display/paste-safety convention, not a byte-identical copy of
    `source_key`) and must be stripped by any machine reader that needs the
    original value.
+
+**Draft 6 (Hanrim/Lumi, round 5)** confirmed the prior 5 items landed exactly
+as requested, and found 4 more lifecycle gaps that storing the triple ON the
+node (rev 5) itself newly exposed — **not a reopening of anything earlier**
+— plus one Undo-contract clarification. All fixed below:
+
+1. **Nothing guaranteed a triple maps to at most one active Parameter.**
+   Fixed: an explicit invariant, copy/duplicate/module-extract strips the
+   triple from the copy, and a corrupted document with a duplicate triple
+   blocks refresh for that triple rather than updating both (§DI9, §DI-D15).
+2. **Unlink's scope was self-contradictory.** "Removes exactly the node's
+   pointer" left the row's stored base projection behind, which would make
+   the SAME `sourceKey` register as already-known (not `added`) on a later
+   refresh. Fixed: unlink clears the triple, the row's base projection, and
+   any linkage bookkeeping together, atomically (§DI9, §DI11, §DI-D16).
+3. **A user deleting a linked Parameter directly on the canvas was an
+   undefined 5th state** — source and base both survive, only the node is
+   gone. Fixed: a new `locally deleted / detached` case, never silently
+   recreated, resolved by explicit recreate-or-discard-link, tracked at
+   `(row, column)` cell granularity (not per row, since one row can have
+   several `number`-role columns) (§DI11, §DI-D17).
+4. **The CSV protective prefix wasn't losslessly reversible.** "Only guard
+   dangerous-looking values" makes a genuinely `'`-led real key
+   indistinguishable from a protected one. Fixed: every text field gets
+   exactly one leading `'`, always, unconditionally — trivially and
+   losslessly reversible by stripping exactly one leading `'` from every
+   text field, no judgment call needed (§DI12.3, §DI-D18).
+5. **The Undo contract for label operations was unstated.** Fixed: a label
+   edit + its `labelAutoComposed` flip is one atomic Undo entry; a
+   table-rename recompose cascade touching many Parameters is one atomic
+   Undo entry for the whole batch, not one per Parameter (§DI11, §DI-D19).
 
 Implementation is explicitly **out of scope for this PR** — design only, per
 the same design-doc-first → approval → implementation split already used for
@@ -502,14 +533,48 @@ carrying that same triple (an implementation detail whether this is a
 linear scan or a maintained index — not specified here), then run the
 row-lifecycle / diff against its base.
 
-**Unlink (§DI11's `missing`-row case) clears exactly this pointer** — the
-Parameter's stored triple is removed (and its `labelAutoComposed` flag
-becomes moot, since nothing will ever recompose its label again), so it
-matches no future incoming cell. A consequence worth stating explicitly: if
-a row with the SAME `sourceKey` is later re-added after being unlinked, it
-mints a **brand-new** Parameter (§DI10) — it does not resurrect or re-link
-to the unlinked one, which by then is ordinary, fully independent hand-owned
-data.
+**Invariant (new this round — storing the triple ON the node raises a real
+lifecycle question rev 5 didn't address): at most one ACTIVE Parameter
+carries a given `(sourceTableId, sourceKey, sourceColumnId)` triple at any
+time** (§DI-D15). Two consequences, both settled here rather than left to
+an implementation PR's discretion:
+
+- **Copying, duplicating, or extracting a triple-carrying Parameter into a
+  module (`docs/module-system.md`) strips the triple from the COPY.** Only
+  the original keeps it; the duplicate becomes an ordinary, fully
+  independent hand-owned Parameter from the moment it's created — otherwise
+  copy-paste alone would silently create two "active" nodes for one triple,
+  and a refresh would have no principled way to choose which one to update.
+  A module that once contained an imported Parameter carries a plain
+  Parameter on **Insert** too, for the same reason (a module is portable
+  graph data meant to enter a possibly-different document; the triple is
+  meaningful only within the specific binding it came from).
+- **If a corrupted or hand-edited document is ever found with two
+  Parameters carrying the same triple, refresh does NOT update both.** That
+  is treated as a data-integrity error and refresh is **blocked for that
+  specific triple** (surfaced to the user, not silently resolved) until the
+  duplication is fixed — silently updating both would hide the corruption
+  and make future diffs meaningless.
+
+**Unlink must clear more than just this pointer (corrected this round — a
+real contradiction, not a restatement).** Rev 5 said unlink "clears exactly
+this pointer," but the Parameter-side triple is only HALF of what makes a
+row "known" — the per-row base projection stored in the table's
+import-source record (§DI11's "What's stored") is the OTHER half, and if it
+survives, a later refresh sees the SAME `sourceKey` still has a stored base
+and treats it as an existing (if nodeless) row, never as freshly `added`.
+Unlink now clears, together, as one operation (§DI11 restates this as its
+own row-lifecycle rule):
+
+1. the generating triple on every Parameter this row produced,
+2. the row's entire stored base projection in the import-source record,
+3. any other row↔node linkage bookkeeping (subsumed by 1–2, listed for
+   completeness).
+
+Only after all three are gone does the SAME `sourceKey` reappearing on a
+later refresh correctly register as `added` — a brand-new Parameter, never
+a resurrection of the unlinked one, which by then is ordinary,
+fully independent hand-owned data with no trace of ever having been bound.
 
 ## DI10. Materializing values as Parameters
 
@@ -629,10 +694,13 @@ per-row `missing` prompts. A genuine rename (same `sourceColumnId`, new
 header text) is not a "change" in the diff sense at all — only the display
 text updates.
 
-### The four things a refresh can see, per row
+### The five things a refresh can see, per (row, column) cell (a 5th case added this round)
 
 A fresh paste/upload is compared against the stored bindings for that table.
-Every `sourceKey` present on either side falls into exactly one case:
+Every `sourceKey` present on either side falls into exactly one case — the
+first four are keyed at the ROW level (a whole row's `sourceKey`), the 5th
+(new this round) is keyed at the finer **(row, column)** cell level, per the
+same triple identity §DI9 already uses everywhere else:
 
 1. **Added** — a `sourceKey` in the incoming snapshot with no matching
    stored row for this `sourceTableId`. Shown in the refresh preview as
@@ -646,8 +714,13 @@ Every `sourceKey` present on either side falls into exactly one case:
    snapshot. **Never auto-deleted.** Shown as `missing from source`; the
    user explicitly picks, per row (or per batch):
    - **unlink** — keep every Parameter generated from this row exactly
-     as-is, drop only its provenance, so it becomes ordinary hand-owned
-     data no future refresh will touch again, or
+     as-is (values, labels, positions untouched), but clear ALL THREE of
+     §DI9's fixed set together, atomically: every affected Parameter's
+     generating triple, the row's entire stored base projection, and any
+     other linkage bookkeeping — so it becomes ordinary hand-owned data no
+     future refresh will touch again, AND the same `sourceKey` reappearing
+     later correctly registers as `added`, not as an already-known row
+     (§DI9's corrected fix this round), or
    - **delete** — remove the node(s). **Reference-checking here needs NEW
      work, not a reuse of Project Revision's incident-edge precedent** —
      see the correction below. **A referenced node is never silently
@@ -666,6 +739,38 @@ Every `sourceKey` present on either side falls into exactly one case:
    directly. A `label`-role or `foreignKey`-role column is **not** the same
    shape — see the correction below (a real gap, not just a restatement of
    the numeric rule).
+5. **Locally deleted / detached (new this round)** — the row's `sourceKey`
+   is still present on BOTH sides (source and stored base agree it exists),
+   but the Parameter it once produced for a given `number`-role column is
+   gone from the graph — the user deleted it directly on the canvas, through
+   ordinary node deletion, entirely outside this feature's own
+   `unlink`/`delete` flow. Detected the same way any other case is: scan
+   for a Parameter carrying triple `(sourceTableId, sourceKey,
+   sourceColumnId)` and find none, while the import-source record still has
+   a base projection for it. **Never silently recreated** — that would
+   violate this doc's own repeated "never silently regenerate something the
+   user might have touched" stance (GSA4, §DI-D4, §DI-D12). Shown as its
+   own distinct state, `locally deleted`, never conflated with `missing`
+   (which means the reverse — the SOURCE side lost the row, not the local
+   side losing the node). The user explicitly picks:
+   - **recreate** — materialize a fresh Parameter for this exact
+     `(row, column)` cell (a new id — the deleted node's original id is
+     simply gone; Loop Studio's own Undo, if the deletion is still on that
+     stack, is a separate, unrelated recovery path outside this feature's
+     scope), using the current stored base/row data, or
+   - **discard the link** — remove this ONE cell's base-projection entry
+     (not the whole row's, unless every one of its number columns is in
+     this state) from the import-source record, so future refreshes stop
+     asking about it; the rest of the row's other columns, if any, are
+     unaffected.
+
+   **Per-cell, not per-row, granularity matters here specifically because a
+   row can have more than one `number`-role column** (none of this doc's
+   worked-example tables do, but the mechanism must not assume otherwise):
+   deleting only ONE of a row's several generated Parameters on canvas
+   puts only THAT `(row, column)` cell into `locally deleted` — the row's
+   other still-existing Parameters are untouched and continue diffing
+   normally.
 
 ### Label composition has a different diff unit than a number (corrected this round — draft 3 wrongly said "the exact same rule")
 
@@ -702,13 +807,18 @@ This needs two separate, simpler mechanisms instead of one three-way table:
    at creation).** The moment a user directly edits a generated Parameter's
    label in the Inspector, `labelAutoComposed` flips to `false` — a
    permanent detach, mirroring "never silently clobber a hand edit"
-   everywhere else in this doc. While `true`, a constituent change
-   recomposes and applies the new label with no prompt (there is nothing to
-   conflict with — the label was never independently edited). While
-   `false`, a constituent change is **skipped** for that Parameter and
-   surfaced only as an FYI line in the refresh summary ("3 upstream names
-   changed but these Parameters' labels are customized — not updated"),
-   never a per-row prompt.
+   everywhere else in this doc. **The label edit and the flag flip are one
+   atomic change** (§DI-D19, new this round) — a single Undo restores both
+   the old label text and `labelAutoComposed: true` together, never one
+   without the other. While `true`, a constituent change recomposes and
+   applies the new label with no prompt (there is nothing to conflict with —
+   the label was never independently edited); a table-rename cascade
+   touching many Parameters at once is likewise one atomic Undo entry for
+   the whole batch, not one per Parameter (§DI-D19). While `false`, a
+   constituent change is **skipped** for that Parameter and surfaced only as
+   an FYI line in the refresh summary ("3 upstream names changed but these
+   Parameters' labels are customized — not updated"), never a per-row
+   prompt.
 4. **A foreign key's VALUE changing (the row re-points to a different key,
    not just that the pointed-to row's own text changed) is treated as its
    own, always-surfaced case — never auto-applied, regardless of
@@ -850,9 +960,13 @@ given DI2's permanent write-back exclusion: a small, new export producing
 
 ```
 source_table,source_key,source_column,previous_value,new_value
-GachaPoolEntries,ppe_pickup_blade_ssr,weight,10,25
-Packages,pkg_whale,price_krw,49900,59900
+'GachaPoolEntries,'ppe_pickup_blade_ssr,'weight,10,25
+'Packages,'pkg_whale,'price_krw,49900,59900
 ```
+
+(the leading `'` on every text field is §DI12.3's unconditional
+formula-injection guard — always present, never conditional; `previous_value`/
+`new_value` are numeric and carry none)
 
 - **source_table** is the table's CURRENT display `label` (§DI5) — a plain,
   human-readable convenience for finding the right sheet, deliberately
@@ -898,28 +1012,39 @@ requested**:
   wrapped in double quotes with internal quotes doubled — never replaced
   with a space (which would silently corrupt a `source_key` that
   legitimately contains one of those characters).
-- **CSV/formula-injection guard.** A cell that a spreadsheet app would
-  interpret as a formula or command when the exported file is later opened —
-  one starting with `=`, `+`, `-`, `@`, a tab, or a carriage return (the
-  well-known CSV-injection character set) — is neutralized with a leading
-  `'` before being written, on every text field (`source_table`,
-  `source_key`, `source_column`). This matters specifically because §DI12.2's
+- **CSV/formula-injection guard — applied UNCONDITIONALLY, to every text
+  field, not just ones that "look dangerous" (corrected this round — the
+  conditional version was ambiguous to reverse).** A cell that a spreadsheet
+  app would interpret as a formula or command when the exported file is
+  later opened — one starting with `=`, `+`, `-`, `@`, a tab, or a carriage
+  return (the well-known CSV-injection character set) — is neutralized with
+  a leading `'`. The previous rule ("only add `'` to values that need it,
+  strip a leading `'` on read") is **not losslessly reversible**: a real
+  `source_key` that itself genuinely starts with `'` becomes indistinguishable
+  from a protected one, and a naive reader can't tell which values were
+  ever prefixed at all without re-deriving the same "is this dangerous"
+  judgment the writer made. **Fixed: every text field
+  (`source_table`, `source_key`, `source_column` — never the numeric
+  `previous_value`/`new_value` columns, which need no such guard) gets
+  EXACTLY ONE leading `'` prepended, always, whether or not the value would
+  otherwise look dangerous.** This matters specifically because §DI12.2's
   whole purpose is for a designer to **paste this export straight back into
   their own spreadsheet** (DI2) — an un-neutralized `source_key` that
   happens to start with `=` would execute as a formula (or worse) the moment
   it lands there, a real, not theoretical, risk given `source_key` is
   arbitrary designer-chosen text.
-- **The leading-`'` guard is a display/paste-safety convention, not a
-  byte-identical copy of the original key** — worth one explicit line
-  (added this round): a spreadsheet app treats a leading `'` as "the rest of
-  this cell is literal text, don't evaluate it" and hides the mark itself,
-  which is exactly the safe behavior wanted when pasting back in. But it
-  DOES mean the exported field's raw bytes differ from the true
-  `source_key` by that one prefix character. Any MACHINE processing of this
-  CSV that needs the exact original key (a script matching rows back to a
-  database, say) must strip a leading `'` before comparing — stated here so
-  an implementation doesn't have to rediscover it, and so a future consumer
-  of this format isn't surprised.
+- **This makes recovery trivial and lossless, not just "safer."** Any
+  machine reader needing the exact original value strips **exactly one**
+  leading `'` from every text field, unconditionally — no per-value
+  judgment call, no ambiguity about whether a given `'` was original data or
+  the guard, because the guard is now always present exactly once. (The
+  spreadsheet-paste path needs nothing extra: a spreadsheet app already
+  treats a leading `'` as "literal text, don't evaluate" and hides the mark
+  on display, which is exactly the wanted behavior either way.) A
+  considered alternative — a separate boolean column recording whether the
+  guard was applied per field — was rejected as needless complexity (one
+  extra column per protected field) once the always-prefix rule makes that
+  bookkeeping unnecessary.
 
 ## DI13. Serialization / revision-digest impact
 
@@ -1103,13 +1228,65 @@ Settled requirements for the one export this doc actually builds from
 scratch (§DI12.3), widened from "UTF-8" alone to the full
 Windows/Excel-compatible shape: **UTF-8 with a BOM**, **CRLF line endings**,
 proper comma/quote/newline RFC 4180 quoting (never "strip the character"),
-and a leading-`'` neutralizer on any text field that would otherwise read as
-a formula/command (`=`, `+`, `-`, `@`, a tab, or a CR) when pasted into a
-spreadsheet — directly relevant here since pasting this export back into
-the source sheet is the export's entire purpose (DI2). The leading-`'`
-guard is display/paste-safety only; it changes the field's raw bytes, so
-any machine reader needing the exact original key must strip it first
-(§DI12.3).
+and pasting this export back into the source sheet is the export's entire
+purpose (DI2), so a formula-injection guard on its text fields is required,
+not optional — see DI-D18 for exactly how (unconditional, not
+value-dependent — this round's own correction to what was first proposed
+here).
+
+### DI-D15 — exactly one active Parameter per generating triple (new this round)
+
+`(sourceTableId, sourceKey, sourceColumnId)` identifies at most one ACTIVE
+Parameter at any time. Copying, duplicating, or module-extracting a
+triple-carrying Parameter strips the triple from the copy — only the
+original stays bound. A document ever found with two Parameters sharing one
+triple is a data-integrity error: refresh blocks for that specific triple
+and surfaces it, rather than silently updating both (§DI9).
+
+### DI-D16 — unlink clears the node triple, the row's base projection, and its linkage together, atomically (new this round)
+
+Corrects a real contradiction: storing the triple ON the Parameter (§DI-D15
+above, rev 5) made "unlink removes the node's pointer" alone insufficient —
+the row's base projection, stored separately in the table's import-source
+record, would survive and make the same `sourceKey` register as an
+already-known row (not `added`) on a later refresh. All three clear
+together as one operation (§DI9, §DI11).
+
+### DI-D17 — a 5th row-lifecycle state, "locally deleted / detached," at (row, column) granularity, never silently recreated (new this round)
+
+A Parameter deleted directly on the canvas (outside this feature's own
+unlink/delete flow) while its source row and stored base survive is neither
+`added` nor `missing` — it's its own case. Never silently recreated; the
+user explicitly picks recreate (a fresh id) or discard-the-link. Tracked
+per `(row, column)` cell, not per row, since a row can have more than one
+`number`-role column and only one of its generated Parameters might be the
+one a user deleted (§DI11).
+
+### DI-D18 — the change-proposal CSV's formula-injection guard is applied unconditionally, to every text field, for lossless reversibility (new this round)
+
+Corrects DI-D14's original "only guard values that look dangerous" framing:
+that version can't be losslessly reversed (a real `source_key` that
+genuinely starts with `'` is indistinguishable from a protected one).
+Fixed: every text field (`source_table`, `source_key`, `source_column`) gets
+EXACTLY ONE leading `'` prepended, always — never conditional on whether the
+value "looks" dangerous. A machine reader strips exactly one leading `'`
+from every text field, unconditionally, with zero ambiguity. A considered
+alternative (a separate boolean column recording whether the guard applied)
+was rejected as unneeded complexity once the always-prefix rule makes it
+moot (§DI12.3).
+
+### DI-D19 — a label edit + its `labelAutoComposed` flip, and a table-rename recompose cascade, are each one atomic Undo entry (new this round)
+
+Two related Undo-contract commitments, settled here rather than left
+implicit: (1) hand-editing a generated Parameter's label and flipping
+`labelAutoComposed` to `false` happen together as one change — a single
+Undo restores both the old label text AND `labelAutoComposed: true`
+together, never one without the other. (2) Renaming an import binding's
+table `label`, which can recompose MANY auto-composed Parameters' labels at
+once (§DI10's 4th, Loop-Studio-local constituent), is one atomic Undo entry
+for the whole cascade, not one entry per affected Parameter — mirrors the
+"one atomic commit, one undo" discipline already required for the first
+multi-table import (§DI-D10) and Insert module's own precedent.
 
 ## DI15. Out of scope for v1 (restated, consolidated)
 
