@@ -1,6 +1,7 @@
 # 3-zone gacha Template — banner rules & Monte Carlo comparison (design doc)
 
-**Status: design draft — for review (draft 3).** GS10 slice 6, the public
+**Status: approved, with one round-3 correction (below) applied after
+approval.** GS10 slice 6, the public
 Template named throughout `docs/example-gacha-simulator.md` (GS's
 scope-revision section) and `docs/parameter-activator.md` §PA0/§PA8 as the
 reason `@parameter` activator support (`loop-state/4`, PR #187→#188→#189, all
@@ -74,6 +75,24 @@ final approval — both applied below, no new engine feature needed:
 Also, per explicit direction, **GZ-D5 (the "pulls to first X" latch Pools) is
 dropped from v1** rather than resolved — the simplest, fastest path forward
 (GZ9).
+
+**Round 3 (implementation finding, surfaced and fixed before continuing
+implementation, per explicit direction to correct the doc rather than fold
+a silent deviation into the implementation PR):** GZ5's relay-Pool shape
+(`ssr_landed_pickup` feeding two mutually-exclusive Gates) has a real bug —
+a Pool's newly-received resource is not visible to that SAME Pool's own
+outgoing pulls until the FOLLOWING step (verified by tracing an actual run),
+so the last pull's pickup/standard split would not be resolved at the exact
+`pulls_per_zone + 1` horizon, breaking GZ8's own conservation check right at
+the boundary round 2 scrutinized. **GZ5 is rewritten**: `ticket_pickup`
+connects directly to four mutually-exclusive paths (one per pity-state ×
+guarantee-state combination, AND-combining the existing pity activator pair
+with a new guarantee activator pair on the SAME nodes — no new engine
+capability), eliminating the relay Pool and its lag entirely while keeping
+`pulls_per_zone + 1` exact. Extending the horizon instead of fixing the
+wiring was considered and explicitly rejected (GZ5.0): it would hide the bug
+and leave the very last pull's outcome feeling delayed by a step. GZ8 gains
+eight new acceptance tests for the four-path structure (item 5).
 
 Prefix `GZ`. Sections: **GZ0** why a fixed-pull-count economy, not "first
 SSR" · **GZ1** scope · **GZ2** the three zones (fixed names/rules/currency) ·
@@ -373,45 +392,114 @@ probabilistic `roll_gate_free`, nothing else (GZ-D2).
 
 ## GZ5. Engine mapping — the pickup guarantee (Zone 3 only)
 
-Not covered by `docs/parameter-activator.md` (which only reviewed the pity
-ceiling) — this is this document's own contribution. It reuses the exact
-same "two mutually-exclusive Gates, gated by activators on a state Pool"
-shape as GZ4, one level downstream of the SSR result:
+**Corrected (round 3 — see the changelog above).** Not covered by
+`docs/parameter-activator.md` (which only reviewed the pity ceiling) — this
+is this document's own contribution.
 
-- `missed_pickup_pickup` — a Pool, values `0` or `1`, starts at `0` (an
-  SSR's first-ever pickup roll is a fair, un-guaranteed split — **Decision
-  GZ-D4**, stated explicitly since it is a real modelling choice, not the
-  only reasonable one).
-- Every SSR result (natural or forced, same as GZ4) routes its one-unit
-  token into a relay Pool `ssr_landed_pickup` (mirroring GS2.3's
-  `completion_pulse` relay pattern: a router's own output can't itself be
-  gated by activator, only its target's *next* hop can), which then funds
-  BOTH of:
-  - `guarantee_gate_pickup` — deterministic, single target `pickup_count`,
-    activator `missed_pickup_pickup → guarantee_gate_pickup`, `>= 1`.
-  - `normal_split_gate_pickup` — probabilistic, two targets
-    (`pickup_count` weight `@w_pickup`, `standard_count` weight
-    `@w_standard`), activator `missed_pickup_pickup → normal_split_gate_pickup`,
-    `< 1`.
+### GZ5.0 Why the original relay-Pool shape (rounds 1–2) was wrong
 
-  Exactly one of the two is enabled per step (the activators are exact
-  complements over `{0, 1}`), exactly as `roll_gate`/`forced_ssr` are in
-  GZ4 — the SAME proven pattern, not a new one, and separately covered by
-  GZ3.2's RNG stream-isolation proof (this pair's ids are Zone-3-local, so
-  its own draws are just as unaffected by Zones 1–2 as GZ4's are).
-- `missed_pickup_pickup` updates the SAME step the split resolves, via CSU
-  `afterPull` labels sourced from `pickup_count`/`standard_count`/
-  `guarantee_gate_pickup`:
-  - a `standard_count` hit sets `missed_pickup_pickup = 1` (a miss just
-    happened; the next SSR is now owed a guarantee);
-  - a `pickup_count` hit (from EITHER `normal_split_gate_pickup`'s own
-    probabilistic branch OR `guarantee_gate_pickup`'s forced route) sets
-    `missed_pickup_pickup = 0` (the debt is paid).
+The first two drafts routed every SSR result into a relay Pool
+(`ssr_landed_pickup`), which then fed two mutually-exclusive Gates gated by
+`missed_pickup_pickup`, mirroring GZ4's `pity_<zone> → {roll_gate,
+forced_ssr}` shape one level downstream. That shape has a real bug, found
+during implementation and confirmed by tracing an actual run: a Pool's
+newly-received resource is **not visible to that same Pool's own outgoing
+pulls until the following step** (the same "a router's push into a Pool
+isn't visible to a further pull until next step" rule
+`docs/example-gacha-simulator.md`'s GS10-3 section already hit and designed
+around for the *pity* mechanism). Concretely: an SSR landing in
+`ssr_landed_pickup` at step *t* was only visible to
+`guarantee_gate_pickup` / `normal_split_gate_pickup` at step *t+1* — so at
+the exact `pulls_per_zone + 1` horizon, the LAST step's SSR (if any) would
+not yet have a resolved pickup/standard split, breaking GZ8's own
+conservation identity (`pickup_count + standard_count == ssr_count`) right
+at the boundary GZ3.5's round-2 review specifically scrutinized.
 
-This composes independently with GZ4's pity ceiling: whichever gate produces
-the SSR (natural `roll_gate_pickup` or forced `forced_ssr_pickup`) is
-upstream of, and irrelevant to, which pickup-split path fires — the pickup
-mechanic only cares that an SSR happened, not how.
+The relay Pool could not simply be dropped, either: an activator gates a
+*node's* enablement, not one specific outgoing edge, and a Gate's own
+fan-out (unlike a Pool's) splits proportionally across ALL of its outgoing
+edges without consulting whether a given target is activator-disabled
+(verified directly, `src/engine/step.ts`'s deterministic-Gate flow
+computation) — so feeding `guarantee_gate_pickup` /
+`normal_split_gate_pickup` straight from a Gate source (skipping the relay
+Pool) would silently leak resource into whichever gate is disabled that
+step, rather than routing it all to the enabled one. Extending the horizon
+by one step instead of fixing the wiring was considered and rejected: it
+would hide the bug rather than resolve it, and it leaves the LAST pull's
+pickup/standard outcome unresolved for a full step — an awkward, delayed-
+feeling result for the very last roll of a run, not just an internal digest
+nicety.
+
+### GZ5.1 The corrected shape — four mutually-exclusive paths, no relay Pool
+
+`ticket_pickup` (the SAME funding Pool GZ3.4 already uses) connects
+**directly** to four candidate paths, each gated by an AND-conjunction of
+the SAME `pity_pickup` activator pair GZ4 already defines and a NEW pair on
+`missed_pickup_pickup` — multiple activator edges on one target already
+AND-combine (`SEMANTICS-S.md` §S6), so no new engine capability is needed:
+
+| path | pity condition | guarantee condition | outcome |
+|---|---|---|---|
+| `roll_normal_open_pickup` | `< @hard_pity_pickup - 1` | `< 1` (not owed) | probabilistic 3-way: an SSR sub-branch, `sr_hit_pickup` (`@w_sr_pickup`), `r_hit_pickup` (`@w_r_pickup`) |
+| `roll_normal_owed_pickup` | `< @hard_pity_pickup - 1` | `>= 1` (owed) | probabilistic 3-way: SSR sub-branch routes STRAIGHT to `pickup_hit_pickup` (`@w_ssr_pickup`), `sr_hit_pickup`, `r_hit_pickup` |
+| `roll_forced_open_pickup` | `>= @hard_pity_pickup - 1` | `< 1` (not owed) | guaranteed SSR (the ceiling), still an ordinary probabilistic pickup/standard split |
+| `roll_forced_owed_pickup` | `>= @hard_pity_pickup - 1` | `>= 1` (owed) | guaranteed SSR AND guaranteed pickup — a single deterministic route |
+
+These four (pity-state × guarantee-state) conditions are mutually exclusive
+and exhaustive (a clean 2×2 partition), so **exactly one path is active
+every step** — this is now a direct, checkable acceptance property (GZ8),
+not an assumption. `missed_pickup_pickup` — a Pool, values `0` or `1`,
+starts at `0` (an SSR's first-ever pickup roll is a fair, un-guaranteed
+split — **Decision GZ-D4**, unchanged from round 1).
+
+The two "not owed" paths still need an ordinary probabilistic pickup/
+standard split (`@w_pickup` / `@w_standard`), since a miss is possible
+there — this reuses a single shared 2-way split Gate, `ssr_split_open_pickup`
+(deterministic pass-through from `roll_forced_open_pickup`'s single output,
+or the probabilistic SSR sub-branch of `roll_normal_open_pickup`; the two
+sources are themselves mutually exclusive by the SAME pity condition, so
+sharing one downstream split Gate is safe) — a pure Gate→Gate chain, no Pool
+in between, so it resolves within the SAME step (`roll_gate → ssr_hit →
+ssr_count`'s existing chain in GZ4 already proves multi-hop Gate chains
+settle same-step; only a Pool hop introduces the lag GZ5.0 describes). The
+two "owed" paths need no split at all — the SSR result routes straight to
+`pickup_hit_pickup`.
+
+Every path's SSR outcome funnels into one of two shared, single-output
+deterministic Gates, `pickup_hit_pickup` / `standard_hit_pickup` (each may
+have more than one upstream source, since at most one path is ever active
+at a time — the same "several sources, always mutually exclusive" shape
+`pulls_made_<zone>`'s four afterPull sources already use in GZ4); SR/R
+results funnel into shared `sr_hit_pickup` / `r_hit_pickup`, fed by whichever
+of the two "not owed"/"owed" NORMAL paths is active (the FORCED paths never
+produce SR/R at all, by construction).
+
+### GZ5.2 Bookkeeping — all same-step, all `afterPull`
+
+- **Pity** (`pity_pickup`, GZ4's Pool): `=0` sourced from `pickup_hit_pickup`
+  OR `standard_hit_pickup` (any SSR resets it, pickup or not); `+1` sourced
+  from `sr_hit_pickup` OR `r_hit_pickup`.
+- **Pulls made** (`pulls_made_pickup`): `+1` sourced from ALL FOUR shared hit
+  Gates (`pickup_hit_pickup`, `standard_hit_pickup`, `sr_hit_pickup`,
+  `r_hit_pickup`) — exactly one fires per step, so this is exactly `+1` per
+  pull, never double-counted.
+- **SSR count** (`ssr_count_pickup`): `+1` sourced from `pickup_hit_pickup`
+  OR `standard_hit_pickup`.
+- **Ceiling hits** (`ceiling_hits_pickup`, GZ4's Pool): `+1` sourced from
+  `roll_forced_open_pickup` OR `roll_forced_owed_pickup` **firing**
+  (a probabilistic or deterministic Gate's own `fired` status is observable
+  regardless of which branch it took, so this correctly counts "this pull
+  was forced" without needing to know the pickup outcome).
+- **The guarantee flag** (`missed_pickup_pickup`): `=1` sourced from
+  `standard_hit_pickup` (a miss just happened — the next SSR is now owed);
+  `=0` sourced from `pickup_hit_pickup` (the debt is paid). No label touches
+  it when `sr_hit_pickup` / `r_hit_pickup` fire — the guarantee state
+  persists across any number of SR/R pulls, exactly as intended (an owed
+  guarantee is not forgotten while waiting for the next SSR).
+
+This composes cleanly with GZ4's pity ceiling by construction — the four
+paths ARE the composition (pity-state × guarantee-state), not a separate
+mechanism layered on top of it.
 
 ## GZ6. Parameter tables (generic placeholders, GS8 IP boundary applies)
 
@@ -533,11 +621,42 @@ Monte Carlo fixture seed that exercises it (not vanishingly rare at
    never exceeds ceiling; ceiling pull is guaranteed SSR; pity resets
    same-step on both natural and forced SSR; pity increments only on
    non-SSR) — run independently against Zone 2 and Zone 3.
-5. **Pickup guarantee holds.** After any standard (non-pickup) SSR in Zone
-   3, the very next SSR in Zone 3 is pickup with probability `1`, regardless
-   of `w_pickup`/`w_standard`; two consecutive pickups can occur naturally
-   (a pickup roll does not owe a guarantee); `missed_pickup_pickup` is
-   always `0` or `1`, never anything else.
+5. **The four-path pickup-guarantee structure holds (GZ5.1/GZ5.2), round 3.**
+   For every seed, **for every pull-bearing step** (steps `2..pulls_per_zone
+   + 1`, GZ3.5 — the funding step and any step beyond the horizon fire
+   nothing at all, so a bare "every step" would be contractually false):
+   - **exactly one of the four paths** (`roll_normal_open_pickup`,
+     `roll_normal_owed_pickup`, `roll_forced_open_pickup`,
+     `roll_forced_owed_pickup`) is active, for every (pity-state ×
+     guarantee-state) combination — a direct combinatorial check, not an
+     assumption;
+   - **exactly one of the four shared hit Gates** (`pickup_hit_pickup`,
+     `standard_hit_pickup`, `sr_hit_pickup`, `r_hit_pickup`) fires per
+     pull-bearing step (the branch-outcome sum is exactly `1`);
+   - `pickup_count + standard_count + sr_count + r_count == pulls_made`
+     (Zone 3's own restatement of item 6's conservation, in terms of the
+     four hit Gates specifically);
+   - **the last allowed pull can be an SSR and still conserves**: forcing an
+     SSR on the FINAL step (`pulls_per_zone`) still yields
+     `pickup_count + standard_count == ssr_count` exactly at the horizon —
+     the specific case round 3's relay-Pool bug broke;
+   - after any standard (non-pickup) SSR, the very next SSR is pickup with
+     probability `1`, **regardless of whether that next SSR is natural or
+     ceiling-forced** (all of `roll_normal_owed_pickup` /
+     `roll_forced_owed_pickup` route it to `pickup_hit_pickup`
+     unconditionally);
+   - **the guarantee persists across SR/R pulls**: after a miss, any number
+     of intervening SR/R results leaves `missed_pickup_pickup == 1` until
+     the next SSR actually resolves it;
+   - **a pickup SSR clears the guarantee immediately** (same step);
+   - two consecutive pickups can occur naturally (a pickup roll does not owe
+     a guarantee); `missed_pickup_pickup` is always `0` or `1`, never
+     anything else;
+   - running additional steps past the horizon changes no value and
+     produces no further event (restated here since round 1–2's relay-Pool
+     shape could plausibly have failed this specifically; the four-path
+     shape has no Pool in its roll path at all, so this holds by
+     construction, but it is asserted as its own explicit test, not inferred).
 6. **Conservation**, per zone: `ssr_count + sr_count + r_count ==
    pulls_made == pulls_per_zone` (exactly, every run — GZ7.1); Zone 3
    additionally: `pickup_count + standard_count == ssr_count`; Zones 2–3
@@ -586,6 +705,16 @@ Monte Carlo fixture seed that exercises it (not vanishingly rare at
   `spent_total`. Safe here specifically because one ticket costs one ticket
   by definition (GZ6); not a precedent for a future version that wants
   visibly different real-money costs per pull.
+- **GZ-D7 (round 3)** — GZ5's pickup-guarantee mechanism is four
+  mutually-exclusive Gates fed directly by `ticket_pickup`, AND-combining
+  the pity and guarantee activators on each, rather than a relay Pool
+  feeding two Gates. Chosen over extending the horizon by one step (GZ5.0):
+  extending the horizon would have hidden the underlying bug rather than
+  fixed it, and would leave the very last pull's pickup/standard outcome
+  unresolved for a full extra step — a worse result, not just a documentation
+  nicety. No new engine capability either way (both shapes only ever use
+  activator AND-combination and `afterPull` labels); this is a graph-wiring
+  correction, not an engine-contract change.
 
 ## GZ10. Slices / work order
 
