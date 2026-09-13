@@ -622,15 +622,17 @@ Monte Carlo fixture seed that exercises it (not vanishingly rare at
    same-step on both natural and forced SSR; pity increments only on
    non-SSR) — run independently against Zone 2 and Zone 3.
 5. **The four-path pickup-guarantee structure holds (GZ5.1/GZ5.2), round 3.**
-   For every seed and step:
+   For every seed, **for every pull-bearing step** (steps `2..pulls_per_zone
+   + 1`, GZ3.5 — the funding step and any step beyond the horizon fire
+   nothing at all, so a bare "every step" would be contractually false):
    - **exactly one of the four paths** (`roll_normal_open_pickup`,
      `roll_normal_owed_pickup`, `roll_forced_open_pickup`,
      `roll_forced_owed_pickup`) is active, for every (pity-state ×
      guarantee-state) combination — a direct combinatorial check, not an
      assumption;
    - **exactly one of the four shared hit Gates** (`pickup_hit_pickup`,
-     `standard_hit_pickup`, `sr_hit_pickup`, `r_hit_pickup`) fires per step
-     (the branch-outcome sum is exactly `1`, every step);
+     `standard_hit_pickup`, `sr_hit_pickup`, `r_hit_pickup`) fires per
+     pull-bearing step (the branch-outcome sum is exactly `1`);
    - `pickup_count + standard_count + sr_count + r_count == pulls_made`
      (Zone 3's own restatement of item 6's conservation, in terms of the
      four hit Gates specifically);
