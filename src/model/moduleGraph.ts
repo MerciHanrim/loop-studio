@@ -76,6 +76,33 @@ const isParamFlow = (flow: unknown): flow is string =>
 const kindOf = (data: unknown): string | undefined =>
   (data as { kind?: unknown } | undefined)?.kind as string | undefined
 
+/**
+ * docs/data-import.md §DI9 / §DI-D15 (`loop-revision/8`, SEMANTICS-R8.md) —
+ * a data-import Parameter's generating triple (`sourceTableId` / `sourceKey`
+ * / `sourceColumnId`) identifies AT MOST ONE active Parameter; copying it
+ * (Insert, Extract) must never produce a second node carrying the same
+ * triple. Strips the triple AND `labelAutoComposed` together (a "fully
+ * ordinary Parameter" — the stated outcome — has neither field) from a
+ * `parameter` node's data. No-op for every other node kind, and a no-op
+ * (returns the same object) when the node has neither field, so a
+ * provenance-free module round-trips through Insert/Extract byte-for-byte
+ * unchanged.
+ */
+function stripDataImportProvenance(n: LoopNode): LoopNode {
+  if (kindOf(n.data) !== 'parameter') return n
+  const d = n.data as Record<string, unknown>
+  if (
+    d.sourceTableId === undefined &&
+    d.sourceKey === undefined &&
+    d.sourceColumnId === undefined &&
+    d.labelAutoComposed === undefined
+  ) {
+    return n
+  }
+  const { sourceTableId: _t, sourceKey: _k, sourceColumnId: _c, labelAutoComposed: _l, ...rest } = d
+  return { ...n, data: rest as LoopNode['data'] }
+}
+
 // ── insert ────────────────────────────────────────────────────────────────────
 
 export type InsertOpts = {
@@ -142,12 +169,14 @@ export function insertGraph(host: GraphDocLike, mod: GraphDocLike, opts: InsertO
       }
       data = { ...data, expr: canonicalPrint(remapAst(r.ast, idMap)) } as LoopNode['data']
     }
-    outNodes.push({
-      ...n,
-      id: idMap.get(n.id)!,
-      position: { x: n.position.x + dx, y: n.position.y + dy },
-      data,
-    })
+    outNodes.push(
+      stripDataImportProvenance({
+        ...n,
+        id: idMap.get(n.id)!,
+        position: { x: n.position.x + dx, y: n.position.y + dy },
+        data,
+      }),
+    )
   }
 
   const outEdges: LoopEdge[] = []
@@ -245,12 +274,16 @@ export function extractModule(src: GraphDocLike, selectedIds: readonly string[])
     }
   }
 
-  // positions normalised to origin (§MS2.2).
+  // positions normalised to origin (§MS2.2). §DI-D15 — a module is portable
+  // graph data meant for a possibly-different document, so any data-import
+  // generating triple is stripped here too (mirrors `insertGraph` above).
   const o = topLeft(selNodes)
-  const nodes = selNodes.map((n) => ({
-    ...n,
-    position: { x: n.position.x - o.x, y: n.position.y - o.y },
-  }))
+  const nodes = selNodes.map((n) =>
+    stripDataImportProvenance({
+      ...n,
+      position: { x: n.position.x - o.x, y: n.position.y - o.y },
+    }),
+  )
 
   // schema v2 iff a surviving edge carries an `@param` flow (§MS2.2); every
   // referenced Parameter is guaranteed inside the selection (the dangling guard

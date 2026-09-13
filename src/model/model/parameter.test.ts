@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PARAM_UNIT_MAX_BYTES, readParameterData } from './parameter'
+import { PARAM_UNIT_MAX_BYTES, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, readParameterData } from './parameter'
 
 // SEMANTICS-M.md §M1 + SEMANTICS-R2.md §R2-1.1.
 
@@ -60,5 +60,89 @@ describe('loop-model/1 parameter — defensive read (§M1)', () => {
     const r = okp({ label: 'x', value: 99, min: 0, max: 10 })
     expect(r.data.value).toBe(99)
     expect(r.notices).toContain('PARAM_VALUE_OUT_OF_RANGE')
+  })
+})
+
+// docs/data-import.md §DI9 / §DI13 (`loop-revision/8`, SEMANTICS-R8.md).
+describe('loop-model/1 parameter — data-import provenance (§DI9)', () => {
+  it('absent on an ordinary hand-created Parameter; no notice', () => {
+    const r = okp({ label: 'x', value: 0 })
+    expect(r.data.sourceTableId).toBeUndefined()
+    expect(r.data.sourceKey).toBeUndefined()
+    expect(r.data.sourceColumnId).toBeUndefined()
+    expect(r.data.labelAutoComposed).toBeUndefined()
+    expect(r.notices).toEqual([])
+  })
+
+  it('the full generating triple + labelAutoComposed survive verbatim', () => {
+    const r = okp({
+      label: 'x',
+      value: 10,
+      sourceTableId: 'srctable_1',
+      sourceKey: 'itm_blade_ssr',
+      sourceColumnId: 'srccol_1',
+      labelAutoComposed: true,
+    })
+    expect(r.data).toMatchObject({
+      sourceTableId: 'srctable_1',
+      sourceKey: 'itm_blade_ssr',
+      sourceColumnId: 'srccol_1',
+      labelAutoComposed: true,
+    })
+    expect(r.notices).toEqual([])
+  })
+
+  it('each of the four fields is read INDEPENDENTLY — an incoherent PARTIAL triple survives (not a coherent-pair-or-drop rule like min/max)', () => {
+    const r = okp({ label: 'x', value: 0, sourceKey: 'itm_blade_ssr' }) // no table/column id at all
+    expect(r.data.sourceKey).toBe('itm_blade_ssr')
+    expect(r.data.sourceTableId).toBeUndefined()
+    expect(r.data.sourceColumnId).toBeUndefined()
+    expect(r.notices).toEqual([]) // a genuinely absent field is not "invalid" — only a WRONG-TYPED one is
+  })
+
+  it('a wrong-typed field is dropped with PARAM_SOURCE_INVALID; sibling fields are unaffected', () => {
+    const r = okp({ label: 'x', value: 0, sourceTableId: 42, sourceKey: 'itm_blade_ssr' })
+    expect(r.data.sourceTableId).toBeUndefined()
+    expect(r.data.sourceKey).toBe('itm_blade_ssr') // unaffected — no cross-field coherence rule
+    expect(r.notices).toContain('PARAM_SOURCE_INVALID')
+  })
+
+  it('an empty string is not a valid id / key — dropped with PARAM_SOURCE_INVALID', () => {
+    expect(okp({ label: 'x', value: 0, sourceTableId: '' }).data.sourceTableId).toBeUndefined()
+    expect(okp({ label: 'x', value: 0, sourceKey: '' }).notices).toContain('PARAM_SOURCE_INVALID')
+  })
+
+  it('sourceTableId / sourceColumnId respect their own SOURCE_ID_MAX_BYTES ceiling', () => {
+    const ok = 'x'.repeat(SOURCE_ID_MAX_BYTES)
+    const tooLong = 'x'.repeat(SOURCE_ID_MAX_BYTES + 1)
+    expect(okp({ label: 'x', value: 0, sourceTableId: ok }).data.sourceTableId).toBe(ok)
+    const r = okp({ label: 'x', value: 0, sourceTableId: tooLong })
+    expect(r.data.sourceTableId).toBeUndefined()
+    expect(r.notices).toContain('PARAM_SOURCE_INVALID')
+  })
+
+  it('sourceKey respects its OWN SOURCE_KEY_MAX_BYTES ceiling, independent of SOURCE_ID_MAX_BYTES or PARAM_UNIT_MAX_BYTES', () => {
+    expect(SOURCE_KEY_MAX_BYTES).toBeGreaterThan(SOURCE_ID_MAX_BYTES) // a designer key, not an internal id
+    expect(SOURCE_KEY_MAX_BYTES).toBeGreaterThan(PARAM_UNIT_MAX_BYTES)
+    const ok = 'k'.repeat(SOURCE_KEY_MAX_BYTES)
+    const tooLong = 'k'.repeat(SOURCE_KEY_MAX_BYTES + 1)
+    expect(okp({ label: 'x', value: 0, sourceKey: ok }).data.sourceKey).toBe(ok)
+    expect(okp({ label: 'x', value: 0, sourceKey: tooLong }).data.sourceKey).toBeUndefined()
+  })
+
+  it('labelAutoComposed survives independently of the triple — no coupling enforced at read time', () => {
+    const withoutTriple = okp({ label: 'x', value: 0, labelAutoComposed: false })
+    expect(withoutTriple.data.labelAutoComposed).toBe(false)
+    expect(withoutTriple.notices).toEqual([])
+  })
+
+  it('a non-boolean labelAutoComposed is dropped with PARAM_LABEL_AUTO_COMPOSED_INVALID', () => {
+    const r = okp({ label: 'x', value: 0, labelAutoComposed: 'yes' })
+    expect(r.data.labelAutoComposed).toBeUndefined()
+    expect(r.notices).toContain('PARAM_LABEL_AUTO_COMPOSED_INVALID')
+  })
+
+  it('provenance never makes an otherwise-valid Parameter payload-invalid', () => {
+    expect(readParameterData({ label: 'x', value: 1, sourceTableId: {}, sourceKey: [], labelAutoComposed: 3 }).ok).toBe(true)
   })
 })

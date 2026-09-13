@@ -28,8 +28,9 @@ import {
   type RevisionExportPlan,
 } from '../model/revision'
 import type { LoopEdge, LoopNode } from '../model/types'
-import type { SavedFrame } from '../model/serialize'
+import type { ImportSourceTable, SavedFrame } from '../model/serialize'
 import { bootProjectHeader, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
+import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 
 // SEMANTICS-R.md §R2 / §R3 / §R6 / §R10 — the OPEN revision, the `dirty` flag,
@@ -128,14 +129,14 @@ type ProjectState = {
   openProposalAsDocument: (
     project: ProjectPayload,
     base: ProposalBase,
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] },
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] },
   ) => void
   /** §R7A.2 — classify a proposal against the open revision without applying
    *  (for the Review UI). Same gates as `applyProposal`. */
   classifyProposal: (input: {
     project: ProjectPayload
     base: ProposalBase
-    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] }
+    proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
   }) =>
     | { ok: true; classification: ApplyClassification }
     | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
@@ -157,7 +158,7 @@ type ProjectState = {
     input: {
       project: ProjectPayload
       base: ProposalBase
-      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] }
+      proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
     },
     opts?: {
       now?: string
@@ -250,7 +251,14 @@ function parseHeader(raw: unknown): OpenProject | null {
 function liveContent() {
   const g = useGraphStore.getState()
   return canonicalContent(
-    { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+    {
+      nodes: g.nodes,
+      edges: g.edges,
+      frames: useFrameStore.getState().snapshot(),
+      // `SEMANTICS-R8.md` §R8-6 — the on-screen saved data-import records are
+      // full revision content too, same posture as `frames` above.
+      dataImports: useDataImportStore.getState().snapshot(),
+    },
     { modelVersion: g.modelVersion },
   )
 }
@@ -270,7 +278,7 @@ function persist(open: OpenProject | null): void {
 function classifyAgainst(
   o: OpenProject,
   base: ProposalBase,
-  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[] },
+  proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] },
 ): ApplyClassification {
   // SEMANTICS-R5.md §R5-6 — the target carries the live saved `frames`, so a
   // frames-only local divergence flips it off `exact` and a `frames` conflict
@@ -350,7 +358,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         baseRevisionId = null
         baseBaselineDigest = null
         pr = planRevisionExport({
-          doc: { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+          doc: {
+            nodes: g.nodes,
+            edges: g.edges,
+            frames: useFrameStore.getState().snapshot(),
+            dataImports: useDataImportStore.getState().snapshot(),
+          },
           modelVersion: g.modelVersion,
           project: { projectId, revisionId: mkId('rev'), parentId: null, lineage: [] },
           dirty: false,
@@ -364,7 +377,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         baseRevisionId = o.revisionId
         baseBaselineDigest = o.baselineDigest
         pr = planRevisionExport({
-          doc: { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+          doc: {
+            nodes: g.nodes,
+            edges: g.edges,
+            frames: useFrameStore.getState().snapshot(),
+            dataImports: useDataImportStore.getState().snapshot(),
+          },
           modelVersion: g.modelVersion,
           project: { projectId: o.projectId, revisionId: o.revisionId, parentId: o.parentId, lineage: o.lineage },
           dirty: isDirty,
@@ -443,7 +461,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
 
       return planProposalExport({
         modelVersion: g.modelVersion,
-        doc: { nodes: g.nodes, edges: g.edges, frames: useFrameStore.getState().snapshot() },
+        doc: {
+          nodes: g.nodes,
+          edges: g.edges,
+          frames: useFrameStore.getState().snapshot(),
+          dataImports: useDataImportStore.getState().snapshot(),
+        },
         project: { projectId: o.projectId, revisionId: o.revisionId, lineage: o.lineage },
         dirty: isDirty,
         // §R6 — re-exporting an edited proposal keeps the ORIGINAL pinned base,
@@ -478,7 +501,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // so undo restores the prior document AND its header.
       // LGR Slice 5 — adopt the proposal's saved frames too (`[]` when it has
       // none ⇒ a clean replace); part of the same one `loadDoc` history entry.
-      useGraphStore.getState().loadDoc({ nodes: proposed.nodes, edges: proposed.edges }, undefined, proposed.frames)
+      useGraphStore
+        .getState()
+        .loadDoc({ nodes: proposed.nodes, edges: proposed.edges }, undefined, proposed.frames, proposed.dataImports)
       const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
       const next: OpenProject = {
         projectId: project.projectId,
@@ -534,6 +559,9 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // a per-hunk selective Apply leaves the target's frames untouched
       // (`undefined` ⇒ `loadDoc` keeps them).
       let resultFrames: readonly SavedFrame[] | undefined
+      // `SEMANTICS-R8.md` §R8-6 — `dataImports` is ONE atomic provenance hunk,
+      // identical mechanics to `resultFrames` throughout this function.
+      let resultDataImports: readonly ImportSourceTable[] | undefined
       let partial = false
       if (opts.selection) {
         // §R7.2 / §R7A.4 — per-hunk: the selection is the consent, no
@@ -547,7 +575,8 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         const plan = computeThreeWay(base.content, liveContent(), proposedCanon)
         const built = buildSelectiveApply({
           target: { nodes: g.nodes, edges: g.edges },
-          proposedFull: proposed, // carries `frames` — the atomic `frames` hunk source (§R5-6)
+          // carries `frames` / `dataImports` — the atomic hunk sources (§R5-6 / §R8-6)
+          proposedFull: proposed,
           plan,
           selection: opts.selection,
         })
@@ -556,16 +585,23 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         // must not need to repair it (review round 2)
         const valid = validateResultGraph(built.nodes, built.edges)
         if (!valid.ok) return { ok: false, reason: 'invalid-selection', reasons: valid.reasons }
-        // SEMANTICS-R5.md §R5-6 — selecting the `frames` hunk yields
-        // `built.frames` (the proposal's whole array, `[]` = clear);
-        // `undefined` ⇒ keep the target's frames.
+        // SEMANTICS-R5.md §R5-6 / SEMANTICS-R8.md §R8-6 — selecting the hunk
+        // yields the proposal's whole array (`[]` = clear); `undefined` ⇒
+        // keep the target's.
         resultFrames = built.frames
+        resultDataImports = built.dataImports
         // an effective no-op mints no revision / undo entry / simulationRev bump.
-        // The `frames` swap counts: compare the WHOLE resulting content
-        // (nodes + edges + the effective frames) against the live target.
+        // The `frames` / `dataImports` swaps count: compare the WHOLE resulting
+        // content (nodes + edges + the effective frames + dataImports) against
+        // the live target.
         const resultDigest = digestOfCanonical(
           canonicalContent(
-            { nodes: built.nodes, edges: built.edges, frames: resultFrames ?? useFrameStore.getState().snapshot() },
+            {
+              nodes: built.nodes,
+              edges: built.edges,
+              frames: resultFrames ?? useFrameStore.getState().snapshot(),
+              dataImports: resultDataImports ?? useDataImportStore.getState().snapshot(),
+            },
             { modelVersion: g.modelVersion },
           ),
         )
@@ -588,6 +624,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
         resultNodes = proposed.nodes
         resultEdges = proposed.edges
         resultFrames = proposed.frames // adopt the proposal's saved frames atomically
+        resultDataImports = proposed.dataImports // same, for the data-import records
       }
 
       const now = opts.now ?? new Date().toISOString()
@@ -598,13 +635,21 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0, one
       // undo entry. The history sidecar captures `preHeader` on that frame, so a
       // single Undo restores the pre-apply graph AND this header together.
-      useGraphStore.getState().loadDoc({ nodes: resultNodes, edges: resultEdges }, undefined, resultFrames)
-      // the new baseline is the WHOLE post-apply content — `frameStore` now
-      // holds the effective frames (swapped when `resultFrames` was set, kept
-      // otherwise), so read them back here (SEMANTICS-R5.md §R5-6).
+      useGraphStore
+        .getState()
+        .loadDoc({ nodes: resultNodes, edges: resultEdges }, undefined, resultFrames, resultDataImports)
+      // the new baseline is the WHOLE post-apply content — `frameStore` /
+      // `dataImportStore` now hold the effective values (swapped when
+      // `resultFrames` / `resultDataImports` were set, kept otherwise), so read
+      // them back here (SEMANTICS-R5.md §R5-6 / SEMANTICS-R8.md §R8-6).
       const postGraphDigest = digestOfCanonical(
         canonicalContent(
-          { nodes: resultNodes, edges: resultEdges, frames: useFrameStore.getState().snapshot() },
+          {
+            nodes: resultNodes,
+            edges: resultEdges,
+            frames: useFrameStore.getState().snapshot(),
+            dataImports: useDataImportStore.getState().snapshot(),
+          },
           { modelVersion: g.modelVersion },
         ),
       )

@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGraphStore } from '../store/graphStore'
-import { STORAGE_KEY, deserialize, loadFromStorage, normalizeGraph, saveToStorage, serialize } from './serialize'
-import type { GraphDoc } from './serialize'
+import {
+  STORAGE_KEY,
+  deserialize,
+  loadFromStorage,
+  normalizeGraph,
+  readDataImports,
+  saveToStorage,
+  serialize,
+} from './serialize'
+import type { GraphDoc, ImportSourceTable } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -566,6 +574,143 @@ describe('serialize / deserialize — saved frames (loop-revision/5)', () => {
       saveToStorage(g.nodes, g.edges, undefined, undefined, 1, [])
       expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('frames')
       expect(loadFromStorage()!.frames).toEqual([])
+    })
+  })
+})
+
+// docs/data-import.md (`loop-revision/8`, SEMANTICS-R8.md §R8-1.1).
+describe('serialize / deserialize — data-import source records (loop-revision/8)', () => {
+  const G = () => {
+    const s = useGraphStore.getState()
+    s.newGraph()
+    s.addNodeAt('pool', { x: 0, y: 0 })
+    return useGraphStore.getState()
+  }
+  const T = (over: Partial<ImportSourceTable> = {}): ImportSourceTable => ({
+    sourceTableId: 'srctable_items',
+    label: 'Items',
+    columns: [
+      { sourceColumnId: 'srccol_key', role: 'key', header: 'item_key' },
+      { sourceColumnId: 'srccol_weight', role: 'number', header: 'weight' },
+    ],
+    rows: [{ sourceKey: 'itm_a', number: { srccol_weight: 10 }, label: {}, foreignKey: {} }],
+    ...over,
+  })
+
+  it('no data-import records ⇒ NO `dataImports` key; byte-identical to a pre-R8 write', () => {
+    const g = G()
+    const withoutArg = serialize(g.nodes, g.edges)
+    const withEmpty = serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [])
+    expect(JSON.parse(withoutArg)).not.toHaveProperty('dataImports')
+    expect(withEmpty).toBe(withoutArg)
+  })
+
+  it('serialize writes `dataImports` (canonical key order); round-trips through deserialize exactly', () => {
+    const g = G()
+    const table = T()
+    const out = JSON.parse(serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [table]))
+    expect(out.dataImports).toEqual([table])
+    expect(Object.keys(out.dataImports[0])).toEqual(['sourceTableId', 'label', 'columns', 'rows'])
+    const back = deserialize(serialize(g.nodes, g.edges, undefined, undefined, undefined, 1, undefined, [table]))
+    expect(back.dataImports).toEqual([table])
+  })
+
+  it('deserialize of a file with no `dataImports` ⇒ dataImports: []', () => {
+    expect(deserialize(doc([n('p', 'pool')], [])).dataImports).toEqual([])
+  })
+
+  it('§R8-1.1 defensive read — a bad table / column / row is DROPPED, the graph is KEPT', () => {
+    const raw = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [n('p', 'pool')],
+      edges: [],
+      dataImports: [
+        {
+          sourceTableId: 'ok',
+          label: 'Good',
+          columns: [
+            { sourceColumnId: 'k', role: 'key', header: 'key' },
+            { sourceColumnId: 'w', role: 'number', header: 'weight' },
+            { sourceColumnId: 'bad-role', role: 'nonsense', header: 'x' }, // unknown role → column dropped
+          ],
+          rows: [
+            { sourceKey: 'r1', number: { w: 5 }, label: {}, foreignKey: {} },
+            { sourceKey: 'r1', number: { w: 999 }, label: {}, foreignKey: {} }, // dup key → dropped
+            { sourceKey: 'r2', number: { w: 'nope' }, label: {}, foreignKey: {} }, // bad type → value dropped
+            { sourceKey: 'r3', number: { unknownCol: 7 }, label: {}, foreignKey: {} }, // unknown column → value dropped
+            'nope', // not an object → dropped
+          ],
+        },
+        'not-a-table', // not an object → dropped
+        { sourceTableId: 'ok', label: 'dup', columns: [], rows: [] }, // dup table id → fresh id, kept
+      ],
+    })
+    const back = deserialize(raw)
+    expect(back.nodes).toHaveLength(1) // graph kept
+    expect(back.dataImports).toHaveLength(2)
+    const good = back.dataImports.find((t) => t.label === 'Good')!
+    expect(good.columns).toHaveLength(2) // the unknown-role column dropped
+    expect(good.rows).toHaveLength(3) // the dup key + non-object row dropped
+    expect(good.rows.find((r) => r.sourceKey === 'r1')?.number.w).toBe(5) // first occurrence kept
+    expect(good.rows.find((r) => r.sourceKey === 'r2')?.number).toEqual({}) // bad-typed value dropped
+    expect(good.rows.find((r) => r.sourceKey === 'r3')?.number).toEqual({}) // unrecognised column dropped
+    const dupTable = back.dataImports.find((t) => t.label === 'dup')!
+    expect(dupTable.sourceTableId).not.toBe('ok') // clash → fresh id
+    expect(dupTable.sourceTableId).toMatch(/^srctable_/)
+  })
+
+  it('§R8-1.1 — a number-role value is only kept under a sourceColumnId that resolves to a `number`-role column IN THIS TABLE', () => {
+    const raw = JSON.stringify({
+      schema: 'loop-studio/graph',
+      version: 1,
+      nodes: [n('p', 'pool')],
+      edges: [],
+      dataImports: [
+        {
+          sourceTableId: 't1',
+          label: 'T1',
+          columns: [{ sourceColumnId: 'k', role: 'key', header: 'k' }],
+          // 'k' is a KEY-role column, not number — a number value under it is dropped
+          rows: [{ sourceKey: 'r1', number: { k: 5 }, label: {}, foreignKey: {} }],
+        },
+      ],
+    })
+    expect(deserialize(raw).dataImports[0].rows[0].number).toEqual({})
+  })
+
+  it('`dataImports: []` / not-an-array in the file ⇒ dataImports: []', () => {
+    for (const v of [[], 'x', 42, {}, null]) {
+      const raw = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [n('p', 'pool')], edges: [], dataImports: v })
+      expect(deserialize(raw).dataImports).toEqual([])
+    }
+  })
+
+  it('readDataImports(undefined) ⇒ []', () => {
+    expect(readDataImports(undefined)).toEqual([])
+  })
+
+  describe('saveToStorage / loadFromStorage carry dataImports', () => {
+    class Mem {
+      m = new Map<string, string>()
+      getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null }
+      setItem(k: string, v: string) { this.m.set(k, String(v)) }
+      removeItem(k: string) { this.m.delete(k) }
+      clear() { this.m.clear() }
+      key(i: number) { return [...this.m.keys()][i] ?? null }
+      get length() { return this.m.size }
+    }
+    beforeEach(() => vi.stubGlobal('localStorage', new Mem()))
+    afterEach(() => vi.unstubAllGlobals())
+
+    it('the current data-import records ride the autosave write atomically; an empty set writes no key', () => {
+      const g = G()
+      const table = T()
+      saveToStorage(g.nodes, g.edges, undefined, undefined, 1, undefined, [table])
+      expect(loadFromStorage()!.dataImports).toEqual([table])
+      saveToStorage(g.nodes, g.edges, undefined, undefined, 1, undefined, [])
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('dataImports')
+      expect(loadFromStorage()!.dataImports).toEqual([])
     })
   })
 })

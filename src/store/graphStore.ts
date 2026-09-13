@@ -22,7 +22,7 @@ import {
   saveToStorage,
   serialize,
 } from '../model/serialize'
-import type { RecommendedRunConfig, SavedFrame } from '../model/serialize'
+import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from '../model/serialize'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
@@ -148,6 +148,10 @@ type GraphStore = {
      *  `frameStore` is cleared, exactly as before (#4A). A pasted graph never
      *  passes this. */
     frames?: readonly SavedFrame[],
+    /** `loop-revision/8` — a bundled Template's saved data-import source
+     *  records (already run through `readDataImports`), if it ever ships any.
+     *  Absent / undefined ⇒ cleared, same posture as `frames`. */
+    dataImports?: readonly ImportSourceTable[],
   ) => void
   loadDoc: (
     doc: { nodes: LoopNode[]; edges: LoopEdge[] },
@@ -156,6 +160,11 @@ type GraphStore = {
      *  Absent ⇒ `[]`. Loaded into `frameStore` as part of this ONE `loadDoc`
      *  (no separate undo entry — §SF11). */
     frames?: readonly SavedFrame[],
+    /** `loop-revision/8` — the doc's saved data-import source records
+     *  (already defensively read). `undefined` KEEPS the current records (a
+     *  revision Apply that carries no `dataImports` change must not wipe
+     *  them), same posture as `frames`. */
+    dataImports?: readonly ImportSourceTable[],
   ) => void
   /** returns the file's `recommendedRunConfig` (if any) for the caller to apply */
   loadJSON: (text: string) => RecommendedRunConfig | undefined
@@ -188,7 +197,15 @@ export function setAutosaveProjectHeader(header: unknown): void {
   autosaveProjectHeader = header ?? null
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion, liveFrames())
+  saveToStorage(
+    s.nodes,
+    s.edges,
+    autosaveProjectHeader,
+    autosaveTimelineSeries,
+    s.modelVersion,
+    liveFrames(),
+    liveDataImports(),
+  )
 }
 
 /** Persist the Timeline visible-series default into the autosave record and
@@ -200,7 +217,15 @@ export function setAutosaveTimelineSeries(ts: 'all' | readonly string[]): void {
   autosaveTimelineSeries = ts === 'all' ? 'all' : [...ts]
   clearTimeout(saveTimer)
   const s = useGraphStore.getState()
-  saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion, liveFrames())
+  saveToStorage(
+    s.nodes,
+    s.edges,
+    autosaveProjectHeader,
+    autosaveTimelineSeries,
+    s.modelVersion,
+    liveFrames(),
+    liveDataImports(),
+  )
 }
 
 /** The raw project header from the last autosave record — read once by
@@ -229,6 +254,12 @@ type Sidecar = { get: () => unknown; set: (h: unknown) => void }
 type FrameSidecar = Sidecar & { relabel: (titles: Readonly<Record<string, string>>) => void }
 let projectSidecar: Sidecar | null = null
 let frameSidecar: FrameSidecar | null = null
+/** `loop-revision/8` (SEMANTICS-R8.md) — the saved data-import source records
+ *  sidecar, registered by the (Phase 1B) data-import store, same shape /
+ *  purpose as `frameSidecar`. No `relabel`: these records hold user-typed /
+ *  spreadsheet-sourced text, never an app-authored template label a locale
+ *  switch would retitle. */
+let dataImportSidecar: Sidecar | null = null
 export function setHistorySidecar(s: Sidecar | null): void {
   projectSidecar = s
 }
@@ -238,15 +269,23 @@ export function setHistorySidecar(s: Sidecar | null): void {
 export function setFrameHistorySidecar(s: FrameSidecar | null): void {
   frameSidecar = s
 }
-type SidecarBundle = { p: unknown; f: unknown }
+/** `loop-revision/8` — the data-import store registers its saved-records
+ *  snapshot/restore pair here so a graph undo / redo carries them with it,
+ *  mirroring `setFrameHistorySidecar`. */
+export function setDataImportHistorySidecar(s: Sidecar | null): void {
+  dataImportSidecar = s
+}
+type SidecarBundle = { p: unknown; f: unknown; d: unknown }
 const sidecarNow = (framesOverride?: unknown): SidecarBundle => ({
   p: projectSidecar?.get() ?? null,
   f: framesOverride !== undefined ? framesOverride : (frameSidecar?.get() ?? null),
+  d: dataImportSidecar?.get() ?? null,
 })
 const restoreSidecar = (sc: unknown): void => {
-  const b = (sc ?? { p: null, f: null }) as SidecarBundle
+  const b = (sc ?? { p: null, f: null, d: null }) as SidecarBundle
   projectSidecar?.set(b.p ?? null)
   frameSidecar?.set(b.f ?? null)
+  dataImportSidecar?.set(b.d ?? null)
 }
 /** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
  *  `frameStore` snapshot is already `SavedFrame`-shaped (id / label / rect /
@@ -254,6 +293,12 @@ const restoreSidecar = (sc: unknown): void => {
 const liveFrames = (): readonly SavedFrame[] | undefined => {
   const f = frameSidecar?.get()
   return Array.isArray(f) && f.length > 0 ? (f as SavedFrame[]) : undefined
+}
+/** `loop-revision/8` — the live saved data-import source records, for
+ *  `serialize` / autosave, mirroring `liveFrames`. */
+const liveDataImports = (): readonly ImportSourceTable[] | undefined => {
+  const d = dataImportSidecar?.get()
+  return Array.isArray(d) && d.length > 0 ? (d as ImportSourceTable[]) : undefined
 }
 
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
@@ -318,7 +363,15 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
       const s = get()
-      saveToStorage(s.nodes, s.edges, autosaveProjectHeader, autosaveTimelineSeries, s.modelVersion, liveFrames())
+      saveToStorage(
+        s.nodes,
+        s.edges,
+        autosaveProjectHeader,
+        autosaveTimelineSeries,
+        s.modelVersion,
+        liveFrames(),
+        liveDataImports(),
+      )
     }, 400)
   }
   /** any full-document swap starts with "no project"; a project-aware caller
@@ -600,11 +653,12 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         // that import then loads.
       })
       frameSidecar?.set([]) // §SF6 — an empty canvas has no saved frames
+      dataImportSidecar?.set([]) // loop-revision/8 — an empty canvas has no import records
       bump()
       persist()
     },
 
-    loadGraph: (snapshot, modelVersion = 1, initialView = null, frames) => {
+    loadGraph: (snapshot, modelVersion = 1, initialView = null, frames, dataImports) => {
       // templates and pasted graphs go through the same handle/field backfill
       const { nodes, edges } = normalizeGraph(snapshot)
       commit('')
@@ -624,13 +678,16 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // §TLO12 — a Template MAY ship group frames; a pasted graph never does.
       // `undefined` ⇒ clear, byte-identical to the pre-#4A behaviour.
       frameSidecar?.set(frames ? [...frames] : [])
+      // loop-revision/8 — same posture as `frames`; no bundled Template ships
+      // any yet, but a future one could.
+      dataImportSidecar?.set(dataImports ? [...dataImports] : [])
       bump()
       persist()
     },
 
     loadJSON: (text) => {
-      const { nodes, edges, recommendedRunConfig, modelVersion, frames } = deserialize(text)
-      get().loadDoc({ nodes, edges }, modelVersion, frames)
+      const { nodes, edges, recommendedRunConfig, modelVersion, frames, dataImports } = deserialize(text)
+      get().loadDoc({ nodes, edges }, modelVersion, frames, dataImports)
       return recommendedRunConfig
     },
 
@@ -641,8 +698,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
      *  the doc's saved frames; `undefined` KEEPS the current frames (a revision
      *  Apply that carries no `frames` change must not wipe them). Either way
      *  this is part of the ONE `loadDoc` history entry — no per-frame undo
-     *  entry (§SF11). */
-    loadDoc: ({ nodes, edges }, modelVersion = 1, frames) => {
+     *  entry (§SF11). `dataImports` (`loop-revision/8`) follows the exact same
+     *  rule. */
+    loadDoc: ({ nodes, edges }, modelVersion = 1, frames, dataImports) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
@@ -656,6 +714,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         pendingInitialView: null, // §MML3 — file / Share / Workspace keeps its own camera
       })
       if (frames !== undefined) frameSidecar?.set(frames) // §SF6 — replace with the doc's saved frames
+      if (dataImports !== undefined) dataImportSidecar?.set(dataImports) // loop-revision/8 — same rule
       bump()
       persist()
     },
@@ -707,6 +766,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         undefined,
         get().modelVersion,
         liveFrames(),
+        liveDataImports(),
       ),
   }
 })
