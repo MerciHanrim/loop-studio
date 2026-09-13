@@ -156,7 +156,7 @@ counter (`Pity`) forces the next roll's SSR once it reaches the ceiling
 the guarantee flag, `Pickup owed`: while it is `0` an SSR splits by weight
 between `Pickup hit` and `Standard hit`, and a miss sets it to `1`, which
 routes the very next SSR straight to `Pickup hit` and resets the flag —
-ending this run at `Pickup count 3` vs. `Standard count 1`.
+ending this run at `Pickup wins 3` vs. `Standard count 1`.
 
 ![The Premium Pickup zone on its own after the same completed run: four roll-gate variants (normal / forced × not-owed / owed), the hard-pity counter reading 33 against its ceiling of 80, one real ceiling hit, the Pickup-owed guarantee flag, and a real 3-to-1 Pickup hit / Standard hit split — with the selected "Ceiling hits" Pool's Inspector open in the right column](docs/assets/gacha-pickup-guarantee.png)
 

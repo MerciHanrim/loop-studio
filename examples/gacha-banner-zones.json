@@ -197,7 +197,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "SSR count",
+        "label": "Free SSR",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -390,7 +390,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "SSR count",
+        "label": "Standard SSR",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -643,7 +643,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "SSR count",
+        "label": "Pickup SSR",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
@@ -881,7 +881,7 @@
       },
       "data": {
         "kind": "pool",
-        "label": "Pickup count",
+        "label": "Pickup wins",
         "activation": "passive",
         "initial": 0,
         "capacity": null,
