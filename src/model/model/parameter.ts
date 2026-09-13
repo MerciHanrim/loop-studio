@@ -49,13 +49,17 @@ export type ParameterData = {
   step?: number
   unit?: string
   /** docs/data-import.md §DI9 — absent on a hand-created Parameter, or after
-   *  `unlink` (Phase 2). All three present together or none — an incoherent
-   *  partial triple is dropped defensively (never `payload-invalid`). */
+   *  `unlink` (Phase 2). Each of the three is read and kept INDEPENDENTLY,
+   *  verbatim, whenever its own type checks out — NOT an all-or-none coherent
+   *  triple (unlike `min`/`max` above): an incoherent partial triple is real,
+   *  meaningful content (arrived corrupted), never silently dropped. See
+   *  `readParameterData`'s own comment for the full reasoning. */
   sourceTableId?: string
   sourceKey?: string
   sourceColumnId?: string
-  /** §DI11 — meaningful only alongside the triple above; dropped whenever the
-   *  triple itself is dropped. */
+  /** §DI11 — semantically most useful alongside the triple above, but read
+   *  and kept independently of it too; never dropped merely because the
+   *  triple (or part of it) is absent. */
   labelAutoComposed?: boolean
 }
 

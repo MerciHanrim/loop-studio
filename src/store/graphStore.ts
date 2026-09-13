@@ -852,6 +852,7 @@ useI18n.subscribe((s) => {
       autosaveTimelineSeries,
       st.modelVersion,
       liveFrames(),
+      liveDataImports(),
     )
   }
 })

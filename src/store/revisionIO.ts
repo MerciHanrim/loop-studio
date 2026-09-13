@@ -95,6 +95,13 @@ export async function routeImport(text: string): Promise<RouteResult> {
       // ≥ 1 surviving entry (or a provenance-carrying Parameter) makes this a
       // `loop-revision/8` side, same posture as `frames`.
       dataImports: parsed.dataImports,
+      // §R8-1 — `parsed.nodes` / `parsed.dataImports` above have ALREADY been
+      // through one `normalizeGraph` pass inside `deserialize`, which strips a
+      // wrong-typed provenance key / a malformed `dataImports` entry before
+      // `readRevisionSide` ever sees them. Thread `deserialize`'s own raw-JSON
+      // signal through explicitly, or a corrupted-but-real provenance file
+      // misclassifies as ≤ v7 (see `readRevisionSide`'s own doc comment).
+      rawDataImportSignal: parsed.hasRawDataImportSignal,
     },
     undefined,
     parsed.modelVersion,

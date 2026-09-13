@@ -279,20 +279,31 @@ export function isCsuContent(doc: {
 }
 
 /**
- * `SEMANTICS-R8.md §R8-1` — the data-import wire-level content predicate, run
- * on **normalised** nodes — exactly the `isCsuContent` posture, and for the
- * same reason: `readParameterData` keeps each provenance field VERBATIM
- * whenever its own type checks out (no cross-field coherence requirement,
- * §DI9 / the parameter.ts header comment), so an INCOHERENT partial triple
- * still survives normalisation and is still visible here. This predicate
- * checks storage SHAPE ALONE — key presence, never whether an FK resolves or
- * a row is well-formed — matching the "presence, not validity" contract this
- * doc's design settled on. A doc is `loop-revision/8` content iff any node
- * carries any of the four provenance keys (checked on `parameter` nodes,
- * where `readParameterData` is the one place they are ever read/kept — a
- * stray key elsewhere was never preserved past `normalizeGraph` to see here).
- * The graph-level `dataImports` half of this predicate is checked separately
- * in `readRevisionSide`, mirroring exactly how `hasFrames` is computed there.
+ * `SEMANTICS-R8.md §R8-1` — the data-import wire-level content predicate. This
+ * predicate checks storage SHAPE ALONE — key presence, never whether an FK
+ * resolves, a row is well-formed, or a value's TYPE is even valid — matching
+ * the "presence, not validity" contract this doc's design settled on. A doc
+ * is `loop-revision/8` content iff any `parameter` node's `data` carries any
+ * of the four provenance keys, however invalid its value.
+ *
+ * Deliberately callable on EITHER raw or normalised node data — a key's mere
+ * presence is what matters, not whether it survives normalisation. This
+ * matters concretely: `readParameterData` (called from `normalizeNode`,
+ * called from `normalizeGraph`) drops a wrong-TYPED provenance value (e.g.
+ * `sourceTableId: 42`) before it ever reaches a normalised node's `data` —
+ * correct for the CANONICAL PROJECTION (an invalid value must never appear in
+ * emitted content), but wrong for CLASSIFICATION, which must still see the
+ * key. So `readRevisionSide` deliberately calls this on its OWN raw `graph.nodes`
+ * argument, before its internal `normalizeGraph` call — see that function's
+ * `hasDataImportNode` for why, and its `rawDataImportSignal` for the
+ * `deserialize`-fed case where even that raw argument has already been
+ * normalised once upstream. An INCOHERENT but validly-typed partial triple
+ * (e.g. `sourceKey` present, `sourceTableId` / `sourceColumnId` absent) is
+ * visible either way, since `readParameterData` keeps each such field
+ * independently verbatim (no cross-field coherence requirement, §DI9 / the
+ * parameter.ts header comment). The graph-level `dataImports` half of this
+ * predicate is checked separately in `readRevisionSide`, mirroring exactly
+ * how `hasFrames` is computed there.
  */
 export function isDataImportContent(doc: {
   nodes: { data?: { kind?: unknown; sourceTableId?: unknown; sourceKey?: unknown; sourceColumnId?: unknown; labelAutoComposed?: unknown } | null }[]
@@ -529,13 +540,19 @@ export function canonicalContent(
             ? { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header, refTableId: c.refTableId }
             : { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header },
         ),
+        // §R8-2.1 — each map's keys are sorted by `sourceColumnId` (never the
+        // live object's insertion order): two rows with equal values built in
+        // a different column order must project identical bytes, or their
+        // digests would differ for no real content difference.
         rows: t.rows.map((r) => ({
           sourceKey: r.sourceKey,
           number: Object.fromEntries(
-            Object.entries(r.number).map(([k, v]) => [k, numOrThrow(v, `dataImports row ${r.sourceKey} number.${k}`)]),
+            Object.keys(r.number)
+              .sort()
+              .map((k) => [k, numOrThrow(r.number[k], `dataImports row ${r.sourceKey} number.${k}`)]),
           ),
-          label: { ...r.label },
-          foreignKey: { ...r.foreignKey },
+          label: Object.fromEntries(Object.keys(r.label).sort().map((k) => [k, r.label[k]])),
+          foreignKey: Object.fromEntries(Object.keys(r.foreignKey).sort().map((k) => [k, r.foreignKey[k]])),
         })),
       }))
     }
@@ -647,6 +664,20 @@ export function readRevisionSide(
      *  records (from `deserialize`). Same posture as `frames`: ≥ 1 surviving
      *  entry makes the side (at least) `loop-revision/8`. */
     dataImports?: readonly ImportSourceTable[]
+    /** `SEMANTICS-R8.md` §R8-1 — true when the file's RAW, pre-defensive-read
+     *  content carried a data-import provenance signal (an invalid-typed
+     *  provenance key, or a `dataImports` entry) that `readDataImports` /
+     *  `readParameterData` went on to discard as unreadable. A `deserialize`
+     *  caller (`revisionIO.ts`) MUST thread its `hasRawDataImportSignal`
+     *  through here — by the time `nodes` / `dataImports` above reach this
+     *  function they have ALREADY been through one normalisation pass inside
+     *  `deserialize`, so the raw shape a corrupted file had is gone; without
+     *  this flag such a file misclassifies as ≤ v7, contradicting "presence,
+     *  not validity" (§R8-1). A caller passing genuinely raw, not-yet-
+     *  normalised nodes directly (skipping `deserialize`) may omit this — see
+     *  `hasDataImportNode` below, which checks THIS function's own raw
+     *  `graph.nodes` argument for exactly that case. */
+    rawDataImportSignal?: boolean
   },
   storedDigest?: string,
   /** loop-model/2 — the model-semantics version the side's `schema` declared
@@ -695,29 +726,52 @@ export function readRevisionSide(
   // is the only thing v5-vs-v4 changes here. A `frames` block whose entries
   // were all dropped leaves nothing and the side infers as ≤ v4 (R5-INV-2).
   const hasFrames = readSavedFrames(graph.frames).length > 0
-  // SEMANTICS-R6.md §R6-1 — a CSU `timing` / `when` signal is checked FIRST
-  // (highest precedence): it is orthogonal to frames / model / routing (a
-  // pure engine-only pity-counter graph carries none of those), and before
-  // this predicate existed such a graph was wrongly classified as ≤ v5 by
-  // `isModelLayerContent` / `hasRouting` / `hasFrames` alone — its `{
-  // modelLayer: true }` projection (which DOES include `timing` / `when`)
-  // would then disagree with its own inferred-v1 projection and throw the
-  // R2-INV-2 assertion below. `isCsuContent` closes that gap.
+  // SEMANTICS-R6.md §R6-1 — a CSU `timing` / `when` signal: it is orthogonal to
+  // frames / model / routing (a pure engine-only pity-counter graph carries
+  // none of those), and before this predicate existed such a graph was
+  // wrongly classified as ≤ v5 by `isModelLayerContent` / `hasRouting` /
+  // `hasFrames` alone — its `{ modelLayer: true }` projection (which DOES
+  // include `timing` / `when`) would then disagree with its own inferred-v1
+  // projection and throw the R2-INV-2 assertion below. `isCsuContent` closes
+  // that gap. (SEMANTICS-R8.md §R8-D6: `hasDataImport` below now takes
+  // precedence OVER this — see that comment for why.)
   const hasCsu = isCsuContent({ edges: g.edges as { data?: { kind?: unknown; timing?: unknown; when?: unknown } | null }[] })
-  // SEMANTICS-R8.md §R8-1 — data-import provenance, checked independently of
-  // all the above (a graph can be pure-data-import content with no other v2+
-  // trigger — e.g. `dataImports` populated from lookup-only tables that
-  // materialize zero Parameters). Two independent sources, either sufficient:
-  // ≥ 1 surviving `dataImports` entry (mirrors `hasFrames` exactly), or any
-  // `parameter` node carrying a provenance key (mirrors `isCsuContent`'s
-  // per-edge check).
-  const hasDataImportTable = readDataImports(graph.dataImports).length > 0
+  // SEMANTICS-R8.md §R8-1 / §R8-D6 — data-import provenance, checked
+  // independently of all the above (a graph can be pure-data-import content
+  // with no other v2+ trigger — e.g. `dataImports` populated from
+  // lookup-only tables that materialize zero Parameters), and given the
+  // HIGHEST label precedence of every version below (it is the newest
+  // extension; every v2+ side shares the one `{ modelLayer: true }`
+  // projection regardless, so this ordering changes only the reported label,
+  // never a projected byte). Three independent sources, any one sufficient:
+  //  1. `hasDataImportTable` — the RAW `dataImports` array (this function's
+  //     own `graph.dataImports` argument) contains ≥ 1 entry, regardless of
+  //     whether `readDataImports` goes on to keep it (mirrors `hasFrames`,
+  //     but checks presence, not survival — a `dataImports` block every entry
+  //     of which is malformed must still classify as v8, never silently
+  //     fall back to plain, per the "presence not validity" contract).
+  //  2. `hasDataImportNode` — checked on THIS function's OWN raw `graph.nodes`
+  //     argument (before its `normalizeGraph` call above), not on `g.nodes`:
+  //     `normalizeNode` → `readParameterData` already drops a wrong-typed
+  //     provenance key by the time `g.nodes` exists, so checking `g.nodes`
+  //     would miss exactly the corrupted-but-present case this predicate
+  //     must catch. Correct for a caller passing genuinely raw nodes
+  //     directly; see `rawDataImportSignal` below for the `deserialize`-fed
+  //     case, where even `graph.nodes` has already been normalised once.
+  //  3. `graph.rawDataImportSignal` — an explicit flag a `deserialize` caller
+  //     (`revisionIO.ts`) threads through, computed by `deserialize` itself
+  //     from the file's genuinely raw, pre-normalisation JSON (see that
+  //     function's own doc comment) — the only place this signal survives
+  //     once `deserialize`'s own internal `normalizeGraph` call has stripped
+  //     it from `graph.nodes` / `graph.dataImports` before this function ever
+  //     sees them.
+  const hasDataImportTable = Array.isArray(graph.dataImports) && graph.dataImports.length > 0
   const hasDataImportNode = isDataImportContent({
-    nodes: g.nodes as {
+    nodes: graph.nodes as {
       data?: { kind?: unknown; sourceTableId?: unknown; sourceKey?: unknown; sourceColumnId?: unknown; labelAutoComposed?: unknown } | null
     }[],
   })
-  const hasDataImport = hasDataImportTable || hasDataImportNode
+  const hasDataImport = hasDataImportTable || hasDataImportNode || (graph.rawDataImportSignal ?? false)
   const version: SideVersion = hasDataImport
     ? 'loop-revision/8'
     : hasCsu

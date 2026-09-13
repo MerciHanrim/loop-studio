@@ -109,9 +109,12 @@ export type SavedFrame = {
  * renameable, presentation only), its column-role configuration, and the
  * per-row base projection every future refresh diffs against. Never the full
  * original row, an unmapped/ignored column, or a source file/Sheet URL
- * (§DI-D6).
+ * (§DI-D6) — `ignored` is Phase 1B's OWN transient preview-selection state
+ * (a column the user hasn't assigned a role to yet), never a role this wire
+ * shape recognises: `readDataImports` drops a column carrying it exactly like
+ * any other unrecognised role, so it can never reach GraphDoc content.
  */
-export type ImportColumnRole = 'key' | 'number' | 'label' | 'foreignKey' | 'ignored'
+export type ImportColumnRole = 'key' | 'number' | 'label' | 'foreignKey'
 
 export type ImportColumn = {
   /** freshly minted once per column-role mapping (§DI9); never the header text. */
@@ -234,26 +237,32 @@ function toDocFrame(f: SavedFrame): SavedFrame {
   return f.color ? { id: f.id, label: f.label, rect, color: f.color } : { id: f.id, label: f.label, rect }
 }
 
-const IMPORT_COLUMN_ROLES: readonly ImportColumnRole[] = ['key', 'number', 'label', 'foreignKey', 'ignored']
-let diSeq = 0
-const freshImportTableId = (): string => `srctable_${Date.now().toString(36)}_${(diSeq++).toString(36)}`
-const freshImportColumnId = (): string => `srccol_${Date.now().toString(36)}_${(diSeq++).toString(36)}`
+const IMPORT_COLUMN_ROLES: readonly ImportColumnRole[] = ['key', 'number', 'label', 'foreignKey']
 
 /**
  * `SEMANTICS-R8.md §R8-1.1` — the defensive read of `GraphDoc.dataImports`.
- * Drops a bad ENTRY (table, column, or row), never the graph. A clashing /
- * missing `sourceTableId` (or `sourceColumnId` within its table) is replaced
- * with a fresh session id (the file's id string is not trusted for identity —
- * same posture as `readSavedFrames`; a Parameter still pointing at the OLD id
- * simply finds no matching table any more, gracefully, not a crash). A column
- * with an unrecognised `role` is dropped whole (nothing meaningful survives an
- * unknown role). A row's `number` / `label` / `foreignKey` values are kept
- * only under a `sourceColumnId` that resolves to a column of the matching role
- * IN THIS TABLE — a stray key naming no real column, or a wrong-typed value
- * (a `number` role's value not finite, a `label` / `foreignKey` role's value
- * not a string), is dropped, not coerced. A duplicate `sourceKey` within one
- * table keeps only the FIRST occurrence. At most `DI_TABLES_MAX` tables,
- * `DI_COLUMNS_MAX` columns per table, `DI_ROWS_MAX` rows per table survive.
+ * Drops a bad ENTRY (table, column, or row), never the graph — and drops
+ * DETERMINISTICALLY: unlike `readSavedFrames`, a missing or clashing
+ * `sourceTableId` / `sourceColumnId` is never minted a fresh replacement id.
+ * Regenerating one would (a) make re-reading the SAME file twice produce a
+ * DIFFERENT canonical projection and digest (the old design used
+ * `Date.now()`), breaking the basic "a pure read is a pure function" property
+ * every other `loop-revision/N` reader relies on, and (b) silently sever a
+ * Parameter's stored generating triple from the table it names, the moment
+ * that table's id happened to collide or go missing — exactly the linkage
+ * `docs/data-import.md` §DI9 depends on staying stable. So a table missing or
+ * duplicating its `sourceTableId`, or a column missing or duplicating its
+ * `sourceColumnId` WITHIN its table, is dropped whole instead — the same
+ * first-occurrence-wins rule already used for a duplicate row `sourceKey`
+ * below. A column with an unrecognised `role` (this includes Phase 1B's own
+ * transient `ignored` preview state, §DI-D6 — never a storable role) is
+ * likewise dropped whole. A row's `number` / `label` / `foreignKey` values are
+ * kept only under a `sourceColumnId` that resolves to a column of the
+ * matching role IN THIS TABLE — a stray key naming no real column, or a
+ * wrong-typed value (a `number` role's value not finite, a `label` /
+ * `foreignKey` role's value not a string), is dropped, not coerced. At most
+ * `DI_TABLES_MAX` tables, `DI_COLUMNS_MAX` columns per table, `DI_ROWS_MAX`
+ * rows per table survive.
  */
 export function readDataImports(raw: unknown): ImportSourceTable[] {
   if (!Array.isArray(raw)) return []
@@ -264,16 +273,16 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
     const e = entry as Record<string, unknown>
 
-    let sourceTableId = typeof e.sourceTableId === 'string' ? e.sourceTableId : ''
-    if (sourceTableId === '' || seenTableIds.has(sourceTableId)) sourceTableId = freshImportTableId()
+    const sourceTableId = typeof e.sourceTableId === 'string' ? e.sourceTableId : ''
+    if (sourceTableId === '' || seenTableIds.has(sourceTableId)) continue // missing / dup id → drop the table
     seenTableIds.add(sourceTableId)
 
     let label = typeof e.label === 'string' ? e.label : e.label == null ? '' : String(e.label)
     if (label.length > DI_LABEL_MAX) label = label.slice(0, DI_LABEL_MAX)
 
-    // columns — an unrecognised role drops the whole column (nothing to
-    // meaningfully attach a value to); a clashing / missing sourceColumnId
-    // is regenerated, same posture as the table id above.
+    // columns — an unrecognised role, or a missing / duplicate sourceColumnId,
+    // drops the whole column (same deterministic-exclusion posture as the
+    // table id above — never regenerated).
     const columns: ImportColumn[] = []
     const seenColumnIds = new Set<string>()
     const roleByColumnId = new Map<string, ImportColumnRole>()
@@ -284,8 +293,8 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
         const c = centry as Record<string, unknown>
         const role = c.role
         if (typeof role !== 'string' || !(IMPORT_COLUMN_ROLES as readonly string[]).includes(role)) continue
-        let sourceColumnId = typeof c.sourceColumnId === 'string' ? c.sourceColumnId : ''
-        if (sourceColumnId === '' || seenColumnIds.has(sourceColumnId)) sourceColumnId = freshImportColumnId()
+        const sourceColumnId = typeof c.sourceColumnId === 'string' ? c.sourceColumnId : ''
+        if (sourceColumnId === '' || seenColumnIds.has(sourceColumnId)) continue // missing / dup id → drop the column
         seenColumnIds.add(sourceColumnId)
         let header = typeof c.header === 'string' ? c.header : c.header == null ? '' : String(c.header)
         if (header.length > DI_HEADER_MAX) header = header.slice(0, DI_HEADER_MAX)
@@ -341,10 +350,21 @@ export function readDataImports(raw: unknown): ImportSourceTable[] {
   return out
 }
 
+/** §R8-2.1 — a row's `number` / `label` / `foreignKey` maps are projected with
+ *  keys sorted by `sourceColumnId`, not in whatever insertion order the live
+ *  store's object happens to hold: two documents whose values are equal but
+ *  were built in a different column order must still project the SAME bytes,
+ *  or their digests would differ for no real content difference. */
+function sortedByKey<T>(obj: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {}
+  for (const k of Object.keys(obj).sort()) out[k] = obj[k]
+  return out
+}
+
 /** Project a live import-source table to the wire shape (`§R8-2.1` key
  *  order): `sourceTableId`, `label`, `columns` (each `sourceColumnId`, `role`,
  *  `header`, then `refTableId` only when set), `rows` (each `sourceKey`,
- *  `number`, `label`, `foreignKey`). */
+ *  `number`, `label`, `foreignKey`, each map key-sorted). */
 function toDocImportSourceTable(t: ImportSourceTable): ImportSourceTable {
   return {
     sourceTableId: t.sourceTableId,
@@ -356,11 +376,61 @@ function toDocImportSourceTable(t: ImportSourceTable): ImportSourceTable {
     ),
     rows: t.rows.map((r) => ({
       sourceKey: r.sourceKey,
-      number: { ...r.number },
-      label: { ...r.label },
-      foreignKey: { ...r.foreignKey },
+      number: sortedByKey(r.number),
+      label: sortedByKey(r.label),
+      foreignKey: sortedByKey(r.foreignKey),
     })),
   }
+}
+
+/**
+ * `SEMANTICS-R8.md §R8-1` — true when a `parameter`-shaped node in the RAW,
+ * pre-`normalizeGraph` file content carries any of the four provenance keys,
+ * REGARDLESS of whether its value is valid. `readParameterData` (called from
+ * `normalizeNode`, called from `normalizeGraph`, called from `deserialize`
+ * below) drops a wrong-TYPED value before it ever reaches `data` — correct for
+ * the PROJECTION (an invalid value should never appear in canonical content),
+ * but wrong for CLASSIFICATION, which must go by storage shape alone (the
+ * settled "presence, not validity" contract). By the time `deserialize`'s own
+ * `normalizeGraph` call has run, that raw shape is gone for good — so this
+ * scan must happen on the genuinely raw `obj.nodes` array, before any
+ * normalisation, and its result carried alongside the (already-cleaned)
+ * `nodes` / `dataImports` deserialize returns.
+ */
+export function hasRawParameterProvenanceKeys(nodes: unknown): boolean {
+  if (!Array.isArray(nodes)) return false
+  for (const n of nodes) {
+    if (typeof n !== 'object' || n === null) continue
+    const nn = n as Record<string, unknown>
+    const data = nn.data
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) continue
+    const d = data as Record<string, unknown>
+    const kind = d.kind ?? nn.type
+    if (kind !== 'parameter') continue
+    if (
+      d.sourceTableId !== undefined ||
+      d.sourceKey !== undefined ||
+      d.sourceColumnId !== undefined ||
+      d.labelAutoComposed !== undefined
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * `SEMANTICS-R8.md §R8-1` — true when the RAW `dataImports` value contains at
+ * least one entry that at least ATTEMPTS to be an import-source table record
+ * (a non-null, non-array object) — regardless of whether `readDataImports`
+ * ultimately keeps it. Same "presence, not validity" reasoning as
+ * `hasRawParameterProvenanceKeys`: a `dataImports` array every one of whose
+ * entries is malformed enough to be dropped entirely must still classify as
+ * `loop-revision/8` content, never silently fall back to a plain document.
+ */
+export function hasRawDataImportTableSignal(raw: unknown): boolean {
+  if (!Array.isArray(raw)) return false
+  return raw.some((e) => typeof e === 'object' && e !== null && !Array.isArray(e))
 }
 
 const FLOW_KINDS: NodeKind[] = ['pool', 'source', 'drain', 'gate', 'converter', 'end']
@@ -553,6 +623,17 @@ export function deserialize(text: string): {
   /** `loop-revision/8` — the saved data-import source records, already run
    *  through `readDataImports`. `[]` when the file has none. */
   dataImports: ImportSourceTable[]
+  /** `SEMANTICS-R8.md §R8-1` — true when the file's RAW, pre-defensive-read
+   *  content carried a data-import provenance signal that `readDataImports` /
+   *  `readParameterData` may have gone on to discard as unreadable (an
+   *  invalid-typed provenance key, or a `dataImports` entry that didn't
+   *  survive). `nodes` / `dataImports` above are already cleaned by the time a
+   *  caller sees them, so this is the ONLY place that signal survives —
+   *  `readRevisionSide` callers must thread it through explicitly (see
+   *  `revisionIO.ts`) or a corrupted-but-real provenance file misclassifies as
+   *  a plain (≤ v7) document, contradicting the "presence, not validity" rule
+   *  the design settled on. */
+  hasRawDataImportSignal: boolean
   /** raw, unvalidated — the Workspace reader checks it against the loaded graph */
   workspace?: unknown
   /** raw, unvalidated — the revision reader (loop-revision/1) validates it */
@@ -589,11 +670,17 @@ export function deserialize(text: string): {
     obj.project && typeof obj.project === 'object' && !Array.isArray(obj.project)
       ? obj.project
       : undefined
+  // §R8-1 — computed on the genuinely RAW `obj.nodes` / `obj.dataImports`,
+  // BEFORE `normalizeGraph` / `readDataImports` below get a chance to drop
+  // anything unreadable (see `hasRawParameterProvenanceKeys`'s own doc comment).
+  const hasRawDataImportSignal =
+    hasRawDataImportTableSignal(obj.dataImports) || hasRawParameterProvenanceKeys(obj.nodes)
   return {
     ...normalizeGraph({ nodes: obj.nodes as LoopNode[], edges: obj.edges as LoopEdge[] }),
     modelVersion,
     frames: readSavedFrames(obj.frames), // §R5-1.1 — [] when absent / all-bad
     dataImports: readDataImports(obj.dataImports), // §R8-1.1 — [] when absent / all-bad
+    hasRawDataImportSignal,
     ...(rrc ? { recommendedRunConfig: rrc } : {}),
     ...(workspace ? { workspace } : {}),
     ...(project ? { project } : {}),

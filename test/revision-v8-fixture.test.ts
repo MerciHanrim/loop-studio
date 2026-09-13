@@ -88,9 +88,31 @@ const TABLE: ImportSourceTable = {
   rows: [{ sourceKey: 'itm_blade_ssr', number: {}, label: { srccol_name: 'Ember Blade' }, foreignKey: {} }],
 }
 const DG4_GRAPH = { nodes: DG0_GRAPH.nodes, edges: DG0_GRAPH.edges, dataImports: [TABLE] }
+// DG5 — a WRONG-TYPED provenance value (a number, not a string). Dropped by
+// `readParameterData` from the PROJECTION (§R8-2.3), but must still classify
+// as v8 (§R8-1's "however invalid its value" clause) — the regression this
+// document's first implementation got wrong by classifying on already-
+// normalised data, which has already lost this signal.
+const DG5_RAW_NODES = [
+  { id: 'p', type: 'parameter', position: XY, data: { kind: 'parameter', label: 'p', value: 1, sourceTableId: 42 } },
+  { id: 'b', type: 'pool', position: XY, data: { kind: 'pool', label: 'b', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+]
+// DG6 — a `dataImports` array whose ONLY entry is missing its `sourceTableId`
+// (dropped whole by `readDataImports`, deterministically — §R8-1.1). The RAW
+// array still attempted a table record, so this must still classify as v8
+// even though nothing survives the projection.
+const DG6_RAW_DATA_IMPORTS = [{ label: 'no id', columns: [], rows: [] }]
+
+// PINNED — the digest the shipped projection produces for DG0 / DG1. A
+// comparison against only other freshly-computed digests (as this fixture
+// originally did) cannot catch a drift in the projection's own field order —
+// a consistent reordering would still agree with itself on both sides of a
+// `toBe` / `not.toBe` between two computed values.
+const DG0_DIGEST = '223b4b2cf3baceebe3ea2e7c5d912841ca5caa4091ffa8bc372919a7fb36ecb5'
+const DG1_DIGEST = '43f1c9fd9e603c3868d0dea0e0c549750bd909bfffff07598be1e6f52af84d88'
 
 describe('loop-revision/8 golden vector (SEMANTICS-R8.md)', () => {
-  it('DG0 — no provenance: not v8, no dataImports key', () => {
+  it('DG0 — no provenance: not v8, no dataImports key; digest === pinned', () => {
     const dg0 = readOrWrite('DG0.json', () => JSON.parse(serialize(DG0_GRAPH.nodes, DG0_GRAPH.edges))) as {
       nodes: LoopNode[]
       edges: LoopEdge[]
@@ -102,9 +124,10 @@ describe('loop-revision/8 golden vector (SEMANTICS-R8.md)', () => {
     expect(isDataImportContent({ nodes: dg0.nodes as never })).toBe(false)
     const side = readRevisionSide(dg0)
     expect(side.ok && side.version).toBe('loop-revision/2') // a plain Parameter, nothing else
+    expect(digestOfCanonical(c)).toBe(DG0_DIGEST)
   })
 
-  it('DG1 — full valid triple: infers v8; digest differs; does not throw (the R2-INV-2-style regression)', () => {
+  it('DG1 — full valid triple: infers v8; digest differs (=== pinned); does not throw (the R2-INV-2-style regression)', () => {
     const dg1 = readOrWrite('DG1.json', () => JSON.parse(serialize(DG1_GRAPH.nodes, DG1_GRAPH.edges))) as {
       nodes: LoopNode[]
       edges: LoopEdge[]
@@ -119,10 +142,80 @@ describe('loop-revision/8 golden vector (SEMANTICS-R8.md)', () => {
 
     expect(() => readRevisionSide(dg1)).not.toThrow()
     const digest = digestOfCanonical(canonicalContent(dg1))
+    expect(digest).toBe(DG1_DIGEST)
     const side = readRevisionSide(dg1, digest)
     expect(side.ok && side.version).toBe('loop-revision/8')
     expect(side.ok && side.digestVerified).toBe(true)
-    expect(digest).not.toBe(digestOfCanonical(canonicalContent(DG0_GRAPH)))
+    expect(digest).not.toBe(DG0_DIGEST)
+  })
+
+  it('DG5 — a WRONG-TYPED provenance value: still classifies v8 on raw content, even though the projection drops it', () => {
+    const edges: LoopEdge[] = []
+    // direct call (no deserialize) — readRevisionSide checks its OWN raw
+    // `graph.nodes` argument, not its internally-normalised copy.
+    expect(isDataImportContent({ nodes: DG5_RAW_NODES as never })).toBe(true)
+    const direct = readRevisionSide({ nodes: DG5_RAW_NODES as never, edges })
+    expect(direct.ok && direct.version).toBe('loop-revision/8')
+    // the value itself never survives the projection (§R8-2.3)
+    const c = direct.ok ? direct.content : null
+    const p = c!.nodes.find((n) => n.id === 'p')!
+    expect('sourceTableId' in p.data).toBe(false)
+
+    // deserialize-fed path — `deserialize`'s OWN normalizeGraph has already
+    // stripped the raw key by the time `nodes` exists; `hasRawDataImportSignal`
+    // is the only surviving signal, threaded through exactly as `revisionIO.ts` does.
+    const file = JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: DG5_RAW_NODES, edges: [] })
+    const parsed = deserialize(file)
+    expect((parsed.nodes.find((n) => n.id === 'p')!.data as { sourceTableId?: unknown }).sourceTableId).toBeUndefined()
+    expect(parsed.hasRawDataImportSignal).toBe(true)
+    const viaDeserialize = readRevisionSide(
+      { nodes: parsed.nodes, edges: parsed.edges, dataImports: parsed.dataImports, rawDataImportSignal: parsed.hasRawDataImportSignal },
+      undefined,
+      parsed.modelVersion,
+    )
+    expect(viaDeserialize.ok && viaDeserialize.version).toBe('loop-revision/8')
+    // WITHOUT the threaded flag, the same content would mis-classify (the bug this guards)
+    const withoutFlag = readRevisionSide(
+      { nodes: parsed.nodes, edges: parsed.edges, dataImports: parsed.dataImports },
+      undefined,
+      parsed.modelVersion,
+    )
+    expect(withoutFlag.ok && withoutFlag.version).toBe('loop-revision/2')
+  })
+
+  it('DG6 — a `dataImports` array whose only entry is dropped entirely: still classifies v8 on raw presence', () => {
+    expect(readDataImports(DG6_RAW_DATA_IMPORTS)).toEqual([]) // nothing survives the defensive read
+    const direct = readRevisionSide({ nodes: DG0_GRAPH.nodes, edges: DG0_GRAPH.edges, dataImports: DG6_RAW_DATA_IMPORTS as never })
+    expect(direct.ok && direct.version).toBe('loop-revision/8')
+    // the projection itself carries no `dataImports` key — nothing survived to project
+    const c = direct.ok ? direct.content : null
+    expect(c).not.toHaveProperty('dataImports')
+
+    const file = JSON.stringify({
+      schema: 'loop-studio/graph', version: 1, nodes: DG0_GRAPH.nodes, edges: [], dataImports: DG6_RAW_DATA_IMPORTS,
+    })
+    const parsed = deserialize(file)
+    expect(parsed.dataImports).toEqual([])
+    expect(parsed.hasRawDataImportSignal).toBe(true)
+    const viaDeserialize = readRevisionSide({
+      nodes: parsed.nodes, edges: parsed.edges, dataImports: parsed.dataImports, rawDataImportSignal: parsed.hasRawDataImportSignal,
+    })
+    expect(viaDeserialize.ok && viaDeserialize.version).toBe('loop-revision/8')
+  })
+
+  it('determinism — projecting / re-reading the same content twice produces byte-identical canonical JSON and digest', () => {
+    const c1 = canonicalContent(DG4_GRAPH)
+    const c2 = canonicalContent(DG4_GRAPH)
+    expect(canonicalJson(c1)).toBe(canonicalJson(c2))
+    expect(digestOfCanonical(c1)).toBe(digestOfCanonical(c2))
+
+    const file = serialize(DG4_GRAPH.nodes, DG4_GRAPH.edges, undefined, undefined, undefined, 1, undefined, DG4_GRAPH.dataImports)
+    const a = deserialize(file)
+    const b = deserialize(file)
+    expect(a.dataImports).toEqual(b.dataImports)
+    expect(digestOfCanonical(canonicalContent({ nodes: a.nodes, edges: a.edges, dataImports: a.dataImports }))).toBe(
+      digestOfCanonical(canonicalContent({ nodes: b.nodes, edges: b.edges, dataImports: b.dataImports })),
+    )
   })
 
   it('DG2 — v8 -> v2 -> v8: removing the four fields returns the digest EXACTLY', () => {

@@ -102,43 +102,62 @@ Run **after** `normalizeGraph()`, on the **normalised valid GraphDoc** —
 never on raw JSON, never on a stored header. Evaluated **per graph** and
 **per side** of a proposal. Two independent conditions, **either sufficient**:
 
-> A graph's content is **`loop-revision/8`** iff, after normalisation,
-> **(a)** any `parameter`-kind node's `data` carries any of `sourceTableId`,
-> `sourceKey`, `sourceColumnId`, or `labelAutoComposed` (any value —
-> recognised or not, coherent triple or not), **or** **(b)** the graph's
-> `dataImports` carries ≥ 1 entry surviving the §R8-1.1 defensive read.
-> Otherwise it is whatever `loop-revision/2` … `/6` says.
+> A graph's content is **`loop-revision/8`** iff **(a)** any `parameter`-kind
+> node's `data` carries any of `sourceTableId`, `sourceKey`, `sourceColumnId`,
+> or `labelAutoComposed` (any value — recognised or not, coherent triple or
+> not), checked on the side's **RAW, pre-`readParameterData`** node data, or
+> **(b)** the graph's RAW `dataImports` value contains ≥ 1 entry that at least
+> *attempts* to be a table record (a non-null, non-array object), regardless
+> of whether `readDataImports` goes on to keep it. Otherwise it is whatever
+> `loop-revision/2` … `/6` says.
 
-Condition (a) mirrors `SEMANTICS-R6.md §R6-1`'s CSU predicate exactly, for
-the identical reason: `readParameterData` keeps each of the four fields
-**independently verbatim** whenever its own type checks out (§R8-2.2) — an
-INCOHERENT partial triple (e.g. `sourceKey` present, `sourceTableId` /
-`sourceColumnId` absent) is not "the same as no provenance," it is a real,
-distinct document state that must move the digest, exactly as an
-unrecognised `timing` must (`SEMANTICS-R6.md` §R6-2.2's reasoning, restated
-here for a different field shape). Checking the ALREADY-NORMALISED graph
-(not raw pre-normalisation JSON) is safe and sufficient specifically
-*because* `readParameterData` never silently drops an incoherent partial
-triple the way it drops an incoherent `min`/`max` pair — if it did, this
-predicate would need to run on raw JSON instead, and it deliberately does
-not (§DI9 / `src/model/model/parameter.ts`'s own header comment records this
-as a corrected design decision, not an assumption).
+Condition (a) mirrors `SEMANTICS-R6.md §R6-1`'s CSU predicate for the
+underlying field-reading behaviour: `readParameterData` keeps each of the
+four fields **independently verbatim** whenever its own type checks out
+(§R8-2.2) — an INCOHERENT but validly-typed partial triple (e.g. `sourceKey`
+present, `sourceTableId` / `sourceColumnId` absent) is not "the same as no
+provenance," it is a real, distinct document state that must move the
+digest, exactly as an unrecognised `timing` must (`SEMANTICS-R6.md` §R6-2.2's
+reasoning, restated here for a different field shape).
 
-Condition (b) mirrors `SEMANTICS-R5.md §R5-1`'s `frames` predicate exactly:
-a `dataImports` entry can exist with **zero** parameter nodes referencing it
-at all (a pure-lookup-table import — `Items`/`Banners` in
+**Checking the ALREADY-NORMALISED graph is NOT sufficient, and this document's
+first implementation got it wrong.** `readParameterData` keeps an
+incoherent-but-validly-typed field, but it still DROPS a **wrong-typed** one
+(`sourceTableId: 42` is not a string, so it never reaches a normalised
+node's `data` at all) — by the time a graph has been through
+`normalizeGraph`, that signal is gone. A predicate that only ever looks at
+normalised data therefore mis-classifies a document with corrupted-but-real
+provenance as a plain (≤ v7) file, directly contradicting this section's own
+"however invalid its value" clause. The fix: condition (a) is checked on the
+side's RAW node data — `readRevisionSide` uses its own un-normalised
+`graph.nodes` argument (before its internal `normalizeGraph` call), and a
+`deserialize`-fed caller (`revisionIO.ts`) additionally threads a
+`hasRawDataImportSignal` boolean that `deserialize` computes from the file's
+genuinely raw, pre-normalisation JSON — required because `deserialize`'s OWN
+internal normalisation pass has already stripped the signal from its `nodes`
+return value by the time any caller sees it (R8-D20).
+
+Condition (b) mirrors `SEMANTICS-R5.md §R5-1`'s `frames` predicate in
+spirit — a `dataImports` entry can exist with **zero** parameter nodes
+referencing it at all (a pure-lookup-table import — `Items`/`Banners` in
 `docs/data-import.md`'s own worked example carry no `number`-role column, so
 they never materialize a Parameter), so the array's own presence must be an
-independent trigger, or such a graph would mis-infer as ≤ v6.
+independent trigger — but **not** in mechanism: `frames`' predicate checks
+the DEFENSIVELY-READ result (≥ 1 entry must *survive* `readSavedFrames`);
+`dataImports`' condition (b) checks RAW presence (≥ 1 entry must merely
+*attempt* to be a table record), for the same reason as condition (a) —a
+`dataImports` array every entry of which is malformed enough that
+`readDataImports` drops all of them must still classify as v8, never
+silently fall back to a plain document (R8-D20/R8-D21).
 
 - **Section 8-1.1 (defensive read).** `readDataImports` (§R8-1.1,
   `src/model/serialize.ts`) drops a malformed table / column / row **entry**,
-  never the graph — mirrors `readSavedFrames`'s §R5-1.1 posture exactly
-  (bad id → fresh id, bad role → column dropped, orphaned value → dropped,
-  duplicate row key → first occurrence kept). Condition (b) above is
-  evaluated on this DEFENSIVELY-READ result (≥ 1 entry must *survive*),
-  unlike condition (a) which is checked on the raw-but-normalised per-node
-  data (nothing is defensively stripped there to survive or not).
+  never the graph. Unlike `readSavedFrames`'s §R5-1.1 posture, a missing or
+  duplicate `sourceTableId` / `sourceColumnId` is never given a freshly-minted
+  replacement id — it is dropped WHOLE, first-occurrence-wins, deterministic
+  (R8-D21). This defensively-read result feeds the CANONICAL PROJECTION
+  (§R8-2.1); it is deliberately NOT what condition (b) above is evaluated
+  against — see the correction above.
 - The predicate is **monotone**: a v8 graph is also ≤ v6 in the earlier
   sense; all lift into one compare model (§R8-5).
 - Checked **independently** of `frames` / `loop-model/2` / routing / CSU —
@@ -170,7 +189,8 @@ bytes are unchanged (R8-INV-2). Array in **file order** (not re-sorted, same
 as `frames`). Per-table key order: `sourceTableId`, `label`, `columns`
 (each `sourceColumnId`, `role`, `header`, then `refTableId` only when the
 role is `foreignKey`), `rows` (each `sourceKey`, `number`, `label`,
-`foreignKey`).
+`foreignKey` — each of these three maps' OWN keys sorted by `sourceColumnId`,
+never the live object's insertion order, R8-D22).
 
 ### R8-2.2 Four new trailing `parameter` fields
 
@@ -313,6 +333,28 @@ both shapes at once):
   (§R8-1 condition (b)) — the case that would otherwise mis-infer v1 (no
   model/routing/frames/CSU trigger either) and hit the same class of
   assertion failure CSU's own CG1 found for `timing`/`when`.
+- **DG5 — a WRONG-TYPED provenance value** (`sourceTableId: 42`, a number, on
+  an otherwise plain Parameter). Still classifies v8 (§R8-1's "however
+  invalid its value" clause, R8-D20) even though the value itself never
+  survives the projection (§R8-2.3) — the regression this document's first
+  implementation got wrong (checking only already-normalised data, which
+  `readParameterData` has already stripped the key from).
+- **DG6 — a `dataImports` array whose ONLY entry is malformed enough that
+  `readDataImports` drops it entirely** (e.g. no `sourceTableId` at all).
+  Still classifies v8 via condition (b)'s RAW-presence check, even though the
+  CANONICAL PROJECTION carries no `dataImports` key at all (nothing survived
+  to project) — proof that classification and projection are governed by two
+  different reads of the same raw value (R8-D20).
+- **determinism** — deserializing the SAME file text twice (or projecting the
+  same in-memory `dataImports` twice) produces byte-identical canonical JSON
+  and digest both times — a regression guard against `readDataImports` ever
+  minting a fresh id from `Date.now()` again (R8-D21).
+- **map key order** — two otherwise-identical rows whose `number` map was
+  built by inserting the same key/value pairs in a different order project
+  identical canonical bytes (R8-D22).
+- **`ignored` role exclusion** — a column carrying `role: "ignored"` in a raw
+  file is dropped like any other unrecognised role; it can never appear in a
+  read-back `ImportSourceTable` (R8-D23).
 - **diff DG0 → DG1** — exactly one `changed` node with four `provenance`-tagged
   fields; `provenanceAffecting: true`, `engineAffecting: false`,
   `advisoryAffecting: false`.
@@ -334,10 +376,15 @@ both shapes at once):
   (feeds `nConf`), a target-already-at-proposal noop, and the absent-on-
   both-sides case (no `dataImports` key on the plan at all).
 
-Every digest in the fixture is computed against the SHIPPED projection and
-compared to itself / other computed digests (not hand-typed hex literals) —
-correct by construction rather than requiring a separately-verified pinned
-constant, since the projection is exercised directly in every assertion.
+DG0's and DG1's digests are **PINNED** to literal 64-hex constants (mirroring
+`SEMANTICS-R6.md §R6-4`'s `CG0_DIGEST` / `CG1_DIGEST`) — a comparison against
+only other freshly-computed digests cannot catch a drift in the projection's
+own field ORDER (e.g. an accidental reordering of `MODEL_NODE_FIELDS.parameter`
+or the `dataImports` key table), since a consistent reordering would still
+agree with itself on both sides of every `not.toBe` / `toBe` comparison
+between two computed values. Every other digest in the fixture (DG2-DG6) is
+still compared against DG0's / DG1's PINNED value, or against another
+computed value where no oracle exists yet for that exact shape.
 
 ---
 
@@ -351,15 +398,21 @@ constant, since the projection is exercised directly in every assertion.
    provenance FIELDS on a `parameter` node need **no separate** defensive
    read step of their own beyond `readParameterData` itself (§R8-2.2/2.3 —
    nothing surviving that read is further dropped or repaired here).
-3. **Infer the version** from the result of step 2, by predicate — **CSU
-   checked first** (unchanged from `SEMANTICS-R6.md §R6-5` step 3), **then
-   data-import** (this document, checked independently at the same
-   precedence tier as `frames` and CSU — order among v5/v6/v8 changes only
-   the LABEL when more than one applies simultaneously, never which bytes
-   the shared `{ modelLayer: true }` projection produces):
-   - any `state` edge with a non-default `timing` / any `when` ⇒ v6;
-   - else any `parameter` node carries a provenance key, OR `dataImports`
-     has ≥ 1 surviving entry ⇒ **v8**;
+3. **Infer the version** from the result of step 2, by predicate — **data-import
+   checked FIRST** (highest precedence: this document is the newest
+   extension), **then CSU** (`SEMANTICS-R6.md §R6-5` step 3), **then**
+   `frames` — order among v5/v6/v8 changes only the LABEL when more than one
+   applies simultaneously, never which bytes the shared `{ modelLayer: true }`
+   projection produces, since every v2 … v8 side shares that one projection
+   (§R8-D6):
+   - any `parameter` node carries a provenance key (checked on the side's
+     RAW, pre-normalisation node data — a wrong-typed value that
+     `readParameterData` will go on to drop from the PROJECTION must still be
+     visible to CLASSIFICATION, per §R8-1's presence-not-validity rule), OR
+     `dataImports` contains ≥ 1 entry that at least attempts to be a table
+     record (again checked on the RAW value, before `readDataImports` may
+     drop it entirely) ⇒ **v8**;
+   - else any `state` edge with a non-default `timing` / any `when` ⇒ v6;
    - else `frames` has ≥ 1 surviving entry ⇒ v5;
    - else `loop-model/2` declaration ⇒ v4; else routing ⇒ v3; else
      `loop-revision/2` §R2-1 ⇒ v2; else v1.
@@ -456,7 +509,11 @@ doesn't.
 | **R8-D3** | **No `schema` / `version` bump.** Additive, forward-compatible at the wire level, same posture as every prior `loop-revision/N` (`SEMANTICS-R6.md` R6-D2). |
 | **R8-D4** | **Verbatim, not re-validated**, for both halves — the projection emits whatever is stored (past the "no dataImports"/"no provenance keys" default), including an incoherent partial triple. See §R8-2.3 for why the coherent-pair-or-drop alternative was rejected. |
 | **R8-D5** | **A new tag, `provenance`** — neither `cosmetic` (`frames`) nor `engine` (`timing`/`when`) nor `advisory` (`min`/`max`/`resourceType`). See §R8-3 for the full reasoning against each alternative. |
-| **R8-D6** | The dual predicate (§R8-1) is checked **independently** of `frames` / `loop-model/2` / routing / CSU, at its own precedence tier (below CSU, above `frames`, in the `readRevisionSide` cascade) — this ordering is a labelling convenience only, since every v2 … v8 side shares one projection. |
+| **R8-D6** | The dual predicate (§R8-1) is checked **independently** of `frames` / `loop-model/2` / routing / CSU, at the **highest** precedence tier (above CSU, above `frames`) in the `readRevisionSide` cascade — this ordering is a labelling convenience only, since every v2 … v8 side shares one projection. Checked on the side's RAW pre-normalisation content (not the already-normalised `g.nodes` `readRevisionSide` computes internally, and not the already-cleaned `dataImports` a `deserialize` caller passes in) — see §R8-1 and R8-D20. |
+| **R8-D20** | **Classification reads RAW content; a `deserialize` caller must thread the raw signal through explicitly.** `readParameterData` drops a wrong-typed provenance key, and `readDataImports` drops a malformed table record, before either ever reaches a normalised node / array — correct for the PROJECTION, wrong for CLASSIFICATION (§R8-1's presence-not-validity rule). `readRevisionSide` checks its own raw `graph.nodes` / `graph.dataImports` arguments (not its internally-`normalizeGraph`'d copy) to catch this for a directly-constructed graph; a `deserialize`-fed caller (`revisionIO.ts`) additionally threads a `rawDataImportSignal` boolean that `deserialize` computes from the file's genuinely raw, pre-`normalizeGraph` JSON — the only point at which that shape still exists, since `deserialize`'s own internal normalisation pass has already stripped it by the time its `nodes` / `dataImports` return values exist. |
+| **R8-D21** | **`readDataImports` never mints a replacement id.** A table/column missing or duplicating its `sourceTableId` / `sourceColumnId` is dropped WHOLE (first-occurrence-wins, the same rule already used for a duplicate row `sourceKey`), never given a freshly-minted id. Unlike `readSavedFrames`' `frames` (which DOES mint one), a data-import id is a stable cross-reference a Parameter's generating triple points at — minting a new one on every read would (a) make re-reading the same file twice produce a *different* canonical projection and digest, breaking the basic purity every other `loop-revision/N` reader relies on, and (b) silently sever that Parameter's triple from its table the moment an id happened to collide or go missing. |
+| **R8-D22** | **A row's `number` / `label` / `foreignKey` maps project with keys sorted by `sourceColumnId`**, never the live object's insertion order — two documents whose values are equal but were authored/edited in a different column order must still produce identical canonical bytes and digests. |
+| **R8-D23** | **`ignored` is never a storable `ImportColumnRole`.** It is Phase 1B's own transient preview-selection state (a column the user hasn't assigned a role to yet); `readDataImports` treats it exactly like any other unrecognised role (the column is dropped whole), so it can never appear in GraphDoc wire content — required by §DI-D6 / §R8-8, which this closes a gap against. |
 | **R8-D7** | `loop-workspace/1` is **NOT** bumped (contrast `SEMANTICS-R6.md` R6-D6) — provenance is not a real input to what a run computes; verified directly against `workspace.ts`'s existing field set rather than assumed (§R8-7). |
 | **R8-D8** | The four per-node provenance fields ARE members of `OPTIONAL_PROJECTED_KEYS` from the start (§R8-6.1) — proactively guarding against the exact `SEMANTICS-R6.md` R6-D7 class of bug (a selective "take theirs" that can't delete a field) rather than discovering it in a later review round. |
 | **R8-D9** | The graph-level `dataImports` array gets `frames`' whole-array-hunk treatment (§R8-6); the four per-node fields get the ORDINARY per-field `change`-hunk treatment (§R8-6.1) — the two halves of this extension are diffed by two genuinely different mechanisms, matching their two genuinely different shapes, not forced into one uniform rule. |

@@ -28,15 +28,33 @@ type DataImportStore = {
   snapshot: () => ImportSourceTable[]
 }
 
+/** Deep-clone one table — columns AND rows, including each row's three value
+ *  maps (`number` / `label` / `foreignKey`). A shallow `{...t, columns:
+ *  [...t.columns], rows: [...t.rows]}` still shares the column / row / map
+ *  OBJECTS themselves: a later in-place mutation of one (Phase 1B's own
+ *  future edit path) would silently change every past `snapshot()` already
+ *  captured into an undo-history entry, corrupting Undo. */
+const cloneTable = (t: ImportSourceTable): ImportSourceTable => ({
+  sourceTableId: t.sourceTableId,
+  label: t.label,
+  columns: t.columns.map((c) => ({ ...c })),
+  rows: t.rows.map((r) => ({
+    sourceKey: r.sourceKey,
+    number: { ...r.number },
+    label: { ...r.label },
+    foreignKey: { ...r.foreignKey },
+  })),
+})
+
 export const useDataImportStore = create<DataImportStore>((set, get) => ({
   tables: [],
 
   loadTables: (saved) => {
     const list = Array.isArray(saved) ? saved : []
-    set({ tables: list.map((t) => ({ ...t, columns: [...t.columns], rows: [...t.rows] })) })
+    set({ tables: list.map(cloneTable) })
   },
 
-  snapshot: () => get().tables.map((t) => ({ ...t, columns: [...t.columns], rows: [...t.rows] })),
+  snapshot: () => get().tables.map(cloneTable),
 }))
 
 /** True when at least one data-import source table exists. */
