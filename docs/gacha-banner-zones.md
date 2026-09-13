@@ -600,38 +600,56 @@ never simulation state and never appears in a `sample()` RNG key, GZ3.2):
 |---|---:|---|
 | `pulls_per_zone` | 200 | `N` — the fairness invariant (GZ0/GZ2); every zone's `ticket_<zone>` Pool is funded with exactly this many units |
 
-**Round 4 addition — `pulls_per_zone` must be a safe positive integer
-(`N >= 1`, `Number.isSafeInteger(N)`), and the global `End`'s
-`pulls_made_<zone> >= @pulls_per_zone` contract (GZ3.5) depends on it:**
-- **`N = 0`** funds every `ticket_<zone>` with `0`, so no zone ever pulls and
-  `pulls_made_<zone>` never leaves `0` — but `0 >= 0` is already true AT
-  `pulls_made_<zone>`'s starting value, so the global `End`'s AND-gate would
-  be satisfied from step 1 onward (reading `S[]` from step 0, where every
-  `pulls_made` is already `0`) — a premature-termination case distinct from,
-  but the same FAMILY of bug as, the `ticket_<zone> <= 0` false-positive
-  round 4 already rejected.
-- **A non-integer `N`** (e.g. `200.5`) funds `ticket_<zone>` with a
-  fractional amount; each pull still costs exactly `1` ticket (GZ3.4), so a
-  zone completes `floor(N)` pulls and then idles with an un-spendable
-  fractional remainder — `pulls_made_<zone>` tops out at `floor(N)` and can
-  never reach `N` itself, so `pulls_made_<zone> >= @pulls_per_zone` never
-  becomes true and the global `End` never fires — the exact "climbs forever"
-  symptom round 4 exists to fix, reintroduced through the Parameter's own
-  value rather than the wiring.
-- A negative `N` is nonsensical under the ticket abstraction (GZ3.4) for the
-  same reason a negative budget was never modelled in GS0.
+**Round 4 addition — the ONLY supported contract for `pulls_per_zone` is a
+safe positive integer (`N >= 1`, `Number.isSafeInteger(N)`).** The global
+`End`'s `pulls_made_<zone> >= @pulls_per_zone` gate (GZ3.5) is correct FOR
+that contract; it is not a general-purpose validator, and the engine does
+not itself restrict a Parameter's value to a safe positive integer. The
+Parameter's own label now says so directly — `Pulls per zone (whole
+number)` / `존별 뽑기 횟수(정수)` / `ゾーンごとの抽選回数（整数）` — a light
+in-UI hint, not enforcement (no engine- or common-Inputs-UI-level validation
+is added by this PR; that remains a possible follow-up).
 
-`pulls_per_zone` is an ordinary, user-editable Parameter (Inputs panel) —
-the engine does not itself restrict a Parameter's value to a safe positive
-integer. This is therefore a documented INPUT CONTRACT for this Template,
-not an engine-enforced invariant: the shipped default (`200`) satisfies it,
-and GZ8 gains an explicit acceptance test pinning the contract at a second,
-smaller safe integer (so the test doesn't merely re-confirm the shipped
-default) — but a user who edits the field to `0` or a fraction gets the
-"climbs forever" symptom back, same as before round 4, rather than a guarded
-error. Enforcing the contract in the UI (e.g. a numeric-step/integer
-constraint on this specific Parameter's input) is a possible follow-up, not
-in scope for the termination fix itself.
+Two out-of-contract inputs were traced directly against the engine and are
+pinned as regression tests, but **neither is a supported feature, and
+neither should be described as one in product copy or UX** — both are
+labelled as current DEFENSIVE behavior (i.e. what happens today with no
+engine-level guard against the input, not a designed response to it):
+- **`N = 0`** (out of contract: not `>= 1`) funds every `ticket_<zone>` with
+  `0`, so no zone ever pulls and `pulls_made_<zone>` never leaves `0` — but
+  `0 >= 0` is already true AT `pulls_made_<zone>`'s starting value, so the
+  global `End`'s AND-gate is satisfied from step 1 onward (reading `S[]`
+  from step 0, where every `pulls_made` is already `0`): an immediate
+  false-positive termination.
+- **A non-integer `N`** (out of contract: not a safe integer — e.g. `200.5`)
+  does NOT make a zone idle forever on an un-spendable fractional remainder,
+  contrary to this addendum's own first-draft claim (corrected here after
+  tracing the actual engine directly, rather than reasoning from the
+  ticket-cost abstraction alone). A router's resource pull is satisfied by
+  WHATEVER is available up to its want, not an exact match — the leftover
+  `0.5` ticket still funds one MORE full pull, and `afterPull`'s `+1` books
+  a whole pull regardless of the fractional amount that actually moved. So
+  `pulls_made_<zone>` reaches `ceil(N)`, not `floor(N)` — `200.5` silently
+  becomes **201 real pulls**, and the Template still terminates (at
+  `ceil(N) + 2`), just at a rounded-up pull count the Parameter's displayed
+  value never admits to. **This rounding-up is not a rounding feature to
+  rely on or explain to a user as intentional — it is unguarded behavior for
+  input outside the contract, pinned only so a future change can't silently
+  make it worse without a test noticing.**
+- A negative `N` is nonsensical under the ticket abstraction (GZ3.4) for the
+  same reason a negative budget was never modelled in GS0; not separately
+  pinned by a regression test.
+
+GZ8 gains an explicit acceptance test pinning the SUPPORTED contract at a
+second, smaller safe integer (so the test doesn't merely re-confirm the
+shipped default) — that is the only one of these that counts as a GZ8
+acceptance item. The two out-of-contract cases above are regression-pinned
+separately (clearly labelled as defensive-behavior tests, not acceptance
+criteria) so the wrong first-draft claim about non-integer input can never
+silently creep back in, and so a `0` edit's step-1 false-positive stays a
+known, tracked behavior rather than a rediscovered surprise. Extending
+validation to the general engine or the common Inputs UI is explicitly out
+of scope for this PR.
 
 **Per zone:**
 

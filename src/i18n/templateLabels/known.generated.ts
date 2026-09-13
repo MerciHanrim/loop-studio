@@ -11,6 +11,7 @@
  *  locale (the EN canonical included). */
 export const KNOWN_OFFICIAL_LABELS: Readonly<Record<string, readonly string[]>> = {
   "active_char": ["Active character", "アクティブキャラクター", "활성 캐릭터"],
+  "all_zones_done": ["All zones complete", "全ゾーン完了", "전체 존 완료"],
   "bucket_consumable": ["Consumable drops", "消耗品ドロップ", "소모품 드롭"],
   "bucket_equip": ["Equip drops", "装備ドロップ", "장비 드롭"],
   "bucket_rare": ["Rare drops", "レアドロップ", "희귀 드롭"],
@@ -85,7 +86,7 @@ export const KNOWN_OFFICIAL_LABELS: Readonly<Record<string, readonly string[]>> 
   "pulls_made_free": ["Pulls made", "実施した連数", "뽑기 횟수"],
   "pulls_made_pickup": ["Pulls made", "実施した連数", "뽑기 횟수"],
   "pulls_made_standard": ["Pulls made", "実施した連数", "뽑기 횟수"],
-  "pulls_per_zone": ["Pulls per zone", "ゾーンごとの連数", "존별 뽑기 횟수"],
+  "pulls_per_zone": ["Pulls per zone (whole number)", "ゾーンごとの抽選回数（整数）", "존별 뽑기 횟수(정수)"],
   "quest_payout": ["Quest payout", "クエスト報酬の支払い", "퀘스트 보상 지급"],
   "quest_xp": ["Quest XP", "クエスト経験値", "퀘스트 경험치"],
   "r_burned": ["Consumables burned", "消費した消耗品", "소비한 소모품"],
@@ -134,6 +135,7 @@ export const KNOWN_OFFICIAL_LABELS: Readonly<Record<string, readonly string[]>> 
   "ssr_split_open_pickup": ["SSR split — not owed", "SSR 振り分け — 保証なし", "SSR 분배 — 보장 없음"],
   "standard_count_pickup": ["Standard count", "通常回数", "일반 횟수"],
   "standard_hit_pickup": ["Standard hit", "通常的中", "일반 적중"],
+  "termination_fuel": ["Completion signal", "完了信号", "완료 신호"],
   "ticket_free": ["Tickets", "チケット", "티켓"],
   "ticket_pickup": ["Tickets", "チケット", "티켓"],
   "ticket_standard": ["Tickets", "チケット", "티켓"],

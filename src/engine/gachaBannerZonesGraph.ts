@@ -71,11 +71,11 @@ export const HARD_PITY_PICKUP = 80
 
 const XY = { x: 0, y: 0 }
 
-const pool = (id: string, label: string, initial = 0): LoopNode => ({
+const pool = (id: string, label: string, initial = 0, capacity: number | null = null): LoopNode => ({
   id,
   type: 'pool',
   position: XY,
-  data: { kind: 'pool', label, activation: 'passive', initial, capacity: null, mode: 'pullAny' },
+  data: { kind: 'pool', label, activation: 'passive', initial, capacity, mode: 'pullAny' },
 })
 
 const source = (id: string, label: string): LoopNode => ({
@@ -83,6 +83,13 @@ const source = (id: string, label: string): LoopNode => ({
   type: 'source',
   position: XY,
   data: { kind: 'source', label, activation: 'onStart', mode: 'pushAny' },
+})
+
+const end = (id: string, label: string): LoopNode => ({
+  id,
+  type: 'end',
+  position: XY,
+  data: { kind: 'end', label, activation: 'automatic' },
 })
 
 const gate = (
@@ -398,9 +405,13 @@ function buildPickupRoll(ctx: {
 
 /** GZ6 — the one Parameter shared read-only by all three zones' funding edges.
  *  Left unprefixed (implementation note 3) — it already sorts first in the
- *  Inputs panel ahead of every `zoneN_...` id. */
+ *  Inputs panel ahead of every `zoneN_...` id. Label carries "(whole number)"
+ *  (GZ6 round 4, after review) — the engine does not itself validate a
+ *  Parameter's value, and the global End's termination contract (GZ3.5)
+ *  only holds for a safe positive integer; this is a light in-UI hint, not
+ *  enforcement (no engine or common Inputs-UI validation added here). */
 export function buildSharedParameter(): LoopNode {
-  return parameter('pulls_per_zone', 'Pulls per zone', PULLS_PER_ZONE)
+  return parameter('pulls_per_zone', 'Pulls per zone (whole number)', PULLS_PER_ZONE)
 }
 
 /** GZ7.2 — the single-run display Registers, NOT Monte Carlo tracked. These
@@ -445,7 +456,51 @@ export function buildComparisonRegisters(): LoopNode[] {
   ]
 }
 
-/** The full graph: all three zones + the shared Parameter + comparison Registers. */
+/** GZ3.5 round 4 — the global `End`'s ids, exported so the engine fixture
+ *  test can address them directly (mirrors `TRACKED_POOLS` / `paramId`). */
+export const TERMINATION_FUEL_ID = 'termination_fuel'
+export const GLOBAL_END_ID = 'all_zones_done'
+
+/**
+ * GZ3.5 round 4 — exactly ONE global `End`, gated by all three zones having
+ * actually produced `pulls_per_zone` results (`pulls_made_<zone> >=
+ * @pulls_per_zone`, AND-combined directly on the `End` node — multiple
+ * activators on one target already AND together, GZ4/GZ5's same mechanism,
+ * no new engine capability). `pulls_made` is used rather than
+ * `ticket_<zone> <= 0` for two reasons verified directly against `step.ts`
+ * before this was written (see the design doc's GZ3.5/GZ-D8): ticket-
+ * emptiness is ALSO true before step 1 ever funds anything (an immediate
+ * false-positive), and `pulls_made` is the more precise completion signal
+ * regardless (a zone actually PRODUCED its `N` results, not merely spent its
+ * funding).
+ *
+ * The `End` pulls from `termination_fuel`, a STANDING Pool (`initial: 1,
+ * capacity: 1`, fed and drained by nothing else in the graph) — never a live
+ * pulse. Its balance has been committed since step 1, long before the
+ * AND-gate can ever open, so there is no same-step Pool arrival for the
+ * lag rule (`availOf` reads `S[]`, the previous step's committed value) to
+ * apply to — the exact `Source -> Pool -> End` relay lag (and the
+ * `Source -> End` "push to a non-Pool" hard block) the design doc's GZ-D8
+ * checked directly against `step.ts` and rejected.
+ *
+ * Both `termination_fuel` and the `End` are pure termination plumbing —
+ * excluded from `TRACKED_POOLS`, `DEFAULT_TIMELINE_SERIES`, and (being
+ * neither a Parameter nor a Register) the Inputs/Summary panels.
+ */
+function buildGlobalTermination(zones: ZoneKey[]): { nodes: LoopNode[]; edges: LoopEdge[] } {
+  const nodes: LoopNode[] = [
+    pool(TERMINATION_FUEL_ID, 'Completion signal', 1, 1),
+    end(GLOBAL_END_ID, 'All zones complete'),
+  ]
+  const edges: LoopEdge[] = [res('e_termination_fuel', TERMINATION_FUEL_ID, GLOBAL_END_ID, 'all')]
+  for (const zone of zones) {
+    edges.push(act(`e_termination_gate_${zone}`, `pulls_made_${zone}`, GLOBAL_END_ID, '>= @pulls_per_zone'))
+  }
+  return { nodes, edges }
+}
+
+/** The full graph: all three zones + the shared Parameter + comparison
+ *  Registers + the global termination structure (GZ3.5 round 4). */
 export function buildGachaBannerZonesGraph(): { nodes: LoopNode[]; edges: LoopEdge[] } {
   const zones: ZoneKey[] = ['free', 'standard', 'pickup']
   const nodes: LoopNode[] = [buildSharedParameter(), ...buildComparisonRegisters()]
@@ -455,6 +510,9 @@ export function buildGachaBannerZonesGraph(): { nodes: LoopNode[]; edges: LoopEd
     nodes.push(...built.nodes)
     edges.push(...built.edges)
   }
+  const termination = buildGlobalTermination(zones)
+  nodes.push(...termination.nodes)
+  edges.push(...termination.edges)
   return { nodes, edges }
 }
 

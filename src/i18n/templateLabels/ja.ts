@@ -153,7 +153,7 @@ export const ja: TemplateLabelDict = {
   // src/engine/gachaBannerZonesGraph.ts's builder (also `examples/
   // gacha-banner-zones.json`); `check:template-labels` fails if this drifts.
   'gacha-banner-zones': {
-    pulls_per_zone: 'ゾーンごとの連数',
+    pulls_per_zone: 'ゾーンごとの抽選回数（整数）',
     cmp1_hit_rate_free: '排出率 — 無料',
     cmp2_hit_rate_standard: '排出率 — プレミアム恒常',
     cmp3_hit_rate_pickup: '排出率 — プレミアムピックアップ',
@@ -214,6 +214,8 @@ export const ja: TemplateLabelDict = {
     r_hit_pickup: 'R 結果',
     pickup_count_pickup: 'ピックアップ回数',
     standard_count_pickup: '通常回数',
+    termination_fuel: '完了信号',
+    all_zones_done: '全ゾーン完了',
   },
 }
 

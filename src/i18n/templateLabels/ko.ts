@@ -161,7 +161,7 @@ export const ko: TemplateLabelDict = {
   // src/engine/gachaBannerZonesGraph.ts's builder (also `examples/
   // gacha-banner-zones.json`); `check:template-labels` fails if this drifts.
   'gacha-banner-zones': {
-    pulls_per_zone: '존별 뽑기 횟수',
+    pulls_per_zone: '존별 뽑기 횟수(정수)',
     cmp1_hit_rate_free: '적중률 — 일반(무료)',
     cmp2_hit_rate_standard: '적중률 — 프리미엄 상시',
     cmp3_hit_rate_pickup: '적중률 — 프리미엄 픽업',
@@ -222,6 +222,8 @@ export const ko: TemplateLabelDict = {
     r_hit_pickup: 'R 결과',
     pickup_count_pickup: '픽업 횟수',
     standard_count_pickup: '일반 횟수',
+    termination_fuel: '완료 신호',
+    all_zones_done: '전체 존 완료',
   },
 }
 
