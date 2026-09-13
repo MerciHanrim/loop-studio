@@ -160,8 +160,26 @@ export const TEMPLATES: Template[] = [
     // frame the comparison row + the Free zone instead — the headline numbers
     // for all 3 zones plus one fully-legible zone to read the roll/count
     // pattern from, Standard/Pickup one pan to the right away, mirroring the
-    // MMO precedent's own "rest is a pan away" framing. Fixed graph coords
-    // (comparison row 0-1550 + Free zone 0-950x190-670), no locale branch.
-    initialView: { rect: { x: 0, y: 0, width: 1620, height: 740 }, minZoom: 0.6 },
+    // MMO precedent's own "rest is a pan away" framing.
+    //
+    // Recalibrated (Hanrim/Lumi review after PR #198's comparison-frame
+    // fixes): the rect below was sized against an EARLIER, narrower
+    // comparison-row width. Once the frame-clipping fix (footprint sizing)
+    // and the termination-plumbing strip landed, the real comparison row
+    // grew to 1720 graph units wide and the Free zone frame to y:[0,810] —
+    // the stale `width: 1620` rect no longer covered the row's true width,
+    // so the 5th comparison card could render OUTSIDE the intended crop at
+    // 1280×720 (a real regression, caught by a fresh-page, no-fitView e2e
+    // test — an earlier interactive-browser zoom reading of 1.2 that seemed
+    // to clear this had been a stale leftover viewport in that tab, not a
+    // genuine fresh measurement). Rect now matches the CURRENT comparison
+    // row + Free zone bbox exactly (1720×810) plus a small margin; `minZoom`
+    // lowered from 0.6 to 0.45 (the same L1 readability floor MMO's own
+    // initialView is tuned against) specifically so the floor never again
+    // silently overrides the width-driven natural fit and reintroduces this
+    // exact class of overflow if the layout shifts slightly in the future.
+    // Fixed graph coords, no locale branch (comparison row 0-1720 + Free
+    // zone 0-950 x 0-810).
+    initialView: { rect: { x: 0, y: 0, width: 1760, height: 850 }, minZoom: 0.45 },
   },
 ]

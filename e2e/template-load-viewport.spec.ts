@@ -223,6 +223,99 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
     expect(afterUndo, 'undo skips past the gacha framing').not.toEqual(GACHA.nodes.map((n) => n.id).sort())
   })
 
+  // Review (Hanrim/Lumi, after PR #198): the comparison frame is 1720 graph
+  // units wide (5-card row); at 1280px the algebra (`applyInitialView` in
+  // Canvas.tsx) cannot land at zoom 1.2 while showing the whole row — an
+  // earlier interactive-browser reading of 1.2 was almost certainly a stale
+  // viewport left over in that tab, not a fresh measurement. This is the
+  // real regression test: a FRESH page at each exact viewport size, the
+  // Template opened for the FIRST time (no fitView, no manual setViewport),
+  // full DOM-bounds containment of all 5 comparison cards + a Free-zone node
+  // inside the CANVAS PANE itself (not just "overlaps" like `nodeOnScreen`),
+  // in EN/KO/JA, with the actual applied zoom logged via the same
+  // `__loop.canvas.lastInitialView()` debug hook Canvas.tsx exposes — no
+  // re-deriving it from a possibly-stale `getViewport()` read.
+  test.describe('gacha initial-load viewport containment (post-#198 review)', () => {
+    const CARD_IDS = [
+      'pulls_per_zone',
+      'cmp1_hit_rate_free',
+      'cmp2_hit_rate_standard',
+      'cmp3_hit_rate_pickup',
+      'cmp4_pickup_rate_pickup',
+    ]
+    const FREE_ZONE_NODE = 'roll_gate_free'
+
+    type LastInitialView = { insetR: number; insetB: number; zoom: number } | null
+    const lastInitialView = (page: Page) =>
+      page.evaluate(
+        () => (window as unknown as { __loop: { canvas: { lastInitialView: () => LastInitialView } } }).__loop.canvas.lastInitialView(),
+      )
+
+    /** fully inside the `.react-flow` PANE's own box, not just overlapping it —
+     *  stricter than `nodeOnScreen` above, matching "완전히 포함" (fully
+     *  contained), not merely "visible at all". */
+    const fullyContained = (page: Page, id: string) =>
+      page.evaluate((nid) => {
+        const pane = document.querySelector('.react-flow')
+        const el = document.querySelector(`.react-flow__node[data-id="${nid}"]`)
+        if (!pane || !el) return { found: false }
+        const p = pane.getBoundingClientRect()
+        const r = el.getBoundingClientRect()
+        const TOL = 0.5
+        return {
+          found: true,
+          left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+          paneLeft: p.left, paneTop: p.top, paneRight: p.right, paneBottom: p.bottom,
+          contained: r.left >= p.left - TOL && r.right <= p.right + TOL && r.top >= p.top - TOL && r.bottom <= p.bottom + TOL,
+        }
+      }, id)
+
+    for (const size of [
+      { width: 1280, height: 720 },
+      { width: 1600, height: 900 },
+    ]) {
+      test(`fresh open at ${size.width}×${size.height}: all 5 comparison cards + a Free-zone node fully on canvas, in EN/KO/JA, no fitView/manual camera`, async ({
+        browser,
+      }) => {
+        const page = await browser.newPage({ viewport: size })
+        try {
+          await openApp(page)
+          await resetAll(page)
+          await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
+
+          const iv = await lastInitialView(page)
+          // eslint-disable-next-line no-console
+          console.log(`[initial-load ${size.width}x${size.height}] lastInitialView =`, JSON.stringify(iv))
+          expect(iv, `no initialView was applied at ${size.width}x${size.height}`).not.toBeNull()
+          expect(iv!.zoom, `zoom too small to read labels at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(0.45)
+
+          for (const locale of ['en', 'ko', 'ja']) {
+            if (locale !== 'en') {
+              await page.evaluate(
+                (c) => (window as unknown as { __loop: Loop }).__loop.i18n.getState().setLocale(c),
+                locale,
+              )
+              await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(locale)
+            }
+            for (const id of [...CARD_IDS, FREE_ZONE_NODE]) {
+              const r = await fullyContained(page, id)
+              expect(r.found, `[${locale}] node "${id}" not found in the DOM`).toBe(true)
+              expect(
+                r.contained,
+                `[${locale}] node "${id}" escapes the canvas pane at ${size.width}x${size.height} ` +
+                  `(node ${JSON.stringify({ left: r.left, top: r.top, right: r.right, bottom: r.bottom })}, ` +
+                  `pane ${JSON.stringify({ left: r.paneLeft, top: r.paneTop, right: r.paneRight, bottom: r.paneBottom })}, ` +
+                  `zoom ${iv!.zoom})`,
+              ).toBe(true)
+            }
+          }
+        } finally {
+          await page.close()
+        }
+      })
+    }
+  })
+
   test('desktop: a language change after a menu open never moves the camera (§MML3)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
