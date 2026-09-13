@@ -192,4 +192,54 @@ test.describe('Canvas edit-lock', () => {
     expect(rt.afterImport).toBe(true)
     expect(rt.afterShare).toBe(true)
   })
+
+  // A plain refresh or a PWA update-and-reload must never silently drop the
+  // edit-safety lock — the whole point of "locked" is to guard against an
+  // accidental edit, and a reload the user didn't explicitly ask to make is
+  // exactly the kind of moment that guard needs to survive.
+  test('canvasLocked survives a plain reload, in both directions', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, true)
+    expect(await locked(page)).toBe(true)
+
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    expect(await locked(page)).toBe(true)
+
+    // unlock, reload again — the unlocked state must ALSO survive
+    await lockBtn(page).click()
+    expect(await locked(page)).toBe(false)
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    expect(await locked(page)).toBe(false)
+  })
+
+  test('a fresh document load always re-seeds canvasLocked, even over a persisted reload', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await seed(page, true)
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    expect(await locked(page)).toBe(true) // restored from the reload, per above
+
+    // loading a document with NO canvasLocked field must unlock — an explicit
+    // document/Template load always wins over whatever was persisted from a
+    // previous session; persistence is only a fallback for a plain reload of
+    // the SAME session, never a sticky override of a fresh load.
+    await seed(page) // no field ⇒ applyRecommended({})
+    expect(await locked(page)).toBe(false)
+
+    // and the other direction: an unlocked persisted state doesn't prevent a
+    // freshly-opened locked document from locking.
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+    expect(await locked(page)).toBe(false)
+    await seed(page, true)
+    expect(await locked(page)).toBe(true)
+  })
 })

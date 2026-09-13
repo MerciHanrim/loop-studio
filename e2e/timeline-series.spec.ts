@@ -168,7 +168,7 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     await expect(page.locator('.timeline__legend .timeline__key--more')).toHaveCount(0)
   })
 
-  test('reload restores ONLY timelineSeries — canvasLocked and the MC config are not re-applied', async ({ page }) => {
+  test('reload restores timelineSeries AND canvasLocked; the MC config is not re-applied', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page, ['p1'])
@@ -186,9 +186,11 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
 
     // timelineSeries came back…
     expect(await seriesState(page)).toEqual(['p1'])
-    // …but canvasLocked did NOT (unchanged behaviour — autosave never carried it)
-    expect(await page.evaluate(() => (window as any).__loop.ui.getState().canvasLocked)).toBe(false)
-    // …and the MC config is back to its defaults, not the values above
+    // …canvasLocked ALSO came back (its own dedicated localStorage key, never
+    // the GraphDoc autosave record — a reload the user didn't ask for must not
+    // silently drop an edit-safety lock)…
+    expect(await page.evaluate(() => (window as any).__loop.ui.getState().canvasLocked)).toBe(true)
+    // …but the MC config is back to its defaults, not the values above
     const cfg = await page.evaluate(() => ({ ...(window as any).__loop.mc.getState().config }))
     expect(cfg.baseSeed).not.toBe(123)
     expect(cfg.runs).not.toBe(777)

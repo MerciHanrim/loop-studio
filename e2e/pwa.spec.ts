@@ -272,6 +272,33 @@ test('Update ⇒ one reload, new generation only, no stale hashed URLs, stamp ma
   await expect(stamp(page)).toHaveText(/pwagenC/) // the served shell is generation C
 })
 
+// docs/mobile.md §MV3a / the Canvas edit-lock (uiStore.canvasLocked) is a
+// safety guard against accidental edits — it must not be silently dropped by
+// a reload the user didn't ask to make, an update-and-reload included. No
+// `window.__loop` bridge in this prod build, so this drives the real Templates
+// menu + the real Update button, not a store call.
+test('applying a waiting update keeps a locked Template locked after reload', async ({ page }) => {
+  await setGen(page, 'a')
+  await installAndControl(page)
+
+  await page.getByRole('button', { name: 'Templates ▾' }).click()
+  await page.getByRole('menuitem', { name: /Early MMO progression/ }).click()
+  const replaceDlg = page.locator('.mcdlg--confirm')
+  await expect(replaceDlg).toBeVisible()
+  await replaceDlg.getByRole('button', { name: 'Load template' }).click()
+  await expect(page.locator('.canvas.canvas--locked')).toBeVisible() // examples/mmo-progression.json ships canvasLocked: true
+
+  await stageUpdate(page, 'b')
+  await expect(page.locator('.pwa-update')).toBeVisible()
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.locator('.pwa-update button', { hasText: 'Update' }).click(),
+  ])
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+
+  await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
+})
+
 test('Update with a run in progress asks once more; cancel keeps the run and does not reload', async ({
   page,
 }) => {
