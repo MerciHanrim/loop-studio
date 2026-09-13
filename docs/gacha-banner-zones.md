@@ -610,14 +610,20 @@ never simulation state and never appears in a `sample()` RNG key, GZ3.2):
   `pulls_made` is already `0`) — a premature-termination case distinct from,
   but the same FAMILY of bug as, the `ticket_<zone> <= 0` false-positive
   round 4 already rejected.
-- **A non-integer `N`** (e.g. `200.5`) funds `ticket_<zone>` with a
-  fractional amount; each pull still costs exactly `1` ticket (GZ3.4), so a
-  zone completes `floor(N)` pulls and then idles with an un-spendable
-  fractional remainder — `pulls_made_<zone>` tops out at `floor(N)` and can
-  never reach `N` itself, so `pulls_made_<zone> >= @pulls_per_zone` never
-  becomes true and the global `End` never fires — the exact "climbs forever"
-  symptom round 4 exists to fix, reintroduced through the Parameter's own
-  value rather than the wiring.
+- **A non-integer `N`** (e.g. `200.5`) does NOT make a zone idle forever on
+  an un-spendable fractional remainder — **this was this addendum's own
+  first-draft claim, and it is wrong; corrected here after tracing the
+  actual engine directly rather than reasoning from the ticket-cost
+  abstraction alone.** A router's resource pull is satisfied by WHATEVER is
+  available up to its want, not an exact match — the leftover `0.5` ticket
+  still funds one MORE full pull, and `afterPull`'s `+1` books a whole pull
+  regardless of the fractional amount that actually moved. So
+  `pulls_made_<zone>` reaches `ceil(N)`, not `floor(N)` — `200.5` silently
+  becomes **201 real pulls**, and the Template still terminates (at
+  `ceil(N) + 2`), just at a rounded-up pull count the Parameter's displayed
+  value never admits to. The real failure mode is a silently WRONG trial
+  count, not a hang — still a reason `N` must be a safe integer, just not
+  the reason first assumed.
 - A negative `N` is nonsensical under the ticket abstraction (GZ3.4) for the
   same reason a negative budget was never modelled in GS0.
 
@@ -627,11 +633,13 @@ integer. This is therefore a documented INPUT CONTRACT for this Template,
 not an engine-enforced invariant: the shipped default (`200`) satisfies it,
 and GZ8 gains an explicit acceptance test pinning the contract at a second,
 smaller safe integer (so the test doesn't merely re-confirm the shipped
-default) — but a user who edits the field to `0` or a fraction gets the
-"climbs forever" symptom back, same as before round 4, rather than a guarded
-error. Enforcing the contract in the UI (e.g. a numeric-step/integer
-constraint on this specific Parameter's input) is a possible follow-up, not
-in scope for the termination fix itself.
+default), plus a regression test pinning the corrected `ceil(N)` behaviour
+directly (so the wrong first-draft claim can never silently creep back) —
+but a user who edits the field to `0` gets the step-1 false-positive back,
+and a fractional edit gets a silently rounded-up trial count, neither
+guarded against by the engine itself. Enforcing the contract in the UI
+(e.g. a numeric-step/integer constraint on this specific Parameter's input)
+is a possible follow-up, not in scope for the termination fix itself.
 
 **Per zone:**
 

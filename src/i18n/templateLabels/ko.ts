@@ -222,6 +222,8 @@ export const ko: TemplateLabelDict = {
     r_hit_pickup: 'R 결과',
     pickup_count_pickup: '픽업 횟수',
     standard_count_pickup: '일반 횟수',
+    termination_fuel: '완료 신호',
+    all_zones_done: '전체 존 완료',
   },
 }
 

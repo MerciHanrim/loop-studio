@@ -188,7 +188,7 @@ const frames: SavedFrame[] = [
   { id: 'zone_pickup', label: ZONE_TITLE.pickup, rect: bbox(idsByZone('pickup')), color: 'rose' },
 ]
 
-const STEPS = PULLS_PER_ZONE + 1 // GZ3.5, exact
+const STEPS = PULLS_PER_ZONE + 2 // GZ3.5 round 4 — the global End's own horizon, exact
 const recommendedRunConfig: RecommendedRunConfig = {
   baseSeed: 1,
   runs: 2000,

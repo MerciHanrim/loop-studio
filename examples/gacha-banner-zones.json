@@ -903,6 +903,35 @@
         "capacity": null,
         "mode": "pullAny"
       }
+    },
+    {
+      "id": "termination_fuel",
+      "type": "pool",
+      "position": {
+        "x": 1740,
+        "y": 0
+      },
+      "data": {
+        "kind": "pool",
+        "label": "Completion signal",
+        "activation": "passive",
+        "initial": 1,
+        "capacity": 1,
+        "mode": "pullAny"
+      }
+    },
+    {
+      "id": "all_zones_done",
+      "type": "end",
+      "position": {
+        "x": 2080,
+        "y": 0
+      },
+      "data": {
+        "kind": "end",
+        "label": "All zones complete",
+        "activation": "automatic"
+      }
     }
   ],
   "edges": [
@@ -1869,12 +1898,63 @@
         "timing": "afterPull",
         "when": "source-fired"
       }
+    },
+    {
+      "id": "e_termination_fuel",
+      "source": "termination_fuel",
+      "target": "all_zones_done",
+      "sourceHandle": "out",
+      "targetHandle": "in",
+      "type": "loop",
+      "data": {
+        "kind": "resource",
+        "flow": "all"
+      }
+    },
+    {
+      "id": "e_termination_gate_free",
+      "source": "pulls_made_free",
+      "target": "all_zones_done",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @pulls_per_zone"
+      }
+    },
+    {
+      "id": "e_termination_gate_standard",
+      "source": "pulls_made_standard",
+      "target": "all_zones_done",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @pulls_per_zone"
+      }
+    },
+    {
+      "id": "e_termination_gate_pickup",
+      "source": "pulls_made_pickup",
+      "target": "all_zones_done",
+      "sourceHandle": "state-source",
+      "targetHandle": "state-target",
+      "type": "loop",
+      "data": {
+        "kind": "state",
+        "mode": "activator",
+        "expr": ">= @pulls_per_zone"
+      }
     }
   ],
   "recommendedRunConfig": {
     "baseSeed": 1,
     "runs": 2000,
-    "steps": 201,
+    "steps": 202,
     "tracked": [
       "pulls_made_free",
       "ssr_count_free",
@@ -1902,7 +1982,7 @@
       "rect": {
         "x": 0,
         "y": 0,
-        "w": 1550,
+        "w": 2230,
         "h": 120
       }
     },

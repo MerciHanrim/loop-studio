@@ -10,10 +10,11 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // test that the bundled Template actually opens, runs, and localizes
 // correctly through the real UI, not a re-proof of GZ8's properties.
 //
-// Unlike every other bundled example, this Template has NO `End` node
-// (GZ3.5) — it never reaches `status === 'ended'`. Any "run to completion"
-// helper must therefore step exactly `pulls_per_zone + 1` times, not loop
-// until ended.
+// GZ3.5 round 4: exactly ONE global `End`, gated by all three zones having
+// actually produced `pulls_per_zone` results. Pulls occupy steps
+// `2..pulls_per_zone+1`; the End's own AND-gate reads the PREVIOUS step's
+// committed state, so it can only fire at `pulls_per_zone + 2` — one step
+// after the last real pull, never earlier.
 
 const DOC = JSON.parse(
   readFileSync(new URL('../examples/gacha-banner-zones.json', import.meta.url), 'utf8'),
@@ -33,7 +34,8 @@ const DOC = JSON.parse(
 const EN_NAME = '3-zone gacha banner comparison'
 const KO_NAME = '3존 가챠 배너 비교'
 const JA_NAME = '3ゾーン ガチャバナー比較'
-const HORIZON = DOC.recommendedRunConfig.steps // pulls_per_zone + 1, GZ3.5
+const END_STEP = DOC.recommendedRunConfig.steps // pulls_per_zone + 2, GZ3.5 round 4
+const PULL_HORIZON = END_STEP - 1 // pulls_per_zone + 1 — the last step any pull occurs
 
 type Loop = Record<string, { getState: () => any }>
 
@@ -61,10 +63,12 @@ async function pickDesktopTemplate(page: Page, name: string) {
     .click()
 }
 
-/** Step the live sim exactly `n` times (never "until ended" — GZ3.5, this
- *  Template has no End node) and return the terminal values. Caller must
- *  emulate reduced motion first so each `stepOnce()` settles synchronously
- *  (§PB9) — otherwise most of a tight-loop `n` calls are dropped mid-transition. */
+/** Step the live sim exactly `n` times (a fixed count, not "until ended" —
+ *  lets a caller probe the exact step BEFORE the global End fires as easily
+ *  as the step it fires on, GZ3.5 round 4) and return the terminal values.
+ *  Caller must emulate reduced motion first so each `stepOnce()` settles
+ *  synchronously (§PB9) — otherwise most of a tight-loop `n` calls are
+ *  dropped mid-transition. */
 const runExactSteps = (page: Page, seed: number, n: number) =>
   page.evaluate(
     ({ seed, n }) => {
@@ -119,17 +123,17 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect(gachaIdx).toBeGreaterThan(mmoIdx)
   })
 
-  test('runs exactly pulls_per_zone + 1 steps with no End: never reaches "ended", conserves per zone', async ({
-    page,
-  }) => {
+  test('runs exactly pulls_per_zone + 1 pull-steps, not yet ended: conserves per zone', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await pickDesktopTemplate(page, EN_NAME)
     await page.emulateMedia({ reducedMotion: 'reduce' }) // each Step settles synchronously
 
-    const r = await runExactSteps(page, 1, HORIZON)
-    expect(r.status).not.toBe('ended') // GZ3.5 — no End node anywhere in this Template
-    expect(r.stepIndex).toBe(HORIZON)
+    const r = await runExactSteps(page, 1, PULL_HORIZON)
+    // the End's AND-gate reads the PREVIOUS step's committed pulls_made, so
+    // it cannot yet observe this step's own completion (GZ3.5 round 4).
+    expect(r.status).not.toBe('ended')
+    expect(r.stepIndex).toBe(PULL_HORIZON)
 
     for (const zone of ['free', 'standard', 'pickup']) {
       const ssr = r.values[`ssr_count_${zone}`] ?? 0
@@ -141,19 +145,75 @@ test.describe('3-zone gacha banner comparison Template', () => {
     expect((r.values.pickup_count_pickup ?? 0) + (r.values.standard_count_pickup ?? 0)).toBe(
       r.values.ssr_count_pickup,
     )
+  })
 
-    // stepping further changes nothing (GZ3.5 / GZ8 item 3)
+  test('ended becomes true at exactly pulls_per_zone + 2; Play auto-stops there; no further step changes anything', async ({
+    page,
+  }) => {
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    const r = await runExactSteps(page, 1, END_STEP)
+    expect(r.status).toBe('ended')
+    expect(r.stepIndex).toBe(END_STEP)
+    const pullsPerZone = END_STEP - 2 // GZ3.5 round 4: End's horizon is pulls_per_zone + 2
+    for (const zone of ['free', 'standard', 'pickup']) {
+      // the End firing moves no zone resource — pulls_made is UNCHANGED from
+      // the pull horizon (pulls_per_zone + 1), still exactly pulls_per_zone.
+      expect(r.values[`pulls_made_${zone}`]).toBe(pullsPerZone)
+    }
+
+    // stepping further (manually) changes nothing — the store's own
+    // beginTransition() short-circuits once status is 'ended'.
     const after = await page.evaluate(() => {
       const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
       s.stepOnce()
       s.stepOnce()
-      return { values: s.values as Record<string, number>, status: s.status }
+      return { values: s.values as Record<string, number>, status: s.status, stepIndex: s.stepIndex }
     })
-    expect(after.status).not.toBe('ended')
+    expect(after.status).toBe('ended')
+    expect(after.stepIndex).toBe(END_STEP) // stepOnce() was a no-op past ended
     expect(after.values).toEqual(r.values)
+
+    // Play auto-stops at the same point, through the real UI control — not
+    // just the direct stepOnce() calls above. Crank the beat speed WAY up
+    // (bypassing the UI slider's own 120ms floor, purely for test speed —
+    // reduced motion alone doesn't change how often Play triggers the next
+    // beat) so `END_STEP` beats settle in a few seconds, not minutes.
+    await page.evaluate((seed) => {
+      const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
+      s.setSpeed(20)
+      s.setSeed(seed)
+      s.reset()
+      s.play()
+    }, 1)
+    // `status` is `'idle' | 'running' | 'paused' | 'ended'` — polling for
+    // 'ended' here already proves Play stopped itself (mutually exclusive
+    // with 'running'), not merely that it will eventually get there.
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().status), {
+        timeout: 20_000,
+      })
+      .toBe('ended')
+    const played = await page.evaluate(() => (window as unknown as { __loop: Loop }).__loop.sim.getState().stepIndex)
+    expect(played).toBe(END_STEP)
+
+    // give the (now-stopped) Play loop a beat to prove it stays stopped,
+    // rather than ticking again right after the poll observed 'ended'.
+    await page.waitForTimeout(300)
+    const stillEnded = await page.evaluate(() => {
+      const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
+      return { status: s.status, stepIndex: s.stepIndex }
+    })
+    expect(stillEnded.status).toBe('ended')
+    expect(stillEnded.stepIndex).toBe(END_STEP)
   })
 
-  test('Monte Carlo completes and reports every tracked Pool, ended never true across any run', async ({ page }) => {
+  test('Monte Carlo completes, reports every tracked Pool, and every run ends at exactly pulls_per_zone + 2', async ({
+    page,
+  }) => {
     await openApp(page)
     await resetAll(page)
     await pickDesktopTemplate(page, EN_NAME)
@@ -176,8 +236,16 @@ test.describe('3-zone gacha banner comparison Template', () => {
       [...DOC.recommendedRunConfig.tracked].sort(),
     )
     expect(result.completedRuns).toBe(DOC.recommendedRunConfig.runs)
-    // GZ3.5 — no run of any seed ever reaches an End
-    expect(result.endedRuns.atOrBeforeStep.every((n: number) => n === 0)).toBe(true)
+    // GZ3.5 round 4 — `endedRuns.atOrBeforeStep[t]` is the CUMULATIVE count
+    // of runs ended at-or-before step `t` (length steps+1, monotone
+    // non-decreasing). Every run reaches the global End at EXACTLY
+    // pulls_per_zone + 2, no seed early or late: the cumulative count is 0
+    // for every step before that, and jumps straight to every run at that
+    // exact step.
+    const cum: number[] = result.endedRuns.atOrBeforeStep
+    for (let t = 0; t < cum.length; t++) {
+      expect(cum[t]).toBe(t < END_STEP ? 0 : DOC.recommendedRunConfig.runs)
+    }
   })
 
   test('KO: the menu item and node labels localize', async ({ page }) => {

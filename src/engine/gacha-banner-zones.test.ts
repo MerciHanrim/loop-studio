@@ -3,9 +3,16 @@
 // graph builder (also used by the example-JSON generator), not a hand-copied
 // second graph — so this test and the shipped Template can never drift apart.
 //
-// GZ3.5's exact horizon: `steps = pulls_per_zone + 1` (verified against
+// GZ3.5's exact pull horizon: `steps = pulls_per_zone + 1` (verified against
 // `step.ts`'s `actOf(n) === 'onStart' && prev.step === 0` — the funding push
 // commits at step 1, so pulls occupy steps `2..pulls_per_zone+1`).
+//
+// GZ3.5 round 4: the global `End`'s own horizon is one step LATER —
+// `pulls_per_zone + 2` — since its AND-gate (`pulls_made_<zone> >=
+// @pulls_per_zone` for all three zones) reads `S[]`, the state as of the
+// START of the step it gates, so the earliest it can observe every zone's
+// `pulls_made` having just reached `pulls_per_zone` (at the end of step
+// `pulls_per_zone + 1`) is the FOLLOWING step.
 
 import { describe, expect, it } from 'vitest'
 import { evaluate } from '../model/expr/evaluate'
@@ -14,9 +21,12 @@ import type { LoopEdge, LoopNode } from '../model/types'
 import type { SimState } from './index'
 import { initSim, step } from './index'
 import {
+  DEFAULT_TIMELINE_SERIES,
+  GLOBAL_END_ID,
   HARD_PITY_PICKUP,
   HARD_PITY_STANDARD,
   PULLS_PER_ZONE,
+  TERMINATION_FUEL_ID,
   TRACKED_POOLS,
   buildComparisonRegisters,
   buildGachaBannerZonesGraph,
@@ -25,7 +35,8 @@ import {
   paramId,
 } from './gachaBannerZonesGraph'
 
-const HORIZON = PULLS_PER_ZONE + 1 // GZ3.5
+const HORIZON = PULLS_PER_ZONE + 1 // GZ3.5 — the pull horizon, unchanged by round 4
+const END_STEP = PULLS_PER_ZONE + 2 // GZ3.5 round 4 — the global End's own horizon
 
 function run(nodes: LoopNode[], edges: LoopEdge[], n: number, seed: number): SimState {
   let st: SimState = initSim(nodes)
@@ -77,36 +88,136 @@ describe('GZ8 item 6 — conservation, per zone', () => {
   })
 })
 
-describe('GZ8 item 3 — the fixed horizon’s exact contract', () => {
-  it('at steps = pulls_per_zone + 1: pulls_made == N, tickets == 0, ended stays false', () => {
+describe('GZ8 item 3 — the fixed horizon’s exact contract (GZ3.5 round 4)', () => {
+  it('at steps = pulls_per_zone + 1: pulls_made == N, tickets == 0, ended still false', () => {
     const { nodes, edges } = fullGraph()
     const st = run(nodes, edges, HORIZON, 1)
     for (const zone of ['free', 'standard', 'pickup']) {
       expect(st.values[`pulls_made_${zone}`]).toBe(PULLS_PER_ZONE)
       expect(st.values[`ticket_${zone}`]).toBe(0)
     }
+    // the AND-gate reads S[] from the START of this step (last step's
+    // pulls_made, not this step's) — it JUST reached pulls_per_zone THIS
+    // step, so the gate cannot observe it satisfied until the NEXT step.
     expect(st.ended).toBe(false)
   })
 
-  it('running additional steps past the horizon changes no value and produces no further event', () => {
+  it.each([1, 2, 3])('seed %i: no premature termination — ended is false at every step 1..pulls_per_zone+1', (seed) => {
+    const { nodes, edges } = fullGraph()
+    let st: SimState = initSim(nodes)
+    for (let i = 0; i < HORIZON; i++) {
+      st = step(nodes, edges, st, seed, 2).state
+      // in particular NOT at step 1 — the ticket_<zone> <= 0 false-positive
+      // round 4 found and rejected would have opened the gate right here,
+      // before a single pull (every ticket Pool starts at initial 0).
+      expect(st.ended).toBe(false)
+    }
+  })
+
+  it.each([1, 2, 3])('seed %i: ended becomes true at exactly pulls_per_zone + 2, not one step earlier or later', (seed) => {
+    const { nodes, edges } = fullGraph()
+    let st: SimState = initSim(nodes)
+    for (let i = 0; i < END_STEP; i++) {
+      st = step(nodes, edges, st, seed, 2).state
+      const expectedEnded = i + 1 === END_STEP // i is 0-indexed; step number is i+1
+      expect(st.ended).toBe(expectedEnded)
+    }
+    expect(st.values[GLOBAL_END_ID]).toBeUndefined() // End is not a Pool value
+    expect(st.values[TERMINATION_FUEL_ID]).toBe(0) // spent doing its one job — `flow: "all"` drains it to fire the End
+  })
+
+  it('the End firing at pulls_per_zone + 2 changes no other value from pulls_per_zone + 1', () => {
     const { nodes, edges } = fullGraph()
     const atHorizon = run(nodes, edges, HORIZON, 1)
-    let st = atHorizon
+    const r = step(nodes, edges, atHorizon, 1, 2) // the one step that fires the End
+    expect(r.state.ended).toBe(true)
+    const { [GLOBAL_END_ID]: _end, [TERMINATION_FUEL_ID]: _fuel, ...restAfter } = r.state.values
+    const { [GLOBAL_END_ID]: _end0, [TERMINATION_FUEL_ID]: _fuel0, ...restBefore } = atHorizon.values
+    expect(restAfter).toEqual(restBefore)
+  })
+
+  it('running additional steps past pulls_per_zone + 2 changes no value and produces no further event', () => {
+    const { nodes, edges } = fullGraph()
+    const atEnd = run(nodes, edges, END_STEP, 1)
+    expect(atEnd.ended).toBe(true)
+    let st = atEnd
     for (let i = 0; i < 5; i++) {
       const r = step(nodes, edges, st, 1, 2)
       st = r.state
       expect(r.report.fired).toEqual([])
-      expect(st.ended).toBe(false)
+      expect(st.ended).toBe(true)
     }
-    expect(st.values).toEqual(atHorizon.values)
+    expect(st.values).toEqual(atEnd.values)
   })
 
-  it('no step of the run ever sets ended (no End node anywhere)', () => {
+  it('Reset and re-run with the same seed reproduces the same termination step and the same results', () => {
+    const seed = 7
+    const a = fullGraph()
+    const b = fullGraph()
+    let stA: SimState = initSim(a.nodes)
+    let stB: SimState = initSim(b.nodes)
+    let endStepA = -1
+    let endStepB = -1
+    for (let i = 1; i <= END_STEP; i++) {
+      stA = step(a.nodes, a.edges, stA, seed, 2).state
+      stB = step(b.nodes, b.edges, stB, seed, 2).state
+      if (stA.ended && endStepA < 0) endStepA = i
+      if (stB.ended && endStepB < 0) endStepB = i
+    }
+    expect(endStepA).toBe(END_STEP)
+    expect(endStepB).toBe(END_STEP)
+    expect(stA.values).toEqual(stB.values)
+  })
+
+  it('N = 0 opens the End’s gate from step 1 (documented contract violation, GZ6 round 4) — pulls_per_zone must be >= 1', () => {
     const { nodes, edges } = fullGraph()
+    ;(nodes.find((n) => n.id === 'pulls_per_zone')!.data as { value: number }).value = 0
+    const st = step(nodes, edges, initSim(nodes), 1, 2).state
+    // pulls_made_<zone> starts at 0, and `0 >= 0` is already true — the
+    // documented false-positive this contract exists to warn against.
+    expect(st.ended).toBe(true)
+  })
+
+  it('a non-integer N silently rounds the real pull count UP to ceil(N), not down (documented contract violation, GZ6 round 4)', () => {
+    // Traced directly against the engine before writing this assertion —
+    // the design doc's FIRST draft of this contract claimed a non-integer N
+    // makes each zone idle on an un-spendable fractional remainder forever
+    // (floor(N) pulls, gate never opens). That claim is WRONG: a router's
+    // resource pull is satisfied by WHATEVER is available up to its want, not
+    // an exact match, so the leftover 0.5 ticket funds one MORE full pull
+    // (afterPull's `+1` books a whole pull regardless of the fractional
+    // amount that actually moved) — `pulls_made` reaches `ceil(N)`, ticket
+    // lands exactly on `0`, and the Template DOES terminate, just at a
+    // silently rounded-up pull count the Parameter's displayed value never
+    // admits to. This is corrected in the design doc alongside this test.
+    const N = 10.5
+    const ceilN = 11
+    const { nodes, edges } = fullGraph()
+    ;(nodes.find((n) => n.id === 'pulls_per_zone')!.data as { value: number }).value = N
     let st: SimState = initSim(nodes)
-    for (let i = 0; i < HORIZON; i++) {
+    for (let i = 1; i <= ceilN + 2; i++) {
       st = step(nodes, edges, st, 1, 2).state
-      expect(st.ended).toBe(false)
+      if (i <= ceilN + 1) expect(st.ended).toBe(false)
+      else expect(st.ended).toBe(true)
+    }
+    for (const zone of ['free', 'standard', 'pickup']) {
+      expect(st.values[`pulls_made_${zone}`]).toBe(ceilN)
+      expect(st.values[`ticket_${zone}`]).toBe(0)
+    }
+  })
+
+  it('the pulls_per_zone contract holds at a second safe positive integer, not just the shipped default (GZ8 item 10)', () => {
+    const N = 5
+    const { nodes, edges } = fullGraph()
+    ;(nodes.find((n) => n.id === 'pulls_per_zone')!.data as { value: number }).value = N
+    let st: SimState = initSim(nodes)
+    for (let i = 1; i <= N + 2; i++) {
+      st = step(nodes, edges, st, 1, 2).state
+      if (i <= N + 1) expect(st.ended).toBe(false)
+      else expect(st.ended).toBe(true)
+    }
+    for (const zone of ['free', 'standard', 'pickup']) {
+      expect(st.values[`pulls_made_${zone}`]).toBe(N)
     }
   })
 })
@@ -525,10 +636,30 @@ describe('GZ8 item 8 — comparison Registers compute correctly, including zero-
 })
 
 describe('GZ8 item 9 — Monte Carlo tracked set stays inside CELL_LIMIT', () => {
-  it('TRACKED_POOLS × (horizon + 1) × a reasonable K stays well under CELL_LIMIT', async () => {
+  it('TRACKED_POOLS × (the real MC steps config + 1) × a reasonable K stays well under CELL_LIMIT', async () => {
+    // GZ3.5 round 4 — Monte Carlo's configured `steps` must be END_STEP
+    // (pulls_per_zone + 2) to match the Template's real completion point,
+    // not the pull horizon alone.
     const { CELL_LIMIT } = await import('./montecarlo')
     const K = 2000
-    const cells = TRACKED_POOLS.length * (HORIZON + 1) * K
+    const cells = TRACKED_POOLS.length * (END_STEP + 1) * K
     expect(cells).toBeLessThan(CELL_LIMIT)
+  })
+})
+
+describe('GZ7.1 round 4 — the global End’s termination plumbing is excluded from every tracked/display set', () => {
+  it('termination_fuel and the global End never appear in TRACKED_POOLS or DEFAULT_TIMELINE_SERIES', () => {
+    expect(TRACKED_POOLS).not.toContain(TERMINATION_FUEL_ID)
+    expect(TRACKED_POOLS).not.toContain(GLOBAL_END_ID)
+    expect(DEFAULT_TIMELINE_SERIES).not.toContain(TERMINATION_FUEL_ID)
+    expect(DEFAULT_TIMELINE_SERIES).not.toContain(GLOBAL_END_ID)
+  })
+
+  it('termination_fuel and the global End are neither a Parameter nor a Register (never in Inputs/Summary)', () => {
+    const { nodes } = fullGraph()
+    const fuel = nodes.find((n) => n.id === TERMINATION_FUEL_ID)!
+    const globalEnd = nodes.find((n) => n.id === GLOBAL_END_ID)!
+    expect(fuel.data.kind).toBe('pool')
+    expect(globalEnd.data.kind).toBe('end')
   })
 })

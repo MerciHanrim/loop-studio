@@ -214,6 +214,8 @@ export const ja: TemplateLabelDict = {
     r_hit_pickup: 'R 結果',
     pickup_count_pickup: 'ピックアップ回数',
     standard_count_pickup: '通常回数',
+    termination_fuel: '完了信号',
+    all_zones_done: '全ゾーン完了',
   },
 }
 
