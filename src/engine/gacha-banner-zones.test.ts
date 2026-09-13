@@ -169,27 +169,55 @@ describe('GZ8 item 3 — the fixed horizon’s exact contract (GZ3.5 round 4)', 
     expect(stA.values).toEqual(stB.values)
   })
 
-  it('N = 0 opens the End’s gate from step 1 (documented contract violation, GZ6 round 4) — pulls_per_zone must be >= 1', () => {
+  it('the pulls_per_zone contract holds at a second safe positive integer, not just the shipped default (GZ8 item 10)', () => {
+    const N = 5
+    const { nodes, edges } = fullGraph()
+    ;(nodes.find((n) => n.id === 'pulls_per_zone')!.data as { value: number }).value = N
+    let st: SimState = initSim(nodes)
+    for (let i = 1; i <= N + 2; i++) {
+      st = step(nodes, edges, st, 1, 2).state
+      if (i <= N + 1) expect(st.ended).toBe(false)
+      else expect(st.ended).toBe(true)
+    }
+    for (const zone of ['free', 'standard', 'pickup']) {
+      expect(st.values[`pulls_made_${zone}`]).toBe(N)
+    }
+  })
+})
+
+// GZ6 round 4 (post-review correction) — `pulls_per_zone` must be a safe
+// positive integer (`N >= 1`); that is the ONLY supported contract, and the
+// Parameter's own label now says so ("(whole number)" / "(정수)" /
+// "（整数）"). These are NOT acceptance tests for a feature — they pin
+// today's DEFENSIVE (i.e. unvalidated, unguarded) behavior for input the
+// engine does not itself reject, purely so a future change can't silently
+// make either case worse without a test noticing. Neither case is something
+// a user should rely on, and this PR does not add engine- or common-Inputs-
+// UI-level validation to prevent either input in the first place.
+describe('GZ6 round 4 — unsupported input, current defensive behavior only (NOT a supported feature)', () => {
+  it('unsupported input — N = 0 opens the End’s gate from step 1', () => {
     const { nodes, edges } = fullGraph()
     ;(nodes.find((n) => n.id === 'pulls_per_zone')!.data as { value: number }).value = 0
     const st = step(nodes, edges, initSim(nodes), 1, 2).state
-    // pulls_made_<zone> starts at 0, and `0 >= 0` is already true — the
-    // documented false-positive this contract exists to warn against.
+    // pulls_made_<zone> starts at 0, and `0 >= 0` is already true — an
+    // immediate false-positive termination for this out-of-contract input.
     expect(st.ended).toBe(true)
   })
 
-  it('a non-integer N silently rounds the real pull count UP to ceil(N), not down (documented contract violation, GZ6 round 4)', () => {
+  it('unsupported input — a non-integer N silently rounds the real pull count UP to ceil(N), not down', () => {
     // Traced directly against the engine before writing this assertion —
-    // the design doc's FIRST draft of this contract claimed a non-integer N
-    // makes each zone idle on an un-spendable fractional remainder forever
-    // (floor(N) pulls, gate never opens). That claim is WRONG: a router's
-    // resource pull is satisfied by WHATEVER is available up to its want, not
-    // an exact match, so the leftover 0.5 ticket funds one MORE full pull
+    // an earlier draft of this note assumed a non-integer N makes each zone
+    // idle on an un-spendable fractional remainder forever (floor(N) pulls,
+    // gate never opens). That assumption was WRONG: a router's resource pull
+    // is satisfied by WHATEVER is available up to its want, not an exact
+    // match, so the leftover 0.5 ticket funds one MORE full pull
     // (afterPull's `+1` books a whole pull regardless of the fractional
     // amount that actually moved) — `pulls_made` reaches `ceil(N)`, ticket
-    // lands exactly on `0`, and the Template DOES terminate, just at a
-    // silently rounded-up pull count the Parameter's displayed value never
-    // admits to. This is corrected in the design doc alongside this test.
+    // lands exactly on `0`, and the Template terminates, just at a silently
+    // rounded-up pull count the Parameter's displayed value never admits
+    // to. Pinned here as CURRENT DEFENSIVE BEHAVIOR for out-of-contract
+    // input, not a designed rounding feature — do not build product copy or
+    // UX around this number matching being reliable.
     const N = 10.5
     const ceilN = 11
     const { nodes, edges } = fullGraph()
@@ -203,21 +231,6 @@ describe('GZ8 item 3 — the fixed horizon’s exact contract (GZ3.5 round 4)', 
     for (const zone of ['free', 'standard', 'pickup']) {
       expect(st.values[`pulls_made_${zone}`]).toBe(ceilN)
       expect(st.values[`ticket_${zone}`]).toBe(0)
-    }
-  })
-
-  it('the pulls_per_zone contract holds at a second safe positive integer, not just the shipped default (GZ8 item 10)', () => {
-    const N = 5
-    const { nodes, edges } = fullGraph()
-    ;(nodes.find((n) => n.id === 'pulls_per_zone')!.data as { value: number }).value = N
-    let st: SimState = initSim(nodes)
-    for (let i = 1; i <= N + 2; i++) {
-      st = step(nodes, edges, st, 1, 2).state
-      if (i <= N + 1) expect(st.ended).toBe(false)
-      else expect(st.ended).toBe(true)
-    }
-    for (const zone of ['free', 'standard', 'pickup']) {
-      expect(st.values[`pulls_made_${zone}`]).toBe(N)
     }
   })
 })

@@ -86,7 +86,7 @@ export const KNOWN_OFFICIAL_LABELS: Readonly<Record<string, readonly string[]>> 
   "pulls_made_free": ["Pulls made", "実施した連数", "뽑기 횟수"],
   "pulls_made_pickup": ["Pulls made", "実施した連数", "뽑기 횟수"],
   "pulls_made_standard": ["Pulls made", "実施した連数", "뽑기 횟수"],
-  "pulls_per_zone": ["Pulls per zone", "ゾーンごとの連数", "존별 뽑기 횟수"],
+  "pulls_per_zone": ["Pulls per zone (whole number)", "ゾーンごとの抽選回数（整数）", "존별 뽑기 횟수(정수)"],
   "quest_payout": ["Quest payout", "クエスト報酬の支払い", "퀘스트 보상 지급"],
   "quest_xp": ["Quest XP", "クエスト経験値", "퀘스트 경험치"],
   "r_burned": ["Consumables burned", "消費した消耗品", "소비한 소모품"],

@@ -405,9 +405,13 @@ function buildPickupRoll(ctx: {
 
 /** GZ6 — the one Parameter shared read-only by all three zones' funding edges.
  *  Left unprefixed (implementation note 3) — it already sorts first in the
- *  Inputs panel ahead of every `zoneN_...` id. */
+ *  Inputs panel ahead of every `zoneN_...` id. Label carries "(whole number)"
+ *  (GZ6 round 4, after review) — the engine does not itself validate a
+ *  Parameter's value, and the global End's termination contract (GZ3.5)
+ *  only holds for a safe positive integer; this is a light in-UI hint, not
+ *  enforcement (no engine or common Inputs-UI validation added here). */
 export function buildSharedParameter(): LoopNode {
-  return parameter('pulls_per_zone', 'Pulls per zone', PULLS_PER_ZONE)
+  return parameter('pulls_per_zone', 'Pulls per zone (whole number)', PULLS_PER_ZONE)
 }
 
 /** GZ7.2 — the single-run display Registers, NOT Monte Carlo tracked. These

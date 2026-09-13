@@ -11,7 +11,7 @@
       },
       "data": {
         "kind": "parameter",
-        "label": "Pulls per zone",
+        "label": "Pulls per zone (whole number)",
         "value": 200
       }
     },
