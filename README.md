@@ -17,10 +17,13 @@ continuous-time equations and spatial physics are not directly supported (see
 **Run it now — the live web app: <https://cozy-loop-studio.pages.dev>**
 
 The UI is available in **English**, **한국어**, and **日本語** (a runtime
-language menu; the choice is a local UI preference only). Four bundled
-**Templates** open in the current language: *Balanced production line*,
-*Capacity deadlock*, *Early MMO progression (levels 1–15)* (97 nodes), and
-*Coffee roastery operations flow*.
+language menu; the choice is a local UI preference only). Five bundled
+**Templates** open in the current language, ordered as a small-to-large tour —
+a realistic small model, then a large game economy, then a professional
+probability / pity verification: *Balanced production line*,
+*Capacity deadlock*, *Coffee roastery operations flow*,
+*Early MMO progression (levels 1–15)* (97 nodes), and
+*3-zone gacha banner comparison*.
 
 > Status: **working preview** — **v0.9.0**. The diagram editor and the
 > simulation engine — deterministic,
@@ -130,6 +133,32 @@ Select one, turn Focus on, and everything outside its one-hop neighbourhood
 dims — nothing is hidden, so structure stays legible without losing context.
 
 ![The 97-node Early MMO progression graph with Focus on: the selected "Gold" pool and its direct neighbours are drawn solid, the other ~80 nodes are faded to a light grey, and the minimap sits in the bottom-right corner](docs/assets/mmo-focus.png)
+
+**Comparing gacha banner rules** — the *3-zone gacha banner comparison*
+Template ([`docs/gacha-banner-zones.md`](docs/gacha-banner-zones.md)) runs
+three banner rule sets side by side under the same 200-pull budget:
+**General / Free** (base rates, no pity at all), **Premium Standard** (a
+tunable **hard-pity ceiling** that forces an SSR by a fixed pull count, 80 by
+default), and **Premium Pickup** (the same hard-pity ceiling, plus a
+**pickup guarantee** on top — a missed pickup means the *next* SSR, whenever
+it lands, resolves as pickup rather than standard). Run all 200 pulls per
+zone (the global End auto-stops the run once every zone finishes) and the
+five comparison cards read the real headline hit rate / pickup rate for all
+three zones at a glance; Monte-Carlo it to see the outcome distribution
+across many runs instead of one.
+
+![The gacha Template after a completed 200-pull-per-zone run (step 202, ended): five comparison cards reading real hit-rate / pickup-rate percentages above the fully legible General/Free zone — ticket funding, a probabilistic roll gate, and non-zero SSR/SR/R counters — with Premium Standard's own roll structure visible at the right edge, a Timeline with real per-zone SSR/pickup curves below, and the selected "Pickup rate — Premium Pickup" Register's expression read-back open in the right column](docs/assets/gacha-overview.png)
+
+*Premium Pickup zone, framed on its own, same completed run* — the hard-pity
+counter (`Pity`) forces the next roll's SSR once it reaches the ceiling
+(`Ceiling hits` reads `1` — it fired once in this run); whether a forced SSR
+(or any ordinary probabilistic one) lands as pickup or standard depends on
+the guarantee flag, `Pickup owed`: while it is `0` an SSR splits by weight
+between `Pickup hit` and `Standard hit`, and a miss sets it to `1`, which
+routes the very next SSR straight to `Pickup hit` and resets the flag —
+ending this run at `Pickup wins 3` vs. `Standard count 1`.
+
+![The Premium Pickup zone on its own after the same completed run: four roll-gate variants (normal / forced × not-owed / owed), the hard-pity counter reading 33 against its ceiling of 80, one real ceiling hit, the Pickup-owed guarantee flag, and a real 3-to-1 Pickup hit / Standard hit split — with the selected "Ceiling hits" Pool's Inspector open in the right column](docs/assets/gacha-pickup-guarantee.png)
 
 ## Why
 

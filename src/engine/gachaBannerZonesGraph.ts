@@ -62,6 +62,20 @@
 // `hit_rate_pickup` / `hit_rate_standard` / `pickup_share_pickup` does not
 // land in the product's stated Free -> Standard -> Pickup order. The pickup
 // Register's formula also changes here — see `buildComparisonRegisters`.
+//
+// Implementation note 5 (Hanrim/Lumi, 2026-09-13, README-screenshot review):
+// the SAME ambiguity note 4 fixed for the Inputs panel also hits the
+// Timeline — `recommendedRunConfig.timelineSeries` curates exactly
+// `ssr_count_free` / `ssr_count_standard` / `ssr_count_pickup` /
+// `pickup_count_pickup`, and the Timeline legend, like the Inputs panel, is
+// flat and carries no per-zone frame context. Three identical "SSR count"
+// legend entries (plus a fourth, unrelated-looking "Pickup count") is not
+// readable as a per-zone comparison — the whole point of this Template.
+// `SSR_COUNT_LABEL` below restores an explicit, SHORT zone tag on exactly
+// these 4 Pool labels (chosen short so the node footprint on canvas is
+// unaffected); every sibling counter that is NOT in `timelineSeries` (`SR
+// count`, `R count`, `Standard count`) keeps note 3's plain, frame-context
+// label — this is a scoped exception, not a reversal of note 3.
 
 import type { LoopEdge, LoopNode } from '../model/types'
 
@@ -172,6 +186,16 @@ export const paramId = (zone: ZoneKey, role: string) => `zone${ZONE_ORDINAL[zone
  *  frame title already gives that context on canvas. */
 const labelFor = (role: string) => role
 
+/** `ssr_count_<zone>` LABEL text ONLY (implementation note 5) — the one Pool
+ *  counter per zone that also appears in the curated Timeline, where the
+ *  frame context is lost. Kept deliberately short (no "(Zone)" parenthetical,
+ *  unlike `paramLabelFor`) so the node footprint on canvas is unaffected. */
+const SSR_COUNT_LABEL: Record<ZoneKey, string> = {
+  free: 'Free SSR',
+  standard: 'Standard SSR',
+  pickup: 'Pickup SSR',
+}
+
 /** Parameter LABEL text ONLY (implementation note 4) — regains an explicit
  *  zone tag, since the Inputs panel is flat and carries no frame context. */
 const paramLabelFor = (zone: ZoneKey, role: string) => `${ZONE_TITLE[zone]} · ${role}`
@@ -214,7 +238,7 @@ export function buildZone(zone: ZoneKey): { nodes: LoopNode[]; edges: LoopEdge[]
   const ssrCount = id('ssr_count')
   nodes.push(pool(srCount, labelFor('SR count')))
   nodes.push(pool(rCount, labelFor('R count')))
-  nodes.push(pool(ssrCount, labelFor('SSR count')))
+  nodes.push(pool(ssrCount, SSR_COUNT_LABEL[zone]))
 
   if (zone === 'pickup') {
     buildPickupRoll({ nodes, edges, nextE, ticket, pullsMade, srCount, rCount, ssrCount, wSsr, wSr, wR })
@@ -377,7 +401,7 @@ function buildPickupRoll(ctx: {
   edges.push(res(nextE(), standardHit, 'standard_count_pickup', '1'))
   edges.push(res(nextE(), srHit, srCount, '1'))
   edges.push(res(nextE(), rHit, rCount, '1'))
-  nodes.push(pool('pickup_count_pickup', labelFor('Pickup count')))
+  nodes.push(pool('pickup_count_pickup', labelFor('Pickup wins')))
   nodes.push(pool('standard_count_pickup', labelFor('Standard count')))
 
   // GZ5.2 bookkeeping — all afterPull, all same-step.
