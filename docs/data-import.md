@@ -1,6 +1,6 @@
 # Spreadsheet snapshot import — diff, provenance & change-proposal export (design doc)
 
-**Status: design draft — for review, draft 3.** No `loop-*/N` id yet (§DI13
+**Status: design draft — for review, draft 4.** No `loop-*/N` id yet (§DI13
 explains why one is likely needed) and no `Frozen` marker. Prefix `DI`.
 Kicked off by explicit instruction after the gacha Template's README
 documentation (PR #200) shipped, with the v1 scope fixed in that same
@@ -85,6 +85,47 @@ more contract gaps before this can be settled — all fixed below:
    §DI6). `sourceKey`'s maximum length is now its own independent limit,
    not a reuse of the unrelated node-label length ceiling (§DI-D8).
 
+**Draft 4 (Hanrim/Lumi, round 3)** confirmed draft 3 closed the prior 7
+items and raised 5 new, different gaps before this can be settled — all
+fixed below:
+
+1. **DI16 Phase 1 contradicted DI9.** Phase 1 said "no provenance stored
+   yet," but DI9 already has Phase 1 minting `sourceTableId`/
+   `sourceColumnId` — which ARE provenance, and every generated Parameter's
+   initial value already IS its own `lastImportedValue` at zero extra cost.
+   Fixed: Phase 1 stores identity + an initial base from the start; only
+   the refresh **workflow/UI** is phase 2's job, not the underlying data
+   (§DI16).
+2. **The three-way diff had no defined unit for a Parameter label composed
+   from MULTIPLE source columns across MULTIPLE tables.** Draft 3 said a
+   label "follows the exact same rule" as a number, which doesn't hold —
+   neither `Items.display_name` nor `Banners.banner_name` is ever a
+   directly-editable field a user could diverge from, so there is no
+   `local` to speak of for a raw constituent text. Replaced with two
+   simpler mechanisms: a constituent text change is a plain two-way compare
+   that's always auto-appliable; whether it actually touches a Parameter's
+   label is gated by one flag, `labelAutoComposed`, which permanently flips
+   off the moment a user hand-edits that label. An FK VALUE re-pointing (a
+   row now refers to a different key, not just cosmetic text) is its own
+   always-surfaced case, never auto-applied (§DI11).
+3. **Changing which FK drives "group by" (DI-D11) left open what happens to
+   ALREADY-existing frames/positions.** Settled: a group-by change only
+   affects nodes materialized after the change — never a retroactive
+   reframe or reposition of anything already on the canvas (§DI-D12).
+4. **CSV encoding and formula-injection safety were unaddressed** for the
+   one export this doc builds from scratch. The change-proposal CSV carries
+   free-form designer text (`source_key`) that gets pasted straight back
+   into the designer's own spreadsheet (DI2) — an un-neutralized value
+   starting with `=`/`+`/`-`/`@`/tab/CR would execute as a formula there.
+   Fixed: UTF-8, proper RFC 4180 quoting (never "strip the character"), and
+   a leading-`'` neutralizer on every text field (§DI12.3, §DI-D14).
+5. **The scope boundary for auto-wiring an imported Parameter into the
+   pre-existing model was never stated in general terms** — only
+   Register-aggregation was called out as manual (§DI8). Generalized: import
+   never creates or edits ANY resource-edge flow, Register expression, or
+   activator reference — a freshly imported Parameter is exactly as
+   free-floating as one dragged in from the toolbar (§DI10, §DI-D13).
+
 Implementation is explicitly **out of scope for this PR** — design only, per
 the same design-doc-first → approval → implementation split already used for
 `docs/conditional-state-update.md`, `docs/label-timing-authoring.md`,
@@ -95,7 +136,7 @@ Sections: **DI1** scope · **DI2** exclusions · **DI3** snapshot mechanism ·
 **DI7** column selection & type mapping · **DI8** cross-table key
 relationships · **DI9** stable identifiers (table / column / source key /
 node id) · **DI10** materializing Parameters · **DI11** provenance, refresh,
-row lifecycle & atomicity · **DI12** exports · **DI13** serialization /
+row lifecycle, label composition & atomicity · **DI12** exports · **DI13** serialization /
 revision-digest impact · **DI14** decisions · **DI15** out of scope
 (restated) · **DI16** suggested implementation sequencing.
 
@@ -454,6 +495,17 @@ indistinguishable in the engine from a Parameter a user typed in by hand.
 Nothing about materialization is a new engine capability; it is entirely
 graph-construction plumbing on top of `loop-model/1`.
 
+**Explicit boundary, stated plainly rather than left implied (new this
+round):** import creates the Parameter nodes and nothing else — it never
+wires a single one of them into the pre-existing model. No resource-edge
+`flow` is created or edited to reference an imported Parameter's `@id`, no
+Register `expr` is authored or changed to sum/reference one, no activator
+`expr` is touched. A freshly imported Parameter sits on the canvas exactly
+as free-floating as one dragged in from the toolbar, until the designer
+connects it by hand — the same manual step §DI8 already named for
+aggregation Registers, generalized here to cover ANY connection into ANY
+pre-existing node, not only summary Registers.
+
 ## DI11. Provenance, manual refresh, row lifecycle, and atomicity
 
 ### What's stored (expanded this round — a numeric base alone can't detect a label/relationship change)
@@ -474,6 +526,9 @@ graph-construction plumbing on top of `loop-model/1`.
   nothing to compare against, and a generated Parameter's label would either
   never update or update silently with no way to detect the change was even
   real.
+- per generated **Parameter**: `labelAutoComposed` (default `true`, flips
+  permanently to `false` the moment the user hand-edits its label in the
+  Inspector — new this round, §DI11's label-composition fix below).
 - **Still never stored**: the full original row, any unmapped/ignored
   column, or a source file/Sheet URL (GSA2, §DI-D6 — unchanged).
 
@@ -522,15 +577,57 @@ Every `sourceKey` present on either side falls into exactly one case:
    swap-look-alike) would be worse than asking the user to redo the one
    Parameter's edits from a fresh materialization.
 4. **Value-changed** — a `sourceKey` present on both sides, with at least
-   one mapped column's incoming value differing from its stored base. Runs
-   the base/local/incoming three-way check below — **for every mapped
-   column type**, not just `number`: a `label`-role or `foreignKey`-role
-   column follows the exact same rule, applied to the generated Parameter's
-   *label text* instead of its numeric value (so a hand-renamed Parameter
-   label is protected by the same "ask only on a real conflict" logic a
-   hand-tuned number already gets).
+   one mapped column's incoming value differing from its stored base. A
+   `number`-role column runs the base/local/incoming three-way below
+   directly. A `label`-role or `foreignKey`-role column is **not** the same
+   shape — see the correction below (a real gap, not just a restatement of
+   the numeric rule).
 
-### The complete base/local/incoming three-way (corrected this round — one case and all base-movement rules were missing)
+### Label composition has a different diff unit than a number (corrected this round — draft 3 wrongly said "the exact same rule")
+
+Draft 3 claimed a `label`/`foreignKey`-role column "follows the exact same
+rule" as a number. **This doesn't hold up**, for a reason specific to how a
+label is built: a generated Parameter's label is composed from **multiple**
+constituent texts across **multiple** tables (§DI10) — e.g.
+`ppe_pickup_blade_ssr`'s label draws on `Items.itm_blade_ssr.display_name`
+AND `Banners.premium_pickup.banner_name`, neither of which is itself a
+directly-editable field anywhere in Loop Studio (`Items`/`Banners` are
+pure-lookup tables — §DI4 — with no `number`-role column, so they never
+become Parameters a user could hand-edit). There is no possible `local`
+divergence for a raw constituent text, because nothing in the app lets a
+user edit it directly; the ONLY place local hand-editing can happen is on
+the **composed Parameter's own label field**, in the Inspector.
+
+This needs two separate, simpler mechanisms instead of one three-way table:
+
+1. **A constituent text change is a plain two-way compare, always
+   auto-appliable, never a conflict** — `base` vs. `incoming` for
+   `Items.itm_blade_ssr.display_name` (say). If it changed, recompose every
+   Parameter label that draws on it.
+2. **Whether that recomposition actually touches the Parameter's label is
+   gated by one stored flag: `labelAutoComposed` (default `true` at
+   creation).** The moment a user directly edits a generated Parameter's
+   label in the Inspector, `labelAutoComposed` flips to `false` — a
+   permanent detach, mirroring "never silently clobber a hand edit"
+   everywhere else in this doc. While `true`, a constituent change (1)
+   recomposes and applies the new label with no prompt (there is nothing to
+   conflict with — the label was never independently edited). While
+   `false`, a constituent change is **skipped** for that Parameter and
+   surfaced only as an FYI line in the refresh summary ("3 upstream names
+   changed but these Parameters' labels are customized — not updated"),
+   never a per-row prompt.
+3. **A foreign key's VALUE changing (the row re-points to a different key,
+   not just that the pointed-to row's own text changed) is treated as its
+   own, always-surfaced case — never auto-applied, regardless of
+   `labelAutoComposed`.** `ppe_pickup_blade_ssr.item_key` changing from
+   `itm_blade_ssr` to `itm_blade_sr` means this row is now conceptually
+   ABOUT a different item, not a cosmetic rename — the user explicitly
+   confirms accepting the re-point (which then also recomposes the label,
+   if still auto-composed) or rejecting it (this refresh leaves the FK
+   value at its old target; a future refresh asks again if the source still
+   disagrees).
+
+### The complete base/local/incoming three-way — `number`-role columns only (corrected this round — one case and all base-movement rules were missing)
 
 ```
 base     = the stored value at last import/refresh
@@ -669,6 +766,33 @@ Packages,pkg_whale,price_krw,49900,59900
 This is a plain CSV a designer pastes back into their own sheet by hand (or
 feeds to a script they already own) — Loop Studio never touches the source.
 
+### DI12.3 Encoding and CSV-injection safety (new this round — applies to this export, since it carries free-form user text)
+
+This export is a new, from-scratch writer (unlike §DI12.1's already-shipped
+Pool CSVs), and it carries far more free-form text than those do —
+`source_key` and `source_table` are arbitrary designer-typed strings, not a
+controlled node-label vocabulary. Two requirements, settled here rather than
+left to an implementation PR's discretion:
+
+- **Encoding**: UTF-8, matching the Unicode-normalization discipline §DI6
+  already requires for keys.
+- **Proper RFC 4180 quoting, not the naive "strip the problem characters"
+  approach.** A value containing a comma, a double quote, or a newline is
+  wrapped in double quotes with internal quotes doubled — never replaced
+  with a space (which would silently corrupt a `source_key` that
+  legitimately contains one of those characters).
+- **CSV/formula-injection guard.** A cell that a spreadsheet app would
+  interpret as a formula or command when the exported file is later opened —
+  one starting with `=`, `+`, `-`, `@`, a tab, or a carriage return (the
+  well-known CSV-injection character set) — is neutralized with a leading
+  `'` before being written, on every text field (`source_table`,
+  `source_key`, `source_column`). This matters specifically because §DI12.2's
+  whole purpose is for a designer to **paste this export straight back into
+  their own spreadsheet** (DI2) — an un-neutralized `source_key` that
+  happens to start with `=` would execute as a formula (or worse) the moment
+  it lands there, a real, not theoretical, risk given `source_key` is
+  arbitrary designer-chosen text.
+
 ## DI13. Serialization / revision-digest impact
 
 A new provenance shape (sketch, per DI11 — expanded this round beyond a bare
@@ -678,7 +802,9 @@ numeric base):
   `sourceColumnId`, role, and current header text),
 - per imported row: `sourceKey`, and the stored base projection —
   `{ number: Record<sourceColumnId, number>, label: Record<sourceColumnId,
-  string>, foreignKey: Record<sourceColumnId, sourceKey> }`.
+  string>, foreignKey: Record<sourceColumnId, sourceKey> }`,
+- per generated **Parameter**: `labelAutoComposed: boolean` (§DI11's
+  label-composition fix — new this round).
 
 This is a **genuine new stored schema**, not a UI-only feature. Restating
 GSA2's own explicit warning rather than repeating its mistake: this must
@@ -808,6 +934,40 @@ per-table frame grouping (§DI8, §DI10) — restates and sharpens GSA4's "do
 not silently generate frames from group" for the multi-FK case draft 2 left
 unaddressed.
 
+### DI-D12 — changing the "group by" FK never retroactively moves already-existing nodes (new this round)
+
+DI-D11 fixed the AMBIGUITY of picking a group-by FK; this closes the
+follow-up question of what happens if that pick changes LATER (a
+reconfiguration, or simply choosing differently on a fresh separate import
+of the same table). **Settled: a group-by change affects only nodes
+materialized AFTER the change** — any node/frame from an earlier import or
+refresh keeps its existing frame membership and position untouched,
+regardless of what a later "group by" setting would have produced for it.
+Reframing or repositioning already-existing nodes is ordinary manual frame
+editing (already fully supported — `docs/large-graph-readability*.md`), not
+something this import feature ever does automatically. Matches this doc's
+consistent "never silently move or regenerate something the user might have
+already touched" stance (GSA4, §DI-D4, §DI11's `labelAutoComposed`).
+
+### DI-D13 — an imported Parameter is never auto-wired into the pre-existing model (new this round)
+
+Generalizes §DI8's "manual aggregation only" note (which covered just
+Register aggregation) to every kind of connection: import never creates or
+edits a resource-edge `flow`, a Register `expr`, or an activator `expr` to
+reference a newly materialized Parameter. Every connection into the
+pre-existing simulation is a manual follow-up step, indistinguishable from
+wiring up a Parameter a user typed in by hand (§DI10).
+
+### DI-D14 — the change-proposal CSV is UTF-8, RFC 4180-quoted, and formula-injection-safe (new this round)
+
+Settled requirements for the one export this doc actually builds from
+scratch (§DI12.3): UTF-8 encoding, proper comma/quote/newline quoting (never
+"strip the character"), and a leading-`'` neutralizer on any text field
+that would otherwise read as a formula/command (`=`, `+`, `-`, `@`, a tab,
+or a CR) when pasted into a spreadsheet — directly relevant here since
+pasting this export back into the source sheet is the export's entire
+purpose (DI2).
+
 ## DI15. Out of scope for v1 (restated, consolidated)
 
 - Direct write-back / overwriting any source spreadsheet (DI2 — permanent,
@@ -831,6 +991,11 @@ unaddressed.
   cases (§DI9, §DI11) — both modeled as an explicit user choice instead.
 - A Register appearing in either CSV export (§DI12.1 — a pre-existing gap,
   not fixed by this doc).
+- Any automatic wiring of an imported Parameter into the pre-existing model
+  — no auto-created resource-edge flow, Register expression, or activator
+  reference (DI-D13, generalizes §DI8's aggregation-only note).
+- Retroactively reframing or repositioning already-existing nodes when a
+  "group by" FK setting changes later (DI-D12).
 
 ## DI16. Suggested implementation sequencing (non-binding)
 
@@ -841,14 +1006,25 @@ started here:
 1. **Offline import** (§DI4–§DI10, §DI12.1's reuse confirmed) — paste/upload,
    configure (including `sourceColumnId` minting, §DI9), validate,
    materialize Parameters, one atomic commit across every bound table
-   (§DI-D10). No provenance stored yet, no refresh possible (matches GSA1's
-   original Track 2A framing, extended to multiple linked tables).
-2. **Provenance, refresh, the full row lifecycle, atomicity for refresh
-   batches, and the change-proposal export** (§DI9, §DI11–§DI13, §DI12.2) —
-   the stored binding (now including label/FK base values), the
-   added/missing/key-changed/value-changed lifecycle with the complete
-   three-way table, the NEW reference-scanner (§DI-D9), and both new
-   CSV/digest work. Depends on (1) shipping first.
+   (§DI-D10). **Corrected this round — this phase DOES persist identity and
+   an initial base**, resolving a real contradiction: §DI9 already mints
+   `sourceTableId`/`sourceColumnId` here, and every generated Parameter's
+   first value IS its own initial `lastImportedValue` at zero extra cost —
+   there was never a reason to withhold storing them. "No refresh
+   **workflow**" is the accurate boundary for this phase, not "no
+   provenance stored": no Refresh button, no row-lifecycle UI, no
+   change-proposal export exist yet, but the data phase 2 needs to make
+   sense of a later refresh is already sitting on every node it created
+   (matches GSA1's original Track 2A framing, extended to multiple linked
+   tables).
+2. **The refresh workflow: row lifecycle, the complete three-way table,
+   label composition, atomicity for refresh batches, and the
+   change-proposal export** (§DI9, §DI11–§DI13, §DI12.2) — builds the UI and
+   logic on top of phase 1's already-stored data: the
+   added/missing/key-changed/value-changed lifecycle, the number-only
+   three-way table, the separate `labelAutoComposed` mechanism, the NEW
+   reference-scanner (§DI-D9), and both new CSV/digest work. Depends on (1)
+   shipping first, but does not require retrofitting phase 1's data shape.
 3. **Optional, later: a read-only connector** (§DI-D5) — fetches the same
    shape of snapshot phases 1/2 already handle, purely as a convenience over
    manual paste/re-paste; never gains write access; not committed, not
