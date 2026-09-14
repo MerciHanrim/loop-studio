@@ -43,6 +43,7 @@ const REFRESH_ISSUE_KEY: Record<RefreshIssueCode, MessageKey> = {
   'invalid-ignore-rows': 'import.issue.invalid-ignore-rows',
   'table-not-found': 'import.refreshIssue.table-not-found',
   'unresolved-column-event': 'import.refreshIssue.unresolved-column-event',
+  'invalid-column-pairing': 'import.refreshIssue.invalid-column-pairing',
   'key-column-cannot-be-removed': 'import.refreshIssue.key-column-cannot-be-removed',
   'duplicate-column-pairing': 'import.refreshIssue.duplicate-column-pairing',
   'invalid-new-column-pairing': 'import.refreshIssue.invalid-new-column-pairing',

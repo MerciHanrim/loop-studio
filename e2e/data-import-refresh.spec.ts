@@ -256,6 +256,23 @@ test('the change-proposal CSV export refuses outright when a duplicate generatin
   await expect(manageDialog(page).getByText(/Export blocked/)).toBeVisible()
 })
 
+test('Escape closes only the topmost dialog: the refresh wizard first, then the manage dialog on a second press', async ({ page }) => {
+  await importItemsTable(page)
+  await openManage(page)
+  await manageDialog(page).getByRole('button', { name: 'Refresh…' }).click()
+  await expect(refreshDialog(page)).toBeVisible()
+
+  // only ONE modal is ever active at a time (the manage dialog's own
+  // markup unmounts while the wizard is open) -- a single Escape must
+  // close just the wizard, never both dialogs at once.
+  await page.keyboard.press('Escape')
+  await expect(refreshDialog(page)).toBeHidden()
+  await expect(manageDialog(page)).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await expect(manageDialog(page)).toBeHidden()
+})
+
 test('column events: an explicit rename re-links a renamed header and a new column maps as a fresh number field; an unresolved event blocks continuing', async ({
   page,
 }) => {

@@ -129,6 +129,7 @@ const dataImport = {
 
   'import.refreshIssue.table-not-found': 'このテーブル連携はもう存在しません。',
   'import.refreshIssue.unresolved-column-event': '続行するには、この列の変更について選択が必要です。',
+  'import.refreshIssue.invalid-column-pairing': 'この列の選択は、現在保留中のどの列変更とも一致しません。',
   'import.refreshIssue.key-column-cannot-be-removed': '行キーの列は削除できません — 代わりに別の新しい列に名前を変更してください。',
   'import.refreshIssue.duplicate-column-pairing': 'この列の選択が他の選択と競合しています。',
   'import.refreshIssue.invalid-new-column-pairing': 'この新しい列の外部キー参照先が無効です。',

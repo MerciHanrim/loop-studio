@@ -129,6 +129,7 @@ const dataImport = {
 
   'import.refreshIssue.table-not-found': '이 테이블 연결이 더 이상 존재하지 않습니다.',
   'import.refreshIssue.unresolved-column-event': '계속하려면 이 컬럼 변경 사항에 대한 선택이 필요합니다.',
+  'import.refreshIssue.invalid-column-pairing': '이 컬럼 선택이 현재 대기 중인 컬럼 변경 사항과 일치하지 않습니다.',
   'import.refreshIssue.key-column-cannot-be-removed': '행 키 컬럼은 제거할 수 없습니다 — 대신 다른 새 컬럼으로 이름을 변경하세요.',
   'import.refreshIssue.duplicate-column-pairing': '이 컬럼 선택이 다른 선택과 충돌합니다.',
   'import.refreshIssue.invalid-new-column-pairing': '이 새 컬럼의 외래 키 대상이 유효하지 않습니다.',

@@ -123,6 +123,7 @@ export type RefreshIssueCode =
   | 'invalid-ignore-rows'
   | 'table-not-found'
   | 'unresolved-column-event'
+  | 'invalid-column-pairing'
   | 'key-column-cannot-be-removed'
   | 'duplicate-column-pairing'
   | 'invalid-new-column-pairing'
@@ -220,6 +221,23 @@ export function validateRefreshSnapshot(
   const headers = headerRowValid ? incomingHeaderRow(parsedRows, headerRowIndex) : []
   const { autoMatched, events } = computeColumnAnalysis(table.columns, headers)
 
+  // -- lookups the pairing loop below uses to confirm each pairing
+  // actually resolves a REAL event of the matching kind, not just "some
+  // sourceColumnId/incomingColumnIndex the caller happened to supply" --
+  // `ColumnPairing` is a plain public shape a caller can construct
+  // directly (bypassing the UI's own event-driven construction), so this
+  // function -- the actual trust boundary -- must not assume a pairing
+  // corresponds to anything real just because it looks well-formed.
+  const missingHeaderById = new Map<string, Extract<ColumnEvent, { kind: 'missing-header' }>>()
+  const ambiguousById = new Map<string, Extract<ColumnEvent, { kind: 'ambiguous-match' }>>()
+  const unrecognizedIndexes = new Set<number>()
+  for (const e of events) {
+    if (e.kind === 'missing-header') missingHeaderById.set(e.sourceColumnId, e)
+    else if (e.kind === 'ambiguous-match') ambiguousById.set(e.sourceColumnId, e)
+    else unrecognizedIndexes.add(e.incomingColumnIndex)
+  }
+  const inRange = (idx: number): boolean => Number.isInteger(idx) && idx >= 0 && idx < headers.length
+
   // -- resolve every event against the supplied pairings ---------------
   const indexBySourceColumnId = new Map<string, number>(autoMatched.map((m) => [m.sourceColumnId, m.incomingColumnIndex]))
   const removedSourceColumnIds = new Set<string>()
@@ -229,6 +247,22 @@ export function validateRefreshSnapshot(
 
   for (const p of columnPairings) {
     if (p.kind === 'matched' || p.kind === 'rename') {
+      if (!inRange(p.incomingColumnIndex)) {
+        errors.push({ code: 'invalid-column-pairing', sourceColumnId: p.sourceColumnId, incomingColumnIndex: p.incomingColumnIndex })
+        continue
+      }
+      if (p.kind === 'rename') {
+        if (!missingHeaderById.has(p.sourceColumnId)) {
+          errors.push({ code: 'invalid-column-pairing', sourceColumnId: p.sourceColumnId })
+          continue
+        }
+      } else {
+        const ev = ambiguousById.get(p.sourceColumnId)
+        if (!ev || !ev.candidateIncomingColumnIndexes.includes(p.incomingColumnIndex)) {
+          errors.push({ code: 'invalid-column-pairing', sourceColumnId: p.sourceColumnId, incomingColumnIndex: p.incomingColumnIndex })
+          continue
+        }
+      }
       if (usedIncomingIndexes.has(p.incomingColumnIndex) || usedSourceColumnIds.has(p.sourceColumnId)) {
         errors.push({ code: 'duplicate-column-pairing', sourceColumnId: p.sourceColumnId, incomingColumnIndex: p.incomingColumnIndex })
         continue
@@ -237,6 +271,10 @@ export function validateRefreshSnapshot(
       usedSourceColumnIds.add(p.sourceColumnId)
       indexBySourceColumnId.set(p.sourceColumnId, p.incomingColumnIndex)
     } else if (p.kind === 'new-column') {
+      if (!inRange(p.incomingColumnIndex) || !unrecognizedIndexes.has(p.incomingColumnIndex)) {
+        errors.push({ code: 'invalid-column-pairing', sourceColumnId: p.sourceColumnId, incomingColumnIndex: p.incomingColumnIndex })
+        continue
+      }
       if (usedIncomingIndexes.has(p.incomingColumnIndex) || usedSourceColumnIds.has(p.sourceColumnId)) {
         errors.push({ code: 'duplicate-column-pairing', sourceColumnId: p.sourceColumnId, incomingColumnIndex: p.incomingColumnIndex })
         continue
@@ -265,6 +303,14 @@ export function validateRefreshSnapshot(
       const col = table.columns.find((c) => c.sourceColumnId === p.sourceColumnId)
       if (col?.role === 'key') {
         errors.push({ code: 'key-column-cannot-be-removed', sourceColumnId: p.sourceColumnId })
+        continue
+      }
+      if (!missingHeaderById.has(p.sourceColumnId)) {
+        errors.push({ code: 'invalid-column-pairing', sourceColumnId: p.sourceColumnId })
+        continue
+      }
+      if (usedSourceColumnIds.has(p.sourceColumnId)) {
+        errors.push({ code: 'duplicate-column-pairing', sourceColumnId: p.sourceColumnId })
         continue
       }
       removedSourceColumnIds.add(p.sourceColumnId)

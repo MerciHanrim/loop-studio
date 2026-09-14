@@ -853,16 +853,21 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         updatedNodes.push({ ...n, data: { ...n.data, label } })
       }
 
-      if (updatedNodes.length === 0) {
-        dataImportSidecar?.set(nextTables)
-        return { ok: true }
-      }
-      // §DI-D19 item 2 -- the rename + every recomposed Parameter's label
-      // land as ONE atomic Undo entry, not one per Parameter.
+      // §DI-D19 item 2 -- the rename lands as ONE atomic Undo entry
+      // regardless of whether any Parameter's label actually needed
+      // recomposing: a pure-lookup table (no number column, so zero
+      // Parameters) or one whose every Parameter is already hand-detached
+      // still renames the BINDING itself, and that change alone must still
+      // be committed and persisted -- skipping `commit()`/`persist()` here
+      // left such a rename un-undoable and, worse, unsaved (an immediate
+      // reload silently lost it, since `persist()` is what schedules the
+      // autosave write).
       commit('')
       lastTag = ''
-      const byId = new Map(updatedNodes.map((n) => [n.id, n]))
-      set({ nodes: g.nodes.map((n) => byId.get(n.id) ?? n) })
+      if (updatedNodes.length > 0) {
+        const byId = new Map(updatedNodes.map((n) => [n.id, n]))
+        set({ nodes: g.nodes.map((n) => byId.get(n.id) ?? n) })
+      }
       dataImportSidecar?.set(nextTables)
       bump()
       persist()

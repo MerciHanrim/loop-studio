@@ -24,7 +24,6 @@ export function DataImportRefreshMenu({ open, onClose }: { open: boolean; onClos
   const t = useT()
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
-  useDialogFocus(open, ref, onClose)
 
   const tables = useDataImportStore((s) => s.tables)
   const hostNodes = useGraphStore((s) => s.nodes)
@@ -35,7 +34,26 @@ export function DataImportRefreshMenu({ open, onClose }: { open: boolean; onClos
   const [renameError, setRenameError] = useState<Record<string, 'empty-table-name' | 'label-too-long'>>({})
   const [csvBlocked, setCsvBlocked] = useState(false)
 
+  // Only ONE modal is ever active at a time: while the refresh wizard is
+  // open, THIS dialog's own focus trap / Escape handler must detach --
+  // otherwise both dialogs' independent `window` keydown listeners fire on
+  // a single Escape (closing both at once), and the accessibility tree
+  // carries two simultaneous `aria-modal="true"` elements. Passing
+  // `refreshingId === null` here (rather than the raw `open` prop) ties
+  // this hook's own lifecycle to whether THIS dialog is actually the
+  // top-most one.
+  useDialogFocus(open && refreshingId === null, ref, onClose)
+
   if (!open) return null
+
+  if (refreshingId) {
+    // the manage dialog's own markup is unmounted entirely while the
+    // wizard is open (not just visually hidden) -- so only the wizard's
+    // `role="dialog"`/`aria-modal` exists in the tree, and closing it
+    // (`onClose` below) returns here, remounting the manage dialog and its
+    // own focus trap fresh.
+    return <DataImportRefreshWizard sourceTableId={refreshingId} onClose={() => setRefreshingId(null)} />
+  }
 
   const commitRename = (id: string, current: string) => {
     const draft = renameDrafts[id]
@@ -68,54 +86,51 @@ export function DataImportRefreshMenu({ open, onClose }: { open: boolean; onClos
   }
 
   return (
-    <>
-      <div className="mcdlg__scrim" onMouseDown={onClose}>
-        <div ref={ref} className="mcdlg mcdlg--dataimport" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}>
-          <div className="mcdlg__head">
-            <span id={titleId}>{t('import.refresh.manageTitle')}</span>
-          </div>
-          <div className="mcdlg__body">
-            {tables.length === 0 ? (
-              <p>{t('import.refresh.noBindings')}</p>
-            ) : (
-              <ul className="import__bindings">
-                {tables.map((table) => (
-                  <li key={table.sourceTableId} className="import__binding">
-                    <label>
-                      {t('import.refresh.renameLabel')}
-                      <input
-                        type="text"
-                        value={renameDrafts[table.sourceTableId] ?? table.label}
-                        onChange={(e) => setRenameDrafts((prev) => ({ ...prev, [table.sourceTableId]: e.target.value }))}
-                        onBlur={() => commitRename(table.sourceTableId, table.label)}
-                      />
-                    </label>
-                    {renameError[table.sourceTableId] && (
-                      <p className="import__error">
-                        {t(renameError[table.sourceTableId] === 'empty-table-name' ? 'import.issue.empty-table-name' : 'import.issue.label-too-long', { max: 200 })}
-                      </p>
-                    )}
-                    <span>{t('import.refresh.rowCount', { n: table.rows.length })}</span>
-                    <button type="button" className="btn" onClick={() => setRefreshingId(table.sourceTableId)}>
-                      {t('import.refresh.refreshButton')}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button type="button" className="btn" disabled={tables.length === 0} onClick={exportCsv}>
-              {t('import.refresh.exportCsv')}
-            </button>
-            {csvBlocked && <p className="import__error">{t('import.refresh.exportBlockedDuplicate')}</p>}
-          </div>
-          <div className="mcdlg__foot">
-            <button type="button" className="btn" onClick={onClose}>
-              {t('dialog.cancel')}
-            </button>
-          </div>
+    <div className="mcdlg__scrim" onMouseDown={onClose}>
+      <div ref={ref} className="mcdlg mcdlg--dataimport" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="mcdlg__head">
+          <span id={titleId}>{t('import.refresh.manageTitle')}</span>
+        </div>
+        <div className="mcdlg__body">
+          {tables.length === 0 ? (
+            <p>{t('import.refresh.noBindings')}</p>
+          ) : (
+            <ul className="import__bindings">
+              {tables.map((table) => (
+                <li key={table.sourceTableId} className="import__binding">
+                  <label>
+                    {t('import.refresh.renameLabel')}
+                    <input
+                      type="text"
+                      value={renameDrafts[table.sourceTableId] ?? table.label}
+                      onChange={(e) => setRenameDrafts((prev) => ({ ...prev, [table.sourceTableId]: e.target.value }))}
+                      onBlur={() => commitRename(table.sourceTableId, table.label)}
+                    />
+                  </label>
+                  {renameError[table.sourceTableId] && (
+                    <p className="import__error">
+                      {t(renameError[table.sourceTableId] === 'empty-table-name' ? 'import.issue.empty-table-name' : 'import.issue.label-too-long', { max: 200 })}
+                    </p>
+                  )}
+                  <span>{t('import.refresh.rowCount', { n: table.rows.length })}</span>
+                  <button type="button" className="btn" onClick={() => setRefreshingId(table.sourceTableId)}>
+                    {t('import.refresh.refreshButton')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className="btn" disabled={tables.length === 0} onClick={exportCsv}>
+            {t('import.refresh.exportCsv')}
+          </button>
+          {csvBlocked && <p className="import__error">{t('import.refresh.exportBlockedDuplicate')}</p>}
+        </div>
+        <div className="mcdlg__foot">
+          <button type="button" className="btn" onClick={onClose}>
+            {t('dialog.cancel')}
+          </button>
         </div>
       </div>
-      {refreshingId && <DataImportRefreshWizard sourceTableId={refreshingId} onClose={() => setRefreshingId(null)} />}
-    </>
+    </div>
   )
 }

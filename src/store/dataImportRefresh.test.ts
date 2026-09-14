@@ -150,6 +150,53 @@ describe('graphStore.renameDataImportTable', () => {
     expect(dataOf('pd').label).toBe('My Custom Ring Name')
     expect(useDataImportStore.getState().tables[0].label).toBe('Items')
   })
+
+  it('a table with ZERO auto-composed Parameters (a pure-lookup table) still commits, persists, and can be Undone/Redone', () => {
+    // a pure-lookup table (no `number`-role column) generates no Parameters
+    // at all -- `updatedNodes` is empty, but the rename itself is still a
+    // real change to the stored binding that must land in history.
+    const t: ImportSourceTable = {
+      sourceTableId: 'srctable_banners',
+      label: 'Banners',
+      columns: [col('col_key', 'key', 'banner_key'), col('col_name', 'label', 'banner_name')],
+      rows: [{ sourceKey: 'premium_pickup', number: {}, label: { col_name: 'Premium Pickup' }, foreignKey: {} }],
+    }
+    useDataImportStore.getState().loadTables([t])
+    useGraphStore.setState({ nodes: [] })
+
+    const pastBefore = g().past.length
+    expect(g().renameDataImportTable(t.sourceTableId, 'Banner Sets')).toEqual({ ok: true })
+    expect(g().past.length).toBe(pastBefore + 1) // ONE entry, even with zero nodes to touch
+    expect(useDataImportStore.getState().tables[0].label).toBe('Banner Sets')
+
+    g().undo()
+    expect(useDataImportStore.getState().tables[0].label).toBe('Banners')
+    g().redo()
+    expect(useDataImportStore.getState().tables[0].label).toBe('Banner Sets')
+  })
+
+  it('a table whose every Parameter is already hand-detached still commits the rename atomically', () => {
+    const t = itemsTable()
+    useDataImportStore.getState().loadTables([t])
+    const detached = param('pd', {
+      sourceTableId: t.sourceTableId,
+      sourceKey: 'itm_a',
+      sourceColumnId: 'col_weight',
+      value: 10,
+      label: 'Custom Name',
+      labelAutoComposed: false,
+    })
+    useGraphStore.setState({ nodes: [detached] })
+
+    const pastBefore = g().past.length
+    expect(g().renameDataImportTable(t.sourceTableId, 'Loot')).toEqual({ ok: true })
+    expect(g().past.length).toBe(pastBefore + 1) // ONE entry, even though no node needed updating
+    expect((g().nodes[0].data as { label: string }).label).toBe('Custom Name') // untouched
+    expect(useDataImportStore.getState().tables[0].label).toBe('Loot')
+
+    g().undo()
+    expect(useDataImportStore.getState().tables[0].label).toBe('Items')
+  })
 })
 
 describe('updateNodeData -- label edit + labelAutoComposed:false flip is one atomic Undo entry (§DI-D19 item 1)', () => {

@@ -132,6 +132,42 @@ describe('validateRefreshSnapshot -- resulting-table-record rules (the trust bou
     expect(!r.ok && r.errors.some((e) => e.code === 'duplicate-column-pairing')).toBe(true)
   })
 
+  it('a column-removed pairing on an already auto-matched (non-key) column is rejected, not silently removed', () => {
+    // col_weight's header still matches "weight" exactly -- it auto-matches
+    // and has no missing-header event at all. A hand-crafted pairing trying
+    // to remove it anyway (bypassing the UI, which only ever offers
+    // column-removed as an alternative to an actual missing-header event)
+    // must be refused, never silently applied.
+    const t = table()
+    const bad: ColumnPairing = { kind: 'column-removed', sourceColumnId: 'col_weight' }
+    const r = validateRefreshSnapshot([t], t.sourceTableId, [['item_key', 'weight'], ['itm_a', '10']], 1, 0, [bad])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-column-pairing' && e.sourceColumnId === 'col_weight')).toBe(true)
+  })
+
+  it('a rename pairing with an out-of-range incomingColumnIndex is rejected, never silently falling back to the old header', () => {
+    const t = table()
+    const bad: ColumnPairing = { kind: 'rename', sourceColumnId: 'col_weight', incomingColumnIndex: 99 }
+    const r = validateRefreshSnapshot([t], t.sourceTableId, [['item_key', 'mass'], ['itm_a', '10']], 1, 0, [bad])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-column-pairing' && e.sourceColumnId === 'col_weight')).toBe(true)
+  })
+
+  it("a matched pairing whose incomingColumnIndex is not among the event's own candidates is rejected", () => {
+    const t = table()
+    const bad: ColumnPairing = { kind: 'matched', sourceColumnId: 'col_weight', incomingColumnIndex: 0 }
+    const r = validateRefreshSnapshot([t], t.sourceTableId, [['item_key', 'weight', 'weight'], ['itm_a', '10', '20']], 1, 0, [bad])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-column-pairing' && e.sourceColumnId === 'col_weight')).toBe(true)
+  })
+
+  it('a new-column pairing pointing at an index that belongs to an ambiguous-match event (not truly unrecognized) is rejected', () => {
+    const t = table()
+    // index 2 is one of col_weight's own ambiguous-match candidates, not an
+    // unrecognized header -- mapping it as "new" would silently steal it
+    // out from under the event it's still supposed to resolve.
+    const bad: ColumnPairing = { kind: 'new-column', sourceColumnId: nextId('srccol'), incomingColumnIndex: 2, role: 'number' }
+    const r = validateRefreshSnapshot([t], t.sourceTableId, [['item_key', 'weight', 'weight'], ['itm_a', '10', '20']], 1, 0, [bad])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-column-pairing')).toBe(true)
+  })
+
   it('an unresolved missing-header/ambiguous-match event is a blocking error', () => {
     const t = table()
     const r = validateRefreshSnapshot([t], t.sourceTableId, [['item_key', 'price'], ['itm_a', '10']], 1, 0, [])

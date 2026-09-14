@@ -137,6 +137,7 @@ const dataImport = {
   // verbatim — same meaning, same wording).
   'import.refreshIssue.table-not-found': 'This table binding no longer exists.',
   'import.refreshIssue.unresolved-column-event': 'This column change needs a choice before continuing.',
+  'import.refreshIssue.invalid-column-pairing': "This column choice doesn't match any pending column change.",
   'import.refreshIssue.key-column-cannot-be-removed': "The row-key column can't be removed — rename it to a different incoming column instead.",
   'import.refreshIssue.duplicate-column-pairing': 'This column choice conflicts with another one.',
   'import.refreshIssue.invalid-new-column-pairing': "This new column's foreign-key target is invalid.",
