@@ -5,7 +5,7 @@
 import type { DataImportKey } from '../en/dataImport'
 
 const dataImport = {
-  'import.button': '데이터 가져오기 ▾',
+  'import.button': '스프레드시트 데이터 ▾',
   'import.title': '스프레드시트 데이터 가져오기',
   'import.tableName': '테이블 이름',
   'import.removeTable': '테이블 제거',

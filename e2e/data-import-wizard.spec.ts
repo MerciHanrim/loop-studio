@@ -22,7 +22,7 @@ const dataImportTables = (page: Page): Promise<unknown[]> =>
     () => (window as unknown as { __loop: { dataImport: { getState: () => { tables: unknown[] } } } }).__loop.dataImport.getState().tables,
   )
 
-const importButton = (page: Page) => page.getByRole('button', { name: 'Import data ▾' })
+const importButton = (page: Page) => page.getByRole('button', { name: 'Spreadsheet data ▾' })
 const dialog = (page: Page) => page.locator('.mcdlg--dataimport')
 
 async function openWizard(page: Page): Promise<void> {
