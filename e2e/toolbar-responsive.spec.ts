@@ -322,5 +322,6 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
     expect(dataImportIdx).toBeGreaterThanOrEqual(0)
     expect(helpIdx).toBeGreaterThanOrEqual(0)
     expect(helpIdx).toBeGreaterThan(dataImportIdx)
+    expect(helpIdx).toBe(order.length - 1)
   })
 })
