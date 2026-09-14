@@ -106,7 +106,7 @@
       "type": "pool",
       "position": {
         "x": 40,
-        "y": 470
+        "y": 730
       },
       "data": {
         "kind": "pool",
@@ -121,7 +121,7 @@
       "id": "zone1_free_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 40,
+        "x": 300,
         "y": 730
       },
       "data": {
@@ -134,7 +134,7 @@
       "id": "zone1_free_w_sr",
       "type": "parameter",
       "position": {
-        "x": 230,
+        "x": 560,
         "y": 730
       },
       "data": {
@@ -147,8 +147,8 @@
       "id": "zone1_free_w_r",
       "type": "parameter",
       "position": {
-        "x": 420,
-        "y": 730
+        "x": 40,
+        "y": 870
       },
       "data": {
         "kind": "parameter",
@@ -298,8 +298,8 @@
       "id": "pulls_made_standard",
       "type": "pool",
       "position": {
-        "x": 1260,
-        "y": 470
+        "x": 1520,
+        "y": 730
       },
       "data": {
         "kind": "pool",
@@ -314,7 +314,7 @@
       "id": "zone2_standard_w_ssr",
       "type": "parameter",
       "position": {
-        "x": 1260,
+        "x": 1780,
         "y": 730
       },
       "data": {
@@ -327,8 +327,8 @@
       "id": "zone2_standard_w_sr",
       "type": "parameter",
       "position": {
-        "x": 1450,
-        "y": 730
+        "x": 1260,
+        "y": 870
       },
       "data": {
         "kind": "parameter",
@@ -340,8 +340,8 @@
       "id": "zone2_standard_w_r",
       "type": "parameter",
       "position": {
-        "x": 1640,
-        "y": 730
+        "x": 1520,
+        "y": 870
       },
       "data": {
         "kind": "parameter",
@@ -462,7 +462,7 @@
       "type": "pool",
       "position": {
         "x": 1260,
-        "y": 830
+        "y": 730
       },
       "data": {
         "kind": "pool",
@@ -477,8 +477,8 @@
       "id": "zone2_standard_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 1450,
-        "y": 830
+        "x": 1780,
+        "y": 870
       },
       "data": {
         "kind": "parameter",
@@ -506,7 +506,7 @@
       "type": "pool",
       "position": {
         "x": 1260,
-        "y": 570
+        "y": 1010
       },
       "data": {
         "kind": "pool",
@@ -535,7 +535,7 @@
       "id": "ticket_pickup",
       "type": "pool",
       "position": {
-        "x": 2750,
+        "x": 2800,
         "y": 370
       },
       "data": {
@@ -551,8 +551,8 @@
       "id": "pulls_made_pickup",
       "type": "pool",
       "position": {
-        "x": 2480,
-        "y": 470
+        "x": 3000,
+        "y": 830
       },
       "data": {
         "kind": "pool",
@@ -568,7 +568,7 @@
       "type": "parameter",
       "position": {
         "x": 2480,
-        "y": 830
+        "y": 970
       },
       "data": {
         "kind": "parameter",
@@ -580,8 +580,8 @@
       "id": "zone3_pickup_w_sr",
       "type": "parameter",
       "position": {
-        "x": 2750,
-        "y": 830
+        "x": 2740,
+        "y": 970
       },
       "data": {
         "kind": "parameter",
@@ -593,8 +593,8 @@
       "id": "zone3_pickup_w_r",
       "type": "parameter",
       "position": {
-        "x": 3020,
-        "y": 830
+        "x": 3000,
+        "y": 970
       },
       "data": {
         "kind": "parameter",
@@ -606,7 +606,7 @@
       "id": "sr_count_pickup",
       "type": "pool",
       "position": {
-        "x": 3560,
+        "x": 3760,
         "y": 370
       },
       "data": {
@@ -622,7 +622,7 @@
       "id": "r_count_pickup",
       "type": "pool",
       "position": {
-        "x": 3560,
+        "x": 3760,
         "y": 470
       },
       "data": {
@@ -639,7 +639,7 @@
       "type": "pool",
       "position": {
         "x": 2480,
-        "y": 570
+        "y": 470
       },
       "data": {
         "kind": "pool",
@@ -655,7 +655,7 @@
       "type": "pool",
       "position": {
         "x": 2480,
-        "y": 930
+        "y": 830
       },
       "data": {
         "kind": "pool",
@@ -670,8 +670,8 @@
       "id": "zone3_pickup_hard_pity",
       "type": "parameter",
       "position": {
-        "x": 2750,
-        "y": 930
+        "x": 2480,
+        "y": 1110
       },
       "data": {
         "kind": "parameter",
@@ -683,8 +683,8 @@
       "id": "ceiling_hits_pickup",
       "type": "pool",
       "position": {
-        "x": 2480,
-        "y": 670
+        "x": 2740,
+        "y": 1110
       },
       "data": {
         "kind": "pool",
@@ -699,8 +699,8 @@
       "id": "missed_pickup_pickup",
       "type": "pool",
       "position": {
-        "x": 3020,
-        "y": 930
+        "x": 2740,
+        "y": 830
       },
       "data": {
         "kind": "pool",
@@ -715,8 +715,8 @@
       "id": "zone3_pickup_w_pickup",
       "type": "parameter",
       "position": {
-        "x": 2480,
-        "y": 1030
+        "x": 3000,
+        "y": 1110
       },
       "data": {
         "kind": "parameter",
@@ -728,8 +728,8 @@
       "id": "zone3_pickup_w_standard",
       "type": "parameter",
       "position": {
-        "x": 2750,
-        "y": 1030
+        "x": 2480,
+        "y": 1250
       },
       "data": {
         "kind": "parameter",
@@ -741,7 +741,7 @@
       "id": "roll_normal_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3020,
+        "x": 3120,
         "y": 370
       },
       "data": {
@@ -756,7 +756,7 @@
       "id": "roll_normal_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 3020,
+        "x": 3120,
         "y": 470
       },
       "data": {
@@ -771,7 +771,7 @@
       "id": "roll_forced_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3020,
+        "x": 3120,
         "y": 570
       },
       "data": {
@@ -786,7 +786,7 @@
       "id": "roll_forced_owed_pickup",
       "type": "gate",
       "position": {
-        "x": 3020,
+        "x": 3120,
         "y": 670
       },
       "data": {
@@ -801,7 +801,7 @@
       "id": "ssr_split_open_pickup",
       "type": "gate",
       "position": {
-        "x": 3290,
+        "x": 3440,
         "y": 370
       },
       "data": {
@@ -816,7 +816,7 @@
       "id": "pickup_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3560,
+        "x": 3760,
         "y": 570
       },
       "data": {
@@ -831,7 +831,7 @@
       "id": "standard_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3560,
+        "x": 3760,
         "y": 670
       },
       "data": {
@@ -846,7 +846,7 @@
       "id": "sr_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3290,
+        "x": 3440,
         "y": 470
       },
       "data": {
@@ -861,7 +861,7 @@
       "id": "r_hit_pickup",
       "type": "gate",
       "position": {
-        "x": 3290,
+        "x": 3440,
         "y": 570
       },
       "data": {
@@ -876,7 +876,7 @@
       "id": "pickup_count_pickup",
       "type": "pool",
       "position": {
-        "x": 3830,
+        "x": 4080,
         "y": 370
       },
       "data": {
@@ -892,7 +892,7 @@
       "id": "standard_count_pickup",
       "type": "pool",
       "position": {
-        "x": 3830,
+        "x": 4080,
         "y": 470
       },
       "data": {
@@ -1136,7 +1136,13 @@
       "data": {
         "kind": "resource",
         "flow": "@zone2_standard_w_r",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 1740,
+            "y": 370
+          }
+        ]
       }
     },
     {
@@ -1250,7 +1256,13 @@
         "kind": "state",
         "mode": "activator",
         "expr": "< @zone2_standard_hard_pity - 1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 1200,
+            "y": 550
+          }
+        ]
       }
     },
     {
@@ -1264,7 +1276,13 @@
         "kind": "state",
         "mode": "activator",
         "expr": ">= @zone2_standard_hard_pity - 1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 1320,
+            "y": 550
+          }
+        ]
       }
     },
     {
@@ -1479,7 +1497,13 @@
         "kind": "state",
         "mode": "activator",
         "expr": "< 1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2680,
+            "y": 600
+          }
+        ]
       }
     },
     {
@@ -1493,7 +1517,13 @@
         "kind": "state",
         "mode": "activator",
         "expr": "< @zone3_pickup_hard_pity - 1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2420,
+            "y": 600
+          }
+        ]
       }
     },
     {
@@ -1507,7 +1537,13 @@
         "kind": "state",
         "mode": "activator",
         "expr": ">= 1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2800,
+            "y": 600
+          }
+        ]
       }
     },
     {
@@ -1521,7 +1557,13 @@
         "kind": "state",
         "mode": "activator",
         "expr": ">= @zone3_pickup_hard_pity - 1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 2540,
+            "y": 600
+          }
+        ]
       }
     },
     {
@@ -1761,7 +1803,17 @@
         "expr": "=0",
         "timing": "afterPull",
         "when": "source-fired",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3760,
+            "y": 780
+          },
+          {
+            "x": 2480,
+            "y": 780
+          }
+        ]
       }
     },
     {
@@ -1873,7 +1925,13 @@
         "expr": "+1",
         "timing": "afterPull",
         "when": "source-fired",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3200,
+            "y": 700
+          }
+        ]
       }
     },
     {
@@ -1905,7 +1963,17 @@
         "expr": "+1",
         "timing": "afterPull",
         "when": "source-fired",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3827,
+            "y": 340
+          },
+          {
+            "x": 2539,
+            "y": 340
+          }
+        ]
       }
     },
     {
@@ -1953,7 +2021,13 @@
         "expr": "=1",
         "timing": "afterPull",
         "when": "source-fired",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "waypoints": [
+          {
+            "x": 3200,
+            "y": 750
+          }
+        ]
       }
     },
     {
@@ -2070,7 +2144,7 @@
         "x": 0,
         "y": 330,
         "w": 950,
-        "h": 480
+        "h": 620
       },
       "color": "sage"
     },
@@ -2081,7 +2155,7 @@
         "x": 1220,
         "y": 330,
         "w": 950,
-        "h": 580
+        "h": 760
       },
       "color": "violet"
     },
@@ -2091,8 +2165,8 @@
       "rect": {
         "x": 2440,
         "y": 330,
-        "w": 1540,
-        "h": 780
+        "w": 1790,
+        "h": 1000
       },
       "color": "rose"
     }

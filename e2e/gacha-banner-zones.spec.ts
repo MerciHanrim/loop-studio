@@ -356,43 +356,108 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
-  test('the hard-pity activator condition labels are visually distinct, in EN/KO/JA (Premium Standard + Premium Pickup)', async ({
+  test('every resource/state edge label in Premium Standard + Premium Pickup is legible: no two labels overlap, and no label overlaps a node, in EN/KO/JA', async ({
     page,
   }) => {
-    // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205):
-    // the pity/guarantee activator edges fanning out of one control node
-    // (`pity_standard` / `pity_pickup`) had their bezier-midpoint labels
-    // overlapping each other, illegible at the zoom level the screenshots
-    // used. Fixed by routing every edge `orthogonal`
-    // (scripts/gen-gacha-banner-zones-example.ts, layout round 5), a cosmetic
-    // routing choice, never an engine change — this is a regression guard on
-    // exactly the labels that were reported overlapping, not a general
-    // every-edge-in-the-zone claim (a dense zone's many edges can still share
-    // a screen region without any two LABELS actually touching).
+    // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205 and
+    // after the first round of #206): the original screenshots showed the
+    // pity/guarantee activator labels overlapping EACH OTHER, but also
+    // weight (`@zone*_w_*`) and numeric labels crowding nodes and connector
+    // lines generally — and the id→label projection itself makes several of
+    // those labels LONGER than the raw id was, which can newly intrude on
+    // geometry that used to have room. A check scoped to only the 6 hard-pity
+    // edges (the first round's test) is narrower than the actual reported
+    // problem — this checks EVERY resource/state label visible when a zone is
+    // read at 100%, against every OTHER visible label AND every visible node,
+    // in every shipped locale. Routing every edge `orthogonal`
+    // (scripts/gen-gacha-banner-zones-example.ts, layout round 5) plus
+    // per-edge waypoints on the specific coincidental crossings this
+    // uncovered (layout round 6) is what makes this pass — a Template-layout
+    // fix, never an engine change.
     await openApp(page)
     await resetAll(page)
     await pickDesktopTemplate(page, EN_NAME)
     await page.setViewportSize({ width: 1600, height: 900 })
 
     type Rect = { id: string; text: string; x: number; y: number; w: number; h: number }
-    const labelRectsById = (ids: string[]): Promise<Rect[]> =>
+    // Membership is by WORLD position inside the zone's own saved frame rect,
+    // not "visible on screen" — a wide viewport at zoom 1 centred on one
+    // zone's frame can still show a sliver of a NEIGHBOURING zone or the
+    // shared comparison/termination strip, and a coincidental overlap out
+    // there is not the reported problem (reading a zone) at all.
+    const nodeIdsInZone = (zoneRect: { x: number; y: number; w: number; h: number }): Promise<string[]> =>
       page.evaluate(
-        (ids) =>
-          ids.map((id) => {
-            const el = document.querySelector(`[data-edge-id="${id}"]`)!
-            const r = (el as HTMLElement).getBoundingClientRect()
-            return { id, text: (el.textContent || '').trim(), x: r.x, y: r.y, w: r.width, h: r.height }
-          }),
-        ids,
+        (zoneRect) =>
+          (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] } } } })
+            .__loop.graph.getState()
+            .nodes.filter(
+              (n) =>
+                n.position.x >= zoneRect.x &&
+                n.position.x <= zoneRect.x + zoneRect.w &&
+                n.position.y >= zoneRect.y &&
+                n.position.y <= zoneRect.y + zoneRect.h,
+            )
+            .map((n) => n.id),
+        zoneRect,
       )
+
+    const labelRectsForEdges = (edgeIds: string[]): Promise<Rect[]> =>
+      page.evaluate(
+        (edgeIds) =>
+          edgeIds
+            .map((id) => {
+              const el = document.querySelector(`[data-edge-id="${id}"]`)
+              if (!el) return null
+              const r = (el as HTMLElement).getBoundingClientRect()
+              return { id, text: (el.textContent || '').trim(), x: r.x, y: r.y, w: r.width, h: r.height }
+            })
+            .filter((r): r is Rect => r != null && r.w > 0 && r.h > 0),
+        edgeIds,
+      )
+
+    const nodeRectsFor = (nodeIds: string[]): Promise<Rect[]> =>
+      page.evaluate(
+        (nodeIds) =>
+          nodeIds
+            .map((id) => {
+              const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
+              if (!el) return null
+              const r = (el as HTMLElement).getBoundingClientRect()
+              return { id, text: '', x: r.x, y: r.y, w: r.width, h: r.height }
+            })
+            .filter((r): r is Rect => r != null && r.w > 0 && r.h > 0),
+        nodeIds,
+      )
+
+    const edgesWithinZone = (nodeIds: string[]): Promise<string[]> =>
+      page.evaluate(
+        (nodeIds) => {
+          const set = new Set(nodeIds)
+          return (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string; source: string; target: string }[] } } } })
+            .__loop.graph.getState()
+            .edges.filter((e) => set.has(e.source) && set.has(e.target))
+            .map((e) => e.id)
+        },
+        nodeIds,
+      )
+
+    const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 
     function assertNoOverlaps(rects: Rect[]) {
       for (let i = 0; i < rects.length; i++) {
         for (let j = i + 1; j < rects.length; j++) {
-          const a = rects[i]
-          const b = rects[j]
-          const overlaps = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
-          expect(overlaps, `edge label ${a.id} ("${a.text}") overlaps ${b.id} ("${b.text}")`).toBe(false)
+          expect(
+            overlaps(rects[i], rects[j]),
+            `edge label ${rects[i].id} ("${rects[i].text}") overlaps ${rects[j].id} ("${rects[j].text}")`,
+          ).toBe(false)
+        }
+      }
+    }
+
+    function assertLabelsDontOverlapNodes(labels: Rect[], nodes: Rect[]) {
+      for (const l of labels) {
+        for (const n of nodes) {
+          expect(overlaps(l, n), `edge label ${l.id} ("${l.text}") overlaps node ${n.id}`).toBe(false)
         }
       }
     }
@@ -402,12 +467,6 @@ test.describe('3-zone gacha banner comparison Template', () => {
         (window as unknown as { __loop: { frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] } } } })
           .__loop.frame.getState().frames,
     )
-
-    // the exact edges the original screenshots showed overlapping.
-    const HARD_PITY_EDGES: Record<'zone_standard' | 'zone_pickup', string[]> = {
-      zone_standard: ['e_standard_12', 'e_standard_13'],
-      zone_pickup: ['e_pickup_6', 'e_pickup_8', 'e_pickup_10', 'e_pickup_12'],
-    }
 
     for (const locale of ['en', 'ko', 'ja'] as const) {
       await setLocale(page, locale)
@@ -422,11 +481,16 @@ test.describe('3-zone gacha banner comparison Template', () => {
           },
           { cx, cy },
         )
-        const rects = await labelRectsById(HARD_PITY_EDGES[zoneFrameId])
-        for (const r of rects) {
-          expect(r.text, `${locale} ${zoneFrameId}: edge ${r.id} leaks an internal id ("${r.text}")`).not.toMatch(/@/)
+        const zoneNodeIds = await nodeIdsInZone(frame.rect)
+        const zoneEdgeIds = await edgesWithinZone(zoneNodeIds)
+        const labels = await labelRectsForEdges(zoneEdgeIds)
+        const nodes = await nodeRectsFor(zoneNodeIds)
+        expect(labels.length, `${locale} ${zoneFrameId}: no edge labels visible`).toBeGreaterThan(0)
+        for (const l of labels) {
+          expect(l.text, `${locale} ${zoneFrameId}: edge ${l.id} leaks an internal id ("${l.text}")`).not.toMatch(/@/)
         }
-        assertNoOverlaps(rects)
+        assertNoOverlaps(labels)
+        assertLabelsDontOverlapNodes(labels, nodes)
       }
     }
   })

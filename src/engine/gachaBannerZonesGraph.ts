@@ -562,7 +562,16 @@ export const DEFAULT_TIMELINE_SERIES = ['ssr_count_free', 'ssr_count_standard', 
 /** Node ids that are activator/pity "control" state, not the main resource
  *  flow — the generator lays these out in their own lower band per zone
  *  (implementation note 3 / Hanrim's "flow on top, control below"), and the
- *  Parameter nodes among them already sort into place via `paramId`. */
+ *  Parameter nodes among them already sort into place via `paramId`.
+ *  `pulls_made_*` / `ceiling_hits_*` are reached only via STATE (label)
+ *  edges, never a resource edge — the generator's resource-only depth BFS
+ *  gives them depth 0 for want of any resource in-edge, which used to stack
+ *  them in the SAME flow-band column as the zone's actual entry node
+ *  (`fund_*`). That crowded column left no room for a pity activator edge's
+ *  condition label to route past without overlapping one of them
+ *  (connector-readability review round 2, Hanrim/Lumi, 2026-09-14) — control
+ *  classification moves them to the control band's own wrapped grid instead,
+ *  where `pity_*` already lives. */
 export function isControlNode(id: string): boolean {
   return (
     id.startsWith('zone1_') ||
@@ -570,6 +579,8 @@ export function isControlNode(id: string): boolean {
     id.startsWith('zone3_') ||
     id === 'pulls_per_zone' ||
     id.startsWith('pity_') ||
+    id.startsWith('pulls_made_') ||
+    id.startsWith('ceiling_hits_') ||
     id === 'missed_pickup_pickup'
   )
 }

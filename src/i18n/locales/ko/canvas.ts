@@ -90,6 +90,7 @@ const canvas = {
   'canvas.edgeLabel.blocked': '차단됨',
   'canvas.edgeLabel.blocked.title': '전달되었지만 대상이 실행되지 못함 (활성화 방식이 맞지 않거나 액티베이터가 닫아 둠)',
   'canvas.edgeLabel.breakdown.title': '이 단계에서 이 연결로 이동한 내역',
+  'canvas.edgeLabel.refMissing': '파라미터 참조 오류',
   'node.unreadable.title': '읽을 수 없는 {kind}',
   'node.unreadable.sub': '데이터를 읽을 수 없음 — 파일에서 고치세요',
   'node.invalidFlag': '이 노드는 무효입니다',

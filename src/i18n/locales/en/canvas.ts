@@ -90,6 +90,7 @@ const canvas = {
   'canvas.edgeLabel.blocked': 'blocked',
   'canvas.edgeLabel.blocked.title': 'delivered, but the target could not fire (wrong activation, or an activator held it closed)',
   'canvas.edgeLabel.breakdown.title': 'this step\'s transfers along this edge',
+  'canvas.edgeLabel.refMissing': 'Parameter reference error',
   'node.unreadable.title': 'unreadable {kind}',
   'node.unreadable.sub': 'data cannot be read — fix it in the file',
   'node.invalidFlag': 'This node is invalid',
