@@ -55,8 +55,8 @@ export type ImportCommitResult =
 // overlap/collision checks below. `src/model/*` never depends on
 // `src/components/*` in this codebase, so these stay separate constants
 // rather than an import.
-const NODE_W = 260
-const NODE_H = 120
+export const NODE_W = 260
+export const NODE_H = 120
 const FRAME_PAD = 24
 const GRID_GAP_X = 40
 const GRID_GAP_Y = 24
@@ -68,10 +68,10 @@ type Point = { x: number; y: number }
 function rectsOverlap(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
-function nodeRect(pos: Point): Rect {
+export function nodeRect(pos: Point): Rect {
   return { x: pos.x, y: pos.y, w: NODE_W, h: NODE_H }
 }
-function gridPositions(count: number, origin: Point): Point[] {
+export function gridPositions(count: number, origin: Point): Point[] {
   const out: Point[] = []
   for (let i = 0; i < count; i++) {
     const col = i % GRID_COLS

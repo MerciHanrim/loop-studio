@@ -26,7 +26,11 @@ const importButton = (page: Page) => page.getByRole('button', { name: 'Spreadshe
 const dialog = (page: Page) => page.locator('.mcdlg--dataimport')
 
 async function openWizard(page: Page): Promise<void> {
+  // docs/data-import.md §DI16 Phase 2 -- the button now opens a small
+  // dropdown ("Import new spreadsheet…" / "Manage bindings…") instead of
+  // the wizard directly; the first item is always the import entry.
   await importButton(page).click()
+  await page.getByRole('menuitem').first().click()
   await expect(dialog(page)).toBeVisible()
 }
 
@@ -118,6 +122,7 @@ for (const [loc, needle] of [
       await page.locator('.toolbar__overflow-btn').click()
     }
     await importBtn.click()
+    await page.getByRole('menuitem').first().click() // "Import new spreadsheet…" -- always the first item
     await expect(dialog(page)).toBeVisible()
 
     const paste = dialog(page).locator('textarea').first()
@@ -333,6 +338,7 @@ for (const loc of ['ko', 'ja'] as const) {
       await page.locator('.toolbar__overflow-btn').click()
     }
     await importBtn.click()
+    await page.getByRole('menuitem').first().click() // "Import new spreadsheet…" -- always the first item
     await expect(dialog(page)).toBeVisible()
     await dialog(page).locator('.import__tableHead input').fill(
       loc === 'ko' ? '아주 길고 긴 테이블 이름 그리고 더 길게' : '非常に長いテーブル名前でさらに長くする',

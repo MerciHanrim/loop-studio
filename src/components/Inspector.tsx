@@ -174,7 +174,20 @@ export function Inspector() {
         </div>
 
         <Field label={t('inspector.field.label')}>
-          <input value={d.label} onChange={(e) => set({ label: e.target.value })} />
+          <input
+            value={d.label}
+            onChange={(e) =>
+              set({
+                label: e.target.value,
+                // docs/data-import.md §DI11/§DI-D19 item 1 -- a hand label edit
+                // permanently detaches an auto-composed Parameter from future
+                // refresh recomposition. One `updateNodeData` call already makes
+                // this atomic: a single Undo restores both the old label text
+                // AND `labelAutoComposed: true` together.
+                ...(d.kind === 'parameter' && d.labelAutoComposed === true ? { labelAutoComposed: false } : {}),
+              })
+            }
+          />
         </Field>
 
         {d.kind === 'end' && <p className="inspector__note">{t('inspector.node.endNote')}</p>}

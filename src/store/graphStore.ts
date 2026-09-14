@@ -15,10 +15,12 @@ import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
 import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from '../model/dataImportCommit'
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
+import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
   loadFromStorage,
+  DI_LABEL_MAX,
   type ModelSemanticsVersion,
   normalizeGraph,
   saveToStorage,
@@ -145,6 +147,24 @@ type GraphStore = {
    *  `buildImportCommit` (pure, includes its own pre-commit collision gate)
    *  runs first and can refuse with `ok:false` before anything changes. */
   commitDataImport: (plan: ValidatedImportPlan, placement: PlacementChoice) => ImportCommitResult
+  /** docs/data-import.md §DI11/§DI16 Phase 2 — commit a validated refresh
+   *  diff as ONE atomic history entry: every created/updated/removed node
+   *  AND the refreshed table's stored record land together, so one Ctrl+Z
+   *  reverts the whole batch. `plan` can only come from `diffRefresh` (the
+   *  branded type is the trust boundary), and `buildRefreshCommit` (pure,
+   *  includes its own referenced-node / missing-row-dependency refusal
+   *  gates) runs first and can refuse with `ok:false` before anything
+   *  changes. `newNodeOrigin` mirrors `commitDataImport`'s own
+   *  `PlacementChoice.origin` — the current viewport centre. */
+  commitRefresh: (plan: RefreshDiffPlan, resolution: RefreshResolution, newNodeOrigin: XY) => RefreshCommitResult
+  /** §DI-D19 item 2 — rename a bound table's display `label` and recompose
+   *  every `labelAutoComposed: true` Parameter that draws on it (this
+   *  table's own, via §DI10's 4th label constituent) as ONE atomic Undo
+   *  entry, however many Parameters it touches. Guards mirror
+   *  `validateDrafts`'s own storage rules (`empty-table-name`/
+   *  `label-too-long`) — a rename path must never store a name first import
+   *  could never have produced. */
+  renameDataImportTable: (id: string, newLabel: string) => { ok: true } | { ok: false; reason: 'empty-table-name' | 'label-too-long' }
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
   removeNode: (id: string) => void
@@ -790,6 +810,74 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       bump()
       persist()
       return built
+    },
+
+    commitRefresh: (plan, resolution, newNodeOrigin) => {
+      const g = get()
+      const existingFrames = (frameSidecar?.get() as SavedFrame[] | null) ?? []
+      const existingTables = (dataImportSidecar?.get() as ImportSourceTable[] | null) ?? []
+      const built = buildRefreshCommit(existingTables, plan, resolution, { nodes: g.nodes, edges: g.edges }, g.modelVersion, newNodeOrigin, existingFrames)
+      if (!built.ok) return built // referenced-node / missing-row-dependency refusal -- nothing mutated yet
+      commit('')
+      lastTag = ''
+      const updatedById = new Map(built.updatedNodes.map((n) => [n.id, n]))
+      const removedIds = new Set(built.removedNodeIds)
+      set({
+        nodes: [...g.nodes.filter((n) => !removedIds.has(n.id)).map((n) => updatedById.get(n.id) ?? n), ...built.createdNodes],
+        selectedNodeId: null,
+        selectedEdgeId: null,
+      })
+      // replace each updated table IN PLACE at its existing position --
+      // never remove-then-append, which would silently reorder the
+      // `dataImports` array (moving the refreshed table to the bottom of
+      // the Manage-bindings list) and needlessly change the serialized
+      // order / document digest for tables that didn't change at all.
+      // Mirrors `renameDataImportTable`'s own `.map()` replace exactly.
+      const updatedTableById = new Map(built.updatedTables.map((t) => [t.sourceTableId, t]))
+      dataImportSidecar?.set(existingTables.map((t) => updatedTableById.get(t.sourceTableId) ?? t))
+      bump()
+      persist()
+      return built
+    },
+
+    renameDataImportTable: (id, newLabel) => {
+      if (newLabel.trim() === '') return { ok: false, reason: 'empty-table-name' }
+      if (newLabel.length > DI_LABEL_MAX) return { ok: false, reason: 'label-too-long' }
+      const existingTables = (dataImportSidecar?.get() as ImportSourceTable[] | null) ?? []
+      const table = existingTables.find((t) => t.sourceTableId === id)
+      if (!table) return { ok: true } // no matching binding -- nothing to rename
+      const renamedTable: ImportSourceTable = { ...table, label: newLabel }
+      const nextTables = existingTables.map((t) => (t.sourceTableId === id ? renamedTable : t))
+
+      const g = get()
+      const updatedNodes: LoopNode[] = []
+      for (const n of g.nodes) {
+        if (n.data.kind !== 'parameter' || n.data.sourceTableId !== id || n.data.labelAutoComposed !== true) continue
+        if (!n.data.sourceKey || !n.data.sourceColumnId) continue
+        const label = parameterLabel(nextTables, id, n.data.sourceKey, n.data.sourceColumnId)
+        if (label === null || label === n.data.label) continue
+        updatedNodes.push({ ...n, data: { ...n.data, label } })
+      }
+
+      // §DI-D19 item 2 -- the rename lands as ONE atomic Undo entry
+      // regardless of whether any Parameter's label actually needed
+      // recomposing: a pure-lookup table (no number column, so zero
+      // Parameters) or one whose every Parameter is already hand-detached
+      // still renames the BINDING itself, and that change alone must still
+      // be committed and persisted -- skipping `commit()`/`persist()` here
+      // left such a rename un-undoable and, worse, unsaved (an immediate
+      // reload silently lost it, since `persist()` is what schedules the
+      // autosave write).
+      commit('')
+      lastTag = ''
+      if (updatedNodes.length > 0) {
+        const byId = new Map(updatedNodes.map((n) => [n.id, n]))
+        set({ nodes: g.nodes.map((n) => byId.get(n.id) ?? n) })
+      }
+      dataImportSidecar?.set(nextTables)
+      bump()
+      persist()
+      return { ok: true }
     },
 
     exportJSON: (recommendedRunConfig) =>
