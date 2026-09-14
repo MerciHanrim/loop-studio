@@ -983,6 +983,57 @@ create zero Parameters of their own but are still bound in this same atomic
 step, so their key/label data is available for FK enrichment (§DI8) both
 immediately and on every future refresh.
 
+### Removed-column defaults, per role (new — Phase 2 implementation-time addendum, approved)
+
+A refresh can find that a previously-mapped column's header is simply gone
+from the new paste. §DI9/§DI-D7 already say a missing header is resolved
+explicitly (rename to a different-looking incoming column, or confirmed
+removed) — never inferred — but never stated what happens to that column's
+existing data once removal is confirmed. Settled per-role, since each role
+owns different data and a different downstream effect:
+
+- **`key`** — **cannot be removed.** A missing key-column header MUST
+  resolve via an explicit rename to one of the incoming columns; the row's
+  identity cannot simply vanish. A refresh stays blocked while a missing
+  key column is unresolved.
+- **`number`** — bulk-**unlink** (never delete) every Parameter this
+  column generated — the same atomic triple/`labelAutoComposed`/base
+  clearing §DI-D16 already defines for a single row's unlink, applied to
+  every row's cell under this column in one step — then drop the column's
+  own entry and every row's base under it. Affects only this table's own
+  Parameters; a `number`-role column has no label-composing role.
+- **`label`** — drop the column/base (a `label`-role column never owns a
+  Parameter, so there is nothing to unlink), then **recompose** every
+  Parameter whose auto-composed label drew on it — both this table's own
+  Parameters AND any OTHER table's Parameters that reach this table via an
+  FK (§DI10's label composition resolves a target row's own `label`-role
+  text, so losing it changes what a dependent's FK resolution reads too).
+- **`foreignKey`** — drop the column/base (again, nothing to unlink), and
+  if this column was the table's group-by pick, **clear the group-by
+  setting too** rather than leave it pointing at a column that no longer
+  exists. Recompose is scoped to **this table's own Parameters only** — a
+  label composition never chases a target row's own FK columns
+  transitively, so losing this table's outgoing FK column cannot change
+  any OTHER table's labels.
+- **In every case**: an existing node's `position` and frame membership
+  are never touched — a column removal only ever edits `data` fields and
+  the stored table record, the same "never silently move or regenerate
+  something the user might have touched" stance this doc keeps throughout
+  (GSA4, §DI-D4, §DI-D12).
+
+### A `missing` lookup row still referenced elsewhere refuses unlink/delete (new — Phase 2 implementation-time addendum, approved)
+
+§DI-D9's reference scanner only sees the live GRAPH (expressions and
+edges) — it cannot see that another STORED import table's row still
+FK-references the very key about to disappear (e.g. `Items.itm_blade_ssr`
+missing from a fresh `Items` paste while `GachaPoolEntries` still has a
+row whose `item_key` cell is `itm_blade_ssr`). This is a separate,
+data-model-level dependency check, run in addition to the graph scan:
+a `missing` row with any other stored table still pointing at its key
+**refuses both `unlink` and `delete` outright**, naming which table(s)
+must be refreshed first. Never silently orphans a live cross-table
+relationship stored in a table the current refresh isn't even touching.
+
 ## DI12. Exports
 
 ### DI12.1 Simulation-results CSV — already shipped, no new work (correction this round: Pool-only, not "Pool or Register")
@@ -1371,6 +1422,27 @@ once (§DI10's 4th, Loop-Studio-local constituent), is one atomic Undo entry
 for the whole cascade, not one entry per affected Parameter — mirrors the
 "one atomic commit, one undo" discipline already required for the first
 multi-table import (§DI-D10) and Insert module's own precedent.
+
+### DI-D20 — a removed column's Parameters and recompose scope are settled per role (new — Phase 2 implementation-time addendum, approved)
+
+Restates the "Removed-column defaults, per role" subsection above as a
+decision: `key` cannot be removed (rename only); `number` bulk-unlinks its
+own Parameters; `label` drops + recomposes both its own table and any
+dependent table (an FK resolution reads a target row's `label`-role text);
+`foreignKey` drops + recomposes only its own table (never a dependent —
+label composition never chases a target row's own FK columns
+transitively). An existing node's position/frame membership is never
+touched by a column removal, in every case.
+
+### DI-D21 — a `missing` row still FK-referenced by another stored table blocks unlink/delete (new — Phase 2 implementation-time addendum, approved)
+
+Restates the "still referenced elsewhere" subsection above as a decision:
+this is a data-model dependency check, separate from and in addition to
+§DI-D9's graph-reference scanner. A `missing` row with any other stored
+table still pointing at its key refuses both `unlink` and `delete`,
+naming which table(s) need refreshing first — never silently orphans a
+cross-table relationship stored outside the table currently being
+refreshed.
 
 ## DI15. Out of scope for v1 (restated, consolidated)
 
