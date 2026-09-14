@@ -117,8 +117,12 @@ export type IssueCode =
   | 'table-limit-exceeded'
   | 'column-limit-exceeded'
   | 'row-limit-exceeded'
+  | 'empty-table-name'
   | 'label-too-long'
+  | 'empty-column-header'
   | 'header-too-long'
+  | 'missing-source-column-id'
+  | 'duplicate-source-table-id'
   | 'missing-key-column'
   | 'multiple-key-columns'
   | 'empty-key'
@@ -130,7 +134,9 @@ export type IssueCode =
   | 'invalid-number'
   | 'orphan-foreign-key'
   | 'missing-fk-target'
+  | 'invalid-fk-target'
   | 'missing-group-by'
+  | 'invalid-group-by'
   | 'round-trip-mismatch'
   | 'label-fallback'
 
@@ -257,6 +263,19 @@ export function validateDrafts(
     errors.push({ code: 'table-limit-exceeded', tableIndex: -1, detail: { count: drafts.length, max: DI_TABLES_MAX } })
   }
 
+  // A batch-wide id-uniqueness check, up front — `sourceTableId`s are minted
+  // independently per draft (§DI9) and nothing else guarantees they stay
+  // distinct if a caller ever constructs drafts directly rather than through
+  // `createTableDraft()`. Two tables sharing an id would silently collapse
+  // into one on read-back (`readDataImports`'s own dedup), so this is
+  // checked here, not left to the round-trip gate to merely detect.
+  const draftTableIds = new Set<string>()
+  for (let ti = 0; ti < drafts.length; ti++) {
+    const id = drafts[ti].sourceTableId
+    if (draftTableIds.has(id)) errors.push({ code: 'duplicate-source-table-id', tableIndex: ti, detail: { sourceTableId: id } })
+    draftTableIds.add(id)
+  }
+
   // Pass A -- per-table structural + cell-content validation, independent
   // of any cross-table (FK) reference. Builds each table's normalised rows
   // and its key set, needed by pass B below.
@@ -264,15 +283,32 @@ export function validateDrafts(
   for (let ti = 0; ti < drafts.length; ti++) {
     const draft = drafts[ti]
 
+    if (normalizeKey(draft.label) === '') errors.push({ code: 'empty-table-name', tableIndex: ti })
     if (draft.label.length > DI_LABEL_MAX) {
       errors.push({ code: 'label-too-long', tableIndex: ti, detail: { length: draft.label.length, max: DI_LABEL_MAX } })
     }
-    if (draft.columns.length > DI_COLUMNS_MAX) {
-      errors.push({ code: 'column-limit-exceeded', tableIndex: ti, detail: { count: draft.columns.length, max: DI_COLUMNS_MAX } })
+
+    // Storage limits and header checks apply only to columns that will
+    // actually be STORED — an `'ignored'` column (the common case on a wide
+    // source sheet where only a few columns are mapped) must never count
+    // against `DI_COLUMNS_MAX` / `DI_HEADER_MAX`, and never needs a header.
+    const storageColumns = draft.columns.reduce<number[]>((acc, c, ci) => (c.role !== 'ignored' ? [...acc, ci] : acc), [])
+    if (storageColumns.length > DI_COLUMNS_MAX) {
+      errors.push({ code: 'column-limit-exceeded', tableIndex: ti, detail: { count: storageColumns.length, max: DI_COLUMNS_MAX } })
     }
-    for (let ci = 0; ci < draft.columns.length; ci++) {
-      if (draft.columns[ci].header.length > DI_HEADER_MAX) {
-        errors.push({ code: 'header-too-long', tableIndex: ti, columnIndex: ci, detail: { length: draft.columns[ci].header.length, max: DI_HEADER_MAX } })
+    for (const ci of storageColumns) {
+      const col = draft.columns[ci]
+      if (!col.sourceColumnId) {
+        // A storage-role column with no minted id would otherwise be
+        // silently dropped by the `columns` builder below (filtered out
+        // like an `'ignored'` one) — that must be a loud error, never a
+        // silent vanish, regardless of how the draft was constructed.
+        errors.push({ code: 'missing-source-column-id', tableIndex: ti, columnIndex: ci })
+        continue
+      }
+      if (normalizeKey(col.header) === '') errors.push({ code: 'empty-column-header', tableIndex: ti, columnIndex: ci })
+      if (col.header.length > DI_HEADER_MAX) {
+        errors.push({ code: 'header-too-long', tableIndex: ti, columnIndex: ci, detail: { length: col.header.length, max: DI_HEADER_MAX } })
       }
     }
 
@@ -284,8 +320,24 @@ export function validateDrafts(
     if (fkColumnIndexes.length >= 2 && draft.groupByColumnIndex === undefined) {
       errors.push({ code: 'missing-group-by', tableIndex: ti })
     }
+    if (draft.groupByColumnIndex !== undefined) {
+      const gc = draft.columns[draft.groupByColumnIndex]
+      if (!gc || gc.role !== 'foreignKey') {
+        errors.push({ code: 'invalid-group-by', tableIndex: ti, columnIndex: draft.groupByColumnIndex })
+      }
+    }
     for (const ci of fkColumnIndexes) {
-      if (!draft.columns[ci].refDraftId) errors.push({ code: 'missing-fk-target', tableIndex: ti, columnIndex: ci })
+      const refId = draft.columns[ci].refDraftId
+      if (!refId) errors.push({ code: 'missing-fk-target', tableIndex: ti, columnIndex: ci })
+      else if (!drafts.some((d) => d.sourceTableId === refId)) {
+        // `refDraftId` is set but names no table in THIS batch — a stale
+        // reference (e.g. the target table was removed after linking).
+        // This must be caught regardless of whether any row's FK cell is
+        // actually populated; an empty-celled table with a dangling target
+        // configured is still a real configuration error, not conditional
+        // on data.
+        errors.push({ code: 'invalid-fk-target', tableIndex: ti, columnIndex: ci })
+      }
     }
 
     const rows = effectiveRows(draft)
@@ -391,24 +443,29 @@ export function validateDrafts(
   // Round-trip-losslessness gate -- if the wire projection of ANYTHING here
   // would be silently dropped by `readDataImports` (the same defensive
   // reader Phase 1A ships), refuse rather than let a corrupted-on-write
-  // document out the door. Checked per-table so one bad table doesn't mask
-  // where the mismatch is.
-  for (let ti = 0; ti < built.length; ti++) {
-    const table = built[ti]
-    const wire: ImportSourceTable = {
-      sourceTableId: table.sourceTableId,
-      label: table.label,
-      columns: table.columns.map((c) =>
-        c.refTableId
-          ? { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header, refTableId: c.refTableId }
-          : { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header },
-      ),
-      rows: table.rows.map((r) => ({ sourceKey: r.sourceKey, number: { ...r.number }, label: { ...r.label }, foreignKey: { ...r.foreignKey } })),
-    }
-    const back = readDataImports([wire])
-    if (back.length !== 1 || !deepEq(back[0], wire)) {
-      errors.push({ code: 'round-trip-mismatch', tableIndex: ti })
-    }
+  // document out the door. Run on the WHOLE batch's array AT ONCE, not
+  // per-table: `readDataImports` dedups `sourceTableId` across the FULL
+  // array it's given (first-occurrence-wins), so a per-table check (each
+  // table wrapped alone in its own single-element array) can never observe
+  // a cross-table id collision — every table would trivially "round-trip"
+  // in isolation even though committing the batch together would silently
+  // drop everything after the first duplicate. The explicit
+  // `duplicate-source-table-id` check above already covers that specific
+  // case with a clearer message; this gate is the general backstop for
+  // anything else that might not survive a real read-back.
+  const wireTables: ImportSourceTable[] = built.map((table) => ({
+    sourceTableId: table.sourceTableId,
+    label: table.label,
+    columns: table.columns.map((c) =>
+      c.refTableId
+        ? { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header, refTableId: c.refTableId }
+        : { sourceColumnId: c.sourceColumnId, role: c.role, header: c.header },
+    ),
+    rows: table.rows.map((r) => ({ sourceKey: r.sourceKey, number: { ...r.number }, label: { ...r.label }, foreignKey: { ...r.foreignKey } })),
+  }))
+  const wireBack = readDataImports(wireTables)
+  if (wireBack.length !== wireTables.length || !deepEq(wireBack, wireTables)) {
+    errors.push({ code: 'round-trip-mismatch', tableIndex: -1 })
   }
   if (errors.length > 0) return { ok: false, errors, warnings }
 

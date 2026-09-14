@@ -13,6 +13,7 @@
  *  first); only the narrow TWO-ROW layouts may shed them, and only to stop the
  *  actions line itself wrapping into a surprise third row. */
 export const OVERFLOW_ORDER = [
+  'dataImport',
   'help',
   'export',
   'share',
@@ -25,9 +26,9 @@ export const OVERFLOW_ORDER = [
 export type OverflowItem = (typeof OVERFLOW_ORDER)[number]
 
 /** The utility tail — the first N items — plus the build stamp are the only
- *  things one-row mode will move out of the way (priority steps 1–5). Step 6 is
+ *  things one-row mode will move out of the way (priority steps 1–6). Step 7 is
  *  "go to two rows", not "hide Theme". */
-export const STAMP_AFTER = 4
+export const STAMP_AFTER = 5
 
 export type ToolbarMetrics = {
   /** toolbar content-box width (clientWidth minus horizontal padding) */

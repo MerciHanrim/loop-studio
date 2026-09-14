@@ -9,12 +9,53 @@ import {
   validateDrafts,
   type DraftColumnRole,
   type Issue,
+  type IssueCode,
   type TableDraft,
 } from '../../model/dataImportValidate'
-import type { PlacementChoice } from '../../model/dataImportCommit'
+import type { CommitFailureCode, PlacementChoice } from '../../model/dataImportCommit'
 import { useFrameStore } from '../../store/frameStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useDialogFocus } from '../useDialogFocus'
+
+// Static lookups, not dynamic `import.issue.` + code template strings --
+// scripts/check-i18n.mjs only recognises a literal call with a quoted
+// string, or a `MessageKey`-typed map like these (the same pattern
+// `ThemeToggle.tsx`'s `LABEL_KEY` uses), never a computed key.
+const ISSUE_KEY: Record<IssueCode, MessageKey> = {
+  'table-limit-exceeded': 'import.issue.table-limit-exceeded',
+  'column-limit-exceeded': 'import.issue.column-limit-exceeded',
+  'row-limit-exceeded': 'import.issue.row-limit-exceeded',
+  'empty-table-name': 'import.issue.empty-table-name',
+  'label-too-long': 'import.issue.label-too-long',
+  'empty-column-header': 'import.issue.empty-column-header',
+  'header-too-long': 'import.issue.header-too-long',
+  'missing-source-column-id': 'import.issue.missing-source-column-id',
+  'duplicate-source-table-id': 'import.issue.duplicate-source-table-id',
+  'missing-key-column': 'import.issue.missing-key-column',
+  'multiple-key-columns': 'import.issue.multiple-key-columns',
+  'empty-key': 'import.issue.empty-key',
+  'key-too-long': 'import.issue.key-too-long',
+  'key-control-char': 'import.issue.key-control-char',
+  'duplicate-key': 'import.issue.duplicate-key',
+  'ragged-row': 'import.issue.ragged-row',
+  'empty-number': 'import.issue.empty-number',
+  'invalid-number': 'import.issue.invalid-number',
+  'orphan-foreign-key': 'import.issue.orphan-foreign-key',
+  'missing-fk-target': 'import.issue.missing-fk-target',
+  'invalid-fk-target': 'import.issue.invalid-fk-target',
+  'missing-group-by': 'import.issue.missing-group-by',
+  'invalid-group-by': 'import.issue.invalid-group-by',
+  'round-trip-mismatch': 'import.issue.round-trip-mismatch',
+  'label-fallback': 'import.issue.label-fallback',
+}
+const COMMIT_ERROR_KEY: Record<CommitFailureCode, MessageKey> = {
+  'source-table-id-collision': 'import.commitError.source-table-id-collision',
+  'parameter-id-collision': 'import.commitError.parameter-id-collision',
+  'frame-placement-failed': 'import.commitError.frame-placement-failed',
+  'frame-not-found': 'import.commitError.frame-not-found',
+  'frame-insufficient-space': 'import.commitError.frame-insufficient-space',
+  'invalid-result-graph': 'import.commitError.invalid-result-graph',
+}
 
 // docs/data-import.md §DI16 Phase 1B -- the CSV/TSV import wizard. Four
 // steps: configure every bound table (paste/upload, delimiter, header row,
@@ -92,7 +133,7 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
   >(null)
   const [placementKind, setPlacementKind] = useState<'none' | 'framePerTable' | 'existingFrame'>('none')
   const [existingFrameId, setExistingFrameId] = useState<string>('')
-  const [commitError, setCommitError] = useState<string | null>(null)
+  const [commitError, setCommitError] = useState<{ code: CommitFailureCode; detail?: Record<string, unknown> } | null>(null)
   const frames = useFrameStore((s) => s.frames)
   const commitDataImport = useGraphStore((s) => s.commitDataImport)
 
@@ -151,7 +192,10 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
     input.click()
   }
 
+  const hasParseError = tables.some((ui) => ui.parseError !== null)
+
   const runValidate = () => {
+    if (hasParseError) return
     const result = validateDrafts(tables.map((ui) => ui.draft))
     setValidation(result)
     if (result.ok) setStep('placement')
@@ -177,22 +221,28 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
     }
     const result = commitDataImport(validation.plan, placement)
     if (!result.ok) {
-      setCommitError(result.reason)
+      setCommitError({ code: result.reason, detail: result.detail })
       return
     }
     close()
   }
 
-  const issueText = (issue: Issue): string => {
+  const issueLocation = (issue: Issue): string | null => {
+    if (issue.tableIndex < 0) return null
     const table = tables[issue.tableIndex]?.draft.label || `#${issue.tableIndex + 1}`
-    const loc = [
-      `table ${table}`,
-      issue.rowIndex !== undefined ? `row ${issue.rowIndex + 1}` : null,
-      issue.columnIndex !== undefined ? `column ${issue.columnIndex + 1}` : null,
-    ]
-      .filter(Boolean)
-      .join(', ')
-    return `${issue.code} (${loc})`
+    if (issue.rowIndex !== undefined && issue.columnIndex !== undefined) {
+      return t('import.loc.tableRowColumn', { table, row: issue.rowIndex + 1, column: issue.columnIndex + 1 })
+    }
+    if (issue.rowIndex !== undefined) {
+      return t('import.loc.tableRow', { table, row: issue.rowIndex + 1 })
+    }
+    return t('import.loc.table', { table })
+  }
+
+  const issueText = (issue: Issue): string => {
+    const desc = t(ISSUE_KEY[issue.code], issue.detail as Record<string, string | number> | undefined)
+    const loc = issueLocation(issue)
+    return loc ? `${loc}: ${desc}` : desc
   }
 
   return (
@@ -252,7 +302,7 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
                       >
                         <option value="auto">{t('import.delimiterAuto')}</option>
                         <option value=",">{t('import.delimiterComma')}</option>
-                        <option value="\t">{t('import.delimiterTab')}</option>
+                        <option value={'\t'}>{t('import.delimiterTab')}</option>
                       </select>
                     </label>
                     <label>
@@ -350,6 +400,7 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
               <button type="button" className="btn" onClick={addTable}>
                 {t('import.addTable')}
               </button>
+              {hasParseError && <p className="import__error">{t('import.parseErrorsBlockValidation')}</p>}
             </div>
           )}
 
@@ -367,7 +418,14 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
           {step === 'placement' && validation?.ok && (
             <div className="import__placement">
               {validation.warnings.length > 0 && (
-                <p className="import__warning">{t('import.warningsFound', { n: validation.warnings.length })}</p>
+                <div className="import__warning">
+                  <p>{t('import.warningsFound', { n: validation.warnings.length })}</p>
+                  <ul>
+                    {validation.warnings.map((issue, i) => (
+                      <li key={i}>{issueText(issue)}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <label>
                 <input type="radio" checked={placementKind === 'none'} onChange={() => setPlacementKind('none')} />
@@ -414,7 +472,11 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
                   ),
                 })}
               </p>
-              {commitError && <p className="import__error">{commitError}</p>}
+              {commitError && (
+                <p className="import__error">
+                  {t(COMMIT_ERROR_KEY[commitError.code], commitError.detail as Record<string, string | number> | undefined)}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -423,7 +485,7 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
             {t('dialog.cancel')}
           </button>
           {step === 'tables' && (
-            <button type="button" className="btn btn--primary" onClick={runValidate}>
+            <button type="button" className="btn btn--primary" disabled={hasParseError} onClick={runValidate}>
               {t('import.next')}
             </button>
           )}

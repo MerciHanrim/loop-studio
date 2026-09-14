@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildImportCommit, type PlacementChoice } from './dataImportCommit'
+import { buildImportCommit, shiftUntilClear, type PlacementChoice, type Rect } from './dataImportCommit'
 import { createTableDraft, setColumnRole, validateDrafts, type DraftColumnRole, type TableDraft } from './dataImportValidate'
 import { canonicalContent, digestOfCanonical } from './revision'
 import { deserialize, serialize, type ImportSourceTable, type SavedFrame } from './serialize'
@@ -200,6 +200,89 @@ describe('buildImportCommit -- placement', () => {
     const built = buildImportCommit(v.plan, { kind: 'existingFrame', frameId: 'frame_full' }, occupied, [frame], [])
     expect(built.ok).toBe(false)
   })
+
+  it('"existingFrame": the top row is occupied but the frame is tall enough -- the scan finds a lower free row, not just top-left', () => {
+    const d = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
+    const v = validateDrafts([d])
+    if (!v.ok) throw new Error('expected ok')
+    // narrow (single column) but TALL frame -- multiple candidate ROWS exist
+    // (wide/tall enough for 2 real 260x120px Parameter rows + the grid gap)
+    const frame: SavedFrame = { id: 'frame_tall', label: 'F', rect: { x: 0, y: 0, w: 340, h: 340 } }
+    // occupies exactly the first candidate cell (24,24); the second
+    // candidate row (24, 168) is free
+    const occupied = {
+      nodes: [
+        {
+          id: 'n1',
+          type: 'pool',
+          position: { x: 24, y: 24 },
+          data: { kind: 'pool', label: 'n1', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' },
+        } as unknown as LoopNode,
+      ],
+      edges: [] as LoopEdge[],
+    }
+    const built = buildImportCommit(v.plan, { kind: 'existingFrame', frameId: 'frame_tall' }, occupied, [frame], [])
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.createdNodes[0].position).not.toEqual({ x: 24, y: 24 })
+    // still strictly inside the frame, all four edges
+    const p = built.createdNodes[0].position
+    expect(p.x).toBeGreaterThanOrEqual(frame.rect.x)
+    expect(p.y).toBeGreaterThanOrEqual(frame.rect.y)
+    expect(p.x + 150).toBeLessThanOrEqual(frame.rect.x + frame.rect.w)
+    expect(p.y + 40).toBeLessThanOrEqual(frame.rect.y + frame.rect.h)
+  })
+
+  it('"framePerTable": a group-by frame\'s title uses the RESOLVED FK label, never the raw key', () => {
+    const banners = draftFrom(['banner_key', 'banner_name'], [['premium_pickup', 'Premium Pickup']], ['key', 'label'])
+    const items = draftFrom(['item_key'], [['itm_a']], ['key'])
+    let pool = draftFrom(
+      ['pe_key', 'item_key', 'banner_key', 'weight'],
+      [['pe1', 'itm_a', 'premium_pickup', '10']],
+      ['key', 'foreignKey', 'foreignKey', 'number'],
+      'GachaPoolEntries',
+    )
+    pool = linkFk(pool, 1, items)
+    pool = linkFk(pool, 2, banners)
+    pool.groupByColumnIndex = 2
+    const v = validateDrafts([banners, items, pool])
+    if (!v.ok) throw new Error('expected ok')
+    const built = buildImportCommit(v.plan, { kind: 'framePerTable', origin: { x: 0, y: 0 } }, EMPTY_HOST, [], [])
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.createdFrames).toHaveLength(1)
+    expect(built.createdFrames[0].label).toBe('GachaPoolEntries (Premium Pickup)')
+    expect(built.createdFrames[0].label).not.toContain('premium_pickup')
+  })
+})
+
+describe('shiftUntilClear', () => {
+  it('returns the original rect unchanged when nothing overlaps', () => {
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 50 }
+    expect(shiftUntilClear(rect, [])).toEqual(rect)
+  })
+
+  it('steps right past a single blocking obstacle', () => {
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 50 }
+    const blocker: Rect = { x: 0, y: 0, w: 100, h: 50 }
+    const cleared = shiftUntilClear(rect, [blocker])
+    expect(cleared).not.toBeNull()
+    expect(cleared).not.toEqual(rect)
+  })
+
+  it('returns null (never a still-overlapping rect) once the guard budget is exhausted', () => {
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 50 }
+    // cover every position the deterministic scan could possibly try: 20
+    // rightward steps per row-band, enough row-bands to exceed the 200-step
+    // guard -- a dense wall the scan can never get past.
+    const obstacles: Rect[] = []
+    for (let band = 0; band <= 11; band++) {
+      for (let step = 0; step <= 20; step++) {
+        obstacles.push({ x: step * (rect.w + 40), y: band * (rect.h + 24) * 20, w: rect.w, h: rect.h })
+      }
+    }
+    expect(shiftUntilClear(rect, obstacles)).toBeNull()
+  })
 })
 
 describe('buildImportCommit -- pre-commit collision gate', () => {
@@ -228,8 +311,14 @@ describe('buildImportCommit -- long KO/JA labels stay within the computed frame 
     if (!built.ok) return
     const frame = built.createdFrames[0]
     const n = built.createdNodes[0]
+    const NODE_W = 150
+    const NODE_H = 40
+    // all four edges -- not just the top-left corner, which alone can't
+    // catch a node whose RIGHT or BOTTOM edge escapes the frame.
     expect(n.position.x).toBeGreaterThanOrEqual(frame.rect.x)
     expect(n.position.y).toBeGreaterThanOrEqual(frame.rect.y)
+    expect(n.position.x + NODE_W).toBeLessThanOrEqual(frame.rect.x + frame.rect.w)
+    expect(n.position.y + NODE_H).toBeLessThanOrEqual(frame.rect.y + frame.rect.h)
   })
 })
 

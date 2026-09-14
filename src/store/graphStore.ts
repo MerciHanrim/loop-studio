@@ -295,9 +295,16 @@ const sidecarNow = (framesOverride?: unknown): SidecarBundle => ({
 })
 const restoreSidecar = (sc: unknown): void => {
   const b = (sc ?? { p: null, f: null, d: null }) as SidecarBundle
-  projectSidecar?.set(b.p ?? null)
+  // `frameSidecar`/`dataImportSidecar` first: `projectSidecar.set` (via
+  // `projectStore`'s own `persist()`) synchronously flushes an autosave
+  // write immediately, reading `liveFrames()`/`liveDataImports()` at that
+  // instant AND cancelling the debounced `persist()` timer already
+  // scheduled by this same undo/redo -- restoring project last ensures that
+  // immediate flush sees the fully-restored frames/data-imports rather than
+  // a stale pre-restore value that then never gets corrected.
   frameSidecar?.set(b.f ?? null)
   dataImportSidecar?.set(b.d ?? null)
+  projectSidecar?.set(b.p ?? null)
 }
 /** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
  *  `frameStore` snapshot is already `SavedFrame`-shaped (id / label / rect /

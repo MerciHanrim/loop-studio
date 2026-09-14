@@ -214,13 +214,6 @@ export function Toolbar() {
         {inline('module') && (
           <span className="toolbar__slot" ref={setItem('module')}>
             <ModuleMenu />
-            {/* docs/data-import.md §DI16 Phase 1B — coupled to the same
-                'module' overflow slot rather than its own OVERFLOW_ORDER
-                entry, so this doesn't touch the measured-fit responsive
-                width system (docs/localization.md §L12 #5); a dedicated
-                slot is a reasonable follow-up if it ever needs independent
-                collapse behaviour. */}
-            <DataImportMenu />
           </span>
         )}
         {inline('theme') && (
@@ -258,8 +251,14 @@ export function Toolbar() {
             <HelpMenu />
           </span>
         )}
+        {inline('dataImport') && (
+          <span className="toolbar__slot" ref={setItem('dataImport')}>
+            <DataImportMenu />
+          </span>
+        )}
 
         <OverflowMenu ghost={collapsed === 0} buttonRef={setMore}>
+          {!inline('dataImport') && <DataImportMenu />}
           {!inline('help') && <HelpMenu />}
           {!inline('export') && <ExportMenu getViewport={getViewport} />}
           {!inline('share') && <ShareButton />}
@@ -267,12 +266,7 @@ export function Toolbar() {
           {!inline('theme') && <ThemeToggle />}
           {!inline('language') && <LanguageSwitch />}
           {!inline('new') && newButton}
-          {!inline('module') && (
-            <>
-              <ModuleMenu />
-              <DataImportMenu />
-            </>
-          )}
+          {!inline('module') && <ModuleMenu />}
         </OverflowMenu>
 
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />
