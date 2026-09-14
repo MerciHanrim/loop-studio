@@ -11,7 +11,7 @@ import {
   type RefreshIssue,
   type RefreshIssueCode,
 } from '../../model/dataImportRefreshValidate'
-import { diffRefresh, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../../model/dataImportRefresh'
+import { cellResolutionKey, diffRefresh, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../../model/dataImportRefresh'
 import { nextId } from '../../model/factory'
 import type { ImportColumnRole } from '../../model/serialize'
 import { useDataImportStore } from '../../store/dataImportStore'
@@ -65,6 +65,14 @@ const REFRESH_ISSUE_KEY: Record<RefreshIssueCode, MessageKey> = {
   'invalid-fk-target': 'import.issue.invalid-fk-target',
   'round-trip-mismatch': 'import.issue.round-trip-mismatch',
   'label-fallback': 'import.issue.label-fallback',
+}
+// `Extract<..., {ok:false}>['reason']` (not a hand-typed union) so a new
+// `RefreshCommitResult` failure reason fails this map at compile time
+// instead of silently falling through to the wrong message.
+const COMMIT_ERROR_KEY: Record<Extract<RefreshCommitResult, { ok: false }>['reason'], MessageKey> = {
+  'referenced-node': 'import.refresh.commitError.referenced-node',
+  'missing-row-dependency': 'import.refresh.commitError.missing-row-dependency',
+  'placement-failed': 'import.refresh.commitError.placement-failed',
 }
 
 function sanitizeRowCount(raw: string, min: number): number {
@@ -479,18 +487,18 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                               <label>
                                 <input
                                   type="radio"
-                                  name={`${row.sourceKey}:${c.sourceColumnId}`}
-                                  checked={cellChoices.get(`${row.sourceKey}:${c.sourceColumnId}`) === 'apply-incoming'}
-                                  onChange={() => setCellChoices((prev) => new Map(prev).set(`${row.sourceKey}:${c.sourceColumnId}`, 'apply-incoming'))}
+                                  name={cellResolutionKey(row.sourceKey, c.sourceColumnId)}
+                                  checked={cellChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) === 'apply-incoming'}
+                                  onChange={() => setCellChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'apply-incoming'))}
                                 />
                                 {t('import.refresh.review.cellChoiceApplyIncoming', { value: c.incoming })}
                               </label>
                               <label>
                                 <input
                                   type="radio"
-                                  name={`${row.sourceKey}:${c.sourceColumnId}`}
-                                  checked={(cellChoices.get(`${row.sourceKey}:${c.sourceColumnId}`) ?? 'keep-mine') === 'keep-mine'}
-                                  onChange={() => setCellChoices((prev) => new Map(prev).set(`${row.sourceKey}:${c.sourceColumnId}`, 'keep-mine'))}
+                                  name={cellResolutionKey(row.sourceKey, c.sourceColumnId)}
+                                  checked={(cellChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) ?? 'keep-mine') === 'keep-mine'}
+                                  onChange={() => setCellChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'keep-mine'))}
                                 />
                                 {t('import.refresh.review.cellChoiceKeepMine', { value: c.local })}
                               </label>
@@ -501,18 +509,18 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                               <label>
                                 <input
                                   type="radio"
-                                  name={`ld:${row.sourceKey}:${c.sourceColumnId}`}
-                                  checked={locallyDeletedChoices.get(`${row.sourceKey}:${c.sourceColumnId}`) === 'recreate'}
-                                  onChange={() => setLocallyDeletedChoices((prev) => new Map(prev).set(`${row.sourceKey}:${c.sourceColumnId}`, 'recreate'))}
+                                  name={`ld:${cellResolutionKey(row.sourceKey, c.sourceColumnId)}`}
+                                  checked={locallyDeletedChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) === 'recreate'}
+                                  onChange={() => setLocallyDeletedChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'recreate'))}
                                 />
                                 {t('import.refresh.review.locallyDeletedChoiceRecreate', { value: c.incoming })}
                               </label>
                               <label>
                                 <input
                                   type="radio"
-                                  name={`ld:${row.sourceKey}:${c.sourceColumnId}`}
-                                  checked={locallyDeletedChoices.get(`${row.sourceKey}:${c.sourceColumnId}`) === 'discard'}
-                                  onChange={() => setLocallyDeletedChoices((prev) => new Map(prev).set(`${row.sourceKey}:${c.sourceColumnId}`, 'discard'))}
+                                  name={`ld:${cellResolutionKey(row.sourceKey, c.sourceColumnId)}`}
+                                  checked={locallyDeletedChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) === 'discard'}
+                                  onChange={() => setLocallyDeletedChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'discard'))}
                                 />
                                 {t('import.refresh.review.locallyDeletedChoiceDiscard')}
                               </label>
@@ -523,18 +531,18 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                               <label>
                                 <input
                                   type="radio"
-                                  name={`fk:${row.sourceKey}:${c.sourceColumnId}`}
-                                  checked={fkRepointChoices.get(`${row.sourceKey}:${c.sourceColumnId}`) === 'accept'}
-                                  onChange={() => setFkRepointChoices((prev) => new Map(prev).set(`${row.sourceKey}:${c.sourceColumnId}`, 'accept'))}
+                                  name={`fk:${cellResolutionKey(row.sourceKey, c.sourceColumnId)}`}
+                                  checked={fkRepointChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) === 'accept'}
+                                  onChange={() => setFkRepointChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'accept'))}
                                 />
                                 {t('import.refresh.review.fkChoiceAccept', { value: c.incoming })}
                               </label>
                               <label>
                                 <input
                                   type="radio"
-                                  name={`fk:${row.sourceKey}:${c.sourceColumnId}`}
-                                  checked={(fkRepointChoices.get(`${row.sourceKey}:${c.sourceColumnId}`) ?? 'reject') === 'reject'}
-                                  onChange={() => setFkRepointChoices((prev) => new Map(prev).set(`${row.sourceKey}:${c.sourceColumnId}`, 'reject'))}
+                                  name={`fk:${cellResolutionKey(row.sourceKey, c.sourceColumnId)}`}
+                                  checked={(fkRepointChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) ?? 'reject') === 'reject'}
+                                  onChange={() => setFkRepointChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'reject'))}
                                 />
                                 {t('import.refresh.review.fkChoiceReject', { value: c.base })}
                               </label>
@@ -546,11 +554,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                   </ul>
                 </>
               )}
-              {commitError && !commitError.ok && (
-                <p className="import__error">
-                  {commitError.reason === 'referenced-node' ? t('import.refresh.commitError.referenced-node') : t('import.refresh.commitError.missing-row-dependency')}
-                </p>
-              )}
+              {commitError && !commitError.ok && <p className="import__error">{t(COMMIT_ERROR_KEY[commitError.reason])}</p>}
             </div>
           )}
         </div>

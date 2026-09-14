@@ -126,6 +126,7 @@ const dataImport = {
   'import.refresh.duplicateTripleError': '데이터가 손상되었습니다: 같은 행과 열에 파라미터가 두 개 이상 연결되어 있습니다. 이 문제를 해결할 때까지 새로고침이 차단됩니다.',
   'import.refresh.commitError.referenced-node': '삭제할 수 없습니다 — 이 행의 파라미터가 그래프의 다른 곳에서 아직 참조되고 있습니다.',
   'import.refresh.commitError.missing-row-dependency': '연결 해제하거나 삭제할 수 없습니다 — 다른 테이블이 이 행을 아직 참조하고 있습니다.',
+  'import.refresh.commitError.placement-failed': '새 파라미터를 배치할 공간을 캔버스에서 찾지 못했습니다 — 다른 뷰포트 위치에서 다시 시도하세요.',
 
   'import.refreshIssue.table-not-found': '이 테이블 연결이 더 이상 존재하지 않습니다.',
   'import.refreshIssue.unresolved-column-event': '계속하려면 이 컬럼 변경 사항에 대한 선택이 필요합니다.',

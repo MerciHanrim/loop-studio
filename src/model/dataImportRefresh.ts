@@ -20,12 +20,23 @@ function paramData(n: LoopNode): ParameterData | null {
   return n.data.kind === 'parameter' ? n.data : null
 }
 
-/** A join key for a (string, string) pair, matching the same `a:b` shape
- *  already used for the per-cell resolution-map keys below. */
+/** A collision-safe join key for a (string, string) pair. A plain `${a}:${b}`
+ *  template is NOT one-to-one under this module's own storage contract --
+ *  neither `sourceKey` (free-form spreadsheet text) nor `sourceColumnId` is
+ *  ever forbidden from containing a colon, so e.g. `('a:b', 'c')` and
+ *  `('a', 'b:c')` would both join to `'a:b:c'`, letting two DIFFERENT
+ *  generating triples look identical (masking a real §DI-D15 duplicate, or
+ *  misapplying one cell's resolution choice to another). `JSON.stringify`
+ *  of the pair disambiguates unconditionally regardless of either part's
+ *  content. Exported as `cellResolutionKey` for `DataImportRefreshWizard.tsx`
+ *  to build the EXACT same keys `buildRefreshCommit` reads back from
+ *  `RefreshResolution`'s per-cell maps -- the UI and this module must never
+ *  drift onto two different encodings of the same (sourceKey,
+ *  sourceColumnId) pair. */
 function pairKey(a: string, b: string): string {
-  return `${a}:${b}`
+  return JSON.stringify([a, b])
 }
-const tripleKey = pairKey
+export const cellResolutionKey = pairKey
 
 // -- the per-`number`-cell three-way (§DI11 "the complete base/local/incoming
 // three-way") -- a small, NEW, isolated comparator. NOT a reuse of Project
@@ -177,7 +188,7 @@ export function diffRefresh(
   const byTriple = new Map<string, { sourceKey: string; sourceColumnId: string; nodes: LoopNode[] }>()
   for (const n of tripleNodes) {
     const d = paramData(n)!
-    const key = tripleKey(d.sourceKey!, d.sourceColumnId!)
+    const key = pairKey(d.sourceKey!, d.sourceColumnId!)
     const entry = byTriple.get(key) ?? { sourceKey: d.sourceKey!, sourceColumnId: d.sourceColumnId!, nodes: [] }
     entry.nodes.push(n)
     byTriple.set(key, entry)
@@ -315,13 +326,16 @@ export function diffRefresh(
 
 /** The user's per-row / per-cell / per-FK choices ONLY -- never a column
  *  choice (those already live in `plan.snapshot`, resolved before the plan
- *  ever existed). Map keys for a per-cell choice are `${sourceKey}:
- *  ${sourceColumnId}`. An entry absent from a resolution map means "not yet
- *  decided" and is handled as a safe no-op below -- an unresolved `conflict`
- *  keeps the local value, an unresolved `locally-deleted` cell is left
- *  untouched (re-prompts next refresh), an unresolved FK re-point defaults
- *  to `reject` (the doc's own explicit "not yet decided" default), and an
- *  unresolved `missing` row's stored data simply carries over unchanged. */
+ *  ever existed). Map keys for a per-cell choice are built with
+ *  `cellResolutionKey(sourceKey, sourceColumnId)` -- never a plain
+ *  `${sourceKey}:${sourceColumnId}` template, which is NOT collision-free
+ *  (neither part is ever forbidden from containing a colon). An entry
+ *  absent from a resolution map means "not yet decided" and is handled as
+ *  a safe no-op below -- an unresolved `conflict` keeps the local value, an
+ *  unresolved `locally-deleted` cell is left untouched (re-prompts next
+ *  refresh), an unresolved FK re-point defaults to `reject` (the doc's own
+ *  explicit "not yet decided" default), and an unresolved `missing` row's
+ *  stored data simply carries over unchanged. */
 export type RefreshResolution = {
   confirmedAdds: ReadonlySet<string>
   missingRowChoices: ReadonlyMap<string, 'unlink' | 'delete'>
@@ -334,6 +348,7 @@ export type RefreshCommitResult =
   | { ok: true; createdNodes: LoopNode[]; updatedNodes: LoopNode[]; removedNodeIds: string[]; updatedTables: ImportSourceTable[] }
   | { ok: false; reason: 'referenced-node'; detail: { nodeId: string; refs: NodeReference[] } }
   | { ok: false; reason: 'missing-row-dependency'; detail: MissingRowDependencyError }
+  | { ok: false; reason: 'placement-failed' }
 
 function unlinkNode(n: LoopNode): LoopNode {
   const d = paramData(n)!
@@ -364,8 +379,14 @@ export function parameterLabel(tables: readonly ImportSourceTable[], sourceTable
  *  frame's rect -- a refresh's new nodes must never land on top of anything
  *  already on the canvas, and must never fall inside a frame purely because
  *  the viewport happened to be centred there (§DI-D12: a refresh never
- *  auto-joins a frame). */
-function placeNewNodes(count: number, origin: Point, hostNodes: readonly LoopNode[], existingFrames: readonly SavedFrame[]): Point[] {
+ *  auto-joins a frame). `null` when `shiftUntilClear`'s 200-attempt guard
+ *  is exhausted -- `buildImportCommit` treats that as a hard failure of the
+ *  WHOLE commit (`frame-placement-failed`), never a silent fall-back to the
+ *  still-overlapping raw positions; this function must refuse the same way,
+ *  or a refresh could silently drop a new node on top of an existing one or
+ *  auto-join a frame purely because every deterministic candidate happened
+ *  to be blocked. */
+function placeNewNodes(count: number, origin: Point, hostNodes: readonly LoopNode[], existingFrames: readonly SavedFrame[]): Point[] | null {
   if (count === 0) return []
   const raw = gridPositions(count, origin)
   const minX = Math.min(...raw.map((p) => p.x))
@@ -375,7 +396,7 @@ function placeNewNodes(count: number, origin: Point, hostNodes: readonly LoopNod
   const rect: Rect = { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
   const obstacles = [...hostNodes.map((n) => nodeRect(n.position)), ...existingFrames.map((f) => f.rect)]
   const shifted = shiftUntilClear(rect, obstacles)
-  if (!shifted) return raw // guard budget exhausted -- extremely unlikely; fall back rather than fail the whole refresh
+  if (!shifted) return null
   const dx = shifted.x - rect.x
   const dy = shifted.y - rect.y
   return raw.map((p) => ({ x: p.x + dx, y: p.y + dy }))
@@ -475,7 +496,7 @@ export function buildRefreshCommit(
         continue
       }
       if (cell.kind === 'locally-deleted') {
-        const choice = resolution.locallyDeletedChoices.get(`${row.sourceKey}:${cell.sourceColumnId}`)
+        const choice = resolution.locallyDeletedChoices.get(pairKey(row.sourceKey, cell.sourceColumnId))
         if (choice === 'recreate') {
           number[cell.sourceColumnId] = cell.incoming
           pending.push({ sourceKey: row.sourceKey, sourceColumnId: cell.sourceColumnId, value: cell.incoming })
@@ -496,7 +517,7 @@ export function buildRefreshCommit(
         const node = host.nodes.find((n) => n.id === cell.nodeId)!
         updatedNodesById.set(cell.nodeId, { ...node, data: { ...paramData(node)!, value: cell.incoming } })
       } else if (cell.state === 'conflict') {
-        const choice = resolution.cellChoices.get(`${row.sourceKey}:${cell.sourceColumnId}`) ?? 'keep-mine'
+        const choice = resolution.cellChoices.get(pairKey(row.sourceKey, cell.sourceColumnId)) ?? 'keep-mine'
         if (choice === 'apply-incoming') {
           const node = host.nodes.find((n) => n.id === cell.nodeId)!
           updatedNodesById.set(cell.nodeId, { ...node, data: { ...paramData(node)!, value: cell.incoming } })
@@ -515,7 +536,7 @@ export function buildRefreshCommit(
         continue
       }
       // doc's own explicit default for "not yet decided": reject (base stays put)
-      const choice = resolution.fkRepointChoices.get(`${row.sourceKey}:${col.sourceColumnId}`) ?? 'reject'
+      const choice = resolution.fkRepointChoices.get(pairKey(row.sourceKey, col.sourceColumnId)) ?? 'reject'
       foreignKey[col.sourceColumnId] = choice === 'accept' ? change.incoming : change.base
     }
 
@@ -571,6 +592,7 @@ export function buildRefreshCommit(
   // recreated locally-deleted cells) -- grid-placed together, clear of
   // every existing node and every existing frame (§DI-D12). -------------
   const positions = placeNewNodes(pending.length, newNodeOrigin, host.nodes, existingFrames)
+  if (positions === null) return { ok: false, reason: 'placement-failed' } // nothing has been applied yet -- this is a pure function; returning here commits nothing
   const createdNodes: LoopNode[] = pending.map((p, i) => {
     const label = parameterLabel(postRefreshTables, refreshingTableId, p.sourceKey, p.sourceColumnId) ?? p.sourceKey
     return {

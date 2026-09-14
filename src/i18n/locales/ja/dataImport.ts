@@ -126,6 +126,7 @@ const dataImport = {
   'import.refresh.duplicateTripleError': 'データが破損しています: 同じ行と列に複数のパラメータが結び付いています。この問題が解決するまで更新はブロックされます。',
   'import.refresh.commitError.referenced-node': '削除できません — この行のパラメータはグラフの他の場所からまだ参照されています。',
   'import.refresh.commitError.missing-row-dependency': '連携解除も削除もできません — 他のテーブルがこの行をまだ参照しています。',
+  'import.refresh.commitError.placement-failed': '新しいパラメータを配置する空きがキャンバス上に見つかりませんでした — 別のビューポート位置から再試行してください。',
 
   'import.refreshIssue.table-not-found': 'このテーブル連携はもう存在しません。',
   'import.refreshIssue.unresolved-column-event': '続行するには、この列の変更について選択が必要です。',

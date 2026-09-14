@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { nextId } from './factory'
 import { validateRefreshSnapshot, type ColumnPairing } from './dataImportRefreshValidate'
-import { buildRefreshCommit, classifyCell, diffRefresh, findImportForeignKeyDependents, type RefreshResolution } from './dataImportRefresh'
+import { buildRefreshCommit, cellResolutionKey, classifyCell, diffRefresh, findImportForeignKeyDependents, type RefreshResolution } from './dataImportRefresh'
 import type { ImportColumn, ImportSourceTable, SavedFrame } from './serialize'
 import type { LoopEdge, LoopNode } from './types'
 
@@ -424,7 +424,7 @@ describe('buildRefreshCommit -- the number three-way, base-movement rules', () =
     const r = diffRefresh([t], t.sourceTableId, [node], snapshot)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    const resolution: RefreshResolution = { ...NO_RESOLUTION, cellChoices: new Map([['itm_a:col_weight', 'apply-incoming']]) }
+    const resolution: RefreshResolution = { ...NO_RESOLUTION, cellChoices: new Map([[cellResolutionKey('itm_a', 'col_weight'), 'apply-incoming']]) }
     const result = buildRefreshCommit([t], r.plan, resolution, { nodes: [node], edges: [] }, 2, { x: 0, y: 0 }, [])
     expect(result.ok).toBe(true)
     if (!result.ok) return
@@ -439,7 +439,7 @@ describe('buildRefreshCommit -- locally-deleted cells', () => {
     const r = diffRefresh([t], t.sourceTableId, [], snapshot)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    const resolution: RefreshResolution = { ...NO_RESOLUTION, locallyDeletedChoices: new Map([['itm_a:col_weight', 'recreate']]) }
+    const resolution: RefreshResolution = { ...NO_RESOLUTION, locallyDeletedChoices: new Map([[cellResolutionKey('itm_a', 'col_weight'), 'recreate']]) }
     const result = buildRefreshCommit([t], r.plan, resolution, EMPTY_HOST, 2, { x: 0, y: 0 }, [])
     expect(result.ok).toBe(true)
     if (!result.ok) return
@@ -454,7 +454,7 @@ describe('buildRefreshCommit -- locally-deleted cells', () => {
     const r = diffRefresh([t], t.sourceTableId, [], snapshot)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    const resolution: RefreshResolution = { ...NO_RESOLUTION, locallyDeletedChoices: new Map([['itm_a:col_weight', 'discard']]) }
+    const resolution: RefreshResolution = { ...NO_RESOLUTION, locallyDeletedChoices: new Map([[cellResolutionKey('itm_a', 'col_weight'), 'discard']]) }
     const result = buildRefreshCommit([t], r.plan, resolution, EMPTY_HOST, 2, { x: 0, y: 0 }, [])
     expect(result.ok).toBe(true)
     if (!result.ok) return
@@ -565,5 +565,87 @@ describe('buildRefreshCommit -- deterministic new-node placement (§DI-D12)', ()
     const pos = result.createdNodes[0].position
     const overlapsFrame = pos.x < frame.rect.x + frame.rect.w && pos.x + 260 > frame.rect.x && pos.y < frame.rect.y + frame.rect.h && pos.y + 120 > frame.rect.y
     expect(overlapsFrame).toBe(false)
+  })
+
+  it('refuses the whole commit, applying nothing, when every one of the 200 candidate positions is blocked', () => {
+    const t = itemsTable()
+    const snapshot = snapshotFor([t], t.sourceTableId, [['itm_a', 'Ember Blade', '10'], ['itm_b', 'Iron Charm', '3']])
+    const r = diffRefresh([t], t.sourceTableId, [], snapshot)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const resolution: RefreshResolution = { ...NO_RESOLUTION, confirmedAdds: new Set(['itm_b']) }
+    // a single obstacle rect big enough to cover the ENTIRE deterministic
+    // scan area (up to 19 grid-widths right, 10 grid-heights down from the
+    // origin) -- `shiftUntilClear`'s own 200-attempt guard must exhaust and
+    // return null, and this function must refuse the whole commit exactly
+    // like `buildImportCommit` already does for the first import, never
+    // silently falling back to the still-overlapping raw position.
+    const blocker: SavedFrame = { id: 'blocker', label: 'Blocker', rect: { x: -100, y: -100, w: 8000, h: 3000 } }
+    const result = buildRefreshCommit([t], r.plan, resolution, EMPTY_HOST, 2, { x: 0, y: 0 }, [blocker])
+    expect(result).toEqual({ ok: false, reason: 'placement-failed' })
+  })
+})
+
+describe('collision-safe resolution keys (§DI-D15 / per-cell resolution) -- identifiers containing a colon', () => {
+  it('two DIFFERENT (sourceKey, sourceColumnId) pairs that would collide under a naive colon-join are never treated as a duplicate triple', () => {
+    const t = itemsTable()
+    const snapshot = snapshotFor([t], t.sourceTableId, [['itm_a', 'Ember Blade', '10']])
+    // ('a:b', 'c') and ('a', 'b:c') both join to the literal string
+    // "a:b:c" under a plain `${sourceKey}:${sourceColumnId}` template --
+    // genuinely different pairs, must never be conflated into one
+    // "duplicate" triple.
+    const n1 = paramNode('p1', { sourceTableId: t.sourceTableId, sourceKey: 'a:b', sourceColumnId: 'c', value: 1 })
+    const n2 = paramNode('p2', { sourceTableId: t.sourceTableId, sourceKey: 'a', sourceColumnId: 'b:c', value: 2 })
+    const r = diffRefresh([t], t.sourceTableId, [n1, n2], snapshot)
+    expect(r.ok).toBe(true)
+  })
+
+  it("a colliding-under-the-old-scheme resolution key never misapplies one cell's choice to a different row/column", () => {
+    // row 'a:b' column 'c', and row 'a' column 'b:c' -- the exact same
+    // colon-join collision, this time on the PER-CELL RESOLUTION map keys
+    // (`cellChoices`) `buildRefreshCommit` reads back.
+    const t: ImportSourceTable = {
+      sourceTableId: 'srctable_x',
+      label: 'X',
+      columns: [
+        { sourceColumnId: 'key_col', role: 'key', header: 'key' },
+        { sourceColumnId: 'c', role: 'number', header: 'c' },
+        { sourceColumnId: 'b:c', role: 'number', header: 'bc' },
+      ],
+      rows: [
+        { sourceKey: 'a:b', number: { c: 10, 'b:c': 100 }, label: {}, foreignKey: {} },
+        { sourceKey: 'a', number: { c: 50, 'b:c': 2 }, label: {}, foreignKey: {} },
+      ],
+    }
+    const snapshot = snapshotFor(
+      [t],
+      t.sourceTableId,
+      [['a:b', '25', '100'], ['a', '50', '9']],
+      [],
+      ['key', 'c', 'bc'],
+    )
+    const n1 = paramNode('p1', { sourceTableId: t.sourceTableId, sourceKey: 'a:b', sourceColumnId: 'c', value: 15 }) // base 10, local 15, incoming 25 -- conflict
+    const n2 = paramNode('p2', { sourceTableId: t.sourceTableId, sourceKey: 'a', sourceColumnId: 'b:c', value: 7 }) // base 2, local 7, incoming 9 -- conflict
+    const r = diffRefresh([t], t.sourceTableId, [n1, n2], snapshot)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+
+    // resolve ONLY (sourceKey:'a:b', sourceColumnId:'c') -- (sourceKey:'a',
+    // sourceColumnId:'b:c') is deliberately left unresolved (defaults to
+    // keep-mine). Under the old `${a}:${b}` join both pairs share the
+    // identical string "a:b:c", so this single entry would incorrectly
+    // resolve BOTH cells.
+    const resolution: RefreshResolution = { ...NO_RESOLUTION, cellChoices: new Map([[cellResolutionKey('a:b', 'c'), 'apply-incoming']]) }
+    const result = buildRefreshCommit([t], r.plan, resolution, { nodes: [n1, n2], edges: [] }, 2, { x: 0, y: 0 }, [])
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+
+    expect((result.updatedNodes.find((n) => n.id === 'p1')!.data as { value: number }).value).toBe(25) // resolved -- accepted
+    // p2 may still appear in `updatedNodes` (its label can legitimately
+    // recompose), but its VALUE must be untouched -- its own resolution
+    // choice was never set, so it must default to keep-mine, never borrow
+    // p1's "apply-incoming" choice via a colliding key.
+    const p2After = result.updatedNodes.find((n) => n.id === 'p2') ?? n2
+    expect((p2After.data as { value: number }).value).toBe(7)
   })
 })

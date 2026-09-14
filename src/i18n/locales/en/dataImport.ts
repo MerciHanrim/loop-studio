@@ -131,6 +131,7 @@ const dataImport = {
   'import.refresh.duplicateTripleError': 'This data is corrupted: more than one Parameter is bound to the same row and column. Refresh is blocked until this is fixed.',
   'import.refresh.commitError.referenced-node': "Can't delete this row's Parameter — it is still referenced elsewhere in the graph.",
   'import.refresh.commitError.missing-row-dependency': "Can't unlink or delete this row — another table still references it.",
+  'import.refresh.commitError.placement-failed': 'Could not find space on the canvas for the new Parameter(s) — try again from a different viewport position.',
 
   // one description per REFRESH-ONLY `RefreshIssueCode` not already covered
   // by an `import.issue.*` entry above (the overlapping codes reuse those
