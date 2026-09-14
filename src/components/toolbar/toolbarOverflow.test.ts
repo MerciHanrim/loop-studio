@@ -148,8 +148,8 @@ describe('overflowedItems / isInline', () => {
     expect(isInline('help', 0)).toBe(true)
     expect(isInline('module', 0)).toBe(true)
   })
-  it('collapsed=3 → help/export/share in the menu, the rest inline', () => {
-    expect(overflowedItems(3)).toEqual(['help', 'export', 'share'])
+  it('collapsed=3 → dataImport/help/export in the menu, the rest inline', () => {
+    expect(overflowedItems(3)).toEqual(['dataImport', 'help', 'export'])
     expect(isInline('help', 3)).toBe(false)
     expect(isInline('import', 3)).toBe(true)
   })

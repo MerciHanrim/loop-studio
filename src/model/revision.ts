@@ -953,7 +953,7 @@ function indexById<T extends { id: string }>(xs: T[]): Map<string, T> {
  * the freshly-projected proposed content; that must not read as a change
  * (R-INV-8, vector 19). Only plain JSON values occur here.
  */
-function deepEq(a: unknown, b: unknown): boolean {
+export function deepEq(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') {
     // NaN never appears (canonicalContent throws); treat as plain !==

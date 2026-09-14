@@ -14,8 +14,9 @@ import ui from './ui'
 import canvas from './canvas'
 import inspector from './inspector'
 import templates from './templates'
+import dataImport from './dataImport'
 
-const en = { ...ui, ...canvas, ...inspector, ...templates } as const
+const en = { ...ui, ...canvas, ...inspector, ...templates, ...dataImport } as const
 
 /** the canonical key set — every catalog is `Record<MessageKey, string>` */
 export type MessageKey = keyof typeof en

@@ -5,10 +5,11 @@
 
 import type { MessageCatalog } from '../en'
 import canvas from './canvas'
+import dataImport from './dataImport'
 import inspector from './inspector'
 import templates from './templates'
 import ui from './ui'
 
-const ja = { ...ui, ...canvas, ...inspector, ...templates } satisfies MessageCatalog
+const ja = { ...ui, ...canvas, ...inspector, ...templates, ...dataImport } satisfies MessageCatalog
 
 export default ja

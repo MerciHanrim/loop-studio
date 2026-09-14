@@ -14,6 +14,7 @@ import { ExportMenu } from './ExportMenu'
 import { HelpMenu } from './HelpMenu'
 import { LanguageSwitch } from './LanguageSwitch'
 import { Logo } from './Logo'
+import { DataImportMenu } from './dataImport/DataImportMenu'
 import { MobileTopBar } from './mobile/MobileTopBar'
 import { ModuleMenu } from './ModuleMenu'
 import { RevisionChip } from './RevisionChip'
@@ -250,8 +251,14 @@ export function Toolbar() {
             <HelpMenu />
           </span>
         )}
+        {inline('dataImport') && (
+          <span className="toolbar__slot" ref={setItem('dataImport')}>
+            <DataImportMenu />
+          </span>
+        )}
 
         <OverflowMenu ghost={collapsed === 0} buttonRef={setMore}>
+          {!inline('dataImport') && <DataImportMenu />}
           {!inline('help') && <HelpMenu />}
           {!inline('export') && <ExportMenu getViewport={getViewport} />}
           {!inline('share') && <ShareButton />}

@@ -13,6 +13,8 @@ import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateL
 import { createNode, defaultData, nextId } from '../model/factory'
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
+import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from '../model/dataImportCommit'
+import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { parseActivatorExpr } from '../engine'
 import {
   deserialize,
@@ -133,6 +135,16 @@ type GraphStore = {
     module: GraphDocLike,
     opts: { at: XY; confirmedPromotion?: boolean },
   ) => InsertModuleResult
+  /** docs/data-import.md §DI16 Phase 1B — commit a validated multi-table
+   *  import as ONE atomic history entry: every generated Parameter, every
+   *  new `dataImports` table record, and any newly-created frame land
+   *  together, so one Ctrl+Z reverts the whole batch. `plan` can only come
+   *  from `validateDrafts` (the type is the trust boundary — see
+   *  `dataImportValidate.ts`), so this action can never commit unvalidated
+   *  data. Mirrors `insertModule`'s pure-build-then-apply shape:
+   *  `buildImportCommit` (pure, includes its own pre-commit collision gate)
+   *  runs first and can refuse with `ok:false` before anything changes. */
+  commitDataImport: (plan: ValidatedImportPlan, placement: PlacementChoice) => ImportCommitResult
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
   removeNode: (id: string) => void
@@ -283,9 +295,16 @@ const sidecarNow = (framesOverride?: unknown): SidecarBundle => ({
 })
 const restoreSidecar = (sc: unknown): void => {
   const b = (sc ?? { p: null, f: null, d: null }) as SidecarBundle
-  projectSidecar?.set(b.p ?? null)
+  // `frameSidecar`/`dataImportSidecar` first: `projectSidecar.set` (via
+  // `projectStore`'s own `persist()`) synchronously flushes an autosave
+  // write immediately, reading `liveFrames()`/`liveDataImports()` at that
+  // instant AND cancelling the debounced `persist()` timer already
+  // scheduled by this same undo/redo -- restoring project last ensures that
+  // immediate flush sees the fully-restored frames/data-imports rather than
+  // a stale pre-restore value that then never gets corrected.
   frameSidecar?.set(b.f ?? null)
   dataImportSidecar?.set(b.d ?? null)
+  projectSidecar?.set(b.p ?? null)
 }
 /** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
  *  `frameStore` snapshot is already `SavedFrame`-shaped (id / label / rect /
@@ -755,6 +774,22 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       bump()
       persist()
       return { ok: true, insertedNodeIds: built.insertedNodeIds, promotedToV2: built.promotedToV2 }
+    },
+
+    commitDataImport: (plan, placement) => {
+      const g = get()
+      const existingFrames = (frameSidecar?.get() as SavedFrame[] | null) ?? []
+      const existingTables = (dataImportSidecar?.get() as ImportSourceTable[] | null) ?? []
+      const built = buildImportCommit(plan, placement, { nodes: g.nodes, edges: g.edges }, existingFrames, existingTables)
+      if (!built.ok) return built // includes the pre-commit collision gate -- nothing mutated yet
+      commit('')
+      lastTag = ''
+      set({ nodes: [...g.nodes, ...built.createdNodes], selectedNodeId: null, selectedEdgeId: null })
+      if (built.createdFrames.length) frameSidecar?.set([...existingFrames, ...built.createdFrames])
+      dataImportSidecar?.set([...existingTables, ...built.tables])
+      bump()
+      persist()
+      return built
     },
 
     exportJSON: (recommendedRunConfig) =>
