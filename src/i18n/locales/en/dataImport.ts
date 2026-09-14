@@ -51,6 +51,8 @@ const dataImport = {
   'import.issue.table-limit-exceeded': 'Too many tables ({count}, maximum {max}).',
   'import.issue.column-limit-exceeded': 'Too many mapped columns ({count}, maximum {max}).',
   'import.issue.row-limit-exceeded': 'Too many rows ({count}, maximum {max}).',
+  'import.issue.invalid-header-row': 'The header row must be a whole number of 1 or more.',
+  'import.issue.invalid-ignore-rows': 'Ignore last N rows must be a whole number of 0 or more.',
   'import.issue.empty-table-name': 'The table name is empty.',
   'import.issue.label-too-long': 'The table name is too long (maximum {max} characters).',
   'import.issue.empty-column-header': "This column's header is empty.",

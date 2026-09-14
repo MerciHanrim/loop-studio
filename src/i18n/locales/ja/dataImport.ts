@@ -49,6 +49,8 @@ const dataImport = {
   'import.issue.table-limit-exceeded': 'テーブルが多すぎます({count}件、上限{max}件)。',
   'import.issue.column-limit-exceeded': 'マッピングされた列が多すぎます({count}件、上限{max}件)。',
   'import.issue.row-limit-exceeded': '行が多すぎます({count}件、上限{max}件)。',
+  'import.issue.invalid-header-row': 'ヘッダー行は1以上の整数である必要があります。',
+  'import.issue.invalid-ignore-rows': '末尾の無視行数は0以上の整数である必要があります。',
   'import.issue.empty-table-name': 'テーブル名が空です。',
   'import.issue.label-too-long': 'テーブル名が長すぎます(上限{max}文字)。',
   'import.issue.empty-column-header': 'この列のヘッダーが空です。',

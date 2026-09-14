@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SOURCE_KEY_MAX_BYTES } from './model'
+import { DI_COLUMNS_MAX, DI_HEADER_MAX } from './serialize'
 import {
   composeFullRowLabel,
   createTableDraft,
@@ -322,6 +323,101 @@ describe('validateDrafts -- storage limits (checked before the builder ever runs
     const d = draftFrom(['k'], [['a']], ['key'], 'x'.repeat(201))
     const r = validateDrafts([d])
     expect(!r.ok && r.errors.some((e) => e.code === 'label-too-long')).toBe(true)
+  })
+
+  it('review round 3 -- an empty or whitespace-only table name is a blocking error', () => {
+    const empty = draftFrom(['k'], [['a']], ['key'], '')
+    expect(!validateDrafts([empty]).ok).toBe(true)
+    const r1 = validateDrafts([empty])
+    expect(!r1.ok && r1.errors.some((e) => e.code === 'empty-table-name')).toBe(true)
+
+    const whitespace = draftFrom(['k'], [['a']], ['key'], '   ')
+    const r2 = validateDrafts([whitespace])
+    expect(!r2.ok && r2.errors.some((e) => e.code === 'empty-table-name')).toBe(true)
+  })
+
+  it('review round 3 -- an empty header on a STORAGE-role column is a blocking error', () => {
+    const d = draftFrom(['k', ''], [['a', '1']], ['key', 'number'])
+    const r = validateDrafts([d])
+    expect(!r.ok && r.errors.some((e) => e.code === 'empty-column-header' && e.columnIndex === 1)).toBe(true)
+  })
+
+  it('review round 3 -- an empty header on an IGNORED column is fine (never needs one)', () => {
+    const d = draftFrom(['k', ''], [['a', 'whatever']], ['key', 'ignored'])
+    const r = validateDrafts([d])
+    expect(r.ok).toBe(true)
+  })
+
+  it('review round 3 -- ignored columns never count toward DI_COLUMNS_MAX or the header-length limit', () => {
+    const storageCount = DI_COLUMNS_MAX
+    const ignoredCount = 5
+    const header = [
+      'key',
+      ...Array.from({ length: storageCount - 1 }, (_, i) => `n${i}`),
+      // absurdly long headers on the IGNORED columns -- must never trip header-too-long
+      ...Array.from({ length: ignoredCount }, () => 'x'.repeat(DI_HEADER_MAX + 50)),
+    ]
+    const roles: DraftColumnRole[] = [
+      'key',
+      ...Array.from({ length: storageCount - 1 }, () => 'number' as const),
+      ...Array.from({ length: ignoredCount }, () => 'ignored' as const),
+    ]
+    const row = [
+      'a',
+      ...Array.from({ length: storageCount - 1 }, () => '1'),
+      ...Array.from({ length: ignoredCount }, () => 'irrelevant'),
+    ]
+    // total columns (storageCount + ignoredCount) exceeds DI_COLUMNS_MAX,
+    // but the STORAGE-role count alone is exactly at the limit -- must pass.
+    const d = draftFrom(header, [row], roles)
+    const r = validateDrafts([d])
+    expect(r.ok).toBe(true)
+  })
+
+  it('review round 3 -- DI_COLUMNS_MAX + 1 STORAGE columns (never mind ignored ones) is a blocking error', () => {
+    const storageCount = DI_COLUMNS_MAX + 1
+    const header = ['key', ...Array.from({ length: storageCount - 1 }, (_, i) => `n${i}`)]
+    const roles: DraftColumnRole[] = ['key', ...Array.from({ length: storageCount - 1 }, () => 'number' as const)]
+    const row = ['a', ...Array.from({ length: storageCount - 1 }, () => '1')]
+    const d = draftFrom(header, [row], roles)
+    const r = validateDrafts([d])
+    expect(!r.ok && r.errors.some((e) => e.code === 'column-limit-exceeded')).toBe(true)
+  })
+
+  it('review round 4 -- headerRowIndex must be a finite integer >= 1, not a fraction or Infinity', () => {
+    const d = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
+    const fractional = { ...d, headerRowIndex: 1.5 }
+    const r1 = validateDrafts([fractional])
+    expect(!r1.ok && r1.errors.some((e) => e.code === 'invalid-header-row')).toBe(true)
+
+    const infinite = { ...d, headerRowIndex: Infinity }
+    const r2 = validateDrafts([infinite])
+    expect(!r2.ok && r2.errors.some((e) => e.code === 'invalid-header-row')).toBe(true)
+
+    const zero = { ...d, headerRowIndex: 0 }
+    const r3 = validateDrafts([zero])
+    expect(!r3.ok && r3.errors.some((e) => e.code === 'invalid-header-row')).toBe(true)
+  })
+
+  it('review round 4 -- ignoreLastNRows must be a finite integer >= 0, not a fraction or Infinity', () => {
+    const d = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
+    const fractional = { ...d, ignoreLastNRows: 0.5 }
+    const r1 = validateDrafts([fractional])
+    expect(!r1.ok && r1.errors.some((e) => e.code === 'invalid-ignore-rows')).toBe(true)
+
+    const infinite = { ...d, ignoreLastNRows: Infinity }
+    const r2 = validateDrafts([infinite])
+    expect(!r2.ok && r2.errors.some((e) => e.code === 'invalid-ignore-rows')).toBe(true)
+
+    const negative = { ...d, ignoreLastNRows: -1 }
+    const r3 = validateDrafts([negative])
+    expect(!r3.ok && r3.errors.some((e) => e.code === 'invalid-ignore-rows')).toBe(true)
+  })
+
+  it('review round 4 -- an invalid headerRowIndex never reaches effectiveRows -- no ragged-row/other row errors pile on', () => {
+    const d = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
+    const r = validateDrafts([{ ...d, headerRowIndex: NaN }])
+    expect(!r.ok && r.errors.filter((e) => e.tableIndex === 0).map((e) => e.code)).toEqual(['invalid-header-row'])
   })
 })
 

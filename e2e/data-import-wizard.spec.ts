@@ -82,6 +82,53 @@ test('a duplicate key blocks Commit until fixed', async ({ page }) => {
   expect(before.nodes).toHaveLength(0)
 })
 
+test('review round 3 -- a validation issue reports the RAW source line number, not an offset-blind row index', async ({ page }) => {
+  // issueLocation() used to display `rowIndex + 1` with no header-row
+  // offset added back, so a title row above the real header (a common,
+  // supported case -- §DI5's own "drop a leading title row") made the
+  // shown row number wrong. Header row 2 (skipping a title row); the
+  // duplicate key sits on the raw text's 4th line.
+  await openWizard(page)
+  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('Title row to skip\nitem_key,weight\nitm_a,10\nitm_a,20')
+
+  const headerInput = dialog(page).locator('label', { hasText: 'Header row' }).locator('input')
+  await headerInput.fill('2')
+
+  const headerRow = dialog(page).locator('.import__preview thead tr').first()
+  await headerRow.locator('select').nth(0).selectOption('key')
+  await headerRow.locator('select').nth(1).selectOption('number')
+
+  await dialog(page).getByRole('button', { name: 'Next' }).click()
+  await expect(dialog(page).getByText(/row 4/)).toBeVisible() // the raw text's 4th line, not row 2
+  await expect(dialog(page).getByText(/row 2\b/)).toHaveCount(0)
+})
+
+for (const [loc, needle] of [
+  ['ko', '닫히지 않은 따옴표'],
+  ['ja', '閉じられていない引用符'],
+] as const) {
+  test(`review round 3 -- ${loc} shows a translated CSV parse-error message, never the raw internal code`, async ({ page }) => {
+    await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(loc)
+
+    const importButtonText = loc === 'ko' ? '스프레드시트 데이터 ▾' : 'スプレッドシートデータ ▾'
+    const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
+    if (!(await importBtn.isVisible())) {
+      await page.locator('.toolbar__overflow-btn').click()
+    }
+    await importBtn.click()
+    await expect(dialog(page)).toBeVisible()
+
+    const paste = dialog(page).locator('textarea').first()
+    await paste.fill('item_key,weight\n"itm_a,10')
+
+    const errorText = await dialog(page).locator('.import__error').first().textContent()
+    expect(errorText).toContain(needle)
+    expect(errorText).not.toContain('unterminated-quote') // the raw internal code must never leak through
+  })
+}
+
 test('a parse error blocks Next and Commit; fixing the CSV never lets stale prior-good data through', async ({ page }) => {
   // review round 2, item 1 — reparse() on a parse failure keeps the OLD
   // parsedRows/columns; runValidate() never checked parseError. Repro: valid

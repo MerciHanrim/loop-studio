@@ -117,6 +117,8 @@ export type IssueCode =
   | 'table-limit-exceeded'
   | 'column-limit-exceeded'
   | 'row-limit-exceeded'
+  | 'invalid-header-row'
+  | 'invalid-ignore-rows'
   | 'empty-table-name'
   | 'label-too-long'
   | 'empty-column-header'
@@ -340,7 +342,23 @@ export function validateDrafts(
       }
     }
 
-    const rows = effectiveRows(draft)
+    // review round 4 -- `TableDraft` is a plain public shape a caller can
+    // construct directly (bypassing the wizard UI's own input sanitizing),
+    // so `validateDrafts` -- the actual trust boundary -- must not trust
+    // `headerRowIndex`/`ignoreLastNRows` are sane just because the UI tries
+    // to keep them that way. A non-integer or non-finite value (`1.5`,
+    // `Infinity`, `NaN`) would otherwise reach `effectiveRows`'s
+    // `Array.prototype.slice`, which silently coerces (truncates a
+    // fraction, clamps `Infinity` to the array length) rather than erroring
+    // -- exactly the kind of silent-garbage-in path this boundary exists to
+    // refuse. Rows are skipped entirely (never sliced with a bad value)
+    // when either is invalid, rather than guessing at a "close enough" fix.
+    const headerRowValid = Number.isInteger(draft.headerRowIndex) && draft.headerRowIndex >= 1
+    if (!headerRowValid) errors.push({ code: 'invalid-header-row', tableIndex: ti })
+    const ignoreRowsValid = Number.isInteger(draft.ignoreLastNRows) && draft.ignoreLastNRows >= 0
+    if (!ignoreRowsValid) errors.push({ code: 'invalid-ignore-rows', tableIndex: ti })
+
+    const rows = headerRowValid && ignoreRowsValid ? effectiveRows(draft) : []
     if (rows.length > DI_ROWS_MAX) {
       errors.push({ code: 'row-limit-exceeded', tableIndex: ti, detail: { count: rows.length, max: DI_ROWS_MAX } })
     }

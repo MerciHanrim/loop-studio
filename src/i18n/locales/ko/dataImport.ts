@@ -49,6 +49,8 @@ const dataImport = {
   'import.issue.table-limit-exceeded': '테이블이 너무 많습니다 ({count}개, 최대 {max}개).',
   'import.issue.column-limit-exceeded': '매핑된 컬럼이 너무 많습니다 ({count}개, 최대 {max}개).',
   'import.issue.row-limit-exceeded': '행이 너무 많습니다 ({count}개, 최대 {max}개).',
+  'import.issue.invalid-header-row': '헤더 행은 1 이상의 정수여야 합니다.',
+  'import.issue.invalid-ignore-rows': '마지막 N행 무시는 0 이상의 정수여야 합니다.',
   'import.issue.empty-table-name': '테이블 이름이 비어 있습니다.',
   'import.issue.label-too-long': '테이블 이름이 너무 깁니다 (최대 {max}자).',
   'import.issue.empty-column-header': '이 컬럼의 헤더가 비어 있습니다.',

@@ -25,6 +25,8 @@ const ISSUE_KEY: Record<IssueCode, MessageKey> = {
   'table-limit-exceeded': 'import.issue.table-limit-exceeded',
   'column-limit-exceeded': 'import.issue.column-limit-exceeded',
   'row-limit-exceeded': 'import.issue.row-limit-exceeded',
+  'invalid-header-row': 'import.issue.invalid-header-row',
+  'invalid-ignore-rows': 'import.issue.invalid-ignore-rows',
   'empty-table-name': 'import.issue.empty-table-name',
   'label-too-long': 'import.issue.label-too-long',
   'empty-column-header': 'import.issue.empty-column-header',
