@@ -3936,6 +3936,101 @@ input[type='number']::-webkit-inner-spin-button {
   margin-left: 0;
 }
 
+/* docs/data-import.md §DI16 Phase 1B — the CSV/TSV import wizard. Much wider
+   than the base 340px `.mcdlg` (a multi-table configuration grid needs the
+   room) and its body scrolls independently so the dialog itself never
+   outgrows the viewport. */
+.mcdlg--dataimport {
+  width: min(920px, 92vw);
+  max-height: 88vh;
+}
+.mcdlg--dataimport .mcdlg__body {
+  overflow-y: auto;
+  max-height: 66vh;
+}
+.import__tables {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.import__table {
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.import__tableHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.import__paste {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  resize: vertical;
+}
+.import__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.import__row input[type='number'] {
+  width: 56px;
+}
+.import__error {
+  color: var(--warning);
+  font-size: 12px;
+}
+.import__warning {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.import__preview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  overflow-x: auto;
+  display: block;
+}
+.import__preview th,
+.import__preview td {
+  border: 1px solid var(--line-hairline);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.import__preview select {
+  font-size: 11px;
+  margin-top: 2px;
+  width: 100%;
+}
+.import__issues ul,
+.import__placement label {
+  display: block;
+}
+.import__issues li {
+  font-size: 12px;
+  color: var(--warning);
+}
+.import__placement label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
 /* Monte-Carlo — tracked-Pool selection */
 .mcdlg__pools {
   display: flex;

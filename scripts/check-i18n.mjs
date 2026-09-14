@@ -48,7 +48,7 @@ const localesDir = resolve(root, 'src/i18n/locales')
 // `locales/<code>/index.ts` (a folder that merges its domain slices —
 // ui / canvas / inspector / templates). Both forms coexist; the loop never
 // names a locale literally (§L12).
-const DOMAIN_FILES = ['ui', 'canvas', 'inspector', 'templates']
+const DOMAIN_FILES = ['ui', 'canvas', 'inspector', 'templates', 'dataImport']
 const entries = []
 for (const name of readdirSync(localesDir)) {
   if (/\.test\.ts$/.test(name)) continue

@@ -1,0 +1,464 @@
+import { useId, useRef, useState } from 'react'
+import { useReactFlow } from '@xyflow/react'
+import { useT, type MessageKey } from '../../i18n'
+import type { CsvParseError } from '../../model/csv'
+import { detectDelimiter, parseDelimitedText, stripBom } from '../../model/csv'
+import {
+  createTableDraft,
+  setColumnRole,
+  validateDrafts,
+  type DraftColumnRole,
+  type Issue,
+  type TableDraft,
+} from '../../model/dataImportValidate'
+import type { PlacementChoice } from '../../model/dataImportCommit'
+import { useFrameStore } from '../../store/frameStore'
+import { useGraphStore } from '../../store/graphStore'
+import { useDialogFocus } from '../useDialogFocus'
+
+// docs/data-import.md §DI16 Phase 1B -- the CSV/TSV import wizard. Four
+// steps: configure every bound table (paste/upload, delimiter, header row,
+// column roles, FK targets, group-by), validate the whole batch together
+// (§DI-D10 -- nothing touches the graph until every table is clean),
+// choose a placement destination, then commit as ONE atomic history entry
+// (`graphStore.commitDataImport`).
+
+type DraftUI = {
+  draft: TableDraft
+  pasteText: string
+  delimiter: ',' | '\t'
+  delimiterAuto: boolean
+  parseError: CsvParseError | null
+}
+
+const ROLE_OPTIONS: DraftColumnRole[] = ['ignored', 'key', 'number', 'label', 'foreignKey']
+// A static lookup, not a dynamic `import.role.` + role template string --
+// the project's i18n call-site checker (scripts/check-i18n.mjs) only
+// recognises a literal call with a quoted string, or a `MessageKey`-typed
+// map like this one (the same pattern `ThemeToggle.tsx`'s `LABEL_KEY`
+// uses), never a computed template-literal message key.
+const ROLE_LABEL_KEY: Record<DraftColumnRole, MessageKey> = {
+  ignored: 'import.role.ignored',
+  key: 'import.role.key',
+  number: 'import.role.number',
+  label: 'import.role.label',
+  foreignKey: 'import.role.foreignKey',
+}
+
+function newDraftUI(): DraftUI {
+  return { draft: createTableDraft(), pasteText: '', delimiter: ',', delimiterAuto: true, parseError: null }
+}
+
+/** Re-parse `pasteText` and re-derive `draft.columns` to match the header
+ *  row's cell count. Column configuration is preserved by POSITION when the
+ *  count is unchanged; otherwise columns reset to `'ignored'` (a column
+ *  count change invalidates any prior role mapping by index). */
+function reparse(ui: DraftUI): DraftUI {
+  const text = stripBom(ui.pasteText)
+  if (text.trim() === '') {
+    return { ...ui, parseError: null, draft: { ...ui.draft, parsedRows: [], columns: [] } }
+  }
+  const delimiter = ui.delimiterAuto ? detectDelimiter(text) : ui.delimiter
+  const result = parseDelimitedText(text, delimiter)
+  if (!result.ok) {
+    return { ...ui, delimiter, parseError: result.error }
+  }
+  const header = result.rows[Math.max(0, ui.draft.headerRowIndex - 1)] ?? []
+  const columns =
+    ui.draft.columns.length === header.length
+      ? ui.draft.columns.map((c, i) => ({ ...c, header: header[i] ?? c.header }))
+      : header.map((h) => ({ role: 'ignored' as const, header: h }))
+  return {
+    ...ui,
+    delimiter,
+    parseError: null,
+    draft: { ...ui.draft, parsedRows: result.rows, columns },
+  }
+}
+
+type Step = 'tables' | 'validate' | 'placement' | 'review'
+
+export function DataImportWizard({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT()
+  const ref = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  useDialogFocus(open, ref, onClose)
+  const { screenToFlowPosition } = useReactFlow()
+
+  const [step, setStep] = useState<Step>('tables')
+  const [tables, setTables] = useState<DraftUI[]>([newDraftUI()])
+  const [validation, setValidation] = useState<
+    ReturnType<typeof validateDrafts> | null
+  >(null)
+  const [placementKind, setPlacementKind] = useState<'none' | 'framePerTable' | 'existingFrame'>('none')
+  const [existingFrameId, setExistingFrameId] = useState<string>('')
+  const [commitError, setCommitError] = useState<string | null>(null)
+  const frames = useFrameStore((s) => s.frames)
+  const commitDataImport = useGraphStore((s) => s.commitDataImport)
+
+  if (!open) return null
+
+  const reset = () => {
+    setStep('tables')
+    setTables([newDraftUI()])
+    setValidation(null)
+    setPlacementKind('none')
+    setExistingFrameId('')
+    setCommitError(null)
+  }
+  const close = () => {
+    reset()
+    onClose()
+  }
+
+  const updateTable = (idx: number, patch: Partial<DraftUI>) => {
+    setTables((prev) => prev.map((ui, i) => (i === idx ? reparse({ ...ui, ...patch }) : ui)))
+  }
+  const updateDraft = (idx: number, patch: Partial<TableDraft>) => {
+    setTables((prev) => prev.map((ui, i) => (i === idx ? { ...ui, draft: { ...ui.draft, ...patch } } : ui)))
+  }
+  const setRole = (tableIdx: number, columnIdx: number, role: DraftColumnRole) => {
+    setTables((prev) =>
+      prev.map((ui, i) => (i === tableIdx ? { ...ui, draft: setColumnRole(ui.draft, columnIdx, role) } : ui)),
+    )
+  }
+  const setFkTarget = (tableIdx: number, columnIdx: number, refDraftId: string) => {
+    setTables((prev) =>
+      prev.map((ui, i) => {
+        if (i !== tableIdx) return ui
+        const columns = ui.draft.columns.slice()
+        columns[columnIdx] = { ...columns[columnIdx], refDraftId: refDraftId || undefined }
+        return { ...ui, draft: { ...ui.draft, columns } }
+      }),
+    )
+  }
+
+  const addTable = () => setTables((prev) => [...prev, newDraftUI()])
+  const removeTable = (idx: number) => setTables((prev) => prev.filter((_, i) => i !== idx))
+
+  const pickFile = (idx: number) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.csv,.tsv,.txt'
+    input.style.display = 'none'
+    input.addEventListener('change', () => {
+      const file = input.files?.[0]
+      input.remove()
+      if (file) file.text().then((text) => updateTable(idx, { pasteText: text }))
+    })
+    window.addEventListener('focus', () => setTimeout(() => input.remove(), 200), { once: true })
+    document.body.appendChild(input)
+    input.click()
+  }
+
+  const runValidate = () => {
+    const result = validateDrafts(tables.map((ui) => ui.draft))
+    setValidation(result)
+    if (result.ok) setStep('placement')
+    else setStep('validate')
+  }
+
+  const commit = () => {
+    if (!validation?.ok) return
+    let placement: PlacementChoice
+    if (placementKind === 'none') {
+      const rect = document.querySelector('.canvas')?.getBoundingClientRect()
+      const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2
+      const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+      placement = { kind: 'none', origin: screenToFlowPosition({ x, y }) }
+    } else if (placementKind === 'framePerTable') {
+      const rect = document.querySelector('.canvas')?.getBoundingClientRect()
+      const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2
+      const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+      placement = { kind: 'framePerTable', origin: screenToFlowPosition({ x, y }) }
+    } else {
+      if (!existingFrameId) return
+      placement = { kind: 'existingFrame', frameId: existingFrameId }
+    }
+    const result = commitDataImport(validation.plan, placement)
+    if (!result.ok) {
+      setCommitError(result.reason)
+      return
+    }
+    close()
+  }
+
+  const issueText = (issue: Issue): string => {
+    const table = tables[issue.tableIndex]?.draft.label || `#${issue.tableIndex + 1}`
+    const loc = [
+      `table ${table}`,
+      issue.rowIndex !== undefined ? `row ${issue.rowIndex + 1}` : null,
+      issue.columnIndex !== undefined ? `column ${issue.columnIndex + 1}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ')
+    return `${issue.code} (${loc})`
+  }
+
+  return (
+    <div className="mcdlg__scrim" onMouseDown={close}>
+      <div
+        ref={ref}
+        className="mcdlg mcdlg--dataimport"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="mcdlg__head">
+          <span id={titleId}>{t('import.title')}</span>
+        </div>
+        <div className="mcdlg__body">
+          {step === 'tables' && (
+            <div className="import__tables">
+              {tables.map((ui, ti) => (
+                <div className="import__table" key={ti}>
+                  <div className="import__tableHead">
+                    <input
+                      type="text"
+                      placeholder={t('import.tableName')}
+                      value={ui.draft.label}
+                      onChange={(e) => updateDraft(ti, { label: e.target.value })}
+                    />
+                    {tables.length > 1 && (
+                      <button type="button" className="btn" onClick={() => removeTable(ti)}>
+                        {t('import.removeTable')}
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    className="import__paste"
+                    placeholder={t('import.pastePlaceholder')}
+                    value={ui.pasteText}
+                    onChange={(e) => updateTable(ti, { pasteText: e.target.value })}
+                    rows={4}
+                  />
+                  <div className="import__row">
+                    <button type="button" className="btn" onClick={() => pickFile(ti)}>
+                      {t('import.uploadFile')}
+                    </button>
+                    <label>
+                      {t('import.delimiter')}
+                      <select
+                        value={ui.delimiterAuto ? 'auto' : ui.delimiter}
+                        onChange={(e) =>
+                          updateTable(
+                            ti,
+                            e.target.value === 'auto'
+                              ? { delimiterAuto: true }
+                              : { delimiterAuto: false, delimiter: e.target.value as ',' | '\t' },
+                          )
+                        }
+                      >
+                        <option value="auto">{t('import.delimiterAuto')}</option>
+                        <option value=",">{t('import.delimiterComma')}</option>
+                        <option value="\t">{t('import.delimiterTab')}</option>
+                      </select>
+                    </label>
+                    <label>
+                      {t('import.headerRow')}
+                      <input
+                        type="number"
+                        min={1}
+                        value={ui.draft.headerRowIndex}
+                        onChange={(e) => {
+                          updateDraft(ti, { headerRowIndex: Math.max(1, Number(e.target.value) || 1) })
+                          updateTable(ti, {})
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {t('import.ignoreLastRows')}
+                      <input
+                        type="number"
+                        min={0}
+                        value={ui.draft.ignoreLastNRows}
+                        onChange={(e) => updateDraft(ti, { ignoreLastNRows: Math.max(0, Number(e.target.value) || 0) })}
+                      />
+                    </label>
+                  </div>
+                  {ui.parseError && (
+                    <p className="import__error">
+                      {t('import.parseError', { kind: ui.parseError.kind, line: ui.parseError.line, column: ui.parseError.column })}
+                    </p>
+                  )}
+                  {ui.draft.columns.length > 0 && (
+                    <table className="import__preview">
+                      <thead>
+                        <tr>
+                          {ui.draft.columns.map((c, ci) => (
+                            <th key={ci}>
+                              <div>{c.header}</div>
+                              <select value={c.role} onChange={(e) => setRole(ti, ci, e.target.value as DraftColumnRole)}>
+                                {ROLE_OPTIONS.map((r) => (
+                                  <option key={r} value={r}>
+                                    {t(ROLE_LABEL_KEY[r])}
+                                  </option>
+                                ))}
+                              </select>
+                              {c.role === 'foreignKey' && (
+                                <select value={c.refDraftId ?? ''} onChange={(e) => setFkTarget(ti, ci, e.target.value)}>
+                                  <option value="">{t('import.selectTable')}</option>
+                                  {tables
+                                    .filter((_, oi) => oi !== ti)
+                                    .map((other) => (
+                                      <option key={other.draft.sourceTableId} value={other.draft.sourceTableId}>
+                                        {other.draft.label || t('import.tableName')}
+                                      </option>
+                                    ))}
+                                </select>
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                        {ui.draft.columns.filter((c) => c.role === 'foreignKey').length >= 2 && (
+                          <tr>
+                            <th colSpan={ui.draft.columns.length}>
+                              {t('import.groupBy')}
+                              <select
+                                value={ui.draft.groupByColumnIndex ?? ''}
+                                onChange={(e) => updateDraft(ti, { groupByColumnIndex: e.target.value === '' ? undefined : Number(e.target.value) })}
+                              >
+                                <option value="">{t('import.selectColumn')}</option>
+                                {ui.draft.columns.map((c, ci) =>
+                                  c.role === 'foreignKey' ? (
+                                    <option key={ci} value={ci}>
+                                      {c.header}
+                                    </option>
+                                  ) : null,
+                                )}
+                              </select>
+                            </th>
+                          </tr>
+                        )}
+                      </thead>
+                      <tbody>
+                        {ui.draft.parsedRows
+                          .slice(ui.draft.headerRowIndex, ui.draft.headerRowIndex + 10)
+                          .map((row, ri) => (
+                            <tr key={ri}>
+                              {ui.draft.columns.map((_, ci) => (
+                                <td key={ci}>{row[ci]}</td>
+                              ))}
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="btn" onClick={addTable}>
+                {t('import.addTable')}
+              </button>
+            </div>
+          )}
+
+          {step === 'validate' && validation && !validation.ok && (
+            <div className="import__issues">
+              <p>{t('import.errorsFound', { n: validation.errors.length })}</p>
+              <ul>
+                {validation.errors.map((issue, i) => (
+                  <li key={i}>{issueText(issue)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {step === 'placement' && validation?.ok && (
+            <div className="import__placement">
+              {validation.warnings.length > 0 && (
+                <p className="import__warning">{t('import.warningsFound', { n: validation.warnings.length })}</p>
+              )}
+              <label>
+                <input type="radio" checked={placementKind === 'none'} onChange={() => setPlacementKind('none')} />
+                {t('import.placement.none')}
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  checked={placementKind === 'framePerTable'}
+                  onChange={() => setPlacementKind('framePerTable')}
+                />
+                {t('import.placement.framePerTable')}
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  checked={placementKind === 'existingFrame'}
+                  onChange={() => setPlacementKind('existingFrame')}
+                  disabled={frames.length === 0}
+                />
+                {t('import.placement.existingFrame')}
+              </label>
+              {placementKind === 'existingFrame' && (
+                <select value={existingFrameId} onChange={(e) => setExistingFrameId(e.target.value)}>
+                  <option value="">{t('import.selectFrame')}</option>
+                  {frames.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.label || `Group ${f.n}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {step === 'review' && validation?.ok && (
+            <div className="import__review">
+              <p>
+                {t('import.summary', {
+                  tables: validation.plan.tables.length,
+                  parameters: validation.plan.tables.reduce(
+                    (sum, tbl) => sum + tbl.rows.length * tbl.columns.filter((c) => c.role === 'number').length,
+                    0,
+                  ),
+                })}
+              </p>
+              {commitError && <p className="import__error">{commitError}</p>}
+            </div>
+          )}
+        </div>
+        <div className="mcdlg__foot">
+          <button type="button" className="btn" onClick={close}>
+            {t('dialog.cancel')}
+          </button>
+          {step === 'tables' && (
+            <button type="button" className="btn btn--primary" onClick={runValidate}>
+              {t('import.next')}
+            </button>
+          )}
+          {step === 'validate' && (
+            <button type="button" className="btn" onClick={() => setStep('tables')}>
+              {t('import.back')}
+            </button>
+          )}
+          {step === 'placement' && (
+            <>
+              <button type="button" className="btn" onClick={() => setStep('tables')}>
+                {t('import.back')}
+              </button>
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={placementKind === 'existingFrame' && !existingFrameId}
+                onClick={() => setStep('review')}
+              >
+                {t('import.next')}
+              </button>
+            </>
+          )}
+          {step === 'review' && (
+            <>
+              <button type="button" className="btn" onClick={() => setStep('placement')}>
+                {t('import.back')}
+              </button>
+              <button type="button" className="btn btn--primary" onClick={commit}>
+                {t('import.commit')}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

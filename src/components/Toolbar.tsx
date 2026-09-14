@@ -14,6 +14,7 @@ import { ExportMenu } from './ExportMenu'
 import { HelpMenu } from './HelpMenu'
 import { LanguageSwitch } from './LanguageSwitch'
 import { Logo } from './Logo'
+import { DataImportMenu } from './dataImport/DataImportMenu'
 import { MobileTopBar } from './mobile/MobileTopBar'
 import { ModuleMenu } from './ModuleMenu'
 import { RevisionChip } from './RevisionChip'
@@ -213,6 +214,13 @@ export function Toolbar() {
         {inline('module') && (
           <span className="toolbar__slot" ref={setItem('module')}>
             <ModuleMenu />
+            {/* docs/data-import.md §DI16 Phase 1B — coupled to the same
+                'module' overflow slot rather than its own OVERFLOW_ORDER
+                entry, so this doesn't touch the measured-fit responsive
+                width system (docs/localization.md §L12 #5); a dedicated
+                slot is a reasonable follow-up if it ever needs independent
+                collapse behaviour. */}
+            <DataImportMenu />
           </span>
         )}
         {inline('theme') && (
@@ -259,7 +267,12 @@ export function Toolbar() {
           {!inline('theme') && <ThemeToggle />}
           {!inline('language') && <LanguageSwitch />}
           {!inline('new') && newButton}
-          {!inline('module') && <ModuleMenu />}
+          {!inline('module') && (
+            <>
+              <ModuleMenu />
+              <DataImportMenu />
+            </>
+          )}
         </OverflowMenu>
 
         <input ref={fileRef} type="file" accept=".json" hidden onChange={onFile} />

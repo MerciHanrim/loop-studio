@@ -641,9 +641,16 @@ shipped — no engine change):
   FK per §DI8, or the row's own key if none was mapped> · <column's header
   text>"` — e.g. `"GachaPoolEntries · Ember Blade · Premium Pickup ·
   weight"`, `"Packages · Whale Pack · price_krw"`, `"PackageItems ·
-  pkg_starter → Iron Blade · quantity"` (PackageItems has no label-role
+  Starter Pack · Iron Blade · quantity"` (PackageItems has no label-role
   column of its own, so it falls back to composing from its two FK targets'
-  names). **Four independent things feed this string, all of which recompose
+  names — resolved to EACH target's own `label`-role text
+  (`Packages.package_name`, `Items.display_name`), joined `" · "` in column
+  declaration order, exactly like every other multi-term case; corrected at
+  Phase 1B implementation time — an earlier draft showed this example with
+  an inconsistent `" → "` join and the raw `pkg_starter` key instead of the
+  resolved `"Starter Pack"`, which was never a distinct rule, just a stale
+  artifact from an earlier round never reconciled with the general one).
+  **Four independent things feed this string, all of which recompose
   it while `labelAutoComposed` is `true`** (§DI11 fixes this — draft 4 only
   named two of the four), and they split into two different mechanisms:
   - **Sheet-sourced (three): the row's own label-role text, if the table has

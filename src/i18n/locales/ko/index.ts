@@ -8,7 +8,8 @@ import ui from './ui'
 import canvas from './canvas'
 import inspector from './inspector'
 import templates from './templates'
+import dataImport from './dataImport'
 
-const ko = { ...ui, ...canvas, ...inspector, ...templates } satisfies MessageCatalog
+const ko = { ...ui, ...canvas, ...inspector, ...templates, ...dataImport } satisfies MessageCatalog
 
 export default ko
