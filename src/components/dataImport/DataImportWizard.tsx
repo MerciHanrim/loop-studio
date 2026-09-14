@@ -56,6 +56,13 @@ const COMMIT_ERROR_KEY: Record<CommitFailureCode, MessageKey> = {
   'frame-insufficient-space': 'import.commitError.frame-insufficient-space',
   'invalid-result-graph': 'import.commitError.invalid-result-graph',
 }
+// `CsvParseError.kind` is an internal code, never shown to the user
+// untranslated -- same static-lookup discipline as ISSUE_KEY/COMMIT_ERROR_KEY.
+const PARSE_ERROR_KIND_KEY: Record<CsvParseError['kind'], MessageKey> = {
+  'unterminated-quote': 'import.parseErrorKind.unterminated-quote',
+  'text-after-quote': 'import.parseErrorKind.text-after-quote',
+  'quote-in-unquoted-field': 'import.parseErrorKind.quote-in-unquoted-field',
+}
 
 // docs/data-import.md §DI16 Phase 1B -- the CSV/TSV import wizard. Four
 // steps: configure every bound table (paste/upload, delimiter, header row,
@@ -88,6 +95,17 @@ const ROLE_LABEL_KEY: Record<DraftColumnRole, MessageKey> = {
 
 function newDraftUI(): DraftUI {
   return { draft: createTableDraft(), pasteText: '', delimiter: ',', delimiterAuto: true, parseError: null }
+}
+
+/** A row-count field (header row index, ignore-last-N-rows) must be a
+ *  genuine non-negative INTEGER at or above `min` -- a raw `Number(input)`
+ *  accepts a fraction (`2.5`) or a non-finite value (`Infinity`, from
+ *  `1e999`) unnoticed, which then silently mis-slices `parsedRows`. Anything
+ *  that isn't a finite integer falls back to `min`, exactly like the empty-
+ *  input case already does. */
+function sanitizeRowCount(raw: string, min: number): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && Number.isInteger(n) ? Math.max(min, n) : min
 }
 
 /** Re-parse `pasteText` and re-derive `draft.columns` to match the header
@@ -229,12 +247,19 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
 
   const issueLocation = (issue: Issue): string | null => {
     if (issue.tableIndex < 0) return null
-    const table = tables[issue.tableIndex]?.draft.label || `#${issue.tableIndex + 1}`
+    const ui = tables[issue.tableIndex]
+    const table = ui?.draft.label || `#${issue.tableIndex + 1}`
+    // `issue.rowIndex` counts from 0 within the EFFECTIVE (post header-row,
+    // post ignore-last-N-rows) data rows -- it is NOT the row's position in
+    // the raw pasted/uploaded text. Add back the header row itself (and
+    // anything before it) so the number shown matches what the user sees
+    // by counting lines in their own source text, 1-based.
+    const headerRowIndex = ui?.draft.headerRowIndex ?? 1
     if (issue.rowIndex !== undefined && issue.columnIndex !== undefined) {
-      return t('import.loc.tableRowColumn', { table, row: issue.rowIndex + 1, column: issue.columnIndex + 1 })
+      return t('import.loc.tableRowColumn', { table, row: headerRowIndex + issue.rowIndex + 1, column: issue.columnIndex + 1 })
     }
     if (issue.rowIndex !== undefined) {
-      return t('import.loc.tableRow', { table, row: issue.rowIndex + 1 })
+      return t('import.loc.tableRow', { table, row: headerRowIndex + issue.rowIndex + 1 })
     }
     return t('import.loc.table', { table })
   }
@@ -312,7 +337,7 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
                         min={1}
                         value={ui.draft.headerRowIndex}
                         onChange={(e) => {
-                          updateDraft(ti, { headerRowIndex: Math.max(1, Number(e.target.value) || 1) })
+                          updateDraft(ti, { headerRowIndex: sanitizeRowCount(e.target.value, 1) })
                           updateTable(ti, {})
                         }}
                       />
@@ -323,13 +348,17 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
                         type="number"
                         min={0}
                         value={ui.draft.ignoreLastNRows}
-                        onChange={(e) => updateDraft(ti, { ignoreLastNRows: Math.max(0, Number(e.target.value) || 0) })}
+                        onChange={(e) => updateDraft(ti, { ignoreLastNRows: sanitizeRowCount(e.target.value, 0) })}
                       />
                     </label>
                   </div>
                   {ui.parseError && (
                     <p className="import__error">
-                      {t('import.parseError', { kind: ui.parseError.kind, line: ui.parseError.line, column: ui.parseError.column })}
+                      {t('import.parseError', {
+                        kind: t(PARSE_ERROR_KIND_KEY[ui.parseError.kind]),
+                        line: ui.parseError.line,
+                        column: ui.parseError.column,
+                      })}
                     </p>
                   )}
                   {ui.draft.columns.length > 0 && (

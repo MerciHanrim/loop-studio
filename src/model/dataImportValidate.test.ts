@@ -187,6 +187,64 @@ describe('validateDrafts -- foreign keys (§DI8) and group-by (§DI-D11)', () =>
     const r = validateDrafts([items, banners, pool])
     expect(r.ok).toBe(true)
   })
+
+  it('review round 2 -- an FK column whose refDraftId names no table in the batch is a blocking error, even with every cell empty', () => {
+    const pool = draftFrom(['pe_key', 'item_key'], [['pe1', '']], ['key', 'foreignKey'])
+    const columns = pool.columns.slice()
+    columns[1] = { ...columns[1], refDraftId: 'srctable_does_not_exist' }
+    const dangling = { ...pool, columns }
+    const r = validateDrafts([dangling])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-fk-target')).toBe(true)
+  })
+
+  it('review round 2 -- a group-by pick that is out of range is a blocking error', () => {
+    const items = draftFrom(['item_key'], [['itm_a']], ['key'])
+    const banners = draftFrom(['banner_key'], [['ban_a']], ['key'])
+    let pool = draftFrom(
+      ['pe_key', 'item_key', 'banner_key'],
+      [['pe1', 'itm_a', 'ban_a']],
+      ['key', 'foreignKey', 'foreignKey'],
+    )
+    pool = linkFk(pool, 1, items)
+    pool = linkFk(pool, 2, banners)
+    pool.groupByColumnIndex = 99 // out of range
+    const r = validateDrafts([items, banners, pool])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-group-by')).toBe(true)
+  })
+
+  it('review round 2 -- a group-by pick that names a non-foreignKey column is a blocking error', () => {
+    const items = draftFrom(['item_key'], [['itm_a']], ['key'])
+    const banners = draftFrom(['banner_key'], [['ban_a']], ['key'])
+    let pool = draftFrom(
+      ['pe_key', 'item_key', 'banner_key'],
+      [['pe1', 'itm_a', 'ban_a']],
+      ['key', 'foreignKey', 'foreignKey'],
+    )
+    pool = linkFk(pool, 1, items)
+    pool = linkFk(pool, 2, banners)
+    pool.groupByColumnIndex = 0 // the key column, not a foreignKey column
+    const r = validateDrafts([items, banners, pool])
+    expect(!r.ok && r.errors.some((e) => e.code === 'invalid-group-by')).toBe(true)
+  })
+})
+
+describe('validateDrafts -- id completeness and batch-wide uniqueness (review round 2)', () => {
+  it('a storage-role column with no minted sourceColumnId is a blocking error, not a silent drop', () => {
+    const d = draftFrom(['k', 'n'], [['a', '1']], ['key', 'number'])
+    const columns = d.columns.slice()
+    columns[1] = { ...columns[1], sourceColumnId: undefined }
+    const broken = { ...d, columns }
+    const r = validateDrafts([broken])
+    expect(!r.ok && r.errors.some((e) => e.code === 'missing-source-column-id' && e.columnIndex === 1)).toBe(true)
+  })
+
+  it('two drafts sharing the same sourceTableId is a blocking error, caught before the per-table round-trip gate', () => {
+    const a = draftFrom(['k'], [['a']], ['key'], 'A')
+    const b = draftFrom(['k'], [['b']], ['key'], 'B')
+    const clashing = { ...b, sourceTableId: a.sourceTableId }
+    const r = validateDrafts([a, clashing])
+    expect(!r.ok && r.errors.some((e) => e.code === 'duplicate-source-table-id')).toBe(true)
+  })
 })
 
 describe('validateDrafts -- label composition + fallback (§DI10, resolved ambiguity)', () => {

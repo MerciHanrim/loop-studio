@@ -99,7 +99,16 @@ export function shiftUntilClear(rect: Rect, obstacles: Rect[]): Rect | null {
   while (obstacles.some((o) => rectsOverlap(r, o))) {
     guard++
     if (guard >= 200) return null
-    r = guard % 20 === 0 ? { x: rect.x, y: rect.y + guard * (rect.h + GRID_GAP_Y), w: rect.w, h: rect.h } : { ...r, x: r.x + r.w + GRID_GAP_X }
+    if (guard % 20 === 0) {
+      // wrap to a new row-band directly below the ORIGINAL rect -- the
+      // band number is how many 20-step wraps have happened so far
+      // (guard / 20), never the raw step count itself, or each wrap would
+      // jump 20 row-heights down instead of 1.
+      const band = guard / 20
+      r = { x: rect.x, y: rect.y + band * (rect.h + GRID_GAP_Y), w: rect.w, h: rect.h }
+    } else {
+      r = { ...r, x: r.x + r.w + GRID_GAP_X }
+    }
   }
   return r
 }

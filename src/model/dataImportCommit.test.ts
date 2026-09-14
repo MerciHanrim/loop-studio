@@ -270,6 +270,21 @@ describe('shiftUntilClear', () => {
     expect(cleared).not.toEqual(rect)
   })
 
+  it('wraps to exactly ONE row-band down, not 20 (review round 3 fix)', () => {
+    const rect: Rect = { x: 0, y: 0, w: 100, h: 50 }
+    // block every rightward step of row-band 0 (the original row) so the
+    // scan is forced to wrap at guard=20 -- the very first wrap.
+    const obstacles: Rect[] = []
+    for (let step = 0; step <= 20; step++) {
+      obstacles.push({ x: step * (rect.w + 40), y: 0, w: rect.w, h: rect.h })
+    }
+    const cleared = shiftUntilClear(rect, obstacles)
+    expect(cleared).not.toBeNull()
+    // one row-band down from the ORIGINAL rect: y0 + 1*(h + GRID_GAP_Y=24)
+    expect(cleared!.y).toBe(rect.y + (rect.h + 24))
+    expect(cleared!.x).toBe(rect.x)
+  })
+
   it('returns null (never a still-overlapping rect) once the guard budget is exhausted', () => {
     const rect: Rect = { x: 0, y: 0, w: 100, h: 50 }
     // cover every position the deterministic scan could possibly try: 20
@@ -278,7 +293,7 @@ describe('shiftUntilClear', () => {
     const obstacles: Rect[] = []
     for (let band = 0; band <= 11; band++) {
       for (let step = 0; step <= 20; step++) {
-        obstacles.push({ x: step * (rect.w + 40), y: band * (rect.h + 24) * 20, w: rect.w, h: rect.h })
+        obstacles.push({ x: step * (rect.w + 40), y: band * (rect.h + 24), w: rect.w, h: rect.h })
       }
     }
     expect(shiftUntilClear(rect, obstacles)).toBeNull()
