@@ -83,6 +83,64 @@ const dataImport = {
   'import.commitError.frame-not-found': 'The selected frame no longer exists.',
   'import.commitError.frame-insufficient-space': 'Not enough free space in "{frame}".',
   'import.commitError.invalid-result-graph': 'The resulting graph is invalid — please contact support.',
+
+  // docs/data-import.md §DI16 Phase 2 -- the manage-bindings dialog + the
+  // 4-step refresh wizard.
+  'import.menu.import': 'Import new spreadsheet…',
+  'import.menu.manage': 'Manage bindings…',
+  'import.refresh.manageTitle': 'Manage spreadsheet bindings',
+  'import.refresh.noBindings': 'No spreadsheet tables are bound yet.',
+  'import.refresh.rowCount': '{n, plural, one {# row} other {# rows}}',
+  'import.refresh.renameLabel': 'Table name',
+  'import.refresh.refreshButton': 'Refresh…',
+  'import.refresh.exportCsv': 'Export change-proposal CSV',
+  'import.refresh.exportBlockedDuplicate': 'Export blocked: the same row/column has more than one active Parameter. Fix the duplicate before exporting.',
+  'import.refresh.title': 'Refresh "{table}"',
+  'import.refresh.commit': 'Commit refresh',
+
+  'import.refresh.columnEvents.title': 'Column changes',
+  'import.refresh.columnEvents.none': 'No column changes — every column matched automatically.',
+  'import.refresh.columnEvents.missingHeader': 'The column "{header}" ({role}) is no longer in the new data.',
+  'import.refresh.columnEvents.ambiguousMatch': 'The column "{header}" matches more than one incoming column.',
+  'import.refresh.columnEvents.unresolved': '— choose one —',
+  'import.refresh.columnEvents.removedOption': 'Column removed',
+  'import.refresh.columnEvents.mapMore': 'Map more columns…',
+  'import.refresh.columnEvents.unrecognized': 'Column "{header}" is not mapped.',
+  'import.refresh.columnEvents.doNotMap': "Don't map",
+  'import.refresh.columnEvents.fkTarget': 'References table…',
+
+  'import.refresh.review.added': '{n, plural, one {# row will be added} other {# rows will be added}}',
+  'import.refresh.review.missing': '{n, plural, one {# row is missing from the new data} other {# rows are missing from the new data}}',
+  'import.refresh.review.changed': '{n, plural, one {# value will update automatically} other {# values will update automatically}}',
+  'import.refresh.review.conflicts': '{n, plural, one {# value conflicts and needs a choice} other {# values conflict and need a choice}}',
+  'import.refresh.review.locallyDeleted': '{n, plural, one {# value was removed locally} other {# values were removed locally}}',
+  'import.refresh.review.fkRepoints': '{n, plural, one {# foreign key changed} other {# foreign keys changed}}',
+  'import.refresh.review.newColumnValues': '{n, plural, one {# new column value will be added} other {# new column values will be added}}',
+  'import.refresh.review.confirmAdd': 'Add this row',
+  'import.refresh.review.missingChoiceNone': '— choose —',
+  'import.refresh.review.missingChoiceUnlink': 'Keep as-is, unlink from spreadsheet',
+  'import.refresh.review.missingChoiceDelete': 'Delete',
+  'import.refresh.review.missingBlocked': 'Still referenced by {table} — refresh that table first.',
+  'import.refresh.review.cellChoiceApplyIncoming': 'Use the new value ({value})',
+  'import.refresh.review.cellChoiceKeepMine': 'Keep my value ({value})',
+  'import.refresh.review.locallyDeletedChoiceRecreate': 'Recreate with the new value ({value})',
+  'import.refresh.review.locallyDeletedChoiceDiscard': 'Discard — stop tracking this cell',
+  'import.refresh.review.fkChoiceAccept': 'Accept the new reference ({value})',
+  'import.refresh.review.fkChoiceReject': 'Keep the old reference ({value})',
+
+  'import.refresh.duplicateTripleError': 'This data is corrupted: more than one Parameter is bound to the same row and column. Refresh is blocked until this is fixed.',
+  'import.refresh.commitError.referenced-node': "Can't delete this row's Parameter — it is still referenced elsewhere in the graph.",
+  'import.refresh.commitError.missing-row-dependency': "Can't unlink or delete this row — another table still references it.",
+
+  // one description per REFRESH-ONLY `RefreshIssueCode` not already covered
+  // by an `import.issue.*` entry above (the overlapping codes reuse those
+  // verbatim — same meaning, same wording).
+  'import.refreshIssue.table-not-found': 'This table binding no longer exists.',
+  'import.refreshIssue.unresolved-column-event': 'This column change needs a choice before continuing.',
+  'import.refreshIssue.key-column-cannot-be-removed': "The row-key column can't be removed — rename it to a different incoming column instead.",
+  'import.refreshIssue.duplicate-column-pairing': 'This column choice conflicts with another one.',
+  'import.refreshIssue.invalid-new-column-pairing': "This new column's foreign-key target is invalid.",
+  'import.refreshIssue.duplicate-source-column-id': "This column's internal id collides with an existing one.",
 } as const
 
 export type DataImportKey = keyof typeof dataImport
