@@ -827,8 +827,14 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      const updatedTableIds = new Set(built.updatedTables.map((t) => t.sourceTableId))
-      dataImportSidecar?.set([...existingTables.filter((t) => !updatedTableIds.has(t.sourceTableId)), ...built.updatedTables])
+      // replace each updated table IN PLACE at its existing position --
+      // never remove-then-append, which would silently reorder the
+      // `dataImports` array (moving the refreshed table to the bottom of
+      // the Manage-bindings list) and needlessly change the serialized
+      // order / document digest for tables that didn't change at all.
+      // Mirrors `renameDataImportTable`'s own `.map()` replace exactly.
+      const updatedTableById = new Map(built.updatedTables.map((t) => [t.sourceTableId, t]))
+      dataImportSidecar?.set(existingTables.map((t) => updatedTableById.get(t.sourceTableId) ?? t))
       bump()
       persist()
       return built

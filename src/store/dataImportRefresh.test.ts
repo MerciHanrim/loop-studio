@@ -100,6 +100,55 @@ describe('graphStore.commitRefresh -- one atomic transaction', () => {
     expect((g().nodes.find((n) => n.id === 'p1')!.data as { value: number }).value).toBe(25)
     expect(useDataImportStore.getState().tables[0].rows).toHaveLength(2)
   })
+
+  it('refreshing the MIDDLE table of several preserves the array order -- it is replaced in place, never moved to the end', () => {
+    const a: ImportSourceTable = {
+      sourceTableId: 'srctable_a',
+      label: 'A',
+      columns: [col('a_key', 'key', 'a_key')],
+      rows: [{ sourceKey: 'x', number: {}, label: {}, foreignKey: {} }],
+    }
+    const b = itemsTable()
+    const c: ImportSourceTable = {
+      sourceTableId: 'srctable_c',
+      label: 'C',
+      columns: [col('c_key', 'key', 'c_key')],
+      rows: [{ sourceKey: 'y', number: {}, label: {}, foreignKey: {} }],
+    }
+    useDataImportStore.getState().loadTables([a, b, c])
+    const p1 = param('p1', { sourceTableId: b.sourceTableId, sourceKey: 'itm_a', sourceColumnId: 'col_weight', value: 10 })
+    useGraphStore.setState({ nodes: [p1] })
+
+    const header = ['item_key', 'display_name', 'weight']
+    const snap = validateRefreshSnapshot([a, b, c], b.sourceTableId, [header, ['itm_a', 'Ember Blade', '25']], 1, 0, [])
+    expect(snap.ok).toBe(true)
+    if (!snap.ok) return
+    const diff = diffRefresh([a, b, c], b.sourceTableId, g().nodes, snap.snapshot)
+    expect(diff.ok).toBe(true)
+    if (!diff.ok) return
+
+    const resolution: RefreshResolution = {
+      confirmedAdds: new Set(),
+      missingRowChoices: new Map(),
+      cellChoices: new Map(),
+      locallyDeletedChoices: new Map(),
+      fkRepointChoices: new Map(),
+    }
+    const result = g().commitRefresh(diff.plan, resolution, { x: 0, y: 0 })
+    expect(result.ok).toBe(true)
+
+    const idsAfter = useDataImportStore.getState().tables.map((t) => t.sourceTableId)
+    expect(idsAfter).toEqual(['srctable_a', b.sourceTableId, 'srctable_c']) // order preserved -- B stays in the middle
+    expect(useDataImportStore.getState().tables[1].rows.find((r) => r.sourceKey === 'itm_a')!.number.col_weight).toBe(25)
+
+    g().undo()
+    expect(useDataImportStore.getState().tables.map((t) => t.sourceTableId)).toEqual(['srctable_a', b.sourceTableId, 'srctable_c'])
+    expect(useDataImportStore.getState().tables[1].rows.find((r) => r.sourceKey === 'itm_a')!.number.col_weight).toBe(10)
+
+    g().redo()
+    expect(useDataImportStore.getState().tables.map((t) => t.sourceTableId)).toEqual(['srctable_a', b.sourceTableId, 'srctable_c'])
+    expect(useDataImportStore.getState().tables[1].rows.find((r) => r.sourceKey === 'itm_a')!.number.col_weight).toBe(25)
+  })
 })
 
 describe('graphStore.renameDataImportTable', () => {
