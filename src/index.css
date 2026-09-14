@@ -2810,6 +2810,17 @@ a.sheet__row {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   box-shadow: var(--elev-edge-label);
+  /* Connector-readability review round 3 (Hanrim/Lumi, 2026-09-14) — both a
+     resource-flow `@id` and an activator condition now project to a resolved
+     NUMBER (LoopEdge.tsx), staying as short as any other flow/condition chip
+     ("1", "all", "25%", ">= 5"). This cap is a defensive ceiling only — the
+     translated `refErrorLabel` fallback for a broken reference runs a little
+     longer than a number, and the full detail is always available by
+     selecting the edge (the Inspector shows it in full) regardless. */
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .edge-label--state {
   color: var(--text-tertiary);

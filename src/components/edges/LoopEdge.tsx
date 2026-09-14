@@ -17,7 +17,8 @@ import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { usePlaybackTravelBudget } from './playbackBudget'
 import type { LoopEdgeData } from '../../model/types'
-import type { StateEvent } from '../../engine'
+import { canonicalNumber } from '../../model/expr'
+import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
@@ -139,11 +140,72 @@ function LoopEdge({
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'
 
+  // docs/parameter-activator.md §PA7 / docs/parameter-inputs.md §PI9.1 — a
+  // `flow` or activator `expr` may be a `loop-model/2` `@id` Parameter
+  // reference. The STORED string keeps the raw id (never rewritten here).
+  // Review round 3 (Hanrim/Lumi, 2026-09-14) settled the per-role display:
+  // BOTH a resource-flow reference and an activator condition show a
+  // resolved NUMBER — the same convention every other resource/condition
+  // chip already uses ("1", "all", "25%", ">= 5") — never the Parameter's
+  // name. An activator's number is the live COMPARISON THRESHOLD (the
+  // Parameter's value plus any stored offset), computed by the exact same
+  // `resolveParamRhs` the engine evaluates against and the Inspector's own
+  // live preview already calls (`ActivatorField`), so the canvas can never
+  // show a threshold the engine wouldn't actually gate on. Full meaning
+  // (which Parameter, by name) stays a select-the-edge / Inspector detail —
+  // round 1's name-on-canvas approach measurably overlapped its own
+  // neighbours in the densest zone (Premium Pickup's 4 activator
+  // conditions), which a plain number does not. A reference only ever
+  // resolves against a real node of kind `parameter`; anything else (a
+  // dangling id, the wrong node kind, a non-finite/missing value, or a
+  // malformed `@...` fragment the parser itself rejects) falls back to the
+  // neutral, translated `refErrorLabel`, NEVER the raw id/text. Review round
+  // 1 fix — the number itself is `canonicalNumber` (loop-expr/1's shortest
+  // round-tripping decimal, e.g. `0.05` stays `0.05`), never `fmtAmt`'s
+  // 1-decimal display rounding (that's for an in-flight animation quantity,
+  // where a rounded amount is fine; a canvas condition/value chip is meant
+  // to match the engine's own number exactly, not approximate it).
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const refErrorLabel = t('canvas.edgeLabel.refMissing')
+  const findParamForRhs = (id: string): { kind: string; value?: unknown } | undefined => {
+    const node = gNodes.find((n) => n.id === id)
+    return node ? { kind: (node.data as { kind?: string }).kind ?? '', value: (node.data as { value?: unknown }).value } : undefined
+  }
+  const resolveParamValue = (id: string): number | null => {
+    const r = findParamForRhs(id)
+    const v = r?.kind === 'parameter' ? r.value : undefined
+    return typeof v === 'number' && Number.isFinite(v) ? v : null
+  }
+
   let text: string
-  if (d.kind === 'resource') text = d.flow || '1'
-  else if (d.mode === 'trigger') text = '✳'
-  else if (d.mode === 'activator') text = d.expr || '≥'
-  else text = d.expr || '±'
+  if (d.kind === 'resource') {
+    const raw = d.flow || '1'
+    if (raw.includes('@')) {
+      const fx = parseFlow(raw, modelVersion)
+      const value = fx.kind === 'param' ? resolveParamValue(fx.id) : null
+      text = value != null ? canonicalNumber(value) : refErrorLabel
+    } else {
+      text = raw
+    }
+  } else if (d.mode === 'trigger') {
+    text = '✳'
+  } else if (d.mode === 'activator') {
+    const raw = d.expr || '≥'
+    if (raw.includes('@')) {
+      const res = parseActivatorExpr(raw, modelVersion)
+      if (res.ok && res.rhs.kind === 'param') {
+        const resolution = resolveParamRhs(res.rhs, findParamForRhs)
+        text = resolution.ok ? `${res.op} ${canonicalNumber(resolution.threshold)}` : refErrorLabel
+      } else {
+        text = refErrorLabel
+      }
+    } else {
+      text = raw
+    }
+  } else {
+    const raw = d.expr || '±'
+    text = raw.includes('@') ? refErrorLabel : raw
+  }
 
   // dev-only render probe (§PB perf ceiling test) — proves an idle edge does not
   // re-render on every τ frame. Tree-shaken from production.

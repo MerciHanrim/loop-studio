@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/gacha-banner-zones.md (GZ) — the 3-zone gacha banner comparison
 // Template, exercised through the app. The engine-level acceptance (GZ8) is
@@ -34,6 +34,15 @@ const DOC = JSON.parse(
 const EN_NAME = '3-zone gacha banner comparison'
 const KO_NAME = '3존 가챠 배너 비교'
 const JA_NAME = '3ゾーン ガチャバナー比較'
+// `canvas.edgeLabel.refMissing` (src/i18n/locales/{en,ko,ja}/canvas.ts) —
+// duplicated here deliberately: this pins the ACTUAL shown text, so a
+// wording edit to the key must also update this constant, not silently
+// pass because the test only checked "is not raw @...".
+const ERROR_LABEL: Record<'en' | 'ko' | 'ja', string> = {
+  en: 'Parameter reference error',
+  ko: '파라미터 참조 오류',
+  ja: 'パラメーター参照エラー',
+}
 const END_STEP = DOC.recommendedRunConfig.steps // pulls_per_zone + 2, GZ3.5 round 4
 const PULL_HORIZON = END_STEP - 1 // pulls_per_zone + 1 — the last step any pull occurs
 
@@ -324,6 +333,319 @@ test.describe('3-zone gacha banner comparison Template', () => {
         { cx, cy },
       )
       assertNoOverlaps(await nodeRects())
+    }
+  })
+
+  test('edge condition labels never leak an internal @id, in EN/KO/JA', async ({ page }) => {
+    // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205): a
+    // resource-flow `@id` or an activator RHS `@id` (loop-model/2) used to
+    // render as the literal internal id on canvas (e.g. `@zone2_standard_w_sr`,
+    // `< @zone2_standard_hard_pity - 1`) — never shown to the user per
+    // docs/data-import.md §DI9's own principle for a DIFFERENT internal id,
+    // equally true here. `LoopEdge.tsx` now projects a resource-flow
+    // reference to that Parameter's current VALUE and an activator condition
+    // to the live comparison THRESHOLD (review round 2) — never the
+    // Parameter's name, and never the raw id.
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await page.setViewportSize({ width: 1600, height: 900 })
+
+    const labelTexts = (): Promise<{ id: string; text: string }[]> =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll('[data-edge-id]')).map((el) => ({
+          id: el.getAttribute('data-edge-id')!,
+          text: (el.textContent || '').trim(),
+        })),
+      )
+
+    for (const locale of ['en', 'ko', 'ja'] as const) {
+      await setLocale(page, locale)
+      for (const { id, text } of await labelTexts()) {
+        expect(text, `${locale}: edge ${id} leaks an internal id ("${text}")`).not.toMatch(/@/)
+      }
+    }
+  })
+
+  test('a broken @id reference (dangling / wrong kind / non-finite / malformed) shows the translated error label, never the raw @..., in EN/KO/JA', async ({
+    page,
+  }) => {
+    // Review round 1 (Hanrim/Lumi, 2026-09-14) — the P1 fix's whole point:
+    // `LoopEdge.tsx`'s `resolveParamValue` / `resolveParamRhs` fall back to
+    // `refErrorLabel` for FOUR distinct failure shapes, but the only prior
+    // coverage was "a normal, fully-working Template shows no @" — which
+    // would stay green even if the fallback silently regressed back to
+    // showing raw text, since the shipped Template never actually exercises
+    // a broken reference. This builds one minimal fixture with all 4 shapes
+    // on BOTH a resource edge and an activator edge and pins the actual
+    // fallback text.
+    const otherKindId = 'other_pool'
+    const nonFiniteId = 'nonfinite_param'
+    const DEMO = JSON.stringify({
+      schema: 'loop-studio/graph/2',
+      nodes: [
+        { id: 'res_src_dangling', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'res_dst_dangling', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'Dst', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'res_src_wrongkind', type: 'source', position: { x: 0, y: 100 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'res_dst_wrongkind', type: 'pool', position: { x: 200, y: 100 }, data: { kind: 'pool', label: 'Dst', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'res_src_nonfinite', type: 'source', position: { x: 0, y: 200 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'res_dst_nonfinite', type: 'pool', position: { x: 200, y: 200 }, data: { kind: 'pool', label: 'Dst', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'res_src_malformed', type: 'source', position: { x: 0, y: 300 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'res_dst_malformed', type: 'pool', position: { x: 200, y: 300 }, data: { kind: 'pool', label: 'Dst', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_src_dangling', type: 'pool', position: { x: 400, y: 0 }, data: { kind: 'pool', label: 'Src', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_dst_dangling', type: 'gate', position: { x: 600, y: 0 }, data: { kind: 'gate', label: 'Dst', activation: 'automatic', distribution: 'deterministic' } },
+        { id: 'act_src_wrongkind', type: 'pool', position: { x: 400, y: 100 }, data: { kind: 'pool', label: 'Src', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_dst_wrongkind', type: 'gate', position: { x: 600, y: 100 }, data: { kind: 'gate', label: 'Dst', activation: 'automatic', distribution: 'deterministic' } },
+        { id: 'act_src_nonfinite', type: 'pool', position: { x: 400, y: 200 }, data: { kind: 'pool', label: 'Src', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_dst_nonfinite', type: 'gate', position: { x: 600, y: 200 }, data: { kind: 'gate', label: 'Dst', activation: 'automatic', distribution: 'deterministic' } },
+        { id: 'act_src_malformed', type: 'pool', position: { x: 400, y: 300 }, data: { kind: 'pool', label: 'Src', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_dst_malformed', type: 'gate', position: { x: 600, y: 300 }, data: { kind: 'gate', label: 'Dst', activation: 'automatic', distribution: 'deterministic' } },
+        { id: otherKindId, type: 'pool', position: { x: 800, y: 0 }, data: { kind: 'pool', label: 'Other pool', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: nonFiniteId, type: 'parameter', position: { x: 800, y: 100 }, data: { kind: 'parameter', label: 'Non-finite param', value: 5 } },
+      ],
+      edges: [
+        { id: 'res_dangling', source: 'res_src_dangling', target: 'res_dst_dangling', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '@no_such_id' } },
+        { id: 'res_wrongkind', source: 'res_src_wrongkind', target: 'res_dst_wrongkind', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: `@${otherKindId}` } },
+        { id: 'res_nonfinite', source: 'res_src_nonfinite', target: 'res_dst_nonfinite', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: `@${nonFiniteId}` } },
+        { id: 'res_malformed', source: 'res_src_malformed', target: 'res_dst_malformed', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: '@bad syntax' } },
+        { id: 'act_dangling', source: 'act_src_dangling', target: 'act_dst_dangling', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'activator', expr: '>= @no_such_id' } },
+        { id: 'act_wrongkind', source: 'act_src_wrongkind', target: 'act_dst_wrongkind', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'activator', expr: `>= @${otherKindId}` } },
+        { id: 'act_nonfinite', source: 'act_src_nonfinite', target: 'act_dst_nonfinite', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'activator', expr: `>= @${nonFiniteId}` } },
+        { id: 'act_malformed', source: 'act_src_malformed', target: 'act_dst_malformed', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'activator', expr: '>= @bad syntax' } },
+      ],
+    })
+
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, DEMO)
+    await expect(page.locator('.react-flow__node')).toHaveCount(18)
+    // the non-finite case needs an actual non-finite value; NaN cannot
+    // survive JSON, so it is set live, the same way
+    // parameter-activator-authoring.spec.ts's own non-finite fixture does.
+    await page.evaluate(
+      (id) => (window as unknown as { __loop: { graph: { getState: () => { updateNodeData: (id: string, patch: object) => void } } } }).__loop.graph.getState().updateNodeData(id, { value: Number.NaN }),
+      nonFiniteId,
+    )
+
+    const BROKEN_EDGE_IDS = [
+      'res_dangling',
+      'res_wrongkind',
+      'res_nonfinite',
+      'res_malformed',
+      'act_dangling',
+      'act_wrongkind',
+      'act_nonfinite',
+      'act_malformed',
+    ]
+    const labelTexts = (ids: string[]): Promise<{ id: string; text: string }[]> =>
+      page.evaluate(
+        (ids) =>
+          ids.map((id) => ({
+            id,
+            text: (document.querySelector(`[data-edge-id="${id}"]`)?.textContent || '').trim(),
+          })),
+        ids,
+      )
+
+    for (const locale of ['en', 'ko', 'ja'] as const) {
+      await setLocale(page, locale)
+      const expected = ERROR_LABEL[locale]
+      for (const { id, text } of await labelTexts(BROKEN_EDGE_IDS)) {
+        expect(text, `${locale}: edge ${id} should show the translated error label`).toBe(expected)
+        expect(text, `${locale}: edge ${id} leaks the raw reference ("${text}")`).not.toMatch(/@/)
+      }
+    }
+  })
+
+  test('a resource value / activator threshold shows the exact number, never fmtAmt-style 1-decimal rounding', async ({
+    page,
+  }) => {
+    // Review round 1 (Hanrim/Lumi, 2026-09-14) — [P1]: the canvas chip must
+    // match the number the ENGINE actually uses. `fmtAmt` (built for an
+    // in-flight animation quantity, where a rounded display is fine) rounds
+    // any non-integer to 1 decimal place — `0.05` would have shown as `0.1`,
+    // `1.25` as `1.3`, silently disagreeing with the real value/threshold.
+    // `LoopEdge.tsx` now uses `canonicalNumber` (loop-expr/1's shortest
+    // round-tripping decimal) for both roles; this pins the exact text for a
+    // value `fmtAmt` would have visibly rounded.
+    const paramId = 'precise_param'
+    const DEMO = JSON.stringify({
+      schema: 'loop-studio/graph/2',
+      nodes: [
+        { id: 'res_src', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Src', activation: 'automatic', mode: 'pushAny' } },
+        { id: 'res_dst', type: 'pool', position: { x: 200, y: 0 }, data: { kind: 'pool', label: 'Dst', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_src', type: 'pool', position: { x: 400, y: 0 }, data: { kind: 'pool', label: 'Src', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } },
+        { id: 'act_dst', type: 'gate', position: { x: 600, y: 0 }, data: { kind: 'gate', label: 'Dst', activation: 'automatic', distribution: 'deterministic' } },
+        { id: paramId, type: 'parameter', position: { x: 0, y: 200 }, data: { kind: 'parameter', label: 'Precise param', value: 0.05 } },
+      ],
+      edges: [
+        { id: 'res_precise', source: 'res_src', target: 'res_dst', sourceHandle: 'out', targetHandle: 'in', type: 'loop', data: { kind: 'resource', flow: `@${paramId}` } },
+        { id: 'act_precise', source: 'act_src', target: 'act_dst', sourceHandle: 'state-source', targetHandle: 'state-target', type: 'loop', data: { kind: 'state', mode: 'activator', expr: `>= @${paramId} + 1` } },
+      ],
+    })
+
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, DEMO)
+    await expect(page.locator('.react-flow__node')).toHaveCount(5)
+
+    const labelText = (id: string): Promise<string> =>
+      page.evaluate((id) => (document.querySelector(`[data-edge-id="${id}"]`)?.textContent || '').trim(), id)
+
+    // resource value: 0.05 exactly — fmtAmt would show "0.1"
+    expect(await labelText('res_precise')).toBe('0.05')
+    // activator threshold: 0.05 + 1 = 1.05 exactly — fmtAmt would show "1.1"
+    // (the `+ 1` offset is a whole-integer grammar requirement, not a
+    // rounding artefact; the non-integer comes from the Parameter's OWN
+    // value, exactly like the resource case above)
+    expect(await labelText('act_precise')).toBe('>= 1.05')
+  })
+
+  test('every resource/state edge label in Premium Standard + Premium Pickup is legible: no two labels overlap, and no label overlaps a node, in EN/KO/JA', async ({
+    page,
+  }) => {
+    // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205 and
+    // after the first round of #206): the original screenshots showed the
+    // pity/guarantee activator labels overlapping EACH OTHER, but also
+    // weight (`@zone*_w_*`) and numeric labels crowding nodes and connector
+    // lines generally — and the id→label projection itself makes several of
+    // those labels LONGER than the raw id was, which can newly intrude on
+    // geometry that used to have room. A check scoped to only the 6 hard-pity
+    // edges (the first round's test) is narrower than the actual reported
+    // problem — this checks EVERY resource/state label visible when a zone is
+    // read at 100%, against every OTHER visible label AND every visible node,
+    // in every shipped locale. Routing every edge `orthogonal`
+    // (scripts/gen-gacha-banner-zones-example.ts, layout round 5) plus
+    // per-edge waypoints on the specific coincidental crossings this
+    // uncovered (layout round 6) is what makes this pass — a Template-layout
+    // fix, never an engine change.
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await page.setViewportSize({ width: 1600, height: 900 })
+
+    type Rect = { id: string; text: string; x: number; y: number; w: number; h: number }
+    // Membership is by WORLD position inside the zone's own saved frame rect,
+    // not "visible on screen" — a wide viewport at zoom 1 centred on one
+    // zone's frame can still show a sliver of a NEIGHBOURING zone or the
+    // shared comparison/termination strip, and a coincidental overlap out
+    // there is not the reported problem (reading a zone) at all.
+    const nodeIdsInZone = (zoneRect: { x: number; y: number; w: number; h: number }): Promise<string[]> =>
+      page.evaluate(
+        (zoneRect) =>
+          (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] } } } })
+            .__loop.graph.getState()
+            .nodes.filter(
+              (n) =>
+                n.position.x >= zoneRect.x &&
+                n.position.x <= zoneRect.x + zoneRect.w &&
+                n.position.y >= zoneRect.y &&
+                n.position.y <= zoneRect.y + zoneRect.h,
+            )
+            .map((n) => n.id),
+        zoneRect,
+      )
+
+    const labelRectsForEdges = (edgeIds: string[]): Promise<Rect[]> =>
+      page.evaluate(
+        (edgeIds) =>
+          edgeIds
+            .map((id) => {
+              const el = document.querySelector(`[data-edge-id="${id}"]`)
+              if (!el) return null
+              const r = (el as HTMLElement).getBoundingClientRect()
+              return { id, text: (el.textContent || '').trim(), x: r.x, y: r.y, w: r.width, h: r.height }
+            })
+            .filter((r): r is Rect => r != null && r.w > 0 && r.h > 0),
+        edgeIds,
+      )
+
+    const nodeRectsFor = (nodeIds: string[]): Promise<Rect[]> =>
+      page.evaluate(
+        (nodeIds) =>
+          nodeIds
+            .map((id) => {
+              const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
+              if (!el) return null
+              const r = (el as HTMLElement).getBoundingClientRect()
+              return { id, text: '', x: r.x, y: r.y, w: r.width, h: r.height }
+            })
+            .filter((r): r is Rect => r != null && r.w > 0 && r.h > 0),
+        nodeIds,
+      )
+
+    const edgesWithinZone = (nodeIds: string[]): Promise<string[]> =>
+      page.evaluate(
+        (nodeIds) => {
+          const set = new Set(nodeIds)
+          return (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string; source: string; target: string }[] } } } })
+            .__loop.graph.getState()
+            .edges.filter((e) => set.has(e.source) && set.has(e.target))
+            .map((e) => e.id)
+        },
+        nodeIds,
+      )
+
+    const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+
+    function assertNoOverlaps(rects: Rect[]) {
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          expect(
+            overlaps(rects[i], rects[j]),
+            `edge label ${rects[i].id} ("${rects[i].text}") overlaps ${rects[j].id} ("${rects[j].text}")`,
+          ).toBe(false)
+        }
+      }
+    }
+
+    function assertLabelsDontOverlapNodes(labels: Rect[], nodes: Rect[]) {
+      for (const l of labels) {
+        for (const n of nodes) {
+          expect(overlaps(l, n), `edge label ${l.id} ("${l.text}") overlaps node ${n.id}`).toBe(false)
+        }
+      }
+    }
+
+    const frames = await page.evaluate(
+      () =>
+        (window as unknown as { __loop: { frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] } } } })
+          .__loop.frame.getState().frames,
+    )
+
+    for (const locale of ['en', 'ko', 'ja'] as const) {
+      await setLocale(page, locale)
+      for (const zoneFrameId of ['zone_standard', 'zone_pickup'] as const) {
+        const frame = frames.find((f) => f.id === zoneFrameId)!
+        const cx = frame.rect.x + frame.rect.w / 2
+        const cy = frame.rect.y + frame.rect.h / 2
+        await page.evaluate(
+          ({ cx, cy }) => {
+            const rf = (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf
+            rf.setViewport({ x: window.innerWidth / 2 - cx, y: window.innerHeight / 2 - cy, zoom: 1 })
+          },
+          { cx, cy },
+        )
+        const zoneNodeIds = await nodeIdsInZone(frame.rect)
+        const zoneEdgeIds = await edgesWithinZone(zoneNodeIds)
+        const labels = await labelRectsForEdges(zoneEdgeIds)
+        const nodes = await nodeRectsFor(zoneNodeIds)
+        // `labelRectsForEdges` silently drops any edge id with no DOM label
+        // (missing, or zero-sized) — asserting only `labels.length > 0`
+        // would still pass with several of those DROPPED, which is exactly
+        // what "every resource/state label" must catch (a label failing to
+        // render is a worse failure than two labels overlapping).
+        const missingLabelIds = zoneEdgeIds.filter((id) => !labels.some((l) => l.id === id))
+        expect(
+          labels.length,
+          `${locale} ${zoneFrameId}: missing/zero-sized label(s) for edge(s): ${missingLabelIds.join(', ')}`,
+        ).toBe(zoneEdgeIds.length)
+        for (const l of labels) {
+          expect(l.text, `${locale} ${zoneFrameId}: edge ${l.id} leaks an internal id ("${l.text}")`).not.toMatch(/@/)
+        }
+        assertNoOverlaps(labels)
+        assertLabelsDontOverlapNodes(labels, nodes)
+      }
     }
   })
 

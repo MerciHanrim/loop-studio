@@ -78,12 +78,20 @@ import type { LoopEdge, LoopNode } from '../src/model/types'
 const { nodes, edges } = buildGachaBannerZonesGraph()
 
 const COL_W = 190
-const COL_W_PICKUP = 270 // wider flow-band columns for Pickup's denser 4-path structure (+80 over COL_W)
+const COL_W_PICKUP = 320 // wider flow-band columns for Pickup's denser 4-path structure
 const ROW_H = 100
 const PAD = 40
 const BAND_GAP = 60 // between a zone's flow band and its control band
 const ZONE_GAP_X = 120 // between one zone's frame and the next (zones are laid out horizontally)
 const CONTROL_COLS = 3
+// Layout round 6 (Hanrim/Lumi, 2026-09-14, connector-readability review round
+// 2) — wider than the flow band's own `colW`/`ROW_H`: the pity node's
+// activator-out and label-in edges route BETWEEN control-band grid cells,
+// not just around the grid, so this band needs real clearance between
+// adjacent cells for a long condition label to pass through without
+// overlapping a Parameter node.
+const CONTROL_COL_W = 260
+const CONTROL_ROW_H = 140
 const CARD_GAP_X = 340 // comparison-row card pitch (was 260 — cards nearly touched once labels grew)
 // Real measured max card size (EN/KO/JA, zoom 1): width maxes out at ~260px
 // (locale-invariant — a Register card's width is CSS-capped, longer text
@@ -218,7 +226,7 @@ function maxFlowDepth(zone: ZoneKey): number {
 function zoneWidth(zone: ZoneKey): number {
   const colW = COL_W_BY_ZONE[zone]
   const flowWidth = (maxFlowDepth(zone) + 1) * colW
-  const controlWidth = CONTROL_COLS * colW
+  const controlWidth = CONTROL_COLS * CONTROL_COL_W
   return Math.max(flowWidth, controlWidth) + 150 // + a node's own drawn width
 }
 
@@ -236,7 +244,17 @@ for (const zone of ZONES) {
   const originX = zoneOriginX[zone]
   const zoneNodes = nodes.filter((n) => zoneOf(n.id) === zone)
   const flowNodes = zoneNodes.filter((n) => !isControlNode(n.id))
-  const controlNodes = zoneNodes.filter((n) => isControlNode(n.id))
+  // `pity_*` / `missed_pickup_pickup` sort first (row 0, so their own
+  // column) so nothing else in the control grid sits ABOVE either hub —
+  // both carry several activator-out / label-in edges climbing straight out
+  // of the control band into the flow band above, and any OTHER control
+  // node occupying that same column above one forces those routes' labels
+  // to skirt right past that node's box (connector-readability review round
+  // 3, Hanrim/Lumi, 2026-09-14).
+  const isHub = (id: string) => id.startsWith('pity_') || id === 'missed_pickup_pickup'
+  const controlNodes = zoneNodes
+    .filter((n) => isControlNode(n.id))
+    .sort((a, b) => Number(isHub(b.id)) - Number(isHub(a.id)))
 
   // Flow band.
   const rowByKey = new Map<string, number>()
@@ -252,11 +270,16 @@ for (const zone of ZONES) {
   const controlY = zoneRowY + flowBandHeight + BAND_GAP
 
   // Control band: a simple wrapped grid, widest column first (Parameters),
-  // so it reads as a compact settings strip under the flow.
+  // so it reads as a compact settings strip under the flow. Layout round 6
+  // (Hanrim/Lumi, 2026-09-14) — the pity node's activator/label edges route
+  // BETWEEN grid cells (not just around the grid's outside), so this band
+  // needs its own, wider pitch — the flow band's `colW`/`ROW_H` were tuned
+  // for short flow chips passing AROUND nodes, not long condition labels
+  // passing BETWEEN them.
   controlNodes.forEach((n, i) => {
     const col = i % CONTROL_COLS
     const row = Math.floor(i / CONTROL_COLS)
-    positions.set(n.id, { x: originX + col * colW, y: controlY + row * ROW_H })
+    positions.set(n.id, { x: originX + col * CONTROL_COL_W, y: controlY + row * CONTROL_ROW_H })
   })
 }
 
@@ -300,7 +323,56 @@ const recommendedRunConfig: RecommendedRunConfig = {
   canvasLocked: true,
 }
 
-const text = serialize(positioned, edges as LoopEdge[], recommendedRunConfig, undefined, undefined, 2, frames)
+// Layout round 5 (Hanrim/Lumi review after PR #205, connector readability):
+// an edge's label sits at its bezier midpoint, and the pity/guarantee
+// cluster has several state (dashed control) edges fanning into/out of one
+// control-band node (`pity_standard`/`pity_pickup`) toward flow-band
+// targets — their midpoints land close enough to overlap and cross the main
+// flow diagonally. Routing only the state edges orthogonal still left one
+// coincidence between a resource edge's bezier midpoint and a state edge's
+// orthogonal one (`ticket_standard -> forced_ssr_standard`'s "1" landing on
+// `ssr_hit_standard -> pulls_made_standard`'s "+1") — a two-kind mix has no
+// guarantee the two routers ever avoid meeting at the same point. Routing
+// EVERY edge (resource included) the same way removes that mismatch.
+// `route: 'orthogonal'` is purely cosmetic edge-routing data
+// (`docs/edge-routing.md` §R3 — "never engine-affecting", proven for both
+// resource and state edges by `edge-routing.spec.ts`), so this is a
+// Template-layout change, not an engine change: the router computes each
+// edge its own Manhattan path from its actual source/target, which
+// separates these labels instead of letting bezier curvature coincide them.
+// Layout round 6 (Hanrim/Lumi, 2026-09-14) — reclassifying `pulls_made_*` /
+// `ceiling_hits_*` as control nodes, sorting the `pity_*` / `missed_pickup_
+// pickup` hubs to the control grid's own front column (both above,
+// gachaBannerZonesGraph.ts / this file), giving the control band its own
+// wider `CONTROL_COL_W` / `CONTROL_ROW_H` pitch, and switching the
+// activator/resource `@id` canvas display from a name to a resolved NUMBER
+// (LoopEdge.tsx round 3) together closed every overlap except one shape:
+// TWO edges sharing the exact same hub node (`pity_*` / `missed_pickup_
+// pickup`) toward two DIFFERENT flow-band targets still have their
+// orthogonal arc-length midpoints coincide, since both routes leave the
+// same point. A short, explicit waypoint per edge — opposite sides of that
+// shared point — separates them; still purely cosmetic routing data, never
+// an engine change.
+const WAYPOINTS: Record<string, { x: number; y: number }[]> = {
+  e_standard_12: [{ x: 1200, y: 550 }],
+  e_standard_13: [{ x: 1320, y: 550 }],
+  e_pickup_7: [{ x: 2680, y: 600 }],
+  e_pickup_9: [{ x: 2800, y: 600 }],
+  e_pickup_8: [{ x: 2420, y: 600 }],
+  e_pickup_10: [{ x: 2540, y: 600 }],
+  e_pickup_35: [{ x: 3200, y: 700 }],
+  e_pickup_40: [{ x: 3200, y: 750 }],
+  e_standard_4: [{ x: 1740, y: 370 }],
+  e_pickup_28: [{ x: 3760, y: 780 }, { x: 2480, y: 780 }],
+  e_pickup_37: [{ x: 3827, y: 340 }, { x: 2539, y: 340 }],
+}
+
+const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => ({
+  ...e,
+  data: { ...e.data, route: 'orthogonal', ...(WAYPOINTS[e.id] ? { waypoints: WAYPOINTS[e.id] } : {}) },
+}))
+
+const text = serialize(positioned, routedEdges, recommendedRunConfig, undefined, undefined, 2, frames)
 
 const outPath = fileURLToPath(new URL('../examples/gacha-banner-zones.json', import.meta.url))
 writeFileSync(outPath, text + '\n')

@@ -106,6 +106,7 @@ const canvas = {
   'canvas.edgeLabel.blocked.title':
     '届きましたが、ターゲットが発火できませんでした（アクティベーション不一致、またはアクティベーターが閉じたまま）',
   'canvas.edgeLabel.breakdown.title': 'この接続でのこのステップの移動量',
+  'canvas.edgeLabel.refMissing': 'パラメーター参照エラー',
   'node.unreadable.title': '読み取れない {kind}',
   'node.unreadable.sub': 'データを読み取れません — ファイルで修正してください',
   'node.invalidFlag': 'このノードは無効です',
