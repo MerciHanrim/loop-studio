@@ -300,7 +300,29 @@ const recommendedRunConfig: RecommendedRunConfig = {
   canvasLocked: true,
 }
 
-const text = serialize(positioned, edges as LoopEdge[], recommendedRunConfig, undefined, undefined, 2, frames)
+// Layout round 5 (Hanrim/Lumi review after PR #205, connector readability):
+// an edge's label sits at its bezier midpoint, and the pity/guarantee
+// cluster has several state (dashed control) edges fanning into/out of one
+// control-band node (`pity_standard`/`pity_pickup`) toward flow-band
+// targets — their midpoints land close enough to overlap and cross the main
+// flow diagonally. Routing only the state edges orthogonal still left one
+// coincidence between a resource edge's bezier midpoint and a state edge's
+// orthogonal one (`ticket_standard -> forced_ssr_standard`'s "1" landing on
+// `ssr_hit_standard -> pulls_made_standard`'s "+1") — a two-kind mix has no
+// guarantee the two routers ever avoid meeting at the same point. Routing
+// EVERY edge (resource included) the same way removes that mismatch.
+// `route: 'orthogonal'` is purely cosmetic edge-routing data
+// (`docs/edge-routing.md` §R3 — "never engine-affecting", proven for both
+// resource and state edges by `edge-routing.spec.ts`), so this is a
+// Template-layout change, not an engine change: the router computes each
+// edge its own Manhattan path from its actual source/target, which
+// separates these labels instead of letting bezier curvature coincide them.
+const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => ({
+  ...e,
+  data: { ...e.data, route: 'orthogonal' },
+}))
+
+const text = serialize(positioned, routedEdges, recommendedRunConfig, undefined, undefined, 2, frames)
 
 const outPath = fileURLToPath(new URL('../examples/gacha-banner-zones.json', import.meta.url))
 writeFileSync(outPath, text + '\n')

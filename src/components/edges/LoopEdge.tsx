@@ -17,7 +17,7 @@ import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { usePlaybackTravelBudget } from './playbackBudget'
 import type { LoopEdgeData } from '../../model/types'
-import type { StateEvent } from '../../engine'
+import { parseActivatorExpr, parseFlow, type StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
@@ -139,11 +139,35 @@ function LoopEdge({
   const d = (data as LoopEdgeData | undefined) ?? FALLBACK
   const isState = d.kind === 'state'
 
+  // docs/parameter-activator.md §PA7 / docs/parameter-inputs.md §PI9.1 — a
+  // `flow` or activator `expr` may be a `loop-model/2` `@id` Parameter
+  // reference. The STORED string keeps the raw id (never rewritten here); the
+  // canvas chip projects it to that Parameter's own current label, the same
+  // substitution the Inspector's `EdgeFlowField` / `ActivatorField` preview
+  // already makes — an internal id is edited/diagnosed there, never read off
+  // the canvas. A dangling reference (no such node) falls back to the raw id,
+  // matching `exprRefs.ts`'s own `names.get(id) ?? id` convention.
+  const modelVersion = useGraphStore((s) => s.modelVersion)
+  const paramLabel = (id: string): string => {
+    const label = (gNodes.find((n) => n.id === id)?.data as { label?: unknown } | undefined)?.label
+    return typeof label === 'string' && label.trim() !== '' ? label : id
+  }
+  const fmtOffset = (n: number) => (n === 0 ? '' : ` ${n > 0 ? '+' : '−'} ${Math.abs(n)}`)
+
   let text: string
-  if (d.kind === 'resource') text = d.flow || '1'
-  else if (d.mode === 'trigger') text = '✳'
-  else if (d.mode === 'activator') text = d.expr || '≥'
-  else text = d.expr || '±'
+  if (d.kind === 'resource') {
+    const raw = d.flow || '1'
+    const fx = raw.trim().startsWith('@') ? parseFlow(raw, modelVersion) : null
+    text = fx?.kind === 'param' ? paramLabel(fx.id) : raw
+  } else if (d.mode === 'trigger') {
+    text = '✳'
+  } else if (d.mode === 'activator') {
+    const raw = d.expr || '≥'
+    const res = parseActivatorExpr(raw, modelVersion)
+    text = res.ok && res.rhs.kind === 'param' ? `${res.op} ${paramLabel(res.rhs.id)}${fmtOffset(res.rhs.offset)}` : raw
+  } else {
+    text = d.expr || '±'
+  }
 
   // dev-only render probe (§PB perf ceiling test) — proves an idle edge does not
   // re-render on every τ frame. Tree-shaken from production.

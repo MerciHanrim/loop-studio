@@ -327,6 +327,110 @@ test.describe('3-zone gacha banner comparison Template', () => {
     }
   })
 
+  test('edge condition labels never leak an internal @id, in EN/KO/JA', async ({ page }) => {
+    // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205): a
+    // resource-flow `@id` or an activator RHS `@id` (loop-model/2) used to
+    // render as the literal internal id on canvas (e.g. `@zone2_standard_w_sr`,
+    // `< @zone2_standard_hard_pity - 1`) — never shown to the user per
+    // docs/data-import.md §DI9's own principle for a DIFFERENT internal id,
+    // equally true here. `LoopEdge.tsx` now projects it to the referenced
+    // Parameter's own current (localized) label.
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await page.setViewportSize({ width: 1600, height: 900 })
+
+    const labelTexts = (): Promise<{ id: string; text: string }[]> =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll('[data-edge-id]')).map((el) => ({
+          id: el.getAttribute('data-edge-id')!,
+          text: (el.textContent || '').trim(),
+        })),
+      )
+
+    for (const locale of ['en', 'ko', 'ja'] as const) {
+      await setLocale(page, locale)
+      for (const { id, text } of await labelTexts()) {
+        expect(text, `${locale}: edge ${id} leaks an internal id ("${text}")`).not.toMatch(/@/)
+      }
+    }
+  })
+
+  test('the hard-pity activator condition labels are visually distinct, in EN/KO/JA (Premium Standard + Premium Pickup)', async ({
+    page,
+  }) => {
+    // Connector-readability review (Hanrim/Lumi, 2026-09-14, after PR #205):
+    // the pity/guarantee activator edges fanning out of one control node
+    // (`pity_standard` / `pity_pickup`) had their bezier-midpoint labels
+    // overlapping each other, illegible at the zoom level the screenshots
+    // used. Fixed by routing every edge `orthogonal`
+    // (scripts/gen-gacha-banner-zones-example.ts, layout round 5), a cosmetic
+    // routing choice, never an engine change — this is a regression guard on
+    // exactly the labels that were reported overlapping, not a general
+    // every-edge-in-the-zone claim (a dense zone's many edges can still share
+    // a screen region without any two LABELS actually touching).
+    await openApp(page)
+    await resetAll(page)
+    await pickDesktopTemplate(page, EN_NAME)
+    await page.setViewportSize({ width: 1600, height: 900 })
+
+    type Rect = { id: string; text: string; x: number; y: number; w: number; h: number }
+    const labelRectsById = (ids: string[]): Promise<Rect[]> =>
+      page.evaluate(
+        (ids) =>
+          ids.map((id) => {
+            const el = document.querySelector(`[data-edge-id="${id}"]`)!
+            const r = (el as HTMLElement).getBoundingClientRect()
+            return { id, text: (el.textContent || '').trim(), x: r.x, y: r.y, w: r.width, h: r.height }
+          }),
+        ids,
+      )
+
+    function assertNoOverlaps(rects: Rect[]) {
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          const a = rects[i]
+          const b = rects[j]
+          const overlaps = a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+          expect(overlaps, `edge label ${a.id} ("${a.text}") overlaps ${b.id} ("${b.text}")`).toBe(false)
+        }
+      }
+    }
+
+    const frames = await page.evaluate(
+      () =>
+        (window as unknown as { __loop: { frame: { getState: () => { frames: { id: string; rect: { x: number; y: number; w: number; h: number } }[] } } } })
+          .__loop.frame.getState().frames,
+    )
+
+    // the exact edges the original screenshots showed overlapping.
+    const HARD_PITY_EDGES: Record<'zone_standard' | 'zone_pickup', string[]> = {
+      zone_standard: ['e_standard_12', 'e_standard_13'],
+      zone_pickup: ['e_pickup_6', 'e_pickup_8', 'e_pickup_10', 'e_pickup_12'],
+    }
+
+    for (const locale of ['en', 'ko', 'ja'] as const) {
+      await setLocale(page, locale)
+      for (const zoneFrameId of ['zone_standard', 'zone_pickup'] as const) {
+        const frame = frames.find((f) => f.id === zoneFrameId)!
+        const cx = frame.rect.x + frame.rect.w / 2
+        const cy = frame.rect.y + frame.rect.h / 2
+        await page.evaluate(
+          ({ cx, cy }) => {
+            const rf = (window as unknown as { __loop: { rf: { setViewport: (v: object) => void } } }).__loop.rf
+            rf.setViewport({ x: window.innerWidth / 2 - cx, y: window.innerHeight / 2 - cy, zoom: 1 })
+          },
+          { cx, cy },
+        )
+        const rects = await labelRectsById(HARD_PITY_EDGES[zoneFrameId])
+        for (const r of rects) {
+          expect(r.text, `${locale} ${zoneFrameId}: edge ${r.id} leaks an internal id ("${r.text}")`).not.toMatch(/@/)
+        }
+        assertNoOverlaps(rects)
+      }
+    }
+  })
+
   test('comparison frame fully contains every comparison-row node, in EN/KO/JA, at both reviewed viewports', async ({
     page,
   }) => {
