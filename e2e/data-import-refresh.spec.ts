@@ -57,7 +57,7 @@ async function importItemsTable(page: Page): Promise<void> {
   await page.getByRole('menuitem', { name: 'Import new spreadsheet…' }).click()
   await expect(wizardDialog(page)).toBeVisible()
 
-  await wizardDialog(page).getByPlaceholder('Table name').fill('Items')
+  await wizardDialog(page).getByLabel('Table name').fill('Items')
   await wizardDialog(page)
     .getByPlaceholder('Paste CSV or TSV text here')
     .fill('item_key,display_name,weight\nitm_a,Ember Blade,10\nitm_b,Iron Charm,3')
@@ -81,7 +81,7 @@ async function importItemsAndPoolTables(page: Page): Promise<void> {
   await page.getByRole('menuitem', { name: 'Import new spreadsheet…' }).click()
   await expect(wizardDialog(page)).toBeVisible()
 
-  await wizardDialog(page).getByPlaceholder('Table name').fill('Items')
+  await wizardDialog(page).getByLabel('Table name').fill('Items')
   await wizardDialog(page)
     .getByPlaceholder('Paste CSV or TSV text here')
     .fill('item_key,display_name,weight\nitm_a,Ember Blade,10\nitm_b,Iron Charm,3')
@@ -92,7 +92,7 @@ async function importItemsAndPoolTables(page: Page): Promise<void> {
 
   await wizardDialog(page).getByRole('button', { name: 'Add another table' }).click()
   const poolTable = wizardDialog(page).locator('.import__table').nth(1)
-  await poolTable.getByPlaceholder('Table name').fill('GachaPoolEntries')
+  await poolTable.getByLabel('Table name').fill('GachaPoolEntries')
   await poolTable.getByPlaceholder('Paste CSV or TSV text here').fill('pool_entry_key,item_key,weight\nppe_a,itm_a,5')
   const poolHeader = poolTable.locator('.import__preview thead tr').first()
   await poolHeader.locator('th').nth(0).locator('select').selectOption('key')

@@ -213,9 +213,19 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
   }
 
   const hasParseError = tables.some((ui) => ui.parseError !== null)
+  // Neither `validateDrafts()` nor its downstream errors (e.g.
+  // `missing-key-column`) mean anything before a table has BOTH a name and
+  // some pasted/uploaded content -- with zero parsed columns, that error is
+  // a DERIVED consequence of there being no data at all, not a real
+  // configuration problem. Gate `Next` on this basic completeness so the
+  // real validation step is never reached with a table that couldn't
+  // possibly pass it yet.
+  const nameEmpty = (ui: DraftUI) => ui.draft.label.trim() === ''
+  const dataEmpty = (ui: DraftUI) => ui.pasteText.trim() === ''
+  const hasIncompleteTable = tables.some((ui) => nameEmpty(ui) || dataEmpty(ui))
 
   const runValidate = () => {
-    if (hasParseError) return
+    if (hasParseError || hasIncompleteTable) return
     const result = validateDrafts(tables.map((ui) => ui.draft))
     setValidation(result)
     if (result.ok) setStep('placement')
@@ -291,18 +301,17 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
               {tables.map((ui, ti) => (
                 <div className="import__table" key={ti}>
                   <div className="import__tableHead">
-                    <input
-                      type="text"
-                      placeholder={t('import.tableName')}
-                      value={ui.draft.label}
-                      onChange={(e) => updateDraft(ti, { label: e.target.value })}
-                    />
+                    <label className="import__nameField">
+                      <span className="import__nameLabel">{t('import.tableName')}</span>
+                      <input type="text" value={ui.draft.label} onChange={(e) => updateDraft(ti, { label: e.target.value })} />
+                    </label>
                     {tables.length > 1 && (
-                      <button type="button" className="btn" onClick={() => removeTable(ti)}>
+                      <button type="button" className="btn btn--sm" onClick={() => removeTable(ti)}>
                         {t('import.removeTable')}
                       </button>
                     )}
                   </div>
+                  {nameEmpty(ui) && <p className="import__error">{t('import.tableNameRequired')}</p>}
                   <textarea
                     className="import__paste"
                     placeholder={t('import.pastePlaceholder')}
@@ -310,8 +319,9 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
                     onChange={(e) => updateTable(ti, { pasteText: e.target.value })}
                     rows={4}
                   />
-                  <div className="import__row">
-                    <button type="button" className="btn" onClick={() => pickFile(ti)}>
+                  {dataEmpty(ui) && <p className="import__error">{t('import.pasteDataRequired')}</p>}
+                  <div className="import__settingsGroup">
+                    <button type="button" className="btn btn--sm" onClick={() => pickFile(ti)}>
                       {t('import.uploadFile')}
                     </button>
                     <label>
@@ -428,7 +438,7 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
                   )}
                 </div>
               ))}
-              <button type="button" className="btn" onClick={addTable}>
+              <button type="button" className="btn btn--sm import__addTable" onClick={addTable}>
                 {t('import.addTable')}
               </button>
               {hasParseError && <p className="import__error">{t('import.parseErrorsBlockValidation')}</p>}
@@ -516,13 +526,13 @@ export function DataImportWizard({ open, onClose }: { open: boolean; onClose: ()
             {t('dialog.cancel')}
           </button>
           {step === 'tables' && (
-            <button type="button" className="btn btn--primary" disabled={hasParseError} onClick={runValidate}>
+            <button type="button" className="btn btn--primary" disabled={hasParseError || hasIncompleteTable} onClick={runValidate}>
               {t('import.next')}
             </button>
           )}
           {step === 'validate' && (
             <button type="button" className="btn" onClick={() => setStep('tables')}>
-              {t('import.back')}
+              {t('import.backToInput')}
             </button>
           )}
           {step === 'placement' && (

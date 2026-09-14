@@ -246,14 +246,14 @@ export function Toolbar() {
             <ExportMenu getViewport={getViewport} />
           </span>
         )}
-        {inline('help') && (
-          <span className="toolbar__slot" ref={setItem('help')}>
-            <HelpMenu />
-          </span>
-        )}
         {inline('dataImport') && (
           <span className="toolbar__slot" ref={setItem('dataImport')}>
             <DataImportMenu />
+          </span>
+        )}
+        {inline('help') && (
+          <span className="toolbar__slot" ref={setItem('help')}>
+            <HelpMenu />
           </span>
         )}
 
