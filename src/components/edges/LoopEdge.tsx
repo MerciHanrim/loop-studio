@@ -17,6 +17,7 @@ import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
 import { usePlaybackTravelBudget } from './playbackBudget'
 import type { LoopEdgeData } from '../../model/types'
+import { canonicalNumber } from '../../model/expr'
 import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
 
@@ -158,7 +159,12 @@ function LoopEdge({
   // resolves against a real node of kind `parameter`; anything else (a
   // dangling id, the wrong node kind, a non-finite/missing value, or a
   // malformed `@...` fragment the parser itself rejects) falls back to the
-  // neutral, translated `refErrorLabel`, NEVER the raw id/text.
+  // neutral, translated `refErrorLabel`, NEVER the raw id/text. Review round
+  // 1 fix — the number itself is `canonicalNumber` (loop-expr/1's shortest
+  // round-tripping decimal, e.g. `0.05` stays `0.05`), never `fmtAmt`'s
+  // 1-decimal display rounding (that's for an in-flight animation quantity,
+  // where a rounded amount is fine; a canvas condition/value chip is meant
+  // to match the engine's own number exactly, not approximate it).
   const modelVersion = useGraphStore((s) => s.modelVersion)
   const refErrorLabel = t('canvas.edgeLabel.refMissing')
   const findParamForRhs = (id: string): { kind: string; value?: unknown } | undefined => {
@@ -177,7 +183,7 @@ function LoopEdge({
     if (raw.includes('@')) {
       const fx = parseFlow(raw, modelVersion)
       const value = fx.kind === 'param' ? resolveParamValue(fx.id) : null
-      text = value != null ? fmtAmt(value) : refErrorLabel
+      text = value != null ? canonicalNumber(value) : refErrorLabel
     } else {
       text = raw
     }
@@ -189,7 +195,7 @@ function LoopEdge({
       const res = parseActivatorExpr(raw, modelVersion)
       if (res.ok && res.rhs.kind === 'param') {
         const resolution = resolveParamRhs(res.rhs, findParamForRhs)
-        text = resolution.ok ? `${res.op} ${fmtAmt(resolution.threshold)}` : refErrorLabel
+        text = resolution.ok ? `${res.op} ${canonicalNumber(resolution.threshold)}` : refErrorLabel
       } else {
         text = refErrorLabel
       }
