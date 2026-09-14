@@ -305,4 +305,22 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
     expect(exp.found).toBe(true)
     expect(exp.ok, 'nested Export pop on screen').toBe(true)
   })
+
+  test('Help is the LAST inline control, after Spreadsheet data -- never the reverse', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    const order = await page.evaluate(() => {
+      const slots = [...document.querySelectorAll('.toolbar__slot')]
+      return slots.map((s) => {
+        const btn = s.querySelector('.menu > button, button')
+        return (btn?.getAttribute('aria-label') || btn?.textContent || '').trim()
+      })
+    })
+    const dataImportIdx = order.findIndex((t) => t.includes('Spreadsheet data'))
+    const helpIdx = order.findIndex((t) => t === 'Help')
+    expect(dataImportIdx).toBeGreaterThanOrEqual(0)
+    expect(helpIdx).toBeGreaterThanOrEqual(0)
+    expect(helpIdx).toBeGreaterThan(dataImportIdx)
+  })
 })

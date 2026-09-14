@@ -3963,9 +3963,25 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__tableHead {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 8px;
+}
+/* a fixed, visible label (not a placeholder-only field) with enough room
+   for a real table name -- flexes to fill the space next to "Remove table". */
+.import__nameField {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.import__nameLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.import__nameField input {
+  width: 100%;
 }
 .import__paste {
   width: 100%;
@@ -3988,6 +4004,34 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__row input[type='number'] {
   width: 56px;
+}
+/* visually groups the source/range controls (upload, delimiter, header row,
+   ignore-last-N-rows) into one block, distinct from the paste area above and
+   the column-mapping preview below. */
+.import__settingsGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.import__settingsGroup label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.import__settingsGroup input[type='number'] {
+  width: 56px;
+}
+/* a secondary action, not a primary one -- must not stretch to the full
+   dialog width the way a flex-column child does by default. */
+.import__addTable {
+  align-self: flex-start;
 }
 .import__error {
   color: var(--warning);

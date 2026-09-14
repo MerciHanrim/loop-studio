@@ -11,6 +11,8 @@ const dataImport = {
   'import.removeTable': '테이블 제거',
   'import.addTable': '테이블 추가',
   'import.pastePlaceholder': 'CSV 또는 TSV 텍스트를 붙여넣으세요',
+  'import.tableNameRequired': '계속하려면 테이블 이름을 입력하세요.',
+  'import.pasteDataRequired': '계속하려면 CSV/TSV 데이터를 붙여넣거나 업로드하세요.',
   'import.uploadFile': '파일 업로드…',
   'import.delimiter': '구분자',
   'import.delimiterAuto': '자동 감지',
@@ -40,6 +42,7 @@ const dataImport = {
   'import.summary': '{tables, plural, other {테이블 #개}}를 가져와 {parameters, plural, other {파라미터 #개}}를 생성합니다.',
   'import.next': '다음',
   'import.back': '이전',
+  'import.backToInput': '입력으로 돌아가기',
   'import.commit': '가져오기',
 
   'import.loc.table': '테이블 {table}',

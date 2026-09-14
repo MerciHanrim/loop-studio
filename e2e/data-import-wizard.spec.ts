@@ -39,10 +39,58 @@ test.beforeEach(async ({ page }) => {
   await resetAll(page)
 })
 
+test('Next is disabled while the table is empty; filling name and data independently shows/clears the matching inline hint', async ({ page }) => {
+  await openWizard(page)
+  const next = dialog(page).getByRole('button', { name: 'Next' })
+  const nameInput = dialog(page).locator('.import__nameField input')
+  const paste = dialog(page).getByPlaceholder('Paste CSV or TSV text here')
+
+  // completely empty -- both root-cause hints shown at once (never just one
+  // at a time), Next disabled
+  await expect(dialog(page).getByText('Enter a table name to continue.')).toBeVisible()
+  await expect(dialog(page).getByText('Paste or upload CSV/TSV data to continue.')).toBeVisible()
+  await expect(next).toBeDisabled()
+
+  // name only -- the name hint clears, the data hint remains
+  await nameInput.fill('Items')
+  await expect(dialog(page).getByText('Enter a table name to continue.')).toHaveCount(0)
+  await expect(dialog(page).getByText('Paste or upload CSV/TSV data to continue.')).toBeVisible()
+  await expect(next).toBeDisabled()
+
+  // data only -- the reverse
+  await nameInput.fill('')
+  await paste.fill('item_key,weight\nitm_a,10')
+  await expect(dialog(page).getByText('Enter a table name to continue.')).toBeVisible()
+  await expect(dialog(page).getByText('Paste or upload CSV/TSV data to continue.')).toHaveCount(0)
+  await expect(next).toBeDisabled()
+
+  // both filled -- Next enabled, no hints left. Next was disabled at every
+  // step above, so the derived "no key column" error (only reachable via
+  // validateDrafts(), which Next alone can trigger) was never reachable
+  // while the table was incomplete.
+  await nameInput.fill('Items')
+  await expect(dialog(page).getByText('Enter a table name to continue.')).toHaveCount(0)
+  await expect(dialog(page).getByText('Paste or upload CSV/TSV data to continue.')).toHaveCount(0)
+  await expect(next).toBeEnabled()
+})
+
+test('once real data exists, a genuinely missing key column is still reported -- never silently suppressed', async ({ page }) => {
+  await openWizard(page)
+  await dialog(page).locator('.import__nameField input').fill('Items')
+  await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10')
+  await dialog(page).getByRole('button', { name: 'Next' }).click()
+  await expect(dialog(page).getByText(/No column is marked as the row key/)).toBeVisible()
+
+  // the validate/error step's own Back button reads "Back to input", not a
+  // generic "Back"
+  await dialog(page).getByRole('button', { name: 'Back to input' }).click()
+  await expect(dialog(page).locator('.import__nameField input')).toHaveValue('Items')
+})
+
 test('paste a table, assign roles, validate, place, and commit as one atomic import', async ({ page }) => {
   await openWizard(page)
 
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10\nitm_b,20')
 
   const headerRow = dialog(page).locator('.import__preview thead tr').first()
@@ -70,7 +118,7 @@ test('paste a table, assign roles, validate, place, and commit as one atomic imp
 
 test('a duplicate key blocks Commit until fixed', async ({ page }) => {
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10\nitm_a,20')
 
   const headerRow = dialog(page).locator('.import__preview thead tr').first()
@@ -93,7 +141,7 @@ test('review round 3 -- a validation issue reports the RAW source line number, n
   // shown row number wrong. Header row 2 (skipping a title row); the
   // duplicate key sits on the raw text's 4th line.
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('Title row to skip\nitem_key,weight\nitm_a,10\nitm_a,20')
 
   const headerInput = dialog(page).locator('label', { hasText: 'Header row' }).locator('input')
@@ -125,6 +173,12 @@ for (const [loc, needle] of [
     await page.getByRole('menuitem').first().click() // "Import new spreadsheet…" -- always the first item
     await expect(dialog(page)).toBeVisible()
 
+    // fill the table name too -- otherwise the empty-name inline hint (also
+    // an `.import__error`) is a second match ahead of the parse error in DOM
+    // order, and `.first()` below would grab the wrong one. CSS-scoped, not
+    // `getByLabel`, since this test runs under a KO/JA locale where the
+    // field's accessible name is translated.
+    await dialog(page).locator('.import__nameField input').fill('Items')
     const paste = dialog(page).locator('textarea').first()
     await paste.fill('item_key,weight\n"itm_a,10')
 
@@ -140,7 +194,7 @@ test('a parse error blocks Next and Commit; fixing the CSV never lets stale prio
   // CSV -> configure roles -> edit to invalid CSV -> stale data must NOT
   // reach validation/commit, and Next must be disabled the whole time.
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   const paste = dialog(page).getByPlaceholder('Paste CSV or TSV text here')
   await paste.fill('item_key,weight\nitm_a,10\nitm_b,20')
 
@@ -175,7 +229,7 @@ test('a parse error blocks Next and Commit; fixing the CSV never lets stale prio
 
 test('BOM-prefixed file upload succeeds and the BOM never reaches the stored header', async ({ page }) => {
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
 
   const chooserP = page.waitForEvent('filechooser')
   await dialog(page).getByRole('button', { name: 'Upload file…' }).click()
@@ -204,7 +258,7 @@ test('BOM-prefixed file upload succeeds and the BOM never reaches the stored hea
 
 test('TSV auto-detects, and the manual Tab delimiter option holds a real tab character', async ({ page }) => {
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   const paste = dialog(page).getByPlaceholder('Paste CSV or TSV text here')
 
   // auto-detect: a plain TSV paste, delimiter left on "Auto-detect"
@@ -229,7 +283,7 @@ test('TSV auto-detects, and the manual Tab delimiter option holds a real tab cha
 
 test('a 2-table FK import resolves the linked row into the generated label', async ({ page }) => {
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,name,weight\nitm_a,Sword,5\nitm_b,Shield,8')
   const itemsHeader = dialog(page).locator('.import__table').nth(0).locator('.import__preview thead tr').first()
   await itemsHeader.locator('th').nth(0).locator('select').selectOption('key')
@@ -238,7 +292,7 @@ test('a 2-table FK import resolves the linked row into the generated label', asy
 
   await dialog(page).getByRole('button', { name: 'Add another table' }).click()
   const dropsTable = dialog(page).locator('.import__table').nth(1)
-  await dropsTable.getByPlaceholder('Table name').fill('Drops')
+  await dropsTable.getByLabel('Table name').fill('Drops')
   await dropsTable.getByPlaceholder('Paste CSV or TSV text here').fill('drop_key,item_ref,rate\nd1,itm_a,10\nd2,itm_b,20')
   const dropsHeader = dropsTable.locator('.import__preview thead tr').first()
   await dropsHeader.locator('th').nth(0).locator('select').selectOption('key')
@@ -290,7 +344,7 @@ test('adding to an existing frame with a partly-occupied top row finds the free 
   })
 
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10')
   const headerRow = dialog(page).locator('.import__preview thead tr').first()
   await headerRow.locator('select').nth(0).selectOption('key')
@@ -467,7 +521,7 @@ test('the full 5-table gacha worked example (docs/data-import.md §DI4): atomic 
     const cfg = tables[ti]
     if (ti > 0) await dialog(page).getByRole('button', { name: 'Add another table' }).click()
     const tbl = dialog(page).locator('.import__table').nth(ti)
-    await tbl.getByPlaceholder('Table name').fill(cfg.name)
+    await tbl.getByLabel('Table name').fill(cfg.name)
     await tbl.getByPlaceholder('Paste CSV or TSV text here').fill(cfg.paste)
     const headRow = tbl.locator('.import__preview thead tr').first()
     for (let ci = 0; ci < cfg.roles.length; ci++) {
@@ -582,7 +636,7 @@ test('the full 5-table gacha worked example (docs/data-import.md §DI4): atomic 
 
 test('Undo removes the whole imported batch in one step; Redo restores it', async ({ page }) => {
   await openWizard(page)
-  await dialog(page).getByPlaceholder('Table name').fill('Items')
+  await dialog(page).getByLabel('Table name').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10')
   const headerRow = dialog(page).locator('.import__preview thead tr').first()
   await headerRow.locator('select').nth(0).selectOption('key')

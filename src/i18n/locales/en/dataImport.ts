@@ -8,6 +8,8 @@ const dataImport = {
   'import.removeTable': 'Remove table',
   'import.addTable': 'Add another table',
   'import.pastePlaceholder': 'Paste CSV or TSV text here',
+  'import.tableNameRequired': 'Enter a table name to continue.',
+  'import.pasteDataRequired': 'Paste or upload CSV/TSV data to continue.',
   'import.uploadFile': 'Upload file…',
   'import.delimiter': 'Delimiter',
   'import.delimiterAuto': 'Auto-detect',
@@ -37,6 +39,7 @@ const dataImport = {
   'import.summary': 'Ready to import {tables, plural, one {# table} other {# tables}}, creating {parameters, plural, one {# parameter} other {# parameters}}.',
   'import.next': 'Next',
   'import.back': 'Back',
+  'import.backToInput': 'Back to input',
   'import.commit': 'Import',
 
   // location composers -- prefixed to an `import.issue.*` / `import.commitError.*`
