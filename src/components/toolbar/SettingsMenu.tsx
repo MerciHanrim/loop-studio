@@ -44,7 +44,16 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
     // level at a time). If it's open, let Escape close just that first.
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (wrapRef.current?.querySelector('[aria-expanded="true"], .menu__pop:not(.toolbar__settingsmenu-pop)'))
+      // scoped to the POPOVER's own subtree, not `wrapRef` as a whole --
+      // `wrapRef` also contains Settings' own trigger button, which always
+      // reads `aria-expanded="true"` while Settings itself is open, so an
+      // unscoped query here matched that every time and Settings could never
+      // self-close via Escape (a real regression, caught by e2e coverage).
+      if (
+        wrapRef.current?.querySelector(
+          '.toolbar__settingsmenu-pop [aria-expanded="true"], .toolbar__settingsmenu-pop .menu__pop:not(.toolbar__settingsmenu-pop)',
+        )
+      )
         return
       setOpen(false)
     }

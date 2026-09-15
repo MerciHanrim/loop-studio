@@ -222,8 +222,11 @@ test.describe('toolbar — group render order and collapse', () => {
     await resetAll(page)
     // pin the toolbar's own measured width (what the ResizeObserver watches)
     // narrow enough to force a partial collapse, without depending on any
-    // locale's real font metrics
-    await page.addStyleTag({ content: '.toolbar { max-width: 900px !important; }' })
+    // locale's real font metrics. The grouped Tier-1 controls (File/Data/
+    // Settings each now a single merged trigger) need less width than the
+    // old individually-listed items did, so 900px alone no longer collapses
+    // anything -- 800px reliably collapses Help+Data only (a real partial).
+    await page.addStyleTag({ content: '.toolbar { max-width: 800px !important; }' })
     await page.waitForTimeout(150)
 
     const moreBtn = page.locator('.toolbar__overflow-btn')
@@ -232,6 +235,7 @@ test.describe('toolbar — group render order and collapse', () => {
     const labels = await overflowLabels(page)
     const ranks = labels.map(rankOf).filter((r) => r >= 0)
     expect(ranks.length).toBeGreaterThan(0)
+    expect(ranks.length).toBeLessThan(6) // genuinely partial, not everything
     for (let i = 1; i < ranks.length; i++) expect(ranks[i]).toBeGreaterThan(ranks[i - 1])
   })
 
@@ -369,7 +373,19 @@ test.describe('toolbar — Share’s lifted flow (review condition 3)', () => {
     await shareBtn.click()
     await expect(dlg).toBeVisible()
     const confirmBtn = dlg.getByRole('button', { name: /create link/i })
-    await Promise.all([confirmBtn.click(), confirmBtn.click({ force: true }).catch(() => {})])
+    // two separate Playwright click commands (real mouse simulation or
+    // `dispatchEvent`) each round-trip through CDP, leaving a real gap for
+    // the first click's own effect (dialog closes on confirm) to detach the
+    // button before the second command locates it -- a Playwright-harness
+    // race, not the `busy`-guard race this test means to exercise. Grabbing
+    // one element handle and calling native `.click()` on it twice inside a
+    // single page-side script fires both synchronously, back-to-back, before
+    // React's commit can remove the button out from under the second.
+    const handle = await confirmBtn.elementHandle()
+    await handle!.evaluate((el: HTMLElement) => {
+      el.click()
+      el.click()
+    })
     await expect(page.locator('.share-pop')).toBeVisible()
     expect(await clipWrites(page)).toBe(1)
   })
@@ -454,7 +470,10 @@ test.describe('toolbar — palette drag state (review condition 5)', () => {
 
 test.describe('toolbar — an overflowed control is reachable with the mouse and the keyboard', () => {
   test('mouse open, keyboard Escape/Enter', async ({ page }) => {
-    await page.setViewportSize({ width: 900, height: 900 })
+    // 900px no longer forces a collapse -- the grouped Tier-1 controls need
+    // less width than the old individually-listed items did; 850px reliably
+    // collapses at least Help+Data in JA
+    await page.setViewportSize({ width: 850, height: 900 })
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'ja')

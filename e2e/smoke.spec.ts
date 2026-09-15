@@ -10,8 +10,12 @@ test.describe('smoke', () => {
     await expect(page.locator('.canvas .react-flow')).toBeVisible()
     await expect(page.locator('.pstrip')).toBeVisible()
     await expect(page.locator('.pstrip__mc button', { hasText: 'Monte Carlo' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'New' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Import' })).toBeVisible()
+    // New / Import are File ▾'s own rows now (docs/toolbar-responsive.md),
+    // rendered as menuitem buttons, not plain "button"-role controls
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+    await expect(page.getByRole('menuitem', { name: 'New' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Import' })).toBeVisible()
+    await page.keyboard.press('Escape')
 
     // the store bridge round-trips
     const before = await page.evaluate(

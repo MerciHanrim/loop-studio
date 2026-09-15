@@ -7,6 +7,7 @@ import {
   useI18n,
   useT,
 } from '../i18n'
+import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 
 // docs/localization.md §L5 — the language control is AUTO-GENERATED from the
 // registry: `enabledLocales()` in registry order, each row showing the endonym
@@ -56,10 +57,12 @@ export function LanguageSwitch({
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<(HTMLDivElement | null)[]>([])
   const baseId = useId()
+  const flyoutPos = useSideFlyoutPosition(btnRef, panelRef, variant === 'row' && open)
   const listId = `${baseId}-list`
   const optionId = (code: string) => `${baseId}-opt-${code}`
 
@@ -78,6 +81,12 @@ export function LanguageSwitch({
     Math.max(0, list.findIndex((l) => l.code === active))
   const current = locales[activeIdxIn(locales)] ?? locales[0]
   const activeDescId = filtered[focusIdx] ? optionId(filtered[focusIdx].code) : undefined
+  // the row variant's popover starts `visibility: hidden` until
+  // `useSideFlyoutPosition` lands its first measurement (avoids a flash at
+  // a stale/default corner) -- browsers refuse to move focus into a hidden
+  // subtree, so anything that focuses into the popover must wait for that;
+  // the pill variant has no such gate (plain CSS-positioned, never hidden)
+  const positionReady = variant !== 'row' || flyoutPos != null
 
   useEffect(() => {
     if (!open) return
@@ -91,10 +100,10 @@ export function LanguageSwitch({
 
   // put real focus where keystrokes should land, and keep the active option in view
   useEffect(() => {
-    if (!open) return
+    if (!open || !positionReady) return
     ;(showSearch ? searchRef.current : listRef.current)?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, showSearch])
+  }, [open, showSearch, positionReady])
   useEffect(() => {
     if (open) optionRefs.current[focusIdx]?.scrollIntoView({ block: 'nearest' })
   }, [open, focusIdx])
@@ -196,7 +205,18 @@ export function LanguageSwitch({
       </button>
 
       {open ? (
-        <div className="menu__pop lang-menu__pop" onKeyDown={onListKey}>
+        <div
+          ref={panelRef}
+          className="menu__pop lang-menu__pop"
+          onKeyDown={onListKey}
+          style={
+            variant === 'row'
+              ? flyoutPos
+                ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left, right: 'auto', visibility: 'visible' }
+                : { position: 'fixed', top: 0, left: 0, visibility: 'hidden' }
+              : undefined
+          }
+        >
           {showSearch ? (
             <input
               ref={searchRef}

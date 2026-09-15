@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useT, type MessageKey } from '../i18n'
+import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 
 type Mode = 'system' | 'light' | 'dark'
 const KEY = 'loop-studio:theme'
@@ -56,8 +57,10 @@ export function ThemeToggle({
   const setOpen = onOpenChange ?? setLocalOpen
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const menuId = useId()
+  const flyoutPos = useSideFlyoutPosition(btnRef, panelRef, variant === 'row' && open)
 
   useEffect(() => {
     apply(mode)
@@ -91,10 +94,13 @@ export function ThemeToggle({
   }, [variant, open])
 
   useEffect(() => {
-    if (variant !== 'row' || !open) return
+    if (variant !== 'row' || !open || !flyoutPos) return
     itemRefs.current[MODES.indexOf(mode)]?.focus()
+    // depends on whether a position has landed, not the position object
+    // itself (a new `{top,left}` on every resize-triggered recompute would
+    // otherwise steal focus back to the current-mode item on every resize)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant, open])
+  }, [variant, open, Boolean(flyoutPos)])
 
   const choose = (m: Mode) => {
     setMode(m)
@@ -133,10 +139,16 @@ export function ThemeToggle({
         </button>
         {open ? (
           <div
+            ref={panelRef}
             className="menu__pop lang-menu__pop theme-menu__pop"
             id={menuId}
             role="menu"
             aria-label={t('theme.menuLabel')}
+            style={
+              flyoutPos
+                ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left, right: 'auto', visibility: 'visible' }
+                : { position: 'fixed', top: 0, left: 0, visibility: 'hidden' }
+            }
           >
             {MODES.map((m, i) => (
               <button

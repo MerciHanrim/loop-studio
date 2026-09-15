@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useGraphStore } from '../../store/graphStore'
 import { recommendedRunConfigForExport } from '../../store/mcStore'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
@@ -22,6 +22,13 @@ export function useShareSurface() {
   const t = useT()
   const [surface, setSurface] = useState<ShareSurface>(null)
   const [busy, setBusy] = useState(false)
+  // a plain ref, not the `busy` state above: two clicks handled in the same
+  // synchronous tick (a genuine rapid double-click) both close over the SAME
+  // render's `busy` value, since `setBusy(true)` from the first click doesn't
+  // update that closure's `busy` before the second click's own guard check
+  // runs — only a ref mutates synchronously in time for the second call to
+  // see it. `busy` state stays for UI (disabling the Share trigger).
+  const busyRef = useRef(false)
   const exportJSON = useGraphStore((s) => s.exportJSON)
 
   const openConfirm = () => setSurface({ phase: 'confirm' })
@@ -29,7 +36,8 @@ export function useShareSurface() {
 
   const confirm = async () => {
     setSurface(null)
-    if (busy) return
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
       const doc = exportJSON(recommendedRunConfigForExport())
@@ -54,6 +62,7 @@ export function useShareSurface() {
       }
       setSurface({ phase: 'panel', url, copied })
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }

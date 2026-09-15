@@ -38,7 +38,7 @@ const dataImportTables = (page: Page): Promise<ImportTableSnapshot[]> =>
     () => (window as unknown as { __loop: { dataImport: { getState: () => { tables: ImportTableSnapshot[] } } } }).__loop.dataImport.getState().tables,
   )
 
-const menuButton = (page: Page) => page.getByRole('button', { name: 'Spreadsheet data ▾' })
+const menuButton = (page: Page) => page.getByRole('button', { name: 'Data ▾' })
 const manageDialog = (page: Page) => page.getByRole('dialog', { name: 'Manage spreadsheet bindings' })
 const refreshDialog = (page: Page) => page.getByRole('dialog', { name: /^Refresh "/ })
 const wizardDialog = (page: Page) => page.getByRole('dialog', { name: 'Import spreadsheet data' })

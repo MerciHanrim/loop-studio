@@ -777,6 +777,7 @@ a.sheet__row {
 .menu__name {
   font-weight: 600;
   font-size: 12px;
+  word-break: keep-all;
 }
 .menu__blurb {
   font-size: 11px;
@@ -784,11 +785,14 @@ a.sheet__row {
   color: var(--text-tertiary);
   /* Templates / Insert module descriptions read like a document at full
      length — cap at 2 lines everywhere (harmless for the already-short
-     Export/Data blurbs) so a menu stays scannable */
+     Export/Data blurbs) so a menu stays scannable. `keep-all` — a Korean
+     particle (e.g. "협업용") otherwise breaks mid-word, stranding one
+     character alone on the wrapped line (review, Hanrim 2026-09-15). */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: keep-all;
 }
 
 /* ---- Settings menu rows (Theme / Language) ----
@@ -824,13 +828,13 @@ a.sheet__row {
   color: var(--text-secondary);
   white-space: nowrap;
 }
-/* the Language row's own listbox popover — anchor it inside the Settings
-   popover the same way the old ⋯ overflow menu had to (near the viewport's
-   right edge, so it must open leftward to stay on screen) */
-.toolbar__settingsmenu-pop .lang-menu__pop {
-  left: auto;
-  right: 0;
-}
+/* Theme's and Language's row-variant submenus (both `.lang-menu__pop`, since
+   Theme's shares the same base popover styling) are positioned entirely by
+   `useSideFlyoutPosition` (inline `position: fixed` + computed top/left) so
+   neither one visually covers the other's row (Hanrim's review, 2026-09-15
+   — a below-the-row floating popover always overlapped whichever row came
+   next, since Settings' popover is a tight, gapless stack of just those two
+   rows). No CSS anchoring rule is needed here for that case any more. */
 
 /* ---- share link popover ---- */
 .share-pop {

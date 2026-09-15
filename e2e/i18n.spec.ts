@@ -632,7 +632,10 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
       const st = (window as any).__loop.i18n?.getState?.() ?? null
       return {
         lang: document.documentElement.lang,
-        label: document.querySelector('.lang-switch span')?.textContent?.trim() ?? null,
+        // the row variant has two spans (a static "Language" label, then the
+        // current value + a `›` glyph in its own sibling span) -- `[lang]`
+        // uniquely picks the innermost span holding just the native name
+        label: document.querySelector('.lang-switch span[lang]')?.textContent?.trim() ?? null,
         active: st?.activeLocale ?? null,
         loading: st?.loading ?? null,
       }

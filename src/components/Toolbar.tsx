@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
@@ -101,8 +101,15 @@ export function Toolbar() {
   // the moment a menu/panel closes, keep whatever chip is still under the
   // pointer suppressed — otherwise its tooltip would pop back immediately
   // just because the pointer never left it (Hanrim's UX report, 2026-09-15)
+  // `useLayoutEffect`, not `useEffect` — the CSS `[data-menu-open]` rule that
+  // suppresses tooltips while a menu is open is removed the instant this
+  // render paints; a plain `useEffect` (which fires AFTER paint) sets
+  // `suppressedTip` too late, leaving a real one-frame window where a still-
+  // hovered chip's tooltip can flash visible before this catches up. Caught
+  // by e2e under load (palette-tooltip-menu-suppression.spec.ts), not just
+  // in theory.
   const wasMenuOpenRef = useRef(false)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (wasMenuOpenRef.current && !anyMenuOpen) setSuppressedTip(hoveredKind)
     wasMenuOpenRef.current = anyMenuOpen
   }, [anyMenuOpen, hoveredKind])
