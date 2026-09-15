@@ -221,3 +221,31 @@ test('Export Workspace JSON: a rapid double-click on Confirm downloads exactly o
   await page.waitForTimeout(300)
   expect(downloads).toHaveLength(1)
 })
+
+// [P2] review round 2, 2026-09-16 — the two tests above only prove the guard
+// blocks a SECOND click within one open; they say nothing about whether it
+// correctly re-arms for the NEXT open. A guard that never resets (stuck
+// permanently closed) would make every one-open test above pass trivially —
+// it would just also silently break every later confirm, forever. This test
+// opens the SAME dialog twice, running a synchronous double-click each time,
+// and checks each open landed exactly one download of its own.
+test('Export Project revision: the guard re-arms for a second open, one download per open', async ({ page }) => {
+  const downloads: string[] = []
+  page.on('download', (d) => downloads.push(d.suggestedFilename()))
+
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await exportItem(page, /Project revision/).click()
+  await expect(dlg(page)).toBeVisible()
+  await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))
+  await expect(dlg(page)).toHaveCount(0)
+  await page.waitForTimeout(300)
+  expect(downloads).toHaveLength(1) // exactly one from the first open
+
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await exportItem(page, /Project revision/).click()
+  await expect(dlg(page)).toBeVisible()
+  await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))
+  await expect(dlg(page)).toHaveCount(0)
+  await page.waitForTimeout(300)
+  expect(downloads).toHaveLength(2) // one more from the second open — not stuck, not doubled
+})

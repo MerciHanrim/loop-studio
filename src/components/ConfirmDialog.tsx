@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 
@@ -57,13 +57,18 @@ export function ConfirmDialog({
   // by the first click's handler hasn't re-rendered yet when the second
   // click's handler checks it, so both would fire `onConfirm`. `firedRef` is
   // checked/set synchronously instead, and reset whenever the dialog isn't
-  // open — covering both "just closed" and "never opened yet".
+  // open — covering both "just closed" and "never opened yet". The reset
+  // itself runs in an effect, not during render: mutating a ref while
+  // rendering can apply even to a render that gets thrown away (a
+  // concurrent/interrupted render), which could clear the guard while the
+  // dialog is still actually open on screen. An effect only runs after
+  // React has committed that `open` really is `false`.
   const firedRef = useRef(false)
+  useEffect(() => {
+    if (!open) firedRef.current = false
+  }, [open])
   useDialogFocus(open, ref, onCancel, returnFocusTo)
-  if (!open) {
-    firedRef.current = false
-    return null
-  }
+  if (!open) return null
 
   return (
     <div className="mcdlg__scrim" onMouseDown={dismissOnBackdrop ? onCancel : undefined}>

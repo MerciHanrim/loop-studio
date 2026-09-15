@@ -89,9 +89,8 @@ post-pull state updates, and a reorganized desktop toolbar.
 - **Canvas edit-lock persistence** — the edit lock no longer resets on a
   page reload or a PWA update (`#192`).
 - **Confirm-dialog double-click guard** — a rapid double-click on a
-  destructive Confirm button (Export, New, module promote, …) could run the
-  action's effect twice; the shared `ConfirmDialog` now fires it at most
-  once per open.
+  `ConfirmDialog`'s Confirm button (Export, New, module promote, …) could
+  run the confirmation action twice; it now fires at most once per open.
 
 ### Compatibility
 
