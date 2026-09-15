@@ -469,11 +469,11 @@ body {
   padding: 4px 8px;
   background: var(--surface-sunken);
   border-radius: 8px;
-}
-@media (min-width: 721px) and (max-width: 819px) {
-  .toolbar__palette {
-    overflow-x: auto;
-  }
+  /* unconditional, not a dedicated 721-819px media query (the project's
+     mobile-breakpoint check requires one shared source of truth for any
+     width-based query) -- harmless at >=820px, where the row already fits
+     and this never actually scrolls */
+  overflow-x: auto;
 }
 
 .palette-group {

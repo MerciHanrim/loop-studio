@@ -64,7 +64,16 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
   page,
 }) => {
   await page.setViewportSize({ width: 1920, height: 900 })
-  await page.addStyleTag({ content: '.toolbar { max-width: 420px !important; }' })
+  // a narrower pin (e.g. 420px) collapses all 6 groups, making ⋯'s own
+  // popover tall/wide enough -- combined with `.toolbar__palette`'s now-
+  // unconditional `overflow-x: auto` (docs/toolbar-responsive.md; it used to
+  // be scoped to 721-819px, but the project's mobile-breakpoint check
+  // forbids a second width-scoped @media block) clipping the palette's own
+  // visible window -- that NO chip is both on-screen and outside the union
+  // of ⋯'s and File's popover spans. 680px keeps File collapsed (4 groups)
+  // with a shorter ⋯ popover and a wider palette window, leaving `pool`
+  // genuinely reachable.
+  await page.addStyleTag({ content: '.toolbar { max-width: 680px !important; }' })
   await page.waitForTimeout(150)
 
   const moreBtn = page.locator('.toolbar__overflow-btn')
@@ -76,12 +85,7 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
   const filePop = page.locator('.toolbar__filemenu-pop')
   await expect(filePop).toBeVisible()
 
-  // with all 6 groups collapsed, ⋯'s own popover (one row per group) is tall
-  // enough to genuinely cover the middle of the palette row below it --
-  // `register` (the last chip) sits outside its horizontal span, so this
-  // checks real suppression rather than an accidental pointer-interception
-  // failure from a chip that's honestly hidden under the popover right now
-  await page.locator('.chip--register').hover()
+  await page.locator('.chip--pool').hover()
   expect(await visibleTipCount(page)).toBe(0)
 
   // Escape closes File only (established nested-menu contract); ⋯ is still
@@ -98,8 +102,8 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
 
   // only now does leaving + re-entering show it
   await page.locator('.toolbar__brand').hover()
-  await page.locator('.chip--register').hover()
-  await expect(tip(page, 'register')).toBeVisible()
+  await page.locator('.chip--pool').hover()
+  await expect(tip(page, 'pool')).toBeVisible()
 })
 
 test('Settings → Theme submenu: closing Theme alone (Escape) keeps Settings open and the palette suppressed', async ({
