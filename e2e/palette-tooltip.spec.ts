@@ -84,7 +84,7 @@ test('a different chip never inherits a stuck tooltip from the previous click', 
   await expect(tip(page, 'source')).toBeHidden()
 })
 
-test('drag-start clears the tooltip immediately', async ({ page }) => {
+test('drag-start clears the tooltip immediately; dragend alone does not re-arm it', async ({ page }) => {
   await chip(page, 'converter').hover()
   await expect(tip(page, 'converter')).toBeVisible()
 
@@ -95,10 +95,20 @@ test('drag-start clears the tooltip immediately', async ({ page }) => {
   })
   await expect(tip(page, 'converter')).toBeHidden()
 
+  // P2 regression (review, 2026-09-15): `onDragEnd` used to also clear
+  // `suppressedTip`, so a cancelled drag (or one that ends with the pointer
+  // still over the same chip) re-armed `:hover` and popped the tooltip back
+  // before the pointer ever left the button. dragend alone must NOT re-show
+  // it — only leaving and re-entering the chip does.
   await page.evaluate(() => {
     const el = document.querySelector('.chip--converter') as HTMLElement
     el.dispatchEvent(new DragEvent('dragend', { bubbles: true }))
   })
+  await expect(tip(page, 'converter')).toBeHidden()
+
+  await chip(page, 'pool').hover()
+  await chip(page, 'converter').hover()
+  await expect(tip(page, 'converter')).toBeVisible()
 })
 
 test('keyboard Tab to a chip still shows its tooltip (:focus-visible, not a click)', async ({ page }) => {

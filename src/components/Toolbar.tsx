@@ -146,7 +146,10 @@ export function Toolbar() {
   }
   const onDragEnd = () => {
     setDraggingKind(null)
-    setSuppressedTip(null)
+    // do NOT clear suppressedTip here — if the drag is cancelled or the
+    // pointer ends up back over the same chip, `:hover` would immediately
+    // re-apply and the tooltip would reappear before the pointer ever left
+    // the button. Only `onMouseLeave` re-arms it (review, Hanrim 2026-09-15).
   }
 
   // SEMANTICS-R.md §R10 — one routed import. A proposal opens the non-destructive
