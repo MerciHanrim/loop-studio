@@ -13,7 +13,7 @@ else — `trigger`, `label` (both its Phase-0 form and its `loop-state/3`
 `SEMANTICS-S2.md`, and `SEMANTICS-S3.md` stay on disk unchanged as the
 historical baseline; this document states only the delta.
 
-Design record: [`docs/parameter-activator.md`](./docs/parameter-activator.md)
+Design record: [`docs/parameter-activator.md`](../parameter-activator.md)
 (PA, draft 2). Why a new spec id rather than an edit to `loop-state/1`'s §S6:
 an `activator`'s comparison value may now reference a Parameter node (with an
 optional signed integer offset) instead of only a literal — a new,

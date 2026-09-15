@@ -75,10 +75,10 @@ separate from the UI. Deployed on Cloudflare Pages; CI on GitHub Actions.
 Behaviour is frozen in versioned spec documents; a behavioural change means a
 new spec id, never an edit to a frozen one.
 
-- **Engine & simulation** — [`SEMANTICS.md`](SEMANTICS.md), [`SEMANTICS-B1.md`](SEMANTICS-B1.md) (seeded RNG), [`SEMANTICS-B2.md`](SEMANTICS-B2.md) (Monte Carlo)
-- **State connections** — [`SEMANTICS-S4.md`](SEMANTICS-S4.md) (`trigger` / `activator` / `label`; the latest of a sequential S1→S4 series, each frozen on its own)
-- **Model language & expressions** — [`SEMANTICS-X.md`](SEMANTICS-X.md), [`SEMANTICS-M2.md`](SEMANTICS-M2.md) (the latest of a sequential M1→M2 series)
-- **File formats & revisions** — [`SEMANTICS-W.md`](SEMANTICS-W.md) (Workspace), [`SEMANTICS-U.md`](SEMANTICS-U.md) (Share links), [`SEMANTICS-R8.md`](SEMANTICS-R8.md) (revision projection/diff/Apply — the latest of a sequential R1→R8 series)
+- **Engine & simulation** — [`SEMANTICS.md`](docs/specs/SEMANTICS.md), [`SEMANTICS-B1.md`](docs/specs/SEMANTICS-B1.md) (seeded RNG), [`SEMANTICS-B2.md`](docs/specs/SEMANTICS-B2.md) (Monte Carlo)
+- **State connections** — [`SEMANTICS-S4.md`](docs/specs/SEMANTICS-S4.md) (`trigger` / `activator` / `label`; the latest of a sequential S1→S4 series, each frozen on its own)
+- **Model language & expressions** — [`SEMANTICS-X.md`](docs/specs/SEMANTICS-X.md), [`SEMANTICS-M2.md`](docs/specs/SEMANTICS-M2.md) (the latest of a sequential M1→M2 series)
+- **File formats & revisions** — [`SEMANTICS-W.md`](docs/specs/SEMANTICS-W.md) (Workspace), [`SEMANTICS-U.md`](docs/specs/SEMANTICS-U.md) (Share links), [`SEMANTICS-R8.md`](docs/specs/SEMANTICS-R8.md) (revision projection/diff/Apply — the latest of a sequential R1→R8 series)
 
 **Project revisions & proposals** — a worked, file-based walkthrough of the
 create → propose → review → apply flow lives in

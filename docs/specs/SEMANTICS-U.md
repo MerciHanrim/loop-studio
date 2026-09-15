@@ -43,7 +43,7 @@ already writes. `SEMANTICS.md`, `SEMANTICS-B1.md`, `SEMANTICS-B2.md`,
 - Any server: link shortening, storage, upload, redirect. There is no backend.
 - Private / authenticated / expiring links.
 - Carrying view / canvas framing (deferred to `loop-share/2`).
-- Offline install (**PWA**) — separate, non-frozen track; see [`docs/pwa.md`](docs/pwa.md).
+- Offline install (**PWA**) — separate, non-frozen track; see [`docs/pwa.md`](../pwa.md).
 
 **Unchanged**
 
@@ -407,14 +407,14 @@ unsupported link or a Cancel.
 | **D7** | **No integrity checksum.** A damaged fragment surfaces through the decode / inflate / size / parse / `deserialize` failure path (zlib's own Adler-32 already catches bit-rot inside the compressed stream). |
 | **D8** | A standalone **`Share`** button, not a `Share ▾` menu. |
 | **D9** | Spec id `loop-share/1`, its own frozen doc; a later behavioural change ⇒ `loop-share/2`. |
-| **D10** | **PWA** is documented in a separate, **non-frozen** [`docs/pwa.md`](docs/pwa.md) — it has no wire format and no observable semantics. |
+| **D10** | **PWA** is documented in a separate, **non-frozen** [`docs/pwa.md`](../pwa.md) — it has no wire format and no observable semantics. |
 | **D11** | Fixed order (§U5.0): schedule fragment-strip → decode → inflate + size check → parse → deserialize → (if flag clear) confirm → **stop any active run → `loadDoc` ×1**. The run-stop and the single `simulationRev` bump happen **only** after validation succeeds and the replace is approved; a damaged / oversized / unsupported link or a Cancel changes nothing but the fragment. |
 
 ---
 
 ## U10. PWA
 
-Moved to [`docs/pwa.md`](docs/pwa.md) (non-frozen). It changes nothing in this
+Moved to [`docs/pwa.md`](../pwa.md) (non-frozen). It changes nothing in this
 document, the graph / engine specs, or `loop-workspace/1`.
 
 ---

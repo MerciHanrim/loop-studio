@@ -15,8 +15,8 @@ lands); the I1′ identity separates the state term from resource movement; and
 abandoned.
 
 No `loop-*/N` id yet. Extends `loop-state/1`
-([`SEMANTICS-S.md`](../SEMANTICS-S.md)) / `loop-state/2`
-([`SEMANTICS-S2.md`](../SEMANTICS-S2.md)); ships under a new `SEMANTICS-S*.md`
+([`SEMANTICS-S.md`](specs/SEMANTICS-S.md)) / `loop-state/2`
+([`SEMANTICS-S2.md`](specs/SEMANTICS-S2.md)); ships under a new `SEMANTICS-S*.md`
 revision + a `loop-revision/N` decision (**CSU9-D4**).
 
 Prefix `CSU`. Sections: **CSU0** why · **CSU1** what today's primitives do ·

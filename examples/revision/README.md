@@ -1,7 +1,7 @@
 # `loop-revision/1` verification fixture
 
 A tiny, fully worked example of **file-based asynchronous collaboration**
-([`SEMANTICS-R.md`](../../SEMANTICS-R.md)). No accounts, no server, no
+([`SEMANTICS-R.md`](../../docs/specs/SEMANTICS-R.md)). No accounts, no server, no
 real-time sync — every artifact here is a plain JSON file you could email.
 
 | File | What it is |
