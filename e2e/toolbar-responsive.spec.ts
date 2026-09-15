@@ -471,9 +471,11 @@ test.describe('toolbar — palette drag state (review condition 5)', () => {
 test.describe('toolbar — an overflowed control is reachable with the mouse and the keyboard', () => {
   test('mouse open, keyboard Escape/Enter', async ({ page }) => {
     // 900px no longer forces a collapse -- the grouped Tier-1 controls need
-    // less width than the old individually-listed items did; 850px reliably
-    // collapses at least Help+Data in JA
-    await page.setViewportSize({ width: 850, height: 900 })
+    // less width than the old individually-listed items did. 850px sat right
+    // at the boundary (measured locally as collapsing, but CI's Chromium has
+    // slightly different font metrics and did not collapse there) -- 780px
+    // keeps real margin below the ~850-870px threshold on either platform
+    await page.setViewportSize({ width: 780, height: 900 })
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'ja')
