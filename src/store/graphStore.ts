@@ -10,9 +10,18 @@ import { create } from 'zustand'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
+import { relabelModuleNodesForLocale } from '../i18n/moduleLabelSync'
 import { createNode, defaultData, nextId } from '../model/factory'
 import { uniqueNodeLabel } from '../model/nodeLabel'
 import { insertGraph, type GraphDocLike } from '../model/moduleGraph'
+import {
+  clearModuleProvenance,
+  detachModuleProvenance,
+  moduleProvenanceSnapshot,
+  registerModuleProvenance,
+  restoreModuleProvenanceSnapshot,
+  type ModuleProvenanceSnapshot,
+} from '../model/moduleProvenance'
 import { buildImportCommit, type ImportCommitResult, type PlacementChoice } from '../model/dataImportCommit'
 import type { ValidatedImportPlan } from '../model/dataImportValidate'
 import { buildRefreshCommit, parameterLabel, type RefreshCommitResult, type RefreshDiffPlan, type RefreshResolution } from '../model/dataImportRefresh'
@@ -135,7 +144,7 @@ type GraphStore = {
    *  never touches `mcStore` or `frameStore` (§MS4a-B2 / B3). */
   insertModule: (
     module: GraphDocLike,
-    opts: { at: XY; confirmedPromotion?: boolean },
+    opts: { at: XY; confirmedPromotion?: boolean; bundledModuleId?: string },
   ) => InsertModuleResult
   /** docs/data-import.md §DI16 Phase 1B — commit a validated multi-table
    *  import as ONE atomic history entry: every generated Parameter, every
@@ -307,14 +316,19 @@ export function setFrameHistorySidecar(s: FrameSidecar | null): void {
 export function setDataImportHistorySidecar(s: Sidecar | null): void {
   dataImportSidecar = s
 }
-type SidecarBundle = { p: unknown; f: unknown; d: unknown }
+// docs/bundled-module-label-localization.md §MLS3.2 — `m` rides along on the
+// SAME sidecar bundle as `p`/`f`/`d`, purely in-memory (never serialize()d),
+// so a `commit()` / `undo()` / `redo()` carries a document's module-tracking
+// state with it exactly like the project header and saved frames do.
+type SidecarBundle = { p: unknown; f: unknown; d: unknown; m: ModuleProvenanceSnapshot }
 const sidecarNow = (framesOverride?: unknown): SidecarBundle => ({
   p: projectSidecar?.get() ?? null,
   f: framesOverride !== undefined ? framesOverride : (frameSidecar?.get() ?? null),
   d: dataImportSidecar?.get() ?? null,
+  m: moduleProvenanceSnapshot(),
 })
 const restoreSidecar = (sc: unknown): void => {
-  const b = (sc ?? { p: null, f: null, d: null }) as SidecarBundle
+  const b = (sc ?? { p: null, f: null, d: null, m: [] }) as SidecarBundle
   // `frameSidecar`/`dataImportSidecar` first: `projectSidecar.set` (via
   // `projectStore`'s own `persist()`) synchronously flushes an autosave
   // write immediately, reading `liveFrames()`/`liveDataImports()` at that
@@ -324,6 +338,7 @@ const restoreSidecar = (sc: unknown): void => {
   // a stale pre-restore value that then never gets corrected.
   frameSidecar?.set(b.f ?? null)
   dataImportSidecar?.set(b.d ?? null)
+  restoreModuleProvenanceSnapshot(b.m) // §MLS3.2 -- no autosave interaction, order doesn't matter
   projectSidecar?.set(b.p ?? null)
 }
 /** LGR Slice 5 — the live saved manual frames, for `serialize` / autosave. The
@@ -595,6 +610,21 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
     updateNodeData: (id, patch) => {
       commit(`data:${id}`)
+      // docs/bundled-module-label-localization.md §MLS3.1 (revision 3) —
+      // detach EAGERLY, right here at the actual edit, never deferred to the
+      // next locale switch: a lazy content-comparison can't distinguish
+      // "never edited" from "edited, then edited back to the exact same
+      // text" before any switch happens, and the kickoff contract requires
+      // the latter to stay excluded forever regardless. `commit()` above has
+      // already snapshotted the PRE-edit (still-managed) provenance into
+      // `past`; this only mutates the LIVE map, so Undo restores the
+      // managed state and Redo restores the detached one, each correctly.
+      // A patch that doesn't touch `label`, or sets it to the same value it
+      // already has, is not an edit — nothing to detach.
+      if (typeof patch.label === 'string') {
+        const cur = get().nodes.find((n) => n.id === id)?.data.label
+        if (patch.label !== cur) detachModuleProvenance(id)
+      }
       set({
         nodes: get().nodes.map((n) =>
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
@@ -678,6 +708,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
+      clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
         nodes: [],
         edges: [],
@@ -703,6 +734,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
+      clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
         nodes,
         edges,
@@ -743,6 +775,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       commit('')
       lastTag = ''
       dropProjectHeader()
+      clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
         nodes,
         edges,
@@ -777,6 +810,21 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // the selection change together. One Ctrl+Z reverts all of it.
       commit('')
       lastTag = ''
+      // docs/bundled-module-label-localization.md §MLS4.1 — registered only
+      // now that the insert has actually committed (past the v2-consent
+      // bail-out above); a no-op when `bundledModuleId` is undefined (a
+      // file-inserted module never reaches this with one set). `label` is
+      // each node's ACTUAL applied label right now (the EN canonical or the
+      // KO/JA overlay's entry `cloneModuleDoc` already wrote before this
+      // call), so `lastAppliedLabel` starts in sync with the real node.
+      registerModuleProvenance(
+        Object.entries(built.idMap).map(([canonicalId, freshId]) => ({
+          freshId,
+          canonicalId,
+          label: built.nodes.find((n) => n.id === freshId)?.data.label ?? '',
+        })),
+        opts.bundledModuleId,
+      )
       const inserted = new Set(built.insertedNodeIds)
       set({
         nodes: built.nodes.map((n) =>
@@ -895,15 +943,20 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 })
 
 // ── docs/template-label-overlay.md §TLO11 + §TLO12 — official-template label /
-// frame-title locale switch.
+// frame-title locale switch, joined by
+// docs/bundled-module-label-localization.md §MLS4.3 — official-bundled-MODULE
+// label locale switch (a per-instance provenance lookup, chained after the
+// Template pass; §MLS2 explains why modules can't share the Template's
+// static-id-table mechanism).
 // When the UI language changes, re-seed the OFFICIAL bundled-template node
-// labels AND frame titles (only a string that is EXACTLY one of that id's
-// shipped-locale strings) in the live graph and in every undo/redo snapshot, so
-// a switch never leaves a half-translated document and an undo cannot bring the
-// old language back. String-only: no history entry, no `simulationRev` /
-// `loadRev` / `fitRev` / `pristineSample` change, no recommended-config touch.
-// Idempotent — a re-select or a same-locale boot writes nothing. Three change
-// axes are judged independently: `liveNodesChanged`, `liveFramesChanged`,
+// labels AND frame titles, AND the OFFICIAL bundled-module instance labels
+// (only a string that is EXACTLY one of that id's shipped-locale strings) in
+// the live graph and in every undo/redo snapshot, so a switch never leaves a
+// half-translated document and an undo cannot bring the old language back.
+// String-only: no history entry, no `simulationRev` / `loadRev` / `fitRev` /
+// `pristineSample` change, no recommended-config touch. Idempotent — a
+// re-select or a same-locale boot writes nothing. Three change axes are
+// judged independently: `liveNodesChanged`, `liveFramesChanged`,
 // `historyChanged` (nodes OR the frame sidecar in any past/future entry). A
 // history-only diff still commits the new `past` / `future`; autosave (which
 // stores the LIVE doc only) fires once, and only when something LIVE changed.
@@ -915,9 +968,17 @@ useI18n.subscribe((s) => {
 
   const g = useGraphStore.getState()
 
-  // live nodes
-  const nodes = relabelNodesForLocale(g.nodes, loc)
+  // live nodes — Template pass, then the module-instance pass (which also
+  // returns a possibly-updated LIVE provenance snapshot: a successful
+  // relabel bumps `lastAppliedLabel`, a detachment (§MLS3.1) drops an
+  // entry). Each pass keeps the same array reference when it changes
+  // nothing, so chaining costs nothing extra when neither (or only one)
+  // applies.
+  const tNodes = relabelNodesForLocale(g.nodes, loc)
+  const liveProvBefore = moduleProvenanceSnapshot()
+  const { nodes, provenance: liveProvAfter } = relabelModuleNodesForLocale(tNodes, loc, liveProvBefore)
   const liveNodesChanged = nodes !== g.nodes
+  const liveProvChanged = liveProvAfter !== liveProvBefore
 
   // live frames (via the sidecar — `relabelFramesForLocale` keeps the ref when
   // unchanged, so identity is a safe "changed?" signal)
@@ -925,19 +986,36 @@ useI18n.subscribe((s) => {
   const relFrames = relabelFramesForLocale(curFrames, loc)
   const liveFramesChanged = relFrames !== curFrames
 
-  // history — remap BOTH the node labels and the frame sidecar of every entry
+  // history — remap BOTH the node labels (Template + module) and the frame
+  // sidecar of every entry. Each entry's module pass uses THAT ENTRY's OWN
+  // sidecar snapshot (`sc.m`), never the live one — a node detached live may
+  // still have been under management at an earlier point in history (and a
+  // node the live map still tracks may already have been detached at an
+  // earlier point), so each point in time is relabeled against its own
+  // recorded state, exactly like `nodes`/`edges`/`modelVersion` themselves.
   const remap = (h: HistoryEntry): HistoryEntry => {
-    const n = relabelNodesForLocale(h.nodes, loc)
-    const sc = h.sidecar as { p: unknown; f: unknown } | null | undefined
+    const n0 = relabelNodesForLocale(h.nodes, loc)
+    const sc = h.sidecar as { p: unknown; f: unknown; d?: unknown; m?: ModuleProvenanceSnapshot } | null | undefined
+    const mProvBefore = sc?.m ?? []
+    const { nodes: n, provenance: mProvAfter } = relabelModuleNodesForLocale(n0, loc, mProvBefore)
     const f0 = (sc?.f as SavedFrame[] | null) ?? null
     const f1 = f0 ? relabelFramesForLocale(f0, loc) : f0
     const nChg = n !== h.nodes
     const fChg = f1 !== f0
-    if (!nChg && !fChg) return h
+    const mChg = mProvAfter !== mProvBefore
+    if (!nChg && !fChg && !mChg) return h
     return {
       ...h,
       ...(nChg ? { nodes: n } : {}),
-      ...(fChg ? { sidecar: { ...(sc ?? { p: null, f: null }), f: f1 } } : {}),
+      ...(fChg || mChg
+        ? {
+            sidecar: {
+              ...(sc ?? { p: null, f: null, d: null, m: [] }),
+              ...(fChg ? { f: f1 } : {}),
+              ...(mChg ? { m: mProvAfter } : {}),
+            },
+          }
+        : {}),
     }
   }
   const past = g.past.map(remap)
@@ -946,7 +1024,11 @@ useI18n.subscribe((s) => {
   const futureChanged = future.some((h, i) => h !== g.future[i])
   const historyChanged = pastChanged || futureChanged
 
-  if (!liveNodesChanged && !liveFramesChanged && !historyChanged) return
+  if (!liveNodesChanged && !liveProvChanged && !liveFramesChanged && !historyChanged) return
+
+  // live provenance: a label-only remap's bookkeeping, same posture as the
+  // frame-title relabel below — no undo entry, no autosave interaction.
+  if (liveProvChanged) restoreModuleProvenanceSnapshot(liveProvAfter)
 
   // live frame titles: a label-only remap — no undo entry, no autosave here
   if (liveFramesChanged) {

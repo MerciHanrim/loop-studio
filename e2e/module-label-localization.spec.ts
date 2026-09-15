@@ -2,19 +2,33 @@ import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
 
 // docs/bundled-module-label-localization.md — a KO/JA node-label overlay for
-// the two bundled "Insert module" Building blocks, applied only at the
-// moment of a FRESH insert (menu click or canvas drag-drop), never to an
-// already-inserted instance and never to a user-supplied "From file…" module.
+// the two bundled "Insert module" Building blocks, applied at the moment of
+// a FRESH insert (menu click or canvas drag-drop), AND (§MLS4 onward) kept
+// in sync on every later EN/KO/JA switch for that instance's still-unedited
+// official labels — never for a user-supplied "From file…" module.
 
-type GS = { nodes: { id: string; data?: { label?: string } }[]; past: unknown[] }
+type GS = { nodes: { id: string; data?: { label?: string } }[]; past: unknown[]; future: unknown[] }
 const gs = (page: Page): Promise<GS> =>
   page.evaluate(() => {
     const g = (window as unknown as { __loop: { graph: { getState: () => GS } } }).__loop.graph.getState()
     return {
       nodes: g.nodes.map((n) => ({ id: n.id, data: { label: n.data?.label } })),
       past: g.past,
+      future: g.future,
     }
   })
+
+async function renameNode(page: Page, nodeId: string, label: string) {
+  await page.evaluate(
+    ({ id, label }) => {
+      const g = (
+        window as unknown as { __loop: { graph: { getState: () => { updateNodeData: (id: string, patch: Record<string, unknown>) => void } } } }
+      ).__loop.graph.getState()
+      g.updateNodeData(id, { label })
+    },
+    { id: nodeId, label },
+  )
+}
 
 const STR = {
   en: { menuBtn: 'Insert module ▾', bufferedStep: 'Buffered production step', rewardSplit: 'Reward split loop' },
@@ -118,7 +132,10 @@ test('a KO insert is still exactly one Undo entry, same as an EN insert', async 
   expect(undone.nodes.length).toBe(before.nodes.length)
 })
 
-test('switching locale AFTER insert does not retranslate an already-inserted instance', async ({ page }) => {
+// docs/bundled-module-label-localization.md §MLS4 — switching locale AFTER
+// insert now DOES retranslate an already-inserted instance's still-official
+// labels (supersedes the pre-§MLS4 behavior this test used to assert).
+test('switching locale AFTER insert retranslates an already-inserted instance, both directions', async ({ page }) => {
   await resetAll(page)
   const before = await gs(page)
   await insertViaMenu(page, 'en', 'buffered-step')
@@ -126,10 +143,105 @@ test('switching locale AFTER insert does not retranslate an already-inserted ins
   expect(labelsOf(afterEn, before)).toEqual([...LABELS['buffered-step'].en].sort())
 
   await setLocale(page, 'ko')
-  const afterSwitch = await gs(page)
-  // the SAME node ids, SAME (still-English) labels — only a later fresh insert
-  // would ever get the KO overlay
-  expect(labelsOf(afterSwitch, before)).toEqual([...LABELS['buffered-step'].en].sort())
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ko].sort())
+
+  await setLocale(page, 'ja')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ja].sort())
+
+  await setLocale(page, 'en')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
+})
+
+test('a module first inserted in KO, then switched to JA and back to EN, follows both switches', async ({ page }) => {
+  await resetAll(page)
+  await setLocale(page, 'ko')
+  const before = await gs(page)
+  await insertViaMenu(page, 'ko', 'reward-split')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].ko].sort())
+
+  await setLocale(page, 'ja')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].ja].sort())
+
+  await setLocale(page, 'en')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].en].sort())
+})
+
+test('a module inserted via canvas drag-drop also follows a later locale switch', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaDrag(page, 'en', 'buffered-step')
+  await setLocale(page, 'ja')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ja].sort())
+})
+
+test('two instances of the same bundled module are each relabeled independently on switch', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'reward-split')
+  await insertViaMenu(page, 'en', 'reward-split')
+  const afterTwo = await gs(page)
+  expect(labelsOf(afterTwo, before)).toEqual(
+    [...LABELS['reward-split'].en, ...LABELS['reward-split'].en].sort(),
+  )
+
+  await setLocale(page, 'ko')
+  expect(labelsOf(await gs(page), before)).toEqual(
+    [...LABELS['reward-split'].ko, ...LABELS['reward-split'].ko].sort(),
+  )
+})
+
+test('renaming one node in an instance preserves that node through later switches, while its siblings keep translating', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  const inserted = (await gs(page)).nodes.filter((n) => !before.nodes.some((b) => b.id === n.id))
+  const supply = inserted.find((n) => n.data?.label === 'Supply')!
+
+  await renameNode(page, supply.id, 'My Custom Supply')
+
+  await setLocale(page, 'ko')
+  const afterKo = await gs(page)
+  const renamed = afterKo.nodes.find((n) => n.id === supply.id)!
+  expect(renamed.data?.label).toBe('My Custom Supply') // preserved
+  const siblingLabels = afterKo.nodes
+    .filter((n) => inserted.some((i) => i.id === n.id) && n.id !== supply.id)
+    .map((n) => n.data?.label)
+    .sort()
+  const expectedSiblings = LABELS['buffered-step'].ko.filter((_, i) => LABELS['buffered-step'].en[i] !== 'Supply').sort()
+  expect(siblingLabels).toEqual(expectedSiblings)
+
+  // a further switch still preserves the rename
+  await setLocale(page, 'ja')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('My Custom Supply')
+})
+
+test('Undo/Redo across a locale switch never resurrects a stale-language label', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  await setLocale(page, 'ko')
+  const afterKo = await gs(page)
+  expect(labelsOf(afterKo, before)).toEqual([...LABELS['buffered-step'].ko].sort())
+
+  // add one more unrelated user node so there is something to Undo/Redo
+  // without touching the module instance itself
+  await page.evaluate(() => (window as any).__loop.graph.getState().addNodeAt('pool', { x: 0, y: 0 }))
+  const withExtraNode = await gs(page)
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ko].sort())
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().redo())
+  expect(labelsOf(await gs(page), before)).toEqual(labelsOf(withExtraNode, before))
+})
+
+test('re-selecting the already-active locale is a no-op', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  await setLocale(page, 'ko')
+  const afterKo = await gs(page)
+  await setLocale(page, 'ko') // same locale again
+  expect(labelsOf(await gs(page), before)).toEqual(labelsOf(afterKo, before))
 })
 
 test('a user-supplied module file (From file…) is never relabeled, even while the app is in Korean', async ({ page }) => {
@@ -154,4 +266,188 @@ test('a user-supplied module file (From file…) is never relabeled, even while 
   await chooser.setFiles({ name: 'user.json', mimeType: 'application/json', buffer: Buffer.from(userModule, 'utf8') })
 
   await expect.poll(async () => (await gs(page)).nodes.some((n) => n.data?.label === 'My Own Source')).toBe(true)
+
+  // §MLS3 boundary 2 — a LATER switch must not touch it either: it was never
+  // given module-label-sync provenance in the first place.
+  await setLocale(page, 'ja')
+  expect((await gs(page)).nodes.some((n) => n.data?.label === 'My Own Source')).toBe(true)
+})
+
+// [P1] review round 2, 2026-09-15 — the two fixes: (1) a user rename that
+// happens to equal ANOTHER locale's official string must never be
+// re-adopted, and (2) provenance is a history-aware sidecar, so Undo past a
+// New/Template-load/file-load restores a module instance's tracking along
+// with its nodes.
+
+test('[P1] a user rename to another locale\'s official string is preserved through every later switch', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  const inserted = (await gs(page)).nodes.filter((n) => !before.nodes.some((b) => b.id === n.id))
+  const supply = inserted.find((n) => n.data?.label === 'Supply')!
+
+  // the user retypes it as the OFFICIAL Korean string directly, while the
+  // app is still in English
+  await renameNode(page, supply.id, '공급원')
+
+  await setLocale(page, 'ko')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('공급원')
+  await setLocale(page, 'ja')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('공급원')
+  await setLocale(page, 'en')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('공급원')
+})
+
+test('[P1] insert -> New -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().newGraph())
+  expect((await gs(page)).nodes).toHaveLength(0)
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
+
+  await setLocale(page, 'ko')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ko].sort())
+})
+
+test('[P1] insert -> loadDoc (Import) -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'reward-split')
+
+  // Import replaces the whole document via loadDoc — a real "start fresh"
+  // point (§MLS4.2), just like New
+  await page.evaluate(() => {
+    const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+    l.mc.getState().applyRecommended(
+      l.graph.getState().loadJSON(
+        JSON.stringify({ schema: 'loop-studio/graph', version: 1, nodes: [], edges: [] }),
+      ),
+    )
+  })
+  expect((await gs(page)).nodes).toHaveLength(0)
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].en].sort())
+
+  await setLocale(page, 'ja')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].ja].sort())
+})
+
+test('[P1] insert -> loadGraph (Template-style load) -> Undo -> a locale switch still syncs the restored instance', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+
+  await page.evaluate(() => {
+    const g = (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
+    g.loadGraph({
+      nodes: [{ id: 'tpl_1', type: 'pool', position: { x: 0, y: 0 }, data: { kind: 'pool', label: 'Template pool', activation: 'passive', initial: 0, capacity: null, mode: 'pullAny' } }],
+      edges: [],
+    })
+  })
+  expect((await gs(page)).nodes.map((n) => n.data?.label)).toEqual(['Template pool'])
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
+
+  await setLocale(page, 'ko')
+  expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].ko].sort())
+})
+
+test('[P1] a loaded document reusing a former host node id is never treated as module-provenanced', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'reward-split')
+  const inserted = (await gs(page)).nodes.filter((n) => !before.nodes.some((b) => b.id === n.id))
+  const reusedId = inserted[0].id
+
+  // New clears the live document AND its provenance (§MLS4.2); a freshly
+  // loaded file that happens to reuse that exact former host id (never
+  // possible in practice -- ids are never reissued -- but this is exactly
+  // the boundary §MLS3 draws: id alone proves nothing) must not sync.
+  await page.evaluate(() => (window as any).__loop.graph.getState().newGraph())
+  await page.evaluate((id) => {
+    const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+    l.mc.getState().applyRecommended(
+      l.graph.getState().loadJSON(
+        JSON.stringify({
+          schema: 'loop-studio/graph',
+          version: 1,
+          nodes: [{ id, type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Reused Id Node', activation: 'automatic', mode: 'pushAny' } }],
+          edges: [],
+        }),
+      ),
+    )
+  }, reusedId)
+
+  await setLocale(page, 'ko')
+  expect((await gs(page)).nodes.find((n) => n.id === reusedId)!.data?.label).toBe('Reused Id Node')
+})
+
+test('[P1] a user rename, then Undo/Redo, restores the managed state that matches each history point', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  const inserted = (await gs(page)).nodes.filter((n) => !before.nodes.some((b) => b.id === n.id))
+  const supply = inserted.find((n) => n.data?.label === 'Supply')!
+
+  await renameNode(page, supply.id, 'My Custom Supply') // this IS a commit (one history entry)
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo()) // back to pre-rename ("Supply", still managed)
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('Supply')
+  await setLocale(page, 'ko')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('공급원') // still managed at this point in history
+  await setLocale(page, 'en')
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().redo()) // forward to post-rename
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('My Custom Supply')
+  await setLocale(page, 'ja')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('My Custom Supply') // preserved
+})
+
+// [P1] review round 3, 2026-09-15 — detachment must be EAGER, at the edit
+// itself (`updateNodeData`), never deferred to the next locale switch: a
+// lazy content-comparison can't tell "never edited" from "edited, then
+// edited back to the exact same text" before any switch ever happens.
+test('[P1] Supply -> My Supply -> Supply, all before any switch, stays Supply — not re-adopted', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  const inserted = (await gs(page)).nodes.filter((n) => !before.nodes.some((b) => b.id === n.id))
+  const supply = inserted.find((n) => n.data?.label === 'Supply')!
+
+  await renameNode(page, supply.id, 'My Supply')
+  await renameNode(page, supply.id, 'Supply') // back to the exact original text, still no switch yet
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('Supply')
+
+  await setLocale(page, 'ko')
+  // if this were still managed, it would now read 공급원 -- it must not
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('Supply')
+  await setLocale(page, 'ja')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('Supply')
+})
+
+test('[P1] Undo across the Supply->My Supply edit restores managed state; Redo restores detached state', async ({ page }) => {
+  await resetAll(page)
+  const before = await gs(page)
+  await insertViaMenu(page, 'en', 'buffered-step')
+  const inserted = (await gs(page)).nodes.filter((n) => !before.nodes.some((b) => b.id === n.id))
+  const supply = inserted.find((n) => n.data?.label === 'Supply')!
+
+  await renameNode(page, supply.id, 'My Supply')
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().undo())
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('Supply')
+  await setLocale(page, 'ko')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('공급원') // managed state restored
+  await setLocale(page, 'en')
+
+  await page.evaluate(() => (window as any).__loop.graph.getState().redo())
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('My Supply')
+  await setLocale(page, 'ja')
+  expect((await gs(page)).nodes.find((n) => n.id === supply.id)!.data?.label).toBe('My Supply') // detached state restored
 })
