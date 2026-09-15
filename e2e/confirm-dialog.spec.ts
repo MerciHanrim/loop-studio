@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/localization.md Slice 2b — the shared in-app ConfirmDialog contract,
@@ -176,4 +176,76 @@ test('Export Workspace JSON: Cancel writes no file', async ({ page }) => {
   await dlg(page).getByRole('button', { name: /^cancel$/i }).click()
   await expect(dlg(page)).toHaveCount(0)
   expect(await dl).toBeNull()
+})
+
+// A rapid double-click dispatched as two separate Playwright commands
+// (`.dblclick()`, or two `.click()`s) round-trips through CDP with enough of
+// a gap between them for the first click's own effect — the dialog closing —
+// to detach the button before the second command lands. That race is a
+// Playwright-harness artifact, not the real guard under test, so both clicks
+// are fired synchronously in-page instead: this is what actually reproduces
+// "two clicks handled in the same tick" against the `firedRef` guard in
+// ConfirmDialog.tsx.
+async function syncDoubleClick(locator: Locator) {
+  const handle = await locator.elementHandle()
+  await handle!.evaluate((el) => {
+    ;(el as HTMLElement).click()
+    ;(el as HTMLElement).click()
+  })
+}
+
+test('Export Project revision: a rapid double-click on Confirm downloads exactly once', async ({ page }) => {
+  const downloads: string[] = []
+  page.on('download', (d) => downloads.push(d.suggestedFilename()))
+
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await exportItem(page, /Project revision/).click()
+  await expect(dlg(page)).toBeVisible()
+
+  await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))
+  await expect(dlg(page)).toHaveCount(0)
+  await page.waitForTimeout(300) // let a stray second download land if the guard failed
+  expect(downloads).toHaveLength(1)
+})
+
+test('Export Workspace JSON: a rapid double-click on Confirm downloads exactly once', async ({ page }) => {
+  const downloads: string[] = []
+  page.on('download', (d) => downloads.push(d.suggestedFilename()))
+
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await exportItem(page, /Workspace JSON/).click()
+  await expect(dlg(page)).toBeVisible()
+
+  await syncDoubleClick(dlg(page).getByRole('button', { name: /^save workspace$/i }))
+  await expect(dlg(page)).toHaveCount(0)
+  await page.waitForTimeout(300)
+  expect(downloads).toHaveLength(1)
+})
+
+// [P2] review round 2, 2026-09-16 — the two tests above only prove the guard
+// blocks a SECOND click within one open; they say nothing about whether it
+// correctly re-arms for the NEXT open. A guard that never resets (stuck
+// permanently closed) would make every one-open test above pass trivially —
+// it would just also silently break every later confirm, forever. This test
+// opens the SAME dialog twice, running a synchronous double-click each time,
+// and checks each open landed exactly one download of its own.
+test('Export Project revision: the guard re-arms for a second open, one download per open', async ({ page }) => {
+  const downloads: string[] = []
+  page.on('download', (d) => downloads.push(d.suggestedFilename()))
+
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await exportItem(page, /Project revision/).click()
+  await expect(dlg(page)).toBeVisible()
+  await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))
+  await expect(dlg(page)).toHaveCount(0)
+  await page.waitForTimeout(300)
+  expect(downloads).toHaveLength(1) // exactly one from the first open
+
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await exportItem(page, /Project revision/).click()
+  await expect(dlg(page)).toBeVisible()
+  await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))
+  await expect(dlg(page)).toHaveCount(0)
+  await page.waitForTimeout(300)
+  expect(downloads).toHaveLength(2) // one more from the second open — not stuck, not doubled
 })

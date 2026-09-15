@@ -88,6 +88,9 @@ post-pull state updates, and a reorganized desktop toolbar.
   Han-unification rendering in the Japanese UI (`#186`).
 - **Canvas edit-lock persistence** — the edit lock no longer resets on a
   page reload or a PWA update (`#192`).
+- **Confirm-dialog double-click guard** — a rapid double-click on a
+  `ConfirmDialog`'s Confirm button (Export, New, module promote, …) could
+  run the confirmation action twice; it now fires at most once per open.
 
 ### Compatibility
 
