@@ -26,7 +26,7 @@ example* (recorded anonymised in
 Building impl PR (2) surfaced that a **`Converter`** cannot carry
 "daily roast amount (kg)": under frozen Engine A a Converter's output is
 `producedₖ = f·outRateₖ` with a single `f ∈ [0, 1]` and ≤ 1 activation/step
-([`SEMANTICS.md`](../SEMANTICS.md) I2), so a Converter whose **input** edge is
+([`SEMANTICS.md`](specs/SEMANTICS.md) I2), so a Converter whose **input** edge is
 `@daily_roast_kg` produces at most its constant `outRate` — the lever stops
 mattering the moment green beans are not the binding constraint, and moves the
 output *backwards* when they are (raising the lever lowers `f`). A **deterministic
@@ -87,7 +87,7 @@ into [`docs/product-direction.md`](product-direction.md) §PD11.1. Docs only —
 Coffee JSON / engine / UI / i18n / test change.
 
 **rev 7 — the §CR16 feature has shipped, so the "blocked" notes come out.**
-`loop-model/2` ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge
+`loop-model/2` ([`SEMANTICS-M2.md`](specs/SEMANTICS-M2.md), Frozen; PR #103, merge
 `c194629`) lets a **v2 document**'s `resource`-edge `flow` be a single
 `@parameter-id` reference the engine resolves once per step. **rev 7:**
 
@@ -253,7 +253,7 @@ Never use "operations management" / "운영 관리" for this entry.
 
 `examples/coffee-roastery.json` is the **first bundled Template that declares
 model-semantics version 2**: its top-level `schema` is **`loop-studio/graph/2`**
-([`SEMANTICS-M2.md`](../SEMANTICS-M2.md) §M2-1), and its five surfaced levers are
+([`SEMANTICS-M2.md`](specs/SEMANTICS-M2.md) §M2-1), and its five surfaced levers are
 `resource`-edge `flow` **parameter references** (`@<parameter-id>`, §CR6.1)
 resolved by the engine once per step.
 
@@ -493,7 +493,7 @@ PR may only rename them, never change the wiring.
 
 - **rev 8 — roasting is a deterministic `Gate`.** A `Converter` cannot carry
   lever 2: its output is `f·outRate` with `f ∈ [0, 1]` and ≤ 1 activation/step
-  ([`SEMANTICS.md`](../SEMANTICS.md) I2), so `@daily_roast_kg` on a Converter
+  ([`SEMANTICS.md`](specs/SEMANTICS.md) I2), so `@daily_roast_kg` on a Converter
   input edge stops changing the roasted output once green is not the binding
   constraint (and moves it *backwards* when it is). The deterministic Gate is
   the accurate model of "kg put to roast per day": it still uses **exactly one**
@@ -909,7 +909,7 @@ The five surfaced Parameters (§CR6), in Korean *(row 1 changed rev 9)*:
 | **CR-D11** | language | **one English-canonical `examples/coffee-roastery.json`**; Korean (and later locales') node **labels** via the shared fresh-open overlay ([`docs/template-label-overlay.md`](template-label-overlay.md)), built first. `label` only — ids / expr / `resourceType` / positions stay English. No `.ko.json` for this Template. Menu name/blurb per-locale via the app catalog (§CR12). |
 | **CR-D12** | the five levers can't reach the frozen engine — what now? | **RESOLVED (rev 7).** Direction 1 shipped: `loop-model/2` (`SEMANTICS-M2.md`, Frozen; PR #103, merge `c194629`) lets a **v2** `resource`-edge `flow` be a single `@parameter-id`. The five stay **operational levers** — locked to concrete edges in §CR6.1 — never redefined as price / cost / yield. The feature added **no** Coffee-specific code, **no** `loop-expr/1` expansion, **no** `min` / `max`. Direction 2 (redesign around the unchanged engine) was considered and not chosen. |
 | **CR-D13** | *(rev 7)* Coffee is the first bundled v2 Template — any risk? | **No.** `openTemplate` / `loadGraph` already accept a model version; a bundled v2 file loads as v2 as authored (not the "explicit user promotion" path). The label overlay is `label`-only, so it is unaffected. The v2 `loop-revision` / `loop-workspace` digest discriminator (§M2-8) means the Coffee graph's identity is distinct from any v1 graph — expected. |
-| **CR-D14** | *(rev 8)* lever 2 on a `Converter` input edge can't satisfy §CR9.1 under frozen semantics — what now? | **Model `roasting` as a deterministic `Gate`.** [`SEMANTICS.md`](../SEMANTICS.md) I2 fixes a Converter's output at `f·outRate`, `f ∈ [0, 1]`, ≤ 1 activation/step, so `@daily_roast_kg` on a Converter input edge stops changing the roasted output once green is not the binding constraint. A deterministic Gate carries "kg put to roast per day" exactly — **still one `@param` reference** (the single input edge), `T = min(@daily_roast_kg, green available)`, split 82 : 18 into roasted stock and the weight-loss drain, mass-conserving, and green-short limits input + output together. Not a work-around — it is the accurate model. Rejected: a second `@param` edge on the Converter output (breaks "exactly one edge per lever"); Coffee-specific engine code (§CR16.2); keeping the Converter and accepting a dead lever (fails §CR9.1). §CR3.5's roasted-supply-margin proxy now reads the live `@roasted_stock` level so a green-starvation move (§CR9.1 #2) is visible. |
+| **CR-D14** | *(rev 8)* lever 2 on a `Converter` input edge can't satisfy §CR9.1 under frozen semantics — what now? | **Model `roasting` as a deterministic `Gate`.** [`SEMANTICS.md`](specs/SEMANTICS.md) I2 fixes a Converter's output at `f·outRate`, `f ∈ [0, 1]`, ≤ 1 activation/step, so `@daily_roast_kg` on a Converter input edge stops changing the roasted output once green is not the binding constraint. A deterministic Gate carries "kg put to roast per day" exactly — **still one `@param` reference** (the single input edge), `T = min(@daily_roast_kg, green available)`, split 82 : 18 into roasted stock and the weight-loss drain, mass-conserving, and green-short limits input + output together. Not a work-around — it is the accurate model. Rejected: a second `@param` edge on the Converter output (breaks "exactly one edge per lever"); Coffee-specific engine code (§CR16.2); keeping the Converter and accepting a dead lever (fails §CR9.1). §CR3.5's roasted-supply-margin proxy now reads the live `@roasted_stock` level so a green-starvation move (§CR9.1 #2) is visible. |
 | **CR-D15** | *(rev 9)* Hanrim's screen review found lever 1 (`daily_customers` footfall) moved no product flow, and the three money Registers read like realised figures. | **(a) Replace lever 1** with `cafe_retail_demand_kg` on the `roasted_stock → cafe_retail` Drain edge — so it draws roasted stock down (§CR9.1 #1) instead of only feeding a tally Pool + the Register formulas (a "Register numbers move only" pseudo-link, §CR16.2). Remove the disconnected `cafe_footfall` Source + `cafe_demand` Pool (25 → 23 nodes). **(b) Rename** `Total revenue` / `Total cost` / `Operating profit` → `Projected daily revenue` / `Planned daily cost` / `Projected daily operating margin`, and state everywhere (titles, §CR3.5, §CR8, every scenario, §CR12.1) that they are **planning proxies** computed on the ordered/planned levers assuming all demand is met — **not** realised revenue / cost / accounting operating profit, and never shown as `실제 매출` / `이익`. A fulfilment shortfall shows in the roasted-stock trajectory + roasted supply margin, not these figures. Rejected: computing an actual fulfilled-sales pool (adds nodes + complexity beyond §CR5, and the proxy framing is enough for a §CR11 comprehension check). |
 | **CR-D16** | *(2026-09-03)* the external comprehension check (§CR11) returned. | **The check has run; it is not "external validation passed".** Fixed: (1) the check **returned**; (2) **flow, naming (within the Template's stated simplified scope), and lever discovery passed** — naming / represented flow were not found materially awkward, with bean varieties / blending / process differences noted separately as a broader model's concerns, *not* a finding that every core stage is present; (3) **lever-to-result explanation was not demonstrated** — the reviewer grasped the change → re-run → result relationship but did not report a completed before/after comparison or state each lever's result direction; (4) **real-operations suitability is not claimed** — one reviewer expects limited real-work pull across small / mid / large operators, and sees education / explanation / scenario-comparison potential (a positive observation, not verified market fit). Overall §CR11.2 verdict: **partial / lever-to-result comprehension not demonstrated.** Follow-up candidates (scenario / point-in-time comparison, clean soft-copy + print export, multi-item summary report, long-KO-label layout, before/after + Monte-Carlo guidance review) are recorded in §CR11.5 and `docs/product-direction.md` §PD11.1 — none adopted. Bean varieties / multi-item / blending / per-vendor process are **not** Coffee-Template work items; they stand only as the basis for the scope limit. |
 
@@ -953,7 +953,7 @@ The five surfaced Parameters (§CR6), in Korean *(row 1 changed rev 9)*:
 ## CR16. Engine constraint & model architecture *(rev 6 — RESOLVED in rev 7)*
 
 > **Resolved.** The constraint below is the reason `loop-model/2`
-> ([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), Frozen; PR #103, merge `c194629`)
+> ([`SEMANTICS-M2.md`](specs/SEMANTICS-M2.md), Frozen; PR #103, merge `c194629`)
 > exists. In a **v2 document** a `resource`-edge `flow` may be a single
 > `@parameter-id` the engine resolves once per step — so the five §CR6 levers
 > reach the run (§CR6.1). This section is kept as the design record; §CR6.1 /
@@ -1004,7 +1004,7 @@ Template's PRs.
 **engine-level** capability that lets a `parameter` `value` be referenced where a
 **rate** is read — so a Parameter genuinely drives the run. It is **general**
 (any graph benefits) and shipped as its own spec-first PR **before** impl PR (2)
-([`SEMANTICS-M2.md`](../SEMANTICS-M2.md), PR #103, merge `c194629`). This
+([`SEMANTICS-M2.md`](specs/SEMANTICS-M2.md), PR #103, merge `c194629`). This
 Template consumes it; it adds no engine code of its own. The as-shipped shape
 below matches the sketch, with one narrowing: **`flow` only** (a Source's rate
 *is* its out-edge `flow`), and a **v2-document** gate.

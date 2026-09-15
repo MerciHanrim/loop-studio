@@ -4,8 +4,8 @@
 graph/engine semantics: a `manifest.webmanifest` and a `vite-plugin-pwa`
 service worker that precaches the built app shell, so an installed or offline
 user runs the same static app. It changes nothing in
-[`SEMANTICS.md`](../SEMANTICS.md), [`SEMANTICS-U.md`](../SEMANTICS-U.md), or
-[`SEMANTICS-W.md`](../SEMANTICS-W.md), and it carries no `loop-*/N` id — this
+[`SEMANTICS.md`](specs/SEMANTICS.md), [`SEMANTICS-U.md`](specs/SEMANTICS-U.md), or
+[`SEMANTICS-W.md`](specs/SEMANTICS-W.md), and it carries no `loop-*/N` id — this
 file is still revised freely. §P10 records the slices as landed; §P8.3 the
 verification result.
 

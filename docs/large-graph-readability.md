@@ -13,7 +13,7 @@ open graph**, not a fixed palette; the node-kind list is the real eight
 `NodeKind` values (§LGR3.2). Ship status: **Slice 1** `1ce599f` · **Slice 2**
 `c6109d7` · **Slice 3** `91eb273` · **Slice 4a** `f6c9d8d` · **Slice 4b**
 `7b17cfb` · **frame accent colour (§FC)** `6b08035` · **Slice 5 (saved frames,
-`loop-revision/5` / [`SEMANTICS-R5.md`](../SEMANTICS-R5.md) Frozen)** `3fe7072`,
+`loop-revision/5` / [`SEMANTICS-R5.md`](specs/SEMANTICS-R5.md) Frozen)** `3fe7072`,
 Production-verified. Slice 5's design detail lives in
 [`large-graph-readability-saved-frames.md`](large-graph-readability-saved-frames.md)
 (`SF`), the `nConf` contract for a `frames` conflict in `SEMANTICS-R5.md` §R5-6

@@ -14,7 +14,7 @@ invariant, and the `triggerQueue` lifecycle — is **inherited verbatim**.
 `loop-state/1` and `loop-state/2` stay on disk unchanged as the historical
 baseline; this document states only the delta.
 
-Design record: [`docs/conditional-state-update.md`](./docs/conditional-state-update.md)
+Design record: [`docs/conditional-state-update.md`](../conditional-state-update.md)
 (CSU, rev 5). Why a new spec id rather than an edit to `loop-state/2`: this adds
 a new execution phase (Phase 2.5), a new `report.stateEvents` label variant
 (`applied`), and a fail-closed validation rule that did not exist before — all

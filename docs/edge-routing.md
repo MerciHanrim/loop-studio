@@ -428,7 +428,7 @@ implementation. The file stores **user intent only**, never a computed result.
 - **Never stored:** the computed orthogonal path, its bends, corner points, the
   `routeClass`, or any A* output. Those are recomputed from the layout every
   time (§ER3.8 / ER3.9).
-- **`loop-revision/3`** ([`SEMANTICS-R3.md`](../SEMANTICS-R3.md), **Draft** →
+- **`loop-revision/3`** ([`SEMANTICS-R3.md`](specs/SEMANTICS-R3.md), **Draft** →
   Frozen before Slice 1) fixes, precisely:
   - `route` then `waypoints` join `FIELDS_BY_KIND` for resource **and** state
     edges, **after** `resourceType`, **emitted only when non-default**

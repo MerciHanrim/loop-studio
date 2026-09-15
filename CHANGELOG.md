@@ -88,7 +88,7 @@ post-pull state updates, and a reorganized desktop toolbar.
 
 ### Compatibility
 
-- **`@parameter` activators** (`loop-state/4`, [`SEMANTICS-S4.md`](SEMANTICS-S4.md))
+- **`@parameter` activators** (`loop-state/4`, [`SEMANTICS-S4.md`](docs/specs/SEMANTICS-S4.md))
   need no new revision format and no migration. An **unmodified** existing
   document's projection and digest are unchanged. Committing a `@parameter`
   reference in an activator engages the existing `loop-model/2` v1→v2
@@ -227,7 +227,7 @@ not in this release.
 
 ## v0.5.0 — project revisions & proposals
 
-File-based **asynchronous collaboration** ([`SEMANTICS-R.md`](SEMANTICS-R.md))
+File-based **asynchronous collaboration** ([`SEMANTICS-R.md`](docs/specs/SEMANTICS-R.md))
 — no accounts, no server, no real-time sync. A project moves between people
 only as JSON files. See [`examples/revision/README.md`](examples/revision/README.md)
 for a worked walkthrough of the create → propose → review → apply flow.
@@ -263,7 +263,7 @@ for a worked walkthrough of the create → propose → review → apply flow.
 State edges (`trigger` with an integer `delay`, AND-combined `activator`
 level gates, `label` Pool modifiers) now run as a Phase 0 at the top of every
 step — frozen as `loop-state/1`/`loop-state/2`
-([`SEMANTICS-S.md`](SEMANTICS-S.md)). The canvas shows a travelling pulse on a
+([`SEMANTICS-S.md`](docs/specs/SEMANTICS-S.md)). The canvas shows a travelling pulse on a
 trigger's delivery step, a steady tint for an open activator, and a `delta`
 flash for a label. Covered end-to-end by `examples/state-verification.json`.
 

@@ -15,7 +15,7 @@ defaults, Register evaluation on the committed-snapshot axis, `resourceType`,
 the field-projection tags, the inferred `loop-revision/2` predicate — is
 **inherited verbatim**.
 
-Design record: [`docs/parameter-inputs.md`](./docs/parameter-inputs.md).
+Design record: [`docs/parameter-inputs.md`](../parameter-inputs.md).
 
 Why a new frozen spec id: this changes **what a diagram computes** for the same
 `flow` bytes (`@x` → resolved vs. `@x` → the `loop-expr` / flow "unparseable ⇒
