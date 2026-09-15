@@ -458,7 +458,10 @@ export function Canvas() {
         const block = BUNDLED_MODULES.find((m) => m.id === moduleId)
         if (block) {
           const locale = useI18n.getState().activeLocale
-          const r = insertModule(cloneModuleDoc(block, moduleLabelOverlay(moduleId, locale)), { at })
+          const r = insertModule(cloneModuleDoc(block, moduleLabelOverlay(moduleId, locale)), {
+            at,
+            bundledModuleId: moduleId,
+          })
           if (!r.ok) window.alert(r.reason)
         }
         return

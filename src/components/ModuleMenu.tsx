@@ -83,15 +83,18 @@ export function ModuleMenu({
 
   /** Apply one insert. `confirmedPromotion` skips the v2 consent (the dialog
    *  set it); a `needs-v2-consent` refusal opens that dialog and changes
-   *  nothing. */
-  const runInsert = (doc: GraphDocLike, confirmedPromotion: boolean) => {
-    const r = insertModule(doc, { at: centre(), confirmedPromotion })
+   *  nothing. `bundledModuleId`, when given, is a `BUNDLED_MODULES` id — the
+   *  ONLY case `insertModule` registers module-label-sync provenance for
+   *  (docs/bundled-module-label-localization.md §MLS4.1); a file-inserted
+   *  module never passes it. */
+  const runInsert = (doc: GraphDocLike, confirmedPromotion: boolean, bundledModuleId?: string) => {
+    const r = insertModule(doc, { at: centre(), confirmedPromotion, bundledModuleId })
     if (r.ok) {
       onLeave()
       return
     }
     if (r.reason === 'needs-v2-consent') {
-      onOpenDialog({ kind: 'module-promote', run: () => runInsert(doc, true) })
+      onOpenDialog({ kind: 'module-promote', run: () => runInsert(doc, true, bundledModuleId) })
       return
     }
     onLeave()
@@ -103,7 +106,7 @@ export function ModuleMenu({
     const block = BUNDLED_MODULES.find((m) => m.id === id)
     if (block) {
       const locale = useI18n.getState().activeLocale
-      runInsert(cloneModuleDoc(block, moduleLabelOverlay(id, locale)), false)
+      runInsert(cloneModuleDoc(block, moduleLabelOverlay(id, locale)), false, id)
     }
   }
 

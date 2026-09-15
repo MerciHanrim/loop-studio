@@ -69,8 +69,11 @@ post-pull state updates, and a reorganized desktop toolbar.
 - **Playback default speed** — a fresh document's default step speed is now
   medium-fast (600 ms) instead of the slowest stop (`#193`).
 - **Bundled module labels** — inserting a bundled Building block into a
-  KO/JA document now localizes its labels on that fresh insert; an already-
-  inserted label is never retranslated (`#185`).
+  KO/JA document localizes its labels on that fresh insert (`#185`); a later
+  EN/KO/JA switch now keeps that instance's still-unedited official labels in
+  sync too, in both the menu-insert and canvas-drag-insert paths, without
+  touching any label the user has since renamed
+  ([`docs/bundled-module-label-localization.md`](docs/bundled-module-label-localization.md)).
 - **In-app feedback** — the Help menu's `Send feedback` link now opens Tally
   instead of Typeform (`#177`).
 

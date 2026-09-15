@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { GraphDocLike } from '../model/moduleGraph'
+import { clearModuleProvenance, moduleProvenanceFor } from '../model/moduleProvenance'
 import { serialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { useFrameStore } from './frameStore'
@@ -239,5 +240,213 @@ describe('insertModule — isolation (§MS4a-B2 / B3)', () => {
     expect(JSON.stringify(useMcStore.getState().config)).toBe(mcBefore) // §MS4a-B2
     expect(JSON.stringify(useSimStore.getState().timelineSeries)).toBe(tlBefore)
     expect(useFrameStore.getState().snapshot()).toEqual(framesBefore) // §MS4a-B3
+  })
+})
+
+// docs/bundled-module-label-localization.md §MLS4.1 — provenance is
+// registered ONLY after a bundled insert (opts.bundledModuleId given)
+// actually commits; never on a v2-consent refusal, any other failure, or a
+// file-style insert (no bundledModuleId).
+describe('insertModule — module-label-sync provenance (§MLS4.1)', () => {
+  beforeEach(() => clearModuleProvenance())
+
+  it('a bundled insert registers provenance for every inserted node, keyed by its fresh id', () => {
+    const r = g().insertModule(mod([pool('supply'), pool('inbox')], [rEdge('e', 'supply', 'inbox')]), {
+      at: { x: 0, y: 0 },
+      bundledModuleId: 'buffered-step',
+    })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.insertedNodeIds).toHaveLength(2)
+    const byLabel = (label: string) => g().nodes.find((n) => n.data.label === label)!.id
+    expect(moduleProvenanceFor(byLabel('supply'))).toEqual({
+      moduleId: 'buffered-step',
+      canonicalId: 'supply',
+      lastAppliedLabel: 'supply', // pool() defaults data.label to the node's own id
+    })
+    expect(moduleProvenanceFor(byLabel('inbox'))).toEqual({
+      moduleId: 'buffered-step',
+      canonicalId: 'inbox',
+      lastAppliedLabel: 'inbox',
+    })
+  })
+
+  it('a file-style insert (no bundledModuleId) registers nothing', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 } })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeUndefined()
+  })
+
+  it('a needs-v2-consent refusal registers nothing', () => {
+    const m = mod(
+      [pool('supply'), pool('inbox'), { id: 'rate', type: 'parameter', position: { x: 0, y: 0 }, data: { kind: 'parameter', label: 'rate', value: 2 } } as LoopNode],
+      [{ ...rEdge('e', 'supply', 'inbox'), data: { kind: 'resource', flow: '@rate' } }],
+      2,
+    )
+    const r = g().insertModule(m, { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r).toEqual({ ok: false, reason: 'needs-v2-consent' })
+    expect(moduleProvenanceFor('supply')).toBeUndefined()
+  })
+
+  it('newGraph clears any previously-registered provenance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeDefined()
+    g().newGraph()
+    expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeUndefined()
+  })
+
+  it('loadDoc clears any previously-registered provenance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    g().loadDoc({ nodes: [pool('x')], edges: [] })
+    expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeUndefined()
+  })
+
+  it('loadGraph clears any previously-registered provenance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    g().loadGraph({ nodes: [pool('x')], edges: [] })
+    expect(moduleProvenanceFor(r.insertedNodeIds[0])).toBeUndefined()
+  })
+
+  // [P1] review round 2, 2026-09-15 — provenance is a HISTORY-AWARE sidecar
+  // (§MLS3.2): `newGraph`/`loadGraph`/`loadDoc` only clear the LIVE map, but
+  // `commit('')` (called first by each of them) folds the PRE-reset live
+  // provenance into the new `past` entry's own sidecar snapshot — so an Undo
+  // back past that reset restores the module instance's tracking along with
+  // its nodes, not just an empty map.
+  it('New -> Undo restores the module instance\'s provenance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const insertedId = r.insertedNodeIds[0]
+    g().newGraph()
+    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
+    g().undo()
+    expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
+    expect(moduleProvenanceFor(insertedId)).toEqual({ moduleId: 'buffered-step', canonicalId: 'supply', lastAppliedLabel: 'supply' })
+  })
+
+  it('loadGraph -> Undo restores the module instance\'s provenance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const insertedId = r.insertedNodeIds[0]
+    g().loadGraph({ nodes: [pool('x')], edges: [] })
+    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
+    g().undo()
+    expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
+    expect(moduleProvenanceFor(insertedId)).toBeDefined()
+  })
+
+  it('loadDoc -> Undo restores the module instance\'s provenance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const insertedId = r.insertedNodeIds[0]
+    g().loadDoc({ nodes: [pool('x')], edges: [] })
+    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
+    g().undo()
+    expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
+    expect(moduleProvenanceFor(insertedId)).toBeDefined()
+  })
+
+  it('Redo past a reset restores the empty (new-document) provenance, not the pre-reset instance', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const insertedId = r.insertedNodeIds[0]
+    g().newGraph()
+    g().undo()
+    expect(moduleProvenanceFor(insertedId)).toBeDefined()
+    g().redo()
+    expect(g().nodes.some((n) => n.id === insertedId)).toBe(false)
+    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
+  })
+
+  it('a loaded document reusing a former host node id is never treated as module-provenanced', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const insertedId = r.insertedNodeIds[0]
+    // a totally unrelated document that coincidentally reuses the exact same
+    // node id (never possible in practice -- ids are never reissued -- but
+    // this is exactly the boundary §MLS3 draws: id alone proves nothing)
+    g().loadDoc({ nodes: [pool(insertedId)], edges: [] })
+    expect(g().nodes.some((n) => n.id === insertedId)).toBe(true)
+    expect(moduleProvenanceFor(insertedId)).toBeUndefined()
+  })
+})
+
+// [P1] review round 3, 2026-09-15 — detachment must be EAGER, at the actual
+// `updateNodeData` edit, never deferred to the next locale switch: a lazy
+// content-comparison alone can't distinguish "never edited" from "edited,
+// then edited back to the exact same text" before any switch happens, and
+// the kickoff contract requires the latter to stay excluded forever anyway.
+describe('updateNodeData — eager provenance detach on a real label edit (§MLS3.1 revision 3)', () => {
+  it('detaches provenance immediately on a real rename, with no locale switch involved', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const id = r.insertedNodeIds[0]
+    expect(moduleProvenanceFor(id)).toBeDefined()
+    g().updateNodeData(id, { label: 'My Custom Label' })
+    expect(moduleProvenanceFor(id)).toBeUndefined()
+  })
+
+  it('a patch that sets the SAME label value is not an edit -- provenance stays', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const id = r.insertedNodeIds[0]
+    g().updateNodeData(id, { label: 'supply' }) // pool()'s own data.label defaults to its id
+    expect(moduleProvenanceFor(id)).toBeDefined()
+  })
+
+  it('a patch that never touches label leaves provenance untouched', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const id = r.insertedNodeIds[0]
+    g().updateNodeData(id, { activation: 'automatic' })
+    expect(moduleProvenanceFor(id)).toBeDefined()
+  })
+
+  // [P1] the required regression: Supply -> My Supply -> Supply, all before
+  // any locale switch, must NOT be re-adopted just because the text happens
+  // to land back on the original applied label.
+  it('Supply -> My Supply -> Supply in quick succession stays permanently detached', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const id = r.insertedNodeIds[0]
+    g().updateNodeData(id, { label: 'My Supply' })
+    expect(moduleProvenanceFor(id)).toBeUndefined()
+    g().updateNodeData(id, { label: 'supply' }) // back to the exact original text
+    expect(g().nodes.find((n) => n.id === id)!.data.label).toBe('supply')
+    expect(moduleProvenanceFor(id)).toBeUndefined() // still detached -- not re-adopted
+  })
+
+  it('Undo across the edit boundary restores the MANAGED state; Redo restores the DETACHED one', () => {
+    const r = g().insertModule(mod([pool('supply')]), { at: { x: 0, y: 0 }, bundledModuleId: 'buffered-step' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const id = r.insertedNodeIds[0]
+
+    g().updateNodeData(id, { label: 'My Custom Label' })
+    expect(moduleProvenanceFor(id)).toBeUndefined()
+
+    g().undo() // back to right-after-insert
+    expect(g().nodes.find((n) => n.id === id)!.data.label).toBe('supply')
+    expect(moduleProvenanceFor(id)).toBeDefined() // managed state restored
+
+    g().redo() // forward to post-edit
+    expect(g().nodes.find((n) => n.id === id)!.data.label).toBe('My Custom Label')
+    expect(moduleProvenanceFor(id)).toBeUndefined() // detached state restored
   })
 })

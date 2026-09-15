@@ -665,9 +665,16 @@ green, then a separate merge approval.
   reviewed **after** this structure is fixed — a data-bound `parameter` or a
   saved authored region both interact with `insertGraph` and the panels, so
   they inherit this doc's shape.
-- **Template localization overlay** — already shipped
-  ([`docs/template-label-overlay.md`](template-label-overlay.md)); the module
-  system reuses it for bundled-block names, adds nothing.
+- ~~Template localization overlay — already shipped; the module system
+  reuses it for bundled-block names, adds nothing.~~ **Stale as of
+  2026-09-15.** The module system never reused §TLO11 — it shipped its own,
+  separate, small static KO/JA node-label overlay
+  (`src/i18n/moduleLabels.ts`, PR #185) applied only at fresh-insert time,
+  and now (this same follow-up PR) its own locale-**sync** for
+  already-inserted bundled instances too, fully specified in
+  [`docs/bundled-module-label-localization.md`](bundled-module-label-localization.md)
+  — not a Template-overlay reuse, since a module's node ids are re-issued on
+  every insert (§MS-Q5) and Templates' mechanism keys on stable ids.
 
 ---
 
