@@ -93,12 +93,16 @@ test.beforeEach(async ({ page }) => {
   await resetAll(page)
 })
 
-test('the Share button sits between Import and Export ▾', async ({ page }) => {
-  const labels = await page.locator('.toolbar__actions button').allInnerTexts()
+// docs/toolbar-responsive.md — the fixed Tier-1 canonical order is
+// `Module → File → Data → Share → Settings → Help`; Import/Export are now
+// inside `File ▾`'s own popover, not flat top-level buttons, so Share's
+// position is checked against Data/Settings instead.
+test('Share sits between Data and Settings, kept standalone', async ({ page }) => {
+  const labels = await page.locator('.toolbar__actions .toolbar__slot button').allInnerTexts()
   const compact = labels.map((s) => s.trim()).filter(Boolean)
   expect(compact).toContain('Share')
-  expect(compact.indexOf('Share')).toBeGreaterThan(compact.indexOf('Import'))
-  expect(compact.indexOf('Share')).toBeLessThan(compact.indexOf('Export ▾'))
+  expect(compact.indexOf('Share')).toBeGreaterThan(compact.indexOf('Data ▾'))
+  expect(compact.indexOf('Share')).toBeLessThan(compact.indexOf('Settings ▾'))
 })
 
 test('happy path: disclosure → link copied, shown selectably, address bar untouched', async ({

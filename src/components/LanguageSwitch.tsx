@@ -14,13 +14,31 @@ import {
 // active one checked. Adding a locale needs NO change here.
 //
 // A trigger button + an absolutely-positioned popover `listbox`, so it changes
-// neither the Toolbar height nor any Canvas geometry. The desktop toolbar and
-// the mobile More sheet mount this SAME component. A search box appears once
-// there are `LANGUAGE_SEARCH_THRESHOLD`+ enabled locales; below that the list is
-// short enough to scan. Selecting starts the atomic activation (§L4.5); a failed
+// neither the Toolbar height nor any Canvas geometry. The desktop Settings
+// menu and the mobile More sheet mount this SAME component (the popover
+// itself, its keyboard nav, and its search box are identical either way —
+// only the trigger's own look changes). A search box appears once there are
+// `LANGUAGE_SEARCH_THRESHOLD`+ enabled locales; below that the list is short
+// enough to scan. Selecting starts the atomic activation (§L4.5); a failed
 // load leaves the current selection (`aria-selected` follows `activeLocale`).
-
-export function LanguageSwitch() {
+//
+// `variant: 'row'` (Hanrim's visual review, 2026-09-15) renders the trigger
+// as a full-width Settings-menu row — a "Language" label + the current
+// language + `›` — instead of the standalone toolbar pill, so it reads as
+// one unified row with Theme's own row rather than an unrelated-looking
+// button dropped into the menu. `open`/`onOpenChange` are controlled when
+// supplied (`SettingsMenu.tsx` uses this so Language's and Theme's
+// submenus are mutually exclusive); otherwise this manages its own state,
+// unchanged from before (mobile's pill usage never passes these).
+export function LanguageSwitch({
+  variant = 'pill',
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  variant?: 'pill' | 'row'
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+} = {}) {
   const t = useT()
   const active = useI18n((s) => s.activeLocale)
   const requested = useI18n((s) => s.requestedLocale)
@@ -30,7 +48,9 @@ export function LanguageSwitch() {
   const locales = enabledLocales()
   const showSearch = locales.length >= LANGUAGE_SEARCH_THRESHOLD
 
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = controlledOpen ?? localOpen
+  const setOpenState = onOpenChange ?? setLocalOpen
   const [query, setQuery] = useState('')
   const [focusIdx, setFocusIdx] = useState(0)
 
@@ -82,10 +102,10 @@ export function LanguageSwitch() {
   function openMenu() {
     setQuery('')
     setFocusIdx(activeIdxIn(locales))
-    setOpen(true)
+    setOpenState(true)
   }
   function close(returnFocus = true) {
-    setOpen(false)
+    setOpenState(false)
     setQuery('')
     if (returnFocus) btnRef.current?.focus()
   }
@@ -148,19 +168,31 @@ export function LanguageSwitch() {
       <button
         ref={btnRef}
         type="button"
-        className="btn lang-switch"
+        className={variant === 'row' ? 'settings-row lang-switch' : 'btn lang-switch'}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={t('lang.title')}
+        aria-label={variant === 'row' ? undefined : t('lang.title')}
         title={t('lang.title')}
         data-locale={current.code}
         data-loading={loading || undefined}
         onClick={() => (open ? close(false) : openMenu())}
         onKeyDown={onTriggerKey}
       >
-        <span lang={current.code}>{current.nativeName}</span>
-        <span aria-hidden="true"> ▾</span>
+        {variant === 'row' ? (
+          <>
+            <span className="settings-row__label">{t('lang.rowLabel')}</span>
+            <span className="settings-row__value">
+              <span lang={current.code}>{current.nativeName}</span>
+              <span aria-hidden="true"> ›</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span lang={current.code}>{current.nativeName}</span>
+            <span aria-hidden="true"> ▾</span>
+          </>
+        )}
       </button>
 
       {open ? (

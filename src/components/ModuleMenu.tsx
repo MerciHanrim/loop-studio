@@ -6,8 +6,9 @@ import { useGraphStore } from '../store/graphStore'
 import { planSelectionAsModule, readModuleFile } from '../store/moduleIO'
 import { useI18n, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
-import { ConfirmDialog } from './ConfirmDialog'
 import { MODULE_KEY } from './moduleKeys'
+import type { ToolbarDialog } from './toolbar/dialogTypes'
+import { useMenuOpenStore } from './toolbar/menuOpenStore'
 
 // docs/module-system.md §MS6 — the v1 assembly surface: an "Insert module ▾"
 // menu with the bundled Building blocks + "From file…" (no `#g1=` link — MS7-7),
@@ -29,15 +30,25 @@ function download(text: string, name: string) {
   URL.revokeObjectURL(url)
 }
 
-type FramesNotice = { dir: 'insert'; doc: GraphDocLike } | { dir: 'extract' }
-
-export function ModuleMenu() {
+// Review condition 3 (applied here for the same reason as Export/Data/Help):
+// the "promote to v2" and "frames excluded" confirms no longer live here —
+// they're lifted to `Toolbar.tsx`'s `DialogHost`, since Module is a real
+// `OVERFLOW_ORDER` member and can collapse into `…` like any other group.
+// `onOpenDialog` replaces the local dialog state; `onLeave` is called first
+// by the actions that need the same ancestor-close treatment but don't
+// always end up opening a dialog (insert, pick-from-file, extract).
+export function ModuleMenu({
+  buttonRef,
+  onOpenDialog,
+  onLeave,
+}: {
+  buttonRef?: (el: HTMLButtonElement | null) => void
+  onOpenDialog: (desc: ToolbarDialog) => void
+  onLeave: () => void
+}) {
   const t = useT()
   const [open, setOpen] = useState(false)
-  const [promoteDoc, setPromoteDoc] = useState<GraphDocLike | null>(null)
-  const [framesNotice, setFramesNotice] = useState<FramesNotice | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
   const insertModule = useGraphStore((s) => s.insertModule)
   const { screenToFlowPosition } = useReactFlow()
 
@@ -55,6 +66,13 @@ export function ModuleMenu() {
     }
   }, [open])
 
+  // review, Hanrim 2026-09-15 — announce open/closed so the palette can
+  // suppress its own hover tooltip while this menu is up
+  useEffect(() => {
+    useMenuOpenStore.getState().setOpen('module', open)
+    return () => useMenuOpenStore.getState().setOpen('module', false)
+  }, [open])
+
   // viewport-centre drop point for a menu-click insert (a drag carries its own).
   const centre = () => {
     const rect = document.querySelector('.canvas')?.getBoundingClientRect()
@@ -68,11 +86,15 @@ export function ModuleMenu() {
    *  nothing. */
   const runInsert = (doc: GraphDocLike, confirmedPromotion: boolean) => {
     const r = insertModule(doc, { at: centre(), confirmedPromotion })
-    if (r.ok) return
-    if (r.reason === 'needs-v2-consent') {
-      setPromoteDoc(doc)
+    if (r.ok) {
+      onLeave()
       return
     }
+    if (r.reason === 'needs-v2-consent') {
+      onOpenDialog({ kind: 'module-promote', run: () => runInsert(doc, true) })
+      return
+    }
+    onLeave()
     window.alert(`${t('modules.error.title')}\n${r.reason}`)
   }
 
@@ -88,13 +110,21 @@ export function ModuleMenu() {
   const handleFileText = (text: string) => {
     const r = readModuleFile(text)
     if (!r.ok) {
+      onLeave()
       window.alert(`${t('modules.error.title')}\n${r.reason}`)
       return
     }
     // §MS3.7 / B3 — a module file with saved frames: state the exclusion first,
     // then insert without them.
-    if (r.hadFrames) setFramesNotice({ dir: 'insert', doc: r.module })
-    else runInsert(r.module, false)
+    if (r.hadFrames) {
+      onOpenDialog({
+        kind: 'module-frames',
+        body: t('modules.frames.insertBody'),
+        run: () => runInsert(r.module, false),
+      })
+    } else {
+      runInsert(r.module, false)
+    }
   }
 
   // A transient `<input type=file>` — created, clicked, and discarded per pick —
@@ -102,6 +132,7 @@ export function ModuleMenu() {
   // exactly one, the Import button's; e2e and other callers rely on that).
   const pickFile = () => {
     setOpen(false)
+    onLeave()
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = '.json'
@@ -122,20 +153,30 @@ export function ModuleMenu() {
     setOpen(false)
     const plan = planSelectionAsModule()
     if (!plan.ok) {
+      onLeave()
       window.alert(plan.reason)
       return
     }
     if (plan.hadFrames) {
-      setFramesNotice({ dir: 'extract' })
+      onOpenDialog({
+        kind: 'module-frames',
+        body: t('modules.frames.extractBody'),
+        run: () => {
+          const p = planSelectionAsModule()
+          if (p.ok) download(p.text, p.filename)
+          else window.alert(p.reason)
+        },
+      })
       return
     }
+    onLeave()
     download(plan.text, plan.filename)
   }
 
   return (
     <div className="menu" ref={wrapRef}>
       <button
-        ref={btnRef}
+        ref={buttonRef}
         type="button"
         className="btn"
         aria-haspopup="true"
@@ -145,7 +186,7 @@ export function ModuleMenu() {
         {t('modules.button')}
       </button>
       {open ? (
-        <div className="menu__pop" role="menu" aria-label={t('modules.menuLabel')}>
+        <div className="menu__pop menu__pop--scrollable" role="menu" aria-label={t('modules.menuLabel')}>
           {BUNDLED_MODULES.map((m) => (
             <button
               key={m.id}
@@ -171,45 +212,6 @@ export function ModuleMenu() {
           </button>
         </div>
       ) : null}
-
-      <ConfirmDialog
-        open={promoteDoc != null}
-        title={t('modules.promote.title')}
-        body={t('modules.promote.body')}
-        confirmLabel={t('modules.promote.confirm')}
-        onConfirm={() => {
-          const doc = promoteDoc
-          setPromoteDoc(null)
-          if (doc) runInsert(doc, true)
-        }}
-        onCancel={() => setPromoteDoc(null)}
-        returnFocusTo={() => btnRef.current}
-      />
-
-      <ConfirmDialog
-        open={framesNotice != null}
-        title={t('modules.frames.title')}
-        body={
-          framesNotice?.dir === 'extract'
-            ? t('modules.frames.extractBody')
-            : t('modules.frames.insertBody')
-        }
-        confirmLabel={t('modules.frames.continue')}
-        onConfirm={() => {
-          const n = framesNotice
-          setFramesNotice(null)
-          if (!n) return
-          if (n.dir === 'insert') {
-            runInsert(n.doc, false)
-          } else {
-            const plan = planSelectionAsModule()
-            if (plan.ok) download(plan.text, plan.filename)
-            else window.alert(plan.reason)
-          }
-        }}
-        onCancel={() => setFramesNotice(null)}
-        returnFocusTo={() => btnRef.current}
-      />
     </div>
   )
 }

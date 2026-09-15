@@ -46,12 +46,21 @@ const PROPOSAL_CLEAN = readFileSync(
 
 const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.lang)
 
+// docs/toolbar-responsive.md — Language is now a `Settings ▾` row on
+// desktop (Hanrim's visual review, 2026-09-15); its trigger only exists
+// once Settings is open.
 async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
+  let openedSettings = false
+  if (!scope && !(await trigger.isVisible().catch(() => false))) {
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+    openedSettings = true
+  }
   await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
   await page.locator(`${scope} .lang-menu__item[data-locale="${code}"]`.trim()).click()
   await expect.poll(() => htmlLang(page)).toBe(code)
+  if (openedSettings) await page.keyboard.press('Escape')
 }
 
 const fontsReady = (page: Page) =>
@@ -147,7 +156,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await pickLocale(page, 'ko')
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
-    await page.locator('.toolbar__actions .menu > button', { hasText: /내보내기/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /파일/ }).click()
     await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
     await fontsReady(page)
     await expect(page).toHaveScreenshot('ko-export-menu.png', shot(page))

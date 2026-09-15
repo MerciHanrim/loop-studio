@@ -139,11 +139,22 @@ function reparse(ui: DraftUI): DraftUI {
 
 type Step = 'tables' | 'validate' | 'placement' | 'review'
 
-export function DataImportWizard({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function DataImportWizard({
+  open,
+  onClose,
+  returnFocusTo,
+}: {
+  open: boolean
+  onClose: () => void
+  /** review condition 3 — resolves to the ⋯ trigger when Data was collapsed
+   *  at open time, since `document.activeElement` may already have moved
+   *  on by the time this dialog's own focus effect runs. */
+  returnFocusTo?: () => HTMLElement | null | undefined
+}) {
   const t = useT()
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
-  useDialogFocus(open, ref, onClose)
+  useDialogFocus(open, ref, onClose, returnFocusTo)
   const { screenToFlowPosition } = useReactFlow()
 
   const [step, setStep] = useState<Step>('tables')

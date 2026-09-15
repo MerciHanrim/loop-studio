@@ -362,41 +362,20 @@ body {
   flex-wrap: wrap;
 }
 
-/* The toolbar locale-independent responsive contract (src/components/toolbar/).
-   The overflow controller picks the mode purely from the viewport width, never
-   from the active language, and the ⋯ menu absorbs the trailing controls so the
-   row COUNT and the Canvas top are identical for EN / KO / JA at any width.
-   - row  : one line. `nowrap` + `overflow: hidden` guard against a 1-frame
-            spill before the ResizeObserver settles; the controller guarantees
-            the content fits.
-   - wrap : two lines. The palette drops to its own second line; brand + the
-            (further-collapsed) actions stay on line 1. */
-.toolbar[data-toolbar-mode='row'] {
-  flex-wrap: nowrap;
-  /* NOT `overflow: hidden` — that would clip every toolbar dropdown (Templates,
-     Insert module, Export, Help, Language, ⋯). A brief pre-settle horizontal
-     spill during a resize is already absorbed by `#root { overflow-x: clip }`
-     (the measurement pass is pre-paint, so it should not be visible anyway). */
-}
-.toolbar[data-toolbar-mode='wrap'] {
-  flex-wrap: wrap;
-}
-/* the one pre-paint measurement frame: everything expanded, nothing clipped or
-   squeezed, so every region reports its true natural width */
+/* The toolbar's fixed two-tier contract (src/components/toolbar/;
+   docs/toolbar-responsive.md). Tier 1 (brand + app commands) is always one
+   row; Tier 2 (the node palette) is always its own row — the row count
+   itself never varies by width or by locale, only how many Tier-1 GROUPS
+   have collapsed into the ⋯ menu. `.toolbar__actions` (order 1) and
+   `.toolbar__palette` (order 2, `flex-basis: 100%`) force this split
+   regardless of DOM order, the same mechanism the old two-row layout used —
+   just unconditional now, since there is no other row count to switch to. */
 .toolbar[data-measuring] {
+  /* the one pre-paint measurement frame: Tier 1 expanded, nothing clipped or
+     squeezed, so every region reports its true natural width. NOT
+     `overflow: hidden` — that would clip every toolbar dropdown. */
   flex-wrap: nowrap;
   overflow: visible;
-}
-.toolbar[data-measuring] .toolbar__palette {
-  flex-wrap: nowrap;
-  flex-basis: auto;
-}
-.toolbar[data-toolbar-mode='wrap'] .toolbar__actions {
-  order: 1;
-}
-.toolbar[data-toolbar-mode='wrap'] .toolbar__palette {
-  order: 2;
-  flex-basis: 100%;
 }
 
 /* Cap the Toolbar control heights. Under `<html lang="ko">` the browser resolves
@@ -449,23 +428,6 @@ body {
   border-radius: 3px;
 }
 
-/* version · build sha — quietest thing in the brand row, selectable for copy.
-   `[data-collapsed]` = the responsive controller has hidden it as its last
-   space-saving step (still in About + the brand `title`); kept in the DOM,
-   out of flow, so its width stays measurable. */
-.toolbar__build {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  color: var(--text-tertiary);
-  user-select: text;
-}
-.toolbar__build[data-collapsed] {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-}
-
 /* ---- L1 Broken Orbit ---- */
 .logo {
   display: block;
@@ -488,16 +450,44 @@ body {
   }
 }
 
+/* Tier 2 — always its own row (`order: 2` + `flex-basis: 100%`, forcing it
+   below Tier 1 regardless of DOM order — see the two-tier contract note
+   above), a single low-contrast band rather than each chip carrying its own
+   border/background at rest (that emphasis moves to `.chip:hover` /
+   `:focus-visible` / `[data-dragging]` below). `flex-wrap: nowrap` — Tier 2
+   is one row at every supported width; the narrow 721–819px band scrolls
+   horizontally instead of wrapping to a 2nd palette line (never a 3rd
+   toolbar row). */
 .toolbar__palette {
   display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  order: 2;
+  flex-basis: 100%;
+  padding: 4px 8px;
+  background: var(--surface-sunken);
+  border-radius: 8px;
+}
+@media (min-width: 721px) and (max-width: 819px) {
+  .toolbar__palette {
+    overflow-x: auto;
+  }
+}
+
+.palette-group {
+  display: inline-flex;
+  align-items: center;
   gap: 3px;
-  flex-wrap: wrap;
   flex-shrink: 0;
 }
-/* in one-row mode the palette holds its natural width (the ⋯ menu, not a
-   palette squeeze, absorbs any shortfall); in two-row mode it spans line 2 */
-.toolbar[data-toolbar-mode='row'] .toolbar__palette {
-  flex-wrap: nowrap;
+.palette-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--line-hairline);
+  flex-shrink: 0;
 }
 
 .toolbar__actions {
@@ -506,6 +496,7 @@ body {
   gap: 6px;
   flex-wrap: nowrap;
   flex-shrink: 0;
+  order: 1;
 }
 
 /* the never-collapsed action core (undo · redo · Templates · revision chip) */
@@ -565,6 +556,12 @@ body {
   justify-content: flex-start;
 }
 
+/* Borderless/background-less at rest — Tier 2's own low-contrast band
+   (`.toolbar__palette`, above) carries the visual weight now. Emphasis
+   (border + background) is restored on hover, keyboard focus, or an
+   explicit drag-active state (`[data-dragging]`, set by `Toolbar.tsx`'s
+   `onDragStart`/`onDragEnd`) — never plain `:active`, which native HTML5
+   drag doesn't reliably sustain for the duration of a drag gesture. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -573,9 +570,9 @@ body {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
-  background: var(--surface-raised);
+  background: transparent;
   color: var(--text-primary);
-  border: 1px solid var(--line-structure);
+  border: 1px solid transparent;
   border-radius: 8px;
   cursor: grab;
   white-space: nowrap;
@@ -583,7 +580,10 @@ body {
   flex-shrink: 0;
 }
 
-.chip:hover {
+.chip:hover,
+.chip:focus-visible,
+.chip[data-dragging] {
+  background: var(--surface-raised);
   border-color: var(--line-strong);
 }
 
@@ -623,9 +623,28 @@ body {
   box-shadow: var(--elev-label);
   pointer-events: none;
 }
+/* `:focus-visible` (not `:focus-within`/`:focus`) — a mouse click that
+   creates a node leaves DOM focus on the chip, but browsers don't treat a
+   mouse-activated button click as `:focus-visible`, so it doesn't reopen
+   the tooltip; a keyboard Tab does. `[data-tip-suppressed]` (Toolbar.tsx)
+   is the belt-and-suspenders case: force-hides the tooltip immediately on
+   click or drag-start even if the pointer never left the chip, until the
+   pointer actually leaves and re-enters (review, Hanrim 2026-09-15). */
 .palette-item:hover .palette-tip,
-.palette-item:focus-within .palette-tip {
+.chip:focus-visible ~ .palette-tip {
   display: flex;
+}
+.palette-item[data-tip-suppressed] .palette-tip {
+  display: none !important;
+}
+/* while ANY Tier-1 menu (Templates/Module/File/Data/Settings/Help/⋯) or
+   Share's result panel is open, no palette tooltip may show — two
+   competing temporary UI layers at once (review, Hanrim 2026-09-15).
+   `[data-menu-open]` is set on the whole palette by `Toolbar.tsx`, driven
+   by the shared `menuOpenStore` (+ Share's panel state) each of those
+   components reports into. */
+.toolbar__palette[data-menu-open] .palette-tip {
+  display: none !important;
 }
 .palette-tip__name {
   font-family: var(--font-sans);
@@ -702,6 +721,21 @@ body {
   border-radius: 9px;
   box-shadow: var(--elev-label);
 }
+/* Opt-in only — a genuinely long TOP-LEVEL menu (Templates, Insert module,
+   File ▾ with Export's items flattened in) scrolls internally rather than
+   escaping the viewport at narrow heights (721×720, 820×720). NOT applied
+   to `.menu__pop` itself: Lumi's review (2026-09-15) found that a blanket
+   `overflow-y: auto` on every `.menu__pop` — including Settings' own,
+   short, 2-row popover — clips a NESTED popover (Language's own listbox)
+   to the shallow parent box instead of letting it render outside it, since
+   `overflow` on an ancestor constrains its absolutely-positioned
+   descendants too. Settings stays plain `.menu__pop` (implicit
+   `overflow: visible`); Language's own `.lang-menu__pop` already computes
+   its own independent max-height/scroll (below) and needs no help here. */
+.menu__pop--scrollable {
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+}
 .menu__item {
   display: flex;
   flex-direction: column;
@@ -717,6 +751,14 @@ body {
 }
 .menu__item:hover {
   background: var(--surface-sunken);
+}
+/* a divider between logically distinct groups within one popover (File ▾'s
+   New/Import vs. its flattened Export rows) */
+.menu__divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--line-hairline);
+  flex-shrink: 0;
 }
 /* a menu row that is an external link (e.g. Send feedback) — kill the UA
    anchor look so it matches the button rows */
@@ -740,6 +782,54 @@ a.sheet__row {
   font-size: 11px;
   line-height: 1.35;
   color: var(--text-tertiary);
+  /* Templates / Insert module descriptions read like a document at full
+     length — cap at 2 lines everywhere (harmless for the already-short
+     Export/Data blurbs) so a menu stays scannable */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- Settings menu rows (Theme / Language) ----
+   A full-width row — label left, current value right — so Theme and
+   Language read as one unified list rather than a label next to an
+   unrelated-looking pill button (Hanrim's visual review, 2026-09-15).
+   Deliberately NOT `.menu__item` (that's a column layout for name+blurb). */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.settings-row:hover,
+.settings-row:focus-visible {
+  background: var(--surface-sunken);
+}
+.settings-row__label {
+  font-weight: 600;
+  font-size: 12px;
+}
+.settings-row__value {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+/* the Language row's own listbox popover — anchor it inside the Settings
+   popover the same way the old ⋯ overflow menu had to (near the viewport's
+   right edge, so it must open leftward to stay on screen) */
+.toolbar__settingsmenu-pop .lang-menu__pop {
+  left: auto;
+  right: 0;
 }
 
 /* ---- share link popover ---- */

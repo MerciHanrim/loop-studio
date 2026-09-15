@@ -38,9 +38,22 @@ const LONG_KO = '아주아주긴한국어라벨입니다이것은절대로한줄
 
 const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.lang)
 
-/** open the language menu (desktop, or inside a `scope`) and pick `code`. */
+// docs/toolbar-responsive.md — Language is now a `Settings ▾` row on
+// desktop, not a standalone toolbar pill (Hanrim's visual review,
+// 2026-09-15); its trigger only exists once Settings is open.
+async function openSettings(page: Page): Promise<void> {
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+}
+
+/** open the language menu (desktop — inside `Settings ▾` — or inside a
+ *  `scope`) and pick `code`. */
 async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
+  let openedSettings = false
+  if (!scope && !(await trigger.isVisible().catch(() => false))) {
+    await openSettings(page)
+    openedSettings = true
+  }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape')
   await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -48,6 +61,7 @@ async function pickLocale(page: Page, code: string, scope = '') {
   await expect(item).toBeVisible()
   await item.click()
   await expect.poll(() => htmlLang(page)).toBe(code)
+  if (openedSettings) await page.keyboard.press('Escape')
 }
 
 /** the whole document-owned + committed-engine state, normalised (§L12 #5) */
@@ -93,8 +107,12 @@ async function openMc(page: Page) {
   await page.locator('.pstrip__mc button').click()
   await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible()
 }
+// docs/toolbar-responsive.md — Export's actions are flattened directly into
+// `File ▾`'s own popover (Hanrim's visual review, 2026-09-15); "opening
+// Export" is just opening File.
 async function openExport(page: Page) {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /내보내기|Export/ }).click()
+  const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /파일|File/ })
+  if ((await fileBtn.getAttribute('aria-expanded')) !== 'true') await fileBtn.click()
   await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
 }
 async function openShare(page: Page) {
@@ -154,8 +172,10 @@ test.describe('i18n Slice 3 — KO acceptance: no overflow, no horizontal scroll
     await page.locator('.mcdlg--confirm button', { hasText: /취소/ }).click()
     await expect(page.locator('.mcdlg--confirm')).toBeHidden()
 
+    await openSettings(page)
     await page.locator('.lang-switch').click()
     await assertContained(page, '.lang-menu__pop')
+    await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
 
     await page.locator('.palette-item .chip--register').hover()
@@ -249,8 +269,8 @@ test.describe('i18n Slice 3 — app-wide en→ko→en invariance', () => {
     await page.locator('.mcdlg button', { hasText: /Close|Cancel/ }).first().click()
     await expect(page.locator('.mcdlg[role="dialog"]')).toBeHidden()
 
-    // Export menu open
-    await page.locator('.toolbar__actions .menu > button', { hasText: /Export/ }).click()
+    // File menu open (Export's actions are flattened rows in it)
+    await page.locator('.toolbar__actions .menu > button', { hasText: /File/ }).click()
     await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
     await roundTrip()
     await page.keyboard.press('Escape')

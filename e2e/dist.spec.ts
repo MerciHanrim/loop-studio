@@ -86,7 +86,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Graph JSON' })
@@ -142,6 +142,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   }) => {
     const { bad } = await openProd(page)
 
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
     await expect(opts).toHaveCount(3) // en, ko, ja — NO en-XA

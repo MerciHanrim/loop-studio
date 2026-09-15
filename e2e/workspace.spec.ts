@@ -9,8 +9,16 @@ type Bridge = { __loop: Record<string, { getState?: () => any } & Record<string,
 
 const textOf = async (dl: Download) => readFileSync((await dl.path())!, 'utf8')
 
-const exportBtn = (page: Page) =>
-  page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' })
+// docs/toolbar-responsive.md — Export's actions are flattened directly into
+// `File ▾`'s own popover (Hanrim's visual review, 2026-09-15); `openFileMenu`
+// opens File first, a no-op once it's already open.
+const fileBtn = (page: Page) =>
+  page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' })
+async function openFileMenu(page: Page): Promise<void> {
+  if ((await fileBtn(page).getAttribute('aria-expanded')) !== 'true') {
+    await fileBtn(page).click()
+  }
+}
 const exportItem = (page: Page, name: RegExp | string) =>
   page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name })
 
@@ -21,15 +29,16 @@ function autoAcceptDialogs(page: Page) {
   })
 }
 
-/** open Export ▾ and click one of its items; answer the in-app summary dialog
- *  (Slice 2b — Workspace JSON / Project revision confirm via ConfirmDialog) and
- *  return the resulting download (or null if none fired). */
+/** open File ▾ and click one of its (flattened) Export rows; answer the
+ *  in-app summary dialog (Slice 2b — Workspace JSON / Project revision
+ *  confirm via ConfirmDialog) and return the resulting download (or null if
+ *  none fired). */
 async function exportVia(
   page: Page,
   item: RegExp | string,
   choice: 'accept' | 'cancel' | 'omit' | null = 'accept',
 ) {
-  await exportBtn(page).click()
+  await openFileMenu(page)
   const wait = page.waitForEvent('download', { timeout: 3000 }).catch(() => null)
   await exportItem(page, item).click()
   const dlg = page.locator('.mcdlg--confirm')
@@ -173,7 +182,7 @@ test.describe('§W4 size prompts (dev cap)', () => {
       alerted = d.message()
       d.accept()
     })
-    await exportBtn(page).click()
+    await openFileMenu(page)
     const noDl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
     await exportItem(page, 'Workspace JSON').click()
     expect(await noDl).toBeNull()

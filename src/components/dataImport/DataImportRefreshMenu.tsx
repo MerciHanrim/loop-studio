@@ -20,7 +20,17 @@ function downloadCsv(text: string, name: string) {
   URL.revokeObjectURL(url)
 }
 
-export function DataImportRefreshMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function DataImportRefreshMenu({
+  open,
+  onClose,
+  returnFocusTo,
+}: {
+  open: boolean
+  onClose: () => void
+  /** review condition 3 — resolves to the ⋯ trigger when Data was collapsed
+   *  at open time; see `DataImportWizard`'s same prop. */
+  returnFocusTo?: () => HTMLElement | null | undefined
+}) {
   const t = useT()
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -42,7 +52,7 @@ export function DataImportRefreshMenu({ open, onClose }: { open: boolean; onClos
   // `refreshingId === null` here (rather than the raw `open` prop) ties
   // this hook's own lifecycle to whether THIS dialog is actually the
   // top-most one.
-  useDialogFocus(open && refreshingId === null, ref, onClose)
+  useDialogFocus(open && refreshingId === null, ref, onClose, returnFocusTo)
 
   if (!open) return null
 

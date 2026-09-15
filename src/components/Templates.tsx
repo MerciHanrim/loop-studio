@@ -7,6 +7,7 @@ import { useT } from '../i18n'
 import { openTemplate } from '../i18n/templateLabels'
 import { ConfirmDialog } from './ConfirmDialog'
 import { TEMPLATE_KEY } from './templateKeys'
+import { useMenuOpenStore } from './toolbar/menuOpenStore'
 
 // Replacing the current diagram is confirmed through the shared in-app dialog —
 // `loadGraph` runs only from Confirm (docs/localization.md Slice 2b).
@@ -32,6 +33,13 @@ export function Templates() {
       window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
+  }, [open])
+
+  // review, Hanrim 2026-09-15 — announce open/closed so the palette can
+  // suppress its own hover tooltip while this menu is up
+  useEffect(() => {
+    useMenuOpenStore.getState().setOpen('templates', open)
+    return () => useMenuOpenStore.getState().setOpen('templates', false)
   }, [open])
 
   const load = (id: string) => {
@@ -70,7 +78,7 @@ export function Templates() {
         {t('templates.button')}
       </button>
       {open ? (
-        <div className="menu__pop" role="menu">
+        <div className="menu__pop menu__pop--scrollable" role="menu">
           {TEMPLATES.map((tpl) => (
             <button
               key={tpl.id}
