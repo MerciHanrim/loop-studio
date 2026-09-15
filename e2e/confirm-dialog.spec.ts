@@ -198,7 +198,7 @@ test('Export Project revision: a rapid double-click on Confirm downloads exactly
   const downloads: string[] = []
   page.on('download', (d) => downloads.push(d.suggestedFilename()))
 
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Export ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
   await exportItem(page, /Project revision/).click()
   await expect(dlg(page)).toBeVisible()
 
@@ -212,7 +212,7 @@ test('Export Workspace JSON: a rapid double-click on Confirm downloads exactly o
   const downloads: string[] = []
   page.on('download', (d) => downloads.push(d.suggestedFilename()))
 
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Export ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
   await exportItem(page, /Workspace JSON/).click()
   await expect(dlg(page)).toBeVisible()
 
