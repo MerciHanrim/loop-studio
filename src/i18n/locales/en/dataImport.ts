@@ -2,7 +2,7 @@
 // group, mirroring `templates.ts`'s `modules.*` split-by-feature convention.
 
 const dataImport = {
-  'import.button': 'Spreadsheet data ▾',
+  'import.button': 'Data ▾',
   'import.title': 'Import spreadsheet data',
   'import.tableName': 'Table name',
   'import.removeTable': 'Remove table',

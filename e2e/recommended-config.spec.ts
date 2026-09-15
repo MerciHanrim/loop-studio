@@ -19,9 +19,9 @@ const mcConfig = (page: Page) =>
 const setConfig = (page: Page, c: Record<string, unknown>) =>
   page.evaluate((v) => (window as any).__loop.mc.getState().setConfig(v), c)
 
-/** toolbar `Export ▾` → `Graph JSON` */
+/** toolbar `File ▾` → `Graph JSON` */
 async function exportGraphJSON(page: Page) {
-  await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
   await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Graph JSON' }).click()
 }
 

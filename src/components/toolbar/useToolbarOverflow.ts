@@ -2,44 +2,37 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import {
   computeToolbarLayout,
   OVERFLOW_ORDER,
-  STAMP_AFTER,
   type OverflowItem,
   type ToolbarLayout,
   type ToolbarMetrics,
 } from './toolbarOverflow'
 
-/** A single-row desktop toolbar is ~45px tall; past this the palette wrapped
- *  despite a `row` layout. `overflow: hidden` in row mode can also keep the
- *  height at ~45 while clipping horizontally, so we check `scrollWidth` too. */
-const ONE_ROW_MAX_H = 58
 const OVERFLOW_SLACK = 4
 
-// The measured overflow controller for the desktop toolbar. It watches the
-// toolbar's width (ResizeObserver) and re-runs a full measurement whenever the
-// active locale or the project chip's presence changes — those alter control
-// widths. `computeToolbarLayout` (pure) then decides the row count, the ⋯ menu
-// contents, and whether the build stamp is shown. See `toolbarOverflow.ts`.
+// The measured overflow controller for Tier 1 of the desktop toolbar (the
+// project/app-command row — Tier 2's node palette is always its own row and
+// is never measured here). It watches Tier 1's width (ResizeObserver) and
+// re-runs a full measurement whenever the active locale or the project
+// chip's presence changes — those alter control widths. `computeToolbarLayout`
+// (pure) then decides how many trailing GROUPS collapse into the ⋯ menu. See
+// `toolbarOverflow.ts`.
 
 export type ToolbarRefs = {
   toolbar: HTMLElement | null
   brand: HTMLElement | null
-  /** the `v… · <sha>` build stamp span */
-  stamp: HTMLElement | null
-  palette: HTMLElement | null
   /** the never-collapsed action cluster (undo + redo + Templates [+ chip]) */
   core: HTMLElement | null
   /** the ⋯ overflow trigger */
   more: HTMLElement | null
-  /** outer wrapper of each collapsible control, by id */
+  /** outer wrapper of each collapsible group, by id */
   items: Partial<Record<OverflowItem, HTMLElement | null>>
 }
 
 const FALLBACK_ITEM = 72
 const FALLBACK_MORE = 30
-const FALLBACK_STAMP = 66
 
 function emptyRefs(): ToolbarRefs {
-  return { toolbar: null, brand: null, stamp: null, palette: null, core: null, more: null, items: {} }
+  return { toolbar: null, brand: null, core: null, more: null, items: {} }
 }
 
 const boxW = (el: Element | null | undefined): number =>
@@ -52,21 +45,16 @@ const gapOf = (el: Element | null): number => {
 }
 
 export function useToolbarOverflow(locale: string, projectOpen: boolean) {
-  const [layout, setLayout] = useState<ToolbarLayout>({
-    mode: 'row',
-    collapsed: 0,
-    hideStamp: false,
-  })
+  const [layout, setLayout] = useState<ToolbarLayout>({ collapsed: 0 })
   // while true, the toolbar renders EVERYTHING expanded for one synchronous
   // (pre-paint) pass so every control's width can be read fresh.
   const [measuring, setMeasuring] = useState(true)
 
   const refs = useRef<ToolbarRefs>(emptyRefs())
   const cache = useRef<{
-    stampSlot: number
     more: number
     items: Partial<Record<OverflowItem, number>>
-  }>({ stampSlot: FALLBACK_STAMP, more: FALLBACK_MORE, items: {} })
+  }>({ more: FALLBACK_MORE, items: {} })
 
   // Read every region's TRUE width. Only ever called during the `measuring`
   // pass, when the toolbar renders everything expanded and (via `[data-measuring]`
@@ -78,22 +66,10 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
     if (!tb) return null
     const cs = getComputedStyle(tb)
     const inner = tb.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
-    // the gap BETWEEN brand / palette / actions on one line is the column-gap
+    // the gap BETWEEN brand / actions on Tier 1's line is the column-gap
     const topGap = parseFloat(cs.columnGap) || parseFloat(cs.gap) || 8
 
-    // palette: sum the chips + their gaps — never a stretched wrap-mode box
-    let palette = 0
-    if (r.palette) {
-      const kids = Array.from(r.palette.children)
-      palette =
-        kids.reduce((s, k) => s + boxW(k), 0) + gapOf(r.palette) * Math.max(0, kids.length - 1)
-    }
-
-    // during measuring the stamp is always in normal flow → brandW includes it
-    const brandW = boxW(r.brand)
-    const stampW = boxW(r.stamp)
-    if (stampW > 0) cache.current.stampSlot = stampW + gapOf(r.brand)
-    const brandBase = brandW - cache.current.stampSlot
+    const brandBase = boxW(r.brand)
 
     const core = boxW(r.core)
     const actionGap = gapOf(r.core?.parentElement ?? null) || 6
@@ -115,8 +91,6 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
       topGap,
       actionGap,
       brandBase: Math.max(0, brandBase),
-      stampSlot: cache.current.stampSlot,
-      palette,
       core,
       more: cache.current.more,
       items,
@@ -132,8 +106,6 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
   // stale cached widths for controls that were collapsed at the previous width.
   // A ResizeObserver catches the toolbar's box changing (e.g. a scrollbar
   // appearing); a window `resize` listener is the reliable viewport signal.
-  // The RO reacts to WIDTH only — the measurement pass itself changes the
-  // toolbar's HEIGHT, and reacting to that would loop.
   useEffect(() => {
     let raf = 0
     let lastWidth = refs.current.toolbar?.clientWidth ?? 0
@@ -171,29 +143,22 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
     const m = readMetrics()
     if (m) {
       const next = computeToolbarLayout(m)
-      setLayout((prev) =>
-        prev.mode === next.mode &&
-        prev.collapsed === next.collapsed &&
-        prev.hideStamp === next.hideStamp
-          ? prev
-          : next,
-      )
+      setLayout((prev) => (prev.collapsed === next.collapsed ? prev : next))
     }
     setMeasuring(false)
   }, [measuring, readMetrics])
 
-  // safety net: a `row` layout that still doesn't fit — the palette wrapped
-  // (height) or the line is clipped (scrollWidth). Escalate to the maximum
-  // one-row collapse. Never loops — that state is the ladder's end.
+  // safety net: Tier 1 still doesn't fit at the computed collapse count (the
+  // line is clipped) — escalate to the maximum collapse. Never loops — that
+  // state is the ladder's end.
   useLayoutEffect(() => {
-    if (measuring || layout.mode !== 'row') return
+    if (measuring) return
     const tb = refs.current.toolbar
     if (!tb) return
-    const overflows =
-      tb.offsetHeight > ONE_ROW_MAX_H || tb.scrollWidth > tb.clientWidth + OVERFLOW_SLACK
+    const overflows = tb.scrollWidth > tb.clientWidth + OVERFLOW_SLACK
     if (!overflows) return
-    if (layout.collapsed >= STAMP_AFTER && layout.hideStamp) return
-    setLayout({ mode: 'row', collapsed: STAMP_AFTER, hideStamp: true })
+    if (layout.collapsed >= OVERFLOW_ORDER.length) return
+    setLayout({ collapsed: OVERFLOW_ORDER.length })
   }, [measuring, layout])
 
   // stable callback-ref setters — the ref object stays private to the hook
@@ -202,12 +167,6 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
   }, [])
   const setBrand = useCallback((el: HTMLElement | null) => {
     refs.current.brand = el
-  }, [])
-  const setStamp = useCallback((el: HTMLElement | null) => {
-    refs.current.stamp = el
-  }, [])
-  const setPalette = useCallback((el: HTMLElement | null) => {
-    refs.current.palette = el
   }, [])
   const setCore = useCallback((el: HTMLElement | null) => {
     refs.current.core = el
@@ -227,8 +186,6 @@ export function useToolbarOverflow(locale: string, projectOpen: boolean) {
     measuring,
     setToolbar,
     setBrand,
-    setStamp,
-    setPalette,
     setCore,
     setMore,
     setItem,

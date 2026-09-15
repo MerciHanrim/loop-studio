@@ -7,6 +7,7 @@ import {
   useI18n,
   useT,
 } from '../i18n'
+import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 
 // docs/localization.md §L5 — the language control is AUTO-GENERATED from the
 // registry: `enabledLocales()` in registry order, each row showing the endonym
@@ -14,13 +15,31 @@ import {
 // active one checked. Adding a locale needs NO change here.
 //
 // A trigger button + an absolutely-positioned popover `listbox`, so it changes
-// neither the Toolbar height nor any Canvas geometry. The desktop toolbar and
-// the mobile More sheet mount this SAME component. A search box appears once
-// there are `LANGUAGE_SEARCH_THRESHOLD`+ enabled locales; below that the list is
-// short enough to scan. Selecting starts the atomic activation (§L4.5); a failed
+// neither the Toolbar height nor any Canvas geometry. The desktop Settings
+// menu and the mobile More sheet mount this SAME component (the popover
+// itself, its keyboard nav, and its search box are identical either way —
+// only the trigger's own look changes). A search box appears once there are
+// `LANGUAGE_SEARCH_THRESHOLD`+ enabled locales; below that the list is short
+// enough to scan. Selecting starts the atomic activation (§L4.5); a failed
 // load leaves the current selection (`aria-selected` follows `activeLocale`).
-
-export function LanguageSwitch() {
+//
+// `variant: 'row'` (Hanrim's visual review, 2026-09-15) renders the trigger
+// as a full-width Settings-menu row — a "Language" label + the current
+// language + `›` — instead of the standalone toolbar pill, so it reads as
+// one unified row with Theme's own row rather than an unrelated-looking
+// button dropped into the menu. `open`/`onOpenChange` are controlled when
+// supplied (`SettingsMenu.tsx` uses this so Language's and Theme's
+// submenus are mutually exclusive); otherwise this manages its own state,
+// unchanged from before (mobile's pill usage never passes these).
+export function LanguageSwitch({
+  variant = 'pill',
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  variant?: 'pill' | 'row'
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+} = {}) {
   const t = useT()
   const active = useI18n((s) => s.activeLocale)
   const requested = useI18n((s) => s.requestedLocale)
@@ -30,16 +49,20 @@ export function LanguageSwitch() {
   const locales = enabledLocales()
   const showSearch = locales.length >= LANGUAGE_SEARCH_THRESHOLD
 
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = controlledOpen ?? localOpen
+  const setOpenState = onOpenChange ?? setLocalOpen
   const [query, setQuery] = useState('')
   const [focusIdx, setFocusIdx] = useState(0)
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<(HTMLDivElement | null)[]>([])
   const baseId = useId()
+  const flyoutPos = useSideFlyoutPosition(btnRef, panelRef, variant === 'row' && open)
   const listId = `${baseId}-list`
   const optionId = (code: string) => `${baseId}-opt-${code}`
 
@@ -58,6 +81,12 @@ export function LanguageSwitch() {
     Math.max(0, list.findIndex((l) => l.code === active))
   const current = locales[activeIdxIn(locales)] ?? locales[0]
   const activeDescId = filtered[focusIdx] ? optionId(filtered[focusIdx].code) : undefined
+  // the row variant's popover starts `visibility: hidden` until
+  // `useSideFlyoutPosition` lands its first measurement (avoids a flash at
+  // a stale/default corner) -- browsers refuse to move focus into a hidden
+  // subtree, so anything that focuses into the popover must wait for that;
+  // the pill variant has no such gate (plain CSS-positioned, never hidden)
+  const positionReady = variant !== 'row' || flyoutPos != null
 
   useEffect(() => {
     if (!open) return
@@ -71,10 +100,10 @@ export function LanguageSwitch() {
 
   // put real focus where keystrokes should land, and keep the active option in view
   useEffect(() => {
-    if (!open) return
+    if (!open || !positionReady) return
     ;(showSearch ? searchRef.current : listRef.current)?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, showSearch])
+  }, [open, showSearch, positionReady])
   useEffect(() => {
     if (open) optionRefs.current[focusIdx]?.scrollIntoView({ block: 'nearest' })
   }, [open, focusIdx])
@@ -82,10 +111,10 @@ export function LanguageSwitch() {
   function openMenu() {
     setQuery('')
     setFocusIdx(activeIdxIn(locales))
-    setOpen(true)
+    setOpenState(true)
   }
   function close(returnFocus = true) {
-    setOpen(false)
+    setOpenState(false)
     setQuery('')
     if (returnFocus) btnRef.current?.focus()
   }
@@ -148,23 +177,46 @@ export function LanguageSwitch() {
       <button
         ref={btnRef}
         type="button"
-        className="btn lang-switch"
+        className={variant === 'row' ? 'settings-row lang-switch' : 'btn lang-switch'}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={t('lang.title')}
+        aria-label={variant === 'row' ? undefined : t('lang.title')}
         title={t('lang.title')}
         data-locale={current.code}
         data-loading={loading || undefined}
         onClick={() => (open ? close(false) : openMenu())}
         onKeyDown={onTriggerKey}
       >
-        <span lang={current.code}>{current.nativeName}</span>
-        <span aria-hidden="true"> ▾</span>
+        {variant === 'row' ? (
+          <>
+            <span className="settings-row__label">{t('lang.rowLabel')}</span>
+            <span className="settings-row__value">
+              <span lang={current.code}>{current.nativeName}</span>
+              <span aria-hidden="true"> ›</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span lang={current.code}>{current.nativeName}</span>
+            <span aria-hidden="true"> ▾</span>
+          </>
+        )}
       </button>
 
       {open ? (
-        <div className="menu__pop lang-menu__pop" onKeyDown={onListKey}>
+        <div
+          ref={panelRef}
+          className="menu__pop lang-menu__pop"
+          onKeyDown={onListKey}
+          style={
+            variant === 'row'
+              ? flyoutPos
+                ? { position: 'fixed', top: flyoutPos.top, left: flyoutPos.left, right: 'auto', visibility: 'visible' }
+                : { position: 'fixed', top: 0, left: 0, visibility: 'hidden' }
+              : undefined
+          }
+        >
           {showSearch ? (
             <input
               ref={searchRef}

@@ -2,21 +2,33 @@ import { useEffect, useRef, useState } from 'react'
 import { FEEDBACK_URL } from '../feedback'
 import { useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
-import { AboutDialog } from './AboutDialog'
-import { ContextualHelpDialog } from './ContextualHelpDialog'
+import type { ToolbarDialog } from './toolbar/dialogTypes'
+import { useMenuOpenStore } from './toolbar/menuOpenStore'
 
 // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
 // desktop Help (`?`) menu: `Take a tour` (replays the tour; never rewrites
 // the stored key, §GT6.4), `Contextual help`, `Send feedback` (an external
 // link to the feedback form, opens a new tab), and `About Loop Studio`.
+//
+// Review condition 3: `About` and `Contextual help` no longer live here —
+// they're lifted to `Toolbar.tsx`'s `DialogHost` (a stable ancestor), since
+// Help is first in `OVERFLOW_ORDER` and so hits the "closing `…` unmounts
+// the dialog it just opened" bug soonest. `onOpenDialog` replaces that local
+// state; `onLeave` is called first by the two actions that need the same
+// ancestor-close treatment but open no dialog (Take a tour, Send feedback).
 
-export function HelpMenu() {
+export function HelpMenu({
+  buttonRef,
+  onOpenDialog,
+  onLeave,
+}: {
+  buttonRef?: (el: HTMLButtonElement | null) => void
+  onOpenDialog: (desc: ToolbarDialog) => void
+  onLeave: () => void
+}) {
   const t = useT()
   const [open, setOpen] = useState(false)
-  const [aboutOpen, setAboutOpen] = useState(false)
-  const [contextualOpen, setContextualOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
   const startReplay = useTourStore((s) => s.startReplay)
 
   useEffect(() => {
@@ -33,10 +45,17 @@ export function HelpMenu() {
     }
   }, [open])
 
+  // review, Hanrim 2026-09-15 — announce open/closed so the palette can
+  // suppress its own hover tooltip while this menu is up
+  useEffect(() => {
+    useMenuOpenStore.getState().setOpen('help', open)
+    return () => useMenuOpenStore.getState().setOpen('help', false)
+  }, [open])
+
   return (
     <div className="menu" ref={wrapRef}>
       <button
-        ref={btnRef}
+        ref={buttonRef}
         type="button"
         className="btn btn--icon"
         data-tour="help-trigger"
@@ -55,6 +74,7 @@ export function HelpMenu() {
             role="menuitem"
             onClick={() => {
               setOpen(false)
+              onLeave()
               startReplay('desktop')
             }}
           >
@@ -66,7 +86,7 @@ export function HelpMenu() {
             role="menuitem"
             onClick={() => {
               setOpen(false)
-              setContextualOpen(true)
+              onOpenDialog({ kind: 'contextualHelp' })
             }}
           >
             <span className="menu__name">{t('help.contextual.menuLabel')}</span>
@@ -78,7 +98,10 @@ export function HelpMenu() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t('tour.help.feedbackAria')}
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false)
+              onLeave()
+            }}
           >
             <span className="menu__name">
               {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">↗</span>
@@ -90,24 +113,13 @@ export function HelpMenu() {
             role="menuitem"
             onClick={() => {
               setOpen(false)
-              setAboutOpen(true)
+              onOpenDialog({ kind: 'about' })
             }}
           >
             <span className="menu__name">{t('tour.help.about')}</span>
           </button>
         </div>
       ) : null}
-
-      <ContextualHelpDialog
-        open={contextualOpen}
-        onClose={() => setContextualOpen(false)}
-        returnFocusTo={() => btnRef.current}
-      />
-      <AboutDialog
-        open={aboutOpen}
-        onClose={() => setAboutOpen(false)}
-        returnFocusTo={() => btnRef.current}
-      />
     </div>
   )
 }

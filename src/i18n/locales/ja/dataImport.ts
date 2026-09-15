@@ -5,7 +5,7 @@
 import type { DataImportKey } from '../en/dataImport'
 
 const dataImport = {
-  'import.button': 'スプレッドシートデータ ▾',
+  'import.button': 'データ ▾',
   'import.title': '表計算データを読み込む',
   'import.tableName': 'テーブル名',
   'import.removeTable': 'テーブルを削除',

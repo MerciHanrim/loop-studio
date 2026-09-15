@@ -55,8 +55,11 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   test('boots at /, imports Risky Factory, runs the Worker path → 424/500, exports, survives reload', async ({ page }) => {
     const { bad } = await openProd(page)
 
-    // 0 — the build stamp is injected and rendered (vN.N.N[-tag], optional · sha)
-    await expect(page.locator('.toolbar__build')).toHaveText(/^v\d+\.\d+\.\d+(-[a-z]+)?( · [0-9a-f]{7})?$/)
+    // 0 — the build stamp is injected and rendered -- the toolbar redesign
+    // removed the visible `.toolbar__build` stamp; it now lives only in the
+    // brand row's own title/aria-label tooltip (docs/toolbar-responsive.md)
+    const buildTitle = await page.locator('.toolbar__brand').getAttribute('title')
+    expect(buildTitle).toMatch(/v\d+\.\d+\.\d+(-[a-z]+)?( · build [0-9a-f]{7})?$/)
 
     // 1 — Import through the real hidden <input type=file>
     await page.locator('input[type="file"]').setInputFiles(RF)
@@ -86,7 +89,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Graph JSON' })
@@ -142,6 +145,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   }) => {
     const { bad } = await openProd(page)
 
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
     await expect(opts).toHaveCount(3) // en, ko, ja — NO en-XA

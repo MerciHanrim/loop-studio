@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useProjectStore } from '../store/projectStore'
 import { WORKSPACE_MAX_BYTES } from '../model/workspace'
 import { useGraphStore } from '../store/graphStore'
 import { recommendedRunConfigForExport, useMcStore } from '../store/mcStore'
-import { useProjectStore } from '../store/projectStore'
 import { useSimStore } from '../store/simStore'
 import {
   decideWorkspaceExport,
@@ -10,10 +9,9 @@ import {
   type Viewport,
   type WorkspaceFileOption,
 } from '../store/workspaceIO'
-import { exportProjectRevision, makeProposal } from '../ui/revisionActions'
+import { makeProposal } from '../ui/revisionActions'
 import { useT } from '../i18n'
-import { AuthorDialog } from './AuthorDialog'
-import { ConfirmDialog } from './ConfirmDialog'
+import type { ToolbarDialog } from './toolbar/dialogTypes'
 
 const MiB = (n: number) => `${(n / (1024 * 1024)).toFixed(1)} MiB`
 
@@ -26,67 +24,56 @@ function download(text: string, name: string) {
   URL.revokeObjectURL(url)
 }
 
-// docs/localization.md Slice 2b — the Project-revision disclosure and the
-// Workspace-JSON summary are in-app ConfirmDialogs now. Nothing is written
-// (no download, no `exportProjectRevision`) until Confirm; the download runs
-// inside the Confirm button's click event so it keeps user activation.
-type Pending =
-  | { kind: 'revision' }
-  | { kind: 'workspace'; body: string; confirmLabel: string; run: () => void }
-  | null
-
-/** §W8 — `Export ▾` → Graph JSON (today's file) / Workspace JSON (graph + run
- *  config + last completed distribution + view + canvas + a verified sim
- *  snapshot). Workspace JSON confirms once (a what's-in / what's-out summary,
- *  so there is always a cancel path) and enforces the §W4 8 MiB cap. */
-export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
+/** §W8 — Graph JSON (today's file) / Workspace JSON (graph + run config +
+ *  last completed distribution + view + canvas + a verified sim snapshot) /
+ *  Project revision / Make a proposal / Author for exports. Workspace JSON
+ *  confirms once (a what's-in / what's-out summary, so there is always a
+ *  cancel path) and enforces the §W4 8 MiB cap.
+ *
+ *  Hanrim's visual review (2026-09-15): these 5 actions render directly as
+ *  `File ▾`'s own menu rows (a divider below New/Import), not behind a
+ *  nested `Export ▾` sub-trigger — the earlier nested version read as a
+ *  small pill button awkwardly inserted into the popover. This component
+ *  therefore owns no trigger, no popover, and no open/closed state of its
+ *  own; `FileMenu.tsx` renders it as a plain fragment of `.menu__item` rows.
+ *
+ *  Review condition 3: the Project-revision / Workspace-JSON disclosures and
+ *  the Author dialog live in `Toolbar.tsx`'s `DialogHost` (a stable
+ *  ancestor) so `File ▾` can close without unmounting a dialog it just
+ *  opened. `onOpenDialog` drives those three; `onLeave` is called first by
+ *  the two actions that need the same ancestor-close treatment but open no
+ *  dialog at all (Graph JSON's plain download, Proposal). */
+export function ExportMenuItems({
+  getViewport,
+  onOpenDialog,
+  onLeave,
+}: {
+  getViewport: () => Viewport
+  onOpenDialog: (desc: ToolbarDialog) => void
+  onLeave: () => void
+}) {
   const t = useT()
-  const [open, setOpen] = useState(false)
-  const [authorOpen, setAuthorOpen] = useState(false)
-  const [pending, setPending] = useState<Pending>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
   const exportJSON = useGraphStore((s) => s.exportJSON)
   const projectOpen = useProjectStore((s) => s.open)
 
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
   const graphJSON = () => {
+    onLeave()
     download(exportJSON(recommendedRunConfigForExport()), 'loop-studio-graph.json')
-    setOpen(false)
   }
 
   const proposal = () => {
-    setOpen(false)
+    onLeave()
     const r = makeProposal()
     if (!r.ok) window.alert(r.message)
   }
 
-  // SEMANTICS-R.md §R2.1 — disclose, then (on Confirm) plan + download + commit.
+  // SEMANTICS-R.md §R2.1 — disclose, then (on Confirm, inside `DialogHost`)
+  // plan + download + commit.
   const projectRevision = () => {
-    setOpen(false)
-    setPending({ kind: 'revision' })
-  }
-  const runProjectRevision = () => {
-    setPending(null)
-    const r = exportProjectRevision()
-    if (!r.ok) window.alert(r.message)
+    onOpenDialog({ kind: 'export-revision' })
   }
 
   const workspaceJSON = () => {
-    setOpen(false)
     const mc = useMcStore.getState()
     const sim = useSimStore.getState()
     const { full, lean } = planWorkspaceExport(getViewport())
@@ -117,8 +104,8 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
     const write = (opt: WorkspaceFileOption) => () => download(opt.text, 'loop-studio-workspace.json')
 
     if (decision.kind === 'confirm-omit') {
-      setPending({
-        kind: 'workspace',
+      onOpenDialog({
+        kind: 'export-workspace',
         body: `${summary}\n\n${t('export.workspace.omit.body', {
           full: MiB(decision.full.bytes),
           limit: MiB(WORKSPACE_MAX_BYTES),
@@ -129,8 +116,8 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
       })
       return
     }
-    setPending({
-      kind: 'workspace',
+    onOpenDialog({
+      kind: 'export-workspace',
       body: summary,
       confirmLabel: t('export.workspace.confirm'),
       run: write(decision.option),
@@ -138,85 +125,40 @@ export function ExportMenu({ getViewport }: { getViewport: () => Viewport }) {
   }
 
   return (
-    <div className="menu" ref={wrapRef}>
-      <button
-        ref={btnRef}
-        type="button"
-        className="btn"
-        aria-haspopup="true"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {t('export.button')}
+    <>
+      <div className="menu__divider" role="separator" />
+      <button type="button" className="menu__item" role="menuitem" onClick={graphJSON}>
+        <span className="menu__name">{t('export.graphJson.name')}</span>
+        <span className="menu__blurb">{t('export.graphJson.blurb')}</span>
       </button>
-      {open ? (
-        <div className="menu__pop" role="menu">
-          <button type="button" className="menu__item" role="menuitem" onClick={graphJSON}>
-            <span className="menu__name">{t('export.graphJson.name')}</span>
-            <span className="menu__blurb">{t('export.graphJson.blurb')}</span>
-          </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={workspaceJSON}>
-            <span className="menu__name">{t('export.workspaceJson.name')}</span>
-            <span className="menu__blurb">{t('export.workspaceJson.blurb')}</span>
-          </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={projectRevision}>
-            <span className="menu__name">{t('export.projectRevision.name')}</span>
-            <span className="menu__blurb">{t('export.projectRevision.blurb')}</span>
-          </button>
-          <button
-            type="button"
-            className="menu__item"
-            role="menuitem"
-            onClick={proposal}
-            disabled={!projectOpen}
-            title={projectOpen ? undefined : t('export.proposal.needRevision')}
-          >
-            <span className="menu__name">{t('export.proposal.name')}</span>
-            <span className="menu__blurb">{t('export.proposal.blurb')}</span>
-          </button>
-          <button
-            type="button"
-            className="menu__item"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false)
-              setAuthorOpen(true)
-            }}
-          >
-            <span className="menu__name">{t('export.author.name')}</span>
-            <span className="menu__blurb">{t('export.author.blurb')}</span>
-          </button>
-        </div>
-      ) : null}
-
-      <ConfirmDialog
-        open={pending?.kind === 'revision'}
-        title={t('export.projectRevision.disclosure.title')}
-        body={t('export.projectRevision.disclosure.body')}
-        confirmLabel={t('export.projectRevision.disclosure.confirm')}
-        onConfirm={runProjectRevision}
-        onCancel={() => setPending(null)}
-        returnFocusTo={() => btnRef.current}
-      />
-      <ConfirmDialog
-        open={pending?.kind === 'workspace'}
-        title={t('export.workspace.title')}
-        body={pending?.kind === 'workspace' ? pending.body : ''}
-        confirmLabel={pending?.kind === 'workspace' ? pending.confirmLabel : ''}
-        onConfirm={() => {
-          const p = pending
-          setPending(null)
-          if (p?.kind === 'workspace') p.run()
-        }}
-        onCancel={() => setPending(null)}
-        returnFocusTo={() => btnRef.current}
-      />
-
-      <AuthorDialog
-        open={authorOpen}
-        onClose={() => setAuthorOpen(false)}
-        returnFocusTo={() => btnRef.current}
-      />
-    </div>
+      <button type="button" className="menu__item" role="menuitem" onClick={workspaceJSON}>
+        <span className="menu__name">{t('export.workspaceJson.name')}</span>
+        <span className="menu__blurb">{t('export.workspaceJson.blurb')}</span>
+      </button>
+      <button type="button" className="menu__item" role="menuitem" onClick={projectRevision}>
+        <span className="menu__name">{t('export.projectRevision.name')}</span>
+        <span className="menu__blurb">{t('export.projectRevision.blurb')}</span>
+      </button>
+      <button
+        type="button"
+        className="menu__item"
+        role="menuitem"
+        onClick={proposal}
+        disabled={!projectOpen}
+        title={projectOpen ? undefined : t('export.proposal.needRevision')}
+      >
+        <span className="menu__name">{t('export.proposal.name')}</span>
+        <span className="menu__blurb">{t('export.proposal.blurb')}</span>
+      </button>
+      <button
+        type="button"
+        className="menu__item"
+        role="menuitem"
+        onClick={() => onOpenDialog({ kind: 'export-author' })}
+      >
+        <span className="menu__name">{t('export.author.name')}</span>
+        <span className="menu__blurb">{t('export.author.blurb')}</span>
+      </button>
+    </>
   )
 }

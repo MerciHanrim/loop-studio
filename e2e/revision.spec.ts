@@ -15,22 +15,33 @@ import { expect, openApp, resetAll, test } from './support/loop'
 
 const textOf = async (dl: Download): Promise<string> => readFileSync((await dl.path())!, 'utf8')
 
-const exportBtn = (page: Page) =>
-  page.locator('.toolbar__actions .menu > button', { hasText: 'Export ▾' })
+// docs/toolbar-responsive.md — Export's actions are flattened directly into
+// `File ▾`'s own popover (Hanrim's visual review, 2026-09-15 — a nested
+// `Export ▾` sub-trigger read as a small pill button awkwardly inserted into
+// the popover); `openFileMenu` opens File first, a no-op once it's already
+// open.
+const fileBtn = (page: Page) =>
+  page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' })
+async function openFileMenu(page: Page): Promise<void> {
+  if ((await fileBtn(page).getAttribute('aria-expanded')) !== 'true') {
+    await fileBtn(page).click()
+  }
+}
 const exportItem = (page: Page, name: RegExp | string) =>
   page
     .locator('.toolbar__actions .menu__pop .menu__item')
     .filter({ has: page.locator('.menu__name', { hasText: name }) })
 
-/** open Export ▾, click an item, answer the in-app disclosure dialog if it
- *  appears (Slice 2b — Project revision now discloses via ConfirmDialog), and
- *  return the download it produced (or null). */
+/** open File ▾, click one of its (flattened) Export rows, answer the in-app
+ *  disclosure dialog if it appears (Slice 2b — Project revision now
+ *  discloses via ConfirmDialog), and return the download it produced (or
+ *  null). */
 async function exportVia(
   page: Page,
   item: RegExp | string,
   choice: 'accept' | 'cancel' | null = 'accept',
 ): Promise<Download | null> {
-  await exportBtn(page).click()
+  await openFileMenu(page)
   const wait = page.waitForEvent('download', { timeout: 3000 }).catch(() => null)
   await exportItem(page, item).click()
   const dlg = page.locator('.mcdlg--confirm')
@@ -163,9 +174,9 @@ test.describe('loop-revision/1 — Slice 1C', () => {
   test('Make a proposal is gated until a project exists, then carries base.content', async ({
     page,
   }) => {
-    await exportBtn(page).click()
+    await openFileMenu(page)
     await expect(exportItem(page, /Make a proposal/)).toBeDisabled()
-    await exportBtn(page).click() // close
+    await page.keyboard.press('Escape') // close File
 
     await exportVia(page, /Project revision/)
     const prop = await exportVia(page, /Make a proposal/)
@@ -395,9 +406,9 @@ test.describe('loop-revision/1 — Slice 1C', () => {
     expect(after.open).toBeNull() // the proposal header is dropped (no pinned base to restore)
     await expect(page.locator('.boot-notice')).toBeVisible()
     // re-export / apply are unavailable while there is no project
-    await exportBtn(page).click()
+    await openFileMenu(page)
     await expect(exportItem(page, /Make a proposal/)).toBeDisabled()
-    await exportBtn(page).click()
+    await page.keyboard.press('Escape') // close File
 
     await page.locator('.boot-notice button', { hasText: 'Dismiss' }).click()
     await expect(page.locator('.boot-notice')).toBeHidden()

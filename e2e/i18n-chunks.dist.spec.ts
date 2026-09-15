@@ -27,7 +27,12 @@ async function openProd(page: Page) {
 }
 
 async function pickLocale(page: Page, code: string) {
+  // Language now lives inside Settings' popover (docs/toolbar-responsive.md)
+  // -- `.lang-switch` doesn't exist in the DOM at all until Settings opens
   const trigger = page.locator('.lang-switch').first()
+  if (!(await trigger.isVisible().catch(() => false))) {
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+  }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape')
   await trigger.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')

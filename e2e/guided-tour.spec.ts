@@ -689,14 +689,16 @@ test.describe('guided tour — About dialog (§GT7.1)', () => {
   test('opens from Help, shows the build stamp, copyright is locale-invariant', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
-    const stamp = await page.locator('.toolbar__build').innerText()
+    // the build stamp no longer renders on the bar itself — it lives in the
+    // brand row's own title/aria-label tooltip (docs/toolbar-responsive.md)
+    const stamp = (await page.locator('.toolbar__brand').getAttribute('title')) ?? ''
 
     await openHelp(page)
     await page.locator('.menu__pop .menu__item', { hasText: /About Loop Studio|Loop Studio 정보/ }).click()
     const dlg = page.locator('.mcdlg--about')
     await expect(dlg).toBeVisible()
-    // same version + sha as the toolbar stamp
-    const sha = stamp.replace(/^v[\d.\-a-z]+\s*·?\s*/, '').trim()
+    // same version + sha as the brand tooltip
+    const sha = stamp.match(/(?:build|빌드|ビルド)\s+(\S+)$/)?.[1] ?? ''
     if (sha) await expect(dlg.locator('.about__version')).toContainText(sha)
     await expect(dlg).toContainText('Copyright © 2026 Hanrim. All rights reserved.')
     // the GitHub repository link — fixed href, opens in a new tab, EN text + aria

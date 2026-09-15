@@ -22,12 +22,17 @@ test.describe('dialog focus + keyboard', () => {
     )
     await expect(page.locator('.react-flow__node')).toHaveCount(1)
 
-    const newBtn = page.getByRole('button', { name: 'New' })
+    // New is File ▾'s own row now (docs/toolbar-responsive.md)
+    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ })
+    await fileBtn.click()
+    const newBtn = page.getByRole('menuitem', { name: 'New' })
     await newBtn.click()
 
     const dlg = page.locator('.mcdlg--confirm')
     await expect(dlg).toBeVisible()
     expect(await activeInside(page, '.mcdlg--confirm')).toBe(true)
+    // opening the dialog closes File's own popover behind it (closeAncestors)
+    await expect(page.locator('.toolbar__filemenu-pop')).toBeHidden()
 
     // Tab several times — focus never leaves the dialog
     for (let i = 0; i < 6; i++) await page.keyboard.press('Tab')
@@ -35,7 +40,8 @@ test.describe('dialog focus + keyboard', () => {
 
     await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
-    await expect(newBtn).toBeFocused()
+    // focus returns to File's own trigger, not the (now-unmounted) New row
+    await expect(fileBtn).toBeFocused()
     await expect(page.locator('.react-flow__node')).toHaveCount(1) // not wiped
   })
 
@@ -43,7 +49,8 @@ test.describe('dialog focus + keyboard', () => {
     await page.evaluate(() =>
       (window as any).__loop.graph.getState().addNodeAt('pool', { x: 200, y: 160 }),
     )
-    await page.getByRole('button', { name: 'New' }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+    await page.getByRole('menuitem', { name: 'New' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: 'New graph' }).click()
     await expect(page.locator('.mcdlg--confirm')).toBeHidden()
     await expect(page.locator('.react-flow__node')).toHaveCount(0)

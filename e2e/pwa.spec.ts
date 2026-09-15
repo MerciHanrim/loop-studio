@@ -31,7 +31,10 @@ const setGen = (page: Page, to: 'a' | 'b' | 'c') =>
 const ready = (page: Page) => page.evaluate(() => navigator.serviceWorker.ready.then(() => true))
 const controller = (page: Page) =>
   page.evaluate(() => navigator.serviceWorker.controller?.scriptURL ?? null)
-const stamp = (page: Page) => page.locator('.toolbar__build')
+// the toolbar redesign removed the visible `.toolbar__build` stamp; the
+// same version/sha text now lives only in the brand row's title/aria-label
+// tooltip (docs/toolbar-responsive.md)
+const stamp = (page: Page) => page.locator('.toolbar__brand').getAttribute('title').then((t) => t ?? '')
 const nodeCount = (page: Page) => page.locator('.react-flow__node').count()
 
 /** first visit → SW active; one reload → the page is controlled */
@@ -217,13 +220,13 @@ test('waiting worker ⇒ bar; no auto reload; Dismiss keeps it hidden for that w
 }) => {
   await setGen(page, 'a')
   await installAndControl(page)
-  const base = (await stamp(page).textContent())!.trim()
+  const base = (await stamp(page)).trim()
   await page.evaluate(() => ((window as unknown as { __sentinel: boolean }).__sentinel = true))
 
   await stageUpdate(page, 'b')
   await expect(page.locator('.pwa-update')).toBeVisible()
   expect(await page.evaluate(() => (window as unknown as { __sentinel?: boolean }).__sentinel)).toBe(true)
-  await expect(stamp(page)).toHaveText(base) // not reloaded
+  expect((await stamp(page)).trim()).toBe(base) // not reloaded
 
   await page.locator('.pwa-update button', { hasText: 'Dismiss' }).click()
   await expect(page.locator('.pwa-update')).toHaveCount(0)
@@ -269,7 +272,7 @@ test('Update ⇒ one reload, new generation only, no stale hashed URLs, stamp ma
   expect(rotated.length).toBeGreaterThan(0)
   for (const stale of rotated) expect(paths).not.toContain(stale)
 
-  await expect(stamp(page)).toHaveText(/pwagenC/) // the served shell is generation C
+  expect(await stamp(page)).toMatch(/pwagenC/) // the served shell is generation C
 })
 
 // docs/mobile.md §MV3a / the Canvas edit-lock (uiStore.canvasLocked) is a
@@ -304,7 +307,7 @@ test('Update with a run in progress asks once more; cancel keeps the run and doe
 }) => {
   await setGen(page, 'a')
   await installAndControl(page)
-  const base = (await stamp(page).textContent())!.trim()
+  const base = (await stamp(page)).trim()
   await page.evaluate(() => ((window as unknown as { __sentinel: boolean }).__sentinel = true))
 
   await stageUpdate(page, 'b')
@@ -324,7 +327,7 @@ test('Update with a run in progress asks once more; cancel keeps the run and doe
 
   expect(await page.evaluate(() => (window as unknown as { __sentinel?: boolean }).__sentinel)).toBe(true)
   await expect(page.locator('.pb-btn--primary', { hasText: 'Pause' })).toBeVisible()
-  await expect(stamp(page)).toHaveText(base)
+  expect((await stamp(page)).trim()).toBe(base)
 })
 
 test('Update with a run in progress — confirm applies and reloads', async ({ page }) => {

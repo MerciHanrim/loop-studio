@@ -22,7 +22,7 @@ const dataImportTables = (page: Page): Promise<unknown[]> =>
     () => (window as unknown as { __loop: { dataImport: { getState: () => { tables: unknown[] } } } }).__loop.dataImport.getState().tables,
   )
 
-const importButton = (page: Page) => page.getByRole('button', { name: 'Spreadsheet data ▾' })
+const importButton = (page: Page) => page.getByRole('button', { name: 'Data ▾' })
 const dialog = (page: Page) => page.locator('.mcdlg--dataimport')
 
 async function openWizard(page: Page): Promise<void> {
@@ -164,7 +164,7 @@ for (const [loc, needle] of [
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(loc)
 
-    const importButtonText = loc === 'ko' ? '스프레드시트 데이터 ▾' : 'スプレッドシートデータ ▾'
+    const importButtonText = loc === 'ko' ? '데이터 ▾' : 'データ ▾'
     const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
     if (!(await importBtn.isVisible())) {
       await page.locator('.toolbar__overflow-btn').click()
@@ -386,7 +386,7 @@ for (const loc of ['ko', 'ja'] as const) {
     // the data-import button collapses into the toolbar's ⋯ overflow menu at
     // some viewport/locale combinations (it has the lowest collapse priority
     // of any toolbar control) -- open that first if it isn't directly visible.
-    const importButtonText = loc === 'ko' ? '스프레드시트 데이터 ▾' : 'スプレッドシートデータ ▾'
+    const importButtonText = loc === 'ko' ? '데이터 ▾' : 'データ ▾'
     const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
     if (!(await importBtn.isVisible())) {
       await page.locator('.toolbar__overflow-btn').click()

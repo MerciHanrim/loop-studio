@@ -1,5 +1,14 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useT } from '../../i18n'
+import { useMenuOpenStore } from './menuOpenStore'
 
 // The toolbar "⋯" overflow menu. It holds whichever trailing controls the
 // measured layout could not fit on the toolbar (see `useToolbarOverflow`). The
@@ -17,7 +26,17 @@ type Props = {
   ghost?: boolean
 }
 
-export function OverflowMenu({ children, buttonRef, ghost }: Props) {
+export type OverflowMenuHandle = {
+  /** close the popover without touching focus — used by `closeAncestors`
+   *  (Toolbar.tsx) so a wrapped trigger's lifted dialog never has this menu
+   *  left open behind it. A no-op if already closed. */
+  close: () => void
+}
+
+export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function OverflowMenu(
+  { children, buttonRef, ghost },
+  ref,
+) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -58,6 +77,16 @@ export function OverflowMenu({ children, buttonRef, ghost }: Props) {
     if (ghost && open) setOpen(false)
   }, [ghost, open])
 
+  useImperativeHandle(ref, () => ({ close: () => setOpen(false) }), [])
+
+  // review, Hanrim 2026-09-15 — announce open/closed so the palette can
+  // suppress its own hover tooltip while this menu (or whatever's nested
+  // inside it) is up
+  useEffect(() => {
+    useMenuOpenStore.getState().setOpen('overflow', open)
+    return () => useMenuOpenStore.getState().setOpen('overflow', false)
+  }, [open])
+
   return (
     <div className="toolbar__overflow" ref={wrapRef} data-ghost={ghost ? '' : undefined}>
       <button
@@ -84,4 +113,4 @@ export function OverflowMenu({ children, buttonRef, ghost }: Props) {
       ) : null}
     </div>
   )
-}
+})

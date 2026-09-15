@@ -152,7 +152,7 @@ test('Templates replace: Cancel loads nothing (no graph change, no rev bump)', a
 
 test('Export Project revision: Cancel writes no file and no project header', async ({ page }) => {
   const before = await snapshot(page)
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Export ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
   const dl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
   await exportItem(page, /Project revision/).click()
   await expect(dlg(page)).toBeVisible()
@@ -168,7 +168,7 @@ test('Export Workspace JSON: Cancel writes no file', async ({ page }) => {
     s.advance()
     s.advance()
   })
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Export ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
   const dl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
   await exportItem(page, /Workspace JSON/).click()
   await expect(dlg(page)).toBeVisible()

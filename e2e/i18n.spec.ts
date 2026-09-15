@@ -34,10 +34,25 @@ const G = JSON.stringify({
 const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.lang)
 const stored = (page: Page) => page.evaluate(() => localStorage.getItem('loop-studio/ui-locale/1'))
 
-/** open the language menu (desktop or inside the mobile More sheet) and pick a
- *  locale by its registered code. */
+/** open the desktop `Settings ▾` menu — Theme/Language now live there
+ *  (Hanrim's visual review, 2026-09-15), not as standalone toolbar pills. */
+async function openSettings(page: Page): Promise<void> {
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+}
+
+/** open the language menu (desktop — inside `Settings ▾` — or inside the
+ *  mobile More sheet) and pick a locale by its registered code. On desktop
+ *  the trigger only exists once `Settings ▾` is open (Hanrim's visual
+ *  review, 2026-09-15 — Language is now a Settings row, not a standalone
+ *  toolbar pill); Settings is closed again behind us afterward so callers
+ *  see the same "nothing left open" state as before that move. */
 async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
+  let openedSettings = false
+  if (!scope && !(await trigger.isVisible().catch(() => false))) {
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+    openedSettings = true
+  }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') {
     await page.keyboard.press('Escape')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
@@ -49,6 +64,7 @@ async function pickLocale(page: Page, code: string, scope = '') {
   await item.click()
   await expect(trigger).toHaveAttribute('aria-expanded', 'false')
   await expect.poll(() => htmlLang(page)).toBe(code)
+  if (openedSettings) await page.keyboard.press('Escape')
 }
 
 /** every document-owned + committed-engine surface, normalised (§L12 #5) */
@@ -447,7 +463,10 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await resetAll(page)
     await importGraph(page, G)
 
-    const openExport = () => page.locator('.toolbar__actions .menu > button', { hasText: /내보내기|Export/ }).click()
+    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /파일|File/ })
+    const openExport = async () => {
+      if ((await fileBtn.getAttribute('aria-expanded')) !== 'true') await fileBtn.click()
+    }
     const item = (name: RegExp) =>
       page.locator('.toolbar__actions .menu__pop .menu__name', { hasText: name })
 
@@ -511,6 +530,7 @@ test.describe('i18n — the language MENU: geometry & baseline', () => {
 
     const before = await geom()
     // open the menu, move focus around, pick KO, reopen, pick EN
+    await openSettings(page)
     await page.locator('.lang-switch').click()
     await expect(page.locator('.lang-menu__pop')).toBeVisible()
     await page.keyboard.press('ArrowDown')
@@ -526,6 +546,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
   test('Tab out of the open menu closes it and does not trap focus', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+    await openSettings(page)
     const trigger = page.locator('.toolbar .lang-switch')
     await trigger.focus()
     await page.keyboard.press('Enter')
@@ -538,6 +559,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
   test('language switch a11y — haspopup listbox / expanded / option / aria-selected / keyboard', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+    await openSettings(page)
     const trigger = page.locator('.toolbar .lang-switch')
     await expect(trigger).toHaveAttribute('aria-haspopup', 'listbox')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
@@ -589,6 +611,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await pickLocale(page, 'en-XA')
     expect(await htmlLang(page)).toBe('en-XA')
     // the list now marks en-XA selected
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     await expect(page.locator('.lang-menu__item[data-locale="en-XA"]')).toHaveAttribute('aria-selected', 'true')
   })
@@ -596,6 +619,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
   test('rapid selections settle on the last request; label / <html lang> / catalog agree', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
+    await openSettings(page)
     await page.locator('.lang-switch').click()
     await page.locator('.lang-menu__item[data-locale="ko"]').click()
     await page.locator('.lang-switch').click()
@@ -608,7 +632,10 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
       const st = (window as any).__loop.i18n?.getState?.() ?? null
       return {
         lang: document.documentElement.lang,
-        label: document.querySelector('.lang-switch span')?.textContent?.trim() ?? null,
+        // the row variant has two spans (a static "Language" label, then the
+        // current value + a `›` glyph in its own sibling span) -- `[lang]`
+        // uniquely picks the innermost span holding just the native name
+        label: document.querySelector('.lang-switch span[lang]')?.textContent?.trim() ?? null,
         active: st?.activeLocale ?? null,
         loading: st?.loading ?? null,
       }
