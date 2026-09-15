@@ -15,7 +15,9 @@ import { useDialogFocus } from './useDialogFocus'
 //  - `title` / `body` / labels are live values — a locale switch while the
 //    dialog is open re-renders them in the new locale;
 //  - user-activation work (clipboard, download) runs inside the caller's
-//    `onConfirm`, which is invoked from the Confirm button's click event.
+//    `onConfirm`, which is invoked from the Confirm button's click event;
+//  - `onConfirm` fires at most once per open — a rapid double-click on
+//    Confirm runs the caller's effect exactly once (`firedRef` below).
 
 type Props = {
   open: boolean
@@ -50,8 +52,18 @@ export function ConfirmDialog({
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const bodyId = useId()
+  // Two clicks landing in the same synchronous tick (a rapid double-click)
+  // both close over the same pre-update render — a `useState` busy flag set
+  // by the first click's handler hasn't re-rendered yet when the second
+  // click's handler checks it, so both would fire `onConfirm`. `firedRef` is
+  // checked/set synchronously instead, and reset whenever the dialog isn't
+  // open — covering both "just closed" and "never opened yet".
+  const firedRef = useRef(false)
   useDialogFocus(open, ref, onCancel, returnFocusTo)
-  if (!open) return null
+  if (!open) {
+    firedRef.current = false
+    return null
+  }
 
   return (
     <div className="mcdlg__scrim" onMouseDown={dismissOnBackdrop ? onCancel : undefined}>
@@ -79,7 +91,11 @@ export function ConfirmDialog({
           <button
             type="button"
             className={`btn${confirmPrimary ? ' btn--primary' : ''}`}
-            onClick={onConfirm}
+            onClick={() => {
+              if (firedRef.current) return
+              firedRef.current = true
+              onConfirm()
+            }}
           >
             {confirmLabel}
           </button>
