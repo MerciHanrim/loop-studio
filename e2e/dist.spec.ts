@@ -55,8 +55,11 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   test('boots at /, imports Risky Factory, runs the Worker path → 424/500, exports, survives reload', async ({ page }) => {
     const { bad } = await openProd(page)
 
-    // 0 — the build stamp is injected and rendered (vN.N.N[-tag], optional · sha)
-    await expect(page.locator('.toolbar__build')).toHaveText(/^v\d+\.\d+\.\d+(-[a-z]+)?( · [0-9a-f]{7})?$/)
+    // 0 — the build stamp is injected and rendered -- the toolbar redesign
+    // removed the visible `.toolbar__build` stamp; it now lives only in the
+    // brand row's own title/aria-label tooltip (docs/toolbar-responsive.md)
+    const buildTitle = await page.locator('.toolbar__brand').getAttribute('title')
+    expect(buildTitle).toMatch(/v\d+\.\d+\.\d+(-[a-z]+)?( · build [0-9a-f]{7})?$/)
 
     // 1 — Import through the real hidden <input type=file>
     await page.locator('input[type="file"]').setInputFiles(RF)
