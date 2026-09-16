@@ -92,7 +92,7 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.10.0 (unreleased)
+## Latest — v0.10.0
 
 - **Spreadsheet data import** — paste or upload linked CSV/TSV tables;
   values materialize as Parameter nodes, with manual refresh, a three-way
