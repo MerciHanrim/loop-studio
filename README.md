@@ -110,8 +110,13 @@ import, …) live under [`docs/`](docs/).
 document are written with the right model-version envelope, and files
 exported by v0.10.0 are recovered on import.
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.10.0 / v0.10.1 notes and
-every earlier release.
+**v0.10.2 (patch)** — A refused autosave (storage full or blocked) shows a
+persistent notice with an export action and the last edit before a reload is
+kept; share links replace saved frames and data-import records; negative Pool
+values can no longer break a run; stray untranslated messages localized.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.10.0 / v0.10.1 / v0.10.2
+notes and every earlier release.
 
 ## Credits
 

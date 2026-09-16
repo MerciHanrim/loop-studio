@@ -4,7 +4,11 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
-## Unreleased
+## v0.10.2 — 2026-09-17
+
+Patch release: the runtime defects found by the post-v0.10.0 codebase audit
+— silent autosave failures, share-link frame / data-import carry-over,
+negative Pool values, and stray untranslated messages.
 
 ### Fixed
 
