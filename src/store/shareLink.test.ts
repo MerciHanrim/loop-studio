@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { serialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { encodeShareText } from '../model/share'
+import { useDataImportStore } from './dataImportStore'
+import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
 import { REPLACE_PROMPT, consumeShareLink } from './shareLink'
@@ -263,5 +265,52 @@ describe('default fragment strip', () => {
       warn.mockRestore()
     }
     expect(calls).toEqual([[{ k: 7 }, '', '/studio/app?ref=abc']])
+  })
+})
+
+// ── the link REPLACES the saved frames + data-import records (§U5.5) ───────
+describe('saved frames / data-import records travel with the link, never leak across documents', () => {
+  const ONE_FRAME = [{ id: 'fr_link', label: 'Zone A', rect: { x: 10, y: 20, w: 300, h: 200 } }]
+  const ONE_TABLE = [
+    { sourceTableId: 'tbl_link', label: 'Prices', columns: [{ sourceColumnId: 'c_key', role: 'key' as const, header: 'id' }], rows: [{ sourceKey: 'r1', number: {}, label: {}, foreignKey: {} }] },
+  ]
+  const docWith = (frames?: typeof ONE_FRAME, dataImports?: typeof ONE_TABLE) => {
+    const nodes = [{ id: 's', type: 'source', position: { x: 0, y: 0 }, data: { kind: 'source', label: 'Shared' } }] as unknown as LoopNode[]
+    return serialize(nodes, [], undefined, undefined, undefined, 1, frames, dataImports)
+  }
+
+  it('a link with NO frames / tables clears the previous document’s frames and tables', async () => {
+    useFrameStore.getState().addFrame({ x: 0, y: 0, w: 100, h: 100 })
+    useDataImportStore.getState().loadTables(ONE_TABLE)
+    expect(useFrameStore.getState().frames).toHaveLength(1)
+    expect(useDataImportStore.getState().tables).toHaveLength(1)
+    const out = await consumeShareLink({ hash: await shareHash(docWith()), confirm: () => true, stripFragment: () => {} })
+    expect(out).toEqual({ kind: 'loaded' })
+    expect(nodeIds()).toEqual(['s'])
+    expect(useFrameStore.getState().frames).toEqual([])
+    expect(useDataImportStore.getState().tables).toEqual([])
+    // and nothing of the old document reaches the shared document’s Export
+    const exported = JSON.parse(useGraphStore.getState().exportJSON())
+    expect('frames' in exported).toBe(false)
+    expect('dataImports' in exported).toBe(false)
+  })
+
+  it('a link WITH frames / tables restores exactly them (ids, labels, rects, records)', async () => {
+    useFrameStore.getState().addFrame({ x: 5, y: 5, w: 50, h: 50 }) // a stale frame to be replaced
+    const out = await consumeShareLink({ hash: await shareHash(docWith(ONE_FRAME, ONE_TABLE)), confirm: () => true, stripFragment: () => {} })
+    expect(out).toEqual({ kind: 'loaded' })
+    expect(useFrameStore.getState().snapshot()).toEqual(ONE_FRAME)
+    expect(useDataImportStore.getState().snapshot()).toEqual(ONE_TABLE)
+    const exported = JSON.parse(useGraphStore.getState().exportJSON())
+    expect(exported.frames).toEqual(ONE_FRAME)
+    expect(exported.dataImports).toEqual(ONE_TABLE)
+  })
+
+  it('Cancel on the replace prompt leaves the current frames / tables untouched', async () => {
+    useFrameStore.getState().addFrame({ x: 1, y: 1, w: 10, h: 10 })
+    const before = useFrameStore.getState().snapshot()
+    const out = await consumeShareLink({ hash: await shareHash(docWith(ONE_FRAME)), confirm: () => false, stripFragment: () => {} })
+    expect(out).toEqual({ kind: 'cancelled' })
+    expect(useFrameStore.getState().snapshot()).toEqual(before)
   })
 })

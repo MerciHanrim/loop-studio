@@ -110,7 +110,15 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
 
   // ---- apply (§U5.5): stop any run, then exactly one loadDoc -------------
   useSimStore.getState().pause() // first point that run state changes
-  useGraphStore.getState().loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion) // the ONE bump
+  // The link is a whole GraphDoc (the Share encoder is `exportJSON`, which
+  // carries the saved `frames` + `dataImports`), so it REPLACES those too:
+  // `[]` when the link has none. Passing nothing here would mean "keep the
+  // current document's" (`loadDoc`'s revision-Apply posture), which carried
+  // the PREVIOUS document's frames and data-import records into the shared
+  // graph — and into its next Export / digest — while dropping the link's own.
+  useGraphStore
+    .getState()
+    .loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion, parsed.frames, parsed.dataImports) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
 
   strip()

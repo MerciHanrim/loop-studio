@@ -261,3 +261,37 @@ test('a modified session prompts before replacing; Cancel keeps the graph, OK re
   expect(await labelsOf(page)).toEqual(original)
   expect((await locationParts(page)).hash).toBe('')
 })
+
+// ── saved frames travel with the link and never leak across documents ────
+const frameSnap = (page: Page) =>
+  page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().snapshot())
+
+test('a link carries the document’s saved frames; opening it restores them and drops the session’s own', async ({
+  page,
+}) => {
+  await seedGraph(page)
+  await page.evaluate(() => {
+    const f = (window as unknown as Bridge).__loop.frame.getState()
+    const id = f.addFrame({ x: -40, y: -60, w: 420, h: 220 })
+    f.renameFrame(id, 'Shared zone')
+  })
+  const expected = await frameSnap(page)
+  expect(expected).toHaveLength(1)
+
+  await openShare(page)
+  const url = await page.locator('.share-pop__url').inputValue()
+
+  // a fresh session with its OWN, different frame — it must not survive the link
+  await page.evaluate(() => localStorage.clear())
+  await freshGoto(page, '/')
+  await page.evaluate(() => {
+    const f = (window as unknown as Bridge).__loop.frame.getState()
+    const id = f.addFrame({ x: 900, y: 900, w: 50, h: 50 })
+    f.renameFrame(id, 'Stale local frame')
+  })
+  await openPayloadLocally(page, url)
+
+  expect(await frameSnap(page)).toEqual(expected)
+  await expect(page.locator('.frame-layer__label, .lgr-frame__label').filter({ hasText: 'Shared zone' })).toHaveCount(1)
+  await expect(page.locator('text=Stale local frame')).toHaveCount(0)
+})

@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## Unreleased
+
+### Fixed
+
+- **Share links and saved frames / data-import records** — opening a `#g1=`
+  share link kept the *previous* document's group frames and data-import
+  table records (they leaked into the shared graph and its next Export /
+  revision digest) and dropped the frames the link itself carried. A link now
+  replaces both, exactly like a file Import does.
+
 ## v0.10.1 — 2026-09-16
 
 Patch release: Project revision / proposal files of a `@parameter` document.
