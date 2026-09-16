@@ -7,9 +7,11 @@ import type { RefObject } from 'react'
 // (its own d3-drag-style click-vs-drag disambiguation, confirmed directly by
 // instrumenting a real click) — so a click that lands on a canvas NODE (not
 // the empty pane, which doesn't intercept it) never reached that listener,
-// and the menu never closed. A capture-phase listener on `document` runs on
-// the way DOWN to the node, before that node-level bubble-phase interception
-// can happen, so it isn't affected by anything a descendant does later.
+// and the menu never closed. `click` itself is NOT intercepted this way —
+// confirmed directly, a capture-phase `click` listener on `document` sees a
+// node click regardless — so switching the dismiss listener from
+// `mousedown` to `click` (capture phase, for deterministic ordering ahead of
+// whatever the click's own target does) already fixes this on its own.
 //
 // One shared hook instead of eight near-identical per-component listeners
 // (Hanrim's review) — every Tier-1 menu (Templates, Insert module, File,
@@ -26,35 +28,46 @@ import type { RefObject } from 'react'
 // canvas pane, here. Confirmed directly: that second pointerdown's bubble-
 // phase 'mousedown' is swallowed by React Flow's own double-click-to-zoom
 // handling (so the OLD bubble-`mousedown` listener never saw it), but a
-// capture-phase 'pointerdown' — needed for the node-click fix above — sees it
-// regardless, and without a guard would dismiss the surface an instant after
-// it opened, from the SAME physical gesture that opened it.
+// capture-phase listener sees it regardless, and without a guard would
+// dismiss the surface an instant after it opened, from the SAME physical
+// gesture that opened it.
 //
-// A blanket "ignore pointerdown for N ms after open" guard was tried and
-// rejected: 300ms fixed the double-click case but also swallowed genuinely
-// separate, fast dismissal clicks in our own e2e suite (open menu → click a
-// node), breaking 12 tests — Playwright's own actions are fast enough to
-// land inside almost any fixed millisecond window that's wide enough to
-// cover a native double-click gap.
+// Two timing-based guards were tried and rejected before landing on the fix
+// below — both failed for the same underlying reason: nothing about MY code
+// can know how far apart a real double-click's two clicks will land. A
+// blanket "ignore for 300ms after open" fixed the double-click but broke 12
+// tests where a genuinely separate, fast dismissal (open menu → click a
+// node) also happens within 300ms. A later refinement — defer arming for
+// two animation frames, reasoning that Playwright's own actionability waits
+// take longer than that — fixed both of the above, but a review (Lumi,
+// 2026-09-16) correctly pointed out the double-click side was never actually
+// guaranteed: a real double-click, or the OS's own configured double-click
+// interval, can be 100-250ms+ between clicks — many frames — so a slower
+// (but still perfectly normal) double-click on Confirm would sail past a
+// 2-frame guard and reproduce the exact bug. Confirmed directly: reproduced
+// with two separately-dispatched clicks 150ms apart.
 //
-// The actual, precise distinction: the second pointerdown of a rapid
-// double-click arrives while the FIRST click's synchronous React commit +
-// scheduled passive-effect (this hook's own `addEventListener` call) are
-// still resolving — i.e. before the browser has painted the new surface even
-// once. A deliberate, separate follow-up click — even an automated one —
-// only ever lands after that surface is observably present, which requires
-// at least one paint to have already happened (Playwright's own
-// actionability wait for a *new* action re-checks the target's geometry
-// across consecutive animation frames before acting, so it never lands
-// inside a single unpainted frame). So: defer arming `pointerdown`
-// specifically until two animation frames after `active` turns true —
-// wheel/resize are never part of a double-click and stay armed immediately
-// (gating them the same way broke the plain "open then wheel" case, since
-// `dispatchEvent`-fired wheels have no actionability wait of their own).
-// Two frames is enough margin to let the tail of the opening gesture finish
-// arriving (confirmed empirically: the double-click's second pointerdown is
-// ~2ms after the first, far under one frame) while still catching any real
-// subsequent pointerdown, human or automated.
+// The actual fix listens on `click`, not `pointerdown`/`mousedown`, and
+// checks `event.detail` — the browser's OWN native click-count for the
+// current gesture (2+ for the second click of a double/triple-click, reset
+// to 1 by the OS the moment the click is too far away in time or space to
+// count as a continuation). This is the correct authority for "is this the
+// same physical gesture as the previous click" — it's computed by the OS's
+// input layer from the actual elapsed time and cursor position, which is
+// exactly the judgment call a fixed frame or millisecond count on our side
+// can't make correctly. Confirmed directly, including the exact failure
+// scenario: a real double-click 150ms apart, where the second click's
+// target differs from the first (button unmounted, canvas pane revealed
+// underneath) still reports `detail: 2` on that second click — detail
+// tracks the GESTURE, not the target, so the DOM mutation in between doesn't
+// break it. `click` (unlike `mousedown`) is also not intercepted by React
+// Flow's own drag-vs-click disambiguation for a node click — confirmed
+// directly — so this switch loses nothing from the original node-click fix.
+// One behavioral note: `click` doesn't fire for a genuine drag gesture
+// (mousedown + move + mouseup elsewhere), so starting to drag a node no
+// longer dismisses an open menu the instant the drag begins the way a raw
+// pointerdown did; nothing in this codebase's tests specifies that as
+// required behavior.
 export function useOutsideDismiss(
   active: boolean,
   ref: RefObject<HTMLElement | null>,
@@ -79,7 +92,11 @@ export function useOutsideDismiss(
       const el = ref.current
       return !!el && e.composedPath().includes(el)
     }
-    const onPointerDown = (e: PointerEvent) => {
+    const onClick = (e: MouseEvent) => {
+      // the trailing click(s) of a multi-click gesture on roughly the same
+      // spot — not a new, separate interaction, regardless of where it
+      // happens to land once a preceding click has changed the DOM
+      if (e.detail >= 2) return
       if (!isInside(e)) onDismissRef.current()
     }
     const onWheel = (e: WheelEvent) => {
@@ -87,28 +104,11 @@ export function useOutsideDismiss(
     }
     const onResize = () => onDismissRef.current()
 
-    // Only `pointerdown` is part of the double-click gesture this defers —
-    // wheel/resize are never part of a native double-click and must arm
-    // immediately (confirmed: gating them the same way broke the plain
-    // "open then wheel" dismiss case, since a wheel dispatched right after
-    // open has no comparable actionability wait to guarantee a frame has
-    // passed).
-    let attached = false
-    let raf2 = 0
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        attached = true
-        document.addEventListener('pointerdown', onPointerDown, true)
-      })
-    })
+    document.addEventListener('click', onClick, true)
     document.addEventListener('wheel', onWheel, true)
     window.addEventListener('resize', onResize)
     return () => {
-      cancelAnimationFrame(raf1)
-      cancelAnimationFrame(raf2)
-      if (attached) {
-        document.removeEventListener('pointerdown', onPointerDown, true)
-      }
+      document.removeEventListener('click', onClick, true)
       document.removeEventListener('wheel', onWheel, true)
       window.removeEventListener('resize', onResize)
     }

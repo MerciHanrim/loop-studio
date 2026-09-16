@@ -9,8 +9,12 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // (unlike the empty pane, which never intercepts it) never reached that
 // listener, and the menu stayed open. Fixed with one shared hook
 // (src/components/toolbar/useOutsideDismiss.ts) listening in the CAPTURE
-// phase on `document` for pointerdown/wheel, plus a `resize` listener, using
-// `event.composedPath()` rather than `element.contains(event.target)`.
+// phase on `document` for click/wheel, plus a `resize` listener, using
+// `event.composedPath()` rather than `element.contains(event.target)`. Click
+// is gated on `event.detail < 2` — see that file for why (a review found the
+// dismiss listener also needs to ignore the trailing click of a real
+// double-click, which `mousedown`/`pointerdown` alone can't distinguish from
+// a genuinely separate fast click).
 //
 // This file tests the DISMISS contract directly (does the menu actually
 // close, on which interactions, while which interactions are preserved).

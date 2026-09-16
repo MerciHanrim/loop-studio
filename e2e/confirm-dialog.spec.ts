@@ -134,6 +134,34 @@ test('double-clicking Confirm runs the effect once', async ({ page }) => {
   expect(await clip(page)).toHaveLength(1)
 })
 
+// review, Lumi 2026-09-16 (useOutsideDismiss.ts): the test above uses
+// Playwright's `.dblclick()`, whose two clicks land ~2ms apart — far faster
+// than a real double-click, or the OS's own configured double-click
+// interval (both can be 100-250ms+). A fix that only accounted for the fast
+// case wouldn't actually be safe. This drives the same two clicks through
+// CDP directly (`Input.dispatchMouseEvent` with an explicit `clickCount`,
+// the same signal a real OS gives the browser for a real double-click) with
+// a genuine 150ms wait in between, so it exercises the fix
+// (`event.detail`-gated dismiss) rather than the frame-timing coincidence a
+// fast synthetic double-click alone would have masked.
+test('a slower (150ms apart) double-click on Confirm still keeps the panel open', async ({ page }) => {
+  await shareBtn(page).click()
+  const confirm = dlg(page).getByRole('button', { name: /create link/i })
+  const box = (await confirm.boundingBox())!
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 })
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 })
+  await page.waitForTimeout(150)
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 2 })
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 2 })
+
+  await expect(page.locator('.share-pop')).toBeVisible()
+  expect(await clip(page)).toHaveLength(1)
+})
+
 // docs/localization.md Slice 2b — one E2E per destructive flow proving nothing
 // runs before Confirm (Lumi's 2b-2 acceptance condition).
 const exportItem = (page: Page, name: RegExp) =>
