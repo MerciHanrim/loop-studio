@@ -425,4 +425,325 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     expect(l).toContain('レベル') // boot switched the official labels to JA
     expect(l).not.toContain('레벨')
   })
+
+  // A locale switch on the full 97-node MMO template relabels many nodes in
+  // one commit. An earlier release-blocking bug (2026-09-16 timing
+  // investigation) traced a 5.6-7.1s main-thread stall on an English switch
+  // to this app's OWN per-node `updateNodeInternals` calls; removing them
+  // entirely (nodes.tsx) — relying on React Flow's own internal per-node
+  // ResizeObserver, which was already keeping geometry correct the whole
+  // time — fixed the stall with no functional regression (confirmed by an
+  // A/B/C comparison, including a dedicated production-bundle check in
+  // e2e/dist.spec.ts). These two tests exercise the resulting geometry
+  // directly, not just the label text a switch carries.
+  test('KO → JA → EN → KO on the full MMO template keeps every node\'s RF-measured height, handle centring, and edge endpoints consistent', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'ko')
+    await pickTemplate(page, MMO_KO)
+    await page.evaluate(() => document.fonts.ready)
+
+    async function geometrySnapshot() {
+      return page.evaluate(() => {
+        const wraps = [...document.querySelectorAll('.react-flow__node')] as HTMLElement[]
+        return wraps.map((wrap) => {
+          const nf = wrap.querySelector('.nodef') as HTMLElement | null
+          if (!nf) return { id: wrap.dataset.id!, wrapH: 0, nfH: 0, ports: [] as number[] }
+          const nfR = nf.getBoundingClientRect()
+          // Port centres come from getBoundingClientRect(), which reflects RF's
+          // pan/zoom CSS transform; nfR.height is measured the same way, so the
+          // ratio below stays correct at whatever zoom the Template opens at.
+          // (offsetHeight, used for wrapH/nfH, is transform-invariant layout
+          // size — comparing a scaled port offset against it would be a
+          // coordinate-space mismatch, not a real geometry defect.)
+          const ports = [...wrap.querySelectorAll('.h--in, .h--out')].map((h) => {
+            const r = h.getBoundingClientRect()
+            return (r.top + r.bottom) / 2 - nfR.top - nfR.height / 2
+          })
+          return { id: wrap.dataset.id!, wrapH: wrap.offsetHeight, nfH: nf.offsetHeight, ports }
+        })
+      })
+    }
+    // RF's own internal wrapper height must track each node's real rendered
+    // height — exactly what a missed re-measure would break (a stale wrapper
+    // height, ports off-centre on the real box). React Flow keeps this in
+    // sync via its own internal per-node ResizeObserver (no explicit
+    // updateNodeInternals call from this app — see nodes.tsx), so poll rather
+    // than a fixed sleep: that observer's callback lands on the browser's own
+    // schedule, not any fixed delay this app controls.
+    async function geometrySettled() {
+      const snap = await geometrySnapshot()
+      return snap.length > 90 && snap.every((n) => Math.abs(n.wrapH - n.nfH) <= 2)
+    }
+    // Handle DOM position is CSS-driven off `boxH` directly — it would look
+    // right even if `updateNodeInternals` were never called. Edge ROUTING is
+    // the real consumer of RF's internal per-node measurement: `sourceX/Y` /
+    // `targetX/Y` (LoopEdge.tsx) come from RF's last-recorded handle position,
+    // which only advances on an `updateNodeInternals` call.
+    //
+    // The check is a DELTA, not an absolute alignment: does the edge endpoint
+    // move by the same amount the handle itself moved, between two settled
+    // snapshots? (Confirmed by direct measurement, 2026-09-16: a Position.Top/
+    // Bottom "state" handle's DOM element does NOT sit centred on RF's actual
+    // flow-coordinate anchor — e.g. a_z1_xp2lvl_hi's target handle measured
+    // ~3.9px from its own bounding-box centre to the path's real endpoint, a
+    // fixed rendering-convention offset present identically whether internals
+    // updates are batched or individual, i.e. unrelated to this fix. An
+    // absolute "endpoint == handle centre" check would misreport that
+    // pre-existing baseline offset as a defect. A delta cancels it out and
+    // tests exactly the thing `updateNodeInternals` is responsible for.)
+    // Endpoints and handle centres are both converted to SCREEN coordinates
+    // (via the path's own `getScreenCTM()`) before comparing, so RF's flow
+    // coordinates and the CSS pan/zoom transform are never mixed by hand.
+    async function edgeAlignment() {
+      return page.evaluate(() => {
+        const w = window as unknown as { __loop: Loop }
+        const edges = w.__loop.graph.getState().edges as {
+          id: string
+          source: string
+          target: string
+          sourceHandle: string
+          targetHandle: string
+        }[]
+        const handleCenter = (nodeId: string, handleId: string) => {
+          const h = document.querySelector(
+            `.react-flow__handle[data-nodeid="${nodeId}"][data-handleid="${handleId}"]`,
+          )
+          if (!h) return null
+          const r = h.getBoundingClientRect()
+          return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+        }
+        const toScreen = (path: SVGPathElement, x: number, y: number) => {
+          const svg = path.ownerSVGElement
+          const ctm = path.getScreenCTM()
+          if (!svg || !ctm) return null
+          const pt = svg.createSVGPoint()
+          pt.x = x
+          pt.y = y
+          const s = pt.matrixTransform(ctm)
+          return { x: s.x, y: s.y }
+        }
+        const out: Record<
+          string,
+          { d: string; startScreen: { x: number; y: number } | null; endScreen: { x: number; y: number } | null; sourceHandleScreen: { x: number; y: number } | null; targetHandleScreen: { x: number; y: number } | null }
+        > = {}
+        for (const e of edges) {
+          const g = document.querySelector(`.react-flow__edge[data-id="${e.id}"]`)
+          const p = g?.querySelector('path.react-flow__edge-path') as SVGPathElement | null
+          let startScreen = null
+          let endScreen = null
+          if (p) {
+            try {
+              const len = p.getTotalLength()
+              const start = p.getPointAtLength(0)
+              const end = p.getPointAtLength(len)
+              startScreen = toScreen(p, start.x, start.y)
+              endScreen = toScreen(p, end.x, end.y)
+            } catch {
+              /* zero-length / detached path -- left null, caller treats as unresolved */
+            }
+          }
+          out[e.id] = {
+            d: p?.getAttribute('d') ?? '',
+            startScreen,
+            endScreen,
+            sourceHandleScreen: handleCenter(e.source, e.sourceHandle),
+            targetHandleScreen: handleCenter(e.target, e.targetHandle),
+          }
+        }
+        return out
+      })
+    }
+    const edgesByNode = await page.evaluate(() => {
+      const edges = (window as unknown as { __loop: Loop }).__loop.graph.getState().edges
+      const out: Record<string, string[]> = {}
+      for (const e of edges as { id: string; source: string; target: string }[]) {
+        ;(out[e.source] ??= []).push(e.id)
+        ;(out[e.target] ??= []).push(e.id)
+      }
+      return out
+    })
+    type Pt = { x: number; y: number }
+    const delta = (before: Pt | null, after: Pt | null) =>
+      before && after ? { x: after.x - before.x, y: after.y - before.y } : null
+    const dist = (a: Pt | null, b: Pt | null) => (a && b ? Math.hypot(a.x - b.x, a.y - b.y) : null)
+    // Sub-pixel path-decimal rounding (orthogonalRoute.ts's PATH_DECIMALS) plus
+    // float error through the CTM transform — a few px, comfortably tighter
+    // than the ~8px slack needed for the handle-centring check above, since
+    // this compares two deltas rather than two absolute positions.
+    const ENDPOINT_TOLERANCE_PX = 3
+    // A resized node doesn't guarantee ITS SPECIFIC handle moved (e.g. a
+    // Position.Top handle's x only depends on width, which never changes
+    // here) — comparing two zero deltas would trivially "agree" without
+    // proving anything moved at all. Only treat a side as checked once its
+    // handle has genuinely moved past float/sub-pixel noise.
+    const HANDLE_MOVE_EPSILON_PX = 0.5
+
+    await expect.poll(geometrySettled, { timeout: 5000, intervals: [50] }).toBe(true)
+    let prevGeo = await geometrySnapshot()
+    let prevEdges = await edgeAlignment()
+
+    // resizedEdgeIds() depends only on `prevGeo` (fixed for this switch, taken
+    // from the PREVIOUS settle) and a live re-fetch of the current snapshot —
+    // so it's safe to call repeatedly from inside a poll.
+    async function resizedEdgeIds(snap: Awaited<ReturnType<typeof geometrySnapshot>>) {
+      const prevById = new Map(prevGeo.map((n) => [n.id, n]))
+      const ids = new Set<string>()
+      for (const n of snap) {
+        const before = prevById.get(n.id)
+        if (!before || Math.abs(before.nfH - n.nfH) <= 1) continue // height didn't change this switch
+        for (const edgeId of edgesByNode[n.id] ?? []) ids.add(edgeId)
+      }
+      return ids
+    }
+
+    for (const locale of ['ja', 'en', 'ko'] as const) {
+      await setLocale(page, locale)
+      // routeMap's rebuild (src/store/routeMap.ts) reacts to RF's `node.measured`
+      // — a separate, downstream React commit from the wrapper-height DOM sync
+      // `geometrySettled` checks — so it can genuinely still be one commit
+      // behind at the instant geometry itself settles. Poll for BOTH conditions
+      // together (not a fixed extra delay) so a real, permanent misalignment
+      // still fails after the timeout, while a normal one-more-commit lag doesn't.
+      async function fullySettled() {
+        const snap = await geometrySnapshot()
+        if (snap.length <= 90 || !snap.every((n) => Math.abs(n.wrapH - n.nfH) <= 2)) return false
+        const edges = await edgeAlignment()
+        // Return value proves genuine movement was observed and tracked —
+        // not merely that some node's height changed (a node can resize
+        // without moving every one of its handles; see HANDLE_MOVE_EPSILON_PX
+        // above). Two static deltas would otherwise "agree" vacuously.
+        let anyHandleMoved = false
+        for (const edgeId of await resizedEdgeIds(snap)) {
+          const before = prevEdges[edgeId]
+          const after = edges[edgeId]
+          if (!before || !after) return false
+          const startMoved = delta(before.startScreen, after.startScreen)
+          const sourceHandleMoved = delta(before.sourceHandleScreen, after.sourceHandleScreen)
+          const endMoved = delta(before.endScreen, after.endScreen)
+          const targetHandleMoved = delta(before.targetHandleScreen, after.targetHandleScreen)
+          const sourceHandleMoveDist = sourceHandleMoved ? Math.hypot(sourceHandleMoved.x, sourceHandleMoved.y) : null
+          const targetHandleMoveDist = targetHandleMoved ? Math.hypot(targetHandleMoved.x, targetHandleMoved.y) : null
+          if (sourceHandleMoveDist != null && sourceHandleMoveDist > HANDLE_MOVE_EPSILON_PX) anyHandleMoved = true
+          if (targetHandleMoveDist != null && targetHandleMoveDist > HANDLE_MOVE_EPSILON_PX) anyHandleMoved = true
+          const startAgreement = dist(startMoved, sourceHandleMoved)
+          const endAgreement = dist(endMoved, targetHandleMoved)
+          if (startAgreement == null || startAgreement > ENDPOINT_TOLERANCE_PX) return false
+          if (endAgreement == null || endAgreement > ENDPOINT_TOLERANCE_PX) return false
+        }
+        return anyHandleMoved
+      }
+      await expect.poll(fullySettled, { timeout: 5000, intervals: [50] }).toBe(true)
+
+      const snap = await geometrySnapshot()
+      for (const n of snap) {
+        for (const offCenter of n.ports) {
+          expect(Math.abs(offCenter), `node ${n.id} port centring after ${locale}`).toBeLessThanOrEqual(8)
+        }
+      }
+
+      const nextEdges = await edgeAlignment()
+      const resized = await resizedEdgeIds(snap)
+      expect(resized.size, `expected at least one node to resize on the ${locale} switch`).toBeGreaterThan(0)
+      let anyHandleMoved = false
+      for (const edgeId of resized) {
+        const before = prevEdges[edgeId]
+        const after = nextEdges[edgeId]
+        expect(after, `edge ${edgeId} should still be rendered after ${locale}`).toBeTruthy()
+        expect(before, `edge ${edgeId} should have a prior snapshot`).toBeTruthy()
+        // primary proof: the path's endpoint moved by the SAME amount its real
+        // handle moved — not that it landed on the handle's own DOM centre
+        // (see the note above on the fixed state-handle rendering offset).
+        const sourceHandleMoved = delta(before.sourceHandleScreen, after.sourceHandleScreen)
+        const targetHandleMoved = delta(before.targetHandleScreen, after.targetHandleScreen)
+        const sourceHandleMoveDist = sourceHandleMoved ? Math.hypot(sourceHandleMoved.x, sourceHandleMoved.y) : null
+        const targetHandleMoveDist = targetHandleMoved ? Math.hypot(targetHandleMoved.x, targetHandleMoved.y) : null
+        const startAgreement = dist(delta(before.startScreen, after.startScreen), sourceHandleMoved)
+        const endAgreement = dist(delta(before.endScreen, after.endScreen), targetHandleMoved)
+        expect(startAgreement, `edge ${edgeId} start-side movement vs source handle movement after ${locale}`).not.toBeNull()
+        expect(startAgreement!, `edge ${edgeId} start-side movement vs source handle movement after ${locale}`).toBeLessThanOrEqual(ENDPOINT_TOLERANCE_PX)
+        expect(endAgreement, `edge ${edgeId} end-side movement vs target handle movement after ${locale}`).not.toBeNull()
+        expect(endAgreement!, `edge ${edgeId} end-side movement vs target handle movement after ${locale}`).toBeLessThanOrEqual(ENDPOINT_TOLERANCE_PX)
+        // secondary/supplementary signal, and ONLY for a side whose handle
+        // actually moved: a Position.Top/Bottom handle's coordinate along the
+        // OTHER axis (e.g. Top's x, which only depends on width — fixed at
+        // 120px in this design) legitimately does not move when only height
+        // changes, so requiring `d` to differ unconditionally for every
+        // resized-node-touching edge would fail a genuinely correct case.
+        if (sourceHandleMoveDist != null && sourceHandleMoveDist > HANDLE_MOVE_EPSILON_PX) {
+          anyHandleMoved = true
+          expect(after.d, `edge ${edgeId} should have a recomputed path after ${locale} (source handle moved)`).not.toBe(before.d)
+        }
+        if (targetHandleMoveDist != null && targetHandleMoveDist > HANDLE_MOVE_EPSILON_PX) {
+          anyHandleMoved = true
+          expect(after.d, `edge ${edgeId} should have a recomputed path after ${locale} (target handle moved)`).not.toBe(before.d)
+        }
+      }
+      // resized.size > 0 only proves a NODE'S HEIGHT changed; this proves at
+      // least one of its HANDLES actually moved as a result (see
+      // HANDLE_MOVE_EPSILON_PX) — otherwise every check above could pass
+      // vacuously by comparing two unmoved (zero-delta) positions.
+      expect(anyHandleMoved, `expected at least one handle to actually move on the ${locale} switch`).toBe(true)
+
+      prevGeo = snap
+      prevEdges = nextEdges
+    }
+  })
+
+  test('a node deleted immediately after a bulk locale switch leaves no dangling edges (React Flow\'s native re-measure excludes it)', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await setLocale(page, 'ko')
+    await pickTemplate(page, MMO_KO)
+    await page.evaluate(() => document.fonts.ready)
+
+    // 'quest_payout' is one of the nodes whose measured height actually
+    // changes on a ko → en switch (confirmed instrumented during the
+    // original investigation), so React Flow's own internal ResizeObserver
+    // would try to re-measure it.
+    const targetId = 'quest_payout'
+    const edgesBefore = await page.evaluate(
+      (id) =>
+        (window as unknown as { __loop: Loop }).__loop.graph
+          .getState()
+          .edges.filter((e: any) => e.source === id || e.target === id).length,
+      targetId,
+    )
+    expect(edgesBefore).toBeGreaterThan(0) // sanity: it is actually connected
+
+    // Fire the locale switch and, in the SAME synchronous task, delete one of
+    // the nodes that would resize — before React Flow's own ResizeObserver
+    // callback (async, browser-scheduled) has any chance to run for it. RF's
+    // internal `useUpdateNodeInternals` already no-ops for an id with no live
+    // DOM element (see node_modules/@xyflow/react's useResizeObserver), so
+    // this proves that holds in practice, not just by reading its source.
+    await page.evaluate((id) => {
+      const w = window as unknown as { __loop: Loop }
+      w.__loop.i18n.getState().setLocale('en')
+      w.__loop.graph.getState().removeNode(id)
+    }, targetId)
+    await expect.poll(() => htmlLang(page)).toBe('en')
+    // Wait for React's own reconciliation to actually remove the node's DOM
+    // element — an observable condition, not a guess at how long that takes.
+    await expect(page.locator(`.react-flow__node[data-id="${targetId}"]`)).toHaveCount(0)
+    // React Flow's internal ResizeObserver callback runs "in the next
+    // rendering step, after layout, before paint" (spec), then its own store
+    // update is itself rAF-scheduled — two animation-frame ticks in-page
+    // covers that chain without guessing a duration.
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    )
+
+    const state = await page.evaluate((id) => {
+      const gs = (window as unknown as { __loop: Loop }).__loop.graph.getState()
+      return {
+        nodeGone: !gs.nodes.some((n: any) => n.id === id),
+        danglingEdges: gs.edges.filter((e: any) => e.source === id || e.target === id).length,
+      }
+    }, targetId)
+    expect(state.nodeGone).toBe(true)
+    expect(state.danglingEdges).toBe(0)
+    // the support/loop.ts fixture auto-asserts zero console/page errors for
+    // every test — a stale-id RF call surfacing an error would fail it.
+  })
 })
