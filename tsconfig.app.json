@@ -8,6 +8,10 @@
     "allowArbitraryExtensions": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    /* Explicit, not inherited from the TypeScript-6 default: a future
+       compiler downgrade or an `extends` must never silently loosen the
+       checks the codebase was written against (audit ②-8a). */
+    "strict": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",

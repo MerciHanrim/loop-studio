@@ -11,6 +11,7 @@
 //      message key (`i18n.messageError`);
 //   4. never throw, never render a raw ICU pattern.
 
+import { useCallback } from 'react'
 import { tryFormat, type FormatParams } from './format'
 import type { MessageKey } from './locales/en'
 import { BASE_CATALOG, BASE_LOCALE } from './registry'
@@ -57,11 +58,18 @@ export function t(key: MessageKey, params?: FormatParams): string {
 }
 
 /** hook — the returned `t` closes over the active locale + catalog, so the
- *  component re-renders when either changes. */
+ *  component re-renders when either changes. The function's IDENTITY is
+ *  stable across renders and changes only with the locale / catalog (audit
+ *  ②-8b): `t` sits in effect / memo dependency lists throughout the app
+ *  (PlayBar's steady-state announcer, Canvas's ref-insert verdict, …), and a
+ *  fresh closure on every render re-ran those on every render for nothing. */
 export function useT(): (key: MessageKey, params?: FormatParams) => string {
   const activeLocale = useI18n((s) => s.activeLocale)
   const activeCatalog = useI18n((s) => s.activeCatalog)
-  return (key, params) => render(activeLocale, activeCatalog, key, params)
+  return useCallback(
+    (key: MessageKey, params?: FormatParams) => render(activeLocale, activeCatalog, key, params),
+    [activeLocale, activeCatalog],
+  )
 }
 
 /** the active locale code, as a reactive value. */
