@@ -1,4 +1,5 @@
 import { ReactFlowProvider } from '@xyflow/react'
+import { AutosaveNotice } from './components/AutosaveNotice'
 import { BootNotice } from './components/BootNotice'
 import { Canvas } from './components/Canvas'
 import { DesktopInspector } from './components/DesktopInspector'
@@ -23,6 +24,7 @@ export default function App() {
       <PwaUpdateBar />
       <BootNotice />
       <LocaleLoadNotice />
+      <AutosaveNotice />
       <div className="app">
         <Toolbar />
         <div className="app__body">

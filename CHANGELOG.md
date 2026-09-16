@@ -8,6 +8,15 @@ this file is the narrative history, not the contract.
 
 ### Fixed
 
+- **Autosave failures are no longer silent, and a last-moment edit is no
+  longer lost** — when the browser refuses the autosave record (its storage
+  quota is exhausted — reproduced with two 20,000-row data-import tables on
+  Chromium — or storage is blocked) the app now shows a persistent notice
+  with an *Export Graph JSON* button instead of silently keeping nothing
+  from that moment on; the notice clears by itself once a save succeeds
+  again. The pending autosave is also written immediately when the page is
+  hidden or unloaded, so an edit made in the last 400 ms before a reload /
+  close (reproduced at 150 ms) is kept.
 - **Share links and saved frames / data-import records** — opening a `#g1=`
   share link kept the *previous* document's group frames and data-import
   table records (they leaked into the shared graph and its next Export /

@@ -8,7 +8,8 @@ import './index.css'
 import App from './App.tsx'
 import { initI18n, useI18n } from './i18n'
 import * as share from './model/share'
-import { useGraphStore } from './store/graphStore'
+import { flushAutosave, useGraphStore } from './store/graphStore'
+import { useAutosaveStore } from './store/autosaveStore'
 import { useMcStore } from './store/mcStore'
 import { useProjectStore } from './store/projectStore'
 import { usePwaStore } from './store/pwaStore'
@@ -31,6 +32,10 @@ import * as workspaceIO from './store/workspaceIO'
 if (import.meta.env.DEV) {
   ;(window as unknown as { __loop: unknown }).__loop = {
     graph: useGraphStore,
+    // audit ①-4 — the pending-save flush + its failure state, so a spec that
+    // clears storage before navigating can first settle the debounce (the
+    // pagehide flush would otherwise re-persist the graph after the clear)
+    autosave: { store: useAutosaveStore, flush: flushAutosave },
     sim: useSimStore,
     mc: useMcStore,
     ui: useUiStore,

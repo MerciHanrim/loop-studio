@@ -730,13 +730,32 @@ export function deserialize(text: string): {
   }
 }
 
+/** the outcome of one autosave write. `quota` = the browser refused the
+ *  record for size (`QuotaExceededError` — the per-origin localStorage limit,
+ *  which differs by browser); `unavailable` = storage is blocked or absent
+ *  (private mode, a policy, no `localStorage` at all). */
+export type SaveToStorageResult = { ok: true } | { ok: false; reason: 'quota' | 'unavailable' }
+
+const isQuotaError = (e: unknown): boolean => {
+  if (!e || typeof e !== 'object') return false
+  const err = e as { name?: unknown; code?: unknown }
+  // DOMException name across engines; legacy numeric codes (22 = Chromium /
+  // WebKit QUOTA_EXCEEDED_ERR, 1014 = Firefox NS_ERROR_DOM_QUOTA_REACHED)
+  return err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22 || err.code === 1014
+}
+
 /** Autosave record — the graph and, atomically in the same write, the
  *  lightweight `project` header (or nothing) and the current Timeline series
  *  selection (as a one-field `recommendedRunConfig` `{ timelineSeries }`, or
  *  nothing while it is the "all" default) so a plain reload restores it. One
  *  `localStorage.setItem`. The Monte-Carlo fields and `canvasLocked` are
  *  deliberately NOT persisted here — they apply on an explicit document /
- *  template load only. */
+ *  template load only.
+ *
+ *  Never throws; the RESULT says whether the record was written. A failure
+ *  leaves whatever record was there before (the last good save) untouched —
+ *  the caller (`graphStore`) reports it to `autosaveStore` so the UI can say
+ *  so, instead of the old silent swallow (audit ①-4). */
 export function saveToStorage(
   nodes: LoopNode[],
   edges: LoopEdge[],
@@ -749,7 +768,7 @@ export function saveToStorage(
   /** `loop-revision/8` — the current saved data-import source records,
    *  atomically in the same write. Absent / empty ⇒ no `dataImports` key. */
   dataImports?: readonly ImportSourceTable[],
-): void {
+): SaveToStorageResult {
   try {
     const rrc: RecommendedRunConfig | undefined =
       Array.isArray(timelineSeries) && timelineSeries.length > 0
@@ -759,8 +778,9 @@ export function saveToStorage(
       STORAGE_KEY,
       serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports),
     )
-  } catch {
-    /* storage unavailable (private mode, quota) — silently skip */
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, reason: isQuotaError(e) ? 'quota' : 'unavailable' }
   }
 }
 
