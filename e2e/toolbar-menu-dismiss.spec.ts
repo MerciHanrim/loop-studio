@@ -121,6 +121,9 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
 
+    const viewport = () => page.evaluate(() => (window as any).__loop.rf.getViewport())
+    const before = await viewport()
+
     const box = (await page.locator('.react-flow__pane').boundingBox())!
     const startX = box.x + box.width / 2
     const startY = box.y + box.height / 2
@@ -130,6 +133,12 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
     await page.mouse.up()
 
     await expect(pop).toBeHidden()
+    // review, Lumi 2026-09-16: confirm a genuine pan actually happened —
+    // not just that the menu closed — so this isn't a vacuous pass if the
+    // drag gesture ever stopped moving the canvas for an unrelated reason
+    const after = await viewport()
+    expect(after.x).not.toBeCloseTo(before.x, 0)
+    expect(after.y).not.toBeCloseTo(before.y, 0)
   })
 
   test('Templates closes on a window resize', async ({ page }) => {
