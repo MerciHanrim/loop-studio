@@ -99,7 +99,7 @@ test.describe('Monte Carlo run', () => {
     await expect.poll(() => mcSnapshot(page).then((s) => s.status)).toBe('idle')
     const s = await mcSnapshot(page)
     expect(s.hasResult).toBe(false)
-    expect(s.message).toBe('Cancelled')
+    expect(s.message).toBe('cancelled')
   })
 })
 

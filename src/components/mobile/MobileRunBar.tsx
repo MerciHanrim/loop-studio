@@ -12,6 +12,7 @@ import { useT } from '../../i18n'
 export function MobileRunBar() {
   const status = useSimStore((s) => s.status)
   const stepIndex = useSimStore((s) => s.stepIndex)
+  const initError = useSimStore((s) => s.initError)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -54,7 +55,12 @@ export function MobileRunBar() {
   }
 
   return (
-    <div className="pstrip pstrip--mobile" role="toolbar" aria-label={t('runbar.ariaLabel')} data-tour="mobile-run">
+    <div
+      className={`pstrip pstrip--mobile${initError != null ? ' has-initerr' : ''}`}
+      role="toolbar"
+      aria-label={t('runbar.ariaLabel')}
+      data-tour="mobile-run"
+    >
       <div className="pstrip__group">
         <button type="button" className="pb-btn" onClick={reset} aria-label={t('playbar.reset.title')}>
           ⟲
@@ -63,7 +69,7 @@ export function MobileRunBar() {
           type="button"
           className="pb-btn"
           onClick={stepOnce}
-          disabled={running}
+          disabled={running || initError != null}
           aria-label={t('playbar.step.title')}
         >
           ⏭
@@ -72,6 +78,8 @@ export function MobileRunBar() {
           type="button"
           className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
+          disabled={initError != null}
+          title={initError != null ? t('playbar.initError', { detail: initError }) : undefined}
         >
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
@@ -116,6 +124,15 @@ export function MobileRunBar() {
       >
         {t('runbar.timeline')} {overlay === 'timeline' ? '▾' : '▴'}
       </button>
+
+      {/* the graph cannot be initialised for a run (simStore.initError). A
+          touch user cannot hover a disabled button's `title`, so the reason
+          is a VISIBLE second row of the bar, not a tooltip. */}
+      {initError != null ? (
+        <div className="pstrip__initerr pstrip__initerr--mobile" role="alert">
+          {t('playbar.initError', { detail: initError })}
+        </div>
+      ) : null}
     </div>
   )
 }

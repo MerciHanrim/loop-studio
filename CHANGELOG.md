@@ -13,6 +13,23 @@ this file is the narrative history, not the contract.
   table records (they leaked into the shared graph and its next Export /
   revision digest) and dropped the frames the link itself carried. A link now
   replaces both, exactly like a file Import does.
+- **Negative or non-finite Pool values no longer break the run** — typing a
+  value below 0 (or `1e400`) into a Pool's Starting amount / Capacity used to
+  reach the store, where the engine's refusal threw inside a store
+  subscriber: a console error, a Reset that kept failing, Monte-Carlo
+  staleness and the project's unsaved flag silently skipped, and the bad
+  value autosaved. The Inspector now keeps an invalid entry as a local draft
+  (with a hint) and commits only a valid number; a bad value that arrives
+  from a hand-edited file is shown as a run-strip notice with Play / Step
+  disabled instead of an error.
+- **Untranslated messages and stale menu paths** — the Project-revision /
+  proposal export refusals, the share-link replace prompt, the import
+  structural / model-layer warnings, the graph-file read errors and the
+  Monte-Carlo "Cancelled" note are now in the active language (EN / KO / JA);
+  the canvas node's accessible name uses the localized kind and state words;
+  messages and the example READMEs that still said `Export ▾ → …` now say
+  `File ▾ → …` (the v0.10.0 toolbar). The i18n surface check also scans
+  stores / ui helpers for English `alert` / `confirm` literals.
 
 ## v0.10.1 — 2026-09-16
 

@@ -4317,6 +4317,20 @@ input[type='number']::-webkit-inner-spin-button {
   .pstrip--mobile .pstrip__tl {
     margin-left: auto;
   }
+  /* the run-refusal notice (simStore.initError) wraps onto its own full-width
+     row under the controls — visible, not a hover-only `title` */
+  .pstrip--mobile.has-initerr {
+    flex-wrap: wrap;
+  }
+  .pstrip__initerr--mobile {
+    flex-basis: 100%;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--warning);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 
   /* ---- generic bottom sheet + scrim (§MV5 sheet contract) ---- */
   .sheet-scrim {

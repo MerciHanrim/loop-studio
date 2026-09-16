@@ -6,7 +6,7 @@ import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
-import { REPLACE_PROMPT, consumeShareLink } from './shareLink'
+import { consumeShareLink, replacePrompt } from './shareLink'
 import { useSimStore } from './simStore'
 
 // SEMANTICS-U.md loop-share/1 §U5 — boot-time load. Node env: no window /
@@ -184,7 +184,8 @@ describe('a modified session (not pristine)', () => {
       },
     })
     expect(out).toEqual({ kind: 'cancelled' })
-    expect(asked).toBe(REPLACE_PROMPT)
+    expect(asked).toBe(replacePrompt())
+    expect(asked).toMatch(/replaced/i)
     expect(rev()).toBe(before)
     expect(useGraphStore.getState().nodes).toBe(beforeNodes) // same reference, untouched
     expect(useSimStore.getState().status).toBe('running') // NOT stopped on cancel

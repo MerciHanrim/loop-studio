@@ -983,3 +983,35 @@ test.describe('mobile — proposal Review sheet (Slice 1C)', () => {
   // the committed loop-revision/1 oracle produces IDENTICAL results on mobile
   test('verification fixture — same Import→Review→Apply→Undo→Redo oracle as desktop', fixtureFlow('mobile'))
 })
+
+// audit ①-2 — the engine refusing to initialise (a Pool with a negative
+// `initial` from a hand-edited file) must be VISIBLE on the mobile run bar,
+// not only a disabled button's hover `title` (which a touch user never sees).
+test('run bar: an engine init refusal shows a visible notice under the controls, Play/Step disabled, no sideways overflow', async ({
+  page,
+}) => {
+  await loadDiagram(page)
+  const bad = await page.evaluate(() => {
+    const g = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.graph.getState()
+    const doc = JSON.parse(g.exportJSON())
+    doc.nodes.find((n: any) => n.data.kind === 'pool').data.initial = -5
+    return JSON.stringify(doc)
+  })
+  await importGraph(page, bad)
+  const notice = page.locator('.pstrip--mobile .pstrip__initerr')
+  await expect(notice).toBeVisible()
+  await expect(notice).toContainText(/Cannot run/)
+  const box = (await notice.boundingBox())!
+  expect(box.width).toBeGreaterThan(200) // a real row, not a collapsed inline span
+  await expect(page.locator('.pstrip--mobile .pb-btn--primary')).toBeDisabled()
+  await expect(page.locator('.pstrip--mobile .pb-btn').nth(1)).toBeDisabled() // Step
+  await noHScroll(page)
+  // fixing the value clears it again (through the bridge — the mobile layout has no editor)
+  await page.evaluate(() => {
+    const g = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.graph.getState()
+    const p = g.nodes.find((n: any) => n.data.kind === 'pool')
+    g.updateNodeData(p.id, { initial: 2 })
+  })
+  await expect(notice).toHaveCount(0)
+  await expect(page.locator('.pstrip--mobile .pb-btn--primary')).toBeEnabled()
+})

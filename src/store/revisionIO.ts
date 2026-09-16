@@ -11,6 +11,7 @@ import {
 } from '../model/revision'
 import { deserialize, type ImportSourceTable, type ModelSemanticsVersion, type SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { t } from '../i18n'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
 import { useGraphStore } from './graphStore'
@@ -76,7 +77,7 @@ export async function routeImport(text: string): Promise<RouteResult> {
   // header — such a graph is not a trustworthy model doc.
   const structural = graphStructureIssues(parsed.nodes, parsed.edges)
   const structuralWarning = structural.length
-    ? `this graph has structural problems and those connections are ignored:\n${structural.join('\n')}`
+    ? t('import.structuralWarning', { detail: structural.join('\n') })
     : undefined
 
   if (raw === undefined) {
@@ -130,7 +131,7 @@ export async function routeImport(text: string): Promise<RouteResult> {
       outcome,
       warning:
         read.stage === 'side'
-          ? `this file's model-layer content is not readable (${read.detail})`
+          ? t('import.modelLayerUnreadable', { detail: read.detail })
           : read.warning,
     }
   }

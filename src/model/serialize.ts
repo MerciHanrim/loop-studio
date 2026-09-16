@@ -640,6 +640,19 @@ export function serialize(
   return JSON.stringify(doc, null, 2)
 }
 
+/** why `deserialize` rejected a file — a CODE the UI maps to a localized
+ *  message (`import.error.*`). `message` keeps the historical English text
+ *  for logs / tests. */
+export type GraphFileErrorCode = 'invalid-json' | 'unexpected' | 'not-loop-studio' | 'missing-nodes-edges'
+export class GraphFileError extends Error {
+  code: GraphFileErrorCode
+  constructor(code: GraphFileErrorCode, message: string) {
+    super(message)
+    this.name = 'GraphFileError'
+    this.code = code
+  }
+}
+
 export function deserialize(text: string): {
   nodes: LoopNode[]
   edges: LoopEdge[]
@@ -673,20 +686,20 @@ export function deserialize(text: string): {
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new Error('This file is not valid JSON.')
+    throw new GraphFileError('invalid-json', 'This file is not valid JSON.')
   }
   if (typeof raw !== 'object' || raw === null) {
-    throw new Error('Unexpected file contents.')
+    throw new GraphFileError('unexpected', 'Unexpected file contents.')
   }
   const obj = raw as Partial<GraphDoc>
   const modelVersion = modelVersionForSchema(obj.schema)
   if (modelVersion == null) {
     // Unknown schema — including a newer `loop-studio/graph/N` a pre-N client
     // does not know (SEMANTICS-M2.md §M2-1: fail-closed, never a silent run).
-    throw new Error('This does not look like a Loop Studio graph file.')
+    throw new GraphFileError('not-loop-studio', 'This does not look like a Loop Studio graph file.')
   }
   if (!Array.isArray(obj.nodes) || !Array.isArray(obj.edges)) {
-    throw new Error('Graph file is missing its nodes or edges.')
+    throw new GraphFileError('missing-nodes-edges', 'Graph file is missing its nodes or edges.')
   }
   const rrc =
     obj.recommendedRunConfig && typeof obj.recommendedRunConfig === 'object' && !Array.isArray(obj.recommendedRunConfig)

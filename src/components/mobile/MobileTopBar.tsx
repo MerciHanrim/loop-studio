@@ -5,6 +5,7 @@ import { useReviewStore } from '../../store/reviewStore'
 import { routeImport } from '../../store/revisionIO'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useT } from '../../i18n'
+import { importErrorMessage } from '../../ui/importError'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { Logo } from '../Logo'
 import { RevisionChip } from '../RevisionChip'
@@ -42,7 +43,7 @@ export function MobileTopBar() {
       ]
       if (warnings.length) window.alert(warnings.join('\n'))
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : t('import.readError'))
+      window.alert(importErrorMessage(err, t))
     }
   }
 

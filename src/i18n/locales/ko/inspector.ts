@@ -32,6 +32,7 @@ const inspector = {
   'inspector.node.endNote': '자원이 도달하는 순간 실행을 종료합니다.',
   'inspector.field.startingAmount': '시작 수량',
   'inspector.field.capacity': '용량 (비우면 무제한)',
+  'inspector.number.nonNegativeHint': '0 이상의 숫자를 입력하세요.',
   'inspector.field.flowMode': '흐름 모드',
   'inspector.field.distribution': '분배 방식',
   'inspector.field.value': '값',

@@ -10,6 +10,7 @@ import { routeImport } from '../store/revisionIO'
 import { useIsMobile } from '../ui/media'
 import { useI18n } from '../i18n/store'
 import { useT, type MessageKey } from '../i18n'
+import { importErrorMessage } from '../ui/importError'
 import { ConfirmDialog } from './ConfirmDialog'
 import { HelpMenu } from './HelpMenu'
 import { Logo } from './Logo'
@@ -205,7 +206,7 @@ export function Toolbar() {
           ]
           if (warnings.length) window.alert(warnings.join('\n'))
         } catch (err) {
-          window.alert(err instanceof Error ? err.message : t('import.readError'))
+          window.alert(importErrorMessage(err, t))
         }
       },
       () => window.alert(t('import.readError')),

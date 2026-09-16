@@ -15,9 +15,9 @@ The graph: `Faucet → Gold → Split → Sink`.
 
 ## The workflow these files demonstrate
 
-1. **Create a Project revision.** `Export ▾ → Project revision` writes a file
+1. **Create a Project revision.** `File ▾ → Project revision` writes a file
    like `base.revision.json`. Send it to a collaborator.
-2. **Make a proposal.** They open it, choose `Export ▾ → Make a proposal`,
+2. **Make a proposal.** They open it, choose `File ▾ → Make a proposal`,
    edit the copy, and send the proposal file back (`proposal.*.json`).
 3. **Review.** You `Import` the proposal. It opens a **non-destructive Review**
    panel (a bottom sheet on mobile) — nothing in your graph, simulation, or
@@ -36,7 +36,7 @@ The graph: `Faucet → Gold → Split → Sink`.
    Either way the result is **one new local revision** (`parentId` = your
    pre-apply revision), a single `simulationRev` bump, the sim paused at step 0,
    and **one undo entry** — a single Undo restores both the graph and the
-   revision header. Apply never writes a file; you `Export ▾ → Project revision`
+   revision header. Apply never writes a file; you `File ▾ → Project revision`
    afterward to persist it.
 
 ## Trust

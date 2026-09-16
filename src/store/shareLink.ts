@@ -20,12 +20,13 @@ import {
   classifyFragment,
   decodeShareText,
 } from '../model/share'
+import { t } from '../i18n'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
 import { useSimStore } from './simStore'
 
-export const REPLACE_PROMPT =
-  'Open the shared diagram? Your current diagram will be replaced. Export it first if you want to keep it.'
+/** the replace-confirm text, in the active UI language (`share.replacePrompt`) */
+export const replacePrompt = (): string => t('share.replacePrompt')
 
 export type ShareLoadOutcome =
   | { kind: 'none' } // not a Loop Studio fragment - left in the address bar
@@ -102,7 +103,7 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
   const pristine = useGraphStore.getState().pristineSample
   if (!pristine) {
     const ask = opts.confirm ?? (typeof window !== 'undefined' ? window.confirm : () => true)
-    if (!ask(REPLACE_PROMPT)) {
+    if (!ask(replacePrompt())) {
       strip() // Cancel: only the fragment goes; no run-stop, no bump
       return { kind: 'cancelled' }
     }

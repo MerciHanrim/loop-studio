@@ -205,7 +205,8 @@ export function Inspector() {
         )}
 
         {d.kind === 'pool' && (
-          <PoolFields d={d} set={set} findings={mismatches.filter((f) => f.nodeId === node.id)} />
+          // keyed per node so a half-typed draft never carries over to the next selection
+          <PoolFields key={node.id} d={d} set={set} findings={mismatches.filter((f) => f.nodeId === node.id)} />
         )}
         {d.kind === 'source' && <SourceFields d={d} set={set} />}
         {d.kind === 'drain' && <DrainFields d={d} set={set} />}
@@ -958,6 +959,60 @@ function ResourceTypeField({
   )
 }
 
+/**
+ * A number field whose stored value must be a finite number ≥ 0 (a Pool's
+ * `initial` / `capacity` — `initSim` rejects anything else). Same
+ * local-draft-until-valid pattern as the Register expression field and the
+ * activator offset: the text the user is typing lives in a local draft and
+ * only a VALID parse is committed, so `-5`, `1e400` or a half-typed `-` never
+ * reach the store (where they used to throw inside the sim store's
+ * subscriber and knock every later subscriber off that change). The draft is
+ * dropped on blur, snapping the field back to whatever is stored. `allowEmpty`
+ * commits `null` for a blank field (capacity = unlimited).
+ */
+function NonNegativeNumberField({
+  label,
+  value,
+  allowEmpty,
+  onCommit,
+}: {
+  label: string
+  value: number | null
+  allowEmpty: boolean
+  onCommit: (n: number | null) => void
+}) {
+  const t = useT()
+  const [draft, setDraft] = useState<string | null>(null)
+  const shown = draft ?? (value == null ? '' : String(value))
+  const draftInvalid =
+    draft !== null &&
+    !(draft === '' ? allowEmpty : Number.isFinite(Number(draft)) && Number(draft) >= 0)
+  return (
+    <Field label={label}>
+      <input
+        type="number"
+        min={0}
+        value={shown}
+        aria-invalid={draftInvalid || undefined}
+        onChange={(e) => {
+          const text = e.target.value
+          setDraft(text)
+          if (text === '') {
+            if (allowEmpty) onCommit(null)
+            return
+          }
+          const n = Number(text)
+          if (Number.isFinite(n) && n >= 0) onCommit(n)
+        }}
+        onBlur={() => setDraft(null)}
+      />
+      {draftInvalid ? (
+        <p className="field__hint field__hint--bad">{t('inspector.number.nonNegativeHint')}</p>
+      ) : null}
+    </Field>
+  )
+}
+
 function PoolFields({
   d,
   set,
@@ -970,22 +1025,18 @@ function PoolFields({
   const t = useT()
   return (
     <>
-      <Field label={t('inspector.field.startingAmount')}>
-        <input
-          type="number"
-          value={d.initial}
-          onChange={(e) => set({ initial: Number(e.target.value) })}
-        />
-      </Field>
-      <Field label={t('inspector.field.capacity')}>
-        <input
-          type="number"
-          value={d.capacity ?? ''}
-          onChange={(e) =>
-            set({ capacity: e.target.value === '' ? null : Number(e.target.value) })
-          }
-        />
-      </Field>
+      <NonNegativeNumberField
+        label={t('inspector.field.startingAmount')}
+        value={d.initial}
+        allowEmpty={false}
+        onCommit={(n) => set({ initial: n ?? 0 })}
+      />
+      <NonNegativeNumberField
+        label={t('inspector.field.capacity')}
+        value={d.capacity}
+        allowEmpty
+        onCommit={(n) => set({ capacity: n })}
+      />
       <Field label={t('inspector.field.flowMode')}>
         <select value={d.mode} onChange={(e) => set({ mode: e.target.value })}>
           <option value="pullAny">{t('enum.flowMode.pullAny')}</option>
