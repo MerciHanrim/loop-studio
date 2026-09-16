@@ -7,6 +7,7 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import { create } from 'zustand'
+import { useAutosaveStore } from './autosaveStore'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
@@ -236,17 +237,7 @@ let autosaveTimelineSeries: 'all' | string[] = 'all'
  *  `projectStore` on commit / open / clear. */
 export function setAutosaveProjectHeader(header: unknown): void {
   autosaveProjectHeader = header ?? null
-  clearTimeout(saveTimer)
-  const s = useGraphStore.getState()
-  saveToStorage(
-    s.nodes,
-    s.edges,
-    autosaveProjectHeader,
-    autosaveTimelineSeries,
-    s.modelVersion,
-    liveFrames(),
-    liveDataImports(),
-  )
+  writeAutosaveNow()
 }
 
 /** Persist the Timeline visible-series default into the autosave record and
@@ -256,17 +247,7 @@ export function setAutosaveProjectHeader(header: unknown): void {
  *  intervening graph edit. `'all'` clears the field. */
 export function setAutosaveTimelineSeries(ts: 'all' | readonly string[]): void {
   autosaveTimelineSeries = ts === 'all' ? 'all' : [...ts]
-  clearTimeout(saveTimer)
-  const s = useGraphStore.getState()
-  saveToStorage(
-    s.nodes,
-    s.edges,
-    autosaveProjectHeader,
-    autosaveTimelineSeries,
-    s.modelVersion,
-    liveFrames(),
-    liveDataImports(),
-  )
+  writeAutosaveNow()
 }
 
 /** The raw project header from the last autosave record — read once by
@@ -355,6 +336,48 @@ const liveDataImports = (): readonly ImportSourceTable[] | undefined => {
   return Array.isArray(d) && d.length > 0 ? (d as ImportSourceTable[]) : undefined
 }
 
+/** THE autosave write: the live graph + project header + Timeline series +
+ *  saved frames + data-import records, one `localStorage` record. Cancels any
+ *  pending debounced write (it would only rewrite the same state) and reports
+ *  the outcome to `autosaveStore` — a refused write (storage quota, storage
+ *  blocked) is a visible, persistent state, never a silent skip (audit ①-4). */
+function writeAutosaveNow(): void {
+  clearTimeout(saveTimer)
+  saveTimer = undefined
+  const s = useGraphStore.getState()
+  useAutosaveStore.getState().report(
+    saveToStorage(
+      s.nodes,
+      s.edges,
+      autosaveProjectHeader,
+      autosaveTimelineSeries,
+      s.modelVersion,
+      liveFrames(),
+      liveDataImports(),
+    ),
+  )
+}
+
+/** Write the pending debounced autosave RIGHT NOW, if there is one. Called on
+ *  `pagehide` and when the tab goes hidden: the 400 ms debounce otherwise
+ *  loses an edit made just before a close / reload / app switch (reproduced:
+ *  an edit 150 ms before a reload was gone). A no-op when nothing is pending. */
+export function flushAutosave(): void {
+  if (saveTimer === undefined) return
+  writeAutosaveNow()
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  // `pagehide` fires for a close, a reload and a navigation (also on iOS,
+  // where `beforeunload` does not); the hidden transition covers a mobile
+  // app switch that never comes back. Both are allowed a synchronous
+  // localStorage write.
+  window.addEventListener('pagehide', flushAutosave)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushAutosave()
+  })
+}
+
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
 // One history entry per discrete action. Continuous actions coalesce: a node
 // drag is one entry; rapid edits to the same field within COALESCE_MS are one
@@ -415,18 +438,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
 
   const persist = () => {
     clearTimeout(saveTimer)
-    saveTimer = setTimeout(() => {
-      const s = get()
-      saveToStorage(
-        s.nodes,
-        s.edges,
-        autosaveProjectHeader,
-        autosaveTimelineSeries,
-        s.modelVersion,
-        liveFrames(),
-        liveDataImports(),
-      )
-    }, 400)
+    saveTimer = setTimeout(writeAutosaveNow, 400)
   }
   /** any full-document swap starts with "no project"; a project-aware caller
    *  (`projectStore.openRevisionFromFile`) re-sets the header right after. */
@@ -1047,17 +1059,5 @@ useI18n.subscribe((s) => {
 
   // persist once — autosave stores the LIVE doc, so a history-only remap needs
   // no write.
-  if (liveNodesChanged || liveFramesChanged) {
-    clearTimeout(saveTimer)
-    const st = useGraphStore.getState()
-    saveToStorage(
-      st.nodes,
-      st.edges,
-      autosaveProjectHeader,
-      autosaveTimelineSeries,
-      st.modelVersion,
-      liveFrames(),
-      liveDataImports(),
-    )
-  }
+  if (liveNodesChanged || liveFramesChanged) writeAutosaveNow()
 })
