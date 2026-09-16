@@ -106,8 +106,12 @@ import, …) live under [`docs/`](docs/).
 - **Desktop two-tier toolbar** — project/app commands on one row, the node
   palette on its own, with File/Data/Settings reorganized
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.10.0 notes and every
-earlier release.
+**v0.10.1 (patch)** — Project revision / proposal files of a `@parameter`
+document are written with the right model-version envelope, and files
+exported by v0.10.0 are recovered on import.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.10.0 / v0.10.1 notes and
+every earlier release.
 
 ## Credits
 
