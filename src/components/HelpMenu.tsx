@@ -4,6 +4,7 @@ import { useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
 // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
 // desktop Help (`?`) menu: `Take a tour` (replays the tour; never rewrites
@@ -31,16 +32,13 @@ export function HelpMenu({
   const wrapRef = useRef<HTMLDivElement>(null)
   const startReplay = useTourStore((s) => s.startReplay)
 
+  useOutsideDismiss(open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
   }, [open])

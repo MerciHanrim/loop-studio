@@ -3,6 +3,7 @@ import { useT } from '../../i18n'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { ThemeToggle } from '../ThemeToggle'
 import { useMenuOpenStore } from './menuOpenStore'
+import { useOutsideDismiss } from './useOutsideDismiss'
 
 // docs/toolbar-responsive.md — the `Settings ▾` Tier-1 group: Theme,
 // Language only — personal app-environment prefs, deliberately never a
@@ -32,11 +33,10 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
 
+  useOutsideDismiss(open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     // Capture phase, same reasoning as `OverflowMenu`/`FileMenu` — Language
     // is its own nested dropdown (a real regression Lumi's review caught,
     // 2026-09-15: a bubble-phase Escape here fired in the SAME keydown as
@@ -57,10 +57,8 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
         return
       setOpen(false)
     }
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey, true)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey, true)
     }
   }, [open])

@@ -599,19 +599,27 @@ body {
 
 /* ---- node-palette two-layer tip (docs/localization.md §L13 / Slice 2a) ----
    `.palette-item` shrink-wraps its chip (inline-flex, no box of its own), so
-   wrapping the button changes no Toolbar height. `.palette-tip` is an absolutely
-   positioned overlay — it never contributes layout, so the Canvas geometry is
-   unchanged whether or not a tip is showing. Shown on hover AND keyboard focus. */
+   wrapping the button changes no Toolbar height.
+   `.palette-tip` used to be an absolutely-positioned child of `.palette-item`,
+   shown via a CSS `:hover`/`:focus-visible` selector. Regression (2026-09-16,
+   Lumi/Hanrim): `.toolbar__palette` needs `overflow-x: auto` for its own
+   721-819px horizontal-scroll contract (below), and per the CSS spec, an
+   `overflow` axis left as `visible` computes to `auto` once the OTHER axis
+   isn't — so `overflow-y` was silently `auto` too, clipping the tip's
+   below-the-chip popout even while its own `display`/`opacity`/`visibility`
+   all read as fully visible. Fixed by portaling all 8 tips to `document.body`
+   (Toolbar.tsx) — one per palette item, always mounted (so their localized
+   text stays queryable regardless of hover, same as before), each
+   `position: fixed`, entirely outside `.toolbar__palette`'s own box and
+   therefore unaffected by its overflow. Only the currently-active one (at
+   most one at a time) gets `display: flex` and a computed position
+   (`usePaletteTipPosition`); the rest stay `display: none` — set inline in
+   Toolbar.tsx, not here, since it depends on which chip is hovered/focused. */
 .palette-item {
-  position: relative;
   display: inline-flex;
 }
 .palette-tip {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
   z-index: 20;
-  display: none;
   flex-direction: column;
   gap: 3px;
   width: max-content;
@@ -622,29 +630,6 @@ body {
   border-radius: 9px;
   box-shadow: var(--elev-label);
   pointer-events: none;
-}
-/* `:focus-visible` (not `:focus-within`/`:focus`) — a mouse click that
-   creates a node leaves DOM focus on the chip, but browsers don't treat a
-   mouse-activated button click as `:focus-visible`, so it doesn't reopen
-   the tooltip; a keyboard Tab does. `[data-tip-suppressed]` (Toolbar.tsx)
-   is the belt-and-suspenders case: force-hides the tooltip immediately on
-   click or drag-start even if the pointer never left the chip, until the
-   pointer actually leaves and re-enters (review, Hanrim 2026-09-15). */
-.palette-item:hover .palette-tip,
-.chip:focus-visible ~ .palette-tip {
-  display: flex;
-}
-.palette-item[data-tip-suppressed] .palette-tip {
-  display: none !important;
-}
-/* while ANY Tier-1 menu (Templates/Module/File/Data/Settings/Help/⋯) or
-   Share's result panel is open, no palette tooltip may show — two
-   competing temporary UI layers at once (review, Hanrim 2026-09-15).
-   `[data-menu-open]` is set on the whole palette by `Toolbar.tsx`, driven
-   by the shared `menuOpenStore` (+ Share's panel state) each of those
-   components reports into. */
-.toolbar__palette[data-menu-open] .palette-tip {
-  display: none !important;
 }
 .palette-tip__name {
   font-family: var(--font-sans);

@@ -4,6 +4,7 @@ import { ExportMenuItems } from '../ExportMenu'
 import type { Viewport } from '../../store/workspaceIO'
 import type { ToolbarDialog } from './dialogTypes'
 import { useMenuOpenStore } from './menuOpenStore'
+import { useOutsideDismiss } from './useOutsideDismiss'
 
 // docs/toolbar-responsive.md — the `File ▾` Tier-1 group: New, Import, then
 // Export's 5 actions flattened directly into this SAME popover (a divider
@@ -35,20 +36,17 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
 
+  useOutsideDismiss(open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       setOpen(false)
       btnRef.current?.focus()
     }
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
   }, [open])

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useT, type MessageKey } from '../i18n'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
 type Mode = 'system' | 'light' | 'dark'
 const KEY = 'loop-studio:theme'
@@ -74,20 +75,17 @@ export function ThemeToggle({
   const cycle = () =>
     setMode((m) => (m === 'system' ? 'light' : m === 'light' ? 'dark' : 'system'))
 
+  useOutsideDismiss(variant === 'row' && open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (variant !== 'row' || !open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     const onKey = (e: KeyboardEvent | globalThis.KeyboardEvent) => {
       if (e.key !== 'Escape') return
       setOpen(false)
       btnRef.current?.focus()
     }
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey as (e: globalThis.KeyboardEvent) => void)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey as (e: globalThis.KeyboardEvent) => void)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

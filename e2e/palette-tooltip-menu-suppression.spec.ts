@@ -205,3 +205,34 @@ test('Share’s result panel suppresses the palette tooltip while open', async (
   await page.locator('.chip--converter').hover()
   await expect(tip(page, 'converter')).toBeVisible()
 })
+
+// Regression, 2026-09-16: a separate bug (e2e/toolbar-menu-dismiss.spec.ts) —
+// every toolbar menu closed itself on a bubble-phase `window` 'mousedown'
+// listener, which React Flow's own node-drag setup prevented from ever
+// firing for a click that landed on a canvas NODE. A menu stuck open that
+// way never called `menuOpenStore`'s cleanup (its own `open` state never
+// became `false`), so this file's suppression mechanism looked "broken" in
+// that one specific chain — hover a palette chip afterward and the tooltip
+// stayed permanently suppressed, even though nothing is wrong with the
+// suppression logic itself. Root-caused and fixed at the source
+// (useOutsideDismiss.ts); this test locks in that the tooltip correctly
+// re-arms once the menu ACTUALLY closes, via the fixed path.
+test('a menu closed by clicking a canvas node re-arms the palette tooltip (not a separate tooltip-logic bug)', async ({
+  page,
+}) => {
+  await page.evaluate(() => (window as any).__loop.graph.getState().addNodeAt('pool', { x: 240, y: 200 }))
+  await expect(page.locator('.react-flow__node')).toHaveCount(1)
+
+  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ })
+  await settingsBtn.click()
+  const settingsPop = page.locator('.toolbar__settingsmenu-pop')
+  await expect(settingsPop).toBeVisible()
+  expect(await page.locator('.toolbar__palette').getAttribute('data-menu-open')).not.toBeNull()
+
+  await page.locator('.react-flow__node').first().click()
+  await expect(settingsPop).toBeHidden()
+  expect(await page.locator('.toolbar__palette').getAttribute('data-menu-open')).toBeNull()
+
+  await page.locator('.chip--pool').hover()
+  await expect(tip(page, 'pool')).toBeVisible()
+})

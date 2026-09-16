@@ -9,6 +9,7 @@ import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { MODULE_KEY } from './moduleKeys'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
 // docs/module-system.md §MS6 — the v1 assembly surface: an "Insert module ▾"
 // menu with the bundled Building blocks + "From file…" (no `#g1=` link — MS7-7),
@@ -52,16 +53,13 @@ export function ModuleMenu({
   const insertModule = useGraphStore((s) => s.insertModule)
   const { screenToFlowPosition } = useReactFlow()
 
+  useOutsideDismiss(open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
   }, [open])

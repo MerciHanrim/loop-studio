@@ -8,6 +8,7 @@ import { openTemplate } from '../i18n/templateLabels'
 import { ConfirmDialog } from './ConfirmDialog'
 import { TEMPLATE_KEY } from './templateKeys'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
 // Replacing the current diagram is confirmed through the shared in-app dialog —
 // `loadGraph` runs only from Confirm (docs/localization.md Slice 2b).
@@ -21,16 +22,13 @@ export function Templates() {
   const loadGraph = useGraphStore((s) => s.loadGraph)
   const hasContent = useGraphStore((s) => s.nodes.length > 0 || s.edges.length > 0)
 
+  useOutsideDismiss(open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
   }, [open])

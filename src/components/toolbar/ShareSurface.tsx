@@ -3,6 +3,7 @@ import type { RefObject } from 'react'
 import { useT } from '../../i18n'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { useAnchoredPosition } from './useAnchoredPosition'
+import { useOutsideDismiss } from './useOutsideDismiss'
 import type { ShareSurface as ShareSurfaceState } from './useShareSurface'
 
 type Props = {
@@ -39,16 +40,13 @@ export function ShareSurface({
   const panelOpen = surface?.phase === 'panel'
   const pos = useAnchoredPosition(anchorRef, panelRef, panelOpen)
 
+  useOutsideDismiss(panelOpen, panelRef, onClosePanel)
+
   useEffect(() => {
     if (!panelOpen) return
-    const onDown = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClosePanel()
-    }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClosePanel()
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
   }, [panelOpen, onClosePanel])

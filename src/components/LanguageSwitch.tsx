@@ -8,6 +8,7 @@ import {
   useT,
 } from '../i18n'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
+import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
 // docs/localization.md §L5 — the language control is AUTO-GENERATED from the
 // registry: `enabledLocales()` in registry order, each row showing the endonym
@@ -88,15 +89,7 @@ export function LanguageSwitch({
   // the pill variant has no such gate (plain CSS-positioned, never hidden)
   const positionReady = variant !== 'row' || flyoutPos != null
 
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) close(false)
-    }
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  useOutsideDismiss(open, wrapRef, () => close(false))
 
   // put real focus where keystrokes should land, and keep the active option in view
   useEffect(() => {
