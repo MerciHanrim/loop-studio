@@ -139,7 +139,7 @@ Select each state edge → the Inspector shows its mode, the delay / expression,
   and a green "ok" or red hint. The `+S` edge flashes toward Tank; the `-1`
   edge flashes away and carries a separate "clamp −n" note.
 Reset → every pulse / tint / flash clears; step index returns to 0.
-Export ▾ → JSON, New graph, Import it back → identical trace (delay 2 kept).
+File ▾ → Graph JSON, New graph, Import it back → identical trace (delay 2 kept).
 ```
 
 ## Regenerating
@@ -324,7 +324,7 @@ Timeline → one dashed line per Register that has a valid run; "Gold:Mana" and
 Select the Gold ─→ Upkeep edge → Inspector shows "Type mismatch: Mana ↔ Gold. Advisory …"
 Reset → Register values recompute for step 0; nothing about the graph changed.
 
-Export ▾ → Workspace JSON at step 3, New graph, Import it back
+File ▾ → Workspace JSON at step 3, New graph, Import it back
   → step 3 and the Pool counts are restored; the saved file has no Register
     values (it is `loop-workspace/1`, unchanged)
   → select "Reserve" → the same "Value at step 3" as before (recomputed)
@@ -415,7 +415,7 @@ OS "reduce motion" → no travelling element at all; a static edge cue instead
 Pause mid-travel → every dot freezes in place; Resume continues from there
 Reset → every cue clears; step index and every Pool value return to the import
 
-Export ▾ → JSON, New graph, Import it back → identical graph (routes kept)
+File ▾ → Graph JSON, New graph, Import it back → identical graph (routes kept)
 ```
 
 There is intentionally **no oracle file** and **no `*.test.ts` value check** for

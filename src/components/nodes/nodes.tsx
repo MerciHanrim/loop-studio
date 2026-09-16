@@ -19,7 +19,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
 import { useUiStore } from '../../store/uiStore'
-import { useT } from '../../i18n'
+import { useT, type MessageKey } from '../../i18n'
 import { useI18n } from '../../i18n/store'
 import { usePhrasedTitle } from './phraseTitle'
 import type {
@@ -224,11 +224,14 @@ function NodeFrame({
   // the outer --warning invalid ring, the solid selection ring, the inset
   // dashed focus ring, and the corner `!` flag. The accessible name carries
   // `invalid` too (not colour / shape alone).
+  // the accessible name is localized like every other label: the kind word
+  // from the canvas catalog, the state words from `node.aria.*` — never the
+  // raw kind token or an English literal
   const aria =
-    `${kind} ${title}` +
-    (invalid ? ', invalid' : '') +
-    (selected ? ', selected' : '') +
-    (focused ? ', focused' : '')
+    `${tip(`canvas.nodeKind.${kind}` as MessageKey)} ${title}` +
+    (invalid ? `, ${tip('node.aria.invalid')}` : '') +
+    (selected ? `, ${tip('node.aria.selected')}` : '') +
+    (focused ? `, ${tip('node.aria.focused')}` : '')
   return (
     <div
       ref={frameRef}

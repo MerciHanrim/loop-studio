@@ -31,8 +31,12 @@ type McStore = {
   /** 0..1 while running */
   progress: number
   completedRuns: number
-  /** short transient status line ("Cancelled", an error message) */
-  message: string
+  /** short transient status: `'cancelled'` (cleared after ~2.5 s), `'failed'`
+   *  (with `errorDetail`), or `''`. A CODE, not display text — the PlayBar
+   *  renders it through the catalog (`playbar.mc.cancelled` / `.failed`). */
+  message: '' | 'cancelled' | 'failed'
+  /** the engine / worker error text behind `message === 'failed'` */
+  errorDetail: string
 
   result: MonteCarloResult | null
   /** the graph the current `result` was produced from */
@@ -82,6 +86,7 @@ export const useMcStore = create<McStore>((set, get) => ({
   progress: 0,
   completedRuns: 0,
   message: '',
+  errorDetail: '',
   result: null,
   runGraph: null,
   runRev: -1,
@@ -221,12 +226,12 @@ export const useMcStore = create<McStore>((set, get) => ({
       const err = e as Error
       if (err.name === 'AbortError') {
         // previous successful result (if any) stays; brief "Cancelled" note
-        set({ status: get().result ? 'done' : 'idle', progress: 0, message: 'Cancelled' })
+        set({ status: get().result ? 'done' : 'idle', progress: 0, message: 'cancelled' })
         messageTimer = setTimeout(() => {
-          if (get().message === 'Cancelled') set({ message: '' })
+          if (get().message === 'cancelled') set({ message: '' })
         }, 2500)
       } else {
-        set({ status: 'error', message: err.message || 'Monte-Carlo run failed' })
+        set({ status: 'error', message: 'failed', errorDetail: err.message || '' })
       }
     } finally {
       controller = null
@@ -250,6 +255,7 @@ export const useMcStore = create<McStore>((set, get) => ({
       progress: 0,
       completedRuns: 0,
       message: '',
+      errorDetail: '',
       view: 'live',
       distributionPoolId: null,
       showMean: false,

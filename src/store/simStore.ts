@@ -93,6 +93,17 @@ type SimStore = {
   /** pools that received resources on the last step — drives the arrival cue */
   arrivedPoolIds: string[]
 
+  /** why the current graph cannot be initialised for a run (`initSim` threw —
+   *  e.g. a Pool whose `initial` / `capacity` is negative or non-finite, which
+   *  a hand-edited or legacy file can carry), or `null`. Set by `reset()` /
+   *  the first `head()` and cleared by the next successful one. While set,
+   *  Play / Step are no-ops and the PlayBar shows the reason — the engine's
+   *  own diagnostic text. Session-only, never serialized. Before this, the
+   *  throw escaped through the graph store's subscriber list, so every
+   *  subscriber registered after the sim store (Monte-Carlo staleness, the
+   *  project `dirty` flag) silently missed that graph change. */
+  initError: string | null
+
   /** docs/simulation-playback-ordering.md §PBO5 — true once the last
    *  `STEADY_N` consecutive committed steps have a pairwise-ε-equal Pool vector
    *  AND edge-flow vector AND each carries positive flow. Session-only,
@@ -241,6 +252,21 @@ export const useSimStore = create<SimStore>((set, get) => {
   // ever the full-motion pacing.
   const beatDuration = (): number => Math.max(get().speedMs, PLAYBACK_MIN_MS)
 
+  /** `initSim` that never throws: a graph the engine refuses to initialise
+   *  (negative / non-finite Pool `initial` or `capacity`) yields an EMPTY head
+   *  plus the engine's diagnostic in `error`, which callers surface as
+   *  `initError` instead of letting it escape into a store subscriber. */
+  const safeInit = (nodes: ReturnType<typeof graph>['nodes']): { init: SimState; error: string | null } => {
+    try {
+      return { init: initSim(nodes), error: null }
+    } catch (e) {
+      return {
+        init: { step: 0, values: {}, ended: false, fired: [], triggerQueue: [] },
+        error: e instanceof Error ? e.message : String(e),
+      }
+    }
+  }
+
   /** Current sim head, seeding an initial state on first use. */
   const head = (): SimState => {
     const s = get()
@@ -252,8 +278,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         fired: s.firedNodeIds,
         triggerQueue: s.triggerQueue,
       }
-    const init = initSim(graph().nodes)
-    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }] })
+    const { init, error } = safeInit(graph().nodes)
+    set({ values: init.values, stepIndex: 0, triggerQueue: [], series: [{ step: 0, values: init.values }], initError: error })
     return init
   }
 
@@ -513,6 +539,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     triggerQueue: [],
     stateEvents: [],
     arrivedPoolIds: [],
+    initError: null,
     activitySteps: [],
     steadyState: false,
     series: [],
@@ -531,6 +558,7 @@ export const useSimStore = create<SimStore>((set, get) => {
 
     play: () => {
       head()
+      if (get().initError) return // the graph cannot be initialised — see `initError`
       set({ status: 'running' })
       startLoop()
     },
@@ -550,6 +578,8 @@ export const useSimStore = create<SimStore>((set, get) => {
       }
       if (get().activeTransitionId != null) set({ activeTransitionId: null })
       if (get().status === 'running') return // Step is disabled while Play runs
+      head()
+      if (get().initError) return // the graph cannot be initialised — see `initError`
       beginTransition()
       if (typeof requestAnimationFrame === 'undefined' || reducedMotion()) {
         // no animation clock (SSR / vitest), or reduced motion ⇒ a Step's
@@ -565,7 +595,7 @@ export const useSimStore = create<SimStore>((set, get) => {
       discardTransition()
       steadyWindow = [] // §PBO5 — covers Reset, setSeed (calls reset), and every
       // graph edit / template load (the simulationRev subscription calls reset)
-      const init = initSim(graph().nodes)
+      const { init, error } = safeInit(graph().nodes)
       set((s) => ({
         status: 'idle',
         stepIndex: 0,
@@ -576,7 +606,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         triggerQueue: [],
         stateEvents: [],
         arrivedPoolIds: [],
-    activitySteps: [],
+        initError: error,
+        activitySteps: [],
         steadyState: false,
         series: [{ step: 0, values: init.values }],
         commitEpoch: s.commitEpoch + 1,
@@ -603,7 +634,8 @@ export const useSimStore = create<SimStore>((set, get) => {
         series: snap.series,
         activeByEdge: {},
         arrivedPoolIds: [],
-    activitySteps: [],
+        initError: null, // a verified snapshot IS a valid head
+        activitySteps: [],
         commitEpoch: s.commitEpoch + 1,
         lastSettledTransitionId: null,
         ...(snap.seed != null ? { seed: snap.seed } : {}),

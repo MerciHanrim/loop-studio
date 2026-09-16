@@ -12,6 +12,7 @@ import { useT } from '../../i18n'
 export function MobileRunBar() {
   const status = useSimStore((s) => s.status)
   const stepIndex = useSimStore((s) => s.stepIndex)
+  const initError = useSimStore((s) => s.initError)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -63,7 +64,7 @@ export function MobileRunBar() {
           type="button"
           className="pb-btn"
           onClick={stepOnce}
-          disabled={running}
+          disabled={running || initError != null}
           aria-label={t('playbar.step.title')}
         >
           ⏭
@@ -72,6 +73,8 @@ export function MobileRunBar() {
           type="button"
           className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
+          disabled={initError != null}
+          title={initError != null ? t('playbar.initError', { detail: initError }) : undefined}
         >
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>

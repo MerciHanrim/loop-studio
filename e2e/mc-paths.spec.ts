@@ -159,7 +159,7 @@ for (const path of ['worker', 'coop'] as const) {
 
       // product-rule reset (a different observation from "machinery stopped")
       expect(afterState.progress).toBe(0)
-      expect(afterState.message).toBe('Cancelled')
+      expect(afterState.message).toBe('cancelled')
       expect(afterState.status).toBe('idle') // no prior result
       expect(afterState.hasResult).toBe(false)
       // sanity: cancel didn't finish the run
@@ -192,7 +192,7 @@ for (const path of ['worker', 'coop'] as const) {
       // 3 — the previous result is intact, unchanged, not advanced
       const s = await mcState(page)
       expect(s.status).toBe('done') // prior result exists
-      expect(s.message).toBe('Cancelled')
+      expect(s.message).toBe('cancelled')
       expect(s.stale).toBe(false)
       expect(s.resultRuns).toBe(120) // never an in-between number
       expect(await mcResultJson(page)).toBe(r0) // byte-identical to R0

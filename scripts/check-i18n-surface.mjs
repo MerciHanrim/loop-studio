@@ -45,6 +45,33 @@ function walk(dir, out = []) {
 }
 
 const hits = []
+// 3) a string LITERAL handed straight to window.alert / confirm, or assigned
+//    as a `message:` / exported `*_PROMPT` constant, anywhere under src/ that
+//    is not a test / engine / model file — the stores and ui helpers escaped
+//    the component-only scan (audit ①-5: revisionActions, shareLink, mcStore).
+const SRC = resolve(root, 'src')
+function walkTs(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    const p = resolve(dir, name)
+    if (statSync(p).isDirectory()) {
+      if (!/^(engine|model|i18n)$/.test(name)) walkTs(p, out)
+    } else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(p)
+  }
+  return out
+}
+for (const file of walkTs(SRC)) {
+  const rel = file.slice(root.length + 1).replace(/\\/g, '/')
+  const src = readFileSync(file, 'utf8')
+  src.split('\n').forEach((line, i) => {
+    if (/^\s*(?:\/\/|\*)/.test(line)) return
+    for (const m of line.matchAll(/(?:window\.)?(?:alert|confirm)\(\s*(['"`])([A-Z][^'"`]{8,})\1/g)) {
+      hits.push(`${rel}:${i + 1}  ${m[0].split('(')[0]}  “${m[2]}”`)
+    }
+    for (const m of line.matchAll(/\bmessage:\s*(['"`])([A-Z][a-z][^'"`]{8,})\1/g)) {
+      hits.push(`${rel}:${i + 1}  message literal  “${m[2]}”`)
+    }
+  })
+}
 for (const file of walk(COMPONENTS)) {
   const rel = file.slice(root.length + 1).replace(/\\/g, '/')
   const src = readFileSync(file, 'utf8')

@@ -34,6 +34,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
   const speedMs = useSimStore((s) => s.speedMs)
   const seed = useSimStore((s) => s.seed)
   const steadyState = useSimStore((s) => s.steadyState)
+  const initError = useSimStore((s) => s.initError)
   const play = useSimStore((s) => s.play)
   const pause = useSimStore((s) => s.pause)
   const stepOnce = useSimStore((s) => s.stepOnce)
@@ -139,7 +140,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           type="button"
           className="pb-btn"
           onClick={stepOnce}
-          disabled={running}
+          disabled={running || initError != null}
           title={t('playbar.step.title')}
         >
           ⏭
@@ -148,14 +149,24 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           type="button"
           className={`pb-btn pb-btn--primary${running ? ' is-running' : ''}`}
           onClick={onPrimary}
+          disabled={initError != null}
         >
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
       </div>
 
-      <span className="pstrip__step">
-        {ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}
-      </span>
+      {initError != null ? (
+        // the graph cannot be initialised for a run (simStore.initError — e.g.
+        // a Pool with a negative `initial` from a hand-edited file). Play /
+        // Step are disabled above; this names the reason (the engine's text).
+        <span className="pstrip__step pstrip__initerr" role="alert" title={initError}>
+          {t('playbar.initError', { detail: initError })}
+        </span>
+      ) : (
+        <span className="pstrip__step">
+          {ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })}
+        </span>
+      )}
 
       <label className="pstrip__field">
         <span>{t('playbar.speed')}</span>
@@ -198,7 +209,11 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
             onClick={openMcDialog}
             title={t('playbar.mc.title')}
           >
-            {mcMessage ? t('playbar.mc.withNote', { note: mcMessage }) : t('playbar.mc')}
+            {mcMessage
+              ? t('playbar.mc.withNote', {
+                  note: mcMessage === 'cancelled' ? t('playbar.mc.cancelled') : t('playbar.mc.failed'),
+                })
+              : t('playbar.mc')}
           </button>
         )}
       </span>

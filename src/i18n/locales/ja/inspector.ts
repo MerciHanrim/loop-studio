@@ -38,6 +38,7 @@ const inspector = {
   'inspector.node.endNote': 'リソースが到達した瞬間に実行を停止します。',
   'inspector.field.startingAmount': '初期量',
   'inspector.field.capacity': '容量（空欄 = 無制限）',
+  'inspector.number.nonNegativeHint': '0 以上の数値を入力してください。',
   'inspector.field.flowMode': 'フローモード',
   'inspector.field.distribution': '分布',
   'inspector.field.value': '値',

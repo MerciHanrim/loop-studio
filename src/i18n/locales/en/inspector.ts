@@ -32,6 +32,7 @@ const inspector = {
   'inspector.node.endNote': 'Stops the run the moment a resource reaches it.',
   'inspector.field.startingAmount': 'Starting amount',
   'inspector.field.capacity': 'Capacity (blank = unlimited)',
+  'inspector.number.nonNegativeHint': 'Enter a number that is 0 or greater.',
   'inspector.field.flowMode': 'Flow mode',
   'inspector.field.distribution': 'Distribution',
   'inspector.field.value': 'Value',

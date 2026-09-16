@@ -10,6 +10,7 @@ import {
   type PendingProposal,
 } from '../store/revisionIO'
 import { downloadText } from './download'
+import { t } from '../i18n'
 
 // SEMANTICS-R.md §R2.1 / §R6 / §R8 — the desktop menu and the mobile sheet
 // share every non-trivial decision here: the two-phase Project-revision export,
@@ -31,19 +32,10 @@ export function exportProjectRevision(): ExportStatus {
   try {
     plan = useProjectStore.getState().planRevision({})
   } catch {
-    return {
-      ok: false,
-      message:
-        'This browser has no secure random source, so a revision id cannot be created. Nothing was exported.',
-    }
+    return { ok: false, message: t('revision.export.noSecureRandom') }
   }
   if (!plan.ok) {
-    return {
-      ok: false,
-      message:
-        `This diagram is too large to export as a Project revision ` +
-        `(${mib(plan.bytes)}; limit ${mib(plan.cap)}). Use Export → Graph JSON instead.`,
-    }
+    return { ok: false, message: t('revision.export.tooLarge', { size: mib(plan.bytes), cap: mib(plan.cap) }) }
   }
   downloadText(plan.text, 'loop-studio-revision.json')
   useProjectStore.getState().commitRevisionExport(plan.plan) // download dispatched ⇒ commit
@@ -55,25 +47,9 @@ export function exportProjectRevision(): ExportStatus {
 export function makeProposal(): ExportStatus {
   const res = useProjectStore.getState().planProposal({})
   if (!('text' in res) || !res.ok) {
-    if (res.reason === 'no-project') {
-      return {
-        ok: false,
-        message:
-          'Make a proposal needs an open project. Use Export → Project revision first to create one.',
-      }
-    }
-    if (res.reason === 'dirty-origin') {
-      return {
-        ok: false,
-        message:
-          'The document has changed since this revision. Use Export → Project revision to pin the changes, then make a proposal.',
-      }
-    }
-    return {
-      ok: false,
-      message:
-        `This proposal is too large to send as one file (${mib(res.bytes)}; limit ${mib(res.cap)}). A plain Graph JSON still works.`,
-    }
+    if (res.reason === 'no-project') return { ok: false, message: t('proposal.needProject') }
+    if (res.reason === 'dirty-origin') return { ok: false, message: t('proposal.dirtyOrigin') }
+    return { ok: false, message: t('proposal.tooLarge', { size: mib(res.bytes), cap: mib(res.cap) }) }
   }
   downloadText(res.text, 'loop-studio-proposal.json')
   return { ok: true }
