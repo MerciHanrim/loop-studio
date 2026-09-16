@@ -40,6 +40,13 @@ this file is the narrative history, not the contract.
   `File ▾ → …` (the v0.10.0 toolbar). The i18n surface check also scans
   stores / ui helpers for English `alert` / `confirm` literals.
 
+### Internal
+
+- `strict` is now written explicitly in both tsconfigs instead of being
+  inherited from the TypeScript 6 default, and `useT()` returns a
+  locale-stable function so effects that list `t` as a dependency no longer
+  re-run on every render.
+
 ## v0.10.1 — 2026-09-16
 
 Patch release: Project revision / proposal files of a `@parameter` document.
