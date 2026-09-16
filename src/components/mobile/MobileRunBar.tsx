@@ -55,7 +55,12 @@ export function MobileRunBar() {
   }
 
   return (
-    <div className="pstrip pstrip--mobile" role="toolbar" aria-label={t('runbar.ariaLabel')} data-tour="mobile-run">
+    <div
+      className={`pstrip pstrip--mobile${initError != null ? ' has-initerr' : ''}`}
+      role="toolbar"
+      aria-label={t('runbar.ariaLabel')}
+      data-tour="mobile-run"
+    >
       <div className="pstrip__group">
         <button type="button" className="pb-btn" onClick={reset} aria-label={t('playbar.reset.title')}>
           ⟲
@@ -119,6 +124,15 @@ export function MobileRunBar() {
       >
         {t('runbar.timeline')} {overlay === 'timeline' ? '▾' : '▴'}
       </button>
+
+      {/* the graph cannot be initialised for a run (simStore.initError). A
+          touch user cannot hover a disabled button's `title`, so the reason
+          is a VISIBLE second row of the bar, not a tooltip. */}
+      {initError != null ? (
+        <div className="pstrip__initerr pstrip__initerr--mobile" role="alert">
+          {t('playbar.initError', { detail: initError })}
+        </div>
+      ) : null}
     </div>
   )
 }
