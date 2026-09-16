@@ -62,12 +62,12 @@ it:
 
 - boots at `/`, no console errors, **no failed or cross-origin requests**, no
   dev bridge
-- Import `examples/risky-factory.json` → 18 nodes
+- File ▾ → Import `examples/risky-factory.json` → 18 nodes
 - MC dialog **pre-filled** from `recommendedRunConfig` (500 × 40, seed 1)
 - runs on the **real Worker path** (`Worker` constructed, jobs dispatched) →
   Risky Factory **424 / 500**, populated termination sparkline
-- Export ▾ → JSON (`loop-mc/1`, `endedRuns[-1] === 424`); Export → graph file
-  carries `recommendedRunConfig`
+- Distribution panel's **Export ▾ → JSON** (`loop-mc/1`, `endedRuns[-1] === 424`);
+  **File ▾ → Graph JSON** carries `recommendedRunConfig`
 - hard **reload** → app re-boots and restores the graph from `localStorage`
 
 `vite preview` on `localhost` is a secure context, so the Worker path check is
@@ -79,12 +79,12 @@ deploy.
 1. open `https://cozy-loop-studio.pages.dev/` — canvas + toolbar render, no console
    errors
 2. **Templates ▾ → Flowing equilibrium**, press Play — the timeline moves
-3. **Import** `examples/risky-factory.json`; open **Monte Carlo** — fields show
-   `500 / 40 / 1`; **Run**
+3. **File ▾ → Import** `examples/risky-factory.json`; open **Monte Carlo** —
+   fields show `500 / 40 / 1`; **Run**
 4. DISTRIBUTION appears; termination sparkline flattens near **85 %**; the
    pre-run cost line reads *Parallel, N workers* (Worker path, not "Local")
-5. **Export ▾ → JSON**, reopen it — `"spec": "loop-mc/1"`,
+5. Distribution panel's **Export ▾ → JSON**, reopen it — `"spec": "loop-mc/1"`,
    `endedRuns.atOrBeforeStep` last value **424**
-6. **Export** (graph), **New**, **Import** that file back — graph returns and the
-   MC dialog is pre-filled again
+6. **File ▾ → Graph JSON**, **File ▾ → New**, **File ▾ → Import** that file
+   back — graph returns and the MC dialog is pre-filled again
 7. hard-refresh the tab — the app reloads and the graph is still there

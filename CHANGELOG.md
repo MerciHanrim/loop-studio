@@ -4,7 +4,7 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
-## v0.10.0 — Unreleased
+## v0.10.0 — 2026-09-16
 
 Data import, a fifth Template, tunable activator thresholds, conditional
 post-pull state updates, and a reorganized desktop toolbar.
@@ -90,7 +90,21 @@ post-pull state updates, and a reorganized desktop toolbar.
   page reload or a PWA update (`#192`).
 - **Confirm-dialog double-click guard** — a rapid double-click on a
   `ConfirmDialog`'s Confirm button (Export, New, module promote, …) could
-  run the confirmation action twice; it now fires at most once per open.
+  run the confirmation action twice; it now fires at most once per open
+  (`#210`).
+- **Locale-switch stall** — a duplicate, redundant per-node re-measurement
+  alongside React Flow's own automatic one turned a multi-node document's
+  locale switch into a multi-second stall (worst case 6–7s); removing the
+  redundant call cut that to about 1s without any loss of measurement
+  correctness (`#211`).
+- **Toolbar menu outside-dismiss** — an open Tier-1 menu (Templates, Insert
+  module, File, Data, Settings, Help, the `⋯` overflow) no longer closed on
+  a canvas node click, a canvas pan, or a scroll outside it — a regression
+  from the two-tier toolbar reorganization above (`#212`).
+- **Palette tooltip visibility** — the hover/keyboard-focus tooltip on any
+  of the 8 node-creation chips was invisible at every desktop width,
+  silently clipped by the toolbar palette's own horizontal-scroll
+  container — another regression from the same reorganization (`#212`).
 
 ### Compatibility
 
