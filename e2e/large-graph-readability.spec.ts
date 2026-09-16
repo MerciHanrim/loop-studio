@@ -2559,7 +2559,12 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
       { id: 'bad-flat', label: 'x', rect: { x: 0, y: 0, w: 10, h: 0 } },
       { id: 'ok2', label: 'y'.repeat(200), rect: { x: 5, y: 5, w: 20, h: 20 }, color: 'not-a-colour' },
     ]
-    await page.evaluate((raw) => localStorage.setItem('loop-studio:graph:v1', raw), JSON.stringify(doc))
+    // settle the pending autosave FIRST: the reload's pagehide flush would
+    // otherwise overwrite this hand-crafted record with the live (frameless) state
+    await page.evaluate((raw) => {
+      ;(window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush()
+      localStorage.setItem('loop-studio:graph:v1', raw)
+    }, JSON.stringify(doc))
     await page.reload()
     await openApp(page)
 
