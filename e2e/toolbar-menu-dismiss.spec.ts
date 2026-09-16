@@ -107,6 +107,31 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
     await expect(pop).toBeHidden()
   })
 
+  // review, Lumi/Hanrim 2026-09-16: the original bug report's "moving the
+  // viewed canvas area" explicitly includes panning, not just zoom/scroll —
+  // and switching the dismiss listener to `click` (to fix the double-click
+  // guard, see useOutsideDismiss.ts) silently broke this, since `click`
+  // never fires for a genuine drag gesture (mousedown, move, mouseup
+  // elsewhere) — only a stationary down+up. Confirmed directly before
+  // fixing it: a pan-drag left the menu open. Fixed by switching to
+  // `mousedown` (still gated on `event.detail`, so the double-click guard
+  // holds), which fires immediately at the START of the drag.
+  test('Templates closes when a canvas PAN DRAG starts (not just a plain click)', async ({ page }) => {
+    await menuBtn(page, /^Templates ▾$/).click()
+    const pop = page.locator('.toolbar__actions .menu__pop').first()
+    await expect(pop).toBeVisible()
+
+    const box = (await page.locator('.react-flow__pane').boundingBox())!
+    const startX = box.x + box.width / 2
+    const startY = box.y + box.height / 2
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX + 150, startY + 100, { steps: 10 })
+    await page.mouse.up()
+
+    await expect(pop).toBeHidden()
+  })
+
   test('Templates closes on a window resize', async ({ page }) => {
     await menuBtn(page, /^Templates ▾$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
