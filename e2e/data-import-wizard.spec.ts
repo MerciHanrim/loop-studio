@@ -372,8 +372,12 @@ test('adding to an existing frame with a partly-occupied top row finds the free 
 
 for (const loc of ['ko', 'ja'] as const) {
   test(`${loc} — real DOM node boxes stay inside their generated frame, never overlapping each other`, async ({ page }) => {
-    await openApp(page)
-    await resetAll(page)
+    // NOTE: no second openApp()/resetAll() here — the file's beforeEach already
+    // booted and reset. A second navigation right after resetAll used to work
+    // only because the pending (empty-graph) autosave was lost on the way; now
+    // that pending save is flushed on pagehide, a re-boot would start from an
+    // empty graph and React Flow would defer its one-time initial fit to the
+    // wizard's first nodes, moving the viewport this test pins.
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(loc)
     await page.evaluate(() =>
@@ -428,6 +432,15 @@ for (const loc of ['ko', 'ja'] as const) {
 
     await page.evaluate(() => document.fonts.ready)
     await page.waitForTimeout(250)
+    // re-pin the pan/zoom right before measuring, so the box ↔ frame
+    // comparison below never depends on whether an initial fit ran meanwhile
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+        { x: 0, y: 0, zoom: 1 },
+        { duration: 0 },
+      ),
+    )
+    await page.waitForTimeout(100)
 
     // the pan/zoom is pinned to (0,0)/1, so flow units == canvas-LOCAL
     // pixels -- but the canvas pane itself sits below the toolbar, so a
