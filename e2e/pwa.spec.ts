@@ -189,6 +189,15 @@ test('offline: a #g1= share link opens from cache and strips the fragment', asyn
 
   await context.setOffline(true)
   const p2 = await context.newPage()
+  // The first page's graph is in localStorage by now (the untouched boot
+  // sample is autosaved 400 ms after boot; the pending write is also flushed
+  // on the install reload), so this second page is NOT a pristine boot and
+  // the link asks before replacing — accept. This test used to pass only
+  // when p2 opened inside that 400 ms window.
+  p2.once('dialog', (d) => {
+    expect(d.message()).toMatch(/replaced/i)
+    void d.accept()
+  })
   await p2.goto(`/#g1=${payload}`)
   await expect(p2.locator('.react-flow__node')).toHaveCount(distinct)
   expect(await p2.evaluate(() => location.hash)).toBe('')
