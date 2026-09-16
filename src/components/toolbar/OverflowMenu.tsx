@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { useT } from '../../i18n'
 import { useMenuOpenStore } from './menuOpenStore'
+import { useOutsideDismiss } from './useOutsideDismiss'
 
 // The toolbar "⋯" overflow menu. It holds whichever trailing controls the
 // measured layout could not fit on the toolbar (see `useToolbarOverflow`). The
@@ -43,11 +44,10 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
 
+  useOutsideDismiss(open, wrapRef, () => setOpen(false))
+
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
     // Capture phase — runs BEFORE any nested control's own (bubble-phase) Escape
     // handler. If a nested dropdown (Export / Help / Language) is still open, let
     // this Escape fall through to close just that one; the ⋯ menu takes the next
@@ -64,10 +64,8 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
       setOpen(false)
       btnRef.current?.focus()
     }
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey, true)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey, true)
     }
   }, [open])

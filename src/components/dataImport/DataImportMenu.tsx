@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useT } from '../../i18n'
 import type { ToolbarDialog } from '../toolbar/dialogTypes'
 import { useMenuOpenStore } from '../toolbar/menuOpenStore'
+import { useOutsideDismiss } from '../toolbar/useOutsideDismiss'
 
 // docs/data-import.md §DI16 Phase 1B/2 — the toolbar trigger. Phase 1B
 // shipped this as a single plain button (its own label already ends in "▾",
@@ -26,16 +27,13 @@ export function DataImportMenu({
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
+  useOutsideDismiss(menuOpen, wrapRef, () => setMenuOpen(false))
+
   useEffect(() => {
     if (!menuOpen) return
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setMenuOpen(false)
-    }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
-    window.addEventListener('mousedown', onDown)
     window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('mousedown', onDown)
       window.removeEventListener('keydown', onKey)
     }
   }, [menuOpen])

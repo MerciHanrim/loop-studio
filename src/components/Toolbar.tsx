@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { useReactFlow } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import type { NodeKind } from '../model/types'
@@ -26,6 +27,7 @@ import { OverflowMenu, type OverflowMenuHandle } from './toolbar/OverflowMenu'
 import { SettingsMenu } from './toolbar/SettingsMenu'
 import { ShareSurface } from './toolbar/ShareSurface'
 import { isInline, type OverflowItem } from './toolbar/toolbarOverflow'
+import { usePaletteTipPosition } from './toolbar/useAnchoredPosition'
 import { useShareSurface } from './toolbar/useShareSurface'
 import { useToolbarOverflow } from './toolbar/useToolbarOverflow'
 
@@ -79,6 +81,15 @@ export function Toolbar() {
   // can be kept suppressed (not immediately popping back just because the
   // pointer never left it) until the pointer actually leaves and re-enters.
   const [hoveredKind, setHoveredKind] = useState<NodeKind | null>(null)
+  // Keyboard counterpart to `hoveredKind` — set only for a genuine
+  // `:focus-visible` focus (Tab), never a mouse-click focus, matching the
+  // CSS distinction the old implementation relied on (`.matches(':focus-
+  // visible')` is queryable in JS, so this replicates that heuristic exactly
+  // rather than reinventing it). Needed now that the tip is portaled and its
+  // visibility is driven by render logic instead of a CSS sibling selector.
+  const [focusedKind, setFocusedKind] = useState<NodeKind | null>(null)
+  const chipRefs = useRef<Partial<Record<NodeKind, HTMLButtonElement>>>({})
+  const paletteTipRef = useRef<HTMLDivElement>(null)
   const menuOpenFromStore = useMenuOpenStore(anyMenuOpenSelector)
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const newGraph = useGraphStore((s) => s.newGraph)
@@ -101,18 +112,37 @@ export function Toolbar() {
   // the moment a menu/panel closes, keep whatever chip is still under the
   // pointer suppressed — otherwise its tooltip would pop back immediately
   // just because the pointer never left it (Hanrim's UX report, 2026-09-15)
-  // `useLayoutEffect`, not `useEffect` — the CSS `[data-menu-open]` rule that
-  // suppresses tooltips while a menu is open is removed the instant this
-  // render paints; a plain `useEffect` (which fires AFTER paint) sets
-  // `suppressedTip` too late, leaving a real one-frame window where a still-
-  // hovered chip's tooltip can flash visible before this catches up. Caught
-  // by e2e under load (palette-tooltip-menu-suppression.spec.ts), not just
-  // in theory.
+  // `useLayoutEffect`, not `useEffect` — `activeTipKind` below (which decides
+  // what's actually rendered) is derived from `anyMenuOpen` fresh on every
+  // render, so as soon as a menu closes the very next render would show a
+  // still-hovered chip's tip unless `suppressedTip` is already set by then; a
+  // plain `useEffect` (which fires AFTER paint) sets it too late, leaving a
+  // real one-frame window where the tip flashes visible before this catches
+  // up. Caught by e2e under load (palette-tooltip-menu-suppression.spec.ts),
+  // not just in theory.
   const wasMenuOpenRef = useRef(false)
   useLayoutEffect(() => {
     if (wasMenuOpenRef.current && !anyMenuOpen) setSuppressedTip(hoveredKind)
     wasMenuOpenRef.current = anyMenuOpen
   }, [anyMenuOpen, hoveredKind])
+
+  // Single source of truth for which chip's tooltip (if any) is showing —
+  // hover wins over keyboard focus (the common case: a user rarely hovers
+  // one chip while Tab-focus sits on another), suppressed while a menu/panel
+  // is open or via the click/drag suppression above. Portaled to
+  // `document.body` (render below) rather than left as a CSS-hover-toggled
+  // descendant of `.toolbar__palette`, because that container's own
+  // `overflow-x: auto` (its 721-819px horizontal-scroll contract) computes
+  // `overflow-y` to `auto` too (CSS spec: an axis left as `visible` computes
+  // to `auto` once the other axis isn't), silently clipping the tip's
+  // below-the-chip popout — confirmed via bounding-rect comparison (the tip's
+  // own `display:flex`/`opacity:1`/`visibility:visible` all held; it was
+  // still invisible on screen) and reproduced back to PR #207's two-tier
+  // toolbar redesign, which introduced the unconditional `overflow-x`.
+  const candidateTipKind = hoveredKind ?? focusedKind
+  const activeTipKind =
+    !anyMenuOpen && candidateTipKind && candidateTipKind !== suppressedTip ? candidateTipKind : null
+  const tipPos = usePaletteTipPosition(activeTipKind, chipRefs, paletteTipRef)
 
   // review condition 3 — the group's own trigger (real only while inline)
   // and the ⋯ trigger (always real), so a lifted dialog's `returnFocusTo`
@@ -338,7 +368,6 @@ export function Toolbar() {
               <span
                 key={p.kind}
                 className="palette-item"
-                data-tip-suppressed={suppressedTip === p.kind ? '' : undefined}
                 onMouseEnter={() => setHoveredKind(p.kind)}
                 onMouseLeave={() => {
                   setHoveredKind((k) => (k === p.kind ? null : k))
@@ -346,6 +375,9 @@ export function Toolbar() {
                 }}
               >
                 <button
+                  ref={(el) => {
+                    chipRefs.current[p.kind] = el ?? undefined
+                  }}
                   type="button"
                   className={`chip chip--${p.kind}`}
                   draggable
@@ -356,6 +388,10 @@ export function Toolbar() {
                     addCentered(p.kind)
                     setSuppressedTip(p.kind)
                   }}
+                  onFocus={(e) => {
+                    if (e.currentTarget.matches(':focus-visible')) setFocusedKind(p.kind)
+                  }}
+                  onBlur={() => setFocusedKind((k) => (k === p.kind ? null : k))}
                   aria-describedby={`palette-tip-${p.kind}`}
                 >
                   <span className="chip__glyph" aria-hidden="true">
@@ -363,16 +399,54 @@ export function Toolbar() {
                   </span>
                   {t(p.nameKey)}
                 </button>
-                <span className="palette-tip" role="tooltip" id={`palette-tip-${p.kind}`}>
-                  <span className="palette-tip__name">{t(p.nameKey)}</span>
-                  <span className="palette-tip__desc">{t(p.descKey)}</span>
-                  <span className="palette-tip__how">{t('palette.addAction')}</span>
-                </span>
               </span>
             ))}
           </span>
         ))}
       </div>
+
+      {createPortal(
+        <>
+          {PALETTE.map((p) => {
+            const isActive = activeTipKind === p.kind
+            return (
+              <div
+                key={p.kind}
+                ref={isActive ? paletteTipRef : undefined}
+                className="palette-tip"
+                role="tooltip"
+                id={`palette-tip-${p.kind}`}
+                style={{
+                  position: 'fixed',
+                  top: (isActive ? tipPos?.top : undefined) ?? 0,
+                  left: (isActive ? tipPos?.left : undefined) ?? 0,
+                  // `display` alone gates the inactive 7 (kept `none`, matching
+                  // the old "at most one shown at a time" contract e2e checks
+                  // for via computed `display`). The active one is ALWAYS
+                  // `flex` the instant it's picked — not gated on `tipPos` —
+                  // so `usePaletteTipPosition`'s very first measurement of it
+                  // sees its REAL width/height, not a collapsed zero-size box;
+                  // measuring a still-`display:none` element was exactly the
+                  // bug (its width read as 0, so the horizontal clamp's ceiling
+                  // was wrong for one commit, landing the rightmost chip's tip
+                  // off-screen at narrow widths). `visibility` gates the
+                  // user-visible reveal until a position exists, so there's no
+                  // flash at (0,0) in between — this resolves synchronously
+                  // inside the same pre-paint layout-effect pass, same pattern
+                  // as `useAnchoredPosition`'s panels.
+                  display: isActive ? 'flex' : 'none',
+                  visibility: isActive && tipPos ? 'visible' : 'hidden',
+                }}
+              >
+                <span className="palette-tip__name">{t(p.nameKey)}</span>
+                <span className="palette-tip__desc">{t(p.descKey)}</span>
+                <span className="palette-tip__how">{t('palette.addAction')}</span>
+              </div>
+            )
+          })}
+        </>,
+        document.body,
+      )}
 
       <div className="toolbar__actions" data-tour="files">
         <div className="toolbar__actions-core" ref={setCore}>
