@@ -154,7 +154,7 @@ test('L2 → L1 → L0 elide only supplementary text; the long label / big + neg
   await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__cdot')).toHaveCount(1)
   await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__invalid')).toHaveCount(1)
   await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__flag')).toHaveText('!')
-  await expect(page.locator('.react-flow__node[data-id="gold"] .nodef')).toHaveAttribute('aria-label', /pool /)
+  await expect(page.locator('.react-flow__node[data-id="gold"] .nodef')).toHaveAttribute('aria-label', /^Pool /)
 })
 
 // ── 3. forced-colors: rendered-style evidence for every required cue + a shot ─

@@ -154,7 +154,7 @@ test.describe('Canvas Refresh PR 3 — zoom LOD (§VL7)', () => {
     await expect(page.locator('.react-flow__node[data-id="p_rate"] .nodef__focus')).toHaveCount(1)
 
     // accessible name — on the element for AT even with the body visually hidden
-    await expect(page.locator('.react-flow__node[data-id="gold"] .nodef')).toHaveAttribute('aria-label', /pool Gold/)
+    await expect(page.locator('.react-flow__node[data-id="gold"] .nodef')).toHaveAttribute('aria-label', /^Pool Gold/)
 
     // hit target — the node's clickable box is the SAME world size as at L2
     const wL0 = await page.locator('.react-flow__node[data-id="gold"] .nodef').evaluate((el) => {
@@ -206,7 +206,7 @@ test.describe('Canvas Refresh PR 3 — zoom LOD (§VL7)', () => {
           await page.locator('.react-flow__node[data-id="gold"] .nodef__stroke').evaluate((el) => Number(getComputedStyle(el).strokeWidth.replace('px', ''))),
         ).toBeGreaterThan(0)
         await expect(page.locator('.react-flow__node[data-id="r_flip"] .nodef__invalid')).toHaveCount(1)
-        await expect(page.locator('.react-flow__node[data-id="gold"] .nodef')).toHaveAttribute('aria-label', /pool Gold/)
+        await expect(page.locator('.react-flow__node[data-id="gold"] .nodef')).toHaveAttribute('aria-label', /^Pool Gold/)
       }
       await page.emulateMedia({ colorScheme: null })
     })
