@@ -30,6 +30,7 @@ const GATE_KEY: Record<Exclude<ReviewModel['gate'], 'ok'>, MessageKey> = {
   'wrong-project': 'review.gate.wrongProject',
   'no-target': 'review.gate.noTarget',
   'target-is-proposal': 'review.gate.targetIsProposal',
+  'version-mismatch': 'review.gate.versionMismatch',
 }
 
 const CLASS_KEY: Record<NonNullable<ReviewModel['classification']>, MessageKey> = {
@@ -292,6 +293,7 @@ const FAIL_KEY: Record<
   'wrong-project': 'review.fail.wrongProject',
   'no-target': 'review.fail.noTarget',
   'target-is-proposal': 'review.fail.targetIsProposal',
+  'version-mismatch': 'review.fail.versionMismatch',
   'payload-invalid': 'review.fail.payloadInvalid',
   'invalid-selection': 'review.fail.invalidSelection',
 }

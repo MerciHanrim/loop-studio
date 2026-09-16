@@ -13,7 +13,7 @@ import {
   readParameterData,
   readRegisterData,
 } from './model'
-import { normalizeGraph, readDataImports, readSavedFrames } from './serialize'
+import { normalizeGraph, readDataImports, readSavedFrames, schemaForModelVersion } from './serialize'
 import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from './serialize'
 import type { FlowNodeKind, LoopEdge, LoopNode } from './types'
 import { sha256Hex, sha256Js, utf8ByteLength, utf8Bytes } from './workspace'
@@ -817,6 +817,94 @@ export function readRevisionSide(
     }
   }
   return { ok: true, version, content: v2, digestVerified: storedDigest !== undefined }
+}
+
+// ── one imported file: side pipeline + `project` header, with the v0.10.0
+//    legacy-envelope recovery ─────────────────────────────────────────────
+
+export type SideAndProjectResult =
+  | {
+      ok: true
+      side: RevisionSideOk
+      project: ProjectPayload
+      proposalBase?: ProposalBase
+      /** the model-semantics version the file's content is to be LOADED at —
+       *  the declared one, or `2` when the legacy recovery below applied. */
+      modelVersion: CanonModelVersion
+      /** true iff the file declared v1 but its `project.contentDigest` only
+       *  verifies under the v2 projection (a v0.10.0 export of a v2 document). */
+      legacyV2Recovered: boolean
+    }
+  | { ok: false; stage: 'side'; detail: string }
+  | { ok: false; stage: 'project'; warning: string; reason: ReadProjectDropReason }
+
+/**
+ * The §R2-5 side pipeline followed by the §R10 `project` read, as one call —
+ * the sequence `revisionIO.routeImport` runs for a file that carries a
+ * `project` key.
+ *
+ * **v0.10.0 legacy-envelope recovery.** v0.10.0 wrote every Project revision /
+ * proposal with the v1 envelope `schema: "loop-studio/graph"` even for a v2
+ * (loop-model/2) document, while computing `project.contentDigest` under the
+ * v2 projection (§M2-8 discriminator included). Read literally, such a file
+ * fails the digest cross-check and, worse, loads as v1 — every `@parameter`
+ * flow silently becomes the literal `1`. The recovery here is deliberately
+ * NARROW: only when the file declares v1 AND the v1 read failed for exactly
+ * `digest-mismatch` AND the SAME `project.contentDigest` verifies under the v2
+ * projection is the side re-read as v2. The digest is the proof of v2
+ * authorship; nothing else (no heuristic on `@` strings, no "looks like a
+ * model doc") ever promotes a file. A file whose digest matches neither
+ * projection is dropped exactly as before; a declared-v2 file, or a
+ * declared-v1 file whose v1 digest verifies, never enters this branch, so
+ * genuine v1 files keep their existing behaviour and digest strictness.
+ *
+ * A legacy PROPOSAL's `base` (first-creation shape) was projected as v1 by the
+ * same v0.10.0 bug; it is self-consistent and is read verbatim — it is NOT
+ * lifted to v2, so such a proposal classifies as `unknown` against its own
+ * v2 target rather than being promoted to `exact` (the confirmation gate
+ * stays; nothing is silently applied).
+ */
+export function readRevisionSideAndProject(
+  graph: Parameters<typeof readRevisionSide>[0],
+  rawProject: unknown,
+  declaredModelVersion: CanonModelVersion,
+): SideAndProjectResult {
+  const side = readRevisionSide(graph, undefined, declaredModelVersion)
+  if (!side.ok) return { ok: false, stage: 'side', detail: side.detail }
+  const read = readProject(rawProject, side.content)
+  if (read.ok) {
+    return {
+      ok: true,
+      side,
+      project: read.project,
+      ...(read.proposalBase ? { proposalBase: read.proposalBase } : {}),
+      modelVersion: declaredModelVersion,
+      legacyV2Recovered: false,
+    }
+  }
+
+  // the legacy-recovery gate — every condition must hold
+  const hasDigest =
+    !!rawProject &&
+    typeof rawProject === 'object' &&
+    typeof (rawProject as Record<string, unknown>).contentDigest === 'string'
+  if (declaredModelVersion === 1 && read.reason === 'digest-mismatch' && hasDigest) {
+    const sideV2 = readRevisionSide(graph, undefined, 2)
+    if (sideV2.ok) {
+      const readV2 = readProject(rawProject, sideV2.content)
+      if (readV2.ok) {
+        return {
+          ok: true,
+          side: sideV2,
+          project: readV2.project,
+          ...(readV2.proposalBase ? { proposalBase: readV2.proposalBase } : {}),
+          modelVersion: 2,
+          legacyV2Recovered: true,
+        }
+      }
+    }
+  }
+  return { ok: false, stage: 'project', warning: read.warning, reason: read.reason }
 }
 
 // ── engine vs cosmetic (§R4.4 / §R5.2) ────────────────────────────────────
@@ -1680,7 +1768,18 @@ export type ReadProjectOk = {
   /** for a proposal: the base's canonical content, already validated */
   proposalBase?: ProposalBase
 }
-export type ReadProjectDropped = { ok: false; warning: string }
+/** why a `project` payload was dropped. `digest-mismatch` is the ONLY reason
+ *  the v0.10.0 legacy-recovery path (`readRevisionSideAndProject`) may retry
+ *  under the v2 projection; every other reason is final. */
+export type ReadProjectDropReason =
+  | 'unreadable'
+  | 'unsupported-version'
+  | 'malformed-ids'
+  | 'malformed-parent'
+  | 'malformed-digest'
+  | 'digest-mismatch'
+  | 'bad-base'
+export type ReadProjectDropped = { ok: false; warning: string; reason: ReadProjectDropReason }
 export type ReadProjectResult = ReadProjectOk | ReadProjectDropped
 
 function trimAuthor(a: unknown): ProjectAuthor | undefined {
@@ -1727,27 +1826,27 @@ function readMeta(m: unknown): ProjectMeta | undefined {
  * does the format + digest checks on an already-projected `loadedContent`.
  */
 export function readProject(raw: unknown, loadedContent?: CanonicalContent): ReadProjectResult {
-  const drop = (w: string): ReadProjectDropped => ({ ok: false, warning: w })
-  if (!raw || typeof raw !== 'object') return drop("this file's project data is not readable")
+  const drop = (reason: ReadProjectDropReason, w: string): ReadProjectDropped => ({ ok: false, warning: w, reason })
+  if (!raw || typeof raw !== 'object') return drop('unreadable', "this file's project data is not readable")
   const o = raw as Record<string, unknown>
 
   if (o.schema !== PROJECT_SCHEMA || o.version !== PROJECT_VERSION) {
-    return drop("this file's project data is not a supported version")
+    return drop('unsupported-version', "this file's project data is not a supported version")
   }
   if (!isProjectId(o.projectId) || !isRevisionId(o.revisionId)) {
-    return drop("this file's project data has malformed ids")
+    return drop('malformed-ids', "this file's project data has malformed ids")
   }
   if (o.parentId !== null && !isRevisionId(o.parentId)) {
-    return drop("this file's project data has a malformed parent id")
+    return drop('malformed-parent', "this file's project data has a malformed parent id")
   }
 
   // integrity: the header's claimed digest must match the file's actual graph
   if (loadedContent && o.contentDigest !== undefined) {
     if (typeof o.contentDigest !== 'string' || !HEX64.test(o.contentDigest)) {
-      return drop("this file's project content digest is malformed")
+      return drop('malformed-digest', "this file's project content digest is malformed")
     }
     if (digestOfCanonical(loadedContent) !== o.contentDigest) {
-      return drop("this file's project data does not match its graph (edited outside Loop Studio?)")
+      return drop('digest-mismatch', "this file's project data does not match its graph (edited outside Loop Studio?)")
     }
   }
 
@@ -1772,7 +1871,7 @@ export function readProject(raw: unknown, loadedContent?: CanonicalContent): Rea
 
   if (role === 'proposal') {
     const base = readProposalBase(o.base)
-    if (!base) return drop("this proposal's base snapshot is missing or inconsistent")
+    if (!base) return drop('bad-base', "this proposal's base snapshot is missing or inconsistent")
     project.base = base
     return { ok: true, project, proposalBase: base }
   }
@@ -1886,7 +1985,9 @@ export function truncBytes(s: string, max: number): string {
 // ── pure export planners (§R2.1 / §R6) ──────────────────────────────────
 
 export type GraphDocInput = {
-  schema: 'loop-studio/graph'
+  /** the envelope schema — `loop-studio/graph` (v1) or `loop-studio/graph/2`
+   *  (loop-model/2). Written by `buildFile` from the doc's `modelVersion`. */
+  schema: 'loop-studio/graph' | 'loop-studio/graph/2'
   version: 1
   nodes: LoopNode[]
   edges: LoopEdge[]
@@ -1976,7 +2077,7 @@ export function planRevisionExport(input: {
     lineage,
     meta,
   }
-  const file = buildFile(input.doc, project)
+  const file = buildFile(input.doc, project, input.modelVersion)
   const text = JSON.stringify(file, null, 2)
   const bytes = utf8ByteLength(text)
   if (bytes > cap) {
@@ -2057,7 +2158,11 @@ export function planProposalExport(input: {
     }
   } else {
     if (input.dirty) return { ok: false, reason: 'dirty-origin' }
-    const c = canonicalContent(input.doc) // proposed === base on first creation
+    // proposed === base on first creation — projected at the SAME
+    // model-semantics version as `proposedDigest` above (§M2-8), so a v2
+    // origin's base digest is the v2 digest the live target will compare
+    // itself against for the `exact` verdict (§R7A.2).
+    const c = canonicalContent(input.doc, { modelVersion: input.modelVersion })
     base = { revisionId: input.project.revisionId, contentDigest: digestOfCanonical(c), content: c }
   }
 
@@ -2075,7 +2180,7 @@ export function planProposalExport(input: {
     lineage: [base.revisionId, ...input.project.lineage].slice(0, LINEAGE_MAX),
     meta: { ...input.meta, createdAt: input.now },
   }
-  const file = buildFile(input.doc, project)
+  const file = buildFile(input.doc, project, input.modelVersion)
   const text = JSON.stringify(file, null, 2)
   const bytes = utf8ByteLength(text)
   if (bytes > cap) {
@@ -2084,9 +2189,18 @@ export function planProposalExport(input: {
   return { ok: true, text, bytes, proposalRevisionId }
 }
 
-function buildFile(doc: Omit<GraphDocInput, 'schema' | 'version'>, project: ProjectPayload): Record<string, unknown> {
+/** The revision / proposal file envelope. `modelVersion` decides the envelope
+ *  `schema` (§M2-1): a v2 document is written as `loop-studio/graph/2`, so a
+ *  reader derives the same model-semantics version the digest was projected
+ *  at. v0.10.0 wrote every file with the v1 string regardless — see
+ *  `readRevisionSideAndProject` for how those files are read back. */
+function buildFile(
+  doc: Omit<GraphDocInput, 'schema' | 'version'>,
+  project: ProjectPayload,
+  modelVersion: CanonModelVersion | undefined,
+): Record<string, unknown> {
   const file: Record<string, unknown> = {
-    schema: 'loop-studio/graph',
+    schema: schemaForModelVersion(modelVersion),
     version: 1,
     nodes: doc.nodes,
     edges: doc.edges,

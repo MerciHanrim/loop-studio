@@ -68,6 +68,10 @@ export type ApplyFailReason =
   | 'wrong-project'
   | 'no-target'
   | 'target-is-proposal'
+  /** the proposal's model-semantics version differs from the open document's
+   *  (v1 ↔ v2). A cross-version merge is undefined by SEMANTICS-M2, so it is
+   *  refused before anything changes — never auto-promoted or auto-downgraded. */
+  | 'version-mismatch'
   | 'needs-confirmation'
   | 'payload-invalid'
   | 'target-moved'
@@ -139,7 +143,7 @@ type ProjectState = {
     proposed: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion?: 1 | 2; frames?: readonly SavedFrame[]; dataImports?: readonly ImportSourceTable[] }
   }) =>
     | { ok: true; classification: ApplyClassification }
-    | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' }
+    | { ok: false; reason: 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch' }
   /**
    * §R7 — Apply. Re-gates, re-validates the proposal payload against its own
    * digests. **Whole-proposal** (`opts.selection` absent): RE-CLASSIFIES against
@@ -289,6 +293,13 @@ function classifyAgainst(
   if (exact) return 'exact'
   const nConf = countThreeWayConflicts(base.content, target, canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
   return nConf >= 1 ? 'divergent' : 'unknown'
+}
+
+/** §M2-1 — the Apply / classify version gate: a proposal may only be judged
+ *  against, or applied onto, a document of the SAME model-semantics version.
+ *  An absent `modelVersion` reads as v1 (a plain `loop-studio/graph` file). */
+function sameModelVersion(proposed: { modelVersion?: 1 | 2 }): boolean {
+  return (proposed.modelVersion ?? 1) === useGraphStore.getState().modelVersion
 }
 
 // ── store ──────────────────────────────────────────────────────────────────
@@ -501,9 +512,11 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // so undo restores the prior document AND its header.
       // LGR Slice 5 — adopt the proposal's saved frames too (`[]` when it has
       // none ⇒ a clean replace); part of the same one `loadDoc` history entry.
+      // §M2-1 — the proposal's OWN model-semantics version is preserved (a v2
+      // proposal opens as a v2 document); never the target's, never a reset.
       useGraphStore
         .getState()
-        .loadDoc({ nodes: proposed.nodes, edges: proposed.edges }, undefined, proposed.frames, proposed.dataImports)
+        .loadDoc({ nodes: proposed.nodes, edges: proposed.edges }, proposed.modelVersion ?? 1, proposed.frames, proposed.dataImports)
       const digest = digestOfCanonical(canonicalContent(proposed, { modelVersion: proposed.modelVersion }))
       const next: OpenProject = {
         projectId: project.projectId,
@@ -524,6 +537,7 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (!o) return { ok: false, reason: 'no-target' }
       if (o.projectId !== project.projectId) return { ok: false, reason: 'wrong-project' }
       if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
+      if (!sameModelVersion(proposed)) return { ok: false, reason: 'version-mismatch' }
       return { ok: true, classification: classifyAgainst(o, base, proposed) }
     },
 
@@ -537,6 +551,10 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       if (!o) return { ok: false, reason: 'no-target' }
       if (o.projectId !== project.projectId) return { ok: false, reason: 'wrong-project' }
       if (o.role === 'proposal') return { ok: false, reason: 'target-is-proposal' }
+      // §M2-1 — whole AND per-hunk: a v1 ↔ v2 merge is undefined by the spec,
+      // so it is refused HERE, before any classification / mutation. The
+      // resulting document keeps the (identical) version of both sides.
+      if (!sameModelVersion(proposed)) return { ok: false, reason: 'version-mismatch' }
 
       // §R6 / §R10 — the proposal payload must still hash to its own digests
       const proposedCanon = canonicalContent(proposed, { modelVersion: proposed.modelVersion })
@@ -635,9 +653,12 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       // §R7.3 — exactly one loadDoc ⇒ one simulationRev bump, sim paused@0, one
       // undo entry. The history sidecar captures `preHeader` on that frame, so a
       // single Undo restores the pre-apply graph AND this header together.
+      // §M2-1 — the target's model-semantics version is kept (equal to the
+      // proposal's, by the gate above); `postGraphDigest` below is projected at
+      // that same version, so `dirty` is false right after an Apply.
       useGraphStore
         .getState()
-        .loadDoc({ nodes: resultNodes, edges: resultEdges }, undefined, resultFrames, resultDataImports)
+        .loadDoc({ nodes: resultNodes, edges: resultEdges }, g.modelVersion, resultFrames, resultDataImports)
       // the new baseline is the WHOLE post-apply content — `frameStore` /
       // `dataImportStore` now hold the effective values (swapped when
       // `resultFrames` / `resultDataImports` were set, kept otherwise), so read

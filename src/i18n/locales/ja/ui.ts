@@ -214,6 +214,8 @@ const ui = {
   'review.gate.noTarget': '開いているプロジェクトがありません。この提案をドキュメントとして開くか、キャンセルしてください。',
   'review.gate.targetIsProposal':
     '現在、提案を開いています。別の提案を適用する前に、これをプロジェクトリビジョンとしてエクスポートしてください。',
+  'review.gate.versionMismatch':
+    'この提案は、開いているドキュメントとモデルバージョンが異なります（一方だけが @parameter 参照を使用しています）。ここには適用できません。ドキュメントとして開くことはできます。',
   'review.class.exact': '開いているリビジョンは、この提案の作成元のベースと完全に一致します。',
   'review.class.divergent':
     '開いているリビジョンには、この提案と重なる変更があります。提案全体を適用すると、それらは破棄されます。',
@@ -231,6 +233,7 @@ const ui = {
   'review.fail.wrongProject': 'この提案は別のプロジェクト向けです。',
   'review.fail.noTarget': '適用先の開いているプロジェクトがありません。',
   'review.fail.targetIsProposal': '先に、開いている提案をプロジェクトリビジョンとしてエクスポートしてください。',
+  'review.fail.versionMismatch': 'この提案は、開いているドキュメントとモデルバージョンが異なるため、ここには適用できません。',
   'review.fail.payloadInvalid': 'この提案ファイルは整合性チェックに失敗しました — 再インポートしてください。',
   'review.fail.invalidSelection':
     'その選択は適用できません — 受け入れた接続に、含めていないノードが必要です。選択を調整して、もう一度お試しください。',

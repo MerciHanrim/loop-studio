@@ -3,10 +3,10 @@ import {
   computeRevisionDiff,
   type RevisionDiff,
 } from '../model/revision'
-import { deserialize } from '../model/serialize'
 import { useProjectStore, type PlanRevisionResult } from '../store/projectStore'
 import {
   classifyPendingProposal,
+  proposedGraph,
   type PendingProposal,
 } from '../store/revisionIO'
 import { downloadText } from './download'
@@ -81,7 +81,7 @@ export function makeProposal(): ExportStatus {
 
 // ── the Review model (desktop panel === mobile sheet) ─────────────────────
 
-export type ReviewGate = 'ok' | 'wrong-project' | 'no-target' | 'target-is-proposal'
+export type ReviewGate = 'ok' | 'wrong-project' | 'no-target' | 'target-is-proposal' | 'version-mismatch'
 
 export type ReviewModel = {
   /** unverified, self-asserted (§R8) — render as "claimed, not verified" */
@@ -97,7 +97,9 @@ export type ReviewModel = {
 
 export function reviewModel(p: PendingProposal): ReviewModel {
   const c = classifyPendingProposal(p)
-  const proposed = deserialize(p.proposedText)
+  // the ONE proposal reader — carries the routed (possibly legacy-recovered)
+  // model version, so the diff is projected at the version the digest proved
+  const proposed = proposedGraph(p)
   const diff = computeRevisionDiff(
     p.base.content,
     // SEMANTICS-R5.md §R5-6 — carry the proposal's saved `frames` so the diff

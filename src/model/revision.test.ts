@@ -18,6 +18,7 @@ import {
   planProposalExport,
   planRevisionExport,
   readProject,
+  readRevisionSideAndProject,
   truncBytes,
 } from './revision'
 
@@ -656,5 +657,136 @@ describe('loop-revision/5 — saved frames (SEMANTICS-R5.md §R5-2 / §R5-4)', (
     expect(d.frames?.base).toHaveLength(1)
     expect(d.frames?.proposed).toBeNull()
     expect(d.summary.framesChanged).toBe(true)
+  })
+})
+
+// ── loop-model/2 envelope (§M2-1) + the v0.10.0 legacy-envelope recovery ────
+
+describe('revision / proposal files carry the model-version envelope (§M2-1)', () => {
+  const g = doc([pool('p1', { initial: 3 }), pool('p2')], [rEdge('e1', 'p1', 'p2', '@p1')])
+  const project = { projectId: FAKE_PROJ, revisionId: FAKE_REV, parentId: null as string | null, lineage: [] as string[] }
+
+  it('a v2 revision file is written as loop-studio/graph/2 with the v2 digest', () => {
+    const p = planRevisionExport({ doc: g, modelVersion: 2, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const file = JSON.parse(p.text)
+    expect(file.schema).toBe('loop-studio/graph/2')
+    expect(file.project.contentDigest).toBe(digestOfCanonical(canonicalContent(g, { modelVersion: 2 })))
+    // read back: declared v2, digest verifies, no recovery needed
+    const r = readRevisionSideAndProject(g, file.project, 2)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.modelVersion).toBe(2)
+      expect(r.legacyV2Recovered).toBe(false)
+    }
+  })
+
+  it('a v1 revision file is byte-for-byte what it was — v1 envelope, v1 digest (modelVersion absent or 1)', () => {
+    const a = planRevisionExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    const b = planRevisionExport({ doc: g, modelVersion: 1, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!a.ok || !b.ok) throw new Error('plan')
+    expect(a.text).toBe(b.text)
+    const file = JSON.parse(a.text)
+    expect(file.schema).toBe('loop-studio/graph')
+    expect(file.project.contentDigest).toBe(digestOfCanonical(canonicalContent(g)))
+    expect(canonicalContent(g).modelSemantics).toBeUndefined()
+  })
+
+  it('a v2 proposal projects its first-creation base at v2 too — so an unmodified proposal is `exact` against its origin', () => {
+    const p = planProposalExport({ doc: g, modelVersion: 2, project: { ...project }, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const file = JSON.parse(p.text)
+    expect(file.schema).toBe('loop-studio/graph/2')
+    const v2 = digestOfCanonical(canonicalContent(g, { modelVersion: 2 }))
+    expect(file.project.contentDigest).toBe(v2)
+    expect(file.project.base.contentDigest).toBe(v2)
+    expect(file.project.base.content.modelSemantics).toBe('loop-model/2')
+    // a v1 proposal's base carries no discriminator, as before
+    const p1 = planProposalExport({ doc: g, project: { ...project }, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p1.ok) throw new Error('plan')
+    expect(JSON.parse(p1.text).project.base.content.modelSemantics).toBeUndefined()
+    expect(JSON.parse(p1.text).schema).toBe('loop-studio/graph')
+  })
+})
+
+describe('readRevisionSideAndProject — the v0.10.0 legacy-envelope recovery gate', () => {
+  const g = doc([pool('p1', { initial: 3 }), pool('p2')], [rEdge('e1', 'p1', 'p2', '@p1')])
+  const project = { projectId: FAKE_PROJ, revisionId: FAKE_REV, parentId: null as string | null, lineage: [] as string[] }
+  /** what v0.10.0 wrote: the header of a v2 plan, read back as if the file
+   *  declared v1 (its envelope did) */
+  const legacyHeader = () => {
+    const p = planRevisionExport({ doc: g, modelVersion: 2, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    return JSON.parse(p.text).project as Record<string, unknown>
+  }
+
+  it('declared v1 + v1 digest fails + v2 digest verifies ⇒ recovered as v2', () => {
+    const r = readRevisionSideAndProject(g, legacyHeader(), 1)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.modelVersion).toBe(2)
+      expect(r.legacyV2Recovered).toBe(true)
+      expect(r.side.content.modelSemantics).toBe('loop-model/2')
+      expect(digestOfCanonical(r.side.content)).toBe(legacyHeader().contentDigest)
+    }
+  })
+
+  it('declared v1 + digest matches NEITHER projection ⇒ dropped (digest-mismatch), never promoted', () => {
+    const h = legacyHeader()
+    const edited = doc([pool('p1', { initial: 99 }), pool('p2')], [rEdge('e1', 'p1', 'p2', '@p1')])
+    const r = readRevisionSideAndProject(edited, h, 1)
+    expect(r.ok).toBe(false)
+    if (!r.ok && r.stage === 'project') expect(r.reason).toBe('digest-mismatch')
+  })
+
+  it('declared v1 + the v1 digest verifies ⇒ plain v1, no recovery (a genuine v1 file is untouched)', () => {
+    const p = planRevisionExport({ doc: g, project, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const r = readRevisionSideAndProject(g, JSON.parse(p.text).project, 1)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.modelVersion).toBe(1)
+      expect(r.legacyV2Recovered).toBe(false)
+      expect(r.side.content.modelSemantics).toBeUndefined()
+    }
+  })
+
+  it('no contentDigest ⇒ no proof ⇒ declared version kept, no recovery', () => {
+    const h = legacyHeader()
+    delete h.contentDigest
+    const r = readRevisionSideAndProject(g, h, 1)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.modelVersion).toBe(1)
+      expect(r.legacyV2Recovered).toBe(false)
+    }
+  })
+
+  it('a non-digest drop reason is final — never retried under v2', () => {
+    const h = legacyHeader()
+    h.version = 2 // unsupported project version
+    const r = readRevisionSideAndProject(g, h, 1)
+    expect(r.ok).toBe(false)
+    if (!r.ok && r.stage === 'project') expect(r.reason).toBe('unsupported-version')
+    const bad = { ...legacyHeader(), contentDigest: 'ZZZZ' }
+    const r2 = readRevisionSideAndProject(g, bad, 1)
+    expect(r2.ok).toBe(false)
+    if (!r2.ok && r2.stage === 'project') expect(r2.reason).toBe('malformed-digest')
+  })
+
+  it('a legacy proposal keeps its v1-projected base verbatim (not lifted)', () => {
+    const p = planProposalExport({ doc: g, modelVersion: 2, project: { ...project }, dirty: false, meta: {}, now: 'n', mint: seqMint })
+    if (!p.ok) throw new Error('plan')
+    const h = JSON.parse(p.text).project as Record<string, unknown>
+    // v0.10.0's base was projected WITHOUT the discriminator — reproduce that
+    const v1c = canonicalContent(g)
+    h.base = { revisionId: FAKE_REV, contentDigest: digestOfCanonical(v1c), content: v1c }
+    const r = readRevisionSideAndProject(g, h, 1)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.legacyV2Recovered).toBe(true)
+      expect(r.proposalBase?.content.modelSemantics).toBeUndefined()
+      expect(r.proposalBase?.contentDigest).toBe(digestOfCanonical(v1c))
+    }
   })
 })

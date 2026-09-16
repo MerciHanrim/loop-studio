@@ -4,6 +4,30 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## Unreleased
+
+### Fixed
+
+- **Project revision / proposal files of a `@parameter` (loop-model/2)
+  document** — v0.10.0 wrote every revision and proposal with the v1 envelope
+  `"schema": "loop-studio/graph"` while computing `project.contentDigest`
+  under the v2 projection, so such a file failed its own integrity check on
+  import (the project header was dropped with a misleading "edited outside
+  Loop Studio?" warning) and its graph loaded as v1 — every `@…` flow
+  silently ran as the literal `1`. Both bundled v2 Templates (Coffee roastery,
+  3-zone gacha) were affected. Now: the writer emits the document's real
+  envelope (`loop-studio/graph/2`) and projects a proposal's first-creation
+  `base` at the same version; the reader recovers an already-exported v0.10.0
+  file **only** when its `project.contentDigest` verifies under the v2
+  projection (digest is the proof — nothing else ever promotes a file; a file
+  that matches neither projection is dropped exactly as before, and genuine v1
+  files are untouched). Apply keeps the open document's model version and
+  refuses a v1 ↔ v2 cross-version proposal before anything changes
+  (`version-mismatch`, whole and per-hunk); "Open as a document" preserves the
+  proposal's own version. A recovered legacy proposal's v1-projected `base` is
+  read verbatim, so it classifies as `unknown` (confirmation kept) rather than
+  being promoted to `exact`. Fixtures: `examples/revision-legacy-v0.10.0/`.
+
 ## v0.10.0 — 2026-09-16
 
 Data import, a fifth Template, tunable activator thresholds, conditional

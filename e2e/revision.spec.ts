@@ -934,3 +934,76 @@ test.describe('loop-revision/5 — saved frames in Review', () => {
     await expect(page.locator('.review__actions button', { hasText: 'Apply anyway' })).toBeVisible()
   })
 })
+
+// ── loop-model/2 (§M2-1) — the v0.10.0 legacy-envelope recovery through the
+//    real Import path, plus the cross-version Review gate ────────────────────
+test.describe('loop-model/2 — v2 revision files (v0.10.0 legacy recovery + version gate)', () => {
+  const LEGACY_DIR = new URL('../examples/revision-legacy-v0.10.0/', import.meta.url)
+  const legacy = (name: string) => readFileSync(new URL(name, LEGACY_DIR), 'utf8')
+  const modelVersion = (page: Page): Promise<number> =>
+    page.evaluate(
+      () => (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop.graph.getState().modelVersion,
+    )
+
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      L.project.getState().clear()
+      L.review.getState().close()
+    })
+  })
+
+  test('a v0.10.0 v2 revision file imports as a v2 project with no warning; its proposal reviews as `unknown`', async ({
+    page,
+  }) => {
+    const dialogs: string[] = []
+    page.on('dialog', (d) => {
+      dialogs.push(d.message())
+      d.accept().catch(() => {})
+    })
+    await setFile(page, 'LR0.json', legacy('LR0.json'))
+    await expect(page.locator('.rev-chip')).toBeVisible()
+    expect(dialogs).toEqual([]) // no "project data does not match" alert
+    expect(await modelVersion(page)).toBe(2)
+    const s = await snap(page)
+    expect(s.open?.role).toBe('revision')
+    expect(s.dirty).toBe(false)
+
+    // the legacy proposal onto it: reviewable, gated as `unknown` (never auto-exact)
+    await setFile(page, 'LP1.json', legacy('LP1.json'))
+    await expect(page.locator('.review')).toBeVisible()
+    await page.locator('.review__actions button', { hasText: 'Apply proposal' }).click()
+    await expect(page.locator('.review__warn')).toBeVisible()
+    await page.locator('.review__actions button', { hasText: 'Apply anyway' }).click()
+    await expect(page.locator('.review')).toBeHidden()
+    expect(await modelVersion(page)).toBe(2)
+    const after = await snap(page)
+    expect(after.open?.applied).not.toBeNull()
+    expect(after.dirty).toBe(false)
+  })
+
+  test('a v2 proposal onto a v1 document is blocked in Review with the version-mismatch notice', async ({ page }) => {
+    page.on('dialog', (d) => {
+      d.accept().catch(() => {})
+    })
+    // open the legacy v2 project, then swap the live document for a v1 graph
+    // that keeps the SAME project header (so only the version gate applies)
+    await setFile(page, 'LR0.json', legacy('LR0.json'))
+    await expect(page.locator('.rev-chip')).toBeVisible()
+    await page.evaluate(() => {
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const open = L.project.getState().open
+      L.graph.getState().newGraph()
+      L.graph.getState().addNodeAt('pool', { x: 0, y: 0 })
+      L.project.setState({ open, dirty: true })
+    })
+    expect(await modelVersion(page)).toBe(1)
+    await setFile(page, 'LP1.json', legacy('LP1.json'))
+    await expect(page.locator('.review')).toBeVisible()
+    await expect(page.locator('.review__class--blocked')).toContainText(/different model version/i)
+    await expect(page.locator('.review__actions button', { hasText: 'Apply proposal' })).toHaveCount(0)
+    expect(await modelVersion(page)).toBe(1)
+  })
+})

@@ -832,3 +832,132 @@ describe('per-hunk selective apply — the `frames` hunk (§R5-6)', () => {
     expect(useGraphStore.getState().past.length).toBe(pastBefore)
   })
 })
+
+// ── §M2-1 — model-version preservation + the cross-version gate ───────────
+
+describe('Apply / Open-as-document and the model-semantics version (§M2-1)', () => {
+  /** turn the seeded v1 graph into a v2 document via the real latch: a
+   *  leading-`@` flow commit (SEMANTICS-M2 §M2-1.1) */
+  function makeV2(): void {
+    const g = useGraphStore.getState()
+    g.addNodeAt('parameter', { x: 0, y: 200 })
+    g.addNodeAt('source', { x: 0, y: 100 })
+    const [pool, param, src] = useGraphStore.getState().nodes.map((n) => n.id)
+    useGraphStore.getState().onConnect({ source: src, target: pool, sourceHandle: 'out', targetHandle: 'in' })
+    const e = useGraphStore.getState().edges[0]
+    useGraphStore.getState().setEdgeData(e.id, { kind: 'resource', flow: `@${param}` })
+    expect(useGraphStore.getState().modelVersion).toBe(2)
+  }
+  const live = () => {
+    const g = useGraphStore.getState()
+    return digestOfCanonical(canonicalContent({ nodes: g.nodes, edges: g.edges }, { modelVersion: g.modelVersion }))
+  }
+  const untouched = () => ({
+    sig: graphSig(),
+    rev: useGraphStore.getState().simulationRev,
+    past: useGraphStore.getState().past.length,
+    open: useProjectStore.getState().open?.revisionId,
+    mv: useGraphStore.getState().modelVersion,
+  })
+
+  it('v2 target + v2 proposal: an unmodified proposal is `exact`; Apply keeps v2 and is not dirty', async () => {
+    makeV2()
+    promote()
+    const res = useProjectStore.getState().planProposal({ now: 'p', mint })
+    if (!('text' in res) || !res.ok) throw new Error('proposal plan')
+    expect(JSON.parse(res.text).schema).toBe('loop-studio/graph/2')
+    const p = await importProposal(res.text)
+    expect(p.modelVersion).toBe(2)
+    expect(classifyPendingProposal(p)).toEqual({ ok: true, classification: 'exact' })
+
+    // an edited v2 proposal applies whole, keeping v2, dirty false right after
+    // (the file's own digest is recomputed at v2 — the version its envelope declares)
+    const editedText = (() => {
+      const r2 = useProjectStore.getState().planProposal({ now: 'p', mint })
+      if (!('text' in r2) || !r2.ok) throw new Error('proposal plan')
+      const f = JSON.parse(r2.text) as Record<string, unknown>
+      ;(f.nodes as unknown[]).push(extraPool)
+      ;(f.project as Record<string, unknown>).contentDigest = digestOfCanonical(
+        canonicalContent({ nodes: f.nodes as never, edges: f.edges as never }, { modelVersion: 2 }),
+      )
+      return JSON.stringify(f)
+    })()
+    const edited = await importProposal(editedText)
+    const a = applyPendingProposal(edited)
+    expect(a.ok).toBe(true)
+    expect(useGraphStore.getState().modelVersion).toBe(2)
+    expect(useGraphStore.getState().nodes.some((n) => n.id === 'p_added')).toBe(true)
+    useProjectStore.getState().refreshDirty()
+    expect(useProjectStore.getState().dirty).toBe(false)
+    expect(useProjectStore.getState().open!.baselineDigest).toBe(live())
+    expect(JSON.parse(useGraphStore.getState().exportJSON()).schema).toBe('loop-studio/graph/2')
+  })
+
+  it('v2 target + v1 proposal ⇒ version-mismatch on classify, whole Apply and per-hunk Apply; nothing mutated', async () => {
+    makeV2()
+    promote()
+    const res = useProjectStore.getState().planProposal({ now: 'p', mint })
+    if (!('text' in res) || !res.ok) throw new Error('proposal plan')
+    // the same project, but a v1 document: v1 envelope + v1-projected digest
+    const f = JSON.parse(res.text) as Record<string, unknown>
+    f.schema = 'loop-studio/graph'
+    ;(f.project as Record<string, unknown>).contentDigest = digestOfCanonical(
+      canonicalContent({ nodes: f.nodes as never, edges: f.edges as never }, { modelVersion: 1 }),
+    )
+    const p = await importProposal(JSON.stringify(f))
+    expect(p.modelVersion).toBe(1)
+    const before = untouched()
+    expect(classifyPendingProposal(p)).toEqual({ ok: false, reason: 'version-mismatch' })
+    expect(applyPendingProposal(p, { confirmed: true })).toEqual({ ok: false, reason: 'version-mismatch' })
+    expect(
+      applyPendingProposal(p, { selection: { accept: {}, fieldChoices: {}, frames: 'proposed' }, expectTargetDigest: currentTargetDigest() }),
+    ).toEqual({ ok: false, reason: 'version-mismatch' })
+    expect(untouched()).toEqual(before)
+  })
+
+  it('v1 target + v2 proposal ⇒ version-mismatch; nothing mutated', async () => {
+    promote() // the seeded v1 graph
+    const res = useProjectStore.getState().planProposal({ now: 'p', mint })
+    if (!('text' in res) || !res.ok) throw new Error('proposal plan')
+    const f = JSON.parse(res.text) as Record<string, unknown>
+    f.schema = 'loop-studio/graph/2'
+    ;(f.project as Record<string, unknown>).contentDigest = digestOfCanonical(
+      canonicalContent({ nodes: f.nodes as never, edges: f.edges as never }, { modelVersion: 2 }),
+    )
+    const p = await importProposal(JSON.stringify(f))
+    expect(p.modelVersion).toBe(2)
+    const before = untouched()
+    expect(classifyPendingProposal(p)).toEqual({ ok: false, reason: 'version-mismatch' })
+    expect(applyPendingProposal(p, { confirmed: true })).toEqual({ ok: false, reason: 'version-mismatch' })
+    expect(untouched()).toEqual(before)
+    expect(useGraphStore.getState().modelVersion).toBe(1)
+  })
+
+  it('Open as a document preserves the proposal\'s own version (v2 → v2, v1 → v1), not dirty', async () => {
+    makeV2()
+    promote()
+    const res = useProjectStore.getState().planProposal({ now: 'p', mint })
+    if (!('text' in res) || !res.ok) throw new Error('proposal plan')
+    const p2 = await importProposal(res.text)
+    useGraphStore.getState().newGraph() // a v1 session
+    expect(useGraphStore.getState().modelVersion).toBe(1)
+    openPendingProposalAsDocument(p2)
+    expect(useGraphStore.getState().modelVersion).toBe(2)
+    expect(useProjectStore.getState().open?.role).toBe('proposal')
+    useProjectStore.getState().refreshDirty()
+    expect(useProjectStore.getState().dirty).toBe(false)
+
+    // and a v1 proposal opened onto a v2 session comes out v1
+    useGraphStore.getState().newGraph()
+    useGraphStore.getState().addNodeAt('pool', { x: 0, y: 0 })
+    useProjectStore.setState({ open: null, dirty: false, activePlanId: null })
+    promote()
+    const r1 = useProjectStore.getState().planProposal({ now: 'p', mint })
+    if (!('text' in r1) || !r1.ok) throw new Error('proposal plan')
+    const p1 = await importProposal(r1.text)
+    useGraphStore.getState().newGraph()
+    useGraphStore.setState({ modelVersion: 2 })
+    openPendingProposalAsDocument(p1)
+    expect(useGraphStore.getState().modelVersion).toBe(1)
+  })
+})
