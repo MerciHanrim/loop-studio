@@ -225,10 +225,26 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
           `(polls ${trace.polls}, max frame gap ${Math.round(trace.maxGap)} ms): ${JSON.stringify(summary)}`,
       ).toBeDefined()
       const tr = done!
-      const onsetOf = (id: string) => tr.onsetByEdge[id] ?? 0
+      // the onsets this transition actually assigned — every asserted edge must
+      // have one (a missing onset is never read as 0: that would let an empty
+      // schedule pass as all-ties with a schedule ratio of 1), and they must
+      // form the §PBO8-1 cascade: supply first, split + both branches together,
+      // then converter, then shipment
+      for (const id of IDS) {
+        expect(typeof tr.onsetByEdge[id], `${id} has no onset in transition ${tr.fromStep}`).toBe('number')
+      }
+      const onsetOf = (id: string) => tr.onsetByEdge[id] as number
+      expect(onsetOf('tpl-e1')).toBe(0)
+      expect(onsetOf('tpl-e2')).toBeGreaterThan(onsetOf('tpl-e1'))
+      expect(onsetOf('tpl-e3')).toBe(onsetOf('tpl-e2'))
+      expect(onsetOf('tpl-e4')).toBe(onsetOf('tpl-e2'))
+      expect(onsetOf('tpl-e5')).toBeGreaterThan(onsetOf('tpl-e4'))
+      expect(onsetOf('tpl-e6')).toBeGreaterThan(onsetOf('tpl-e5'))
       const emitOf = (id: string) => tr.first[id].emit!
       const emitMs = (id: string) => emitOf(id).t - tr.startedAt
       const travelMs = (id: string) => tr.first[id].arrive!.t - emitOf(id).t
+      // raw for the assertion; rounded only in the printed report
+      const observedRatio = travelMs('tpl-e6') / travelMs('tpl-e1')
       const report = {
         speedMs,
         fromStep: tr.fromStep,
@@ -243,7 +259,7 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
         firstBucketTravelMs: Math.round(travelMs('tpl-e1')),
         lastBucketTravelMs: Math.round(travelMs('tpl-e6')),
         // diagnostic at 250 ms, asserted at 900 / 2400 ms (see below)
-        observedLastToFirstRatio: +(travelMs('tpl-e6') / travelMs('tpl-e1')).toFixed(3),
+        observedLastToFirstRatio: +observedRatio.toFixed(3),
       }
       console.log('CASCADE TIMING', JSON.stringify(report))
 
@@ -308,7 +324,7 @@ test.describe('playback ordering — real-time cascade timing (PR 2)', () => {
       // ratio at 250 ms under load becomes a requirement, that is a separate
       // performance item, not a looser test.
       if (speedMs >= 900) {
-        expect(report.observedLastToFirstRatio).toBeGreaterThan(0.55)
+        expect(observedRatio).toBeGreaterThan(0.55)
       }
     })
   }
