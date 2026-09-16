@@ -3,14 +3,13 @@ import {
   computeThreeWay,
   digestOfCanonical,
   graphStructureIssues,
-  readProject,
-  readRevisionSide,
+  readRevisionSideAndProject,
   type HunkSelection,
   type ProjectPayload,
   type ProposalBase,
   type ThreeWayPlan,
 } from '../model/revision'
-import { deserialize, type ImportSourceTable, type SavedFrame } from '../model/serialize'
+import { deserialize, type ImportSourceTable, type ModelSemanticsVersion, type SavedFrame } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
@@ -29,10 +28,24 @@ export type RouteResult =
    *  rules reject (e.g. an edge touching a `parameter` / `register`): the graph
    *  still loads and the engine ignores those edges (SEMANTICS-M.md §M1.3). */
   | { kind: 'graph' | 'workspace'; outcome: ImportOutcome; structuralWarning?: string }
-  /** a Project **revision** file — graph (+ workspace) loaded, projectStore adopts its header */
-  | { kind: 'revision'; outcome: ImportOutcome; project: ProjectPayload; structuralWarning?: string }
-  /** a Project **proposal** file — NOTHING mutated; hand off to the Review UI (1C) */
-  | { kind: 'proposal'; project: ProjectPayload; base: ProposalBase; sameProject: boolean; proposedText: string }
+  /** a Project **revision** file — graph (+ workspace) loaded, projectStore adopts its header.
+   *  `legacyV2Recovered`: the file was a v0.10.0 export of a v2 document (v1
+   *  envelope, v2 digest) and was loaded as v2 by digest proof — see
+   *  `readRevisionSideAndProject`. */
+  | { kind: 'revision'; outcome: ImportOutcome; project: ProjectPayload; structuralWarning?: string; legacyV2Recovered: boolean }
+  /** a Project **proposal** file — NOTHING mutated; hand off to the Review UI (1C).
+   *  `modelVersion` is the version the proposed content is to be read at
+   *  (declared, or `2` when legacy-recovered) — every consumer of
+   *  `proposedText` MUST go through `proposedGraph`, never `deserialize` alone. */
+  | {
+      kind: 'proposal'
+      project: ProjectPayload
+      base: ProposalBase
+      sameProject: boolean
+      proposedText: string
+      modelVersion: ModelSemanticsVersion
+      legacyV2Recovered: boolean
+    }
   /** the file had a `project` key that failed validation — graph/workspace still loaded, project ignored */
   | { kind: 'project-dropped'; outcome: ImportOutcome; warning: string }
 
@@ -82,7 +95,10 @@ export async function routeImport(text: string): Promise<RouteResult> {
   // defensive read (structural gate) → version predicate → version-appropriate
   // projection. A malformed model payload (§R2-5.1) never blocks the graph and
   // never enters Review / Apply.
-  const side = readRevisionSide(
+  // §R2-5 side pipeline + §R10 `project` read in one call — including the
+  // v0.10.0 legacy-envelope recovery (a declared-v1 file whose digest only
+  // verifies as v2 is read as v2; see `readRevisionSideAndProject`).
+  const read = readRevisionSideAndProject(
     // SEMANTICS-R5.md §R5-5.1 — `frames` is part of the side; ≥ 1 surviving
     // entry makes this a `loop-revision/5` side and its digest is verified
     // WITH `frames` projected.
@@ -103,26 +119,22 @@ export async function routeImport(text: string): Promise<RouteResult> {
       // misclassifies as ≤ v7 (see `readRevisionSide`'s own doc comment).
       rawDataImportSignal: parsed.hasRawDataImportSignal,
     },
-    undefined,
+    raw,
     parsed.modelVersion,
   )
-  if (!side.ok) {
+  if (!read.ok) {
     const outcome = await importFile(text)
     useProjectStore.getState().clear()
     return {
       kind: 'project-dropped',
       outcome,
-      warning: `this file's model-layer content is not readable (${side.detail})`,
+      warning:
+        read.stage === 'side'
+          ? `this file's model-layer content is not readable (${read.detail})`
+          : read.warning,
     }
   }
-  const loaded = side.content
-  const read = readProject(raw, loaded)
-
-  if (!read.ok) {
-    const outcome = await importFile(text)
-    useProjectStore.getState().clear()
-    return { kind: 'project-dropped', outcome, warning: read.warning }
-  }
+  const loaded = read.side.content
 
   if (read.project.role === 'proposal') {
     // §R10 step 5 / R-INV-11 — do not touch the graph / sim / undo / project.
@@ -133,13 +145,18 @@ export async function routeImport(text: string): Promise<RouteResult> {
       base: read.proposalBase!,
       sameProject: openId != null && openId === read.project.projectId,
       proposedText: text,
+      modelVersion: read.modelVersion,
+      legacyV2Recovered: read.legacyV2Recovered,
     }
   }
 
-  // a revision file — load the graph/workspace, then adopt the header
-  const outcome = await importFile(text)
+  // a revision file — load the graph/workspace AT THE VERSION THE DIGEST
+  // PROVED (the declared one, or v2 for a recovered legacy file), then adopt
+  // the header. `loaded` is that same projection, so the adopted baseline
+  // digest equals what `projectStore.liveDigest()` computes right after.
+  const outcome = await importFile(text, { modelVersion: read.modelVersion })
   useProjectStore.getState().openRevisionFromFile(read.project, digestOfCanonical(loaded))
-  return { kind: 'revision', outcome, project: read.project }
+  return { kind: 'revision', outcome, project: read.project, legacyV2Recovered: read.legacyV2Recovered }
 }
 
 /** A routed proposal awaiting a Review-panel decision. */
@@ -148,8 +165,12 @@ export type PendingProposal = Extract<RouteResult, { kind: 'proposal' }>
 /** the proposed graph carried by a routed proposal (deserialised once).
  *  LGR Slice 5 — `frames` rides along so a whole-proposal Apply / "Open as a
  *  document" adopts the proposal's saved frames atomically (`SEMANTICS-R5.md`
- *  §R5-6); `deserialize` always yields an array (`[]` when the file has none). */
-function proposedGraph(
+ *  §R5-6); `deserialize` always yields an array (`[]` when the file has none).
+ *  `modelVersion` is the ROUTED one (`p.modelVersion`), never re-derived from
+ *  the text: for a v0.10.0 legacy proposal the text declares v1 while the
+ *  digest proved v2. The single reader every proposal consumer (classify /
+ *  three-way / Apply / Open-as-document / the Review model) goes through. */
+export function proposedGraph(
   p: PendingProposal,
 ): {
   nodes: LoopNode[]
@@ -158,8 +179,8 @@ function proposedGraph(
   frames: SavedFrame[]
   dataImports: ImportSourceTable[]
 } {
-  const { nodes, edges, modelVersion, frames, dataImports } = deserialize(p.proposedText)
-  return { nodes, edges, modelVersion, frames, dataImports }
+  const { nodes, edges, frames, dataImports } = deserialize(p.proposedText)
+  return { nodes, edges, modelVersion: p.modelVersion, frames, dataImports }
 }
 
 /** §R7A.2 — classify without applying, for the Review UI. */

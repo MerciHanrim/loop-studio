@@ -7,7 +7,7 @@
 // (§W5.1). The download / upload UI and the size prompt are Slice C.
 
 import type { MonteCarloResult, StateEvent } from '../engine'
-import { deserialize, serialize } from '../model/serialize'
+import { deserialize, serialize, type ModelSemanticsVersion } from '../model/serialize'
 import {
   WORKSPACE_MAX_BYTES,
   buildWorkspacePayload,
@@ -106,20 +106,30 @@ export function decideWorkspaceExport(
  * Import a Loop Studio file. A plain Graph file behaves exactly as today. A
  * Workspace file restores the workspace atomically after the graph load.
  */
-export async function importFile(text: string): Promise<ImportOutcome> {
+export async function importFile(
+  text: string,
+  opts: {
+    /** override the model-semantics version the file's `schema` declares —
+     *  set by `revisionIO.routeImport` when the v0.10.0 legacy-envelope
+     *  recovery proved (by digest) that a declared-v1 revision / proposal
+     *  file is v2 content. Absent ⇒ the declared version, as always. */
+    modelVersion?: ModelSemanticsVersion
+  } = {},
+): Promise<ImportOutcome> {
   const parsed = deserialize(text) // throws on a bad graph, as today
+  const modelVersion = opts.modelVersion ?? parsed.modelVersion
 
   // Digest the graph-to-be BEFORE any store mutation, so the restore below is
   // one uninterrupted synchronous pass (§W5.1).
   const graphDigest =
     parsed.workspace != null
-      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion)
+      ? await semanticDigest({ nodes: parsed.nodes, edges: parsed.edges }, modelVersion)
       : ''
 
   // ── from here: synchronous ──────────────────────────────────────────
   useGraphStore
     .getState()
-    .loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion, parsed.frames, parsed.dataImports) // the ONE bump
+    .loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, modelVersion, parsed.frames, parsed.dataImports) // the ONE bump
   useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
 
   if (parsed.workspace == null) {

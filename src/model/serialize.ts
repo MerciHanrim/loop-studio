@@ -20,6 +20,13 @@ const SCHEMA_BY_MODEL_VERSION: Record<ModelSemanticsVersion, string> = {
   1: SCHEMA_V1,
   2: SCHEMA_V2,
 }
+/** The envelope `schema` string a document of this model-semantics version is
+ *  written with (§M2-1). The ONE writer-side mapping — `serialize()` and the
+ *  `loop-revision/*` file builder both go through it, so a v2 document can
+ *  never again be written with a v1 envelope. */
+export function schemaForModelVersion(modelVersion: ModelSemanticsVersion | undefined): string {
+  return SCHEMA_BY_MODEL_VERSION[modelVersion ?? 1] ?? SCHEMA_V1
+}
 /** The model-semantics version a `schema` string denotes, or `null` if the
  *  string is not a Loop Studio graph schema at all (⇒ the reader rejects it). */
 export function modelVersionForSchema(schema: unknown): ModelSemanticsVersion | null {
@@ -608,7 +615,7 @@ export function serialize(
   dataImports?: readonly ImportSourceTable[],
 ): string {
   const doc: GraphDoc = {
-    schema: SCHEMA_BY_MODEL_VERSION[modelVersion] ?? SCHEMA_V1,
+    schema: schemaForModelVersion(modelVersion),
     version: SCHEMA_VERSION,
     nodes: nodes.map(toDocNode),
     edges: edges.map(toDocEdge),
