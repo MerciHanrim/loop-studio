@@ -306,11 +306,14 @@ describe('saved frames / data-import records travel with the link, never leak ac
     expect(exported.dataImports).toEqual(ONE_TABLE)
   })
 
-  it('Cancel on the replace prompt leaves the current frames / tables untouched', async () => {
+  it('Cancel on the replace prompt leaves the current frames AND tables untouched', async () => {
     useFrameStore.getState().addFrame({ x: 1, y: 1, w: 10, h: 10 })
-    const before = useFrameStore.getState().snapshot()
+    useDataImportStore.getState().loadTables(ONE_TABLE)
+    const framesBefore = useFrameStore.getState().snapshot()
+    const tablesBefore = useDataImportStore.getState().snapshot()
     const out = await consumeShareLink({ hash: await shareHash(docWith(ONE_FRAME)), confirm: () => false, stripFragment: () => {} })
     expect(out).toEqual({ kind: 'cancelled' })
-    expect(useFrameStore.getState().snapshot()).toEqual(before)
+    expect(useFrameStore.getState().snapshot()).toEqual(framesBefore)
+    expect(useDataImportStore.getState().snapshot()).toEqual(tablesBefore)
   })
 })
