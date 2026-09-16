@@ -193,8 +193,13 @@ test('round-trip: opening the copied link restores the graph and strips the frag
   await openShare(page)
   const url = await page.locator('.share-pop__url').inputValue()
 
-  // clear persistence so the shared link opens on a pristine boot (no prompt)
-  await page.evaluate(() => localStorage.clear())
+  // clear persistence so the shared link opens on a pristine boot (no prompt).
+  // Settle the pending autosave FIRST: the pagehide flush on the navigation
+  // below would otherwise re-persist the graph after the clear.
+  await page.evaluate(() => {
+    ;(window as unknown as Bridge).__loop.autosave.flush()
+    localStorage.clear()
+  })
   await openPayloadLocally(page, url) // url points at production; open its payload here
 
   expect(await labelsOf(page)).toEqual(expected)
@@ -282,12 +287,22 @@ test('a link carries the document’s saved frames; opening it restores them and
   const url = await page.locator('.share-pop__url').inputValue()
 
   // a fresh session with its OWN, different frame — it must not survive the link
-  await page.evaluate(() => localStorage.clear())
+  await page.evaluate(() => {
+    ;(window as unknown as Bridge).__loop.autosave.flush()
+    localStorage.clear()
+  })
   await freshGoto(page, '/')
   await page.evaluate(() => {
     const f = (window as unknown as Bridge).__loop.frame.getState()
     const id = f.addFrame({ x: 900, y: 900, w: 50, h: 50 })
     f.renameFrame(id, 'Stale local frame')
+  })
+  // that frame edit makes this a MODIFIED session (and, since the pending
+  // autosave is flushed on the navigation, a persisted one) — so the link
+  // asks before replacing; accept it
+  page.once('dialog', (d) => {
+    expect(d.message()).toMatch(/replaced/i)
+    void d.accept()
   })
   await openPayloadLocally(page, url)
 
