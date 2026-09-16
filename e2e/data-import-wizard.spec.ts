@@ -433,14 +433,28 @@ for (const loc of ['ko', 'ja'] as const) {
     await page.evaluate(() => document.fonts.ready)
     await page.waitForTimeout(250)
     // re-pin the pan/zoom right before measuring, so the box ↔ frame
-    // comparison below never depends on whether an initial fit ran meanwhile
+    // comparison below never depends on whether an initial fit ran meanwhile —
+    // and VERIFY the pin took (React Flow applies setViewport asynchronously
+    // and a late initial fit could still land after it) before reading boxes
+    const readVp = () =>
+      page.evaluate(() =>
+        (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number } } } }).__loop.rf.getViewport(),
+      )
     await page.evaluate(() =>
       (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
         { x: 0, y: 0, zoom: 1 },
         { duration: 0 },
       ),
     )
-    await page.waitForTimeout(100)
+    await expect
+      .poll(async () => {
+        const v = await readVp()
+        return Math.abs(v.x) < 0.5 && Math.abs(v.y) < 0.5 && Math.abs(v.zoom - 1) < 1e-6
+      })
+      .toBe(true)
+    await page.waitForTimeout(100) // one more frame: DOM transforms catch up with the store
+    const vpAtMeasure = await readVp()
+    expect(vpAtMeasure).toEqual({ x: 0, y: 0, zoom: 1 })
 
     // the pan/zoom is pinned to (0,0)/1, so flow units == canvas-LOCAL
     // pixels -- but the canvas pane itself sits below the toolbar, so a
