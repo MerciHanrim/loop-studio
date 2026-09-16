@@ -134,12 +134,22 @@ test.describe('playback — ordered cascade & role cues', () => {
     await setup(page, BALANCED, 2600)
     for (let i = 0; i < 6; i++) await call(page, 'advance')
     await call(page, 'play')
-    // an early bucket is travelling, but the last bucket (tpl-e6, onset = SPAN) has not
+    // an early bucket is travelling, but the last bucket (tpl-e6, onset = SPAN) has not.
+    // §PBO8-4 flake root cause (confirmed from a real CI trace, 2026-09-16): tau is
+    // wall-clock-driven (real time / beatDuration), and this window is only ~338ms
+    // wide (0.16-0.29 of a 2600ms beat). `expect.poll`'s DEFAULT interval backs off to
+    // 250/500/1000ms within the first few attempts — once the interval exceeds the
+    // window's width, two consecutive polls can straddle it entirely (observed in a
+    // real failure: one poll at tau≈0.14, the next ~509ms later at tau≈0.34, having
+    // skipped the target window without ever sampling inside it). A larger timeout
+    // does not fix this — the poll would just keep straddling on every attempt. A
+    // fixed, sub-window interval does: 25ms is comfortably smaller than the ~338ms
+    // window regardless of how long the wait ends up taking.
     await expect
       .poll(async () => {
         const s = await sim(page)
         return s.tau != null && s.tau > 0.16 && s.tau < 0.29 ? 1 : -1
-      }, { timeout: 8000 })
+      }, { timeout: 8000, intervals: [25] })
       .toBe(1)
     await call(page, 'pause')
     const paused = await sim(page)

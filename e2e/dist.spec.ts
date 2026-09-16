@@ -171,4 +171,182 @@ test.describe('production build (Cloudflare Pages shape)', () => {
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
+
+  test('a bulk locale switch on the MMO Template keeps edge endpoints aligned with their real handle positions (no window.__loop)', async ({
+    page,
+  }) => {
+    // Confirms src/components/nodes/nodes.tsx's reliance on React Flow's own
+    // internal per-node ResizeObserver (docs: the template-label-overlay
+    // investigation, 2026-09-16) holds in the ACTUAL shipped bundle, not only
+    // under the dev server's React StrictMode. Pure DOM/UI — no window.__loop
+    // (tree-shaken out of production) — so node/edge identity is read off
+    // data-id / aria-label rather than the graph store.
+    const { bad } = await openProd(page)
+
+    // Pin the starting locale explicitly rather than assuming the fresh
+    // context's default (navigator.language) — a real, current-locale check
+    // (html lang + a representative label), not an assumption. The Settings
+    // trigger's own label is itself locale-dependent, so match all three
+    // shipped-language spellings (same pattern as e2e/i18n.spec.ts's
+    // openSettings), not just the English one.
+    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ })
+    await settingsBtn.click()
+    await page.locator('.toolbar .lang-switch').click()
+    await page.locator('.lang-menu__item[data-locale="ko"]').click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
+
+    await page.locator('.toolbar__actions .menu').first().locator('> button').click()
+    await page
+      .locator('.toolbar__actions .menu')
+      .first()
+      .locator('.menu__pop [role="menuitem"]', { hasText: '초반 MMO 성장' })
+      .click()
+    // locale-independent: the confirm dialog's primary action button by
+    // class, not by text (the label is Korean here, since locale is 'ko')
+    const confirm = page.locator('.mcdlg--confirm .btn--primary')
+    if (await confirm.isVisible().catch(() => false)) await confirm.click()
+    await expect(page.locator('.react-flow__node')).toHaveCount(97)
+    await page.evaluate(() => document.fonts.ready)
+    // representative Korean node label, confirming the KO Template actually loaded
+    await expect(page.locator('.react-flow__node', { hasText: '레벨' }).first()).toBeVisible()
+
+    async function snapshot() {
+      return page.evaluate(() => {
+        const nodes: Record<string, { nfH: number }> = {}
+        for (const wrap of document.querySelectorAll('.react-flow__node')) {
+          const id = (wrap as HTMLElement).dataset.id!
+          const nf = wrap.querySelector('.nodef') as HTMLElement | null
+          if (nf) nodes[id] = { nfH: nf.offsetHeight }
+        }
+        const handleCenter = (nodeId: string, handleId: string) => {
+          const h = document.querySelector(
+            `.react-flow__handle[data-nodeid="${nodeId}"][data-handleid="${handleId}"]`,
+          )
+          if (!h) return null
+          const r = h.getBoundingClientRect()
+          return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }
+        }
+        const toScreen = (path: SVGPathElement, x: number, y: number) => {
+          const svg = path.ownerSVGElement
+          const ctm = path.getScreenCTM()
+          if (!svg || !ctm) return null
+          const pt = svg.createSVGPoint()
+          pt.x = x
+          pt.y = y
+          const s = pt.matrixTransform(ctm)
+          return { x: s.x, y: s.y }
+        }
+        const edges: Record<
+          string,
+          { source: string; target: string; sourceHandleScreen: { x: number; y: number } | null; targetHandleScreen: { x: number; y: number } | null; startScreen: { x: number; y: number } | null; endScreen: { x: number; y: number } | null }
+        > = {}
+        for (const g of document.querySelectorAll('.react-flow__edge')) {
+          const id = (g as HTMLElement).dataset.id!
+          // "Edge from <source> to <target>" -- LoopEdge sets no custom
+          // ariaLabel, so React Flow's own default (index.js EdgeWrapper) is
+          // the only DOM-visible way to recover source/target ids without
+          // window.__loop.
+          const m = /^Edge from (.+) to (.+)$/.exec(g.getAttribute('aria-label') ?? '')
+          if (!m) continue
+          const [, source, target] = m
+          const p = g.querySelector('path.react-flow__edge-path') as SVGPathElement | null
+          // state edges are dashed (LoopEdge.tsx); resource edges are solid —
+          // the only DOM-visible way to tell which handle PAIR ('in'/'out' vs
+          // 'state-target'/'state-source') an edge uses without window.__loop.
+          const isState = p ? getComputedStyle(p).strokeDasharray !== 'none' : false
+          const sourceHandle = isState ? 'state-source' : 'out'
+          const targetHandle = isState ? 'state-target' : 'in'
+          let startScreen = null
+          let endScreen = null
+          if (p) {
+            try {
+              const len = p.getTotalLength()
+              const start = p.getPointAtLength(0)
+              const end = p.getPointAtLength(len)
+              startScreen = toScreen(p, start.x, start.y)
+              endScreen = toScreen(p, end.x, end.y)
+            } catch {
+              /* zero-length / detached path -- left null */
+            }
+          }
+          edges[id] = {
+            source,
+            target,
+            sourceHandleScreen: handleCenter(source, sourceHandle),
+            targetHandleScreen: handleCenter(target, targetHandle),
+            startScreen,
+            endScreen,
+          }
+        }
+        return { nodes, edges }
+      })
+    }
+    type Pt = { x: number; y: number }
+    const delta = (a: Pt | null, b: Pt | null) => (a && b ? { x: b.x - a.x, y: b.y - a.y } : null)
+    const dist = (a: Pt | null, b: Pt | null) => (a && b ? Math.hypot(a.x - b.x, a.y - b.y) : null)
+    const TOLERANCE_PX = 3
+    // A resized node doesn't guarantee its handle on this edge's side moved
+    // (e.g. Position.Top's x only depends on width, fixed at 120px here) —
+    // two unmoved (zero-delta) positions would otherwise "agree" trivially
+    // without proving anything was actually re-measured.
+    const HANDLE_MOVE_EPSILON_PX = 0.5
+
+    const before = await snapshot()
+
+    // switch to a genuinely different, explicitly-verified locale (KO → EN),
+    // not an assumed starting state — otherwise a locale switch that silently
+    // did nothing could still let the geometry checks below pass vacuously.
+    // Settings is now showing its KOREAN label, so reuse the same
+    // locale-independent matcher, not the English-only one.
+    await settingsBtn.click()
+    await page.locator('.toolbar .lang-switch').click()
+    await page.locator('.lang-menu__item[data-locale="en"]').click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('en')
+    await expect(page.locator('.react-flow__node', { hasText: 'Level' }).first()).toBeVisible()
+
+    // the switch must have actually changed at least one node's real height —
+    // otherwise the edge-alignment checks below would trivially pass with
+    // nothing to compare (a false positive this test exists to prevent)
+    const afterHeights = await snapshot()
+    const anyResized = Object.entries(afterHeights.nodes).some(
+      ([id, n]) => before.nodes[id] != null && Math.abs(before.nodes[id].nfH - n.nfH) > 1,
+    )
+    expect(anyResized, 'expected the KO → EN switch to actually change at least one node height').toBe(true)
+
+    async function fullySettled() {
+      const snap = await snapshot()
+      // Proves genuine movement was observed and tracked, not merely that
+      // some node's height changed — a node can resize without moving every
+      // one of its handles (see HANDLE_MOVE_EPSILON_PX above).
+      let anyHandleMoved = false
+      for (const [id, e] of Object.entries(snap.edges)) {
+        const beforeH = before.nodes[e.source]?.nfH
+        const afterH = snap.nodes[e.source]?.nfH
+        const targetBeforeH = before.nodes[e.target]?.nfH
+        const targetAfterH = snap.nodes[e.target]?.nfH
+        const sourceResized = beforeH != null && afterH != null && Math.abs(beforeH - afterH) > 1
+        const targetResized = targetBeforeH != null && targetAfterH != null && Math.abs(targetBeforeH - targetAfterH) > 1
+        if (!sourceResized && !targetResized) continue
+        const be = before.edges[id]
+        if (sourceResized) {
+          const handleMoved = delta(be.sourceHandleScreen, e.sourceHandleScreen)
+          const handleMoveDist = handleMoved ? Math.hypot(handleMoved.x, handleMoved.y) : null
+          if (handleMoveDist != null && handleMoveDist > HANDLE_MOVE_EPSILON_PX) anyHandleMoved = true
+          const d = dist(delta(be.startScreen, e.startScreen), handleMoved)
+          if (d == null || d > TOLERANCE_PX) return false
+        }
+        if (targetResized) {
+          const handleMoved = delta(be.targetHandleScreen, e.targetHandleScreen)
+          const handleMoveDist = handleMoved ? Math.hypot(handleMoved.x, handleMoved.y) : null
+          if (handleMoveDist != null && handleMoveDist > HANDLE_MOVE_EPSILON_PX) anyHandleMoved = true
+          const d = dist(delta(be.endScreen, e.endScreen), handleMoved)
+          if (d == null || d > TOLERANCE_PX) return false
+        }
+      }
+      return anyHandleMoved
+    }
+    await expect.poll(fullySettled, { timeout: 5000, intervals: [50] }).toBe(true)
+
+    expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
 })

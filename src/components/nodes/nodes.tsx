@@ -4,7 +4,6 @@ import {
   Position,
   useConnection,
   useStore,
-  useUpdateNodeInternals,
   type NodeProps,
   type NodeTypes,
 } from '@xyflow/react'
@@ -174,7 +173,6 @@ function NodeFrame({
   // Gate, a plain Pool) is byte-identical to before. The ResizeObserver settles
   // in one pass: the SVG is `position: absolute`, so a viewBox change never
   // feeds back into the box height.
-  const updateNodeInternals = useUpdateNodeInternals()
   const stackRef = useRef<HTMLDivElement>(null)
   const [boxH, setBoxH] = useState(BASE_NODE_H)
   useLayoutEffect(() => {
@@ -192,17 +190,12 @@ function NodeFrame({
     ro.observe(stack)
     return () => ro.disconnect()
   }, [kind])
-  // Only tell React Flow to re-measure a node when WE actually changed its
-  // height. The mount value (`BASE_NODE_H`) is the geometry RF already measures,
-  // so calling `updateNodeInternals` for it — ×97 on a dense graph load — just
-  // churns the measurement pass and can stall `nodesInitialized`. A ref-guard
-  // means a node that never grows never triggers it.
-  const notifiedH = useRef(BASE_NODE_H)
-  useEffect(() => {
-    if (Math.abs(notifiedH.current - boxH) < 0.5) return
-    notifiedH.current = boxH
-    updateNodeInternals(nodeId)
-  }, [boxH, nodeId, updateNodeInternals])
+  // No explicit `updateNodeInternals` call here: React Flow's own internal
+  // per-node ResizeObserver already keeps `node.measured` (and the handle
+  // bounds edge routing reads) in sync with this wrapper's real DOM size,
+  // in dev and production alike. Regression coverage:
+  // e2e/template-label-overlay.spec.ts (dev) and e2e/dist.spec.ts (prod) —
+  // re-run both if a React Flow upgrade touches node measurement.
   const grown = boxH > BASE_NODE_H
 
   // keyboard focus lands on React Flow's node wrapper, an ancestor of this div
