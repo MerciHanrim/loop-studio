@@ -137,8 +137,45 @@ function simplify(pts: Pt[]): Pt[] {
 }
 
 // ── the ruler grid + A* (§ER3.3–§ER3.4) ───────────────────────────────────
-type Node = { x: number; y: number; key: string }
-const key = (x: number, y: number): string => `${q(x)},${q(y)}`
+//
+// The ruler grid, the free-point rule, the neighbour rule, the cost function,
+// the tie-break order and the MAX_EXPANSIONS accounting are all exactly as
+// specified — this is the same search finding the same answer. What differs
+// from the obvious implementation is only the bookkeeping, because the pause
+// after a node drag is ~98 % this function:
+//
+//   1. LATTICE INDEXING. Every search node is a grid point (i, j) of the ruler
+//      grid, identified by `i * NY + j`. The string keys ("12,34") and the four
+//      Maps keyed by them become typed arrays indexed by that id.
+//   2. PER-RULER COVERAGE. A point is blocked iff some inflated obstacle covers
+//      both its x ruler and its y ruler, and an axis-aligned segment is blocked
+//      iff some obstacle covering its fixed ruler straddles its span. So the
+//      obstacles covering each ruler line are gathered once per edge (`coverX`
+//      / `coverY`) instead of scanning every obstacle for every point and every
+//      segment probe.
+//   3. BINARY HEAP with lazy deletion for the open list, instead of an O(n)
+//      scan plus an `includes` test on every push.
+//
+// (2) and (3) are where the time went: `ptInside` / `segHitsBox` were the two
+// largest self-time entries in the drop profile, and the open-list scan the
+// third. `test/orthogonalRoute.differential.test.ts` holds this to
+// byte-identical output against a frozen copy of the previous implementation.
+//
+// On (3), the one place where "same answer" is not self-evident: the previous
+// implementation kept ONE open entry per node and re-read that node's LIVE
+// g / bends at pick time, so improving a node re-ordered it immediately. A heap
+// cannot re-order in place, so a fresh entry carrying the live key is pushed on
+// every improvement, and an entry whose key no longer matches the node's live
+// values is skipped when popped. A skipped pop is NOT an expansion — the
+// previous implementation never saw such an entry — so the expansion budget,
+// and with it the `fallback-lz` decision, is reached at exactly the same point.
+//
+// Note also that the pick order is a strict TOTAL order: f, then g, then x,
+// then y, over distinct lattice points. No two open entries can compare equal,
+// so the order in which neighbours are discovered cannot change the result.
+
+/** open-list entry: a node id plus the key it was pushed with */
+type Open = { f: number; g: number; x: number; y: number; id: number }
 
 function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | null, rs: IBox[]): Pt[] | null {
   // rulers
@@ -154,91 +191,201 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
   for (let i = 1; i < yArr.length; i++) if (yArr[i] - yArr[i - 1] > 2 * ROUTE_PAD) ys.add(q((yArr[i] + yArr[i - 1]) / 2))
   const X = [...xs].sort(cmpNum)
   const Y = [...ys].sort(cmpNum)
+  const NX = X.length
+  const NY = Y.length
 
-  const freePt = (x: number, y: number): boolean => !rs.some((r) => ptInside({ x, y }, r))
-  const startKey = key(a.x, a.y)
-  const goalKey = key(goal.x, goal.y)
-  const nodeAt = new Map<string, Node>()
-  const push = (x: number, y: number) => {
-    const k = key(x, y)
-    if (!nodeAt.has(k) && (freePt(x, y) || k === startKey || k === goalKey)) nodeAt.set(k, { x: q(x), y: q(y), key: k })
+  // which inflated obstacles strictly cover each ruler line — per axis, the
+  // same strict test `ptInside` applies
+  const coverX: number[][] = new Array(NX)
+  for (let i = 0; i < NX; i++) {
+    const x = X[i]
+    const l: number[] = []
+    for (let k = 0; k < rs.length; k++) if (x > rs[k].x0 + COORD_EPS && x < rs[k].x1 - COORD_EPS) l.push(k)
+    coverX[i] = l
   }
-  for (const x of X) for (const y of Y) push(x, y)
-  push(a.x, a.y); push(goal.x, goal.y)
-  if (!nodeAt.has(startKey) || !nodeAt.has(goalKey)) return null
-
-  const nodes = [...nodeAt.values()]
-  const byX = new Map<number, Node[]>()
-  const byY = new Map<number, Node[]>()
-  for (const n of nodes) {
-    ;(byX.get(n.x) ?? byX.set(n.x, []).get(n.x)!).push(n)
-    ;(byY.get(n.y) ?? byY.set(n.y, []).get(n.y)!).push(n)
-  }
-  for (const arr of byX.values()) arr.sort((p, q2) => cmpNum(p.y, q2.y))
-  for (const arr of byY.values()) arr.sort((p, q2) => cmpNum(p.x, q2.x))
-
-  const neighbours = (n: Node): Node[] => {
-    const out: Node[] = []
-    const col = byX.get(n.x)!
-    const ci = col.indexOf(n)
-    for (const j of [ci - 1, ci + 1]) if (col[j] && segFree(n, col[j], rs)) out.push(col[j])
-    const row = byY.get(n.y)!
-    const ri = row.indexOf(n)
-    for (const j of [ri - 1, ri + 1]) if (row[j] && segFree(n, row[j], rs)) out.push(row[j])
-    return out
+  const coverY: number[][] = new Array(NY)
+  for (let j = 0; j < NY; j++) {
+    const y = Y[j]
+    const l: number[] = []
+    for (let k = 0; k < rs.length; k++) if (y > rs[k].y0 + COORD_EPS && y < rs[k].y1 - COORD_EPS) l.push(k)
+    coverY[j] = l
   }
 
-  const h = (n: Node): number => Math.abs(n.x - goal.x) + Math.abs(n.y - goal.y)
-  const start = nodeAt.get(startKey)!
-  const g = new Map<string, number>([[start.key, 0]])
-  const bends = new Map<string, number>([[start.key, 0]])
-  const dir = new Map<string, string>([[start.key, aPos ? (isHoriz(aPos) ? 'h' : 'v') : '']])
-  const from = new Map<string, Node | null>([[start.key, null]])
-  const open: Node[] = [start]
-  let expansions = 0
+  const startI = X.indexOf(q(a.x))
+  const startJ = Y.indexOf(q(a.y))
+  const goalI = X.indexOf(q(goal.x))
+  const goalJ = Y.indexOf(q(goal.y))
+  const startId = startI * NY + startJ
+  const goalId = goalI * NY + goalJ
 
-  const better = (n: Node, cand: { g: number; b: number; d: string }): boolean => {
-    const cur = g.get(n.key)
-    if (cur === undefined) return true
-    const curB = bends.get(n.key)!
-    if (cand.g !== cur) return cand.g < cur
-    if (cand.b !== curB) return cand.b < curB
+  // which lattice points exist: the free ones, plus the two endpoints, which are
+  // kept even when they sit inside an inflated obstacle
+  const exists = new Uint8Array(NX * NY)
+  for (let i = 0; i < NX; i++) {
+    const cx = coverX[i]
+    for (let j = 0; j < NY; j++) {
+      const id = i * NY + j
+      if (id === startId || id === goalId) {
+        exists[id] = 1
+        continue
+      }
+      let inside = false
+      if (cx.length > 0) {
+        const cy = coverY[j]
+        for (let m = 0; m < cx.length && !inside; m++) {
+          for (let n = 0; n < cy.length; n++) if (cy[n] === cx[m]) { inside = true; break }
+        }
+      }
+      if (!inside) exists[id] = 1
+    }
+  }
+  if (!exists[startId] || !exists[goalId]) return null
+
+  /** is the vertical segment on ruler X[i], spanning Y[j0]..Y[j1] (j0 < j1), blocked? */
+  const blockedV = (i: number, j0: number, j1: number): boolean => {
+    const cx = coverX[i]
+    const ylo = Y[j0]
+    const yhi = Y[j1]
+    for (let m = 0; m < cx.length; m++) {
+      const r = rs[cx[m]]
+      if (yhi > r.y0 + COORD_EPS && ylo < r.y1 - COORD_EPS) return true
+    }
+    return false
+  }
+  /** is the horizontal segment on ruler Y[j], spanning X[i0]..X[i1] (i0 < i1), blocked? */
+  const blockedH = (j: number, i0: number, i1: number): boolean => {
+    const cy = coverY[j]
+    const xlo = X[i0]
+    const xhi = X[i1]
+    for (let m = 0; m < cy.length; m++) {
+      const r = rs[cy[m]]
+      if (xhi > r.x0 + COORD_EPS && xlo < r.x1 - COORD_EPS) return true
+    }
     return false
   }
 
-  while (open.length) {
-    // pick lowest f, then g, then (x,y)
-    let bi = 0
-    for (let i = 1; i < open.length; i++) {
-      const A = open[i], B = open[bi]
-      const fa = g.get(A.key)! + h(A) + bends.get(A.key)! * BEND_COST
-      const fb = g.get(B.key)! + h(B) + bends.get(B.key)! * BEND_COST
-      if (fa < fb || (fa === fb && (g.get(A.key)! < g.get(B.key)! || (g.get(A.key)! === g.get(B.key)! && (cmpNum(A.x, B.x) < 0 || (A.x === B.x && cmpNum(A.y, B.y) < 0)))))) bi = i
-    }
-    const cur = open.splice(bi, 1)[0]
-    if (cur.key === goalKey) break
-    if (++expansions > MAX_EXPANSIONS) return null
-    for (const nb of neighbours(cur)) {
-      const stepDir = near(nb.x, cur.x) ? 'v' : 'h'
-      const prevDir = dir.get(cur.key)!
-      const turn = prevDir && prevDir !== stepDir ? 1 : 0
-      const ng = g.get(cur.key)! + Math.abs(nb.x - cur.x) + Math.abs(nb.y - cur.y)
-      const nbn = bends.get(cur.key)! + turn
-      if (better(nb, { g: ng, b: nbn, d: stepDir })) {
-        g.set(nb.key, ng)
-        bends.set(nb.key, nbn)
-        dir.set(nb.key, stepDir)
-        from.set(nb.key, cur)
-        if (!open.includes(nb)) open.push(nb)
-      }
+  const N = NX * NY
+  const g = new Float64Array(N).fill(Infinity)
+  const bends = new Int32Array(N)
+  const dir = new Int8Array(N) // 0 = none, 1 = horizontal, 2 = vertical
+  const from = new Int32Array(N).fill(-1)
+  g[startId] = 0
+  dir[startId] = aPos ? (isHoriz(aPos) ? 1 : 2) : 0
+
+  // the heuristic measures to the RAW goal, not to its ruler line: `goal` is an
+  // anchor (a stub end or a user waypoint) and is not quantised, so when it
+  // falls between two COORD_EPS steps the two differ by up to half a step. That
+  // is enough to decide an otherwise tied pair of L-shaped routes, so it is not
+  // a rounding detail — it is part of the specified pick order.
+  const gx = goal.x
+  const gy = goal.y
+  // `h` is summed on its own and only then added to `g`. Floating-point
+  // addition is not associative, so `g + (|dx| + |dy|)` and `(g + |dx|) + |dy|`
+  // can differ in the last bit — and f ties are decided by the g tie-break, so
+  // a last-bit difference silently picks the other route. Same grouping as the
+  // previous implementation, deliberately.
+  const hOf = (i: number, j: number): number => Math.abs(X[i] - gx) + Math.abs(Y[j] - gy)
+  const fOf = (id: number, i: number, j: number): number => g[id] + hOf(i, j) + bends[id] * BEND_COST
+
+  const heap: Open[] = []
+  const less = (A: Open, B: Open): boolean =>
+    A.f < B.f ||
+    (A.f === B.f && (A.g < B.g || (A.g === B.g && (cmpNum(A.x, B.x) < 0 || (A.x === B.x && cmpNum(A.y, B.y) < 0)))))
+  const push = (e: Open): void => {
+    heap.push(e)
+    let k = heap.length - 1
+    while (k > 0) {
+      const p = (k - 1) >> 1
+      if (!less(heap[k], heap[p])) break
+      const t = heap[k]; heap[k] = heap[p]; heap[p] = t
+      k = p
     }
   }
-  if (!g.has(goalKey)) return null
+  const pop = (): Open => {
+    const top = heap[0]
+    const last = heap.pop()!
+    if (heap.length > 0) {
+      heap[0] = last
+      let k = 0
+      for (;;) {
+        const l = 2 * k + 1
+        const r = l + 1
+        let m = k
+        if (l < heap.length && less(heap[l], heap[m])) m = l
+        if (r < heap.length && less(heap[r], heap[m])) m = r
+        if (m === k) break
+        const t = heap[k]; heap[k] = heap[m]; heap[m] = t
+        k = m
+      }
+    }
+    return top
+  }
+
+  push({ f: fOf(startId, startI, startJ), g: 0, x: X[startI], y: Y[startJ], id: startId })
+  let expansions = 0
+
+  while (heap.length > 0) {
+    const e = pop()
+    const cur = e.id
+    const ci = (cur / NY) | 0
+    const cj = cur - ci * NY
+    if (e.g !== g[cur] || e.f !== fOf(cur, ci, cj)) continue // superseded entry
+    if (cur === goalId) break
+    if (++expansions > MAX_EXPANSIONS) return null
+
+    // the nearest existing lattice point in each of the four directions
+    for (let d = 0; d < 4; d++) {
+      let ni = ci
+      let nj = cj
+      if (d === 0) {
+        let j = cj - 1
+        while (j >= 0 && !exists[ci * NY + j]) j--
+        if (j < 0 || blockedV(ci, j, cj)) continue
+        nj = j
+      } else if (d === 1) {
+        let j = cj + 1
+        while (j < NY && !exists[ci * NY + j]) j++
+        if (j >= NY || blockedV(ci, cj, j)) continue
+        nj = j
+      } else if (d === 2) {
+        let i = ci - 1
+        while (i >= 0 && !exists[i * NY + cj]) i--
+        if (i < 0 || blockedH(cj, i, ci)) continue
+        ni = i
+      } else {
+        let i = ci + 1
+        while (i < NX && !exists[i * NY + cj]) i++
+        if (i >= NX || blockedH(cj, ci, i)) continue
+        ni = i
+      }
+
+      const nb = ni * NY + nj
+      // `near`, not index equality: two ruler lines can sit exactly COORD_EPS
+      // apart, and a step between them counts as vertical for the bend test.
+      const stepDir = near(X[ni], X[ci]) ? 2 : 1
+      const prevDir = dir[cur]
+      const turn = prevDir !== 0 && prevDir !== stepDir ? 1 : 0
+      const ng = g[cur] + Math.abs(X[ni] - X[ci]) + Math.abs(Y[nj] - Y[cj])
+      const nbn = bends[cur] + turn
+      const curG = g[nb]
+      const better = curG === Infinity ? true : ng !== curG ? ng < curG : nbn !== bends[nb] ? nbn < bends[nb] : false
+      if (!better) continue
+      g[nb] = ng
+      bends[nb] = nbn
+      dir[nb] = stepDir
+      from[nb] = cur
+      push({ f: fOf(nb, ni, nj), g: ng, x: X[ni], y: Y[nj], id: nb })
+    }
+  }
+  if (g[goalId] === Infinity) return null
+
   const path: Pt[] = []
-  let c: Node | null = nodeAt.get(goalKey)!
-  while (c) { path.push({ x: c.x, y: c.y }); c = from.get(c.key) ?? null }
+  for (let c = goalId; c >= 0; c = from[c]) {
+    const i = (c / NY) | 0
+    path.push({ x: X[i], y: Y[c - i * NY] })
+  }
   path.reverse()
-  // enforce the exit/entry direction with the goal stub already applied by caller
+  // the exit / entry direction is enforced by the stubs the caller already applied
   void bPos
   return path
 }
