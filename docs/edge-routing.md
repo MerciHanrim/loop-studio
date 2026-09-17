@@ -297,8 +297,10 @@ orthogonal-edge set does **not** recompute incident edges only:
    (ER-INV-3 / acceptance §ER12.4).
 
 During an active node drag the preview uses the L/Z fallback (`routeClass`
-`fallback-lz`) for edges incident to the dragged node; the atomic full pass runs
-once on `dragstop`.
+`preview-lz`) for edges incident to the dragged node while every other edge
+keeps the generation frozen at the gesture's start; the atomic full pass runs
+once on `dragstop`. The preview's state, its termination in every case and its
+verification are specified in `docs/edge-routing-drag-preview.md` (§DP).
 
 ---
 

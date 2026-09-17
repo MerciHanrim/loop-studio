@@ -11,7 +11,8 @@ import { useGraphStore } from '../../store/graphStore'
 import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
 import type { CueRole } from '../../store/playbackRank'
 import { useUiStore } from '../../store/uiStore'
-import { currentRouteMap } from '../../store/routeMap'
+import { currentRouteMap, isOrthogonalEdge, parallelKey } from '../../store/routeMap'
+import { computePreviewRoute, type RouteResult } from './orthogonalRoute'
 import { useLod } from '../lod'
 import { useEdgeActivityOpacity } from '../frames/useActivityTint'
 import { MAX_PLAYBACK_TOKENS } from './playback-caps'
@@ -85,6 +86,8 @@ function LoopEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  sourceHandleId,
+  targetHandleId,
   data,
   selected,
 }: EdgeProps) {
@@ -104,7 +107,45 @@ function LoopEdge({
   const routeMode = (data as { route?: unknown } | undefined)?.route
   const gNodes = useGraphStore((s) => s.nodes)
   const gEdges = useGraphStore((s) => s.edges)
-  const route = routeMode === 'orthogonal' ? currentRouteMap(gNodes, gEdges).get(id) : undefined
+  const dragPreview = useGraphStore((s) => s.dragPreview)
+  // docs/edge-routing-drag-preview.md §DP3.3 — while a node drag is in
+  // progress: an edge incident to a dragged node draws the L/Z preview from
+  // THIS render's handle points (they follow the pointer), every other edge
+  // draws the generation frozen when the gesture began, and nothing asks the
+  // route cache until the gesture ends (one generation per segment, DP-INV-4).
+  // The activity guard mirrors the store's central rule (§DP4): a preview whose
+  // edge set or dragged nodes are gone is treated as absent.
+  const previewActive =
+    dragPreview != null &&
+    dragPreview.baseEdges === gEdges &&
+    [...dragPreview.nodeIds].every((nid) => gNodes.some((n) => n.id === nid))
+  const previewIncident =
+    previewActive && (dragPreview.nodeIds.has(source) || dragPreview.nodeIds.has(target))
+  const previewRoute = (): RouteResult => {
+    const self = { source, target, sourceHandle: sourceHandleId ?? null, targetHandle: targetHandleId ?? null }
+    const key = parallelKey(self)
+    const set = gEdges
+      .filter((e) => isOrthogonalEdge(e) && parallelKey(e) === key)
+      .map((e) => e.id)
+      .sort()
+    return computePreviewRoute({
+      source: { x: sourceX, y: sourceY },
+      target: { x: targetX, y: targetY },
+      sourcePosition,
+      targetPosition,
+      parallelIndex: Math.max(0, set.indexOf(id)),
+      parallelCount: Math.max(1, set.length),
+      selfLoop: source === target,
+    })
+  }
+  const route =
+    routeMode !== 'orthogonal'
+      ? undefined
+      : !previewActive
+        ? currentRouteMap(gNodes, gEdges).get(id)
+        : previewIncident
+          ? previewRoute()
+          : (dragPreview.frozenMap.get(id) ?? previewRoute())
   const path = route ? route.d : bezierPath
   const labelX = route ? route.mid.x : bezierLabelX
   const labelY = route ? route.mid.y : bezierLabelY
@@ -346,6 +387,7 @@ function LoopEdge({
         id={id}
         path={path}
         markerEnd={`url(#${markerId})`}
+        data-route-class={route?.routeClass}
         className={[
           route ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}` : '',
           activityOp > 0 ? 'lgr-active-tint' : '',

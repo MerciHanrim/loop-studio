@@ -8,6 +8,8 @@ import {
 } from '@xyflow/react'
 import { create } from 'zustand'
 import { useAutosaveStore } from './autosaveStore'
+import { currentRouteMap } from './routeMap'
+import type { RouteResult } from '../components/edges/orthogonalRoute'
 import { useI18n } from '../i18n/store'
 import { defaultNodeLabel } from '../i18n/nodeDefaults'
 import { relabelFramesForLocale, relabelNodesForLocale } from '../i18n/templateLabels/relabel'
@@ -61,11 +63,31 @@ type HistoryEntry = {
   sidecar: unknown
 }
 
+/** docs/edge-routing-drag-preview.md §DP3.2 — the drag-time route preview.
+ *  Lives from the first `dragging: true` position change to one of the §DP4
+ *  terminations. `frozenMap` is the canonical route map OBJECT captured when
+ *  the gesture began (never the array identities — the route cache keeps one
+ *  key and another caller could evict it); `baseEdges` only detects an edge
+ *  change, which ends the preview. UI-only: never serialised, never in a
+ *  history entry. */
+export type DragPreview = {
+  nodeIds: ReadonlySet<string>
+  frozenMap: ReadonlyMap<string, RouteResult>
+  baseEdges: LoopEdge[]
+}
+
 type GraphStore = {
   nodes: LoopNode[]
   edges: LoopEdge[]
   selectedNodeId: string | null
   selectedEdgeId: string | null
+  /** docs/edge-routing-drag-preview.md — `null` outside a node-drag gesture */
+  dragPreview: DragPreview | null
+  /** end the preview when no `dragging: false` change will arrive (window
+   *  blur, hidden tab, pointercancel — §DP4.1). Also closes the move-history
+   *  tag so the pre-blur part of the gesture is one undo step. A no-op when
+   *  no preview is active. */
+  endDragPreview: () => void
 
   /** bumped only on changes that alter what a simulation computes — structure
    *  (add/remove/connect) and simulation-relevant node/edge data. NOT position,
@@ -374,8 +396,18 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   // localStorage write.
   window.addEventListener('pagehide', flushAutosave)
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushAutosave()
+    if (document.visibilityState === 'hidden') {
+      flushAutosave()
+      useGraphStore.getState().endDragPreview()
+    }
   })
+  // docs/edge-routing-drag-preview.md §DP4.1 — React Flow ends a node drag only
+  // on a window-level mouseup / touchend / touchcancel; on a focus loss (or a
+  // pointercancel, which d3-drag does not listen to) no `dragging: false`
+  // arrives, so the drag preview and the move-history tag are closed here. A
+  // resumed gesture starts a new preview segment.
+  window.addEventListener('blur', () => useGraphStore.getState().endDragPreview())
+  document.addEventListener('pointercancel', () => useGraphStore.getState().endDragPreview())
 }
 
 // ── save boundary (SEMANTICS of an undo step) ───────────────────────────────
@@ -489,6 +521,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     edges: boot.edges,
     selectedNodeId: null,
     selectedEdgeId: null,
+    dragPreview: null,
     simulationRev: 0,
     loadRev: 0,
     fitRev: 0,
@@ -506,6 +539,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const prev = past[past.length - 1]
       lastTag = ''
       set({
+        dragPreview: null,
         nodes: prev.nodes,
         edges: prev.edges,
         modelVersion: prev.modelVersion,
@@ -527,6 +561,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       const next = future[0]
       lastTag = ''
       set({
+        dragPreview: null,
         nodes: next.nodes,
         edges: next.edges,
         modelVersion: next.modelVersion,
@@ -543,7 +578,11 @@ export const useGraphStore = create<GraphStore>((set, get) => {
     },
 
     onNodesChange: (changes) => {
-      const dragging = changes.some((c) => c.type === 'position' && c.dragging)
+      const dragMoves = changes.filter(
+        (c): c is Extract<NodeChange<LoopNode>, { type: 'position' }> =>
+          c.type === 'position' && c.dragging === true,
+      )
+      const dragging = dragMoves.length > 0
       const settled = changes.some((c) => c.type === 'position' && c.dragging === false)
       const removed = changes.some((c) => c.type === 'remove')
       // 'remove' tag: a node deletion and the connected-edge deletions React Flow
@@ -551,10 +590,43 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // one history entry so a single undo brings the node AND its edges back.
       if (removed) commit('remove')
       else if (dragging) commit('move')
-      set({ nodes: applyNodeChanges(changes, get().nodes) })
+      // docs/edge-routing-drag-preview.md §DP4 — the preview lives only across
+      // `dragging: true` position changes (a `select` change is neutral: it
+      // never touches geometry). It starts on the first one, capturing the
+      // canonical map of the layout BEFORE this change (an identity-cache hit
+      // in the expected case; a miss rebuilds once, here, on the first move —
+      // §DP3.2 / T1b). The drop, a removal, a dimension change or any other
+      // replacement ends it, in the SAME update as the new nodes.
+      const prevNodes = get().nodes
+      const prevEdges = get().edges
+      const keepable = changes.every(
+        (c) => (c.type === 'position' && c.dragging === true) || c.type === 'select',
+      )
+      let preview = get().dragPreview
+      if (dragging && keepable) {
+        const ids = dragMoves.map((c) => c.id)
+        if (!preview) {
+          preview = {
+            nodeIds: new Set(ids),
+            frozenMap: currentRouteMap(prevNodes, prevEdges),
+            baseEdges: prevEdges,
+          }
+        } else if (ids.some((nid) => !preview!.nodeIds.has(nid))) {
+          preview = { ...preview, nodeIds: new Set([...preview.nodeIds, ...ids]) }
+        }
+      } else if (!keepable) {
+        preview = null
+      }
+      set({ nodes: applyNodeChanges(changes, prevNodes), dragPreview: preview })
       if (removed) bump()
       if (settled) lastTag = '' // end of a drag gesture
       persist()
+    },
+
+    endDragPreview: () => {
+      if (!get().dragPreview) return
+      lastTag = '' // §DP4.1 — the pre-blur part of the gesture stays one undo step
+      set({ dragPreview: null })
     },
 
     onEdgesChange: (changes) => {
@@ -722,6 +794,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       dropProjectHeader()
       clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
+        dragPreview: null,
         nodes: [],
         edges: [],
         selectedNodeId: null,
@@ -748,6 +821,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       dropProjectHeader()
       clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
+        dragPreview: null,
         nodes,
         edges,
         selectedNodeId: null,
@@ -789,6 +863,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       dropProjectHeader()
       clearModuleProvenance() // docs/bundled-module-label-localization.md §MLS4.2
       set({
+        dragPreview: null,
         nodes,
         edges,
         selectedNodeId: null,
@@ -1060,4 +1135,16 @@ useI18n.subscribe((s) => {
   // persist once — autosave stores the LIVE doc, so a history-only remap needs
   // no write.
   if (liveNodesChanged || liveFramesChanged) writeAutosaveNow()
+})
+
+// docs/edge-routing-drag-preview.md §DP4 — central safety for the drag preview:
+// whichever store path replaced the edge set or removed a dragged node (an
+// Inspector edit, a keyboard delete, a module insert, a data-import refresh…),
+// the preview cannot outlive them. The drag / drop / undo / load paths clear it
+// in their own update; this catches everything else in the same tick.
+useGraphStore.subscribe((g) => {
+  const p = g.dragPreview
+  if (!p) return
+  const stale = g.edges !== p.baseEdges || ![...p.nodeIds].every((nid) => g.nodes.some((n) => n.id === nid))
+  if (stale) useGraphStore.setState({ dragPreview: null })
 })

@@ -4,6 +4,22 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## Unreleased
+
+### Changed
+
+- **Dragging a node no longer reroutes every orthogonal edge on every
+  pointer move** — during the gesture the edges attached to the dragged
+  node draw a temporary L/Z preview from the live handles and every other
+  edge keeps the route it had when the drag began; the full deterministic
+  reroute runs once when the node is dropped (or when the gesture ends by a
+  focus loss, a node deletion, an edge change or a document change), and
+  its result is identical to opening the moved document fresh. On the two
+  largest bundled templates a drag used to run at roughly 2–4 frames per
+  second because the whole route map was rebuilt for each move. The
+  preview may briefly cross other nodes and the drop still pays one full
+  reroute (`docs/edge-routing-drag-preview.md`).
+
 ## v0.10.2 — 2026-09-17
 
 Patch release: the runtime defects found by the post-v0.10.0 codebase audit

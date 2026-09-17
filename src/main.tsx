@@ -56,6 +56,10 @@ if (import.meta.env.DEV) {
       reset: __resetRouteCache,
       get: (id: string) => {
         const g = useGraphStore.getState()
+        // docs/edge-routing-drag-preview.md DP-D7 — during a drag preview a
+        // read serves the frozen generation, so a mid-gesture read by a test
+        // never evicts the single-entry cache nor adds a generation.
+        if (g.dragPreview) return g.dragPreview.frozenMap.get(id) ?? null
         return currentRouteMap(g.nodes, g.edges).get(id) ?? null
       },
     },

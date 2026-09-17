@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { Position } from '@xyflow/react'
 import {
   COORD_EPS,
+  PARALLEL_GAP,
   PATH_DECIMALS,
   computeOrthogonalRoute,
+  computePreviewRoute,
   type Box,
+  type PreviewInput,
   type RouteInput,
 } from '../src/components/edges/orthogonalRoute'
 
@@ -184,5 +187,64 @@ describe('orthogonalRoute — waypoint span contract (§ER5)', () => {
     expect(decimals(r.d)).toBeLessThanOrEqual(PATH_DECIMALS)
     expect(Number.isFinite(r.mid.x) && Number.isFinite(r.mid.y)).toBe(true)
     expect(Math.abs(r.endAngle)).toBeLessThanOrEqual(Math.PI * 2 + COORD_EPS)
+  })
+})
+
+// docs/edge-routing-drag-preview.md §DP3.3 / §DP3.5 — the drag-time preview
+// route: pure, byte-identical for the same input, attached to the handles,
+// obstacle-blind, same fan offset as the canonical route, class `preview-lz`.
+describe('computePreviewRoute — the drag preview', () => {
+  const pin = (over: Partial<PreviewInput> = {}): PreviewInput => ({
+    source: { x: 0, y: 0 },
+    target: { x: 300, y: 160 },
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    parallelIndex: 0,
+    parallelCount: 1,
+    selfLoop: false,
+    ...over,
+  })
+  const firstPt = (hitD: string) => hitD.match(/^M (-?[\d.]+) (-?[\d.]+)/)!.slice(1, 3).map(Number)
+  const lastPt = (hitD: string) => { const m = [...hitD.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)]; return m[m.length - 1].slice(1, 3).map(Number) }
+
+  it('same input ⇒ byte-identical result, class preview-lz, no invalid-waypoint flag', () => {
+    const a = computePreviewRoute(pin())
+    const b = computePreviewRoute(pin())
+    expect(a).toEqual(b)
+    expect(a.routeClass).toBe('preview-lz')
+    expect(a.invalidWaypoint).toBe(false)
+    expect(decimals(a.d)).toBeLessThanOrEqual(PATH_DECIMALS)
+  })
+
+  it('starts on the source handle and ends on the target handle (DP-INV-5)', () => {
+    const r = computePreviewRoute(pin({ source: { x: 12.5, y: 7 }, target: { x: 410, y: -33 } }))
+    expect(firstPt(r.hitD)).toEqual([12.5, 7])
+    expect(lastPt(r.hitD)).toEqual([410, -33])
+  })
+
+  it('ignores obstacles by construction: an L/Z with at most one bend where the router would detour', () => {
+    const blocker: Box = { id: 'b', x: 120, y: -40, w: 60, h: 240 }
+    const routed = computeOrthogonalRoute(base({ obstacles: [blocker] }))
+    const preview = computePreviewRoute(pin())
+    expect(routed.routeClass).toBe('orthogonal')
+    expect(routed.hitD.split(' L ').length).toBeGreaterThan(preview.hitD.split(' L ').length)
+    expect(preview.hitD.split(' L ').length).toBeLessThanOrEqual(3)
+  })
+
+  it('a parallel pair keeps distinct fan slots, symmetric about the handle line', () => {
+    const a = computePreviewRoute(pin({ parallelIndex: 0, parallelCount: 2 }))
+    const b = computePreviewRoute(pin({ parallelIndex: 1, parallelCount: 2 }))
+    expect(a.d).not.toBe(b.d)
+    expect(firstPt(a.hitD)[1]).toBeCloseTo(-PARALLEL_GAP / 2, 6)
+    expect(firstPt(b.hitD)[1]).toBeCloseTo(PARALLEL_GAP / 2, 6)
+  })
+
+  it('a self-loop and a degenerate pair still yield a non-empty preview-lz path', () => {
+    const loop = computePreviewRoute(pin({ target: { x: 0, y: 0 }, selfLoop: true }))
+    expect(loop.routeClass).toBe('preview-lz')
+    expect(loop.d.length).toBeGreaterThan(0)
+    const degenerate = computePreviewRoute(pin({ target: { x: 0, y: 0 } }))
+    expect(degenerate.routeClass).toBe('preview-lz')
+    expect(degenerate.d.startsWith('M 0 0')).toBe(true)
   })
 })

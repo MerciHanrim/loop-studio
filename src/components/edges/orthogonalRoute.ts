@@ -19,7 +19,16 @@ export const PATH_DECIMALS = 2
 export const MAX_EXPANSIONS = 20000
 export const ROUTER_VERSION = 1
 
-export type RouteClass = 'orthogonal' | 'self-loop' | 'same-side' | 'fallback-lz' | 'degenerate'
+export type RouteClass =
+  | 'orthogonal'
+  | 'self-loop'
+  | 'same-side'
+  | 'fallback-lz'
+  | 'degenerate'
+  /** docs/edge-routing-drag-preview.md §DP3.3 — the drag-time preview of an
+   *  edge incident to a dragged node: an L/Z from the live handle points that
+   *  ignores obstacles. Never produced by `computeOrthogonalRoute`. */
+  | 'preview-lz'
 export type Pt = { x: number; y: number }
 export type Box = { id: string; x: number; y: number; w: number; h: number }
 
@@ -260,6 +269,92 @@ function lzRoute(a: Pt, b: Pt, aPos: Position): Pt[] {
   return simplify([a, mid, b])
 }
 
+/** the result record for a finished point list: simplified polyline, `d`, the
+ *  hit polyline, the arc-length midpoint (label anchor) and the last-segment
+ *  angle (direction marker). Shared by the router and the drag preview. */
+function toResult(pts: Pt[], cls: RouteClass, src: Pt, tgt: Pt, invalidWaypoint: boolean): RouteResult {
+  const s = simplify(pts.length ? pts : [src, tgt])
+  // arc-length midpoint of the polyline, for the label
+  let total = 0
+  for (let i = 1; i < s.length; i++) total += Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y)
+  let acc = 0
+  let mid: Pt = s[0] ?? { x: src.x, y: src.y }
+  for (let i = 1; i < s.length; i++) {
+    const seg = Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y)
+    if (acc + seg >= total / 2) {
+      const r = seg > 0 ? (total / 2 - acc) / seg : 0
+      mid = { x: s[i - 1].x + (s[i].x - s[i - 1].x) * r, y: s[i - 1].y + (s[i].y - s[i - 1].y) * r }
+      break
+    }
+    acc += seg
+  }
+  const p = s.length >= 2 ? s[s.length - 2] : { x: src.x, y: src.y }
+  const e2 = s[s.length - 1] ?? { x: tgt.x, y: tgt.y }
+  const endAngle = Math.atan2(e2.y - p.y, e2.x - p.x)
+  return { d: pointsToPath(s), hitD: pointsToPoly(s), routeClass: cls, mid, endAngle, invalidWaypoint }
+}
+
+/** the parallel-set fan offset applied to both endpoints (§ER3.7) */
+function fanEndpoints(inp: {
+  source: Pt
+  target: Pt
+  sourcePosition: Position
+  targetPosition: Position
+  parallelIndex: number
+  parallelCount: number
+}): { src: Pt; tgt: Pt } {
+  const fanOffset = (inp.parallelIndex - (inp.parallelCount - 1) / 2) * PARALLEL_GAP
+  const perpS = isHoriz(inp.sourcePosition) ? { x: 0, y: fanOffset } : { x: fanOffset, y: 0 }
+  const perpT = isHoriz(inp.targetPosition) ? { x: 0, y: fanOffset } : { x: fanOffset, y: 0 }
+  return {
+    src: { x: inp.source.x + perpS.x, y: inp.source.y + perpS.y },
+    tgt: { x: inp.target.x + perpT.x, y: inp.target.y + perpT.y },
+  }
+}
+
+export type PreviewInput = {
+  source: Pt
+  target: Pt
+  sourcePosition: Position
+  targetPosition: Position
+  parallelIndex: number
+  parallelCount: number
+  selfLoop: boolean
+}
+
+/**
+ * docs/edge-routing-drag-preview.md §DP3.3 / §DP3.5 — the drag-time preview
+ * route of an edge incident to a dragged node. Pure and deterministic: the
+ * §ER3.6 L/Z from the live handle points (same fan offset as the canonical
+ * route so parallel edges stay apart; a self-loop keeps its stub shape), with
+ * NO obstacle avoidance and no manual waypoints. It is a display-only stand-in
+ * while the pointer is down; the canonical map replaces it on termination.
+ * `routeClass` is always `'preview-lz'` so the DOM says what is on screen.
+ */
+export function computePreviewRoute(inp: PreviewInput): RouteResult {
+  const { src, tgt } = fanEndpoints(inp)
+  const sN = normal(inp.sourcePosition)
+  if (near(src.x, tgt.x) && near(src.y, tgt.y)) {
+    return toResult([src, { x: src.x + sN.x, y: src.y + sN.y }], 'preview-lz', src, tgt, false)
+  }
+  if (inp.selfLoop) {
+    const pts = selfLoopRoute({
+      edgeId: '',
+      source: src,
+      target: tgt,
+      sourcePosition: inp.sourcePosition,
+      targetPosition: inp.targetPosition,
+      obstacles: [],
+      waypoints: [],
+      parallelIndex: inp.parallelIndex,
+      parallelCount: inp.parallelCount,
+      selfLoop: true,
+    })
+    return toResult(pts, 'preview-lz', src, tgt, false)
+  }
+  return toResult(lzRoute(src, tgt, inp.sourcePosition), 'preview-lz', src, tgt, false)
+}
+
 // ── the entry point ───────────────────────────────────────────────────────
 export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
   const fanOffset = (inp.parallelIndex - (inp.parallelCount - 1) / 2) * PARALLEL_GAP
@@ -274,27 +369,8 @@ export function computeOrthogonalRoute(inp: RouteInput): RouteResult {
   // an inflated obstacle keeps its value but flags the edge + forces the fallback.
   let invalidWp = false
 
-  const done = (pts: Pt[], cls: RouteClass): RouteResult => {
-    const s = simplify(pts.length ? pts : [src, tgt])
-    // arc-length midpoint of the polyline, for the label
-    let total = 0
-    for (let i = 1; i < s.length; i++) total += Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y)
-    let acc = 0
-    let mid: Pt = s[0] ?? { x: src.x, y: src.y }
-    for (let i = 1; i < s.length; i++) {
-      const seg = Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y)
-      if (acc + seg >= total / 2) {
-        const r = seg > 0 ? (total / 2 - acc) / seg : 0
-        mid = { x: s[i - 1].x + (s[i].x - s[i - 1].x) * r, y: s[i - 1].y + (s[i].y - s[i - 1].y) * r }
-        break
-      }
-      acc += seg
-    }
-    const p = s.length >= 2 ? s[s.length - 2] : { x: src.x, y: src.y }
-    const e2 = s[s.length - 1] ?? { x: tgt.x, y: tgt.y }
-    const endAngle = Math.atan2(e2.y - p.y, e2.x - p.x)
-    return { d: pointsToPath(s), hitD: pointsToPoly(s), routeClass: cls, mid, endAngle, invalidWaypoint: invalidWp }
-  }
+  // `invalidWp` is read at call time (it is assigned after the early returns)
+  const done = (pts: Pt[], cls: RouteClass): RouteResult => toResult(pts, cls, src, tgt, invalidWp)
 
   if (near(src.x, tgt.x) && near(src.y, tgt.y)) {
     return done([src, { x: src.x + sN.x, y: src.y + sN.y }], 'degenerate')

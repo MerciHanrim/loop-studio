@@ -24,13 +24,23 @@ import {
 const DEFAULT_W = 130
 const DEFAULT_H = 64
 
-type Key = { nodes: LoopNode[]; edges: LoopEdge[]; v: number }
+type Key = { nodes: LoopNode[]; edges: LoopEdge[]; v: number; sig: string }
 let cacheKey: Key | null = null
 let cacheMap: ReadonlyMap<string, RouteResult> = new Map()
 let genCount = 0
 
-const isOrtho = (e: LoopEdge): boolean =>
+export const isOrthogonalEdge = (e: LoopEdge): boolean =>
   (e.data as { route?: unknown } | undefined)?.route === 'orthogonal'
+const isOrtho = isOrthogonalEdge
+
+/** §ER3.7 — the unordered endpoint key of a parallel set (a reversed pair
+ *  shares it). Also used by the drag preview so a previewed edge keeps the
+ *  same fan slot as its canonical route. */
+export const parallelKey = (e: Pick<LoopEdge, 'source' | 'target' | 'sourceHandle' | 'targetHandle'>): string => {
+  const a = `${e.source}:${e.sourceHandle ?? ''}`
+  const b = `${e.target}:${e.targetHandle ?? ''}`
+  return a < b ? `${a}|${b}` : `${b}|${a}`
+}
 
 const handlePos = (handleId: string | null | undefined, fallback: Position): Position => {
   // resource ports: `in` = Left, `out` = Right; state ports: top / bottom.
@@ -67,11 +77,7 @@ function rebuild(nodes: LoopNode[], edges: LoopEdge[]): ReadonlyMap<string, Rout
 
   // parallel sets — unordered endpoint key, reversed pairs included (§ER3.7)
   const groups = new Map<string, string[]>()
-  const pkey = (e: LoopEdge): string => {
-    const a = `${e.source}:${e.sourceHandle ?? ''}`
-    const b = `${e.target}:${e.targetHandle ?? ''}`
-    return a < b ? `${a}|${b}` : `${b}|${a}`
-  }
+  const pkey = parallelKey
   const ortho = edges.filter(isOrtho).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   for (const e of ortho) {
     const k = pkey(e)
@@ -111,10 +117,40 @@ export function currentRouteMap(nodes: LoopNode[], edges: LoopEdge[]): ReadonlyM
   if (cacheKey && cacheKey.nodes === nodes && cacheKey.edges === edges && cacheKey.v === ROUTER_VERSION) {
     return cacheMap
   }
+  // §ER3.8 — the key is the routing INPUT, not the array identity. React Flow's
+  // `applyNodeChanges` hands back a new array for a `select` change (and other
+  // non-geometric edits do the same), which used to rebuild the whole map on
+  // every click. Same layout signature ⇒ same generation: adopt the new
+  // identities and keep the map. A moved / resized node, or any change to the
+  // orthogonal edge set, its handles or its waypoints, still rebuilds.
+  const sig = layoutSignature(nodes, edges)
+  if (cacheKey && cacheKey.sig === sig && cacheKey.v === ROUTER_VERSION) {
+    cacheKey = { nodes, edges, v: ROUTER_VERSION, sig }
+    return cacheMap
+  }
   cacheMap = rebuild(nodes, edges)
-  cacheKey = { nodes, edges, v: ROUTER_VERSION }
+  cacheKey = { nodes, edges, v: ROUTER_VERSION, sig }
   genCount += 1
   return cacheMap
+}
+
+/** everything `rebuild` reads, in input order (obstacle order does not change
+ *  a route — `computeOrthogonalRoute` sorts internally — but keeping it makes
+ *  the signature cheap and unambiguous) */
+function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
+  let out = ''
+  for (const n of nodes) {
+    const w = n.measured?.width ?? n.width ?? DEFAULT_W
+    const h = n.measured?.height ?? n.height ?? DEFAULT_H
+    out += `${n.id}:${n.position.x}:${n.position.y}:${w}:${h};`
+  }
+  out += '|'
+  for (const e of edges) {
+    if (!isOrtho(e)) continue
+    const wp = (e.data as { waypoints?: unknown } | undefined)?.waypoints
+    out += `${e.id}:${e.source}:${e.sourceHandle ?? ''}:${e.target}:${e.targetHandle ?? ''}:${Array.isArray(wp) ? JSON.stringify(wp) : ''};`
+  }
+  return out
 }
 
 /** test hook — how many full route-map generations have been built. */
