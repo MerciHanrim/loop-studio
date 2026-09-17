@@ -41,6 +41,15 @@ type Fixture = {
 
 const FIXTURE_URL = new URL('./fixtures/routes/golden-routes.json', import.meta.url)
 
+/** The commit the fixture was generated from: `main` as it stood BEFORE the
+ *  router's internals were cost-reduced. Pinned, not merely "present", because
+ *  the whole point of the fixture is that it predates the change: regenerating
+ *  it rewrites `generatedFrom`, so an accidental regeneration on a later commit
+ *  fails here loudly instead of quietly blessing whatever the router does
+ *  today. Changing this constant is a deliberate act and belongs in the same
+ *  reviewed commit as an intended route change and a ROUTER_VERSION bump. */
+const FIXTURE_SOURCE_COMMIT = 'e763eeb'
+
 /** both sides go through the same JSON normalisation, so -0 and +0 cannot
  *  produce a phantom mismatch that the rendered path string does not have */
 const snap = (r: RouteResult): Snap =>
@@ -102,7 +111,7 @@ const checkGroup = (cases: Case[]) => {
 describe('orthogonalRoute — golden route bytes', () => {
   it('the fixture was generated from the pre-optimisation router and pins this ROUTER_VERSION', () => {
     expect(fixture.routerVersion).toBe(ROUTER_VERSION)
-    expect(fixture.generatedFrom).not.toBe('unknown')
+    expect(fixture.generatedFrom).toBe(FIXTURE_SOURCE_COMMIT)
     expect(Object.keys(fixture.cases).length).toBeGreaterThan(100)
   })
 
