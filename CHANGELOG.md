@@ -4,6 +4,24 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## Unreleased
+
+### Changed
+
+- **The orthogonal connector routes the same paths, much faster and with far
+  less memory** — the §ER3 router keeps its ruler grid, its free-point and
+  neighbour rules, its cost function, its tie-break order and its expansion
+  budget; only the bookkeeping changed (lattice-indexed typed arrays instead
+  of string-keyed maps, per-ruler obstacle coverage instead of rescanning
+  every obstacle for every probe, and a binary heap instead of a linear scan
+  of the open list). A full route rebuild drops from 380 ms to 24 ms on the
+  gacha template and from 724 ms to 39 ms on the MMO one; on a 144-edge
+  stress graph peak heap falls from 150 MB to 28 MB and garbage-collection
+  time from 1.4 s to 0.1 s over one drag. Routes are byte-identical: a golden
+  fixture and a differential test against a frozen copy of the previous
+  implementation cover every bundled example, a boundary corpus, the stress
+  graph and 3,000 seeded layouts, so `ROUTER_VERSION` is unchanged.
+
 ## v0.10.2 — 2026-09-17
 
 Patch release: the runtime defects found by the post-v0.10.0 codebase audit

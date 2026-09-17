@@ -1,0 +1,944 @@
+{
+ "gacha-banner-zones": {
+  "pulls_per_zone": [
+   179,
+   86
+  ],
+  "cmp1_hit_rate_free": [
+   234,
+   102
+  ],
+  "cmp2_hit_rate_standard": [
+   260,
+   102
+  ],
+  "cmp3_hit_rate_pickup": [
+   249,
+   102
+  ],
+  "cmp4_pickup_rate_pickup": [
+   260,
+   102
+  ],
+  "fund_free": [
+   138,
+   64
+  ],
+  "ticket_free": [
+   118,
+   64
+  ],
+  "pulls_made_free": [
+   118,
+   64
+  ],
+  "zone1_free_w_ssr": [
+   179,
+   86
+  ],
+  "zone1_free_w_sr": [
+   179,
+   86
+  ],
+  "zone1_free_w_r": [
+   179,
+   86
+  ],
+  "sr_count_free": [
+   118,
+   64
+  ],
+  "r_count_free": [
+   118,
+   64
+  ],
+  "ssr_count_free": [
+   118,
+   64
+  ],
+  "roll_gate_free": [
+   134,
+   64
+  ],
+  "ssr_hit_free": [
+   134,
+   64
+  ],
+  "sr_hit_free": [
+   134,
+   64
+  ],
+  "r_hit_free": [
+   134,
+   64
+  ],
+  "fund_standard": [
+   138,
+   64
+  ],
+  "ticket_standard": [
+   118,
+   64
+  ],
+  "pulls_made_standard": [
+   118,
+   64
+  ],
+  "zone2_standard_w_ssr": [
+   179,
+   86
+  ],
+  "zone2_standard_w_sr": [
+   179,
+   86
+  ],
+  "zone2_standard_w_r": [
+   179,
+   86
+  ],
+  "sr_count_standard": [
+   118,
+   64
+  ],
+  "r_count_standard": [
+   118,
+   64
+  ],
+  "ssr_count_standard": [
+   135,
+   64
+  ],
+  "roll_gate_standard": [
+   134,
+   64
+  ],
+  "ssr_hit_standard": [
+   134,
+   64
+  ],
+  "sr_hit_standard": [
+   134,
+   64
+  ],
+  "r_hit_standard": [
+   134,
+   64
+  ],
+  "pity_standard": [
+   118,
+   64
+  ],
+  "zone2_standard_hard_pity": [
+   179,
+   86
+  ],
+  "forced_ssr_standard": [
+   148,
+   64
+  ],
+  "ceiling_hits_standard": [
+   118,
+   64
+  ],
+  "fund_pickup": [
+   138,
+   64
+  ],
+  "ticket_pickup": [
+   118,
+   64
+  ],
+  "pulls_made_pickup": [
+   118,
+   64
+  ],
+  "zone3_pickup_w_ssr": [
+   179,
+   86
+  ],
+  "zone3_pickup_w_sr": [
+   179,
+   86
+  ],
+  "zone3_pickup_w_r": [
+   179,
+   86
+  ],
+  "sr_count_pickup": [
+   118,
+   64
+  ],
+  "r_count_pickup": [
+   118,
+   64
+  ],
+  "ssr_count_pickup": [
+   120,
+   64
+  ],
+  "pity_pickup": [
+   118,
+   64
+  ],
+  "zone3_pickup_hard_pity": [
+   179,
+   86
+  ],
+  "ceiling_hits_pickup": [
+   118,
+   64
+  ],
+  "missed_pickup_pickup": [
+   129,
+   64
+  ],
+  "zone3_pickup_w_pickup": [
+   179,
+   86
+  ],
+  "zone3_pickup_w_standard": [
+   179,
+   86
+  ],
+  "roll_normal_open_pickup": [
+   209,
+   64
+  ],
+  "roll_normal_owed_pickup": [
+   206,
+   64
+  ],
+  "roll_forced_open_pickup": [
+   209,
+   64
+  ],
+  "roll_forced_owed_pickup": [
+   201,
+   64
+  ],
+  "ssr_split_open_pickup": [
+   209,
+   64
+  ],
+  "pickup_hit_pickup": [
+   139,
+   64
+  ],
+  "standard_hit_pickup": [
+   154,
+   64
+  ],
+  "sr_hit_pickup": [
+   134,
+   64
+  ],
+  "r_hit_pickup": [
+   134,
+   64
+  ],
+  "pickup_count_pickup": [
+   124,
+   64
+  ],
+  "standard_count_pickup": [
+   146,
+   64
+  ],
+  "termination_fuel": [
+   163,
+   74
+  ],
+  "all_zones_done": [
+   177,
+   64
+  ]
+ },
+ "mmo-progression": {
+  "level": [
+   118,
+   64
+  ],
+  "xp": [
+   118,
+   64
+  ],
+  "xp_earned": [
+   118,
+   64
+  ],
+  "reward": [
+   118,
+   74
+  ],
+  "fail_pool": [
+   118,
+   74
+  ],
+  "death_pool": [
+   135,
+   74
+  ],
+  "reward_router": [
+   167,
+   64
+  ],
+  "hunt_payout": [
+   126,
+   64
+  ],
+  "quest_payout": [
+   132,
+   64
+  ],
+  "hunt_xp": [
+   118,
+   64
+  ],
+  "quest_xp": [
+   118,
+   64
+  ],
+  "fail_conv": [
+   129,
+   64
+  ],
+  "death_conv": [
+   118,
+   64
+  ],
+  "combat_wins": [
+   131,
+   64
+  ],
+  "combat_fails": [
+   128,
+   64
+  ],
+  "deaths": [
+   141,
+   64
+  ],
+  "gold": [
+   118,
+   64
+  ],
+  "gold_earned": [
+   125,
+   64
+  ],
+  "vendor_revenue": [
+   148,
+   64
+  ],
+  "repair_spend": [
+   132,
+   64
+  ],
+  "resupply_spend": [
+   149,
+   64
+  ],
+  "training_spend": [
+   142,
+   64
+  ],
+  "water": [
+   131,
+   64
+  ],
+  "food": [
+   123,
+   64
+  ],
+  "water_bought": [
+   179,
+   64
+  ],
+  "food_bought": [
+   172,
+   64
+  ],
+  "water_consumed": [
+   181,
+   74
+  ],
+  "food_consumed": [
+   181,
+   74
+  ],
+  "water_upkeep": [
+   137,
+   64
+  ],
+  "food_upkeep": [
+   129,
+   64
+  ],
+  "resupply": [
+   118,
+   64
+  ],
+  "gear_score": [
+   118,
+   64
+  ],
+  "gear_wear": [
+   118,
+   74
+  ],
+  "wear_cleared": [
+   132,
+   64
+  ],
+  "repair_wear": [
+   134,
+   64
+  ],
+  "repair_gold": [
+   122,
+   64
+  ],
+  "drop": [
+   118,
+   74
+  ],
+  "loot_feed": [
+   119,
+   74
+  ],
+  "loot_dispatch": [
+   133,
+   64
+  ],
+  "loot_category": [
+   162,
+   64
+  ],
+  "bucket_equip": [
+   124,
+   74
+  ],
+  "bucket_vendor": [
+   133,
+   74
+  ],
+  "bucket_consumable": [
+   167,
+   74
+  ],
+  "bucket_rare": [
+   118,
+   74
+  ],
+  "items_looted": [
+   129,
+   64
+  ],
+  "items_equipped": [
+   149,
+   64
+  ],
+  "items_sold": [
+   118,
+   64
+  ],
+  "items_consumed": [
+   155,
+   64
+  ],
+  "equip_conv": [
+   118,
+   64
+  ],
+  "vendor_conv": [
+   135,
+   64
+  ],
+  "consumable_conv": [
+   153,
+   64
+  ],
+  "rare_conv": [
+   118,
+   64
+  ],
+  "elapsed": [
+   137,
+   64
+  ],
+  "clock": [
+   153,
+   64
+  ],
+  "completion": [
+   121,
+   74
+  ],
+  "completion_src": [
+   170,
+   64
+  ],
+  "end15": [
+   165,
+   64
+  ],
+  "z1_enc_src": [
+   178,
+   64
+  ],
+  "z1_enc": [
+   145,
+   74
+  ],
+  "z1_combat": [
+   172,
+   64
+  ],
+  "z1_win": [
+   139,
+   74
+  ],
+  "z1_winamp": [
+   118,
+   64
+  ],
+  "z1_lootroll": [
+   145,
+   74
+  ],
+  "z1_loot": [
+   148,
+   64
+  ],
+  "z1_xp_meter": [
+   183,
+   64
+  ],
+  "z1_xp2lvl": [
+   146,
+   64
+  ],
+  "z1_training": [
+   145,
+   64
+  ],
+  "z2_enc_src": [
+   188,
+   64
+  ],
+  "z2_enc": [
+   164,
+   74
+  ],
+  "z2_combat": [
+   182,
+   64
+  ],
+  "z2_win": [
+   150,
+   74
+  ],
+  "z2_winamp": [
+   129,
+   64
+  ],
+  "z2_lootroll": [
+   155,
+   74
+  ],
+  "z2_loot": [
+   158,
+   64
+  ],
+  "z2_xp_meter": [
+   193,
+   64
+  ],
+  "z2_xp2lvl": [
+   156,
+   64
+  ],
+  "z2_training": [
+   155,
+   64
+  ],
+  "z3_enc_src": [
+   191,
+   72
+  ],
+  "z3_enc": [
+   181,
+   90
+  ],
+  "z3_combat": [
+   191,
+   64
+  ],
+  "z3_win": [
+   159,
+   74
+  ],
+  "z3_winamp": [
+   138,
+   64
+  ],
+  "z3_lootroll": [
+   164,
+   74
+  ],
+  "z3_loot": [
+   168,
+   64
+  ],
+  "z3_xp_meter": [
+   203,
+   64
+  ],
+  "z3_xp2lvl": [
+   166,
+   64
+  ],
+  "z3_training": [
+   165,
+   64
+  ],
+  "void": [
+   147,
+   64
+  ],
+  "char_creation": [
+   177,
+   64
+  ],
+  "active_char": [
+   152,
+   74
+  ],
+  "r_income": [
+   127,
+   86
+  ],
+  "r_expense": [
+   260,
+   86
+  ],
+  "r_netgold": [
+   260,
+   86
+  ],
+  "r_huntshare": [
+   260,
+   86
+  ],
+  "r_efflevel": [
+   136,
+   102
+  ],
+  "r_items_acct": [
+   260,
+   86
+  ],
+  "r_burned": [
+   253,
+   102
+  ]
+ },
+ "playback-choreography": {
+  "fan_src": [
+   153,
+   64
+  ],
+  "zp00": [
+   118,
+   64
+  ],
+  "zp01": [
+   118,
+   64
+  ],
+  "zp02": [
+   118,
+   64
+  ],
+  "zp03": [
+   118,
+   64
+  ],
+  "zp04": [
+   118,
+   64
+  ],
+  "zp05": [
+   118,
+   64
+  ],
+  "zp06": [
+   118,
+   64
+  ],
+  "zp07": [
+   118,
+   64
+  ],
+  "zp08": [
+   118,
+   64
+  ],
+  "zp09": [
+   118,
+   64
+  ],
+  "zp10": [
+   118,
+   64
+  ],
+  "zp11": [
+   118,
+   64
+  ],
+  "zp12": [
+   118,
+   64
+  ],
+  "zp13": [
+   118,
+   64
+  ],
+  "zp14": [
+   118,
+   64
+  ],
+  "zp15": [
+   118,
+   64
+  ],
+  "zp16": [
+   118,
+   64
+  ],
+  "zp17": [
+   118,
+   64
+  ],
+  "zp18": [
+   118,
+   64
+  ],
+  "zp19": [
+   118,
+   64
+  ],
+  "zp20": [
+   118,
+   64
+  ],
+  "zp21": [
+   118,
+   64
+  ],
+  "zp22": [
+   118,
+   64
+  ],
+  "zp23": [
+   118,
+   64
+  ],
+  "zp24": [
+   118,
+   64
+  ],
+  "zp25": [
+   118,
+   64
+  ],
+  "zp26": [
+   118,
+   64
+  ],
+  "zp27": [
+   118,
+   64
+  ],
+  "zp28": [
+   118,
+   64
+  ],
+  "zp29": [
+   118,
+   64
+  ],
+  "zp30": [
+   118,
+   64
+  ],
+  "zp31": [
+   118,
+   64
+  ],
+  "zp32": [
+   118,
+   64
+  ],
+  "zp33": [
+   118,
+   64
+  ],
+  "zp34": [
+   118,
+   64
+  ],
+  "zp35": [
+   118,
+   64
+  ],
+  "zp36": [
+   118,
+   64
+  ],
+  "zp37": [
+   118,
+   64
+  ],
+  "zp38": [
+   118,
+   64
+  ],
+  "zp39": [
+   118,
+   64
+  ],
+  "zp40": [
+   118,
+   64
+  ],
+  "zp41": [
+   118,
+   64
+  ],
+  "zp42": [
+   118,
+   64
+  ],
+  "zp43": [
+   118,
+   64
+  ],
+  "zp44": [
+   118,
+   64
+  ],
+  "zp45": [
+   118,
+   64
+  ],
+  "zp46": [
+   118,
+   64
+  ],
+  "zp47": [
+   118,
+   64
+  ],
+  "zp48": [
+   118,
+   64
+  ],
+  "zp49": [
+   118,
+   64
+  ],
+  "zp50": [
+   118,
+   64
+  ],
+  "zp51": [
+   118,
+   64
+  ],
+  "zp52": [
+   118,
+   64
+  ],
+  "zp53": [
+   118,
+   64
+  ],
+  "zp54": [
+   118,
+   64
+  ],
+  "zp55": [
+   118,
+   64
+  ],
+  "zp56": [
+   118,
+   64
+  ],
+  "zp57": [
+   118,
+   64
+  ],
+  "zp58": [
+   118,
+   64
+  ],
+  "zp59": [
+   118,
+   64
+  ],
+  "zp60": [
+   118,
+   64
+  ],
+  "zp61": [
+   118,
+   64
+  ],
+  "zp62": [
+   118,
+   64
+  ],
+  "zp63": [
+   118,
+   64
+  ],
+  "zp64": [
+   118,
+   64
+  ],
+  "merge_a": [
+   153,
+   64
+  ],
+  "merge_b": [
+   153,
+   64
+  ],
+  "merge_pool": [
+   118,
+   64
+  ],
+  "sig_src": [
+   153,
+   64
+  ],
+  "gate_pool": [
+   118,
+   64
+  ],
+  "sig_drain": [
+   134,
+   64
+  ],
+  "feeder": [
+   118,
+   64
+  ],
+  "tank": [
+   118,
+   64
+  ]
+ }
+}
