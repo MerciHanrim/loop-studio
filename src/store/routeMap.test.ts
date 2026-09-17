@@ -47,6 +47,27 @@ describe('currentRouteMap — cache key', () => {
     expect(__routeGenCount()).toBe(g + 4)
   })
 
+  it('ids containing the old delimiters cannot collide: two layouts that would have joined to the same string rebuild separately (review P1)', () => {
+    // layout A: obstacles a(100,10,80,60) and b(300,10,80,60), both across the
+    // s → t corridor (handle y = 32 for the default 130×64 node box)
+    const box = (id: string, x: number, y: number, w: number, h: number): LoopNode =>
+      ({ ...node(id, x, y), measured: { width: w, height: h } }) as LoopNode
+    const edgeSet = [edge('e', 's', 't')]
+    const ends = [node('s', 0, 0), node('t', 600, 0)]
+    const layoutA = [...ends, box('a', 100, 10, 80, 60), box('b', 300, 10, 80, 60)]
+    // layout B: ONE obstacle whose id is the delimiter-joined text of a's record,
+    // sitting where b was — the old signature `${id}:${x}:${y}:${w}:${h};` gave
+    // both layouts the identical string
+    const layoutB = [...ends, box('a:100:10:80:60;b', 300, 10, 80, 60)]
+    const mA = currentRouteMap(layoutA, edgeSet)
+    const g = __routeGenCount()
+    const mB = currentRouteMap(layoutB, edgeSet)
+    expect(__routeGenCount()).toBe(g + 1) // a different layout ⇒ a new generation, never a reuse
+    expect(mB).not.toBe(mA)
+    // and the routes really differ: layout A has a second obstacle at x=100 the edge must clear
+    expect(mB.get('e')!.d).not.toBe(mA.get('e')!.d)
+  })
+
   it('a rebuild from scratch equals the reused generation, route for route', () => {
     const { nodes, edges } = base()
     const m1 = currentRouteMap(nodes, edges)

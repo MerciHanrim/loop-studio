@@ -136,21 +136,24 @@ export function currentRouteMap(nodes: LoopNode[], edges: LoopEdge[]): ReadonlyM
 
 /** everything `rebuild` reads, in input order (obstacle order does not change
  *  a route — `computeOrthogonalRoute` sorts internally — but keeping it makes
- *  the signature cheap and unambiguous) */
+ *  the signature cheap). Structured (JSON) rather than delimiter-joined: ids
+ *  are user data and may contain any character, so two different layouts must
+ *  never serialise to the same string (review P1 on #223 — an id such as
+ *  `a:100:-10:80:20;b` would have collided with two separate obstacles). */
 function layoutSignature(nodes: LoopNode[], edges: LoopEdge[]): string {
-  let out = ''
+  const ns: (string | number)[][] = []
   for (const n of nodes) {
     const w = n.measured?.width ?? n.width ?? DEFAULT_W
     const h = n.measured?.height ?? n.height ?? DEFAULT_H
-    out += `${n.id}:${n.position.x}:${n.position.y}:${w}:${h};`
+    ns.push([n.id, n.position.x, n.position.y, w, h])
   }
-  out += '|'
+  const es: unknown[][] = []
   for (const e of edges) {
     if (!isOrtho(e)) continue
     const wp = (e.data as { waypoints?: unknown } | undefined)?.waypoints
-    out += `${e.id}:${e.source}:${e.sourceHandle ?? ''}:${e.target}:${e.targetHandle ?? ''}:${Array.isArray(wp) ? JSON.stringify(wp) : ''};`
+    es.push([e.id, e.source, e.sourceHandle ?? null, e.target, e.targetHandle ?? null, Array.isArray(wp) ? wp : null])
   }
-  return out
+  return JSON.stringify([ns, es])
 }
 
 /** test hook — how many full route-map generations have been built. */

@@ -92,7 +92,10 @@ dragPreview: null | {
   `currentRouteMap` therefore now reuses the generation when the **layout
   signature** (node ids, positions, measured sizes; orthogonal edge ids,
   endpoints, handles, waypoints) is unchanged and only the identity moved —
-  the §ER3.8 key, applied. A real move, resize, route toggle or waypoint edit
+  the §ER3.8 key, applied. The signature is a structured (JSON) serialisation,
+  never delimiter-joined text: ids are user data and may contain any
+  character, so two different layouts must never produce the same key (pinned
+  by a regression test with an id that reproduces the delimiter collision). A real move, resize, route toggle or waypoint edit
   still rebuilds. This is what makes the warm-cache start the expected case
   and keeps T1b a measurement of the preview, not of the click.
 - **Why the map object and not the array identities:** `currentRouteMap`

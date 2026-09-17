@@ -87,6 +87,7 @@ describe('dragPreview — lifecycle', () => {
     const ids = setup()
     g().onNodesChange([move(ids.p, 320, 130, true)])
     g().onNodesChange([move(ids.p, 400, 200, true)])
+    const frozenE1 = g().dragPreview!.frozenMap.get(ids.e1)!.d // captured BEFORE the drop clears the preview
     const gen = __routeGenCount()
     g().onNodesChange([move(ids.p, 400, 200, false)])
     expect(g().dragPreview).toBeNull()
@@ -95,8 +96,8 @@ describe('dragPreview — lifecycle', () => {
     __resetRouteCache()
     const cold = currentRouteMap(g().nodes, g().edges)
     expect(routesOf(after)).toEqual(routesOf(cold))
-    // the route really moved with the node (the frozen one was not kept)
-    expect(after.get(ids.e1)!.d).not.toBe(g().dragPreview?.frozenMap.get(ids.e1)?.d ?? '')
+    // the route really moved with the node: the post-drop route differs from the frozen one
+    expect(after.get(ids.e1)!.d).not.toBe(frozenE1)
   })
 
   it('a press-and-release without movement still terminates and still matches a cold recompute (≤ 1 generation)', () => {
