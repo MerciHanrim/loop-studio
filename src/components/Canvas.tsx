@@ -54,6 +54,16 @@ const MODULE_DND_TYPE = 'application/loop-module'
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 2
 
+// React Flow's `StoreUpdater` syncs a fixed list of props into its own store and
+// compares each with `===`. `Canvas` re-renders on every pointer move of a node
+// drag (it feeds `nodes` to React Flow), so a fresh object literal in one of
+// those props writes to the store on every move — and `defaultEdgeOptions` in
+// particular is read by EVERY `EdgeWrapper` with default equality, which
+// re-renders every edge. These two never change, so they are hoisted; the
+// translated `ariaLabelConfig` is memoized at its use site instead.
+const DEFAULT_EDGE_OPTIONS = { type: 'loop' } as const
+const FIT_VIEW_OPTIONS = { padding: 0.3, maxZoom: 1.2 } as const
+
 // docs/visual-language.md §VL7.2 — "Grid fades out entering L1". The dot grid is
 // a scan aid for the detail view only; below the L2 threshold it is dropped so
 // the map view stays clean. Pure function of zoom — a threshold round-trip
@@ -341,7 +351,15 @@ export function Canvas() {
   // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
   // nodes / edges, the handle label) — localized via the one config prop
   // (docs/localization.md Slice 2b). The MiniMap keeps its explicit `ariaLabel`.
-  const ariaLabelConfig = {
+  //
+  // Memoized on `t`, which is the correct and only dependency: `useT` keys its
+  // `useCallback` on `[activeLocale, activeCatalog]` and `setLocale` commits
+  // both in ONE set once the catalog has loaded (docs/localization.md §L4.5), so
+  // `t`'s identity moves on a language switch and on a lazily-loaded catalog
+  // arriving, and on nothing else. Memoizing on `[]` — or on the locale alone —
+  // would freeze these strings at whatever language rendered first;
+  // `e2e/canvas-aria-locale.spec.ts` is the guard.
+  const ariaLabelConfig = useMemo(() => ({
     'controls.ariaLabel': t('rf.controls.label'),
     'controls.zoomIn.ariaLabel': t('rf.controls.zoomIn'),
     'controls.zoomOut.ariaLabel': t('rf.controls.zoomOut'),
@@ -352,7 +370,7 @@ export function Canvas() {
     'node.a11yDescription.default': t('rf.node.a11y'),
     'node.a11yDescription.keyboardDisabled': t('rf.node.a11yKeyboard'),
     'edge.a11yDescription.default': t('rf.edge.a11y'),
-  }
+  }), [t])
 
   // Dev-only: expose the viewport controls so the browser E2E can set an EXACT,
   // repeatable zoom for the deterministic screenshot matrix. Tree-shaken out of
@@ -511,10 +529,10 @@ export function Canvas() {
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
         zoomOnDoubleClick={!isMobile}
         deleteKeyCode={noEdit ? null : undefined}
-        defaultEdgeOptions={{ type: 'loop' }}
+        defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         ariaLabelConfig={ariaLabelConfig}
         fitView
-        fitViewOptions={{ padding: 0.3, maxZoom: 1.2 }}
+        fitViewOptions={FIT_VIEW_OPTIONS}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         // §LGR6 — while the Frame tool is armed, a pane drag draws a frame
