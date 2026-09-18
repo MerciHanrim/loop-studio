@@ -81,8 +81,8 @@ dragPreview: null | {
   key at that moment (a dev-bridge read with other arrays evicted it, or a
   document change and the first drag change land before any render), the
   capture call **rebuilds once, synchronously, at the start of the segment**.
-  That cost lands on the first pointer move and is exactly what gate T1b
-  (§DP7) measures; it counts as the segment's optional start generation in
+  That cost lands on the first pointer move that moves the node, and is exactly
+  what gate T1b (§DP7) measures; it counts as the segment's optional start generation in
   DP-INV-4. No other fallback (e.g. skipping the preview) is proposed: a
   start-time miss must show up in the numbers, not be hidden.
 - **The click before the drag.** React Flow emits a `select` change on the
@@ -288,10 +288,23 @@ Targets for the preview (gates for a merge, measured as in §DP8):
 - **T1 drag phase, CPU ×1:** frame p95 ≤ **40 ms** on MMO and ≤ **30 ms** on
   gacha; **0 long tasks** in the drag phase **after the first pointer move**.
 - **T1b first-move pause, CPU ×1:** the long-task duration (0 if none) of the
-  first pointer move of the gesture, recorded as its own number and **included
+  **first pointer move that actually changes a node's position** — the first one
+  past React Flow's drag threshold — recorded as its own number and **included
   in the pass criteria**: ≤ **60 ms** on both graphs. Baseline: the no-router
-  runs showed 0–1 long task of ≤ 55 ms at the first move; the user feels this
+  runs showed 0–1 long task of ≤ 55 ms at that move; the user feels this
   as the initial hitch, so it is not excluded from the verdict.
+
+  The measurement point is stated this way because React Flow **arms** the drag
+  threshold on one pointer move and applies motion from the **next** one: after
+  the arming move the dragged node's `transform` is unchanged, so no route is
+  recomputed and no edge re-renders. Measuring the literal first move of the
+  gesture therefore reports a number containing none of the work T1b exists to
+  bound. Which ordinal that turns out to be is not fixed by this document — the
+  harness finds it (§DP8.2a) rather than assuming it is the second.
+
+  This wording is a correction, not a change of target: **the 60 ms threshold
+  and the per-run verdict of §DP8.4 are unchanged**, and every T1b figure
+  recorded so far was already taken at this point.
 - **T2 per-move JS:** app JS per pointer move ≤ baseline + 5 ms (the preview
   route is O(1) per incident edge; a frozen-generation lookup is a Map get).
 - **T3 generations:** for the measured gestures exactly 1 per gesture (dev
@@ -311,12 +324,28 @@ production `vite preview` build, `recommendedRunConfig.canvasLocked` forced to
 node's own `style.transform` changed **and** the `.react-flow__viewport`
 transform did not (a pan is discarded, not averaged). Graphs: `mmo-progression`
 and `gacha-banner-zones`. Load: CPU ×1 (3 runs each) and CPU ×4 (2 runs each).
-Record dragMs, frame p50/p95/max per phase, long tasks per phase, and the
-first pointer move's long-task duration as its own field (T1b).
+Record dragMs, frame p50/p95/max per phase, long tasks per phase, and, as its
+own field, the long-task duration of the first pointer move that changes a
+node's position (T1b — located and verified as in §DP8.2a).
 
 **DP8.2 Generations.** In the dev build, `__routeGenCount()` before and after
 one real pointer drag (`onNodesChange` instrumented as in the investigation
 probe): expect +1 per gesture.
+
+**DP8.2a Finding the T1b move, and proving it was found.** The harness must not
+assume which pointer move of the gesture is the one T1b measures. It presses,
+lets the page settle, then dispatches pointer moves **one at a time** and takes
+the first whose dispatch changes the dragged node's `transform`. Each sample
+records:
+
+- `movingIndex` — which pointer move of the gesture that turned out to be;
+- `priorMovesChecked` — how many moves preceded it;
+- `priorAllStill` — that **every** one of those left the `transform` unchanged.
+
+A sample where an earlier move already moved the node (`priorAllStill: false`),
+or where no move changed it within the harness's bound, measured the wrong thing
+and is **excluded and reported as not run** — never counted as a pass. The
+run-level verdict is unchanged: per §DP8.4, one run over 60 ms fails the gate.
 
 **DP8.3 Overlap and snap — measured, not extrapolated.** The static figure
 "48 of 2,850 node/edge pairs" from the per-node experiment is **not** used to
@@ -393,8 +422,10 @@ Browser e2e (`playwright`, chromium):
   returns the frozen route and does **not** change `__routeGenCount`
   (DP-D7); the generation-count assertions in the drag tests read the bridge
   mid-gesture on purpose to prove this.
-- **first-move pause:** the harness reports T1b for every run; a run failing
-  T1b fails the gate even when T1 passes.
+- **first-move pause:** the harness reports T1b for every run, measured at the
+  move §DP7 names and located as §DP8.2a requires; a run failing T1b fails the
+  gate even when T1 passes, and a sample whose measurement point could not be
+  verified is not run rather than passed.
 - **persistence:** export and the autosave record taken mid-drag equal the
   post-drop ones apart from positions; no preview key.
 - **performance gates** T1–T3 (§DP7) via the harness, with the "node actually
