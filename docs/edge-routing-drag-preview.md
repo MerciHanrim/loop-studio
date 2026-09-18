@@ -286,7 +286,17 @@ preview cannot beat this because ②-5 is deferred):
 Targets for the preview (gates for a merge, measured as in §DP8):
 
 - **T1 drag phase, CPU ×1:** frame p95 ≤ **40 ms** on MMO and ≤ **30 ms** on
-  gacha; **0 long tasks** in the drag phase **after the first pointer move**.
+  gacha; **0 long tasks** in the drag phase **after the first pointer move that
+  changes a node's position** — the same point T1b is measured at, located the
+  same way (§DP8.2a).
+
+  The two gates must split at the same move. The long task at that move belongs
+  to T1b and is bounded by its 60 ms; this clause is about every move after it.
+  Splitting them anywhere else — at the literal first pointer move, or at a
+  wall-clock offset from the press — lets one and the same 50–60 ms task pass
+  T1b and fail T1, which is a contradiction in the gate, not a finding about the
+  build. Attribution is by the long task's **start**, and the boundary is the
+  **second** position change — see §DP8.2a.
 - **T1b first-move pause, CPU ×1:** the long-task duration (0 if none) of the
   **first pointer move that actually changes a node's position** — the first one
   past React Flow's drag threshold — recorded as its own number and **included
@@ -346,6 +356,37 @@ A sample where an earlier move already moved the node (`priorAllStill: false`),
 or where no move changed it within the harness's bound, measured the wrong thing
 and is **excluded and reported as not run** — never counted as a pass. The
 run-level verdict is unchanged: per §DP8.4, one run over 60 ms fails the gate.
+
+**The drag-phase harness splits T1 and T1b at that same move**, and must do it
+without adding a round trip per pointer move, since the drag loop is itself the
+thing being timed. In-page it records the timestamp of every `pointermove` and,
+through a `MutationObserver` on the dragged node's `style`, of every change to
+its `transform`. The first position-changing move is the last `pointermove` at
+or before the **first** transform change; the boundary between the two gates is
+the **second** transform change — the node moving again is what makes the first
+move over. Long tasks are attributed by their **start**:
+
+- start in [the first position-changing `pointermove`, the second transform
+  change) → **T1b**;
+- start ≥ the second transform change and before the release → **T1's "0 long
+  tasks" clause**;
+- start ≥ the release → the drop, which is T4 and not a gate here.
+
+**The boundary must not be the next `pointermove`.** Moves are dispatched faster
+than the work they cause — a `steps: 2` move emits two back to back — so that
+window can be under a millisecond wide, and the first move's own long task would
+then be charged to T1: the same contradiction, arrived at from the other side.
+Measured while fixing this: with the next-`pointermove` boundary, one mmo run
+reported T1b 67 ms and another reported 0 ms for the same gesture shape.
+
+A run with no transform change did not drag and is reported as not run, exactly
+as the `nodeMoved` check already requires; so is a run with only one, since then
+the first move never ended inside the gesture.
+
+This fixes the split point, not the gesture. §DP8.1 defines the drag the gate is
+measured on; a probe that drives a different gesture (a single move from rest,
+say) can report a different T1b for the same build without either being wrong,
+and is not the gate.
 
 **DP8.3 Overlap and snap — measured, not extrapolated.** The static figure
 "48 of 2,850 node/edge pairs" from the per-node experiment is **not** used to
