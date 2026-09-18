@@ -1294,20 +1294,48 @@ a.sheet__row {
 }
 /* docs/node-shell-content-in-vessel.md "curved corner" follow-up — the vessel
    path is authored in a fixed `0 0 120 H` viewBox but the CSS box width varies
-   (118–260 px), so a FIXED horizontal padding maps to a viewBox x that creeps
+   (118–260 px), so a FIXED horizontal inset maps to a viewBox x that creeps
    toward the rounded rim as the node widens: on a wide register / parameter the
-   chip · title · value corners land outside the drawn fill. A percentage
-   padding resolves against this node's own width, so the content's left / right
-   edge sits at a CONSTANT viewBox x at every width — 11.6667 % ≈ 14 / 120, i.e.
-   viewBox x ≈ 14. `clamp` floors it at 15 px on the min-width (118 px) node and
-   caps it at 32 px so a 260 px node keeps a sane text column. The node's OUTER
-   width is unchanged (shrink-to-fit ignores % padding when sizing, then carves
-   it from the content column). Pairs with the re-cut `parameter` (flatter tag)
-   / `register` (flattened lozenge) silhouettes in ./silhouette. */
+   chip · title corners land outside the drawn fill. The rim therefore has to
+   scale with the node's width — but NOT as body padding. On a shrink-to-fit box
+   a percentage padding is a CYCLIC percentage: the browser sizes the node with
+   the % as 0 (the 15 px floor), then resolves it against the finished width and
+   carves the difference out of the content column, so the widest line of every
+   node > ~129 px lost `0.2333·W − 30` px — a value-driven Register clipped its
+   own number (`370370.3…`). So:
+     • the body keeps a fixed 15 px padding (counted in the intrinsic width);
+     • the width-scaled rim lives only on the two lines that reach into the
+       rounded corners — the head (chip + title) and the `= expr` / unit sub —
+       as a margin. Its % resolves against the stack (= the node's width − 30):
+       `11.6667 % · (W − 30) − 11.5 px` ≡ `11.6667 % · W − 15 px`, i.e. the
+       same constant viewBox x ≈ 14 as before for those lines. In the intrinsic
+       pass the % is 0 and the clamp floors at 0, so the outer width is
+       unchanged; the 17 px cap = the old 32 px cap − 15;
+     • the value line sits at mid-height where the lozenge / tag is widest and
+       only needs a small inset that IS part of the intrinsic width — a
+       value-driven node grows by it instead of clipping its number. Register:
+       a fixed 16 px from the box edge. Parameter: the tag's straight side is at
+       viewBox x8 (not x6), so a fixed 19 px holds ≥ 2 px only up to ~240 px;
+       `max(4px, 8% − 13px)` adds ≤ 1.4 px per side above that so the ≥ 2 px
+       clearance holds to the 260 px cap (a > 19-character number).
+   Pairs with the re-cut `parameter` (flatter tag) / `register` (flattened
+   lozenge) silhouettes in ./silhouette. */
 .nodef--parameter .nodef__body,
 .nodef--register .nodef__body {
-  padding-left: clamp(15px, 11.6667%, 32px);
-  padding-right: clamp(15px, 11.6667%, 32px);
+  padding-left: 15px;
+  padding-right: 15px;
+}
+.nodef--parameter .nodef__head,
+.nodef--register .nodef__head,
+.nodef--parameter .nodef__sub,
+.nodef--register .nodef__sub {
+  margin-inline: clamp(0px, calc(11.6667% - 11.5px), 17px);
+}
+.nodef--register .nodef__value {
+  margin-inline: 1px; /* 16 px from the box edge: ≥ 2.75 px inside the fill at 260 px */
+}
+.nodef--parameter .nodef__value {
+  margin-inline: max(4px, calc(8% - 13px)); /* 19 px to ~243 px, then up to 20.3 px at 260 */
 }
 
 .nodef__head {

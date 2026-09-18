@@ -133,6 +133,14 @@ test('L2 → L1 → L0 elide only supplementary text; the long label / big + neg
   await expect(page.locator('.react-flow__node[data-id="p_neg"] .nodef__value')).toHaveText(/-42\.5/)
   await expect(page.locator('.react-flow__node[data-id="p_neg"] .nodef__sub')).toHaveText('Δ')
   await expect(page.locator('.react-flow__node[data-id="p_big"] .nodef__value')).toHaveText(/123456\.78|123,456/)
+  // `r_ok`'s value + unit line is the WIDEST line of that node (here R(0) =
+  // `123456656543.22 ¤`), so it is the one a mis-sized inset clips first
+  // (docs/node-shell-content-in-vessel.md): rendered in full, never ellipsised
+  await expect(page.locator('.react-flow__node[data-id="r_ok"] .nodef__value')).toContainText('¤')
+  expect(
+    await page.locator('.react-flow__node[data-id="r_ok"] .nodef__value').evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+    'r_ok value must not ellipsise',
+  ).toBe(true)
   await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef__flag')).toHaveText('!')
   await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__body')).toBeVisible()
   // the vessel is never stretched by the label — the node box stays within the cap
