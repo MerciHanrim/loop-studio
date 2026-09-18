@@ -63,8 +63,8 @@ const canvas = {
   // docs/large-graph-readability.md §LGR12 — 한 번짜리 영역 선택 도구.
   'canvas.regionSelect.off': '영역 선택 — 빈 캔버스를 드래그해 선택합니다. Shift+드래그도 가능',
   'canvas.regionSelect.on': '영역 선택 — 선택 중. 빈 캔버스를 드래그, Esc로 취소',
-  'canvas.regionSelect.count': '{n}개 선택됨',
-  'canvas.regionSelect.countLocked': '{n}개 선택됨 · 옵기려면 잠금 해제',
+  'canvas.regionSelect.count': '{n, plural, other {#개 선택됨}}',
+  'canvas.regionSelect.countLocked': '{n, plural, other {#개 선택됨 · 옵기려면 잠금 해제}}',
   'canvas.frame.draw': '그룹 프레임 — 빈 캔버스를 드래그해 그립니다',
   'canvas.frame.drawing': '그룹 프레임 — 그리는 중. 빈 캔버스를 드래그, Esc로 취소',
   'canvas.frame.defaultName': '그룹 {n}',
