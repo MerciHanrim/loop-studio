@@ -9,6 +9,7 @@ import {
   useNodesInitialized,
   useReactFlow,
   useStore,
+  useStoreApi,
 } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
@@ -86,6 +87,7 @@ export function Canvas() {
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
+  const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
   const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
@@ -372,6 +374,13 @@ export function Canvas() {
     setRegionSelectArmed(true)
   }, [disarmFrameTool, setPanMode, setRegionSelectArmed])
   const disarmRegionSelect = useCallback(() => setRegionSelectArmed(false), [setRegionSelectArmed])
+  // the pointer was taken away mid-box, so React Flow will never see a
+  // `pointerup`: clear its rubber-band rectangle too, or it stays frozen on the
+  // canvas until the user's next click.
+  const cancelRegionSelect = useCallback(() => {
+    disarmRegionSelect()
+    rfStore.setState({ userSelectionActive: false, userSelectionRect: null })
+  }, [disarmRegionSelect, rfStore])
   const toggleRegionSelect = useCallback(
     () => (regionSelectArmed ? disarmRegionSelect() : armRegionSelect()),
     [regionSelectArmed, armRegionSelect, disarmRegionSelect],
@@ -383,6 +392,11 @@ export function Canvas() {
 
   // Esc cancels the TOOL without touching the selection (§LGR12). Capture phase,
   // like the §RXA8 disarm, so a focused control cannot swallow it first.
+  //
+  // `pointercancel` spends it too: when the browser takes the pointer away
+  // mid-box there is no `pointerup`, so React Flow never fires `onSelectionEnd`
+  // and the tool would otherwise stay armed with no box on screen — the next
+  // pane drag would silently rubber-band instead of pan.
   useEffect(() => {
     if (!regionSelectArmed) return
     const onKey = (e: KeyboardEvent) => {
@@ -391,8 +405,12 @@ export function Canvas() {
       disarmRegionSelect()
     }
     document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  }, [regionSelectArmed, disarmRegionSelect])
+    window.addEventListener('pointercancel', cancelRegionSelect, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('pointercancel', cancelRegionSelect, true)
+    }
+  }, [regionSelectArmed, disarmRegionSelect, cancelRegionSelect])
 
   // never leave the tool armed across a context it cannot apply to: the Frame
   // tool taking over, Pan mode coming on, or the layout turning mobile.

@@ -792,6 +792,15 @@ so the keyboard gesture stops being the only discovery path.
 - **One shot.** Releasing the box confirms the selection and disarms. A click
   with no drag clears the selection (React Flow's own behaviour) and also
   disarms. `Esc` cancels **the tool only** and leaves the selection alone.
+- **A cancelled pointer spends the tool too.** If the browser takes the pointer
+  away mid-box there is no `pointerup`, so React Flow never fires
+  `onSelectionEnd`: on `pointercancel` we disarm, *and* clear React Flow's
+  rubber-band rectangle. Without the first the tool is left armed with no box on
+  screen and the next pane drag silently rubber-bands instead of panning; without
+  the second the box stays frozen on the canvas until the user's next click. Both
+  were observed before they were fixed, and both are pinned by
+  `e2e/large-graph-readability.spec.ts` ("a cancelled pointer never leaves the
+  tool armed").
 - The tool never survives a context it cannot apply to: the Frame tool arming,
   Pan mode coming on, or the layout turning mobile all disarm it.
 
