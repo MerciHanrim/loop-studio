@@ -220,25 +220,54 @@ function buildRoute(a: Pt, goal: Pt, aPos: Position | null, bPos: Position | nul
 
   // which lattice points exist: the free ones, plus the two endpoints, which are
   // kept even when they sit inside an inflated obstacle
-  const exists = new Uint8Array(NX * NY)
-  for (let i = 0; i < NX; i++) {
-    const cx = coverX[i]
-    for (let j = 0; j < NY; j++) {
-      const id = i * NY + j
-      if (id === startId || id === goalId) {
-        exists[id] = 1
-        continue
-      }
-      let inside = false
-      if (cx.length > 0) {
-        const cy = coverY[j]
-        for (let m = 0; m < cx.length && !inside; m++) {
-          for (let n = 0; n < cy.length; n++) if (cy[n] === cx[m]) { inside = true; break }
-        }
-      }
-      if (!inside) exists[id] = 1
+  // Asked per cell, that is "does some obstacle cover BOTH my x ruler and my y
+  // ruler", i.e. `coverX[i] ∩ coverY[j] ≠ ∅` — which is the same as "does this
+  // cell lie strictly inside some obstacle". Walking the obstacles answers it
+  // once each instead of once per cell: an obstacle covers a contiguous block of
+  // rulers on each axis, so clearing that block is the whole job. A*
+  // subsequently expands 3-4 % of these cells, so building the grid dominated
+  // the search it exists to serve.
+  const exists = new Uint8Array(NX * NY).fill(1)
+  // `ptInside` is strict on both sides (`v > x0 + EPS` and `v < x1 - EPS`), so
+  // the block starts at the first ruler strictly ABOVE the low bound and ends
+  // before the first ruler AT OR ABOVE the high bound. Using the same bound for
+  // both would include a ruler sitting exactly on `x1 - EPS`, which the strict
+  // test excludes — and that ruler is where a route hugging the obstacle runs.
+  const firstAbove = (arr: number[], v: number): number => {
+    let lo = 0
+    let hi = arr.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (arr[mid] > v) hi = mid
+      else lo = mid + 1
+    }
+    return lo
+  }
+  const firstAtLeast = (arr: number[], v: number): number => {
+    let lo = 0
+    let hi = arr.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (arr[mid] >= v) hi = mid
+      else lo = mid + 1
+    }
+    return lo
+  }
+  for (let k = 0; k < rs.length; k++) {
+    const r = rs[k]
+    const i0 = firstAbove(X, r.x0 + COORD_EPS)
+    const i1 = firstAtLeast(X, r.x1 - COORD_EPS)
+    if (i0 >= i1) continue
+    const j0 = firstAbove(Y, r.y0 + COORD_EPS)
+    const j1 = firstAtLeast(Y, r.y1 - COORD_EPS)
+    if (j0 >= j1) continue
+    for (let i = i0; i < i1; i++) {
+      const base = i * NY
+      exists.fill(0, base + j0, base + j1)
     }
   }
+  exists[startId] = 1
+  exists[goalId] = 1
   if (!exists[startId] || !exists[goalId]) return null
 
   /** is the vertical segment on ruler X[i], spanning Y[j0]..Y[j1] (j0 < j1), blocked? */
