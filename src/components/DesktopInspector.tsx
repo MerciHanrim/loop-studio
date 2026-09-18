@@ -1,3 +1,5 @@
+import { useT } from '../i18n'
+import { selectSelectedNodeCount, useGraphStore } from '../store/graphStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { Inspector } from './Inspector'
@@ -19,12 +21,30 @@ import { ModelPanels } from './ModelPanels'
 export function DesktopInspector() {
   const isMobile = useIsMobile()
   const locked = useUiStore((s) => s.canvasLocked)
+  const t = useT()
+  const selectedNodeCount = useGraphStore(selectSelectedNodeCount)
 
   if (isMobile) return <Inspector />
 
   return (
     <div className="rightcol">
       <ModelPanels />
+      {/* docs/large-graph-readability.md §LGR12.3 — how many nodes are selected,
+          shown whenever there is a selection and regardless of the edit-lock
+          (it must survive the unlock — that is the moment the user acts on it).
+          Under the lock it also says why dragging does nothing. Sits here, below
+          the panels and directly above the Inspector that shows only the
+          selection's anchor (§LGR12.4), and NOT on the canvas: a bottom-centre
+          canvas panel covered the top of the bottom node row at L0 (measured),
+          and the top-centre lane is taken by the hint notes. Pointer events stay
+          on so the occlusion e2e can see it with elementFromPoint. */}
+      {selectedNodeCount > 0 && (
+        <p className="lgr-selection-count" role="status" aria-live="polite">
+          {locked
+            ? t('canvas.regionSelect.countLocked', { n: selectedNodeCount })
+            : t('canvas.regionSelect.count', { n: selectedNodeCount })}
+        </p>
+      )}
       {locked ? (
         // `display: contents` (CSS) drops the <fieldset> box so `.inspector`
         // stays the flex child; `disabled` still cascades to every control.

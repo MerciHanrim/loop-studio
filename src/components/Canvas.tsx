@@ -396,8 +396,6 @@ export function Canvas() {
 
   // how many nodes are selected — shown whether or not the canvas is locked, so
   // the count does not vanish at the moment the user unlocks to act on it.
-  const selectedNodeCount = useMemo(() => nodes.reduce((n, x) => n + (x.selected ? 1 : 0), 0), [nodes])
-
   // Esc cancels the TOOL without touching the selection (§LGR12). Capture phase,
   // like the §RXA8 disarm, so a focused control cannot swallow it first.
   //
@@ -681,24 +679,11 @@ export function Canvas() {
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
             (behind the nodes) + their interactive chrome. Render / UI-only. */}
         <FrameLayer />
-        {/* docs/large-graph-readability.md §LGR12 — how many nodes are selected,
-            shown whenever there is a selection and **regardless of the
-            edit-lock**: the count must not disappear at the moment the user
-            unlocks to act on it. Under the lock it also says why dragging does
-            nothing, which is the confusion this whole pass came from. Never
-            takes the pointer. */}
-        {selectedNodeCount > 0 && (
-          // NOT `top-center`: the focus hint, the suggested-frames note and the
-          // contextual help notes all live there, and a second panel in that
-          // lane renders behind one of them — measured, the count was in the DOM
-          // and invisible on screen. Bottom-centre is free (the MiniMap is
-          // bottom-right, the Controls rail left).
-          <Panel position="bottom-center" className="lgr-selection-count">
-            {canvasLocked
-              ? t('canvas.regionSelect.countLocked', { n: selectedNodeCount })
-              : t('canvas.regionSelect.count', { n: selectedNodeCount })}
-          </Panel>
-        )}
+        {/* docs/large-graph-readability.md §LGR12.3 — the "N nodes selected"
+            readout is NOT a canvas panel: desktop → DesktopInspector (the right
+            column, directly above the Inspector), mobile → MobileInspectorSheet
+            (two or more selected only). Measured, a bottom-centre Panel here
+            covered the top of the bottom node row at L0. */}
         {/* docs/large-graph-readability.md §LGR2.1 — Focus is armed but no node
             is selected yet, so nothing on the canvas has changed. Tell the user
             the mode is on and waiting. Never takes the pointer. */}

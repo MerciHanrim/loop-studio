@@ -829,15 +829,35 @@ drags, and nothing moves — so whenever there is a selection the canvas shows
 them"**.
 
 The count is shown **whether or not the canvas is locked**: it must not disappear
-at the moment the user unlocks in order to act on it. It sits bottom-centre, not
-top-centre, where the focus hint, the suggested-frames note and the contextual
-help notes already live (a second panel in that lane renders behind one of them —
-measured, the count was in the DOM and invisible on screen).
+at the moment the user unlocks in order to act on it. It is **not a canvas
+overlay**. Desktop: in the right column, below the Inputs / Summary panels and
+directly above the Inspector. Mobile: a single tap-selection shows no count (the
+read-only sheet already is that node); with two or more nodes selected the sheet
+says "N nodes selected" under its read-only note, without the unlock wording
+(mobile has no lock to release). One confirmed way such a selection is on screen
+under the mobile layout is a desktop → mobile width switch with a multi-selection
+held (`docs/mobile.md` §MV3c keeps it; verified: ids and anchor kept, the sheet
+opens on the anchor only).
+
+History and measurements: the count shipped first as a bottom-centre React Flow
+panel (the top-centre lane is taken by the focus hint, the suggested-frames note
+and the contextual help notes — a second panel in that lane renders behind one of
+them; measured, it was in the DOM and invisible on screen). At 1280×800, L0
+(zoom 0.32), that panel (110×25 px; 277 px wide with the locked wording) covered
+the top 18.6 px of the bottom node row in the visual-matrix fixture and 23 px of
+`R1` in the run-distinction fixture. On mobile it rendered behind the auto-opened
+Inspector sheet in both orientations, never visible. No canvas position can
+promise not to cover a node at some pan, so the readout left the canvas. The
+guards are geometric, not pixel: `e2e/canvas-refresh-visual.spec.ts` and
+`e2e/large-graph-readability.spec.ts` assert the desktop line's rect is disjoint
+from the canvas and from every node and is not occluded; `e2e/mobile.spec.ts`
+asserts the sheet line is inside the sheet (DOM and all four edges) and not
+occluded, and that a desktop multi-selection survives the width switch.
 
 ### LGR12.4 The Inspector is unchanged
 
 Selecting several nodes still shows and edits **one** node in the Inspector — the
 anchor, `selectedNodeId`, which is the first of the selection (§LGR2.2). That is
 the existing single-selection design and this pass does not change it; the count
-panel is what tells the user the selection is larger than what the Inspector
-shows.
+line directly above the Inspector (desktop) / inside the sheet (mobile) is what
+tells the user the selection is larger than what the Inspector shows.

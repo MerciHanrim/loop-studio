@@ -428,6 +428,13 @@ function makeSample(): Snapshot {
   }
 }
 
+/** docs/large-graph-readability.md §LGR12.3 — how many nodes carry React
+ *  Flow's `selected` flag. A primitive selector: a subscriber re-renders only
+ *  when the COUNT changes, never on a node move. Shared by the desktop right
+ *  column (DesktopInspector) and the mobile Inspector sheet. */
+export const selectSelectedNodeCount = (s: { nodes: { selected?: boolean }[] }): number =>
+  s.nodes.reduce((n, x) => n + (x.selected ? 1 : 0), 0)
+
 export const useGraphStore = create<GraphStore>((set, get) => {
   const stored = loadFromStorage()
   const boot = normalizeGraph(stored ?? makeSample())

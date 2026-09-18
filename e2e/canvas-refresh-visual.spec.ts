@@ -207,6 +207,87 @@ for (const level of ['L2', 'L0'] as const) {
   })
 }
 
+// ── 3b. §LGR12.3 — the selection count is not a canvas overlay ──────────────
+// docs/large-graph-readability.md §LGR12.3. Measured before the fix, at L0 the
+// bottom-centre "N nodes selected" panel covered the top 18.6 px of `p_big`
+// (and, with the locked wording, `p_neg` too) — under the 2 % pixel gate, so
+// the matrix baselines never caught it. This is the GEOMETRIC guard: the
+// readout's rect is disjoint from the canvas and from every node, and nothing
+// paints over it. Desktop only — on mobile there is no on-canvas selection
+// (see `selectFocusGold`) and the readout has its own rules (mobile.spec.ts).
+type Rect = { x: number; y: number; w: number; h: number }
+const disjoint = (a: Rect, b: Rect) => a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y
+/** the part of a node that is actually on screen: its rect clipped to the
+ *  canvas (`.canvas-col` is overflow:hidden, so a node half past the canvas
+ *  edge paints nothing beyond it — `getBoundingClientRect` still reports the
+ *  full box). `null` when nothing of it is visible. */
+const clipTo = (r: Rect, c: Rect): Rect | null => {
+  const x = Math.max(r.x, c.x)
+  const y = Math.max(r.y, c.y)
+  const w = Math.min(r.x + r.w, c.x + c.w) - x
+  const h = Math.min(r.y + r.h, c.y + c.h) - y
+  return w > 0 && h > 0 ? { x, y, w, h } : null
+}
+
+/** the readout's rect, the canvas rect, every node's rect, and what
+ *  `elementFromPoint` finds at the readout's centre (`'self'` = the readout
+ *  itself or a descendant) */
+const selectionCountGeometry = (page: Page) =>
+  page.evaluate(() => {
+    const rr = (el: Element): { x: number; y: number; w: number; h: number } => {
+      const r = el.getBoundingClientRect()
+      return { x: r.left, y: r.top, w: r.width, h: r.height }
+    }
+    const count = document.querySelector('.lgr-selection-count')
+    if (!count) return null
+    const c = rr(count)
+    const hit = document.elementFromPoint(c.x + c.w / 2, c.y + c.h / 2)
+    return {
+      count: c,
+      text: count.textContent ?? '',
+      inCanvasDom: count.closest('.react-flow') != null,
+      inRightColumn: count.closest('.rightcol') != null,
+      canvas: rr(document.querySelector('.react-flow')!),
+      nodes: [...document.querySelectorAll('.react-flow__node')].map((n) => ({ id: n.getAttribute('data-id'), rect: rr(n) })),
+      hit: hit && count.contains(hit) ? 'self' : (hit?.className || hit?.tagName || 'none').toString(),
+    }
+  })
+
+for (const level of ['L0', 'L2'] as const) {
+  test(`§LGR12.3 selection count — ${level}: outside the canvas, off every node, not occluded (unlocked + locked)`, async ({ page }) => {
+    test.skip(isMobileViewport(page), 'desktop-only readout; the mobile rules are in mobile.spec.ts')
+    await load(page, 'light')
+    await selectFocusGold(page)
+    await setLod(page, level)
+    const setLocked = (v: boolean) =>
+      page.evaluate(
+        (locked) =>
+          (window as unknown as { __loop: { ui: { getState: () => { setCanvasLocked: (x: boolean) => void } } } }).__loop.ui
+            .getState()
+            .setCanvasLocked(locked),
+        v,
+      )
+    for (const locked of [false, true]) {
+      await setLocked(locked)
+      await page.waitForTimeout(100)
+      const g = await selectionCountGeometry(page)
+      expect(g, 'the readout exists while a node is selected').not.toBeNull()
+      expect(g!.text).toContain('1 node selected')
+      if (locked) expect(g!.text).toContain('unlock editing')
+      expect(g!.inCanvasDom, 'not inside the canvas DOM').toBe(false)
+      expect(g!.inRightColumn, 'in the right column, above the Inspector').toBe(true)
+      expect(disjoint(g!.count, g!.canvas), `rect disjoint from the canvas: ${JSON.stringify(g!.count)} vs ${JSON.stringify(g!.canvas)}`).toBe(true)
+      for (const n of g!.nodes) {
+        const visible = clipTo(n.rect, g!.canvas)
+        if (!visible) continue
+        expect(disjoint(g!.count, visible), `rect disjoint from the visible part of node ${n.id}`).toBe(true)
+      }
+      expect(g!.hit, 'nothing paints over the readout').toBe('self')
+    }
+    await setLocked(false)
+  })
+}
+
 // ── 4. reduced-motion, per LOD × device ────────────────────────────────────
 for (const level of ['L2', 'L1', 'L0'] as const) {
   test(`reduced-motion — ${level}: no travelling element at any zoom, the static run cue is kept`, async ({ page }) => {
