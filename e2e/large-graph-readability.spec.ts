@@ -93,6 +93,25 @@ async function load(page: Page): Promise<void> {
 }
 
 // §LGR12 helpers.
+/** exactly WHICH nodes / edges are selected, sorted — so a restore can be proved
+ *  to be the same selection, not merely the same size. */
+const selectedIds = (page: Page): Promise<{ nodes: string[]; edges: string[] }> =>
+  page.evaluate(() => {
+    const g = (
+      window as unknown as {
+        __loop: {
+          graph: {
+            getState: () => { nodes: { id: string; selected?: boolean }[]; edges: { id: string; selected?: boolean }[] }
+          }
+        }
+      }
+    ).__loop.graph.getState()
+    return {
+      nodes: g.nodes.filter((n) => n.selected).map((n) => n.id).sort(),
+      edges: g.edges.filter((e) => e.selected).map((e) => e.id).sort(),
+    }
+  })
+
 const viewportTransform = (page: Page): Promise<string> =>
   page.evaluate(() => (document.querySelector('.react-flow__viewport') as HTMLElement).style.transform)
 
@@ -477,8 +496,10 @@ test.describe('large-graph readability — Slice 1', () => {
     // a selection to protect: the box below deliberately encloses a different node
     await tool.click()
     await marqueeOver(page, ['ma', 'mc'])
-    const before = await page.locator('.react-flow__node.selected').count()
-    expect(before).toBeGreaterThan(1)
+    const before = await selectedIds(page)
+    expect(before.nodes.length).toBeGreaterThan(1)
+    // the restore path covers edges too, so the fixture must actually have some
+    expect(before.edges.length).toBeGreaterThan(0)
 
     await tool.click()
     const r = await page.evaluate(() => {
@@ -500,10 +521,12 @@ test.describe('large-graph readability — Slice 1', () => {
     await page.waitForTimeout(150)
 
     // the rectangle is gone, the tool is off, and the selection is back to what
-    // the box started from — "Esc leaves the selection alone" holds mid-drag too
+    // the box started from — "Esc leaves the selection alone" holds mid-drag too.
+    // Compared by ID, not by size: the same count of a different set would pass
+    // a count check and still be a broken restore.
     await expect(box).toHaveCount(0)
     await expect(tool).toHaveAttribute('aria-pressed', 'false')
-    await expect(page.locator('.react-flow__node.selected')).toHaveCount(before)
+    expect(await selectedIds(page)).toEqual(before)
     await expect(page.locator('.react-flow__node[data-id="lone"]')).not.toHaveClass(/selected/)
 
     // the abandoned drag is dead: moving further draws nothing and the release
@@ -513,7 +536,7 @@ test.describe('large-graph readability — Slice 1', () => {
     await expect(box).toHaveCount(0)
     await page.mouse.up()
     await page.waitForTimeout(250)
-    await expect(page.locator('.react-flow__node.selected')).toHaveCount(before)
+    expect(await selectedIds(page)).toEqual(before)
     await expect(page.locator('.react-flow__node[data-id="lone"]')).not.toHaveClass(/selected/)
   })
 
