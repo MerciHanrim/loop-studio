@@ -60,6 +60,15 @@ const canvas = {
   'canvas.nodeKind.parameter': 'Parameter',
   'canvas.nodeKind.register': 'Register',
   'canvas.resetView': 'Reset view — fit the graph and clear filters / focus',
+  // docs/large-graph-readability.md §LGR12 — the one-shot region-select tool.
+  // The button names BOTH ways in, so the keyboard gesture stops being the only
+  // way to find the feature.
+  'canvas.regionSelect.off': 'Select a region — drag on empty canvas to select; Shift-drag also works',
+  'canvas.regionSelect.on': 'Select a region — selecting; drag on empty canvas, Esc to cancel',
+  // shown whenever there is a selection, lock or no lock
+  'canvas.regionSelect.count': '{n, plural, one {# node selected} other {# nodes selected}}',
+  'canvas.regionSelect.countLocked':
+    '{n, plural, one {# node selected} other {# nodes selected}} · unlock editing to move them',
   'canvas.frame.draw': 'Group frame — drag on empty canvas to draw one',
   'canvas.frame.drawing': 'Group frame — drawing; drag on empty canvas, Esc to cancel',
   'canvas.frame.defaultName': 'Group {n}',

@@ -92,6 +92,89 @@ async function load(page: Page): Promise<void> {
   await expect(edgeLabel(page, 'e_bc')).toHaveCount(1)
 }
 
+// §LGR12 helpers.
+/** exactly WHICH nodes / edges are selected, sorted — so a restore can be proved
+ *  to be the same selection, not merely the same size. */
+const selectedIds = (page: Page): Promise<{ nodes: string[]; edges: string[] }> =>
+  page.evaluate(() => {
+    const g = (
+      window as unknown as {
+        __loop: {
+          graph: {
+            getState: () => { nodes: { id: string; selected?: boolean }[]; edges: { id: string; selected?: boolean }[] }
+          }
+        }
+      }
+    ).__loop.graph.getState()
+    return {
+      nodes: g.nodes.filter((n) => n.selected).map((n) => n.id).sort(),
+      edges: g.edges.filter((e) => e.selected).map((e) => e.id).sort(),
+    }
+  })
+
+const viewportTransform = (page: Page): Promise<string> =>
+  page.evaluate(() => (document.querySelector('.react-flow__viewport') as HTMLElement).style.transform)
+
+/** a point on genuinely EMPTY pane (no node / edge / panel under it). */
+async function emptyPanePoint(page: Page): Promise<{ x: number; y: number }> {
+  const p = await page.evaluate(() => {
+    const c = (document.querySelector('.react-flow') as HTMLElement).getBoundingClientRect()
+    for (let y = c.top + 24; y < c.bottom - 24; y += 13)
+      for (let x = c.left + 24; x < c.right - 24; x += 17) {
+        const t = document.elementFromPoint(x, y)
+        if (
+          t &&
+          t.closest('.react-flow') &&
+          !t.closest('.react-flow__node') &&
+          !t.closest('.react-flow__edge') &&
+          !t.closest('.react-flow__panel')
+        )
+          return { x, y }
+      }
+    return null
+  })
+  if (!p) throw new Error('no empty point on the pane')
+  return p
+}
+
+/** drag from a point on genuinely empty pane. */
+async function dragOnPane(page: Page, steps: number): Promise<void> {
+  const from = await emptyPanePoint(page)
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(from.x + (200 * i) / steps, from.y + (140 * i) / steps)
+    await page.waitForTimeout(18)
+  }
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+}
+
+/** rubber-band a box that FULLY contains `ids` — `selectionMode: Full` selects
+ *  only nodes wholly inside the box, so the corners are padded well clear. */
+async function marqueeOver(page: Page, ids: string[]): Promise<void> {
+  const box = await page.evaluate((nids) => {
+    const rs = nids.map(
+      (i) => (document.querySelector(`.react-flow__node[data-id="${i}"]`) as HTMLElement).getBoundingClientRect(),
+    )
+    return {
+      x0: Math.min(...rs.map((r) => r.left)) - 24,
+      y0: Math.min(...rs.map((r) => r.top)) - 24,
+      x1: Math.max(...rs.map((r) => r.right)) + 24,
+      y1: Math.max(...rs.map((r) => r.bottom)) + 24,
+    }
+  }, ids)
+  await page.mouse.move(box.x0, box.y0)
+  await page.mouse.down()
+  const steps = 12
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(box.x0 + ((box.x1 - box.x0) * i) / steps, box.y0 + ((box.y1 - box.y0) * i) / steps)
+    await page.waitForTimeout(18)
+  }
+  await page.mouse.up()
+  await page.waitForTimeout(350)
+}
+
 const focusBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-focus')
 const filterBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-filter')
 const resetViewBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-resetview')
@@ -267,6 +350,223 @@ test.describe('large-graph readability — Slice 1', () => {
     await page.keyboard.up('Control')
     await expect(page.locator('.react-flow__node.selected')).toHaveCount(1)
     await expect(node(page, 'lone')).toHaveClass(/lgr-deemph/)
+  })
+
+  test('§LGR12 region select — one shot: box-drag selects and disarms; Esc cancels the tool only', async ({
+    page,
+  }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    await expect(tool).toBeVisible()
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+
+    await tool.click()
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+    await marqueeOver(page, ['ma', 'mc'])
+    // the box selected everything it enclosed (ma, mc and `mid`, which sits
+    // between them) — i.e. the drag was a selection, not a pan — and the tool is
+    // spent. The viewport is deliberately NOT asserted: React Flow's
+    // `autoPanOnSelection` default scrolls the canvas while a selection box is
+    // dragged toward the pane edge, which is normal marquee behaviour. "A pane
+    // drag pans" is asserted in the next test, with every tool off.
+    for (const id of ['ma', 'mc']) await expect(node(page, id)).toHaveClass(/selected/)
+    expect(await page.locator('.react-flow__node.selected').count()).toBeGreaterThan(1)
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+
+    // Esc cancels the TOOL and leaves the selection exactly as it was
+    const selected = await page.locator('.react-flow__node.selected').count()
+    await tool.click()
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+    await page.keyboard.press('Escape')
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(selected)
+  })
+
+  test('§LGR12 region select — mutually exclusive with the Frame tool; pane drag still pans with both off', async ({
+    page,
+  }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const frame = page.locator('.react-flow__controls-button.rf-frame')
+
+    await frame.click()
+    await expect(frame).toHaveAttribute('aria-pressed', 'true')
+    await tool.click() // arming region select turns the Frame tool off
+    await expect(frame).toHaveAttribute('aria-pressed', 'false')
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+    await frame.click() // and arming the Frame tool cancels region select
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    await frame.click()
+    await expect(frame).toHaveAttribute('aria-pressed', 'false')
+
+    // with every tool off the pane drag pans, exactly as before either existed
+    const before = await viewportTransform(page)
+    await dragOnPane(page, 8)
+    expect(await viewportTransform(page)).not.toBe(before)
+  })
+
+  test('§LGR12 region select — a click with no drag clears the selection and spends the tool', async ({
+    page,
+  }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+
+    // start from a real multi-selection made with the tool
+    await tool.click()
+    await marqueeOver(page, ['ma', 'mc'])
+    expect(await page.locator('.react-flow__node.selected').count()).toBeGreaterThan(1)
+
+    // arm again, then press and release on empty pane WITHOUT moving
+    await tool.click()
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+    const p = await emptyPanePoint(page)
+    await page.mouse.move(p.x, p.y)
+    await page.mouse.down()
+    await page.mouse.up()
+    await page.waitForTimeout(150)
+
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(0)
+    await expect(page.locator('.lgr-selection-count')).toHaveCount(0)
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  test('§LGR12 region select — Pan mode and region select cancel each other', async ({ page }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const pan = page.locator('.react-flow__controls-button.rf-panmode')
+
+    await pan.click()
+    await expect(pan).toHaveAttribute('aria-pressed', 'true')
+    await tool.click() // arming region select turns Pan mode off
+    await expect(pan).toHaveAttribute('aria-pressed', 'false')
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+
+    await pan.click() // and turning Pan mode on cancels region select
+    await expect(pan).toHaveAttribute('aria-pressed', 'true')
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+
+    // back to plain panning: the pane drag pans, and region select is still off
+    await pan.click()
+    await expect(pan).toHaveAttribute('aria-pressed', 'false')
+    const before = await viewportTransform(page)
+    await dragOnPane(page, 8)
+    expect(await viewportTransform(page)).not.toBe(before)
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  test('§LGR12 region select — a cancelled pointer never leaves the tool armed', async ({ page }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+
+    await tool.click()
+    await expect(tool).toHaveAttribute('aria-pressed', 'true')
+
+    // press and start a box, then have the pointer taken away: `pointercancel`
+    // arrives and NO `mouseup`/`pointerup` ever does. Nothing may re-arm or
+    // strand the tool, and the canvas must go back to plain panning.
+    const p = await emptyPanePoint(page)
+    await page.mouse.move(p.x, p.y)
+    await page.mouse.down()
+    await page.mouse.move(p.x + 70, p.y + 50)
+    await page.waitForTimeout(30)
+    await page.dispatchEvent('.react-flow__pane', 'pointercancel', { pointerId: 1, isPrimary: true })
+    await page.waitForTimeout(200)
+
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    // and no frozen rubber-band box is left behind on the canvas
+    await expect(page.locator('.react-flow__selection')).toHaveCount(0)
+
+    // release whatever the browser still thinks is held, then confirm the pane
+    // pans again rather than rubber-banding
+    await page.mouse.up()
+    await page.waitForTimeout(150)
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    const before = await viewportTransform(page)
+    await dragOnPane(page, 8)
+    expect(await viewportTransform(page)).not.toBe(before)
+  })
+
+  test('§LGR12 region select — Esc DURING a box abandons the gesture and restores the selection', async ({
+    page,
+  }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const box = page.locator('.react-flow__selection')
+
+    // a selection to protect: the box below deliberately encloses a different node
+    await tool.click()
+    await marqueeOver(page, ['ma', 'mc'])
+    const before = await selectedIds(page)
+    expect(before.nodes.length).toBeGreaterThan(1)
+    // the restore path covers edges too, so the fixture must actually have some
+    expect(before.edges.length).toBeGreaterThan(0)
+
+    await tool.click()
+    const r = await page.evaluate(() => {
+      const b = (document.querySelector('.react-flow__node[data-id="lone"]') as HTMLElement).getBoundingClientRect()
+      return { x0: b.left - 30, y0: b.top - 30, x1: b.right + 30, y1: b.bottom + 30 }
+    })
+    await page.mouse.move(r.x0, r.y0)
+    await page.mouse.down()
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(r.x0 + ((r.x1 - r.x0) * i) / 8, r.y0 + ((r.y1 - r.y0) * i) / 8)
+      await page.waitForTimeout(18)
+    }
+    // React Flow re-selects live as the box grows, so by now `lone` is selected
+    // and the original selection is already gone from the canvas
+    await expect(box).toHaveCount(1)
+    await expect(page.locator('.react-flow__node[data-id="lone"]')).toHaveClass(/selected/)
+
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(150)
+
+    // the rectangle is gone, the tool is off, and the selection is back to what
+    // the box started from — "Esc leaves the selection alone" holds mid-drag too.
+    // Compared by ID, not by size: the same count of a different set would pass
+    // a count check and still be a broken restore.
+    await expect(box).toHaveCount(0)
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    expect(await selectedIds(page)).toEqual(before)
+    await expect(page.locator('.react-flow__node[data-id="lone"]')).not.toHaveClass(/selected/)
+
+    // the abandoned drag is dead: moving further draws nothing and the release
+    // commits nothing
+    await page.mouse.move(r.x1 + 40, r.y1 + 40)
+    await page.waitForTimeout(80)
+    await expect(box).toHaveCount(0)
+    await page.mouse.up()
+    await page.waitForTimeout(250)
+    expect(await selectedIds(page)).toEqual(before)
+    await expect(page.locator('.react-flow__node[data-id="lone"]')).not.toHaveClass(/selected/)
+  })
+
+  test('§LGR12 the selection count shows under the lock AND after unlocking', async ({ page }) => {
+    await load(page)
+    const count = page.locator('.lgr-selection-count')
+    await expect(count).toHaveCount(0) // nothing selected yet
+
+    const setLocked = (v: boolean) =>
+      page.evaluate(
+        (locked) =>
+          (
+            window as unknown as {
+              __loop: { ui: { getState: () => { setCanvasLocked: (x: boolean) => void } } }
+            }
+          ).__loop.ui
+            .getState()
+            .setCanvasLocked(locked),
+        v,
+      )
+
+    await setLocked(true)
+    await node(page, 'b').click()
+    await expect(count).toBeVisible()
+    await expect(count).toContainText('unlock editing') // locked ⇒ says why nothing moves
+
+    // the count must SURVIVE the unlock — that is the moment the user acts on it
+    await setLocked(false)
+    await expect(count).toBeVisible()
+    await expect(count).not.toContainText('unlock editing')
   })
 
   test('walk the graph: clicking a de-emphasised node re-centres the set', async ({ page }) => {
@@ -1850,8 +2150,13 @@ async function loadAF(page: Page): Promise<void> {
     ;(window as unknown as { __loop: { ui: { setState: (p: object) => void } } }).__loop.ui.setState({ focusMode: false, filterPanelOpen: false })
   })
   await importGraph(page, GRAPH_AF)
+  // x is clear of the Controls rail (left edge, ~15-43px, vertically centred so
+  // its height grows with the number of buttons). At x=40 the graph's left
+  // column sat under the rail, and adding one button silently broke six of
+  // these tests — the frame drag started on the rail, not the pane. Flow-space
+  // rect / membership assertions are unaffected by the pan.
   await page.evaluate(() =>
-    (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: 40, y: 150, zoom: 0.62 }, { duration: 0 }),
+    (window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport({ x: 96, y: 150, zoom: 0.62 }, { duration: 0 }),
   )
   await expect(node(page, 'b0_0')).toBeVisible()
 }

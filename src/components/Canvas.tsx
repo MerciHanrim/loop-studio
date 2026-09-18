@@ -9,6 +9,7 @@ import {
   useNodesInitialized,
   useReactFlow,
   useStore,
+  useStoreApi,
 } from '@xyflow/react'
 import { useGraphStore } from '../store/graphStore'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
@@ -86,6 +87,7 @@ export function Canvas() {
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
+  const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
   const toggleCanvasLocked = useUiStore((s) => s.toggleCanvasLocked)
@@ -97,6 +99,9 @@ export function Canvas() {
   const toggleActivityOverlay = useUiStore((s) => s.toggleActivityOverlay)
   const panMode = useUiStore((s) => s.panMode)
   const togglePanMode = useUiStore((s) => s.togglePanMode)
+  const setPanMode = useUiStore((s) => s.setPanMode)
+  const regionSelectArmed = useUiStore((s) => s.regionSelectArmed)
+  const setRegionSelectArmed = useUiStore((s) => s.setRegionSelectArmed)
   // docs/register-expression-authoring.md §RXA8 — arm-and-click reference insert
   const refInsert = useUiStore((s) => s.refInsert)
   const pickRefInsert = useUiStore((s) => s.pickRefInsert)
@@ -355,7 +360,91 @@ export function Canvas() {
   // — view / run only) and on desktop while Pan mode is on. The Frame tool
   // takes precedence (a pane drag draws a frame). While it is live, node
   // dragging is off so a resolved tap can never start a drag.
-  const panSurfaceActive = (isMobile || panMode) && !frameToolArmed
+  const panSurfaceActive = (isMobile || panMode) && !frameToolArmed && !regionSelectArmed
+
+  // docs/large-graph-readability.md §LGR12 — the three drag tools are mutually
+  // exclusive. Arming region select turns the Frame tool and Pan mode off;
+  // arming either of those cancels region select. The existing Frame ↔ Pan
+  // precedence (`panSurfaceActive` already yields to `frameToolArmed`) is NOT
+  // changed here, and with every tool off nothing about node drag, connect or
+  // pan differs from before.
+  const armRegionSelect = useCallback(() => {
+    disarmFrameTool()
+    setPanMode(false)
+    setRegionSelectArmed(true)
+  }, [disarmFrameTool, setPanMode, setRegionSelectArmed])
+  const disarmRegionSelect = useCallback(() => setRegionSelectArmed(false), [setRegionSelectArmed])
+  // the selection a rubber-band box started from, so Esc can put it back
+  // (§LGR12.1). Non-null exactly while a box is in flight.
+  const selectionBeforeBox = useRef<{ nodes: string[]; edges: string[] } | null>(null)
+  const clearRfSelectionBox = useCallback(
+    () => rfStore.setState({ userSelectionActive: false, userSelectionRect: null }),
+    [rfStore],
+  )
+  // the pointer was taken away mid-box, so React Flow will never see a
+  // `pointerup`: clear its rubber-band rectangle too, or it stays frozen on the
+  // canvas until the user's next click.
+  const cancelRegionSelect = useCallback(() => {
+    disarmRegionSelect()
+    selectionBeforeBox.current = null
+    clearRfSelectionBox()
+  }, [disarmRegionSelect, clearRfSelectionBox])
+  const toggleRegionSelect = useCallback(
+    () => (regionSelectArmed ? disarmRegionSelect() : armRegionSelect()),
+    [regionSelectArmed, armRegionSelect, disarmRegionSelect],
+  )
+
+  // how many nodes are selected — shown whether or not the canvas is locked, so
+  // the count does not vanish at the moment the user unlocks to act on it.
+  const selectedNodeCount = useMemo(() => nodes.reduce((n, x) => n + (x.selected ? 1 : 0), 0), [nodes])
+
+  // Esc cancels the TOOL without touching the selection (§LGR12). Capture phase,
+  // like the §RXA8 disarm, so a focused control cannot swallow it first.
+  //
+  // `pointercancel` spends it too: when the browser takes the pointer away
+  // mid-box there is no `pointerup`, so React Flow never fires `onSelectionEnd`
+  // and the tool would otherwise stay armed with no box on screen — the next
+  // pane drag would silently rubber-band instead of pan.
+  useEffect(() => {
+    if (!regionSelectArmed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      const snap = selectionBeforeBox.current
+      if (snap) {
+        // a box is in flight: React Flow has already been re-selecting nodes as
+        // it grew, and the release would commit that. Abandon the gesture — put
+        // the selection back where the box started and take the rectangle away.
+        selectionBeforeBox.current = null
+        const want = new Set(snap.nodes)
+        const nChanges = useGraphStore
+          .getState()
+          .nodes.filter((n) => !!n.selected !== want.has(n.id))
+          .map((n) => ({ id: n.id, type: 'select' as const, selected: want.has(n.id) }))
+        if (nChanges.length) onNodesChange(nChanges)
+        const wantE = new Set(snap.edges)
+        const eChanges = useGraphStore
+          .getState()
+          .edges.filter((x) => !!x.selected !== wantE.has(x.id))
+          .map((x) => ({ id: x.id, type: 'select' as const, selected: wantE.has(x.id) }))
+        if (eChanges.length) onEdgesChange(eChanges)
+        clearRfSelectionBox()
+      }
+      disarmRegionSelect()
+    }
+    document.addEventListener('keydown', onKey, true)
+    window.addEventListener('pointercancel', cancelRegionSelect, true)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('pointercancel', cancelRegionSelect, true)
+    }
+  }, [regionSelectArmed, disarmRegionSelect, cancelRegionSelect, clearRfSelectionBox, onNodesChange, onEdgesChange])
+
+  // never leave the tool armed across a context it cannot apply to: the Frame
+  // tool taking over, Pan mode coming on, or the layout turning mobile.
+  useEffect(() => {
+    if (regionSelectArmed && (frameToolArmed || panMode || isMobile)) disarmRegionSelect()
+  }, [regionSelectArmed, frameToolArmed, panMode, isMobile, disarmRegionSelect])
 
   // React Flow's built-in a11y strings (Controls buttons, the keyboard hints on
   // nodes / edges, the handle label) — localized via the one config prop
@@ -545,11 +634,29 @@ export function Canvas() {
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
         // §LGR6 — while the Frame tool is armed, a pane drag draws a frame
-        // instead of panning the canvas.
-        panOnDrag={!frameToolArmed}
+        // instead of panning the canvas. §LGR12 — while region select is armed,
+        // a pane drag rubber-bands a selection box instead. With both off,
+        // `panOnDrag` is `true`, exactly as before either tool existed.
+        panOnDrag={!frameToolArmed && !regionSelectArmed}
+        selectionOnDrag={regionSelectArmed}
+        onSelectionStart={() => {
+          selectionBeforeBox.current = {
+            nodes: nodes.filter((n) => n.selected).map((n) => n.id),
+            edges: edges.filter((x) => x.selected).map((x) => x.id),
+          }
+        }}
+        // §LGR12 — one shot: releasing the box confirms the selection and puts
+        // the canvas back to plain panning.
+        onSelectionEnd={() => {
+          selectionBeforeBox.current = null
+          disarmRegionSelect()
+        }}
         onPaneClick={() => {
           if (useUiStore.getState().refInsert) disarmRefInsert()
           selectFrame(null)
+          // a click with no drag clears the selection (React Flow's own
+          // behaviour) — the tool is spent either way.
+          disarmRegionSelect()
         }}
       >
         {/* docs/dense-graph-pan.md — the pan-capture overlay. A child of
@@ -574,6 +681,24 @@ export function Canvas() {
         {/* docs/large-graph-readability.md §LGR6 — transient group frames
             (behind the nodes) + their interactive chrome. Render / UI-only. */}
         <FrameLayer />
+        {/* docs/large-graph-readability.md §LGR12 — how many nodes are selected,
+            shown whenever there is a selection and **regardless of the
+            edit-lock**: the count must not disappear at the moment the user
+            unlocks to act on it. Under the lock it also says why dragging does
+            nothing, which is the confusion this whole pass came from. Never
+            takes the pointer. */}
+        {selectedNodeCount > 0 && (
+          // NOT `top-center`: the focus hint, the suggested-frames note and the
+          // contextual help notes all live there, and a second panel in that
+          // lane renders behind one of them — measured, the count was in the DOM
+          // and invisible on screen. Bottom-centre is free (the MiniMap is
+          // bottom-right, the Controls rail left).
+          <Panel position="bottom-center" className="lgr-selection-count">
+            {canvasLocked
+              ? t('canvas.regionSelect.countLocked', { n: selectedNodeCount })
+              : t('canvas.regionSelect.count', { n: selectedNodeCount })}
+          </Panel>
+        )}
         {/* docs/large-graph-readability.md §LGR2.1 — Focus is armed but no node
             is selected yet, so nothing on the canvas has changed. Tell the user
             the mode is on and waiting. Never takes the pointer. */}
@@ -697,6 +822,39 @@ export function Canvas() {
                   strokeWidth="1.6"
                   strokeLinejoin="round"
                 />
+              </svg>
+            </ControlButton>
+          )}
+          {/* docs/large-graph-readability.md §LGR12 — the one-shot "select a
+              region" tool (desktop only, like the Frame tool: on mobile the pan
+              surface owns the drag gesture). Armed ⇒ a pane drag rubber-bands a
+              selection box; releasing it confirms and disarms. Shift-drag keeps
+              working unchanged — this is the discoverable way in, not a
+              replacement. Selection only: never in the GraphDoc / undo, and
+              allowed under the edit-lock because selecting is already a
+              read-only action there (§EM13.8). */}
+          {!isMobile && (
+            <ControlButton
+              onClick={toggleRegionSelect}
+              title={regionSelectArmed ? t('canvas.regionSelect.on') : t('canvas.regionSelect.off')}
+              aria-label={regionSelectArmed ? t('canvas.regionSelect.on') : t('canvas.regionSelect.off')}
+              aria-pressed={regionSelectArmed}
+              className="rf-regionselect"
+            >
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <rect
+                  x="2.5"
+                  y="2.5"
+                  width="11"
+                  height="11"
+                  rx="1"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeDasharray="2.6 2"
+                />
+                <circle cx="6" cy="6.5" r="1.5" fill="currentColor" />
+                <circle cx="10" cy="10" r="1.5" fill="currentColor" />
               </svg>
             </ControlButton>
           )}
