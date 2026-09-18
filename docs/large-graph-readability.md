@@ -154,7 +154,13 @@ restores the full-strength canvas. Hover never drives focus.
 
 ### LGR2.2 The focus set — closed for v1
 
-Given the selected node(s), the focus set is **exactly**:
+The set is anchored on **one** node — `graphStore.selectedNodeId`, which is the
+first node of the current selection (`Canvas.tsx` `onSelectionChange` keeps
+`nodes[0]`, since the Inspector is single-selection). A multi-selection does not
+widen the set; it is the **dimming** that yields to selection instead, per
+§LGR3.1.
+
+Given that anchor, the focus set is **exactly**:
 
 - the selected node(s) themselves;
 - every node joined to a selected node by **one drawn edge** (resource or state)
@@ -211,6 +217,26 @@ tuned against §LGR9 contrast). Their **badges** (flow chip, condition chip,
 expression, type dot) are **hidden** while dimmed — they are the noise focus is
 removing; the in-node value / capacity bar stays. §LGR2.3's required set is
 exempt and stays full-strength.
+
+**A selected node is never de-emphasised.** Selection outranks focus: whatever
+the focus set says, a node the user has selected renders at full strength, with
+its badges. The focus calculation itself is unchanged and still applies to every
+node the user did **not** select.
+
+This matters because the focus set is anchored on **one** node (§LGR2.2). With
+several nodes selected, the ones outside the anchor's 1-hop set used to render
+dimmed *while selected* — body at the de-emphasis opacity with the type dot
+hidden, carrying only the 2 px selection outline, which survives the fade by
+design but is not on its own a legible "this is selected". Measured on
+`mmo-progression` with Focus and the Activity overlay on: of 10 marquee-selected
+nodes, 7 were dimmed.
+
+There is deliberately **no cap on how many nodes this exempts**. If the user
+selected thirty nodes, those thirty being legible is the point; selecting
+everything simply leaves nothing dimmed, which is the honest result rather than
+a failure mode. What is *not* changed here: the 1-hop depth, the single anchor,
+the treatment of non-selected nodes, and the selection outline itself — no new
+selection decoration was added.
 
 ### LGR3.2 Transient filters
 

@@ -236,6 +236,39 @@ test.describe('large-graph readability — Slice 1', () => {
     for (const id of ['e_cd', 'e_across']) await expect(edge(page, id)).toHaveClass(/lgr-deemph/)
   })
 
+  test('§LGR3.1 — no SELECTED node is de-emphasised; non-selected nodes still are', async ({ page }) => {
+    await load(page)
+    await focusBtn(page).click()
+    await node(page, 'b').click()
+    // `lone` is isolated, so it is outside b's 1-hop set and starts dimmed
+    await expect(node(page, 'lone')).toHaveClass(/lgr-deemph/)
+
+    // Add it to the selection. React Flow reads the multi-selection key from a
+    // window `keydown` listener, and Playwright's `click({ modifiers })` only
+    // sets the mouse event's modifier bitmask — it does NOT drive that listener,
+    // so the key must be held explicitly or this silently selects one node.
+    await page.keyboard.down('Control')
+    await node(page, 'lone').click()
+    await page.keyboard.up('Control')
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(2)
+
+    // both selected nodes render at full strength, whichever one is the anchor
+    await expect(node(page, 'b')).not.toHaveClass(/lgr-deemph/)
+    await expect(node(page, 'lone')).not.toHaveClass(/lgr-deemph/)
+    // and the focus calculation is untouched for everything NOT selected:
+    // none of these is 1-hop from `b` or from the isolated `lone`
+    for (const id of ['d', 'mid', 'ma', 'mc']) await expect(node(page, id)).toHaveClass(/lgr-deemph/)
+    // edges are not exempted — only nodes carry a selection the user can see
+    await expect(edge(page, 'e_across')).toHaveClass(/lgr-deemph/)
+
+    // de-select `lone` again ⇒ it goes straight back to the de-emphasis tier
+    await page.keyboard.down('Control')
+    await node(page, 'lone').click()
+    await page.keyboard.up('Control')
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(1)
+    await expect(node(page, 'lone')).toHaveClass(/lgr-deemph/)
+  })
+
   test('walk the graph: clicking a de-emphasised node re-centres the set', async ({ page }) => {
     await load(page)
     await focusBtn(page).click()

@@ -314,7 +314,16 @@ export function Canvas() {
     if (!hidden && !focusSet) return nodes
     return nodes.map((n) => {
       if (hidden?.nodes.has(n.id)) return { ...n, hidden: true }
-      if (focusSet && !focusSet.nodes.has(n.id)) return { ...n, className: withDeemph(n.className) }
+      // A SELECTED node is never de-emphasised, whatever the focus set says.
+      // The focus set is anchored on `selectedNodeId` — the first selected node
+      // only (§LGR2.2) — so with several nodes selected the others fell outside
+      // it and rendered at `lgr-deemph`'s 0.26 with their type dot hidden, while
+      // still being selected. The selection outline survives the fade by design,
+      // but a 2 px ring on a 74 %-transparent body is not a legible "this is
+      // selected". Selection wins over focus; the focus calculation itself is
+      // unchanged and still applies to every node the user did NOT select.
+      if (focusSet && !focusSet.nodes.has(n.id) && !n.selected)
+        return { ...n, className: withDeemph(n.className) }
       return n
     })
   }, [nodes, hidden, focusSet])
