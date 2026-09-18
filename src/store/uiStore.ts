@@ -118,6 +118,17 @@ type UiState = {
   togglePanMode: () => void
 
   /**
+   * docs/large-graph-readability.md §LGR12 — the one-shot **region select**
+   * tool. Armed ⇒ a pane drag rubber-bands a selection box instead of panning;
+   * releasing it confirms the selection and disarms. Session-only, never
+   * persisted, never in the GraphDoc / undo, and **desktop only** (the mobile
+   * pan surface owns the drag gesture, exactly as for the Frame tool).
+   * Mutually exclusive with the Frame tool and Pan mode — see `Canvas.tsx`.
+   */
+  regionSelectArmed: boolean
+  setRegionSelectArmed: (v: boolean) => void
+
+  /**
    * docs/register-expression-authoring.md §RXA3.4 — the ids of the nodes a
    * Register expression currently references, hovered / focused in the
    * Inspector read-back. Canvas node rendering adds `.is-ref-peek` for these.
@@ -302,6 +313,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   panMode: false,
   setPanMode: (v) => set((s) => (s.panMode === v ? s : { panMode: v })),
   togglePanMode: () => set((s) => ({ panMode: !s.panMode })),
+
+  // §LGR12 — session-only, like the Frame tool's own armed flag.
+  regionSelectArmed: false,
+  setRegionSelectArmed: (v) => set((s) => (s.regionSelectArmed === v ? s : { regionSelectArmed: v })),
 
   peekRefNodeIds: [],
   setPeekRefNodeIds: (ids) =>

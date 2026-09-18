@@ -764,3 +764,63 @@ The small module / template-composition system (§PD8-B) is the **next** design
 pass — not started; the focus / filter substrate from Slices 1–2 is a dependency
 of its assembly screen. `Contextual inline help` (README, Onboarding part 2)
 comes after the Productization track's structure is in place.
+
+---
+
+## LGR12. Region select — the visible way to select several nodes
+
+Multi-node selection already worked: React Flow's defaults give Shift-drag for a
+marquee and Ctrl/Cmd-click to add, and dragging any selected node moves the whole
+selection. But **nothing in the product named either gesture**, so the feature was
+reachable only by already knowing it — users clicked nodes one at a time, or
+concluded that selecting a region was not possible.
+
+### LGR12.1 The tool
+
+A **one-shot** Controls-rail toggle, **desktop only** (on mobile the pan surface
+owns the drag gesture, exactly as for the Frame tool, §LGR9). Armed ⇒ a pane drag
+rubber-bands a selection box (`selectionOnDrag`) instead of panning. Its label
+names **both** ways in — "drag on empty canvas to select; Shift-drag also works" —
+so the keyboard gesture stops being the only discovery path.
+
+**Closed decisions:**
+
+- **`Shift`-drag and Ctrl/Cmd-click are unchanged.** The tool is an additional,
+  visible entry point, not a replacement.
+- **The default gesture is unchanged.** With every tool off, a pane drag pans
+  exactly as before — `docs/dense-graph-pan.md` D7 still holds.
+- **One shot.** Releasing the box confirms the selection and disarms. A click
+  with no drag clears the selection (React Flow's own behaviour) and also
+  disarms. `Esc` cancels **the tool only** and leaves the selection alone.
+- The tool never survives a context it cannot apply to: the Frame tool arming,
+  Pan mode coming on, or the layout turning mobile all disarm it.
+
+### LGR12.2 Mutual exclusion
+
+Three tools claim the pane drag, and they are mutually exclusive: arming region
+select disarms the Frame tool and turns Pan mode off; arming either of those
+cancels region select. **The existing Frame ↔ Pan precedence is unchanged** —
+`panSurfaceActive` still yields to `frameToolArmed`.
+
+### LGR12.3 Selection under the edit-lock
+
+Region select is **allowed while the canvas is edit-locked**, because selecting is
+already a read-only action there (`docs/example-mmo-progression.md` §EM13.8).
+That alone would reproduce the confusion this pass came from — the user selects,
+drags, and nothing moves — so whenever there is a selection the canvas shows
+**"N nodes selected"**, and under the lock it adds **"unlock editing to move
+them"**.
+
+The count is shown **whether or not the canvas is locked**: it must not disappear
+at the moment the user unlocks in order to act on it. It sits bottom-centre, not
+top-centre, where the focus hint, the suggested-frames note and the contextual
+help notes already live (a second panel in that lane renders behind one of them —
+measured, the count was in the DOM and invisible on screen).
+
+### LGR12.4 The Inspector is unchanged
+
+Selecting several nodes still shows and edits **one** node in the Inspector — the
+anchor, `selectedNodeId`, which is the first of the selection (§LGR2.2). That is
+the existing single-selection design and this pass does not change it; the count
+panel is what tells the user the selection is larger than what the Inspector
+shows.
