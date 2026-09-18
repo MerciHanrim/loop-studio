@@ -102,37 +102,62 @@ Two coupled changes, both scoped to `parameter` / `register`:
    the top edge — so Register is a flatter, wider lozenge rather than a full
    pill. Parameter keeps its left tab as the kind tell.
 
-2. **A width-scaled `padding-inline`** on the two bodies
-   (`.nodef--parameter/.nodef--register .nodef__body`) —
-   `clamp(15px, calc(100% * 14 / 120), 32px)`. The percentage resolves against
-   the node's own width, so the content's left / right edge sits at a
-   **constant** viewBox x (≈ 14) at every width, EN / KO / JA. Pure CSS — the
-   browser resolves it in one layout pass, so there is **no measure→pad→measure
-   feedback loop** and nothing to converge (a JS width→padding coupling would
-   have needed damping and could oscillate).
+2. **A width-scaled rim on the two corner lines, a fixed body padding.**
+   `.nodef--parameter/.nodef--register .nodef__body` keeps a fixed `15px`
+   horizontal padding, and the rim that scales with the node's width is a
+   margin on `.nodef__head` (chip + title) and `.nodef__sub` only:
+   `clamp(0px, calc(11.6667% - 11.5px), 17px)`. The percentage resolves against
+   the stack (the node's width − 30), so `11.6667 % · (W − 30) − 11.5 px ≡
+   11.6667 % · W − 15 px`: those two lines' left / right edges sit at a
+   **constant** viewBox x (≈ 14) at every width, EN / KO / JA. The value line
+   sits at mid-height where the lozenge / tag is widest and only carries a small
+   inset that is counted in the intrinsic width: `margin-inline: 1px` on a
+   Register (16 px from the box edge); on a Parameter, whose tag side is at
+   viewBox x8 rather than x6, `max(4px, calc(8% - 13px))` — 19 px up to ~243 px,
+   growing by at most 1.4 px per side so the ≥ 2 px clearance holds to the
+   260 px cap. Pure CSS, one layout pass, nothing to converge.
 
-**Cost.** On a node already at the 260 px `max-width` the wider inset costs the
-`= expr` sub line ≈ 26 px of column — it ellipsises a few characters sooner
-(the full expression is always in the Inspector, and §RXA will rework the
-on-canvas presentation). The title, value and unit never lose space — only the
-`= expr` sub, and only at max width. Sub-`max-width` nodes are unaffected in
-practice: Coffee's Parameters are already pinned at the 118 px `min-width` and
-its Registers at 260 px, so measured EN / KO / JA node sizes and the
-`Forecast metrics` frame's 24 px margins are unchanged.
+   *Why not a percentage body padding* (the first cut of this follow-up,
+   `dd52a4e` / `1ff8bef`): on a shrink-to-fit box a percentage padding is a
+   **cyclic percentage** — the browser sizes the node with the `%` as 0 (so the
+   15 px floor won and the outer width was content + 30), then resolves the `%`
+   against the finished width and carves the difference out of the content
+   column. Every node wider than 128.6 px lost `0.2333·W − 30` px from
+   whichever line had set its width. When that line was the **value + unit**
+   the number ellipsised (`370370.3…` on a 137 px Register: 107.4 px of text in
+   a 105.0 px column). The fixed-padding-plus-margin form keeps the intrinsic
+   width and the layout width in agreement: the rim margin's `%` is 0 in the
+   intrinsic pass, and the value's fixed inset is counted in it.
 
-Measured smallest CSS-px gap from any content corner (`.nodef__stack` **and**
-`.nodef__chip`, four each) to the fill boundary, after the re-cut:
-**≥ 3.75 px** (register) / **≥ 2.75 px** (parameter) at every width 118 – 260,
-EN / KO / JA — a plain "is the point in the fill" test would have passed at
-0 px, which was the latent bug.
+**Cost.** On a node already at the 260 px `max-width` the rim costs the
+`= expr` sub line ≈ 30 px of column — it ellipsises a few characters sooner
+(the full expression is always in the Inspector). The title, value and unit
+never lose space: a value-driven node is 2 px (Register) / 8 px (Parameter)
+wider than its content + 30 instead of clipping. No Parameter / Register in the
+bundled examples (Coffee, MMO, gacha) is value-driven, so their measured
+EN / KO / JA node sizes and the `Forecast metrics` frame's 24 px margins are
+unchanged.
+
+Measured smallest CSS-px gap from any **painted** box corner (`.nodef__chip`,
+`.nodef__head`, `.nodef__value`, `.nodef__sub`, four each) to the fill
+boundary: chip ≥ 5.5, head / sub ≥ 3.0, value ≥ 2 px (parameter, 118 – 260) /
+≥ 2.75 px (register at 260 px), at every width 118 – 260, EN / KO / JA — a plain
+"is the point in the fill" test would have passed at 0 px, which was the latent
+bug. (`.nodef__stack` is an unpainted layout box that spans to the fixed body
+padding, so its corners are no longer the thing measured.)
 
 ## Regression tests
 
 - `e2e/node-long-label.spec.ts` "content ⊂ vessel — path-aware (isPointInFill)"
-  — for every Parameter / Register, in EN / KO / JA, all four corners of
-  `.nodef__stack` **and** `.nodef__chip` are mapped into viewBox space and
-  walked outward against `.nodef__fill.isPointInFill()`; the nearest surviving
-  gap must be **≥ 2 CSS px**. Plus the #167 vertical check (content clears the
+  — for every Parameter / Register, in EN / KO / JA, all four corners of every
+  painted box (`.nodef__chip`, `.nodef__head`, `.nodef__value`, `.nodef__sub`)
+  are mapped into viewBox space and walked outward against
+  `.nodef__fill.isPointInFill()`; the nearest surviving gap must be
+  **≥ 2 CSS px**, and the title / value never ellipsise. The fixture includes a
+  **value-driven** Register (`regValue`, value + unit is its widest line) and
+  Parameter (`paramValue`, a 17-character number) — the case the percentage
+  padding clipped; `e2e/canvas-refresh-visual.spec.ts` additionally pins the
+  matrix fixture's `r_ok` value (`370370.34`) as rendered in full. Plus the #167 vertical check (content clears the
   `.nodef__stroke` top / bottom by ≥ 3 px) and the "Source / plain Pool stay at
   the 64 px base box" guard. The fixture asserts none of its nodes hit
   `MAX_NODE_H` (that ceiling clamp is a separate, pre-existing tradeoff).

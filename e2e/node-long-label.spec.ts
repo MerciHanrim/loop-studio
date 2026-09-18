@@ -250,6 +250,13 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
       // to its 260 px max-width, so the content bbox reaches deepest toward
       // BOTH rounded ends
       { id: 'regWide', type: 'register', position: { x: 40, y: 640 }, data: { kind: 'register', label: 'Bleed rate', expr: '@poolPlain + @poolCap + @regExpr - 300 + @poolCap - @regNoExpr + 42', format: 'integer' } },
+      // VALUE-driven: a short `= expr` but the value + unit line is the widest
+      // line of the node. An inset that is carved from the content column
+      // instead of being counted in the node's intrinsic width clips the
+      // number here (the canvas-refresh-visual `r_ok` case: `370370.3…`).
+      // Registers evaluate R(0) on import, so no step is needed.
+      { id: 'regValue', type: 'register', position: { x: 300, y: 640 }, data: { kind: 'register', label: 'Revenue total', expr: '@poolCap * 3703.7034', unit: '¤' } },
+      { id: 'paramValue', type: 'parameter', position: { x: 620, y: 640 }, data: { kind: 'parameter', label: 'Biggest', value: 12345678901234.5 } },
     ],
     edges: [],
   })
@@ -273,7 +280,6 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
         if (kind !== 'parameter' && kind !== 'register') continue
         const svg = nf.querySelector('.nodef__shape') as SVGSVGElement
         const fill = nf.querySelector('.nodef__fill') as SVGGeometryElement
-        const stack = nf.querySelector('.nodef__stack') as HTMLElement
         const chip = nf.querySelector('.nodef__chip') as HTMLElement
         const sub = nf.querySelector('.nodef__sub') as HTMLElement | null
         const vb = svg.viewBox.baseVal
@@ -295,7 +301,14 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
             { x: a.x, y: b.y },
           ]
         }
-        const pts = [...cornersVB(stack), ...cornersVB(chip)]
+        // the PAINTED boxes — chip, head (chip + title), value (+ unit), sub.
+        // `.nodef__stack` is an unpainted layout box: it spans to the fixed
+        // body padding while the two corner lines (head / sub) carry their own
+        // width-scaled rim, so its corners say nothing about visible content.
+        const head = nf.querySelector('.nodef__head') as HTMLElement
+        const valueEl = nf.querySelector('.nodef__value') as HTMLElement | null
+        const painted = [chip, head, valueEl, sub].filter((e): e is HTMLElement => e != null)
+        const pts = painted.flatMap(cornersVB)
         const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
         const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
         const P = svg.createSVGPoint()
@@ -347,7 +360,8 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
       await page.waitForTimeout(450)
       const m = await fillMargins(page)
       // param + paramBare + paramWide + regNoExpr + regExpr + regUnit + regWide
-      expect(Object.keys(m).length).toBe(7)
+      // + regValue + paramValue
+      expect(Object.keys(m).length).toBe(9)
       for (const [id, v] of Object.entries(m)) {
         // the fixture must exercise the curve corners, NOT the MAX_NODE_H clamp
         expect(v.clamped, `${id} unexpectedly at the height ceiling — re-widen the fixture`).toBe(false)
@@ -395,7 +409,7 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
         }
         return out
       })
-      expect(Object.keys(s).length).toBe(10)
+      expect(Object.keys(s).length).toBe(12)
       for (const [id, v] of Object.entries(s)) {
         expect(v.top, `${id} (${v.kind}) content top vs stroke`).toBeLessThanOrEqual(-3)
         expect(v.bot, `${id} (${v.kind}) content bottom vs stroke`).toBeLessThanOrEqual(-3)
