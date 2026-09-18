@@ -792,6 +792,14 @@ so the keyboard gesture stops being the only discovery path.
 - **One shot.** Releasing the box confirms the selection and disarms. A click
   with no drag clears the selection (React Flow's own behaviour) and also
   disarms. `Esc` cancels **the tool only** and leaves the selection alone.
+- **`Esc` pressed *during* a box abandons the whole gesture.** React Flow
+  re-selects live as the box grows, so by mid-drag the previous selection is
+  already gone from the canvas and the release would commit the box. Switching
+  the tool off is therefore not enough to make "leaves the selection alone"
+  true: on `Esc` we restore the selection the box started from (snapshotted at
+  `onSelectionStart`), clear React Flow's rectangle, and the in-flight drag
+  commits nothing on release. Measured before the fix: the rectangle stayed on
+  screen, kept tracking the pointer, and the release committed the box.
 - **A cancelled pointer spends the tool too.** If the browser takes the pointer
   away mid-box there is no `pointerup`, so React Flow never fires
   `onSelectionEnd`: on `pointercancel` we disarm, *and* clear React Flow's

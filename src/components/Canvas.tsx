@@ -374,13 +374,21 @@ export function Canvas() {
     setRegionSelectArmed(true)
   }, [disarmFrameTool, setPanMode, setRegionSelectArmed])
   const disarmRegionSelect = useCallback(() => setRegionSelectArmed(false), [setRegionSelectArmed])
+  // the selection a rubber-band box started from, so Esc can put it back
+  // (§LGR12.1). Non-null exactly while a box is in flight.
+  const selectionBeforeBox = useRef<{ nodes: string[]; edges: string[] } | null>(null)
+  const clearRfSelectionBox = useCallback(
+    () => rfStore.setState({ userSelectionActive: false, userSelectionRect: null }),
+    [rfStore],
+  )
   // the pointer was taken away mid-box, so React Flow will never see a
   // `pointerup`: clear its rubber-band rectangle too, or it stays frozen on the
   // canvas until the user's next click.
   const cancelRegionSelect = useCallback(() => {
     disarmRegionSelect()
-    rfStore.setState({ userSelectionActive: false, userSelectionRect: null })
-  }, [disarmRegionSelect, rfStore])
+    selectionBeforeBox.current = null
+    clearRfSelectionBox()
+  }, [disarmRegionSelect, clearRfSelectionBox])
   const toggleRegionSelect = useCallback(
     () => (regionSelectArmed ? disarmRegionSelect() : armRegionSelect()),
     [regionSelectArmed, armRegionSelect, disarmRegionSelect],
@@ -402,6 +410,26 @@ export function Canvas() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       e.preventDefault()
+      const snap = selectionBeforeBox.current
+      if (snap) {
+        // a box is in flight: React Flow has already been re-selecting nodes as
+        // it grew, and the release would commit that. Abandon the gesture — put
+        // the selection back where the box started and take the rectangle away.
+        selectionBeforeBox.current = null
+        const want = new Set(snap.nodes)
+        const nChanges = useGraphStore
+          .getState()
+          .nodes.filter((n) => !!n.selected !== want.has(n.id))
+          .map((n) => ({ id: n.id, type: 'select' as const, selected: want.has(n.id) }))
+        if (nChanges.length) onNodesChange(nChanges)
+        const wantE = new Set(snap.edges)
+        const eChanges = useGraphStore
+          .getState()
+          .edges.filter((x) => !!x.selected !== wantE.has(x.id))
+          .map((x) => ({ id: x.id, type: 'select' as const, selected: wantE.has(x.id) }))
+        if (eChanges.length) onEdgesChange(eChanges)
+        clearRfSelectionBox()
+      }
       disarmRegionSelect()
     }
     document.addEventListener('keydown', onKey, true)
@@ -410,7 +438,7 @@ export function Canvas() {
       document.removeEventListener('keydown', onKey, true)
       window.removeEventListener('pointercancel', cancelRegionSelect, true)
     }
-  }, [regionSelectArmed, disarmRegionSelect, cancelRegionSelect])
+  }, [regionSelectArmed, disarmRegionSelect, cancelRegionSelect, clearRfSelectionBox, onNodesChange, onEdgesChange])
 
   // never leave the tool armed across a context it cannot apply to: the Frame
   // tool taking over, Pan mode coming on, or the layout turning mobile.
@@ -611,9 +639,18 @@ export function Canvas() {
         // `panOnDrag` is `true`, exactly as before either tool existed.
         panOnDrag={!frameToolArmed && !regionSelectArmed}
         selectionOnDrag={regionSelectArmed}
+        onSelectionStart={() => {
+          selectionBeforeBox.current = {
+            nodes: nodes.filter((n) => n.selected).map((n) => n.id),
+            edges: edges.filter((x) => x.selected).map((x) => x.id),
+          }
+        }}
         // §LGR12 — one shot: releasing the box confirms the selection and puts
         // the canvas back to plain panning.
-        onSelectionEnd={disarmRegionSelect}
+        onSelectionEnd={() => {
+          selectionBeforeBox.current = null
+          disarmRegionSelect()
+        }}
         onPaneClick={() => {
           if (useUiStore.getState().refInsert) disarmRefInsert()
           selectFrame(null)

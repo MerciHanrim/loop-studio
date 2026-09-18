@@ -467,6 +467,56 @@ test.describe('large-graph readability — Slice 1', () => {
     expect(await viewportTransform(page)).not.toBe(before)
   })
 
+  test('§LGR12 region select — Esc DURING a box abandons the gesture and restores the selection', async ({
+    page,
+  }) => {
+    await load(page)
+    const tool = page.locator('.react-flow__controls-button.rf-regionselect')
+    const box = page.locator('.react-flow__selection')
+
+    // a selection to protect: the box below deliberately encloses a different node
+    await tool.click()
+    await marqueeOver(page, ['ma', 'mc'])
+    const before = await page.locator('.react-flow__node.selected').count()
+    expect(before).toBeGreaterThan(1)
+
+    await tool.click()
+    const r = await page.evaluate(() => {
+      const b = (document.querySelector('.react-flow__node[data-id="lone"]') as HTMLElement).getBoundingClientRect()
+      return { x0: b.left - 30, y0: b.top - 30, x1: b.right + 30, y1: b.bottom + 30 }
+    })
+    await page.mouse.move(r.x0, r.y0)
+    await page.mouse.down()
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(r.x0 + ((r.x1 - r.x0) * i) / 8, r.y0 + ((r.y1 - r.y0) * i) / 8)
+      await page.waitForTimeout(18)
+    }
+    // React Flow re-selects live as the box grows, so by now `lone` is selected
+    // and the original selection is already gone from the canvas
+    await expect(box).toHaveCount(1)
+    await expect(page.locator('.react-flow__node[data-id="lone"]')).toHaveClass(/selected/)
+
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(150)
+
+    // the rectangle is gone, the tool is off, and the selection is back to what
+    // the box started from — "Esc leaves the selection alone" holds mid-drag too
+    await expect(box).toHaveCount(0)
+    await expect(tool).toHaveAttribute('aria-pressed', 'false')
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(before)
+    await expect(page.locator('.react-flow__node[data-id="lone"]')).not.toHaveClass(/selected/)
+
+    // the abandoned drag is dead: moving further draws nothing and the release
+    // commits nothing
+    await page.mouse.move(r.x1 + 40, r.y1 + 40)
+    await page.waitForTimeout(80)
+    await expect(box).toHaveCount(0)
+    await page.mouse.up()
+    await page.waitForTimeout(250)
+    await expect(page.locator('.react-flow__node.selected')).toHaveCount(before)
+    await expect(page.locator('.react-flow__node[data-id="lone"]')).not.toHaveClass(/selected/)
+  })
+
   test('§LGR12 the selection count shows under the lock AND after unlocking', async ({ page }) => {
     await load(page)
     const count = page.locator('.lgr-selection-count')
