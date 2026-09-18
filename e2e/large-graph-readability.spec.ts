@@ -567,6 +567,22 @@ test.describe('large-graph readability — Slice 1', () => {
     await setLocked(false)
     await expect(count).toBeVisible()
     await expect(count).not.toContainText('unlock editing')
+
+    // §LGR12.3 — where it lives: the right column, directly above the
+    // Inspector, never inside the canvas; and nothing paints over it.
+    const where = await count.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      const inspector = document.querySelector('.rightcol .inspector')!.getBoundingClientRect()
+      return {
+        inRightColumn: el.closest('.rightcol') != null,
+        inCanvasDom: el.closest('.react-flow') != null,
+        aboveInspector: r.bottom <= inspector.top + 0.5,
+        occluded: !(hit && el.contains(hit)),
+      }
+    })
+    expect(where).toEqual({ inRightColumn: true, inCanvasDom: false, aboveInspector: true, occluded: false })
+    await expect(page.locator('.react-flow .lgr-selection-count')).toHaveCount(0)
   })
 
   test('walk the graph: clicking a de-emphasised node re-centres the set', async ({ page }) => {
@@ -1323,6 +1339,53 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     await expect(page.locator('.react-flow')).toHaveScreenshot('run-distinction-states.png', {
       maxDiffPixelRatio: 0.02,
     })
+  })
+
+  test('§LGR12.3 the selection count never overlaps the canvas or a node in the run-distinction frame', async ({ page }) => {
+    // Measured before the fix: the bottom-centre readout intersected `R1` by
+    // 23 × 25 px in this exact frame — under the 2 % pixel gate of the shot
+    // above, so only a geometric assertion catches it.
+    await loadRun(page)
+    await commitOneStep(page)
+    const head = await simHead(page)
+    const evalTarget = head.activatedNodeIds.find((id) => !head.firedNodeIds.includes(id))!
+    await node(page, evalTarget).click()
+    const count = page.locator('.lgr-selection-count')
+    await expect(count).toHaveText(/1 node selected/)
+    const g = await page.evaluate(() => {
+      const rr = (el: Element) => {
+        const r = el.getBoundingClientRect()
+        return { x: r.left, y: r.top, w: r.width, h: r.height }
+      }
+      const c = document.querySelector('.lgr-selection-count')!
+      const cr = rr(c)
+      const hit = document.elementFromPoint(cr.x + cr.w / 2, cr.y + cr.h / 2)
+      return {
+        count: cr,
+        inCanvasDom: c.closest('.react-flow') != null,
+        canvas: rr(document.querySelector('.react-flow')!),
+        nodes: [...document.querySelectorAll('.react-flow__node')].map((n) => ({ id: n.getAttribute('data-id'), rect: rr(n) })),
+        occluded: !(hit && c.contains(hit)),
+      }
+    })
+    type R = { x: number; y: number; w: number; h: number }
+    const disjoint = (a: R, b: R) => a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y
+    // a node's VISIBLE part: its rect clipped to the canvas (overflow:hidden
+    // cuts anything past the canvas edge; the DOM rect still reports it all)
+    const clipTo = (r: R, c: R): R | null => {
+      const x = Math.max(r.x, c.x)
+      const y = Math.max(r.y, c.y)
+      const w = Math.min(r.x + r.w, c.x + c.w) - x
+      const h = Math.min(r.y + r.h, c.y + c.h) - y
+      return w > 0 && h > 0 ? { x, y, w, h } : null
+    }
+    expect(g.inCanvasDom).toBe(false)
+    expect(disjoint(g.count, g.canvas), 'disjoint from the canvas').toBe(true)
+    for (const n of g.nodes) {
+      const visible = clipTo(n.rect, g.canvas)
+      if (visible) expect(disjoint(g.count, visible), `disjoint from the visible part of ${n.id}`).toBe(true)
+    }
+    expect(g.occluded).toBe(false)
   })
 
   test('forced-colors: `evaluated` stays distinct from `effective` by shape, not colour (§LGR5.1 / §LGR9)', async ({ page }) => {

@@ -503,6 +503,111 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     expect(await graphContent(page), 'after desktop -> mobile').toBe(before)
   })
 
+  // docs/large-graph-readability.md §LGR12.3 — the selection count on mobile
+  test('§LGR12.3 a single tap opens the sheet and shows NO selection count', async ({ page }) => {
+    await loadDiagram(page)
+    const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
+    await tapNode(page, page.locator('.react-flow__node').first())
+    await expect(inspector).toBeVisible()
+    // the sheet already IS that node — a "1 node selected" line would be noise
+    await expect(page.locator('.lgr-selection-count')).toHaveCount(0)
+    await inspector.locator('.sheet__x').click()
+    await expect(inspector).toBeHidden()
+  })
+
+  test('§MV3c / §LGR12.3 a desktop multi-selection survives the switch to mobile; the sheet shows the anchor and says how many', async ({ page }) => {
+    await loadDiagram(page)
+    const selectionState = () =>
+      page.evaluate(() => {
+        const g = (
+          window as unknown as {
+            __loop: { graph: { getState: () => { nodes: { id: string; selected?: boolean }[]; selectedNodeId: string | null } } }
+          }
+        ).__loop.graph.getState()
+        return { ids: g.nodes.filter((n) => n.selected).map((n) => n.id).sort(), anchor: g.selectedNodeId }
+      })
+
+    // desktop width — the full editing UI, where multi-select exists
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.waitForTimeout(150)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(1)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ padding: 0.3, duration: 0 }),
+    )
+    await page.waitForTimeout(150)
+    const nodes = page.locator('.react-flow__node')
+    expect(await nodes.count()).toBeGreaterThanOrEqual(3)
+    const centre = async (i: number) => {
+      const b = (await nodes.nth(i).boundingBox())!
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
+    }
+    const c0 = await centre(0)
+    await page.mouse.click(c0.x, c0.y)
+    // a REAL modifier: React Flow reads its multi-selection key from keydown
+    await page.keyboard.down('Control')
+    for (const i of [1, 2]) {
+      const c = await centre(i)
+      await page.mouse.click(c.x, c.y)
+    }
+    await page.keyboard.up('Control')
+    await page.waitForTimeout(150)
+
+    // BEFORE shrinking: exactly these three, an anchor, and the desktop line
+    const before = await selectionState()
+    expect(before.ids).toHaveLength(3)
+    expect(before.anchor).not.toBeNull()
+    expect(before.ids).toContain(before.anchor)
+    const desktopLine = page.locator('.rightcol .lgr-selection-count')
+    await expect(desktopLine).toBeVisible()
+    await expect(desktopLine).toHaveText(/3 nodes selected/)
+
+    // → mobile width. §MV3c: a pure presentation change; the selection stays.
+    await page.setViewportSize(PORTRAIT)
+    await page.waitForTimeout(300)
+    await expect(page.locator('.pstrip--mobile')).toBeVisible()
+    expect(await selectionState(), 'ids + anchor survive the switch').toEqual(before)
+    const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')
+    await expect(inspector).toBeVisible()
+    // the sheet shows ONE node — the anchor — …
+    const anchorLabel = await page.evaluate(
+      (id) =>
+        (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; data: { label?: string } }[] } } } }).__loop.graph
+          .getState()
+          .nodes.find((n) => n.id === id)?.data.label ?? null,
+      before.anchor,
+    )
+    await expect(inspector.locator('input').first()).toHaveValue(anchorLabel!)
+    // … and says how many are selected, without the desktop unlock wording
+    const line = inspector.locator('.lgr-selection-count')
+    await expect(line).toHaveText(/3 nodes selected/)
+    await expect(line).not.toContainText('unlock')
+    // STRUCTURE: inside the sheet, nowhere else (the sheet is an overlay over the
+    // canvas, so its rect legitimately intersects `.react-flow` — no rect
+    // comparison against the canvas here)
+    await expect(page.locator('.lgr-selection-count')).toHaveCount(1)
+    await expect(page.locator('.react-flow .lgr-selection-count')).toHaveCount(0)
+    // VISIBILITY: all four edges inside the sheet, and nothing paints over it
+    const vis = await line.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const sr = el.closest('.sheet')!.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return {
+        inside: r.left >= sr.left && r.right <= sr.right && r.top >= sr.top && r.bottom <= sr.bottom,
+        occluded: !(hit && el.contains(hit)),
+      }
+    })
+    expect(vis).toEqual({ inside: true, occluded: false })
+
+    // → back to desktop: everything as it was, the line back in the right column
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.waitForTimeout(300)
+    await expect(page.locator('.react-flow__minimap')).toHaveCount(1)
+    expect(await selectionState(), 'ids + anchor survive the return').toEqual(before)
+    await expect(desktopLine).toBeVisible()
+    await expect(desktopLine).toHaveText(/3 nodes selected/)
+    await expect(page.locator('.react-flow .lgr-selection-count')).toHaveCount(0)
+  })
+
   test('tapping a node opens a read-only Inspector sheet; Close and empty-canvas tap dismiss it', async ({ page }) => {
     await loadDiagram(page)
     const inspector = page.locator('.sheet[aria-label="Inspector — read only"]')

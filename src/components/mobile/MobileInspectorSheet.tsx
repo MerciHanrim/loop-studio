@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useReactFlow } from '@xyflow/react'
-import { useGraphStore } from '../../store/graphStore'
+import { selectSelectedNodeCount, useGraphStore } from '../../store/graphStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
@@ -22,6 +22,7 @@ export function MobileInspectorSheet() {
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
   const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId)
+  const selectedNodeCount = useGraphStore(selectSelectedNodeCount)
   const setSelection = useGraphStore((s) => s.setSelection)
   const { setNodes, setEdges } = useReactFlow()
   const hasSelection = selectedNodeId != null || selectedEdgeId != null
@@ -48,6 +49,17 @@ export function MobileInspectorSheet() {
   return (
     <MobileSheet title={t('mobile.inspector.title')} className="sheet--inspector" onClose={dismiss}>
       <p className="sheet__ro-note">{t('mobile.inspector.roNote')}</p>
+      {/* docs/large-graph-readability.md §LGR12.3 — the sheet shows ONE node
+          (the anchor), so with two or more selected it says how many. A single
+          tap-selection needs no count (this sheet IS that node), and the
+          desktop "unlock editing" wording never applies here. One verified way
+          in: a multi-selection held across a desktop → mobile width switch
+          (docs/mobile.md §MV3c). */}
+      {selectedNodeCount >= 2 && (
+        <p className="lgr-selection-count lgr-selection-count--sheet" role="status">
+          {t('canvas.regionSelect.count', { n: selectedNodeCount })}
+        </p>
+      )}
       <fieldset className="inspector-ro" disabled>
         <Inspector />
       </fieldset>

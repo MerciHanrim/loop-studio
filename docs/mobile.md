@@ -148,6 +148,9 @@ Crossing the breakpoint — first load under it, a resize, a rotation — is a
 - `pristineSample` latch is not touched by the layout switch;
 - returning to a desktop width **restores the full editing UI** with node
   positions, selection, undo stack, and run state exactly as they were.
+- a **multi-selection** survives the switch too; the read-only Inspector sheet
+  shows the anchor node and says how many are selected
+  (`docs/large-graph-readability.md` §LGR12.3).
 
 ### MV3d. Rotation & fitView
 
