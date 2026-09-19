@@ -342,7 +342,7 @@ test.describe('i18n Slice 3 — KO typography of the small-caps semantic labels'
 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('i18n Slice 3 — KO under forced-colors', () => {
-  test.use({ forcedColors: 'active' })
+  test.use({ contextOptions: { forcedColors: 'active' } })
 
   test('the KO app renders with forced colors — controls reachable, nothing overflows', async ({ page }) => {
     await openApp(page)
@@ -462,7 +462,7 @@ test.describe('i18n Slice 3 — JA responsive: mobile (390×844)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('i18n Slice 3 — KO under reduced-motion', () => {
-  test.use({ reducedMotion: 'reduce' })
+  test.use({ contextOptions: { reducedMotion: 'reduce' } })
 
   test('a Step press announces Korean run state and settles', async ({ page }) => {
     await openApp(page)

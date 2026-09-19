@@ -271,7 +271,6 @@ test.describe('edge routing — Slice 1', () => {
     const genAndPaths = () =>
       page.evaluate(() => {
         const l = (window as any).__loop
-        const g = l.graph.getState()
         const domD = (id: string) =>
           (document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`) as SVGPathElement)?.getAttribute('d') ?? ''
         return {

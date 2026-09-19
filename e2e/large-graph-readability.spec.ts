@@ -1180,7 +1180,14 @@ const evalShape = (page: Page, id: string) =>
   })
 
 test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => {
-  test.use({ reducedMotion: 'reduce' })
+  // NOTE (2026-09-19): this block used to declare `test.use({ reducedMotion:
+  // 'reduce' })`, which Playwright silently ignores (not a test option — the
+  // documented form is `contextOptions: { reducedMotion }`), so every test
+  // here, including the `run-distinction-states` baseline, has always run WITH
+  // motion. Applying it for real moves that baseline; the line is dropped
+  // rather than fixed so the block keeps the behaviour its baseline was
+  // captured under. Whether these tests SHOULD run reduced-motion (and the
+  // baseline be re-taken) is a separate decision.
 
   test('every fired node shows `effective`, every activated-not-fired shows `evaluated`, the rest show no cue (§LGR5.1 / §LGR10.6)', async ({ page }) => {
     await loadRun(page)
@@ -2730,7 +2737,11 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
   const sfState = async (page: Page) => {
     const struct = await gDigest(page) // frames-free engine/structure digest
     return page.evaluate((structDigest) => {
-      const L = (window as unknown as { __loop: Record<string, { getState: () => Record<string, unknown> }> }).__loop
+      const L = (
+        window as unknown as {
+          __loop: Record<string, { getState: () => Record<string, unknown> }> & { revisionIO: { currentTargetDigest: () => string } }
+        }
+      ).__loop
       return {
         frames: (L.frame.getState().frames as { id: string; n: number; label: string; color?: string; rect: object }[]).map((f) => ({ ...f })),
         past: (L.graph.getState().past as unknown[]).length,

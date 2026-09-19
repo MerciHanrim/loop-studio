@@ -620,7 +620,7 @@ test.describe('guided tour — missing target (§GT4)', () => {
 
 // ── 16 / 17 — reduced-motion & forced-colors ───────────────────────────────
 test.describe('guided tour — viewing conditions', () => {
-  test.use({ reducedMotion: 'reduce' })
+  test.use({ contextOptions: { reducedMotion: 'reduce' } })
   test('reduced-motion: the popover / spot have no transition between steps', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
@@ -635,7 +635,7 @@ test.describe('guided tour — viewing conditions', () => {
   })
 
   test.describe('forced-colors', () => {
-    test.use({ forcedColors: 'active' })
+    test.use({ contextOptions: { reducedMotion: 'reduce', forcedColors: 'active' } })
     test('the spotlight + popover stay outlined without relying on hue', async ({ page }) => {
       await seedKey(page, 'completed')
       await openApp(page)

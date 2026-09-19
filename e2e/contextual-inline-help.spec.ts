@@ -55,8 +55,8 @@ async function settleTour(page: Page): Promise<void> {
  *  own 250ms auto-offer check — otherwise that timer can fire mid-test (a
  *  real race caught on a slower CI runner, not a product bug) and permanently
  *  flip the tour out of idle from underneath an unrelated hint assertion. */
-function installWriteOnlyFailure(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+async function installWriteOnlyFailure(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     const store = new Map<string, string>([['loop-studio/guided-tour/1', 'dismissed']])
     const t = () => {
       throw new Error('quota')

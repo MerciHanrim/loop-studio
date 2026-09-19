@@ -7,7 +7,11 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // Inspector, pan / zoom, the minimap, the Timeline and the sim all still work.
 // UI-only: never the GraphDoc / loop-revision digest / undo / simulationRev.
 
-type Bridge = { __loop: Record<string, { getState: () => any } & Record<string, unknown>> }
+type Bridge = {
+  __loop: Record<string, { getState: () => any } & Record<string, unknown>> & {
+    rf: { getViewport: () => { x: number; y: number; zoom: number } }
+  }
+}
 
 /** Source ─1→ P1 ─1→ Drain. */
 async function seed(page: Page, canvasLocked?: boolean) {

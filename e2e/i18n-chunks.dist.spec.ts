@@ -8,8 +8,6 @@ import { expect, test } from './support/loop'
 // fetches exactly its chunk once) — impossible to check on the dev server,
 // whose module URLs differ from the built output.
 
-const ORIGIN = 'http://localhost:4173'
-
 /** resource URLs the page has fetched so far, path-only */
 const fetched = (page: Page) =>
   page.evaluate(() =>
