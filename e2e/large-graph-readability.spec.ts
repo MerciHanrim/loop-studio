@@ -1252,14 +1252,37 @@ const evalShape = (page: Page, id: string) =>
   })
 
 test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => {
-  // NOTE (2026-09-19): this block used to declare `test.use({ reducedMotion:
-  // 'reduce' })`, which Playwright silently ignores (not a test option — the
-  // documented form is `contextOptions: { reducedMotion }`), so every test
-  // here, including the `run-distinction-states` baseline, has always run WITH
-  // motion. Applying it for real moves that baseline; the line is dropped
-  // rather than fixed so the block keeps the behaviour its baseline was
-  // captured under. Whether these tests SHOULD run reduced-motion (and the
-  // baseline be re-taken) is a separate decision.
+  // §LGR9 / §LGR10.11 — this block runs under `prefers-reduced-motion: reduce`:
+  // the run cues are then STATIC (§LGR5), so the `effective` outline
+  // (`.nodef__wave`, held at opacity 0.6 instead of a 0.5 s fade-out) is on
+  // screen for the assertions and for the `run-distinction-states` baseline.
+  // On the motion path the wave animates to opacity 0 and Playwright's
+  // `animations: 'disabled'` fast-forwards it, so a shot taken there shows no
+  // effective cue at all (the baseline captured before 2026-09-19 did exactly
+  // that). `contextOptions` is the form Playwright applies; a top-level
+  // `test.use({ reducedMotion })` is silently ignored.
+  test.use({ contextOptions: { reducedMotion: 'reduce' } })
+
+  test.beforeEach(async ({ page }) => {
+    // asserted on the blank page, before any load: the emulation is a context
+    // property, so it must already hold here
+    expect(
+      await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
+      'the context really emulates prefers-reduced-motion: reduce',
+    ).toBe(true)
+  })
+
+  /** the `effective` cue is a HELD static outline under reduced motion: the
+   *  wave path is present, not animating, and visibly opaque. */
+  const expectHeldWave = async (page: Page, id: string) => {
+    await expect(hasWave(page, id), `${id} ∈ fired → effective`).toHaveCount(1)
+    const w = await hasWave(page, id).evaluate((el) => {
+      const c = getComputedStyle(el)
+      return { animation: c.animationName, opacity: Number(c.opacity) }
+    })
+    expect(w.animation, `${id} effective outline is static`).toBe('none')
+    expect(w.opacity, `${id} effective outline is visible`).toBeGreaterThan(0.3)
+  }
 
   test('every fired node shows `effective`, every activated-not-fired shows `evaluated`, the rest show no cue (§LGR5.1 / §LGR10.6)', async ({ page }) => {
     await loadRun(page)
@@ -1272,7 +1295,7 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     expect(evaluatedOnly.length, 'some node was evaluated but did not fire').toBeGreaterThan(0)
 
     for (const id of firedNodeIds) {
-      await expect(hasWave(page, id), `${id} ∈ fired → effective`).toHaveCount(1)
+      await expectHeldWave(page, id)
       await expect(hasEval(page, id), `${id} ∈ fired → not the evaluated arc`).toHaveCount(0)
     }
     for (const id of evaluatedOnly) {
@@ -1412,9 +1435,14 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     // selected + evaluated on `evalTarget`; the other evaluated node stays plain
     await node(page, evalTarget).click()
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
-    // The frame reads, left→right: Feed/Busy = effective · Idle(selected)+Waste
-    // = evaluated · Store = value changed, no cue · Iso = idle · P1/R1/Rbad =
-    // model nodes, no cue (Rbad also carries the `!` flag).
+    // The frame reads, left→right: Feed/Busy = effective (held static outline +
+    // highlighted fired edges) · Idle(selected)+Waste = evaluated · Store =
+    // value changed, no run-distinction cue (the disc inside it is the held
+    // playback ARRIVAL cue, §VL9 — a different signal) · Iso = idle · P1/R1/Rbad
+    // = model nodes, no cue (Rbad also carries the `!` flag). Pinned in the DOM
+    // before the pixels so the shot cannot quietly lose a cue again:
+    for (const id of head.firedNodeIds) await expectHeldWave(page, id)
+    for (const id of head.activatedNodeIds.filter((n) => !head.firedNodeIds.includes(n))) await expect(hasEval(page, id)).toHaveCount(1)
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'run-distinction-states'))
   })
 
