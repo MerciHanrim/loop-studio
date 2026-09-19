@@ -347,16 +347,21 @@ function LoopEdge({
         path={path}
         markerEnd={`url(#${markerId})`}
         className={[
+          // docs/large-graph-readability.md §LGR9 — exactly one edge-class
+          // marker. The state dash (`4 4`, butt) and the resource cap (round)
+          // live in index.css under these classes, NOT as inline style, so a
+          // `@media (forced-colors: active)` rule can restyle an ACTIVE edge —
+          // an inline `stroke-dasharray` used to beat every stylesheet rule
+          // and left active state edges with no tell at all.
+          isState ? 'edge-state' : 'edge-resource',
           route ? `route-${route.routeClass}${route.invalidWaypoint ? ' route-invalid' : ''}` : '',
           activityOp > 0 ? 'lgr-active-tint' : '',
         ]
           .filter(Boolean)
-          .join(' ') || undefined}
+          .join(' ')}
         style={{
           stroke: baseStroke,
           strokeWidth: selected ? 2 : activatorOn === true ? 1.8 : isState ? 1 : 1.5,
-          strokeDasharray: isState ? '4 4' : undefined,
-          strokeLinecap: isState ? 'butt' : 'round',
           opacity: activatorOn === false ? 0.5 : 1,
           ...(activityOp > 0 ? { ['--lgr-activity' as string]: activityOp } : null),
         }}
