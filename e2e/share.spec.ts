@@ -6,7 +6,9 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // exercised through the real UI.
 
 type Bridge = {
-  __loop: Record<string, { getState: () => any } & Record<string, unknown>>
+  __loop: Record<string, { getState: () => any } & Record<string, unknown>> & {
+    autosave: { flush: () => void }
+  }
 }
 
 /** Stub `navigator.clipboard.writeText` so tests can read what was copied and

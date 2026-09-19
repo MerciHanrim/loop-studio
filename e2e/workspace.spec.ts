@@ -1,11 +1,15 @@
 import { readFileSync } from 'node:fs'
 import type { Download, Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, runMc, test } from './support/loop'
+import { expect, openApp, resetAll, runMc, test } from './support/loop'
 
 // SEMANTICS-W.md loop-workspace/1 — the `Export ▾` → Graph / Workspace flow,
 // the §W4 size prompts, and the atomic restore, exercised through the real UI.
 
-type Bridge = { __loop: Record<string, { getState?: () => any } & Record<string, unknown>> }
+type Bridge = {
+  __loop: Record<string, { getState?: () => any } & Record<string, unknown>> & {
+    io: typeof import('/src/store/workspaceIO')
+  }
+}
 
 const textOf = async (dl: Download) => readFileSync((await dl.path())!, 'utf8')
 

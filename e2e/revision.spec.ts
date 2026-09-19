@@ -993,7 +993,7 @@ test.describe('loop-model/2 — v2 revision files (v0.10.0 legacy recovery + ver
     await setFile(page, 'LR0.json', legacy('LR0.json'))
     await expect(page.locator('.rev-chip')).toBeVisible()
     await page.evaluate(() => {
-      const L = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
+      const L = (window as unknown as { __loop: Record<string, { getState: () => any; setState: (p: object) => void }> }).__loop
       const open = L.project.getState().open
       L.graph.getState().newGraph()
       L.graph.getState().addNodeAt('pool', { x: 0, y: 0 })

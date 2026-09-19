@@ -270,7 +270,17 @@ test.describe('content ⊂ vessel — path-aware (isPointInFill)', () => {
     return page.evaluate(() => {
       const out: Record<
         string,
-        { kind: string; w: number; h: number; boxH: number; minMarginCss: number; clamped: boolean; subEllipsis: boolean }
+        {
+          kind: string
+          w: number
+          h: number
+          boxH: number
+          minMarginCss: number
+          clamped: boolean
+          subEllipsis: boolean
+          titleEllipsis: boolean
+          valueEllipsis: boolean
+        }
       > = {}
       for (const nf of document.querySelectorAll<HTMLElement>('.react-flow__node')) {
         const id = nf.getAttribute('data-id')!
