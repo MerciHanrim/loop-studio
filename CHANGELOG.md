@@ -4,7 +4,28 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
-## Unreleased
+## v0.11.0 — 2026-09-19
+
+Selecting several nodes becomes a visible, named feature; the orthogonal
+router gets much faster without changing a route; and the test bed that
+guards the canvas is rebuilt — reviewed visual baselines, a per-capture
+tolerance policy, and a type-checked `e2e/`.
+
+### Added
+
+- **Region select** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md)
+  §LGR12) — a one-shot *select a region* tool on the desktop Controls rail:
+  arm it, drag on empty canvas to rubber-band a selection, and the tool
+  disarms itself. Shift-drag and Ctrl/Cmd-click keep working and the tool's
+  label names them, so the keyboard gesture is no longer the only way to
+  discover multi-selection. Arming it turns the Frame tool and Pan mode off
+  (and either of those cancels it); `Esc` cancels the tool without touching
+  the selection, a click with no drag clears both, and a cancelled pointer
+  never leaves the tool armed. A persistent **"N nodes selected"** readout
+  accompanies it — in the right column above the Inspector on desktop, and
+  inside the read-only Inspector sheet on mobile when two or more nodes are
+  selected — never on the canvas, where it could cover a node (`#229`,
+  `#231`).
 
 ### Changed
 
@@ -20,7 +41,57 @@ this file is the narrative history, not the contract.
   time from 1.4 s to 0.1 s over one drag. Routes are byte-identical: a golden
   fixture and a differential test against a frozen copy of the previous
   implementation cover every bundled example, a boundary corpus, the stress
-  graph and 3,000 seeded layouts, so `ROUTER_VERSION` is unchanged.
+  graph and 3,000 seeded layouts, so `ROUTER_VERSION` is unchanged. The
+  search lattice is then built per obstacle instead of per cell — filling
+  the grid had been 27–42 % of a route build while the search visited under
+  5 % of it — verified route for route at every pointer position of two full
+  drag gestures with zero mismatches (`#224`, `#227`).
+- **Smoother node drags** — the canvas no longer hands React Flow a fresh
+  options object on every render, so a pointer move re-renders only the edges
+  attached to the moving node instead of every edge on the canvas; the
+  drag-phase frame p95 falls by 10–11 % on the bundled MMO and gacha
+  templates (`#225`).
+
+### Fixed
+
+- **A selected node is never dimmed by Focus mode** — with several nodes
+  selected, the ones outside the anchor node's neighbourhood were faded to
+  26 % while still selected (7 of 10 in a marquee selection on the MMO
+  template read as three). A node the user has selected now always stays
+  legible; the focus calculation itself is unchanged (`#228`).
+- **Register / Parameter values are never clipped** — the rounded-rim inset
+  that came with the node shells was a cyclic percentage: it was carved out
+  of the value column *after* the node had been sized, so a value such as
+  `370370.34` rendered as `370370.3…` on any node wider than about 129 px.
+  The rim is now a margin on the two corner lines only and the value line
+  keeps its full column; every node in the bundled examples keeps a
+  byte-identical size (`#230`).
+
+### Internal
+
+- **Visual baselines reviewed and refreshed** — an audit found 40 of the 46
+  Playwright pixel baselines silently out of date: the single 2 % tolerance
+  had absorbed eight releases of drift, including a Pool value changing
+  outright. Every image was reviewed one by one and 41 regenerated, with new
+  DOM assertions pinning the states the shots assume (`#232`).
+- **Per-capture-kind snapshot tolerance**
+  ([`docs/visual-snapshot-policy.md`](docs/visual-snapshot-policy.md)) — the
+  real cross-machine variance was measured on three independent Windows
+  runners and a local machine (runner ↔ runner: identical; local ↔ runner:
+  text rasterisation only), then the tolerance was set per capture kind,
+  from 0.5 % for a desktop full page down to 0.02 % for a desktop canvas
+  clip, with a guard that keeps every baseline under exactly one policy and
+  every shot on the shared helper. Against the old baselines the policy
+  fails 40 of the 41 real drifts (`#233`).
+- **`e2e/` is type-checked by `tsc -b`** — a dedicated TypeScript project now
+  covers the Playwright specs, helpers and configs; the 51 errors it
+  surfaced were fixed by cause, and four `test.use({ reducedMotion |
+  forcedColors })` blocks that Playwright had silently ignored now apply
+  their emulation through `contextOptions` (a fifth was dropped pending a
+  baseline decision) (`#234`).
+- **Characterisation tests** — the playback cascade is observed from before
+  `play()` with emit order judged per transition (`#222`), and what an `@id`
+  Parameter reference may resolve to is pinned (`#226`).
 
 ## v0.10.2 — 2026-09-17
 

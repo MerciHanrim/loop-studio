@@ -19,7 +19,8 @@ comparison.
 ## Key features
 
 - **Visual diagram editor** — pools, sources, drains, gates, and converters;
-  resources move between them on a deterministic, discrete-step simulation
+  resources move between them on a deterministic, discrete-step simulation;
+  select a region of nodes from the rail and move them together
 - **Seeded RNG + Monte Carlo** — probabilistic gates and flows, and
   many-run outcome distributions with percentile bands
 - **A small model language** — `parameter` / `register` nodes with a safe
@@ -92,31 +93,20 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.10.0
+## Latest — v0.11.0
 
-- **Spreadsheet data import** — paste or upload linked CSV/TSV tables;
-  values materialize as Parameter nodes, with manual refresh, a three-way
-  diff, and a change-proposal export
-- **3-zone gacha banner comparison** — a fifth bundled Template comparing
-  three pity/pickup rule sets under one Monte Carlo run
-- **`@parameter` activator references** and **conditional post-pull state
-  updates** — tunable activator thresholds and a label that can apply right
-  after a step's pull, conditioned on what actually fired, both
-  Inspector-driven
-- **Desktop two-tier toolbar** — project/app commands on one row, the node
-  palette on its own, with File/Data/Settings reorganized
+- **Region select** — a one-shot rail tool to rubber-band several nodes
+  (Shift-drag and Ctrl/Cmd-click still work), with a persistent selection
+  count in the right column / the mobile Inspector sheet, never on the canvas
+- **Faster orthogonal routing** — the same routes, rebuilt 10–20× faster on
+  the bundled templates with a fraction of the memory, and smoother node drags
+- **Fixes** — a selected node is never dimmed by Focus mode; Register /
+  Parameter values are never clipped by the node rim
+- **Test bed** — every visual baseline reviewed and refreshed, a per-capture
+  snapshot tolerance policy with a guard, and a type-checked `e2e/`
 
-**v0.10.1 (patch)** — Project revision / proposal files of a `@parameter`
-document are written with the right model-version envelope, and files
-exported by v0.10.0 are recovered on import.
-
-**v0.10.2 (patch)** — A refused autosave (storage full or blocked) shows a
-persistent notice with an export action and the last edit before a reload is
-kept; share links replace saved frames and data-import records; negative Pool
-values can no longer break a run; stray untranslated messages localized.
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.10.0 / v0.10.1 / v0.10.2
-notes and every earlier release.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.11.0 notes, the v0.10.x
+releases and every earlier one.
 
 ## Credits
 
