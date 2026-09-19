@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { SNAPSHOT_FALLBACK_RATIO } from './e2e/support/snapshot-policy'
 
 // Browser E2E for Loop Studio.
 //   chromium       — http dev server (real Workers, the store bridge)
@@ -19,11 +20,13 @@ export default defineConfig({
   timeout: 30_000,
   expect: {
     timeout: 8_000,
-    // OS font rendering differs between machines, so every pixel snapshot in
-    // the suite (the *-snapshots dirs under e2e/, win32 baselines) is compared
-    // with a small tolerance. Note `--update-snapshots` only rewrites a baseline
-    // whose test FAILS; a drifted image inside the tolerance is kept as-is.
-    toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: 'disabled', caret: 'hide' },
+    // docs/visual-snapshot-policy.md — the tolerance is PER CAPTURE KIND and is
+    // applied by `snap()` (e2e/support/loop.ts) from e2e/support/snapshot-policy.ts.
+    // This global value is only a fallback for a shot that bypassed snap(), which
+    // scripts/check-snapshot-policy.mjs forbids; it equals the loosest policy
+    // (desktop full page, 0.5 %). Note `--update-snapshots` only rewrites a
+    // baseline whose test FAILS; a drifted image inside its tolerance is kept.
+    toHaveScreenshot: { maxDiffPixelRatio: SNAPSHOT_FALLBACK_RATIO, animations: 'disabled', caret: 'hide' },
   },
   use: {
     baseURL: BASE_URL,

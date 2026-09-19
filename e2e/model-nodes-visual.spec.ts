@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, test, snap } from './support/loop'
 
 // docs/visual-language.md §VL2.1 / §VL3 / §VL12 — Parameter / Register are
 // first-class in the acceptance suite (no dev flag, no provisional fixture).
@@ -100,9 +100,7 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     await expect(node(page, 'r_ok').locator('.nodef__unit')).toBeVisible()
     await expect(node(page, 'r_plain').locator('.nodef__value .nodef__unit')).toHaveCount(0)
     await expect(node(page, 'r_bad').locator('.nodef__unit')).toHaveCount(0)
-    await expect(page.locator('.react-flow')).toHaveScreenshot('register-unit-row.png', {
-      maxDiffPixelRatio: 0.02,
-    })
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'register-unit-row'))
   })
 
   test('invalid Register — dashed --warning outline + corner flag, value is —', async ({ page }) => {

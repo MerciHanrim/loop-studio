@@ -1,4 +1,4 @@
-import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, readRiskyFactory, resetAll, test, snap } from './support/loop'
 
 // The existing visual specs frame `.timeline` and don't touch the canvas, so the
 // minimap legibility fix (per-kind node hues, viewport outline, mask, frame
@@ -47,12 +47,12 @@ test.describe('minimap — legibility', () => {
 
   test('light', async ({ page }) => {
     await minimapReady(page)
-    await expect(page.locator('.react-flow__minimap')).toHaveScreenshot('minimap-light.png')
+    await expect(page.locator('.react-flow__minimap')).toHaveScreenshot(...snap(page, 'minimap-light'))
   })
 
   test('dark', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await minimapReady(page)
-    await expect(page.locator('.react-flow__minimap')).toHaveScreenshot('minimap-dark.png')
+    await expect(page.locator('.react-flow__minimap')).toHaveScreenshot(...snap(page, 'minimap-dark'))
   })
 })

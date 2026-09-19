@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/localization.md §L13 — Slice 3, the REPRESENTATIVE Korean reference
 // screenshots. Lumi's call (over a full ~30-image KO pixel matrix, which is
@@ -79,7 +79,6 @@ async function pinViewport(page: Page, zoom = 1) {
 
 const shot = (page: Page) => ({
   mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
-  maxDiffPixelRatio: 0.02,
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +91,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
     await fontsReady(page)
-    await expect(page).toHaveScreenshot('ko-desktop-app.png', shot(page))
+    await expect(page).toHaveScreenshot(...snap(page, 'ko-desktop-app', shot(page)))
   })
 
   test('desktop — Inspector, KO, node selected', async ({ page }) => {
@@ -102,7 +101,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await pickLocale(page, 'ko')
     await page.evaluate(() => (window as any).__loop.graph.getState().setSelection('pool', null))
     await fontsReady(page)
-    await expect(page.locator('aside.inspector')).toHaveScreenshot('ko-inspector.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page.locator('aside.inspector')).toHaveScreenshot(...snap(page, 'ko-inspector'))
   })
 
   test('desktop — Monte Carlo dialog, KO', async ({ page }) => {
@@ -116,10 +115,9 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     // 실행 방식 / 메모리) are on screen; the machine-specific values are masked.
     await expect(page.locator('.mcdlg__costlabel').first()).toBeVisible()
     await fontsReady(page)
-    await expect(page.locator('.mcdlg')).toHaveScreenshot('ko-monte-carlo.png', {
-      mask: [page.locator('.mcdlg__costline > :not(.mcdlg__costlabel)')],
-      maxDiffPixelRatio: 0.02,
-    })
+    await expect(page.locator('.mcdlg')).toHaveScreenshot(
+      ...snap(page, 'ko-monte-carlo', { mask: [page.locator('.mcdlg__costline > :not(.mcdlg__costlabel)')] }),
+    )
   })
 
   test('desktop — Review overlay, KO', async ({ page }) => {
@@ -133,7 +131,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     })
     await expect(page.locator('.review')).toBeVisible()
     await fontsReady(page)
-    await expect(page.locator('.review')).toHaveScreenshot('ko-review.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page.locator('.review')).toHaveScreenshot(...snap(page, 'ko-review'))
   })
 
   test('desktop — a long Korean node label + a palette tooltip, KO', async ({ page }) => {
@@ -169,7 +167,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     expect(lbl.clippedX, 'no sideways clipping').toBe(false)
     expect(lbl.clippedY, 'no vertical clipping').toBe(false)
     expect(lbl.inside, 'the title sits inside the node box').toBe(true)
-    await expect(page).toHaveScreenshot('ko-long-label-and-tip.png', shot(page))
+    await expect(page).toHaveScreenshot(...snap(page, 'ko-long-label-and-tip', shot(page)))
   })
 
   test('desktop — Export menu open (overflow risk), KO', async ({ page }) => {
@@ -182,7 +180,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await page.locator('.toolbar__actions .menu > button', { hasText: /파일/ }).click()
     await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
     await fontsReady(page)
-    await expect(page).toHaveScreenshot('ko-export-menu.png', shot(page))
+    await expect(page).toHaveScreenshot(...snap(page, 'ko-export-menu', shot(page)))
   })
 })
 
@@ -210,9 +208,8 @@ test.describe('i18n Slice 3 — representative KO reference screenshots (mobile)
       ),
     ).toBe(1)
     await fontsReady(page)
-    await expect(page).toHaveScreenshot('ko-mobile-app.png', {
-      mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
-      maxDiffPixelRatio: 0.02,
-    })
+    await expect(page).toHaveScreenshot(
+      ...snap(page, 'ko-mobile-app', { mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')] }),
+    )
   })
 })

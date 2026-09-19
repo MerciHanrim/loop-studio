@@ -1,4 +1,4 @@
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 import type { Page } from '@playwright/test'
 
 // State Slice 5 — the Inspector editor for `trigger` / `activator` / `label`
@@ -320,11 +320,11 @@ test.describe('Slice 5 — Inspector snapshots', () => {
 
   test('light', async ({ page }) => {
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
-    await expect(page.locator('.inspector')).toHaveScreenshot('state-inspector-light.png')
+    await expect(page.locator('.inspector')).toHaveScreenshot(...snap(page, 'state-inspector-light'))
   })
 
   test('dark', async ({ page }) => {
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
-    await expect(page.locator('.inspector')).toHaveScreenshot('state-inspector-dark.png')
+    await expect(page.locator('.inspector')).toHaveScreenshot(...snap(page, 'state-inspector-dark'))
   })
 })

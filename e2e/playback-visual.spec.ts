@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 
 // docs/simulation-playback.md Slice 3c-b — the choreography acceptance matrix.
 // resource token / state trigger / activator / label-delta stay distinguishable
@@ -246,7 +246,6 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
       page.locator('.react-flow__attribution'),
       page.locator('.pstrip__step'),
     ],
-    maxDiffPixelRatio: 0.02,
   })
 
   for (const scheme of ['light', 'dark'] as const) {
@@ -255,7 +254,7 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
       await call(page, 'advance')
       await setLod(page, 'L2')
       await holdAt(page, 'depart')
-      await expect(page.locator('.react-flow')).toHaveScreenshot(`play-depart-${scheme}-L2.png`, shot(page))
+      await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `play-depart-${scheme}-L2`, shot(page)))
     })
   }
 
@@ -264,7 +263,7 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
     await call(page, 'advance')
     await setLod(page, 'L2')
     await holdAt(page, 'depart')
-    await expect(page.locator('.react-flow')).toHaveScreenshot('play-depart-forced-colors-L2.png', shot(page))
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'play-depart-forced-colors-L2', shot(page)))
   })
 
   test('travel · L0 elision', async ({ page }) => {
@@ -277,6 +276,6 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
     // `.state-move`; docs/simulation-playback.md) — the shot alone did not
     // pin this, and the old baseline still showed the bead
     await expect(page.locator('.state-move')).toHaveCount(0)
-    await expect(page.locator('.react-flow')).toHaveScreenshot('play-travel-L0.png', shot(page))
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'play-travel-L0', shot(page)))
   })
 })
