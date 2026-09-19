@@ -79,6 +79,9 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   // forced-colors-edge-tell.spec.ts — the Activity overlay's forced-colors edge tell (§LGR9)
   'forced-active-resource-coffee-z05': { chromium: 'element' },
   'forced-four-state-mmo-z075': { chromium: 'element' },
+  // mobile.spec.ts — the More sheet's two toggle rows (§MV5 boundary contrast)
+  'mobile-sheet-toggles-light': { mobile: 'element' },
+  'mobile-sheet-toggles-dark': { mobile: 'element' },
   'ko-monte-carlo': { chromium: 'element' },
   'ko-review': { chromium: 'element' },
   // state-ui.spec.ts / minimap.spec.ts / visual.spec.ts — element captures

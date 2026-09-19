@@ -245,6 +245,18 @@ Both are bottom sheets. **Shared sheet contract:**
   the sheet body scrolls internally (`overflow-y: auto`; `overscroll-behavior:
   contain`);
 - `prefers-reduced-motion` → no slide transition.
+- a **`.btn` inside a sheet** (the More sheet's Focus / Activity toggles,
+  Theme, Language, the sub-sheets' buttons) draws its boundary in
+  `--line-control` (hover: `--line-control-hover`), **≥ 3:1** against the
+  sheet, against a hovered / focused row (`--surface-sunken`) and against its
+  own face, light and dark (WCAG 1.4.11). The shared `.btn` border
+  (`--line-structure`) measured 1.78:1 light / 2.54:1 dark on the sheet and the
+  hovered `--line-strong` 2.88:1 on the sunken row (audit 2026-09-19); ghost /
+  primary buttons keep their own contract; the pressed tell stays the label
+  (Off / On) + `aria-pressed`; forced colours own the border (`ButtonBorder`).
+  Pinned on the real composited pixels in `mobile.spec.ts` ("sheet .btn
+  boundary contrast") + two element baselines. Desktop `.btn` on a panel has
+  the same 1.78:1 shortfall — a separate item.
 
 **Timeline** — collapsed by default; a "Timeline" handle expands it to ~45 vh.
 Never a layout column.

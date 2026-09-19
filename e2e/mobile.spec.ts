@@ -9,6 +9,7 @@ import {
   readRiskyFactory,
   resetAll,
   runMc,
+  snap,
   test,
 } from './support/loop'
 import { fixtureFlow } from './support/revision-fixture'
@@ -1119,4 +1120,296 @@ test('run bar: an engine init refusal shows a visible notice under the controls,
   })
   await expect(notice).toHaveCount(0)
   await expect(page.locator('.pstrip--mobile .pb-btn--primary')).toBeEnabled()
+})
+
+// ---------------------------------------------------------------------------
+// docs/mobile.md §MV5 — a `.btn` on a sheet has a ≥ 3:1 boundary (WCAG 1.4.11)
+// against the sheet, against the hovered / focused row (`--surface-sunken`)
+// and against its own face, in light and dark, at rest / row-hover / hover /
+// focus / pressed. Measured on the REAL composited pixels of the More sheet's
+// two toggles (Focus selection, Activity overlay), not on token arithmetic.
+// The audit (2026-09-19) had light Off 1.78, light hovered-row 2.88, dark Off
+// 2.54 — the shared `.btn` border (`--line-structure`) was never meant for a
+// 1 px control boundary on a panel.
+// ---------------------------------------------------------------------------
+test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
+  type Rgb = [number, number, number]
+  const lum = ([r, g, b]: Rgb) => {
+    const f = (c: number) => {
+      const v = c / 255
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+  }
+  const ratio = (a: Rgb, b: Rgb) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const dist = (a: Rgb, b: Rgb) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+  const parseRgb = (s: string): Rgb => {
+    const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)!
+    return [Number(m[1]), Number(m[2]), Number(m[3])]
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100
+
+  /** decode a viewport screenshot in the page and read pixels (deviceScaleFactor 1 → image px = CSS px) */
+  async function rgbAt(page: Page, png: Buffer, pts: { x: number; y: number }[]): Promise<Rgb[]> {
+    return page.evaluate(
+      async ({ b64, pts }) => {
+        const im = new Image()
+        im.src = `data:image/png;base64,${b64}`
+        await im.decode()
+        const cv = document.createElement('canvas')
+        cv.width = im.width
+        cv.height = im.height
+        const cx = cv.getContext('2d')!
+        cx.drawImage(im, 0, 0)
+        return pts.map(({ x, y }) => {
+          const d = cx.getImageData(Math.round(x), Math.round(y), 1, 1).data
+          return [d[0], d[1], d[2]] as [number, number, number]
+        })
+      },
+      { b64: png.toString('base64'), pts },
+    )
+  }
+
+  /** the composited boundary of `btn`: the darkest-vs-outside column across its
+   *  left edge and row across its top edge, the colour 5 px outside (the row /
+   *  sheet behind it) and 5 px inside (its own face, inside the padding). */
+  async function boundary(page: Page, btn: Locator) {
+    const b = (await btn.boundingBox())!
+    const png = await page.screenshot()
+    const cy = b.y + b.height / 2
+    const cx = b.x + b.width / 2
+    const leftCols = [-1, 0, 1, 2].map((o) => ({ x: b.x + o, y: cy }))
+    const topRows = [-1, 0, 1, 2].map((o) => ({ x: cx, y: b.y + o }))
+    const px = await rgbAt(page, png, [
+      { x: b.x - 5, y: cy }, // outside, left
+      { x: b.x + 5, y: cy }, // inside face, left padding
+      { x: cx, y: b.y - 5 }, // outside, above
+      { x: cx, y: b.y + 3 }, // inside face, top padding
+      ...leftCols,
+      ...topRows,
+    ])
+    const [outL, inL, outT, inT] = px
+    const pick = (cands: Rgb[], out: Rgb) => cands.reduce((best, c) => (dist(c, out) > dist(best, out) ? c : best))
+    const edgeL = pick(px.slice(4, 8), outL)
+    const edgeT = pick(px.slice(8, 12), outT)
+    return {
+      left: { edge: edgeL, out: outL, face: inL, vsOut: r2(ratio(edgeL, outL)), vsFace: r2(ratio(edgeL, inL)) },
+      top: { edge: edgeT, out: outT, face: inT, vsOut: r2(ratio(edgeT, outT)), vsFace: r2(ratio(edgeT, inT)) },
+      faceVsOut: r2(ratio(inL, outL)),
+    }
+  }
+
+  const expectBoundary = (name: string, m: Awaited<ReturnType<typeof boundary>>) => {
+    for (const side of ['left', 'top'] as const) {
+      expect(m[side].vsOut, `${name}: ${side} border vs the surface behind the button ≥ 3:1`).toBeGreaterThanOrEqual(3)
+      expect(m[side].vsFace, `${name}: ${side} border vs the button face ≥ 3:1`).toBeGreaterThanOrEqual(3)
+    }
+  }
+
+  const toggles = (page: Page) => page.locator('.sheet .sheet__row-sub > .btn[aria-pressed]')
+  const rowOf = (btn: Locator) => btn.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " sheet__row ")][1]')
+
+  async function openMore(page: Page) {
+    await page.locator('.mob-more').click() // by class: the accessible name is localized
+    await expect(page.locator('.sheet').first()).toBeVisible()
+    await expect(toggles(page)).toHaveCount(2)
+    await page.mouse.move(2, 2) // no hover anywhere on the sheet
+    await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+  }
+
+  /** Tab until `btn` is the active element (the sheet traps focus, so this terminates) */
+  async function tabTo(page: Page, btn: Locator) {
+    for (let i = 0; i < 25; i++) {
+      if (await btn.evaluate((el) => el === document.activeElement)) return
+      await page.keyboard.press('Tab')
+    }
+    throw new Error('toggle never received keyboard focus')
+  }
+
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: both toggles keep a ≥ 3:1 boundary at rest, on a hovered row, hovered, pressed; text ≥ 4.5:1; focus ring + pressed text tell`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme })
+      await loadDiagram(page)
+      await openMore(page)
+      const focusRing = await page.evaluate(() => {
+        const d = document.createElement('div')
+        d.style.color = 'var(--focus-ring)'
+        document.body.append(d)
+        const c = getComputedStyle(d).color
+        d.remove()
+        return c
+      })
+      for (const i of [0, 1]) {
+        const btn = toggles(page).nth(i)
+        const row = rowOf(btn)
+        const name = `${scheme} toggle ${i}`
+        await expect(btn).toHaveAttribute('aria-pressed', 'false')
+        const offText = (await btn.textContent())!.trim()
+        // text on the face
+        const cs = await btn.evaluate((el) => {
+          const c = getComputedStyle(el)
+          return { color: c.color, bg: c.backgroundColor, border: c.borderTopColor, width: c.borderTopWidth, opacity: c.opacity }
+        })
+        expect(ratio(parseRgb(cs.color), parseRgb(cs.bg)), `${name}: label text vs face ≥ 4.5`).toBeGreaterThanOrEqual(4.5)
+        expect(cs.width).toBe('1px')
+        expect(cs.opacity).toBe('1')
+        // 1. rest
+        const rest = await boundary(page, btn)
+        console.log(`[btn] ${name} rest: L ${rest.left.vsOut}/${rest.left.vsFace} T ${rest.top.vsOut}/${rest.top.vsFace} face-vs-out ${rest.faceVsOut}`)
+        expectBoundary(`${name} rest`, rest)
+        // 2. the ROW hovered (pointer on its label) — the surface behind the button turns sunken
+        const rb = (await row.boundingBox())!
+        await page.mouse.move(rb.x + 24, rb.y + rb.height / 2)
+        await page.waitForTimeout(120)
+        const rowHover = await boundary(page, btn)
+        console.log(`[btn] ${name} row-hover: L ${rowHover.left.vsOut}/${rowHover.left.vsFace} T ${rowHover.top.vsOut}/${rowHover.top.vsFace}`)
+        expect(dist(rowHover.left.out, rest.left.out), `${name}: the hovered row really changed the surface behind the button`).toBeGreaterThan(6)
+        expectBoundary(`${name} row-hover`, rowHover)
+        // 3. the BUTTON hovered
+        await btn.hover()
+        await page.waitForTimeout(120)
+        const hover = await boundary(page, btn)
+        console.log(`[btn] ${name} hover: L ${hover.left.vsOut}/${hover.left.vsFace} T ${hover.top.vsOut}/${hover.top.vsFace}`)
+        expectBoundary(`${name} hover`, hover)
+        expect(dist(hover.left.edge, rest.left.edge), `${name}: hover has its own (stronger) border colour`).toBeGreaterThan(6)
+        await page.mouse.move(2, 2)
+        await page.waitForTimeout(120)
+        // 4. keyboard focus: the global focus-visible ring, 2 px outside the border, in --focus-ring
+        await tabTo(page, btn)
+        const oc = await btn.evaluate((el) => {
+          const c = getComputedStyle(el)
+          return { style: c.outlineStyle, width: c.outlineWidth, color: c.outlineColor, offset: c.outlineOffset }
+        })
+        expect(oc.style).toBe('solid')
+        expect(oc.width).toBe('2px')
+        expect(oc.color).toBe(focusRing)
+        const fb = (await btn.boundingBox())!
+        const [ringPx, behind] = await rgbAt(page, await page.screenshot(), [
+          { x: fb.x - 3, y: fb.y + fb.height / 2 },
+          { x: fb.x - 8, y: fb.y + fb.height / 2 },
+        ])
+        expect(dist(ringPx, parseRgb(focusRing)), `${name}: the focus ring is painted in --focus-ring`).toBeLessThan(40)
+        expect(ratio(ringPx, behind), `${name}: focus ring vs the row ≥ 3:1`).toBeGreaterThanOrEqual(3)
+        // 5. pressed via the keyboard: the tell is the label (Off → On) + aria-pressed; the boundary stays ≥ 3:1
+        await page.keyboard.press('Space')
+        await expect(btn).toHaveAttribute('aria-pressed', 'true')
+        const onText = (await btn.textContent())!.trim()
+        expect(onText, `${name}: pressed state has a text tell`).not.toBe(offText)
+        // drop the focus ring (blur) and the pointer so the pressed boundary is measured at rest
+        await btn.evaluate((el) => (el as HTMLElement).blur())
+        await page.mouse.move(2, 2)
+        await page.waitForTimeout(120)
+        const pressed = await boundary(page, btn)
+        console.log(`[btn] ${name} pressed: L ${pressed.left.vsOut}/${pressed.left.vsFace} T ${pressed.top.vsOut}/${pressed.top.vsFace}`)
+        expectBoundary(`${name} pressed`, pressed)
+        // back to Off for the next toggle
+        await toggles(page).nth(i).click()
+        await expect(toggles(page).nth(i)).toHaveAttribute('aria-pressed', 'false')
+        await page.mouse.move(2, 2)
+        await page.waitForTimeout(120)
+      }
+    })
+
+    test(`${scheme}: More-sheet toggle rows — element baseline`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme })
+      await loadDiagram(page)
+      await openMore(page)
+      const a = (await rowOf(toggles(page).nth(0)).boundingBox())!
+      const b = (await rowOf(toggles(page).nth(1)).boundingBox())!
+      const sheet = (await page.locator('.sheet').first().boundingBox())!
+      const top = Math.min(a.y, b.y)
+      const bottom = Math.max(a.y + a.height, b.y + b.height)
+      const clip = { x: sheet.x, y: top - 2, width: sheet.width, height: bottom - top + 4 }
+      await expect(page).toHaveScreenshot(...snap(page, `mobile-sheet-toggles-${scheme}`, { clip }))
+    })
+  }
+
+  test.describe('forced colours', () => {
+    test.use({ contextOptions: { forcedColors: 'active' } })
+    test('the boundary is the system ButtonBorder (not our token) and stays ≥ 3:1; focus ring still solid', async ({ page }) => {
+      await loadDiagram(page)
+      await openMore(page)
+      const sys = await page.evaluate(() => {
+        const d = document.createElement('div')
+        d.style.color = 'ButtonBorder'
+        document.body.append(d)
+        const c = getComputedStyle(d).color
+        d.remove()
+        return c
+      })
+      for (const i of [0, 1]) {
+        const btn = toggles(page).nth(i)
+        const border = await btn.evaluate((el) => getComputedStyle(el).borderTopColor)
+        expect(border, `toggle ${i}: forced colours own the border`).toBe(sys)
+        const m = await boundary(page, btn)
+        console.log(`[btn] forced toggle ${i} rest: L ${m.left.vsOut}/${m.left.vsFace} T ${m.top.vsOut}/${m.top.vsFace}`)
+        expectBoundary(`forced toggle ${i}`, m)
+        await tabTo(page, btn)
+        const oc = await btn.evaluate((el) => {
+          const c = getComputedStyle(el)
+          return { style: c.outlineStyle, width: c.outlineWidth }
+        })
+        expect(oc.style).toBe('solid')
+        expect(oc.width).toBe('2px')
+      }
+    })
+  })
+
+  // The contract covers EVERY enabled `.btn` in a sheet, not only the two toggles: the Filters
+  // sub-sheet's "Clear filters" is `disabled` while nothing is hidden (WCAG 1.4.11 exempts it; it
+  // still takes the control border, faded by `.btn:disabled` opacity 0.4) and, once a filter is on,
+  // an ordinary enabled button whose boundary must measure ≥ 3:1 too.
+  for (const scheme of ['light', 'dark'] as const) {
+    test(`${scheme}: Filters sheet "Clear filters" — disabled while nothing is hidden, ≥ 3:1 boundary once enabled`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme })
+      await loadDiagram(page)
+      await openMore(page)
+      await page.locator('.sheet .sheet__row', { hasText: 'Filters' }).first().click()
+      const clear = page.locator('.sheet .lgr-filter__clear')
+      await expect(clear).toBeDisabled()
+      const off = await clear.evaluate((el) => ({ opacity: getComputedStyle(el).opacity, border: getComputedStyle(el).borderTopColor }))
+      expect(off.opacity).toBe('0.4')
+      await page.locator('.sheet input[type=checkbox]').first().check()
+      await expect(clear).toBeEnabled()
+      await page.mouse.move(2, 2)
+      await page.waitForTimeout(150)
+      const on = await clear.evaluate((el) => ({ opacity: getComputedStyle(el).opacity, border: getComputedStyle(el).borderTopColor }))
+      expect(on.opacity).toBe('1')
+      expect(on.border, 'the same control border as the toggles').toBe(off.border)
+      const m = await boundary(page, clear)
+      console.log(`[btn] ${scheme} clear-filters enabled: L ${m.left.vsOut}/${m.left.vsFace} T ${m.top.vsOut}/${m.top.vsFace}`)
+      expectBoundary(`${scheme} clear-filters enabled`, m)
+    })
+  }
+
+  test('EN / KO / JA at 390 and 320 px: the toggles stay inside their rows and the sheet, one line, no sideways scroll', async ({ page }) => {
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 })
+      await loadDiagram(page)
+      for (const code of ['en', 'ko', 'ja']) {
+        await page.evaluate((c) => {
+          const loop = (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (l: string) => void } } } }).__loop
+          loop.i18n.getState().setLocale(c)
+        }, code)
+        await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+        if (!(await page.locator('.sheet').first().isVisible())) await openMore(page)
+        await expect(toggles(page)).toHaveCount(2)
+        for (const i of [0, 1]) {
+          const btn = toggles(page).nth(i)
+          const bb = (await btn.boundingBox())!
+          const rb = (await rowOf(btn).boundingBox())!
+          const sb = (await page.locator('.sheet').first().boundingBox())!
+          expect(rectInside(bb, rb.x + rb.width, rb.y + rb.height) && bb.x >= rb.x - 1 && bb.y >= rb.y - 1, `${code}@${width} toggle ${i} inside its row`).toBe(true)
+          expect(bb.x + bb.width, `${code}@${width} toggle ${i} inside the sheet`).toBeLessThanOrEqual(sb.x + sb.width + 1)
+          expect(bb.height, `${code}@${width} toggle ${i} label on one line`).toBeLessThan(36)
+        }
+        await noHScroll(page)
+        await page.keyboard.press('Escape')
+        await expect(page.locator('.sheet').first()).toBeHidden()
+      }
+    }
+  })
 })
