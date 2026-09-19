@@ -44,6 +44,8 @@ jobs:
         run: npm run check:i18n-surface
       - name: Template label overlay — no missing / stale / duplicate dictionary id
         run: npm run check:template-labels
+      - name: Visual snapshot policy — every baseline under exactly one tolerance, every shot through snap()
+        run: npm run check:snapshot-policy
       - name: Web build
         run: npm run build
       - name: Portable build

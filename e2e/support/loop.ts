@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as base, expect, type Locator, type Page } from '@playwright/test'
+import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
 
 // Base test: fails automatically on any console.error or uncaught page error,
 // plus small helpers for reaching the app's Zustand stores through the dev-only
@@ -44,6 +45,20 @@ export const test = base.extend<{ errors: string[]; _tourSeed: void }>({
 })
 
 export { expect }
+
+/** docs/visual-snapshot-policy.md — the ONLY way to take a pixel snapshot.
+ *  Resolves the tolerance from the stem + the running project and returns the
+ *  `toHaveScreenshot` argument pair, so a call reads
+ *  `toHaveScreenshot(...snap(page, 'stem', { mask }))`. An unregistered stem
+ *  throws here (and fails scripts/check-snapshot-policy.mjs). */
+export function snap(
+  _page: Page,
+  stem: string,
+  extra: { mask?: Locator[]; [option: string]: unknown } = {},
+): [string, { maxDiffPixelRatio: number; mask?: Locator[] }] {
+  const kind = snapshotKind(stem, base.info().project.name)
+  return [`${stem}.png`, { ...extra, maxDiffPixelRatio: SNAPSHOT_POLICY[kind].maxDiffPixelRatio }]
+}
 
 export async function openApp(page: Page): Promise<void> {
   await page.goto('/')

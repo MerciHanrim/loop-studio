@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 
 // docs/large-graph-readability.md — Slice 1: the global hit-test rule + the
 // selection-driven focus view + de-emphasis. Render / UI-only: no GraphDoc,
@@ -1336,9 +1336,7 @@ test.describe('LGR Slice 3 — run distinction (evaluated vs effective)', () => 
     // The frame reads, left→right: Feed/Busy = effective · Idle(selected)+Waste
     // = evaluated · Store = value changed, no cue · Iso = idle · P1/R1/Rbad =
     // model nodes, no cue (Rbad also carries the `!` flag).
-    await expect(page.locator('.react-flow')).toHaveScreenshot('run-distinction-states.png', {
-      maxDiffPixelRatio: 0.02,
-    })
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'run-distinction-states'))
   })
 
   test('§LGR12.3 the selection count never overlaps the canvas or a node in the run-distinction frame', async ({ page }) => {
@@ -2009,9 +2007,7 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
     await expect(node(page, 'gate0').locator('.nodef__activity')).toHaveCount(0)
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
 
-    await expect(page.locator('.react-flow')).toHaveScreenshot('frames-activity.png', {
-      maxDiffPixelRatio: 0.02,
-    })
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'frames-activity'))
   })
 })
 
@@ -2412,7 +2408,7 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await expect(page.locator('.lgr-frame--auto .lgr-frame__label')).toHaveText([/Area 1/, /Area 2/])
     await page.evaluate(() => window.getSelection()?.removeAllRanges())
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
-    await expect(page.locator('.react-flow')).toHaveScreenshot('auto-frames.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'auto-frames'))
   })
 
   test('VISUAL — auto-frames-mixed.png: a promoted solid Group N frame + a manual frame overlapping an auto frame (auto behind manual) + the stale dot on Suggest', async ({ page }) => {
@@ -2434,7 +2430,7 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await expect(suggestBtn(page)).toHaveClass(/is-stale/)
     await page.evaluate(() => window.getSelection()?.removeAllRanges())
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
-    await expect(page.locator('.react-flow')).toHaveScreenshot('auto-frames-mixed.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'auto-frames-mixed'))
   })
 })
 
@@ -2684,12 +2680,12 @@ test.describe('LGR frame colour (§FC)', () => {
     await loadFCVisual(page, 'light')
     await expect(page.locator('.lgr-frame__fill[data-color]')).toHaveCount(5)
     await expect(page.locator('.lgr-frame__fill--auto')).toHaveCount(2)
-    await expect(page).toHaveScreenshot('frame-colours.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page).toHaveScreenshot(...snap(page, 'frame-colours'))
   })
 
   test('VISUAL — frame-colours-dark.png: the same arrangement, dark theme', async ({ page }) => {
     await loadFCVisual(page, 'dark')
-    await expect(page).toHaveScreenshot('frame-colours-dark.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page).toHaveScreenshot(...snap(page, 'frame-colours-dark'))
   })
 
   test('VISUAL — frame-colours-overlap.png: two accented frames overlapping still pass nodes / edges through', async ({ page }) => {
@@ -2698,13 +2694,13 @@ test.describe('LGR frame colour (§FC)', () => {
     await fcAdd(page, { x: 300, y: -60, w: 520, h: 320 }, 'Two', 'gold')
     await fcSelect(page, null)
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
-    await expect(page).toHaveScreenshot('frame-colours-overlap.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page).toHaveScreenshot(...snap(page, 'frame-colours-overlap'))
   })
 
   test('VISUAL — frame-colours-forced.png: forced-colors — manual / auto / selected still tell apart with the palette dropped', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadFCVisual(page, 'light')
-    await expect(page).toHaveScreenshot('frame-colours-forced.png', { maxDiffPixelRatio: 0.02 })
+    await expect(page).toHaveScreenshot(...snap(page, 'frame-colours-forced'))
     await page.emulateMedia({ forcedColors: null })
   })
 })

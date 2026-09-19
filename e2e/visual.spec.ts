@@ -6,6 +6,7 @@ import {
   readFixture,
   resetAll,
   runMc,
+  snap,
   test,
 } from './support/loop'
 
@@ -13,7 +14,7 @@ import {
 // pixel snapshots in the suite; the other visual specs added theirs later).
 // Everything is pinned (fixture graph, baseSeed 1, 200 × 30, the 4 tracked
 // Pools, Dice Pool selected) so the band geometry is identical run to run; OS
-// font AA is absorbed by the config's maxDiffPixelRatio.
+// font AA is absorbed by the `element` tolerance (docs/visual-snapshot-policy.md).
 
 async function distributionReady(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page)
@@ -43,7 +44,7 @@ test.describe('Distribution — visual', () => {
   test('light — Pool selector shown, mean off', async ({ page }) => {
     await distributionReady(page)
     await expect(page.locator('.band__mean')).toHaveAttribute('aria-pressed', 'false')
-    await expect(page.locator('.timeline__panel')).toHaveScreenshot('distribution-light.png')
+    await expect(page.locator('.timeline__panel')).toHaveScreenshot(...snap(page, 'distribution-light'))
   })
 
   test('dark — mean on', async ({ page }) => {
@@ -53,6 +54,6 @@ test.describe('Distribution — visual', () => {
     await page.locator('.band__mean').click()
     await expect(page.locator('.band__mean')).toHaveAttribute('aria-pressed', 'true')
 
-    await expect(page.locator('.timeline__panel')).toHaveScreenshot('distribution-dark.png')
+    await expect(page.locator('.timeline__panel')).toHaveScreenshot(...snap(page, 'distribution-dark'))
   })
 })

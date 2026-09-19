@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 
 // docs/visual-language.md §VL7 / §VL8 / §VL11.2 / §VL12 — the Canvas Visual
 // Refresh acceptance MATRIX, with real pixels, not only the DOM.
@@ -105,7 +105,6 @@ async function expectStepped(page: Page, level: Level): Promise<void> {
 
 const shotOpts = (page: Page) => ({
   mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
-  maxDiffPixelRatio: 0.02,
 })
 
 // Desktop shows selection + keyboard focus ON the canvas. Mobile's tap opens the
@@ -134,7 +133,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await focusGold(page) // desktop: keyboard-focus AFTER the run-bar click stole it
       await setLod(page, level)
       await expectStepped(page, level)
-      await expect(page.locator('.react-flow')).toHaveScreenshot(`matrix-${scheme}-${level}.png`, shotOpts(page))
+      await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `matrix-${scheme}-${level}`, shotOpts(page)))
     })
   }
 }
@@ -227,7 +226,7 @@ for (const level of ['L2', 'L0'] as const) {
     await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /^M14 12 H110 /)
 
     await expectStepped(page, level)
-    await expect(page.locator('.react-flow')).toHaveScreenshot(`forced-colors-${level}.png`, shotOpts(page))
+    await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, `forced-colors-${level}`, shotOpts(page)))
     await page.emulateMedia({ forcedColors: null })
   })
 }
