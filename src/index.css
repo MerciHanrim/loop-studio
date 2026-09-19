@@ -24,6 +24,13 @@
   --line-strong: #8c887e;
   --line-focus: var(--focus-ring);
   --line-disabled: #e7e5de;
+  /* a CONTROL's boundary on a panel / sheet (WCAG 1.4.11): >= 3:1 against the
+     panel, against a hovered / focused row (`--surface-sunken`) and against the
+     control's own face, in both themes. `--line-structure` is a layout line
+     (1.78:1 on a light panel), never a 1 px control boundary. Declared once:
+     `var()` resolves on :root, so the dark blocks' text tokens carry it. */
+  --line-control: var(--text-tertiary);
+  --line-control-hover: var(--text-secondary);
 
   /* — edges: measured against --surface-canvas — */
   --edge-resource: #adaaa1; /* ~2.2:1 on canvas */
@@ -4729,6 +4736,18 @@ input[type='number']::-webkit-inner-spin-button {
     margin-left: auto;
     font-size: 12px;
     color: var(--text-tertiary);
+  }
+  /* §MV5 — a `.btn` inside a sheet (the More sheet's Focus / Activity toggles,
+     Theme, Language, the sub-sheets' buttons) draws its 1 px boundary in the
+     control tokens: audit 2026-09-19 measured the shared `--line-structure`
+     border at 1.78:1 (light) / 2.54:1 (dark) against the sheet and the hovered
+     `--line-strong` at 2.88:1 against the sunken row. Ghost and primary
+     buttons keep their own border contract. */
+  .sheet .btn:not(.btn--ghost):not(.btn--primary) {
+    border-color: var(--line-control);
+  }
+  .sheet .btn:not(.btn--ghost):not(.btn--primary):hover:not(:disabled) {
+    border-color: var(--line-control-hover);
   }
   .sheet__stamp {
     padding: 10px 10px 2px;
