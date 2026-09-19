@@ -4,6 +4,19 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## Unreleased
+
+### Changed
+
+- **Clicking a node no longer rebuilds every orthogonal route** — the route
+  map is now keyed on the layout it was built from (node bounds and visibility,
+  the orthogonal edges' endpoints, handles and waypoints) instead of on array
+  identity, so a selection change, which hands the canvas a new node array,
+  reuses the current generation. Moving, resizing, hiding a node or changing an
+  edge's routing input still rebuilds, and a rebuild is byte-identical to a
+  fresh load. On the two largest bundled templates a click used to spend
+  18–27 ms (CPU ×1) or 90–130 ms (CPU ×4) rerouting.
+
 ## v0.11.0 — 2026-09-19
 
 Selecting several nodes becomes a visible, named feature; the orthogonal

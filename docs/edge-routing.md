@@ -274,6 +274,16 @@ routeMapKey = stableStringify({
 - `q(v)` is the §ER3.5 quantiser (`-0 → 0`, round-half-away-from-zero).
 - **Every** obstacle's geometry is in the key — the whole node set, not just
   nodes incident to a given edge (crossing / shared-path cost couples them).
+- **Implementation (`src/store/routeMap.ts`):** the array identities are
+  checked first (free), then a `layoutSignature` — every node's `id`,
+  position, measured bounds and `hidden` flag, and every orthogonal edge's id,
+  endpoints, handles and waypoints, as structured JSON (never a delimiter
+  join: ids are user data). Same signature ⇒ same generation, so a `select`
+  change or a label edit — which hand React Flow a new `nodes` array — no
+  longer rebuild the map; a move, a resize, a hide, a route toggle, a handle or
+  waypoint change, or an added / removed node or edge still do. Raw (not
+  quantised) values are used, which can only rebuild more often, never reuse
+  wrongly.
 - **Excluded** (current decision, correct): zoom, pan, viewport transform,
   hover, selection, keyboard focus, theme / `data-theme`, `prefers-*`, sim
   status / step / run cue, any animation frame.
@@ -296,9 +306,13 @@ orthogonal-edge set does **not** recompute incident edges only:
    from the same `routeMapKey` produce the **identical** route map
    (ER-INV-3 / acceptance §ER12.4).
 
-During an active node drag the preview uses the L/Z fallback (`routeClass`
-`fallback-lz`) for edges incident to the dragged node; the atomic full pass runs
-once on `dragstop`.
+During a node drag every pointer move changes the dragged node's bounds, so
+every move is a `routeMapKey` change and runs the atomic full pass — the edges
+drawn mid-drag are always canonical routes; there is no separate drag-time
+preview or L/Z substitute (the cost of that pass is what §ER3.1's router
+budget and the per-obstacle lattice keep small). A `nodes` / `edges` change
+that leaves the key unchanged — a selection, a drag flag, a label or value edit
+— reuses the current generation without recomputing (§ER3.8).
 
 ---
 
