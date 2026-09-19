@@ -328,7 +328,7 @@ test.describe('contextual inline help — post-tour cooldown (§CIH2.3a)', () =>
 })
 
 test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
-  test('lists all four hints; "Show again next time" re-arms without forcing immediate display', async ({ page }) => {
+  test('lists all five hints; "Show again next time" re-arms without forcing immediate display', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await settleTour(page)
@@ -339,7 +339,9 @@ test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
     await page.getByRole('menuitem').filter({ hasText: 'Contextual help' }).click()
     const dlg = page.locator('.mcdlg--contextual-help')
     await expect(dlg).toBeVisible()
-    await expect(dlg.locator('.contextual-help__row')).toHaveCount(4)
+    // four CIH v1 hints + the spreadsheet-import hint (docs/data-import.md §DI17)
+    await expect(dlg.locator('.contextual-help__row')).toHaveCount(5)
+    await expect(dlg.locator('.contextual-help__row').filter({ hasText: 'Spreadsheet import' })).toHaveCount(1)
 
     // never-yet-shown (Review) and just-rearmed (empty-canvas, below) are the
     // SAME underlying state (`!seen[id]`) — both read "Waiting to show next

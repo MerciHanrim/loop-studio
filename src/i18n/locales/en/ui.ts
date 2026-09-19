@@ -327,6 +327,11 @@ const ui = {
   'hint.emptyCanvas.body': 'Start from a Template, or drag node types in from the left panel.',
   'hint.mc.body': 'Monte Carlo runs the model many times and shows a spread of outcomes, not a single prediction.',
   'hint.review.body': 'Reviewing a proposal never changes your open project — nothing moves until you apply it.',
+  // docs/data-import.md §DI17 — shown once, right after the first spreadsheet import lands
+  'hint.importFirstCommit.body':
+    "{n, plural, one {# Parameter} other {# Parameters}} added from {tables}. Their values are in the Inputs panel. To use one in a Register, type @ in its expression and pick the name; a connection's flow field and an Activator offer the same picker.",
+  'help.contextual.hint.import.name': 'Spreadsheet import',
+  'help.contextual.hint.import.desc': 'Shown once, right after the first spreadsheet import lands on the canvas.',
   'hint.focusFilter.body': 'Graph getting busy? Focus dims everything but one node’s neighbourhood; Filter hides node or connection types.',
   'help.contextual.menuLabel': 'Contextual help',
   'help.contextual.title': 'Contextual help',

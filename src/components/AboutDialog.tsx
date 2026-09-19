@@ -14,7 +14,7 @@ import { useDialogFocus } from './useDialogFocus'
 // at the project repository; its visible text and accessible name are keyed
 // (`about.repo` / `about.repoAria`), the href is fixed. It opens in a new tab.
 
-const REPO_URL = 'https://github.com/MerciHanrim/loop-studio'
+export const REPO_URL = 'https://github.com/MerciHanrim/loop-studio'
 
 type Props = {
   open: boolean

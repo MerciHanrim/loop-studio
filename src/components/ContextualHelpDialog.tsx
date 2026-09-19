@@ -27,6 +27,7 @@ const HINTS: readonly { id: HintId; name: MessageKey; desc: MessageKey }[] = [
   { id: 'mc-first-open', name: 'help.contextual.hint.mc.name', desc: 'help.contextual.hint.mc.desc' },
   { id: 'review-first-open', name: 'help.contextual.hint.review.name', desc: 'help.contextual.hint.review.desc' },
   { id: 'focus-filter-discovery', name: 'help.contextual.hint.focusFilter.name', desc: 'help.contextual.hint.focusFilter.desc' },
+  { id: 'import-first-commit', name: 'help.contextual.hint.import.name', desc: 'help.contextual.hint.import.desc' },
 ] as const
 
 type Props = {

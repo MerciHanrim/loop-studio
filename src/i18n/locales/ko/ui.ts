@@ -327,6 +327,10 @@ const ui = {
   'hint.emptyCanvas.body': '템플릿으로 시작하거나, 왼쪽 패널에서 노드 유형을 끌어다 놓으세요.',
   'hint.mc.body': '몬테카를로는 모델을 여러 번 실행해 결과의 분포를 보여줍니다. 단일 예측이 아닙니다.',
   'hint.review.body': '제안을 검토해도 현재 열린 프로젝트는 바뀌지 않습니다 — 적용하기 전까지는 아무것도 변경되지 않습니다.',
+  'hint.importFirstCommit.body':
+    '{tables}에서 {n, plural, other {파라미터 #개}}를 추가했습니다. 값은 입력 패널에 있습니다. 레지스터에서 쓰려면 수식에 @를 입력해 이름을 고르세요. 연결의 flow 필드와 활성자에도 같은 선택기가 있습니다.',
+  'help.contextual.hint.import.name': '스프레드시트 가져오기',
+  'help.contextual.hint.import.desc': '첫 스프레드시트 가져오기가 캔버스에 놓인 직후 한 번 표시됩니다.',
   'hint.focusFilter.body': '그래프가 복잡해졌나요? 포커스는 선택한 노드 주변만 남기고 나머지를 흐리게 하고, 필터는 노드나 연결 유형을 숨깁니다.',
   'help.contextual.menuLabel': '상황별 도움말',
   'help.contextual.title': '상황별 도움말',

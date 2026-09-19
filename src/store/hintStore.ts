@@ -14,7 +14,11 @@ import { useUiStore } from './uiStore'
 // only ever hides that one currently-mounted instance (`closedThisInstance`,
 // local to the component in HintNote.tsx).
 
-export type HintId = 'empty-canvas' | 'mc-first-open' | 'review-first-open' | 'focus-filter-discovery'
+// `import-first-commit` — docs/data-import.md §DI17: shown once, right after
+// the first spreadsheet import lands on the canvas (tier 1 in §CIH2.3a —
+// it follows a deliberate action and takes the slot over the auto-frame
+// suggest note).
+export type HintId = 'empty-canvas' | 'mc-first-open' | 'review-first-open' | 'focus-filter-discovery' | 'import-first-commit'
 
 export const HINT_STORAGE_KEY = 'loop-studio/contextual-help/1'
 

@@ -73,6 +73,9 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'ko-long-label-and-tip': { chromium: 'desktop-full-page' },
   'ko-mobile-app': { chromium: 'mobile-full-page' }, // a 390×844 viewport set by test.use() inside the chromium project
   'ko-inspector': { chromium: 'element' },
+  // data-import-guide.spec.ts — the import dialog itself (docs/data-import.md §DI17)
+  'data-import-quickstart': { chromium: 'element' },
+  'data-import-inline-errors': { chromium: 'element' },
   'ko-monte-carlo': { chromium: 'element' },
   'ko-review': { chromium: 'element' },
   // state-ui.spec.ts / minimap.spec.ts / visual.spec.ts — element captures

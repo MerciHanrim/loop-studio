@@ -74,6 +74,19 @@ export function DataImportMenu({
           >
             <span className="menu__name">{t('import.menu.manage')}</span>
           </button>
+          {/* docs/data-import.md §DI17 — the in-app guide entry: the same
+              wizard, with its quick-start block forced open. */}
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            onClick={() => {
+              setMenuOpen(false)
+              onOpenDialog({ kind: 'dataImport-wizard', quickStart: true })
+            }}
+          >
+            <span className="menu__name">{t('import.menu.guide')}</span>
+          </button>
         </div>
       )}
     </div>

@@ -114,7 +114,8 @@ export function shiftUntilClear(rect: Rect, obstacles: Rect[]): Rect | null {
 }
 
 /** One generated Parameter's source cell -- a (table, row, number-column). */
-type Cell = { table: ValidatedTable; row: ValidatedRow; columnId: string; header: string }
+export type ImportCell = { table: ValidatedTable; row: ValidatedRow; columnId: string; header: string }
+type Cell = ImportCell
 
 function allCells(tables: readonly ValidatedTable[]): Cell[] {
   const out: Cell[] = []
@@ -185,6 +186,70 @@ function findFreeGridOrigin(frame: SavedFrame, cols: number, rowsNeeded: number,
   return null
 }
 
+// -- docs/data-import.md §DI17 -- the ONE computation behind every count the
+// wizard shows (the per-table status line after validation, the placement
+// step's "N Parameters …", the review breakdown) AND behind the commit
+// itself: `buildImportCommit` builds its nodes from `summarizeImportPlan(...)
+// .cells`, so a number on screen can never drift from what gets created.
+
+export type ImportPlanTableSummary = {
+  sourceTableId: string
+  label: string
+  /** effective data rows in the validated plan */
+  rows: number
+  numberColumns: number
+  /** rows × numberColumns -- one Parameter per (row, Number column) */
+  parameters: number
+  /** a table with no Number column: it enriches labels / groups, creates nothing */
+  lookupOnly: boolean
+  /** frames this table creates under `framePerTable` (one per group-by value,
+   *  else one; a lookup-only table never gets a frame) -- 0 for other kinds */
+  frames: number
+}
+export type ImportPlanSummary = {
+  tables: ImportPlanTableSummary[]
+  totalTables: number
+  totalParameters: number
+  lookupOnlyTables: number
+  framesToCreate: number
+  /** the exact cells the commit materializes, in creation order */
+  cells: ImportCell[]
+}
+
+/** §DI10 -- the label one generated Parameter gets: `<table> · <row's
+ *  composed label> · <column header>`. Used by the commit AND by the review
+ *  step's label preview (§DI17), so the preview can never drift. */
+export function cellLabel(tables: readonly ValidatedTable[], cell: ImportCell): string {
+  const { text } = composeFullRowLabel(tables, cell.table, cell.row)
+  return `${cell.table.label} · ${text} · ${cell.header}`
+}
+
+export function summarizeImportPlan(plan: ValidatedImportPlan, placementKind: PlacementChoice['kind'] = 'none'): ImportPlanSummary {
+  const cells = allCells(plan.tables)
+  const tables: ImportPlanTableSummary[] = plan.tables.map((table) => {
+    const numberColumns = table.columns.filter((c) => c.role === 'number').length
+    const tableCells = cells.filter((c) => c.table === table)
+    const frames = placementKind === 'framePerTable' ? groupsForTable(table, tableCells).length : 0
+    return {
+      sourceTableId: table.sourceTableId,
+      label: table.label,
+      rows: table.rows.length,
+      numberColumns,
+      parameters: tableCells.length,
+      lookupOnly: numberColumns === 0,
+      frames,
+    }
+  })
+  return {
+    tables,
+    totalTables: tables.length,
+    totalParameters: cells.length,
+    lookupOnlyTables: tables.filter((t) => t.lookupOnly).length,
+    framesToCreate: tables.reduce((n, t) => n + t.frames, 0),
+    cells,
+  }
+}
+
 export function buildImportCommit(
   plan: ValidatedImportPlan,
   placement: PlacementChoice,
@@ -200,7 +265,8 @@ export function buildImportCommit(
     }
   }
 
-  const cells = allCells(plan.tables)
+  // §DI17 -- the same cell list the wizard's counts are computed from
+  const cells = summarizeImportPlan(plan, placement.kind).cells
   const hostNodeIds = new Set(host.nodes.map((n) => n.id))
   const mintedIds = new Set<string>()
   const ids: string[] = []
@@ -270,8 +336,7 @@ export function buildImportCommit(
 
   // -- build the Parameter nodes -----------------------------------------
   const createdNodes: LoopNode[] = cells.map((cell, i) => {
-    const { text } = composeFullRowLabel(plan.tables, cell.table, cell.row)
-    const label = `${cell.table.label} · ${text} · ${cell.header}`
+    const label = cellLabel(plan.tables, cell)
     return {
       id: ids[i],
       type: 'parameter',

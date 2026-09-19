@@ -79,11 +79,11 @@ test('once real data exists, a genuinely missing key column is still reported --
   await dialog(page).locator('.import__nameField input').fill('Items')
   await dialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,weight\nitm_a,10')
   await dialog(page).getByRole('button', { name: 'Next' }).click()
-  await expect(dialog(page).getByText(/No column is marked as the row key/)).toBeVisible()
+  await expect(dialog(page).getByText(/No column is marked Key/)).toBeVisible()
 
-  // the validate/error step's own Back button reads "Back to input", not a
-  // generic "Back"
-  await dialog(page).getByRole('button', { name: 'Back to input' }).click()
+  // docs/data-import.md §DI17 -- errors are INLINE: no separate step, the
+  // input stays on screen with the summary above it
+  await expect(dialog(page).locator('.import__issueSummary')).toBeVisible()
   await expect(dialog(page).locator('.import__nameField input')).toHaveValue('Items')
 })
 
@@ -126,8 +126,8 @@ test('a duplicate key blocks Commit until fixed', async ({ page }) => {
   await headerRow.locator('select').nth(1).selectOption('number')
 
   await dialog(page).getByRole('button', { name: 'Next' }).click()
-  // validation failed -> stays on the issues step, never reaches placement/commit
-  await expect(dialog(page).getByText(/problem/)).toBeVisible()
+  // validation failed -> stays on the input step with inline issues, never reaches placement/commit
+  await expect(dialog(page).locator('.import__issueSummary')).toContainText(/problem/)
   await expect(dialog(page).getByRole('button', { name: 'Import' })).toHaveCount(0)
 
   const before = await gs(page)

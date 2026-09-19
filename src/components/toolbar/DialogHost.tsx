@@ -61,6 +61,7 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
       />
       <DataImportWizard
         open={activeDialog?.kind === 'dataImport-wizard'}
+        forceQuickStart={activeDialog?.kind === 'dataImport-wizard' && activeDialog.quickStart === true}
         onClose={onClose}
         returnFocusTo={returnFocusTo}
       />

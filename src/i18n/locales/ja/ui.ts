@@ -359,6 +359,10 @@ const ui = {
   'hint.emptyCanvas.body': 'テンプレートから始めるか、左のパネルからノードの種類をドラッグしてください。',
   'hint.mc.body': 'モンテカルロはモデルを何度も実行し、単一の予測ではなく結果の広がりを示します。',
   'hint.review.body': '提案の確認は、開いているプロジェクトを一切変更しません — 適用するまで何も動きません。',
+  'hint.importFirstCommit.body':
+    '{tables}から{n, plural, other {パラメータ#個}}を追加しました。値は入力パネルにあります。レジスタで使うには式に @ を入力して名前を選びます。接続のflowフィールドとアクティベータにも同じ選択器があります。',
+  'help.contextual.hint.import.name': '表計算データの読み込み',
+  'help.contextual.hint.import.desc': '最初の表計算データの読み込みがキャンバスに置かれた直後に一度表示されます。',
   'hint.focusFilter.body':
     'グラフが混み合ってきましたか？ フォーカスは 1 つのノードの近傍以外を薄くし、フィルターはノードや接続の種類を隠します。',
   'help.contextual.menuLabel': '状況別ヘルプ',

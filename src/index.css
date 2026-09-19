@@ -4223,6 +4223,232 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 4px 0;
 }
 
+/* docs/data-import.md §DI17 — the in-tool guide: quick start, shared role
+   help, per-table count line, inline validation errors, review breakdown. */
+.import__quickstart {
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+.import__quickstartToggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius);
+}
+.import__quickstartToggle:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: -2px;
+}
+.import__quickstartBody {
+  padding: 0 10px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* `display: flex` above would otherwise beat the UA's `[hidden] { display:
+   none }` (same specificity, later rule) -- the collapsed quick start must
+   really not render, not just flip its aria-expanded. */
+.import__quickstartBody[hidden] {
+  display: none;
+}
+.import__quickstartBody p,
+.import__quickstartBody details p {
+  margin: 0;
+}
+.import__quickstartBody details p {
+  margin-top: 6px;
+}
+.import__quickstartBody summary {
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.import__quickstartLead {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.import__quickstartHeading {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-top: 4px;
+}
+.import__example {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-hairline);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+.import__quickstartResult {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.import__quickstartActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.import__guideLink {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.import__roleHelp {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__roleHelpTitle {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.import__roleHelp dl {
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+}
+.import__roleHelp dl > div {
+  display: contents;
+}
+.import__roleHelp dt {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.import__roleHelp dd {
+  margin: 0;
+}
+.import__status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__status.is-warn {
+  color: var(--warning);
+}
+.import__issueSummary {
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--warning);
+}
+.import__issueSummary:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 2px;
+}
+.import__issueSummary.is-stale {
+  border-color: var(--line-hairline);
+  color: var(--text-secondary);
+}
+.import__issues {
+  margin: 0;
+  padding-left: 18px;
+}
+.import__issueLink {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--warning);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+.import__issueLink:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 2px;
+}
+.import__issues.is-stale li,
+.import__issues.is-stale .import__issueLink {
+  color: var(--text-secondary);
+}
+.import__preview .is-bad {
+  outline: 2px solid var(--warning);
+  outline-offset: -2px;
+}
+.import__preview td:focus-visible,
+.import__preview th:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: -2px;
+}
+.import__tablesFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__linkTables summary {
+  cursor: pointer;
+}
+.import__linkTables p {
+  margin: 6px 0 0;
+  max-width: 60ch;
+}
+.import__placementHelp {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__placementResult {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__placement label > span {
+  display: flex;
+  flex-direction: column;
+}
+.import__reviewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.import__reviewTable th,
+.import__reviewTable td {
+  border: 1px solid var(--line-hairline);
+  padding: 4px 8px;
+  text-align: left;
+}
+.import__reviewTable .num {
+  text-align: right;
+}
+.import__reviewTable tfoot td {
+  font-weight: 600;
+}
+.import__labelsPreview {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.import__labelsPreview ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 /* Monte-Carlo — tracked-Pool selection */
 .mcdlg__pools {
   display: flex;
