@@ -577,6 +577,33 @@ engine computes.)*
   under a UA colour override); filtered elements stay hidden; `evaluated` vs
   `effective` use glyph / line-style. The app does not fight the override
   (§VL8).
+  - **Activity-overlay edge tell (measured 2026-09-19, two rounds; shipped
+    after v0.11.0).** The first tell, a `1 3` round-cap dash on the edge's own
+    grey stroke, read as a solid line at every zoom: with round caps and a
+    1.5 px width the gaps were 1.5 px (anti-aliasing closed them), the
+    dashes are already screen-px (`vector-effect: non-scaling-stroke`, so zoom
+    was never the cause), the inline `stroke` (`--edge-resource`, ≈ 2.2:1) is
+    not force-adjusted, and a state edge's inline `4 4` beat the forced rule
+    entirely. Contract now: an ACTIVE edge is `stroke: Highlight`
+    (`!important`, the same vocabulary as the node tint) with a butt-cap
+    pattern per edge class that reads apart from the inactive state edge's
+    `4 4` — resource `6 3 2 3` (dash-dot), state `8 4` (long dashes; an
+    activator-OFF state edge is made opaque here because its inline 0.5 halved
+    the tell to 2.0–2.6:1); `filter: none` (#239) stays. LoopEdge marks every
+    path `edge-resource` / `edge-state` and the state dash lives in CSS under
+    that class (light / dark computed styles byte-identical to the inline
+    version). A `route-invalid` edge is excluded from the active stroke, cap
+    and pattern: its `6 3` (resource) / `4 4` (state) dash and the `!` flag
+    stay, the invalid state outranking the activity tell (pinned on live
+    tinted edges of both kinds). Official shape-tell range: zoom **0.4–1.0**. At mmo's fit-view
+    zoom (≈ 0.255) only the colour tell remains — recorded as an observation,
+    not a gate, pending a real Windows high-contrast check. Regression:
+    `e2e/forced-colors-edge-tell.spec.ts` (computed contract, a 2-D dash-
+    component count at 0.4 / 0.75, route-invalid priority + `!` flag, two
+    element baselines). **Follow-up, not this change:** the INACTIVE edges are
+    still a ≈ 2.2:1 (resource) / ≈ 1.7:1 (state) grey under forced colours
+    because their stroke is inline; the class markers now make a forced
+    `stroke: CanvasText` rule possible.
 - **`prefers-reduced-motion: reduce`** — no animated dim transition (instant);
   the activity overlay steps between static states, its decay is not animated;
   run cues are static (§LGR5).

@@ -911,6 +911,20 @@ a.sheet__row {
   stroke: var(--warning);
   stroke-dasharray: 6 3;
 }
+/* §LGR9 — the two edge classes (LoopEdge sets exactly one). These used to be
+   inline styles; they moved here so a forced-colors rule can restyle an
+   active edge. Declared AFTER `.route-invalid` on purpose: a route-invalid
+   STATE edge keeps its `4 4` (the `!` flag is its invalid tell, §ER4), exactly
+   as the inline value used to win; a route-invalid RESOURCE edge still shows
+   the `6 3` warning dash. Rendering in light / dark is byte-identical to the
+   inline version (computed-style dump compared, 2026-09-19). */
+.react-flow__edge-path.edge-resource {
+  stroke-linecap: round;
+}
+.react-flow__edge-path.edge-state {
+  stroke-dasharray: 4 4;
+  stroke-linecap: butt;
+}
 .route-invalid-flag {
   pointer-events: none;
 }
@@ -2181,13 +2195,41 @@ a.sheet__row {
     stroke-dasharray: 2 2;
     opacity: 1 !important;
   }
+  /* §LGR9 (measured 2026-09-19, two rounds): the old `1 3` round-cap dash
+     left 1.5 px gaps that anti-aliasing closed at EVERY zoom (the dashes are
+     already screen-px — `vector-effect: non-scaling-stroke` above), and the
+     edge's inline grey stroke is not force-adjusted (≈ 2.2:1), so the tell was
+     lost below zoom ≈ 0.8. Now: the system Highlight colour (the same
+     vocabulary as `.nodef__activity`) plus a butt-cap pattern per edge class
+     that reads apart from the inactive state edge's `4 4` — resource: a
+     dash-dot, state: long dashes. Official shape-tell range 0.4–1.0; at the
+     mmo fit zoom (≈ 0.255) only the colour tell remains (observation, not a
+     gate). `!important` because the stroke is an inline style. A Focus-dimmed
+     (`.lgr-deemph`) edge keeps its own sparse `1 5` tell and its grey, and a
+     `.route-invalid` edge keeps its invalid tell (resource `6 3` / state `4 4`
+     + the `!` flag, §ER4) — the invalid state outranks the activity tell. */
+  .react-flow__edge:not(.lgr-deemph) .react-flow__edge-path.lgr-active-tint:not(.route-invalid) {
+    stroke: Highlight !important;
+  }
+  .react-flow__edge-path.lgr-active-tint:not(.route-invalid) {
+    stroke-linecap: butt;
+  }
   .react-flow__edge-path.lgr-active-tint {
-    stroke-dasharray: 1 3;
     /* the glow's `filter` is NOT dropped by a UA colour override, and its
        blurred halo filled the dash gaps on dense graphs (measured 2026-09-19:
        canvas-coloured samples along an mmo edge fell from 14–18 to 4–9 with
        the overlay on) — the dashes ARE the tell here, so no halo */
     filter: none;
+  }
+  .lgr-active-tint.edge-resource:not(.route-invalid) {
+    stroke-dasharray: 6 3 2 3;
+  }
+  .lgr-active-tint.edge-state:not(.route-invalid) {
+    stroke-dasharray: 8 4;
+    /* an activator-OFF state edge carries `opacity: 0.5` inline; composited
+       over the canvas that halved the Highlight tell to 2.0–2.6:1 (measured
+       at zoom 0.4–0.75). Opaque here only — light / dark keep the fade. */
+    opacity: 1 !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -76,6 +76,9 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   // data-import-guide.spec.ts — the import dialog itself (docs/data-import.md §DI17)
   'data-import-quickstart': { chromium: 'element' },
   'data-import-inline-errors': { chromium: 'element' },
+  // forced-colors-edge-tell.spec.ts — the Activity overlay's forced-colors edge tell (§LGR9)
+  'forced-active-resource-coffee-z05': { chromium: 'element' },
+  'forced-four-state-mmo-z075': { chromium: 'element' },
   'ko-monte-carlo': { chromium: 'element' },
   'ko-review': { chromium: 'element' },
   // state-ui.spec.ts / minimap.spec.ts / visual.spec.ts — element captures

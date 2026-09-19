@@ -2344,20 +2344,17 @@ test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard foc
           return { filter: c.filter, dash: c.strokeDasharray }
         })
         expect(st.filter, `${id}: no halo under forced colours`).toBe('none')
-        expect(st.dash, `${id}: dashed tell`).toBe('1px, 3px')
+        // the pattern itself (dash-dot, butt) and the Highlight stroke are
+        // pinned in forced-colors-edge-tell.spec.ts, with a 2-D dash count at
+        // zoom 0.4 / 0.75; here only the halo contract remains
+        expect(st.dash, `${id}: the resource tell`).toBe('6px, 3px, 2px, 3px')
         const inkOff = inkOffs[id]
         const inkOn = await inkCoverage(page, onPng, pts[id], 'path')
         expect(inkOff, `${id}: a visible stretch of the plain stroke was found`).toBeGreaterThan(0.3)
-        // The enforced contract is the computed `filter: none` above — the halo
-        // is faint by design (alpha 0.15 → a 3.9 px blur) and at the mmo fit-view
-        // zoom its pixel footprint sits inside measurement noise, so no pixel
-        // threshold can be both robust and discriminating there. What the
-        // pixels CAN pin: the tell only ever removes ink along the path (dashes
-        // expose the canvas) and never paints it back — measured 2026-09-19 (max
-        // ink within ±2 px, 48 samples, best of 7 stretches): with the fix
-        // on/off 0.48–0.89 on coffee, 0.97–1.08 on mmo (sub-pixel dashes); with
-        // the halo up to 1.20 on mmo.
-        expect(inkOn, `${id}: ink along the edge, on ${inkOn.toFixed(3)} vs off ${inkOff.toFixed(3)} — nothing may be painted back in`).toBeLessThanOrEqual(inkOff * 1.15)
+        // With the Highlight stroke the active edge is legitimately DARKER than
+        // the grey plain edge, so the old "nothing painted back in" ratio no
+        // longer applies; the halo's absence is the computed `filter: none`
+        // above. The edge must still be drawn.
         expect(inkOn, `${id}: the dashed edge is still drawn`).toBeGreaterThan(0.05)
       }
     })
