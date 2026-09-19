@@ -51,7 +51,7 @@ const dataImport = {
   'import.qs.body':
     '各行には一意のIDが入った列が1つ必要です。「数値」に指定した列は、行ごとに1つのパラメータになります。モデルへの接続は読み込み後に手動で行います。データはどこにも送信されず、元の表計算は変更されません。',
   'import.qs.exampleHeading': '最小の例',
-  'import.qs.mapping': 'item_id → {key} · item_name → {label} · price → {number} · drop_rate → {number}',
+  'import.qs.mapping': 'item_id: {key} · item_name: {label} · price: {number} · drop_rate: {number}',
   'import.qs.result': '2行 × 数値列2つ = パラメータ4個',
   'import.qs.useExample': 'この例を使う',
   'import.qs.tableLimit': 'テーブルの上限({max}件)に達しました — 先にテーブルを1つ削除してください。',

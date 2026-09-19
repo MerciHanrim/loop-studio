@@ -51,7 +51,7 @@ const dataImport = {
   'import.qs.body':
     'Each row needs one column with a unique ID. Every column you mark as Number becomes one Parameter per row. Connecting them to your model is still your step afterwards. Nothing is uploaded, and your spreadsheet is never changed.',
   'import.qs.exampleHeading': 'A minimal example',
-  'import.qs.mapping': 'item_id → {key} · item_name → {label} · price → {number} · drop_rate → {number}',
+  'import.qs.mapping': 'item_id: {key} · item_name: {label} · price: {number} · drop_rate: {number}',
   'import.qs.result': '2 rows × 2 Number columns = 4 Parameters',
   'import.qs.useExample': 'Use this example',
   'import.qs.tableLimit': 'The {max}-table limit is reached — remove a table first.',

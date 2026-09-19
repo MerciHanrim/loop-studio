@@ -408,7 +408,7 @@ test('visual: the quick start with the example loaded, and the inline error stat
     qs.locator('.import__quickstartToggle'),
     qs.locator('.import__quickstartLead'),
     qs.locator('.import__example'),
-    qs.getByText(/item_id → Key/),
+    qs.getByText(/item_id: Key · item_name: Label · price: Number · drop_rate: Number/),
     qs.getByText(/2 rows × 2 Number columns = 4 Parameters/),
     qs.getByRole('button', { name: 'Use this example' }),
     qs.getByRole('button', { name: 'Download sample CSV' }),
@@ -421,18 +421,21 @@ test('visual: the quick start with the example loaded, and the inline error stat
     expect(b.x).toBeGreaterThanOrEqual(dlg.x)
     expect(b.x + b.width).toBeLessThanOrEqual(dlg.x + dlg.width)
   }
-  // the `→` / `↗` glyphs come from a fallback font whose rasterisation
-  // differs between a local Windows machine and the CI runner (636 px on the
-  // first CI run) -- mask the two spans that carry them; their TEXT is
-  // asserted above and the rest of the copy stays pixel-guarded.
-  await expect(dialog(page)).toHaveScreenshot(
-    ...snap(page, 'data-import-quickstart', { mask: [qs.locator('.import__quickstartMapping'), qs.locator('.menu__ext')] }),
-  )
+  // the `↗` external-link glyph comes from a fallback font whose
+  // rasterisation differs between a local Windows machine and the CI runner
+  // -- mask that one small span only. (The mapping line used `→` for the
+  // same reason and is now written with `:` so it stays pixel-guarded.)
+  await expect(dialog(page)).toHaveScreenshot(...snap(page, 'data-import-quickstart', { mask: [qs.locator('.menu__ext')] }))
   // the inline-error scene is captured from the REAL error experience: the
   // user was at the table (where "Use this example" left them -- a second
   // click reuses the example card and restores that scroll position), then
   // pressed Next and focus moved to the summary
   await dialog(page).getByRole('button', { name: 'Use this example' }).click()
+  // "Use this example" moves focus to the card's name field on the next
+  // animation frame -- wait for that before pressing Next, or the deferred
+  // focus can land AFTER the summary took focus and steal it (seen once in
+  // 4 local runs).
+  await expect(dialog(page).locator('.import__nameField input').first()).toBeFocused()
   await dialog(page).locator('textarea.import__paste').fill(BAD_CSV)
   await dialog(page).getByRole('button', { name: 'Next' }).click()
   const summary = dialog(page).locator('.import__issueSummary')

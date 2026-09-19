@@ -51,7 +51,7 @@ const dataImport = {
   'import.qs.body':
     '각 행에는 고유 ID가 담긴 열이 하나 필요합니다. 숫자로 지정한 열은 행마다 파라미터 하나가 됩니다. 모델에 연결하는 작업은 가져온 뒤 직접 합니다. 데이터는 어디로도 전송되지 않고, 원본 스프레드시트는 바뀌지 않습니다.',
   'import.qs.exampleHeading': '최소 예제',
-  'import.qs.mapping': 'item_id → {key} · item_name → {label} · price → {number} · drop_rate → {number}',
+  'import.qs.mapping': 'item_id: {key} · item_name: {label} · price: {number} · drop_rate: {number}',
   'import.qs.result': '행 2개 × 숫자 열 2개 = 파라미터 4개',
   'import.qs.useExample': '예제 사용',
   'import.qs.tableLimit': '테이블 한도({max}개)에 도달했습니다 — 먼저 테이블을 하나 제거하세요.',
