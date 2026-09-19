@@ -30,9 +30,11 @@ comparison.
   `label` Pool modifiers, with in-canvas pulse / tint / flash feedback
 - **Simulation playback** — resources visibly depart, travel the real edge
   path, and arrive before values update, in dependency order
-- **Data import & collaboration** — spreadsheet data import with manual
-  refresh and a three-way diff, plus file-based project revisions &
-  proposals for asynchronous collaboration — no accounts, no server
+- **Data import & collaboration** — bring the numbers you already keep in a
+  spreadsheet (CSV/TSV paste or upload) in as adjustable Parameters, with a
+  manual refresh and a three-way diff — see [`docs/import-guide.md`](docs/import-guide.md);
+  plus file-based project revisions & proposals for asynchronous
+  collaboration — no accounts, no server
 - **Runs anywhere** — an installable offline PWA, a portable single-file
   build, shareable links, and a localized UI (EN / KO / JA)
 

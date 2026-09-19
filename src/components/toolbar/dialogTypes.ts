@@ -16,7 +16,10 @@ export type ToolbarDialog =
   | { kind: 'export-revision' }
   | { kind: 'export-workspace'; body: string; confirmLabel: string; run: () => void }
   | { kind: 'export-author' }
-  | { kind: 'dataImport-wizard' }
+  // docs/data-import.md §DI17 — `quickStart: true` (the Data menu's "How to
+  // prepare a spreadsheet…" entry) opens the wizard with its quick-start
+  // block expanded regardless of the persisted collapsed state.
+  | { kind: 'dataImport-wizard'; quickStart?: boolean }
   | { kind: 'dataImport-manage' }
   | { kind: 'about' }
   | { kind: 'contextualHelp' }

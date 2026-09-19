@@ -31,7 +31,8 @@ import { PanSurface } from './PanSurface'
 import { useFrameStore, hasFrames } from '../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames, autoFramesStale } from '../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from './frames/autoFrames'
-import { CanvasHintNote } from './HintNote'
+import { CanvasHintNote, useHintEligible } from './HintNote'
+import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
 import { useTourStore } from '../store/tourStore'
@@ -187,34 +188,14 @@ export function Canvas() {
   // (this only runs on a `fitRev` swap).
   const applyInitialView = useCallback(
     (iv: { rect: { x: number; y: number; width: number; height: number }; minZoom: number }) => {
-      if (paneW <= 0 || paneH <= 0) return void fitView({ padding: 0.3, maxZoom: 1.2 })
-      const mmOn = minimapVisibleRef.current
-      const INSET_L = 44 // zoom Controls
-      const INSET_R = mmOn ? 224 : 0 // minimap + its margin
-      const INSET_B = mmOn ? 176 : 0 // minimap height
-      const usableW = Math.max(160, paneW - INSET_L - INSET_R)
-      const usableH = Math.max(120, paneH - INSET_B)
-      // on a small pane, frame fewer of the rect's columns rather than let the
-      // right edge fall under the minimap at the floor zoom
-      const rectW = Math.min(iv.rect.width, (usableW - 8) / iv.minZoom)
-      const pad = 1.06
-      const zoom = Math.min(
-        1.2,
-        Math.max(iv.minZoom, Math.min(usableW / (rectW * pad), usableH / (iv.rect.height * pad))),
-      )
-      const contentH = iv.rect.height * zoom
-      setViewport(
-        {
-          x: INSET_L + 8 - iv.rect.x * zoom,
-          y:
-            contentH <= usableH
-              ? usableH / 2 - (iv.rect.y + iv.rect.height / 2) * zoom
-              : 12 - iv.rect.y * zoom,
-          zoom,
-        },
-        { duration: 0 },
-      )
-      if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: INSET_R, insetB: INSET_B, zoom }
+      // the computation itself lives in `canvasFit.ts` (shared with the
+      // import wizard's post-commit view, docs/data-import.md §DI17); the
+      // insets are this Canvas's own overlays.
+      const insets = canvasFitInsets(minimapVisibleRef.current)
+      const vp = viewportForRect(iv.rect, { width: paneW, height: paneH }, insets, { floor: iv.minZoom, ceil: 1.2 })
+      if (!vp) return void fitView({ padding: 0.3, maxZoom: 1.2 })
+      setViewport(vp, { duration: 0 })
+      if (import.meta.env.DEV) lastInitialViewRef.current = { insetR: insets.right, insetB: insets.bottom, zoom: vp.zoom }
     },
     [paneW, paneH, setViewport, fitView],
   )
@@ -304,7 +285,17 @@ export function Canvas() {
   // docs/contextual-inline-help.md §CIH2.3a — the two LGR notices below are
   // TIER 2; CIH's own canvas hints (empty-canvas, Focus/Filter discovery) are
   // TIER 3 and yield the shared top-center slot to either of these.
-  const lgrNoticeShowing = (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed)
+  // docs/data-import.md §DI17 / §CIH2.3a tier 1 — the one-shot hint right
+  // after the first spreadsheet import lands. It follows a deliberate action
+  // (the Import button), so it takes the `top-center` slot over the tier-2
+  // auto-frame suggest note (which yields below) and, like every hint, over
+  // the tier-3 discovery hints. Its trigger is the wizard's `lastImportBatch`,
+  // cleared when the wizard opens again — after which the note retires for
+  // good (a second import never re-shows it).
+  const lastImportBatch = useUiStore((s) => s.lastImportBatch)
+  const importHint = useHintEligible('import-first-commit', lastImportBatch !== null, tourIdle)
+  const importHintShowing = importHint.eligible && lastImportBatch !== null
+  const lgrNoticeShowing = (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed) || importHintShowing
   const hidden = useHiddenSet()
   // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
   // filtered element is gone, tint and all) and independently of dim (a
@@ -695,7 +686,20 @@ export function Canvas() {
         {/* docs/…-auto-frames.md §AF9.2 — while suggested frames are on screen,
             a one-line note that they are STRUCTURAL, not domain regions. Never
             takes the pointer. */}
-        {autoFramesExist && !suggestNoteDismissed && (
+        {importHintShowing && lastImportBatch && (
+          <Panel position="top-center" className="hint-note" role="note">
+            <span>
+              {t('hint.importFirstCommit.body', {
+                n: lastImportBatch.count,
+                tables: lastImportBatch.tables.map((l) => `"${l}"`).join(', '),
+              })}
+            </span>
+            <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={importHint.close}>
+              ✕
+            </button>
+          </Panel>
+        )}
+        {autoFramesExist && !suggestNoteDismissed && !importHintShowing && (
           <Panel position="top-center" className="lgr-suggest-note">
             <span>{t('canvas.frame.suggestNote')}</span>
             <button

@@ -118,6 +118,16 @@ type UiState = {
   togglePanMode: () => void
 
   /**
+   * docs/data-import.md §DI17 — the batch the LAST spreadsheet import created
+   * this session, for the one-shot `import-first-commit` canvas hint. Set by
+   * the wizard right after a successful commit, cleared when the wizard opens
+   * again (so the hint's own trigger goes false and it retires). Session-only:
+   * never serialized, digested, undone, or seen by the engine.
+   */
+  lastImportBatch: { count: number; firstId: string; tables: string[] } | null
+  setLastImportBatch: (v: { count: number; firstId: string; tables: string[] } | null) => void
+
+  /**
    * docs/large-graph-readability.md §LGR12 — the one-shot **region select**
    * tool. Armed ⇒ a pane drag rubber-bands a selection box instead of panning;
    * releasing it confirms the selection and disarms. Session-only, never
@@ -310,6 +320,9 @@ export const useUiStore = create<UiState>((set, get) => ({
     }),
 
   // docs/dense-graph-pan.md — session-only, no persistence.
+  lastImportBatch: null,
+  setLastImportBatch: (v) => set({ lastImportBatch: v }),
+
   panMode: false,
   setPanMode: (v) => set((s) => (s.panMode === v ? s : { panMode: v })),
   togglePanMode: () => set((s) => ({ panMode: !s.panMode })),

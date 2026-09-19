@@ -253,6 +253,65 @@ function effectiveRows(draft: TableDraft): string[][] {
   return draft.parsedRows.slice(start, Math.max(start, end))
 }
 
+function rowRangeValid(draft: TableDraft): boolean {
+  return (
+    Number.isInteger(draft.headerRowIndex) &&
+    draft.headerRowIndex >= 1 &&
+    Number.isInteger(draft.ignoreLastNRows) &&
+    draft.ignoreLastNRows >= 0
+  )
+}
+
+// -- docs/data-import.md §DI17 -- the input-step status line ----------------
+
+export type DraftCounts = {
+  /** effective data rows (0 when the header/ignore fields are invalid) */
+  rows: number
+  /** the header of the single key-role column, or null when none / several */
+  keyHeader: string | null
+  keyCount: number
+  numberColumns: number
+  /** rows × numberColumns -- the same product `summarizeImportPlan` reports
+   *  once the draft validates (pinned by dataImportSummary.test.ts) */
+  parameters: number
+}
+
+/** Counts for a draft BEFORE validation -- what the wizard's per-table status
+ *  line shows while the user is still assigning roles. Uses the same row
+ *  slicing rule as `validateDrafts` so the number can only ever differ from
+ *  the validated plan when validation itself refuses the draft. */
+export function previewDraftCounts(draft: TableDraft): DraftCounts {
+  const rows = rowRangeValid(draft) ? effectiveRows(draft).length : 0
+  const keyColumns = draft.columns.filter((c) => c.role === 'key')
+  const numberColumns = draft.columns.filter((c) => c.role === 'number').length
+  return {
+    rows,
+    keyHeader: keyColumns.length === 1 ? keyColumns[0].header : null,
+    keyCount: keyColumns.length,
+    numberColumns,
+    parameters: rows * numberColumns,
+  }
+}
+
+// -- docs/data-import.md §DI17 -- showing a user's cell inside an error -----
+
+const DISPLAY_MAX_CODE_POINTS = 40
+
+/** What an error message may show of a user cell: at most 40 code points
+ *  (then `…`), with newlines / tabs / other control characters replaced by
+ *  visible glyphs so a pasted multi-line or binary-ish cell can never
+ *  render as layout. Display only -- `Issue.detail.value` stays raw. */
+export function formatCellValueForDisplay(raw: string): string {
+  const visible = raw.replace(/[ -]/g, (ch) => {
+    if (ch === '\n' || ch === '\r') return '⏎'
+    if (ch === '\t') return '⇥'
+    const code = ch.charCodeAt(0)
+    return String.fromCodePoint(code === 0x7f ? 0x2421 : 0x2400 + code) // Control Pictures block
+  })
+  const points = [...visible]
+  return points.length > DISPLAY_MAX_CODE_POINTS ? points.slice(0, DISPLAY_MAX_CODE_POINTS).join('') + '…' : visible
+}
+
 // -- validateDrafts ----------------------------------------------------------
 
 export function validateDrafts(
@@ -330,7 +389,7 @@ export function validateDrafts(
     }
     for (const ci of fkColumnIndexes) {
       const refId = draft.columns[ci].refDraftId
-      if (!refId) errors.push({ code: 'missing-fk-target', tableIndex: ti, columnIndex: ci })
+      if (!refId) errors.push({ code: 'missing-fk-target', tableIndex: ti, columnIndex: ci, detail: { header: draft.columns[ci].header } })
       else if (!drafts.some((d) => d.sourceTableId === refId)) {
         // `refDraftId` is set but names no table in THIS batch — a stale
         // reference (e.g. the target table was removed after linking).
@@ -376,14 +435,17 @@ export function validateDrafts(
       let sourceKey: string | null = null
       if (keyColIdx !== undefined) {
         const raw = normalizeKey(row[keyColIdx] ?? '')
+        // §DI17 -- key issues carry the key column's index + header (+ the
+        // offending value) so the wizard can mark the cell and name it.
+        const keyHeader = draft.columns[keyColIdx].header
         if (raw === '') {
-          errors.push({ code: 'empty-key', tableIndex: ti, rowIndex: ri })
+          errors.push({ code: 'empty-key', tableIndex: ti, rowIndex: ri, columnIndex: keyColIdx, detail: { header: keyHeader } })
         } else if (utf8Len(raw) > SOURCE_KEY_MAX_BYTES) {
-          errors.push({ code: 'key-too-long', tableIndex: ti, rowIndex: ri, detail: { max: SOURCE_KEY_MAX_BYTES } })
+          errors.push({ code: 'key-too-long', tableIndex: ti, rowIndex: ri, columnIndex: keyColIdx, detail: { max: SOURCE_KEY_MAX_BYTES, header: keyHeader } })
         } else if (hasControlChar(raw)) {
-          errors.push({ code: 'key-control-char', tableIndex: ti, rowIndex: ri })
+          errors.push({ code: 'key-control-char', tableIndex: ti, rowIndex: ri, columnIndex: keyColIdx, detail: { header: keyHeader } })
         } else if (seenKeys.has(raw)) {
-          errors.push({ code: 'duplicate-key', tableIndex: ti, rowIndex: ri })
+          errors.push({ code: 'duplicate-key', tableIndex: ti, rowIndex: ri, columnIndex: keyColIdx, detail: { header: keyHeader, value: raw } })
         } else {
           seenKeys.add(raw)
           sourceKey = raw
@@ -400,7 +462,7 @@ export function validateDrafts(
         if (col.role === 'number' && col.sourceColumnId) {
           const parsed = parseNumberCell(cellRaw)
           if (parsed.ok) number[col.sourceColumnId] = parsed.value
-          else errors.push({ code: parsed.code, tableIndex: ti, rowIndex: ri, columnIndex: ci })
+          else errors.push({ code: parsed.code, tableIndex: ti, rowIndex: ri, columnIndex: ci, detail: { header: col.header, value: cellRaw } })
         } else if (col.role === 'label' && col.sourceColumnId) {
           const v = normalizeKey(cellRaw)
           if (v !== '') label[col.sourceColumnId] = v
@@ -446,7 +508,7 @@ export function validateDrafts(
         if (value === undefined) continue // empty FK cell -- no relation for this row, allowed
         const targetRow = target?.rows.find((r) => r.sourceKey === value)
         if (!targetRow) {
-          errors.push({ code: 'orphan-foreign-key', tableIndex: ti, rowIndex: ri, columnIndex: ci, detail: { value } })
+          errors.push({ code: 'orphan-foreign-key', tableIndex: ti, rowIndex: ri, columnIndex: ci, detail: { value, header: col.header } })
           continue
         }
         if (target && composeRowLabelTerm(target, targetRow) === null) {

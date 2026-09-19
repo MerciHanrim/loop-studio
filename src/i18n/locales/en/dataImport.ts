@@ -1,5 +1,7 @@
 // docs/data-import.md §DI16 Phase 1B — the CSV/TSV import wizard's own key
 // group, mirroring `templates.ts`'s `modules.*` split-by-feature convention.
+// §DI17 added the in-tool guide keys (`import.qs.*`, `import.roleHelp.*`,
+// `import.status.*`, `import.review.*`, the inline-error summary).
 
 const dataImport = {
   'import.button': 'Data ▾',
@@ -8,6 +10,7 @@ const dataImport = {
   'import.removeTable': 'Remove table',
   'import.addTable': 'Add another table',
   'import.pastePlaceholder': 'Paste CSV or TSV text here',
+  'import.pasteAria': 'CSV or TSV text',
   'import.tableNameRequired': 'Enter a table name to continue.',
   'import.pasteDataRequired': 'Paste or upload CSV/TSV data to continue.',
   'import.uploadFile': 'Upload file…',
@@ -26,11 +29,11 @@ const dataImport = {
   'import.role.number': 'Number',
   'import.role.label': 'Label',
   'import.role.foreignKey': 'Foreign key',
+  'import.roleAria': 'Role for column {header}',
   'import.selectTable': 'Select a table…',
   'import.selectColumn': 'Select a column…',
   'import.selectFrame': 'Select a frame…',
   'import.groupBy': 'Group frame by:',
-  'import.errorsFound': '{n, plural, one {# problem must be fixed before continuing:} other {# problems must be fixed before continuing:}}',
   'import.warningsFound': '{n, plural, one {# row will use a raw key instead of a name in its label.} other {# rows will use a raw key instead of a name in their labels.}}',
   'import.parseErrorsBlockValidation': 'Fix the CSV/TSV errors above before continuing.',
   'import.placement.none': 'Place on the canvas, no frames',
@@ -39,14 +42,81 @@ const dataImport = {
   'import.summary': 'Ready to import {tables, plural, one {# table} other {# tables}}, creating {parameters, plural, one {# parameter} other {# parameters}}.',
   'import.next': 'Next',
   'import.back': 'Back',
-  'import.backToInput': 'Back to input',
   'import.commit': 'Import',
+
+  // §DI17 -- the quick start block
+  'import.qs.title': 'Quick start',
+  'import.qs.toggleAria': 'Quick start — show or hide',
+  'import.qs.lead': 'Turn the numbers in a spreadsheet into adjustable Parameters.',
+  'import.qs.body':
+    'Each row needs one column with a unique ID. Every column you mark as Number becomes one Parameter per row. Connecting them to your model is still your step afterwards. Nothing is uploaded, and your spreadsheet is never changed.',
+  'import.qs.exampleHeading': 'A minimal example',
+  'import.qs.mapping': 'item_id → {key} · item_name → {label} · price → {number} · drop_rate → {number}',
+  'import.qs.result': '2 rows × 2 Number columns = 4 Parameters',
+  'import.qs.useExample': 'Use this example',
+  'import.qs.tableLimit': 'The {max}-table limit is reached — remove a table first.',
+  'import.qs.download': 'Download sample CSV',
+  'import.qs.fullGuide': 'Full guide',
+  'import.qs.fullGuideAria': 'Full guide — opens on GitHub in a new tab',
+  'import.qs.sources.summary': 'Getting data out of Google Sheets or Excel',
+  'import.qs.sources.sheets': 'Google Sheets: File → Download → Comma-separated values (.csv), or select a range and copy it.',
+  'import.qs.sources.excel': 'Excel or Numbers: Save As / Export to CSV, or copy a range.',
+  'import.qs.sources.privacy':
+    'Do not use "Publish to web" on a private sheet — it makes the sheet readable by anyone with the link. A download or a copy keeps it private.',
+  'import.qs.notImported.summary': 'What is not imported',
+  'import.qs.notImported.formulas': "Formulas themselves are not imported — a CSV or a paste only carries each cell's current calculated value.",
+  'import.qs.notImported.list': 'Formatting, charts, merged or multi-value cells, .xlsx files, and live sync. You model how the values interact yourself.',
+  'import.qs.limits': 'Up to {tables} tables, {columns} mapped columns per table, {rows} rows per table.',
+
+  // §DI17 -- the shared role help (rendered ONCE per dialog; each role
+  // select points at its role's line via aria-describedby)
+  'import.roleHelp.title': 'Column roles',
+  'import.roleHelp.key': 'Unique ID used to match this row on refresh.',
+  'import.roleHelp.label': 'Name shown on generated Parameters.',
+  'import.roleHelp.number': 'Creates one adjustable Parameter for every row.',
+  'import.roleHelp.foreignKey': 'Links this value to a row in another imported table.',
+  'import.roleHelp.ignored': 'Keep this column out of Loop Studio.',
+  'import.linkTables.summary': 'Link multiple tables',
+  'import.linkTables.body':
+    'Add a second table and mark a column Foreign key to reference the other table\'s Key. Its Label then enriches the generated names. A table with two Foreign keys must pick which one groups the frames.',
+
+  // §DI17 -- the per-table status line (input step)
+  'import.status.key': 'Key: {header}',
+  'import.status.keyNone': 'Key: none yet',
+  'import.status.keyMany': 'Key: {n} columns — choose exactly one',
+  'import.status.counts':
+    '{cols, plural, one {# Number column} other {# Number columns}} × {rows, plural, one {# row} other {# rows}} → {n, plural, one {# Parameter} other {# Parameters}}',
+
+  // §DI17 -- placement step echoes
+  'import.placement.frameHelp': 'A frame is a labelled box that groups nodes on the canvas.',
+  'import.placement.noneResult': '{n, plural, one {# Parameter} other {# Parameters}} on the canvas, no frames',
+  'import.placement.framePerTableResult': '{n, plural, one {# frame} other {# frames}} will be created',
+  'import.placement.noFramesYet': 'No frames on this canvas yet',
+
+  // §DI17 -- the review breakdown
+  'import.review.col.table': 'Table',
+  'import.review.col.rows': 'Rows',
+  'import.review.col.numberColumns': 'Number columns',
+  'import.review.col.parameters': 'Parameters',
+  'import.review.col.frames': 'Frames',
+  'import.review.lookupOnly': '0 (lookup only)',
+  'import.review.total': 'Total',
+  'import.review.labelsPreview': 'Labels will look like:',
+  'import.review.more': '{n, plural, one {… and # more} other {… and # more}}',
+
+  // §DI17 -- inline validation errors (no separate step)
+  'import.issueSummary':
+    '{n, plural, one {# problem} other {# problems}} in {m, plural, one {# table} other {# tables}}. Fix them below and press Next again.',
+  'import.issueSummaryStale': 'The input changed since the last check — press Next to check again.',
+  'import.issueJump': 'Go to this cell',
 
   // location composers -- prefixed to an `import.issue.*` / `import.commitError.*`
   // description below, e.g. "Table Items, row 3: <description>".
   'import.loc.table': 'Table {table}',
   'import.loc.tableRow': 'Table {table}, row {row}',
   'import.loc.tableRowColumn': 'Table {table}, row {row}, column {column}',
+  'import.loc.tableRowColumnHeader': 'Table {table}, row {row}, column {column} ({header})',
+  'import.loc.tableColumnHeader': 'Table {table}, column {column} ({header})',
 
   // one description per `IssueCode` (dataImportValidate.ts) -- the location
   // (table/row/column) is composed separately via `import.loc.*` above, so
@@ -62,19 +132,19 @@ const dataImport = {
   'import.issue.header-too-long': "This column's header is too long (maximum {max} characters).",
   'import.issue.missing-source-column-id': 'This column is missing its internal id — re-select its role.',
   'import.issue.duplicate-source-table-id': "This table's internal id collides with another table's.",
-  'import.issue.missing-key-column': 'No column is marked as the row key.',
-  'import.issue.multiple-key-columns': 'More than one column is marked as the row key.',
-  'import.issue.empty-key': "This row's key is empty.",
-  'import.issue.key-too-long': "This row's key is too long (maximum {max} bytes).",
-  'import.issue.key-control-char': "This row's key contains a control character.",
-  'import.issue.duplicate-key': 'This key is already used by another row in this table.',
-  'import.issue.ragged-row': 'This row has {actual} cells; expected {expected}.',
-  'import.issue.empty-number': 'This cell is empty — a number is required.',
-  'import.issue.invalid-number': 'This cell is not a valid number.',
+  'import.issue.missing-key-column': 'No column is marked Key. Choose Key on the column that identifies each row, such as an ID.',
+  'import.issue.multiple-key-columns': 'More than one column is marked Key — keep exactly one.',
+  'import.issue.empty-key': 'The Key is empty. Every row needs a Key value.',
+  'import.issue.key-too-long': 'The Key is too long (maximum {max} bytes).',
+  'import.issue.key-control-char': 'The Key contains a control character.',
+  'import.issue.duplicate-key': 'Key "{value}" is already used by another row. Give every row a unique Key.',
+  'import.issue.ragged-row': 'This row has {actual} cells; expected {expected}. Check for a missing comma; summary rows can be dropped with "Ignore last N rows".',
+  'import.issue.empty-number': 'This cell is empty. Enter a number, or set the column to Ignore.',
+  'import.issue.invalid-number': '"{value}" is not a number. Remove thousands separators, currency symbols and %, for example 4900.',
   'import.issue.orphan-foreign-key': 'No row in the target table has the key "{value}".',
-  'import.issue.missing-fk-target': 'No target table is selected for this foreign key column.',
+  'import.issue.missing-fk-target': 'This Foreign key column has no target table. Pick the table it refers to under the column header.',
   'import.issue.invalid-fk-target': 'The target table for this foreign key no longer exists.',
-  'import.issue.missing-group-by': 'Pick which foreign key groups the frames for this table.',
+  'import.issue.missing-group-by': 'This table has two or more Foreign key columns — pick which one groups the frames ("Group frame by" under the header row).',
   'import.issue.invalid-group-by': "The group-by column must be one of this table's foreign key columns.",
   'import.issue.round-trip-mismatch': 'This data could not be stored safely — please simplify it and try again.',
   'import.issue.label-fallback': 'No name is available for this reference — the raw key will be shown instead.',
@@ -88,9 +158,10 @@ const dataImport = {
   'import.commitError.invalid-result-graph': 'The resulting graph is invalid — please contact support.',
 
   // docs/data-import.md §DI16 Phase 2 -- the manage-bindings dialog + the
-  // 4-step refresh wizard.
-  'import.menu.import': 'Import new spreadsheet…',
-  'import.menu.manage': 'Manage bindings…',
+  // 4-step refresh wizard. §DI17 reworded the menu items and added the guide entry.
+  'import.menu.import': 'Import spreadsheet values as Parameters…',
+  'import.menu.manage': 'Refresh or manage imported tables…',
+  'import.menu.guide': 'How to prepare a spreadsheet…',
   'import.refresh.manageTitle': 'Manage spreadsheet bindings',
   'import.refresh.noBindings': 'No spreadsheet tables are bound yet.',
   'import.refresh.rowCount': '{n, plural, one {# row} other {# rows}}',

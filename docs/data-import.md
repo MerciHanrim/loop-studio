@@ -1505,3 +1505,70 @@ started here:
    shape of snapshot phases 1/2 already handle, purely as a convenience over
    manual paste/re-paste; never gains write access; not committed, not
    designed further here, and does not block or get blocked by (1)/(2).
+
+## DI17. In-tool onboarding (shipped after v0.11.0)
+
+The audit of 2026-09-19 (Hanrim) found the wizard's rules complete but its
+guidance absent: nothing said what the feature creates, that a Key column is
+required, why `4,900` is not a number, or how many Parameters would appear.
+This section records what the wizard now carries so the strings and states
+have one home. Presentation only — no validation rule, wire shape,
+`loop-revision/8` id, or engine behaviour changed.
+
+- **Quick start** (`import.qs.*`): a collapsible block at the top of the
+  input step — the outcome in one line, the three-sentence mental model, the
+  three-row `Items` example, its role mapping, `2 rows × 2 Number columns = 4
+  Parameters`, **Use this example** (idempotent: reuses an existing example
+  card, fills an empty card in place, otherwise adds one — never past
+  `DI_TABLES_MAX`, never over a filled card), **Download sample CSV**, a
+  secondary **Full guide ↗** link to [`import-guide.md`](import-guide.md),
+  and two `<details>`: getting data out of Sheets/Excel (with the "never
+  Publish to web" rule from §DI3) and what is not imported (formulas: only
+  each cell's current calculated value arrives). Collapsed state lives in
+  `localStorage` `loop-studio/import-quickstart/1` as `{ collapsed,
+  explicit }`: the header toggle is an explicit choice; the first successful
+  import collapses it only when the user never toggled it. **Data ▾ → How to
+  prepare a spreadsheet…** opens the wizard with the block forced open
+  without touching the stored state. Bump the key's trailing number to reset
+  everyone after a copy revision.
+- **Role help** (`import.roleHelp.*`): rendered once per dialog; every role
+  `<select>` carries `aria-label` "Role for column {header}" and
+  `aria-describedby` pointing at its current role's line.
+- **Count line** per table (`import.status.*`), computed by
+  `previewDraftCounts` before validation; after validation every number the
+  placement and review steps show — and the commit itself — comes from ONE
+  pure `summarizeImportPlan(plan, placementKind)` in `dataImportCommit.ts`
+  (`buildImportCommit` materialises exactly its `cells`; the review's label
+  preview uses the same `cellLabel`). `dataImportSummary.test.ts` pins that
+  the preview, the summary, and the created node count agree.
+- **Inline errors**: there is no separate error step any more. A failed check
+  keeps the input on screen, renders a focused `role="alert"` summary, lists
+  each table's problems under its card as buttons that reveal the offending
+  cell (`.is-bad` + `aria-invalid`), and names the header and the offending
+  value (display-formatted: 40 code points then `…`, control characters as
+  visible glyphs — `detail.value` stays raw). Any edit after the check marks
+  the list **stale** (no `aria-invalid`, no warning colour, "press Next to
+  check again") until Next re-validates.
+- **Post-commit view**: select ONLY the first created Parameter; frame the
+  created batch's rect (positions + `NODE_W`/`NODE_H`, no DOM measurement)
+  inside the usable canvas via the shared `viewportForRect`
+  (`src/components/canvasFit.ts`, the same function the Template initial
+  view uses) with `IMPORT_FIT_FLOOR` / `IMPORT_FIT_CEIL` /
+  `IMPORT_HINT_INSET_TOP` (the top-center hint slot; measured values 0.5 / 1 / 88 px — the slot at its tallest, a three-line note plus the 15 px panel margin, on the 1280×800 e2e viewport). A batch too large for
+  the floor is never shrunk further — the view anchors its top-left corner at
+  the floor zoom. The one-shot `import-first-commit` canvas hint (tier 1 in
+  `contextual-inline-help.md` §CIH2.3a, above the auto-frame suggest note)
+  reads the batch from `uiStore.lastImportBatch`, which the wizard clears on
+  its next open. Complexity: one pass over the created nodes; the measured
+  round-trip for 1,200 rows × 2 Number columns is recorded in the PR, and the
+  theoretical maximum (64 × 20,000 × 128) is not claimed to be fast.
+- **Menu wording**: `Data ▾` stays; its items read *Import spreadsheet values
+  as Parameters…*, *Refresh or manage imported tables…*, *How to prepare a
+  spreadsheet…*.
+- **Out of scope, recorded**: a summary-row heuristic warning; mobile
+  editing (the wizard stays desktop-only, `mobile.md` §MV1).
+- **Tests**: `e2e/data-import-guide.spec.ts` (element captures
+  `data-import-quickstart` / `data-import-inline-errors` under the `element`
+  policy — the only two baselines this added; the 46 existing ones are
+  untouched), `dataImportSummary.test.ts`, `canvasFit.test.ts`,
+  `quickStartStore.test.ts`.

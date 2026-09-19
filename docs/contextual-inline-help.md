@@ -214,6 +214,11 @@ Fixed three-tier order, highest first:
    visually compete with a canvas hint — this tier exists to say explicitly
    that opening MC/Review is never blocked or delayed waiting on a canvas
    hint to clear.
+   **Added with `docs/data-import.md` §DI17:** the one-shot `import-first-
+   commit` canvas note (shown right after the first spreadsheet import lands)
+   is tier 1 too — it follows a deliberate action (the wizard's Import
+   button) — and it DOES use the canvas `top-center` slot, so the tier-2
+   `lgr-suggest-note` yields to it while it is up (Hanrim, 2026-09-19).
 2. **The two existing LGR notices** — `lgr-focus-hint`, `lgr-suggest-note`.
    Unchanged, out of scope here (§CIH2.4), and they keep first claim on the
    canvas `top-center` slot over anything new.

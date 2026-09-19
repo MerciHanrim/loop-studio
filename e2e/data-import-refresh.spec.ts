@@ -45,7 +45,7 @@ const wizardDialog = (page: Page) => page.getByRole('dialog', { name: 'Import sp
 
 async function openManage(page: Page): Promise<void> {
   await menuButton(page).click()
-  await page.getByRole('menuitem', { name: 'Manage bindings…' }).click()
+  await page.getByRole('menuitem', { name: 'Refresh or manage imported tables…' }).click()
   await expect(manageDialog(page)).toBeVisible()
 }
 
@@ -54,7 +54,7 @@ async function openManage(page: Page): Promise<void> {
  *  Charm/3) bound to it. */
 async function importItemsTable(page: Page): Promise<void> {
   await menuButton(page).click()
-  await page.getByRole('menuitem', { name: 'Import new spreadsheet…' }).click()
+  await page.getByRole('menuitem', { name: 'Import spreadsheet values as Parameters…' }).click()
   await expect(wizardDialog(page)).toBeVisible()
 
   await wizardDialog(page).getByLabel('Table name').fill('Items')
@@ -78,7 +78,7 @@ async function importItemsTable(page: Page): Promise<void> {
  *  "2-table FK import" e2e test's own UI flow. `ppe_a` points at `itm_a`. */
 async function importItemsAndPoolTables(page: Page): Promise<void> {
   await menuButton(page).click()
-  await page.getByRole('menuitem', { name: 'Import new spreadsheet…' }).click()
+  await page.getByRole('menuitem', { name: 'Import spreadsheet values as Parameters…' }).click()
   await expect(wizardDialog(page)).toBeVisible()
 
   await wizardDialog(page).getByLabel('Table name').fill('Items')
