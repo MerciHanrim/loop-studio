@@ -13,8 +13,9 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 //   a long Korean label + a tooltip · a menu/dialog overflow risk (Export).
 //
 // The existing EN visual-regression baselines are untouched, so whole-design
-// regression cover is not lost. Non-deterministic chrome (the build stamp) is
-// masked; fonts are awaited; nothing is animated (config `animations:disabled`).
+// regression cover is not lost. The minimap + attribution are masked (the
+// toolbar build stamp no longer renders on the bar since the two-tier toolbar,
+// #207); fonts are awaited; nothing is animated (config `animations:disabled`).
 
 const G = JSON.stringify({
   schema: 'loop-studio/graph',
@@ -77,7 +78,7 @@ async function pinViewport(page: Page, zoom = 1) {
 }
 
 const shot = (page: Page) => ({
-  mask: [page.locator('.toolbar__build'), page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
+  mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
   maxDiffPixelRatio: 0.02,
 })
 
@@ -146,6 +147,28 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await page.locator('.palette-item .chip--register').hover()
     await expect(page.locator('#palette-tip-register')).toBeVisible()
     await fontsReady(page)
+    // docs/mmo-multilingual-layout.md — the long label is shown IN FULL, wrapped
+    // inside a grown vessel, never a one-line ellipsis. Asserted in the DOM
+    // because a return to the ellipsis would still pass the pixel gate's 2 %
+    // tolerance (the committed baseline was exactly that until 2026-09-19).
+    const lbl = await page.evaluate(() => {
+      const wrap = document.querySelector('.react-flow__node[data-id="pool"]')!
+      const nf = wrap.querySelector('.nodef') as HTMLElement
+      const title = wrap.querySelector('.nodef__title') as HTMLElement
+      const lineH = parseFloat(getComputedStyle(title).lineHeight) || 16
+      const n = nf.getBoundingClientRect()
+      const t = title.getBoundingClientRect()
+      return {
+        lines: Math.round(title.offsetHeight / lineH),
+        clippedX: title.scrollWidth > title.clientWidth + 1,
+        clippedY: title.scrollHeight > title.clientHeight + 1,
+        inside: t.left >= n.left - 1 && t.right <= n.right + 1 && t.top >= n.top - 1 && t.bottom <= n.bottom + 1,
+      }
+    })
+    expect(lbl.lines, 'the label wraps (not a single ellipsised line)').toBeGreaterThan(1)
+    expect(lbl.clippedX, 'no sideways clipping').toBe(false)
+    expect(lbl.clippedY, 'no vertical clipping').toBe(false)
+    expect(lbl.inside, 'the title sits inside the node box').toBe(true)
     await expect(page).toHaveScreenshot('ko-long-label-and-tip.png', shot(page))
   })
 
@@ -178,6 +201,14 @@ test.describe('i18n Slice 3 — representative KO reference screenshots (mobile)
     await expect(page.locator('.sheet')).toBeHidden()
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
+    // this is the PINNED frame (zoom 1), not the phone's first-paint auto-fit —
+    // pinned so the baseline cannot drift back to a zoomed-out canvas inside
+    // the pixel tolerance
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __loop: { rf: { getViewport: () => { zoom: number } } } }).__loop.rf.getViewport().zoom,
+      ),
+    ).toBe(1)
     await fontsReady(page)
     await expect(page).toHaveScreenshot('ko-mobile-app.png', {
       mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],

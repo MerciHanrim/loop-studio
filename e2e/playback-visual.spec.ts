@@ -244,7 +244,6 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
     mask: [
       page.locator('.react-flow__minimap'),
       page.locator('.react-flow__attribution'),
-      page.locator('.toolbar__build'),
       page.locator('.pstrip__step'),
     ],
     maxDiffPixelRatio: 0.02,
@@ -274,6 +273,10 @@ test.describe('playback — Slice 3c-b: masked screenshots (depart beat)', () =>
     await setLod(page, 'L0')
     await holdAt(page, 'travel')
     await expect(page.locator('.react-flow__edge[data-id="e_sp"] g.pb-move')).toHaveCount(0)
+    // the L0 elision covers the state-edge travel bead too (`!atL0` on
+    // `.state-move`; docs/simulation-playback.md) — the shot alone did not
+    // pin this, and the old baseline still showed the bead
+    await expect(page.locator('.state-move')).toHaveCount(0)
     await expect(page.locator('.react-flow')).toHaveScreenshot('play-travel-L0.png', shot(page))
   })
 })
