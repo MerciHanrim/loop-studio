@@ -421,7 +421,13 @@ test('visual: the quick start with the example loaded, and the inline error stat
     expect(b.x).toBeGreaterThanOrEqual(dlg.x)
     expect(b.x + b.width).toBeLessThanOrEqual(dlg.x + dlg.width)
   }
-  await expect(dialog(page)).toHaveScreenshot(...snap(page, 'data-import-quickstart'))
+  // the `→` / `↗` glyphs come from a fallback font whose rasterisation
+  // differs between a local Windows machine and the CI runner (636 px on the
+  // first CI run) -- mask the two spans that carry them; their TEXT is
+  // asserted above and the rest of the copy stays pixel-guarded.
+  await expect(dialog(page)).toHaveScreenshot(
+    ...snap(page, 'data-import-quickstart', { mask: [qs.locator('.import__quickstartMapping'), qs.locator('.menu__ext')] }),
+  )
   // the inline-error scene is captured from the REAL error experience: the
   // user was at the table (where "Use this example" left them -- a second
   // click reuses the example card and restores that scroll position), then

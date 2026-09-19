@@ -554,7 +554,7 @@ export function DataImportWizard({
                   <p>{t('import.qs.body')}</p>
                   <p className="import__quickstartHeading">{t('import.qs.exampleHeading')}</p>
                   <pre className="import__example">{EXAMPLE_CSV}</pre>
-                  <p>
+                  <p className="import__quickstartMapping">
                     {t('import.qs.mapping', {
                       key: t('import.role.key'),
                       label: t('import.role.label'),

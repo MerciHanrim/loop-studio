@@ -302,14 +302,22 @@ const DISPLAY_MAX_CODE_POINTS = 40
  *  visible glyphs so a pasted multi-line or binary-ish cell can never
  *  render as layout. Display only -- `Issue.detail.value` stays raw. */
 export function formatCellValueForDisplay(raw: string): string {
-  const visible = raw.replace(/[ -]/g, (ch) => {
-    if (ch === '\n' || ch === '\r') return '⏎'
-    if (ch === '\t') return '⇥'
-    const code = ch.charCodeAt(0)
-    return String.fromCodePoint(code === 0x7f ? 0x2421 : 0x2400 + code) // Control Pictures block
-  })
-  const points = [...visible]
-  return points.length > DISPLAY_MAX_CODE_POINTS ? points.slice(0, DISPLAY_MAX_CODE_POINTS).join('') + '…' : visible
+  // A plain loop, deliberately NOT a `/[ -]/` regex: the
+  // portable single-file build inlines the bundle into HTML and re-encodes
+  // the literal U+0000 the minifier emits for that escape as U+FFFD, which
+  // turns the character class into "range out of order" and crashes the
+  // whole app at boot (caught by the `portable` e2e project).
+  const out: string[] = []
+  for (const ch of raw) {
+    const code = ch.codePointAt(0)!
+    if (code === 0x0a || code === 0x0d) out.push('⏎')
+    else if (code === 0x09) out.push('⇥')
+    else if (code <= 0x1f) out.push(String.fromCodePoint(0x2400 + code)) // Control Pictures block
+    else if (code === 0x7f) out.push('␡')
+    else out.push(ch)
+    if (out.length > DISPLAY_MAX_CODE_POINTS) break
+  }
+  return out.length > DISPLAY_MAX_CODE_POINTS ? out.slice(0, DISPLAY_MAX_CODE_POINTS).join('') + '…' : out.join('')
 }
 
 // -- validateDrafts ----------------------------------------------------------
