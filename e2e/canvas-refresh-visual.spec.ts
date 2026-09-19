@@ -88,6 +88,21 @@ const zoom = (page: Page) =>
 
 const step = (page: Page) => page.locator('button[aria-label="Advance one step"], button[title="Advance one step"]').first().click()
 
+const stepIndex = (page: Page) =>
+  page.evaluate(
+    () => (window as unknown as { __loop: { sim: { getState: () => { stepIndex: number } } } }).__loop.sim.getState().stepIndex,
+  )
+
+/** The run cue in the matrix / forced-colors shots is a REAL step: src pushes 3
+ *  into gold and the `all` split drains the rest, so gold reads 3 (not the
+ *  fixture's 999999). Asserted before the shot because a baseline that
+ *  disagreed with this state once survived the 2 % pixel gate (review
+ *  2026-09-18); L0 has no value row, so the text check is L1/L2 only. */
+async function expectStepped(page: Page, level: Level): Promise<void> {
+  await expect.poll(() => stepIndex(page)).toBe(1)
+  if (level !== 'L0') await expect(page.locator('.react-flow__node[data-id="gold"] .nodef__value')).toHaveText('3')
+}
+
 const shotOpts = (page: Page) => ({
   mask: [page.locator('.react-flow__minimap'), page.locator('.react-flow__attribution')],
   maxDiffPixelRatio: 0.02,
@@ -118,6 +133,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.waitForTimeout(1200)
       await focusGold(page) // desktop: keyboard-focus AFTER the run-bar click stole it
       await setLod(page, level)
+      await expectStepped(page, level)
       await expect(page.locator('.react-flow')).toHaveScreenshot(`matrix-${scheme}-${level}.png`, shotOpts(page))
     })
   }
@@ -210,6 +226,7 @@ for (const level of ['L2', 'L0'] as const) {
     await expect(page.locator('.react-flow__node[data-id="p_big"] .nodef--parameter .nodef__stroke')).toHaveAttribute('d', /^M14 12 .* H1 /)
     await expect(page.locator('.react-flow__node[data-id="r_bad"] .nodef--register .nodef__stroke')).toHaveAttribute('d', /^M14 12 H110 /)
 
+    await expectStepped(page, level)
     await expect(page.locator('.react-flow')).toHaveScreenshot(`forced-colors-${level}.png`, shotOpts(page))
     await page.emulateMedia({ forcedColors: null })
   })

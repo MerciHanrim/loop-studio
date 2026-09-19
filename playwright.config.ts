@@ -19,8 +19,10 @@ export default defineConfig({
   timeout: 30_000,
   expect: {
     timeout: 8_000,
-    // OS font rendering differs; only the two approved Distribution snapshots
-    // are compared, and with a small tolerance.
+    // OS font rendering differs between machines, so every pixel snapshot in
+    // the suite (the *-snapshots dirs under e2e/, win32 baselines) is compared
+    // with a small tolerance. Note `--update-snapshots` only rewrites a baseline
+    // whose test FAILS; a drifted image inside the tolerance is kept as-is.
     toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: 'disabled', caret: 'hide' },
   },
   use: {
