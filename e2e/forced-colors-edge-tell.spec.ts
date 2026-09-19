@@ -233,6 +233,43 @@ async function makeRouteInvalid(page: Page, edgeId: string): Promise<void> {
   await expect(page.locator(`.react-flow__edge[data-id="${edgeId}"] path.route-invalid`)).toHaveCount(1)
 }
 
+/** Hide every text span drawn inside a node (title / value / sub-line) for a capture whose subject
+ *  is the edges. `visibility: hidden` removes only the glyphs — the node shapes and any edge passing
+ *  under a label keep every pixel, unlike a `mask` box. Under forced colours `color` is
+ *  force-adjusted, so this is the one property that reliably takes the text out. */
+const NODE_TEXT = '.nodef__title, .nodef__value, .nodef__sub'
+async function hideNodeText(page: Page, clip: { x: number; y: number; width: number; height: number }): Promise<void> {
+  await page.addStyleTag({ content: `${NODE_TEXT} { visibility: hidden }` })
+  // the spans to hide really exist inside the clip, and every one of them computes `hidden`
+  const r = await page.evaluate(
+    ({ sel, c }) => {
+      const all = [...document.querySelectorAll(sel)]
+      const inClip = all.filter((el) => {
+        const b = el.getBoundingClientRect()
+        return b.right > c.x && b.left < c.x + c.width && b.bottom > c.y && b.top < c.y + c.height
+      })
+      return { inClip: inClip.length, notHidden: all.filter((el) => getComputedStyle(el).visibility !== 'hidden').length }
+    },
+    { sel: NODE_TEXT, c: clip },
+  )
+  expect(r.inClip, 'node text spans exist inside the clip').toBeGreaterThan(0)
+  expect(r.notHidden, 'every node text span computes visibility: hidden').toBe(0)
+}
+/** Which edge categories have a path bbox intersecting the clip. */
+const categoriesIn = (page: Page, clip: { x: number; y: number; width: number; height: number }) =>
+  page.evaluate((c) => {
+    const inClip = (p: Element) => {
+      const r = p.getBoundingClientRect()
+      return r.right > c.x && r.left < c.x + c.width && r.bottom > c.y && r.top < c.y + c.height
+    }
+    const has = (sel: string) => [...document.querySelectorAll(sel)].some(inClip)
+    return {
+      activeResource: has('path.react-flow__edge-path.edge-resource.lgr-active-tint'),
+      activeState: has('path.react-flow__edge-path.edge-state.lgr-active-tint'),
+      inactiveState: has('path.react-flow__edge-path.edge-state:not(.lgr-active-tint)'),
+    }
+  }, clip)
+
 const RESOURCE_DASH = '6px, 3px, 2px, 3px'
 const STATE_DASH = '8px, 4px'
 const RES = {
@@ -470,6 +507,11 @@ test.describe('§LGR9 forced-colors — visual baselines (element policy)', () =
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
     const pane = (await page.locator('.react-flow').boundingBox())!
     const clip = { x: pane.x + pane.width / 2 - 160, y: pane.y + pane.height / 2 - 90, width: 320, height: 180 }
+    // the subject is the active resource edge; node text is hidden (see hideNodeText) so the runner's
+    // glyph rasterisation cannot move the capture — the frame label, node outlines, handles and every
+    // edge stay
+    await hideNodeText(page, clip)
+    expect((await categoriesIn(page, clip)).activeResource, 'an active resource edge is inside the clip').toBe(true)
     await expect(page).toHaveScreenshot(...snap(page, 'forced-active-resource-coffee-z05', { clip }))
   })
   test('mmo 0.75: active resource, active state and inactive state edges in one frame', async ({ page }) => {
@@ -482,20 +524,12 @@ test.describe('§LGR9 forced-colors — visual baselines (element policy)', () =
     await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
     const pane = (await page.locator('.react-flow').boundingBox())!
     const clip = { x: pane.x + pane.width / 2 - 200, y: pane.y + pane.height / 2 - 120, width: 400, height: 240 }
-    // every category the baseline claims to show must actually be inside the clip
-    const present = await page.evaluate((c) => {
-      const inClip = (p: Element) => {
-        const r = p.getBoundingClientRect()
-        return r.right > c.x && r.left < c.x + c.width && r.bottom > c.y && r.top < c.y + c.height
-      }
-      const has = (sel: string) => [...document.querySelectorAll(sel)].some(inClip)
-      return {
-        activeResource: has('path.react-flow__edge-path.edge-resource.lgr-active-tint'),
-        activeState: has('path.react-flow__edge-path.edge-state.lgr-active-tint'),
-        inactiveState: has('path.react-flow__edge-path.edge-state:not(.lgr-active-tint)'),
-      }
-    }, clip)
-    expect(present).toEqual({ activeResource: true, activeState: true, inactiveState: true })
+    // the subject is the edges: node text is hidden because the runner rasterises the zoomed
+    // glyphs differently from a Windows 11 machine (CI on 7b1dd91: 509 px, all inside text rects,
+    // 0 on any edge) and the element policy has no headroom for text noise
+    await hideNodeText(page, clip)
+    // every category the baseline claims to show must actually be inside the clip, after hiding
+    expect(await categoriesIn(page, clip)).toEqual({ activeResource: true, activeState: true, inactiveState: true })
     await expect(page).toHaveScreenshot(...snap(page, 'forced-four-state-mmo-z075', { clip }))
   })
 })
