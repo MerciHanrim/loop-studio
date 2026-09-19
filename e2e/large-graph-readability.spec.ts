@@ -150,29 +150,103 @@ async function dragOnPane(page: Page, steps: number): Promise<void> {
   await page.waitForTimeout(300)
 }
 
-/** rubber-band a box that FULLY contains `ids` — `selectionMode: Full` selects
- *  only nodes wholly inside the box, so the corners are padded well clear. */
-async function marqueeOver(page: Page, ids: string[]): Promise<void> {
-  const box = await page.evaluate((nids) => {
-    const rs = nids.map(
-      (i) => (document.querySelector(`.react-flow__node[data-id="${i}"]`) as HTMLElement).getBoundingClientRect(),
+type Box = { x0: number; y0: number; x1: number; y1: number }
+
+/** `load()` frames the graph for the focus tests (viewport y 260), which puts
+ *  the ma / mid / mc row across the pane's bottom edge (528..592 vs a pane that
+ *  ends at 560) and `lone` past its right edge. A marquee around them then has
+ *  to leave the pane, and React Flow's `autoPanOnSelection` (default, not set by
+ *  Canvas.tsx) pans by however long the pointer spends outside — the box may
+ *  end up enclosing nothing, so the test flaked. The region-select tests
+ *  re-frame so every node they box sits well inside the pane and no gesture
+ *  needs to leave it: zoom 0.8 (still L2, chips render) is the largest zoom at
+ *  which the 898 px-wide row plus padding fits between the Controls rail and
+ *  the right edge. */
+async function frameForMarquee(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    ;(window as unknown as { __loop: { rf: { setViewport: (v: object, o: object) => void } } }).__loop.rf.setViewport(
+      { x: 120, y: 40, zoom: 0.8 },
+      { duration: 0 },
     )
-    return {
-      x0: Math.min(...rs.map((r) => r.left)) - 24,
-      y0: Math.min(...rs.map((r) => r.top)) - 24,
-      x1: Math.max(...rs.map((r) => r.right)) + 24,
-      y1: Math.max(...rs.map((r) => r.bottom)) + 24,
-    }
-  }, ids)
+  })
+  await page.waitForTimeout(120)
+}
+
+/** the corners of a box that FULLY contains `ids` (`selectionMode: Full` selects
+ *  only nodes wholly inside), padded by `pad` px but CLAMPED to the pane's
+ *  visible rect at this moment (React Flow may have panned since the last
+ *  gesture, so it is re-read per gesture; the Controls rail counts as outside)
+ *  and kept `inset` px off its edges, so
+ *  the pointer never leaves the pane and `autoPanOnSelection` never fires.
+ *  Asserted, not trusted: the corners are inside the pane AND the clamped box
+ *  still encloses every target node — a fixture that does not fit fails loudly
+ *  here instead of yielding a smaller box that quietly selects less. */
+async function marqueeBox(page: Page, ids: string[], pad = 24, inset = 8): Promise<Box> {
+  const g = await page.evaluate(
+    ({ nids, pad, inset }) => {
+      const rect = (el: Element) => {
+        const b = el.getBoundingClientRect()
+        return { left: b.left, top: b.top, right: b.right, bottom: b.bottom }
+      }
+      const pane = rect(document.querySelector('.react-flow__pane')!)
+      // the Controls rail is a React Flow Panel OVER the pane's left edge; a
+      // press there is a button click, not a marquee start
+      const rail = document.querySelector('.react-flow__controls')
+      if (rail) pane.left = Math.max(pane.left, rect(rail).right)
+      const nodes = nids.map((i) => rect(document.querySelector(`.react-flow__node[data-id="${i}"]`)!))
+      const want = {
+        x0: Math.min(...nodes.map((r) => r.left)) - pad,
+        y0: Math.min(...nodes.map((r) => r.top)) - pad,
+        x1: Math.max(...nodes.map((r) => r.right)) + pad,
+        y1: Math.max(...nodes.map((r) => r.bottom)) + pad,
+      }
+      const box = {
+        x0: Math.max(want.x0, pane.left + inset),
+        y0: Math.max(want.y0, pane.top + inset),
+        x1: Math.min(want.x1, pane.right - inset),
+        y1: Math.min(want.y1, pane.bottom - inset),
+      }
+      return { pane, nodes, box }
+    },
+    { nids: ids, pad, inset },
+  )
+  const { pane, box } = g
+  // inside the pane, with room to spare
+  expect(box.x0, 'marquee left inside the pane').toBeGreaterThanOrEqual(pane.left + inset)
+  expect(box.y0, 'marquee top inside the pane').toBeGreaterThanOrEqual(pane.top + inset)
+  expect(box.x1, 'marquee right inside the pane').toBeLessThanOrEqual(pane.right - inset)
+  expect(box.y1, 'marquee bottom inside the pane').toBeLessThanOrEqual(pane.bottom - inset)
+  // and still a real box around every target node (Full selection mode)
+  for (const [k, r] of g.nodes.entries()) {
+    expect(r.left, `${ids[k]} left of the box`).toBeGreaterThan(box.x0)
+    expect(r.right, `${ids[k]} right of the box`).toBeLessThan(box.x1)
+    expect(r.top, `${ids[k]} above the box`).toBeGreaterThan(box.y0)
+    expect(r.bottom, `${ids[k]} below the box`).toBeLessThan(box.y1)
+  }
+  return box
+}
+
+/** press at the box's top-left and drag to its bottom-right in `steps`; the
+ *  button is left DOWN so a caller can act mid-gesture (Esc). */
+async function dragBoxHold(page: Page, box: Box, steps: number): Promise<void> {
   await page.mouse.move(box.x0, box.y0)
   await page.mouse.down()
-  const steps = 12
   for (let i = 1; i <= steps; i++) {
     await page.mouse.move(box.x0 + ((box.x1 - box.x0) * i) / steps, box.y0 + ((box.y1 - box.y0) * i) / steps)
     await page.waitForTimeout(18)
   }
+}
+
+/** rubber-band a box that FULLY contains `ids`, inside the pane. The viewport
+ *  is asserted unchanged across the gesture: the pointer never left the pane,
+ *  so nothing may have auto-panned. */
+async function marqueeOver(page: Page, ids: string[]): Promise<void> {
+  const box = await marqueeBox(page, ids)
+  const vp = await viewportTransform(page)
+  await dragBoxHold(page, box, 12)
   await page.mouse.up()
   await page.waitForTimeout(350)
+  expect(await viewportTransform(page), 'a marquee inside the pane never pans').toBe(vp)
 }
 
 const focusBtn = (page: Page) => page.locator('.react-flow__controls-button.rf-focus')
@@ -356,6 +430,7 @@ test.describe('large-graph readability — Slice 1', () => {
     page,
   }) => {
     await load(page)
+    await frameForMarquee(page)
     const tool = page.locator('.react-flow__controls-button.rf-regionselect')
     await expect(tool).toBeVisible()
     await expect(tool).toHaveAttribute('aria-pressed', 'false')
@@ -364,11 +439,9 @@ test.describe('large-graph readability — Slice 1', () => {
     await expect(tool).toHaveAttribute('aria-pressed', 'true')
     await marqueeOver(page, ['ma', 'mc'])
     // the box selected everything it enclosed (ma, mc and `mid`, which sits
-    // between them) — i.e. the drag was a selection, not a pan — and the tool is
-    // spent. The viewport is deliberately NOT asserted: React Flow's
-    // `autoPanOnSelection` default scrolls the canvas while a selection box is
-    // dragged toward the pane edge, which is normal marquee behaviour. "A pane
-    // drag pans" is asserted in the next test, with every tool off.
+    // between them) — i.e. the drag was a selection, not a pan (marqueeOver
+    // asserts the viewport did not move) — and the tool is spent. "A pane drag
+    // pans" is asserted in the next test, with every tool off.
     for (const id of ['ma', 'mc']) await expect(node(page, id)).toHaveClass(/selected/)
     expect(await page.locator('.react-flow__node.selected').count()).toBeGreaterThan(1)
     await expect(tool).toHaveAttribute('aria-pressed', 'false')
@@ -409,6 +482,7 @@ test.describe('large-graph readability — Slice 1', () => {
     page,
   }) => {
     await load(page)
+    await frameForMarquee(page)
     const tool = page.locator('.react-flow__controls-button.rf-regionselect')
 
     // start from a real multi-selection made with the tool
@@ -490,6 +564,7 @@ test.describe('large-graph readability — Slice 1', () => {
     page,
   }) => {
     await load(page)
+    await frameForMarquee(page)
     const tool = page.locator('.react-flow__controls-button.rf-regionselect')
     const box = page.locator('.react-flow__selection')
 
@@ -497,25 +572,22 @@ test.describe('large-graph readability — Slice 1', () => {
     await tool.click()
     await marqueeOver(page, ['ma', 'mc'])
     const before = await selectedIds(page)
-    expect(before.nodes.length).toBeGreaterThan(1)
+    expect(before.nodes).toEqual(['ma', 'mc', 'mid']) // exactly what the box enclosed
     // the restore path covers edges too, so the fixture must actually have some
     expect(before.edges.length).toBeGreaterThan(0)
 
     await tool.click()
-    const r = await page.evaluate(() => {
-      const b = (document.querySelector('.react-flow__node[data-id="lone"]') as HTMLElement).getBoundingClientRect()
-      return { x0: b.left - 30, y0: b.top - 30, x1: b.right + 30, y1: b.bottom + 30 }
-    })
-    await page.mouse.move(r.x0, r.y0)
-    await page.mouse.down()
-    for (let i = 1; i <= 8; i++) {
-      await page.mouse.move(r.x0 + ((r.x1 - r.x0) * i) / 8, r.y0 + ((r.y1 - r.y0) * i) / 8)
-      await page.waitForTimeout(18)
-    }
+    // the second box encloses `lone` only (30 px of padding, inside the pane)
+    const r = await marqueeBox(page, ['lone'], 30)
+    const vp = await viewportTransform(page)
+    await dragBoxHold(page, r, 8)
     // React Flow re-selects live as the box grows, so by now `lone` is selected
-    // and the original selection is already gone from the canvas
+    // and the original selection is already gone from the canvas — the mid-drag
+    // state the Esc below has to undo. Nothing panned to get here.
     await expect(box).toHaveCount(1)
     await expect(page.locator('.react-flow__node[data-id="lone"]')).toHaveClass(/selected/)
+    expect(await selectedIds(page)).toEqual({ nodes: ['lone'], edges: [] })
+    expect(await viewportTransform(page)).toBe(vp)
 
     await page.keyboard.press('Escape')
     await page.waitForTimeout(150)
