@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 
@@ -813,20 +814,27 @@ test.describe('large-graph readability — Slice 1', () => {
     expect(dash.trim().length).toBeGreaterThan(0)
   })
 
-  test('forced-colors: the Focus ON toggle keeps a tell that is not just colour', async ({ page }) => {
+  test('forced-colors: the Focus ON toggle keeps a tell that survives the colour override', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await load(page)
-    const outline = () =>
+    const style = () =>
       focusBtn(page).evaluate((el) => {
         const s = getComputedStyle(el)
-        return `${s.outlineStyle} ${s.outlineWidth}`
+        return { outline: `${s.outlineStyle} ${s.outlineWidth}`, background: s.backgroundColor, color: s.color }
       })
-    expect(await outline()).toMatch(/none|0px/) // OFF: no outline
+    const off = await style()
+    expect(off.outline).toMatch(/none|0px/) // OFF: no outline
     await focusBtn(page).click()
     await expect(focusBtn(page)).toHaveAttribute('aria-pressed', 'true')
-    const on = await outline()
-    expect(on).not.toMatch(/none/)
-    expect(on).not.toMatch(/\b0px\b/) // ON: a solid outline survives the colour override
+    await page.mouse.move(640, 700) // off the button — the tell must not depend on hover
+    const on = await style()
+    // ON: the system "selected" pair (Highlight / HighlightText) — the UA keeps
+    // system colours under the override. NOT an outline: `outline` is the
+    // keyboard focus ring, and a pressed outline hid it (2026-09-19 audit; the
+    // forced-colors block at the end of this spec proves the four states render apart).
+    expect(on.background).not.toBe(off.background)
+    expect(on.color).not.toBe(off.color)
+    expect(on.outline).toMatch(/none|0px/)
   })
 })
 
@@ -1114,20 +1122,25 @@ test.describe('large-graph readability — Slice 2 (transient filters)', () => {
     await expect(edge(page, 'st1')).toHaveCount(0)
   })
 
-  test('forced-colors: the Filters ON toggle keeps a non-colour tell (§LGR9)', async ({ page }) => {
+  test('forced-colors: the Filters ON toggle keeps a tell that survives the colour override (§LGR9)', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await loadRT(page)
-    const outline = () =>
+    const style = () =>
       filterBtn(page).evaluate((el) => {
         const s = getComputedStyle(el)
-        return `${s.outlineStyle} ${s.outlineWidth}`
+        return { outline: `${s.outlineStyle} ${s.outlineWidth}`, background: s.backgroundColor, color: s.color }
       })
-    expect(await outline()).toMatch(/none|0px/)
+    const off = await style()
+    expect(off.outline).toMatch(/none|0px/)
     await filterBtn(page).click()
     await expect(filterBtn(page)).toHaveAttribute('aria-pressed', 'true')
-    const on = await outline()
-    expect(on).not.toMatch(/none/)
-    expect(on).not.toMatch(/\b0px\b/)
+    await page.mouse.move(640, 700)
+    const on = await style()
+    // the system Highlight / HighlightText pair, not an outline (see the Focus
+    // toggle test above and the forced-colors block at the end of this spec)
+    expect(on.background).not.toBe(off.background)
+    expect(on.color).not.toBe(off.color)
+    expect(on.outline).toMatch(/none|0px/)
   })
 })
 
@@ -2116,6 +2129,239 @@ test.describe('LGR Slice 4a — the opt-in Activity overlay', () => {
 
     await expect(page.locator('.react-flow')).toHaveScreenshot(...snap(page, 'frames-activity'))
   })
+})
+
+// §LGR9 forced-colors — measured 2026-09-19 (activity-overlay contrast audit):
+//   1. every rail toggle's pressed tell was an `outline`, the same property the
+//      keyboard focus ring uses, so a PRESSED button's focus ring was pixel-
+//      identical to its pressed state. The pressed tell is now the system
+//      `Highlight` / `HighlightText` pair and `outline` belongs to
+//      `:focus-visible` alone.
+//   2. the edge tint's `drop-shadow` is not dropped by a UA colour override and
+//      its halo filled the `1 3` dash gaps on dense graphs (mmo: canvas-coloured
+//      samples along an active edge fell from 14–18 to 4–9). Under forced
+//      colours the dashes are the tell, so `filter: none`.
+test.describe('§LGR9 forced-colors — rail toggles keep a visible keyboard focus when pressed; the activity edge tell stays dashed', () => {
+  test.use({ contextOptions: { forcedColors: 'active' } })
+
+  const RAIL = ['rf-focus', 'rf-filter', 'rf-frame', 'rf-activity'] as const
+  const railBtn = (page: Page, cls: string) => page.locator(`.react-flow__controls-button.${cls}`)
+  const styleOf = (page: Page, cls: string) =>
+    railBtn(page, cls).evaluate((el) => {
+      const c = getComputedStyle(el)
+      return {
+        background: c.backgroundColor,
+        color: c.color,
+        outlineStyle: c.outlineStyle,
+        outlineWidth: c.outlineWidth,
+        pressed: el.getAttribute('aria-pressed'),
+        focusVisible: el.matches(':focus-visible'),
+      }
+    })
+  /** keyboard focus (so :focus-visible applies): focus the previous rail button by script, then Tab */
+  const keyboardFocus = async (page: Page, cls: string) => {
+    await page.evaluate((c) => {
+      const b = document.querySelector(`.react-flow__controls-button.${c}`)!
+      const prev = b.previousElementSibling as HTMLElement | null
+      ;(prev ?? (b as HTMLElement)).focus()
+    }, cls)
+    await page.keyboard.press('Tab')
+    await expect(railBtn(page, cls)).toBeFocused()
+  }
+  const dropFocus = (page: Page) => page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  /** the button plus 6 px around it — a focus ring drawn OUTSIDE the box must be in the picture */
+  const shot = async (page: Page, cls: string) => {
+    const b = (await railBtn(page, cls).boundingBox())!
+    return page.screenshot({ clip: { x: b.x - 6, y: b.y - 6, width: b.width + 12, height: b.height + 12 } })
+  }
+
+  for (const cls of RAIL) {
+    test(`${cls}: off / focus / pressed / pressed+focus — pressed is Highlight/HighlightText with NO outline, focus keeps its outline, and all four render differently`, async ({ page }) => {
+      await load(page)
+      expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches), 'forced colours really emulated').toBe(true)
+      const styles: Record<string, Awaited<ReturnType<typeof styleOf>>> = {}
+      const shots: Record<string, Buffer> = {}
+
+      styles.off = await styleOf(page, cls)
+      shots.off = await shot(page, cls)
+
+      await keyboardFocus(page, cls)
+      styles.focus = await styleOf(page, cls)
+      shots.focus = await shot(page, cls)
+      await dropFocus(page)
+
+      await railBtn(page, cls).click() // a mouse press: pressed, focused but NOT :focus-visible
+      await expect(railBtn(page, cls)).toHaveAttribute('aria-pressed', 'true')
+      await dropFocus(page)
+      // the pointer still rests on the button after the click — the pressed tell
+      // must already hold there (the `:hover` variant of the normal rule outranks a
+      // plain forced-colors rule; see index.css)
+      styles.pressedHover = await styleOf(page, cls)
+      await page.mouse.move(640, 700) // off the rail, onto empty pane
+      styles.pressed = await styleOf(page, cls)
+      shots.pressed = await shot(page, cls)
+
+      await keyboardFocus(page, cls)
+      styles.pressedFocus = await styleOf(page, cls)
+      shots.pressedFocus = await shot(page, cls)
+
+      // computed-style contract
+      expect(styles.off.pressed).toBe('false')
+      expect(styles.focus.focusVisible, 'keyboard focus is :focus-visible').toBe(true)
+      expect(styles.pressedFocus.focusVisible).toBe(true)
+      expect(styles.pressed.focusVisible).toBe(false)
+      expect(styles.pressed.background, 'pressed = system Highlight').not.toBe(styles.off.background)
+      expect(styles.pressed.color, 'pressed text/icon = HighlightText').not.toBe(styles.off.color)
+      expect(styles.pressed.outlineStyle, 'pressed does NOT use the outline').toBe('none')
+      expect(styles.focus.outlineStyle, 'focus ring is an outline').not.toBe('none')
+      expect(styles.pressedFocus.outlineStyle, 'the outline survives on a pressed button').not.toBe('none')
+      expect(styles.pressedFocus.outlineWidth).toBe(styles.focus.outlineWidth)
+      expect(styles.pressedFocus.background).toBe(styles.pressed.background)
+      expect(styles.pressedHover.background, 'pressed keeps its tell while hovered').toBe(styles.pressed.background)
+      expect(styles.pressedHover.color).toBe(styles.pressed.color)
+
+      // rendered pixels: the four states are four different pictures — in particular
+      // pressed vs pressed+focus, which used to be byte-identical
+      const names = Object.keys(shots)
+      for (let i = 0; i < names.length; i++)
+        for (let j = i + 1; j < names.length; j++)
+          expect(shots[names[i]].equals(shots[names[j]]), `${names[i]} and ${names[j]} render differently`).toBe(false)
+    })
+  }
+
+  /** screen-space sample points ON the edge path: 48 points at 1 px spacing around the point at `frac` of its length */
+  const pathSamples = (page: Page, edgeId: string, frac: number) =>
+    page.evaluate(({ id, frac }) => {
+      const p = document.querySelector(`.react-flow__edge[data-id="${id}"] path.react-flow__edge-path`) as SVGPathElement
+      const L = p.getTotalLength()
+      const svg = p.ownerSVGElement!
+      const ctm = p.getScreenCTM()!
+      const scale = Math.hypot(ctm.a, ctm.b) || 1 // flow px → screen px
+      const pts: { x: number; y: number }[] = []
+      for (let k = -24; k < 24; k++) {
+        const pt = p.getPointAtLength(Math.max(0, Math.min(L, L * frac + k / scale)))
+        const q = svg.createSVGPoint()
+        q.x = pt.x
+        q.y = pt.y
+        const sp = q.matrixTransform(ctm)
+        pts.push({ x: sp.x, y: sp.y })
+      }
+      return pts
+    }, { id: edgeId, frac })
+  /** mean ink coverage of the sample points in a page screenshot — 0 = every
+   *  sample is the canvas colour, 1 = every sample is fully dark. Decoded
+   *  in-page on a <canvas>; the canvas colour is read from the rendered pixels
+   *  (under forced colours the computed background is not what is painted). */
+  const inkCoverage = (page: Page, png: Buffer, pts: { x: number; y: number }[], band: 'path' | 'halo') =>
+    page.evaluate(
+      async ({ b64, pts, band }) => {
+        const im = new Image()
+        im.src = `data:image/png;base64,${b64}`
+        await im.decode()
+        const c = document.createElement('canvas')
+        c.width = im.width
+        c.height = im.height
+        const ctx = c.getContext('2d')!
+        ctx.drawImage(im, 0, 0)
+        const lum = (d: Uint8ClampedArray) => {
+          const ch = (v: number) => {
+            v /= 255
+            return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+          }
+          return 0.2126 * ch(d[0]) + 0.7152 * ch(d[1]) + 0.0722 * ch(d[2])
+        }
+        const rf = (document.querySelector('.react-flow') as HTMLElement).getBoundingClientRect()
+        const lbg = lum(ctx.getImageData(Math.round(rf.right - 12), Math.round(rf.top + 12), 1, 1).data)
+        const inkAt = (x: number, y: number) => {
+          const l = lum(ctx.getImageData(Math.round(x), Math.round(y), 1, 1).data)
+          return Math.max(0, Math.min(1, (lbg - l) / (lbg + 0.05)))
+        }
+        let sum = 0
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[Math.max(0, i - 1)]
+          const b = pts[Math.min(pts.length - 1, i + 1)]
+          const len = Math.hypot(b.x - a.x, b.y - a.y) || 1
+          const nx = -(b.y - a.y) / len
+          const ny = (b.x - a.x) / len
+          if (band === 'path') {
+            // the stroke itself: the darkest pixel within ±2 px of the path
+            let best = 0
+            for (let o = -2; o <= 2; o++) best = Math.max(best, inkAt(pts[i].x + nx * o, pts[i].y + ny * o))
+            sum += best
+          } else {
+            // the halo band: 3–6 px either side of the path, where only a blurred
+            // drop-shadow could put ink (mean of the eight offsets)
+            let acc = 0
+            for (const o of [-6, -5, -4, -3, 3, 4, 5, 6]) acc += inkAt(pts[i].x + nx * o, pts[i].y + ny * o)
+            sum += acc / 8
+          }
+        }
+        return sum / pts.length
+      },
+      { b64: png.toString('base64'), pts, band },
+    )
+
+  for (const [name, file, edgeIds] of [
+    ['coffee-roastery', 'coffee-roastery.json', ['e_green_in', 'e_green_wholesale', 'e_green_roast']],
+    ['mmo-progression', 'mmo-progression.json', ['e_water_up', 'e_water_up_ct', 'e_food_up']],
+  ] as const) {
+    test(`${name}: an active edge's tell is the dashes — computed filter is none, and the dash gaps are not filled in by a halo`, async ({ page }) => {
+      await openApp(page)
+      await resetAll(page)
+      await importGraph(page, readFileSync(new URL(`../examples/${file}`, import.meta.url), 'utf8'))
+      await expect(page.locator('.react-flow__node').first()).toBeVisible()
+      await page.evaluate(() =>
+        (window as unknown as { __loop: { rf: { fitView: (o: object) => void } } }).__loop.rf.fitView({ duration: 0, padding: 0.1 }),
+      )
+      await page.waitForTimeout(300)
+      for (let i = 0; i < 10; i++) await commitOneStep(page)
+      await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+      // overlay OFF: the plain strokes. An edge may run under a node or a label for
+      // part of its length, so per edge pick the stretch (of seven candidates) where
+      // the plain stroke is most visible — the ON comparison uses the SAME points.
+      const offPng = await page.screenshot()
+      const pts: Record<string, { x: number; y: number }[]> = {}
+      const inkOffs: Record<string, number> = {}
+      for (const id of edgeIds) {
+        let best: { ink: number; pts: { x: number; y: number }[] } | null = null
+        for (const frac of [0.15, 0.25, 0.35, 0.5, 0.65, 0.75, 0.85]) {
+          const cand = await pathSamples(page, id, frac)
+          const ink = await inkCoverage(page, offPng, cand, 'path')
+          if (!best || ink > best.ink) best = { ink, pts: cand }
+        }
+        pts[id] = best!.pts
+        inkOffs[id] = best!.ink
+      }
+      // overlay ON: the same edges now carry the tell
+      await activityBtn(page).click()
+      await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+      for (const id of edgeIds) await expect(edgePath(page, id)).toHaveClass(/lgr-active-tint/)
+      await page.waitForTimeout(200)
+      const onPng = await page.screenshot()
+      for (const id of edgeIds) {
+        const st = await edgePath(page, id).evaluate((el) => {
+          const c = getComputedStyle(el)
+          return { filter: c.filter, dash: c.strokeDasharray }
+        })
+        expect(st.filter, `${id}: no halo under forced colours`).toBe('none')
+        expect(st.dash, `${id}: dashed tell`).toBe('1px, 3px')
+        const inkOff = inkOffs[id]
+        const inkOn = await inkCoverage(page, onPng, pts[id], 'path')
+        expect(inkOff, `${id}: a visible stretch of the plain stroke was found`).toBeGreaterThan(0.3)
+        // The enforced contract is the computed `filter: none` above — the halo
+        // is faint by design (alpha 0.15 → a 3.9 px blur) and at the mmo fit-view
+        // zoom its pixel footprint sits inside measurement noise, so no pixel
+        // threshold can be both robust and discriminating there. What the
+        // pixels CAN pin: the tell only ever removes ink along the path (dashes
+        // expose the canvas) and never paints it back — measured 2026-09-19 (max
+        // ink within ±2 px, 48 samples, best of 7 stretches): with the fix
+        // on/off 0.48–0.89 on coffee, 0.97–1.08 on mmo (sub-pixel dashes); with
+        // the halo up to 1.20 on mmo.
+        expect(inkOn, `${id}: ink along the edge, on ${inkOn.toFixed(3)} vs off ${inkOff.toFixed(3)} — nothing may be painted back in`).toBeLessThanOrEqual(inkOff * 1.15)
+        expect(inkOn, `${id}: the dashed edge is still drawn`).toBeGreaterThan(0.05)
+      }
+    })
+  }
 })
 
 // PR #142 — a dense/dark graph compounds the Activity edge glow's opaque

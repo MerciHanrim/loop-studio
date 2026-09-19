@@ -1559,16 +1559,6 @@ a.sheet__row {
   background: var(--signal-primary-soft);
   box-shadow: inset 0 0 0 2px var(--signal-primary);
 }
-/* §LGR9 — a UA colour override drops `box-shadow` and the token fill, so the
-   ON state would lose its tell. An `outline` survives forced-colors; `Highlight`
-   is the "active / selected" system colour. This is the non-colour-dependent
-   tell (a ring is present, or it is not). */
-@media (forced-colors: active) {
-  .react-flow__controls-button.rf-focus[aria-pressed='true'] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
-  }
-}
 
 /* the "arm" hint — shown only while Focus is ON but nothing is selected, so the
    canvas has not visibly changed yet. A React Flow top-centre Panel; never
@@ -1810,12 +1800,6 @@ a.sheet__row {
   color: var(--signal-primary);
   background: var(--signal-primary-soft);
   box-shadow: inset 0 0 0 2px var(--signal-primary);
-}
-@media (forced-colors: active) {
-  .react-flow__controls-button.rf-filter[aria-pressed='true'] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
-  }
 }
 
 /* ── docs/large-graph-readability.md §LGR6 — transient group frames ──────────
@@ -2118,11 +2102,28 @@ a.sheet__row {
   background: var(--signal-primary-soft);
   box-shadow: inset 0 0 0 2px var(--signal-primary);
 }
+/* §LGR9 — a UA colour override drops `box-shadow` and the token fill, so the
+   ON state would lose its tell. The pressed tell under forced-colors is the
+   system "selected" pair, `Highlight` / `HighlightText` (both survive the
+   override) — NOT an `outline`: `outline` is the keyboard-focus ring, and a
+   pressed rule on the same property hid the focus ring on a pressed button
+   (measured 2026-09-19: pressed and pressed+focus were pixel-identical). The
+   same rule covers every rail toggle that carries a pressed state, and it
+   sits AFTER all four normal pressed rules so it wins their equal specificity,
+   and lists the `:hover` variants too — the normal rules' `:hover` selector
+   has higher specificity and its (forced) background would otherwise win
+   while the pointer rests on the button, i.e. right after a click. */
 @media (forced-colors: active) {
+  .react-flow__controls-button.rf-focus[aria-pressed='true'],
+  .react-flow__controls-button.rf-focus[aria-pressed='true']:hover,
+  .react-flow__controls-button.rf-filter[aria-pressed='true'],
+  .react-flow__controls-button.rf-filter[aria-pressed='true']:hover,
   .react-flow__controls-button.rf-frame[aria-pressed='true'],
-  .react-flow__controls-button.rf-activity[aria-pressed='true'] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
+  .react-flow__controls-button.rf-frame[aria-pressed='true']:hover,
+  .react-flow__controls-button.rf-activity[aria-pressed='true'],
+  .react-flow__controls-button.rf-activity[aria-pressed='true']:hover {
+    background: Highlight;
+    color: HighlightText;
   }
 }
 /* docs/…-auto-frames.md §AF4.3 — the "Suggest frames" control shows a small
@@ -2182,6 +2183,11 @@ a.sheet__row {
   }
   .react-flow__edge-path.lgr-active-tint {
     stroke-dasharray: 1 3;
+    /* the glow's `filter` is NOT dropped by a UA colour override, and its
+       blurred halo filled the dash gaps on dense graphs (measured 2026-09-19:
+       canvas-coloured samples along an mmo edge fell from 14–18 to 4–9 with
+       the overlay on) — the dashes ARE the tell here, so no halo */
+    filter: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
