@@ -11,13 +11,14 @@ import {
   useStore,
   useStoreApi,
 } from '@xyflow/react'
-import { useGraphStore } from '../store/graphStore'
+import { useGraphStore, type GestureSnapshot } from '../store/graphStore'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
+import { createKeyGesture } from '../ui/keyGestureLifetime'
 import { useI18n, useT, type MessageKey } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { useFilterStore } from '../store/filterStore'
@@ -69,6 +70,8 @@ const DEFAULT_EDGE_OPTIONS = { type: 'loop' } as const
 // F4 — React Flow hands its live-region formatter a bare English direction
 // ('left' / 'right' / 'up' / 'down'); map it to a real key so `check:i18n` can
 // see every one of them (a template literal would read as a dead key).
+const ARROW_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'])
+
 const RF_DIR_KEY: Record<string, MessageKey> = {
   left: 'rf.dir.left',
   right: 'rf.dir.right',
@@ -607,6 +610,115 @@ export function Canvas() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [noEdit, deleteElements])
+
+  // §LGR6.7 — F2. React Flow moves a selected node with the arrow keys and
+  // reports it as a `position` change with `dragging: false`; `onNodesChange`
+  // only commits a `dragging: true`, so the move used to create NO history
+  // entry — and the next Ctrl+Z then undid the PREVIOUS unrelated edit while
+  // the position merely looked restored (audit 2026-09-20).
+  //
+  // The fix brackets React Flow's own movement with the same transaction the
+  // frame gestures use, without touching the pointer path (which still commits
+  // on its first `dragging: true`) and without reinterpreting `dragging: false`
+  // (a pointer drag ends with one too, and so does React Flow's aborted-drag
+  // restore — committing on that alone would double-count every drag).
+  //
+  // A capture-phase keydown runs BEFORE React Flow applies the move (measured),
+  // which is what makes the pre-move snapshot possible. The transaction opens
+  // only for an arrow aimed at a node React Flow will really move: the event
+  // target inside a `.react-flow__node`, that node selected and draggable, no
+  // text field, no modal, not locked / mobile. A frame, its resize handle and
+  // any other button therefore never open one, even with a node still selected.
+  useEffect(() => {
+    if (noEdit) return
+    type Pt = { x: number; y: number }
+    type Origin = { snapshot: GestureSnapshot; positions: Record<string, Pt>; announceId: string }
+    let open: Origin | null = null
+
+    /** the nodes React Flow will move for an arrow aimed at `target`, or [] */
+    const movableFor = (target: EventTarget | null): string[] => {
+      const el = (target as HTMLElement | null)?.closest?.('.react-flow__node') as HTMLElement | null
+      if (!el) return []
+      const id = el.getAttribute('data-id')
+      const g = useGraphStore.getState()
+      // React Flow's own gate: the FOCUSED node must be selected and draggable
+      const focused = g.nodes.find((n) => n.id === id)
+      if (!focused?.selected || focused.draggable === false) return []
+      // …and then it moves every selected, draggable node by the same delta
+      return g.nodes.filter((n) => n.selected && n.draggable !== false).map((n) => n.id)
+    }
+    const changedFrom = (positions: Record<string, Pt>) => {
+      const g = useGraphStore.getState()
+      return Object.entries(positions).some(([id, p]) => {
+        const n = g.nodes.find((x) => x.id === id)
+        return !!n && (n.position.x !== p.x || n.position.y !== p.y)
+      })
+    }
+    /** React Flow announces its own moves in its live region; a restore does not
+     *  go through that path, so say the settled origin once, in the same place. */
+    const announceRestore = (p: Pt) => {
+      const st = rfStore.getState() as unknown as { ariaLiveMessage?: string }
+      if (!('ariaLiveMessage' in st)) return // upstream renamed it — silently skip
+      rfStore.setState({ ariaLiveMessage: t('rf.node.moveCancelled', { x: Math.round(p.x), y: Math.round(p.y) }) } as never)
+    }
+
+    const gesture = createKeyGesture((reason) => {
+      const o = open
+      open = null
+      if (!o) return
+      if (reason === 'cancel') {
+        if (changedFrom(o.positions)) {
+          useGraphStore.getState().applyGesturePositions(o.positions, {})
+          announceRestore(o.positions[o.announceId])
+        }
+        return
+      }
+      if (changedFrom(o.positions)) useGraphStore.getState().pushGestureEntry(o.snapshot)
+    })
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (!gesture.active) return // no gesture ⇒ React Flow's own deselect
+        e.preventDefault()
+        e.stopPropagation()
+        gesture.end('cancel')
+        return
+      }
+      if (!ARROW_KEYS.has(e.key) || blocksCanvasKey(e.target)) return
+      const ids = movableFor(e.target)
+      if (ids.length === 0) return
+      if (!gesture.active) {
+        const g = useGraphStore.getState()
+        const positions: Record<string, Pt> = {}
+        for (const id of ids) {
+          const n = g.nodes.find((x) => x.id === id)
+          if (n) positions[id] = { x: n.position.x, y: n.position.y }
+        }
+        open = { snapshot: g.captureGestureSnapshot(), positions, announceId: ids[0] }
+      }
+      gesture.press(e.key)
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (ARROW_KEYS.has(e.key)) gesture.release(e.key)
+    }
+    const onBlur = () => gesture.end('blur')
+    const onVisibility = () => gesture.end('visibility')
+    const onPointerDown = () => gesture.end('pointerdown')
+
+    document.addEventListener('keydown', onKeyDown, true)
+    document.addEventListener('keyup', onKeyUp, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      gesture.end('blur') // never unmount with a transaction open
+      document.removeEventListener('keydown', onKeyDown, true)
+      document.removeEventListener('keyup', onKeyUp, true)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [noEdit, rfStore, t])
 
   const handleDrop = useCallback(
     (e: DragEvent) => {

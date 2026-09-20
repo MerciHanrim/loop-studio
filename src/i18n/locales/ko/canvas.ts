@@ -120,6 +120,7 @@ const canvas = {
   'canvas.frame.a11y.resize': '{label} 크기 조절 — 너비 {w}, 높이 {h}. 화살표 키로 크기를 바꾸고, Shift와 함께 누르면 더 크게 바뀝니다.',
   'canvas.frame.a11y.moved': '{label} 이동됨, x {x}, y {y}',
   'canvas.frame.a11y.resized': '{label} 크기 변경됨, 너비 {w}, 높이 {h}',
+  'rf.node.moveCancelled': '이동을 취소했습니다. 노드가 x {x}, y {y}로 돌아왔습니다',
   'rf.node.moved': '선택한 노드를 {direction} 이동했습니다. 새 위치 x {x}, y {y}',
   'rf.dir.left': '왼쪽으로',
   'rf.dir.right': '오른쪽으로',

@@ -136,6 +136,7 @@ const canvas = {
   'canvas.frame.a11y.resize': '{label} のサイズ変更 — 幅 {w}、高さ {h}。矢印キーでサイズを変え、Shift を押しながらで大きく変わります。',
   'canvas.frame.a11y.moved': '{label} を x {x}、y {y} に移動しました',
   'canvas.frame.a11y.resized': '{label} を幅 {w}、高さ {h} に変更しました',
+  'rf.node.moveCancelled': '移動をキャンセルしました。ノードは x {x}、y {y} に戻りました',
   'rf.node.moved': '選択したノードを{direction}移動しました。新しい位置 x {x}、y {y}',
   'rf.dir.left': '左へ',
   'rf.dir.right': '右へ',
