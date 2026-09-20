@@ -2238,6 +2238,30 @@ a.sheet__row {
        at zoom 0.4–0.75). Opaque here only — light / dark keep the fade. */
     opacity: 1 !important;
   }
+  /* §LGR9 — the INACTIVE edges (measured on REAL Windows contrast themes,
+     2026-09-20, not only the emulation): the inline grey stroke is not
+     force-adjusted, so an inactive resource edge sat at 2.23:1 on the light
+     "Desert" theme (3.04 on "Night sky" only because prefers-dark flipped the
+     app tokens). Inactive resource / state edges — and every route-invalid
+     edge, whatever its activity — take the system `GrayText` (Desert 5.4:1,
+     Night sky 8.6, emulation 14 vs Canvas), which stayed BELOW the Highlight
+     of an active edge in all three measured palettes (7.3 / 11.8 / 15.1) —
+     not a guarantee for a user-defined Windows palette — so the active tell
+     keeps the emphasis there, and `CanvasText` (10.4 on Desert, stronger than
+     Highlight, and the node-outline colour) is deliberately not used. Route-invalid
+     keeps its `6 3` / `4 4` dash, caps and the `!` flag (§ER4). A 1 px state
+     dash with the app's own colour measured ≈ 1.3:1 in all three runs
+     (anti-aliasing), so an inactive or invalid STATE edge is 1.5 px here only; a SELECTED edge keeps its 2 px
+     (the `.selected` group is excluded). Light / dark are untouched. */
+  .react-flow__edge-path.edge-resource:not(.lgr-active-tint),
+  .react-flow__edge-path.edge-state:not(.lgr-active-tint),
+  .react-flow__edge-path.route-invalid {
+    stroke: GrayText !important;
+  }
+  .react-flow__edge:not(.selected) .react-flow__edge-path.edge-state:not(.lgr-active-tint),
+  .react-flow__edge:not(.selected) .react-flow__edge-path.edge-state.route-invalid {
+    stroke-width: 1.5px !important;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   /* the tint steps between static states with the committed step; no animated
