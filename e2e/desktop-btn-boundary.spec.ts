@@ -13,8 +13,8 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from '
 // vs panel / vs face), 1.65 overlay, 1.51 sunken, 2.15–2.54 dark, and the
 // hovered `--line-strong` at 2.88 on the sunken group — the face contrast
 // (1.86 / 2.15) was the same on every surface, so the contract is global.
-// Guards: ghost / primary render EXACTLY as they did before this change, label
-// text ≥ 4.5:1, the
+// Guards: ghost (no rest border, `--line-strong` hovered) and primary
+// (`--signal-primary`) keep their own borders, label text ≥ 4.5:1, the
 // `:focus-visible` ring is untouched, disabled stays the WCAG exception
 // (`opacity: .4`, `.pb-btn:disabled` → `--line-disabled`), and forced colours
 // own the border (ButtonBorder / Highlight / GrayText). No pressed contract —
@@ -220,19 +220,14 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
     test(`${scheme}: guards — ghost / primary borders, focus ring, disabled opacity and the PlayBar disabled border are unchanged`, async ({ page }) => {
       await load(page, scheme)
       const signal = await probe(page, 'var(--signal-primary)')
-      const warning = await probe(page, 'var(--state-warning)')
       const lineStrong = await probe(page, 'var(--line-strong)')
+      const controlHoverToken = await probe(page, 'var(--line-control-hover)')
       const focusRing = await probe(page, 'var(--focus-ring)')
       const lineDisabled = await probe(page, 'var(--line-disabled)')
-      // ghost (Inspector Delete) — pinned on the RENDERED result, not on the
-      // source declarations. `.btn--ghost:hover { border-color: var(--state-warning) }`
-      // is (0,2,0) and has always lost to the shared `.btn:hover:not(:disabled)`
-      // (0,3,0), so the warning tint has never been painted (no ghost button is
-      // ever `disabled`, the one selector state where it could have won). The
-      // control-boundary change would otherwise have promoted a hovered ghost to
-      // `--line-control-hover`; `.btn--ghost:hover:not(:disabled)` keeps it at
-      // `--line-strong`, exactly what shipped. Making the warning tint real is a
-      // separate visual decision, deliberately not taken here.
+      // ghost (Inspector Delete) — outside the control-boundary contract: no
+      // border at rest, `--line-strong` hovered. That pair needs its own (0,3,0)
+      // rule to outrank the shared `.btn:hover:not(:disabled)`, so it is pinned
+      // here to catch a silent promotion to the control token.
       await page.evaluate(() => {
         const g = (window as any).__loop.graph.getState()
         g.setSelection(g.nodes[0].id, null)
@@ -243,8 +238,8 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
       await ghost.hover()
       await page.waitForTimeout(120)
       const gh = await computed(ghost)
-      expect(gh.border, 'ghost hovered: the pre-change rendered line (--line-strong)').toBe(lineStrong)
-      expect(gh.border, 'the unreachable --state-warning is still not painted').not.toBe(warning)
+      expect(gh.border, 'ghost hovered: --line-strong, not the control token').toBe(lineStrong)
+      expect(gh.border, 'ghost hovered: never the control-boundary token').not.toBe(controlHoverToken)
       expect(gh.color).toBe(await probe(page, 'var(--text-primary)'))
       await noHover(page)
       // primary (Monte Carlo Run): --signal-primary at rest AND hovered, the

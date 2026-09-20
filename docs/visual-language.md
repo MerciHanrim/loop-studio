@@ -412,10 +412,12 @@ byte-identical across L2/L1/L0 (§VL12.5).
   same 1.78 on 2026-09-19). Measured minima with the control tokens, composited
   pixels: light rest 3.92 (sunken) · 4.26 (overlay) · 4.61 (panel) · 4.82
   (face), hover ≥ 6.15; dark rest 5.46 (face) · 5.98 (overlay) · 6.46 (panel),
-  hover ≥ 7.67. Ghost keeps its transparent rest border and primary its
-  `--signal-primary`; a disabled control is the WCAG exception (`opacity: .4`,
-  `.pb-btn:disabled` → `--line-disabled`), not a 3:1 contract, and its token
-  does not change on enable; under forced colours the UA owns the border
+  hover ≥ 7.67. Ghost is outside the contract and keeps its own pair — no
+  border at rest, `--line-strong` hovered (an appearing edge, not a boundary
+  that has to stay legible) — and primary keeps its `--signal-primary`. A
+  disabled control is the WCAG exception (`opacity: .4`, `.pb-btn:disabled` →
+  `--line-disabled`), not a 3:1 contract, and its token does not change on
+  enable; under forced colours the UA owns the border
   (`ButtonBorder`, `Highlight` hovered, `GrayText` disabled). Pinned on
   composited pixels in `e2e/desktop-btn-boundary.spec.ts` (one control per
   surface token + PlayBar + Timeline, light / dark / forced) and
