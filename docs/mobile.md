@@ -246,17 +246,22 @@ Both are bottom sheets. **Shared sheet contract:**
   contain`);
 - `prefers-reduced-motion` → no slide transition.
 - a **`.btn` inside a sheet** (the More sheet's Focus / Activity toggles,
-  Theme, Language, the sub-sheets' buttons) draws its boundary in
-  `--line-control` (hover: `--line-control-hover`), **≥ 3:1** against the
-  sheet, against a hovered / focused row (`--surface-sunken`) and against its
-  own face, light and dark (WCAG 1.4.11). The shared `.btn` border
-  (`--line-structure`) measured 1.78:1 light / 2.54:1 dark on the sheet and the
-  hovered `--line-strong` 2.88:1 on the sunken row (audit 2026-09-19); ghost /
+  Theme, Language, the sub-sheets' buttons) draws its boundary in the shared
+  control tokens it inherits from the base `.btn` — `--line-control` (hover:
+  `--line-control-hover`), the global contract of docs/visual-language.md §VL8
+  — **≥ 3:1** against the sheet, against a hovered / focused row
+  (`--surface-sunken`) and against its own face, light and dark (WCAG 1.4.11).
+  There is no sheet-specific border rule: the sheet-scoped rule of 2026-09-19
+  (the shared `--line-structure` border then measured 1.78:1 light / 2.54:1
+  dark on the sheet, the hovered `--line-strong` 2.88:1 on the sunken row)
+  became the base `.btn` rule on 2026-09-20, when the desktop audit found the
+  same 1.78 / 1.86 on every panel; the PlayBar's `.pb-btn` (the mobile run bar
+  too) and the Timeline's `.timeline__csv` follow the same tokens. Ghost /
   primary buttons keep their own contract; the pressed tell stays the label
   (Off / On) + `aria-pressed`; forced colours own the border (`ButtonBorder`).
   Pinned on the real composited pixels in `mobile.spec.ts` ("sheet .btn
-  boundary contrast") + two element baselines. Desktop `.btn` on a panel has
-  the same 1.78:1 shortfall — a separate item.
+  boundary contrast") + two element baselines, and on the desktop in
+  `desktop-btn-boundary.spec.ts`.
 
 **Timeline** — collapsed by default; a "Timeline" handle expands it to ~45 vh.
 Never a layout column.

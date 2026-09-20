@@ -400,6 +400,26 @@ byte-identical across L2/L1/L0 (§VL12.5).
   colour override).
 - **Focus** is always a visible ring distinct from selection; tab order follows
   reading order.
+- **Control boundary.** Any 1 px control border on a panel — the shared `.btn`
+  (every variant that does not set its own border: plain, `--sm`, `--icon`),
+  the PlayBar's `.pb-btn` and the Timeline's `.timeline__csv` — is
+  `--line-control` at rest and `--line-control-hover` hovered, and keeps
+  **≥ 3:1** against the surface behind it *and* against its own face, light and
+  dark (WCAG 1.4.11). The face contrast is what makes the rule global rather
+  than per surface: with `--line-structure` it was 1.86 (light) / 2.15 (dark)
+  on every surface, and 1.78 / 1.65 / 1.86 / 1.51 against a panel / overlay /
+  raised / sunken surface (desktop audit 2026-09-20; the mobile sheet found the
+  same 1.78 on 2026-09-19). Measured minima with the control tokens, composited
+  pixels: light rest 3.92 (sunken) · 4.26 (overlay) · 4.61 (panel) · 4.82
+  (face), hover ≥ 6.15; dark rest 5.46 (face) · 5.98 (overlay) · 6.46 (panel),
+  hover ≥ 7.67. Ghost keeps its transparent rest border and primary its
+  `--signal-primary`; a disabled control is the WCAG exception (`opacity: .4`,
+  `.pb-btn:disabled` → `--line-disabled`), not a 3:1 contract, and its token
+  does not change on enable; under forced colours the UA owns the border
+  (`ButtonBorder`, `Highlight` hovered, `GrayText` disabled). Pinned on
+  composited pixels in `e2e/desktop-btn-boundary.spec.ts` (one control per
+  surface token + PlayBar + Timeline, light / dark / forced) and
+  `e2e/mobile.spec.ts` (the sheet buttons).
 - **`forced-colors` / high contrast:** when the UA overrides colours, the §VL7.1
   required set stays distinguishable (shape, dash, icon, ring); the app does not
   fight the override.

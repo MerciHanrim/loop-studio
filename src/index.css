@@ -662,7 +662,11 @@ body {
   font-weight: 600;
   background: var(--surface-raised);
   color: var(--text-primary);
-  border: 1px solid var(--line-structure);
+  /* docs/visual-language.md §VL8 "Control boundary" — the control tokens, not
+     `--line-structure`: a 1 px border on a panel needs ≥ 3:1 against the
+     surface AND against the button's own face, and the structure line
+     measured 1.86 (light) / 2.15 (dark) against the face on every surface. */
+  border: 1px solid var(--line-control);
   border-radius: 8px;
   cursor: pointer;
   /* keep a label on one line — a CJK label (no spaces) otherwise breaks
@@ -673,7 +677,7 @@ body {
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--line-strong);
+  border-color: var(--line-control-hover);
 }
 .btn:disabled {
   opacity: 0.4;
@@ -857,6 +861,17 @@ a.sheet__row {
 .btn--ghost:hover {
   border-color: var(--state-warning);
   color: var(--text-primary);
+}
+/* §VL8 — the `--state-warning` border above has never been painted: it is
+   (0,2,0) and the shared `.btn:hover:not(:disabled)` is (0,3,0), so a hovered
+   ghost button has always drawn the shared hover line (no ghost button is ever
+   `disabled`, the one state where the rule above could have won). The
+   control-boundary change (2026-09-20) would have silently promoted it to
+   `--line-control-hover`, so this rule pins what actually shipped —
+   `--line-strong` — instead. Whether the warning tint should become real is a
+   separate visual / semantic decision, deliberately not taken here. */
+.btn--ghost:hover:not(:disabled) {
+  border-color: var(--line-strong);
 }
 
 /* ---- canvas column ---- */
@@ -2693,7 +2708,7 @@ a.sheet__row {
   padding: 3px 9px;
   background: var(--surface-raised);
   color: var(--text-primary);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 7px;
   cursor: pointer;
   white-space: nowrap;
@@ -2701,7 +2716,7 @@ a.sheet__row {
   flex-shrink: 0;
 }
 .pb-btn:hover:not(:disabled) {
-  border-color: var(--line-strong);
+  border-color: var(--line-control-hover);
 }
 .pb-btn:disabled {
   color: var(--text-disabled);
@@ -2867,7 +2882,7 @@ a.sheet__row {
   flex: none;
 }
 .timeline__csv {
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 4px;
   padding: 1px 6px;
   background: var(--surface-raised);
@@ -2878,7 +2893,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .timeline__csv:hover:not(:disabled) {
-  border-color: var(--line-strong);
+  border-color: var(--line-control-hover);
   color: var(--text-secondary);
 }
 .timeline__csv:disabled {
@@ -4760,18 +4775,6 @@ input[type='number']::-webkit-inner-spin-button {
     margin-left: auto;
     font-size: 12px;
     color: var(--text-tertiary);
-  }
-  /* §MV5 — a `.btn` inside a sheet (the More sheet's Focus / Activity toggles,
-     Theme, Language, the sub-sheets' buttons) draws its 1 px boundary in the
-     control tokens: audit 2026-09-19 measured the shared `--line-structure`
-     border at 1.78:1 (light) / 2.54:1 (dark) against the sheet and the hovered
-     `--line-strong` at 2.88:1 against the sunken row. Ghost and primary
-     buttons keep their own border contract. */
-  .sheet .btn:not(.btn--ghost):not(.btn--primary) {
-    border-color: var(--line-control);
-  }
-  .sheet .btn:not(.btn--ghost):not(.btn--primary):hover:not(:disabled) {
-    border-color: var(--line-control-hover);
   }
   .sheet__stamp {
     padding: 10px 10px 2px;
