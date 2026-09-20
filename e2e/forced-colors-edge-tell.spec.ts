@@ -533,3 +533,147 @@ test.describe('§LGR9 forced-colors — visual baselines (element policy)', () =
     await expect(page).toHaveScreenshot(...snap(page, 'forced-four-state-mmo-z075', { clip }))
   })
 })
+
+// ---------------------------------------------------------------------------
+// §LGR9 — the INACTIVE edges (measured on REAL Windows contrast themes, 2026-09-20:
+// the inline grey is not force-adjusted — 2.23:1 on Desert, 3.04 on Night sky only
+// because prefers-dark flips the app tokens). Contract: an inactive resource / state
+// edge and every route-invalid edge take the system `GrayText` (Desert 5.4:1, Night
+// sky 8.6, emulation 14 — below Highlight in all three measured palettes, so the
+// active tell kept the emphasis there); an inactive / invalid STATE edge is 1.5 px
+// under forced colours only (a 1 px dash with the app's own colour measured ≈ 1.3:1
+// in all three runs); a SELECTED edge keeps its
+// 2 px; light / dark rendering is untouched.
+// ---------------------------------------------------------------------------
+const systemColor = (page: Page, name: string) =>
+  page.evaluate((n) => {
+    const el = document.createElement('div')
+    el.style.color = n
+    document.body.appendChild(el)
+    const c = getComputedStyle(el).color
+    el.remove()
+    return c
+  }, name)
+
+test.describe('§LGR9 forced-colors — inactive edges and route-invalid take the system GrayText', () => {
+  test('mmo: inactive resource + inactive state = GrayText, inactive state 1.5 px, active edges still Highlight, a selected inactive state keeps its 2 px, the rest of the contract holds', async ({ page }) => {
+    await loadFixture(page, 'mmo-progression.json')
+    const hl = await highlightRgb(page)
+    const gray = await systemColor(page, 'GrayText')
+    expect(gray).not.toBe(hl)
+    await activityBtn(page).click()
+    await expect(activityBtn(page)).toHaveAttribute('aria-pressed', 'true')
+    await commitSteps(page, 3)
+    const idle = await injectIdleStateEdge(page, 'e_water_up')
+    await page.waitForTimeout(200)
+    // inactive RESOURCE edges: GrayText, solid, round, 1.5 px, no halo
+    const inactiveRes = await page.evaluate(() =>
+      [...document.querySelectorAll('path.react-flow__edge-path.edge-resource:not(.lgr-active-tint):not(.route-invalid)')].map((p) => p.closest('.react-flow__edge')!.getAttribute('data-id')!),
+    )
+    expect(inactiveRes.length).toBeGreaterThanOrEqual(3)
+    for (const id of inactiveRes.slice(0, 6)) {
+      const s = await styleOf(page, id)
+      expect(s.stroke, `${id}: inactive resource = GrayText`).toBe(gray)
+      expect(s.dash).toBe('none')
+      expect(s.cap).toBe('round')
+      expect(s.width).toBe('1.5px')
+      expect(s.filter).toBe('none')
+      expect(s.vectorEffect).toBe('non-scaling-stroke')
+    }
+    // inactive STATE edge: GrayText, 4 4 butt, 1.5 px under forced colours, opaque
+    const st = await styleOf(page, idle)
+    expect(st.stroke, 'inactive state = GrayText').toBe(gray)
+    expect(st.dash).toBe('4px, 4px')
+    expect(st.cap).toBe('butt')
+    expect(st.width, 'inactive state widened to 1.5 px (forced colours only)').toBe('1.5px')
+    expect(st.opacity).toBe('1')
+    expect(st.filter).toBe('none')
+    // interaction path untouched
+    expect(await page.locator(`.react-flow__edge[data-id="${idle}"] .react-flow__edge-interaction`).evaluate((el) => getComputedStyle(el).strokeWidth)).toBe('20px')
+    // ACTIVE edges keep Highlight and their patterns
+    const [ar] = await longestActive(page, 'edge-resource', 1)
+    const [as] = await longestActive(page, 'edge-state', 1)
+    const a1 = await styleOf(page, ar)
+    expect(a1.stroke).toBe(hl)
+    expect(a1.dash).toBe(RESOURCE_DASH)
+    const a2 = await styleOf(page, as)
+    expect(a2.stroke).toBe(hl)
+    expect(a2.dash).toBe(STATE_DASH)
+    expect(a2.opacity).toBe('1')
+    // a SELECTED inactive state edge keeps the selection width (2 px inline)
+    await page.evaluate((eid) => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string }[] }; setState: (p: object) => void } } }).__loop.graph
+      g.setState({ edges: g.getState().edges.map((e) => (e.id === eid ? { ...e, selected: true } : e)) })
+    }, idle)
+    await page.waitForTimeout(150)
+    await expect(page.locator(`.react-flow__edge[data-id="${idle}"]`)).toHaveClass(/selected/)
+    expect((await styleOf(page, idle)).width, 'selection width wins over the forced 1.5 px').toBe('2px')
+  })
+
+  for (const [kind, pick, dash, cap, width] of [
+    ['resource', 'edge-resource', '6px, 3px', 'round', '1.5px'],
+    ['state', 'edge-state', '4px, 4px', 'butt', '1.5px'],
+  ] as const) {
+    test(`${kind}: a route-invalid ACTIVE edge is GrayText (never Highlight), keeps ${dash} ${cap} and its ! flag; invalid state is 1.5 px`, async ({ page }) => {
+      await loadFixture(page, 'mmo-progression.json')
+      const hl = await highlightRgb(page)
+      const gray = await systemColor(page, 'GrayText')
+      await activityBtn(page).click()
+      await commitSteps(page, 3)
+      const [id] = await longestActive(page, pick, 1)
+      expect((await styleOf(page, id)).stroke).toBe(hl)
+      await makeRouteInvalid(page, id)
+      await expect(edgePath(page, id)).toHaveClass(/lgr-active-tint/)
+      await centreOn(page, id, 1)
+      const s = await styleOf(page, id)
+      expect(s.stroke, `${kind}: route-invalid = GrayText`).toBe(gray)
+      expect(s.stroke).not.toBe(hl)
+      expect(s.dash).toBe(dash)
+      expect(s.cap).toBe(cap)
+      expect(s.width, `${kind}: forced width`).toBe(width)
+      expect(s.filter).toBe('none')
+      const flag = page.locator(`.react-flow__edge[data-id="${id}"] .route-invalid-flag`)
+      await expect(flag).toHaveCount(1)
+      await expect(flag).toBeVisible()
+      // overlay OFF: still GrayText + invalid tell
+      await activityBtn(page).click()
+      await page.waitForTimeout(150)
+      const off = await styleOf(page, id)
+      expect(off.stroke).toBe(gray)
+      expect(off.dash).toBe(dash)
+      expect(off.width).toBe(width)
+    })
+  }
+
+  test.describe('outside forced colours (light and dark) nothing changes', () => {
+    test.use({ contextOptions: { forcedColors: 'none' } })
+    for (const scheme of ['light', 'dark'] as const) {
+      test(`${scheme}: inactive edges keep the app tokens and the 1 px state width`, async ({ page }) => {
+        await page.emulateMedia({ colorScheme: scheme })
+        await loadFixture(page, 'mmo-progression.json')
+        expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(false)
+        const tokens = await page.evaluate(() => {
+          const probe = (v: string) => {
+            const el = document.createElement('div')
+            el.style.color = v
+            document.body.appendChild(el)
+            const c = getComputedStyle(el).color
+            el.remove()
+            return c
+          }
+          return { resource: probe('var(--edge-resource)'), state: probe('var(--edge-state)') }
+        })
+        const idle = await injectIdleStateEdge(page, 'e_water_up')
+        await page.waitForTimeout(200)
+        const res = await page.evaluate(() => (document.querySelector('path.react-flow__edge-path.edge-resource') as Element).closest('.react-flow__edge')!.getAttribute('data-id')!)
+        const r = await styleOf(page, res)
+        expect(r.stroke, `${scheme}: resource stroke = --edge-resource`).toBe(tokens.resource)
+        expect(r.width).toBe('1.5px')
+        const st = await styleOf(page, idle)
+        expect(st.stroke, `${scheme}: state stroke = --edge-state`).toBe(tokens.state)
+        expect(st.width, `${scheme}: state width stays 1 px`).toBe('1px')
+        expect(st.dash).toBe('4px, 4px')
+      })
+    }
+  })
+})

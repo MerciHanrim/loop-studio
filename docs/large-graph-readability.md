@@ -624,10 +624,39 @@ engine computes.)*
     not a gate, pending a real Windows high-contrast check. Regression:
     `e2e/forced-colors-edge-tell.spec.ts` (computed contract, a 2-D dash-
     component count at 0.4 / 0.75, route-invalid priority + `!` flag, two
-    element baselines). **Follow-up, not this change:** the INACTIVE edges are
-    still a ≈ 2.2:1 (resource) / ≈ 1.7:1 (state) grey under forced colours
-    because their stroke is inline; the class markers now make a forced
-    `stroke: CanvasText` rule possible.
+    element baselines).
+  - **Inactive edges under forced colours (measured on REAL Windows contrast
+    themes, 2026-09-20).** The audit's "≈ 2.2:1 grey" was confirmed on a real
+    light theme: the inline `stroke` is never force-adjusted, so an inactive
+    resource edge rendered at **2.23:1** on *Desert* (Canvas rgb 255,250,239)
+    and only reached 3.04 on *Night sky* because that theme also sets
+    `prefers-color-scheme: dark` and the app's dark token applies. Contract
+    now: an inactive resource / state edge and **every route-invalid edge**
+    take the system **`GrayText`** (Desert 5.4:1, Night sky 8.6, emulation 14.0
+    vs Canvas) — below the Highlight of an active edge in all three measured
+    palettes (7.3 / 11.8 / 15.1; a user-defined Windows palette is not covered
+    by this measurement), so "active" kept the emphasis there; `CanvasText` was rejected because on
+    Desert it is stronger than Highlight (10.4) and is the node-outline colour.
+    Route-invalid keeps `6 3` / `4 4`, its caps and the `!` flag. A 1 px state
+    dash with the app's own colour measured ≈ 1.3:1 in all three runs
+    (anti-aliasing), so an inactive / invalid **state** edge is **1.5 px under
+    forced colours only** (a selected edge
+    keeps its 2 px; light / dark unchanged). Real-theme numbers for the ACTIVE
+    tell (stroke core vs Canvas, median): zoom 1 — Desert 4.2–7.3, Night sky
+    6.7–11.8; zoom 0.75 — Desert **2.8** (below 3:1), Night sky 4.1; zoom 0.4
+    — 1.4–2.0 everywhere (the 1.5 px anti-aliasing limit). Dash-piece counts
+    were identical in both themes and in the emulation, so the `6 3 2 3` /
+    `8 4` shape tell stands. **Limit of the emulation:** Playwright's
+    `forcedColors: 'active'` has one palette (Highlight rgb 55,0,110 = 15.1:1,
+    CanvasText 21, GrayText 14) — it validates shape, precedence and the
+    computed contract, but it over-states real light-theme colour contrast by
+    roughly 1.5–2×; the earlier "4.6–7.6:1 at 0.75" figures in this section
+    are emulation values. Regression: the "GrayText" block of
+    `e2e/forced-colors-edge-tell.spec.ts` (computed GrayText / 1.5 px /
+    selection width / route-invalid precedence / light-dark unchanged); the
+    measurement method and raw data live in the 2026-09-20 handover
+    (`scratch/hc-measure.mjs`: installed Chrome, headed, with Playwright's
+    media emulation reset to the system).
 - **`prefers-reduced-motion: reduce`** — no animated dim transition (instant);
   the activity overlay steps between static states, its decay is not animated;
   run cues are static (§LGR5).
