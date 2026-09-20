@@ -494,9 +494,33 @@ boundary, updated for what 4a/4b/§FC actually shipped:
 
 A frame is a labelled rectangle. It is **not** semantic nesting: it never
 changes what a node connects to, never scopes an expression, never affects the
-engine, the semantic (engine) digest, or `SimState`. It **never moves or
-resizes a node** (§LGR13) — "move the whole group" is a layout feature for a
-later pass. Dragging a frame in v1 moves the frame only, not its members.
+engine, the semantic (engine) digest, or `SimState`. Resizing, deleting,
+renaming or recolouring a frame **never moves or resizes a node** (§LGR13).
+
+**A frame drag carries its contents (2026-09-20 — the frame-membership pass,
+supersedes the v1 "moves the frame only" rule).** Dragging a frame's edge
+moves the frame **and**, by the same Δ, every node whose measured box is
+**fully inside** the frame rect at pointer-down (the creation guard's rule —
+a node straddling the border stays), every **manual** frame fully inside it
+(and so that frame's nodes), and the manual `waypoints` of an edge whose
+**both** endpoints are carried (an edge with one end outside is left to the
+router). The relation is **derived at the moment the drag starts and never
+stored** — `frames` on the wire stays `{ id, label, rect, color? }`
+(`SEMANTICS-R5.md` R5-D3 unchanged). A node inside two overlapping frames
+follows whichever frame is dragged; a merely overlapping frame does not move.
+**Alt held at pointer-down** (frozen for the gesture) moves the frame alone.
+Moving a **node** never moves a frame. One gesture is **exactly one** undo
+entry through an explicit transaction (§SF11.1 "Move" — not the 600 ms
+coalescing, so a paused drag is still one entry); `Esc` or a `pointercancel`
+mid-drag puts frame, nodes and waypoints back and records nothing. A carried
+node moves exactly like a hand-dragged one: no engine / `simulationRev` /
+timeline effect, the `loop-revision` content digest moves as for any position
+change. Under the edit-lock and on mobile a saved frame is **view + select
+only** (no tool, move, resize, rename, colour, delete or promote — LGR-D12;
+the mobile More sheet keeps only the session-only "Clear suggested frames").
+Implemented in `src/components/frames/frameMoveGesture.ts` (pure) +
+`FrameLayer.tsx`; pinned by the "frame membership" block of
+`e2e/large-graph-readability.spec.ts`.
 *(From LGR Slice 5, a **saved** manual frame is document content — it is
 `Ctrl+Z`-able and moves the `loop-revision/5` **cosmetic** digest, per §SF11 /
 `docs/large-graph-readability-saved-frames.md`. It still touches nothing the
@@ -699,10 +723,10 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 | **LGR-D6** | run distinction — what is the v1 source? | **`StepReport` only, as it already exists** (`events` / `activated` / `fired` / `stateEvents`). **`effective`** = node in `fired`, or edge in `events`, or state edge in `stateEvents`. **`evaluated`** = a **node** in `activated` but not `fired` — **node-only**. A zero-flow edge / unselected gate branch gets **no cue** (the committed result has no such data; marking them would need engine instrumentation — deferred). No engine field, no playback-builder field, no execution-path instrumentation. |
 | **LGR-D7** | past-step cues | **Cleared each step.** The only accumulation is an **opt-in Activity overlay**, off by default, **never persisted**; window length + decay curve are a Slice-4a tuning detail. |
 | **LGR-D8** | group frames — which models ship, when? | **Transient (session-only, in memory) in Slice 4a — fully specified here.** **Auto** frames in **Slice 4b** — the clustering algorithm + label generation are **their own detailed design pass**; this doc fixes only their boundary (§LGR6.3), not the algorithm. **Saved** frames in **Slice 5**, behind a **Frozen `loop-revision/5` cosmetic `frames` contract** — designed in `docs/large-graph-readability-saved-frames.md` (§LGR6.4). |
-| **LGR-D9** | can a frame move its members? | **No** in v1 — a frame drags as a rectangle only. "Move the group" is a later layout feature. |
-| **LGR-D10** | does anything here move / resize / reorder a node? | **Never** — including node z-order. (§LGR13.) |
+| **LGR-D9** | can a frame move its members? | **Yes, derived (2026-09-20)** — a frame **drag** carries every node / manual frame **fully inside** its rect at pointer-down (+ the waypoints of edges with both ends carried); Alt+drag moves the frame alone; nothing is stored (R5-D3 holds); a node drag never moves a frame. Was "No in v1" until the frame-membership pass (§LGR6.5). |
+| **LGR-D10** | does anything here move / resize / reorder a node? | **Never** — including node z-order — with **one** exception: the user's own frame **drag** (LGR-D9), which moves the carried nodes by the drag's Δ and nothing else. Resize / rename / colour / delete / Focus / Filter / Activity / auto frames still move nothing. (§LGR13.) |
 | **LGR-D11** | does selecting / focusing / filtering move the viewport? | **Never.** Only an explicit "fit / frame selection" does, unchanged. |
-| **LGR-D12** | mobile extent | Global hit-test rule **yes**; Focus + Filters **yes** (More sheet); frame **drawing** no; auto frames render once Slice 4b ships. |
+| **LGR-D12** | mobile extent | Global hit-test rule **yes**; Focus + Filters **yes** (More sheet); frame **drawing** no; auto frames render once Slice 4b ships. **Saved frames on mobile — and on a locked desktop canvas — are view + select only (2026-09-20, D6):** no move / resize / rename / colour / delete / promote, no Frame tool, no "Clear all" — on mobile the More sheet keeps only the session-only **Clear suggested frames** row (the saved-frame-deleting "Clear all frames" row was removed with this pass); on desktop "Clear all" is off under the edit-lock. |
 | **LGR-D13** | where does view state live? | Sticky toggles: **one global `localStorage` blob**. Everything else (filter selections, focus selection, transient frames, activity tint): **in memory only**. Never GraphDoc / digest / Share / revision / `SimState`. Full table in §LGR3.4. |
 
 Open (none block Slice 1): the 1–2 hop control and its default (follow-up); the
@@ -756,8 +780,10 @@ Each of Slices 1–4a is its own PR with its own §LGR10-shaped acceptance subse
 ## LGR13. Scope boundary
 
 - **No node re-layout.** A readability control never moves, resizes, or
-  reorders a node. (Same line as §ER13.) Auto-layout of a selected region is
-  the module-system pass (§PD8-B).
+  reorders a node. (Same line as §ER13.) The one deliberate exception is the
+  user's own **frame drag**, which carries the frame's contents by the drag's
+  Δ (§LGR6.5, LGR-D9 — 2026-09-20). Auto-layout of a selected region is the
+  module-system pass (§PD8-B).
 - **Not collapsible composite nodes / sub-graphs.** Those fold structure into
   one node and touch the wire contract — `docs/product-direction.md` §PD4 long
   term, not here.

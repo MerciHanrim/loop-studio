@@ -60,6 +60,11 @@ type HistoryEntry = {
   modelVersion: ModelSemanticsVersion
   sidecar: unknown
 }
+/** docs/large-graph-readability-saved-frames.md §SF11.1 "Move" — an opaque
+ *  pre-gesture history entry handed out by `captureGestureSnapshot()` and
+ *  pushed back by `pushGestureEntry()` when the gesture really moved something.
+ *  Opaque on purpose: the frame layer owns the transaction, never its shape. */
+export type GestureSnapshot = { readonly __gestureSnapshot: true }
 
 type GraphStore = {
   nodes: LoopNode[]
@@ -127,6 +132,24 @@ type GraphStore = {
    *  change still schedules the autosave write (which serialises the live
    *  `frameStore.frames`). */
   notifyFrameChange: () => void
+
+  /** §SF11.1 "Move" — the frame-move / resize gesture TRANSACTION (2026-09-20).
+   *  `captureGestureSnapshot()` at pointer-down freezes the pre-gesture graph +
+   *  every sidecar (saved frames included); the gesture then writes through
+   *  `applyGesturePositions` / `frameStore.setRectsSilently` (no history, no
+   *  `simulationRev`); `pushGestureEntry(snapshot)` at pointer-up records
+   *  EXACTLY ONE entry, only when something moved; a cancelled gesture writes
+   *  the origin back and pushes nothing. Never leans on the 600 ms tag
+   *  coalescing — a paused drag is still one entry. */
+  captureGestureSnapshot: () => GestureSnapshot
+  pushGestureEntry: (snapshot: GestureSnapshot) => void
+  /** move the listed nodes to the given ABSOLUTE positions and replace the
+   *  listed edges' manual `waypoints` — silently: no history entry, no
+   *  `simulationRev` (a position is not engine content), autosave scheduled. */
+  applyGesturePositions: (
+    positions: Readonly<Record<string, XY>>,
+    waypoints: Readonly<Record<string, readonly XY[]>>,
+  ) => void
 
   onNodesChange: (changes: NodeChange<LoopNode>[]) => void
   onEdgesChange: (changes: EdgeChange<LoopEdge>[]) => void
@@ -491,6 +514,44 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   return {
     commitHistory: (tag, framesOverride) => commit(tag, framesOverride),
     notifyFrameChange: () => persist(),
+
+    captureGestureSnapshot: () => {
+      const { nodes, edges, modelVersion } = get()
+      const entry: HistoryEntry = { nodes, edges, modelVersion, sidecar: sidecarNow() }
+      return entry as unknown as GestureSnapshot
+    },
+    pushGestureEntry: (snapshot) => {
+      lastTag = '' // the next node drag / edit starts its own entry
+      clearPristine()
+      set({
+        past: [...get().past, snapshot as unknown as HistoryEntry].slice(-HISTORY_MAX),
+        future: [], // a fresh action discards the redo branch AND its sidecars
+        canUndo: true,
+        canRedo: false,
+      })
+    },
+    applyGesturePositions: (positions, waypoints) => {
+      const nIds = Object.keys(positions)
+      const eIds = Object.keys(waypoints)
+      if (nIds.length === 0 && eIds.length === 0) return
+      const cur = get()
+      set({
+        nodes: nIds.length
+          ? cur.nodes.map((n) => {
+              const p = positions[n.id]
+              return p ? { ...n, position: { x: p.x, y: p.y } } : n
+            })
+          : cur.nodes,
+        edges: eIds.length
+          ? cur.edges.map((e) => {
+              const wp = waypoints[e.id]
+              if (!wp || !e.data) return e
+              return { ...e, data: { ...e.data, waypoints: wp.map((q) => ({ x: q.x, y: q.y })) } as LoopEdgeData }
+            })
+          : cur.edges,
+      })
+      persist()
+    },
 
     nodes: boot.nodes,
     edges: boot.edges,

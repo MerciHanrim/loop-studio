@@ -158,7 +158,7 @@ export type Frame = { id; n; label; rect; color?: FrameColor }   // absent ⇒ n
 | transition | result |
 |---|---|
 | a **new** manual frame (draw tool) | **neutral** |
-| manual `neutral → accent → other accent → neutral` | `setFrameColor` each time; rect / label / ordinal untouched; no undo entry |
+| manual `neutral → accent → other accent → neutral` | `setFrameColor` each time; rect / label / ordinal untouched; **one undo entry each** since Slice 5 (§SF11.1 — this row predates saved frames) |
 | **auto** frame, pick an accent | **promotes** to a manual frame with that accent (solid border, `Group N` / `그룹 N` ordinal rules, §AF5 R5) |
 | **auto** frame, open picker then Esc / pick neutral / click away | **stays auto** — rect + label unchanged (§AF5 R6) |
 | rename / resize / colour of an auto frame | all three follow the **same** §AF5 promote contract |

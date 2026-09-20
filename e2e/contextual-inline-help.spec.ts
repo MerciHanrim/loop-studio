@@ -340,8 +340,9 @@ test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
     const dlg = page.locator('.mcdlg--contextual-help')
     await expect(dlg).toBeVisible()
     // four CIH v1 hints + the spreadsheet-import hint (docs/data-import.md §DI17)
-    await expect(dlg.locator('.contextual-help__row')).toHaveCount(5)
+    await expect(dlg.locator('.contextual-help__row')).toHaveCount(6)
     await expect(dlg.locator('.contextual-help__row').filter({ hasText: 'Spreadsheet import' })).toHaveCount(1)
+    await expect(dlg.locator('.contextual-help__row').filter({ hasText: 'Frame move' })).toHaveCount(1) // §CIH3 #9 (2026-09-20)
 
     // never-yet-shown (Review) and just-rearmed (empty-canvas, below) are the
     // SAME underlying state (`!seen[id]`) — both read "Waiting to show next

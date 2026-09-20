@@ -58,7 +58,8 @@ doc all avoid any wording that implies the app "detected sections" or
 | **Hierarchical groups / collapsible subgraphs** — expand/collapse detail, Master/Root context | §PD12.3-B — its own design |
 | **Key-based external data binding** | §PD12.3-C |
 | **A `saved` frame that survives reload / Share / revision** | LGR Slice 5, behind a Frozen `frames` wire contract (§LGR6.4) |
-| **Auto-layout of a region / "move the whole group"** | the module-system pass (§PD8-B); §LGR13 |
+| **Auto-layout of a region** | the module-system pass (§PD8-B); §LGR13 |
+| **"Move the whole group"** | **shipped 2026-09-20** as a derived frame-drag carry (§LGR6.5 / LGR-D9) — a manual frame's edge drag moves what is fully inside it; an auto frame's edge drag promotes it AND carries its contents in one undo entry |
 
 Auto frames are a **read-only overlay** in the same family as the orthogonal
 route map (§ER3.9) — derived from `(graph, node positions)`, recomputed as a
@@ -78,7 +79,7 @@ Before designing 4b, pin the actual 4a surface it must compose with. Source:
 | Frame store | in-memory; cleared on graph reload | `frameStore` `{ frames, toolArmed, selectedId, nextN }`; a module-level subscription clears it on `graphStore.loadRev` change; `nextN` (the `Group N` counter) resets to 1 on `clearFrames()` / `loadRev` | 4b adds a **derived** set alongside — see §AF6; it clears on the same `loadRev` signal, and additionally on its own re-infer |
 | "atomic recompute like the route map" (§LGR6.3) | stated as the boundary | 4a has **no** recompute — frames are user-drawn only | 4b introduces the **first** frame recompute; the trigger policy is §AF4, the atomicity rule is §AF8 |
 | Activity overlay window/decay ("Slice-4a tuning detail", §LGR6-cues) | left open | `ACTIVITY_WINDOW = 8` committed steps, **linear** recency weight (newest = 1, oldest of 8 = 1/8), opacity cap **≈ 0.15**; node tint = a shape `<path class="nodef__activity">`, edge tint = `--lgr-activity` on the path + a primary drop-shadow; cleared on sim Reset + graph reload, held on pause/end | Recorded here so §AF7 can state "Activity is **not** a grouping input" against a concrete definition |
-| Mobile (§LGR-D12) | "auto frames render once Slice 4b ships" | 4a: no frame **drawing** control on mobile; the layer still renders; a "Clear group frames" row + the Activity toggle live in the More sheet | 4b: **Suggest frames** is a More-sheet action on mobile (§AF7); rendering already works |
+| Mobile (§LGR-D12) | "auto frames render once Slice 4b ships" | 4a: no frame **drawing** control on mobile; the layer still renders; a "Clear group frames" row + the Activity toggle lived in the More sheet *(the saved-frame-deleting row was removed 2026-09-20 — LGR-D12 / D6)* | 4b: **Suggest frames** is a More-sheet action on mobile (§AF7); rendering already works |
 | Controls column | not specified | when a frame exists, a conditional `rf-frame-clear` ControlButton is inserted, shifting the buttons below it down one slot (observed, accepted as-is) | 4b adds **one** more conditional control (`Suggest frames`); §AF9 notes the same column-shift caveat |
 
 **No contradiction found** — 4a shipped a *narrower* frame than §LGR6.4's
@@ -546,7 +547,7 @@ Assumes P1 (frames exist because the user invoked Suggest earlier).
 | **Apply / clear a Filter** | none — the frame set and every rect are **unchanged** even if all of a frame's members are hidden (§AF7) | none |
 | **Toggle / step the Activity overlay** | none | none |
 | **Sim run / Step / Reset** | none | none |
-| **Move a node** | frames **do not follow** — the rect is frozen at last-compute; the moved node may now sit outside its frame's rect. A **staleness indicator** appears (§AF4.3). Re-invoking Suggest recomputes. | none (4a frames already never follow a node) |
+| **Move a node** | frames **do not follow** — the rect is frozen at last-compute; the moved node may now sit outside its frame's rect. A **staleness indicator** appears (§AF4.3). Re-invoking Suggest recomputes. | none (a frame never follows a node; the reverse — a frame **drag** carrying its contents — is §LGR6.5 / LGR-D9) |
 | **Add / delete a node or edge** | frames unchanged + **staleness indicator**; re-invoke to recompute | none |
 | **Edit a node label or a Parameter value** | none — not a structural change, no staleness | none |
 | **Undo / redo a graph edit** | frames unchanged + staleness re-evaluated against the restored graph | none |
@@ -573,7 +574,7 @@ there is nothing stale — the control is just "Suggest frames".
 | R1 | Visual distinction manual vs auto | **manual = solid border; auto = dashed border.** Same rectangle geometry, same faint fill, same label-chip style. Forced-colors keeps the dashed-vs-solid tell (§AF7 AF-INV-6). No other affordance is required. |
 | R2 | Overlap + paint order between the two kinds | all frames (both kinds) paint in the existing 4a back-layer, **behind** nodes / edges. Among frames: **manual always paints over auto** (the user's own rectangle wins the visual tie); within a kind, later-created over earlier (the 4a rule). |
 | R3 | Does invoking Suggest preserve manual frames? | **Yes. Suggest never modifies, moves, relabels, or deletes a manual frame** — including a manual frame that was promoted from an earlier auto frame. |
-| R4 | Clear semantics | **Default control = `Clear all frames`** — removes both kinds (this is the existing 4a "Clear group frames" control, renamed). **One auxiliary action, shown only when auto frames exist: `Clear suggested frames`** — removes just the derived auto set, keeps every manual frame. There is **no** bulk "clear manual only" control — a manual frame is removed individually by its ✕ (the 4a affordance) or by `Clear all`. Two Clear entries at most; the default is unambiguous. |
+| R4 | Clear semantics | **Default control = `Clear all frames`** (desktop; off under the edit-lock and absent on mobile since 2026-09-20 — LGR-D12) — removes both kinds (this is the existing 4a "Clear group frames" control, renamed). **One auxiliary action, shown only when auto frames exist: `Clear suggested frames`** — removes just the derived auto set, keeps every manual frame. There is **no** bulk "clear manual only" control — a manual frame is removed individually by its ✕ (the 4a affordance) or by `Clear all`. Two Clear entries at most; the default is unambiguous. |
 | R5 | Rename / resize / **recolour** an auto frame | **Committing a rename, a resize, _or an accent colour_ (`docs/large-graph-readability-frame-colour.md`) on an auto frame converts it to a transient manual frame:** it moves out of the derived set into `frameStore.frames`, keeps its current rect and label (an unlabelled one takes the next `Group N` identity), gains the solid border (and the committed accent, if any), and is thereafter an ordinary 4a frame — it survives a re-infer and counts as manual for R3 / R4. |
 | R6 | Cancelling an in-progress edit | **If the user cancels** (Escape on the rename input, a resize drag that ends unchanged / is reverted, or dismissing the colour picker without choosing an accent), the frame **stays auto** — no promotion, rect + label unchanged. Only a *committed* change promotes. |
 | R7 | Re-infer behaviour | a new **Suggest** replaces **only the auto set**: the previous un-promoted auto frames are discarded and a fresh auto set is computed. Promoted (now-manual) frames are untouched (R3). |
@@ -590,7 +591,7 @@ text, alongside R1's border.
 | (no frames) | Suggest frames | *N* ≤ 6 **auto** frames in the derived set (dashed) |
 | auto frame | user **commits** a rename, a resize, or an **accent colour** | **manual** frame in `frameStore.frames` (promoted, solid, + the accent if one was picked); leaves the derived set |
 | auto frame | user starts then **cancels** a rename / resize / colour pick | **stays auto** (no promotion); rect + label unchanged |
-| manual frame | user sets / changes / clears its **accent colour** | same frame, new `color` (or none) — rect / label / ordinal unchanged; **not** an undo entry |
+| manual frame | user sets / changes / clears its **accent colour** | same frame, new `color` (or none) — rect / label / ordinal unchanged; **one** undo entry since Slice 5 (§SF11.1; this row said "not an undo entry" before saved frames) |
 | auto frame | user Dismisses it | removed from the current derived set (session); **not** remembered |
 | auto frame | Suggest frames (re-infer) | discarded; a fresh auto set is computed (may re-propose an equivalent cluster) |
 | manual frame (incl. a promoted one) | Suggest frames (re-infer) | **unchanged** |
@@ -637,7 +638,7 @@ Invariants (extend §LGR8; every one gets an e2e in the impl PR):
 | AF-INV-4 | **Reset view** clears Focus + Filters, **keeps** all frames (4a + auto). **sim Reset** clears run cues + the Activity history, **keeps** all frames. **graph reload** (`loadRev`) drops **all** frames. **full refresh** drops all frames. |
 | AF-INV-5 | **reduced-motion:** frames and any staleness indicator are static; a re-infer swaps the set with no transition/animation (same as the 4a Activity tint rule). |
 | AF-INV-6 | **forced-colors:** the manual-vs-auto tell is **dashed vs solid border** (not colour); frame fills wash out and the border carries the frame; two overlapping borders stay distinguishable. |
-| AF-INV-7 | **mobile:** **Suggest frames** / **Clear auto** are More-sheet rows (no canvas control), alongside the 4a "Clear group frames" row and the Activity toggle. Auto frames **render** on the mobile canvas. Promote (rename/resize) is desktop-only, like 4a frame drawing. |
+| AF-INV-7 | **mobile:** **Suggest frames** / **Clear suggested frames** are More-sheet rows (no canvas control), alongside the Activity toggle. Auto frames **render** on the mobile canvas. Promote (rename/resize) is desktop-only, like 4a frame drawing. Since 2026-09-20 (LGR-D12 / D6) there is **no** mobile row that deletes a SAVED frame — the former "Clear all frames" row is gone; a saved frame on mobile is view + select only. |
 | AF-INV-8 | Auto frames compose with Focus de-emphasis like 4a manual frames: a frame is not itself dimmed; it sits behind the de-emphasised nodes and reads at their opacity. |
 
 ---
