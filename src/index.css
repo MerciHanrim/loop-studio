@@ -859,17 +859,13 @@ a.sheet__row {
 }
 
 .btn--ghost:hover {
-  border-color: var(--state-warning);
   color: var(--text-primary);
 }
-/* §VL8 — the `--state-warning` border above has never been painted: it is
-   (0,2,0) and the shared `.btn:hover:not(:disabled)` is (0,3,0), so a hovered
-   ghost button has always drawn the shared hover line (no ghost button is ever
-   `disabled`, the one state where the rule above could have won). The
-   control-boundary change (2026-09-20) would have silently promoted it to
-   `--line-control-hover`, so this rule pins what actually shipped —
-   `--line-strong` — instead. Whether the warning tint should become real is a
-   separate visual / semantic decision, deliberately not taken here. */
+/* §VL8 — a hovered ghost button draws `--line-strong`, the structural hover
+   line, NOT the control-boundary token: a ghost carries no border at rest, so
+   its hover line is an appearing edge rather than a boundary that has to stay
+   legible. This needs its own (0,3,0) rule only to outrank the shared
+   `.btn:hover:not(:disabled)`. */
 .btn--ghost:hover:not(:disabled) {
   border-color: var(--line-strong);
 }
