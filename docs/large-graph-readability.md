@@ -526,6 +526,86 @@ Implemented in `src/components/frames/frameMoveGesture.ts` (pure) +
 `docs/large-graph-readability-saved-frames.md`. It still touches nothing the
 engine computes.)*
 
+### LGR6.6 A frame from the keyboard (2026-09-20)
+
+Until this pass a frame was an anonymous `div`: no role, no accessible name,
+not focusable, and its two gestures — move and resize — existed only for a
+pointer. A read-only audit measured the gap and four pre-existing defects
+around it (F1–F4 below).
+
+**The focus unit is the container.** `role="group"` + a localized
+`aria-roledescription` (*group frame* / *suggested group frame*), the accessible
+name `"<label>, N nodes"` where `N` is **derived** by the same containment rule
+a drag uses (never stored — R5-D3 holds), and **one tab stop per frame**. The
+label chip, ✕, the accent swatches and the resize handle are **post-selection**
+tab stops, so the keyboard rename path survives without a second stop on every
+frame: select the frame, Tab to the label, Enter. The four edge hit-strips stay
+unfocusable and `aria-hidden` — they are pointer affordances for something the
+container already exposes. `aria-describedby` points at one of three shared
+descriptions (idle / selected / read-only).
+
+**Keys.** `Enter` / `Space` select. `Escape` cancels a running gesture, and
+deselects when none is running. `Arrow` moves by **5 px**, `Shift+Arrow` by
+**20 px** — the steps React Flow already gives a node, so one canvas never
+teaches two rules. A keyboard move **carries exactly what a pointer drag
+carries** (§LGR6.5). There is deliberately **no keyboard frame-only escape
+hatch**: `Alt+Arrow` is the browser's Back / Forward, and Alt+drag stays a
+pointer contract. On the selected frame's **resize handle** (the existing
+bottom-right corner, now a real button), `Left`/`Right` change the width and
+`Up`/`Down` the height by the same steps, with the same anchor, minimum and
+"a resize never moves the contents" rules the pointer path has. No mode key.
+
+**One gesture, one entry.** Both keyboard gestures run through the *same*
+transaction as the pointer (§SF11.1 "Move"), not the 600 ms coalescing: the
+snapshot and the origin are captured on the **first** keydown, every repeat
+applies **origin + accumulated absolute Δ** through silent writes, and exactly
+**one** entry is pushed when the **last** arrow comes up *and* the rect really
+changed. An out-and-back inside one gesture pushes nothing; `Escape` restores
+the origin and pushes nothing; a focus loss or a visibility change commits what
+is there, so a lost `keyup` can never leave a transaction open. A suggested
+frame **promotes only on that real final change**, inside the same entry
+(§AF5 R5/R6) — never on the first keydown, never after `Escape` or an
+out-and-back.
+
+**Seeing it.** The selection tell and the focus ring are different channels on
+purpose, and an element paints only **one** `outline`. Selection keeps the
+outline it has always had (dashed, `outline-offset: 3px`, so it occupies 3…5 px
+outside the box) and the FOCUS ring is an independent pseudo-element layer that
+hugs the box (`inset: -2px` + a 2 px solid border, 0…2 px outside). They never
+share a band, so selection alone, focus alone and both at once are three
+distinct pictures; the pseudo-element is `pointer-events: none`, so it is paint
+only — no layout, no hit area. Under forced colours both take `Highlight`, the
+pseudo ring included. Keeping selection on `outline` is also what makes this
+pass cost **zero** baseline changes.
+
+**Read-only.** Role, name, focus and selection are present on a locked canvas
+and on mobile — reading the structure is the minimum, not an edit — and only
+the editing paths are gated (no move, resize, rename, colour, delete or
+promote). A mobile *suggested* frame keeps its §AF-INV-7 display-only status.
+
+**Saying it.** One polite `sr-only` region announces the **settled** position or
+size once, about 300 ms after the burst stops, so a key repeat is not read out
+30 times. Frame text is EN / KO / JA.
+
+**Delete.** `Backspace` **and** `Delete` now act on the canvas, with one owner:
+selected nodes / edges first (through React Flow's own `deleteElements`, so the
+connected-edge cascade is unchanged), otherwise the selected frame — a saved
+frame is an undoable delete, a suggested one is dismissed (session-only), the
+same split the ✕ button already makes. The keys are ignored inside a text
+field, while **any** modal dialog is open, and on a locked or mobile canvas.
+
+**Four pre-existing defects this pass found (audit 2026-09-20).**
+
+| # | Defect | Status |
+|---|---|---|
+| F1 | React Flow 12's `deleteKeyCode` defaults to `Backspace` **alone**, so `Delete` did nothing although our own screen-reader text promised it | fixed here — one owner, both keys |
+| F2 | an arrow-key **node** move creates **no undo entry** (React Flow reports it with `dragging: false`, which `graphStore.onNodesChange` does not commit) | **open, high-priority follow-up** — not mixed into this pass |
+| F3 | React Flow's delete handler listens on `document` and only skips text inputs, so a dialog's Cancel button was enough to delete the node behind it | fixed here — `src/ui/keyboardTarget.ts` |
+| F4 | React Flow announces every node move in its own live region, in English, in every locale | fixed here — `node.a11yDescription.ariaLiveMessage` is localized |
+
+Implemented in `FrameLayer.tsx` (+ `src/ui/keyboardTarget.ts`, `Canvas.tsx`);
+pinned by `e2e/frame-a11y.spec.ts` and `src/ui/keyboardTarget.test.ts`.
+
 ---
 
 ## LGR7. Terms
@@ -756,6 +836,7 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 | **LGR-D10** | does anything here move / resize / reorder a node? | **Never** — including node z-order — with **one** exception: the user's own frame **drag** (LGR-D9), which moves the carried nodes by the drag's Δ and nothing else. Resize / rename / colour / delete / Focus / Filter / Activity / auto frames still move nothing. (§LGR13.) |
 | **LGR-D11** | does selecting / focusing / filtering move the viewport? | **Never.** Only an explicit "fit / frame selection" does, unchanged. |
 | **LGR-D12** | mobile extent | Global hit-test rule **yes**; Focus + Filters **yes** (More sheet); frame **drawing** no; auto frames render once Slice 4b ships. **Saved frames on mobile — and on a locked desktop canvas — are view + select only (2026-09-20, D6):** no move / resize / rename / colour / delete / promote, no Frame tool, no "Clear all" — on mobile the More sheet keeps only the session-only **Clear suggested frames** row (the saved-frame-deleting "Clear all frames" row was removed with this pass); on desktop "Clear all" is off under the edit-lock. |
+| **LGR-D14** | can a frame be used from the keyboard? | **Yes (2026-09-20, §LGR6.6).** The container is the focus unit (`role="group"`, one tab stop, post-selection stops for the label / ✕ / swatches / resize handle); Enter·Space select, Escape cancels-then-deselects, Arrow 5 px / Shift+Arrow 20 px move **with** the contents, the resize handle's arrows change width / height. No mode key and **no keyboard frame-only escape hatch** (Alt+Arrow is the browser's Back). Both gestures reuse the pointer's **transaction** — one entry per burst, nothing for an out-and-back or an Escape, a focus loss commits. `Backspace` **and** `Delete` delete (nodes / edges first, then the selected frame), guarded against text fields, any open modal dialog, and the edit-lock / mobile. |
 | **LGR-D13** | where does view state live? | Sticky toggles: **one global `localStorage` blob**. Everything else (filter selections, focus selection, transient frames, activity tint): **in memory only**. Never GraphDoc / digest / Share / revision / `SimState`. Full table in §LGR3.4. |
 
 Open (none block Slice 1): the 1–2 hop control and its default (follow-up); the

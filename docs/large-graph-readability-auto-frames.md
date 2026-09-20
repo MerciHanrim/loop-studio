@@ -628,6 +628,14 @@ holds no state that outlives the session.
 
 ## AF7. Composition with Focus / Filter / Activity / run cues / selection / diagnostics
 
+**Keyboard (§LGR6.6, 2026-09-20).** A suggested frame is focusable, named and
+selectable like a saved one, and its arrow-key move / resize promotes it under
+exactly the §AF5 R5/R6 rule the pointer uses: only on a real final change, inside
+the gesture's single undo entry — never on the first keydown, and never after an
+`Escape` or an out-and-back. `Backspace` / `Delete` on a selected suggested frame
+**dismisses** it (session-only, no undo entry), the same split the ✕ makes. On
+mobile it stays display-only (§AF-INV-7).
+
 Invariants (extend §LGR8; every one gets an e2e in the impl PR):
 
 | # | Invariant |

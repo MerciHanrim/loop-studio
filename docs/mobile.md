@@ -104,7 +104,7 @@ The mobile layout is a **viewer + runner**. Precisely:
 | move a node | `nodesDraggable={false}` |
 | connect / reconnect an edge | `nodesConnectable={false}`, `edgesReconnectable={false}`, `onConnect` omitted |
 | delete a node/edge | `deleteKeyCode={null}`; no delete control in the read-only Inspector |
-| keyboard Delete / Backspace | `Shortcuts` component early-returns when `useIsMobile()` |
+| keyboard Delete / Backspace | the canvas delete handler (`Canvas.tsx`, §LGR6.6) is not mounted when `noEdit` — mobile or the edit-lock — so neither a node, an edge nor a frame can be removed by key |
 | structural keyboard shortcuts (undo/redo, duplicate, select-all, nudge) | same early-return |
 | double-click / context-menu editing | `zoomOnDoubleClick={false}`; `onContextMenu` preventDefault on the canvas; no context menu wired |
 | change any node/edge property | Inspector renders every field `disabled` / `readOnly` |

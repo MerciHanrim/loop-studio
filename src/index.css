@@ -1924,6 +1924,25 @@ a.sheet__row {
   position: absolute;
   pointer-events: none; /* interior falls through to nodes / edges / pane */
 }
+/* §LGR6.6 — the frame container is the keyboard focus unit, and an element
+   paints only ONE outline. The selection tell keeps `outline` (below,
+   unchanged), so the FOCUS ring is an independent pseudo-element layer that
+   hugs the box: `inset: -2px` + a 2 px border occupies 0…2 px outside, clear of
+   the dashed selection ring 3…5 px out, so the two read apart and are visible
+   together. `pointer-events: none` — it is paint only, never layout or a hit
+   area. The global `:focus-visible` outline is suppressed here so it cannot
+   collide with the selection ring's band; a SELECTED frame still draws its own
+   `outline` because `.lgr-frame.is-selected` follows this rule. */
+.lgr-frame:focus-visible {
+  outline: none;
+}
+.lgr-frame:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--focus-ring);
+  pointer-events: none;
+}
 /* §FC3 — the selection tell is a dashed OUTLINE (its own channel, orthogonal to
    the accent border colour, and it survives forced-colors). */
 .lgr-frame.is-selected {
@@ -2012,6 +2031,10 @@ a.sheet__row {
   .lgr-frame.is-selected {
     outline-color: Highlight;
   }
+  /* the pseudo focus ring is real paint under a UA colour override too */
+  .lgr-frame:focus-visible::after {
+    border-color: Highlight;
+  }
 }
 /* §AF-INV-7 — a mobile auto-frame label is display-only */
 .lgr-frame__label--static {
@@ -2048,6 +2071,11 @@ a.sheet__row {
   bottom: -6px;
   width: 12px;
   height: 12px;
+  /* §LGR6.6 — a real <button> (keyboard-resizable), so the UA chrome is reset
+     and only the drawn corner is left. */
+  padding: 0;
+  background: none;
+  border: 0;
   border-right: 2px solid var(--signal-primary);
   border-bottom: 2px solid var(--signal-primary);
   border-bottom-right-radius: 4px;
