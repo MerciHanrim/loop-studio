@@ -351,6 +351,14 @@ serialization code lands (the R3 sequence).
   before and after an undo / redo of each: identical pool series, `R(t)`, state
   events, resource findings, MC digest, `simulationRev`, timeline (§SF11.3).
 
+**Keyboard gestures (§LGR6.6, 2026-09-20).** An arrow-key move or resize is the
+SAME transaction as the pointer one, not the 600 ms coalescing: snapshot +
+origin on the first keydown, silent origin + absolute Δ while keys repeat, one
+entry when the last arrow comes up and the rect really changed, none for an
+out-and-back or an `Escape`, and a focus loss / visibility change commits so a
+lost `keyup` cannot leave a transaction open. `Backspace` / `Delete` on a
+selected saved frame is the same one-entry delete the ✕ makes.
+
 **unit / integration — undo units (§SF11.1):**
 - **one** entry per: valid create, rename commit, resize-gesture end, colour
   commit, Neutral commit, single delete;

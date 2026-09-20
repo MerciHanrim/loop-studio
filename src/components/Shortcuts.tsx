@@ -2,13 +2,7 @@ import { useEffect } from 'react'
 import { useGraphStore } from '../store/graphStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-
-const isTypingTarget = (el: EventTarget | null): boolean => {
-  const t = el as HTMLElement | null
-  if (!t) return false
-  const tag = t.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable
-}
+import { isTypingTarget } from '../ui/keyboardTarget'
 
 // docs/large-graph-readability.md §LGR4.3 - `]` / `[` step the selection through
 // the drawn-edge neighbours of the node the walk started from. The origin + its

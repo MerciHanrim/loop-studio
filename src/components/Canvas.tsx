@@ -17,6 +17,7 @@ import { refInsertVerdict, type RefResolveKind } from '../model/exprRefs'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
+import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { useI18n, useT, type MessageKey } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { useFilterStore } from '../store/filterStore'
@@ -64,6 +65,16 @@ const MAX_ZOOM = 2
 // re-renders every edge. These two never change, so they are hoisted; the
 // translated `ariaLabelConfig` is memoized at its use site instead.
 const DEFAULT_EDGE_OPTIONS = { type: 'loop' } as const
+
+// F4 — React Flow hands its live-region formatter a bare English direction
+// ('left' / 'right' / 'up' / 'down'); map it to a real key so `check:i18n` can
+// see every one of them (a template literal would read as a dead key).
+const RF_DIR_KEY: Record<string, MessageKey> = {
+  left: 'rf.dir.left',
+  right: 'rf.dir.right',
+  up: 'rf.dir.up',
+  down: 'rf.dir.down',
+}
 const FIT_VIEW_OPTIONS = { padding: 0.3, maxZoom: 1.2 } as const
 
 // docs/visual-language.md §VL7.2 — "Grid fades out entering L1". The dot grid is
@@ -87,7 +98,7 @@ export function Canvas() {
   const addNodeAt = useGraphStore((s) => s.addNodeAt)
   const insertModule = useGraphStore((s) => s.insertModule)
   const setSelection = useGraphStore((s) => s.setSelection)
-  const { screenToFlowPosition, fitView, setViewport, getViewport } = useReactFlow()
+  const { screenToFlowPosition, fitView, setViewport, getViewport, deleteElements } = useReactFlow()
   const rfStore = useStoreApi()
   const isMobile = useIsMobile()
   const canvasLocked = useUiStore((s) => s.canvasLocked)
@@ -466,6 +477,10 @@ export function Canvas() {
     'minimap.ariaLabel': t('canvas.minimap'),
     'handle.ariaLabel': t('rf.handle.label'),
     'node.a11yDescription.default': t('rf.node.a11y'),
+    // F4 (audit 2026-09-20) — React Flow announces every arrow-key node move in
+    // its own assertive region; without this it stays English in every locale.
+    'node.a11yDescription.ariaLiveMessage': ({ direction, x, y }: { direction: string; x: number; y: number }) =>
+      t('rf.node.moved', { direction: t(RF_DIR_KEY[direction] ?? 'rf.dir.right'), x, y }),
     'node.a11yDescription.keyboardDisabled': t('rf.node.a11yKeyboard'),
     'edge.a11yDescription.default': t('rf.edge.a11y'),
   }), [t])
@@ -561,6 +576,38 @@ export function Canvas() {
     return () => document.removeEventListener('keydown', onKey, true)
   }, [refInsertArmed, disarmRefInsert])
 
+  // §LGR6.6 — ONE owner for the destructive canvas keys. React Flow's built-in
+  // handler is switched off (`deleteKeyCode={null}` below) because it (a)
+  // defaults to `Backspace` ALONE, so `Delete` did nothing although our own
+  // screen-reader text promised it (audit F1), (b) fires straight through an
+  // open modal dialog (F3), and (c) knows nothing about frames. Priority:
+  // selected nodes / edges first — exactly React Flow's own semantics, via
+  // `deleteElements` so the connected-edge cascade is unchanged — otherwise the
+  // selected frame (a saved one is an undoable delete, a suggested one is
+  // dismissed, the same split the ✕ button already makes).
+  useEffect(() => {
+    if (noEdit) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return
+      if (e.defaultPrevented || blocksCanvasKey(e.target)) return
+      const g = useGraphStore.getState()
+      const nodesSel = g.nodes.filter((n) => n.selected)
+      const edgesSel = g.edges.filter((x) => x.selected)
+      if (nodesSel.length || edgesSel.length) {
+        e.preventDefault()
+        void deleteElements({ nodes: nodesSel, edges: edgesSel })
+        return
+      }
+      const fid = useFrameStore.getState().selectedId
+      if (!fid) return
+      e.preventDefault()
+      if (useFrameStore.getState().frames.some((f) => f.id === fid)) useFrameStore.getState().removeFrame(fid)
+      else if (useAutoFrameStore.getState().autoFrames.some((f) => f.id === fid)) useAutoFrameStore.getState().dismissAuto(fid)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [noEdit, deleteElements])
+
   const handleDrop = useCallback(
     (e: DragEvent) => {
       e.preventDefault()
@@ -626,7 +673,7 @@ export function Canvas() {
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
         zoomOnDoubleClick={!isMobile}
-        deleteKeyCode={noEdit ? null : undefined}
+        deleteKeyCode={null} /* §LGR6.6 — owned by the effect above */
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         ariaLabelConfig={ariaLabelConfig}
         fitView
