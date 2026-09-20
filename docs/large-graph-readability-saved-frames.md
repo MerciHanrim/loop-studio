@@ -39,11 +39,14 @@ manual frames into the document (§LGR6.2, §LGR6.4).
 - **A frame grouping any behaviour.** A saved frame is still a labelled
   rectangle with no membership (§LGR6.5) — `id`, `label`, `rect`, optional
   `color`, nothing else.
-- **Auto-layout, "move the group", collapsible groups, semantic sections.**
-  Those are §PD12 candidates, untouched here.
+- **Auto-layout, collapsible groups, semantic sections.** Those are §PD12
+  candidates, untouched here. *("Move the group" shipped later — 2026-09-20 —
+  as a **derived** frame-drag carry, §LGR6.5 / LGR-D9; it adds nothing to the
+  wire.)*
 - **A `members: nodeId[]` list.** The §LGR6.4 sketch predates 4a/4b and carried
   `members`; 4a/4b removed the membership model, so Slice 5 stores **no
-  members** (§SF3).
+  members** (§SF3). The 2026-09-20 frame-drag carry keeps it that way:
+  membership is computed from geometry at pointer-down, never written.
 
 ---
 
@@ -427,11 +430,12 @@ moves, the engine / MC / `simulationRev` digest does not.
 |---|---|
 | **Create** (draw tool) | **1**, when a **valid drag completes** (clears `frameIsCreatable`). A cancelled / too-small / no-node drag makes **no frame and no entry**. |
 | **Rename** | **1**, on **commit** (Enter / blur). **Not per keystroke** while the input is open. `Esc` = no commit, no entry. |
-| **Resize** | **1**, on **resize-gesture end**. **Not per pointer-move frame** during the drag. A gesture that ends unchanged (`rectEq` to the start) = **no entry**. |
+| **Resize** | **1**, on **resize-gesture end**. **Not per pointer-move frame** during the drag. A gesture that ends unchanged (`rectEq` to the start) = **no entry**. Since 2026-09-20 this is an explicit **gesture transaction** (below), not tag coalescing. |
+| **Move** (edge drag — added 2026-09-20, §LGR6.5 / LGR-D9) | **exactly 1**, on **pointer-up, only if something moved**, covering the frame rect **and** every carried node / nested frame / waypoint together — one `Ctrl+Z` puts all of it back. An unmoved press or click = **no entry**. `Esc` / `pointercancel` mid-drag restore the origin and record **nothing** (`past` / `future` untouched). Implemented as a **transaction**: `graphStore.captureGestureSnapshot()` at pointer-down (the pre-gesture graph + every sidecar), silent writes during the drag (`applyGesturePositions`, `frameStore.setRectsSilently`, at most one per animation frame, always origin + absolute Δ), `pushGestureEntry(snapshot)` once at the end. It does **not** use the 600 ms tag coalescing, so a drag that pauses is still one entry. |
 | **Colour set** and **return to Neutral** | **1 each**, on the swatch **commit** (the `pickColor` click). Picking the colour a frame already has = **no entry**. |
 | **Delete** (✕) | **1 per frame**. |
 | **`Clear all frames`** | **exactly 1 atomic entry** for the whole clear, **regardless of frame count**. One `Ctrl+Z` restores **every** frame the clear removed, together. |
-| **Promote by editing an auto frame** (committed rename / resize / colour — §AF5 R5) | **1 entry that bundles the promotion _and_ the first edit.** One `Ctrl+Z` removes the new manual frame in one step (see SF11.2). The promotion is never a separate entry from the edit that triggered it. |
+| **Promote by editing an auto frame** (committed rename / resize / colour — §AF5 R5) | **1 entry that bundles the promotion _and_ the first edit.** One `Ctrl+Z` removes the new manual frame in one step (see SF11.2). The promotion is never a separate entry from the edit that triggered it. A promote by **move** is the same single transaction entry as the carried nodes (`adoptFrameSilently` inside the gesture). |
 | **Suggest / Dismiss / `Clear suggested frames`** on a **pure** auto frame | **no undo entry** — a suggested frame is derived session state, not document content (§SF2, §AF6). |
 | **Import / Workspace restore / revision Apply / initial load** | **no per-frame entries.** These are load boundaries; the frames arrive as part of the loaded document. (Whether the load itself is one coarse undo entry is the existing graph-load behaviour, unchanged by this doc.) |
 

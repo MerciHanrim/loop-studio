@@ -4,8 +4,10 @@ import { loadFromStorage, type SavedFrame } from '../model/serialize'
 
 // docs/large-graph-readability.md §LGR6 — group frames.
 // A frame is a labelled rectangle drawn BEHIND the nodes:
-//   - it has NO membership model (LGR-D9 / §LGR6.5): `{ id, n, label, rect,
-//     color? }` only. Nothing is "in" a frame; moving nodes never changes it;
+//   - it STORES no membership (LGR-D9 / §LGR6.5, SEMANTICS-R5.md R5-D3):
+//     `{ id, n, label, rect, color? }` only. Moving a node never changes a
+//     frame. A frame DRAG carries what is fully inside it at that moment — a
+//     rule DERIVED from geometry by `frameMoveGesture.ts`, never a field here;
 //   - it survives sim Reset and "Reset view".
 //
 // LGR Slice 5 (`SEMANTICS-R5.md` / `docs/large-graph-readability-saved-frames.md`)
@@ -69,6 +71,17 @@ type FrameStore = {
   setFrameColor: (id: string, color: FrameColor | null) => void
   /** delete one frame. ONE undo entry. */
   removeFrame: (id: string) => void
+
+  /** §SF11.1 "Move" — the move / resize gesture TRANSACTION writes rects here
+   *  WITHOUT an undo entry; the transaction owner (`FrameLayer`) pushes ONE
+   *  entry via `graphStore.pushGestureEntry` when the gesture ends moved, or
+   *  writes the origin rects back on a cancel. Unknown ids ignored; an
+   *  unchanged rect is a no-op; autosave scheduled when anything changed. */
+  setRectsSilently: (rects: Readonly<Record<string, FrameRect>>) => void
+  /** §AF5 R5 inside a gesture transaction — promote WITHOUT an undo entry (the
+   *  transaction's single entry covers the new frame AND the carried nodes).
+   *  `adoptFrame` is this plus its own entry. Returns the new id. */
+  adoptFrameSilently: (rect: FrameRect, label: string, color?: FrameColor) => string
   /** remove EVERY manual frame in ONE atomic undo entry — one `Ctrl+Z` brings them all back together (§SF11.1). */
   clearFrames: () => void
 
@@ -129,15 +142,33 @@ export const useFrameStore = create<FrameStore>((set, get) => ({
 
   adoptFrame: (rect, label, color) => {
     beginUndo()
+    return get().adoptFrameSilently(rect, label, color)
+  },
+
+  adoptFrameSilently: (rect, label, color) => {
     const id = newId()
     const n = get().nextN
+    const r = { ...rect }
     set((s) => ({
-      frames: [...s.frames, color ? { id, n, label, rect, color } : { id, n, label, rect }],
+      frames: [...s.frames, color ? { id, n, label, rect: r, color } : { id, n, label, rect: r }],
       nextN: s.nextN + 1,
       selectedId: id,
     }))
     afterChange()
     return id
+  },
+
+  setRectsSilently: (rects) => {
+    let changed = false
+    const next = get().frames.map((f) => {
+      const r = rects[f.id]
+      if (!r || rectEq(f.rect, r)) return f
+      changed = true
+      return { ...f, rect: { x: r.x, y: r.y, w: r.w, h: r.h } }
+    })
+    if (!changed) return
+    set({ frames: next })
+    afterChange()
   },
 
   renameFrame: (id, label) => {

@@ -363,6 +363,9 @@ const ui = {
     '{tables}から{n, plural, other {パラメータ#個}}を追加しました。値は入力パネルにあります。レジスタで使うには式に @ を入力して名前を選びます。接続のflowフィールドとアクティベータにも同じ選択器があります。',
   'help.contextual.hint.import.name': '表計算データの読み込み',
   'help.contextual.hint.import.desc': '最初の表計算データの読み込みがキャンバスに置かれた直後に一度表示されます。',
+  'hint.frameMove.body': 'フレームの縁をドラッグすると、中の内容も一緒に移動します。Alt を押しながらドラッグするとフレームだけが移動します。',
+  'help.contextual.hint.frameMove.name': 'フレームの移動',
+  'help.contextual.hint.frameMove.desc': '編集可能なキャンバスでグループフレームを初めて選択したときに一度表示されます。',
   'hint.focusFilter.body':
     'グラフが混み合ってきましたか？ フォーカスは 1 つのノードの近傍以外を薄くし、フィルターはノードや接続の種類を隠します。',
   'help.contextual.menuLabel': '状況別ヘルプ',

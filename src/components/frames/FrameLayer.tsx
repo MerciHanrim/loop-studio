@@ -7,10 +7,12 @@ import {
   type FrameColor,
 } from '../../store/frameStore'
 import { useAutoFrameStore } from '../../store/autoFrameStore'
-import { useGraphStore } from '../../store/graphStore'
+import { useGraphStore, type GestureSnapshot } from '../../store/graphStore'
+import { useUiStore } from '../../store/uiStore'
 import { useT, type MessageKey } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeom'
+import { applyMoveDelta, captureMoveOrigin, type MoveOrigin, type Pt } from './frameMoveGesture'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -25,12 +27,27 @@ import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeo
 //     auto). Same order: auto chrome first, manual over it.
 //   • DRAW           — the 4a Frame tool, unchanged.
 //   • PROMOTE        — committing a rename OR a move / resize of an AUTO frame
-//     converts it to a transient MANUAL frame (§AF5 R5); a cancelled edit
-//     leaves it auto (§AF5 R6).
+//     converts it to a manual frame (§AF5 R5); a cancelled edit leaves it auto
+//     (§AF5 R6).
+//   • MOVE / RESIZE  — §LGR6.5 / LGR-D9 (2026-09-20): an edge drag CARRIES the
+//     frame's contents (derived at pointer-down — `frameMoveGesture.ts`), and
+//     both gestures run as ONE explicit history transaction:
+//       pointer-down  captures the origin + `captureGestureSnapshot()`
+//       every move    origin + absolute Δ, applied at most once per animation
+//                     frame through SILENT store writes
+//       pointer-up    the exact final Δ, then `pushGestureEntry()` ONCE — only
+//                     if the final rect differs from the origin (an out-and-
+//                     back gesture is a no-op; an auto frame promotes inside
+//                     the same entry)
+//       Esc / pointercancel  the origin is written back, nothing is pushed.
+//     Alt held at pointer-down (frozen for the gesture) moves the frame alone.
+//   • EDIT-LOCK / MOBILE — every action that changes SAVED state (the tool,
+//     move, resize, rename, colour, delete, promote) is off; a frame can still
+//     be selected and looked at (D6).
 //
-// Nothing here touches the GraphDoc, node positions, undo, or the digest.
+// Nothing here touches the engine, the digest of what a run computes, or
+// `simulationRev` — a carried node moves exactly like a hand-dragged one.
 
-type Pt = { x: number; y: number }
 const rectEq = (a: FrameRect, b: FrameRect) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h
 
 // §FC4 — accessible names for the swatch buttons (colour is never the sole tell)
@@ -43,16 +60,44 @@ const COLOR_KEY: Record<'neutral' | FrameColor, MessageKey> = {
   rose: 'canvas.frame.color.rose',
 }
 
+type Drag =
+  | { kind: 'draw'; start: Pt }
+  | {
+      kind: 'move'
+      id: string
+      isAuto: boolean
+      label: string
+      origin: MoveOrigin
+      snapshot: GestureSnapshot
+      last: Pt | null
+      raf: number | null
+      /** the dragged frame's rect at the last applied Δ (an auto frame's draft / the promote rect) */
+      current: FrameRect
+    }
+  | {
+      kind: 'resize'
+      id: string
+      isAuto: boolean
+      label: string
+      anchor: Pt
+      orig: FrameRect
+      snapshot: GestureSnapshot
+      last: Pt | null
+      raf: number | null
+      current: FrameRect
+    }
+
 export function FrameLayer() {
   const frames = useFrameStore((s) => s.frames)
   const selectedId = useFrameStore((s) => s.selectedId)
   const toolArmed = useFrameStore((s) => s.toolArmed)
   const addFrame = useFrameStore((s) => s.addFrame)
   const adoptFrame = useFrameStore((s) => s.adoptFrame)
+  const adoptFrameSilently = useFrameStore((s) => s.adoptFrameSilently)
   const disarmTool = useFrameStore((s) => s.disarmTool)
   const selectFrame = useFrameStore((s) => s.selectFrame)
   const renameFrame = useFrameStore((s) => s.renameFrame)
-  const resizeFrame = useFrameStore((s) => s.resizeFrame)
+  const setRectsSilently = useFrameStore((s) => s.setRectsSilently)
   const setFrameColor = useFrameStore((s) => s.setFrameColor)
   const removeFrame = useFrameStore((s) => s.removeFrame)
 
@@ -62,9 +107,13 @@ export function FrameLayer() {
   const t = useT()
   // §AF-INV-7 — on mobile a suggested (auto) frame is DISPLAY-ONLY: no select,
   // no rename, no resize (promote / dismiss are desktop-only, like 4a frame
-  // drawing); bulk clear stays available in the More sheet. 4a manual frames
-  // keep their existing mobile behaviour.
+  // drawing); the session-only "Clear suggested" stays in the More sheet.
   const isMobile = useIsMobile()
+  // D6 (2026-09-20) — on mobile, or while the desktop Canvas is edit-locked,
+  // nothing that changes SAVED frame state is offered: no move / resize /
+  // rename / colour / delete / promote. Select + view only.
+  const canvasLocked = useUiStore((s) => s.canvasLocked)
+  const editable = !isMobile && !canvasLocked
 
   const [tx, ty, zoom] = useStore((s) => s.transform)
   const { screenToFlowPosition } = useReactFlow()
@@ -75,22 +124,60 @@ export function FrameLayer() {
   // an AUTO frame being moved / resized shows its provisional rect here until
   // the drag commits (→ promote) or is cancelled (→ stays auto).
   const [autoDraft, setAutoDraft] = useState<{ id: string; rect: FrameRect } | null>(null)
-  const dragRef = useRef<{
-    kind: 'draw' | 'move' | 'resize'
-    id?: string
-    start: Pt
-    orig?: FrameRect
-    isAuto?: boolean
-    label?: string
-    moved?: boolean
-  } | null>(null)
+  const dragRef = useRef<Drag | null>(null)
 
   const flowPt = useCallback(
     (e: PointerEvent | React.PointerEvent): Pt => screenToFlowPosition({ x: e.clientX, y: e.clientY }),
     [screenToFlowPosition],
   )
 
+  /** apply a move / resize gesture at pointer position `p`: origin + absolute Δ */
+  const applyGesture = useCallback(
+    (d: Extract<Drag, { kind: 'move' | 'resize' }>, p: Pt) => {
+      const G = useGraphStore.getState()
+      if (d.kind === 'move') {
+        const dx = p.x - d.origin.anchor.x
+        const dy = p.y - d.origin.anchor.y
+        const r = applyMoveDelta(d.origin, dx, dy)
+        d.current = r.rect
+        setRectsSilently(r.frameRects)
+        G.applyGesturePositions(r.nodePositions, r.edgeWaypoints)
+        if (d.isAuto) setAutoDraft({ id: d.id, rect: r.rect })
+      } else {
+        const next: FrameRect = {
+          x: d.orig.x,
+          y: d.orig.y,
+          w: Math.max(1, d.orig.w + (p.x - d.anchor.x)),
+          h: Math.max(1, d.orig.h + (p.y - d.anchor.y)),
+        }
+        d.current = next
+        if (d.isAuto) setAutoDraft({ id: d.id, rect: next })
+        else setRectsSilently({ [d.id]: next })
+      }
+    },
+    [setRectsSilently],
+  )
+
+  /** write the origin back (a cancelled gesture) — nothing is pushed */
+  const restoreGesture = useCallback(
+    (d: Extract<Drag, { kind: 'move' | 'resize' }>) => {
+      const G = useGraphStore.getState()
+      if (d.kind === 'move') {
+        setRectsSilently(d.origin.frameRects)
+        G.applyGesturePositions(d.origin.nodePositions, d.origin.edgeWaypoints)
+      } else if (!d.isAuto) {
+        setRectsSilently({ [d.id]: d.orig })
+      }
+      if (d.isAuto) setAutoDraft(null)
+    },
+    [setRectsSilently],
+  )
+
   useEffect(() => {
+    const cancelRaf = (d: Extract<Drag, { kind: 'move' | 'resize' }>) => {
+      if (d.raf !== null) cancelAnimationFrame(d.raf)
+      d.raf = null
+    }
     const onMove = (e: PointerEvent) => {
       const d = dragRef.current
       if (!d) return
@@ -99,19 +186,14 @@ export function FrameLayer() {
         setDraft(normaliseRect(d.start, p))
         return
       }
-      if (!d.id || !d.orig) return
-      const next =
-        d.kind === 'move'
-          ? { ...d.orig, x: d.orig.x + (p.x - d.start.x), y: d.orig.y + (p.y - d.start.y) }
-          : {
-              x: d.orig.x,
-              y: d.orig.y,
-              w: Math.max(1, d.orig.w + (p.x - d.start.x)),
-              h: Math.max(1, d.orig.h + (p.y - d.start.y)),
-            }
-      d.moved = d.moved || !rectEq(next, d.orig)
-      if (d.isAuto) setAutoDraft({ id: d.id, rect: next })
-      else resizeFrame(d.id, next)
+      // at most one store write per animation frame; the LAST pointer position wins
+      d.last = p
+      if (d.raf === null) {
+        d.raf = requestAnimationFrame(() => {
+          d.raf = null
+          if (dragRef.current === d && d.last) applyGesture(d, d.last)
+        })
+      }
     }
     const onUp = (e: PointerEvent) => {
       const d = dragRef.current
@@ -124,22 +206,47 @@ export function FrameLayer() {
         else disarmTool()
         return
       }
-      if (d.isAuto && d.id) {
-        // §AF5 R5/R6 — a moved auto frame PROMOTES; an unchanged drag stays auto.
-        if (d.moved && autoDraft && autoDraft.id === d.id) {
-          adoptFrame(autoDraft.rect, d.label ?? '')
-          removeAuto(d.id)
-        }
+      cancelRaf(d)
+      applyGesture(d, flowPt(e)) // the exact final Δ, whatever the last frame showed
+      // commit iff the FINAL rect differs from the origin — a click, an unmoved
+      // press, or an out-and-back gesture is a no-op: origin written back, no
+      // entry, no promotion (never a sticky "moved" flag)
+      const originRect = d.kind === 'move' ? d.origin.rect : d.orig
+      if (rectEq(d.current, originRect)) {
+        restoreGesture(d)
+        return
+      }
+      // ONE entry for the whole gesture — the pre-gesture snapshot
+      useGraphStore.getState().pushGestureEntry(d.snapshot)
+      if (d.isAuto) {
+        // §AF5 R5/R6 — a moved / resized auto frame PROMOTES, inside the same entry
+        adoptFrameSilently(d.current, d.label)
+        removeAuto(d.id)
         setAutoDraft(null)
       }
     }
+    // Esc / pointercancel while a move / resize is in flight: put the origin
+    // back, push nothing (D12). The draw tool has its own cancel below.
+    const onCancel = (e: Event) => {
+      const d = dragRef.current
+      if (!d || d.kind === 'draw') return
+      if (e.type === 'keydown' && (e as KeyboardEvent).key !== 'Escape') return
+      e.preventDefault()
+      dragRef.current = null
+      cancelRaf(d)
+      restoreGesture(d)
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
+    window.addEventListener('keydown', onCancel)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+      window.removeEventListener('keydown', onCancel)
     }
-  }, [flowPt, zoom, nodes, addFrame, disarmTool, resizeFrame, adoptFrame, removeAuto, autoDraft])
+  }, [flowPt, zoom, nodes, addFrame, disarmTool, adoptFrameSilently, removeAuto, applyGesture, restoreGesture])
 
   // 4a Frame tool — draw on empty canvas
   useEffect(() => {
@@ -182,7 +289,25 @@ export function FrameLayer() {
       e.stopPropagation()
       e.preventDefault()
       selectFrame(id)
-      dragRef.current = { kind, id, start: flowPt(e), orig, isAuto, label, moved: false }
+      if (!editable) return // D6 — select only
+      const G = useGraphStore.getState()
+      const anchor = flowPt(e)
+      const snapshot = G.captureGestureSnapshot()
+      if (kind === 'move') {
+        const origin = captureMoveOrigin({
+          frameId: id,
+          rect: orig,
+          isAuto,
+          frameOnly: e.altKey, // frozen for the whole gesture (D5)
+          anchor,
+          frames: useFrameStore.getState().frames,
+          nodes: G.nodes,
+          edges: G.edges,
+        })
+        dragRef.current = { kind, id, isAuto, label, origin, snapshot, last: null, raf: null, current: orig }
+      } else {
+        dragRef.current = { kind, id, isAuto, label, anchor, orig, snapshot, last: null, raf: null, current: orig }
+      }
       if (isAuto) setAutoDraft({ id, rect: orig })
     }
 
@@ -271,12 +396,15 @@ export function FrameLayer() {
       <ViewportPortal>
         {ordered.map((rf) => {
           const sel = rf.id === selectedId
-          const interactive = !(rf.auto && isMobile) // §AF-INV-7
+          // §AF-INV-7 — a mobile auto frame has no hit-test surface at all
+          const selectable = !(rf.auto && isMobile)
+          // D6 — anything that changes saved state needs an editable canvas
+          const canEdit = editable
           const def = rf.auto
             ? t('canvas.frame.areaName', { n: rf.ord })
             : t('canvas.frame.defaultName', { n: rf.ord })
           // §FC4 — the accent picker: desktop only, on a selected frame.
-          const showSwatches = sel && interactive && !isMobile
+          const showSwatches = sel && canEdit
           return (
             <div
               key={rf.id}
@@ -284,7 +412,7 @@ export function FrameLayer() {
               data-color={rf.color ?? undefined}
               style={{ transform: `translate(${rf.rect.x}px, ${rf.rect.y}px)`, width: rf.rect.w, height: rf.rect.h }}
             >
-              {interactive
+              {selectable
                 ? (['top', 'right', 'bottom', 'left'] as const).map((side) => (
                     <div
                       key={side}
@@ -301,12 +429,12 @@ export function FrameLayer() {
               <FrameLabel
                 def={def}
                 label={rf.label}
-                editable={interactive}
+                editable={canEdit}
                 onCommit={(v) => commitLabel(rf, v)}
                 onSelect={() => selectFrame(rf.id)}
               />
 
-              {sel && interactive ? (
+              {sel && canEdit ? (
                 <>
                   <button
                     type="button"
@@ -391,7 +519,8 @@ function FrameLabel({
     onCommit(draft.trim())
   }
 
-  // §AF-INV-7 — a non-editable label (a mobile auto frame) is a plain span
+  // §AF-INV-7 / D6 — a non-editable label (a mobile auto frame, or any frame
+  // on a locked / mobile canvas) is a plain span
   if (!editable) {
     return <span className="lgr-frame__label lgr-frame__label--static">{label || def}</span>
   }

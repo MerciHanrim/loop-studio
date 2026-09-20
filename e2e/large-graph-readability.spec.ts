@@ -2468,7 +2468,7 @@ test.describe('LGR Slice 4a — a Filter that hides a frame’s nodes leaves the
 })
 
 test.describe('LGR Slice 4a — mobile (the More sheet)', () => {
-  test('no frame / activity canvas control on mobile; a seeded frame still renders; the More sheet toggles the overlay (sticky) and clears frames', async ({ page }) => {
+  test('no frame / activity canvas control on mobile; a seeded frame still renders; the More sheet toggles the overlay (sticky) and offers NO row that deletes a saved frame (D6)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 })
     await loadRun(page)
 
@@ -2499,16 +2499,20 @@ test.describe('LGR Slice 4a — mobile (the More sheet)', () => {
     await expect(actToggle).toHaveAttribute('aria-pressed', 'true')
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:activity-overlay'))).toBe('1')
 
-    // §AF5 R4 — the 4a "Clear group frames" mobile row is now "Clear all frames"
-    // (removes both kinds). Present because a manual frame exists → tap → gone.
-    const clearRow = sheetRow(/Clear all frames/)
-    await expect(clearRow).toBeVisible()
-    await clearRow.click()
-    await expect(page.locator('.lgr-frame')).toHaveCount(0)
-
-    // re-open: the clear row is gone; the activity toggle kept its sticky state
-    await more().click()
+    // D6 (2026-09-20) — a saved frame on mobile is view + select only, so the
+    // sheet has NO row that deletes one: no "Clear all frames" even though a
+    // manual frame exists (only the session-only "Clear suggested frames" row
+    // can appear, and only when auto frames exist)
     await expect(sheetRow(/Clear all frames/)).toHaveCount(0)
+    await expect(sheetRow(/Clear suggested frames/)).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.lgr-frame')).toHaveCount(1)
+    // the frame is not editable either: static label, no ✕ / resize
+    await expect(page.locator('.lgr-frame__label--static')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__del')).toHaveCount(0)
+
+    // re-open: the activity toggle kept its sticky state
+    await more().click()
     await expect(sheetRow(/Activity overlay/).locator('button')).toHaveAttribute('aria-pressed', 'true')
   })
 })
@@ -2762,6 +2766,11 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
   })
 
   test('VISUAL — auto-frames-mixed.png: a promoted solid Group N frame + a manual frame overlapping an auto frame (auto behind manual) + the stale dot on Suggest', async ({ page }) => {
+    // the drawn manual frame is SELECTED at capture time, which would show the
+    // one-time tier-1 "frame move" note (§CIH3 #9) in the top-centre slot over
+    // the suggest note this baseline pins — mark it seen before the app mounts
+    await page.goto('/')
+    await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', JSON.stringify({ 'frame-move': true })))
     await loadAF(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
     await suggestBtn(page).click()
@@ -2818,8 +2827,11 @@ test.describe('LGR Slice 4b — mobile (the More sheet)', () => {
     await more(page).click()
     await sheetRow(page, /Suggest frames/).click()
     await more(page).click()
-    await sheetRow(page, /Clear all frames/).click()
-    await expect(page.locator('.lgr-frame')).toHaveCount(0)
+    // D6 — no mobile row deletes a SAVED frame; only the session-only clear exists
+    await expect(sheetRow(page, /Clear all frames/)).toHaveCount(0)
+    await sheetRow(page, /Clear suggested frames/).click()
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)'), 'the manual frame survives').toHaveCount(1)
   })
 
   test('below the floor: no Suggest row on a small graph; an existing auto set that drops below the floor keeps the row so it can be recomputed to 0', async ({ page }) => {
@@ -3327,5 +3339,370 @@ test.describe('LGR Slice 5 — saved frames (SF / loop-revision/5)', () => {
     expect((await sfState(page)).frames.length).toBe(2)
     // the graph itself loaded fine
     await expect(node(page, 'b0_0')).toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// docs/large-graph-readability.md §LGR6.5 / LGR-D9 (2026-09-20) — a frame drag
+// CARRIES its contents. Derived at pointer-down (full containment, like the
+// creation guard), nothing stored (R5-D3 holds), ONE undo entry per gesture
+// through an explicit transaction (never the 600 ms coalescing), Esc /
+// pointercancel restore the origin with no entry, Alt+drag moves the frame
+// alone, nothing changes under the edit-lock or on mobile.
+// ---------------------------------------------------------------------------
+test.describe('LGR frame membership — a frame drag carries its contents (§LGR6.5 / LGR-D9)', () => {
+  type Rect = { x: number; y: number; w: number; h: number }
+  const seedFrame = (page: Page, rect: Rect) =>
+    page.evaluate(
+      (r) => (window as unknown as { __loop: { frame: { getState: () => { addFrame: (r: Rect) => string } } } }).__loop.frame.getState().addFrame(r),
+      rect,
+    )
+  const positions = (page: Page) =>
+    page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string; position: { x: number; y: number } }[] } } } }).__loop.graph.getState()
+      return Object.fromEntries(g.nodes.map((n) => [n.id, { ...n.position }]))
+    })
+  const waypointsOf = (page: Page, id: string) =>
+    page.evaluate(
+      (eid) => {
+        const g = (window as unknown as { __loop: { graph: { getState: () => { edges: { id: string; data: { waypoints?: { x: number; y: number }[] } }[] } } } }).__loop.graph.getState()
+        return g.edges.find((e) => e.id === eid)!.data.waypoints ?? null
+      },
+      id,
+    )
+  const history = (page: Page) =>
+    page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { past: unknown[]; future: unknown[]; simulationRev: number } } } }).__loop.graph.getState()
+      return { past: g.past.length, future: g.future.length, simRev: g.simulationRev }
+    })
+  const rectOf = async (page: Page, id: string): Promise<Rect> => (await frameHead(page)).frames.find((f) => f.id === id)!.rect
+  const shifted = (r: Rect, dx: number, dy: number): Rect => ({ x: r.x + dx, y: r.y + dy, w: r.w, h: r.h })
+  const strip = (page: Page, frameIndex: number) => page.locator('.lgr-frame').nth(frameIndex).locator('.lgr-frame__edge-hit--top')
+
+  /** a real pointer drag on a frame's TOP hit-strip by (dx, dy) screen px (zoom 1 ⇒ flow units). */
+  async function dragStrip(page: Page, frameIndex: number, dx: number, dy: number, opts: { alt?: boolean; pauseMs?: number; midway?: () => Promise<void> } = {}) {
+    const b = (await strip(page, frameIndex).boundingBox())!
+    const x0 = b.x + Math.min(40, b.width / 2)
+    const y0 = b.y + b.height / 2
+    if (opts.alt) await page.keyboard.down('Alt')
+    await page.mouse.move(x0, y0)
+    await page.mouse.down()
+    await page.mouse.move(x0 + dx / 2, y0 + dy / 2, { steps: 4 })
+    if (opts.pauseMs) await page.waitForTimeout(opts.pauseMs)
+    if (opts.midway) {
+      await opts.midway()
+      return
+    }
+    await page.mouse.move(x0 + dx, y0 + dy, { steps: 4 })
+    await page.mouse.up()
+    if (opts.alt) await page.keyboard.up('Alt')
+  }
+
+  // the fixture: a(0,0) b(260,0) c(520,0) d(780,0) mid(260,170) ma(0,170) mc(520,170) lone(780,200)
+  const OUTER: Rect = { x: -40, y: -40, w: 720, h: 300 } // a b c mid ma mc — not d / lone
+  const INNER: Rect = { x: -20, y: -20, w: 200, h: 100 } // a only, fully inside OUTER
+
+  test('dragging a frame edge moves the frame, every fully-contained node, the nested frame and its nodes by the same Δ; d / lone stay; ONE undo restores all', async ({ page }) => {
+    await load(page)
+    const outer = await seedFrame(page, OUTER)
+    const inner = await seedFrame(page, INNER)
+    const p0 = await positions(page)
+    const h0 = await history(page)
+    await dragStrip(page, 0, 60, 40) // index 0 = outer (creation order)
+    const p1 = await positions(page)
+    for (const id of ['a', 'b', 'c', 'mid', 'ma', 'mc']) expect(p1[id], `${id} carried`).toEqual({ x: p0[id].x + 60, y: p0[id].y + 40 })
+    for (const id of ['d', 'lone']) expect(p1[id], `${id} left alone`).toEqual(p0[id])
+    expect(await rectOf(page, outer)).toEqual(shifted(OUTER, 60, 40))
+    expect(await rectOf(page, inner), 'the nested frame rides along').toEqual(shifted(INNER, 60, 40))
+    // the edges between carried nodes re-rendered (route map rebuilt) — the path still exists
+    await expect(edge(page, 'e_ab').locator('path.react-flow__edge-path')).toHaveCount(1)
+    const h1 = await history(page)
+    expect(h1.past, 'exactly one entry').toBe(h0.past + 1)
+    expect(h1.simRev, 'carried nodes never touch the engine').toBe(h0.simRev)
+    await page.keyboard.press('Control+z')
+    expect(await positions(page)).toEqual(p0)
+    expect(await rectOf(page, outer)).toEqual(OUTER)
+    expect(await rectOf(page, inner)).toEqual(INNER)
+    expect((await history(page)).past).toBe(h0.past)
+  })
+
+  test('a node straddling the edge is not carried; in two overlapping frames a shared node follows the one that is dragged (D1 / D3)', async ({ page }) => {
+    await load(page)
+    await seedFrame(page, { x: -20, y: -20, w: 300, h: 100 }) // a inside; b (260..410) straddles x=280
+    const p0 = await positions(page)
+    await dragStrip(page, 0, 50, 0)
+    let p1 = await positions(page)
+    expect(p1.a).toEqual({ x: p0.a.x + 50, y: p0.a.y })
+    expect(p1.b, 'straddling b stays').toEqual(p0.b)
+    await page.keyboard.press('Control+z')
+    // overlap: left = {a,b}, right = {b,c}
+    await page.evaluate(() => (window as unknown as { __loop: { frame: { getState: () => { clearFrames: () => void } } } }).__loop.frame.getState().clearFrames())
+    const left = await seedFrame(page, { x: -20, y: -20, w: 440, h: 100 })
+    await seedFrame(page, { x: 200, y: -20, w: 480, h: 100 })
+    const q0 = await positions(page)
+    await dragStrip(page, 1, 0, 60) // drag `right`
+    p1 = await positions(page)
+    expect(p1.b).toEqual({ x: q0.b.x, y: q0.b.y + 60 })
+    expect(p1.c).toEqual({ x: q0.c.x, y: q0.c.y + 60 })
+    expect(p1.a, 'a is only in the other frame').toEqual(q0.a)
+    expect(await rectOf(page, left), 'an overlapping (not nested) frame does not move').toEqual({ x: -20, y: -20, w: 440, h: 100 })
+  })
+
+  test('a drag that pauses > 600 ms is still ONE undo entry; a click / unmoved press on the edge is NONE', async ({ page }) => {
+    await load(page)
+    await seedFrame(page, OUTER)
+    const h0 = await history(page)
+    await dragStrip(page, 0, 40, 30, { pauseMs: 800 })
+    expect((await history(page)).past).toBe(h0.past + 1)
+    const h1 = await history(page)
+    const b = (await strip(page, 0).boundingBox())!
+    await page.mouse.move(b.x + 30, b.y + b.height / 2)
+    await page.mouse.down()
+    await page.mouse.up()
+    expect((await history(page)).past, 'no movement ⇒ no entry').toBe(h1.past)
+  })
+
+  test('Esc and pointercancel mid-drag put the frame, the nodes and the waypoints back and change neither past nor future', async ({ page }) => {
+    await load(page)
+    await seedFrame(page, OUTER)
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { setEdgeData: (id: string, d: object) => void; edges: { id: string; data: object }[] } } } }).__loop.graph.getState()
+      const e = g.edges.find((x) => x.id === 'e_ab')!
+      g.setEdgeData('e_ab', { ...e.data, route: 'orthogonal', waypoints: [{ x: 200, y: 80 }] })
+    })
+    // make `future` non-empty so its preservation is observable
+    await page.keyboard.press('Control+z')
+    const p0 = await positions(page)
+    const r0 = await rectOf(page, (await frameHead(page)).frames[0].id)
+    const h0 = await history(page)
+    expect(h0.future).toBeGreaterThan(0)
+    for (const cancel of ['Escape', 'pointercancel'] as const) {
+      await dragStrip(page, 0, 80, 50, {
+        midway: async () => {
+          await page.waitForTimeout(60) // the gesture writes once per animation frame
+          // something really moved before the cancel
+          expect((await positions(page)).a).not.toEqual(p0.a)
+          if (cancel === 'Escape') await page.keyboard.press('Escape')
+          else await page.evaluate(() => window.dispatchEvent(new PointerEvent('pointercancel')))
+          await page.mouse.up() // the release after a cancel is inert
+        },
+      })
+      expect(await positions(page), `${cancel}: nodes restored`).toEqual(p0)
+      expect(await rectOf(page, (await frameHead(page)).frames[0].id), `${cancel}: frame restored`).toEqual(r0)
+      expect(await history(page), `${cancel}: no history change`).toEqual(h0)
+    }
+  })
+
+  test('Alt+drag moves the frame ONLY — nodes, the nested frame and waypoints stay', async ({ page }) => {
+    await load(page)
+    const outer = await seedFrame(page, OUTER)
+    const inner = await seedFrame(page, INNER)
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { setEdgeData: (id: string, d: object) => void; edges: { id: string; data: object }[] } } } }).__loop.graph.getState()
+      const e = g.edges.find((x) => x.id === 'e_ab')!
+      g.setEdgeData('e_ab', { ...e.data, route: 'orthogonal', waypoints: [{ x: 200, y: 80 }] })
+    })
+    const p0 = await positions(page)
+    const h0 = await history(page)
+    await dragStrip(page, 0, 70, 20, { alt: true })
+    expect(await rectOf(page, outer)).toEqual(shifted(OUTER, 70, 20))
+    expect(await rectOf(page, inner)).toEqual(INNER)
+    expect(await positions(page)).toEqual(p0)
+    expect(await waypointsOf(page, 'e_ab')).toEqual([{ x: 200, y: 80 }])
+    expect((await history(page)).past).toBe(h0.past + 1)
+  })
+
+  test('manual waypoints translate only when BOTH ends of the edge are carried', async ({ page }) => {
+    await load(page)
+    await seedFrame(page, OUTER)
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { setEdgeData: (id: string, d: object) => void; edges: { id: string; data: object }[] } } } }).__loop.graph.getState()
+      for (const [id, wp] of [['e_ab', { x: 200, y: 80 }], ['e_cd', { x: 700, y: 80 }]] as const) {
+        const e = g.edges.find((x) => x.id === id)!
+        g.setEdgeData(id, { ...e.data, route: 'orthogonal', waypoints: [wp] })
+      }
+    })
+    await dragStrip(page, 0, 30, 10)
+    expect(await waypointsOf(page, 'e_ab'), 'a and b are both carried').toEqual([{ x: 230, y: 90 }])
+    expect(await waypointsOf(page, 'e_cd'), 'd is outside — left to the router').toEqual([{ x: 700, y: 80 }])
+  })
+
+  test('under the edit-lock and on mobile a saved frame is view + select only: no move, no resize, no rename, no colour, no delete, no tool', async ({ page }) => {
+    await load(page)
+    const id = await seedFrame(page, OUTER)
+    const p0 = await positions(page)
+    const setLocked = (locked: boolean) =>
+      page.evaluate(
+        (l) => (window as unknown as { __loop: { ui: { getState: () => { setCanvasLocked: (x: boolean) => void } } } }).__loop.ui.getState().setCanvasLocked(l),
+        locked,
+      )
+    await setLocked(true)
+    await expect(frameToolBtn(page)).toHaveCount(0)
+    await expect(clearFramesBtn(page)).toHaveCount(0)
+    // select via the strip still works
+    await strip(page, 0).click({ position: { x: 10, y: 6 } })
+    expect((await frameHead(page)).selectedId).toBe(id)
+    await expect(page.locator('.lgr-frame__del')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame__resize')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame__swatches')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame__label--static')).toHaveCount(1)
+    await expect(page.locator('input.lgr-frame__label')).toHaveCount(0)
+    const h0 = await history(page)
+    await dragStrip(page, 0, 60, 40)
+    expect(await rectOf(page, id), 'locked: the frame does not move').toEqual(OUTER)
+    expect(await positions(page), 'locked: the nodes do not move').toEqual(p0)
+    expect((await history(page)).past).toBe(h0.past)
+    await setLocked(false)
+    await expect(frameToolBtn(page)).toHaveCount(1)
+    // mobile: same contract
+    await page.setViewportSize({ width: 390, height: 780 })
+    await expect(page.locator('.lgr-frame')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__label--static')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame__del')).toHaveCount(0)
+    const m0 = await positions(page)
+    const b = (await strip(page, 0).boundingBox().catch(() => null))
+    if (b) {
+      await page.mouse.move(b.x + 20, b.y + b.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(b.x + 80, b.y + 60, { steps: 4 })
+      await page.mouse.up()
+    }
+    expect(await rectOf(page, id), 'mobile: the frame does not move').toEqual(OUTER)
+    expect(await positions(page), 'mobile: the nodes do not move').toEqual(m0)
+  })
+
+  test('dragging an AUTO frame promotes it AND carries its contents in ONE entry; undo removes the promoted frame, restores the nodes, never revives the suggestion', async ({ page }) => {
+    await load(page)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { autoFrame: { setState: (p: object) => void } } }).__loop.autoFrame.setState({
+        autoFrames: [{ id: 'auto_x', area: 1, label: '', rect: { x: -20, y: -20, w: 440, h: 100 }, members: ['a', 'b'] }],
+        lastSignature: 'seeded',
+      }),
+    )
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(1)
+    const p0 = await positions(page)
+    const h0 = await history(page)
+    await dragStrip(page, 0, 40, 30)
+    const fh = await frameHead(page)
+    expect(fh.frames).toHaveLength(1)
+    expect(fh.frames[0].rect).toEqual({ x: 20, y: 10, w: 440, h: 100 })
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(0)
+    const p1 = await positions(page)
+    expect(p1.a).toEqual({ x: p0.a.x + 40, y: p0.a.y + 30 })
+    expect(p1.b).toEqual({ x: p0.b.x + 40, y: p0.b.y + 30 })
+    expect(p1.c).toEqual(p0.c)
+    expect((await history(page)).past).toBe(h0.past + 1)
+    await page.keyboard.press('Control+z')
+    expect((await frameHead(page)).frames).toHaveLength(0)
+    expect(await positions(page)).toEqual(p0)
+    await expect(page.locator('.lgr-frame--auto'), 'the suggestion is not revived (§SF11.2)').toHaveCount(0)
+  })
+
+  test('after a carried move the autosave record and the export still hold { id, label, rect } frames — no members', async ({ page }) => {
+    await load(page)
+    await seedFrame(page, OUTER)
+    await dragStrip(page, 0, 25, 15)
+    const shapes = await page.evaluate(async () => {
+      const L = (window as unknown as { __loop: { graph: { getState: () => { exportJSON: () => string } }; autosave: { flush: () => void } } }).__loop
+      L.autosave.flush()
+      const exp = JSON.parse(L.graph.getState().exportJSON()) as { frames: Record<string, unknown>[] }
+      const rec = JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? '{}') as { frames?: Record<string, unknown>[] }
+      return { exp: exp.frames.map((f) => Object.keys(f).sort()), rec: (rec.frames ?? []).map((f) => Object.keys(f).sort()) }
+    })
+    expect(shapes.exp).toEqual([['id', 'label', 'rect']])
+    expect(shapes.rec).toEqual([['id', 'label', 'rect']])
+  })
+
+  test('the import hint outranks the frame-move hint: one note at a time, import first, frame-move only after it closes — and it is not consumed while hidden', async ({ page }) => {
+    await load(page)
+    await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
+    await page.reload()
+    await load(page)
+    // the import note first (a fresh import batch), THEN a saved frame — which
+    // `addFrame` selects at once, so both triggers hold together
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { ui: { getState: () => { setLastImportBatch: (v: object) => void } } } }).__loop.ui
+        .getState()
+        .setLastImportBatch({ count: 2, firstId: 'a', tables: ['Sheet1'] }),
+    )
+    await expect(page.locator('.hint-note')).toHaveCount(1)
+    await seedFrame(page, OUTER)
+    await strip(page, 0).click({ position: { x: 10, y: 6 } })
+    await page.waitForTimeout(150)
+    const notes = page.locator('.hint-note')
+    await expect(notes).toHaveCount(1)
+    await expect(notes.first()).toContainText(/Sheet1/)
+    await expect(notes.first()).not.toContainText(/Alt/)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio/contextual-help/1') ?? '{}')), 'the hidden frame-move note is NOT consumed').not.toHaveProperty('frame-move')
+    // close the import note; the frame is still selected → the frame-move note takes the slot
+    await notes.first().locator('.hint-note__x').click()
+    expect((await frameHead(page)).selectedId).not.toBeNull()
+    await expect(page.locator('.hint-note', { hasText: /Alt/ })).toHaveCount(1)
+    await expect(page.locator('.hint-note')).toHaveCount(1)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio/contextual-help/1') ?? '{}'))).toMatchObject({ 'frame-move': true })
+  })
+
+  test('an out-and-back gesture is a no-op: manual / auto × move / resize — origin rect at pointer-up ⇒ no entry, no promotion, nodes back', async ({ page }) => {
+    await load(page)
+    const manual = await seedFrame(page, OUTER)
+    await page.evaluate(() =>
+      (window as unknown as { __loop: { autoFrame: { setState: (p: object) => void } } }).__loop.autoFrame.setState({
+        // fully contains ma (0,170) and mid (260,170); NOT nested in OUTER (its bottom passes y=260)
+        autoFrames: [{ id: 'auto_x', area: 1, label: '', rect: { x: -20, y: 150, w: 440, h: 130 }, members: ['ma', 'mid'] }],
+        lastSignature: 'seeded',
+      }),
+    )
+    await expect(page.locator('.lgr-frame--auto')).toHaveCount(1)
+    const p0 = await positions(page)
+    const h0 = await history(page)
+    const outAndBack = async (start: { x: number; y: number }) => {
+      await page.mouse.move(start.x, start.y)
+      await page.mouse.down()
+      await page.mouse.move(start.x + 90, start.y + 60, { steps: 5 })
+      await page.waitForTimeout(60) // the gesture writes once per animation frame
+      // something really moved mid-gesture
+      expect(await positions(page)).not.toEqual(p0)
+      await page.mouse.move(start.x, start.y, { steps: 5 }) // back to the exact origin
+      await page.mouse.up()
+    }
+    // frame order in the DOM: auto first (index 0), manual after (index 1)
+    for (const [label, frameIndex] of [['manual', 1], ['auto', 0]] as const) {
+      // move
+      const sb = (await strip(page, frameIndex).boundingBox())!
+      await outAndBack({ x: sb.x + 30, y: sb.y + sb.height / 2 })
+      expect(await positions(page), `${label} move out-and-back: nodes back`).toEqual(p0)
+      expect(await history(page), `${label} move out-and-back: no history change`).toEqual(h0)
+      // resize (select first so the handle exists)
+      await strip(page, frameIndex).click({ position: { x: 10, y: 6 } })
+      const hb = (await page.locator('.lgr-frame').nth(frameIndex).locator('.lgr-frame__resize').boundingBox())!
+      const r0 = label === 'manual' ? await rectOf(page, manual) : null
+      await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(hb.x + 80, hb.y + 50, { steps: 5 })
+      await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2, { steps: 5 })
+      await page.mouse.up()
+      if (r0) expect(await rectOf(page, manual), 'manual resize out-and-back: rect back').toEqual(r0)
+      expect(await history(page), `${label} resize out-and-back: no history change`).toEqual(h0)
+    }
+    await expect(page.locator('.lgr-frame--auto'), 'the auto frame was never promoted').toHaveCount(1)
+    expect((await frameHead(page)).frames.map((f) => f.id)).toEqual([manual])
+  })
+
+  test('the first time a frame is selected a one-time note explains "edge drag carries contents / Alt+drag frame only"; it is listed in Contextual help', async ({ page }) => {
+    await load(page)
+    await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
+    await page.reload()
+    await load(page)
+    await seedFrame(page, OUTER)
+    // (the fixture has 8 nodes, so the tier-3 Focus/Filter discovery note may
+    // already hold the slot — the tier-1 frame-move note takes it over)
+    await strip(page, 0).click({ position: { x: 10, y: 6 } })
+    const note = page.locator('.hint-note')
+    await expect(note).toHaveCount(1)
+    await expect(note).toContainText(/Alt/)
+    await note.locator('.hint-note__x').click()
+    // closing it hands the slot back to whatever tier-3 note was waiting — the frame note itself is gone
+    await expect(page.locator('.hint-note', { hasText: /Alt/ })).toHaveCount(0)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio/contextual-help/1') ?? '{}'))).toMatchObject({ 'frame-move': true })
   })
 })

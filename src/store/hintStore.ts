@@ -18,7 +18,18 @@ import { useUiStore } from './uiStore'
 // the first spreadsheet import lands on the canvas (tier 1 in §CIH2.3a —
 // it follows a deliberate action and takes the slot over the auto-frame
 // suggest note).
-export type HintId = 'empty-canvas' | 'mc-first-open' | 'review-first-open' | 'focus-filter-discovery' | 'import-first-commit'
+// `frame-move` — docs/large-graph-readability.md §LGR6.5 (2026-09-20): shown
+// once, the first time a saved frame is SELECTED on an editable desktop canvas
+// (tier 1 — it follows a deliberate action, like `import-first-commit`), and
+// says that dragging the frame's edge carries its contents while Alt+drag moves
+// the frame alone.
+export type HintId =
+  | 'empty-canvas'
+  | 'mc-first-open'
+  | 'review-first-open'
+  | 'focus-filter-discovery'
+  | 'import-first-commit'
+  | 'frame-move'
 
 export const HINT_STORAGE_KEY = 'loop-studio/contextual-help/1'
 

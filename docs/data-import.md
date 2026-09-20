@@ -1015,7 +1015,7 @@ owns different data and a different downstream effect:
   label composition never chases a target row's own FK columns
   transitively, so losing this table's outgoing FK column cannot change
   any OTHER table's labels.
-- **In every case**: an existing node's `position` and frame membership
+- **In every case**: an existing node's `position` and placement relative to any frame (frames store no membership — §LGR6.5)
   are never touched — a column removal only ever edits `data` fields and
   the stored table record, the same "never silently move or regenerate
   something the user might have touched" stance this doc keeps throughout
@@ -1318,7 +1318,7 @@ unaddressed.
 DI-D11 fixed the AMBIGUITY of picking a group-by FK; this closes two related
 follow-up questions with the SAME rule. **Settled: only a node materialized
 AFTER the change is ever grouped/framed under it** — any node/frame already
-on the canvas keeps its existing frame membership and position, regardless
+on the canvas keeps its existing position (and so its placement relative to any frame — frames store no membership, §LGR6.5), regardless
 of either:
 
 - the **"group by" SETTING** changing later (a reconfiguration, or choosing
@@ -1431,7 +1431,7 @@ own Parameters; `label` drops + recomposes both its own table and any
 dependent table (an FK resolution reads a target row's `label`-role text);
 `foreignKey` drops + recomposes only its own table (never a dependent —
 label composition never chases a target row's own FK columns
-transitively). An existing node's position/frame membership is never
+transitively). An existing node's position (and so its placement relative to any frame — frames store no membership, §LGR6.5) is never
 touched by a column removal, in every case.
 
 ### DI-D21 — a `missing` row still FK-referenced by another stored table blocks unlink/delete (new — Phase 2 implementation-time addendum, approved)

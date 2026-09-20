@@ -5,7 +5,6 @@ import { openTemplate } from '../../i18n/templateLabels'
 import { TEMPLATES } from '../../model/templates'
 import { WORKSPACE_MAX_BYTES } from '../../model/workspace'
 import { useFilterStore } from '../../store/filterStore'
-import { useFrameStore, hasFrames } from '../../store/frameStore'
 import { useAutoFrameStore, hasAutoFrames } from '../../store/autoFrameStore'
 import { WORTH_IT_FLOOR } from '../frames/autoFrames'
 import { useGraphStore } from '../../store/graphStore'
@@ -65,7 +64,6 @@ export function MobileMoreMenu({
   const closeOverlay = useUiStore((s) => s.closeOverlay)
   const focusMode = useUiStore((s) => s.focusMode)
   const activityOverlay = useUiStore((s) => s.activityOverlay)
-  const framesExist = useFrameStore(hasFrames)
   const autoFramesExist = useAutoFrameStore(hasAutoFrames)
   // §AF2.2 — "Suggest frames" only offered when the whole graph is big enough
   const suggestEligible =
@@ -361,19 +359,11 @@ export function MobileMoreMenu({
             {t('canvas.frame.clearSuggestedRow')}
           </button>
         )}
-        {(framesExist || autoFramesExist) && (
-          <button
-            type="button"
-            className="sheet__row"
-            onClick={() => {
-              useFrameStore.getState().clearFrames()
-              useAutoFrameStore.getState().clearAuto()
-              closeOverlay('more')
-            }}
-          >
-            {t('canvas.frame.clearAll')}
-          </button>
-        )}
+        {/* D6 (2026-09-20, docs/large-graph-readability.md LGR-D12) — a SAVED
+            frame on mobile is view + select only, so there is no row that
+            deletes one ("Clear all frames" is desktop-only, and off under the
+            edit-lock there too). Only the session-only "Clear suggested frames"
+            row above stays. */}
         <button type="button" className="sheet__row" onClick={resetView}>
           {t('canvas.resetView')}
         </button>

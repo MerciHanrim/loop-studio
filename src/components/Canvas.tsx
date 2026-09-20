@@ -295,7 +295,18 @@ export function Canvas() {
   const lastImportBatch = useUiStore((s) => s.lastImportBatch)
   const importHint = useHintEligible('import-first-commit', lastImportBatch !== null, tourIdle)
   const importHintShowing = importHint.eligible && lastImportBatch !== null
-  const lgrNoticeShowing = (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed) || importHintShowing
+  // docs/large-graph-readability.md §LGR6.5 / docs/contextual-inline-help.md
+  // §CIH3 #9 (2026-09-20) — the first time a SAVED frame is selected on an
+  // editable desktop canvas: "an edge drag carries the contents; Alt+drag moves
+  // the frame alone". Tier 1 (follows a deliberate action) — it takes the slot
+  // over the tier-3 discovery hints below.
+  const savedFrameSelected = useFrameStore((s) => s.selectedId !== null && s.frames.some((f) => f.id === s.selectedId))
+  // `ready` yields to the import note: while it holds the slot the frame-move
+  // note neither renders nor is consumed (`seen` is recorded on render only).
+  const frameMoveHint = useHintEligible('frame-move', savedFrameSelected && !isMobile && !canvasLocked, tourIdle && !importHintShowing)
+  const frameMoveHintShowing = frameMoveHint.eligible && savedFrameSelected
+  const lgrNoticeShowing =
+    (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed) || importHintShowing || frameMoveHintShowing
   const hidden = useHiddenSet()
   // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
   // filtered element is gone, tint and all) and independently of dim (a
@@ -699,7 +710,15 @@ export function Canvas() {
             </button>
           </Panel>
         )}
-        {autoFramesExist && !suggestNoteDismissed && !importHintShowing && (
+        {frameMoveHintShowing && (
+          <Panel position="top-center" className="hint-note" role="note">
+            <span>{t('hint.frameMove.body')}</span>
+            <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={frameMoveHint.close}>
+              ✕
+            </button>
+          </Panel>
+        )}
+        {autoFramesExist && !suggestNoteDismissed && !importHintShowing && !frameMoveHintShowing && (
           <Panel position="top-center" className="lgr-suggest-note">
             <span>{t('canvas.frame.suggestNote')}</span>
             <button
@@ -851,7 +870,7 @@ export function Canvas() {
               frame" tool (desktop only; frame drawing is not on mobile, §LGR9).
               Armed ⇒ a pane drag rubber-bands a labelled rectangle behind the
               nodes. Transient, session-only, never in the GraphDoc / undo. */}
-          {!isMobile && (
+          {!isMobile && !canvasLocked && (
             <ControlButton
               onClick={() => (frameToolArmed ? disarmFrameTool() : armFrameTool())}
               title={frameToolArmed ? t('canvas.frame.drawing') : t('canvas.frame.draw')}
@@ -895,7 +914,7 @@ export function Canvas() {
           )}
           {/* §AF5 R4 — the DEFAULT clear removes BOTH kinds ("Clear all frames").
               Shown when either a manual or an auto frame exists. */}
-          {!isMobile && (framesExist || autoFramesExist) && (
+          {!isMobile && !canvasLocked && (framesExist || autoFramesExist) && (
             <ControlButton
               onClick={() => {
                 clearFrames()
