@@ -599,12 +599,73 @@ field, while **any** modal dialog is open, and on a locked or mobile canvas.
 | # | Defect | Status |
 |---|---|---|
 | F1 | React Flow 12's `deleteKeyCode` defaults to `Backspace` **alone**, so `Delete` did nothing although our own screen-reader text promised it | fixed here — one owner, both keys |
-| F2 | an arrow-key **node** move creates **no undo entry** (React Flow reports it with `dragging: false`, which `graphStore.onNodesChange` does not commit) | **open, high-priority follow-up** — not mixed into this pass |
+| F2 | an arrow-key **node** move creates **no undo entry** (React Flow reports it with `dragging: false`, which `graphStore.onNodesChange` does not commit) | fixed in the next pass — §LGR6.7 |
 | F3 | React Flow's delete handler listens on `document` and only skips text inputs, so a dialog's Cancel button was enough to delete the node behind it | fixed here — `src/ui/keyboardTarget.ts` |
 | F4 | React Flow announces every node move in its own live region, in English, in every locale | fixed here — `node.a11yDescription.ariaLiveMessage` is localized |
 
 Implemented in `FrameLayer.tsx` (+ `src/ui/keyboardTarget.ts`, `Canvas.tsx`);
 pinned by `e2e/frame-a11y.spec.ts` and `src/ui/keyboardTarget.test.ts`.
+
+### LGR6.7 A node move from the keyboard is one undo entry (F2, 2026-09-21)
+
+React Flow moves a selected node with the arrow keys (5 px, Shift 20) and
+reports it as a `position` change with **`dragging: false`**;
+`graphStore.onNodesChange` commits history only for `dragging: true`, so the
+move made **no entry at all**. The audit showed that is worse than it sounds:
+with a label edit in `past`, four arrow presses and one `Ctrl+Z`, the **label
+edit** is what gets undone — the position only *looks* restored because that
+older snapshot happens to hold it — and the move is autosaved meanwhile, so it
+survives a reload that it can never be undone from.
+
+**Why not just commit on `dragging: false`.** Four callers of React Flow's
+`updateNodePositions` emit it: the keyboard move, the end of a pointer drag,
+and its aborted-drag restore (multitouch, or the node deleted mid-drag). A
+pointer drag already commits on its **first `dragging: true`**, so committing on
+`dragging: false` as well would give every drag a second entry. The resizer's
+and `expandParent`'s position changes carry no `dragging` field at all, and
+programmatic paths (import, fit, template load) never reach `onNodesChange` —
+measured, not assumed.
+
+**What happens instead.** A capture-phase `keydown` on the document runs
+**before** React Flow applies the move (measured: the store still holds the old
+position at that point), so the canvas brackets React Flow's own movement with
+the §SF11.1 transaction:
+
+- it opens only for an arrow aimed at a node React Flow will really move — the
+  event target inside a `.react-flow__node`, that node **selected and
+  draggable**, no text field, no modal (`src/ui/keyboardTarget.ts`), not locked
+  or mobile. A frame, its resize handle, the ✕, any other button and anything
+  outside the canvas therefore never open one, even with a node still selected;
+- React Flow keeps doing the movement **and** its live announcement, so the
+  5 px / 20 px steps and the EN/KO/JA message are untouched. Every modifier
+  combination React Flow moves on opens a transaction, because React Flow's
+  node handler has no modifier gate — only Shift changes the step (measured);
+- one entry is pushed when the **last** arrow comes up and the positions really
+  changed. A key repeat is one entry, tapping twice is two, an out-and-back
+  inside one gesture is none;
+- **Escape** restores the origin, pushes nothing, keeps the selection and
+  announces the settled original coordinates once — a restore goes through
+  `applyGesturePositions`, which is *not* React Flow's move path, so its live
+  message does not fire on its own (measured). The next Escape passes through
+  to React Flow's own deselect;
+- a focus loss, a tab switch or a **pointer press** settles what is there, so a
+  `keyup` that never arrives cannot leave a transaction open, and a drag can
+  never mix with a held arrow;
+- multi-selection moves every selected, draggable node by the same Δ in **one**
+  entry; the snapshot is the whole graph, and the restore map holds the
+  pre-gesture position of each of those nodes.
+
+Unchanged: the pointer path (still one entry, still on `dragging: true`),
+`simulationRev`, manual waypoints, frame rects, and the route map — which
+rebuilds during the move exactly as it does for a drag, while the history push
+itself adds no further rebuild.
+
+The gesture **lifetime** — held keys, end on the last `keyup`, safe end on
+blur / visibility / pointer press, late events ignored, and which of those
+reasons ended it — is the shared `src/ui/keyGestureLifetime.ts`, used by both
+the frame gestures (§LGR6.6) and this one. Only the lifetime is shared:
+capture, apply and restore stay with each owner. Pinned by
+`e2e/node-keyboard-move.spec.ts` and `src/ui/keyGestureLifetime.test.ts`.
 
 ---
 
@@ -837,6 +898,7 @@ exercised at three run phases: **start** (step 0–2), **mid** (≈ step 40), **
 | **LGR-D11** | does selecting / focusing / filtering move the viewport? | **Never.** Only an explicit "fit / frame selection" does, unchanged. |
 | **LGR-D12** | mobile extent | Global hit-test rule **yes**; Focus + Filters **yes** (More sheet); frame **drawing** no; auto frames render once Slice 4b ships. **Saved frames on mobile — and on a locked desktop canvas — are view + select only (2026-09-20, D6):** no move / resize / rename / colour / delete / promote, no Frame tool, no "Clear all" — on mobile the More sheet keeps only the session-only **Clear suggested frames** row (the saved-frame-deleting "Clear all frames" row was removed with this pass); on desktop "Clear all" is off under the edit-lock. |
 | **LGR-D14** | can a frame be used from the keyboard? | **Yes (2026-09-20, §LGR6.6).** The container is the focus unit (`role="group"`, one tab stop, post-selection stops for the label / ✕ / swatches / resize handle); Enter·Space select, Escape cancels-then-deselects, Arrow 5 px / Shift+Arrow 20 px move **with** the contents, the resize handle's arrows change width / height. No mode key and **no keyboard frame-only escape hatch** (Alt+Arrow is the browser's Back). Both gestures reuse the pointer's **transaction** — one entry per burst, nothing for an out-and-back or an Escape, a focus loss commits. `Backspace` **and** `Delete` delete (nodes / edges first, then the selected frame), guarded against text fields, any open modal dialog, and the edit-lock / mobile. |
+| **LGR-D15** | is a keyboard node move undoable? | **Yes (2026-09-21, §LGR6.7).** It was not: React Flow reports it as `dragging: false`, which the store does not commit, so one `Ctrl+Z` afterwards undid the PREVIOUS edit instead. A capture-phase arrow `keydown` now brackets React Flow's own movement with the §SF11.1 transaction — one entry per burst, none for an out-and-back or an Escape (which restores and announces the origin), safe settle on blur / tab switch / pointer press. It opens only for an arrow aimed at a selected, draggable React Flow node, so frames, buttons, text fields, dialogs and the edit-lock never open one. The pointer path is untouched and still commits on its first `dragging: true`. |
 | **LGR-D13** | where does view state live? | Sticky toggles: **one global `localStorage` blob**. Everything else (filter selections, focus selection, transient frames, activity tint): **in memory only**. Never GraphDoc / digest / Share / revision / `SimState`. Full table in §LGR3.4. |
 
 Open (none block Slice 1): the 1–2 hop control and its default (follow-up); the

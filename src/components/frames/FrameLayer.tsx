@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ViewportPortal, useReactFlow, useStore } from '@xyflow/react'
 import {
   useFrameStore,
@@ -13,6 +13,7 @@ import { useT, type MessageKey } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeom'
 import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type Pt } from './frameMoveGesture'
+import { createKeyGesture } from '../../ui/keyGestureLifetime'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -95,8 +96,6 @@ type KeyGesture = {
   /** the DISPLAY name — what an announcement reads out */
   name: string
   snapshot: GestureSnapshot
-  /** the arrow keys currently held; the gesture ends when it empties */
-  keys: Set<string>
   dx: number
   dy: number
   /** move only — the pre-gesture geometry of everything the gesture carries */
@@ -264,7 +263,7 @@ export function FrameLayer() {
               edges: G.edges,
             })
           : null
-      keyRef.current = { kind, id, isAuto, label, name, snapshot, keys: new Set(), dx: 0, dy: 0, origin, orig: { ...rect }, current: { ...rect } }
+      keyRef.current = { kind, id, isAuto, label, name, snapshot, dx: 0, dy: 0, origin, orig: { ...rect }, current: { ...rect } }
       if (isAuto) setAutoDraft({ id, rect: { ...rect } })
     },
     [],
@@ -337,6 +336,13 @@ export function FrameLayer() {
     [setRectsSilently, adoptFrameSilently, removeAuto, t],
   )
 
+  // §LGR6.6 / §LGR6.7 — the lifetime (held keys, end on the last keyup, safe
+  // end on blur / tab switch / pointer press, late events ignored) is the
+  // shared module; only capture / apply / restore stay here.
+  const endRef = useRef(endKeyGesture)
+  endRef.current = endKeyGesture
+  const gesture = useMemo(() => createKeyGesture((reason) => endRef.current(reason !== 'cancel')), [])
+
   /** one arrow press (or repeat) on a frame or on its resize handle */
   const pressArrow = useCallback(
     (kind: 'move' | 'resize', rf: { id: string; rect: FrameRect; auto: boolean; label: string }, name: string, e: React.KeyboardEvent) => {
@@ -346,42 +352,38 @@ export function FrameLayer() {
       e.stopPropagation()
       let g = keyRef.current
       if (!g || g.id !== rf.id || g.kind !== kind) {
-        endKeyGesture(true) // a different target / mode closes the previous one cleanly
+        gesture.end('superseded') // a different target / mode closes the previous one cleanly
         beginKeyGesture(kind, rf.id, rf.rect, rf.auto, rf.label, name)
         g = keyRef.current!
       }
       const step = e.shiftKey ? KEY_STEP_FAST : KEY_STEP
-      g.keys.add(e.key)
+      gesture.press(e.key)
       g.dx += dir[0] * step
       g.dy += dir[1] * step
       applyKeyGesture(g)
       return true
     },
-    [beginKeyGesture, applyKeyGesture, endKeyGesture],
+    [beginKeyGesture, applyKeyGesture, gesture],
   )
 
   // the gesture ends when the last arrow comes up — and defensively when focus
   // or the page goes away, so a lost keyup can never leave a transaction open.
   useEffect(() => {
     const onKeyUp = (e: KeyboardEvent) => {
-      const g = keyRef.current
-      if (!g || !ARROWS[e.key]) return
-      g.keys.delete(e.key)
-      if (g.keys.size === 0) endKeyGesture(true)
+      if (ARROWS[e.key]) gesture.release(e.key)
     }
-    const settle = () => {
-      if (keyRef.current) endKeyGesture(true)
-    }
+    const onBlur = () => gesture.end('blur')
+    const onVisibility = () => gesture.end('visibility')
     window.addEventListener('keyup', onKeyUp)
-    window.addEventListener('blur', settle)
-    document.addEventListener('visibilitychange', settle)
+    window.addEventListener('blur', onBlur)
+    document.addEventListener('visibilitychange', onVisibility)
     return () => {
       window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('blur', settle)
-      document.removeEventListener('visibilitychange', settle)
+      window.removeEventListener('blur', onBlur)
+      document.removeEventListener('visibilitychange', onVisibility)
       if (announceTimer.current) clearTimeout(announceTimer.current)
     }
-  }, [endKeyGesture])
+  }, [gesture])
 
   useEffect(() => {
     const cancelRaf = (d: Extract<Drag, { kind: 'move' | 'resize' }>) => {
@@ -652,7 +654,7 @@ export function FrameLayer() {
                   if (keyRef.current) {
                     e.preventDefault()
                     e.stopPropagation()
-                    endKeyGesture(false) // origin back, no entry, no promotion
+                    gesture.end('cancel') // origin back, no entry, no promotion
                     return
                   }
                   if (sel) {
@@ -674,7 +676,7 @@ export function FrameLayer() {
                 // focus left the frame entirely (not just moved to its own
                 // chrome): settle any open transaction
                 if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
-                if (keyRef.current && keyRef.current.id === rf.id) endKeyGesture(true)
+                if (keyRef.current && keyRef.current.id === rf.id) gesture.end('blur')
               }}
             >
               {selectable
@@ -729,14 +731,14 @@ export function FrameLayer() {
                       if (e.key === 'Escape' && keyRef.current) {
                         e.preventDefault()
                         e.stopPropagation()
-                        endKeyGesture(false)
+                        gesture.end('cancel')
                         return
                       }
                       if (!ARROWS[e.key]) return
                       pressArrow('resize', rf, rf.label || def, e)
                     }}
                     onBlur={() => {
-                      if (keyRef.current && keyRef.current.id === rf.id && keyRef.current.kind === 'resize') endKeyGesture(true)
+                      if (keyRef.current && keyRef.current.id === rf.id && keyRef.current.kind === 'resize') gesture.end('blur')
                     }}
                   />
                 </>

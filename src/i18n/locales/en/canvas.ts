@@ -124,6 +124,7 @@ const canvas = {
   'canvas.frame.a11y.resize': 'Resize {label} — width {w}, height {h}. The arrow keys resize it, Shift for a bigger step.',
   'canvas.frame.a11y.moved': '{label} moved to x {x}, y {y}',
   'canvas.frame.a11y.resized': '{label} resized to width {w}, height {h}',
+  'rf.node.moveCancelled': 'Move cancelled. The node is back at x {x}, y {y}',
   'rf.node.moved': 'Moved the selected node {direction}. New position, x {x}, y {y}',
   'rf.dir.left': 'left',
   'rf.dir.right': 'right',
