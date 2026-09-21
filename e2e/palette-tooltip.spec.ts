@@ -120,3 +120,85 @@ test('keyboard Tab to a chip still shows its tooltip (:focus-visible, not a clic
   await expect(chip(page, 'register')).toBeFocused()
   await expect(tip(page, 'register')).toBeVisible()
 })
+
+// ── Escape and pointer retention (docs/accessibility.md, Hanrim 2026-09-21) ──
+// A tooltip a reader is trying to read used to vanish the moment the pointer
+// left the chip, because `.palette-tip` was `pointer-events: none`, and Escape
+// did not close it at all.
+
+test('Escape closes only the tooltip, leaves focus on the trigger, and the next Escape is the canvas’s again', async ({ page }) => {
+  // arm the canvas behaviour Escape would otherwise reach
+  await page.evaluate(() => (window as any).__loop.ui.getState().setRegionSelectArmed(true))
+  const armed = () => page.evaluate(() => (window as any).__loop.ui.getState().regionSelectArmed as boolean)
+  expect(await armed()).toBe(true)
+
+  await chip(page, 'gate').focus()
+  await chip(page, 'gate').hover()
+  await expect(tip(page, 'gate')).toBeVisible()
+
+  await page.keyboard.press('Escape')
+  await expect(tip(page, 'gate')).toBeHidden()
+  await expect(chip(page, 'gate'), 'focus stays on the trigger').toBeFocused()
+  expect(await armed(), 'the same press did NOT also reach the canvas').toBe(true)
+
+  // with the tooltip gone the key belongs to the canvas again
+  await page.keyboard.press('Escape')
+  expect(await armed()).toBe(false)
+})
+
+test('Escape keeps the tooltip shut while the pointer sits still, and leaving re-arms it', async ({ page }) => {
+  await chip(page, 'pool').hover()
+  await expect(tip(page, 'pool')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(tip(page, 'pool')).toBeHidden()
+  // the pointer never moved — the same rule a click uses: no re-show until
+  // the pointer leaves and comes back
+  await expect(tip(page, 'pool')).toBeHidden()
+  await page.mouse.move(640, 700)
+  await chip(page, 'pool').hover()
+  await expect(tip(page, 'pool')).toBeVisible()
+})
+
+test('the pointer can travel onto the tooltip and read it; leaving both closes it', async ({ page }) => {
+  const chipBox = (await chip(page, 'converter').boundingBox())!
+  await chip(page, 'converter').hover()
+  await expect(tip(page, 'converter')).toBeVisible()
+  const tipBox = (await tip(page, 'converter').boundingBox())!
+
+  // the tooltip never covers its own trigger
+  expect(tipBox.y, 'the tooltip sits below the chip, not over it').toBeGreaterThanOrEqual(
+    chipBox.y + chipBox.height,
+  )
+
+  // walk the pointer down through the gap and onto the tooltip, the way a
+  // hand does — not a jump, so the chip's `mouseleave` really fires on the way
+  const midX = tipBox.x + tipBox.width / 2
+  await page.mouse.move(chipBox.x + chipBox.width / 2, chipBox.y + chipBox.height / 2)
+  await page.mouse.move(midX, tipBox.y + tipBox.height / 2, { steps: 8 })
+  await expect(tip(page, 'converter'), 'still readable with the pointer on it').toBeVisible()
+
+  // and it stays put while the pointer moves around inside it
+  await page.mouse.move(tipBox.x + 8, tipBox.y + tipBox.height - 4, { steps: 4 })
+  await expect(tip(page, 'converter')).toBeVisible()
+
+  // leaving both closes it
+  await page.mouse.move(640, 700, { steps: 8 })
+  await expect(tip(page, 'converter')).toBeHidden()
+  expect(await visibleTipCount(page)).toBe(0)
+
+  // nothing is left behind at that spot for the canvas to lose a click to
+  const under = await page.evaluate(
+    ([x, y]) => (document.elementFromPoint(x, y) as HTMLElement | null)?.closest('.palette-tip') !== null,
+    [midX, tipBox.y + tipBox.height / 2] as const,
+  )
+  expect(under, 'no hidden tooltip hit area remains').toBe(false)
+})
+
+test('a fast sweep across the palette leaves no ghost tooltip', async ({ page }) => {
+  const first = (await chip(page, 'pool').boundingBox())!
+  const last = (await chip(page, 'register').boundingBox())!
+  await page.mouse.move(first.x + 4, first.y + first.height / 2)
+  await page.mouse.move(last.x + last.width - 4, last.y + last.height / 2, { steps: 3 })
+  await page.mouse.move(640, 700, { steps: 3 })
+  await expect.poll(() => visibleTipCount(page), { timeout: 3000 }).toBe(0)
+})

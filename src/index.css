@@ -636,6 +636,10 @@ body {
   border: 1px solid var(--line-structure);
   border-radius: 9px;
   box-shadow: var(--elev-label);
+  /* The ACTIVE tip takes the pointer so it can be read without it vanishing
+     when the pointer crosses the 6px gap below the chip; Toolbar.tsx sets
+     `pointer-events: auto` inline on that one only. Every inactive tip stays
+     `display: none`, so no hidden hit area is ever left over the canvas. */
   pointer-events: none;
 }
 .palette-tip__name {
@@ -645,9 +649,16 @@ body {
   color: var(--text-primary);
 }
 .palette-tip__desc {
-  font-size: 11px;
+  font-size: 12.5px;
   line-height: 1.4;
   color: var(--text-secondary);
+  /* `.menu__blurb` has had this since 2026-09-15; the tooltip never did, so
+     six of the eight Korean descriptions broke a word across lines (measured
+     with a `Range` per 어절: "있으며", "보냅니다.", "제거합니다.", "연결들로",
+     "생성합니다.", "표현식에서"). Note the limit: `keep-all` does NOT close a
+     break at the interpunct `·`, so long enumerations are written with commas
+     in the copy rather than fought in CSS. */
+  word-break: keep-all;
 }
 .palette-tip__how {
   font-size: 11px;
@@ -732,6 +743,20 @@ body {
   max-height: min(70vh, 480px);
   overflow-y: auto;
 }
+/* Templates carries a sentence of description per row, which the 2-line clamp
+   cut in half at 260px. The copy was compressed to one sentence first; 300px
+   is then the smallest width at which nothing is still cut, and English is
+   what sets it (Korean and Japanese already clear the clamp at 260px).
+   Measured, not chosen: at 260px four English rows overflow, at 280px one
+   does, at 300px none. Opt-in, and deliberately no wider — an open popover
+   covers the palette row beneath it, and every extra 40px hides another chip.
+   The Insert module menu needs none of this: its two compressed descriptions
+   clear the clamp at the shared 260px in all three locales.
+   `min(..., 100vw - margin)` keeps the popover inside a narrow viewport,
+   where `right: 0` would otherwise push it off the left edge. */
+.menu__pop--wide {
+  width: min(300px, calc(100vw - 24px));
+}
 .menu__item {
   display: flex;
   flex-direction: column;
@@ -776,9 +801,11 @@ a.sheet__row {
   word-break: keep-all;
 }
 .menu__blurb {
-  font-size: 11px;
+  font-size: 12.5px;
   line-height: 1.35;
-  color: var(--text-tertiary);
+  /* `--text-tertiary` measured 4.26:1 on `--surface-overlay` in light, under
+     the 4.5:1 body-text floor; `--text-secondary` is 6.68:1. No new token. */
+  color: var(--text-secondary);
   /* Templates / Insert module descriptions read like a document at full
      length — cap at 2 lines everywhere (harmless for the already-short
      Export/Data blurbs) so a menu stays scannable. `keep-all` — a Korean

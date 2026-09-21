@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useReactFlow } from '@xyflow/react'
@@ -40,6 +40,13 @@ const DND_TYPE = 'application/loop-node'
 // `.description` (semantic, matched to SEMANTICS-*), `palette.addAction` — each
 // on its OWN DOM line, never concatenated (§L13 / Slice 2a). Grouped into three
 // bands for Tier 2 (docs/toolbar-responsive.md): 0-2 / 3-5 / 6-7.
+// Crossing the 6px gap between a chip and its tooltip takes a frame or two of
+// pointer movement, and the chip's `mouseleave` fires the moment the pointer
+// enters that gap. This is the grace the pointer gets to arrive on the tooltip
+// before it closes -- the smallest span that survives a real pointer move, not
+// a dwell timer. There is no OPEN delay (D1): the tooltip still appears at once.
+const TIP_CLOSE_GRACE_MS = 120
+
 const PALETTE: { kind: NodeKind; nameKey: MessageKey; descKey: MessageKey; glyph: string }[] = [
   { kind: 'pool', nameKey: 'palette.pool.name', descKey: 'palette.pool.description', glyph: '◉' },
   { kind: 'source', nameKey: 'palette.source.name', descKey: 'palette.source.description', glyph: '＋' },
@@ -144,6 +151,54 @@ export function Toolbar() {
   const activeTipKind =
     !anyMenuOpen && candidateTipKind && candidateTipKind !== suppressedTip ? candidateTipKind : null
   const tipPos = usePaletteTipPosition(activeTipKind, chipRefs, paletteTipRef)
+
+  // D9 -- moving the pointer from the chip ONTO the tooltip must not dismiss
+  // it, and leaving both must. The chip's `mouseleave` schedules the close;
+  // arriving on the tooltip cancels it; leaving the tooltip schedules it
+  // again. The tooltip takes pointer events only while it is the active one
+  // (inline below), so no hidden tip ever leaves a hit area over the canvas.
+  const tipCloseTimer = useRef<number | null>(null)
+  const cancelTipClose = useCallback(() => {
+    if (tipCloseTimer.current != null) {
+      clearTimeout(tipCloseTimer.current)
+      tipCloseTimer.current = null
+    }
+  }, [])
+  const scheduleTipClose = useCallback(
+    (kind: NodeKind) => {
+      cancelTipClose()
+      tipCloseTimer.current = window.setTimeout(() => {
+        tipCloseTimer.current = null
+        setHoveredKind((k) => (k === kind ? null : k))
+        setSuppressedTip((k) => (k === kind ? null : k))
+      }, TIP_CLOSE_GRACE_MS)
+    },
+    [cancelTipClose],
+  )
+  useEffect(() => cancelTipClose, [cancelTipClose])
+
+  // D2 -- while a tooltip is up, Escape closes THAT and nothing else. Bound on
+  // `window` in the capture phase, upstream of the canvas's own Escape
+  // handlers (`document`, capture) and of every menu's (`window`, bubble), so
+  // one key press cannot also cancel a region select or disarm a pick. Focus
+  // is left where it is: on the trigger. Once the tooltip is gone this
+  // listener is gone with it and Escape follows the usual global contract.
+  useEffect(() => {
+    if (!activeTipKind) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      cancelTipClose()
+      // keep it shut while the pointer is still on the chip -- the same
+      // re-arm rule a click uses: leaving and re-entering brings it back
+      setSuppressedTip(activeTipKind)
+      setHoveredKind(null)
+      setFocusedKind(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [activeTipKind, cancelTipClose])
 
   // review condition 3 — the group's own trigger (real only while inline)
   // and the ⋯ trigger (always real), so a lifted dialog's `returnFocusTo`
@@ -369,10 +424,24 @@ export function Toolbar() {
               <span
                 key={p.kind}
                 className="palette-item"
-                onMouseEnter={() => setHoveredKind(p.kind)}
+                onMouseEnter={() => {
+                  cancelTipClose()
+                  setHoveredKind(p.kind)
+                }}
                 onMouseLeave={() => {
-                  setHoveredKind((k) => (k === p.kind ? null : k))
+                  // leaving always re-arms the chip (the click/drag
+                  // suppression is spent), and the grace only exists to let
+                  // the pointer reach a tooltip that is actually on screen —
+                  // a suppressed chip has nothing to travel to, so it closes
+                  // at once rather than flashing back during the grace
+                  const wasShowing = activeTipKind === p.kind
                   setSuppressedTip((k) => (k === p.kind ? null : k))
+                  if (wasShowing) {
+                    scheduleTipClose(p.kind)
+                  } else {
+                    cancelTipClose()
+                    setHoveredKind((k) => (k === p.kind ? null : k))
+                  }
                 }}
               >
                 <button
@@ -417,6 +486,8 @@ export function Toolbar() {
                 className="palette-tip"
                 role="tooltip"
                 id={`palette-tip-${p.kind}`}
+                onMouseEnter={isActive ? cancelTipClose : undefined}
+                onMouseLeave={isActive ? () => scheduleTipClose(p.kind) : undefined}
                 style={{
                   position: 'fixed',
                   top: (isActive ? tipPos?.top : undefined) ?? 0,
@@ -437,6 +508,9 @@ export function Toolbar() {
                   // as `useAnchoredPosition`'s panels.
                   display: isActive ? 'flex' : 'none',
                   visibility: isActive && tipPos ? 'visible' : 'hidden',
+                  // only the one on screen; the other seven stay `none` and
+                  // therefore hold no hit area at all (D9)
+                  pointerEvents: isActive ? 'auto' : 'none',
                 }}
               >
                 <span className="palette-tip__name">{t(p.nameKey)}</span>
