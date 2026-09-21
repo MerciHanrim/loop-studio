@@ -37,6 +37,30 @@ async function setLocale(page: Page, code: 'en' | 'ko' | 'ja') {
 const modelExpr = (page: Page, id: string) =>
   page.evaluate((n) => (window as any).__loop.graph.getState().nodes.find((x: any) => x.id === n)?.data.expr, id)
 
+/** what the pick actually has to settle: focus on the input and a placed caret */
+const caretState = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.querySelector('.regexpr input[role="combobox"]') as HTMLInputElement | null
+    if (!el) return null
+    return { focused: document.activeElement === el, start: el.selectionStart, end: el.selectionEnd }
+  })
+
+/** the `loop-revision/2` digest of the whole graph, as RXA-INV-1 compares it */
+const digest = (page: Page) =>
+  page.evaluate(async () => {
+    const M = await import('/src/model/revision.ts')
+    const g = (window as any).__loop.graph.getState()
+    return M.digestOfCanonical(M.canonicalContent({ nodes: g.nodes, edges: g.edges }))
+  })
+
+/** the parsed expression of a node, so two spellings can be compared as ASTs */
+const ast = (page: Page, id: string) =>
+  page.evaluate(async (n) => {
+    const M = await import('/src/model/expr/index.ts')
+    const g = (window as any).__loop.graph.getState()
+    return JSON.stringify(M.parseExpr(g.nodes.find((x: any) => x.id === n)?.data.expr ?? ''))
+  }, id)
+
 test.beforeEach(async ({ page }) => {
   await openApp(page)
   await resetAll(page)
@@ -93,6 +117,9 @@ test('§RXA9.3 — choosing a row inserts `@id` at the caret; the committed AST 
   await expect(listbox(page)).toBeVisible()
   await page.locator('[role="option"]', { hasText: 'Wallet' }).first().click()
   await expect(expr(page)).toHaveValue('@wallet')
+  // the value landing is NOT the end of the pick: it also puts focus and the
+  // caret back. Typing before that settles is what §RXA9.3b pins.
+  await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 7, end: 7 })
   await expr(page).pressSequentially(' + 10')
   await expect(expr(page)).toHaveValue('@wallet + 10')
   expect(await modelExpr(page, 'net')).toBe('@wallet + 10')
@@ -102,8 +129,80 @@ test('§RXA9.3 — choosing a row inserts `@id` at the caret; the committed AST 
   await importGraph(page, GRAPH)
   await select(page, 'net')
   await expr(page).fill('@wallet + 10')
-  await page.waitForTimeout(60)
-  expect(await modelExpr(page, 'net')).toBe('@wallet + 10')
+  await expect.poll(() => modelExpr(page, 'net')).toBe('@wallet + 10')
+})
+
+test('§RXA9.3b — nothing the pick defers may touch the caret after the user has typed', async ({ page }) => {
+  await select(page, 'net')
+  // Hold every animation frame instead of letting it run. A frame is not a
+  // bounded delay — with the main thread busy the pick's frame was measured
+  // landing 0.9-4.8 s after the click — so holding it models an ordinary
+  // loaded machine, not an exotic one. Releasing it *after* the user has typed
+  // is the interleaving that produced `@wallet+ 10 ` in CI.
+  await page.evaluate(() => {
+    const w = window as unknown as { __heldFrames: FrameRequestCallback[] }
+    w.__heldFrames = []
+    window.requestAnimationFrame = ((cb: FrameRequestCallback) => w.__heldFrames.push(cb)) as unknown as typeof window.requestAnimationFrame
+  })
+  await expr(page).fill('')
+  await expr(page).pressSequentially('@wal')
+  await expect(listbox(page)).toBeVisible()
+  await page.locator('[role="option"]', { hasText: 'Wallet' }).first().click()
+  await expect(expr(page)).toHaveValue('@wallet')
+  // the pick has to be finished here, with no frame having run
+  await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 7, end: 7 })
+
+  // real sequential typing, the path this test exists for
+  await expr(page).pressSequentially(' + 10')
+  await expect(expr(page)).toHaveValue('@wallet + 10')
+
+  // now let the held frames run. Whatever the pick left on one of them must
+  // not move the caret out from under the text the user just typed.
+  await page.evaluate(() => {
+    const w = window as unknown as { __heldFrames: FrameRequestCallback[] }
+    for (const cb of w.__heldFrames.splice(0)) cb(performance.now())
+  })
+  await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 12, end: 12 })
+
+  // and the next character still lands at the end, where the caret is
+  await expr(page).pressSequentially('0')
+  await expect(expr(page)).toHaveValue('@wallet + 100')
+  await expect.poll(() => modelExpr(page, 'net')).toBe('@wallet + 100')
+  const pickedAst = await ast(page, 'net')
+  const pickedDigest = await digest(page)
+
+  // the same expression hand-typed: value, stored expr, AST and digest all agree
+  await importGraph(page, GRAPH)
+  await select(page, 'net')
+  await expr(page).fill('@wallet + 100')
+  await expect.poll(() => modelExpr(page, 'net')).toBe('@wallet + 100')
+  expect(pickedAst).toBe(await ast(page, 'net'))
+  expect(pickedDigest).toBe(await digest(page))
+})
+
+test('§RXA9.3c — picking the row that is already written puts the caret back even though the text did not change', async ({ page }) => {
+  await select(page, 'net')
+  await expr(page).fill('@wallet + 1')
+  // caret just past `@wallet`, reached with a real key so the popover reopens
+  await expr(page).evaluate((el) => {
+    const i = el as HTMLInputElement
+    i.focus()
+    i.setSelectionRange(6, 6)
+  })
+  await expr(page).press('ArrowRight')
+  await expect(listbox(page)).toBeVisible()
+
+  await page.locator('[role="option"]', { hasText: 'Wallet' }).first().click()
+  // the insert reproduces the text exactly, so `@wallet + 1` never changes —
+  // the caret still has to come back to 7, which is why the request carries a
+  // generation instead of riding on a value change
+  await expect(expr(page)).toHaveValue('@wallet + 1')
+  await expect.poll(() => caretState(page)).toEqual({ focused: true, start: 7, end: 7 })
+
+  // and the caret really is there: the next characters land at 7
+  await expr(page).pressSequentially(' * 2')
+  await expect(expr(page)).toHaveValue('@wallet * 2 + 1')
+  await expect.poll(() => modelExpr(page, 'net')).toBe('@wallet * 2 + 1')
 })
 
 test('§RXA9.4 — hovering a chip peeks exactly that node; no selection / undo / simulationRev / autosave effect', async ({ page }) => {

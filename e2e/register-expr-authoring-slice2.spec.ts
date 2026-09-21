@@ -196,6 +196,64 @@ test('§RXA8.5 — combined: pick from the `@` list, then arm-and-click, in one 
   expect(digestNow).toBe(digestTyped)
 })
 
+/**
+ * Hold everything the page schedules on an animation frame or a zero-delay
+ * macrotask, and hand back a release function. Those are the two schedulers a
+ * deferred refocus can sit on; holding them models a loaded machine, where the
+ * pick's frame was measured landing seconds after the click.
+ */
+async function holdDeferred(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __held: (() => void)[]; __release: () => void }
+    w.__held = []
+    const raf = window.requestAnimationFrame
+    const st = window.setTimeout
+    w.__release = () => {
+      window.requestAnimationFrame = raf
+      window.setTimeout = st
+      for (const cb of w.__held.splice(0)) cb()
+    }
+    window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      w.__held.push(() => cb(performance.now()))
+      return 0
+    }) as unknown as typeof window.requestAnimationFrame
+    window.setTimeout = ((fn: unknown, ms?: number, ...rest: unknown[]) => {
+      if (typeof fn === 'function' && (ms ?? 0) === 0) {
+        w.__held.push(() => (fn as () => void)())
+        return 0
+      }
+      return (st as unknown as (...a: unknown[]) => number)(fn, ms, ...rest)
+    }) as unknown as typeof window.setTimeout
+  })
+  return () => page.evaluate(() => (window as unknown as { __release: () => void }).__release())
+}
+
+test('§RXA8.10 — the insert refocuses the input inside the commit, and never pulls focus back afterwards', async ({ page }) => {
+  await expr(page).fill('1 + ')
+  await caretTo(page, 4)
+  await pickBtn(page).click()
+
+  const release = await holdDeferred(page)
+  try {
+    await node(page, 'wallet').click()
+    await expect(expr(page)).toHaveValue('1 + @wallet')
+    // focus + caret are back with the value, without a frame or a macrotask
+    await expect(expr(page)).toBeFocused()
+    expect(await expr(page).evaluate((el) => (el as HTMLInputElement).selectionStart)).toBe('1 + @wallet'.length)
+
+    // the user moves on to another field while the deferred work is still held
+    await page.getByLabel('Label').focus()
+    await expect(page.getByLabel('Label')).toBeFocused()
+  } finally {
+    await release()
+  }
+
+  // nothing the insert left behind may pull focus back out of the field the
+  // user is now in
+  await expect(page.getByLabel('Label')).toBeFocused()
+  await expect(expr(page)).not.toBeFocused()
+})
+
 test('§RXA8.6 — canvas operations do not regress: while NOT armed a node still selects; while armed a node click never selects it and no drag/connect happens', async ({ page }) => {
   const positions = () =>
     page.evaluate(() =>

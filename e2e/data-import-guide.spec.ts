@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/data-import.md §DI17 — the in-tool guide for the CSV/TSV import
@@ -13,6 +13,49 @@ type Node = { id: string; type?: string; data?: { label?: string; value?: number
 
 const dialog = (page: Page) => page.locator('.mcdlg--dataimport')
 const dataButton = (page: Page) => page.getByRole('button', { name: 'Data ▾' })
+
+type Box = { x: number; y: number; width: number; height: number }
+
+/**
+ * Wait for the exact geometry the assertions need, then assert on the sample
+ * that passed. `Use this example` focuses the new card on the next animation
+ * frame and `scrollIntoView` moves the dialog body with it, so a single
+ * measurement taken right after a manual `scrollTop` reset can be read either
+ * before or after that frame. Polling the containment itself -- and keeping
+ * the boxes that satisfied it -- makes the assertions and the screenshot read
+ * one state instead of three. `axis: 'y'` is for panes that scroll
+ * horizontally on their own, where the x bound is not a contract.
+ */
+async function clippedInsideDialog(page: Page, targets: readonly (readonly [string, Locator])[], axis: 'xy' | 'y' = 'xy') {
+  const caught: { dlg: Box; boxes: Box[] } = { dlg: { x: 0, y: 0, width: 0, height: 0 }, boxes: [] }
+  await expect
+    .poll(
+      async () => {
+        const d = await dialog(page).boundingBox()
+        if (!d) return 'the dialog has no box'
+        const boxes: Box[] = []
+        const outside: string[] = []
+        for (const [name, loc] of targets) {
+          const b = await loc.boundingBox()
+          if (!b) return `${name} has no box`
+          boxes.push(b)
+          if (b.y < d.y) outside.push(`${name} top ${Math.round(b.y)} < ${Math.round(d.y)}`)
+          if (b.y + b.height > d.y + d.height) outside.push(`${name} bottom ${Math.round(b.y + b.height)} > ${Math.round(d.y + d.height)}`)
+          if (axis === 'xy') {
+            if (b.x < d.x) outside.push(`${name} left ${Math.round(b.x)} < ${Math.round(d.x)}`)
+            if (b.x + b.width > d.x + d.width) outside.push(`${name} right ${Math.round(b.x + b.width)} > ${Math.round(d.x + d.width)}`)
+          }
+        }
+        if (outside.length) return outside.join(' | ')
+        caught.dlg = d
+        caught.boxes = boxes
+        return 'inside'
+      },
+      { timeout: 15000 },
+    )
+    .toBe('inside')
+  return caught
+}
 
 const graph = (page: Page) =>
   page.evaluate(() => {
@@ -394,32 +437,35 @@ test('visual: the quick start with the example loaded, and the inline error stat
   await openWizard(page)
   await dialog(page).getByRole('button', { name: 'Use this example' }).click()
   await expect(dialog(page).locator('.import__status').first()).toContainText(/4 Parameters/)
-  // "Use this example" moves focus to the table name, which scrolls the
-  // dialog body down -- the baseline must protect the quick start's COPY,
-  // so scroll back to the top and prove every guarded piece is inside the
-  // dialog's clip before capturing.
+  // "Use this example" moves focus to the table name on the NEXT animation
+  // frame, and the same frame scrolls the dialog body down to reach it -- so
+  // wait for that focus to land before resetting the scroll, or the deferred
+  // `scrollIntoView` undoes the reset and the quick start leaves the clip.
+  await expect(dialog(page).locator('.import__nameField input').first()).toBeFocused()
+  // the baseline must protect the quick start's COPY, so scroll back to the
+  // top and prove every guarded piece is inside the dialog's clip before
+  // capturing.
   await dialog(page).locator('.mcdlg__body').evaluate((el) => {
     el.scrollTop = 0
   })
   await page.evaluate(() => document.fonts.ready)
-  const dlg = (await dialog(page).boundingBox())!
   const qs = dialog(page).locator('.import__quickstart')
   const guarded = [
-    qs.locator('.import__quickstartToggle'),
-    qs.locator('.import__quickstartLead'),
-    qs.locator('.import__example'),
-    qs.getByText(/item_id: Key · item_name: Label · price: Number · drop_rate: Number/),
-    qs.getByText(/2 rows × 2 Number columns = 4 Parameters/),
-    qs.getByRole('button', { name: 'Use this example' }),
-    qs.getByRole('button', { name: 'Download sample CSV' }),
-    qs.getByRole('link', { name: /Full guide/ }),
-  ]
-  for (const g of guarded) {
-    const b = (await g.boundingBox())!
-    expect(b.y).toBeGreaterThanOrEqual(dlg.y)
-    expect(b.y + b.height).toBeLessThanOrEqual(dlg.y + dlg.height)
-    expect(b.x).toBeGreaterThanOrEqual(dlg.x)
-    expect(b.x + b.width).toBeLessThanOrEqual(dlg.x + dlg.width)
+    ['toggle', qs.locator('.import__quickstartToggle')],
+    ['lead', qs.locator('.import__quickstartLead')],
+    ['example', qs.locator('.import__example')],
+    ['mapping line', qs.getByText(/item_id: Key · item_name: Label · price: Number · drop_rate: Number/)],
+    ['count line', qs.getByText(/2 rows × 2 Number columns = 4 Parameters/)],
+    ['use example', qs.getByRole('button', { name: 'Use this example' })],
+    ['download CSV', qs.getByRole('button', { name: 'Download sample CSV' })],
+    ['full guide', qs.getByRole('link', { name: /Full guide/ })],
+  ] as const
+  const quickStart = await clippedInsideDialog(page, guarded)
+  for (const b of quickStart.boxes) {
+    expect(b.y).toBeGreaterThanOrEqual(quickStart.dlg.y)
+    expect(b.y + b.height).toBeLessThanOrEqual(quickStart.dlg.y + quickStart.dlg.height)
+    expect(b.x).toBeGreaterThanOrEqual(quickStart.dlg.x)
+    expect(b.x + b.width).toBeLessThanOrEqual(quickStart.dlg.x + quickStart.dlg.width)
   }
   // the `↗` external-link glyph comes from a fallback font whose
   // rasterisation differs between a local Windows machine and the CI runner
@@ -443,11 +489,17 @@ test('visual: the quick start with the example loaded, and the inline error stat
   // pin the scene the baseline protects: the focused summary at the top of
   // the body, with the table's issue list and its marked cells below it
   await summary.evaluate((el) => el.scrollIntoView({ block: 'start' }))
-  const guardedErr = [summary, dialog(page).locator('.import__issues button.import__issueLink').first(), dialog(page).locator('.import__preview .is-bad').first()]
-  for (const g of guardedErr) {
-    const b = (await g.boundingBox())!
-    expect(b.y).toBeGreaterThanOrEqual(dlg.y)
-    expect(b.y + b.height).toBeLessThanOrEqual(dlg.y + dlg.height)
+  // the dialog is re-measured here: it grew when the issue list appeared, so
+  // the quick-start scene's box is not the clip these pieces live in.
+  const guardedErr = [
+    ['summary', summary],
+    ['issue link', dialog(page).locator('.import__issues button.import__issueLink').first()],
+    ['bad cell', dialog(page).locator('.import__preview .is-bad').first()],
+  ] as const
+  const errScene = await clippedInsideDialog(page, guardedErr, 'y')
+  for (const b of errScene.boxes) {
+    expect(b.y).toBeGreaterThanOrEqual(errScene.dlg.y)
+    expect(b.y + b.height).toBeLessThanOrEqual(errScene.dlg.y + errScene.dlg.height)
   }
   await expect(dialog(page)).toHaveScreenshot(...snap(page, 'data-import-inline-errors'))
 })

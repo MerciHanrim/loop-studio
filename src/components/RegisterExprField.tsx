@@ -10,6 +10,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -380,21 +381,43 @@ export function RegisterExprField({
   const [draft, setDraft] = useState(expr)
   useEffect(() => setDraft(expr), [id, expr])
 
-  // §RXA8b — after a button-driven edit (an operator / paren insert), put the
-  // caret back once the DOM actually carries the new value. A ref consumed by a
-  // `[draft]` effect, not a bare rAF from the click handler, so it lands after
-  // the controlled-input re-render rather than racing it. Only `applyOp` sets
-  // it, so the `@`-list pick and the §RXA8 canvas insert paths are untouched.
-  const pendingCaretRef = useRef<number | null>(null)
-  useEffect(() => {
-    const c = pendingCaretRef.current
-    if (c == null) return
-    pendingCaretRef.current = null
+  // Every programmatic caret move — the operator buttons (§RXA8b), the `@` list
+  // pick (§RXA9.3) and the arm-and-click canvas insert (§RXA8) — goes through
+  // ONE request that the commit consumes.
+  //
+  // It must not be a `requestAnimationFrame` from the click handler. A frame is
+  // not a bounded delay: with the main thread busy the pick's frame was measured
+  // landing 0.9-4.8 s after the click, and until it lands the caret is wherever
+  // the DOM left it. Anything the user typed in that gap was then pushed aside
+  // by the stale caret — `@wallet` + ` + 10` came out as `@wallet+ 10 `, and two
+  // of the possible interleavings also left the STORED expression disagreeing
+  // with the visible one. A layout effect runs inside the commit that carries
+  // the new value, so there is no gap at all.
+  //
+  // The request carries a generation, so an insert that produces the identical
+  // string still moves the caret even though `draft` did not change, and a
+  // superseded request is dropped rather than replayed.
+  const caretReqRef = useRef<{ gen: number; caret: number } | null>(null)
+  const caretGenRef = useRef(0)
+  const [caretGen, setCaretGen] = useState(0)
+  const requestCaret = useCallback((caret: number) => {
+    caretGenRef.current += 1
+    caretReqRef.current = { gen: caretGenRef.current, caret }
+    setCaretGen(caretGenRef.current)
+  }, [])
+  /** the user typed — a caret request from before that keystroke is stale */
+  const cancelCaret = useCallback(() => {
+    caretReqRef.current = null
+  }, [])
+  useLayoutEffect(() => {
+    const req = caretReqRef.current
+    if (!req || req.gen !== caretGenRef.current) return
+    caretReqRef.current = null // consumed exactly once
     const el = inputRef.current
     if (!el) return
     el.focus()
-    el.setSelectionRange(c, c)
-  }, [draft])
+    el.setSelectionRange(req.caret, req.caret)
+  }, [draft, caretGen])
 
   const [at, setAt] = useState<AtMatch>(null)
   const [active, setActive] = useState(0)
@@ -494,18 +517,12 @@ export function RegisterExprField({
       if (!el || !at) return
       const caret = el.selectionStart ?? el.value.length
       const next = el.value.slice(0, at.start) + c.insert + el.value.slice(caret)
-      const newCaret = at.start + c.insert.length
+      // focus + caret are restored by the commit that carries `next`
+      requestCaret(at.start + c.insert.length)
       commitIfValid(next)
       setAt(null)
-      // restore focus + caret after React commits the new value
-      requestAnimationFrame(() => {
-        const e2 = inputRef.current
-        if (!e2) return
-        e2.focus()
-        e2.setSelectionRange(newCaret, newCaret)
-      })
     },
-    [at, commitIfValid],
+    [at, commitIfValid, requestCaret],
   )
 
   const ranked = useMemo(() => {
@@ -528,25 +545,18 @@ export function RegisterExprField({
       const s = Math.min(pendingPick.caretStart, el.value.length)
       const e = Math.min(pendingPick.caretEnd, el.value.length)
       const next = el.value.slice(0, s) + ins + el.value.slice(e)
+      // focus + caret return to the input inside the commit that carries
+      // `next`. The rAF + `setTimeout(0)` pair this replaces fired whatever
+      // happened in between, so a user who moved to another control first had
+      // the focus pulled back out from under them.
+      requestCaret(s + ins.length)
       commitIfValid(next)
-      const newCaret = s + ins.length
-      // return focus + caret to the input once React and React Flow have
-      // finished re-rendering from the disarm (RF re-enables node focus on the
-      // same tick, so a bare rAF can lose the race — settle on a macrotask).
-      const refocus = () => {
-        const e2 = inputRef.current
-        if (!e2) return
-        e2.focus()
-        e2.setSelectionRange(newCaret, newCaret)
-      }
-      requestAnimationFrame(refocus)
-      setTimeout(refocus, 0)
     }
     const nm = candidates.find((c) => c.id === pendingPick.nodeId)?.name ?? pendingPick.nodeId
     justInsertedRef.current = true
     setSrMsg(t('regExpr.insert.done', { name: nm }))
     clearRefInsertPick()
-  }, [pendingPick, candidates, commitIfValid, clearRefInsertPick, t])
+  }, [pendingPick, candidates, commitIfValid, clearRefInsertPick, requestCaret, t])
 
   useEffect(() => {
     if (armed) {
@@ -592,11 +602,11 @@ export function RegisterExprField({
       const endSel = el?.selectionEnd ?? start
       const { value: next, caret } = insertOperator(base, start, endSel, kind)
       setAt(null)
-      pendingCaretRef.current = caret // restored by the `[draft]` effect above
+      requestCaret(caret) // restored by the layout effect above
       commitIfValid(next)
       setSrMsg(t('regExpr.op.inserted', { name: t(OP_KEY[kind]) }))
     },
-    [draft, commitIfValid, t],
+    [draft, commitIfValid, requestCaret, t],
   )
 
   const onKeyDown = useCallback(
@@ -669,6 +679,7 @@ export function RegisterExprField({
           }
           style={{ fontFamily: 'var(--font-mono, monospace)' }}
           onChange={(e) => {
+            cancelCaret() // the user is typing: no earlier caret request applies
             commitIfValid(e.target.value)
             recomputeAt()
           }}
