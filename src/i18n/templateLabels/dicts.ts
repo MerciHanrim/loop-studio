@@ -35,6 +35,8 @@ const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
   ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
   'zh-Hans': () =>
     import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {} })),
+  'zh-Hant': () =>
+    import('./zh-Hant').then((m) => ({ nodes: m.zhHant, frames: m.zhHantFrames ?? {} })),
 }
 
 /** The loaded overlays, filled by `ensureTemplateLabelDict`. */

@@ -148,12 +148,14 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
-    await expect(opts).toHaveCount(4) // en, ko, ja, zh-Hans — NO en-XA
+    await expect(opts).toHaveCount(5) // en, ko, ja, zh-Hans, zh-Hant — NO en-XA
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
     const codes = await opts.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).dataset.locale).sort(),
     )
-    expect(codes).toEqual(['en', 'ja', 'ko', 'zh-Hans'])
+    expect(codes).toEqual(['en', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
+    // §L5.4 — five shipped languages is still below the search-box threshold
+    await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(0)
 
     // pick JA, reload — it persists, and still only the three are offered
     await page.locator('.lang-menu__item[data-locale="ja"]').click()

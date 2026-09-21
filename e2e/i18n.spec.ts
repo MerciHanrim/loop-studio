@@ -572,10 +572,12 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     const pop = page.locator('.lang-menu__pop')
     const list = pop.locator('[role="listbox"]')
     await expect(list).toBeVisible()
+    // §L5.4 — six OPTIONS but five shipped LANGUAGES, so the search box is
+    // still hidden: the dev pseudo-locale does not count towards the threshold.
     await expect(pop.locator('input[role="combobox"]')).toHaveCount(0)
     await expect(list).toBeFocused()
     const opts = list.locator('[role="option"]')
-    await expect(opts).toHaveCount(5) // en, ko, ja, zh-Hans, en-XA (dev pseudo)
+    await expect(opts).toHaveCount(6) // en, ko, ja, zh-Hans, zh-Hant, en-XA (dev pseudo)
     await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
     await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
     await expect(list.locator('[data-locale="ja"] .menu__name')).toHaveText('日本語')

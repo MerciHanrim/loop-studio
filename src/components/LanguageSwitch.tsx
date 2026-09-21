@@ -1,9 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import {
-  LANGUAGE_SEARCH_THRESHOLD,
   enabledLocales,
   labelsEquivalent,
   matchesLanguageQuery,
+  shouldShowLanguageSearch,
   useI18n,
   useT,
 } from '../i18n'
@@ -20,7 +20,8 @@ import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 // menu and the mobile More sheet mount this SAME component (the popover
 // itself, its keyboard nav, and its search box are identical either way —
 // only the trigger's own look changes). A search box appears once there are
-// `LANGUAGE_SEARCH_THRESHOLD`+ enabled locales; below that the list is short
+// `LANGUAGE_SEARCH_THRESHOLD`+ shipped languages (`shouldShowLanguageSearch`
+// — the dev pseudo-locale does not count); below that the list is short
 // enough to scan. Selecting starts the atomic activation (§L4.5); a failed
 // load leaves the current selection (`aria-selected` follows `activeLocale`).
 //
@@ -48,7 +49,7 @@ export function LanguageSwitch({
   const setLocale = useI18n((s) => s.setLocale)
 
   const locales = enabledLocales()
-  const showSearch = locales.length >= LANGUAGE_SEARCH_THRESHOLD
+  const showSearch = shouldShowLanguageSearch(locales)
 
   const [localOpen, setLocalOpen] = useState(false)
   const open = controlledOpen ?? localOpen

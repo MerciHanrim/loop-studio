@@ -40,7 +40,13 @@ describe('officialTemplateLabelIndex', () => {
     __rebuildOfficialTemplateLabelIndex()
     const idx = officialTemplateLabelIndex()
     // one entry per shipped locale — adding a language adds its string here
-    expect([...(idx.known.get('level') ?? [])].sort()).toEqual(['Level', 'レベル', '等级', '레벨'])
+    expect([...(idx.known.get('level') ?? [])].sort()).toEqual([
+      'Level',
+      'レベル',
+      '等級',
+      '等级',
+      '레벨',
+    ])
   })
 
   it('resolves a per-locale target label once that locale is resident', () => {
@@ -49,6 +55,7 @@ describe('officialTemplateLabelIndex', () => {
     expect(idx.byLocale.get('ko')?.get('level')).toBe('레벨')
     expect(idx.byLocale.get('ja')?.get('level')).toBe('レベル')
     expect(idx.byLocale.get('zh-Hans')?.get('level')).toBe('等级')
+    expect(idx.byLocale.get('zh-Hant')?.get('level')).toBe('等級')
   })
 
   it('covers the production-line templates that share node ids', () => {

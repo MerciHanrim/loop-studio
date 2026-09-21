@@ -100,9 +100,14 @@ missing from another locale. The fallback chain is `active → en`; there is no
 per-region chain in this cycle (`ko-KR` resolves to `ko`, not a `ko-KR` catalog).
 
 **L2.4 — Chinese: the script decides, and no browser sends it.** `zh-Hans`
-(简体中文) ships from 2026-09-21. Simplified and Traditional are **separate
-locales, never a conversion of one another** — the terminology differs, not
-only the glyphs (软件 / 軟體, 默认 / 預設). The registry code therefore carries
+(简体中文) and `zh-Hant` (繁體中文) both ship from 2026-09-21. Simplified and
+Traditional are **separate locales, never a conversion of one another** — the
+terminology differs, not only the glyphs (软件 / 軟體, 默认 / 預設), and one
+pair is outright **inverted**: a spreadsheet ROW is 行 in Simplified but 列 in
+Traditional, where 列 means COLUMN in Simplified and 欄 in Traditional. A
+mechanical script conversion of either catalog would silently swap the two
+throughout the data-import wizard, which is why neither is ever generated from
+the other. The registry code therefore carries
 the script subtag, which creates the one gap the ordinary §L5.2 order cannot
 close: a browser reports a REGION (`zh-CN`, `zh-TW`, `zh-HK`), the base-subtag
 rule looks for a `zh` entry, finds none, and hands a Chinese reader English.
@@ -117,11 +122,21 @@ rule looks for a `zh` entry, finds none, and hands a Chinese reader English.
 | bare `zh` | `zh-Hans` (the larger population) |
 
 It only ever returns a code the registry actually has; an unregistered target
-falls through to the ordinary rules and, ultimately, to English — so a
-Traditional-Chinese browser gets English, never Simplified, until `zh-Hant`
-ships. A stored value is unaffected: it is still accepted only when it is
-exactly a registered code, is never rewritten, and a value that is not
-registered (yet, or any more) simply falls through and recovers on its own.
+falls through to the ordinary rules and, ultimately, to English — the guard
+that kept Traditional readers on English rather than Simplified before
+`zh-Hant` shipped, and that will do the same for the next script that is
+mapped before it is registered. A stored value is unaffected: it is still
+accepted only when it is exactly a registered code, is never rewritten, and a
+value that is not registered (yet, or any more) simply falls through and
+recovers on its own.
+
+**`zh-Hant` is Taiwan Traditional.** The catalog follows Taiwan convention
+(軟體 · 資料 · 網路 · 專案 · 範本 · 匯入／匯出 · 設定). `zh-HK` and `zh-MO`
+resolve to the same catalog: the divergences from Hong Kong usage in this
+product's vocabulary are lexical (軟體 / 軟件, 網路 / 網絡, 專案 / 項目,
+範本 / 模板) rather than semantic, and no per-region catalog is planned.
+**This is not a Hong Kong localisation**, and no claim is made about Hong Kong
+usability beyond that the terms are legible.
 
 **L2.5 — the per-locale font contract.** The bundle ships Latin subsets of IBM
 Plex only; every CJK glyph comes from a system font, and a downloaded CJK face
@@ -136,6 +151,17 @@ the served PWA build and the portable single file:
 |---|---|---|
 | `zh-Hant` | Malgun Gothic × 8 — every glyph Korean | Microsoft JhengHei UI × 8 |
 | `zh-Hans` | Microsoft YaHei × 4 + Malgun Gothic × 3 + Noto Sans KR × 1 — wrong **mid-word** | Microsoft YaHei UI × 8 |
+
+Re-measured on 2026-09-21 when `zh-Hant` was registered, with a sample that
+also carries Traditional-only Han, the corner brackets 「」 and full-width
+punctuation: Microsoft JhengHei UI × 19 on every surface across all three
+artefacts, 微軟正黑體 in the `<input>`, all 21 characters resolved, and no
+Korean, Japanese or Simplified-only family anywhere. One known gap is recorded
+separately: the em dash `—` and the curly quotes `“”` are covered by
+`'IBM Plex Sans'`, which leads the stack, so a Latin font draws them in BOTH
+Chinese locales. Traditional uses 「」, which the CJK font draws correctly, so
+only the dash is affected here; the fix is its own follow-up and is not mixed
+into a locale PR.
 
 No tofu in either state: the defect is regional-shape substitution, invisible
 to a "does it render" check, so the contract is verified against the platform
@@ -457,6 +483,17 @@ any Canvas geometry. On mobile the **same component** is rendered inside
 A dedicated Settings screen (theme + motion + language + …) is deferred until
 there are enough preferences to justify the information-architecture work; it is
 **not** part of this cycle.
+
+**L5.4 — the search box counts LANGUAGES, not options.** The picker renders a
+search field from `LANGUAGE_SEARCH_THRESHOLD` (6) locales up, via
+`shouldShowLanguageSearch()`. That predicate counts entries with no `pseudo`
+flag, so the dev-only `en-XA` (§L11) never pushes the count over the line: with
+the five languages this release ships, the dev picker shows **six options and
+no search box**, exactly as production shows five options and no search box.
+Counting raw options instead would have made the box appear in dev — and only
+in dev — one real language early, pinning its layout and keyboard model in a
+release that does not ship it. The box first appears when a sixth LANGUAGE
+ships.
 
 **L5.1 — persistence: one named string key (Q5 — decided).**
 

@@ -2,8 +2,18 @@
 // switch. The desktop toolbar and the mobile More sheet mount the SAME
 // `<LanguageSwitch>`; this module holds the parts a shell must not diverge on.
 
-/** The switch shows a search box once the enabled-locale count reaches this. */
+/** The switch shows a search box once the SHIPPED-language count reaches this. */
 export const LANGUAGE_SEARCH_THRESHOLD = 6
+
+/** Does the picker render its search box? Counts the languages a user actually
+ *  has — a DEV/QA pseudo-locale is selectable and searchable but is not one of
+ *  them, so it must not push the count over the threshold and show the box a
+ *  language early in dev while production still hides it (§L5.4). */
+export function shouldShowLanguageSearch(
+  locales: readonly { pseudo?: boolean }[],
+): boolean {
+  return locales.filter((l) => !l.pseudo).length >= LANGUAGE_SEARCH_THRESHOLD
+}
 
 /** true when two labels read the same after trimming + lower-casing. The switch
  *  then shows one line only — a redundant "한국어 / 한국어" adds density, not
