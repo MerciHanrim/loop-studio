@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useReactFlow, useStore as useRfStore } from '@xyflow/react'
 import { useT, type MessageKey } from '../../i18n'
 import type { CsvParseError } from '../../model/csv'
@@ -276,6 +276,12 @@ export function DataImportWizard({
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const [focusSummaryTick, setFocusSummaryTick] = useState(0)
 
+  // §DI17 -- "Use this example" asks for ONE card to be scrolled to and
+  // focused, and the request carries the generation that made it.
+  const focusReqRef = useRef<{ gen: number; idx: number } | null>(null)
+  const focusGenRef = useRef(0)
+  const [focusGen, setFocusGen] = useState(0)
+
   useEffect(() => {
     // the previous import's hint retires the moment the wizard opens again
     // (its trigger goes false) -- the next commit is no longer the "first"
@@ -287,6 +293,36 @@ export function DataImportWizard({
   useEffect(() => {
     if (focusSummaryTick > 0) summaryRef.current?.focus()
   }, [focusSummaryTick])
+
+  // §DI17 -- the card the example landed on is scrolled to and focused INSIDE
+  // the commit that created or filled it.
+  //
+  // It must not be a `requestAnimationFrame` from the click handler. React
+  // commits the new card synchronously inside the click, so between that
+  // commit and the frame there is a window -- measured at 1.4-15 ms, and only
+  // bounded by how busy the main thread is -- in which the user is looking at
+  // a finished card and acting on it. Whatever they did was then undone: the
+  // frame pulled focus out of the role select they had tabbed to, out of the
+  // `role="alert"` summary a failed check had just announced, and, worst,
+  // out of the data box mid-sentence, so the rest of what they typed went
+  // into the table NAME (`a,b` stayed in the data, `1,2Items` became the
+  // name). A layout effect runs inside that same commit, before paint, so
+  // there is no window at all and nothing stale to cancel.
+  //
+  // The generation is what makes the no-op path work: reusing an existing
+  // example card changes no state, so an effect keyed on `tables` alone would
+  // never run.
+  useLayoutEffect(() => {
+    const req = focusReqRef.current
+    if (!req || req.gen !== focusGenRef.current) return
+    focusReqRef.current = null // consumed exactly once, StrictMode included
+    const card = cardRefs.current[req.idx]
+    if (!card) return
+    // the card is the anchor -- name field, data box and count line together --
+    // so the input must not scroll itself somewhere else afterwards
+    card.scrollIntoView({ block: 'nearest' })
+    card.querySelector<HTMLInputElement>('.import__nameField input')?.focus({ preventScroll: true })
+  }, [tables, focusGen])
 
   if (!open) return null
 
@@ -344,13 +380,12 @@ export function DataImportWizard({
     setTables((prev) => prev.filter((_, i) => i !== idx))
   }
 
+  /** Ask for `idx` to be scrolled to and focused by the commit this render
+   *  produces. Batched with the `setTables` beside it, so both land together. */
   const focusCard = (idx: number) => {
-    // after the state update has rendered
-    requestAnimationFrame(() => {
-      const card = cardRefs.current[idx]
-      card?.scrollIntoView({ block: 'nearest' })
-      card?.querySelector<HTMLInputElement>('.import__nameField input')?.focus()
-    })
+    focusGenRef.current += 1
+    focusReqRef.current = { gen: focusGenRef.current, idx }
+    setFocusGen(focusGenRef.current)
   }
 
   // §DI17 -- "Use this example" is IDEMPOTENT: an existing example card is

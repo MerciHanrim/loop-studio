@@ -1531,6 +1531,17 @@ have one home. Presentation only — no validation rule, wire shape,
   prepare a spreadsheet…** opens the wizard with the block forced open
   without touching the stored state. Bump the key's trailing number to reset
   everyone after a copy revision.
+  **Use this example** settles where it puts the user before they can do
+  anything else: the card it reused, filled or added is scrolled to and its
+  table-name field has focus by the time the next keystroke or click is
+  handled — including on the path that reuses an existing example card and
+  therefore changes nothing on screen. A request it has already honoured
+  never comes back: once the user has moved focus, typed, or triggered
+  another part of the wizard, nothing left over from the example may pull
+  focus or scroll the body again. This is what keeps the role selects
+  tabbable in order, keeps a failed check's `role="alert"` summary announced,
+  and keeps continued typing in the data box instead of splitting it into the
+  table name.
 - **Role help** (`import.roleHelp.*`): rendered once per dialog; every role
   `<select>` carries `aria-label` "Role for column {header}" and
   `aria-describedby` pointing at its current role's line.

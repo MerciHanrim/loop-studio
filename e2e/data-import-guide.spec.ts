@@ -18,13 +18,12 @@ type Box = { x: number; y: number; width: number; height: number }
 
 /**
  * Wait for the exact geometry the assertions need, then assert on the sample
- * that passed. `Use this example` focuses the new card on the next animation
- * frame and `scrollIntoView` moves the dialog body with it, so a single
- * measurement taken right after a manual `scrollTop` reset can be read either
- * before or after that frame. Polling the containment itself -- and keeping
- * the boxes that satisfied it -- makes the assertions and the screenshot read
- * one state instead of three. `axis: 'y'` is for panes that scroll
- * horizontally on their own, where the x bound is not a contract.
+ * that passed. The dialog is not one fixed box: it grows when the issue list
+ * appears and its body scrolls as cards are added, so a single measurement
+ * can catch an intermediate layout. Polling the containment itself -- and
+ * keeping the boxes that satisfied it -- makes the assertions and the
+ * screenshot read one state instead of three. `axis: 'y'` is for panes that
+ * scroll horizontally on their own, where the x bound is not a contract.
  */
 async function clippedInsideDialog(page: Page, targets: readonly (readonly [string, Locator])[], axis: 'xy' | 'y' = 'xy') {
   const caught: { dlg: Box; boxes: Box[] } = { dlg: { x: 0, y: 0, width: 0, height: 0 }, boxes: [] }
@@ -130,6 +129,49 @@ async function expectQuickStart(page: Page, expanded: boolean): Promise<void> {
     expect(await body.evaluate((el) => getComputedStyle(el).display)).toBe('none')
     for (const c of controls) await expect(c).toBeHidden()
   }
+}
+
+/** `tag:accessible name` for whatever currently has focus. */
+const activeDesc = (page: Page) =>
+  page.evaluate(() => {
+    const e = document.activeElement as HTMLElement | null
+    return e ? `${e.tagName.toLowerCase()}:${e.getAttribute('aria-label') ?? e.textContent?.trim().slice(0, 24) ?? ''}` : ''
+  })
+
+/**
+ * Capture every animation frame and zero-delay macrotask; the returned
+ * function restores them and runs everything that was held, in order.
+ *
+ * This is how the focus contracts below are pinned WITHOUT a sleep or a
+ * raised timeout: the deferred work is not waited for, it is held while the
+ * user acts and then released at a chosen moment. If any part of the
+ * wizard's focus or scroll ever moves back onto a frame, whatever it left
+ * queued lands here — after the user has moved on — and the test fails.
+ */
+async function holdDeferred(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __held: (() => void)[]; __release: () => void }
+    w.__held = []
+    const raf = window.requestAnimationFrame
+    const st = window.setTimeout
+    w.__release = () => {
+      window.requestAnimationFrame = raf
+      window.setTimeout = st
+      for (const cb of w.__held.splice(0)) cb()
+    }
+    window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      w.__held.push(() => cb(performance.now()))
+      return 0
+    }) as unknown as typeof window.requestAnimationFrame
+    window.setTimeout = ((fn: unknown, ms?: number, ...rest: unknown[]) => {
+      if (typeof fn === 'function' && (ms ?? 0) === 0) {
+        w.__held.push(() => (fn as () => void)())
+        return 0
+      }
+      return (st as unknown as (...a: unknown[]) => number)(fn, ms, ...rest)
+    }) as unknown as typeof window.setTimeout
+  })
+  return () => page.evaluate(() => (window as unknown as { __release: () => void }).__release())
 }
 
 test.beforeEach(async ({ page }) => {
@@ -401,6 +443,84 @@ test('keyboard only: the quick start, fields, role selects and buttons are reach
   expect(await active()).toMatch(/^button:Data/)
 })
 
+// docs/data-import.md §DI17 — "Use this example" settles its scroll and focus
+// before the next thing the user does, and a request it has already made can
+// never come back and overwrite where the user went next. Each of these holds
+// the frame, lets the user act, and only then releases: the ordering is chosen
+// rather than waited for, so there is no sleep and no raised timeout anywhere.
+test('a used example never takes focus back from the role select the user moved to', async ({ page }) => {
+  await openWizard(page)
+  const release = await holdDeferred(page)
+  try {
+    await dialog(page).getByRole('button', { name: 'Use this example' }).focus()
+    await page.keyboard.press('Enter')
+    // the card the focus belongs to is already in the DOM
+    await expect(dialog(page).locator('.import__status').first()).toContainText(/4 Parameters/)
+    await dialog(page).getByRole('combobox', { name: 'Role for column item_id' }).focus()
+    await page.keyboard.press('Tab')
+    expect(await activeDesc(page)).toBe('select:Role for column item_name')
+  } finally {
+    await release()
+  }
+  expect(await activeDesc(page)).toBe('select:Role for column item_name')
+})
+
+test('a used example never takes focus away from the failed-check summary', async ({ page }) => {
+  await openWizard(page)
+  const summary = dialog(page).locator('.import__issueSummary')
+  const release = await holdDeferred(page)
+  try {
+    await dialog(page).getByRole('button', { name: 'Use this example' }).click()
+    await dialog(page).locator('textarea.import__paste').fill(BAD_CSV)
+    await dialog(page).getByRole('button', { name: 'Next' }).click()
+    // §DI17 moves focus to the role="alert" summary so it is announced
+    await expect(summary).toBeFocused()
+  } finally {
+    await release()
+  }
+  await expect(summary).toBeFocused()
+})
+
+test('a second "Use this example" — which re-renders nothing — still settles its focus at once', async ({ page }) => {
+  await openWizard(page)
+  const useIt = dialog(page).getByRole('button', { name: 'Use this example' })
+  const paste = dialog(page).locator('textarea.import__paste')
+  await useIt.click()
+  await expect(dialog(page).locator('.import__nameField input').first()).toBeFocused()
+  const release = await holdDeferred(page)
+  try {
+    // the example card already exists, so this path changes no state at all --
+    // the focus request still has to be honoured, and honoured immediately
+    await useIt.click()
+    await expect(dialog(page).locator('.import__nameField input').first()).toBeFocused()
+    await paste.focus()
+    await expect(paste).toBeFocused()
+  } finally {
+    await release()
+  }
+  await expect(paste).toBeFocused()
+})
+
+test('typing that continues after a used example is not split between the data box and the table name', async ({ page }) => {
+  await openWizard(page)
+  const paste = dialog(page).locator('textarea.import__paste')
+  const name = dialog(page).locator('.import__nameField input')
+  const release = await holdDeferred(page)
+  try {
+    await dialog(page).getByRole('button', { name: 'Use this example' }).click()
+    await expect(dialog(page).locator('.import__status').first()).toContainText(/4 Parameters/)
+    // the user replaces the example data with their own
+    await paste.focus()
+    await page.keyboard.press('Control+a')
+    await page.keyboard.type('a,b')
+  } finally {
+    await release()
+  }
+  await page.keyboard.type('\n1,2')
+  expect(await paste.inputValue()).toBe('a,b\n1,2')
+  expect(await name.inputValue()).toBe('Items')
+})
+
 test('a large import (1,200 rows × 2 Number columns) keeps the zoom at the floor, anchors the first node inside the usable area and selects only one node', async ({ page }) => {
   await openWizard(page)
   const rows = Array.from({ length: 1200 }, (_, i) => `r${i},Row ${i},${i},${i * 2}`).join('\n')
@@ -477,10 +597,10 @@ test('visual: the quick start with the example loaded, and the inline error stat
   // click reuses the example card and restores that scroll position), then
   // pressed Next and focus moved to the summary
   await dialog(page).getByRole('button', { name: 'Use this example' }).click()
-  // "Use this example" moves focus to the card's name field on the next
-  // animation frame -- wait for that before pressing Next, or the deferred
-  // focus can land AFTER the summary took focus and steal it (seen once in
-  // 4 local runs).
+  // "Use this example" scrolls to that card and focuses its name field inside
+  // the commit that fills it, so this is already true here -- it is asserted
+  // rather than waited for, and it is what lets the Next below hand focus to
+  // the summary and keep it.
   await expect(dialog(page).locator('.import__nameField input').first()).toBeFocused()
   await dialog(page).locator('textarea.import__paste').fill(BAD_CSV)
   await dialog(page).getByRole('button', { name: 'Next' }).click()
