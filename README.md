@@ -20,7 +20,8 @@ comparison.
 
 - **Visual diagram editor** — pools, sources, drains, gates, and converters;
   resources move between them on a deterministic, discrete-step simulation;
-  select a region of nodes from the rail and move them together
+  select a region of nodes from the rail and move them together, or place nodes
+  in a named frame that moves with its contents
 - **Seeded RNG + Monte Carlo** — probabilistic gates and flows, and
   many-run outcome distributions with percentile bands
 - **A small model language** — `parameter` / `register` nodes with a safe
@@ -95,20 +96,27 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.11.0
+## Latest — v0.12.0
 
-- **Region select** — a one-shot rail tool to rubber-band several nodes
-  (Shift-drag and Ctrl/Cmd-click still work), with a persistent selection
-  count in the right column / the mobile Inspector sheet, never on the canvas
-- **Faster orthogonal routing** — the same routes, rebuilt 10–20× faster on
-  the bundled templates with a fraction of the memory, and smoother node drags
-- **Fixes** — a selected node is never dimmed by Focus mode; Register /
-  Parameter values are never clipped by the node rim
-- **Test bed** — every visual baseline reviewed and refreshed, a per-capture
-  snapshot tolerance policy with a guard, and a type-checked `e2e/`
+- **Frames that carry their contents** — dragging a group frame moves the nodes
+  inside it (`Alt` moves the frame alone), as one undo entry, with nothing new
+  written to the file
+- **Frames from the keyboard** — focus, move, resize and delete a frame without
+  a pointer, each action announced
+- **An import wizard that explains itself** — a quick start with a one-click
+  example, role help on every column, inline errors that point at the cell, and
+  a review breakdown that matches what the commit creates
+- **An accessibility pass** — forced-colours edge and control tells, ≥ 3:1
+  control boundaries, larger and higher-contrast descriptive text, Korean word
+  wrapping, arrow-key menus, and focus that stays where you put it
+- **Fixes** — an arrow-key node move is one undo entry; a Register expression no
+  longer reorders what you type; the import wizard no longer takes focus back
+  mid-sentence
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.11.0 notes, the v0.10.x
-releases and every earlier one.
+No save-format change and no migration: v0.11.0 files open unchanged.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.12.0 notes, the v0.11.0 and
+v0.10.x releases and every earlier one.
 
 ## Credits
 
