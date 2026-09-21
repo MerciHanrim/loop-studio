@@ -99,6 +99,52 @@ defines the canonical key set (§L3.1) and is the **final fallback** for any key
 missing from another locale. The fallback chain is `active → en`; there is no
 per-region chain in this cycle (`ko-KR` resolves to `ko`, not a `ko-KR` catalog).
 
+**L2.4 — Chinese: the script decides, and no browser sends it.** `zh-Hans`
+(简体中文) ships from 2026-09-21. Simplified and Traditional are **separate
+locales, never a conversion of one another** — the terminology differs, not
+only the glyphs (软件 / 軟體, 默认 / 預設). The registry code therefore carries
+the script subtag, which creates the one gap the ordinary §L5.2 order cannot
+close: a browser reports a REGION (`zh-CN`, `zh-TW`, `zh-HK`), the base-subtag
+rule looks for a `zh` entry, finds none, and hands a Chinese reader English.
+`chineseScript()` sits between the exact match and the base match:
+
+| browser reports | resolves to |
+|---|---|
+| `zh-Hans`, `zh-Hans-*` | `zh-Hans` |
+| `zh-Hant`, `zh-Hant-*` | `zh-Hant` |
+| `zh-CN`, `zh-SG`, `zh-MY` | `zh-Hans` |
+| `zh-TW`, `zh-HK`, `zh-MO` | `zh-Hant` |
+| bare `zh` | `zh-Hans` (the larger population) |
+
+It only ever returns a code the registry actually has; an unregistered target
+falls through to the ordinary rules and, ultimately, to English — so a
+Traditional-Chinese browser gets English, never Simplified, until `zh-Hant`
+ships. A stored value is unaffected: it is still accepted only when it is
+exactly a registered code, is never rewritten, and a value that is not
+registered (yet, or any more) simply falls through and recovers on its own.
+
+**L2.5 — the per-locale font contract.** The bundle ships Latin subsets of IBM
+Plex only; every CJK glyph comes from a system font, and a downloaded CJK face
+would break the offline and portable contracts. The base `--font-sans` ends in
+`'Noto Sans KR'`, so a locale whose Han characters must NOT be drawn with
+Korean shapes needs a `:lang()` override of the custom property — which every
+`font-family: var(--font-sans)` consumer then inherits for free. Measured with
+CDP `CSS.getPlatformFontsForNode` on 2026-09-21, identically on the dev server,
+the served PWA build and the portable single file:
+
+| `lang` | before | after |
+|---|---|---|
+| `zh-Hant` | Malgun Gothic × 8 — every glyph Korean | Microsoft JhengHei UI × 8 |
+| `zh-Hans` | Microsoft YaHei × 4 + Malgun Gothic × 3 + Noto Sans KR × 1 — wrong **mid-word** | Microsoft YaHei UI × 8 |
+
+No tofu in either state: the defect is regional-shape substitution, invisible
+to a "does it render" check, so the contract is verified against the platform
+font and never against `getComputedStyle().fontFamily` (which only echoes the
+declared stack) or `document.fonts.check()` (which only says a face *could* be
+used). `--font-mono` is a separate variable and stays untouched, and an
+`<input>` does not inherit `--font-sans` at all — the UA stylesheet resets it —
+so an input is never evidence that the override works.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**

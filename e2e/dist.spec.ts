@@ -148,12 +148,12 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
-    await expect(opts).toHaveCount(3) // en, ko, ja — NO en-XA
+    await expect(opts).toHaveCount(4) // en, ko, ja, zh-Hans — NO en-XA
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
     const codes = await opts.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).dataset.locale).sort(),
     )
-    expect(codes).toEqual(['en', 'ja', 'ko'])
+    expect(codes).toEqual(['en', 'ja', 'ko', 'zh-Hans'])
 
     // pick JA, reload — it persists, and still only the three are offered
     await page.locator('.lang-menu__item[data-locale="ja"]').click()

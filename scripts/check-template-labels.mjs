@@ -114,10 +114,18 @@ function canonicalFramesRaw(tplId) {
   }
 }
 
+// A locale code is not always a valid JS identifier: `zh-Hans` has to export
+// `zhHans` / `zhHansFrames`, the same camel-casing its source file uses. Try
+// the code verbatim first (`ko`, `ja`), then that form.
+function exportIdent(locale) {
+  return locale.replace(/[^A-Za-z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
+}
+
 // the `export const <locale>Frames = { … }` slice → `'<tplId>': { … }` block
 function frameDictEntries(locale, tplId) {
   const src = read(`src/i18n/templateLabels/${locale}.ts`)
-  const start = src.search(new RegExp(`export const ${locale}Frames\\b`))
+  let start = src.search(new RegExp(`export const ${locale}Frames\\b`))
+  if (start < 0) start = src.search(new RegExp(`export const ${exportIdent(locale)}Frames\\b`))
   if (start < 0) return null // no frame dict at all for this locale
   const rest = src.slice(start)
   const nextExport = rest.slice(1).search(/\nexport const /)

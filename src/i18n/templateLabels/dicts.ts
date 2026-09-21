@@ -33,6 +33,8 @@ export type TemplateOverlay = {
 const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
   ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),
   ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
+  'zh-Hans': () =>
+    import('./zh-Hans').then((m) => ({ nodes: m.zhHans, frames: m.zhHansFrames ?? {} })),
 }
 
 /** The loaded overlays, filled by `ensureTemplateLabelDict`. */

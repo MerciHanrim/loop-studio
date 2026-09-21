@@ -48,6 +48,44 @@ describe('locale registry metadata', () => {
 
 // docs/localization.md §L5.2 — the fully deterministic locale-decision order.
 
+// docs/localization.md §L5.2a — Chinese is the one language whose SCRIPT, not
+// its base subtag, picks the locale, and no browser sends the script. Every
+// region a Chinese reader's browser actually reports has to land somewhere,
+// and a region that maps to a locale the registry does NOT have must fall
+// through to the ordinary rules rather than guess.
+describe('resolveInitialLocale — Chinese script / region mapping', () => {
+  it('maps every Simplified region, the explicit script, and a bare zh', () => {
+    for (const tag of ['zh-CN', 'zh-SG', 'zh-MY', 'zh', 'zh-Hans', 'zh-Hans-CN', 'ZH-HANS']) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('zh-Hans')
+    }
+  })
+
+  it('never hands a Traditional browser Simplified while zh-Hant is unregistered', () => {
+    for (const tag of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh-Hant-TW']) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
+    }
+  })
+
+  it('leaves every other language alone', () => {
+    expect(resolveInitialLocale(null, ['ko-KR'])).toBe('ko')
+    expect(resolveInitialLocale(null, ['ja'])).toBe('ja')
+    expect(resolveInitialLocale(null, ['fr-FR'])).toBe('en') // not registered yet
+    expect(resolveInitialLocale(null, ['zhuang'])).toBe('en') // not a zh subtag
+  })
+
+  it('an earlier acceptable browser language still wins', () => {
+    expect(resolveInitialLocale(null, ['ko', 'zh-CN'])).toBe('ko')
+    expect(resolveInitialLocale(null, ['zh-CN', 'ko'])).toBe('zh-Hans')
+  })
+
+  it('a stored locale still beats the browser, and a bad stored value recovers', () => {
+    expect(resolveInitialLocale('zh-Hans', ['ko-KR'])).toBe('zh-Hans')
+    expect(resolveInitialLocale('en', ['zh-CN'])).toBe('en')
+    expect(resolveInitialLocale('zh-Hant', ['zh-CN'])).toBe('zh-Hans') // unregistered → browser
+    expect(resolveInitialLocale('zh-CN', ['ko-KR'])).toBe('ko') // a REGION is not a code
+  })
+})
+
 describe('resolveInitialLocale', () => {
   it('1. a stored value that is EXACTLY a registered code wins', () => {
     expect(resolveInitialLocale('ko', ['en-US'])).toBe('ko')

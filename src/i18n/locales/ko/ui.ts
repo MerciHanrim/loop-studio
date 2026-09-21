@@ -40,6 +40,7 @@ const ui = {
   'language.english': '영어',
   'language.korean': '한국어',
   'language.japanese': '일본어',
+  'language.chineseSimplified': '중국어 간체',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',

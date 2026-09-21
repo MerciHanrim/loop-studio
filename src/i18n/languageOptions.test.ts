@@ -61,3 +61,27 @@ describe('LANGUAGE_SEARCH_THRESHOLD', () => {
     expect(LANGUAGE_SEARCH_THRESHOLD).toBeGreaterThan(2)
   })
 })
+
+// docs/localization.md — Simplified Chinese must be findable the three ways a
+// user would look for it: the BCP-47 code, the English name, and the endonym.
+// The picker only renders its search box from LANGUAGE_SEARCH_THRESHOLD
+// enabled locales, so this contract lives here, on the predicate itself.
+describe('matchesLanguageQuery — finding zh-Hans', () => {
+  const entry = { code: 'zh-Hans', englishName: 'Chinese (Simplified)', nativeName: '简体中文' }
+
+  it('finds it by code, by English name, and by endonym', () => {
+    for (const q of ['zh', 'zh-Hans', 'ZH-HANS', 'Chinese', 'chinese', 'simplified', '简体', '简体中文']) {
+      expect(matchesLanguageQuery(entry, '中文（简体）', q), q).toBe(true)
+    }
+  })
+
+  it('finds it by its name in the ACTIVE UI language', () => {
+    expect(matchesLanguageQuery(entry, '中国語（簡体字）', '中国語')).toBe(true) // JA UI
+    expect(matchesLanguageQuery(entry, '중국어 간체', '간체')).toBe(true) // KO UI
+  })
+
+  it('does not match an unrelated query', () => {
+    expect(matchesLanguageQuery(entry, 'Chinese (Simplified)', 'français')).toBe(false)
+    expect(matchesLanguageQuery(entry, 'Chinese (Simplified)', '日本語')).toBe(false)
+  })
+})

@@ -3,6 +3,7 @@ import type { LoopNode } from '../../model/types'
 import {
   __resetTemplateLabelDicts,
   ensureTemplateLabelDict,
+  templateLabelDictLocales,
 } from './dicts'
 import {
   __rebuildOfficialTemplateLabelIndex,
@@ -17,9 +18,10 @@ import {
 // docs/localization.md §L4.5 — per-locale dicts are lazy chunks; a real switch
 // loads the target dict first (src/i18n/store.ts). Mirror that here.
 
+// registry-driven: a new language ships a dictionary by adding a DICT_LOADERS
+// entry, and this helper must pick it up without being edited again.
 async function loadAllDicts() {
-  await ensureTemplateLabelDict('ko')
-  await ensureTemplateLabelDict('ja')
+  for (const loc of templateLabelDictLocales) await ensureTemplateLabelDict(loc)
   __rebuildOfficialTemplateLabelIndex()
 }
 
@@ -37,7 +39,8 @@ describe('officialTemplateLabelIndex', () => {
     __resetTemplateLabelDicts()
     __rebuildOfficialTemplateLabelIndex()
     const idx = officialTemplateLabelIndex()
-    expect([...(idx.known.get('level') ?? [])].sort()).toEqual(['Level', 'レベル', '레벨'])
+    // one entry per shipped locale — adding a language adds its string here
+    expect([...(idx.known.get('level') ?? [])].sort()).toEqual(['Level', 'レベル', '等级', '레벨'])
   })
 
   it('resolves a per-locale target label once that locale is resident', () => {
@@ -45,6 +48,7 @@ describe('officialTemplateLabelIndex', () => {
     expect(idx.byLocale.get('en')?.get('level')).toBe('Level')
     expect(idx.byLocale.get('ko')?.get('level')).toBe('레벨')
     expect(idx.byLocale.get('ja')?.get('level')).toBe('レベル')
+    expect(idx.byLocale.get('zh-Hans')?.get('level')).toBe('等级')
   })
 
   it('covers the production-line templates that share node ids', () => {

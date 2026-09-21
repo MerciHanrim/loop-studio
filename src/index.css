@@ -161,6 +161,36 @@
     'Yu Gothic', Meiryo, sans-serif;
 }
 
+/* The same defect, measured for Chinese on 2026-09-21 with CDP
+   `CSS.getPlatformFontsForNode` (the family the engine really used, not the
+   declared stack) — identical on the dev server, the served PWA build and the
+   portable single file:
+
+     lang="zh-Hant"  資源池轉換器觸發  →  Malgun Gothic × 8        (8/8 Korean)
+     lang="zh-Hans"  资源池转换器触发  →  Microsoft YaHei × 4
+                                      + Malgun Gothic × 3
+                                      + Noto Sans KR × 1    (4/8 Korean, MID-WORD)
+
+   No tofu — every glyph found a family, so a "does it render" check cannot see
+   this. It is regional-shape substitution, and Simplified was the worse case:
+   three characters of one word drawn in a Korean face.
+
+   Simplified and Traditional need SEPARATE stacks — different glyph shapes and
+   different system fonts. Latin stays IBM Plex Sans in both, so the UI keeps
+   one voice; `--font-mono` (numbers, expressions) is a separate variable and is
+   untouched. System fonts only: the bundle ships Latin subsets alone, and a
+   downloaded CJK face would break the offline / portable contract. */
+:lang(zh-Hans) {
+  --font-sans: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei', 'Source Han Sans SC',
+    'Hiragino Sans GB', sans-serif;
+}
+:lang(zh-Hant) {
+  --font-sans: 'IBM Plex Sans', 'Noto Sans TC', 'PingFang TC',
+    'Microsoft JhengHei UI', 'Microsoft JhengHei', 'Source Han Sans TC',
+    PMingLiU, sans-serif;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     /* ── Warm Mineral Lab — DARK (night observation; higher L, lower chroma) ── */
