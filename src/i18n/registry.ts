@@ -2,7 +2,9 @@
 // first two entries; the switch UI, the checks, and the fallback all read this
 // list and never name a locale literally (except `BASE_LOCALE`). Adding a
 // language = one `LOCALES` entry + one `src/i18n/locales/<code>.ts` file, no
-// edits elsewhere.
+// edits elsewhere — the one exception is Chinese, whose script subtag no
+// browser sends, so `chineseScript()` below maps `zh-CN` / `zh-TW` and friends
+// onto the registered script locales.
 
 import type { MessageCatalog, MessageKey } from './locales/en'
 import en from './locales/en'
@@ -71,6 +73,20 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     numberLocale: 'ja-JP',
     enabled: true,
     catalog: () => import('./locales/ja').then((m) => m.default),
+  },
+  {
+    // Simplified and Traditional Chinese are separate locales, never a
+    // conversion of one another: the terminology differs, not only the
+    // glyphs. The script subtag is part of the code because a browser sends
+    // a REGION (`zh-CN`, `zh-TW`), which `chineseScript()` below maps.
+    code: 'zh-Hans',
+    englishName: 'Chinese (Simplified)',
+    nativeName: '简体中文',
+    displayNameKey: 'language.chineseSimplified',
+    direction: 'ltr',
+    numberLocale: 'zh-Hans',
+    enabled: true,
+    catalog: () => import('./locales/zh-Hans').then((m) => m.default),
   },
 ]
 
@@ -153,6 +169,26 @@ export function writeStoredLocale(code: string): void {
  *     BCP-47 base-language match (`ko-KR` → `ko`);
  *  3. else the canonical `BASE_LOCALE`.
  */
+/** §L5.2a — Chinese is the one language whose SCRIPT, not its base subtag,
+ *  decides the locale, and no browser sends the script: Chrome sends `zh-CN`,
+ *  `zh-TW`, `zh-HK`. The base-subtag rule below would look for a `zh` entry,
+ *  find none, and hand a Chinese reader English. This table is consulted
+ *  between the exact match and the base match, and only ever returns a code
+ *  the registry actually has — an unregistered target falls through to the
+ *  ordinary rules and, ultimately, to English.
+ *
+ *  Simplified: mainland China, Singapore, Malaysia. Traditional: Taiwan, Hong
+ *  Kong, Macau. A bare `zh` takes Simplified, the larger population. */
+function chineseScript(lowerTag: string): string | undefined {
+  if (lowerTag !== 'zh' && !lowerTag.startsWith('zh-')) return undefined
+  if (lowerTag === 'zh-hans' || lowerTag.startsWith('zh-hans-')) return 'zh-Hans'
+  if (lowerTag === 'zh-hant' || lowerTag.startsWith('zh-hant-')) return 'zh-Hant'
+  const region = lowerTag.split('-')[1]
+  if (region === 'cn' || region === 'sg' || region === 'my') return 'zh-Hans'
+  if (region === 'tw' || region === 'hk' || region === 'mo') return 'zh-Hant'
+  return lowerTag === 'zh' ? 'zh-Hans' : undefined
+}
+
 export function resolveInitialLocale(
   stored: string | null,
   navLangs: readonly string[],
@@ -164,6 +200,8 @@ export function resolveInitialLocale(
     const lc = raw.toLowerCase()
     const exact = LOCALES.find((l) => l.code.toLowerCase() === lc)
     if (exact) return exact.code
+    const script = chineseScript(lc)
+    if (script != null && isRegistered(script)) return script
     const base = lc.split('-')[0]
     const baseHit = base ? LOCALES.find((l) => l.code.toLowerCase() === base) : undefined
     if (baseHit) return baseHit.code
