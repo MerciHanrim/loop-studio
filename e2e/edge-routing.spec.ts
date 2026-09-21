@@ -493,14 +493,32 @@ test.describe('edge routing — Slice 1', () => {
           return { dist: best, frac: bestFrac, phase: g.getAttribute('data-playback-phase') }
         })
 
-      // Wait until the token has ENTERED the `travel` phase (it need not be
-      // caught on the first observation — the slow beat keeps it travelling for
-      // seconds) and confirm that sampled point lies on the rendered d.
+      // Wait for the sample the assertions below actually need — not a weaker
+      // one. The poll used to exit as soon as the token was on the path in
+      // `travel`, which is already true at the FIRST instant of travel while
+      // the token still sits on the source, and only then demanded it be
+      // mid-path. Under CPU load the rendered transform is starved while
+      // `data-playback-phase` has already flipped, so that window is real:
+      // 10 runs under a 10-worker load gave 2 failures at `frac` 0.015 and
+      // 0.0025. `expect.poll` does not hand back the value it accepted, so the
+      // callback keeps the accepted sample and the assertions run on THAT
+      // sample — re-reading afterwards would race a second time.
+      const caught: { sample: Awaited<ReturnType<typeof tokenOnPath>> } = { sample: null }
       await expect
-        .poll(() => tokenOnPath().then((t) => (t && t.phase === 'travel' ? t.dist : 99)), { timeout: 18000 })
-        .toBeLessThan(2)
-      const t1 = await tokenOnPath()
+        .poll(
+          async () => {
+            const t = await tokenOnPath()
+            const ok = t !== null && t.phase === 'travel' && t.dist < 2 && t.frac > 0.05 && t.frac < 0.95
+            if (ok) caught.sample = t
+            return ok
+          },
+          { timeout: 18000 },
+        )
+        .toBe(true)
+      const t1 = caught.sample
+      expect(t1).not.toBeNull()
       expect(t1!.phase).toBe('travel')
+      expect(t1!.dist).toBeLessThan(2) // the sampled point lies on the rendered d
       // genuinely walking the path — not parked at either endpoint
       expect(t1!.frac).toBeGreaterThan(0.05)
       expect(t1!.frac).toBeLessThan(0.95)
