@@ -4,18 +4,85 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
-## Unreleased
+## v0.12.0 — 2026-09-21
+
+Group frames stop being decoration: one carries its contents when you drag it, and the whole frame
+can be driven from the keyboard. The spreadsheet import wizard explains itself in place. And the
+largest theme of the release is a sustained accessibility pass — forced colours, control
+boundaries, descriptive text and focus handling — decided on measured pixels rather than by eye.
+
+**No save-format change, no migration and no breaking change.** Files written by v0.11.0 open
+unchanged, and files written by v0.12.0 open in v0.11.0; the only difference in a new file is the
+informational `meta.tool` version string.
+
+### Added
+
+- **A frame drag carries its contents**
+  ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR6.5) — moving a group
+  frame moves the nodes inside it. Membership is derived at the moment the drag starts, so nothing
+  new is written to the file; holding `Alt` moves the frame alone. The whole gesture is a single
+  undo entry, and a locked canvas or the mobile view keeps frames view-and-select only (`#243`).
+- **A group frame can be used from the keyboard**
+  ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR6.6) — a frame can be
+  focused, moved, resized and deleted without a pointer, `Delete` and `Backspace` have exactly one
+  owner, and each action is announced. Added as a capability, and the reason it was built is
+  accessibility: a frame was previously reachable only by mouse (`#247`).
+- **The spreadsheet import wizard explains itself**
+  ([`docs/data-import.md`](docs/data-import.md) §DI17) — a collapsible quick start with a one-click
+  worked example, role help on every column select, a per-table count line, inline validation errors
+  that point at the offending cell, and a review breakdown computed from the same plan summary the
+  commit uses (`#240`).
+- **Arrow-key navigation in the descriptive menus** — Templates, Insert module and File answer
+  Arrow / Home / End with wrapping, separators and disabled rows are skipped, and `Escape` returns
+  focus to the trigger (`#250`).
 
 ### Changed
 
-- **Clicking a node no longer rebuilds every orthogonal route** — the route
-  map is now keyed on the layout it was built from (node bounds and visibility,
-  the orthogonal edges' endpoints, handles and waypoints) instead of on array
-  identity, so a selection change, which hands the canvas a new node array,
-  reuses the current generation. Moving, resizing, hiding a node or changing an
-  edge's routing input still rebuilds, and a rebuild is byte-identical to a
-  fresh load. On the two largest bundled templates a click used to spend
-  18–27 ms (CPU ×1) or 90–130 ms (CPU ×4) rerouting.
+- **Clicking a node no longer rebuilds every orthogonal route** — the route map is now keyed on the
+  layout it was built from (node bounds and visibility, the orthogonal edges' endpoints, handles and
+  waypoints) instead of on array identity, so a selection change, which hands the canvas a new node
+  array, reuses the current generation. Moving, resizing, hiding a node or changing an edge's routing
+  input still rebuilds, and a rebuild is byte-identical to a fresh load. On the two largest bundled
+  templates a click used to spend 18–27 ms (CPU ×1) or 90–130 ms (CPU ×4) rerouting (`#238`).
+- **Tooltips and descriptive menus are readable** — the node tooltips and menu blurbs go from 11 px
+  to 12.5 px, Korean descriptions no longer break in the middle of a word, the Templates popover
+  widens to 300 px so no description is cut by its two-line clamp, and the menu blurb takes a colour
+  that clears 4.5:1. A palette tooltip now closes on `Escape` and survives the pointer travelling
+  onto it to be read (`#250`).
+- **The probabilistic gate is described correctly** in English, Korean and Japanese — it picks at
+  most one branch per step; it does not split the incoming resource by probability (`#250`).
+
+### Fixed
+
+- **An arrow-key node move is one undo entry** — it used to undo the *previous* edit instead
+  (`#248`).
+- **A Register expression no longer reorders what you type** — the caret and focus restore after an
+  `@` reference pick, an operator-keypad press or an arm-and-click canvas insert was deferred to the
+  next animation frame, which on a busy main thread arrived up to seconds later and pushed aside
+  anything typed in the gap; two of the possible interleavings also left the stored expression
+  disagreeing with the visible one (`#249`).
+- **The import wizard no longer takes focus back** — "Use this example" scrolled to and focused the
+  new card a frame after the click, which could pull focus off the role select you had tabbed to, off
+  the summary a failed check had just announced, or out of the data box mid-sentence, sending the
+  rest of what you typed into the table name (`#251`).
+- **Forced colours** — active edges keep a Highlight dash-dot / long-dash tell at low zoom (`#241`);
+  inactive and route-invalid edges take the system `GrayText`, with a forced-colours-only 1.5 px
+  inactive stroke (`#244`); pressed rail toggles keep their keyboard focus ring and the activity
+  edge tell drops its halo (`#239`).
+- **Control boundaries** — `.btn`, the PlayBar's `.pb-btn` and the Timeline's CSV button draw a
+  ≥ 3:1 boundary from the shared control tokens, on the desktop (`#245`) and inside a mobile sheet
+  (`#242`).
+- **A mobile sheet's secondary labels** keep 4.5:1 when a row is hovered or keyboard-focused, in
+  the More, Templates and Export sheets; disabled rows retain their existing treatment (`#252`).
+
+### Internal
+
+- The region-select marquee is kept inside the pane, removing the `Esc`-during-a-box flake (`#236`).
+- The run-distinction block runs under real reduced motion, with its one baseline re-taken (`#237`).
+- The unreachable `--state-warning` border on a hovered ghost button is gone — a no-render
+  cleanup (`#246`).
+- Two e2e files that waited for a weaker state than the one they asserted now wait for the exact
+  asserted state (`#249`).
 
 ## v0.11.0 — 2026-09-19
 
