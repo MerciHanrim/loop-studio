@@ -154,7 +154,7 @@ const ui = {
   'export.workspaceJson.name': 'ワークスペース JSON',
   'export.workspaceJson.blurb': 'グラフ + 分布 + 表示 + ライブ実行',
   'export.projectRevision.name': 'プロジェクトリビジョン',
-  'export.projectRevision.blurb': 'オフライン共同作業向けの、図 + プロジェクト id と履歴',
+  'export.projectRevision.blurb': '図にプロジェクト ID と履歴を加えた、オフライン共同作業用のファイル',
   'export.proposal.name': '提案を作成',
   'export.proposal.blurb': '編集してレビューのために送り返すためのコピー',
   'export.proposal.needRevision': '先にプロジェクトリビジョンをエクスポートしてください',
@@ -163,7 +163,7 @@ const ui = {
   'proposal.needProject': '提案を作成するには、開いているプロジェクトが必要です。先にファイル ▾ → プロジェクトリビジョンで作成してください。',
   'proposal.dirtyOrigin': 'このリビジョン以降にドキュメントが変更されています。ファイル ▾ → プロジェクトリビジョンで変更を確定してから、提案を作成してください。',
   'proposal.tooLarge': 'この提案は 1 つのファイルとして送るには大きすぎます（{size}、上限 {cap}）。通常のグラフ JSON は引き続き使えます。',
-  'export.author.name': 'エクスポートの作成者…',
+  'export.author.name': '作成者情報を設定…',
   'export.author.blurb': '端末ローカルのラベルを、未検証のままファイルに添付します',
   'export.projectRevision.disclosure.title': 'プロジェクトリビジョンをエクスポートしますか？',
   'export.projectRevision.disclosure.body':

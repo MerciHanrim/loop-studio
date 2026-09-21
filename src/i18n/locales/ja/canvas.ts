@@ -11,27 +11,27 @@ import type { CanvasKey } from '../en/canvas'
 const canvas = {
   'palette.pool.name': 'プール',
   'palette.pool.description':
-    'リソースを保持して現在量を表示します。容量があり、満杯になると押し戻します。',
+    'リソースを保管して現在量を表示します。容量がいっぱいになると、入ってくる流れをせき止めます（背圧）。',
   'palette.source.name': 'ソース',
   'palette.source.description':
-    '毎ステップ新しいリソースを生み出し、つながっているノードへ送り出します。',
+    '各ステップで新しいリソースを作り、つながっているノードへ送ります。',
   'palette.drain.name': 'ドレイン',
   'palette.drain.description':
     'つながっているノードからリソースを引き出し、システムの外へ取り除きます。',
   'palette.gate.name': 'ゲート',
   'palette.gate.description':
-    'リソースを引き出し、出ていく接続へ固定比率または確率で振り分けます。自身は何も保持しません。',
+    '入ってきたリソースを固定比率で分けるか、確率でひとつの経路を選んで送ります。自身は何も保管しません。',
   'palette.converter.name': 'コンバーター',
   'palette.converter.description':
-    '入力を消費し、独自の比率で出力を生み出します。自身は何も保持しません。',
+    '設定した比率で入力リソースを消費し、出力リソースを作ります。自身は何も保管しません。',
   'palette.end.name': 'エンド',
-  'palette.end.description': 'リソースが到達した瞬間に実行を停止します。',
+  'palette.end.description': 'リソースが到達すると実行を終了します。',
   'palette.parameter.name': 'パラメーター',
   'palette.parameter.description':
-    '調整できる固定値です。ポートはなく、式から id で参照します。',
+    '自分で設定する固定値です。ポートはなく、式から id で参照できます。',
   'palette.register.name': 'レジスター',
   'palette.register.description':
-    '式で現在ステップから計算した値を表示します。何も保存せず、ポートもありません。',
+    '現在ステップで式を計算し、その結果を表示します。値を蓄積も保管もせず、ポートもありません。',
   'palette.addAction': 'クリック、またはキャンバスへドラッグして追加します。',
   'canvas.minimap': 'グラフのミニマップ',
   'canvas.minimap.hide': 'ミニマップを隠す',

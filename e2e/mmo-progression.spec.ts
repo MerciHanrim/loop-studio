@@ -196,14 +196,14 @@ test.describe('Early MMO progression example', () => {
     await templatesBtn(page).click()
     const enItem = menuPop.locator('[role="menuitem"]', { hasText: EN_NAME })
     await expect(enItem).toBeVisible()
-    await expect(enItem.locator('.menu__blurb')).toContainText('play economy')
+    await expect(enItem.locator('.menu__blurb')).toContainText('quests, hunts and rewards')
     await page.keyboard.press('Escape')
 
     await setLocale(page, 'ko')
     await templatesBtn(page).click()
     const koItem = menuPop.locator('[role="menuitem"]', { hasText: KO_NAME })
     await expect(koItem).toBeVisible()
-    await expect(koItem.locator('.menu__blurb')).toContainText('플레이 경제')
+    await expect(koItem.locator('.menu__blurb')).toContainText('퀘스트, 사냥, 보상')
     await page.keyboard.press('Escape')
 
     const labels = () =>
@@ -339,7 +339,7 @@ test.describe('Early MMO progression example', () => {
       await expect(templates).toBeVisible()
       const row = templates.locator('.sheet__row', { hasText: EN_NAME })
       await expect(row).toBeVisible()
-      await expect(row.locator('.sheet__row-sub')).toContainText('play economy')
+      await expect(row.locator('.sheet__row-sub')).toContainText('quests, hunts and rewards')
 
       await row.click()
       // a modified session confirms first; a pristine one loads straight away

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { BUNDLED_MODULES, cloneModuleDoc } from '../model/modules'
 import type { GraphDocLike } from '../model/moduleGraph'
@@ -10,6 +10,7 @@ import { MODULE_KEY } from './moduleKeys'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
+import { useMenuKeyboard } from '../ui/useMenuKeyboard'
 
 // docs/module-system.md §MS6 — the v1 assembly surface: an "Insert module ▾"
 // menu with the bundled Building blocks + "From file…" (no `#g1=` link — MS7-7),
@@ -50,19 +51,17 @@ export function ModuleMenu({
   const t = useT()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   const insertModule = useGraphStore((s) => s.insertModule)
   const { screenToFlowPosition } = useReactFlow()
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  // arrow / Home / End / Escape, including the focus return Escape used to
+  // skip (it left focus on `body`). One owner for the key -- see the hook.
+  const close = useCallback(() => setOpen(false), [])
+  useMenuKeyboard(open, popRef, btnRef, close)
 
   // review, Hanrim 2026-09-15 — announce open/closed so the palette can
   // suppress its own hover tooltip while this menu is up
@@ -177,7 +176,10 @@ export function ModuleMenu({
   return (
     <div className="menu" ref={wrapRef}>
       <button
-        ref={buttonRef}
+        ref={(el) => {
+          btnRef.current = el
+          buttonRef?.(el)
+        }}
         type="button"
         className="btn"
         aria-haspopup="true"
@@ -187,7 +189,12 @@ export function ModuleMenu({
         {t('modules.button')}
       </button>
       {open ? (
-        <div className="menu__pop menu__pop--scrollable" role="menu" aria-label={t('modules.menuLabel')}>
+        <div
+          className="menu__pop menu__pop--scrollable"
+          role="menu"
+          aria-label={t('modules.menuLabel')}
+          ref={popRef}
+        >
           {BUNDLED_MODULES.map((m) => (
             <button
               key={m.id}

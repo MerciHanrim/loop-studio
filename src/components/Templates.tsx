@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { TEMPLATES } from '../model/templates'
 import { useGraphStore } from '../store/graphStore'
 import { useMcStore } from '../store/mcStore'
@@ -9,6 +9,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { TEMPLATE_KEY } from './templateKeys'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
+import { useMenuKeyboard } from '../ui/useMenuKeyboard'
 
 // Replacing the current diagram is confirmed through the shared in-app dialog —
 // `loadGraph` runs only from Confirm (docs/localization.md Slice 2b).
@@ -19,19 +20,16 @@ export function Templates() {
   const [pending, setPending] = useState<string | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   const loadGraph = useGraphStore((s) => s.loadGraph)
   const hasContent = useGraphStore((s) => s.nodes.length > 0 || s.edges.length > 0)
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  // arrow / Home / End / Escape, including the focus return Escape used to
+  // skip (it left focus on `body`). One owner for the key -- see the hook.
+  const close = useCallback(() => setOpen(false), [])
+  useMenuKeyboard(open, popRef, btnRef, close)
 
   // review, Hanrim 2026-09-15 — announce open/closed so the palette can
   // suppress its own hover tooltip while this menu is up
@@ -76,7 +74,7 @@ export function Templates() {
         {t('templates.button')}
       </button>
       {open ? (
-        <div className="menu__pop menu__pop--scrollable" role="menu">
+        <div className="menu__pop menu__pop--scrollable menu__pop--wide" role="menu" ref={popRef}>
           {TEMPLATES.map((tpl) => (
             <button
               key={tpl.id}

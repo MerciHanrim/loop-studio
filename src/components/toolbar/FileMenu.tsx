@@ -1,10 +1,11 @@
-import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
+import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { ExportMenuItems } from '../ExportMenu'
 import type { Viewport } from '../../store/workspaceIO'
 import type { ToolbarDialog } from './dialogTypes'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
+import { useMenuKeyboard } from '../../ui/useMenuKeyboard'
 
 // docs/toolbar-responsive.md — the `File ▾` Tier-1 group: New, Import, then
 // Export's 5 actions flattened directly into this SAME popover (a divider
@@ -34,22 +35,16 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      btnRef.current?.focus()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  // arrow / Home / End / Escape. The hook owns Escape now -- this menu used
+  // to close and return focus from its own `window` listener, which would run
+  // a second time behind the hook.
+  const close = useCallback(() => setOpen(false), [])
+  useMenuKeyboard(open, popRef, btnRef, close)
 
   useImperativeHandle(ref, () => ({ close: () => setOpen(false) }), [])
 
@@ -80,6 +75,7 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
         <div
           className="menu__pop menu__pop--scrollable toolbar__filemenu-pop"
           id={menuId}
+          ref={popRef}
           role="menu"
           aria-label={t('toolbar.file.menuLabel')}
         >
