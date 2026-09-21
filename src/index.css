@@ -4839,6 +4839,35 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet__row:not(:disabled):not([aria-disabled='true']):focus-visible .sheet__row-sub {
     color: var(--text-secondary);
   }
+  /* A row that cannot be used says so before it is tried. Measured 2026-09-21:
+     a disabled row was pixel-identical to an enabled one in every state --
+     same label, same secondary label, same hover background, same
+     `cursor: pointer` promising a click it would refuse -- so the only cue
+     was the absence of a response, and on a coarse pointer a tap could even
+     LEAVE it looking pressed. Three cues instead, none of them "dim until
+     unreadable": the label steps down one token (7.23:1 light, 9.07:1 dark)
+     while the secondary label keeps its own, so the row stays legible AND
+     keeps its internal hierarchy; the row stops taking the hover / focus
+     background, which is itself the semantics; and the cursor stops
+     advertising. NOT `opacity` -- it is not force-adjusted, so under forced
+     colours it drags the system's own 14.02:1 GrayText down to 2.55:1, and it
+     would dim nested controls and focus rings too. Forced colours are left to
+     the UA, which already paints GrayText here.
+     `[aria-disabled='true']` shares the VISUAL contract only: the attribute
+     alone does not suppress activation or choose a focus policy, so a future
+     non-native disabled row must guard activation and define its focus
+     behaviour explicitly. */
+  .sheet__row:disabled,
+  .sheet__row[aria-disabled='true'] {
+    color: var(--text-secondary);
+    cursor: default;
+  }
+  .sheet__row:disabled:hover,
+  .sheet__row:disabled:focus-visible,
+  .sheet__row[aria-disabled='true']:hover,
+  .sheet__row[aria-disabled='true']:focus-visible {
+    background: transparent;
+  }
   .sheet__stamp {
     padding: 10px 10px 2px;
     font-family: var(--font-mono);
