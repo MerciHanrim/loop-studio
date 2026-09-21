@@ -4,6 +4,7 @@ import {
   BASE_LOCALE,
   LOCALES,
   enabledLocales,
+  getEntry,
   isRegistered,
   resolveInitialLocale,
 } from './registry'
@@ -44,6 +45,26 @@ describe('locale registry metadata', () => {
   it('every shipped locale is enabled today', () => {
     expect(enabledLocales().map((l) => l.code)).toEqual(LOCALES.map((l) => l.code))
   })
+
+  // §L2.4 — Traditional Chinese is its own locale, never a conversion of
+  // Simplified, and the dev pseudo-locale is not one of the shipped languages.
+  it('ships exactly five languages, the pseudo-locale aside', () => {
+    const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
+    expect([...shipped].sort()).toEqual(['en', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
+    expect(LOCALES.filter((l) => l.pseudo).every((l) => l.code === 'en-XA')).toBe(true)
+  })
+
+  it('zh-Hant carries its own endonym, display key and number locale', () => {
+    const e = getEntry('zh-Hant')
+    expect(e?.nativeName).toBe('繁體中文')
+    expect(e?.englishName).toBe('Chinese (Traditional)')
+    expect(e?.displayNameKey).toBe('language.chineseTraditional')
+    expect(e?.direction).toBe('ltr')
+    expect(e?.numberLocale).toBe('zh-Hant')
+    expect(e?.enabled).toBe(true)
+    expect(e?.pseudo).toBeUndefined()
+    expect(isRegistered('zh-Hant')).toBe(true)
+  })
 })
 
 // docs/localization.md §L5.2 — the fully deterministic locale-decision order.
@@ -60,10 +81,15 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
     }
   })
 
-  it('never hands a Traditional browser Simplified while zh-Hant is unregistered', () => {
-    for (const tag of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh-Hant-TW']) {
-      expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
+  it('maps every Traditional region and the explicit script', () => {
+    for (const tag of ['zh-TW', 'zh-HK', 'zh-MO', 'zh-Hant', 'zh-hant', 'zh-Hant-TW', 'zh-Hant-HK']) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('zh-Hant')
     }
+  })
+
+  it('never hands a Traditional browser Simplified, or the other way round', () => {
+    expect(resolveInitialLocale(null, ['zh-TW'])).not.toBe('zh-Hans')
+    expect(resolveInitialLocale(null, ['zh-CN'])).not.toBe('zh-Hant')
   })
 
   it('leaves every other language alone', () => {
@@ -76,12 +102,17 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
   it('an earlier acceptable browser language still wins', () => {
     expect(resolveInitialLocale(null, ['ko', 'zh-CN'])).toBe('ko')
     expect(resolveInitialLocale(null, ['zh-CN', 'ko'])).toBe('zh-Hans')
+    expect(resolveInitialLocale(null, ['zh-TW', 'zh-CN'])).toBe('zh-Hant')
+    expect(resolveInitialLocale(null, ['zh-CN', 'zh-TW'])).toBe('zh-Hans')
   })
 
   it('a stored locale still beats the browser, and a bad stored value recovers', () => {
     expect(resolveInitialLocale('zh-Hans', ['ko-KR'])).toBe('zh-Hans')
     expect(resolveInitialLocale('en', ['zh-CN'])).toBe('en')
-    expect(resolveInitialLocale('zh-Hant', ['zh-CN'])).toBe('zh-Hans') // unregistered → browser
+    expect(resolveInitialLocale('zh-Hant', ['zh-CN'])).toBe('zh-Hant') // registered → stored wins
+    expect(resolveInitialLocale('zh-Hant-XX', ['zh-CN'])).toBe('zh-Hans') // unregistered → browser
+    expect(resolveInitialLocale('zz-ZZ', ['zh-HK'])).toBe('zh-Hant')
+    expect(resolveInitialLocale('zh-Hant-XX', ['en-US'])).toBe('en')
     expect(resolveInitialLocale('zh-CN', ['ko-KR'])).toBe('ko') // a REGION is not a code
   })
 })

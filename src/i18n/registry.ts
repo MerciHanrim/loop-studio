@@ -41,6 +41,11 @@ export type LocaleEntry = {
    *  the fallback, must never fail to load); every other locale is a dynamic
    *  `import()` of its own chunk, runtime-cached by the SW (docs/pwa.md §P8). */
   catalog: () => Promise<MessageCatalog>
+  /** a DEV/QA-only entry that is not a shipped language. It is selectable and
+   *  searchable like any other, but it must never be COUNTED as a language a
+   *  user has (§L5.4) — a pseudo-locale inflating the picker's
+   *  search-box threshold would show the box one real language too early. */
+  pseudo?: boolean
 }
 
 const SHIPPED_LOCALES: readonly LocaleEntry[] = [
@@ -88,6 +93,21 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/zh-Hans').then((m) => m.default),
   },
+  {
+    // Traditional Chinese, written to the TAIWAN convention (軟體 / 資料 /
+    // 網路 / 專案 / 範本 / 匯入·匯出). `zh-HK` and `zh-MO` map here too: the
+    // divergences from Hong Kong usage are lexical and mutually legible, not
+    // semantic, so one catalog serves all three (§L2.4). It is NOT a Hong
+    // Kong localisation.
+    code: 'zh-Hant',
+    englishName: 'Chinese (Traditional)',
+    nativeName: '繁體中文',
+    displayNameKey: 'language.chineseTraditional',
+    direction: 'ltr',
+    numberLocale: 'zh-Hant',
+    enabled: true,
+    catalog: () => import('./locales/zh-Hant').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,
@@ -109,6 +129,7 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       direction: 'ltr',
       numberLocale: 'en',
       enabled: true,
+      pseudo: true,
       catalog: () => Promise.resolve(en),
     },
   ]

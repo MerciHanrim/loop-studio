@@ -46,6 +46,7 @@ const ui = {
   'language.korean': '韓国語',
   'language.japanese': '日本語',
   'language.chineseSimplified': '中国語（簡体字）',
+  'language.chineseTraditional': '中国語（繁体字）',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',

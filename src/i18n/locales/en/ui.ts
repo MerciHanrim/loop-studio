@@ -41,6 +41,7 @@ const ui = {
   'language.korean': 'Korean',
   'language.japanese': 'Japanese',
   'language.chineseSimplified': 'Chinese (Simplified)',
+  'language.chineseTraditional': 'Chinese (Traditional)',
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': '▶ Play',

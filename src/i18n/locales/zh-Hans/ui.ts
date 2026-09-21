@@ -48,6 +48,7 @@ const ui = {
   'language.korean': '韩语',
   'language.japanese': '日语',
   'language.chineseSimplified': '简体中文',
+  'language.chineseTraditional': '繁体中文',
   'playbar.reset.title': '重置到第 0 步',
   'playbar.step.title': '前进一步',
   'playbar.play': '▶ 播放',

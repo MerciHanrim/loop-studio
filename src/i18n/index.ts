@@ -83,5 +83,6 @@ export {
   LANGUAGE_SEARCH_THRESHOLD,
   labelsEquivalent,
   matchesLanguageQuery,
+  shouldShowLanguageSearch,
 } from './languageOptions'
 export type { MessageKey } from './locales/en'
