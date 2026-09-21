@@ -1413,3 +1413,289 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
     }
   })
 })
+
+// docs/mobile.md §MV5 / WCAG 1.4.3 — a sheet row's secondary label keeps its
+// 4.5:1 in the states that change the row's background. `.sheet__row:hover`
+// and `.sheet__row:focus-visible` swap the row onto `--surface-sunken`, and in
+// LIGHT that pulled `--text-tertiary` (#6c746e) from 4.61:1 on the panel down
+// to 3.92:1 — measured on 2026-09-21 across all three sheets that use the
+// class. Dark is unaffected (its sunken surface is DARKER than the panel, so
+// the same token rises 6.46 → 8.03:1) and forced colours are owned by the UA
+// (21:1, and the hover background is not applied at all). The hover rule is
+// not gated by `(hover: hover)`, so a coarse pointer reaches it too: after a
+// tap the row was measured still matching `:hover`.
+//
+// Disabled rows are the WCAG 1.4.3 exception and are deliberately left alone —
+// both the native `:disabled` button and any future `[aria-disabled="true"]`
+// row.
+test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
+  type Rgb = [number, number, number]
+  const lum = ([r, g, b]: Rgb) => {
+    const f = (c: number) => {
+      const v = c / 255
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+  }
+  const ratio = (a: Rgb, b: Rgb) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const parseRgb = (s: string): Rgb => {
+    const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)!
+    return [Number(m[1]), Number(m[2]), Number(m[3])]
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100
+
+  /** the sub-label's resolved colour and the first non-transparent backdrop
+   *  above the row, read together with the state that produced them */
+  const read = (row: Locator) =>
+    row.evaluate((el) => {
+      let n: Element | null = el
+      let bg = 'rgb(255, 255, 255)'
+      while (n) {
+        // the first backdrop that actually PAINTS: forced colours leave
+        // `rgba(255, 255, 255, 0)` on ancestors, which a name-based check
+        // would wrongly accept as the background
+        const c = getComputedStyle(n).backgroundColor
+        const parts = c.match(/rgba?\(([^)]+)\)/)
+        const alpha = parts ? Number((parts[1].split(',')[3] ?? '1').trim()) : 1
+        if (c && c !== 'transparent' && alpha > 0) {
+          bg = c
+          break
+        }
+        n = n.parentElement
+      }
+      const sub = el.querySelector('.sheet__row-sub')
+      return {
+        sub: sub ? getComputedStyle(sub).color : null,
+        subText: sub ? (sub.textContent ?? '') : '',
+        bg,
+        hovered: el.matches(':hover'),
+        focusVisible: el.matches(':focus-visible'),
+        nativeDisabled: (el as HTMLButtonElement).disabled === true,
+        ariaDisabled: el.getAttribute('aria-disabled') === 'true',
+        /** a sub that only wraps a control never paints in the sub colour */
+        wrapsControl: !!el.querySelector('.sheet__row-sub button, .sheet__row-sub .btn'),
+      }
+    })
+
+  const nameOf = (row: Locator) =>
+    row.evaluate((el) => (el.childNodes[0]?.textContent ?? el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 24))
+
+  async function openSheet(page: Page, which: 'More' | 'Templates' | 'Export') {
+    await page.locator('.mob-more').click() // by class: the accessible name is localized
+    const more = page.locator('.sheet[aria-label="More"]')
+    await expect(more).toBeVisible()
+    if (which !== 'More') {
+      await more.locator('.sheet__row', { hasText: which }).click()
+      await expect(page.locator(`.sheet[aria-label="${which}"]`)).toBeVisible()
+    }
+    await page.mouse.move(2, 2) // nothing hovered until a case asks for it
+    return page.locator(`.sheet[aria-label="${which}"]`)
+  }
+
+  /** every row whose sub-label is really painted in the sub colour */
+  async function textSubRows(page: Page, sheet: Locator) {
+    const all = sheet.locator('.sheet__row').filter({ has: page.locator('.sheet__row-sub') })
+    const out: Locator[] = []
+    for (let i = 0; i < (await all.count()); i++) {
+      const row = all.nth(i)
+      if (!(await read(row)).wrapsControl) out.push(row)
+    }
+    return out
+  }
+
+  async function hover(page: Page, row: Locator) {
+    await row.scrollIntoViewIfNeeded()
+    const b = (await row.boundingBox())!
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  }
+
+  /** Tab from the sheet's close button until `row` has focus. Returns false
+   *  when the row is not in the tab ring at all (a disabled button). */
+  async function tabToRow(page: Page, row: Locator) {
+    await row.evaluate((el) => (el.closest('.sheet')!.querySelector('.sheet__x') as HTMLElement).focus())
+    for (let i = 0; i < 24; i++) {
+      await page.keyboard.press('Tab')
+      if (await row.evaluate((el) => el === document.activeElement)) return true
+    }
+    return false
+  }
+
+  const SHEETS = ['More', 'Templates', 'Export'] as const
+
+  test('light: every enabled secondary label keeps ≥ 4.5:1 while its row is hovered, in all three sheets', async ({ page }) => {
+    await loadDiagram(page)
+    const bad: string[] = []
+    let checked = 0
+    for (const which of SHEETS) {
+      const sheet = await openSheet(page, which)
+      for (const row of await textSubRows(page, sheet)) {
+        const name = await nameOf(row)
+        await hover(page, row)
+        const s = await read(row)
+        expect(s.hovered, `${which}/${name}: the pointer did not reach the row`).toBe(true)
+        if (s.nativeDisabled || s.ariaDisabled) continue
+        checked++
+        const r = ratio(parseRgb(s.sub!), parseRgb(s.bg))
+        console.log(`[sub] ${which}/${name} hover ${s.sub} on ${s.bg} = ${r2(r)}:1`)
+        if (r < 4.5) bad.push(`${which}/${name} ${r2(r)}:1`)
+      }
+      await page.keyboard.press('Escape')
+    }
+    expect(checked, 'the walk must reach every text sub-label: 5 More + 5 Templates + 4 enabled Export').toBe(14)
+    expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
+  })
+
+  test('light: the same while focus-visible, including the ▸ submenu markers', async ({ page }) => {
+    await loadDiagram(page)
+    const bad: string[] = []
+    const markers: string[] = []
+    for (const which of SHEETS) {
+      const sheet = await openSheet(page, which)
+      for (const row of await textSubRows(page, sheet)) {
+        const name = await nameOf(row)
+        const pre = await read(row)
+        if (pre.nativeDisabled || pre.ariaDisabled) continue
+        const reached = await tabToRow(page, row)
+        expect(reached, `${which}/${name}: an enabled row must be in the tab ring`).toBe(true)
+        const s = await read(row)
+        expect(s.focusVisible, `${which}/${name}: keyboard focus must be focus-visible`).toBe(true)
+        const r = ratio(parseRgb(s.sub!), parseRgb(s.bg))
+        console.log(`[sub] ${which}/${name} focus ${s.sub} on ${s.bg} = ${r2(r)}:1`)
+        if (r < 4.5) bad.push(`${which}/${name} ${r2(r)}:1`)
+        if (which === 'More' && s.subText.includes('▸')) markers.push(name)
+      }
+      await page.keyboard.press('Escape')
+    }
+    // the four submenu rows carry their affordance IN the sub-label, so they
+    // are covered by the same contract rather than by the row's own text
+    expect(markers.sort(), 'the ▸ markers are part of this contract').toEqual(['Export', 'Filters', 'Help', 'Templates'])
+    expect(bad, 'focused secondary labels below 4.5:1').toEqual([])
+  })
+
+  test('what must not change: resting, native-disabled and aria-disabled rows, forced colours, a coarse pointer and dark', async ({ page }) => {
+    await loadDiagram(page)
+    const sheet = await openSheet(page, 'Export')
+    const rows = sheet.locator('.sheet__row')
+
+    // 1. resting is untouched — the panel behind a transparent row
+    const first = rows.first()
+    const rest = await read(first)
+    expect(rest.hovered).toBe(false)
+    const restRatio = ratio(parseRgb(rest.sub!), parseRgb(rest.bg))
+    console.log(`[sub] resting ${rest.sub} on ${rest.bg} = ${r2(restRatio)}:1`)
+    expect(restRatio, 'the resting secondary label is unchanged and already passes').toBeGreaterThanOrEqual(4.5)
+    const restingColour = rest.sub
+
+    // 2. a natively disabled row keeps the resting colour even when hovered —
+    //    WCAG 1.4.3 exempts it and the sheet gives it no other treatment
+    const disabled = sheet.locator('.sheet__row[disabled]')
+    await expect(disabled).toHaveCount(1)
+    await hover(page, disabled)
+    const dis = await read(disabled)
+    expect(dis.nativeDisabled).toBe(true)
+    expect(dis.hovered, 'a disabled button still matches :hover').toBe(true)
+    expect(dis.sub, 'a disabled row is not lifted').toBe(restingColour)
+
+    // 3. the same for a row marked disabled through ARIA
+    await first.evaluate((el) => el.setAttribute('aria-disabled', 'true'))
+    await page.mouse.move(2, 2)
+    await hover(page, first)
+    const ar = await read(first)
+    expect(ar.ariaDisabled).toBe(true)
+    expect(ar.hovered).toBe(true)
+    expect(ar.sub, 'an aria-disabled row is not lifted either').toBe(restingColour)
+    await first.evaluate((el) => el.removeAttribute('aria-disabled'))
+
+
+    // 4. forced colours: the UA owns the row, so our rule must be inert —
+    //    every state resolves to the same system colour it did at rest, for
+    //    the enabled rows and for the disabled one, and the contrast the
+    //    system provides is kept
+    await page.emulateMedia({ colorScheme: 'light', forcedColors: 'active' })
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true)
+    await page.mouse.move(2, 2)
+    const fcEnabledRest = await read(first)
+    await hover(page, first)
+    const fcEnabledHover = await read(first)
+    expect(fcEnabledHover.hovered).toBe(true)
+    expect(fcEnabledHover.sub, 'forced colours: an enabled row is untouched by our rule').toBe(fcEnabledRest.sub)
+    await page.mouse.move(2, 2)
+    const fcDisRest = await read(disabled)
+    await hover(page, disabled)
+    const fcDisHover = await read(disabled)
+    expect(fcDisHover.hovered).toBe(true)
+    expect(fcDisHover.sub, 'forced colours: a disabled row is untouched too').toBe(fcDisRest.sub)
+    // the system's own colours, and the contrast they carry, are preserved
+    const sys = await page.evaluate(() => {
+      const probe = (c: string) => {
+        const d = document.createElement('div')
+        d.style.color = c
+        document.body.append(d)
+        const v = getComputedStyle(d).color
+        d.remove()
+        return v
+      }
+      return { canvasText: probe('CanvasText'), grayText: probe('GrayText') }
+    })
+    expect(fcEnabledRest.sub, 'forced colours: an enabled sub is the system text colour').toBe(sys.canvasText)
+    for (const [name, s] of [
+      ['enabled rest', fcEnabledRest],
+      ['enabled hover', fcEnabledHover],
+      ['disabled rest', fcDisRest],
+      ['disabled hover', fcDisHover],
+    ] as const) {
+      const r = ratio(parseRgb(s.sub!), parseRgb(s.bg))
+      console.log(`[sub] forced ${name} ${s.sub} on ${s.bg} = ${r2(r)}:1`)
+      expect(r, `forced colours: ${name} keeps the system contrast`).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(sys.grayText, 'GrayText resolves to something of its own').not.toBe(sys.canvasText)
+    await page.emulateMedia({ forcedColors: 'none' })
+
+    // 5. a coarse pointer: this whole project runs `isMobile` + `hasTouch`, so
+    //    every ratio above was measured with `(hover: none)` / `(pointer:
+    //    coarse)` — and the hover rule is NOT gated behind a fine pointer, so
+    //    a tap can LEAVE a row hovered. In that residual state the enabled row
+    //    must still be corrected and the disabled ones must still be exempt.
+    const media = await page.evaluate(() => ({
+      hover: matchMedia('(hover: none)').matches,
+      coarse: matchMedia('(pointer: coarse)').matches,
+    }))
+    expect(media, 'these are coarse-pointer measurements').toEqual({ hover: true, coarse: true })
+    await page.mouse.move(2, 2)
+    const db = (await disabled.boundingBox())!
+    await page.touchscreen.tap(db.x + db.width / 2, db.y + db.height / 2) // a disabled button runs nothing
+    const tapped = await read(disabled)
+    expect(tapped.hovered, 'hover survives a tap on a coarse pointer').toBe(true)
+    expect(tapped.sub, 'residual hover does not lift a native-disabled row').toBe(restingColour)
+    await disabled.evaluate((el) => el.setAttribute('aria-disabled', 'true'))
+    const tappedAria = await read(disabled)
+    expect(tappedAria.ariaDisabled).toBe(true)
+    expect(tappedAria.hovered).toBe(true)
+    expect(tappedAria.sub, 'residual hover does not lift an aria-disabled row either').toBe(restingColour)
+    await disabled.evaluate((el) => el.removeAttribute('aria-disabled'))
+    // the enabled row, reached by the same coarse pointer, IS corrected
+    await hover(page, first)
+    const coarseEnabled = await read(first)
+    expect(coarseEnabled.hovered).toBe(true)
+    const cr = ratio(parseRgb(coarseEnabled.sub!), parseRgb(coarseEnabled.bg))
+    console.log(`[sub] coarse enabled hover ${coarseEnabled.sub} on ${coarseEnabled.bg} = ${r2(cr)}:1`)
+    expect(cr, 'a coarse pointer gets the corrected label').toBeGreaterThanOrEqual(4.5)
+
+    // 6. dark never had the problem: its sunken surface is darker than the
+    //    panel, so hovering RAISES the ratio
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await page.mouse.move(2, 2)
+    const darkRest = await read(first)
+    await hover(page, first)
+    const darkHover = await read(first)
+    const dr = ratio(parseRgb(darkRest.sub!), parseRgb(darkRest.bg))
+    const dh = ratio(parseRgb(darkHover.sub!), parseRgb(darkHover.bg))
+    console.log(`[sub] dark rest ${r2(dr)}:1 → hover ${r2(dh)}:1`)
+    expect(dr).toBeGreaterThanOrEqual(4.5)
+    expect(dh).toBeGreaterThanOrEqual(4.5)
+    expect(dh, 'dark hover is not a regression of dark rest').toBeGreaterThan(dr)
+  })
+})
