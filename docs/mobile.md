@@ -280,6 +280,27 @@ Both are bottom sheets. **Shared sheet contract:**
   after a tap. Pinned in `mobile.spec.ts` ("sheet row secondary label
   contrast") across all three sheets, with the resting, native-disabled,
   aria-disabled and dark states asserted as unchanged.
+- a **row that cannot be used** is told apart before it is tried, and without
+  being dimmed into illegibility. Its primary label steps down one token while
+  its secondary label keeps its own, so the row stays readable **and** keeps its
+  internal hierarchy — **7.23:1 / 4.61:1** in light and **9.07:1 / 6.46:1** in
+  dark, measured 2026-09-21. It does not take the hover or keyboard-focus
+  background an enabled row takes, which is itself the cue that it will not
+  respond, and its cursor stops advertising a click it would refuse. That
+  matters on a touch device too: hover is not gated behind a fine pointer, and
+  a tap was measured leaving a row still matching `:hover`, so without the
+  suppression a disabled row could be left looking pressed. **`opacity` is
+  deliberately not used** — it is not force-adjusted, so under forced colours it
+  drags the system's own GrayText from 14.02:1 down to 2.55:1, and it would dim
+  nested controls and focus rings with the text. Under forced colours the UA
+  owns the row and already paints a disabled one in `GrayText` against
+  `CanvasText`; nothing here disturbs that. The rule covers a native `disabled`
+  button and `[aria-disabled="true"]` alike — but **only visually**:
+  `aria-disabled` alone does not suppress activation or choose a focus policy,
+  so a future non-native disabled row must guard activation and define its
+  focus behaviour explicitly. Pinned in `mobile.spec.ts`
+  ("sheet row disabled distinction"), which also asserts that an enabled row
+  keeps its hover background and pointer cursor.
 
 **Timeline** — collapsed by default; a "Timeline" handle expands it to ~45 vh.
 Never a layout column.
