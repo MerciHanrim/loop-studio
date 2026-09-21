@@ -4827,6 +4827,18 @@ input[type='number']::-webkit-inner-spin-button {
     font-size: 12px;
     color: var(--text-tertiary);
   }
+  /* Hovering or keyboard-focusing a row swaps it onto `--surface-sunken`, and
+     in LIGHT that pulls the secondary label from 4.61:1 down to 3.92:1
+     (#6c746e on #e9e8e2). Lift the label in exactly those two states: resting
+     keeps 4.61:1, dark already climbs 6.46 -> 8.03:1 on its own because its
+     sunken surface is DARKER than the panel, and forced colours own the row
+     outright. Disabled rows are the WCAG 1.4.3 exception and keep the resting
+     colour -- `:not(:disabled)` rather than `:enabled` because the class is
+     also used on `a` and `div` rows, which `:enabled` never matches. */
+  .sheet__row:not(:disabled):not([aria-disabled='true']):hover .sheet__row-sub,
+  .sheet__row:not(:disabled):not([aria-disabled='true']):focus-visible .sheet__row-sub {
+    color: var(--text-secondary);
+  }
   .sheet__stamp {
     padding: 10px 10px 2px;
     font-family: var(--font-mono);

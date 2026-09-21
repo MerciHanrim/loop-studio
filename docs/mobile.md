@@ -262,6 +262,24 @@ Both are bottom sheets. **Shared sheet contract:**
   Pinned on the real composited pixels in `mobile.spec.ts` ("sheet .btn
   boundary contrast") + two element baselines, and on the desktop in
   `desktop-btn-boundary.spec.ts`.
+- a **row's secondary label** (the right-hand blurb on a More / Templates /
+  Export row, and the `▸` that marks a row as opening a sub-sheet) keeps
+  **≥ 4.5:1** against whatever is behind it in every state that changes the
+  row's background — resting, hovered, keyboard-focused and pressed (WCAG
+  1.4.3). Hovering or focusing a row moves it onto `--surface-sunken`, which in
+  light used to take the label from 4.61:1 down to **3.92:1** (measured
+  2026-09-21 on all fourteen rows of the three sheets, and reachable from the
+  keyboard alone because hover and focus share one declaration); an enabled row
+  now reads **6.15:1** in those states while resting is unchanged. Dark never
+  had the problem — its sunken surface is darker than the panel, so the same
+  states rise instead of falling — and under forced colours the UA owns the row
+  entirely. **Disabled rows are the 1.4.3 exception** and keep the resting
+  colour, whether they are a native `disabled` button or carry
+  `aria-disabled="true"`. Hover is not gated behind a fine pointer, so a touch
+  device reaches these states too: a row was measured still matching `:hover`
+  after a tap. Pinned in `mobile.spec.ts` ("sheet row secondary label
+  contrast") across all three sheets, with the resting, native-disabled,
+  aria-disabled and dark states asserted as unchanged.
 
 **Timeline** — collapsed by default; a "Timeline" handle expands it to ~45 vh.
 Never a layout column.
