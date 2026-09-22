@@ -164,28 +164,113 @@ const dashCount = (page: Page, png: Buffer, pts: Pt[], a: number, b: number, thr
     },
     { b64: png.toString('base64'), pts, a, b, thr, reach },
   )
+type Dash = { runs: number; inkShare: number; meanLen: number; n: number }
+
 /** the 80-sample stretch of the edge with the most plain-stroke ink in the
  *  OFF screenshot (the edge may pass under nodes / labels elsewhere), kept
- *  inside the pane */
-async function cleanStretch(page: Page, offPng: Buffer, pts: Pt[]): Promise<[number, number] | null> {
-  const W = 80
-  const pane = await page.evaluate(() => {
-    const r = document.querySelector('.react-flow')!.getBoundingClientRect()
-    return { left: r.left + 48, top: r.top + 2, right: r.right - 2, bottom: r.bottom - 2 }
-  })
-  let best: [number, number] | null = null
-  let bestShare = -1
-  for (let a = 0; a + W <= pts.length; a += 20) {
-    const inside = pts.slice(a, a + W).every((p) => p.x > pane.left && p.x < pane.right && p.y > pane.top && p.y < pane.bottom)
-    if (!inside) continue
-    const { inkShare, runs } = await dashCount(page, offPng, pts, a, a + W, 0.15)
-    const score = inkShare - 0.05 * runs // a stretch under a label/crossing breaks into pieces
-    if (score > bestShare) {
-      bestShare = score
-      best = [a, a + W]
-    }
-  }
-  return best
+ *  inside the pane — and that stretch's own OFF measurement, at the caller's
+ *  threshold and reach.
+ *
+ *  ONE trip, ONE decode: every candidate window is scored against a single
+ *  decode of this screenshot instead of re-sending the same PNG and the same
+ *  point array per window. The arithmetic below is unchanged — same band, same
+ *  background sample, 0.15 / reach 1 for scoring, `inkShare - 0.05 * runs`,
+ *  width 80, stride 20, first window wins a tie. */
+async function cleanStretch(
+  page: Page,
+  offPng: Buffer,
+  pts: Pt[],
+  offThr: number,
+  offReach: number,
+): Promise<{ stretch: [number, number]; off: Dash } | null> {
+  return page.evaluate(
+    async ({ b64, pts, offThr, offReach }) => {
+      const im = new Image()
+      im.src = `data:image/png;base64,${b64}`
+      await im.decode()
+      const cv = document.createElement('canvas')
+      cv.width = im.width
+      cv.height = im.height
+      const cx = cv.getContext('2d')!
+      cx.drawImage(im, 0, 0)
+      const d = cx.getImageData(0, 0, cv.width, cv.height).data
+      const rect = document.querySelector('.react-flow')!.getBoundingClientRect()
+      const at = (x: number, y: number) => {
+        const i = (y * cv.width + x) * 4
+        return [d[i], d[i + 1], d[i + 2]]
+      }
+      const bg = at(Math.round(rect.right - 3), Math.round(rect.top + 3))
+      const dist = (c: number[]) => Math.hypot(c[0] - bg[0], c[1] - bg[1], c[2] - bg[2]) / 255
+      const scan = (a: number, b: number, thr: number, reach: number) => {
+        const band = new Map<number, number>()
+        for (let i = a; i < b && i < pts.length; i++) {
+          const p0 = pts[Math.max(0, i - 1)]
+          const p1 = pts[Math.min(pts.length - 1, i + 1)]
+          const len = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1
+          const nx = -(p1.y - p0.y) / len
+          const ny = (p1.x - p0.x) / len
+          for (const o of [-2, -1, 0, 1, 2]) {
+            const x = Math.round(pts[i].x + nx * o)
+            const y = Math.round(pts[i].y + ny * o)
+            const key = y * cv.width + x
+            if (!band.has(key)) band.set(key, i)
+          }
+        }
+        const ink = new Set<number>()
+        for (const key of band.keys()) {
+          const x = key % cv.width
+          const y = Math.floor(key / cv.width)
+          if (dist(at(x, y)) >= thr) ink.add(key)
+        }
+        const seen = new Set<number>()
+        const sizes: number[] = []
+        for (const start of ink) {
+          if (seen.has(start)) continue
+          const stack = [start]
+          seen.add(start)
+          const idx = new Set<number>()
+          while (stack.length) {
+            const k = stack.pop()!
+            idx.add(band.get(k)!)
+            const x = k % cv.width
+            const y = Math.floor(k / cv.width)
+            for (let dy = -reach; dy <= reach; dy++)
+              for (let dx = -reach; dx <= reach; dx++) {
+                const nk = (y + dy) * cv.width + (x + dx)
+                if (ink.has(nk) && !seen.has(nk)) {
+                  seen.add(nk)
+                  stack.push(nk)
+                }
+              }
+          }
+          sizes.push(idx.size)
+        }
+        return {
+          runs: sizes.length,
+          inkShare: band.size ? ink.size / band.size : 0,
+          meanLen: sizes.length ? sizes.reduce((x, y) => x + y, 0) / sizes.length : 0,
+          n: b - a,
+        }
+      }
+      const W = 80
+      const pane = { left: rect.left + 48, top: rect.top + 2, right: rect.right - 2, bottom: rect.bottom - 2 }
+      let best: [number, number] | null = null
+      let bestShare = -1
+      for (let a = 0; a + W <= pts.length; a += 20) {
+        const inside = pts.slice(a, a + W).every((p) => p.x > pane.left && p.x < pane.right && p.y > pane.top && p.y < pane.bottom)
+        if (!inside) continue
+        const { inkShare, runs } = scan(a, a + W, 0.15, 1)
+        const score = inkShare - 0.05 * runs // a stretch under a label/crossing breaks into pieces
+        if (score > bestShare) {
+          bestShare = score
+          best = [a, a + W]
+        }
+      }
+      if (!best) return null
+      return { stretch: best, off: scan(best[0], best[1], offThr, offReach) }
+    },
+    { b64: offPng.toString('base64'), pts, offThr, offReach },
+  )
 }
 
 /** the N longest ACTIVE edges of a class (screen length at the current zoom) — independent of
@@ -335,16 +420,16 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
           await page.waitForTimeout(150)
           const offPng = await page.screenshot()
           const pts = await pathPoints(page, id)
-          const stretch = await cleanStretch(page, offPng, pts)
-          if (!stretch) {
+          // reach-2 for the plain stroke: a solid line must count as ONE piece however its anti-aliasing breaks
+          const picked = await cleanStretch(page, offPng, pts, 0.15, 2)
+          if (!picked) {
             // shorter than 80 screen px at this zoom — too few periods to count
             await activityBtn(page).click()
             await page.waitForTimeout(150)
             continue
           }
-          const [a, b] = stretch
-          // reach-2 for the plain stroke: a solid line must count as ONE piece however its anti-aliasing breaks
-          const off = await dashCount(page, offPng, pts, a, b, 0.15, 2)
+          const [a, b] = picked.stretch
+          const off = picked.off
           await activityBtn(page).click()
           await page.waitForTimeout(150)
           const onPng = await page.screenshot()
@@ -416,13 +501,13 @@ test.describe('§LGR9 forced-colors — active edge tell: Highlight + butt dashe
         await page.waitForTimeout(150)
         const offPng = await page.screenshot()
         const pts = await pathPoints(page, id)
-        const stretch = await cleanStretch(page, offPng, pts)
-        expect(stretch, `${id} z${zoom}: an 80 px stretch inside the pane`).not.toBeNull()
-        const [a, b] = stretch!
         // a state edge is 1 px wide: a low presence threshold for the grey 4 4 (reach-2 for the plain
         // reference); the ON count uses plain 8-connectivity — fragmentation only raises the count
         // an activator-OFF state edge is painted at opacity 0.5 in the plain state → a very low presence threshold
-        const off = await dashCount(page, offPng, pts, a, b, 0.06, 2)
+        const picked = await cleanStretch(page, offPng, pts, 0.06, 2)
+        expect(picked, `${id} z${zoom}: an 80 px stretch inside the pane`).not.toBeNull()
+        const [a, b] = picked!.stretch
+        const off = picked!.off
         await activityBtn(page).click()
         await page.waitForTimeout(150)
         const onPng = await page.screenshot()
