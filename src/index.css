@@ -732,13 +732,7 @@ body {
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--text-secondary);
-  /* `.menu__blurb` has had this since 2026-09-15; the tooltip never did, so
-     six of the eight Korean descriptions broke a word across lines (measured
-     with a `Range` per 어절: "있으며", "보냅니다.", "제거합니다.", "연결들로",
-     "생성합니다.", "표현식에서"). Note the limit: `keep-all` does NOT close a
-     break at the interpunct `·`, so long enumerations are written with commas
-     in the copy rather than fought in CSS. */
-  word-break: keep-all;
+  /* Wrapping is per-language — see §DESCRIPTIVE-WRAP below. */
 }
 .palette-tip__how {
   font-size: 11px;
@@ -888,14 +882,47 @@ a.sheet__row {
   color: var(--text-secondary);
   /* Templates / Insert module descriptions read like a document at full
      length — cap at 2 lines everywhere (harmless for the already-short
-     Export/Data blurbs) so a menu stays scannable. `keep-all` — a Korean
-     particle (e.g. "협업용") otherwise breaks mid-word, stranding one
-     character alone on the wrapped line (review, Hanrim 2026-09-15). */
+     Export/Data blurbs) so a menu stays scannable. Wrapping is per-language
+     — see §DESCRIPTIVE-WRAP below. */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* §DESCRIPTIVE-WRAP — how the two multi-line descriptive surfaces
+   (`.menu__blurb`, `.palette-tip__desc`) break, by language.
+
+   Both carried a bare `word-break: keep-all`. It was added for KOREAN: a
+   particle (e.g. "협업용") otherwise breaks mid-word and strands one character
+   on the next line — six of the eight Korean tooltip descriptions did exactly
+   that, measured with a `Range` per 어절 (review, Hanrim 2026-09-15). But the
+   declaration was unscoped, and `keep-all` removes EVERY break opportunity
+   inside a space-less CJK sentence. Japanese and Chinese copy therefore could
+   not use the second line at all and spilled sideways instead: 10 elements
+   across ja / zh-Hans / zh-Hant, up to 104px (measured 2026-09-22). The line
+   clamp was never the problem — a 232px box held a 250px single line with the
+   second line free.
+
+   So the rule says what it means. Korean asks for `keep-all`; nobody else
+   does. Japanese and Chinese get the standard fallback and, where the engine
+   ships a line-break dictionary, phrase-aware breaking — the same
+   normal-then-`auto-phrase` shape `.nodef__title` already uses (§MML1), so a
+   future CJK locale is not trapped behind a wrong shared default. English is
+   left on the initial value; its computed `keep-all` was incidental, and the
+   rendered line count is unchanged (measured: 40 before and after). */
+:lang(ko) :is(.menu__blurb, .palette-tip__desc) {
   word-break: keep-all;
+}
+:lang(ja) :is(.menu__blurb, .palette-tip__desc),
+:lang(zh) :is(.menu__blurb, .palette-tip__desc) {
+  word-break: normal;
+}
+@supports (word-break: auto-phrase) {
+  :lang(ja) :is(.menu__blurb, .palette-tip__desc),
+  :lang(zh) :is(.menu__blurb, .palette-tip__desc) {
+    word-break: auto-phrase;
+  }
 }
 
 /* ---- Settings menu rows (Theme / Language) ----
