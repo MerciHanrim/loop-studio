@@ -52,6 +52,7 @@ const ui = {
   'language.chineseSimplified': '簡體中文',
   'language.chineseTraditional': '繁體中文',
   'language.french': '法語',
+  'language.german': '德語',
   'playbar.reset.title': '重設到第 0 步',
   'playbar.step.title': '前進一步',
   'playbar.play': '▶ 播放',

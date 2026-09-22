@@ -10,8 +10,10 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // Every shipped locale is covered here. `zh-Hans`, `zh-Hant` and `fr` were
 // RED before their overlays existed: each had a fully translated menu name
 // and a fully translated catalog, and still produced English node labels on
-// insert, because `moduleLabels.ts` only carried `ko` and `ja`. `en` is the
-// canonical guard and `ko` / `ja` the invariance guards.
+// insert, because `moduleLabels.ts` only carried `ko` and `ja`. `de` is the
+// first locale to arrive with its overlay already in place, because the
+// registry-derived guard in `moduleLabels.test.ts` now fails without it.
+// `en` is the canonical guard and `ko` / `ja` the invariance guards.
 //
 // Mobile is deliberately absent: there is no module-insert surface there at
 // all (no `ModuleMenu` under `src/components/mobile/`), so there is nothing
@@ -47,6 +49,7 @@ const STR = {
   'zh-Hans': { menuBtn: '插入模块 ▾', bufferedStep: '带缓冲的生产环节', rewardSplit: '奖励分配循环' },
   'zh-Hant': { menuBtn: '插入模組 ▾', bufferedStep: '含緩衝的生產環節', rewardSplit: '獎勵分配迴圈' },
   fr: { menuBtn: 'Insérer un module ▾', bufferedStep: 'Étape de production tamponnée', rewardSplit: 'Boucle de répartition des récompenses' },
+  de: { menuBtn: 'Modul einfügen ▾', bufferedStep: 'Gepufferter Produktionsschritt', rewardSplit: 'Schleife zur Belohnungsaufteilung' },
 } as const
 type Locale = keyof typeof STR
 
@@ -58,6 +61,7 @@ const LABELS = {
     'zh-Hans': ['供应', '输入缓冲', '入库', '加工', '损耗', '输出缓冲', '出货', '批量大小', '系统内数量', '计划处理量'],
     'zh-Hant': ['供應', '輸入緩衝', '入庫', '加工', '損耗', '輸出緩衝', '出貨', '批次大小', '系統內數量', '計畫處理量'],
     fr: ['Approvisionnement', 'Tampon d’entrée', 'Réception', 'Transformation', 'Pertes', 'Tampon de sortie', 'Expédition', 'Taille du lot', 'Unités dans le système', 'Production prévue'],
+    de: ['Nachschub', 'Eingangspuffer', 'Annahme', 'Verarbeitung', 'Ausschuss', 'Ausgangspuffer', 'Versand', 'Losgröße', 'Einheiten im System', 'Geplante Produktion'],
   },
   'reward-split': {
     en: ['Activity', 'Wallet', 'Allocate', 'Spending', 'Savings', 'Withdrawals', 'Savings target', 'Net worth', 'Progress to target'],
@@ -66,6 +70,7 @@ const LABELS = {
     'zh-Hans': ['活动', '钱包', '分配', '支出', '储蓄', '提取', '储蓄目标', '净资产', '目标达成率'],
     'zh-Hant': ['活動', '錢包', '分配', '支出', '儲蓄', '提領', '儲蓄目標', '淨資產', '目標達成率'],
     fr: ['Activité', 'Portefeuille', 'Répartir', 'Dépenses', 'Épargne', 'Retraits', 'Objectif d’épargne', 'Valeur nette', 'Progression vers l’objectif'],
+    de: ['Aktivität', 'Geldbörse', 'Aufteilen', 'Ausgaben', 'Ersparnisse', 'Abhebungen', 'Sparziel', 'Nettovermögen', 'Fortschritt zum Ziel'],
   },
 } as const
 
@@ -117,7 +122,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (d) => void d.accept().catch(() => {}))
 })
 
-const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de'] as const
 
 for (const loc of SHIPPED) {
   test(`${loc}: inserting "Buffered production step" via the menu gets the ${loc} labels`, async ({ page }) => {
@@ -187,14 +192,15 @@ test('a module first inserted in KO, then switched to JA and back to EN, follows
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['reward-split'].en].sort())
 })
 
-// the same §MLS4 sync, across the three locales that used to stay English
-test('an already-inserted instance follows a switch into zh-Hans, zh-Hant and fr', async ({ page }) => {
+// the same §MLS4 sync, across the three locales that used to stay English,
+// plus `de`, which shipped with its overlay from the start
+test('an already-inserted instance follows a switch into zh-Hans, zh-Hant, fr and de', async ({ page }) => {
   await resetAll(page)
   const before = await gs(page)
   await insertViaMenu(page, 'en', 'buffered-step')
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de'] as const) {
     await setLocale(page, loc)
     expect(labelsOf(await gs(page), before), `switch to ${loc}`).toEqual(
       [...LABELS['buffered-step'][loc]].sort(),
@@ -206,8 +212,11 @@ test('an already-inserted instance follows a switch into zh-Hans, zh-Hant and fr
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 })
 
-// a user rename must survive every one of the new locales too
-test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr switch', async ({ page }) => {
+// A user rename must survive every one of the newer locales too. `Mein Konto`
+// is deliberately German and deliberately NOT this node's official German
+// label (`Geldbörse`): switching into `de` must not adopt it just because it
+// looks like the right language.
+test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr / de switch', async ({ page }) => {
   await resetAll(page)
   const before = await gs(page)
   await insertViaMenu(page, 'en', 'reward-split')
@@ -217,7 +226,7 @@ test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr switch', asy
   const mine = inserted.find((n) => n.data?.label === 'Wallet')!
   await renameNode(page, mine.id, 'Mein Konto')
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'en'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'en'] as const) {
     await setLocale(page, loc)
     const now = (await gs(page)).nodes.find((n) => n.id === mine.id)
     expect(now?.data?.label, `${loc} must not overwrite a user rename`).toBe('Mein Konto')

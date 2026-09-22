@@ -94,14 +94,20 @@ test.describe('a French browser', () => {
 })
 
 // ------------------------------------------------------------------ 2
-test.describe('the five existing locales are unaffected', () => {
+test.describe('the other shipped locales are unaffected', () => {
   for (const [tag, want] of [
     ['en-US', 'en'],
     ['ko-KR', 'ko'],
     ['ja-JP', 'ja'],
     ['zh-CN', 'zh-Hans'],
     ['zh-TW', 'zh-Hant'],
-    ['de-DE', 'en'], // still unregistered — French must not have widened this
+    // `de-DE` was this list's UNREGISTERED probe when French shipped. German
+    // shipped afterwards, so it now reaches `de` through the ordinary
+    // base-subtag step, and the row proves that step instead. `nl-NL` takes
+    // over as the probe: Dutch is not on the twelve-language roadmap, so it
+    // will not quietly become registered the way `de-DE` did.
+    ['de-DE', 'de'],
+    ['nl-NL', 'en'],
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
@@ -213,7 +219,7 @@ test.describe('the language search box, shipped to production here', () => {
     await page.keyboard.press('Escape')
     await expect(search(page)).toHaveValue('') // stage 1: only the query goes
     await expect(pop(page)).toBeVisible()
-    await expect(options(page)).toHaveCount(7) // 6 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(8) // 7 shipped + the dev pseudo-locale
 
     await page.keyboard.press('Escape')
     await expect(pop(page)).toHaveCount(0) // stage 2: the popover closes

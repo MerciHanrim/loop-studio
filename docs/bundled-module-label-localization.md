@@ -380,7 +380,32 @@ ids. `en` correctly has none — the canonical graph label IS the English text �
 and the dev pseudo-locale is out of scope. `moduleLabels.test.ts` derives that
 set from `LOCALES` in the registry, so a new language registered without its
 overlay turns the unit suite red before anything else runs. It also asserts no
-two locales share an identical overlay, which catches a copy-paste.
+two locales share the same overlay **object** — reference identity, not
+content. Two independently written translations may legitimately coincide (the
+two Chinese scripts already share `分配` and `支出`), so a deep-equality check
+there would be wrong; what must never happen is two locales pointing at one
+mutable map.
+
+**The guard's first live proof — `de` (2026-09-22).** German was translated
+before this section existed and was rebased onto it. Adding the registry entry
+and nothing else turned the suite red immediately: `every shipped locale
+except en has an overlay` reported `de` missing from `moduleLabelLocales()`,
+and `de: every bundled module has a complete … overlay` reported
+`buffered-step / de — no overlay at all`. 3 failed / 7 passed, before a single
+German node label existed. That is the whole point of deriving the set from
+the registry, and `de` is the first language to arrive with its overlay
+already in place as a result.
+
+**That red state also exposed a defect in the guard itself, now fixed.** The
+reference-identity test failed too, with the misleading message
+`reward-split — de reuses de's overlay object`: `moduleLabelOverlay()`
+returned `undefined` for both modules and a non-null assertion let that
+`undefined` into the `seen` map, so the second bundled module collided with
+the first and the locale was blamed for reusing its own overlay. The verdict
+was not wrong, but the reason it gave was. Absence is the completeness test's
+business and is reported there by id, so the identity test now skips an
+overlay that does not exist and compares only real objects. A missing overlay
+therefore reports `no overlay at all`, once, and nothing else.
 
 **Translation rule.** Each locale's labels are written from the ENGLISH
 canonical labels in `examples/module-*.json`. `zh-Hans` and `zh-Hant` are

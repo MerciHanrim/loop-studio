@@ -48,9 +48,9 @@ describe('locale registry metadata', () => {
 
   // §L2.4 — Traditional Chinese is its own locale, never a conversion of
   // Simplified, and the dev pseudo-locale is not one of the shipped languages.
-  it('ships exactly six languages, the pseudo-locale aside', () => {
+  it('ships exactly seven languages, the pseudo-locale aside', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
-    expect([...shipped].sort()).toEqual(['en', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
+    expect([...shipped].sort()).toEqual(['de', 'en', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
     expect(LOCALES.filter((l) => l.pseudo).every((l) => l.code === 'en-XA')).toBe(true)
   })
 
@@ -106,7 +106,7 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
   it('leaves every other language alone', () => {
     expect(resolveInitialLocale(null, ['ko-KR'])).toBe('ko')
     expect(resolveInitialLocale(null, ['ja'])).toBe('ja')
-    expect(resolveInitialLocale(null, ['de-DE'])).toBe('en') // not registered yet
+    expect(resolveInitialLocale(null, ['nl-NL'])).toBe('en') // not registered yet
     expect(resolveInitialLocale(null, ['zhuang'])).toBe('en') // not a zh subtag
   })
 
@@ -144,7 +144,7 @@ describe('resolveInitialLocale', () => {
   it('2. walks navigator.languages in order — exact, then BCP-47 base', () => {
     expect(resolveInitialLocale(null, ['ko-KR', 'en-US'])).toBe('ko') // base match ko-KR -> ko
     expect(resolveInitialLocale(null, ['en-GB'])).toBe('en') // base match en-GB -> en
-    expect(resolveInitialLocale(null, ['de-DE', 'ko'])).toBe('ko') // first that resolves wins
+    expect(resolveInitialLocale(null, ['nl-NL', 'ko'])).toBe('ko') // first that resolves wins
     // §L2.9 — every French region reaches `fr` through the ordinary
     // base-subtag rule; French needed no mapping of its own.
     for (const tag of ['fr', 'fr-FR', 'fr-BE', 'fr-CH', 'fr-CA', 'fr-LU', 'FR-ca']) {
@@ -154,7 +154,7 @@ describe('resolveInitialLocale', () => {
   })
 
   it('3. canonical fallback when nothing resolves', () => {
-    expect(resolveInitialLocale(null, ['de-DE', 'nl-NL'])).toBe(BASE_LOCALE)
+    expect(resolveInitialLocale(null, ['nl-NL', 'sv-SE'])).toBe(BASE_LOCALE)
     expect(resolveInitialLocale(null, [])).toBe(BASE_LOCALE)
     expect(resolveInitialLocale('xx', ['zz'])).toBe(BASE_LOCALE)
   })

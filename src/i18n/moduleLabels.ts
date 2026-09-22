@@ -176,12 +176,56 @@ const FR: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// `Eingangspuffer` / `Ausgangspuffer` are the exact words this locale's module
+// blurb uses ("mit Eingangs- und Ausgangspuffer"), and `Verarbeitung` /
+// `Versand` / `Ausschuss` match its production-line Template dict
+// (`templateLabels/de.ts` `tpl-conv` / `tpl-consume` / `tpl-spill`).
+//
+// Three places German does NOT take the obvious word:
+//   - `planned_run` is `Geplante Produktion`, never `Geplanter Lauf` — `Lauf`
+//     is the app's own word for a simulation run (§L2.12 glossary) and would
+//     read as a scheduled simulation, not as planned output. Every other
+//     locale avoided the literal here too.
+//   - `savings` is `Ersparnisse`, the accumulated amount, where the blurb says
+//     `Sparen`; the blurb needs the infinitive inside a verb phrase ("in
+//     Ausgaben und Sparen"), but a Pool holds a stock, so it takes the noun.
+//     `Sparziel` keeps the two tied to the same stem.
+//   - `supply` is `Nachschub`, the head of the dict's `Materialnachschub`; the
+//     bundled module is a generic production step, so it must not assert that
+//     what flows through it is material.
+const DE: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Nachschub',
+    inbox: 'Eingangspuffer',
+    intake: 'Annahme',
+    process: 'Verarbeitung',
+    spoilage: 'Ausschuss',
+    outbox: 'Ausgangspuffer',
+    shipped: 'Versand',
+    batch_size: 'Losgröße',
+    in_system: 'Einheiten im System',
+    planned_run: 'Geplante Produktion',
+  },
+  'reward-split': {
+    activity: 'Aktivität',
+    wallet: 'Geldbörse',
+    allocate: 'Aufteilen',
+    spending: 'Ausgaben',
+    savings: 'Ersparnisse',
+    withdrawals: 'Abhebungen',
+    target_savings: 'Sparziel',
+    net_worth: 'Nettovermögen',
+    progress: 'Fortschritt zum Ziel',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
   'zh-Hans': ZH_HANS,
   'zh-Hant': ZH_HANT,
   fr: FR,
+  de: DE,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if
