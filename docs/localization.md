@@ -418,6 +418,30 @@ its own (`Syntaxfehler an Zeichenposition {column}`). The CSV message reads
 `… in Zeile {line}, Zeichen {column}`. The table-column group takes
 `Spalte {column}` — never `Zeichen`.
 
+**L2.11a — the checklist for adding a language.** A catalog is not the whole
+job. `zh-Hans`, `zh-Hant` and `fr` each shipped with every catalog gate green
+and still inserted bundled modules whose node labels were English, because the
+module overlay is a separate data source that nothing tied to the registry
+(docs/bundled-module-label-localization.md §MLS4.5). Everything a new locale
+needs, in one place:
+
+| # | what | where | enforced by |
+|---|---|---|---|
+| 1 | registry entry | `src/i18n/registry.ts` | `registry.test.ts` |
+| 2 | 5 catalog slices | `src/i18n/locales/<code>/` | `tsc` + `check:i18n` |
+| 3 | `language.<name>` in **every** catalog | all `locales/*/ui.ts` | `check:i18n` dead-key guard |
+| 4 | Template label dict + `DICT_LOADERS` entry | `templateLabels/<code>.ts`, `dicts.ts` | `check:template-labels` |
+| 5 | regenerated known labels | `templateLabels/known.generated.ts` | `gen:known-labels` + `check:template-labels` |
+| 6 | **bundled-module overlay** | `src/i18n/moduleLabels.ts` | `moduleLabels.test.ts` (registry-derived) |
+| 7 | production locale count + list | `e2e/dist.spec.ts` | `npm run e2e:dist` |
+| 8 | dev picker option count | `e2e/i18n.spec.ts` | the default e2e run |
+| 9 | rendered-string guards | `icuEscaping.test.ts`, `parserLocation.test.ts` | the unit suite |
+
+Items 6 and 9 are the ones a locale PR forgets, because nothing about writing
+a catalog points at them. Each is now derived from the shipped-locale set
+rather than listed by hand, so the suite goes red on the omission instead of
+the product going half-English.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**

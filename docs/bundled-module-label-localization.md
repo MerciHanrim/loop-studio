@@ -42,7 +42,7 @@ correct (managed / detached) state.
 
 ## MLS0. Why
 
-`src/i18n/moduleLabels.ts` already applies a KO/JA overlay to a bundled
+`src/i18n/moduleLabels.ts` already applies a per-locale overlay to a bundled
 Building block's node labels **at the moment of insert** (menu click or
 canvas drag-drop — both funnel through `cloneModuleDoc`). Until now that was
 the whole feature: switching the UI language after an insert left the
@@ -344,6 +344,56 @@ redoing the edit correctly un-resumes translation. Each point in time
 carries its own, independently-correct provenance, exactly per §MLS4.3's
 existing per-snapshot design — this needed no changes to `undo`/`redo`
 themselves, only to `updateNodeData`.
+
+## MLS4.5 Coverage — every shipped locale except `en`, derived from the registry
+
+**The defect this section exists for (2026-09-22).** The overlay shipped with
+`ko` and `ja` and was never extended. `zh-Hans` (PR #255), `zh-Hant` (#256)
+and `fr` (#259) each landed with a complete 838-key catalog, complete Template
+labels, and a fully translated "Insert module" menu — and each still inserted
+modules whose NODE labels were English. Measured before the fix:
+
+| locale | menu name | click insert | drag insert | switch then insert |
+|---|---|---|---|---|
+| `en` | canonical | canonical | canonical | canonical |
+| `ko` | translated | translated | translated | translated |
+| `ja` | translated | translated | translated | translated |
+| `zh-Hans` | translated | **ENGLISH** | **ENGLISH** | **ENGLISH** |
+| `zh-Hant` | translated | **ENGLISH** | **ENGLISH** | **ENGLISH** |
+| `fr` | translated | **ENGLISH** | **ENGLISH** | **ENGLISH** |
+
+The menu name and blurb come from the ordinary catalog, so they were always
+right; only `moduleLabels.ts` was short. One data map, three call sites
+(`ModuleMenu.tsx` click, `Canvas.tsx` drag, `moduleLabelSync.ts` switch), so
+filling the map fixed all three at once — **no per-locale branching was
+added, and none should be**.
+
+**Why no test caught it.** `moduleLabels.test.ts` looped a hardcoded
+`['ko', 'ja']` and `module-label-localization.spec.ts` carried `STR` / `LABELS`
+tables for `en` / `ko` / `ja`. Both enumerated the locales that existed
+instead of the locales that must exist, so neither could fail for a language
+that was simply absent.
+
+**The rule now.** Every **shipped** locale except `en` must have an entry in
+`OVERLAYS`, covering both bundled modules and exactly their canonical node
+ids. `en` correctly has none — the canonical graph label IS the English text —
+and the dev pseudo-locale is out of scope. `moduleLabels.test.ts` derives that
+set from `LOCALES` in the registry, so a new language registered without its
+overlay turns the unit suite red before anything else runs. It also asserts no
+two locales share an identical overlay, which catches a copy-paste.
+
+**Translation rule.** Each locale's labels are written from the ENGLISH
+canonical labels in `examples/module-*.json`. `zh-Hans` and `zh-Hant` are
+never machine-converted from one another. Terminology is aligned with that
+locale's own Template dictionary and its own module blurb only where the
+concept is genuinely the same — for instance every locale's `inbox` /
+`outbox` uses the same words its `modules.bufferedStep.blurb` already uses
+for the input and output buffer.
+
+**Mobile is out of scope, by absence.** There is no module-insert surface on
+mobile at all (no `ModuleMenu` or `BUNDLED_MODULES` anywhere under
+`src/components/mobile/`), which matches the mobile view-and-run contract.
+There is nothing to assert, so the e2e does not.
 
 ## MLS5. Safety boundaries (Hanrim, 2026-09-15 kickoff — restated as the
 contract this implementation is checked against)
