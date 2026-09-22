@@ -364,6 +364,60 @@ line box reports a 2 px vertical overflow in all six languages, and an
 absolute threshold would either flag it forever or be loosened until it
 stopped catching real defects.
 
+**L2.11 — `{column}` names two different things, and a translation must tell
+them apart.** The placeholder name is an internal contract and never changes;
+what it MEANS at each call site does. Ten keys carry it, in two groups:
+
+| group | keys | what `{column}` is |
+|---|---|---|
+| parser position | the six `error.EXPR_*.message` + `import.parseError` | a **1-based CHARACTER offset** |
+| table column | `import.loc.tableColumnHeader`, `import.loc.tableRowColumn`, `import.loc.tableRowColumnHeader` | a **1-based table COLUMN index** |
+
+The first group is character offsets, in the code's own words:
+
+- `src/model/expr/errors.ts` — `ExprParseError` "carries a 1-based `column`
+  into the raw text"; `tokenize.ts` computes it as `i + 1` over string
+  indices, and `parse.test.ts` pins ``err('@{a\b}').column === 4`` — the
+  4th character is the backslash.
+- `src/model/csv.ts` — the field's doc comment is "1-based character offset
+  within that row"; the scanner does `col++` per character and `col = 1` at
+  each newline. `csv.test.ts` pins "the opening quote is the 3rd char of
+  line 1".
+
+The second group really is a table column: `DataImportWizard.tsx` passes
+`issue.columnIndex + 1` next to that column's own `header`.
+
+English is the origin of the drift — it says "at column {column}" for the
+character offsets too, which is defensible in English (a "column" in a text
+editor is a character position) but reads as a spreadsheet column in a dialog
+that is full of real spreadsheet columns. Rather than reword the base and
+churn six catalogs, each locale says what it means in its own terms:
+
+| locale | parser position | table column |
+|---|---|---|
+| `en` | `at column {column}` (base, unchanged) | `column {column}` |
+| `ko` | `{column}번째 문자` | `{column}열` |
+| `ja` | `{column}文字目` | `{column}列目` |
+| `zh-Hans` | `第 {column} 个字符` | `第 {column} 列` |
+| `zh-Hant` | `第 {column} 個字元` | `第 {column} 欄` |
+| `fr` | `caractère {column}` | `colonne {column}` |
+
+`fr` and `zh-Hant` already drew the distinction and were the control group;
+`ko` / `ja` / `zh-Hans` used their table-column word for both and were
+corrected (2026-09-22, 21 strings). `src/i18n/parserLocation.test.ts` holds
+both directions — a parser message must carry the character wording and must
+not carry the column wording, and `import.loc.*` must keep the column wording
+and must not borrow the character one. It also asserts the two groups are
+disjoint and together are every `{column}` key, so a new one cannot be added
+without being classified.
+
+**For German, when `de` ships:** `Zeichen {column}` where the position sits
+next to the thing at it (`„(" an Zeichen {column} wird nie geschlossen`), and
+`an Zeichenposition {column}` where the sentence wants a position phrase of
+its own (`Syntaxfehler an Zeichenposition {column}`). The CSV message reads
+`… in Zeile {line}, Zeichen {column}`. The table-column group takes
+`Spalte {column}` — never `Zeichen`.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**

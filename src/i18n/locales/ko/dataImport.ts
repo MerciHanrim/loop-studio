@@ -21,7 +21,7 @@ const dataImport = {
   'import.delimiterTab': '탭',
   'import.headerRow': '헤더 행',
   'import.ignoreLastRows': '마지막 N행 무시',
-  'import.parseError': '유효한 CSV/TSV가 아닙니다: {line}행 {column}열에서 {kind}.',
+  'import.parseError': '유효한 CSV/TSV가 아닙니다: {line}행 {column}번째 문자에서 {kind}.',
   'import.parseErrorKind.unterminated-quote': '닫히지 않은 따옴표가 있습니다',
   'import.parseErrorKind.text-after-quote': '닫는 따옴표 뒤에 예상치 못한 문자가 있습니다',
   'import.parseErrorKind.quote-in-unquoted-field': '따옴표 없는 필드 안에 따옴표가 있습니다',
