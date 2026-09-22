@@ -180,13 +180,63 @@
    one voice; `--font-mono` (numbers, expressions) is a separate variable and is
    untouched. System fonts only: the bundle ships Latin subsets alone, and a
    downloaded CJK face would break the offline / portable contract. */
+
+/* One mark still escaped those stacks. `'IBM Plex Sans'` leads them, and it
+   COVERS U+2014, so the Chinese double dash `——` was drawn by a LATIN font
+   while the Han around it came from the CJK one. Measured at 22px on
+   2026-09-21, dev + PWA + portable alike:
+
+     shipped   ——  advance 34.33px, ink 32.75px, TWO separate inked runs
+     CJK font  ——  advance 47.53px, ink 47.50px, ONE continuous run
+
+   A Chinese dash is one full-width rule per character and the pair joins into
+   an unbroken line; the Latin em dash is 0.74em and leaves a visible gap, so
+   the pair reads as two short strokes. In a Han run the effect is measurable
+   as well: four inked runs instead of three.
+
+   The fix is a face that does NOTHING except lend U+2014 to Chinese text. The
+   whole point is the `unicode-range`: it is what keeps the family from being
+   consulted for anything else, so Latin letters, digits and code tokens stay
+   on IBM Plex Sans (`Ag07` is 52.13px before and after, `資CSV源` 83.84px,
+   `資 4900 源` 107.19px — byte-identical font attribution). Putting a whole
+   CJK family in front instead was measured and rejected: it moves those same
+   runs to 55.36 / 86.30 / 108.63px.
+
+   U+201C / U+201D and U+2026 were audited the same way and are NOT in the
+   range. Neither system font draws them full-width either, so switching would
+   have bought a ~2px narrower quote and a ≤0.5px ellipsis — a different font,
+   not a fixed defect. The other Chinese marks (，。、：；？（）／「」) are
+   full-width codepoints IBM Plex does not cover, so they already resolve to
+   the CJK font and are untouched. `·` and `–` stay on IBM Plex on purpose:
+   the English source uses the same characters in the same role.
+
+   SC and TC get SEPARATE faces — one Chinese locale must never borrow the
+   other's dash. `src` lists `local()` candidates only, in the same order and
+   from the same families as the stacks below, so no font file is downloaded
+   and the offline / portable contract is unchanged. If none of the candidates
+   is installed the face contributes nothing and U+2014 falls straight through
+   to `'IBM Plex Sans'` — today's rendering, no tofu. `en`, `ko` and `ja` never
+   reference these families, and an `<input>` does not inherit `--font-sans`
+   at all (the UA stylesheet resets it), so neither is affected. */
+@font-face {
+  font-family: 'LS CJK Punct SC';
+  src: local('Microsoft YaHei UI'), local('PingFang SC'), local('Noto Sans CJK SC'),
+    local('Noto Sans SC');
+  unicode-range: U+2014;
+}
+@font-face {
+  font-family: 'LS CJK Punct TC';
+  src: local('Microsoft JhengHei UI'), local('PingFang TC'), local('Noto Sans CJK TC'),
+    local('Noto Sans TC');
+  unicode-range: U+2014;
+}
 :lang(zh-Hans) {
-  --font-sans: 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC',
+  --font-sans: 'LS CJK Punct SC', 'IBM Plex Sans', 'Noto Sans SC', 'PingFang SC',
     'Microsoft YaHei UI', 'Microsoft YaHei', 'Source Han Sans SC',
     'Hiragino Sans GB', sans-serif;
 }
 :lang(zh-Hant) {
-  --font-sans: 'IBM Plex Sans', 'Noto Sans TC', 'PingFang TC',
+  --font-sans: 'LS CJK Punct TC', 'IBM Plex Sans', 'Noto Sans TC', 'PingFang TC',
     'Microsoft JhengHei UI', 'Microsoft JhengHei', 'Source Han Sans TC',
     PMingLiU, sans-serif;
 }
