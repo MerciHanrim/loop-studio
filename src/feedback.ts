@@ -1,4 +1,4 @@
-// The in-app feedback form — a Tally form (Korean-language) linked from the Help
+// The in-app feedback form — a Tally form (English-language) linked from the Help
 // menu, added after a request on the DCInside promo thread for an in-app
 // feedback channel. (Migrated from Typeform 2026-09; same purpose, new host.)
 //
@@ -10,6 +10,9 @@
 // user-agent, to that site.)
 //
 // Single source of truth: both the desktop Help menu and the mobile Help
-// sub-sheet import this. If a multilingual form ships later, drop the
-// "(Korean form)" note from `tour.help.feedback` (EN/JA).
+// sub-sheet import this. The form's content switched from Korean to English on
+// 2026-09-22; the URL did not change with it. The English UI therefore
+// carries no language note, and every other locale says the form is in
+// English — see `tour.help.feedback` / `tour.help.feedbackAria`. If a
+// multilingual form ships later, drop that note from all five.
 export const FEEDBACK_URL = 'https://tally.so/r/9qkk6Y'

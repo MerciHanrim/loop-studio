@@ -333,10 +333,11 @@ mobile identical):
   sub-sheet) opening the feedback form in a **new tab** (`target="_blank"`,
   `rel="noopener noreferrer"` — the referring URL is not sent; the new tab gets
   no `opener`). A decorative `↗` marks the external link; the accessible name
-  says "opens in a new tab". The form is Korean-language for now, noted in the
-  EN/JA label
-  (`Send feedback (Korean form)` / `フィードバックを送る（韓国語フォーム）`); the KO
-  label is `피드백 보내기`. Loop Studio attaches no model content, document data,
+  says "opens in a new tab". The form itself is **English-only**, so the EN
+  label carries no note at all (`Send feedback`) and every other locale says
+  so briefly in its own language — `피드백 보내기 (영문 양식)`,
+  `フィードバックを送る（英語フォーム）`, `Envoyer un retour (formulaire en anglais)`.
+  Loop Studio attaches no model content, document data,
   user identifier, or current-page information to the URL — it is a plain link
   with no query string.
 - **`About Loop Studio`** — opens the About dialog (§GT7.1).
@@ -430,8 +431,9 @@ and KO `satisfies MessageCatalog`, e.g.:
   `inspector` · `playback` · `timeline` · `files`
 - `tour.mobile.<step>.title` / `.body` for the six mobile steps
 - `tour.help.menuLabel` · `tour.help.takeTour` · `tour.help.about` ·
-  `tour.help.feedback` (the "Send feedback" link text — EN/JA note the
-  Korean-only form) · `tour.help.feedbackAria` (its accessible name, which
+  `tour.help.feedback` (the "Send feedback" link text — every non-English
+  locale notes that the form is in English) · `tour.help.feedbackAria` (its
+  accessible name, which
   repeats the visible text and adds "opens in a new tab")
 - `about.createdBy` (= `"Created by"` / `"제작:"`), `about.repo` (the GitHub
   link text, `"GitHub repository"` / `"GitHub 저장소"`), `about.repoAria` (its

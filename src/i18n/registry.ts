@@ -108,6 +108,20 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/zh-Hant').then((m) => m.default),
   },
+  {
+    // France French. `fr-FR` / `fr-BE` / `fr-CH` / `fr-CA` / `fr-LU` all land
+    // here through the ordinary base-subtag rule — French needs no script
+    // mapping of its own. It is NOT a separate Canadian localisation: the
+    // divergences in this product's vocabulary are lexical, not semantic.
+    code: 'fr',
+    englishName: 'French',
+    nativeName: 'Français',
+    displayNameKey: 'language.french',
+    direction: 'ltr',
+    numberLocale: 'fr',
+    enabled: true,
+    catalog: () => import('./locales/fr').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,
