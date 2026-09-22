@@ -218,6 +218,54 @@ used). `--font-mono` is a separate variable and stays untouched, and an
 `<input>` does not inherit `--font-sans` at all — the UA stylesheet resets it —
 so an input is never evidence that the override works.
 
+**L2.6 — descriptive copy wraps by the rules of its own language.** The two
+multi-line descriptive surfaces — `.menu__blurb` (menu descriptions, clamped
+to two lines) and `.palette-tip__desc` (palette tooltips) — both carried a bare
+`word-break: keep-all`. It was added for **Korean**: a particle otherwise
+breaks mid-word and strands a single character on the next line, which six of
+the eight Korean tooltip descriptions did (measured with a `Range` per
+어절, 2026-09-15). The declaration was never scoped, and `keep-all` removes
+**every** break opportunity inside a space-less CJK sentence — so Japanese and
+Chinese copy could not use its second line at all and spilled sideways
+instead. Measured 2026-09-22, before the fix:
+
+| locale | overflowing elements | worst |
+|---|---|---|
+| `en` | 0 | — |
+| `ko` | 0 | — |
+| `ja` | **5** | **104 px** |
+| `zh-Hans` | 3 | 31 px |
+| `zh-Hant` | 2 | 31 px |
+
+The line clamp was never the cause: a 232 px box was holding a 250 px
+**single** line with the second line free. The text simply had nowhere legal
+to break.
+
+The rule now states what it means — Korean asks for `keep-all`, nobody else
+does:
+
+```css
+:lang(ko)  :is(.menu__blurb, .palette-tip__desc) { word-break: keep-all; }
+:lang(ja)  :is(...), :lang(zh) :is(...)          { word-break: normal; }
+@supports (word-break: auto-phrase) {
+  :lang(ja) :is(...), :lang(zh) :is(...)         { word-break: auto-phrase; }
+}
+```
+
+That normal-then-`auto-phrase` shape is the same one `.nodef__title` already
+uses (§MML1): plain breaking as the floor, phrase-aware breaking where the
+engine ships a line-break dictionary, so Chinese and Japanese break on meaning
+units rather than between arbitrary characters. Scoping it this way also means
+a future CJK locale is not trapped behind a shared default that was only ever
+right for Korean. `:lang(zh)` matches both `zh-Hans` and `zh-Hant` — pinned by
+test, since the script subtag must not stop it.
+
+English keeps the initial value: its computed `keep-all` was incidental, not a
+contract, and the rendered line count is unchanged (40 before and after).
+Korean is unchanged on every axis that matters — `keep-all` still computed, 38
+lines, and zero mid-syllable breaks, all measured.
+`e2e/descriptive-copy-wrapping.spec.ts` holds the contracts.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**
