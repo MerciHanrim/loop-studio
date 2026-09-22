@@ -1,7 +1,8 @@
-// docs/bundled-module-label-localization.md — a KO/JA node-`label` overlay for
-// the bundled "Insert module" Building blocks (`src/model/modules.ts`
-// `BUNDLED_MODULES`), applied ONLY at the moment a block is freshly inserted
-// (menu click or canvas drag-drop — both funnel through `cloneModuleDoc`).
+// docs/bundled-module-label-localization.md — the node-`label` overlay for the
+// bundled "Insert module" Building blocks (`src/model/modules.ts`
+// `BUNDLED_MODULES`), applied when a block is freshly inserted (menu click or
+// canvas drag-drop — both funnel through `cloneModuleDoc`) AND kept in sync
+// afterwards on a locale switch (§MLS3.1, `./moduleLabelSync.ts`).
 // Mirrors `src/i18n/templateLabels/` in shape (`id -> id -> label`) but stays a
 // single small static map, not a lazy per-locale chunk: two modules, under a
 // dozen nodes apiece, inserted rarely — the async `DICT_LOADERS` machinery
@@ -15,10 +16,21 @@
 //
 // Keyed by each module's own CANONICAL node ids (`examples/module-*.json`,
 // e.g. `supply`, `inbox`) — the ids `insertGraph` re-issues on every insert
-// (docs/module-system.md §MS1.2), never the host graph's post-insert ids. An
-// already-inserted instance is plain graph JSON on reload (`loadDoc` never
-// re-runs the insert path), so it is never retranslated after the fact — a
-// later locale switch only affects the NEXT insert, by design.
+// (docs/module-system.md §MS1.2), never the host graph's post-insert ids. That
+// works because the overlay is applied INSIDE `cloneModuleDoc`, before the ids
+// are re-issued.
+//
+// An ALREADY-INSERTED instance does follow a later locale switch: §MLS3.1's
+// `relabelModuleNodesForLocale` re-reads this same map, matching on the
+// provenance record of the label this feature last wrote, never on ids or on
+// string content. A node the user has renamed is detached permanently and is
+// never switched again. (An earlier revision of this comment claimed a switch
+// only affected the NEXT insert — that stopped being true when §MLS4 shipped.)
+//
+// EVERY shipped locale except `en` needs an entry here. `en` is the canonical
+// graph label and correctly has none; the dev pseudo-locale is out of scope.
+// `moduleLabels.test.ts` derives that requirement from the registry, so a new
+// language cannot ship without its overlay.
 
 export type ModuleLabelMap = Record<string, string> // canonical node id -> localized label
 
@@ -74,11 +86,113 @@ const JA: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
-const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = { ko: KO, ja: JA }
+// Written from the ENGLISH canonical labels, not converted from Traditional.
+// `输入缓冲` / `输出缓冲` are the same words this locale's own module blurb
+// already uses ("带输入缓冲与输出缓冲的生产环节"), and `供应` / `加工` / `出货`
+// match its production-line Template dict — the concepts are identical there.
+const ZH_HANS: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: '供应',
+    inbox: '输入缓冲',
+    intake: '入库',
+    process: '加工',
+    spoilage: '损耗',
+    outbox: '输出缓冲',
+    shipped: '出货',
+    batch_size: '批量大小',
+    in_system: '系统内数量',
+    planned_run: '计划处理量',
+  },
+  'reward-split': {
+    activity: '活动',
+    wallet: '钱包',
+    allocate: '分配',
+    spending: '支出',
+    savings: '储蓄',
+    withdrawals: '提取',
+    target_savings: '储蓄目标',
+    net_worth: '净资产',
+    progress: '目标达成率',
+  },
+}
+
+// Written from the ENGLISH canonical labels, independently of Simplified.
+// `輸入緩衝` / `輸出緩衝` match this locale's own module blurb
+// ("帶有輸入緩衝與輸出緩衝的生產環節"), and `供應` / `加工` / `出貨` match its
+// production-line Template dict.
+const ZH_HANT: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: '供應',
+    inbox: '輸入緩衝',
+    intake: '入庫',
+    process: '加工',
+    spoilage: '損耗',
+    outbox: '輸出緩衝',
+    shipped: '出貨',
+    batch_size: '批次大小',
+    in_system: '系統內數量',
+    planned_run: '計畫處理量',
+  },
+  'reward-split': {
+    activity: '活動',
+    wallet: '錢包',
+    allocate: '分配',
+    spending: '支出',
+    savings: '儲蓄',
+    withdrawals: '提領',
+    target_savings: '儲蓄目標',
+    net_worth: '淨資產',
+    progress: '目標達成率',
+  },
+}
+
+// `Tampon d'entrée` / `Tampon de sortie` are the exact words this locale's
+// module blurb uses ("avec un tampon d'entrée et un tampon de sortie"), and
+// `Approvisionnement` / `Transformation` / `Expédition` match its
+// production-line Template dict. Apostrophes are U+2019 (§L2.8).
+const FR: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Approvisionnement',
+    inbox: 'Tampon d’entrée',
+    intake: 'Réception',
+    process: 'Transformation',
+    spoilage: 'Pertes',
+    outbox: 'Tampon de sortie',
+    shipped: 'Expédition',
+    batch_size: 'Taille du lot',
+    in_system: 'Unités dans le système',
+    planned_run: 'Production prévue',
+  },
+  'reward-split': {
+    activity: 'Activité',
+    wallet: 'Portefeuille',
+    allocate: 'Répartir',
+    spending: 'Dépenses',
+    savings: 'Épargne',
+    withdrawals: 'Retraits',
+    target_savings: 'Objectif d’épargne',
+    net_worth: 'Valeur nette',
+    progress: 'Progression vers l’objectif',
+  },
+}
+
+const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
+  ko: KO,
+  ja: JA,
+  'zh-Hans': ZH_HANS,
+  'zh-Hant': ZH_HANT,
+  fr: FR,
+}
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if
  *  `locale` has none (English, or a module not listed above) — the caller
  *  keeps the canonical English labels in that case. */
 export function moduleLabelOverlay(moduleId: string, locale: string): ModuleLabelMap | undefined {
   return OVERLAYS[locale]?.[moduleId]
+}
+
+/** The locales this overlay covers, for the registry-derived completeness
+ *  guard in `moduleLabels.test.ts`. Not used by the product. */
+export function moduleLabelLocales(): readonly string[] {
+  return Object.keys(OVERLAYS)
 }
