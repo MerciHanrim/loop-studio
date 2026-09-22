@@ -27,7 +27,7 @@ const dataImport = {
   'import.delimiterTab': '制表符',
   'import.headerRow': '表头行',
   'import.ignoreLastRows': '忽略末尾 N 行',
-  'import.parseError': '这段文本不是有效的 CSV/TSV：第 {line} 行第 {column} 列{kind}。',
+  'import.parseError': '这段文本不是有效的 CSV/TSV：第 {line} 行第 {column} 个字符{kind}。',
   'import.parseErrorKind.unterminated-quote': '有未闭合的引号',
   'import.parseErrorKind.text-after-quote': '在结束引号后紧跟了意外的文本',
   'import.parseErrorKind.quote-in-unquoted-field': '未加引号的字段中出现了引号',

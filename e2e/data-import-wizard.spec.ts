@@ -156,16 +156,21 @@ test('review round 3 -- a validation issue reports the RAW source line number, n
   await expect(dialog(page).getByText(/row 2\b/)).toHaveCount(0)
 })
 
-for (const [loc, needle] of [
-  ['ko', '닫히지 않은 따옴표'],
-  ['ja', '閉じられていない引用符'],
+// docs/localization.md §L2.11 — `{column}` in a parse error is a 1-based
+// CHARACTER offset (`src/model/csv.ts`: "1-based character offset within that
+// row"), so each locale must say so in its own words. `char` is what the
+// message must contain, `notChar` the TABLE-column wording it must not
+// borrow — the same input is line 2, character 1.
+for (const [loc, needle, importLabel, char, notChar] of [
+  ['ko', '닫히지 않은 따옴표', '데이터 ▾', '1번째 문자', '1열'],
+  ['ja', '閉じられていない引用符', 'データ ▾', '1文字目', '1列目'],
+  ['zh-Hans', '有未闭合的引号', '数据 ▾', '第 1 个字符', '第 1 列'],
 ] as const) {
   test(`review round 3 -- ${loc} shows a translated CSV parse-error message, never the raw internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(loc)
 
-    const importButtonText = loc === 'ko' ? '데이터 ▾' : 'データ ▾'
-    const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
+    const importBtn = page.getByRole('button', { name: importLabel, exact: true })
     if (!(await importBtn.isVisible())) {
       await page.locator('.toolbar__overflow-btn').click()
     }
@@ -185,6 +190,9 @@ for (const [loc, needle] of [
     const errorText = await dialog(page).locator('.import__error').first().textContent()
     expect(errorText).toContain(needle)
     expect(errorText).not.toContain('unterminated-quote') // the raw internal code must never leak through
+    // §L2.11 — the position is a character offset, not a table column
+    expect(errorText, `${loc}: the parse error must name a CHARACTER position`).toContain(char)
+    expect(errorText, `${loc}: must not borrow the table-column wording`).not.toContain(notChar)
   })
 }
 

@@ -321,7 +321,9 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await page.locator('.regexpr input[role="combobox"]').fill('1 +')
     const parse = page.locator('aside.inspector .regrb--parse')
     await expect(parse).toContainText(/EXPR_[A-Z_]+/) // code — never translated
-    await expect(parse).toContainText('열') // KO "column" — message localised
+    // §L2.11 — the position is a 1-based CHARACTER offset, so KO says
+    // `N번째 문자`, not the table-column word it used to borrow
+    await expect(parse).toContainText('번째 문자') // message localised
   })
 
   test('Timeline chrome localizes; the EN axis text stays "step N"', async ({ page }) => {
