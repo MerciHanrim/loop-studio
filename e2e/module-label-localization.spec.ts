@@ -74,9 +74,62 @@ const LABELS = {
   },
 } as const
 
+type SwitchResult =
+  | { status: 'ready'; active: string; lang: string }
+  | { status: 'failed'; requested: string; active: string; lang: string; failed: string }
+
+/** Wait for the switch INSIDE the page, in one call.
+ *
+ *  The previous shape polled `document.documentElement.lang` from Node with
+ *  `expect.poll`, which failed a main CI run (`1a3eaba`) for `ko` and `ja`. The
+ *  trace showed why, and it was not the catalog: every `ko` / `ja` module
+ *  answered 200 in 3-11 ms, no request failed, and no error reached the
+ *  console. What stalled was the OBSERVATION — one `page.evaluate` sample took
+ *  10.1 s (`ja`) and 17.9 s (`ko`). `expect.poll` cannot interrupt a pending
+ *  sample, so the 8 s budget (the project-wide `expect.timeout`, not a choice
+ *  made here) expired around it, and the value it reported was the FIRST
+ *  sample, taken 11 ms after `setLocale` and therefore still `en`. The `ja`
+ *  sample eventually returned `"ja"`: the product had switched correctly and
+ *  the assertion gave up ~2.3 s too early.
+ *
+ *  So: one `waitForFunction` instead of repeated Node->browser round trips,
+ *  and a real failure is reported as one — `loadError` is the product's own
+ *  signal (`src/i18n/store.ts`, surfaced as `.boot-notice[role="status"]`), so
+ *  an aborted catalog fails here immediately with the requested / active /
+ *  lang triple rather than burning the whole timeout. Success requires BOTH
+ *  `<html lang>` and `activeLocale`, so a half-applied switch cannot pass.
+ *
+ *  The 20 s belongs to this observation only; the test timeout stays 30 s. */
 async function setLocale(page: Page, code: Locale) {
   await page.evaluate((c) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (c: string) => void } } } }).__loop.i18n.getState().setLocale(c), code)
-  await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(code)
+
+  const handle = await page.waitForFunction(
+    (c) => {
+      const state = (
+        window as unknown as {
+          __loop: { i18n: { getState: () => { activeLocale: string; loadError: { code: string } | null } } }
+        }
+      ).__loop.i18n.getState()
+      const lang = document.documentElement.lang
+
+      if (state.loadError?.code === c) {
+        return { status: 'failed', requested: c, active: state.activeLocale, lang, failed: state.loadError.code }
+      }
+      if (lang === c && state.activeLocale === c) {
+        return { status: 'ready', active: state.activeLocale, lang }
+      }
+      return false as const
+    },
+    code,
+    { timeout: 20_000 },
+  )
+
+  const result = (await handle.jsonValue()) as SwitchResult
+  if (result.status === 'failed') {
+    throw new Error(
+      `locale load failed: requested ${result.requested}, active ${result.active}, html lang ${result.lang}`,
+    )
+  }
 }
 
 const moduleMenu = (page: Page, loc: Locale) =>
