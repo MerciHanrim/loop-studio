@@ -156,12 +156,59 @@ Re-measured on 2026-09-21 when `zh-Hant` was registered, with a sample that
 also carries Traditional-only Han, the corner brackets 「」 and full-width
 punctuation: Microsoft JhengHei UI × 19 on every surface across all three
 artefacts, 微軟正黑體 in the `<input>`, all 21 characters resolved, and no
-Korean, Japanese or Simplified-only family anywhere. One known gap is recorded
-separately: the em dash `—` and the curly quotes `“”` are covered by
-`'IBM Plex Sans'`, which leads the stack, so a Latin font draws them in BOTH
-Chinese locales. Traditional uses 「」, which the CJK font draws correctly, so
-only the dash is affected here; the fix is its own follow-up and is not mixed
-into a locale PR.
+Korean, Japanese or Simplified-only family anywhere.
+
+**L2.5a — the Chinese em dash needs a face of its own.** `'IBM Plex Sans'`
+leads both Chinese stacks and it COVERS U+2014, so until 2026-09-21 a LATIN
+font drew the Chinese double dash `——` while the Han around it came from the
+CJK font. That is not a "different font was picked" quibble; the shape is
+wrong. Measured at 22px, identically on the dev server, the served PWA build
+and the portable single file:
+
+| | advance | ink | inked runs |
+|---|---|---|---|
+| `——` on IBM Plex Sans | 34.33 px | 32.75 px | **2** — two short strokes with a gap |
+| `——` on the CJK font | 47.53 px | 47.50 px | **1** — one continuous full-width rule |
+
+A Chinese dash occupies one full-width slot per character and the pair joins
+into an unbroken line. The Latin em dash is 0.74 em and leaves a visible gap,
+so the pair reads as two dashes rather than one. Inside a Han run the same
+thing is countable: four inked runs instead of three.
+
+The fix is two `@font-face` rules — `LS CJK Punct SC` and `LS CJK Punct TC`,
+separate so one Chinese locale can never borrow the other's dash — each with
+`unicode-range: U+2014` and `local()` candidates drawn from the same families
+as the stack below it. Each is placed at the FRONT of its `:lang()` stack.
+
+**Why the range is exactly one codepoint.** `unicode-range` is the whole
+mechanism: it is what stops the family being consulted for anything else.
+Latin letters, digits and code tokens therefore stay on IBM Plex Sans —
+`Ag07` measures 52.13 px, `資CSV源` 83.84 px and `資 4900 源` 107.19 px
+before and after, with byte-identical font attribution. Leading the stacks
+with a whole CJK family instead was measured and rejected: it moves those same
+runs to 55.36 / 86.30 / 108.63 px, changing Latin glyphs the UI wants to keep.
+
+**U+201C / U+201D and U+2026 were audited the same way and deliberately left
+out.** Neither system font draws them full-width either, so switching would
+have bought a ~2 px narrower quote (10.45 → 8.30 px) and an ellipsis that
+differs by ≤0.5 px — a different font, not a repaired defect. Every other
+Chinese mark in the catalogs (，。、：；？（）／「」) is a full-width codepoint
+IBM Plex does not cover, so it already resolved to the CJK font and is
+untouched. `·` (U+00B7) and `–` (U+2013) stay on IBM Plex on purpose: the
+English source uses the same characters in the same role, and the UI should
+read the same in both.
+
+**Contracts.** `en`, `ko` and `ja` never reference these families and are
+unchanged; an `<input>` does not inherit `--font-sans` at all (the UA
+stylesheet resets it to Arial + the system CJK face), and no affected mark
+appears in any placeholder or input value. `src` lists `local()` candidates
+only, so no font file is downloaded, nothing is added to the production bundle
+or the portable single file, and rendering Chinese costs no extra request. On
+a machine where none of the candidates is installed the face contributes
+nothing and U+2014 falls straight through to `'IBM Plex Sans'` — exactly the
+previous rendering, no tofu. `e2e/cjk-punctuation-font.spec.ts` pins all of
+it by measurement (platform font, advance width, and an off-screen canvas scan
+that counts the inked runs).
 
 No tofu in either state: the defect is regional-shape substitution, invisible
 to a "does it render" check, so the contract is verified against the platform
