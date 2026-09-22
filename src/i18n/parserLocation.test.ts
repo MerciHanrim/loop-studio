@@ -1,5 +1,6 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
+import de from './locales/de'
 import en from './locales/en'
 import fr from './locales/fr'
 import ja from './locales/ja'
@@ -27,7 +28,7 @@ import zhHant from './locales/zh-Hant'
 // distinguishes them. `fr` and `zh-Hant` already did; `ko` / `ja` /
 // `zh-Hans` said "column" for both.
 
-const CATALOGS = { en, ko, ja, 'zh-Hans': zhHans, 'zh-Hant': zhHant, fr } as const
+const CATALOGS = { en, ko, ja, 'zh-Hans': zhHans, 'zh-Hant': zhHant, fr, de } as const
 type Loc = keyof typeof CATALOGS
 
 /** a position no other number in these messages can collide with */
@@ -64,15 +65,25 @@ const TABLE_KEYS = [
  *  wording that must not appear in a parser message. English is the base and
  *  keeps its own "column" wording — it is the origin of the drift, not a
  *  locale being corrected here. */
-const VOCAB: Record<Exclude<Loc, 'en'>, { char: string; table: string }> = {
+const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }> = {
   ko: { char: `${N}번째 문자`, table: `${N}열` },
   ja: { char: `${N}文字目`, table: `${N}列目` },
   'zh-Hans': { char: `第 ${N} 个字符`, table: `第 ${N} 列` },
   'zh-Hant': { char: `第 ${N} 個字元`, table: `第 ${N} 欄` },
   fr: { char: `caractère ${N}`, table: `colonne ${N}` },
+  // German splits the same way: `Zeichen` for a character offset,
+  // `Spalte` for a real table column (§L2.12).
+  // both approved German forms: `Zeichen {column}` next to the thing at
+  // that position, `an Zeichenposition {column}` as a standalone phrase
+  de: { char: new RegExp(`Zeichen(position)? ${N}`), table: `Spalte ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]
+
+/** `char` is a string for the locales with one fixed wording and a RegExp
+ *  where the language legitimately has more than one (German). */
+const saysChar = (out: string, char: string | RegExp) =>
+  typeof char === 'string' ? out.includes(char) : char.test(out)
 
 describe('a parser position is a CHARACTER offset, in every language', () => {
   for (const loc of LOCS) {
@@ -80,7 +91,8 @@ describe('a parser position is a CHARACTER offset, in every language', () => {
       const wrong: string[] = []
       for (const key of PARSER_KEYS) {
         const out = render(loc, key)
-        if (!out.includes(VOCAB[loc].char)) wrong.push(`${key}: no character wording → ${out}`)
+        if (!saysChar(out, VOCAB[loc].char))
+          wrong.push(`${key}: no character wording → ${out}`)
         if (out.includes(VOCAB[loc].table)) wrong.push(`${key}: table-column wording → ${out}`)
       }
       expect(wrong).toEqual([])
@@ -114,9 +126,10 @@ describe('a real table column keeps its own word', () => {
       for (const key of TABLE_KEYS) {
         const out = render(loc, key)
         expect(out, `${loc} ${key}`).toContain(VOCAB[loc].table)
-        expect(out, `${loc} ${key} must not borrow the character wording`).not.toContain(
-          VOCAB[loc].char,
-        )
+        expect(
+          saysChar(out, VOCAB[loc].char),
+          `${loc} ${key} must not borrow the character wording`,
+        ).toBe(false)
       }
     })
   }

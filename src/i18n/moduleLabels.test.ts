@@ -60,20 +60,28 @@ describe('moduleLabelOverlay', () => {
     })
   }
 
-  // Each locale must own its map. This checks OBJECT IDENTITY, not content:
-  // two independently written translations may legitimately coincide — the
-  // two Chinese scripts already share `分配` for `allocate` and `支出` for
-  // `spending`, and a future pair could coincide entirely. What must never
-  // happen is two locales pointing at the SAME mutable object, where editing
+  // Each map must be its own object. This checks OBJECT IDENTITY, not
+  // content: two independently written translations may legitimately coincide
+  // — the two Chinese scripts already share `分配` for `allocate` and `支出`
+  // for `spending`, and a future pair could coincide entirely. What must never
+  // happen is two entries pointing at the SAME mutable object, where editing
   // one silently edits the other.
+  //
+  // A MISSING overlay is not this test's business. It is reported, by id, by
+  // the completeness test above; collecting the `undefined` here instead made
+  // the second bundled module collide with the first and blamed the locale for
+  // "reusing its own overlay object", which is not what had gone wrong. `de`
+  // was the first language to hit that red state for real (§MLS4.5).
   it('no two locales share the same overlay object', () => {
     const seen = new Map<object, string>()
     for (const locale of NEEDS_OVERLAY) {
       for (const m of BUNDLED_MODULES) {
-        const overlay = moduleLabelOverlay(m.id, locale)!
+        const overlay = moduleLabelOverlay(m.id, locale)
+        if (!overlay) continue // absence belongs to the completeness test
+        const here = `${m.id} / ${locale}`
         const prev = seen.get(overlay)
-        expect(prev, `${m.id} — ${locale} reuses ${prev}'s overlay object`).toBeUndefined()
-        seen.set(overlay, locale)
+        expect(prev, `${here} and ${prev} are the SAME overlay object`).toBeUndefined()
+        seen.set(overlay, here)
       }
     }
   })

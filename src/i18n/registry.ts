@@ -122,6 +122,26 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/fr').then((m) => m.default),
   },
+  {
+    // Germany Standard German. `de-DE` / `de-AT` / `de-CH` / `de-LI` /
+    // `de-LU` and every other `de-*` land here through the ordinary
+    // base-subtag rule, so German needs no mapping of its own.
+    //
+    // This is deliberately ONE catalog, written in Germany Standard German,
+    // and it does not pretend to be Swiss or Austrian: Swiss German writes
+    // `ss` where this catalog writes `ß`, so a `de-CH` reader sees spelling
+    // that is not theirs. Splitting `de-CH` would not be a mechanical
+    // `ß`->`ss` pass either (the vocabulary diverges too), so it stays a
+    // stated trade-off rather than a hidden one (docs/localization.md §L2.12).
+    code: 'de',
+    englishName: 'German',
+    nativeName: 'Deutsch',
+    displayNameKey: 'language.german',
+    direction: 'ltr',
+    numberLocale: 'de',
+    enabled: true,
+    catalog: () => import('./locales/de').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

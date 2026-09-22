@@ -434,13 +434,124 @@ needs, in one place:
 | 5 | regenerated known labels | `templateLabels/known.generated.ts` | `gen:known-labels` + `check:template-labels` |
 | 6 | **bundled-module overlay** | `src/i18n/moduleLabels.ts` | `moduleLabels.test.ts` (registry-derived) |
 | 7 | production locale count + list | `e2e/dist.spec.ts` | `npm run e2e:dist` |
-| 8 | dev picker option count | `e2e/i18n.spec.ts` | the default e2e run |
+| 8 | dev picker option count **and every earlier locale's spec** | `e2e/i18n.spec.ts` + `e2e/i18n-<code>.spec.ts` | the default e2e run |
 | 9 | rendered-string guards | `icuEscaping.test.ts`, `parserLocation.test.ts` | the unit suite |
 
 Items 6 and 9 are the ones a locale PR forgets, because nothing about writing
 a catalog points at them. Each is now derived from the shipped-locale set
 rather than listed by hand, so the suite goes red on the omission instead of
 the product going half-English.
+
+**Item 8 is the one that bites in the opposite direction**, and `de` proved it
+(#262, CI red on the first push). A per-locale spec written at language *N*
+records what was true then: `i18n-fr.spec.ts` asserted `de-DE` reaches `en`
+("still unregistered — French must not have widened this") and counted 7
+picker options. Both were correct when French shipped and both were wrong the
+moment German did — **the product was right and the test was stale.** So
+language *N+1* must revisit every earlier `i18n-<code>.spec.ts`, not just
+`i18n.spec.ts`. Two rules make that cheap:
+
+- an "unregistered" probe tag must be a language **not on the roadmap** — the
+  `de` spec uses `nl-NL`, and `i18n-fr.spec.ts` now does too, because picking
+  the next language to ship guarantees the row rots;
+- the picker option count is written as `<shipped> + the dev pseudo-locale`,
+  so a stale number is visible in the comment rather than only in the failure.
+
+The count still lives in three specs by hand. Deriving it from `LOCALES` would
+need the runner to import product code, which no e2e file does today; that is
+a recorded follow-up, not something this checklist pretends is solved.
+
+**L2.12 — German is ONE catalog, in Germany Standard German, and says so.**
+The registry entry is `de`, with no region. `de-DE`, `de-AT`, `de-CH`,
+`de-LI`, `de-LU` and every other `de-*` reach it through the ordinary
+base-subtag step of the §L5.2 order; German needs no mapping of its own, and
+a stored `de-AT` is not a code, so it is ignored like any unregistered value.
+
+The trade-off is stated rather than hidden: **Swiss German does not use `ß`**,
+writing `ss` everywhere this catalog writes `ß`, so a `de-CH` reader sees
+spelling that is not theirs. Splitting `de-CH` off would not be a mechanical
+`ß`→`ss` pass either — the vocabulary diverges too — so it stays one catalog
+until someone reports a term that genuinely misreads there.
+
+**German plural is `one` / `other`, and 0 takes `other`.**
+`Intl.PluralRules('de')` has exactly two categories, no `many`, and
+`select(0)` is `other` — the **opposite** of French, where 0 takes `one`
+(§L4.6). So German writes `0 Zeilen`, not `0 Zeile`. All 19 plural messages
+are rendered at 0, 1, 2 and 1,000,000 by `parserLocation`-style tests and by
+the checkpoint measurement.
+
+**`Schritt` covers both senses of "step".** French needed `pas` for a
+simulation timestep and `étape` for a stage of a procedure (§L2.7). German
+does not: `Schritt 12 von 30` and `Produktionsschritt` are both idiomatic, and
+`Schritt` carries none of the "fixed position in a sequence" connotation that
+made `étape` wrong for the engine. Where a procedural sense needs naming, the
+compound does it — `Arbeitsschritt`, `Produktionsschritt`.
+
+**The spreadsheet vocabulary splits three ways**, one more than French needed:
+
+| English | German | what it is |
+|---|---|---|
+| spreadsheet (the file) | **`Tabellenblatt`** | the document the user imports |
+| spreadsheet (the app) | **`Tabellenkalkulation`** | Excel, Google Sheets |
+| table | **`Tabelle`** | the data table inside the import wizard |
+
+Collapsing any two would make `Tabellenname` ambiguous in a dialog that shows
+all three at once.
+
+**Core glossary.** `Speicher` Pool · `Quelle` Source · `Senke` Drain ·
+`Verteiler` Gate · `Konverter` Converter · `Ende` End · `Parameter` ·
+`Berechneter Wert` Register · `Knoten` node · `Verbindung` connection ·
+`Wegpunkt` waypoint · `Gruppenrahmen` group frame · `Linienführung` route ·
+`Lauf` run · `Schritt` step · `Auslöser` trigger · `Aktivator` activator ·
+`Kapazität` capacity · `Rückstau` backpressure · `Startwert` seed ·
+`Verteilung` distribution · `Ausdruck` expression · `Zeitverlauf` timeline ·
+`Eigenschaften` Inspector · `Vorlage` template · `Modul` module ·
+`Zuordnung` mapping · `Vorschlag` proposal · `Projektstand` project revision ·
+`Zeile` row · `Spalte` column · `Zeichen` character position.
+
+`Quelle`/`Senke` is the German flow-theory pair, so the two read as a pair.
+`Verteiler` says what a Gate does — `Gatter` would be a logic gate.
+`Berechneter Wert` is spelled out rather than compressed to `Rechenwert` so a
+first-time reader knows what the node is; `Register` in German means an index
+or a ledger and would mislead. `Linienführung` names how a connection is
+routed and keeps `Verlauf` free for `Zeitverlauf`. `Projektstand` says "the
+project as it stood", which is what the file is; `Projektversion` was rejected
+as confusable with the app version.
+
+**Gacha** follows the `fr` ruling: the mechanism names stay in the English
+players use — `Pity`, `Hard Pity`, `UP`, and the rarity letters SSR / SR / R
+— while the actions and rates are German (`Ziehung`, `Getätigte Ziehungen`,
+`Ziehungsrate`). `Trefferquote` was rejected: it reads as an accuracy or
+hit-to-miss ratio, not as the chance of drawing a rarity.
+
+**Style.** Impersonal or infinitive wherever it reads naturally
+(`Vorlage laden`, `Modul einfügen`), formal `Sie`/`Ihr` when a sentence needs
+a subject, never `du`. German noun capitalisation only — English Title Case is
+not copied. Quotation marks are `„…“`. Numbers, decimals and units come from
+the locale formatter (`numberLocale: 'de'` → `1.234.567,89`), never hardcoded
+into a string. Compounds are written naturally; where one does not fit, the
+SENTENCE is shortened rather than the compound hyphenated.
+
+**Fonts need no work.** ä ö ü Ä Ö Ü ß all resolve from the bundled IBM Plex
+Sans Latin subset — measured 7/7 glyphs with `CSS.getPlatformFontsForNode` in
+dev, in the production bundle and in the portable single file, with zero
+third-party font requests in all three. No `@font-face` and no
+`unicode-range` work, unlike Chinese (§L2.5a).
+
+**The bundled-module overlay (§L2.11a item 6) takes the dict word three times
+and refuses it three times.** `Verarbeitung` / `Versand` / `Ausschuss` come
+straight from the production-line Template dict, and `Eingangspuffer` /
+`Ausgangspuffer` are the exact words the German module blurb already uses.
+The three refusals are the interesting ones:
+
+| node | German | why not the obvious word |
+|---|---|---|
+| `planned_run` | `Geplante Produktion` | `Lauf` is the app's own word for a simulation run, so `Geplanter Lauf` would read as a scheduled run |
+| `savings` | `Ersparnisse` | the blurb's `Sparen` is an infinitive inside a verb phrase; a Pool holds a stock, so it needs the noun. `Sparziel` keeps the stem |
+| `supply` | `Nachschub` | the dict's `Materialnachschub` asserts the contents are material, and the bundled module is generic |
+
+`Abhebungen` for `withdrawals` is the German banking usage, the same
+reasoning that gave `zh-Hant` its `提領`.
 
 ## L3. The string catalog
 

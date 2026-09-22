@@ -43,6 +43,7 @@ const ui = {
   'language.chineseSimplified': '중국어 간체',
   'language.chineseTraditional': '중국어 번체',
   'language.french': '프랑스어',
+  'language.german': '독일어',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',

@@ -1,5 +1,6 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
+import de from './locales/de'
 import en from './locales/en'
 import fr from './locales/fr'
 import ja from './locales/ja'
@@ -13,7 +14,7 @@ import zhHant from './locales/zh-Hant'
 // a `{n}` that became `{count}`; neither of these is an argument mistake, so
 // neither is visible to it.
 
-const CATALOGS = { fr, ja, ko, 'zh-Hans': zhHans, 'zh-Hant': zhHant } as const
+const CATALOGS = { de, fr, ja, ko, 'zh-Hans': zhHans, 'zh-Hant': zhHant } as const
 
 /** Enough of an argument bag to render anything: a number satisfies a plain
  *  slot, `number` and `plural`, and falls through a `select` to its `other`

@@ -43,6 +43,7 @@ describe('officialTemplateLabelIndex', () => {
     expect([...(idx.known.get('level') ?? [])].sort()).toEqual([
       'Level',
       'Niveau',
+      'Stufe',
       'レベル',
       '等級',
       '等级',
@@ -58,6 +59,7 @@ describe('officialTemplateLabelIndex', () => {
     expect(idx.byLocale.get('zh-Hans')?.get('level')).toBe('等级')
     expect(idx.byLocale.get('zh-Hant')?.get('level')).toBe('等級')
     expect(idx.byLocale.get('fr')?.get('level')).toBe('Niveau')
+    expect(idx.byLocale.get('de')?.get('level')).toBe('Stufe')
   })
 
   it('covers the production-line templates that share node ids', () => {
@@ -106,7 +108,7 @@ describe('relabelNodesForLocale', () => {
   })
 
   it('falls back to the English canonical for an unknown target locale', () => {
-    const out = relabelNodesForLocale([node('level', '레벨')], 'de')
+    const out = relabelNodesForLocale([node('level', '레벨')], 'nl')
     expect(labels(out)).toEqual(['Level'])
   })
 

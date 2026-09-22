@@ -126,8 +126,10 @@ describe('shouldShowLanguageSearch', () => {
     ).toBe(false)
   })
 
-  it('SHOWS at the six languages this release ships — its first appearance', () => {
-    expect(LOCALES.filter((l) => !l.pseudo)).toHaveLength(LANGUAGE_SEARCH_THRESHOLD)
+  it('SHOWS for the languages this release ships — first reached at six', () => {
+    expect(LOCALES.filter((l) => !l.pseudo).length).toBeGreaterThanOrEqual(
+      LANGUAGE_SEARCH_THRESHOLD,
+    )
     expect(shouldShowLanguageSearch(LOCALES)).toBe(true)
   })
 })

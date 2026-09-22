@@ -566,7 +566,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(trigger).toHaveAttribute('aria-haspopup', 'listbox')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 
-    // Enter opens. At six shipped languages the picker is a combobox: the
+    // Enter opens. Past the six-language threshold the picker is a combobox: the
     // search box owns focus, so it — not the listbox — is what carries
     // aria-activedescendant (§L5.4).
     await trigger.focus()
@@ -575,14 +575,14 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     const pop = page.locator('.lang-menu__pop')
     const list = pop.locator('[role="listbox"]')
     await expect(list).toBeVisible()
-    // §L5.4 — six shipped LANGUAGES now reaches the threshold, so the search
+    // §L5.4 — the shipped LANGUAGES are past the threshold, so the search
     // box appears (the dev pseudo-locale still does not count towards it) and
     // focus lands in the box rather than on the listbox.
     const search = pop.locator('input[role="combobox"]')
     await expect(search).toHaveCount(1)
     await expect(search).toBeFocused()
     const opts = list.locator('[role="option"]')
-    await expect(opts).toHaveCount(7) // en, ko, ja, zh-Hans, zh-Hant, fr, en-XA (dev pseudo)
+    await expect(opts).toHaveCount(8) // en, ko, ja, zh-Hans, zh-Hant, fr, de, en-XA (dev pseudo)
     await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
     await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
     await expect(list.locator('[data-locale="ja"] .menu__name')).toHaveText('日本語')
