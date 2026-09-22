@@ -217,8 +217,20 @@ test.describe('the computed value says what the CSS means', () => {
 })
 
 // ------------------------------------------------------------------ 5
+// This list froze at the locales that existed when it was written: `fr` (#259)
+// and `de` (#262) each shipped without being added, and because the sweep LOOPS
+// a list rather than asserting a count, nothing went red — it just stopped
+// covering two languages. Each of those has its own length sweep in
+// `i18n-fr.spec.ts` / `i18n-de.spec.ts`, but over a different selector set, so
+// `.menu__blurb` and `.palette-tip__desc` were genuinely unmeasured there.
+// docs/localization.md §L2.11a item 8 is what should have caught it.
+//
+// The list stays explicit — each locale needs its own browser context and tag —
+// so ADDING A LANGUAGE MUST ADD A ROW HERE. Neither the title nor the comments
+// name a count: a number would be one more thing that silently goes stale, which
+// is the very failure this change exists to fix.
 test.describe('every shipped locale', () => {
-  test('all descriptive copy fits, in all five', async ({ page }) => {
+  test('all descriptive copy fits, in all shipped locales', async ({ page }) => {
     const bad: string[] = []
     for (const [lang, tag] of [
       ['en', 'en-US'],
@@ -226,6 +238,8 @@ test.describe('every shipped locale', () => {
       ['ja', 'ja-JP'],
       ['zh-Hans', 'zh-CN'],
       ['zh-Hant', 'zh-TW'],
+      ['fr', 'fr-FR'],
+      ['de', 'de-DE'],
     ] as const) {
       const { ctx, page: p } = await pageAt(page, tag)
       await openApp(p)
