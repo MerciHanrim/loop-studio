@@ -4086,6 +4086,15 @@ a.sheet__row {
 }
 .lang-menu__search {
   flex: none;
+  /* an `<input>` carries an intrinsic width from its default `size=20`, and
+     `.lang-menu__pop` is `width: max-content` — so without this the search
+     box, not the locale labels, would decide how wide the popover is
+     (measured: 150px → 206px). The popover keeps sizing itself from the
+     language names and its own `min-width`; a long placeholder now wraps
+     inside the field instead of pushing the menu open. */
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   margin: 2px 2px 6px;
   padding: 5px 8px;
   font: inherit;

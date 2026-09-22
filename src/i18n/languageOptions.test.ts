@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   LANGUAGE_SEARCH_THRESHOLD,
+  foldForSearch,
   labelsEquivalent,
   matchesLanguageQuery,
   shouldShowLanguageSearch,
@@ -125,8 +126,60 @@ describe('shouldShowLanguageSearch', () => {
     ).toBe(false)
   })
 
-  it('stays hidden at the five languages this release ships', () => {
-    expect(LOCALES.filter((l) => !l.pseudo)).toHaveLength(5)
-    expect(shouldShowLanguageSearch(LOCALES)).toBe(false)
+  it('SHOWS at the six languages this release ships — its first appearance', () => {
+    expect(LOCALES.filter((l) => !l.pseudo)).toHaveLength(LANGUAGE_SEARCH_THRESHOLD)
+    expect(shouldShowLanguageSearch(LOCALES)).toBe(true)
+  })
+})
+
+// docs/localization.md §L5.5 — French must be findable without a French
+// keyboard, and the folding must not damage any other writing system.
+describe('foldForSearch', () => {
+  it('drops a combining mark only when it sits on a LATIN letter', () => {
+    expect(foldForSearch('Français')).toBe('francais')
+    expect(foldForSearch('Élève')).toBe('eleve')
+    expect(foldForSearch('Tiếng Việt')).toBe('tieng viet') // Vietnamese, for later
+  })
+
+  it('leaves Japanese voiced kana distinct — the obvious NFD strip would not', () => {
+    expect(foldForSearch('ポ')).not.toBe(foldForSearch('ホ'))
+    expect(foldForSearch('が')).not.toBe(foldForSearch('か'))
+    expect(foldForSearch('日本語')).toBe('日本語')
+  })
+
+  it('leaves Hangul, Han and Cyrillic untouched', () => {
+    expect(foldForSearch('한국어')).toBe('한국어')
+    expect(foldForSearch('繁體中文')).toBe('繁體中文')
+    expect(foldForSearch('Русский')).toBe('русский')
+  })
+
+  it('normalises NBSP and the narrow no-break space to one ASCII space', () => {
+    expect(foldForSearch('a b')).toBe('a b')
+    expect(foldForSearch('a b')).toBe('a b')
+  })
+
+  it('leaves a ligature alone — no ad-hoc transliteration', () => {
+    expect(foldForSearch('œuf')).toBe('œuf')
+  })
+})
+
+describe('matchesLanguageQuery — finding fr', () => {
+  const entry = { code: 'fr', englishName: 'French', nativeName: 'Français' }
+
+  it('finds French with or without the cedilla, and by code or English name', () => {
+    for (const q of ['fr', 'FR', 'French', 'french', 'Français', 'français', 'francais', 'franc']) {
+      expect(matchesLanguageQuery(entry, 'Français', q), q).toBe(true)
+    }
+  })
+
+  it('finds it by its name in the active UI language', () => {
+    expect(matchesLanguageQuery(entry, '프랑스어', '프랑스')).toBe(true) // KO UI
+    expect(matchesLanguageQuery(entry, 'フランス語', 'フランス')).toBe(true) // JA UI
+    expect(matchesLanguageQuery(entry, '法语', '法语')).toBe(true) // zh-Hans UI
+  })
+
+  it('does not collapse unrelated entries', () => {
+    expect(matchesLanguageQuery(entry, 'French', 'deutsch')).toBe(false)
+    expect(matchesLanguageQuery({ code: 'ja', englishName: 'Japanese', nativeName: '日本語' }, '日本語', 'ポ')).toBe(false)
   })
 })

@@ -266,6 +266,104 @@ Korean is unchanged on every axis that matters — `keep-all` still computed, 38
 lines, and zero mid-syllable breaks, all measured.
 `e2e/descriptive-copy-wrapping.spec.ts` holds the contracts.
 
+**L2.7 — French: two glossary terms split by CONTEXT, not by word.** Most of
+the French glossary is a one-to-one substitution. Two are not, and translating
+them by word rather than by meaning produces text that is grammatical and
+wrong:
+
+| English | French | when |
+|---|---|---|
+| step | **`pas`** | a SIMULATION timestep — `Pas 12 / 30`, `Pas écoulés`, playback |
+| step | **`étape`** | a STAGE of a procedure — a production line's shipment step, a wizard's step |
+| spreadsheet | **`feuille de calcul`** | the DOCUMENT the user imports |
+| spreadsheet | **`tableur`** | the APPLICATION (Excel, Sheets) that produced it |
+
+`pas` is the unit the engine advances; `étape` is a position in a sequence a
+person carries out. Using `étape` for the simulation would tell a French
+reader the model has a fixed script, which is the opposite of what a Loop
+Studio graph is. `tableur` for the document is the same class of error in the
+other direction — it names the software where the sentence means the file.
+`données tabulaires` stays available for the abstract shape of the data,
+where neither the file nor the app is meant.
+
+**L2.8 — French typography is part of the string, not of the CSS.** French
+inserts a space before some punctuation, and that space must not break:
+
+| context | character | example |
+|---|---|---|
+| before `;` `?` `!` | U+202F NARROW NO-BREAK SPACE | `Charger ce modèle\u202F?` |
+| inside `«` `»` | U+202F | `«\u202FFichier ▾\u202F»` |
+| before `:` | U+00A0 NO-BREAK SPACE | `remplacé par\u00A0: {name}` |
+| between a number and its unit | U+00A0 | `82\u00A0%`, `5\u00A0kg` |
+| apostrophe | U+2019 RIGHT SINGLE QUOTATION MARK | `d’entrée`, `l’or` |
+
+These are **codepoints in the catalog**, never a CSS or runtime rule: a
+`text-spacing` property cannot know whether a `?` belongs to French prose or
+to a code sample, and a runtime pass would have to re-decide on every render.
+Two consequences follow:
+
+- a string that is **syntax** — an expression placeholder, a URL, a filename,
+  a key path, an operator hint — keeps ASCII throughout. Typesetting a
+  `@ref : 2` hint would make the hint wrong.
+- an automated check for "an ASCII space before `?`" must use a **literal
+  ASCII space**, not `\s`: Python's `\s` and JavaScript's `\s` both match
+  U+202F and U+00A0, so the naive pattern reports every correctly typeset
+  string as a defect.
+
+`e2e/i18n-fr.spec.ts` reads the replace-template dialog and asserts the exact
+codepoints, so a later copy edit cannot quietly downgrade them to ASCII.
+
+**L2.9 — French is ONE localisation, and `fr-CA` is not a second one.** The
+registry entry is `fr`, with no script and no region. `fr-FR`, `fr-BE`,
+`fr-CH`, `fr-LU` and `fr-CA` all reach it through the ordinary base-subtag
+step of the §L5.2 order — French needs none of the script mapping Chinese
+does (§L2.4), because there is no script ambiguity to resolve.
+
+Canadian French is deliberately **not** split out. The divergences that would
+justify a separate catalog in a consumer product — `courriel` vs `e-mail`,
+anglicism tolerance, some UI verbs — are lexical, and this product's
+vocabulary is a closed technical glossary (§L2.7) whose terms are the same on
+both sides of the Atlantic: `réservoir`, `aiguillage`, `convertisseur`,
+`valeur calculée`. A second catalog would double the review surface of every
+future string for no semantic gain. If a Canadian reviewer later reports a
+term that genuinely misreads there, the answer is a term change in `fr`, or a
+`fr-CA` entry at that point — not one held open speculatively now.
+
+One consequence is pinned by test: a stored value of `fr-CA` is **not** a
+code. `localStorage` holds a registry `code`, so an unregistered value is
+ignored and the browser list decides, exactly as `zh-Hant-XX` already is.
+
+**L2.10 — French length, and where it actually bit.** French runs ~15–20%
+longer than English. The surface that could not absorb it was the one with a
+hard two-line clamp, `.menu__blurb` (§L2.6). Measured 2026-09-22 on the first
+complete French catalog, at the shipped 272 px / 232 px menu widths:
+
+| locale | blurbs over the clamp | worst |
+|---|---|---|
+| `en` `ko` `ja` `zh-Hans` `zh-Hant` | 0 | — |
+| `fr` | **4 of 12** | 3 lines shown as 2 — 17 px cut |
+
+The fix is **the copy, not the box**. Widening the menu was already rejected
+on its own merits (the 300 px measurement in `src/index.css`) — an open popover covers the
+palette row beneath it, and every extra 40 px hides another chip — and
+raising the clamp would relayout all six languages to accommodate one. The
+four sentences were shortened until each fit two lines at its real width,
+with the meaning kept:
+
+| key | change |
+|---|---|
+| `templates.equilibrium.blurb` | `produits finis en sortie — une ligne qui se stabilise en quelques pas` → `produits en sortie — stable en quelques pas` |
+| `templates.mmoProgression.blurb` | `combien de temps faut-il pour atteindre` → `le temps qu’il faut pour atteindre` |
+| `modules.rewardSplit.blurb` | dropped `reçues` |
+| `export.projectRevision.blurb` | dropped two articles and `sa` |
+
+The guard is differential rather than absolute: `e2e/i18n-fr.spec.ts` runs the
+same sweep in English and in French and fails only on what **French adds**.
+That is what makes it trustworthy — a glyph span whose ascender exceeds its
+line box reports a 2 px vertical overflow in all six languages, and an
+absolute threshold would either flag it forever or be loosened until it
+stopped catching real defects.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**
@@ -543,6 +641,27 @@ successful switch. The failure contract is otherwise unchanged (see Rules).
   runtime cache; offline reboot) — dev-server module URLs differ from the
   Production output, so those live outside the unit + dev-e2e layer.
 
+**L4.6 — an omitted plural arm is a decision about wording, not about reach.**
+French cardinal plural rules can select `many` for exact multiples such as
+1,000,000 — `Intl.PluralRules('fr').select(1_000_000) === 'many'`, and so does
+2,000,000, while 1,000,001 is `other`. The French catalog intentionally omits
+an explicit `many` arm because its wording would be identical to `other`; the
+ICU fallback to `other` is part of the tested contract, not an accident.
+`src/i18n/icuEscaping.test.ts` renders every French plural at 1,000,000 and
+asserts it comes out as the `other` arm with no ICU error, so if a future
+message ever does need a distinct `many` the guard is already in place to
+notice that the two arms have to differ.
+
+The consequence worth stating is the one that differs from English: **French
+puts 0 in `one`**. `{n, plural, one {# ligne sera ajoutée} other {# lignes
+seront ajoutées}}` renders `0 ligne sera ajoutée` — singular noun, singular
+verb — where English renders `0 rows`. Every French plural was formatted at
+0, 1, 2 and 1,000,000 with the real `intl-messageformat` and read back,
+because gender and past-participle agreement ride on that same `one` arm:
+`0 valeur a été supprimée`, `0 paramètre ajouté`,
+`0 clé étrangère a changé`. A checker that only diffs placeholder names
+cannot see any of that.
+
 ## L5. The language switch
 
 **Auto-generated from the registry.** The control is driven entirely by
@@ -582,13 +701,58 @@ there are enough preferences to justify the information-architecture work; it is
 **L5.4 — the search box counts LANGUAGES, not options.** The picker renders a
 search field from `LANGUAGE_SEARCH_THRESHOLD` (6) locales up, via
 `shouldShowLanguageSearch()`. That predicate counts entries with no `pseudo`
-flag, so the dev-only `en-XA` (§L11) never pushes the count over the line: with
-the five languages this release ships, the dev picker shows **six options and
-no search box**, exactly as production shows five options and no search box.
+flag, so the dev-only `en-XA` (§L11) never pushes the count over the line.
 Counting raw options instead would have made the box appear in dev — and only
 in dev — one real language early, pinning its layout and keyboard model in a
-release that does not ship it. The box first appears when a sixth LANGUAGE
-ships.
+release that did not ship it.
+
+French is that sixth language, so the box now renders in **production**: six
+options and a search box there, seven options and the same one search box in
+dev. It is the same control either way — `en-XA` is searchable but never
+counts. The threshold has not moved and nothing about the predicate changed
+to ship it; the count simply reached 6.
+
+**L5.5 — the search folds diacritics, and only Latin ones.** With the box now
+shipped (§L5.4), the first language behind it is one most keyboards cannot
+type: `Français` needs a `ç`. `foldForSearch()` therefore normalises both
+sides of the comparison, over four fields — code, English name, endonym, and
+the name in the active UI language — so `fr`, `French`, `Français`,
+`francais` and `franc` all find it, from any of the six UI languages.
+
+The folding is deliberately narrow, in two ways.
+
+1. **A combining mark is dropped only when it sits on a LATIN letter.** The
+   obvious one-liner is wrong here:
+
+   ```js
+   value.normalize('NFD').replace(/\p{M}/gu, '')   // NEVER
+   ```
+
+   Japanese dakuten and handakuten are combining marks. That line folds
+   `ポ` → `ホ` and `が` → `か`, so one query would match two different kana and
+   a Japanese reader's search would return the wrong language. Hangul jamo,
+   Cyrillic, Thai and Arabic marks are left alone for the same reason. The
+   guard is a test, not a comment: searching `ポ` must return **zero** results.
+
+2. **Every kind of space folds to one ASCII space** — U+00A0 and U+202F
+   included — so a typed space matches the typeset one French names may
+   carry (§L2.8).
+
+A ligature that decomposition does not reduce to ASCII (`œ`, `æ`) is left as
+it is. Transliterating it would be a rule about French orthography rather
+than about search, and the cheaper answer if it is ever needed is an explicit
+alias on the one entry that needs it.
+
+The box is a **combobox**, so `aria-activedescendant` moves to the input when
+the input owns focus, and the listbox must not also claim it. Below the
+threshold the listbox itself is focused and carries the attribute. Both
+arrangements are pinned in `e2e/i18n.spec.ts`.
+
+The popover is sized by the language names, never by the box: an `<input>`
+carries an intrinsic `size=20` width, which measured 206 px against the
+menu's own 150 px minimum, so the field is `min-width: 0; width: 100%;
+box-sizing: border-box` and a long placeholder wraps inside it instead of
+pushing the menu open.
 
 **L5.1 — persistence: one named string key (Q5 — decided).**
 

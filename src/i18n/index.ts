@@ -81,6 +81,7 @@ export { useI18n, initI18n } from './store'
 export { LOCALES, enabledLocales, type LocaleEntry } from './registry'
 export {
   LANGUAGE_SEARCH_THRESHOLD,
+  foldForSearch,
   labelsEquivalent,
   matchesLanguageQuery,
   shouldShowLanguageSearch,

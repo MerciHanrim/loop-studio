@@ -564,26 +564,32 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(trigger).toHaveAttribute('aria-haspopup', 'listbox')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')
 
-    // Enter opens; below the search threshold there is no search box and focus
-    // lands on the listbox container, which drives aria-activedescendant
+    // Enter opens. At six shipped languages the picker is a combobox: the
+    // search box owns focus, so it — not the listbox — is what carries
+    // aria-activedescendant (§L5.4).
     await trigger.focus()
     await page.keyboard.press('Enter')
     await expect(trigger).toHaveAttribute('aria-expanded', 'true')
     const pop = page.locator('.lang-menu__pop')
     const list = pop.locator('[role="listbox"]')
     await expect(list).toBeVisible()
-    // §L5.4 — six OPTIONS but five shipped LANGUAGES, so the search box is
-    // still hidden: the dev pseudo-locale does not count towards the threshold.
-    await expect(pop.locator('input[role="combobox"]')).toHaveCount(0)
-    await expect(list).toBeFocused()
+    // §L5.4 — six shipped LANGUAGES now reaches the threshold, so the search
+    // box appears (the dev pseudo-locale still does not count towards it) and
+    // focus lands in the box rather than on the listbox.
+    const search = pop.locator('input[role="combobox"]')
+    await expect(search).toHaveCount(1)
+    await expect(search).toBeFocused()
     const opts = list.locator('[role="option"]')
-    await expect(opts).toHaveCount(6) // en, ko, ja, zh-Hans, zh-Hant, en-XA (dev pseudo)
+    await expect(opts).toHaveCount(7) // en, ko, ja, zh-Hans, zh-Hant, fr, en-XA (dev pseudo)
     await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
     await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
     await expect(list.locator('[data-locale="ja"] .menu__name')).toHaveText('日本語')
 
-    // ArrowDown / End / Home move the active option, not the selection
-    const activeId = () => list.getAttribute('aria-activedescendant')
+    // ArrowDown / End / Home move the active option, not the selection.
+    // The attribute lives on the FOCUSED element, which is now the search
+    // box; the listbox must not also claim it.
+    await expect(list).not.toHaveAttribute('aria-activedescendant', /./)
+    const activeId = () => search.getAttribute('aria-activedescendant')
     await page.keyboard.press('ArrowDown')
     await expect.poll(activeId).toContain('opt-ko')
     await page.keyboard.press('End')
