@@ -53,6 +53,7 @@ const ui = {
   'language.chineseTraditional': '繁體中文',
   'language.french': '法語',
   'language.german': '德語',
+  'language.spanishLatinAmerica': '西班牙文（拉丁美洲）',
   'playbar.reset.title': '重設到第 0 步',
   'playbar.step.title': '前進一步',
   'playbar.play': '▶ 播放',

@@ -62,6 +62,7 @@ const ui = {
   'language.chineseTraditional': 'Chinesisch (traditionell)',
   'language.french': 'Französisch',
   'language.german': 'Deutsch',
+  'language.spanishLatinAmerica': 'Spanisch (Lateinamerika)',
   'playbar.reset.title': 'Auf Schritt 0 zurücksetzen',
   'playbar.step.title': 'Einen Schritt weiter',
   'playbar.play': '▶ Abspielen',

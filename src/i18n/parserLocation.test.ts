@@ -2,6 +2,7 @@ import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de'
 import en from './locales/en'
+import es419 from './locales/es-419'
 import fr from './locales/fr'
 import ja from './locales/ja'
 import ko from './locales/ko'
@@ -28,7 +29,7 @@ import zhHant from './locales/zh-Hant'
 // distinguishes them. `fr` and `zh-Hant` already did; `ko` / `ja` /
 // `zh-Hans` said "column" for both.
 
-const CATALOGS = { en, ko, ja, 'zh-Hans': zhHans, 'zh-Hant': zhHant, fr, de } as const
+const CATALOGS = { en, ko, ja, 'zh-Hans': zhHans, 'zh-Hant': zhHant, fr, de, 'es-419': es419 } as const
 type Loc = keyof typeof CATALOGS
 
 /** a position no other number in these messages can collide with */
@@ -76,6 +77,9 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // both approved German forms: `Zeichen {column}` next to the thing at
   // that position, `an Zeichenposition {column}` as a standalone phrase
   de: { char: new RegExp(`Zeichen(position)? ${N}`), table: `Spalte ${N}` },
+  // Spanish splits the same way: `carácter` for a character offset,
+  // `columna` for a real table column (§L2.13).
+  'es-419': { char: `carácter ${N}`, table: `columna ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]
