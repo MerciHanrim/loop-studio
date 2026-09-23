@@ -51,7 +51,17 @@ describe('locale registry metadata', () => {
   // Simplified, and the dev pseudo-locale is not one of the shipped languages.
   it('ships exactly the registered languages, the pseudo-locale aside', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
-    expect([...shipped].sort()).toEqual(['de', 'en', 'es-419', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
+    expect([...shipped].sort()).toEqual([
+      'de',
+      'en',
+      'es-419',
+      'fr',
+      'ja',
+      'ko',
+      'pt-BR',
+      'zh-Hans',
+      'zh-Hant',
+    ])
     expect(LOCALES.filter((l) => l.pseudo).every((l) => l.code === 'en-XA')).toBe(true)
   })
 
@@ -244,5 +254,52 @@ describe('§L5.2 step 4 — baseFallbackFor', () => {
       expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
     }
     expect(resolveInitialLocale('es-419', ['en-US'])).toBe('es-419')
+  })
+
+  // `pt-BR` is the SECOND locale to own a base subtag. Before it existed every
+  // tag below resolved to `en` — and two of them to an unrelated language,
+  // which is the failure that makes this step necessary rather than merely
+  // nice: `["pt-AO","de-DE"]` gave German and `["pt","es-MX"]` gave Spanish.
+  it('every Portuguese tag a browser actually sends reaches pt-BR', () => {
+    for (const tag of [
+      'pt',
+      'pt-BR',
+      'pt-PT',
+      'pt-AO',
+      'pt-MZ',
+      'pt-CV',
+      'pt-GW',
+      'pt-ST',
+      'pt-TL',
+      'pt-MO',
+      'PT-br',
+    ]) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('pt-BR')
+    }
+  })
+
+  it('a Portuguese first tag is not overtaken by a later unrelated language', () => {
+    expect(resolveInitialLocale(null, ['pt-AO', 'de-DE'])).toBe('pt-BR')
+    expect(resolveInitialLocale(null, ['pt', 'es-MX'])).toBe('pt-BR')
+    expect(resolveInitialLocale(null, ['es-MX', 'pt-BR'])).toBe('es-419')
+    expect(resolveInitialLocale(null, ['en-US', 'pt-BR'])).toBe('en')
+  })
+
+  it('a future exact pt-PT wins its own tag with no resolver change', () => {
+    const future: readonly LocaleEntry[] = [
+      ...LOCALES,
+      { ...(getEntry('pt-BR') as LocaleEntry), code: 'pt-PT', baseFallbackFor: undefined },
+    ]
+    expect(resolveInitialLocale(null, ['pt-PT'], future)).toBe('pt-PT')
+    expect(resolveInitialLocale(null, ['pt-AO'], future)).toBe('pt-BR') // still the owner
+    expect(resolveInitialLocale(null, ['pt'], future)).toBe('pt-BR')
+  })
+
+  it('only an exactly registered Portuguese code restores from storage', () => {
+    for (const stored of ['pt', 'pt-PT', 'PT-BR', 'pt_BR', 'pt-br']) {
+      expect(isRegistered(stored), stored).toBe(false)
+      expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
+    }
+    expect(resolveInitialLocale('pt-BR', ['en-US'])).toBe('pt-BR')
   })
 })

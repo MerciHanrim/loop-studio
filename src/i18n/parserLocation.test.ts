@@ -6,6 +6,7 @@ import es419 from './locales/es-419'
 import fr from './locales/fr'
 import ja from './locales/ja'
 import ko from './locales/ko'
+import ptBR from './locales/pt-BR'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
 
@@ -29,7 +30,17 @@ import zhHant from './locales/zh-Hant'
 // distinguishes them. `fr` and `zh-Hant` already did; `ko` / `ja` /
 // `zh-Hans` said "column" for both.
 
-const CATALOGS = { en, ko, ja, 'zh-Hans': zhHans, 'zh-Hant': zhHant, fr, de, 'es-419': es419 } as const
+const CATALOGS = {
+  en,
+  ko,
+  ja,
+  'zh-Hans': zhHans,
+  'zh-Hant': zhHant,
+  fr,
+  de,
+  'es-419': es419,
+  'pt-BR': ptBR,
+} as const
 type Loc = keyof typeof CATALOGS
 
 /** a position no other number in these messages can collide with */
@@ -80,6 +91,9 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // Spanish splits the same way: `carácter` for a character offset,
   // `columna` for a real table column (§L2.13).
   'es-419': { char: `carácter ${N}`, table: `columna ${N}` },
+  // Portuguese splits it the same way, and the Brazilian spelling is
+  // `caractere` — `carácter` / `caráter` are European.
+  'pt-BR': { char: `caractere ${N}`, table: `coluna ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

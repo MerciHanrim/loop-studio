@@ -484,6 +484,29 @@ The count still lives in three specs by hand. Deriving it from `LOCALES` would
 need the runner to import product code, which no e2e file does today; that is
 a recorded follow-up, not something this checklist pretends is solved.
 
+**The shipping order, so "not on the roadmap" means something.** Nine
+languages ship today: `en` `ko` `ja` `zh-Hans` `zh-Hant` `fr` `de` `es-419`
+`pt-BR`. The remaining order, set 2026-09-23, is
+
+> **`es-ES` -> `pt-PT` -> `ru` -> `tr` -> `th` -> `vi`**
+
+Two changes are worth recording rather than absorbing silently. `ru` moved
+ahead of `th` / `vi`, and **`tr` (Turkish) is new** — it appears in no earlier
+roadmap, so it is written down here to stop it being dropped again. The two
+mainland variants come directly after their base locale because each is a
+regional audit over a finished 840-key catalog rather than a new translation,
+and because a Spain reader can already read `es-419` while a Portuguese reader
+fell all the way to English until `pt-BR` shipped.
+
+**Arabic stays out of this line.** It is a separate stage gated on an
+RTL-infrastructure audit: the registry carries `direction` and `<html dir>` is
+set from it, but no layout, canvas or baseline has ever been exercised RTL.
+
+A probe tag must therefore avoid all of the above. `nl-NL` is still safe;
+`pt-PT` and `es-ES` are **not** — `i18n-pt-br.spec.ts` uses `pt-AO` / `pt-MZ`
+and says in the file which of its rows are expected to flip when `pt-PT`
+registers.
+
 **L2.12 — German is ONE catalog, in Germany Standard German, and says so.**
 The registry entry is `de`, with no region. `de-DE`, `de-AT`, `de-CH`,
 `de-LI`, `de-LU` and every other `de-*` reach it through the ordinary
@@ -754,6 +777,148 @@ keep the `{kind}` slot and must never hardcode `resource` or `state`.
 **No Latin American native-speaker or professional translation review was
 performed.** The low-confidence terms are listed in the PR body rather than
 hidden.
+
+**L2.14 — Brazilian Portuguese is `pt-BR`, the second locale to own a base
+subtag, and the first whose PLURAL rules differ from its own mainland
+variant.** Shipped as the ninth language. What it decided, and why.
+
+**The resolver.** Like `es-419`, the code is not its own base subtag: a browser
+sends `pt`, `pt-BR`, `pt-PT`, `pt-AO`. Measured with the real
+`resolveInitialLocale` before the entry existed, all of `pt`, `pt-BR`, `pt-PT`,
+`pt-AO`, `pt-MZ`, `pt-CV`, `pt-GW`, `pt-ST`, `pt-TL`, `pt-MO` resolved to `en`
+— and two multi-tag lists resolved to an unrelated language outright:
+`["pt-AO","de-DE"]` gave **German** and `["pt","es-MX"]` gave **Spanish**. The
+entry therefore declares `baseFallbackFor: 'pt'` (§L5.2 step 4). No resolver
+code changed; the field and the per-TAG walk already existed for `es-419`.
+
+**`pt-PT` lands here too, and that trade-off is bigger than the Spanish one.**
+European Portuguese differs in vocabulary (`ficheiro` / `ecrã` / `guardar` /
+`utilizador` / `carácter`) *and* in grammar: CLDR gives `pt-BR` **0 -> `one`**
+and `pt-PT` **0 -> `other`**, so a Portugal reader sees a plural form their own
+variant would not use. Brazilian Portuguese is still far closer to them than
+English, which is the only other option today, and `pt-PT` is on the roadmap —
+registering it makes §L5.2 step 1 (exact code) win its own tag with no resolver
+change, exactly as `es-ES` will beside `es-419`. `e2e/i18n-pt-br.spec.ts`
+states which of its tag rows are expected to flip when that happens and which
+(`pt-AO`, `pt-MZ`, `pt-CV`, `pt-TL`) never will.
+
+**Plural: `one` / `other` / `many`, with 0 in `one`.** Measured in node and in
+the production Chromium runtime, identically. That is the FRENCH shape, the
+opposite of `es-419` and `de`, so copying the Spanish plural arms would have
+mis-rendered every zero. `many` is reachable at 1e6, and Portuguese puts `de`
+before the noun there — `1.000.000 de linhas` — so all 19 plural keys write an
+explicit `many` arm. The inverse constraint also applies: `check:i18n` requires
+the ICU argument shape to match `en`, so a key whose base has a plain `{n}`
+slot cannot be given a plural. `canvas.filter.hiddenCount` and
+`regExpr.pick.more` are therefore invariable phrases.
+
+**Numbers: `1.234.567,89`.** The first shipped locale whose decimal separator
+is a comma and whose group separator is a period. This turned out to be a much
+smaller risk than it looks, and the audit is worth not repeating: the product
+has **no `Intl.NumberFormat` call site at all** (§L8 leaves `numberLocale` for
+strings that read wrong, and none have), so the only live number path is ICU
+`#`, which takes the locale CODE and renders integer counts — the group
+separator can appear, the decimal separator cannot. A user-typed number goes
+through `<input type="number">`, whose `.value` is always the standard `.`
+form, and the CSV rule (`dataImportValidate.ts`) explicitly rejects a thousands
+separator. The expression grammar's `.` is product syntax and is unchanged
+(§L8: never reformat stored, digested or canonical content).
+
+**Glossary, and the one term that had to be an anglicism.** Pool
+`Reservatório` (not `depósito`, which in Brazil is also a bank deposit and
+would collide with the reward-split module's `Carteira` / `Poupança`), Source
+`Fonte`, Drain `Sumidouro` (the standard Portuguese term for a flow-network
+SINK; `ralo` and `escoadouro` are plumbing), Gate `Distribuidor`, Converter
+`Conversor`, End `Fim`, Parameter `Parâmetro`, Register `Valor calculado`.
+
+A group frame is a `quadro`: the product defines one as "a labelled box that
+groups nodes on the canvas", which is what Miro's Brazilian UI calls a
+`quadro`. `moldura` is a picture frame in Portuguese and would name the border
+rather than the grouping; `área` and `grupo` are already taken by this
+feature's own default labels. The canvas is the `tela`, which is unambiguous
+here because the English catalog never says "screen".
+
+**A Template is a `template`, deliberately not a `modelo`.** `Modelo` is the
+standard Brazilian word for a document template — and `modelo` is already this
+product's word for the simulation MODEL, in 10 keys and 14 occurrences ("run
+the model", "a v2 model", "model versions"). One word for both would make
+`modules.promote.*` read as though loading a Template changed the model
+version. It is an ordinary common noun, not a proper name: `Template` /
+`Templates` only where UI context capitalises the first word, `template` /
+`templates` inside a sentence.
+
+**`Register` has ONE Portuguese surface.** English shows `Register` /
+`Registers` on exactly **10 keys** (3 that name the kind, 7 prose); `Computed
+value` is **not** an English UI string anywhere in the catalog. All 10 read
+`Valor calculado` / `Valores calculados`. `Registrador` is never used —
+`registro` stays free for its ordinary log / record senses, and nothing bans it
+elsewhere.
+
+**Guard scope — the rule that keeps being relearned.** A word is rejected only
+where it would be wrong. `src/i18n/ptBrCopy.test.ts` splits them:
+
+| scope | forms |
+|---|---|
+| **global** (never right in Brazil) | `ficheiro` · `ecrã` · `utilizador` · `carácter` · `registo` · `telemóvel` · `planeado` |
+| **parser character-offset keys only** | `caráter` — ordinary Brazilian for a nature or quality (`de caráter permanente`) |
+| **keys where English says stock / inventory** | `existências` — also the plain plural of `existência` |
+| **keys where English says team / staff** | `equipa` — also the third person of `equipar`, which this product uses |
+| **never banned** | `registro`, `guardar` — `palette.pool.description` legitimately says "Guarda recursos" |
+
+The parser key list is derived from `en` (the `error.EXPR_*` and
+`import.parseError` keys carrying `{column}`) and its size is asserted, so it
+cannot drift from §L2.11's 7-and-3 split.
+
+**Two defects the guards caught that no other gate could.**
+
+1. **A Cyrillic letter inside a Portuguese word.** `import.error.notLoopStudio`
+   shipped `Isto не parece…` — U+043D U+0435 where `não` belongs. `tsc`,
+   oxlint and `check:i18n` all accept it: it is a valid string. The guard is a
+   **Unicode Script** check over the `pt-BR` RUNTIME data (catalog, template
+   labels, module overlay and the registry's display fields), allowing only
+   `Latin`, `Common` and `Inherited`. It is a cross-script contamination
+   contract, NOT a homoglyph detector — a Latin look-alike is `Script=Latin`
+   and passes. Scanning source FILES was tried first and abandoned: the moment
+   `known.generated.ts` was regenerated it held every locale's labels and
+   reported 3,780 "violations".
+2. **The guard's own tokenizer inventing English.** `[A-Za-z]+` cuts a
+   Portuguese word at every accent, so `até` yielded `at`, `Papéis` yielded
+   `is`, `início` yielded `in` and `orçamento` yielded `or` — 219 false
+   positives. The word pattern is now `\p{Script=Latin}` plus combining marks,
+   and the English-residue list drops every Portuguese homograph (`a`, `no`,
+   `for`, `converter`, `remove`).
+
+**Measured overflow: 3 blurbs, fixed by wording.** In the real 272 px
+`.menu__blurb` box (line-height 16.875, clamp 2, max height 34 px),
+`templates.equilibrium.blurb`, `templates.coffeeRoastery.blurb` and
+`modules.rewardSplit.blurb` each needed a third line. Candidates were measured
+in that box rather than estimated — Portuguese does not fit where Spanish does
+at the same character count — and the chosen wordings land at 2 lines with
+`ovY = 0` while keeping every beat of the English. The full shipped-locale
+sweep is then 0.
+
+**The second review changed 29 strings**, none of them in the template-label
+dictionary or the module overlay. Five were gender/number agreement that
+`{label}` and `{name}` make structurally impossible — a frame called `Área 1`
+rendered as `Área 1 movido`, and `Parênteses` as `Parênteses inserido` — and
+were fixed by choosing a phrasing that needs no agreement at all. One was a
+term collision the guards could not see: the mobile timeline sheet had been
+called an `aba`, which is this catalog's word for a BROWSER tab and the marker
+`localeSurfaceCopy.test.ts` looks for. One was a dangling `de` in a `many` arm
+with no noun after it (`… e mais # de`) — the plural rule applied mechanically
+where it does not hold.
+
+**No Brazilian native-speaker or professional translation review was
+performed.** The low-confidence terms are listed in the PR body rather than
+hidden. Three items stay open and are stated rather than buried:
+
+1. `completion` is `Progresso` in the MMO template and `conclusão` in the
+   gacha one. English uses one word; the two templates mean different things
+   (progress toward the level goal vs the run finishing), so the split is
+   deliberate — but it wants a native reader's confirmation.
+2. `drop` and `loot` are kept in English in the MMO template, as the Brazilian
+   game-design register uses them. Scoped to that template's keys.
+3. `workers` in `mc.cost.parallel` stays English: it names Web Workers.
 
 ## L3. The string catalog
 

@@ -183,6 +183,38 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     baseFallbackFor: 'es',
     catalog: () => import('./locales/es-419').then((m) => m.default),
   },
+  {
+    // Brazilian Portuguese. Like `es-419`, the code is NOT its own base
+    // subtag: a browser sends `pt-BR`, `pt`, `pt-PT`, `pt-AO`. Measured with
+    // the real resolver before this entry existed, every one of those gave
+    // `en` — and `["pt-AO","de-DE"]` gave `de`, `["pt","es-MX"]` gave
+    // `es-419`, i.e. a Portuguese reader was handed German or Spanish. So it
+    // declares `baseFallbackFor: 'pt'` (§L5.2 step 4).
+    //
+    // `pt-PT` and the African Portuguese tags land here TOO, and that is a
+    // stated trade-off, not an oversight: European Portuguese differs from
+    // this catalog in vocabulary (`ficheiro` / `ecrã` / `guardar` /
+    // `utilizador` / `carácter`) and even in plural rules — CLDR gives
+    // `pt-BR` 0 -> `one` and `pt-PT` 0 -> `other`. Brazilian Portuguese is
+    // still far closer to those readers than English, which is the only other
+    // option today. `pt-PT` is on the roadmap; registering it later makes step
+    // 1 (exact code) win its own tag with no change to the resolver, exactly
+    // as `es-ES` will beside `es-419`.
+    code: 'pt-BR',
+    englishName: 'Portuguese (Brazil)',
+    nativeName: 'Português (Brasil)',
+    displayNameKey: 'language.portugueseBrazil',
+    direction: 'ltr',
+    // `1.234.567,89` and `83,5%` — the first shipped locale whose DECIMAL
+    // separator is a comma and whose group separator is a period. Nothing in
+    // the product calls `Intl.NumberFormat` today (§L8); the live number path
+    // is ICU `#`, which takes the locale CODE and renders integer counts only,
+    // so only the group separator can appear.
+    numberLocale: 'pt-BR',
+    enabled: true,
+    baseFallbackFor: 'pt',
+    catalog: () => import('./locales/pt-BR').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,
