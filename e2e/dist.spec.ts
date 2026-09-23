@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
@@ -378,6 +379,74 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       return anyHandleMoved
     }
     await expect.poll(fullySettled, { timeout: 5000, intervals: [50] }).toBe(true)
+
+    expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
+})
+
+// ── the release version, as the PRODUCTION build actually shows it ──────────
+//
+// `package.json` is the single source of truth: `vite.config.ts` reads it into
+// `__APP_VERSION__`, which reaches four places — the About dialog, the mobile
+// More menu, the toolbar build title, and `meta.tool` inside every exported
+// Project revision. Nothing was checking that the number a release bumps is
+// the number a user sees, and a stale display would look exactly like a
+// correct one.
+//
+// The expected value is READ FROM `package.json` at test time and never
+// written here: hard-coding `0.13.0` would make this pass by restating the
+// bump instead of verifying it.
+test.describe('production build — the version the release bumped', () => {
+  const PKG_VERSION: string = (
+    JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      version: string
+    }
+  ).version
+
+  test('the build title, the About dialog and an exported revision all carry the package version', async ({
+    page,
+  }) => {
+    // the expectation itself must be a real version, not an empty string that
+    // would make every assertion below trivially true
+    expect(PKG_VERSION).toMatch(/^\d+\.\d+\.\d+$/)
+
+    const { bad } = await openProd(page)
+    await installProbe(page)
+
+    // 1 — the toolbar build title: `Loop Studio v<version> · Build <sha>`
+    const title = await page
+      .locator('.toolbar__brand, .toolbar [title]')
+      .evaluateAll((els) =>
+        els.map((e) => (e as HTMLElement).getAttribute('title') ?? '').find((t) => /Loop Studio v/.test(t)),
+      )
+    expect(title, 'the toolbar exposes a build title').toBeTruthy()
+    expect(title).toContain(`v${PKG_VERSION}`)
+
+    // 2 — the About dialog shows the same number
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.getByRole('menuitem').filter({ hasText: 'About Loop Studio' }).click()
+    const about = page.locator('.mcdlg--about')
+    await expect(about).toBeVisible()
+    await expect(about).toContainText(`v${PKG_VERSION}`)
+    await page.keyboard.press('Escape')
+
+    // 3 — `meta.tool` in an exported Project revision. This one is not cosmetic:
+    // it is written INTO a file a user keeps and sends to someone else.
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+    await page
+      .locator('.toolbar__actions .menu__pop')
+      .getByRole('menuitem', { name: 'Project revision' })
+      .click()
+    const confirm = page.locator('.mcdlg .btn--primary')
+    if (await confirm.isVisible().catch(() => false)) await confirm.click()
+
+    await expect
+      .poll(async () => (await capturedExports(page)).some((e) => e.name.endsWith('.json')))
+      .toBe(true)
+    const revFile = (await capturedExports(page)).findLast((e) => e.name.endsWith('.json'))
+    expect(revFile, 'a Project revision was exported').toBeTruthy()
+    const doc = JSON.parse(revFile!.text) as { project?: { meta?: { tool?: string } } }
+    expect(doc.project?.meta?.tool).toBe(`loop-studio/${PKG_VERSION}`)
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])
   })

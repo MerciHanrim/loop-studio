@@ -9,8 +9,8 @@ cash flows, and other resource-flow systems; it's an independent, client-only
 implementation — nothing is uploaded, the whole app runs in your browser, and
 a graph is a plain JSON file you own.
 
-**Run it now: <https://cozy-loop-studio.pages.dev>** — available in English,
-한국어, and 日本語, with five bundled Templates ranging from a small
+**Run it now: <https://cozy-loop-studio.pages.dev>** — available in
+[11 languages](#languages), with five bundled Templates ranging from a small
 production flow to a large game economy and a three-zone probability/pity
 comparison.
 
@@ -37,7 +37,41 @@ comparison.
   plus file-based project revisions & proposals for asynchronous
   collaboration — no accounts, no server
 - **Runs anywhere** — an installable offline PWA, a portable single-file
-  build, shareable links, and a localized UI (EN / KO / JA)
+  build, shareable links, and a UI translated into
+  [11 languages](#languages)
+
+## Languages
+
+<!-- LOCALES:BEGIN — the codes in this table are checked against the locale
+     registry by `src/i18n/readmeLocales.test.ts`. Adding or removing a shipped
+     language must update this table in the same change. -->
+
+The UI ships in 11 languages, listed here the way the in-app picker orders
+them. Pick one under **Settings → Language**; the first visit follows your
+browser's language, and the choice is remembered on that device.
+
+| Code | Language | In its own words |
+|---|---|---|
+| `zh-Hans` | Chinese (Simplified) | 简体中文 |
+| `zh-Hant` | Chinese (Traditional) | 繁體中文 |
+| `en` | English | English |
+| `fr` | French | Français |
+| `de` | German | Deutsch |
+| `ja` | Japanese | 日本語 |
+| `ko` | Korean | 한국어 |
+| `pt-BR` | Portuguese (Brazil) | Português (Brasil) |
+| `pt-PT` | Portuguese (Portugal) | Português (Portugal) |
+| `es-419` | Spanish (Latin America) | Español (Latinoamérica) |
+| `es-ES` | Spanish (Spain) | Español (España) |
+
+<!-- LOCALES:END -->
+
+Regional pairs are separate locales, not one catalog with a flag: a browser
+asking for `pt-PT` gets European Portuguese, while `pt`, `pt-BR` and the
+African Portuguese tags get Brazilian — and the same split holds for the two
+Spanish and the two Chinese catalogs. See
+[`docs/localization.md`](docs/localization.md) for the resolution order and
+the per-locale notes.
 
 ## Representative use cases
 
@@ -96,27 +130,26 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.12.0
+## Latest — v0.13.0
 
-- **Frames that carry their contents** — dragging a group frame moves the nodes
-  inside it (`Alt` moves the frame alone), as one undo entry, with nothing new
-  written to the file
-- **Frames from the keyboard** — focus, move, resize and delete a frame without
-  a pointer, each action announced
-- **An import wizard that explains itself** — a quick start with a one-click
-  example, role help on every column, inline errors that point at the cell, and
-  a review breakdown that matches what the commit creates
-- **An accessibility pass** — forced-colours edge and control tells, ≥ 3:1
-  control boundaries, larger and higher-contrast descriptive text, Korean word
-  wrapping, arrow-key menus, and focus that stays where you put it
-- **Fixes** — an arrow-key node move is one undo entry; a Register expression no
-  longer reorders what you type; the import wizard no longer takes focus back
-  mid-sentence
+- **Eleven languages** — Chinese (Simplified and Traditional), French, German, Spanish (Latin
+  America and Spain) and Portuguese (Brazil and Portugal) join English, Korean and Japanese;
+  the full list with codes is above under [Languages](#languages)
+- **Regional detection that means it** — a browser asking for `pt-PT` gets European Portuguese
+  and one asking for `pt-BR` gets Brazilian, with the same split for Spanish and Chinese; an
+  unlisted tag falls back to the closest catalog, and only then to English
+- **Templates and modules translate too** — bundled Template node labels, frame titles and the
+  labels an inserted module brings are localized per language; labels you edited stay yours
+- **A sorted, searchable language picker** — listed by English name so regional pairs sit
+  together, searchable by endonym, English name, current-UI name or code
+- **Fit and finish for translated text** — per-locale wrapping measured in the real boxes, CJK
+  punctuation rendered with CJK fonts, `character position` instead of `column` in parser
+  errors, and a clearer disabled row in the mobile sheet
 
-No save-format change and no migration: v0.11.0 files open unchanged.
+No save-format change and no migration: v0.12.0 files open unchanged.
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.12.0 notes, the v0.11.0 and
-v0.10.x releases and every earlier one.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.13.0 notes, the v0.12.0 and v0.11.0
+releases and every earlier one.
 
 ## Credits
 
