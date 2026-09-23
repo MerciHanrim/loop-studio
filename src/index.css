@@ -218,6 +218,56 @@
    to `'IBM Plex Sans'` — today's rendering, no tofu. `en`, `ko` and `ja` never
    reference these families, and an `<input>` does not inherit `--font-sans`
    at all (the UA stylesheet resets it), so neither is affected. */
+/* Cyrillic glyphs for `ru` (§L2.17), MEASURED before being added.
+   `@fontsource/ibm-plex-sans/latin-400.css` and its 600 sibling declare the
+   family with NO `unicode-range` at all, so the browser considers
+   'IBM Plex Sans' a candidate for EVERY code point — including Cyrillic —
+   while the woff2 behind it carries only Latin glyphs. Measured on the
+   production origin before this change: `document.fonts.check(…, 'Привет')`
+   returned true, and Cyrillic text in the app stack rendered 617.25px against
+   633.89px for the bare system stack. The family claims the glyphs and the
+   engine then falls back PER GLYPH to whatever the OS offers, which is the
+   same class of defect as the `:lang(ja)` Han-unification bug above.
+
+   Two traps make this worth writing down.
+
+   1. Adding `@fontsource/ibm-plex-sans/cyrillic-400.css` does NOT work. It
+      declares the same family / weight / style, also with no
+      `unicode-range`, so the LAST rule wins for every code point: importing
+      it after the Latin file moves Latin onto a Cyrillic-only woff2 and
+      breaks the entire UI. The per-subset files cannot be combined.
+   2. The combined `400.css` / `600.css` DO carry correct ranges, but pull
+      greek, vietnamese, latin-ext and cyrillic-ext as well — measured at 13
+      woff2 files / 208 KB against today's 3 / ~60 KB, every one of which the
+      PWA precache glob (`assets/*.{woff,woff2}`) would then precache.
+
+   So the faces are declared here instead, with the range fontsource itself
+   uses for its `cyrillic` subset. It covers U+0401/U+0451 (`Ё`/`ё`) and
+   U+2116 (`№`). `cyrillic-ext` (U+0460-052F and friends) is historic and
+   Slavic-extended and is deliberately NOT included — no runtime string needs
+   it, and `ruCopy.test.ts` asserts the catalog stays inside the Russian
+   alphabet. Declared AFTER the Latin import in `main.tsx`, so a Cyrillic code
+   point takes this ranged face while every Latin code point still has only
+   the unranged Latin face to match. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-cyrillic-400-normal.woff2')
+    format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-cyrillic-600-normal.woff2')
+    format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
 @font-face {
   font-family: 'LS CJK Punct SC';
   src: local('Microsoft YaHei UI'), local('PingFang SC'), local('Noto Sans CJK SC'),

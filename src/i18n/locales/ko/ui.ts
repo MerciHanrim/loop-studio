@@ -51,6 +51,7 @@ const ui = {
   'language.portugueseBrazil': '포르투갈어(브라질)',
   'language.spanishSpain': '스페인어(스페인)',
   'language.portuguesePortugal': '포르투갈어(포르투갈)',
+  'language.russian': '러시아어',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',

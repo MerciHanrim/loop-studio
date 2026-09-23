@@ -360,6 +360,38 @@ const PT_PT: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// Russian, translated from the canonical English labels in
+// `examples/module-*.json` rather than from another locale's overlay.
+// `Кошелёк` / `Снятия` are the ordinary Russian words for a wallet and for
+// withdrawals; `Накопления` matches the `Накопитель` glossary without
+// colliding with it, since the node kind is a common noun here and this is a
+// plural mass noun. `Приёмка` is the warehouse sense of `Intake`.
+const RU: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Поставка',
+    inbox: 'Входная очередь',
+    intake: 'Приёмка',
+    process: 'Обработка',
+    spoilage: 'Потери',
+    outbox: 'Выходная очередь',
+    shipped: 'Отгружено',
+    batch_size: 'Размер партии',
+    in_system: 'Единиц в системе',
+    planned_run: 'Плановый выпуск',
+  },
+  'reward-split': {
+    activity: 'Активность',
+    wallet: 'Кошелёк',
+    allocate: 'Распределить',
+    spending: 'Траты',
+    savings: 'Накопления',
+    withdrawals: 'Снятия',
+    target_savings: 'Цель накоплений',
+    net_worth: 'Чистая стоимость',
+    progress: 'Прогресс к цели',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -371,6 +403,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   'pt-BR': PT_BR,
   'es-ES': ES_ES,
   'pt-PT': PT_PT,
+  ru: RU,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

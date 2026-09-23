@@ -278,6 +278,38 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/pt-PT').then((m) => m.default),
   },
+  {
+    // Russian. Unlike every regional variant shipped so far, this code IS its
+    // own base subtag, so §L5.2 step 3 (a registered code that IS the base)
+    // carries every `ru-*` tag and no `baseFallbackFor` is needed. Measured
+    // with the real resolver: `ru`, `ru-RU`, `ru-BY`, `ru-KZ`, `ru-KG`,
+    // `ru-MD`, `ru-UA` and the case variants all reach here.
+    //
+    // It also has NONE of the `es-ES` / `pt-PT` limit: because step 3 splits
+    // on the first subtag, `ru-Cyrl`, `ru-Cyrl-RU` and `ru-RU-u-ca-gregory`
+    // reach `ru` as well. A script or extension subtag only defeats the
+    // resolver for a locale whose CODE is not its own base — worth recording,
+    // because the two cases look identical from the outside (§L2.17).
+    //
+    // Neighbouring Cyrillic languages are deliberately NOT captured: `uk`,
+    // `be`, `bg`, `kk`, `sr` and `mk` keep resolving to `en`, since nothing
+    // here is written for them.
+    code: 'ru',
+    englishName: 'Russian',
+    nativeName: 'Русский',
+    displayNameKey: 'language.russian',
+    direction: 'ltr',
+    // MEASURED. Two things make this the sharpest number locale so far:
+    // the group separator is a NO-BREAK SPACE (`1 234 567`) and the decimal
+    // mark is a comma, AND `{style:'percent'}` puts U+00A0 before the sign
+    // (`84 %`) — so the two `{pct}` catalog strings carry that character,
+    // exactly as `es-ES` does and unlike `pt-BR` / `pt-PT`. Nothing calls
+    // `Intl.NumberFormat` (§L8); the live path is ICU `#`, which takes this
+    // code, so a grouped count reaches the DOM with U+00A0 from the formatter.
+    numberLocale: 'ru',
+    enabled: true,
+    catalog: () => import('./locales/ru').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

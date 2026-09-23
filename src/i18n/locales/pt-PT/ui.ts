@@ -72,6 +72,7 @@ const ui = {
   'language.portugueseBrazil': 'Português (Brasil)',
   'language.spanishSpain': 'Espanhol (Espanha)',
   'language.portuguesePortugal': 'Português (Portugal)',
+  'language.russian': 'Russo',
   'playbar.reset.title': 'Voltar ao passo 0',
   'playbar.step.title': 'Avançar um passo',
   'playbar.play': '▶ Reproduzir',

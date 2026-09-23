@@ -9,6 +9,7 @@ import ja from './locales/ja'
 import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
 import ptPT from './locales/pt-PT'
+import ru from './locales/ru'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
 import { BASE_LOCALE, LOCALES } from './registry'
@@ -28,6 +29,7 @@ const CATALOGS = {
   ko,
   'pt-BR': ptBR,
   'pt-PT': ptPT,
+  ru,
   'zh-Hans': zhHans,
   'zh-Hant': zhHant,
 } as const

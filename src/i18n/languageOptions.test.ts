@@ -149,10 +149,50 @@ describe('foldForSearch', () => {
     expect(foldForSearch('日本語')).toBe('日本語')
   })
 
-  it('leaves Hangul, Han and Cyrillic untouched', () => {
+  it('leaves Hangul, Han and unmarked Cyrillic untouched', () => {
     expect(foldForSearch('한국어')).toBe('한국어')
     expect(foldForSearch('繁體中文')).toBe('繁體中文')
     expect(foldForSearch('Русский')).toBe('русский')
+  })
+
+  // The one Cyrillic exception (§L5.5). Every Russian string here is built
+  // from code points rather than typed, because Cyrillic `е` / `у` / `о` are
+  // homoglyphs of Latin letters and a literal could not be reviewed by eye.
+  const YO = String.fromCharCode(0x451)
+  const YO_UP = String.fromCharCode(0x401)
+  const E = String.fromCharCode(0x435)
+  const E_UP = String.fromCharCode(0x415)
+  const I_SHORT = String.fromCharCode(0x439)
+  const I = String.fromCharCode(0x438)
+  // `упрощённый` and `упрощенный` — the Simplified-Chinese entry as the ru UI
+  // spells it, and as a Russian speaker actually types it.
+  const SIMPLIFIED_YO = String.fromCharCode(0x443, 0x43f, 0x440, 0x43e, 0x449, 0x451, 0x43d, 0x43d, 0x44b, 0x439)
+  const SIMPLIFIED_E = String.fromCharCode(0x443, 0x43f, 0x440, 0x43e, 0x449, 0x435, 0x43d, 0x43d, 0x44b, 0x439)
+  const CHINESE_RU = String.fromCharCode(0x41a, 0x438, 0x442, 0x430, 0x439, 0x441, 0x43a, 0x438, 0x439)
+
+  it('folds the one Cyrillic case — `ё` searches as `е`', () => {
+    expect(foldForSearch(YO)).toBe(foldForSearch(E))
+    expect(foldForSearch(YO_UP)).toBe(foldForSearch(E_UP))
+    expect(foldForSearch(YO_UP)).toBe(foldForSearch(E))
+    expect(foldForSearch(SIMPLIFIED_YO)).toBe(foldForSearch(SIMPLIFIED_E))
+  })
+
+  it('does NOT fold `й` to `и` — the rule is one letter wide, not "Cyrillic"', () => {
+    // `й` is also a base plus a combining mark under NFD, and it is a distinct
+    // letter no Russian reader substitutes. This is the assertion that fails if
+    // the narrow rule is ever widened to all Cyrillic marks.
+    expect(foldForSearch(I_SHORT)).not.toBe(foldForSearch(I))
+    expect(foldForSearch(CHINESE_RU)).not.toBe(
+      foldForSearch(CHINESE_RU.replace(I_SHORT, I)),
+    )
+  })
+
+  it('finds the Simplified Chinese entry from a Russian UI typed without `ё`', () => {
+    const entry = { code: 'zh-Hans', englishName: 'Chinese (Simplified)', nativeName: '简体中文' }
+    const displayName = CHINESE_RU + ' (' + SIMPLIFIED_YO + ')'
+    for (const q of [SIMPLIFIED_E, SIMPLIFIED_YO, CHINESE_RU, 'simplified']) {
+      expect(matchesLanguageQuery(entry, displayName, q), q).toBe(true)
+    }
   })
 
   it('normalises NBSP and the narrow no-break space to one ASCII space', () => {

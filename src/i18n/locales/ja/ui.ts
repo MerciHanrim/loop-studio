@@ -53,6 +53,7 @@ const ui = {
   'language.portugueseBrazil': 'ポルトガル語（ブラジル）',
   'language.spanishSpain': 'スペイン語（スペイン）',
   'language.portuguesePortugal': 'ポルトガル語（ポルトガル）',
+  'language.russian': 'ロシア語',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',
