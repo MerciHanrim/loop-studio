@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest'
 import de from './locales/de'
 import en from './locales/en'
 import es419 from './locales/es-419'
+import esES from './locales/es-ES'
 import fr from './locales/fr'
 import ja from './locales/ja'
 import ko from './locales/ko'
+import ptBR from './locales/pt-BR'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
+import { BASE_LOCALE, LOCALES } from './registry'
 
 // docs/localization.md §L12 — the catalog contracts that are only visible in
 // the RENDERED string: ICU quoting (§L4.1) and plural-category fallback
@@ -15,7 +18,17 @@ import zhHant from './locales/zh-Hant'
 // a `{n}` that became `{count}`; neither of these is an argument mistake, so
 // neither is visible to it.
 
-const CATALOGS = { de, 'es-419': es419, fr, ja, ko, 'zh-Hans': zhHans, 'zh-Hant': zhHant } as const
+const CATALOGS = {
+  de,
+  'es-419': es419,
+  'es-ES': esES,
+  fr,
+  ja,
+  ko,
+  'pt-BR': ptBR,
+  'zh-Hans': zhHans,
+  'zh-Hant': zhHant,
+} as const
 
 /** Enough of an argument bag to render anything: a number satisfies a plain
  *  slot, `number` and `plural`, and falls through a `select` to its `other`
@@ -114,5 +127,21 @@ describe('French plural categories', () => {
     expect(at0('import.refresh.review.added')).toBe('0 ligne sera ajoutée')
     expect(at0('import.refresh.review.locallyDeleted')).toBe('0 valeur a été supprimée localement')
     expect(at0('import.refresh.review.fkRepoints')).toBe('0 clé étrangère a changé')
+  })
+})
+
+// docs/localization.md §L2.11a item 9 — this map is hand-written, because the
+// rendering below has to be synchronous and the registry's catalogs are lazy
+// `import()` chunks. That made it the one item-9 guard a new locale could join
+// the product WITHOUT: `pt-BR` shipped in #268 and was simply absent here, so
+// its ICU quoting and plural fallback went unchecked (they turned out fine —
+// a coverage gap, not a defect). The map is now asserted EXHAUSTIVE over the
+// registry, so the next locale cannot be missed silently.
+describe('every translated locale is actually in this file', () => {
+  it('CATALOGS covers the registry', () => {
+    const want = LOCALES.filter((l) => !l.pseudo && l.code !== BASE_LOCALE)
+      .map((l) => l.code)
+      .sort()
+    expect(Object.keys(CATALOGS).sort()).toEqual(want)
   })
 })

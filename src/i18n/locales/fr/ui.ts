@@ -56,6 +56,7 @@ const ui = {
   'language.german': 'Allemand',
   'language.spanishLatinAmerica': 'Espagnol (Amérique latine)',
   'language.portugueseBrazil': 'Portugais (Brésil)',
+  'language.spanishSpain': 'Espagnol (Espagne)',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': '▶ Lecture',

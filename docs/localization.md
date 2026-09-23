@@ -484,11 +484,11 @@ The count still lives in three specs by hand. Deriving it from `LOCALES` would
 need the runner to import product code, which no e2e file does today; that is
 a recorded follow-up, not something this checklist pretends is solved.
 
-**The shipping order, so "not on the roadmap" means something.** Nine
+**The shipping order, so "not on the roadmap" means something.** Ten
 languages ship today: `en` `ko` `ja` `zh-Hans` `zh-Hant` `fr` `de` `es-419`
-`pt-BR`. The remaining order, set 2026-09-23, is
+`pt-BR` `es-ES`. The remaining order, set 2026-09-23, is
 
-> **`es-ES` -> `pt-PT` -> `ru` -> `tr` -> `th` -> `vi`**
+> **`pt-PT` -> `ru` -> `tr` -> `th` -> `vi`**
 
 Two changes are worth recording rather than absorbing silently. `ru` moved
 ahead of `th` / `vi`, and **`tr` (Turkish) is new** — it appears in no earlier
@@ -503,7 +503,9 @@ RTL-infrastructure audit: the registry carries `direction` and `<html dir>` is
 set from it, but no layout, canvas or baseline has ever been exercised RTL.
 
 A probe tag must therefore avoid all of the above. `nl-NL` is still safe;
-`pt-PT` and `es-ES` are **not** — `i18n-pt-br.spec.ts` uses `pt-AO` / `pt-MZ`
+`pt-PT` is **not** (and `es-ES` stopped being a safe probe the moment it
+registered — `i18n-es-419.spec.ts` had asserted it reached `es-419`, and that
+row flipped exactly as the file predicted it would) — `i18n-pt-br.spec.ts` uses `pt-AO` / `pt-MZ`
 and says in the file which of its rows are expected to flip when `pt-PT`
 registers.
 
@@ -919,6 +921,124 @@ hidden. Three items stay open and are stated rather than buried:
 2. `drop` and `loot` are kept in English in the MMO template, as the Brazilian
    game-design register uses them. Scoped to that template's keys.
 3. `workers` in `mc.cost.parallel` stays English: it names Web Workers.
+
+
+**L2.15 — Spain Spanish is `es-ES`, and it is the first locale that is a REGION
+AUDIT rather than a translation.** Shipped as the tenth language, over the
+finished `es-419` catalog. **38 strings differ out of 1,064** (842 catalog +
+203 template labels + 19 module labels). That number is the point: a locale
+that mostly agrees with its sibling is the correct outcome, not an unfinished
+one, and nothing was changed to make the difference look larger.
+
+**The resolver needed no new machinery.** Unlike `es-419` and `pt-BR`, this
+code IS a tag browsers send, so it declares **no `baseFallbackFor`**. §L5.2
+step 1 (exact code) runs before step 4 (base owner), which is exactly the
+property the `es-419` work asserted against a hypothetical registry — that
+test now runs against the real entry, and the prediction held.
+
+| navigator | resolves to |
+|---|---|
+| `es-ES`, `ES-es` | **`es-ES`** |
+| `es`, `es-419`, `es-MX`, `es-AR`, `es-CO`, `es-CL`, `es-PE`, `es-US` | `es-419` |
+| **`es-GQ`** | `es-419` — see below |
+| `ca-ES`, `eu-ES`, `gl-ES` | `en` (Catalan, Basque and Galician are not Spanish) |
+
+**`es-GQ` stays with `es-419`, and that is a stated trade-off.** Equatorial
+Guinea's usage is historically closer to Spain, so the tempting move is to
+point it here. Nothing in this catalog is written for it either way, and
+re-pointing it would be a guess dressed up as a decision — it is left where it
+already resolved, and written down so the next person finds a choice rather
+than an oversight.
+
+**What differs, in full.**
+
+| area | n | what |
+|---|---|---|
+| catalog | 4 | the device is an `ordenador`, not a `computadora` |
+| catalog | 8 | you `pulsa` a key or button (`presionar` is Latin American); the same four a11y strings relabel the Enter key **`Intro`**, which is what a Spanish keyboard is printed with |
+| catalog | 2 | you `escribes` into a field; `ingresar` is Latin American |
+| catalog | 16 | you `anades` something — `agregar` reads Latin American |
+| catalog | 2 | a NO-BREAK SPACE before the percent sign |
+| template labels | 1 | `Puntuación de equipo` — `puntuación` is the Iberian score, `puntaje` the Latin American one |
+| template labels | 2 | `suministro` for supply; `abasto` survives in Spain mainly in the idiom `no dar abasto` |
+| template labels | 1 | a business forecast is a `previsión`, not a `pronóstico` |
+| module labels | 2 | `Cartera` for a wallet and `Retiradas` for withdrawals — both were flagged as deliberate regional markers when `es-419` shipped |
+
+**What deliberately does NOT differ**, and why each was considered and left:
+
+- **the `usted` register.** Spain uses `usted` for software too. Switching to
+  `vosotros` would be a change of tone, not a correction, and the catalog's
+  impersonal and infinitive command forms are natural in both. `esEsCopy.test.ts`
+  asserts no `tú` or `vosotros` form reaches any surface, so a later edit
+  cannot mix registers on one screen by accident.
+- **`archivo`.** Entirely natural in Spain; `fichero` is not required, and
+  forcing it would be regional display, not translation.
+- **`coger`.** Deliberately not introduced. `es419Copy.test.ts` bans it for
+  Latin America because it is vulgar there — that is not a reason to add it
+  here, where the UI idiom is `seleccionar` / `elegir` anyway.
+- **the whole node-kind glossary**, and `Botín`, `Tirada`, `Vender al
+  mercader`, `Tickets`, `Merma`, `Reveses`: identical in both.
+
+**The percent gap is a NO-BREAK SPACE (U+00A0), on two keys.**
+`Intl.NumberFormat('es-ES')` emits one before the sign and `es-419` emits
+none — the Latin American catalog wrote `Monte Carlo {pct}%` precisely to
+match its own formatter, so Spain has to move with its own. The two keys are
+`playbar.mc.progress` and `runbar.mc.cancel`. Everything else that shows a `%`
+is left alone: `inspector.edge.flowPlaceholder`'s `25%` is what a USER types,
+and `import.issue.invalid-number` names the SYMBOL.
+
+The character is invisible in review, so it is pinned three ways and never
+written as an escape: `esEsCopy.test.ts` asserts the code point before `%` is
+160 and that no ordinary space is used, that exactly those two strings contain
+it, and `e2e/i18n-es-es.spec.ts` renders the string into a deliberately narrow
+box and reads per-character line boxes — the text wraps, and the number and
+the `%` stay on the same line. The accessible-name string is checked for the
+same gap.
+
+**Two Spanish locales, two guards, neither banning the other's word.**
+`es419Copy.test.ts` is untouched and still pins `Puntaje de equipo`;
+`esEsCopy.test.ts` pins `Puntuación de equipo` and asserts the `es-419` value
+alongside it, so the split is visible from either side. `esEsCopy.test.ts`
+also asserts the delta LISTS themselves — which catalog keys, which template
+labels, which module labels differ — so a future edit that quietly diverges
+the two catalogs has to say so.
+
+**What the independent second review added, and how it found it.** The first
+pass screened for a candidate list of Latin American words and found 12
+catalog strings. The second pass did something different: it extracted the
+LEADING WORD of all 842 values (390 distinct) and read the vocabulary itself.
+That found three groups the first pass could not:
+
+1. **`Presione` at the start of a sentence** — four a11y strings. The first
+   screen was case-SENSITIVE, so sentence-initial forms never appeared in it.
+2. **`Entrar` for the Enter key**, in those same four strings. Keyboard key
+   names were not on the candidate list at all; a Spanish keyboard is printed
+   `Intro`.
+3. **`agregar` in sixteen strings** — the largest single group in the locale,
+   and simply absent from the candidate list. Spain says `anadir`.
+
+The lesson is recorded because it generalises: a candidate-word screen finds
+what you already suspected, and a region audit needs at least one pass that
+reads the locale's own vocabulary back to you.
+
+`esEsCopy.test.ts` asserts the resulting delta LISTS — which catalog keys,
+which template labels, which module labels differ — so a later edit that
+quietly diverges the two Spanish catalogs has to say so in the diff.
+
+**No Spain native-speaker or professional translation review was performed.**
+Two items stay open rather than being smoothed over: `tomar cualquiera` /
+`tomar todo` for the flow modes (understood in Spain, but `extraer` may be the
+more idiomatic UI verb there — not a regional error, so it was left), and
+`Vender al mercader` (a fantasy register that reads the same in both).
+
+**A coverage gap this work closed.** `icuEscaping.test.ts` (§L2.11a item 9)
+keeps a hand-written `CATALOGS` map, because its rendering has to be
+synchronous while the registry's catalogs are lazy `import()` chunks. That
+made it the one item-9 guard a locale could join the product without: **`pt-BR`
+shipped in #268 and was simply absent from it**, so its ICU quoting and plural
+fallback went unchecked. Adding it showed no defect — a coverage gap, not a
+bug — and the map is now asserted **exhaustive over the registry**, which
+caught `es-ES` immediately on its first run.
 
 ## L3. The string catalog
 

@@ -242,6 +242,7 @@ test.describe('every shipped locale', () => {
       ['de', 'de-DE'],
       ['es-419', 'es-MX'],
       ['pt-BR', 'pt-AO'],
+      ['es-ES', 'es-ES'],
     ] as const) {
       const { ctx, page: p } = await pageAt(page, tag)
       await openApp(p)

@@ -52,6 +52,7 @@ const STR = {
   de: { menuBtn: 'Modul einfügen ▾', bufferedStep: 'Gepufferter Produktionsschritt', rewardSplit: 'Schleife zur Belohnungsaufteilung' },
   'es-419': { menuBtn: 'Insertar módulo ▾', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
   'pt-BR': { menuBtn: 'Inserir módulo ▾', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
+  'es-ES': { menuBtn: 'Insertar módulo ▾', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
 } as const
 type Locale = keyof typeof STR
 
@@ -66,6 +67,7 @@ const LABELS = {
     de: ['Nachschub', 'Eingangspuffer', 'Annahme', 'Verarbeitung', 'Ausschuss', 'Ausgangspuffer', 'Versand', 'Losgröße', 'Einheiten im System', 'Geplante Produktion'],
     'es-419': ['Suministro', 'Búfer de entrada', 'Recepción', 'Procesamiento', 'Merma', 'Búfer de salida', 'Envíos', 'Tamaño del lote', 'Unidades en el sistema', 'Producción planificada'],
     'pt-BR': ['Fornecimento', 'Fila de entrada', 'Recebimento', 'Processamento', 'Perdas', 'Fila de saída', 'Expedição', 'Tamanho do lote', 'Unidades no sistema', 'Produção planejada'],
+    'es-ES': ['Suministro', 'Búfer de entrada', 'Recepción', 'Procesamiento', 'Merma', 'Búfer de salida', 'Envíos', 'Tamaño del lote', 'Unidades en el sistema', 'Producción planificada'],
   },
   'reward-split': {
     en: ['Activity', 'Wallet', 'Allocate', 'Spending', 'Savings', 'Withdrawals', 'Savings target', 'Net worth', 'Progress to target'],
@@ -77,6 +79,7 @@ const LABELS = {
     de: ['Aktivität', 'Geldbörse', 'Aufteilen', 'Ausgaben', 'Ersparnisse', 'Abhebungen', 'Sparziel', 'Nettovermögen', 'Fortschritt zum Ziel'],
     'es-419': ['Actividad', 'Billetera', 'Repartir', 'Gastos', 'Ahorros', 'Retiros', 'Meta de ahorro', 'Patrimonio neto', 'Progreso hacia la meta'],
     'pt-BR': ['Atividade', 'Carteira', 'Distribuir', 'Gastos', 'Poupança', 'Saques', 'Meta de poupança', 'Patrimônio líquido', 'Progresso até a meta'],
+    'es-ES': ['Actividad', 'Cartera', 'Repartir', 'Gastos', 'Ahorros', 'Retiradas', 'Meta de ahorro', 'Patrimonio neto', 'Progreso hacia la meta'],
   },
 } as const
 
@@ -181,7 +184,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (d) => void d.accept().catch(() => {}))
 })
 
-const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES'] as const
 
 for (const loc of SHIPPED) {
   test(`${loc}: inserting "Buffered production step" via the menu gets the ${loc} labels`, async ({ page }) => {
@@ -259,7 +262,7 @@ test('an already-inserted instance follows a switch into zh-Hans, zh-Hant, fr an
   await insertViaMenu(page, 'en', 'buffered-step')
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES'] as const) {
     await setLocale(page, loc)
     expect(labelsOf(await gs(page), before), `switch to ${loc}`).toEqual(
       [...LABELS['buffered-step'][loc]].sort(),
@@ -285,7 +288,7 @@ test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr / de switch'
   const mine = inserted.find((n) => n.data?.label === 'Wallet')!
   await renameNode(page, mine.id, 'Mein Konto')
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'en'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'en'] as const) {
     await setLocale(page, loc)
     const now = (await gs(page)).nodes.find((n) => n.id === mine.id)
     expect(now?.data?.label, `${loc} must not overwrite a user rename`).toBe('Mein Konto')

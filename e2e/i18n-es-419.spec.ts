@@ -73,10 +73,10 @@ async function pageAt(page: Page, tag: string) {
 // ------------------------------------------------------------------ 1
 test.describe('a Spanish browser', () => {
   // bare `es`, US Spanish, every Latin American region AND the peninsular
-  // tags: all of them reach the one Spanish catalog. `es-ES` / `es-GQ` get
-  // Latin American spelling, which is a stated trade-off — English would be
-  // strictly worse, and registering `es-ES` later gives it its own tag with
-  // no resolver change (§L2.13).
+  // tags: all of them reach the one Latin American catalog. `es-ES` NO LONGER
+  // does — it registered as its own locale (§L2.15) and §L5.2 step 1 gives it
+  // its own tag, exactly as this file predicted it would. `es-GQ` stays here,
+  // a stated trade-off rather than a guess about Equatorial Guinea.
   for (const tag of [
     'es',
     'es-419',
@@ -86,7 +86,6 @@ test.describe('a Spanish browser', () => {
     'es-CL',
     'es-PE',
     'es-US',
-    'es-ES',
     'es-GQ',
   ]) {
     test(`${tag} reaches Spanish, not English`, async ({ browser }) => {
@@ -174,7 +173,7 @@ test.describe('the language search box finds Spanish', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(10) // 9 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(11) // 10 shipped + the dev pseudo-locale
 
     for (const q of ['Español', 'espanol', 'ESPANOL', 'Latinoamérica', 'latinoamerica', 'Spanish', 'es-419']) {
       await search(page).fill(q)
@@ -197,6 +196,7 @@ test.describe('the language search box finds Spanish', () => {
       ['fr', 'Espagnol'],
       ['de', 'Spanisch'],
       ['pt-BR', 'Espanhol'],
+      ['es-ES', 'Español'],
     ] as const) {
       await setLocale(page, ui)
       await openLanguageMenu(page)

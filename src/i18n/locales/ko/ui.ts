@@ -49,6 +49,7 @@ const ui = {
   // `Español (Latinoamérica)` / `Spanish (Latin America)`.
   'language.spanishLatinAmerica': '스페인어(중남미)',
   'language.portugueseBrazil': '포르투갈어(브라질)',
+  'language.spanishSpain': '스페인어(스페인)',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',

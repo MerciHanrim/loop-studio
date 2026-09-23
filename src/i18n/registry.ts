@@ -215,6 +215,32 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     baseFallbackFor: 'pt',
     catalog: () => import('./locales/pt-BR').then((m) => m.default),
   },
+  {
+    // Spain Spanish. Unlike `es-419` and `pt-BR`, this code IS the tag a
+    // browser sends, so it needs NO `baseFallbackFor`: §L5.2 step 1 (exact
+    // code) runs before step 4 (base owner), which is what lets `es-419` keep
+    // owning `es` while `es-ES` takes its own tag. Measured with the real
+    // resolver: `es-ES` and `ES-es` reach here, while bare `es`, `es-MX`,
+    // `es-AR`, `es-US` and the rest continue to reach `es-419`.
+    //
+    // `es-GQ` (Equatorial Guinea) deliberately stays with `es-419` rather
+    // than moving here, even though its usage is historically closer to
+    // Spain: nothing in this catalog is written for it either way, and
+    // re-pointing it would be a guess dressed up as a decision (§L2.15).
+    //
+    // The catalog is a REGION AUDIT over `es-419`, not a second translation:
+    // 12 strings differ out of 841. Its `numberLocale` is where the two
+    // really part company — `1.234.567,89` and a NO-BREAK SPACE before `%`,
+    // against `1,234,567.89` and none.
+    code: 'es-ES',
+    englishName: 'Spanish (Spain)',
+    nativeName: 'Español (España)',
+    displayNameKey: 'language.spanishSpain',
+    direction: 'ltr',
+    numberLocale: 'es-ES',
+    enabled: true,
+    catalog: () => import('./locales/es-ES').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

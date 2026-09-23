@@ -43,6 +43,10 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   // Brazilian Portuguese says `aba` for a browser tab; `guia` is the
   // Microsoft-style rendering and is not what this catalog uses.
   'pt-BR': { englishForm: /inglês/i, newTab: /aba/i },
+  // same language as `es-419`, so the same markers — but the row is still
+  // required, because the map is asserted exhaustive over the registry and a
+  // locale with no row would otherwise ship unchecked
+  'es-ES': { englishForm: /inglés/i, newTab: /pestaña/i },
 }
 
 const catalogOf = async (code: string) => {
