@@ -4,6 +4,60 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.13.0 — 2026-09-23
+
+A localization release. Loop Studio went from three languages to eleven, and the regional pairs are
+real locales rather than one catalog with a flag on it — European and Brazilian Portuguese, Spain
+and Latin American Spanish, and Simplified and Traditional Chinese each get their own catalog,
+their own plural rules and their own number formatting.
+
+**No save-format change, no migration and no breaking change.** Files written by v0.12.0 open
+unchanged, and files written by v0.13.0 open in v0.12.0; the only difference in a new file is the
+informational `meta.tool` version string.
+
+### Added
+
+- **Eight new languages**, bringing the UI to eleven: Chinese (Simplified), Chinese (Traditional),
+  French, German, Spanish (Latin America), Spanish (Spain), Portuguese (Brazil) and Portuguese
+  (Portugal) — alongside the existing English, Korean and Japanese. The full list, with codes, is
+  in the [README](README.md#languages).
+- **Your browser's language is honoured, down to the region.** A first visit follows
+  `navigator.languages`, and a regional request gets the regional catalog: `pt-PT` reaches European
+  Portuguese while `pt` and `pt-BR` reach Brazilian, `es-ES` reaches Spain while `es` and `es-MX`
+  reach Latin America, and `zh-TW` / `zh-HK` reach Traditional while `zh-CN` reaches Simplified. A
+  tag with no catalog of its own falls back to the closest one that has it, and only then to
+  English. The choice is remembered per device, and switching never touches your diagram.
+- **Bundled Templates and modules speak the UI language too.** Node labels and frame titles in the
+  five bundled Templates, and the labels an inserted module brings with it, are translated per
+  locale — a translated menu that inserts English node names is a half-translated product. Labels
+  you have edited yourself are never overwritten.
+
+### Changed
+
+- **The language picker is sorted and searchable.** Languages are listed by English name rather
+  than in the order they happened to ship, so a regional pair sits next to its sibling, and the
+  search box matches a language's own name, its name in the current UI language, its English name
+  or its code.
+- **Long translations fit.** Descriptive copy, menu blurbs and inline hints were measured in the
+  boxes that actually render them, per language, and the wrapping rules are scoped by locale
+  instead of applied globally.
+- **Chinese text renders with Chinese fonts.** Em dashes and other punctuation shared with Latin
+  scripts were falling back to a Latin face mid-sentence; the font stack now narrows by character
+  range so a Chinese sentence stays in one typeface.
+- **Accessibility and terminology corrections found while translating.** Parser errors say
+  *character position* rather than *column* — the two were the same word in several languages and
+  meant different things; a disabled row in the mobile sheet is distinguishable without relying on
+  colour alone; and every non-English catalog now says, inside the link, that the feedback form is
+  in English.
+- Localization test reliability.
+
+### Notes
+
+The per-locale decisions — the glossary each language fixed, what was deliberately left in English,
+the plural and number-format measurements, and the open questions each catalog carries pending a
+native-speaker review — are recorded in [`docs/localization.md`](docs/localization.md). No locale
+in this release has had a professional translation review.
+
 ## v0.12.0 — 2026-09-21
 
 Group frames stop being decoration: one carries its contents when you drag it, and the whole frame
