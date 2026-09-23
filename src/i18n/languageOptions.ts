@@ -59,6 +59,23 @@ export function labelsEquivalent(a: string, b: string): boolean {
  *  see `foldForSearch`. */
 const LATIN_BASE = /[A-Za-zÀ-ɏḀ-ỿ]/
 
+/** The one CYRILLIC fold, and the reason it is one letter wide (§L5.5).
+ *
+ *  MEASURED before it existed: `foldForSearch` left `ё` and `е` as different
+ *  strings, so with the UI in Russian the entry `Китайский (упрощённый)` could
+ *  not be found by typing `упрощенный` — which is how most Russian speakers
+ *  type it, since the two letters are freely substituted in running text and
+ *  `ё` is a separate key.
+ *
+ *  It is scoped to a diaeresis sitting on Cyrillic `е` ON PURPOSE. Under NFD
+ *  `й` is also `и` plus a combining mark, and `й` is a distinct letter that no
+ *  Russian reader would substitute for `и`, so the general rule rejected for
+ *  Japanese dakuten would be wrong here too. Both characters are built from
+ *  their code points rather than typed, because Cyrillic `е` and Latin `e` are
+ *  homoglyphs and a literal here could not be reviewed by eye. */
+const CYRILLIC_E = new Set([String.fromCharCode(0x435), String.fromCharCode(0x415)])
+const COMBINING_DIAERESIS = String.fromCharCode(0x308)
+
 /** Normalise one string for the LANGUAGE-PICKER search only (§L5.5).
  *
  *  Two things happen, and both are deliberately narrow:
@@ -69,8 +86,9 @@ const LATIN_BASE = /[A-Za-zÀ-ɏḀ-ỿ]/
  *     obvious one-liner (`normalize('NFD').replace(/\p{M}/gu, '')`) is WRONG
  *     here: Japanese dakuten / handakuten are combining marks, so it would
  *     collapse か/が and ホ/ポ into the same string and make one query match
- *     both. Hangul jamo, Cyrillic, Thai and Arabic marks are left alone for
- *     the same reason.
+ *     both. Hangul jamo, Thai and Arabic marks are left alone for the same
+ *     reason, and so is every Cyrillic mark except the single measured case
+ *     in `CYRILLIC_E` below.
  *  2. Every space — ASCII, NBSP (U+00A0) and the narrow no-break space
  *     (U+202F) French typography uses — becomes a single ASCII space, so a
  *     typed space matches a typeset one.
@@ -86,6 +104,8 @@ export function foldForSearch(value: string): string {
     if (isMark) {
       // drop it only if what we have kept so far ends in a Latin letter
       if (LATIN_BASE.test(out.slice(-1))) continue
+      // …or if it is the one Cyrillic case: a diaeresis on `е`, i.e. `ё`
+      if (ch === COMBINING_DIAERESIS && CYRILLIC_E.has(out.slice(-1))) continue
       out += ch
       continue
     }

@@ -9,8 +9,10 @@ import ja from './locales/ja'
 import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
 import ptPT from './locales/pt-PT'
+import ru from './locales/ru'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
+import { BASE_LOCALE, LOCALES } from './registry'
 
 // docs/localization.md §L2.11 — `{column}` names TWO different things, and a
 // translation has to tell them apart.
@@ -44,6 +46,7 @@ const CATALOGS = {
   'es-ES': esES,
   'pt-BR': ptBR,
   'pt-PT': ptPT,
+  ru,
 } as const
 type Loc = keyof typeof CATALOGS
 
@@ -106,6 +109,10 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // sense elsewhere in `pt-PT` is not banned, and `caracteres` is the plural
   // in both locales.
   'pt-PT': { char: `carácter ${N}`, table: `coluna ${N}` },
+  // Russian splits it the same way. `char` is a RegExp because the parser
+  // messages inflect the noun — `в символе 7` in a prepositional phrase — while the
+  // table half stays nominative `столбец 7`.
+  ru: { char: new RegExp(`символ(е)? ${N}`), table: `столбец ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]
@@ -170,5 +177,39 @@ describe('a real table column keeps its own word', () => {
       .map(([k]) => k)
       .sort()
     expect(all).toEqual([...PARSER_KEYS, ...TABLE_KEYS].slice().sort())
+  })
+})
+
+// docs/localization.md §L2.11a item 9 — the same coverage gap `icuEscaping.
+// test.ts` closed, and closed the same way.
+//
+// WHY THE MAPS ARE HAND-WRITTEN: `render()` has to be synchronous, and the
+// registry's catalogs are lazy `import()` chunks, so this file cannot build
+// `CATALOGS` from the registry. It imports each catalog by name instead.
+//
+// WHY THAT NEEDS A SEPARATE ASSERTION: every test above iterates `LOCS`, which
+// is derived from `VOCAB`, which is derived from `CATALOGS`. A locale missing
+// from `CATALOGS` is therefore not a failure — it is simply not tested, and
+// the suite stays green. The type system does not catch it either: `VOCAB` is
+// keyed on `Exclude<Loc, 'en'>` and `Loc` is `keyof typeof CATALOGS`, so a
+// locale absent from `CATALOGS` is absent from the type it would have to
+// satisfy. MEASURED while adding `ru`: with its import, its `CATALOGS` entry
+// and its `VOCAB` row all removed, `tsc -b` exits 0 and this file passes
+// 23/23. The two assertions below are what turns that into a red.
+describe('every shipped locale is actually in this file', () => {
+  it('CATALOGS covers the registry, base locale included', () => {
+    const want = LOCALES.filter((l) => !l.pseudo)
+      .map((l) => l.code)
+      .sort()
+    expect(Object.keys(CATALOGS).sort()).toEqual(want)
+  })
+
+  it('VOCAB corrects every locale except the base', () => {
+    const want = LOCALES.filter((l) => !l.pseudo && l.code !== BASE_LOCALE)
+      .map((l) => l.code)
+      .sort()
+    expect(Object.keys(VOCAB).sort()).toEqual(want)
+    // and the tests above really do run over all of them
+    expect(LOCS.slice().sort()).toEqual(want)
   })
 })

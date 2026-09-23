@@ -219,7 +219,7 @@ test.describe('the language search box, shipped to production here', () => {
     await page.keyboard.press('Escape')
     await expect(search(page)).toHaveValue('') // stage 1: only the query goes
     await expect(pop(page)).toBeVisible()
-    await expect(options(page)).toHaveCount(12) // 11 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(13) // 12 shipped + the dev pseudo-locale
 
     await page.keyboard.press('Escape')
     await expect(pop(page)).toHaveCount(0) // stage 2: the popover closes

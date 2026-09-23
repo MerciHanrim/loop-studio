@@ -68,6 +68,7 @@ describe('locale registry metadata', () => {
       'ko',
       'pt-BR',
       'pt-PT',
+      'ru',
       'zh-Hans',
       'zh-Hant',
     ])

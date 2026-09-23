@@ -56,11 +56,11 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(843)
+    expect(KEYS).toHaveLength(844)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
-    // 162 of 843. Large on purpose: European and Brazilian Portuguese diverge
+    // 162 of 844. Large on purpose: European and Brazilian Portuguese diverge
     // far more than Spain and Latin America do (`es-ES` moved 32 of 842), and
     // most of this is the address register and progressive aspect, which touch
     // whole sentences rather than single words.

@@ -52,6 +52,9 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   // one marker in the whole map that had to change when a sibling locale of
   // an existing language registered.
   'pt-PT': { englishForm: /inglês/i, newTab: /separador/i },
+  // Russian: the form is `английском` and a browser tab is a `вкладка`. Matching on the
+  // stem keeps the regex indifferent to the case ending the sentence needs.
+  ru: { englishForm: /английск/i, newTab: /вкладк/i },
 }
 
 const catalogOf = async (code: string) => {

@@ -66,6 +66,7 @@ const ui = {
   'language.portugueseBrazil': 'Portugiesisch (Brasilien)',
   'language.spanishSpain': 'Spanisch (Spanien)',
   'language.portuguesePortugal': 'Portugiesisch (Portugal)',
+  'language.russian': 'Russisch',
   'playbar.reset.title': 'Auf Schritt 0 zurücksetzen',
   'playbar.step.title': 'Einen Schritt weiter',
   'playbar.play': '▶ Abspielen',

@@ -491,11 +491,11 @@ The count still lives in three specs by hand. Deriving it from `LOCALES` would
 need the runner to import product code, which no e2e file does today; that is
 a recorded follow-up, not something this checklist pretends is solved.
 
-**The shipping order, so "not on the roadmap" means something.** Eleven
+**The shipping order, so "not on the roadmap" means something.** Twelve
 languages ship today: `en` `ko` `ja` `zh-Hans` `zh-Hant` `fr` `de` `es-419`
-`pt-BR` `es-ES` `pt-PT`. The remaining order, set 2026-09-23, is
+`pt-BR` `es-ES` `pt-PT` `ru`. The remaining order, set 2026-09-23, is
 
-> **`ru` -> `tr` -> `th` -> `vi`**, with `pl-PL` and `it-IT` added after them
+> **`tr` -> `th` -> `vi`**, with `pl-PL` and `it-IT` added after them
 
 Three changes are worth recording rather than absorbing silently. `ru` moved
 ahead of `th` / `vi`; **`tr` (Turkish) is new** — it appears in no earlier
@@ -1222,6 +1222,302 @@ performed.** Five items stay open rather than smoothed over:
 5. `drop` / `loot`, kept in English exactly as `pt-BR` keeps them because the
    game-design register is the same on both sides of the Atlantic.
 
+**L2.17 — Russian is `ru`, the first Cyrillic catalog and the first four-arm
+plural.** Shipped as the twelfth language, translated from `en` rather than
+audited over a sibling. **844 keys**, plus 203 template-label slots and 19
+module labels.
+
+**The resolver got SIMPLER, not harder.** `ru` IS its own base subtag, so
+§L5.2 step 3 (a registered code that IS the base subtag) carries every `ru-*`
+tag and no `baseFallbackFor` is needed. Measured with the real resolver before
+the entry existed:
+
+| navigator tag | resolves to |
+|---|---|
+| `ru`, `ru-RU`, `ru-BY`, `ru-KZ`, `ru-KG`, `ru-MD`, `ru-UA`, `RU-ru`, `ru-ru` | **`ru`** |
+| **`ru-Cyrl`, `ru-Cyrl-RU`, `ru-RU-u-ca-gregory`** | **`ru`** |
+| `uk`, `be`, `bg`, `kk`, `sr`, `mk` | `en` — not Russian, not captured |
+
+**That third row is the interesting one.** §L2.15 and §L2.16 both record a
+known limit: a tag carrying a script or extension subtag misses `es-ES` /
+`pt-PT` and falls to the base owner. `ru` does not have that limit, and the
+reason is worth stating because the two cases look identical from outside: the
+limit only exists for a locale whose CODE IS NOT ITS OWN BASE SUBTAG. Those
+can only be reached by step 1, which matches the whole tag; `ru` is reached by
+step 3, which splits on the first subtag and therefore ignores everything
+after it. Nothing was changed in the resolver to get this.
+
+§L5.1 stays stricter than §L5.2: `ru-RU` as a NAVIGATOR tag reaches `ru`, but
+as a STORED value it is not a registered code and is ignored outright.
+
+### Plural: four arms, and `other` is unreachable from an integer
+
+`Intl.PluralRules('ru')` has `one` / `few` / `many` / `other`. Measured:
+
+| n | 0 | 1 | 2 | 5 | 11 | 20 | 21 | 22 | 25 | 101 | 111 | 1e6 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| | many | one | few | many | many | many | **one** | **few** | many | **one** | many | many |
+
+Two consequences that shaped every one of the 19 plural keys.
+
+**`one` is not "one".** It selects 1, 21, 101 and 1 000 001. An arm that spelled
+the numeral out — `one {одна строка}` — would render "21 одна строка". Every
+arm keeps `#`, and `ruCopy.test.ts` asserts it arm by arm.
+
+**`other` is unreachable from a non-negative integer.** Sweeping 0..3000 plus
+1e6 reaches only `one`, `few` and `many`. It is kept because ICU requires it
+and because a DECIMAL reaches it (`1.5` → `other`), so its wording is the
+decimal-agreeing form and not a copy of `few`. This is the first locale where
+an arm that can never render in today's product still had to be written
+correctly.
+
+### Numbers: U+00A0 twice over
+
+MEASURED: `Intl.NumberFormat('ru')` groups with a NO-BREAK SPACE and uses a
+comma for the decimal mark — `1 234 567,89` — and `{style:'percent'}` puts
+U+00A0 before the sign (`84 %`).
+
+So this locale needs **both** halves of what the earlier ones needed
+separately: the formatter's grouping character, like `pt-PT`, AND the two
+`{pct}` catalog strings carrying U+00A0, like `es-ES`. Unlike `pt-PT`, a bare
+`1000` does keep its separator. The character is never written as an escape;
+the guard asserts the code point before `%` is 160 and that exactly two
+strings contain it.
+
+### Script: what the check catches, and what it cannot
+
+The catalog is Cyrillic plus `Script=Common` / `Inherited`. Two limits are
+recorded rather than implied:
+
+1. **A script check cannot tell Russian from another Cyrillic language.**
+   Ukrainian `ї`, Belarusian `ў`, Serbian `ђ` and Bulgarian text are all
+   `Script=Cyrillic` and would pass. So there is a SECOND check against the
+   Russian alphabet by name, which rejects them.
+2. **Homoglyphs are invisible.** `а е о р с у х А В Е К М Н О Р С Т У Х` are
+   identical in shape to their Latin counterparts. A Cyrillic `С` inside `CSV`
+   or a Latin `a` inside a Russian word cannot be seen. So Latin runs are
+   compared as EXACT strings against the English source of the SAME key: a
+   homoglyph changes the bytes and fails.
+
+**The Latin allowlist is derived, not written.** An early attempt listed 47
+tokens by hand (`CSV`, `JSON`, `Enter`, `p50`, `item_id`, `Machinations.io`,
+`Alex`, …) after measuring what `ko`, `ja` and `zh-Hans` — already non-Latin —
+all keep. That list was thrown away: the rule that actually holds is *a Latin
+run may stay only where the English original of that key contains the same
+run*, which needs no list, cannot rot, and is what shipped. A separate check
+catches the complement — a value that is all Latin and no Cyrillic is an
+untranslated sentence even if every token appears in `en`.
+
+### The font was already wrong, and the fix had two traps
+
+The app imported only `@fontsource/ibm-plex-sans/latin-400.css` and its 600
+sibling. Those files declare the family with **no `unicode-range` at all**, so
+the browser considered `IBM Plex Sans` a candidate for every code point —
+including Cyrillic — while the woff2 behind it carried only Latin glyphs.
+Measured on production before the change: `document.fonts.check(…, 'Привет')`
+returned true and Cyrillic rendered 617.25px against 633.89px for the bare
+system stack. The family claimed the glyphs; the engine then fell back **per
+glyph** to whatever the OS had. Same class as the `:lang(ja)` Han-unification
+defect.
+
+Two traps, both measured:
+
+1. **Adding `cyrillic-400.css` does not work.** It declares the same family,
+   weight and style, also with no `unicode-range`, so the last rule wins for
+   every code point — importing it after the Latin file moves Latin onto a
+   Cyrillic-only woff2 and breaks the whole UI. The per-subset files cannot be
+   combined.
+2. **The combined `400.css` / `600.css` carry correct ranges but pull greek,
+   vietnamese, latin-ext and cyrillic-ext too** — built and counted at 13 woff2
+   files / 208 KB against today's 3 / ~60 KB, every one of which the PWA
+   precache glob would then precache.
+
+So `index.css` declares two faces itself, with the range fontsource uses for
+its own `cyrillic` subset (`U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1,
+U+2116` — it covers `ё` and `№`), sourced from the subset woff2. `cyrillic-ext`
+is historic and Slavic-extended and is deliberately excluded. Result: **5 woff2
+/ 96 KB, +29.2 KB**, and a production-build measurement confirming Latin still
+comes from Plex (352.66 vs 363.05 system) while Cyrillic now does too
+(708.25 vs 732.22 at 400, 729.75 vs 773.67 at 600).
+
+### `ё` was a search defect too, and it was measured before it was fixed
+
+The same letter the font work had to cover turned out to break the language
+picker. MEASURED on `foldForSearch` before any change:
+
+| fold input | fold output | |
+|---|---|---|
+| `ё` (U+0451) | U+0451 | |
+| `е` (U+0435) | U+0435 | **not equal** |
+| `Ё` (U+0401) | U+0451 | case folds, spelling does not |
+
+So the two were different strings. That matters for exactly one row, and the
+row is not the Russian one: `ru` is `Русский` / `Russian` / `ru`, none of which
+carries `ё`, so Russian was always findable. The entry that was not findable is
+**Simplified Chinese**, which the Russian UI spells `Китайский (упрощённый)` —
+typing `упрощенный`, which is how the word is normally typed, returned nothing.
+It was the only one of the twelve `language.*` values in the `ru` catalog with
+`ё` in it.
+
+The fix is in §L5.5 item 3 and is one letter wide. It was falsified twice: with
+the rule removed the two new tests go red, and with it widened to all Cyrillic
+the `й`/`и` guard and the untouched-Cyrillic test go red instead. The contract
+is pinned in both places it can break — `languageOptions.test.ts` on the
+predicate, and `e2e/i18n-ru.spec.ts` against the real picker, where the e2e case
+first asserts the row really is spelled with `ё` so the search assertion cannot
+pass for the wrong reason.
+
+### Three blurbs did not fit, and the budget is a measurement not a rule
+
+The shipped-locale sweep in `descriptive-copy-wrapping.spec.ts` caught three
+`.menu__blurb` values at three lines in a two-line clamp: `templates.equilibrium`,
+`modules.rewardSplit` and `export.projectRevision`. Russian is wider per
+character than the Romance catalogs, and the English source fits at 95
+characters where Russian did not fit at 91. The budget was read off the ru
+blurbs that already passed — the longest is `templates.deadlock` at 79
+characters — and the three were rewritten to 71, 60 and 61. Nothing was
+loosened; the box is the same box every other locale passes in.
+
+### Decisions, and what stays open
+
+| item | decision |
+|---|---|
+| node kinds | `Накопитель` · `Источник` · `Сток` · `Распределитель` · `Преобразователь` · `Конец` · `Параметр` · `Вычисляемое значение`. **`Регистр` is never used** — it reads as a CPU register, and in another sense as letter case |
+| keyboard keys | Latin keycaps kept: `Enter`, `Space`, `Delete`, `Backspace`, `Esc`, `Shift`, `Alt`, `Ctrl`, `Cmd+Z`. A Russian keyboard is printed with them, and `ko` / `ja` / `zh` make the same call |
+| `ё` | written where the standard spelling has it, not flattened to `е` |
+| register | impersonal or infinitive first; lowercase polite `вы` where a sentence must address the reader. `ты` / `твой` never introduced, and a capitalised mid-sentence `Вы` is rejected |
+| Template / model | `Шаблон` and `Модель`. Russian has two words and neither is taken, so the anglicism the Romance catalogs had to keep is not needed here |
+
+**`ё` is pinned, not automated.** Nothing can prove a catalog spells every
+ё-word correctly without a dictionary. What the guard pins is the EXPLICIT
+LIST of the 36 words that carry it today, so flattening one shows up in the
+diff and has to be argued for. That is a smaller claim than "the catalog is
+checked", and it is the true one.
+
+### The read-back, and a second review that changed nothing
+
+The vocabulary read-back was run twice, separately — 844 catalog values (429
+distinct leading words, 1 394 distinct words) and 203 template-label slots (95
+leading, 187 distinct) — because §L2.16 recorded that skipping it on the
+smaller surface is exactly how seven groups were missed there.
+
+A concept-consistency pass then asked whether one English term had picked up
+two Russian words. Five splits were flagged and **all five turned out to be
+driven by the English source**, so nothing was changed:
+
+- `связь` (27) vs `соединение` (1) — the one is `Connection point`, a place
+  where things join, not the edge object;
+- `выполнение` / `прогон` / `запуск` — execution, one Monte-Carlo run, and
+  `view & run`'s imperative, three different English senses;
+- `шаг` vs `этап` — the simulation timestep vs a production stage, the same
+  split `etapa` / `passo` makes in the Romance catalogs;
+- `метка` vs `подпись` — the Label field vs `a device-local label attached to
+  the file`, which is a signature;
+- `выражение` vs `формула` — `regExpr.op.inserts` renders English `formula`.
+
+**That pass finding nothing was a measurement of the pass, not of the
+catalog.** A vocabulary read-back and a concept-consistency screen both ask one
+question — *has one English term picked up two Russian words* — and Russian
+breaks in ways that question cannot see. A second, grammatical pass over all
+844 pairs, reading the English beside the Russian, found **28 defects across
+28 keys**, and a quote convention that needed applying to 12 more.
+
+### The grammar pass, and the seven things it asked
+
+| dimension | found |
+|---|---|
+| case government after a preposition or a governing noun | 12 |
+| a slot whose gender or number is unknown | 2 |
+| a transitive verb left without an object | 4 |
+| a count with no agreement (`{n} столбцов` is wrong for 2–4) | 4 |
+| term and style agreement between button, title and description | 3 |
+| meaning dropped or blurred against the English | 3 |
+| quote convention (separate from the 28) | 12 keys |
+| aspect (perfective vs imperfective imperative) | 0 |
+| `вы` register | 0 |
+
+**The biggest group has one shape: a slot cannot inflect.** `{label}`,
+`{name}`, `{header}`, `{param}` and `{table}` carry user text, so any Russian
+that governs a case around them is wrong — `Значение {label}` needs the
+genitive, `поток через {param}` the accusative, `создаст цикл с {name}` the
+instrumental. All 39 slot occurrences were listed with the word on each side
+and read one by one; ten needed the fix, and the fix is the standard one:
+**guillemets license the nominative**, so `Значение «{label}»` is correct for
+any label. Where a nominative classifier noun already precedes the slot —
+`Таблица {table}`, `Рамка {label}` — nothing is needed, and that is why the
+rule is stated as a condition rather than applied everywhere.
+
+**Two arms that could never agree.** `import.summary` read
+`будет создано {parameters, plural, …}`, with the verb OUTSIDE the block, so
+the `one` arm rendered `будет создано 1 Параметр` — neuter verb, masculine
+noun. The sibling key `import.placement.framePerTableResult` already put its
+verb inside the arms; that is what made the defect visible. `regExpr.op.
+inserted` was `{name} вставлен`, and `{name}` can be `Скобки` (plural) or an
+infinitive, so it became `Вставлено: {name}`.
+
+**Three counts had no plural block, and could not be given one.** `check:i18n`
+requires the argument KIND to match `en` (§L12 #2), so a locale cannot turn a
+plain `{n}` into a plural where English does not need one. German, French and
+Spanish never hit this because their plural is uniform; Russian needs
+`столбца` for 2–4 and `столбцов` for 5+. The answer is to reword so the number
+never governs a noun: `отмечено больше одного столбца ({n})`, `ячеек: {actual}`,
+`предел таблиц: {max}`. The third one was not hypothetical — `DI_TABLES_MAX`
+is 64, so `предел в 64 таблиц` was always wrong.
+
+**Quotes.** Russian quotes with « », and the catalog already did in 16 places
+while 12 others kept the ASCII quotes of the English source. `fr` quotes the
+same keys with « », `ja` with 「」 and `zh` with “ ”, so the convention is
+per-locale and the mixture was simply a gap. The three parser messages keep
+their `“ ”` deliberately: they quote a literal syntax character and they carry
+ICU apostrophe escapes (§L4.1) that are not worth disturbing for typography.
+
+**Two dimensions came back clean, and that is a result too.** Aspect is
+principled throughout: imperfective only where the action is durative
+(`тяните`, `Удерживайте Alt`, `продолжайте вводить`, and the tour bodies that
+describe habitual work), perfective for every one-off command. And a
+mechanical check — *same English value, different Russian value* — returned
+four groups, all of them senses English merges and Russian must split:
+`Import` as a menu noun vs a button verb, `Add` as a hunk action vs the `+`
+operator, and `Label` as a node's caption vs a spreadsheet column's role.
+
+### The second coverage gap of the same shape
+
+`parserLocation.test.ts` is the other item-9 guard with a hand-written
+`CATALOGS` map, for the same reason: `render()` is synchronous and the
+registry's catalogs are lazy chunks. The gap `icuEscaping.test.ts` closed for
+`pt-BR` (§L2.15) was still open here, and this was measured rather than
+assumed — **with `ru`'s import, its `CATALOGS` entry and its `VOCAB` row all
+removed, `tsc -b` exits 0 and the file passes 23/23.**
+
+The type system does not help, and it is worth saying why, because the map
+*looks* type-checked: `VOCAB` is keyed on `Exclude<Loc, 'en'>` and `Loc` is
+`keyof typeof CATALOGS`, so a locale absent from `CATALOGS` is also absent
+from the type it would have to satisfy. Every test in the file then iterates
+`LOCS`, which is derived from that same map, so a missing locale is not a
+failure — it is simply not tested.
+
+Both maps are now asserted exhaustive over the registry, `CATALOGS` including
+the base locale and `VOCAB` excluding it, plus an assertion that `LOCS` really
+is the full set. Removing `ru` again turns those two green tests red.
+
+### Open items
+
+**No Russian native-speaker or professional translation review was performed.**
+Six items stay open rather than smoothed over:
+
+1. the node-kind glossary, especially `Распределитель` and `Преобразователь` —
+   both are long and both press on the node box;
+2. `ё` spelling across the 36 pinned words;
+3. `Гарант` vs the kept English `Pity` / `Hard pity` in the gacha Template;
+4. `дроп` / `лут`, kept as the Russian game-design register uses them;
+5. `Кошелёк` / `Снятия` / `Приёмка` in the module overlay;
+6. whether `вы` should appear at all, or every such sentence be rewritten
+   impersonally. The grammar pass counted them: **9 keys**, every one a
+   sentence where English distinguishes the reader's side from the other
+   party's — *your* graph against the module file, *your* changes against the
+   collaborator's, `yours` against `theirs` — and all lowercase. That is why
+   they survived; a native reviewer may still prefer full impersonality.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**
@@ -1589,12 +1885,25 @@ The folding is deliberately narrow, in two ways.
    Japanese dakuten and handakuten are combining marks. That line folds
    `ポ` → `ホ` and `が` → `か`, so one query would match two different kana and
    a Japanese reader's search would return the wrong language. Hangul jamo,
-   Cyrillic, Thai and Arabic marks are left alone for the same reason. The
-   guard is a test, not a comment: searching `ポ` must return **zero** results.
+   Thai and Arabic marks are left alone for the same reason, and so is every
+   Cyrillic mark but one (item 3). The guard is a test, not a comment:
+   searching `ポ` must return **zero** results.
 
 2. **Every kind of space folds to one ASCII space** — U+00A0 and U+202F
    included — so a typed space matches the typeset one French names may
    carry (§L2.8).
+
+3. **One Cyrillic letter folds: `ё` searches as `е`.** Added with `ru` (§L2.17)
+   and MEASURED first — before it, the two were different strings, so with the
+   UI in Russian the Simplified Chinese row, `Китайский (упрощённый)`, could
+   not be found by typing `упрощенный`. Russian substitutes the two letters
+   freely in running text and `ё` is a separate key, so the spelling in the
+   catalog is not the spelling that gets typed. It is exactly one letter wide
+   on purpose: under NFD `й` is also `и` plus a combining mark, and `й` is a
+   distinct letter no Russian reader substitutes, so the rule rejected for
+   dakuten in item 1 would be wrong here too. Both guards are tests — folding
+   `ё`/`е` together, and keeping `й`/`и` apart — and both were falsified, by
+   removing the rule and by widening it to all Cyrillic.
 
 A ligature that decomposition does not reduce to ASCII (`œ`, `æ`) is left as
 it is. Transliterating it would be a rule about French orthography rather

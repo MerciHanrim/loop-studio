@@ -48,6 +48,7 @@ const ui = {
   'language.portugueseBrazil': 'Portuguese (Brazil)',
   'language.spanishSpain': 'Spanish (Spain)',
   'language.portuguesePortugal': 'Portuguese (Portugal)',
+  'language.russian': 'Russian',
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': '▶ Play',
