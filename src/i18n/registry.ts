@@ -248,7 +248,16 @@ export const LOCALES: readonly LocaleEntry[] = [...SHIPPED_LOCALES, ...devPseudo
  *  fallback, and it is statically bundled so boot can never fail for want of it
  *  (§L2.3, §L4.5). */
 export const BASE_LOCALE = 'en'
-export const BASE_ENTRY: LocaleEntry = LOCALES[0]
+/** Looked up BY CODE, never by position. It was `LOCALES[0]` until §L5.6: the
+ *  array's order is the order languages happened to ship, and a positional
+ *  read makes it load-bearing. Re-ordering the array — which sorting the
+ *  picker alphabetically would have meant — would then have handed
+ *  `store.ts`'s `getEntry(code) ?? BASE_ENTRY` a `zh-Hans` entry (its
+ *  `direction`, its `numberLocale`) while `BASE_CATALOG` stayed `en`: a
+ *  mismatch no test asserts and nothing would have reported. The picker sorts
+ *  a COPY instead (`languageOptions.ts`), and this reads the registry as an
+ *  unordered set. */
+export const BASE_ENTRY: LocaleEntry = LOCALES.find((l) => l.code === BASE_LOCALE) as LocaleEntry
 export const BASE_CATALOG: MessageCatalog = en
 
 /** the one `localStorage` key (§L5.1) — a bare registered `code`, nothing else */

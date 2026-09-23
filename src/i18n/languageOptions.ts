@@ -5,6 +5,37 @@
 /** The switch shows a search box once the SHIPPED-language count reaches this. */
 export const LANGUAGE_SEARCH_THRESHOLD = 6
 
+/** docs/localization.md §L5.6 — the picker's DISPLAY order, over a COPY.
+ *
+ *  The registry array is DATA: its order is the order languages happened to
+ *  ship, and nothing may depend on it. Sorting the array itself would be the
+ *  wrong fix — `BASE_ENTRY` was `LOCALES[0]` until this change, so an
+ *  alphabetical registry would have silently made the base entry `zh-Hans`
+ *  while the base CATALOG stayed `en`. The sort therefore lives here, and
+ *  `registry.ts` looks its base entry up by code.
+ *
+ *  Key: `englishName` under `Intl.Collator('en')`, `code` as a deterministic
+ *  tiebreak. `englishName` is the one label that does not move when the UI
+ *  language changes. The two alternatives were rejected on that ground: the
+ *  localized display name would re-order the list under the user at the exact
+ *  moment they are changing language, and the endonym would sort by script
+ *  (Latin, then Cyrillic, then CJK) — a grouping nobody asked for.
+ *
+ *  A DEV/QA pseudo-locale stays SELECTABLE but is not one of the languages a
+ *  user has (§L5.4), so it is kept out of the sorted set and appended last,
+ *  ordered among its own kind by the same rule. Production ships none. */
+export function displayLocaleOrder<T extends { code: string; englishName: string; pseudo?: boolean }>(
+  locales: readonly T[],
+): T[] {
+  const collator = new Intl.Collator('en')
+  const byName = (a: T, b: T) =>
+    collator.compare(a.englishName, b.englishName) || collator.compare(a.code, b.code)
+  const shipped: T[] = []
+  const pseudo: T[] = []
+  for (const l of locales) (l.pseudo ? pseudo : shipped).push(l)
+  return [...shipped.sort(byName), ...pseudo.sort(byName)]
+}
+
 /** Does the picker render its search box? Counts the languages a user actually
  *  has — a DEV/QA pseudo-locale is selectable and searchable but is not one of
  *  them, so it must not push the count over the threshold and show the box a

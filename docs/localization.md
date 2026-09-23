@@ -1391,6 +1391,49 @@ Additional rules:
   locale's catalog fails to load, the app boots on the embedded `en`
   (§L4.5). There is always a working catalog.
 
+
+**L5.6 — the picker's display order, and why the registry array is not it.**
+The list is sorted at the PRESENTATION layer, over a copy
+(`languageOptions.ts`'s `displayLocaleOrder`). The registry array is DATA: its
+order is the order languages happened to ship.
+
+**Sorting `LOCALES` itself would have been a silent defect.** `BASE_ENTRY` was
+`LOCALES[0]`. Alphabetically the first entry is `zh-Hans`, so an ordered
+registry would have made `store.ts`'s `getEntry(code) ?? BASE_ENTRY` hand an
+unknown locale a CHINESE entry — its `direction`, its `numberLocale` — while
+`BASE_CATALOG` stayed `en`. Nothing asserted that pairing, and nothing would
+have reported it. `BASE_ENTRY` is therefore now looked up by `BASE_LOCALE`,
+and the array is read as an unordered set.
+
+**The key is `englishName`, under `Intl.Collator('en')`, with `code` as a
+deterministic tiebreak.** It is the one label that does not move when the UI
+language changes. The alternatives were rejected on exactly that ground:
+
+| candidate key | why not |
+|---|---|
+| the localized display name | the list would re-order **under the user at the moment they are changing language** — the one moment the picker is open |
+| the endonym | cross-script collation groups by script (Latin, then Cyrillic, then CJK); nobody asked for that grouping, and `한국어` vs `日本語` is still arbitrary within it |
+| registry order (the status quo) | every new language lands at the bottom, and regional variants never sit beside their base |
+
+Its weakness is stated rather than hidden: the sort key is a third string that
+is **not on screen** — the rows show the endonym and the display name. That is
+the price of an order that never moves.
+
+Shipped order today:
+
+> Chinese (Simplified) · Chinese (Traditional) · English · French · German ·
+> Japanese · Korean · Portuguese (Brazil) · Spanish (Latin America)
+
+**A DEV pseudo-locale stays selectable, out of the sorted set, and last.** It
+is not a language a user has (§L5.4), so it must not sort in among them —
+`en-XA` under `English` would put a QA entry between two shipped languages.
+Production ships none, which `e2e/dist.spec.ts` asserts as an exact ordered
+list rather than a set.
+
+The contracts live in `src/i18n/localeOrder.test.ts`: the shipped order, the
+pseudo tail, purity over five shuffles of the input, non-mutation of the
+caller's array, the `code` tiebreak, and no drops or duplicates.
+
 ## L6. Surface inventory (the sweep)
 
 Every string-bearing surface, enumerated key-by-key in the base + conversion

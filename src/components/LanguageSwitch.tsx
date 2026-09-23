@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import {
+  displayLocaleOrder,
   enabledLocales,
   labelsEquivalent,
   matchesLanguageQuery,
@@ -11,7 +12,9 @@ import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
 // docs/localization.md §L5 — the language control is AUTO-GENERATED from the
-// registry: `enabledLocales()` in registry order, each row showing the endonym
+// registry: `enabledLocales()` for the SET and `displayLocaleOrder()` for the
+// order (§L5.6 — English name, pseudo last; the registry array's own order is
+// data and is never displayed), each row showing the endonym
 // (`nativeName`) plus its name in the active UI language (`displayNameKey`), the
 // active one checked. Adding a locale needs NO change here.
 //
@@ -48,7 +51,7 @@ export function LanguageSwitch({
   const loading = useI18n((s) => s.loading)
   const setLocale = useI18n((s) => s.setLocale)
 
-  const locales = enabledLocales()
+  const locales = useMemo(() => displayLocaleOrder(enabledLocales()), [])
   const showSearch = shouldShowLanguageSearch(locales)
 
   const [localOpen, setLocalOpen] = useState(false)

@@ -38,13 +38,21 @@ describe('locale registry metadata', () => {
     for (const l of LOCALES) expect(l.nativeName).toBe(l.nativeName.trim())
   })
 
-  it('enabledLocales() returns the enabled entries, in registry order', () => {
-    expect(enabledLocales()).toEqual(LOCALES.filter((l) => l.enabled))
+  // §L5.6 — the registry array is DATA and the picker sorts a copy, so what
+  // `enabledLocales()` owes its caller is the SET, not an order. The display
+  // order is a separate contract, in `localeOrder.test.ts`.
+  it('enabledLocales() returns the enabled entries as a set, order not promised', () => {
+    const want = LOCALES.filter((l) => l.enabled)
+    expect([...enabledLocales()].sort((a, b) => a.code.localeCompare(b.code))).toEqual(
+      [...want].sort((a, b) => a.code.localeCompare(b.code)),
+    )
     expect(enabledLocales().every((l) => l.enabled)).toBe(true)
   })
 
   it('every shipped locale is enabled today', () => {
-    expect(enabledLocales().map((l) => l.code)).toEqual(LOCALES.map((l) => l.code))
+    expect([...enabledLocales()].map((l) => l.code).sort()).toEqual(
+      LOCALES.map((l) => l.code).sort(),
+    )
   })
 
   // §L2.4 — Traditional Chinese is its own locale, never a conversion of
