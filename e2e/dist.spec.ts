@@ -151,6 +151,20 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // en, ko, ja, zh-Hans, zh-Hant, fr, de, es-419, pt-BR — NO en-XA
     await expect(opts).toHaveCount(9)
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
+    // §L5.6 — in PRODUCTION the picker shows exactly the shipped locales, in
+    // English-name order, with no pseudo-locale to append. Asserted unsorted
+    // here on purpose: the DOM order is the contract.
+    expect(await opts.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))).toEqual([
+      'zh-Hans',
+      'zh-Hant',
+      'en',
+      'fr',
+      'de',
+      'ja',
+      'ko',
+      'pt-BR',
+      'es-419',
+    ])
     const codes = await opts.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).dataset.locale).sort(),
     )

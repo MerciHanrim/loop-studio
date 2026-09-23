@@ -584,6 +584,21 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     const opts = list.locator('[role="option"]')
     // en, ko, ja, zh-Hans, zh-Hant, fr, de, es-419, pt-BR, en-XA (dev pseudo)
     await expect(opts).toHaveCount(10)
+    // §L5.6 — the DISPLAY order: shipped locales by English name, the DEV
+    // pseudo-locale last and out of the sorted set. The registry array's own
+    // order is data and is never what the user sees.
+    expect(await opts.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))).toEqual([
+      'zh-Hans',
+      'zh-Hant',
+      'en',
+      'fr',
+      'de',
+      'ja',
+      'ko',
+      'pt-BR',
+      'es-419',
+      'en-XA',
+    ])
     await expect(list.locator('[data-locale="en"]')).toHaveAttribute('aria-selected', 'true')
     await expect(list.locator('[data-locale="ko"]')).toHaveAttribute('aria-selected', 'false')
     await expect(list.locator('[data-locale="ja"] .menu__name')).toHaveText('日本語')
@@ -593,12 +608,16 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     // box; the listbox must not also claim it.
     await expect(list).not.toHaveAttribute('aria-activedescendant', /./)
     const activeId = () => search.getAttribute('aria-activedescendant')
+    // §L5.6 — the list is in DISPLAY order (English name, pseudo last), not
+    // registry order, and focus starts on the ACTIVE option. In an English UI
+    // that is `en` at index 2, so ArrowDown lands on `fr`, End on the pseudo
+    // locale and Home on the first shipped one, `zh-Hans`.
     await page.keyboard.press('ArrowDown')
-    await expect.poll(activeId).toContain('opt-ko')
+    await expect.poll(activeId).toContain('opt-fr')
     await page.keyboard.press('End')
     await expect.poll(activeId).toContain('opt-en-XA')
     await page.keyboard.press('Home')
-    await expect.poll(activeId).toContain('opt-en')
+    await expect.poll(activeId).toContain('opt-zh-Hans')
     expect(await htmlLang(page)).toBe('en') // nothing selected yet
 
     // Escape closes and returns focus to the trigger
@@ -606,12 +625,14 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(pop).toBeHidden()
     await expect(trigger).toBeFocused()
 
-    // Space opens, ArrowDown + Enter selects ko, focus returns to the trigger
+    // Space opens, ArrowDown + Enter selects the option after the active one.
+    // In display order (§L5.6) that is `fr`, not `ko` — the language the
+    // keystroke lands on is a property of the ORDER, so it moved with it.
     await page.keyboard.press(' ')
     await expect(page.locator('.lang-menu__pop')).toBeVisible()
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
-    await expect.poll(() => htmlLang(page)).toBe('ko')
+    await expect.poll(() => htmlLang(page)).toBe('fr')
     await expect(page.locator('.lang-menu__pop')).toBeHidden()
     await expect(trigger).toBeFocused()
   })
