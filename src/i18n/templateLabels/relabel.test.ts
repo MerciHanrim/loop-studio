@@ -44,6 +44,7 @@ describe('officialTemplateLabelIndex', () => {
       'Level',
       'Niveau',
       'Nivel',
+      'Nível',
       'Stufe',
       'レベル',
       '等級',

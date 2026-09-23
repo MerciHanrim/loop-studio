@@ -40,6 +40,9 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   fr: { englishForm: /anglais/i, newTab: /onglet/i },
   de: { englishForm: /englisch/i, newTab: /Tab/ },
   'es-419': { englishForm: /inglés/i, newTab: /pestaña/i },
+  // Brazilian Portuguese says `aba` for a browser tab; `guia` is the
+  // Microsoft-style rendering and is not what this catalog uses.
+  'pt-BR': { englishForm: /inglês/i, newTab: /aba/i },
 }
 
 const catalogOf = async (code: string) => {
@@ -66,6 +69,25 @@ describe('copy contracts that hold ACROSS locales', () => {
     // and English stays `Spanish (Latin America)`.
     const ko = await catalogOf('ko')
     expect(ko['language.spanishLatinAmerica']).toBe('스페인어(중남미)')
+  })
+
+  // A regional variant's display name is the one string a reader cannot check
+  // for themselves: it names a language they do not read, in a language they
+  // do. `check:i18n` proves the key EXISTS and that its ICU shape matches, so
+  // a value copied from the wrong catalog passes every mechanical gate —
+  // `es-419` shipped this key holding the PORTUGUESE endonym for exactly that
+  // reason. Each locale's own word for the language, pinned.
+  it('names Brazilian Portuguese in each locale, never borrowing the endonym', async () => {
+    const want: Record<string, string> = {
+      ko: '포르투갈어(브라질)',
+      'es-419': 'Portugués (Brasil)',
+      'pt-BR': 'Português (Brasil)',
+    }
+    const got: Record<string, string> = {}
+    for (const code of Object.keys(want)) {
+      got[code] = (await catalogOf(code))['language.portugueseBrazil']
+    }
+    expect(got).toEqual(want)
   })
 
   it('tells every non-English reader that the feedback form is in English', async () => {

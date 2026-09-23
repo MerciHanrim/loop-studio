@@ -48,6 +48,7 @@ const ui = {
   // `라틴 아메리카`. The endonym and the English name stay
   // `Español (Latinoamérica)` / `Spanish (Latin America)`.
   'language.spanishLatinAmerica': '스페인어(중남미)',
+  'language.portugueseBrazil': '포르투갈어(브라질)',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',

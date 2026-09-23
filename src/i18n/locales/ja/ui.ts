@@ -50,6 +50,7 @@ const ui = {
   'language.french': 'フランス語',
   'language.german': 'ドイツ語',
   'language.spanishLatinAmerica': 'スペイン語（ラテンアメリカ）',
+  'language.portugueseBrazil': 'ポルトガル語（ブラジル）',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',

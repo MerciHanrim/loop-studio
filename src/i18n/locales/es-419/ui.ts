@@ -49,6 +49,7 @@ const ui = {
   'language.french': 'Francés',
   'language.german': 'Alemán',
   'language.spanishLatinAmerica': 'Español (Latinoamérica)',
+  'language.portugueseBrazil': 'Portugués (Brasil)',
   'playbar.reset.title': 'Reiniciar al paso 0',
   'playbar.step.title': 'Avanzar un paso',
   'playbar.play': '▶ Reproducir',

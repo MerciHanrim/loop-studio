@@ -174,7 +174,7 @@ test.describe('the language search box finds Spanish', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(9) // 8 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(10) // 9 shipped + the dev pseudo-locale
 
     for (const q of ['Español', 'espanol', 'ESPANOL', 'Latinoamérica', 'latinoamerica', 'Spanish', 'es-419']) {
       await search(page).fill(q)
@@ -196,6 +196,7 @@ test.describe('the language search box finds Spanish', () => {
       ['zh-Hant', '西班牙文'],
       ['fr', 'Espagnol'],
       ['de', 'Spanisch'],
+      ['pt-BR', 'Espanhol'],
     ] as const) {
       await setLocale(page, ui)
       await openLanguageMenu(page)

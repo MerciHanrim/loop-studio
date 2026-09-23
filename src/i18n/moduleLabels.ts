@@ -257,6 +257,37 @@ const ES_419: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// Brazilian Portuguese. `Carteira`, `Saques` and `Poupança` are the everyday
+// Brazilian words for a wallet, withdrawals and savings — the same kind of
+// deliberate regional marker `es-419` carries with `Billetera` / `Retiros`.
+// `planejada` (not `planeada`) and `estoque` (not `existências`) are the
+// Brazilian spellings.
+const PT_BR: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Fornecimento',
+    inbox: 'Fila de entrada',
+    intake: 'Recebimento',
+    process: 'Processamento',
+    spoilage: 'Perdas',
+    outbox: 'Fila de saída',
+    shipped: 'Expedição',
+    batch_size: 'Tamanho do lote',
+    in_system: 'Unidades no sistema',
+    planned_run: 'Produção planejada',
+  },
+  'reward-split': {
+    activity: 'Atividade',
+    wallet: 'Carteira',
+    allocate: 'Distribuir',
+    spending: 'Gastos',
+    savings: 'Poupança',
+    withdrawals: 'Saques',
+    target_savings: 'Meta de poupança',
+    net_worth: 'Patrimônio líquido',
+    progress: 'Progresso até a meta',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -265,6 +296,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   fr: FR,
   de: DE,
   'es-419': ES_419,
+  'pt-BR': PT_BR,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if
