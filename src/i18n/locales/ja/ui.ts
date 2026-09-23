@@ -52,6 +52,7 @@ const ui = {
   'language.spanishLatinAmerica': 'スペイン語（ラテンアメリカ）',
   'language.portugueseBrazil': 'ポルトガル語（ブラジル）',
   'language.spanishSpain': 'スペイン語（スペイン）',
+  'language.portuguesePortugal': 'ポルトガル語（ポルトガル）',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',

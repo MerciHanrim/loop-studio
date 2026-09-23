@@ -1,0 +1,261 @@
+// docs/template-label-overlay.md §TLO2 — the `pt-PT` node-`label` overlay for
+// bundled Templates. `label` only — never `resourceType`, which stays the
+// canonical English advisory value in every locale.
+// `check:template-labels` keeps every block in sync with its canonical graph
+// (`examples/<id>.json`).
+//
+// Gacha conventions (carried over from `fr`, `de` and `es-419`): the MECHANISM
+// names stay in the English players actually use — `Pity`, `Hard Pity`, `UP` —
+// while the actions and rates are Portuguese (`Invocação`, `Invocações
+// feitas`, `Taxa de acerto`). SSR / SR / R are rarity letters and are never
+// translated. Node ids, resource types and every graph field are untouched.
+//
+// `etapa` for a stage of a production process, `passo` for the simulation
+// timestep. A REGION AUDIT over `pt-BR` (§L2.16): 24 of the 203 label slots
+// differ — 196 node labels plus 7 frame titles — and only for European
+// spellings and words —
+//   `Existências` not `Estoque` · `Equipa` not `Equipe` ·
+//   `planeado` not `planejado` · `online` not `on-line` ·
+//   `treino` not `treinamento` · `reparação` not `reparo` ·
+//   `preparação` not `preparo` · `procura` not `demanda` ·
+//   `encomendas` not `pedidos` · `por grosso` not `atacado` ·
+//   `retalho` not `varejo`.
+//
+// The last seven of those came from reading the label vocabulary BACK —
+// extracting all 206 distinct words across those 203 slots and looking at
+// them — not from the candidate list, which had found only the first four.
+// Same lesson as the `es-ES` audit, and it repeated on a surface small enough
+// to feel safe.
+// `Ouro` is the in-fiction currency; the resource-type token `Gold` is a
+// different thing and stays English.
+//
+// `drop` and `loot` are kept exactly as `pt-BR` keeps them
+// (`Drops de equipamento`, `Categoria do loot`): the game-design register is
+// the same on both sides of the Atlantic, and translating them would name
+// nothing a designer recognises. Not a regional call — listed for native
+// review in both locales.
+
+import type { TemplateLabelDict, TemplateLabelMap } from './index'
+
+export const ptPT: TemplateLabelDict = {
+  'equilibrium': {
+    'tpl-src': 'Fornecimento de material',
+    'tpl-vault': 'Existências de matéria-prima',
+    'tpl-gate': 'Divisão da produção',
+    'tpl-conv': 'Processamento',
+    'tpl-prod': 'Produtos acabados',
+    'tpl-spill': 'Refugo',
+    'tpl-consume': 'Expedição',
+  },
+  'deadlock': {
+    'tpl-src': 'Fornecimento de material',
+    'tpl-vault': 'Existências de matéria-prima',
+    'tpl-gate': 'Divisão da produção',
+    'tpl-conv': 'Processamento',
+    'tpl-prod': 'Produtos acabados',
+    'tpl-spill': 'Refugo',
+  },
+  'mmo-progression': {
+    level: 'Nível',
+    xp: 'XP',
+    xp_earned: 'XP obtido',
+    reward: 'Recompensa',
+    fail_pool: 'Reveses',
+    death_pool: 'Fila de mortes',
+    reward_router: 'Distribuição de recompensas',
+    hunt_payout: 'Pagamento por caçada',
+    quest_payout: 'Pagamento por missão',
+    hunt_xp: 'XP por caçada',
+    quest_xp: 'XP por missão',
+    fail_conv: 'Custo dos reveses',
+    death_conv: 'Custo da morte',
+    combat_wins: 'Combates vencidos',
+    combat_fails: 'Combates perdidos',
+    deaths: 'Mortes (quantidade)',
+    gold: 'Ouro',
+    gold_earned: 'Ouro obtido',
+    vendor_revenue: 'Receita de vendas',
+    repair_spend: 'Gasto com reparação',
+    resupply_spend: 'Gasto com reabastecimento',
+    training_spend: 'Gasto com treino',
+    water: 'Água (unidades)',
+    food: 'Comida (unidades)',
+    water_bought: 'Água comprada (unidades)',
+    food_bought: 'Comida comprada (unidades)',
+    water_consumed: 'Água consumida (unidades)',
+    food_consumed: 'Comida consumida (unidades)',
+    water_upkeep: 'Consumo de água',
+    food_upkeep: 'Consumo de comida',
+    resupply: 'Reabastecimento',
+    gear_score: 'Pontuação de equipamento',
+    gear_wear: 'Desgaste do equipamento',
+    wear_cleared: 'Desgaste reparado',
+    repair_wear: 'Reparação (desgaste)',
+    repair_gold: 'Reparação (custo)',
+    drop: 'Drops',
+    loot_feed: 'Loot a classificar',
+    loot_dispatch: 'Distribuição do loot',
+    loot_category: 'Categoria do loot',
+    bucket_equip: 'Drops de equipamento',
+    bucket_vendor: 'Drops para venda',
+    bucket_consumable: 'Drops de consumíveis',
+    bucket_rare: 'Drops raros',
+    items_looted: 'Itens obtidos',
+    items_equipped: 'Itens equipados',
+    items_sold: 'Itens vendidos',
+    items_consumed: 'Itens consumidos',
+    equip_conv: 'Equipar',
+    vendor_conv: 'Vender ao comerciante',
+    consumable_conv: 'Usar consumível',
+    rare_conv: 'Vender os raros',
+    elapsed: 'Passos decorridos',
+    clock: 'Relógio',
+    completion: 'Progresso',
+    completion_src: 'Pulso de progresso',
+    end15: 'Nível 15 alcançado',
+    z1_enc_src: 'Encontros na zona inicial',
+    z1_enc: 'Zona inicial · níveis 1–5',
+    z1_combat: 'Combate na zona inicial',
+    z1_win: 'Vitória na zona inicial',
+    z1_winamp: 'Ganho na zona inicial',
+    z1_lootroll: 'Rolagem de loot na zona inicial',
+    z1_loot: 'Loot da zona inicial',
+    z1_xp_meter: 'Medidor de XP da zona inicial',
+    z1_xp2lvl: 'Subida de nível na zona inicial',
+    z1_training: 'Treino na zona inicial',
+    z2_enc_src: 'Encontros no sopé',
+    z2_enc: 'Sopé · níveis 5–10',
+    z2_combat: 'Combate no sopé',
+    z2_win: 'Vitória no sopé',
+    z2_winamp: 'Ganho no sopé',
+    z2_lootroll: 'Rolagem de loot no sopé',
+    z2_loot: 'Loot do sopé',
+    z2_xp_meter: 'Medidor de XP do sopé',
+    z2_xp2lvl: 'Subida de nível no sopé',
+    z2_training: 'Treino no sopé',
+    z3_enc_src: 'Encontros nas terras altas',
+    z3_enc: 'Terras altas · níveis 10–15',
+    z3_combat: 'Combate nas terras altas',
+    z3_win: 'Vitória nas terras altas',
+    z3_winamp: 'Ganho nas terras altas',
+    z3_lootroll: 'Rolagem de loot nas terras altas',
+    z3_loot: 'Loot das terras altas',
+    z3_xp_meter: 'Medidor de XP das terras altas',
+    z3_xp2lvl: 'Subida de nível nas terras altas',
+    z3_training: 'Treino nas terras altas',
+    void: 'Sem drop',
+    char_creation: 'Criação do personagem',
+    active_char: 'Personagem ativo',
+    r_income: 'Receita total',
+    r_expense: 'Despesa total',
+    r_netgold: 'Verificação do ouro líquido',
+    r_huntshare: 'Parcela de XP por caçada',
+    r_efflevel: 'Índice de ritmo de XP',
+    r_items_acct: 'Itens contabilizados',
+    r_burned: 'Consumíveis gastos',
+  },
+  'coffee-roastery': {
+    cafe_retail_demand_kg: 'Procura de grãos no café e no retalho (kg/dia)',
+    daily_roast_kg: 'Torra diária (kg)',
+    online_orders: 'Encomendas de grãos online (kg/dia)',
+    green_wholesale_kg: 'Encomendas por grosso de café verde (kg)',
+    dessert_prep: 'Preparação diária de sobremesas',
+    green_delivery: 'Entrega de café verde',
+    green_stock: 'Existências de café verde',
+    green_wholesale: 'Venda por grosso de café verde',
+    roasting: 'Torra · 82% de rendimento',
+    roasted_stock: 'Existências de café torrado',
+    roast_loss: 'Perda de peso na torra',
+    online_sales: 'Venda online de café em pacote',
+    cafe_retail: 'Uso de grãos no café e no retalho',
+    roasted_bleed: 'Equipa, prova e amostras',
+    dessert_prep_src: 'Preparação de sobremesas',
+    dessert_stock: 'Existências de sobremesas',
+    dessert_sales: 'Venda de sobremesas',
+    dessert_wrapup: 'Sobras no fim do dia',
+    projected_revenue: 'Receita diária prevista',
+    planned_cost: 'Custo diário planeado',
+    projected_operating_margin: 'Margem operacional diária prevista',
+    roasted_supply_margin: 'Margem do fornecimento de torrado',
+    dessert_prep_margin: 'Margem da preparação de sobremesas',
+  },
+  'gacha-banner-zones': {
+    pulls_per_zone: 'Invocações por zona (número inteiro)',
+    cmp1_hit_rate_free: 'Taxa de acerto — Geral / Grátis',
+    cmp2_hit_rate_standard: 'Taxa de acerto — Premium Padrão',
+    cmp3_hit_rate_pickup: 'Taxa de acerto — Premium UP',
+    cmp4_pickup_rate_pickup: 'Taxa de UP — Premium UP',
+    fund_free: 'Creditar tickets',
+    ticket_free: 'Tickets',
+    pulls_made_free: 'Invocações feitas',
+    zone1_free_w_ssr: 'Geral / Grátis · peso SSR',
+    zone1_free_w_sr: 'Geral / Grátis · peso SR',
+    zone1_free_w_r: 'Geral / Grátis · peso R',
+    sr_count_free: 'Quantidade de SR',
+    r_count_free: 'Quantidade de R',
+    ssr_count_free: 'SSR · Grátis',
+    roll_gate_free: 'Rolagem',
+    ssr_hit_free: 'SSR',
+    sr_hit_free: 'SR',
+    r_hit_free: 'R',
+    fund_standard: 'Creditar tickets',
+    ticket_standard: 'Tickets',
+    pulls_made_standard: 'Invocações feitas',
+    zone2_standard_w_ssr: 'Premium Padrão · peso SSR',
+    zone2_standard_w_sr: 'Premium Padrão · peso SR',
+    zone2_standard_w_r: 'Premium Padrão · peso R',
+    sr_count_standard: 'Quantidade de SR',
+    r_count_standard: 'Quantidade de R',
+    ssr_count_standard: 'SSR · Padrão',
+    roll_gate_standard: 'Rolagem',
+    ssr_hit_standard: 'SSR',
+    sr_hit_standard: 'SR',
+    r_hit_standard: 'R',
+    pity_standard: 'Pity',
+    zone2_standard_hard_pity: 'Premium Padrão · limite de Hard Pity',
+    forced_ssr_standard: 'SSR forçado',
+    ceiling_hits_standard: 'Limites atingidos',
+    fund_pickup: 'Creditar tickets',
+    ticket_pickup: 'Tickets',
+    pulls_made_pickup: 'Invocações feitas',
+    zone3_pickup_w_ssr: 'Premium UP · peso SSR',
+    zone3_pickup_w_sr: 'Premium UP · peso SR',
+    zone3_pickup_w_r: 'Premium UP · peso R',
+    sr_count_pickup: 'Quantidade de SR',
+    r_count_pickup: 'Quantidade de R',
+    ssr_count_pickup: 'SSR · UP',
+    pity_pickup: 'Pity',
+    zone3_pickup_hard_pity: 'Premium UP · limite de Hard Pity',
+    ceiling_hits_pickup: 'Limites atingidos',
+    missed_pickup_pickup: 'UP pendente',
+    zone3_pickup_w_pickup: 'Premium UP · peso de UP',
+    zone3_pickup_w_standard: 'Premium UP · peso padrão',
+    roll_normal_open_pickup: 'Rolagem — normal, nada pendente',
+    roll_normal_owed_pickup: 'Rolagem — normal, UP pendente',
+    roll_forced_open_pickup: 'Rolagem — forçada, nada pendente',
+    roll_forced_owed_pickup: 'Rolagem — forçada, UP pendente',
+    ssr_split_open_pickup: 'Divisão de SSR — nada pendente',
+    pickup_hit_pickup: 'Acerto de UP',
+    standard_hit_pickup: 'Acerto padrão',
+    sr_hit_pickup: 'SR',
+    r_hit_pickup: 'R',
+    pickup_count_pickup: 'UP obtidos',
+    standard_count_pickup: 'Quantidade de Padrão',
+    termination_fuel: 'Sinal de conclusão',
+    all_zones_done: 'Todas as zonas concluídas',
+  },
+}
+
+export const ptPTFrames: TemplateLabelMap = {
+  'coffee-roastery': {
+    zone_supply: 'Fornecimento e existências',
+    zone_roasting: 'Torra e venda',
+    zone_forecast: 'Indicadores de previsão',
+  },
+  'gacha-banner-zones': {
+    zone_free: 'Geral / Grátis',
+    zone_standard: 'Premium Padrão',
+    zone_pickup: 'Premium UP',
+    zone_comparison: 'Comparação',
+  },
+}

@@ -47,6 +47,11 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   // required, because the map is asserted exhaustive over the registry and a
   // locale with no row would otherwise ship unchecked
   'es-ES': { englishForm: /inglés/i, newTab: /pestaña/i },
+  // European Portuguese does NOT inherit `pt-BR`'s row: a browser tab is a
+  // `separador` in Portugal, and `aba` there is a flap or a brim. This is the
+  // one marker in the whole map that had to change when a sibling locale of
+  // an existing language registered.
+  'pt-PT': { englishForm: /inglês/i, newTab: /separador/i },
 }
 
 const catalogOf = async (code: string) => {
@@ -86,10 +91,30 @@ describe('copy contracts that hold ACROSS locales', () => {
       ko: '포르투갈어(브라질)',
       'es-419': 'Portugués (Brasil)',
       'pt-BR': 'Português (Brasil)',
+      'pt-PT': 'Português (Brasil)',
     }
     const got: Record<string, string> = {}
     for (const code of Object.keys(want)) {
       got[code] = (await catalogOf(code))['language.portugueseBrazil']
+    }
+    expect(got).toEqual(want)
+  })
+
+  // The mirror of the test above, and the reason both are worth having: the
+  // two Portuguese locales must name EACH OTHER, and neither may quietly
+  // reuse its own name for its sibling. `pt-PT` calls Brazil `(Brasil)` and
+  // itself `(Portugal)`; `pt-BR` does the same in the other direction.
+  it('names European Portuguese in each locale, never borrowing the endonym', async () => {
+    const want: Record<string, string> = {
+      ko: '포르투갈어(포르투갈)',
+      'es-419': 'Portugués (Portugal)',
+      'es-ES': 'Portugués (Portugal)',
+      'pt-BR': 'Português (Portugal)',
+      'pt-PT': 'Português (Portugal)',
+    }
+    const got: Record<string, string> = {}
+    for (const code of Object.keys(want)) {
+      got[code] = (await catalogOf(code))['language.portuguesePortugal']
     }
     expect(got).toEqual(want)
   })

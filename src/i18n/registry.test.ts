@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import en from './locales/en'
-import type { LocaleEntry } from './registry'
 import {
   BASE_LOCALE,
   LOCALES,
@@ -68,6 +67,7 @@ describe('locale registry metadata', () => {
       'ja',
       'ko',
       'pt-BR',
+      'pt-PT',
       'zh-Hans',
       'zh-Hant',
     ])
@@ -276,7 +276,9 @@ describe('§L5.2 step 4 — baseFallbackFor', () => {
     for (const tag of [
       'pt',
       'pt-BR',
-      'pt-PT',
+      // `pt-PT` used to be on this list and is deliberately GONE: registering
+      // European Portuguese moved it to the test below, exactly as
+      // `i18n-pt-br.spec.ts` predicted it would (see [locale-spec-staleness]).
       'pt-AO',
       'pt-MZ',
       'pt-CV',
@@ -297,21 +299,47 @@ describe('§L5.2 step 4 — baseFallbackFor', () => {
     expect(resolveInitialLocale(null, ['en-US', 'pt-BR'])).toBe('en')
   })
 
-  it('a future exact pt-PT wins its own tag with no resolver change', () => {
-    const future: readonly LocaleEntry[] = [
-      ...LOCALES,
-      { ...(getEntry('pt-BR') as LocaleEntry), code: 'pt-PT', baseFallbackFor: undefined },
-    ]
-    expect(resolveInitialLocale(null, ['pt-PT'], future)).toBe('pt-PT')
-    expect(resolveInitialLocale(null, ['pt-AO'], future)).toBe('pt-BR') // still the owner
-    expect(resolveInitialLocale(null, ['pt'], future)).toBe('pt-BR')
+  // This was written against a HYPOTHETICAL registry while `pt-PT` was still
+  // a plan; it now runs against the real entry, and the prediction held with
+  // no change to the resolver — the same arc `es-ES` went through.
+  it('an exact pt-PT wins its own tag with no resolver change', () => {
+    expect(getEntry('pt-PT')?.baseFallbackFor).toBeUndefined()
+    expect(getEntry('pt-BR')?.baseFallbackFor).toBe('pt') // `pt-BR` still owns the base
+    for (const tag of ['pt-PT', 'PT-pt', 'pt-pt']) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('pt-PT')
+    }
+    expect(resolveInitialLocale(null, ['pt'])).toBe('pt-BR')
+    expect(resolveInitialLocale(null, ['pt-AO'])).toBe('pt-BR')
+    // and the per-TAG walk still prefers the first tag
+    expect(resolveInitialLocale(null, ['pt-PT', 'pt-BR'])).toBe('pt-PT')
+    expect(resolveInitialLocale(null, ['pt-BR', 'pt-PT'])).toBe('pt-BR')
+    expect(resolveInitialLocale(null, ['pt-AO', 'pt-PT'])).toBe('pt-BR')
+  })
+
+  // A KNOWN RESOLVER LIMIT, pinned so it is a recorded decision rather than a
+  // surprise. `navigator.languages` returns BCP 47 tags and BCP 47 permits a
+  // script subtag and extensions, so these are tags a browser MAY send. Step 1
+  // matches the whole tag only, so they miss `pt-PT` and fall to the base
+  // owner. `es-ES` has the identical limit. Normalising the tag is a resolver
+  // change and is deliberately not mixed into a locale PR (§L2.16).
+  it('a script or extension subtag misses the exact match — known limit', () => {
+    for (const tag of ['pt-Latn-PT', 'pt-PT-u-ca-gregory']) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('pt-BR')
+    }
+    expect(resolveInitialLocale(null, ['es-Latn-ES'])).toBe('es-419')
   })
 
   it('only an exactly registered Portuguese code restores from storage', () => {
-    for (const stored of ['pt', 'pt-PT', 'PT-BR', 'pt_BR', 'pt-br']) {
+    for (const stored of ['pt', 'PT-BR', 'pt_BR', 'pt-br', 'PT-PT', 'pt_PT', 'pt-pt']) {
       expect(isRegistered(stored), stored).toBe(false)
       expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
     }
     expect(resolveInitialLocale('pt-BR', ['en-US'])).toBe('pt-BR')
+    expect(resolveInitialLocale('pt-PT', ['en-US'])).toBe('pt-PT')
+    // §L5.1 is deliberately stricter than §L5.2: `pt-pt` as a NAVIGATOR tag
+    // reaches `pt-PT` (case-insensitive), but as a STORED value it does not,
+    // because a stored value is matched exactly with no case repair.
+    expect(resolveInitialLocale(null, ['pt-pt'])).toBe('pt-PT')
+    expect(resolveInitialLocale('pt-pt', ['en-US'])).toBe('en')
   })
 })

@@ -57,6 +57,7 @@ const ui = {
   'language.spanishLatinAmerica': 'Espagnol (Amérique latine)',
   'language.portugueseBrazil': 'Portugais (Brésil)',
   'language.spanishSpain': 'Espagnol (Espagne)',
+  'language.portuguesePortugal': 'Portugais (Portugal)',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': '▶ Lecture',

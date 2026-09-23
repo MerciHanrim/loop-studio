@@ -582,8 +582,8 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(search).toHaveCount(1)
     await expect(search).toBeFocused()
     const opts = list.locator('[role="option"]')
-    // en, ko, ja, zh-Hans, zh-Hant, fr, de, es-419, pt-BR, es-ES, en-XA (dev pseudo)
-    await expect(opts).toHaveCount(11)
+    // en, ko, ja, zh-Hans, zh-Hant, fr, de, es-419, pt-BR, es-ES, pt-PT, en-XA (dev pseudo)
+    await expect(opts).toHaveCount(12)
     // §L5.6 — the DISPLAY order: shipped locales by English name, the DEV
     // pseudo-locale last and out of the sorted set. The registry array's own
     // order is data and is never what the user sees.
@@ -596,6 +596,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
       'ja',
       'ko',
       'pt-BR',
+      'pt-PT',
       'es-419',
       'es-ES',
       'en-XA',
