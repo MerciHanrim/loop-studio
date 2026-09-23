@@ -457,6 +457,13 @@ what `src/i18n/localeSurfaceCopy.test.ts` is for. Its marker map is asserted
 exhaustive over the registry's translated locales, so language *N+1* fails
 until it has decided how it says "English form" and "new tab".
 
+**`pt-PT` is the case that proves the map cannot be inherited.** It is the
+same LANGUAGE as `pt-BR`, so the obvious move was to copy its row. That would
+have been wrong: a browser tab is a `separador` in Portugal, and `aba` there
+is a flap or a brim. A sibling locale of an existing language still has to
+decide its own markers — the only row in the map so far that had to differ
+from its own language's other row.
+
 The same file holds the other member of that class. Item 3 makes
 `check:i18n` prove the `language.<name>` key EXISTS in every catalog; nothing
 proves it is *right*, and `es-419` shipped into the Korean picker as
@@ -484,19 +491,28 @@ The count still lives in three specs by hand. Deriving it from `LOCALES` would
 need the runner to import product code, which no e2e file does today; that is
 a recorded follow-up, not something this checklist pretends is solved.
 
-**The shipping order, so "not on the roadmap" means something.** Ten
+**The shipping order, so "not on the roadmap" means something.** Eleven
 languages ship today: `en` `ko` `ja` `zh-Hans` `zh-Hant` `fr` `de` `es-419`
-`pt-BR` `es-ES`. The remaining order, set 2026-09-23, is
+`pt-BR` `es-ES` `pt-PT`. The remaining order, set 2026-09-23, is
 
-> **`pt-PT` -> `ru` -> `tr` -> `th` -> `vi`**
+> **`ru` -> `tr` -> `th` -> `vi`**, with `pl-PL` and `it-IT` added after them
 
-Two changes are worth recording rather than absorbing silently. `ru` moved
-ahead of `th` / `vi`, and **`tr` (Turkish) is new** — it appears in no earlier
-roadmap, so it is written down here to stop it being dropped again. The two
-mainland variants come directly after their base locale because each is a
-regional audit over a finished 840-key catalog rather than a new translation,
-and because a Spain reader can already read `es-419` while a Portuguese reader
-fell all the way to English until `pt-BR` shipped.
+Three changes are worth recording rather than absorbing silently. `ru` moved
+ahead of `th` / `vi`; **`tr` (Turkish) is new** — it appears in no earlier
+roadmap, so it is written down here to stop it being dropped again; and
+**`pl-PL` and `it-IT` joined the tail**, Polish first on market size and
+Italian after it on translation cost. Both mainland variants came directly
+after their base locale because each is a regional audit over a finished
+catalog rather than a new translation, and because a Spain reader could
+already read `es-419` while a Portuguese reader fell all the way to English
+until `pt-BR` shipped.
+
+**Both regional-variant probes are now spent.** `es-ES` stopped being a safe
+"unregistered" tag in #270 and `pt-PT` stops being one here. The Portuguese
+rows that never rot are `pt-AO` / `pt-MZ` / `pt-CV` / `pt-TL`, and
+`i18n-pt-br.spec.ts` now uses `pt-AO` for its stored-value probe as well as
+its navigator probe — a registered code cannot stand in for an unregistered
+stored value.
 
 **Arabic stays out of this line.** It is a separate stage gated on an
 RTL-infrastructure audit: the registry carries `direction` and `<html dir>` is
@@ -793,16 +809,25 @@ sends `pt`, `pt-BR`, `pt-PT`, `pt-AO`. Measured with the real
 entry therefore declares `baseFallbackFor: 'pt'` (§L5.2 step 4). No resolver
 code changed; the field and the per-TAG walk already existed for `es-419`.
 
-**`pt-PT` lands here too, and that trade-off is bigger than the Spanish one.**
-European Portuguese differs in vocabulary (`ficheiro` / `ecrã` / `guardar` /
-`utilizador` / `carácter`) *and* in grammar: CLDR gives `pt-BR` **0 -> `one`**
-and `pt-PT` **0 -> `other`**, so a Portugal reader sees a plural form their own
-variant would not use. Brazilian Portuguese is still far closer to them than
-English, which is the only other option today, and `pt-PT` is on the roadmap —
-registering it makes §L5.2 step 1 (exact code) win its own tag with no resolver
-change, exactly as `es-ES` will beside `es-419`. `e2e/i18n-pt-br.spec.ts`
-states which of its tag rows are expected to flip when that happens and which
-(`pt-AO`, `pt-MZ`, `pt-CV`, `pt-TL`) never will.
+**`pt-PT` USED TO land here too, and that trade-off was bigger than the
+Spanish one.** European Portuguese differs in vocabulary (`ficheiro` /
+`guardar` / `partilhar` / `carácter`) *and* in grammar: CLDR gives `pt-BR`
+**0 -> `one`** and `pt-PT` **0 -> `other`**, so a Portugal reader saw a plural
+form their own variant would not use. Brazilian Portuguese was still far closer
+to them than English, which was the only other option at the time.
+
+**That trade-off is now closed:** `pt-PT` shipped as its own locale (§L2.16),
+and registering it made §L5.2 step 1 (exact code) win its own tag with no
+resolver change, exactly as predicted here and exactly as `es-ES` did beside
+`es-419`. The `pt-PT` row in `e2e/i18n-pt-br.spec.ts` flipped by design; the
+rows that never rot are `pt-AO`, `pt-MZ`, `pt-CV` and `pt-TL`, and that spec's
+stored-value probe moved to `pt-AO` as well, because a registered code cannot
+stand in for an unregistered stored value.
+
+One prediction in this section did NOT survive contact: `ecrã` was listed
+above as a European word this catalog lacks. It is — but it is not the
+European word for anything `pt-BR` says `tela` for. Every one of those keys
+renders English `canvas`, not `screen`, so `pt-PT` keeps `tela` too (§L2.16).
 
 **Plural: `one` / `other` / `many`, with 0 in `one`.** Measured in node and in
 the production Chromium runtime, identically. That is the FRENCH shape, the
@@ -1039,6 +1064,163 @@ shipped in #268 and was simply absent from it**, so its ICU quoting and plural
 fallback went unchecked. Adding it showed no defect — a coverage gap, not a
 bug — and the map is now asserted **exhaustive over the registry**, which
 caught `es-ES` immediately on its first run.
+
+**L2.16 — European Portuguese is `pt-PT`, the second REGION AUDIT, and the
+first one where the two catalogs differ in GRAMMAR.** Shipped as the eleventh
+language, over the finished `pt-BR` catalog. **191 strings differ out of
+1,065** (843 catalog + 203 template labels + 19 module labels): 162 catalog,
+24 template labels, 5 module labels. Five times what `es-ES` moved, and that
+is the finding rather than a failure of restraint — European and Brazilian
+Portuguese diverge further than Spain and Latin America do.
+
+**The resolver needed no new machinery, again.** Like `es-ES` and unlike
+`es-419` / `pt-BR`, this code IS a tag browsers send, so it declares **no
+`baseFallbackFor`**: §L5.2 step 1 (exact code) runs before step 4 (base
+owner), so `pt-BR` keeps owning `pt`. Measured with the real resolver before
+the entry existed and again after:
+
+| navigator tag | resolves to |
+|---|---|
+| `pt-PT`, `PT-pt`, `pt-pt` | **`pt-PT`** |
+| `pt`, `pt-BR`, `pt-AO`, `pt-MZ`, `pt-CV`, `pt-GW`, `pt-ST`, `pt-TL`, `pt-MO`, `pt-CH`, `pt-LU` | `pt-BR` |
+| `pt-Latn-PT`, `pt-PT-u-ca-gregory` | `pt-BR` — see the limit below |
+
+**A known resolver limit, recorded rather than fixed here.** A tag carrying a
+SCRIPT or an EXTENSION subtag misses step 1 and falls to the base owner.
+BCP 47 permits both and `navigator.languages` returns BCP 47 tags, so this is
+not "a tag no browser sends" — it is a normalisation the resolver does not do.
+`es-ES` has the identical limit. Fixing it means changing tag matching for
+every locale at once, which does not belong in a locale PR; `registry.test.ts`
+and `i18n-pt-pt.spec.ts` both pin the current behaviour so the next reader
+finds a decision instead of a surprise.
+
+**§L5.1 stays deliberately stricter than §L5.2.** `pt-pt` as a NAVIGATOR tag
+reaches `pt-PT` because step 1 lowercases both sides; as a STORED value it
+does not, because a stored value is matched exactly with no case repair. Both
+directions are asserted.
+
+### What differs
+
+| area | n | what |
+|---|---|---|
+| catalog | 41 | a file is a `ficheiro`, not an `arquivo` |
+| catalog | 24 | a connection is a `ligação`, not a `conexão` |
+| catalog | 16 | spreadsheets: `folha de cálculo`, not `planilha` |
+| catalog | 14 | sharing is `partilhar`, not `compartilhar` |
+| catalog | 13 | saving is `guardar`, not `salvar` |
+| catalog | 10 | you `prima`/`premir` a key, not `pressione`/`pressionar` |
+| catalog | 8 | the parser offset is a `carácter`, not a `caractere` |
+| catalog | 7 | deleting is `eliminar`, not `excluir` |
+| catalog | 21 | the address register — see below |
+| catalog | 15 | progressive aspect — see below |
+| catalog | rest | `separador` (browser tab) not `aba`; `existências` not `estoque`; `controlo` not `controle`; `aplicação` not `aplicativo`; `transferir` not `baixar`; `gerir`/`gestão` not `gerenciar`; `contacto` not `contato`; `detetar` not `detectar`; `por isso` not `então`; `num`/`numa` contractions; the article before a possessive |
+| template labels | 24 | `Existências` · `Equipa` · `planeado` · `online` · `treino` · `reparação` · `preparação` · `procura` · `encomendas` · `por grosso` · `retalho` |
+| module labels | 5 | `Receção` · `Produção planeada` · `Levantamentos` · `Património líquido` · `Progresso até à meta` |
+
+**The two that are not vocabulary.**
+
+- **Address register.** `pt-BR` speaks to `você` in 21 strings. European
+  Portuguese software does not; it uses an infinitive, an impersonal
+  construction or a null-subject third person. `tu` and `vós` are **not** the
+  European alternative and are never introduced — `ptPtCopy.test.ts` bans all
+  three, so a later edit cannot mix registers on one screen.
+- **Progressive aspect.** Brazilian `estar + GERUND` becomes European
+  `estar a + INFINITIVE` — `está a bloquear`, `não estão a ser guardadas`,
+  `estava a editar`. 15 occurrences across 12 keys. Standalone gerunds were
+  judged one at a time rather than swept: `a carregar…` and `a estimar…` moved,
+  `incluindo` did not.
+
+### What deliberately does NOT differ
+
+- **`tela`.** The candidate-word screen proposed `ecrã`; the meaning check
+  rejected it. All 24 of those keys render English **`canvas`**, not
+  **`screen`** — `ecrã` is a physical display, so applying it would have been a
+  mistranslation dressed up as a regionalisation. The test asserts the
+  REJECTION, key by key against the English original, so a later well-meaning
+  sweep cannot quietly apply it. **This is not the same as proving `tela` is
+  the best word for Portugal** — it stays on the native-review list (open item
+  1), against `área de desenho` and the English `canvas`.
+- **the node-kind glossary** — `Reservatório` · `Fonte` · `Sumidouro` ·
+  `Distribuidor` · `Conversor` · `Fim` · `Parâmetro` · `Valor calculado`. None
+  of the eight is regional.
+- **`quadro`** for a group frame. `moldura` was rejected during the `pt-BR`
+  audit as the wrong word and is not reintroduced; it stays on the
+  native-review list.
+- **`template`.** Kept for the same non-regional reason as `pt-BR`: `modelo` is
+  already this product's word for the simulation MODEL in 10 keys.
+- **`Carteira`.** Unlike the Spanish pair, there is no wallet split — Portugal
+  and Brazil both say `Carteira`, so nothing moves.
+- **the percent strings.** MEASURED: `Intl.NumberFormat('pt-PT')` emits `84%`
+  with **no** space, exactly as `pt-BR` does. Unlike `es-ES`, this locale adds
+  no NO-BREAK SPACE to any string.
+
+### Two measured behaviours, and where each one comes from
+
+**Plural at zero.** CLDR gives `pt-BR` 0 → `one` and `pt-PT` 0 → `other`:
+"0 linha" against "0 linhas". Both keep the same three categories
+(`one` / `many` / `other`), so **no key gains or loses an arm** — only the
+selection moves. All 19 plural keys already carried `many`, which Portuguese
+reaches at 1e6 and writes with `de` before the noun.
+
+**The group separator is a NO-BREAK SPACE.** `pt-PT` groups with U+00A0
+(`1 234 567`) where `pt-BR` uses a period (`1.234.567`), and CLDR's
+`minimumGroupingDigits: 2` means a bare `1000` carries no separator at all.
+Nothing calls `Intl.NumberFormat` (§L8); the live path is ICU `#`, which
+delegates to exactly that formatter with the locale CODE. So this locale's
+NBSP reaches the DOM **from the formatter, never from the catalog** — and
+`ptPtCopy.test.ts` asserts the catalog contains none, which is the opposite of
+the contract `es-ES` needed.
+
+**An honest limit on how far that is tested.** No product surface can show a
+four-digit count today: every `#` key counts nodes, rows or tables, and
+reaching 1000 of any of them is not a state a spec can set up cheaply. The
+e2e therefore renders the same formatter the ICU path uses, in the same page,
+for the live `<html lang>`, and reads the result back out of the DOM. It does
+not claim to exercise a product call site, and it says so.
+
+### The method, and the same lesson twice
+
+The candidate-word screen found the first four groups. Reading the catalog's
+**leading word back** — 412 distinct words over 843 values — found
+`compartilhar` (14 strings), which was not on the list at all. That is the
+`es-ES` lesson repeating.
+
+It then repeated a **second** time on a surface small enough to feel safe. The
+template labels — **203 slots: 196 node labels + 7 frame titles** — had been
+screened for the same candidate list and looked done at 10 deltas; reading
+their 206 distinct words back found seven more groups — `treino`,
+`reparação`, `preparação`, `procura`, `encomendas`, `por grosso`, `retalho` —
+and took the count to 24. **A small surface does not earn an exemption from
+the vocabulary read-back.**
+
+### How the delta is pinned
+
+`ptPtCopy.test.ts` pins the count (162 / 24 / 5) plus two DIRECTIONAL
+contracts, rather than a hand-written list of 162 key names: nothing Brazilian
+survives in `pt-PT`, and every `pt-BR` string carrying a Brazilian marker
+actually changed. A flat list would restate the count without proving either.
+`ptBrCopy.test.ts` is untouched.
+
+### Open items
+
+**No Portugal native-speaker or professional translation review was
+performed.** Five items stay open rather than smoothed over:
+
+1. **`tela` for the canvas.** Rejecting `ecrã` is well founded — those keys
+   render `canvas`, not `screen`, so `ecrã` would be a mistranslation. But
+   ruling out the wrong word does not prove the remaining one is the **best**
+   word. `tela`, `área de desenho` and the English `canvas` are all plausible
+   in Portugal, and which reads most naturally there is exactly the kind of
+   question this audit cannot answer from the outside. The guard pins the
+   rejection of `ecrã`, not the superiority of `tela`.
+2. `quadro` for a group frame — kept from `pt-BR`, where `moldura` was
+   rejected as the wrong word.
+3. `Rolagem` for a loot roll — used in both, but a Portuguese designer may say
+   `sorteio`.
+4. `Receção` for goods intake in the module overlay — `Recebimento` is
+   understood but is not what a Portuguese warehouse screen says.
+5. `drop` / `loot`, kept in English exactly as `pt-BR` keeps them because the
+   game-design register is the same on both sides of the Atlantic.
 
 ## L3. The string catalog
 

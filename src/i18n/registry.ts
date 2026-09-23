@@ -241,6 +241,43 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/es-ES').then((m) => m.default),
   },
+  {
+    // European Portuguese. Like `es-ES`, this code IS a tag browsers send, so
+    // it declares NO `baseFallbackFor`: §L5.2 step 1 (exact code) runs before
+    // step 4 (base owner), which lets `pt-BR` keep owning `pt`. Measured with
+    // the real resolver: `pt-PT`, `PT-pt` and `pt-pt` reach here, while bare
+    // `pt`, `pt-BR`, `pt-AO`, `pt-MZ`, `pt-CV`, `pt-GW`, `pt-ST`, `pt-TL`,
+    // `pt-MO`, `pt-CH` and `pt-LU` all continue to reach `pt-BR`.
+    //
+    // KNOWN RESOLVER LIMIT, recorded rather than fixed here: a tag carrying a
+    // script or an extension subtag — `pt-Latn-PT`, `pt-PT-u-ca-gregory` —
+    // misses step 1 and falls to `pt-BR` through the base owner. BCP 47
+    // permits both and `navigator.languages` returns BCP 47 tags, so this is
+    // not "a tag no browser sends"; it is a normalisation the resolver does
+    // not do. `es-ES` has the identical limit. Fixing it is a resolver change
+    // and deliberately NOT mixed into a locale PR (§L2.16).
+    //
+    // The catalog is a REGION AUDIT over `pt-BR`, not a second translation.
+    // Two things it does NOT change: the node-kind glossary, and `tela` —
+    // every one of its keys renders English `canvas`, so `ecrã`, which is a
+    // physical display, would be a mistranslation rather than a regional form.
+    code: 'pt-PT',
+    englishName: 'Portuguese (Portugal)',
+    nativeName: 'Português (Portugal)',
+    displayNameKey: 'language.portuguesePortugal',
+    direction: 'ltr',
+    // MEASURED, and the sharpest split from `pt-BR`: the group separator is a
+    // NO-BREAK SPACE (U+00A0), not a period — `1 234 567,89` against
+    // `1.234.567,89` — and CLDR's `minimumGroupingDigits: 2` means a bare
+    // `1000` carries no separator at all. Percent takes NO space before the
+    // sign here (`84%`), unlike `es-ES`, so no catalog string gains one.
+    // Nothing calls `Intl.NumberFormat` (§L8); the live path is ICU `#`, which
+    // takes this code and DOES group — so the NBSP reaches the DOM from the
+    // formatter, never from the catalog.
+    numberLocale: 'pt-PT',
+    enabled: true,
+    catalog: () => import('./locales/pt-PT').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

@@ -51,6 +51,7 @@ const ui = {
   'language.spanishLatinAmerica': 'Español (Latinoamérica)',
   'language.portugueseBrazil': 'Portugués (Brasil)',
   'language.spanishSpain': 'Español (España)',
+  'language.portuguesePortugal': 'Portugués (Portugal)',
   'playbar.reset.title': 'Reiniciar al paso 0',
   'playbar.step.title': 'Avanzar un paso',
   'playbar.play': '▶ Reproducir',

@@ -241,6 +241,21 @@ describe('es-419 copy — mechanical review', () => {
     // so the same word appearing in another sentence is an untranslated string
     const SCOPED: Record<string, readonly string[]> = {
       Alex: ['author.namePlaceholder'],
+      // A country name spelled the same in Spanish and English. `Brasil` and
+      // `España` never reach this scan because their Spanish spellings differ
+      // from the English ones; `Portugal` does not differ.
+      //
+      // It is SCOPED, never GLOBAL. Listing it globally would silently forgive
+      // it on any key `en` later phrases with the country name.
+      //
+      // BE PRECISE ABOUT WHAT THIS ENTRY DOES. The scan is differential — a
+      // word reaches `where` only where the ENGLISH value of the SAME key also
+      // contains it — so this entry constrains the word only among keys whose
+      // English says "Portugal", which today is one key. It does NOT stop the
+      // word leaking into a key whose English never had it; that was measured,
+      // and it stayed green. The direct contract below the block covers that
+      // case, and the two together are what pin the word.
+      Portugal: ['language.portuguesePortugal'],
       all: ['inspector.edge.flowPlaceholder'],
       D: ['inspector.edge.flowPlaceholder'],
       S: [
@@ -328,6 +343,29 @@ describe('es-419 copy — mechanical review', () => {
       if (got.join('|') !== want.join('|')) escaped.push(`${w}: ${JSON.stringify(got)} ≠ ${JSON.stringify(want)}`)
     }
     expect(escaped, 'a scoped English token appearing off its own surface').toEqual([])
+  })
+
+  // The SCOPED check above is DIFFERENTIAL: a word only reaches `where` when
+  // the ENGLISH value of the same key contains it too. That is the right shape
+  // for catching untranslated carry-over, but it cannot see a word that leaks
+  // into a key whose English never had it — measured, not assumed: injecting
+  // `Portugal` into `toolbar.new` (English "New") left the suite green.
+  //
+  // So the country name gets its own DIRECT contract, independent of `en`.
+  // This is not a global ban on the word. It pins where the word is intended
+  // to appear TODAY, so a new legitimate use has to update this list on
+  // purpose instead of arriving unnoticed.
+  it('lets the word Portugal appear on exactly one key, independent of the English source', () => {
+    const WORD_SPLIT = /[^\p{Script=Latin}\p{M}]+/u
+    const carries = (s: string) => s.split(WORD_SPLIT).includes('Portugal')
+
+    const got = (Object.keys(es419) as Key[]).filter((k) => carries(es419[k])).sort()
+    expect(got, 'keys whose es-419 value contains the word Portugal').toEqual([
+      'language.portuguesePortugal',
+    ])
+
+    // and it really is there, so this is a contract and not a vacuous pass
+    expect(es419['language.portuguesePortugal']).toBe('Portugués (Portugal)')
   })
 
   it('shows the raw wire edge kind through a slot, never as hardcoded English', () => {

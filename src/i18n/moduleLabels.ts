@@ -320,6 +320,46 @@ const ES_ES: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// European Portuguese. A REGION AUDIT over `PT_BR` (§L2.16): 5 of the 19
+// labels differ, and every one of them is a form Portugal writes differently,
+// not a synonym chosen for variety.
+//   `planeada`   — EP drops the `j`; `planejada` is Brazilian.
+//   `Levantamentos` — a bank withdrawal in Portugal; `Saques` is Brazilian.
+//   `Património` — EP takes an acute accent where Brazil writes `Patrimônio`.
+//   `Receção`    — the EP spelling and the EP word for goods intake;
+//                  `Recebimento` is understood but is not what a Portuguese
+//                  warehouse screen says. Listed for native review.
+//   `até à meta` — EP contracts `a` + `a`; Brazil writes `até a meta`.
+// Everything else — `Fornecimento`, `Carteira`, `Poupança`, `Perdas`,
+// `Expedição`, `Tamanho do lote` — reads the same in Portugal and is left
+// alone. `Carteira` is already the word `pt-BR` uses, so unlike the
+// Spanish pair there is no wallet split here.
+const PT_PT: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Fornecimento',
+    inbox: 'Fila de entrada',
+    intake: 'Receção',
+    process: 'Processamento',
+    spoilage: 'Perdas',
+    outbox: 'Fila de saída',
+    shipped: 'Expedição',
+    batch_size: 'Tamanho do lote',
+    in_system: 'Unidades no sistema',
+    planned_run: 'Produção planeada',
+  },
+  'reward-split': {
+    activity: 'Atividade',
+    wallet: 'Carteira',
+    allocate: 'Distribuir',
+    spending: 'Gastos',
+    savings: 'Poupança',
+    withdrawals: 'Levantamentos',
+    target_savings: 'Meta de poupança',
+    net_worth: 'Património líquido',
+    progress: 'Progresso até à meta',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -330,6 +370,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   'es-419': ES_419,
   'pt-BR': PT_BR,
   'es-ES': ES_ES,
+  'pt-PT': PT_PT,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

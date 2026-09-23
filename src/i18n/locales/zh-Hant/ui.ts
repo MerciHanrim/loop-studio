@@ -56,6 +56,7 @@ const ui = {
   'language.spanishLatinAmerica': '西班牙文（拉丁美洲）',
   'language.portugueseBrazil': '葡萄牙文（巴西）',
   'language.spanishSpain': '西班牙文（西班牙）',
+  'language.portuguesePortugal': '葡萄牙文（葡萄牙）',
   'playbar.reset.title': '重設到第 0 步',
   'playbar.step.title': '前進一步',
   'playbar.play': '▶ 播放',

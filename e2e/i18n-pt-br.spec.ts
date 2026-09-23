@@ -62,18 +62,17 @@ const option = (page: Page, code: string, scope = '') =>
 
 // ------------------------------------------------------------------ 1
 test.describe('a Portuguese browser', () => {
-  // Brazil, Portugal and the African Portuguese-speaking regions all reach the
-  // one Portuguese catalog today. `pt-PT` and friends get Brazilian spelling,
-  // which is a stated trade-off — English would be strictly worse.
+  // Brazil and the African Portuguese-speaking regions reach this catalog.
   //
-  // `pt-PT` IS on the roadmap, and when it registers this row must flip to
-  // `pt-PT` by design (§L5.2 step 1 beats step 4). That is intentional
-  // staleness, not a defect — the same shape `es-ES` has in
-  // `i18n-es-419.spec.ts`. The rows that will NEVER flip are `pt-AO` / `pt-MZ`.
+  // `pt-PT` USED TO BE on this list and has now flipped, exactly as the comment
+  // here predicted it would: registering European Portuguese gave it its own
+  // tag through §L5.2 step 1, which beats step 4. That was intentional
+  // staleness, not a defect — the same arc `es-ES` had in
+  // `i18n-es-419.spec.ts`. The rows below NEVER flip, which is why a new
+  // locale spec must probe with a tag that will never be registered.
   for (const [tag, note] of [
-    ['pt', 'the bare language subtag'],
+    ['pt', 'the bare language subtag — pt-BR still owns the base'],
     ['pt-BR', 'the registered code itself'],
-    ['pt-PT', 'flips to pt-PT when that locale registers'],
     ['pt-AO', 'stays here permanently'],
     ['pt-MZ', 'stays here permanently'],
     ['pt-CV', 'stays here permanently'],
@@ -130,9 +129,13 @@ test('a stored pt-BR survives a reload; a region tag is not a code', async ({ pa
   await expect(page.locator('.toolbar')).toBeVisible()
   expect(await htmlLang(page)).toBe('pt-BR')
 
-  // `pt-PT` is a browser tag, never a stored CODE. An unregistered stored
-  // value is ignored outright, never repaired into a fallback (§L5.2 step 1).
-  await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'pt-PT'))
+  // `pt-PT` is now a REGISTERED code, so it no longer serves as the unregistered
+  // stored value this test needs. `pt-AO` does, and it never will be
+  // registered — which is the point of probing with a tag off the roadmap.
+  // An unregistered stored value is ignored outright, never repaired into a
+  // fallback (§L5.2 step 1), even though `pt-AO` as a NAVIGATOR tag reaches
+  // `pt-BR` perfectly well.
+  await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'pt-AO'))
   await page.reload()
   await expect(page.locator('.toolbar')).toBeVisible()
   expect(await htmlLang(page)).toBe('en')
@@ -161,7 +164,7 @@ test.describe('the language search box finds Portuguese', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(11) // 10 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(12) // 11 shipped + the dev pseudo-locale
 
     for (const q of [
       'Português',

@@ -8,6 +8,7 @@ import fr from './locales/fr'
 import ja from './locales/ja'
 import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
+import ptPT from './locales/pt-PT'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
 
@@ -42,6 +43,7 @@ const CATALOGS = {
   'es-419': es419,
   'es-ES': esES,
   'pt-BR': ptBR,
+  'pt-PT': ptPT,
 } as const
 type Loc = keyof typeof CATALOGS
 
@@ -98,6 +100,12 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // Portuguese splits it the same way, and the Brazilian spelling is
   // `caractere` — `carácter` / `caráter` are European.
   'pt-BR': { char: `caractere ${N}`, table: `coluna ${N}` },
+  // The European spelling, and the whole reason this row is separate: the two
+  // Portuguese catalogs must NOT converge on one word here. The guard forces
+  // `carácter` on these seven PARSER keys only — `carácter` in its ordinary
+  // sense elsewhere in `pt-PT` is not banned, and `caracteres` is the plural
+  // in both locales.
+  'pt-PT': { char: `carácter ${N}`, table: `coluna ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

@@ -29,6 +29,7 @@ const SHIPPED_ORDER = [
   'ja', //      Japanese
   'ko', //      Korean
   'pt-BR', //   Portuguese (Brazil)
+  'pt-PT', //   Portuguese (Portugal) - sorts right after its Brazilian sibling
   'es-419', //  Spanish (Latin America)
   'es-ES', //   Spanish (Spain)  — sorts right after its Latin American sibling
 ]
