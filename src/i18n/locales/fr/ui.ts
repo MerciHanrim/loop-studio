@@ -54,6 +54,7 @@ const ui = {
   'language.chineseTraditional': 'Chinois (traditionnel)',
   'language.french': 'Français',
   'language.german': 'Allemand',
+  'language.spanishLatinAmerica': 'Espagnol (Amérique latine)',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': '▶ Lecture',

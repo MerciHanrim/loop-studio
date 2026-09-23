@@ -553,6 +553,185 @@ The three refusals are the interesting ones:
 `Abhebungen` for `withdrawals` is the German banking usage, the same
 reasoning that gave `zh-Hant` its `提領`.
 
+**L2.13 — Spanish is `es-419`, and it is the first locale whose CODE is not
+its own base subtag.** Every earlier Latin locale (`fr`, `de`) was reached by
+the ordinary base-subtag step because its code *was* the subtag a browser
+sends. No browser sends `es-419`: it sends `es-MX`, `es-AR`, `es`, `es-ES`.
+Registering `es-419` and nothing else therefore hands **every** Spanish reader
+English — and, through `navigator.languages`, sometimes an unrelated language
+that merely sits later in their list. Measured before the fix, with the real
+resolver: all fourteen probed Spanish tags returned `en`, and
+`["es-MX", "de-DE"]` returned `de`.
+
+So the registry gained **`baseFallbackFor`** and §L5.2 gained a fourth step.
+See §L5.2 for the order and the three structural guards.
+
+**One catalog, and the code says which one.** `es-ES` and `es-GQ` land here
+too. Peninsular and Latin American Spanish are mutually intelligible — a Spain
+reader sees `computadora` and `ustedes` where they would write `ordenador` and
+`vosotros`, which is a stated trade-off, not a hidden one, and English would be
+strictly worse. Naming the code `es-419` rather than a bare `es` is what keeps
+that honest: the picker reads `Español (Latinoamérica)`, so a Spain reader
+knows what they are getting, and a later `es-ES` can be registered **without
+renaming this locale or migrating anyone's stored value** — step 1 gives it
+its own tag automatically.
+
+**Plural is `one` / `other` / `many`, and 0 takes `other`.** Same shape as
+French, same zero as German. `many` IS reachable — `select(1_000_000)` returns
+it — so every one of the 19 plural messages writes an **explicit `many` arm
+even where it matches `other`**: leaving it out would be a silent gap rather
+than a decision. All 19 were rendered at 0, 1, 2 and 1,000,000 with the real
+formatter.
+
+**Numbers follow the code, not the majority.** `Intl.NumberFormat('es-419')`
+gives `1,234,567.89` and `83%`. Latin America is **not** uniform here —
+Argentina, Colombia, Chile and Peru write `1.234.567,89`, and between them
+they outnumber Mexico. The formatter still stays `es-419`, because a catalog
+registered under that code must not quietly format under a different one; the
+divergence is recorded here rather than papered over with `numberLocale: 'es'`.
+
+**The spreadsheet vocabulary splits four ways**, one more than German:
+
+| English | Spanish | what it is |
+|---|---|---|
+| spreadsheet (the file) | **`archivo de hoja de cálculo`** | what the user exports |
+| spreadsheet (the sheet) | **`hoja de cálculo`** / `hoja` | the sheet itself |
+| spreadsheet (the app) | **`aplicación de hojas de cálculo`** | Excel, Google Sheets |
+| table | **`tabla`** | the rows and columns once imported |
+
+Microsoft's own Spanish Excel documentation draws the same line — `libro` for
+the workbook, `hoja de cálculo` for a sheet inside it, `fila` / `columna` for
+the structure — so this is the vocabulary a reader already has.
+
+**`paso` and `etapa` split by context.** `paso` is the simulation timestep and
+its commands (`Avanzar un paso`, `paso 12`); `etapa` is a stage of a
+production process (`Etapa de producción con búferes`). German needed only
+`Schritt`; Spanish reads wrong if a production stage is called a `paso`.
+
+**Core glossary.** `Depósito` Pool · `Fuente` Source · `Sumidero` Drain ·
+`Distribuidor` Gate · `Convertidor` Converter · `Fin` End · `Parámetro` ·
+`Valor calculado` Register · `grafo` graph · `nodo` node · `conexión`
+connection · `Trazado`
+route · `ejecución` run · `paso` step · `disparador` trigger · `activador`
+activator · `capacidad` capacity · `Contrapresión` backpressure · `semilla`
+seed · `Línea de tiempo` timeline · `Propiedades` Inspector · `plantilla`
+template · `módulo` module · `Estado del proyecto` project revision · `fila`
+row · `columna` column · `carácter` character position.
+
+`Fuente`/`Sumidero` is the Spanish flow-theory pair. `Distribuidor` says what
+a Gate does, where `Compuerta` is also the word for a logic gate. `Valor
+calculado` is spelled out rather than `Registro`, which in Spanish means a
+record or a ledger and would mislead — the same trap German avoided with
+`Register`. `Propiedades` over `Inspector`: the surface edits the properties
+of the current selection, which is how Unity's own Spanish manual describes an
+inspector window.
+
+**§L2.11 is honoured**: a parser position is `carácter {column}`, a real table
+column is `columna {column}`, and the two never borrow each other's word.
+
+**Style.** Neutral Latin American Spanish: `ustedes`, never `vosotros`.
+Impersonal infinitives for commands (`Cargar plantilla`, `Insertar módulo`),
+which sidesteps the `tú`/`usted` choice entirely; `usted` where a sentence
+needs a subject. Sentence case, never English Title Case. `¿` and `¡` opening
+marks. Quotation marks are `“…”`. Numbers and units come from the formatter,
+never hardcoded. Code, ids, file extensions and key names stay verbatim.
+`ordenador`, `fichero` and `coger` are avoided as peninsular; **`móvil` is
+not** — it is ordinary in Latin America, and `dispositivo móvil` is used where
+a sentence would otherwise be ambiguous.
+
+**Gacha** follows the `fr` and `de` ruling: the mechanism names stay in the
+English players use — `Pity`, `Hard Pity`, `UP`, and the rarity letters
+SSR / SR / R — while the actions and rates are Spanish (`Tirada` for both a
+roll and a pull, `Tiradas realizadas`, `Tasa de aciertos` for *hit rate* —
+the rate of hits, not the rate of pulls).
+
+**Fonts needed no work.** `¿ ¡ ñ Ñ á í ó ú` are all Latin-1 Supplement, the
+same block `fr` and `de` already proved, and the bundled IBM Plex Sans Latin
+subset carries no `unicode-range` restriction. Measured all the same, in dev,
+the production bundle and the portable single file.
+
+**A second pass read all 840 strings against `en` alone**, with no other
+translation in view, and changed 78 of them, plus 31 of the bundled-Template
+node labels. Five of its findings are rules, not one-off wordings:
+
+- **The graph is `el grafo`, never `el gráfico`.** The same catalog needs
+  `gráficos` for English *charts* (`import.qs.notImported.list`), and this
+  product has both a node graph and timeline charts — one word cannot carry
+  both. `gráfico` also made `Al archivo de gráfico le faltan sus nodos` read
+  as *the chart file is missing its nodes*. 29 strings moved.
+- **One quotation style.** `en` mixes `“…”` and `"…"`, and the first draft
+  inherited the mix, curling the quotes around UI labels and leaving them
+  straight around interpolated values. Both are user-facing prose here, so
+  every one is now `“…”`.
+- **Spanish agrees where English does not.** `'{n} hidden'` is fine at
+  `n = 1`; `'{n} ocultos'` renders `1 ocultos`. The obvious repair — wrap it
+  in a plural — is **refused by `check:i18n`**, which requires the ICU argument
+  shape to match `en` (a plain slot cannot become a plural). The fix is an
+  invariable phrase, `{n} sin mostrar`. Any locale with adjective agreement
+  will hit this class of gap on a base key that has no plural.
+- **Watch the words a term collides with in Spanish, not in English.**
+  `seguidos` for *tracked* reads first as *consecutive*; `Equipo` for *Staff*
+  reads as *equipment* in a roastery; `nombre propio` is a *proper noun*, not
+  a custom name; `procesos` for Web Workers claimed OS processes. All four
+  parse fine and all four say something else.
+- **Read a label in the box it is rendered into, not in the catalog.**
+  `dist.ended` is `Ended` in English and sits in front of a figure the
+  component supplies: `{label} <b>43%</b>`. English gets away with a bare
+  participle there; Spanish needs agreement *and* a colon, so the label is
+  `Finalizadas:` — feminine plural, because what ended is `ejecuciones`, and
+  the sparkline caption right below shows the same number the other way round
+  (`43% finalizadas`) and now uses the same word. Measured in the real row at
+  0 %, 43 % and 100 %: no overflow, 78–92 px. The `%` is glued to the figure
+  by the component, and `Intl.NumberFormat('es-419', {style: 'percent'})`
+  agrees — `83%`, no space — so the catalog does not add one.
+
+The wording fixes with a measurement behind them: `templates.equilibrium.blurb`
+was re-written from a noun-phrase list into an action sentence and re-measured
+in the real 272 px box (line-height 16.875, clamp 2) — **2 lines, 0 px of
+overflow**, menu not widened, clamp not raised.
+
+**`src/i18n/es419Copy.test.ts` holds the mechanical half of that review** so it
+cannot rot — control characters, newline parity with `en`, `{name}` slot
+parity, markup tags, `¿` on every question and `¡` on every exclamation (0
+today, so the rule is asserted over the empty set and the count is pinned).
+
+**Each of its guards is scoped to where the word would actually be wrong.** A
+catalog-wide banned-word list is the wrong instrument: it would forbid
+`registro` for a *log*, `puntuación` for *punctuation*, `gráfico` for a
+*chart* — all of which this product may legitimately need later.
+
+| guard | scope | why |
+|---|---|---|
+| `vosotros` `vuestro` `ordenador` `fichero` `coger` | **global** | no surface in this product makes an Iberian form right |
+| `piscina` `compuerta` `desagüe` `registro` | **only where `en` names that node kind** | outside that surface each word has an ordinary, correct meaning |
+| `cartera` `reintegro` `puntuación` | **only the three ruled labels** | asserted as equalities on `wallet`, `withdrawals` and `gear_score` |
+| `grafo` vs `gráfico` | **decided per key by the English source** | `en` says *graph* or it says *chart*; the format name `Graph JSON` is stripped first |
+| node-kind glossary | **derived from `en`** | if English names a kind, Spanish must use the glossary term — so a new string is covered the day it is written |
+
+`Source` and `End` are deliberately **not** derived: English uses *source* for
+an edge endpoint (`origen`) and *end* for the end of a phase, so those two rest
+on the central contract — the three keys that NAME each of the eight kinds.
+
+**The English allowlist is scoped the same way.** Tokens that are obvious
+anywhere (`Loop Studio`, `Graph JSON`, `CSV`, `Monte Carlo`, and the
+Spanish/English homographs like `material`, `normal`, `local`) are allowed
+globally. Everything else is pinned to **the exact keys that own it**: the
+sample CSV's headers (`item` `name` `price` `drop` `rate`) to
+`import.qs.mapping`, the resource-type tokens (`Gold` `Energy` `XP` `Player`
+`Item`) to `inspector.resourceType.placeholder`, the gacha vocabulary
+(`gacha` `banner` `pity`) to the gacha Template's two keys, and so on. A
+global token list would have hidden an untranslated sentence elsewhere;
+the scoped one catches it — verified by leaving `import.qs.result` in English
+and watching the guard name `Number`, `Parameters`, `columns`, `rows`.
+The raw wire edge kind is checked separately: `inspector.edge.kindLink` must
+keep the `{kind}` slot and must never hardcode `resource` or `state`.
+
+`móvil` is on none of these lists, deliberately.
+
+**No Latin American native-speaker or professional translation review was
+performed.** The low-confidence terms are listed in the PR body rather than
+hidden.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**
@@ -969,14 +1148,39 @@ switch's "browser default" path):
 
 1. **stored preference.** If `localStorage["loop-studio/ui-locale/1"]` is
    **exactly** a registered `code` (no normalisation — see below), use it.
-2. Else, walk `navigator.languages` **in order**. For each entry `L`:
-   1. **exact match** — a registered `code` equal to `L` (e.g. a hypothetical
-      `pt-BR` catalog and `navigator` `pt-BR`);
-   2. else **BCP-47 base-language match** — a registered `code` equal to `L`'s
-      primary subtag (`ko-KR` → `ko`, `en-GB` → `en`).
+2. Else, walk `navigator.languages` **in order**. For each entry `L`, apply
+   **every** step below before moving to the next entry:
+   1. **exact match** — a registered `code` equal to `L` (`es-419`, `zh-Hans`);
+   2. else **Chinese script** (§L5.2a) — `zh-CN` → `zh-Hans`, `zh-TW` → `zh-Hant`;
+   3. else **BCP-47 base-language match** — a registered `code` equal to `L`'s
+      primary subtag (`ko-KR` → `ko`, `en-GB` → `en`, `de-AT` → `de`);
+   4. else **`baseFallbackFor` owner** — the registered locale that explicitly
+      declares `L`'s primary subtag (`es-MX` → `es-419`).
    The first entry that resolves wins; move to the next `navigator` entry only
    if the current one resolves to nothing.
-3. Else, the **canonical fallback `en`**.
+3. Else, the **canonical fallback `en`**, only after every entry is exhausted.
+
+**The walk is per ENTRY, not per step.** Sweeping the whole array once per
+step would let a later tag's exact match beat an earlier tag's base fallback —
+`["es-MX", "de-DE"]` would resolve to German. The user put their first tag
+first, so `["es-MX", "de-DE"]` is `es-419` and `["de-DE", "es-MX"]` is `de`.
+
+**`baseFallbackFor` (step 4)** exists because a locale's code is not always
+the subtag a browser sends. `fr`, `de`, `ko` and `ja` are reached by step 3
+and declare nothing; `es-419` declares `'es'`, and a later `pt-BR` would
+declare `'pt'`. It is deliberately **after** the exact match, so registering
+`es-ES` later gives `es-ES` its own tag with no change to the resolver.
+
+Three structural guards in `registry.test.ts` keep it from becoming a second,
+competing resolver:
+
+- **at most one locale owns a base subtag** — two owners of `es` fails;
+- **a declared base is the locale's own language subtag** — `es-419` cannot
+  declare `'pt'`;
+- **an exact code always beats an owner**, including one registered later.
+  That last one is checked by calling **the production function itself** with a
+  hypothetical registry list (`resolveInitialLocale` takes the locale array as
+  a defaulted parameter), never a test-only copy of the algorithm.
 
 Additional rules:
 

@@ -37,6 +37,16 @@ export type LocaleEntry = {
    *  but hidden from the switch UI. Every shipped locale is `true` today; the
    *  selector work is what will consume this. */
   enabled: boolean
+  /** §L5.2 step 4 — the BCP-47 base subtag this locale answers for when no
+   *  registered code matches a navigator tag exactly. `es-419` owns `es`, so
+   *  `es-MX` / `es-AR` / `es-ES` reach it; a later `pt-BR` would own `pt`.
+   *
+   *  Only needed by a locale whose CODE is not its own base subtag — `fr`,
+   *  `de` and `ko` are reached by step 3 and declare nothing. At most one
+   *  locale may own a base, and the base must be that locale's own language
+   *  subtag; `registry.test.ts` enforces both, so this can never silently
+   *  become a second, competing resolver. */
+  baseFallbackFor?: string
   /** the async seam (§L4.5) — `en` resolves synchronously (statically bundled,
    *  the fallback, must never fail to load); every other locale is a dynamic
    *  `import()` of its own chunk, runtime-cached by the SW (docs/pwa.md §P8). */
@@ -142,6 +152,37 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/de').then((m) => m.default),
   },
+  {
+    // Neutral Latin American Spanish. The code carries the UN M49 region 419
+    // because the catalog IS regional — `Billetera`, `Retiros`, `ustedes` —
+    // and saying so keeps the door open for an `es-ES` later without renaming
+    // this one or migrating anyone's stored value.
+    //
+    // No browser sends `es-419`; it sends `es-MX`, `es-AR`, `es`, `es-ES`.
+    // The code is therefore NOT its own base subtag, which is why this is the
+    // first locale to declare `baseFallbackFor` (§L5.2 step 4). Without it
+    // every Spanish reader would get English — or, through
+    // `navigator.languages`, whatever unrelated language came next.
+    //
+    // `es-ES` and `es-GQ` land here too. Peninsular and Latin American Spanish
+    // are mutually intelligible, so a Spain reader seeing `computadora` and
+    // `ustedes` is a stated trade-off (docs/localization.md §L2.13); English
+    // would be strictly worse. Register `es-ES` later and step 1 gives it that
+    // tag automatically.
+    code: 'es-419',
+    englishName: 'Spanish (Latin America)',
+    nativeName: 'Español (Latinoamérica)',
+    displayNameKey: 'language.spanishLatinAmerica',
+    direction: 'ltr',
+    // CLDR gives `es-419` the `1,234,567.89` convention. Latin America is not
+    // uniform here — Argentina, Colombia, Chile and Peru write `1.234.567,89`
+    // — but the formatter must agree with the code this locale is registered
+    // under, so it stays `es-419` rather than borrowing `es` (§L2.13).
+    numberLocale: 'es-419',
+    enabled: true,
+    baseFallbackFor: 'es',
+    catalog: () => import('./locales/es-419').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,
@@ -219,10 +260,15 @@ export function writeStoredLocale(code: string): void {
  *  testable.
  *
  *  1. a stored value that is EXACTLY a registered `code` (no case / separator
- *     repair) wins;
- *  2. else walk `navLangs` in order — for each, an exact `code` match, then a
- *     BCP-47 base-language match (`ko-KR` → `ko`);
- *  3. else the canonical `BASE_LOCALE`.
+ *     repair) wins — an unregistered stored value is NEVER normalised into a
+ *     navigator-style fallback, it is simply ignored;
+ *  2. else walk `navLangs` IN ORDER and apply EVERY step to a tag before
+ *     moving to the next one — exact `code`, Chinese script, an exact
+ *     base-subtag code (`ko-KR` → `ko`), then a `baseFallbackFor` owner
+ *     (`es-MX` → `es-419`). Sweeping the whole array per STEP instead would
+ *     let a later tag's exact match beat an earlier tag's base fallback, which
+ *     is the wrong preference: the user put their first tag first.
+ *  3. else the canonical `BASE_LOCALE`, only after every tag is exhausted.
  */
 /** §L5.2a — Chinese is the one language whose SCRIPT, not its base subtag,
  *  decides the locale, and no browser sends the script: Chrome sends `zh-CN`,
@@ -244,22 +290,41 @@ function chineseScript(lowerTag: string): string | undefined {
   return lowerTag === 'zh' ? 'zh-Hans' : undefined
 }
 
+/** The registry list is a PARAMETER with the real registry as its default, so
+ *  the priority rules can be tested against a hypothetical future registry
+ *  (an `es-ES` beside `es-419`) through THIS function rather than a test-only
+ *  copy of it. Production always calls it with the default. */
 export function resolveInitialLocale(
   stored: string | null,
   navLangs: readonly string[],
+  locales: readonly LocaleEntry[] = LOCALES,
 ): string {
-  if (stored != null && isRegistered(stored)) return stored
+  if (stored != null && locales.some((l) => l.code === stored)) return stored
 
   for (const raw of navLangs) {
     if (typeof raw !== 'string' || raw === '') continue
     const lc = raw.toLowerCase()
-    const exact = LOCALES.find((l) => l.code.toLowerCase() === lc)
+
+    // 1 — the whole tag is a registered code (`es-419`, `zh-Hans`)
+    const exact = locales.find((l) => l.code.toLowerCase() === lc)
     if (exact) return exact.code
+
+    // 2 — Chinese decides by script, which no browser sends
     const script = chineseScript(lc)
-    if (script != null && isRegistered(script)) return script
+    if (script != null && locales.some((l) => l.code === script)) return script
+
     const base = lc.split('-')[0]
-    const baseHit = base ? LOCALES.find((l) => l.code.toLowerCase() === base) : undefined
+    if (!base) continue
+
+    // 3 — a registered code that IS the base subtag (`de-AT` → `de`)
+    const baseHit = locales.find((l) => l.code.toLowerCase() === base)
     if (baseHit) return baseHit.code
+
+    // 4 — the locale that explicitly owns this base (`es-MX` → `es-419`).
+    //     Always AFTER the exact match, so registering `es-ES` later makes
+    //     `es-ES` win its own tag without touching this code.
+    const owner = locales.find((l) => l.baseFallbackFor?.toLowerCase() === base)
+    if (owner) return owner.code
   }
 
   return BASE_LOCALE

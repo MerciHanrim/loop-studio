@@ -49,6 +49,7 @@ const ui = {
   'language.chineseTraditional': '中国語（繁体字）',
   'language.french': 'フランス語',
   'language.german': 'ドイツ語',
+  'language.spanishLatinAmerica': 'スペイン語（ラテンアメリカ）',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',

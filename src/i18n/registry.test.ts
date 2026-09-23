@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import en from './locales/en'
+import type { LocaleEntry } from './registry'
 import {
   BASE_LOCALE,
   LOCALES,
@@ -48,9 +49,9 @@ describe('locale registry metadata', () => {
 
   // §L2.4 — Traditional Chinese is its own locale, never a conversion of
   // Simplified, and the dev pseudo-locale is not one of the shipped languages.
-  it('ships exactly seven languages, the pseudo-locale aside', () => {
+  it('ships exactly the registered languages, the pseudo-locale aside', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
-    expect([...shipped].sort()).toEqual(['de', 'en', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
+    expect([...shipped].sort()).toEqual(['de', 'en', 'es-419', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
     expect(LOCALES.filter((l) => l.pseudo).every((l) => l.code === 'en-XA')).toBe(true)
   })
 
@@ -163,5 +164,85 @@ describe('resolveInitialLocale', () => {
     expect(isRegistered('xx')).toBe(false)
     expect(() => resolveInitialLocale('xx', ['ko'])).not.toThrow()
     expect(resolveInitialLocale('xx', ['ko'])).toBe('ko')
+  })
+})
+
+// docs/localization.md §L5.2 step 4 — `baseFallbackFor`.
+//
+// `fr`, `de`, `ko` and `ja` are reached because their CODE is their base
+// subtag. `es-419` is not: no browser sends `es-419`, it sends `es-MX`,
+// `es-AR`, `es-ES`, `es`. Without an explicit owner for the `es` base, every
+// one of those resolves to English — or worse, to whatever unrelated language
+// sits later in `navigator.languages`.
+describe('§L5.2 step 4 — baseFallbackFor', () => {
+  it('at most one locale owns a base subtag', () => {
+    const owners = new Map<string, string>()
+    for (const l of LOCALES) {
+      if (l.baseFallbackFor == null) continue
+      const prev = owners.get(l.baseFallbackFor)
+      expect(prev, `${l.baseFallbackFor} is owned by both ${prev} and ${l.code}`).toBeUndefined()
+      owners.set(l.baseFallbackFor, l.code)
+    }
+  })
+
+  it("a declared base is the locale's own language subtag", () => {
+    for (const l of LOCALES) {
+      if (l.baseFallbackFor == null) continue
+      expect(l.code.toLowerCase().split('-')[0], `${l.code} declares ${l.baseFallbackFor}`).toBe(
+        l.baseFallbackFor.toLowerCase(),
+      )
+    }
+  })
+
+  it('every Spanish tag a browser actually sends reaches es-419', () => {
+    for (const tag of [
+      'es',
+      'es-419',
+      'es-MX',
+      'es-AR',
+      'es-CO',
+      'es-CL',
+      'es-PE',
+      'es-VE',
+      'es-UY',
+      'es-US',
+      'es-ES',
+      'es-GQ',
+      'ES-mx',
+      'es-419-u-va-posix',
+    ]) {
+      expect(resolveInitialLocale(null, [tag]), tag).toBe('es-419')
+    }
+  })
+
+  it('each navigator tag is fully resolved before the next one is tried', () => {
+    // the base fallback of the FIRST tag beats an exact match later in the list
+    expect(resolveInitialLocale(null, ['es-MX', 'de-DE'])).toBe('es-419')
+    expect(resolveInitialLocale(null, ['de-DE', 'es-MX'])).toBe('de')
+    // an unresolvable tag is skipped, not fatal
+    expect(resolveInitialLocale(null, ['xx-YY', 'es-AR'])).toBe('es-419')
+    // English only after every tag is exhausted
+    expect(resolveInitialLocale(null, ['xx-YY', 'zz'])).toBe(BASE_LOCALE)
+  })
+
+  it('an exact code always beats a base-fallback owner — including one added later', () => {
+    // THIS is the production function, handed a hypothetical registry rather
+    // than a copy of the algorithm: a future `es-ES` must win its own tag with
+    // no change to the resolver.
+    const future: readonly LocaleEntry[] = [
+      ...LOCALES,
+      { ...(getEntry('es-419') as LocaleEntry), code: 'es-ES', baseFallbackFor: undefined },
+    ]
+    expect(resolveInitialLocale(null, ['es-ES'], future)).toBe('es-ES')
+    expect(resolveInitialLocale(null, ['es-MX'], future)).toBe('es-419') // still the owner
+    expect(resolveInitialLocale(null, ['es'], future)).toBe('es-419')
+  })
+
+  it('an unregistered stored value is never normalised into a fallback', () => {
+    for (const stored of ['es', 'es-MX', 'es-ES', 'ES-419']) {
+      expect(isRegistered(stored), stored).toBe(false)
+      expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
+    }
+    expect(resolveInitialLocale('es-419', ['en-US'])).toBe('es-419')
   })
 })

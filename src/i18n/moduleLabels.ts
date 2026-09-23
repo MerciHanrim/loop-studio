@@ -219,6 +219,44 @@ const DE: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// `Búfer de entrada` / `Búfer de salida` are the words this locale's own module
+// blurb uses, and `Procesamiento` / `Envíos` / `Merma` match its production-line
+// Template dict. Neutral Latin American Spanish throughout (§L2.13):
+//
+//   - `Billetera` for `wallet` and `Retiros` for `withdrawals` are deliberate
+//     regional markers — Spain would say `cartera` and `reintegros`. The
+//     catalog is registered as `es-419`, so it says so rather than hedging.
+//   - `planned_run` is `Producción planificada`, never `ejecución`: that is the
+//     app's own word for a simulation run, the same collision German avoided
+//     with `Lauf`.
+//   - `supply` is `Suministro`, which does not assert what flows through a
+//     generic module the way a material-specific compound would.
+const ES_419: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Suministro',
+    inbox: 'Búfer de entrada',
+    intake: 'Recepción',
+    process: 'Procesamiento',
+    spoilage: 'Merma',
+    outbox: 'Búfer de salida',
+    shipped: 'Envíos',
+    batch_size: 'Tamaño del lote',
+    in_system: 'Unidades en el sistema',
+    planned_run: 'Producción planificada',
+  },
+  'reward-split': {
+    activity: 'Actividad',
+    wallet: 'Billetera',
+    allocate: 'Repartir',
+    spending: 'Gastos',
+    savings: 'Ahorros',
+    withdrawals: 'Retiros',
+    target_savings: 'Meta de ahorro',
+    net_worth: 'Patrimonio neto',
+    progress: 'Progreso hacia la meta',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -226,6 +264,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   'zh-Hant': ZH_HANT,
   fr: FR,
   de: DE,
+  'es-419': ES_419,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

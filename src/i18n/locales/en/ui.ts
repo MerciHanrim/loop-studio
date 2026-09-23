@@ -44,6 +44,7 @@ const ui = {
   'language.chineseTraditional': 'Chinese (Traditional)',
   'language.french': 'French',
   'language.german': 'German',
+  'language.spanishLatinAmerica': 'Spanish (Latin America)',
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': '▶ Play',

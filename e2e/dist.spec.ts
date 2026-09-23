@@ -148,12 +148,12 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
-    await expect(opts).toHaveCount(7) // en, ko, ja, zh-Hans, zh-Hant, fr, de — NO en-XA
+    await expect(opts).toHaveCount(8) // en, ko, ja, zh-Hans, zh-Hant, fr, de, es-419 — NO en-XA
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
     const codes = await opts.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).dataset.locale).sort(),
     )
-    expect(codes).toEqual(['de', 'en', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
+    expect(codes).toEqual(['de', 'en', 'es-419', 'fr', 'ja', 'ko', 'zh-Hans', 'zh-Hant'])
     // §L5.4 — seven shipped languages, so the search box is shown (it first
     // reached PRODUCTION at six), and the dev pseudo-locale is still absent.
     await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(1)

@@ -43,6 +43,7 @@ describe('officialTemplateLabelIndex', () => {
     expect([...(idx.known.get('level') ?? [])].sort()).toEqual([
       'Level',
       'Niveau',
+      'Nivel',
       'Stufe',
       'レベル',
       '等級',
