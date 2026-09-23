@@ -288,6 +288,38 @@ const PT_BR: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// Spain Spanish. A REGION AUDIT over `ES_419` (§L2.15): 2 of the 19 labels
+// differ. `Cartera` is the Spain word for a wallet where Latin America says
+// `Billetera`, and a bank withdrawal is a `Retirada` there, not a `Retiro` —
+// both were flagged as deliberate regional markers when `es-419` shipped, so
+// both have to move here. Everything else, including `Búfer`, `Merma` and
+// `Producción planificada`, reads the same in Spain and is left alone.
+const ES_ES: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Suministro',
+    inbox: 'Búfer de entrada',
+    intake: 'Recepción',
+    process: 'Procesamiento',
+    spoilage: 'Merma',
+    outbox: 'Búfer de salida',
+    shipped: 'Envíos',
+    batch_size: 'Tamaño del lote',
+    in_system: 'Unidades en el sistema',
+    planned_run: 'Producción planificada',
+  },
+  'reward-split': {
+    activity: 'Actividad',
+    wallet: 'Cartera',
+    allocate: 'Repartir',
+    spending: 'Gastos',
+    savings: 'Ahorros',
+    withdrawals: 'Retiradas',
+    target_savings: 'Meta de ahorro',
+    net_worth: 'Patrimonio neto',
+    progress: 'Progreso hacia la meta',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -297,6 +329,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   de: DE,
   'es-419': ES_419,
   'pt-BR': PT_BR,
+  'es-ES': ES_ES,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

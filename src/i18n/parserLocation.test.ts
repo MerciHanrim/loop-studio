@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import de from './locales/de'
 import en from './locales/en'
 import es419 from './locales/es-419'
+import esES from './locales/es-ES'
 import fr from './locales/fr'
 import ja from './locales/ja'
 import ko from './locales/ko'
@@ -39,6 +40,7 @@ const CATALOGS = {
   fr,
   de,
   'es-419': es419,
+  'es-ES': esES,
   'pt-BR': ptBR,
 } as const
 type Loc = keyof typeof CATALOGS
@@ -91,6 +93,8 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // Spanish splits the same way: `carácter` for a character offset,
   // `columna` for a real table column (§L2.13).
   'es-419': { char: `carácter ${N}`, table: `columna ${N}` },
+  // Spain splits it with the same two words
+  'es-ES': { char: `carácter ${N}`, table: `columna ${N}` },
   // Portuguese splits it the same way, and the Brazilian spelling is
   // `caractere` — `carácter` / `caráter` are European.
   'pt-BR': { char: `caractere ${N}`, table: `coluna ${N}` },

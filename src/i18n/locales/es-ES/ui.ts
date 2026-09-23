@@ -1,10 +1,24 @@
-// docs/localization.md §L3.3 — UI chrome slice of the `es-419` catalog.
+// docs/localization.md §L3.3 — UI chrome slice of the `es-ES` catalog.//
+// docs/localization.md §L2.15 — `es-ES` is a REGION AUDIT over the finished
+// `es-419` catalog, not a re-translation. A string differs only where a Spain
+// reader would find the Latin American one wrong or unnatural; everywhere else
+// the two are deliberately identical, and that is not laziness.
+//
+// What actually differs, in the whole catalog: `ordenador` for the device
+// (4 keys), `pulsar` for pressing a key or button (4), `escribir` for typing
+// into a field (2), and a NO-BREAK SPACE before the percent sign (2) because
+// `Intl.NumberFormat('es-ES')` emits one and `es-419` emits none.
+//
+// What deliberately does NOT differ: the `usted` register (Spain uses it for
+// software too, and `vosotros` would be a tone change, not a correction),
+// `archivo` (entirely natural in Spain — `fichero` is not required), the
+// impersonal and infinitive command forms, and the whole node-kind glossary.
 //
 // §L2.11 — every `error.EXPR_*.message` reports a PARSER position, so each one
 // reads `carácter {column}`. `columna` is reserved for a real table column and
 // appears only in `./dataImport.ts`'s `import.loc.*`.
 //
-// §L2.13 — neutral Latin American Spanish: `ustedes` never `vosotros`,
+// §L2.13/§L2.15 — the register is unchanged from `es-419`: `usted`,
 // impersonal infinitives for commands, `usted` when a sentence needs a
 // subject, sentence case, `“…”` for user-facing prose, `¿` / `¡` opening
 // marks. Code, ids, file extensions and key names stay verbatim.
@@ -67,16 +81,16 @@ const ui = {
   'playbar.mc.failed': 'La ejecución falló',
   'playbar.initError': 'No se puede ejecutar: {detail}',
   'playbar.mc.title': 'Ejecutar el diagrama muchas veces y ver la distribución',
-  'playbar.mc.progress': 'Monte Carlo {pct}%',
+  'playbar.mc.progress': 'Monte Carlo {pct} %',
   'playbar.mc.progress.title': 'Ejecución de Monte Carlo en curso',
   'playbar.cancel': 'Cancelar',
   'playbar.steady': 'Estado estable: los flujos continúan',
   'playbar.timeline.show': 'Mostrar la línea de tiempo',
   'playbar.timeline.hide': 'Ocultar la línea de tiempo',
   'runbar.ariaLabel': 'Controles de ejecución',
-  'runbar.mc.cancel': 'MC {pct}% · Cancelar',
+  'runbar.mc.cancel': 'MC {pct} % · Cancelar',
   'runbar.timeline': 'Línea de tiempo',
-  'mobile.topbar.caption': 'ver y ejecutar: edite en la computadora',
+  'mobile.topbar.caption': 'ver y ejecutar: edite en el ordenador',
   'mobile.more': 'Más',
   'a11y.playback.started': 'Reproducción iniciada',
   'a11y.playback.endedAtStep': 'Terminó en el paso {n}',
@@ -95,7 +109,7 @@ const ui = {
   'timeline.axis.step': 'paso {n}',
   'timeline.sheetTitle': 'Línea de tiempo',
   'mobile.inspector.title': 'Propiedades: solo lectura',
-  'mobile.inspector.roNote': 'La edición se hace en la computadora. Esta es una vista de solo lectura.',
+  'mobile.inspector.roNote': 'La edición se hace en el ordenador. Esta es una vista de solo lectura.',
   'error.unknownCode': 'la expresión es inválida',
   'error.EXPR_EMPTY.message': 'la expresión está vacía',
   'error.EXPR_SYNTAX.message': 'hay un error de sintaxis en el carácter {column}',
@@ -198,7 +212,7 @@ const ui = {
   'mc.pools.headAll': 'en seguimiento · todos los depósitos',
   'mc.pools.headSome': 'en seguimiento · {n} de {total}',
   'mc.pools.selectAll': 'Seleccionar todos',
-  'mc.pools.none': 'No hay Depósitos en el grafo: agregue uno para ejecutar.',
+  'mc.pools.none': 'No hay Depósitos en el grafo: añada uno para ejecutar.',
   'mc.pools.group': 'Depósitos en seguimiento',
   'mc.pools.keepOne': 'Al menos un Depósito debe permanecer en seguimiento.',
   'mc.cost.estimating': 'estimando…',
@@ -244,13 +258,13 @@ const ui = {
   'review.fail.payloadInvalid': 'Este archivo de propuesta no pasó su verificación de integridad: vuelva a importarlo.',
   'review.fail.invalidSelection': 'Esa selección no se puede aplicar: una conexión aceptada necesita un nodo que usted no incluyó. Ajuste las opciones e inténtelo de nuevo.',
   'review.hunks.none': 'No hay nada nuevo que aplicar: el destino ya coincide.',
-  'review.hunk.add': 'Agregar',
+  'review.hunk.add': 'Añadir',
   'review.hunk.remove': 'Quitar',
   'review.hunk.change': 'Cambiar',
   'review.hunk.bothChanged': ' · ambos lados cambiaron esto',
   'review.hunk.youDeleted': ' · usted eliminó esto',
   'review.hunk.alsoRemove': 'también quitar o redirigir la conexión',
-  'review.hunk.cantRemove': 'no se puede quitar: usted agregó una conexión',
+  'review.hunk.cantRemove': 'no se puede quitar: usted añadió una conexión',
   'review.hunk.toThisNode': 'a este nodo',
   'review.hunk.framesTitle': 'Marcos guardados',
   'review.hunk.framesTake': 'Tomar los marcos de la propuesta ({yours} → {theirs})',
@@ -297,7 +311,7 @@ const ui = {
   'openhint.title': 'Sin sincronización de cuenta',
   'openhint.body': 'Abra un archivo guardado o un enlace para compartir y lo verá aquí.',
   'openhint.button': 'Abrir un archivo',
-  'openhint.sub': 'Exporte Graph JSON o Workspace JSON en la computadora, o abra un enlace para compartir que contenga #g1=.',
+  'openhint.sub': 'Exporte Graph JSON o Workspace JSON en el ordenador, o abra un enlace para compartir que contenga #g1=.',
   'tour.welcome.title': 'Le damos la bienvenida a Loop Studio',
   'tour.welcome.body': '¿Un recorrido rápido de dos minutos por las seis partes del espacio de trabajo?',
   'tour.welcome.start': 'Empezar el recorrido',
@@ -308,7 +322,7 @@ const ui = {
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Cerrar el recorrido',
   'tour.desktop.pieces.title': 'Piezas',
-  'tour.desktop.pieces.body': 'Los bloques de construcción: Depósito, Fuente, Sumidero, Distribuidor y los demás. Haga clic en uno, o arrástrelo al lienzo, para agregarlo.',
+  'tour.desktop.pieces.body': 'Los bloques de construcción: Depósito, Fuente, Sumidero, Distribuidor y los demás. Haga clic en uno, o arrástrelo al lienzo, para añadirlo.',
   'tour.desktop.canvas.title': 'Lienzo',
   'tour.desktop.canvas.body': 'Coloque las piezas aquí, conéctelas de punto a punto y desplácese o haga zoom para moverse.',
   'tour.desktop.inspector.title': 'Propiedades',
@@ -324,9 +338,9 @@ const ui = {
   'tour.mobile.canvas.title': 'Moverse',
   'tour.mobile.canvas.body': 'Arrastre para desplazarse, pellizque para hacer zoom. Ajustar vuelve a centrar el diagrama.',
   'tour.mobile.inspect.title': 'Inspeccionar',
-  'tour.mobile.inspect.body': 'Toque un nodo o una conexión para leer su configuración. La edición es solo en computadora.',
+  'tour.mobile.inspect.body': 'Toque un nodo o una conexión para leer su configuración. La edición es solo en el ordenador.',
   'tour.mobile.run.title': 'Ejecutarlo',
-  'tour.mobile.run.body': 'Avance por el modelo paso a paso, o presione Reproducir para ejecutarlo.',
+  'tour.mobile.run.body': 'Avance por el modelo paso a paso, o pulse Reproducir para ejecutarlo.',
   'tour.mobile.timeline.title': 'Línea de tiempo',
   'tour.mobile.timeline.body': 'Abra el panel de línea de tiempo para ver los valores a lo largo del tiempo.',
   'tour.mobile.more.title': 'Más',
@@ -349,7 +363,7 @@ const ui = {
   'hint.mc.body': 'Monte Carlo ejecuta el modelo muchas veces y muestra un rango de resultados, no una sola predicción.',
   'hint.review.body': 'Revisar una propuesta nunca cambia su proyecto abierto: nada se mueve hasta que usted la aplique.',
   'hint.importFirstCommit.body':
-    '{n, plural, one {# Parámetro agregado} many {# Parámetros agregados} other {# Parámetros agregados}} desde {tables}. Sus valores están en el panel de Entradas. Para usar uno en un Valor calculado, escriba @ en su expresión y elija el nombre; el campo de flujo de una conexión y un Activador ofrecen el mismo selector.',
+    '{n, plural, one {# Parámetro añadido} many {# Parámetros añadidos} other {# Parámetros añadidos}} desde {tables}. Sus valores están en el panel de Entradas. Para usar uno en un Valor calculado, escriba @ en su expresión y elija el nombre; el campo de flujo de una conexión y un Activador ofrecen el mismo selector.',
   'help.contextual.hint.import.name': 'Importación de hoja de cálculo',
   'help.contextual.hint.import.desc': 'Se muestra una vez, justo después de que la primera importación de hoja de cálculo llega al lienzo.',
   'hint.frameMove.body': 'Arrastre el borde de un marco para moverlo junto con todo lo que contiene. Mantenga Alt mientras arrastra para mover solo el marco.',

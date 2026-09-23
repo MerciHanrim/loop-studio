@@ -63,6 +63,7 @@ describe('locale registry metadata', () => {
       'de',
       'en',
       'es-419',
+      'es-ES',
       'fr',
       'ja',
       'ko',
@@ -224,7 +225,6 @@ describe('§L5.2 step 4 — baseFallbackFor', () => {
       'es-VE',
       'es-UY',
       'es-US',
-      'es-ES',
       'es-GQ',
       'ES-mx',
       'es-419-u-va-posix',
@@ -243,21 +243,25 @@ describe('§L5.2 step 4 — baseFallbackFor', () => {
     expect(resolveInitialLocale(null, ['xx-YY', 'zz'])).toBe(BASE_LOCALE)
   })
 
-  it('an exact code always beats a base-fallback owner — including one added later', () => {
-    // THIS is the production function, handed a hypothetical registry rather
-    // than a copy of the algorithm: a future `es-ES` must win its own tag with
-    // no change to the resolver.
-    const future: readonly LocaleEntry[] = [
-      ...LOCALES,
-      { ...(getEntry('es-419') as LocaleEntry), code: 'es-ES', baseFallbackFor: undefined },
-    ]
-    expect(resolveInitialLocale(null, ['es-ES'], future)).toBe('es-ES')
-    expect(resolveInitialLocale(null, ['es-MX'], future)).toBe('es-419') // still the owner
-    expect(resolveInitialLocale(null, ['es'], future)).toBe('es-419')
+  // This was written against a HYPOTHETICAL registry while `es-ES` was still
+  // a plan; it now runs against the real entry, and the prediction held with
+  // no change to the resolver. `es-ES` declares no `baseFallbackFor` at all —
+  // its code IS the tag a browser sends, so step 1 carries it, and step 4
+  // leaves `es-419` owning the base.
+  it('an exact code beats the base-fallback owner — the real es-ES entry', () => {
+    expect(getEntry('es-ES')?.baseFallbackFor).toBeUndefined()
+    expect(resolveInitialLocale(null, ['es-ES'])).toBe('es-ES')
+    expect(resolveInitialLocale(null, ['ES-es'])).toBe('es-ES')
+    expect(resolveInitialLocale(null, ['es-MX'])).toBe('es-419') // still the owner
+    expect(resolveInitialLocale(null, ['es'])).toBe('es-419')
+    expect(resolveInitialLocale(null, ['es-GQ'])).toBe('es-419') // stated trade-off
+    // and the per-TAG walk still prefers the first tag
+    expect(resolveInitialLocale(null, ['es-MX', 'es-ES'])).toBe('es-419')
+    expect(resolveInitialLocale(null, ['es-ES', 'es-MX'])).toBe('es-ES')
   })
 
   it('an unregistered stored value is never normalised into a fallback', () => {
-    for (const stored of ['es', 'es-MX', 'es-ES', 'ES-419']) {
+    for (const stored of ['es', 'es-MX', 'ES-419']) {
       expect(isRegistered(stored), stored).toBe(false)
       expect(resolveInitialLocale(stored, ['en-US']), stored).toBe('en')
     }

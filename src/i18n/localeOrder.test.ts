@@ -30,6 +30,7 @@ const SHIPPED_ORDER = [
   'ko', //      Korean
   'pt-BR', //   Portuguese (Brazil)
   'es-419', //  Spanish (Latin America)
+  'es-ES', //   Spanish (Spain)  — sorts right after its Latin American sibling
 ]
 
 describe('§L5.6 — the picker display order', () => {
