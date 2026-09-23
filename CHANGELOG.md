@@ -6,496 +6,304 @@ this file is the narrative history, not the contract.
 
 ## v0.13.0 — 2026-09-23
 
-A localization release. Loop Studio went from three languages to eleven, and the regional pairs are
-real locales rather than one catalog with a flag on it — European and Brazilian Portuguese, Spain
-and Latin American Spanish, and Simplified and Traditional Chinese each get their own catalog,
-their own plural rules and their own number formatting.
+A localization release. Loop Studio went from three languages to eleven, and the regional pairs are real locales rather than one catalog with a flag on it — European and Brazilian Portuguese, Spain and Latin American Spanish, and Simplified and Traditional Chinese each get their own catalog, their own plural rules and their own number formatting.
 
-**No save-format change, no migration and no breaking change.** Files written by v0.12.0 open
-unchanged, and files written by v0.13.0 open in v0.12.0; the only difference in a new file is the
-informational `meta.tool` version string.
+**No save-format change, no migration and no breaking change.** Files written by v0.12.0 open unchanged, and files written by v0.13.0 open in v0.12.0; the only difference in a new file is the informational `meta.tool` version string.
 
 ### Added
 
-- **Eight new languages**, bringing the UI to eleven: Chinese (Simplified), Chinese (Traditional),
-  French, German, Spanish (Latin America), Spanish (Spain), Portuguese (Brazil) and Portuguese
-  (Portugal) — alongside the existing English, Korean and Japanese. The full list, with codes, is
-  in the [README](README.md#languages).
-- **Your browser's language is honoured, down to the region.** A first visit follows
-  `navigator.languages`, and a regional request gets the regional catalog: `pt-PT` reaches European
-  Portuguese while `pt` and `pt-BR` reach Brazilian, `es-ES` reaches Spain while `es` and `es-MX`
-  reach Latin America, and `zh-TW` / `zh-HK` reach Traditional while `zh-CN` reaches Simplified. A
-  tag with no catalog of its own falls back to the closest one that has it, and only then to
-  English. The choice is remembered per device, and switching never touches your diagram.
-- **Bundled Templates and modules speak the UI language too.** Node labels and frame titles in the
-  five bundled Templates, and the labels an inserted module brings with it, are translated per
-  locale — a translated menu that inserts English node names is a half-translated product. Labels
-  you have edited yourself are never overwritten.
+- **Eight new languages**, bringing the UI to eleven: Chinese (Simplified), Chinese (Traditional), French, German, Spanish (Latin America), Spanish (Spain), Portuguese (Brazil) and Portuguese (Portugal) — alongside the existing English, Korean and Japanese. The full list, with codes, is in the [README](README.md#languages).
+- **Your browser's language is honoured, down to the region.** A first visit follows `navigator.languages`, and a regional request gets the regional catalog: `pt-PT` reaches European Portuguese while `pt` and `pt-BR` reach Brazilian, `es-ES` reaches Spain while `es` and `es-MX` reach Latin America, and `zh-TW` / `zh-HK` reach Traditional while `zh-CN` reaches Simplified. A tag with no catalog of its own falls back to the closest one that has it, and only then to English. The choice is remembered per device, and switching never touches your diagram.
+- **Bundled Templates and modules speak the UI language too.** Node labels and frame titles in the five bundled Templates, and the labels an inserted module brings with it, are translated per locale — a translated menu that inserts English node names is a half-translated product. Labels you have edited yourself are never overwritten.
 
 ### Changed
 
-- **The language picker is sorted and searchable.** Languages are listed by English name rather
-  than in the order they happened to ship, so a regional pair sits next to its sibling, and the
-  search box matches a language's own name, its name in the current UI language, its English name
-  or its code.
-- **Long translations fit.** Descriptive copy, menu blurbs and inline hints were measured in the
-  boxes that actually render them, per language, and the wrapping rules are scoped by locale
-  instead of applied globally.
-- **Chinese text renders with Chinese fonts.** Em dashes and other punctuation shared with Latin
-  scripts were falling back to a Latin face mid-sentence; the font stack now narrows by character
-  range so a Chinese sentence stays in one typeface.
-- **Accessibility and terminology corrections found while translating.** Parser errors say
-  *character position* rather than *column* — the two were the same word in several languages and
-  meant different things; a disabled row in the mobile sheet is distinguishable without relying on
-  colour alone; and every non-English catalog now says, inside the link, that the feedback form is
-  in English.
+- **The language picker is sorted and searchable.** Languages are listed by English name rather than in the order they happened to ship, so a regional pair sits next to its sibling, and the search box matches a language's own name, its name in the current UI language, its English name or its code.
+- **Long translations fit.** Descriptive copy, menu blurbs and inline hints were measured in the boxes that actually render them, per language, and the wrapping rules are scoped by locale instead of applied globally.
+- **Chinese text renders with Chinese fonts.** Em dashes and other punctuation shared with Latin scripts were falling back to a Latin face mid-sentence; the font stack now narrows by character range so a Chinese sentence stays in one typeface.
+- **Accessibility and terminology corrections found while translating.** Parser errors say *character position* rather than *column* — the two were the same word in several languages and meant different things; a disabled row in the mobile sheet is distinguishable without relying on colour alone; and every non-English catalog now says, inside the link, that the feedback form is in English.
 - Localization test reliability.
 
 ### Notes
 
-The per-locale decisions — the glossary each language fixed, what was deliberately left in English,
-the plural and number-format measurements, and the open questions each catalog carries pending a
-native-speaker review — are recorded in [`docs/localization.md`](docs/localization.md). No locale
-in this release has had a professional translation review.
+The per-locale decisions — the glossary each language fixed, what was deliberately left in English, the plural and number-format measurements, and the open questions each catalog carries pending a native-speaker review — are recorded in [`docs/localization.md`](docs/localization.md). No locale in this release has had a professional translation review.
+
+### Included pull requests
+
+<details>
+<summary>19 merged pull requests</summary>
+
+- Features: [#255](https://github.com/MerciHanrim/loop-studio/pull/255), [#256](https://github.com/MerciHanrim/loop-studio/pull/256), [#259](https://github.com/MerciHanrim/loop-studio/pull/259), [#262](https://github.com/MerciHanrim/loop-studio/pull/262), [#266](https://github.com/MerciHanrim/loop-studio/pull/266), [#268](https://github.com/MerciHanrim/loop-studio/pull/268), [#270](https://github.com/MerciHanrim/loop-studio/pull/270), [#271](https://github.com/MerciHanrim/loop-studio/pull/271)
+- Fixes: [#254](https://github.com/MerciHanrim/loop-studio/pull/254), [#257](https://github.com/MerciHanrim/loop-studio/pull/257), [#258](https://github.com/MerciHanrim/loop-studio/pull/258), [#260](https://github.com/MerciHanrim/loop-studio/pull/260), [#261](https://github.com/MerciHanrim/loop-studio/pull/261), [#267](https://github.com/MerciHanrim/loop-studio/pull/267), [#269](https://github.com/MerciHanrim/loop-studio/pull/269)
+- Tests: [#263](https://github.com/MerciHanrim/loop-studio/pull/263), [#264](https://github.com/MerciHanrim/loop-studio/pull/264), [#265](https://github.com/MerciHanrim/loop-studio/pull/265)
+- Chores: [#272](https://github.com/MerciHanrim/loop-studio/pull/272)
+
+</details>
 
 ## v0.12.0 — 2026-09-21
 
-Group frames stop being decoration: one carries its contents when you drag it, and the whole frame
-can be driven from the keyboard. The spreadsheet import wizard explains itself in place. And the
-largest theme of the release is a sustained accessibility pass — forced colours, control
-boundaries, descriptive text and focus handling — decided on measured pixels rather than by eye.
+Group frames stop being decoration: one carries its contents when you drag it, and the whole frame can be driven from the keyboard. The spreadsheet import wizard explains itself in place. And the largest theme of the release is a sustained accessibility pass — forced colours, control boundaries, descriptive text and focus handling — decided on measured pixels rather than by eye.
 
-**No save-format change, no migration and no breaking change.** Files written by v0.11.0 open
-unchanged, and files written by v0.12.0 open in v0.11.0; the only difference in a new file is the
-informational `meta.tool` version string.
+**No save-format change, no migration and no breaking change.** Files written by v0.11.0 open unchanged, and files written by v0.12.0 open in v0.11.0; the only difference in a new file is the informational `meta.tool` version string.
 
 ### Added
 
-- **A frame drag carries its contents**
-  ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR6.5) — moving a group
-  frame moves the nodes inside it. Membership is derived at the moment the drag starts, so nothing
-  new is written to the file; holding `Alt` moves the frame alone. The whole gesture is a single
-  undo entry, and a locked canvas or the mobile view keeps frames view-and-select only (`#243`).
-- **A group frame can be used from the keyboard**
-  ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR6.6) — a frame can be
-  focused, moved, resized and deleted without a pointer, `Delete` and `Backspace` have exactly one
-  owner, and each action is announced. Added as a capability, and the reason it was built is
-  accessibility: a frame was previously reachable only by mouse (`#247`).
-- **The spreadsheet import wizard explains itself**
-  ([`docs/data-import.md`](docs/data-import.md) §DI17) — a collapsible quick start with a one-click
-  worked example, role help on every column select, a per-table count line, inline validation errors
-  that point at the offending cell, and a review breakdown computed from the same plan summary the
-  commit uses (`#240`).
-- **Arrow-key navigation in the descriptive menus** — Templates, Insert module and File answer
-  Arrow / Home / End with wrapping, separators and disabled rows are skipped, and `Escape` returns
-  focus to the trigger (`#250`).
+- **A frame drag carries its contents** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR6.5) — moving a group frame moves the nodes inside it. Membership is derived at the moment the drag starts, so nothing new is written to the file; holding `Alt` moves the frame alone. The whole gesture is a single undo entry, and a locked canvas or the mobile view keeps frames view-and-select only.
+- **A group frame can be used from the keyboard** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR6.6) — a frame can be focused, moved, resized and deleted without a pointer, `Delete` and `Backspace` have exactly one owner, and each action is announced. Added as a capability, and the reason it was built is accessibility: a frame was previously reachable only by mouse.
+- **The spreadsheet import wizard explains itself** ([`docs/data-import.md`](docs/data-import.md) §DI17) — a collapsible quick start with a one-click worked example, role help on every column select, a per-table count line, inline validation errors that point at the offending cell, and a review breakdown computed from the same plan summary the commit uses.
+- **Arrow-key navigation in the descriptive menus** — Templates, Insert module and File answer Arrow / Home / End with wrapping, separators and disabled rows are skipped, and `Escape` returns focus to the trigger.
 
 ### Changed
 
-- **Clicking a node no longer rebuilds every orthogonal route** — the route map is now keyed on the
-  layout it was built from (node bounds and visibility, the orthogonal edges' endpoints, handles and
-  waypoints) instead of on array identity, so a selection change, which hands the canvas a new node
-  array, reuses the current generation. Moving, resizing, hiding a node or changing an edge's routing
-  input still rebuilds, and a rebuild is byte-identical to a fresh load. On the two largest bundled
-  templates a click used to spend 18–27 ms (CPU ×1) or 90–130 ms (CPU ×4) rerouting (`#238`).
-- **Tooltips and descriptive menus are readable** — the node tooltips and menu blurbs go from 11 px
-  to 12.5 px, Korean descriptions no longer break in the middle of a word, the Templates popover
-  widens to 300 px so no description is cut by its two-line clamp, and the menu blurb takes a colour
-  that clears 4.5:1. A palette tooltip now closes on `Escape` and survives the pointer travelling
-  onto it to be read (`#250`).
-- **The probabilistic gate is described correctly** in English, Korean and Japanese — it picks at
-  most one branch per step; it does not split the incoming resource by probability (`#250`).
+- **Clicking a node no longer rebuilds every orthogonal route** — the route map is now keyed on the layout it was built from (node bounds and visibility, the orthogonal edges' endpoints, handles and waypoints) instead of on array identity, so a selection change, which hands the canvas a new node array, reuses the current generation. Moving, resizing, hiding a node or changing an edge's routing input still rebuilds, and a rebuild is byte-identical to a fresh load. On the two largest bundled templates a click used to spend 18–27 ms (CPU ×1) or 90–130 ms (CPU ×4) rerouting.
+- **Tooltips and descriptive menus are readable** — the node tooltips and menu blurbs go from 11 px to 12.5 px, Korean descriptions no longer break in the middle of a word, the Templates popover widens to 300 px so no description is cut by its two-line clamp, and the menu blurb takes a colour that clears 4.5:1. A palette tooltip now closes on `Escape` and survives the pointer travelling onto it to be read.
+- **The probabilistic gate is described correctly** in English, Korean and Japanese — it picks at most one branch per step; it does not split the incoming resource by probability.
 
 ### Fixed
 
-- **An arrow-key node move is one undo entry** — it used to undo the *previous* edit instead
-  (`#248`).
-- **A Register expression no longer reorders what you type** — the caret and focus restore after an
-  `@` reference pick, an operator-keypad press or an arm-and-click canvas insert was deferred to the
-  next animation frame, which on a busy main thread arrived up to seconds later and pushed aside
-  anything typed in the gap; two of the possible interleavings also left the stored expression
-  disagreeing with the visible one (`#249`).
-- **The import wizard no longer takes focus back** — "Use this example" scrolled to and focused the
-  new card a frame after the click, which could pull focus off the role select you had tabbed to, off
-  the summary a failed check had just announced, or out of the data box mid-sentence, sending the
-  rest of what you typed into the table name (`#251`).
-- **Forced colours** — active edges keep a Highlight dash-dot / long-dash tell at low zoom (`#241`);
-  inactive and route-invalid edges take the system `GrayText`, with a forced-colours-only 1.5 px
-  inactive stroke (`#244`); pressed rail toggles keep their keyboard focus ring and the activity
-  edge tell drops its halo (`#239`).
-- **Control boundaries** — `.btn`, the PlayBar's `.pb-btn` and the Timeline's CSV button draw a
-  ≥ 3:1 boundary from the shared control tokens, on the desktop (`#245`) and inside a mobile sheet
-  (`#242`).
-- **A mobile sheet's secondary labels** keep 4.5:1 when a row is hovered or keyboard-focused, in
-  the More, Templates and Export sheets; disabled rows retain their existing treatment (`#252`).
+- **An arrow-key node move is one undo entry** — it used to undo the *previous* edit instead.
+- **A Register expression no longer reorders what you type** — the caret and focus restore after an `@` reference pick, an operator-keypad press or an arm-and-click canvas insert was deferred to the next animation frame, which on a busy main thread arrived up to seconds later and pushed aside anything typed in the gap; two of the possible interleavings also left the stored expression disagreeing with the visible one.
+- **The import wizard no longer takes focus back** — "Use this example" scrolled to and focused the new card a frame after the click, which could pull focus off the role select you had tabbed to, off the summary a failed check had just announced, or out of the data box mid-sentence, sending the rest of what you typed into the table name.
+- **Forced colours** — active edges keep a Highlight dash-dot / long-dash tell at low zoom; inactive and route-invalid edges take the system `GrayText`, with a forced-colours-only 1.5 px inactive stroke; pressed rail toggles keep their keyboard focus ring and the activity edge tell drops its halo.
+- **Control boundaries** — `.btn`, the PlayBar's `.pb-btn` and the Timeline's CSV button draw a ≥ 3:1 boundary from the shared control tokens, on the desktop and inside a mobile sheet.
+- **A mobile sheet's secondary labels** keep 4.5:1 when a row is hovered or keyboard-focused, in the More, Templates and Export sheets; disabled rows retain their existing treatment.
 
 ### Internal
 
-- The region-select marquee is kept inside the pane, removing the `Esc`-during-a-box flake (`#236`).
-- The run-distinction block runs under real reduced motion, with its one baseline re-taken (`#237`).
-- The unreachable `--state-warning` border on a hovered ghost button is gone — a no-render
-  cleanup (`#246`).
-- Two e2e files that waited for a weaker state than the one they asserted now wait for the exact
-  asserted state (`#249`).
+- The region-select marquee is kept inside the pane, removing the `Esc`-during-a-box flake.
+- The run-distinction block runs under real reduced motion, with its one baseline re-taken.
+- The unreachable `--state-warning` border on a hovered ghost button is gone — a no-render cleanup.
+- Two e2e files that waited for a weaker state than the one they asserted now wait for the exact asserted state.
+
+### Included pull requests
+
+<details>
+<summary>18 merged pull requests</summary>
+
+- Features: [#240](https://github.com/MerciHanrim/loop-studio/pull/240), [#243](https://github.com/MerciHanrim/loop-studio/pull/243), [#247](https://github.com/MerciHanrim/loop-studio/pull/247)
+- Fixes: [#239](https://github.com/MerciHanrim/loop-studio/pull/239), [#241](https://github.com/MerciHanrim/loop-studio/pull/241), [#242](https://github.com/MerciHanrim/loop-studio/pull/242), [#244](https://github.com/MerciHanrim/loop-studio/pull/244), [#245](https://github.com/MerciHanrim/loop-studio/pull/245), [#248](https://github.com/MerciHanrim/loop-studio/pull/248), [#249](https://github.com/MerciHanrim/loop-studio/pull/249), [#250](https://github.com/MerciHanrim/loop-studio/pull/250), [#251](https://github.com/MerciHanrim/loop-studio/pull/251), [#252](https://github.com/MerciHanrim/loop-studio/pull/252)
+- Performance: [#238](https://github.com/MerciHanrim/loop-studio/pull/238)
+- Tests: [#236](https://github.com/MerciHanrim/loop-studio/pull/236), [#237](https://github.com/MerciHanrim/loop-studio/pull/237)
+- Chores: [#246](https://github.com/MerciHanrim/loop-studio/pull/246), [#253](https://github.com/MerciHanrim/loop-studio/pull/253)
+
+</details>
 
 ## v0.11.0 — 2026-09-19
 
-Selecting several nodes becomes a visible, named feature; the orthogonal
-router gets much faster without changing a route; and the test bed that
-guards the canvas is rebuilt — reviewed visual baselines, a per-capture
-tolerance policy, and a type-checked `e2e/`.
+Minor release: region select on the canvas, a much faster orthogonal router, and a rebuilt visual-test bed. No file-format or data-meaning change; documents, revision files and share links from v0.10.x open unchanged.
+
+Selecting several nodes becomes a visible, named feature; the orthogonal router gets much faster without changing a route; and the test bed that guards the canvas is rebuilt — reviewed visual baselines, a per-capture tolerance policy, and a type-checked `e2e/`.
 
 ### Added
 
-- **Region select** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md)
-  §LGR12) — a one-shot *select a region* tool on the desktop Controls rail:
-  arm it, drag on empty canvas to rubber-band a selection, and the tool
-  disarms itself. Shift-drag and Ctrl/Cmd-click keep working and the tool's
-  label names them, so the keyboard gesture is no longer the only way to
-  discover multi-selection. Arming it turns the Frame tool and Pan mode off
-  (and either of those cancels it); `Esc` cancels the tool without touching
-  the selection, a click with no drag clears both, and a cancelled pointer
-  never leaves the tool armed. A persistent **"N nodes selected"** readout
-  accompanies it — in the right column above the Inspector on desktop, and
-  inside the read-only Inspector sheet on mobile when two or more nodes are
-  selected — never on the canvas, where it could cover a node (`#229`,
-  `#231`).
+- **Region select** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md) §LGR12) — a one-shot *select a region* tool on the desktop Controls rail: arm it, drag on empty canvas to rubber-band a selection, and the tool disarms itself. Shift-drag and Ctrl/Cmd-click keep working and the tool's label names them, so the keyboard gesture is no longer the only way to discover multi-selection. Arming it turns the Frame tool and Pan mode off (and either of those cancels it); `Esc` cancels the tool without touching the selection, a click with no drag clears both, and a cancelled pointer never leaves the tool armed. A persistent **"N nodes selected"** readout accompanies it — in the right column above the Inspector on desktop, and inside the read-only Inspector sheet on mobile when two or more nodes are selected — never on the canvas, where it could cover a node.
 
 ### Changed
 
-- **The orthogonal connector routes the same paths, much faster and with far
-  less memory** — the §ER3 router keeps its ruler grid, its free-point and
-  neighbour rules, its cost function, its tie-break order and its expansion
-  budget; only the bookkeeping changed (lattice-indexed typed arrays instead
-  of string-keyed maps, per-ruler obstacle coverage instead of rescanning
-  every obstacle for every probe, and a binary heap instead of a linear scan
-  of the open list). A full route rebuild drops from 380 ms to 24 ms on the
-  gacha template and from 724 ms to 39 ms on the MMO one; on a 144-edge
-  stress graph peak heap falls from 150 MB to 28 MB and garbage-collection
-  time from 1.4 s to 0.1 s over one drag. Routes are byte-identical: a golden
-  fixture and a differential test against a frozen copy of the previous
-  implementation cover every bundled example, a boundary corpus, the stress
-  graph and 3,000 seeded layouts, so `ROUTER_VERSION` is unchanged. The
-  search lattice is then built per obstacle instead of per cell — filling
-  the grid had been 27–42 % of a route build while the search visited under
-  5 % of it — verified route for route at every pointer position of two full
-  drag gestures with zero mismatches (`#224`, `#227`).
-- **Smoother node drags** — the canvas no longer hands React Flow a fresh
-  options object on every render, so a pointer move re-renders only the edges
-  attached to the moving node instead of every edge on the canvas; the
-  drag-phase frame p95 falls by 10–11 % on the bundled MMO and gacha
-  templates (`#225`).
+- **The orthogonal connector routes the same paths, much faster and with far less memory** — the §ER3 router keeps its ruler grid, its free-point and neighbour rules, its cost function, its tie-break order and its expansion budget; only the bookkeeping changed (lattice-indexed typed arrays instead of string-keyed maps, per-ruler obstacle coverage instead of rescanning every obstacle for every probe, and a binary heap instead of a linear scan of the open list). A full route rebuild drops from 380 ms to 24 ms on the gacha template and from 724 ms to 39 ms on the MMO one; on a 144-edge stress graph peak heap falls from 150 MB to 28 MB and garbage-collection time from 1.4 s to 0.1 s over one drag. Routes are byte-identical: a golden fixture and a differential test against a frozen copy of the previous implementation cover every bundled example, a boundary corpus, the stress graph and 3,000 seeded layouts, so `ROUTER_VERSION` is unchanged. The search lattice is then built per obstacle instead of per cell — filling the grid had been 27–42 % of a route build while the search visited under 5 % of it — verified route for route at every pointer position of two full drag gestures with zero mismatches.
+- **Smoother node drags** — the canvas no longer hands React Flow a fresh options object on every render, so a pointer move re-renders only the edges attached to the moving node instead of every edge on the canvas; the drag-phase frame p95 falls by 10–11 % on the bundled MMO and gacha templates.
 
 ### Fixed
 
-- **A selected node is never dimmed by Focus mode** — with several nodes
-  selected, the ones outside the anchor node's neighbourhood were faded to
-  26 % while still selected (7 of 10 in a marquee selection on the MMO
-  template read as three). A node the user has selected now always stays
-  legible; the focus calculation itself is unchanged (`#228`).
-- **Register / Parameter values are never clipped** — the rounded-rim inset
-  that came with the node shells was a cyclic percentage: it was carved out
-  of the value column *after* the node had been sized, so a value such as
-  `370370.34` rendered as `370370.3…` on any node wider than about 129 px.
-  The rim is now a margin on the two corner lines only and the value line
-  keeps its full column; every node in the bundled examples keeps a
-  byte-identical size (`#230`).
+- **A selected node is never dimmed by Focus mode** — with several nodes selected, the ones outside the anchor node's neighbourhood were faded to 26 % while still selected (7 of 10 in a marquee selection on the MMO template read as three). A node the user has selected now always stays legible; the focus calculation itself is unchanged.
+- **Register / Parameter values are never clipped** — the rounded-rim inset that came with the node shells was a cyclic percentage: it was carved out of the value column *after* the node had been sized, so a value such as `370370.34` rendered as `370370.3…` on any node wider than about 129 px. The rim is now a margin on the two corner lines only and the value line keeps its full column; every node in the bundled examples keeps a byte-identical size.
 
 ### Internal
 
-- **Visual baselines reviewed and refreshed** — an audit found 40 of the 46
-  Playwright pixel baselines silently out of date: the single 2 % tolerance
-  had absorbed eight releases of drift, including a Pool value changing
-  outright. Every image was reviewed one by one and 41 regenerated, with new
-  DOM assertions pinning the states the shots assume (`#232`).
-- **Per-capture-kind snapshot tolerance**
-  ([`docs/visual-snapshot-policy.md`](docs/visual-snapshot-policy.md)) — the
-  real cross-machine variance was measured on three independent Windows
-  runners and a local machine (runner ↔ runner: identical; local ↔ runner:
-  text rasterisation only), then the tolerance was set per capture kind,
-  from 0.5 % for a desktop full page down to 0.02 % for a desktop canvas
-  clip, with a guard that keeps every baseline under exactly one policy and
-  every shot on the shared helper. Against the old baselines the policy
-  fails 40 of the 41 real drifts (`#233`).
-- **`e2e/` is type-checked by `tsc -b`** — a dedicated TypeScript project now
-  covers the Playwright specs, helpers and configs; the 51 errors it
-  surfaced were fixed by cause, and four `test.use({ reducedMotion |
-  forcedColors })` blocks that Playwright had silently ignored now apply
-  their emulation through `contextOptions` (a fifth was dropped pending a
-  baseline decision) (`#234`).
-- **Characterisation tests** — the playback cascade is observed from before
-  `play()` with emit order judged per transition (`#222`), and what an `@id`
-  Parameter reference may resolve to is pinned (`#226`).
+- **Visual baselines reviewed and refreshed** — an audit found 40 of the 46 Playwright pixel baselines silently out of date: the single 2 % tolerance had absorbed eight releases of drift, including a Pool value changing outright. Every image was reviewed one by one and 41 regenerated, with new DOM assertions pinning the states the shots assume.
+- **Per-capture-kind snapshot tolerance** ([`docs/visual-snapshot-policy.md`](docs/visual-snapshot-policy.md)) — the real cross-machine variance was measured on three independent Windows runners and a local machine (runner ↔ runner: identical; local ↔ runner: text rasterisation only), then the tolerance was set per capture kind, from 0.5 % for a desktop full page down to 0.02 % for a desktop canvas clip, with a guard that keeps every baseline under exactly one policy and every shot on the shared helper. Against the old baselines the policy fails 40 of the 41 real drifts.
+- **`e2e/` is type-checked by `tsc -b`** — a dedicated TypeScript project now covers the Playwright specs, helpers and configs; the 51 errors it surfaced were fixed by cause, and four `test.use({ reducedMotion | forcedColors })` blocks that Playwright had silently ignored now apply their emulation through `contextOptions` (a fifth was dropped pending a baseline decision).
+- **Characterisation tests** — the playback cascade is observed from before `play()` with emit order judged per transition, and what an `@id` Parameter reference may resolve to is pinned.
+
+### Included pull requests
+
+<details>
+<summary>13 merged pull requests</summary>
+
+- Features: [#229](https://github.com/MerciHanrim/loop-studio/pull/229)
+- Fixes: [#228](https://github.com/MerciHanrim/loop-studio/pull/228), [#230](https://github.com/MerciHanrim/loop-studio/pull/230), [#231](https://github.com/MerciHanrim/loop-studio/pull/231)
+- Performance: [#224](https://github.com/MerciHanrim/loop-studio/pull/224), [#225](https://github.com/MerciHanrim/loop-studio/pull/225), [#227](https://github.com/MerciHanrim/loop-studio/pull/227)
+- Tests: [#222](https://github.com/MerciHanrim/loop-studio/pull/222), [#226](https://github.com/MerciHanrim/loop-studio/pull/226), [#232](https://github.com/MerciHanrim/loop-studio/pull/232), [#233](https://github.com/MerciHanrim/loop-studio/pull/233), [#234](https://github.com/MerciHanrim/loop-studio/pull/234)
+- Chores: [#235](https://github.com/MerciHanrim/loop-studio/pull/235)
+
+</details>
 
 ## v0.10.2 — 2026-09-17
 
-Patch release: the runtime defects found by the post-v0.10.0 codebase audit
-— silent autosave failures, share-link frame / data-import carry-over,
-negative Pool values, and stray untranslated messages.
+Patch release: the runtime defects found by the post-v0.10.0 codebase audit. No file-format or data-meaning change; documents, revision files and share links from v0.10.0 / v0.10.1 open unchanged.
+
 
 ### Fixed
 
-- **Autosave failures are no longer silent, and a last-moment edit is no
-  longer lost** — when the browser refuses the autosave record (its storage
-  quota is exhausted — reproduced with two 20,000-row data-import tables on
-  Chromium — or storage is blocked) the app now shows a persistent notice
-  with an *Export Graph JSON* button instead of silently keeping nothing
-  from that moment on; the notice clears by itself once a save succeeds
-  again. The pending autosave is also written immediately when the page is
-  hidden or unloaded, so an edit made in the last 400 ms before a reload /
-  close (reproduced at 150 ms) is kept.
-- **Share links and saved frames / data-import records** — opening a `#g1=`
-  share link kept the *previous* document's group frames and data-import
-  table records (they leaked into the shared graph and its next Export /
-  revision digest) and dropped the frames the link itself carried. A link now
-  replaces both, exactly like a file Import does.
-- **Negative or non-finite Pool values no longer break the run** — typing a
-  value below 0 (or `1e400`) into a Pool's Starting amount / Capacity used to
-  reach the store, where the engine's refusal threw inside a store
-  subscriber: a console error, a Reset that kept failing, Monte-Carlo
-  staleness and the project's unsaved flag silently skipped, and the bad
-  value autosaved. The Inspector now keeps an invalid entry as a local draft
-  (with a hint) and commits only a valid number; a bad value that arrives
-  from a hand-edited file is shown as a run-strip notice with Play / Step
-  disabled instead of an error.
-- **Untranslated messages and stale menu paths** — the Project-revision /
-  proposal export refusals, the share-link replace prompt, the import
-  structural / model-layer warnings, the graph-file read errors and the
-  Monte-Carlo "Cancelled" note are now in the active language (EN / KO / JA);
-  the canvas node's accessible name uses the localized kind and state words;
-  messages and the example READMEs that still said `Export ▾ → …` now say
-  `File ▾ → …` (the v0.10.0 toolbar). The i18n surface check also scans
-  stores / ui helpers for English `alert` / `confirm` literals.
+- **Autosave failures are no longer silent, and a last-moment edit is no longer lost** — when the browser refuses the autosave record (its storage quota is exhausted — reproduced with two 20,000-row data-import tables on Chromium — or storage is blocked) the app now shows a persistent notice with an *Export Graph JSON* button instead of silently keeping nothing from that moment on; the notice clears by itself once a save succeeds again. The pending autosave is also written immediately when the page is hidden or unloaded, so an edit made in the last 400 ms before a reload / close (reproduced at 150 ms) is kept.
+- **Share links and saved frames / data-import records** — opening a `#g1=` share link kept the *previous* document's group frames and data-import table records (they leaked into the shared graph and its next Export / revision digest) and dropped the frames the link itself carried. A link now replaces both, exactly like a file Import does.
+- **Negative or non-finite Pool values no longer break the run** — typing a value below 0 (or `1e400`) into a Pool's Starting amount / Capacity used to reach the store, where the engine's refusal threw inside a store subscriber: a console error, a Reset that kept failing, Monte-Carlo staleness and the project's unsaved flag silently skipped, and the bad value autosaved. The Inspector now keeps an invalid entry as a local draft (with a hint) and commits only a valid number; a bad value that arrives from a hand-edited file is shown as a run-strip notice with Play / Step disabled instead of an error.
+- **Untranslated messages and stale menu paths** — the Project-revision / proposal export refusals, the share-link replace prompt, the import structural / model-layer warnings, the graph-file read errors and the Monte-Carlo "Cancelled" note are now in the active language (EN / KO / JA); the canvas node's accessible name uses the localized kind and state words; messages and the example READMEs that still said `Export ▾ → …` now say `File ▾ → …` (the v0.10.0 toolbar), two of them in the inline help. The i18n surface check also scans stores / ui helpers for English `alert` / `confirm` literals.
 
 ### Internal
 
-- `strict` is now written explicitly in both tsconfigs instead of being
-  inherited from the TypeScript 6 default, and `useT()` returns a
-  locale-stable function so effects that list `t` as a dependency no longer
-  re-run on every render.
+- `strict` is now written explicitly in both tsconfigs instead of being inherited from the TypeScript 6 default, and `useT()` returns a locale-stable function so effects that list `t` as a dependency no longer re-run on every render.
+
+### Notes
+
+- The notes as published at the time: [CHANGELOG.md § v0.10.2](https://github.com/MerciHanrim/loop-studio/blob/v0.10.2/CHANGELOG.md#v0102--2026-09-17).
+
+### Included pull requests
+
+<details>
+<summary>5 merged pull requests</summary>
+
+- Fixes: [#217](https://github.com/MerciHanrim/loop-studio/pull/217), [#218](https://github.com/MerciHanrim/loop-studio/pull/218), [#219](https://github.com/MerciHanrim/loop-studio/pull/219)
+- Chores: [#220](https://github.com/MerciHanrim/loop-studio/pull/220), [#221](https://github.com/MerciHanrim/loop-studio/pull/221)
+
+</details>
 
 ## v0.10.1 — 2026-09-16
 
 Patch release: Project revision / proposal files of a `@parameter` document.
 
+**Recovers the Project revision / proposal files v0.10.0 exported for `@parameter` (loop-model/2) documents, and preserves the document's model version.** Files written by v0.10.0 with the wrong (v1) envelope are read back as v2 when their content digest proves it — the project header is adopted and the graph runs with its `@parameter` references intact. “Open as a document” keeps the proposal's own model version; Apply keeps the open document's version and refuses a v1 ↔ v2 cross-version proposal. New exports carry the correct envelope. Genuine v1 files are unaffected.
+
+
 ### Fixed
 
-- **Project revision / proposal files of a `@parameter` (loop-model/2)
-  document** — v0.10.0 wrote every revision and proposal with the v1 envelope
-  `"schema": "loop-studio/graph"` while computing `project.contentDigest`
-  under the v2 projection, so such a file failed its own integrity check on
-  import (the project header was dropped with a misleading "edited outside
-  Loop Studio?" warning) and its graph loaded as v1 — every `@…` flow
-  silently ran as the literal `1`. Both bundled v2 Templates (Coffee roastery,
-  3-zone gacha) were affected. Now: the writer emits the document's real
-  envelope (`loop-studio/graph/2`) and projects a proposal's first-creation
-  `base` at the same version; the reader recovers an already-exported v0.10.0
-  file **only** when its `project.contentDigest` verifies under the v2
-  projection (digest is the proof — nothing else ever promotes a file; a file
-  that matches neither projection is dropped exactly as before, and genuine v1
-  files are untouched). Apply keeps the open document's model version and
-  refuses a v1 ↔ v2 cross-version proposal before anything changes
-  (`version-mismatch`, whole and per-hunk); "Open as a document" preserves the
-  proposal's own version. A recovered legacy proposal's v1-projected `base` is
-  read verbatim, so it classifies as `unknown` (confirmation kept) rather than
-  being promoted to `exact`. Fixtures: `examples/revision-legacy-v0.10.0/`.
+- **Project revision / proposal files of a `@parameter` (loop-model/2) document** — v0.10.0 wrote every revision and proposal with the v1 envelope `"schema": "loop-studio/graph"` while computing `project.contentDigest` under the v2 projection, so such a file failed its own integrity check on import (the project header was dropped with a misleading "edited outside Loop Studio?" warning) and its graph loaded as v1 — every `@…` flow silently ran as the literal `1`. Both bundled v2 Templates (Coffee roastery, 3-zone gacha) were affected. Now: the writer emits the document's real envelope (`loop-studio/graph/2`) and projects a proposal's first-creation `base` at the same version; the reader recovers an already-exported v0.10.0 file **only** when its `project.contentDigest` verifies under the v2 projection (digest is the proof — nothing else ever promotes a file; a file that matches neither projection is dropped exactly as before, and genuine v1 files are untouched). Apply keeps the open document's model version and refuses a v1 ↔ v2 cross-version proposal before anything changes (`version-mismatch`, whole and per-hunk); "Open as a document" preserves the proposal's own version. A recovered legacy proposal's v1-projected `base` is read verbatim, so it classifies as `unknown` (confirmation kept) rather than being promoted to `exact`. Fixtures: `examples/revision-legacy-v0.10.0/`.
+
+### Notes
+
+- A patch on top of v0.10.0; the `v0.10.0` tag itself is untouched. Legacy fixtures: `examples/revision-legacy-v0.10.0/`.
+
+### Included pull requests
+
+<details>
+<summary>3 merged pull requests</summary>
+
+- Fixes: [#215](https://github.com/MerciHanrim/loop-studio/pull/215)
+- Documentation: [#214](https://github.com/MerciHanrim/loop-studio/pull/214)
+- Chores: [#216](https://github.com/MerciHanrim/loop-studio/pull/216)
+
+</details>
 
 ## v0.10.0 — 2026-09-16
 
-Data import, a fifth Template, tunable activator thresholds, conditional
-post-pull state updates, and a reorganized desktop toolbar.
+Data import, a fifth Template, tunable activator thresholds, conditional post-pull state updates, and a reorganized desktop toolbar.
 
 ### Added
 
-- **Spreadsheet data import** ([`docs/data-import.md`](docs/data-import.md))
-  — paste or upload a CSV/TSV snapshot across multiple linked tables (joined
-  by shared key columns, no formulas). Numeric cells materialize as ordinary,
-  editable Parameter nodes; import does not auto-wire them into the graph's
-  flows, Registers, or activators, while source provenance is retained for
-  refresh. No live connection, no OAuth, and Loop Studio never writes back to
-  the source file (`#202`, `#203`).
-- **Data refresh, three-way diff & change-proposal export** — re-paste the
-  same binding's updated data and **Refresh** walks the full row lifecycle
-  (added / missing / value-changed / key-changed) against a real base /
-  local / incoming three-way diff; a genuine conflict prompts *apply
-  incoming* or *keep mine*, and a foreign-key re-point is always surfaced,
-  never auto-applied. A **change-proposal CSV** export lets a designer paste
-  tuned values back into their own spreadsheet by hand (`#204`).
-- **3-zone gacha banner comparison Template** — a fifth bundled Template
-  comparing **General/Free** (base rates), **Premium Standard** (a tunable
-  hard-pity ceiling), and **Premium Pickup** (hard-pity plus a pickup
-  guarantee) side by side, 200 pulls per zone under identical run settings,
-  with real hit-rate / pickup-rate results and a Monte Carlo outcome
-  distribution (`#195`–`#199`).
-- **`@parameter` activator references** ([`docs/parameter-activator.md`](docs/parameter-activator.md))
-  — an activator's comparison threshold can reference a Parameter node
-  (optionally ± one integer offset) instead of only a hardcoded literal, with
-  a live resolved-value preview in the Inspector (`#187`–`#189`).
-- **Conditional post-pull state updates** ([`docs/conditional-state-update.md`](docs/conditional-state-update.md),
-  [`docs/label-timing-authoring.md`](docs/label-timing-authoring.md)) — a
-  `label` modifier can now apply in a new **Phase 2.5**, immediately after
-  that step's pull, conditioned on whether the specific Gate / Converter /
-  Drain / End it's attached to actually fired — letting a counter update or
-  reset within the very same step a hard-pity-style condition resolves,
-  something a `phase0` label (evaluated before the pull) could not express.
-  The Inspector offers this as two named presets — **Always** (today's
-  behaviour) or **When the source fires** — that cannot construct an
-  invalid `timing`/`when` combination (`#181`, `#183`).
-- **Desktop two-tier toolbar** — project/app commands (Templates, Insert
-  module, **File**, **Data**, Share, **Settings**, Help) collapse to one
-  fixed row; the node palette keeps its own row underneath. New/Import/
-  Export are unified under **File ▾**; Theme/Language move under
-  **Settings ▾**.
+- **Spreadsheet data import** ([`docs/data-import.md`](docs/data-import.md)) — paste or upload a CSV/TSV snapshot across multiple linked tables (joined by shared key columns, no formulas). Numeric cells materialize as ordinary, editable Parameter nodes; import does not auto-wire them into the graph's flows, Registers, or activators, while source provenance is retained for refresh. No live connection, no OAuth, and Loop Studio never writes back to the source file.
+- **Data refresh, three-way diff & change-proposal export** — re-paste the same binding's updated data and **Refresh** walks the full row lifecycle (added / missing / value-changed / key-changed) against a real base / local / incoming three-way diff; a genuine conflict prompts *apply incoming* or *keep mine*, and a foreign-key re-point is always surfaced, never auto-applied. A **change-proposal CSV** export lets a designer paste tuned values back into their own spreadsheet by hand.
+- **3-zone gacha banner comparison Template** — a fifth bundled Template comparing **General/Free** (base rates), **Premium Standard** (a tunable hard-pity ceiling), and **Premium Pickup** (hard-pity plus a pickup guarantee) side by side, 200 pulls per zone under identical run settings, with real hit-rate / pickup-rate results and a Monte Carlo outcome distribution.
+- **`@parameter` activator references** ([`docs/parameter-activator.md`](docs/parameter-activator.md)) — an activator's comparison threshold can reference a Parameter node (optionally ± one integer offset) instead of only a hardcoded literal, with a live resolved-value preview in the Inspector.
+- **Conditional post-pull state updates** ([`docs/conditional-state-update.md`](docs/conditional-state-update.md), [`docs/label-timing-authoring.md`](docs/label-timing-authoring.md)) — a `label` modifier can now apply in a new **Phase 2.5**, immediately after that step's pull, conditioned on whether the specific Gate / Converter / Drain / End it's attached to actually fired — letting a counter update or reset within the very same step a hard-pity-style condition resolves, something a `phase0` label (evaluated before the pull) could not express. The Inspector offers this as two named presets — **Always** (today's behaviour) or **When the source fires** — that cannot construct an invalid `timing`/`when` combination.
+- **Desktop two-tier toolbar** — project/app commands (Templates, Insert module, **File**, **Data**, Share, **Settings**, Help) collapse to one fixed row; the node palette keeps its own row underneath. New/Import/ Export are unified under **File ▾**; Theme/Language move under **Settings ▾**.
 
 ### Changed
 
-- **Gacha Template canvas readability** — a Parameter reference used in a
-  resource flow or an activator threshold now shows its resolved current
-  number instead of the raw internal id (with a translated fallback for a
-  dangling/invalid reference); connector routing and label placement were
-  retuned to remove overlaps in the busiest zones (`#206`).
-- **Data import wizard UX** — **Next** now stays disabled until every table
-  draft has both a name and pasted data, so a downstream validation error
-  can no longer surface before that basic precondition is met; the
-  fixable-now root causes are flagged inline on the same screen instead of
-  a separate error step; the table-name field, upload/delimiter controls,
-  and layout were cleaned up. Help's position among the toolbar's inline
-  actions was also pinned last at the time — since superseded by this
-  release's own two-tier toolbar reorganization, above (`#205`).
-- **Playback default speed** — a fresh document's default step speed is now
-  medium-fast (600 ms) instead of the slowest stop (`#193`).
-- **Bundled module labels** — inserting a bundled Building block into a
-  KO/JA document localizes its labels on that fresh insert (`#185`); a later
-  EN/KO/JA switch now keeps that instance's still-unedited official labels in
-  sync too, in both the menu-insert and canvas-drag-insert paths, without
-  touching any label the user has since renamed
-  ([`docs/bundled-module-label-localization.md`](docs/bundled-module-label-localization.md)).
-- **In-app feedback** — the Help menu's `Send feedback` link now opens Tally
-  instead of Typeform (`#177`).
+- **Gacha Template canvas readability** — a Parameter reference used in a resource flow or an activator threshold now shows its resolved current number instead of the raw internal id (with a translated fallback for a dangling/invalid reference); connector routing and label placement were retuned to remove overlaps in the busiest zones.
+- **Data import wizard UX** — **Next** now stays disabled until every table draft has both a name and pasted data, so a downstream validation error can no longer surface before that basic precondition is met; the fixable-now root causes are flagged inline on the same screen instead of a separate error step; the table-name field, upload/delimiter controls, and layout were cleaned up. Help's position among the toolbar's inline actions was also pinned last at the time — since superseded by this release's own two-tier toolbar reorganization, above.
+- **Playback default speed** — a fresh document's default step speed is now medium-fast (600 ms) instead of the slowest stop.
+- **Bundled module labels** — inserting a bundled Building block into a KO/JA document localizes its labels on that fresh insert; a later EN/KO/JA switch now keeps that instance's still-unedited official labels in sync too, in both the menu-insert and canvas-drag-insert paths, without touching any label the user has since renamed ([`docs/bundled-module-label-localization.md`](docs/bundled-module-label-localization.md)).
+- **In-app feedback** — the Help menu's `Send feedback` link now opens Tally instead of Typeform.
 
 ### Fixed
 
-- **Pull-all Converter conservation** — an all-or-nothing Converter that
-  couldn't reach full flow because an upstream Gate or router only offered a
-  partial amount used to silently destroy that resource instead of holding
-  back; the engine now probes the full pull graph first and disables a short
-  Converter before committing the step (`#179`).
-- **Japanese font fallback** — corrected a CJK font-fallback issue affecting
-  Han-unification rendering in the Japanese UI (`#186`).
-- **Canvas edit-lock persistence** — the edit lock no longer resets on a
-  page reload or a PWA update (`#192`).
-- **Confirm-dialog double-click guard** — a rapid double-click on a
-  `ConfirmDialog`'s Confirm button (Export, New, module promote, …) could
-  run the confirmation action twice; it now fires at most once per open
-  (`#210`).
-- **Locale-switch stall** — a duplicate, redundant per-node re-measurement
-  alongside React Flow's own automatic one turned a multi-node document's
-  locale switch into a multi-second stall (worst case 6–7s); removing the
-  redundant call cut that to about 1s without any loss of measurement
-  correctness (`#211`).
-- **Toolbar menu outside-dismiss** — an open Tier-1 menu (Templates, Insert
-  module, File, Data, Settings, Help, the `⋯` overflow) no longer closed on
-  a canvas node click, a canvas pan, or a scroll outside it — a regression
-  from the two-tier toolbar reorganization above (`#212`).
-- **Palette tooltip visibility** — the hover/keyboard-focus tooltip on any
-  of the 8 node-creation chips was invisible at every desktop width,
-  silently clipped by the toolbar palette's own horizontal-scroll
-  container — another regression from the same reorganization (`#212`).
+- **Pull-all Converter conservation** — an all-or-nothing Converter that couldn't reach full flow because an upstream Gate or router only offered a partial amount used to silently destroy that resource instead of holding back; the engine now probes the full pull graph first and disables a short Converter before committing the step.
+- **Japanese font fallback** — corrected a CJK font-fallback issue affecting Han-unification rendering in the Japanese UI.
+- **Canvas edit-lock persistence** — the edit lock no longer resets on a page reload or a PWA update.
+- **Confirm-dialog double-click guard** — a rapid double-click on a `ConfirmDialog`'s Confirm button (Export, New, module promote, …) could run the confirmation action twice; it now fires at most once per open.
+- **Locale-switch stall** — a duplicate, redundant per-node re-measurement alongside React Flow's own automatic one turned a multi-node document's locale switch into a multi-second stall (worst case 6–7s); removing the redundant call cut that to about 1s without any loss of measurement correctness.
+- **Toolbar menu outside-dismiss** — an open Tier-1 menu (Templates, Insert module, File, Data, Settings, Help, the `⋯` overflow) no longer closed on a canvas node click, a canvas pan, or a scroll outside it — a regression from the two-tier toolbar reorganization above.
+- **Palette tooltip visibility** — the hover/keyboard-focus tooltip on any of the 8 node-creation chips was invisible at every desktop width, silently clipped by the toolbar palette's own horizontal-scroll container — another regression from the same reorganization.
 
 ### Compatibility
 
-- **`@parameter` activators** (`loop-state/4`, [`SEMANTICS-S4.md`](docs/specs/SEMANTICS-S4.md))
-  need no new revision format and no migration. An **unmodified** existing
-  document's projection and digest are unchanged. Committing a `@parameter`
-  reference in an activator engages the existing `loop-model/2` v1→v2
-  `modelVersion` latch (never on load, only on that edit) — the same
-  one-way promotion a resource-edge flow already triggers. Actually editing
-  an activator's `expr` or a Parameter's `value` is real content change and
-  moves the digest exactly as it already does today, with or without this
-  feature.
-- **Conditional post-pull labels** (`loop-state/3`, `loop-revision/6`) — an
-  existing label edge (which has never had a `timing`/`when`) opens and
-  reads as **Always**, byte-identical to today. A document that actually
-  uses the new **When the source fires** timing *does* move its revision
-  content digest and workspace digest — that's real engine behaviour, not
-  cosmetic, so a revision or workspace comparison correctly reports it as a
-  genuine change rather than noise.
+- **`@parameter` activators** (`loop-state/4`, [`SEMANTICS-S4.md`](docs/specs/SEMANTICS-S4.md)) need no new revision format and no migration. An **unmodified** existing document's projection and digest are unchanged. Committing a `@parameter` reference in an activator engages the existing `loop-model/2` v1→v2 `modelVersion` latch (never on load, only on that edit) — the same one-way promotion a resource-edge flow already triggers. Actually editing an activator's `expr` or a Parameter's `value` is real content change and moves the digest exactly as it already does today, with or without this feature.
+- **Conditional post-pull labels** (`loop-state/3`, `loop-revision/6`) — an existing label edge (which has never had a `timing`/`when`) opens and reads as **Always**, byte-identical to today. A document that actually uses the new **When the source fires** timing *does* move its revision content digest and workspace digest — that's real engine behaviour, not cosmetic, so a revision or workspace comparison correctly reports it as a genuine change rather than noise.
 
-## v0.9.0 — expression authoring, ordered playback & in-app feedback
+### Included pull requests
 
-Four backward-compatible additions on top of v0.8.0 — no engine, schema,
-wire-contract, or digest change, and no new `loop-*/N` id.
+<details>
+<summary>38 merged pull requests</summary>
 
-- **Register expression authoring & readability** ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md))
-  — editing a Register formula no longer means typing raw `@pool_mttqb36u_2`
-  ids. An **`@` autocomplete** lists only Pool / Parameter / Register nodes; a
-  **two-line read-back** spells the expression out by name and by value
-  (`Wallet + Savings` → `Wallet 3 + Savings 34 = 37`); a **`＋ Insert reference`**
-  button arms a one-shot mode that inserts `@id` at the caret on the next
-  canvas click; an **operator keypad** (`＋ − × ÷ ( )`) covers the rest.
-  Content-aware Register / Parameter shells
-  ([`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md))
-  keep the title/value/expression line inside the drawn vessel across widths
-  and locales. Presentation-only — `@id` stays the sole stored form and the
-  `loop-revision/2` digest is unchanged. EN / KO / JA.
-- **Ordered playback cascade + steady-state** ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md))
-  — within a step, transfers now depart and arrive in **dependency order**
-  (staggered by longest-predecessor depth over the graph's SCC condensation)
-  instead of one simultaneous pulse, with distinct **emit / converge / absorb**
-  cues by role, and a "flows continue" **steady-state** chip once a run
-  settles. Still a display layer only — no engine / RNG / GraphDoc change.
-- **In-app feedback** — a `Send feedback` entry in the Help menu (desktop and
-  mobile) opens the feedback form in a new tab.
-- **日本語 as a third shipped locale + multilingual layout** — the `ja` catalog
-  loads as its own chunk on demand; two-line node titles and height-parametric
-  node shells ([`docs/mmo-multilingual-layout.md`](docs/mmo-multilingual-layout.md))
-  let EN / KO / JA labels fit the same graph without overlap.
-- **Large-graph readability follow-ups** — a collapsible minimap and a
-  Timeline series picker (a curated set of series, the rest one `+N more`
-  click away). UI-only.
+- Features: [#181](https://github.com/MerciHanrim/loop-studio/pull/181), [#183](https://github.com/MerciHanrim/loop-studio/pull/183), [#188](https://github.com/MerciHanrim/loop-studio/pull/188), [#189](https://github.com/MerciHanrim/loop-studio/pull/189), [#195](https://github.com/MerciHanrim/loop-studio/pull/195), [#197](https://github.com/MerciHanrim/loop-studio/pull/197), [#202](https://github.com/MerciHanrim/loop-studio/pull/202), [#203](https://github.com/MerciHanrim/loop-studio/pull/203), [#209](https://github.com/MerciHanrim/loop-studio/pull/209)
+- Fixes: [#179](https://github.com/MerciHanrim/loop-studio/pull/179), [#185](https://github.com/MerciHanrim/loop-studio/pull/185), [#186](https://github.com/MerciHanrim/loop-studio/pull/186), [#190](https://github.com/MerciHanrim/loop-studio/pull/190), [#192](https://github.com/MerciHanrim/loop-studio/pull/192), [#193](https://github.com/MerciHanrim/loop-studio/pull/193), [#198](https://github.com/MerciHanrim/loop-studio/pull/198), [#199](https://github.com/MerciHanrim/loop-studio/pull/199), [#206](https://github.com/MerciHanrim/loop-studio/pull/206), [#210](https://github.com/MerciHanrim/loop-studio/pull/210), [#211](https://github.com/MerciHanrim/loop-studio/pull/211), [#212](https://github.com/MerciHanrim/loop-studio/pull/212)
+- Documentation: [#176](https://github.com/MerciHanrim/loop-studio/pull/176), [#178](https://github.com/MerciHanrim/loop-studio/pull/178), [#180](https://github.com/MerciHanrim/loop-studio/pull/180), [#182](https://github.com/MerciHanrim/loop-studio/pull/182), [#187](https://github.com/MerciHanrim/loop-studio/pull/187), [#191](https://github.com/MerciHanrim/loop-studio/pull/191), [#194](https://github.com/MerciHanrim/loop-studio/pull/194), [#196](https://github.com/MerciHanrim/loop-studio/pull/196), [#201](https://github.com/MerciHanrim/loop-studio/pull/201), [#208](https://github.com/MerciHanrim/loop-studio/pull/208), [#213](https://github.com/MerciHanrim/loop-studio/pull/213)
+- Tests: [#184](https://github.com/MerciHanrim/loop-studio/pull/184)
+- Chores: [#177](https://github.com/MerciHanrim/loop-studio/pull/177)
+- Other: [#200](https://github.com/MerciHanrim/loop-studio/pull/200), [#204](https://github.com/MerciHanrim/loop-studio/pull/204), [#205](https://github.com/MerciHanrim/loop-studio/pull/205), [#207](https://github.com/MerciHanrim/loop-studio/pull/207)
 
-## v0.8.0 — Onboarding, part 2 & the Productization track
+</details>
 
-Localization, the guided first-run tour, the Early MMO example, and
-contextual inline help complete Onboarding, part 2; large-graph readability, a
-small module / template-composition system, dense-graph pan usability, and a
-first `loop-model/2` Template complete this cycle's slice of the
-Productization track. Two backward-compatible wire-contract extensions ship —
-`loop-model/2` and `loop-revision/5` — neither moves a document's digest
-unless it actually uses the new capability.
+## v0.9.0 — 2026-09-10
 
-- **Onboarding, part 2** — an N-language-extensible **localization** base
-  shipping EN + KO, full-app translation with CI drift guards, a read-only
-  six-step **guided first-run tour**, the **"Early MMO progression"** example
-  as a third Template, and **contextual inline help** (four one-shot
-  situational hints, re-armable from a `Contextual help` menu entry).
-- **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md))
-  — a hit-test fix + selection-driven 1-hop focus view, ephemeral filters, the
-  `effective` / `evaluated` run distinction, manual **and** auto-suggested
-  group frames with a five-preset accent colour, and **saved frames**
-  (`loop-revision/5`) — a frame's `id`/`label`/`rect`/`color` becomes real
-  document content that round-trips every export/import path.
-- **Small module / template-composition system** ([`docs/module-system.md`](docs/module-system.md))
-  — an **Insert module ▾** menu and **Extract selection as module…** (desktop
-  only): every id re-issued, the whole candidate validated before anything
-  changes, one atomic undo. A module is a plain Graph JSON — no new file kind.
-  Alongside it, desktop **Inputs** and **Summary** panels read-through to the
-  canvas.
-- **The Coffee roastery operations flow Template** — the first bundled
-  `loop-model/2` graph: a resource edge's `flow` may be a single Parameter
-  reference the engine resolves once per step, so its five surfaced
-  Parameters drive a real stock trajectory.
-- **Dense-graph pan usability** ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md))
-  — a pan-capture overlay and a self-computed two-finger pinch zoom make a
-  packed graph pannable and zoomable on both desktop and mobile, real-phone
-  verified.
+Expression authoring, ordered playback & in-app feedback. Four backward-compatible additions on top of v0.8.0 — no engine, schema, wire-contract, or digest change, and no new `loop-*/N` id.
 
-**Known limitations in this release:** module **Insert** / **Extract** are
-desktop only, with no mobile flow yet; a Graph or Workspace file re-saved by
-an older build does not preserve fields it doesn't recognise. Scenario
-Compare, an advanced Monte-Carlo worker-count setting, manual waypoint
-editing, and the module system's later assembly-screen work were deliberately
-left for later.
+### Added
+
+- **Register expression authoring & readability** ([`docs/register-expression-authoring.md`](docs/register-expression-authoring.md)) — editing a Register formula after unlock no longer means reading and typing raw `@pool_mttqb36u_2` ids. An **`@` autocomplete** lists only Pool / Parameter / Register nodes, with self and dependent Registers disabled and a reason given; a **two-line read-back** spells the stored expression out by name (`Wallet + Savings`) and by value (`Wallet 3 + Savings 34 = 37`); a **`＋ Insert reference`** button arms a one-shot mode that inserts an `@id` at the caret when you click that node on the canvas; an **`＋ − × ÷ ( )` operator keypad** inserts expression-safe syntax and wraps a selection in parentheses, preserving the draft-until-valid undo contract. Content-aware Register / Parameter shells ([`docs/node-shell-content-in-vessel.md`](docs/node-shell-content-in-vessel.md)) keep the title, value and `= expression` line inside the drawn vessel across widths and locales. `@id` stays the sole stored form and the `loop-revision/2` digest is unchanged. EN / KO / JA.
+- **Ordered playback cascade + steady-state** ([`docs/simulation-playback-ordering.md`](docs/simulation-playback-ordering.md)) — within a step, transfers now depart and arrive in **dependency order** (a staggered `τ` by longest-predecessor depth over the graph's SCC condensation) instead of one simultaneous pulse, with distinct **emit / converge / absorb** cues by role, and a “flows continue” **steady-state** chip once a run settles. Display layer only — no engine / RNG / GraphDoc change.
+- **In-app feedback** — a **`Send feedback`** entry in the Help menu (desktop `?` and mobile More → Help) opens the feedback form in a new tab.
+- **日本語 as a third shipped locale + multilingual layout** — the `ja` catalog and its template labels load as their own chunk on demand; two-line node titles and height-parametric node shells ([`docs/mmo-multilingual-layout.md`](docs/mmo-multilingual-layout.md)) let EN / KO / JA labels fit the same graph without overlap.
+- **Large-graph readability follow-ups** — a collapsible minimap and a Timeline series picker: a Template's first-run chart shows a curated set of series, the rest one `+N more` click away. UI-only.
+
+### Compatibility
+
+- Presentation / render layer throughout — a document that does not use a new capability computes and hashes exactly as before.
+
+### Notes
+
+- The notes as published at the time: [README.md § Releases](https://github.com/MerciHanrim/loop-studio/blob/v0.9.0/README.md#releases).
+
+### Included pull requests
+
+<details>
+<summary>36 merged pull requests</summary>
+
+- Features: [#151](https://github.com/MerciHanrim/loop-studio/pull/151), [#153](https://github.com/MerciHanrim/loop-studio/pull/153), [#154](https://github.com/MerciHanrim/loop-studio/pull/154), [#155](https://github.com/MerciHanrim/loop-studio/pull/155), [#162](https://github.com/MerciHanrim/loop-studio/pull/162), [#163](https://github.com/MerciHanrim/loop-studio/pull/163), [#164](https://github.com/MerciHanrim/loop-studio/pull/164), [#170](https://github.com/MerciHanrim/loop-studio/pull/170), [#171](https://github.com/MerciHanrim/loop-studio/pull/171), [#174](https://github.com/MerciHanrim/loop-studio/pull/174)
+- Fixes: [#140](https://github.com/MerciHanrim/loop-studio/pull/140), [#142](https://github.com/MerciHanrim/loop-studio/pull/142), [#165](https://github.com/MerciHanrim/loop-studio/pull/165), [#167](https://github.com/MerciHanrim/loop-studio/pull/167), [#168](https://github.com/MerciHanrim/loop-studio/pull/168)
+- Documentation: [#143](https://github.com/MerciHanrim/loop-studio/pull/143), [#144](https://github.com/MerciHanrim/loop-studio/pull/144), [#160](https://github.com/MerciHanrim/loop-studio/pull/160), [#166](https://github.com/MerciHanrim/loop-studio/pull/166), [#172](https://github.com/MerciHanrim/loop-studio/pull/172), [#175](https://github.com/MerciHanrim/loop-studio/pull/175)
+- Tests: [#169](https://github.com/MerciHanrim/loop-studio/pull/169)
+- Chores: [#145](https://github.com/MerciHanrim/loop-studio/pull/145)
+- Other: [#141](https://github.com/MerciHanrim/loop-studio/pull/141), [#146](https://github.com/MerciHanrim/loop-studio/pull/146), [#147](https://github.com/MerciHanrim/loop-studio/pull/147), [#148](https://github.com/MerciHanrim/loop-studio/pull/148), [#149](https://github.com/MerciHanrim/loop-studio/pull/149), [#150](https://github.com/MerciHanrim/loop-studio/pull/150), [#152](https://github.com/MerciHanrim/loop-studio/pull/152), [#156](https://github.com/MerciHanrim/loop-studio/pull/156), [#157](https://github.com/MerciHanrim/loop-studio/pull/157), [#158](https://github.com/MerciHanrim/loop-studio/pull/158), [#159](https://github.com/MerciHanrim/loop-studio/pull/159), [#161](https://github.com/MerciHanrim/loop-studio/pull/161), [#173](https://github.com/MerciHanrim/loop-studio/pull/173)
+
+</details>
+
+## v0.8.0 — 2026-09-05
+
+Onboarding, part 2 & the Productization track. Localization, the guided first-run tour, the Early MMO example, and contextual inline help complete Onboarding, part 2; large-graph readability, a small module / template-composition system, dense-graph pan usability, and a first `loop-model/2` Template complete this cycle's slice of the Productization track.
+
+### Added
+
+- **Onboarding, part 2** — an N-language-extensible **localization** base shipping EN + KO, full-app translation with CI drift guards, a read-only six-step **guided first-run tour**, the **“Early MMO progression (levels 1–15)”** example as a third Template, and **contextual inline help**: four one-shot situational hints, each re-armable from a `Contextual help` entry on both Help surfaces.
+- **Large-graph readability** ([`docs/large-graph-readability.md`](docs/large-graph-readability.md)) — a hit-test fix + selection-driven 1-hop focus view, ephemeral filters, the `effective` / `evaluated` run distinction, manual **and** auto-suggested group frames with a five-preset accent colour, and **saved frames** (`loop-revision/5`, [`SEMANTICS-R5.md`](https://github.com/MerciHanrim/loop-studio/blob/main/docs/specs/SEMANTICS-R5.md), Frozen) — a frame's `id`/`label`/`rect`/`color` becomes real document content that round-trips reload, Export / Import, Share, Workspace and revisions.
+- **Small module / template-composition system** ([`docs/module-system.md`](docs/module-system.md)) — an **Insert module ▾** menu and **Extract selection as module…** (desktop only): every id re-issued, the whole candidate validated before anything changes, one atomic undo. A module is a plain Graph JSON — no new file kind. Alongside it, desktop **Inputs** and **Summary** panels read through to the canvas.
+- **The Coffee roastery operations flow Template** — the first bundled `loop-model/2` graph ([`SEMANTICS-M2.md`](https://github.com/MerciHanrim/loop-studio/blob/main/docs/specs/SEMANTICS-M2.md), Frozen): a resource edge's `flow` may be a single Parameter reference the engine resolves once per step, so its five surfaced Parameters drive a real stock trajectory.
+- **Dense-graph pan usability** ([`docs/dense-graph-pan.md`](docs/dense-graph-pan.md)) — a pan-capture overlay and a self-computed two-finger pinch zoom make a packed graph pannable and zoomable on both desktop and mobile, real-phone verified.
+
+### Compatibility
+
+- Two backward-compatible wire-contract extensions ship — `loop-model/2`, a real model-semantics addition, and `loop-revision/5`, a revision storage / comparison addition. Neither changes what an existing graph computes, and neither moves a document's digest unless it actually uses the new capability.
+
+### Notes
+
+- **Known limitations in this release:** module **Insert** / **Extract** are desktop only, with no mobile flow yet; a Graph or Workspace file re-saved by an older build does not preserve fields it doesn't recognise (no forward-compatible unknown-field passthrough).
+- **Scenario Compare**, an advanced Monte-Carlo worker-count setting, manual waypoint editing, and the module system's later assembly-screen work were deliberately left for later.
+- Earlier release history, back to v0.2.0 and before, is in the [CHANGELOG](https://github.com/MerciHanrim/loop-studio/blob/main/CHANGELOG.md).
+- The notes as published at the time: [README.md § Releases](https://github.com/MerciHanrim/loop-studio/blob/v0.8.0/README.md#releases).
+
+### Included pull requests
+
+<details>
+<summary>73 merged pull requests</summary>
+
+- Features: [#69](https://github.com/MerciHanrim/loop-studio/pull/69), [#70](https://github.com/MerciHanrim/loop-studio/pull/70), [#72](https://github.com/MerciHanrim/loop-studio/pull/72), [#74](https://github.com/MerciHanrim/loop-studio/pull/74), [#75](https://github.com/MerciHanrim/loop-studio/pull/75), [#76](https://github.com/MerciHanrim/loop-studio/pull/76), [#77](https://github.com/MerciHanrim/loop-studio/pull/77), [#79](https://github.com/MerciHanrim/loop-studio/pull/79), [#83](https://github.com/MerciHanrim/loop-studio/pull/83), [#86](https://github.com/MerciHanrim/loop-studio/pull/86), [#87](https://github.com/MerciHanrim/loop-studio/pull/87), [#89](https://github.com/MerciHanrim/loop-studio/pull/89), [#95](https://github.com/MerciHanrim/loop-studio/pull/95), [#100](https://github.com/MerciHanrim/loop-studio/pull/100), [#103](https://github.com/MerciHanrim/loop-studio/pull/103), [#105](https://github.com/MerciHanrim/loop-studio/pull/105), [#106](https://github.com/MerciHanrim/loop-studio/pull/106), [#111](https://github.com/MerciHanrim/loop-studio/pull/111), [#113](https://github.com/MerciHanrim/loop-studio/pull/113), [#118](https://github.com/MerciHanrim/loop-studio/pull/118), [#120](https://github.com/MerciHanrim/loop-studio/pull/120), [#122](https://github.com/MerciHanrim/loop-studio/pull/122), [#125](https://github.com/MerciHanrim/loop-studio/pull/125), [#126](https://github.com/MerciHanrim/loop-studio/pull/126), [#128](https://github.com/MerciHanrim/loop-studio/pull/128), [#132](https://github.com/MerciHanrim/loop-studio/pull/132), [#134](https://github.com/MerciHanrim/loop-studio/pull/134)
+- Fixes: [#71](https://github.com/MerciHanrim/loop-studio/pull/71), [#73](https://github.com/MerciHanrim/loop-studio/pull/73), [#85](https://github.com/MerciHanrim/loop-studio/pull/85), [#88](https://github.com/MerciHanrim/loop-studio/pull/88), [#91](https://github.com/MerciHanrim/loop-studio/pull/91), [#96](https://github.com/MerciHanrim/loop-studio/pull/96), [#97](https://github.com/MerciHanrim/loop-studio/pull/97), [#98](https://github.com/MerciHanrim/loop-studio/pull/98), [#108](https://github.com/MerciHanrim/loop-studio/pull/108), [#112](https://github.com/MerciHanrim/loop-studio/pull/112), [#127](https://github.com/MerciHanrim/loop-studio/pull/127), [#129](https://github.com/MerciHanrim/loop-studio/pull/129), [#136](https://github.com/MerciHanrim/loop-studio/pull/136), [#137](https://github.com/MerciHanrim/loop-studio/pull/137)
+- Documentation: [#68](https://github.com/MerciHanrim/loop-studio/pull/68), [#80](https://github.com/MerciHanrim/loop-studio/pull/80), [#81](https://github.com/MerciHanrim/loop-studio/pull/81), [#82](https://github.com/MerciHanrim/loop-studio/pull/82), [#84](https://github.com/MerciHanrim/loop-studio/pull/84), [#92](https://github.com/MerciHanrim/loop-studio/pull/92), [#93](https://github.com/MerciHanrim/loop-studio/pull/93), [#94](https://github.com/MerciHanrim/loop-studio/pull/94), [#99](https://github.com/MerciHanrim/loop-studio/pull/99), [#101](https://github.com/MerciHanrim/loop-studio/pull/101), [#102](https://github.com/MerciHanrim/loop-studio/pull/102), [#104](https://github.com/MerciHanrim/loop-studio/pull/104), [#109](https://github.com/MerciHanrim/loop-studio/pull/109), [#110](https://github.com/MerciHanrim/loop-studio/pull/110), [#114](https://github.com/MerciHanrim/loop-studio/pull/114), [#115](https://github.com/MerciHanrim/loop-studio/pull/115), [#116](https://github.com/MerciHanrim/loop-studio/pull/116), [#117](https://github.com/MerciHanrim/loop-studio/pull/117), [#119](https://github.com/MerciHanrim/loop-studio/pull/119), [#121](https://github.com/MerciHanrim/loop-studio/pull/121), [#123](https://github.com/MerciHanrim/loop-studio/pull/123), [#124](https://github.com/MerciHanrim/loop-studio/pull/124), [#130](https://github.com/MerciHanrim/loop-studio/pull/130), [#131](https://github.com/MerciHanrim/loop-studio/pull/131), [#133](https://github.com/MerciHanrim/loop-studio/pull/133), [#138](https://github.com/MerciHanrim/loop-studio/pull/138)
+- Tests: [#90](https://github.com/MerciHanrim/loop-studio/pull/90)
+- Chores: [#67](https://github.com/MerciHanrim/loop-studio/pull/67), [#78](https://github.com/MerciHanrim/loop-studio/pull/78), [#107](https://github.com/MerciHanrim/loop-studio/pull/107), [#135](https://github.com/MerciHanrim/loop-studio/pull/135)
+- Other: [#139](https://github.com/MerciHanrim/loop-studio/pull/139)
+
+</details>
 
 ## v0.7.0 — orthogonal routing & simulation playback
 
