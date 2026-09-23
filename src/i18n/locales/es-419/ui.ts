@@ -332,8 +332,12 @@ const ui = {
   'tour.help.menuLabel': 'Ayuda',
   'tour.help.takeTour': 'Hacer el recorrido',
   'tour.help.about': 'Acerca de Loop Studio',
-  'tour.help.feedback': 'Enviar comentarios',
-  'tour.help.feedbackAria': 'Enviar comentarios: se abre en una pestaña nueva',
+  // The linked form is English-only, so the link says so — every other
+  // non-English catalog carries the same marker and `en` carries none, which
+  // is exactly why `localeSurfaceCopy.test.ts` has to hold it.
+  'tour.help.feedback': 'Enviar comentarios (formulario en inglés)',
+  'tour.help.feedbackAria':
+    'Enviar comentarios (formulario en inglés): se abre en una pestaña nueva',
   'about.createdBy': 'Creado por',
   'about.repo': 'Repositorio de GitHub',
   'about.repoAria': 'Repositorio de Loop Studio en GitHub',

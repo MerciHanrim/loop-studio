@@ -44,7 +44,10 @@ const ui = {
   'language.chineseTraditional': '중국어 번체',
   'language.french': '프랑스어',
   'language.german': '독일어',
-  'language.spanishLatinAmerica': '스페인어(라턴아메리카)',
+  // `중남미` is what Korean software calls this region, not the literal
+  // `라틴 아메리카`. The endonym and the English name stay
+  // `Español (Latinoamérica)` / `Spanish (Latin America)`.
+  'language.spanishLatinAmerica': '스페인어(중남미)',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',
