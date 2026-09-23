@@ -436,11 +436,34 @@ needs, in one place:
 | 7 | production locale count + list | `e2e/dist.spec.ts` | `npm run e2e:dist` |
 | 8 | dev picker option count **and every earlier locale's spec** | `e2e/i18n.spec.ts` + `e2e/i18n-<code>.spec.ts` | the default e2e run |
 | 9 | rendered-string guards | `icuEscaping.test.ts`, `parserLocation.test.ts` | the unit suite |
+| 10 | **the English-form marker on the feedback link** | `locales/<code>/ui.ts` — `tour.help.feedback` **and** `tour.help.feedbackAria` | `localeSurfaceCopy.test.ts` (registry-derived, exhaustive) |
 
 Items 6 and 9 are the ones a locale PR forgets, because nothing about writing
 a catalog points at them. Each is now derived from the shipped-locale set
 rather than listed by hand, so the suite goes red on the omission instead of
 the product going half-English.
+
+**Item 10 is a different shape, and `es-419` is what exposed it** (#266,
+fixed in #267). The linked feedback form exists only in English, so every
+non-English catalog says so inside the link — `영문 양식`, `英語フォーム`,
+`英文表单`, `英文表單`, `formulaire en anglais`, `englisches Formular`,
+`formulario en inglés` — and `en` says nothing, because `en` **is** the form.
+That makes it invisible to every check we had: `check:i18n` compares key sets
+and ICU argument shapes, and a translation review reads the catalog against
+`en`. A locale that drops the marker matches the English source *perfectly*
+and still misinforms its reader. **A rule that lives in the translations and
+not in the source needs a test that compares locales to EACH OTHER**, which is
+what `src/i18n/localeSurfaceCopy.test.ts` is for. Its marker map is asserted
+exhaustive over the registry's translated locales, so language *N+1* fails
+until it has decided how it says "English form" and "new tab".
+
+The same file holds the other member of that class. Item 3 makes
+`check:i18n` prove the `language.<name>` key EXISTS in every catalog; nothing
+proves it is *right*, and `es-419` shipped into the Korean picker as
+`스페인어(라턴아메리카)` — one stroke off a word that does not exist, in the one
+catalog whose readers are least likely to recognise the language being named.
+A display name is read by people who do not read the language it names, so it
+gets an explicit expectation rather than a shape check.
 
 **Item 8 is the one that bites in the opposite direction**, and `de` proved it
 (#262, CI red on the first push). A per-locale spec written at language *N*
