@@ -268,6 +268,51 @@
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
+/* docs/localization.md §L2.18 — the five Latin-Extended letters Turkish needs.
+ *
+ * MEASURED, the same way the Cyrillic defect was found: the app imports only
+ * `@fontsource/ibm-plex-sans/latin-400.css` and its 600 sibling, and those
+ * files declare the family with NO `unicode-range`, so the browser treats IBM
+ * Plex Sans as a candidate for every code point while the woff2 behind it
+ * carries the `latin` subset only. `document.fonts.check()` answers true for
+ * `İ Ş ş Ğ ğ` and the engine then falls back PER GLYPH to whatever the OS has.
+ * Measured on production at 64px over 20 repetitions, three ways (Plex stack /
+ * system stack / a deliberately absent family): `Ç ö ü` and dotless `ı` render
+ * from Plex, while `İ` `Ş` `ş` `Ğ` `ğ` were byte-identical to the forced
+ * system fallback at both weights. The boundary is exactly Latin Extended-A.
+ *
+ * The fontsource `latin-ext` CSS is NOT imported: like its `cyrillic` sibling
+ * it redeclares the same family / weight / style, and the last rule without a
+ * range wins for every code point. The face is declared here instead, over the
+ * range the shipped strings actually need.
+ *
+ * That range is a MEASUREMENT OF TODAY'S CONTENT, not an invariant. Enumerating
+ * every code point outside the `latin` subset across the 13 catalogs, the
+ * template labels and the module overlay currently yields these five and
+ * nothing else — all Turkish. A future locale changes that: Polish alone would
+ * add U+0104-0107, U+0118-0119, U+0141-0144, U+015A-015B, U+0179-017C. When one
+ * arrives, re-run the enumeration and widen this range to what it reports;
+ * do not assume five is the answer. Widening now to fontsource's own latin-ext
+ * range (U+0100-02BA and four more blocks) would pull glyphs no string needs. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-400-normal.woff2')
+    format('woff2');
+  unicode-range: U+011E-011F, U+0130, U+015E-015F;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-ext-600-normal.woff2')
+    format('woff2');
+  unicode-range: U+011E-011F, U+0130, U+015E-015F;
+}
+
 @font-face {
   font-family: 'LS CJK Punct SC';
   src: local('Microsoft YaHei UI'), local('PingFang SC'), local('Noto Sans CJK SC'),

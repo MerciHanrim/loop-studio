@@ -53,6 +53,7 @@ const ui = {
   'language.spanishSpain': 'Español (España)',
   'language.portuguesePortugal': 'Portugués (Portugal)',
   'language.russian': 'Ruso',
+  'language.turkish': 'Turco',
   'playbar.reset.title': 'Reiniciar al paso 0',
   'playbar.step.title': 'Avanzar un paso',
   'playbar.play': '▶ Reproducir',

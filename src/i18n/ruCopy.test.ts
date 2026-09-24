@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(844)
+    expect(KEYS).toHaveLength(845)
   })
 
   // ----------------------------------------------------------------- script

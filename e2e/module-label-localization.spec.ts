@@ -55,6 +55,7 @@ const STR = {
   'es-ES': { menuBtn: 'Insertar módulo ▾', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
   'pt-PT': { menuBtn: 'Inserir módulo ▾', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
   ru: { menuBtn: 'Вставить модуль ▾', bufferedStep: 'Производственный этап с буферами', rewardSplit: 'Цикл распределения награды' },
+  tr: { menuBtn: 'Modül ekle ▾', bufferedStep: 'Tamponlu üretim aşaması', rewardSplit: 'Ödül paylaştırma döngüsü' },
 } as const
 type Locale = keyof typeof STR
 
@@ -74,6 +75,11 @@ const LABELS = {
     // rest reads the same in Portugal as in Brazil.
     'pt-PT': ['Fornecimento', 'Fila de entrada', 'Receção', 'Processamento', 'Perdas', 'Fila de saída', 'Expedição', 'Tamanho do lote', 'Unidades no sistema', 'Produção planeada'],
     ru: ['Поставка', 'Входная очередь', 'Приёмка', 'Обработка', 'Потери', 'Выходная очередь', 'Отгружено', 'Размер партии', 'Единиц в системе', 'Плановый выпуск'],
+    // `Kayıp` for Spoilage reads as the losses every other locale here names,
+    // and leaves the manufacturing word `fire` to the Templates, which use it
+    // for Scrap. `Sevkiyat` is a noun, like every other locale in this table;
+    // a finite `Sevk edildi` would have been a whole sentence on a Pool.
+    tr: ['Tedarik', 'Giriş kuyruğu', 'Kabul', 'İşleme', 'Kayıp', 'Çıkış kuyruğu', 'Sevkiyat', 'Parti boyutu', 'Sistemdeki birim', 'Planlanan üretim'],
   },
   'reward-split': {
     en: ['Activity', 'Wallet', 'Allocate', 'Spending', 'Savings', 'Withdrawals', 'Savings target', 'Net worth', 'Progress to target'],
@@ -91,6 +97,9 @@ const LABELS = {
     // the `até à` contraction are what move.
     'pt-PT': ['Atividade', 'Carteira', 'Distribuir', 'Gastos', 'Poupança', 'Levantamentos', 'Meta de poupança', 'Património líquido', 'Progresso até à meta'],
     ru: ['Активность', 'Кошелёк', 'Распределить', 'Траты', 'Накопления', 'Снятия', 'Цель накоплений', 'Чистая стоимость', 'Прогресс к цели'],
+    // `Dağıt` for Allocate is the verb behind `Dağıtıcı`, this node's own kind
+    // name, so the label and the kind read as one word in Turkish.
+    tr: ['Etkinlik', 'Cüzdan', 'Dağıt', 'Harcama', 'Birikim', 'Çekimler', 'Birikim hedefi', 'Net değer', 'Hedefe ilerleme'],
   },
 } as const
 
@@ -195,7 +204,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (d) => void d.accept().catch(() => {}))
 })
 
-const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr'] as const
 
 for (const loc of SHIPPED) {
   test(`${loc}: inserting "Buffered production step" via the menu gets the ${loc} labels`, async ({ page }) => {
@@ -273,7 +282,7 @@ test('an already-inserted instance follows a switch into zh-Hans, zh-Hant, fr an
   await insertViaMenu(page, 'en', 'buffered-step')
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr'] as const) {
     await setLocale(page, loc)
     expect(labelsOf(await gs(page), before), `switch to ${loc}`).toEqual(
       [...LABELS['buffered-step'][loc]].sort(),
@@ -299,7 +308,7 @@ test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr / de switch'
   const mine = inserted.find((n) => n.data?.label === 'Wallet')!
   await renameNode(page, mine.id, 'Mein Konto')
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'en'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'en'] as const) {
     await setLocale(page, loc)
     const now = (await gs(page)).nodes.find((n) => n.id === mine.id)
     expect(now?.data?.label, `${loc} must not overwrite a user rename`).toBe('Mein Konto')

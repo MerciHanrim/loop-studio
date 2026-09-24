@@ -11,6 +11,7 @@ import ptBR from './locales/pt-BR'
 import ptPT from './locales/pt-PT'
 import ru from './locales/ru'
 import zhHans from './locales/zh-Hans'
+import tr from './locales/tr'
 import zhHant from './locales/zh-Hant'
 import { BASE_LOCALE, LOCALES } from './registry'
 
@@ -30,6 +31,7 @@ const CATALOGS = {
   'pt-BR': ptBR,
   'pt-PT': ptPT,
   ru,
+  tr,
   'zh-Hans': zhHans,
   'zh-Hant': zhHant,
 } as const

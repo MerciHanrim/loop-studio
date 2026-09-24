@@ -310,6 +310,29 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/ru').then((m) => m.default),
   },
+  {
+    code: 'tr',
+    englishName: 'Turkish',
+    nativeName: 'Türkçe',
+    displayNameKey: 'language.turkish',
+    direction: 'ltr',
+    // `tr` IS its own base subtag, so §L5.2 step 3 carries `tr-TR`, `tr-CY`,
+    // `tr-Latn-TR` and `tr-TR-u-ca-gregory` with no `baseFallbackFor` — the
+    // same shape as `ru`, and unlike `es-ES` / `pt-PT`, whose codes are not
+    // their own base subtag and can therefore only be reached by a whole-tag
+    // match. MEASURED: `az`, `kk` and `uz` are NOT captured, which is correct
+    // — Azerbaijani is a different language however close it reads.
+    //
+    // MEASURED, and the sharpest difference so far: the percent sign comes
+    // BEFORE the number with NO gap (`%84`), where every other shipped locale
+    // puts it after. The group separator is a period and the decimal mark a
+    // comma (`1.234.567,89`); no no-break space anywhere. The two `{pct}`
+    // catalog strings therefore read `%{pct}`, pinned in
+    // `percentContract.test.ts`.
+    numberLocale: 'tr',
+    enabled: true,
+    catalog: () => import('./locales/tr').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

@@ -76,6 +76,21 @@ const LATIN_BASE = /[A-Za-zÀ-ɏḀ-ỿ]/
 const CYRILLIC_E = new Set([String.fromCharCode(0x435), String.fromCharCode(0x415)])
 const COMBINING_DIAERESIS = String.fromCharCode(0x308)
 
+/** The one TURKISH fold: dotless `ı` searches as `i` (§L5.5).
+ *
+ *  MEASURED before it existed: `İ` already folded to `i` (it decomposes to
+ *  `I` + a combining dot, and the Latin rule above drops the mark), but `ı`
+ *  has no decomposition, so with the UI in Turkish the French row —
+ *  `Fransızca` — could not be reached by typing `fransizca`. That was the only
+ *  failing case; `Ç ç Ö ö Ü ü` already fold through the Latin-mark rule.
+ *
+ *  This is SEARCH ONLY. Turkish treats `ı` and `i` as different letters, and
+ *  nothing here changes rendering, stored values or a catalog string. The
+ *  fold exists so a reader on a keyboard without `ı` can still find the row;
+ *  it is deliberately one character and NOT `toLocaleLowerCase('tr')`, which
+ *  would also map `I` to `ı` and break every other language's search. */
+const DOTLESS_I = String.fromCharCode(0x131)
+
 /** Normalise one string for the LANGUAGE-PICKER search only (§L5.5).
  *
  *  Two things happen, and both are deliberately narrow:
@@ -92,6 +107,9 @@ const COMBINING_DIAERESIS = String.fromCharCode(0x308)
  *  2. Every space — ASCII, NBSP (U+00A0) and the narrow no-break space
  *     (U+202F) French typography uses — becomes a single ASCII space, so a
  *     typed space matches a typeset one.
+ *  3. Two single letters fold that no mark rule could reach, each measured
+ *     against a real row a reader could not otherwise find: Cyrillic `ё` to
+ *     `е` (`CYRILLIC_E`) and Turkish dotless `ı` to `i` (`DOTLESS_I`).
  *
  *  A ligature that decomposition does not reduce to ASCII (`œ`, `æ`) is left
  *  as it is; if a real search need appears it gets an explicit alias rather
@@ -111,7 +129,9 @@ export function foldForSearch(value: string): string {
     }
     out += /[\s  ]/.test(ch) ? ' ' : ch
   }
-  return out.normalize('NFC').toLowerCase()
+  // `ı` has no decomposition, so the fold is a plain substitution after the
+  // case fold rather than a mark rule.
+  return out.normalize('NFC').toLowerCase().split(DOTLESS_I).join('i')
 }
 
 /** Does an entry match the query? Case-, diacritic- and space-insensitive,
