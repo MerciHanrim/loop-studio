@@ -1518,6 +1518,266 @@ Six items stay open rather than smoothed over:
    collaborator's, `yours` against `theirs` — and all lowercase. That is why
    they survived; a native reviewer may still prefer full impersonality.
 
+**L2.18 — Turkish is `tr`, the first locale to put the percent sign FIRST and
+the first agglutinative one.** Shipped as the thirteenth language, translated
+from `en`. **845 keys** (the 844 of v0.13.0 plus `language.turkish`), plus 203
+template-label slots and 19 module labels.
+
+**Counting, stated once so it is not re-derived three ways.** Each of the
+twelve existing locale dicts carries **203** slots; the new `tr` dict carries
+**203**; after registration all **thirteen** carry the same **196 nodes + 7
+frames**, derived from `examples/*.json` and checked by
+`check:template-labels` for every locale including `tr`.
+
+### The resolver, again simpler than the region pairs
+
+`tr` IS its own base subtag, so §L5.2 step 3 carries every `tr-*` tag and no
+`baseFallbackFor` is needed — the same shape as `ru`. MEASURED before the
+entry existed, when every one of these fell to `en`:
+
+| navigator tag | resolves to |
+|---|---|
+| `tr`, `tr-TR`, `tr-CY`, `tr-Latn`, `tr-Latn-TR`, `tr-TR-u-ca-gregory`, `TR-tr` | **`tr`** |
+| `az`, `az-Latn`, `kk`, `uz` | `en` — close, but different languages |
+
+A STORED value stays stricter: only the exact code `tr` is registered, so a
+stored `tr-TR` is ignored and the app opens in English.
+
+### The percent sign comes first, and nothing sits between
+
+MEASURED: `Intl.NumberFormat('tr', {style:'percent'}).format(0.84)` is
+`%84` — `U+0025 U+0038 U+0034`. Numbers group with a PERIOD and take a comma
+decimal mark (`1.234.567,89`). There is no no-break space anywhere in this
+catalog.
+
+Every other shipped locale puts the sign after the number, four of them with
+U+00A0. That made the old guard — "this catalog has U+00A0 before `%` in
+exactly two keys", repeated inside `esEsCopy`, `ptPtCopy` and `ruCopy` — unable
+to express Turkish at all, so it was replaced by `percentContract.test.ts`: a
+registry-derived map of `{position, gap}` per locale, asserted exhaustive, then
+checked against `Intl` itself and against the two catalog strings.
+
+**That generalisation found a real defect in two shipped locales.** `fr` and
+`de` had a PLAIN space between `{pct}` and `%` while their own formatters
+produce U+00A0, so the number and the sign could land on different lines. Four
+characters fixed it. `e2e/percent-affix.spec.ts` now measures the rendered
+result rather than the string: it forces a wrap in a 58px box and asserts, by
+client rect, that the digit and the sign stay on one line for `fr` / `de` /
+`es-ES` / `ru`, and that `tr` puts the sign immediately before the number with
+no space of any kind.
+
+An earlier draft of the shared contract also pinned how many catalog values
+carry U+00A0 anywhere. That tied a percent test to French punctuation — `fr`
+sets a no-break space in ordinary prose (27 keys today) and a NARROW one
+(U+202F) before `: ; ! ?` (64 keys) — so one new French sentence would have
+failed it. A whole-catalog character budget, where a locale wants one, belongs
+in that locale's own copy test.
+
+### Plural has two arms, and both carry the same noun
+
+`Intl.PluralRules('tr')` has `one` and `other`; 1 is `one` and everything
+else measured (0, 2, 5, 11, 21, 100, 1.5, 1e6) is `other`. The ICU shape is
+therefore identical to English.
+
+The trap is in the words, not the shape: **Turkish does not pluralise a noun
+after a numeral** — `3 satır`, never `3 satırlar` — so the two arms of a
+counted message usually read the SAME. That looks like a copy-paste slip and
+is not one. `trCopy.test.ts` pins what actually matters: both arms exist, and
+every arm keeps `#`.
+
+### The font was broken for Turkish before Turkish existed
+
+Same class as the Cyrillic defect, found the same way. The app imports only
+`@fontsource/ibm-plex-sans/latin-400.css` and its 600 sibling; those declare
+the family with **no `unicode-range`**, so the browser treats IBM Plex Sans as
+a candidate for every code point while the woff2 carries the `latin` subset
+only. Measured at 64px over 20 repetitions, three ways — the Plex stack, the
+system stack, and a deliberately absent family that forces the fallback:
+
+| | before | after |
+|---|---|---|
+| `Ç ö ü` (Latin-1), dotless `ı` | Plex | Plex |
+| **`İ` `Ş` `ş` `Ğ` `ğ`** | **byte-identical to the forced fallback** | **Plex** |
+
+`document.fonts.check()` answered **true for all five** both before and after,
+which is why the width comparison is the method and the check is not.
+
+The fix declares two faces in `index.css` over
+`U+011E-011F, U+0130, U+015E-015F`, sourced from the `latin-ext` subset woff2.
+The fontsource `latin-ext` CSS is not imported, for the same reason its
+`cyrillic` sibling is not: it redeclares the same family with no range and the
+last such rule wins for every code point.
+
+**That range is a measurement of today's content, not an invariant.**
+Enumerating every code point outside the `latin` subset across the 13
+catalogs, the template labels and the module overlay currently yields exactly
+those five, all Turkish. Polish alone would add U+0104-0107, U+0118-0119,
+U+0141-0144, U+015A-015B and U+0179-017C; when a locale like that arrives,
+re-run the enumeration rather than assuming five.
+
+Cost, measured against the same tree with the faces removed: **+32,838 bytes
+(+32.1 KB)**, woff2 files 5 → 7. Both files land in `dist`, both are in the
+PWA precache manifest, and both are inlined as base64 in the portable
+single-file build.
+
+**On the pixel baselines.** This change IS a visual change — a Turkish UI and
+two new font faces both alter what the product paints. The baselines did not
+move anyway, and the reason is a property of the baseline set rather than of
+the change: **0 of the 52 baseline scenarios changed**, because none of them
+renders a Turkish string, none contains a character in the new
+`U+011E-011F, U+0130, U+015E-015F` range, and none captures the language
+picker in its open state. A scenario that did any of those three would have
+to be re-baselined, so this is a fact to re-check when adding one, not a
+guarantee that a locale never moves pixels.
+
+### `ı` folds to `i` for SEARCH, and for nothing else
+
+MEASURED: `İ` already folded to `i` (it decomposes to `I` plus a combining
+dot, which the Latin-mark rule drops), but `ı` has no decomposition, so with
+the UI in Turkish the French row — `Fransızca` — could not be reached by
+typing `fransizca`. That was the only failing case; `Ç ç Ö ö Ü ü` already fold.
+
+The fix is one character wide and search-only. It is deliberately NOT
+`toLocaleLowerCase('tr')`, which would also map `I` to `ı` and break every
+other language's search. Turkish treats `ı` and `i` as different letters — the
+same reason `й` is not folded to `и` for Russian — so nothing here changes
+rendering, stored values or a catalog string.
+
+### A slot cannot take a suffix
+
+Turkish is agglutinative: a case suffix attaches to the word, and its vowel
+harmony and buffer consonant both depend on the last sound of that word. A
+slot carrying user text is unknown at authoring time, so `{label}'i sil` would
+be wrong for half the labels a user can type.
+
+The rule applied is that a CLASSIFIER NOUN takes the suffix instead, chosen
+per slot kind and never globally: `«{label}» çerçevesini` for a frame,
+`«{name}» düğümüne` for a node, `«{label}» parametresinin` for a parameter,
+`«{header}» sütununun` for a column, `«{table}» tablosunun` for a table.
+
+**The contract is two invariants, and neither is a count:**
+
+1. no slot is followed directly by a letter (`{label}i`);
+2. no slot is followed by an apostrophe and a letter (`{label}'in`,
+   `{label}’ın`).
+
+`trCopy.test.ts` fails on either form, and falsifies both inside the test so
+the guards cannot go quietly vacuous.
+
+As a MEASUREMENT OF THIS AUDIT — a description of today's catalog, not a
+budget and not something to keep in step — the catalog held 182 plain slots
+across 127 keys, 67 of them followed by a word, and 0 violations of either
+invariant. Those three numbers will move with any new string; the two
+invariants will not. An earlier draft quoted 59 slot occurrences of which 38
+were mid-sentence, which could not be re-derived under any stated definition
+and is the reason this section now states what it counted.
+
+### What the guards lock, and what they deliberately do not
+
+`trCopy.test.ts` holds the contracts a search cannot:
+
+- **cross-script**, at runtime, over the catalog AND the template labels AND
+  the module overlay — the `pt-BR` lesson, where one Cyrillic letter passed
+  every gate that read the file;
+- **the alphabet**: Turkish has no `q`, `w` or `x`, so a word carrying one
+  must be a token the English value of the SAME key also contains. ICU slot
+  names and plural keywords are stripped from both sides first, but **each
+  arm's sentence is not** — an earlier version stripped whole `{...}` groups
+  and a `qwerty` injected inside a plural arm passed;
+- **untranslated values**: the set identical to English must be exactly the
+  declared fourteen, all product names, placeholders or symbol-only strings;
+- **the node kinds**, as a shape rather than a spelling: the three surfaces
+  that name a kind must agree with each other, AND every prose key whose
+  English mentions that kind must use the same word. The prose keys are
+  derived from English, so a new sentence joins the check by itself;
+- **Drain is `Gider`**, on the five keys derived from the English originals
+  that name Drain, with `Yutak` and `Çıkış` refused there — and bare
+  capitalised `Gider` banned everywhere else, in the catalog and in the
+  template and module overlays, so an expense label can never read as the
+  node kind (see below);
+- **a slot never carries a suffix**, neither attached directly (`{label}i`)
+  nor behind an apostrophe (`{label}'in`, `{label}’ın`). Both patterns are
+  falsified inside the test itself, and a third assertion keeps the guards
+  from going vacuous if the catalog ever stopped using slots.
+
+One thing is deliberately NOT locked, because it is not decided: `«»` as the
+quotation mark.
+
+### Open items
+
+**No Turkish native-speaker or professional translation review was performed.**
+
+1. **`Kaynak` is both `Source` and `resource`.** That ambiguity is Turkish's
+   own and was not worked around with an invented term. The one sentence that
+   would have read "Kaynak … kaynaklar" is `palette.source.description`, and
+   it drops the subject — which is also what `fr`, `de` and `ru` do there,
+   since the palette shows the name directly above the description.
+2. **`Dağıtıcı`** for Gate — `Kapı` is the literal word and names a door.
+3. **`«»`** as the quotation mark: whether it reads naturally in the
+   accessibility strings and what a screen reader does with the guillemets at
+   its default punctuation level, which was NOT measured here. The system
+   itself is consistent and was audited: 34 keys use `«»`, 29 of them around
+   a runtime slot and 5 around a static label that matches a real product or
+   external string exactly; `“ ”` appears only in the three
+   expression-grammar keys, byte-identical to English; there are no ASCII
+   double quotes, and the only ASCII apostrophes are the two ICU escapes.
+4. **`Pity` / `Hard pity` / `Pickup`** kept in English in the gacha Template,
+   and `drop` / `loot` kept as the Turkish game-design register uses them.
+   The blurb agrees with the labels: `templates.gachaBannerZones.blurb` says
+   `pity`, the way `es-419` and `pt-BR` do, rather than translating it.
+5. **`Hesaplanan değer`** for Register is decided — `Kayıt` is refused in
+   those ten keys and legal everywhere else — but its length against the node
+   box is worth a look.
+
+### The second review
+
+The first pass shipped a catalog that every gate accepted. A second pass read
+all **845 en↔tr pairs in order** — not a term search, because the `ru` arc had
+already shown that a vocabulary screen measures the screen rather than the
+catalog — and every suspicion was then checked against the other twelve
+locales. That check killed four of the findings: `Play` / `Replay` diverging
+at the root (`ru` does the same), `iş parçacığı` for `workers` (so do `es`,
+`ru` and `zh`), `Ad` for the `Label` column role (so do `fr`, `de` and `ru`),
+and `kendi adınız` for `a custom name` (so does `ru`).
+
+What survived was **20 fixes over 32 keys** — the two numbers differ because
+one fix can span a run of keys: 10 vocabulary, 1 external-UI string, 15
+template and module labels, 6 meaning and register. The widest single fix is
+`Etek arazi` → `Dağ eteği` for the Foothills zone, which is **10 keys**,
+`z2_enc_src` `z2_enc` `z2_combat` `z2_win` `z2_winamp` `z2_lootroll`
+`z2_loot` `z2_xp_meter` `z2_xp2lvl` `z2_training`, all in
+`templateLabels/tr.ts` under `mmo-progression`. Three of the fixes are worth
+recording, because each is a kind of defect a guard could not have found:
+
+- **`Eşleme` for "Don't map"** is the negative imperative AND the noun
+  "mapping". As a dropdown option it reads as the opposite of what it does.
+  All six comparable locales use an explicit negative; this now says
+  `Eşlenmesin`.
+- **`General / Free`** was the only frame label of eleven locales left in
+  English. `Premium Standard` and `Premium Pickup` stay English on purpose —
+  they are the mechanism names — but this one is a description.
+- **`«Web'de yayımla»`** quoted Google Sheets' menu item with the wrong verb.
+  Google's own Turkish documentation says `Dosya → Paylaş → Web'de yayınla`,
+  measured against that page rather than assumed.
+
+### Drain is `Gider`
+
+TDK gives `gider` two senses: the channel a liquid flows away through, and an
+expense. That is the same pair English `Drain` carries, and it matches the
+register English chose when it picked `Drain` over `Sink`. `Yutak` is the
+engineering rendering of `Sink` and pairs with `Kaynak` the way Turkish
+engineering pairs source/sink, but its everyday sense is the pharynx.
+`Çıkış` was refused by measurement: it already means the output buffer, in
+`modules.bufferedStep.blurb` and in the module overlay's `Çıkış kuyruğu`.
+
+The cost of `Gider` is that `gider` is an ordinary noun as well, and three
+template labels use it that way — `Toplam gider`, `Su gideri`,
+`Yiyecek gideri`. The measured distinction is case plus a modifier: the node
+kind is always the bare capitalised `Gider` (5 keys), an expense is always
+lowercase and modified (3 labels). `trCopy.test.ts` pins both halves, and
+also pins that the 5 keys are exactly the ones whose English original names
+Drain — so a new English sentence about Drain cannot quietly skip the term.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**

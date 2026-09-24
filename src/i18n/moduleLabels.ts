@@ -392,6 +392,32 @@ const RU: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+const TR: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Tedarik',
+    inbox: 'Giriş kuyruğu',
+    intake: 'Kabul',
+    process: 'İşleme',
+    spoilage: 'Kayıp',
+    outbox: 'Çıkış kuyruğu',
+    shipped: 'Sevkiyat',
+    batch_size: 'Parti boyutu',
+    in_system: 'Sistemdeki birim',
+    planned_run: 'Planlanan üretim',
+  },
+  'reward-split': {
+    activity: 'Etkinlik',
+    wallet: 'Cüzdan',
+    allocate: 'Dağıt',
+    spending: 'Harcama',
+    savings: 'Birikim',
+    withdrawals: 'Çekimler',
+    target_savings: 'Birikim hedefi',
+    net_worth: 'Net değer',
+    progress: 'Hedefe ilerleme',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -404,6 +430,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   'es-ES': ES_ES,
   'pt-PT': PT_PT,
   ru: RU,
+  tr: TR,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

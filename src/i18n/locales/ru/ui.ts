@@ -74,6 +74,7 @@ const ui = {
   'language.spanishSpain': 'Испанский (Испания)',
   'language.portuguesePortugal': 'Португальский (Португалия)',
   'language.russian': 'Русский',
+  'language.turkish': 'Турецкий',
   'playbar.reset.title': 'Сбросить на шаг 0',
   'playbar.step.title': 'Сделать один шаг',
   'playbar.play': '▶ Запустить',

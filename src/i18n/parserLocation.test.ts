@@ -10,6 +10,7 @@ import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
 import ptPT from './locales/pt-PT'
 import ru from './locales/ru'
+import tr from './locales/tr'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
 import { BASE_LOCALE, LOCALES } from './registry'
@@ -47,6 +48,7 @@ const CATALOGS = {
   'pt-BR': ptBR,
   'pt-PT': ptPT,
   ru,
+  tr,
 } as const
 type Loc = keyof typeof CATALOGS
 
@@ -113,6 +115,10 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // messages inflect the noun — `в символе 7` in a prepositional phrase — while the
   // table half stays nominative `столбец 7`.
   ru: { char: new RegExp(`символ(е)? ${N}`), table: `столбец ${N}` },
+  // Turkish splits it the same way: `karakter` is a character offset,
+  // `sütun` a real table column. The ordinal suffix sits on the NUMBER
+  // (`{column}. karakter`), so the number leads.
+  tr: { char: `${N}. karakter`, table: `sütun ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

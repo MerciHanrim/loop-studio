@@ -203,6 +203,35 @@ describe('foldForSearch', () => {
   it('leaves a ligature alone — no ad-hoc transliteration', () => {
     expect(foldForSearch('œuf')).toBe('œuf')
   })
+
+  // The one TURKISH fold (§L5.5). Built from code points: dotless `ı` and
+  // dotted `İ` are invisible next to `i` and `I` in a source listing.
+  const I_DOTLESS = String.fromCharCode(0x131) // ı
+  const I_DOTTED = String.fromCharCode(0x130) // İ
+  // `Fransızca` — how a Turkish UI names French, and the only kind of row a
+  // reader on an ASCII keyboard cannot currently reach.
+  const FRANSIZCA = String.fromCharCode(0x46, 0x72, 0x61, 0x6e, 0x73, 0x131, 0x7a, 0x63, 0x61)
+  const TURKCE = String.fromCharCode(0x54, 0xfc, 0x72, 0x6b, 0xe7, 0x65) // Türkçe
+
+  it('folds dotless `ı` to `i` so an ASCII keyboard can search', () => {
+    expect(foldForSearch(I_DOTLESS)).toBe('i')
+    expect(foldForSearch(FRANSIZCA)).toBe('fransizca')
+  })
+
+  it('folds dotted `İ` to `i` as well', () => {
+    expect(foldForSearch(I_DOTTED)).toBe('i')
+  })
+
+  it('finds a Turkish row typed either way', () => {
+    const entry = { code: 'fr', englishName: 'French', nativeName: 'Français' }
+    for (const q of ['fransizca', FRANSIZCA, 'frans']) {
+      expect(matchesLanguageQuery(entry, FRANSIZCA, q), q).toBe(true)
+    }
+    const tr = { code: 'tr', englishName: 'Turkish', nativeName: TURKCE }
+    for (const q of ['turkce', TURKCE, 'turk', 'tr']) {
+      expect(matchesLanguageQuery(tr, TURKCE, q), q).toBe(true)
+    }
+  })
 })
 
 describe('matchesLanguageQuery — finding fr', () => {
