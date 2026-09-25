@@ -2007,28 +2007,85 @@ which §L2.19's font work had already flagged as the real risk. MEASURED at
 
 **No Thai native-speaker or professional translation review was performed.**
 
-1. **`“ ”`** as the quotation mark is the Royal Institute standard and is the
-   right default, but what a screen reader does with it at its default
-   punctuation level was NOT measured.
-2. **`ค่าที่คำนวณ`** for Register is decided against `บันทึก`, but its
-   naturalness as a node-kind name is unreviewed.
-3. **`ทางระบาย` (Drain), `ถังพัก` (Pool), `ตัวกระจาย` (Gate),
+Triaged 2026-09-26 against measurement, which closed some of the original list,
+split one item whose halves turned out to have different answers, and corrected
+another's reason. **No runtime string was changed** — the catalog, the template
+labels and the module labels are exactly as shipped. What follows is what a Thai
+reader still has to judge, and what measurement already settled.
+
+#### Still open — needs a native reader
+
+1. **`ค่าที่คำนวณ`** for Register is decided against `บันทึก`, but its
+   naturalness as a node-kind name is unreviewed. Consistency is not the
+   question: measured, the term appears in 11 keys and there are **0** keys
+   where the English says *Register* and Thai says something else. A reviewer
+   only has to judge whether the phrase reads naturally as a node kind and in
+   the Inspector's own sentences.
+2. **`ทางระบาย` (Drain), `ถังพัก` (Pool), `ตัวกระจาย` (Gate),
    `ผืนผ้าใบ` (canvas)** are provisional. The guards pin agreement, not
-   spelling, for exactly this reason.
-4. **`Pity` / `Hard pity` / `Pickup`** kept in English, the way every other
-   locale keeps them; whether Thai gacha players use an established Thai term
-   instead was not established.
-5. **Line height against the combining marks** — measured above and found not
-   to clip, but the caption now paints 2.1px into the header's top padding. A
-   longer Thai string in that slot would have less margin than the number
-   suggests.
-6. **The quoted Google Sheets menu path** in `import.qs.sources.sheets` and
+   spelling, for exactly this reason. Measured, each maps 1:1 onto its English
+   concept — Drain 5 keys, Pool 26, Gate 5, canvas 19, with **0** keys where
+   the English uses the concept and Thai uses a different word.
+   **Sub-question, not a separate item:** five `canvas` keys render English
+   *empty canvas* as `พื้นที่ว่าง` ("empty area") rather than `ผืนผ้าใบ` —
+   `canvas.panMode.off`, `canvas.regionSelect.off` / `.on`, `canvas.frame.draw`
+   / `.drawing`. The English there is an interaction phrase, not a standalone
+   term, so a contextual translation is plausibly deliberate. It belongs to
+   `ผืนผ้าใบ`'s review, not to a list of its own.
+3. **`Pickup`** kept in English. Measured across all thirteen translated
+   template-label dicts, this is a **minority of three** — only `ru`, `tr` and
+   `th` keep it. Eight locales (`zh-Hans`, `zh-Hant`, `fr`, `de`, `es-419`,
+   `es-ES`, `pt-BR`, `pt-PT`) converged on **`UP`**, and `ko` / `ja`
+   transliterate (`픽업` / `ピックアップ`). **That is not a reason to change
+   it.** What Thai gacha players actually say outranks a majority across
+   unrelated languages, and no Thai evidence has been gathered. The current
+   string stays until a native reader supplies one.
+4. **The quoted Google Sheets menu path** in `import.qs.sources.sheets` and
    `import.qs.sources.privacy`. `“เผยแพร่ไปยังเว็บ”` and `ไฟล์ → ดาวน์โหลด`
-   were checked against Google's own Thai help and match — but those pages
-   carry Google's notice that they **may contain AI-translated content**, so
-   unlike the Turkish documentation that settled the same question for `tr`
-   (§L2.18) they are not an authoritative source for product UI strings. The
-   exact Thai name of the `.csv` download option is therefore UNVERIFIED.
+   were checked against Google's own Thai help and match, but the authoritative
+   source is **the authenticated Google Sheets UI in Thai**; the public help
+   pages carry Google's notice that they may contain AI-translated content and
+   therefore cannot confirm a product UI string. (The Turkish documentation
+   that settled the same question for `tr` in §L2.18 carries no such notice.)
+   The exact Thai name of the `.csv` download option is therefore UNVERIFIED.
+   Settling it needs one look at a signed-in Thai Sheets `File → Download`
+   submenu — not more reading of the help.
+
+#### Closed on measurement
+
+- **`Pity` / `Hard pity` — reviewed, kept.** Measured across the thirteen
+  translated dicts: nine keep the English (`fr`, `de`, `es-419`, `es-ES`,
+  `pt-BR`, `pt-PT`, `ru`, `tr`, `th`) and only the four CJK locales translate
+  it (`천장`, `天井`, `保底`). Thai is with the majority and needs no review.
+  This was originally bundled with `Pickup`; the two turned out to have
+  different answers, which is why they are now separate.
+- **`“ ”` and screen readers — not a Thai item.** Measured: 37 `th` keys use
+  them, 30 of which wrap a `{slot}`, and **25 of those keys are quoted in every
+  locale including `en`**; the overlap with `ru` and `tr` is 36 of 37. Twelve
+  of the fourteen locales use paired quotes somewhere (only `ja` and `zh-Hant`
+  use `「」`). The quotes delimit a slot rather than carry meaning — a reader
+  that drops them at its default punctuation level still reads
+  *“Value of parameter X”* correctly, just less verbosely. So whatever a screen
+  reader does here is a product-wide question about twelve locales, not a Thai
+  copy defect, and it is not worth a backlog entry before anyone reports it.
+- **Line height against the combining marks — no runtime risk.**
+  `mobile.topbar.caption` is a single fixed key with **no `{slot}`**, so the
+  "a longer Thai string in that slot" worry cannot materialise at runtime;
+  and string length is the wrong axis anyway — vertical ink is set by the
+  tallest mark stack, not by length. MEASURED with canvas `TextMetrics` at
+  390×844 (11px, `line-height: 13.2px`), ink above the line box:
+
+  | sample | ink height | above the line box |
+  |---|---|---|
+  | the shipped Thai caption | 15.0px | **0.4px** |
+  | tone over an upper vowel (`ปุ๊ปั๊ปื้`) | 17.0px | 2.4px |
+  | sara am + tone (`น้ำ ค่ำ`) | 13.4px | **2.84px** — the worst measured |
+  | `en` control | 10.0px | −2.6px (inside the box) |
+
+  So the shipped string is not the worst case, and the worst case is 2.4px
+  taller — against 19.3px of clearance in the nearest clipping ancestor,
+  measured above. Nothing clips in either case. (The 2.1px figure above is the
+  same overhang measured from the element box; 0.4px here is from the line box.)
 
 **L2.20 — the ICU plural walker, and a guard that was green because it was
 empty.** `src/i18n/icuPlural.ts`, fixtures in `icuPlural.test.ts`.

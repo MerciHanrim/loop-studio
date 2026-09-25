@@ -7,9 +7,14 @@
 // Translated from the ENGLISH originals in those graphs, not from another
 // locale's overlay.
 //
-// GACHA CONVENTIONS. The MECHANISM names stay in the English players use —
-// `Pity`, `Hard pity`, `Pickup` — exactly as `fr`, `de`, `es-419`, the
-// Portuguese pair, `ru` and `tr` do. `SSR` / `SR` / `R` are rarity letters and
+// GACHA CONVENTIONS. The MECHANISM names stay in the English players use, but
+// the two are not equally settled:
+//
+//   • `Pity` / `Hard pity` — settled English terminology.
+//   • `Pickup` — retained pending Thai-native review. A cross-locale majority
+//     is not evidence; what Thai gacha players say is. See §L2.19.
+//
+// `SSR` / `SR` / `R` are rarity letters and
 // are never translated. `drop` and `loot`, by contrast, ARE transliterated
 // (`ดรอป`, `ลูท`), because that is how Thai game copy writes them — the same
 // principle each locale applied to its own game register, reaching a different
