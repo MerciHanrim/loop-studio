@@ -74,6 +74,7 @@ const ui = {
   'language.portuguesePortugal': 'Português (Portugal)',
   'language.russian': 'Russo',
   'language.turkish': 'Turco',
+  'language.thai': 'Tailandês',
   'playbar.reset.title': 'Voltar ao passo 0',
   'playbar.step.title': 'Avançar um passo',
   'playbar.play': '▶ Reproduzir',

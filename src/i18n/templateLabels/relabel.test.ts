@@ -48,6 +48,7 @@ describe('officialTemplateLabelIndex', () => {
       'Seviye',
       'Stufe',
       'Уровень',
+      'เลเวล',
       'レベル',
       '等級',
       '等级',

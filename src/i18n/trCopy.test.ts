@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { pluralArms, pluralBlocks } from './icuPlural'
 import en from './locales/en'
 import tr from './locales/tr'
 import { moduleLabelOverlay } from './moduleLabels'
@@ -29,7 +30,7 @@ const KEYS = Object.keys(EN)
 describe('tr copy — the first Turkish catalog', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TR).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(845)
+    expect(KEYS).toHaveLength(846)
   })
 })
 
@@ -193,20 +194,47 @@ describe('every plural keeps its ICU shape', () => {
     expect(trPlural.sort()).toEqual(PLURAL_KEYS.slice().sort())
   })
 
+  // The walk lives in `icuPlural.ts`, with its fixtures. It used to be
+  // `split(/(?=\{…plural,)/).slice(1)` inline here, and that was WRONG: a
+  // zero-width match at index 0 does not split in JavaScript —
+  // `'abc'.split(/(?=a)/)` is `['abc']` — so `.slice(1)` threw away the only
+  // block whenever the message STARTED with its plural. MEASURED when the same
+  // idiom was copied into `thCopy.test.ts` and a deliberately broken plural
+  // passed: this guard was seeing 6 blocks across 19 keys and examining the
+  // other 14 as nothing. It was green because there was nothing left to fail.
+
+  it('each key has exactly as many blocks as its English original', () => {
+    const bad: string[] = []
+    for (const k of PLURAL_KEYS) {
+      const want = pluralBlocks(EN[k]).length
+      const got = pluralBlocks(TR[k]).length
+      if (got !== want) bad.push(k + ': en=' + want + ' tr=' + got)
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('the walk reaches 19 keys and 23 blocks', () => {
+    // MEASURED, and the reason it is not `blocks >= keys`: three keys carry
+    // more than one block, so a counter that stopped at the first block of a
+    // multi-block message would still clear a per-key floor.
+    expect(PLURAL_KEYS).toHaveLength(19)
+    expect(PLURAL_KEYS.reduce((n, k) => n + pluralBlocks(TR[k]).length, 0)).toBe(23)
+    expect(PLURAL_KEYS.filter((k) => pluralBlocks(TR[k]).length > 1)).toHaveLength(3)
+  })
+
   it('each plural block has exactly the `one` and `other` arms, and every arm keeps `#`', () => {
     const bad: string[] = []
     for (const k of PLURAL_KEYS) {
-      const blocks = TR[k].match(/\{\s*\w+\s*,\s*plural\s*,([\s\S]*?)\}\s*(?=[^}]|$)/g) ?? []
-      for (const raw of TR[k].split(/(?=\{\s*\w+\s*,\s*plural\s*,)/).slice(1)) {
-        const arms = [...raw.matchAll(/\b(zero|one|two|few|many|other)\s*\{/g)].map((m) => m[1])
-        if (arms.length === 0) continue
-        if (!arms.includes('one') || !arms.includes('other')) bad.push(k + ': arms ' + arms.join(','))
+      for (const block of pluralBlocks(TR[k])) {
+        const arms = pluralArms(block)
+        const selectors = arms.map(([s]) => s)
+        if (selectors.length !== 2 || !selectors.includes('one') || !selectors.includes('other')) {
+          bad.push(k + ': arms ' + selectors.join(','))
+        }
         // Turkish does not pluralise a noun after a numeral, so the two arms
         // may read the same — but both must still carry the count.
-        const armBodies = [...raw.matchAll(/\b(?:one|other)\s*\{([^{}]*)\}/g)].map((m) => m[1])
-        for (const body of armBodies) if (!body.includes('#')) bad.push(k + ': an arm without #: ' + body)
+        for (const [sel, body] of arms) if (!body.includes('#')) bad.push(k + ': `' + sel + '` without #')
       }
-      void blocks
     }
     expect(bad).toEqual([])
   })

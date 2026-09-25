@@ -1,0 +1,442 @@
+// docs/localization.md §L2.19 — UI chrome slice of the `th` catalog.
+//
+// STYLE (§L2.19). No gendered politeness particles: `ครับ` / `ค่ะ` are spoken
+// register and reveal the speaker's gender, so they appear nowhere. `ท่าน` is
+// too formal for a tool. Thai verbs do not inflect, so a bare verb IS the
+// neutral command form and every button, menu item and tooltip uses one.
+// Sentences addressed to the reader are neutral written register with no
+// final particle, and `คุณ` is omitted wherever English says "your" — Thai UI
+// convention drops the pronoun rather than translating it.
+//
+// PLURAL. `Intl.PluralRules('th')` declares exactly ONE category, `other`, so
+// every plural message here has a single arm. MEASURED before this catalog
+// was written: 0, 1, 2 and 1000000 all render, and `#` still groups
+// (`1,000,000`). `validate.ts` requires an `other` arm and does not require
+// the arm set to match `en`, so this passes `check:i18n`.
+//
+// PERCENT. `{pct}%` — sign after the number, no gap, the same as `en`. Thai
+// also uses Latin digits and `,` / `.` grouping (`1,234,567.89`), so no number
+// formatting differs from the base.
+//
+// QUOTES. `“…”` wraps a runtime label, and it is the Royal Institute's
+// quotation mark for Thai — NOT the `«…»` `tr` uses, which is a French and
+// Russian convention that Thai punctuation does not share. The reason a label
+// is wrapped at all is stronger here than in `tr`: Thai writes without spaces
+// between words, so an unwrapped user label runs straight into the sentence
+// around it with no visible boundary.
+//
+// This does mean `“…”` carries two jobs in this catalog — a user label here,
+// and the literal expression characters in the six `error.EXPR_*` keys, which
+// are byte-identical to `en`. The two never appear in the same message, and
+// matching Thai convention beat inventing a second mark. What a screen reader
+// does with either is NOT measured and stays on the native-review list.
+//
+// PARSER POSITION. `{column}` in the six `error.EXPR_*` keys is a 1-based
+// CHARACTER offset, so it reads `ตำแหน่งอักขระ`. A real table column is
+// `คอลัมน์` and lives in `import.loc.*` (§L2.11).
+
+const ui = {
+  'i18n.messageError': 'ไม่มีข้อความ ({key})',
+  'i18n.loadFailed': 'โหลด {language} ไม่สำเร็จ ยังแสดง {current} อยู่',
+  'toolbar.preview': 'ตัวอย่าง',
+  'toolbar.buildTitle': 'Loop Studio v{version} · บิลด์ {sha}',
+  'toolbar.undo.title': 'เลิกทำ (Ctrl/Cmd+Z)',
+  'toolbar.redo.title': 'ทำซ้ำ (Ctrl/Cmd+Shift+Z)',
+  'toolbar.new': 'ใหม่',
+  'toolbar.import': 'นำเข้า',
+  'toolbar.more': 'การทำงานอื่น',
+  'toolbar.newGraph.title': 'เริ่มกราฟใหม่หรือไม่',
+  'toolbar.newGraph.body': 'กราฟปัจจุบันจะถูกแทนที่',
+  'toolbar.newGraph.confirm': 'กราฟใหม่',
+  'toolbar.file.button': 'ไฟล์ ▾',
+  'toolbar.file.menuLabel': 'ไฟล์',
+  'toolbar.settings.button': 'ตั้งค่า ▾',
+  'toolbar.settings.menuLabel': 'ตั้งค่า',
+  'theme.rowLabel': 'ธีม',
+  'theme.title': 'ธีม: ระบบ / สว่าง / มืด',
+  'theme.auto': '◐ อัตโนมัติ',
+  'theme.light': '☀ สว่าง',
+  'theme.dark': '☾ มืด',
+  'theme.option.system': 'อัตโนมัติ',
+  'theme.option.light': 'สว่าง',
+  'theme.option.dark': 'มืด',
+  'theme.menuLabel': 'ธีม',
+  'lang.rowLabel': 'ภาษา',
+  'lang.title': 'ภาษา',
+  'lang.menuLabel': 'เลือกภาษา',
+  'lang.loading': 'กำลังโหลด…',
+  'lang.search': 'ค้นหาภาษา',
+  'lang.noResults': 'ไม่พบภาษาที่ตรงกัน',
+  'language.english': 'อังกฤษ',
+  'language.korean': 'เกาหลี',
+  'language.japanese': 'ญี่ปุ่น',
+  'language.chineseSimplified': 'จีน (ตัวย่อ)',
+  'language.chineseTraditional': 'จีน (ตัวเต็ม)',
+  'language.french': 'ฝรั่งเศส',
+  'language.german': 'เยอรมัน',
+  'language.spanishLatinAmerica': 'สเปน (ละตินอเมริกา)',
+  'language.portugueseBrazil': 'โปรตุเกส (บราซิล)',
+  'language.spanishSpain': 'สเปน (สเปน)',
+  'language.portuguesePortugal': 'โปรตุเกส (โปรตุเกส)',
+  'language.russian': 'รัสเซีย',
+  'language.turkish': 'ตุรกี',
+  'language.thai': 'ไทย',
+  'playbar.reset.title': 'รีเซ็ตไปที่ขั้นที่ 0',
+  'playbar.step.title': 'เดินหน้าหนึ่งขั้น',
+  'playbar.play': '▶ เล่น',
+  'playbar.pause': '⏸ หยุดชั่วคราว',
+  'playbar.replay': '⟳ เล่นซ้ำ',
+  'playbar.step': 'ขั้นที่ {n}',
+  'playbar.stepEnded': 'ขั้นที่ {n} · สิ้นสุด',
+  'playbar.speed': 'ความเร็ว',
+  'playbar.seed': 'ค่าตั้งต้น',
+  'playbar.seed.title': 'ค่าตั้งต้นของการสุ่ม — ค่าเดิมให้ผลการรันเดิม เปลี่ยนแล้วจะเริ่มใหม่',
+  'playbar.mc': 'Monte Carlo',
+  'playbar.mc.withNote': 'Monte Carlo · {note}',
+  'playbar.mc.cancelled': 'ยกเลิกแล้ว',
+  'playbar.mc.failed': 'การรันล้มเหลว',
+  'playbar.initError': 'รันไม่ได้: {detail}',
+  'playbar.mc.title': 'รันไดอะแกรมหลายครั้งเพื่อดูการกระจายของผลลัพธ์',
+  'playbar.mc.progress': 'Monte Carlo {pct}%',
+  'playbar.mc.progress.title': 'กำลังรัน Monte Carlo',
+  'playbar.cancel': 'ยกเลิก',
+  'playbar.steady': 'สภาวะคงตัว — การไหลยังดำเนินต่อ',
+  'playbar.timeline.show': 'แสดงไทม์ไลน์',
+  'playbar.timeline.hide': 'ซ่อนไทม์ไลน์',
+  'runbar.ariaLabel': 'ตัวควบคุมการรัน',
+  'runbar.mc.cancel': 'MC {pct}% · ยกเลิก',
+  'runbar.timeline': 'ไทม์ไลน์',
+  'mobile.topbar.caption': 'ดูและรัน — แก้ไขบนเดสก์ท็อป',
+  'mobile.more': 'เพิ่มเติม',
+  'a11y.playback.started': 'เริ่มเล่นแล้ว',
+  'a11y.playback.endedAtStep': 'สิ้นสุดที่ขั้นที่ {n}',
+  'a11y.playback.resetToZero': 'รีเซ็ตไปที่ขั้นที่ 0 แล้ว',
+  'a11y.playback.stepN': 'ขั้นที่ {n}',
+  'a11y.playback.pausedAtStep': 'หยุดชั่วคราวที่ขั้นที่ {n}',
+  'timeline.title': 'ไทม์ไลน์',
+  'timeline.view.live': 'สด',
+  'timeline.view.distribution': 'การกระจาย',
+  'timeline.legend.hide': 'ซ่อนชุดข้อมูล “{label}”',
+  'timeline.legend.show': 'แสดงชุดข้อมูล “{label}”',
+  'timeline.legend.more': 'อีก {n} รายการ',
+  'timeline.legend.fewer': 'แสดงน้อยลง',
+  'timeline.csv': 'CSV',
+  'timeline.csvTitle': 'ดาวน์โหลดผลการรันเป็น CSV',
+  'timeline.axis.step': 'ขั้นที่ {n}',
+  'timeline.sheetTitle': 'ไทม์ไลน์',
+  'mobile.inspector.title': 'ตัวตรวจสอบ — อ่านอย่างเดียว',
+  'mobile.inspector.roNote': 'การแก้ไขทำบนเดสก์ท็อป นี่เป็นมุมมองอ่านอย่างเดียว',
+  'error.unknownCode': 'นิพจน์ไม่ถูกต้อง',
+  'error.EXPR_EMPTY.message': 'นิพจน์ว่างเปล่า',
+  'error.EXPR_SYNTAX.message': 'มีข้อผิดพลาดทางไวยากรณ์ที่ตำแหน่งอักขระ {column}',
+  'error.EXPR_UNCLOSED_PAREN.message': '“(” ที่ตำแหน่งอักขระ {column} ไม่ถูกปิด',
+  'error.EXPR_UNCLOSED_REF.message': '“@\'{\'” ที่ตำแหน่งอักขระ {column} ไม่ถูกปิด',
+  'error.EXPR_BAD_ESCAPE.message':
+    '“\\” ที่ตำแหน่งอักขระ {column} ต้องตามด้วย “\'}\'” หรือ “\\”',
+  'error.EXPR_NUMBER_RANGE.message': 'ตัวเลขที่ตำแหน่งอักขระ {column} ใหญ่เกินไป',
+  'error.EXPR_BAD_TOKEN.message': 'มีอักขระแปลกปลอมที่ตำแหน่งอักขระ {column}',
+  'dialog.cancel': 'ยกเลิก',
+  'dialog.close': 'ปิด',
+  'share.button': 'แชร์',
+  'share.button.title': 'คัดลอกลิงก์ที่เปิดไดอะแกรมนี้',
+  'share.disclosure.title': 'สร้างลิงก์แชร์หรือไม่',
+  'share.disclosure.body':
+    'ลิงก์บรรจุไดอะแกรมนี้ทั้งหมดรวมถึงป้ายกำกับทุกอัน — ใครก็ตามที่มีลิงก์เปิดและแก้ไขไดอะแกรมได้ ไม่มีการอัปโหลดขึ้นเซิร์ฟเวอร์ แต่ข้อมูลเดินทางอยู่ในลิงก์ จึงค้างอยู่ในประวัติเบราว์เซอร์และมองเห็นได้โดยทุกคนที่ได้รับลิงก์',
+  'share.disclosure.confirm': 'สร้างลิงก์',
+  'share.tooLarge':
+    'ไดอะแกรมนี้ใหญ่เกินไปสำหรับลิงก์แชร์ ({size} ขีดจำกัดคือ {cap}) ใช้ ไฟล์ ▾ → Graph JSON แล้วแชร์เป็นไฟล์แทน',
+  'share.replacePrompt':
+    'เปิดไดอะแกรมที่แชร์มาหรือไม่ ไดอะแกรมปัจจุบันจะถูกแทนที่ หากต้องการเก็บไว้ ให้ส่งออกก่อน',
+  'share.noBase':
+    'การแชร์ยังไม่ได้ตั้งค่าที่อยู่สาธารณะ จึงสร้างลิงก์ไม่ได้ โปรดแจ้งปัญหานี้',
+  'share.panel.label': 'ลิงก์แชร์',
+  'share.panel.copied': 'คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว',
+  'share.panel.copyThis': 'คัดลอกลิงก์นี้:',
+  'share.panel.copyAgain': 'คัดลอกอีกครั้ง',
+  'share.panel.copy': 'คัดลอก',
+  'share.panel.close': 'ปิด',
+  'pwa.text':
+    'Loop Studio เวอร์ชันใหม่พร้อมแล้ว การติดตั้งจะโหลดหน้าใหม่ และรีเซ็ตการรันปัจจุบันกับผลลัพธ์ที่ยังไม่ได้บันทึก ไดอะแกรมจะยังอยู่',
+  'pwa.update': 'อัปเดต',
+  'pwa.dismiss': 'ปิด',
+  'pwa.running.title': 'กำลังรันอยู่',
+  'pwa.running.body': 'การติดตั้งอัปเดตจะโหลดหน้าใหม่และจบการรันปัจจุบัน ดำเนินการต่อหรือไม่',
+  'pwa.running.confirm': 'ติดตั้งและโหลดใหม่',
+  'bootNotice.dismiss': 'ปิด',
+  'autosave.failed.quota':
+    'การบันทึกอัตโนมัติหยุดลง: พื้นที่เก็บข้อมูลของเบราว์เซอร์นี้เต็ม การเปลี่ยนแปลงล่าสุดจึงไม่ถูกบันทึกบนอุปกรณ์นี้ ส่งออกเป็นไฟล์เพื่อเก็บไว้',
+  'autosave.failed.unavailable':
+    'การบันทึกอัตโนมัติใช้ไม่ได้: เบราว์เซอร์นี้บล็อกพื้นที่เก็บข้อมูล การเปลี่ยนแปลงจึงไม่ถูกบันทึกบนอุปกรณ์นี้ ส่งออกเป็นไฟล์เพื่อเก็บไว้',
+  'autosave.exportButton': 'ส่งออก Graph JSON',
+  'bootNotice.proposalReboot':
+    'เซสชันนี้กำลังแก้ไขข้อเสนออยู่ ฐานที่ข้อเสนอสร้างขึ้นมาไม่ได้ถูกบันทึกบนอุปกรณ์นี้ เอกสารจึงเปิดใหม่เป็นกราฟธรรมดา — การแก้ไขยังอยู่ครบ นำเข้าไฟล์ข้อเสนออีกครั้งเพื่อตรวจทานหรือส่งออกใหม่',
+  'revChip.proposal': 'ข้อเสนอ',
+  'revChip.rev': 'รุ่น {id}',
+  'revChip.title': 'โปรเจกต์ {project} · {role} {revision}',
+  'revChip.titleDirty':
+    'โปรเจกต์ {project} · {role} {revision} · มีการเปลี่ยนแปลงที่ยังไม่บันทึกนับจากรุ่นนี้',
+  'revChip.unsaved': 'มีการเปลี่ยนแปลงที่ยังไม่บันทึก',
+  'import.replace.title': 'แทนที่ไดอะแกรมปัจจุบันหรือไม่',
+  'import.replace.body': 'ไฟล์ที่นำเข้าจะแทนที่สิ่งที่อยู่บนผืนผ้าใบตอนนี้',
+  'import.replace.confirm': 'แทนที่',
+  'import.readError': 'อ่านไฟล์นั้นไม่ได้',
+  'import.error.invalidJson': 'ไฟล์นี้ไม่ใช่ JSON ที่ถูกต้อง',
+  'import.error.unexpected': 'เนื้อหาไฟล์ไม่ตรงกับที่คาดไว้',
+  'import.error.notLoopStudio': 'ไฟล์นี้ดูไม่เหมือนไฟล์กราฟของ Loop Studio',
+  'import.error.missingNodesEdges': 'ไฟล์กราฟขาดโหนดหรือเส้นเชื่อม',
+  'import.structuralWarning': 'กราฟนี้มีปัญหาเชิงโครงสร้าง และเส้นเชื่อมเหล่านี้ถูกข้ามไป:\n{detail}',
+  'import.modelLayerUnreadable':
+    'เนื้อหาชั้นแบบจำลองของไฟล์นี้อ่านไม่ได้ ({detail}) ข้อมูลโปรเจกต์จึงถูกข้ามไป',
+  'mobile.more.import': 'นำเข้าไฟล์',
+  'mobile.more.importSub': 'Graph หรือ Workspace JSON',
+  'export.button': 'ส่งออก ▾',
+  'export.menuLabel': 'ส่งออก',
+  'export.graphJson.name': 'Graph JSON',
+  'export.graphJson.blurb': 'ไดอะแกรม + ค่าการรันที่แนะนำ',
+  'export.workspaceJson.name': 'Workspace JSON',
+  'export.workspaceJson.blurb': 'กราฟ + การกระจาย + มุมมอง + การรันปัจจุบัน',
+  'export.projectRevision.name': 'รุ่นของโปรเจกต์',
+  'export.projectRevision.blurb': 'ไดอะแกรมพร้อมรหัสโปรเจกต์และที่มา สำหรับทำงานร่วมกันแบบออฟไลน์',
+  'export.proposal.name': 'สร้างข้อเสนอ',
+  'export.proposal.blurb': 'สำเนาไว้แก้ไขแล้วส่งกลับมาให้ตรวจทาน',
+  'export.proposal.needRevision': 'ส่งออกรุ่นของโปรเจกต์ก่อน',
+  'revision.export.noSecureRandom':
+    'เบราว์เซอร์นี้ไม่มีแหล่งสุ่มที่ปลอดภัย จึงสร้างรหัสรุ่นไม่ได้ ไม่มีอะไรถูกส่งออก',
+  'revision.export.tooLarge':
+    'ไดอะแกรมนี้ใหญ่เกินกว่าจะส่งออกเป็นรุ่นของโปรเจกต์ ({size} ขีดจำกัด {cap}) ใช้ ไฟล์ ▾ → Graph JSON แทน',
+  'proposal.needProject':
+    'การสร้างข้อเสนอต้องมีโปรเจกต์ที่เปิดอยู่ ใช้ ไฟล์ ▾ → รุ่นของโปรเจกต์ เพื่อสร้างก่อน',
+  'proposal.dirtyOrigin':
+    'เอกสารเปลี่ยนไปนับจากรุ่นนี้ ใช้ ไฟล์ ▾ → รุ่นของโปรเจกต์ เพื่อตรึงการเปลี่ยนแปลง แล้วจึงสร้างข้อเสนอ',
+  'proposal.tooLarge':
+    'ข้อเสนอนี้ใหญ่เกินกว่าจะส่งเป็นไฟล์เดียว ({size} ขีดจำกัด {cap}) Graph JSON ธรรมดายังใช้ได้',
+  'export.author.name': 'กำหนดผู้จัดทำสำหรับการส่งออก…',
+  'export.author.blurb': 'ชื่อที่เก็บไว้เฉพาะบนอุปกรณ์ แนบไปกับไฟล์โดยไม่มีการยืนยันตัวตน',
+  'export.projectRevision.disclosure.title': 'ส่งออกรุ่นของโปรเจกต์หรือไม่',
+  'export.projectRevision.disclosure.body':
+    'ไฟล์นี้เป็น Graph JSON ตามปกติที่พ่วงรหัสโปรเจกต์และที่มาของรุ่นนี้ไปด้วย ผู้ร่วมงานจึงเปรียบเทียบและนำการเปลี่ยนแปลงไปใช้ได้แบบออฟไลน์ทั้งหมด ไม่ต้องมีบัญชีและไม่ต้องมีเซิร์ฟเวอร์ — ทุกอย่างเดินทางอยู่ในไฟล์',
+  'export.projectRevision.disclosure.confirm': 'ส่งออกรุ่น',
+  'export.workspace.title': 'บันทึกพื้นที่ทำงานนี้หรือไม่',
+  'export.workspace.included': 'รวมถึง: {items}',
+  'export.workspace.excluded': 'ไม่รวม: ประวัติการเลิกทำ การเลือก ธีม',
+  'export.workspace.confirm': 'บันทึกพื้นที่ทำงาน',
+  'export.workspace.item.runConfig': 'ค่าการรัน',
+  'export.workspace.item.distribution': 'การกระจายจาก {runs} การรัน',
+  'export.workspace.item.timeline': 'มุมมองไทม์ไลน์',
+  'export.workspace.item.canvas': 'ตำแหน่งผืนผ้าใบ',
+  'export.workspace.item.liveRun': 'การรันปัจจุบันที่ขั้นที่ {step}',
+  'export.workspace.omit.body':
+    'การกระจายทำให้ขนาดเป็น {full} — เกินขีดจำกัด {limit} บันทึกโดยไม่รวมการกระจาย ({lean}) หรือไม่',
+  'export.workspace.omit.confirm': 'บันทึกโดยไม่รวม',
+  'export.workspace.reject':
+    'พื้นที่ทำงานนี้มีขนาด {size} — เกินขีดจำกัด {limit} แม้ไม่รวมการกระจาย ลดขนาดกราฟ หรือใช้ Graph JSON',
+  'author.title': 'ผู้จัดทำสำหรับการส่งออก',
+  'author.name': 'ชื่อ',
+  'author.namePlaceholder': 'เช่น Alex',
+  'author.note': 'หมายเหตุ (ไม่บังคับ)',
+  'author.notePlaceholder': 'ข้อความสั้น ๆ ที่เดินทางไปกับไฟล์',
+  'author.disclosure':
+    'ชื่อนี้เก็บไว้เฉพาะบนอุปกรณ์นี้ และถูกแนบ — โดยไม่มีการยืนยันตัวตน — ไปกับทุกรุ่นของโปรเจกต์และข้อเสนอที่ส่งออก แล้วเดินทางอยู่ในไฟล์ที่ส่งไป ใครก็แก้ไขได้ จึงควรถือเป็นชื่อเรียก ไม่ใช่ตัวตน',
+  'author.save': 'บันทึก',
+  'mc.title': 'Monte Carlo',
+  'mc.close': 'ปิด',
+  'mc.closeKeepRunning': 'ปิด (ให้รันต่อ)',
+  'mc.field.runs': 'การรัน',
+  'mc.field.steps': 'ขั้น',
+  'mc.field.baseSeed': 'ค่าตั้งต้นหลัก',
+  'mc.pools.head': 'ถังพักที่ติดตาม',
+  'mc.pools.headAll': 'ติดตาม · ถังพักทั้งหมด',
+  'mc.pools.headSome': 'ติดตาม · {n} จาก {total} ถังพัก',
+  'mc.pools.selectAll': 'เลือกทั้งหมด',
+  'mc.pools.none': 'ไม่มีถังพักในกราฟ — เพิ่มอย่างน้อยหนึ่งอันจึงจะรันได้',
+  'mc.pools.group': 'ถังพักที่ติดตาม',
+  'mc.pools.keepOne': 'ต้องมีถังพักที่ติดตามอย่างน้อยหนึ่งอัน',
+  'mc.cost.estimating': 'กำลังประมาณการ…',
+  'mc.cost.measured': 'วัดจริง (การรันล่าสุด)',
+  'mc.cost.benchmark': 'การวัดบนเครื่อง',
+  'mc.cost.execution': 'การประมวลผล',
+  'mc.cost.parallel': 'ขนาน {workers} เธรด',
+  'mc.cost.localPause': 'บนเครื่อง · อาจหยุดชั่วครู่',
+  'mc.cost.local': 'บนเครื่อง',
+  'mc.cost.memory': 'หน่วยความจำ',
+  'mc.cost.overLimit': ' — เกินขีดจำกัด ลดจำนวนการรันหรือขั้น',
+  'mc.run': 'รัน {runs} ครั้ง',
+  'mc.cancel': 'ยกเลิก',
+  'review.title': 'ตรวจทานข้อเสนอ',
+  'review.close': 'ปิด',
+  'review.byPrefix': 'เสนอโดย',
+  'review.byAnon': 'ข้อเสนอ',
+  'review.unverified': '· ยังไม่ยืนยัน',
+  'review.fileSays': 'ไฟล์ระบุว่า: {stamp}',
+  'review.differentProject': 'รหัสโปรเจกต์ต่างจากที่เปิดอยู่',
+  'review.diff.none': 'กราฟไม่มีการเปลี่ยนแปลง',
+  'review.diff.nodes': 'โหนด',
+  'review.diff.edges': 'เส้นเชื่อม',
+  'review.diff.runConfig': 'ค่าการรัน',
+  'review.diff.frames': 'กรอบ',
+  'review.gate.wrongProject':
+    'ข้อเสนอนี้เป็นของโปรเจกต์อื่น แต่ยังเปิดเป็นเอกสารได้',
+  'review.gate.noTarget': 'ไม่มีโปรเจกต์ที่เปิดอยู่ เปิดข้อเสนอนี้เป็นเอกสาร หรือยกเลิก',
+  'review.gate.targetIsProposal':
+    'ตอนนี้มีข้อเสนอเปิดอยู่ ส่งออกเป็นรุ่นของโปรเจกต์ก่อนจึงจะนำข้อเสนออื่นมาใช้ทับได้',
+  'review.gate.versionMismatch':
+    'ข้อเสนอนี้กับเอกสารที่เปิดอยู่ใช้แบบจำลองคนละเวอร์ชัน (v1 / v2) จึงนำมาใช้ที่นี่ไม่ได้ แต่ยังเปิดเป็นเอกสารได้',
+  'review.class.exact': 'รุ่นที่เปิดอยู่คือฐานที่ข้อเสนอนี้สร้างขึ้นมาพอดี',
+  'review.class.divergent':
+    'รุ่นที่เปิดอยู่มีการเปลี่ยนแปลงที่ทับซ้อนกับข้อเสนอนี้ การใช้ข้อเสนอทั้งหมดจะทิ้งการเปลี่ยนแปลงเหล่านั้น',
+  'review.class.unknown':
+    'รุ่นที่เปิดอยู่มีการเปลี่ยนแปลง และไฟล์ไม่สามารถพิสูจน์ความสัมพันธ์ระหว่างสองฝั่งได้ ไม่พบความขัดแย้งในระดับฟิลด์',
+  'review.confirm.default':
+    'ข้อเสนอนี้สร้างจากรุ่นก่อนหน้า การใช้ข้อเสนอทั้งหมดจะแทนที่กราฟด้วยเวอร์ชันของข้อเสนอ — การเปลี่ยนแปลงนับจากนั้นจะหายไป การเลิกทำย้อนกลับได้',
+  'review.confirm.unknown':
+    'ข้อเสนอนี้สร้างจากรุ่นก่อนหน้า และไฟล์ไม่สามารถระบุความสัมพันธ์ระหว่างสองฝั่งได้ การใช้ข้อเสนอทั้งหมดจะแทนที่กราฟด้วยเวอร์ชันของข้อเสนอ — การเปลี่ยนแปลงนับจากนั้นจะหายไป การเลิกทำย้อนกลับได้',
+  'review.err.targetMoved': 'เอกสารเปลี่ยนไปหลังการยืนยัน — ตรวจทานการเปลี่ยนแปลงแล้วใช้อีกครั้ง',
+  'review.err.targetMovedList':
+    'เอกสารเปลี่ยนไประหว่างที่กำลังเลือก — รายการด้านล่างอัปเดตแล้ว ตรวจทานแล้วใช้อีกครั้ง',
+  'review.err.noEffect': 'ตัวเลือกเหล่านี้ไม่เปลี่ยนอะไรเลย — ไม่มีอะไรให้ใช้',
+  'review.err.generic': 'นำไปใช้ไม่ได้ ({reason})',
+  'review.fail.wrongProject': 'ข้อเสนอนี้เป็นของโปรเจกต์อื่น',
+  'review.fail.noTarget': 'ไม่มีโปรเจกต์ที่เปิดอยู่ให้นำไปใช้',
+  'review.fail.targetIsProposal': 'ส่งออกข้อเสนอที่เปิดอยู่เป็นรุ่นของโปรเจกต์ก่อน',
+  'review.fail.versionMismatch':
+    'ข้อเสนอนี้กับเอกสารที่เปิดอยู่ใช้แบบจำลองคนละเวอร์ชัน (v1 / v2) จึงนำมาใช้ที่นี่ไม่ได้',
+  'review.fail.payloadInvalid': 'ไฟล์ข้อเสนอนี้ไม่ผ่านการตรวจความสมบูรณ์ — นำเข้าใหม่อีกครั้ง',
+  'review.fail.invalidSelection':
+    'การเลือกนี้นำไปใช้ไม่ได้ — เส้นเชื่อมที่รับไว้ต้องใช้โหนดที่ไม่ได้เลือกไว้ ปรับการเลือกแล้วลองใหม่',
+  'review.hunks.none': 'ไม่มีอะไรใหม่ให้ใช้ — เป้าหมายตรงกันอยู่แล้ว',
+  'review.hunk.add': 'เพิ่ม',
+  'review.hunk.remove': 'ลบ',
+  'review.hunk.change': 'เปลี่ยน',
+  'review.hunk.bothChanged': ' · ทั้งสองฝั่งเปลี่ยนสิ่งนี้',
+  'review.hunk.youDeleted': ' · ฝั่งนี้ลบสิ่งนี้ไปแล้ว',
+  'review.hunk.alsoRemove': 'ลบหรือย้ายปลายทางของเส้นเชื่อมด้วย',
+  'review.hunk.cantRemove': 'ลบไม่ได้ — ฝั่งนี้เพิ่มเส้นเชื่อมไว้',
+  'review.hunk.toThisNode': 'ไปยังโหนดนี้',
+  'review.hunk.framesTitle': 'กรอบที่บันทึกไว้',
+  'review.hunk.framesTake': 'ใช้กรอบของข้อเสนอ ({yours} → {theirs})',
+  'review.hunk.framesClear': 'ใช้กรอบของข้อเสนอ (ลบทั้ง {yours} กรอบ)',
+  'review.field.base': 'ฐาน',
+  'review.field.yours': 'ฝั่งนี้',
+  'review.field.theirs': 'ฝั่งนั้น',
+  'review.field.takeTheirs': 'ใช้ของฝั่งนั้น',
+  'review.field.keepMine': 'คงของฝั่งนี้',
+  'review.action.applyAnyway': 'ใช้ต่อไป',
+  'review.action.applyProposal': 'ใช้ข้อเสนอ',
+  'review.action.applySelected': 'ใช้ที่เลือกไว้: {count}',
+  'review.action.chooseChanges': 'เลือกการเปลี่ยนแปลง',
+  'review.action.wholeProposal': 'ข้อเสนอทั้งหมด',
+  'review.action.openAsDoc': 'เปิดเป็นเอกสาร',
+  'review.action.cancel': 'ยกเลิก',
+  'review.foot.hunks':
+    'การใช้เป้าหมายพร้อมการเปลี่ยนแปลงที่เลือกไว้จะสร้างรุ่นใหม่บนเครื่อง (รุ่นแม่ {parent}) เลิกทำครั้งเดียวย้อนกลับได้ ไม่มีการเขียนลงไฟล์',
+  'review.foot.whole':
+    'การนำไปใช้จะสร้างรุ่นใหม่บนเครื่อง (รุ่นแม่ {parent}) เลิกทำครั้งเดียวย้อนกลับได้ ไม่มีการเขียนลงไฟล์',
+  'dist.runs': 'การรัน',
+  'dist.steps': 'ขั้น',
+  'dist.seed': 'ค่าตั้งต้น',
+  'dist.ended': 'สิ้นสุด',
+  'dist.stale': 'ล้าสมัย — กราฟเปลี่ยนไป รันใหม่เพื่อรีเฟรช',
+  'dist.export.staleTitle': 'ผลลัพธ์ล้าสมัย — รันใหม่ก่อนจึงส่งออกได้',
+  'dist.export.title': 'ส่งออกการรันนี้',
+  'dist.export.seriesCsv': 'Series CSV',
+  'dist.export.seriesCsv.blurb': 'ต่อขั้น p10/p50/p90/ค่าเฉลี่ย/ต่ำสุด/สูงสุด',
+  'dist.export.runsCsv': 'Runs CSV',
+  'dist.export.runsCsv.blurb': 'ค่าสุดท้ายต่อการรัน · การรัน ค่าตั้งต้น ถังพัก',
+  'dist.export.summaryCsv': 'Summary CSV',
+  'dist.export.summaryCsv.blurb': 'สรุปค่าสุดท้ายต่อถังพัก',
+  'dist.export.json.blurb': 'MonteCarloResult ฉบับเต็ม',
+  'term.title': 'การสิ้นสุด',
+  'term.ended': 'สิ้นสุด',
+  'term.noRuns': 'ไม่มีการรันใดสิ้นสุด',
+  'band.pool': 'ถังพัก',
+  'band.mean': 'ค่าเฉลี่ย',
+  'openhint.title': 'ไม่มีการซิงก์ผ่านบัญชี',
+  'openhint.body': 'เปิดไฟล์ที่บันทึกไว้หรือลิงก์แชร์เพื่อดูที่นี่',
+  'openhint.button': 'เปิดไฟล์',
+  'openhint.sub':
+    'ส่งออก Graph JSON หรือ Workspace JSON บนเดสก์ท็อป หรือเปิดลิงก์แชร์ที่ขึ้นต้นด้วย #g1=',
+  'tour.welcome.title': 'ยินดีต้อนรับสู่ Loop Studio',
+  'tour.welcome.body': 'พาชมหกส่วนของพื้นที่ทำงานในสองนาทีหรือไม่',
+  'tour.welcome.start': 'เริ่มทัวร์',
+  'tour.welcome.skip': 'ข้าม',
+  'tour.nav.back': 'ย้อนกลับ',
+  'tour.nav.next': 'ถัดไป',
+  'tour.nav.done': 'เสร็จสิ้น',
+  'tour.nav.position': '{n} / {total}',
+  'tour.nav.close': 'ปิดทัวร์',
+  'tour.desktop.pieces.title': 'ชิ้นส่วน',
+  'tour.desktop.pieces.body':
+    'บล็อกพื้นฐาน — ถังพัก แหล่งกำเนิด ทางระบาย ตัวกระจาย และอื่น ๆ คลิกหนึ่งอัน หรือลากลงบนผืนผ้าใบ เพื่อเพิ่ม',
+  'tour.desktop.canvas.title': 'ผืนผ้าใบ',
+  'tour.desktop.canvas.body':
+    'วางชิ้นส่วนที่นี่ เชื่อมจุดต่อเข้าหากัน แล้วเลื่อนหรือซูมเพื่อย้ายมุมมอง',
+  'tour.desktop.inspector.title': 'ตัวตรวจสอบ',
+  'tour.desktop.inspector.body': 'เลือกชิ้นส่วนหรือเส้นเชื่อมใดก็ได้เพื่อแก้ไขค่าของมันที่นี่',
+  'tour.desktop.playback.title': 'การเล่น',
+  'tour.desktop.playback.body':
+    'รันแบบจำลองทีละขั้นหรือรันต่อเนื่อง ค่าตั้งต้นที่ตรึงไว้ทำให้การรันแบบสุ่มเกิดซ้ำได้',
+  'tour.desktop.timeline.title': 'ไทม์ไลน์',
+  'tour.desktop.timeline.body': 'ดูค่าของถังพักและผลการรันเปลี่ยนไปตามเวลา',
+  'tour.desktop.files.title': 'ไฟล์และการแชร์',
+  'tour.desktop.files.body':
+    'เริ่มจากเทมเพลต นำเข้าไฟล์ คัดลอกลิงก์แชร์ หรือส่งออกกราฟหรือพื้นที่ทำงาน',
+  'tour.mobile.open.title': 'เปิดกราฟ',
+  'tour.mobile.open.body':
+    'เปิดกราฟที่แชร์มา — จากลิงก์ #g1= หรือด้วยการนำเข้าไฟล์จากเมนู เพิ่มเติม',
+  'tour.mobile.canvas.title': 'การเลื่อนดู',
+  'tour.mobile.canvas.body': 'ลากเพื่อเลื่อน หุบนิ้วเพื่อซูม ปุ่มพอดีจอจัดไดอะแกรมเข้ากลางใหม่',
+  'tour.mobile.inspect.title': 'การตรวจดู',
+  'tour.mobile.inspect.body': 'แตะโหนดหรือเส้นเชื่อมเพื่ออ่านค่าของมัน การแก้ไขทำได้บนเดสก์ท็อปเท่านั้น',
+  'tour.mobile.run.title': 'การรัน',
+  'tour.mobile.run.body': 'เดินแบบจำลองทีละขั้น หรือกดปุ่ม เล่น เพื่อรัน',
+  'tour.mobile.timeline.title': 'ไทม์ไลน์',
+  'tour.mobile.timeline.body': 'เปิดแผงไทม์ไลน์เพื่อดูค่าตามเวลา',
+  'tour.mobile.more.title': 'เพิ่มเติม',
+  'tour.mobile.more.body': 'การแชร์ การส่งออก และการเปลี่ยนภาษา อยู่ในเมนูนี้ทั้งหมด',
+  'tour.help.menuLabel': 'ช่วยเหลือ',
+  'tour.help.takeTour': 'เริ่มทัวร์ชม',
+  'tour.help.about': 'เกี่ยวกับ Loop Studio',
+  'tour.help.feedback': 'ส่งความคิดเห็น (แบบฟอร์มภาษาอังกฤษ)',
+  'tour.help.feedbackAria': 'ส่งความคิดเห็น (แบบฟอร์มภาษาอังกฤษ): เปิดในแท็บใหม่',
+  'about.createdBy': 'จัดทำโดย',
+  'about.repo': 'ที่เก็บโค้ดบน GitHub',
+  'about.repoAria': 'ที่เก็บโค้ด Loop Studio บน GitHub',
+  'about.notAffiliated':
+    'Loop Studio เป็นโครงการอิสระ ไม่ได้มีความเกี่ยวข้องกับ Machinations.io และไม่ได้รับการรับรองจาก Machinations.io',
+  'hint.close': 'ปิดหมายเหตุนี้',
+  'hint.emptyCanvas.body': 'เริ่มจากเทมเพลต หรือลากชนิดโหนดเข้ามาจากแผงด้านซ้าย',
+  'hint.mc.body':
+    'Monte Carlo รันแบบจำลองหลายครั้งแล้วแสดงการกระจายของผลลัพธ์ ไม่ใช่คำทำนายค่าเดียว',
+  'hint.review.body':
+    'การตรวจทานข้อเสนอไม่เปลี่ยนโปรเจกต์ที่เปิดอยู่เลย — ไม่มีอะไรขยับจนกว่าจะสั่งนำไปใช้',
+  'hint.importFirstCommit.body':
+    'เพิ่ม {n, plural, other {# พารามิเตอร์}} จาก {tables} ค่าของพารามิเตอร์อยู่ในแผง ข้อมูลเข้า หากต้องการใช้ในค่าที่คำนวณ ให้พิมพ์ @ ในนิพจน์แล้วเลือกชื่อ ช่องอัตราไหลของเส้นเชื่อมและตัวกระตุ้นก็ใช้ตัวเลือกเดียวกันนี้',
+  'help.contextual.hint.import.name': 'การนำเข้าตาราง',
+  'help.contextual.hint.import.desc': 'แสดงครั้งเดียว ทันทีหลังการนำเข้าตารางครั้งแรกลงบนผืนผ้าใบ',
+  'hint.frameMove.body':
+    'ลากขอบของกรอบเพื่อย้ายกรอบพร้อมทุกอย่างที่อยู่ข้างใน กด Alt ค้างไว้ขณะลากเพื่อย้ายเฉพาะกรอบ',
+  'help.contextual.hint.frameMove.name': 'การย้ายกรอบ',
+  'help.contextual.hint.frameMove.desc':
+    'แสดงครั้งเดียว เมื่อเลือกกรอบกลุ่มเป็นครั้งแรกบนผืนผ้าใบที่แก้ไขได้',
+  'hint.focusFilter.body':
+    'กราฟเริ่มแน่นหรือไม่ โฟกัสจะหรี่ทุกอย่างยกเว้นบริเวณรอบโหนดหนึ่ง ส่วนตัวกรองจะซ่อนชนิดของโหนดหรือเส้นเชื่อม',
+  'help.contextual.menuLabel': 'ความช่วยเหลือตามบริบท',
+  'help.contextual.title': 'ความช่วยเหลือตามบริบท',
+  'help.contextual.intro':
+    'Loop Studio แสดงหมายเหตุสั้น ๆ ครั้งแรกที่แต่ละกรณีเกิดขึ้น เปิดใหม่อีกครั้งเพื่อให้แสดงอีกในครั้งถัดไปที่เข้าเงื่อนไข',
+  'help.contextual.rearm': 'แสดงอีกครั้งในครั้งถัดไป',
+  'help.contextual.rearmWaiting': 'รอแสดงในครั้งถัดไป',
+  'help.contextual.rearmWaitingHint': 'จะแสดงเองในโอกาสถัดไปที่เข้าเงื่อนไข',
+  'help.contextual.hint.emptyCanvas.name': 'ผืนผ้าใบว่าง',
+  'help.contextual.hint.emptyCanvas.desc': 'แสดงบนผืนผ้าใบว่าง ก่อนที่จะมีโหนดใด ๆ',
+  'help.contextual.hint.mc.name': 'Monte Carlo',
+  'help.contextual.hint.mc.desc': 'แสดงครั้งแรกที่หน้าต่าง Monte Carlo เปิดขึ้น',
+  'help.contextual.hint.review.name': 'การตรวจทาน',
+  'help.contextual.hint.review.desc': 'แสดงครั้งแรกที่ข้อเสนอที่แชร์มาเปิดขึ้นเพื่อตรวจทาน',
+  'help.contextual.hint.focusFilter.name': 'โฟกัส / ตัวกรอง',
+  'help.contextual.hint.focusFilter.desc':
+    'แสดงเมื่อกราฟใหญ่พอจนโฟกัสและตัวกรองเริ่มมีประโยชน์',
+} as const
+
+export type UiKey = keyof typeof ui
+export default ui

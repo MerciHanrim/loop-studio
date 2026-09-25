@@ -333,6 +333,39 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/tr').then((m) => m.default),
   },
+  {
+    code: 'th',
+    englishName: 'Thai',
+    nativeName: 'ไทย',
+    displayNameKey: 'language.thai',
+    direction: 'ltr',
+    // `th` IS its own base subtag, so §L5.2 step 3 carries `th-TH` and any
+    // script / extension subtag with no `baseFallbackFor` — the same shape as
+    // `ru` and `tr`. No other registered code shares the `th` subtag, and the
+    // neighbouring South-East Asian languages (`lo`, `km`, `my`, `vi`, `id`,
+    // `ms`) are unrelated tags that cannot reach it.
+    //
+    // MEASURED, and a first for this registry: `Intl.PluralRules('th')`
+    // declares exactly ONE category, `other`. Every plural message in the
+    // catalog therefore has a single arm, and 0 / 1 / 2 / 1000000 all render
+    // through it with `#` still grouping (`1,000,000`).
+    //
+    // Numbers and percent match `en` exactly — Latin digits, `,` grouping,
+    // `.` decimal, and `84%` with the sign after and no gap. The one thing
+    // that is NOT shared with any existing locale is the SCRIPT: Thai needed
+    // its own typeface (IBM Plex Sans Thai) rather than another subset of
+    // IBM Plex Sans, and it writes without spaces between words, which is why
+    // a runtime label is wrapped in `“…”` here.
+    // `th-TH` rather than a bare `th`: the number / date contract is stated
+    // for THAILAND explicitly, the way `ja-JP` does. MEASURED — the two tags
+    // resolve identically today (`numberingSystem: latn`, `1,234,567.89`,
+    // `84%` as U+0038 U+0034 U+0025, and `other` for 0 / 1 / 2 / 1000000), so
+    // this buys no behaviour change; it pins the region so a future Intl
+    // difference between `th` and `th-TH` cannot move the UI silently.
+    numberLocale: 'th-TH',
+    enabled: true,
+    catalog: () => import('./locales/th').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

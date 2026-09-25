@@ -418,6 +418,35 @@ const TR: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// `th` — §L2.19. `ขั้นตอน` is a stage of a process; `ขั้น` alone is the
+// simulation timestep, so the production step keeps the longer word. `ดรอป`
+// and `ลูท` are not needed here — this module is a factory, not a loot table.
+const TH: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'การจัดหา',
+    inbox: 'คิวขาเข้า',
+    intake: 'การรับเข้า',
+    process: 'การแปรรูป',
+    spoilage: 'ของเสีย',
+    outbox: 'คิวขาออก',
+    shipped: 'การจัดส่ง',
+    batch_size: 'ขนาดล็อต',
+    in_system: 'หน่วยที่อยู่ในระบบ',
+    planned_run: 'ปริมาณผลิตตามแผน',
+  },
+  'reward-split': {
+    activity: 'กิจกรรม',
+    wallet: 'กระเป๋าเงิน',
+    allocate: 'จัดสรร',
+    spending: 'การใช้จ่าย',
+    savings: 'เงินเก็บ',
+    withdrawals: 'การถอน',
+    target_savings: 'เป้าหมายเงินเก็บ',
+    net_worth: 'มูลค่าสุทธิ',
+    progress: 'ความคืบหน้าสู่เป้าหมาย',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -431,6 +460,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   'pt-PT': PT_PT,
   ru: RU,
   tr: TR,
+  th: TH,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

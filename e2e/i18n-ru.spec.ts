@@ -305,8 +305,9 @@ test('Cyrillic renders in IBM Plex Sans, not a system fallback', async ({ page }
 
   // The two ranged Cyrillic faces are declared and loaded. Filtered rather
   // than asserted over every ranged face: a later locale may add ranged faces
-  // of its own for its own script (`tr` adds two, over
-  // `U+011E-011F, U+0130, U+015E-015F`), and those are not Cyrillic and must
+  // of its own for its own script (`tr` adds two over
+  // `U+011E-011F, U+0130, U+015E-015F`, and `th` two more over
+  // `U+0E01-0E5B, U+200C-200D, U+25CC`), and those are not Cyrillic and must
   // not make this test red.
   const cyrillic = fonts.ranges.filter((r) => r.includes('U+400-45F'))
   expect(cyrillic.length).toBeGreaterThanOrEqual(2)

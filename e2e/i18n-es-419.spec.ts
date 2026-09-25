@@ -173,7 +173,7 @@ test.describe('the language search box finds Spanish', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(14) // 13 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(15) // 14 shipped + the dev pseudo-locale
 
     for (const q of ['Español', 'espanol', 'ESPANOL', 'Latinoamérica', 'latinoamerica', 'Spanish', 'es-419']) {
       await search(page).fill(q)
@@ -187,7 +187,10 @@ test.describe('the language search box finds Spanish', () => {
 
   test('is findable from every shipped UI language, by its name there', async ({ page }) => {
     await openApp(page)
-    for (const [ui, query] of [
+    // The word a user would actually type, in each UI language. Written by
+    // hand on purpose: deriving it from the catalog would only prove that the
+    // catalog equals itself.
+    const NAMES = [
       ['en', 'Spanish'],
       ['ko', '스페인어'],
       ['ja', 'スペイン語'],
@@ -195,9 +198,29 @@ test.describe('the language search box finds Spanish', () => {
       ['zh-Hant', '西班牙文'],
       ['fr', 'Espagnol'],
       ['de', 'Spanisch'],
+      ['es-419', 'Español'],
       ['pt-BR', 'Espanhol'],
       ['es-ES', 'Español'],
-    ] as const) {
+      ['pt-PT', 'Espanhol'],
+      ['ru', 'Испанский'],
+      ['tr', 'İspanyolca'],
+      ['th', 'สเปน'],
+    ] as const
+
+    // EXHAUSTIVE, and checked against the product rather than against a
+    // comment. This table was a snapshot of the set that shipped with `es-419`
+    // (plus one later row) while its NAME claimed every shipped UI language.
+    // The picker is the source of truth, so the next locale makes this red
+    // until its row exists.
+    await openLanguageMenu(page)
+    const shipped = (
+      await options(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))
+    ).filter((c) => c !== 'en-XA')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    expect(NAMES.map(([ui]) => ui).slice().sort()).toEqual(shipped.slice().sort())
+
+    for (const [ui, query] of NAMES) {
       await setLocale(page, ui)
       await openLanguageMenu(page)
       await search(page).fill(query)

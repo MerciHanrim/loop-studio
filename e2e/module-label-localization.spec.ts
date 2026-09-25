@@ -56,6 +56,7 @@ const STR = {
   'pt-PT': { menuBtn: 'Inserir módulo ▾', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
   ru: { menuBtn: 'Вставить модуль ▾', bufferedStep: 'Производственный этап с буферами', rewardSplit: 'Цикл распределения награды' },
   tr: { menuBtn: 'Modül ekle ▾', bufferedStep: 'Tamponlu üretim aşaması', rewardSplit: 'Ödül paylaştırma döngüsü' },
+  th: { menuBtn: 'แทรกมอดูล ▾', bufferedStep: 'ขั้นการผลิตที่มีบัฟเฟอร์', rewardSplit: 'วงจรแบ่งรางวัล' },
 } as const
 type Locale = keyof typeof STR
 
@@ -80,6 +81,7 @@ const LABELS = {
     // for Scrap. `Sevkiyat` is a noun, like every other locale in this table;
     // a finite `Sevk edildi` would have been a whole sentence on a Pool.
     tr: ['Tedarik', 'Giriş kuyruğu', 'Kabul', 'İşleme', 'Kayıp', 'Çıkış kuyruğu', 'Sevkiyat', 'Parti boyutu', 'Sistemdeki birim', 'Planlanan üretim'],
+    th: ['การจัดหา', 'คิวขาเข้า', 'การรับเข้า', 'การแปรรูป', 'ของเสีย', 'คิวขาออก', 'การจัดส่ง', 'ขนาดล็อต', 'หน่วยที่อยู่ในระบบ', 'ปริมาณผลิตตามแผน'],
   },
   'reward-split': {
     en: ['Activity', 'Wallet', 'Allocate', 'Spending', 'Savings', 'Withdrawals', 'Savings target', 'Net worth', 'Progress to target'],
@@ -100,6 +102,7 @@ const LABELS = {
     // `Dağıt` for Allocate is the verb behind `Dağıtıcı`, this node's own kind
     // name, so the label and the kind read as one word in Turkish.
     tr: ['Etkinlik', 'Cüzdan', 'Dağıt', 'Harcama', 'Birikim', 'Çekimler', 'Birikim hedefi', 'Net değer', 'Hedefe ilerleme'],
+    th: ['กิจกรรม', 'กระเป๋าเงิน', 'จัดสรร', 'การใช้จ่าย', 'เงินเก็บ', 'การถอน', 'เป้าหมายเงินเก็บ', 'มูลค่าสุทธิ', 'ความคืบหน้าสู่เป้าหมาย'],
   },
 } as const
 
@@ -204,7 +207,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (d) => void d.accept().catch(() => {}))
 })
 
-const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th'] as const
 
 for (const loc of SHIPPED) {
   test(`${loc}: inserting "Buffered production step" via the menu gets the ${loc} labels`, async ({ page }) => {
@@ -282,7 +285,7 @@ test('an already-inserted instance follows a switch into zh-Hans, zh-Hant, fr an
   await insertViaMenu(page, 'en', 'buffered-step')
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th'] as const) {
     await setLocale(page, loc)
     expect(labelsOf(await gs(page), before), `switch to ${loc}`).toEqual(
       [...LABELS['buffered-step'][loc]].sort(),
@@ -308,7 +311,7 @@ test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr / de switch'
   const mine = inserted.find((n) => n.data?.label === 'Wallet')!
   await renameNode(page, mine.id, 'Mein Konto')
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'en'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'en'] as const) {
     await setLocale(page, loc)
     const now = (await gs(page)).nodes.find((n) => n.id === mine.id)
     expect(now?.data?.label, `${loc} must not overwrite a user rename`).toBe('Mein Konto')

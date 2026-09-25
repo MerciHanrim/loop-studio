@@ -1778,6 +1778,306 @@ lowercase and modified (3 labels). `trCopy.test.ts` pins both halves, and
 also pins that the 5 keys are exactly the ones whose English original names
 Drain — so a new English sentence about Drain cannot quietly skip the term.
 
+**L2.19 — Thai is `th`, the first script that writes without spaces between
+words and the first locale with ONE plural category.** Shipped as the
+fourteenth language, translated from `en`. **846 keys** (the 845 of `tr` plus
+`language.thai`), plus 203 template-label slots and 19 module labels.
+
+**Counting, stated once.** Each of the thirteen existing locale dicts carries
+**203** slots; the new `th` dict carries **203**; after registration all
+**fourteen** carry the same **196 nodes + 7 frames**, derived from
+`examples/*.json` and checked by `check:template-labels` for every locale
+including `th`. In the picker Thai sorts between Spanish (Spain) and Turkish —
+`displayLocaleOrder` keys on `englishName`, and `Thai` < `Turkish` (§L5.6).
+
+### One plural category, measured before 846 keys were written
+
+`new Intl.PluralRules('th').resolvedOptions().pluralCategories` is `['other']`
+— the first locale here for which that list has a single entry. 0, 1, 2 and a
+million all select `other`.
+
+That is a reason to check *more*, not less. A stray `one {…}` in a Thai message
+parses, validates and renders: ICU simply never selects the arm, so every gate
+that reads the message as a whole stays green and the arm sits there as dead
+copy. Only a check on the SELECTORS can see it, which is what `thCopy.test.ts`
+does — every block in the catalog must have exactly one arm and that arm must
+be `other`. The walk it uses is §L2.20.
+
+### No spaces between words, so no "words" to split on
+
+Thai runs a sentence together with no inter-word whitespace. Every technique
+the Latin-script copy guards lean on — split on whitespace, count tokens, look
+at "words" — is meaningless against a single space-free run.
+
+The untranslated check is therefore built on **Unicode script runs**: a
+character is judged by the script it belongs to, never by where a space is.
+`Thai`, `Common` (digits, punctuation, spaces) and `Inherited` (the combining
+marks that sit on a Thai base) are allowed; Latin is allowed but separately
+governed, below.
+
+The Turkish slot-suffix contract (§L2.18) is deliberately NOT carried over.
+Thai is not agglutinative and has no case suffixes, so `{label}` needs no
+classifier noun in front of a suffix. What it needs is a visible BOUNDARY —
+with no spaces, a runtime label runs straight into the sentence around it — so
+a slot holding user text is wrapped in `“…”`. That is the Royal Institute's
+Thai quotation mark; `«»`, which `tr` uses, is not Thai punctuation and is
+banned across all three runtime surfaces.
+
+### Latin in a Thai value: two closed sets, then the derived rule
+
+A Latin run inside a Thai string is sometimes right — `CSV`, `Ctrl`, `Monte
+Carlo`, `JSON` — and the first version of this contract derived the
+permission: *a Latin word must appear in the English original of the same key*.
+That is a real rule and it is kept, but on its own it has a hole wide enough to
+drive an untranslated sentence through. Copy any fragment of the English
+original into the Thai value and it passes, BECAUSE those words are in the
+English original. Partial non-translation is exactly what the contract exists
+to catch, and the derived rule is blind to it. MEASURED: replacing part of
+`about.notAffiliated` with `is an independent project` passed.
+
+So the primary contract is two closed sets, both measured then declared:
+
+- **which strings may carry a Latin run at all** — 146 of them, as
+  `surface:id`, across the catalog, the template labels, the frame labels and
+  the module overlay. A string not on the list must be pure Thai, so a
+  sentence left in English announces itself before any vocabulary question is
+  asked;
+- **which words those runs may be** — 72, grouped by the reason each is
+  allowed: 13 brand and product names, 10 file formats and the export commands
+  named after them, 11 keyboard keys as printed on the key, 23 wire tokens
+  (column names, model-version tags, expression syntax, share-URL fragments,
+  the axis letters in the a11y messages), 12 placeholder examples and gacha
+  proper nouns, and 3 held per-key.
+
+The three per-key ones are `Pity`, `Hard pity` and `Pickup`. They are the terms
+the genre uses in Thai as well, but they are the vocabulary of ONE template;
+letting them float catalog-wide would make `Pickup` legal in a toolbar tooltip.
+Each is pinned to exactly the keys that carry it, in both directions. `drop`
+and `loot` go the other way and are transliterated — `ดรอป`, `ลูท`.
+
+A long hardcoded list is the right shape here: it is a translation policy, not
+a cache of something computable. The derived rule stays behind it as a second
+contract, and it is the one that fires when an ALLOWED word appears in the
+wrong allowed key — MEASURED: adding `Standard` to `mc.title` is caught by the
+derived rule and by nothing else.
+
+### Numbers, and why `numberLocale` is spelled out
+
+Thai formats numbers exactly as `en` does: Latin digits (`latn`),
+`1,234,567.89`, and the percent sign AFTER the number with no gap — `84%`,
+the same shape `en` uses and the opposite of `tr` (§L2.18). `percentContract`
+records `th` as `{ position: 'after', gap: 'none' }`.
+
+`numberLocale` is `'th-TH'`. Bare `th` was MEASURED to produce identical
+output, so this is not a bug fix and not future-proofing — it is
+**explicitness**. Every other entry in the registry names a region here, and a
+reader should not have to know that `th` and `th-TH` happen to agree today.
+
+### The resolver needs nothing new
+
+`th` is a locale whose code IS its own base subtag, like `ru` and `tr`. §L5.2
+step 3 (exact base-subtag match) therefore carries `th-TH`, `th-Thai`,
+`th-TH-u-nu-thai` and every other tag whose base is `th`, for free. No
+`baseFallbackFor` entry, and no resolver change.
+
+### The font is a different typeface, lent to one script
+
+`@fontsource/ibm-plex-sans` has NO Thai subset — its files are latin,
+latin-ext, cyrillic, cyrillic-ext, greek and vietnamese — so before this change
+Thai was entirely system-rendered. IBM Plex Sans Thai is a separate package
+with its own family name, which is why it is declared under `'IBM Plex Sans'`
+with a `unicode-range` rather than added to a stack: `--font-sans` and every
+stack below it are untouched.
+
+**`document.fonts.check()` lied again — the third locale in a row.** It
+answered TRUE for glyphs the browser did not have. The measurement that works
+is a three-way WIDTH comparison (the Plex stack, a forced system stack, and a
+deliberately absent family): six Thai samples at 64px over 10 repetitions —
+bare consonants, the endonym, a tone mark above, two marks stacked above, marks
+above and below, and a real word — were byte-identical to the forced fallback
+at both weights.
+
+**The range is wider than today's catalog, on purpose.** Everywhere else in
+`index.css` a `unicode-range` is a measurement of today's content. That rule is
+about SHIPPED STRINGS, and this product is an editor: a user types Thai node
+labels no catalog contains. So the range covers what INPUT needs —
+`U+0E01-0E5B` (the Thai block), `U+200C-200D` (ZWNJ / ZWJ, which control
+shaping in typed text) and `U+25CC` (dotted circle, which carries an isolated
+combining mark while a syllable is half-typed). fontsource's own `thai` subset
+range also lists `U+02D7`, `U+0303` and `U+0331`; those are generic combining
+marks Latin text can use, and including them would hand Latin glyphs to a Thai
+typeface — the same defect shape as importing a fontsource subset CSS
+wholesale. They are excluded, and the Latin / Turkish / Cyrillic control widths
+are unchanged to the hundredth of a pixel with these faces installed.
+
+Cost: dist +23,986 bytes, portable +31,802 bytes, both woff2 in the PWA
+precache manifest. **Line height is the open risk, not width**: Thai ink is 19
+above + 6 below at 18px against Latin's 13 + 4, so any box with
+`line-height <= 1.0` has less room than the marks need.
+
+### What `thCopy.test.ts` pins
+
+- **the key set and the three surfaces** — 846 catalog keys, 196 template
+  labels, 7 frame labels, 19 module labels, no empty value anywhere. All three
+  surfaces are walked together, because the `pt-BR` lesson was that a guard
+  reading only the catalog misses what the overlays carry;
+- **script runs** — no character from a script outside Thai / Common /
+  Inherited / Latin, with a non-vacuity floor so the check cannot pass by
+  finding no Thai at all;
+- **Latin** — the two closed sets above, the per-key words, and the derived
+  rule behind them;
+- **quotation** — no guillemet on any runtime surface, and a floor proving
+  labels really are wrapped;
+- **the eight node kinds** — palette, canvas and default label agree kind by
+  kind, and the eight names are distinct;
+- **Drain** — every key whose English original names Drain carries the one
+  Thai term, derived from English rather than listed by hand. The WORD is not
+  locked (see open items), only the agreement, so a later rename moves all the
+  surfaces together and this file keeps passing;
+- **Register** — the nine keys that name it use one term and none of them says
+  `บันทึก`, which is both "a record" and "save"; the ban is scoped, and a
+  separate assertion proves `บันทึก` is still legal elsewhere;
+- **plurals** — one arm, `other`, `#` preserved, over §L2.20's walk;
+- **parser position vs table column** — the §L2.11 split, in Thai
+  (`ตำแหน่งอักขระ` against `คอลัมน์`).
+
+### The second review
+
+The first pass shipped a catalog every gate accepted. A second pass read all
+**846 en↔th pairs in order** — not a term search, because the `ru` arc had
+already shown that a vocabulary screen measures the screen rather than the
+catalog — and every suspicion was then checked against the other thirteen
+locales before it was called a defect. That check killed four of them:
+
+- `ปุ่มพอดีจอ` naming a shortened "Fit" control — `fr`, `de`, `ru` and `tr` all
+  name it the same shortened way (`« Ajuster »`, `„Einpassen"`, `«Вписать»`,
+  `Sığdır düğmesi`);
+- `มอดูล` for module — the Royal Institute transliteration, and consistent
+  with `โปรเจกต์`, `เทมเพลต` and `บัฟเฟอร์`. A policy, not an inconsistency;
+- `สเปน (สเปน)` for Spanish (Spain) — every locale has the same shape
+  (`Español (España)`), and Thai has no adjective form to break it with;
+- `เธรด` for `{workers}` — `es`, `ru`, `zh` and `tr` all say "thread" too.
+
+What survived was **5 fixes over 12 keys**, and the widest was a term:
+
+- **trigger `ตัวกระตุ้นจังหวะ` → `ทริกเกอร์`** (3 keys). The defect is
+  structural, not stylistic: activator was `ตัวกระตุ้น`, a strict SUBSTRING of
+  trigger, and the two sit next to each other in one dropdown. Thai was the
+  only one of the fourteen locales where that was true — the other thirteen
+  all use two unrelated words (`déclencheur`/`activateur`,
+  `триггер`/`активатор`, `트리거`/`액티베이터`). Transliterating trigger
+  restores the separation and leaves `การกระตุ้น` (Activation) beside
+  `ตัวกระตุ้น` (activator), which is exactly the kinship English has;
+- **seed `ซีด` → `ค่าตั้งต้น`** (6 keys). `ซีด` is the phonetic
+  transliteration and also the everyday word for *pale*, so the runs/seed/pools
+  column list read as "run, pale, pool". Keeping the English would have been
+  the outlier — every other locale localises it — so this takes German's
+  `Startwert` route. Composite phrases were translated in context rather than
+  substituted: `base seed` is `ค่าตั้งต้นหลัก`, and the tooltip's second
+  mention of "seed" becomes the bare `ค่าเดิม` under its own antecedent.
+  MEASURED afterwards in the real render: the label is 37.4px against `en`'s
+  25.9 and German's already-shipping 58.3, with no truncation;
+- **`ขนาดขั้นที่เพิ่มทีละ` → `ขนาดขั้น`** (1 key) — a dangling `ทีละ` with no
+  object, and the Inspector's longest field label;
+- **`เพิ่มตารางอีกหนึ่ง` → `เพิ่มอีกหนึ่งตาราง`** (1 key) — a missing
+  classifier;
+- **`ขนาน, {workers}` → `ขนาน {workers}`** (1 key) — Thai sets a list with a
+  space, not a comma.
+
+### The mobile render, measured
+
+`docs/mobile.md` §MV4's top bar sets `line-height: 1.2` at 11px on the caption,
+which §L2.19's font work had already flagged as the real risk. MEASURED at
+390×844 with the translated UI, against `en` as the control:
+
+- `.toolbar--mobile .toolbar__vr` — Thai ink is 15px tall (11 above + 4 below)
+  in a 13.19px box, so it paints **2.1px above its own box** where `en` stays
+  0.9px inside. It is NOT clipped: the nearest ancestor that clips has 19.3px
+  of room, and no sibling is within range. The cost is that the marks eat into
+  the header's top padding, ~6px → ~3.9px;
+- `.sheet__title` — the same shape, 1.0px above its box, also unclipped;
+- `.btn.mob-more` — renders `⋯`, not Thai, and has 15.4px of vertical room. No
+  overlap with the caption or the revision chip in either language;
+- **no truncation anywhere** — `scrollWidth`/`scrollHeight` overflow is 0 for
+  the top bar, all 26 sheet rows and all 30 language-menu rows, in both
+  languages. The Thai caption is in fact NARROWER than the English one (131.8px
+  against 142.2), so the `nowrap` row is under less pressure, not more.
+
+### Open items
+
+**No Thai native-speaker or professional translation review was performed.**
+
+1. **`“ ”`** as the quotation mark is the Royal Institute standard and is the
+   right default, but what a screen reader does with it at its default
+   punctuation level was NOT measured.
+2. **`ค่าที่คำนวณ`** for Register is decided against `บันทึก`, but its
+   naturalness as a node-kind name is unreviewed.
+3. **`ทางระบาย` (Drain), `ถังพัก` (Pool), `ตัวกระจาย` (Gate),
+   `ผืนผ้าใบ` (canvas)** are provisional. The guards pin agreement, not
+   spelling, for exactly this reason.
+4. **`Pity` / `Hard pity` / `Pickup`** kept in English, the way every other
+   locale keeps them; whether Thai gacha players use an established Thai term
+   instead was not established.
+5. **Line height against the combining marks** — measured above and found not
+   to clip, but the caption now paints 2.1px into the header's top padding. A
+   longer Thai string in that slot would have less margin than the number
+   suggests.
+6. **The quoted Google Sheets menu path** in `import.qs.sources.sheets` and
+   `import.qs.sources.privacy`. `“เผยแพร่ไปยังเว็บ”` and `ไฟล์ → ดาวน์โหลด`
+   were checked against Google's own Thai help and match — but those pages
+   carry Google's notice that they **may contain AI-translated content**, so
+   unlike the Turkish documentation that settled the same question for `tr`
+   (§L2.18) they are not an authoritative source for product UI strings. The
+   exact Thai name of the `.csv` download option is therefore UNVERIFIED.
+
+**L2.20 — the ICU plural walker, and a guard that was green because it was
+empty.** `src/i18n/icuPlural.ts`, fixtures in `icuPlural.test.ts`.
+
+Every per-locale copy guard has to look inside `{n, plural, …}`, and the
+obvious way to find those blocks is wrong in a way that goes GREEN:
+
+```js
+message.split(/(?=\{\s*\w+\s*,\s*plural\s*,)/).slice(1)
+```
+
+A zero-width match at index 0 does not split in JavaScript — `'abc'.split(
+/(?=a)/)` is `['abc']` — so `.slice(1)` throws the only block away whenever the
+message STARTS with its plural. MEASURED: 17 of this catalog's 19 plural
+messages do. `trCopy.test.ts` shipped with that idiom and was examining **6
+blocks across 19 keys**; the other 14 keys were examined as nothing, and the
+test passed because there was nothing left to fail. It was found while
+falsifying the same idiom in `thCopy.test.ts`: a deliberately broken Thai
+plural did not go red.
+
+The repair has its own two traps, and both were reached by fixture rather than
+by reasoning:
+
+- **a bare depth counter cannot read `'{'`**, ICU's quoted literal brace
+  (`error.EXPR_UNCLOSED_REF.message` carries one). It counts an opener that
+  never closes, runs off the end, and DROPS the block — the same silent
+  vacuity in a different disguise;
+- **`''` is an escaped apostrophe whatever follows it.** MEASURED against the
+  first repair: with only the "a quote opens before `{`, `}` or `#`" rule,
+  `''{label}` made the SECOND apostrophe an opener and the block was dropped
+  again. Inside a quoted literal `''` likewise does not close the quote, so
+  the close cannot be an `indexOf` either.
+
+The module is shared rather than copied into each copy test, because a copied
+idiom is how the defect spread in the first place. Both error paths **throw**
+instead of returning less. Fixtures cover a block at index 0, leading prose,
+two and three sibling blocks, a `{slot}` inside an arm, a quoted brace, `''`
+before ordinary text and before a brace, `''` nested inside a quote, an
+ordinary apostrophe (`d'un`, a Turkish suffix), `select` not matching,
+`offset:`, an explicit `=0` arm, and an unbalanced block.
+
+**The non-vacuity assertion is a COUNT, not a floor.** `blocks >= keys` is not
+enough: three keys carry more than one block (`import.status.counts` has three,
+`import.issueSummary` and `import.summary` two each), so a walker that found
+only the first block of a multi-block message would still clear a per-key
+floor. Each locale therefore compares its block count **per key against the
+English original** and asserts the totals — today **19 keys / 23 blocks** — so
+a walk that stops seeing blocks fails loudly instead of passing over nothing.
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**

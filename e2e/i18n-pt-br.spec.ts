@@ -164,7 +164,7 @@ test.describe('the language search box finds Portuguese', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(14) // 13 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(15) // 14 shipped + the dev pseudo-locale
 
     for (const q of [
       'Português',
@@ -189,7 +189,10 @@ test.describe('the language search box finds Portuguese', () => {
 
   test('is findable from every shipped UI language, by its name there', async ({ page }) => {
     await openApp(page)
-    for (const [ui, query] of [
+    // The word a user would actually type, in each UI language. Written by
+    // hand on purpose: deriving it from the catalog would only prove that the
+    // catalog equals itself.
+    const NAMES = [
       ['en', 'Portuguese'],
       ['ko', '포르투갈어'],
       ['ja', 'ポルトガル語'],
@@ -199,7 +202,27 @@ test.describe('the language search box finds Portuguese', () => {
       ['de', 'Portugiesisch'],
       ['es-419', 'Portugués'],
       ['pt-BR', 'Português'],
-    ] as const) {
+      ['es-ES', 'Portugués'],
+      ['pt-PT', 'Português'],
+      ['ru', 'Португальский'],
+      ['tr', 'Portekizce'],
+      ['th', 'โปรตุเกส'],
+    ] as const
+
+    // EXHAUSTIVE, and checked against the product rather than against a
+    // comment. This table froze at the nine languages that shipped with
+    // `pt-BR` while its NAME claimed every shipped UI language. The picker is
+    // the source of truth, so the next locale makes this red until its row
+    // exists.
+    await openLanguageMenu(page)
+    const shipped = (
+      await options(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))
+    ).filter((c) => c !== 'en-XA')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    expect(NAMES.map(([ui]) => ui).slice().sort()).toEqual(shipped.slice().sort())
+
+    for (const [ui, query] of NAMES) {
       await setLocale(page, ui)
       await openLanguageMenu(page)
       await search(page).fill(query)

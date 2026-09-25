@@ -33,6 +33,7 @@ const SHIPPED_ORDER = [
   'ru', //      Russian
   'es-419', //  Spanish (Latin America)
   'es-ES', //   Spanish (Spain)  — sorts right after its Latin American sibling
+  'th', //      Thai
   'tr', //      Turkish
 ]
 
