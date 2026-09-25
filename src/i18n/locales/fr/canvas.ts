@@ -110,6 +110,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Or',
   'canvas.frame.color.violet': 'Violet',
   'canvas.frame.color.rose': 'Rose',
+  'canvas.frame.props.title': 'Réglages du cadre — {label}',
+  'canvas.frame.props.name': 'Nom',
   'canvas.activity.off':
     'Calque d’activité désactivé — cliquez pour teinter les parties récemment actives',
   'canvas.activity.on': 'Calque d’activité activé — cliquez pour masquer la teinte',

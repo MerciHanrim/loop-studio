@@ -34,11 +34,17 @@ export function computeBelowAnchorPos(
  *  viewport; flipped above the anchor (or vertically clamped) when there
  *  isn't room below. Recomputed on open and on `window resize` while open.
  *  Returns `null` until the first measurement lands, so the caller can keep
- *  the panel invisible for that one frame instead of flashing at a corner. */
+ *  the panel invisible for that one frame instead of flashing at a corner.
+ *
+ *  `align` defaults to `'end'` (the toolbar surfaces this was written for hang
+ *  off a right-ish trigger). The frame properties popover passes `'start'`:
+ *  a frame's title chip sits at its top-LEFT corner, so left-aligning is what
+ *  keeps the panel visually attached to it (§FC10). */
 export function useAnchoredPosition(
   anchorRef: RefObject<HTMLElement | null>,
   panelRef: RefObject<HTMLElement | null>,
   open: boolean,
+  align: 'start' | 'end' = 'end',
 ): AnchoredPos | null {
   const [pos, setPos] = useState<AnchoredPos | null>(null)
 
@@ -51,12 +57,12 @@ export function useAnchoredPosition(
       const anchor = anchorRef.current?.getBoundingClientRect()
       const panel = panelRef.current?.getBoundingClientRect()
       if (!anchor || !panel) return
-      setPos(computeBelowAnchorPos(anchor, panel, 'end'))
+      setPos(computeBelowAnchorPos(anchor, panel, align))
     }
     recompute()
     window.addEventListener('resize', recompute)
     return () => window.removeEventListener('resize', recompute)
-  }, [open, anchorRef, panelRef])
+  }, [open, anchorRef, panelRef, align])
 
   return pos
 }

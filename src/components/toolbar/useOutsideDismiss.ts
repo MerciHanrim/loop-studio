@@ -68,10 +68,32 @@ import type { RefObject } from 'react'
 // the empty pane also reports `detail: 1` and fires immediately, so panning
 // dismisses the menu the instant it starts, same as before this whole
 // investigation began.
+//
+// Two options were added for the frame properties popover (2026-09-25, §FC10);
+// both default off, so every existing caller is untouched.
+//
+//   `alsoInside` — a second element that counts as "inside". That popover is
+//   anchored to the frame's TITLE chip, which is not a DOM ancestor of the
+//   portaled panel; without this, pressing the title would dismiss the panel on
+//   the way down and its own click would immediately reopen it, so the anchor
+//   could never toggle and focus would flicker through a close/open pair.
+//   Every existing caller's surface contains its own trigger.
+//
+//   `keepOnWheel` — do not dismiss on a wheel. For a surface that FREEZES the
+//   canvas while it is open there is nothing to drift away from: a wheel over
+//   the canvas already does nothing. MEASURED (2026-09-25) it is also the only
+//   way to make that freeze hold. Dismissing from here lands DURING the wheel's
+//   own dispatch, and a microtask checkpoint runs between two listeners for the
+//   same event, so React could flush `zoomOnScroll` back to `true` before the
+//   event reached React Flow's own handler — one notch zoomed the canvas
+//   1 → 0.717 while the popover was still on screen. Callers that must dismiss
+//   AND gate something should defer the state change by a TASK, not a
+//   microtask (see §FC10's popover).
 export function useOutsideDismiss(
   active: boolean,
   ref: RefObject<HTMLElement | null>,
   onDismiss: () => void,
+  opts: { alsoInside?: RefObject<HTMLElement | null>; keepOnWheel?: boolean } = {},
 ) {
   // A ref, not a dependency, so callers don't need to memoize `onDismiss` —
   // the effect below only re-subscribes when `active` actually changes. Kept
@@ -89,8 +111,11 @@ export function useOutsideDismiss(
     // DOM by the time this runs (or one reached through a future shadow-DOM /
     // portal boundary) is still found correctly.
     const isInside = (e: Event) => {
+      const path = e.composedPath()
       const el = ref.current
-      return !!el && e.composedPath().includes(el)
+      if (el && path.includes(el)) return true
+      const anchor = opts.alsoInside?.current
+      return !!anchor && path.includes(anchor)
     }
     const onMouseDown = (e: MouseEvent) => {
       // the trailing mousedown(s) of a multi-click gesture on roughly the
@@ -100,6 +125,7 @@ export function useOutsideDismiss(
       if (!isInside(e)) onDismissRef.current()
     }
     const onWheel = (e: WheelEvent) => {
+      if (opts.keepOnWheel) return
       if (!isInside(e)) onDismissRef.current()
     }
     const onResize = () => onDismissRef.current()
@@ -112,5 +138,5 @@ export function useOutsideDismiss(
       document.removeEventListener('wheel', onWheel, true)
       window.removeEventListener('resize', onResize)
     }
-  }, [active, ref])
+  }, [active, ref, opts.alsoInside, opts.keepOnWheel])
 }

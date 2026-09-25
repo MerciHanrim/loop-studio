@@ -122,6 +122,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Dourado',
   'canvas.frame.color.violet': 'Violeta',
   'canvas.frame.color.rose': 'Rosa',
+  'canvas.frame.props.title': 'Configurações do quadro — {label}',
+  'canvas.frame.props.name': 'Nome',
   'canvas.activity.off': 'Camada de atividade desativada — clique para realçar as partes ativas recentemente',
   'canvas.activity.on': 'Camada de atividade ativada — clique para ocultar o realce',
   'canvas.activity.rowLabel': 'Camada de atividade',

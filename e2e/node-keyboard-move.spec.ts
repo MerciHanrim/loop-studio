@@ -320,7 +320,7 @@ test.describe('node keyboard move — what must NOT open a transaction (§LGR6.7
     await page.evaluate((id) => (window as unknown as Bridge).__loop.frame.getState().selectFrame(id), fid)
     await page.locator('.lgr-frame__label').first().focus()
     await page.keyboard.press('Enter')
-    await expect(page.locator('.lgr-frame__label--edit')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame-props__name')).toHaveCount(1)
     const b = await state(page)
     await holdArrow(page, 'ArrowRight', 3)
     const a = await state(page)

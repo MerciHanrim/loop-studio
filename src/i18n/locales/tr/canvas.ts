@@ -119,6 +119,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Altın',
   'canvas.frame.color.violet': 'Menekşe',
   'canvas.frame.color.rose': 'Gül',
+  'canvas.frame.props.title': 'Çerçeve ayarları — {label}',
+  'canvas.frame.props.name': 'Ad',
   'canvas.activity.off':
     'Etkinlik katmanı kapalı — son etkin bölümleri renklendirmek için tıklayın',
   'canvas.activity.on': 'Etkinlik katmanı açık — rengi kaldırmak için tıklayın',

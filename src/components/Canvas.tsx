@@ -116,6 +116,12 @@ export function Canvas() {
   const togglePanMode = useUiStore((s) => s.togglePanMode)
   const setPanMode = useUiStore((s) => s.setPanMode)
   const regionSelectArmed = useUiStore((s) => s.regionSelectArmed)
+  // docs/large-graph-readability-frame-colour.md §FC10 — a frame's properties
+  // popover is placed in SCREEN space from its title's measured rect, so the
+  // canvas is frozen while it is open: a pan or a zoom underneath would slide
+  // the panel off its own anchor, and §FC10's contract is that opening it and
+  // recolouring from it move nothing at all.
+  const framePropsOpen = useUiStore((s) => s.frameProps !== null)
   const setRegionSelectArmed = useUiStore((s) => s.setRegionSelectArmed)
   // docs/register-expression-authoring.md §RXA8 — arm-and-click reference insert
   const refInsert = useUiStore((s) => s.refInsert)
@@ -784,7 +790,9 @@ export function Canvas() {
         nodesConnectable={!noEdit && !refInsertArmed}
         edgesReconnectable={!noEdit}
         onNodeClick={refInsertArmed ? (_e, n) => onArmedNodeClick(n.id) : undefined}
-        zoomOnDoubleClick={!isMobile}
+        zoomOnDoubleClick={!isMobile && !framePropsOpen}
+        zoomOnScroll={!framePropsOpen}
+        zoomOnPinch={!framePropsOpen}
         deleteKeyCode={null} /* §LGR6.6 — owned by the effect above */
         defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         ariaLabelConfig={ariaLabelConfig}
@@ -796,7 +804,12 @@ export function Canvas() {
         // instead of panning the canvas. §LGR12 — while region select is armed,
         // a pane drag rubber-bands a selection box instead. With both off,
         // `panOnDrag` is `true`, exactly as before either tool existed.
-        panOnDrag={!frameToolArmed && !regionSelectArmed}
+        // §FC10 adds the third: while the properties popover is open the canvas
+        // holds still. A press outside dismisses it, and that dismissing press
+        // must not also pan — the popover defers its own close by a task so
+        // this stays false for the whole gesture. A wheel does not dismiss at
+        // all, so scroll-zoom simply stays off until the popover is gone.
+        panOnDrag={!frameToolArmed && !regionSelectArmed && !framePropsOpen}
         selectionOnDrag={regionSelectArmed}
         onSelectionStart={() => {
           selectionBeforeBox.current = {

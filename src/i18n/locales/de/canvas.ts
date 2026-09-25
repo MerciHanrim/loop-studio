@@ -120,6 +120,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Gold',
   'canvas.frame.color.violet': 'Violett',
   'canvas.frame.color.rose': 'Rosé',
+  'canvas.frame.props.title': 'Rahmeneinstellungen — {label}',
+  'canvas.frame.props.name': 'Name',
   'canvas.activity.off':
     'Aktivitätsebene aus — klicken, um zuletzt aktive Teile einzufärben',
   'canvas.activity.on': 'Aktivitätsebene an — klicken, um die Einfärbung auszublenden',
