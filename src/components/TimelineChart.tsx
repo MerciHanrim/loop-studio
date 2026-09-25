@@ -8,6 +8,7 @@ import { selectOverlay, useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
 import { downloadCsv } from '../ui/download'
+import { buildRunCsv } from './timelineCsv'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 
@@ -43,11 +44,7 @@ function niceCeil(v: number): number {
 }
 
 function exportRunCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[]) {
-  const head = ['step', ...pools.map((p) => p.label.replace(/[",\n]/g, ' '))].join(',')
-  const rows = series.map((pt) =>
-    [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0)].join(','),
-  )
-  downloadCsv([head, ...rows].join('\n') + '\n', 'loop-studio-run.csv')
+  downloadCsv(buildRunCsv(pools, series), 'loop-studio-run.csv')
 }
 
 export function TimelineChart() {

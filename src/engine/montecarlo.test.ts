@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { CSV_EOL, parseDelimitedText } from '../model/csv'
 import type { LoopEdge, LoopNode } from '../model/types'
 import {
   CELL_LIMIT,
@@ -302,12 +303,12 @@ describe('MC · CSV / JSON exports', () => {
   )
 
   it('series CSV: header + one row per (step, pool)', () => {
-    const lines = toSeriesCsv(r).trim().split('\n')
+    const lines = toSeriesCsv(r).trim().split(CSV_EOL)
     expect(lines[0]).toBe('step,pool,p10,p50,p90,mean,min,max')
     expect(lines.length).toBe(1 + 3 * 2) // (steps+1) × pools
   })
   it('final CSV: run,seed,<pools> in run-index order, seed matches runSeeds[]', () => {
-    const lines = toFinalCsv(r).trim().split('\n')
+    const lines = toFinalCsv(r).trim().split(CSV_EOL)
     expect(lines[0]).toBe('run,seed,A,B')
     for (let i = 0; i < 4; i++) {
       const cells = lines[1 + i].split(',')
@@ -317,9 +318,40 @@ describe('MC · CSV / JSON exports', () => {
     }
   })
   it('final-summary CSV: one row per pool', () => {
-    const lines = toFinalSummaryCsv(r).trim().split('\n')
+    const lines = toFinalSummaryCsv(r).trim().split(CSV_EOL)
     expect(lines[0]).toBe('pool,p10,p50,p90,mean,min,max')
     expect(lines.length).toBe(3)
+  })
+
+  // docs/data-import.md §CSV — the three Monte-Carlo exports share the one
+  // writer in `model/csv.ts`, so they carry the same record separator and the
+  // same quoting as every other CSV this product downloads. Before this pass
+  // they joined rows with a bare LF and ran a pool label through
+  // `s.replace(/[",\n]/g, ' ')`, which SILENTLY DESTROYED any comma, quote or
+  // newline the user had put in it.
+  it('all three use CRLF records and end with one', () => {
+    for (const csv of [toSeriesCsv(r), toFinalCsv(r), toFinalSummaryCsv(r)]) {
+      expect(csv.endsWith(CSV_EOL)).toBe(true)
+      expect(csv.split(CSV_EOL).length - 1).toBe(csv.split('\n').length - 1)
+    }
+  })
+
+  it('a hostile pool label round-trips LOSSLESSLY, in the header and in a cell', () => {
+    const hostile = 'Zone "A", step\nend'
+    const h = runMonteCarlo(
+      [source('S'), pool(hostile, 0)],
+      [edge('e1', 'S', hostile, '1')],
+      { baseSeed: 1, runs: 2, steps: 2, tracked: [] },
+    )
+    // header (final CSV)
+    const finalRows = parseDelimitedText(toFinalCsv(h), ',')
+    expect(finalRows.ok).toBe(true)
+    expect(finalRows.ok && finalRows.rows[0]).toEqual(['run', 'seed', hostile])
+    // cell (series + summary CSVs put the label in column 2 / column 1)
+    const seriesRows = parseDelimitedText(toSeriesCsv(h), ',')
+    expect(seriesRows.ok && seriesRows.rows[1][1]).toBe(hostile)
+    const summaryRows = parseDelimitedText(toFinalSummaryCsv(h), ',')
+    expect(summaryRows.ok && summaryRows.rows[1][0]).toBe(hostile)
   })
   it('JSON carries the spec ids and stable field order', () => {
     const j = JSON.parse(toMonteCarloJson(r))

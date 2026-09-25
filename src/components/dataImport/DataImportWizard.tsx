@@ -2,7 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useReactFlow, useStore as useRfStore } from '@xyflow/react'
 import { useT, type MessageKey } from '../../i18n'
 import type { CsvParseError } from '../../model/csv'
-import { detectDelimiter, parseDelimitedText, stripBom } from '../../model/csv'
+import { detectDelimiter, parseDelimitedText, stripBom, toCsv } from '../../model/csv'
 import {
   createTableDraft,
   formatCellValueForDisplay,
@@ -206,8 +206,16 @@ const isExampleCard = (ui: DraftUI): boolean => ui.draft.label === EXAMPLE_TABLE
 const nameEmpty = (ui: DraftUI) => ui.draft.label.trim() === ''
 const dataEmpty = (ui: DraftUI) => ui.pasteText.trim() === ''
 
+/** The sample file a user downloads, edits in their sheet and pastes back.
+ *  `EXAMPLE_CSV` is also the text shown in the paste box (and the identity
+ *  `isExampleCard` compares against), so it stays LF in the app and is written
+ *  through the shared writer only for the DOWNLOAD — the same CRLF records and
+ *  RFC 4180 quoting as the other five. */
 function downloadSampleCsv(): void {
-  downloadCsv(EXAMPLE_CSV + '\n', SAMPLE_FILE_NAME)
+  // parsed with this product's own parser rather than a naive split, so the
+  // constant can grow a quoted field later without this silently mangling it
+  const parsed = parseDelimitedText(EXAMPLE_CSV, ',')
+  downloadCsv(parsed.ok ? toCsv(parsed.rows) : EXAMPLE_CSV, SAMPLE_FILE_NAME)
 }
 
 type Step = 'tables' | 'placement' | 'review'
