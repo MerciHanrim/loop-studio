@@ -14,10 +14,13 @@ import {
 // Item 7 — the Distribution "Export ▾" menu really produces the files, and the
 // bytes are what we expect (header shape, row count, a known ratio).
 
+/** A downloaded file's text. A CSV this product writes is BOM-prefixed UTF-8
+ *  (src/ui/download.ts), so strip the BOM the way any correct consumer does —
+ *  the byte-level contract itself is pinned in csv-download-encoding.spec.ts. */
 const textOf = async (dl: Download): Promise<string> => {
   const p = await dl.path()
   if (!p) throw new Error('no download path')
-  return readFileSync(p, 'utf8')
+  return readFileSync(p, 'utf8').replace(/^\uFEFF/, '')
 }
 
 test.describe('Distribution export menu', () => {

@@ -20,6 +20,7 @@
     "check:template-labels": "node scripts/check-template-labels.mjs",
     "check:no-pwa": "node scripts/check-no-pwa.mjs",
     "check:pwa-closure": "node scripts/check-pwa-closure.mjs",
+    "check:csv-boundary": "node scripts/check-csv-boundary.mjs",
     "check:snapshot-policy": "node scripts/check-snapshot-policy.mjs",
     "lint": "oxlint",
     "test": "vitest run",

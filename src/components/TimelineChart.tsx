@@ -7,6 +7,7 @@ import { useSimStore } from '../store/simStore'
 import { selectOverlay, useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
+import { downloadCsv } from '../ui/download'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 
@@ -41,18 +42,12 @@ function niceCeil(v: number): number {
   return step * mag
 }
 
-function downloadCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[]) {
+function exportRunCsv(pools: { id: string; label: string }[], series: { step: number; values: Record<string, number> }[]) {
   const head = ['step', ...pools.map((p) => p.label.replace(/[",\n]/g, ' '))].join(',')
   const rows = series.map((pt) =>
     [pt.step, ...pools.map((p) => pt.values[p.id] ?? 0)].join(','),
   )
-  const blob = new Blob([[head, ...rows].join('\n') + '\n'], { type: 'text/csv' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'loop-studio-run.csv'
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCsv([head, ...rows].join('\n') + '\n', 'loop-studio-run.csv')
 }
 
 export function TimelineChart() {
@@ -395,7 +390,7 @@ export function TimelineChart() {
                 type="button"
                 className="timeline__csv"
                 disabled={!hasRun}
-                onClick={() => downloadCsv(pools, series)}
+                onClick={() => exportRunCsv(pools, series)}
                 title={t('timeline.csvTitle')}
               >
                 {t('timeline.csv')}

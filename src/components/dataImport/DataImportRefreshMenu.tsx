@@ -3,22 +3,13 @@ import { useT } from '../../i18n'
 import { buildChangeProposalCsv } from '../../model/dataImportExportCsv'
 import { useDataImportStore } from '../../store/dataImportStore'
 import { useGraphStore } from '../../store/graphStore'
+import { downloadCsv } from '../../ui/download'
 import { useDialogFocus } from '../useDialogFocus'
 import { DataImportRefreshWizard } from './DataImportRefreshWizard'
 
 // docs/data-import.md §DI16 Phase 2 -- "Manage bindings…": lists every
 // already-bound table with a rename field and a Refresh trigger, plus the
 // change-proposal CSV export (§DI12.2) over ALL bound tables at once.
-
-function downloadCsv(text: string, name: string) {
-  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 export function DataImportRefreshMenu({
   open,

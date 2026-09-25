@@ -357,7 +357,10 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     ])
     expect(download.suggestedFilename()).toBe('loop-studio-run.csv')
     const fs = await import('node:fs/promises')
-    const csv = await fs.readFile(await download.path(), 'utf8')
+    // the CSV is BOM-prefixed UTF-8 (src/ui/download.ts); strip it the way any
+    // correct consumer does — the byte contract lives in
+    // csv-download-encoding.spec.ts
+    const csv = (await fs.readFile(await download.path(), 'utf8')).replace(/^\uFEFF/, '')
     const header = csv.split('\n')[0].split(',')
     // both Pools present, not just the one shown in the legend
     expect(header).toEqual(['step', 'P1', 'P2'])

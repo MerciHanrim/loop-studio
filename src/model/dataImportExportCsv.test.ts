@@ -4,10 +4,16 @@ import type { ImportColumn, ImportSourceTable } from './serialize'
 import type { LoopNode } from './types'
 
 // docs/data-import.md §DI12.2/§DI12.3 -- Phase 2. The change-proposal CSV is
-// a new from-scratch writer: BOM/CRLF/RFC4180-quoting/unconditional leading
-// `'` guard, changed-rows-only (§DI-D1), and a duplicate-triple cell blocks
-// the WHOLE export rather than silently shortening it (mirrors `diffRefresh`'s
-// own §DI-D15 guard).
+// a new from-scratch writer: CRLF/RFC4180-quoting/unconditional leading `'`
+// guard, changed-rows-only (§DI-D1), and a duplicate-triple cell blocks the
+// WHOLE export rather than silently shortening it (mirrors `diffRefresh`'s own
+// §DI-D15 guard).
+//
+// NO BOM here. §DI12.3's Excel-compatibility BOM is added at the shared
+// download boundary (`downloadCsv`, src/ui/download.ts) for all six CSVs this
+// product writes; a serializer that adds its own is how the other five ended up
+// without one. The bytes a user receives are unchanged — that contract is
+// pinned on the real download in e2e/csv-download-encoding.spec.ts.
 
 function col(sourceColumnId: string, role: ImportColumn['role'], header: string): ImportColumn {
   return { sourceColumnId, role, header }
@@ -33,16 +39,18 @@ function param(id: string, opts: { sourceTableId: string; sourceKey: string; sou
 }
 
 describe('buildChangeProposalCsv', () => {
-  it('lists only a changed cell, with the BOM, CRLF, and unconditional leading-quote guard', () => {
+  it('lists only a changed cell, with CRLF and the unconditional leading-quote guard, and no BOM', () => {
     const t = table()
     const node = param('p1', { sourceTableId: t.sourceTableId, sourceKey: 'ppe_pickup_blade_ssr', sourceColumnId: 'col_weight', value: 25 })
     const r = buildChangeProposalCsv([t], [node])
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.csv.charCodeAt(0)).toBe(0xfeff)
+    // the serializer emits the DOCUMENT; the BOM belongs to the download
+    expect(r.csv.charCodeAt(0)).not.toBe(0xfeff)
+    expect(r.csv.startsWith('source_table,')).toBe(true)
     expect(r.csv.includes('\r\n')).toBe(true)
     expect(r.csv.includes('\n\n')).toBe(false) // never a bare LF-LF from double-joining
-    const lines = r.csv.slice(1).split('\r\n').filter(Boolean)
+    const lines = r.csv.split('\r\n').filter(Boolean)
     expect(lines).toEqual(['source_table,source_key,source_column,previous_value,new_value', "'GachaPoolEntries,'ppe_pickup_blade_ssr,'weight,10,25"])
   })
 
@@ -52,7 +60,7 @@ describe('buildChangeProposalCsv', () => {
     const r = buildChangeProposalCsv([t], [node])
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.csv.slice(1).split('\r\n').filter(Boolean)).toHaveLength(1) // header only
+    expect(r.csv.split('\r\n').filter(Boolean)).toHaveLength(1) // header only
   })
 
   it('excludes a locally-deleted (zero-Parameter) cell, not an error', () => {
@@ -60,7 +68,7 @@ describe('buildChangeProposalCsv', () => {
     const r = buildChangeProposalCsv([t], [])
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.csv.slice(1).split('\r\n').filter(Boolean)).toHaveLength(1)
+    expect(r.csv.split('\r\n').filter(Boolean)).toHaveLength(1)
   })
 
   it('quotes a text field containing a comma, a quote, and a newline (RFC 4180, never the naive space-replace)', () => {
