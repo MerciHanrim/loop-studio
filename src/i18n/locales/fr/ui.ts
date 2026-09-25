@@ -60,6 +60,7 @@ const ui = {
   'language.portuguesePortugal': 'Portugais (Portugal)',
   'language.russian': 'Russe',
   'language.turkish': 'Turc',
+  'language.thai': 'Thaï',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': '▶ Lecture',

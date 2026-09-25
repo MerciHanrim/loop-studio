@@ -118,7 +118,10 @@ test('the picker offers Türkçe, in place and findable without a Turkish keyboa
   // legitimately follow `tr` in a dev build and must not be counted here.
   const shipped = codes.filter((c) => c !== 'en-XA')
   expect(shipped[shipped.length - 1]).toBe('tr')
-  expect(shipped.indexOf('tr')).toBe(shipped.indexOf('es-ES') + 1)
+  // The left neighbour was `es-ES` when Turkish shipped; `Thai` sorts between
+  // `Spanish (Spain)` and `Turkish` and took that slot. Pinning the IMMEDIATE
+  // neighbour is what catches a mis-sort, so it is updated rather than dropped.
+  expect(shipped.indexOf('tr')).toBe(shipped.indexOf('th') + 1)
 
   const row = page.locator('.lang-menu__item[data-locale="tr"]')
   // The endonym and the name in the active UI language are both `Türkçe`, so

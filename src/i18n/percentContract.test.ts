@@ -52,6 +52,9 @@ const CONTRACT: Record<string, { position: Position; gap: Gap }> = {
   ru: { position: 'after', gap: 'nbsp' },
   // the first locale to put the sign FIRST, and with nothing between
   tr: { position: 'before', gap: 'none' },
+  // Thai reads like the base here — Latin digits, sign after, no gap. Its
+  // `numberLocale` is `th-TH`; MEASURED, the bare `th` lays out identically.
+  th: { position: 'after', gap: 'none' },
 }
 
 const shipped = LOCALES.filter((l) => !l.pseudo)

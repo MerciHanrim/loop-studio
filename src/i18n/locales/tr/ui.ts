@@ -57,6 +57,7 @@ const ui = {
   'language.portuguesePortugal': 'Portekizce (Portekiz)',
   'language.russian': 'Rusça',
   'language.turkish': 'Türkçe',
+  'language.thai': 'Tayca',
   'playbar.reset.title': '0. adıma sıfırla',
   'playbar.step.title': 'Bir adım ilerlet',
   'playbar.play': '▶ Çalıştır',

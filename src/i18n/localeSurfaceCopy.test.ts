@@ -45,6 +45,7 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   'pt-BR': { englishForm: /inglês/i, newTab: /aba/i },
   // Turkish: the form is `İngilizce`; a browser tab is `sekme`.
   tr: { englishForm: /İngilizce/, newTab: /sekme/i },
+  th: { englishForm: /ภาษาอังกฤษ/, newTab: /แท็บ/ },
   // same language as `es-419`, so the same markers — but the row is still
   // required, because the map is asserted exhaustive over the registry and a
   // locale with no row would otherwise ship unchecked

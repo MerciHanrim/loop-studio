@@ -57,6 +57,7 @@ const ui = {
   'language.portuguesePortugal': '葡萄牙语（葡萄牙）',
   'language.russian': '俄语',
   'language.turkish': '土耳其语',
+  'language.thai': '泰语',
   'playbar.reset.title': '重置到第 0 步',
   'playbar.step.title': '前进一步',
   'playbar.play': '▶ 播放',

@@ -1,0 +1,195 @@
+// docs/localization.md §L3.3 — Inspector slice of the `th` catalog.
+//
+// Register is `ค่าที่คำนวณ` in all ten keys that name it; see `./canvas.ts`
+// for why `บันทึก` is refused there.
+//
+// WIRE ENUM TOKENS. `inspector.edge.type.*` keeps the raw `resource` / `state`
+// tokens the way `en`, `ko`, `ru` and `tr` do — they are the values written
+// into the file, and the row shows the token first, then explains it.
+// `enum.stateMode.*` and `inspector.edge.mode.*` ARE translated, the same
+// split those locales use.
+//
+// `“…”` wraps a runtime label or id. The three `regExpr.row.*` keys quote with
+// straight ASCII quotes in `en`; Thai uses the Royal Institute's `“…”` for all
+// of them, so the quoting is consistent within this catalog rather than
+// inheriting an inconsistency from the base.
+
+const inspector = {
+  'inspector.delete': 'ลบ',
+  'inspector.field.label': 'ป้ายกำกับ',
+  'inspector.empty.title': 'เลือกโหนดหรือเส้นเชื่อมเพื่อแก้ไข',
+  'inspector.empty.hint':
+    'ลากชิ้นส่วนจากแถบด้านบนลงบนผืนผ้าใบ แล้วลากระหว่างจุดทั้งสองข้างเพื่อเชื่อมเข้าด้วยกัน',
+  'inspector.unreadable.note':
+    'อ่านข้อมูลของโหนดนี้ไม่ได้ ({detail}) ระบบโหลดไว้ตามเดิมและไม่นำเข้าแบบจำลอง — แก้ไขในไฟล์ หรือลบโหนดนี้',
+  'inspector.unreadable.detailFallback': 'ข้อมูลไม่ใช่ออบเจ็กต์ที่อ่านได้',
+  'inspector.field.rawData': 'ข้อมูลดิบ',
+  'enum.activation.passive': 'ไม่ทำงานเอง',
+  'enum.activation.automatic': 'อัตโนมัติ',
+  'enum.activation.onStart': 'เมื่อเริ่ม',
+  'enum.activation.interactive': 'สั่งเอง',
+  'enum.flowMode.pullAny': 'ดึงจากทางใดก็ได้',
+  'enum.flowMode.pullAll': 'ดึงจากทุกทาง',
+  'enum.flowMode.pushAny': 'ดันไปทางใดก็ได้',
+  'enum.flowMode.pushAll': 'ดันไปทุกทาง',
+  'enum.distribution.deterministic': 'กำหนดแน่นอน',
+  'enum.distribution.probabilistic': 'อิงความน่าจะเป็น',
+  'enum.format.int': 'จำนวนเต็ม',
+  'enum.format.float': 'ทศนิยม',
+  'enum.format.percent': 'ร้อยละ',
+  'enum.stateMode.trigger': 'ทริกเกอร์',
+  'enum.stateMode.activator': 'ตัวกระตุ้น',
+  'enum.stateMode.label': 'ป้ายกำกับ',
+  'inspector.field.activation': 'การกระตุ้น',
+  'inspector.node.endNote': 'หยุดการรันทันทีที่มีทรัพยากรมาถึง',
+  'inspector.field.startingAmount': 'ปริมาณเริ่มต้น',
+  'inspector.field.capacity': 'ความจุ (เว้นว่าง = ไม่จำกัด)',
+  'inspector.number.nonNegativeHint': 'ใส่ตัวเลขที่เป็น 0 หรือมากกว่า',
+  'inspector.field.flowMode': 'โหมดการไหล',
+  'inspector.field.distribution': 'การกระจาย',
+  'inspector.field.value': 'ค่า',
+  'inspector.field.unit': 'หน่วย (ข้อมูลประกอบ)',
+  'inspector.field.min': 'ต่ำสุด (ข้อมูลประกอบ)',
+  'inspector.field.max': 'สูงสุด (ข้อมูลประกอบ)',
+  'inspector.field.step': 'ขนาดขั้น (ข้อมูลประกอบ)',
+  'inspector.field.expression': 'นิพจน์',
+  'inspector.field.format': 'รูปแบบ (ข้อมูลประกอบ)',
+  'inspector.field.resourceType': 'ชนิดทรัพยากร (ข้อมูลประกอบ)',
+  'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item หรือชื่อที่กำหนดเอง',
+  'inspector.resourceType.tooLong': 'เกิน {max} ไบต์ — แท็กนี้จะถูกตัดทิ้งเมื่อส่งออก',
+  'inspector.resourceType.normalised': 'ปรับให้เป็นรูปแบบมาตรฐาน “{value}” แล้ว',
+  'inspector.resourceType.custom': 'ชนิดที่กำหนดเอง — ใช้สีตัวอย่างทั่วไป ไม่มีสีประจำในระบบ',
+  'inspector.resourceType.mismatch':
+    'ชนิดไม่ตรงกัน: {pairs} เป็นข้อมูลประกอบเท่านั้น — ไม่เปลี่ยนปริมาณใดและไม่ขวางการรันใด',
+  'inspector.parameter.outOfRange':
+    'ค่าอยู่นอกช่วงต่ำสุด/สูงสุดที่เป็นข้อมูลประกอบ — เก็บไว้ตามเดิม ไม่ถูกตัด',
+  'inspector.parameter.hintIncoherent': 'ข้อมูลประกอบขัดแย้งกันเอง และจะถูกตัดทิ้งเมื่อส่งออก',
+  'inspector.parameter.noPorts': 'พารามิเตอร์ไม่มีจุดเชื่อม — อ้างถึงด้วย id จากนิพจน์',
+  'inspector.register.formatInvalid': 'ไม่รู้จักรูปแบบนี้ — จะกลับไปใช้ทศนิยมเมื่อส่งออก',
+  'inspector.register.noStore': 'ค่าที่คำนวณไม่เก็บค่าใดไว้และไม่มีจุดเชื่อม',
+  'inspector.edge.kindLink': 'เส้นเชื่อมแบบ {kind}',
+  'inspector.field.type': 'ชนิด',
+  'inspector.edge.type.resource': 'resource — ขนส่งทรัพยากร',
+  'inspector.edge.type.state': 'state — อ่านค่าแล้วปรับปลายทาง',
+  'inspector.field.flow': 'การไหล',
+  'inspector.edge.flowPlaceholder': '1, all, 2D6, 1-3, 25%',
+  'inspector.edge.flowParam.pickLabel': 'กำหนดด้วยพารามิเตอร์',
+  'inspector.edge.flowParam.literalOption': '— ค่าโดยตรง —',
+  'inspector.edge.flowParam.resolved': '= {value}',
+  'inspector.edge.flowParam.unknown': 'ไม่มีพารามิเตอร์ “{id}” — เส้นเชื่อมนี้ให้ค่า 0',
+  'inspector.edge.flowParam.notParam': '“{id}” ไม่ใช่พารามิเตอร์ — เส้นเชื่อมนี้ให้ค่า 0',
+  'inspector.edge.flowParam.malformed': 'ไม่ใช่การอ้างถึงพารามิเตอร์ที่ถูกต้อง — เส้นเชื่อมนี้ให้ค่า 0',
+  'inspector.edge.flowParam.hint':
+    'การอ้างถึงพารามิเตอร์ยึดตาม id: เปลี่ยนชื่อพารามิเตอร์ได้โดยไม่มีปัญหา แต่ถ้าลบทิ้ง การอ้างถึงจะค้างอยู่ (ระบบไม่เขียนใหม่ให้)',
+  'inspector.field.route': 'เส้นทาง',
+  'inspector.edge.route.curved': 'โค้ง',
+  'inspector.edge.route.orthogonal': 'หักมุมฉาก',
+  'inspector.edge.note':
+    'การแก้ไขเส้นเชื่อมจะเริ่มการรันใหม่ที่ขั้นที่ 0 และล้างทริกเกอร์ที่ค้างอยู่ ผลลัพธ์ Monte Carlo ที่เสร็จแล้วจะถูกทำเครื่องหมายว่าล้าสมัย',
+  'inspector.field.mode': 'โหมด',
+  'inspector.edge.mode.trigger': 'ทริกเกอร์ — ส่งจังหวะให้ปลายทางทำงาน',
+  'inspector.edge.mode.activator': 'ตัวกระตุ้น — เปิด / ปิดการทำงานของปลายทาง',
+  'inspector.edge.mode.label': 'ป้ายกำกับ — บวกเข้า / กำหนดค่าให้ถังพักปลายทาง',
+  'inspector.field.delay': 'หน่วงเวลา — จำนวนขั้นก่อนที่จังหวะจะถูกส่งถึง',
+  'inspector.delay.ok': 'ส่งถึงที่ (ขั้นที่ทำงาน + หน่วงเวลา + 1) ค่า 0 หมายถึงขั้นถัดไป',
+  'inspector.delay.bad':
+    'ใช้จำนวนเต็มตั้งแต่ 0 ขึ้นไป — เอนจินจะรันค่าอื่นเป็น 0 และคงสิ่งที่พิมพ์ไว้ตามเดิม',
+  'inspector.field.condition': 'เงื่อนไข — เปรียบเทียบกับต้นทาง',
+  'inspector.field.modifier': 'ตัวปรับค่า — การเปลี่ยนแปลงที่ใช้ในทุกขั้น',
+  'inspector.expr.activatorPlaceholder': '>= 5',
+  'inspector.expr.labelPlaceholder': '+1   ·   -2   ·   =S',
+  'inspector.stateExpr.noEffect': '{hint} — จนกว่าจะอ่านค่าได้ เส้นเชื่อมนี้จะไม่มีผล',
+  'inspector.activator.describe': 'ปลายทางเปิดทำงานตราบใดที่ต้นทาง {op} {n}',
+  'inspector.activator.paramPicker.pickLabel': 'กำหนดด้วยพารามิเตอร์',
+  'inspector.activator.paramPicker.literalOption': '— ค่าโดยตรง —',
+  'inspector.activator.offsetLabel': 'ค่าชดเชย',
+  'inspector.activator.preview.resolved':
+    'ปลายทางเปิดทำงานตราบใดที่ต้นทาง {op} {threshold} (= {paramLabel}{offsetText} ขณะนี้ {paramValue})',
+  'inspector.activator.preview.unknown':
+    'ไม่มีพารามิเตอร์ “{id}” — ตัวกระตุ้นนี้กำลังขวางปลายทางอยู่',
+  'inspector.activator.preview.notParam':
+    '“{id}” ไม่ใช่พารามิเตอร์ (เป็น {kind}) — ตัวกระตุ้นนี้กำลังขวางปลายทางอยู่',
+  'inspector.activator.preview.nonFinite':
+    'พารามิเตอร์ “{id}” ไม่ใช่จำนวนจำกัด — ตัวกระตุ้นนี้กำลังขวางปลายทางอยู่',
+  'inspector.activator.preview.overflow':
+    'พารามิเตอร์ “{id}” ให้ค่าที่ใหญ่เกินกว่าจะเปรียบเทียบได้ — ตัวกระตุ้นนี้กำลังขวางปลายทางอยู่',
+  'inspector.label.describe.set': 'กำหนดค่าถังพักปลายทางเป็น {amount} ในทุกขั้น',
+  'inspector.label.describe.add': 'บวก {amount} เข้าถังพักปลายทางในทุกขั้น',
+  'inspector.label.describe.subtract': 'ลบ {amount} ออกจากถังพักปลายทางในทุกขั้น',
+  'inspector.label.amountSource': 'ค่าของถังพักต้นทาง',
+  'inspector.legacy.note':
+    'เส้นเชื่อมที่ไม่รองรับ โหมด {mode} ไม่ถูกประมวลผล — เส้นเชื่อมนี้ไม่มีผลต่อการจำลอง Loop Studio ไม่แปลงให้เองโดยอัตโนมัติ เลือกว่าต้องการให้เป็นแบบใด แล้วสั่งแปลงอย่างชัดเจน',
+  'inspector.legacy.convertTo': 'แปลงเป็น',
+  'inspector.legacy.convertButton': 'แปลงเป็นโหมด {mode}',
+  'stateExpr.activator.hint.empty': 'ใส่การเปรียบเทียบ เช่น >= 5',
+  'stateExpr.activator.hint.opOnly': 'ใส่ตัวเลขเพิ่ม เช่น >= 5',
+  'stateExpr.activator.hint.notAComparison': 'ใช้ >= <= > < == != แล้วตามด้วยตัวเลข',
+  'stateExpr.activator.hint.nonFinite': 'ตัวเลขต้องเป็นจำนวนจำกัด',
+  'stateExpr.label.hint.empty': 'ใส่ตัวปรับค่า เช่น +1 หรือ =S',
+  'stateExpr.label.hint.notAnAssignment': 'ใช้ + - หรือ = แล้วตามด้วยตัวเลขหรือ S',
+  'stateExpr.label.hint.nonFinite': 'ตัวเลขต้องเป็นจำนวนจำกัด',
+  'inspector.field.labelTiming': 'ใช้เมื่อใด',
+  'inspector.labelTiming.always': 'ทุกครั้ง — ที่ต้นขั้นทุกขั้น',
+  'inspector.labelTiming.afterPull': 'เมื่อต้นทางทำงาน — หลังผลลัพธ์ของขั้นนี้',
+  'inspector.labelTiming.previewAlways': 'ใช้ที่ต้นขั้นทุกขั้น',
+  'inspector.labelTiming.previewAfterPull':
+    'ใช้ทันทีที่ต้นทางของเส้นเชื่อมนี้ทำงานในขั้นนี้ ถัดจากตอนที่ผลลัพธ์ของขั้นนี้คำนวณเสร็จ',
+  'inspector.labelTiming.warnTargetNotPool': 'ปลายทางต้องเป็นถังพัก',
+  'inspector.labelTiming.warnModifierInvalid': 'ตัวปรับค่าต้องเป็นค่าที่ถูกต้อง',
+  'inspector.labelTiming.warnSourceNotPool': 'ต้องมีถังพักเป็นต้นทาง',
+  'inspector.labelTiming.warnSourceNotRouter':
+    'ต้องมีตัวกระจาย ตัวแปลง ทางระบาย หรือจุดสิ้นสุด เป็นต้นทาง',
+  'inspector.labelTiming.warnSForm': 'ต้องเป็นตัวเลขคงที่ ไม่ใช่ S',
+  'inspector.labelTiming.unsupported':
+    'เส้นเชื่อมนี้ใช้จังหวะและเงื่อนไขร่วมกันในแบบที่ Loop Studio ไม่รองรับ (ขณะนี้: timing = {timing}, when = {when}) — จึงยังไม่มีผล เลือกหนึ่งในสองตัวเลือกด้านบนมาแทน',
+  'panels.inputs.title': 'ข้อมูลเข้า',
+  'panels.summary.title': 'สรุป',
+  'panels.inputs.collapse': 'ย่อแผงข้อมูลเข้า',
+  'panels.inputs.expand': 'ขยายแผงข้อมูลเข้า',
+  'panels.summary.collapse': 'ย่อแผงสรุป',
+  'panels.summary.expand': 'ขยายแผงสรุป',
+  'panels.inputs.paramValue': 'ค่าของพารามิเตอร์ “{label}”',
+  'panels.inputs.flowVia': 'ไหลผ่าน “{param}”',
+  'panels.summary.showCalc': 'แสดงวิธีคำนวณ',
+  'panels.summary.hideCalc': 'ซ่อนวิธีคำนวณ',
+  'panels.summary.noValue': '— ไม่มีค่าที่ขั้นที่ {step}',
+  'panels.empty.inputs': 'ไม่มีพารามิเตอร์ในกราฟนี้',
+  'panels.empty.summary': 'ไม่มีค่าที่คำนวณในกราฟนี้',
+  'regExpr.pick.listLabel': 'อ้างถึงถังพัก พารามิเตอร์ หรือค่าที่คำนวณ',
+  'regExpr.pick.optionAria': '{name}, {kind}, ค่าปัจจุบัน {value}',
+  'regExpr.pick.noMatch': 'ไม่พบโหนดที่ตรงกัน',
+  'regExpr.pick.more': 'อีก {n} รายการ — พิมพ์ต่อเพื่อค้นหา',
+  'regExpr.block.self': 'อ้างถึงตัวเองไม่ได้',
+  'regExpr.block.cycle': 'จะเกิดวงวนกับโหนด “{name}”',
+  'regExpr.empty': 'นิพจน์ว่างเปล่า',
+  'regExpr.chip.deleted': '(ถูกลบแล้ว)',
+  'regExpr.chip.wrongKind': '(ใช้ไม่ได้)',
+  'regExpr.row.unknownRef': '— ไม่พบการอ้างถึง “{id}”',
+  'regExpr.row.wrongKind': '— “{name}” ไม่ใช่ถังพัก พารามิเตอร์ หรือค่าที่คำนวณ',
+  'regExpr.row.invalidId': '— “{id}” ไม่ใช่การอ้างถึงที่ถูกต้อง',
+  'regExpr.row.cycle': '— วงวน: {name} → … → {name}',
+  'regExpr.row.divZero': '→ หารด้วย 0 ไม่ได้',
+  'regExpr.row.notFinite': '→ ไม่ใช่จำนวนจำกัด',
+  'regExpr.row.dependsInvalid': '— ขึ้นกับการอ้างถึงที่ไม่ถูกต้อง',
+  'regExpr.row.generic': '— {code}',
+  'regExpr.insert.title': '＋ แทรกการอ้างถึง',
+  'regExpr.insert.armedLabel': 'กำลังเลือกการอ้างถึง',
+  'regExpr.insert.hint': 'คลิกถังพัก พารามิเตอร์ หรือค่าที่คำนวณ บนผืนผ้าใบเพื่อแทรกการอ้างถึง',
+  'regExpr.insert.armed':
+    'พร้อมแทรกการอ้างถึงแล้ว คลิกโหนดบนผืนผ้าใบ หรือกด Escape เพื่อยกเลิก',
+  'regExpr.insert.cancelled': 'ยกเลิกการแทรกการอ้างถึงแล้ว',
+  'regExpr.insert.done': 'แทรกการอ้างถึงโหนด “{name}” แล้ว',
+  'regExpr.insert.wrongKind': 'แทรกได้เฉพาะถังพัก พารามิเตอร์ หรือค่าที่คำนวณ เท่านั้น',
+  'regExpr.op.groupName': 'ปุ่มตัวดำเนินการ',
+  'regExpr.op.add': 'บวก',
+  'regExpr.op.sub': 'ลบ',
+  'regExpr.op.mul': 'คูณ',
+  'regExpr.op.div': 'หาร',
+  'regExpr.op.group': 'วงเล็บ',
+  'regExpr.op.inserts': '{name} — แทรก {sym} ลงในสูตร',
+  'regExpr.op.groupTitle': 'วงเล็บ — ครอบส่วนที่เลือกไว้ หรือเพิ่ม ( )',
+  'regExpr.op.inserted': 'แทรกแล้ว: {name}',
+} as const
+
+export type InspectorKey = keyof typeof inspector
+export default inspector

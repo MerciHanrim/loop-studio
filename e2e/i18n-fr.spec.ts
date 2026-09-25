@@ -219,7 +219,7 @@ test.describe('the language search box, shipped to production here', () => {
     await page.keyboard.press('Escape')
     await expect(search(page)).toHaveValue('') // stage 1: only the query goes
     await expect(pop(page)).toBeVisible()
-    await expect(options(page)).toHaveCount(14) // 13 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(15) // 14 shipped + the dev pseudo-locale
 
     await page.keyboard.press('Escape')
     await expect(pop(page)).toHaveCount(0) // stage 2: the popover closes
@@ -292,14 +292,41 @@ test.describe('the language search box, shipped to production here', () => {
 
   test('French is findable from every shipped UI language, by its name there', async ({ page }) => {
     await openApp(page)
-    for (const [ui, query] of [
+    // The word a user would actually type, in each UI language. Written by
+    // hand on purpose: deriving it from the catalog would only prove that the
+    // catalog equals itself.
+    const NAMES = [
       ['en', 'French'],
       ['ko', '프랑스어'],
       ['ja', 'フランス語'],
       ['zh-Hans', '法语'],
       ['zh-Hant', '法語'],
       ['fr', 'Français'],
-    ] as const) {
+      ['de', 'Französisch'],
+      ['es-419', 'Francés'],
+      ['pt-BR', 'Francês'],
+      ['es-ES', 'Francés'],
+      ['pt-PT', 'Francês'],
+      ['ru', 'Французский'],
+      ['tr', 'Fransızca'],
+      ['th', 'ฝรั่งเศส'],
+    ] as const
+
+    // EXHAUSTIVE, and checked against the product rather than against a
+    // comment. This table froze at the six languages that shipped with `fr`
+    // and went on calling itself "every shipped UI language" through five more
+    // locales — the assertion was false long before anyone would have noticed.
+    // The picker is the source of truth, so the NEXT locale makes this red
+    // until its row exists.
+    await openLanguageMenu(page)
+    const shipped = (
+      await options(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))
+    ).filter((c) => c !== 'en-XA')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    expect(NAMES.map(([ui]) => ui).slice().sort()).toEqual(shipped.slice().sort())
+
+    for (const [ui, query] of NAMES) {
       await setLocale(page, ui)
       await openLanguageMenu(page)
       await expect(search(page), `the box must be shown in a ${ui} UI`).toHaveCount(1)

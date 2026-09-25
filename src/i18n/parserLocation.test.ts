@@ -10,6 +10,7 @@ import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
 import ptPT from './locales/pt-PT'
 import ru from './locales/ru'
+import th from './locales/th'
 import tr from './locales/tr'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
@@ -48,6 +49,7 @@ const CATALOGS = {
   'pt-BR': ptBR,
   'pt-PT': ptPT,
   ru,
+  th,
   tr,
 } as const
 type Loc = keyof typeof CATALOGS
@@ -119,6 +121,10 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // `sütun` a real table column. The ordinal suffix sits on the NUMBER
   // (`{column}. karakter`), so the number leads.
   tr: { char: `${N}. karakter`, table: `sütun ${N}` },
+  // Thai keeps the same split: `ตำแหน่งอักขระ` is a character offset into the
+  // pasted text, `คอลัมน์` a real spreadsheet column. Thai has no spaces
+  // between words, so the number simply follows the noun with one space.
+  th: { char: `ตำแหน่งอักขระ ${N}`, table: `คอลัมน์ ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]
