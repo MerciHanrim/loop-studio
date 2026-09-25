@@ -89,13 +89,40 @@ function canonicalFrames(tplId) {
   }
 }
 
-// the `export const <locale>Frames = { … }` slice of a dict source (to EOF or
-// the next `export const`) — the flat sibling of the node map (§TLO12).
+// the `export const <identifier>Frames = { … }` slice of a dict source (to EOF
+// or the next `export const`) — the flat sibling of the node map (§TLO12).
+//
+// The identifier is NOT the locale code. A dict file names its exports after
+// the code CAMEL-CASED (`zh-Hans` -> `zhHansFrames`, `es-419` -> `es419Frames`,
+// `pt-BR` -> `ptBRFrames`), so building the name from the code here searched
+// for `zh-HansFrames` and found nothing. The old code then returned an EMPTY
+// slice WITHOUT COMPLAINING, and every hyphenated locale contributed zero frame
+// titles to `KNOWN_OFFICIAL_FRAME_LABELS`. MEASURED on `f76e6f1`: 38 shipped
+// frame titles across `zh-Hans`, `zh-Hant`, `es-419`, `es-ES`, `pt-BR` and
+// `pt-PT` were missing, so `relabelFramesForLocale` classified each of them as
+// a user rename and preserved it forever — a document created in Simplified
+// Chinese kept `对比` in an English UI while its node labels switched.
+//
+// So: find the ONE frames export in the file rather than reconstructing its
+// name, which would duplicate a naming rule that lives in the dict files. Zero
+// or two-or-more is a build failure, never a silent skip.
 function frameDictSlice(locale) {
-  const src = read(`src/i18n/templateLabels/${locale}.ts`)
-  const start = src.search(new RegExp(`export const ${locale}Frames\\b`))
-  if (start < 0) return ''
-  const rest = src.slice(start)
+  const path = `src/i18n/templateLabels/${locale}.ts`
+  const src = read(path)
+  const hits = [...src.matchAll(/^export const ([A-Za-z_$][\w$]*Frames)\b/gm)]
+  if (hits.length !== 1) {
+    const found = hits.length ? ' (found ' + hits.map((h) => h[1]).join(', ') + ')' : ''
+    throw new Error(
+      'gen-known-labels: expected exactly one `export const <name>Frames` in ' +
+        path +
+        ', got ' +
+        hits.length +
+        found +
+        '. A frame map that cannot be located must fail the build, not vanish ' +
+        'from KNOWN_OFFICIAL_FRAME_LABELS.',
+    )
+  }
+  const rest = src.slice(hits[0].index)
   const nextExport = rest.slice(1).search(/\nexport const /)
   return nextExport < 0 ? rest : rest.slice(0, nextExport + 1)
 }

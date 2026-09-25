@@ -211,13 +211,13 @@ export const AMBIGUOUS_NODE_IDS: readonly string[] = []
  *  in SOME shipped locale (the EN canonical included). Empty until a
  *  template ships `frames` (#4B). */
 export const KNOWN_OFFICIAL_FRAME_LABELS: Readonly<Record<string, readonly string[]>> = {
-  "zone_comparison": ["Comparaison", "Comparison", "Karşılaştırma", "Vergleich", "Сравнение", "การเปรียบเทียบ", "比較", "비교"],
-  "zone_forecast": ["Forecast metrics", "Indicateurs prévisionnels", "Prognosekennzahlen", "Öngörü göstergeleri", "Прогнозные показатели", "ตัวชี้วัดที่คาดการณ์", "予測指標", "예측 지표"],
-  "zone_free": ["Allgemein / Gratis", "Classique / Gratuit", "Genel / Ücretsiz", "General / Free", "Общий / Бесплатный", "ทั่วไป / ฟรี", "無料", "일반(무료)"],
-  "zone_pickup": ["Premium Pickup", "Premium UP", "プレミアムピックアップ", "프리미엄 픽업"],
-  "zone_roasting": ["Kavurma ve satış", "Roasting & sales", "Rösten und Verkauf", "Torréfaction et ventes", "Обжарка и продажи", "การคั่วและการขาย", "焙煎・販売", "로스팅·판매"],
-  "zone_standard": ["Premium Standard", "Premium standard", "プレミアム恒常", "프리미엄 상시"],
-  "zone_supply": ["Approvisionnement et stock", "Beschaffung und Bestand", "Supply & inventory", "Tedarik ve stok", "Поставки и запасы", "การจัดหาและสต็อก", "供給・在庫", "공급·재고"],
+  "zone_comparison": ["Comparación", "Comparaison", "Comparação", "Comparison", "Karşılaştırma", "Vergleich", "Сравнение", "การเปรียบเทียบ", "对比", "對比", "比較", "비교"],
+  "zone_forecast": ["Forecast metrics", "Indicadores de previsión", "Indicadores de previsão", "Indicadores de pronóstico", "Indicateurs prévisionnels", "Prognosekennzahlen", "Öngörü göstergeleri", "Прогнозные показатели", "ตัวชี้วัดที่คาดการณ์", "予測指標", "預測指標", "预测指标", "예측 지표"],
+  "zone_free": ["Allgemein / Gratis", "Classique / Gratuit", "Genel / Ücretsiz", "General / Free", "General / Gratis", "Geral / Grátis", "Общий / Бесплатный", "ทั่วไป / ฟรี", "常駐／免費", "常驻／免费", "無料", "일반(무료)"],
+  "zone_pickup": ["Premium Pickup", "Premium UP", "プレミアムピックアップ", "付費 UP", "付费 UP", "프리미엄 픽업"],
+  "zone_roasting": ["Kavurma ve satış", "Roasting & sales", "Rösten und Verkauf", "Torra e venda", "Torréfaction et ventes", "Tostado y venta", "Обжарка и продажи", "การคั่วและการขาย", "烘焙与销售", "烘焙與銷售", "焙煎・販売", "로스팅·판매"],
+  "zone_standard": ["Premium Estándar", "Premium Padrão", "Premium Standard", "Premium standard", "プレミアム恒常", "付費常駐", "付费常驻", "프리미엄 상시"],
+  "zone_supply": ["Abasto e inventario", "Approvisionnement et stock", "Beschaffung und Bestand", "Fornecimento e estoque", "Fornecimento e existências", "Suministro e inventario", "Supply & inventory", "Tedarik ve stok", "Поставки и запасы", "การจัดหาและสต็อก", "供应与库存", "供應與庫存", "供給・在庫", "공급·재고"],
 }
 
 /** §TLO12 — frame ids shared by two templates whose official title is not
