@@ -72,9 +72,18 @@ export function buildChangeProposalCsv(
     lines.push([csvTextField(c.table.label), csvTextField(c.sourceKey), csvTextField(c.header), String(c.base), String(value)].join(','))
   }
 
-  // §DI12.3 -- UTF-8 with a BOM, CRLF line endings (Windows/Excel
-  // compatibility, since this is the export a designer pastes straight
-  // back into their own sheet).
-  const BOM = String.fromCharCode(0xfeff)
-  return { ok: true, csv: BOM + lines.join('\r\n') + '\r\n' }
+  // §DI12.3 -- CRLF line endings, for the Windows/Excel round trip this export
+  // exists for: a designer pastes it straight back into their own sheet.
+  //
+  // The Excel-compatibility BOM that §DI12.3 also calls for is added at the
+  // shared DOWNLOAD boundary (`downloadCsv`, src/ui/download.ts), not here.
+  // The product behaviour is unchanged -- the file a user receives still starts
+  // with a BOM -- but the responsibility now sits in one place for all six CSVs
+  // this product writes, instead of each writer deciding for itself. That
+  // split-brain is what let the other five ship without one: two of them even
+  // set `charset=utf-8` on the Blob, which a downloaded file does not carry, so
+  // Excel read them as the system ANSI code page and every Korean header came
+  // out as mojibake. `withCsvBom` is idempotent, so this function's output is
+  // correct whether or not a future caller re-adds one.
+  return { ok: true, csv: lines.join('\r\n') + '\r\n' }
 }

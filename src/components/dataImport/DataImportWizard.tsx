@@ -28,6 +28,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { REPO_URL } from '../AboutDialog'
+import { downloadCsv } from '../../ui/download'
 import { canvasFitInsets, viewportForRect } from '../canvasFit'
 import { useDialogFocus } from '../useDialogFocus'
 import { useQuickStartStore } from './quickStartStore'
@@ -206,16 +207,7 @@ const nameEmpty = (ui: DraftUI) => ui.draft.label.trim() === ''
 const dataEmpty = (ui: DraftUI) => ui.pasteText.trim() === ''
 
 function downloadSampleCsv(): void {
-  const blob = new Blob([EXAMPLE_CSV + '\n'], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = SAMPLE_FILE_NAME
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadCsv(EXAMPLE_CSV + '\n', SAMPLE_FILE_NAME)
 }
 
 type Step = 'tables' | 'placement' | 'review'

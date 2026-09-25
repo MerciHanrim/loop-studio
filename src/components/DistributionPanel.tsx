@@ -10,20 +10,11 @@ import {
   toSeriesCsv,
   type MonteCarloResult,
 } from '../engine'
+import { downloadCsv, downloadText } from '../ui/download'
 
 // P2 distribution view — occupies the timeline area when a Monte-Carlo result
 // exists and the LIVE / DISTRIBUTION switch is on DISTRIBUTION.
 // Checkpoint 1: header stats + one Export menu. The p10/p50/p90 band chart next.
-
-function download(name: string, text: string, mime: string) {
-  const blob = new Blob([text], { type: mime })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 function endedPct(r: MonteCarloResult): number {
   const last = r.endedRuns.atOrBeforeStep.at(-1) ?? 0
@@ -48,8 +39,12 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
     }
   }, [open])
 
-  const save = (suffix: string, text: string, mime: string) => {
-    download(`loop-studio-montecarlo-${suffix}`, text, mime)
+  const saveCsv = (suffix: string, text: string) => {
+    downloadCsv(text, `loop-studio-montecarlo-${suffix}`)
+    setOpen(false)
+  }
+  const saveJson = (suffix: string, text: string) => {
+    downloadText(text, `loop-studio-montecarlo-${suffix}`)
     setOpen(false)
   }
 
@@ -68,19 +63,19 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
       </button>
       {open ? (
         <div className="menu__pop menu__pop--up" role="menu">
-          <button type="button" className="menu__item" role="menuitem" onClick={() => save('series.csv', toSeriesCsv(result), 'text/csv')}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('series.csv', toSeriesCsv(result))}>
             <span className="menu__name">{t('dist.export.seriesCsv')}</span>
             <span className="menu__blurb">{t('dist.export.seriesCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => save('runs.csv', toFinalCsv(result), 'text/csv')}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('runs.csv', toFinalCsv(result))}>
             <span className="menu__name">{t('dist.export.runsCsv')}</span>
             <span className="menu__blurb">{t('dist.export.runsCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => save('summary.csv', toFinalSummaryCsv(result), 'text/csv')}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('summary.csv', toFinalSummaryCsv(result))}>
             <span className="menu__name">{t('dist.export.summaryCsv')}</span>
             <span className="menu__blurb">{t('dist.export.summaryCsv.blurb')}</span>
           </button>
-          <button type="button" className="menu__item" role="menuitem" onClick={() => save('result.json', toMonteCarloJson(result), 'application/json')}>
+          <button type="button" className="menu__item" role="menuitem" onClick={() => saveJson('result.json', toMonteCarloJson(result))}>
             <span className="menu__name">JSON</span>
             <span className="menu__blurb">{t('dist.export.json.blurb')}</span>
           </button>
