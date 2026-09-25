@@ -6,6 +6,7 @@
 // of (nodes, edges, config). A parallel driver (later, separate) must match it
 // bit-for-bit.
 
+import { toCsv } from '../model/csv'
 import type { LoopEdge, LoopNode } from '../model/types'
 import { mix32 } from './rng'
 import { initSim, step } from './step'
@@ -486,40 +487,43 @@ export function aggregateRuns(params: {
 }
 
 // ── exports ──────────────────────────────────────────────────────────────
-const sanitise = (s: string) => s.replace(/[",\n]/g, ' ')
+//
+// All three go through `toCsv` (src/model/csv.ts): RFC 4180 quoting and CRLF
+// records, the same as every other CSV this product downloads. They used to run
+// a Pool's label through `s.replace(/[",\n]/g, ' ')` — a comma, a quote or a
+// newline the user had typed was silently replaced by a space and could not be
+// read back. The label is the user's text; an export must not edit it.
+// The BOM belongs to the download boundary, not here.
 
 /** `montecarlo-series.csv` — one row per (step, pool). */
 export function toSeriesCsv(r: MonteCarloResult): string {
-  const rows = ['step,pool,p10,p50,p90,mean,min,max']
+  const rows: (string | number)[][] = [['step', 'pool', 'p10', 'p50', 'p90', 'mean', 'min', 'max']]
   for (let t = 0; t < r.endedRuns.atOrBeforeStep.length; t++) {
     for (const pool of r.pools) {
       const s = r.series[pool.id]
-      rows.push(
-        [t, sanitise(pool.label), s.p10[t], s.p50[t], s.p90[t], s.mean[t], s.min[t], s.max[t]].join(','),
-      )
+      rows.push([t, pool.label, s.p10[t], s.p50[t], s.p90[t], s.mean[t], s.min[t], s.max[t]])
     }
   }
-  return rows.join('\n') + '\n'
+  return toCsv(rows)
 }
 
 /** `montecarlo-final.csv` — one row per run, run-index order, seed inline. */
 export function toFinalCsv(r: MonteCarloResult): string {
-  const head = ['run', 'seed', ...r.pools.map((p) => sanitise(p.label))].join(',')
-  const rows = [head]
+  const rows: (string | number)[][] = [['run', 'seed', ...r.pools.map((p) => p.label)]]
   for (let i = 0; i < r.completedRuns; i++) {
-    rows.push([i, r.runSeeds[i], ...r.pools.map((p) => r.final[p.id].values[i])].join(','))
+    rows.push([i, r.runSeeds[i], ...r.pools.map((p) => r.final[p.id].values[i])])
   }
-  return rows.join('\n') + '\n'
+  return toCsv(rows)
 }
 
 /** `montecarlo-final-summary.csv` — one row per Pool. */
 export function toFinalSummaryCsv(r: MonteCarloResult): string {
-  const rows = ['pool,p10,p50,p90,mean,min,max']
+  const rows: (string | number)[][] = [['pool', 'p10', 'p50', 'p90', 'mean', 'min', 'max']]
   for (const pool of r.pools) {
     const s = r.final[pool.id].summary
-    rows.push([sanitise(pool.label), s.p10, s.p50, s.p90, s.mean, s.min, s.max].join(','))
+    rows.push([pool.label, s.p10, s.p50, s.p90, s.mean, s.min, s.max])
   }
-  return rows.join('\n') + '\n'
+  return toCsv(rows)
 }
 
 /** `MonteCarloResult` as pretty JSON (field order is the frozen contract). */

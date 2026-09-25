@@ -1583,3 +1583,97 @@ have one home. Presentation only — no validation rule, wire shape,
   policy — the only two baselines this added; the 46 existing ones are
   untouched), `dataImportSummary.test.ts`, `canvasFit.test.ts`,
   `quickStartStore.test.ts`.
+
+---
+
+## DI18. §CSV — one contract for every CSV this product downloads (2026-09-26)
+
+**§DI12.3 was right and too narrowly scoped.** It settled encoding, line
+endings and RFC 4180 quoting for the change-proposal export alone, so the other
+five CSVs kept whatever idiom they were written with. This pass widens §DI12.3
+to all six and adds one new rule about column NAMES. No product decision in
+§DI12.3 is reversed.
+
+### The census, measured before anything changed
+
+| CSV | writer | records | user text |
+|---|---|---|---|
+| Timeline run | `TimelineChart.tsx` | LF | label → `replace(/[",\n]/g, ' ')` |
+| Monte-Carlo series | `montecarlo.ts` | LF | label → same replace |
+| Monte-Carlo runs | `montecarlo.ts` | LF | label → same replace |
+| Monte-Carlo summary | `montecarlo.ts` | LF | label → same replace |
+| Sample | `DataImportWizard.tsx` | LF | constant, no user text |
+| Change-proposal | `dataImportExportCsv.ts` | **CRLF** | **RFC 4180** + §DI-D18 |
+
+So which file a user got depended on which menu item they picked, and five of
+the six **silently destroyed** a comma, a quote or a newline the user had typed
+into a Pool label — the export was not reversible.
+
+### The rules, now for all six
+
+- **Records end with CRLF** (§DI12.3, unchanged — only its scope widened).
+- **RFC 4180 quoting**: a value containing `"`, `,`, CR or LF is wrapped in
+  double quotes with internal quotes doubled. **Never** replaced. A TAB is
+  ordinary content and is left alone.
+- **The BOM stays at the download boundary** (`src/ui/download.ts`), added
+  exactly once. A pure serializer still emits a plain document with no BOM —
+  that split is what PR #278 established and it is unchanged.
+- **One owner**: `src/model/csv.ts` exports `CSV_EOL`, `csvField` and `toCsv`,
+  and is the only module that may write them. The module that PARSES a CSV now
+  also writes one, so the two halves cannot drift — and an export → re-import
+  round trip is exact by construction, which is what the test asserts.
+- `scripts/check-csv-boundary.mjs` checks both owners, and fails if either scan
+  could pass vacuously.
+
+### DI-D19 — a run-CSV column is named `<label> [<node-id>]` (**approved** 2026-09-26)
+
+A Pool's label alone is **not** an independently identifiable column name. The
+shipped 3-zone gacha Template gives the three zones the same pool labels:
+measured on a real Thai export, **6 of its 24 column names repeated** (tickets
+×3, pulls-made ×3, SR-count ×3, R-count ×3, pity ×2, ceiling-hits ×2) — and
+identically in English, so this was never a locale defect. The numbers were
+right; the names were not usable as data. Reordering or copying columns in a
+spreadsheet, selecting a column by name in an analysis tool, and any row →
+object conversion (duplicate keys overwrite) all break on them. Measured:
+without the id those 24 names collapse to **14 distinct** ones.
+
+Rejected alternative: **prefix the zone name**, derived from the frame a Pool
+sits in.
+
+- a frame stores **no membership** — it is derived from geometry (LGR-D9 /
+  R5-D3), so a data column would be renamed by moving a rectangle, and the rule
+  would need a decided answer for a Pool in no frame, in several overlapping
+  frames, and in a nested one;
+- most graphs have no frames at all;
+- the id survives a rename and a locale switch; the readable half changes, the
+  identifying half does not;
+- every column is named the same way, rather than only the colliding ones
+  growing a prefix — so the schema does not depend on the data.
+
+A two-row header was rejected for compatibility: a single header row is what
+spreadsheets and analysis tools read without configuration.
+
+The localized label stays **in front**, so the file is still readable by a
+person: `ตั๋ว [ticket_free]`.
+
+The Monte-Carlo CSVs are unchanged in shape — they carry `pool` as a *value*
+column, not one column per Pool, so no name can collide there.
+
+### Tests
+
+- `src/model/csv.test.ts` — `csvField` / `toCsv`, and a hostile-label round trip
+  back through `parseDelimitedText`.
+- `src/components/timelineCsv.test.ts` — the naming rule, and the real gacha
+  graph × the real shipped `th` dict: 24 column names, all unique.
+- `src/engine/montecarlo.test.ts` — CRLF and a hostile label in both a header
+  and a cell.
+- `e2e/csv-download-encoding.spec.ts` — CRLF on the BYTES of all six downloads,
+  beside the existing BOM assertions.
+- `e2e/csv-contract.spec.ts` — the Thai gacha's 24 unique names end to end, a
+  hostile label surviving the download, and the frame-independence contract:
+  **no frames, overlapping frames and a nested frame all give the same header.**
+
+Falsified: reverting the column name to the label alone drops the Thai gacha
+from 24 unique names to 14 and reddens 7 tests; `CSV_EOL` back to LF reddens the
+CRLF assertions on the bytes; restoring the lossy replace reddens the round-trip
+tests in all three layers.

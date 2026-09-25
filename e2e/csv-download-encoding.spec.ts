@@ -48,6 +48,24 @@ function decodeAfterBom(bytes: Buffer): string {
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(3))
 }
 
+/** RFC 4180 records. Every CSV this product downloads ends its rows with CRLF,
+ *  and no LF may appear without a CR before it: five of the six used to join
+ *  rows with a bare LF while the change-proposal export alone used CRLF, so the
+ *  file a user opened depended on which menu item they picked. Counted on the
+ *  BYTES, because that is what a spreadsheet reads. */
+function assertCrlf(bytes: Buffer, what: string) {
+  let lf = 0
+  let crlf = 0
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] !== 0x0a) continue
+    lf++
+    if (i > 0 && bytes[i - 1] === 0x0d) crlf++
+  }
+  expect(lf, `${what}: must contain records at all`).toBeGreaterThan(0)
+  expect(crlf, `${what}: every LF must be preceded by CR`).toBe(lf)
+  expect([...bytes.subarray(bytes.length - 2)], `${what}: the last record is terminated too`).toEqual([0x0d, 0x0a])
+}
+
 test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
   test('the timeline CSV, with Korean pool labels', async ({ page }) => {
     await openApp(page)
@@ -72,6 +90,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
 
     const bytes = await savedBytes(download)
     assertBom(bytes, 'timeline CSV')
+    assertCrlf(bytes, 'timeline CSV')
     const text = decodeAfterBom(bytes)
     expect(text.startsWith('step,'), 'the body after the BOM is the CSV itself').toBe(true)
     // the Korean labels survive the round trip through the file
@@ -93,6 +112,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
     ])
     const bytes = await savedBytes(download)
     assertBom(bytes, 'sample CSV')
+    assertCrlf(bytes, 'sample CSV')
 
     // ROUND TRIP: paste the downloaded body back into the wizard. The BOM is
     // part of the file, so this is the path a user takes when they open the
@@ -152,6 +172,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
       expect(download.suggestedFilename()).toBe(file)
       const bytes = await savedBytes(download)
       assertBom(bytes, file)
+      assertCrlf(bytes, file)
       expect(decodeAfterBom(bytes).length, file + ': body after the BOM').toBeGreaterThan(0)
     }
 
@@ -217,6 +238,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
 
     const bytes = await savedBytes(download)
     assertBom(bytes, 'change-proposal CSV')
+    assertCrlf(bytes, 'change-proposal CSV')
     const text = decodeAfterBom(bytes)
 
     // the Korean table name and column header survive, byte for byte. The

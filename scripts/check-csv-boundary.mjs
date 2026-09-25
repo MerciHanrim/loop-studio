@@ -1,5 +1,9 @@
-// The CSV download boundary — `src/ui/download.ts` is the only place this
-// product may build a CSV blob.
+// The CSV contract — two owners, both checked here.
+//
+//   `src/ui/download.ts`  is the only place a CSV BLOB is built (and the only
+//                         place the UTF-8 BOM is added);
+//   `src/model/csv.ts`    is the only place the RECORD SEPARATOR and the RFC
+//                         4180 quoting rule are written.
 //
 //   node scripts/check-csv-boundary.mjs
 //
@@ -44,8 +48,20 @@ function sourceFiles(dir) {
 
 const rel = (f) => f.replace(/\\/g, '/').slice(SRC.replace(/\\/g, '/').length + 1)
 
+// The second owner. MEASURED 2026-09-26, before this pass: of the six CSVs this
+// product writes, five joined rows with a bare LF and put a user's Pool label
+// through a replace that turned a quote, a comma or a newline into a SPACE —
+// the label could not be read back — while only the change-proposal writer used
+// CRLF and RFC 4180. Each writer having its own idiom is exactly what let them
+// drift, the same way five private `new Blob` calls let the BOM go missing. So
+// the separator has ONE home, and a seventh writer cannot quietly grow a sixth
+// idiom: outside `model/csv.ts`, a CRLF literal in source is the tell.
+const CSV_MODULE = 'model/csv.ts'
+const CRLF_LITERAL = '\\r\\n'
+
 const files = sourceFiles(SRC)
 const offenders = []
+const eolOffenders = []
 for (const file of files) {
   if (rel(file) === BOUNDARY) continue
   const src = readFileSync(file, 'utf8')
@@ -55,6 +71,12 @@ for (const file of files) {
   for (const m of src.matchAll(/['"`]text\/csv[^'"`]*['"`]/g)) {
     offenders.push(`${rel(file)}: ${m[0]}`)
   }
+}
+
+for (const file of files) {
+  if (rel(file) === CSV_MODULE) continue
+  const src = readFileSync(file, 'utf8')
+  if (src.includes(CRLF_LITERAL)) eolOffenders.push(rel(file))
 }
 
 // the scan must not pass by reading nothing, or by using a pattern that could
@@ -71,6 +93,16 @@ if (!boundarySrc.includes('0xfeff')) {
 }
 if (boundarySrc.includes(String.fromCharCode(0xfeff))) {
   problems.push('the boundary contains a RAW U+FEFF — write it from its code point')
+}
+if (!files.some((f) => rel(f) === CSV_MODULE)) problems.push(`${CSV_MODULE} not found`)
+const csvSrc = readFileSync(join(SRC, 'model', 'csv.ts'), 'utf8')
+for (const name of ['CSV_EOL', 'csvField', 'toCsv']) {
+  if (!csvSrc.includes(`export function ${name}`) && !csvSrc.includes(`export const ${name}`)) {
+    problems.push(`${CSV_MODULE} does not export ${name} — the writer moved, this guard did not`)
+  }
+}
+if (!csvSrc.includes(CRLF_LITERAL)) {
+  problems.push(`${CSV_MODULE} holds no CRLF literal — the pattern cannot be right`)
 }
 
 if (problems.length) {
@@ -89,7 +121,17 @@ if (offenders.length) {
   process.exit(1)
 }
 
+if (eolOffenders.length) {
+  console.error(
+    `check-csv-boundary: the CSV record separator lives in src/${CSV_MODULE} (CSV_EOL).\n` +
+      'These files write their own:',
+  )
+  for (const o of eolOffenders) console.error('  ' + o)
+  process.exit(1)
+}
+
 console.log(
   `  ok    ${files.length} source files scanned; src/${BOUNDARY} is the only CSV writer`,
 )
+console.log(`  ok    src/${CSV_MODULE} is the only home of CSV_EOL and the RFC 4180 quoting`)
 console.log('\ncheck-csv-boundary: ok')

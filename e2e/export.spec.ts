@@ -39,7 +39,8 @@ test.describe('Distribution export menu', () => {
     ])
     expect(dl.suggestedFilename()).toBe('loop-studio-montecarlo-runs.csv')
 
-    const lines = (await textOf(dl)).trim().split('\n')
+    // RFC 4180 records — every downloaded CSV ends its rows with CRLF
+    const lines = (await textOf(dl)).trim().split('\r\n')
     expect(lines[0]).toBe('run,seed,Det Pool,Dice Pool,Gate A,Gate B')
     expect(lines).toHaveLength(1 + 200)
 

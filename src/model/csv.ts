@@ -27,6 +27,42 @@ export function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
 }
 
+// --- WRITING ------------------------------------------------------------
+//
+// The same grammar, the other way round. Every CSV this product DOWNLOADS is
+// built here, so the record separator and the quoting rule have exactly one
+// owner. Before this (measured 2026-09-26) each of the six writers had its own
+// idiom: five joined rows with a bare LF and ran a user label through a
+// replace that turned a quote, a comma or a newline into a SPACE, silently
+// destroying it, while only the change-proposal writer did RFC 4180. A label
+// is the user's text; an export must not edit it.
+
+/** RFC 4180's record separator. CRLF, because these files are opened in Excel
+ *  on Windows more than anywhere else, and the change-proposal export already
+ *  committed to it as a product decision (docs/data-import.md DI12.3). The BOM
+ *  is NOT added here -- that belongs to the download boundary
+ *  (`src/ui/download.ts`), so a serializer's output stays a plain document. */
+export const CSV_EOL = '\r\n'
+
+/** One field. Quoted only when it has to be, with internal quotes doubled --
+ *  never rewritten. `parseDelimitedText` below is the exact inverse, which is
+ *  what makes an export then re-import round trip lossless. A TAB is
+ *  deliberately left alone: it is ordinary content in a comma-delimited file. */
+export function csvField(value: string | number): string {
+  const s = String(value)
+  if (!/["\r\n,]/.test(s)) return s
+  return '"' + s.replace(/"/g, '""') + '"'
+}
+
+/** A whole document: every row terminated by `CSV_EOL`, including the last.
+ *  No rows means the empty string, never a lone separator. */
+export function toCsv(rows: readonly (readonly (string | number)[])[]): string {
+  if (rows.length === 0) return ''
+  return rows.map((row) => row.map(csvField).join(',')).join(CSV_EOL) + CSV_EOL
+}
+
+// --- READING ------------------------------------------------------------
+
 type Pos = { line: number; column: number }
 
 /**

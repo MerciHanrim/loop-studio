@@ -361,8 +361,10 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     // correct consumer does — the byte contract lives in
     // csv-download-encoding.spec.ts
     const csv = (await fs.readFile(await download.path(), 'utf8')).replace(/^\uFEFF/, '')
-    const header = csv.split('\n')[0].split(',')
+    // RFC 4180 records (CRLF), and every Pool column names its node id, so the
+    // three zones of a Template cannot collide — docs/data-import.md §CSV
+    const header = csv.split('\r\n')[0].split(',')
     // both Pools present, not just the one shown in the legend
-    expect(header).toEqual(['step', 'P1', 'P2'])
+    expect(header).toEqual(['step', 'P1 [p1]', 'P2 [p2]'])
   })
 })

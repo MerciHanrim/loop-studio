@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectDelimiter, parseDelimitedText, stripBom } from './csv'
+import { CSV_EOL, csvField, detectDelimiter, parseDelimitedText, stripBom, toCsv } from './csv'
 
 // docs/data-import.md -- Phase 1B delimited-text parsing. This module owns
 // SYNTAX only; ragged rows and cell-content rules live in
@@ -177,5 +177,69 @@ describe('parseDelimitedText -- malformed input is rejected with position', () =
       ['a', 'b', 'c'],
       ['1', '2'],
     ])
+  })
+})
+
+
+// docs/data-import.md -- the WRITE side of the same syntax module. Every CSV
+// this product downloads goes through `toCsv`, so the record separator and the
+// quoting rule have ONE owner and one test, instead of the per-writer idiom
+// that had diverged five ways (measured 2026-09-26: five writers joined rows
+// with a bare LF and replaced `"` / `,` / newline inside a label with a SPACE,
+// losing it; only the change-proposal writer was RFC 4180).
+
+describe('csvField (RFC 4180)', () => {
+  it('leaves a value that needs no quoting alone', () => {
+    expect(csvField('plain')).toBe('plain')
+    expect(csvField('')).toBe('')
+    expect(csvField(42)).toBe('42')
+    expect(csvField('a b')).toBe('a b')
+    expect(csvField('ตั๋ว')).toBe('ตั๋ว')
+  })
+
+  it('quotes a comma, a quote, CR and LF -- and NEVER replaces them', () => {
+    expect(csvField('a,b')).toBe('"a,b"')
+    expect(csvField('a\nb')).toBe('"a\nb"')
+    expect(csvField('a\rb')).toBe('"a\rb"')
+    expect(csvField(`a${CSV_EOL}b`)).toBe(`"a${CSV_EOL}b"`)
+  })
+
+  it('doubles an internal quote, inside quotes', () => {
+    expect(csvField('say "hi"')).toBe('"say ""hi"""')
+    expect(csvField('"')).toBe('""""')
+  })
+
+  it('does not quote a tab -- a CSV field may hold one', () => {
+    expect(csvField('a\tb')).toBe('a\tb')
+  })
+})
+
+describe('toCsv', () => {
+  it('separates records with CRLF and terminates the last one too', () => {
+    expect(CSV_EOL).toBe('\r\n')
+    expect(toCsv([['a', 'b'], ['1', '2']])).toBe('a,b\r\n1,2\r\n')
+  })
+
+  it('a document with no rows is empty, not a lone separator', () => {
+    expect(toCsv([])).toBe('')
+  })
+
+  it('takes numbers as well as strings', () => {
+    expect(toCsv([['step', 'n'], [0, 12]])).toBe('step,n\r\n0,12\r\n')
+  })
+
+  it("round-trips a hostile label LOSSLESSLY through this module's own parser", () => {
+    const hostile = ['plain', 'a,b', 'say "hi"', 'two\nlines', 'crlf\r\nhere', 'ตั๋ว [ticket_free]']
+    const text = toCsv([hostile, [1, 2, 3, 4, 5, 6]])
+    const parsed = parseDelimitedText(text, ',')
+    expect(parsed.ok).toBe(true)
+    expect(parsed.ok && parsed.rows[0]).toEqual(hostile)
+    expect(parsed.ok && parsed.rows).toHaveLength(2)
+  })
+
+  it('a BOM-prefixed document still parses -- the download boundary adds one', () => {
+    const text = BOM + toCsv([['a', 'b']])
+    const parsed = parseDelimitedText(stripBom(text), ',')
+    expect(parsed.ok && parsed.rows).toEqual([['a', 'b']])
   })
 })

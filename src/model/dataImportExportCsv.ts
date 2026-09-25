@@ -4,6 +4,7 @@
 // nodes too -- a stored `ImportSourceTable` only ever holds the BASE, never
 // a Parameter's current live value (§DI-D1: only CHANGED rows are listed).
 
+import { toCsv } from './csv'
 import type { DuplicateTripleError } from './dataImportRefresh'
 import type { ImportSourceTable } from './serialize'
 import type { LoopNode, ParameterData } from './types'
@@ -15,15 +16,12 @@ function paramData(n: LoopNode): ParameterData | null {
 /** §DI-D18 -- every text field gets EXACTLY ONE leading `'` prepended,
  *  always, never conditional on whether the value "looks dangerous" (the
  *  only way to make the guard losslessly reversible: strip exactly one
- *  leading `'`, no judgment call). Then RFC 4180 quoting: wrap in `"…"`
- *  with internal `"` doubled, whenever the guarded value contains a comma,
- *  a quote, or a newline -- never the naive "replace with a space" approach
- *  `TimelineChart.tsx`'s own (unrelated, pre-existing) CSV writer uses. */
-function csvTextField(raw: string): string {
-  const guarded = `'${raw}`
-  if (/[",\r\n]/.test(guarded)) return `"${guarded.replace(/"/g, '""')}"`
-  return guarded
-}
+ *  leading `'`, no judgment call). This guard is THIS export's own: the
+ *  spreadsheet it is pasted back into would otherwise read a leading `=`,
+ *  `+`, `-` or `@` as a formula. Quoting itself is not — `csvField` in
+ *  `./csv` is now the one RFC 4180 writer for every CSV this product
+ *  downloads. */
+const guardedTextField = (raw: string): string => `'${raw}`
 
 export function buildChangeProposalCsv(
   tables: readonly ImportSourceTable[],
@@ -60,7 +58,7 @@ export function buildChangeProposalCsv(
   }
   if (duplicateTriples.length > 0) return { ok: false, duplicateTriples }
 
-  const lines: string[] = ['source_table,source_key,source_column,previous_value,new_value']
+  const rows: (string | number)[][] = [['source_table', 'source_key', 'source_column', 'previous_value', 'new_value']]
   for (const c of candidates) {
     const match = hostNodes.find((n) => {
       const d = paramData(n)
@@ -69,21 +67,23 @@ export function buildChangeProposalCsv(
     if (!match) continue // zero Parameters carrying this triple -- locally-deleted-but-unresolved, or already-discarded; nothing live to report
     const value = paramData(match)!.value
     if (value === c.base) continue // unchanged -- §DI-D1 scopes this export to changed rows only
-    lines.push([csvTextField(c.table.label), csvTextField(c.sourceKey), csvTextField(c.header), String(c.base), String(value)].join(','))
+    rows.push([
+      guardedTextField(c.table.label),
+      guardedTextField(c.sourceKey),
+      guardedTextField(c.header),
+      c.base,
+      value,
+    ])
   }
 
-  // §DI12.3 -- CRLF line endings, for the Windows/Excel round trip this export
-  // exists for: a designer pastes it straight back into their own sheet.
+  // §DI12.3's CRLF line endings, for the Windows/Excel round trip this export
+  // exists for, are now `CSV_EOL` — the same separator every CSV this product
+  // downloads carries, rather than this one writer's private choice. §DI12.3's
+  // product decision is unchanged; only its scope widened to all six.
   //
   // The Excel-compatibility BOM that §DI12.3 also calls for is added at the
-  // shared DOWNLOAD boundary (`downloadCsv`, src/ui/download.ts), not here.
-  // The product behaviour is unchanged -- the file a user receives still starts
-  // with a BOM -- but the responsibility now sits in one place for all six CSVs
-  // this product writes, instead of each writer deciding for itself. That
-  // split-brain is what let the other five ship without one: two of them even
-  // set `charset=utf-8` on the Blob, which a downloaded file does not carry, so
-  // Excel read them as the system ANSI code page and every Korean header came
-  // out as mojibake. `withCsvBom` is idempotent, so this function's output is
-  // correct whether or not a future caller re-adds one.
-  return { ok: true, csv: lines.join('\r\n') + '\r\n' }
+  // shared DOWNLOAD boundary (`downloadCsv`, src/ui/download.ts), not here, so
+  // a serializer's output stays a plain document. `withCsvBom` is idempotent,
+  // so this function's output is correct whether or not a caller re-adds one.
+  return { ok: true, csv: toCsv(rows) }
 }
