@@ -115,6 +115,11 @@ active" tell regardless of accent.
 
 ## FC4. The picker
 
+> **Superseded in placement by FC10 (2026-09-25).** The swatch row's contents,
+> semantics, auto-frame rules and mobile scope below are all still current; only
+> WHERE it lives changed — it is now inside the frame's properties popover,
+> opened from its title, instead of glued to the frame's bottom edge.
+
 - Desktop, on a **selected manual frame** (or a selected auto frame — see
   below): a compact **swatch row** in the chrome, rendered under the ✕ / resize
   corner. Six buttons: `neutral` + the five accents.
@@ -277,3 +282,107 @@ export type Frame = { id; n; label; rect; color?: FrameColor }   // absent ⇒ n
 **If, while writing this, a genuinely new product decision on the palette,
 contrast, or mobile behaviour is needed — stop and ask before implementing.**
 Otherwise the spec above is the contract.
+
+---
+
+## FC10. The picker moves into a frame PROPERTIES popover (2026-09-25)
+
+**This supersedes FC4's placement — not its content.** The palette, the
+accessible names, `aria-pressed`, the checked ring, the auto-frame promote /
+neutral-no-op rules and the mobile scope are all unchanged. What changes is
+WHERE the six swatches are and what opens them.
+
+### The defect
+
+FC4 put the swatch row in the frame's own chrome at `top: 100%` — the frame's
+BOTTOM edge, in canvas coordinates. That binds the control to the frame's
+GEOMETRY rather than to the interaction that opens it, and on a frame taller
+than the viewport it puts the only colour control off screen.
+
+**Measured (2026-09-25, production `a2989c2`):** the shipped gacha Template's
+`zone_pickup` frame — `Premium Pickup`, `{x: 2440, y: 330, w: 1790, h: 1000}`,
+the largest of its four — has its title and its bottom edge more than a screen
+apart at zoom 1. Reading the title and recolouring the frame could not be done
+from the same place. Every other frame edit is already reached from the title.
+
+### The shape
+
+- Clicking (or pressing Enter on) a frame's **title chip** opens one
+  **properties popover** holding that frame's **name** and its **accent**,
+  in that order, left-aligned under the title.
+- The chip stays in place and becomes the popover's **anchor** and its
+  `aria-expanded` disclosure. The frame's chrome does not reflow when it opens.
+- The popover is **portaled to `document.body`** and positioned `fixed` from
+  the chip's measured screen rect — never inside `<ViewportPortal>`. A panel in
+  canvas coordinates would be scaled by the zoom and pushed off screen by
+  exactly the geometry that caused the defect.
+- Placement uses the toolbar's shared `computeBelowAnchorPos`: below the
+  anchor, **flipped above** when there is no room below, **clamped** inside the
+  viewport on both axes. Left-aligned (`'start'`), because a frame's title sits
+  at its top-left corner.
+- A colour applies **immediately** and the popover stays open. A name commits
+  on Enter (which closes it) or on any dismissal; **Escape cancels the name**
+  and closes, exactly as FC4's inline rename box did. A colour already picked
+  stays — it was its own committed edit the moment it was clicked.
+- Opening it, and recolouring from it, **move nothing**: not the frame, not a
+  node, not an edge, not the viewport.
+
+### The canvas is frozen while it is open
+
+`uiStore.frameProps` holds the open frame's id — session-only, never persisted,
+never in the `GraphDoc` or on the undo stack. `Canvas.tsx` reads it and turns
+off `panOnDrag`, `zoomOnScroll`, `zoomOnPinch` and `zoomOnDoubleClick` while it
+is set. The placement is measured once, so a pan or a zoom underneath would
+slide the panel off its own anchor.
+
+Two consequences, **both measured rather than reasoned** (2026-09-25):
+
+1. **A wheel over the canvas does nothing and does NOT dismiss.** Dismissing
+   from the wheel re-armed zoom inside that same event: one notch zoomed the
+   canvas `1 → 0.717` with the popover still on screen. React Flow keeps
+   `zoomOnScroll` / `panOnDrag` in a mutable pan-zoom object refreshed from an
+   effect, so flushing the closing state update mid-dispatch re-enables them
+   before the event reaches its own handler. With nothing to dismiss, there is
+   nothing to race.
+2. **Every other dismissal closes on a TASK of its own**, not inside the
+   dispatch of the event that asked for it — and `setTimeout`, not
+   `queueMicrotask`: a microtask checkpoint runs BETWEEN two listeners for the
+   same event, so a microtask is still inside the dispatch. With a microtask the
+   wheel still zoomed; with a task the dismissing gesture moves nothing.
+
+Because the popover is a `[role="dialog"]`, `isTypingTarget` / `isModalOpen`
+(§LGR6.6) already cover it: Backspace / Delete with a **swatch** focused cannot
+delete the frame being edited, not just with the text field focused.
+
+### Scope is unchanged — LGR-D12 / D6 still holds
+
+Desktop **and** an unlocked canvas only. On mobile, and on a locked desktop
+canvas, a saved frame stays **view + select only**: the title is a static span,
+no popover is rendered, and asking the store to open one is refused by the same
+render gate. An accent chosen on desktop still renders everywhere. Whether
+mobile should ever be allowed to edit a frame is a separate product decision
+and is **not** taken here.
+
+### Files
+
+- `src/components/frames/FramePropsPopover.tsx` — new; the panel, its placement,
+  focus, dismissal and the deferred close.
+- `src/components/frames/FrameLayer.tsx` — the title chip becomes a disclosure
+  button; the inline swatch row and the inline rename input are gone; the
+  popover is rendered outside `<ViewportPortal>`; a promotion re-points an open
+  popover at the new frame id.
+- `src/store/uiStore.ts` — `frameProps` / `openFrameProps` / `closeFrameProps`.
+- `src/components/Canvas.tsx` — the pan / zoom freeze.
+- `src/components/toolbar/useAnchoredPosition.ts` — an `align` argument
+  (default `'end'`, so existing callers are untouched).
+- `src/components/toolbar/useOutsideDismiss.ts` — `alsoInside` (the anchor
+  counts as inside, so the chip can toggle) and `keepOnWheel`.
+- `src/index.css` — `.lgr-frame-props*`; `.lgr-frame__swatches` is gone and the
+  swatch buttons are unchanged.
+- `src/i18n/locales/*/canvas.ts` — `canvas.frame.props.title` /
+  `canvas.frame.props.name`, all 14 locales.
+- `e2e/frame-props-popover.spec.ts` — 8 regressions, `Premium Pickup` first.
+- Baselines: `auto-frames`, `auto-frames-mixed`, `frames-activity`,
+  `frame-colours`, `frame-colours-dark`, `frame-colours-forced` lose the swatch
+  row under the selected frame. `frame-colours-overlap` has no selected frame
+  and is unchanged.

@@ -139,6 +139,23 @@ type UiState = {
   setRegionSelectArmed: (v: boolean) => void
 
   /**
+   * docs/large-graph-readability-frame-colour.md §FC10 — the id of the frame
+   * whose PROPERTIES popover (name + accent) is open, or `null`. Session-only,
+   * never persisted, never in the GraphDoc / undo — what the popover *commits*
+   * is (a rename / a recolour, each its own §SF11.1 entry), not that it was
+   * open.
+   *
+   * It lives here rather than inside `FrameLayer` for one reason: `Canvas.tsx`
+   * has to freeze pan / zoom while it is open. The popover is placed in SCREEN
+   * space from the title's measured rect, so a pan or a zoom underneath it
+   * would slide it off its own anchor — and the §FC10 contract is that opening
+   * it and recolouring from it move nothing at all.
+   */
+  frameProps: string | null
+  openFrameProps: (id: string) => void
+  closeFrameProps: () => void
+
+  /**
    * docs/register-expression-authoring.md §RXA3.4 — the ids of the nodes a
    * Register expression currently references, hovered / focused in the
    * Inspector read-back. Canvas node rendering adds `.is-ref-peek` for these.
@@ -330,6 +347,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   // §LGR12 — session-only, like the Frame tool's own armed flag.
   regionSelectArmed: false,
   setRegionSelectArmed: (v) => set((s) => (s.regionSelectArmed === v ? s : { regionSelectArmed: v })),
+
+  frameProps: null,
+  openFrameProps: (id) => set((s) => (s.frameProps === id ? s : { frameProps: id })),
+  closeFrameProps: () => set((s) => (s.frameProps === null ? s : { frameProps: null })),
 
   peekRefNodeIds: [],
   setPeekRefNodeIds: (ids) =>

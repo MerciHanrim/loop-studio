@@ -2288,7 +2288,15 @@ a.sheet__row {
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: auto;
-  cursor: text;
+  /* §FC10 — the chip is a DISCLOSURE for the properties popover now, not a
+     text box that opens in place. */
+  cursor: pointer;
+}
+/* §FC10 — while its popover is open the chip reads as pressed, so the anchor
+   the panel belongs to is never ambiguous on a canvas full of frames. */
+.lgr-frame__label.is-open {
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
 }
 /* §FC2 — an accented frame tints its label chip (text + border) with the same
    accent. Selection no longer recolours the label — the outline is the tell. */
@@ -2331,12 +2339,6 @@ a.sheet__row {
   pointer-events: none;
   cursor: default;
 }
-.lgr-frame__label--edit {
-  cursor: text;
-  font: inherit;
-  color: var(--text-primary);
-  outline: none;
-}
 .lgr-frame__del {
   position: absolute;
   top: -9px;
@@ -2373,21 +2375,54 @@ a.sheet__row {
   pointer-events: auto;
 }
 
-/* docs/large-graph-readability-frame-colour.md §FC4 — the accent picker: a
-   compact swatch row under a selected frame's bottom-left corner. Desktop only
-   (not rendered on mobile, not for a pure auto frame on mobile). */
-.lgr-frame__swatches {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 5px;
+/* docs/large-graph-readability-frame-colour.md §FC10 — the frame PROPERTIES
+   popover: name + accent, anchored to the frame's TITLE and portaled to
+   `document.body`, so it lives in SCREEN space and a frame taller than the
+   viewport can no longer put its own colour control off screen (§FC4's swatch
+   row used to sit at `top: 100%` — the frame's bottom edge — in canvas
+   coordinates). Desktop + unlocked canvas only; `top`/`left` come from the
+   shared clamp/flip math in `useAnchoredPosition`. */
+.lgr-frame-props {
+  z-index: 60;
   display: flex;
-  gap: 3px;
-  padding: 3px;
-  background: var(--surface-raised);
-  border: 1px solid var(--line-hairline);
-  border-radius: 5px;
-  pointer-events: auto;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-structure);
+  border-radius: 9px;
+  box-shadow: var(--elev-label);
+}
+.lgr-frame-props__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lgr-frame-props__caption {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.lgr-frame-props__name {
+  width: 180px;
+  padding: 4px 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+/* §FC4 — the accent row, left-aligned under the name input */
+.lgr-frame-props__colors {
+  display: flex;
+  gap: 5px;
+}
+@media (forced-colors: active) {
+  .lgr-frame-props {
+    border-color: ButtonText;
+  }
 }
 .lgr-frame__swatch {
   width: 14px;
@@ -2430,9 +2465,6 @@ a.sheet__row {
     0 0 0 3px var(--text-primary);
 }
 @media (forced-colors: active) {
-  .lgr-frame__swatches {
-    border-color: ButtonText;
-  }
   .lgr-frame__swatch {
     border-color: ButtonText;
   }

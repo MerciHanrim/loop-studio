@@ -95,6 +95,8 @@ const canvas = {
   'canvas.frame.color.gold': '金色',
   'canvas.frame.color.violet': '紫罗兰',
   'canvas.frame.color.rose': '玫瑰红',
+  'canvas.frame.props.title': '分组框设置——{label}',
+  'canvas.frame.props.name': '名称',
   'canvas.activity.off': '活动叠加已关闭——点击可为近期活跃的部分着色',
   'canvas.activity.on': '活动叠加已开启——点击可隐藏着色',
   'canvas.activity.rowLabel': '活动叠加',

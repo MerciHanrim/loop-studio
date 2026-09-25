@@ -86,6 +86,8 @@ const canvas = {
   'canvas.frame.color.gold': '골드',
   'canvas.frame.color.violet': '바이올렛',
   'canvas.frame.color.rose': '로즈',
+  'canvas.frame.props.title': '프레임 설정 — {label}',
+  'canvas.frame.props.name': '이름',
   'canvas.activity.off': '활동 오버레이 꺼짐 — 눌러서 최근 활동 부분에 색조 표시',
   'canvas.activity.on': '활동 오버레이 켜짐 — 눌러서 색조 숨기기',
   'canvas.activity.rowLabel': '활동 오버레이',

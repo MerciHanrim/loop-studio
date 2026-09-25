@@ -1790,19 +1790,19 @@ test.describe('LGR Slice 4a — transient group frames', () => {
 
     // rename #1 → "Loop"
     await page.locator('.lgr-frame__label').first().click()
-    await page.locator('.lgr-frame__label--edit').fill('  Loop  ')
+    await page.locator('.lgr-frame-props__name').fill('  Loop  ')
     await page.keyboard.press('Enter')
     expect((await frameHead(page)).frames[0].label).toBe('Loop') // trimmed
 
     // rename #2 → "Loop" too (duplicates allowed)
     await page.locator('.lgr-frame__label').nth(1).click()
-    await page.locator('.lgr-frame__label--edit').fill('Loop')
+    await page.locator('.lgr-frame-props__name').fill('Loop')
     await page.keyboard.press('Enter')
     expect((await frameHead(page)).frames.map((f) => f.label)).toEqual(['Loop', 'Loop'])
 
     // empty rename on #1 ⇒ falls back to its default
     await page.locator('.lgr-frame__label').first().click()
-    await page.locator('.lgr-frame__label--edit').fill('')
+    await page.locator('.lgr-frame-props__name').fill('')
     await page.keyboard.press('Enter')
     expect((await frameHead(page)).frames[0].label).toBe('')
     await expect(page.locator('.lgr-frame__label').first()).toHaveText('Group 1')
@@ -2616,8 +2616,8 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await suggestBtn(page).click()
     const beforeManual = (await frameHead(page)).frames.length
     await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
-    await page.locator('.lgr-frame__label--edit').fill('Combat')
-    await page.locator('.lgr-frame__label--edit').press('Enter')
+    await page.locator('.lgr-frame-props__name').fill('Combat')
+    await page.locator('.lgr-frame-props__name').press('Enter')
     expect((await afHead(page)).autoFrames.length).toBe(1)
     const fh = await frameHead(page)
     expect(fh.frames.length).toBe(beforeManual + 1)
@@ -2775,7 +2775,7 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
     await suggestBtn(page).click()
     await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
-    await page.locator('.lgr-frame__label--edit').press('Enter')
+    await page.locator('.lgr-frame-props__name').press('Enter')
     await expect(page.locator('.lgr-frame:not(.lgr-frame--auto)')).toHaveCount(1)
     await expect(page.locator('.lgr-frame:not(.lgr-frame--auto) .lgr-frame__label')).toHaveText([/Group 1/])
     await frameToolBtn(page).click()
@@ -2895,6 +2895,21 @@ const fcCanUndo = (page: Page) =>
   )
 
 test.describe('LGR frame colour (§FC)', () => {
+  // §FC10 — the accent picker lives in the frame's PROPERTIES popover now
+  // (opened from its title), not in a swatch row glued to its bottom edge.
+  // Opened through the store here for the same reason `fcSelect` selects
+  // through the store: these tests are about what a colour pick MEANS, and the
+  // opening gesture itself is pinned end-to-end in frame-props-popover.spec.ts.
+  const fcOpenProps = (page: Page, id: string) =>
+    page.evaluate(
+      (i) =>
+        (
+          window as unknown as {
+            __loop: { ui: { getState: () => { openFrameProps: (i: string) => void } } }
+          }
+        ).__loop.ui.getState().openFrameProps(i),
+      id,
+    )
   const swatch = (page: Page, c: string) => page.locator(`.lgr-frame__swatch[data-color="${c}"]`)
   const neutralSwatch = (page: Page) => page.locator('.lgr-frame__swatch:not([data-color])')
   const cssOf = (page: Page, sel: string) =>
@@ -2912,6 +2927,8 @@ test.describe('LGR frame colour (§FC)', () => {
     const id = await fcAdd(page, { x: 0, y: -40, w: 700, h: 200 }, 'Zone')
     await fcSelect(page, id)
     await expect(page.locator('.lgr-frame.is-selected')).toHaveCount(1)
+    await fcOpenProps(page, id)
+    await expect(page.locator('.lgr-frame-props')).toBeVisible()
     await expect(neutralSwatch(page)).toHaveAttribute('aria-pressed', 'true')
 
     await swatch(page, 'violet').click()
@@ -2939,6 +2956,7 @@ test.describe('LGR frame colour (§FC)', () => {
     expect((await afHead(page)).autoFrames.length).toBe(2)
     const autoId = (await afHead(page)).autoFrames[0].id
     await fcSelect(page, autoId)
+    await fcOpenProps(page, autoId)
     await swatch(page, 'gold').click()
 
     expect((await afHead(page)).autoFrames.length).toBe(1)
@@ -2956,14 +2974,19 @@ test.describe('LGR frame colour (§FC)', () => {
     await suggestBtn(page).click()
     const before = await afHead(page)
     await fcSelect(page, before.autoFrames[0].id)
+    await fcOpenProps(page, before.autoFrames[0].id)
     // the picker opens on the selected auto frame, neutral pre-selected …
-    await expect(page.locator('.lgr-frame--auto .lgr-frame__swatches')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame-props .lgr-frame__swatch')).toHaveCount(6)
     await expect(neutralSwatch(page)).toHaveAttribute('aria-pressed', 'true')
     // … picking neutral is a no-op for an auto frame; Esc / deselect = cancel
     await page.evaluate(() => {
       const el = document.querySelector('.lgr-frame__swatch:not([data-color])') as HTMLButtonElement | null
       el?.click()
     })
+    // wait for focus before Escape — otherwise the key can land on the document
+    // and this test passes by never exercising the cancel path at all (it did:
+    // the promote-on-cancel defect below was invisible here until this line)
+    await expect(page.locator('.lgr-frame-props__name')).toBeFocused()
     await page.keyboard.press('Escape')
     await fcSelect(page, null)
 
@@ -3030,12 +3053,30 @@ test.describe('LGR frame colour (§FC)', () => {
     await page.emulateMedia({ forcedColors: null })
   })
 
-  test('mobile: a selected manual frame shows NO swatch row; a desktop-set accent still renders', async ({ page }) => {
+  test('mobile: a selected manual frame offers NO colour control at all; a desktop-set accent still renders (LGR-D12 / D6)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 })
     await loadAF(page)
-    await fcAdd(page, { x: 0, y: 0, w: 300, h: 160 }, 'M', 'violet')
+    const id = await fcAdd(page, { x: 0, y: 0, w: 300, h: 160 }, 'M', 'violet')
     await expect(page.locator('.lgr-frame-back rect.lgr-frame__fill[data-color="violet"]')).toHaveCount(1)
-    await expect(page.locator('.lgr-frame__swatches')).toHaveCount(0)
+    await fcSelect(page, id)
+    // §FC10 — the picker moved into the title's properties popover, so the
+    // contract is asserted on BOTH: there is no popover and no swatch. Asking
+    // the store to open one is refused as well — D6 is a render gate, not just
+    // a missing button.
+    await expect(page.locator('.lgr-frame__label--static')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame__swatch')).toHaveCount(0)
+    await page.evaluate(
+      (i) =>
+        (
+          window as unknown as {
+            __loop: { ui: { getState: () => { openFrameProps: (i: string) => void } } }
+          }
+        ).__loop.ui.getState().openFrameProps(i),
+      id,
+    )
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame__swatch')).toHaveCount(0)
   })
 
   test('VISUAL — frame-colours.png (light): a neutral frame + one per accent + a pure auto frame + one accent frame selected', async ({ page }) => {
@@ -3544,9 +3585,11 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     expect((await frameHead(page)).selectedId).toBe(id)
     await expect(page.locator('.lgr-frame__del')).toHaveCount(0)
     await expect(page.locator('.lgr-frame__resize')).toHaveCount(0)
-    await expect(page.locator('.lgr-frame__swatches')).toHaveCount(0)
+    // §FC10 — no properties popover and no swatch under the lock either
+    await expect(page.locator('.lgr-frame-props')).toHaveCount(0)
+    await expect(page.locator('.lgr-frame__swatch')).toHaveCount(0)
     await expect(page.locator('.lgr-frame__label--static')).toHaveCount(1)
-    await expect(page.locator('input.lgr-frame__label')).toHaveCount(0)
+    await expect(page.locator('button.lgr-frame__label')).toHaveCount(0)
     const h0 = await history(page)
     await dragStrip(page, 0, 60, 40)
     expect(await rectOf(page, id), 'locked: the frame does not move').toEqual(OUTER)

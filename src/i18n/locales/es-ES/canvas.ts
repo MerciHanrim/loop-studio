@@ -112,6 +112,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Oro',
   'canvas.frame.color.violet': 'Violeta',
   'canvas.frame.color.rose': 'Rosa',
+  'canvas.frame.props.title': 'Configuración del marco — {label}',
+  'canvas.frame.props.name': 'Nombre',
   'canvas.activity.off': 'Capa de actividad desactivada: haga clic para resaltar las partes activas recientemente',
   'canvas.activity.on': 'Capa de actividad activada: haga clic para ocultar el resaltado',
   'canvas.activity.rowLabel': 'Capa de actividad',

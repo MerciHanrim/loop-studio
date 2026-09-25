@@ -98,6 +98,8 @@ const canvas = {
   'canvas.frame.color.gold': '金色',
   'canvas.frame.color.violet': '紫羅蘭',
   'canvas.frame.color.rose': '玫瑰紅',
+  'canvas.frame.props.title': '群組框設定——{label}',
+  'canvas.frame.props.name': '名稱',
   'canvas.activity.off': '活動疊層已關閉——點一下可為近期活躍的部分上色',
   'canvas.activity.on': '活動疊層已開啟——點一下可隱藏上色',
   'canvas.activity.rowLabel': '活動疊層',

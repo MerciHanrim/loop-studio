@@ -101,6 +101,8 @@ const canvas = {
   'canvas.frame.color.gold': 'ゴールド',
   'canvas.frame.color.violet': 'バイオレット',
   'canvas.frame.color.rose': 'ローズ',
+  'canvas.frame.props.title': 'フレーム設定 — {label}',
+  'canvas.frame.props.name': '名前',
   'canvas.activity.off': 'アクティビティ表示 オフ — クリックで最近動いた部分に色を付けます',
   'canvas.activity.on': 'アクティビティ表示 オン — クリックで色を消します',
   'canvas.activity.rowLabel': 'アクティビティ表示',

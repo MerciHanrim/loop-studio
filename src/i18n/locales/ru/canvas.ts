@@ -122,6 +122,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Золотой',
   'canvas.frame.color.violet': 'Фиолетовый',
   'canvas.frame.color.rose': 'Розовый',
+  'canvas.frame.props.title': 'Настройки рамки — {label}',
+  'canvas.frame.props.name': 'Название',
   'canvas.activity.off':
     'Слой активности выключен — нажмите, чтобы подсветить недавно активные части',
   'canvas.activity.on': 'Слой активности включён — нажмите, чтобы убрать подсветку',

@@ -109,7 +109,7 @@ test.describe('frame accessibility — role, name and focus unit (§LGR6.6)', ()
     }
   })
 
-  test('no duplicate tab stop: an unselected frame is ONE stop; the label, ✕, swatches and the resize handle join only once it is selected (the rename path survives)', async ({ page }) => {
+  test('no duplicate tab stop: an unselected frame is ONE stop; the label, ✕ and the resize handle join only once it is selected (the rename path survives)', async ({ page }) => {
     await load(page)
     const id = await seedFrame(page, FRAME)
     await page.evaluate(() => (window as unknown as Bridge).__loop.frame.getState().selectFrame(null))
@@ -127,10 +127,13 @@ test.describe('frame accessibility — role, name and focus unit (§LGR6.6)', ()
     expect(stopsWhenSelected).toContain('lgr-frame__label')
     expect(stopsWhenSelected).toContain('lgr-frame__del')
     expect(stopsWhenSelected).toContain('lgr-frame__resize')
-    // the rename path: focus the label and press Enter → the rename input opens
+    // §FC10 — the accent picker is no longer an inner tab stop of the frame at
+    // all: it moved into the title's properties popover, which is portaled to
+    // `document.body`, so it cannot appear in this count by construction.
+    // the rename path: focus the label and press Enter → the popover opens
     await page.locator('.lgr-frame__label').first().focus()
     await page.keyboard.press('Enter')
-    await expect(page.locator('.lgr-frame__label--edit')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame-props__name')).toHaveCount(1)
     await page.keyboard.press('Escape')
   })
 
@@ -444,7 +447,7 @@ test.describe('frame accessibility — the delete keys (§LGR6.6 / F1, F3)', () 
     await page.evaluate((f) => (window as unknown as Bridge).__loop.frame.getState().selectFrame(f), fid)
     await page.locator('.lgr-frame__label').first().focus()
     await page.keyboard.press('Enter') // rename input
-    await expect(page.locator('.lgr-frame__label--edit')).toHaveCount(1)
+    await expect(page.locator('.lgr-frame-props__name')).toHaveCount(1)
     await page.keyboard.press('Backspace')
     await page.keyboard.press('Delete')
     await page.waitForTimeout(250)

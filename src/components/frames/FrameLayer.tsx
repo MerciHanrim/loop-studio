@@ -1,19 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { ViewportPortal, useReactFlow, useStore } from '@xyflow/react'
-import {
-  useFrameStore,
-  FRAME_COLORS,
-  type FrameRect,
-  type FrameColor,
-} from '../../store/frameStore'
+import { useFrameStore, type FrameRect, type FrameColor } from '../../store/frameStore'
 import { useAutoFrameStore } from '../../store/autoFrameStore'
 import { useGraphStore, type GestureSnapshot } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
-import { useT, type MessageKey } from '../../i18n'
+import { useT } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeom'
 import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type Pt } from './frameMoveGesture'
 import { createKeyGesture } from '../../ui/keyGestureLifetime'
+import { FramePropsPopover } from './FramePropsPopover'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -105,16 +101,6 @@ type KeyGesture = {
   current: FrameRect
 }
 
-// §FC4 — accessible names for the swatch buttons (colour is never the sole tell)
-const COLOR_KEY: Record<'neutral' | FrameColor, MessageKey> = {
-  neutral: 'canvas.frame.color.neutral',
-  slate: 'canvas.frame.color.slate',
-  sage: 'canvas.frame.color.sage',
-  gold: 'canvas.frame.color.gold',
-  violet: 'canvas.frame.color.violet',
-  rose: 'canvas.frame.color.rose',
-}
-
 type Drag =
   | { kind: 'draw'; start: Pt }
   | {
@@ -169,6 +155,13 @@ export function FrameLayer() {
   // rename / colour / delete / promote. Select + view only.
   const canvasLocked = useUiStore((s) => s.canvasLocked)
   const editable = !isMobile && !canvasLocked
+  // §FC10 — which frame's properties popover (name + accent) is open. In the
+  // store, not local state, because `Canvas.tsx` freezes pan / zoom on it.
+  const propsId = useUiStore((s) => s.frameProps)
+  const openFrameProps = useUiStore((s) => s.openFrameProps)
+  const closeFrameProps = useUiStore((s) => s.closeFrameProps)
+  /** the open popover's anchor: that frame's own title chip */
+  const propsAnchorRef = useRef<HTMLButtonElement>(null)
 
   const [tx, ty, zoom] = useStore((s) => s.transform)
   const { screenToFlowPosition } = useReactFlow()
@@ -495,6 +488,16 @@ export function FrameLayer() {
     if (!live) selectFrame(null)
   }, [selectedId, frames, autoFrames, selectFrame])
 
+  // §FC10 — the same for the properties popover, plus the edit gate: a frame
+  // that was deleted / dismissed / cleared under it, or a canvas that just
+  // became read-only (the lock, or a resize into the mobile layout), closes it.
+  // D6 has no editing surface at all, so leaving it open would be one.
+  useEffect(() => {
+    if (propsId === null) return
+    const live = frames.some((f) => f.id === propsId) || autoFrames.some((f) => f.id === propsId)
+    if (!live || !editable) closeFrameProps()
+  }, [propsId, frames, autoFrames, editable, closeFrameProps])
+
   const startChromeDrag =
     (kind: 'move' | 'resize', id: string, orig: FrameRect, isAuto: boolean, label = '') =>
     (e: React.PointerEvent) => {
@@ -549,6 +552,12 @@ export function FrameLayer() {
   // paint order: auto BEHIND manual (§AF5 R2)
   const ordered = [...autoRF, ...manualRF]
 
+  /** what the title READS when the frame carries no label of its own */
+  const defaultNameFor = (rf: RenderFrame) =>
+    t(rf.auto ? 'canvas.frame.areaName' : 'canvas.frame.defaultName', { n: rf.ord })
+  /** §FC10 — the frame whose properties popover is open, if it is still here */
+  const propsRF = propsId === null ? null : (ordered.find((f) => f.id === propsId) ?? null)
+
   const commitLabel = (rf: RenderFrame, v: string) => {
     if (rf.auto) {
       // any rename commit promotes (§AF5 R5); default fallback = empty label
@@ -567,8 +576,13 @@ export function FrameLayer() {
   const pickColor = (rf: RenderFrame, color: FrameColor | null) => {
     if (rf.auto) {
       if (color === null) return
-      adoptFrame(rf.rect, rf.label, color)
+      const promoted = adoptFrame(rf.rect, rf.label, color)
       removeAuto(rf.id)
+      // §FC10 — a promotion swaps the frame's identity underneath an OPEN
+      // popover. Re-point it at the new id rather than letting the stale-id
+      // effect above close it: from the user's side nothing happened except
+      // that the colour took.
+      if (propsId === rf.id) openFrameProps(promoted)
     } else {
       setFrameColor(rf.id, color)
     }
@@ -626,8 +640,6 @@ export function FrameLayer() {
           const def = rf.auto
             ? t('canvas.frame.areaName', { n: rf.ord })
             : t('canvas.frame.defaultName', { n: rf.ord })
-          // §FC4 — the accent picker: desktop only, on a selected frame.
-          const showSwatches = sel && canEdit
           // §LGR6.6 — the accessible name carries what the frame holds right
           // now. Derived, never stored (R5-D3), exactly like the drag's own
           // membership rule.
@@ -699,8 +711,13 @@ export function FrameLayer() {
                 label={rf.label}
                 editable={canEdit}
                 selected={sel}
-                onCommit={(v) => commitLabel(rf, v)}
-                onSelect={() => selectFrame(rf.id)}
+                open={propsId === rf.id}
+                buttonRef={propsId === rf.id ? propsAnchorRef : undefined}
+                onOpen={() => {
+                  selectFrame(rf.id)
+                  if (propsId === rf.id) closeFrameProps()
+                  else openFrameProps(rf.id)
+                }}
               />
 
               {sel && canEdit ? (
@@ -743,37 +760,31 @@ export function FrameLayer() {
                   />
                 </>
               ) : null}
-
-              {showSwatches ? (
-                <div
-                  className="lgr-frame__swatches"
-                  role="group"
-                  aria-label={t('canvas.frame.colorRow')}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  {([null, ...FRAME_COLORS] as (FrameColor | null)[]).map((c) => {
-                    const active = (rf.color ?? null) === c
-                    return (
-                      <button
-                        key={c ?? 'neutral'}
-                        type="button"
-                        className={`lgr-frame__swatch${active ? ' is-active' : ''}`}
-                        data-color={c ?? undefined}
-                        aria-label={t(COLOR_KEY[c ?? 'neutral'])}
-                        aria-pressed={active}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          pickColor(rf, c)
-                        }}
-                      />
-                    )
-                  })}
-                </div>
-              ) : null}
             </div>
           )
         })}
       </ViewportPortal>
+
+      {/* §FC10 — the properties popover. OUTSIDE <ViewportPortal> on purpose:
+          it portals to `document.body` and is placed in SCREEN space from the
+          title's measured rect, so neither the canvas transform nor the frame's
+          own size can push it out of reach. */}
+      {propsRF && editable ? (
+        <FramePropsPopover
+          key={propsRF.id}
+          anchorRef={propsAnchorRef}
+          name={propsRF.label}
+          label={propsRF.label || defaultNameFor(propsRF)}
+          color={propsRF.color ?? null}
+          onCommitName={(v) => commitLabel(propsRF, v)}
+          onPickColor={(c) => pickColor(propsRF, c)}
+          onClose={({ focusAnchor }) => {
+            const anchor = propsAnchorRef.current
+            closeFrameProps()
+            if (focusAnchor) anchor?.focus()
+          }}
+        />
+      ) : null}
     </>
   )
 }
@@ -785,69 +796,47 @@ function FrameLabel({
   label,
   editable,
   selected,
-  onCommit,
-  onSelect,
+  open,
+  buttonRef,
+  onOpen,
 }: {
   def: string
   label: string
   editable: boolean
   /** §LGR6.6 — the container is the frame's single tab stop; the label joins
-   *  the tab order only once the frame is selected, next to ✕ / the swatches /
-   *  the resize handle, so the keyboard rename path is kept without a
-   *  duplicate stop on every frame. */
+   *  the tab order only once the frame is selected, next to ✕ and the resize
+   *  handle, so the keyboard rename path is kept without a duplicate stop on
+   *  every frame. */
   selected: boolean
-  onCommit: (v: string) => void
-  onSelect: () => void
+  /** §FC10 — this frame's properties popover is the one currently open */
+  open: boolean
+  /** set only on the OPEN frame: the popover anchors to (and returns focus to)
+   *  this element. */
+  buttonRef?: RefObject<HTMLButtonElement | null>
+  onOpen: () => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(label)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (editing) inputRef.current?.select()
-  }, [editing])
-
-  const commit = () => {
-    setEditing(false)
-    onCommit(draft.trim())
-  }
-
   // §AF-INV-7 / D6 — a non-editable label (a mobile auto frame, or any frame
-  // on a locked / mobile canvas) is a plain span
+  // on a locked / mobile canvas) is a plain span: no popover, no rename, no
+  // colour. Unchanged by §FC10.
   if (!editable) {
     return <span className="lgr-frame__label lgr-frame__label--static">{label || def}</span>
   }
 
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        className="lgr-frame__label lgr-frame__label--edit"
-        defaultValue={label || def}
-        onChange={(e) => setDraft(e.target.value)}
-        onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit()
-          else if (e.key === 'Escape') {
-            setEditing(false)
-            setDraft(label)
-          }
-        }}
-        onBlur={commit}
-      />
-    )
-  }
+  // §FC10 — the chip is now a disclosure for the properties popover rather than
+  // an inline text box. It STAYS in place while the popover is open (it is the
+  // anchor), so the frame's chrome never reflows on open.
   return (
     <button
+      ref={buttonRef}
       type="button"
-      className="lgr-frame__label"
+      className={`lgr-frame__label${open ? ' is-open' : ''}`}
       tabIndex={selected ? 0 : -1}
+      aria-haspopup="dialog"
+      aria-expanded={open}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation()
-        onSelect()
-        setDraft(label)
-        setEditing(true)
+        onOpen()
       }}
     >
       {label || def}

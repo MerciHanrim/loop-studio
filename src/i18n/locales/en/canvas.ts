@@ -90,6 +90,8 @@ const canvas = {
   'canvas.frame.color.gold': 'Gold',
   'canvas.frame.color.violet': 'Violet',
   'canvas.frame.color.rose': 'Rose',
+  'canvas.frame.props.title': 'Frame settings — {label}',
+  'canvas.frame.props.name': 'Name',
   'canvas.activity.off': 'Activity overlay off — click to tint recently active parts',
   'canvas.activity.on': 'Activity overlay on — click to hide the tint',
   'canvas.activity.rowLabel': 'Activity overlay',

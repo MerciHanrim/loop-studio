@@ -120,6 +120,8 @@ const canvas = {
   'canvas.frame.color.gold': 'ทอง',
   'canvas.frame.color.violet': 'ม่วง',
   'canvas.frame.color.rose': 'กุหลาบ',
+  'canvas.frame.props.title': 'ตั้งค่ากรอบ — {label}',
+  'canvas.frame.props.name': 'ชื่อ',
   'canvas.activity.off': 'ชั้นแสดงกิจกรรมปิดอยู่ — คลิกเพื่อไล่สีส่วนที่เพิ่งทำงาน',
   'canvas.activity.on': 'ชั้นแสดงกิจกรรมเปิดอยู่ — คลิกเพื่อซ่อนสี',
   'canvas.activity.rowLabel': 'ชั้นแสดงกิจกรรม',
