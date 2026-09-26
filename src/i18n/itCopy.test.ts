@@ -190,15 +190,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(850)
+    expect(KEYS).toHaveLength(851)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 850, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1072)
+    expect(per).toEqual({ catalog: 851, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1073)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

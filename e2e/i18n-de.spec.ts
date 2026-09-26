@@ -102,7 +102,11 @@ test.describe('the six existing locales are unaffected', () => {
     ['zh-CN', 'zh-Hans'],
     ['zh-TW', 'zh-Hant'],
     ['fr-FR', 'fr'],
-    ['nl-NL', 'en'], // still unregistered — German must not have widened this
+    // `qaa` is ISO 639-2's permanently reserved local-use range, so it can
+    // never become a registered code. `nl-NL` stood here until Dutch shipped —
+    // a probe for "falls back to English" must not be a tag the product might
+    // one day support, or the row rots the day that language registers.
+    ['qaa', 'en'], // reserved, never registrable — German must not have widened this
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
@@ -153,8 +157,8 @@ test('the picker offers Deutsch, tagged as its own language', async ({ page }) =
 test('German is findable by code, English name and endonym', async ({ page }) => {
   await openApp(page)
   await openLanguageMenu(page)
-  // the shipped languages + the dev pseudo-locale — 15 + 1 today
-  await expect(options(page)).toHaveCount(17)
+  // the shipped languages + the dev pseudo-locale — 17 + 1 today
+  await expect(options(page)).toHaveCount(18)
   for (const q of ['de', 'German', 'Deutsch', 'deutsch', 'DEUTSCH']) {
     await search(page).fill(q)
     await expect(option(page, 'de'), `query ${JSON.stringify(q)} must find German`).toHaveCount(1)

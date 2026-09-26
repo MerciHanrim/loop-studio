@@ -49,7 +49,7 @@ const inspector = {
   'inspector.field.expression': '表达式',
   'inspector.field.format': '格式（仅供参考）',
   'inspector.field.resourceType': '资源类型（仅供参考）',
-  'inspector.resourceType.placeholder': '金币、能量、经验值、玩家、物品，或自定义名称',
+  'inspector.resourceType.placeholder': 'Gold、Energy、XP、Player、Item，或自定义名称',
   'inspector.resourceType.tooLong': '超过 {max} 字节——导出时会丢弃这个标签。',
   'inspector.resourceType.normalised': '已规范化为“{value}”。',
   'inspector.resourceType.custom': '自定义类型——使用通用色块，没有内置颜色。',

@@ -105,9 +105,7 @@ test.describe('the other shipped locales are unaffected', () => {
     ['fr-FR', 'fr'],
     ['de-DE', 'de'],
     ['es-MX', 'es-419'],
-    // the unregistered probe: Dutch is on no roadmap entry, so it will not
-    // quietly become registered the way `de-DE` did for `fr`
-    // `qaa` — ISO 639-2 reserves `qaa`-`qtz` for LOCAL USE, so this tag can
+    // the unregistered probe. `qaa` — ISO 639-2 reserves `qaa`-`qtz` for LOCAL USE, so this tag can
     // never become a real language and can never become registered here. It
     // replaces `nl-NL`, which was the probe until Dutch went on the roadmap:
     // a probe tag has to be one the product will never support. MEASURED —
@@ -173,7 +171,7 @@ test.describe('the language search box finds Portuguese', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(17) // 16 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(18) // 17 shipped + the dev pseudo-locale
 
     for (const q of [
       'Português',
@@ -218,6 +216,7 @@ test.describe('the language search box finds Portuguese', () => {
       ['tr', 'Portekizce'],
       ['th', 'โปรตุเกส'],
       ['vi', 'Bồ Đào Nha'],
+      ['nl', 'Portugees'],
     ] as const
 
     // EXHAUSTIVE, and checked against the product rather than against a

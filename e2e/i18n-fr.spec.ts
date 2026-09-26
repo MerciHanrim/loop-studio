@@ -104,8 +104,7 @@ test.describe('the other shipped locales are unaffected', () => {
     // `de-DE` was this list's UNREGISTERED probe when French shipped. German
     // shipped afterwards, so it now reaches `de` through the ordinary
     // base-subtag step, and the row proves that step instead. `qaa` takes
-    // over as the probe: Dutch is not on the twelve-language roadmap, so it
-    // will not quietly become registered the way `de-DE` did.
+    // over as the probe — a code no roadmap can ever claim.
     ['de-DE', 'de'],
     // `qaa` — ISO 639-2 reserves `qaa`-`qtz` for LOCAL USE, so this tag can
     // never become a real language and can never become registered here. It
@@ -228,7 +227,7 @@ test.describe('the language search box, shipped to production here', () => {
     await page.keyboard.press('Escape')
     await expect(search(page)).toHaveValue('') // stage 1: only the query goes
     await expect(pop(page)).toBeVisible()
-    await expect(options(page)).toHaveCount(17) // 16 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(18) // 17 shipped + the dev pseudo-locale
 
     await page.keyboard.press('Escape')
     await expect(pop(page)).toHaveCount(0) // stage 2: the popover closes
@@ -321,6 +320,7 @@ test.describe('the language search box, shipped to production here', () => {
       ['tr', 'Fransızca'],
       ['th', 'ฝรั่งเศส'],
       ['vi', 'Tiếng Pháp'],
+      ['nl', 'Frans'],
     ] as const
 
     // EXHAUSTIVE, and checked against the product rather than against a

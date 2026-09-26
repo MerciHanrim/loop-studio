@@ -56,6 +56,7 @@ const ui = {
   'language.thai': '태국어',
   'language.vietnamese': '베트남어',
   'language.italian': '이탈리아어',
+  'language.dutch': '네덜란드어',
   'playbar.reset.title': '0단계로 초기화',
   'playbar.step.title': '한 단계 진행',
   'playbar.play': '▶ 재생',

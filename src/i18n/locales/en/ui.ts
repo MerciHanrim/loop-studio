@@ -53,6 +53,7 @@ const ui = {
   'language.thai': 'Thai',
   'language.vietnamese': 'Vietnamese',
   'language.italian': 'Italian',
+  'language.dutch': 'Dutch',
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': '▶ Play',

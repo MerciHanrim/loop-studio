@@ -481,9 +481,10 @@ moment German did — **the product was right and the test was stale.** So
 language *N+1* must revisit every earlier `i18n-<code>.spec.ts`, not just
 `i18n.spec.ts`. Two rules make that cheap:
 
-- an "unregistered" probe tag must be a language **not on the roadmap** — the
-  `de` spec uses `nl-NL`, and `i18n-fr.spec.ts` now does too, because picking
-  the next language to ship guarantees the row rots;
+- an "unregistered" probe tag must be a code the product can **never register**
+  — not merely one that is off today's roadmap. `de` and `fr` both used
+  `nl-NL`, which held only until Dutch shipped; every probe is now `qaa`,
+  because picking the next language to ship guarantees the row rots;
 - the picker option count is written as `<shipped> + the dev pseudo-locale`,
   so a stale number is visible in the comment rather than only in the failure.
 
@@ -518,7 +519,10 @@ stored value.
 RTL-infrastructure audit: the registry carries `direction` and `<html dir>` is
 set from it, but no layout, canvas or baseline has ever been exercised RTL.
 
-A probe tag must therefore avoid all of the above. `nl-NL` is still safe;
+A probe tag must therefore avoid all of the above. `nl-NL` is **no longer
+safe** — Dutch shipped as §L2.23, exactly as this section predicted, and the
+replacement is `qaa` from ISO 639-2's permanently reserved local-use range,
+which no roadmap can ever claim;
 `pt-PT` is **not** (and `es-ES` stopped being a safe probe the moment it
 registered — `i18n-es-419.spec.ts` had asserted it reached `es-419`, and that
 row flipped exactly as the file predicted it would) — `i18n-pt-br.spec.ts` uses `pt-AO` / `pt-MZ`
@@ -3301,6 +3305,228 @@ the proposal-review activity with `esaminare` (`review.title`,
 now `Verifica della proposta`. In Italian a section titled with the noun
 `verifica` whose body uses the verb `esaminare` is not a contradiction, so this
 was left alone rather than widened into a rename nobody asked for.
+**L2.23 — Dutch is `nl`, the first locale the picker puts AHEAD of English.**
+Catalog `src/i18n/locales/nl/`, template overlay `templateLabels/nl.ts`, module
+overlay in `moduleLabels.ts`, guards `nlCopy.test.ts` and `e2e/i18n-nl.spec.ts`.
+**851 keys · 196 node labels · 7 frame titles · 19 module labels.**
+
+Seventeenth language.
+
+### The picker order changes shape for the first time
+
+`displayLocaleOrder` sorts on `englishName` under `Intl.Collator('en')`, and
+`Dutch` sorts before `English`. Measured against the real comparator, `nl`
+lands third: `zh-Hans`, `zh-Hant`, **`nl`**, `en`, `fr`, ... Sixteen locales had
+slotted in after the base language; this is the first one in front of it, so
+`localeOrder.test.ts` gained a row above `en` rather than below. `vi` keeps the
+last position, so `i18n-tr.spec.ts`'s last-row assertion is untouched.
+
+### The code is bare `nl`, measured the same three ways Italian was
+
+Run through `resolveInitialLocale` against three hypothetical registries:
+registering `nl-NL` alone sends **six of seven** probe tags to ENGLISH (`nl`,
+`nl-BE`, `nl-Latn-NL`, `nl-NL-u-ca-gregory`, `nl-AW`, `nl-SR`); adding
+`baseFallbackFor: 'nl'` rescues them; bare `nl` carries all seven through §L5.2
+step 3 with no `baseFallbackFor` at all. Adding it moved ZERO existing
+resolutions. `numberLocale` is `nl-NL`, pinning the region against a future
+`Intl` difference rather than buying a change today.
+
+### Two plural arms, and grouping that does not predict spacing
+
+`nl` has `one` and `other` only, and `one` is the integer 1 alone — the same
+shape as `en` and `de`. Italian's `many` at multiples of 1e6 has no Dutch
+counterpart, so an Italian-shaped three-arm message would declare an arm
+`Intl.PluralRules('nl')` can never select. `nl-BE` resolves to the same two
+categories, which is one more reason the catalog is not split by country.
+Ordinal is a single `other`, and the base catalog uses `selectordinal` zero
+times, so no key can reach it.
+
+Numbers group like `de`: `1.234.567,89`. Percent does NOT: `84%`, measured as
+`U+0038 U+0034 U+0025`, the sign touching the digits. **Grouping like one arm
+and spacing like the other is exactly the combination an assumption would have
+got wrong**, so `nl` joins the no-gap arm of `percent-affix.spec.ts` with `it`
+rather than the U+00A0 arm `de` sits in.
+
+### The word-intersection guard is weaker here, and the file says so
+
+Italian needed a per-key word intersection with English because Italian is
+written almost entirely in ASCII. Dutch has that problem and one more: Dutch
+and English are both West Germanic, so a word surviving translation unchanged
+is much weaker evidence. MEASURED: **141 distinct words over 531 (word, key)
+pairs**, against Italian's 78 over 340 — and on review every one of the 141 is a
+product token, a proper noun, a declared loanword, or an ordinary Dutch word
+spelled the way English spells it (`water`, `moment`, `per`, `open`, `rest`).
+That last group is kept as its own reason group precisely to make the weakness
+visible. Sixty whole values are identical to English, against Italian's 38.
+
+The guard was falsified before being trusted: seven deliberate defects — a
+whole value reverted to English, an English head word inside a sentence, a
+reversed glossary entry, the formal `u`, the IJ ligature, an Italian-style
+`many` arm, and a merged distinction — were each caught by a DIFFERENT
+contract, and all three files restored byte-for-byte (SHA verified).
+
+**What the guard did not find, the read-back did.** See below.
+
+### Dutch is not pro-drop, so the style rule had to change
+
+The approved style was "informal singular, and do not expose the pronoun" —
+carried over from Italian, where the verb ending holds the person. Dutch cannot
+do that: `de verhouding die je instelt` has no pronoun-free form. The rule is
+therefore **use `je`, never `u`**, and drop the pronoun only where Dutch allows
+it (imperatives). `nlCopy.test.ts` asserts zero `u`/`uw` across all 1,073
+strings and that `je` actually appears, so the rule cannot pass vacuously.
+
+### Two product nouns that would have collided
+
+- **`middelen`, not `bronnen`, for "resources".** The obvious Dutch plural is
+  `bronnen` — which is the Source node's own name, `Bron`, pluralised. The two
+  flow-mode enums are the one place the word legitimately means an upstream
+  node, and they are listed by key so the exception cannot spread. `de` and
+  `it` make the same exception (`von allen Quellen ziehen`, `tira da tutte le
+  sorgenti`).
+- **`run`, not `loop`, for one execution of the model.** The native Dutch
+  cognate of "run" IS `loop` — the product name. `de Lauf` and `it esecuzione`
+  have no usable Dutch counterpart here, so the English loan Dutch technical
+  writing already uses is kept and declared. The same collision caught one
+  sentence: `tour.mobile.run.body` began `Loop stap voor stap...`, where
+  sentence-initial `Loop` reads as the product; it is now `Ga stap voor stap`.
+
+### Grammar forced one reordering
+
+`node.unreadable.title` is `unreadable {kind}` in English. Dutch inflects an
+attributive adjective by the noun's GENDER, and `{kind}` holds a mix: `Einde` is
+a het-word while `Voorraad`, `Bron`, `Afvoer`, `Verdeler`, `Omzetter`,
+`Parameter` and `Berekende waarde` are de-words. No single attributive form is
+correct for every value the slot can take, so the phrase is reordered to put the
+adjective in PREDICATIVE position, where Dutch leaves it uninflected:
+`{kind} — onleesbaar`.
+
+### No font work, but the judgement is about CONTENT, not the file
+
+`Ĳ`/`ĳ` (U+0132-0133) are present in the latin-ext FILE and OUTSIDE the range
+`src/index.css` declares for it (`U+011E-011F, U+0130, U+015E-015F`, Turkish
+only), so the unranged latin face wins and has no glyph. The criterion is not
+"the file has the glyph" but **whether a real Dutch string uses the ligature
+code point**, and modern Dutch writes the digraph as the two letters `i` + `j`.
+So no font change, and `nlCopy.test.ts` asserts zero U+0132/U+0133 across all
+1,073 runtime strings instead.
+
+Checked against the REAL cmap rather than the declared `unicode-range`, by
+inflating the `.woff` sibling `@fontsource` ships from the same subset build:
+the unranged `latin` face (232 glyphs, 400 and 600) carries every code point in
+the Dutch inventory **except** those two. Re-running the §L2.18 enumeration over
+all 46 shipped string groups plus the pseudo locale still yields exactly the
+Turkish five, the Vietnamese set and `fr`'s U+202F — Dutch adds nothing.
+
+### The read-back found what the guards could not
+
+All 1,073 EN↔NL pairs were read. Eight issues, twelve Dutch keys. The one that
+matters:
+
+**`inspector.resourceType.placeholder` lists CANONICAL TOKENS, not vocabulary.**
+`BUILTIN_RESOURCE_TYPES` is `['Gold', 'Energy', 'XP', 'Player', 'Item']` and
+`sameResourceType` compares with `===`. A reader who types the translated word
+gets a custom type with the generic swatch and no built-in colour, so a
+translated placeholder is not a style choice — it is wrong instructions. The
+first Dutch draft translated them.
+
+**Four shipped locales had already made the same mistake**: `fr` had 4 of 5
+wrong, `zh-Hans` and `zh-Hant` all 5, `de` 3 (`Gold` and `XP` happen to be
+spelled the same in German). Eleven other locales already kept all five, which
+is why this became a contract in `localeSurfaceCopy.test.ts` rather than a
+preference — it now holds every catalog, including `en`, to the model's tokens.
+
+The other seven: `error.EXPR_BAD_TOKEN.message` had gained a word the source
+does not have and repeated `teken`; `export.workspace.omit.confirm` was
+`Opslaan zonder`, a Dutch phrase that ends on a dangling preposition; the four
+loot buckets mixed phrases with a compound where English uses one pattern
+(now `Uitrustingsdrops` · `Verkoopdrops` · `Verbruiksdrops` · `Zeldzame drops`);
+`standard_count_pickup` was an adjective with no head noun; and two `+{n} more`
+affordances had lost their `+`. **Negation: zero. Direction: zero.**
+
+### Width was measured, never guessed, and the boxes are not one box
+
+The toolbar row and the palette were measured against the proposed wording
+BEFORE the catalog was written, with `measureText` at the real computed font:
+the six Tier-1 labels total **483.2 px** against `ru`'s 506.8 high-water mark,
+and the widest palette name, `Berekende waarde`, is **113.3 px** against `ru`'s
+149.4. Dutch is nowhere near a new high-water mark, so nothing was shortened
+for the toolbar or the palette.
+
+`descriptive-copy-wrapping.spec.ts` then found four blurbs at three lines.
+Measuring them exposed an assumption worth recording: **`.menu__blurb` is not
+one width.** At the e2e viewport the Templates menu renders it at **272 px** and
+the Export menu at **232 px**, both two lines of 16.875 px. A simulation run at
+272 px for both called the Export blurb safe when it was not.
+
+All four were rewritten WITHOUT dropping a semantic element, which is the rule
+Italian's §L2.22 arc arrived at the hard way:
+
+- `templates.equilibrium.blurb` became `Materiaal in, ... eindproduct uit — een
+  lijn die na enkele stappen stabiliseert`. `erin`/`eruit` became `in`/`uit`,
+  which is *closer* to the English bare `in`/`out`; `gereed product` became the
+  single word `eindproduct`; `tot rust komt` became `stabiliseert`. Every
+  element of "Material in, processing and scrap, finished goods out — a line
+  that settles within a few steps" survives.
+- `export.projectRevision.blurb` became `het diagram plus project-id en
+  revisiereeks, voor offline samenwerking` — **both** the revision lineage and
+  the offline collaboration kept, which is exactly what the Italian arc lost
+  twice while trimming this same key.
+- `templates.deadlock.blurb` ends on `alles stopt`, which is the English
+  `everything stops` rather than the longer paraphrase it had.
+- `modules.rewardSplit.blurb` uses `inkomende` for `incoming`, not the longer
+  `binnenkomende`.
+
+### Still open — needs a native reader
+
+Seven from the approved contract — `Verdeler` (Gate), `Berekende waarde`
+(Register), `Kader` (frame), `run` (the loan), `Tekengebied` (canvas),
+`Activator`, and the games vocabulary kept English (`Pity`, `Hard pity`,
+`Pickup`, `Pull`/`Pulls`, `Roll`, `Banner`, plus the `drop` / `quest` / `item`
+loans) — and six more the read-back added:
+
+1. **`Dodenwachtrij` / `Kosten van doodgaan`.** `sterfgeval` and `overlijden`
+   are the register a death certificate uses and this is a combat model, so the
+   plain words were taken. Italian made the same call for the same reason.
+2. **`Bederf` for `spoilage`.** The module is a generic buffered production
+   step, and `bederf` specifically implies perishables. `Uitval` is already
+   Scrap, so the two are kept apart the way English keeps them apart.
+3. **`revisiereeks` for `lineage`.** A coinage: `reeks` is a series, so this
+   reads as "revision sequence". `herkomst` (provenance) and `revisiehistorie`
+   both fit the box too, and which one a Dutch developer would expect is a
+   native-reader question rather than a width one.
+4. **`Zeldzaam item verkopen` for `rare_conv`.** English is `Sell rare` with no
+   head noun; Dutch needs one, and whether it should name the drop depends on
+   the same games usage the rest of the list waits on.
+5. **`bron(nen)` in the two pull-mode enums**, where the word means an upstream
+   node rather than a Source node. `de` and `it` have the identical overlap.
+6. **The Google Sheets and Excel menu paths** in `import.qs.sources.*`. Nobody
+   has opened a signed-in Dutch Google Sheets and read the menu, so the strings
+   are unverified against the only authoritative source.
+
+**Not open, and why.** `Tekengebied` is a PRODUCT choice, not a standards
+claim: Microsoft's own Dutch material uses `canvas` in Whiteboard and both
+`tekenpapier` and `tekengebied` in the .NET MAUI graphics docs, so there is no
+single Microsoft translation to appeal to. `Level` over `Niveau` is a REGISTER
+decision — Dutch players say "level" and the graph's own `Lv 1-5` abbreviations
+already assume it. It happens to remove a string collision with `fr`'s
+`Niveau`, but that was never a reason to choose it: `relabelNodesForLocale`
+keys on the node ID, so two locales sharing a string for the SAME id is a no-op
+either way. What WOULD be a hazard is a Dutch label landing on a DIFFERENT id's
+official string, and `nlCopy.test.ts` asserts zero of those — along with zero
+distinctions merged that English keeps apart.
+
+### The probe tag this locale finally retired
+
+`nl-NL` was the "unregistered language" probe in five places, and every one of
+them would have flipped the day Dutch shipped: `i18n-de.spec.ts`,
+`i18n-es-419.spec.ts`, `i18n-fr.spec.ts`, `i18n-pt-br.spec.ts` and
+`registry.test.ts`. Four were converted to `qaa` while Italian shipped; the
+`de` spec was MISSED and is converted here, together with
+`relabel.test.ts`'s "unknown target locale" row, which passed `'nl'`.
+A probe tag must be a code the product can **never** register — not merely one
+that is off today's roadmap.
+
 ## L8. Numbers, dates, units
 
 - **Never reformatted:** anything stored, digested, or part of an expression's

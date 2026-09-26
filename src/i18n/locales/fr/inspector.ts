@@ -52,7 +52,7 @@ const inspector = {
   'inspector.field.expression': 'Expression',
   'inspector.field.format': 'Format (indicatif)',
   'inspector.field.resourceType': 'Type de ressource (indicatif)',
-  'inspector.resourceType.placeholder': 'Or, Énergie, XP, Joueur, Objet, ou un nom personnalisé',
+  'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item, ou un nom personnalisé',
   'inspector.resourceType.tooLong':
     'Plus de {max} octets — cette étiquette ne sera pas exportée.',
   'inspector.resourceType.normalised': 'Normalisé en « {value} ».',

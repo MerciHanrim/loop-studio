@@ -19,10 +19,12 @@ import { BASE_ENTRY, BASE_LOCALE, LOCALES, type LocaleEntry } from './registry'
 
 const codes = (l: readonly LocaleEntry[]) => l.map((e) => e.code)
 
-/** the fifteen shipped languages, in the order the picker must show them */
+/** the seventeen shipped languages, in the order the picker must show them */
 const SHIPPED_ORDER = [
   'zh-Hans', // Chinese (Simplified)
   'zh-Hant', // Chinese (Traditional)
+  'nl', //      Dutch — sorts BEFORE English; the first locale ever to
+  //            precede the base language in the picker
   'en', //      English
   'fr', //      French
   'de', //      German

@@ -57,6 +57,7 @@ const ui = {
   'language.thai': 'Tailandés',
   'language.vietnamese': 'Vietnamita',
   'language.italian': 'Italiano',
+  'language.dutch': 'Neerlandés',
   'playbar.reset.title': 'Reiniciar al paso 0',
   'playbar.step.title': 'Avanzar un paso',
   'playbar.play': '▶ Reproducir',

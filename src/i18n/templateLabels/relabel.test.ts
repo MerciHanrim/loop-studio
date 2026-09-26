@@ -116,7 +116,11 @@ describe('relabelNodesForLocale', () => {
   })
 
   it('falls back to the English canonical for an unknown target locale', () => {
-    const out = relabelNodesForLocale([node('level', '레벨')], 'nl')
+    // `qaa` is ISO 639-2's permanently reserved local-use range. `nl` stood
+    // here until Dutch shipped: an "unknown locale" probe must be a code the
+    // product can never register, or this row silently starts asserting the
+    // opposite of what it was written to assert.
+    const out = relabelNodesForLocale([node('level', '레벨')], 'qaa')
     expect(labels(out)).toEqual(['Level'])
   })
 

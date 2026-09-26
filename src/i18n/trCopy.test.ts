@@ -30,7 +30,7 @@ const KEYS = Object.keys(EN)
 describe('tr copy — the first Turkish catalog', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TR).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(850)
+    expect(KEYS).toHaveLength(851)
   })
 })
 

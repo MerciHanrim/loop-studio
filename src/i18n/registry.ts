@@ -446,6 +446,46 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/it').then((m) => m.default),
   },
+  {
+    code: 'nl',
+    englishName: 'Dutch',
+    nativeName: 'Nederlands',
+    displayNameKey: 'language.dutch',
+    direction: 'ltr',
+    // ONE catalog in general Dutch, not a country edition. Measured through
+    // THIS file's own `resolveInitialLocale` against three hypothetical
+    // registries: registering `nl-NL` alone sends `nl`, `nl-BE`, `nl-Latn-NL`,
+    // `nl-NL-u-ca-gregory`, `nl-AW` and `nl-SR` to ENGLISH — six of seven
+    // probe tags; `baseFallbackFor: 'nl'` rescues them; bare `nl` carries all
+    // seven through §L5.2 step 3 with no `baseFallbackFor` at all — the shape
+    // `ru`, `tr`, `th`, `vi` and `it` use. Adding it moved ZERO existing tag
+    // resolutions, and `qaa` still falls through to English.
+    //
+    // PLURAL — `one` and `other` only, and `one` is the integer 1 alone:
+    //   0 -> other · 1 -> ONE · 1.1 -> other · 2 -> other · 11 -> other
+    //   21 -> other · 101 -> other · 1000000 -> other · 2000000 -> other
+    // The same two arms as `en` and `de`. Italian's `many` at multiples of
+    // 1e6 has NO counterpart here, so an Italian-shaped three-arm message
+    // would declare an arm Dutch can never select. `nl-BE` resolves to the
+    // same two categories, which is one more reason the catalog is not split
+    // by country. Ordinal is a single `other`, and the base catalog uses
+    // `selectordinal` zero times, so no key can reach it.
+    //
+    // Numbers do NOT match `en`: `1.234.567,89`, like `de`, `it`, `vi` and
+    // the Portuguese pair. Percent does NOT match `de`: `84%`, sign after the
+    // digits with NO separator — measured as U+0038 U+0034 U+0025 — so `nl`
+    // joins the no-gap arm of `e2e/percent-affix.spec.ts` with `it`, not the
+    // U+00A0 arm `de` sits in. Grouping like `de` and spacing like `it` is
+    // exactly the combination an assumption would have got wrong.
+    //
+    // The picker places Dutch THIRD, ahead of English — the first locale ever
+    // sorted in front of the base language (`Intl.Collator('en')` on
+    // `englishName`: Chinese, Chinese, Dutch, English). `vi` keeps the last
+    // row, so `i18n-tr.spec.ts`'s last-position assertion is untouched.
+    numberLocale: 'nl-NL',
+    enabled: true,
+    catalog: () => import('./locales/nl').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

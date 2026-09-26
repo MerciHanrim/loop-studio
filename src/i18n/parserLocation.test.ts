@@ -2,6 +2,7 @@ import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de'
 import itCat from './locales/it'
+import nl from './locales/nl'
 import en from './locales/en'
 import es419 from './locales/es-419'
 import esES from './locales/es-ES'
@@ -50,6 +51,7 @@ const CATALOGS = {
   fr,
   de,
   it: itCat,
+  nl,
   'es-419': es419,
   'es-ES': esES,
   'pt-BR': ptBR,
@@ -140,6 +142,10 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // CHARACTER (`carattere`), a spreadsheet column is a `colonna`. The two
   // words share no stem, so a mix-up cannot hide behind a common prefix.
   it: { char: `carattere ${N}`, table: `colonna ${N}` },
+  // Dutch keeps them apart the same way: a parser offset is a CHARACTER
+  // (`teken`), a spreadsheet column is a `kolom`. No shared stem, so a
+  // mix-up cannot hide behind a common prefix.
+  nl: { char: `teken ${N}`, table: `kolom ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]
