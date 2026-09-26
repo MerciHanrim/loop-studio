@@ -232,6 +232,54 @@ describe('foldForSearch', () => {
       expect(matchesLanguageQuery(tr, TURKCE, q), q).toBe(true)
     }
   })
+
+  // The one VIETNAMESE fold (§L5.5), and the third of its kind. Built from code
+  // points: `đ` and `d` are easy to confuse in a source listing.
+  const D_STROKE = String.fromCharCode(0x111) // đ
+  const D_STROKE_UPPER = String.fromCharCode(0x110) // Đ
+  // `Tiếng Đức` — how a Vietnamese UI names German. MEASURED before this fold
+  // existed: three rows in a Vietnamese picker carry `đ` (`de`, `pt-BR`,
+  // `pt-PT`) and none of them could be reached by typing a plain `d`, because
+  // `đ` has no decomposition — exactly the shape of the Turkish `ı` case.
+  const TIENG_DUC = 'Ti\u1ebfng \u0110\u1ee9c'
+  const TIENG_VIET = 'Ti\u1ebfng Vi\u1ec7t'
+  const BO_DAO_NHA = 'Ti\u1ebfng B\u1ed3 \u0110\u00e0o Nha (Brazil)'
+
+  it('folds `đ` and `Đ` to `d` so an ASCII keyboard can search', () => {
+    expect(foldForSearch(D_STROKE)).toBe('d')
+    expect(foldForSearch(D_STROKE_UPPER)).toBe('d')
+    expect(foldForSearch(TIENG_DUC)).toBe('tieng duc')
+    expect(foldForSearch(BO_DAO_NHA)).toBe('tieng bo dao nha (brazil)')
+  })
+
+  it('folds the tone marks too, so the endonym is reachable from ASCII', () => {
+    expect(foldForSearch(TIENG_VIET)).toBe('tieng viet')
+  })
+
+  it('folds NFD input identically to NFC — an IME may produce either', () => {
+    for (const s of [TIENG_VIET, TIENG_DUC, BO_DAO_NHA]) {
+      expect(foldForSearch(s.normalize('NFD')), s).toBe(foldForSearch(s.normalize('NFC')))
+    }
+  })
+
+  it('finds the rows a Vietnamese reader would type with a plain d', () => {
+    const de = { code: 'de', englishName: 'German', nativeName: 'Deutsch' }
+    for (const q of ['duc', 'tieng duc', TIENG_DUC, '德']) {
+      const expected = q !== '\u5fb7'
+      expect(matchesLanguageQuery(de, TIENG_DUC, q), q).toBe(expected)
+    }
+    const vi = { code: 'vi', englishName: 'Vietnamese', nativeName: TIENG_VIET }
+    for (const q of ['tieng viet', 'viet', TIENG_VIET, 'vi']) {
+      expect(matchesLanguageQuery(vi, TIENG_VIET, q), q).toBe(true)
+    }
+  })
+
+  it('does not collapse `d` and `đ` into an ambiguous row anywhere', () => {
+    // the fold must not make two DIFFERENT rows fold to the same string
+    const names = ['Tiếng Đức', 'Tiếng Đào', 'Tiếng Dức', 'Deutsch', 'Đức']
+    const folded = names.map(foldForSearch)
+    expect(new Set(folded).size, folded.join(' | ')).toBe(new Set(names).size - 1) // Đức/Dức collapse by design
+  })
 })
 
 describe('matchesLanguageQuery — finding fr', () => {

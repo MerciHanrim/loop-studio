@@ -91,6 +91,25 @@ const COMBINING_DIAERESIS = String.fromCharCode(0x308)
  *  would also map `I` to `ı` and break every other language's search. */
 const DOTLESS_I = String.fromCharCode(0x131)
 
+/** The one VIETNAMESE fold: `đ` searches as `d` (§L5.5).
+ *
+ *  MEASURED before it existed, the same way the Turkish case was: `đ` has no
+ *  decomposition — it is a letter with a stroke, not a base plus a mark — so
+ *  the Latin-mark rule above leaves it alone. With the UI in Vietnamese that
+ *  makes THREE rows unreachable from an ASCII keyboard: `Tiếng Đức` (German)
+ *  and `Tiếng Bồ Đào Nha` for both Portuguese entries. Typing `duc` or
+ *  `bo dao nha` found nothing; the Telex spelling `dduc` found nothing either.
+ *  Every other Vietnamese letter — 72 of the 74 — already folds, because its
+ *  tone marks are combining marks on a Latin base.
+ *
+ *  Measured for damage as well as for benefit: across all fifteen shipped UI
+ *  languages this fold creates ZERO new collisions between two picker rows.
+ *
+ *  SEARCH ONLY, like the Turkish fold. Vietnamese treats `d` and `đ` as
+ *  different letters, and nothing here changes rendering, stored values or a
+ *  catalog string. */
+const D_WITH_STROKE = String.fromCharCode(0x111)
+
 /** Normalise one string for the LANGUAGE-PICKER search only (§L5.5).
  *
  *  Two things happen, and both are deliberately narrow:
@@ -129,9 +148,15 @@ export function foldForSearch(value: string): string {
     }
     out += /[\s  ]/.test(ch) ? ' ' : ch
   }
-  // `ı` has no decomposition, so the fold is a plain substitution after the
-  // case fold rather than a mark rule.
-  return out.normalize('NFC').toLowerCase().split(DOTLESS_I).join('i')
+  // Neither `ı` nor `đ` has a decomposition, so both folds are plain
+  // substitutions after the case fold rather than mark rules.
+  return out
+    .normalize('NFC')
+    .toLowerCase()
+    .split(DOTLESS_I)
+    .join('i')
+    .split(D_WITH_STROKE)
+    .join('d')
 }
 
 /** Does an entry match the query? Case-, diacritic- and space-insensitive,

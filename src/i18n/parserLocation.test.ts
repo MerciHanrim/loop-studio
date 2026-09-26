@@ -11,6 +11,7 @@ import ptBR from './locales/pt-BR'
 import ptPT from './locales/pt-PT'
 import ru from './locales/ru'
 import th from './locales/th'
+import vi from './locales/vi'
 import tr from './locales/tr'
 import zhHans from './locales/zh-Hans'
 import zhHant from './locales/zh-Hant'
@@ -50,6 +51,7 @@ const CATALOGS = {
   'pt-PT': ptPT,
   ru,
   th,
+  vi,
   tr,
 } as const
 type Loc = keyof typeof CATALOGS
@@ -125,6 +127,10 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // pasted text, `คอลัมน์` a real spreadsheet column. Thai has no spaces
   // between words, so the number simply follows the noun with one space.
   th: { char: `ตำแหน่งอักขระ ${N}`, table: `คอลัมน์ ${N}` },
+  // Vietnamese splits it the same way: `ký tự` is a character, `cột` a real
+  // spreadsheet column. The ordinal sits on the NOUN (`ký tự thứ 7`), so the
+  // number trails it, while the table half is the bare `cột 7`.
+  vi: { char: `ký tự thứ ${N}`, table: `cột ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

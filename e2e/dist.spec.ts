@@ -150,8 +150,8 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
     // en, ko, ja, zh-Hans, zh-Hant, fr, de, es-419, pt-BR, es-ES, pt-PT, ru, tr,
-    // th — NO en-XA
-    await expect(opts).toHaveCount(14)
+    // th, vi — NO en-XA
+    await expect(opts).toHaveCount(15)
     await expect(page.locator('.lang-menu__pop [data-locale="en-XA"]')).toHaveCount(0)
     // §L5.6 — in PRODUCTION the picker shows exactly the shipped locales, in
     // English-name order, with no pseudo-locale to append. Asserted unsorted
@@ -171,6 +171,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       'es-ES',
       'th',
       'tr',
+      'vi',
     ])
     const codes = await opts.evaluateAll((els) =>
       els.map((e) => (e as HTMLElement).dataset.locale).sort(),
@@ -188,10 +189,11 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       'ru',
       'th',
       'tr',
+      'vi',
       'zh-Hans',
       'zh-Hant',
     ])
-    // §L5.4 — fourteen shipped languages, so the search box is shown (it first
+    // §L5.4 — fifteen shipped languages, so the search box is shown (it first
     // reached PRODUCTION at six), and the dev pseudo-locale is still absent.
     await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(1)
 

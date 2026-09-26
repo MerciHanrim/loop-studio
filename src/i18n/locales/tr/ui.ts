@@ -58,6 +58,7 @@ const ui = {
   'language.russian': 'Rusça',
   'language.turkish': 'Türkçe',
   'language.thai': 'Tayca',
+  'language.vietnamese': 'Vietnamca',
   'playbar.reset.title': '0. adıma sıfırla',
   'playbar.step.title': 'Bir adım ilerlet',
   'playbar.play': '▶ Çalıştır',

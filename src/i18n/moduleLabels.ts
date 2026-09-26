@@ -447,6 +447,32 @@ const TH: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+const VI: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Nguồn cung',
+    inbox: 'Hàng chờ vào',
+    intake: 'Tiếp nhận',
+    process: 'Gia công',
+    spoilage: 'Hao hụt',
+    outbox: 'Hàng chờ ra',
+    shipped: 'Đã xuất',
+    batch_size: 'Cỡ lô',
+    in_system: 'Số đơn vị trong hệ thống',
+    planned_run: 'Sản lượng theo kế hoạch',
+  },
+  'reward-split': {
+    activity: 'Hoạt động',
+    wallet: 'Ví',
+    allocate: 'Phân bổ',
+    spending: 'Chi tiêu',
+    savings: 'Tiết kiệm',
+    withdrawals: 'Rút ra',
+    target_savings: 'Mục tiêu tiết kiệm',
+    net_worth: 'Giá trị ròng',
+    progress: 'Tiến độ tới mục tiêu',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -461,6 +487,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   ru: RU,
   tr: TR,
   th: TH,
+  vi: VI,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

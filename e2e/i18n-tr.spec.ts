@@ -113,15 +113,19 @@ test('the picker offers Türkçe, in place and findable without a Turkish keyboa
   const codes = await page
     .locator('.lang-menu__pop [role="option"]')
     .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))
-  // §L5.6 — `Turkish` sorts last among the SHIPPED languages by English name.
-  // A DEV/QA pseudo-locale is appended after the sorted set (§L5.4), so it can
-  // legitimately follow `tr` in a dev build and must not be counted here.
+  // §L5.6 — sorted by ENGLISH name. `Turkish` was last when this locale
+  // shipped; `Vietnamese` sorts after it and took the last slot, so what is
+  // pinned here is `tr`'s position relative to BOTH its neighbours rather than
+  // a literal end-of-list. A DEV/QA pseudo-locale is appended after the sorted
+  // set (§L5.4) and must not be counted either way.
   const shipped = codes.filter((c) => c !== 'en-XA')
-  expect(shipped[shipped.length - 1]).toBe('tr')
+  expect(shipped[shipped.length - 1]).toBe('vi')
+  expect(shipped[shipped.length - 2]).toBe('tr')
   // The left neighbour was `es-ES` when Turkish shipped; `Thai` sorts between
   // `Spanish (Spain)` and `Turkish` and took that slot. Pinning the IMMEDIATE
   // neighbour is what catches a mis-sort, so it is updated rather than dropped.
   expect(shipped.indexOf('tr')).toBe(shipped.indexOf('th') + 1)
+  expect(shipped.indexOf('vi')).toBe(shipped.indexOf('tr') + 1)
 
   const row = page.locator('.lang-menu__item[data-locale="tr"]')
   // The endonym and the name in the active UI language are both `Türkçe`, so

@@ -41,6 +41,7 @@ describe('officialTemplateLabelIndex', () => {
     const idx = officialTemplateLabelIndex()
     // one entry per shipped locale — adding a language adds its string here
     expect([...(idx.known.get('level') ?? [])].sort()).toEqual([
+      'Cấp độ',
       'Level',
       'Niveau',
       'Nivel',
@@ -64,6 +65,7 @@ describe('officialTemplateLabelIndex', () => {
     expect(idx.byLocale.get('zh-Hans')?.get('level')).toBe('等级')
     expect(idx.byLocale.get('zh-Hant')?.get('level')).toBe('等級')
     expect(idx.byLocale.get('fr')?.get('level')).toBe('Niveau')
+    expect(idx.byLocale.get('vi')?.get('level')).toBe('Cấp độ')
     expect(idx.byLocale.get('de')?.get('level')).toBe('Stufe')
   })
 

@@ -366,6 +366,40 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/th').then((m) => m.default),
   },
+  {
+    code: 'vi',
+    englishName: 'Vietnamese',
+    nativeName: 'Tiếng Việt',
+    displayNameKey: 'language.vietnamese',
+    direction: 'ltr',
+    // `vi` IS its own base subtag, so §L5.2 step 3 carries `vi-VN`, `vi-Latn`
+    // and `vi-Latn-VN` with no `baseFallbackFor` — the same shape as `ru`,
+    // `tr` and `th`. No other registered code shares the `vi` subtag.
+    //
+    // MEASURED, over integers 0-1000000 AND decimals: `Intl.PluralRules('vi')`
+    // declares exactly ONE category, `other` — the second locale here after
+    // `th`. Every plural message has a single arm. (Vietnamese HAS an ordinal
+    // `one` category, but nothing in this catalog uses `selectordinal`, so it
+    // never applies.)
+    //
+    // Numbers do NOT match `en`: `1.234.567,89` — `.` groups and `,` is the
+    // decimal separator, like `de` and the Portuguese pair. Percent does match:
+    // `84%`, sign after the digits with no gap, so `vi` joins that list.
+    //
+    // The SCRIPT is Latin, but IBM Plex Sans did not carry it. MEASURED the
+    // same three ways the `ru` / `tr` / `th` defects needed: 44 characters —
+    // `Ăă Đđ Ơơ Ưư` and 36 of Latin Extended Additional — fell back per glyph
+    // while `document.fonts.check()` answered true, the FOURTH locale in a row
+    // it has lied. The `vietnamese` subset of the same family fixes all 44;
+    // see the `@font-face` block in `src/index.css`.
+    //
+    // `vi-VN` rather than a bare `vi`, the way `th-TH` and `ja-JP` do: the two
+    // resolve identically today, so this pins the region against a future Intl
+    // difference rather than buying a behaviour change.
+    numberLocale: 'vi-VN',
+    enabled: true,
+    catalog: () => import('./locales/vi').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

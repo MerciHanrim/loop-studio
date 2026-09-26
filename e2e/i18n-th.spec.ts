@@ -78,12 +78,16 @@ test.describe('every Thai tag reaches th, and its neighbours do not', () => {
     ['th-Thai-TH', 'th'],
     ['th-TH-u-nu-thai', 'th'],
     ['TH-th', 'th'],
-    // the mainland-Southeast-Asian neighbours are different languages, and
-    // `lo` and `km` are scripts of their own — none of them may borrow `th`
+    // the Southeast-Asian neighbours are different languages, and `lo` and
+    // `km` are scripts of their own — none of them may borrow `th`.
+    //
+    // `vi` sat in this list until Vietnamese shipped, and turned this spec red
+    // the day it did. A probe tag has to name a language this product does NOT
+    // have AND does not plan to (§L2.19); `ms` replaces it on both counts.
     ['lo', 'en'],
     ['km', 'en'],
     ['my', 'en'],
-    ['vi', 'en'],
+    ['ms', 'en'],
   ] as const) {
     test(`${tag} reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
