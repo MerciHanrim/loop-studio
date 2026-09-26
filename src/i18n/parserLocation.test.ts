@@ -1,6 +1,7 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de'
+import itCat from './locales/it'
 import en from './locales/en'
 import es419 from './locales/es-419'
 import esES from './locales/es-ES'
@@ -37,6 +38,9 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // distinguishes them. `fr` and `zh-Hant` already did; `ko` / `ja` /
 // `zh-Hans` said "column" for both.
 
+// NOTE: the catalog is imported as `itCat`, not `it`. The locale code `it`
+// collides with vitest's own `it()` — the first locale here whose CODE is
+// a test-framework identifier, so every other catalog can keep its bare name.
 const CATALOGS = {
   en,
   ko,
@@ -45,6 +49,7 @@ const CATALOGS = {
   'zh-Hant': zhHant,
   fr,
   de,
+  it: itCat,
   'es-419': es419,
   'es-ES': esES,
   'pt-BR': ptBR,
@@ -131,6 +136,10 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // spreadsheet column. The ordinal sits on the NOUN (`ký tự thứ 7`), so the
   // number trails it, while the table half is the bare `cột 7`.
   vi: { char: `ký tự thứ ${N}`, table: `cột ${N}` },
+  // Italian distinguishes the two the way `fr` does: a parser offset is a
+  // CHARACTER (`carattere`), a spreadsheet column is a `colonna`. The two
+  // words share no stem, so a mix-up cannot hide behind a common prefix.
+  it: { char: `carattere ${N}`, table: `colonna ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

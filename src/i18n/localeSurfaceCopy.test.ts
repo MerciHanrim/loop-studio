@@ -38,6 +38,7 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   'zh-Hans': { englishForm: /英文/, newTab: /新标签页/ },
   'zh-Hant': { englishForm: /英文/, newTab: /新分頁/ },
   fr: { englishForm: /anglais/i, newTab: /onglet/i },
+  it: { englishForm: /inglese/i, newTab: /scheda/i },
   de: { englishForm: /englisch/i, newTab: /Tab/ },
   'es-419': { englishForm: /inglés/i, newTab: /pestaña/i },
   // Brazilian Portuguese says `aba` for a browser tab; `guia` is the

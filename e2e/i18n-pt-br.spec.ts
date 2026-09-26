@@ -107,7 +107,16 @@ test.describe('the other shipped locales are unaffected', () => {
     ['es-MX', 'es-419'],
     // the unregistered probe: Dutch is on no roadmap entry, so it will not
     // quietly become registered the way `de-DE` did for `fr`
-    ['nl-NL', 'en'],
+    // `qaa` — ISO 639-2 reserves `qaa`-`qtz` for LOCAL USE, so this tag can
+    // never become a real language and can never become registered here. It
+    // replaces `nl-NL`, which was the probe until Dutch went on the roadmap:
+    // a probe tag has to be one the product will never support. MEASURED —
+    // `Intl.getCanonicalLocales('qaa')` is `['qaa']`, `Intl.NumberFormat`
+    // accepts it, and it resolves to `en` both today and with `it` + `nl`
+    // registered. (`en-x-probe` would ALSO resolve to `en`, but through the
+    // step-3 base match on `en` rather than the fallback — it would pass
+    // while proving nothing, so it is not used.)
+    ['qaa', 'en'],
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
@@ -164,7 +173,7 @@ test.describe('the language search box finds Portuguese', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(16) // 15 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(17) // 16 shipped + the dev pseudo-locale
 
     for (const q of [
       'Português',
@@ -200,6 +209,7 @@ test.describe('the language search box finds Portuguese', () => {
       ['zh-Hant', '葡萄牙文'],
       ['fr', 'Portugais'],
       ['de', 'Portugiesisch'],
+      ['it', 'Portoghese (Brasile)'],
       ['es-419', 'Portugués'],
       ['pt-BR', 'Português'],
       ['es-ES', 'Portugués'],

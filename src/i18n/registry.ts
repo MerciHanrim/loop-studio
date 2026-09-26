@@ -400,6 +400,52 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/vi').then((m) => m.default),
   },
+  {
+    code: 'it',
+    englishName: 'Italian',
+    nativeName: 'Italiano',
+    displayNameKey: 'language.italian',
+    direction: 'ltr',
+    // The code is BARE `it`, not `it-IT`, and that was measured rather than
+    // assumed. Run through THIS file's own `resolveInitialLocale` three ways:
+    // registering `it-IT` alone sends `it`, `it-CH` and `it-Latn-IT` to
+    // ENGLISH; adding `baseFallbackFor: 'it'` rescues them; registering bare
+    // `it` carries all four through §L5.2 step 3 with no `baseFallbackFor` at
+    // all — the same shape as `ru`, `tr`, `th` and `vi`. Adding it moved ZERO
+    // existing tag resolutions.
+    //
+    // PLURAL — `one`, `many`, `other`, and the `many` arm is the whole reason
+    // this needed measuring. Through the product's own `tryFormat`:
+    //   0 -> other · 1 -> one · 1.5 -> other · 999999 -> other
+    //   1000000 -> MANY · 1000000.5 -> other · 2000000 -> MANY
+    // `many` is a non-zero integer multiple of 1,000,000. English takes
+    // `other` there, so an English-shaped two-arm message silently loses it.
+    // A fixture set that stops at 1,000 — as the first draft of this one did —
+    // never reaches the category at all.
+    //
+    // (`Intl.PluralRules.prototype.select` runs ToNumber on its argument, so
+    // it cannot observe a visible trailing zero: `1`, `"1"`, `"1.0"` and
+    // `"1.00"` all select `one` in every locale. Do not probe a visible-
+    // fraction distinction with it.)
+    //
+    // Numbers do NOT match `en`: `1.234.567,89`, like `de`, `vi` and the
+    // Portuguese pair. Percent DOES: `84%`, sign after the digits with no
+    // separator at all, so `it` joins that arm of `e2e/percent-affix.spec.ts`
+    // rather than the no-break-space arm with `fr` / `de` / `es-ES` / `ru`.
+    //
+    // The script needs NO font work — unlike `ru`, `tr`, `th` and `vi`. Every
+    // code point Italian uses (`à è é ì í î ò ó ù ú`, their capitals, and `€`)
+    // is already in the unranged `latin` face's cmap, checked against the real
+    // woff2 rather than against the declared `unicode-range`. `src/index.css`
+    // is untouched by this locale.
+    //
+    // `it-IT` rather than a bare `it` for numbers, the way `th-TH`, `vi-VN`
+    // and `ja-JP` do: the two resolve identically today, so this pins the
+    // region against a future Intl difference rather than buying a change.
+    numberLocale: 'it-IT',
+    enabled: true,
+    catalog: () => import('./locales/it').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

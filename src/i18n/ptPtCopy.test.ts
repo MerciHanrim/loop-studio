@@ -56,7 +56,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(849)
+    expect(KEYS).toHaveLength(850)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
