@@ -504,6 +504,36 @@ const IT: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// docs/localization.md §L2.23 — `nl`. `Planned run` uses the loan noun `run`,
+// the same decision the catalog takes (the native cognate `loop` is the
+// product name). `Allocate` is `Verdelen`, sharing the `verdel-` stem with
+// the Gate kind name `Verdeler`, because that is exactly what the node does.
+const NL: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Aanvoer',
+    inbox: 'Wachtrij in',
+    intake: 'Inname',
+    process: 'Bewerking',
+    spoilage: 'Bederf',
+    outbox: 'Wachtrij uit',
+    shipped: 'Verzonden',
+    batch_size: 'Batchgrootte',
+    in_system: 'Eenheden in het systeem',
+    planned_run: 'Geplande run',
+  },
+  'reward-split': {
+    activity: 'Activiteit',
+    wallet: 'Portemonnee',
+    allocate: 'Verdelen',
+    spending: 'Uitgaven',
+    savings: 'Spaargeld',
+    withdrawals: 'Opnames',
+    target_savings: 'Spaardoel',
+    net_worth: 'Nettovermogen',
+    progress: 'Voortgang naar het doel',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -520,6 +550,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   th: TH,
   vi: VI,
   it: IT,
+  nl: NL,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

@@ -30,7 +30,7 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // what a reader actually sees is whether anything is cut off.
 
 const SHIPPED = [
-  'en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'it',
+  'en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'it', 'nl',
   'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi',
 ] as const
 

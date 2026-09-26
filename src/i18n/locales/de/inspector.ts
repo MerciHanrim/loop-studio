@@ -58,7 +58,7 @@ const inspector = {
   'inspector.field.expression': 'Ausdruck',
   'inspector.field.format': 'Format (unverbindlich)',
   'inspector.field.resourceType': 'Ressourcentyp (unverbindlich)',
-  'inspector.resourceType.placeholder': 'Gold, Energie, XP, Spieler, Gegenstand oder ein eigener Name',
+  'inspector.resourceType.placeholder': 'Gold, Energy, XP, Player, Item oder ein eigener Name',
   'inspector.resourceType.tooLong': 'Mehr als {max} Bytes — diese Angabe wird nicht exportiert.',
   'inspector.resourceType.normalised': 'Normalisiert zu „{value}“.',
   'inspector.resourceType.custom': 'Eigener Typ — allgemeine Markierung, keine eingebaute Farbe.',

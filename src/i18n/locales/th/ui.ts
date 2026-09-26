@@ -83,6 +83,7 @@ const ui = {
   'language.thai': 'ไทย',
   'language.vietnamese': 'เวียดนาม',
   'language.italian': 'อิตาลี',
+  'language.dutch': 'ดัตช์',
   'playbar.reset.title': 'รีเซ็ตไปที่ขั้นที่ 0',
   'playbar.step.title': 'เดินหน้าหนึ่งขั้น',
   'playbar.play': '▶ เล่น',

@@ -128,7 +128,7 @@ test('the locales with no gap keep the sign touching the number', async ({ page 
   await openApp(page)
   await resetAll(page)
 
-  for (const code of ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'es-419', 'pt-BR', 'pt-PT', 'th', 'vi', 'it'] as const) {
+  for (const code of ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'es-419', 'pt-BR', 'pt-PT', 'th', 'vi', 'it', 'nl'] as const) {
     await setLocale(page, code)
     const m = await measure(page, 'playbar.mc.progress', 84)
     expect(m.signIndex, `${code}: ${m.text}`).toBeGreaterThan(m.digitIndex)

@@ -52,7 +52,7 @@ const inspector = {
   'inspector.field.expression': '運算式',
   'inspector.field.format': '格式（僅供參考）',
   'inspector.field.resourceType': '資源類型（僅供參考）',
-  'inspector.resourceType.placeholder': '金幣、能量、經驗值、玩家、物品，或自訂名稱',
+  'inspector.resourceType.placeholder': 'Gold、Energy、XP、Player、Item，或自訂名稱',
   'inspector.resourceType.tooLong': '超過 {max} 位元組——匯出時會捨棄這個標記。',
   'inspector.resourceType.normalised': '已正規化為「{value}」。',
   'inspector.resourceType.custom': '自訂類型——使用通用色塊，沒有內建顏色。',

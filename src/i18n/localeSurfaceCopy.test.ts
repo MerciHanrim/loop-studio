@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { BUILTIN_RESOURCE_TYPES } from '../model/model'
 import { BASE_LOCALE, LOCALES } from './registry'
 
 // Copy contracts that live BETWEEN locales rather than inside any one of them.
@@ -13,7 +14,10 @@ import { BASE_LOCALE, LOCALES } from './registry'
 //     reader of the other language;
 //   - the feedback form is English-only, so every non-English UI says so in the
 //     link itself. `en` carries no such marker, so a locale that omits it
-//     matches the source perfectly and still misinforms its reader.
+//     matches the source perfectly and still misinforms its reader;
+//   - `inspector.resourceType.placeholder` lists the five BUILTIN_RESOURCE_TYPES,
+//     which the model matches BYTE-EQUAL. Translating them reads perfectly and
+//     tells the user to type a value the product will not recognise.
 //
 // Both shipped broken in #266 (`스페인어(라턴아메리카)`, and `es-419` alone
 // without the English-form marker). This file is where that class of rule goes.
@@ -39,6 +43,8 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   'zh-Hant': { englishForm: /英文/, newTab: /新分頁/ },
   fr: { englishForm: /anglais/i, newTab: /onglet/i },
   it: { englishForm: /inglese/i, newTab: /scheda/i },
+  // Dutch: the language is `Engels`; a browser tab is a `tabblad`.
+  nl: { englishForm: /Engels/i, newTab: /tabblad/i },
   de: { englishForm: /englisch/i, newTab: /Tab/ },
   'es-419': { englishForm: /inglés/i, newTab: /pestaña/i },
   // Brazilian Portuguese says `aba` for a browser tab; `guia` is the
@@ -156,5 +162,41 @@ describe('copy contracts that hold ACROSS locales', () => {
     const en = await catalogOf(BASE_LOCALE)
     expect(en['tour.help.feedback']).toBe('Send feedback')
     expect(en['tour.help.feedbackAria']).toContain('new tab')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// The resourceType placeholder lists CANONICAL TOKENS, not vocabulary.
+//
+// `BUILTIN_RESOURCE_TYPES` is `['Gold', 'Energy', 'XP', 'Player', 'Item']` and
+// `sameResourceType` compares the normalised strings with `===`. A reader who
+// types the translated word gets a CUSTOM type with the generic swatch and no
+// built-in colour, so a translated placeholder is not a style choice — it is
+// wrong instructions.
+//
+// MEASURED when Dutch was read back: FOUR shipped locales had translated them.
+// `fr` had 4 of 5 wrong, `zh-Hans` and `zh-Hant` all 5, `de` 3 (`Gold` and `XP`
+// happen to be spelled the same in German). Eleven other locales already kept
+// all five, which is why this is a contract and not a preference.
+describe('the resourceType placeholder keeps the canonical tokens', () => {
+  it('every catalog contains all five BUILTIN_RESOURCE_TYPES verbatim', async () => {
+    const missing: string[] = []
+    for (const code of [BASE_LOCALE, ...TRANSLATED]) {
+      const cat = await catalogOf(code)
+      const value = cat['inspector.resourceType.placeholder']!
+      for (const token of BUILTIN_RESOURCE_TYPES) {
+        // word boundaries are useless here: CJK catalogs use no spaces
+        if (!value.includes(token)) missing.push(`${code}: "${token}" not in ${value}`)
+      }
+    }
+    expect(
+      missing,
+      'these are byte-matched model tokens — a reader must be able to type them',
+    ).toEqual([])
+  })
+
+  it('the token list itself is the one the model uses', () => {
+    // If a token is ever added, this test fails until every catalog carries it.
+    expect([...BUILTIN_RESOURCE_TYPES]).toEqual(['Gold', 'Energy', 'XP', 'Player', 'Item'])
   })
 })

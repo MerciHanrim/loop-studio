@@ -6,6 +6,7 @@ import es419 from './locales/es-419'
 import esES from './locales/es-ES'
 import fr from './locales/fr'
 import itCat from './locales/it'
+import nl from './locales/nl'
 import ja from './locales/ja'
 import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
@@ -33,6 +34,7 @@ const CATALOGS = {
   'es-ES': esES,
   fr,
   it: itCat,
+  nl,
   ja,
   ko,
   'pt-BR': ptBR,

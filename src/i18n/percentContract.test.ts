@@ -60,6 +60,11 @@ const CONTRACT: Record<string, { position: Position; gap: Gap }> = {
   // touches the digits. Italian groups its numbers like `de` (`1.234.567,89`)
   // but does NOT take `de`'s no-break space here.
   it: { position: 'after', gap: 'none' },
+  // MEASURED: `84%`, U+0038 U+0034 U+0025 — the sign touches the digits.
+  // Dutch groups its numbers like `de` (`1.234.567,89`) and takes `de`'s
+  // separator NOWHERE: grouping like one arm and spacing like the other is
+  // exactly the combination an assumption would have got wrong.
+  nl: { position: 'after', gap: 'none' },
 }
 
 const shipped = LOCALES.filter((l) => !l.pseudo)

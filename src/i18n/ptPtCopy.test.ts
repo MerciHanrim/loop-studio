@@ -14,10 +14,10 @@ import { moduleLabelOverlay } from './moduleLabels'
 // Brazilian word survived into the European catalog.
 //
 // The delta is pinned by COUNT plus two DIRECTIONAL contracts rather than by a
-// hand-written list of 162 key names:
+// hand-written list of 163 key names:
 //   • nothing Brazilian is left in `pt-PT` (the banned-form scan), and
 //   • every `pt-BR` string carrying a Brazilian marker actually changed.
-// A flat list of 162 names would restate the count without proving either.
+// A flat list of 163 names would restate the count without proving either.
 
 const brValues = ptBR as Record<string, string>
 const ptValues = ptPT as Record<string, string>
@@ -56,15 +56,19 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(850)
+    expect(KEYS).toHaveLength(851)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
-    // 162 of 844. Large on purpose: European and Brazilian Portuguese diverge
+    // 163 of 851. Large on purpose: European and Brazilian Portuguese diverge
     // far more than Spain and Latin America do (`es-ES` moved 32 of 842), and
     // most of this is the address register and progressive aspect, which touch
     // whole sentences rather than single words.
-    expect(DELTA).toHaveLength(162)
+    //
+    // The 163rd is `language.dutch`: European Portuguese says `Neerlandês`
+    // where Brazilian says `Holandês`. A language NAME joining this list is
+    // ordinary — the two catalogs already disagree on several of them.
+    expect(DELTA).toHaveLength(163)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

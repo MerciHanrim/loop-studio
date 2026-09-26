@@ -79,6 +79,7 @@ const ui = {
   'language.thai': 'Thailandese',
   'language.vietnamese': 'Vietnamita',
   'language.italian': 'Italiano',
+  'language.dutch': 'Olandese',
   'playbar.reset.title': 'Torna al passo 0',
   'playbar.step.title': 'Avanza di un passo',
   'playbar.play': '▶ Avvia',

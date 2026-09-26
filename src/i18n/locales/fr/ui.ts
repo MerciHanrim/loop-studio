@@ -63,6 +63,7 @@ const ui = {
   'language.thai': 'Thaï',
   'language.vietnamese': 'Vietnamien',
   'language.italian': 'Italien',
+  'language.dutch': 'Néerlandais',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': '▶ Lecture',

@@ -71,6 +71,7 @@ const ui = {
   'language.thai': 'Thailändisch',
   'language.vietnamese': 'Vietnamesisch',
   'language.italian': 'Italienisch',
+  'language.dutch': 'Niederländisch',
   'playbar.reset.title': 'Auf Schritt 0 zurücksetzen',
   'playbar.step.title': 'Einen Schritt weiter',
   'playbar.play': '▶ Abspielen',
