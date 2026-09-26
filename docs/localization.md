@@ -2135,6 +2135,263 @@ floor. Each locale therefore compares its block count **per key against the
 English original** and asserts the totals — today **19 keys / 23 blocks** — so
 a walk that stops seeing blocks fails loudly instead of passing over nothing.
 
+**L2.21 — Vietnamese is `vi`, the first locale whose English cannot be seen.**
+Catalog `src/i18n/locales/vi/`, template overlay `templateLabels/vi.ts`, module
+overlay in `moduleLabels.ts`, guards `viCopy.test.ts` and `e2e/i18n-vi.spec.ts`.
+**849 keys · 196 node labels · 7 frame titles · 19 module labels.**
+
+Fifteenth language. `vi` **is** its own base subtag, so §L5.2 step 3 carries
+`vi-VN`, `vi-Latn`, `vi-Latn-VN` and every extension for free — no resolver
+change, unlike `es-419` (§L2.13).
+
+### The thing that is new
+
+Every locale before this one is legible as a locale at a glance: Thai is Thai
+script, Russian is Cyrillic, Turkish has `ı` and `ğ`. **Vietnamese is Latin.**
+`Monte Carlo` and `Pan mode off — drag empty canvas to pan` are written in the
+same alphabet as `Bể chứa`, so no character class, no script run and nothing
+that asks "which alphabet is this" can tell a finished translation from one
+that was never started.
+
+The primary guard is therefore an **exact key-and-value set**: every runtime
+string equal to its English original is declared in `viCopy.test.ts`, with the
+value written out. **28 entries**, each one of four things — a product name
+(`Monte Carlo`) or a file's name (`Graph JSON`); a placeholder the user types
+back verbatim; a rarity letter or mechanism name the genre writes in English;
+or a banner's proper name (`Premium Standard`), as in `ru`, `tr` and `th`.
+
+**It found nineteen.** The catalog's first pass shipped `enum.activation.*`,
+`enum.flowMode.*`, `enum.distribution.*`, `enum.format.*`, `enum.stateMode.*`,
+both `seed` labels and `import.delimiterTab` in English — every one of them a
+dropdown value a user reads, and every one of them translated by all thirteen
+other locales. A count would have hidden that behind a number; the pairs did
+not. Five more were partial rather than whole — `activator — bật / tắt đích`,
+an English head word in front of a translated clause — and two more were on the
+overlay surfaces (`General / Free`, `Gold`), which a catalog-only guard never
+sees. **Twenty-six in all**, none of which any previous locale's guard shape
+would have caught.
+
+Behind the exact set sit two derived contracts, both measured then declared:
+the exact set of strings keeping an ASCII word their English original also has
+(**167**), and the exact vocabulary those words may come from (**77**, in eight
+disjoint groups).
+
+### The tokenizer, which is the guard's own failure mode
+
+Every earlier copy guard splits words on `[A-Za-z]+`, and in those scripts that
+is equivalent to splitting on letters. Here it is not: it cuts a Vietnamese
+word at every diacritic, so `sửa` becomes `s` and `a`. MEASURED on this
+catalog, that idiom invented **51 phantom hits and 7 phantom words**, `a` alone
+appearing in 42 strings. The fix is to tokenize on `\p{L}\p{M}` and keep only
+the runs that are entirely ASCII, and it is asserted as its own test so the
+cheaper idiom cannot come back.
+
+What survives the fix is still not all English. Vietnamese writes a syllable in
+plain ASCII whenever it carries no diacritic — `thu`, `cho`, `khi`, `sang`,
+`to`, `so` — so the `thCopy` rule "no Latin word may appear that English did
+not put there" reports **688** correct Vietnamese words here. That rule is
+therefore scoped to the declared vocabulary instead. Two ASCII Vietnamese words
+(`so` in `so sánh`, `to` in `phóng to`) are declared as such rather than as
+kept English.
+
+### Glossary
+
+`Bể chứa` Pool · `Nguồn` Source · `Điểm xả` Drain · **`Bộ chia`** Gate ·
+`Bộ chuyển đổi` Converter · `Điểm kết thúc` End · `Tham số` Parameter ·
+**`Giá trị tính toán`** Register · `khung vẽ` canvas · `Nhóm` frame · `Mẫu`
+Template · `Mô-đun` Module · `hạt giống` seed.
+
+Three are decisions rather than lookups:
+
+- **Gate is `Bộ chia`, not `Cổng` and no longer `Bộ phân phối`.**
+  `Cổng` is the literal gate and is also what a network port is called, so it
+  was never a candidate. It shipped as `Bộ phân phối` (distributor) until the
+  full read-back found the product contradicting itself: **both** gate-typed
+  labels it ships say `chia` — `Bộ chia phần thưởng` and
+  `Chia luồng sản xuất`. The kind name follows its own labels, and it is two
+  syllables instead of four.
+- **Register is `Giá trị tính toán`** — a calculated value. The node stores
+  nothing, so any name built on "record" or "ledger" would describe the
+  opposite of what it does, and `ghi` is already the verb in the save and
+  export copy. `Sổ ghi` is banned outright and the ban is asserted.
+- **seed is `hạt giống`.** None of the thirteen other locales keeps `seed`.
+  What is pinned is not the word but that **all six** places naming it agree —
+  the label was translated and the tooltip beside it was not, and both render
+  at once, so the mismatch was visible in the product before any guard saw it.
+
+`XP`, `SSR`/`SR`/`R`, `Pity`, `Hard pity` and `Pickup` stay English; `Gold`
+does not — eleven of the thirteen translate it, so the mmo resource reads
+`Vàng`. It still appears verbatim in `inspector.resourceType.placeholder`,
+which lists the canonical `resourceType` tokens a user may type rather than UI
+copy. `Pickup` is **retained pending a native review**: a cross-locale majority
+is not evidence of what Vietnamese gacha players write.
+
+Five status strings say `vùng trống` — the empty AREA — where English says
+"empty canvas". Thai compresses the same five. They are listed in the guard
+rather than waived, so a sixth cannot join them quietly.
+
+### The full EN↔VI read-back, and what it left open
+
+All **1,071** runtime pairs were read side by side — 849 catalog keys, 196 node
+labels, 7 frame titles, 19 module labels. The guards in `viCopy.test.ts` cannot
+do this: type checking, NFC, the key set and the English-leak contracts all pass
+over a wrong-but-Vietnamese string without noticing. Eleven items were repaired
+as a result; the rest are recorded here rather than closed, because closing them
+needs a native reader and **a passing test is not that reader**.
+
+**Repaired.** Five were wrong rather than debatable: `hạt nhân xanh` for green
+coffee (`hạt nhân` is the atomic nucleus; the trade term is `cà phê nhân xanh`,
+4 labels); `Xuất bản dự án` for an export button (`Xuất bản` is the verb *to
+publish*, and this same catalog uses it that way in
+`import.qs.sources.privacy` — now `Xuất tệp Bản dự án`); `sang {direction}` in
+`rf.node.moved` (`sang` is lateral only, so `sang trên` / `sang dưới` are not
+Vietnamese — now `theo hướng {direction}`); `phải đi kèm` for "must be
+**followed by**" in the escape-error message, which dropped the ordering that is
+the whole content of the message; and a missing object in the Drain
+description. Six more were the product contradicting itself and are described
+under the glossary above and in `viCopy.test.ts`.
+
+**Still open — needs a native reader.** Each carries the evidence that makes it
+a question rather than a defect:
+
+1. **`vùng` / `khu vực` / `khu` for "zone".** Three renderings: `vùng` in 27
+   mmo node labels, `khu vực` in the mmo blurb, `khu` in 2 gacha labels. It may
+   be a real register difference between an RPG map zone and a gacha banner
+   zone, which is why it was not flattened.
+2. **`tử vong` for a game death** (3 mmo labels). It is the clinical word;
+   players say `chết`. `Hàng chờ tử vong` reads like a mortuary queue.
+3. **Bare `Biên` for "margin"** in `roasted_supply_margin` and
+   `dessert_prep_margin`. `Biên` alone is an *edge*; the same template gets it
+   right in `projected_operating_margin` (`Biên lợi nhuận`). These two mean
+   *headroom*, so `Dư địa` may be the word.
+4. **`Thay đổi` as the Modifier field name.** It is a verb where the field wants
+   a noun (`Mức thay đổi`), and `thay đổi` is already the generic word for
+   "change" throughout the catalog.
+5. **Second vs third person.** `palette.parameter.description` says
+   `do người dùng đặt` ("set by the user") where the rest of the catalog
+   addresses the reader as `bạn`.
+6. **`Chỉ số nhịp lên XP`** for "XP pace index" — `nhịp lên` is awkward.
+7. **`Giá trị tính toán` for Register.** Consistent across all 10 keys and free
+   of collisions, but four syllables — the longest node-kind name in the
+   palette. It passes the vertical-metrics test; the question is whether a
+   Vietnamese reader would shorten it.
+8. **`Khung vẽ` vs `Vùng vẽ` for the canvas.** Both collide. `khung` already
+   does triple duty (`khung vẽ` canvas, `khung nhìn` viewport, `một khung có
+   nhãn` for the frame box in `import.placement.frameHelp`); but `vùng` is
+   already zone, `vùng trống` (empty area) and `vùng chọn` (selection). Kept as
+   it is because moving it trades one collision for another.
+9. **`Pickup`** kept in English. A cross-locale majority is not evidence of what
+   Vietnamese gacha players write.
+10. **The external product UI paths.** `import.qs.sources.*` quotes Google
+    Sheets and Excel menu items in Vietnamese (`Tệp → Tải xuống → Giá trị được
+    phân tách bằng dấu phẩy (.csv)`, `Xuất bản lên web`, `Lưu dưới dạng`).
+    These were compared against the published help text only — **nobody has
+    opened a signed-in Vietnamese Google Sheets and read the menu**. Until
+    somebody does, they stay open regardless of how right they look.
+
+**Not treated as defects, and deliberately not unified.** Some strings wrap a
+runtime slot in `“…”` where English does not, and some do not. Per-sentence
+judgement is allowed here; no catalog-wide quoting policy was invented, because
+inventing one would be a rule about this document rather than about Vietnamese.
+
+### Plurals
+
+`Intl.PluralRules('vi')` declares **one** category. Every plural block is a
+single `other` arm with `#` preserved — **19 keys / 23 blocks**, walked by
+§L2.20 and compared per key against English.
+
+### Search: the `đ → d` fold (§L5.5)
+
+`đ` has no decomposition — it is a letter with a stroke, not a base plus a mark
+— so the Latin-mark rule leaves it alone. MEASURED before the fold existed:
+with the UI in Vietnamese, **three** picker rows were unreachable from an ASCII
+keyboard (`Tiếng Đức` for German, `Tiếng Bồ Đào Nha` for both Portuguese
+entries). Typing `duc`, `bo dao nha` or the Telex spelling `dduc` found
+nothing. The other 72 of Vietnamese's 74 letters already fold, because their
+tone marks are combining marks on a Latin base.
+
+Measured for damage as well as benefit: across all fifteen shipped languages
+the fold creates **zero** new collisions between picker rows. It is
+SEARCH ONLY — Vietnamese treats `d` and `đ` as different letters, and nothing
+about rendering, stored values or a catalog string changes.
+
+### NFC, and the one limitation
+
+Every runtime string on all four surfaces is NFC and carries **no combining
+mark at all** — stronger than NFC, and true because every Vietnamese letter
+this catalog uses has a precomposed form. The e2e spec asserts the same of what
+reaches the DOM, so the ICU formatter and React are covered too. Search folds
+NFC and NFD identically, including a bare `o + U+031B` and `u + U+031B`.
+
+**U+031B COMBINING HORN is in no IBM Plex Sans subset** — not `vietnamese`,
+`latin`, `latin-ext` or `cyrillic` — and is not in fontsource's declared range
+either. A range entry cannot conjure a glyph, so it is not added.
+
+**The consequence, recorded here and nowhere else.** A DECOMPOSED `ơ` or
+`ư` — `o`/`u` plus U+031B — draws its horn from the system fallback, so it
+looks slightly different from the precomposed letter. MEASURED: at 64px, 20
+repetitions, the decomposed pair renders at the same width as a stack with no
+IBM Plex in it at all, while the precomposed letter does not. Everything the
+catalog, an IME and NFC actually produce is precomposed and is covered by the
+face, so this is an **accepted limitation**, not a defect.
+
+**It is deliberately NOT asserted.** An earlier version of
+`e2e/i18n-vi.spec.ts` pinned it — "the decomposed form must keep falling
+back" — and that was wrong: it turns a limitation into a permanent contract,
+so the day IBM Plex ships the horn the product improves and the test goes red.
+A test may not stand in the way of its own subject being fixed. What the spec
+pins instead are five properties that hold either way:
+
+1. every official Vietnamese string the product serves is NFC, with no
+   combining mark left in it;
+2. **the CSS claims no code point the face cannot draw** — derived from the
+   live stylesheet and the live font file, so widening the range later is
+   fine as long as the face backs it. Falsified by adding U+031B to the
+   declared range, which reds it;
+3. an NFD query finds the same picker rows as the NFC one;
+4. a raw USER string is stored and read back byte-for-byte — the product
+   never silently normalises what someone typed;
+5. an NFD label renders with ink, is not tofu, is not clipped and does not
+   overlap its siblings. Its appearance is **not** compared with the NFC
+   twin's in either direction.
+
+### The font, and the one mark it took from another locale
+
+`@fontsource/ibm-plex-sans` has a `vietnamese` subset (8.2 KB at 400) whose
+cmap covers all 44 characters that measurably fell back. `document.fonts.check()`
+answered TRUE for `Đ ế ệ ơ ư ă` — **the fourth locale in a row it has lied
+about a font the browser does not have** (`ru`, `tr`, `th`, `vi`). The range
+declared in `index.css` is fontsource's own rather than a census of today's
+strings, because this face also has to render USER labels; `U+0329` is dropped
+from it, being in fontsource's range but not in the file's cmap.
+
+The review question was sharper than "does the face have the glyph": the
+Vietnamese face declares `U+0300-0301, U+0303-0304, U+0308-0309, U+0323` —
+combining marks other locales write with — and is declared last, so for those
+it now wins the cascade. **A cmap entry and a matching advance do not prove two
+faces draw the same glyph**, and a combining mark's advance is zero, so
+comparing widths compares nothing.
+
+The e2e test therefore derives the overlap from the live stylesheet and
+compares INK. Two findings:
+
+- the overlap is **exactly one code point, U+0301**, and its other claimant is
+  the **Cyrillic** face, which has carried it since `ru` shipped (§L2.17) — not
+  the Latin one;
+- loaded under isolated temporary family names, the `vietnamese` and `cyrillic`
+  subsets draw U+0301 with **identical ink bounds, pixel count and coverage**,
+  so moving it changes nothing for Russian.
+
+The first version of that test compared `vietnamese` against `latin` on `ế` and
+they differed — which was the TEST being wrong, not the font. `latin-400.css`
+(imported by `main.tsx`) declares the family with **no `unicode-range`**, so the
+browser treats it as a candidate for every code point and, for a precomposed
+letter it does not have, draws the base from Plex and stacks the marks from
+elsewhere: same advance, different ink. That is the concrete reason the
+comparison has to be against the RANGED faces, and the reason the test asserts
+non-vacuity on both sides before comparing anything.
+
+
 ## L3. The string catalog
 
 **L3.1 — one key set, defined by `en`.** Every locale's catalog has **exactly**
@@ -2490,7 +2747,7 @@ sides of the comparison, over four fields — code, English name, endonym, and
 the name in the active UI language — so `fr`, `French`, `Français`,
 `francais` and `franc` all find it, from any of the six UI languages.
 
-The folding is deliberately narrow, in two ways.
+The folding is deliberately narrow, in four ways.
 
 1. **A combining mark is dropped only when it sits on a LATIN letter.** The
    obvious one-liner is wrong here:
@@ -2521,6 +2778,17 @@ The folding is deliberately narrow, in two ways.
    dakuten in item 1 would be wrong here too. Both guards are tests — folding
    `ё`/`е` together, and keeping `й`/`и` apart — and both were falsified, by
    removing the rule and by widening it to all Cyrillic.
+
+4. **Two Latin letters fold that no mark rule can reach**, each added with the
+   locale that needed it and each measured against a real row a reader could
+   not otherwise find: Turkish dotless `ı` to `i` (§L2.18) and Vietnamese
+   `đ` to `d` (§L2.21). Neither has a decomposition — they are letters in
+   their own right, not a base plus a mark — so neither can be handled by
+   item 1 and both are plain substitutions after the case fold. Both are
+   SEARCH ONLY: Turkish and Vietnamese each treat their letter as distinct
+   from its ASCII lookalike, and nothing about rendering or stored values
+   changes. Both were measured for damage as well as benefit — across the
+   shipped set neither creates a new collision between two picker rows.
 
 A ligature that decomposition does not reduce to ASCII (`œ`, `æ`) is left as
 it is. Transliterating it would be a rule about French orthography rather

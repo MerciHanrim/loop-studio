@@ -164,7 +164,7 @@ test.describe('the language search box finds Portuguese', () => {
   test('by endonym, English name and code — accents optional', async ({ page }) => {
     await openApp(page)
     await openLanguageMenu(page)
-    await expect(options(page)).toHaveCount(15) // 14 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(16) // 15 shipped + the dev pseudo-locale
 
     for (const q of [
       'Português',
@@ -207,6 +207,7 @@ test.describe('the language search box finds Portuguese', () => {
       ['ru', 'Португальский'],
       ['tr', 'Portekizce'],
       ['th', 'โปรตุเกส'],
+      ['vi', 'Bồ Đào Nha'],
     ] as const
 
     // EXHAUSTIVE, and checked against the product rather than against a

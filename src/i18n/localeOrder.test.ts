@@ -19,7 +19,7 @@ import { BASE_ENTRY, BASE_LOCALE, LOCALES, type LocaleEntry } from './registry'
 
 const codes = (l: readonly LocaleEntry[]) => l.map((e) => e.code)
 
-/** the nine shipped languages, in the order the picker must show them */
+/** the fifteen shipped languages, in the order the picker must show them */
 const SHIPPED_ORDER = [
   'zh-Hans', // Chinese (Simplified)
   'zh-Hant', // Chinese (Traditional)
@@ -35,6 +35,7 @@ const SHIPPED_ORDER = [
   'es-ES', //   Spanish (Spain)  — sorts right after its Latin American sibling
   'th', //      Thai
   'tr', //      Turkish
+  'vi', //      Vietnamese — sorts last by English name
 ]
 
 describe('§L5.6 — the picker display order', () => {

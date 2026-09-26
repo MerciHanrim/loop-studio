@@ -60,6 +60,7 @@ const ui = {
   'language.russian': '俄文',
   'language.turkish': '土耳其文',
   'language.thai': '泰語',
+  'language.vietnamese': '越南語',
   'playbar.reset.title': '重設到第 0 步',
   'playbar.step.title': '前進一步',
   'playbar.play': '▶ 播放',

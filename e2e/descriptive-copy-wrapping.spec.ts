@@ -229,34 +229,46 @@ test.describe('the computed value says what the CSS means', () => {
 // so ADDING A LANGUAGE MUST ADD A ROW HERE. Neither the title nor the comments
 // name a count: a number would be one more thing that silently goes stale, which
 // is the very failure this change exists to fix.
+//
+// One test PER LOCALE, not one test that loops the list. It was a single test
+// until `vi` made it the 15th locale: the sweep opens a fresh context, loads the
+// app, opens every menu and hovers every chip, so its cost is proportional to
+// the number of locales, and one test's 30 s budget is not. It ran 24.3 s
+// locally and timed out on CI, twice, without reaching a single assertion. A
+// per-locale test makes each case's runtime independent of how many locales
+// ship, so the budget stops being a function of the list's length. It also names
+// the failing locale in the test title instead of inside an accumulated array.
+// Section 1 above already reads this way.
 test.describe('every shipped locale', () => {
-  test('all descriptive copy fits, in all shipped locales', async ({ page }) => {
-    const bad: string[] = []
-    for (const [lang, tag] of [
-      ['en', 'en-US'],
-      ['ko', 'ko-KR'],
-      ['ja', 'ja-JP'],
-      ['zh-Hans', 'zh-CN'],
-      ['zh-Hant', 'zh-TW'],
-      ['fr', 'fr-FR'],
-      ['de', 'de-DE'],
-      ['es-419', 'es-MX'],
-      ['pt-BR', 'pt-AO'],
-      ['es-ES', 'es-ES'],
-      ['pt-PT', 'pt-PT'],
-      ['ru', 'ru-RU'],
-      ['tr', 'tr-TR'],
-      ['th', 'th-TH'],
-    ] as const) {
+  for (const [lang, tag] of [
+    ['en', 'en-US'],
+    ['ko', 'ko-KR'],
+    ['ja', 'ja-JP'],
+    ['zh-Hans', 'zh-CN'],
+    ['zh-Hant', 'zh-TW'],
+    ['fr', 'fr-FR'],
+    ['de', 'de-DE'],
+    ['es-419', 'es-MX'],
+    ['pt-BR', 'pt-AO'],
+    ['es-ES', 'es-ES'],
+    ['pt-PT', 'pt-PT'],
+    ['ru', 'ru-RU'],
+    ['tr', 'tr-TR'],
+    ['th', 'th-TH'],
+    ['vi', 'vi-VN'],
+  ] as const) {
+    test(`${lang}: all descriptive copy fits`, async ({ page }) => {
       const { ctx, page: p } = await pageAt(page, tag)
       await openApp(p)
       const rows = await sweepDescriptiveCopy(p)
       for (const sel of DESC) {
         expect(rows.some((r) => r.sel === sel), `${lang}: ${sel} must be measured`).toBe(true)
       }
-      bad.push(...overflowing(rows).map((r) => `${lang} ${describe1(r)}`))
+      expect(
+        overflowing(rows).map((r) => `${lang} ${describe1(r)}`),
+        `no descriptive copy overflows in ${lang}`,
+      ).toEqual([])
       await ctx.close()
-    }
-    expect(bad, 'no descriptive copy overflows in any shipped locale').toEqual([])
-  })
+    })
+  }
 })

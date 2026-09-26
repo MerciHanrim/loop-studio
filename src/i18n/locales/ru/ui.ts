@@ -76,6 +76,7 @@ const ui = {
   'language.russian': 'Русский',
   'language.turkish': 'Турецкий',
   'language.thai': 'Тайский',
+  'language.vietnamese': 'Вьетнамский',
   'playbar.reset.title': 'Сбросить на шаг 0',
   'playbar.step.title': 'Сделать один шаг',
   'playbar.play': '▶ Запустить',

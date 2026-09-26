@@ -56,6 +56,7 @@ const ui = {
   'language.russian': 'ロシア語',
   'language.turkish': 'トルコ語',
   'language.thai': 'タイ語',
+  'language.vietnamese': 'ベトナム語',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',

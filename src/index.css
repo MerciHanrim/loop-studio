@@ -313,6 +313,68 @@
   unicode-range: U+011E-011F, U+0130, U+015E-015F;
 }
 
+/* docs/localization.md §L2.21 — Vietnamese, the fourth locale whose letters
+ * IBM Plex Sans was already a candidate for and did not actually carry.
+ *
+ * MEASURED before this was added, the same three-way width comparison the
+ * `ru`, `tr` and `th` defects needed (64px, 20 repetitions, Plex stack vs a
+ * forced system stack vs a deliberately absent family, at BOTH weights).
+ * `document.fonts.check()` answered TRUE for `Đ ế ệ ơ ư ă` — the FOURTH locale
+ * in a row it has lied about a font it does not have. What actually fell back,
+ * identically at 400 and 600:
+ *
+ *   Latin-1 Supplement            0 of 33   — à á â ã è é ê … all from Plex
+ *   Latin Extended-A              4 of 8    — Ăă Đđ
+ *   Latin Extended-B              4 of 4    — Ơơ Ưư
+ *   Latin Extended Additional    36 of 90   — the ă / ơ / ư families + Ậ Ệ Ộ
+ *
+ * 44 characters. `@fontsource/ibm-plex-sans` HAS a `vietnamese` subset (8.2 KB
+ * at 400) and its cmap covers all 44 — verified by parsing the file's own cmap
+ * table, not by trusting the CSS.
+ *
+ * The range below is fontsource's own, deliberately NOT narrowed to the 44
+ * characters today's strings need: unlike the Turkish face, this one also has
+ * to render USER labels and future copy, so the range is the subset's, not a
+ * census of the catalog.
+ *
+ * TWO code points are the exception, and both are measured rather than assumed:
+ *
+ *   • U+0329 is in fontsource's declared range but NOT in the file's cmap
+ *     (110 of its 111 declared code points are present; this is the one that
+ *     is not). Declaring a range the face cannot serve is a false claim, so it
+ *     is dropped here.
+ *   • U+031B (combining horn) is in NO IBM Plex Sans subset — not vietnamese,
+ *     latin, latin-ext or cyrillic. It is not in fontsource's range either and
+ *     is not added: a range entry cannot conjure a glyph. NFD `ơ` / `ư` are
+ *     `o`/`u` + U+031B, so that mark stays on the system fallback. Precomposed
+ *     `ơ ư ớ ờ ở ỡ ợ ứ ừ ử ữ ự` — what the catalog, the IME and NFC all
+ *     produce — are covered by the face.
+ *
+ * `@fontsource/ibm-plex-sans/vietnamese-400.css` is NOT imported: like its
+ * `cyrillic` and `latin-ext` siblings it redeclares the same family / weight /
+ * style with NO `unicode-range`, and the last unranged rule wins for every code
+ * point. The face is declared here instead, over the range above. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-vietnamese-400-normal.woff2')
+    format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1,
+    U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('@fontsource/ibm-plex-sans/files/ibm-plex-sans-vietnamese-600-normal.woff2')
+    format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1,
+    U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+1EA0-1EF9, U+20AB;
+}
+
 /* docs/localization.md §L2.19 — Thai, and the first locale that needs a
  * SEPARATE FAMILY rather than another subset of IBM Plex Sans.
  *

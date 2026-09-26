@@ -61,6 +61,7 @@ const ui = {
   'language.russian': 'Russe',
   'language.turkish': 'Turc',
   'language.thai': 'Thaï',
+  'language.vietnamese': 'Vietnamien',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
   'playbar.play': '▶ Lecture',

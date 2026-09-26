@@ -58,6 +58,9 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   // Russian: the form is `английском` and a browser tab is a `вкладка`. Matching on the
   // stem keeps the regex indifferent to the case ending the sentence needs.
   ru: { englishForm: /английск/i, newTab: /вкладк/i },
+  // Vietnamese: the language is `tiếng Anh`; a browser tab is a `tab`, kept
+  // as the loanword the way Vietnamese software writes it.
+  vi: { englishForm: /tiếng Anh/i, newTab: /tab mới/i },
 }
 
 const catalogOf = async (code: string) => {

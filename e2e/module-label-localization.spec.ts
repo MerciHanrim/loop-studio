@@ -57,6 +57,7 @@ const STR = {
   ru: { menuBtn: 'Вставить модуль ▾', bufferedStep: 'Производственный этап с буферами', rewardSplit: 'Цикл распределения награды' },
   tr: { menuBtn: 'Modül ekle ▾', bufferedStep: 'Tamponlu üretim aşaması', rewardSplit: 'Ödül paylaştırma döngüsü' },
   th: { menuBtn: 'แทรกมอดูล ▾', bufferedStep: 'ขั้นการผลิตที่มีบัฟเฟอร์', rewardSplit: 'วงจรแบ่งรางวัล' },
+  vi: { menuBtn: 'Chèn mô-đun ▾', bufferedStep: 'Bước sản xuất có bộ đệm', rewardSplit: 'Vòng chia phần thưởng' },
 } as const
 type Locale = keyof typeof STR
 
@@ -82,6 +83,10 @@ const LABELS = {
     // a finite `Sevk edildi` would have been a whole sentence on a Pool.
     tr: ['Tedarik', 'Giriş kuyruğu', 'Kabul', 'İşleme', 'Kayıp', 'Çıkış kuyruğu', 'Sevkiyat', 'Parti boyutu', 'Sistemdeki birim', 'Planlanan üretim'],
     th: ['การจัดหา', 'คิวขาเข้า', 'การรับเข้า', 'การแปรรูป', 'ของเสีย', 'คิวขาออก', 'การจัดส่ง', 'ขนาดล็อต', 'หน่วยที่อยู่ในระบบ', 'ปริมาณผลิตตามแผน'],
+    // `Hao hụt` for Spoilage is the loss every other locale here names, and
+    // leaves `hư hỏng` (spoiled goods) to mean the goods themselves. `Đã xuất`
+    // is the shipped STATE, matching the noun every other row uses.
+    vi: ['Nguồn cung', 'Hàng chờ vào', 'Tiếp nhận', 'Gia công', 'Hao hụt', 'Hàng chờ ra', 'Đã xuất', 'Cỡ lô', 'Số đơn vị trong hệ thống', 'Sản lượng theo kế hoạch'],
   },
   'reward-split': {
     en: ['Activity', 'Wallet', 'Allocate', 'Spending', 'Savings', 'Withdrawals', 'Savings target', 'Net worth', 'Progress to target'],
@@ -103,6 +108,9 @@ const LABELS = {
     // name, so the label and the kind read as one word in Turkish.
     tr: ['Etkinlik', 'Cüzdan', 'Dağıt', 'Harcama', 'Birikim', 'Çekimler', 'Birikim hedefi', 'Net değer', 'Hedefe ilerleme'],
     th: ['กิจกรรม', 'กระเป๋าเงิน', 'จัดสรร', 'การใช้จ่าย', 'เงินเก็บ', 'การถอน', 'เป้าหมายเงินเก็บ', 'มูลค่าสุทธิ', 'ความคืบหน้าสู่เป้าหมาย'],
+    // `Giá trị ròng` for Net worth, not `tài sản ròng`: the node holds a number,
+    // and `tài sản` would name the assets rather than what they come to.
+    vi: ['Hoạt động', 'Ví', 'Phân bổ', 'Chi tiêu', 'Tiết kiệm', 'Rút ra', 'Mục tiêu tiết kiệm', 'Giá trị ròng', 'Tiến độ tới mục tiêu'],
   },
 } as const
 
@@ -207,7 +215,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (d) => void d.accept().catch(() => {}))
 })
 
-const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi'] as const
 
 for (const loc of SHIPPED) {
   test(`${loc}: inserting "Buffered production step" via the menu gets the ${loc} labels`, async ({ page }) => {
@@ -285,7 +293,7 @@ test('an already-inserted instance follows a switch into zh-Hans, zh-Hant, fr an
   await insertViaMenu(page, 'en', 'buffered-step')
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi'] as const) {
     await setLocale(page, loc)
     expect(labelsOf(await gs(page), before), `switch to ${loc}`).toEqual(
       [...LABELS['buffered-step'][loc]].sort(),
@@ -311,7 +319,7 @@ test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr / de switch'
   const mine = inserted.find((n) => n.data?.label === 'Wallet')!
   await renameNode(page, mine.id, 'Mein Konto')
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'en'] as const) {
+  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'en'] as const) {
     await setLocale(page, loc)
     const now = (await gs(page)).nodes.find((n) => n.id === mine.id)
     expect(now?.data?.label, `${loc} must not overwrite a user rename`).toBe('Mein Konto')

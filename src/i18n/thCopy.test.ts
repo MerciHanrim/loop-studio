@@ -88,11 +88,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('th copy — the first no-space script', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TH).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(848)
+    expect(KEYS).toHaveLength(849)
   })
 
   it('covers all three runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(848)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(849)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
