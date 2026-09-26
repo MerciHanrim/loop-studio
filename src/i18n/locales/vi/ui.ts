@@ -68,6 +68,7 @@ const ui = {
   'language.turkish': 'Tiếng Thổ Nhĩ Kỳ',
   'language.thai': 'Tiếng Thái',
   'language.vietnamese': 'Tiếng Việt',
+  'language.italian': 'Tiếng Ý',
   'playbar.reset.title': 'Đặt lại về bước 0',
   'playbar.step.title': 'Tiến một bước',
   'playbar.play': '▶ Chạy',

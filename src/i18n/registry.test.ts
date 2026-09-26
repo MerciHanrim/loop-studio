@@ -64,6 +64,7 @@ describe('locale registry metadata', () => {
       'es-419',
       'es-ES',
       'fr',
+      'it',
       'ja',
       'ko',
       'pt-BR',
@@ -130,7 +131,11 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
   it('leaves every other language alone', () => {
     expect(resolveInitialLocale(null, ['ko-KR'])).toBe('ko')
     expect(resolveInitialLocale(null, ['ja'])).toBe('ja')
-    expect(resolveInitialLocale(null, ['nl-NL'])).toBe('en') // not registered yet
+    // `qaa` is ISO 639-2's permanently RESERVED-FOR-LOCAL-USE range, so it can
+    // never become a registered code. `nl-NL` was here until Dutch went on
+    // the roadmap — a probe for "falls back to English" must not be a tag the
+    // product might one day support.
+    expect(resolveInitialLocale(null, ['qaa'])).toBe('en') // reserved, never registrable
     expect(resolveInitialLocale(null, ['zhuang'])).toBe('en') // not a zh subtag
   })
 
@@ -168,7 +173,7 @@ describe('resolveInitialLocale', () => {
   it('2. walks navigator.languages in order — exact, then BCP-47 base', () => {
     expect(resolveInitialLocale(null, ['ko-KR', 'en-US'])).toBe('ko') // base match ko-KR -> ko
     expect(resolveInitialLocale(null, ['en-GB'])).toBe('en') // base match en-GB -> en
-    expect(resolveInitialLocale(null, ['nl-NL', 'ko'])).toBe('ko') // first that resolves wins
+    expect(resolveInitialLocale(null, ['qaa', 'ko'])).toBe('ko') // first that resolves wins
     // §L2.9 — every French region reaches `fr` through the ordinary
     // base-subtag rule; French needed no mapping of its own.
     for (const tag of ['fr', 'fr-FR', 'fr-BE', 'fr-CH', 'fr-CA', 'fr-LU', 'FR-ca']) {
@@ -178,7 +183,7 @@ describe('resolveInitialLocale', () => {
   })
 
   it('3. canonical fallback when nothing resolves', () => {
-    expect(resolveInitialLocale(null, ['nl-NL', 'sv-SE'])).toBe(BASE_LOCALE)
+    expect(resolveInitialLocale(null, ['qaa', 'sv-SE'])).toBe(BASE_LOCALE)
     expect(resolveInitialLocale(null, [])).toBe(BASE_LOCALE)
     expect(resolveInitialLocale('xx', ['zz'])).toBe(BASE_LOCALE)
   })

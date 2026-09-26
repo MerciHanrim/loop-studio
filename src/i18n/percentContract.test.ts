@@ -56,6 +56,10 @@ const CONTRACT: Record<string, { position: Position; gap: Gap }> = {
   // `numberLocale` is `th-TH`; MEASURED, the bare `th` lays out identically.
   th: { position: 'after', gap: 'none' },
   vi: { position: 'after', gap: 'none' },
+  // MEASURED like every other row: `84%`, U+0038 U+0034 U+0025 — the sign
+  // touches the digits. Italian groups its numbers like `de` (`1.234.567,89`)
+  // but does NOT take `de`'s no-break space here.
+  it: { position: 'after', gap: 'none' },
 }
 
 const shipped = LOCALES.filter((l) => !l.pseudo)

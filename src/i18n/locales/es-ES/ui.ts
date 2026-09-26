@@ -70,6 +70,7 @@ const ui = {
   'language.turkish': 'Turco',
   'language.thai': 'Tailandés',
   'language.vietnamese': 'Vietnamita',
+  'language.italian': 'Italiano',
   'playbar.reset.title': 'Reiniciar al paso 0',
   'playbar.step.title': 'Avanzar un paso',
   'playbar.play': '▶ Reproducir',

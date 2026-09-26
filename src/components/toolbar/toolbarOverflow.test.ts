@@ -34,6 +34,17 @@ const JA: ToolbarMetrics = {
 }
 const LOCALES = { EN, KO, JA }
 
+// These three are the only locales with hand-measured metrics, and that is a
+// deliberate limit rather than the whole coverage. The numbers above were read
+// off the running app at ~1920px; inventing a row for a fourth locale would
+// make this file LOOK covered while asserting nothing measured.
+//
+// PER-LOCALE coverage lives in `e2e/toolbar-locale-width.spec.ts`, which reads
+// the real DOM in every shipped locale, one test each. It found that `ru`
+// (707px at 1280) is the widest shipped row — wider than any of EN/KO/JA here —
+// so this file's "JA is the widest shipped locale" framing describes the
+// measured THREE, not the shipped sixteen.
+
 describe('computeToolbarLayout — Tier 1 collapse count', () => {
   it('widening never adds collapses (monotonic per locale)', () => {
     for (const m of Object.values(LOCALES)) {

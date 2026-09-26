@@ -473,6 +473,37 @@ const VI: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+/** Italian. `Ripartisci` for `allocate` rather than `Assegna`: the module is a
+ *  reward SPLIT, the same sense the Gate kind name `Ripartitore` carries, so
+ *  the two read as one idea. `Riserve` for `savings` and not `Risparmi`,
+ *  because `savings` here is a stock the model holds, not money someone puts
+ *  aside — and `target_savings` then reads `Obiettivo di riserve`. */
+const IT: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'Fornitura',
+    inbox: 'Coda in ingresso',
+    intake: 'Presa in carico',
+    process: 'Lavorazione',
+    spoilage: 'Scarti',
+    outbox: 'Coda in uscita',
+    shipped: 'Spedito',
+    batch_size: 'Dimensione del lotto',
+    in_system: 'Unità nel sistema',
+    planned_run: 'Produzione pianificata',
+  },
+  'reward-split': {
+    activity: 'Attività',
+    wallet: 'Portafoglio',
+    allocate: 'Ripartisci',
+    spending: 'Spesa',
+    savings: 'Riserve',
+    withdrawals: 'Prelievi',
+    target_savings: 'Obiettivo di riserve',
+    net_worth: 'Patrimonio netto',
+    progress: 'Avanzamento verso l’obiettivo',
+  },
+}
+
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -488,6 +519,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   tr: TR,
   th: TH,
   vi: VI,
+  it: IT,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

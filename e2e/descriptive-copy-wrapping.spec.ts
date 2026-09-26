@@ -256,6 +256,7 @@ test.describe('every shipped locale', () => {
     ['tr', 'tr-TR'],
     ['th', 'th-TH'],
     ['vi', 'vi-VN'],
+    ['it', 'it-IT'],
   ] as const) {
     test(`${lang}: all descriptive copy fits`, async ({ page }) => {
       const { ctx, page: p } = await pageAt(page, tag)

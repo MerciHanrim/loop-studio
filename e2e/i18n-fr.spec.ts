@@ -103,11 +103,20 @@ test.describe('the other shipped locales are unaffected', () => {
     ['zh-TW', 'zh-Hant'],
     // `de-DE` was this list's UNREGISTERED probe when French shipped. German
     // shipped afterwards, so it now reaches `de` through the ordinary
-    // base-subtag step, and the row proves that step instead. `nl-NL` takes
+    // base-subtag step, and the row proves that step instead. `qaa` takes
     // over as the probe: Dutch is not on the twelve-language roadmap, so it
     // will not quietly become registered the way `de-DE` did.
     ['de-DE', 'de'],
-    ['nl-NL', 'en'],
+    // `qaa` — ISO 639-2 reserves `qaa`-`qtz` for LOCAL USE, so this tag can
+    // never become a real language and can never become registered here. It
+    // replaces `nl-NL`, which was the probe until Dutch went on the roadmap:
+    // a probe tag has to be one the product will never support. MEASURED —
+    // `Intl.getCanonicalLocales('qaa')` is `['qaa']`, `Intl.NumberFormat`
+    // accepts it, and it resolves to `en` both today and with `it` + `nl`
+    // registered. (`en-x-probe` would ALSO resolve to `en`, but through the
+    // step-3 base match on `en` rather than the fallback — it would pass
+    // while proving nothing, so it is not used.)
+    ['qaa', 'en'],
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
@@ -219,7 +228,7 @@ test.describe('the language search box, shipped to production here', () => {
     await page.keyboard.press('Escape')
     await expect(search(page)).toHaveValue('') // stage 1: only the query goes
     await expect(pop(page)).toBeVisible()
-    await expect(options(page)).toHaveCount(16) // 15 shipped + the dev pseudo-locale
+    await expect(options(page)).toHaveCount(17) // 16 shipped + the dev pseudo-locale
 
     await page.keyboard.press('Escape')
     await expect(pop(page)).toHaveCount(0) // stage 2: the popover closes
@@ -303,6 +312,7 @@ test.describe('the language search box, shipped to production here', () => {
       ['zh-Hant', '法語'],
       ['fr', 'Français'],
       ['de', 'Französisch'],
+      ['it', 'Francese'],
       ['es-419', 'Francés'],
       ['pt-BR', 'Francês'],
       ['es-ES', 'Francés'],

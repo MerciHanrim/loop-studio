@@ -2998,6 +2998,309 @@ This cycle does **not** restructure the whole engine error system. It touches
   change; if any consumer test pins the exact English `diagnostics` strings,
   it moves to asserting the `code` instead.
 
+**L2.22 — Italian is `it`, and the Vietnamese guard shape does not transfer.**
+Catalog `src/i18n/locales/it/`, template overlay `templateLabels/it.ts`, module
+overlay in `moduleLabels.ts`, guards `itCopy.test.ts` and `e2e/i18n-it.spec.ts`.
+**850 keys · 196 node labels · 7 frame titles · 19 module labels.**
+
+Sixteenth language.
+
+### The code is the BARE subtag, and that was measured three ways
+
+The roadmap said `it-IT`. Running this file's own `resolveInitialLocale`
+against three hypothetical registries said otherwise:
+
+| registered as | `it` | `it-IT` | `it-CH` | `it-Latn-IT` |
+|---|---|---|---|---|
+| `it-IT` alone | **en** | it-IT | **en** | **en** |
+| `it-IT` + `baseFallbackFor: 'it'` | it-IT | it-IT | it-IT | it-IT |
+| **bare `it`** | it | it | it | it |
+
+Registering `it-IT` alone strands a bare `it` tag — which browsers do send — in
+English, and takes Switzerland and San Marino with it. Bare `it` behaves like
+`ru`, `tr`, `th` and `vi`: §L5.2 step 3 carries every `it-*` with no
+`baseFallbackFor` at all, and it has none of the `es-ES` / `pt-PT` script-subtag
+limit, because step 3 splits on `-` and matches the base directly. Adding it
+moved **zero** existing tag resolutions. Numbers and percent stay pinned to
+`it-IT` through `numberLocale`, the way `th-TH` and `vi-VN` do.
+
+### Three plural arms, and a fixture set that nearly missed one
+
+`Intl.PluralRules('it').resolvedOptions().pluralCategories` is
+**`['one', 'many', 'other']`**. Measured through the product's own `tryFormat`:
+
+    0 → other · 1 → one · 1.5 → other · 999999 → other
+    1000000 → MANY · 1000000.5 → other · 2000000 → many
+
+`many` selects a non-zero integer multiple of 1,000,000 and nothing else.
+English takes `other` there, so an English-shaped two-arm message loses the
+category silently — and the first draft of the fixture set stopped at 1,000 and
+would never have reached it. Every plural message in this catalog writes all
+three arms; for a row or table count `many` is unreachable through the product's
+own limits, and the arm is written anyway because a missing one is a silent
+fallthrough.
+
+**A measurement that measured nothing, recorded so it is not repeated.** An
+earlier note here claimed `"1.0"` selects `one` in Italian "unlike English".
+`PluralRules.prototype.select` runs `ToNumber` on its argument, so a visible
+trailing zero never reaches the rule: `1`, `"1"`, `"1.0"` and `"1.00"` all
+select `one` in `en`, `it`, `ru` and `pt-BR` alike. **Do not probe a
+visible-fraction distinction with `select()`.** The `many` result stands because
+it was measured on integers.
+
+### The guard is a WORD INTERSECTION, not an ASCII vocabulary
+
+Vietnamese (§L2.21) was the first Latin-script locale, and its guard declares
+every ASCII word the translation keeps — workable because Vietnamese is
+diacritic-dense, so a pure-ASCII run is unusual enough to enumerate.
+
+Italian is written almost entirely in ASCII. **Measured on this catalog: 1,292
+distinct ASCII words.** Declaring them would mean declaring the language, and a
+guard that lists the whole vocabulary asserts nothing.
+
+What works between two Latin languages is a **per-key word intersection with
+the English source**. A word that survives translation completely unchanged is
+one of four things — a proper noun, a unit or format token, a deliberate
+loanword, or an untranslated leak — and the first three are finite while the
+fourth is the defect. Measured: **78 distinct words over 340 (word, key)
+pairs**, a set a reader can actually check, declared in `itCopy.test.ts` in
+eight groups that are asserted disjoint and asserted non-dead.
+
+Kept from the Vietnamese arc unchanged: the **exact key-AND-value set** of
+everything identical to English (38 pairs — a count would hide a swap), and the
+**vacuity assertion** that every row's English side is non-empty before anything
+is compared with it.
+
+**Falsified, not assumed.** Three deliberate leaks were injected and each was
+caught by a different contract: a whole value left in English (`untyped`) by the
+identical-to-English set, an English head word with an Italian clause (`Hide la
+minimappa`) by the word intersection, and a glossary reversal (`Cancello` for
+Gate) by the glossary. The catalog was restored byte-for-byte afterwards.
+
+### `it` collides with vitest's own `it()`
+
+The first locale whose CODE is a test-framework identifier. `icuEscaping.test.ts`
+and `parserLocation.test.ts` import the catalog as `itCat` and key it as
+`it: itCat`; every other catalog keeps its bare name. Caught by a parse error,
+not by a reviewer.
+
+### No font work, and that is measured rather than assumed
+
+Every code point Italian uses — `à è é ì í î ò ó ù ú`, their capitals, and `€`
+— is already in the unranged `latin` face's cmap, checked against the real
+woff2 rather than against the declared `unicode-range`. `src/index.css` is
+untouched by this locale, and `e2e/i18n-it.spec.ts` asserts the page fetches no
+new font file. The ink probe there compares against the PLATFORM FALLBACK rather
+than calling `document.fonts.check()`, which has now lied for four locales
+running (`ru`, `tr`, `th`, `vi`).
+
+One gap found while measuring, recorded because it belongs to Dutch rather than
+to Italian: `ĳ`/`Ĳ` (U+0132–0133) are present in the latin-ext FILE but outside
+the range `src/index.css` declares for it (`U+011E-011F, U+0130, U+015E-015F`,
+Turkish only), so the unranged latin face wins and has no glyph. It only matters
+if a future Dutch catalog uses the ligature rather than the two letters `ij`.
+
+### Glossary
+
+`Serbatoio` Pool · `Sorgente` Source · `Scarico` Drain · **`Ripartitore`** Gate ·
+`Convertitore` Converter · **`Fine`** End · `Parametro` Parameter ·
+**`Valore calcolato`** Register · `Attivatore` Activator · `Riquadro` frame ·
+`Riquadro di gruppo` group frame · `Gruppo {n}` the default frame name ·
+`Zona` zone · **`Area di disegno`** canvas · `Modello` Template · `Modulo`
+module · `Spazio di lavoro` workspace.
+
+- **Gate is `Ripartitore`, never `Cancello`.** `Cancello` is the literal gate
+  and is also a network port. This product's Gate SPLITS flow, and both
+  gate-typed labels it ships say so in English ("Reward router", "Split
+  production flow"), so the kind name follows its own labels — the contradiction
+  Vietnamese shipped and had to repair.
+- **Register is `Valore calcolato`, never `Registro`.** `Registro` is a ledger
+  and implies storage, but `inspector.register.noStore` says it "accumulates
+  nothing, stores nothing and has no ports". Its LENGTH is a UI-width question,
+  answered by the wrapping and toolbar tests, not a wording one.
+- **End is `Fine`, not `Terminale`.** Keeping the source's plain concept beats a
+  word that reads as a console terminal.
+- **Template is `Modello`** even though the product also talks about "the
+  model". The ONE English sentence where they collide,
+  `tour.desktop.playback.body` ("Run the **model** one step at a time"), is
+  translated contextually as `Avanza la simulazione di un passo alla volta`. A
+  single awkward sentence is not a reason to mis-name a product noun.
+- **Canvas and Workspace never share a word** — `area di disegno` against
+  `spazio di lavoro`, pinned by `itCopy.test.ts`.
+
+**STEP is three different words**, measured: 41 uses split into the simulation
+tick (`passo`, ~35), a stage in a process (`fase`, 3 — "Buffered production
+step", "no shipment step"), and a movement increment, which takes **no fixed
+noun at all** and is written per sentence (`spostamento maggiore`). Unifying
+them would say the production line is missing a simulation tick.
+
+`{column}` is a CHARACTER offset in every `error.EXPR_*` message (`carattere`)
+and a TABLE column only in `import.loc.*` (`colonna`) — §L2.16. The guard caught
+one real defect here: `import.parseError` is the CSV parser's character offset,
+and English calls it "column" for both senses.
+
+### Kept in English, on purpose
+
+`Pity` · `Hard pity` · `Pickup` · `Banner` · `Pull` — no authoritative Italian
+games source was found, and a cross-locale majority is not evidence about
+Italian. Two more were added to that list with reasons rather than assumed:
+
+- **`Roll`**, the gacha action and a near-synonym of `Pull`. Translating it
+  while `Pull` stays English would make one screen contradict itself, which is
+  the defect the Vietnamese read-back found.
+- **`Drop`**, a settled loanword in Italian games writing, used as the head of
+  the compounds (`Drop da equipaggiare`). `loot` IS translated, as `bottino`,
+  because Italian has the word.
+
+Also untranslated: `Loop Studio`, `Monte Carlo`, every wire enum token, raw
+Inspector values, user labels, `R`/`SR`/`SSR`, `XP`, `CSV`/`JSON`, `kg`. **`Gold`
+IS translated** (`Oro`); it survives in English only in
+`inspector.resourceType.placeholder`, which lists canonical `resourceType`
+tokens rather than UI copy.
+
+The `enum.*` values ARE translated — they are the DISPLAY labels for the wire
+tokens, not the tokens. Vietnamese left nineteen of them in English and that was
+the single largest leak in that catalog.
+
+### Style
+
+Second-person singular imperative with no explicit `tu` (`Seleziona`, `Immetti`,
+`Sposta`), never `Lei`, never the manual-style infinitive (`Selezionare`).
+Descriptions are subjectless and short. The source's slot quoting is followed
+exactly and **no catalog-wide quoting rule was invented** — inventing one would
+be a rule about this document rather than about Italian.
+
+### Two strings shortened because a test measured them — and one re-read
+
+`templates.equilibrium.blurb` and `modules.rewardSplit.blurb` were 115 and 79
+characters and wrapped to a third line in a menu blurb box that fits two.
+`descriptive-copy-wrapping.spec.ts` caught both.
+
+**The first shortening then lost a concept**, which only the full read-back
+found: English names three stages and the trimmed Italian named two. The
+lesson is the general one — **shortening copy to fit a box is a translation
+change and has to be re-read as one**, not treated as layout work. It now
+keeps all three stages and still fits.
+
+### Test hygiene that came with this locale
+
+- **`qaa` replaces `nl-NL` as the unregistered-locale probe** in four places
+  (`e2e/i18n-es-419.spec.ts`, `e2e/i18n-fr.spec.ts`, `e2e/i18n-pt-br.spec.ts`,
+  `src/i18n/registry.test.ts`). `nl-NL` was a probe for "must fall back to
+  English" AND the next locale on the roadmap, so it would have gone stale the
+  day Dutch shipped — the same shape as `vi` breaking `i18n-th.spec.ts`'s probe.
+  `qaa`–`qtz` is ISO 639-2's permanently RESERVED-FOR-LOCAL-USE range, so no
+  registry can ever assign it. Measured: it canonicalises, `Intl.NumberFormat`
+  accepts it, and it resolves to `en` both today and with `it` and `nl`
+  registered. **`en-x-probe` must never be used** — it also resolves to `en`,
+  but through the step-3 base match on `en` rather than the fallback, so it
+  would pass while proving nothing.
+- **`e2e/toolbar-locale-width.spec.ts`** is new: one test per shipped locale,
+  measuring the real Tier-1 toolbar row. `toolbarOverflow.test.ts` had carried
+  hand-lifted metrics for EN/KO/JA only, and `ru` (707px at 1280) is wider than
+  any of them. Inventing a fourth row of numbers there would have looked like
+  coverage without measuring anything, so the per-locale coverage reads the DOM
+  instead. It is a DIFFERENTIAL against English measured in the same test,
+  because the absolute row count depends on the viewport.
+
+### The full EN↔IT read-back, and what it left open
+
+All **1,072** runtime pairs were read side by side — 850 catalog keys, 196 node
+labels, 7 frame titles, 19 module labels. (850, not 849: registering Italian
+adds `language.italian` to every catalog.) The guards in `itCopy.test.ts` cannot
+do this. Type checking, NFC, the key set, the identical-to-English set and the
+word intersection all pass over a string that is Italian and **wrong**, and the
+read-back found fifteen that were.
+
+**Repaired — meaning had changed.** Four of them:
+
+- **`templates.equilibrium.blurb` had lost a stage.** English names three —
+  material in, **processing and scrap**, finished goods out — and the Italian
+  named two. Self-inflicted: the sentence had been shortened to fix a
+  three-line wrap and `lavorazione` went with the padding. Shortening copy is a
+  translation change and has to be re-read as one.
+- **`lineage` was `discendenza`, which points the wrong way.** `discendenza` is
+  DESCENT — what comes after. The product's lineage is the chain of PARENT
+  revisions, which comes before. Now `cronologia delle revisioni`, which keeps
+  the continuity the concept carries. 2 keys.
+- **`bean` was a bare `caffè` in four labels**, and this template sells a
+  beverage and desserts as well as beans, so the word was ambiguous exactly
+  where precision matters. The trade term is `caffè in grani`; the roasted
+  stock is `caffè tostato`, never a bare `tostato` used as a noun. Same shape as
+  the Vietnamese `hạt nhân xanh` defect (§L2.21).
+- **`export.workspace.omit.confirm` had lost its object.** "Save without it"
+  became `Salva senza`, which cannot end an Italian sentence. The restored
+  object avoids gender agreement so it cannot drift.
+
+**Repaired — the product contradicting itself.** Two:
+
+- `import.placement.frameHelp` defined a frame with a second frame-word
+  (`Un riquadro è una **cornice**…`), which reads as "a frame is a frame".
+- `help.contextual.hint.review.name` was `Revisione`, colliding with the product
+  noun `Revisione del progetto`. **English distinguishes *review* from
+  *revision* and Italian does not**, so the hint is now
+  `Verifica della proposta`.
+
+**Repaired — grammar and clarity.** Two: a masculine clitic after a feminine
+nearest antecedent in `inspector.empty.title`, and `carattere … carattere` twice
+in one short sentence in `error.EXPR_BAD_TOKEN.message`.
+
+**Repaired — register.** Three: `Principianti` (people) named the first zone
+beside `Colline` and `Altopiani` (places), so it is now `Zona iniziale`, on the
+same axis; `si contendono le stesse risorse` asserted competition where English
+says only "pull against each other", now `attingono alle stesse risorse`; and a
+word-order slip in `canvas.regionSelect.off`.
+
+**Considered and deliberately NOT changed.** `review.hunk.cantRemove` says
+`la tua parte` where the column label `review.field.yours` says `tuo`. They are
+different grammatical roles — a possessive label and a noun phrase — and without
+evidence that English means the same product concept in both places, unifying
+them mechanically would be a rule about this document rather than about Italian.
+
+### Still open — needs a native reader
+
+Five categories. Each carries the evidence that makes it a question rather than
+a defect, and **none of them is closed by a passing test.**
+
+1. **`Ripartitore` for Gate** — whether it is the most natural Italian for the
+   splitting sense. `Deviatore` is shorter but means *diverter*, which is
+   turning flow rather than dividing it.
+2. **`Fine` as a node-kind name.** The concept is right and the alternatives are
+   worse; whether a bare `Fine` reads as a label rather than as "The End" is the
+   question.
+3. **`Valore calcolato` for Register** — naturalness only. Its length is settled
+   by the width and wrapping tests, not by a reader.
+4. **The game vocabulary kept in English** — `Pity`, `Hard pity`, `Pickup`,
+   `Banner`, `Pull`, and the two added with reasons rather than assumed, `Roll`
+   and `Drop` — plus **`rare_conv`**. That last one is here rather than repaired
+   because the English is `Sell rare` with no head noun: in the graph it is a
+   Converter fed by `bucket_rare` ("Rare drops") and feeding `items_sold` and
+   `gold`, so `rare` is a rare DROP. `Vendi il raro` is thin, and whether the
+   Italian should name the drop (`Vendi i drop rari`) depends on the same games
+   usage the rest of this item waits on, so it is decided with them.
+5. **The Google Sheets and Excel menu paths** in `import.qs.sources.*`. They are
+   translated from published Italian help text. **Nobody has opened a signed-in
+   Italian Google Sheets and read the menu**, so the strings are unverified
+   against the only authoritative source. This is an open review item, not a
+   footnote — the Vietnamese arc shipped a claim that these "matched the UI"
+   when only help pages had been read, and that is the mistake being avoided.
+
+**Not open, and why.** `Area di disegno` is confirmed against Microsoft's own
+Italian UI. `Modello` for Template is the standard technical translation, and
+the single sentence where it collides with "model" is handled contextually. The
+imperative style matches Microsoft's Italian UI (`Seleziona`, `Immetti`,
+`Sposta`). The three node-kind terms above are open on NATURALNESS only — their
+consistency across all four surfaces is pinned by `itCopy.test.ts`, so settling
+on a different word later moves every surface together and the guard keeps
+passing without being edited to bless a new string.
+
+**One residual observation, recorded rather than acted on.** Five surfaces name
+the proposal-review activity with `esaminare` (`review.title`,
+`review.err.targetMovedList`, `hint.review.body`,
+`help.contextual.hint.review.desc`, and the button copy) while the hint NAME is
+now `Verifica della proposta`. In Italian a section titled with the noun
+`verifica` whose body uses the verb `esaminare` is not a contradiction, so this
+was left alone rather than widened into a rename nobody asked for.
 ## L8. Numbers, dates, units
 
 - **Never reformatted:** anything stored, digested, or part of an expression's

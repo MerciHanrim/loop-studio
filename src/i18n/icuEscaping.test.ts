@@ -5,6 +5,7 @@ import en from './locales/en'
 import es419 from './locales/es-419'
 import esES from './locales/es-ES'
 import fr from './locales/fr'
+import itCat from './locales/it'
 import ja from './locales/ja'
 import ko from './locales/ko'
 import ptBR from './locales/pt-BR'
@@ -23,11 +24,15 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // a `{n}` that became `{count}`; neither of these is an argument mistake, so
 // neither is visible to it.
 
+// NOTE: the catalog is imported as `itCat`, not `it`. The locale code `it`
+// collides with vitest's own `it()` — the first locale here whose CODE is
+// a test-framework identifier, so every other catalog can keep its bare name.
 const CATALOGS = {
   de,
   'es-419': es419,
   'es-ES': esES,
   fr,
+  it: itCat,
   ja,
   ko,
   'pt-BR': ptBR,

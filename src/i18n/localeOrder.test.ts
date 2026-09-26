@@ -26,6 +26,7 @@ const SHIPPED_ORDER = [
   'en', //      English
   'fr', //      French
   'de', //      German
+  'it', //      Italian
   'ja', //      Japanese
   'ko', //      Korean
   'pt-BR', //   Portuguese (Brazil)
