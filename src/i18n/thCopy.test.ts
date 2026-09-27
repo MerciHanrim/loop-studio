@@ -666,3 +666,31 @@ describe('a parser position is a character, a table column is a column', () => {
     }
   })
 })
+
+// --------------------------------------------------- external product strings
+// docs/localization.md §L2.19 — `import.qs.sources.sheets` quotes the Google
+// Sheets DOWNLOAD menu so a reader can find it, so the wording tracks the
+// product rather than our own judgement.
+//
+// This pins the Thai CSV label observed in the Google Sheets product UI,
+// verified 2026-09-27. The catalog had shipped the dictionary term
+// `เครื่องหมายจุลภาค`, taken from Google's public Thai help; the product showed
+// the loanword `คอมมา`. The dictionary word reads more "correct", which is
+// exactly why a key-level pin is needed rather than a vocabulary rule — a
+// later reviewer polishing the Thai would otherwise restore it.
+//
+// If Google rewords the menu, this test is the place that says so: re-verify
+// against the product UI and update both, rather than editing from help pages.
+describe('th copy — the quoted Google Sheets menu', () => {
+  it('names the .csv item the way the product does, not the way a dictionary does', () => {
+    const v = TH['import.qs.sources.sheets']!
+    expect(v).toContain('ค่าที่คั่นด้วยคอมมา (.csv)')
+    expect(v.includes('เครื่องหมายจุลภาค'), 'the dictionary term is not what Sheets shows').toBe(false)
+  })
+
+  it('keeps the first two menu levels the product uses', () => {
+    const v = TH['import.qs.sources.sheets']!
+    expect(v).toContain('ไฟล์')
+    expect(v).toContain('ดาวน์โหลด')
+  })
+})
