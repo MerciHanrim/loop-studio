@@ -2044,16 +2044,32 @@ reader still has to judge, and what measurement already settled.
    it.** What Thai gacha players actually say outranks a majority across
    unrelated languages, and no Thai evidence has been gathered. The current
    string stays until a native reader supplies one.
-4. **The quoted Google Sheets menu path** in `import.qs.sources.sheets` and
-   `import.qs.sources.privacy`. `“เผยแพร่ไปยังเว็บ”` and `ไฟล์ → ดาวน์โหลด`
-   were checked against Google's own Thai help and match, but the authoritative
-   source is **the authenticated Google Sheets UI in Thai**; the public help
-   pages carry Google's notice that they may contain AI-translated content and
-   therefore cannot confirm a product UI string. (The Turkish documentation
-   that settled the same question for `tr` in §L2.18 carries no such notice.)
-   The exact Thai name of the `.csv` download option is therefore UNVERIFIED.
-   Settling it needs one look at a signed-in Thai Sheets `File → Download`
-   submenu — not more reading of the help.
+4. **`“เผยแพร่ไปยังเว็บ”` in `import.qs.sources.privacy`.** A different Sheets
+   menu from the Download path below, and still resting on published help text
+   only.
+
+   **The Google Sheets DOWNLOAD path is CLOSED, and it was WRONG** (2026-09-27).
+   Checked against the REAL Google Sheets product UI in Thai, the first two
+   levels matched (`ไฟล์`, `ดาวน์โหลด`) but the `.csv` item did not:
+   this catalog shipped `ค่าที่คั่นด้วยเครื่องหมายจุลภาค`, while Sheets shows
+   `ค่าที่คั่นด้วยคอมมา`. The help pages carry Google's AI-translation
+   notice and could not confirm a product string — exactly the risk this item
+   was opened for, and the one time in four locales that the risk was real.
+
+   **The dictionary word was the trap.** `เครื่องหมายจุลภาค` is the correct
+   Thai term for a comma and reads more careful than the loanword `คอมมา`
+   the product actually uses. A later reviewer polishing the Thai would restore
+   it, so `thCopy.test.ts` now pins the value by key rather than relying on any
+   vocabulary rule.
+
+
+**Microsoft Excel's own UI is OUT OF SCOPE, not an open review item.**
+Reading it would mean switching the Windows / Office display language, and
+that cost is not worth the two strings in `import.qs.sources.excel`. They are
+left exactly as they are — **not** guess-edited toward what Excel might say —
+and revisited only if a screenshot of Excel in this language turns up on its
+own. The `Microsoft Excel (.xlsx)` row inside the Sheets Download submenu is a
+download FORMAT name and says nothing about Excel's own menus.
 
 #### Closed on measurement
 
@@ -2286,12 +2302,19 @@ a question rather than a defect:
    it is because moving it trades one collision for another.
 9. **`Pickup`** kept in English. A cross-locale majority is not evidence of what
    Vietnamese gacha players write.
-10. **The external product UI paths.** `import.qs.sources.*` quotes Google
-    Sheets and Excel menu items in Vietnamese (`Tệp → Tải xuống → Giá trị được
-    phân tách bằng dấu phẩy (.csv)`, `Xuất bản lên web`, `Lưu dưới dạng`).
-    These were compared against the published help text only — **nobody has
-    opened a signed-in Vietnamese Google Sheets and read the menu**. Until
-    somebody does, they stay open regardless of how right they look.
+**The Google Sheets Download path is CLOSED** (2026-09-27), checked against the
+REAL Google Sheets product UI in Vietnamese. All three menu texts match on
+screen: `Tệp`, `Tải xuống`, `Giá trị được phân tách bằng dấu phẩy (.csv)`.
+A screenshot settles the wording, not the bytes. `Xuất bản lên web` is a
+DIFFERENT menu and is not covered by this evidence.
+
+**Microsoft Excel's own UI is OUT OF SCOPE, not an open review item.**
+Reading it would mean switching the Windows / Office display language, and
+that cost is not worth the two strings in `import.qs.sources.excel`. They are
+left exactly as they are — **not** guess-edited toward what Excel might say —
+and revisited only if a screenshot of Excel in this language turns up on its
+own. The `Microsoft Excel (.xlsx)` row inside the Sheets Download submenu is a
+download FORMAT name and says nothing about Excel's own menus.
 
 **Not treated as defects, and deliberately not unified.** Some strings wrap a
 runtime slot in `“…”` where English does not, and some do not. Per-sentence
@@ -3263,7 +3286,7 @@ them mechanically would be a rule about this document rather than about Italian.
 
 ### Still open — needs a native reader
 
-Five categories. Each carries the evidence that makes it a question rather than
+Four categories. Each carries the evidence that makes it a question rather than
 a defect, and **none of them is closed by a passing test.**
 
 1. **`Ripartitore` for Gate** — whether it is the most natural Italian for the
@@ -3282,12 +3305,26 @@ a defect, and **none of them is closed by a passing test.**
    `gold`, so `rare` is a rare DROP. `Vendi il raro` is thin, and whether the
    Italian should name the drop (`Vendi i drop rari`) depends on the same games
    usage the rest of this item waits on, so it is decided with them.
-5. **The Google Sheets and Excel menu paths** in `import.qs.sources.*`. They are
-   translated from published Italian help text. **Nobody has opened a signed-in
-   Italian Google Sheets and read the menu**, so the strings are unverified
-   against the only authoritative source. This is an open review item, not a
-   footnote — the Vietnamese arc shipped a claim that these "matched the UI"
-   when only help pages had been read, and that is the mistake being avoided.
+**The Google Sheets menu path is CLOSED** (2026-09-27). It was checked against
+the REAL Google Sheets product UI in Italian — the Sheets language set to
+`italiano (Italia)`, which is what this locale's `it` / `it-IT` registration
+targets — and all three menu texts match on screen: `File`, `Scarica`,
+`Valori separati da virgola (.csv)`. The authority is the product UI, not
+whether an account was signed in, and not the published help pages.
+
+Note the limit of that evidence: a screenshot is GLYPH evidence, so it settles
+the wording, not the bytes — it cannot separate NFC from NFD or `U+0020` from
+`U+00A0`. (Our source is NFC with no non-breaking spaces, checked separately.)
+The `→` between the levels is this document's connector, not a product string,
+and is not compared.
+
+**Microsoft Excel's own UI is OUT OF SCOPE, not an open review item.**
+Reading it would mean switching the Windows / Office display language, and
+that cost is not worth the two strings in `import.qs.sources.excel`. They are
+left exactly as they are — **not** guess-edited toward what Excel might say —
+and revisited only if a screenshot of Excel in this language turns up on its
+own. The `Microsoft Excel (.xlsx)` row inside the Sheets Download submenu is a
+download FORMAT name and says nothing about Excel's own menus.
 
 **Not open, and why.** `Area di disegno` is confirmed against Microsoft's own
 Italian UI. `Modello` for Template is the standard technical translation, and
@@ -3483,7 +3520,7 @@ Seven from the approved contract — `Verdeler` (Gate), `Berekende waarde`
 (Register), `Kader` (frame), `run` (the loan), `Tekengebied` (canvas),
 `Activator`, and the games vocabulary kept English (`Pity`, `Hard pity`,
 `Pickup`, `Pull`/`Pulls`, `Roll`, `Banner`, plus the `drop` / `quest` / `item`
-loans) — and six more the read-back added:
+loans) — and five more from the read-back:
 
 1. **`Dodenwachtrij` / `Kosten van doodgaan`.** `sterfgeval` and `overlijden`
    are the register a death certificate uses and this is a combat model, so the
@@ -3500,9 +3537,26 @@ loans) — and six more the read-back added:
    the same games usage the rest of the list waits on.
 5. **`bron(nen)` in the two pull-mode enums**, where the word means an upstream
    node rather than a Source node. `de` and `it` have the identical overlap.
-6. **The Google Sheets and Excel menu paths** in `import.qs.sources.*`. Nobody
-   has opened a signed-in Dutch Google Sheets and read the menu, so the strings
-   are unverified against the only authoritative source.
+
+**The Google Sheets menu path is CLOSED** (2026-09-27), checked against the REAL
+Google Sheets product UI in Dutch. All three menu texts match on screen:
+`Bestand`, `Downloaden`, `Door komma's gescheiden waarden (.csv)`.
+
+Recorded evidence limit, NOT an open item: a screenshot is GLYPH evidence, so
+it did not settle whether the apostrophe in `komma's` is `U+0027` or `U+2019`
+— the two are indistinguishable at that size, and this catalog ships `U+2019`.
+That is deliberately left alone. This sentence tells a reader where the menu
+item is; it is not a byte contract with Google Sheets, both forms point at the
+same menu unambiguously, and neither changes what the product does. No DOM
+extraction was done for it and none is owed.
+
+**Microsoft Excel's own UI is OUT OF SCOPE, not an open review item.**
+Reading it would mean switching the Windows / Office display language, and
+that cost is not worth the two strings in `import.qs.sources.excel`. They are
+left exactly as they are — **not** guess-edited toward what Excel might say —
+and revisited only if a screenshot of Excel in this language turns up on its
+own. The `Microsoft Excel (.xlsx)` row inside the Sheets Download submenu is a
+download FORMAT name and says nothing about Excel's own menus.
 
 **Not open, and why.** `Tekengebied` is a PRODUCT choice, not a standards
 claim: Microsoft's own Dutch material uses `canvas` in Whiteboard and both

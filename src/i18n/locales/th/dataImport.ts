@@ -69,8 +69,16 @@ const dataImport = {
   'import.qs.fullGuide': 'คู่มือฉบับเต็ม',
   'import.qs.fullGuideAria': 'คู่มือฉบับเต็ม — เปิดบน GitHub ในแท็บใหม่',
   'import.qs.sources.summary': 'การนำข้อมูลออกจาก Google Sheets หรือ Excel',
+  // Match the Thai CSV label observed in the Google Sheets product UI,
+  // verified 2026-09-27: `ค่าที่คั่นด้วยคอมมา`. This catalog had shipped the
+  // dictionary term `เครื่องหมายจุลภาค`, taken from Google's public Thai help.
+  // Google may reword its menu later; the contract here is to match what was
+  // observed, so a change needs a fresh look at the product UI rather than an
+  // edit from the help pages. `thCopy.test.ts` pins the value.
+  // (`→` is this sentence's own connector between menu levels, not a product
+  // string.)
   'import.qs.sources.sheets':
-    'Google Sheets: ไฟล์ → ดาวน์โหลด → ค่าที่คั่นด้วยเครื่องหมายจุลภาค (.csv) หรือเลือกช่วงข้อมูลแล้วคัดลอก',
+    'Google Sheets: ไฟล์ → ดาวน์โหลด → ค่าที่คั่นด้วยคอมมา (.csv) หรือเลือกช่วงข้อมูลแล้วคัดลอก',
   'import.qs.sources.excel': 'Excel หรือ Numbers: บันทึกเป็น / ส่งออกเป็น CSV หรือคัดลอกช่วงข้อมูล',
   'import.qs.sources.privacy':
     'อย่าใช้ “เผยแพร่ไปยังเว็บ” กับชีตส่วนตัว — จะทำให้ใครก็ตามที่มีลิงก์อ่านชีตได้ การดาวน์โหลดหรือคัดลอกยังคงความเป็นส่วนตัวไว้',
