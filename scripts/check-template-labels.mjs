@@ -21,6 +21,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { baseLocale, nonBaseCodes } from './registry-source.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 let failed = false
@@ -32,17 +33,24 @@ const ok = (m) => console.log(`  ok    ${m}`)
 const read = (p) => readFileSync(resolve(root, p), 'utf8')
 
 // ── registry: base locale + shipped non-base locales (never named literally) ──
-const registrySrc = read('src/i18n/registry.ts')
-const BASE_LOCALE = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(registrySrc)?.[1]
-if (!BASE_LOCALE) {
-  fail('could not read BASE_LOCALE from src/i18n/registry.ts')
+//
+// Read through `registry-source.mjs`, which is FAIL-CLOSED. This used to parse
+// the registry here with `/SHIPPED_LOCALES[^[]*\[([\s\S]*?)\n\]/.exec(src)?.[1]
+// ?? ''` — and that `?? ''` meant a parse miss produced an EMPTY locale list,
+// after which the four `for (const locale of NON_BASE)` loops below iterated
+// zero times and this script reported success. Re-indenting the registry or
+// moving its closing bracket off column 0 would have disabled the whole check
+// with CI green.
+let BASE_LOCALE
+let NON_BASE
+try {
+  BASE_LOCALE = baseLocale()
+  NON_BASE = nonBaseCodes()
+} catch (e) {
+  fail(e.message)
   process.exit(1)
 }
-const shippedBlock = /SHIPPED_LOCALES[^[]*\[([\s\S]*?)\n\]/.exec(registrySrc)?.[1] ?? ''
-const NON_BASE = [...shippedBlock.matchAll(/code:\s*'([a-zA-Z][\w-]*)'/g)]
-  .map((m) => m[1])
-  .filter((c) => c !== BASE_LOCALE)
-ok(`base = ${BASE_LOCALE}; non-base = ${NON_BASE.join(', ') || '(none)'}`)
+ok(`base = ${BASE_LOCALE}; non-base = ${NON_BASE.join(', ')}`)
 
 // ── the TEMPLATES id list, from src/model/templates.ts source ──
 const templatesSrc = read('src/model/templates.ts')
