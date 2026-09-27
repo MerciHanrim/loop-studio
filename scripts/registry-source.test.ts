@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { baseLocale, nonBaseCodes, RegistryParseError, shippedCodes } from './registry-source.mjs'
+import {
+  baseLocale,
+  nonBaseCodes,
+  parseRegistryText,
+  RegistryParseError,
+  shippedCodes,
+} from './registry-source.mjs'
 import { LOCALES, BASE_LOCALE } from '../src/i18n/registry'
 
 // The build-time checkers read `registry.ts` as TEXT, because Node cannot
@@ -55,5 +61,61 @@ describe('the parser is fail-closed', () => {
   it('finds no duplicate code', () => {
     const codes = shippedCodes()
     expect(new Set(codes).size).toBe(codes.length)
+  })
+})
+
+// A bracket walk and a `code:` match are LEXICAL questions. Scanning raw text
+// answers them wrongly the moment a comment or a string says something that
+// looks like code — and the registry is full of prose about locales, so this is
+// not hypothetical. Both cases below were MEASURED against the real registry
+// before the masking existed: the comment was counted as an 18th locale, and
+// the bracket in a string threw "array literal is not closed".
+const FIXTURE = (body: string) => `
+export const BASE_LOCALE_DECOY = 'zz' // code: 'decoy',
+const SHIPPED_LOCALES: readonly LocaleEntry[] = [
+${body}
+]
+export const BASE_LOCALE = 'en'
+`
+
+describe('the parser reads code, not prose', () => {
+  const entry = (code: string, extra = '') => `  {\n    code: '${code}',\n${extra}  },`
+
+  it('ignores a commented-out entry inside the array', () => {
+    const r = parseRegistryText(FIXTURE([entry('en'), "  // code: 'xx',", entry('ko')].join('\n')))
+    expect(r.shipped).toEqual(['en', 'ko'])
+    expect(r.shipped).not.toContain('xx')
+  })
+
+  it('ignores a block comment that talks about a code', () => {
+    const r = parseRegistryText(
+      FIXTURE([entry('en'), "  /* an old entry:\n     code: 'yy',\n  */", entry('ko')].join('\n')),
+    )
+    expect(r.shipped).toEqual(['en', 'ko'])
+  })
+
+  it('survives an unbalanced bracket inside a string value', () => {
+    // a real endonym could contain one; it must not end the array
+    const r = parseRegistryText(FIXTURE([entry('en', "    nativeName: 'Bracket [ here',\n"), entry('ko')].join('\n')))
+    expect(r.shipped).toEqual(['en', 'ko'])
+  })
+
+  it('survives a bracket inside a comment', () => {
+    const r = parseRegistryText(FIXTURE([entry('en'), '  // a label like `Gold [pool-3]`', entry('ko')].join('\n')))
+    expect(r.shipped).toEqual(['en', 'ko'])
+  })
+
+  it('does not take BASE_LOCALE from a commented-out declaration', () => {
+    const r = parseRegistryText(FIXTURE([entry('en'), entry('ko')].join('\n')))
+    expect(r.baseLocale).toBe('en')
+  })
+
+  it('still throws when the array really is unclosed', () => {
+    const broken = FIXTURE("  { code: 'en', },").replace(/\n\]/, '')
+    expect(() => parseRegistryText(broken)).toThrow(/not closed|ZERO codes/)
+  })
+
+  it('still throws when every entry is commented out', () => {
+    expect(() => parseRegistryText(FIXTURE("  // code: 'en',"))).toThrow(/ZERO codes/)
   })
 })

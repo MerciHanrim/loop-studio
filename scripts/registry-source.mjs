@@ -52,10 +52,81 @@ function source() {
 
 /** `BASE_LOCALE`, or throw. */
 export function baseLocale() {
-  const m = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(source())
+  const m = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(noComments(source()))
   if (!m) die('no `BASE_LOCALE = \'…\'` declaration found')
   return m[1]
 }
+
+/** Replace every comment and string-literal BODY with spaces, keeping offsets.
+ *
+ *  A bracket walk and a `code:` match are both lexical questions, and neither
+ *  can be answered by scanning raw text. MEASURED on the real registry:
+ *
+ *    • `// code: 'xx',` inside the array body was counted as an 18th locale —
+ *      a WRONG ANSWER, the worst kind for a checker that exists to count;
+ *    • a `[` inside a string (`nativeName: '…['`) left the walk unbalanced and
+ *      threw "array literal is not closed" — fail-closed, but a false red that
+ *      one legitimate endonym would have caused.
+ *
+ *  Blanking rather than deleting keeps every index aligned with the original,
+ *  so an offset taken here still points at the right place in `source()`.
+ *  This is not a TypeScript parser and does not need to be: it only has to stop
+ *  brackets and identifiers inside comments and strings from being read as
+ *  code. Regex literals are not handled because the registry has none inside
+ *  the array, and a stray `/` would merely blank more than it should — never
+ *  less, so the failure direction stays closed. */
+/** @param {string} src @param {{strings: boolean}} opts */
+function blank(src, opts) {
+  const out = src.split('')
+  const wipe = (from, to) => {
+    for (let i = from; i < to && i < out.length; i++) if (out[i] !== '\n') out[i] = ' '
+  }
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+    const d = src[i + 1]
+    if (c === '/' && d === '/') {
+      const end = src.indexOf('\n', i)
+      const stop = end < 0 ? src.length : end
+      wipe(i, stop)
+      i = stop
+    } else if (c === '/' && d === '*') {
+      const end = src.indexOf('*/', i + 2)
+      const stop = end < 0 ? src.length : end + 2
+      wipe(i, stop)
+      i = stop - 1
+    } else if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1
+      while (j < src.length) {
+        if (src[j] === '\\') { j += 2; continue }
+        if (src[j] === c) break
+        if (c !== '`' && src[j] === '\n') break // an unterminated quote ends at the line
+        j++
+      }
+      if (opts.strings) wipe(i + 1, j) // keep the quotes, blank the body
+      i = j
+    }
+  }
+  return out.join('')
+}
+
+/** Comments gone, string bodies KEPT — this is what a `code: '…'` match reads.
+ *  MEASURED: without it, `// code: 'xx',` inside the array body was counted as
+ *  an 18th locale. A wrong answer is the worst outcome for a checker whose job
+ *  is to count. */
+const noComments = (src) => blank(src, { strings: false })
+
+/** Comments AND string bodies gone — this is what the bracket walk reads.
+ *  MEASURED: without it, a `[` inside a string (`nativeName: '…['`) left the
+ *  walk unbalanced and threw "array literal is not closed" — fail-closed, but a
+ *  false red that one legitimate endonym would have caused.
+ *
+ *  Both masks blank in place rather than deleting, so every index still lines
+ *  up with the original text and a boundary found here can slice `source()`.
+ *  Neither is a TypeScript parser and neither needs to be: they only have to
+ *  stop brackets and identifiers inside comments and strings from being read as
+ *  code. A regex literal is not recognised, which can only blank MORE than it
+ *  should, never less — so the failure direction stays closed. */
+const noCommentsOrStrings = (src) => blank(src, { strings: true })
 
 /** The `SHIPPED_LOCALES` array body, or throw.
  *
@@ -63,7 +134,8 @@ export function baseLocale() {
  *  `\[([\s\S]*?)\n\]` shape, which depended on the closing bracket sitting in
  *  column 0 — a formatting detail, not a contract. */
 function shippedBlock() {
-  const src = source()
+  const raw = source()
+  const src = noCommentsOrStrings(raw)
   // Anchor on the DECLARATION, not the first mention: the name also appears in
   // a comment and in `[...SHIPPED_LOCALES, …]` further down.
   const decl = /\bSHIPPED_LOCALES\b[^=\n]*=/.exec(src)
@@ -81,7 +153,10 @@ function shippedBlock() {
     if (c === '[') depth++
     else if (c === ']') {
       depth--
-      if (depth === 0) return src.slice(open + 1, i)
+      // The boundaries come from the masked text; the BODY comes from the raw
+      // text with comments blanked, so a `code: '…'` value survives while a
+      // commented-out entry does not.
+      if (depth === 0) return noComments(raw).slice(open + 1, i)
     }
   }
   die('`SHIPPED_LOCALES` array literal is not closed')
@@ -117,4 +192,20 @@ export function nonBaseCodes() {
 /** For tests: forget the cached source. */
 export function __reset() {
   cached = null
+}
+
+/** The whole parse, over TEXT rather than the file on disk.
+ *
+ *  Exported so the lexical traps can be tested with fixtures instead of by
+ *  mutating the real registry: a test that has to edit `registry.ts` to make
+ *  its point cannot run in parallel and cannot show a case the registry does
+ *  not happen to contain. */
+export function parseRegistryText(text) {
+  const prev = cached
+  cached = text
+  try {
+    return { baseLocale: baseLocale(), shipped: shippedCodes(), nonBase: nonBaseCodes() }
+  } finally {
+    cached = prev
+  }
 }
