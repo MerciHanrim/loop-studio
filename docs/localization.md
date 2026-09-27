@@ -3604,6 +3604,64 @@ that is off today's roadmap.
   no bidi CSS audit, no logical-property sweep in this cycle. Registering an RTL
   locale before that work lands is explicitly unsupported.
 
+### §L9.2 — the canvas is a space, not a paragraph
+
+`<html dir>` follows the UI language (`src/i18n/store.ts`), so an RTL locale
+mirrors the app chrome. The React Flow subtree must not mirror with it. Node
+positions, pan, zoom, edge direction and the source/drain sides of a node face
+are **graph coordinates**: a diagram does not change meaning with the reader's
+script, and a mirrored one would contradict the stored `x` of every node.
+
+`@xyflow/react/dist/style.css` declares `direction: ltr` on `.react-flow`, so
+the split already holds. MEASURED under `dir="rtl"`, the break lands exactly on
+that element — `.canvas` computes `rtl`, `.react-flow` computes `ltr`. That is a
+**vendor** guarantee for a behaviour the product depends on, one line deep in a
+file this repo does not control, so `src/index.css` declares it too;
+`src/main.tsx` imports the app stylesheet after the vendor one, so it wins at
+equal specificity.
+
+`e2e/rtl-canvas-contract.spec.ts` asserts the split at runtime and reads the
+**cascade**, not the computed value — on the vendor rule alone the computed
+value is still `ltr`, so a computed-style check would attest to someone else's
+decision. It identifies the app's rule by the `--ls-canvas-dir` marker rather
+than by stylesheet URL: measured, the URL form passed vacuously, because Vite
+serves CSS as an inline `<style>` in dev and every sheet reports `href === null`.
+
+### §L9.3 — direction inside and above the canvas
+
+Not implemented yet; this records the decided contract so the layout work has
+something to implement against.
+
+Inside the canvas:
+
+| surface | direction |
+|---|---|
+| graph coordinate space | `ltr` |
+| user labels, node titles, frame titles | `dir="auto"` |
+| localised description text | `rtl` (or `auto`) |
+| edge labels that are flow syntax / expression / id / number only | `ltr` |
+| port positions, source/drain shape | physical |
+
+Above the canvas, the floating chrome keeps its **physical position and button
+order** — minimap placement and internal coordinates, zoom controls, the playbar
+including the direction time runs and its button order, and the filter panel's
+anchor. Only the language UI *inside* those panels mirrors: their text,
+alignment and menus follow the reader. Tooltips and accessible names take the
+active language's direction. The play glyph `▶` stays as it is.
+
+Input fields take a direction from what the **user** will type, not from what
+the placeholder happens to look like:
+
+| content | `dir` |
+|---|---|
+| flow syntax, expressions, ids, file names, numeric input | `ltr` |
+| free text, labels, notes, resource names | `auto` |
+| read-only localised prose | `rtl` |
+
+`inspector.resourceType.placeholder` is the trap: its placeholder starts with
+`Gold` and therefore renders correctly under RTL with no help at all, but the
+field accepts a user-typed resource name in any script, so it is `auto`.
+
 ## L10. Accessibility
 
 - `<html lang>` (and `dir`) follow the active registry entry.
