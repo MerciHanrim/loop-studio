@@ -1261,7 +1261,15 @@ a.sheet__row {
   cursor: grabbing;
 }
 
+/* docs/localization.md §L9.2 — keep graph coordinates and the spatial controls
+   physically LTR even when `<html dir>` mirrors the chrome. Components opt
+   their user-facing text into auto / RTL / LTR separately.
+   `--ls-canvas-dir` is the ownership mark `e2e/rtl-canvas-contract.spec.ts`
+   reads; @xyflow declares the same `direction`, and this says the app means
+   it. */
 .react-flow {
+  --ls-canvas-dir: owned;
+  direction: ltr;
   background: var(--surface-canvas);
 }
 .react-flow__background circle {
