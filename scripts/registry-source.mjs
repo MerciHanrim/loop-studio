@@ -66,24 +66,50 @@ function text() {
 }
 
 function ast() {
-  if (cachedAst == null) {
-    cachedAst = ts.createSourceFile(REGISTRY, text(), ts.ScriptTarget.Latest, true)
+  if (cachedAst != null) return cachedAst
+  const sf = ts.createSourceFile(REGISTRY, text(), ts.ScriptTarget.Latest, true)
+
+  // `createSourceFile` does NOT throw on a syntax error — it RECOVERS and hands
+  // back a tree built from what it could make of the text. MEASURED: a fixture
+  // whose `]` was deleted parsed happily, and the failure only surfaced later,
+  // as "there are no non-base locales". That is a fail-closed accident, not a
+  // contract: the same recovery could equally well produce a tree that reads
+  // fine and is wrong. `tsc -b` catching it afterwards is a different check at
+  // a different time, and does not make THIS reader honest.
+  const diags = sf.parseDiagnostics ?? []
+  if (diags.length > 0) {
+    const first = diags[0]
+    const where =
+      typeof first.start === 'number'
+        ? (() => {
+            const { line, character } = sf.getLineAndCharacterOfPosition(first.start)
+            return ` at ${line + 1}:${character + 1}`
+          })()
+        : ''
+    die(
+      `is not syntactically valid (${diags.length} parse diagnostic${diags.length === 1 ? '' : 's'}); ` +
+        `first: ${ts.flattenDiagnosticMessageText(first.messageText, ' ')}${where}`,
+    )
   }
+
+  cachedAst = sf
   return cachedAst
 }
 
-/** Every `const <name> = <initializer>` in the file, at any nesting depth.
- *  Collected by walking the AST, so a declaration inside a comment or a string
- *  simply does not exist. */
+/** TOP-LEVEL `const <name> = <initializer>` declarations only.
+ *
+ *  Deliberately not a recursive walk. A local `const SHIPPED_LOCALES` inside
+ *  some helper is a different binding, and counting it would let an unrelated
+ *  function turn this reader's "exactly one declaration" check into a failure —
+ *  or, worse, let it read the wrong array. */
 function declarations(name) {
   const out = []
-  const visit = (node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) {
-      out.push(node)
+  for (const st of ast().statements) {
+    if (!ts.isVariableStatement(st)) continue
+    for (const d of st.declarationList.declarations) {
+      if (ts.isIdentifier(d.name) && d.name.text === name) out.push(d)
     }
-    ts.forEachChild(node, visit)
   }
-  visit(ast())
   return out
 }
 
@@ -136,13 +162,28 @@ export function shippedCodes() {
     if (!ts.isObjectLiteralExpression(e)) {
       die(`\`SHIPPED_LOCALES[${i}]\` is ${ts.SyntaxKind[e.kind]}, not an object literal`)
     }
-    const prop = e.properties.find(
-      (p) =>
-        ts.isPropertyAssignment(p) &&
-        ((ts.isIdentifier(p.name) && p.name.text === 'code') ||
-          (ts.isStringLiteral(p.name) && p.name.text === 'code')),
-    )
-    if (!prop) die(`\`SHIPPED_LOCALES[${i}]\` has no \`code\` property`)
+    // A spread ANYWHERE in the entry can supply or overwrite `code` at runtime,
+    // so a static read of the literal would be reporting something the program
+    // does not do. `{ code: 'ko', ...x }` is the obvious case; `{ ...x }` alone
+    // is the same problem with the evidence removed.
+    const spread = e.properties.find((p) => ts.isSpreadAssignment(p))
+    if (spread) die(`\`SHIPPED_LOCALES[${i}]\` contains a spread, so its \`code\` is not statically known`)
+
+    const named = e.properties.filter((p) => {
+      const n = p.name
+      if (!n) return false
+      if (ts.isComputedPropertyName(n)) return false // `[k]: …` is not statically `code`
+      return (ts.isIdentifier(n) || ts.isStringLiteral(n)) && n.text === 'code'
+    })
+    if (named.length === 0) die(`\`SHIPPED_LOCALES[${i}]\` has no \`code\` property`)
+    if (named.length > 1) die(`\`SHIPPED_LOCALES[${i}]\` has ${named.length} \`code\` properties`)
+
+    const prop = named[0]
+    // shorthand (`{ code }`), a method (`code() {}`) or an accessor all hide
+    // the value from a static read.
+    if (!ts.isPropertyAssignment(prop)) {
+      die(`\`SHIPPED_LOCALES[${i}].code\` is ${ts.SyntaxKind[prop.kind]}, not a plain \`code: '…'\``)
+    }
     const value = unwrap(prop.initializer)
     if (!ts.isStringLiteral(value)) die(`\`SHIPPED_LOCALES[${i}].code\` is not a string literal`)
     codes.push(value.text)

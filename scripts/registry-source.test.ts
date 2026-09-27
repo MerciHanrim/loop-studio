@@ -116,10 +116,12 @@ describe('the parser reads code, not prose', () => {
   it('still throws when the array really is unclosed', () => {
     const broken = FIXTURE("  { code: 'en', },").replace(/\n\]/, '')
     expect(() => parseRegistryText(broken)).toThrow(RegistryParseError)
-    // TypeScript's parser recovers from the missing `]`, so the failure lands
-    // on the relationship check rather than on a bracket count: only the base
-    // locale survives, and a registry with no non-base locale is impossible.
-    expect(() => parseRegistryText(broken)).toThrow(/no non-base locales/)
+    // It must fail as a SYNTAX error, not later on a structural check.
+    // `createSourceFile` recovers from a missing `]` and returns a usable tree;
+    // this used to surface as "there are no non-base locales", which is a
+    // fail-closed accident — the same recovery could have produced a tree that
+    // read fine and was wrong.
+    expect(() => parseRegistryText(broken)).toThrow(/not syntactically valid/)
   })
 
   it('still throws when every entry is commented out', () => {
@@ -153,5 +155,41 @@ describe('the parser reads code, not prose', () => {
     const twice = FIXTURE("  { code: 'en', },\n  { code: 'ko', },") +
       "\nconst SHIPPED_LOCALES: readonly LocaleEntry[] = []\n"
     expect(() => parseRegistryText(twice)).toThrow(/declared 2 times/)
+  })
+
+  it('reports a syntax error as a parse diagnostic, with a position', () => {
+    const broken = FIXTURE("  { code: 'en' ,,, },")
+    expect(() => parseRegistryText(broken)).toThrow(/not syntactically valid/)
+    expect(() => parseRegistryText(broken)).toThrow(/at \d+:\d+/)
+  })
+
+  it('refuses a spread that could overwrite `code` at runtime', () => {
+    // the spread comes AFTER `code`, so a static read would report 'ko' while
+    // the program might not
+    const shadowed = FIXTURE("  { code: 'en', },\n  { code: 'ko', ...OVERRIDES },")
+    expect(() => parseRegistryText(shadowed)).toThrow(/contains a spread/)
+  })
+
+  it('refuses an entry with two `code` properties', () => {
+    const twoCodes = FIXTURE("  { code: 'en', },\n  { code: 'ko', code: 'ja' },")
+    expect(() => parseRegistryText(twoCodes)).toThrow(/2 `code` properties/)
+  })
+
+  it('refuses shorthand and computed `code`, which hide the value', () => {
+    expect(() => parseRegistryText(FIXTURE("  { code: 'en', },\n  { code },"))).toThrow(
+      /not a plain/,
+    )
+    expect(() => parseRegistryText(FIXTURE("  { code: 'en', },\n  { ['co'+'de']: 'ko' },"))).toThrow(
+      /has no `code` property/,
+    )
+  })
+
+  it('does not count a same-named local inside a function as a declaration', () => {
+    const withLocal =
+      FIXTURE("  { code: 'en', },\n  { code: 'ko', },") +
+      "\nfunction helper() {\n  const SHIPPED_LOCALES = []\n  const BASE_LOCALE = 'zz'\n  return [SHIPPED_LOCALES, BASE_LOCALE]\n}\n"
+    const r = parseRegistryText(withLocal)
+    expect(r.shipped).toEqual(['en', 'ko'])
+    expect(r.baseLocale).toBe('en')
   })
 })
