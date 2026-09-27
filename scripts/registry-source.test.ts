@@ -110,12 +110,48 @@ describe('the parser reads code, not prose', () => {
     expect(r.baseLocale).toBe('en')
   })
 
+  // The two cases below matter because they prove the masking / parsing never
+  // turns a broken registry into a quiet success. The MESSAGE is not the
+  // contract — the throw is — so each asserts the error type as well.
   it('still throws when the array really is unclosed', () => {
     const broken = FIXTURE("  { code: 'en', },").replace(/\n\]/, '')
-    expect(() => parseRegistryText(broken)).toThrow(/not closed|ZERO codes/)
+    expect(() => parseRegistryText(broken)).toThrow(RegistryParseError)
+    // TypeScript's parser recovers from the missing `]`, so the failure lands
+    // on the relationship check rather than on a bracket count: only the base
+    // locale survives, and a registry with no non-base locale is impossible.
+    expect(() => parseRegistryText(broken)).toThrow(/no non-base locales/)
   })
 
   it('still throws when every entry is commented out', () => {
-    expect(() => parseRegistryText(FIXTURE("  // code: 'en',"))).toThrow(/ZERO codes/)
+    expect(() => parseRegistryText(FIXTURE("  // code: 'en',"))).toThrow(RegistryParseError)
+    expect(() => parseRegistryText(FIXTURE("  // code: 'en',"))).toThrow(/empty array/)
+  })
+
+  // The case that sent this module to the real parser. A hand-rolled scan has
+  // to tell a regex from a division, and a regex body may contain `//`, `/*`,
+  // `[` and `]` — each of which the scan would act on.
+  it('is not confused by a regex literal containing comment and bracket characters', () => {
+    const noisy = `const RE = /[/*]|\\/\\/|[[\\]]/g\n`
+    const r = parseRegistryText(
+      noisy + FIXTURE("  { code: 'en', },\n  { code: 'ko', },"),
+    )
+    expect(r.shipped).toEqual(['en', 'ko'])
+  })
+
+  it('is not confused by a template literal with an interpolation', () => {
+    const noisy = 'const T = `a ${1 + 1} [ // not a comment`\n'
+    const r = parseRegistryText(noisy + FIXTURE("  { code: 'en', },\n  { code: 'ko', },"))
+    expect(r.shipped).toEqual(['en', 'ko'])
+  })
+
+  it('refuses an element shape it cannot read, rather than returning fewer locales', () => {
+    const spread = FIXTURE("  { code: 'en', },\n  ...MORE_LOCALES,")
+    expect(() => parseRegistryText(spread)).toThrow(/not an object literal/)
+  })
+
+  it('refuses a second SHIPPED_LOCALES declaration instead of picking one', () => {
+    const twice = FIXTURE("  { code: 'en', },\n  { code: 'ko', },") +
+      "\nconst SHIPPED_LOCALES: readonly LocaleEntry[] = []\n"
+    expect(() => parseRegistryText(twice)).toThrow(/declared 2 times/)
   })
 })

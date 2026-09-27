@@ -5,7 +5,7 @@
 // A checker cannot `import` the registry: it is TypeScript and it reads
 // `import.meta.env.DEV`, so Node would need a transform and a Vite env that a
 // plain `node scripts/*.mjs` does not have. So the checkers read the SOURCE.
-// That is fine — as long as a parse that finds nothing is an ERROR.
+// That is fine — as long as a read that finds nothing is an ERROR.
 //
 // It was not. `check-template-labels.mjs` had:
 //
@@ -14,18 +14,32 @@
 //
 // The `?? ''` turns "the block moved" into an empty locale list, and the four
 // `for (const locale of NON_BASE)` loops below it then iterate zero times and
-// report success. Re-indenting the registry, wrapping `SHIPPED_LOCALES` in a
-// helper, or changing the closing bracket's column would have disabled the
-// whole template-label check while CI stayed green. The two other values in
-// that same file (`BASE_LOCALE`, `TEMPLATE_IDS`) already failed loudly; this
-// one was the exception.
+// report success. Re-indenting the registry would have disabled the whole
+// template-label check with CI green.
 //
-// Every accessor here is fail-closed: it throws rather than return a shape that
-// a caller could mistake for "nothing to check". A checker that wants to keep
-// its own error formatting catches and reports.
+// WHY THE TYPESCRIPT PARSER AND NOT A HAND-ROLLED SCAN
+//
+// The first repair walked brackets and masked comments and strings by hand.
+// That fixed two measured defects — a commented-out `code:` counted as a real
+// locale, and a `[` inside a string value unbalancing the walk — and then ran
+// straight into the next one: a REGEX LITERAL can contain `//`, `/*`, `[`, `]`
+// and escaped delimiters, and telling a regex from a division needs the
+// grammar. Each patch bought one case and left the class open; finishing the
+// job means maintaining an incomplete TypeScript lexer.
+//
+// `typescript` is already a devDependency, so the real parser is free. Comments,
+// strings, template literals, escapes, brackets and regexes are its problem now,
+// and this file only asks structural questions.
+//
+// Every accessor is fail-closed: it throws rather than return a shape a caller
+// could mistake for "nothing to check".
 
+import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+
+const require = createRequire(import.meta.url)
+const ts = require('typescript')
 
 const ROOT = resolve(import.meta.dirname, '..')
 const REGISTRY = 'src/i18n/registry.ts'
@@ -36,137 +50,105 @@ const die = (msg) => {
   throw new RegistryParseError(`${REGISTRY}: ${msg}`)
 }
 
-/** The registry source, read once per process. */
-let cached = null
-function source() {
-  if (cached == null) {
+let cachedText = null
+let cachedAst = null
+
+function text() {
+  if (cachedText == null) {
     try {
-      cached = readFileSync(resolve(ROOT, REGISTRY), 'utf8')
+      cachedText = readFileSync(resolve(ROOT, REGISTRY), 'utf8')
     } catch (e) {
       die(`could not be read (${e.code ?? e.message})`)
     }
-    if (cached.trim() === '') die('is empty')
   }
-  return cached
+  if (cachedText.trim() === '') die('is empty')
+  return cachedText
+}
+
+function ast() {
+  if (cachedAst == null) {
+    cachedAst = ts.createSourceFile(REGISTRY, text(), ts.ScriptTarget.Latest, true)
+  }
+  return cachedAst
+}
+
+/** Every `const <name> = <initializer>` in the file, at any nesting depth.
+ *  Collected by walking the AST, so a declaration inside a comment or a string
+ *  simply does not exist. */
+function declarations(name) {
+  const out = []
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) {
+      out.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(ast())
+  return out
+}
+
+/** Exactly one declaration of `name`, or throw. */
+function theDeclaration(name) {
+  const found = declarations(name)
+  if (found.length === 0) die(`no \`${name}\` declaration found`)
+  if (found.length > 1) die(`\`${name}\` is declared ${found.length} times`)
+  return found[0]
+}
+
+/** Unwrap `x as const`, `x satisfies T` and a parenthesised initializer. */
+function unwrap(node) {
+  let n = node
+  for (;;) {
+    if (ts.isAsExpression(n) || ts.isSatisfiesExpression(n) || ts.isParenthesizedExpression(n)) {
+      n = n.expression
+      continue
+    }
+    return n
+  }
 }
 
 /** `BASE_LOCALE`, or throw. */
 export function baseLocale() {
-  const m = /\bBASE_LOCALE\s*=\s*'([a-zA-Z][\w-]*)'/.exec(noComments(source()))
-  if (!m) die('no `BASE_LOCALE = \'…\'` declaration found')
-  return m[1]
-}
-
-/** Replace every comment and string-literal BODY with spaces, keeping offsets.
- *
- *  A bracket walk and a `code:` match are both lexical questions, and neither
- *  can be answered by scanning raw text. MEASURED on the real registry:
- *
- *    • `// code: 'xx',` inside the array body was counted as an 18th locale —
- *      a WRONG ANSWER, the worst kind for a checker that exists to count;
- *    • a `[` inside a string (`nativeName: '…['`) left the walk unbalanced and
- *      threw "array literal is not closed" — fail-closed, but a false red that
- *      one legitimate endonym would have caused.
- *
- *  Blanking rather than deleting keeps every index aligned with the original,
- *  so an offset taken here still points at the right place in `source()`.
- *  This is not a TypeScript parser and does not need to be: it only has to stop
- *  brackets and identifiers inside comments and strings from being read as
- *  code. Regex literals are not handled because the registry has none inside
- *  the array, and a stray `/` would merely blank more than it should — never
- *  less, so the failure direction stays closed. */
-/** @param {string} src @param {{strings: boolean}} opts */
-function blank(src, opts) {
-  const out = src.split('')
-  const wipe = (from, to) => {
-    for (let i = from; i < to && i < out.length; i++) if (out[i] !== '\n') out[i] = ' '
-  }
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i]
-    const d = src[i + 1]
-    if (c === '/' && d === '/') {
-      const end = src.indexOf('\n', i)
-      const stop = end < 0 ? src.length : end
-      wipe(i, stop)
-      i = stop
-    } else if (c === '/' && d === '*') {
-      const end = src.indexOf('*/', i + 2)
-      const stop = end < 0 ? src.length : end + 2
-      wipe(i, stop)
-      i = stop - 1
-    } else if (c === "'" || c === '"' || c === '`') {
-      let j = i + 1
-      while (j < src.length) {
-        if (src[j] === '\\') { j += 2; continue }
-        if (src[j] === c) break
-        if (c !== '`' && src[j] === '\n') break // an unterminated quote ends at the line
-        j++
-      }
-      if (opts.strings) wipe(i + 1, j) // keep the quotes, blank the body
-      i = j
-    }
-  }
-  return out.join('')
-}
-
-/** Comments gone, string bodies KEPT — this is what a `code: '…'` match reads.
- *  MEASURED: without it, `// code: 'xx',` inside the array body was counted as
- *  an 18th locale. A wrong answer is the worst outcome for a checker whose job
- *  is to count. */
-const noComments = (src) => blank(src, { strings: false })
-
-/** Comments AND string bodies gone — this is what the bracket walk reads.
- *  MEASURED: without it, a `[` inside a string (`nativeName: '…['`) left the
- *  walk unbalanced and threw "array literal is not closed" — fail-closed, but a
- *  false red that one legitimate endonym would have caused.
- *
- *  Both masks blank in place rather than deleting, so every index still lines
- *  up with the original text and a boundary found here can slice `source()`.
- *  Neither is a TypeScript parser and neither needs to be: they only have to
- *  stop brackets and identifiers inside comments and strings from being read as
- *  code. A regex literal is not recognised, which can only blank MORE than it
- *  should, never less — so the failure direction stays closed. */
-const noCommentsOrStrings = (src) => blank(src, { strings: true })
-
-/** The `SHIPPED_LOCALES` array body, or throw.
- *
- *  Deliberately NOT `?? ''`. The bracket walk replaces the old
- *  `\[([\s\S]*?)\n\]` shape, which depended on the closing bracket sitting in
- *  column 0 — a formatting detail, not a contract. */
-function shippedBlock() {
-  const raw = source()
-  const src = noCommentsOrStrings(raw)
-  // Anchor on the DECLARATION, not the first mention: the name also appears in
-  // a comment and in `[...SHIPPED_LOCALES, …]` further down.
-  const decl = /\bSHIPPED_LOCALES\b[^=\n]*=/.exec(src)
-  if (!decl) die('no `SHIPPED_LOCALES = …` declaration found')
-  // Start AFTER the `=`, so the `[]` of a type annotation (`LocaleEntry[]`)
-  // cannot be mistaken for the array literal — it opens and closes at once, so
-  // the walk below would return an empty body and every caller would see zero
-  // locales. That is precisely the silent-empty failure this module exists to
-  // prevent, and it caught itself here on the first run.
-  const open = src.indexOf('[', decl.index + decl[0].length)
-  if (open < 0) die('`SHIPPED_LOCALES` is not followed by an array literal')
-  let depth = 0
-  for (let i = open; i < src.length; i++) {
-    const c = src[i]
-    if (c === '[') depth++
-    else if (c === ']') {
-      depth--
-      // The boundaries come from the masked text; the BODY comes from the raw
-      // text with comments blanked, so a `code: '…'` value survives while a
-      // commented-out entry does not.
-      if (depth === 0) return noComments(raw).slice(open + 1, i)
-    }
-  }
-  die('`SHIPPED_LOCALES` array literal is not closed')
+  const decl = theDeclaration('BASE_LOCALE')
+  const init = decl.initializer && unwrap(decl.initializer)
+  if (!init || !ts.isStringLiteral(init)) die('`BASE_LOCALE` is not initialised with a string literal')
+  if (!/^[a-zA-Z][\w-]*$/.test(init.text)) die(`\`BASE_LOCALE\` is not a locale code: ${JSON.stringify(init.text)}`)
+  return init.text
 }
 
 /** Every shipped locale code, in source order. Throws unless the result is a
  *  non-empty, duplicate-free list that contains the base locale. */
 export function shippedCodes() {
-  const codes = [...shippedBlock().matchAll(/(^|[\s{,])code:\s*'([a-zA-Z][\w-]*)'/g)].map((m) => m[2])
-  if (codes.length === 0) die('`SHIPPED_LOCALES` parsed to ZERO codes — the block shape changed')
+  const decl = theDeclaration('SHIPPED_LOCALES')
+  const init = decl.initializer && unwrap(decl.initializer)
+  if (!init) die('`SHIPPED_LOCALES` has no initializer')
+  if (!ts.isArrayLiteralExpression(init)) {
+    die(`\`SHIPPED_LOCALES\` is initialised with ${ts.SyntaxKind[init.kind]}, not an array literal`)
+  }
+  if (init.elements.length === 0) die('`SHIPPED_LOCALES` is an empty array')
+
+  const codes = []
+  init.elements.forEach((el, i) => {
+    const e = unwrap(el)
+    // Only a plain object literal is understood. A spread, a call or a
+    // conditional would hide entries from this reader, so it refuses rather
+    // than quietly returning fewer locales than the registry has.
+    if (!ts.isObjectLiteralExpression(e)) {
+      die(`\`SHIPPED_LOCALES[${i}]\` is ${ts.SyntaxKind[e.kind]}, not an object literal`)
+    }
+    const prop = e.properties.find(
+      (p) =>
+        ts.isPropertyAssignment(p) &&
+        ((ts.isIdentifier(p.name) && p.name.text === 'code') ||
+          (ts.isStringLiteral(p.name) && p.name.text === 'code')),
+    )
+    if (!prop) die(`\`SHIPPED_LOCALES[${i}]\` has no \`code\` property`)
+    const value = unwrap(prop.initializer)
+    if (!ts.isStringLiteral(value)) die(`\`SHIPPED_LOCALES[${i}].code\` is not a string literal`)
+    codes.push(value.text)
+  })
+
+  if (codes.length === 0) die('`SHIPPED_LOCALES` parsed to ZERO codes')
   const dupes = codes.filter((c, i) => codes.indexOf(c) !== i)
   if (dupes.length) die(`duplicate locale code(s): ${[...new Set(dupes)].join(', ')}`)
   const base = baseLocale()
@@ -191,21 +173,25 @@ export function nonBaseCodes() {
 
 /** For tests: forget the cached source. */
 export function __reset() {
-  cached = null
+  cachedText = null
+  cachedAst = null
 }
 
 /** The whole parse, over TEXT rather than the file on disk.
  *
- *  Exported so the lexical traps can be tested with fixtures instead of by
+ *  Exported so the lexical cases can be tested with fixtures instead of by
  *  mutating the real registry: a test that has to edit `registry.ts` to make
  *  its point cannot run in parallel and cannot show a case the registry does
  *  not happen to contain. */
-export function parseRegistryText(text) {
-  const prev = cached
-  cached = text
+export function parseRegistryText(src) {
+  const prevText = cachedText
+  const prevAst = cachedAst
+  cachedText = src
+  cachedAst = null
   try {
     return { baseLocale: baseLocale(), shipped: shippedCodes(), nonBase: nonBaseCodes() }
   } finally {
-    cached = prev
+    cachedText = prevText
+    cachedAst = prevAst
   }
 }
