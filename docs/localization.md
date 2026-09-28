@@ -3647,7 +3647,21 @@ order** — minimap placement and internal coordinates, zoom controls, the playb
 including the direction time runs and its button order, and the filter panel's
 anchor. Only the language UI *inside* those panels mirrors: their text,
 alignment and menus follow the reader. Tooltips and accessible names take the
-active language's direction. The play glyph `▶` stays as it is.
+active language's direction.
+
+The playbar's transport controls keep their physical orientation with the
+physical time axis: `▶` plays forward, `⏭` advances one step, `⟲` resets to step
+0, and `⟳` replays forward from step 0. Reset and replay are distinct actions and
+intentionally use opposite rotations.
+
+MEASURED: none of these glyphs mirrors on its own. Unicode mirrors only the
+characters carrying `Bidi_Mirrored` — brackets and relational operators — so an
+arrow keeps pointing the same way while the layout mirrors around it. Every
+arrow in the chrome is therefore a product decision, not something the renderer
+settles. Each one is decided by what its meaning is relative to: an arrow whose
+sense is defined by the reading flow mirrors, and one that names a relation in
+the model graph does not, because the canvas that draws that graph is itself
+pinned `ltr`.
 
 Input fields take a direction from what the **user** will type, not from what
 the placeholder happens to look like:

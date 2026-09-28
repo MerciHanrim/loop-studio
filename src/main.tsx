@@ -6,7 +6,7 @@ import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@xyflow/react/dist/style.css'
 import './index.css'
 import App from './App.tsx'
-import { initI18n, useI18n } from './i18n'
+import { directionOf, initI18n, useI18n } from './i18n'
 import * as share from './model/share'
 import { flushAutosave, useGraphStore } from './store/graphStore'
 import { useAutosaveStore } from './store/autosaveStore'
@@ -49,6 +49,11 @@ if (import.meta.env.DEV) {
     tour: useTourStore,
     hint: useHintStore,
     i18n: useI18n,
+    // §L9.2 — the direction resolver itself, so the RTL e2e can assert the value
+    // the app's own `dir` attributes read rather than re-deriving it from the
+    // locale code (which would be a second, divergent implementation living in
+    // the test) or from `<html dir>` (which is the OUTPUT under test).
+    directionOf,
     io: workspaceIO,
     revisionIO,
     routeMap: {

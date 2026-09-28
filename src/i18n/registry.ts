@@ -510,6 +510,33 @@ function devPseudoLocales(): readonly LocaleEntry[] {
       pseudo: true,
       catalog: () => Promise.resolve(en),
     },
+    {
+      // §L9.2 — the RTL pseudo-locale. It exists so PR B's layout work can be
+      // exercised and REGRESSION-GUARDED before a single Arabic string exists:
+      // `direction: 'rtl'` travels the same `directionOf` path the real `ar` will,
+      // so an e2e that passes here keeps passing when PR C lands.
+      //
+      // `enabled: false` on purpose — registered, so the resolver, the checkers
+      // and `?lang=ar-XB` all see it, but NOT offered in the picker. That keeps
+      // every existing "seventeen shipped languages plus en-XA" assertion exact
+      // instead of making an RTL QA affordance look like an eighteenth language.
+      //
+      // Its catalog is `en` verbatim: this locale tests DIRECTION, not
+      // translation. Latin text under `dir=rtl` is in fact the harder case for
+      // layout — every mirrored box is visible against text that still reads
+      // left to right.
+      code: 'ar-XB',
+      englishName: 'Pseudo RTL (QA)',
+      nativeName: 'Pseudo RTL (QA)',
+      displayNameKey: 'language.english',
+      direction: 'rtl',
+      // Latin digits and separators, so a number that moves is a LAYOUT change
+      // and never a formatting one. A real `ar` numberLocale is PR C's decision.
+      numberLocale: 'en',
+      enabled: false,
+      pseudo: true,
+      catalog: () => Promise.resolve(en),
+    },
   ]
 }
 
@@ -536,6 +563,25 @@ export const LOCALE_STORAGE_KEY = 'loop-studio/ui-locale/1'
 
 export function getEntry(code: string): LocaleEntry | undefined {
   return LOCALES.find((l) => l.code === code)
+}
+
+/**
+ * §L9.2 — the ONE place a reading direction comes from: the locale's own registry
+ * entry. `<html dir>` (`store.ts`) and every element-level `dir` attribute read
+ * it through here, so the chrome and an individual input can never disagree, and
+ * a locale's direction is decided in exactly one line of data.
+ *
+ * Deliberately NOT derived from the code string. A subtag test or a name list
+ * would be a second, silently divergent source of truth — and it would answer for
+ * codes the app does not ship. An unregistered code gets `ltr`, which is what
+ * `applyHtml` fell back to before this existed.
+ *
+ * Deliberately NOT read back from `document.dir`: the attribute is an OUTPUT of
+ * the active locale, so reading it would race the commit that writes it and make
+ * the value untestable outside a browser.
+ */
+export function directionOf(code: string): LocaleDir {
+  return getEntry(code)?.direction ?? 'ltr'
 }
 
 /** the locales a user may pick — `enabled` registry entries, in registry order.
@@ -613,29 +659,40 @@ export function resolveInitialLocale(
 ): string {
   if (stored != null && locales.some((l) => l.code === stored)) return stored
 
+  // §L5.2 / §L9.2 — a STORED code may be any registered locale (that is how
+  // `?lang=` and a QA session reach one); a NAVIGATOR tag may only reach an
+  // ENABLED one. `enabled` is the right predicate and `pseudo` is not: `en-XA`
+  // is an enabled QA locale whose tag has always been honoured, so filtering on
+  // `pseudo` would silently change that measured behaviour, while `ar-XB` — which
+  // is Chrome's own RTL pseudo-tag, and would otherwise boot a real user into the
+  // QA locale — is excluded because it is DISABLED. Stated this way it also holds
+  // for a future disabled NON-pseudo locale: nothing a browser suggests can
+  // switch on a locale the product does not offer.
+  const offered = locales.filter((l) => l.enabled)
+
   for (const raw of navLangs) {
     if (typeof raw !== 'string' || raw === '') continue
     const lc = raw.toLowerCase()
 
     // 1 — the whole tag is a registered code (`es-419`, `zh-Hans`)
-    const exact = locales.find((l) => l.code.toLowerCase() === lc)
+    const exact = offered.find((l) => l.code.toLowerCase() === lc)
     if (exact) return exact.code
 
     // 2 — Chinese decides by script, which no browser sends
     const script = chineseScript(lc)
-    if (script != null && locales.some((l) => l.code === script)) return script
+    if (script != null && offered.some((l) => l.code === script)) return script
 
     const base = lc.split('-')[0]
     if (!base) continue
 
     // 3 — a registered code that IS the base subtag (`de-AT` → `de`)
-    const baseHit = locales.find((l) => l.code.toLowerCase() === base)
+    const baseHit = offered.find((l) => l.code.toLowerCase() === base)
     if (baseHit) return baseHit.code
 
     // 4 — the locale that explicitly owns this base (`es-MX` → `es-419`).
     //     Always AFTER the exact match, so registering `es-ES` later makes
     //     `es-ES` win its own tag without touching this code.
-    const owner = locales.find((l) => l.baseFallbackFor?.toLowerCase() === base)
+    const owner = offered.find((l) => l.baseFallbackFor?.toLowerCase() === base)
     if (owner) return owner.code
   }
 

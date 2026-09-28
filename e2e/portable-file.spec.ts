@@ -117,9 +117,20 @@ test.describe('portable file://', () => {
       'deepFreeze',
       '__edgeRenders', // Slice 3c-c dev-only render probe
       '__budgetComputes', // Slice 3c-c dev-only budget-sort probe
+      // NOTE on what these markers prove. A marker that is an IDENTIFIER
+      // (`devLocaleOverride`, `devPseudoLocales`, `deepFreeze`, `__routeGenCount`
+      // …) is renamed by the minifier, so its absence is consistent with the code
+      // shipping under another name — useful as a smoke signal, not as proof.
+      // A marker that is a STRING LITERAL is never renamed, so `en-XA` / `ar-XB`
+      // absence really is evidence the entries were tree-shaken.
+      // The authority for the locale codes is `scripts/check-no-pseudo-locales.mjs`,
+      // which DERIVES them from the registry source (so a new pseudo-locale is
+      // covered the day it is added, unlike this hand-kept list) and runs inside
+      // each build command's own completion contract, over all three artefacts.
       'devLocaleOverride', // i18n Slice 1 — the dev-only `?lang=` reader
-      'devPseudoLocales', // i18n Slice 1 — the dev-only QA pseudo-locale
-      'en-XA', // the QA pseudo-locale code
+      'devPseudoLocales', // i18n Slice 1 — the dev-only QA pseudo-locale factory
+      'en-XA', // the QA pseudo-locale code — a string literal, so this is real evidence
+      'ar-XB', // §L9.2 — the RTL pseudo-locale code, likewise
       '__formatCacheSize', // i18n format-cache test probe
     ]) {
       expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)

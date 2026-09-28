@@ -13,6 +13,7 @@ import {
   BASE_CATALOG,
   BASE_ENTRY,
   BASE_LOCALE,
+  directionOf,
   getEntry,
   navigatorLanguages,
   readStoredLocale,
@@ -41,7 +42,9 @@ function applyHtml(code: string): void {
   if (typeof document === 'undefined') return
   const el = document.documentElement
   el.setAttribute('lang', code)
-  el.setAttribute('dir', getEntry(code)?.direction ?? 'ltr')
+  // §L9.2 — the same `directionOf` a component's `dir` attribute reads, so the
+  // chrome and the elements inside it cannot disagree
+  el.setAttribute('dir', directionOf(code))
 }
 
 /** Both halves a locale needs before it can be activated: its UI catalog and
