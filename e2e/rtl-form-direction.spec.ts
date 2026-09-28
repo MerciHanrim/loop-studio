@@ -125,3 +125,76 @@ test.describe('form direction — product path', () => {
     await expect.poll(() => resolvedDirection(page, '.pstrip__seed')).toBe('ltr')
   })
 })
+
+// One product path per PRODUCTION KIND. The manifest used to claim 61 rows -
+// every field times every shape - which counted renders that cannot happen: a
+// read-only share URL never receives an Arabic string, and a field whose source
+// declares `min="0"` does not render a negative as a valid state. The contract
+// is now a representative sample, and "representative" means one route per kind
+// rather than one per field, with the risk shapes kept where they are real.
+test.describe('form direction - one product path per production kind', () => {
+  test('KIND expression: a non-Latin value typed into a grammar field stays ltr under an rtl interface', async ({ page }) => {
+    await openApp(page)
+    await switchLocale(page, 'ar-XB')
+    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+
+    // the edge flow field: operators, ids and numbers, never prose
+    await page.locator('.react-flow__edge').first().click({ force: true })
+    const flow = page.locator('.rightcol input[dir="ltr"]').first()
+    await expect(flow).toBeVisible()
+    await flow.fill('مبيعات')
+    // the field does NOT adopt the value's direction. Being able to type a
+    // character is not the same as the grammar changing which way it reads.
+    await expect
+      .poll(() => page.evaluate(() => {
+        const el = document.querySelector('.rightcol input[dir="ltr"]')
+        return el ? getComputedStyle(el).direction : null
+      }))
+      .toBe('ltr')
+  })
+
+  test('KIND number with no declared floor: a real negative renders in author order', async ({ page }) => {
+    await openApp(page)
+    // the model panel lists parameters and registers, and the sample document
+    // has neither - so one is created the way the palette creates it
+    await page.evaluate(() => {
+      ;(window as unknown as { __loop: { graph: { getState: () => { addNodeAt: (k: string, p: { x: number; y: number }) => void } } } })
+        .__loop.graph.getState()
+        .addNodeAt('parameter', { x: 260, y: 240 })
+    })
+    // .mp-row__val declares no `min`, so a negative is a VALID state here -
+    // unlike the ten number fields whose source declares a non-negative floor
+    const val = page.locator('.mp-row__val').first()
+    await expect(val).toBeVisible()
+    expect(await val.getAttribute('dir')).toBe('ltr')
+    await val.fill('-12.5')
+    await switchLocale(page, 'ar-XB')
+    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    // the pin is what stops `-12.5` rendering `12.5-`
+    await expect
+      .poll(() => page.evaluate(() => {
+        const el = document.querySelector('.mp-row__val')
+        return el ? getComputedStyle(el).direction : null
+      }))
+      .toBe('ltr')
+    expect(await val.inputValue()).toBe('-12.5')
+  })
+
+  test('KIND generated read-only: a share URL is pinned and holds the generated value', async ({ page }) => {
+    await openApp(page)
+    await switchLocale(page, 'ar-XB')
+    await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+    await page.locator('.mcdlg--confirm').getByRole('button', { name: /create link/i }).click()
+    const url = page.locator('.share-pop__url').first()
+    await expect(url).toBeVisible()
+    expect(await url.getAttribute('dir')).toBe('ltr')
+    await expect
+      .poll(() => page.evaluate(() => {
+        const el = document.querySelector('.share-pop__url')
+        return el ? getComputedStyle(el).direction : null
+      }))
+      .toBe('ltr')
+    // it really is the generated value, not an empty box
+    expect((await url.inputValue()).startsWith('http')).toBe(true)
+  })
+})
