@@ -519,7 +519,7 @@ export function MobileMoreMenu({
         <div className="share-pop__status">
           {sharePanel.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
         </div>
-        <input
+        <input dir="ltr"
           className="share-pop__url"
           type="text"
           readOnly

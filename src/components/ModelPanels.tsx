@@ -140,7 +140,7 @@ function InputsSection({
                     >
                       {label}
                     </button>
-                    <input
+                    <input dir="ltr"
                       type="number"
                       className="mp-row__val"
                       aria-label={t('panels.inputs.paramValue', { label })}

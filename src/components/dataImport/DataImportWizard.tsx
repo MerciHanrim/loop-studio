@@ -690,7 +690,7 @@ export function DataImportWizard({
                     <div className="import__tableHead">
                       <label className="import__nameField">
                         <span className="import__nameLabel">{t('import.tableName')}</span>
-                        <input type="text" value={ui.draft.label} onChange={(e) => updateDraft(ti, { label: e.target.value })} />
+                        <input dir="auto" type="text" value={ui.draft.label} onChange={(e) => updateDraft(ti, { label: e.target.value })} />
                       </label>
                       {tables.length > 1 && (
                         <button type="button" className="btn btn--sm" onClick={() => removeTable(ti)}>
@@ -699,7 +699,7 @@ export function DataImportWizard({
                       )}
                     </div>
                     {nameEmpty(ui) && <p className="import__error">{t('import.tableNameRequired')}</p>}
-                    <textarea
+                    <textarea dir="auto"
                       className="import__paste"
                       placeholder={t('import.pastePlaceholder')}
                       aria-label={t('import.pasteAria')}
@@ -732,7 +732,7 @@ export function DataImportWizard({
                       </label>
                       <label>
                         {t('import.headerRow')}
-                        <input
+                        <input dir="ltr"
                           type="number"
                           min={1}
                           value={ui.draft.headerRowIndex}
@@ -744,7 +744,7 @@ export function DataImportWizard({
                       </label>
                       <label>
                         {t('import.ignoreLastRows')}
-                        <input
+                        <input dir="ltr"
                           type="number"
                           min={0}
                           value={ui.draft.ignoreLastNRows}

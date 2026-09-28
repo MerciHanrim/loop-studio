@@ -288,7 +288,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
         <div className="mcdlg__body">
           {step === 'paste' && (
             <div className="import__table">
-              <textarea
+              <textarea dir="auto"
                 className="import__paste"
                 placeholder={t('import.pastePlaceholder')}
                 value={pasteText}
@@ -324,11 +324,11 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                 </label>
                 <label>
                   {t('import.headerRow')}
-                  <input type="number" min={1} value={headerRowIndex} onChange={(e) => setHeaderRowIndex(sanitizeRowCount(e.target.value, 1))} />
+                  <input dir="ltr" type="number" min={1} value={headerRowIndex} onChange={(e) => setHeaderRowIndex(sanitizeRowCount(e.target.value, 1))} />
                 </label>
                 <label>
                   {t('import.ignoreLastRows')}
-                  <input type="number" min={0} value={ignoreLastNRows} onChange={(e) => setIgnoreLastNRows(sanitizeRowCount(e.target.value, 0))} />
+                  <input dir="ltr" type="number" min={0} value={ignoreLastNRows} onChange={(e) => setIgnoreLastNRows(sanitizeRowCount(e.target.value, 0))} />
                 </label>
               </div>
               {parseError && (

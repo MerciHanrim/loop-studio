@@ -22,6 +22,7 @@
     "check:no-pseudo-locales": "node scripts/check-no-pseudo-locales.mjs --all",
     "check:pwa-closure": "node scripts/check-pwa-closure.mjs",
     "check:csv-boundary": "node scripts/check-csv-boundary.mjs",
+    "check:form-direction": "node scripts/check-form-direction.mjs",
     "check:snapshot-policy": "node scripts/check-snapshot-policy.mjs",
     "lint": "oxlint",
     "test": "vitest run",

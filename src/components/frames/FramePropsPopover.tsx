@@ -182,7 +182,7 @@ export function FramePropsPopover({
     >
       <label className="lgr-frame-props__field">
         <span className="lgr-frame-props__caption">{t('canvas.frame.props.name')}</span>
-        <input
+        <input dir="auto"
           ref={inputRef}
           className="lgr-frame-props__name"
           value={draft}

@@ -133,7 +133,7 @@ export function MonteCarloDialog() {
         <div className="mcdlg__body">
           <label className="mcdlg__field">
             <span>{t('mc.field.runs')}</span>
-            <input
+            <input dir="ltr"
               type="number"
               min={1}
               step={50}
@@ -144,7 +144,7 @@ export function MonteCarloDialog() {
           </label>
           <label className="mcdlg__field">
             <span>{t('mc.field.steps')}</span>
-            <input
+            <input dir="ltr"
               type="number"
               min={1}
               step={5}
@@ -155,7 +155,7 @@ export function MonteCarloDialog() {
           </label>
           <label className="mcdlg__field">
             <span>{t('mc.field.baseSeed')}</span>
-            <input
+            <input dir="ltr"
               type="number"
               min={0}
               step={1}

@@ -664,7 +664,7 @@ export function RegisterExprField({
         {label}
       </label>
       <div className="regexpr__inputwrap">
-        <input
+        <input dir="ltr"
           id={`${listId}-input`}
           ref={inputRef}
           value={draft}

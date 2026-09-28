@@ -215,7 +215,7 @@ export function LanguageSwitch({
           }
         >
           {showSearch ? (
-            <input
+            <input dir="auto"
               ref={searchRef}
               type="text"
               className="lang-menu__search"
