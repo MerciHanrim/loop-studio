@@ -796,7 +796,7 @@ body {
 }
 
 .toolbar__actions {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   gap: 6px;
   flex-wrap: nowrap;
@@ -847,8 +847,8 @@ body {
    mobile More sheet flips `.lang-menu__pop`). `.menu__pop` (Export / Help) is
    already `right: 0`; the Language pop defaults to `left: 0`, so re-anchor it. */
 .toolbar__overflow-pop .lang-menu__pop {
-  left: auto;
-  right: 0;
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 /* controls dropped into the ⋯ popup sit full-width, left-aligned */
 .toolbar__overflow-pop > .menu,
@@ -1009,7 +1009,7 @@ body {
 .menu__pop {
   position: absolute;
   top: calc(100% + 6px);
-  right: 0;
+  inset-inline-end: 0;
   z-index: 20;
   width: 260px;
   display: flex;
@@ -1057,7 +1057,7 @@ body {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  text-align: left;
+  text-align: start;
   font: inherit;
   color: var(--text-primary);
   cursor: pointer;
@@ -1158,7 +1158,7 @@ a.sheet__row {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  text-align: left;
+  text-align: start;
   font: inherit;
   color: var(--text-primary);
   cursor: pointer;
@@ -2046,7 +2046,7 @@ a.sheet__row {
    body, so it grows to the container width instead of capping at 360px. */
 .hint-note--inline {
   max-width: none;
-  text-align: left;
+  text-align: start;
   margin-bottom: 12px;
 }
 .hint-note__x {
@@ -3164,6 +3164,42 @@ a.sheet__row {
   gap: 6px;
   color: var(--text-tertiary);
 }
+
+/* docs/localization.md §L9.3 — the playbar keeps its PHYSICAL button order for
+   every reader: the transport sits with the physical time axis, and `⏭` must
+   still advance in the direction the timeline runs.
+
+   NOT `direction: ltr` on the container. That would pin the text as well, and
+   the labels, the step readout and the accessible names all belong to the
+   reader's language. What is physical here is the ORDER of the controls, not
+   the writing.
+
+   So the flex axis is reversed to cancel the reversal `direction: rtl` applies
+   to it. The container's own `direction` is untouched, every child still
+   inherits the locale's direction, and the DOM order — which is what the tab
+   order follows — never changes.
+
+   `--ls-pstrip-order` is the ownership mark the e2e reads, the same way
+   `--ls-canvas-dir` marks the canvas pin. */
+[dir='rtl'] .pstrip,
+[dir='rtl'] .pstrip__group,
+[dir='rtl'] .pstrip__field {
+  --ls-pstrip-order: physical;
+  flex-direction: row-reverse;
+}
+/* The two auto-margin spacers inside the strip have to follow it. Manifest A
+   classified them FLIP - they are chrome, and chrome mirrors - while manifest B
+   pins the strip's ORDER physical, and the two only disagree once the geometry
+   is measured: with the axis reversed, `margin-inline-start: auto` pushes
+   toward the physical LEFT and the collapse button stops being flush, which
+   left the steady chip sitting on top of it instead of 5px clear.
+
+   Inside a physically-pinned container the spacer is physical too. */
+[dir='rtl'] .pstrip__collapse,
+[dir='rtl'] .pstrip__mc {
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
 .pstrip__field > span {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -3186,7 +3222,7 @@ a.sheet__row {
   font-variant-numeric: tabular-nums;
 }
 .pstrip__collapse {
-  margin-left: auto;
+  margin-inline-start: auto;
   padding: 3px 8px;
 }
 
@@ -3545,7 +3581,7 @@ a.sheet__row {
   width: auto;
   flex: 1 1 auto;
   min-height: 0;
-  border-left-color: transparent;
+  border-inline-start-color: transparent;
 }
 
 /* ---- inspector ---- */
@@ -3553,7 +3589,7 @@ a.sheet__row {
   width: 300px;
   flex-shrink: 0;
   background: var(--surface-panel);
-  border-left: 1px solid var(--line-hairline);
+  border-inline-start: 1px solid var(--line-hairline);
   padding: 14px;
   overflow-y: auto;
 }
@@ -3601,7 +3637,7 @@ a.sheet__row {
   color: var(--text-tertiary);
 }
 .mpanel__count {
-  margin-left: auto;
+  margin-inline-start: auto;
   padding: 0 6px;
   border-radius: 8px;
   background: var(--surface-sunken);
@@ -3647,7 +3683,7 @@ a.sheet__row {
   color: var(--text-primary);
   font: inherit;
   font-size: 12px;
-  text-align: left;
+  text-align: start;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3674,7 +3710,7 @@ a.sheet__row {
   flex: 0 0 78px;
   width: 78px;
   font-size: 12px;
-  text-align: right;
+  text-align: end;
   align-self: start;
 }
 .mp-row--reg {
@@ -3714,7 +3750,7 @@ a.sheet__row {
   flex: 0 0 auto;
   width: auto;
   min-width: var(--mp-val-w);
-  text-align: right;
+  text-align: end;
   align-self: start;
   white-space: nowrap;
   color: var(--text-secondary);
@@ -4084,7 +4120,7 @@ a.sheet__row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .pstrip__mcprog {
   font-family: var(--font-mono);
@@ -4113,7 +4149,7 @@ a.sheet__row {
 }
 .timeline__viewtab:last-child {
   border-radius: 0 4px 4px 0;
-  border-left: 0;
+  border-inline-start: 0;
 }
 .timeline__viewtab.is-on {
   background: var(--signal-primary-soft);
@@ -4285,7 +4321,9 @@ a.sheet__row {
 }
 .mcdlg__bar {
   position: absolute;
-  inset: 0 auto 0 0;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
   background: var(--signal-primary);
   transition: width 120ms linear;
 }
@@ -4308,7 +4346,7 @@ a.sheet__row {
   border-top: 1px solid var(--line-hairline);
 }
 .mcdlg__foot .btn:last-child {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 /* Export menu in the distribution header opens upward (it sits at screen bottom) */
@@ -4322,8 +4360,8 @@ a.sheet__row {
    on desktop; right-anchored inside the mobile More sheet so it grows leftward
    and stays inside a narrow viewport. Capped to the viewport either way. */
 .lang-menu__pop {
-  left: 0;
-  right: auto;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
   width: max-content;
   min-width: 150px;
   max-width: calc(100vw - 24px);
@@ -4333,8 +4371,8 @@ a.sheet__row {
   padding: 4px;
 }
 .sheet .lang-menu__pop {
-  left: auto;
-  right: 0;
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 /* only the option list scrolls; the search box stays pinned */
 .lang-menu__list {
@@ -4437,7 +4475,7 @@ a.sheet__row {
   border-radius: 2px;
 }
 .band__mean {
-  margin-left: auto;
+  margin-inline-start: auto;
   border: 1px solid var(--line-structure);
   border-radius: 4px;
   padding: 1px 7px;
@@ -4594,7 +4632,7 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: flex-end;
 }
 .mcdlg--confirm .mcdlg__foot .btn:last-child {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 /* docs/data-import.md §DI16 Phase 1B — the CSV/TSV import wizard. Much wider
@@ -4713,7 +4751,7 @@ input[type='number']::-webkit-inner-spin-button {
 .import__preview td {
   border: 1px solid var(--line-hairline);
   padding: 4px 6px;
-  text-align: left;
+  text-align: start;
   vertical-align: top;
 }
 .import__preview select {
@@ -4756,7 +4794,7 @@ input[type='number']::-webkit-inner-spin-button {
   font-weight: 600;
   padding: 8px 10px;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
   border-radius: var(--radius);
 }
 .import__quickstartToggle:focus-visible {
@@ -4872,7 +4910,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__issues {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
 }
 .import__issueLink {
   background: none;
@@ -4882,7 +4920,7 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--warning);
   font: inherit;
   font-size: 12px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   text-decoration: underline dotted;
 }
@@ -4942,10 +4980,10 @@ input[type='number']::-webkit-inner-spin-button {
 .import__reviewTable td {
   border: 1px solid var(--line-hairline);
   padding: 4px 8px;
-  text-align: left;
+  text-align: start;
 }
 .import__reviewTable .num {
-  text-align: right;
+  text-align: end;
 }
 .import__reviewTable tfoot td {
   font-weight: 600;
@@ -4957,7 +4995,7 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .import__labelsPreview ul {
   margin: 4px 0 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -5086,7 +5124,7 @@ input[type='number']::-webkit-inner-spin-button {
     line-height: 1.2;
   }
   .toolbar--mobile .mob-more {
-    margin-left: auto;
+    margin-inline-start: auto;
     min-width: 44px;
     min-height: 44px;
     font-size: 18px;
@@ -5112,7 +5150,7 @@ input[type='number']::-webkit-inner-spin-button {
     padding: 6px 12px;
   }
   .pstrip--mobile .pstrip__tl {
-    margin-left: auto;
+    margin-inline-start: auto;
   }
   /* the run-refusal notice (simStore.initError) wraps onto its own full-width
      row under the controls — visible, not a hover-only `title` */
@@ -5186,7 +5224,7 @@ input[type='number']::-webkit-inner-spin-button {
     border: 0;
     border-radius: 8px;
     background: transparent;
-    text-align: left;
+    text-align: start;
     font: inherit;
     font-size: 14px;
     color: var(--text-primary);
@@ -5197,7 +5235,7 @@ input[type='number']::-webkit-inner-spin-button {
     background: var(--surface-sunken);
   }
   .sheet__row-sub {
-    margin-left: auto;
+    margin-inline-start: auto;
     font-size: 12px;
     color: var(--text-tertiary);
   }
@@ -5465,7 +5503,7 @@ input[type='number']::-webkit-inner-spin-button {
 .review__note {
   margin: 0;
   padding: 6px 8px;
-  border-left: 2px solid var(--line-structure);
+  border-inline-start: 2px solid var(--line-structure);
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -5769,7 +5807,7 @@ input[type='number']::-webkit-inner-spin-button {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(360px, calc(100vw - 24px));
-  text-align: left;
+  text-align: start;
 }
 .tour-card__title,
 .tour-popover__title {
