@@ -25,18 +25,35 @@
 //
 // WHY THE VALUE IS STRIPPED BEFORE IT IS WRAPPED
 //
-// An isolate bounds what is inside it — but only if what is inside does not
-// close it first. A value carrying an unpaired `PDI` ends our isolate early,
-// and the rest of the localized sentence then inherits the direction the value
-// established, which is the exact bug the isolate exists to prevent. The banned
-// marks (`LRM`, `RLE`, `RLO`, …) are worse: they have no end at all, so they
-// run past the `PDI` into whatever is rendered next.
+// The three families behave differently, and lumping them together gets all
+// three wrong:
 //
-// User data can contain any of these. A spreadsheet cell, a node label and a
-// frame name are all free text. So the value is stripped of every bidi control
-// before wrapping, and the isolate we add is then the only bidi structure in
-// the argument. The characters removed are zero-width, so nothing a reader can
-// see is lost — and the stripped copy is the DISPLAY copy, never the stored one.
+//   * `LRM` / `RLM` / `ALM` are STRONG DIRECTIONAL CHARACTERS, not scopes. They
+//     open nothing and close nothing. They act by being strong where the
+//     algorithm looks for a strong character — which is enough to flip how the
+//     neutrals around them resolve, and enough to decide an `FSI`'s direction.
+//   * `LRE` / `RLE` / `LRO` / `RLO` are explicit FORMATTING, and their scope is
+//     ended by `PDF` — not by `PDI`. An unterminated one runs to the end of the
+//     paragraph.
+//   * `LRI` / `RLI` / `FSI` are ISOLATES, and their scope is ended by `PDI`.
+//
+// The common conclusion, which is what matters here: a bidi formatting or
+// control character inside a VALUE can change how the SENTENCE around it is
+// resolved — by supplying a strong character the algorithm then uses, or by
+// opening or closing a scope this code did not intend. A value's own `PDI` can
+// close the isolate placed around it, after which the rest of the sentence sits
+// outside the bounding that was the point of adding it.
+//
+// User data can contain any of them: a spreadsheet cell, a node label and a
+// frame name are all free text. So the value is stripped of bidi formatting and
+// control characters at the DISPLAY boundary, and the isolate added is then the
+// only bidi structure in the argument.
+//
+// WHAT IS NOT STRIPPED. Only the formatting and control characters above.
+// `ZWJ` and `ZWNJ` are joiners — they shape the letters, they do not steer
+// direction — and Arabic combining marks are part of the word. Removing either
+// would change the text a reader sees, which this must never do. The stripped
+// copy is the display copy; the stored value is untouched either way.
 
 import { BANNED_CONTROLS, ISOLATE_OPENERS, PDI } from './bidiControls'
 
@@ -55,10 +72,16 @@ export const LRI = String.fromCharCode(0x2066)
  *  call site never has to name a code point. */
 export { PDI }
 
-/** Every bidi control, opener or mark, as a single character class. */
+/** The bidi FORMATTING and CONTROL characters, as one character class: the
+ *  strong marks, the embedding/override pair openers and their `PDF`
+ *  terminator, the three isolate openers and their `PDI` terminator.
+ *
+ *  Deliberately NOT here: `ZWJ` (U+200D), `ZWNJ` (U+200C) and the Arabic
+ *  combining marks. Those shape or compose the text rather than steer its
+ *  direction, so removing one would change what a reader sees. */
 const ALL_CONTROLS = new Set<string>([...BANNED_CONTROLS.keys(), ...ISOLATE_OPENERS.keys(), PDI])
 
-/** `value` with every bidi control removed.
+/** `value` with every bidi formatting and control character removed.
  *
  *  DISPLAY ONLY. The caller keeps the original for storage, digests and export
  *  — the stripped copy exists so the isolate placed around it cannot be ended
