@@ -3726,6 +3726,102 @@ the placeholder happens to look like:
 `Gold` and therefore renders correctly under RTL with no help at all, but the
 field accepts a user-typed resource name in any script, so it is `auto`.
 
+### §L9.4 — the value markup cannot reach
+
+§L9.3 gave every text-carrying ELEMENT the direction its content decides. That
+closes the question wherever the value is its own JSX child, because there is an
+element to put `dir` on. It does not close it where a user value enters a
+localized sentence through an **ICU argument**: the sentence and the value become
+one string before any element exists, so there is nothing to mark up and nothing
+for `dir="auto"` to see inside.
+
+PR B recorded 11 such decision rows and deferred them. They are implemented here.
+**Three counts, kept apart, because two of them being 11 is a coincidence:**
+
+| count | what it is |
+|---|---|
+| 11 decision rows | what the §L9.3 census recorded and deferred |
+| 8 obligations | one per PRODUCER — what is implemented |
+| 11 AST call sites | what the edit touches; a closed key set is more than one |
+
+Two rows collapse (`issueText` is called at three render sites and holds one
+catalog call; `groupLine` is one call painted at two JSX sites) and three expand
+(a closed key set of two).
+
+**The isolate goes into the render ARGUMENT and nowhere else.** Every shipped
+catalogue carries zero bidi controls and `src/i18n/bidiControls.test.ts` keeps it
+that way; a control that reached a catalog value would be a translated string the
+translator cannot see. The stored, digested, exported and shared value is the raw
+one — a control in the document would move its digest and travel into other
+people's copies.
+
+**The kind is part of the obligation.** `isolateAuto` (`FSI`) is the counterpart
+of `dir="auto"`, for a value whose direction is not known in advance: a
+spreadsheet cell, a column header, a frame name. `isolateLtr` (`LRI`) is the
+counterpart of `dir="ltr"`, for a technical token whose direction IS known: a
+node id, a generated revision id. `LRI` and not `FSI` there because an id that
+happens to start with a digit or a symbol has no strong character of its own, so
+a first-strong isolate would hand it the surrounding paragraph's direction.
+
+**The value is stripped before it is wrapped**, and the three families behave
+differently, so lumping them together gets all three wrong:
+
+| family | characters | how the scope ends |
+|---|---|---|
+| strong marks | `LRM` `RLM` `ALM` | no scope at all — they act by BEING strong |
+| explicit formatting | `LRE` `RLE` `LRO` `RLO` | `PDF`, not `PDI`; unterminated, they run to the end of the paragraph |
+| isolates | `LRI` `RLI` `FSI` | `PDI` |
+
+What matters for this rule is the conclusion they share: a bidi formatting or
+control character inside a VALUE can change how the SENTENCE around it resolves —
+by supplying a strong character the algorithm then uses, or by opening or closing
+a scope the code did not intend. A value's own `PDI` can close the isolate placed
+around it, after which the rest of the sentence sits outside the bounding that was
+the point. User data can contain any of them, so they are removed at the display
+boundary. `ZWJ`, `ZWNJ` and Arabic combining marks are **not** removed: they shape
+and compose the text rather than steer it.
+
+**One site is per-fragment.** `hint.importFirstCommit.body` interpolates a
+comma-joined list of the user's own table labels. A single isolate around the
+joined string would give the whole list one paragraph direction, taken from
+whichever table the user happened to name first — MEASURED in PR B as two of six
+cases breaking identically with and without it. Each label is isolated on its own,
+and the quotes and commas stay OUTSIDE, because they are the sentence's
+punctuation rather than the label's.
+
+| layer | guard |
+|---|---|
+| what the helpers produce — per-mode idempotence, the strip, exactly one outer pair, zero inner controls | `src/i18n/bidiIsolate.test.ts` |
+| every obligation implemented with its declared kind, on its declared argument, at every call site, and no isolate outside a declared row | `scripts/check-isolate-arguments.mjs` + `scripts/isolate-obligations.json` |
+| the isolate never reaches the stored document | `src/i18n/isolateStorageBoundary.test.ts` |
+| the sentence LAYS OUT that way in a browser, in real Arabic | `e2e/i18n-ar-isolation.spec.ts` |
+
+The browser layer is geometric on purpose. `textContent` equality is what the
+isolate is designed not to change, so a text comparison is green whether or not
+the isolate is there; and a screenshot cannot separate "the value sits in the
+wrong place in the sentence" from "the characters inside the value are in the
+wrong order". So it measures `Range` rectangles inside the one string ICU
+produced — the value's placement relative to the sentence's head and tail, and
+separately the visual order of the characters within the value, compared against
+the same value rendered alone in the same container. The necessity is measured
+too: for the shapes the census recorded as breaking, the same value interpolated
+RAW must come out in a different order.
+
+**Exhaustiveness.** `scripts/isolate-obligations.json` carries its own `$limit`:
+it defends the call sites listed in it, exactly and in both directions, and it
+does **not** discover an ICU argument that starts carrying a user value later.
+Only a census does that. A sweep run during this work found further `t()`
+arguments that carry user text and are still passed raw — including
+`import.refresh.columnEvents.unrecognized`, the `import.loc.*` location prefix
+that is concatenated with an already-isolated value inside `issueText`, and the
+register-expression `{name}` sites. They are **not** part of the 11 and are not
+closed here; they are recorded so the gap is stated rather than implied.
+
+**What a green run here does not say.** It closes the isolation contract up to
+browser layout. How a screen reader pronounces, segments or brailles any of it is
+the named-AT-stack review, and whether the Arabic reads naturally is a native
+review. Neither is a browser measurement.
+
 ## L10. Accessibility
 
 - `<html lang>` (and `dir`) follow the active registry entry.
