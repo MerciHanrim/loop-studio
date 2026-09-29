@@ -505,16 +505,18 @@ type TFn = ReturnType<typeof useT>
  *  reached once `ActivatorField` is wired below, which always resolves a
  *  param-term live — kept as the honest fallback if this is ever called on
  *  an unresolved `ActivatorParse` some other way). */
+// §L9.4 — the isolate goes on the two branches that produce a TOKEN, not around
+// the result. The literal branch returns a number, which has no internal order to
+// break and no direction of its own to protect; wrapping it too was the simpler
+// code and the wrong product decision — it put two invisible characters around
+// every plain number in this preview, in every language, for nothing.
 function rhsDescribeText(rhs: ActivatorRhs): string | number {
   if (rhs.kind === 'literal') return rhs.n
-  if (rhs.offset === 0) return `@${rhs.id}`
-  return `@${rhs.id} ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`
+  if (rhs.offset === 0) return isolateLtr(`@${rhs.id}`)
+  return isolateLtr(`@${rhs.id} ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`)
 }
 function describeActivator(t: TFn, p: Extract<ActivatorParse, { ok: true }>): string {
-  return t('inspector.activator.describe', {
-    op: p.op,
-    n: isolateLtr(String(rhsDescribeText(p.rhs))),
-  })
+  return t('inspector.activator.describe', { op: p.op, n: rhsDescribeText(p.rhs) })
 }
 function describeLabel(t: TFn, p: Extract<LabelParse, { ok: true }>): string {
   const amount = p.token === 'S' ? t('inspector.label.amountSource') : String(p.n)

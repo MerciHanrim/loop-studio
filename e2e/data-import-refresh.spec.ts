@@ -332,7 +332,10 @@ test('a missing row still referenced by another table blocks unlink/delete, nami
   await refreshDialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,display_name,weight\nitm_b,Iron Charm,3')
   await refreshDialog(page).getByRole('button', { name: 'Next' }).click()
 
-  await expect(refreshDialog(page).getByText(/Still referenced by GachaPoolEntries/)).toBeVisible()
+  // the blocking table NAME is a user value and is isolated (§L9.4)
+  await expect(
+    refreshDialog(page).getByText(`Still referenced by ${iso('GachaPoolEntries')}`),
+  ).toBeVisible()
   await expect(refreshDialog(page).locator('li', { hasText: 'itm_a' }).locator('select')).toHaveCount(0) // no destructive choice offered at all
 
   await refreshDialog(page).getByRole('button', { name: 'Commit refresh' }).click()

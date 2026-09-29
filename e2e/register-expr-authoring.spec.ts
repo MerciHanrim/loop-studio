@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, graphSnapshot, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, graphSnapshot, importGraph, isoLtr, openApp, resetAll, test } from './support/loop'
 
 // docs/register-expression-authoring.md §RXA9 — the reference-aware Register
 // expression editor. Presentation only: the stored `expr`, its canonical form,
@@ -231,7 +231,7 @@ test('§RXA9.5 — a deleted / wrong-kind / div-by-zero / cyclic reference each 
 
   // deleted id
   await expr(page).fill('@ghost + 1')
-  await expect(result(page)).toHaveText(/reference "ghost" not found/i)
+  await expect(result(page)).toHaveText(`— reference "${isoLtr('ghost')}" not found`)
   expect(await modelExpr(page, 'net'), 'still committed (RXA-INV-5)').toBe('@ghost + 1')
 
   // wrong kind (a Source)

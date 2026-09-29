@@ -157,8 +157,8 @@ test('the picker offers Deutsch, tagged as its own language', async ({ page }) =
 test('German is findable by code, English name and endonym', async ({ page }) => {
   await openApp(page)
   await openLanguageMenu(page)
-  // the shipped languages + the dev pseudo-locale — 17 + 1 today
-  await expect(options(page)).toHaveCount(18)
+  // the shipped languages + the dev pseudo-locale — 18 + 1 today
+  await expect(options(page)).toHaveCount(19)
   for (const q of ['de', 'German', 'Deutsch', 'deutsch', 'DEUTSCH']) {
     await search(page).fill(q)
     await expect(option(page, 'de'), `query ${JSON.stringify(q)} must find German`).toHaveCount(1)

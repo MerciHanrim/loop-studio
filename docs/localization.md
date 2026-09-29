@@ -3829,7 +3829,8 @@ newly added interpolation fail closed instead of joining an unexamined majority.
 |---|---:|---|
 | `number` | 96 | derived from the type |
 | `closed-value` | 40 | a catalog string, an engine phrase, a formatted number, a build constant, a model-vocabulary token |
-| `isolated` | 38 | implemented; every one declared in `isolate-obligations.json` |
+| `producer` | 1 | bounded where it is PRODUCED, not in the argument list — only some of `rhsDescribeText`'s branches make a token that needs it |
+| `isolated` | 37 | wrapped in the argument list; every one declared in `isolate-obligations.json` |
 | `catalog` | 13 | derived |
 | `attribute` | 12 | PR B's separate axis. Two different numbers: 12 rows carry this CLASS, 18 arguments have an attribute SINK — 8 attribute-sink arguments are mechanically classified and need no row, and 2 rows are attribute by TRACING, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function |
 | `enum` | 6 | derived, members printed |
@@ -3873,16 +3874,21 @@ together and none is a restatement of another:
 | 38 | rows — 11 from the PR B census, 27 from the C3.5 sweep |
 | 25 | obligations — one per PRODUCER |
 | 34 | AST call sites the edit touches |
-| 38 | wrapped ICU arguments (a call site may wrap two; a producer-shaped site wraps none) |
+| 37 | ICU arguments wrapped in the argument list, plus 1 bounded in its producer |
 | 18 | browser tests in `e2e/i18n-ar-isolation.spec.ts` |
-| 32 | obligation and manifest mutations, each RED and named by `check-isolate-arguments.mjs` |
+| 33 | obligation and manifest mutations, each RED and named by `check-isolate-arguments.mjs` |
 | 16 | isolate mutations, each RED with only the browser test that covers it run |
 | 10 | population mutations, each RED and named by `check-icu-arguments.mjs` |
 
-The two 38s are **not the same set**: `wizard-issue-value` carries three rows and
-wraps no ICU argument (it wraps a producer, and its call passes a prepared object
-rather than an object literal), while `wizard-issue-location` carries seven of
-each. The totals landing on one number is a coincidence.
+**Two shapes bound the value away from the argument list**, and both are real
+rather than a convenience. `wizard-issue-value` prepares its object before the
+call, so there is no argument expression to wrap. `inspector-activator-describe`
+has three returns and only two of them make a token that needs bounding — the
+third is a bare number. Wrapping that one too was the first attempt, and it put
+two invisible characters around every plain number in that preview, in every
+language, for nothing; eleven existing tests went red saying so. The manifest
+declares the producing function and both return counts, so a return added later
+is a branch nobody classified and a wrap removed is the defect.
 
 **What the browser layer covers, and what it does not.** The eighteen tests prove
 the LAYOUT contract — where the value sits in the sentence, and the order of the

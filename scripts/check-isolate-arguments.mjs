@@ -221,26 +221,79 @@ for (const o of MANIFEST.obligations) {
   const calls = byFile.get(o.file)
   let good = true
 
-  // ── a PRODUCER site: the value is wrapped where it is assigned, because the
-  //    call passes a prepared object rather than an object literal. Asserted
-  //    over the assignment, and the call is still located by its key set. ──
+  // ── a PRODUCER site: the value is wrapped where it is PRODUCED, not in the
+  //    argument list. Two reasons a site is shaped that way, and both are real:
+  //    the call passes a prepared object rather than an object literal
+  //    (`wizard-issue-value`), or only SOME of the producer's branches make a
+  //    value that needs bounding (`inspector-activator-describe` returns a bare
+  //    number on its literal branch, and wrapping that too was a real product
+  //    defect — two invisible characters around every plain number, for
+  //    nothing). The call is still located by its key set. ──
   if (o.shape === 'producer') {
-    const site = calls.filter((c) => c.enclosing === o.enclosing && c.keys && sameSet(c.keys, o.sites[0].keys ?? c.keys))
     const expected = o.sites[0]
-    const resolved = site.filter((c) => c.keys && c.keys.length === expected.keyCount)
+    const wrapper = WRAPPER[expected.kind]
+    const resolved = calls.filter(
+      (c) => c.enclosing === o.enclosing && c.keys && (expected.keys ? sameSet(c.keys, expected.keys) : c.keys.length === expected.keyCount),
+    )
     if (resolved.length !== 1) {
-      fail(`${o.id}: expected 1 call whose key set has ${expected.keyCount} members in ${o.enclosing}, found ${resolved.length}`)
+      fail(`${o.id}: expected 1 call in ${o.enclosing} with the declared key set, found ${resolved.length}`)
       continue
     }
-    const src = readFileSync(resolve(root, o.file), 'utf8')
-    const wrapper = WRAPPER[expected.kind]
-    if (!new RegExp(`${expected.producer.replace('.', '\\.')}\\s*=\\s*${wrapper}\\(`).test(src)) {
-      fail(`${o.id}: no \`${expected.producer} = ${wrapper}(…)\` assignment feeding the call`)
-      continue
+    const sf = parse(o.file)
+    if (expected.producerAssignment) {
+      // `<target> = <wrapper>(…)` somewhere in the file, read off the AST
+      let found = 0
+      const visit = (n) => {
+        if (
+          ts.isBinaryExpression(n) &&
+          n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+          n.left.getText(sf) === expected.producerAssignment &&
+          wrappedBy(n.right, sf, wrapper)
+        ) {
+          found += 1
+        }
+        ts.forEachChild(n, visit)
+      }
+      visit(sf)
+      if (found !== 1) {
+        fail(`${o.id}: expected 1 \`${expected.producerAssignment} = ${wrapper}(…)\` assignment, found ${found}`)
+        continue
+      }
+      ok(`${o.id}: producer \`${expected.producerAssignment}\` wrapped with ${wrapper}`)
+    } else {
+      // a named function whose STRING-producing returns are wrapped. Both counts
+      // are declared: a return added later is a new branch nobody classified,
+      // and a wrap removed is the defect.
+      let fn = null
+      const find = (n) => {
+        if (ts.isFunctionDeclaration(n) && n.name?.text === expected.producerFn) fn = n
+        ts.forEachChild(n, find)
+      }
+      find(sf)
+      if (!fn) {
+        fail(`${o.id}: no function \`${expected.producerFn}\` in ${o.file}`)
+        continue
+      }
+      let total = 0
+      let wrapped = 0
+      const count = (n) => {
+        if (ts.isReturnStatement(n) && n.expression) {
+          total += 1
+          if (wrappedBy(n.expression, sf, wrapper)) wrapped += 1
+        }
+        ts.forEachChild(n, count)
+      }
+      count(fn)
+      if (total !== expected.totalReturns || wrapped !== expected.wrappedReturns) {
+        fail(
+          `${o.id}: \`${expected.producerFn}\` has ${wrapped}/${total} returns wrapped with ${wrapper}, manifest declares ${expected.wrappedReturns}/${expected.totalReturns}`,
+        )
+        continue
+      }
+      ok(`${o.id}: producer \`${expected.producerFn}\`, ${wrapped} of ${total} returns wrapped with ${wrapper}`)
     }
     siteCount += 1
     claimed.add(`${o.file}::${o.enclosing}::${sig(resolved[0].keys)}::0`)
-    ok(`${o.id}: ${expected.keyCount}-key family, producer \`${expected.producer}\` wrapped with ${wrapper}`)
     continue
   }
 
@@ -360,7 +413,10 @@ for (const rel of declaredFiles) {
   const visit = (n) => {
     if (ts.isCallExpression(n) && /^isolate(Auto|Ltr)$/.test(n.expression.getText(sf))) {
       const encl = enclosingOf(n, sf)
-      if (!MANIFEST.obligations.some((o) => o.file === rel && o.enclosing === encl)) {
+      // a producer-shaped obligation wraps inside a NAMED function that is not
+      // the one holding the `t(…)` call, so that name counts as declared too
+      const declared = (o) => o.enclosing === encl || o.sites.some((s) => s.producerFn === encl)
+      if (!MANIFEST.obligations.some((o) => o.file === rel && declared(o))) {
         fail(`${rel}: ${n.expression.getText(sf)} called in \`${encl}\`, which no obligation declares`)
         strays++
       }

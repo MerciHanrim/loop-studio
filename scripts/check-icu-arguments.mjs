@@ -116,6 +116,20 @@ function sinkOf(node, sf) {
 
 const isTCall = (n, sf) => ts.isCallExpression(n) && /(^|\.)t$/.test(n.expression.getText(sf))
 
+/** An argument whose value is bounded where it is PRODUCED rather than in the
+ *  argument list. It is accounted for, but not by anything visible at the call
+ *  site — `isolate-obligations.json` names the producing function and
+ *  `check-isolate-arguments.mjs` asserts which of its returns are wrapped. Only
+ *  the two files together close it; this one records that it is claimed. */
+const isProducerObligation = (file, enclosing, key, arg) =>
+  OBLIGATIONS.obligations.some(
+    (o) =>
+      o.shape === 'producer' &&
+      o.file === file &&
+      o.enclosing === enclosing &&
+      o.sites.some((s) => (s.keys ?? []).includes(key) && s.producerArg === arg),
+  )
+
 /** a translated string: a `t(…)` call, or a conditional whose EVERY leaf is one.
  *  A conditional with one non-catalog arm is deliberately not catalog. */
 function isCatalog(expr, sf) {
@@ -211,13 +225,15 @@ for (const sf of program.getSourceFiles()) {
             expr: expr.getText(sf).replace(/\s+/g, ' '),
             derived: mentionsIsolate(expr)
               ? 'isolated'
-              : tc.kind === 'number'
-                ? 'number'
-                : tc.kind === 'enum'
-                  ? 'enum'
-                  : isCatalog(expr, sf)
-                    ? 'catalog'
-                    : null,
+              : isProducerObligation(rel, enclosing, key, name)
+                ? 'producer'
+                : tc.kind === 'number'
+                  ? 'number'
+                  : tc.kind === 'enum'
+                    ? 'enum'
+                    : isCatalog(expr, sf)
+                      ? 'catalog'
+                      : null,
             members: tc.members,
           })
         }

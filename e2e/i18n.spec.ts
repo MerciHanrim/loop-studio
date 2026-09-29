@@ -582,13 +582,15 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await expect(search).toHaveCount(1)
     await expect(search).toBeFocused()
     const opts = list.locator('[role="option"]')
-    // the seventeen shipped languages plus en-XA (dev pseudo). Dutch sorts
-    // AHEAD of English, which is why the order below starts zh-Hans, zh-Hant, nl.
-    await expect(opts).toHaveCount(18)
+    // the eighteen shipped languages plus en-XA (dev pseudo). Arabic sorts
+    // FIRST by English name, and Dutch ahead of English — which is why the order
+    // below starts ar, zh-Hans, zh-Hant, nl.
+    await expect(opts).toHaveCount(19)
     // §L5.6 — the DISPLAY order: shipped locales by English name, the DEV
     // pseudo-locale last and out of the sorted set. The registry array's own
     // order is data and is never what the user sees.
     expect(await opts.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.locale))).toEqual([
+      'ar',
       'zh-Hans',
       'zh-Hant',
       'nl',
@@ -619,14 +621,15 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     const activeId = () => search.getAttribute('aria-activedescendant')
     // §L5.6 — the list is in DISPLAY order (English name, pseudo last), not
     // registry order, and focus starts on the ACTIVE option. In an English UI
-    // that is `en` at index 2, so ArrowDown lands on `fr`, End on the pseudo
-    // locale and Home on the first shipped one, `zh-Hans`.
+    // that is `en`, so ArrowDown lands on `fr`, End on the pseudo locale and
+    // Home on the first shipped one — `ar` since Arabic shipped, because the
+    // order is by ENGLISH name and "Arabic" sorts ahead of "Chinese".
     await page.keyboard.press('ArrowDown')
     await expect.poll(activeId).toContain('opt-fr')
     await page.keyboard.press('End')
     await expect.poll(activeId).toContain('opt-en-XA')
     await page.keyboard.press('Home')
-    await expect.poll(activeId).toContain('opt-zh-Hans')
+    await expect.poll(activeId).toContain('opt-ar')
     expect(await htmlLang(page)).toBe('en') // nothing selected yet
 
     // Escape closes and returns focus to the trigger

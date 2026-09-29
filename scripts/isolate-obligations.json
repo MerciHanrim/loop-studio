@@ -80,7 +80,8 @@
       "sites": [
         {
           "keyCount": 27,
-          "producer": "detail.value",
+          "producerAssignment": "detail.value",
+          "producerArg": "value",
           "kind": "auto"
         }
       ]
@@ -372,16 +373,18 @@
       ],
       "file": "src/components/Inspector.tsx",
       "enclosing": "describeActivator",
-      "carries": "a NODE ID with an optional offset (`@id`, `@id + 3`), or a bare number on the literal branch",
-      "why": "`String(...)` is safe here and was measured rather than assumed: a bare `{n}` is NOT number-formatted by intl-messageformat, so a number and its string render identically, in `ar` and `ar-EG` alike. The literal branch is wrapped too — a digit run has no internal order to break, and one direct wrap is what the checker can assert exactly.",
+      "carries": "a NODE ID with an optional offset (`@id`, `@id + 3`) on two of three branches; a bare number on the third",
+      "why": "A PRODUCER site, because only TWO of `rhsDescribeText`’s three returns make a token that needs bounding. The first attempt wrapped the whole result with `String(...)`, which wrapped the LITERAL branch too — two invisible characters around every plain number in this preview, in every language, for nothing. Eleven existing tests went red saying so. The checker asserts BOTH counts, so a return added later is a branch nobody classified, and a wrap removed is the defect.",
+      "shape": "producer",
       "sites": [
         {
           "keys": [
             "inspector.activator.describe"
           ],
-          "args": [
-            "n"
-          ],
+          "producerFn": "rhsDescribeText",
+          "producerArg": "n",
+          "totalReturns": 3,
+          "wrappedReturns": 2,
           "kind": "ltr"
         }
       ]
