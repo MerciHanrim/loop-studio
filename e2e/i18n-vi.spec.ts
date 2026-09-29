@@ -1081,7 +1081,7 @@ async function sweepClosedSurfaces(page: Page, loc: string) {
     await expect(page.locator('.menu__pop')).toBeVisible()
     await take(
       `menu[${i}]`,
-      ['.menu__pop .menu__name', '.menu__pop .menu__blurb', '.menu__pop .menu__ext'],
+      ['.menu__pop .menu__name', '.menu__pop .menu__name bdi', '.menu__pop .menu__blurb', '.menu__pop .menu__ext'],
       ['.menu__pop'],
     )
     await page.keyboard.press('Escape')
@@ -1101,9 +1101,15 @@ async function sweepClosedSurfaces(page: Page, loc: string) {
   await openLanguageMenu(page)
   // the row's label is a `.menu__name` inside `.lang-menu__item`, so the item
   // itself is a container and only the spans inside it are measured
+  // The name is inside a `<bdi>` (docs/localization.md §L9.3: a row's native name is
+  // a fragment in another language and takes its own direction), and the probe
+  // measures LEAF elements only - so `.menu__name` stopped being measurable the day
+  // that isolate arrived, and every picker row silently left the clipping sweep.
+  // Reaching the leaf restores the coverage; the parent is still listed and is still
+  // skipped as a non-leaf, so nothing is counted twice.
   await take(
     'language picker',
-    ['.lang-menu__pop .menu__name', '.lang-menu__pop .menu__blurb'],
+    ['.lang-menu__pop .menu__name', '.lang-menu__pop .menu__name bdi', '.lang-menu__pop .menu__blurb'],
     ['.lang-menu__list'],
   )
   await page.keyboard.press('Escape')
