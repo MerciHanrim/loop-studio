@@ -3629,8 +3629,24 @@ serves CSS as an inline `<style>` in dev and every sheet reports `href === null`
 
 ### §L9.3 — direction inside and above the canvas
 
-Not implemented yet; this records the decided contract so the layout work has
-something to implement against.
+**Implementation status.** This section was written before any of it was built,
+and most of it now is. Implemented and guarded:
+
+| rule | guard |
+|---|---|
+| the canvas geometry pin | `e2e/rtl-canvas-contract.spec.ts` (§L9.2) |
+| the mirroring chrome declarations, as logical properties | the 17-locale LTR geometry baseline |
+| the playbar's physical control order (`--ls-pstrip-order`) | `e2e/rtl-playbar-pin.spec.ts` |
+| every text-carrying form control declares a direction | `scripts/check-form-direction.mjs`, `e2e/rtl-form-direction.spec.ts` |
+| the node, frame, canvas-panel and edge-label content surfaces — not all of them yet, see below | `scripts/check-direction-props.mjs`, `e2e/rtl-canvas-content-direction.spec.ts` |
+
+Still a plan rather than code: the remaining content sites — the Inspector, the
+review overlay, the data-import wizards, the charts and the Monte Carlo dialog,
+and also one filter-panel control and one edge-label variable in files the work
+above already touched — including the two mixed-direction shapes, a string
+composed from fragments and one variable assigned across branches that want
+different directions. And the **arrow decisions** further down, which record what
+each glyph means relative to, not what the code does today.
 
 Inside the canvas:
 
@@ -3638,7 +3654,7 @@ Inside the canvas:
 |---|---|
 | graph coordinate space | `ltr` |
 | user labels, node titles, frame titles | `dir="auto"` |
-| localised description text | `rtl` (or `auto`) |
+| localised description text | the reader's direction, from `useLocaleDirection()` — never `auto` |
 | edge labels that are flow syntax / expression / id / number only | `ltr` |
 | port positions, source/drain shape | physical |
 
