@@ -21,6 +21,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { validateCatalog } from '../src/i18n/validate.ts'
+import { sliceKeys } from './catalog-source.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 let failed = false
@@ -106,20 +107,36 @@ for (const [code, cat] of catalogs) {
 //    declared in EXACTLY ONE domain file, and the slices merge to the full
 //    base key set. A key dropped from every slice would silently fall back to
 //    `en` at runtime (§L4.4); a key in two slices is a latent merge-order bug.
-const keyDeclRe = /^\s*'([a-zA-Z][\w.]*)'\s*:/gm
+//
+//    Keys are enumerated with the TypeScript parser (`./catalog-source.mjs`),
+//    not a text regex. The regex this replaced could not see a key containing a
+//    HYPHEN, so 46 of the base catalog's 852 keys — every `import.issue.*` and
+//    friends — were outside the duplication guard entirely while it printed
+//    "no cross-file duplication". A parser that fails closed is the only way
+//    this sentence means what it says.
 for (const { code, dir } of entries) {
   if (!dir) continue
   const where = new Map() // key -> [domain, …]
+  let unreadable = false
   for (const d of DOMAIN_FILES) {
     const dp = resolve(dir, `${d}.ts`)
     if (!existsSync(dp)) {
       fail(`${code}: missing domain file ${d}.ts`)
+      unreadable = true
       continue
     }
-    for (const m of readFileSync(dp, 'utf8').matchAll(keyDeclRe)) {
-      where.set(m[1], [...(where.get(m[1]) ?? []), d])
+    let keys
+    try {
+      keys = sliceKeys(dp)
+    } catch (e) {
+      // a slice we cannot enumerate is a STOP, never a shorter list
+      fail(`${code}: ${e.message}`)
+      unreadable = true
+      continue
     }
+    for (const k of keys) where.set(k, [...(where.get(k) ?? []), d])
   }
+  if (unreadable) continue
   const dupes = [...where].filter(([, ds]) => ds.length > 1)
   for (const [k, ds] of dupes) fail(`${code}: key "${k}" declared in multiple domain files (${ds.join(', ')})`)
   const mergedCount = Object.keys(catalogs.get(code)).length
