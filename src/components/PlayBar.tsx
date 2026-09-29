@@ -182,7 +182,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
 
       <label className="pstrip__field" title={t('playbar.seed.title')}>
         <span>{t('playbar.seed')}</span>
-        <input
+        <input dir="ltr"
           className="pstrip__seed"
           type="number"
           min={0}

@@ -9,7 +9,7 @@ import { useReviewStore } from '../store/reviewStore'
 import { routeImport } from '../store/revisionIO'
 import { useIsMobile } from '../ui/media'
 import { useI18n } from '../i18n/store'
-import { useT, type MessageKey } from '../i18n'
+import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 import { importErrorMessage } from '../ui/importError'
 import { ConfirmDialog } from './ConfirmDialog'
 import { HelpMenu } from './HelpMenu'
@@ -108,6 +108,11 @@ export function Toolbar() {
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
   const isMobile = useIsMobile()
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  // undo and redo come out of ONE table, so they swap into each other rather than
+  // being two literals that have to stay opposite by hand
+  const undoGlyph = useArrowGlyph('undo')
+  const redoGlyph = useArrowGlyph('redo')
   const activeLocale = useI18n((s) => s.activeLocale)
   const projectOpen = useProjectStore((s) => s.open != null)
   const { layout, measuring, setToolbar, setBrand, setCore, setMore, setItem } = useToolbarOverflow(
@@ -532,7 +537,7 @@ export function Toolbar() {
             disabled={!canUndo}
             title={t('toolbar.undo.title')}
           >
-            ↶
+            {undoGlyph}
           </button>
           <button
             type="button"
@@ -541,7 +546,7 @@ export function Toolbar() {
             disabled={!canRedo}
             title={t('toolbar.redo.title')}
           >
-            ↷
+            {redoGlyph}
           </button>
           <Templates />
           <RevisionChip />

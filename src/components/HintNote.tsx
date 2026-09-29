@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Panel } from '@xyflow/react'
 import { useT } from '../i18n'
+import type { ContentDir } from '../i18n/contentDirection'
 import { useHintStore, type HintId } from '../store/hintStore'
 
 // docs/contextual-inline-help.md §CIH2 — the shared situational-hint
@@ -58,16 +59,24 @@ type HintNoteProps = {
   children: ReactNode
 }
 
+/** docs/localization.md §L9.3 — the canvas shape renders inside a subtree PR A
+ *  pinned to `direction: ltr`, so anything written in it has to opt back into
+ *  the reader's direction. The component cannot know what its children are:
+ *  both current callers pass catalog prose, and a future one passing a user
+ *  value would inherit the pin in silence. So the direction is the caller's to
+ *  state, and there is no default to fall back on. */
+type CanvasHintNoteProps = HintNoteProps & { dir: ContentDir }
+
 /** The canvas shape — a `top-center` `<Panel>`, same slot `lgr-focus-hint` /
  *  `lgr-suggest-note` use (§CIH2.3a decides who wins when more than one
  *  wants it; this component only renders what its caller already gated). */
-export function CanvasHintNote({ id, trigger, ready, children }: HintNoteProps) {
+export function CanvasHintNote({ id, trigger, ready, children, dir }: CanvasHintNoteProps) {
   const { eligible, close } = useHintEligible(id, trigger, ready)
   const t = useT()
   if (!eligible) return null
   return (
     <Panel position="top-center" className="hint-note" role="note">
-      <span>{children}</span>
+      <span dir={dir}>{children}</span>
       <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={close}>
         ✕
       </button>

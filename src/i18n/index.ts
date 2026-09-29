@@ -12,9 +12,10 @@
 //   4. never throw, never render a raw ICU pattern.
 
 import { useCallback } from 'react'
+import { arrowGlyph, type MirroredArrow } from './arrowGlyph'
 import { tryFormat, type FormatParams } from './format'
 import type { MessageKey } from './locales/en'
-import { BASE_CATALOG, BASE_LOCALE } from './registry'
+import { BASE_CATALOG, BASE_LOCALE, directionOf, type LocaleDir } from './registry'
 import { useI18n } from './store'
 
 const ERROR_KEY: MessageKey = 'i18n.messageError'
@@ -77,8 +78,37 @@ export function useLocale(): string {
   return useI18n((s) => s.activeLocale)
 }
 
+/**
+ * §L9.2 — the active locale's reading direction, as a reactive value, for the
+ * `dir` attribute on localised prose.
+ *
+ * It is a derivation, not state: there is no direction field in the store, no
+ * context and no prop to thread, so nothing can drift out of step with
+ * `<html dir>`. It keys on `activeLocale` rather than `requestedLocale` because
+ * `applyHtml` writes the attribute in the same commit that sets `activeLocale`
+ * (`store.ts`), including the failed-load path where neither moves — so this hook
+ * and the attribute change together by construction.
+ *
+ * Use it for text that is ALREADY in the reader's language. Text whose direction
+ * is not known in advance — a user's label, a resource name, anything typed —
+ * takes `dir="auto"`; engine syntax, expressions, ids and numbers take
+ * `dir="ltr"`. See docs/localization.md §L9.3.
+ */
+export function useLocaleDirection(): LocaleDir {
+  return useI18n((s) => directionOf(s.activeLocale))
+}
+
+/** docs/localization.md §L9.3 — the glyph a mirroring arrow unit uses for the
+ *  reader. One hook so a site cannot pick a direction from anywhere else, and one
+ *  table so the pairs that swap into each other (undo / redo) stay opposite by
+ *  construction. */
+export function useArrowGlyph(unit: MirroredArrow): string {
+  return arrowGlyph(unit, useLocaleDirection())
+}
+
+export { MIRRORED_ARROWS, arrowGlyph, type MirroredArrow } from './arrowGlyph'
 export { useI18n, initI18n } from './store'
-export { LOCALES, enabledLocales, type LocaleEntry } from './registry'
+export { LOCALES, directionOf, enabledLocales, type LocaleDir, type LocaleEntry } from './registry'
 export {
   LANGUAGE_SEARCH_THRESHOLD,
   displayLocaleOrder,

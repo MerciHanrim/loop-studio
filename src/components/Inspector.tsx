@@ -149,7 +149,7 @@ export function Inspector() {
       return (
         <aside className="inspector">
           <div className="inspector__head">
-            <span className="inspector__kind inspector__kind--edge">{kindLabel}</span>
+            <span className="inspector__kind inspector__kind--edge" dir="ltr">{kindLabel}</span>
             <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
               {t('inspector.delete')}
             </button>
@@ -158,7 +158,10 @@ export function Inspector() {
             {t('inspector.unreadable.note', { detail })}
           </p>
           <Field label={t('inspector.field.rawData')}>
-            <textarea readOnly rows={5} value={JSON.stringify(node.data, null, 2)} />
+            {/* §L9.3 — JSON structure. Read-only, but a read-only field still
+                DISPLAYS text and text has a direction; what `readOnly` removes
+                is only the question of what the user will type. */}
+            <textarea readOnly rows={5} dir="ltr" value={JSON.stringify(node.data, null, 2)} />
           </Field>
         </aside>
       )
@@ -167,7 +170,7 @@ export function Inspector() {
     return (
       <aside className="inspector">
         <div className="inspector__head">
-          <span className={`inspector__kind inspector__kind--${d.kind}`}>{d.kind}</span>
+          <span className={`inspector__kind inspector__kind--${d.kind}`} dir="ltr">{d.kind}</span>
           <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
             {t('inspector.delete')}
           </button>
@@ -175,6 +178,8 @@ export function Inspector() {
 
         <Field label={t('inspector.field.label')}>
           <input
+            // §L9.3 — the user's own label, in whatever script they write it
+            dir="auto"
             value={d.label}
             onChange={(e) =>
               set({
@@ -381,6 +386,8 @@ function EdgeFlowField({
         value={flow}
         onChange={(e) => onChange(e.target.value)}
         placeholder={t('inspector.edge.flowPlaceholder')}
+        // §L9.3 — flow syntax: operators, ids and numbers, never prose
+        dir="ltr"
       />
       {status && (
         <span
@@ -468,7 +475,7 @@ function TriggerFields({
   const ok = raw == null || parseDelay(raw).ok
   return (
     <Field label={t('inspector.field.delay')}>
-      <input
+      <input dir="ltr"
         type="number"
         min={0}
         step={1}
@@ -645,6 +652,8 @@ function ActivatorField({
         aria-label={t('inspector.field.condition')}
         value={raw}
         placeholder={t('inspector.expr.activatorPlaceholder')}
+        // §L9.3 — an expression
+        dir="ltr"
         aria-invalid={!hintOk}
         onChange={(e) => {
           setOffsetDraft(null)
@@ -656,7 +665,7 @@ function ActivatorField({
           <span className="inspector__subfield-label" id={`activatorOffsetLabel-${uid}`}>
             {t('inspector.activator.offsetLabel')}
           </span>
-          <input
+          <input dir="ltr"
             id={`activatorOffset-${uid}`}
             className="activatorfield__offset"
             aria-labelledby={`activatorOffsetLabel-${uid}`}
@@ -710,6 +719,8 @@ function ExprField({
       <input
         value={raw}
         placeholder={t('inspector.expr.labelPlaceholder')}
+        // §L9.3 — an expression
+        dir="ltr"
         aria-invalid={!res.ok || sFormUnderAfterPull}
         onChange={(e) => setData({ ...ed, expr: e.target.value })}
       />
@@ -927,6 +938,10 @@ function ResourceTypeField({
           value={raw}
           list="resource-type-builtins"
           placeholder={t('inspector.resourceType.placeholder')}
+          // §L9.3 — a resource NAME the user writes, so it follows the text
+          // they type. It renders fine untouched today only because the
+          // placeholder starts with `Gold`; an Arabic resource name would not.
+          dir="auto"
           onChange={(e) => onChange(e.target.value || undefined)}
         />
       </Field>
@@ -989,7 +1004,7 @@ function NonNegativeNumberField({
     !(draft === '' ? allowEmpty : Number.isFinite(Number(draft)) && Number(draft) >= 0)
   return (
     <Field label={label}>
-      <input
+      <input dir="ltr"
         type="number"
         min={0}
         value={shown}
@@ -1114,19 +1129,21 @@ function ParameterFields({ d, set }: { d: ParameterData; set: Patch }) {
   return (
     <>
       <Field label={t('inspector.field.value')}>
-        <input type="number" value={d.value} onChange={(e) => set({ value: Number(e.target.value) })} />
+        <input dir="ltr" type="number" value={d.value} onChange={(e) => set({ value: Number(e.target.value) })} />
       </Field>
       <Field label={t('inspector.field.unit')}>
-        <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
+        {/* §L9.3 — a unit is user-authored graph data, not an engine token: the
+            canvas face `.nodef__unit` takes `auto` for the same reason. */}
+        <input dir="auto" value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
       <Field label={t('inspector.field.min')}>
-        <input type="number" value={d.min ?? ''} onChange={(e) => set({ min: numOrUndef(e.target.value) })} />
+        <input dir="ltr" type="number" value={d.min ?? ''} onChange={(e) => set({ min: numOrUndef(e.target.value) })} />
       </Field>
       <Field label={t('inspector.field.max')}>
-        <input type="number" value={d.max ?? ''} onChange={(e) => set({ max: numOrUndef(e.target.value) })} />
+        <input dir="ltr" type="number" value={d.max ?? ''} onChange={(e) => set({ max: numOrUndef(e.target.value) })} />
       </Field>
       <Field label={t('inspector.field.step')}>
-        <input type="number" value={d.step ?? ''} onChange={(e) => set({ step: numOrUndef(e.target.value) })} />
+        <input dir="ltr" type="number" value={d.step ?? ''} onChange={(e) => set({ step: numOrUndef(e.target.value) })} />
       </Field>
       {notices.includes('PARAM_VALUE_OUT_OF_RANGE') && (
         <p className="inspector__note">{t('inspector.parameter.outOfRange')}</p>
@@ -1160,7 +1177,8 @@ function RegisterFields({ id, d, set }: { id: string; d: RegisterData; set: Patc
       />
 
       <Field label={t('inspector.field.unit')}>
-        <input value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
+        {/* §L9.3 — user-authored, as in `ParameterFields` above */}
+        <input dir="auto" value={d.unit ?? ''} onChange={(e) => set({ unit: e.target.value || undefined })} />
       </Field>
       <Field label={t('inspector.field.format')}>
         <select value={d.format ?? 'float'} onChange={(e) => set({ format: e.target.value })}>

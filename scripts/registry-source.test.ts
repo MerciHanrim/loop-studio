@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   baseLocale,
   nonBaseCodes,
+  parsePseudoText,
+  pseudoCodes,
+  pseudoMarkers,
   parseRegistryText,
   RegistryParseError,
   shippedCodes,
@@ -191,5 +194,111 @@ describe('the parser reads code, not prose', () => {
     const r = parseRegistryText(withLocal)
     expect(r.shipped).toEqual(['en', 'ko'])
     expect(r.baseLocale).toBe('en')
+  })
+})
+
+// ── the DEV-only pseudo-locale readers ──────────────────────────────────────
+// `pseudoCodes()` / `pseudoMarkers()` decide what must be byte-absent from every
+// production artefact, so a silent mis-read here would make
+// `check-no-pseudo-locales.mjs` pass for the wrong reason. Each refusal below is
+// exercised on a FIXTURE rather than by editing the real registry: a test that has
+// to mutate `registry.ts` cannot run in parallel and cannot show a case the
+// registry does not happen to contain.
+
+const SHIPPED_ONE = [
+  "  {",
+  "    code: 'en',",
+  "    englishName: 'English',",
+  "    nativeName: 'English',",
+  "  },",
+].join('\n')
+
+/** a registry text with a `devPseudoLocales` function of the given shape */
+const PSEUDO_FIXTURE = (fnBody: string) => `
+const SHIPPED_LOCALES: readonly LocaleEntry[] = [
+${SHIPPED_ONE}
+]
+export const BASE_LOCALE = 'en'
+function devPseudoLocales(): readonly LocaleEntry[] {
+${fnBody}
+}
+`
+
+const GOOD_ENTRIES = [
+  "  return [",
+  "    { code: 'en-XA', englishName: 'Pseudo (QA)', nativeName: 'Pseudo (QA)' },",
+  "    { code: 'ar-XB', englishName: 'Pseudo RTL (QA)', nativeName: 'Pseudo RTL (QA)' },",
+  "  ]",
+].join('\n')
+const GATE = '  if (!import.meta.env.DEV) return []'
+
+describe('the pseudo-locale readers', () => {
+  it('reads both codes and both visible names, de-duplicated', () => {
+    const r = parsePseudoText(PSEUDO_FIXTURE([GATE, GOOD_ENTRIES].join('\n')))
+    expect(r.codes).toEqual(['en-XA', 'ar-XB'])
+    // the two names appear twice each in the source (englishName + nativeName)
+    expect(r.markers).toEqual(['Pseudo RTL (QA)', 'Pseudo (QA)', 'ar-XB', 'en-XA'])
+  })
+
+  it('refuses a registry whose DEV gate has been removed', () => {
+    // the one edit that would make every downstream byte check pass while the
+    // pseudo-locales actually ship
+    expect(() => parsePseudoText(PSEUDO_FIXTURE(GOOD_ENTRIES))).toThrow(/import\.meta\.env\.DEV/)
+  })
+
+  it('refuses a gate that returns something other than an empty array', () => {
+    const weak = '  if (!import.meta.env.DEV) return SOMETHING'
+    expect(() => parsePseudoText(PSEUDO_FIXTURE([weak, GOOD_ENTRIES].join('\n')))).toThrow(
+      /import\.meta\.env\.DEV/,
+    )
+  })
+
+  it('refuses two returns that both carry entries', () => {
+    const two = [GATE, "  if (x) return [{ code: 'en-XA' }]", GOOD_ENTRIES].join('\n')
+    expect(() => parsePseudoText(PSEUDO_FIXTURE(two))).toThrow(/not statically one array/)
+  })
+
+  it('refuses a spread inside a pseudo entry', () => {
+    const spread = [GATE, "  return [{ ...base, code: 'en-XA' }]"].join('\n')
+    expect(() => parsePseudoText(PSEUDO_FIXTURE(spread))).toThrow(/spread/)
+  })
+
+  it('refuses a pseudo code that a shipped locale also uses', () => {
+    const clash = [GATE, "  return [{ code: 'en', englishName: 'Nope', nativeName: 'Nope' }]"].join('\n')
+    expect(() => parsePseudoText(PSEUDO_FIXTURE(clash))).toThrow(/also appear in SHIPPED_LOCALES/)
+  })
+
+  it('refuses a marker a SHIPPED locale shares, because checking it would fail every build', () => {
+    const shippedNamedPseudo = `
+const SHIPPED_LOCALES: readonly LocaleEntry[] = [
+  { code: 'en', englishName: 'Pseudo (QA)', nativeName: 'English' },
+]
+export const BASE_LOCALE = 'en'
+function devPseudoLocales(): readonly LocaleEntry[] {
+${GATE}
+${GOOD_ENTRIES}
+}
+`
+    expect(() => parsePseudoText(shippedNamedPseudo)).toThrow(/also used by a SHIPPED locale/)
+  })
+
+  it('refuses entries with no visible name at all', () => {
+    const nameless = [GATE, "  return [{ code: 'en-XA' }]"].join('\n')
+    expect(() => parsePseudoText(PSEUDO_FIXTURE(nameless))).toThrow(/englishName/)
+  })
+
+  it('agrees with the real registry', () => {
+    const real = LOCALES.filter((l) => l.pseudo)
+    expect(pseudoCodes()).toEqual(real.map((l) => l.code))
+    for (const l of real) {
+      expect(pseudoMarkers()).toContain(l.code)
+      expect(pseudoMarkers()).toContain(l.englishName)
+      expect(pseudoMarkers()).toContain(l.nativeName)
+    }
+    // and never a shipped locale's own name
+    for (const l of LOCALES.filter((x) => !x.pseudo)) {
+      expect(pseudoMarkers()).not.toContain(l.code)
+      expect(pseudoMarkers()).not.toContain(l.englishName)
+    }
   })
 })

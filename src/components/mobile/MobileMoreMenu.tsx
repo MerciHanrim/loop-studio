@@ -23,7 +23,7 @@ import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
-import { useT } from '../../i18n'
+import { useArrowGlyph, useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
@@ -75,6 +75,9 @@ export function MobileMoreMenu({
         }).length,
     ) >= WORTH_IT_FLOOR
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  const extArrow = useArrowGlyph('external-link')
+  const caret = useArrowGlyph('submenu-disclosure')
   const { fitView } = useReactFlow()
 
   const exportJSON = useGraphStore((s) => s.exportJSON)
@@ -287,10 +290,10 @@ export function MobileMoreMenu({
           <span className="sheet__row-sub">{t('mobile.more.importSub')}</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('export')}>
-          {t('export.menuLabel')}<span className="sheet__row-sub">▸</span>
+          {t('export.menuLabel')}<span className="sheet__row-sub">{caret}</span>
         </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('templates')}>
-          {t('templates.menuLabel')}<span className="sheet__row-sub">▸</span>
+          {t('templates.menuLabel')}<span className="sheet__row-sub">{caret}</span>
         </button>
         <InlineHintNote id="focus-filter-discovery" trigger={focusFilterHintTrigger} ready={focusFilterHintReady}>
           {t('hint.focusFilter.body')}
@@ -314,7 +317,7 @@ export function MobileMoreMenu({
         {/* docs/large-graph-readability.md §LGR3.2 / §LGR9 — Filters + Reset view
             on mobile. Filters opens a sub-sheet; Reset view is a one-shot. */}
         <button type="button" className="sheet__row" onClick={() => openOverlay('filter')}>
-          {t('canvas.filter.rowLabel')}<span className="sheet__row-sub">▸</span>
+          {t('canvas.filter.rowLabel')}<span className="sheet__row-sub">{caret}</span>
         </button>
         {/* docs/large-graph-readability.md §LGR6 / §LGR9 — on mobile the
             Activity overlay toggles here, and drawn frames can be viewed +
@@ -374,9 +377,9 @@ export function MobileMoreMenu({
           {t('lang.rowLabel')}<span className="sheet__row-sub"><LanguageSwitch /></span>
         </div>
         <button type="button" className="sheet__row" onClick={() => openOverlay('help')}>
-          {t('tour.help.menuLabel')}<span className="sheet__row-sub">▸</span>
+          {t('tour.help.menuLabel')}<span className="sheet__row-sub">{caret}</span>
         </button>
-        <div className="sheet__stamp">
+        <div className="sheet__stamp" dir="ltr">
           v{__APP_VERSION__}
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </div>
@@ -476,7 +479,7 @@ export function MobileMoreMenu({
           aria-label={t('tour.help.feedbackAria')}
           onClick={() => closeOverlay('help')}
         >
-          {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">↗</span>
+          {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">{extArrow}</span>
         </a>
         <button type="button" className="sheet__row" onClick={() => setAboutOpen(true)}>
           {t('tour.help.about')}
@@ -519,7 +522,7 @@ export function MobileMoreMenu({
         <div className="share-pop__status">
           {sharePanel.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
         </div>
-        <input
+        <input dir="ltr"
           className="share-pop__url"
           type="text"
           readOnly

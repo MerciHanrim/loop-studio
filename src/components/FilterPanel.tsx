@@ -1,5 +1,6 @@
 import { Panel } from '@xyflow/react'
-import { useT, type MessageKey } from '../i18n'
+import { useLocaleDirection, useT, type MessageKey } from '../i18n'
+import type { ContentDir } from '../i18n/contentDirection'
 import type { NodeKind } from '../model/types'
 import { UNTYPED, filtersActive, useFilterStore, type EdgeClass } from '../store/filterStore'
 import { useUiStore } from '../store/uiStore'
@@ -36,21 +37,30 @@ const NODE_KIND_LABEL: Record<NodeKind, MessageKey> = {
 function Row({
   checked,
   label,
+  labelDir,
   onChange,
 }: {
   checked: boolean
   label: string
+  /** docs/localization.md §L9.3 — required, and with no default. Three callers
+   *  pass a catalog label and one passes a resource type the user named; those
+   *  want different directions and this element cannot tell them apart. A
+   *  default would silently answer for whichever caller forgot. */
+  labelDir: ContentDir
   onChange: () => void
 }) {
   return (
     <label className="lgr-filter__row">
       <input type="checkbox" checked={checked} onChange={onChange} />
-      <span>{label}</span>
+      <span dir={labelDir}>{label}</span>
     </label>
   )
 }
 
 export function FilterControls() {
+  // §L9.3 — this panel renders inside the ltr-pinned canvas, so its localized
+  // prose opts back into the reader's direction rather than inheriting the pin.
+  const uiDir = useLocaleDirection()
   const t = useT()
   const edgeClasses = useGraphEdgeClasses()
   const nodeKinds = useGraphNodeKinds()
@@ -69,16 +79,17 @@ export function FilterControls() {
 
   return (
     <div className="lgr-filter__body">
-      <p className="lgr-filter__hint">{t('canvas.filter.checkboxHint')}</p>
+      <p className="lgr-filter__hint" dir={uiDir}>{t('canvas.filter.checkboxHint')}</p>
 
       {edgeClasses.length > 0 && (
         <fieldset className="lgr-filter__group">
-          <legend>{t('canvas.filter.groupEdgeClass')}</legend>
+          <legend dir={uiDir}>{t('canvas.filter.groupEdgeClass')}</legend>
           {edgeClasses.map((c) => (
             <Row
               key={c}
               checked={hiddenEdgeClasses.has(c)}
               label={t(EDGE_CLASS_LABEL[c])}
+              labelDir={uiDir}
               onChange={() => toggleEdgeClass(c)}
             />
           ))}
@@ -86,30 +97,33 @@ export function FilterControls() {
       )}
 
       <fieldset className="lgr-filter__group">
-        <legend>{t('canvas.filter.groupResourceType')}</legend>
+        <legend dir={uiDir}>{t('canvas.filter.groupResourceType')}</legend>
         {resourceTypes.map((rt) => (
           <Row
             key={rt}
             checked={hiddenResourceTypes.has(rt)}
             label={rt}
+            labelDir="auto"
             onChange={() => toggleResourceType(rt)}
           />
         ))}
         <Row
           checked={hiddenResourceTypes.has(UNTYPED)}
           label={t('canvas.filter.untyped')}
+          labelDir={uiDir}
           onChange={() => toggleResourceType(UNTYPED)}
         />
       </fieldset>
 
       {nodeKinds.length > 0 && (
         <fieldset className="lgr-filter__group">
-          <legend>{t('canvas.filter.groupNodeKind')}</legend>
+          <legend dir={uiDir}>{t('canvas.filter.groupNodeKind')}</legend>
           {nodeKinds.map((k) => (
             <Row
               key={k}
               checked={hiddenNodeKinds.has(k)}
               label={t(NODE_KIND_LABEL[k])}
+              labelDir={uiDir}
               onChange={() => toggleNodeKind(k)}
             />
           ))}
@@ -117,7 +131,7 @@ export function FilterControls() {
       )}
 
       <div className="lgr-filter__foot">
-        <span className="lgr-filter__count">
+        <span className="lgr-filter__count" dir={uiDir}>
           {hiddenCount > 0
             ? t('canvas.filter.hiddenCount', { n: hiddenCount })
             : t('canvas.filter.none')}
@@ -125,6 +139,7 @@ export function FilterControls() {
         <button
           type="button"
           className="btn lgr-filter__clear"
+          dir={uiDir}
           onClick={clear}
           disabled={!active}
         >
@@ -137,12 +152,15 @@ export function FilterControls() {
 
 /** Desktop — the filter panel as a React Flow top-left Panel. */
 export function FilterPanel() {
+  // §L9.3 — this panel renders inside the ltr-pinned canvas, so its localized
+  // prose opts back into the reader's direction rather than inheriting the pin.
+  const uiDir = useLocaleDirection()
   const t = useT()
   const setFilterPanelOpen = useUiStore((s) => s.setFilterPanelOpen)
   return (
     <Panel position="top-left" className="lgr-filter">
       <div className="lgr-filter__head">
-        <span className="lgr-filter__title">{t('canvas.filter.title')}</span>
+        <span className="lgr-filter__title" dir={uiDir}>{t('canvas.filter.title')}</span>
         <button
           type="button"
           className="lgr-filter__x"

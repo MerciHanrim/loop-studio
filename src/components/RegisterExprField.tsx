@@ -34,7 +34,7 @@ import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
-import { useT, type MessageKey } from '../i18n'
+import { useLocaleDirection, useT, type MessageKey } from '../i18n'
 
 /** §RXA6 / RXA-D7 — popover ceiling; the rest is a "+N — keep typing" footer. */
 const RXA_MAX_ROWS = 12
@@ -208,11 +208,11 @@ function RefListbox({
           onMouseEnter={() => onActiveIndexChange(i)}
         >
           <span className="regref__row" aria-hidden="true">
-            <span className="regref__name">{c.name}</span>
+            <span className="regref__name" dir="auto">{c.name}</span>
             <span className={`regref__kind regref__kind--${c.kind}`}>
               {t(`canvas.nodeKind.${c.kind}` as MessageKey)}
             </span>
-            <span className="regref__val">= {c.valueText}</span>
+            <span className="regref__val" dir="ltr">= {c.valueText}</span>
             {c.block && (
               <span className="regref__reason">
                 {c.block.reason === 'self'
@@ -246,6 +246,11 @@ function ReadBackBlock({
   errText: (r: Extract<ReadBack, { ok: true }>['result']) => string | null
 }) {
   const t = useT()
+  // §L9.3 - the read-back's total is the engine's number verbatim, or a verdict
+  // `totalText` resolves through the catalogue. The className already branched on
+  // this; the direction reads the SAME boolean rather than a second copy of the
+  // test, so the two cannot come apart.
+  const uiDir = useLocaleDirection()
 
   if (!rb.ok) {
     const msgKey = EXPR_CODE_KEY[rb.parse.code as ExprParseCode] ?? 'error.unknownCode'
@@ -266,6 +271,9 @@ function ReadBackBlock({
   }
 
   const refIds = rb.meaning.filter((m): m is Extract<MeaningToken, { t: 'ref' }> => m.t === 'ref').map((m) => m.id)
+  // the one test, named once. The class and the direction below both read it;
+  // a second copy of `startsWith` is a second thing to keep in step.
+  const totalIsVerdict = rb.result.kind === 'value' && rb.result.total.startsWith('→')
 
   return (
     <div
@@ -278,7 +286,7 @@ function ReadBackBlock({
       <p className="regrb__line regrb__line--meaning" role="list">
         {rb.meaning.map((m, i) =>
           m.t === 'text' ? (
-            <span key={i} className="regrb__op">
+            <span key={i} className="regrb__op" dir="ltr">
               {m.s}
             </span>
           ) : (
@@ -295,6 +303,7 @@ function ReadBackBlock({
               onMouseEnter={() => onPeek([m.id])}
               onFocus={() => onPeek([m.id])}
               onBlur={() => onPeek(refIds)}
+              dir="auto"
             >
               {m.name}
               {m.refKind === 'missing' && ` ${t('regExpr.chip.deleted')}`}
@@ -309,7 +318,7 @@ function ReadBackBlock({
         <p className="regrb__line regrb__line--result">
           {rb.result.parts.map((p, i) =>
             p.t === 'text' ? (
-              <span key={i} className="regrb__op">
+              <span key={i} className="regrb__op" dir="ltr">
                 {p.s}
               </span>
             ) : p.t === 'val' ? (
@@ -319,19 +328,18 @@ function ReadBackBlock({
                 onMouseEnter={() => onPeek([p.id])}
                 onMouseLeave={() => onPeek(refIds)}
               >
-                <span className="regrb__valname">{p.name}</span>{' '}
-                <span className="regrb__num">{p.s}</span>
+                <span className="regrb__valname" dir="auto">{p.name}</span>{' '}
+                <span className="regrb__num" dir="ltr">{p.s}</span>
               </span>
             ) : (
-              <span key={i} className="regrb__chip">
+              <span key={i} className="regrb__chip" dir="auto">
                 {p.name}
               </span>
             ),
           )}{' '}
           <span
-            className={
-              'regrb__total' + (rb.result.total.startsWith('→') ? ' regrb__total--bad' : '')
-            }
+            className={'regrb__total' + (totalIsVerdict ? ' regrb__total--bad' : '')}
+            dir={totalIsVerdict ? uiDir : 'ltr'}
           >
             {totalText(t, rb.result.total)}
           </span>
@@ -664,7 +672,7 @@ export function RegisterExprField({
         {label}
       </label>
       <div className="regexpr__inputwrap">
-        <input
+        <input dir="ltr"
           id={`${listId}-input`}
           ref={inputRef}
           value={draft}
@@ -724,6 +732,7 @@ export function RegisterExprField({
             key={kind}
             type="button"
             className="regexpr__op"
+            dir="ltr"
             aria-label={t(OP_KEY[kind])}
             title={
               kind === 'group'

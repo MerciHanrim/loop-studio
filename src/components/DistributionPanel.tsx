@@ -95,16 +95,16 @@ export function DistributionPanel() {
     <div className="dist">
       <div className="dist__stats">
         <span className="dist__stat">
-          <b>{result.completedRuns}</b> {t('dist.runs')}
+          <b dir="ltr">{result.completedRuns}</b> {t('dist.runs')}
         </span>
         <span className="dist__stat">
-          <b>{result.config.steps}</b> {t('dist.steps')}
+          <b dir="ltr">{result.config.steps}</b> {t('dist.steps')}
         </span>
         <span className="dist__stat">
-          {t('dist.seed')} <b>{result.config.baseSeed}</b>
+          {t('dist.seed')} <b dir="ltr">{result.config.baseSeed}</b>
         </span>
         <span className="dist__stat">
-          {t('dist.ended')} <b>{endedPct(result)}%</b>
+          {t('dist.ended')} <b dir="ltr">{endedPct(result)}%</b>
         </span>
         {stale ? <span className="dist__stale">{t('dist.stale')}</span> : null}
         <span className="dist__spacer" />

@@ -8,7 +8,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
-import { useT, type MessageKey } from '../i18n'
+import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 
 // docs/module-system.md §MS5 — the Inputs and Summary panels. Two collapsible
 // sections at the top of the desktop right column, above the Inspector. Pure
@@ -74,6 +74,10 @@ function PanelHead({
   labelKey: { collapse: MessageKey; expand: MessageKey }
 }) {
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  // only the inline-end arm mirrors: `▾` is the disclosure-vertical unit and a
+  // menu opens downward for every reader
+  const caret = useArrowGlyph('submenu-disclosure')
   return (
     <h2 className="mpanel__head">
       <button
@@ -84,10 +88,10 @@ function PanelHead({
         onClick={onToggle}
       >
         <span className="mpanel__caret" aria-hidden="true">
-          {open ? '▾' : '▸'}
+          {open ? '▾' : caret}
         </span>
         {title}
-        <span className="mpanel__count">{count}</span>
+        <span className="mpanel__count" dir="ltr">{count}</span>
       </button>
     </h2>
   )
@@ -135,12 +139,13 @@ function InputsSection({
                     <button
                       type="button"
                       className="mp-row__label mp-row__label--name"
+                      dir="auto"
                       title={label}
                       onClick={() => reveal(n.id, null)}
                     >
                       {label}
                     </button>
-                    <input
+                    <input dir="ltr"
                       type="number"
                       className="mp-row__val"
                       aria-label={t('panels.inputs.paramValue', { label })}
@@ -157,9 +162,15 @@ function InputsSection({
                 const param = refId
                   ? labelOf(nodes.find((n) => n.id === refId)) || refId
                   : e.flow
-                const flowText = `${labelOf(nodes.find((n) => n.id === e.source))} → ${labelOf(
-                  nodes.find((n) => n.id === e.target),
-                )}`
+                // §L9.3 - two INDEPENDENT user labels. Each is isolated so neither
+                // can reorder the other, and the arrow between them is the
+                // `graph-relation` unit: verdict KEEP, because it names the relation
+                // the canvas draws and the canvas does not mirror.
+                const sourceLabel = labelOf(nodes.find((n) => n.id === e.source))
+                const targetLabel = labelOf(nodes.find((n) => n.id === e.target))
+                // the joined form is still what the tooltip attribute needs - markup
+                // cannot reach an attribute (PR C owns the 115 attribute sites)
+                const flowText = `${sourceLabel} → ${targetLabel}`
                 return (
                   <li key={e.id} className="mp-row mp-row--flow">
                     <button
@@ -168,7 +179,7 @@ function InputsSection({
                       title={flowText}
                       onClick={() => reveal(null, e.id)}
                     >
-                      {flowText}
+                      <bdi dir="auto">{sourceLabel}</bdi> → <bdi dir="auto">{targetLabel}</bdi>
                     </button>
                     <span className="mp-row__via">{t('panels.inputs.flowVia', { param })}</span>
                   </li>
@@ -209,6 +220,7 @@ function SummaryRow({
         <button
           type="button"
           className="mp-row__label mp-row__label--name"
+          dir="auto"
           title={label}
           onClick={onReveal}
         >
@@ -229,9 +241,9 @@ function SummaryRow({
         >
           {t(showCalc ? 'panels.summary.hideCalc' : 'panels.summary.showCalc')}
         </button>
-        {showCalc && <code className="mp-row__expr">{shownExpr}</code>}
+        {showCalc && <code className="mp-row__expr" dir="ltr">{shownExpr}</code>}
       </div>
-      {outcome && outcome.invalid && <span className="mp-row__code">{outcome.code}</span>}
+      {outcome && outcome.invalid && <span className="mp-row__code" dir="ltr">{outcome.code}</span>}
     </li>
   )
 }

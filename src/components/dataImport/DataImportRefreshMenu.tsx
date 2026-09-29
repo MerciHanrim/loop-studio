@@ -101,7 +101,7 @@ export function DataImportRefreshMenu({
                 <li key={table.sourceTableId} className="import__binding">
                   <label>
                     {t('import.refresh.renameLabel')}
-                    <input
+                    <input dir="auto"
                       type="text"
                       value={renameDrafts[table.sourceTableId] ?? table.label}
                       onChange={(e) => setRenameDrafts((prev) => ({ ...prev, [table.sourceTableId]: e.target.value }))}

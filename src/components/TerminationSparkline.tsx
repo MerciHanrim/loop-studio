@@ -89,7 +89,7 @@ export function TerminationSparkline({ result }: { result: MonteCarloResult }) {
       <div className="term__cap">
         <span>{t('term.title')}</span>
         <span className="term__pct">
-          <b>{pct}%</b> {t('term.ended')}
+          <b dir="ltr">{pct}%</b> {t('term.ended')}
         </span>
       </div>
       <div className="term__plot" ref={wrapRef}>

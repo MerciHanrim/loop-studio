@@ -46,7 +46,7 @@ export function AboutDialog({ open, onClose, returnFocusTo }: Props) {
           </button>
         </div>
         <div className="mcdlg__body about">
-          <p className="about__version">
+          <p className="about__version" dir="ltr">
             v{__APP_VERSION__}
             {__BUILD_SHA__ ? ` · build ${__BUILD_SHA__}` : ''}
           </p>

@@ -6,7 +6,8 @@ import {
   type EdgeProps,
   type EdgeTypes,
 } from '@xyflow/react'
-import { useT } from '../../i18n'
+import { useLocaleDirection, useT } from '../../i18n'
+import type { ContentDir } from '../../i18n/contentDirection'
 import { useGraphStore } from '../../store/graphStore'
 import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
 import type { CueRole } from '../../store/playbackRank'
@@ -75,6 +76,10 @@ function rmEmitTriangle(sx: number, sy: number, tx: number, ty: number): string 
   return `${tip[0]},${tip[1]} ${bl[0]},${bl[1]} ${br[0]},${br[1]}`
 }
 
+/** §L9.3 - an edge label's text together with what KIND of text it is. The two
+ *  are one value so a branch cannot set the text and forget the kind. */
+type EdgeText = { s: string; kind: 'token' | 'prose' }
+
 function LoopEdge({
   id,
   source,
@@ -88,6 +93,9 @@ function LoopEdge({
   data,
   selected,
 }: EdgeProps) {
+  // §L9.3 — the edge label sits inside the ltr-pinned canvas: its localized
+  // prose opts back into the reader's direction, its numbers stay pinned.
+  const uiDir = useLocaleDirection()
   const t = useT()
   const [bezierPath, bezierLabelX, bezierLabelY] = getBezierPath({
     sourceX,
@@ -177,35 +185,51 @@ function LoopEdge({
     return typeof v === 'number' && Number.isFinite(v) ? v : null
   }
 
-  let text: string
+  // docs/localization.md §L9.3 - the label's text comes from six assignments and
+  // they do not all read the same way. Five produce an engine token (a number, a
+  // flow or activator expression, a glyph) which is pinned ltr; three produce
+  // `refErrorLabel`, a catalog sentence that has to follow the reader.
+  //
+  // By the render site the branch is gone - `text` is a plain string - so the kind
+  // travels WITH the value. `token()` / `prose()` make that a single assignment
+  // each: a companion boolean beside every `text =` would be six pairs to keep in
+  // step, and the pair that drifted would be the one no test renders.
+  const token = (s: string): EdgeText => ({ s, kind: 'token' })
+  const prose = (s: string): EdgeText => ({ s, kind: 'prose' })
+  let label: EdgeText
   if (d.kind === 'resource') {
     const raw = d.flow || '1'
     if (raw.includes('@')) {
       const fx = parseFlow(raw, modelVersion)
       const value = fx.kind === 'param' ? resolveParamValue(fx.id) : null
-      text = value != null ? canonicalNumber(value) : refErrorLabel
+      label = value != null ? token(canonicalNumber(value)) : prose(refErrorLabel)
     } else {
-      text = raw
+      label = token(raw)
     }
   } else if (d.mode === 'trigger') {
-    text = '✳'
+    label = token('✳')
   } else if (d.mode === 'activator') {
     const raw = d.expr || '≥'
     if (raw.includes('@')) {
       const res = parseActivatorExpr(raw, modelVersion)
       if (res.ok && res.rhs.kind === 'param') {
         const resolution = resolveParamRhs(res.rhs, findParamForRhs)
-        text = resolution.ok ? `${res.op} ${canonicalNumber(resolution.threshold)}` : refErrorLabel
+        label = resolution.ok ? token(`${res.op} ${canonicalNumber(resolution.threshold)}`) : prose(refErrorLabel)
       } else {
-        text = refErrorLabel
+        label = prose(refErrorLabel)
       }
     } else {
-      text = raw
+      label = token(raw)
     }
   } else {
     const raw = d.expr || '±'
-    text = raw.includes('@') ? refErrorLabel : raw
+    label = raw.includes('@') ? prose(refErrorLabel) : token(raw)
   }
+  // ONE boolean, read by the text and by the direction. `text` keeps its name and
+  // its render site so every address into this file still resolves.
+  const textIsProse = label.kind === 'prose'
+  const text = label.s
+  const textDir: ContentDir = textIsProse ? uiDir : 'ltr'
 
   // dev-only render probe (§PB perf ceiling test) — proves an idle edge does not
   // re-render on every τ frame. Tree-shaken from production.
@@ -562,18 +586,19 @@ function LoopEdge({
               sv?.kind === 'trigger' && !sv.applied ? ' edge-label--blocked' : ''
             }`}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            dir={textDir}
           >
             {text}
             {sv?.kind === 'label' && sv.delta !== 0 ? (
-              <span className="edge-label__delta">{fmtSigned(sv.delta)}</span>
+              <span className="edge-label__delta" dir="ltr">{fmtSigned(sv.delta)}</span>
             ) : null}
             {sv?.kind === 'label' && sv.clampAdjustment !== 0 ? (
-              <span className="edge-label__clamp" title={t('canvas.edgeLabel.clamp.title')}>
-                {t('canvas.edgeLabel.clamp')} {fmtSigned(sv.clampAdjustment)}
+              <span className="edge-label__clamp" title={t('canvas.edgeLabel.clamp.title')} dir={uiDir}>
+                {t('canvas.edgeLabel.clamp')} <span dir="ltr">{fmtSigned(sv.clampAdjustment)}</span>
               </span>
             ) : null}
             {sv?.kind === 'trigger' && !sv.applied ? (
-              <span className="edge-label__blocked" title={t('canvas.edgeLabel.blocked.title')}>
+              <span className="edge-label__blocked" title={t('canvas.edgeLabel.blocked.title')} dir={uiDir}>
                 {t('canvas.edgeLabel.blocked')}
               </span>
             ) : null}

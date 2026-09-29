@@ -142,56 +142,85 @@ export function baseLocale() {
   return init.text
 }
 
-/** Every shipped locale code, in source order. Throws unless the result is a
- *  non-empty, duplicate-free list that contains the base locale. */
-export function shippedCodes() {
-  const decl = theDeclaration('SHIPPED_LOCALES')
-  const init = decl.initializer && unwrap(decl.initializer)
-  if (!init) die('`SHIPPED_LOCALES` has no initializer')
-  if (!ts.isArrayLiteralExpression(init)) {
-    die(`\`SHIPPED_LOCALES\` is initialised with ${ts.SyntaxKind[init.kind]}, not an array literal`)
-  }
-  if (init.elements.length === 0) die('`SHIPPED_LOCALES` is an empty array')
+/** Every `code:` string in an array of locale-entry object literals, in source
+ *  order, refusing anything a static read cannot see through.
+ *
+ *  Extracted from `shippedCodes()` when `pseudoCodes()` was added rather than
+ *  copied into it: two copies of this many refusals drift, and the one that
+ *  drifts is the one nobody is looking at. `label` only shapes the messages. */
+function codesFromEntryArray(init, label) {
+  const codes = stringsFromEntryArray(init, label, 'code').map((v) => v.value)
+  // duplicates are a defect for `code` specifically — a display name may
+  // legitimately repeat across entries, so the check lives here, not in the
+  // generic reader
+  const dupes = codes.filter((c, i) => codes.indexOf(c) !== i)
+  if (dupes.length) die(`duplicate locale code(s) in \`${label}\`: ${[...new Set(dupes)].join(', ')}`)
+  return codes
+}
 
-  const codes = []
+/** Every value of `field` across an array of locale-entry object literals, with
+ *  the same refusals as `codesFromEntryArray` — a spread, a computed key, a
+ *  shorthand, a method or a non-literal value all make the read unsound, so it
+ *  throws rather than reporting fewer entries than the registry has.
+ *
+ *  `required: false` allows an entry to omit the field (only `code` is universal);
+ *  the entry is then skipped for that field rather than failing the whole read. */
+function stringsFromEntryArray(init, label, field, required = true) {
+  if (!ts.isArrayLiteralExpression(init)) {
+    die(`\`${label}\` is ${ts.SyntaxKind[init.kind]}, not an array literal`)
+  }
+  if (init.elements.length === 0) die(`\`${label}\` is an empty array`)
+
+  const out = []
   init.elements.forEach((el, i) => {
     const e = unwrap(el)
     // Only a plain object literal is understood. A spread, a call or a
     // conditional would hide entries from this reader, so it refuses rather
     // than quietly returning fewer locales than the registry has.
     if (!ts.isObjectLiteralExpression(e)) {
-      die(`\`SHIPPED_LOCALES[${i}]\` is ${ts.SyntaxKind[e.kind]}, not an object literal`)
+      die(`\`${label}[${i}]\` is ${ts.SyntaxKind[e.kind]}, not an object literal`)
     }
-    // A spread ANYWHERE in the entry can supply or overwrite `code` at runtime,
-    // so a static read of the literal would be reporting something the program
-    // does not do. `{ code: 'ko', ...x }` is the obvious case; `{ ...x }` alone
-    // is the same problem with the evidence removed.
+    // A spread ANYWHERE in the entry can supply or overwrite the field at
+    // runtime, so a static read of the literal would be reporting something the
+    // program does not do. `{ code: 'ko', ...x }` is the obvious case; `{ ...x }`
+    // alone is the same problem with the evidence removed.
     const spread = e.properties.find((p) => ts.isSpreadAssignment(p))
-    if (spread) die(`\`SHIPPED_LOCALES[${i}]\` contains a spread, so its \`code\` is not statically known`)
+    if (spread) die(`\`${label}[${i}]\` contains a spread, so its \`${field}\` is not statically known`)
 
     const named = e.properties.filter((p) => {
       const n = p.name
       if (!n) return false
-      if (ts.isComputedPropertyName(n)) return false // `[k]: …` is not statically `code`
-      return (ts.isIdentifier(n) || ts.isStringLiteral(n)) && n.text === 'code'
+      if (ts.isComputedPropertyName(n)) return false // `[k]: …` is not statically the field
+      return (ts.isIdentifier(n) || ts.isStringLiteral(n)) && n.text === field
     })
-    if (named.length === 0) die(`\`SHIPPED_LOCALES[${i}]\` has no \`code\` property`)
-    if (named.length > 1) die(`\`SHIPPED_LOCALES[${i}]\` has ${named.length} \`code\` properties`)
+    if (named.length === 0) {
+      if (!required) return // an optional field this entry simply does not set
+      die(`\`${label}[${i}]\` has no \`${field}\` property`)
+    }
+    if (named.length > 1) die(`\`${label}[${i}]\` has ${named.length} \`${field}\` properties`)
 
     const prop = named[0]
     // shorthand (`{ code }`), a method (`code() {}`) or an accessor all hide
     // the value from a static read.
     if (!ts.isPropertyAssignment(prop)) {
-      die(`\`SHIPPED_LOCALES[${i}].code\` is ${ts.SyntaxKind[prop.kind]}, not a plain \`code: '…'\``)
+      die(`\`${label}[${i}].${field}\` is ${ts.SyntaxKind[prop.kind]}, not a plain \`${field}: '…'\``)
     }
     const value = unwrap(prop.initializer)
-    if (!ts.isStringLiteral(value)) die(`\`SHIPPED_LOCALES[${i}].code\` is not a string literal`)
-    codes.push(value.text)
+    if (!ts.isStringLiteral(value)) die(`\`${label}[${i}].${field}\` is not a string literal`)
+    out.push({ index: i, value: value.text })
   })
 
-  if (codes.length === 0) die('`SHIPPED_LOCALES` parsed to ZERO codes')
-  const dupes = codes.filter((c, i) => codes.indexOf(c) !== i)
-  if (dupes.length) die(`duplicate locale code(s): ${[...new Set(dupes)].join(', ')}`)
+  if (out.length === 0) die(`\`${label}\` parsed to ZERO \`${field}\` values`)
+  return out
+}
+
+/** Every shipped locale code, in source order. Throws unless the result is a
+ *  non-empty, duplicate-free list that contains the base locale. */
+export function shippedCodes() {
+  const decl = theDeclaration('SHIPPED_LOCALES')
+  const init = decl.initializer && unwrap(decl.initializer)
+  if (!init) die('`SHIPPED_LOCALES` has no initializer')
+  const codes = codesFromEntryArray(init, 'SHIPPED_LOCALES')
   const base = baseLocale()
   if (!codes.includes(base)) {
     die(`BASE_LOCALE \`${base}\` is not among the shipped codes (${codes.join(', ')})`)
@@ -212,6 +241,151 @@ export function nonBaseCodes() {
   return rest
 }
 
+/**
+ * Every DEV-only pseudo-locale code, in source order — the codes that must be
+ * byte-absent from every production artefact (§L5.4 / §L9.2).
+ *
+ * Derived from the source, never hand-listed: a checker with a hardcoded marker
+ * list silently stops covering the newest pseudo-locale, which is exactly what
+ * happened when `ar-XB` joined `en-XA` and only `en-XA` was in the list.
+ *
+ * It also asserts the TREE-SHAKE GATE itself. The codes are safe to ship only
+ * because `devPseudoLocales()` returns early on `import.meta.env.DEV`, which the
+ * bundler evaluates as statically false in production. If that guard is edited
+ * away, the entries become unconditional and every downstream byte check would
+ * go on passing against a bundle that now contains them — so its absence is a
+ * hard failure here rather than a silent change of meaning.
+ */
+/** Every `return [ … ]` with at least one element, at any depth inside `node`,
+ *  excluding the bodies of nested functions (their returns are not this one's). */
+function returnsWithEntries(node) {
+  const out = []
+  const visit = (n) => {
+    if (
+      ts.isFunctionDeclaration(n) ||
+      ts.isFunctionExpression(n) ||
+      ts.isArrowFunction(n) ||
+      ts.isMethodDeclaration(n) ||
+      ts.isClassDeclaration(n)
+    ) {
+      return // a different function's return statements
+    }
+    if (ts.isReturnStatement(n) && n.expression) {
+      const arg = unwrap(n.expression)
+      if (ts.isArrayLiteralExpression(arg) && arg.elements.length > 0) out.push(n)
+    }
+    ts.forEachChild(n, visit)
+  }
+  ts.forEachChild(node, visit)
+  return out
+}
+
+export function pseudoCodes() {
+  const fns = ast().statements.filter(
+    (st) => ts.isFunctionDeclaration(st) && st.name && st.name.text === 'devPseudoLocales',
+  )
+  if (fns.length === 0) die('no `devPseudoLocales` function declaration found')
+  if (fns.length > 1) die(`\`devPseudoLocales\` is declared ${fns.length} times`)
+  const fn = fns[0]
+  if (!fn.body) die('`devPseudoLocales` has no body')
+
+  // The DEV gate: an `if` whose condition mentions `import.meta.env.DEV` and
+  // whose branch returns an empty array literal.
+  const gate = fn.body.statements.find((st) => {
+    if (!ts.isIfStatement(st)) return false
+    if (!/import\s*\.\s*meta\s*\.\s*env\s*\.\s*DEV/.test(st.expression.getText(ast()))) return false
+    const then = ts.isBlock(st.thenStatement) ? st.thenStatement.statements[0] : st.thenStatement
+    if (!then || !ts.isReturnStatement(then) || !then.expression) return false
+    const arg = unwrap(then.expression)
+    return ts.isArrayLiteralExpression(arg) && arg.elements.length === 0
+  })
+  if (!gate) {
+    die(
+      '`devPseudoLocales` has no `import.meta.env.DEV` guard returning `[]`, so the pseudo-locales ' +
+        'are NOT tree-shaken out of production',
+    )
+  }
+
+  // The entries: exactly one return of a non-empty array literal, found ANYWHERE
+  // in the function.
+  //
+  // This walked only the body's TOP-LEVEL statements at first, and a fixture
+  // caught it: `if (x) return [{ code: 'en-XA' }]` is nested one level down, so
+  // the reader did not see it and would have reported just the last array — a
+  // pseudo-locale that really can ship, invisible to every downstream check. It
+  // does not descend into a nested function, whose `return` is not this one's.
+  const withEntries = returnsWithEntries(fn.body)
+  if (withEntries.length === 0) die('`devPseudoLocales` returns no pseudo-locale entries')
+  if (withEntries.length > 1) {
+    die(`\`devPseudoLocales\` has ${withEntries.length} returns carrying entries, so its list is not statically one array`)
+  }
+
+  const codes = codesFromEntryArray(unwrap(withEntries[0].expression), 'devPseudoLocales()')
+  const shipped = shippedCodes()
+  const clash = codes.filter((c) => shipped.includes(c))
+  if (clash.length) die(`pseudo-locale code(s) also appear in SHIPPED_LOCALES: ${clash.join(', ')}`)
+  return codes
+}
+
+/** The array literal `devPseudoLocales()` returns, for the readers below. */
+function pseudoEntriesNode() {
+  pseudoCodes() // runs every structural refusal, including the DEV-gate assertion
+  const fn = ast().statements.find(
+    (st) => ts.isFunctionDeclaration(st) && st.name && st.name.text === 'devPseudoLocales',
+  )
+  // the SHARED walk, not a second copy of the filter — the copy that lived here
+  // had the same top-level-only blind spot the fixture caught in `pseudoCodes()`
+  const withEntries = returnsWithEntries(fn.body)
+  return unwrap(withEntries[0].expression)
+}
+
+/**
+ * Every string a production artefact must not contain because of a DEV-only
+ * pseudo-locale: its `code` AND the names a user would SEE.
+ *
+ * Codes alone are not the agreed contract and are not enough. `ar-XB` could be
+ * tree-shaken while the literal `Pseudo RTL (QA)` survived in a bundle — a
+ * code-only check passes and a QA string still ships. So `englishName` and
+ * `nativeName` are derived too, de-duplicated (both pseudo entries set them to
+ * the same text) and sorted longest-first so a report names the most specific
+ * marker it found.
+ *
+ * `displayNameKey` is deliberately NOT a marker: both pseudo entries reuse
+ * `language.english`, which the real English locale needs, so checking it would
+ * fail every build. Only values that belong to the pseudo entries alone qualify,
+ * and that is asserted below rather than assumed.
+ */
+export function pseudoMarkers() {
+  const node = pseudoEntriesNode()
+  const label = 'devPseudoLocales()'
+  const codes = pseudoCodes()
+  const names = [
+    ...stringsFromEntryArray(node, label, 'englishName', false).map((v) => v.value),
+    ...stringsFromEntryArray(node, label, 'nativeName', false).map((v) => v.value),
+  ]
+  if (names.length === 0) die('`devPseudoLocales()` entries carry no `englishName` / `nativeName` to check')
+
+  const markers = [...new Set([...codes, ...names])].sort((a, b) => b.length - a.length || a.localeCompare(b))
+
+  // A marker must be unique to the pseudo entries. If a shipped locale uses the
+  // same string, checking for it would fail every production build — which is a
+  // broken checker, not a finding, so it is refused here.
+  const shippedDecl = theDeclaration('SHIPPED_LOCALES')
+  const shippedNode = unwrap(shippedDecl.initializer)
+  const shippedStrings = new Set([
+    ...codesFromEntryArray(shippedNode, 'SHIPPED_LOCALES'),
+    ...stringsFromEntryArray(shippedNode, 'SHIPPED_LOCALES', 'englishName', false).map((v) => v.value),
+    ...stringsFromEntryArray(shippedNode, 'SHIPPED_LOCALES', 'nativeName', false).map((v) => v.value),
+  ])
+  const shared = markers.filter((m) => shippedStrings.has(m))
+  if (shared.length) {
+    die(
+      `pseudo-locale marker(s) are also used by a SHIPPED locale, so they cannot be checked for: ${shared.join(', ')}`,
+    )
+  }
+  return markers
+}
+
 /** For tests: forget the cached source. */
 export function __reset() {
   cachedText = null
@@ -224,6 +398,19 @@ export function __reset() {
  *  mutating the real registry: a test that has to edit `registry.ts` to make
  *  its point cannot run in parallel and cannot show a case the registry does
  *  not happen to contain. */
+export function parsePseudoText(src) {
+  const prevText = cachedText
+  const prevAst = cachedAst
+  cachedText = src
+  cachedAst = null
+  try {
+    return { codes: pseudoCodes(), markers: pseudoMarkers() }
+  } finally {
+    cachedText = prevText
+    cachedAst = prevAst
+  }
+}
+
 export function parseRegistryText(src) {
   const prevText = cachedText
   const prevAst = cachedAst

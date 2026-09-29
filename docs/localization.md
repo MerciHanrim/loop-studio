@@ -3629,8 +3629,45 @@ serves CSS as an inline `<style>` in dev and every sheet reports `href === null`
 
 ### §L9.3 — direction inside and above the canvas
 
-Not implemented yet; this records the decided contract so the layout work has
-something to implement against.
+**Implementation status.** This section was written before any of it existed. All
+of it is now code, and every rule below has a guard that fails when it stops
+being true:
+
+| rule | guard |
+|---|---|
+| the canvas geometry pin | `e2e/rtl-canvas-contract.spec.ts` (§L9.2) |
+| the mirroring chrome declarations, as logical properties | the 17-locale LTR geometry baseline |
+| the playbar's physical control order (`--ls-pstrip-order`) | `e2e/rtl-playbar-pin.spec.ts` |
+| every text-carrying form control declares a direction | `scripts/check-form-direction.mjs`, `e2e/rtl-form-direction.spec.ts` |
+| a shared component takes its direction from the CALLER, required and with no default | `scripts/check-direction-props.mjs` |
+| every other ruled element declares the direction its content decides | `scripts/check-content-direction.mjs`, `e2e/rtl-canvas-content-direction.spec.ts` |
+| the two mixed shapes — per-fragment isolation and a branch-computed direction | `e2e/rtl-mixed-direction.spec.ts` |
+| every arrow follows its meaning unit, and none is a flipped box | `scripts/check-arrow-direction.mjs`, `e2e/rtl-arrow-direction.spec.ts` |
+
+What is NOT here, stated so a green run is not mistaken for more than it is:
+
+* **The Arabic catalogue is PR C.** The direction work is exercised by `ar-XB`, a
+  registered RTL pseudo-locale whose catalogue is `en` verbatim — which is what
+  makes "unchanged" literally assertable across a locale round trip, and also
+  means no catalogue-content rule can apply to it. The arrow catalogue contract
+  is written against a real RTL locale and arms itself the day one is registered;
+  `src/i18n/arrowContract.test.ts` proves that by calling the rule with a
+  synthetic `ar`, because no registered locale can exercise it today.
+* **Assistive technology behaviour.** The DOM and accessibility-API tier is
+  closed (`e2e/a11y-direction-invisible.spec.ts`); how a screen reader
+  pronounces, segments or brailles any of this is a tier above what a browser can
+  report, and any later result is recorded as the stack it was measured on — a
+  finding on Windows + Chrome + NVDA is a finding for that combination.
+* **The `dir` attributes on the 115 attribute-only sites** (`title`, `aria-label`)
+  are unchanged: markup cannot reach an attribute.
+
+**How exhaustive each layer is.** The source checks say "all of them" for the
+elements they list, and their manifests say so in their own `$limit` fields: they
+defend what is in them and do not discover a text element added later. Only the
+§L9.3 census does that, and it needed human adjudication of 550 candidate rows.
+Re-running it after the work found 8 elements the work itself had created — seven
+declared isolates and one pinned-number span that nothing had ruled — which is
+the reason the census is re-run rather than trusted to stay valid.
 
 Inside the canvas:
 
@@ -3638,7 +3675,7 @@ Inside the canvas:
 |---|---|
 | graph coordinate space | `ltr` |
 | user labels, node titles, frame titles | `dir="auto"` |
-| localised description text | `rtl` (or `auto`) |
+| localised description text | the reader's direction, from `useLocaleDirection()` — never `auto` |
 | edge labels that are flow syntax / expression / id / number only | `ltr` |
 | port positions, source/drain shape | physical |
 
@@ -3647,7 +3684,34 @@ order** — minimap placement and internal coordinates, zoom controls, the playb
 including the direction time runs and its button order, and the filter panel's
 anchor. Only the language UI *inside* those panels mirrors: their text,
 alignment and menus follow the reader. Tooltips and accessible names take the
-active language's direction. The play glyph `▶` stays as it is.
+active language's direction.
+
+The playbar's transport controls keep their physical orientation with the
+physical time axis: `▶` plays forward, `⏭` advances one step, `⟲` resets to step
+0, and `⟳` replays forward from step 0. Reset and replay are distinct actions and
+intentionally use opposite rotations.
+
+MEASURED: none of these glyphs mirrors on its own. Unicode mirrors only the
+characters carrying `Bidi_Mirrored` — brackets and relational operators — so an
+arrow keeps pointing the same way while the layout mirrors around it. Every
+arrow in the chrome is therefore a product decision, not something the renderer
+settles. Each one is decided by what its meaning is relative to: an arrow whose
+sense is defined by the reading flow mirrors, and one that names a relation in
+the model graph does not, because the canvas that draws that graph is itself
+pinned `ltr`.
+
+The units live in `src/i18n/arrowGlyph.ts` and a site reads one through
+`useArrowGlyph(unit)`. **A direction-aware character, never
+`transform: scaleX(-1)`** — the opposite characters were measured to exist in the
+shipping font stack, and a transform flips the box rather than the character: it
+takes anything else on the element with it, never reaches the accessible name,
+and leaves nothing a test can read back as text. `undo` and `redo` swap into each
+other and come out of one table for that reason, because two literals in two
+files is how the pair that must stay opposite quietly becomes equal.
+
+`scripts/arrow-units.json` records every unit, the JSX sites, the literals that
+must STAY (without which "everything mirrors" would satisfy the check), and the
+catalogue keys each unit governs.
 
 Input fields take a direction from what the **user** will type, not from what
 the placeholder happens to look like:
@@ -3656,7 +3720,7 @@ the placeholder happens to look like:
 |---|---|
 | flow syntax, expressions, ids, file names, numeric input | `ltr` |
 | free text, labels, notes, resource names | `auto` |
-| read-only localised prose | `rtl` |
+| read-only localised prose | the reader's direction |
 
 `inspector.resourceType.placeholder` is the trap: its placeholder starts with
 `Gold` and therefore renders correctly under RTL with no help at all, but the

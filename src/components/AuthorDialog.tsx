@@ -74,7 +74,7 @@ export function AuthorDialog({
         <div className="mcdlg__body">
           <label className="review__field">
             <span>{t('author.name')}</span>
-            <input
+            <input dir="auto"
               type="text"
               value={name}
               onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))}
@@ -83,7 +83,7 @@ export function AuthorDialog({
           </label>
           <label className="review__field">
             <span>{t('author.note')}</span>
-            <textarea
+            <textarea dir="auto"
               rows={2}
               value={note}
               onChange={(e) => setState((s) => ({ ...s, note: e.target.value }))}

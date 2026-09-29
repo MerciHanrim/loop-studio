@@ -7,6 +7,7 @@ import {
   getEntry,
   isRegistered,
   resolveInitialLocale,
+  type LocaleEntry,
 } from './registry'
 
 // docs/localization.md §L2 — every registered locale carries the full required
@@ -48,10 +49,19 @@ describe('locale registry metadata', () => {
     expect(enabledLocales().every((l) => l.enabled)).toBe(true)
   })
 
-  it('every shipped locale is enabled today', () => {
+  it('every locale a user can reach is enabled, and only the RTL QA locale is not', () => {
+    // This used to assert `enabledLocales() == LOCALES`, under the name "every
+    // SHIPPED locale is enabled" — two different claims, and the wider one only
+    // held while nothing was ever disabled. §L9.2's `ar-XB` is registered so the
+    // resolver and `?lang=` can reach it, and disabled so the picker does not
+    // offer an RTL QA affordance as an eighteenth language. The precise shape
+    // lives in `the shipped / enabled / pseudo sets` below.
     expect([...enabledLocales()].map((l) => l.code).sort()).toEqual(
-      LOCALES.map((l) => l.code).sort(),
+      LOCALES.filter((l) => l.enabled)
+        .map((l) => l.code)
+        .sort(),
     )
+    expect(LOCALES.filter((l) => !l.enabled).map((l) => l.code)).toEqual(['ar-XB'])
   })
 
   // §L2.4 — Traditional Chinese is its own locale, never a conversion of
@@ -77,7 +87,52 @@ describe('locale registry metadata', () => {
       'zh-Hans',
       'zh-Hant',
     ])
-    expect(LOCALES.filter((l) => l.pseudo).every((l) => l.code === 'en-XA')).toBe(true)
+  })
+
+  // §L5.4 / §L9.2 — four SET relations rather than one "every pseudo is en-XA"
+  // predicate. That predicate was true only while there was a single
+  // pseudo-locale; it would have gone silently false the moment a second one
+  // existed, and it never said anything about `enabled` at all. These four pin
+  // the shape instead: which locales ship, which are offered, and which of the
+  // offered ones are QA affordances.
+  describe('the shipped / enabled / pseudo sets', () => {
+    const codes = (ls: readonly LocaleEntry[]) => [...ls.map((l) => l.code)].sort()
+    const shipped = LOCALES.filter((l) => !l.pseudo)
+    const enabled = LOCALES.filter((l) => l.enabled)
+    const pseudo = LOCALES.filter((l) => l.pseudo)
+
+    it('every shipped locale is enabled — shipped is a subset of enabled', () => {
+      expect(shipped.every((l) => l.enabled)).toBe(true)
+      expect(shipped.every((l) => enabled.includes(l))).toBe(true)
+    })
+
+    it('the enabled non-pseudo locales are exactly the shipped ones', () => {
+      expect(codes(enabled.filter((l) => !l.pseudo))).toEqual(codes(shipped))
+    })
+
+    it('the only ENABLED pseudo-locale is en-XA — the picker offers one QA entry', () => {
+      expect(codes(enabled.filter((l) => l.pseudo))).toEqual(['en-XA'])
+    })
+
+    it('the only DISABLED locale is the ar-XB RTL pseudo — registered, never offered', () => {
+      const disabled = LOCALES.filter((l) => !l.enabled)
+      expect(codes(disabled)).toEqual(['ar-XB'])
+      expect(disabled.every((l) => l.pseudo)).toBe(true)
+      // it is the RTL half of the pair, and the only rtl entry there is
+      expect(codes(LOCALES.filter((l) => l.direction === 'rtl'))).toEqual(['ar-XB'])
+    })
+
+    it('every pseudo-locale is dev-only, so production ships none of them', () => {
+      // `devPseudoLocales()` is the only source of `pseudo` entries and it is
+      // `import.meta.env.DEV`-gated, so this is the set that disappears from a
+      // production build. `e2e/portable-file.spec.ts` asserts the absence at the
+      // BYTE level in the built artefacts — an identifier search in a minified
+      // bundle proves nothing, since the minifier renames.
+      expect(codes(pseudo)).toEqual(['ar-XB', 'en-XA'])
+      expect(pseudo.every((l) => l.catalog !== undefined)).toBe(true)
+      // a pseudo-locale must never be counted as a language a user has
+      expect(shipped.some((l) => l.pseudo)).toBe(false)
+    })
   })
 
   it('fr carries its own endonym, display key and number locale', () => {
@@ -138,6 +193,92 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
     // product might one day support.
     expect(resolveInitialLocale(null, ['qaa'])).toBe('en') // reserved, never registrable
     expect(resolveInitialLocale(null, ['zhuang'])).toBe('en') // not a zh subtag
+  })
+
+  // §L5.2 / §L9.2 — a STORED code may be a pseudo-locale; a NAVIGATOR tag may
+  // not. `ar-XB` is Chrome's own RTL pseudo-tag, so without this split a browser
+  // configured with it would boot a real user into the QA locale — and `en-XA`
+  // is `XA` for the same reason. The two paths stay separate until a real `ar`
+  // ships, which is a PR C decision, not a side effect of PR B's test affordance.
+  describe('a browser tag reaches only ENABLED locales; a stored code may be any registered one', () => {
+    // The property that disqualifies a navigator candidate is `enabled`, NOT
+    // `pseudo`. An earlier revision filtered on `pseudo` and so changed `en-XA`'s
+    // measured behaviour as a side effect — `en-XA` is an enabled QA locale and a
+    // browser offering that tag has always been served it. `ar-XB` is excluded
+    // because it is DISABLED, which is also what keeps any future disabled
+    // non-pseudo locale from being switched on by a browser suggestion.
+    it('an ENABLED pseudo-locale is still served to a browser that asks for it', () => {
+      expect(resolveInitialLocale(null, ['en-XA'])).toBe('en-XA')
+      expect(resolveInitialLocale(null, ['en-xa'])).toBe('en-XA')
+      expect(getEntry('en-XA')?.enabled).toBe(true)
+    })
+
+    it('a DISABLED locale is never reached from a browser tag', () => {
+      // `ar-XB` is Chrome's own RTL pseudo-tag, so a browser configured with it
+      // would otherwise boot a real user into the QA locale.
+      expect(getEntry('ar-XB')?.enabled).toBe(false)
+      // The invariant: never `ar-XB` itself. The VALUE it falls to is `en` only
+      // while no `ar` is registered — once PR C ships Arabic, step 3 (a code that
+      // IS the base subtag) will answer `ar`, which is correct and is why this
+      // asserts the fallback through the registry rather than hardcoding 'en'.
+      const arOwner = LOCALES.find((l) => l.enabled && l.code === 'ar')?.code ?? BASE_LOCALE
+      expect(resolveInitialLocale(null, ['ar-XB'])).toBe(arOwner)
+      expect(resolveInitialLocale(null, ['ar-xb'])).toBe(arOwner)
+      expect(arOwner).toBe('en') // today; the line above is what survives PR C
+      // nor through a later step, and an acceptable later tag still wins
+      expect(resolveInitialLocale(null, ['ar-XB', 'de'])).toBe('de')
+    })
+
+    it('every disabled locale is unreachable from a browser tag, whatever it is', () => {
+      // stated over the registry rather than over today's one disabled entry, so
+      // a future disabled non-pseudo locale is covered the day it is added
+      for (const l of LOCALES.filter((x) => !x.enabled)) {
+        expect(resolveInitialLocale(null, [l.code]), l.code).not.toBe(l.code)
+      }
+      for (const l of LOCALES.filter((x) => x.enabled)) {
+        expect(resolveInitialLocale(null, [l.code]), l.code).toBe(l.code)
+      }
+    })
+
+    it('honours a disabled or pseudo locale that is the STORED code', () => {
+      expect(resolveInitialLocale('ar-XB', [])).toBe('ar-XB')
+      expect(resolveInitialLocale('ar-XB', ['de'])).toBe('ar-XB')
+      expect(resolveInitialLocale('en-XA', ['de'])).toBe('en-XA')
+    })
+
+    it('does not make ar-XB answer for Arabic — no real ar locale exists yet', () => {
+      // §L9.2: registering the RTL pseudo must NOT quietly start serving Arabic
+      // readers a QA locale. `ar-XB` declares no `baseFallbackFor`, so the base
+      // subtag `ar` owns nothing.
+      for (const tag of ['ar', 'ar-SA', 'ar-EG', 'ar-MA']) {
+        expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
+      }
+      expect(LOCALES.some((l) => l.baseFallbackFor === 'ar')).toBe(false)
+    })
+
+    it('leaves all seventeen shipped resolutions untouched', () => {
+      // the regression this split could plausibly have caused
+      const cases: ReadonlyArray<readonly [string, string]> = [
+        ['de-AT', 'de'],
+        ['es-MX', 'es-419'],
+        ['es-ES', 'es-ES'],
+        ['pt-PT', 'pt-PT'],
+        ['pt-BR', 'pt-BR'],
+        ['zh-TW', 'zh-Hant'],
+        ['zh-CN', 'zh-Hans'],
+        ['ko-KR', 'ko'],
+        ['nl-BE', 'nl'],
+        ['it-CH', 'it'],
+        ['fr-CA', 'fr'],
+        ['ru-RU', 'ru'],
+        ['tr-TR', 'tr'],
+        ['th-TH', 'th'],
+        ['vi-VN', 'vi'],
+        ['ja-JP', 'ja'],
+        ['en-GB', 'en'],
+      ]
+      for (const [tag, want] of cases) expect(resolveInitialLocale(null, [tag]), tag).toBe(want)
+    })
   })
 
   it('an earlier acceptable browser language still wins', () => {

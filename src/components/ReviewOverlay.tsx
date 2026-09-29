@@ -14,7 +14,7 @@ import {
 import { useSimStore } from '../store/simStore'
 import { useIsMobile } from '../ui/media'
 import { reviewModel, type ReviewModel } from '../ui/revisionActions'
-import { useT, type MessageKey } from '../i18n'
+import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 import { MobileSheet } from './mobile/MobileSheet'
 import { InlineHintNote } from './HintNote'
 
@@ -196,6 +196,10 @@ function HunkRow({
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
 }) {
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  // `before-after` and NOT `graph-relation`: this arrow says a value changed from
+  // one thing to another, which is reading flow, not an edge in the model graph
+  const beforeAfter = useArrowGlyph('before-after')
   if (h.kind !== 'change') {
     const blocked = !!h.blockedBy?.length
     return (
@@ -209,7 +213,7 @@ function HunkRow({
           />
           <span>
             {h.kind === 'add' ? t('review.hunk.add') : t('review.hunk.remove')} {h.elementType}{' '}
-            <code>{h.id}</code>
+            <code dir="ltr">{h.id}</code>
             {h.verdict === 'conflict' && !blocked ? (
               <span className="review__hunk-tag">{t('review.hunk.bothChanged')}</span>
             ) : null}
@@ -217,12 +221,12 @@ function HunkRow({
         </label>
         {h.dependents?.length ? (
           <div className="review__hunk-dep">
-            {t('review.hunk.alsoRemove')} {h.dependents.map((e) => <code key={e}>{e}</code>)}
+            {t('review.hunk.alsoRemove')} {h.dependents.map((e) => <code key={e} dir="ltr">{e}</code>)}
           </div>
         ) : null}
         {blocked ? (
           <div className="review__hunk-dep review__hunk-dep--blocked">
-            {t('review.hunk.cantRemove')} {h.blockedBy!.map((e) => <code key={e}>{e}</code>)}{' '}
+            {t('review.hunk.cantRemove')} {h.blockedBy!.map((e) => <code key={e} dir="ltr">{e}</code>)}{' '}
             {t('review.hunk.toThisNode')}
           </div>
         ) : null}
@@ -232,7 +236,7 @@ function HunkRow({
   return (
     <div>
       <div className="review__hunk-head">
-        {t('review.hunk.change')} {h.elementType} <code>{h.id}</code>
+        {t('review.hunk.change')} {h.elementType} <code dir="ltr">{h.id}</code>
         {h.yours === null ? (
           <span className="review__hunk-tag">{t('review.hunk.youDeleted')}</span>
         ) : null}
@@ -244,18 +248,18 @@ function HunkRow({
             const choice = (sel.fieldChoices[h.id] ?? {})[f.field] ?? 'yours'
             return (
               <div key={f.field} className={`review__field-row review__field-row--${f.verdict}`}>
-                <span className="review__field-name">
-                  {f.field} <span className="review__field-tag">{f.tag}</span>
+                <span className="review__field-name" dir="ltr">
+                  {f.field} <span className="review__field-tag" dir="ltr">{f.tag}</span>
                 </span>
                 {f.verdict === 'conflict' ? (
                   <span className="review__field-vals">
-                    {t('review.field.base')} <code>{shortVal(f.base)}</code> ·{' '}
-                    {t('review.field.yours')} <code>{shortVal(f.yours)}</code> ·{' '}
-                    {t('review.field.theirs')} <code>{shortVal(f.proposed)}</code>
+                    {t('review.field.base')} <code dir="auto">{shortVal(f.base)}</code> ·{' '}
+                    {t('review.field.yours')} <code dir="auto">{shortVal(f.yours)}</code> ·{' '}
+                    {t('review.field.theirs')} <code dir="auto">{shortVal(f.proposed)}</code>
                   </span>
                 ) : (
                   <span className="review__field-vals">
-                    <code>{shortVal(f.yours)}</code> → <code>{shortVal(f.proposed)}</code>
+                    <code dir="auto">{shortVal(f.yours)}</code> {beforeAfter} <code dir="auto">{shortVal(f.proposed)}</code>
                   </span>
                 )}
                 <span className="review__field-choice">
@@ -465,14 +469,14 @@ export function ReviewOverlay() {
       <p className="review__by">
         {model.authorName ? (
           <>
-            {t('review.byPrefix')} <strong>{model.authorName}</strong>
+            {t('review.byPrefix')} <strong dir="auto">{model.authorName}</strong>
           </>
         ) : (
           t('review.byAnon')
         )}{' '}
         <span className="review__unverified">{t('review.unverified')}</span>
       </p>
-      {model.authorNote ? <p className="review__note">“{model.authorNote}”</p> : null}
+      {model.authorNote ? <p className="review__note" dir="auto">“{model.authorNote}”</p> : null}
       {model.createdAt ? (
         <p className="review__stamp">{t('review.fileSays', { stamp: model.createdAt })}</p>
       ) : null}

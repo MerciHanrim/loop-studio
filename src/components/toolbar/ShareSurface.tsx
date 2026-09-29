@@ -84,7 +84,7 @@ export function ShareSurface({
           <div className="share-pop__status">
             {surface.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
           </div>
-          <input
+          <input dir="ltr"
             ref={urlRef}
             className="share-pop__url"
             type="text"
