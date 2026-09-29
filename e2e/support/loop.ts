@@ -60,6 +60,19 @@ export function snap(
   return [`${stem}.png`, { ...extra, maxDiffPixelRatio: SNAPSHOT_POLICY[kind].maxDiffPixelRatio }]
 }
 
+/** docs/localization.md §L9.4 — one optional bidi isolate character.
+ *
+ *  An ICU argument carrying a user value is wrapped at the DISPLAY boundary, so
+ *  the sentence a reader sees is unchanged: the characters are zero-width. What
+ *  does change is a matcher that SPANS that boundary — `"4,900"`, where the
+ *  quotes belong to the sentence and the value sits isolated between them. Such
+ *  a pattern is written with `ISO` where it crosses, which keeps it pinning the
+ *  same thing instead of being loosened until it matches.
+ *
+ *  `e2e/i18n-ar-isolation.spec.ts` is where the isolate itself is asserted; this
+ *  is only for specs that read a sentence containing one. */
+export const ISO = '[\\u2066-\\u2069]?'
+
 export async function openApp(page: Page): Promise<void> {
   await page.goto('/')
   await expect(page.locator('.toolbar')).toBeVisible()

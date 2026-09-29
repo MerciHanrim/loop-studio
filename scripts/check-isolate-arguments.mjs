@@ -113,8 +113,14 @@ function mentionsWrapper(expr, sf, name) {
 }
 
 console.log(`isolation obligations: ${MANIFEST.obligations.length}`)
-console.log(`  (decision rows ${MANIFEST.totals.decisionRows}, call sites ${MANIFEST.totals.callSites})`)
+console.log(`  (rows ${MANIFEST.totals.rows}, call sites ${MANIFEST.totals.callSites})`)
 console.log('')
+
+/** The arguments an obligation claims for ONE key. A branch does not always
+ *  interpolate the same set — `import.loc.*` names a column header on two of its
+ *  five branches and not on the other three — so a single `args` list would
+ *  either miss a real argument or demand one that is not there. */
+const argsFor = (o, key) => o.argsByKey?.[key] ?? o.args
 
 const byFile = new Map()
 for (const o of MANIFEST.obligations) {
@@ -195,7 +201,7 @@ for (const o of MANIFEST.obligations) {
     const site = sites[0]
     siteCount += 1
     seenSites.add(`${o.file}::${o.enclosing}::${key}`)
-    for (const arg of o.args) {
+    for (const arg of argsFor(o, key)) {
       const expr = site.props.get(arg)
       if (!expr) {
         fail(`${o.id} / ${key}: argument \`${arg}\` is not present at ${o.file}:${site.line}`)
@@ -229,7 +235,8 @@ for (const o of MANIFEST.obligations) {
     }
   }
   if (allGood) {
-    ok(`${o.id}: ${o.keys.length} call site(s), arg(s) ${o.args.join('/')} wrapped with ${wrapper}`)
+    const args = [...new Set(o.keys.flatMap((k) => argsFor(o, k)))].join('/')
+    ok(`${o.id}: ${o.keys.length} call site(s), arg(s) ${args} wrapped with ${wrapper}`)
   }
 }
 
@@ -242,10 +249,21 @@ if (siteCount !== MANIFEST.totals.callSites) {
 }
 
 const rows = MANIFEST.obligations.reduce((n, o) => n + o.rows.length, 0)
-if (rows !== MANIFEST.totals.decisionRows) {
-  fail(`decision rows: obligations carry ${rows}, manifest declares ${MANIFEST.totals.decisionRows}`)
+if (rows !== MANIFEST.totals.rows) {
+  fail(`rows: obligations carry ${rows}, manifest declares ${MANIFEST.totals.rows}`)
 } else {
-  ok(`decision rows accounted for: ${rows} / ${MANIFEST.totals.decisionRows}`)
+  ok(`rows accounted for: ${rows} / ${MANIFEST.totals.rows}`)
+}
+
+// ── and the rows split by where they came from, so the PR B census and the C3.5
+//    sweep cannot quietly borrow each other's count ──
+for (const [source, want] of Object.entries(MANIFEST.rowsBySource)) {
+  const got = MANIFEST.obligations.reduce(
+    (n, o) => n + o.rows.filter((r) => (source === 'pr-b-census' ? r.startsWith('decisions-') : r.startsWith(source))).length,
+    0,
+  )
+  if (got !== want) fail(`rows from ${source}: counted ${got}, manifest declares ${want}`)
+  else ok(`rows from ${source}: ${got} / ${want}`)
 }
 
 // ── every USE of a helper is a declared obligation: a call site that isolates

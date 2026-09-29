@@ -678,6 +678,9 @@ test.describe('§L9.4 per-fragment — each table label is isolated, the punctua
 
 const AR_HEADER = 'اسم العرض'
 const MIXED_HEADER = '2024 Sales'
+/** an INCOMING column nothing matches — digit-leading, so it is also one of the
+ *  shapes that reorders without an isolate */
+const NEW_HEADER = '2024 جديد'
 
 /** The wizard is driven through its ENGLISH labels and only then switched to
  *  `ar`: the flow itself is already covered by `e2e/data-import-wizard.spec.ts`,
@@ -712,13 +715,38 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
     await expect(page.locator('.import__issueLink').first()).toBeVisible()
     await setLocale(page, 'ar')
 
+    // ONE rendered string, built from TWO catalog calls: `issueText` returns
+    // `${issueLocation(issue)}: ${desc}`. Until C3.5 the location half passed the
+    // table name and the column header RAW while the description half isolated
+    // its `{value}` — one sentence with one bounded argument and two unbounded
+    // ones, the first two of them at the head. All three are bounded now.
     const m = (await measure(page, '.import__issueLink'))!
     expect(m.found, 'the issue line should carry the isolated cell').toBe(true)
-    expect(m.spans.map((s) => s.kind)).toEqual(['FSI'])
-    expect(m.spans[0]!.text, 'the override, the stray PDI and the mark are gone').toBe(HOSTILE_CLEAN)
-    expect(m.controls, 'exactly the one intended pair').toEqual(['FSI', 'PDI'])
+    expect(m.spans.map((s) => s.kind)).toEqual(['FSI', 'FSI', 'FSI'])
+    expect(m.spans.map((s) => s.text), 'table name, column header, cell — in that order').toEqual([
+      'جدول 2024',
+      MIXED_HEADER,
+      HOSTILE_CLEAN,
+    ])
+    expect(m.controls, 'three pairs, nothing else').toEqual(['FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI'])
+    expect(m.head.text, 'the location prefix really is the Arabic catalogue').toContain('الجدول')
     expect(m.tail.text).toContain('ليس رقمًا')
-    expect(expectReadingOrder(m, 'import.issue.invalid-number')).toBeGreaterThanOrEqual(1)
+    expect(expectReadingOrder(m, 'import.issue.invalid-number')).toBeGreaterThanOrEqual(2)
+
+    // each of the three lays out as it does alone, and the digit-leading header
+    // is one of the shapes that NEEDS the isolate
+    for (const [i, value] of ['جدول 2024', MIXED_HEADER, HOSTILE_CLEAN].entries()) {
+      const p = (await probe(page, '.import__issueLink', {
+        value,
+        head: m.head.text,
+        tail: m.tail.text,
+        dir: 'auto',
+      }))!
+      expect(m.spans[i]!.order, `${value}: isolated must lay out as it does alone`).toEqual(p.alone)
+      if (needsIsolate(value)) {
+        expect(p.joined, `${value}: raw interpolation must reorder it (alone=${p.alone}, joined=${p.joined})`).not.toEqual(p.alone)
+      }
+    }
 
     // the textarea still holds the pasted bytes — the strip is a display copy
     const raw = await page.evaluate(() => (document.querySelector('.import__paste') as HTMLTextAreaElement | null)?.value ?? '')
@@ -745,23 +773,39 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
     await manage.getByRole('button', { name: 'Refresh…' }).click()
     const refresh = page.getByRole('dialog', { name: /^Refresh "/ })
     await expect(refresh).toBeVisible()
+    // a fourth INCOMING column nothing matches makes the third branch reachable
+    // in the same refresh: `unrecognized`, which names a NEW header rather than
+    // an existing one
     await refresh
       .getByPlaceholder('Paste CSV or TSV text here')
-      .fill(`item_key,${AR_HEADER},${AR_HEADER}\nitm_a,Ember Blade,Iron Charm`)
+      .fill(`item_key,${AR_HEADER},${AR_HEADER},${NEW_HEADER}\nitm_a,Ember Blade,Iron Charm,7`)
     await refresh.getByRole('button', { name: 'Next' }).click()
     const rows = page.locator('.import__issues ul li p')
     await expect(rows).toHaveCount(2)
+    // opened while the labels are still English, for the same reason the wizard is
+    await refresh.getByRole('button', { name: 'Map more columns…' }).click()
+    await expect(rows).toHaveCount(3)
     await setLocale(page, 'ar')
 
-    const measured = [await measure(page, '.import__issues ul li p', 0), await measure(page, '.import__issues ul li p', 1)]
+    const measured = [
+      await measure(page, '.import__issues ul li p', 0),
+      await measure(page, '.import__issues ul li p', 1),
+      await measure(page, '.import__issues ul li p', 2),
+    ]
     const missing = measured.find((m) => m!.tail.text.includes('لم يعد'))!
     const ambiguous = measured.find((m) => m!.tail.text.includes('يطابق أكثر'))!
+    // C3.5 — the third branch. The PR B census recorded the two events that name
+    // an EXISTING column and not the one that names a NEW one; nothing
+    // distinguished them but which side of the refresh the header came from.
+    const unrecognized = measured.find((m) => m!.tail.text.includes('غير مربوط'))!
     expect(missing, 'the missing-header branch should be on screen').toBeTruthy()
     expect(ambiguous, 'the ambiguous-match branch should be on screen').toBeTruthy()
+    expect(unrecognized, 'the unrecognized-header branch should be on screen').toBeTruthy()
 
     for (const [m, header] of [
       [missing, MIXED_HEADER],
       [ambiguous, AR_HEADER],
+      [unrecognized, NEW_HEADER],
     ] as const) {
       expect(m.spans.map((s) => s.kind)).toEqual(['FSI'])
       expect(m.spans[0]!.text).toBe(header)

@@ -396,7 +396,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                         const nc = newColumnChoices[ev.incomingColumnIndex]
                         return (
                           <li key={i}>
-                            <p>{t('import.refresh.columnEvents.unrecognized', { header: ev.header })}</p>
+                            <p>{t('import.refresh.columnEvents.unrecognized', { header: isolateAuto(ev.header) })}</p>
                             <select value={nc?.role ?? ''} onChange={(e) => setNewColumnRole(ev.incomingColumnIndex, e.target.value as NewColumnRole | '')}>
                               <option value="">{t('import.refresh.columnEvents.doNotMap')}</option>
                               {NEW_ROLE_OPTIONS.map((r) => (

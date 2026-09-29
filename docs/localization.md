@@ -3793,6 +3793,7 @@ punctuation rather than the label's.
 |---|---|
 | what the helpers produce — per-mode idempotence, the strip, exactly one outer pair, zero inner controls | `src/i18n/bidiIsolate.test.ts` |
 | every obligation implemented with its declared kind, on its declared argument, at every call site, and no isolate outside a declared row | `scripts/check-isolate-arguments.mjs` + `scripts/isolate-obligations.json` |
+| every ICU argument in shipped source classified, exactly once, with evidence — so a new interpolation cannot appear unexamined | `scripts/check-icu-arguments.mjs` + `scripts/icu-argument-disposition.json` |
 | the isolate never reaches the stored document | `src/i18n/isolateStorageBoundary.test.ts` |
 | the sentence LAYS OUT that way in a browser, in real Arabic | `e2e/i18n-ar-isolation.spec.ts` |
 
@@ -3807,15 +3808,63 @@ the same value rendered alone in the same container. The necessity is measured
 too: for the shapes the census recorded as breaking, the same value interpolated
 RAW must come out in a different order.
 
-**Exhaustiveness.** `scripts/isolate-obligations.json` carries its own `$limit`:
-it defends the call sites listed in it, exactly and in both directions, and it
-does **not** discover an ICU argument that starts carrying a user value later.
-Only a census does that. A sweep run during this work found further `t()`
-arguments that carry user text and are still passed raw — including
-`import.refresh.columnEvents.unrecognized`, the `import.loc.*` location prefix
-that is concatenated with an already-isolated value inside `issueText`, and the
-register-expression `{name}` sites. They are **not** part of the 11 and are not
-closed here; they are recorded so the gap is stated rather than implied.
+**Exhaustiveness — how the population was closed (C3.5).**
+`scripts/isolate-obligations.json` carries its own `$limit`: it defends the call
+sites listed in it, exactly and in both directions, and it does **not** discover
+an ICU argument that starts carrying a user value later. The first attempt at
+finding those was an argument-NAME grep (`{header}`, `{label}`, `{name}`…),
+which is a guess about vocabulary rather than a measurement: it matched 34
+arguments. Re-run from the TypeScript **type checker** the population is **205**.
+
+`scripts/check-icu-arguments.mjs` enumerates all 205 and derives four classes
+from the type and the syntax, so they are evidence rather than a claim someone
+has to keep true: `number` (the type is number-like), `enum` (a closed union of
+string literals, whose members it prints), `catalog` (a `t(…)` call, or a
+conditional whose every leaf is one) and `isolated`. Every argument it cannot
+derive needs a row in `scripts/icu-argument-disposition.json` stating its class
+and the evidence. An argument with neither is a **STOP** — that is what makes a
+newly added interpolation fail closed instead of joining an unexamined majority.
+
+| class | count | |
+|---|---:|---|
+| `number` | 96 | derived from the type |
+| `closed-value` | 40 | a catalog string, an engine phrase, a formatted number, a build constant, a model-vocabulary token |
+| `isolated` | 19 | implemented; every one declared in `isolate-obligations.json` |
+| `catalog` | 13 | derived |
+| `attribute` | 12 | PR B's separate axis. Two different numbers: 12 rows carry this CLASS, 18 arguments have an attribute SINK — 8 attribute-sink arguments are mechanically classified and need no row, and 2 rows are attribute by TRACING, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function |
+| `enum` | 6 | derived, members printed |
+| `auto` | 14 | **open** — free user text, recorded, not implemented |
+| `ltr` | 4 | **open** — a technical token, recorded, not implemented |
+| `per-fragment` | 1 | **open** — several independent user values in one argument |
+| `unreachable` | 0 | the class exists and nothing qualified: every argument enumerated is reachable |
+| **total** | **205** | |
+
+Eight of the arguments the sweep found were fixed in C3.5 and are obligations
+now: `import.refresh.columnEvents.unrecognized`, whose header is the direct peer
+of the two events already covered and differed only in which side of the refresh
+it came from; and the five `import.loc.*` calls, whose table name and column
+header are concatenated with an already-isolated `{value}` inside `issueText`, so
+one rendered sentence carried one bounded argument and two unbounded ones — the
+two unbounded ones first.
+
+The **19** rows still classed `auto` / `ltr` / `per-fragment` are open
+obligations: the evidence says the value needs bounding and the code does not
+bound it yet. The checker asserts that set is exactly what the manifest declares
+and that none of them is wrapped, so implementing one without moving its row to
+`isolate-obligations.json` is red — and so is a new one appearing.
+
+**The accounting, with each number's unit stated**, because several of them are
+close together and none is a restatement of another:
+
+| number | unit |
+|---:|---|
+| 19 | rows — 11 from the PR B census, 8 from the C3.5 sweep |
+| 10 | obligations — one per PRODUCER |
+| 17 | AST call sites the edit touches |
+| 19 | wrapped ICU arguments (a call site may wrap two) |
+| 15 | browser tests in `e2e/i18n-ar-isolation.spec.ts` |
+| 12 | isolate mutations, each RED with only the test that covers it run |
+| 10 | population-checker mutations, each RED and named |
 
 **What a green run here does not say.** It closes the isolation contract up to
 browser layout. How a screen reader pronounces, segments or brailles any of it is

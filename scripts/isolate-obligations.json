@@ -1,8 +1,55 @@
 {
   "$comment": "docs/localization.md §L9.4 — the isolation obligations PR B deferred to PR C. A user or technical value that enters a localized sentence through an ICU ARGUMENT has no element to carry `dir`, so markup cannot reach it. Each row names the producer, the key or closed key family it renders through, the ICU argument slot that carries the value, and WHICH isolate the value needs. Three counts are different numbers and are kept apart: 11 decision rows recorded by PR B, 8 distinct obligations (one per producer — what is implemented), and 11 AST call sites (what the edit touches; a closed key set is more than one).",
-  "$limit": "This manifest defends the call sites listed here. It does NOT discover a NEW ICU argument that starts carrying a user value later — only a census pass finds that, the same limit `scripts/content-direction.json` carries. What it does enforce for the sites it lists is exhaustive: the exact isolate kind, the resolved key or key family, the argument slot, and that the argument is not passed raw.",
-  "totals": { "decisionRows": 11, "obligations": 8, "callSites": 11 },
+  "$limit": "This manifest defends the call sites listed here. What it enforces for them is exhaustive: the exact isolate kind, the resolved key or key family, the argument slot, and that the argument is not passed raw. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together are what closes the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
+  "$c35": "C3.5 re-ran the population from the TypeScript TYPE CHECKER rather than from an argument-name grep: all 205 ICU arguments in shipped source, classified by what their expression's type can hold. That found 8 arguments carrying user spreadsheet text that the PR B census had not recorded — the unrecognized-column header, and the five `import.loc.*` calls whose table name and column header are concatenated with an already-isolated `{value}` inside `issueText`, so one rendered sentence held one bounded argument and two unbounded ones. They are obligations here. The rest of the population is dispositioned in `scripts/icu-argument-disposition.json`, and `scripts/check-icu-arguments.mjs` asserts the two manifests plus the mechanical classes cover every argument exactly once.",
+  "totals": { "rows": 19, "obligations": 10, "callSites": 17 },
+  "rowsBySource": { "pr-b-census": 11, "c3.5-sweep": 8 },
   "obligations": [
+    {
+      "id": "refresh-unrecognized-header",
+      "rows": ["c3.5-sweep DataImportRefreshWizard.tsx import.refresh.columnEvents.unrecognized {header}"],
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard",
+      "keys": ["import.refresh.columnEvents.unrecognized"],
+      "keyAuthority": "literal",
+      "args": ["header"],
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "an INCOMING spreadsheet column header the refresh did not recognise",
+      "why": "The direct peer of `refresh-column-header`, in the same file and the same list, carrying the same kind of value — the PR B census recorded the two events that name an EXISTING column and not the one that names a NEW one. Nothing distinguished them but which side of the refresh the header came from."
+    },
+    {
+      "id": "wizard-issue-location",
+      "rows": [
+        "c3.5-sweep DataImportWizard.tsx import.loc.tableRowColumnHeader {table}",
+        "c3.5-sweep DataImportWizard.tsx import.loc.tableRowColumnHeader {header}",
+        "c3.5-sweep DataImportWizard.tsx import.loc.tableRowColumn {table}",
+        "c3.5-sweep DataImportWizard.tsx import.loc.tableRow {table}",
+        "c3.5-sweep DataImportWizard.tsx import.loc.tableColumnHeader {table}",
+        "c3.5-sweep DataImportWizard.tsx import.loc.tableColumnHeader {header}",
+        "c3.5-sweep DataImportWizard.tsx import.loc.table {table}"
+      ],
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard>issueLocation",
+      "keys": [
+        "import.loc.tableRowColumnHeader",
+        "import.loc.tableRowColumn",
+        "import.loc.tableRow",
+        "import.loc.tableColumnHeader",
+        "import.loc.table"
+      ],
+      "keyAuthority": "closed set — the five branches of `issueLocation`",
+      "args": ["table"],
+      "argsByKey": {
+        "import.loc.tableRowColumnHeader": ["table", "header"],
+        "import.loc.tableColumnHeader": ["table", "header"]
+      },
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "the user's TABLE NAME and, on two branches, the COLUMN HEADER",
+      "note": "SEVEN arguments across FIVE call sites — the branches do not all interpolate the same set, so the argument list is per key. `{row}` and `{column}` are numbers and are not obligations.",
+      "why": "`issueText` renders `${issueLocation(issue)}: ${desc}` — ONE string. `desc` already isolates its `{value}`; without these the same sentence carried one bounded argument and two unbounded ones, and the two unbounded ones came first."
+    },
     {
       "id": "canvas-import-hint-tables",
       "rows": ["decisions-canvas.json sites[3]"],

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, ISO, openApp, resetAll, test } from './support/loop'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 — the refresh workflow through the
 // real UI: manage bindings, rename cascade, the row-lifecycle refresh
@@ -299,7 +299,12 @@ test('column events: an explicit rename re-links a renamed header and a new colu
   // scoped to the exact "not mapped" phrasing -- the RENAME select's own
   // <option> list (all incoming headers) also contains the literal text
   // "rarity_score", so a bare `hasText: 'rarity_score'` matches two `<li>`s.
-  await refreshDialog(page).locator('li', { hasText: 'rarity_score" is not mapped' }).locator('select').selectOption('number')
+  // the header is isolated at the display boundary (§L9.4), so the closing quote
+  // is the sentence's and the pattern crosses the boundary
+  await refreshDialog(page)
+    .locator('li', { hasText: new RegExp(`rarity_score${ISO}" is not mapped`) })
+    .locator('select')
+    .selectOption('number')
 
   await refreshDialog(page).getByRole('button', { name: 'Next' }).click()
   await expect(refreshDialog(page).getByText('2 new column values will be added')).toBeVisible()
