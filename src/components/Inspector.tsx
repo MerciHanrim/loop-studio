@@ -149,7 +149,7 @@ export function Inspector() {
       return (
         <aside className="inspector">
           <div className="inspector__head">
-            <span className="inspector__kind inspector__kind--edge">{kindLabel}</span>
+            <span className="inspector__kind inspector__kind--edge" dir="ltr">{kindLabel}</span>
             <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
               {t('inspector.delete')}
             </button>
@@ -170,7 +170,7 @@ export function Inspector() {
     return (
       <aside className="inspector">
         <div className="inspector__head">
-          <span className={`inspector__kind inspector__kind--${d.kind}`}>{d.kind}</span>
+          <span className={`inspector__kind inspector__kind--${d.kind}`} dir="ltr">{d.kind}</span>
           <button type="button" className="btn btn--ghost" onClick={() => removeNode(node.id)}>
             {t('inspector.delete')}
           </button>

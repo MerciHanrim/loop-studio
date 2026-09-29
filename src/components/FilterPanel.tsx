@@ -139,6 +139,7 @@ export function FilterControls() {
         <button
           type="button"
           className="btn lgr-filter__clear"
+          dir={uiDir}
           onClick={clear}
           disabled={!active}
         >

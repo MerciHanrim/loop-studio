@@ -219,9 +219,29 @@ export type ImportPlanSummary = {
 /** §DI10 -- the label one generated Parameter gets: `<table> · <row's
  *  composed label> · <column header>`. Used by the commit AND by the review
  *  step's label preview (§DI17), so the preview can never drift. */
-export function cellLabel(tables: readonly ValidatedTable[], cell: ImportCell): string {
+/** docs/localization.md §L9.3 - the separator between a cell label's parts. Shared
+ *  so the joined string and the per-fragment rendering cannot use different ones. */
+export const CELL_LABEL_SEP = ' · '
+
+/** The three INDEPENDENT user-authored strings behind a cell's label.
+ *
+ *  Primary form, because a renderer has to give each its own direction: joined,
+ *  one `dir="auto"` picks a single paragraph direction for all three and reorders
+ *  whichever fragment does not agree with it. */
+export function cellLabelParts(
+  tables: readonly ValidatedTable[],
+  cell: ImportCell,
+): { table: string; row: string; header: string } {
   const { text } = composeFullRowLabel(tables, cell.table, cell.row)
-  return `${cell.table.label} · ${text} · ${cell.header}`
+  return { table: cell.table.label, row: text, header: cell.header }
+}
+
+/** The same three parts joined. This is what a created parameter node STORES as
+ *  its label - a node label is a string, not markup - so it is derived from
+ *  `cellLabelParts` rather than built separately. */
+export function cellLabel(tables: readonly ValidatedTable[], cell: ImportCell): string {
+  const p = cellLabelParts(tables, cell)
+  return [p.table, p.row, p.header].join(CELL_LABEL_SEP)
 }
 
 export function summarizeImportPlan(plan: ValidatedImportPlan, placementKind: PlacementChoice['kind'] = 'none'): ImportPlanSummary {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildImportCommit, shiftUntilClear, type PlacementChoice, type Rect } from './dataImportCommit'
+import { buildImportCommit, CELL_LABEL_SEP, cellLabel, cellLabelParts, shiftUntilClear, summarizeImportPlan, type PlacementChoice, type Rect } from './dataImportCommit'
 import { createTableDraft, setColumnRole, validateDrafts, type DraftColumnRole, type TableDraft } from './dataImportValidate'
 import { canonicalContent, digestOfCanonical } from './revision'
 import { deserialize, serialize, type ImportSourceTable, type SavedFrame } from './serialize'
@@ -347,5 +347,55 @@ describe('buildImportCommit -- validateResultGraph gate', () => {
     if (built.ok) {
       expect(built.createdNodes[0].data).toMatchObject({ kind: 'parameter', value: 1 })
     }
+  })
+})
+
+// docs/localization.md §L9.3 -- a cell label has TWO forms and they must agree.
+//
+// The renderer needs the three parts separately: joined, one `dir="auto"` picks a
+// single paragraph direction from the first strong character of the whole string
+// and reorders whichever fragment disagrees with it. A created parameter NODE needs
+// the joined string, because a node label is a string and not markup.
+//
+// The §L9.3 note said to return the parts INSTEAD of the joined string. That would
+// have broken the node-label caller, so the joined form is DERIVED from the parts --
+// and this is the test that keeps the derivation honest, because two independent
+// implementations of the same join is exactly how the panel and the stored label
+// come to disagree.
+describe('cellLabel -- the joined form is the parts, joined', () => {
+  const setup = () => {
+    const items = draftFrom(['item_key', 'display_name', 'weight'], [['itm_blade', 'Ember Blade', '7']], ['key', 'label', 'number'], 'Items')
+    const v = validateDrafts([items])
+    if (!v.ok) throw new Error('expected ok')
+    // the plan's cells come from the summary, the same producer the wizard reads
+    const cell = summarizeImportPlan(v.plan).cells[0]
+    return { tables: v.plan.tables, cell }
+  }
+
+  it('the parts are the three independent user strings', () => {
+    const { tables, cell } = setup()
+    const p = cellLabelParts(tables, cell)
+    expect(p.table).toBe('Items')
+    expect(p.header).toBe('weight')
+    expect(p.row.length).toBeGreaterThan(0)
+    // three DISTINCT fields, not one string split by a separator
+    expect(p.table).not.toContain(CELL_LABEL_SEP)
+    expect(p.header).not.toContain(CELL_LABEL_SEP)
+  })
+
+  it('the joined label equals the parts joined by the shared separator', () => {
+    const { tables, cell } = setup()
+    const p = cellLabelParts(tables, cell)
+    expect(cellLabel(tables, cell)).toBe([p.table, p.row, p.header].join(CELL_LABEL_SEP))
+  })
+
+  it('the separator is a single shared constant, so the renderer cannot use a different one', () => {
+    const { tables, cell } = setup()
+    const joined = cellLabel(tables, cell)
+    const p = cellLabelParts(tables, cell)
+    // exactly two separators, one between each adjacent pair
+    expect(joined.split(CELL_LABEL_SEP).length).toBe(3)
+    expect(joined.startsWith(p.table)).toBe(true)
+    expect(joined.endsWith(p.header)).toBe(true)
   })
 })

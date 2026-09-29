@@ -123,11 +123,11 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
             ))}
           </select>
         ) : (
-          <span className="band__pool band__pool--single">{pools[0]?.label}</span>
+          <span className="band__pool band__pool--single" dir="auto">{pools[0]?.label}</span>
         )}
         <span className="band__key" style={{ color: hue }}>
           <span className="band__swatch" style={{ background: hue }} /> p10–p90 · p50{' '}
-          <b>{fmt(view.lastP50)}</b>
+          <b dir="ltr">{fmt(view.lastP50)}</b>
         </span>
         <button
           type="button"
@@ -146,7 +146,7 @@ export function BandChart({ result }: { result: MonteCarloResult }) {
           {[0, view.top / 2, view.top].map((v) => (
             <g key={v}>
               <line className="band__grid" x1={PAD.l} x2={w - PAD.r} y1={view.y(v)} y2={view.y(v)} />
-              <text className="band__tick" x={PAD.l - 6} y={view.y(v) + 3.5} textAnchor="end">
+              <text className="band__tick" x={PAD.l - 6} y={view.y(v) + 3.5} textAnchor="end" direction="ltr">
                 {fmt(v)}
               </text>
             </g>

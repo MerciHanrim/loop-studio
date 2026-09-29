@@ -189,13 +189,13 @@ export function LanguageSwitch({
           <>
             <span className="settings-row__label">{t('lang.rowLabel')}</span>
             <span className="settings-row__value">
-              <span lang={current.code}>{current.nativeName}</span>
+              <span lang={current.code} dir="auto">{current.nativeName}</span>
               <span aria-hidden="true"> ›</span>
             </span>
           </>
         ) : (
           <>
-            <span lang={current.code}>{current.nativeName}</span>
+            <span lang={current.code} dir="auto">{current.nativeName}</span>
             <span aria-hidden="true"> ▾</span>
           </>
         )}
@@ -267,7 +267,7 @@ export function LanguageSwitch({
                   >
                     <span className="menu__name" lang={l.code}>
                       {isActive ? '✓ ' : ''}
-                      {l.nativeName}
+                      <bdi dir="auto">{l.nativeName}</bdi>
                       {isLoading ? ` · ${t('lang.loading')}` : ''}
                     </span>
                     {showSecondary ? <span className="menu__blurb">{secondary}</span> : null}

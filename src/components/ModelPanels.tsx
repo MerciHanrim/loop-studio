@@ -87,7 +87,7 @@ function PanelHead({
           {open ? '▾' : '▸'}
         </span>
         {title}
-        <span className="mpanel__count">{count}</span>
+        <span className="mpanel__count" dir="ltr">{count}</span>
       </button>
     </h2>
   )
@@ -135,6 +135,7 @@ function InputsSection({
                     <button
                       type="button"
                       className="mp-row__label mp-row__label--name"
+                      dir="auto"
                       title={label}
                       onClick={() => reveal(n.id, null)}
                     >
@@ -157,9 +158,15 @@ function InputsSection({
                 const param = refId
                   ? labelOf(nodes.find((n) => n.id === refId)) || refId
                   : e.flow
-                const flowText = `${labelOf(nodes.find((n) => n.id === e.source))} → ${labelOf(
-                  nodes.find((n) => n.id === e.target),
-                )}`
+                // §L9.3 - two INDEPENDENT user labels. Each is isolated so neither
+                // can reorder the other, and the arrow between them is the
+                // `graph-relation` unit: verdict KEEP, because it names the relation
+                // the canvas draws and the canvas does not mirror.
+                const sourceLabel = labelOf(nodes.find((n) => n.id === e.source))
+                const targetLabel = labelOf(nodes.find((n) => n.id === e.target))
+                // the joined form is still what the tooltip attribute needs - markup
+                // cannot reach an attribute (PR C owns the 115 attribute sites)
+                const flowText = `${sourceLabel} → ${targetLabel}`
                 return (
                   <li key={e.id} className="mp-row mp-row--flow">
                     <button
@@ -168,7 +175,7 @@ function InputsSection({
                       title={flowText}
                       onClick={() => reveal(null, e.id)}
                     >
-                      {flowText}
+                      <bdi dir="auto">{sourceLabel}</bdi> → <bdi dir="auto">{targetLabel}</bdi>
                     </button>
                     <span className="mp-row__via">{t('panels.inputs.flowVia', { param })}</span>
                   </li>
@@ -209,6 +216,7 @@ function SummaryRow({
         <button
           type="button"
           className="mp-row__label mp-row__label--name"
+          dir="auto"
           title={label}
           onClick={onReveal}
         >
@@ -229,9 +237,9 @@ function SummaryRow({
         >
           {t(showCalc ? 'panels.summary.hideCalc' : 'panels.summary.showCalc')}
         </button>
-        {showCalc && <code className="mp-row__expr">{shownExpr}</code>}
+        {showCalc && <code className="mp-row__expr" dir="ltr">{shownExpr}</code>}
       </div>
-      {outcome && outcome.invalid && <span className="mp-row__code">{outcome.code}</span>}
+      {outcome && outcome.invalid && <span className="mp-row__code" dir="ltr">{outcome.code}</span>}
     </li>
   )
 }

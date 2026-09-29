@@ -196,6 +196,7 @@ export function MonteCarloDialog() {
                       <label
                         key={p.id}
                         className="mcdlg__pool"
+                        dir="auto"
                         title={last ? t('mc.pools.keepOne') : undefined}
                       >
                         <input
@@ -223,7 +224,7 @@ export function MonteCarloDialog() {
                   <span className="mcdlg__costlabel">
                     {estimate.source === 'measured' ? t('mc.cost.measured') : t('mc.cost.benchmark')}
                   </span>
-                  <b>~{fmtMs(estimate.lowMs)}–{fmtMs(estimate.highMs)}</b>
+                  <b dir="ltr">~{fmtMs(estimate.lowMs)}–{fmtMs(estimate.highMs)}</b>
                 </span>
                 <span className="mcdlg__costline">
                   <span className="mcdlg__costlabel">{t('mc.cost.execution')}</span>
@@ -237,7 +238,7 @@ export function MonteCarloDialog() {
                 </span>
                 <span className="mcdlg__costline">
                   <span className="mcdlg__costlabel">{t('mc.cost.memory')}</span>
-                  <span>
+                  <span dir="ltr">
                     ~{fmtBytes(estimate.memoryBytes)}
                     {overLimit ? <span className="mcdlg__over">{t('mc.cost.overLimit')}</span> : null}
                   </span>
@@ -258,7 +259,7 @@ export function MonteCarloDialog() {
               aria-live="polite"
             >
               <span className="mcdlg__bar" style={{ width: `${progress * 100}%` }} />
-              <span className="mcdlg__pct">
+              <span className="mcdlg__pct" dir="ltr">
                 {completedRuns} / {config.runs}
               </span>
             </div>

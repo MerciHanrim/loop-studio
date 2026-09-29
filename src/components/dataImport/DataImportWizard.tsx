@@ -15,7 +15,8 @@ import {
   type TableDraft,
 } from '../../model/dataImportValidate'
 import {
-  cellLabel,
+  CELL_LABEL_SEP,
+  cellLabelParts,
   NODE_H,
   NODE_W,
   summarizeImportPlan,
@@ -588,7 +589,7 @@ export function DataImportWizard({
                   <p className="import__quickstartLead">{t('import.qs.lead')}</p>
                   <p>{t('import.qs.body')}</p>
                   <p className="import__quickstartHeading">{t('import.qs.exampleHeading')}</p>
-                  <pre className="import__example">{EXAMPLE_CSV}</pre>
+                  <pre className="import__example" dir="ltr">{EXAMPLE_CSV}</pre>
                   <p className="import__quickstartMapping">
                     {t('import.qs.mapping', {
                       key: t('import.role.key'),
@@ -787,7 +788,7 @@ export function DataImportWizard({
                                     className={bad ? 'is-bad' : undefined}
                                     aria-invalid={bad ? true : undefined}
                                   >
-                                    <div>{c.header}</div>
+                                    <div dir="auto">{c.header}</div>
                                     <select
                                       value={c.role}
                                       aria-label={t('import.roleAria', { header: c.header })}
@@ -851,6 +852,7 @@ export function DataImportWizard({
                                         tabIndex={-1}
                                         className={bad ? 'is-bad' : undefined}
                                         aria-invalid={bad ? true : undefined}
+                                        dir="auto"
                                       >
                                         {row[ci]}
                                       </td>
@@ -963,11 +965,11 @@ export function DataImportWizard({
                 <tbody>
                   {planSummary.tables.map((tb) => (
                     <tr key={tb.sourceTableId}>
-                      <td>{tb.label}</td>
-                      <td className="num">{tb.rows}</td>
-                      <td className="num">{tb.numberColumns}</td>
+                      <td dir="auto">{tb.label}</td>
+                      <td className="num" dir="ltr">{tb.rows}</td>
+                      <td className="num" dir="ltr">{tb.numberColumns}</td>
                       <td className="num">{tb.lookupOnly ? t('import.review.lookupOnly') : tb.parameters}</td>
-                      <td className="num">{tb.frames}</td>
+                      <td className="num" dir="ltr">{tb.frames}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -976,8 +978,8 @@ export function DataImportWizard({
                     <td>{t('import.review.total')}</td>
                     <td className="num" />
                     <td className="num" />
-                    <td className="num import__reviewTotal">{planSummary.totalParameters}</td>
-                    <td className="num">{planSummary.framesToCreate}</td>
+                    <td className="num import__reviewTotal" dir="ltr">{planSummary.totalParameters}</td>
+                    <td className="num" dir="ltr">{planSummary.framesToCreate}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -985,9 +987,22 @@ export function DataImportWizard({
                 <div className="import__labelsPreview">
                   {t('import.review.labelsPreview')}
                   <ul>
-                    {planSummary.cells.slice(0, 3).map((cell, i) => (
-                      <li key={i}>{cellLabel(validation.plan.tables, cell)}</li>
-                    ))}
+                    {planSummary.cells.slice(0, 3).map((cell, i) => {
+                      // §L9.3 - three independent user strings, each isolated. The
+                      // separators stay VISIBLE to assistive technology: this <li>
+                      // has no role and no aria-label, so its text content is what
+                      // is read, and hiding them would run the three values together.
+                      const parts = cellLabelParts(validation.plan.tables, cell)
+                      return (
+                        <li key={i}>
+                          <bdi dir="auto">{parts.table}</bdi>
+                          {CELL_LABEL_SEP}
+                          <bdi dir="auto">{parts.row}</bdi>
+                          {CELL_LABEL_SEP}
+                          <bdi dir="auto">{parts.header}</bdi>
+                        </li>
+                      )
+                    })}
                     {planSummary.cells.length > 3 && <li>{t('import.review.more', { n: planSummary.cells.length - 3 })}</li>}
                   </ul>
                 </div>

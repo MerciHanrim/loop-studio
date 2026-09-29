@@ -453,7 +453,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                           <li key={row.sourceKey}>
                             <label>
                               <input type="checkbox" checked={confirmedAdds.has(row.sourceKey)} onChange={(e) => setConfirmedAdds((prev) => { const n = new Set(prev); if (e.target.checked) n.add(row.sourceKey); else n.delete(row.sourceKey); return n })} />
-                              {row.sourceKey} — {t('import.refresh.review.confirmAdd')}
+                              <bdi dir="auto">{row.sourceKey}</bdi> — {t('import.refresh.review.confirmAdd')}
                             </label>
                           </li>
                         )
@@ -462,7 +462,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                         const blocked = row.dependents.length > 0
                         return (
                           <li key={row.sourceKey}>
-                            <p>{row.sourceKey}</p>
+                            <p dir="auto">{row.sourceKey}</p>
                             {blocked ? (
                               <p className="import__error">{t('import.refresh.review.missingBlocked', { table: tables.find((tb) => tb.sourceTableId === row.dependents[0].dependentTableId)?.label ?? row.dependents[0].dependentTableId })}</p>
                             ) : (
@@ -481,7 +481,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                       if (conflictCells.length === 0 && deletedCells.length === 0 && row.fkChanges.length === 0) return null
                       return (
                         <li key={row.sourceKey}>
-                          <p>{row.sourceKey}</p>
+                          <p dir="auto">{row.sourceKey}</p>
                           {conflictCells.map((c) => c.kind === 'three-way' ? (
                             <div key={c.sourceColumnId} className="import__row">
                               <label>

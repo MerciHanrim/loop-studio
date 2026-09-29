@@ -376,7 +376,7 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => openOverlay('help')}>
           {t('tour.help.menuLabel')}<span className="sheet__row-sub">▸</span>
         </button>
-        <div className="sheet__stamp">
+        <div className="sheet__stamp" dir="ltr">
           v{__APP_VERSION__}
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </div>

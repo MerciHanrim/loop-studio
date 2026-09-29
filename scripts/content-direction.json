@@ -1,0 +1,737 @@
+{
+  "$comment": "docs/localization.md L9.3 - every element listed here renders text whose direction is a PRODUCT decision, and declares it. Generated once from the L9.3 content census, maintained by hand thereafter.",
+  "$limit": "Stated so this is not mistaken for exhaustiveness: the list defends the elements IN it against losing their direction. It does not discover a NEW text-rendering element added later - nothing short of re-running the census does, and that census needed human adjudication of 550 candidate rows. The caller-supplied components (NodeFrame, CanvasHintNote, FilterPanel Row) are absent on purpose: scripts/check-direction-props.mjs owns them and checks more than a manifest could.",
+  "expectMeaning": {
+    "ltr": "the attribute is the literal \"ltr\" - an engine number, an expression grammar, an id, a generated value",
+    "auto": "the attribute is the literal \"auto\" - text a person typed, so the value decides its direction",
+    "locale-direction": "the attribute is an EXPRESSION reading the app's own locale direction - catalog prose inside a direction-pinned subtree",
+    "branch-computed": "the attribute is an EXPRESSION and the file contains the declared marker - one element, several branches wanting different directions"
+  },
+  "totals": {
+    "elements": 86,
+    "byExpect": {
+      "ltr": 39,
+      "auto": 30,
+      "locale-direction": 13,
+      "branch-computed": 4
+    }
+  },
+  "elements": [
+    {
+      "file": "src/components/AboutDialog.tsx",
+      "tag": "p",
+      "find": [
+        "about__version"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/BandChart.tsx",
+      "tag": "text",
+      "find": [
+        "fmt(v)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/BandChart.tsx",
+      "tag": "b",
+      "find": [
+        "fmt(view.lastP50)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/BandChart.tsx",
+      "tag": "span",
+      "find": [
+        "pools[0]?.label"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/Canvas.tsx",
+      "tag": "span",
+      "find": [
+        "hint.importFirstCommit.body"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/Canvas.tsx",
+      "tag": "Panel",
+      "find": [
+        "t('canvas.focus.hint')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/Canvas.tsx",
+      "tag": "span",
+      "find": [
+        "t('canvas.frame.suggestNote')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/Canvas.tsx",
+      "tag": "span",
+      "find": [
+        "t('hint.frameMove.body')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "tag": "p",
+      "find": [
+        "{row.sourceKey}"
+      ],
+      "expect": "auto",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "tag": "p",
+      "find": [
+        "{row.sourceKey}"
+      ],
+      "expect": "auto",
+      "ordinal": 1
+    },
+    {
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "tag": "label",
+      "find": [
+        "import.refresh.review.confirmAdd"
+      ],
+      "expect": "auto",
+      "marker": "<bdi dir=\"auto\">{row.sourceKey}</bdi>"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "li",
+      "find": [
+        "{parts.table}",
+        "{parts.header}"
+      ],
+      "expect": "auto",
+      "marker": "<bdi dir=\"auto\">{parts.table}</bdi>"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "div",
+      "find": [
+        "c.header"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "pre",
+      "find": [
+        "EXAMPLE_CSV"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "planSummary.framesToCreate"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "planSummary.totalParameters"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "row[ci]"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "tb.frames"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "tb.label"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "tb.numberColumns"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "td",
+      "find": [
+        "tb.rows"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/DistributionPanel.tsx",
+      "tag": "b",
+      "find": [
+        "endedPct(result)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/DistributionPanel.tsx",
+      "tag": "b",
+      "find": [
+        "result.completedRuns"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/DistributionPanel.tsx",
+      "tag": "b",
+      "find": [
+        "result.config.baseSeed"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/DistributionPanel.tsx",
+      "tag": "b",
+      "find": [
+        "result.config.steps"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/edges/LoopEdge.tsx",
+      "tag": "span",
+      "find": [
+        "t('canvas.edgeLabel.blocked')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/edges/LoopEdge.tsx",
+      "tag": "span",
+      "find": [
+        "t('canvas.edgeLabel.clamp')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/edges/LoopEdge.tsx",
+      "tag": "div",
+      "find": [
+        "text"
+      ],
+      "expect": "branch-computed",
+      "marker": "dir={textDir}"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "span",
+      "find": [
+        "canvas.filter.hiddenCount"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "p",
+      "find": [
+        "t('canvas.filter.checkboxHint')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "button",
+      "find": [
+        "t('canvas.filter.clear')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "legend",
+      "find": [
+        "t('canvas.filter.groupEdgeClass')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "legend",
+      "find": [
+        "t('canvas.filter.groupNodeKind')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "legend",
+      "find": [
+        "t('canvas.filter.groupResourceType')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/FilterPanel.tsx",
+      "tag": "span",
+      "find": [
+        "t('canvas.filter.title')"
+      ],
+      "expect": "locale-direction"
+    },
+    {
+      "file": "src/components/frames/FrameLayer.tsx",
+      "tag": "span",
+      "find": [
+        "lgr-frame__label--static"
+      ],
+      "expect": "branch-computed"
+    },
+    {
+      "file": "src/components/frames/FrameLayer.tsx",
+      "tag": "button",
+      "find": [
+        "lgr-frame__label",
+        "aria-expanded"
+      ],
+      "expect": "branch-computed"
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "tag": "span",
+      "find": [
+        "inspector__kind--${d.kind}"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "tag": "span",
+      "find": [
+        "kindLabel"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/LanguageSwitch.tsx",
+      "tag": "span",
+      "find": [
+        "lang={current.code}",
+        "{current.nativeName}"
+      ],
+      "expect": "auto",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/LanguageSwitch.tsx",
+      "tag": "span",
+      "find": [
+        "lang={current.code}",
+        "{current.nativeName}"
+      ],
+      "expect": "auto",
+      "ordinal": 1
+    },
+    {
+      "file": "src/components/LanguageSwitch.tsx",
+      "tag": "span",
+      "find": [
+        "menu__name"
+      ],
+      "expect": "auto",
+      "marker": "<bdi dir=\"auto\">{l.nativeName}</bdi>"
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "tag": "div",
+      "find": [
+        "sheet__stamp"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/mobile/MobileRunBar.tsx",
+      "tag": "span",
+      "find": [
+        "ended ? `${stepIndex} ·` : stepIndex"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "span",
+      "find": [
+        "count"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "button",
+      "find": [
+        "mp-row__label--name",
+        "onClick={onReveal}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "button",
+      "find": [
+        "mp-row__label",
+        "reveal(null, e.id)"
+      ],
+      "expect": "auto",
+      "marker": "<bdi dir=\"auto\">{sourceLabel}</bdi>"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "span",
+      "find": [
+        "outcome.code"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "button",
+      "find": [
+        "reveal(n.id, null)"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "code",
+      "find": [
+        "shownExpr"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/MonteCarloDialog.tsx",
+      "tag": "span",
+      "find": [
+        "completedRuns"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/MonteCarloDialog.tsx",
+      "tag": "span",
+      "find": [
+        "fmtBytes(estimate.memoryBytes)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/MonteCarloDialog.tsx",
+      "tag": "b",
+      "find": [
+        "fmtMs(estimate.lowMs)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/MonteCarloDialog.tsx",
+      "tag": "label",
+      "find": [
+        "p.label"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/nodes/nodes.tsx",
+      "tag": "span",
+      "find": [
+        "nodef__unit"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/nodes/nodes.tsx",
+      "tag": "span",
+      "find": [
+        "value"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "c.name"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "button",
+      "find": [
+        "glyph"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "m.name"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "m.s"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "regrb__chip",
+        "{p.name}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "regrb__num"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "regrb__op",
+        "{p.s}"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "regrb__valname",
+        "{p.name}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "regref__val"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "tag": "span",
+      "find": [
+        "totalText(t, rb.result.total)"
+      ],
+      "expect": "branch-computed",
+      "marker": "dir={totalIsVerdict ? uiDir : 'ltr'}"
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "p",
+      "find": [
+        "“{model.authorNote}”"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "{h.id}"
+      ],
+      "expect": "ltr",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "{h.id}"
+      ],
+      "expect": "ltr",
+      "ordinal": 1
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "span",
+      "find": [
+        "f.tag"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "key={e}"
+      ],
+      "expect": "ltr",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "key={e}"
+      ],
+      "expect": "ltr",
+      "ordinal": 1
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "strong",
+      "find": [
+        "model.authorName"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "span",
+      "find": [
+        "review__field-name"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "shortVal(f.base)"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "shortVal(f.proposed)"
+      ],
+      "expect": "auto",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "shortVal(f.proposed)"
+      ],
+      "expect": "auto",
+      "ordinal": 1
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "shortVal(f.yours)"
+      ],
+      "expect": "auto",
+      "ordinal": 0
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "tag": "code",
+      "find": [
+        "shortVal(f.yours)"
+      ],
+      "expect": "auto",
+      "ordinal": 1
+    },
+    {
+      "file": "src/components/TerminationSparkline.tsx",
+      "tag": "b",
+      "find": [
+        "{pct}%"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "text",
+      "find": [
+        "e.text"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "text",
+      "find": [
+        "fmt(v)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "button",
+      "find": [
+        "p.label"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "button",
+      "find": [
+        "r.label"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "text",
+      "find": [
+        "timeline__endlabel--more"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "tag": "button",
+      "find": [
+        "timeline__key is-off",
+        "timeline.legend.show"
+      ],
+      "expect": "auto"
+    }
+  ]
+}

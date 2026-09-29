@@ -90,6 +90,7 @@ export function MobileRunBar() {
           accessible name (docs/mobile.md §MV4). */}
       <span
         className="pstrip__step"
+        dir="ltr"
         aria-label={
           ended ? t('playbar.stepEnded', { n: stepIndex }) : t('playbar.step', { n: stepIndex })
         }

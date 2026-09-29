@@ -316,6 +316,7 @@ export function TimelineChart() {
                     key={p.id}
                     type="button"
                     className="timeline__key"
+                    dir="auto"
                     onClick={() => toggleTimelineSeries(p.id, allSeriesIds)}
                     title={t('timeline.legend.hide', { label: p.label })}
                   >
@@ -331,6 +332,7 @@ export function TimelineChart() {
                     key={r.id}
                     type="button"
                     className="timeline__key timeline__key--register"
+                    dir="auto"
                     onClick={() => toggleTimelineSeries(r.id, allSeriesIds)}
                     title={t('timeline.legend.hide', { label: r.label })}
                   >
@@ -366,6 +368,7 @@ export function TimelineChart() {
                         key={id}
                         type="button"
                         className={`timeline__key is-off${isReg ? ' timeline__key--register' : ''}`}
+                        dir="auto"
                         onClick={() => toggleTimelineSeries(id, allSeriesIds)}
                         title={t('timeline.legend.show', { label })}
                       >
@@ -419,6 +422,7 @@ export function TimelineChart() {
                   />
                   <text
                     className="timeline__tick"
+                    direction="ltr"
                     x={PAD.l - 6}
                     y={view.y(v) + 3.5}
                     textAnchor="end"
@@ -534,6 +538,7 @@ export function TimelineChart() {
                       ) : null}
                       <text
                         className="timeline__endlabel"
+                        direction="ltr"
                         data-series={e.id}
                         x={e.x - (e.leader ? 14 : 6)}
                         y={e.labelY}
@@ -548,6 +553,7 @@ export function TimelineChart() {
               {hasRun && view.endMore ? (
                 <text
                   className="timeline__endlabel timeline__endlabel--more"
+                  direction="ltr"
                   data-series="__more__"
                   x={view.endMore.x - 6}
                   y={view.endMore.y}
