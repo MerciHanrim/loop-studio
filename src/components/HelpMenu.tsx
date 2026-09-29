@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { FEEDBACK_URL } from '../feedback'
-import { useT } from '../i18n'
+import { useArrowGlyph, useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
@@ -28,6 +28,8 @@ export function HelpMenu({
   onLeave: () => void
 }) {
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  const extArrow = useArrowGlyph('external-link')
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const startReplay = useTourStore((s) => s.startReplay)
@@ -102,7 +104,7 @@ export function HelpMenu({
             }}
           >
             <span className="menu__name">
-              {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">↗</span>
+              {t('tour.help.feedback')} <span className="menu__ext" aria-hidden="true">{extArrow}</span>
             </span>
           </a>
           <button

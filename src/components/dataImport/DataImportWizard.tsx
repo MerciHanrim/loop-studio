@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useReactFlow, useStore as useRfStore } from '@xyflow/react'
-import { useT, type MessageKey } from '../../i18n'
+import { useArrowGlyph, useT, type MessageKey } from '../../i18n'
 import type { CsvParseError } from '../../model/csv'
 import { detectDelimiter, parseDelimitedText, stripBom, toCsv } from '../../model/csv'
 import {
@@ -240,6 +240,9 @@ export function DataImportWizard({
   returnFocusTo?: () => HTMLElement | null | undefined
 }) {
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  const extArrow = useArrowGlyph('external-link')
+  const caret = useArrowGlyph('submenu-disclosure')
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const roleHelpId = useId()
@@ -583,7 +586,7 @@ export function DataImportWizard({
                   }}
                 >
                   <span id={qsTitleId}>{t('import.qs.title')}</span>
-                  <span aria-hidden="true">{qsExpanded ? '▾' : '▸'}</span>
+                  <span aria-hidden="true">{qsExpanded ? '▾' : caret}</span>
                 </button>
                 <div id={qsBodyId} className="import__quickstartBody" hidden={!qsExpanded}>
                   <p className="import__quickstartLead">{t('import.qs.lead')}</p>
@@ -618,7 +621,7 @@ export function DataImportWizard({
                       rel="noopener noreferrer"
                       aria-label={t('import.qs.fullGuideAria')}
                     >
-                      {t('import.qs.fullGuide')} <span className="menu__ext" aria-hidden="true">↗</span>
+                      {t('import.qs.fullGuide')} <span className="menu__ext" aria-hidden="true">{extArrow}</span>
                     </a>
                   </div>
                   <details>

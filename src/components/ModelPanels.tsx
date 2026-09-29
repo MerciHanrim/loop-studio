@@ -8,7 +8,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
-import { useT, type MessageKey } from '../i18n'
+import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 
 // docs/module-system.md §MS5 — the Inputs and Summary panels. Two collapsible
 // sections at the top of the desktop right column, above the Inspector. Pure
@@ -74,6 +74,10 @@ function PanelHead({
   labelKey: { collapse: MessageKey; expand: MessageKey }
 }) {
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  // only the inline-end arm mirrors: `▾` is the disclosure-vertical unit and a
+  // menu opens downward for every reader
+  const caret = useArrowGlyph('submenu-disclosure')
   return (
     <h2 className="mpanel__head">
       <button
@@ -84,7 +88,7 @@ function PanelHead({
         onClick={onToggle}
       >
         <span className="mpanel__caret" aria-hidden="true">
-          {open ? '▾' : '▸'}
+          {open ? '▾' : caret}
         </span>
         {title}
         <span className="mpanel__count" dir="ltr">{count}</span>

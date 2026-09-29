@@ -14,7 +14,7 @@ import {
 import { useSimStore } from '../store/simStore'
 import { useIsMobile } from '../ui/media'
 import { reviewModel, type ReviewModel } from '../ui/revisionActions'
-import { useT, type MessageKey } from '../i18n'
+import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 import { MobileSheet } from './mobile/MobileSheet'
 import { InlineHintNote } from './HintNote'
 
@@ -196,6 +196,10 @@ function HunkRow({
   onField: (id: string, field: string, choice: 'proposed' | 'yours') => void
 }) {
   const t = useT()
+  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
+  // `before-after` and NOT `graph-relation`: this arrow says a value changed from
+  // one thing to another, which is reading flow, not an edge in the model graph
+  const beforeAfter = useArrowGlyph('before-after')
   if (h.kind !== 'change') {
     const blocked = !!h.blockedBy?.length
     return (
@@ -255,7 +259,7 @@ function HunkRow({
                   </span>
                 ) : (
                   <span className="review__field-vals">
-                    <code dir="auto">{shortVal(f.yours)}</code> → <code dir="auto">{shortVal(f.proposed)}</code>
+                    <code dir="auto">{shortVal(f.yours)}</code> {beforeAfter} <code dir="auto">{shortVal(f.proposed)}</code>
                   </span>
                 )}
                 <span className="review__field-choice">

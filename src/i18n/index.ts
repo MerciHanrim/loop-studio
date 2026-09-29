@@ -12,6 +12,7 @@
 //   4. never throw, never render a raw ICU pattern.
 
 import { useCallback } from 'react'
+import { arrowGlyph, type MirroredArrow } from './arrowGlyph'
 import { tryFormat, type FormatParams } from './format'
 import type { MessageKey } from './locales/en'
 import { BASE_CATALOG, BASE_LOCALE, directionOf, type LocaleDir } from './registry'
@@ -97,6 +98,15 @@ export function useLocaleDirection(): LocaleDir {
   return useI18n((s) => directionOf(s.activeLocale))
 }
 
+/** docs/localization.md §L9.3 — the glyph a mirroring arrow unit uses for the
+ *  reader. One hook so a site cannot pick a direction from anywhere else, and one
+ *  table so the pairs that swap into each other (undo / redo) stay opposite by
+ *  construction. */
+export function useArrowGlyph(unit: MirroredArrow): string {
+  return arrowGlyph(unit, useLocaleDirection())
+}
+
+export { MIRRORED_ARROWS, arrowGlyph, type MirroredArrow } from './arrowGlyph'
 export { useI18n, initI18n } from './store'
 export { LOCALES, directionOf, enabledLocales, type LocaleDir, type LocaleEntry } from './registry'
 export {

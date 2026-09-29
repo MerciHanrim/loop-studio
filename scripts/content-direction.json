@@ -8,10 +8,10 @@
     "branch-computed": "the attribute is an EXPRESSION and the file contains the declared marker - one element, several branches wanting different directions"
   },
   "totals": {
-    "elements": 86,
+    "elements": 94,
     "byExpect": {
-      "ltr": 39,
-      "auto": 30,
+      "ltr": 40,
+      "auto": 37,
       "locale-direction": 13,
       "branch-computed": 4
     }
@@ -101,12 +101,44 @@
     },
     {
       "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "tag": "bdi",
+      "find": [
+        "{row.sourceKey}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
       "tag": "label",
       "find": [
         "import.refresh.review.confirmAdd"
       ],
       "expect": "auto",
       "marker": "<bdi dir=\"auto\">{row.sourceKey}</bdi>"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "bdi",
+      "find": [
+        "{parts.header}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "bdi",
+      "find": [
+        "{parts.row}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "tag": "bdi",
+      "find": [
+        "{parts.table}"
+      ],
+      "expect": "auto"
     },
     {
       "file": "src/components/dataImport/DataImportWizard.tsx",
@@ -226,6 +258,14 @@
       "file": "src/components/edges/LoopEdge.tsx",
       "tag": "span",
       "find": [
+        "fmtSigned(sv.clampAdjustment)"
+      ],
+      "expect": "ltr"
+    },
+    {
+      "file": "src/components/edges/LoopEdge.tsx",
+      "tag": "span",
+      "find": [
         "t('canvas.edgeLabel.blocked')"
       ],
       "expect": "locale-direction"
@@ -338,6 +378,14 @@
     },
     {
       "file": "src/components/LanguageSwitch.tsx",
+      "tag": "bdi",
+      "find": [
+        "{l.nativeName}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/LanguageSwitch.tsx",
       "tag": "span",
       "find": [
         "lang={current.code}",
@@ -380,6 +428,22 @@
         "ended ? `${stepIndex} ·` : stepIndex"
       ],
       "expect": "ltr"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "bdi",
+      "find": [
+        "{sourceLabel}"
+      ],
+      "expect": "auto"
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "tag": "bdi",
+      "find": [
+        "{targetLabel}"
+      ],
+      "expect": "auto"
     },
     {
       "file": "src/components/ModelPanels.tsx",

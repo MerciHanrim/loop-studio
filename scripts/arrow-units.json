@@ -1,0 +1,295 @@
+{
+  "$comment": "docs/localization.md L9.3 - the arrow meaning units. None of these glyphs mirrors on its own: Unicode mirrors only Bidi_Mirrored characters, which are brackets and relational operators, never arrows. So each arrow is a product decision, recorded here with what its sense is relative to.",
+  "$limit": "The JSX clause is exhaustive for the sites listed and for the glyphs tracked. A NEW arrow character nobody has ruled on is caught only where it reuses a tracked glyph - clause 2 reports a keep glyph rendered somewhere the manifest does not record. An entirely new symbol needs a census pass, the same limit scripts/content-direction.json carries.",
+  "totals": {
+    "units": 14,
+    "mirroring": 8,
+    "jsxSites": 12,
+    "keepLiterals": 10,
+    "catalogKeysMirror": 9,
+    "catalogKeysKeep": 13
+  },
+  "units": {
+    "external-link": {
+      "meaning": "this opens something outside the app",
+      "verdict": "mirror",
+      "ltr": "↗",
+      "rtl": "↖"
+    },
+    "submenu-disclosure": {
+      "meaning": "a submenu or sheet opens on the inline-end side",
+      "verdict": "mirror",
+      "ltr": "▸",
+      "rtl": "◂"
+    },
+    "before-after": {
+      "meaning": "a value changes from one thing to another",
+      "verdict": "mirror",
+      "ltr": "→",
+      "rtl": "←"
+    },
+    "undo": {
+      "meaning": "step back through the edit history",
+      "verdict": "mirror",
+      "ltr": "↶",
+      "rtl": "↷"
+    },
+    "redo": {
+      "meaning": "step forward through the edit history",
+      "verdict": "mirror",
+      "ltr": "↷",
+      "rtl": "↶"
+    },
+    "graph-relation": {
+      "meaning": "an edge in the model graph - source to target, or a path through it",
+      "verdict": "keep",
+      "ltr": "→",
+      "rtl": "→"
+    },
+    "menu-path": {
+      "meaning": "walk this path through the menus",
+      "verdict": "mirror",
+      "ltr": "→",
+      "rtl": "←"
+    },
+    "derivation": {
+      "meaning": "these inputs yield that result",
+      "verdict": "mirror",
+      "ltr": "→",
+      "rtl": "←"
+    },
+    "result-marker": {
+      "meaning": "a leading marker introducing the outcome of a row",
+      "verdict": "mirror",
+      "ltr": "→",
+      "rtl": "←"
+    },
+    "disclosure-vertical": {
+      "meaning": "a menu opens downward",
+      "verdict": "keep",
+      "ltr": "▾",
+      "rtl": "▾"
+    },
+    "transport-play": {
+      "meaning": "play forward from here",
+      "verdict": "keep",
+      "ltr": "▶",
+      "rtl": "▶"
+    },
+    "transport-replay": {
+      "meaning": "replay forward from step 0",
+      "verdict": "keep",
+      "ltr": "⟳",
+      "rtl": "⟳"
+    },
+    "transport-step": {
+      "meaning": "advance one step",
+      "verdict": "keep",
+      "ltr": "⏭",
+      "rtl": "⏭"
+    },
+    "transport-reset": {
+      "meaning": "reset to step 0",
+      "verdict": "keep",
+      "ltr": "⟲",
+      "rtl": "⟲"
+    }
+  },
+  "jsx": [
+    {
+      "file": "src/components/HelpMenu.tsx",
+      "unit": "external-link",
+      "binding": "extArrow",
+      "sites": 1
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "unit": "external-link",
+      "binding": "extArrow",
+      "sites": 1
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "unit": "submenu-disclosure",
+      "binding": "caret",
+      "sites": 1
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "unit": "external-link",
+      "binding": "extArrow",
+      "sites": 1
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "unit": "submenu-disclosure",
+      "binding": "caret",
+      "sites": 4
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "unit": "submenu-disclosure",
+      "binding": "caret",
+      "sites": 1
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "unit": "before-after",
+      "binding": "beforeAfter",
+      "sites": 1
+    },
+    {
+      "file": "src/components/Toolbar.tsx",
+      "unit": "undo",
+      "binding": "undoGlyph",
+      "sites": 1
+    },
+    {
+      "file": "src/components/Toolbar.tsx",
+      "unit": "redo",
+      "binding": "redoGlyph",
+      "sites": 1
+    }
+  ],
+  "keepLiterals": [
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "unit": "disclosure-vertical",
+      "glyph": "▾",
+      "count": 1
+    },
+    {
+      "file": "src/components/LanguageSwitch.tsx",
+      "unit": "disclosure-vertical",
+      "glyph": "▾",
+      "count": 1
+    },
+    {
+      "file": "src/components/mobile/MobileRunBar.tsx",
+      "unit": "transport-step",
+      "glyph": "⏭",
+      "count": 1
+    },
+    {
+      "file": "src/components/mobile/MobileRunBar.tsx",
+      "unit": "disclosure-vertical",
+      "glyph": "▾",
+      "count": 1
+    },
+    {
+      "file": "src/components/mobile/MobileRunBar.tsx",
+      "unit": "transport-reset",
+      "glyph": "⟲",
+      "count": 1
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "unit": "graph-relation",
+      "glyph": "→",
+      "count": 1
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "unit": "disclosure-vertical",
+      "glyph": "▾",
+      "count": 1
+    },
+    {
+      "file": "src/components/PlayBar.tsx",
+      "unit": "transport-step",
+      "glyph": "⏭",
+      "count": 1
+    },
+    {
+      "file": "src/components/PlayBar.tsx",
+      "unit": "disclosure-vertical",
+      "glyph": "▾",
+      "count": 1
+    },
+    {
+      "file": "src/components/PlayBar.tsx",
+      "unit": "transport-reset",
+      "glyph": "⟲",
+      "count": 1
+    }
+  ],
+  "catalog": [
+    {
+      "unit": "before-after",
+      "verdict": "mirror",
+      "keys": [
+        "review.hunk.framesTake"
+      ]
+    },
+    {
+      "unit": "graph-relation",
+      "verdict": "keep",
+      "keys": [
+        "regExpr.row.cycle"
+      ]
+    },
+    {
+      "unit": "menu-path",
+      "verdict": "mirror",
+      "keys": [
+        "import.qs.sources.sheets",
+        "share.tooLarge",
+        "revision.export.tooLarge",
+        "proposal.needProject",
+        "proposal.dirtyOrigin"
+      ]
+    },
+    {
+      "unit": "derivation",
+      "verdict": "mirror",
+      "keys": [
+        "import.status.counts"
+      ]
+    },
+    {
+      "unit": "result-marker",
+      "verdict": "mirror",
+      "keys": [
+        "regExpr.row.divZero",
+        "regExpr.row.notFinite"
+      ]
+    },
+    {
+      "unit": "disclosure-vertical",
+      "verdict": "keep",
+      "keys": [
+        "import.button",
+        "templates.button",
+        "modules.button",
+        "toolbar.file.button",
+        "toolbar.settings.button",
+        "export.button",
+        "share.tooLarge",
+        "revision.export.tooLarge",
+        "proposal.needProject",
+        "proposal.dirtyOrigin"
+      ]
+    },
+    {
+      "unit": "transport-play",
+      "verdict": "keep",
+      "keys": [
+        "playbar.play"
+      ]
+    },
+    {
+      "unit": "transport-replay",
+      "verdict": "keep",
+      "keys": [
+        "playbar.replay"
+      ]
+    }
+  ],
+  "conditional": [
+    {
+      "unit": "menu-path",
+      "key": "import.qs.sources.excel",
+      "why": "CONDITIONAL, not mandatory. This is a locale-local arrow: ja and ko chose one where English has none. Nothing requires the Arabic translation to use an arrow here. What the contract says is that IF it does, the  rule applies and the arrow is written mirrored - the same rule every other menu-path arrow follows. Requiring an arrow would be inventing a translation decision; leaving it unrecorded would let one ship unruled."
+    }
+  ]
+}
