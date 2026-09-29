@@ -1,6 +1,6 @@
-// docs/localization.md §L9.4 — every deferred isolation obligation is
-// implemented, with the RIGHT isolate, on the RIGHT argument, at EVERY call
-// site, and no such argument is still passed raw.
+// docs/localization.md §L9.4 — every isolation obligation is implemented, with
+// the RIGHT isolate, on the RIGHT argument, at EVERY call site, and no such
+// argument is still passed raw.
 //
 //   node scripts/check-isolate-arguments.mjs
 //
@@ -10,8 +10,18 @@
 // the helper, call it on the wrong argument, use `isolateAuto` where the value
 // is a known-LTR token, or wrap one branch of a closed key set and leave the
 // other raw — and a presence check passes all four. So the manifest states the
-// kind, the key or key family, and the argument slot, and each is asserted
-// against the AST.
+// key set, the argument slot and the isolate kind for each call site, and each
+// is asserted against the AST.
+//
+// HOW A CALL SITE IS ADDRESSED
+//
+// By `(file, enclosing function, resolved key set)`. The key is resolved from
+// SOURCE by `resolveKeys`, which handles a literal, a conditional, a `??`
+// fallback, a local `const` and a lookup into a module-level map — and returns
+// null for anything else, which is a STOP. That generality replaced a
+// `keyAuthority: "dynamic:ISSUE_KEY"` special case: three of the sites added in
+// C3.5 compute their key a third, fourth and fifth way, and a checker with one
+// special case per shape is one shape behind.
 //
 // Built on the TypeScript parser, never a regex: `createSourceFile` RECOVERS
 // from a syntax error instead of throwing, so `parseDiagnostics` is checked and
@@ -42,7 +52,7 @@ function parse(rel) {
       `${rel}: does not parse — ${ts.flattenDiagnosticMessageText(diags[0].messageText, ' ')}`,
     )
   }
-  return { sf, src }
+  return sf
 }
 
 /** The enclosing function chain of a node, as `Outer>inner`. */
@@ -62,28 +72,96 @@ function enclosingOf(node, sf) {
   return names.length ? names.reverse().join('>') : '<module>'
 }
 
-/** Every `t(...)` call in a file, with its key (or null when computed). */
+/** Every string-literal value of a module-level `const NAME = { … }` map. */
+function mapValues(sf, name) {
+  let found = null
+  const visit = (n) => {
+    if (
+      ts.isVariableDeclaration(n) &&
+      ts.isIdentifier(n.name) &&
+      n.name.text === name &&
+      n.initializer &&
+      ts.isObjectLiteralExpression(n.initializer)
+    ) {
+      const vals = n.initializer.properties.map((p) =>
+        ts.isPropertyAssignment(p) && ts.isStringLiteralLike(p.initializer) ? p.initializer.text : null,
+      )
+      found = vals.some((v) => v === null) ? null : [...new Set(vals)]
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(sf)
+  return found && found.length ? found : null
+}
+
+/** The nearest `const <name> = …` declaration at or inside `scope`. */
+function localInit(scope, sf, name) {
+  const hits = []
+  const visit = (n) => {
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer) {
+      hits.push(n.initializer)
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(scope)
+  return hits.length === 1 ? hits[0] : null
+}
+
+/** Resolve a `t(…)` key expression to a CLOSED SET of literal keys, or `null`
+ *  when it cannot be resolved — which is a STOP, never an empty set. */
+function resolveKeys(expr, sf, scope) {
+  if (ts.isStringLiteralLike(expr)) return [expr.text]
+  if (ts.isParenthesizedExpression(expr) || ts.isAsExpression(expr) || ts.isNonNullExpression(expr)) {
+    return resolveKeys(expr.expression, sf, scope)
+  }
+  if (ts.isConditionalExpression(expr)) {
+    const a = resolveKeys(expr.whenTrue, sf, scope)
+    const b = resolveKeys(expr.whenFalse, sf, scope)
+    return a && b ? [...new Set([...a, ...b])] : null
+  }
+  if (ts.isBinaryExpression(expr) && expr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+    const a = resolveKeys(expr.left, sf, scope)
+    const b = resolveKeys(expr.right, sf, scope)
+    return a && b ? [...new Set([...a, ...b])] : null
+  }
+  if (ts.isElementAccessExpression(expr)) {
+    return mapValues(sf, expr.expression.getText(sf))
+  }
+  if (ts.isIdentifier(expr)) {
+    const init = localInit(scope, sf, expr.text)
+    return init ? resolveKeys(init, sf, scope) : null
+  }
+  // a template literal, a function call, anything else — not a closed set
+  return null
+}
+
+/** The function body a local `const` would be declared in. */
+function scopeOf(node) {
+  for (let p = node.parent; p; p = p.parent) {
+    if (ts.isFunctionDeclaration(p) || ts.isArrowFunction(p) || ts.isFunctionExpression(p) || ts.isMethodDeclaration(p)) {
+      return p
+    }
+  }
+  return node.getSourceFile()
+}
+
+/** Every `t(...)` call in a file, with its resolved key set and its arguments. */
 function tCalls(rel) {
-  const { sf } = parse(rel)
+  const sf = parse(rel)
   const out = []
   const visit = (n) => {
     if (ts.isCallExpression(n) && /(^|\.)t$/.test(n.expression.getText(sf)) && n.arguments.length) {
-      const a0 = n.arguments[0]
-      const key = ts.isStringLiteralLike(a0) ? a0.text : null
       const props = new Map()
       const a1 = n.arguments[1]
       if (a1 && ts.isObjectLiteralExpression(a1)) {
         for (const p of a1.properties) {
-          if (ts.isPropertyAssignment(p) && p.name) {
-            props.set(p.name.getText(sf).replace(/['"]/g, ''), p.initializer)
-          } else if (ts.isShorthandPropertyAssignment(p)) {
-            props.set(p.name.getText(sf), p.name)
-          }
+          if (ts.isPropertyAssignment(p) && p.name) props.set(p.name.getText(sf).replace(/['"]/g, ''), p.initializer)
+          else if (ts.isShorthandPropertyAssignment(p)) props.set(p.name.getText(sf), p.name)
         }
       }
       out.push({
-        key,
-        computed: key === null ? a0.getText(sf).replace(/\s+/g, ' ') : null,
+        keys: resolveKeys(n.arguments[0], sf, scopeOf(n)),
+        raw: n.arguments[0].getText(sf).replace(/\s+/g, ' '),
         enclosing: enclosingOf(n, sf),
         props,
         line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
@@ -96,12 +174,12 @@ function tCalls(rel) {
   return out
 }
 
-/** Is `expr` a call to the named wrapper? */
-const wrappedBy = (expr, sf, name) =>
-  ts.isCallExpression(expr) && expr.expression.getText(sf) === name
-
-/** Does `expr` mention the wrapper anywhere inside it? (the per-fragment case,
- *  where the wrapper sits inside a `.map()` rather than around the argument) */
+/** A key SET as one comparable string. The separator is printable on purpose: a
+ *  NUL meant the pretty-printer needed a control character inside a regex, which
+ *  this repo has a standing reason to avoid, and a catalog key is a dotted
+ *  identifier that can never contain " | ". */
+const sig = (keys) => [...keys].sort().join(' | ')
+const wrappedBy = (expr, sf, name) => ts.isCallExpression(expr) && expr.expression.getText(sf) === name
 function mentionsWrapper(expr, sf, name) {
   let found = false
   const visit = (n) => {
@@ -112,132 +190,142 @@ function mentionsWrapper(expr, sf, name) {
   return found
 }
 
+/** How many times the wrapper is CALLED inside an expression.
+ *
+ *  A per-fragment site is not defended by "is the wrapper mentioned": the
+ *  resource-type mismatch interpolates TWO user values per pair, and dropping
+ *  one of them leaves the other, so a presence check stays green while half the
+ *  values go raw. The manifest declares how many fragments a site has and this
+ *  counts them. */
+function wrapperCalls(expr, sf, name) {
+  let n = 0
+  const visit = (x) => {
+    if (ts.isCallExpression(x) && x.expression.getText(sf) === name) n += 1
+    ts.forEachChild(x, visit)
+  }
+  visit(expr)
+  return n
+}
+
 console.log(`isolation obligations: ${MANIFEST.obligations.length}`)
 console.log(`  (rows ${MANIFEST.totals.rows}, call sites ${MANIFEST.totals.callSites})`)
 console.log('')
 
-/** The arguments an obligation claims for ONE key. A branch does not always
- *  interpolate the same set — `import.loc.*` names a column header on two of its
- *  five branches and not on the other three — so a single `args` list would
- *  either miss a real argument or demand one that is not there. */
-const argsFor = (o, key) => o.argsByKey?.[key] ?? o.args
-
 const byFile = new Map()
-for (const o of MANIFEST.obligations) {
-  if (!byFile.has(o.file)) byFile.set(o.file, tCalls(o.file))
-}
+for (const o of MANIFEST.obligations) if (!byFile.has(o.file)) byFile.set(o.file, tCalls(o.file))
 
 let siteCount = 0
-const seenSites = new Set()
+const claimed = new Set()
 
 for (const o of MANIFEST.obligations) {
-  const wrapper = WRAPPER[o.kind]
-  if (!wrapper) {
-    fail(`${o.id}: unknown isolate kind "${o.kind}"`)
-    continue
-  }
   const calls = byFile.get(o.file)
+  let good = true
 
-  // ── the dynamic key family: no literal to match, so the FAMILY is read from
-  //    the AST and must be non-empty, and the single call site is addressed by
-  //    its enclosing function ──
-  if (String(o.keyAuthority).startsWith('dynamic:')) {
-    const mapName = o.keyAuthority.split(':')[1]
-    const { sf } = parse(o.file)
-    let family = null
-    const findMap = (n) => {
-      if (
-        ts.isVariableDeclaration(n) &&
-        ts.isIdentifier(n.name) &&
-        n.name.text === mapName &&
-        n.initializer &&
-        ts.isObjectLiteralExpression(n.initializer)
-      ) {
-        family = n.initializer.properties
-          .map((p) => (ts.isPropertyAssignment(p) && ts.isStringLiteralLike(p.initializer) ? p.initializer.text : null))
-          .filter(Boolean)
-      }
-      ts.forEachChild(n, findMap)
-    }
-    findMap(sf)
-    if (!family || family.length === 0) {
-      fail(`${o.id}: the dynamic key family ${mapName} parsed as empty — fail closed`)
+  // ── a PRODUCER site: the value is wrapped where it is assigned, because the
+  //    call passes a prepared object rather than an object literal. Asserted
+  //    over the assignment, and the call is still located by its key set. ──
+  if (o.shape === 'producer') {
+    const site = calls.filter((c) => c.enclosing === o.enclosing && c.keys && sameSet(c.keys, o.sites[0].keys ?? c.keys))
+    const expected = o.sites[0]
+    const resolved = site.filter((c) => c.keys && c.keys.length === expected.keyCount)
+    if (resolved.length !== 1) {
+      fail(`${o.id}: expected 1 call whose key set has ${expected.keyCount} members in ${o.enclosing}, found ${resolved.length}`)
       continue
     }
-    const sites = calls.filter((c) => c.key === null && c.computed.includes(mapName))
-    if (sites.length !== 1) {
-      fail(`${o.id}: expected exactly 1 \`t(${mapName}[…])\` call, found ${sites.length}`)
-      continue
-    }
-    // the argument is assigned before the call, so the wrapper is asserted over
-    // the enclosing function's source rather than over the call's own props
-    const fnSrc = readFileSync(resolve(root, o.file), 'utf8')
-    const assign = new RegExp(
-      `${o.args[0]}\\s*=\\s*${wrapper}\\(`,
-    )
-    if (!assign.test(fnSrc)) {
-      fail(`${o.id}: no \`${o.args[0]} = ${wrapper}(…)\` assignment feeding the ${mapName} call`)
+    const src = readFileSync(resolve(root, o.file), 'utf8')
+    const wrapper = WRAPPER[expected.kind]
+    if (!new RegExp(`${expected.producer.replace('.', '\\.')}\\s*=\\s*${wrapper}\\(`).test(src)) {
+      fail(`${o.id}: no \`${expected.producer} = ${wrapper}(…)\` assignment feeding the call`)
       continue
     }
     siteCount += 1
-    seenSites.add(`${o.file}::${mapName}[…]`)
-    ok(`${o.id}: ${family.length}-key family via ${mapName}, arg \`${o.args[0]}\` wrapped with ${wrapper}`)
+    claimed.add(`${o.file}::${o.enclosing}::${sig(resolved[0].keys)}::0`)
+    ok(`${o.id}: ${expected.keyCount}-key family, producer \`${expected.producer}\` wrapped with ${wrapper}`)
     continue
   }
 
-  // ── literal keys / closed key sets ──
-  if (!o.keys.length) {
-    fail(`${o.id}: no keys declared and no dynamic family`)
-    continue
+  // ── ordinary sites, grouped by key SET so two calls sharing one key are two
+  //    entries and a computed key resolving to four is ONE ──
+  const groups = new Map()
+  for (const s of o.sites) {
+    const k = sig(s.keys)
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(s)
   }
-  let allGood = true
-  for (const key of o.keys) {
-    const sites = calls.filter((c) => c.key === key && c.enclosing === o.enclosing)
-    if (sites.length !== 1) {
-      fail(`${o.id} / ${key}: resolved to ${sites.length} call site(s) in ${o.enclosing} (must be exactly 1)`)
-      allGood = false
+  for (const [k, entries] of groups) {
+    const first = JSON.stringify({ args: entries[0].args, kind: entries[0].kind, kindByArg: entries[0].kindByArg ?? null, shape: entries[0].shape ?? null })
+    for (const e of entries.slice(1)) {
+      if (JSON.stringify({ args: e.args, kind: e.kind, kindByArg: e.kindByArg ?? null, shape: e.shape ?? null }) !== first) {
+        fail(`${o.id}: two sites share the key set ${k} but declare different arguments or kinds`)
+        good = false
+      }
+    }
+    const found = calls.filter((c) => c.enclosing === o.enclosing && c.keys && sig(c.keys) === k)
+    if (found.length !== entries.length) {
+      const unresolved = calls.filter((c) => c.enclosing === o.enclosing && !c.keys)
+      fail(
+        `${o.id} / ${k}: expected ${entries.length} call site(s) in ${o.enclosing}, found ${found.length}` +
+          (unresolved.length ? ` (${unresolved.length} call(s) there have an UNRESOLVABLE key: ${unresolved.map((u) => u.raw).join(', ')})` : ''),
+      )
+      good = false
       continue
     }
-    const site = sites[0]
-    siteCount += 1
-    seenSites.add(`${o.file}::${o.enclosing}::${key}`)
-    for (const arg of argsFor(o, key)) {
-      const expr = site.props.get(arg)
-      if (!expr) {
-        fail(`${o.id} / ${key}: argument \`${arg}\` is not present at ${o.file}:${site.line}`)
-        allGood = false
-        continue
-      }
-      const direct = wrappedBy(expr, site.sf, wrapper)
-      const inside = mentionsWrapper(expr, site.sf, wrapper)
-      if (o.shape === 'per-fragment') {
-        // the wrapper must be INSIDE the expression (once per fragment), and
-        // must NOT be wrapped around the joined whole
-        if (direct) {
-          fail(`${o.id} / ${key}: \`${arg}\` is isolated as ONE value; this site needs per-fragment isolation`)
-          allGood = false
-        } else if (!inside) {
-          fail(`${o.id} / ${key}: \`${arg}\` has no ${wrapper} inside it — the fragments are raw`)
-          allGood = false
+    for (const [i, site] of found.entries()) {
+      const e = entries[i]
+      siteCount += 1
+      claimed.add(`${o.file}::${o.enclosing}::${k}::${i}`)
+      for (const arg of e.args) {
+        const kind = e.kindByArg?.[arg] ?? e.kind
+        const wrapper = WRAPPER[kind]
+        if (!wrapper) {
+          fail(`${o.id}: unknown isolate kind "${kind}" for \`${arg}\``)
+          good = false
+          continue
         }
-      } else if (!direct) {
-        fail(
-          `${o.id} / ${key}: \`${arg}\` is passed RAW at ${o.file}:${site.line} — expected ${wrapper}(…), got \`${expr.getText(site.sf).replace(/\s+/g, ' ').slice(0, 60)}\``,
-        )
-        allGood = false
-      }
-      // the other kind must NOT appear on this argument
-      const other = WRAPPER[o.kind === 'auto' ? 'ltr' : 'auto']
-      if (mentionsWrapper(expr, site.sf, other)) {
-        fail(`${o.id} / ${key}: \`${arg}\` uses ${other}, but this obligation is \`${o.kind}\``)
-        allGood = false
+        const expr = site.props.get(arg)
+        if (!expr) {
+          fail(`${o.id} / ${arg}: argument not present at ${o.file}:${site.line}`)
+          good = false
+          continue
+        }
+        const direct = wrappedBy(expr, site.sf, wrapper)
+        const inside = mentionsWrapper(expr, site.sf, wrapper)
+        if (e.shape === 'per-fragment') {
+          if (direct) {
+            fail(`${o.id} / ${arg}: isolated as ONE value; this site needs per-fragment isolation`)
+            good = false
+          } else if (!inside) {
+            fail(`${o.id} / ${arg}: no ${wrapper} inside it — the fragments are raw`)
+            good = false
+          } else {
+            const n = wrapperCalls(expr, site.sf, wrapper)
+            if (n !== e.fragments) {
+              fail(`${o.id} / ${arg}: ${n} ${wrapper} call(s) inside, manifest declares ${e.fragments} fragment(s) — one of them is raw`)
+              good = false
+            }
+          }
+        } else if (!direct) {
+          fail(
+            `${o.id} / ${arg}: passed RAW at ${o.file}:${site.line} — expected ${wrapper}(…), got \`${expr.getText(site.sf).replace(/\s+/g, ' ').slice(0, 60)}\``,
+          )
+          good = false
+        }
+        const other = WRAPPER[kind === 'auto' ? 'ltr' : 'auto']
+        if (mentionsWrapper(expr, site.sf, other)) {
+          fail(`${o.id} / ${arg}: uses ${other}, but this argument is declared \`${kind}\``)
+          good = false
+        }
       }
     }
   }
-  if (allGood) {
-    const args = [...new Set(o.keys.flatMap((k) => argsFor(o, k)))].join('/')
-    ok(`${o.id}: ${o.keys.length} call site(s), arg(s) ${args} wrapped with ${wrapper}`)
+  if (good) {
+    const args = [...new Set(o.sites.flatMap((s) => s.args ?? []))].join('/')
+    ok(`${o.id}: ${o.sites.length} call site(s), arg(s) ${args}`)
   }
+}
+
+function sameSet(a, b) {
+  return sig(a) === sig(b)
 }
 
 console.log('')
@@ -255,8 +343,6 @@ if (rows !== MANIFEST.totals.rows) {
   ok(`rows accounted for: ${rows} / ${MANIFEST.totals.rows}`)
 }
 
-// ── and the rows split by where they came from, so the PR B census and the C3.5
-//    sweep cannot quietly borrow each other's count ──
 for (const [source, want] of Object.entries(MANIFEST.rowsBySource)) {
   const got = MANIFEST.obligations.reduce(
     (n, o) => n + o.rows.filter((r) => (source === 'pr-b-census' ? r.startsWith('decisions-') : r.startsWith(source))).length,
@@ -266,17 +352,15 @@ for (const [source, want] of Object.entries(MANIFEST.rowsBySource)) {
   else ok(`rows from ${source}: ${got} / ${want}`)
 }
 
-// ── every USE of a helper is a declared obligation: a call site that isolates
-//    something the manifest does not know about means the manifest is stale ──
+// ── every USE of a helper is a declared obligation ──
 const declaredFiles = new Set(MANIFEST.obligations.map((o) => o.file))
 let strays = 0
 for (const rel of declaredFiles) {
-  const { sf } = parse(rel)
+  const sf = parse(rel)
   const visit = (n) => {
     if (ts.isCallExpression(n) && /^isolate(Auto|Ltr)$/.test(n.expression.getText(sf))) {
       const encl = enclosingOf(n, sf)
-      const known = MANIFEST.obligations.some((o) => o.file === rel && o.enclosing === encl)
-      if (!known) {
+      if (!MANIFEST.obligations.some((o) => o.file === rel && o.enclosing === encl)) {
         fail(`${rel}: ${n.expression.getText(sf)} called in \`${encl}\`, which no obligation declares`)
         strays++
       }

@@ -60,18 +60,30 @@ export function snap(
   return [`${stem}.png`, { ...extra, maxDiffPixelRatio: SNAPSHOT_POLICY[kind].maxDiffPixelRatio }]
 }
 
-/** docs/localization.md §L9.4 — one optional bidi isolate character.
- *
- *  An ICU argument carrying a user value is wrapped at the DISPLAY boundary, so
- *  the sentence a reader sees is unchanged: the characters are zero-width. What
- *  does change is a matcher that SPANS that boundary — `"4,900"`, where the
- *  quotes belong to the sentence and the value sits isolated between them. Such
- *  a pattern is written with `ISO` where it crosses, which keeps it pinning the
- *  same thing instead of being loosened until it matches.
- *
- *  `e2e/i18n-ar-isolation.spec.ts` is where the isolate itself is asserted; this
- *  is only for specs that read a sentence containing one. */
-export const ISO = '[\\u2066-\\u2069]?'
+// docs/localization.md §L9.4 — the EXACT rendering of an isolated ICU argument.
+//
+// An isolate is invisible, so a matcher that spans the boundary — `"4,900"`,
+// where the quotes belong to the sentence and the value sits isolated between
+// them — stops matching although nothing a reader sees changed. The first fix
+// for that was an OPTIONAL isolate character, and optional is the wrong shape:
+// a pattern that passes with or without the isolate also passes if the isolate
+// is later removed, which is the defect these specs are meant to notice.
+//
+// So these build the exact string instead. On an isolation-mandatory path,
+// `iso('4,900')` matches `FSI + "4,900" + PDI` and nothing else — no isolate,
+// the wrong kind of isolate, or an extra control inside all read as a failure.
+// A path where the value may legitimately render UNISOLATED (an empty or
+// whitespace-only value, which the helpers return unchanged) needs its own
+// matcher, not a loosened one of these.
+
+const FSI = '⁨'
+const LRI = '⁦'
+const PDI = '⁩'
+
+/** the exact rendering of a value wrapped by `isolateAuto` */
+export const iso = (value: string): string => FSI + value + PDI
+/** the exact rendering of a value wrapped by `isolateLtr` */
+export const isoLtr = (value: string): string => LRI + value + PDI
 
 export async function openApp(page: Page): Promise<void> {
   await page.goto('/')

@@ -511,7 +511,10 @@ function rhsDescribeText(rhs: ActivatorRhs): string | number {
   return `@${rhs.id} ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`
 }
 function describeActivator(t: TFn, p: Extract<ActivatorParse, { ok: true }>): string {
-  return t('inspector.activator.describe', { op: p.op, n: rhsDescribeText(p.rhs) })
+  return t('inspector.activator.describe', {
+    op: p.op,
+    n: isolateLtr(String(rhsDescribeText(p.rhs))),
+  })
 }
 function describeLabel(t: TFn, p: Extract<LabelParse, { ok: true }>): string {
   const amount = p.token === 'S' ? t('inspector.label.amountSource') : String(p.n)
@@ -584,7 +587,7 @@ function ActivatorField({
       hint = t('inspector.activator.preview.resolved', {
         op: currentOp,
         threshold: resolution.threshold,
-        paramLabel: target?.label ?? rhs.id,
+        paramLabel: isolateAuto(target?.label ?? rhs.id),
         offsetText,
         // = resolution.threshold - rhs.offset, but reading the Parameter's
         // own current value directly (rather than back-computing) stays
@@ -601,7 +604,7 @@ function ActivatorField({
             : resolution.reason === 'non-finite'
               ? 'inspector.activator.preview.nonFinite'
               : 'inspector.activator.preview.overflow'
-      hint = t(key, { id: rhs.id, kind: resolution.kind ?? '' })
+      hint = t(key, { id: isolateLtr(rhs.id), kind: resolution.kind ?? '' })
       hintOk = false
     }
   }
@@ -961,7 +964,7 @@ function ResourceTypeField({
       )}
       {norm.value !== null && norm.value !== raw && (
         <p className="inspector__note">
-          {t('inspector.resourceType.normalised', { value: norm.value })}
+          {t('inspector.resourceType.normalised', { value: isolateAuto(norm.value) })}
         </p>
       )}
       {norm.value !== null && !isBuiltinResourceType(norm.value) && (
@@ -970,7 +973,9 @@ function ResourceTypeField({
       {findings.length > 0 && (
         <p className="inspector__note inspector__note--warn">
           {t('inspector.resourceType.mismatch', {
-            pairs: findings.map((f) => `${f.edgeType} ↔ ${f.nodeType}`).join(', '),
+            pairs: findings
+              .map((f) => `${isolateAuto(f.edgeType)} ↔ ${isolateAuto(f.nodeType)}`)
+              .join(', '),
           })}
         </p>
       )}

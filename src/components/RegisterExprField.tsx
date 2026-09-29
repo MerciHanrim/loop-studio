@@ -35,6 +35,7 @@ import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { useLocaleDirection, useT, type MessageKey } from '../i18n'
+import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 
 /** §RXA6 / RXA-D7 — popover ceiling; the rest is a "+N — keep typing" footer. */
 const RXA_MAX_ROWS = 12
@@ -217,7 +218,7 @@ function RefListbox({
               <span className="regref__reason">
                 {c.block.reason === 'self'
                   ? t('regExpr.block.self')
-                  : t('regExpr.block.cycle', { name: c.block.withName })}
+                  : t('regExpr.block.cycle', { name: isolateAuto(c.block.withName) })}
               </span>
             )}
           </span>
@@ -489,7 +490,11 @@ export function RegisterExprField({
     (r: Extract<ReadBack, { ok: true }>['result']): string | null => {
       if (r.kind !== 'error') return null
       const key = REF_ROW_KEY[r.code] ?? 'regExpr.row.generic'
-      return t(key, { name: r.badRefName ?? '', id: r.badRefId ?? '', code: r.code })
+      return t(key, {
+        name: isolateAuto(r.badRefName ?? ''),
+        id: isolateLtr(r.badRefId ?? ''),
+        code: r.code,
+      })
     },
     [t],
   )
@@ -562,7 +567,7 @@ export function RegisterExprField({
     }
     const nm = candidates.find((c) => c.id === pendingPick.nodeId)?.name ?? pendingPick.nodeId
     justInsertedRef.current = true
-    setSrMsg(t('regExpr.insert.done', { name: nm }))
+    setSrMsg(t('regExpr.insert.done', { name: isolateAuto(nm) }))
     clearRefInsertPick()
   }, [pendingPick, candidates, commitIfValid, clearRefInsertPick, requestCaret, t])
 
@@ -583,7 +588,7 @@ export function RegisterExprField({
       armHint.reason === 'self'
         ? t('regExpr.block.self')
         : armHint.reason === 'cycle'
-          ? t('regExpr.block.cycle', { name: armHint.name ?? '' })
+          ? t('regExpr.block.cycle', { name: isolateAuto(armHint.name ?? '') })
           : t('regExpr.insert.wrongKind'),
     )
   }, [armHint, t])
@@ -762,7 +767,7 @@ export function RegisterExprField({
             ? armHint.reason === 'self'
               ? t('regExpr.block.self')
               : armHint.reason === 'cycle'
-                ? t('regExpr.block.cycle', { name: armHint.name ?? '' })
+                ? t('regExpr.block.cycle', { name: isolateAuto(armHint.name ?? '') })
                 : t('regExpr.insert.wrongKind')
             : t('regExpr.insert.hint')}
         </p>

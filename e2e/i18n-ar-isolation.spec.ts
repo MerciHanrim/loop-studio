@@ -313,9 +313,24 @@ function probe(
   )
 }
 
-/** the shapes the PR B census measured as breaking without an isolate: a value
- *  that opens with a digit or a bracket has no strong character to claim */
-const needsIsolate = (v: string) => /^[\d([]/.test(v)
+/** The fixtures MEASURED to reorder when interpolated raw into an RTL sentence.
+ *
+ *  Listed, not pattern-matched. The first attempt was `/^[\d([]/` — "opens with
+ *  a digit or a bracket" — and that is not the condition. Two things have to be
+ *  true together: the value's own direction must disagree with the paragraph's,
+ *  AND it must contain more than one bidi run, so the runs swap. A single-script
+ *  value never reorders INTERNALLY (only its position moves), and an Arabic value
+ *  agrees with the paragraph. `(مسودة) بن` is bracket-leading and Arabic and does
+ *  not reorder — the regex claimed it did, and the test caught it. */
+const REORDERS = new Set([
+  '#7-beta',
+  '2024 Sales',
+  '7 days left',
+  '(Draft) Q1',
+  '[wip] later',
+  '2024 Coins',
+])
+const needsIsolate = (v: string) => REORDERS.has(v)
 
 /** OUTER — in an RTL paragraph the sentence's head paints to the RIGHT of the
  *  value and its tail to the LEFT, unless the line wrapped between them, in
@@ -925,5 +940,156 @@ test.describe('§L9.4 display only — the stored document and its digest do not
     const second = (await measure(page, '.labeltiming__groupline'))!
     expect(second.node, 'the round trip must reproduce the same string exactly').toBe(first.node)
     expect(second.controls).toEqual(first.controls)
+  })
+})
+
+// ───────────────────────────────────────────────────────────────────────────
+// C3.5 — the shapes the first fifteen tests did not already prove
+//
+// The other twelve obligations added in C3.5 are further INSTANCES of shapes
+// already measured above: an `FSI` around a user value, an `LRI` around a
+// technical token, in an Arabic sentence. What decides whether each of those is
+// wired is its kind, argument slot and call site, and that is asserted exactly
+// by `scripts/check-isolate-arguments.mjs`, which is falsified per obligation.
+// These three are here because each brings a shape the browser had not seen.
+// ───────────────────────────────────────────────────────────────────────────
+
+test.describe('§L9.4 the shapes C3.5 added', () => {
+  test.beforeEach(async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+  })
+
+  test('a language ENDONYM keeps its own direction inside the other language’s sentence', async ({ page }) => {
+    // The one site where the value's direction is not merely unknown but
+    // usually OPPOSITE: the banner names a language by its own endonym, in
+    // whichever language is still on screen. Under `ar` that is a Cyrillic or
+    // Japanese name inside an Arabic sentence, every time.
+    await setLocale(page, 'ar')
+    await page.evaluate(() => {
+      ;(window as unknown as { __loop: { i18n: { setState: (p: Record<string, unknown>) => void } } }).__loop.i18n.setState({
+        loadError: { code: 'ru', current: 'ar' },
+      })
+    })
+    await expect(page.locator('.boot-notice__text')).toBeVisible()
+
+    const m = (await measure(page, '.boot-notice__text'))!
+    expect(m.spans.map((s) => s.kind)).toEqual(['FSI', 'FSI'])
+    expect(m.spans[0]!.text, 'the endonym, not the English name').toBe('Русский')
+    expect(m.spans[1]!.text).toBe('العربية')
+    expect(m.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI'])
+    expect(m.direction).toBe('rtl')
+    // ONE relation, not two: the sentence ends `…{current}.`, so the text after
+    // the last isolate is a full stop — no strong character, no defined side
+    expect(expectReadingOrder(m, 'i18n.loadFailed')).toBe(1)
+
+    const p = (await probe(page, '.boot-notice__text', {
+      value: 'Русский',
+      head: m.head.text,
+      tail: m.tail.text,
+      dir: 'auto',
+    }))!
+    expect(p.aloneDir, 'a Cyrillic endonym resolves ltr on its own').toBe('ltr')
+    expect(m.spans[0]!.order, 'the isolated endonym lays out as it does alone').toEqual(p.alone)
+  })
+
+  test('the resource-type mismatch isolates each TYPE, leaving the arrow and the comma to the sentence', async ({ page }) => {
+    // The SECOND per-fragment site, and a different shape from the first: the
+    // canvas hint joins single labels with `, `, this joins PAIRS with `, ` and
+    // each pair with `↔`. Both separators belong to the sentence, so four user
+    // values produce four isolates and neither separator is inside one.
+    await page.evaluate(() => {
+      const g = () => (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
+      g().newGraph()
+      g().addNodeAt('pool', { x: 0, y: 0 })
+      g().addNodeAt('pool', { x: 260, y: 0 })
+      const ids = g().nodes.map((n: { id: string }) => n.id)
+      g().updateNodeData(ids[0], { resourceType: '2024 Coins' })
+      g().updateNodeData(ids[1], { resourceType: '(مسودة) بن' })
+      g().onConnect({ source: ids[0], target: ids[1], sourceHandle: 'out', targetHandle: 'in' })
+      // trailing whitespace so the NORMALISED note renders in the same panel
+      g().setEdgeData(g().edges[0].id, { kind: 'resource', flow: '1', resourceType: '  ذهب  ' })
+      g().setSelection(null, g().edges[0].id)
+    })
+    await setLocale(page, 'ar')
+    await expect(page.locator('.inspector__note--warn')).toBeVisible()
+
+    const m = (await measure(page, '.inspector__note--warn'))!
+    // two findings (source and target pool), each naming the edge type and the
+    // node type — four independent user values, four isolates
+    expect(m.spans.map((s) => s.kind)).toEqual(['FSI', 'FSI', 'FSI', 'FSI'])
+    expect(m.spans.map((s) => s.text)).toEqual(['ذهب', '2024 Coins', 'ذهب', '(مسودة) بن'])
+    expect(m.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI'])
+    // the arrow is BETWEEN a pair and the comma between pairs — both outside
+    expect(m.between[0], 'the arrow belongs to the sentence').toBe(' ↔ ')
+    expect(m.between[1], 'the comma belongs to the sentence').toBe(', ')
+    expect(m.between[2]).toBe(' ↔ ')
+    expect(m.head.text).toContain('عدم تطابق')
+    expect(expectReadingOrder(m, 'resourceType.mismatch')).toBeGreaterThanOrEqual(2)
+
+    let proven = 0
+    for (const [i, value] of ['ذهب', '2024 Coins', 'ذهب', '(مسودة) بن'].entries()) {
+      const p = (await probe(page, '.inspector__note--warn', {
+        value,
+        head: m.head.text,
+        tail: m.tail.text,
+        dir: 'auto',
+      }))!
+      expect(m.spans[i]!.order, `${value}: isolated fragment must lay out as it does alone`).toEqual(p.alone)
+      if (needsIsolate(value)) {
+        expect(p.joined, `${value}: raw interpolation must reorder it (alone=${p.alone}, joined=${p.joined})`).not.toEqual(p.alone)
+        proven += 1
+      }
+    }
+    // one of the four — `(مسودة) بن` is bracket-leading but Arabic, so it agrees
+    // with the paragraph and never reorders; it is here to prove the isolate does
+    // not DAMAGE a value that needed nothing
+    expect(proven, 'the one reordering shape was exercised').toBe(1)
+
+    // and the normalised note in the same panel bounds its own value
+    const n = (await measure(page, '.inspector__note:not(.inspector__note--warn)'))!
+    expect(n.spans.map((s) => s.kind)).toEqual(['FSI'])
+    expect(n.spans[0]!.text, 'the trimmed form, isolated').toBe('ذهب')
+  })
+
+  test('the bad-reference row bounds a NAME with FSI and an ID with LRI, from one call site', async ({ page }) => {
+    // One call passes both `{name}` and `{id}` because the key is not known
+    // until runtime — but no catalog value uses both, so each rendering carries
+    // ONE isolate. What matters is that it is the RIGHT one on each branch.
+    const seed = (expr: string) =>
+      page.evaluate((e) => {
+        const g = () => (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
+        g().newGraph()
+        g().addNodeAt('source', { x: 0, y: 0 })
+        g().addNodeAt('register', { x: 260, y: 0 })
+        const ids = g().nodes.map((n: { id: string }) => n.id)
+        g().updateNodeData(ids[0], { label: '2024 مصدر' })
+        g().updateNodeData(ids[1], { label: 'Reg', expr: e.replace('SOURCE', ids[0]) })
+        g().setSelection(ids[1], null)
+      }, expr)
+
+    await seed('@{SOURCE}')
+    await setLocale(page, 'ar')
+    await expect(page.locator('.regrb__line--bad')).toBeVisible()
+
+    const wrong = (await measure(page, '.regrb__line--bad'))!
+    expect(wrong.spans.map((s) => s.kind), 'a user NAME takes the first-strong isolate').toEqual(['FSI'])
+    expect(wrong.spans[0]!.text).toBe('2024 مصدر')
+    expect(wrong.tail.text).toContain('ليس مَجمَعًا')
+
+    await seed('@{2024-ghost}')
+    await expect.poll(() => page.locator('.regrb__line--bad').innerText()).toContain('غير موجود')
+
+    const unknown = (await measure(page, '.regrb__line--bad'))!
+    expect(unknown.spans.map((s) => s.kind), 'a node ID takes the forced-ltr isolate').toEqual(['LRI'])
+    expect(unknown.spans[0]!.text).toBe('2024-ghost')
+    expect(unknown.controls).toEqual(['LRI', 'PDI'])
+    const p = (await probe(page, '.regrb__line--bad', {
+      value: '2024-ghost',
+      head: unknown.head.text,
+      tail: unknown.tail.text,
+      dir: 'ltr',
+    }))!
+    expect(unknown.spans[0]!.order).toEqual(p.alone)
   })
 })

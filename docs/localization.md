@@ -3809,12 +3809,12 @@ too: for the shapes the census recorded as breaking, the same value interpolated
 RAW must come out in a different order.
 
 **Exhaustiveness — how the population was closed (C3.5).**
-`scripts/isolate-obligations.json` carries its own `$limit`: it defends the call
-sites listed in it, exactly and in both directions, and it does **not** discover
-an ICU argument that starts carrying a user value later. The first attempt at
-finding those was an argument-NAME grep (`{header}`, `{label}`, `{name}`…),
-which is a guess about vocabulary rather than a measurement: it matched 34
-arguments. Re-run from the TypeScript **type checker** the population is **205**.
+`scripts/isolate-obligations.json` defends the call sites listed in it, exactly
+and in both directions, and it does **not** by itself discover an ICU argument
+that starts carrying a user value later. The first attempt at finding those was
+an argument-NAME grep (`{header}`, `{label}`, `{name}`…), which is a guess about
+vocabulary rather than a measurement: it matched 34 arguments. Re-run from the
+TypeScript **type checker** the population is **205**.
 
 `scripts/check-icu-arguments.mjs` enumerates all 205 and derives four classes
 from the type and the syntax, so they are evidence rather than a claim someone
@@ -3829,42 +3829,70 @@ newly added interpolation fail closed instead of joining an unexamined majority.
 |---|---:|---|
 | `number` | 96 | derived from the type |
 | `closed-value` | 40 | a catalog string, an engine phrase, a formatted number, a build constant, a model-vocabulary token |
-| `isolated` | 19 | implemented; every one declared in `isolate-obligations.json` |
+| `isolated` | 38 | implemented; every one declared in `isolate-obligations.json` |
 | `catalog` | 13 | derived |
 | `attribute` | 12 | PR B's separate axis. Two different numbers: 12 rows carry this CLASS, 18 arguments have an attribute SINK — 8 attribute-sink arguments are mechanically classified and need no row, and 2 rows are attribute by TRACING, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function |
 | `enum` | 6 | derived, members printed |
-| `auto` | 14 | **open** — free user text, recorded, not implemented |
-| `ltr` | 4 | **open** — a technical token, recorded, not implemented |
-| `per-fragment` | 1 | **open** — several independent user values in one argument |
+| `auto` / `ltr` / `per-fragment` | 0 | **none left**: an argument whose evidence says it needs bounding is bounded |
 | `unreachable` | 0 | the class exists and nothing qualified: every argument enumerated is reachable |
 | **total** | **205** | |
 
-Eight of the arguments the sweep found were fixed in C3.5 and are obligations
-now: `import.refresh.columnEvents.unrecognized`, whose header is the direct peer
-of the two events already covered and differed only in which side of the refresh
-it came from; and the five `import.loc.*` calls, whose table name and column
-header are concatenated with an already-isolated `{value}` inside `issueText`, so
-one rendered sentence carried one bounded argument and two unbounded ones — the
-two unbounded ones first.
+The sweep found **27** arguments beyond PR B's eleven. Eight were fixed in C3.5's
+first pass — `import.refresh.columnEvents.unrecognized`, whose header is the
+direct peer of the two events already covered and differed only in which side of
+the refresh it came from, and the five `import.loc.*` calls, whose table name and
+column header are concatenated with an already-isolated `{value}` inside
+`issueText`, so one rendered sentence carried one bounded argument and two
+unbounded ones, the two unbounded ones first.
 
-The **19** rows still classed `auto` / `ltr` / `per-fragment` are open
-obligations: the evidence says the value needs bounding and the code does not
-bound it yet. The checker asserts that set is exactly what the manifest declares
-and that none of them is wrapped, so implementing one without moving its row to
-`isolate-obligations.json` is red — and so is a new one appearing.
+The other **19** were first left classed `auto` / `ltr` / `per-fragment` and
+recorded as open. That was not a disposition: those class names state the
+treatment the value needs, and a checker asserting they are *not yet* wrapped
+preserves the gap rather than closing it. They are implemented. The checker now
+asserts that set is **empty**, so a row reappearing in one of those classes is
+red, and so is implementing one without moving its row.
 
-**The accounting, with each number's unit stated**, because several of them are
-close together and none is a restatement of another:
+Three of them brought a shape the address model could not express, and the
+checker was generalised rather than given a special case each:
+
+* a key held in a local `const` whose initializer is a nested conditional
+  (`inspector.activator.preview.*`),
+* a key that is an inline conditional (`review.foot.*`),
+* a key that is a map lookup with a `??` literal fallback (`regExpr.row.*`).
+
+`resolveKeys` now resolves a literal, a conditional, a `??`, a local `const` and
+a map lookup to a **closed set**, and returns null — a STOP — for anything else.
+That replaced the one `keyAuthority: "dynamic:ISSUE_KEY"` special case the first
+version carried.
+
+**The accounting, with each number's unit stated**, because several are close
+together and none is a restatement of another:
 
 | number | unit |
 |---:|---|
-| 19 | rows — 11 from the PR B census, 8 from the C3.5 sweep |
-| 10 | obligations — one per PRODUCER |
-| 17 | AST call sites the edit touches |
-| 19 | wrapped ICU arguments (a call site may wrap two) |
-| 15 | browser tests in `e2e/i18n-ar-isolation.spec.ts` |
-| 12 | isolate mutations, each RED with only the test that covers it run |
-| 10 | population-checker mutations, each RED and named |
+| 38 | rows — 11 from the PR B census, 27 from the C3.5 sweep |
+| 25 | obligations — one per PRODUCER |
+| 34 | AST call sites the edit touches |
+| 38 | wrapped ICU arguments (a call site may wrap two; a producer-shaped site wraps none) |
+| 18 | browser tests in `e2e/i18n-ar-isolation.spec.ts` |
+| 32 | obligation and manifest mutations, each RED and named by `check-isolate-arguments.mjs` |
+| 16 | isolate mutations, each RED with only the browser test that covers it run |
+| 10 | population mutations, each RED and named by `check-icu-arguments.mjs` |
+
+The two 38s are **not the same set**: `wizard-issue-value` carries three rows and
+wraps no ICU argument (it wraps a producer, and its call passes a prepared object
+rather than an object literal), while `wizard-issue-location` carries seven of
+each. The totals landing on one number is a coincidence.
+
+**What the browser layer covers, and what it does not.** The eighteen tests prove
+the LAYOUT contract — where the value sits in the sentence, and the order of the
+characters inside it — across both isolate kinds, four value shapes, hostile
+input, two per-fragment shapes and an endonym whose direction is opposite to the
+sentence. They do not render every one of the 34 call sites: the remaining ones
+are further instances of shapes already measured, and what decides whether each
+is wired is its kind, argument slot and call site, which
+`check-isolate-arguments.mjs` asserts exactly and which is falsified per
+obligation.
 
 **What a green run here does not say.** It closes the isolation contract up to
 browser layout. How a screen reader pronounces, segments or brailles any of it is

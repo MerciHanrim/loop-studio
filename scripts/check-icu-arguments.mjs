@@ -50,7 +50,6 @@ const ok = (m) => console.log(`  ok    ${m}`)
 
 const DISPOSITION = JSON.parse(readFileSync(resolve(root, 'scripts/icu-argument-disposition.json'), 'utf8'))
 const OBLIGATIONS = JSON.parse(readFileSync(resolve(root, 'scripts/isolate-obligations.json'), 'utf8'))
-const argsFor = (o, key) => o.argsByKey?.[key] ?? o.args
 
 /** the classes a manifest row may declare */
 const MANIFEST_CLASSES = new Set(['auto', 'ltr', 'per-fragment', 'closed-value', 'unreachable', 'attribute'])
@@ -291,11 +290,17 @@ for (const r of DISPOSITION.rows) {
 }
 if (!drift) ok('the two manifests do not overlap')
 
-// ── 4. every WRAPPED argument is declared in isolate-obligations.json ──────
+// ── 4. every WRAPPED argument is declared in isolate-obligations.json.
+//    A CROSS-REFERENCE, not a re-derivation: it matches on (file, enclosing,
+//    argument), because three of the wrapped sites compute their key and this
+//    checker records the key EXPRESSION rather than resolving it. The exact
+//    match — resolved key set, argument slot, isolate kind, site count — is
+//    `check-isolate-arguments.mjs`, and duplicating that resolver here would be
+//    two implementations of one rule. ──
 let undeclared = 0
 for (const a of args.filter((x) => x.derived === 'isolated')) {
   const known = OBLIGATIONS.obligations.some(
-    (o) => o.file === a.file && o.enclosing === a.enclosing && o.keys.includes(a.key) && argsFor(o, a.key).includes(a.arg),
+    (o) => o.file === a.file && o.enclosing === a.enclosing && o.sites.some((s) => (s.args ?? []).includes(a.arg)),
   )
   if (!known) {
     fail(`wrapped but not declared as an obligation: ${addr(a)}`)
@@ -304,13 +309,23 @@ for (const a of args.filter((x) => x.derived === 'isolated')) {
 }
 if (!undeclared) ok(`every wrapped argument is a declared obligation: ${args.filter((x) => x.derived === 'isolated').length}`)
 
-// ── 5. the recorded-but-unimplemented set is EXACTLY what the manifest says,
-//       so one being fixed (or a new one appearing) cannot pass quietly ──────
+// ── 5. NOTHING is left classed "needs bounding but is not bounded". C3.5's
+//       first pass recorded 19 such rows; leaving them there would have been a
+//       durable record of a known gap rather than a disposition, so they were
+//       implemented and moved to `isolate-obligations.json`. The total is
+//       asserted at ZERO, and a row reappearing in one of those classes is red. ──
 const recorded = DISPOSITION.rows.filter((r) => NEEDS_ISOLATE.has(r.class))
 if (recorded.length !== DISPOSITION.totals.recordedNotImplemented) {
   fail(`recorded-not-implemented: ${recorded.length} row(s), manifest declares ${DISPOSITION.totals.recordedNotImplemented}`)
+} else if (recorded.length === 0) {
+  ok('no argument is classed "needs bounding" while unbounded: 0')
 } else {
-  ok(`recorded but not implemented: ${recorded.length} (each one an open obligation, listed with its evidence)`)
+  fail(`${recorded.length} argument(s) still classed as needing an isolate they do not have`)
+}
+if (DISPOSITION.rows.length !== DISPOSITION.totals.rows) {
+  fail(`disposition rows: ${DISPOSITION.rows.length}, manifest declares ${DISPOSITION.totals.rows}`)
+} else {
+  ok(`disposition rows: ${DISPOSITION.rows.length} / ${DISPOSITION.totals.rows}`)
 }
 if (args.length !== DISPOSITION.totals.arguments) {
   fail(`argument total: enumerated ${args.length}, manifest declares ${DISPOSITION.totals.arguments}`)

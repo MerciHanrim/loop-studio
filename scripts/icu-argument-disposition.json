@@ -12,15 +12,12 @@
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
     "arguments": 205,
-    "rows": 71,
+    "rows": 52,
     "byClass": {
       "attribute": 12,
-      "auto": 14,
-      "closed-value": 40,
-      "ltr": 4,
-      "per-fragment": 1
+      "closed-value": 40
     },
-    "recordedNotImplemented": 19,
+    "recordedNotImplemented": 0,
     "attributeSink": 18
   },
   "rows": [
@@ -88,31 +85,11 @@
       "file": "src/components/Inspector.tsx",
       "enclosing": "ActivatorField",
       "key": "<computed> key",
-      "arg": "id",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "ltr",
-      "evidence": "A NODE ID, interpolated into the unresolved-activator sentences."
-    },
-    {
-      "file": "src/components/Inspector.tsx",
-      "enclosing": "ActivatorField",
-      "key": "<computed> key",
       "arg": "kind",
       "ord": 1,
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "The resolved node's KIND from the model vocabulary (`pool`, `source`, …); the `as { kind?: string }` cast is what widened the type, not the values."
-    },
-    {
-      "file": "src/components/Inspector.tsx",
-      "enclosing": "describeActivator",
-      "key": "inspector.activator.describe",
-      "arg": "n",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "ltr",
-      "evidence": "A NODE ID with an optional offset (`@id`, `@id + 3`). `rhsDescribeText` also returns a bare number on the literal branch, which needs nothing; the reference branch is the reason for the class."
     },
     {
       "file": "src/components/Inspector.tsx",
@@ -143,16 +120,6 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "A comparison OPERATOR from the activator parse."
-    },
-    {
-      "file": "src/components/Inspector.tsx",
-      "enclosing": "ActivatorField",
-      "key": "inspector.activator.preview.resolved",
-      "arg": "paramLabel",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "auto",
-      "evidence": "A user PARAMETER label, falling back to a node id. `auto` and not `ltr` because the primary value is free text whose direction is not known in advance."
     },
     {
       "file": "src/components/Inspector.tsx",
@@ -196,26 +163,6 @@
     },
     {
       "file": "src/components/Inspector.tsx",
-      "enclosing": "ResourceTypeField",
-      "key": "inspector.resourceType.mismatch",
-      "arg": "pairs",
-      "ord": 1,
-      "sink": "text",
-      "class": "per-fragment",
-      "evidence": "Several INDEPENDENT user RESOURCE TYPE names joined by `, ` — the same shape as `canvas-import-hint-tables`. One isolate around the join would give the whole list the direction of whichever type came first."
-    },
-    {
-      "file": "src/components/Inspector.tsx",
-      "enclosing": "ResourceTypeField",
-      "key": "inspector.resourceType.normalised",
-      "arg": "value",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user-typed RESOURCE TYPE name, after normalisation."
-    },
-    {
-      "file": "src/components/Inspector.tsx",
       "enclosing": "Inspector",
       "key": "inspector.unreadable.note",
       "arg": "detail",
@@ -223,36 +170,6 @@
       "sink": "text",
       "class": "closed-value",
       "evidence": "A structural-read phrase from the dependency-free model layer (`data is not an object`, `value is not finite`, …) or a catalog fallback. Every literal is Latin-leading English."
-    },
-    {
-      "file": "src/components/LocaleLoadNotice.tsx",
-      "enclosing": "LocaleLoadNotice",
-      "key": "i18n.loadFailed",
-      "arg": "current",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A language ENDONYM from the registry (`nativeName`), same as `{language}`."
-    },
-    {
-      "file": "src/components/LocaleLoadNotice.tsx",
-      "enclosing": "LocaleLoadNotice",
-      "key": "i18n.loadFailed",
-      "arg": "language",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A language ENDONYM from the registry (`nativeName`) — Arabic, Japanese, Russian. Foreign script by construction, and the banner is shown in whichever language is still active."
-    },
-    {
-      "file": "src/components/ModelPanels.tsx",
-      "enclosing": "InputsSection",
-      "key": "panels.inputs.flowVia",
-      "arg": "param",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user PARAMETER label (`labelOf(...) || refId`). The two node labels in the same row ARE isolated with markup (`<bdi dir=\"auto\">`); this one enters through an ICU argument in the sibling span, where markup cannot reach it."
     },
     {
       "file": "src/components/ModelPanels.tsx",
@@ -286,26 +203,6 @@
     },
     {
       "file": "src/components/RegisterExprField.tsx",
-      "enclosing": "RegisterExprField",
-      "key": "<computed> key",
-      "arg": "id",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "ltr",
-      "evidence": "A NODE ID. The same family as `revisionchip-id` and `inspector-flowparam-id`: an id that starts with a digit has no strong character of its own."
-    },
-    {
-      "file": "src/components/RegisterExprField.tsx",
-      "enclosing": "RegisterExprField",
-      "key": "<computed> key",
-      "arg": "name",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "auto",
-      "evidence": "A user NODE name: the label of the node a bad reference names."
-    },
-    {
-      "file": "src/components/RegisterExprField.tsx",
       "enclosing": "candidateName",
       "key": "regExpr.block.cycle",
       "arg": "name",
@@ -313,46 +210,6 @@
       "sink": "indirect",
       "class": "attribute",
       "evidence": "TRACED: built inside `candidateName`, whose return value is a listbox option’s `aria-label` (`aria-label={candidateName(t, c)}`). A user REGISTER/PARAMETER name, on the attribute axis. The sink detector cannot follow a value through a function, so this row records where it lands."
-    },
-    {
-      "file": "src/components/RegisterExprField.tsx",
-      "enclosing": "RefListbox",
-      "key": "regExpr.block.cycle",
-      "arg": "name",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user REGISTER/PARAMETER name. TRACED: this one is rendered as TEXT in the reference listbox, not through `candidateName`."
-    },
-    {
-      "file": "src/components/RegisterExprField.tsx",
-      "enclosing": "RegisterExprField",
-      "key": "regExpr.block.cycle",
-      "arg": "name",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "auto",
-      "evidence": "A user NODE name carried on the arm hint. TRACED: one site is the live region’s text (`{srMsg}`), the other is the inline hint paragraph — both rendered text, not attributes."
-    },
-    {
-      "file": "src/components/RegisterExprField.tsx",
-      "enclosing": "RegisterExprField",
-      "key": "regExpr.block.cycle",
-      "arg": "name",
-      "ord": 2,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user NODE name carried on the arm hint. TRACED: one site is the live region’s text (`{srMsg}`), the other is the inline hint paragraph — both rendered text, not attributes."
-    },
-    {
-      "file": "src/components/RegisterExprField.tsx",
-      "enclosing": "RegisterExprField",
-      "key": "regExpr.insert.done",
-      "arg": "name",
-      "ord": 1,
-      "sink": "indirect",
-      "class": "auto",
-      "evidence": "A user NODE name — `candidates.find(...)?.name`, falling back to the node id."
     },
     {
       "file": "src/components/RegisterExprField.tsx",
@@ -393,16 +250,6 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "`RefCandidate.valueText` — the engine-formatted current value, rendered elsewhere under an explicit `dir=\"ltr\"`."
-    },
-    {
-      "file": "src/components/ReviewOverlay.tsx",
-      "enclosing": "ReviewOverlay",
-      "key": "<computed> mode === 'hunks' ? 'review.foot.hunks' : 'review.foot.whole'",
-      "arg": "parent",
-      "ord": 1,
-      "sink": "text",
-      "class": "ltr",
-      "evidence": "A shortened REVISION ID — `shortId` strips `rev_` and takes six characters, exactly what `RevisionChip` does, and that site is an obligation."
     },
     {
       "file": "src/components/ReviewOverlay.tsx",
@@ -473,46 +320,6 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "The build constant `__APP_VERSION__`."
-    },
-    {
-      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
-      "enclosing": "DataImportRefreshWizard",
-      "key": "import.refresh.review.fkChoiceAccept",
-      "arg": "value",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user CELL value — the incoming foreign key."
-    },
-    {
-      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
-      "enclosing": "DataImportRefreshWizard",
-      "key": "import.refresh.review.fkChoiceReject",
-      "arg": "value",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user CELL value — the existing foreign key."
-    },
-    {
-      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
-      "enclosing": "DataImportRefreshWizard",
-      "key": "import.refresh.review.missingBlocked",
-      "arg": "table",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user SPREADSHEET TABLE name, looked up from the dependent table id."
-    },
-    {
-      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
-      "enclosing": "DataImportRefreshWizard",
-      "key": "import.refresh.title",
-      "arg": "table",
-      "ord": 1,
-      "sink": "text",
-      "class": "auto",
-      "evidence": "A user SPREADSHEET TABLE name."
     },
     {
       "file": "src/components/dataImport/DataImportWizard.tsx",

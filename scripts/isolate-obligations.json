@@ -1,22 +1,234 @@
 {
-  "$comment": "docs/localization.md §L9.4 — the isolation obligations PR B deferred to PR C. A user or technical value that enters a localized sentence through an ICU ARGUMENT has no element to carry `dir`, so markup cannot reach it. Each row names the producer, the key or closed key family it renders through, the ICU argument slot that carries the value, and WHICH isolate the value needs. Three counts are different numbers and are kept apart: 11 decision rows recorded by PR B, 8 distinct obligations (one per producer — what is implemented), and 11 AST call sites (what the edit touches; a closed key set is more than one).",
-  "$limit": "This manifest defends the call sites listed here. What it enforces for them is exhaustive: the exact isolate kind, the resolved key or key family, the argument slot, and that the argument is not passed raw. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together are what closes the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
-  "$c35": "C3.5 re-ran the population from the TypeScript TYPE CHECKER rather than from an argument-name grep: all 205 ICU arguments in shipped source, classified by what their expression's type can hold. That found 8 arguments carrying user spreadsheet text that the PR B census had not recorded — the unrecognized-column header, and the five `import.loc.*` calls whose table name and column header are concatenated with an already-isolated `{value}` inside `issueText`, so one rendered sentence held one bounded argument and two unbounded ones. They are obligations here. The rest of the population is dispositioned in `scripts/icu-argument-disposition.json`, and `scripts/check-icu-arguments.mjs` asserts the two manifests plus the mechanical classes cover every argument exactly once.",
-  "totals": { "rows": 19, "obligations": 10, "callSites": 17 },
-  "rowsBySource": { "pr-b-census": 11, "c3.5-sweep": 8 },
+  "$comment": "docs/localization.md §L9.4 — every ICU argument that carries a user or technical value into a localized sentence, and the isolate it takes. A value entering through an ICU ARGUMENT has no element to carry `dir`, so markup cannot reach it. Each site names the resolved KEY SET, the argument slot and the isolate kind; `scripts/check-isolate-arguments.mjs` asserts all three against the AST.",
+  "$address": "A site is addressed by (file, enclosing function, RESOLVED KEY SET). That one address covers every shape: a literal key is a one-member set, a computed key is an n-member set, and two calls sharing a key are two entries. The previous schema needed a `keyAuthority` special case per shape and C3.5 added three more — a local `const` holding a conditional, an inline conditional, and a map lookup with a `??` fallback.",
+  "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
+  "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
+  "totals": {
+    "rows": 38,
+    "obligations": 25,
+    "callSites": 34
+  },
+  "rowsBySource": {
+    "pr-b-census": 11,
+    "c3.5-sweep": 27
+  },
   "obligations": [
     {
-      "id": "refresh-unrecognized-header",
-      "rows": ["c3.5-sweep DataImportRefreshWizard.tsx import.refresh.columnEvents.unrecognized {header}"],
+      "id": "canvas-import-hint-tables",
+      "rows": [
+        "decisions-canvas.json sites[3]"
+      ],
+      "file": "src/components/Canvas.tsx",
+      "enclosing": "Canvas",
+      "carries": "the user's own TABLE LABELS, comma-joined into one ICU argument",
+      "why": "A single isolate around the joined list would give the whole list one paragraph direction, taken from whichever table the user happened to name first. MEASURED in PR B: two of six cases broke identically with and without that single isolate. Each label is isolated on its own; the quotes and the comma stay OUTSIDE, because they are the sentence’s punctuation and not the label’s.",
+      "sites": [
+        {
+          "keys": [
+            "hint.importFirstCommit.body"
+          ],
+          "args": [
+            "tables"
+          ],
+          "kind": "auto",
+          "shape": "per-fragment",
+          "fragments": 1
+        }
+      ]
+    },
+    {
+      "id": "refresh-column-header",
+      "rows": [
+        "decisions-dataimportrefreshwizard.json sites[0]"
+      ],
       "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
       "enclosing": "DataImportRefreshWizard",
-      "keys": ["import.refresh.columnEvents.unrecognized"],
-      "keyAuthority": "literal",
-      "args": ["header"],
-      "kind": "auto",
-      "shape": "single-fragment",
+      "carries": "the user's spreadsheet COLUMN HEADER, on the two events that name an EXISTING column",
+      "sites": [
+        {
+          "keys": [
+            "import.refresh.columnEvents.missingHeader"
+          ],
+          "args": [
+            "header"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.refresh.columnEvents.ambiguousMatch"
+          ],
+          "args": [
+            "header"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "wizard-issue-value",
+      "rows": [
+        "decisions-dataimportwizard.json sites[2]",
+        "decisions-dataimportwizard.json sites[3]",
+        "decisions-dataimportwizard.json sites[6]"
+      ],
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard>issueText",
+      "carries": "a USER CELL, display-formatted",
+      "note": "THREE recorded rows, ONE producer: `issueText` is called at three render sites and holds one catalog call. The key is not written in the source at all — it is `ISSUE_KEY[issue.code]`, which `resolveKeys` resolves to the map’s 27 values, and the ARGUMENT is prepared before the call rather than written in an object literal, so the wrap is asserted over the assignment.",
+      "shape": "producer",
+      "sites": [
+        {
+          "keyCount": 27,
+          "producer": "detail.value",
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "wizard-status-key-header",
+      "rows": [
+        "decisions-dataimportwizard.json sites[15]"
+      ],
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard",
+      "carries": "the user's spreadsheet COLUMN HEADER (the key column)",
+      "lineage": "NOT lost. Recorded pre-PR-B as one concatenated expression, `keyText + \" · \" + t(\"import.status.counts\", {cols,rows,n})` at :864. C3 split that JSX child into three children, so the recorded expression no longer exists as written; the obligation moved to the producer `keyText`, whose header-carrying branch is this call. It also NARROWED — the `import.status.counts` half interpolates only numbers.",
+      "sites": [
+        {
+          "keys": [
+            "import.status.key"
+          ],
+          "args": [
+            "header"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "framelayer-announcement-label",
+      "rows": [
+        "decisions-framelayer.json sites[0]"
+      ],
+      "file": "src/components/frames/FrameLayer.tsx",
+      "enclosing": "FrameLayer",
+      "carries": "the user FRAME NAME, at the head of a localized sentence",
+      "note": "The sr-only accessibility path. Nobody can see it, which is exactly why it needed recording rather than dropping.",
+      "sites": [
+        {
+          "keys": [
+            "canvas.frame.a11y.moved"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "canvas.frame.a11y.resized"
+          ],
+          "args": [
+            "label"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "inspector-flowparam-id",
+      "rows": [
+        "decisions-inspector.json sites[6]"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "EdgeFlowField",
+      "carries": "a NODE ID — a technical token whose direction is known in advance",
+      "why": "`LRI` and not `FSI`: an id starting with a digit or a symbol has no strong character of its own, so a first-strong isolate would hand it the surrounding paragraph’s direction.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.edge.flowParam.unknown"
+          ],
+          "args": [
+            "id"
+          ],
+          "kind": "ltr"
+        },
+        {
+          "keys": [
+            "inspector.edge.flowParam.notParam"
+          ],
+          "args": [
+            "id"
+          ],
+          "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "inspector-labeltiming-raw",
+      "rows": [
+        "decisions-inspector.json sites[11]",
+        "decisions-inspector.json sites[12]"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "LabelTimingField",
+      "carries": "RAW document values via `rawOrDash`",
+      "note": "TWO recorded rows, ONE producer: `groupLine` is one catalog call rendered at two JSX sites (the editable path and the read-only path). TWO arguments, both isolated.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.labelTiming.unsupported"
+          ],
+          "args": [
+            "timing",
+            "when"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "revisionchip-id",
+      "rows": [
+        "decisions-revisionchip.json sites[0]"
+      ],
+      "file": "src/components/RevisionChip.tsx",
+      "enclosing": "RevisionChip",
+      "carries": "a shortened revision identifier — generated, direction known",
+      "sites": [
+        {
+          "keys": [
+            "revChip.rev"
+          ],
+          "args": [
+            "id"
+          ],
+          "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "refresh-unrecognized-header",
+      "rows": [
+        "c3.5-sweep DataImportRefreshWizard.tsx import.refresh.columnEvents.unrecognized {header}"
+      ],
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard",
       "carries": "an INCOMING spreadsheet column header the refresh did not recognise",
-      "why": "The direct peer of `refresh-column-header`, in the same file and the same list, carrying the same kind of value — the PR B census recorded the two events that name an EXISTING column and not the one that names a NEW one. Nothing distinguished them but which side of the refresh the header came from."
+      "why": "The direct peer of `refresh-column-header`, in the same file and the same list, carrying the same kind of value — the PR B census recorded the two events that name an EXISTING column and not the one that names a NEW one. Nothing distinguished them but which side of the refresh the header came from.",
+      "sites": [
+        {
+          "keys": [
+            "import.refresh.columnEvents.unrecognized"
+          ],
+          "args": [
+            "header"
+          ],
+          "kind": "auto"
+        }
+      ]
     },
     {
       "id": "wizard-issue-location",
@@ -31,138 +243,409 @@
       ],
       "file": "src/components/dataImport/DataImportWizard.tsx",
       "enclosing": "DataImportWizard>issueLocation",
-      "keys": [
-        "import.loc.tableRowColumnHeader",
-        "import.loc.tableRowColumn",
-        "import.loc.tableRow",
-        "import.loc.tableColumnHeader",
-        "import.loc.table"
-      ],
-      "keyAuthority": "closed set — the five branches of `issueLocation`",
-      "args": ["table"],
-      "argsByKey": {
-        "import.loc.tableRowColumnHeader": ["table", "header"],
-        "import.loc.tableColumnHeader": ["table", "header"]
-      },
-      "kind": "auto",
-      "shape": "single-fragment",
       "carries": "the user's TABLE NAME and, on two branches, the COLUMN HEADER",
-      "note": "SEVEN arguments across FIVE call sites — the branches do not all interpolate the same set, so the argument list is per key. `{row}` and `{column}` are numbers and are not obligations.",
-      "why": "`issueText` renders `${issueLocation(issue)}: ${desc}` — ONE string. `desc` already isolates its `{value}`; without these the same sentence carried one bounded argument and two unbounded ones, and the two unbounded ones came first."
+      "why": "`issueText` renders `${issueLocation(issue)}: ${desc}` — ONE string. `desc` already isolates its `{value}`; without these the same sentence carried one bounded argument and two unbounded ones, and the two unbounded ones came first.",
+      "sites": [
+        {
+          "keys": [
+            "import.loc.tableRowColumnHeader"
+          ],
+          "args": [
+            "table",
+            "header"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.loc.tableRowColumn"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.loc.tableRow"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.loc.tableColumnHeader"
+          ],
+          "args": [
+            "table",
+            "header"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.loc.table"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        }
+      ]
     },
     {
-      "id": "canvas-import-hint-tables",
-      "rows": ["decisions-canvas.json sites[3]"],
-      "file": "src/components/Canvas.tsx",
-      "enclosing": "Canvas",
-      "keys": ["hint.importFirstCommit.body"],
-      "keyAuthority": "literal",
-      "args": ["tables"],
-      "kind": "auto",
-      "shape": "per-fragment",
-      "carries": "the user's own TABLE LABELS, comma-joined into one ICU argument",
-      "why": "A single isolate around the joined list would give the whole list one paragraph direction, taken from whichever table the user happened to name first. MEASURED in PR B: two of six cases broke identically with and without that single isolate. Each label is isolated on its own; the quotes and the comma stay OUTSIDE, because they are the sentence's punctuation and not the label's.",
-      "argExpression": "lastImportBatch.tables.map((l) => `\"${isolateAuto(l)}\"`).join(', ')"
-    },
-    {
-      "id": "refresh-column-header",
-      "rows": ["decisions-dataimportrefreshwizard.json sites[0]"],
+      "id": "refresh-dialog-title",
+      "rows": [
+        "c3.5-sweep DataImportRefreshWizard.tsx import.refresh.title {table}"
+      ],
       "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
       "enclosing": "DataImportRefreshWizard",
-      "keys": [
-        "import.refresh.columnEvents.missingHeader",
-        "import.refresh.columnEvents.ambiguousMatch"
-      ],
-      "keyAuthority": "closed set — the two branches of one ternary at the same render site",
-      "args": ["header"],
-      "kind": "auto",
-      "shape": "single-fragment",
-      "carries": "the user's spreadsheet COLUMN HEADER"
+      "carries": "a user SPREADSHEET TABLE name, in the dialog heading the modal is named by",
+      "sites": [
+        {
+          "keys": [
+            "import.refresh.title"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        }
+      ]
     },
     {
-      "id": "wizard-issue-value",
+      "id": "refresh-missing-blocked-table",
       "rows": [
-        "decisions-dataimportwizard.json sites[2]",
-        "decisions-dataimportwizard.json sites[3]",
-        "decisions-dataimportwizard.json sites[6]"
+        "c3.5-sweep DataImportRefreshWizard.tsx import.refresh.review.missingBlocked {table}"
       ],
-      "file": "src/components/dataImport/DataImportWizard.tsx",
-      "enclosing": "DataImportWizard>issueText",
-      "keys": [],
-      "keyAuthority": "dynamic:ISSUE_KEY",
-      "args": ["value"],
-      "kind": "auto",
-      "shape": "single-fragment",
-      "carries": "a USER CELL, display-formatted",
-      "note": "THREE recorded rows, ONE producer: `issueText` is called at three render sites and holds one catalog call. The key is not written in the source at all — it is `ISSUE_KEY[issue.code]`, so the family is read from the AST and must be non-empty.",
-      "argExpression": "detail.value = isolateAuto(formatCellValueForDisplay(detail.value))"
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard",
+      "carries": "a user SPREADSHEET TABLE name, looked up from the dependent table id",
+      "sites": [
+        {
+          "keys": [
+            "import.refresh.review.missingBlocked"
+          ],
+          "args": [
+            "table"
+          ],
+          "kind": "auto"
+        }
+      ]
     },
     {
-      "id": "wizard-status-key-header",
-      "rows": ["decisions-dataimportwizard.json sites[15]"],
-      "file": "src/components/dataImport/DataImportWizard.tsx",
-      "enclosing": "DataImportWizard",
-      "keys": ["import.status.key"],
-      "keyAuthority": "literal",
-      "args": ["header"],
-      "kind": "auto",
-      "shape": "single-fragment",
-      "carries": "the user's spreadsheet COLUMN HEADER (the key column)",
-      "lineage": "NOT lost. Recorded pre-PR-B as one concatenated expression, `keyText + \" · \" + t(\"import.status.counts\", {cols,rows,n})` at :864. C3 split that JSX child into three children, so the recorded expression no longer exists as written; the obligation moved to the producer `keyText`, whose header-carrying branch is this call. It also NARROWED — the `import.status.counts` half interpolates only numbers, so it carries nothing of unknown direction and is not an obligation."
-    },
-    {
-      "id": "framelayer-announcement-label",
-      "rows": ["decisions-framelayer.json sites[0]"],
-      "file": "src/components/frames/FrameLayer.tsx",
-      "enclosing": "FrameLayer",
-      "keys": ["canvas.frame.a11y.moved", "canvas.frame.a11y.resized"],
-      "keyAuthority": "closed set — the two assignments to `announcement`",
-      "args": ["label"],
-      "kind": "auto",
-      "shape": "single-fragment",
-      "carries": "the user FRAME NAME, at the head of a localized sentence",
-      "note": "The sr-only accessibility path. Nobody can see it, which is exactly why it needed recording rather than dropping."
-    },
-    {
-      "id": "inspector-flowparam-id",
-      "rows": ["decisions-inspector.json sites[6]"],
-      "file": "src/components/Inspector.tsx",
-      "enclosing": "EdgeFlowField",
-      "keys": ["inspector.edge.flowParam.unknown", "inspector.edge.flowParam.notParam"],
-      "keyAuthority": "closed set — the two `status` assignments that interpolate `refId`",
-      "args": ["id"],
-      "kind": "ltr",
-      "shape": "single-fragment",
-      "carries": "a NODE ID — a technical token whose direction is known in advance",
-      "why": "`LRI` and not `FSI`: an id starting with a digit or a symbol has no strong character of its own, so a first-strong isolate would hand it the surrounding paragraph's direction."
-    },
-    {
-      "id": "inspector-labeltiming-raw",
+      "id": "refresh-fk-choice-value",
       "rows": [
-        "decisions-inspector.json sites[11]",
-        "decisions-inspector.json sites[12]"
+        "c3.5-sweep DataImportRefreshWizard.tsx import.refresh.review.fkChoiceAccept {value}",
+        "c3.5-sweep DataImportRefreshWizard.tsx import.refresh.review.fkChoiceReject {value}"
+      ],
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard",
+      "carries": "a user CELL value — the incoming and the existing foreign key",
+      "sites": [
+        {
+          "keys": [
+            "import.refresh.review.fkChoiceAccept"
+          ],
+          "args": [
+            "value"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "import.refresh.review.fkChoiceReject"
+          ],
+          "args": [
+            "value"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "inspector-activator-describe",
+      "rows": [
+        "c3.5-sweep Inspector.tsx inspector.activator.describe {n}"
       ],
       "file": "src/components/Inspector.tsx",
-      "enclosing": "LabelTimingField",
-      "keys": ["inspector.labelTiming.unsupported"],
-      "keyAuthority": "literal",
-      "args": ["timing", "when"],
-      "kind": "auto",
-      "shape": "single-fragment",
-      "carries": "RAW document values via `rawOrDash`",
-      "note": "TWO recorded rows, ONE producer: `groupLine` is one catalog call rendered at two JSX sites (the editable path and the read-only path). TWO arguments, both isolated."
+      "enclosing": "describeActivator",
+      "carries": "a NODE ID with an optional offset (`@id`, `@id + 3`), or a bare number on the literal branch",
+      "why": "`String(...)` is safe here and was measured rather than assumed: a bare `{n}` is NOT number-formatted by intl-messageformat, so a number and its string render identically, in `ar` and `ar-EG` alike. The literal branch is wrapped too — a digit run has no internal order to break, and one direct wrap is what the checker can assert exactly.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.activator.describe"
+          ],
+          "args": [
+            "n"
+          ],
+          "kind": "ltr"
+        }
+      ]
     },
     {
-      "id": "revisionchip-id",
-      "rows": ["decisions-revisionchip.json sites[0]"],
-      "file": "src/components/RevisionChip.tsx",
-      "enclosing": "RevisionChip",
-      "keys": ["revChip.rev"],
-      "keyAuthority": "literal",
-      "args": ["id"],
-      "kind": "ltr",
-      "shape": "single-fragment",
-      "carries": "a shortened revision identifier — generated, direction known"
+      "id": "inspector-activator-preview-label",
+      "rows": [
+        "c3.5-sweep Inspector.tsx inspector.activator.preview.resolved {paramLabel}"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ActivatorField",
+      "carries": "a user PARAMETER label, falling back to a node id",
+      "why": "`auto` and not `ltr` because the PRIMARY value is free text whose direction is not known in advance; the id fallback is the exception, not the rule.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.activator.preview.resolved"
+          ],
+          "args": [
+            "paramLabel"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "inspector-activator-unresolved-id",
+      "rows": [
+        "c3.5-sweep Inspector.tsx inspector.activator.preview.{unknown,notParam,nonFinite,overflow} {id}"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ActivatorField",
+      "carries": "a NODE ID, in the four unresolved-activator sentences",
+      "note": "The key is a local `const key` whose initializer is a three-deep conditional of four literals. `resolveKeys` resolves it to that closed set; before C3.5 the checker could only resolve a literal or a named map.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.activator.preview.unknown",
+            "inspector.activator.preview.notParam",
+            "inspector.activator.preview.nonFinite",
+            "inspector.activator.preview.overflow"
+          ],
+          "args": [
+            "id"
+          ],
+          "kind": "ltr"
+        }
+      ]
+    },
+    {
+      "id": "inspector-resourcetype-normalised",
+      "rows": [
+        "c3.5-sweep Inspector.tsx inspector.resourceType.normalised {value}"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ResourceTypeField",
+      "carries": "a user-typed RESOURCE TYPE name, after normalisation",
+      "sites": [
+        {
+          "keys": [
+            "inspector.resourceType.normalised"
+          ],
+          "args": [
+            "value"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "inspector-resourcetype-mismatch",
+      "rows": [
+        "c3.5-sweep Inspector.tsx inspector.resourceType.mismatch {pairs}"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ResourceTypeField",
+      "carries": "several INDEPENDENT user RESOURCE TYPE names, joined into one argument",
+      "why": "The same shape as `canvas-import-hint-tables`. EACH type is isolated, not each pair and not the join: the `↔` between a pair and the `, ` between pairs are the sentence’s, so one isolate around the whole list would give every name the direction of whichever one came first.",
+      "sites": [
+        {
+          "keys": [
+            "inspector.resourceType.mismatch"
+          ],
+          "args": [
+            "pairs"
+          ],
+          "kind": "auto",
+          "shape": "per-fragment",
+          "fragments": 2
+        }
+      ]
+    },
+    {
+      "id": "localeloadnotice-language",
+      "rows": [
+        "c3.5-sweep LocaleLoadNotice.tsx i18n.loadFailed {language}",
+        "c3.5-sweep LocaleLoadNotice.tsx i18n.loadFailed {current}"
+      ],
+      "file": "src/components/LocaleLoadNotice.tsx",
+      "enclosing": "LocaleLoadNotice",
+      "carries": "two language ENDONYMS from the registry (`nativeName`)",
+      "why": "Foreign script BY CONSTRUCTION — the endonym for Arabic is Arabic and for Japanese is Japanese — and the banner is rendered in whichever language is still active, so the sentence and the value routinely disagree. This is the one site where the value’s direction is not merely unknown but usually opposite.",
+      "sites": [
+        {
+          "keys": [
+            "i18n.loadFailed"
+          ],
+          "args": [
+            "language",
+            "current"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "modelpanels-flow-param",
+      "rows": [
+        "c3.5-sweep ModelPanels.tsx panels.inputs.flowVia {param}"
+      ],
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "InputsSection",
+      "carries": "a user PARAMETER label (`labelOf(...) || refId`)",
+      "why": "The two node labels in the SAME row are isolated with markup (`<bdi dir=\"auto\">`) — PR B took those. This one enters through an ICU argument in the sibling span, where markup cannot reach it, and was missed because it is not in the element the census ruled.",
+      "sites": [
+        {
+          "keys": [
+            "panels.inputs.flowVia"
+          ],
+          "args": [
+            "param"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "regexpr-listbox-cycle-name",
+      "rows": [
+        "c3.5-sweep RegisterExprField.tsx regExpr.block.cycle {name}"
+      ],
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "RefListbox",
+      "carries": "a user REGISTER/PARAMETER name — the node a reference cycle runs through",
+      "note": "The reference listbox renders this as TEXT. The same key built inside `candidateName` is an `aria-label` instead, and stays on the attribute axis (`scripts/icu-argument-disposition.json`).",
+      "sites": [
+        {
+          "keys": [
+            "regExpr.block.cycle"
+          ],
+          "args": [
+            "name"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "regexpr-badref",
+      "rows": [
+        "c3.5-sweep RegisterExprField.tsx REF_ROW_KEY[r.code] ?? regExpr.row.generic {name}",
+        "c3.5-sweep RegisterExprField.tsx REF_ROW_KEY[r.code] ?? regExpr.row.generic {id}"
+      ],
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "RegisterExprField",
+      "address": "The enclosing is the COMPONENT, not `errText`: that arrow is wrapped in `useCallback`, so neither checker names it a function, and both address it the same way. The key set is what distinguishes this site from the other three in the same component.",
+      "carries": "a user NODE name OR a node id, depending on which row the diagnostic code selects",
+      "why": "TWO kinds on ONE CALL SITE: `{name}` is free user text and takes `FSI`, `{id}` is a generated token and takes `LRI`. Declaring a single kind per obligation would have forced the wrong one on one of them. Note what this is NOT: no single catalog value uses both — `regExpr.row.wrongKind` interpolates only `{name}` and `regExpr.row.unknownRef` only `{id}` — so a rendered sentence carries one isolate, not two. The call passes both because the key is not known until runtime.",
+      "note": "The key is `REF_ROW_KEY[r.code] ?? 'regExpr.row.generic'` — a map lookup with a literal fallback, which `resolveKeys` unions.",
+      "sites": [
+        {
+          "keys": [
+            "regExpr.row.unknownRef",
+            "regExpr.row.wrongKind",
+            "regExpr.row.invalidId",
+            "regExpr.row.cycle",
+            "regExpr.row.notFinite",
+            "regExpr.row.divZero",
+            "regExpr.row.dependsInvalid",
+            "regExpr.row.generic"
+          ],
+          "args": [
+            "name",
+            "id"
+          ],
+          "kind": "auto",
+          "kindByArg": {
+            "id": "ltr"
+          }
+        }
+      ]
+    },
+    {
+      "id": "regexpr-insert-done",
+      "rows": [
+        "c3.5-sweep RegisterExprField.tsx regExpr.insert.done {name}"
+      ],
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "RegisterExprField",
+      "carries": "a user NODE name, announced after a reference is inserted",
+      "sites": [
+        {
+          "keys": [
+            "regExpr.insert.done"
+          ],
+          "args": [
+            "name"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "regexpr-armhint-cycle-name",
+      "rows": [
+        "c3.5-sweep RegisterExprField.tsx regExpr.block.cycle (live region) {name}",
+        "c3.5-sweep RegisterExprField.tsx regExpr.block.cycle (inline hint) {name}"
+      ],
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "RegisterExprField",
+      "carries": "a user NODE name carried on the arm hint",
+      "note": "TWO call sites with the SAME key in the same function — the polite live region and the inline hint paragraph. The site schema addresses them as two entries sharing one key set, which the previous one-site-per-key rule could not express.",
+      "sites": [
+        {
+          "keys": [
+            "regExpr.block.cycle"
+          ],
+          "args": [
+            "name"
+          ],
+          "kind": "auto"
+        },
+        {
+          "keys": [
+            "regExpr.block.cycle"
+          ],
+          "args": [
+            "name"
+          ],
+          "kind": "auto"
+        }
+      ]
+    },
+    {
+      "id": "reviewoverlay-parent-revision",
+      "rows": [
+        "c3.5-sweep ReviewOverlay.tsx review.foot.{hunks,whole} {parent}"
+      ],
+      "file": "src/components/ReviewOverlay.tsx",
+      "enclosing": "ReviewOverlay",
+      "carries": "a shortened REVISION ID — `shortId` strips `rev_` and takes six characters, exactly what `RevisionChip` does",
+      "note": "The key is an INLINE conditional of two literals. The whole expression is wrapped rather than only the id branch: the em-dash placeholder is a technical token too, and one direct wrap is what the checker can assert exactly.",
+      "sites": [
+        {
+          "keys": [
+            "review.foot.hunks",
+            "review.foot.whole"
+          ],
+          "args": [
+            "parent"
+          ],
+          "kind": "ltr"
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,6 @@
 import { useI18n, useT } from '../i18n'
 import { getEntry } from '../i18n/registry'
+import { isolateAuto } from '../i18n/bidiIsolate'
 
 // docs/localization.md §L4.5 / Slice 2b — a dismissible, non-blocking banner
 // when a language's chunk (UI catalog or template-label dict) fails to load.
@@ -19,7 +20,7 @@ export function LocaleLoadNotice() {
 
   return (
     <div className="boot-notice" role="status">
-      <span className="boot-notice__text">{t('i18n.loadFailed', { language, current })}</span>
+      <span className="boot-notice__text">{t('i18n.loadFailed', { language: isolateAuto(language), current: isolateAuto(current) })}</span>
       <button type="button" className="btn btn--sm" onClick={dismiss}>
         {t('bootNotice.dismiss')}
       </button>

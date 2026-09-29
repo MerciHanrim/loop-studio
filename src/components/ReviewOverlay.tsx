@@ -15,6 +15,7 @@ import { useSimStore } from '../store/simStore'
 import { useIsMobile } from '../ui/media'
 import { reviewModel, type ReviewModel } from '../ui/revisionActions'
 import { useArrowGlyph, useT, type MessageKey } from '../i18n'
+import { isolateLtr } from '../i18n/bidiIsolate'
 import { MobileSheet } from './mobile/MobileSheet'
 import { InlineHintNote } from './HintNote'
 
@@ -546,7 +547,7 @@ export function ReviewOverlay() {
       </div>
       <p className="review__foot">
         {t(mode === 'hunks' ? 'review.foot.hunks' : 'review.foot.whole', {
-          parent: openRev ? shortId(openRev) : '—',
+          parent: isolateLtr(openRev ? shortId(openRev) : '—'),
         })}
       </p>
     </div>

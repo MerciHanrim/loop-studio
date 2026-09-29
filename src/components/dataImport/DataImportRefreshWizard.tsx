@@ -284,7 +284,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     <div className="mcdlg__scrim" onMouseDown={onClose}>
       <div ref={ref} className="mcdlg mcdlg--dataimport" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mcdlg__head">
-          <span id={titleId}>{t('import.refresh.title', { table: table.label })}</span>
+          <span id={titleId}>{t('import.refresh.title', { table: isolateAuto(table.label) })}</span>
         </div>
         <div className="mcdlg__body">
           {step === 'paste' && (
@@ -468,7 +468,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                           <li key={row.sourceKey}>
                             <p dir="auto">{row.sourceKey}</p>
                             {blocked ? (
-                              <p className="import__error">{t('import.refresh.review.missingBlocked', { table: tables.find((tb) => tb.sourceTableId === row.dependents[0].dependentTableId)?.label ?? row.dependents[0].dependentTableId })}</p>
+                              <p className="import__error">{t('import.refresh.review.missingBlocked', { table: isolateAuto(tables.find((tb) => tb.sourceTableId === row.dependents[0].dependentTableId)?.label ?? row.dependents[0].dependentTableId) })}</p>
                             ) : (
                               <select value={missingRowChoices.get(row.sourceKey) ?? ''} onChange={(e) => setMissingRowChoices((prev) => { const n = new Map(prev); const v = e.target.value; if (v === 'unlink' || v === 'delete') n.set(row.sourceKey, v); else n.delete(row.sourceKey); return n })}>
                                 <option value="">{t('import.refresh.review.missingChoiceNone')}</option>
@@ -539,7 +539,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                                   checked={fkRepointChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) === 'accept'}
                                   onChange={() => setFkRepointChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'accept'))}
                                 />
-                                {t('import.refresh.review.fkChoiceAccept', { value: c.incoming })}
+                                {t('import.refresh.review.fkChoiceAccept', { value: isolateAuto(c.incoming) })}
                               </label>
                               <label>
                                 <input
@@ -548,7 +548,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                                   checked={(fkRepointChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) ?? 'reject') === 'reject'}
                                   onChange={() => setFkRepointChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'reject'))}
                                 />
-                                {t('import.refresh.review.fkChoiceReject', { value: c.base })}
+                                {t('import.refresh.review.fkChoiceReject', { value: isolateAuto(c.base) })}
                               </label>
                             </div>
                           ))}
