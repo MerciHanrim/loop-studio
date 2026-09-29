@@ -63,6 +63,7 @@ const ui = {
   'language.vietnamese': '越南語',
   'language.italian': '義大利語',
   'language.dutch': '荷蘭語',
+  'language.arabic': '阿拉伯文',
   'playbar.reset.title': '重設到第 0 步',
   'playbar.step.title': '前進一步',
   'playbar.play': '▶ 播放',

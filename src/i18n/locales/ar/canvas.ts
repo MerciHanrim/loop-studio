@@ -1,0 +1,162 @@
+// docs/localization.md §L3.3 — Canvas surface slice of the `ar` catalog.
+// Key-checked against `../en/canvas` by `satisfies`; same `{name}` slots.
+//
+// GLOSSARY (§L2.24): مَجمَع Pool · مصدر Source · مصرف Drain · بوّابة Gate ·
+// مُحوِّل Converter · نهاية End · مُعامِل Parameter · سِجِلّ Register ·
+// عُقدة node · اتصال connection · إطار frame · لوحة canvas · مورد resource ·
+// خطوة step · تشغيل run · مسار route · سعة capacity.
+//
+// PLURALS carry Arabic's six arms. `zero`, `one` and `two` are written as
+// Arabic writes them — a count word rather than a digit (`عقدتان`, the dual, is
+// a grammatical form English has no counterpart for) — while `few`, `many` and
+// `other` keep `#`. That is the language's own shape, not a translation of the
+// two English arms: `en` reaches `other` for 0, 2 and 11, and Arabic reaches
+// three different arms for those same numbers.
+//
+// `canvas.frame.color.*` are the six frame accents. Arabic has settled colour
+// words for all six, so none is transliterated.
+
+const canvas = {
+  'palette.pool.name': 'مَجمَع',
+  'palette.pool.description': 'يحتفظ بالموارد ويعرض الكمية الحالية. وعندما تمتلئ سعته، يدفع بالتدفّق الوارد إلى التوقّف.',
+  'palette.source.name': 'مصدر',
+  'palette.source.description': 'ينشئ موارد جديدة في كل خطوة ويرسلها إلى العقد التي يغذّيها.',
+  'palette.drain.name': 'مصرف',
+  'palette.drain.description': 'يسحب الموارد من العقد التي يستمدّ منها ويزيلها من النظام.',
+  'palette.gate.name': 'بوّابة',
+  'palette.gate.description': 'تقسّم الموارد الواردة بنسبة ثابتة، أو تختار فرعًا واحدًا بالاحتمال وترسل إليه. لا تحتفظ بشيء.',
+  'palette.converter.name': 'مُحوِّل',
+  'palette.converter.description': 'يستهلك موارد الإدخال وينتج موارد الإخراج بالنسبة التي تحدّدها. لا يحتفظ بشيء.',
+  'palette.end.name': 'نهاية',
+  'palette.end.description': 'توقف التشغيل عند وصول مورد إليها.',
+  'palette.parameter.name': 'مُعامِل',
+  'palette.parameter.description': 'رقم ثابت تحدّده أنت. ليس له منافذ، ويمكن لأي تعبير أن يشير إليه بمعرّفه.',
+  'palette.register.name': 'سِجِلّ',
+  'palette.register.description': 'يقيّم تعبيرًا للخطوة الحالية ويعرض النتيجة. لا يراكم شيئًا ولا يخزّن شيئًا وليس له منافذ.',
+  'palette.addAction': 'انقر، أو اسحب إلى اللوحة، لإضافة واحد.',
+  'canvas.minimap': 'خريطة مصغّرة للمخطط',
+  'canvas.minimap.hide': 'إخفاء الخريطة المصغّرة',
+  'canvas.minimap.show': 'إظهار الخريطة المصغّرة',
+  'canvas.lock.lock': 'قفل التحرير — يبقى التحديد والقراءة متاحين',
+  'canvas.lock.unlock': 'إلغاء قفل التحرير — التحريك والتوصيل وتغيير القيم',
+  'canvas.focus.on': 'التركيز مُعطّل — انقر للتركيز على العقدة المحددة',
+  'canvas.focus.off': 'التركيز مُفعّل — انقر لعرض المخطط كاملًا',
+  'canvas.focus.hint': 'حدّد عقدة للتركيز عليها',
+  'canvas.focus.rowLabel': 'التركيز على التحديد',
+  'canvas.focus.stateOn': 'مُفعّل',
+  'canvas.focus.stateOff': 'مُعطّل',
+  'canvas.panMode.off': 'وضع التحريك مُعطّل — اسحب لوحة فارغة للتحريك',
+  'canvas.panMode.on': 'وضع التحريك مُفعّل — اسحب من أي مكان للتحريك',
+  'canvas.panMode.rowLabel': 'وضع التحريك',
+  'canvas.filter.open': 'المرشّحات — أخفِ أجزاءً من المخطط أثناء الاستكشاف',
+  'canvas.filter.close': 'إغلاق لوحة المرشّحات',
+  'canvas.filter.title': 'المرشّحات',
+  'canvas.filter.rowLabel': 'المرشّحات',
+  'canvas.filter.groupEdgeClass': 'نوع الاتصال',
+  'canvas.filter.groupResourceType': 'نوع المورد',
+  'canvas.filter.groupNodeKind': 'صنف العقدة',
+  'canvas.filter.edgeClass.resource': 'مورد',
+  'canvas.filter.edgeClass.state': 'حالة',
+  'canvas.filter.edgeClass.hint': 'تلميح تبعية',
+  'canvas.filter.untyped': 'بلا نوع',
+  'canvas.filter.clear': 'مسح المرشّحات',
+  'canvas.filter.hiddenCount': '{n} مخفي',
+  'canvas.filter.none': 'لا شيء مخفي',
+  'canvas.filter.checkboxHint': 'المحدّد = مخفي',
+  'canvas.nodeKind.source': 'مصدر',
+  'canvas.nodeKind.pool': 'مَجمَع',
+  'canvas.nodeKind.gate': 'بوّابة',
+  'canvas.nodeKind.converter': 'مُحوِّل',
+  'canvas.nodeKind.drain': 'مصرف',
+  'canvas.nodeKind.end': 'نهاية',
+  'canvas.nodeKind.parameter': 'مُعامِل',
+  'canvas.nodeKind.register': 'سِجِلّ',
+  'canvas.resetView': 'إعادة ضبط العرض — ملاءمة المخطط ومسح المرشّحات والتركيز',
+  // docs/large-graph-readability.md §LGR12 — the one-shot region-select tool.
+  // The button names BOTH ways in, so the keyboard gesture stops being the only
+  // way to find the feature.
+  'canvas.regionSelect.off': 'تحديد منطقة — اسحب على لوحة فارغة للتحديد؛ السحب مع Shift يعمل أيضًا',
+  'canvas.regionSelect.on': 'تحديد منطقة — جارٍ التحديد؛ اسحب على لوحة فارغة، وEsc للإلغاء',
+  // shown whenever there is a selection, lock or no lock
+  'canvas.regionSelect.count':
+    '{n, plural, zero {لم تُحدَّد أي عقدة} one {عقدة واحدة محددة} two {عقدتان محددتان} few {# عقد محددة} many {# عقدة محددة} other {# عقدة محددة}}',
+  'canvas.regionSelect.countLocked':
+    '{n, plural, zero {لم تُحدَّد أي عقدة} one {عقدة واحدة محددة} two {عقدتان محددتان} few {# عقد محددة} many {# عقدة محددة} other {# عقدة محددة}} · ألغِ قفل التحرير لتحريكها',
+  'canvas.frame.draw': 'إطار مجموعة — اسحب على لوحة فارغة لرسم واحد',
+  'canvas.frame.drawing': 'إطار مجموعة — جارٍ الرسم؛ اسحب على لوحة فارغة، وEsc للإلغاء',
+  'canvas.frame.defaultName': 'مجموعة {n}',
+  'canvas.frame.delete': 'حذف هذا الإطار',
+  'canvas.frame.suggest': 'اقتراح إطارات — مستطيلات تجميع تقريبية حول العقد المترابطة بنيويًا. بنيوية فقط، لا تعني المعنى المجالي.',
+  'canvas.frame.suggestStale': 'اقتراح إطارات — تغيّر المخطط؛ انقر لإعادة حساب المجموعات المقترحة',
+  'canvas.frame.suggestRow': 'اقتراح إطارات',
+  'canvas.frame.suggestNote': 'مجموعات بنيوية مقترحة — قد لا تطابق الطريقة التي كنت ستقسّم بها العمل.',
+  'canvas.frame.suggestNoteDismiss': 'تجاهل هذه الملاحظة',
+  'canvas.frame.areaName': 'منطقة {n}',
+  'canvas.frame.dismiss': 'تجاهل هذا الإطار المقترح',
+  'canvas.frame.clearAll': 'مسح كل الإطارات',
+  'canvas.frame.clearSuggested': 'مسح الإطارات المقترحة',
+  'canvas.frame.clearSuggestedRow': 'مسح الإطارات المقترحة',
+  'canvas.frame.colorRow': 'لون الإطار',
+  'canvas.frame.color.neutral': 'محايد',
+  'canvas.frame.color.slate': 'إردوازي',
+  'canvas.frame.color.sage': 'مريمي',
+  'canvas.frame.color.gold': 'ذهبي',
+  'canvas.frame.color.violet': 'بنفسجي',
+  'canvas.frame.color.rose': 'وردي',
+  'canvas.frame.props.title': 'إعدادات الإطار — {label}',
+  'canvas.frame.props.name': 'الاسم',
+  'canvas.activity.off': 'طبقة النشاط مُعطّلة — انقر لتلوين الأجزاء النشطة مؤخرًا',
+  'canvas.activity.on': 'طبقة النشاط مُفعّلة — انقر لإخفاء التلوين',
+  'canvas.activity.rowLabel': 'طبقة النشاط',
+  'canvas.route.invalidFlag': 'مسار غير صالح — إحدى نقاط المسار داخل عقدة',
+  'canvas.edgeLabel.clamp': 'تقييد',
+  'canvas.edgeLabel.clamp.title': 'أُزيل بفعل تقييد المَجمَع الهدف الوحيد في نهاية المرحلة 0',
+  'canvas.edgeLabel.blocked': 'محجوب',
+  'canvas.edgeLabel.blocked.title': 'سُلّم، لكن الهدف لم يستطع العمل (تفعيل خاطئ، أو مُفعِّل أبقاه مغلقًا)',
+  'canvas.edgeLabel.breakdown.title': 'تحويلات هذه الخطوة على هذا الاتصال',
+  'canvas.edgeLabel.refMissing': 'خطأ في مرجع المُعامِل',
+  'node.unreadable.title': '{kind} غير قابل للقراءة',
+  'node.unreadable.sub': 'تعذّرت قراءة البيانات — أصلحها في الملف',
+  'node.invalidFlag': 'هذه العقدة غير صالحة',
+  'node.aria.invalid': 'غير صالحة',
+  'node.aria.selected': 'محددة',
+  'node.aria.focused': 'مُركَّز عليها',
+  'node.evaluatedCue': 'قُيّمت في هذه الخطوة لكنها لم تعمل',
+  'node.default.pool': 'مَجمَع',
+  'node.default.source': 'مصدر',
+  'node.default.drain': 'مصرف',
+  'node.default.gate': 'بوّابة',
+  'node.default.converter': 'مُحوِّل',
+  'node.default.end': 'نهاية',
+  'node.default.parameter': 'مُعامِل',
+  'node.default.register': 'سِجِلّ',
+  'canvas.frame.a11y.roledescription': 'إطار مجموعة',
+  'canvas.frame.a11y.roledescriptionAuto': 'إطار مجموعة مقترح',
+  'canvas.frame.a11y.name':
+    '{label}، {n, plural, zero {بلا عقد} one {عقدة واحدة} two {عقدتان} few {# عقد} many {# عقدة} other {# عقدة}}',
+  'canvas.frame.a11y.desc': 'اضغط Enter أو المسافة لتحديد هذا الإطار.',
+  'canvas.frame.a11y.descSelected':
+    'محدَّد. مفاتيح الأسهم تحرّك الإطار وكل ما بداخله، ومع Shift خطوة أكبر. Backspace أو Delete تزيله. Escape يلغي التحديد.',
+  'canvas.frame.a11y.descReadonly': 'للقراءة فقط — يمكن تحديد هذا الإطار وقراءته، لا تحريره.',
+  'canvas.frame.a11y.resize': 'تغيير حجم {label} — العرض {w}، الارتفاع {h}. مفاتيح الأسهم تغيّر الحجم، ومع Shift خطوة أكبر.',
+  'canvas.frame.a11y.moved': 'نُقل {label} إلى x {x}، y {y}',
+  'canvas.frame.a11y.resized': 'غُيّر حجم {label} إلى العرض {w}، الارتفاع {h}',
+  'rf.node.moveCancelled': 'أُلغي النقل. العقدة عادت إلى x {x}، y {y}',
+  'rf.node.moved': 'نُقلت العقدة المحددة {direction}. الموضع الجديد، x {x}، y {y}',
+  'rf.dir.left': 'يسارًا',
+  'rf.dir.right': 'يمينًا',
+  'rf.dir.up': 'أعلى',
+  'rf.dir.down': 'أسفل',
+  'rf.controls.label': 'عناصر التحكم في اللوحة',
+  'rf.controls.zoomIn': 'تكبير',
+  'rf.controls.zoomOut': 'تصغير',
+  'rf.controls.fitView': 'ملاءمة المخطط للعرض',
+  'rf.controls.interactive': 'تبديل تحرير اللوحة',
+  'rf.handle.label': 'نقطة اتصال',
+  'rf.node.a11y': 'اضغط Enter أو المسافة لتحديد هذه العقدة. اضغط Delete لإزالتها، وEscape للإلغاء.',
+  'rf.node.a11yKeyboard':
+    'اضغط Enter أو المسافة لتحديد هذه العقدة، ثم مفاتيح الأسهم لتحريكها. اضغط Delete لإزالتها، وEscape للإلغاء.',
+  'rf.edge.a11y': 'اضغط Enter أو المسافة لتحديد هذا الاتصال. اضغط Delete لإزالته، وEscape للإلغاء.',
+} as const
+
+export default canvas

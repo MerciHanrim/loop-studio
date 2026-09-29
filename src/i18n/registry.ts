@@ -486,6 +486,59 @@ const SHIPPED_LOCALES: readonly LocaleEntry[] = [
     enabled: true,
     catalog: () => import('./locales/nl').then((m) => m.default),
   },
+  {
+    code: 'ar',
+    englishName: 'Arabic',
+    nativeName: 'العربية',
+    displayNameKey: 'language.arabic',
+    // §L9 — the FIRST shipped locale with `direction: 'rtl'`. PR A made this
+    // field the single source of a reading direction and PR B made the layout
+    // answer to it; this entry is what finally exercises that path with a real
+    // catalog rather than the `ar-XB` pseudo-locale.
+    direction: 'rtl',
+    // ONE catalog in Modern Standard Arabic, not a country edition. Bare `ar`
+    // carries every regional tag through §L5.2 step 3 — `ar-EG`, `ar-SA`,
+    // `ar-MA`, `ar-Arab-EG` and `ar-EG-u-nu-latn` all reach it — so no
+    // `baseFallbackFor` is needed, the same shape `ru`, `tr`, `th`, `vi`, `it`
+    // and `nl` use. `qaa` still falls through to English.
+    //
+    // PLURAL — SIX arms, the full CLDR set, and the first locale here to use
+    // more than three. Measured with `Intl.PluralRules('ar')`:
+    //   0 -> ZERO · 1 -> ONE · 2 -> TWO · 3-10 -> FEW · 11-99 -> MANY ·
+    //   100-102, 200-202 -> OTHER · 1.5 -> other
+    // `en` reaches `other` for 0, 2 and 11; Arabic reaches three different
+    // arms for those same three numbers, so an English-shaped two-arm message
+    // would be wrong for most small counts rather than merely terse. Ordinal
+    // is a single `other`, and the base catalog uses `selectordinal` zero
+    // times, so no key can reach it.
+    //
+    // NUMBERS — `numberLocale: 'ar'` formats `1,234,567.89`, with LATIN digits
+    // and the same separators as `en`. That is deliberate and measured:
+    // `ar-EG` and `ar-SA` both produce `١٬٢٣٤٬٥٦٧٫٨٩` — Arabic-Indic digits,
+    // U+0660..U+0669 — which would change every number the product renders.
+    // Arabic-Indic digits are a separate product decision, not a side effect
+    // of adding a language.
+    //
+    // PERCENT — `84‎%‎`, measured as U+0038 U+0034 U+200E U+0025 U+200E. The
+    // sign comes AFTER the digits like every other locale here, but Intl wraps
+    // it in LEFT-TO-RIGHT MARKs, so the character adjacent to the sign is
+    // U+200E and not a digit. That is a THIRD arm for
+    // `e2e/percent-affix.spec.ts`: not the no-gap arm (`en`, `it`, `nl`,
+    // whose neighbour is U+0034) and not the U+00A0 arm (`de`). The catalog
+    // itself still carries no bidi control characters — these come from Intl,
+    // which is exactly the distinction §L2 draws when it bans them from
+    // TRANSLATIONS.
+    //
+    // The picker places Arabic FIRST of eighteen (`Intl.Collator('en')` on
+    // `englishName`: Arabic, Chinese, Chinese, Dutch, English, …), taking the
+    // row `zh-Hans` held. `vi` keeps the last row, so `i18n-tr.spec.ts`'s
+    // last-position assertion is untouched. The search box is already shown at
+    // seventeen languages (`LANGUAGE_SEARCH_THRESHOLD` is 6), so this adds no
+    // fold.
+    numberLocale: 'ar',
+    enabled: true,
+    catalog: () => import('./locales/ar').then((m) => m.default),
+  },
 ]
 
 // A dev / e2e-only pseudo-locale so tests can prove the switch, the resolver,

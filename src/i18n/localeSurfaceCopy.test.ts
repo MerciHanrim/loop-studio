@@ -53,6 +53,10 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   // Turkish: the form is `İngilizce`; a browser tab is `sekme`.
   tr: { englishForm: /İngilizce/, newTab: /sekme/i },
   th: { englishForm: /ภาษาอังกฤษ/, newTab: /แท็บ/ },
+  // Arabic: the language is `الإنجليزية`; a browser tab is `تبويب`. Both are
+  // written with the definite article in the catalog copy, so the patterns
+  // match the bare stem rather than anchoring on `ال`.
+  ar: { englishForm: /الإنجليزية/, newTab: /تبويب/ },
   // same language as `es-419`, so the same markers — but the row is still
   // required, because the map is asserted exhaustive over the registry and a
   // locale with no row would otherwise ship unchecked

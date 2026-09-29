@@ -1,5 +1,6 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
+import ar from './locales/ar'
 import de from './locales/de'
 import itCat from './locales/it'
 import nl from './locales/nl'
@@ -43,6 +44,7 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // collides with vitest's own `it()` — the first locale here whose CODE is
 // a test-framework identifier, so every other catalog can keep its bare name.
 const CATALOGS = {
+  ar,
   en,
   ko,
   ja,
@@ -146,6 +148,13 @@ const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }
   // (`teken`), a spreadsheet column is a `kolom`. No shared stem, so a
   // mix-up cannot hide behind a common prefix.
   nl: { char: `teken ${N}`, table: `kolom ${N}` },
+  // Arabic splits it the same way, and the two words share no root: a parser
+  // offset is a POSITION in the pasted text (`الموضع`), a spreadsheet column is
+  // `العمود`. Arabic derives words from three-consonant roots, so "no shared
+  // stem" is a stronger statement here than in the Latin-script rows — و-ض-ع
+  // and ع-م-د have nothing in common, and no inflection of one can drift into
+  // the other.
+  ar: { char: `الموضع ${N}`, table: `العمود ${N}` },
 }
 
 const LOCS = Object.keys(VOCAB) as Exclude<Loc, 'en'>[]

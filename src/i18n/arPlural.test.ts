@@ -132,15 +132,43 @@ describe('the checker itself, exercised on fixtures', () => {
 })
 
 describe('the contract binds to the real catalog the moment Arabic ships', () => {
-  // This is the tripwire. While `ar` is unregistered there is nothing to read,
-  // and a quiet skip would leave the whole file decorative. Registering Arabic
-  // fails HERE, and the fix is to replace this test with the catalog sweep
-  // sketched below — not to delete it.
-  it('`ar` is not registered yet — when it is, wire the sweep below', () => {
-    expect(
-      getEntry('ar'),
-      'Arabic is now registered: enable the catalog sweep in this file',
-    ).toBeUndefined()
+  // The tripwire fired, as designed. Until PR C, this block asserted that `ar`
+  // was NOT registered, so that registering it would turn RED here and force a
+  // human back to this file instead of letting the interesting half go vacuous.
+  // Registering it is exactly what PR C did, so the tripwire has been replaced
+  // by the sweep it was written to hand off to — not deleted.
+  it('`ar` is registered, so there is a real catalog to read', async () => {
+    const entry = getEntry('ar')
+    expect(entry, 'the sweep below reads this entry').toBeDefined()
+    expect(entry?.direction).toBe('rtl')
+    expect(entry?.pseudo ?? false, '`ar` must be a real shipped locale, not a pseudo').toBe(false)
+  })
+
+  it('every plural block in the Arabic catalog declares all six categories', async () => {
+    const catalog = (await getEntry('ar')!.catalog()) as unknown as Record<string, string>
+    const blocks = blocksOf(catalog)
+    // fail closed: an empty sweep would pass the loop below without reading a
+    // thing, which is the failure mode this whole file was written against
+    expect(blocks.length, 'the Arabic catalog must contain plural blocks to check').toBeGreaterThan(0)
+    for (const [key, block] of blocks) {
+      expect(declaredCategories(block), `${key}: Arabic needs ${REQUIRED.join('/')}`).toEqual(REQUIRED)
+    }
+  })
+
+  it('each category is reachable with a real number, so no arm is decorative', async () => {
+    const catalog = (await getEntry('ar')!.catalog()) as unknown as Record<string, string>
+    const pr = new Intl.PluralRules('ar')
+    for (const [category, values] of Object.entries(REACHES)) {
+      for (const n of values) {
+        expect(pr.select(n), `${n} should select \`${category}\``).toBe(category)
+      }
+    }
+    // and the catalog's own blocks answer for those categories
+    for (const [key, block] of blocksOf(catalog)) {
+      for (const category of Object.keys(REACHES)) {
+        expect(declaredCategories(block), `${key} is missing \`${category}\``).toContain(category)
+      }
+    }
   })
 
   it('the sweep works — proved on `en`, whose own contract is different', () => {
