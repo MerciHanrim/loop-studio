@@ -6,7 +6,7 @@ import {
   type EdgeProps,
   type EdgeTypes,
 } from '@xyflow/react'
-import { useT } from '../../i18n'
+import { useLocaleDirection, useT } from '../../i18n'
 import { useGraphStore } from '../../store/graphStore'
 import { BEAT_ARRIVE, BEAT_DEPART_END, BEAT_SETTLE, useSimStore, type PlaybackPhase } from '../../store/simStore'
 import type { CueRole } from '../../store/playbackRank'
@@ -88,6 +88,9 @@ function LoopEdge({
   data,
   selected,
 }: EdgeProps) {
+  // §L9.3 — the edge label sits inside the ltr-pinned canvas: its localized
+  // prose opts back into the reader's direction, its numbers stay pinned.
+  const uiDir = useLocaleDirection()
   const t = useT()
   const [bezierPath, bezierLabelX, bezierLabelY] = getBezierPath({
     sourceX,
@@ -565,15 +568,15 @@ function LoopEdge({
           >
             {text}
             {sv?.kind === 'label' && sv.delta !== 0 ? (
-              <span className="edge-label__delta">{fmtSigned(sv.delta)}</span>
+              <span className="edge-label__delta" dir="ltr">{fmtSigned(sv.delta)}</span>
             ) : null}
             {sv?.kind === 'label' && sv.clampAdjustment !== 0 ? (
-              <span className="edge-label__clamp" title={t('canvas.edgeLabel.clamp.title')}>
-                {t('canvas.edgeLabel.clamp')} {fmtSigned(sv.clampAdjustment)}
+              <span className="edge-label__clamp" title={t('canvas.edgeLabel.clamp.title')} dir={uiDir}>
+                {t('canvas.edgeLabel.clamp')} <span dir="ltr">{fmtSigned(sv.clampAdjustment)}</span>
               </span>
             ) : null}
             {sv?.kind === 'trigger' && !sv.applied ? (
-              <span className="edge-label__blocked" title={t('canvas.edgeLabel.blocked.title')}>
+              <span className="edge-label__blocked" title={t('canvas.edgeLabel.blocked.title')} dir={uiDir}>
                 {t('canvas.edgeLabel.blocked')}
               </span>
             ) : null}

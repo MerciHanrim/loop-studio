@@ -19,7 +19,8 @@ import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
 import { useUiStore } from '../../store/uiStore'
-import { useT, type MessageKey } from '../../i18n'
+import { type MessageKey, useLocaleDirection, useT } from '../../i18n'
+import type { ContentDir } from '../../i18n/contentDirection'
 import { useI18n } from '../../i18n/store'
 import { usePhrasedTitle } from './phraseTitle'
 import type {
@@ -78,17 +79,33 @@ function useValueDir(value: number): 'up' | 'down' | null {
   return dir
 }
 
+/** docs/localization.md §L9.3 — a direction the CALLER decides.
+ *
+ *  NodeFrame renders whatever it is handed, and its callers hand it two
+ *  different kinds of value: eight pass the user's own node label, one passes a
+ *  catalog sentence. Those want different directions, and the element cannot
+ *  tell them apart — so the direction travels with the value.
+ *
+ *  No default. A default would be a guess made on behalf of a caller who never
+ *  considered the question, which is exactly how the canvas ends up pinning a
+ *  user's Arabic label to ltr. */
+type CallerDir = ContentDir
+
+/** `sub` and `subDir` are a pair: neither, or both. A subtitle with no declared
+ *  direction is a type error rather than a runtime fallback. */
+type SubProps = { sub?: undefined; subDir?: undefined } | { sub: string | undefined; subDir: CallerDir }
+
 type FrameProps = {
   nodeId: string
   kind: NodeKind
   title: string
+  titleDir: CallerDir
   value?: string
   valueDir?: 'up' | 'down' | null
   /** loop-model/2 §M2 — an advisory display unit shown right after `value`
    *  (space + unit, e.g. `464 kKRW/day`). Absent ⇒ the value renders exactly as
    *  before. Never engine- / digest-affecting. */
   unit?: string
-  sub?: string
   selected?: boolean
   firing?: boolean
   /** §LGR5 — `evaluated`: activated this step but did not fire. A small static
@@ -105,16 +122,18 @@ type FrameProps = {
    *  top-right `!` flag; carries no value (the caller passes `—`). */
   invalid?: boolean
   stepKey: number
-}
+} & SubProps
 
 function NodeFrame({
   nodeId,
   kind,
   title,
+  titleDir,
   value,
   valueDir,
   unit,
   sub,
+  subDir,
   selected,
   firing,
   evaluated,
@@ -341,17 +360,24 @@ function NodeFrame({
         <div className="nodef__stack" ref={stackRef}>
         <span className="nodef__head">
           <span className="nodef__chip" />
-          <span className={phrased ? 'nodef__title nodef__title--phrased' : 'nodef__title'}>
+          <span
+            className={phrased ? 'nodef__title nodef__title--phrased' : 'nodef__title'}
+            dir={titleDir}
+          >
             {titleNode}
           </span>
         </span>
         {value != null ? (
-          <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`}>
+          <span className={`nodef__value${valueDir ? ` nodef__value--${valueDir}` : ''}`} dir="ltr">
             {value}
-            {unit ? <span className="nodef__unit">{' '}{unit}</span> : null}
+            {unit ? <span className="nodef__unit" dir="auto">{' '}{unit}</span> : null}
           </span>
         ) : null}
-        {sub ? <span className="nodef__sub">{sub}</span> : null}
+        {sub ? (
+          <span className="nodef__sub" dir={subDir}>
+            {sub}
+          </span>
+        ) : null}
         </div>
       </div>
     </div>
@@ -372,9 +398,11 @@ function PoolNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="pool"
         title={d.label}
+        titleDir="auto"
         value={fmt(shown)}
         valueDir={useValueDir(shown)}
         sub={d.capacity != null ? `≤ ${d.capacity}` : undefined}
+        subDir="ltr"
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
@@ -396,7 +424,9 @@ function SourceNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="source"
         title={d.label}
+        titleDir="auto"
         sub={`${d.activation} · ${d.mode}`}
+        subDir="ltr"
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
@@ -418,7 +448,9 @@ function DrainNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="drain"
         title={d.label}
+        titleDir="auto"
         sub={`${d.activation} · ${d.mode}`}
+        subDir="ltr"
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
@@ -439,7 +471,9 @@ function GateNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="gate"
         title={d.label}
+        titleDir="auto"
         sub={d.distribution}
+        subDir="ltr"
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
@@ -461,7 +495,9 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="converter"
         title={d.label}
+        titleDir="auto"
         sub={d.mode}
+        subDir="ltr"
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
@@ -483,6 +519,7 @@ function EndNode({ id, data, selected }: NodeProps) {
         nodeId={id}
         kind="end"
         title={d.label}
+        titleDir="auto"
         selected={selected}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
@@ -507,6 +544,10 @@ function UnreadableModelNode({
   kind: 'parameter' | 'register'
   selected?: boolean
 }) {
+  // §L9.3 — catalog prose inside the ltr-pinned canvas opts back into the
+  // reader's direction. The value comes from the app's own resolver, never
+  // from re-reading <html dir> or re-deriving it from the locale code.
+  const uiDir = useLocaleDirection()
   const t = useT()
   const stepKey = useSimStore((s) => s.stepIndex)
   return (
@@ -514,7 +555,9 @@ function UnreadableModelNode({
       nodeId={id}
       kind={kind}
       title={t('node.unreadable.title', { kind })}
+      titleDir={uiDir}
       sub={t('node.unreadable.sub')}
+      subDir={uiDir}
       selected={selected}
       invalid
       stepKey={stepKey}
@@ -532,8 +575,10 @@ function ParameterNode({ id, data, selected }: NodeProps) {
       nodeId={id}
       kind="parameter"
       title={d.label || 'Parameter'}
+      titleDir="auto"
       value={fmt(d.value)}
       sub={d.unit || undefined}
+      subDir="auto"
       selected={selected}
       stepKey={stepKey}
     />
@@ -556,10 +601,12 @@ function RegisterNode({ id, data, selected }: NodeProps) {
       nodeId={id}
       kind="register"
       title={d.label || 'Register'}
+      titleDir="auto"
       value={invalid ? '—' : formatRegisterValue(numeric, d.format)}
       valueDir={invalid ? null : dir}
       unit={invalid ? undefined : d.unit || undefined}
       sub={`= ${d.expr}`}
+      subDir="ltr"
       selected={selected}
       invalid={invalid}
       stepKey={stepKey}

@@ -19,7 +19,7 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { blocksCanvasKey } from '../ui/keyboardTarget'
 import { createKeyGesture } from '../ui/keyGestureLifetime'
-import { useI18n, useT, type MessageKey } from '../i18n'
+import { type MessageKey, useI18n, useLocaleDirection, useT } from '../i18n'
 import { moduleLabelOverlay } from '../i18n/moduleLabels'
 import { useFilterStore } from '../store/filterStore'
 import { nodeTypes } from './nodes/nodes'
@@ -90,6 +90,9 @@ function LodGrid() {
 }
 
 export function Canvas() {
+  // §L9.3 — the canvas subtree is pinned ltr, so every localized string
+  // rendered inside it opts back into the reader's direction explicitly.
+  const uiDir = useLocaleDirection()
   // docs/contextual-inline-help.md §CIH3 #4 — the `.canvas` element, for a
   // one-shot "did the user ever touch this" interaction listener.
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -862,7 +865,7 @@ export function Canvas() {
             is selected yet, so nothing on the canvas has changed. Tell the user
             the mode is on and waiting. Never takes the pointer. */}
         {focusMode && !focusSet && (
-          <Panel position="top-center" className="lgr-focus-hint">
+          <Panel position="top-center" className="lgr-focus-hint" dir={uiDir}>
             {t('canvas.focus.hint')}
           </Panel>
         )}
@@ -871,7 +874,7 @@ export function Canvas() {
             takes the pointer. */}
         {importHintShowing && lastImportBatch && (
           <Panel position="top-center" className="hint-note" role="note">
-            <span>
+            <span dir={uiDir}>
               {t('hint.importFirstCommit.body', {
                 n: lastImportBatch.count,
                 tables: lastImportBatch.tables.map((l) => `"${l}"`).join(', '),
@@ -884,7 +887,7 @@ export function Canvas() {
         )}
         {frameMoveHintShowing && (
           <Panel position="top-center" className="hint-note" role="note">
-            <span>{t('hint.frameMove.body')}</span>
+            <span dir={uiDir}>{t('hint.frameMove.body')}</span>
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={frameMoveHint.close}>
               ✕
             </button>
@@ -892,7 +895,7 @@ export function Canvas() {
         )}
         {autoFramesExist && !suggestNoteDismissed && !importHintShowing && !frameMoveHintShowing && (
           <Panel position="top-center" className="lgr-suggest-note">
-            <span>{t('canvas.frame.suggestNote')}</span>
+            <span dir={uiDir}>{t('canvas.frame.suggestNote')}</span>
             <button
               type="button"
               className="lgr-suggest-note__x"
@@ -910,6 +913,7 @@ export function Canvas() {
             `MobileOpenFileHint` already owns this moment on mobile. */}
         {!isMobile && (
           <CanvasHintNote
+            dir={uiDir}
             id="empty-canvas"
             trigger={nodes.length === 0}
             ready={tourIdle && tier3Ready && !lgrNoticeShowing}
@@ -929,6 +933,7 @@ export function Canvas() {
             above — not the current on/off state). */}
         {!isMobile && (
           <CanvasHintNote
+            dir={uiDir}
             id="focus-filter-discovery"
             trigger={nodes.length >= WORTH_IT_FLOOR && !focusOrFilterEverUsed}
             ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing}

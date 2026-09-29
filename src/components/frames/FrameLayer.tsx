@@ -4,7 +4,7 @@ import { useFrameStore, type FrameRect, type FrameColor } from '../../store/fram
 import { useAutoFrameStore } from '../../store/autoFrameStore'
 import { useGraphStore, type GestureSnapshot } from '../../store/graphStore'
 import { useUiStore } from '../../store/uiStore'
-import { useT } from '../../i18n'
+import { useLocaleDirection, useT } from '../../i18n'
 import { useIsMobile } from '../../ui/media'
 import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeom'
 import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type Pt } from './frameMoveGesture'
@@ -815,11 +815,28 @@ function FrameLabel({
   buttonRef?: RefObject<HTMLButtonElement | null>
   onOpen: () => void
 }) {
+  // docs/localization.md §L9.3 — the chip shows EITHER the name the user typed
+  // or a localized default, and those read differently: a user's own text takes
+  // its own direction, a localized default takes the reader's. The canvas is
+  // pinned ltr, so neither can be reached by inheriting.
+  //
+  // `showsUserLabel` is the SAME boolean the render branches on. Writing the
+  // condition twice is how the two drift: the text would come from one branch
+  // and the direction from another, and nothing would catch it.
+  const uiDir = useLocaleDirection()
+  const showsUserLabel = Boolean(label)
+  const chipText = showsUserLabel ? label : def
+  const chipDir = showsUserLabel ? 'auto' : uiDir
+
   // §AF-INV-7 / D6 — a non-editable label (a mobile auto frame, or any frame
   // on a locked / mobile canvas) is a plain span: no popover, no rename, no
   // colour. Unchanged by §FC10.
   if (!editable) {
-    return <span className="lgr-frame__label lgr-frame__label--static">{label || def}</span>
+    return (
+      <span className="lgr-frame__label lgr-frame__label--static" dir={chipDir}>
+        {chipText}
+      </span>
+    )
   }
 
   // §FC10 — the chip is now a disclosure for the properties popover rather than
@@ -838,8 +855,9 @@ function FrameLabel({
         e.stopPropagation()
         onOpen()
       }}
+      dir={chipDir}
     >
-      {label || def}
+      {chipText}
     </button>
   )
 }
