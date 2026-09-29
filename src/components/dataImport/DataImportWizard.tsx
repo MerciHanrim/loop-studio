@@ -33,6 +33,7 @@ import { downloadCsv } from '../../ui/download'
 import { canvasFitInsets, viewportForRect } from '../canvasFit'
 import { useDialogFocus } from '../useDialogFocus'
 import { useQuickStartStore } from './quickStartStore'
+import { isolateAuto } from '../../i18n/bidiIsolate'
 
 // Static lookups, not dynamic `import.issue.` + code template strings --
 // scripts/check-i18n.mjs only recognises a literal call with a quoted
@@ -529,7 +530,10 @@ export function DataImportWizard({
     // (length-capped, control characters made visible); `detail.value`
     // itself stays raw.
     const detail = { ...(issue.detail ?? {}) } as Record<string, string | number>
-    if (typeof detail.value === 'string') detail.value = formatCellValueForDisplay(detail.value)
+    // The copy is what is rendered; `issue.detail` is untouched, so nothing
+    // stored, digested or exported sees the isolate.
+    if (typeof detail.value === 'string')
+      detail.value = isolateAuto(formatCellValueForDisplay(detail.value))
     const desc = t(ISSUE_KEY[issue.code], detail)
     const loc = issueLocation(issue)
     return loc ? `${loc}: ${desc}` : desc
@@ -679,7 +683,7 @@ export function DataImportWizard({
                 const tableErrors = errors.filter((e) => e.tableIndex === ti)
                 const keyText =
                   counts.keyCount === 1 && counts.keyHeader !== null
-                    ? t('import.status.key', { header: counts.keyHeader })
+                    ? t('import.status.key', { header: isolateAuto(counts.keyHeader) })
                     : counts.keyCount === 0
                       ? t('import.status.keyNone')
                       : t('import.status.keyMany', { n: counts.keyCount })

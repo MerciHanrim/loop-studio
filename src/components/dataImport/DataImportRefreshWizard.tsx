@@ -17,6 +17,7 @@ import type { ImportColumnRole } from '../../model/serialize'
 import { useDataImportStore } from '../../store/dataImportStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useDialogFocus } from '../useDialogFocus'
+import { isolateAuto } from '../../i18n/bidiIsolate'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 -- the 4-step refresh wizard for
 // ONE already-bound table: paste/upload -> column events (only shown when
@@ -352,7 +353,10 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                     const options = ev.kind === 'missing-header' ? headers.map((h, idx) => ({ idx, h })) : ev.candidateIncomingColumnIndexes.map((idx) => ({ idx, h: headers[idx] }))
                     return (
                       <li key={i}>
-                        <p>{ev.kind === 'missing-header' ? t('import.refresh.columnEvents.missingHeader', { header: ev.header, role: t(ROLE_LABEL_KEY[ev.role]) }) : t('import.refresh.columnEvents.ambiguousMatch', { header: ev.header })}</p>
+                        <p>{ev.kind === 'missing-header' ? t('import.refresh.columnEvents.missingHeader', {
+                                header: isolateAuto(ev.header),
+                                role: t(ROLE_LABEL_KEY[ev.role]),
+                              }) : t('import.refresh.columnEvents.ambiguousMatch', { header: isolateAuto(ev.header) })}</p>
                         <select
                           value={choice ? (choice.kind === 'column-removed' ? 'removed' : String(choice.incomingColumnIndex)) : ''}
                           onChange={(e) => {

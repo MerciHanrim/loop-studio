@@ -1,0 +1,121 @@
+{
+  "$comment": "docs/localization.md §L9.4 — the isolation obligations PR B deferred to PR C. A user or technical value that enters a localized sentence through an ICU ARGUMENT has no element to carry `dir`, so markup cannot reach it. Each row names the producer, the key or closed key family it renders through, the ICU argument slot that carries the value, and WHICH isolate the value needs. Three counts are different numbers and are kept apart: 11 decision rows recorded by PR B, 8 distinct obligations (one per producer — what is implemented), and 11 AST call sites (what the edit touches; a closed key set is more than one).",
+  "$limit": "This manifest defends the call sites listed here. It does NOT discover a NEW ICU argument that starts carrying a user value later — only a census pass finds that, the same limit `scripts/content-direction.json` carries. What it does enforce for the sites it lists is exhaustive: the exact isolate kind, the resolved key or key family, the argument slot, and that the argument is not passed raw.",
+  "totals": { "decisionRows": 11, "obligations": 8, "callSites": 11 },
+  "obligations": [
+    {
+      "id": "canvas-import-hint-tables",
+      "rows": ["decisions-canvas.json sites[3]"],
+      "file": "src/components/Canvas.tsx",
+      "enclosing": "Canvas",
+      "keys": ["hint.importFirstCommit.body"],
+      "keyAuthority": "literal",
+      "args": ["tables"],
+      "kind": "auto",
+      "shape": "per-fragment",
+      "carries": "the user's own TABLE LABELS, comma-joined into one ICU argument",
+      "why": "A single isolate around the joined list would give the whole list one paragraph direction, taken from whichever table the user happened to name first. MEASURED in PR B: two of six cases broke identically with and without that single isolate. Each label is isolated on its own; the quotes and the comma stay OUTSIDE, because they are the sentence's punctuation and not the label's.",
+      "argExpression": "lastImportBatch.tables.map((l) => `\"${isolateAuto(l)}\"`).join(', ')"
+    },
+    {
+      "id": "refresh-column-header",
+      "rows": ["decisions-dataimportrefreshwizard.json sites[0]"],
+      "file": "src/components/dataImport/DataImportRefreshWizard.tsx",
+      "enclosing": "DataImportRefreshWizard",
+      "keys": [
+        "import.refresh.columnEvents.missingHeader",
+        "import.refresh.columnEvents.ambiguousMatch"
+      ],
+      "keyAuthority": "closed set — the two branches of one ternary at the same render site",
+      "args": ["header"],
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "the user's spreadsheet COLUMN HEADER"
+    },
+    {
+      "id": "wizard-issue-value",
+      "rows": [
+        "decisions-dataimportwizard.json sites[2]",
+        "decisions-dataimportwizard.json sites[3]",
+        "decisions-dataimportwizard.json sites[6]"
+      ],
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard>issueText",
+      "keys": [],
+      "keyAuthority": "dynamic:ISSUE_KEY",
+      "args": ["value"],
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "a USER CELL, display-formatted",
+      "note": "THREE recorded rows, ONE producer: `issueText` is called at three render sites and holds one catalog call. The key is not written in the source at all — it is `ISSUE_KEY[issue.code]`, so the family is read from the AST and must be non-empty.",
+      "argExpression": "detail.value = isolateAuto(formatCellValueForDisplay(detail.value))"
+    },
+    {
+      "id": "wizard-status-key-header",
+      "rows": ["decisions-dataimportwizard.json sites[15]"],
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard",
+      "keys": ["import.status.key"],
+      "keyAuthority": "literal",
+      "args": ["header"],
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "the user's spreadsheet COLUMN HEADER (the key column)",
+      "lineage": "NOT lost. Recorded pre-PR-B as one concatenated expression, `keyText + \" · \" + t(\"import.status.counts\", {cols,rows,n})` at :864. C3 split that JSX child into three children, so the recorded expression no longer exists as written; the obligation moved to the producer `keyText`, whose header-carrying branch is this call. It also NARROWED — the `import.status.counts` half interpolates only numbers, so it carries nothing of unknown direction and is not an obligation."
+    },
+    {
+      "id": "framelayer-announcement-label",
+      "rows": ["decisions-framelayer.json sites[0]"],
+      "file": "src/components/frames/FrameLayer.tsx",
+      "enclosing": "FrameLayer",
+      "keys": ["canvas.frame.a11y.moved", "canvas.frame.a11y.resized"],
+      "keyAuthority": "closed set — the two assignments to `announcement`",
+      "args": ["label"],
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "the user FRAME NAME, at the head of a localized sentence",
+      "note": "The sr-only accessibility path. Nobody can see it, which is exactly why it needed recording rather than dropping."
+    },
+    {
+      "id": "inspector-flowparam-id",
+      "rows": ["decisions-inspector.json sites[6]"],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "EdgeFlowField",
+      "keys": ["inspector.edge.flowParam.unknown", "inspector.edge.flowParam.notParam"],
+      "keyAuthority": "closed set — the two `status` assignments that interpolate `refId`",
+      "args": ["id"],
+      "kind": "ltr",
+      "shape": "single-fragment",
+      "carries": "a NODE ID — a technical token whose direction is known in advance",
+      "why": "`LRI` and not `FSI`: an id starting with a digit or a symbol has no strong character of its own, so a first-strong isolate would hand it the surrounding paragraph's direction."
+    },
+    {
+      "id": "inspector-labeltiming-raw",
+      "rows": [
+        "decisions-inspector.json sites[11]",
+        "decisions-inspector.json sites[12]"
+      ],
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "LabelTimingField",
+      "keys": ["inspector.labelTiming.unsupported"],
+      "keyAuthority": "literal",
+      "args": ["timing", "when"],
+      "kind": "auto",
+      "shape": "single-fragment",
+      "carries": "RAW document values via `rawOrDash`",
+      "note": "TWO recorded rows, ONE producer: `groupLine` is one catalog call rendered at two JSX sites (the editable path and the read-only path). TWO arguments, both isolated."
+    },
+    {
+      "id": "revisionchip-id",
+      "rows": ["decisions-revisionchip.json sites[0]"],
+      "file": "src/components/RevisionChip.tsx",
+      "enclosing": "RevisionChip",
+      "keys": ["revChip.rev"],
+      "keyAuthority": "literal",
+      "args": ["id"],
+      "kind": "ltr",
+      "shape": "single-fragment",
+      "carries": "a shortened revision identifier — generated, direction known"
+    }
+  ]
+}

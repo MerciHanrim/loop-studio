@@ -30,6 +30,7 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { RegisterExprField } from './RegisterExprField'
 import { useT, type MessageKey } from '../i18n'
+import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import type {
   ConverterData,
   DrainData,
@@ -347,9 +348,9 @@ function EdgeFlowField({
     status = { text: t('inspector.edge.flowParam.malformed'), warn: true }
   } else if (refId != null) {
     const node = useGraphStore.getState().nodes.find((n) => n.id === refId)
-    if (!node) status = { text: t('inspector.edge.flowParam.unknown', { id: refId }), warn: true }
+    if (!node) status = { text: t('inspector.edge.flowParam.unknown', { id: isolateLtr(refId) }), warn: true }
     else if ((node.data as { kind?: string }).kind !== 'parameter')
-      status = { text: t('inspector.edge.flowParam.notParam', { id: refId }), warn: true }
+      status = { text: t('inspector.edge.flowParam.notParam', { id: isolateLtr(refId) }), warn: true }
     else {
       const v = (node.data as { value?: unknown }).value
       status = {
@@ -796,7 +797,10 @@ function LabelTimingField({
   const isWarningLine = classified === 'unsupported' || !!checkedReason
   const groupLine =
     classified === 'unsupported'
-      ? t('inspector.labelTiming.unsupported', { timing: rawOrDash(ed.timing), when: rawOrDash(ed.when) })
+      ? t('inspector.labelTiming.unsupported', {
+          timing: isolateAuto(rawOrDash(ed.timing)),
+          when: isolateAuto(rawOrDash(ed.when)),
+        })
       : checkedReason
         ? t(REASON_KEY[checkedReason])
         : t(classified === 'phase0' ? 'inspector.labelTiming.previewAlways' : 'inspector.labelTiming.previewAfterPull')
