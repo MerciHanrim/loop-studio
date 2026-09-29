@@ -255,58 +255,72 @@ const catalogOf = async (code) => {
   return Object.assign({}, ...parts)
 }
 
+// The rule itself lives in src/i18n/arrowContract.ts, and is imported rather than
+// written again here. It has to be callable with a locale that does NOT exist yet:
+// every RTL locale registered today is pseudo, so every locale this loop can reach is
+// one that cannot fail the mirrored-glyph rule. src/i18n/arrowContract.test.ts calls
+// the same function with a synthetic real `ar` and proves that registering one arms
+// the contract. A rule written only here could be verified only by locales that
+// cannot exercise it.
+const { arrowCatalogViolations } = await import(pathToFileURL(path.join(ROOT, 'src/i18n/arrowContract.ts')).href)
+
+const contractInput = { units: M.units, catalog: M.catalog, conditional: M.conditional }
+const perLocale = []
 let checkedKeys = 0
 for (const loc of entries) {
   const cat = await catalogOf(loc.code)
   if (!cat) {
     // a pseudo locale reuses another catalogue and has no file of its own
     if (!loc.pseudo) problems.push(`${loc.code}: no catalogue file, and it is not a pseudo locale`)
+    perLocale.push({ ...loc, catalogue: false, checked: 0 })
     continue
   }
-  // §L9.2 — a pseudo locale ships another catalogue VERBATIM to test direction, not
-  // translation, so a catalogue-content rule cannot apply to it
-  const wantRtl = loc.direction === 'rtl' && !loc.pseudo
-  for (const c of M.catalog) {
-    const u = M.units[c.unit]
-    const want = wantRtl ? (u.verdict === 'mirror' ? u.rtl : u.ltr) : u.ltr
-    for (const key of c.keys) {
-      const value = cat[key]
-      if (typeof value !== 'string') {
-        problems.push(`${loc.code}: key \`${key}\` is missing - the \`${c.unit}\` arrow contract names it`)
-        continue
-      }
-      checkedKeys++
-      if (!value.includes(want)) {
-        problems.push(
-          `${loc.code} \`${key}\`: the \`${c.unit}\` unit ${u.verdict === 'mirror' ? 'mirrors' : 'keeps its glyph'}, so this ${loc.direction} catalogue must carry \`${want}\``,
-        )
-      }
-      if (wantRtl && u.verdict === 'mirror' && value.includes(u.ltr)) {
-        problems.push(`${loc.code} \`${key}\`: still carries the unmirrored \`${u.ltr}\``)
-      }
-    }
+  const r = arrowCatalogViolations(loc, cat, contractInput)
+  checkedKeys += r.checked
+  perLocale.push({ ...loc, catalogue: true, checked: r.checked })
+  for (const m of r.missing) {
+    problems.push(`${loc.code}: key \`${m.key}\` is missing - the \`${m.unit}\` arrow contract names it`)
   }
-  // the CONDITIONAL keys: a locale-local arrow nothing requires, but which follows
-  // its unit's rule if the translation uses one at all
-  for (const c of M.conditional) {
-    const u = M.units[c.unit]
-    const value = cat[c.key]
-    if (typeof value !== 'string') continue
-    const hasAny = value.includes(u.ltr) || value.includes(u.rtl)
-    if (!hasAny) continue
-    const want = wantRtl ? u.rtl : u.ltr
-    if (!value.includes(want)) {
-      problems.push(`${loc.code} \`${c.key}\`: uses a \`${c.unit}\` arrow, so it must be \`${want}\` for this ${loc.direction} catalogue`)
-    }
+  for (const v of r.violations) {
+    const u = M.units[v.unit]
+    problems.push(
+      `${v.locale} \`${v.key}\`: the \`${v.unit}\` unit ${u.verdict === 'mirror' ? 'mirrors' : 'keeps its glyph'}, so this ${loc.direction} catalogue must carry \`${v.want}\``,
+    )
   }
 }
+
+// ── the arithmetic behind the key-check total, printed rather than asserted flat ──
+const withCatalogue = perLocale.filter((l) => l.catalogue)
+const pseudoNoCatalogue = perLocale.filter((l) => !l.catalogue && l.pseudo)
+const pairsPerLocale = M.catalog.reduce((n, c) => n + c.keys.length, 0)
+const conditionalHits = checkedKeys - withCatalogue.length * pairsPerLocale
+const expected = withCatalogue.length * pairsPerLocale + conditionalHits
+if (checkedKeys !== expected) {
+  problems.push(`the key-check total ${checkedKeys} does not match ${withCatalogue.length} x ${pairsPerLocale} + ${conditionalHits}`)
+}
+if (conditionalHits < 0) problems.push('a locale checked fewer keys than the contract names - the arithmetic is wrong, not the catalogue')
 
 console.log('check-arrow-direction')
 console.log('  units                  ' + Object.keys(M.units).length + '  (mirror ' + mirrorUnits.length + ', keep ' + (Object.keys(M.units).length - mirrorUnits.length) + ')')
 console.log('  jsx sites via the hook ' + siteTotal)
 console.log('  keep literals          ' + M.keepLiterals.reduce((n, k) => n + k.count, 0))
-console.log('  locales checked        ' + entries.length + '  (' + entries.filter((e) => e.pseudo).length + ' pseudo, exempt from the catalogue clause)')
-console.log('  catalogue key checks   ' + checkedKeys)
+console.log('')
+console.log('  the catalogue clause, and where its key-check total comes from:')
+console.log('     registry entries               ' + entries.length)
+console.log('     with a catalogue file of their own  ' + withCatalogue.length + '   ' + withCatalogue.map((l) => l.code).join(' '))
+console.log('     pseudo, no catalogue of their own   ' + pseudoNoCatalogue.length + '   ' + pseudoNoCatalogue.map((l) => l.code + ' (' + l.direction + ')').join(' '))
+console.log('        en-XA generates from en; ar-XB falls back to en verbatim. Neither has')
+console.log('        a file, and a catalogue-CONTENT rule cannot apply to a verbatim copy.')
+console.log('     (unit, key) pairs per locale   ' + pairsPerLocale + '   = ' + M.catalog.map((c) => c.keys.length + ' ' + c.unit).join(' + '))
+console.log('        four keys are governed by TWO units - their string carries two')
+console.log('        different arrows - so pairs exceed distinct keys.')
+console.log('     conditional hits               ' + conditionalHits + '   (import.qs.sources.excel, counted only where a translation uses an arrow at all)')
+console.log('     TOTAL (locale, key, unit)      ' + withCatalogue.length + ' x ' + pairsPerLocale + ' + ' + conditionalHits + ' = ' + checkedKeys)
+console.log('')
+console.log('     no non-pseudo RTL catalogue is registered yet, so nothing here can')
+console.log('     exercise the mirrored-glyph rule. src/i18n/arrowContract.test.ts calls')
+console.log('     the same function with a synthetic `ar` and proves registering one')
+console.log('     arms it.')
 console.log('  problems             : ' + problems.length)
 for (const p of problems) console.log('     ' + p)
 if (problems.length) process.exitCode = 1
