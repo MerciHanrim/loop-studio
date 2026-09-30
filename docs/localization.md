@@ -3646,18 +3646,31 @@ being true:
 
 What is NOT here, stated so a green run is not mistaken for more than it is:
 
-* **The Arabic catalogue is PR C.** The direction work is exercised by `ar-XB`, a
-  registered RTL pseudo-locale whose catalogue is `en` verbatim — which is what
-  makes "unchanged" literally assertable across a locale round trip, and also
-  means no catalogue-content rule can apply to it. The arrow catalogue contract
-  is written against a real RTL locale and arms itself the day one is registered;
-  `src/i18n/arrowContract.test.ts` proves that by calling the rule with a
-  synthetic `ar`, because no registered locale can exercise it today.
+* **The Arabic catalogue landed in PR C, and the arrow contract is now armed by a
+  real locale.** `ar-XB` remains a registered RTL pseudo-locale shipping `en`
+  verbatim — which is what makes "unchanged" literally assertable across a locale
+  round trip, and also means no catalogue-content rule can apply to it. Until `ar`
+  shipped, every locale the checker could reach was one that could not fail the
+  mirrored-glyph rule, and `src/i18n/arrowContract.test.ts` existed to call the
+  rule with a synthetic `ar` and prove that registering one would arm it. It did:
+  `check-arrow-direction` now reports `ar` as a real RTL catalogue and evaluates
+  the mirrored-glyph rule against it. That test stays, because the same argument
+  applies to the NEXT RTL locale before it exists.
 * **Assistive technology behaviour.** The DOM and accessibility-API tier is
   closed (`e2e/a11y-direction-invisible.spec.ts`); how a screen reader
   pronounces, segments or brailles any of this is a tier above what a browser can
   report, and any later result is recorded as the stack it was measured on — a
   finding on Windows + Chrome + NVDA is a finding for that combination.
+  **The site count in that spec's own header is wrong, and C3.5 is why it
+  matters.** It says "three `.sr-only` regions and three shared
+  `aria-describedby` targets"; there are FOUR live regions. The fourth is
+  `RegisterExprField`'s `srMsg` (`:775`), and it is exactly the region C3.5 put
+  isolates into (`regexpr-insert-done`, `regexpr-armhint-cycle-name`). The spec is
+  not wrong today — it locates the steady-state region with
+  `regions.find(el => !frame && !playback)` and no register is selected in that
+  test, so it picks the PlayBar one — but it asserts no COUNT, which is how a
+  fourth region came to exist unrecorded. The AT review therefore has **seven**
+  sites, not six.
 * **The `dir` attributes on the 115 attribute-only sites** (`title`, `aria-label`)
   are unchanged: markup cannot reach an attribute.
 
@@ -3710,8 +3723,74 @@ other and come out of one table for that reason, because two literals in two
 files is how the pair that must stay opposite quietly becomes equal.
 
 `scripts/arrow-units.json` records every unit, the JSX sites, the literals that
-must STAY (without which "everything mirrors" would satisfy the check), and the
-catalogue keys each unit governs.
+must STAY (without which "everything mirrors" would satisfy the check), the
+catalogue keys each unit governs, and **how many of that unit's glyphs each key
+carries**.
+
+**Two totals, and they are different units.** They were being reported as one
+number, which is how the gap below survived:
+
+| total | unit |
+|---|---|
+| `18 × 22 + 2 = 398` | CONTRACT PAIRS — `(locale, unit, key)` triples the rule is evaluated on |
+| `18 × 24 + 2 = 434` | GLYPH OCCURRENCES — arrow characters actually inside those values |
+
+`434` is a **global census, not a sum over the manifest**. A per-key contract
+cannot see an arrow added to a key nobody ruled on — that is guaranteed by its
+shape, not an oversight — so `arrowCensus` walks EVERY string in all eighteen
+catalogues and attributes each occurrence to exactly one meaning unit. The checker
+prints `unclaimed 0 / multiply claimed 0` beside the totals, which is what makes
+the two numbers a PARTITION of the catalogues' arrows. `multiply claimed` is not
+hypothetical bookkeeping: it would fire if two units of one key ever required the
+same glyph, and the only reason they do not today is that `share.tooLarge` takes
+`←` from `menu-path` and `▾` from `disclosure-vertical`.
+
+The 18 is derived from the registry: entries with a catalogue file of their own.
+The `+ 2` in both is the conditional key `import.qs.sources.excel`, which `ja` and
+`ko` each give one arrow and English and Arabic give none — a locale-local choice
+the contract rules only *if* a translation makes it, and Arabic's zero is now
+asserted rather than observed.
+
+24 exceeds 22 for two separate reasons, kept apart because they are not the same
+thing:
+
+* **four keys are governed by two units each** — `share.tooLarge`,
+  `revision.export.tooLarge`, `proposal.needProject` and `proposal.dirtyOrigin`
+  carry a `menu-path` arrow that mirrors and a `disclosure-vertical` `▾` that does
+  not. Those are already two pairs, so they add nothing to the gap.
+* **two keys carry the SAME unit's glyph twice** — `regExpr.row.cycle` renders
+  `{name} → … → {name}` and `import.qs.sources.sheets` names a two-step menu path
+  (`ملف ← تنزيل ←`). Each is one pair and two occurrences, which is the whole gap.
+
+**The gap, and how it was found.** The rule was "does the value contain the glyph
+this unit requires". MEASURED on the shipping tree: flipping only the SECOND `→`
+of `regExpr.row.cycle` to `←` left the entire check green. Presence cannot see a
+second glyph. The rule counts now — exactly `n` of the required character, zero of
+the same arrow pointing the other way, and zero tracked glyphs the contract does
+not account for. For a KEEPING unit the "other way" cannot come from the unit
+itself (both its glyphs are the same character), so it comes from a mirror-partner
+table: `→↔←`, `↗↔↖`, `▸↔◂`, `↶↔↷`.
+
+Falsified against the real Arabic catalogue, twelve single-glyph edits every one of
+which the presence rule passed: on each duplicate key the second glyph flipped, one
+removed and one added; an arrow of a unit that governs nothing there; each half of a
+two-unit key broken on its own; the conditional key given an arrow, and given a
+wrong-way one; and the declared occurrence count edited down to hide a glyph.
+
+**The two keys PR C held open are settled, on three separate axes.** Holding the
+axes together is what made them look like one question:
+
+| key | translation | direction | arrows |
+|---|---|---|---|
+| `tour.nav.position` | keep `{n} / {total}` verbatim — nothing to translate | **`ltr`, newly ruled.** MEASURED under `ar`: the two number runs swapped and step 2 of 6 rendered `6 / 2`. A counter is a pinned numeric pair, so `.tour-popover__pos` declares `dir="ltr"` and is recorded in `scripts/content-direction.json` | none — not governed |
+| `import.qs.mapping` | keep the four column names verbatim — they are the header row of `EXAMPLE_CSV`, which the guide's own button pastes, so translating one would describe a column the example does not have | inherits | none — not governed |
+
+The held question about the slash order was the right question: the value needed no
+translation and the ELEMENT was the defect. Nothing in the text changed, which is
+why only a geometric assertion could catch it — `e2e/i18n-ar.spec.ts` measures the
+two number runs' rectangles. `scripts/example-columns.test.ts` pins the column
+names against the component source so the list exists once, and asserts both keys
+carry zero tracked arrows so the two axes stay apart.
 
 Input fields take a direction from what the **user** will type, not from what
 the placeholder happens to look like:

@@ -11,14 +11,31 @@
 //   `import.status.counts` carries `derivation`, also a mirror unit: `←`.
 //   `import.qs.sources.excel` has NO arrow. English has none; `ja` and `ko`
 //   each added one as a locale-local choice. Nothing requires Arabic to, and
-//   Hanrim decided it does not — so the conditional stays unexercised here and
-//   the contract total is 18 x 22 + 2 = 398.
+//   Hanrim decided it does not — so the conditional stays unexercised here, and
+//   `scripts/check-arrow-direction.mjs` asserts that Arabic's count is zero rather
+//   than merely observing it.
+//   TWO TOTALS, and they are different units:
+//     contract pairs     18 x 22 + 2 = 398   (locale, unit, key) triples checked
+//     glyph occurrences  18 x 24 + 2 = 434   arrow characters in those values
+//   24 and not 22 because `import.qs.sources.sheets` carries its `menu-path`
+//   arrow TWICE (`ملف ← تنزيل ←`) and `regExpr.row.cycle` its `graph-relation`
+//   arrow twice. Presence-checking passed a value whose SECOND arrow was wrong —
+//   MEASURED on this tree — so the rule counts now.
 //   `import.button` carries `disclosure-vertical`, a KEEP unit: `▾` unchanged.
 //
-// HELD — `import.qs.mapping` is NOT translated yet. It is the only key 14 of 17
-// locales keep verbatim and 3 translate, so which it is has to be decided
-// rather than assumed. It carries the English value so the file compiles, and
-// is listed as an open decision; it is not a translation choice that was made.
+// SETTLED (C3.5) — `import.qs.mapping` keeps the four column names verbatim, and
+// that is a decision with evidence rather than a default. The held premise was
+// "14 of 17 keep it and 3 translate"; re-read, EVERY locale keeps the names, and
+// the three that looked different vary only in punctuation (`zh-Hans`/`zh-Hant`
+// use the fullwidth `：`, `fr` spaces its ` : `).
+//   `item_id`, `item_name`, `price`, `drop_rate` are the HEADER ROW of
+//   `EXAMPLE_CSV` — the text the guide's "Use this example" button pastes and the
+//   sample file the download button writes. Translating one would make this
+//   sentence describe a column the example does not contain.
+//   Pinned by `scripts/example-columns.test.ts`, which reads the header row out of
+//   `DataImportWizard.tsx` with the parser so the list exists once.
+//   ARROW accounting: zero arrows, so the arrow contract does not govern it. The
+//   translation decision and the arrow accounting are different axes.
 //
 // PLURALS carry Arabic's six arms throughout. `import.status.counts` holds
 // THREE independent plural blocks (`cols`, `rows`, `n`), each six-armed.

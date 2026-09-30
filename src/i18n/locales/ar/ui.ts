@@ -6,10 +6,18 @@
 // مراجعة revision · مقترح proposal · مشروع project · تشغيل run · خطوة step.
 //
 // FROZEN: `timeline.csv` is the format name `CSV`, byte-identical everywhere.
-// HELD: `tour.nav.position` — `{n} / {total}` is the only other key all 17
-// locales keep verbatim, and whether the SLASH ORDER is right for an RTL
-// reader is a real question, not a copy. It keeps the English value so the file
-// compiles; the decision is open.
+// SETTLED (C3.5): `tour.nav.position` — `{n} / {total}`, kept verbatim like every
+// other locale, because there is nothing in it to translate. The held question
+// was whether the SLASH ORDER survives an RTL reader, and it was the right
+// question: MEASURED under `ar`, the two number runs swapped and step 2 of 6
+// rendered `6 / 2`. The fix is not in this file. A counter is a PINNED numeric
+// pair, so `.tour-popover__pos` now declares `dir="ltr"` (§L9.3), it is recorded
+// in `scripts/content-direction.json`, and `e2e/i18n-ar.spec.ts` asserts the
+// GEOMETRY — the characters are identical either way, which is why no text
+// assertion could have caught it.
+//   TRANSLATION decision: keep verbatim. DIRECTION decision: `ltr`, newly ruled.
+//   ARROW accounting: zero arrows, so the arrow contract does not govern it
+//   (`scripts/example-columns.test.ts`). Three separate axes, one key.
 //
 // ARROWS, per `scripts/arrow-units.json`. Four keys carry TWO units each —
 // `share.tooLarge`, `revision.export.tooLarge`, `proposal.needProject`,

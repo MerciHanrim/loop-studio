@@ -107,29 +107,45 @@ function localInit(scope, sf, name) {
   return hits.length === 1 ? hits[0] : null
 }
 
+/** How deep an alias chain may go before the resolver gives up. A BACKSTOP, not
+ *  the cycle guard: `seen` already stops a loop exactly, and this only bounds a
+ *  shape nobody anticipated. Well past anything legible — the deepest real key
+ *  expression here is a three-level conditional. */
+const MAX_RESOLVE_DEPTH = 64
+
 /** Resolve a `t(…)` key expression to a CLOSED SET of literal keys, or `null`
- *  when it cannot be resolved — which is a STOP, never an empty set. */
-function resolveKeys(expr, sf, scope) {
+ *  when it cannot be resolved — which is a STOP, never an empty set.
+ *
+ *  CYCLES. Following `const key = <expr>` means following a name to a name, and
+ *  `const key = key` (or `const a = b; const b = a`) used to recurse until the
+ *  stack gave out. That is not a STOP: an unhandled `RangeError` names no
+ *  obligation and reads as a broken checker rather than an unresolvable key.
+ *  `seen` carries the identifiers already being resolved on this path, so a
+ *  revisit returns null and the caller reports the site as UNRESOLVABLE. */
+function resolveKeys(expr, sf, scope, seen = new Set(), depth = 0) {
+  if (depth > MAX_RESOLVE_DEPTH) return null
+  const go = (e, s = seen) => resolveKeys(e, sf, scope, s, depth + 1)
   if (ts.isStringLiteralLike(expr)) return [expr.text]
   if (ts.isParenthesizedExpression(expr) || ts.isAsExpression(expr) || ts.isNonNullExpression(expr)) {
-    return resolveKeys(expr.expression, sf, scope)
+    return go(expr.expression)
   }
   if (ts.isConditionalExpression(expr)) {
-    const a = resolveKeys(expr.whenTrue, sf, scope)
-    const b = resolveKeys(expr.whenFalse, sf, scope)
+    const a = go(expr.whenTrue)
+    const b = go(expr.whenFalse)
     return a && b ? [...new Set([...a, ...b])] : null
   }
   if (ts.isBinaryExpression(expr) && expr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
-    const a = resolveKeys(expr.left, sf, scope)
-    const b = resolveKeys(expr.right, sf, scope)
+    const a = go(expr.left)
+    const b = go(expr.right)
     return a && b ? [...new Set([...a, ...b])] : null
   }
   if (ts.isElementAccessExpression(expr)) {
     return mapValues(sf, expr.expression.getText(sf))
   }
   if (ts.isIdentifier(expr)) {
+    if (seen.has(expr.text)) return null // a circular alias — STOP
     const init = localInit(scope, sf, expr.text)
-    return init ? resolveKeys(init, sf, scope) : null
+    return init ? go(init, new Set([...seen, expr.text])) : null
   }
   // a template literal, a function call, anything else — not a closed set
   return null

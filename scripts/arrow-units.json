@@ -7,7 +7,9 @@
     "jsxSites": 12,
     "keepLiterals": 10,
     "catalogKeysMirror": 9,
-    "catalogKeysKeep": 13
+    "catalogKeysKeep": 13,
+    "catalogPairsPerLocale": 22,
+    "catalogOccurrencesPerLocale": 24
   },
   "units": {
     "external-link": {
@@ -226,7 +228,10 @@
       "verdict": "keep",
       "keys": [
         "regExpr.row.cycle"
-      ]
+      ],
+      "occurrences": {
+        "regExpr.row.cycle": 2
+      }
     },
     {
       "unit": "menu-path",
@@ -237,7 +242,10 @@
         "revision.export.tooLarge",
         "proposal.needProject",
         "proposal.dirtyOrigin"
-      ]
+      ],
+      "occurrences": {
+        "import.qs.sources.sheets": 2
+      }
     },
     {
       "unit": "derivation",
@@ -291,5 +299,6 @@
       "key": "import.qs.sources.excel",
       "why": "CONDITIONAL, not mandatory. This is a locale-local arrow: ja and ko chose one where English has none. Nothing requires the Arabic translation to use an arrow here. What the contract says is that IF it does, the  rule applies and the arrow is written mirrored - the same rule every other menu-path arrow follows. Requiring an arrow would be inventing a translation decision; leaving it unrecorded would let one ship unruled."
     }
-  ]
+  ],
+  "$axes": "TWO axes, and they are different numbers that were reported as one. CONTRACT PAIRS are the (locale, unit, key) triples the rule is evaluated on: 22 per catalogue locale. GLYPH OCCURRENCES are the arrow characters actually in those values: 24 per locale. They cannot be equal - FOUR keys are governed by two units each (their string carries two different arrows), and TWO keys carry the same unit’s glyph twice (`regExpr.row.cycle` renders `{name} → … → {name}`, `import.qs.sources.sheets` names a two-step menu path). `occurrences` records the second case; the first is already visible as two catalog groups naming the same key."
 }
