@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // fix/timeline-rolling-domain — the Timeline series keeps only the last
 // MAX_SERIES (400) steps, but the X axis used to map `step / maxStep`, i.e.
@@ -63,7 +63,7 @@ async function setup(page: Page) {
   await resetAll(page)
   await importGraph(page, G)
   await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
-  await expect(page.locator('.timeline__legend').first()).toBeVisible()
+  await ensureTimelineOpen(page)
 }
 
 test.describe('Timeline — rolling X domain', () => {
@@ -179,7 +179,7 @@ test.describe('Timeline — rolling X domain, Register lines', () => {
     await resetAll(page)
     await importGraph(page, REG_FIXTURE)
     await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
-    await expect(page.locator('.timeline__legend').first()).toBeVisible()
+    await ensureTimelineOpen(page)
     await advance(page, MAX_SERIES + 120) // ~step 520; window ≈ 121 … 520
 
     const info = await page.evaluate(() => {

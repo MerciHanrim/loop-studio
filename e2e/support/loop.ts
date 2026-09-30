@@ -92,6 +92,27 @@ export async function openApp(page: Page): Promise<void> {
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
 }
 
+/**
+ * docs/timeline-series-contract.md §7 — the Timeline panel starts COLLAPSED and
+ * auto-expands on the first run. A spec that reads the legend or the plot
+ * BEFORE any step opens the panel the way a user would: the strip's collapse
+ * control (desktop), or the run bar's Timeline toggle (mobile, where the panel
+ * is a sheet). A no-op when it is already open.
+ */
+export async function ensureTimelineOpen(page: Page): Promise<void> {
+  const mobile = (page.viewportSize()?.width ?? 1280) < 500
+  if (mobile) {
+    if (!(await page.locator('.timeline__panel').isVisible().catch(() => false))) {
+      const tl = page.locator('.pstrip--mobile .pstrip__tl, .pstrip--mobile button[aria-label*="imeline" i]').first()
+      if (await tl.count()) await tl.click()
+    }
+  } else {
+    const collapse = page.locator('.pstrip__collapse')
+    if ((await collapse.getAttribute('aria-expanded')) === 'false') await collapse.click()
+  }
+  await expect(page.locator('.timeline__panel')).toBeVisible()
+}
+
 /** Empty graph + idle sim + no Monte-Carlo result. */
 export async function resetAll(page: Page): Promise<void> {
   await page.evaluate(() => {

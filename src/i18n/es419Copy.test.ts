@@ -295,6 +295,9 @@ describe('es-419 copy — mechanical review', () => {
       banners: ['templates.gachaBannerZones.blurb'],
       pity: ['templates.gachaBannerZones.blurb'],
       MMO: ['templates.mmoProgression.name'],
+      // the Spanish word IS `series` — the capitalised form starts these two
+      // Timeline selector strings (the lowercase one is already global)
+      Series: ['timeline.series.trigger', 'timeline.series.title'],
       // third-party application names
       Excel: ['import.qs.sources.summary', 'import.qs.sources.excel'],
       Google: ['import.qs.sources.summary', 'import.qs.sources.sheets'],

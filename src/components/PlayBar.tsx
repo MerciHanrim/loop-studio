@@ -222,6 +222,11 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         type="button"
         className="pb-btn pstrip__collapse"
         onClick={onToggleCollapse}
+        // docs/timeline-series-contract.md §7 — the state is exposed, not only
+        // implied by the swapped title (the section headers and the legend
+        // trigger both expose `aria-expanded`; this one did not)
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
         title={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
       >
         {collapsed ? '▴' : '▾'}

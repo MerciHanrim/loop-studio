@@ -117,7 +117,7 @@ test('v2 graph: Inputs also lists each @param flow edge as a read-only pointer',
   await expect(flowRow.locator('input')).toHaveCount(0) // read-only — no editable field
 })
 
-test('Summary shows R(t) + unit and a Show-calculation toggle; an invalid Register shows no value', async ({ page }) => {
+test('Summary shows R(t) + unit and ONE shared Show-calculation toggle beside the heading; an invalid Register shows no value', async ({ page }) => {
   await seedModelGraph(page)
   const rows = summaryPanel(page).locator('.mp-row--reg')
   await expect(rows).toHaveCount(2)
@@ -125,10 +125,21 @@ test('Summary shows R(t) + unit and a Show-calculation toggle; an invalid Regist
   const ok = rows.filter({ hasText: 'Total' })
   await expect(ok).toContainText('7') // 5 + 2 at step 0
   await expect(ok).toContainText('gold')
-  await ok.getByRole('button', { name: /show calculation/i }).click()
+  // docs/timeline-series-contract.md §8 — one toggle, a real button with
+  // aria-expanded, always visible, shows and hides EVERY expression at once
+  const calc = summaryPanel(page).locator('.mpanel__calc')
+  await expect(calc).toHaveAccessibleName(/show calculation/i)
+  await expect(calc).toHaveAttribute('aria-expanded', 'false')
+  await expect(summaryPanel(page).locator('.mp-row__expr')).toHaveCount(0)
+  await calc.click()
+  await expect(calc).toHaveAttribute('aria-expanded', 'true')
   await expect(ok.locator('.mp-row__expr')).toHaveText(`@${(await gs(page)).nodes[1].id} + @${(await gs(page)).nodes[2].id}`)
-  await ok.getByRole('button', { name: /hide calculation/i }).click()
-  await expect(ok.locator('.mp-row__expr')).toHaveCount(0)
+  await expect(summaryPanel(page).locator('.mp-row__expr')).toHaveCount(2) // both rows, together
+  await expect(calc).toHaveAccessibleName(/hide calculation/i)
+  await calc.click()
+  await expect(summaryPanel(page).locator('.mp-row__expr')).toHaveCount(0)
+  // no per-row toggle remains
+  await expect(summaryPanel(page).locator('.mp-row__calcbtn')).toHaveCount(0)
 
   const bad = rows.filter({ hasText: 'Broken' })
   await expect(bad).toContainText(/no value/i)
@@ -184,7 +195,7 @@ test('under the canvas edit-lock the value input is disabled but read-through an
   await expect(inputsPanel(page).locator('.mp-row input[type=number]').first()).toBeDisabled()
 
   const reg = summaryPanel(page).locator('.mp-row--reg').filter({ hasText: 'Total' })
-  await reg.getByRole('button', { name: /show calculation/i }).click()
+  await summaryPanel(page).getByRole('button', { name: /show calculation/i }).click()
   await expect(reg.locator('.mp-row__expr')).toBeVisible()
   await reg.locator('.mp-row__label').click()
   await expect.poll(async () => (await gs(page)).nodes.find((n) => n.id === rOk)?.selected).toBe(true)
@@ -196,7 +207,7 @@ test('the panels never touch the document — no simulationRev bump, no key in a
   const exportBefore = await page.evaluate(() => (window as any).__loop.graph.getState().exportJSON())
 
   // toggle a calc, collapse a panel, expand it again
-  await summaryPanel(page).locator('.mp-row__calcbtn').first().click()
+  await summaryPanel(page).locator('.mpanel__calc').click()
   await inputsPanel(page).locator('.mpanel__toggle').click()
   await inputsPanel(page).locator('.mpanel__toggle').click()
 

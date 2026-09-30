@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, openApp, resetAll, test } from './support/loop'
 
 // Regression, 2026-09-16: every toolbar menu closed itself on a bubble-phase
 // `window` 'mousedown' listener. React Flow's own node-drag setup calls
@@ -92,6 +92,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
   })
 
   test('Templates closes on a Timeline click', async ({ page }) => {
+    await ensureTimelineOpen(page) // the panel starts collapsed (timeline-series-contract §7)
     await menuBtn(page, /^Templates ▾$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()

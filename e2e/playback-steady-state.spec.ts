@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/simulation-playback-ordering.md §PBO8-7 — steady-state detection + the
 // "Steady state — flows continue" chip. The detector's boundary cases (2 equal
@@ -130,6 +130,11 @@ test.describe('playback — steady-state (§PBO8-7)', () => {
     page,
   }) => {
     await setup(page)
+    // the Timeline panel auto-expands on the first run (timeline-series-contract
+    // §7), which moves the whole strip up by the panel's height. That is the
+    // panel, not the chip — open it first so the before/during rects compare
+    // the same layout.
+    await ensureTimelineOpen(page)
 
     const layout = () =>
       page.evaluate(() => {

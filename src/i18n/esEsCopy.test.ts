@@ -94,6 +94,7 @@ describe('es-ES — the region audit, as a contract', () => {
         'review.hunk.cantRemove',
         'tour.desktop.pieces.body',
         'hint.importFirstCommit.body',
+        'timeline.series.showAllHint',
         // the formatter emits a NO-BREAK SPACE before the percent sign
         'playbar.mc.progress',
         'runbar.mc.cancel',

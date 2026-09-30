@@ -56,11 +56,11 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(852)
+    expect(KEYS).toHaveLength(857)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
-    // 163 of 851. Large on purpose: European and Brazilian Portuguese diverge
+    // 168 of 857. Large on purpose: European and Brazilian Portuguese diverge
     // far more than Spain and Latin America do (`es-ES` moved 32 of 842), and
     // most of this is the address register and progressive aspect, which touch
     // whole sentences rather than single words.
@@ -68,7 +68,12 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // The 163rd is `language.dutch`: European Portuguese says `Neerlandês`
     // where Brazilian says `Holandês`. A language NAME joining this list is
     // ordinary — the two catalogs already disagree on several of them.
-    expect(DELTA).toHaveLength(163)
+    //
+    // 164–168 are the Timeline series selector (`timeline.series.*`): the
+    // saved choice is `guardada` not `salva`, series are `mostradas` not
+    // `exibidas`, `repor` not `redefinir`, and the address register of the
+    // two sentences — the same axes as the rest of this list.
+    expect(DELTA).toHaveLength(168)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

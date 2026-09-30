@@ -253,7 +253,10 @@ test.describe('frame properties popover (§FC10)', () => {
     // frame title can never be low enough to need a flip — a test that skipped
     // this step would be asserting the placement math through a state the
     // product cannot actually show.
-    await page.locator('.pstrip__collapse').click()
+    // (the panel already starts collapsed before any run — timeline-series-
+    // contract §7 — so only fold it if something opened it)
+    const collapse = page.locator('.pstrip__collapse')
+    if ((await collapse.getAttribute('aria-expanded')) === 'true') await collapse.click()
     await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
     // the class flips before the height settles, so poll the thing actually
     // being asserted rather than the class that precedes it

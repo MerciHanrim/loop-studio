@@ -185,10 +185,13 @@ type SimStore = {
   restoreSnapshot: (snap: SimSnapshot) => void
   setSpeed: (ms: number) => void
   setSeed: (seed: number) => void
-  /** flip one Pool or Register in the default visible set; collapses back to
-   *  'all' when every series is on again. A legend action only — no GraphDoc /
-   *  undo / digest effect. */
-  toggleTimelineSeries: (id: string, allSeriesIds: string[]) => void
+  /** flip one Pool or Register in the drawn set. `shownIds` is the RESOLVED
+   *  drawn set (`resolveTimelineSeries`) the flip starts from. Always stores an
+   *  explicit sorted list — re-selecting every series is an explicit choice of
+   *  the current ids, never `'all'` (contract §6.1). Returns `false`, changing
+   *  and writing nothing, when the flip would leave no series (§6.2). A legend
+   *  action only — no GraphDoc / undo / digest effect. */
+  toggleTimelineSeries: (id: string, shownIds: readonly string[]) => boolean
   /** set the visible-series selection: `'auto'`, `'all'`, or an id list
    *  (sorted + de-duped; unknown ids are kept verbatim and simply not drawn).
    *  `undefined` / an empty list mean `'auto'`. Any unknown shape is read through
@@ -683,19 +686,26 @@ export const useSimStore = create<SimStore>((set, get) => {
       get().reset()
     },
 
-    toggleTimelineSeries: (id, allSeriesIds) => {
-      const cur = get().timelineSeries
-      // `'auto'` toggles from "every series" exactly as `'all'` does — until the
-      // view-level default lands (contract step 3), the two render identically.
-      const list = cur === 'all' || cur === 'auto' ? allSeriesIds.slice() : cur.slice()
+    toggleTimelineSeries: (id, shownIds) => {
+      // The caller passes the RESOLVED drawn set (`resolveTimelineSeries`), so a
+      // flip from `auto` works on the capped eight, not on every id, and a flip
+      // from `'all'` on every current id.
+      const list = [...new Set(shownIds)]
       const i = list.indexOf(id)
       if (i >= 0) list.splice(i, 1)
       else list.push(id)
-      // back to 'all' when every series is selected again
-      const isAll = allSeriesIds.length > 0 && allSeriesIds.every((s) => list.includes(s))
-      const next: 'all' | string[] = isAll ? 'all' : [...list].sort()
+      // docs/timeline-series-contract.md §6.2 — at least one series while one
+      // is eligible. Refused here, in the one place both the legend chip and
+      // the selector checkbox go through, so they cannot disagree.
+      if (list.length === 0) return false
+      // §6.1 (decided 2026-10-01): re-selecting every series is an EXPLICIT
+      // choice of the series that exist now — it never collapses to `'all'`.
+      // `'all'` (future series included) is reached only through the named
+      // "show all" action, i.e. `setTimelineSeries('all')`.
+      const next = list.sort()
       set({ timelineSeries: next })
       setAutosaveTimelineSeries(next) // ride the autosave record so a reload keeps it
+      return true
     },
 
     setTimelineSeries: (v) => {

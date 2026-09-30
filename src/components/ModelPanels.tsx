@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { parse, parseExpr, refsOf } from '../model/expr'
 import { formatRegisterValue, readParameterData, readRegisterData } from '../model/model'
@@ -67,12 +67,16 @@ function PanelHead({
   open,
   onToggle,
   labelKey,
+  aside,
 }: {
   title: string
   count: number
   open: boolean
   onToggle: () => void
   labelKey: { collapse: MessageKey; expand: MessageKey }
+  /** a control that sits beside the heading, OUTSIDE the section toggle —
+   *  always visible, never part of the heading's own accessible name */
+  aside?: ReactNode
 }) {
   const t = useT()
   // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
@@ -80,21 +84,24 @@ function PanelHead({
   // menu opens downward for every reader
   const caret = useArrowGlyph('submenu-disclosure')
   return (
-    <h2 className="mpanel__head">
-      <button
-        type="button"
-        className="mpanel__toggle"
-        aria-expanded={open}
-        aria-label={open ? t(labelKey.collapse) : t(labelKey.expand)}
-        onClick={onToggle}
-      >
-        <span className="mpanel__caret" aria-hidden="true">
-          {open ? '▾' : caret}
-        </span>
-        {title}
-        <span className="mpanel__count" dir="ltr">{count}</span>
-      </button>
-    </h2>
+    <div className="mpanel__headrow">
+      <h2 className="mpanel__head">
+        <button
+          type="button"
+          className="mpanel__toggle"
+          aria-expanded={open}
+          aria-label={open ? t(labelKey.collapse) : t(labelKey.expand)}
+          onClick={onToggle}
+        >
+          <span className="mpanel__caret" aria-hidden="true">
+            {open ? '▾' : caret}
+          </span>
+          {title}
+          <span className="mpanel__count" dir="ltr">{count}</span>
+        </button>
+      </h2>
+      {aside}
+    </div>
   )
 }
 
@@ -198,15 +205,18 @@ function SummaryRow({
   node,
   outcome,
   step,
+  showCalc,
   onReveal,
 }: {
   node: LoopNode
   outcome: RegisterOutcome | undefined
   step: number
+  /** the panel-wide `계산식` toggle (docs/timeline-series-contract.md §8) —
+   *  every row shows or hides its expression together */
+  showCalc: boolean
   onReveal: () => void
 }) {
   const t = useT()
-  const [showCalc, setShowCalc] = useState(false)
   const read = readRegisterData(node.data)
   const label = labelOf(node)
   const unit = read.ok ? read.data.unit : undefined
@@ -233,17 +243,11 @@ function SummaryRow({
             : `${formatRegisterValue(outcome.value, format)}${unit ? ` ${unit}` : ''}`}
         </span>
       </div>
-      <div className="mp-row__calc">
-        <button
-          type="button"
-          className="mp-row__calcbtn"
-          aria-expanded={showCalc}
-          onClick={() => setShowCalc((v) => !v)}
-        >
-          {t(showCalc ? 'panels.summary.hideCalc' : 'panels.summary.showCalc')}
-        </button>
-        {showCalc && <code className="mp-row__expr" dir="ltr">{shownExpr}</code>}
-      </div>
+      {showCalc && (
+        <div className="mp-row__calc">
+          <code className="mp-row__expr" dir="ltr">{shownExpr}</code>
+        </div>
+      )}
       {outcome && outcome.invalid && <span className="mp-row__code" dir="ltr">{outcome.code}</span>}
     </li>
   )
@@ -256,6 +260,11 @@ function SummarySection({ registers }: { registers: LoopNode[] }) {
   const outcomes = useRegisterOutcomes()
   const step = useSimStore((s) => s.stepIndex)
   const reveal = useReveal()
+  // docs/timeline-series-contract.md §8 — ONE shared toggle beside the
+  // heading, always visible, showing and hiding every expression at once.
+  // Screen state only. (The per-row buttons it replaces were real buttons
+  // too; this is a consolidation, and it gives up per-row independence.)
+  const [showCalc, setShowCalc] = useState(false)
 
   return (
     <section className="mpanel">
@@ -265,6 +274,16 @@ function SummarySection({ registers }: { registers: LoopNode[] }) {
         open={open}
         onToggle={toggle}
         labelKey={{ collapse: 'panels.summary.collapse', expand: 'panels.summary.expand' }}
+        aside={
+          <button
+            type="button"
+            className="mpanel__calc"
+            aria-expanded={showCalc}
+            onClick={() => setShowCalc((v) => !v)}
+          >
+            {t(showCalc ? 'panels.summary.hideCalc' : 'panels.summary.showCalc')}
+          </button>
+        }
       />
       {open && (
         <div className="mpanel__body">
@@ -278,6 +297,7 @@ function SummarySection({ registers }: { registers: LoopNode[] }) {
                   node={n}
                   outcome={outcomes.get(n.id)}
                   step={step}
+                  showCalc={showCalc}
                   onReveal={() => reveal(n.id, null)}
                 />
               ))}

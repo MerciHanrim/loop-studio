@@ -79,8 +79,13 @@ test.describe('model-verification.json — Import → Run → Timeline', () => {
     await stepN(page, 6)
     await openTimeline(page)
 
-    // one legend key per Register
-    await expect(page.locator('.timeline__key--register')).toHaveCount(5)
+    // one selector entry per Register (the one-row legend shows only the chips
+    // that fit at this width — docs/timeline-series-contract.md §5 — so the
+    // selector, not the chip row, is where every series is listed)
+    await page.locator('.timeline__series').click()
+    await expect(page.locator('.tl-series .tl-series__item--register')).toHaveCount(5)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.tl-series')).toHaveCount(0)
     // r_reserve / r_head / r_ratio / r_gap each have ≥1 valid point ⇒ a path;
     // r_loop is M_REG_CYCLE at every step ⇒ no path (§M6.2, never bridged)
     await expect(page.locator('.timeline__line--register')).toHaveCount(4)

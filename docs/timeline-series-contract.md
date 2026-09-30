@@ -2,7 +2,8 @@
 
 Status: **canonical**, 2026-10-01. Implemented on `feat/timeline-series-contract`;
 sections 3.1 and 3.2 landed first (state model + every persistence path + the
-hydration split), the view-level default and the selector follow.
+hydration split), then the view-level default, the one-row header, the selector,
+the panel state and the summary toggle (sections 4 to 8).
 
 Source is cited by **symbol and file**, never by line number: a review round disagreed
 with every line number quoted here, which is reason enough not to quote them.
@@ -197,7 +198,22 @@ contract names only the one it implements.
 | Action | Stores | Result |
 | --- | --- | --- |
 | `모두 표시` | `'all'` | every series, future ones included |
+| checking every box by hand | the explicit array of every **current** id | exactly today's series; a series added later is **not** included |
 | **`자동 선택으로 재설정`** | **removes the field** | global automatic selection, first 8 |
+
+**`'all'` is reached only through the named `모두 표시` action** (decided 2026-10-01).
+A hand-completed set of checkboxes is an explicit choice of the series that exist
+now; it must not widen into "and every series added later", because the user never
+said that. The two states differ exactly when a series is added afterwards: `'all'`
+draws it, the explicit array does not. The legend chip toggle
+(`toggleTimelineSeries`, `simStore.ts`) used to collapse back to `'all'` once every
+series was re-selected; it now stores the explicit array for the same reason, and
+never produces `'all'`.
+
+So that the future-inclusive meaning is not hidden behind a two-word button, the
+popover shows the sentence `현재 및 나중에 추가되는 계열을 모두 표시합니다.` under
+`모두 표시` and binds it as that button's accessible description
+(`aria-describedby`).
 
 **`자동 선택으로 재설정` is the global automatic selection, not the template's
 recommendation.** It is named for what it does.
@@ -215,7 +231,10 @@ require retaining the as-opened array as new state. Not started unless asked for
 
 With eligible series present, unchecking the last remaining one is **refused**: the
 checkbox returns to checked, a message is shown, and that series keeps being drawn. An
-empty chart is not reachable *through the selector*.
+empty chart is not reachable *through the selector*. The guard lives in the store
+(`toggleTimelineSeries` returns `false` and changes nothing), so the legend chip of the
+last drawn series is refused the same way — the chip and the checkbox are two views of
+one selection and cannot disagree about its floor.
 
 A document with no Pool and no Register has nothing to draw. The minimum-one rule does
 not apply to it, and must not be implemented as an invariant that such a document
@@ -240,6 +259,11 @@ user has toggled it once   -> automatic transitions stop permanently
 ```
 
 - Run, pause and reset never override a user choice.
+- "First run" means the first time the session has something to show in the panel: a
+  live step (`stepIndex > 0` or `status === 'running'`) **or a completed Monte-Carlo
+  run** — the distribution view lives in the same panel and a result nobody can see
+  is not a result. Automatic transitions only ever expand; the panel never collapses
+  itself again.
 - Screen state only: not in the project save format, not persisted. (Verified: toggling
   changes no storage key today.)
 - Add the missing **`aria-expanded`**. It currently signals state only by swapping its
@@ -271,33 +295,36 @@ discarded CSS prototype. This is a consolidation, not a fix.
 
 ## 10. Acceptance
 
-Prototype-verified:
+Verified **in the implementation** (`e2e/timeline-series.spec.ts` unless named
+otherwise; the prototype rows this table replaced are in the measurement record):
 
 | Criterion | Result |
 | --- | --- |
-| `auto`: at most 8 lines | 8 lines |
-| `all`: every series, future ones included | 55 lines; resolver covers the future case |
-| explicit array: exactly the user's choice | 3 selected -> 3 lines |
-| header one row in every state | 1 row at 1440 and 800, in auto / all / explicit / RTL |
-| plot height held | 170px in every state at both widths |
-| trigger never wraps or is pushed out | 19px, inside the header and the viewport, LTR and RTL |
-| popover close, focus return, checkbox state | closes, focus returns, `aria-expanded` false |
-| at least one series, when one is eligible | unchecking the last is refused, message shown, 1 line still drawn |
-| zero eligible series | **not yet exercised** — needs a document with no Pool and no Register: 0 lines, `계열 0/0`, trigger disabled |
-| `.timeline__key--more` never coexists | not visible in any state |
+| `auto`: at most 8 lines, document order | 12 Pools, no field: `Series 8/12`, 8 lines, 8 beads, the first eight checked |
+| `all`: every series, future ones included | `Show all` → `'all'`; a Pool added afterwards is drawn (`5/5` → `6/6`) |
+| explicit array: exactly the user's choice | `['p1','reg_a']` → 2 chips, `2/4`; checking `P2` → `['p1','p2','reg_a']`, written at once |
+| every box checked by hand ⇒ the explicit array, not `'all'` | 4 of 4 checked → the array; a fifth series added afterwards is **not** drawn (`4/5`) |
+| `자동 선택으로 재설정` removes the field | `'auto'` in the store, no `timelineSeries` key in the record |
+| header one row in every state | 55 series at 1440 and 800, `auto` and `'all'`: every legend child in one band, nothing clipped, chips ≤ 8 |
+| plot height held | ≥ 160px at both widths (200px panel minus a one-row head); the popover changes neither head nor plot |
+| trigger never wraps or is pushed out | < 26px tall, inside the legend and the viewport at both widths |
+| popover: dialog, focus, Escape, outside click | `role="dialog"` named `Chart series` via `aria-labelledby`; focus inside on open; Escape closes and focuses the trigger; a canvas click closes, a title click does not |
+| at least one series, when one is eligible | unchecking the last: box springs back, `At least one series stays selected.`, 1 line; the chip of the last series is refused too |
+| zero eligible series | Source → Drain only: 0 lines, `Series 0/0`, trigger disabled, no popover |
+| `.timeline__key--more` never coexists | 0 in every state |
+| panel state (§7) | starts collapsed with `aria-expanded="false"`; the first step expands it; after a user fold, three steps and a reset leave it folded; a completed Monte-Carlo run expands it; no storage key |
+| summary `계산식` toggle (§8) | `e2e/model-panels.spec.ts`: one button beside the heading with `aria-expanded`, both rows' expressions together, no per-row button |
+| a selector toggle moves no digest / undo / step | unchanged |
+| no additional immediate autosave on load; absent stays absent | `src/store/timelineSeriesPersistence.test.ts` (§3.2): 0 writes from hydration per state; after the debounced save the field is absent for `auto` |
+| `'all'` survives file / Export / Share / Workspace / revision load | the same unit file, 7 paths × 3 states; Graph JSON, Workspace and Share also end to end |
 
-Still to prove **in the implementation** — none of these were reachable from a runtime
-prototype:
+Falsified, each red before green: the six store tests for the toggle semantics
+(6 red on the previous collapse-to-`'all'` code); the resolver with `'all'` capped
+(exactly the "every current id" case red); the one-row header with every drawn chip
+rendered (the two 800px header tests red — at 1440px all eight `auto` chips genuinely
+fit, so that row cannot tell the sabotage from the product); the panel starting
+expanded (the two §7 tests red).
 
-| Criterion | Why it is open |
-| --- | --- |
-| No **additional immediate** autosave from loading/resolving the series, and an absent field stays absent | today the hydration path calls the writing setter; needs the split (3.2). NOT "zero writes" — `loadDoc` schedules a debounced full autosave by design |
-| `'all'` survives a file save and re-open | the type admits `string[]` only (3.1) |
-| `'all'` survives Export -> import | Export rewrites from the live value |
-| `'all'` survives Share round-trip | same serializer path |
-| `'all'` survives a Workspace save / restore | same |
-| `'all'` survives a revision load | same |
-| a stored `'all'` is not discarded by the load validator | non-array values are ignored today |
-
-E2E coverage should cover the three stored states, every round-trip row above, the
-one-row header at two widths, and the minimum-one rule.
+Not covered by an automated check: the RTL mirroring of the popover (measured in the
+prototype only) and a screen-reader pass — see `verification-needs-an-owner` in the
+project notes. Neither is claimed.
