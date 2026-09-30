@@ -277,7 +277,7 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
       expect(resolveInitialLocale(null, ['qaa'])).toBe('en')
     })
 
-    it('leaves all seventeen shipped resolutions untouched', () => {
+    it('leaves all eighteen shipped resolutions untouched', () => {
       // the regression this split could plausibly have caused
       const cases: ReadonlyArray<readonly [string, string]> = [
         ['de-AT', 'de'],
@@ -297,6 +297,11 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
         ['vi-VN', 'vi'],
         ['ja-JP', 'ja'],
         ['en-GB', 'en'],
+        // `ar` had no row here at all, which `check-locale-lists.mjs` found: a
+        // regional Arabic tag reaching the base subtag is the same §L5.2 step 3
+        // path as `ru-RU` or `nl-BE`, and nothing was asserting it.
+        ['ar-EG', 'ar'],
+        ['ar-SA', 'ar'],
       ]
       for (const [tag, want] of cases) expect(resolveInitialLocale(null, [tag]), tag).toBe(want)
     })

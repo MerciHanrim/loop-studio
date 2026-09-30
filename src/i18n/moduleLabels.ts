@@ -564,6 +564,10 @@ const AR: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// locale-subset-file: the overlays are by definition non-base, so `en` is absent
+// file-wide.
+// locale-subset: non-base locales only. The module labels ARE English in the
+// module JSON, so `en` needs no overlay — an entry for it would be the identity.
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,

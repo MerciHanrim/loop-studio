@@ -180,6 +180,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       els.map((e) => (e as HTMLElement).dataset.locale).sort(),
     )
     expect(codes).toEqual([
+      'ar',
       'de',
       'en',
       'es-419',
@@ -198,7 +199,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
       'zh-Hans',
       'zh-Hant',
     ])
-    // §L5.4 — seventeen shipped languages, so the search box is shown (it first
+    // §L5.4 — eighteen shipped languages, so the search box is shown (it first
     // reached PRODUCTION at six), and the dev pseudo-locale is still absent.
     await expect(page.locator('.lang-menu__pop input[role="combobox"]')).toHaveCount(1)
 

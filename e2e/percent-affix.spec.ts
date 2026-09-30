@@ -128,7 +128,16 @@ test('the locales with no gap keep the sign touching the number', async ({ page 
   await openApp(page)
   await resetAll(page)
 
-  for (const code of ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'es-419', 'pt-BR', 'pt-PT', 'th', 'vi', 'it', 'nl'] as const) {
+  // locale-subset: the NO-GAP group only. `fr`, `de`, `es-ES` and `ru` set a
+  // no-break space and have their own test above; `tr` puts the sign first and has
+  // its own too. Splitting them by affix behaviour is what this spec is for.
+  // `ar` joins the NO-GAP group, and the reason is worth stating: the LRM pair
+  // `percentContract.test.ts` records for Arabic comes from `Intl`, not from the
+  // catalogue — §L2 bans bidi controls in translations and `bidiControls.test.ts`
+  // enforces zero of them in the Arabic files. So the string this spec substitutes
+  // into is a plain `{pct}%`, and what is measured is that the sign still touches
+  // the number inside an RTL paragraph.
+  for (const code of ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'es-419', 'pt-BR', 'pt-PT', 'th', 'vi', 'it', 'nl', 'ar'] as const) {
     await setLocale(page, code)
     const m = await measure(page, 'playbar.mc.progress', 84)
     expect(m.signIndex, `${code}: ${m.text}`).toBeGreaterThan(m.digitIndex)

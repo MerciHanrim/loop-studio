@@ -28,6 +28,7 @@
     "check:arrow-direction": "node scripts/check-arrow-direction.mjs",
     "check:isolate-arguments": "node scripts/check-isolate-arguments.mjs",
     "check:icu-arguments": "node scripts/check-icu-arguments.mjs",
+    "check:locale-lists": "node scripts/check-locale-lists.mjs",
     "check:snapshot-policy": "node scripts/check-snapshot-policy.mjs",
     "lint": "oxlint",
     "test": "vitest run",

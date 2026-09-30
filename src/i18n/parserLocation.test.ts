@@ -99,6 +99,9 @@ const TABLE_KEYS = [
  *  wording that must not appear in a parser message. English is the base and
  *  keeps its own "column" wording — it is the origin of the drift, not a
  *  locale being corrected here. */
+// locale-subset: `Exclude<Loc, 'en'>` in the type, and for the reason the comment
+// above gives — English keeps its own "column" wording and is the origin of the
+// drift, not a locale being corrected.
 const VOCAB: Record<Exclude<Loc, 'en'>, { char: string | RegExp; table: string }> = {
   ko: { char: `${N}번째 문자`, table: `${N}열` },
   ja: { char: `${N}文字目`, table: `${N}列目` },

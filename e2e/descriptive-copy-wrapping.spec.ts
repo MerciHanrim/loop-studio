@@ -258,6 +258,10 @@ test.describe('every shipped locale', () => {
     ['vi', 'vi-VN'],
     ['it', 'it-IT'],
     ['nl', 'nl-NL'],
+    // the first RTL entry. The tag is the BROWSER locale (fonts, and any
+    // Intl the platform does itself); the app's own number formatting comes
+    // from the registry's `numberLocale`, which is a bare `ar` on purpose.
+    ['ar', 'ar'],
   ] as const) {
     test(`${lang}: all descriptive copy fits`, async ({ page }) => {
       const { ctx, page: p } = await pageAt(page, tag)
