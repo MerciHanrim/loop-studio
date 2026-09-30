@@ -271,6 +271,35 @@ test.describe('recommendedRunConfig.timelineSeries — the three stored states',
     await expect(trigger(page)).toHaveText('Series 6/6') // six ≤ the cap of eight
   })
 
+  test('55 series checked by hand, one by one ⇒ the explicit array of all 55 — never "all"; a 56th series is not drawn', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await openApp(page)
+    await resetAll(page)
+    const doc = JSON.parse(readFileSync(new URL('../examples/mmo-progression.json', import.meta.url), 'utf8'))
+    delete doc.recommendedRunConfig.timelineSeries
+    await importGraph(page, JSON.stringify(doc))
+    expect(await seriesState(page)).toBe('auto')
+    await ensureTimelineOpen(page)
+    await expect(trigger(page)).toHaveText('Series 8/55')
+
+    await openSelector(page)
+    const unchecked = popover(page).locator('input[type="checkbox"]:not(:checked)')
+    await expect(unchecked).toHaveCount(47)
+    for (let i = 0; i < 47; i++) await unchecked.first().check()
+    await expect(unchecked).toHaveCount(0)
+
+    const ts = await seriesState(page)
+    expect(Array.isArray(ts), 'an explicit array, not the "all" sentinel').toBe(true)
+    expect(ts).toHaveLength(55)
+    expect(ts).toEqual([...ts].sort()) // stored sorted (§3, "Order")
+    expect(await storedField(page)).toEqual(ts)
+    await expect(trigger(page)).toHaveText('Series 55/55')
+
+    await addPool(page)
+    await expect(trigger(page)).toHaveText('Series 55/56')
+    expect(await seriesState(page)).toHaveLength(55)
+  })
+
   test('"all" is a STORED choice: a plain reload comes back as "all" because the record holds it, distinct from "auto"', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
@@ -539,6 +568,23 @@ test.describe('the Timeline panel state (contract §7)', () => {
     await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
     await expect(page.locator('.timeline__panel')).toBeVisible()
     await expect(page.locator('.timeline__viewtab.is-on')).toHaveText('DISTRIBUTION')
+  })
+
+  test('after the user has toggled the panel, neither a step nor a Monte-Carlo result overrides that choice', async ({ page }) => {
+    await openApp(page)
+    await resetAll(page)
+    await importGraph(page, readFixture())
+    const collapse = page.locator('.pstrip__collapse')
+    await collapse.click() // the user opens it before any run…
+    await expect(page.locator('.timeline__panel')).toBeVisible()
+    await collapse.click() // …and folds it again: automatic transitions are over
+    await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
+
+    await runMc(page, { baseSeed: 1, runs: 20, steps: 6, tracked: FIXTURE_POOLS_4 })
+    await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
+    await expect(collapse).toHaveAttribute('aria-expanded', 'false')
+    await stepN(page, 3)
+    await expect(page.locator('.timeline.is-collapsed')).toHaveCount(1)
   })
 })
 
