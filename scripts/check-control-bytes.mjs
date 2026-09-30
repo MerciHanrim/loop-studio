@@ -27,6 +27,7 @@
 //   exactly the byte this check exists to find. Measured: injecting a NUL into
 //   a `.ts` file passed until this was narrowed.
 //
+// The attribute is necessary but NOT sufficient: see BINARY_EXTENSIONS below.
 // A tracked binary file with no attribute rule is therefore reported rather than
 // skipped. That is the intended direction: declare it in `.gitattributes`.
 // The list comes from `git ls-files`, so untracked scratch output is never
@@ -66,8 +67,8 @@ if (files.length === 0) {
   process.exit(1)
 }
 
-// git's own opinion of which tracked paths are binary
-const binary = new Set()
+// Which tracked paths carry an explicit binary attribute.
+const declaredBinary = new Set()
 try {
   const out = git(['ls-files', '-z', '--eol'])
   for (const row of out.split('\0').filter(Boolean)) {
@@ -77,21 +78,40 @@ try {
     const flags = row.slice(0, tab)
     const path = row.slice(tab + 1)
     // `attr/` ONLY - see the note above on why `i/` and `w/` must not count
-    if (/(^|\s)attr\/(binary|-text)(\s|$)/.test(flags)) binary.add(path)
+    if (/(^|\s)attr\/(binary|-text)(\s|$)/.test(flags)) declaredBinary.add(path)
   }
 } catch (err) {
   console.error('check-control-bytes: could not read text/binary attributes -', err.message)
   process.exit(1)
 }
 
+// The attribute alone is not enough to be skipped, or the check has an opt-out:
+// marking a `.ts` file `binary` in `.gitattributes` would hide a NUL in it
+// again. A file is skipped only when it ALSO has an extension on this list, so
+// the set of things that can ever be invisible is fixed here rather than in
+// `.gitattributes`. Adding a new kind of binary asset is meant to require
+// updating this line deliberately.
+const BINARY_EXTENSIONS = new Set(['.png'])
+const extensionOf = (p) => {
+  const dot = p.lastIndexOf('.')
+  const slash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))
+  return dot > slash ? p.slice(dot).toLowerCase() : ''
+}
+
 const findings = []
+const misdeclared = []
 let scanned = 0
 let skipped = 0
 
 for (const file of files) {
-  if (binary.has(file)) {
-    skipped++
-    continue
+  if (declaredBinary.has(file)) {
+    if (BINARY_EXTENSIONS.has(extensionOf(file))) {
+      skipped++
+      continue
+    }
+    // Declared binary but not an allowed binary type. This is the opt-out the
+    // check must refuse: report it AND still scan the bytes.
+    misdeclared.push(file)
   }
   let buf
   try {
@@ -114,6 +134,23 @@ for (const file of files) {
     }
     if (isBad(c)) findings.push({ file, line, column: i - lineStart + 1, byte: c })
   }
+}
+
+if (misdeclared.length > 0) {
+  console.error(
+    `check-control-bytes: ${misdeclared.length} file(s) carry a DISALLOWED binary attribute ` +
+      'on a text source\n',
+  )
+  for (const f of misdeclared) {
+    console.error(`  ${f}  — marked binary in .gitattributes, but ${extensionOf(f) || '(no extension)'} is not an allowed binary type`)
+  }
+  console.error(
+    `\nOnly these extensions may be declared binary: ${[...BINARY_EXTENSIONS].join(', ')}.` +
+      '\nMarking a text source binary would hide a control byte in it from this check.' +
+      '\nIf a genuinely new kind of binary asset is being added, add its extension to' +
+      '\nBINARY_EXTENSIONS in this file, deliberately.',
+  )
+  process.exit(1)
 }
 
 if (findings.length > 0) {
