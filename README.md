@@ -137,25 +137,24 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.13.0
+## Latest — v0.14.0
 
-- **Eleven languages** — Chinese (Simplified and Traditional), French, German, Spanish (Latin
-  America and Spain) and Portuguese (Brazil and Portugal) join English, Korean and Japanese;
-  the full list with codes is above under [Languages](#languages)
-- **Regional detection that means it** — a browser asking for `pt-PT` gets European Portuguese
-  and one asking for `pt-BR` gets Brazilian, with the same split for Spanish and Chinese; an
-  unlisted tag falls back to the closest catalog, and only then to English
-- **Templates and modules translate too** — bundled Template node labels, frame titles and the
-  labels an inserted module brings are localized per language; labels you edited stay yours
-- **A sorted, searchable language picker** — listed by English name so regional pairs sit
-  together, searchable by endonym, English name, current-UI name or code
-- **Fit and finish for translated text** — per-locale wrapping measured in the real boxes, CJK
-  punctuation rendered with CJK fonts, `character position` instead of `column` in parser
-  errors, and a clearer disabled row in the mobile sheet
+- **Eighteen languages** — Arabic, Dutch, Italian, Russian, Thai, Turkish and Vietnamese join
+  the eleven already there; the full list with codes is above under [Languages](#languages)
+- **Right-to-left layout** — Arabic mirrors the app chrome while the diagram keeps its own
+  left-to-right coordinate space, so a model does not change shape when you change language
+- **Mixed-direction text stays readable** — numbers, identifiers and Latin technical terms
+  inside an Arabic sentence keep their own direction instead of being reversed or split
+- **Frame properties from the frame** — the title chip opens a popover for the title, the
+  accent colour and the size
+- **One CSV writer for every download** — CRLF and RFC 4180 quoting, so a label containing a
+  comma, a quote or a newline survives; UTF-8 with a byte-order mark for Excel on Windows
 
-No save-format change and no migration: v0.12.0 files open unchanged.
+No project-file change: the schema and the saved fields are unchanged and no migration is
+needed, so a v0.13.0 file opens without conversion. The bytes of downloaded **CSV** files do
+change — see the CHANGELOG entry.
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.13.0 notes, the v0.12.0 and v0.11.0
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.14.0 notes, the v0.13.0 and v0.12.0
 releases and every earlier one.
 
 ## Credits
