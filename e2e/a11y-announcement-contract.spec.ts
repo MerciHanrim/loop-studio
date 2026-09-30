@@ -6,20 +6,21 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 //
 // SCOPE, stated once because the value of this spec depends on it:
 //
-//   verified here : the DOM string the app renders, the DOM mutations that
-//                   rewrite it, and Chrome's own accessibility tree over CDP
+//   verified here : the DOM string the app renders, the observable changes of
+//                   its text state, and Chrome's own accessibility tree over CDP
 //   NOT verified  : the Windows UI Automation payload, and therefore anything
 //                   about NVDA, speech or braille. A green run here is NOT a
 //                   claim that a screen reader reads any of this correctly.
 //                   That tier is issue #290, manual, and deliberately
 //                   non-blocking.
 //
-// The distinction is load-bearing in the two timing tests. "The live-region
-// text was rewritten once" is a DOM fact this spec can establish. "It was
-// spoken once" is not: coalescing, interruption and suppression all happen
-// above the DOM, and asserting an utterance count from a text mutation would be
-// a claim this harness cannot support. The test names say text update for that
-// reason.
+// The distinction is load-bearing in the two timing tests, and it has a second
+// step to it. "One OBSERVABLE TEXT STATE change" is what a MutationObserver
+// that samples `textContent` can establish. It is already weaker than "rewritten
+// once" - a re-set of the same text, and writes coalesced into one microtask,
+// are invisible to it. And "spoken once" is weaker still, because coalescing,
+// interruption and suppression happen above the DOM entirely. The test names,
+// the assertions and the docs all say observed text state for that reason.
 //
 // The spec is locale-parameterized. `ar` is the locale the isolates were added
 // for; `en` is the LTR control. Adding a locale is adding a row to LOCALES -
@@ -60,33 +61,45 @@ const SETTLE_MS = 600
 const PLAY_SEL = '[data-playback-announce]'
 
 /**
- * Count TEXT updates to a live region with a MutationObserver.
+ * Count OBSERVED TEXT STATES of a live region, via a MutationObserver that
+ * samples `textContent` in its callback and ignores a sample equal to the
+ * previous one.
  *
- * This is a DOM-mutation claim and nothing more. It says the app rewrote (or
- * did not rewrite) the region's text. It says NOTHING about how many times a
- * screen reader speaks, whether it coalesces two updates into one utterance, or
- * whether it suppresses one - that tier needs UI Automation and stays in #290.
+ * What this measures, exactly, because the name has to match the mechanism:
+ *
+ *   counted     : each callback whose `textContent` differs from the last one
+ *                 seen - an observable change of text STATE
+ *   NOT counted : raw MutationObserver records; a re-set of the same text;
+ *                 intermediate writes coalesced into one microtask, which the
+ *                 callback can only ever see as a single resulting state
+ *
+ * So "exactly one observed text state" is a weaker and more honest claim than
+ * "rewritten exactly once", and weaker again than anything about speech.
+ * Coalescing, interruption and suppression by a screen reader all happen above
+ * the DOM, need UI Automation to see, and stay in #290.
  */
-async function watchText(page: Page, selector: string): Promise<void> {
+async function watchTextStates(page: Page, selector: string): Promise<void> {
   await page.evaluate((sel) => {
     const el = document.querySelector(sel)
     if (!el) throw new Error('no element for ' + sel)
-    const w = { count: 0, texts: [] as string[] }
+    const w = { observedTextChanges: 0, states: [] as string[] }
     ;(window as unknown as Record<string, unknown>).__a11yWatch = w
     let last = el.textContent ?? ''
     const mo = new MutationObserver(() => {
       const now = el.textContent ?? ''
-      if (now === last) return // attribute churn that left the text alone
+      if (now === last) return // same text state: attribute churn, or a re-set
       last = now
-      w.count++
-      w.texts.push(now)
+      w.observedTextChanges++
+      w.states.push(now)
     })
     mo.observe(el, { childList: true, characterData: true, subtree: true })
   }, selector)
 }
-const mutations = (page: Page) =>
+const textStates = (page: Page) =>
   page.evaluate(
-    () => (window as unknown as { __a11yWatch: { count: number; texts: string[] } }).__a11yWatch,
+    () =>
+      (window as unknown as { __a11yWatch: { observedTextChanges: number; states: string[] } })
+        .__a11yWatch,
   )
 
 const ISOLATE_OPEN = 0x2068 // FSI
@@ -452,7 +465,7 @@ for (const locale of LOCALES) {
     // Two behaviours that are contracts in their own right, kept separate
     // because they assert the ABSENCE and the TIMING of an announcement rather
     // than the content of one.
-    test(`a multi-step jump leaves the live-region text unchanged, 0 mutations [${locale}]`, async ({ page }) => {
+    test(`a multi-step jump produces 0 observable live-region text changes [${locale}]`, async ({ page }) => {
       await openApp(page)
       await setLocale(page, locale)
       const sim = (patch: Record<string, unknown>) =>
@@ -464,17 +477,17 @@ for (const locale of LOCALES) {
       const before = await readPlay(page)
 
       // 0 -> 9 is a JUMP, not progress: it cancels any queued step message. The
-      // claim is about the DOM, not about speech: the live region's text must
-      // not be rewritten, and the observer must see no mutation at all.
-      await watchText(page, PLAY_SEL)
+      // claim is a DOM one, not a speech one - no observable change of the live
+      // region's text state, and the text still reading what it read before.
+      await watchTextStates(page, PLAY_SEL)
       await sim({ stepIndex: 9 })
       await page.waitForTimeout(ANNOUNCE_MIN_MS + SETTLE_MS)
-      const seen = await mutations(page)
-      expect(seen.count, 'a jump must not rewrite the live region').toBe(0)
+      const seen = await textStates(page)
+      expect(seen.observedTextChanges, 'a jump must produce no observable text change').toBe(0)
       expect(await readPlay(page), 'the previous text must still be in place').toBe(before)
     })
 
-    test(`a single increment updates the live-region text exactly once, after the throttle [${locale}]`, async ({ page }) => {
+    test(`a single increment yields exactly one observed live-region text state, after the throttle [${locale}]`, async ({ page }) => {
       await openApp(page)
       await setLocale(page, locale)
       const sim = (patch: Record<string, unknown>) =>
@@ -485,18 +498,18 @@ for (const locale of LOCALES) {
       await pollFor(() => readPlay(page), (v) => v !== '', 6000, 'started')
       const started = await readPlay(page)
 
-      await watchText(page, PLAY_SEL)
+      await watchTextStates(page, PLAY_SEL)
       const t0 = Date.now()
       await sim({ stepIndex: 1 })
-      // wait for the first text change, then keep waiting to prove no SECOND
-      // one arrives - a count of exactly one is the contract
+      // wait for the first observable text state, then keep waiting to prove no
+      // SECOND distinct state follows - exactly one is the contract
       const stepped = await pollFor(() => readPlay(page), (v) => v !== started && v !== '', 6000, 'throttled step')
       const waited = Date.now() - t0
       await page.waitForTimeout(ANNOUNCE_MIN_MS + SETTLE_MS)
 
-      const seen = await mutations(page)
-      expect(seen.texts.filter((x) => x !== started).length, 'exactly one text update').toBe(1)
-      expect(seen.texts.at(-1), 'the observed update must be the value that was read').toBe(stepped)
+      const seen = await textStates(page)
+      expect(seen.observedTextChanges, 'exactly one observed text state change').toBe(1)
+      expect(seen.states.at(-1), 'the observed state must be the value that was read').toBe(stepped)
       // DEFERRED, not immediate: the status change reset the throttle window, so
       // the update cannot land before the window minus the scheduling tolerance.
       expect(waited, `deferred by at least ${ANNOUNCE_MIN_MS - TIMING_TOLERANCE_MS}ms`)
