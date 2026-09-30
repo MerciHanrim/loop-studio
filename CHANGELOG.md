@@ -4,6 +4,46 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.14.0 — 2026-09-30
+
+A localization release, and the first one that had to change how the app is laid out. Loop Studio went from eleven languages to eighteen, and the eighteenth is Arabic — the first right-to-left locale, which meant the UI had to mirror while the model graph kept its own left-to-right coordinate space.
+
+**No project-file change.** The project schema and the saved fields are unchanged and no migration is needed, so a v0.13.0 file opens in v0.14.0 without conversion. The only difference in a newly saved file is the informational `meta.tool` version string, now `loop-studio/0.14.0`.
+
+### Added
+
+- **Seven new languages**, bringing the UI to eighteen: Arabic, Dutch, Italian, Russian, Thai, Turkish and Vietnamese — alongside Chinese (Simplified and Traditional), English, French, German, Japanese, Korean, Portuguese (Brazil and Portugal) and Spanish (Latin America and Spain). The full list, with codes, is in the [README](README.md#languages).
+- **Right-to-left layout.** Choosing Arabic mirrors the app chrome — toolbar, menus, panels, dialogs and the mobile sheet — while the diagram itself keeps its left-to-right coordinate space, so a model does not change shape when you change language. Numbers, identifiers and Latin technical terms inside an Arabic sentence keep their own direction and are never reversed or broken apart.
+- **A group frame's title, colour and size can be edited from the frame itself** — the title chip opens a properties popover instead of sending you elsewhere.
+
+### Changed
+
+- **Every CSV this app downloads is now written by one writer.** The record separator is CRLF and fields follow RFC 4180, so a label containing a comma, a quote or a newline survives the round trip; the file is UTF-8 with a byte-order mark so Excel on Windows opens it in the right encoding. *This changes the bytes of downloaded CSV files.* Before this, five of the six writers joined rows with a bare newline and replaced a comma, quote or newline inside your own label with a space — silently destroying it. A label is your text, and an export must not edit it.
+- **A frame title written in one language no longer sticks.** A document whose frame titles were created in Simplified Chinese kept them in every language afterwards while its node labels switched correctly; once a document entered one of the six hyphenated locales it could not leave. Frame titles now follow the UI language like everything else.
+- **The Thai quotation of the Google Sheets download menu** now matches what that menu actually says.
+
+### Notes
+
+The per-locale decisions — the glossary each language fixed, what was deliberately left in English, the plural and number-format measurements, and the open questions each catalog carries — are recorded in [`docs/localization.md`](docs/localization.md). No locale in this release has had a professional translation review, and none is claimed.
+
+Arabic also brought the right-to-left work recorded in §L9 of the same document: the app chrome mirrors while the diagram keeps its own coordinate space, and a user value placed inside a translated sentence is isolated so it cannot be reordered.
+
+Added automated DOM and Chrome accessibility-tree regression coverage for status text and descriptions in English and Arabic.
+
+A build-time locale checker that could be silently disabled by re-indenting the registry now fails closed, and the Thai locale's six carried-over review items were measured and triaged.
+
+### Included pull requests
+
+<details>
+<summary>18 merged pull requests</summary>
+
+- Features: [#274](https://github.com/MerciHanrim/loop-studio/pull/274), [#275](https://github.com/MerciHanrim/loop-studio/pull/275), [#276](https://github.com/MerciHanrim/loop-studio/pull/276), [#279](https://github.com/MerciHanrim/loop-studio/pull/279), [#280](https://github.com/MerciHanrim/loop-studio/pull/280), [#282](https://github.com/MerciHanrim/loop-studio/pull/282), [#283](https://github.com/MerciHanrim/loop-studio/pull/283), [#284](https://github.com/MerciHanrim/loop-studio/pull/284), [#286](https://github.com/MerciHanrim/loop-studio/pull/286), [#288](https://github.com/MerciHanrim/loop-studio/pull/288), [#289](https://github.com/MerciHanrim/loop-studio/pull/289)
+- Fixes: [#277](https://github.com/MerciHanrim/loop-studio/pull/277), [#278](https://github.com/MerciHanrim/loop-studio/pull/278), [#285](https://github.com/MerciHanrim/loop-studio/pull/285), [#287](https://github.com/MerciHanrim/loop-studio/pull/287)
+- Tests: [#291](https://github.com/MerciHanrim/loop-studio/pull/291)
+- Docs: [#273](https://github.com/MerciHanrim/loop-studio/pull/273), [#281](https://github.com/MerciHanrim/loop-studio/pull/281)
+
+</details>
+
 ## v0.13.0 — 2026-09-23
 
 A localization release. Loop Studio went from three languages to eleven, and the regional pairs are real locales rather than one catalog with a flag on it — European and Brazilian Portuguese, Spain and Latin American Spanish, and Simplified and Traditional Chinese each get their own catalog, their own plural rules and their own number formatting.
