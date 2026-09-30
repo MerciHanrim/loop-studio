@@ -38,6 +38,7 @@ import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
 import { useTourStore } from '../store/tourStore'
+import { isolateAuto } from '../i18n/bidiIsolate'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -877,7 +878,7 @@ export function Canvas() {
             <span dir={uiDir}>
               {t('hint.importFirstCommit.body', {
                 n: lastImportBatch.count,
-                tables: lastImportBatch.tables.map((l) => `"${l}"`).join(', '),
+                tables: lastImportBatch.tables.map((l) => `"${isolateAuto(l)}"`).join(', '),
               })}
             </span>
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={importHint.close}>

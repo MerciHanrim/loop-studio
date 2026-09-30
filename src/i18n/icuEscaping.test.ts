@@ -1,5 +1,6 @@
 import IntlMessageFormat from 'intl-messageformat'
 import { describe, expect, it } from 'vitest'
+import ar from './locales/ar'
 import de from './locales/de'
 import en from './locales/en'
 import es419 from './locales/es-419'
@@ -29,6 +30,7 @@ import { BASE_LOCALE, LOCALES } from './registry'
 // collides with vitest's own `it()` — the first locale here whose CODE is
 // a test-framework identifier, so every other catalog can keep its bare name.
 const CATALOGS = {
+  ar,
   de,
   'es-419': es419,
   'es-ES': esES,

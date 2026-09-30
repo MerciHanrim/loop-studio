@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { expect, openApp, resetAll, snap, test } from './support/loop'
+import { expect, iso, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/data-import.md §DI17 — the in-tool guide for the CSV/TSV import
 // wizard: the collapsible quick start with its one-click example, the shared
@@ -292,11 +292,14 @@ test('inline errors: the summary takes focus, each item is a button that reveals
 
   const items = dialog(page).locator('.import__issues button.import__issueLink')
   await expect(items).toHaveCount(3)
-  await expect(items.nth(0)).toContainText(/"4,900"/)
+  // The cell value is isolated at the display boundary (§L9.4), so the quotes
+  // around it belong to the SENTENCE and this crosses the boundary. EXACT: the
+  // isolate is mandatory here, so its absence must fail.
+  await expect(items.nth(0)).toContainText(`"${iso('4,900')}"`)
   await expect(items.nth(0)).toContainText(/price/)
   await expect(items.nth(0)).toContainText(/thousands/i)
   await expect(items.nth(1)).toContainText(/price/)
-  await expect(items.nth(2)).toContainText(/"sword"/)
+  await expect(items.nth(2)).toContainText(`"${iso('sword')}"`)
   await expect(dialog(page).locator('.import__preview .is-bad[aria-invalid="true"]')).toHaveCount(3)
 
   await items.nth(0).click()

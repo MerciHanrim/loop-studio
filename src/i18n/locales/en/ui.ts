@@ -54,6 +54,7 @@ const ui = {
   'language.vietnamese': 'Vietnamese',
   'language.italian': 'Italian',
   'language.dutch': 'Dutch',
+  'language.arabic': 'Arabic',
   'playbar.reset.title': 'Reset to step 0',
   'playbar.step.title': 'Advance one step',
   'playbar.play': '▶ Play',

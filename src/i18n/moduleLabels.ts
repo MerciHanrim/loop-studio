@@ -534,6 +534,40 @@ const NL: Readonly<Record<string, ModuleLabelMap>> = {
   },
 }
 
+// §L9 — the first RTL overlay. Node labels are plain nouns with no engine
+// tokens in them, so nothing here needs an isolate; the canvas renders a node
+// label with `dir="auto"`, which lets an Arabic label read rtl inside an
+// English UI and a Latin one read ltr inside an Arabic UI.
+const AR: Readonly<Record<string, ModuleLabelMap>> = {
+  'buffered-step': {
+    supply: 'التوريد',
+    inbox: 'وارد الانتظار',
+    intake: 'الإدخال',
+    process: 'المعالجة',
+    spoilage: 'التالف',
+    outbox: 'صادر الانتظار',
+    shipped: 'المشحون',
+    batch_size: 'حجم الدفعة',
+    in_system: 'الوحدات في النظام',
+    planned_run: 'التشغيل المخطط',
+  },
+  'reward-split': {
+    activity: 'النشاط',
+    wallet: 'المحفظة',
+    allocate: 'التوزيع',
+    spending: 'الإنفاق',
+    savings: 'المدّخرات',
+    withdrawals: 'السحوبات',
+    target_savings: 'هدف الادّخار',
+    net_worth: 'صافي الثروة',
+    progress: 'التقدّم نحو الهدف',
+  },
+}
+
+// locale-subset-file: the overlays are by definition non-base, so `en` is absent
+// file-wide.
+// locale-subset: non-base locales only. The module labels ARE English in the
+// module JSON, so `en` needs no overlay — an entry for it would be the identity.
 const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>>> = {
   ko: KO,
   ja: JA,
@@ -551,6 +585,7 @@ const OVERLAYS: Readonly<Record<string, Readonly<Record<string, ModuleLabelMap>>
   vi: VI,
   it: IT,
   nl: NL,
+  ar: AR,
 }
 
 /** The `nodeId -> label` overlay for `moduleId` in `locale`, or `undefined` if

@@ -56,6 +56,12 @@ jobs:
         run: npm run check:content-direction
       - name: Arrow direction — every arrow decided by its meaning unit, no mirroring transforms
         run: npm run check:arrow-direction
+      - name: Check every deferred isolation obligation is implemented
+        run: npm run check:isolate-arguments
+      - name: ICU arguments — every interpolated value classified, nothing unexamined
+        run: npm run check:icu-arguments
+      - name: Locale lists — no enumeration knows about some shipped locales and not the rest
+        run: npm run check:locale-lists
       - name: Web build
         run: npm run build
       - name: Portable build

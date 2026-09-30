@@ -1,5 +1,6 @@
 import { useProjectStore } from '../store/projectStore'
 import { useT } from '../i18n'
+import { isolateLtr } from '../i18n/bidiIsolate'
 
 // SEMANTICS-R.md §R2 / §R8 — a compact, non-interactive indicator of the open
 // project revision (or proposal) and whether the live doc has drifted from its
@@ -15,7 +16,7 @@ export function RevisionChip({ className }: { className?: string }) {
   if (!open) return null
 
   const isProposal = open.role === 'proposal'
-  const label = isProposal ? t('revChip.proposal') : t('revChip.rev', { id: short(open.revisionId) })
+  const label = isProposal ? t('revChip.proposal') : t('revChip.rev', { id: isolateLtr(short(open.revisionId)) })
   const titleParams = { project: short(open.projectId), role: open.role, revision: open.revisionId }
   const title = dirty ? t('revChip.titleDirty', titleParams) : t('revChip.title', titleParams)
 

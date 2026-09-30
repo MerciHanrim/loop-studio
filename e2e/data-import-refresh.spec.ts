@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, iso, openApp, resetAll, test } from './support/loop'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 — the refresh workflow through the
 // real UI: manage bindings, rename cascade, the row-lifecycle refresh
@@ -299,7 +299,13 @@ test('column events: an explicit rename re-links a renamed header and a new colu
   // scoped to the exact "not mapped" phrasing -- the RENAME select's own
   // <option> list (all incoming headers) also contains the literal text
   // "rarity_score", so a bare `hasText: 'rarity_score'` matches two `<li>`s.
-  await refreshDialog(page).locator('li', { hasText: 'rarity_score" is not mapped' }).locator('select').selectOption('number')
+  // The header is isolated at the display boundary (§L9.4), so the closing quote
+  // is the sentence's and this crosses the boundary. EXACT, not optional: the
+  // isolate is mandatory here, so its absence must fail.
+  await refreshDialog(page)
+    .locator('li', { hasText: `${iso('rarity_score')}" is not mapped` })
+    .locator('select')
+    .selectOption('number')
 
   await refreshDialog(page).getByRole('button', { name: 'Next' }).click()
   await expect(refreshDialog(page).getByText('2 new column values will be added')).toBeVisible()
@@ -326,7 +332,10 @@ test('a missing row still referenced by another table blocks unlink/delete, nami
   await refreshDialog(page).getByPlaceholder('Paste CSV or TSV text here').fill('item_key,display_name,weight\nitm_b,Iron Charm,3')
   await refreshDialog(page).getByRole('button', { name: 'Next' }).click()
 
-  await expect(refreshDialog(page).getByText(/Still referenced by GachaPoolEntries/)).toBeVisible()
+  // the blocking table NAME is a user value and is isolated (§L9.4)
+  await expect(
+    refreshDialog(page).getByText(`Still referenced by ${iso('GachaPoolEntries')}`),
+  ).toBeVisible()
   await expect(refreshDialog(page).locator('li', { hasText: 'itm_a' }).locator('select')).toHaveCount(0) // no destructive choice offered at all
 
   await refreshDialog(page).getByRole('button', { name: 'Commit refresh' }).click()

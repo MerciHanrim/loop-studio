@@ -1,0 +1,545 @@
+{
+  "$comment": "docs/localization.md §L9.4 — the ICU argument population, closed. `scripts/check-icu-arguments.mjs` enumerates EVERY `t(key, {...})` argument in shipped source and derives four classes from the TypeScript type checker and the syntax (number, enum, catalog, isolated). Every argument it cannot derive has a row here, with the evidence for its class. An argument with neither is a STOP — that is what makes a newly added interpolation fail closed instead of joining an unexamined majority.",
+  "$origin": "C3.5. The first attempt at this population was an argument-NAME grep of mine (`{header}`, `{label}`, `{name}` …), which is a guess about vocabulary rather than a measurement: it matched 34 arguments. Re-run from the type checker the population is 205.",
+  "$classes": {
+    "auto": "free user text of unknown direction — needs `isolateAuto`. RECORDED, NOT IMPLEMENTED.",
+    "ltr": "a technical token whose direction is known — needs `isolateLtr`. RECORDED, NOT IMPLEMENTED.",
+    "per-fragment": "several INDEPENDENT user values in one argument — needs one isolate per fragment. RECORDED, NOT IMPLEMENTED.",
+    "closed-value": "the value provably cannot carry user text: a catalog string, an engine phrase, a formatted number, a build constant, a model-vocabulary token.",
+    "attribute": "the string ends up in an HTML attribute on an intrinsic element. PR B kept these as a separate axis (115 sites) because MARKUP cannot reach an attribute. An isolate could — so each row here still says what the value is, and the class records the axis rather than a verdict that it is safe. TWO DIFFERENT NUMBERS: 12 rows carry this CLASS, while 18 arguments have an attribute SINK, and they differ in both directions — 8 attribute-sink arguments are mechanically classified (a number, an enum, a catalog string) and need no row, and 2 rows are attribute by TRACING rather than by sink, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function. Every row reached that way says TRACED and names the destination.",
+    "unreachable": "the site cannot render this value at all. NO ROW USES THIS CLASS: every argument enumerated is reachable, which is worth recording as a result rather than leaving the class quietly empty."
+  },
+  "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
+  "totals": {
+    "arguments": 205,
+    "rows": 52,
+    "byClass": {
+      "attribute": 12,
+      "closed-value": 40
+    },
+    "recordedNotImplemented": 0,
+    "attributeSink": 18
+  },
+  "rows": [
+    {
+      "file": "src/components/ExportMenu.tsx",
+      "enclosing": "ExportMenuItems>workspaceJSON",
+      "key": "export.workspace.included",
+      "arg": "items",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "A list of CATALOG strings joined by `, ` — every fragment is already the reader’s direction, so no fragment can disagree with the paragraph. Unlike the table-label list, which is user text."
+    },
+    {
+      "file": "src/components/ExportMenu.tsx",
+      "enclosing": "ExportMenuItems>workspaceJSON",
+      "key": "export.workspace.omit.body",
+      "arg": "full",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/ExportMenu.tsx",
+      "enclosing": "ExportMenuItems>workspaceJSON",
+      "key": "export.workspace.omit.body",
+      "arg": "lean",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/ExportMenu.tsx",
+      "enclosing": "ExportMenuItems>workspaceJSON",
+      "key": "export.workspace.omit.body",
+      "arg": "limit",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/ExportMenu.tsx",
+      "enclosing": "ExportMenuItems>workspaceJSON",
+      "key": "export.workspace.reject",
+      "arg": "limit",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/ExportMenu.tsx",
+      "enclosing": "ExportMenuItems>workspaceJSON",
+      "key": "export.workspace.reject",
+      "arg": "size",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ActivatorField",
+      "key": "<computed> key",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "The resolved node's KIND from the model vocabulary (`pool`, `source`, …); the `as { kind?: string }` cast is what widened the type, not the values."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "describeActivator",
+      "key": "inspector.activator.describe",
+      "arg": "op",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "A comparison OPERATOR from the activator parse."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ActivatorField",
+      "key": "inspector.activator.preview.resolved",
+      "arg": "offsetText",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "'' or ` + 3` / ` − 3` — a sign and digits, built two lines above."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "ActivatorField",
+      "key": "inspector.activator.preview.resolved",
+      "arg": "op",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "A comparison OPERATOR from the activator parse."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "EdgeFlowField",
+      "key": "inspector.edge.flowParam.resolved",
+      "arg": "value",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "`String(v)` for a finite number, otherwise the literal '0' — digits only."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "describeLabel",
+      "key": "inspector.label.describe.add",
+      "arg": "amount",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "Either `t('inspector.label.amountSource')` or `String(p.n)`."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "describeLabel",
+      "key": "inspector.label.describe.set",
+      "arg": "amount",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "Either `t('inspector.label.amountSource')` or `String(p.n)` — a catalog string or digits."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "describeLabel",
+      "key": "inspector.label.describe.subtract",
+      "arg": "amount",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "Either `t('inspector.label.amountSource')` or `String(p.n)`."
+    },
+    {
+      "file": "src/components/Inspector.tsx",
+      "enclosing": "Inspector",
+      "key": "inspector.unreadable.note",
+      "arg": "detail",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "A structural-read phrase from the dependency-free model layer (`data is not an object`, `value is not finite`, …) or a catalog fallback. Every literal is Latin-leading English."
+    },
+    {
+      "file": "src/components/ModelPanels.tsx",
+      "enclosing": "InputsSection",
+      "key": "panels.inputs.paramValue",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:input.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on an input. The value is a user PARAMETER LABEL."
+    },
+    {
+      "file": "src/components/PlayBar.tsx",
+      "enclosing": "PlayBar",
+      "key": "playbar.initError",
+      "arg": "detail",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "`simStore.initError` — an engine initialisation phrase, Latin-leading."
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "RegisterExprField",
+      "key": "<computed> key",
+      "arg": "code",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "A read-back error CODE from the model layer (`M_REG_*`), an ASCII constant."
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "candidateName",
+      "key": "regExpr.block.cycle",
+      "arg": "name",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "attribute",
+      "evidence": "TRACED: built inside `candidateName`, whose return value is a listbox option’s `aria-label` (`aria-label={candidateName(t, c)}`). A user REGISTER/PARAMETER name, on the attribute axis. The sink detector cannot follow a value through a function, so this row records where it lands."
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "RegisterExprField",
+      "key": "regExpr.op.inserts",
+      "arg": "sym",
+      "ord": 1,
+      "sink": "attr:button.title",
+      "class": "attribute",
+      "evidence": "title on a button. `sym` comes from the module-level `OPS` table — a fixed operator symbol, not user text."
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "candidateName",
+      "key": "regExpr.pick.optionAria",
+      "arg": "kind",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "Assigned from `t('canvas.nodeKind.' + c.kind)` on the line above — a catalog string, already the reader's direction."
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "candidateName",
+      "key": "regExpr.pick.optionAria",
+      "arg": "name",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "attribute",
+      "evidence": "TRACED: the same `candidateName` return value, used as an option `aria-label`. A user NODE name, on the attribute axis."
+    },
+    {
+      "file": "src/components/RegisterExprField.tsx",
+      "enclosing": "candidateName",
+      "key": "regExpr.pick.optionAria",
+      "arg": "value",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "`RefCandidate.valueText` — the engine-formatted current value, rendered elsewhere under an explicit `dir=\"ltr\"`."
+    },
+    {
+      "file": "src/components/ReviewOverlay.tsx",
+      "enclosing": "ReviewOverlay",
+      "key": "review.fileSays",
+      "arg": "stamp",
+      "ord": 1,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "An ISO 8601 timestamp from the revision header."
+    },
+    {
+      "file": "src/components/Templates.tsx",
+      "enclosing": "Templates",
+      "key": "templates.replace.body",
+      "arg": "name",
+      "ord": 1,
+      "sink": "prop:ConfirmDialog.body",
+      "class": "closed-value",
+      "evidence": "`t(TEMPLATE_KEY[id].name)` or '' — a catalog string; the empty arm is what stops it being derived as one."
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "enclosing": "TimelineChart",
+      "key": "timeline.legend.hide",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:button.title",
+      "class": "attribute",
+      "evidence": "title on a button. The value is a user POOL LABEL."
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "enclosing": "TimelineChart",
+      "key": "timeline.legend.hide",
+      "arg": "label",
+      "ord": 2,
+      "sink": "attr:button.title",
+      "class": "attribute",
+      "evidence": "title on a button. The value is a user REGISTER LABEL."
+    },
+    {
+      "file": "src/components/TimelineChart.tsx",
+      "enclosing": "TimelineChart",
+      "key": "timeline.legend.show",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:button.title",
+      "class": "attribute",
+      "evidence": "title on a button. The value is a user series LABEL."
+    },
+    {
+      "file": "src/components/Toolbar.tsx",
+      "enclosing": "Toolbar",
+      "key": "toolbar.buildTitle",
+      "arg": "sha",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "The build constant `__BUILD_SHA__`."
+    },
+    {
+      "file": "src/components/Toolbar.tsx",
+      "enclosing": "Toolbar",
+      "key": "toolbar.buildTitle",
+      "arg": "version",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "The build constant `__APP_VERSION__`."
+    },
+    {
+      "file": "src/components/dataImport/DataImportWizard.tsx",
+      "enclosing": "DataImportWizard",
+      "key": "import.roleAria",
+      "arg": "header",
+      "ord": 1,
+      "sink": "attr:select.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a select. The value is a user SPREADSHEET COLUMN HEADER — the same kind of value as `import.status.key`, which IS an obligation, on the other axis."
+    },
+    {
+      "file": "src/components/frames/FrameLayer.tsx",
+      "enclosing": "FrameLayer",
+      "key": "canvas.frame.a11y.name",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:div.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on the frame container. The user FRAME NAME; the moved/resized ANNOUNCEMENTS of the same name are obligations, and this attribute is the same value on the other axis."
+    },
+    {
+      "file": "src/components/frames/FrameLayer.tsx",
+      "enclosing": "FrameLayer",
+      "key": "canvas.frame.a11y.resize",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:button.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on the resize handle. Same user FRAME NAME as the announcement obligations."
+    },
+    {
+      "file": "src/components/frames/FramePropsPopover.tsx",
+      "enclosing": "FramePropsPopover",
+      "key": "canvas.frame.props.title",
+      "arg": "label",
+      "ord": 1,
+      "sink": "attr:div.aria-label",
+      "class": "attribute",
+      "evidence": "aria-label on a div. The value is the user FRAME NAME."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>workspaceJSON",
+      "key": "export.workspace.included",
+      "arg": "items",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "A list of CATALOG strings joined by `, ` — every fragment is already the reader’s direction, so no fragment can disagree with the paragraph. Unlike the table-label list, which is user text."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>workspaceJSON",
+      "key": "export.workspace.omit.body",
+      "arg": "full",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>workspaceJSON",
+      "key": "export.workspace.omit.body",
+      "arg": "lean",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>workspaceJSON",
+      "key": "export.workspace.omit.body",
+      "arg": "limit",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>workspaceJSON",
+      "key": "export.workspace.reject",
+      "arg": "limit",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>workspaceJSON",
+      "key": "export.workspace.reject",
+      "arg": "size",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `MiB()`."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>runShare",
+      "key": "share.tooLarge",
+      "arg": "cap",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "KB, formatted by `shareKb()`."
+    },
+    {
+      "file": "src/components/mobile/MobileMoreMenu.tsx",
+      "enclosing": "MobileMoreMenu>runShare",
+      "key": "share.tooLarge",
+      "arg": "size",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "KB, formatted by `shareKb()`."
+    },
+    {
+      "file": "src/components/mobile/MobileRunBar.tsx",
+      "enclosing": "MobileRunBar",
+      "key": "playbar.initError",
+      "arg": "detail",
+      "ord": 1,
+      "sink": "attr:button.title",
+      "class": "attribute",
+      "evidence": "title on a button. `simStore.initError` is an engine phrase, Latin-leading."
+    },
+    {
+      "file": "src/components/mobile/MobileRunBar.tsx",
+      "enclosing": "MobileRunBar",
+      "key": "playbar.initError",
+      "arg": "detail",
+      "ord": 2,
+      "sink": "text",
+      "class": "closed-value",
+      "evidence": "`simStore.initError` — an engine initialisation phrase, Latin-leading."
+    },
+    {
+      "file": "src/components/toolbar/useShareSurface.ts",
+      "enclosing": "useShareSurface>confirm",
+      "key": "share.tooLarge",
+      "arg": "cap",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "KB, formatted by `shareKb()`."
+    },
+    {
+      "file": "src/components/toolbar/useShareSurface.ts",
+      "enclosing": "useShareSurface>confirm",
+      "key": "share.tooLarge",
+      "arg": "size",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "KB, formatted by `shareKb()`."
+    },
+    {
+      "file": "src/store/revisionIO.ts",
+      "enclosing": "routeImport",
+      "key": "import.modelLayerUnreadable",
+      "arg": "detail",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "The same model-layer phrase set."
+    },
+    {
+      "file": "src/store/revisionIO.ts",
+      "enclosing": "routeImport",
+      "key": "import.structuralWarning",
+      "arg": "detail",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "Model-layer defensive-read phrases joined by newlines. Each is Latin-leading English built in `revision.ts`."
+    },
+    {
+      "file": "src/ui/revisionActions.ts",
+      "enclosing": "makeProposal",
+      "key": "proposal.tooLarge",
+      "arg": "cap",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `mib()`."
+    },
+    {
+      "file": "src/ui/revisionActions.ts",
+      "enclosing": "makeProposal",
+      "key": "proposal.tooLarge",
+      "arg": "size",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `mib()`."
+    },
+    {
+      "file": "src/ui/revisionActions.ts",
+      "enclosing": "exportProjectRevision",
+      "key": "revision.export.tooLarge",
+      "arg": "cap",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `mib()`."
+    },
+    {
+      "file": "src/ui/revisionActions.ts",
+      "enclosing": "exportProjectRevision",
+      "key": "revision.export.tooLarge",
+      "arg": "size",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "MiB, formatted by `mib()` — digits plus the ASCII unit."
+    }
+  ]
+}

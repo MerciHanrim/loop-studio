@@ -10,6 +10,7 @@ import { FRAME_MIN_SCREEN_PX, frameIsCreatable, normaliseRect } from './frameGeo
 import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type Pt } from './frameMoveGesture'
 import { createKeyGesture } from '../../ui/keyGestureLifetime'
 import { FramePropsPopover } from './FramePropsPopover'
+import { isolateAuto } from '../../i18n/bidiIsolate'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -322,8 +323,16 @@ export function FrameLayer() {
       }
       setAnnouncement(
         g.kind === 'move'
-          ? t('canvas.frame.a11y.moved', { label: g.name, x: Math.round(g.current.x), y: Math.round(g.current.y) })
-          : t('canvas.frame.a11y.resized', { label: g.name, w: Math.round(g.current.w), h: Math.round(g.current.h) }),
+          ? t('canvas.frame.a11y.moved', {
+              label: isolateAuto(g.name),
+              x: Math.round(g.current.x),
+              y: Math.round(g.current.y),
+            })
+          : t('canvas.frame.a11y.resized', {
+              label: isolateAuto(g.name),
+              w: Math.round(g.current.w),
+              h: Math.round(g.current.h),
+            }),
       )
     },
     [setRectsSilently, adoptFrameSilently, removeAuto, t],

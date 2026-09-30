@@ -3646,18 +3646,31 @@ being true:
 
 What is NOT here, stated so a green run is not mistaken for more than it is:
 
-* **The Arabic catalogue is PR C.** The direction work is exercised by `ar-XB`, a
-  registered RTL pseudo-locale whose catalogue is `en` verbatim — which is what
-  makes "unchanged" literally assertable across a locale round trip, and also
-  means no catalogue-content rule can apply to it. The arrow catalogue contract
-  is written against a real RTL locale and arms itself the day one is registered;
-  `src/i18n/arrowContract.test.ts` proves that by calling the rule with a
-  synthetic `ar`, because no registered locale can exercise it today.
+* **The Arabic catalogue landed in PR C, and the arrow contract is now armed by a
+  real locale.** `ar-XB` remains a registered RTL pseudo-locale shipping `en`
+  verbatim — which is what makes "unchanged" literally assertable across a locale
+  round trip, and also means no catalogue-content rule can apply to it. Until `ar`
+  shipped, every locale the checker could reach was one that could not fail the
+  mirrored-glyph rule, and `src/i18n/arrowContract.test.ts` existed to call the
+  rule with a synthetic `ar` and prove that registering one would arm it. It did:
+  `check-arrow-direction` now reports `ar` as a real RTL catalogue and evaluates
+  the mirrored-glyph rule against it. That test stays, because the same argument
+  applies to the NEXT RTL locale before it exists.
 * **Assistive technology behaviour.** The DOM and accessibility-API tier is
   closed (`e2e/a11y-direction-invisible.spec.ts`); how a screen reader
   pronounces, segments or brailles any of this is a tier above what a browser can
   report, and any later result is recorded as the stack it was measured on — a
   finding on Windows + Chrome + NVDA is a finding for that combination.
+  **The site count in that spec's own header is wrong, and C3.5 is why it
+  matters.** It says "three `.sr-only` regions and three shared
+  `aria-describedby` targets"; there are FOUR live regions. The fourth is
+  `RegisterExprField`'s `srMsg` (`:775`), and it is exactly the region C3.5 put
+  isolates into (`regexpr-insert-done`, `regexpr-armhint-cycle-name`). The spec is
+  not wrong today — it locates the steady-state region with
+  `regions.find(el => !frame && !playback)` and no register is selected in that
+  test, so it picks the PlayBar one — but it asserts no COUNT, which is how a
+  fourth region came to exist unrecorded. The AT review therefore has **seven**
+  sites, not six.
 * **The `dir` attributes on the 115 attribute-only sites** (`title`, `aria-label`)
   are unchanged: markup cannot reach an attribute.
 
@@ -3710,8 +3723,74 @@ other and come out of one table for that reason, because two literals in two
 files is how the pair that must stay opposite quietly becomes equal.
 
 `scripts/arrow-units.json` records every unit, the JSX sites, the literals that
-must STAY (without which "everything mirrors" would satisfy the check), and the
-catalogue keys each unit governs.
+must STAY (without which "everything mirrors" would satisfy the check), the
+catalogue keys each unit governs, and **how many of that unit's glyphs each key
+carries**.
+
+**Two totals, and they are different units.** They were being reported as one
+number, which is how the gap below survived:
+
+| total | unit |
+|---|---|
+| `18 × 22 + 2 = 398` | CONTRACT PAIRS — `(locale, unit, key)` triples the rule is evaluated on |
+| `18 × 24 + 2 = 434` | GLYPH OCCURRENCES — arrow characters actually inside those values |
+
+`434` is a **global census, not a sum over the manifest**. A per-key contract
+cannot see an arrow added to a key nobody ruled on — that is guaranteed by its
+shape, not an oversight — so `arrowCensus` walks EVERY string in all eighteen
+catalogues and attributes each occurrence to exactly one meaning unit. The checker
+prints `unclaimed 0 / multiply claimed 0` beside the totals, which is what makes
+the two numbers a PARTITION of the catalogues' arrows. `multiply claimed` is not
+hypothetical bookkeeping: it would fire if two units of one key ever required the
+same glyph, and the only reason they do not today is that `share.tooLarge` takes
+`←` from `menu-path` and `▾` from `disclosure-vertical`.
+
+The 18 is derived from the registry: entries with a catalogue file of their own.
+The `+ 2` in both is the conditional key `import.qs.sources.excel`, which `ja` and
+`ko` each give one arrow and English and Arabic give none — a locale-local choice
+the contract rules only *if* a translation makes it, and Arabic's zero is now
+asserted rather than observed.
+
+24 exceeds 22 for two separate reasons, kept apart because they are not the same
+thing:
+
+* **four keys are governed by two units each** — `share.tooLarge`,
+  `revision.export.tooLarge`, `proposal.needProject` and `proposal.dirtyOrigin`
+  carry a `menu-path` arrow that mirrors and a `disclosure-vertical` `▾` that does
+  not. Those are already two pairs, so they add nothing to the gap.
+* **two keys carry the SAME unit's glyph twice** — `regExpr.row.cycle` renders
+  `{name} → … → {name}` and `import.qs.sources.sheets` names a two-step menu path
+  (`ملف ← تنزيل ←`). Each is one pair and two occurrences, which is the whole gap.
+
+**The gap, and how it was found.** The rule was "does the value contain the glyph
+this unit requires". MEASURED on the shipping tree: flipping only the SECOND `→`
+of `regExpr.row.cycle` to `←` left the entire check green. Presence cannot see a
+second glyph. The rule counts now — exactly `n` of the required character, zero of
+the same arrow pointing the other way, and zero tracked glyphs the contract does
+not account for. For a KEEPING unit the "other way" cannot come from the unit
+itself (both its glyphs are the same character), so it comes from a mirror-partner
+table: `→↔←`, `↗↔↖`, `▸↔◂`, `↶↔↷`.
+
+Falsified against the real Arabic catalogue, twelve single-glyph edits every one of
+which the presence rule passed: on each duplicate key the second glyph flipped, one
+removed and one added; an arrow of a unit that governs nothing there; each half of a
+two-unit key broken on its own; the conditional key given an arrow, and given a
+wrong-way one; and the declared occurrence count edited down to hide a glyph.
+
+**The two keys PR C held open are settled, on three separate axes.** Holding the
+axes together is what made them look like one question:
+
+| key | translation | direction | arrows |
+|---|---|---|---|
+| `tour.nav.position` | keep `{n} / {total}` verbatim — nothing to translate | **`ltr`, newly ruled.** MEASURED under `ar`: the two number runs swapped and step 2 of 6 rendered `6 / 2`. A counter is a pinned numeric pair, so `.tour-popover__pos` declares `dir="ltr"` and is recorded in `scripts/content-direction.json` | none — not governed |
+| `import.qs.mapping` | keep the four column names verbatim — they are the header row of `EXAMPLE_CSV`, which the guide's own button pastes, so translating one would describe a column the example does not have | inherits | none — not governed |
+
+The held question about the slash order was the right question: the value needed no
+translation and the ELEMENT was the defect. Nothing in the text changed, which is
+why only a geometric assertion could catch it — `e2e/i18n-ar.spec.ts` measures the
+two number runs' rectangles. `scripts/example-columns.test.ts` pins the column
+names against the component source so the list exists once, and asserts both keys
+carry zero tracked arrows so the two axes stay apart.
 
 Input fields take a direction from what the **user** will type, not from what
 the placeholder happens to look like:
@@ -3725,6 +3804,185 @@ the placeholder happens to look like:
 `inspector.resourceType.placeholder` is the trap: its placeholder starts with
 `Gold` and therefore renders correctly under RTL with no help at all, but the
 field accepts a user-typed resource name in any script, so it is `auto`.
+
+### §L9.4 — the value markup cannot reach
+
+§L9.3 gave every text-carrying ELEMENT the direction its content decides. That
+closes the question wherever the value is its own JSX child, because there is an
+element to put `dir` on. It does not close it where a user value enters a
+localized sentence through an **ICU argument**: the sentence and the value become
+one string before any element exists, so there is nothing to mark up and nothing
+for `dir="auto"` to see inside.
+
+PR B recorded 11 such decision rows and deferred them. They are implemented here.
+**Three counts, kept apart, because two of them being 11 is a coincidence:**
+
+| count | what it is |
+|---|---|
+| 11 decision rows | what the §L9.3 census recorded and deferred |
+| 8 obligations | one per PRODUCER — what is implemented |
+| 11 AST call sites | what the edit touches; a closed key set is more than one |
+
+Two rows collapse (`issueText` is called at three render sites and holds one
+catalog call; `groupLine` is one call painted at two JSX sites) and three expand
+(a closed key set of two).
+
+**The isolate goes into the render ARGUMENT and nowhere else.** Every shipped
+catalogue carries zero bidi controls and `src/i18n/bidiControls.test.ts` keeps it
+that way; a control that reached a catalog value would be a translated string the
+translator cannot see. The stored, digested, exported and shared value is the raw
+one — a control in the document would move its digest and travel into other
+people's copies.
+
+**The kind is part of the obligation.** `isolateAuto` (`FSI`) is the counterpart
+of `dir="auto"`, for a value whose direction is not known in advance: a
+spreadsheet cell, a column header, a frame name. `isolateLtr` (`LRI`) is the
+counterpart of `dir="ltr"`, for a technical token whose direction IS known: a
+node id, a generated revision id. `LRI` and not `FSI` there because an id that
+happens to start with a digit or a symbol has no strong character of its own, so
+a first-strong isolate would hand it the surrounding paragraph's direction.
+
+**The value is stripped before it is wrapped**, and the three families behave
+differently, so lumping them together gets all three wrong:
+
+| family | characters | how the scope ends |
+|---|---|---|
+| strong marks | `LRM` `RLM` `ALM` | no scope at all — they act by BEING strong |
+| explicit formatting | `LRE` `RLE` `LRO` `RLO` | `PDF`, not `PDI`; unterminated, they run to the end of the paragraph |
+| isolates | `LRI` `RLI` `FSI` | `PDI` |
+
+What matters for this rule is the conclusion they share: a bidi formatting or
+control character inside a VALUE can change how the SENTENCE around it resolves —
+by supplying a strong character the algorithm then uses, or by opening or closing
+a scope the code did not intend. A value's own `PDI` can close the isolate placed
+around it, after which the rest of the sentence sits outside the bounding that was
+the point. User data can contain any of them, so they are removed at the display
+boundary. `ZWJ`, `ZWNJ` and Arabic combining marks are **not** removed: they shape
+and compose the text rather than steer it.
+
+**One site is per-fragment.** `hint.importFirstCommit.body` interpolates a
+comma-joined list of the user's own table labels. A single isolate around the
+joined string would give the whole list one paragraph direction, taken from
+whichever table the user happened to name first — MEASURED in PR B as two of six
+cases breaking identically with and without it. Each label is isolated on its own,
+and the quotes and commas stay OUTSIDE, because they are the sentence's
+punctuation rather than the label's.
+
+| layer | guard |
+|---|---|
+| what the helpers produce — per-mode idempotence, the strip, exactly one outer pair, zero inner controls | `src/i18n/bidiIsolate.test.ts` |
+| every obligation implemented with its declared kind, on its declared argument, at every call site, and no isolate outside a declared row | `scripts/check-isolate-arguments.mjs` + `scripts/isolate-obligations.json` |
+| every ICU argument in shipped source classified, exactly once, with evidence — so a new interpolation cannot appear unexamined | `scripts/check-icu-arguments.mjs` + `scripts/icu-argument-disposition.json` |
+| the isolate never reaches the stored document | `src/i18n/isolateStorageBoundary.test.ts` |
+| the sentence LAYS OUT that way in a browser, in real Arabic | `e2e/i18n-ar-isolation.spec.ts` |
+
+The browser layer is geometric on purpose. `textContent` equality is what the
+isolate is designed not to change, so a text comparison is green whether or not
+the isolate is there; and a screenshot cannot separate "the value sits in the
+wrong place in the sentence" from "the characters inside the value are in the
+wrong order". So it measures `Range` rectangles inside the one string ICU
+produced — the value's placement relative to the sentence's head and tail, and
+separately the visual order of the characters within the value, compared against
+the same value rendered alone in the same container. The necessity is measured
+too: for the shapes the census recorded as breaking, the same value interpolated
+RAW must come out in a different order.
+
+**Exhaustiveness — how the population was closed (C3.5).**
+`scripts/isolate-obligations.json` defends the call sites listed in it, exactly
+and in both directions, and it does **not** by itself discover an ICU argument
+that starts carrying a user value later. The first attempt at finding those was
+an argument-NAME grep (`{header}`, `{label}`, `{name}`…), which is a guess about
+vocabulary rather than a measurement: it matched 34 arguments. Re-run from the
+TypeScript **type checker** the population is **205**.
+
+`scripts/check-icu-arguments.mjs` enumerates all 205 and derives four classes
+from the type and the syntax, so they are evidence rather than a claim someone
+has to keep true: `number` (the type is number-like), `enum` (a closed union of
+string literals, whose members it prints), `catalog` (a `t(…)` call, or a
+conditional whose every leaf is one) and `isolated`. Every argument it cannot
+derive needs a row in `scripts/icu-argument-disposition.json` stating its class
+and the evidence. An argument with neither is a **STOP** — that is what makes a
+newly added interpolation fail closed instead of joining an unexamined majority.
+
+| class | count | |
+|---|---:|---|
+| `number` | 96 | derived from the type |
+| `closed-value` | 40 | a catalog string, an engine phrase, a formatted number, a build constant, a model-vocabulary token |
+| `producer` | 1 | bounded where it is PRODUCED, not in the argument list — only some of `rhsDescribeText`'s branches make a token that needs it |
+| `isolated` | 37 | wrapped in the argument list; every one declared in `isolate-obligations.json` |
+| `catalog` | 13 | derived |
+| `attribute` | 12 | PR B's separate axis. Two different numbers: 12 rows carry this CLASS, 18 arguments have an attribute SINK — 8 attribute-sink arguments are mechanically classified and need no row, and 2 rows are attribute by TRACING, because the value is built in a helper whose return value is an `aria-label` and the sink detector cannot follow a value through a function |
+| `enum` | 6 | derived, members printed |
+| `auto` / `ltr` / `per-fragment` | 0 | **none left**: an argument whose evidence says it needs bounding is bounded |
+| `unreachable` | 0 | the class exists and nothing qualified: every argument enumerated is reachable |
+| **total** | **205** | |
+
+The sweep found **27** arguments beyond PR B's eleven. Eight were fixed in C3.5's
+first pass — `import.refresh.columnEvents.unrecognized`, whose header is the
+direct peer of the two events already covered and differed only in which side of
+the refresh it came from, and the five `import.loc.*` calls, whose table name and
+column header are concatenated with an already-isolated `{value}` inside
+`issueText`, so one rendered sentence carried one bounded argument and two
+unbounded ones, the two unbounded ones first.
+
+The other **19** were first left classed `auto` / `ltr` / `per-fragment` and
+recorded as open. That was not a disposition: those class names state the
+treatment the value needs, and a checker asserting they are *not yet* wrapped
+preserves the gap rather than closing it. They are implemented. The checker now
+asserts that set is **empty**, so a row reappearing in one of those classes is
+red, and so is implementing one without moving its row.
+
+Three of them brought a shape the address model could not express, and the
+checker was generalised rather than given a special case each:
+
+* a key held in a local `const` whose initializer is a nested conditional
+  (`inspector.activator.preview.*`),
+* a key that is an inline conditional (`review.foot.*`),
+* a key that is a map lookup with a `??` literal fallback (`regExpr.row.*`).
+
+`resolveKeys` now resolves a literal, a conditional, a `??`, a local `const` and
+a map lookup to a **closed set**, and returns null — a STOP — for anything else.
+That replaced the one `keyAuthority: "dynamic:ISSUE_KEY"` special case the first
+version carried.
+
+**The accounting, with each number's unit stated**, because several are close
+together and none is a restatement of another:
+
+| number | unit |
+|---:|---|
+| 38 | rows — 11 from the PR B census, 27 from the C3.5 sweep |
+| 25 | obligations — one per PRODUCER |
+| 34 | AST call sites the edit touches |
+| 37 | ICU arguments wrapped in the argument list, plus 1 bounded in its producer |
+| 18 | browser tests in `e2e/i18n-ar-isolation.spec.ts` |
+| 33 | obligation and manifest mutations, each RED and named by `check-isolate-arguments.mjs` |
+| 16 | isolate mutations, each RED with only the browser test that covers it run |
+| 10 | population mutations, each RED and named by `check-icu-arguments.mjs` |
+
+**Two shapes bound the value away from the argument list**, and both are real
+rather than a convenience. `wizard-issue-value` prepares its object before the
+call, so there is no argument expression to wrap. `inspector-activator-describe`
+has three returns and only two of them make a token that needs bounding — the
+third is a bare number. Wrapping that one too was the first attempt, and it put
+two invisible characters around every plain number in that preview, in every
+language, for nothing; eleven existing tests went red saying so. The manifest
+declares the producing function and both return counts, so a return added later
+is a branch nobody classified and a wrap removed is the defect.
+
+**What the browser layer covers, and what it does not.** The eighteen tests prove
+the LAYOUT contract — where the value sits in the sentence, and the order of the
+characters inside it — across both isolate kinds, four value shapes, hostile
+input, two per-fragment shapes and an endonym whose direction is opposite to the
+sentence. They do not render every one of the 34 call sites: the remaining ones
+are further instances of shapes already measured, and what decides whether each
+is wired is its kind, argument slot and call site, which
+`check-isolate-arguments.mjs` asserts exactly and which is falsified per
+obligation.
+
+**What a green run here does not say.** It closes the isolation contract up to
+browser layout. How a screen reader pronounces, segments or brailles any of it is
+the named-AT-stack review, and whether the Arabic reads naturally is a native
+review. Neither is a browser measurement.
 
 ## L10. Accessibility
 

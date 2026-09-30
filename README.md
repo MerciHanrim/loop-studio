@@ -10,7 +10,7 @@ implementation — nothing is uploaded, the whole app runs in your browser, and
 a graph is a plain JSON file you own.
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in
-[17 languages](#languages), with five bundled Templates ranging from a small
+[18 languages](#languages), with five bundled Templates ranging from a small
 production flow to a large game economy and a three-zone probability/pity
 comparison.
 
@@ -38,7 +38,7 @@ comparison.
   collaboration — no accounts, no server
 - **Runs anywhere** — an installable offline PWA, a portable single-file
   build, shareable links, and a UI translated into
-  [17 languages](#languages)
+  [18 languages](#languages)
 
 ## Languages
 
@@ -46,12 +46,13 @@ comparison.
      registry by `src/i18n/readmeLocales.test.ts`. Adding or removing a shipped
      language must update this table in the same change. -->
 
-The UI ships in 17 languages, listed here the way the in-app picker orders
+The UI ships in 18 languages, listed here the way the in-app picker orders
 them. Pick one under **Settings → Language**; the first visit follows your
 browser's language, and the choice is remembered on that device.
 
 | Code | Language | In its own words |
 |---|---|---|
+| `ar` | Arabic | العربية |
 | `zh-Hans` | Chinese (Simplified) | 简体中文 |
 | `zh-Hant` | Chinese (Traditional) | 繁體中文 |
 | `nl` | Dutch | Nederlands |

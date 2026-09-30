@@ -33,6 +33,7 @@ import { downloadCsv } from '../../ui/download'
 import { canvasFitInsets, viewportForRect } from '../canvasFit'
 import { useDialogFocus } from '../useDialogFocus'
 import { useQuickStartStore } from './quickStartStore'
+import { isolateAuto } from '../../i18n/bidiIsolate'
 
 // Static lookups, not dynamic `import.issue.` + code template strings --
 // scripts/check-i18n.mjs only recognises a literal call with a quoted
@@ -508,20 +509,38 @@ export function DataImportWizard({
     // anything before it) so the number shown matches what the user sees
     // by counting lines in their own source text, 1-based.
     const headerRowIndex = ui?.draft.headerRowIndex ?? 1
+    // §L9.4 — the LOCATION prefix is concatenated with the issue description in
+    // `issueText`, so the two halves end up in ONE string. The description's own
+    // `{value}` has been isolated since PR C's first pass; leaving the table
+    // name and the column header raw meant the same sentence carried one bounded
+    // argument and two unbounded ones, which is the shape the isolate exists to
+    // prevent. Both are user text from the spreadsheet.
     if (issue.rowIndex !== undefined && issue.columnIndex !== undefined) {
       const row = headerRowIndex + issue.rowIndex + 1
       const column = issue.columnIndex + 1
       return header
-        ? t('import.loc.tableRowColumnHeader', { table, row, column, header })
-        : t('import.loc.tableRowColumn', { table, row, column })
+        ? t('import.loc.tableRowColumnHeader', {
+            table: isolateAuto(table),
+            row,
+            column,
+            header: isolateAuto(header),
+          })
+        : t('import.loc.tableRowColumn', { table: isolateAuto(table), row, column })
     }
     if (issue.rowIndex !== undefined) {
-      return t('import.loc.tableRow', { table, row: headerRowIndex + issue.rowIndex + 1 })
+      return t('import.loc.tableRow', {
+        table: isolateAuto(table),
+        row: headerRowIndex + issue.rowIndex + 1,
+      })
     }
     if (issue.columnIndex !== undefined && header) {
-      return t('import.loc.tableColumnHeader', { table, column: issue.columnIndex + 1, header })
+      return t('import.loc.tableColumnHeader', {
+        table: isolateAuto(table),
+        column: issue.columnIndex + 1,
+        header: isolateAuto(header),
+      })
     }
-    return t('import.loc.table', { table })
+    return t('import.loc.table', { table: isolateAuto(table) })
   }
 
   const issueText = (issue: Issue): string => {
@@ -529,7 +548,10 @@ export function DataImportWizard({
     // (length-capped, control characters made visible); `detail.value`
     // itself stays raw.
     const detail = { ...(issue.detail ?? {}) } as Record<string, string | number>
-    if (typeof detail.value === 'string') detail.value = formatCellValueForDisplay(detail.value)
+    // The copy is what is rendered; `issue.detail` is untouched, so nothing
+    // stored, digested or exported sees the isolate.
+    if (typeof detail.value === 'string')
+      detail.value = isolateAuto(formatCellValueForDisplay(detail.value))
     const desc = t(ISSUE_KEY[issue.code], detail)
     const loc = issueLocation(issue)
     return loc ? `${loc}: ${desc}` : desc
@@ -679,7 +701,7 @@ export function DataImportWizard({
                 const tableErrors = errors.filter((e) => e.tableIndex === ti)
                 const keyText =
                   counts.keyCount === 1 && counts.keyHeader !== null
-                    ? t('import.status.key', { header: counts.keyHeader })
+                    ? t('import.status.key', { header: isolateAuto(counts.keyHeader) })
                     : counts.keyCount === 0
                       ? t('import.status.keyNone')
                       : t('import.status.keyMany', { n: counts.keyCount })

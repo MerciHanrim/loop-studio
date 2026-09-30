@@ -69,6 +69,7 @@ describe('locale registry metadata', () => {
   it('ships exactly the registered languages, the pseudo-locale aside', () => {
     const shipped = LOCALES.filter((l) => !l.pseudo).map((l) => l.code)
     expect([...shipped].sort()).toEqual([
+      'ar',
       'de',
       'en',
       'es-419',
@@ -118,8 +119,15 @@ describe('locale registry metadata', () => {
       const disabled = LOCALES.filter((l) => !l.enabled)
       expect(codes(disabled)).toEqual(['ar-XB'])
       expect(disabled.every((l) => l.pseudo)).toBe(true)
-      // it is the RTL half of the pair, and the only rtl entry there is
-      expect(codes(LOCALES.filter((l) => l.direction === 'rtl'))).toEqual(['ar-XB'])
+      // It is the RTL half of the pseudo pair. It is no longer the ONLY rtl
+      // entry — PR C registered the real `ar` — so what is asserted now is the
+      // pair itself: two rtl locales, exactly one of them a pseudo, and the
+      // pseudo is the disabled one. Keeping the old single-element assertion
+      // would have made "the only rtl locale" silently mean "the QA one".
+      const rtl = LOCALES.filter((l) => l.direction === 'rtl')
+      expect(codes(rtl)).toEqual(['ar', 'ar-XB'])
+      expect(codes(rtl.filter((l) => l.pseudo))).toEqual(['ar-XB'])
+      expect(codes(rtl.filter((l) => !l.enabled))).toEqual(['ar-XB'])
     })
 
     it('every pseudo-locale is dev-only, so production ships none of them', () => {
@@ -224,9 +232,16 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
       const arOwner = LOCALES.find((l) => l.enabled && l.code === 'ar')?.code ?? BASE_LOCALE
       expect(resolveInitialLocale(null, ['ar-XB'])).toBe(arOwner)
       expect(resolveInitialLocale(null, ['ar-xb'])).toBe(arOwner)
-      expect(arOwner).toBe('en') // today; the line above is what survives PR C
-      // nor through a later step, and an acceptable later tag still wins
-      expect(resolveInitialLocale(null, ['ar-XB', 'de'])).toBe('de')
+      expect(arOwner).toBe('ar') // PR C registered it; the lines above survived unchanged
+      // A later tag can only win when the earlier one resolves to NOTHING.
+      // `ar-XB` used to be such a tag; now its base subtag `ar` is registered,
+      // so step 3 answers `ar` and never reaches `de`. That is the correct
+      // reading of the tag — a browser asking for Arabic-in-a-pseudo-region is
+      // asking for Arabic — and the invariant this test is named for still
+      // holds: the answer is the real locale, never the disabled pseudo.
+      expect(resolveInitialLocale(null, ['ar-XB', 'de'])).toBe('ar')
+      // so the fall-through property is asserted with a tag nothing owns
+      expect(resolveInitialLocale(null, ['qaa', 'de'])).toBe('de')
     })
 
     it('every disabled locale is unreachable from a browser tag, whatever it is', () => {
@@ -246,17 +261,23 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
       expect(resolveInitialLocale('en-XA', ['de'])).toBe('en-XA')
     })
 
-    it('does not make ar-XB answer for Arabic — no real ar locale exists yet', () => {
-      // §L9.2: registering the RTL pseudo must NOT quietly start serving Arabic
-      // readers a QA locale. `ar-XB` declares no `baseFallbackFor`, so the base
-      // subtag `ar` owns nothing.
-      for (const tag of ['ar', 'ar-SA', 'ar-EG', 'ar-MA']) {
-        expect(resolveInitialLocale(null, [tag]), tag).toBe('en')
+    it('sends every Arabic tag to the real `ar`, never to the RTL pseudo', () => {
+      // §L9.2 asserted these all reached `en`, because registering `ar-XB` must
+      // not quietly serve Arabic readers a QA locale. PR C registered the real
+      // `ar`, so the destination changes — but the thing that mattered does
+      // not: the pseudo still answers for nothing.
+      for (const tag of ['ar', 'ar-SA', 'ar-EG', 'ar-MA', 'ar-Arab-EG', 'ar-EG-u-nu-latn']) {
+        expect(resolveInitialLocale(null, [tag]), tag).toBe('ar')
       }
+      // bare `ar` carries every regional tag through §L5.2 step 3, so no locale
+      // needs to own the base subtag — the shape `ru`, `tr`, `th`, `vi`, `it`
+      // and `nl` use
       expect(LOCALES.some((l) => l.baseFallbackFor === 'ar')).toBe(false)
+      // and an unregistered tag still falls through to English
+      expect(resolveInitialLocale(null, ['qaa'])).toBe('en')
     })
 
-    it('leaves all seventeen shipped resolutions untouched', () => {
+    it('leaves all eighteen shipped resolutions untouched', () => {
       // the regression this split could plausibly have caused
       const cases: ReadonlyArray<readonly [string, string]> = [
         ['de-AT', 'de'],
@@ -276,6 +297,11 @@ describe('resolveInitialLocale — Chinese script / region mapping', () => {
         ['vi-VN', 'vi'],
         ['ja-JP', 'ja'],
         ['en-GB', 'en'],
+        // `ar` had no row here at all, which `check-locale-lists.mjs` found: a
+        // regional Arabic tag reaching the base subtag is the same §L5.2 step 3
+        // path as `ru-RU` or `nl-BE`, and nothing was asserting it.
+        ['ar-EG', 'ar'],
+        ['ar-SA', 'ar'],
       ]
       for (const [tag, want] of cases) expect(resolveInitialLocale(null, [tag]), tag).toBe(want)
     })

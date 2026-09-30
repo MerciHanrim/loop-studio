@@ -262,11 +262,16 @@ const catalogOf = async (code) => {
 // the same function with a synthetic real `ar` and proves that registering one arms
 // the contract. A rule written only here could be verified only by locales that
 // cannot exercise it.
-const { arrowCatalogViolations } = await import(pathToFileURL(path.join(ROOT, 'src/i18n/arrowContract.ts')).href)
+const { arrowCatalogViolations, arrowCensus } = await import(pathToFileURL(path.join(ROOT, 'src/i18n/arrowContract.ts')).href)
 
 const contractInput = { units: M.units, catalog: M.catalog, conditional: M.conditional }
 const perLocale = []
 let checkedKeys = 0
+let glyphOccurrences = 0
+let conditionalOccurrences = 0
+let censusClaimed = 0
+const censusUnclaimed = []
+const censusDouble = []
 for (const loc of entries) {
   const cat = await catalogOf(loc.code)
   if (!cat) {
@@ -275,16 +280,25 @@ for (const loc of entries) {
     perLocale.push({ ...loc, catalogue: false, checked: 0 })
     continue
   }
+  // the GLOBAL census, over every string in this catalogue rather than over the
+  // keys the manifest names - the one failure a per-key contract cannot see
+  const c = arrowCensus(loc, cat, contractInput)
+  censusClaimed += c.claimed
+  for (const u of c.unclaimed) censusUnclaimed.push(`${loc.code} \`${u.key}\`: ${u.glyph} belongs to no meaning unit`)
+  for (const d of c.multiplyClaimed) censusDouble.push(`${loc.code} \`${d.key}\`: ${d.glyph} claimed by ${d.units.join(' and ')}`)
+
   const r = arrowCatalogViolations(loc, cat, contractInput)
   checkedKeys += r.checked
-  perLocale.push({ ...loc, catalogue: true, checked: r.checked })
+  glyphOccurrences += r.occurrences
+  conditionalOccurrences += r.conditionalOccurrences
+  perLocale.push({ ...loc, catalogue: true, checked: r.checked, occurrences: r.occurrences, conditional: r.conditionalOccurrences })
   for (const m of r.missing) {
     problems.push(`${loc.code}: key \`${m.key}\` is missing - the \`${m.unit}\` arrow contract names it`)
   }
   for (const v of r.violations) {
     const u = M.units[v.unit]
     problems.push(
-      `${v.locale} \`${v.key}\`: the \`${v.unit}\` unit ${u.verdict === 'mirror' ? 'mirrors' : 'keeps its glyph'}, so this ${loc.direction} catalogue must carry \`${v.want}\``,
+      `${v.locale} \`${v.key}\` (${v.unit}${u ? ', ' + u.verdict : ''}): ${v.reason}`,
     )
   }
 }
@@ -293,10 +307,57 @@ for (const loc of entries) {
 const withCatalogue = perLocale.filter((l) => l.catalogue)
 const pseudoNoCatalogue = perLocale.filter((l) => !l.catalogue && l.pseudo)
 const pairsPerLocale = M.catalog.reduce((n, c) => n + c.keys.length, 0)
+const occurrencesPerLocale = M.catalog.reduce(
+  (n, c) => n + c.keys.reduce((m, k) => m + ((c.occurrences && c.occurrences[k]) || 1), 0),
+  0,
+)
 const conditionalHits = checkedKeys - withCatalogue.length * pairsPerLocale
 const expected = withCatalogue.length * pairsPerLocale + conditionalHits
 if (checkedKeys !== expected) {
-  problems.push(`the key-check total ${checkedKeys} does not match ${withCatalogue.length} x ${pairsPerLocale} + ${conditionalHits}`)
+  problems.push(`the pair total ${checkedKeys} does not match ${withCatalogue.length} x ${pairsPerLocale} + ${conditionalHits}`)
+}
+// the manifest's own per-locale numbers, so an edit to one and not the other is red
+if (pairsPerLocale !== M.totals.catalogPairsPerLocale) {
+  problems.push(`pairs per locale: derived ${pairsPerLocale}, manifest declares ${M.totals.catalogPairsPerLocale}`)
+}
+if (occurrencesPerLocale !== M.totals.catalogOccurrencesPerLocale) {
+  problems.push(`occurrences per locale: derived ${occurrencesPerLocale}, manifest declares ${M.totals.catalogOccurrencesPerLocale}`)
+}
+// THE SECOND AXIS. Every catalogue locale must carry exactly the declared number of
+// arrow glyphs - not "at least one per governed key", which is what let a second
+// wrong glyph through.
+const expectedOccurrences = withCatalogue.length * occurrencesPerLocale + conditionalOccurrences
+if (glyphOccurrences !== expectedOccurrences) {
+  problems.push(
+    `the glyph-occurrence total ${glyphOccurrences} does not match ${withCatalogue.length} x ${occurrencesPerLocale} + ${conditionalOccurrences}`,
+  )
+}
+for (const l of withCatalogue) {
+  if (l.occurrences - l.conditional !== occurrencesPerLocale) {
+    problems.push(`${l.code}: ${l.occurrences - l.conditional} governed arrow glyph(s), every catalogue must carry ${occurrencesPerLocale}`)
+  }
+}
+// THE GLOBAL CENSUS. `unclaimed 0` is a statement about every string in all
+// eighteen catalogues, not about the subset the manifest lists; `multiply claimed 0`
+// says each occurrence is attributed to exactly ONE unit, so the two totals above
+// are a partition and not a coincidence.
+for (const u of censusUnclaimed) problems.push(u)
+for (const d of censusDouble) problems.push(d)
+if (censusClaimed !== glyphOccurrences) {
+  problems.push(
+    `the census attributed ${censusClaimed} occurrence(s) but the contract counted ${glyphOccurrences} - the two walks disagree`,
+  )
+}
+
+// the real RTL catalogue is the one the mirrored-glyph rule exists for
+const realRtl = withCatalogue.filter((l) => l.direction === 'rtl' && !l.pseudo)
+if (realRtl.length === 0) {
+  problems.push('no real RTL catalogue is registered, so the mirrored-glyph rule is not exercised by any locale here')
+}
+for (const l of realRtl) {
+  if (l.conditional !== 0) {
+    problems.push(`${l.code}: the conditional key uses ${l.conditional} arrow(s); the Arabic translation was decided to use none`)
+  }
 }
 if (conditionalHits < 0) problems.push('a locale checked fewer keys than the contract names - the arithmetic is wrong, not the catalogue')
 
@@ -315,12 +376,27 @@ console.log('     (unit, key) pairs per locale   ' + pairsPerLocale + '   = ' + 
 console.log('        four keys are governed by TWO units - their string carries two')
 console.log('        different arrows - so pairs exceed distinct keys.')
 console.log('     conditional hits               ' + conditionalHits + '   (import.qs.sources.excel, counted only where a translation uses an arrow at all)')
-console.log('     TOTAL (locale, key, unit)      ' + withCatalogue.length + ' x ' + pairsPerLocale + ' + ' + conditionalHits + ' = ' + checkedKeys)
 console.log('')
-console.log('     no non-pseudo RTL catalogue is registered yet, so nothing here can')
-console.log('     exercise the mirrored-glyph rule. src/i18n/arrowContract.test.ts calls')
-console.log('     the same function with a synthetic `ar` and proves registering one')
-console.log('     arms it.')
+console.log('  TWO AXES, named, because they are different numbers:')
+console.log('     CONTRACT PAIRS    (locale, unit, key) triples the rule is evaluated on')
+console.log('        ' + withCatalogue.length + ' x ' + pairsPerLocale + ' + ' + conditionalHits + ' = ' + checkedKeys)
+console.log('     GLYPH OCCURRENCES arrow characters actually inside those values')
+console.log('        ' + withCatalogue.length + ' x ' + occurrencesPerLocale + ' + ' + conditionalOccurrences + ' = ' + glyphOccurrences)
+console.log('        ' + occurrencesPerLocale + ' and not ' + pairsPerLocale + ' because TWO keys carry the same unit twice:')
+for (const c of M.catalog) {
+  for (const [k, n] of Object.entries(c.occurrences || {})) {
+    console.log('          ' + k + '  ' + n + ' x ' + c.unit + ' (' + c.verdict + ')')
+  }
+}
+console.log('     GLOBAL CENSUS    every arrow in every string of all ' + withCatalogue.length + ' catalogues')
+console.log('        attributed ' + censusClaimed + '   unclaimed ' + censusUnclaimed.length + '   multiply claimed ' + censusDouble.length)
+console.log('        so the two totals above are a PARTITION of the catalogues\' arrows,')
+console.log('        not a sum over the keys the manifest happens to name.')
+console.log('     per-locale distribution: ' + [...new Set(withCatalogue.map((l) => l.occurrences - l.conditional))].join(', ') + ' governed in every catalogue; conditional ' + (withCatalogue.filter((l) => l.conditional).map((l) => l.code + '=' + l.conditional).join(' ') || 'none'))
+console.log('')
+console.log('     the mirrored-glyph rule IS exercised: ' + (realRtl.map((l) => l.code).join(' ') || 'nothing') + ' ships a real RTL catalogue.')
+console.log('     src/i18n/arrowContract.test.ts still calls the same function directly,')
+console.log('     so the rule stays testable for the NEXT RTL locale before it exists.')
 console.log('  problems             : ' + problems.length)
 for (const p of problems) console.log('     ' + p)
 if (problems.length) process.exitCode = 1

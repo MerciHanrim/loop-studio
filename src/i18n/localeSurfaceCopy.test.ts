@@ -36,6 +36,11 @@ type SurfaceMarkers = {
 /** EXHAUSTIVE over `TRANSLATED` — the assertion below fails the moment a
  *  language is registered without a row here, which is the point: the next
  *  locale must decide how it says "English form" before it can ship. */
+// locale-subset-file: every table here is over TRANSLATED locales, so `en` is
+// absent file-wide by construction.
+// locale-subset: TRANSLATED only. `en` is the base catalogue and carries no
+// "this form is in English" marker — it IS the English form, so a row for it would
+// assert nothing.
 const MARKERS: Record<string, SurfaceMarkers> = {
   ko: { englishForm: /영문/, newTab: /새 탭/ },
   ja: { englishForm: /英語/, newTab: /新しいタブ/ },
@@ -53,6 +58,10 @@ const MARKERS: Record<string, SurfaceMarkers> = {
   // Turkish: the form is `İngilizce`; a browser tab is `sekme`.
   tr: { englishForm: /İngilizce/, newTab: /sekme/i },
   th: { englishForm: /ภาษาอังกฤษ/, newTab: /แท็บ/ },
+  // Arabic: the language is `الإنجليزية`; a browser tab is `تبويب`. Both are
+  // written with the definite article in the catalog copy, so the patterns
+  // match the bare stem rather than anchoring on `ال`.
+  ar: { englishForm: /الإنجليزية/, newTab: /تبويب/ },
   // same language as `es-419`, so the same markers — but the row is still
   // required, because the map is asserted exhaustive over the registry and a
   // locale with no row would otherwise ship unchecked

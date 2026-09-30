@@ -1,4 +1,4 @@
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, iso, isoLtr, openApp, resetAll, test } from './support/loop'
 import type { Page } from '@playwright/test'
 
 // docs/parameter-activator.md (PA) §PA7 — the Inspector's `@parameter`
@@ -76,42 +76,42 @@ test.describe('parameter activator authoring (docs/parameter-activator.md §PA7)
     expect(await edgeExpr(page)).toBe('>= @hard_pity')
     await expect(offsetInput(page)).toBeVisible()
     await expect(offsetInput(page)).toHaveValue('0')
-    await expect(preview(page)).toHaveText('target is enabled while the source >= 3 (= Hard pity, currently 3)')
+    await expect(preview(page)).toHaveText(`target is enabled while the source >= 3 (= ${iso('Hard pity')}, currently 3)`)
   })
 
   test('the headline off-by-one fix: an offset of -1 shows the effective threshold live', async ({ page }) => {
     await paramSelect(page).selectOption('hard_pity')
     await offsetInput(page).fill('-1')
     expect(await edgeExpr(page)).toBe('>= @hard_pity - 1')
-    await expect(preview(page)).toHaveText('target is enabled while the source >= 2 (= Hard pity − 1, currently 3)')
+    await expect(preview(page)).toHaveText(`target is enabled while the source >= 2 (= ${iso('Hard pity')} − 1, currently 3)`)
   })
 
   test('a positive offset also works and reads naturally', async ({ page }) => {
     await paramSelect(page).selectOption('hard_pity')
     await offsetInput(page).fill('2')
     expect(await edgeExpr(page)).toBe('>= @hard_pity + 2')
-    await expect(preview(page)).toHaveText('target is enabled while the source >= 5 (= Hard pity + 2, currently 3)')
+    await expect(preview(page)).toHaveText(`target is enabled while the source >= 5 (= ${iso('Hard pity')} + 2, currently 3)`)
   })
 
   test('editing the Parameter value elsewhere updates the live preview without touching the picker', async ({ page }) => {
     await paramSelect(page).selectOption('hard_pity')
     await offsetInput(page).fill('-1')
     await setParamValue(page, 6)
-    await expect(preview(page)).toHaveText('target is enabled while the source >= 5 (= Hard pity − 1, currently 6)')
+    await expect(preview(page)).toHaveText(`target is enabled while the source >= 5 (= ${iso('Hard pity')} − 1, currently 6)`)
     // the stored expr itself never changed — only the live-resolved number did
     expect(await edgeExpr(page)).toBe('>= @hard_pity - 1')
   })
 
   test('an unknown parameter reference blocks its target with a live warning', async ({ page }) => {
     await exprInput(page).fill('>= @ghost - 1')
-    await expect(preview(page)).toContainText('no parameter “ghost”')
+    await expect(preview(page)).toContainText(`no parameter “${isoLtr('ghost')}”`)
     await expect(preview(page)).toContainText('currently blocking its target')
     await expect(preview(page)).toHaveClass(/field__hint--bad/)
   })
 
   test('a wrong-kind reference (a Pool) blocks its target with a live warning naming the kind', async ({ page }) => {
     await exprInput(page).fill('>= @other - 1')
-    await expect(preview(page)).toContainText('“other” is not a parameter (it is a pool)')
+    await expect(preview(page)).toContainText(`“${isoLtr('other')}” is not a parameter (it is a pool)`)
     await expect(preview(page)).toContainText('currently blocking its target')
   })
 
@@ -159,7 +159,7 @@ test.describe('parameter activator authoring (docs/parameter-activator.md §PA7)
     await expect(paramSelect(page)).toHaveCount(0)
     await expect(offsetInput(page)).toHaveCount(0)
     await expect(exprInput(page)).toHaveCount(0)
-    await expect(preview(page)).toHaveText('target is enabled while the source >= 2 (= Hard pity − 1, currently 3)')
+    await expect(preview(page)).toHaveText(`target is enabled while the source >= 2 (= ${iso('Hard pity')} − 1, currently 3)`)
   })
 
   test('mobile: the read-only sheet shows the same live preview text', async ({ page }) => {
@@ -173,14 +173,14 @@ test.describe('parameter activator authoring (docs/parameter-activator.md §PA7)
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await selectEdge(page, 'act1')
     await expect(page.locator('.sheet--inspector .activatorfield__preview')).toHaveText(
-      'target is enabled while the source >= 2 (= Hard pity − 1, currently 3)',
+      `target is enabled while the source >= 2 (= ${iso('Hard pity')} − 1, currently 3)`,
     )
     await expect(page.locator('.activatorfield__param')).toHaveCount(0)
   })
 
   for (const [code, expected] of [
-    ['ko', '소스가 >= 2인 동안 대상이 켜집니다 (= Hard pity − 1, 현재 값 3)'],
-    ['ja', 'ソースが >= 2 の間、ターゲットが有効になります（= Hard pity − 1、現在の値 3）'],
+    ['ko', `소스가 >= 2인 동안 대상이 켜집니다 (= ${iso('Hard pity')} − 1, 현재 값 3)`],
+    ['ja', `ソースが >= 2 の間、ターゲットが有効になります（= ${iso('Hard pity')} − 1、現在の値 3）`],
   ] as const) {
     test(`${code}: the live preview reads as a natural localized sentence`, async ({ page }) => {
       await paramSelect(page).selectOption('hard_pity')

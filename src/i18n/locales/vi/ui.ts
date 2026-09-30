@@ -70,6 +70,7 @@ const ui = {
   'language.vietnamese': 'Tiếng Việt',
   'language.italian': 'Tiếng Ý',
   'language.dutch': 'Tiếng Hà Lan',
+  'language.arabic': 'Tiếng Ả Rập',
   'playbar.reset.title': 'Đặt lại về bước 0',
   'playbar.step.title': 'Tiến một bước',
   'playbar.play': '▶ Chạy',

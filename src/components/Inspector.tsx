@@ -30,6 +30,7 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { RegisterExprField } from './RegisterExprField'
 import { useT, type MessageKey } from '../i18n'
+import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
 import type {
   ConverterData,
   DrainData,
@@ -347,9 +348,9 @@ function EdgeFlowField({
     status = { text: t('inspector.edge.flowParam.malformed'), warn: true }
   } else if (refId != null) {
     const node = useGraphStore.getState().nodes.find((n) => n.id === refId)
-    if (!node) status = { text: t('inspector.edge.flowParam.unknown', { id: refId }), warn: true }
+    if (!node) status = { text: t('inspector.edge.flowParam.unknown', { id: isolateLtr(refId) }), warn: true }
     else if ((node.data as { kind?: string }).kind !== 'parameter')
-      status = { text: t('inspector.edge.flowParam.notParam', { id: refId }), warn: true }
+      status = { text: t('inspector.edge.flowParam.notParam', { id: isolateLtr(refId) }), warn: true }
     else {
       const v = (node.data as { value?: unknown }).value
       status = {
@@ -504,10 +505,15 @@ type TFn = ReturnType<typeof useT>
  *  reached once `ActivatorField` is wired below, which always resolves a
  *  param-term live — kept as the honest fallback if this is ever called on
  *  an unresolved `ActivatorParse` some other way). */
+// §L9.4 — the isolate goes on the two branches that produce a TOKEN, not around
+// the result. The literal branch returns a number, which has no internal order to
+// break and no direction of its own to protect; wrapping it too was the simpler
+// code and the wrong product decision — it put two invisible characters around
+// every plain number in this preview, in every language, for nothing.
 function rhsDescribeText(rhs: ActivatorRhs): string | number {
   if (rhs.kind === 'literal') return rhs.n
-  if (rhs.offset === 0) return `@${rhs.id}`
-  return `@${rhs.id} ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`
+  if (rhs.offset === 0) return isolateLtr(`@${rhs.id}`)
+  return isolateLtr(`@${rhs.id} ${rhs.offset > 0 ? '+' : '−'} ${Math.abs(rhs.offset)}`)
 }
 function describeActivator(t: TFn, p: Extract<ActivatorParse, { ok: true }>): string {
   return t('inspector.activator.describe', { op: p.op, n: rhsDescribeText(p.rhs) })
@@ -583,7 +589,7 @@ function ActivatorField({
       hint = t('inspector.activator.preview.resolved', {
         op: currentOp,
         threshold: resolution.threshold,
-        paramLabel: target?.label ?? rhs.id,
+        paramLabel: isolateAuto(target?.label ?? rhs.id),
         offsetText,
         // = resolution.threshold - rhs.offset, but reading the Parameter's
         // own current value directly (rather than back-computing) stays
@@ -600,7 +606,7 @@ function ActivatorField({
             : resolution.reason === 'non-finite'
               ? 'inspector.activator.preview.nonFinite'
               : 'inspector.activator.preview.overflow'
-      hint = t(key, { id: rhs.id, kind: resolution.kind ?? '' })
+      hint = t(key, { id: isolateLtr(rhs.id), kind: resolution.kind ?? '' })
       hintOk = false
     }
   }
@@ -796,7 +802,10 @@ function LabelTimingField({
   const isWarningLine = classified === 'unsupported' || !!checkedReason
   const groupLine =
     classified === 'unsupported'
-      ? t('inspector.labelTiming.unsupported', { timing: rawOrDash(ed.timing), when: rawOrDash(ed.when) })
+      ? t('inspector.labelTiming.unsupported', {
+          timing: isolateAuto(rawOrDash(ed.timing)),
+          when: isolateAuto(rawOrDash(ed.when)),
+        })
       : checkedReason
         ? t(REASON_KEY[checkedReason])
         : t(classified === 'phase0' ? 'inspector.labelTiming.previewAlways' : 'inspector.labelTiming.previewAfterPull')
@@ -957,7 +966,7 @@ function ResourceTypeField({
       )}
       {norm.value !== null && norm.value !== raw && (
         <p className="inspector__note">
-          {t('inspector.resourceType.normalised', { value: norm.value })}
+          {t('inspector.resourceType.normalised', { value: isolateAuto(norm.value) })}
         </p>
       )}
       {norm.value !== null && !isBuiltinResourceType(norm.value) && (
@@ -966,7 +975,9 @@ function ResourceTypeField({
       {findings.length > 0 && (
         <p className="inspector__note inspector__note--warn">
           {t('inspector.resourceType.mismatch', {
-            pairs: findings.map((f) => `${f.edgeType} ↔ ${f.nodeType}`).join(', '),
+            pairs: findings
+              .map((f) => `${isolateAuto(f.edgeType)} ↔ ${isolateAuto(f.nodeType)}`)
+              .join(', '),
           })}
         </p>
       )}

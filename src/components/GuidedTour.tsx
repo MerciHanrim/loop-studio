@@ -216,7 +216,12 @@ function TourPopover() {
         style={{ top: pop.top, left: pop.left, width: POP_W }}
       >
         <div className="tour-popover__head">
-          <span className="tour-popover__pos" aria-live="polite">
+          {/* §L9.3 — a PINNED numeric pair, not a sentence. `{n} / {total}` is two
+              number runs with a neutral slash between them, so inside an RTL
+              paragraph the runs swap and step 2 of 6 reads `6 / 2`. MEASURED in
+              `e2e/i18n-ar.spec.ts` under `ar`; the characters are identical either
+              way, which is why no text assertion could have caught it. */}
+          <span className="tour-popover__pos" dir="ltr" aria-live="polite">
             {t('tour.nav.position', { n: step + 1, total: TOUR_TOTAL })}
           </span>
           <button

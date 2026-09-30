@@ -80,6 +80,7 @@ const ui = {
   'language.vietnamese': 'Vietnamita',
   'language.italian': 'Italiano',
   'language.dutch': 'Olandese',
+  'language.arabic': 'Arabo',
   'playbar.reset.title': 'Torna al passo 0',
   'playbar.step.title': 'Avanza di un passo',
   'playbar.play': '▶ Avvia',

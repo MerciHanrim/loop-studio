@@ -30,6 +30,10 @@ export type TemplateOverlay = {
  *  entry here plus its `<locale>.ts` file (§TLO2). The value is a dynamic
  *  `import()` so the dict is its own lazily-loaded chunk; the ONE `import()`
  *  yields both maps, so the atomic catalog+dict load contract is unchanged. */
+// locale-subset-file: `BASE_LOCALE` never ships a dictionary, so `en` is absent
+// file-wide.
+// locale-subset: non-base locales only, for the reason the comment above states —
+// `BASE_LOCALE` never ships a dictionary because it is the fallback.
 const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
   ja: () => import('./ja').then((m) => ({ nodes: m.ja, frames: m.jaFrames ?? {} })),
   ko: () => import('./ko').then((m) => ({ nodes: m.ko, frames: m.koFrames ?? {} })),
@@ -53,6 +57,7 @@ const DICT_LOADERS: Readonly<Record<string, () => Promise<TemplateOverlay>>> = {
   vi: () => import('./vi').then((m) => ({ nodes: m.vi, frames: m.viFrames ?? {} })),
   it: () => import('./it').then((m) => ({ nodes: m.it, frames: m.itFrames ?? {} })),
   nl: () => import('./nl').then((m) => ({ nodes: m.nl, frames: m.nlFrames ?? {} })),
+  ar: () => import('./ar').then((m) => ({ nodes: m.ar, frames: m.arFrames ?? {} })),
 }
 
 /** The loaded overlays, filled by `ensureTemplateLabelDict`. */

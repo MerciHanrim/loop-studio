@@ -59,6 +59,7 @@ const ui = {
   'language.vietnamese': 'ベトナム語',
   'language.italian': 'イタリア語',
   'language.dutch': 'オランダ語',
+  'language.arabic': 'アラビア語',
   'playbar.reset.title': 'ステップ 0 に戻す',
   'playbar.step.title': '1 ステップ進める',
   'playbar.play': '▶ 再生',

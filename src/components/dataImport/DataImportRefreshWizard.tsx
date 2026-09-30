@@ -17,6 +17,7 @@ import type { ImportColumnRole } from '../../model/serialize'
 import { useDataImportStore } from '../../store/dataImportStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useDialogFocus } from '../useDialogFocus'
+import { isolateAuto } from '../../i18n/bidiIsolate'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 -- the 4-step refresh wizard for
 // ONE already-bound table: paste/upload -> column events (only shown when
@@ -283,7 +284,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     <div className="mcdlg__scrim" onMouseDown={onClose}>
       <div ref={ref} className="mcdlg mcdlg--dataimport" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mcdlg__head">
-          <span id={titleId}>{t('import.refresh.title', { table: table.label })}</span>
+          <span id={titleId}>{t('import.refresh.title', { table: isolateAuto(table.label) })}</span>
         </div>
         <div className="mcdlg__body">
           {step === 'paste' && (
@@ -352,7 +353,10 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                     const options = ev.kind === 'missing-header' ? headers.map((h, idx) => ({ idx, h })) : ev.candidateIncomingColumnIndexes.map((idx) => ({ idx, h: headers[idx] }))
                     return (
                       <li key={i}>
-                        <p>{ev.kind === 'missing-header' ? t('import.refresh.columnEvents.missingHeader', { header: ev.header, role: t(ROLE_LABEL_KEY[ev.role]) }) : t('import.refresh.columnEvents.ambiguousMatch', { header: ev.header })}</p>
+                        <p>{ev.kind === 'missing-header' ? t('import.refresh.columnEvents.missingHeader', {
+                                header: isolateAuto(ev.header),
+                                role: t(ROLE_LABEL_KEY[ev.role]),
+                              }) : t('import.refresh.columnEvents.ambiguousMatch', { header: isolateAuto(ev.header) })}</p>
                         <select
                           value={choice ? (choice.kind === 'column-removed' ? 'removed' : String(choice.incomingColumnIndex)) : ''}
                           onChange={(e) => {
@@ -392,7 +396,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                         const nc = newColumnChoices[ev.incomingColumnIndex]
                         return (
                           <li key={i}>
-                            <p>{t('import.refresh.columnEvents.unrecognized', { header: ev.header })}</p>
+                            <p>{t('import.refresh.columnEvents.unrecognized', { header: isolateAuto(ev.header) })}</p>
                             <select value={nc?.role ?? ''} onChange={(e) => setNewColumnRole(ev.incomingColumnIndex, e.target.value as NewColumnRole | '')}>
                               <option value="">{t('import.refresh.columnEvents.doNotMap')}</option>
                               {NEW_ROLE_OPTIONS.map((r) => (
@@ -464,7 +468,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                           <li key={row.sourceKey}>
                             <p dir="auto">{row.sourceKey}</p>
                             {blocked ? (
-                              <p className="import__error">{t('import.refresh.review.missingBlocked', { table: tables.find((tb) => tb.sourceTableId === row.dependents[0].dependentTableId)?.label ?? row.dependents[0].dependentTableId })}</p>
+                              <p className="import__error">{t('import.refresh.review.missingBlocked', { table: isolateAuto(tables.find((tb) => tb.sourceTableId === row.dependents[0].dependentTableId)?.label ?? row.dependents[0].dependentTableId) })}</p>
                             ) : (
                               <select value={missingRowChoices.get(row.sourceKey) ?? ''} onChange={(e) => setMissingRowChoices((prev) => { const n = new Map(prev); const v = e.target.value; if (v === 'unlink' || v === 'delete') n.set(row.sourceKey, v); else n.delete(row.sourceKey); return n })}>
                                 <option value="">{t('import.refresh.review.missingChoiceNone')}</option>
@@ -535,7 +539,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                                   checked={fkRepointChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) === 'accept'}
                                   onChange={() => setFkRepointChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'accept'))}
                                 />
-                                {t('import.refresh.review.fkChoiceAccept', { value: c.incoming })}
+                                {t('import.refresh.review.fkChoiceAccept', { value: isolateAuto(c.incoming) })}
                               </label>
                               <label>
                                 <input
@@ -544,7 +548,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
                                   checked={(fkRepointChoices.get(cellResolutionKey(row.sourceKey, c.sourceColumnId)) ?? 'reject') === 'reject'}
                                   onChange={() => setFkRepointChoices((prev) => new Map(prev).set(cellResolutionKey(row.sourceKey, c.sourceColumnId), 'reject'))}
                                 />
-                                {t('import.refresh.review.fkChoiceReject', { value: c.base })}
+                                {t('import.refresh.review.fkChoiceReject', { value: isolateAuto(c.base) })}
                               </label>
                             </div>
                           ))}

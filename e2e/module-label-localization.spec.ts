@@ -60,6 +60,9 @@ const STR = {
   vi: { menuBtn: 'Chèn mô-đun ▾', bufferedStep: 'Bước sản xuất có bộ đệm', rewardSplit: 'Vòng chia phần thưởng' },
   it: { menuBtn: 'Inserisci modulo ▾', bufferedStep: 'Fase di produzione con buffer', rewardSplit: 'Ciclo di ripartizione delle ricompense' },
   nl: { menuBtn: 'Module invoegen ▾', bufferedStep: 'Productiestap met buffers', rewardSplit: 'Kringloop voor beloningsverdeling' },
+  // the first RTL locale. `▾` is `disclosure-vertical`, a KEEP unit, so it is the
+  // same character here as everywhere else (scripts/arrow-units.json).
+  ar: { menuBtn: 'إدراج وحدة ▾', bufferedStep: 'خطوة إنتاج بمخزن مؤقت', rewardSplit: 'حلقة تقسيم المكافآت' },
 } as const
 type Locale = keyof typeof STR
 
@@ -91,6 +94,7 @@ const LABELS = {
     vi: ['Nguồn cung', 'Hàng chờ vào', 'Tiếp nhận', 'Gia công', 'Hao hụt', 'Hàng chờ ra', 'Đã xuất', 'Cỡ lô', 'Số đơn vị trong hệ thống', 'Sản lượng theo kế hoạch'],
     it: ['Fornitura', 'Coda in ingresso', 'Presa in carico', 'Lavorazione', 'Scarti', 'Coda in uscita', 'Spedito', 'Dimensione del lotto', 'Unità nel sistema', 'Produzione pianificata'],
     nl: ['Aanvoer', 'Wachtrij in', 'Inname', 'Bewerking', 'Bederf', 'Wachtrij uit', 'Verzonden', 'Batchgrootte', 'Eenheden in het systeem', 'Geplande run'],
+    ar: ['التوريد', 'وارد الانتظار', 'الإدخال', 'المعالجة', 'التالف', 'صادر الانتظار', 'المشحون', 'حجم الدفعة', 'الوحدات في النظام', 'التشغيل المخطط'],
   },
   'reward-split': {
     en: ['Activity', 'Wallet', 'Allocate', 'Spending', 'Savings', 'Withdrawals', 'Savings target', 'Net worth', 'Progress to target'],
@@ -117,6 +121,7 @@ const LABELS = {
     vi: ['Hoạt động', 'Ví', 'Phân bổ', 'Chi tiêu', 'Tiết kiệm', 'Rút ra', 'Mục tiêu tiết kiệm', 'Giá trị ròng', 'Tiến độ tới mục tiêu'],
     it: ['Attività', 'Portafoglio', 'Ripartisci', 'Spesa', 'Riserve', 'Prelievi', 'Obiettivo di riserve', 'Patrimonio netto', 'Avanzamento verso l’obiettivo'],
     nl: ['Activiteit', 'Portemonnee', 'Verdelen', 'Uitgaven', 'Spaargeld', 'Opnames', 'Spaardoel', 'Nettovermogen', 'Voortgang naar het doel'],
+    ar: ['النشاط', 'المحفظة', 'التوزيع', 'الإنفاق', 'المدّخرات', 'السحوبات', 'هدف الادّخار', 'صافي الثروة', 'التقدّم نحو الهدف'],
   },
 } as const
 
@@ -221,7 +226,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (d) => void d.accept().catch(() => {}))
 })
 
-const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl'] as const
+const SHIPPED = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar'] as const
 
 for (const loc of SHIPPED) {
   test(`${loc}: inserting "Buffered production step" via the menu gets the ${loc} labels`, async ({ page }) => {
@@ -299,7 +304,10 @@ test('an already-inserted instance follows a switch into zh-Hans, zh-Hant, fr an
   await insertViaMenu(page, 'en', 'buffered-step')
   expect(labelsOf(await gs(page), before)).toEqual([...LABELS['buffered-step'].en].sort())
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl'] as const) {
+  // locale-subset: every shipped locale EXCEPT `en`, which is the locale the
+  // instance was inserted under two lines above — the loop is about switching AWAY
+  // from it. `ko` and `ja` were missing for no stated reason and are in now.
+  for (const loc of ['ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar'] as const) {
     await setLocale(page, loc)
     expect(labelsOf(await gs(page), before), `switch to ${loc}`).toEqual(
       [...LABELS['buffered-step'][loc]].sort(),
@@ -325,7 +333,7 @@ test('a renamed node is never relabeled by a zh-Hans / zh-Hant / fr / de switch'
   const mine = inserted.find((n) => n.data?.label === 'Wallet')!
   await renameNode(page, mine.id, 'Mein Konto')
 
-  for (const loc of ['zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'en'] as const) {
+  for (const loc of ['ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar', 'en'] as const) {
     await setLocale(page, loc)
     const now = (await gs(page)).nodes.find((n) => n.id === mine.id)
     expect(now?.data?.label, `${loc} must not overwrite a user rename`).toBe('Mein Konto')

@@ -61,6 +61,7 @@ const ui = {
   'language.vietnamese': 'Vietnamca',
   'language.italian': 'İtalyanca',
   'language.dutch': 'Felemenkçe',
+  'language.arabic': 'Arapça',
   'playbar.reset.title': '0. adıma sıfırla',
   'playbar.step.title': 'Bir adım ilerlet',
   'playbar.play': '▶ Çalıştır',

@@ -19,8 +19,10 @@ import { BASE_ENTRY, BASE_LOCALE, LOCALES, type LocaleEntry } from './registry'
 
 const codes = (l: readonly LocaleEntry[]) => l.map((e) => e.code)
 
-/** the seventeen shipped languages, in the order the picker must show them */
+/** the eighteen shipped languages, in the order the picker must show them */
 const SHIPPED_ORDER = [
+  'ar', //      Arabic — takes the FIRST row, the one `zh-Hans` held since the
+  //            picker order was introduced, and the first RTL language offered
   'zh-Hans', // Chinese (Simplified)
   'zh-Hant', // Chinese (Traditional)
   'nl', //      Dutch — sorts BEFORE English; the first locale ever to

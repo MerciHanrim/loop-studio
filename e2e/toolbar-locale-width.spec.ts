@@ -32,6 +32,10 @@ import { expect, openApp, resetAll, test } from './support/loop'
 const SHIPPED = [
   'en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'it', 'nl',
   'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi',
+  // the first RTL locale. A hard-coded list that omits one does not FAIL, it
+  // silently stops measuring — which is how `ar` sat outside both per-locale
+  // geometry sweeps while everything else about it was being checked.
+  'ar',
 ] as const
 
 type Loop = Record<string, { getState: () => any }>

@@ -9,6 +9,7 @@ import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
 import { useArrowGlyph, useT, type MessageKey } from '../i18n'
+import { isolateAuto } from '../i18n/bidiIsolate'
 
 // docs/module-system.md §MS5 — the Inputs and Summary panels. Two collapsible
 // sections at the top of the desktop right column, above the Inspector. Pure
@@ -181,7 +182,7 @@ function InputsSection({
                     >
                       <bdi dir="auto">{sourceLabel}</bdi> → <bdi dir="auto">{targetLabel}</bdi>
                     </button>
-                    <span className="mp-row__via">{t('panels.inputs.flowVia', { param })}</span>
+                    <span className="mp-row__via">{t('panels.inputs.flowVia', { param: isolateAuto(param) })}</span>
                   </li>
                 )
               })}

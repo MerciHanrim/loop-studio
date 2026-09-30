@@ -50,6 +50,10 @@ describe('officialTemplateLabelIndex', () => {
       'Seviye',
       'Stufe',
       'Уровень',
+      // Arabic sorts here by code unit: U+0627 is above Cyrillic U+0423 and
+      // below Thai U+0E40. The list is `.sort()`ed, so its order is the
+      // platform's, not a reading order.
+      'المستوى',
       'เลเวล',
       'レベル',
       '等級',
