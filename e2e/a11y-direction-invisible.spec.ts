@@ -3,10 +3,11 @@ import { expect, openApp, test } from './support/loop'
 
 // docs/localization.md §L9.3 — the surfaces that carry text nobody can SEE.
 //
-// Three `.sr-only` regions and three shared `aria-describedby` targets render
-// nothing: they are 1×1 and clipped away. That settles their ELEMENT DIRECTION
-// (there is no visual order to get wrong, so there is no `dir` to write) and it
-// settles nothing else, because these elements exist for assistive technology.
+// Four `.sr-only` live regions and three shared `aria-describedby` targets —
+// SEVEN sites in all — render nothing: they are 1×1 and clipped away. That
+// settles their ELEMENT DIRECTION (there is no visual order to get wrong, so
+// there is no `dir` to write) and it settles nothing else, because these
+// elements exist for assistive technology.
 //
 // This spec closes the tier BELOW the assistive technology:
 //

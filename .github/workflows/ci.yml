@@ -62,6 +62,8 @@ jobs:
         run: npm run check:icu-arguments
       - name: Locale lists — no enumeration knows about some shipped locales and not the rest
         run: npm run check:locale-lists
+      - name: Control bytes — no tracked text file carries a raw control byte
+        run: npm run check:control-bytes
       - name: Web build
         run: npm run build
       - name: Portable build

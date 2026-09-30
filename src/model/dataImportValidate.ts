@@ -302,7 +302,7 @@ const DISPLAY_MAX_CODE_POINTS = 40
  *  visible glyphs so a pasted multi-line or binary-ish cell can never
  *  render as layout. Display only -- `Issue.detail.value` stays raw. */
 export function formatCellValueForDisplay(raw: string): string {
-  // A plain loop, deliberately NOT a `/[ -]/` regex: the
+  // A plain loop, deliberately NOT a `/[\x00-\x1f\x7f]/` regex: the
   // portable single-file build inlines the bundle into HTML and re-encodes
   // the literal U+0000 the minifier emits for that escape as U+FFFD, which
   // turns the character class into "range out of order" and crashes the

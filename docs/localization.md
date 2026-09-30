@@ -2243,8 +2243,9 @@ Three are decisions rather than lookups:
 does not — eleven of the thirteen translate it, so the mmo resource reads
 `Vàng`. It still appears verbatim in `inspector.resourceType.placeholder`,
 which lists the canonical `resourceType` tokens a user may type rather than UI
-copy. `Pickup` is **retained pending a native review**: a cross-locale majority
-is not evidence of what Vietnamese gacha players write.
+copy. `Pickup` is retained as established product terminology. No
+native-speaker review was performed, and a cross-locale majority is not evidence
+of what Vietnamese gacha players write.
 
 Five status strings say `vùng trống` — the empty AREA — where English says
 "empty canvas". Thai compresses the same five. They are listed in the guard

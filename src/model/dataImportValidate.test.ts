@@ -91,7 +91,7 @@ describe('validateDrafts -- key rules (§DI6)', () => {
   })
 
   it('a control character in the key is a blocking error', () => {
-    const d = draftFrom(['k'], [['ab']], ['key'])
+    const d = draftFrom(['k'], [['a\x07b']], ['key'])
     const r = validateDrafts([d])
     expect(!r.ok && r.errors.some((e) => e.code === 'key-control-char')).toBe(true)
   })

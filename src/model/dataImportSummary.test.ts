@@ -175,7 +175,7 @@ describe('formatCellValueForDisplay -- what an error message may show of a user 
     expect(out.endsWith('…')).toBe(true)
   })
   it('makes newlines, tabs and other control characters visible instead of rendering them', () => {
-    expect(formatCellValueForDisplay('a\nb\tcd')).toBe('a⏎b⇥c␇d')
+    expect(formatCellValueForDisplay('a\nb\tc\x07d')).toBe('a⏎b⇥c␇d')
   })
   it('truncation counts code points, not UTF-16 units', () => {
     const emoji = '😀'.repeat(50)
