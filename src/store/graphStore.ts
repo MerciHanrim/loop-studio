@@ -36,7 +36,13 @@ import {
   saveToStorage,
   serialize,
 } from '../model/serialize'
-import type { ImportSourceTable, RecommendedRunConfig, SavedFrame } from '../model/serialize'
+import {
+  readTimelineSeries,
+  type ImportSourceTable,
+  type RecommendedRunConfig,
+  type SavedFrame,
+  type TimelineSeries,
+} from '../model/serialize'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
@@ -252,8 +258,8 @@ let autosaveProjectHeader: unknown = null
 // This is reload state, not a reinterpretation of the file-level field.
 // `simStore` is the only writer, via `setAutosaveTimelineSeries`; graphStore
 // just carries the value so its own graph-edit saves don't drop it. Seeded from
-// the boot record below.
-let autosaveTimelineSeries: 'all' | string[] = 'all'
+// the boot record below. `'auto'` ⇒ the record carries no field.
+let autosaveTimelineSeries: TimelineSeries = 'auto'
 
 /** Set (or clear with `null`) the project header persisted alongside the graph,
  *  and flush it immediately with the current graph in one write. Called by
@@ -263,14 +269,25 @@ export function setAutosaveProjectHeader(header: unknown): void {
   writeAutosaveNow()
 }
 
-/** Persist the Timeline visible-series default into the autosave record and
+/** Persist the Timeline visible-series selection into the autosave record and
  *  flush it immediately with the current graph in one write (mirrors
  *  `setAutosaveProjectHeader`). Called by `simStore` on every legend toggle /
  *  `setTimelineSeries`, so the choice survives a plain reload even with no
- *  intervening graph edit. `'all'` clears the field. */
-export function setAutosaveTimelineSeries(ts: 'all' | readonly string[]): void {
-  autosaveTimelineSeries = ts === 'all' ? 'all' : [...ts]
+ *  intervening graph edit. `'auto'` clears the field; `'all'` writes it. */
+export function setAutosaveTimelineSeries(ts: TimelineSeries): void {
+  autosaveTimelineSeries = Array.isArray(ts) ? [...ts] : ts
   writeAutosaveNow()
+}
+
+/** Seed the Timeline selection for a document being LOADED — updates what the
+ *  next autosave will carry WITHOUT flushing a write of its own. The load
+ *  itself (`loadDoc` → `persist()`) already schedules the debounced graph save,
+ *  and that save picks this value up; an extra immediate write here is exactly
+ *  what `docs/timeline-series-contract.md` §3.2 forbids ("loading or resolving
+ *  `timelineSeries` must not cause an additional immediate autosave"). USER
+ *  actions go through `setAutosaveTimelineSeries`, where the flush is right. */
+export function seedAutosaveTimelineSeries(ts: TimelineSeries): void {
+  autosaveTimelineSeries = Array.isArray(ts) ? [...ts] : ts
 }
 
 /** The raw project header from the last autosave record — read once by
@@ -280,9 +297,9 @@ export function bootProjectHeader(): unknown {
 }
 
 /** The Timeline visible-series selection from the last autosave record — read
- *  once by `simStore` to seed its initial `timelineSeries`. `'all'` when the
+ *  once by `simStore` to seed its initial `timelineSeries`. `'auto'` when the
  *  record is absent / has no `timelineSeries`. */
-export function bootTimelineSeries(): 'all' | string[] {
+export function bootTimelineSeries(): TimelineSeries {
   return autosaveTimelineSeries
 }
 
@@ -463,8 +480,7 @@ export const useGraphStore = create<GraphStore>((set, get) => {
   const boot = normalizeGraph(stored ?? makeSample())
   const bootModelVersion: ModelSemanticsVersion = stored?.modelVersion ?? 1
   autosaveProjectHeader = stored?.project ?? null
-  const bootTs = stored?.recommendedRunConfig?.timelineSeries
-  autosaveTimelineSeries = Array.isArray(bootTs) && bootTs.length > 0 ? [...bootTs] : 'all'
+  autosaveTimelineSeries = readTimelineSeries(stored?.recommendedRunConfig?.timelineSeries)
 
   const persist = () => {
     clearTimeout(saveTimer)

@@ -100,10 +100,13 @@ export function TimelineChart() {
     [nodes, pools.length],
   )
 
-  // `timelineSeries` (simStore, UI-only) is the DEFAULT visible set — Pool AND
-  // Register ids. 'all' (or a stale list that names nothing here) shows every
-  // series, exactly as before. A `recommendedRunConfig.timelineSeries` on the
-  // loaded file seeds it; the legend toggles it in place.
+  // `timelineSeries` (simStore, UI-only) is the visible set — Pool AND Register
+  // ids. 'all' (or a stale list that names nothing here) shows every series. A
+  // `recommendedRunConfig.timelineSeries` on the loaded file seeds it; the
+  // legend toggles it in place. 'auto' — the automatic default, i.e. the file
+  // has no field — ALSO shows every series for now: the view-level cap of
+  // `docs/timeline-series-contract.md` §4 is contract step 3, and this step
+  // (§3.1, persistence) deliberately changes nothing the user can see.
   const allSeriesIds = useMemo(
     () => [...pools.map((p) => p.id), ...registers.map((r) => r.id)],
     [pools, registers],
@@ -111,7 +114,10 @@ export function TimelineChart() {
   const listMatches =
     Array.isArray(timelineSeries) && timelineSeries.some((id) => allSeriesIds.includes(id))
   const isShown = (id: string) =>
-    timelineSeries === 'all' || !listMatches || (timelineSeries as string[]).includes(id)
+    timelineSeries === 'all' ||
+    timelineSeries === 'auto' ||
+    !listMatches ||
+    (timelineSeries as string[]).includes(id)
   const shownPools = pools.filter((p) => isShown(p.id))
   const shownRegisters = registers.filter((r) => isShown(r.id))
   const hiddenPools = pools.filter((p) => !isShown(p.id))

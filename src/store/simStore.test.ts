@@ -116,19 +116,21 @@ describe('a simulation-relevant graph change discards the pending queue', () => 
 describe('timelineSeries — the Timeline default visible set (UI-only)', () => {
   const s = () => useSimStore.getState()
 
-  it('defaults to "all"', () => {
-    expect(s().timelineSeries).toBe('all')
+  it('defaults to "auto" — the automatic default, not a stored choice', () => {
+    expect(s().timelineSeries).toBe('auto')
   })
 
-  it('setTimelineSeries: undefined / empty ⇒ "all"; an array is sorted + de-duped', () => {
+  it('setTimelineSeries: undefined / empty ⇒ "auto"; "all" stays "all"; an array is sorted + de-duped', () => {
     s().setTimelineSeries(['b', 'a', 'a', 'c'])
     expect(s().timelineSeries).toEqual(['a', 'b', 'c'])
     s().setTimelineSeries([])
-    expect(s().timelineSeries).toBe('all')
+    expect(s().timelineSeries).toBe('auto')
     s().setTimelineSeries(['x'])
     expect(s().timelineSeries).toEqual(['x'])
-    s().setTimelineSeries(undefined)
+    s().setTimelineSeries('all')
     expect(s().timelineSeries).toBe('all')
+    s().setTimelineSeries(undefined)
+    expect(s().timelineSeries).toBe('auto')
   })
 
   it('setTimelineSeries drops non-strings, keeps unknown ids verbatim', () => {
@@ -147,15 +149,23 @@ describe('timelineSeries — the Timeline default visible set (UI-only)', () => 
 
   it('toggleTimelineSeries from "all" starts an explicit list minus the toggled id', () => {
     const all = ['a', 'b', 'c']
-    expect(s().timelineSeries).toBe('all')
+    s().setTimelineSeries('all')
+    s().toggleTimelineSeries('c', all)
+    expect(s().timelineSeries).toEqual(['a', 'b'])
+  })
+
+  it('toggleTimelineSeries from "auto" behaves the same — every series is on until step 3 caps the view', () => {
+    const all = ['a', 'b', 'c']
+    s().setTimelineSeries(undefined)
+    expect(s().timelineSeries).toBe('auto')
     s().toggleTimelineSeries('c', all)
     expect(s().timelineSeries).toEqual(['a', 'b'])
   })
 })
 
 // The current selection is mirrored into the graph autosave record immediately —
-// no graph edit and no debounce needed — so a plain reload restores it. Toggling
-// back to "all" clears the field. (serialize.ts owns the record shape.)
+// no graph edit and no debounce needed — so a plain reload restores it. "auto"
+// clears the field; "all" and a list write it. (serialize.ts owns the record shape.)
 describe('timelineSeries — immediate autosave into the graph record', () => {
   class MemStorage {
     m = new Map<string, string>()
@@ -177,7 +187,7 @@ describe('timelineSeries — immediate autosave into the graph record', () => {
     vi.stubGlobal('localStorage', new MemStorage())
     useGraphStore.getState().newGraph()
     useGraphStore.getState().addNodeAt('pool', { x: 0, y: 0 })
-    useSimStore.getState().setTimelineSeries(undefined) // selection back to 'all'
+    useSimStore.getState().setTimelineSeries(undefined) // selection back to 'auto'
     localStorage.clear() // start from a known-empty record
   })
   afterEach(() => {
@@ -192,18 +202,23 @@ describe('timelineSeries — immediate autosave into the graph record', () => {
     expect(Array.isArray(rec().nodes)).toBe(true)
   })
 
-  it('toggleTimelineSeries writes on every flip; collapsing to "all" clears the field', () => {
+  it("toggleTimelineSeries writes on every flip; re-selecting every series collapses to 'all', which is WRITTEN", () => {
     const all = ['a', 'b']
     s().toggleTimelineSeries('a', all) // ⇒ ['b']
     expect(rec().recommendedRunConfig).toEqual({ timelineSeries: ['b'] })
-    s().toggleTimelineSeries('a', all) // every id on again ⇒ 'all'
-    expect(rec()).not.toHaveProperty('recommendedRunConfig')
+    s().toggleTimelineSeries('a', all) // every id on again ⇒ 'all' (a stored choice now)
+    expect(s().timelineSeries).toBe('all')
+    expect(rec().recommendedRunConfig).toEqual({ timelineSeries: 'all' })
   })
 
-  it('an explicit setTimelineSeries(undefined) — user chose "all" — also clears the field', () => {
+  it("setTimelineSeries('all') writes the field; setTimelineSeries(undefined) ⇒ 'auto' clears it", () => {
     s().setTimelineSeries(['p1'])
     expect(rec().recommendedRunConfig.timelineSeries).toEqual(['p1'])
+    s().setTimelineSeries('all')
+    expect(s().timelineSeries).toBe('all')
+    expect(rec().recommendedRunConfig).toEqual({ timelineSeries: 'all' })
     s().setTimelineSeries(undefined)
+    expect(s().timelineSeries).toBe('auto')
     expect(rec()).not.toHaveProperty('recommendedRunConfig')
   })
 

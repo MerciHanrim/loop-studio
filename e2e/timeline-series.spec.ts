@@ -8,7 +8,9 @@ import { expect, openApp, resetAll, test } from './support/loop'
 //   • NEVER in the GraphDoc proper, the loop-revision/* digest, undo, or
 //     simulationRev, and distinct from the Monte-Carlo `tracked` list,
 //   • unknown / deleted ids ignored,
-//   • absent ⇒ every series shown (older-file behaviour).
+//   • absent ⇒ the internal `auto` default. Until contract step 3 lands the
+//     view-level cap, `auto` still shows every series (older-file behaviour);
+//     `'all'` is a separate, STORED choice (docs/timeline-series-contract.md §3).
 //
 // Merge conditions (review): no data loss through Graph export→import→export,
 // Workspace export→import→export, and Share create→restore; digest / undo
@@ -127,25 +129,29 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     await expect(legend2.locator('.timeline__key.is-off', { hasText: 'P2' })).toBeVisible()
   })
 
-  test('a document with NO recommended list reloads to the plain "all" default', async ({ page }) => {
+  test('a document with NO recommended list reloads to the "auto" default — and the record carries no field', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page) // no timelineSeries field
-    expect(await seriesState(page)).toBe('all')
+    expect(await seriesState(page)).toBe('auto')
 
     await page.reload()
     await expect(page.locator('.canvas')).toBeVisible()
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await showTimeline(page)
 
-    expect(await seriesState(page)).toBe('all')
+    expect(await seriesState(page)).toBe('auto')
+    // the automatic default is never written: absent stays absent across the reload
+    expect(
+      await page.evaluate(() => /"timelineSeries"/.test(localStorage.getItem('loop-studio:graph:v1') ?? '')),
+    ).toBe(false)
     for (const label of ['P1', 'P2', 'Reg A', 'Reg B']) {
       await expect(page.locator('.timeline__legend .timeline__key', { hasText: label })).toBeVisible()
     }
     await expect(page.locator('.timeline__legend .timeline__key--more')).toHaveCount(0)
   })
 
-  test('a user who explicitly returns the legend to "all" reloads to "all" (no resurrected subset)', async ({ page }) => {
+  test('a user who explicitly returns the legend to "all" reloads to "all" — a STORED choice, distinct from "auto"', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page, ['p1']) // starts on a recommended subset
@@ -166,6 +172,10 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
 
     expect(await seriesState(page)).toBe('all')
     await expect(page.locator('.timeline__legend .timeline__key--more')).toHaveCount(0)
+    // …and it came back as 'all' BECAUSE the record stored it — not by falling to the default
+    expect(
+      await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? '{}').recommendedRunConfig?.timelineSeries),
+    ).toBe('all')
   })
 
   test('reload restores timelineSeries AND canvasLocked; the MC config is not re-applied', async ({ page }) => {
@@ -197,11 +207,11 @@ test.describe('recommendedRunConfig.timelineSeries', () => {
     expect(cfg.steps).not.toBe(55)
   })
 
-  test('no timelineSeries ⇒ every series shown, no "+N more" (older-file behaviour)', async ({ page }) => {
+  test('no timelineSeries ⇒ "auto": every series shown, no "+N more" (older-file behaviour, until step 3)', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await seed(page) // no field
-    expect(await seriesState(page)).toBe('all')
+    expect(await seriesState(page)).toBe('auto')
     await showTimeline(page)
     const legend = page.locator('.timeline__legend')
     for (const label of ['P1', 'P2', 'Reg A', 'Reg B']) {
