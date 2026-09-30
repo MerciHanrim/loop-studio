@@ -3671,6 +3671,35 @@ What is NOT here, stated so a green run is not mistaken for more than it is:
   test, so it picks the PlayBar one — but it asserts no COUNT, which is how a
   fourth region came to exist unrecorded. The AT review therefore has **seven**
   sites, not six.
+  **The seven sites are now a permanent contract.**
+  `e2e/a11y-announcement-contract.spec.ts` exercises all seven across 26 product
+  paths and holds two tiers to account: the DOM string the app renders, and
+  Chrome's own accessibility tree read over CDP. It is locale-parameterized
+  (`ar` and the `en` control); adding a locale is adding a row, and re-running it
+  over the other shipped locales is deliberately out of scope.
+
+  What it asserts is structural, not a snapshot, so it survives a catalogue
+  edit: each path produces a non-empty string; the isolated user value survives
+  whole inside exactly one FSI/PDI pair with zero other bidi controls; the string
+  appears at the AX property that site is supposed to carry it at
+  (`descendantText` for the four live regions, `description` for the three frame
+  descriptions); a state change REPLACES the phrasing rather than appending to
+  it; and the sweep covers exactly 26 unique paths across exactly seven sites, so
+  a path that stops being exercised fails rather than disappearing.
+
+  Two behaviours are separate contracts because they assert the ABSENCE and the
+  TIMING of an announcement: a multi-step **jump** announces nothing, and a
+  single increment announces once, deferred by the 900 ms throttle.
+
+  The three frame descriptions are measured the only way an assistive technology
+  can reach them - by focusing the frame that REFERENCES them, and reading its
+  name, role and description together. The targets themselves live inside an
+  `aria-hidden` wrapper and can never be read directly.
+
+  **What a green run does NOT mean.** The Windows UI Automation payload is not
+  reachable from this harness, so nothing here is evidence about NVDA, speech or
+  braille. That tier is issue #290: manual, non-blocking, and explicitly not a
+  release gate.
 * **The `dir` attributes on the 115 attribute-only sites** (`title`, `aria-label`)
   are unchanged: markup cannot reach an attribute.
 
