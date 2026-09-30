@@ -6,13 +6,20 @@ import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 //
 // SCOPE, stated once because the value of this spec depends on it:
 //
-//   verified here : the DOM string the app renders, and Chrome's own
-//                   accessibility tree over CDP
+//   verified here : the DOM string the app renders, the DOM mutations that
+//                   rewrite it, and Chrome's own accessibility tree over CDP
 //   NOT verified  : the Windows UI Automation payload, and therefore anything
 //                   about NVDA, speech or braille. A green run here is NOT a
 //                   claim that a screen reader reads any of this correctly.
 //                   That tier is issue #290, manual, and deliberately
 //                   non-blocking.
+//
+// The distinction is load-bearing in the two timing tests. "The live-region
+// text was rewritten once" is a DOM fact this spec can establish. "It was
+// spoken once" is not: coalescing, interruption and suppression all happen
+// above the DOM, and asserting an utterance count from a text mutation would be
+// a claim this harness cannot support. The test names say text update for that
+// reason.
 //
 // The spec is locale-parameterized. `ar` is the locale the isolates were added
 // for; `en` is the LTR control. Adding a locale is adding a row to LOCALES -
@@ -43,6 +50,44 @@ const AX_CARRIER: Record<Site, 'descendantText' | 'description'> = {
   'frame-desc-selected': 'description',
   'frame-desc-readonly': 'description',
 }
+
+// PlaybackAnnouncer's throttle window, and the slack a loaded runner needs.
+// The tolerance is named rather than folded into a magic bound, so the claim
+// the timing assertions make is explicit.
+const ANNOUNCE_MIN_MS = 900
+const TIMING_TOLERANCE_MS = 400
+const SETTLE_MS = 600
+const PLAY_SEL = '[data-playback-announce]'
+
+/**
+ * Count TEXT updates to a live region with a MutationObserver.
+ *
+ * This is a DOM-mutation claim and nothing more. It says the app rewrote (or
+ * did not rewrite) the region's text. It says NOTHING about how many times a
+ * screen reader speaks, whether it coalesces two updates into one utterance, or
+ * whether it suppresses one - that tier needs UI Automation and stays in #290.
+ */
+async function watchText(page: Page, selector: string): Promise<void> {
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel)
+    if (!el) throw new Error('no element for ' + sel)
+    const w = { count: 0, texts: [] as string[] }
+    ;(window as unknown as Record<string, unknown>).__a11yWatch = w
+    let last = el.textContent ?? ''
+    const mo = new MutationObserver(() => {
+      const now = el.textContent ?? ''
+      if (now === last) return // attribute churn that left the text alone
+      last = now
+      w.count++
+      w.texts.push(now)
+    })
+    mo.observe(el, { childList: true, characterData: true, subtree: true })
+  }, selector)
+}
+const mutations = (page: Page) =>
+  page.evaluate(
+    () => (window as unknown as { __a11yWatch: { count: number; texts: string[] } }).__a11yWatch,
+  )
 
 const ISOLATE_OPEN = 0x2068 // FSI
 const ISOLATE_CLOSE = 0x2069 // PDI
@@ -109,10 +154,34 @@ async function transition(
 ): Promise<{ before: string; after: string }> {
   const before = await read()
   await action()
-  await expect.poll(read, { timeout: 6000, message: what }).not.toBe(before)
-  const after = await read()
+  // KEEP THE SAMPLE THAT PASSED. `expect.poll` does not hand back the value it
+  // saw, so re-reading after it succeeds can pick up a later value - including
+  // one that has reverted to `before`. That is the same transient/stale family
+  // this helper exists to close, so the passing sample is captured here and
+  // pinned below.
+  const after = await pollFor(read, (v) => v !== before && v !== '', 6000, what)
+  expect(after, `${what}: the captured value must differ from the previous one`).not.toBe(before)
   expect(after, `${what}: must not be empty`).not.toBe('')
   return { before, after }
+}
+
+/** poll the exact predicate and return the value that satisfied it */
+async function pollFor(
+  read: () => Promise<string>,
+  pred: (v: string) => boolean,
+  timeoutMs: number,
+  what: string,
+): Promise<string> {
+  const t0 = Date.now()
+  let last = ''
+  for (;;) {
+    last = await read()
+    if (pred(last)) return last
+    if (Date.now() - t0 > timeoutMs) {
+      throw new Error(`${what}: timed out after ${timeoutMs}ms; last value was ${JSON.stringify(last)}`)
+    }
+    await new Promise((r) => setTimeout(r, 40))
+  }
 }
 
 type Case = { id: string; site: Site; selector: string; dom: string }
@@ -208,6 +277,17 @@ for (const locale of LOCALES) {
           `${id}: the rendered string must appear as the AX ${AX_CARRIER[site]}`,
         ).toBe(dom)
 
+        // For the three frame descriptions the unit is the whole focus payload:
+        // an assistive technology receives NAME, ROLE and DESCRIPTION together,
+        // so all three are pinned in EVERY state, not once at the end. A
+        // description that changes while the role or the name silently drops is
+        // exactly the failure this catches.
+        if (site.startsWith('frame-desc')) {
+          expect(ax?.role, `${id}: the referencing element must keep role group`).toBe('group')
+          expect((ax?.name ?? '').length, `${id}: the frame must keep an accessible name`).toBeGreaterThan(0)
+          expect(ax?.name, `${id}: the name must carry the user label`).toContain('مبيعات Q1')
+        }
+
         const shape = isolateShape(dom)
         expect(shape.others, `${id}: no bidi control outside the FSI/PDI pair`).toBe(0)
         if (isolated === undefined) {
@@ -244,12 +324,6 @@ for (const locale of LOCALES) {
       await expect.poll(() => describedId(page)).toBe('lgr-frame-desc-readonly')
       await settle('desc/readonly', 'frame-desc-readonly', FRAME_SEL, await describedText(page))
       await page.evaluate(() => (window as any).__loop.ui.getState().setCanvasLocked(false))
-
-      // the frame carries a real accessible NAME alongside, and focus delivers
-      // the three together - the thing the manual pass judges
-      const frameAx = await axOf(cdp, FRAME_SEL)
-      expect(frameAx?.role, 'the referencing element must be a group').toBe('group')
-      expect((frameAx?.name ?? '').length, 'the frame must have an accessible name').toBeGreaterThan(0)
 
       // ---- site 1: the frame live region, per label shape, move and resize
       for (const [shape, label] of LABELS) {
@@ -378,7 +452,7 @@ for (const locale of LOCALES) {
     // Two behaviours that are contracts in their own right, kept separate
     // because they assert the ABSENCE and the TIMING of an announcement rather
     // than the content of one.
-    test(`a multi-step jump announces nothing [${locale}]`, async ({ page }) => {
+    test(`a multi-step jump leaves the live-region text unchanged, 0 mutations [${locale}]`, async ({ page }) => {
       await openApp(page)
       await setLocale(page, locale)
       const sim = (patch: Record<string, unknown>) =>
@@ -386,17 +460,21 @@ for (const locale of LOCALES) {
 
       await sim({ status: 'idle', stepIndex: 0 })
       await sim({ status: 'running', stepIndex: 0 })
-      await expect.poll(() => readPlay(page)).not.toBe('')
+      await pollFor(() => readPlay(page), (v) => v !== '', 6000, 'started')
       const before = await readPlay(page)
 
-      // 0 -> 9 is a JUMP, not progress: it cancels any queued step message and
-      // announces nothing. The region must still hold the previous string.
+      // 0 -> 9 is a JUMP, not progress: it cancels any queued step message. The
+      // claim is about the DOM, not about speech: the live region's text must
+      // not be rewritten, and the observer must see no mutation at all.
+      await watchText(page, PLAY_SEL)
       await sim({ stepIndex: 9 })
-      await page.waitForTimeout(1500) // longer than ANNOUNCE_MIN_MS (900ms)
-      expect(await readPlay(page), 'a jump must not announce').toBe(before)
+      await page.waitForTimeout(ANNOUNCE_MIN_MS + SETTLE_MS)
+      const seen = await mutations(page)
+      expect(seen.count, 'a jump must not rewrite the live region').toBe(0)
+      expect(await readPlay(page), 'the previous text must still be in place').toBe(before)
     })
 
-    test(`a single increment announces once, after the throttle [${locale}]`, async ({ page }) => {
+    test(`a single increment updates the live-region text exactly once, after the throttle [${locale}]`, async ({ page }) => {
       await openApp(page)
       await setLocale(page, locale)
       const sim = (patch: Record<string, unknown>) =>
@@ -404,20 +482,27 @@ for (const locale of LOCALES) {
 
       await sim({ status: 'idle', stepIndex: 0 })
       await sim({ status: 'running', stepIndex: 0 })
-      await expect.poll(() => readPlay(page)).not.toBe('')
+      await pollFor(() => readPlay(page), (v) => v !== '', 6000, 'started')
       const started = await readPlay(page)
 
+      await watchText(page, PLAY_SEL)
       const t0 = Date.now()
-      const { after: stepped } = await transition(
-        () => readPlay(page),
-        () => sim({ stepIndex: 1 }),
-        'throttled step',
-      )
+      await sim({ stepIndex: 1 })
+      // wait for the first text change, then keep waiting to prove no SECOND
+      // one arrives - a count of exactly one is the contract
+      const stepped = await pollFor(() => readPlay(page), (v) => v !== started && v !== '', 6000, 'throttled step')
       const waited = Date.now() - t0
-      expect(stepped).not.toBe(started)
-      // it is DEFERRED: the status change reset the throttle window, so the
-      // step message cannot have arrived immediately
-      expect(waited, 'the step message must be deferred by the throttle').toBeGreaterThanOrEqual(500)
+      await page.waitForTimeout(ANNOUNCE_MIN_MS + SETTLE_MS)
+
+      const seen = await mutations(page)
+      expect(seen.texts.filter((x) => x !== started).length, 'exactly one text update').toBe(1)
+      expect(seen.texts.at(-1), 'the observed update must be the value that was read').toBe(stepped)
+      // DEFERRED, not immediate: the status change reset the throttle window, so
+      // the update cannot land before the window minus the scheduling tolerance.
+      expect(waited, `deferred by at least ${ANNOUNCE_MIN_MS - TIMING_TOLERANCE_MS}ms`)
+        .toBeGreaterThanOrEqual(ANNOUNCE_MIN_MS - TIMING_TOLERANCE_MS)
+      expect(waited, 'and not later than the window plus the tolerance')
+        .toBeLessThanOrEqual(ANNOUNCE_MIN_MS + TIMING_TOLERANCE_MS * 3)
     })
   })
 }

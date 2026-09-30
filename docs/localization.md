@@ -3688,13 +3688,20 @@ What is NOT here, stated so a green run is not mistaken for more than it is:
   a path that stops being exercised fails rather than disappearing.
 
   Two behaviours are separate contracts because they assert the ABSENCE and the
-  TIMING of an announcement: a multi-step **jump** announces nothing, and a
-  single increment announces once, deferred by the 900 ms throttle.
+  TIMING of a text update rather than its content, and both are stated as DOM
+  facts: a multi-step **jump** leaves the live region's text untouched with zero
+  MutationObserver mutations, and a single increment rewrites it exactly once,
+  deferred by the 900 ms throttle within a named tolerance. Neither says
+  anything about how many times a screen reader SPEAKS - coalescing,
+  interruption and suppression all happen above the DOM, and an utterance count
+  is not derivable from a text mutation.
 
   The three frame descriptions are measured the only way an assistive technology
   can reach them - by focusing the frame that REFERENCES them, and reading its
   name, role and description together. The targets themselves live inside an
-  `aria-hidden` wrapper and can never be read directly.
+  `aria-hidden` wrapper and can never be read directly. All three are pinned in
+  EVERY state, not once at the end: a description that changes while the role or
+  the accessible name silently drops is the failure that would otherwise pass.
 
   **What a green run does NOT mean.** The Windows UI Automation payload is not
   reachable from this harness, so nothing here is evidence about NVDA, speech or
