@@ -89,6 +89,14 @@ async function openGachaInEnglish(page: Page) {
   const confirm = page.locator('.mcdlg--confirm .mcdlg__foot .btn--primary')
   if (await confirm.isVisible().catch(() => false)) await confirm.click()
   await expect(page.locator('.lgr-frame')).toHaveCount(4)
+  // `docState` reads the AUTOSAVE record. A template load used to flush one
+  // immediately as a side effect of applying its Timeline series default;
+  // docs/timeline-series-contract.md §3.2 removed that flush, so the record
+  // now lands with the load's own debounced save. Wait for the state the
+  // assertions read, not for a fixed time.
+  await expect
+    .poll(async () => Object.keys((await docState(page)).titles).length, { message: 'the autosave record holds the four frames' })
+    .toBe(4)
 }
 
 test('a document that enters a hyphenated locale can still leave it', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, importGraph, openApp, readRiskyFactory, resetAll, test, snap } from './support/loop'
+import { expect, importGraph, openApp, openTimelineRecentring, readRiskyFactory, resetAll, test, snap } from './support/loop'
 
 // The existing visual specs frame `.timeline` and don't touch the canvas, so the
 // minimap legibility fix (per-kind node hues, viewport outline, mask, frame
@@ -6,6 +6,11 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test, snap } 
 
 async function minimapReady(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page)
+  // the baselines were captured with the Timeline panel open from mount; it
+  // now starts collapsed (timeline-series-contract §7), and the mount fit
+  // centred the camera on the taller pane — re-centre for the open pane
+  // (see `openTimelineRecentring`)
+  await openTimelineRecentring(page)
   await resetAll(page)
   await importGraph(page, readRiskyFactory())
   await expect(page.locator('.react-flow__node')).toHaveCount(18)

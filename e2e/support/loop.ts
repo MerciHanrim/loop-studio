@@ -108,9 +108,43 @@ export async function ensureTimelineOpen(page: Page): Promise<void> {
     }
   } else {
     const collapse = page.locator('.pstrip__collapse')
-    if ((await collapse.getAttribute('aria-expanded')) === 'false') await collapse.click()
+    if ((await collapse.getAttribute('aria-expanded')) === 'false') {
+      await collapse.click()
+      // the panel is visible a beat before the canvas has finished shrinking
+      // around it — wait for the laid-out height, not the class
+      await expect
+        .poll(() => page.evaluate(() => document.querySelector('.timeline')!.getBoundingClientRect().height), {
+          message: 'the Timeline reached its open height',
+        })
+        .toBeGreaterThanOrEqual(200)
+    }
   }
   await expect(page.locator('.timeline__panel')).toBeVisible()
+}
+
+/**
+ * `ensureTimelineOpen` for a pixel spec that frames the canvas under the
+ * app's own camera. The camera is set by the fit at MOUNT (an import keeps
+ * the camera it finds), and the mount now happens on the collapsed pane, so
+ * opening the panel afterwards leaves the viewport centred exactly half the
+ * panel's height lower than a mount with the panel open — the state every
+ * canvas baseline was captured in. MEASURED (2026-10-01): x and zoom are
+ * width-bound and identical either way; only y moves, by 100 px at 1280x800.
+ * This re-centres by the measured half-delta, so the shot sees the baseline's
+ * camera without a hard-coded number.
+ */
+export async function openTimelineRecentring(page: Page): Promise<void> {
+  const paneH = () => page.evaluate(() => document.querySelector('.react-flow')!.getBoundingClientRect().height)
+  const before = await paneH()
+  await ensureTimelineOpen(page)
+  const after = await paneH()
+  const delta = before - after
+  if (delta <= 0) return
+  await page.evaluate((d) => {
+    const rf = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number }; setViewport: (v: object, o?: object) => unknown } } }).__loop.rf
+    const vp = rf.getViewport()
+    void rf.setViewport({ ...vp, y: vp.y - d / 2 }, { duration: 0 })
+  }, delta)
 }
 
 /** Empty graph + idle sim + no Monte-Carlo result. */
