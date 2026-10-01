@@ -1,12 +1,12 @@
 import type { Page } from '@playwright/test'
-import { probe } from './support/boundary'
-import { expect, openApp, test } from './support/loop'
+import { dist, parseRgb, probe, rgbAt } from './support/boundary'
+import { ensureTimelineOpen, expect, openApp, test } from './support/loop'
 
 // The shell design branch (2026-10-01) put the LIGHT shell on the shared Cozy
 // Shelter tokens. Its contract has two halves, and both are pinned here on the
 // values the browser actually computes:
 //
-//   1. the FUNCTIONAL colours are byte-identical to what they were before — the
+//   1. the FUNCTIONAL TOKEN VALUES are identical to what they were before — the
 //      node hues, the edge / flow / signal colours, the frame accents, the
 //      state colours, the graph's own focus colour, the structure line the
 //      node silhouettes and chart axes draw, the node and edge-label
@@ -15,10 +15,19 @@ import { expect, openApp, test } from './support/loop'
 //   2. the SHELL reads the family layer in light only: dark is Loop's own
 //      palette, unchanged, because the family layer has no dark values.
 //
-// What is NOT claimed: the canvas's INK. Node titles, edge-chip text and the
-// flow-token count are drawn in `--text-primary` / `--text-secondary`, which are
-// shell tokens, and so is the canvas background and its grid (`--line-hairline`).
-// Those follow the shell by design and are listed in section 3.
+// The claim is about token values, and it is deliberately no wider:
+//   - opaque data marks (node strokes and hues, edges, signal and state marks)
+//     were measured pixel-identical between `main` and this branch;
+//   - a TRANSLUCENT functional fill (a frame tint, the 4 % hue wash, the flow
+//     trail) composites over the shell background, so its rendered result can
+//     differ by up to 6 per channel in light. That is the background changing,
+//     not the functional colour.
+//   - the canvas's INK is not a functional colour. Node titles, edge-chip text
+//     and the flow-token count are information ink (`--text-primary` /
+//     `--text-secondary`), and the dot grid and plot grids are non-data
+//     structure (`--canvas-grid` / `--chart-grid`, the hairline). They follow
+//     the shell in light, keep their values in dark, and take a system colour
+//     under forced colours (section 4).
 
 type Table = Record<string, string>
 
@@ -105,8 +114,10 @@ const SHELL_LIGHT: Table = {
   '--surface-panel': 'rgb(255, 255, 255)', // --cs-panel
   '--surface-raised': 'rgb(255, 255, 255)',
   '--surface-overlay': 'rgb(255, 255, 255)',
-  '--surface-sunken': 'rgb(233, 232, 226)', // Loop's own, unmapped
+  '--surface-sunken': 'rgb(247, 247, 245)', // --cs-surface-soft, the token the ground reads: no warm grey left
   '--line-hairline': 'rgb(217, 221, 228)', // --cs-line
+  '--canvas-grid': 'rgb(217, 221, 228)', // the dot grid follows the hairline
+  '--chart-grid': 'rgb(217, 221, 228)', // so do the plot grids
   '--line-container': 'rgb(217, 221, 228)',
   '--line-control': 'rgb(108, 116, 110)', // Loop's own (>= 3:1), NOT --cs-control-line
   '--line-control-hover': 'rgb(79, 86, 81)', // its own value — does not follow the shared ink
@@ -128,6 +139,8 @@ const SHELL_DARK: Table = {
   '--surface-overlay': 'rgb(43, 48, 44)',
   '--surface-sunken': 'rgb(20, 23, 21)',
   '--line-hairline': 'rgb(60, 64, 60)',
+  '--canvas-grid': 'rgb(60, 64, 60)', // the dark grid is what it was
+  '--chart-grid': 'rgb(60, 64, 60)',
   '--line-container': 'rgb(99, 104, 95)', // what containers drew before the split
   '--line-control': 'rgb(167, 175, 168)',
   '--line-control-hover': 'rgb(200, 206, 200)',
@@ -215,5 +228,70 @@ test.describe('shell tokens — the family layer itself', () => {
     expect(await radius('.palette-item .chip, .chip')).toBe('8px')
     expect(await radius('.pstrip__seed'), 'a compact control keeps its own radius').toBe('5px')
     expect(await radius('.minimap-toggle'), 'a compact control keeps its own radius').toBe('4px')
+  })
+})
+
+// SVG fill and stroke are not recoloured by forced colours. Before the grids had
+// their own tokens they were painted in the shell hairline, so the light palette
+// showed through a high-contrast theme. They now name a system colour.
+test.describe('shell tokens — forced colours', () => {
+  test.use({ contextOptions: { forcedColors: 'active' } })
+
+  test('4. the canvas grid and the plot grid are the system GrayText, not a shell colour', async ({ page }) => {
+    await openApp(page)
+    expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true)
+    const grayText = await probe(page, 'GrayText')
+    // `color` is a property forced colours override, so a shell token is
+    // resolved through `fill` here — the property the grids actually use, and
+    // one the UA leaves alone. That is the whole reason the tokens exist: the
+    // hairline is still the light shell value when it is used as SVG paint.
+    const paint = (css: string) =>
+      page.evaluate((v) => {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        el.style.fill = v
+        document.body.append(el)
+        const c = getComputedStyle(el).fill
+        el.remove()
+        return c
+      }, css)
+    const hairline = await paint('var(--line-hairline)')
+    expect(hairline, 'SVG paint is not recoloured: the hairline is still the light shell value').toBe('rgb(217, 221, 228)')
+    expect(grayText, 'the system colour is not the shell hairline').not.toBe(hairline)
+    expect(await paint('var(--canvas-grid)')).toBe(grayText)
+    expect(await paint('var(--chart-grid)')).toBe(grayText)
+
+    // the dot grid that is actually drawn (it exists from the L2 zoom up, which
+    // is where the starter graph opens)
+    const dot = page.locator('.react-flow__background circle').first()
+    await expect(dot).toHaveCount(1)
+    expect(await dot.evaluate((el) => getComputedStyle(el).fill)).toBe(grayText)
+    console.log(`[shell] forced colours: canvas grid fill ${grayText} (GrayText); light hairline is ${hairline}`)
+
+    // a plot grid line, on real pixels
+    await ensureTimelineOpen(page)
+    // (a horizontal SVG line has a zero-height box, so it is never "visible" to
+    //  a locator: it is located by its own rectangle instead)
+    const line = page.locator('.timeline__grid').first()
+    await expect(line).toHaveCount(1)
+    expect(await line.evaluate((el) => getComputedStyle(el).stroke)).toBe(grayText)
+    const b = await line.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return { x: r.x, y: r.y, width: r.width }
+    })
+    expect(b.width).toBeGreaterThan(100)
+    const cx = b.x + b.width / 2
+    const column = await rgbAt(page, await page.screenshot(), [-1, 0, 1].map((o) => ({ x: cx, y: b.y + o })))
+    console.log(`[shell] forced colours: Timeline grid line pixels ${JSON.stringify(column)}`)
+    // a 1 px line on a pixel boundary is anti-aliased over two rows, so the
+    // painted pixel is a BLEND of GrayText and the surface. It must sit on the
+    // line between those two colours, and nowhere near the light hairline.
+    const gray = parseRgb(grayText)
+    const surface = parseRgb(await probe(page, 'Canvas'))
+    const px = column.reduce((best, c) => (dist(c, surface) > dist(best, surface) ? c : best))
+    const t = (surface[0] - px[0]) / (surface[0] - gray[0])
+    expect(t, 'the line is painted (a real share of GrayText)').toBeGreaterThan(0.3)
+    const blend = surface.map((s, i) => s + t * (gray[i] - s)) as [number, number, number]
+    expect(dist(px, blend), 'the painted pixel is a GrayText / surface blend').toBeLessThan(25)
+    expect(dist(px, parseRgb(hairline)), 'and it is not the light shell hairline').toBeGreaterThan(60)
   })
 })

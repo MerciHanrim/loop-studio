@@ -36,7 +36,7 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from '
 // Focus (Cozy Shelter tokens v1.1.0 §3, the shell branch): a `.btn` has a
 // visible boundary, so its focus indicator is that boundary in the solid focus
 // colour plus a 3 px halo, with no outline; a ghost button has none, so it
-// keeps the opaque outline. The twelve other bordered controls are measured in
+// keeps the opaque outline. The other bordered controls (thirteen rules) are measured in
 // `shell-control-boundary.spec.ts`.
 
 /** the six representative controls, one per surface token (+ PlayBar + Timeline) */

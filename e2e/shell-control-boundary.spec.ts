@@ -27,6 +27,12 @@ import { expect, FIXTURE_POOLS_4, importGraph, openApp, readFixture, readRiskyFa
 //   disabled  not under the 3:1 obligation, but it must read as disabled: the
 //             boundary drops to `--line-disabled`
 //
+// A thirteenth rule joined them in review: the data-import dialogs' text and
+// number inputs, paste area and selects were unstyled browser controls and are
+// now shell controls. Four representatives are measured (one per element kind).
+// Their text starts 4 px inside the box, where the left face sample would land
+// on a glyph, so they are measured on the top edge, at the horizontal centre.
+//
 // `.btn` and the five other controls #245 covered stay in
 // `desktop-btn-boundary.spec.ts`, which this branch keeps as the regression.
 
@@ -257,7 +263,43 @@ const CONTROLS: Ctl[] = [
       return el
     },
   },
+  ...(
+    [
+      ['data-import table name (text input)', '.import__nameField input'],
+      ['data-import paste area (textarea)', 'textarea.import__paste'],
+      ['data-import delimiter (select)', '.import__settingsGroup select'],
+      ['data-import header row (number input)', ".import__settingsGroup input[type='number']"],
+    ] as const
+  ).map(
+    ([name, sel]): Ctl => ({
+      name,
+      graph: 'risky',
+      focus: 'A',
+      plainToken: true,
+      hoverToken: true,
+      sides: ['top'],
+      open: async (page) => {
+        const dlg = await openImportWizard(page)
+        const el = dlg.locator(sel).first()
+        await el.scrollIntoViewIfNeeded()
+        await expect(el).toBeVisible()
+        return el
+      },
+    }),
+  ),
 ]
+
+/** the import wizard with the quick-start example filled in, nothing focused */
+async function openImportWizard(page: Page) {
+  await page.getByRole('button', { name: 'Data ▾' }).click()
+  await page.getByRole('menuitem').first().click()
+  const dlg = page.locator('.mcdlg--dataimport')
+  await expect(dlg).toBeVisible()
+  await dlg.getByRole('button', { name: 'Use this example' }).click()
+  await expect(dlg.locator('.import__nameField input').first()).toHaveValue('Items')
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  return dlg
+}
 
 async function openAuthorDialog(page: Page) {
   await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
@@ -293,7 +335,7 @@ const expectSides = (name: string, m: Awaited<ReturnType<typeof boundary>>, side
   }
 }
 
-test.describe('the twelve re-tokenised control boundaries — real pixels (§VL8 / WCAG 1.4.11)', () => {
+test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG 1.4.11)', () => {
   for (const scheme of ['light', 'dark'] as const) {
     for (const ctl of CONTROLS) {
       test(`${scheme}: ${ctl.name} — rest ≥ 3:1, hover and focus read differently, focus is class ${ctl.focus}`, async ({ page }) => {
@@ -335,9 +377,9 @@ test.describe('the twelve re-tokenised control boundaries — real pixels (§VL8
           expect(fs.border, `${ctl.name}: the boundary takes the solid focus colour`).toBe(lineFocus)
           expect(fs.boxShadow, `${ctl.name}: a 3 px halo accompanies it`).toMatch(/0px 0px 0px 3px/)
           expectSides(`${scheme} ${ctl.name} focused`, focused, sides)
-          expect(dist(focused.left.edge, parseRgb(lineFocus)), `${ctl.name}: painted in the focus colour`).toBeLessThan(40)
-          expect(dist(focused.left.edge, rest.left.edge), `${ctl.name}: focus reads differently from rest`).toBeGreaterThan(6)
-          expect(dist(focused.left.edge, hover.left.edge), `${ctl.name}: focus reads differently from hover`).toBeGreaterThan(6)
+          expect(dist(focused[side].edge, parseRgb(lineFocus)), `${ctl.name}: painted in the focus colour`).toBeLessThan(40)
+          expect(dist(focused[side].edge, rest[side].edge), `${ctl.name}: focus reads differently from rest`).toBeGreaterThan(6)
+          expect(dist(focused[side].edge, hover[side].edge), `${ctl.name}: focus reads differently from hover`).toBeGreaterThan(6)
         } else {
           expect(fs.outlineStyle, `${ctl.name}: class B keeps the opaque outline`).toBe('solid')
           expect(fs.outlineWidth).toBe('2px')
@@ -407,6 +449,20 @@ test.describe('the twelve re-tokenised control boundaries — real pixels (§VL8
         expect(fs.outlineStyle, sel).toBe('solid')
         expect(fs.outlineColor, sel).toBe(highlight)
         expect(fs.outlineOffset, `${sel}: inside the box, so the clipping legend cannot cut it`).toBe('-2px')
+        await el.evaluate((e) => (e as HTMLElement).blur())
+      }
+
+      // the thirteenth rule: the data-import inputs
+      const dlg = await openImportWizard(page)
+      for (const sel of ['.import__nameField input', 'textarea.import__paste', '.import__settingsGroup select', ".import__settingsGroup input[type='number']"]) {
+        const el = dlg.locator(sel).first()
+        await el.scrollIntoViewIfNeeded()
+        await keyboardFocus(page, el)
+        const fs = await focusStyle(el)
+        expect(fs.fv, sel).toBe(true)
+        expect(fs.outlineStyle, `${sel}: a real outline is back`).toBe('solid')
+        expect(fs.outlineColor, sel).toBe(highlight)
+        expect(fs.outlineOffset, sel).toBe('2px')
         await el.evaluate((e) => (e as HTMLElement).blur())
       }
     })
