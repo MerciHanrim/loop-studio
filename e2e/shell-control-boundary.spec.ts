@@ -68,6 +68,8 @@ type Ctl = {
   out?: number
   /** which edges are measured (default both) */
   sides?: Side[]
+  /** the corner radius the control must compute to, when the rule pins one */
+  radius?: string
 }
 
 const CONTROLS: Ctl[] = [
@@ -264,20 +266,23 @@ const CONTROLS: Ctl[] = [
     },
   },
   ...(
+    // the inputs and the paste area are standard controls (8 px); a select here
+    // is 16-19 px tall, a compact control, and keeps a compact 6 px
     [
-      ['data-import table name (text input)', '.import__nameField input'],
-      ['data-import paste area (textarea)', 'textarea.import__paste'],
-      ['data-import delimiter (select)', '.import__settingsGroup select'],
-      ['data-import header row (number input)', ".import__settingsGroup input[type='number']"],
+      ['data-import table name (text input)', '.import__nameField input', '8px'],
+      ['data-import paste area (textarea)', 'textarea.import__paste', '8px'],
+      ['data-import delimiter (select)', '.import__settingsGroup select', '6px'],
+      ['data-import header row (number input)', ".import__settingsGroup input[type='number']", '8px'],
     ] as const
   ).map(
-    ([name, sel]): Ctl => ({
+    ([name, sel, radius]): Ctl => ({
       name,
       graph: 'risky',
       focus: 'A',
       plainToken: true,
       hoverToken: true,
       sides: ['top'],
+      radius,
       open: async (page) => {
         const dlg = await openImportWizard(page)
         const el = dlg.locator(sel).first()
@@ -355,6 +360,7 @@ test.describe('the thirteen bordered-control rules — real pixels (§VL8 / WCAG
         console.log(`[shell] ${scheme} ${ctl.name} rest: ${fmt(rest)}`)
         expectSides(`${scheme} ${ctl.name} rest`, rest, sides)
         if (ctl.plainToken) expect(cs.border, `${ctl.name}: rest boundary token`).toBe(lineControl)
+        if (ctl.radius) expect(await el.evaluate((e) => getComputedStyle(e).borderTopLeftRadius), `${ctl.name}: corner radius`).toBe(ctl.radius)
 
         // ── hover
         await el.hover()

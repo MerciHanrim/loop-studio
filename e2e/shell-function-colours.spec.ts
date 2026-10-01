@@ -27,7 +27,11 @@ import { ensureTimelineOpen, expect, openApp, test } from './support/loop'
 //     `--text-secondary`), and the dot grid and plot grids are non-data
 //     structure (`--canvas-grid` / `--chart-grid`, the hairline). They follow
 //     the shell in light, keep their values in dark, and take a system colour
-//     under forced colours (section 4).
+//     under forced colours, by role (section 4): the dot grid is not drawn,
+//     a plot grid is GrayText.
+//
+// Section 5 pins the hover fill: it is a role of its own (`--surface-hover`),
+// so the rest / hover step did not shrink when sunken joined the family ground.
 
 type Table = Record<string, string>
 
@@ -115,6 +119,7 @@ const SHELL_LIGHT: Table = {
   '--surface-raised': 'rgb(255, 255, 255)',
   '--surface-overlay': 'rgb(255, 255, 255)',
   '--surface-sunken': 'rgb(247, 247, 245)', // --cs-surface-soft, the token the ground reads: no warm grey left
+  '--surface-hover': 'rgb(233, 232, 226)', // its own role and value: the hover step does not shrink with sunken
   '--line-hairline': 'rgb(217, 221, 228)', // --cs-line
   '--canvas-grid': 'rgb(217, 221, 228)', // the dot grid follows the hairline
   '--chart-grid': 'rgb(217, 221, 228)', // so do the plot grids
@@ -138,6 +143,7 @@ const SHELL_DARK: Table = {
   '--surface-raised': 'rgb(50, 54, 50)',
   '--surface-overlay': 'rgb(43, 48, 44)',
   '--surface-sunken': 'rgb(20, 23, 21)',
+  '--surface-hover': 'rgb(20, 23, 21)', // the dark hover fill is what it was
   '--line-hairline': 'rgb(60, 64, 60)',
   '--canvas-grid': 'rgb(60, 64, 60)', // the dark grid is what it was
   '--chart-grid': 'rgb(60, 64, 60)',
@@ -233,14 +239,18 @@ test.describe('shell tokens — the family layer itself', () => {
 
 // SVG fill and stroke are not recoloured by forced colours. Before the grids had
 // their own tokens they were painted in the shell hairline, so the light palette
-// showed through a high-contrast theme. They now name a system colour.
+// showed through a high-contrast theme. Each now names a system colour, by its
+// role: the dot grid is a decorative position aid — thousands of GrayText dots
+// would compete with the nodes and edges — so it is the Canvas colour and is
+// not seen; a plot grid is a line values are read against, so it is GrayText.
 test.describe('shell tokens — forced colours', () => {
   test.use({ contextOptions: { forcedColors: 'active' } })
 
-  test('4. the canvas grid and the plot grid are the system GrayText, not a shell colour', async ({ page }) => {
+  test('4. the canvas dot grid is the Canvas colour (not seen); a plot grid is the system GrayText', async ({ page }) => {
     await openApp(page)
     expect(await page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true)
     const grayText = await probe(page, 'GrayText')
+    const canvasColour = await probe(page, 'Canvas')
     // `color` is a property forced colours override, so a shell token is
     // resolved through `fill` here — the property the grids actually use, and
     // one the UA leaves alone. That is the whole reason the tokens exist: the
@@ -257,15 +267,23 @@ test.describe('shell tokens — forced colours', () => {
     const hairline = await paint('var(--line-hairline)')
     expect(hairline, 'SVG paint is not recoloured: the hairline is still the light shell value').toBe('rgb(217, 221, 228)')
     expect(grayText, 'the system colour is not the shell hairline').not.toBe(hairline)
-    expect(await paint('var(--canvas-grid)')).toBe(grayText)
+    expect(await paint('var(--canvas-grid)')).toBe(canvasColour)
     expect(await paint('var(--chart-grid)')).toBe(grayText)
 
-    // the dot grid that is actually drawn (it exists from the L2 zoom up, which
-    // is where the starter graph opens)
+    // the dot grid in the DOM (it exists from the L2 zoom up, which is where
+    // the starter graph opens): its paint is the canvas's own colour, and the
+    // canvas behind it is that colour too, so no dot is seen
     const dot = page.locator('.react-flow__background circle').first()
     await expect(dot).toHaveCount(1)
-    expect(await dot.evaluate((el) => getComputedStyle(el).fill)).toBe(grayText)
-    console.log(`[shell] forced colours: canvas grid fill ${grayText} (GrayText); light hairline is ${hairline}`)
+    expect(await dot.evaluate((el) => getComputedStyle(el).fill)).toBe(canvasColour)
+    const pane = (await page.locator('.react-flow__pane').boundingBox())!
+    // a 48 x 48 patch of empty canvas, three grid periods wide: every pixel is the canvas colour
+    const patch: { x: number; y: number }[] = []
+    for (let dx = 0; dx < 48; dx += 2) for (let dy = 0; dy < 48; dy += 2) patch.push({ x: pane.x + pane.width - 120 + dx, y: pane.y + 80 + dy })
+    const seen = await rgbAt(page, await page.screenshot(), patch)
+    const offCanvas = seen.filter((c) => dist(c, parseRgb(canvasColour)) > 0).length
+    console.log(`[shell] forced colours: canvas grid fill ${canvasColour} (Canvas), ${offCanvas} of ${seen.length} sampled canvas pixels differ from Canvas; plot grid ${grayText} (GrayText); light hairline is ${hairline}`)
+    expect(offCanvas, 'no dot is painted on the empty canvas').toBe(0)
 
     // a plot grid line, on real pixels
     await ensureTimelineOpen(page)
@@ -295,3 +313,36 @@ test.describe('shell tokens — forced colours', () => {
     expect(dist(px, parseRgb(hairline)), 'and it is not the light shell hairline').toBeGreaterThan(60)
   })
 })
+
+// The hover fill used to read the sunken surface. When sunken joined the family
+// ground, a hovered row on a white panel would have stepped by an RGB distance
+// of 15 instead of 33. Hover is a role of its own now and keeps its values.
+for (const scheme of ['light', 'dark'] as const) {
+  test(`5. ${scheme}: a hovered menu item is filled with --surface-hover, and the step from rest is what it was`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme })
+    await openApp(page)
+    const hoverFill = await probe(page, 'var(--surface-hover)')
+    const sunken = await probe(page, 'var(--surface-sunken)')
+    if (scheme === 'light') expect(hoverFill, 'hover does not follow the sunken surface').not.toBe(sunken)
+
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+    const item = page.locator('.toolbar__actions .menu__pop .menu__item').first()
+    await expect(item).toBeVisible()
+    await page.mouse.move(2, 2)
+    await page.waitForTimeout(120)
+    const b = (await item.boundingBox())!
+    // inside the row's padding, clear of its text: 3 px in from the start edge
+    const at = [{ x: b.x + 3, y: b.y + b.height / 2 }]
+    const [rest] = await rgbAt(page, await page.screenshot(), at)
+    await item.hover()
+    await page.waitForTimeout(120)
+    expect(await item.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(hoverFill)
+    const [hovered] = await rgbAt(page, await page.screenshot(), at)
+    const step = Math.round(dist(rest, hovered))
+    console.log(`[shell] ${scheme} menu item: rest ${JSON.stringify(rest)} hover ${JSON.stringify(hovered)} step ${step}`)
+    expect(dist(hovered, parseRgb(hoverFill)), 'the hovered row is painted in --surface-hover').toBeLessThan(3)
+    // (before the branch a menu row stepped 16 in light — warm overlay to warm
+    //  sunken — and 41 in dark; hover following the family ground would be 15)
+    expect(step, 'the rest / hover step did not shrink').toBeGreaterThanOrEqual(scheme === 'light' ? 30 : 35)
+  })
+}
