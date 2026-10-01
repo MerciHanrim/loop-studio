@@ -8,6 +8,7 @@
 
 import type { MessageCatalog, MessageKey } from './locales/en'
 import en from './locales/en'
+import { storagePort } from '../storage/storagePort'
 // docs/localization.md §L4.5 — only the base (`en`) catalog is statically
 // bundled; every other locale is its own `import()`-ed chunk (see `catalog`
 // below).
@@ -651,7 +652,7 @@ export function isRegistered(code: string | null | undefined): boolean {
  *  (against the registry) happens in `resolveInitialLocale`. */
 export function readStoredLocale(): string | null {
   try {
-    return localStorage.getItem(LOCALE_STORAGE_KEY)
+    return storagePort.getItem(LOCALE_STORAGE_KEY)
   } catch {
     return null
   }
@@ -660,7 +661,7 @@ export function readStoredLocale(): string | null {
 /** §L5.1 — a locale change updates ONLY this key. Best-effort. */
 export function writeStoredLocale(code: string): void {
   try {
-    localStorage.setItem(LOCALE_STORAGE_KEY, code)
+    storagePort.setItem(LOCALE_STORAGE_KEY, code)
   } catch {
     /* storage unavailable — the runtime choice still applies for this session */
   }

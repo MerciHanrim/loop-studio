@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useT, type MessageKey } from '../i18n'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
+import { storagePort } from '../storage/storagePort'
 
 type Mode = 'system' | 'light' | 'dark'
 const KEY = 'loop-studio:theme'
@@ -47,7 +48,7 @@ export function ThemeToggle({
   const t = useT()
   const [mode, setMode] = useState<Mode>(() => {
     try {
-      const v = localStorage.getItem(KEY)
+      const v = storagePort.getItem(KEY)
       return v === 'light' || v === 'dark' ? v : 'system'
     } catch {
       return 'system'
@@ -66,7 +67,7 @@ export function ThemeToggle({
   useEffect(() => {
     apply(mode)
     try {
-      localStorage.setItem(KEY, mode)
+      storagePort.setItem(KEY, mode)
     } catch {
       /* storage unavailable — ignore */
     }

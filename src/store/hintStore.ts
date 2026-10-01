@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { useTourStore } from './tourStore'
 import { useUiStore } from './uiStore'
+import { storagePort } from '../storage/storagePort'
 
 // docs/contextual-inline-help.md — situational, dismissible hints that fill
 // the gap the guided tour (docs/guided-tour.md) deliberately left (§CIH0): an
@@ -46,7 +47,7 @@ type StoredSeen = Partial<Record<HintId, true>>
  *  never as "everything permanently dismissed" (§GT6.3 precedent). */
 function readSeen(): StoredSeen {
   try {
-    const raw = localStorage.getItem(HINT_STORAGE_KEY)
+    const raw = storagePort.getItem(HINT_STORAGE_KEY)
     if (!raw) return {}
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
@@ -62,7 +63,7 @@ function readSeen(): StoredSeen {
 
 function writeSeen(seen: StoredSeen): void {
   try {
-    localStorage.setItem(HINT_STORAGE_KEY, JSON.stringify(seen))
+    storagePort.setItem(HINT_STORAGE_KEY, JSON.stringify(seen))
   } catch {
     /* non-fatal — the in-memory state still updates for the session */
   }
