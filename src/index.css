@@ -52,6 +52,11 @@
 
   /* — lines (weights unchanged in contrast, shifted warm-neutral) — */
   --line-hairline: var(--cs-line);
+  /* the dot grid behind the graph: non-data structure. It follows the
+     hairline in light and dark. It is SVG paint, which forced colours do
+     not recolour, so the forced-colours block after the dark palette names
+     a system colour for it instead of letting the light palette through. */
+  --canvas-grid: var(--line-hairline);
   --line-structure: #c1beb4;
   --line-strong: #8c887e;
   --line-focus: var(--focus-ring);
@@ -652,6 +657,16 @@
   --elev-label: none;
   --elev-edge-label: none;
   --elev-overlay: none;
+}
+
+/* forced colours: the UA recolours text, borders and backgrounds, but not SVG
+   fill or stroke. A grid painted in a shell token would carry the light (or
+   dark) palette into a high-contrast theme, so it takes the system's own
+   muted colour here. */
+@media (forced-colors: active) {
+  :root {
+    --canvas-grid: GrayText;
+  }
 }
 
 * {
@@ -1381,7 +1396,7 @@ a.sheet__row {
   background: var(--surface-canvas);
 }
 .react-flow__background circle {
-  fill: var(--line-hairline);
+  fill: var(--canvas-grid);
 }
 /* keep edges from thinning to sub-pixel when zoomed out */
 .react-flow__edge-path {
