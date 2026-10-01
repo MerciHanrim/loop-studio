@@ -51,6 +51,11 @@
   --surface-panel: var(--cs-panel);
   --surface-raised: var(--cs-panel);
   --surface-sunken: var(--cs-surface-soft);
+  /* the fill of a hovered (or keyboard-focused) row, chip or icon button.
+     Its own role with its own values: it used to read the sunken surface,
+     and when sunken joined the family ground the rest / hover step on a
+     white panel would have shrunk to less than half. Not a family token. */
+  --surface-hover: #e9e8e2;
   --surface-overlay: var(--cs-panel);
 
   /* — lines (weights unchanged in contrast, shifted warm-neutral) — */
@@ -68,7 +73,7 @@
   --line-focus: var(--focus-ring);
   --line-disabled: #e7e5de;
   /* a CONTROL's boundary on a panel / sheet (WCAG 1.4.11): >= 3:1 against the
-     panel, against a hovered / focused row (`--surface-sunken`) and against the
+     panel, against a hovered / focused row (`--surface-hover`) and against the
      control's own face, in both themes. `--line-structure` is a layout line
      (1.78:1 on a light panel), never a 1 px control boundary. Declared once:
      `var()` resolves on :root, so the dark blocks' text tokens carry it. */
@@ -540,6 +545,7 @@
     --surface-panel: #272a27;
     --surface-raised: #323632;
     --surface-sunken: #141715;
+    --surface-hover: #141715;
     --surface-overlay: #2b302c;
 
     --line-hairline: #3c403c;
@@ -608,6 +614,7 @@
   --surface-panel: #272a27;
   --surface-raised: #323632;
   --surface-sunken: #141715;
+  --surface-hover: #141715;
   --surface-overlay: #2b302c;
 
   --line-hairline: #3c403c;
@@ -1198,7 +1205,7 @@ body {
   cursor: pointer;
 }
 .menu__item:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 /* a divider between logically distinct groups within one popover (File ▾'s
    New/Import vs. its flattened Export rows) */
@@ -1300,7 +1307,7 @@ a.sheet__row {
 }
 .settings-row:hover,
 .settings-row:focus-visible {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 .settings-row__label {
   font-weight: 600;
@@ -1513,7 +1520,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .minimap-toggle:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
   color: var(--text-primary);
 }
 .minimap-toggle.is-collapsed {
@@ -1558,7 +1565,7 @@ a.sheet__row {
   border-bottom-color: var(--line-hairline);
 }
 .react-flow__controls-button:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 .react-flow__controls-button svg {
   fill: currentColor;
@@ -2156,7 +2163,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .lgr-suggest-note__x:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 
 /* docs/contextual-inline-help.md §CIH2 — the shared situational-hint note.
@@ -2197,7 +2204,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .hint-note__x:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 
 /* docs/large-graph-readability.md §LGR3.2 — the transient-filter panel. A React
@@ -3476,7 +3483,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .timeline__key:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 /* the series selector trigger (`계열 n/total`, contract §6) — a control, not a
    series key; always present, so it keeps its place and the chips yield */
@@ -4362,7 +4369,7 @@ a.sheet__row {
   cursor: pointer;
 }
 .tl-series__item:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 .tl-series__check {
   margin: 0;
@@ -5341,7 +5348,7 @@ input[type='number']::-webkit-inner-spin-button {
   cursor: pointer;
 }
 .mcdlg__pool:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-hover);
 }
 .mcdlg__pool input {
   accent-color: var(--signal-primary);
@@ -5522,18 +5529,18 @@ input[type='number']::-webkit-inner-spin-button {
   }
   .sheet__row:hover,
   .sheet__row:focus-visible {
-    background: var(--surface-sunken);
+    background: var(--surface-hover);
   }
   .sheet__row-sub {
     margin-inline-start: auto;
     font-size: 12px;
     color: var(--text-tertiary);
   }
-  /* Hovering or keyboard-focusing a row swaps it onto `--surface-sunken`, and
+  /* Hovering or keyboard-focusing a row swaps it onto `--surface-hover`, and
      in LIGHT that pulls the secondary label from 4.61:1 down to 3.92:1
      (#6c746e on #e9e8e2). Lift the label in exactly those two states: resting
      keeps 4.61:1, dark already climbs 6.46 -> 8.03:1 on its own because its
-     sunken surface is DARKER than the panel, and forced colours own the row
+     hover surface is DARKER than the panel, and forced colours own the row
      outright. Disabled rows are the WCAG 1.4.3 exception and keep the resting
      colour -- `:not(:disabled)` rather than `:enabled` because the class is
      also used on `a` and `div` rows, which `:enabled` never matches. */
