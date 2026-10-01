@@ -1091,6 +1091,7 @@ body {
    would lose its solid focus boundary. */
 .share-pop__url:hover,
 .minimap-toggle:hover,
+.mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):hover:where(:not(:disabled)),
 .pstrip__seed:hover:where(:not(:disabled)),
 .field input:hover:where(:not(:disabled):not([aria-invalid='true'])),
 .field select:hover:where(:not(:disabled)),
@@ -1107,6 +1108,7 @@ body {
    disabled: the boundary drops to the disabled line and the text to the
    disabled ink, instead of keeping an enabled control's dark outline. */
 .pstrip__seed:disabled,
+.mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):disabled,
 .field input:disabled,
 .field select:disabled,
 .mcdlg__field input:disabled,
@@ -4909,6 +4911,21 @@ input[type='number']::-webkit-inner-spin-button {
   overflow-y: auto;
   max-height: 66vh;
 }
+/* The data-import dialogs' text and number inputs, the paste area and the
+   selects are shell controls (the thirteenth bordered-control rule, §VL8):
+   the control boundary, the control radius, the shell's own face and ink.
+   Their box is unchanged. A UA text input is a 2 px inset border with
+   1 px 2 px padding; a 1 px border with 2 px 3 px padding is the same outer
+   box. The textarea and the selects already carry a 1 px border. */
+.mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select) {
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.mcdlg--dataimport input:not([type='checkbox'], [type='radio']) {
+  padding: 2px 3px;
+}
 .import__tables {
   display: flex;
   flex-direction: column;
@@ -6241,6 +6258,7 @@ input[type='number']::-webkit-inner-spin-button {
 .band__mean:focus-visible,
 .minimap-toggle:focus-visible,
 .regexpr__op:focus-visible,
+.mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):focus-visible:not(:disabled),
 .timeline__viewtab:focus-visible {
   outline: none;
   border-color: var(--line-focus);
@@ -6275,6 +6293,7 @@ input[type='number']::-webkit-inner-spin-button {
   .band__mean:focus-visible,
   .minimap-toggle:focus-visible,
   .regexpr__op:focus-visible,
+  .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select):focus-visible:not(:disabled),
   .timeline__viewtab:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
