@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { storagePort } from '../storage/storagePort'
 
 // docs/guided-tour.md — the guided first-run tour. A UI-chrome-only overlay:
 // nothing it does is serialized, digested, undone, or seen by the engine
@@ -16,7 +17,7 @@ export type TourStored = 'completed' | 'dismissed'
  *  the in-memory `offeredThisSession` flag alone caps the card to once. */
 export function readTourKey(): TourStored | null {
   try {
-    const v = localStorage.getItem(TOUR_STORAGE_KEY)
+    const v = storagePort.getItem(TOUR_STORAGE_KEY)
     return v === 'completed' || v === 'dismissed' ? v : null
   } catch {
     return null
@@ -24,7 +25,7 @@ export function readTourKey(): TourStored | null {
 }
 function writeTourKey(v: TourStored): void {
   try {
-    localStorage.setItem(TOUR_STORAGE_KEY, v)
+    storagePort.setItem(TOUR_STORAGE_KEY, v)
   } catch {
     /* §GT6.3 — closing still works; the in-memory flag stops a session loop. */
   }

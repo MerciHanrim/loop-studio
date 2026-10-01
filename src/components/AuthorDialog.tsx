@@ -7,6 +7,7 @@ import {
 } from '../model/revision'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
+import { storagePort } from '../storage/storagePort'
 
 // SEMANTICS-R.md §R8 — the device-local author label. Stored only here
 // (`localStorage['loop-studio:author']`), byte-capped, and attached UNVERIFIED
@@ -15,7 +16,7 @@ import { useDialogFocus } from './useDialogFocus'
 
 function readAuthor(): { name: string; note: string } {
   try {
-    const v = JSON.parse(localStorage.getItem(AUTHOR_NAME_KEY) ?? '{}') as {
+    const v = JSON.parse(storagePort.getItem(AUTHOR_NAME_KEY) ?? '{}') as {
       name?: unknown
       note?: unknown
     }
@@ -48,9 +49,9 @@ export function AuthorDialog({
     const nt = truncBytes(note.trim(), AUTHOR_NOTE_MAX_BYTES)
     try {
       if (n || nt) {
-        localStorage.setItem(AUTHOR_NAME_KEY, JSON.stringify({ ...(n ? { name: n } : {}), ...(nt ? { note: nt } : {}) }))
+        storagePort.setItem(AUTHOR_NAME_KEY, JSON.stringify({ ...(n ? { name: n } : {}), ...(nt ? { note: nt } : {}) }))
       } else {
-        localStorage.removeItem(AUTHOR_NAME_KEY)
+        storagePort.removeItem(AUTHOR_NAME_KEY)
       }
     } catch {
       /* storage unavailable — nothing to persist */

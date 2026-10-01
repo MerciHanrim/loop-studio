@@ -32,6 +32,7 @@ import type { ImportSourceTable, SavedFrame } from '../model/serialize'
 import { bootProjectHeader, setAutosaveProjectHeader, setHistorySidecar, useGraphStore } from './graphStore'
 import { useDataImportStore } from './dataImportStore'
 import { useFrameStore } from './frameStore'
+import { storagePort } from '../storage/storagePort'
 
 // SEMANTICS-R.md §R2 / §R3 / §R6 / §R10 — the OPEN revision, the `dirty` flag,
 // and the two-phase Export transaction. Slice 1B (+ review round 2). NO UI.
@@ -190,7 +191,7 @@ type PlanOpts = { now?: string; mint?: (p: 'proj' | 'rev') => string; maxBytes?:
 
 function readAuthor(): ProjectMeta['author'] {
   try {
-    const raw = localStorage.getItem(AUTHOR_NAME_KEY)
+    const raw = storagePort.getItem(AUTHOR_NAME_KEY)
     if (!raw) return undefined
     const v = JSON.parse(raw) as { name?: unknown; note?: unknown }
     const name = typeof v.name === 'string' ? truncBytes(v.name, AUTHOR_NAME_MAX_BYTES) : undefined

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { useMcStore } from './mcStore'
+import { storagePort, type StorageKey } from '../storage/storagePort'
 
 // docs/mobile.md §MV5 / §MV-D11 / §MV-D14 — the one open overlay in the mobile
 // View/Run layout. Exactly one of these is visible at a time; opening any of
@@ -208,18 +209,18 @@ const MINIMAP_COLLAPSED_KEY = 'loop-studio:minimap-collapsed'
 const INPUTS_PANEL_KEY = 'loop-studio:inputs-panel'
 const SUMMARY_PANEL_KEY = 'loop-studio:summary-panel'
 
-function readBoolKey(key: string, dflt = false): boolean {
+function readBoolKey(key: StorageKey, dflt = false): boolean {
   try {
-    const v = localStorage.getItem(key)
+    const v = storagePort.getItem(key)
     return v == null ? dflt : v === '1'
   } catch {
     return dflt
   }
 }
 
-function writeBoolKey(key: string, v: boolean): void {
+function writeBoolKey(key: StorageKey, v: boolean): void {
   try {
-    localStorage.setItem(key, v ? '1' : '0')
+    storagePort.setItem(key, v ? '1' : '0')
   } catch {
     /* storage unavailable — the toggle still works for the session */
   }

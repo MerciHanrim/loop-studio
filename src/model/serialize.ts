@@ -2,6 +2,7 @@ import { readRoutingPayload } from './edgeRouting'
 import { defaultData } from './factory'
 import { readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
+import { storagePort } from '../storage/storagePort'
 
 export const STORAGE_KEY = 'loop-studio:graph:v1'
 
@@ -815,7 +816,7 @@ export function saveToStorage(
         : Array.isArray(timelineSeries) && timelineSeries.length > 0
           ? { timelineSeries: [...timelineSeries] }
           : undefined
-    localStorage.setItem(
+    storagePort.setItem(
       STORAGE_KEY,
       serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports),
     )
@@ -837,7 +838,7 @@ export function loadFromStorage():
     }
   | null {
   try {
-    const text = localStorage.getItem(STORAGE_KEY)
+    const text = storagePort.getItem(STORAGE_KEY)
     if (!text) return null
     return deserialize(text)
   } catch {

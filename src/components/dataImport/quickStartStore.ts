@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { storagePort } from '../../storage/storagePort'
 
 // docs/data-import.md §DI17 — the import wizard's quick-start block: whether
 // it is collapsed, and whether that was the USER's explicit choice (the
@@ -15,7 +16,7 @@ export type QuickStartState = { collapsed: boolean; explicit: boolean }
  *  never as "dismissed" (the same rule `hintStore` / the tour use). */
 export function readQuickStartState(): QuickStartState {
   try {
-    const raw = localStorage.getItem(QUICKSTART_STORAGE_KEY)
+    const raw = storagePort.getItem(QUICKSTART_STORAGE_KEY)
     if (!raw) return { collapsed: false, explicit: false }
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { collapsed: false, explicit: false }
@@ -28,7 +29,7 @@ export function readQuickStartState(): QuickStartState {
 
 function write(state: QuickStartState): void {
   try {
-    localStorage.setItem(QUICKSTART_STORAGE_KEY, JSON.stringify(state))
+    storagePort.setItem(QUICKSTART_STORAGE_KEY, JSON.stringify(state))
   } catch {
     /* non-fatal — the in-memory state still updates for the session */
   }
