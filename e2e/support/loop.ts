@@ -123,28 +123,17 @@ export async function ensureTimelineOpen(page: Page): Promise<void> {
 }
 
 /**
- * `ensureTimelineOpen` for a pixel spec that frames the canvas under the
- * app's own camera. The camera is set by the fit at MOUNT (an import keeps
- * the camera it finds), and the mount now happens on the collapsed pane, so
- * opening the panel afterwards leaves the viewport centred exactly half the
- * panel's height lower than a mount with the panel open — the state every
- * canvas baseline was captured in. MEASURED (2026-10-01): x and zoom are
- * width-bound and identical either way; only y moves, by 100 px at 1280x800.
- * This re-centres by the measured half-delta, so the shot sees the baseline's
- * camera without a hard-coded number.
+ * The product's own "Reset view" (Canvas.tsx `resetView`: fit the graph, clear
+ * filters / focus). A pixel spec that frames the canvas under the app's camera
+ * calls this AFTER the layout it wants is final: the camera is otherwise the
+ * fit that ran at MOUNT (an import keeps the camera it finds), and the mount
+ * happens on the collapsed pane (timeline-series-contract §7) — MEASURED
+ * 2026-10-01: a panel opened afterwards leaves that camera centred for the
+ * taller pane. Letting the product re-fit at the final layout is the fix; no
+ * pixel offset is applied anywhere.
  */
-export async function openTimelineRecentring(page: Page): Promise<void> {
-  const paneH = () => page.evaluate(() => document.querySelector('.react-flow')!.getBoundingClientRect().height)
-  const before = await paneH()
-  await ensureTimelineOpen(page)
-  const after = await paneH()
-  const delta = before - after
-  if (delta <= 0) return
-  await page.evaluate((d) => {
-    const rf = (window as unknown as { __loop: { rf: { getViewport: () => { x: number; y: number; zoom: number }; setViewport: (v: object, o?: object) => unknown } } }).__loop.rf
-    const vp = rf.getViewport()
-    void rf.setViewport({ ...vp, y: vp.y - d / 2 }, { duration: 0 })
-  }, delta)
+export async function resetView(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^reset view/i }).click()
 }
 
 /** Empty graph + idle sim + no Monte-Carlo result. */
