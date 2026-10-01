@@ -57,6 +57,9 @@
      not recolour, so the forced-colours block after the dark palette names
      a system colour for it instead of letting the light palette through. */
   --canvas-grid: var(--line-hairline);
+  /* the plot grids (Timeline, distribution band, termination sparkline):
+     the same kind of line, the same forced-colours treatment. */
+  --chart-grid: var(--line-hairline);
   --line-structure: #c1beb4;
   --line-strong: #8c887e;
   --line-focus: var(--focus-ring);
@@ -666,6 +669,7 @@
 @media (forced-colors: active) {
   :root {
     --canvas-grid: GrayText;
+    --chart-grid: GrayText;
   }
 }
 
@@ -3528,7 +3532,7 @@ a.sheet__row {
   display: block;
 }
 .timeline__grid {
-  stroke: var(--line-hairline);
+  stroke: var(--chart-grid);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -4761,7 +4765,7 @@ a.sheet__row {
   stroke-width: 1;
 }
 .band__grid {
-  stroke: var(--line-hairline);
+  stroke: var(--chart-grid);
   stroke-width: 1;
 }
 .band__tick {
@@ -4826,7 +4830,7 @@ a.sheet__row {
   stroke-width: 1;
 }
 .term__grid {
-  stroke: var(--line-hairline);
+  stroke: var(--chart-grid);
   stroke-width: 1;
 }
 .term__tick {
