@@ -20,6 +20,7 @@ A change that touches anything a build reads or ships, or the app version, adds 
 
 - **`user-facing`** changes the app version in `package.json`, raises it, and names the release note for exactly that version. That entry must exist in the release-note list in the same change.
 - **`internal`** says why no note is needed. It may raise the version too: a technical redeploy or an internal fix has a version and no note.
+- Whatever is declared, a version that changes only goes up. An `internal` change cannot lower it either.
 - A change that touches nothing that is built or shipped needs no declaration, and may still add one.
 - Declarations are a record. One that is on `main` is never edited, renamed or removed. Before a change is merged its own declaration can still be corrected.
 
@@ -76,11 +77,17 @@ It fails when:
 
 - a change to anything that is built or shipped, or a version change, has no declaration, or has more than one
 - a declaration is not valid JSON, has an unknown `type`, an empty `reason`, a missing or extra field, or a file name outside the pattern
-- a `user-facing` change leaves the version as it was, lowers it, names a release note for another version, or names one that does not exist
+- a `user-facing` change leaves the version as it was, names a release note for another version, or names one that does not exist
+- the version goes down, whatever the change declares
 - a declaration that is already on `main` is edited, renamed or removed
 - the release-note list breaks a rule in the table above
+- the languages that have a catalog are not exactly the registered shipped languages: one missing, one extra, or one with no text
 
-It fails closed. If git cannot find a common ancestor with the base, which is what a shallow clone looks like, that is an error, not "nothing changed". The CI job therefore checks out the full history.
+It fails closed, in three places:
+
+- If git cannot find a common ancestor with the base, which is what a shallow clone looks like, that is an error, not "nothing changed". The CI job therefore checks out the full history.
+- If the app version at the base cannot be read, because the base has no `package.json`, the file is not JSON, or it has no `x.y.z` version, that is an error, not "there was no version before".
+- "Text in every language" is checked against the registered languages, read from `src/i18n/registry.ts`. A language that lost its catalog fails the check; it is not left out of the comparison.
 
 The rule itself is in `scripts/change-declaration.mjs` and the list's rules in `src/releaseNotes/validate.ts`, both as pure functions with their own tests. `scripts/check-change-declaration.mjs` only gathers the facts.
 

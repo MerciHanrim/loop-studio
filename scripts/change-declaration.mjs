@@ -11,9 +11,11 @@
 //   { "type": "user-facing", "releaseNoteId": "release:0.15.0" }
 //   { "type": "internal", "reason": "why no release note is needed" }
 //
-// - `user-facing` must change the app version, and its `releaseNoteId` must be
+// - `user-facing` must raise the app version, and its `releaseNoteId` must be
 //   the entry for exactly that version, present in the release-note list.
-// - `internal` must say why, in words.
+// - `internal` must say why, in words. It may raise the version too.
+// - Whatever is declared, a version that changes only goes up, and the version
+//   at the base must be known: one that cannot be read is an error.
 // - Exactly one declaration per change. Old declarations are a record: they are
 //   never edited, renamed or removed.
 //
@@ -97,11 +99,61 @@ export function parseDeclaration(text) {
 }
 
 /**
+ * The app version in a `package.json` text, or the reason there is none.
+ *
+ * Never a default. The check compares the version at the base with the version
+ * now, and a base it could not read used to become `null` and pass as "it was
+ * nothing before" - which let a version fall, or a missing file, through.
+ *
+ * @param {string | null | undefined} text  the file's text; null when it could not be read
+ * @returns {{version: string} | {problem: string}}
+ */
+export function readPackageVersion(text) {
+  if (typeof text !== 'string') return { problem: 'it could not be read' }
+  let pkg
+  try {
+    pkg = JSON.parse(text)
+  } catch {
+    return { problem: 'it is not valid JSON' }
+  }
+  if (pkg === null || typeof pkg !== 'object' || Array.isArray(pkg)) return { problem: 'it is not a JSON object' }
+  if (!('version' in pkg)) return { problem: 'it has no "version"' }
+  if (typeof pkg.version !== 'string') return { problem: `its "version" is ${JSON.stringify(pkg.version)}, not a string` }
+  if (!parseVersion(pkg.version)) return { problem: `its "version" is "${pkg.version}", not x.y.z` }
+  return { version: pkg.version }
+}
+
+/**
+ * The languages that have a catalog must be EXACTLY the registered ones.
+ *
+ * "Every item has text in every language" is only as good as the list of
+ * languages it walks. Counting the catalog folders and refusing zero let
+ * seventeen of eighteen pass: the release notes would be called complete in a
+ * language nobody looked at.
+ *
+ * @param {string[]} registered  the shipped language codes, from the registry
+ * @param {string[]} found       the languages a catalog was loaded for
+ * @returns {string[]} problems
+ */
+export function compareLanguageSets(registered, found) {
+  const problems = []
+  if (!Array.isArray(registered) || registered.length === 0) return ['the registry lists no shipped language']
+  const dupes = (list) => [...new Set(list.filter((c, i) => list.indexOf(c) !== i))]
+  for (const c of dupes(registered)) problems.push(`the registry lists the language ${c} more than once`)
+  for (const c of dupes(found)) problems.push(`the language ${c} has more than one catalog`)
+  const missing = registered.filter((c) => !found.includes(c))
+  const extra = found.filter((c) => !registered.includes(c))
+  if (missing.length) problems.push(`${missing.length} registered language(s) have no catalog: ${missing.join(', ')}`)
+  if (extra.length) problems.push(`${extra.length} catalog(s) belong to no registered language: ${extra.join(', ')}`)
+  return problems
+}
+
+/**
  * @param {object} facts
  * @param {{status: string, path: string}[]} facts.changed  every path that differs from the base (status: A, M, D, R…)
  * @param {Record<string, string>} facts.declarationTexts   text of every `.changes/*.json` in the tree now
  * @param {string[]} facts.declarationDirEntries            every file in `.changes/` now
- * @param {string | null} facts.baseVersion                 the app version at the base
+ * @param {string | null} facts.baseVersion                 the app version at the base; anything that is not x.y.z is a problem
  * @param {string} facts.headVersion                        the app version now
  * @param {{id: string, version: string}[]} facts.notes     the release-note list now
  * @returns {{problems: string[], summary: string[]}}
@@ -129,12 +181,20 @@ export function evaluateChange(facts) {
     if (c.status !== 'A') problems.push(`${c.path}: a declaration that already exists is never edited, renamed or removed (status ${c.status})`)
   }
 
-  // 3. does this change need a declaration, and does it have exactly one?
+  // 3. the app version, then and now. Both must be known: with no base version
+  //    nobody can say whether it changed, and "unknown" must not read as "fine".
+  //    A version that changes only goes up, whatever the declaration says.
   const product = changed.filter((c) => isProductPath(c.path))
   const base = parseVersion(facts.baseVersion)
   const head = parseVersion(facts.headVersion)
+  if (!base) problems.push(`the app version at the base ${JSON.stringify(facts.baseVersion ?? null)} is not x.y.z, so nobody can say whether this change moved it`)
   if (!head) problems.push(`the app version "${facts.headVersion}" is not x.y.z`)
   const versionChanged = facts.baseVersion !== facts.headVersion
+  if (base && head && versionChanged && compareVersions(head, base) <= 0) {
+    problems.push(`the app version went from ${facts.baseVersion} to ${facts.headVersion}; a version that changes only goes up, whatever the change declares`)
+  }
+
+  // 4. does this change need a declaration, and does it have exactly one?
   const added = changed.filter((c) => c.status === 'A' && DECLARATION_FILE.test(c.path))
   const needs = product.length > 0 || versionChanged
   summary.push(`${changed.length} path(s) differ from the base; ${product.length} of them are built or shipped; app version ${facts.baseVersion ?? '(none)'} -> ${facts.headVersion}`)
@@ -146,15 +206,13 @@ export function evaluateChange(facts) {
     problems.push(`this change needs a declaration in ${DECLARATION_DIR}/<slug>.json: ${why}`)
   }
 
-  // 4. what the one declaration promises
+  // 5. what the one declaration promises
   const mine = added.length === 1 ? parsed[added[0].path] : undefined
   if (added.length === 1 && mine) {
     if (mine.type === 'user-facing') {
       summary.push(`declared user-facing (${added[0].path}), release note ${mine.releaseNoteId}`)
       if (!versionChanged) {
-        problems.push(`${added[0].path}: a user-facing change changes the app version, and it is still ${facts.headVersion}`)
-      } else if (base && head && compareVersions(head, base) <= 0) {
-        problems.push(`${added[0].path}: the app version went from ${facts.baseVersion} to ${facts.headVersion}; a user-facing change raises it`)
+        problems.push(`${added[0].path}: a user-facing change raises the app version, and it is still ${facts.headVersion}`)
       }
       if (mine.releaseNoteId !== `release:${facts.headVersion}`) {
         problems.push(`${added[0].path}: "releaseNoteId" is ${mine.releaseNoteId}, and the app version is ${facts.headVersion}; it must be release:${facts.headVersion}`)

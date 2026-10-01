@@ -14,12 +14,16 @@
 // commit, or the previous `main` commit on a push), else `origin/main`.
 //
 // FAILS CLOSED. If git cannot say what changed - no such ref, a shallow clone
-// with no common ancestor - that is an error, never "nothing changed".
+// with no common ancestor - that is an error, never "nothing changed". The same
+// goes for the app version at the base (no package.json there, not JSON, no
+// x.y.z version) and for the languages: the catalogs found must be exactly the
+// registered set, so a language that lost its catalog is not skipped.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { DECLARATION_DIR, evaluateChange } from './change-declaration.mjs'
+import { DECLARATION_DIR, compareLanguageSets, evaluateChange, readPackageVersion } from './change-declaration.mjs'
+import { shippedCodes } from './registry-source.mjs'
 import { validateReleaseNotes } from '../src/releaseNotes/validate.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -58,13 +62,26 @@ if (base) {
   }
 
   // ── the app version, then and now ──
-  let baseVersion = null
+  // Both must be read. A base version that cannot be read is an error, never
+  // "there was none": with no base nobody can say whether the version moved.
+  let baseText = null
   try {
-    baseVersion = JSON.parse(git('show', `${base}:package.json`)).version ?? null
+    baseText = git('show', `${base}:package.json`)
   } catch {
-    baseVersion = null
+    baseText = null
   }
-  const headVersion = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version
+  const baseRead = readPackageVersion(baseText)
+  if (baseRead.problem) fail(`package.json at the base ${base.slice(0, 7)}: ${baseRead.problem} - the app version this change started from is unknown`)
+  let headText = null
+  try {
+    headText = readFileSync(resolve(root, 'package.json'), 'utf8')
+  } catch {
+    headText = null
+  }
+  const headRead = readPackageVersion(headText)
+  if (headRead.problem) fail(`package.json: ${headRead.problem}`)
+  const baseVersion = baseRead.version ?? null
+  const headVersion = headRead.version ?? null
 
   // ── every declaration in the tree ──
   const dir = resolve(root, DECLARATION_DIR)
@@ -87,20 +104,43 @@ if (base) {
       if (!file.endsWith('.ts') || file === 'index.ts' || file.endsWith('.test.ts')) continue
       Object.assign(merged, (await import(pathToFileURL(join(localesDir, code.name, file)).href)).default)
     }
+    if (Object.keys(merged).length === 0) fail(`the catalog of ${code.name} has no text at all`)
     catalogs[code.name] = merged
   }
+  // "present in every language" is only as good as the list of languages: the
+  // catalogs found must be exactly the registered set, not merely more than none
   const localeCount = Object.keys(catalogs).length
-  if (localeCount === 0) fail('found no language catalog under src/i18n/locales - refusing to call the release notes complete')
+  let registered = null
+  try {
+    registered = shippedCodes()
+  } catch (e) {
+    fail(`the registered languages could not be read: ${e.message}`)
+  }
+  let languagesOk = false
+  if (registered) {
+    const languageProblems = compareLanguageSets(registered, Object.keys(catalogs))
+    for (const p of languageProblems) fail(`languages: ${p}`)
+    languagesOk = languageProblems.length === 0
+    if (languagesOk) ok(`languages: ${localeCount} catalogs, exactly the ${registered.length} registered languages`)
+  }
 
-  const noteProblems = validateReleaseNotes(RELEASE_NOTES, { packageVersion: headVersion, catalogs })
-  for (const p of noteProblems) fail(`release notes: ${p}`)
-  if (!noteProblems.length) ok(`release notes: ${RELEASE_NOTES.length} entr${RELEASE_NOTES.length === 1 ? 'y' : 'ies'}, each id, version, date and item valid, every item present in ${localeCount} languages`)
+  if (headVersion === null) {
+    fail('release notes: not checked, the app version is unknown')
+  } else {
+    const noteProblems = validateReleaseNotes(RELEASE_NOTES, { packageVersion: headVersion, catalogs })
+    for (const p of noteProblems) fail(`release notes: ${p}`)
+    if (!noteProblems.length && languagesOk) ok(`release notes: ${RELEASE_NOTES.length} entr${RELEASE_NOTES.length === 1 ? 'y' : 'ies'}, each id, version, date and item valid, every item present in ${localeCount} languages`)
+  }
 
-  const { problems, summary } = evaluateChange({ changed, declarationTexts, declarationDirEntries, baseVersion, headVersion, notes: RELEASE_NOTES })
   console.log(`  base  ${base.slice(0, 7)} (${asked})`)
-  for (const s of summary) console.log(`  note  ${s}`)
-  for (const p of problems) fail(p)
-  if (!problems.length) ok(`change declaration: ${Object.keys(declarationTexts).length} declaration(s) in ${DECLARATION_DIR}/, all well formed; this change satisfies the rule`)
+  if (baseVersion === null || headVersion === null) {
+    fail('change declaration: not checked, the app version is unknown on one side')
+  } else {
+    const { problems, summary } = evaluateChange({ changed, declarationTexts, declarationDirEntries, baseVersion, headVersion, notes: RELEASE_NOTES })
+    for (const s of summary) console.log(`  note  ${s}`)
+    for (const p of problems) fail(p)
+    if (!problems.length) ok(`change declaration: ${Object.keys(declarationTexts).length} declaration(s) in ${DECLARATION_DIR}/, all well formed; this change satisfies the rule`)
+  }
 }
 
 if (failed) {
