@@ -428,7 +428,12 @@ byte-identical across L2/L1/L0 (§VL12.5).
   colour temperature), canvas, panel / raised / overlay (one white), the
   hairline, the container line, primary and secondary ink, the solid focus
   colour, the halo and the overlay elevation. Dark is Loop's own palette — the
-  family layer has no dark values. `--line-structure` is **not** a shell token:
+  family layer has no dark values. The **hover fill** is a role of its own,
+  `--surface-hover` (a hovered or keyboard-focused row, chip or icon button),
+  with its own values in both themes: it does not follow the sunken surface, so
+  the rest / hover step did not shrink when sunken joined the family ground (a
+  menu row steps by an RGB distance of 43 in light, 41 in dark; following
+  sunken it would be 15). `--line-structure` is **not** a shell token:
   it is drawn only by the node silhouettes, the state handle, the chart axes,
   the minimap and plot frames and three non-interactive labels; a container's
   boundary is `--line-container` and a control's is `--line-control`.
@@ -443,8 +448,11 @@ byte-identical across L2/L1/L0 (§VL12.5).
   non-data structure — the dot grid (`--canvas-grid`) and the plot grids
   (`--chart-grid`) — follow the shell ink and hairline in light and keep their
   values in dark. The grids are SVG paint, which forced colours do not
-  recolour, so under `forced-colors` both tokens are the system `GrayText`
-  rather than a shell colour showing through. Two radius axes: `--radius` (12 px) for
+  recolour, so under `forced-colors` each names a system colour by its role
+  rather than letting a shell colour show through: the dot grid is a decorative
+  position aid — as thousands of `GrayText` dots it would compete with the
+  nodes and edges — so it is `Canvas` and is not seen; a plot grid is a line
+  values are read against, so it is `GrayText`. Two radius axes: `--radius` (12 px) for
   containers, dialogs and popovers, `--control-radius` (8 px) for standard
   rectangular controls; compact controls (15–22 px tall chips, triggers, tabs,
   operator keys) keep their own 4–6 px — the class is the control's form.
@@ -458,8 +466,9 @@ byte-identical across L2/L1/L0 (§VL12.5).
   on every surface, and 1.78 / 1.65 / 1.86 / 1.51 against a panel / overlay /
   raised / sunken surface (desktop audit 2026-09-20; the mobile sheet found the
   same 1.78 on 2026-09-19). Measured minima with the control tokens, composited
-  pixels, on the family shell (2026-10-01): light rest 4.49 (sunken) · 4.82
-  (panel, overlay and face — one white), hover ≥ 7.04; dark rest 5.46 (face) ·
+  pixels, on the family shell (2026-10-01): light rest 3.92 (on a hovered row,
+  `--surface-hover`) · 4.49 (sunken) · 4.82 (panel, overlay and face — one
+  white), hover ≥ 7.04; dark rest 5.46 (face) ·
   5.98 (overlay) · 6.46 (panel), hover ≥ 7.67. Ghost is outside the contract and keeps its own pair — no
   border at rest, `--line-strong` hovered (an appearing edge, not a boundary
   that has to stay legible) — and primary keeps its `--signal-primary`. A
@@ -481,9 +490,10 @@ byte-identical across L2/L1/L0 (§VL12.5).
   thirteenth rule is the data-import dialogs' text and number inputs, paste
   area and selects: they were unstyled browser controls (white with black text
   in the dark theme too) and are shell controls now — the control boundary, the
-  8 px control radius, the shell face and ink, class A focus — with their box
-  unchanged (a 1 px border and 2 px 3 px padding in place of the browser's 2 px
-  inset border and 1 px 2 px padding).
+  shell face and ink, class A focus — with their box unchanged (a 1 px border
+  and 2 px 3 px padding in place of the browser's 2 px inset border and
+  1 px 2 px padding). The inputs and the paste area take the 8 px control
+  radius; the selects are 16–19 px tall, compact controls, and keep 6 px.
   `--line-control-hover` states its own value per theme; it does not read an
   ink token, so a shell ink change cannot shrink the rest / hover step.
 - **`forced-colors` / high contrast:** when the UA overrides colours, the §VL7.1
