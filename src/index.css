@@ -667,11 +667,14 @@
 
 /* forced colours: the UA recolours text, borders and backgrounds, but not SVG
    fill or stroke. A grid painted in a shell token would carry the light (or
-   dark) palette into a high-contrast theme, so it takes the system's own
-   muted colour here. */
+   dark) palette into a high-contrast theme, so each grid names a system
+   colour here, by its role. The dot grid is a decorative position aid: as
+   thousands of GrayText dots it competes with the nodes and edges, so it is
+   the canvas colour and is not seen. A plot grid is a line values are read
+   against, so it is the system's muted GrayText. */
 @media (forced-colors: active) {
   :root {
-    --canvas-grid: GrayText;
+    --canvas-grid: Canvas;
     --chart-grid: GrayText;
   }
 }
