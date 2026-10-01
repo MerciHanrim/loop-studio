@@ -279,7 +279,7 @@ test.describe('shell tokens — forced colours', () => {
     const pane = (await page.locator('.react-flow__pane').boundingBox())!
     // a 48 x 48 patch of empty canvas, three grid periods wide: every pixel is the canvas colour
     const patch: { x: number; y: number }[] = []
-    for (let dx = 0; dx < 48; dx += 2) for (let dy = 0; dy < 48; dy += 2) patch.push({ x: pane.x + pane.width - 120 + dx, y: pane.y + 80 + dy })
+    for (let dx = 0; dx < 48; dx++) for (let dy = 0; dy < 48; dy++) patch.push({ x: pane.x + pane.width - 120 + dx, y: pane.y + 80 + dy })
     const seen = await rgbAt(page, await page.screenshot(), patch)
     const offCanvas = seen.filter((c) => dist(c, parseRgb(canvasColour)) > 0).length
     console.log(`[shell] forced colours: canvas grid fill ${canvasColour} (Canvas), ${offCanvas} of ${seen.length} sampled canvas pixels differ from Canvas; plot grid ${grayText} (GrayText); light hairline is ${hairline}`)
