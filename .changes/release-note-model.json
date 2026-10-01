@@ -1,0 +1,4 @@
+{
+  "type": "internal",
+  "reason": "Add the release-note data model and enforcement without changing the UI."
+}
