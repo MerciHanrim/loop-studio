@@ -1064,18 +1064,21 @@ body {
    A state that owns the border colour keeps it: an invalid field, the selected
    view tab, the mean toggle when on, the reference-insert control (its hover
    is the graph focus colour). */
+/* `:where()` keeps each exclusion at zero specificity: a hover rule must never
+   outrank the focus rule at the end of this file, or a hovered focused control
+   would lose its solid focus boundary. */
 .share-pop__url:hover,
 .minimap-toggle:hover,
-.pstrip__seed:hover:not(:disabled),
-.field input:hover:not(:disabled):not([aria-invalid='true']),
-.field select:hover:not(:disabled),
-.mcdlg__field input:hover:not(:disabled),
+.pstrip__seed:hover:where(:not(:disabled)),
+.field input:hover:where(:not(:disabled):not([aria-invalid='true'])),
+.field select:hover:where(:not(:disabled)),
+.mcdlg__field input:hover:where(:not(:disabled)),
 .lang-menu__search:hover,
-.band__pool:hover:not(:disabled),
-.band__mean:hover:not(.is-on),
-.timeline__viewtab:hover:not(.is-on),
-.review__field input:hover:not(:disabled),
-.review__field textarea:hover:not(:disabled) {
+.band__pool:hover:where(:not(:disabled)),
+.band__mean:hover:where(:not(.is-on)),
+.timeline__viewtab:hover:where(:not(.is-on)),
+.review__field input:hover:where(:not(:disabled)),
+.review__field textarea:hover:where(:not(:disabled)) {
   border-color: var(--line-control-hover);
 }
 /* disabled is the WCAG exception to the 3:1 boundary, but it must READ as
@@ -4018,12 +4021,6 @@ a.sheet__row {
   background: var(--surface-raised);
   color: var(--text-primary);
 }
-.field input:focus-visible,
-.field select:focus-visible {
-  outline: 2px solid var(--line-focus);
-  outline-offset: 1px;
-  border-color: var(--line-strong);
-}
 .field input[aria-invalid='true'] {
   border-color: var(--state-warning);
 }
@@ -4076,10 +4073,6 @@ a.sheet__row {
 .regexpr__op:hover {
   color: var(--text-primary);
   border-color: var(--line-control-hover);
-}
-.regexpr__op:focus-visible {
-  outline: 2px solid var(--line-focus);
-  outline-offset: 1px;
 }
 /* the "＋ Insert reference" secondary action — a labelled MODE toggle, not a
    text-insert button like the operator chips above it: sits further below the
@@ -4648,9 +4641,6 @@ a.sheet__row {
   background: var(--surface-sunken, var(--surface-1, transparent));
   border: 1px solid var(--line-control);
   border-radius: var(--control-radius);
-}
-.lang-menu__search:focus-visible {
-  border-color: var(--signal-primary, var(--text-primary));
 }
 .lang-menu__empty {
   padding: 8px 10px;
@@ -6189,5 +6179,87 @@ input[type='number']::-webkit-inner-spin-button {
   .tour-popover,
   .tour-card {
     border: 1px solid CanvasText;
+  }
+}
+
+/* ==== shell focus — Cozy Shelter tokens v1.1.0 §3 ===========================
+   The SOLID indicator carries the 3:1 obligation; the halo only accompanies
+   it (18 % accent is 1.25:1 on white — never the indicator on its own).
+
+   The class is decided by whether a control normally SHOWS A BOUNDARY, not by
+   what kind of element it is:
+
+   A          a visible boundary: the boundary itself takes `--line-focus`,
+              a 3 px `--focus-halo` surrounds it, and `outline: none` is
+              allowed because the border now stands in for it.
+   A-clipped  the same control inside a box that clips (the one-row Timeline
+              legend is `overflow: hidden`): an outer halo would be cut, so it
+              is dropped and the solid indicator is thickened inward.
+   B          no visible boundary — ghost buttons, palette chips, menu and
+              sheet rows, links, checkboxes, tabs, table cells: the opaque
+              2 px outline of the global `:focus-visible` rule. When in doubt,
+              B: it guarantees a solid line on any background.
+
+   This block is LAST on purpose, and its selectors carry `:not(:disabled)`
+   where the control's own hover rule does: a focused control's boundary must
+   beat its hover and its on / selected state, by specificity or by order.
+   The graph is not here — node and frame focus read `--state-focus`. */
+.btn:not(.btn--ghost):focus-visible:not(:disabled),
+.pb-btn:focus-visible:not(:disabled),
+.field input:focus-visible:not(:disabled),
+.field select:focus-visible:not(:disabled),
+.mcdlg__field input:focus-visible:not(:disabled),
+.review__field input:focus-visible:not(:disabled),
+.review__field textarea:focus-visible:not(:disabled),
+.pstrip__seed:focus-visible:not(:disabled),
+.band__pool:focus-visible:not(:disabled),
+.lang-menu__search:focus-visible,
+.share-pop__url:focus-visible,
+.lgr-frame-props__name:focus-visible,
+.band__mean:focus-visible,
+.minimap-toggle:focus-visible,
+.regexpr__op:focus-visible,
+.timeline__viewtab:focus-visible {
+  outline: none;
+  border-color: var(--line-focus);
+  box-shadow: 0 0 0 3px var(--focus-halo);
+}
+.timeline__series:focus-visible:not(:disabled),
+.timeline__csv:focus-visible:not(:disabled) {
+  outline: none;
+  border-color: var(--line-focus);
+  box-shadow: inset 0 0 0 1px var(--line-focus);
+}
+
+/* forced colours drop `box-shadow`, and a recoloured border is not a focus
+   indicator the system promises. Every selector above said `outline: none`, so
+   every one of them is repeated here — the SAME selector, hence the same
+   specificity: a bare `:focus-visible` (0,1,0) cannot win back what
+   `.btn:focus-visible` (0,2,0) took away. A clipped control draws its outline
+   inside its own box for the same reason its halo was dropped. */
+@media (forced-colors: active) {
+  .btn:not(.btn--ghost):focus-visible:not(:disabled),
+  .pb-btn:focus-visible:not(:disabled),
+  .field input:focus-visible:not(:disabled),
+  .field select:focus-visible:not(:disabled),
+  .mcdlg__field input:focus-visible:not(:disabled),
+  .review__field input:focus-visible:not(:disabled),
+  .review__field textarea:focus-visible:not(:disabled),
+  .pstrip__seed:focus-visible:not(:disabled),
+  .band__pool:focus-visible:not(:disabled),
+  .lang-menu__search:focus-visible,
+  .share-pop__url:focus-visible,
+  .lgr-frame-props__name:focus-visible,
+  .band__mean:focus-visible,
+  .minimap-toggle:focus-visible,
+  .regexpr__op:focus-visible,
+  .timeline__viewtab:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  .timeline__series:focus-visible:not(:disabled),
+  .timeline__csv:focus-visible:not(:disabled) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }
