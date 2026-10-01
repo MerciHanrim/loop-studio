@@ -1,4 +1,17 @@
 import type { Locator, Page } from '@playwright/test'
+import {
+  boundary,
+  computed,
+  dist,
+  expectBoundary,
+  focusStyle,
+  keyboardFocus,
+  noHover,
+  parseRgb,
+  probe,
+  ratio,
+  rgbAt,
+} from './support/boundary'
 import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
 
 // docs/visual-language.md §VL8 "Control boundary" — every 1 px control border
@@ -14,101 +27,17 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from '
 // hovered `--line-strong` at 2.88 on the sunken group — the face contrast
 // (1.86 / 2.15) was the same on every surface, so the contract is global.
 // Guards: ghost (no rest border, `--line-strong` hovered) and primary
-// (`--signal-primary`) keep their own borders, label text ≥ 4.5:1, the
-// `:focus-visible` ring is untouched, disabled stays the WCAG exception
-// (`opacity: .4`, `.pb-btn:disabled` → `--line-disabled`), and forced colours
-// own the border (ButtonBorder / Highlight / GrayText). No pressed contract —
-// no desktop `.btn` carries `aria-pressed`.
-
-type Rgb = [number, number, number]
-const lum = ([r, g, b]: Rgb) => {
-  const f = (c: number) => {
-    const v = c / 255
-    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
-}
-const ratio = (a: Rgb, b: Rgb) => {
-  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
-  return (hi + 0.05) / (lo + 0.05)
-}
-const dist = (a: Rgb, b: Rgb) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
-const parseRgb = (s: string): Rgb => {
-  const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)!
-  return [Number(m[1]), Number(m[2]), Number(m[3])]
-}
-const r2 = (n: number) => Math.round(n * 100) / 100
-
-/** decode a viewport screenshot in the page and read pixels (deviceScaleFactor 1 → image px = CSS px) */
-async function rgbAt(page: Page, png: Buffer, pts: { x: number; y: number }[]): Promise<Rgb[]> {
-  return page.evaluate(
-    async ({ b64, pts }) => {
-      const im = new Image()
-      im.src = `data:image/png;base64,${b64}`
-      await im.decode()
-      const cv = document.createElement('canvas')
-      cv.width = im.width
-      cv.height = im.height
-      const cx = cv.getContext('2d')!
-      cx.drawImage(im, 0, 0)
-      return pts.map(({ x, y }) => {
-        const d = cx.getImageData(Math.round(x), Math.round(y), 1, 1).data
-        return [d[0], d[1], d[2]] as [number, number, number]
-      })
-    },
-    { b64: png.toString('base64'), pts },
-  )
-}
-
-/** the composited boundary of `el`: the darkest-vs-outside column across its left
- *  edge and row across its top edge, the colour 5 px outside (the surface behind
- *  it) and 5 px / 3 px inside (its own face). */
-async function boundary(page: Page, el: Locator) {
-  const b = (await el.boundingBox())!
-  const png = await page.screenshot()
-  const cy = b.y + b.height / 2
-  const cx = b.x + b.width / 2
-  const px = await rgbAt(page, png, [
-    { x: b.x - 5, y: cy },
-    { x: b.x + 5, y: cy },
-    { x: cx, y: b.y - 5 },
-    { x: cx, y: b.y + 3 },
-    ...[-1, 0, 1, 2].map((o) => ({ x: b.x + o, y: cy })),
-    ...[-1, 0, 1, 2].map((o) => ({ x: cx, y: b.y + o })),
-  ])
-  const [outL, inL, outT, inT] = px
-  const pick = (cands: Rgb[], out: Rgb) => cands.reduce((best, c) => (dist(c, out) > dist(best, out) ? c : best))
-  const edgeL = pick(px.slice(4, 8), outL)
-  const edgeT = pick(px.slice(8, 12), outT)
-  return {
-    left: { edge: edgeL, out: outL, face: inL, vsOut: r2(ratio(edgeL, outL)), vsFace: r2(ratio(edgeL, inL)) },
-    top: { edge: edgeT, out: outT, face: inT, vsOut: r2(ratio(edgeT, outT)), vsFace: r2(ratio(edgeT, inT)) },
-  }
-}
-const expectBoundary = (name: string, m: Awaited<ReturnType<typeof boundary>>) => {
-  for (const side of ['left', 'top'] as const) {
-    expect(m[side].vsOut, `${name}: ${side} border vs the surface behind the control ≥ 3:1`).toBeGreaterThanOrEqual(3)
-    expect(m[side].vsFace, `${name}: ${side} border vs the control's own face ≥ 3:1`).toBeGreaterThanOrEqual(3)
-  }
-}
-const probe = (page: Page, css: string) =>
-  page.evaluate((v) => {
-    const d = document.createElement('div')
-    d.style.color = v
-    document.body.append(d)
-    const c = getComputedStyle(d).color
-    d.remove()
-    return c
-  }, css)
-const computed = (el: Locator) =>
-  el.evaluate((e) => {
-    const c = getComputedStyle(e)
-    return { border: c.borderTopColor, width: c.borderTopWidth, bg: c.backgroundColor, color: c.color, opacity: c.opacity }
-  })
-const noHover = async (page: Page) => {
-  await page.mouse.move(2, 2)
-  await page.waitForTimeout(120)
-}
+// (`--signal-primary`) keep their own borders, label text ≥ 4.5:1, disabled
+// stays the WCAG exception (`opacity: .4`, `.pb-btn:disabled` →
+// `--line-disabled`), and forced colours own the border (ButtonBorder /
+// Highlight / GrayText). No pressed contract — no desktop `.btn` carries
+// `aria-pressed`.
+//
+// Focus (Cozy Shelter tokens v1.1.0 §3, the shell branch): a `.btn` has a
+// visible boundary, so its focus indicator is that boundary in the solid focus
+// colour plus a 3 px halo, with no outline; a ghost button has none, so it
+// keeps the opaque outline. The twelve other bordered controls are measured in
+// `shell-control-boundary.spec.ts`.
 
 /** the six representative controls, one per surface token (+ PlayBar + Timeline) */
 type Rep = { name: string; surface: string; open: (page: Page) => Promise<Locator> }
@@ -217,7 +146,7 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
       })
     }
 
-    test(`${scheme}: guards — ghost / primary borders, focus ring, disabled opacity and the PlayBar disabled border are unchanged`, async ({ page }) => {
+    test(`${scheme}: guards — ghost / primary borders, the focus boundary + halo, disabled opacity and the PlayBar disabled border`, async ({ page }) => {
       await load(page, scheme)
       const signal = await probe(page, 'var(--signal-primary)')
       const lineStrong = await probe(page, 'var(--line-strong)')
@@ -263,27 +192,39 @@ test.describe('control boundary contrast (§VL8 / WCAG 1.4.11)', () => {
       await noHover(page)
       await page.keyboard.press('Escape')
       await expect(page.locator('.mcdlg[role="dialog"]')).toHaveCount(0)
-      // focus-visible ring on a toolbar button: 2 px --focus-ring, offset 2, ≥ 3:1 vs the toolbar
+      // focus on a bordered toolbar button (class A): the BOUNDARY is the solid
+      // indicator — `--line-focus`, ≥ 3:1 against the toolbar AND the face, on
+      // real pixels — a halo accompanies it, and there is no outline
       const tpl = page.locator('.toolbar__actions .menu > button.btn', { hasText: /Templates/ })
-      await page.keyboard.press('Shift')
-      await tpl.evaluate((e) => (e as HTMLElement).focus())
-      await page.waitForTimeout(120)
-      const oc = await tpl.evaluate((e) => {
-        const c = getComputedStyle(e)
-        return { fv: e.matches(':focus-visible'), style: c.outlineStyle, width: c.outlineWidth, color: c.outlineColor, offset: c.outlineOffset }
-      })
-      expect(oc.fv).toBe(true)
-      expect(oc.style).toBe('solid')
-      expect(oc.width).toBe('2px')
-      expect(oc.color).toBe(focusRing)
+      const restEdge = (await boundary(page, tpl)).left.edge
+      await keyboardFocus(page, tpl)
+      const fs = await focusStyle(tpl)
+      expect(fs.fv).toBe(true)
+      expect(fs.outlineStyle, 'class A: the border stands in for the outline').toBe('none')
+      expect(fs.border, 'the boundary takes the solid focus colour').toBe(focusRing)
+      expect(fs.boxShadow, 'a 3 px halo accompanies it').toMatch(/0px 0px 0px 3px/)
+      const focused = await boundary(page, tpl)
+      console.log(`[ctl] ${scheme} toolbar Templates (.btn) focus: L ${focused.left.vsOut}/${focused.left.vsFace} T ${focused.top.vsOut}/${focused.top.vsFace}`)
+      expectBoundary(`${scheme} toolbar .btn focused`, focused)
+      expect(dist(focused.left.edge, parseRgb(focusRing)), 'the boundary is painted in the focus colour').toBeLessThan(40)
+      expect(dist(focused.left.edge, restEdge), 'focus reads differently from rest').toBeGreaterThan(6)
+      // the halo alone must never be the indicator: it is far below 3:1
       const fb = (await tpl.boundingBox())!
-      const [ringPx, behind] = await rgbAt(page, await page.screenshot(), [
-        { x: fb.x - 3, y: fb.y + fb.height / 2 },
+      const [haloPx, behind] = await rgbAt(page, await page.screenshot(), [
+        { x: fb.x - 2, y: fb.y + fb.height / 2 },
         { x: fb.x - 8, y: fb.y + fb.height / 2 },
       ])
-      expect(dist(ringPx, parseRgb(focusRing)), 'the focus ring is painted in --focus-ring').toBeLessThan(40)
-      expect(ratio(ringPx, behind), 'focus ring vs the toolbar ≥ 3:1').toBeGreaterThanOrEqual(3)
+      expect(ratio(haloPx, behind), 'the halo is a companion, not the indicator').toBeLessThan(3)
+      expect(dist(haloPx, behind), 'the halo is painted').toBeGreaterThan(3)
       await tpl.evaluate((e) => (e as HTMLElement).blur())
+      // a ghost button has no boundary at rest (class B): the opaque outline stays
+      await keyboardFocus(page, ghost)
+      const gf = await focusStyle(ghost)
+      expect(gf.fv).toBe(true)
+      expect(gf.outlineStyle).toBe('solid')
+      expect(gf.outlineWidth).toBe('2px')
+      expect(gf.outlineColor).toBe(focusRing)
+      await ghost.evaluate((e) => (e as HTMLElement).blur())
       // disabled `.btn`: the WCAG exception is the 0.4 opacity, no enabled-only colour rule
       await page.evaluate(() => (window as any).__loop.ui.getState().setFilterPanelOpen(true))
       const clear = page.locator('.lgr-filter .btn')
