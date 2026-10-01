@@ -173,7 +173,7 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'focus', 'filters', 'type', 'route', 'diagram', 'object', 'offset', 'bytes',
     'repository', 'index', 'effect', 'conflict', 'contact', 'parallel', 'plus', 'per',
     'open', 'water', 'meter', 'moment', 'rest', 'via', 'violet', 'auto', 'zone', 'zones',
-    'zoom', 'activator',
+    'zoom', 'activator', 'later',
   ]],
 ]
 
@@ -247,15 +247,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(852)
+    expect(KEYS).toHaveLength(857)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 852, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1074)
+    expect(per).toEqual({ catalog: 857, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1079)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

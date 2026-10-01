@@ -106,9 +106,12 @@ export const useMcStore = create<McStore>((set, get) => ({
     // Kept separate from the Monte-Carlo config below, which is deliberately left
     // untouched when a file omits it.
     const rc = m && typeof m === 'object' ? (m as Record<string, unknown>) : {}
-    useSimStore
-      .getState()
-      .setTimelineSeries(Array.isArray(rc.timelineSeries) ? (rc.timelineSeries as string[]) : undefined)
+    // HYDRATE, never `setTimelineSeries`: this runs on every document load, and
+    // the load has already scheduled its debounced autosave. The user setter
+    // would add an immediate write on top — the thing
+    // `docs/timeline-series-contract.md` §3.2 forbids. `hydrateTimelineSeries`
+    // applies the one shape rule (`readTimelineSeries`) and flushes nothing.
+    useSimStore.getState().hydrateTimelineSeries(rc.timelineSeries)
     useUiStore.getState().setCanvasLocked(rc.canvasLocked === true)
 
     if (!m || typeof m !== 'object') return
@@ -265,17 +268,18 @@ export const useMcStore = create<McStore>((set, get) => ({
 
 /**
  * The `recommendedRunConfig` every graph Export writes: the Monte-Carlo config
- * PLUS the current Timeline default-series selection (`timelineSeries`, omitted
- * while it is the implicit 'all'). Used by Graph JSON export, the Share encoder,
- * and Workspace export so a round-trip preserves the recommended display.
- * Project revisions carry no run config at all (unchanged) and so carry no
- * `timelineSeries`.
+ * PLUS the current Timeline series selection — `'all'` or an explicit sorted
+ * list is written, `'auto'` (the automatic default) writes no field. Used by
+ * Graph JSON export, the Share encoder, and Workspace export so a round-trip
+ * preserves the chosen display. Project revisions carry no run config at all
+ * (unchanged) and so carry no `timelineSeries`.
  */
 export function recommendedRunConfigForExport(): RecommendedRunConfig {
   const ts = useSimStore.getState().timelineSeries
   const locked = useUiStore.getState().canvasLocked
   return {
     ...useMcStore.getState().config,
+    ...(ts === 'all' ? { timelineSeries: 'all' as const } : {}),
     ...(Array.isArray(ts) ? { timelineSeries: [...ts].sort() } : {}),
     ...(locked ? { canvasLocked: true } : {}),
   }

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/localization.md Slice 1 + the language-menu follow-up.
 //   • the language control is a trigger button + a registry-driven overlay
@@ -330,6 +330,7 @@ test.describe('i18n — Slice 2a (Canvas / Inspector / Timeline + palette tip)',
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G)
+    await ensureTimelineOpen(page)
 
     await expect(page.locator('.timeline__head')).toContainText('timeline')
     await page.evaluate(() => {

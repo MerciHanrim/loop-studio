@@ -538,24 +538,24 @@
       "file": "src/components/TimelineChart.tsx",
       "tag": "button",
       "find": [
-        "p.label"
+        "timeline__key",
+        "c.label"
       ],
       "expect": "auto"
     },
     {
       "file": "src/components/TimelineChart.tsx",
-      "tag": "button",
+      "tag": "span",
       "find": [
-        "r.label"
+        "timeline__key--probe"
       ],
       "expect": "auto"
     },
     {
-      "file": "src/components/TimelineChart.tsx",
-      "tag": "button",
+      "file": "src/components/TimelineSeriesPopover.tsx",
+      "tag": "span",
       "find": [
-        "timeline__key is-off",
-        "timeline.legend.show"
+        "tl-series__label"
       ],
       "expect": "auto"
     },

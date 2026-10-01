@@ -55,19 +55,26 @@ export type RecommendedRunConfig = {
   tracked?: string[]
   /**
    * Advisory Timeline display default: the series shown when the document is
-   * opened — Pool **and** Register ids, sorted. Absent ⇒ every series is shown
-   * (unchanged behaviour). Distinct from `tracked` (that is Monte-Carlo).
+   * opened. THREE states (`docs/timeline-series-contract.md` §3):
    *
-   * A pure display preference: on document / template / Workspace / Share /
-   * revision load it seeds the visible set, and every graph Export writes the
-   * current value back. The app's autosave record ALSO persists whatever the
-   * current selection is — the only `recommendedRunConfig` slice that does —
-   * purely so a plain reload restores it (recommended subset + "+N more", never
-   * the incoherent "every series shown, no collapse"). NEVER part of the
+   *   - field ABSENT      ⇒ internal `auto` — the automatic default. Never
+   *                         written to disk; `'auto'` is not a file value.
+   *   - `'all'`           ⇒ every series, INCLUDING series added later. A
+   *                         deliberate choice, and so it IS written.
+   *   - `string[]`        ⇒ exactly these Pool **and** Register ids, sorted +
+   *                         de-duped on write. Unknown / deleted ids are ignored
+   *                         on read, not an error.
+   *
+   * Distinct from `tracked` (that is Monte-Carlo). A pure display preference:
+   * on document / template / Workspace / Share / revision load it seeds the
+   * visible set, and every graph Export writes the current value back. The
+   * app's autosave record ALSO persists it — the only `recommendedRunConfig`
+   * slice that does — purely so a plain reload restores it. NEVER part of the
    * GraphDoc proper, the `loop-revision/*` digest, undo, or `simulationRev`.
-   * Unknown / deleted ids are ignored, not an error.
+   * Every reader goes through `readTimelineSeries`; nothing else decides what
+   * an unknown shape means.
    */
-  timelineSeries?: string[]
+  timelineSeries?: 'all' | string[]
 
   /**
    * Advisory: open the document with the Canvas **edit-locked** (nodes don't
@@ -78,6 +85,36 @@ export type RecommendedRunConfig = {
    * GraphDoc / digest / undo. The user can flip the Controls lock at any time.
    */
   canvasLocked?: boolean
+}
+
+/**
+ * The in-app Timeline series selection — the three-state model of
+ * `docs/timeline-series-contract.md` §3. `'auto'` exists ONLY in memory: on disk
+ * it is the absence of `recommendedRunConfig.timelineSeries`.
+ */
+export type TimelineSeries = 'auto' | 'all' | string[]
+
+/**
+ * The ONE reader for a stored `timelineSeries` value of unknown shape. Every
+ * load path (file, template, Workspace, Share, revision, the autosave record)
+ * decides what a value means through this function and nowhere else, so
+ * "unknown shape ⇒ auto" is a single rule rather than a rule per caller.
+ *
+ *   - `'all'`                         ⇒ `'all'`
+ *   - a non-empty array               ⇒ its string entries, de-duped, sorted
+ *   - absent / `'auto'` / empty array ⇒ `'auto'`
+ *   - anything else                   ⇒ `'auto'` (fail closed, never throws)
+ *
+ * An array whose entries are all non-strings collapses to `'auto'` the same way
+ * an empty array does: there is nothing left to select.
+ */
+export function readTimelineSeries(v: unknown): TimelineSeries {
+  if (v === 'all') return 'all'
+  if (Array.isArray(v)) {
+    const ids = [...new Set(v.filter((s): s is string => typeof s === 'string'))].sort()
+    return ids.length > 0 ? ids : 'auto'
+  }
+  return 'auto'
 }
 
 /**
@@ -746,11 +783,11 @@ const isQuotaError = (e: unknown): boolean => {
 
 /** Autosave record — the graph and, atomically in the same write, the
  *  lightweight `project` header (or nothing) and the current Timeline series
- *  selection (as a one-field `recommendedRunConfig` `{ timelineSeries }`, or
- *  nothing while it is the "all" default) so a plain reload restores it. One
- *  `localStorage.setItem`. The Monte-Carlo fields and `canvasLocked` are
- *  deliberately NOT persisted here — they apply on an explicit document /
- *  template load only.
+ *  selection (as a one-field `recommendedRunConfig` `{ timelineSeries }` for
+ *  `'all'` or an explicit list, or NOTHING for `'auto'` — the automatic default
+ *  is never written) so a plain reload restores it. One `localStorage.setItem`.
+ *  The Monte-Carlo fields and `canvasLocked` are deliberately NOT persisted
+ *  here — they apply on an explicit document / template load only.
  *
  *  Never throws; the RESULT says whether the record was written. A failure
  *  leaves whatever record was there before (the last good save) untouched —
@@ -760,7 +797,7 @@ export function saveToStorage(
   nodes: LoopNode[],
   edges: LoopEdge[],
   project?: unknown,
-  timelineSeries?: 'all' | readonly string[],
+  timelineSeries?: TimelineSeries | readonly string[],
   modelVersion: ModelSemanticsVersion = 1,
   /** LGR Slice 5 — the current saved manual frames, atomically in the same
    *  write. Absent / empty ⇒ no `frames` key. */
@@ -770,10 +807,14 @@ export function saveToStorage(
   dataImports?: readonly ImportSourceTable[],
 ): SaveToStorageResult {
   try {
+    // `'all'` is a deliberate choice and is written; `'auto'` (and the legacy
+    // "nothing" spellings — undefined / []) write no field at all.
     const rrc: RecommendedRunConfig | undefined =
-      Array.isArray(timelineSeries) && timelineSeries.length > 0
-        ? { timelineSeries: [...timelineSeries] }
-        : undefined
+      timelineSeries === 'all'
+        ? { timelineSeries: 'all' }
+        : Array.isArray(timelineSeries) && timelineSeries.length > 0
+          ? { timelineSeries: [...timelineSeries] }
+          : undefined
     localStorage.setItem(
       STORAGE_KEY,
       serialize(nodes, edges, rrc, undefined, project, modelVersion, frames, dataImports),

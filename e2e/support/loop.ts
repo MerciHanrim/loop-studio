@@ -92,6 +92,50 @@ export async function openApp(page: Page): Promise<void> {
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
 }
 
+/**
+ * docs/timeline-series-contract.md §7 — the Timeline panel starts COLLAPSED and
+ * auto-expands on the first run. A spec that reads the legend or the plot
+ * BEFORE any step opens the panel the way a user would: the strip's collapse
+ * control (desktop), or the run bar's Timeline toggle (mobile, where the panel
+ * is a sheet). A no-op when it is already open.
+ */
+export async function ensureTimelineOpen(page: Page): Promise<void> {
+  const mobile = (page.viewportSize()?.width ?? 1280) < 500
+  if (mobile) {
+    if (!(await page.locator('.timeline__panel').isVisible().catch(() => false))) {
+      const tl = page.locator('.pstrip--mobile .pstrip__tl, .pstrip--mobile button[aria-label*="imeline" i]').first()
+      if (await tl.count()) await tl.click()
+    }
+  } else {
+    const collapse = page.locator('.pstrip__collapse')
+    if ((await collapse.getAttribute('aria-expanded')) === 'false') {
+      await collapse.click()
+      // the panel is visible a beat before the canvas has finished shrinking
+      // around it — wait for the laid-out height, not the class
+      await expect
+        .poll(() => page.evaluate(() => document.querySelector('.timeline')!.getBoundingClientRect().height), {
+          message: 'the Timeline reached its open height',
+        })
+        .toBeGreaterThanOrEqual(200)
+    }
+  }
+  await expect(page.locator('.timeline__panel')).toBeVisible()
+}
+
+/**
+ * The product's own "Reset view" (Canvas.tsx `resetView`: fit the graph, clear
+ * filters / focus). A pixel spec that frames the canvas under the app's camera
+ * calls this AFTER the layout it wants is final: the camera is otherwise the
+ * fit that ran at MOUNT (an import keeps the camera it finds), and the mount
+ * happens on the collapsed pane (timeline-series-contract §7) — MEASURED
+ * 2026-10-01: a panel opened afterwards leaves that camera centred for the
+ * taller pane. Letting the product re-fit at the final layout is the fix; no
+ * pixel offset is applied anywhere.
+ */
+export async function resetView(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^reset view/i }).click()
+}
+
 /** Empty graph + idle sim + no Monte-Carlo result. */
 export async function resetAll(page: Page): Promise<void> {
   await page.evaluate(() => {

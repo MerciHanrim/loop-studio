@@ -3272,6 +3272,7 @@ a.sheet__row {
   border-top: 1px solid var(--line-hairline);
 }
 .timeline__head {
+  position: relative; /* the out-of-flow measurement row anchors here */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3284,14 +3285,40 @@ a.sheet__row {
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
+/* docs/timeline-series-contract.md §5 — ALWAYS ONE ROW. `nowrap` + `min-width: 0`
+   + `overflow: hidden` mean the row can never grow the head; the component
+   renders only as many chips as its measurement says fit, so nothing here is
+   ever actually clipped — the overflow rule is the safety net, not the
+   mechanism. */
 .timeline__legend {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 12px;
+  overflow: hidden;
   text-transform: none;
   letter-spacing: 0;
   font-size: 11px;
   color: var(--text-secondary);
+}
+/* the measurement row: the same chips, out of flow and invisible, so their
+   widths are known in the same layout pass (never `display: none` — that
+   has no width) */
+.timeline__probe {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  display: flex;
+  gap: 12px;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
 }
 /* the `display: flex` above otherwise beats the [hidden] UA rule, leaving the
    LIVE legend competing with the Distribution stats row */
@@ -3299,6 +3326,7 @@ a.sheet__row {
   display: none;
 }
 .timeline__key {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -3309,22 +3337,37 @@ a.sheet__row {
   font: inherit;
   color: inherit;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   cursor: pointer;
 }
 .timeline__key:hover {
   background: var(--surface-sunken);
 }
-.timeline__key.is-off {
-  opacity: 0.4;
-}
-/* `+N more` / `Show fewer` — a control, not a series key */
-.timeline__key--more {
-  border: 1px dashed var(--line-structure);
-  color: var(--text-tertiary);
-}
-.timeline__key--more:hover {
-  border-color: var(--line-strong);
+/* the series selector trigger (`계열 n/total`, contract §6) — a control, not a
+   series key; always present, so it keeps its place and the chips yield */
+.timeline__series {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
+  border-radius: 4px;
+  background: var(--surface-raised);
   color: var(--text-secondary);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.timeline__series:hover:not(:disabled),
+.timeline__series[aria-expanded='true'] {
+  border-color: var(--line-control-hover);
+  color: var(--text-primary);
+}
+.timeline__series:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .timeline__mark {
   width: 8px;
@@ -3334,6 +3377,7 @@ a.sheet__row {
   flex: none;
 }
 .timeline__csv {
+  flex: none;
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
   border-radius: 4px;
   padding: 1px 6px;
@@ -3610,9 +3654,35 @@ a.sheet__row {
 .mpanel + .mpanel {
   border-top: 1px solid var(--line-hairline);
 }
+.mpanel__headrow {
+  display: flex;
+  align-items: center;
+}
+.mpanel__headrow .mpanel__head {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .mpanel__head {
   margin: 0;
   font-size: 11px;
+}
+/* docs/timeline-series-contract.md §8 — the one shared `계산식` toggle beside
+   the Summary heading, outside the section toggle, always visible */
+.mpanel__calc {
+  flex: none;
+  margin-inline-end: 8px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.mpanel__calc:hover,
+.mpanel__calc[aria-expanded='true'] {
+  color: var(--text-secondary);
 }
 .mpanel__toggle {
   display: flex;
@@ -3764,18 +3834,6 @@ a.sheet__row {
   display: flex;
   align-items: baseline;
   gap: 8px;
-}
-.mp-row__calcbtn {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--text-tertiary);
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-.mp-row__calcbtn:hover {
-  color: var(--text-secondary);
 }
 .mp-row__expr {
   font-family: var(--font-mono, monospace);
@@ -4127,6 +4185,93 @@ a.sheet__row {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--signal-primary);
+}
+
+/* docs/timeline-series-contract.md §6 — the chart series selector popover.
+   Portaled to <body>, `position: fixed` from the trigger (inline style), its
+   own scroll: it never changes the chart's height. z-index above the mobile
+   sheet (--z-sheet 40), like the frame properties popover. */
+.tl-series {
+  z-index: 60;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-structure);
+  border-radius: 9px;
+  box-shadow: var(--elev-label);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.tl-series:focus {
+  outline: none;
+}
+.tl-series__title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.tl-series__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tl-series__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tl-series__item:hover {
+  background: var(--surface-sunken);
+}
+.tl-series__check {
+  margin: 0;
+  flex: none;
+}
+.tl-series__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-series__note {
+  margin: 0;
+  min-height: 1em;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.tl-series__note:empty {
+  display: none;
+}
+.tl-series__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-hairline);
+}
+.tl-series__action {
+  align-self: flex-start;
+}
+.tl-series__hint {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 /* LIVE | DISTRIBUTION switch in the timeline header */

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, openApp, resetAll, test } from './support/loop'
 
 // docs/example-mmo-progression.md §EM10 — the "Early MMO progression (levels
 // 1–15)" Templates demo, exercised through the app: pick it from Templates ▾
@@ -111,26 +111,30 @@ test.describe('Early MMO progression example', () => {
     expect(ts.length).toBeLessThan(DOC.recommendedRunConfig.tracked.length) // fewer than MC tracks
   })
 
-  test('desktop: the first-run Timeline legend shows the 5 story series + "+N more" for the rest', async ({
+  test('desktop: the first-run Timeline legend shows the 5 story series; the selector reads 5/55 and reveals the rest', async ({
     page,
   }) => {
     await openApp(page)
     await resetAll(page)
     await pickDesktopTemplate(page, EN_NAME)
+    await ensureTimelineOpen(page) // docs/timeline-series-contract.md §7 — collapsed until the first run
 
     const legend = page.locator('.timeline__legend')
     await expect(legend).toBeVisible()
 
     // exactly the 5 curated keys are on the legend, in the structural order the
     // component renders (all Pools, graph-node order) — array order is not used
-    const keyText = await legend.locator('.timeline__key:not(.timeline__key--more)').allInnerTexts()
+    const keyText = await legend.locator('.timeline__key').allInnerTexts()
     const names = keyText.map((t) => t.replace(/\s+\S+$/, '').trim())
     expect(names).toEqual(['Level', 'XP earned', 'Deaths (count)', 'Gold', 'Gear score'])
 
-    // the other 50 series (48 Pools + 7 Registers − 5 shown) are behind the expander
-    await expect(legend.locator('.timeline__key--more')).toHaveText(/\+50 more/)
+    // the other 50 series (48 Pools + 7 Registers − 5 shown) are reached through
+    // the series selector; the old `+N more` chip no longer exists (§6.3)
+    const trigger = page.locator('.timeline__series')
+    await expect(trigger).toHaveText('Series 5/55')
+    await expect(legend.locator('.timeline__key--more')).toHaveCount(0)
 
-    // run a few steps so the chart draws lines, then expand + reveal a hidden series
+    // run a few steps so the chart draws lines, then reveal a hidden series
     await page.evaluate(() => {
       const s = (window as unknown as { __loop: Loop }).__loop.sim.getState()
       s.reset()
@@ -139,13 +143,16 @@ test.describe('Early MMO progression example', () => {
     const poolLines = page.locator('.timeline__line:not(.timeline__line--register)')
     await expect(poolLines).toHaveCount(5) // the 5 story Pools
 
-    await legend.locator('.timeline__key--more').click()
-    const hiddenElapsed = legend.locator('.timeline__key.is-off', { hasText: 'Elapsed steps' })
-    await expect(hiddenElapsed).toBeVisible()
-    await hiddenElapsed.click()
+    await trigger.click()
+    const popover = page.locator('.tl-series')
+    await expect(popover).toBeVisible()
+    await expect(popover.getByRole('checkbox')).toHaveCount(55)
+    await popover.getByRole('checkbox', { name: 'Elapsed steps' }).check()
+    await page.keyboard.press('Escape')
 
     // the revealed Pool now draws its own line, and it is in the selection
     await expect(poolLines).toHaveCount(6)
+    await expect(trigger).toHaveText('Series 6/55')
     const ts2 = await page.evaluate(
       () => (window as unknown as { __loop: Loop }).__loop.sim.getState().timelineSeries,
     )

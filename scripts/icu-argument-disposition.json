@@ -11,10 +11,10 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 205,
-    "rows": 52,
+    "arguments": 207,
+    "rows": 50,
     "byClass": {
-      "attribute": 12,
+      "attribute": 10,
       "closed-value": 40
     },
     "recordedNotImplemented": 0,
@@ -279,27 +279,7 @@
       "ord": 1,
       "sink": "attr:button.title",
       "class": "attribute",
-      "evidence": "title on a button. The value is a user POOL LABEL."
-    },
-    {
-      "file": "src/components/TimelineChart.tsx",
-      "enclosing": "TimelineChart",
-      "key": "timeline.legend.hide",
-      "arg": "label",
-      "ord": 2,
-      "sink": "attr:button.title",
-      "class": "attribute",
-      "evidence": "title on a button. The value is a user REGISTER LABEL."
-    },
-    {
-      "file": "src/components/TimelineChart.tsx",
-      "enclosing": "TimelineChart",
-      "key": "timeline.legend.show",
-      "arg": "label",
-      "ord": 1,
-      "sink": "attr:button.title",
-      "class": "attribute",
-      "evidence": "title on a button. The value is a user series LABEL."
+      "evidence": "title on a legend chip button. The value is a user POOL or REGISTER LABEL (one chip loop since the series selector replaced the two legend loops and the `+N more` expansion)."
     },
     {
       "file": "src/components/Toolbar.tsx",

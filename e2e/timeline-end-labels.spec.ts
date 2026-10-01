@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // fix/timeline-end-label-collisions (+ layout follow-up) — several series ending
 // near the same value while the Y-max is large used to pile their endpoint
@@ -90,10 +90,7 @@ async function setup(page: Page, graph = G) {
   await resetAll(page)
   await importGraph(page, graph)
   await page.evaluate(() => (window as unknown as Bridge).__loop.sim.getState().reset())
-  if (isMobile(page)) {
-    const tl = page.locator('.pstrip--mobile .pstrip__tl, .pstrip--mobile button[aria-label*="imeline" i]').first()
-    if (await tl.count()) await tl.click().catch(() => {})
-  }
+  await ensureTimelineOpen(page) // desktop: collapsed until the first run; mobile: the sheet
   await expect(page.locator('.timeline__svg')).toBeVisible()
 }
 
@@ -243,7 +240,14 @@ test.describe('Timeline — endpoint label collision avoidance', () => {
 
   // ── 4. space-constrained: deterministic overflow into a "+N" chip ─────────
   test('too many series for the plot ⇒ a "+N" chip; shown labels do not overlap; shown + N === total; deterministic', async ({ page }) => {
-    const many = clusterGraph(5, [3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]) // 12 clustered + big = 13 series
+    // 12 clustered + big = 13 series. The document says `'all'` because this test
+    // is about the LABEL band overflowing, which needs every series drawn — with
+    // no field the chart would draw the automatic eight
+    // (docs/timeline-series-contract.md §4) and the band would never fill.
+    const many = JSON.stringify({
+      ...JSON.parse(clusterGraph(5, [3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15])),
+      recommendedRunConfig: { timelineSeries: 'all' },
+    })
     await setup(page, many)
     await stepK(page, PRIME)
     const g = (await geom(page))!

@@ -279,13 +279,20 @@ describe('saveToStorage / loadFromStorage — the Timeline display default', () 
     expect(loadFromStorage()?.recommendedRunConfig?.timelineSeries).toEqual(['p', 'reg_a'])
   })
 
-  it("'all' (the default) writes no recommendedRunConfig at all", () => {
-    saveToStorage(nodes, edges, null, 'all')
+  it("'auto' (the automatic default) writes no recommendedRunConfig at all", () => {
+    saveToStorage(nodes, edges, null, 'auto')
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('recommendedRunConfig')
-    saveToStorage(nodes, edges, null, []) // empty list ⇒ same as 'all'
+    saveToStorage(nodes, edges, null, []) // empty list ⇒ same as 'auto'
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('recommendedRunConfig')
     saveToStorage(nodes, edges) // omitted ⇒ same
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).not.toHaveProperty('recommendedRunConfig')
+  })
+
+  it("'all' is a deliberate choice: it IS written, and comes back as 'all' on restore", () => {
+    saveToStorage(nodes, edges, null, 'all')
+    const rec = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    expect(rec.recommendedRunConfig).toEqual({ timelineSeries: 'all' })
+    expect(loadFromStorage()?.recommendedRunConfig?.timelineSeries).toBe('all')
   })
 
   it('the project header and the timelineSeries slice land in ONE record', () => {

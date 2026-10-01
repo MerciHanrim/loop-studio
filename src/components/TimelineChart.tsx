@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
+import { resolveTimelineSeries } from '../model/timelineSeries'
 import { useGraphStore } from '../store/graphStore'
 import { currentRegisterOutcomes } from '../store/registers'
 import { useMcStore } from '../store/mcStore'
@@ -11,6 +12,7 @@ import { downloadCsv } from '../ui/download'
 import { buildRunCsv } from './timelineCsv'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
+import { TimelineSeriesPopover, type SeriesItem } from './TimelineSeriesPopover'
 
 // A — chart discipline: the canvas token, carried down onto the time axis.
 // Data line = resource-track weight; current value = the same solid Bead;
@@ -49,9 +51,13 @@ function exportRunCsv(pools: { id: string; label: string }[], series: { step: nu
 
 export function TimelineChart() {
   const t = useT()
-  const [collapsed, setCollapsed] = useState(false)
-  // the collapsed legend: hidden Pool / Register keys sit behind a `+N more`
-  const [legendExpanded, setLegendExpanded] = useState(false)
+  // docs/timeline-series-contract.md §7 — screen state only, never persisted:
+  //   untouched + before any run -> collapsed
+  //   untouched + first run      -> auto-expand
+  //   user has toggled it once   -> automatic transitions stop permanently
+  // Automatic transitions only ever EXPAND; the panel never folds itself.
+  const [collapsed, setCollapsed] = useState(true)
+  const userTouched = useRef(false)
   const plotRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 760, h: 116 })
   const isMobile = useIsMobile()
@@ -64,7 +70,20 @@ export function TimelineChart() {
   const arrivedPoolIds = useSimStore((s) => s.arrivedPoolIds)
   const timelineSeries = useSimStore((s) => s.timelineSeries)
   const toggleTimelineSeries = useSimStore((s) => s.toggleTimelineSeries)
+  const setTimelineSeries = useSimStore((s) => s.setTimelineSeries)
   const nodes = useGraphStore((s) => s.nodes)
+
+  const mcResult = useMcStore((s) => s.result)
+  const mcView = useMcStore((s) => s.view)
+  const setMcView = useMcStore((s) => s.setView)
+  const showDistribution = mcResult != null && mcView === 'distribution'
+
+  // §7 "first run": a live step, a running clock, or a completed Monte-Carlo
+  // run — the distribution view lives in this same panel.
+  const hasRunEver = stepIndex > 0 || status === 'running' || mcResult != null
+  useEffect(() => {
+    if (hasRunEver && collapsed && !userTouched.current) setCollapsed(false)
+  }, [hasRunEver, collapsed])
 
   useEffect(() => {
     const el = plotRef.current
@@ -100,23 +119,24 @@ export function TimelineChart() {
     [nodes, pools.length],
   )
 
-  // `timelineSeries` (simStore, UI-only) is the DEFAULT visible set — Pool AND
-  // Register ids. 'all' (or a stale list that names nothing here) shows every
-  // series, exactly as before. A `recommendedRunConfig.timelineSeries` on the
-  // loaded file seeds it; the legend toggles it in place.
+  // `timelineSeries` (simStore, UI-only) is the stored choice — `auto`, `'all'`
+  // or an explicit id list (Pool AND Register ids). What is DRAWN is its
+  // resolution over the current series in document order
+  // (`resolveTimelineSeries`, docs/timeline-series-contract.md §3 / §4): `auto`
+  // caps at DEFAULT_SERIES_CAP, `'all'` is every series, a list is exactly
+  // itself minus ids that no longer exist. The cap applies to what is
+  // rendered — line, segment and bead — not only to the legend.
   const allSeriesIds = useMemo(
     () => [...pools.map((p) => p.id), ...registers.map((r) => r.id)],
     [pools, registers],
   )
-  const listMatches =
-    Array.isArray(timelineSeries) && timelineSeries.some((id) => allSeriesIds.includes(id))
-  const isShown = (id: string) =>
-    timelineSeries === 'all' || !listMatches || (timelineSeries as string[]).includes(id)
-  const shownPools = pools.filter((p) => isShown(p.id))
-  const shownRegisters = registers.filter((r) => isShown(r.id))
-  const hiddenPools = pools.filter((p) => !isShown(p.id))
-  const hiddenRegisters = registers.filter((r) => !isShown(r.id))
-  const hiddenCount = hiddenPools.length + hiddenRegisters.length
+  const drawnIds = useMemo(
+    () => resolveTimelineSeries(timelineSeries, allSeriesIds),
+    [timelineSeries, allSeriesIds],
+  )
+  const drawnSet = useMemo(() => new Set(drawnIds), [drawnIds])
+  const shownPools = useMemo(() => pools.filter((p) => drawnSet.has(p.id)), [pools, drawnSet])
+  const shownRegisters = useMemo(() => registers.filter((r) => drawnSet.has(r.id)), [registers, drawnSet])
   // one `registersOfSnapshot` per UNIQUE historical snapshot (§M3.5). The live
   // "current step" read reuses the shared `currentRegisterOutcomes` cache so
   // the Canvas / Inspector / this legend never re-evaluate it.
@@ -125,6 +145,85 @@ export function TimelineChart() {
     return series.map((pt) => ({ step: pt.step, outcomes: registersOfSnapshot(nodes, pt.values) }))
   }, [series, nodes, registers.length])
   const currentOutcomes = currentRegisterOutcomes(nodes, useSimStore((s) => s.values))
+
+  // ── the legend: ALWAYS ONE ROW (contract §5). As many chips as fit at the
+  // current width; the selector trigger and the CSV control keep their place
+  // and the chips yield to them. The chip count is NOT the drawn count — the
+  // trigger says `n/total`, the chips are whatever fit.
+  //
+  // Measured, not guessed: an invisible probe row (`.timeline__probe`, out of
+  // flow, same font metrics) renders every drawn chip so its width is known
+  // in the same layout pass, and one `useLayoutEffect` picks the largest
+  // prefix that fits beside the two fixed controls. No wrap ever reaches the
+  // screen, and no loop of hide-one-and-remeasure.
+  const chipText = (id: string, isReg: boolean): string => {
+    if (isReg) {
+      const cur = currentOutcomes.get(id)
+      return cur && !cur.invalid ? formatRegisterValue(cur.value) : cur ? '—' : '·'
+    }
+    const last = series.length ? series[series.length - 1].values[id] ?? 0 : 0
+    return fmt(last)
+  }
+  const chips = useMemo(
+    () => [
+      ...shownPools.map((p) => ({ ...p, isReg: false })),
+      ...shownRegisters.map((r) => ({ ...r, isReg: true })),
+    ],
+    [shownPools, shownRegisters],
+  )
+  const hasRun = series.length >= 2
+  const legendRef = useRef<HTMLSpanElement>(null)
+  const probeRef = useRef<HTMLSpanElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const csvRef = useRef<HTMLButtonElement>(null)
+  const [fit, setFit] = useState(0)
+  // bumped by the legend's ResizeObserver and by the web font landing — the
+  // two width changes no rendered value announces
+  const [measureTick, setMeasureTick] = useState(0)
+  const seriesTotal = allSeriesIds.length
+  const seriesShown = drawnIds.length
+  useLayoutEffect(() => {
+    const legend = legendRef.current
+    const probe = probeRef.current
+    const trig = triggerRef.current
+    const csv = csvRef.current
+    if (!legend || !probe || !trig || !csv || legend.hidden) return
+    const gap = parseFloat(getComputedStyle(legend).columnGap) || 12
+    const avail = legend.clientWidth - 1 // one px of slack against sub-pixel rounding
+    let used = trig.getBoundingClientRect().width + csv.getBoundingClientRect().width + gap
+    let n = 0
+    for (const el of probe.children) {
+      const w = el.getBoundingClientRect().width
+      if (used + gap + w > avail) break
+      used += gap + w
+      n++
+    }
+    setFit((prev) => (prev === n ? prev : n))
+    // everything a chip's, the trigger's or the CSV control's width depends on
+  }, [chips, series, currentOutcomes, seriesShown, seriesTotal, hasRun, showDistribution, size.w, measureTick, t])
+  useEffect(() => {
+    const legend = legendRef.current
+    if (!legend || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setMeasureTick((x) => x + 1))
+    ro.observe(legend)
+    document.fonts?.ready.then(() => setMeasureTick((x) => x + 1)).catch(() => {})
+    return () => ro.disconnect()
+  }, [collapsed, isMobile, overlay])
+
+  // ── the series selector (contract §6)
+  const popoverId = useId()
+  const [selectorOpen, setSelectorOpen] = useState(false)
+  const selectorItems = useMemo<SeriesItem[]>(
+    () => [
+      ...pools.map((p) => ({ id: p.id, label: p.label, color: p.color, isRegister: false })),
+      ...registers.map((r) => ({ id: r.id, label: r.label, color: r.color, isRegister: true })),
+    ],
+    [pools, registers],
+  )
+  const closeSelector = (opts: { focusAnchor: boolean }) => {
+    setSelectorOpen(false)
+    if (opts.focusAnchor) triggerRef.current?.focus()
+  }
 
   const view = useMemo(() => {
     const { w, h } = size
@@ -274,13 +373,6 @@ export function TimelineChart() {
 
   const rm = reducedMotion()
   const { w, h } = view
-  const hasRun = series.length >= 2
-
-  const mcResult = useMcStore((s) => s.result)
-  const mcView = useMcStore((s) => s.view)
-  const setMcView = useMcStore((s) => s.setView)
-  const showDistribution = mcResult != null && mcView === 'distribution'
-
   const panel = (
         <div className="timeline__panel">
           <div className="timeline__head">
@@ -308,85 +400,40 @@ export function TimelineChart() {
             ) : (
               <span>{t('timeline.title')}</span>
             )}
-            <span className="timeline__legend" hidden={showDistribution}>
-              {shownPools.map((p) => {
-                const last = series.length ? series[series.length - 1].values[p.id] ?? 0 : 0
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="timeline__key"
-                    dir="auto"
-                    onClick={() => toggleTimelineSeries(p.id, allSeriesIds)}
-                    title={t('timeline.legend.hide', { label: p.label })}
-                  >
-                    <span className="timeline__mark" style={{ background: p.color }} />
-                    {p.label} {fmt(last)}
-                  </button>
-                )
-              })}
-              {shownRegisters.map((r) => {
-                const cur = currentOutcomes.get(r.id)
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className="timeline__key timeline__key--register"
-                    dir="auto"
-                    onClick={() => toggleTimelineSeries(r.id, allSeriesIds)}
-                    title={t('timeline.legend.hide', { label: r.label })}
-                  >
-                    <span className="timeline__mark" style={{ background: r.color }} />
-                    {r.label}{' '}
-                    {cur && !cur.invalid ? formatRegisterValue(cur.value) : cur ? '—' : '·'}
-                  </button>
-                )
-              })}
-
-              {hiddenCount > 0 ? (
+            <span className="timeline__legend" ref={legendRef} hidden={showDistribution}>
+              {chips.slice(0, fit).map((c) => (
                 <button
+                  key={c.id}
                   type="button"
-                  className="timeline__key timeline__key--more"
-                  aria-expanded={legendExpanded}
-                  onClick={() => setLegendExpanded((v) => !v)}
+                  className={`timeline__key${c.isReg ? ' timeline__key--register' : ''}`}
+                  dir="auto"
+                  onClick={() => toggleTimelineSeries(c.id, drawnIds)}
+                  title={t('timeline.legend.hide', { label: c.label })}
                 >
-                  {legendExpanded
-                    ? t('timeline.legend.fewer')
-                    : t('timeline.legend.more', { n: hiddenCount })}
+                  <span className="timeline__mark" style={{ background: c.color }} />
+                  {c.label} {chipText(c.id, c.isReg)}
                 </button>
-              ) : null}
+              ))}
 
-              {legendExpanded
-                ? [
-                    ...hiddenPools.map((s) => ({ ...s, isReg: false })),
-                    ...hiddenRegisters.map((s) => ({ ...s, isReg: true })),
-                  ].map(({ id, label, color, isReg }) => {
-                    const cur = isReg ? currentOutcomes.get(id) : undefined
-                    const last = series.length ? series[series.length - 1].values[id] ?? 0 : 0
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        className={`timeline__key is-off${isReg ? ' timeline__key--register' : ''}`}
-                        dir="auto"
-                        onClick={() => toggleTimelineSeries(id, allSeriesIds)}
-                        title={t('timeline.legend.show', { label })}
-                      >
-                        <span className="timeline__mark" style={{ background: color }} />
-                        {label}{' '}
-                        {isReg
-                          ? cur && !cur.invalid
-                            ? formatRegisterValue(cur.value)
-                            : cur
-                              ? '—'
-                              : '·'
-                          : fmt(last)}
-                      </button>
-                    )
-                  })
-                : null}
+              {/* contract §6 — the trigger is ALWAYS present, at every width and
+                  in every state; with zero eligible series it reads 0/0 and is
+                  disabled (§6.2), because there is nothing to choose from */}
+              <button
+                ref={triggerRef}
+                type="button"
+                className="timeline__series"
+                aria-haspopup="dialog"
+                aria-expanded={selectorOpen}
+                aria-controls={selectorOpen ? popoverId : undefined}
+                aria-label={t('timeline.series.triggerName', { n: seriesShown, total: seriesTotal })}
+                disabled={seriesTotal === 0}
+                onClick={() => setSelectorOpen((v) => !v)}
+              >
+                {t('timeline.series.trigger', { n: seriesShown, total: seriesTotal })}
+              </button>
 
               <button
+                ref={csvRef}
                 type="button"
                 className="timeline__csv"
                 disabled={!hasRun}
@@ -396,7 +443,31 @@ export function TimelineChart() {
                 {t('timeline.csv')}
               </button>
             </span>
+
+            {/* the measurement row: every drawn chip, out of flow, invisible —
+                the one-row fit above is computed from these widths */}
+            <span className="timeline__probe" ref={probeRef} aria-hidden="true">
+              {chips.map((c) => (
+                <span key={c.id} className="timeline__key timeline__key--probe" dir="auto">
+                  <span className="timeline__mark" />
+                  {c.label} {chipText(c.id, c.isReg)}
+                </span>
+              ))}
+            </span>
           </div>
+
+          {selectorOpen && seriesTotal > 0 ? (
+            <TimelineSeriesPopover
+              id={popoverId}
+              anchorRef={triggerRef}
+              items={selectorItems}
+              drawnIds={drawnIds}
+              onToggle={(id) => toggleTimelineSeries(id, drawnIds)}
+              onShowAll={() => setTimelineSeries('all')}
+              onResetAuto={() => setTimelineSeries(undefined)}
+              onClose={closeSelector}
+            />
+          ) : null}
 
           {showDistribution ? <DistributionPanel /> : null}
 
@@ -593,7 +664,13 @@ export function TimelineChart() {
 
   return (
     <div className={`timeline${collapsed ? ' is-collapsed' : ''}`} data-tour="timeline">
-      <PlayBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
+      <PlayBar
+        collapsed={collapsed}
+        onToggleCollapse={() => {
+          userTouched.current = true // §7 — from here on, no automatic transition
+          setCollapsed((c) => !c)
+        }}
+      />
       {!collapsed ? panel : null}
     </div>
   )

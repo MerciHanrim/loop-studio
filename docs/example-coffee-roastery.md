@@ -302,7 +302,7 @@ resolved by the engine once per step.
   | role | a small Template for changing a few operating assumptions and reading the result |
   | default state | editable (no `canvasLocked`) |
   | adjustable | the five operational levers (§CR6) — each a `resource`-edge `flow: "@<parameter-id>"` (§CR6.1), delivered by `loop-model/2` |
-  | `recommendedRunConfig` | `timelineSeries` = the 4 default series in §CR7 (rest behind `+N more`); a modest `steps` / `baseSeed` |
+  | `recommendedRunConfig` | `timelineSeries` = the 4 default series in §CR7 (the rest reachable through the series selector); a modest `steps` / `baseSeed` |
 
   It is an **experimental Template** at the `preview` stage.
 
@@ -539,7 +539,8 @@ store):
 - roasted-bean stock
 - dessert stock
 
-Behind `+N more`:
+Not drawn by default — reachable through the series selector (`docs/timeline-series-contract.md`
+§6; the inline `+N more` chip this paragraph originally described was replaced by it):
 
 - projected daily revenue (§CR3.5 — planning proxy)
 - planned daily cost (§CR3.5 — planning proxy)

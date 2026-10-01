@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test, snap } from './support/loop'
 
 // docs/large-graph-readability.md — Slice 1: the global hit-test rule + the
 // selection-driven focus view + de-emphasis. Render / UI-only: no GraphDoc,
@@ -2750,8 +2750,13 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     expect((await frameHead(page)).frames.length).toBe(0)
   })
 
+  // The VISUAL baselines below were captured with the Timeline panel open; it
+  // now starts collapsed (timeline-series-contract §7), which would give the
+  // framed canvas 200px more height. Each visual test opens it first so the
+  // shot keeps measuring the frames, not the panel's default state.
   test('VISUAL — auto-frames.png: fresh Suggest — dashed Area N frames, one selected (x + resize), the structural-only note, minimap hidden', async ({ page }) => {
     await loadAF(page)
+    await ensureTimelineOpen(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
     await suggestBtn(page).click()
     await expect(page.locator('.lgr-frame--auto')).toHaveCount(2)
@@ -2772,6 +2777,7 @@ test.describe('LGR Slice 4b — auto (suggested) group frames', () => {
     await page.goto('/')
     await page.evaluate(() => localStorage.setItem('loop-studio/contextual-help/1', JSON.stringify({ 'frame-move': true })))
     await loadAF(page)
+    await ensureTimelineOpen(page)
     await page.addStyleTag({ content: '.react-flow__minimap,.react-flow__attribution{display:none!important}' })
     await suggestBtn(page).click()
     await page.locator('.lgr-frame--auto .lgr-frame__label').first().click()
@@ -3093,6 +3099,7 @@ test.describe('LGR frame colour (§FC)', () => {
 
   test('VISUAL — frame-colours-overlap.png: two accented frames overlapping still pass nodes / edges through', async ({ page }) => {
     await loadAF(page)
+    await ensureTimelineOpen(page)
     await fcAdd(page, { x: -40, y: -80, w: 520, h: 320 }, 'One', 'slate')
     await fcAdd(page, { x: 300, y: -60, w: 520, h: 320 }, 'Two', 'gold')
     await fcSelect(page, null)
@@ -3111,6 +3118,7 @@ test.describe('LGR frame colour (§FC)', () => {
 async function loadFCVisual(page: Page, theme: 'light' | 'dark') {
   await page.emulateMedia({ colorScheme: theme })
   await loadAF(page)
+  await ensureTimelineOpen(page) // the baselines' canvas height (see the auto-frames note)
   await suggestBtn(page).click()
   await fcAdd(page, { x: -40, y: -70, w: 220, h: 150 }, 'Neutral')
   await fcAdd(page, { x: 200, y: -70, w: 200, h: 150 }, 'Slate', 'slate')

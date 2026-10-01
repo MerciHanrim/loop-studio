@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test, snap } from './support/loop'
+import { ensureTimelineOpen, expect, openApp, resetAll, test, snap } from './support/loop'
 
 // docs/visual-language.md §VL2.1 / §VL3 / §VL12 — Parameter / Register are
 // first-class in the acceptance suite (no dev flag, no provisional fixture).
@@ -93,6 +93,9 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
 
   test('VISUAL — a short-value Register shows `value + unit`; no-unit + invalid unchanged', async ({ page }) => {
     await load(page)
+    // the baseline's canvas height: the Timeline panel open (it now starts
+    // collapsed — timeline-series-contract §7)
+    await ensureTimelineOpen(page)
     await centreRegisterRow(page)
     await page.evaluate(() => document.fonts.ready)
     // sanity before the pixel lock: the unit really is on screen, not truncated

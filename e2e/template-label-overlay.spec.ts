@@ -1,5 +1,5 @@
 import type { Browser, Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/template-label-overlay.md — the shared fresh-open Template label overlay:
 // a bundled Template opens with the current locale's node `label`s; `openTemplate`
@@ -371,6 +371,7 @@ test.describe('official template label — locale switch (§TLO11)', () => {
     await resetAll(page)
     await setLocale(page, 'en')
     await pickTemplate(page, MMO_EN)
+    await ensureTimelineOpen(page)
     const legend = page.locator('.timeline__legend, .timeline .legend').first()
     await expect(legend).toContainText('Level')
 

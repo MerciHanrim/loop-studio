@@ -2,7 +2,13 @@ import { create } from 'zustand'
 import { initSim, step } from '../engine'
 import type { FlowEvent, SimState, SimValues, StateEvent, StepResult, TriggerQueueEntry } from '../engine'
 import { MAX_SERIES } from '../model/limits'
-import { bootTimelineSeries, setAutosaveTimelineSeries, useGraphStore } from './graphStore'
+import { readTimelineSeries, type TimelineSeries } from '../model/serialize'
+import {
+  bootTimelineSeries,
+  seedAutosaveTimelineSeries,
+  setAutosaveTimelineSeries,
+  useGraphStore,
+} from './graphStore'
 import { computeStagger } from './playbackRank'
 import { flowTotals, isSteady, STEADY_N, type SteadySample } from './steadyState'
 
@@ -122,15 +128,17 @@ type SimStore = {
 
   series: { step: number; values: SimValues }[]
 
-  /** which series the timeline plots by default — 'all' or an explicit id list
-   *  of Pool AND Register ids. Applied from `recommendedRunConfig.timelineSeries`
-   *  on document / template load; a legend toggle updates it in place. The
-   *  current value is also restored across a plain reload via the `localStorage`
-   *  autosave record (seeded here by `bootTimelineSeries()`, written back by
-   *  `setAutosaveTimelineSeries`). UI-only — never in the GraphDoc, the
-   *  loop-revision/* digest, undo, or `simulationRev`, and distinct from the
-   *  Monte-Carlo `tracked` list. */
-  timelineSeries: 'all' | string[]
+  /** which series the timeline plots — the three-state model of
+   *  `docs/timeline-series-contract.md` §3: `'auto'` (the automatic default; the
+   *  file has no field), `'all'` (every series, future ones included), or an
+   *  explicit sorted list of Pool AND Register ids. Applied from
+   *  `recommendedRunConfig.timelineSeries` on document / template load; a legend
+   *  toggle updates it in place. The current value is also restored across a
+   *  plain reload via the `localStorage` autosave record (seeded here by
+   *  `bootTimelineSeries()`, written back by `setAutosaveTimelineSeries`).
+   *  UI-only — never in the GraphDoc, the loop-revision/* digest, undo, or
+   *  `simulationRev`, and distinct from the Monte-Carlo `tracked` list. */
+  timelineSeries: TimelineSeries
 
   // ── playback state machine (docs/simulation-playback.md) ──────────────
   /** monotonic, session-scoped; bumped on every committed-state replacement
@@ -177,14 +185,29 @@ type SimStore = {
   restoreSnapshot: (snap: SimSnapshot) => void
   setSpeed: (ms: number) => void
   setSeed: (seed: number) => void
-  /** flip one Pool or Register in the default visible set; collapses back to
-   *  'all' when every series is on again. A legend action only — no GraphDoc /
-   *  undo / digest effect. */
-  toggleTimelineSeries: (id: string, allSeriesIds: string[]) => void
-  /** set the default visible series from a file's
-   *  `recommendedRunConfig.timelineSeries` (undefined / empty ⇒ 'all'). Sorted +
-   *  de-duped; unknown ids are kept verbatim and simply not drawn. */
-  setTimelineSeries: (ids: readonly string[] | undefined) => void
+  /** flip one Pool or Register in the drawn set. `shownIds` is the RESOLVED
+   *  drawn set (`resolveTimelineSeries`) the flip starts from. Always stores an
+   *  explicit sorted list — re-selecting every series is an explicit choice of
+   *  the current ids, never `'all'` (contract §6.1). Returns `false`, changing
+   *  and writing nothing, when the flip would leave no series (§6.2). A legend
+   *  action only — no GraphDoc / undo / digest effect. */
+  toggleTimelineSeries: (id: string, shownIds: readonly string[]) => boolean
+  /** set the visible-series selection: `'auto'`, `'all'`, or an id list
+   *  (sorted + de-duped; unknown ids are kept verbatim and simply not drawn).
+   *  `undefined` / an empty list mean `'auto'`. Any unknown shape is read through
+   *  `readTimelineSeries`, so a caller cannot put a value the model does not
+   *  have into the store. Writes the autosave record (a USER action — the load
+   *  paths must not come through here; see `docs/timeline-series-contract.md`
+   *  §3.2). */
+  setTimelineSeries: (v: TimelineSeries | readonly string[] | undefined) => void
+  /** the LOAD-path twin of `setTimelineSeries` (`docs/timeline-series-contract.md`
+   *  §3.2): seeds the selection from a file's `recommendedRunConfig.timelineSeries`
+   *  of unknown shape — same `readTimelineSeries` rule — but flushes NO autosave
+   *  of its own. The document load that called it has already scheduled the
+   *  debounced graph save, and that save carries this value. Every document /
+   *  template / Workspace / Share / revision load must come through here, never
+   *  through `setTimelineSeries`. */
+  hydrateTimelineSeries: (v: unknown) => void
 
   /** §PB2.7 — PURE: compute the next step; commit nothing, mint no id, move no
    *  counter. Repeat calls return a fully-identical result. */
@@ -544,7 +567,7 @@ export const useSimStore = create<SimStore>((set, get) => {
     steadyState: false,
     series: [],
     // seeded from the autosave record (serialize.ts) so a plain reload keeps the
-    // Timeline legend's visible set; 'all' when the record has none.
+    // Timeline legend's visible set; 'auto' when the record has none.
     timelineSeries: bootTimelineSeries(),
     commitEpoch: 0,
     transition: null,
@@ -663,27 +686,38 @@ export const useSimStore = create<SimStore>((set, get) => {
       get().reset()
     },
 
-    toggleTimelineSeries: (id, allSeriesIds) => {
-      const cur = get().timelineSeries
-      const list = cur === 'all' ? allSeriesIds.slice() : cur.slice()
+    toggleTimelineSeries: (id, shownIds) => {
+      // The caller passes the RESOLVED drawn set (`resolveTimelineSeries`), so a
+      // flip from `auto` works on the capped eight, not on every id, and a flip
+      // from `'all'` on every current id.
+      const list = [...new Set(shownIds)]
       const i = list.indexOf(id)
       if (i >= 0) list.splice(i, 1)
       else list.push(id)
-      // back to 'all' when every series is selected again
-      const isAll = allSeriesIds.length > 0 && allSeriesIds.every((s) => list.includes(s))
-      const next: 'all' | string[] = isAll ? 'all' : [...list].sort()
+      // docs/timeline-series-contract.md §6.2 — at least one series while one
+      // is eligible. Refused here, in the one place both the legend chip and
+      // the selector checkbox go through, so they cannot disagree.
+      if (list.length === 0) return false
+      // §6.1 (decided 2026-10-01): re-selecting every series is an EXPLICIT
+      // choice of the series that exist now — it never collapses to `'all'`.
+      // `'all'` (future series included) is reached only through the named
+      // "show all" action, i.e. `setTimelineSeries('all')`.
+      const next = list.sort()
       set({ timelineSeries: next })
       setAutosaveTimelineSeries(next) // ride the autosave record so a reload keeps it
+      return true
     },
 
-    setTimelineSeries: (ids) => {
-      let next: 'all' | string[] = 'all'
-      if (Array.isArray(ids) && ids.length > 0) {
-        const uniq = [...new Set(ids.filter((s): s is string => typeof s === 'string'))].sort()
-        if (uniq.length > 0) next = uniq
-      }
+    setTimelineSeries: (v) => {
+      const next = readTimelineSeries(v)
       set({ timelineSeries: next })
       setAutosaveTimelineSeries(next)
+    },
+
+    hydrateTimelineSeries: (v) => {
+      const next = readTimelineSeries(v)
+      set({ timelineSeries: next })
+      seedAutosaveTimelineSeries(next) // no flush — the load's own debounced save carries it
     },
   }
 })

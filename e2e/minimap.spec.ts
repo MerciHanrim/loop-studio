@@ -1,4 +1,4 @@
-import { expect, importGraph, openApp, readRiskyFactory, resetAll, test, snap } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, readRiskyFactory, resetAll, resetView, test, snap } from './support/loop'
 
 // The existing visual specs frame `.timeline` and don't touch the canvas, so the
 // minimap legibility fix (per-kind node hues, viewport outline, mask, frame
@@ -6,9 +6,17 @@ import { expect, importGraph, openApp, readRiskyFactory, resetAll, test, snap } 
 
 async function minimapReady(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page)
+  // The Timeline panel now starts collapsed (timeline-series-contract §7), so
+  // the layout the shot frames is made first — panel open — and the camera is
+  // then the product's own Reset view at that layout, not whatever fit ran at
+  // mount on the taller pane. (The previous baselines inherited the MOUNT fit
+  // of the initial document; this camera is a deterministic function of the
+  // imported graph and the final pane, so the baselines were re-captured once.)
+  await ensureTimelineOpen(page)
   await resetAll(page)
   await importGraph(page, readRiskyFactory())
   await expect(page.locator('.react-flow__node')).toHaveCount(18)
+  await resetView(page)
   // the MiniMap renders a <rect> per node only once React Flow has measured it
   await page.evaluate(() => window.dispatchEvent(new Event('resize')))
   await expect(page.locator('.react-flow__minimap-node')).toHaveCount(18, { timeout: 10_000 })

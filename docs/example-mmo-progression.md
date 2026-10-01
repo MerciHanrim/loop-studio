@@ -503,7 +503,8 @@ The file ships a curated **5-series** Timeline default — `Level` (growth pace)
 (power) — so a first-run Timeline shows the story on one legend row, not 55
 counters. Everything else, including the earlier default's `Elapsed steps`,
 `Water consumed` / `Food consumed`, `Items sold` and the `Net gold check`
-Register, is one `+N more` click away and adds its line back when selected. The
+Register, is one checkbox away in the series selector (`docs/timeline-series-contract.md`
+§6, which replaced the inline `+N more` chip) and adds its line back when selected. The
 Monte-Carlo `tracked` list (§EM7) stays wide for the distributions; the two are
 independent (`timelineSeries` is UI-only display state — never the GraphDoc /
 digest / undo). The array stays sorted (the store keeps it so); the legend

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/localization.md §L13 — Slice 3, the REPRESENTATIVE Korean reference
 // screenshots. Lumi's call (over a full ~30-image KO pixel matrix, which is
@@ -83,10 +83,15 @@ const shot = (page: Page) => ({
 
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('i18n Slice 3 — representative KO reference screenshots', () => {
+  // The three desktop full-page baselines were captured with the Timeline
+  // panel open; it now starts collapsed (timeline-series-contract §7). It is
+  // opened first so the shots keep pinning the KO chrome at the baseline's
+  // geometry, not the panel's default state. (The mobile shot has no strip.)
   test('desktop — full screen, KO', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G)
+    await ensureTimelineOpen(page)
     await pickLocale(page, 'ko')
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
@@ -138,6 +143,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G_LONG)
+    await ensureTimelineOpen(page)
     await pickLocale(page, 'ko')
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
@@ -174,6 +180,7 @@ test.describe('i18n Slice 3 — representative KO reference screenshots', () => 
     await openApp(page)
     await resetAll(page)
     await importGraph(page, G)
+    await ensureTimelineOpen(page)
     await pickLocale(page, 'ko')
     await expect(page.locator('.react-flow__node[data-id="pool"]')).toBeVisible()
     await pinViewport(page)
