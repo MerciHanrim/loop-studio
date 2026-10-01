@@ -8,7 +8,7 @@ A merge to `main` is the production deploy. A change the user can see therefore 
 
 ## The declaration
 
-A change that touches the product, or the app version, adds exactly one file: `.changes/<slug>.json`. The slug is lower-case letters, digits and hyphens, and is unique because it is a file name.
+A change that touches anything a build reads or ships, or the app version, adds exactly one file: `.changes/<slug>.json`. The slug is lower-case letters, digits and hyphens, and is unique because it is a file name.
 
 ```json
 { "type": "user-facing", "releaseNoteId": "release:0.15.0" }
@@ -20,18 +20,34 @@ A change that touches the product, or the app version, adds exactly one file: `.
 
 - **`user-facing`** changes the app version in `package.json`, raises it, and names the release note for exactly that version. That entry must exist in the release-note list in the same change.
 - **`internal`** says why no note is needed. It may raise the version too: a technical redeploy or an internal fix has a version and no note.
-- A change that touches nothing that ships needs no declaration, and may still add one.
-- Declarations are a record. One that already exists is never edited, renamed or removed.
+- A change that touches nothing that is built or shipped needs no declaration, and may still add one.
+- Declarations are a record. One that is on `main` is never edited, renamed or removed. Before a change is merged its own declaration can still be corrected.
 
-### What "touches the product" means
+### What counts as built or shipped
 
-| Path | Ships |
+Everything, except what is listed as never shipping. The list is the exclusions on purpose: a list of what ships goes stale, silently, the day a build starts reading a new place. A path nobody has classified therefore counts as shipping, and the cost of that is one `internal` declaration.
+
+| Never built, never shipped |
+|---|
+| `docs/**`, and any `.md` file outside `src/` and `public/` |
+| `.changes/**` |
+| `*.test.*` files, `e2e/**`, `test/**`, the Playwright configurations, `tsconfig.e2e.json` |
+| `.github/**`, `.gitignore`, `.gitattributes`, `.oxlintrc.json` |
+| `scripts/check-*.mjs`, the readers the checks share, and the checks' data files |
+
+What that leaves, and why each is a build input:
+
+| Path | Because |
 |---|---|
-| `src/**`, except `*.test.*` files | yes |
-| `public/**` | yes |
-| `index.html` | yes |
-| the `version` in `package.json` | counts as a change that needs a declaration |
-| tests, `e2e/`, `scripts/`, `docs/`, CI configuration | no |
+| `src/**`, `public/**`, `index.html` | the app itself |
+| `examples/**` | the bundled templates and modules are imported from here |
+| `vite.config.ts` | the web, portable and PWA builds, the service-worker settings, the build constants |
+| `scripts/locale-chunk.mjs`, `scripts/gen-*` | imported by the build configuration, or the generator of shipped files |
+| `package.json`, `package-lock.json` | the runtime dependencies and their resolved versions; a development dependency can ship too, as the service-worker runtime does |
+| `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`, `.nvmrc` | how the source is compiled and with what |
+| any path not listed anywhere | not classified, so it counts |
+
+The app version is watched on its own as well: a change of `version` needs a declaration wherever it comes from. Versions are `x.y.z` and are compared as numbers, so `0.9.9` to `0.10.0` is a rise. A pre-release or otherwise malformed version is refused.
 
 ## The release-note list
 
@@ -58,10 +74,10 @@ It compares the working tree, including uncommitted and untracked files, with th
 
 It fails when:
 
-- a change that ships, or a version change, has no declaration, or has more than one
+- a change to anything that is built or shipped, or a version change, has no declaration, or has more than one
 - a declaration is not valid JSON, has an unknown `type`, an empty `reason`, a missing or extra field, or a file name outside the pattern
 - a `user-facing` change leaves the version as it was, lowers it, names a release note for another version, or names one that does not exist
-- an existing declaration is edited, renamed or removed
+- a declaration that is already on `main` is edited, renamed or removed
 - the release-note list breaks a rule in the table above
 
 It fails closed. If git cannot find a common ancestor with the base, which is what a shallow clone looks like, that is an error, not "nothing changed". The CI job therefore checks out the full history.

@@ -1,9 +1,9 @@
-// Issue #296 — a change that touches the product declares what it is.
+// Issue #296 — a change to anything that is built or shipped declares what it is.
 //
 //   node scripts/check-change-declaration.mjs [--base <ref>]
 //
 // Compares the working tree with the commit it branched from and applies the
-// rule in `change-declaration.mjs`: a change that ships to users, or changes
+// rule in `change-declaration.mjs`: a change to what is built or shipped, or to
 // the app version, adds exactly one `.changes/<slug>.json` saying whether it is
 // `user-facing` (then the version and the release note come in the same change)
 // or `internal` (then it says why). It also validates the release-note list
@@ -104,6 +104,6 @@ if (base) {
 }
 
 if (failed) {
-  console.error('\n  A change that ships to users says so in .changes/<slug>.json. See docs/release-notes.md.')
+  console.error('\n  A change to what is built or shipped says so in .changes/<slug>.json. See docs/release-notes.md.')
   process.exit(1)
 }

@@ -4,7 +4,8 @@
 //
 // THE RULE
 //
-// A change that touches the product, or the app version, declares what it is in
+// A change that touches anything a build reads or ships, or the app version,
+// declares what it is in
 // one new file, `.changes/<slug>.json`:
 //
 //   { "type": "user-facing", "releaseNoteId": "release:0.15.0" }
@@ -27,14 +28,45 @@ const DECLARATION_FILE = /^\.changes\/[a-z0-9][a-z0-9-]*\.json$/
 /** the only other file allowed in the folder */
 const DECLARATION_README = '.changes/README.md'
 
-/** Does this path ship to users? Source that is not a test, the static files,
- *  and the HTML entry. */
+/**
+ * Paths that are never read by a build and never shipped. EVERYTHING ELSE is
+ * treated as something that can change what users get.
+ *
+ * The list is the exclusions, on purpose. A list of what ships goes stale the
+ * day a build starts reading a new place, and it goes stale silently: the three
+ * builds read far more than `src/` - the bundled templates under `examples/`,
+ * `vite.config.ts` (the PWA and service-worker settings, the portable build,
+ * the build constants), `scripts/locale-chunk.mjs` which that config imports,
+ * the TypeScript settings, and `package.json` with its lockfile, where a
+ * DEVELOPMENT dependency such as the service-worker runtime ends up in the
+ * shipped files. A path nobody has classified therefore counts as shipping,
+ * and the cost of that is one `internal` declaration.
+ */
+const NEVER_SHIPS = [
+  // documents
+  /^docs\//,
+  /^(?!src\/|public\/).*\.md$/,
+  // the declarations themselves
+  /^\.changes\//,
+  // tests and their configuration
+  /\.test\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/,
+  /^e2e\//,
+  /^test\//,
+  /^playwright(\.[a-z]+)?\.config\.ts$/,
+  /^tsconfig\.e2e\.json$/,
+  // CI, lint and repository settings
+  /^\.github\//,
+  /^\.(gitignore|gitattributes|oxlintrc\.json)$/,
+  // the checks, their shared readers and their data
+  /^scripts\/check-[a-z0-9-]+\.mjs$/,
+  /^scripts\/(change-declaration|catalog-source|registry-source)\.mjs$/,
+  /^scripts\/(arrow-units|content-direction|icu-argument-disposition|isolate-obligations)\.json$/,
+]
+
+/** Can a change to this path change what a build produces or what users get? */
 export function isProductPath(path) {
   const p = path.replace(/\\/g, '/')
-  if (p === 'index.html') return true
-  if (p.startsWith('public/')) return true
-  if (p.startsWith('src/')) return !/\.test\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(p)
-  return false
+  return !NEVER_SHIPS.some((rx) => rx.test(p))
 }
 
 export const isDeclarationPath = (path) => path.replace(/\\/g, '/').startsWith(DECLARATION_DIR + '/')
@@ -105,12 +137,12 @@ export function evaluateChange(facts) {
   const versionChanged = facts.baseVersion !== facts.headVersion
   const added = changed.filter((c) => c.status === 'A' && DECLARATION_FILE.test(c.path))
   const needs = product.length > 0 || versionChanged
-  summary.push(`${changed.length} path(s) differ from the base; ${product.length} of them ship to users; app version ${facts.baseVersion ?? '(none)'} -> ${facts.headVersion}`)
+  summary.push(`${changed.length} path(s) differ from the base; ${product.length} of them are built or shipped; app version ${facts.baseVersion ?? '(none)'} -> ${facts.headVersion}`)
 
   if (added.length > 1) {
     problems.push(`${added.length} declarations were added (${added.map((a) => a.path).join(', ')}); a change has exactly one`)
   } else if (needs && added.length === 0) {
-    const why = product.length > 0 ? `it touches the product (${product.slice(0, 3).map((p) => p.path).join(', ')}${product.length > 3 ? ', …' : ''})` : 'it changes the app version'
+    const why = product.length > 0 ? `it touches what is built or shipped (${product.slice(0, 3).map((p) => p.path).join(', ')}${product.length > 3 ? ', …' : ''})` : 'it changes the app version'
     problems.push(`this change needs a declaration in ${DECLARATION_DIR}/<slug>.json: ${why}`)
   }
 
@@ -134,7 +166,7 @@ export function evaluateChange(facts) {
       summary.push(`declared internal (${added[0].path}): ${mine.reason}`)
     }
   } else if (!needs && added.length === 0) {
-    summary.push('nothing that ships to users changed; no declaration is needed')
+    summary.push('nothing that is built or shipped changed; no declaration is needed')
   }
 
   return { problems, summary }
