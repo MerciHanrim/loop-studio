@@ -4919,15 +4919,23 @@ input[type='number']::-webkit-inner-spin-button {
    the control boundary, the control radius, the shell's own face and ink.
    Their box is unchanged. A UA text input is a 2 px inset border with
    1 px 2 px padding; a 1 px border with 2 px 3 px padding is the same outer
-   box. The textarea and the selects already carry a 1 px border. */
+   box. The textarea and the selects already carry a 1 px border. The inputs
+   and the paste area take the 8 px control radius; a select here is
+   16-19 px tall, a compact control, and keeps a compact 6 px (at 8 px it
+   would be a pill). */
 .mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea, select) {
   border: 1px solid var(--line-control);
-  border-radius: var(--control-radius);
   background: var(--surface-raised);
   color: var(--text-primary);
 }
+.mcdlg--dataimport :is(input:not([type='checkbox'], [type='radio']), textarea) {
+  border-radius: var(--control-radius);
+}
 .mcdlg--dataimport input:not([type='checkbox'], [type='radio']) {
   padding: 2px 3px;
+}
+.mcdlg--dataimport select {
+  border-radius: 6px;
 }
 .import__tables {
   display: flex;
