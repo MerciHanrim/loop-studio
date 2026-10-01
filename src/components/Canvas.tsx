@@ -87,7 +87,7 @@ const FIT_VIEW_OPTIONS = { padding: 0.3, maxZoom: 1.2 } as const
 // restores it exactly (no hysteresis).
 function LodGrid() {
   const showGrid = useStore((s) => s.transform[2] >= 0.8)
-  return showGrid ? <Background gap={16} color="var(--line-hairline)" /> : null
+  return showGrid ? <Background gap={16} color="var(--canvas-grid)" /> : null
 }
 
 export function Canvas() {

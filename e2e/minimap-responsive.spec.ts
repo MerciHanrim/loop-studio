@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { probe } from './support/boundary'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
 
 // docs/mobile.md §MV-D10 / docs/dense-graph-pan.md — the minimap is a fixed
@@ -371,10 +372,16 @@ test.describe('minimap — the collapse / restore control', () => {
     const ring = await btn.evaluate((el) => {
       el.focus()
       const s = getComputedStyle(el)
-      return { width: s.outlineWidth, style: s.outlineStyle }
+      return { visible: el.matches(':focus-visible'), border: s.borderTopColor, halo: s.boxShadow, outline: s.outlineStyle }
     })
-    expect(parseFloat(ring.width)).toBeGreaterThan(0)
-    expect(ring.style).not.toBe('none')
+    // a bordered control is focus class A (docs/visual-language.md §VL8): the
+    // boundary itself takes the solid focus colour and a 3 px halo surrounds
+    // it, in place of an outline. The painted boundary is measured at 3:1 in
+    // e2e/shell-control-boundary.spec.ts.
+    expect(ring.visible).toBe(true)
+    expect(ring.border, 'the boundary takes the solid focus colour').toBe(await probe(page, 'var(--line-focus)'))
+    expect(ring.halo, 'a 3 px halo accompanies it').toMatch(/0px 0px 0px 3px/)
+    expect(ring.outline, 'class A: the border stands in for the outline').toBe('none')
 
     await page.keyboard.press('Enter')
     await expect(page.locator('.react-flow__minimap')).toHaveCount(0)

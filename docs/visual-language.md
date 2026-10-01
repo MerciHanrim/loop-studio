@@ -398,8 +398,64 @@ byte-identical across L2/L1/L0 (§VL12.5).
   deuteranopia / protanopia / tritanopia, and under `forced-colors: active`
   (the shape, the dash-free outline, and the `=` / struck-`=` all survive a UA
   colour override).
-- **Focus** is always a visible ring distinct from selection; tab order follows
-  reading order.
+- **Focus** is always a visible indicator distinct from selection; tab order
+  follows reading order. On the canvas it is the `--state-focus` ring (§VL3). In
+  the shell it follows the family contract (Cozy Shelter tokens v1.1.0 §3), and
+  the class is decided by whether the control normally **shows a boundary**:
+  - **A — a visible boundary** (bordered buttons, the play-bar buttons, every
+    bordered input and select, the view tabs, the mean toggle, the minimap
+    toggle, the expression operator keys): the boundary itself takes
+    `--line-focus`, a 3 px `--focus-halo` surrounds it, and there is no outline.
+    The solid boundary carries the 3:1 obligation — measured 3.78–4.40 light,
+    5.14–7.55 dark. The halo is an 18 % tint, 1.25:1 on its own, and is never
+    the indicator.
+  - **A-clipped** — the same control inside a box that clips (the series
+    trigger and CSV in the one-row Timeline legend): an outer halo would be cut,
+    so it is dropped and the solid indicator is thickened inward.
+  - **B — no visible boundary** (ghost buttons, palette chips, menu and sheet
+    rows, links, checkboxes, table cells, the reference-insert pill): the opaque
+    2 px `--line-focus` outline of the global `:focus-visible` rule. When in
+    doubt, B.
+  - Under `forced-colors` the halo is dropped by the UA, so every selector that
+    says `outline: none` is repeated **with the same specificity** to restore a
+    real `Highlight` outline (inside the box for the clipped pair).
+  `--focus-ring` / `--line-focus` is the SOLID colour (`--cs-accent` in light,
+  Loop's own `#83a9e6` in dark). The family's `--cs-focus-ring` is the halo and
+  must not be aliased onto it.
+- **Shell tokens.** The light shell reads the family's `--cs-*` layer through
+  Loop's own names: ground and sunken (one soft page surface — no warm grey is
+  left, and depth is a boundary or an existing shadow, never a difference in
+  colour temperature), canvas, panel / raised / overlay (one white), the
+  hairline, the container line, primary and secondary ink, the solid focus
+  colour, the halo and the overlay elevation. Dark is Loop's own palette — the
+  family layer has no dark values. The **hover fill** is a role of its own,
+  `--surface-hover` (a hovered or keyboard-focused row, chip or icon button),
+  with its own values in both themes: it does not follow the sunken surface, so
+  the rest / hover step did not shrink when sunken joined the family ground (a
+  menu row steps by an RGB distance of 43 in light, 41 in dark; following
+  sunken it would be 15). `--line-structure` is **not** a shell token:
+  it is drawn only by the node silhouettes, the state handle, the chart axes,
+  the minimap and plot frames and three non-interactive labels; a container's
+  boundary is `--line-container` and a control's is `--line-control`.
+  **What the shell may and may not move.** The functional token values (hues,
+  edges, flow, signal, frame accents, states) are identical to what they were,
+  pinned value by value in `e2e/shell-function-colours.spec.ts`, and the opaque
+  data marks were measured pixel-identical. A translucent functional fill (a
+  frame tint, the 4 % hue wash, the flow trail) composites over the shell
+  background, so its rendered result can differ by up to 6 per channel in
+  light: that is the background changing, not the functional colour. The
+  canvas's information ink (node titles, edge-chip text, token counts) and its
+  non-data structure — the dot grid (`--canvas-grid`) and the plot grids
+  (`--chart-grid`) — follow the shell ink and hairline in light and keep their
+  values in dark. The grids are SVG paint, which forced colours do not
+  recolour, so under `forced-colors` each names a system colour by its role
+  rather than letting a shell colour show through: the dot grid is a decorative
+  position aid — as thousands of `GrayText` dots it would compete with the
+  nodes and edges — so it is `Canvas` and is not seen; a plot grid is a line
+  values are read against, so it is `GrayText`. Two radius axes: `--radius` (12 px) for
+  containers, dialogs and popovers, `--control-radius` (8 px) for standard
+  rectangular controls; compact controls (15–22 px tall chips, triggers, tabs,
+  operator keys) keep their own 4–6 px — the class is the control's form.
 - **Control boundary.** Any 1 px control border on a panel — the shared `.btn`
   (every variant that does not set its own border: plain, `--sm`, `--icon`),
   the PlayBar's `.pb-btn` and the Timeline's `.timeline__csv` — is
@@ -410,9 +466,10 @@ byte-identical across L2/L1/L0 (§VL12.5).
   on every surface, and 1.78 / 1.65 / 1.86 / 1.51 against a panel / overlay /
   raised / sunken surface (desktop audit 2026-09-20; the mobile sheet found the
   same 1.78 on 2026-09-19). Measured minima with the control tokens, composited
-  pixels: light rest 3.92 (sunken) · 4.26 (overlay) · 4.61 (panel) · 4.82
-  (face), hover ≥ 6.15; dark rest 5.46 (face) · 5.98 (overlay) · 6.46 (panel),
-  hover ≥ 7.67. Ghost is outside the contract and keeps its own pair — no
+  pixels, on the family shell (2026-10-01): light rest 3.92 (on a hovered row,
+  `--surface-hover`) · 4.49 (sunken) · 4.82 (panel, overlay and face — one
+  white), hover ≥ 7.04; dark rest 5.46 (face) ·
+  5.98 (overlay) · 6.46 (panel), hover ≥ 7.67. Ghost is outside the contract and keeps its own pair — no
   border at rest, `--line-strong` hovered (an appearing edge, not a boundary
   that has to stay legible) — and primary keeps its `--signal-primary`. A
   disabled control is the WCAG exception (`opacity: .4`, `.pb-btn:disabled` →
@@ -422,6 +479,23 @@ byte-identical across L2/L1/L0 (§VL12.5).
   composited pixels in `e2e/desktop-btn-boundary.spec.ts` (one control per
   surface token + PlayBar + Timeline, light / dark / forced) and
   `e2e/mobile.spec.ts` (the sheet buttons).
+  **The other bordered controls** (2026-10-01) — Inspector fields and selects,
+  the Monte-Carlo and author inputs, the language search, the share URL, the
+  seed field, the distribution pool select and mean toggle, the view tabs, the
+  minimap toggle, the expression operator keys and the reference-insert pill —
+  drew `--line-structure` until the shell branch and are held to the same
+  contract in `e2e/shell-control-boundary.spec.ts`: rest ≥ 4.14 light,
+  ≥ 5.46 dark, hover `--line-control-hover`, and a disabled field drops to
+  `--line-disabled` and the disabled ink so it reads as disabled. The
+  thirteenth rule is the data-import dialogs' text and number inputs, paste
+  area and selects: they were unstyled browser controls (white with black text
+  in the dark theme too) and are shell controls now — the control boundary, the
+  shell face and ink, class A focus — with their box unchanged (a 1 px border
+  and 2 px 3 px padding in place of the browser's 2 px inset border and
+  1 px 2 px padding). The inputs and the paste area take the 8 px control
+  radius; the selects are 16–19 px tall, compact controls, and keep 6 px.
+  `--line-control-hover` states its own value per theme; it does not read an
+  ink token, so a shell ink change cannot shrink the rest / hover step.
 - **`forced-colors` / high contrast:** when the UA overrides colours, the §VL7.1
   required set stays distinguishable (shape, dash, icon, ring); the app does not
   fight the override.

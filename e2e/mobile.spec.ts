@@ -1277,22 +1277,23 @@ test.describe('sheet .btn boundary contrast (§MV5 / WCAG 1.4.11)', () => {
         expect(dist(hover.left.edge, rest.left.edge), `${name}: hover has its own (stronger) border colour`).toBeGreaterThan(6)
         await page.mouse.move(2, 2)
         await page.waitForTimeout(120)
-        // 4. keyboard focus: the global focus-visible ring, 2 px outside the border, in --focus-ring
+        // 4. keyboard focus — a bordered control is focus class A
+        //    (docs/visual-language.md §VL8): the boundary itself takes
+        //    --focus-ring and carries the 3:1, a 3 px halo surrounds it, and
+        //    there is no outline. The halo is a tint and is never the indicator.
         await tabTo(page, btn)
         const oc = await btn.evaluate((el) => {
           const c = getComputedStyle(el)
-          return { style: c.outlineStyle, width: c.outlineWidth, color: c.outlineColor, offset: c.outlineOffset }
+          return { outline: c.outlineStyle, border: c.borderTopColor, halo: c.boxShadow }
         })
-        expect(oc.style).toBe('solid')
-        expect(oc.width).toBe('2px')
-        expect(oc.color).toBe(focusRing)
-        const fb = (await btn.boundingBox())!
-        const [ringPx, behind] = await rgbAt(page, await page.screenshot(), [
-          { x: fb.x - 3, y: fb.y + fb.height / 2 },
-          { x: fb.x - 8, y: fb.y + fb.height / 2 },
-        ])
-        expect(dist(ringPx, parseRgb(focusRing)), `${name}: the focus ring is painted in --focus-ring`).toBeLessThan(40)
-        expect(ratio(ringPx, behind), `${name}: focus ring vs the row ≥ 3:1`).toBeGreaterThanOrEqual(3)
+        expect(oc.outline, `${name}: the border stands in for the outline`).toBe('none')
+        expect(oc.border, `${name}: the boundary takes --focus-ring`).toBe(focusRing)
+        expect(oc.halo, `${name}: a 3 px halo accompanies it`).toMatch(/0px 0px 0px 3px/)
+        const focused = await boundary(page, btn)
+        console.log(`[btn] ${name} focus: L ${focused.left.vsOut}/${focused.left.vsFace} T ${focused.top.vsOut}/${focused.top.vsFace}`)
+        expectBoundary(`${name} focused`, focused)
+        expect(dist(focused.left.edge, parseRgb(focusRing)), `${name}: the boundary is painted in --focus-ring`).toBeLessThan(40)
+        expect(dist(focused.left.edge, rest.left.edge), `${name}: focus reads differently from rest`).toBeGreaterThan(6)
         // 5. pressed via the keyboard: the tell is the label (Off → On) + aria-pressed; the boundary stays ≥ 3:1
         await page.keyboard.press('Space')
         await expect(btn).toHaveAttribute('aria-pressed', 'true')
