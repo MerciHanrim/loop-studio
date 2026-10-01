@@ -42,12 +42,15 @@
 
   /* — surfaces (back → front) — panel, raised and overlay are ONE white in
      the family shell: the step between them is carried by `--line-container`
-     and `--line-control`, and by `--elev-overlay` on a floating surface. */
+     and `--line-control`, and by `--elev-overlay` on a floating surface.
+     Sunken is the family's soft page surface, the same token the ground
+     reads: one cool neutral, no warm grey left over. Depth is a boundary
+     or an existing shadow, never a difference in colour temperature. */
   --surface-ground: var(--cs-surface-soft);
   --surface-canvas: var(--cs-background);
   --surface-panel: var(--cs-panel);
   --surface-raised: var(--cs-panel);
-  --surface-sunken: #e9e8e2;
+  --surface-sunken: var(--cs-surface-soft);
   --surface-overlay: var(--cs-panel);
 
   /* — lines (weights unchanged in contrast, shifted warm-neutral) — */
