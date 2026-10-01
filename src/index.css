@@ -10,16 +10,48 @@
      Warm neutral surfaces; low-chroma mineral colour used in small areas
      only, for classification or live flow — never to fill a node. */
 
-  /* — surfaces (back → front) — */
-  --surface-ground: #f0efea;
-  --surface-canvas: #f7f6f2;
-  --surface-panel: #fbfaf7;
-  --surface-raised: #ffffff;
+  /* ── Cozy Shelter Studio design tokens v1.1.0 — the SHARED SHELL layer ──
+     The nineteen canonical `--cs-*` tokens, byte-identical to the family's
+     `tokens.css`. Loop Studio's own vocabulary stays (70 properties; the family
+     layer has no opinion about nodes, edges or flow) and the LIGHT shell reads
+     these through the aliases below. Three are declared and deliberately NOT
+     consumed here: `--cs-font-sans` (typography is out of scope, and Loop keeps
+     per-locale stacks), `--cs-control-line` (1.27:1 on white — a control
+     boundary here is `--line-control`, >= 3:1) and the three state colours
+     (`--warning` is an engine-diagnostic colour, not shell chrome). The family
+     layer has no dark palette, so every dark value below is Loop's own. */
+  --cs-ink: #20242a;
+  --cs-ink-subtle: #606873;
+  --cs-font-sans: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cs-background: #fdfdfc;
+  --cs-panel: #ffffff;
+  --cs-surface-soft: #f7f7f5;
+  --cs-line: #d9dde4;
+  --cs-control-line: #e1e3e6;
+  --cs-accent: #4f6fe8;
+  --cs-accent-strong: #3d58c4;
+  --cs-focus-ring: rgba(79, 111, 232, .18);
+  --cs-success: #28734b;
+  --cs-warning: #92651b;
+  --cs-danger: #cf4b56;
+  --cs-radius: 12px;
+  --cs-control-radius: 8px;
+  --cs-shadow-soft: 0 1px 2px rgba(20, 27, 38, .04), 0 8px 24px rgba(20, 27, 38, .055);
+  --cs-ci-ink: #20242a;
+  --cs-ci-inverse: #ffffff;
+
+  /* — surfaces (back → front) — panel, raised and overlay are ONE white in
+     the family shell: the step between them is carried by `--line-container`
+     and `--line-control`, and by `--elev-overlay` on a floating surface. */
+  --surface-ground: var(--cs-surface-soft);
+  --surface-canvas: var(--cs-background);
+  --surface-panel: var(--cs-panel);
+  --surface-raised: var(--cs-panel);
   --surface-sunken: #e9e8e2;
-  --surface-overlay: #f3f1eb;
+  --surface-overlay: var(--cs-panel);
 
   /* — lines (weights unchanged in contrast, shifted warm-neutral) — */
-  --line-hairline: #e1dfd8;
+  --line-hairline: var(--cs-line);
   --line-structure: #c1beb4;
   --line-strong: #8c887e;
   --line-focus: var(--focus-ring);
@@ -41,7 +73,7 @@
      `--line-structure` is therefore NOT a shell token any more: it is drawn by
      the node silhouettes, the state handle, the chart axes, the minimap and
      three non-interactive labels, and by nothing interactive. */
-  --line-container: #c1beb4;
+  --line-container: var(--cs-line);
 
   /* — edges: measured against --surface-canvas — */
   --edge-resource: #adaaa1; /* ~2.2:1 on canvas */
@@ -49,8 +81,8 @@
   --edge-selected: var(--state-selected); /* ≥3:1 on canvas */
 
   /* — text — */
-  --text-primary: #202421;
-  --text-secondary: #4f5651;
+  --text-primary: var(--cs-ink);
+  --text-secondary: var(--cs-ink-subtle);
   --text-tertiary: #6c746e;
   --text-disabled: #9aa09a;
   --text-on-state: #ffffff;
@@ -59,7 +91,12 @@
   /* — mineral signal: "what is alive and moving right now" — */
   --signal-primary: #2f746e;
   --signal-primary-soft: #d8e5e1;
-  --focus-ring: #3f6fb6;
+  /* the shell's SOLID focus colour (>= 3:1 on every shell surface: 4.40 on
+     white, 4.10 on the soft ground). NOT `--cs-focus-ring` — that is the 18 %
+     halo, 1.25:1 on its own; it is `--focus-halo` below and only ever
+     accompanies this solid colour. */
+  --focus-ring: var(--cs-accent);
+  --focus-halo: var(--cs-focus-ring);
   --warning: #a56332;
 
   /* — state (shape / motion / position lead; colour is secondary) — */
@@ -108,6 +145,10 @@
   /* — elevation (light leans on faint shadow; dark drops it entirely) — */
   --elev-node: drop-shadow(0 1px 1.5px rgba(20, 20, 20, 0.05));
   --elev-label: 0 1px 2px rgba(20, 20, 20, 0.08);
+  /* a FLOATING shell surface (menu, popover, tooltip, the filter panel). With
+     panel = overlay = white, this and `--line-container` are what lift it. An
+     existing shadow slot re-pointed, not a new decoration. */
+  --elev-overlay: var(--cs-shadow-soft);
   /* docs/visual-language.md §VL0 follow-up — a dedicated shadow for the edge
      flow/condition chip only, kept separate from --elev-label (shared by ~12
      unrelated surfaces) so strengthening the chip's canvas-vs-chip boundary
@@ -506,6 +547,7 @@
     --signal-primary: #76b7ae;
     --signal-primary-soft: #29433f;
     --focus-ring: #83a9e6;
+    --focus-halo: rgba(131, 169, 230, 0.24);
     --warning: #d59660;
 
     --state-selected: #9a9e96;
@@ -537,6 +579,7 @@
     --elev-node: none;
     --elev-label: none;
     --elev-edge-label: none;
+    --elev-overlay: none;
   }
 }
 
@@ -572,6 +615,7 @@
   --signal-primary: #76b7ae;
   --signal-primary-soft: #29433f;
   --focus-ring: #83a9e6;
+  --focus-halo: rgba(131, 169, 230, 0.24);
   --warning: #d59660;
 
   --state-selected: #9a9e96;
@@ -601,6 +645,7 @@
   --elev-node: none;
   --elev-label: none;
   --elev-edge-label: none;
+  --elev-overlay: none;
 }
 
 * {
@@ -654,7 +699,7 @@ body {
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
   border-radius: 9px;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--elev-overlay);
 }
 .pwa-update__text {
   flex: 1;
@@ -952,7 +997,7 @@ body {
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
   border-radius: 9px;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--elev-overlay);
   /* The ACTIVE tip takes the pointer so it can be read without it vanishing
      when the pointer crosses the 6px gap below the chip; Toolbar.tsx sets
      `pointer-events: auto` inline on that one only. Every inactive tip stays
@@ -1072,7 +1117,7 @@ body {
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
   border-radius: 9px;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--elev-overlay);
 }
 /* Opt-in only — a genuinely long TOP-LEVEL menu (Templates, Insert module,
    File ▾ with Export's items flattened in) scrolls internally rather than
@@ -2147,7 +2192,7 @@ a.sheet__row {
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  box-shadow: var(--elev-panel, var(--elev-label));
+  box-shadow: var(--elev-panel, var(--elev-overlay));
   font-size: 12px;
   overflow: hidden;
 }
@@ -2515,7 +2560,7 @@ a.sheet__row {
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
   border-radius: 9px;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--elev-overlay);
 }
 .lgr-frame-props__field {
   display: flex;
@@ -4256,7 +4301,7 @@ a.sheet__row {
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
   border-radius: 9px;
-  box-shadow: var(--elev-label);
+  box-shadow: var(--elev-overlay);
   font-size: 12px;
   color: var(--text-primary);
 }
@@ -5507,7 +5552,7 @@ input[type='number']::-webkit-inner-spin-button {
     background: var(--surface-overlay);
     border: 1px solid var(--line-container);
     border-radius: 10px;
-    box-shadow: var(--elev-label);
+    box-shadow: var(--elev-overlay);
   }
   .openhint__title {
     margin: 0;
