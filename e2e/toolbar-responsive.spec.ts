@@ -325,13 +325,13 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
     await expect(fileBtn).toBeFocused()
   })
 
-  test('Take a tour / Send feedback close Help and ⋯ first (no stray popover)', async ({ page }) => {
+  test('Restart the tour / Send feedback close Help and ⋯ first (no stray popover)', async ({ page }) => {
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await moreBtn.click()
     await page.locator('.toolbar__overflow-pop button[aria-label="Help"]').click()
     const helpPop = page.locator('.menu__pop--right')
     await expect(helpPop).toBeVisible()
-    await helpPop.locator('.menu__item', { hasText: /Take a tour/ }).click()
+    await helpPop.locator('.menu__item', { hasText: /Restart the tour/ }).click()
     await expect(page.locator('.toolbar__overflow-pop')).toHaveCount(0)
     await expect(page.locator('.menu__pop--right')).toHaveCount(0)
   })

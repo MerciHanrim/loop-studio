@@ -73,7 +73,7 @@ type HintState = {
   seen: StoredSeen
   /** Record-on-render (§CIH2.1a). No-ops if already seen. */
   markSeen: (id: HintId) => void
-  /** Help → "Show again next time" (§CIH4). Clears the persisted flag; does
+  /** Help → "Show next time it applies" (§CIH4). Clears the persisted flag; does
    *  NOT force a render — the hint's own trigger/tier/cooldown gates decide
    *  when it next shows. */
   rearm: (id: HintId) => void

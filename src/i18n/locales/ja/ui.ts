@@ -366,10 +366,10 @@ const ui = {
   'tour.mobile.more.title': 'その他',
   'tour.mobile.more.body': '共有、エクスポート、言語切り替えはすべてこのメニューにあります。',
   'tour.help.menuLabel': 'ヘルプ',
-  'tour.help.takeTour': 'ツアーを見る',
+  'tour.help.takeTour': 'ツアーをもう一度始める',
   'tour.help.about': 'Loop Studio について',
-  'tour.help.feedback': 'フィードバックを送る（英語フォーム）',
-  'tour.help.feedbackAria': 'フィードバックを送る（英語フォーム）— 新しいタブで開きます',
+  'tour.help.feedback': 'フィードバックを送る · 英語',
+  'tour.help.feedbackAria': 'フィードバックを送る · 英語 — 新しいタブで開きます',
   'about.createdBy': '作成者',
   'about.repo': 'GitHub リポジトリ',
   'about.repoAria': 'Loop Studio の GitHub リポジトリ',
@@ -388,12 +388,12 @@ const ui = {
   'help.contextual.hint.frameMove.desc': '編集可能なキャンバスでグループフレームを初めて選択したときに一度表示されます。',
   'hint.focusFilter.body':
     'グラフが混み合ってきましたか？ フォーカスは 1 つのノードの近傍以外を薄くし、フィルターはノードや接続の種類を隠します。',
-  'help.contextual.menuLabel': '状況別ヘルプ',
-  'help.contextual.title': '状況別ヘルプ',
+  'help.contextual.menuLabel': '状況別の注記を再び有効にする',
+  'help.contextual.title': '状況別の注記の管理',
   'help.contextual.intro':
-    'Loop Studio は、以下のそれぞれが初めて出てきたときに短い注記を表示します。再設定すると、次に該当したときにもう一度表示されます。',
-  'help.contextual.rearm': '次回もう一度表示',
-  'help.contextual.rearmWaiting': '次回の表示を待機中',
+    'Loop Studio は、以下のそれぞれが初めて出てきたときに短い注記を表示します。選んだ注記は、次に該当したときにもう一度表示されます。',
+  'help.contextual.rearm': '次に該当したとき表示',
+  'help.contextual.rearmWaiting': '表示予定',
   'help.contextual.rearmWaitingHint': '次に該当する適切なタイミングで、自動的にもう一度表示されます。',
   'help.contextual.hint.emptyCanvas.name': '空のキャンバス',
   'help.contextual.hint.emptyCanvas.desc': 'ノードが 1 つもない空のキャンバスで表示されます。',
@@ -404,6 +404,20 @@ const ui = {
   'help.contextual.hint.focusFilter.name': 'フォーカス / フィルター',
   'help.contextual.hint.focusFilter.desc':
     'グラフが、フォーカスとフィルターが役立つ程度に大きくなったときに一度表示されます。',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': '新機能',
+  'whatsNew.newMarker': '新着',
+  'whatsNew.notice.region': '更新のお知らせ',
+  'whatsNew.notice.text': 'Loop Studio を {version} に更新しました',
+  'whatsNew.notice.open': '新機能を見る',
+  'whatsNew.v0150.notes': '更新後に短いお知らせが表示され、ヘルプメニューの「新機能」で変更点を確認できます。',
+  'whatsNew.v0150.help': 'ヘルプメニューを目的別にまとめ、項目名で何をするかが分かるようにしました。',
+  'whatsNew.v0150.timeline': 'タイムラインは最初に最大 8 系列を描画します。系列ボタンで表示する系列を選べます。',
+  'whatsNew.v0150.look': 'ライトテーマの配色が落ち着き、パネルの角が丸くなり、キーボードフォーカスの表示がはっきりしました。',
+  'whatsNew.v0140.languages': '7 言語を追加：アラビア語、オランダ語、イタリア語、ロシア語、タイ語、トルコ語、ベトナム語。合計 18 言語です。',
+  'whatsNew.v0140.rtl': 'アラビア語は右から左に読みます。メニューとパネルは左右が反転し、図の形はそのままです。',
+  'whatsNew.v0140.frames': 'グループフレームの名前、色、サイズをフレームから直接変更できます。',
+  'whatsNew.v0140.csv': 'ダウンロードした CSV ファイルが Excel で正しく開きます。ラベルにカンマや引用符が含まれていても問題ありません。',
 } satisfies Record<UiKey, string>
 
 export default ui

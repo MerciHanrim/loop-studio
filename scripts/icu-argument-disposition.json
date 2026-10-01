@@ -11,11 +11,11 @@
   },
   "$implemented": "A row classed `auto` / `ltr` / `per-fragment` is an OPEN obligation: the evidence says the value needs bounding and the code does not bound it yet. C3.5 was scoped to fix the two families that were already evidenced — the unrecognized-column header and the five `import.loc.*` calls — and those moved to `isolate-obligations.json`. The checker asserts these rows are NOT wrapped, so implementing one without moving its row is red in both directions.",
   "totals": {
-    "arguments": 207,
-    "rows": 50,
+    "arguments": 208,
+    "rows": 51,
     "byClass": {
       "attribute": 10,
-      "closed-value": 40
+      "closed-value": 41
     },
     "recordedNotImplemented": 0,
     "attributeSink": 18
@@ -300,6 +300,16 @@
       "sink": "indirect",
       "class": "closed-value",
       "evidence": "The build constant `__APP_VERSION__`."
+    },
+    {
+      "file": "src/components/WhatsNewNotice.tsx",
+      "enclosing": "WhatsNewNotice",
+      "key": "whatsNew.notice.text",
+      "arg": "version",
+      "ord": 1,
+      "sink": "indirect",
+      "class": "closed-value",
+      "evidence": "The `version` of the newest bundled release note (`src/releaseNotes/releaseNotes.ts`), which `validateReleaseNotes` holds to x.y.z: digits and dots, no letters."
     },
     {
       "file": "src/components/dataImport/DataImportWizard.tsx",

@@ -345,14 +345,14 @@ const ui = {
   'tour.mobile.more.title': 'Más',
   'tour.mobile.more.body': 'Compartir, Exportar y el cambio de idioma están todos en este menú.',
   'tour.help.menuLabel': 'Ayuda',
-  'tour.help.takeTour': 'Hacer el recorrido',
+  'tour.help.takeTour': 'Reiniciar el recorrido',
   'tour.help.about': 'Acerca de Loop Studio',
   // The linked form is English-only, so the link says so — every other
   // non-English catalog carries the same marker and `en` carries none, which
   // is exactly why `localeSurfaceCopy.test.ts` has to hold it.
-  'tour.help.feedback': 'Enviar comentarios (formulario en inglés)',
+  'tour.help.feedback': 'Enviar comentarios · en inglés',
   'tour.help.feedbackAria':
-    'Enviar comentarios (formulario en inglés): se abre en una pestaña nueva',
+    'Enviar comentarios · en inglés: se abre en una pestaña nueva',
   'about.createdBy': 'Creado por',
   'about.repo': 'Repositorio de GitHub',
   'about.repoAria': 'Repositorio de Loop Studio en GitHub',
@@ -369,11 +369,11 @@ const ui = {
   'help.contextual.hint.frameMove.name': 'Mover un marco',
   'help.contextual.hint.frameMove.desc': 'Se muestra una vez, la primera vez que se selecciona un marco de grupo en un lienzo editable.',
   'hint.focusFilter.body': '¿El grafo se está poniendo denso? Enfocar atenúa todo salvo el vecindario de un nodo; Filtros oculta tipos de nodo o de conexión.',
-  'help.contextual.menuLabel': 'Ayuda contextual',
-  'help.contextual.title': 'Ayuda contextual',
-  'help.contextual.intro': 'Loop Studio muestra algunas notas breves la primera vez que aparece cada una de estas situaciones. Vuelva a activar una para verla de nuevo la próxima vez que corresponda.',
-  'help.contextual.rearm': 'Mostrar de nuevo la próxima vez',
-  'help.contextual.rearmWaiting': 'Esperando para mostrarse la próxima vez',
+  'help.contextual.menuLabel': 'Reactivar las notas contextuales',
+  'help.contextual.title': 'Administrar las notas contextuales',
+  'help.contextual.intro': 'Loop Studio muestra una nota breve la primera vez que aparece cada una de estas situaciones. Elija una para que vuelva a mostrarse la próxima vez que corresponda.',
+  'help.contextual.rearm': 'Mostrar la próxima vez que corresponda',
+  'help.contextual.rearmWaiting': 'Se mostrará',
   'help.contextual.rearmWaitingHint': 'Se mostrará sola, la próxima vez que corresponda.',
   'help.contextual.hint.emptyCanvas.name': 'Lienzo vacío',
   'help.contextual.hint.emptyCanvas.desc': 'Se muestra en un lienzo en blanco, antes de que exista cualquier nodo.',
@@ -383,6 +383,20 @@ const ui = {
   'help.contextual.hint.review.desc': 'Se muestra la primera vez que se abre una propuesta compartida para revisarla.',
   'help.contextual.hint.focusFilter.name': 'Enfoque / Filtros',
   'help.contextual.hint.focusFilter.desc': 'Se muestra cuando un grafo se vuelve lo bastante grande como para que Enfoque y Filtros empiecen a ayudar.',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': 'Novedades',
+  'whatsNew.newMarker': 'Nuevo',
+  'whatsNew.notice.region': 'Aviso de actualización',
+  'whatsNew.notice.text': 'Loop Studio se actualizó a la versión {version}',
+  'whatsNew.notice.open': 'Ver las novedades',
+  'whatsNew.v0150.notes': 'Después de una actualización aparece un aviso breve, y “Novedades” en el menú Ayuda muestra lo que cambió.',
+  'whatsNew.v0150.help': 'El menú Ayuda está agrupado por propósito, y sus elementos dicen lo que hacen.',
+  'whatsNew.v0150.timeline': 'La línea de tiempo dibuja al principio hasta 8 series. Con el botón de series se elige cuáles mostrar.',
+  'whatsNew.v0150.look': 'El tema claro tiene colores más serenos, paneles más redondeados y un indicador de foco del teclado más nítido.',
+  'whatsNew.v0140.languages': 'Siete idiomas más: árabe, neerlandés, italiano, ruso, tailandés, turco y vietnamita. Dieciocho en total.',
+  'whatsNew.v0140.rtl': 'El árabe se lee de derecha a izquierda: los menús y los paneles se invierten, y el diagrama conserva su forma.',
+  'whatsNew.v0140.frames': 'El nombre, el color y el tamaño de un marco de grupo se cambian desde el propio marco.',
+  'whatsNew.v0140.csv': 'Los archivos CSV descargados se abren correctamente en Excel, aunque una etiqueta contenga una coma o comillas.',
 } as const
 
 export type UiKey = keyof typeof ui

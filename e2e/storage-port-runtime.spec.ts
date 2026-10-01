@@ -24,6 +24,8 @@ const GRAPH = 'loop-studio:graph:v1'
 const AUTHOR = 'loop-studio:author'
 const TOUR = 'loop-studio/guided-tour/1'
 const LOCK = 'loop-studio:canvas-locked'
+const ANNOUNCED = 'loop-studio/whats-new/announced/1'
+const OPENED = 'loop-studio/whats-new/opened/1'
 
 /** Install the trap for every document this page loads, and keep the page on
  *  the local dev server: a generated share link names the PUBLIC address, and
@@ -116,6 +118,12 @@ test.describe('browser storage is reached through the port only (run time)', () 
     await take('start-up')
     expect(inPhase('start-up', 'getItem', GRAPH)).toBeGreaterThan(0)
     expect(inPhase('start-up', 'setItem', GRAPH)).toBeGreaterThan(0)
+    // issue #296 - a first visit records the newest release note as its baseline,
+    // once and with no action, and that write goes through the port like the rest
+    expect(inPhase('start-up', 'getItem', ANNOUNCED)).toBeGreaterThan(0)
+    expect(inPhase('start-up', 'getItem', OPENED)).toBeGreaterThan(0)
+    expect(inPhase('start-up', 'setItem', ANNOUNCED)).toBe(1)
+    expect(inPhase('start-up', 'setItem', OPENED)).toBe(0)
 
     // 2. onboarding and a preference
     await page.getByRole('button', { name: 'Skip' }).first().click()

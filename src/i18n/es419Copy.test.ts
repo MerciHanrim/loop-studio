@@ -299,7 +299,8 @@ describe('es-419 copy — mechanical review', () => {
       // Timeline selector strings (the lowercase one is already global)
       Series: ['timeline.series.trigger', 'timeline.series.title'],
       // third-party application names
-      Excel: ['import.qs.sources.summary', 'import.qs.sources.excel'],
+      // ... and the release note that says downloaded CSV files open in it (issue #296)
+      Excel: ['import.qs.sources.summary', 'import.qs.sources.excel', 'whatsNew.v0140.csv'],
       Google: ['import.qs.sources.summary', 'import.qs.sources.sheets'],
       Sheets: ['import.qs.sources.summary', 'import.qs.sources.sheets'],
       Numbers: ['import.qs.sources.excel'],

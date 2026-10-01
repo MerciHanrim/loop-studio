@@ -3,9 +3,11 @@ import { useT, type MessageKey } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { useHintStore, type HintId } from '../store/hintStore'
 
-// docs/contextual-inline-help.md §CIH4 — the `Contextual help` Help-menu
-// entry both Help surfaces already reserve a row for. Lists the v1 hints and
-// lets the user re-arm one (§CIH4: "Show again next time" clears the
+// docs/contextual-inline-help.md §CIH4 — the Help-menu entry both Help surfaces
+// reserve a row for. Since issue #296 it is named for what it does: the menu
+// item is "Turn contextual tips back on" and this dialog is "Manage contextual
+// tips"; it was "Contextual help" before. Lists the v1 hints and lets the user
+// re-arm one (§CIH4: "Show next time it applies" clears the
 // persisted `seen` flag — it does NOT force the hint to render; the hint's
 // own trigger / tier / cooldown rules decide when it next shows).
 //
@@ -14,8 +16,8 @@ import { useHintStore, type HintId } from '../store/hintStore'
 // re-armed a moment ago, with no way to tell them apart. Both are exactly
 // the same underlying state (`!seen[id]`, pending its next eligible
 // trigger), so the fix is just a truthful label for that state, not new
-// bookkeeping: enabled reads "Show again next time" (an action); disabled
-// reads "Waiting to show next time" (a status), with a `title` hint
+// bookkeeping: enabled reads "Show next time it applies" (an action); disabled
+// reads "Will show" (a status), with a `title` hint
 // spelling out that it reappears on its own next appropriate occasion.
 
 // docs/localization.md §L7 precedent (REG_CODE_KEY in Inspector.tsx) — a

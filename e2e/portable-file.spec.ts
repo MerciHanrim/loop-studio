@@ -3,6 +3,8 @@ import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
+import { seedWhatsNewSeen } from './support/whatsNew'
+import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
 // server, no window.__loop bridge (production build) — driven entirely through
@@ -135,6 +137,21 @@ test.describe('portable file://', () => {
     ]) {
       expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)
     }
+  })
+
+  // issue #296 - the release notes ship inside the single file: the panel reads
+  // them on file://, with no server to ask and no service worker to cache them
+  test('What’s new opens from Help and lists every bundled entry', async ({ page }) => {
+    await openPortable(page)
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.locator('[data-whatsnew="menu-item"]').click()
+    const panel = page.locator('[data-whatsnew="panel"]')
+    await expect(panel).toBeVisible()
+    const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
+    expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
+    expect(await panel.locator('li').count()).toBe(RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0))
+    await page.keyboard.press('Escape')
+    await expect(panel).toHaveCount(0)
   })
 
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
@@ -309,6 +326,8 @@ test.describe('portable file://', () => {
         /* ignore */
       }
     })
+    // issue #296 - and this returning profile has already seen the newest release note
+    await seedWhatsNewSeen(page)
     await page.goto(`${HTTP}/#g1=${payload}`)
     await page.waitForFunction(() => Boolean((window as any).__loop))
     await page.waitForFunction(() => location.hash === '') // ShareLoader consumed + stripped

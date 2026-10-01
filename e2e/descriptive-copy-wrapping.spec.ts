@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, test } from './support/loop'
+import { seedWhatsNewSeen } from './support/whatsNew'
 
 // docs/localization.md — descriptive copy (`.menu__blurb`, `.palette-tip__desc`)
 // must wrap by the rules of the language it is written in.
@@ -77,6 +78,8 @@ async function pageAt(page: Page, tag: string) {
       /* storage blocked — the tour card is dismissed by the test instead */
     }
   })
+  // issue #296 - and this returning profile has already seen the newest release note
+  await seedWhatsNewSeen(ctx)
   return { ctx, page: await ctx.newPage() }
 }
 

@@ -153,16 +153,19 @@ test.describe('guided tour — first run', () => {
 // ── 3 / 4 — Help menu re-entry & contents ───────────────────────────────────
 test.describe('guided tour — Help menu', () => {
   // docs/contextual-inline-help.md §CIH4 — the reserved 3rd slot is now live.
-  test('exactly four items, in order: Take a tour, Contextual help, Send feedback, About', async ({ page }) => {
+  // docs/release-notes.md (issue #296) — five items in three groups, renamed to
+  // say what each one does; e2e/whats-new.spec.ts pins the separators too.
+  test('exactly five items, in order: Restart the tour, Turn contextual tips back on, What’s new, Send feedback, About', async ({ page }) => {
     await seedKey(page, 'completed')
     await openApp(page)
     await openHelp(page)
     const items = page.locator('.menu__pop[role="menu"] .menu__item')
-    await expect(items).toHaveCount(4)
-    await expect(items.nth(0)).toHaveText(/Take a tour|둘러보기/)
-    await expect(items.nth(1)).toHaveText(/Contextual help|상황별 도움말/)
-    await expect(items.nth(2)).toHaveText(/Send feedback|피드백 보내기/)
-    await expect(items.nth(3)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    await expect(items).toHaveCount(5)
+    await expect(items.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
+    await expect(items.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
+    await expect(items.nth(2)).toHaveText(/What’s new|새로운 기능/)
+    await expect(items.nth(3)).toHaveText(/Send feedback|피드백 보내기/)
+    await expect(items.nth(4)).toHaveText(/About Loop Studio|Loop Studio 정보/)
   })
 
   test('the Send feedback item is a fixed external link opening a new tab', async ({ page }) => {
@@ -182,11 +185,11 @@ test.describe('guided tour — Help menu', () => {
     await expect(link.locator('.menu__ext')).toHaveAttribute('aria-hidden', 'true')
   })
 
-  test('Take a tour re-opens the tour at step 1 and never rewrites the key', async ({ page }) => {
+  test('Restart the tour re-opens the tour at step 1 and never rewrites the key', async ({ page }) => {
     await seedKey(page, 'dismissed')
     await openApp(page)
     await openHelp(page)
-    await page.locator('.menu__pop .menu__item', { hasText: /Take a tour|둘러보기/ }).click()
+    await page.locator('.menu__pop .menu__item', { hasText: /Restart the tour|둘러보기 다시 시작/ }).click()
     await expect(popover(page)).toBeVisible()
     await expect(popover(page).locator('.tour-popover__pos')).toHaveText('1 / 6')
     // walk to the end and finish → replay must NOT rewrite the key
@@ -195,7 +198,7 @@ test.describe('guided tour — Help menu', () => {
     expect(await storedKey(page)).toBe('dismissed')
     // and again, exiting via Escape
     await openHelp(page)
-    await page.locator('.menu__pop .menu__item', { hasText: /Take a tour|둘러보기/ }).click()
+    await page.locator('.menu__pop .menu__item', { hasText: /Restart the tour|둘러보기 다시 시작/ }).click()
     await expect(popover(page)).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(popover(page)).toHaveCount(0)
@@ -585,7 +588,7 @@ test.describe('guided tour — a11y', () => {
     await seedKey(page, 'completed')
     await openApp(page)
     await openHelp(page)
-    await page.locator('.menu__pop .menu__item', { hasText: /Take a tour|둘러보기/ }).click()
+    await page.locator('.menu__pop .menu__item', { hasText: /Restart the tour|둘러보기 다시 시작/ }).click()
     await expect(popover(page)).toBeVisible()
     // Tab a few times — focus stays inside the popover
     for (let i = 0; i < 6; i++) {

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
+import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
 // `vite preview` at the root `/` — the shape Cloudflare Pages serves. No
@@ -464,5 +465,49 @@ test.describe('production build — the version the release bumped', () => {
     expect(doc.project?.meta?.tool).toBe(`loop-studio/${PKG_VERSION}`)
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
+})
+
+// ── issue #296 — the release notes, as the PRODUCTION build carries them ────
+//
+// The notes are data inside the bundle. These read them through the real
+// screen of the real build, where there is no dev bridge to ask.
+test.describe('production build — release notes', () => {
+  const ITEMS = RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0)
+
+  test('What’s new lists every bundled entry, newest first, and fetches nothing', async ({ page }) => {
+    expect(RELEASE_NOTES.length).toBeGreaterThan(0)
+    const { bad } = await openProd(page)
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.locator('[data-whatsnew="menu-item"]').click()
+    const panel = page.locator('[data-whatsnew="panel"]')
+    await expect(panel).toBeVisible()
+    const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
+    expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
+    const items = await panel.locator('li').allTextContents()
+    expect(items).toHaveLength(ITEMS)
+    for (const text of items) expect(text).not.toMatch(/whatsNew\.|text unavailable|\{/)
+    expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
+
+  test.describe('a returning profile that has not been told', () => {
+    // the shared fixture still pre-dismisses the tour, which is what makes the
+    // profile a returning one; only the "already seen" record is left out
+    test.use({ whatsNewSeen: false })
+
+    test('sees the notice for the newest entry once, and not again after a reload', async ({ page }) => {
+      await page.goto('/')
+      await expect(page.locator('.canvas .react-flow')).toBeVisible()
+      const notice = page.locator('[data-whatsnew="notice"]')
+      await expect(notice).toBeVisible()
+      await expect(notice.locator('p')).toContainText(RELEASE_NOTES[0]!.version)
+      await expect
+        .poll(() => page.evaluate(() => localStorage.getItem('loop-studio/whats-new/announced/1')))
+        .toBe(RELEASE_NOTES[0]!.id)
+      await page.reload()
+      await expect(page.locator('.canvas .react-flow')).toBeVisible()
+      await expect(page.locator('.react-flow__node').first()).toBeVisible()
+      await expect(notice).toHaveCount(0)
+    })
   })
 })

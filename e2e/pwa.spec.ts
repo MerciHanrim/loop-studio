@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { seedWhatsNewSeen } from './support/whatsNew'
+import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // Runs under playwright.pwa.config.ts — three pre-built `--mode pwa` generations
 // (stamps pwagenA/B/C) served by e2e/support/pwa-serve.mjs, which switches which
@@ -23,6 +25,8 @@ test.beforeEach(async ({ context }) => {
       /* ignore */
     }
   })
+  // issue #296 - and this returning profile has already seen the newest release note
+  await seedWhatsNewSeen(context)
 })
 
 const setGen = (page: Page, to: 'a' | 'b' | 'c') =>
@@ -205,6 +209,22 @@ test('offline: a #g1= share link opens from cache and strips the fragment', asyn
 })
 
 // ── registration gate (real browser, not just the unit test) ────────────
+
+// issue #296 - once installed, the release notes read with the network down
+test('offline: What’s new opens from the precached app and lists every entry', async ({ page, context }) => {
+  await installAndControl(page)
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.locator('.canvas .react-flow')).toBeVisible()
+  await page.locator('[data-tour="help-trigger"]').click()
+  await page.locator('[data-whatsnew="menu-item"]').click()
+  const panel = page.locator('[data-whatsnew="panel"]')
+  await expect(panel).toBeVisible()
+  const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
+  expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
+  expect(await panel.locator('li').count()).toBe(RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0))
+  await context.setOffline(false)
+})
 
 test('a PWA build opened from a NON-allowed origin does not register a SW', async ({ page }) => {
   await setGen(page, 'a')

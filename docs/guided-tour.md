@@ -317,17 +317,26 @@ mobile identical):
 
 ```
 ? Help
- ├─ Take a tour
- ├─ Contextual help
+ ├─ Restart the tour
+ ├─ Turn contextual tips back on
+ ├─ ────
+ ├─ What's new            [New]
+ ├─ ────
  ├─ Send feedback ↗
  └─ About Loop Studio
 ```
 
-- **`Take a tour`** — restarts the tour at step 1. It always runs the
+**Renamed and regrouped on 2026-10-02 (issue #296).** The items were
+`Take a tour` and `Contextual help` until v0.14.0, and the rest of this
+document still uses those names where it records the original decisions. The
+new names say what each item does, and `What's new` with its `New` marker is
+described in [`release-notes.md`](release-notes.md).
+
+- **`Restart the tour`** (was `Take a tour`) — restarts the tour at step 1. It always runs the
   platform-appropriate script (desktop on desktop, mobile on mobile) regardless
   of the stored key, and per §GT6.4 never rewrites it.
-- **`Contextual help`** — opens the inline-help re-arm dialog (added by the
-  inline-help slice; `docs/contextual-inline-help.md` §CIH4).
+- **`Turn contextual tips back on`** (was `Contextual help`) — opens the
+  inline-help re-arm dialog (added by the inline-help slice; `docs/contextual-inline-help.md` §CIH4).
 - **`Send feedback`** — a fixed **external link** (`src/feedback.ts` `FEEDBACK_URL`
   — a **Tally form**; the same const in both the desktop menu and the mobile Help
   sub-sheet) opening the feedback form in a **new tab** (`target="_blank"`,

@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(857)
+    expect(KEYS).toHaveLength(870)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(857)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(870)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -464,6 +464,9 @@ const ASCII_KEYS = [
   'catalog:tour.mobile.canvas.body',
   'catalog:tour.mobile.open.body',
   'catalog:tour.welcome.title',
+  // issue #296 - the product name, and the file format and application a release note names
+  'catalog:whatsNew.notice.text',
+  'catalog:whatsNew.v0140.csv',
   'frame/gacha-banner-zones:zone_pickup',
   'frame/gacha-banner-zones:zone_standard',
   'template/coffee-roastery:cafe_retail_demand_kg',
@@ -534,7 +537,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(166)
+    expect(ASCII_KEYS).toHaveLength(168)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {

@@ -77,15 +77,17 @@ describe('storagePort — a pass-through to localStorage', () => {
 })
 
 describe('storagePort — the key registry', () => {
-  it('lists the fourteen keys Loop Studio stores, by kind', () => {
+  it('lists the sixteen keys Loop Studio stores, by kind', () => {
     const byKind: Record<string, string[]> = {}
     for (const [key, kind] of Object.entries(STORAGE_KEYS)) (byKind[kind] ??= []).push(key)
-    expect(Object.keys(STORAGE_KEYS)).toHaveLength(14)
+    expect(Object.keys(STORAGE_KEYS)).toHaveLength(16)
     expect(byKind.work).toEqual(['loop-studio:graph:v1'])
     expect(byKind.personal).toEqual(['loop-studio:author'])
     expect(byKind.preference).toHaveLength(9)
     expect(byKind.onboarding).toEqual(['loop-studio/guided-tour/1', 'loop-studio/contextual-help/1', 'loop-studio/import-quickstart/1'])
-    expect(Object.keys(byKind).sort()).toEqual(['onboarding', 'personal', 'preference', 'work'])
+    // issue #296 - which release note this profile was told about, and which it opened
+    expect(byKind.release).toEqual(['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
+    expect(Object.keys(byKind).sort()).toEqual(['onboarding', 'personal', 'preference', 'release', 'work'])
   })
 
   it('names every key by its real stored spelling (a rename would orphan saved data)', () => {
@@ -95,6 +97,8 @@ describe('storagePort — the key registry', () => {
         'loop-studio/guided-tour/1',
         'loop-studio/import-quickstart/1',
         'loop-studio/ui-locale/1',
+        'loop-studio/whats-new/announced/1',
+        'loop-studio/whats-new/opened/1',
         'loop-studio:activity-overlay',
         'loop-studio:author',
         'loop-studio:canvas-locked',

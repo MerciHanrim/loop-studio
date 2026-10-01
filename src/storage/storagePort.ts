@@ -28,6 +28,8 @@
  *   personal    something the person typed about themselves
  *   preference  how the app is set up in this browser
  *   onboarding  which first-run guidance has already been shown
+ *   release     which release note this profile has been told about, and which
+ *               one it has opened (issue #296)
  */
 export const STORAGE_KEYS = {
   'loop-studio:graph:v1': 'work',
@@ -44,6 +46,8 @@ export const STORAGE_KEYS = {
   'loop-studio/guided-tour/1': 'onboarding',
   'loop-studio/contextual-help/1': 'onboarding',
   'loop-studio/import-quickstart/1': 'onboarding',
+  'loop-studio/whats-new/announced/1': 'release',
+  'loop-studio/whats-new/opened/1': 'release',
 } as const
 
 export type StorageKey = keyof typeof STORAGE_KEYS

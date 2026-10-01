@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { WHATS_NEW_SEEN } from './support/whatsNew'
 
 // docs/contextual-inline-help.md §CIH8 — the contextual-help acceptance set.
 // Presentation only: nothing here is serialized, digested, undone, or seen by
@@ -56,8 +57,15 @@ async function settleTour(page: Page): Promise<void> {
  *  real race caught on a slower CI runner, not a product bug) and permanently
  *  flip the tour out of idle from underneath an unrelated hint assertion. */
 async function installWriteOnlyFailure(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const store = new Map<string, string>([['loop-studio/guided-tour/1', 'dismissed']])
+  await page.addInitScript((seen) => {
+    // issue #296 - the pre-dismissed tour makes this a returning profile, so it
+    // also holds the record that the newest release note was announced and
+    // opened; with writes failing, the app could not record it itself
+    const store = new Map<string, string>([
+      ['loop-studio/guided-tour/1', 'dismissed'],
+      [seen.announcedKey, seen.id],
+      [seen.openedKey, seen.id],
+    ])
     const t = () => {
       throw new Error('quota')
     }
@@ -74,7 +82,7 @@ async function installWriteOnlyFailure(page: Page): Promise<void> {
         },
       },
     })
-  })
+  }, WHATS_NEW_SEEN)
 }
 
 // a dense, 9-node graph — past WORTH_IT_FLOOR (8) — for the Focus/Filter hint.
@@ -328,7 +336,7 @@ test.describe('contextual inline help — post-tour cooldown (§CIH2.3a)', () =>
 })
 
 test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
-  test('lists all five hints; "Show again next time" re-arms without forcing immediate display', async ({ page }) => {
+  test('lists every hint; "Show next time it applies" re-arms without forcing immediate display', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await settleTour(page)
@@ -336,7 +344,7 @@ test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
     await importGraph(page, GRAPH_9) // clear the note off-screen, keep it seen
 
     await page.locator('[data-tour="help-trigger"]').click()
-    await page.getByRole('menuitem').filter({ hasText: 'Contextual help' }).click()
+    await page.getByRole('menuitem').filter({ hasText: 'Turn contextual tips back on' }).click()
     const dlg = page.locator('.mcdlg--contextual-help')
     await expect(dlg).toBeVisible()
     // four CIH v1 hints + the spreadsheet-import hint (docs/data-import.md §DI17)
@@ -345,15 +353,16 @@ test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
     await expect(dlg.locator('.contextual-help__row').filter({ hasText: 'Frame move' })).toHaveCount(1) // §CIH3 #9 (2026-09-20)
 
     // never-yet-shown (Review) and just-rearmed (empty-canvas, below) are the
-    // SAME underlying state (`!seen[id]`) — both read "Waiting to show next
-    // time", not the enabled "Show again next time" label (v0.8.0 audit).
+    // SAME underlying state (`!seen[id]`) — both read "Will show", not the
+    // enabled "Show next time it applies" label (v0.8.0 audit; reworded by
+    // issue #296).
     const reviewRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Review' })
-    const reviewBtn = reviewRow.getByRole('button', { name: 'Waiting to show next time' })
+    const reviewBtn = reviewRow.getByRole('button', { name: 'Will show' })
     await expect(reviewBtn).toBeDisabled()
     await expect(reviewBtn).toHaveAttribute('title', /next appropriate time/)
 
     const emptyRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Empty canvas' })
-    const emptyBtnEnabled = emptyRow.getByRole('button', { name: 'Show again next time' })
+    const emptyBtnEnabled = emptyRow.getByRole('button', { name: 'Show next time it applies' })
     await expect(emptyBtnEnabled).toBeEnabled()
     await emptyBtnEnabled.click()
     expect(await seenKeys(page)).not.toContain('empty-canvas')
@@ -361,7 +370,7 @@ test.describe('contextual inline help — Help menu dialog (§CIH4)', () => {
     await expect(hintNote(page)).toHaveCount(0)
     // and the button now visibly reflects the wait, instead of looking identical
     // to before it was ever shown
-    await expect(emptyRow.getByRole('button', { name: 'Waiting to show next time' })).toBeDisabled()
+    await expect(emptyRow.getByRole('button', { name: 'Will show' })).toBeDisabled()
   })
 })
 
@@ -396,17 +405,17 @@ test.describe('contextual inline help — mobile (§CIH6)', () => {
     await expect(page.locator('.hint-note--inline')).toBeVisible()
   })
 
-  test('Help sub-sheet includes Contextual help, opening the shared dialog', async ({ page }) => {
+  test('Help sub-sheet includes the contextual-tips entry, opening the shared dialog', async ({ page }) => {
     await openApp(page)
     await resetAll(page)
     await settleTour(page)
     await page.locator('.mob-more').click()
     await page.locator('.sheet__row').filter({ hasText: 'Help' }).click()
-    await page.locator('.sheet__row').filter({ hasText: 'Contextual help' }).click()
+    await page.locator('.sheet__row').filter({ hasText: 'Turn contextual tips back on' }).click()
     const dlg = page.locator('.mcdlg--contextual-help')
     await expect(dlg).toBeVisible()
     // same shared component as desktop — the waiting-state label applies here too
     const reviewRow = dlg.locator('.contextual-help__row').filter({ hasText: 'Review' })
-    await expect(reviewRow.getByRole('button', { name: 'Waiting to show next time' })).toBeDisabled()
+    await expect(reviewRow.getByRole('button', { name: 'Will show' })).toBeDisabled()
   })
 })

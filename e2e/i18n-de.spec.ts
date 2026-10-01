@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { seedWhatsNewSeen } from './support/whatsNew'
 
 // German (`de`), the SEVENTH shipped language. Written RED-FIRST against the
 // unmodified product. docs/localization.md §L2.12 (region policy), §L2.11
@@ -74,6 +75,8 @@ async function pageAt(page: Page, tag: string) {
       /* storage blocked */
     }
   })
+  // issue #296 - and this returning profile has already seen the newest release note
+  await seedWhatsNewSeen(ctx)
   return { ctx, page: await ctx.newPage() }
 }
 

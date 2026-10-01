@@ -23,6 +23,8 @@ export type ToolbarDialog =
   | { kind: 'dataImport-manage' }
   | { kind: 'about' }
   | { kind: 'contextualHelp' }
+  // issue #296 - every release note; opening it clears the Help menu's New marker
+  | { kind: 'whatsNew' }
   | { kind: 'module-promote'; run: () => void }
   | { kind: 'module-frames'; body: string; run: () => void }
   | null

@@ -4,6 +4,48 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.15.0 — 2026-10-02
+
+The release where the app starts saying what changed. Until now an update arrived silently: the screen looked different and nothing said why. A returning visitor now gets a one-line notice, and the Help menu keeps a What's new page. This is also the version that the Timeline series selector and the refreshed light theme belong to: both reached the site after v0.14.0 while it still said `0.14.0`.
+
+**No migration.** A v0.14.0 file opens unchanged. A saved file can now carry `"timelineSeries": "all"`, written when you choose `Show all` on the Timeline; v0.14.0 ignores that value and draws every series, which is what it means. The informational `meta.tool` string is now `loop-studio/0.15.0`.
+
+### Added
+
+- **An update notice.** On the first launch after an update, a browser that has used Loop Studio before sees one line naming the new version, with a button that opens the notes and a button that closes it. It does not take focus, does not time out, and never touches the document, the run or the selection. A first visit sees nothing. If the update bar, the filter panel, a tour or a note about something you just did is on screen, the notice waits for it.
+- **What's new, in the Help menu.** Every release note, newest first, readable at any time and offline. A `New` marker stays on the item until you have opened the newest entry; closing the notice does not clear it. The notes ship inside the app in all eighteen languages, and nothing is fetched.
+- **A series selector on the Timeline.** The `Series` button chooses which series the chart draws. `Show all` keeps showing every series, including ones added later; a hand-picked set stays exactly what you picked. The legend is one row in every state.
+
+### Changed
+
+- **The Help menu is grouped, and its items say what they do.** `Take a tour` is `Restart the tour`. `Contextual help` is `Turn contextual tips back on`, because that screen never was a help document: it only re-arms the short one-time notes. Its dialog is `Manage contextual tips`, with `Show next time it applies` and `Will show`. The order is the tour and the tips, then What's new, then feedback and About, on desktop and in the mobile Help sheet alike.
+- **A document with no saved series choice draws at most eight series**, the first eight in document order, instead of every Pool and Register line. Fifty-five lines in one chart told nobody anything. The choice is saved with the document once you make one.
+- **The light theme.** One cool palette for the page, the panels and the overlays. Containers, dialogs and popovers have a 12 px radius and standard controls 8 px. Keyboard focus on a bordered control is the boundary in the focus colour plus a halo. The dark theme keeps its own palette.
+
+### Fixed
+
+- **The data-import dialogs' text fields** were unstyled browser controls, white with black text in the dark theme too. They are shell controls now.
+- **Under forced colours** every removed outline is back as a real system-colour outline, and the canvas and plot grids name a system colour instead of showing the light palette through a high-contrast theme.
+
+### Notes
+
+From this release on, a change that a person can see ships with its version and its release note in the same change. A merge to `main` is the production deploy, so there is no later release to carry them. `npm run check:change-declaration` holds that line in CI: a change to anything that is built or shipped adds a `.changes/<slug>.json` saying whether it is user-facing, and a user-facing one must raise the version and name a release note that exists in all eighteen languages. The rule and the stored state behind the notice are in [`docs/release-notes.md`](docs/release-notes.md).
+
+Browser storage is now reached through one module, guarded at source and at run time. Nothing a person sees changed by that; it is groundwork for the shared-device work.
+
+The notice's accessibility is checked structurally: the accessibility tree, the tab order and the number of times the live region changes. That is not a screen-reader test, and what a real screen reader says has not been confirmed on any platform. The release-note lines in the sixteen languages other than Korean and English are translations of this project's own text; no locale in this release has had a professional translation review, and none is claimed.
+
+### Included pull requests
+
+<details>
+<summary>Merged since v0.14.0</summary>
+
+- Features: [#294](https://github.com/MerciHanrim/loop-studio/pull/294), [#295](https://github.com/MerciHanrim/loop-studio/pull/295), and the pull request that carries this entry
+- Fixes: [#293](https://github.com/MerciHanrim/loop-studio/pull/293)
+- Internal: [#299](https://github.com/MerciHanrim/loop-studio/pull/299), [#304](https://github.com/MerciHanrim/loop-studio/pull/304)
+
+</details>
+
 ## v0.14.0 — 2026-09-30
 
 A localization release, and the first one that had to change how the app is laid out. Loop Studio went from eleven languages to eighteen, and the eighteenth is Arabic — the first right-to-left locale, which meant the UI had to mirror while the model graph kept its own left-to-right coordinate space.

@@ -25,6 +25,7 @@ import { useHintStore } from './store/hintStore'
 import { useSimStore } from './store/simStore'
 import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
+import { useWhatsNewStore } from './store/whatsNewStore'
 import * as workspaceIO from './store/workspaceIO'
 
 // Dev-only store bridge for browser E2E (never in the production / portable
@@ -48,6 +49,7 @@ if (import.meta.env.DEV) {
     review: useReviewStore,
     tour: useTourStore,
     hint: useHintStore,
+    whatsNew: useWhatsNewStore,
     i18n: useI18n,
     // §L9.2 — the direction resolver itself, so the RTL e2e can assert the value
     // the app's own `dir` attributes read rather than re-deriving it from the

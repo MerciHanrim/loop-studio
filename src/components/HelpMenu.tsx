@@ -2,21 +2,33 @@ import { useEffect, useRef, useState } from 'react'
 import { FEEDBACK_URL } from '../feedback'
 import { useArrowGlyph, useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
+import { useWhatsNewStore } from '../store/whatsNewStore'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
-// docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
-// desktop Help (`?`) menu: `Take a tour` (replays the tour; never rewrites
-// the stored key, §GT6.4), `Contextual help`, `Send feedback` (an external
-// link to the feedback form, opens a new tab), and `About Loop Studio`.
+// docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 /
+// docs/release-notes.md — the desktop Help (`?`) menu, in three groups:
 //
-// Review condition 3: `About` and `Contextual help` no longer live here —
+//   Restart the tour             replays the tour; never rewrites the stored key (§GT6.4)
+//   Turn contextual tips back on opens the dialog that re-arms the one-time notes
+//   ----
+//   What's new            [New]  every release note; the marker stays until the
+//                                newest one has been opened (issue #296)
+//   ----
+//   Send feedback                an external link to the form, opens a new tab
+//   About Loop Studio
+//
+// The names say what each item does: the contextual entry is not a help
+// document, it only turns the short one-time notes back on.
+//
+// Review condition 3: the dialogs (`About`, the contextual-tips dialog, `What's
+// new`) do not live here —
 // they're lifted to `Toolbar.tsx`'s `DialogHost` (a stable ancestor), since
 // Help is first in `OVERFLOW_ORDER` and so hits the "closing `…` unmounts
 // the dialog it just opened" bug soonest. `onOpenDialog` replaces that local
 // state; `onLeave` is called first by the two actions that need the same
-// ancestor-close treatment but open no dialog (Take a tour, Send feedback).
+// ancestor-close treatment but open no dialog (Restart the tour, Send feedback).
 
 export function HelpMenu({
   buttonRef,
@@ -33,6 +45,8 @@ export function HelpMenu({
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const startReplay = useTourStore((s) => s.startReplay)
+  // issue #296 — the newest release note has not been opened yet
+  const unread = useWhatsNewStore((s) => s.unread)
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
 
@@ -91,6 +105,28 @@ export function HelpMenu({
           >
             <span className="menu__name">{t('help.contextual.menuLabel')}</span>
           </button>
+          <div className="menu__divider" role="separator" />
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            data-whatsnew="menu-item"
+            onClick={() => {
+              setOpen(false)
+              onOpenDialog({ kind: 'whatsNew' })
+            }}
+          >
+            <span className="menu__name">
+              {t('whatsNew.title')}
+              {unread ? (
+                <>
+                  {' '}
+                  <span className="menu__badge">{t('whatsNew.newMarker')}</span>
+                </>
+              ) : null}
+            </span>
+          </button>
+          <div className="menu__divider" role="separator" />
           <a
             className="menu__item"
             role="menuitem"

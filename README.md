@@ -137,24 +137,24 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.14.0
+## Latest — v0.15.0
 
-- **Eighteen languages** — Arabic, Dutch, Italian, Russian, Thai, Turkish and Vietnamese join
-  the eleven already there; the full list with codes is above under [Languages](#languages)
-- **Right-to-left layout** — Arabic mirrors the app chrome while the diagram keeps its own
-  left-to-right coordinate space, so a model does not change shape when you change language
-- **Mixed-direction text stays readable** — numbers, identifiers and Latin technical terms
-  inside an Arabic sentence keep their own direction instead of being reversed or split
-- **Frame properties from the frame** — the title chip opens a popover for the title, the
-  accent colour and the size
-- **One CSV writer for every download** — CRLF and RFC 4180 quoting, so a label containing a
-  comma, a quote or a newline survives; UTF-8 with a byte-order mark for Excel on Windows
+- **An update notice** — after an update, a browser that has used Loop Studio before sees
+  one line naming the new version; it takes no focus, changes nothing and never times out
+- **What's new, in the Help menu** — every release note, newest first, in all eighteen
+  languages, offline; a `New` marker stays until the newest entry has been opened
+- **A clearer Help menu** — grouped by purpose, with items named for what they do:
+  `Restart the tour`, `Turn contextual tips back on`
+- **A Timeline series selector** — choose which series the chart draws; a document with no
+  saved choice draws the first eight instead of every line
+- **A refreshed light theme** — one calm palette, rounder panels and a clearer keyboard
+  focus indicator; the dark theme is unchanged
 
-No project-file change: the schema and the saved fields are unchanged and no migration is
-needed, so a v0.13.0 file opens without conversion. The bytes of downloaded **CSV** files do
-change — see the CHANGELOG entry.
+No migration: a v0.14.0 file opens unchanged. From this release on, a visible change ships
+with its version and its release note in the same change — see
+[`docs/release-notes.md`](docs/release-notes.md).
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.14.0 notes, the v0.13.0 and v0.12.0
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.15.0 notes, the v0.14.0 and v0.13.0
 releases and every earlier one.
 
 ## Credits

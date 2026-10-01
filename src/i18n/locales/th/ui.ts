@@ -403,10 +403,10 @@ const ui = {
   'tour.mobile.more.title': 'เพิ่มเติม',
   'tour.mobile.more.body': 'การแชร์ การส่งออก และการเปลี่ยนภาษา อยู่ในเมนูนี้ทั้งหมด',
   'tour.help.menuLabel': 'ช่วยเหลือ',
-  'tour.help.takeTour': 'เริ่มทัวร์ชม',
+  'tour.help.takeTour': 'เริ่มทัวร์ชมใหม่',
   'tour.help.about': 'เกี่ยวกับ Loop Studio',
-  'tour.help.feedback': 'ส่งความคิดเห็น (แบบฟอร์มภาษาอังกฤษ)',
-  'tour.help.feedbackAria': 'ส่งความคิดเห็น (แบบฟอร์มภาษาอังกฤษ): เปิดในแท็บใหม่',
+  'tour.help.feedback': 'ส่งความคิดเห็น · ภาษาอังกฤษ',
+  'tour.help.feedbackAria': 'ส่งความคิดเห็น · ภาษาอังกฤษ: เปิดในแท็บใหม่',
   'about.createdBy': 'จัดทำโดย',
   'about.repo': 'ที่เก็บโค้ดบน GitHub',
   'about.repoAria': 'ที่เก็บโค้ด Loop Studio บน GitHub',
@@ -429,12 +429,12 @@ const ui = {
     'แสดงครั้งเดียว เมื่อเลือกกรอบกลุ่มเป็นครั้งแรกบนผืนผ้าใบที่แก้ไขได้',
   'hint.focusFilter.body':
     'กราฟเริ่มแน่นหรือไม่ โฟกัสจะหรี่ทุกอย่างยกเว้นบริเวณรอบโหนดหนึ่ง ส่วนตัวกรองจะซ่อนชนิดของโหนดหรือเส้นเชื่อม',
-  'help.contextual.menuLabel': 'ความช่วยเหลือตามบริบท',
-  'help.contextual.title': 'ความช่วยเหลือตามบริบท',
+  'help.contextual.menuLabel': 'เปิดหมายเหตุตามบริบทอีกครั้ง',
+  'help.contextual.title': 'จัดการหมายเหตุตามบริบท',
   'help.contextual.intro':
-    'Loop Studio แสดงหมายเหตุสั้น ๆ ครั้งแรกที่แต่ละกรณีเกิดขึ้น เปิดใหม่อีกครั้งเพื่อให้แสดงอีกในครั้งถัดไปที่เข้าเงื่อนไข',
-  'help.contextual.rearm': 'แสดงอีกครั้งในครั้งถัดไป',
-  'help.contextual.rearmWaiting': 'รอแสดงในครั้งถัดไป',
+    'Loop Studio แสดงหมายเหตุสั้น ๆ ครั้งแรกที่แต่ละกรณีเกิดขึ้น เลือกหมายเหตุที่ต้องการให้แสดงอีกครั้งในครั้งถัดไปที่เข้าเงื่อนไข',
+  'help.contextual.rearm': 'แสดงในครั้งถัดไปที่เข้าเงื่อนไข',
+  'help.contextual.rearmWaiting': 'จะแสดง',
   'help.contextual.rearmWaitingHint': 'จะแสดงเองในโอกาสถัดไปที่เข้าเงื่อนไข',
   'help.contextual.hint.emptyCanvas.name': 'ผืนผ้าใบว่าง',
   'help.contextual.hint.emptyCanvas.desc': 'แสดงบนผืนผ้าใบว่าง ก่อนที่จะมีโหนดใด ๆ',
@@ -445,6 +445,20 @@ const ui = {
   'help.contextual.hint.focusFilter.name': 'โฟกัส / ตัวกรอง',
   'help.contextual.hint.focusFilter.desc':
     'แสดงเมื่อกราฟใหญ่พอจนโฟกัสและตัวกรองเริ่มมีประโยชน์',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': 'มีอะไรใหม่',
+  'whatsNew.newMarker': 'ใหม่',
+  'whatsNew.notice.region': 'การแจ้งเตือนการอัปเดต',
+  'whatsNew.notice.text': 'Loop Studio อัปเดตเป็นเวอร์ชัน {version} แล้ว',
+  'whatsNew.notice.open': 'ดูว่ามีอะไรใหม่',
+  'whatsNew.v0150.notes': 'หลังการอัปเดตจะมีการแจ้งเตือนสั้น ๆ และ “มีอะไรใหม่” ในเมนูช่วยเหลือจะแสดงรายการสิ่งที่เปลี่ยนไป',
+  'whatsNew.v0150.help': 'เมนูช่วยเหลือจัดกลุ่มตามจุดประสงค์ และชื่อรายการบอกสิ่งที่รายการนั้นทำ',
+  'whatsNew.v0150.timeline': 'ไทม์ไลน์จะวาดชุดข้อมูลไม่เกิน 8 ชุดในตอนแรก เลือกชุดที่จะแสดงได้จากปุ่มชุดข้อมูล',
+  'whatsNew.v0150.look': 'ธีมสว่างมีสีที่นุ่มนวลขึ้น แผงมีมุมโค้งมนขึ้น และตัวบอกโฟกัสของแป้นพิมพ์ชัดเจนขึ้น',
+  'whatsNew.v0140.languages': 'เพิ่มอีกเจ็ดภาษา: อาหรับ ดัตช์ อิตาลี รัสเซีย ไทย ตุรกี และเวียดนาม รวมทั้งหมดสิบแปดภาษา',
+  'whatsNew.v0140.rtl': 'ภาษาอาหรับอ่านจากขวาไปซ้าย เมนูและแผงจะสลับด้าน ส่วนไดอะแกรมยังคงรูปเดิม',
+  'whatsNew.v0140.frames': 'เปลี่ยนชื่อ สี และขนาดของกรอบกลุ่มได้จากตัวกรอบโดยตรง',
+  'whatsNew.v0140.csv': 'ไฟล์ CSV ที่ดาวน์โหลดเปิดใน Excel ได้ถูกต้อง แม้ป้ายชื่อจะมีจุลภาคหรือเครื่องหมายคำพูด',
 } as const
 
 export type UiKey = keyof typeof ui
