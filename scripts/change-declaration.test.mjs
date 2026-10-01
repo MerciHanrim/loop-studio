@@ -173,7 +173,7 @@ describe('versions are compared as numbers', () => {
     notes: [{ id: `release:${headVersion}`, version: headVersion }],
   })
   it('0.9.9 -> 0.10.0 is a rise, although "0.10.0" sorts before "0.9.9" as text', () => {
-    expect('0.10.0' < '0.9.9').toBe(true)
+    expect(['0.9.9', '0.10.0'].sort()).toEqual(['0.10.0', '0.9.9'])
     expect(problems(at('0.9.9', '0.10.0'))).toEqual([])
     expect(problems(at('0.99.9', '1.0.0'))).toEqual([])
     expect(problems(at('1.9.0', '1.10.0'))).toEqual([])
