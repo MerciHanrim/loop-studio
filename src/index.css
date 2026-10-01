@@ -30,7 +30,18 @@
      (1.78:1 on a light panel), never a 1 px control boundary. Declared once:
      `var()` resolves on :root, so the dark blocks' text tokens carry it. */
   --line-control: var(--text-tertiary);
-  --line-control-hover: var(--text-secondary);
+  /* A ROLE token with its own value (shell refresh, 2026-10-01). It used to
+     read `--text-secondary` and would have followed that token onto the shared
+     ink, shrinking the rest / hover step from 1.57 to 1.17. Each theme states
+     its own value; nothing else may alias it. */
+  --line-control-hover: #4f5651;
+  /* A CONTAINER's boundary: popover, dialog, sheet, card. Split out of
+     `--line-structure` so the shell can take the shared line while every graph
+     / chart / minimap stroke keeps `--line-structure` byte-identical.
+     `--line-structure` is therefore NOT a shell token any more: it is drawn by
+     the node silhouettes, the state handle, the chart axes, the minimap and
+     three non-interactive labels, and by nothing interactive. */
+  --line-container: #c1beb4;
 
   /* — edges: measured against --surface-canvas — */
   --edge-resource: #adaaa1; /* ~2.2:1 on canvas */
@@ -53,7 +64,11 @@
 
   /* — state (shape / motion / position lead; colour is secondary) — */
   --state-selected: #54524c;
-  --state-focus: var(--focus-ring);
+  /* the GRAPH's focus colour — node focus / peek strokes, the frame's focus and
+     selection chrome, the reference-insert control. Its own value, not
+     `var(--focus-ring)`: the shell's focus indicator may change without
+     recolouring anything on the canvas. */
+  --state-focus: #3f6fb6;
   --state-fired: var(--signal-primary);
   --state-arrival: var(--signal-primary);
   --state-guide: var(--signal-primary);
@@ -474,6 +489,8 @@
     --line-strong: #8a8f88;
     --line-focus: var(--focus-ring);
     --line-disabled: #313531;
+    --line-control-hover: #c8cec8;
+    --line-container: #63685f;
 
     --edge-resource: #575b56;
     --edge-state: #474b47;
@@ -492,7 +509,7 @@
     --warning: #d59660;
 
     --state-selected: #9a9e96;
-    --state-focus: var(--focus-ring);
+    --state-focus: #83a9e6;
     --state-fired: var(--signal-primary);
     --state-arrival: var(--signal-primary);
     --state-guide: var(--signal-primary);
@@ -538,6 +555,8 @@
   --line-strong: #8a8f88;
   --line-focus: var(--focus-ring);
   --line-disabled: #313531;
+  --line-control-hover: #c8cec8;
+  --line-container: #63685f;
 
   --edge-resource: #575b56;
   --edge-state: #474b47;
@@ -556,7 +575,7 @@
   --warning: #d59660;
 
   --state-selected: #9a9e96;
-  --state-focus: var(--focus-ring);
+  --state-focus: #83a9e6;
   --state-fired: var(--signal-primary);
   --state-arrival: var(--signal-primary);
   --state-guide: var(--signal-primary);
@@ -633,7 +652,7 @@ body {
   line-height: 1.4;
   color: var(--text-primary);
   background: var(--surface-overlay);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: 9px;
   box-shadow: var(--elev-label);
 }
@@ -931,7 +950,7 @@ body {
   max-width: min(280px, calc(100vw - 24px));
   padding: 8px 10px;
   background: var(--surface-overlay);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: 9px;
   box-shadow: var(--elev-label);
   /* The ACTIVE tip takes the pointer so it can be read without it vanishing
@@ -986,6 +1005,41 @@ body {
   opacity: 0.4;
   cursor: default;
 }
+
+/* docs/visual-language.md §VL8 — the twelve controls that drew the layout line
+   (`--line-structure`, 1.78:1 on a light panel) as their boundary now draw the
+   control tokens, like `.btn` / `.pb-btn` / `.timeline__csv` before them. Rest
+   is `--line-control` on each rule; hover steps to `--line-control-hover` here.
+   A state that owns the border colour keeps it: an invalid field, the selected
+   view tab, the mean toggle when on, the reference-insert control (its hover
+   is the graph focus colour). */
+.share-pop__url:hover,
+.minimap-toggle:hover,
+.pstrip__seed:hover:not(:disabled),
+.field input:hover:not(:disabled):not([aria-invalid='true']),
+.field select:hover:not(:disabled),
+.mcdlg__field input:hover:not(:disabled),
+.lang-menu__search:hover,
+.band__pool:hover:not(:disabled),
+.band__mean:hover:not(.is-on),
+.timeline__viewtab:hover:not(.is-on),
+.review__field input:hover:not(:disabled),
+.review__field textarea:hover:not(:disabled) {
+  border-color: var(--line-control-hover);
+}
+/* disabled is the WCAG exception to the 3:1 boundary, but it must READ as
+   disabled: the boundary drops to the disabled line and the text to the
+   disabled ink, instead of keeping an enabled control's dark outline. */
+.pstrip__seed:disabled,
+.field input:disabled,
+.field select:disabled,
+.mcdlg__field input:disabled,
+.band__pool:disabled,
+.review__field input:disabled,
+.review__field textarea:disabled {
+  border-color: var(--line-disabled);
+  color: var(--text-disabled);
+}
 .btn--icon {
   padding: 4px 8px;
   font-size: 14px;
@@ -1016,7 +1070,7 @@ body {
   flex-direction: column;
   padding: 4px;
   background: var(--surface-overlay);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: 9px;
   box-shadow: var(--elev-label);
 }
@@ -1202,7 +1256,7 @@ a.sheet__row {
   font-size: 11px;
   color: var(--text-primary);
   background: var(--surface-sunken);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 6px;
 }
 .share-pop__row {
@@ -1373,7 +1427,7 @@ a.sheet__row {
   right: 4px;
   background: var(--surface-raised);
   color: var(--text-secondary);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -2300,13 +2354,13 @@ a.sheet__row {
   content: '';
   position: absolute;
   inset: -2px;
-  border: 2px solid var(--focus-ring);
+  border: 2px solid var(--state-focus);
   pointer-events: none;
 }
 /* §FC3 — the selection tell is a dashed OUTLINE (its own channel, orthogonal to
    the accent border colour, and it survives forced-colors). */
 .lgr-frame.is-selected {
-  outline: 2px dashed var(--focus-ring);
+  outline: 2px dashed var(--state-focus);
   outline-offset: 3px;
 }
 .lgr-frame__edge-hit {
@@ -2366,7 +2420,7 @@ a.sheet__row {
    the panel belongs to is never ambiguous on a canvas full of frames. */
 .lgr-frame__label.is-open {
   background: var(--surface-sunken);
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  box-shadow: inset 0 0 0 1px var(--state-focus);
 }
 /* §FC2 — an accented frame tints its label chip (text + border) with the same
    accent. Selection no longer recolours the label — the outline is the tell. */
@@ -2459,7 +2513,7 @@ a.sheet__row {
   gap: 8px;
   padding: 10px;
   background: var(--surface-overlay);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: 9px;
   box-shadow: var(--elev-label);
 }
@@ -2705,7 +2759,7 @@ a.sheet__row {
 
 /* state: keyboard focus — outer ring, sits beyond the selection outline */
 .react-flow__node:focus-visible {
-  outline: 2px solid var(--line-focus);
+  outline: 2px solid var(--state-focus);
   outline-offset: 4px;
   border-radius: 4px;
 }
@@ -3215,7 +3269,7 @@ a.sheet__row {
   font-family: var(--font-mono);
   font-size: 11px;
   padding: 2px 4px;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 5px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
@@ -3908,7 +3962,7 @@ a.sheet__row {
   padding: 6px 8px;
   font: inherit;
   font-size: 13px;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 7px;
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -3962,7 +4016,7 @@ a.sheet__row {
   font-family: var(--font-mono, monospace);
   font-size: 13px;
   line-height: 1.5;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 6px;
   background: var(--surface-raised);
   color: var(--text-secondary);
@@ -3970,7 +4024,7 @@ a.sheet__row {
 }
 .regexpr__op:hover {
   color: var(--text-primary);
-  border-color: var(--line-strong);
+  border-color: var(--line-control-hover);
 }
 .regexpr__op:focus-visible {
   outline: 2px solid var(--line-focus);
@@ -3989,7 +4043,7 @@ a.sheet__row {
   font-size: 11px;
   font-weight: 600;
   line-height: 1.5;
-  border: 1px solid color-mix(in srgb, var(--state-focus) 45%, var(--line-structure));
+  border: 1px solid color-mix(in srgb, var(--state-focus) 45%, var(--line-control));
   border-radius: 999px;
   background: color-mix(in srgb, var(--state-focus) 10%, var(--surface-raised));
   color: var(--state-focus);
@@ -4200,7 +4254,7 @@ a.sheet__row {
   gap: 8px;
   padding: 10px;
   background: var(--surface-overlay);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: 9px;
   box-shadow: var(--elev-label);
   font-size: 12px;
@@ -4280,7 +4334,7 @@ a.sheet__row {
   gap: 2px;
 }
 .timeline__viewtab {
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   background: var(--surface-raised);
   color: var(--text-tertiary);
   font-family: var(--font-mono);
@@ -4364,7 +4418,7 @@ a.sheet__row {
 .mcdlg {
   width: 340px;
   background: var(--surface-panel);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
   display: flex;
@@ -4416,7 +4470,7 @@ a.sheet__row {
   font-family: var(--font-mono);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 6px;
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -4541,7 +4595,7 @@ a.sheet__row {
   font: inherit;
   color: var(--text-primary);
   background: var(--surface-sunken, var(--surface-1, transparent));
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 6px;
 }
 .lang-menu__search:focus-visible {
@@ -4595,7 +4649,7 @@ a.sheet__row {
   font-family: var(--font-sans);
   font-size: 11px;
   padding: 2px 6px;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 6px;
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -4621,7 +4675,7 @@ a.sheet__row {
 }
 .band__mean {
   margin-inline-start: auto;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 4px;
   padding: 1px 7px;
   background: var(--surface-raised);
@@ -5288,7 +5342,7 @@ input[type='number']::-webkit-inner-spin-button {
     padding: 6px calc(10px + var(--sai-right)) calc(6px + var(--sai-bottom))
       calc(10px + var(--sai-left));
     gap: 8px;
-    border-top: 1px solid var(--line-structure);
+    border-top: 1px solid var(--line-container);
   }
   .pstrip--mobile .pb-btn {
     min-height: 40px;
@@ -5326,7 +5380,7 @@ input[type='number']::-webkit-inner-spin-button {
   }
   .sheet {
     background: var(--surface-panel);
-    border-top: 1px solid var(--line-structure);
+    border-top: 1px solid var(--line-container);
     border-radius: 12px 12px 0 0;
     padding: 8px calc(12px + var(--sai-right)) calc(12px + var(--sai-bottom))
       calc(12px + var(--sai-left));
@@ -5451,7 +5505,7 @@ input[type='number']::-webkit-inner-spin-button {
     padding: 14px;
     text-align: center;
     background: var(--surface-overlay);
-    border: 1px solid var(--line-structure);
+    border: 1px solid var(--line-container);
     border-radius: 10px;
     box-shadow: var(--elev-label);
   }
@@ -5520,7 +5574,7 @@ input[type='number']::-webkit-inner-spin-button {
     bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
     z-index: var(--z-sheet);
     max-height: 46dvh;
-    border-top: 1px solid var(--line-structure);
+    border-top: 1px solid var(--line-container);
     box-shadow: 0 -8px 24px -16px rgba(0, 0, 0, 0.5);
   }
   .timeline--sheet .timeline__panel {
@@ -5610,7 +5664,7 @@ input[type='number']::-webkit-inner-spin-button {
   max-height: calc(100vh - 48px);
   overflow-y: auto;
   background: var(--surface-panel);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
 }
@@ -5721,7 +5775,7 @@ input[type='number']::-webkit-inner-spin-button {
 .review__field textarea {
   font: inherit;
   padding: 6px 8px;
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-control);
   border-radius: 6px;
   background: var(--surface-raised);
   color: var(--text-primary);
@@ -5941,7 +5995,7 @@ input[type='number']::-webkit-inner-spin-button {
 .tour-card {
   position: fixed;
   background: var(--surface-panel);
-  border: 1px solid var(--line-structure);
+  border: 1px solid var(--line-container);
   border-radius: var(--radius, 10px);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.45);
   padding: 14px 16px;
