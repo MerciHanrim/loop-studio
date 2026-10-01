@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useT } from '../i18n'
 import { RELEASE_NOTES } from '../releaseNotes/releaseNotes'
 import { useWhatsNewStore } from '../store/whatsNewStore'
+import { DialogScrim } from './DialogScrim'
 import { useDialogFocus } from './useDialogFocus'
 
 // Issue #296 — the What's new panel: every release note, newest first. A normal
@@ -17,11 +17,9 @@ import { useDialogFocus } from './useDialogFocus'
 // need no calendar or digit decision per locale. The items are catalog strings,
 // so every shipped language carries every line.
 //
-// It is rendered into the document body, not where it is declared. On mobile it
-// is opened from the Help sheet, and a dialog drawn INSIDE the sheet lives in
-// the sheet's stacking layer, which is below the fixed run bar and the
-// "Open a file" card: both were drawn over the panel's top. In the body its
-// own layer decides.
+// Like every dialog it is drawn in the shared dialog layer (`DialogScrim`), not
+// where it is declared: opened from the mobile Help sheet it would otherwise sit
+// in the sheet's layer, under the run bar and the "Open a file" card.
 //
 // The notes ship inside the bundle. Nothing is fetched, so the panel reads
 // offline in the PWA and in the portable build.
@@ -46,8 +44,8 @@ export function WhatsNewPanel({ open, onClose, returnFocusTo }: Props) {
 
   if (!open) return null
 
-  return createPortal(
-    <div className="mcdlg__scrim" onMouseDown={onClose}>
+  return (
+    <DialogScrim onMouseDown={onClose}>
       <div
         ref={ref}
         className="mcdlg mcdlg--whatsnew"
@@ -81,7 +79,6 @@ export function WhatsNewPanel({ open, onClose, returnFocusTo }: Props) {
           ))}
         </div>
       </div>
-    </div>,
-    document.body,
+    </DialogScrim>
   )
 }

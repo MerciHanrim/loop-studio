@@ -2,6 +2,7 @@ import { useId, useRef } from 'react'
 import { useT, type MessageKey } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { useHintStore, type HintId } from '../store/hintStore'
+import { DialogScrim } from './DialogScrim'
 
 // docs/contextual-inline-help.md §CIH4 — the Help-menu entry both Help surfaces
 // reserve a row for. Since issue #296 it is named for what it does: the menu
@@ -49,7 +50,7 @@ export function ContextualHelpDialog({ open, onClose, returnFocusTo }: Props) {
   if (!open) return null
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={onClose}>
+    <DialogScrim onMouseDown={onClose}>
       <div
         ref={ref}
         className="mcdlg mcdlg--contextual-help"
@@ -87,6 +88,6 @@ export function ContextualHelpDialog({ open, onClose, returnFocusTo }: Props) {
           </ul>
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

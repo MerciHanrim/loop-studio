@@ -6,6 +6,7 @@ import { useGraphStore } from '../../store/graphStore'
 import { downloadCsv } from '../../ui/download'
 import { useDialogFocus } from '../useDialogFocus'
 import { DataImportRefreshWizard } from './DataImportRefreshWizard'
+import { DialogScrim } from '../DialogScrim'
 
 // docs/data-import.md §DI16 Phase 2 -- "Manage bindings…": lists every
 // already-bound table with a rename field and a Refresh trigger, plus the
@@ -87,7 +88,7 @@ export function DataImportRefreshMenu({
   }
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={onClose}>
+    <DialogScrim onMouseDown={onClose}>
       <div ref={ref} className="mcdlg mcdlg--dataimport" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mcdlg__head">
           <span id={titleId}>{t('import.refresh.manageTitle')}</span>
@@ -132,6 +133,6 @@ export function DataImportRefreshMenu({
           </button>
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

@@ -196,13 +196,18 @@
   --sai-left: env(safe-area-inset-left, 0px);
 
   /* Mobile stacking order (docs/mobile.md §MV8a / §MV-D19):
-       canvas  <  sheet/scrim  <  run bar  <  MC dialog  <  PWA update bar
+       canvas  <  open-file card  <  sheet/scrim  <  run bar  <  dialogs  <  PWA update bar
      The run bar sits ABOVE the sheet scrim so Play / Step / Reset stay
      clickable while a sheet is open; each sheet panel is pushed above the run
      bar (scrim padding-bottom) so its Close is never hidden. The PWA update
      bar is above everything and anchored at the TOP, clear of it all. */
   --z-runbar: 45;
   --z-sheet: 40;
+  /* The first-run "Open a file" card is part of the page, not an overlay: it
+     sits above the canvas and BELOW every sheet and dialog. It used to share
+     `--z-runbar`, which put it over an open sheet: measured at 320x640, it
+     covered the first row of the More sheet and took the tap. */
+  --z-openhint: 35;
   --z-mc-dialog: 50;
   --z-pwa-update: 60;
   /* docs/guided-tour.md §GT4 — the tour layer is above the Canvas / Toolbar /
@@ -5595,7 +5600,7 @@ input[type='number']::-webkit-inner-spin-button {
     left: 50%;
     top: calc(var(--mob-topbar-h) + var(--sai-top) + 16px);
     transform: translateX(-50%);
-    z-index: var(--z-runbar);
+    z-index: var(--z-openhint);
     width: min(320px, calc(100vw - 24px));
     display: flex;
     flex-direction: column;

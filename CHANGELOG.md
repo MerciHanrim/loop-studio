@@ -25,6 +25,7 @@ The release where the app starts saying what changed. Until now an update arrive
 ### Fixed
 
 - **The data-import dialogs' text fields** were unstyled browser controls, white with black text in the dark theme too. They are shell controls now.
+- **On a phone, a dialog opened from a sheet is drawn on top.** About, the contextual-tips dialog and the export-author dialog used to sit in the sheet's layer, under the run bar and the "Open a file" card; on a fresh profile that card covered the contextual dialog's title and close button. Every dialog is now drawn in one layer above both, the card sits below an open sheet instead of over its first row, and focus stays inside a dialog opened from a sheet.
 - **Under forced colours** every removed outline is back as a real system-colour outline, and the canvas and plot grids name a system colour instead of showing the light palette through a high-contrast theme.
 
 ### Notes

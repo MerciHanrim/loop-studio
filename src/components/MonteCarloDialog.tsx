@@ -5,6 +5,7 @@ import { useMcStore } from '../store/mcStore'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { InlineHintNote } from './HintNote'
+import { DialogScrim } from './DialogScrim'
 
 // P2 — Monte-Carlo setup. Opens from the simulation strip (an execution mode,
 // not an authoring command). Shows an exact memory projection and a time RANGE
@@ -108,7 +109,7 @@ export function MonteCarloDialog() {
   }
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={close}>
+    <DialogScrim onMouseDown={close}>
       <div
         ref={dialogRef}
         className="mcdlg"
@@ -286,6 +287,6 @@ export function MonteCarloDialog() {
           </button>
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

@@ -8,6 +8,7 @@ import {
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { storagePort } from '../storage/storagePort'
+import { DialogScrim } from './DialogScrim'
 
 // SEMANTICS-R.md §R8 — the device-local author label. Stored only here
 // (`localStorage['loop-studio:author']`), byte-capped, and attached UNVERIFIED
@@ -60,7 +61,7 @@ export function AuthorDialog({
   }
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={onClose}>
+    <DialogScrim onMouseDown={onClose}>
       <div
         ref={ref}
         className="mcdlg mcdlg--confirm"
@@ -102,6 +103,6 @@ export function AuthorDialog({
           </button>
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

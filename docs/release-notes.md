@@ -60,7 +60,7 @@ Every release note, newest first: the version, the date, and three to five lines
 - Opening it also withdraws a notice that is still owed: its entry has just been read.
 - The version and the date are shown as they are in every language, `v0.15.0` and an ISO date, the way About shows the version. The lines are catalog text.
 - It is a normal modal: Escape, the backdrop and the close button each dismiss it.
-- It is rendered into the document body. On mobile a dialog drawn inside the Help sheet sits in the sheet's layer, below the run bar and the "Open a file" card.
+- Like every dialog, it is drawn in the shared dialog layer and not where it is declared. See [`mobile.md`](mobile.md), "The dialog layer".
 
 ### The Help menu
 

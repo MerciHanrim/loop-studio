@@ -18,6 +18,7 @@ import { useDataImportStore } from '../../store/dataImportStore'
 import { useGraphStore } from '../../store/graphStore'
 import { useDialogFocus } from '../useDialogFocus'
 import { isolateAuto } from '../../i18n/bidiIsolate'
+import { DialogScrim } from '../DialogScrim'
 
 // docs/data-import.md §DI11/§DI16 Phase 2 -- the 4-step refresh wizard for
 // ONE already-bound table: paste/upload -> column events (only shown when
@@ -281,7 +282,7 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
     : null
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={onClose}>
+    <DialogScrim onMouseDown={onClose}>
       <div ref={ref} className="mcdlg mcdlg--dataimport" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(e) => e.stopPropagation()}>
         <div className="mcdlg__head">
           <span id={titleId}>{t('import.refresh.title', { table: isolateAuto(table.label) })}</span>
@@ -593,6 +594,6 @@ export function DataImportRefreshWizard({ sourceTableId, onClose }: { sourceTabl
           )}
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }
