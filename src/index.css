@@ -163,7 +163,13 @@
      wash never outweighs a group frame's own colour. */
   --node-hue-opacity: 0.04;
 
-  --radius: 10px;
+  /* two radius axes (family tokens v1.1.0): a CONTAINER — panel, card, dialog,
+     popover, sheet — and a CONTROL — a standard rectangular button, input,
+     select or row. Neither is written as a literal on a rule that belongs to
+     an axis. Compact controls and everything that is neither keep their own
+     literal on purpose. */
+  --radius: var(--cs-radius);
+  --control-radius: var(--cs-control-radius);
 
   /* Safe-area insets as tokens (docs/mobile.md §MV7). Real space is reserved
      from these, not from bare env() — so an E2E can mock them by redefining
@@ -698,7 +704,7 @@ body {
   color: var(--text-primary);
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
-  border-radius: 9px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-overlay);
 }
 .pwa-update__text {
@@ -942,7 +948,7 @@ body {
   background: transparent;
   color: var(--text-primary);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   cursor: grab;
   white-space: nowrap;
   word-break: keep-all;
@@ -996,7 +1002,7 @@ body {
   padding: 8px 10px;
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
-  border-radius: 9px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-overlay);
   /* The ACTIVE tip takes the pointer so it can be read without it vanishing
      when the pointer crosses the 6px gap below the chip; Toolbar.tsx sets
@@ -1034,7 +1040,7 @@ body {
      surface AND against the button's own face, and the structure line
      measured 1.86 (light) / 2.15 (dark) against the face on every surface. */
   border: 1px solid var(--line-control);
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   cursor: pointer;
   /* keep a label on one line — a CJK label (no spaces) otherwise breaks
      character-by-character and stacks vertically inside the button. The row
@@ -1116,7 +1122,7 @@ body {
   padding: 4px;
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
-  border-radius: 9px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-overlay);
 }
 /* Opt-in only — a genuinely long TOP-LEVEL menu (Templates, Insert module,
@@ -1154,7 +1160,7 @@ body {
   gap: 2px;
   padding: 7px 9px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   background: transparent;
   text-align: start;
   font: inherit;
@@ -1255,7 +1261,7 @@ a.sheet__row {
   width: 100%;
   padding: 7px 9px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   background: transparent;
   text-align: start;
   font: inherit;
@@ -1302,7 +1308,7 @@ a.sheet__row {
   color: var(--text-primary);
   background: var(--surface-sunken);
   border: 1px solid var(--line-control);
-  border-radius: 6px;
+  border-radius: var(--control-radius);
 }
 .share-pop__row {
   display: flex;
@@ -2191,7 +2197,7 @@ a.sheet__row {
   flex-direction: column;
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-panel, var(--elev-overlay));
   font-size: 12px;
   overflow: hidden;
@@ -2559,7 +2565,7 @@ a.sheet__row {
   padding: 10px;
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
-  border-radius: 9px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-overlay);
 }
 .lgr-frame-props__field {
@@ -2581,7 +2587,7 @@ a.sheet__row {
   color: var(--text-primary);
   background: var(--surface-sunken);
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: var(--control-radius);
 }
 /* §FC4 — the accent row, left-aligned under the name input */
 .lgr-frame-props__colors {
@@ -3224,7 +3230,7 @@ a.sheet__row {
   background: var(--surface-raised);
   color: var(--text-primary);
   border: 1px solid var(--line-control); /* §VL8 control boundary, as `.btn` */
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   cursor: pointer;
   white-space: nowrap;
   word-break: keep-all;
@@ -4008,7 +4014,7 @@ a.sheet__row {
   font: inherit;
   font-size: 13px;
   border: 1px solid var(--line-control);
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -4134,12 +4140,12 @@ a.sheet__row {
   overflow-y: auto;
   background: var(--surface-raised);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-popover, 0 6px 20px rgb(0 0 0 / 0.18));
 }
 .regref__opt {
   padding: 5px 7px;
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   font-size: 12px;
   cursor: pointer;
 }
@@ -4300,7 +4306,7 @@ a.sheet__row {
   padding: 10px;
   background: var(--surface-overlay);
   border: 1px solid var(--line-container);
-  border-radius: 9px;
+  border-radius: var(--radius);
   box-shadow: var(--elev-overlay);
   font-size: 12px;
   color: var(--text-primary);
@@ -4516,7 +4522,7 @@ a.sheet__row {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   border: 1px solid var(--line-control);
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   background: var(--surface-raised);
   color: var(--text-primary);
 }
@@ -4641,7 +4647,7 @@ a.sheet__row {
   color: var(--text-primary);
   background: var(--surface-sunken, var(--surface-1, transparent));
   border: 1px solid var(--line-control);
-  border-radius: 6px;
+  border-radius: var(--control-radius);
 }
 .lang-menu__search:focus-visible {
   border-color: var(--signal-primary, var(--text-primary));
@@ -5039,7 +5045,7 @@ input[type='number']::-webkit-inner-spin-button {
   padding: 8px 10px;
   cursor: pointer;
   text-align: start;
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
 }
 .import__quickstartToggle:focus-visible {
   outline: 2px solid var(--line-focus);
@@ -5426,7 +5432,7 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet {
     background: var(--surface-panel);
     border-top: 1px solid var(--line-container);
-    border-radius: 12px 12px 0 0;
+    border-radius: var(--radius) var(--radius) 0 0;
     padding: 8px calc(12px + var(--sai-right)) calc(12px + var(--sai-bottom))
       calc(12px + var(--sai-left));
     max-height: 72dvh;
@@ -5466,7 +5472,7 @@ input[type='number']::-webkit-inner-spin-button {
     gap: 10px;
     padding: 12px 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--control-radius);
     background: transparent;
     text-align: start;
     font: inherit;
@@ -5551,7 +5557,7 @@ input[type='number']::-webkit-inner-spin-button {
     text-align: center;
     background: var(--surface-overlay);
     border: 1px solid var(--line-container);
-    border-radius: 10px;
+    border-radius: var(--radius);
     box-shadow: var(--elev-overlay);
   }
   .openhint__title {
@@ -5821,7 +5827,7 @@ input[type='number']::-webkit-inner-spin-button {
   font: inherit;
   padding: 6px 8px;
   border: 1px solid var(--line-control);
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   background: var(--surface-raised);
   color: var(--text-primary);
   resize: vertical;
@@ -6041,7 +6047,7 @@ input[type='number']::-webkit-inner-spin-button {
   position: fixed;
   background: var(--surface-panel);
   border: 1px solid var(--line-container);
-  border-radius: var(--radius, 10px);
+  border-radius: var(--radius);
   box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.45);
   padding: 14px 16px;
   color: var(--text-primary);
