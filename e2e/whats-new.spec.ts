@@ -489,10 +489,11 @@ test.describe('the end of the list can be reached', () => {
         return {
           role: el.getAttribute('role'),
           named: document.getElementById(el.getAttribute('aria-labelledby') ?? '')?.textContent === el.closest('.mcdlg')?.querySelector('.mcdlg__head span')?.textContent,
-          ring: el.matches(':focus-visible') ? `${s.outlineStyle} ${s.outlineWidth}` : 'none',
+          // the list fills the panel edge to edge, so its ring is drawn inside it
+          ring: el.matches(':focus-visible') ? `${s.outlineStyle} ${s.outlineWidth} ${s.outlineOffset}` : 'none',
         }
       })
-      expect(stop).toEqual({ role: 'group', named: true, ring: 'solid 2px' })
+      expect(stop).toEqual({ role: 'group', named: true, ring: 'solid 2px -2px' })
       await page.keyboard.press('ArrowDown')
       await expect.poll(async () => (await panelEnd(page)).moved).toBe(true)
       await page.keyboard.press('End')
