@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // Runs under playwright.pwa.config.ts — three pre-built `--mode pwa` generations
@@ -223,6 +223,13 @@ test('offline: What’s new opens from the precached app and lists every entry',
   const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
   expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
   expect(await panel.locator('li').count()).toBe(RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0))
+  // and About, in the same installed app, shows the version that list starts at
+  const newest = await readNewestShown(page)
+  await page.keyboard.press('Escape')
+  await expect(panel).toHaveCount(0)
+  await page.locator('[data-tour="help-trigger"]').click()
+  await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+  expectOneVersionStory((await readAboutVersion(page)).version, newest)
   await context.setOffline(false)
 })
 

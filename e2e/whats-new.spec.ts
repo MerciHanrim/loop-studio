@@ -1,6 +1,14 @@
 import type { Page } from '@playwright/test'
 import { expect, test as shared } from './support/loop'
-import { ANNOUNCED_KEY, NEWEST_RELEASE, OPENED_KEY } from './support/whatsNew'
+import {
+  ANNOUNCED_KEY,
+  expectOneVersionStory,
+  NEWEST_RELEASE,
+  OPENED_KEY,
+  PACKAGE_VERSION,
+  readAboutVersion,
+  readNewestShown,
+} from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // docs/release-notes.md, issue #296 — the update notice, the What's new panel
@@ -36,6 +44,7 @@ const ID = NEWEST_RELEASE.id as string
 /** a profile that skipped the tour once: the plainest returning profile */
 const RETURNING = { [TOUR]: 'dismissed' }
 const INTERACTIVE = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="slider"], [role="switch"], [tabindex="0"]'
+const LOCALES = ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar']
 
 type Boot = { width?: number; height?: number; storage?: Record<string, string>; pwaWaitingAtBoot?: boolean }
 
@@ -368,6 +377,159 @@ test.describe('the Help menu', () => {
     })
     expect(fits).toBe(true)
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  })
+})
+
+// ───────────────────────────────────────────────────────── one version
+// About says which version is running; the notice and What's new say which
+// release is the newest. `e2e/support/whatsNew.ts` has the rule and the
+// measurement that led to it.
+test.describe('one build, one version', () => {
+  test('desktop: the build title, About, the notice and What’s new tell one story', async ({ page }) => {
+    await boot(page, { storage: RETURNING })
+    await expect(page.locator(NOTICE).locator('p')).toContainText(VERSION)
+    const title = (await page.locator('.toolbar__brand').getAttribute('title')) ?? ''
+    expect(/v(\d+\.\d+\.\d+)/.exec(title)?.[1], `the build title reads "${title}"`).toBe(PACKAGE_VERSION)
+
+    await page.locator(HELP).click()
+    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+    const about = await readAboutVersion(page)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.mcdlg')).toHaveCount(0)
+
+    await page.locator(HELP).click()
+    await page.locator(MENU_ITEM).click()
+    await expect(page.locator(PANEL)).toBeVisible()
+    expectOneVersionStory(about.version, await readNewestShown(page))
+  })
+
+  test('mobile: the More sheet’s stamp, About and What’s new tell the same story', async ({ page }) => {
+    await boot(page, { width: 390, height: 844, storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
+    await page.locator(MORE).click()
+    const stamp = (await page.locator('.sheet__stamp').innerText()).trim()
+    expect(/^v(\d+\.\d+\.\d+)/.exec(stamp)?.[1], `the More sheet's stamp reads "${stamp}"`).toBe(PACKAGE_VERSION)
+    await page.locator('.sheet__row', { hasText: /^Help/ }).click()
+    await page.locator('.sheet .sheet__row', { hasText: /^About Loop Studio$/ }).click()
+    const about = await readAboutVersion(page)
+
+    // a fresh launch, so the second dialog does not depend on what closing the first one leaves open
+    await page.reload()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.locator(MORE).click()
+    await page.locator('.sheet__row', { hasText: /^Help/ }).click()
+    await page.locator(MENU_ITEM).click()
+    await expect(page.locator(PANEL)).toBeVisible()
+    expectOneVersionStory(about.version, await readNewestShown(page))
+  })
+})
+
+// ───────────────────────────────────────────────────────── the end of the list
+// The list scrolls inside the panel. MEASURED at 320 px before the list took
+// keyboard focus: the two entries are 611 px tall in a 409 px box, the wheel and
+// a finger reached the last line, and the keyboard did not. The only control in
+// the panel was its close button, so Tab had nowhere to go, and the arrow, Page
+// and End keys scroll what holds focus.
+
+/** where the list is, and whether its last line is really on screen */
+const panelEnd = (page: Page) =>
+  page.evaluate((panelSel) => {
+    const panel = document.querySelector(panelSel)!
+    const list = panel.querySelector('.whatsnew') as HTMLElement
+    const lines = [...panel.querySelectorAll('li')]
+    const last = lines[lines.length - 1]!
+    const lr = last.getBoundingClientRect()
+    const br = list.getBoundingClientRect()
+    const onTop = [
+      [lr.left + 4, lr.top + 3],
+      [lr.left + lr.width / 2, lr.top + lr.height / 2],
+      [lr.right - 4, lr.bottom - 3],
+    ].every(([x, y]) => last.contains(document.elementFromPoint(x!, y!)))
+    return {
+      overflows: list.scrollHeight > list.clientHeight + 1,
+      moved: list.scrollTop > 0,
+      atEnd: list.scrollTop + list.clientHeight >= list.scrollHeight - 1,
+      lastLineShown: lr.top >= br.top - 0.5 && lr.bottom <= br.bottom + 0.5 && lr.top >= 0 && lr.bottom <= innerHeight && onTop,
+      lastEntry: [...panel.querySelectorAll('.whatsnew__version')].pop()?.firstChild?.textContent ?? '',
+    }
+  }, PANEL)
+
+/** a sheet row, from the keyboard: at 320 px the wrapped run bar lies over a
+ *  sheet's last rows and takes a tap aimed at them (issue #303) */
+const activate = async (page: Page, row: ReturnType<Page['locator']>) => {
+  await row.focus()
+  await expect(row).toBeFocused()
+  await page.keyboard.press('Enter')
+}
+
+test.describe('the end of the list can be reached', () => {
+  for (const locale of LOCALES) {
+    test(`320px ${locale}: the last line of the oldest entry, with the keyboard and with the wheel`, async ({ page }) => {
+      await boot(page, { width: 320, height: 568, storage: { ...RETURNING, [ANNOUNCED_KEY]: ID, [LOCALE]: locale } })
+      await page.locator(MORE).click()
+      await activate(page, page.locator('.sheet button.sheet__row').last())
+      await activate(page, page.locator(MENU_ITEM))
+      const panel = page.locator(PANEL)
+      await expect(panel).toBeVisible()
+      const list = panel.locator('.whatsnew')
+      const close = panel.locator('.mcdlg__x')
+
+      const atOpen = await panelEnd(page)
+      expect(atOpen.lastEntry).toBe('v' + RELEASE_NOTES[RELEASE_NOTES.length - 1]!.version)
+      // why this size: the list does not fit, so its end has to be scrolled to
+      expect(atOpen.overflows, 'the list is taller than the panel at this size').toBe(true)
+      expect(atOpen.lastLineShown).toBe(false)
+
+      // the keyboard: the list is the panel's second stop, and it shows a focus ring
+      await expect(close).toBeFocused()
+      await page.keyboard.press('Tab')
+      await expect(list).toBeFocused()
+      const stop = await list.evaluate((el) => {
+        const s = getComputedStyle(el)
+        return {
+          role: el.getAttribute('role'),
+          named: document.getElementById(el.getAttribute('aria-labelledby') ?? '')?.textContent === el.closest('.mcdlg')?.querySelector('.mcdlg__head span')?.textContent,
+          ring: el.matches(':focus-visible') ? `${s.outlineStyle} ${s.outlineWidth}` : 'none',
+        }
+      })
+      expect(stop).toEqual({ role: 'group', named: true, ring: 'solid 2px' })
+      await page.keyboard.press('ArrowDown')
+      await expect.poll(async () => (await panelEnd(page)).moved).toBe(true)
+      await page.keyboard.press('End')
+      await expect.poll(() => panelEnd(page)).toMatchObject({ atEnd: true, lastLineShown: true })
+      // and Tab still does not leave the panel
+      await page.keyboard.press('Tab')
+      await expect(close).toBeFocused()
+      await page.keyboard.press('Shift+Tab')
+      await expect(list).toBeFocused()
+
+      // the wheel, from the top again
+      await list.evaluate((el) => {
+        el.scrollTop = 0
+      })
+      expect((await panelEnd(page)).lastLineShown).toBe(false)
+      const box = (await panel.boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.wheel(0, 4000)
+      await expect.poll(() => panelEnd(page)).toMatchObject({ atEnd: true, lastLineShown: true })
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+    })
+  }
+
+  test('desktop: the list is a named stop after the close button, and Escape still returns focus to Help', async ({ page }) => {
+    await boot(page, { storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
+    await page.locator(HELP).click()
+    await page.locator(MENU_ITEM).click()
+    const panel = page.locator(PANEL)
+    await expect(panel.locator('.mcdlg__x')).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('group', { name: 'What’s new' })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(panel.locator('.mcdlg__x')).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(page.getByRole('group', { name: 'What’s new' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(panel).toHaveCount(0)
+    await expect(page.locator(HELP)).toBeFocused()
   })
 })
 
@@ -739,7 +901,7 @@ test.describe('one thing at a time, by priority', () => {
 
 // ───────────────────────────────────────────────────────── every language
 test.describe('every shipped language carries the notice and every release note', () => {
-  for (const locale of ['en', 'ko', 'ja', 'zh-Hans', 'zh-Hant', 'fr', 'de', 'es-419', 'pt-BR', 'es-ES', 'pt-PT', 'ru', 'tr', 'th', 'vi', 'it', 'nl', 'ar']) {
+  for (const locale of LOCALES) {
     test(`${locale}: the sentence names the version, and the panel has text for every item`, async ({ page }) => {
       await boot(page, { storage: { ...RETURNING, [LOCALE]: locale } })
       const notice = page.locator(NOTICE)

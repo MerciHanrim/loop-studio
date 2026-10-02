@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
@@ -150,8 +150,13 @@ test.describe('portable file://', () => {
     const versions = await panel.locator('.whatsnew__version').evaluateAll((els) => els.map((e) => e.firstChild?.textContent ?? ''))
     expect(versions).toEqual(RELEASE_NOTES.map((n) => 'v' + n.version))
     expect(await panel.locator('li').count()).toBe(RELEASE_NOTES.reduce((n, r) => n + r.items.length, 0))
+    const newest = await readNewestShown(page)
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)
+    // and About, in the same file, shows the version that list starts at
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+    expectOneVersionStory((await readAboutVersion(page)).version, newest)
   })
 
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {

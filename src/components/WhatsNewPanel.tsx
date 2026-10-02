@@ -23,6 +23,13 @@ import { useDialogFocus } from './useDialogFocus'
 //
 // The notes ship inside the bundle. Nothing is fetched, so the panel reads
 // offline in the PWA and in the portable build.
+//
+// The list scrolls inside the panel, and it takes keyboard focus. It holds
+// text only, so without that the close button was the panel's one stop: Tab had
+// nowhere to go, and the arrow, Page and End keys scroll what holds focus.
+// MEASURED at 320 px, where the two entries are taller than the panel: the
+// wheel and a finger reached the last line and the keyboard did not. It is a
+// named group so that the stop says what it is.
 
 type Props = {
   open: boolean
@@ -61,7 +68,7 @@ export function WhatsNewPanel({ open, onClose, returnFocusTo }: Props) {
             ✕
           </button>
         </div>
-        <div className="mcdlg__body whatsnew">
+        <div className="mcdlg__body whatsnew" role="group" aria-labelledby={titleId} tabIndex={0}>
           {RELEASE_NOTES.map((note) => (
             <section key={note.id} className="whatsnew__entry" aria-labelledby={`${titleId}-${note.version}`}>
               <h3 className="whatsnew__version" id={`${titleId}-${note.version}`} dir="ltr">

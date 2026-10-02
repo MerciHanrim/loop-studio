@@ -60,7 +60,9 @@ Every release note, newest first: the version, the date, and three to five lines
 - Opening it also withdraws a notice that is still owed: its entry has just been read.
 - The version and the date are shown as they are in every language, `v0.15.0` and an ISO date, the way About shows the version. The lines are catalog text.
 - It is a normal modal: Escape, the backdrop and the close button each dismiss it.
+- The list scrolls inside the panel, and it is a keyboard stop: a group named after the panel, right after the close button. It holds text only, so without that stop the close button was the only place focus could be, and the arrow, Page and End keys scroll what holds focus. Measured at 320 px, where the two entries are taller than the panel: the wheel and a finger reached the last line and the keyboard did not.
 - Like every dialog, it is drawn in the shared dialog layer and not where it is declared. See [`mobile.md`](mobile.md), "The dialog layer".
+- The version it starts at and the version About shows belong to one build. About shows the version in `package.json`; the first entry is never ahead of it, and is the same number whenever the list has an entry for that version. `e2e/support/whatsNew.ts` holds the check, and it runs against the dev server, the production build, the PWA build and the portable file. A dev server reads the version once, when it starts, so one left running across a version change shows the old number in About beside the new entry in the panel; that check fails then, and restarting the server is the fix.
 
 ### The Help menu
 
@@ -227,7 +229,7 @@ Everything below goes into the same change as the visible change itself.
 
 - `src/whatsNew/decide.test.ts` holds the decision and the classification of every stored key.
 - `src/store/whatsNewStore.test.ts` holds what is written and when, including storage that cannot be read or written.
-- `e2e/whats-new.spec.ts` holds the rest in a browser: who is told, the notice's place at five widths in three languages, the tab order and the announcement, the priority rules, the Help menu on desktop and mobile, and the text in every language.
+- `e2e/whats-new.spec.ts` holds the rest in a browser: who is told, the notice's place at five widths in three languages, the tab order and the announcement, the priority rules, the Help menu on desktop and mobile, the text in every language, the one version that About and the panel show, and the end of the list at 320 px in every language, by keyboard and by wheel.
 
 The other specs pre-dismiss the guided tour, which makes their profile a returning one. So the shared fixture, and every spec that seeds the tour key by hand, also records the newest release note as announced and opened (`e2e/support/whatsNew.ts`). The id is read from the product's own list, so a new release needs no change there. `e2e/whats-new.spec.ts` is the one spec that switches this off.
 

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, test } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
+import { expectOneVersionStory, readAboutVersion, readNewestShown } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
@@ -488,6 +489,21 @@ test.describe('production build — release notes', () => {
     expect(items).toHaveLength(ITEMS)
     for (const text of items) expect(text).not.toMatch(/whatsNew\.|text unavailable|\{/)
     expect(bad, 'no failed or cross-origin requests').toEqual([])
+  })
+
+  // the version About shows and the release What's new starts at are two
+  // screens of one build (the rule is in e2e/support/whatsNew.ts)
+  test('About and What’s new tell one version story', async ({ page }) => {
+    await openProd(page)
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
+    const about = await readAboutVersion(page)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.mcdlg')).toHaveCount(0)
+    await page.locator('[data-tour="help-trigger"]').click()
+    await page.locator('[data-whatsnew="menu-item"]').click()
+    await expect(page.locator('[data-whatsnew="panel"]')).toBeVisible()
+    expectOneVersionStory(about.version, await readNewestShown(page))
   })
 
   test.describe('a returning profile that has not been told', () => {
