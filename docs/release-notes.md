@@ -78,6 +78,14 @@ The same three groups, in the same order, on desktop and in the mobile Help shee
 
 The names say what each item does. The contextual entry is not a help document: its dialog is titled "Manage contextual tips", a note that has been seen offers "Show next time it applies", and one that is already waiting reads "Will show".
 
+The desktop menu works from the keyboard, because "read it again from Help" has to. `src/components/HelpMenu.tsx`, with the shared hook `src/ui/useMenuKeyboard.ts`.
+
+- Opened with Enter or Space, or by a screen reader's own activation, focus goes to the first item. Opened with the pointer, focus stays on the Help button.
+- The arrow keys move through the items and wrap, skipping the separators. Home and End jump to the first and the last item.
+- Escape closes the menu once and returns focus to the Help button. Closing a dialog the menu opened returns focus there too.
+- Measured before this: Enter or Space opened the menu and left focus on the button, and the arrow keys did nothing. A screen reader follows focus, so it is told that a menu opened and is given none of it to read. Only Tab reached an item.
+- The other menus have the same gap and are not changed here. Issue #307 audits them as one piece of work.
+
 ## What is stored
 
 Two keys, both holding a release-note id such as `release:0.15.0`. Dismissing a notice and reading the notes are different things, so they are stored apart. `src/store/whatsNewStore.ts`.

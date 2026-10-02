@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FEEDBACK_URL } from '../feedback'
 import { useArrowGlyph, useT } from '../i18n'
 import { useTourStore } from '../store/tourStore'
@@ -6,6 +6,7 @@ import { useWhatsNewStore } from '../store/whatsNewStore'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
+import { useMenuKeyboard } from '../ui/useMenuKeyboard'
 
 // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 /
 // docs/release-notes.md — the desktop Help (`?`) menu, in three groups:
@@ -50,14 +51,23 @@ export function HelpMenu({
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
 
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  // The keyboard. MEASURED before this: Enter or Space opened the menu and left
+  // focus on the button, and the arrow keys did nothing; only Tab reached an
+  // item. A screen reader follows focus, so it was told that a menu had opened
+  // and was given none of it to read. "Read the release notes again from Help"
+  // has to work from a keyboard.
+  //
+  // - opened from the keyboard, focus goes to the first item; opened with the
+  //   pointer, it stays on the button that was clicked
+  // - the arrow keys, Home and End move through the items, skipping separators
+  // - Escape closes the menu once and returns focus to the button. The shared
+  //   hook owns that key now, so the listener this menu had is gone: it would
+  //   run a second time behind the hook.
+  const [byKeyboard, setByKeyboard] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useMenuKeyboard(open, popRef, triggerRef, close, byKeyboard)
 
   // review, Hanrim 2026-09-15 — announce open/closed so the palette can
   // suppress its own hover tooltip while this menu is up
@@ -69,19 +79,27 @@ export function HelpMenu({
   return (
     <div className="menu" ref={wrapRef}>
       <button
-        ref={buttonRef}
+        ref={(el) => {
+          triggerRef.current = el
+          buttonRef?.(el)
+        }}
         type="button"
         className="btn btn--icon"
         data-tour="help-trigger"
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={t('tour.help.menuLabel')}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          // a click that no pointer made (Enter, Space, a screen reader's
+          // "activate") carries no click count
+          setByKeyboard(e.detail === 0)
+          setOpen((v) => !v)
+        }}
       >
         ?
       </button>
       {open ? (
-        <div className="menu__pop menu__pop--right" role="menu">
+        <div className="menu__pop menu__pop--right" role="menu" ref={popRef}>
           <button
             type="button"
             className="menu__item"

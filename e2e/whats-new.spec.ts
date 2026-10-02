@@ -346,6 +346,79 @@ test.describe('the Help menu', () => {
     await expect(dialog.getByRole('button', { name: 'Will show' }).first()).toBeDisabled()
   })
 
+  // "Read it again from Help, at any time" has to hold for a keyboard too.
+  // MEASURED before this: Enter or Space opened the menu and left focus on the
+  // Help button, and the arrow keys did nothing. Only Tab reached the items. A
+  // screen reader follows focus, so it had none of the menu to read.
+  for (const key of ['Enter', 'Space'] as const) {
+    test(`keyboard, ${key}: focus enters the menu at its first item, the arrows reach What’s new, and closing the panel returns to Help`, async ({ page }) => {
+      await boot(page, { storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
+      await page.locator(HELP).focus()
+      await page.keyboard.press(key)
+      const menu = page.locator('.menu__pop[role="menu"]')
+      await expect(menu).toBeVisible()
+      await expect(page.getByRole('menuitem', { name: 'Restart the tour' })).toBeFocused()
+      await page.keyboard.press('ArrowDown')
+      await expect(page.getByRole('menuitem', { name: 'Turn contextual tips back on' })).toBeFocused()
+      await page.keyboard.press('ArrowDown')
+      // the separator is skipped, and the item says that it is unread
+      await expect(page.getByRole('menuitem', { name: 'What’s new New' })).toBeFocused()
+      await expect(page.locator(MENU_ITEM)).toBeFocused()
+      await page.keyboard.press('Enter')
+      await expect(page.locator(PANEL)).toBeVisible()
+      await expect(menu).toHaveCount(0)
+      await expect(page.locator(PANEL).locator('.mcdlg__x')).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(page.locator(PANEL)).toHaveCount(0)
+      await expect(page.locator(HELP)).toBeFocused()
+    })
+  }
+
+  test('keyboard: the arrows wrap, Home and End jump, and Escape closes the menu once and returns to Help', async ({ page }) => {
+    await boot(page, { storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
+    await page.locator(HELP).focus()
+    await page.keyboard.press('Enter')
+    const first = page.getByRole('menuitem', { name: 'Restart the tour' })
+    const last = page.getByRole('menuitem', { name: 'About Loop Studio' })
+    await expect(first).toBeFocused()
+    await page.keyboard.press('ArrowUp')
+    await expect(last).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(first).toBeFocused()
+    await page.keyboard.press('End')
+    await expect(last).toBeFocused()
+    await page.keyboard.press('ArrowUp')
+    await expect(page.getByRole('menuitem', { name: 'Send feedback — opens in a new tab' })).toBeFocused()
+    await page.keyboard.press('Home')
+    await expect(first).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.menu__pop')).toHaveCount(0)
+    await expect(page.locator(HELP)).toBeFocused()
+    // one Escape, one thing closed: nothing behind the menu was dismissed with it
+    await expect(page.locator('.canvas')).toBeVisible()
+  })
+
+  test('opened with the mouse: focus stays on the Help button, and Arrow Down then enters at the first item', async ({ page }) => {
+    await boot(page, { storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
+    await page.locator(HELP).click()
+    await expect(page.locator('.menu__pop[role="menu"]')).toBeVisible()
+    await expect(page.locator(HELP)).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByRole('menuitem', { name: 'Restart the tour' })).toBeFocused()
+  })
+
+  test('keyboard, Korean: the item is read as 새로운 기능, with its marker', async ({ page }) => {
+    await boot(page, { storage: { ...RETURNING, [ANNOUNCED_KEY]: ID, [LOCALE]: 'ko' } })
+    await page.locator(HELP).focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('menuitem', { name: '둘러보기 다시 시작' })).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByRole('menuitem', { name: '새로운 기능 새로움' })).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog', { name: '새로운 기능' })).toBeVisible()
+  })
+
   test('mobile: the Help sheet has the same order, and the panel opens from it', async ({ page }) => {
     await boot(page, { width: 390, height: 844, storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
     await page.locator(MORE).click()

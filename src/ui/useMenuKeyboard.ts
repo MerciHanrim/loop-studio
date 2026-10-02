@@ -6,15 +6,19 @@ import { useEffect, type RefObject } from 'react'
 // ArrowUp / Home / End did nothing, so the only way through was Tab, which
 // walks straight out of the menu at the last item.
 //
-// Deliberately NOT applied to every `.menu` in the app. Help, Settings,
-// Overflow, Data import and the Distribution menu would gain behaviour nobody
-// has specified; Theme and Language already implement their own arrow keys and
-// would end up with two handlers on one keydown; Share's surface is a popover,
-// not a menu.
+// Help joined them with issue #296: its menu is where the release notes are
+// read again, and that has to work from a keyboard.
 //
-// Activation is left to the browser. Every item is a native `button`, so Enter
+// Deliberately NOT applied to every `.menu` in the app. Settings, Overflow,
+// Data import and the Distribution menu would gain behaviour nobody has
+// specified yet (issue #307 is that specification); Theme and Language already
+// implement their own arrow keys and would end up with two handlers on one
+// keydown; Share's surface is a popover, not a menu.
+//
+// Activation is left to the browser. An item is a native `button`, so Enter
 // and Space already fire its `onClick`; calling `.click()` from here as well
-// would run the command twice.
+// would run the command twice. Help's feedback item is a native link, which
+// Enter follows.
 
 /** The items a keystroke may land on, read from the live popup at the moment
  *  the key arrives — `ExportMenuItems` contributes File's rows from another
@@ -44,13 +48,31 @@ function usableItems(pop: HTMLElement): HTMLElement[] {
  * are downstream of this one, so `stopPropagation()` here leaves exactly one
  * owner for the key. The menu components therefore no longer register an
  * Escape handler of their own.
+ *
+ * `enterOnOpen` — when the menu opens with this set, focus goes to its first
+ * item. A menu sets it when its button was activated from the keyboard (Enter,
+ * Space, or a screen reader's own "activate"), which is what the menu button
+ * pattern asks: otherwise focus stays on the button, and a screen reader, which
+ * follows focus, is given none of the menu to read. A pointer click leaves it unset, so
+ * focus stays on the button the person clicked. Opt-in: Help uses it (issue
+ * #296, "read it again from Help" has to work from a keyboard); the other
+ * menus are audited as one piece of work in issue #307.
  */
 export function useMenuKeyboard(
   open: boolean,
   popRef: RefObject<HTMLElement | null>,
   triggerRef: RefObject<HTMLElement | null>,
   close: () => void,
+  enterOnOpen = false,
 ): void {
+  useEffect(() => {
+    if (!open || !enterOnOpen) return
+    const pop = popRef.current
+    if (pop) usableItems(pop)[0]?.focus()
+    // read once, when the menu opens: the popup is in the document by the time
+    // an effect runs
+  }, [open, enterOnOpen, popRef])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
