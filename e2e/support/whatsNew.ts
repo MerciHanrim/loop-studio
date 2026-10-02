@@ -57,6 +57,10 @@ export const PACKAGE_VERSION: string = (
   JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version: string }
 ).version
 
+/** said wherever a version on screen is compared with `package.json` */
+export const VERSION_IS_READ_ONCE =
+  'A dev server reads the version once, when it starts: one left running across a version change keeps the old number. Restart it.'
+
 /** the version line of an OPEN About dialog: `v0.15.0 · build 61ca4a0` */
 export async function readAboutVersion(page: Page): Promise<{ version: string; build: string }> {
   const line = (await page.locator('.mcdlg--about .about__version').innerText()).trim()
@@ -87,10 +91,7 @@ export async function readNewestShown(page: Page): Promise<string> {
  *   raised the version and has no note (docs/release-notes.md).
  */
 export function expectOneVersionStory(about: string, newestShown: string): void {
-  expect(
-    about,
-    `About shows v${about} and package.json says ${PACKAGE_VERSION}. A dev server reads the version once, when it starts: one left running across a version change keeps the old number. Restart it.`,
-  ).toBe(PACKAGE_VERSION)
+  expect(about, `About shows v${about} and package.json says ${PACKAGE_VERSION}. ${VERSION_IS_READ_ONCE}`).toBe(PACKAGE_VERSION)
   expect(newestShown, 'the first entry on screen is the newest entry in the list').toBe(NEWEST_RELEASE.version)
   expect(
     compareVersions(parseVersion(newestShown)!, parseVersion(about)!),

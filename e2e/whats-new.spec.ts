@@ -8,6 +8,7 @@ import {
   PACKAGE_VERSION,
   readAboutVersion,
   readNewestShown,
+  VERSION_IS_READ_ONCE,
 } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 
@@ -389,7 +390,7 @@ test.describe('one build, one version', () => {
     await boot(page, { storage: RETURNING })
     await expect(page.locator(NOTICE).locator('p')).toContainText(VERSION)
     const title = (await page.locator('.toolbar__brand').getAttribute('title')) ?? ''
-    expect(/v(\d+\.\d+\.\d+)/.exec(title)?.[1], `the build title reads "${title}"`).toBe(PACKAGE_VERSION)
+    expect(/v(\d+\.\d+\.\d+)/.exec(title)?.[1], `the build title reads "${title}". ${VERSION_IS_READ_ONCE}`).toBe(PACKAGE_VERSION)
 
     await page.locator(HELP).click()
     await page.getByRole('menuitem', { name: 'About Loop Studio' }).click()
@@ -407,7 +408,7 @@ test.describe('one build, one version', () => {
     await boot(page, { width: 390, height: 844, storage: { ...RETURNING, [ANNOUNCED_KEY]: ID } })
     await page.locator(MORE).click()
     const stamp = (await page.locator('.sheet__stamp').innerText()).trim()
-    expect(/^v(\d+\.\d+\.\d+)/.exec(stamp)?.[1], `the More sheet's stamp reads "${stamp}"`).toBe(PACKAGE_VERSION)
+    expect(/^v(\d+\.\d+\.\d+)/.exec(stamp)?.[1], `the More sheet's stamp reads "${stamp}". ${VERSION_IS_READ_ONCE}`).toBe(PACKAGE_VERSION)
     await page.locator('.sheet__row', { hasText: /^Help/ }).click()
     await page.locator('.sheet .sheet__row', { hasText: /^About Loop Studio$/ }).click()
     const about = await readAboutVersion(page)
