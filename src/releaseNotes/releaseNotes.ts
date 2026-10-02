@@ -41,7 +41,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     id: 'release:0.15.0',
     version: '0.15.0',
-    date: '2026-10-02',
+    date: '2026-10-03',
     items: ['whatsNew.v0150.notes', 'whatsNew.v0150.help', 'whatsNew.v0150.timeline', 'whatsNew.v0150.look'],
   },
   {
