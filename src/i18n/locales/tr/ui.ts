@@ -453,6 +453,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'Arapça sağdan sola okunur: menüler ve paneller yansıtılır, diyagram ise biçimini korur.',
   'whatsNew.v0140.frames': 'Bir grup çerçevesinin adı, rengi ve boyutu doğrudan çerçeveden değiştirilebilir.',
   'whatsNew.v0140.csv': 'İndirilen CSV dosyaları, bir etikette virgül veya tırnak işareti olsa bile Excel’de doğru açılır.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'Telefonda, oynatma çubuğunun düğmeleri ikinci satıra taşsa bile tuvalin alt kısmı artık örtülmüyor.',
+  'whatsNew.v0151.desktopStrip': 'Dar bir pencerede oynatma denetimleri artık pencerenin alt kenarında kesilmiyor.',
+  'whatsNew.v0151.sheets': 'Zaman çizelgesi sayfası, Diğer sayfası ve yakınlaştırma düğmeleri, yüksekliği ne olursa olsun oynatma çubuğunun üstünde kalır.',
 } as const
 
 export type UiKey = keyof typeof ui

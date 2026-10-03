@@ -399,6 +399,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'Tiếng Ả Rập được đọc từ phải sang trái: trình đơn và các bảng được lật lại, còn sơ đồ giữ nguyên hình dạng.',
   'whatsNew.v0140.frames': 'Có thể đổi tên, màu và kích thước của một nhóm ngay trên nhóm đó.',
   'whatsNew.v0140.csv': 'Tệp CSV tải xuống mở đúng trong Excel, kể cả khi nhãn có dấu phẩy hoặc dấu ngoặc kép.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'Trên điện thoại, thanh chạy không còn che phần dưới của khung vẽ khi các nút của nó xuống dòng thứ hai.',
+  'whatsNew.v0151.desktopStrip': 'Trong cửa sổ hẹp, các nút điều khiển chạy không còn bị cắt ở mép dưới cửa sổ.',
+  'whatsNew.v0151.sheets': 'Bảng Dòng thời gian, bảng Thêm và các nút thu phóng luôn nằm phía trên thanh chạy, dù thanh cao bao nhiêu.',
 } satisfies Record<UiKey, string>
 
 export default ui

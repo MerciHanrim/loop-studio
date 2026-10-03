@@ -18,8 +18,9 @@ export const SNAPSHOT_POLICY = {
   'desktop-full-page': { maxDiffPixelRatio: 0.005, size: [1280, 800] as const },
   /** `.react-flow` clip at the desktop viewport (980×462). */
   'desktop-canvas-clip': { maxDiffPixelRatio: 0.0002, size: [980, 462] as const },
-  /** `.react-flow` clip under the `mobile` project (390×735). */
-  'mobile-canvas-clip': { maxDiffPixelRatio: 0.001, size: [390, 735] as const },
+  /** `.react-flow` clip under the `mobile` project (390×734: the canvas pane
+   *  reserves the run bar's measured 53 px, not a 52 px constant, since issue #303). */
+  'mobile-canvas-clip': { maxDiffPixelRatio: 0.001, size: [390, 734] as const },
   /** `expect(page).toHaveScreenshot` under the `mobile` project (390×844). */
   'mobile-full-page': { maxDiffPixelRatio: 0.001, size: [390, 844] as const },
   /** A single component (Inspector, dialog, minimap, Distribution panel …). Any size that is not one of the four above. */

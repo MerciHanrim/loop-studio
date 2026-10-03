@@ -234,7 +234,7 @@ test.describe('closing the notice and opening the panel are different things', (
         expect(text).not.toContain('text unavailable')
       }
     }
-    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.15.0', '0.14.0'])
+    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.15.1', '0.15.0', '0.14.0'])
 
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)

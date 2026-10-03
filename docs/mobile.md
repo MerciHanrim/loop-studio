@@ -194,6 +194,17 @@ The mobile layout is unaffected — it is always view-only regardless of the fie
   `step N` counter. The speed slider and seed field are **not rendered** on
   mobile (view/run uses defaults; a power user is on desktop).
 - 44 px minimum touch targets.
+- **Its height is measured, not assumed** (issue #303). The bar wraps to a
+  second row below about 390 px and, at 390 px, in six languages; the
+  run-refusal row adds another. `MobileRunBar` observes its own box and writes
+  the height to `--mob-runbar-real` on the root element; `--mob-runbar-h`
+  (52 px) is only the minimum and the fallback before the first measurement.
+  Everything that keeps clear of the bar reads the measured value: the canvas
+  padding (MV7), the sheet scrim, the Timeline sheet, the zoom controls and the
+  update notice. Measured before the change, on `main 3ce52f4`: a 101 px bar
+  over 52 px of reserved space put 49 px of canvas and the whole attribution
+  line under it, in 18 languages at 320 px. `e2e/run-bar-fit.spec.ts` holds the
+  contract at 320 to 390 px.
 
 ### MV4a. Dynamic viewport height
 
@@ -352,10 +363,11 @@ Share link loads.
 - **Safe area is reserved as real space**, not just honoured visually:
   - top bar: `padding-top: env(safe-area-inset-top)`;
   - bottom run bar: `padding-bottom: env(safe-area-inset-bottom)`;
-  - the Canvas / React-Flow pane reserves `padding-bottom` (or a spacer) equal to
-    **bottom-bar height + `env(safe-area-inset-bottom)`**, and `padding-top`
-    equal to the top-bar height, so nodes and the React Flow `Controls` are never
-    rendered under a bar or under the notch;
+  - the Canvas / React-Flow pane reserves `padding-bottom` equal to the
+    **measured bottom-bar height** (`--mob-runbar-real`, which already includes
+    `env(safe-area-inset-bottom)`; see MV4), and `padding-top` equal to the
+    top-bar height, so nodes and the React Flow `Controls` are never rendered
+    under a bar or under the notch;
   - left/right insets applied to the fixed bars in landscape.
 - **Touch targets** — every control in the mobile layout is `min 44 × 44 px`.
 - **Overflow** — `html, body, #root { overflow-x: clip }` and `.app { max-width:

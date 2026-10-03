@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.15.1 — 2026-10-03
+
+A fix release. The playback bar grew taller than the space the layout gave it, and the layout did not notice.
+
+- **On a phone**, the run bar wraps to a second row at 320 and 340 px in every language, at 360 px in eleven languages, and at 390 px in six. The canvas reserved a constant 52 px for it, so 49 px of canvas, and the whole attribution line, sat under a 101 px bar. The bar now measures its own height and everything that keeps clear of it reads that measurement: the canvas padding, the More and Help sheets, the Timeline sheet, the zoom buttons and the update notice.
+- **In a narrow desktop window** (under about 950 px, or 1000 px in German), the playback strip wraps to a second or third row while the collapsed timeline kept a constant height of 40 px, so the wrapped controls lay 25 to 54 px below the bottom of the window, where they could not be reached. The collapsed timeline is now as tall as its strip.
+- Nothing is removed from the bar to make it fit, and nothing about running or saving changes.
+
+**No migration.** A v0.15.0 file opens unchanged. The informational `meta.tool` string is now `loop-studio/0.15.1`.
+
 ## v0.15.0 — 2026-10-03
 
 The release where the app starts saying what changed. Until now an update arrived silently: the screen looked different and nothing said why. A returning visitor now gets a one-line notice, and the Help menu keeps a What's new page. This is also the version that the Timeline series selector and the refreshed light theme belong to: both reached the site after v0.14.0 while it still said `0.14.0`.

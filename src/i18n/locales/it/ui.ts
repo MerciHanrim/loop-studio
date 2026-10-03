@@ -413,6 +413,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'L’arabo si legge da destra a sinistra: menu e pannelli si specchiano, e il diagramma mantiene la sua forma.',
   'whatsNew.v0140.frames': 'Nome, colore e dimensioni di un riquadro di gruppo si cambiano dal riquadro stesso.',
   'whatsNew.v0140.csv': 'I file CSV scaricati si aprono correttamente in Excel, anche se un’etichetta contiene una virgola o delle virgolette.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'Sul telefono la barra di riproduzione non copre più la parte bassa dell’area di disegno quando i suoi pulsanti vanno a capo su una seconda riga.',
+  'whatsNew.v0151.desktopStrip': 'In una finestra stretta i controlli di riproduzione non vengono più tagliati sul bordo inferiore della finestra.',
+  'whatsNew.v0151.sheets': 'Il pannello Cronologia, il pannello Altro e i pulsanti di ingrandimento restano sopra la barra di riproduzione, qualunque sia la sua altezza.',
 } satisfies Record<UiKey, string>
 
 export default ui
