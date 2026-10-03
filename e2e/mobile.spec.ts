@@ -13,6 +13,7 @@ import {
   test,
 } from './support/loop'
 import { fixtureFlow } from './support/revision-fixture'
+import { seedWhatsNewSeen } from './support/whatsNew'
 
 // docs/mobile.md §MV10 — the mobile View/Run layout. Runs under the `mobile`
 // Playwright project (390x844 portrait; tests rotate to 844x390). Slice 1 scope:
@@ -259,11 +260,13 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     const help = sheet(page, 'Help')
     await expect(help).toBeVisible()
     const rows = help.locator('.sheet__row')
-    await expect(rows).toHaveCount(4)
-    await expect(rows.nth(0)).toHaveText(/Take a tour|둘러보기/)
-    await expect(rows.nth(1)).toHaveText(/Contextual help|상황별 도움말/)
-    await expect(rows.nth(2)).toHaveText(/Send feedback|피드백 보내기/)
-    await expect(rows.nth(3)).toHaveText(/About Loop Studio|Loop Studio 정보/)
+    // docs/release-notes.md (issue #296) — the same five rows as the desktop menu
+    await expect(rows).toHaveCount(5)
+    await expect(rows.nth(0)).toHaveText(/Restart the tour|둘러보기 다시 시작/)
+    await expect(rows.nth(1)).toHaveText(/Turn contextual tips back on|상황별 안내 다시 켜기/)
+    await expect(rows.nth(2)).toHaveText(/What’s new|새로운 기능/)
+    await expect(rows.nth(3)).toHaveText(/Send feedback|피드백 보내기/)
+    await expect(rows.nth(4)).toHaveText(/About Loop Studio|Loop Studio 정보/)
 
     const link = help.locator('a.sheet__row', { hasText: /Send feedback|피드백 보내기/ })
     await expect(link).toHaveAttribute('href', 'https://tally.so/r/9qkk6Y')
@@ -737,6 +740,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
         /* private mode — fine */
       }
     })
+    // issue #296 - and this returning profile has already seen the newest release note
+    await seedWhatsNewSeen(page)
     await openApp(page)
     expect(
       await page.evaluate(
@@ -793,6 +798,8 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
         /* private mode */
       }
     })
+    // issue #296 - and this returning profile has already seen the newest release note
+    await seedWhatsNewSeen(page)
     await openApp(page)
 
     const hint = page.locator('.openhint')

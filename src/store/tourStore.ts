@@ -47,7 +47,7 @@ type TourState = {
   phase: TourPhase
   step: number // 0-based; 0..TOUR_TOTAL-1 while running
   platform: TourPlatform
-  /** true when launched from Help → Take a tour: exits never write the key (§GT6.4) */
+  /** true when launched from Help → Restart the tour: exits never write the key (§GT6.4) */
   replay: boolean
   /** §GT6.1 — set once the boot sequence has settled (locale resolved + the
    *  `#g1=` share link, if any, fully consumed). Set by `ShareLoader`. */
@@ -62,7 +62,7 @@ type TourState = {
   startFromWelcome: (platform: TourPlatform) => void
   /** Welcome → Skip / Escape (§GT6.4: dismissed). */
   skipWelcome: () => void
-  /** Help → Take a tour — a replay; exits write nothing (§GT6.4). */
+  /** Help → Restart the tour — a replay; exits write nothing (§GT6.4). */
   startReplay: (platform: TourPlatform) => void
   next: () => void
   back: () => void

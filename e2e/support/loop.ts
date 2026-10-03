@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { test as base, expect, type Locator, type Page } from '@playwright/test'
 import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
+import { seedWhatsNewSeen } from './whatsNew'
 
 // Base test: fails automatically on any console.error or uncaught page error,
 // plus small helpers for reaching the app's Zustand stores through the dev-only
@@ -8,14 +9,21 @@ import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
 
 const IGNORE = [/favicon/i, /\[vite\] connect/i, /Download the React DevTools/i]
 
-export const test = base.extend<{ errors: string[]; _tourSeed: void }>({
+export const test = base.extend<{ errors: string[]; _tourSeed: void; whatsNewSeen: boolean }>({
+  // Issue #296 — pre-dismissing the tour (below) makes the profile a RETURNING
+  // one, and a returning profile that has not been told about the newest
+  // release note gets the update notice on its canvas. So the same seed also
+  // records that release as announced and opened. `e2e/whats-new.spec.ts`
+  // turns this off with `test.use({ whatsNewSeen: false })`.
+  whatsNewSeen: [true, { option: true }],
   // docs/guided-tour.md — every spec starts with the first-run Welcome card
   // suppressed so it never intercepts a click. The suppression is the real
   // product mechanism: the stored key set to `dismissed`. Context-scoped so a
   // second page (`context.newPage()`) is covered too. guided-tour.spec.ts
   // overrides this with its own `seedKey(page, …)` (registered later, wins).
   _tourSeed: [
-    async ({ context }, use) => {
+    async ({ context, whatsNewSeen }, use) => {
+      if (whatsNewSeen) await seedWhatsNewSeen(context)
       await context.addInitScript(() => {
         try {
           if (!localStorage.getItem('loop-studio/guided-tour/1'))

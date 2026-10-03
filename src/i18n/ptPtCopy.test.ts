@@ -56,11 +56,11 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(857)
+    expect(KEYS).toHaveLength(870)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
-    // 168 of 857. Large on purpose: European and Brazilian Portuguese diverge
+    // 170 of 870. Large on purpose: European and Brazilian Portuguese diverge
     // far more than Spain and Latin America do (`es-ES` moved 32 of 842), and
     // most of this is the address register and progressive aspect, which touch
     // whole sentences rather than single words.
@@ -73,7 +73,14 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // saved choice is `guardada` not `salva`, series are `mostradas` not
     // `exibidas`, `repor` not `redefinir`, and the address register of the
     // two sentences — the same axes as the rest of this list.
-    expect(DELTA).toHaveLength(168)
+    //
+    // Issue #296 moved it from 168 to 170. Three keys joined on axes this list
+    // already has: `help.contextual.title` (`Gerir` not `Gerenciar`), and two
+    // release-note lines, `whatsNew.v0140.languages` (`neerlandês` not
+    // `holandês`) and `whatsNew.v0140.csv` (`ficheiros transferidos` not
+    // `arquivos baixados`). One left: `help.contextual.rearmWaiting` is now the
+    // same two words in both.
+    expect(DELTA).toHaveLength(170)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

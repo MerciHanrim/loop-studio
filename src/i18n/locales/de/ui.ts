@@ -411,11 +411,11 @@ const ui = {
   'tour.mobile.more.body':
     'Teilen, Exportieren und die Sprachauswahl liegen alle in diesem Menü.',
   'tour.help.menuLabel': 'Hilfe',
-  'tour.help.takeTour': 'Eine Tour machen',
+  'tour.help.takeTour': 'Tour neu starten',
   'tour.help.about': 'Über Loop Studio',
-  'tour.help.feedback': 'Rückmeldung senden (englisches Formular)',
+  'tour.help.feedback': 'Rückmeldung senden · Englisch',
   'tour.help.feedbackAria':
-    'Rückmeldung senden (englisches Formular) — öffnet sich in einem neuen Tab',
+    'Rückmeldung senden · Englisch — öffnet sich in einem neuen Tab',
   'about.createdBy': 'Erstellt von',
   'about.repo': 'GitHub-Repository',
   'about.repoAria': 'GitHub-Repository von Loop Studio',
@@ -440,12 +440,12 @@ const ui = {
     'Wird einmal gezeigt, wenn zum ersten Mal ein Gruppenrahmen auf einer bearbeitbaren Arbeitsfläche ausgewählt wird.',
   'hint.focusFilter.body':
     'Wird der Graph unübersichtlich? „Fokus“ dimmt alles außer der Nachbarschaft eines Knotens; „Filter“ blendet Knoten- oder Verbindungstypen aus.',
-  'help.contextual.menuLabel': 'Kontexthilfe',
-  'help.contextual.title': 'Kontexthilfe',
+  'help.contextual.menuLabel': 'Kontexthinweise wieder einschalten',
+  'help.contextual.title': 'Kontexthinweise verwalten',
   'help.contextual.intro':
-    'Loop Studio zeigt ein paar kurze Hinweise, wenn die jeweilige Situation zum ersten Mal auftritt. Setzen Sie einen zurück, um ihn beim nächsten passenden Mal wiederzusehen.',
-  'help.contextual.rearm': 'Beim nächsten Mal wieder zeigen',
-  'help.contextual.rearmWaiting': 'Wartet auf die nächste Anzeige',
+    'Loop Studio zeigt einen kurzen Hinweis, wenn die jeweilige Situation zum ersten Mal auftritt. Wählen Sie einen aus, damit er beim nächsten passenden Mal wieder erscheint.',
+  'help.contextual.rearm': 'Beim nächsten Mal zeigen',
+  'help.contextual.rearmWaiting': 'Wird gezeigt',
   'help.contextual.rearmWaitingHint':
     'Er erscheint von selbst wieder, sobald die Situation das nächste Mal passt.',
   'help.contextual.hint.emptyCanvas.name': 'Leere Arbeitsfläche',
@@ -460,6 +460,20 @@ const ui = {
   'help.contextual.hint.focusFilter.name': 'Fokus / Filter',
   'help.contextual.hint.focusFilter.desc':
     'Wird gezeigt, sobald ein Graph groß genug ist, dass Fokus und Filter helfen.',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': 'Neuigkeiten',
+  'whatsNew.newMarker': 'Neu',
+  'whatsNew.notice.region': 'Update-Hinweis',
+  'whatsNew.notice.text': 'Loop Studio wurde auf {version} aktualisiert',
+  'whatsNew.notice.open': 'Neuigkeiten ansehen',
+  'whatsNew.v0150.notes': 'Nach einem Update erscheint ein kurzer Hinweis, und unter „Neuigkeiten“ im Hilfe-Menü steht, was sich geändert hat.',
+  'whatsNew.v0150.help': 'Das Hilfe-Menü ist nach Zweck gegliedert, und die Einträge sagen, was sie tun.',
+  'whatsNew.v0150.timeline': 'Der Zeitverlauf zeichnet anfangs bis zu 8 Reihen. Über die Schaltfläche „Reihen“ wählen Sie, welche angezeigt werden.',
+  'whatsNew.v0150.look': 'Das helle Design hat ruhigere Farben, rundere Bereiche und eine deutlichere Anzeige des Tastaturfokus.',
+  'whatsNew.v0140.languages': 'Sieben weitere Sprachen: Arabisch, Niederländisch, Italienisch, Russisch, Thailändisch, Türkisch und Vietnamesisch. Insgesamt achtzehn.',
+  'whatsNew.v0140.rtl': 'Arabisch wird von rechts nach links gelesen: Menüs und Bereiche werden gespiegelt, das Diagramm behält seine Form.',
+  'whatsNew.v0140.frames': 'Name, Farbe und Größe eines Gruppenrahmens lassen sich direkt am Rahmen ändern.',
+  'whatsNew.v0140.csv': 'Heruntergeladene CSV-Dateien öffnen sich korrekt in Excel, auch wenn eine Beschriftung ein Komma oder ein Anführungszeichen enthält.',
 } satisfies Record<UiKey, string>
 
 export default ui

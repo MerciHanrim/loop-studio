@@ -34,7 +34,8 @@ items, not the trigger) — **Share** (kept standalone, never merged into
 another group — an explicit accessibility/discoverability decision) —
 **Settings** (Theme, Language — personal app-environment prefs only, never a
 junk drawer for anything else) — `?` (Help: Take a tour, Contextual help,
-Send feedback, About).
+Send feedback, About; since 2026-10-02 the Help items are renamed and
+`What's new` is added, see [`release-notes.md`](release-notes.md)).
 
 The `v{version} · {sha}` build stamp is removed from the visible bar
 entirely — it lives in the brand row's own `title`/`aria-label` tooltip and

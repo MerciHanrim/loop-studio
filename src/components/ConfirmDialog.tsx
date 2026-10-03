@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from 'react'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
+import { DialogScrim } from './DialogScrim'
 
 // A themed replacement for window.confirm() — same Warm Mineral Lab surface,
 // keyboard support, and focus handling as the other app dialogs.
@@ -71,7 +72,7 @@ export function ConfirmDialog({
   if (!open) return null
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={dismissOnBackdrop ? onCancel : undefined}>
+    <DialogScrim onMouseDown={dismissOnBackdrop ? onCancel : undefined}>
       <div
         ref={ref}
         className="mcdlg mcdlg--confirm"
@@ -106,6 +107,6 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

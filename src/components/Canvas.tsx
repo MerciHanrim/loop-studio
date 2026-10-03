@@ -38,7 +38,9 @@ import { canvasFitInsets, viewportForRect } from './canvasFit'
 import { MinimapDock } from './MinimapDock'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../store/hintStore'
 import { useTourStore } from '../store/tourStore'
+import { useWhatsNewStore } from '../store/whatsNewStore'
 import { isolateAuto } from '../i18n/bidiIsolate'
+import { WhatsNewNotice } from './WhatsNewNotice'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -331,6 +333,13 @@ export function Canvas() {
   const frameMoveHintShowing = frameMoveHint.eligible && savedFrameSelected
   const lgrNoticeShowing =
     (focusMode && !focusSet) || (autoFramesExist && !suggestNoteDismissed) || importHintShowing || frameMoveHintShowing
+  // Issue #296 — the update notice and the canvas notes share the top of the
+  // canvas, and on a narrow window they would overlap. One at a time, by
+  // priority: a note that follows a deliberate action (the ones above) and a
+  // running tour come first, so the update notice waits for them; the tier-3
+  // discovery hints below wait for the update notice. A hint that is waiting is
+  // not rendered, so its `seen` flag is not consumed.
+  const whatsNewShowing = useWhatsNewStore((s) => s.noticeShowing)
   const hidden = useHiddenSet()
   // §LGR6-cues — the opt-in Activity overlay tint composes AFTER hide (a
   // filtered element is gone, tint and all) and independently of dim (a
@@ -776,6 +785,9 @@ export function Canvas() {
       onDragOver={noEdit ? undefined : handleDragOver}
       onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
     >
+      {/* Issue #296 — first in the canvas, so its two buttons come right after
+          the toolbar in the tab order and before any node. */}
+      <WhatsNewNotice blocked={!tourIdle || lgrNoticeShowing} />
       <ReactFlow<LoopNode, LoopEdge>
         nodes={rfNodes}
         edges={rfEdges}
@@ -917,7 +929,7 @@ export function Canvas() {
             dir={uiDir}
             id="empty-canvas"
             trigger={nodes.length === 0}
-            ready={tourIdle && tier3Ready && !lgrNoticeShowing}
+            ready={tourIdle && tier3Ready && !lgrNoticeShowing && !whatsNewShowing}
           >
             {t('hint.emptyCanvas.body')}
           </CanvasHintNote>
@@ -937,7 +949,7 @@ export function Canvas() {
             dir={uiDir}
             id="focus-filter-discovery"
             trigger={nodes.length >= WORTH_IT_FLOOR && !focusOrFilterEverUsed}
-            ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing}
+            ready={tourIdle && tier3Ready && largeGraphInteractionGate && !lgrNoticeShowing && !whatsNewShowing}
           >
             {t('hint.focusFilter.body')}
           </CanvasHintNote>

@@ -34,6 +34,7 @@ import { canvasFitInsets, viewportForRect } from '../canvasFit'
 import { useDialogFocus } from '../useDialogFocus'
 import { useQuickStartStore } from './quickStartStore'
 import { isolateAuto } from '../../i18n/bidiIsolate'
+import { DialogScrim } from '../DialogScrim'
 
 // Static lookups, not dynamic `import.issue.` + code template strings --
 // scripts/check-i18n.mjs only recognises a literal call with a quoted
@@ -579,7 +580,7 @@ export function DataImportWizard({
   const planSummary = validation?.ok ? summarizeImportPlan(validation.plan, placementKind) : null
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={close}>
+    <DialogScrim onMouseDown={close}>
       <div
         ref={ref}
         className="mcdlg mcdlg--dataimport"
@@ -1076,6 +1077,6 @@ export function DataImportWizard({
           )}
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

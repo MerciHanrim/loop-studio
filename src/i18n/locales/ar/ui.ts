@@ -384,13 +384,13 @@ const ui = {
   'tour.mobile.more.title': 'المزيد',
   'tour.mobile.more.body': 'المشاركة والتصدير ومبدّل اللغة كلها في هذه القائمة.',
   'tour.help.menuLabel': 'مساعدة',
-  'tour.help.takeTour': 'خُذ جولة',
+  'tour.help.takeTour': 'إعادة بدء الجولة',
   'tour.help.about': 'عن Loop Studio',
   // §L2 cross-locale contract: a non-English reader must be told the form
   // itself is in English BEFORE leaving the app, and the accessible name must
   // carry both that and the new-tab notice.
-  'tour.help.feedback': 'إرسال ملاحظات (نموذج بالإنجليزية)',
-  'tour.help.feedbackAria': 'إرسال ملاحظات (نموذج بالإنجليزية) — يفتح في تبويب جديد',
+  'tour.help.feedback': 'إرسال ملاحظات · بالإنجليزية',
+  'tour.help.feedbackAria': 'إرسال ملاحظات · بالإنجليزية — يفتح في تبويب جديد',
   'about.createdBy': 'أنشأه',
   'about.repo': 'مستودع GitHub',
   'about.repoAria': 'مستودع Loop Studio على GitHub',
@@ -410,12 +410,12 @@ const ui = {
   'help.contextual.hint.frameMove.desc': 'تُعرض مرة واحدة، أول مرة يُحدَّد فيها إطار مجموعة على لوحة قابلة للتحرير.',
   'hint.focusFilter.body':
     'أصبح المخطط مزدحمًا؟ التركيز يعتّم كل شيء عدا جوار عقدة واحدة؛ والمرشّح يخفي أنواع العقد أو الاتصالات.',
-  'help.contextual.menuLabel': 'مساعدة سياقية',
-  'help.contextual.title': 'مساعدة سياقية',
+  'help.contextual.menuLabel': 'إعادة تفعيل الملاحظات السياقية',
+  'help.contextual.title': 'إدارة الملاحظات السياقية',
   'help.contextual.intro':
-    'يعرض Loop Studio بضع ملاحظات قصيرة أول مرة يظهر فيها كل من هذه. أعِد تهيئة أي منها لرؤيتها مجددًا في المرة القادمة التي تنطبق فيها.',
-  'help.contextual.rearm': 'اعرضها مجددًا في المرة القادمة',
-  'help.contextual.rearmWaiting': 'في انتظار العرض في المرة القادمة',
+    'يعرض Loop Studio ملاحظة قصيرة أول مرة يظهر فيها كل من هذه. اختر واحدة لتُعرض مجددًا في المرة القادمة التي تنطبق فيها.',
+  'help.contextual.rearm': 'اعرضها في المرة القادمة التي تنطبق',
+  'help.contextual.rearmWaiting': 'ستُعرض',
   'help.contextual.rearmWaitingHint': 'ستُعرض من تلقاء نفسها في المرة المناسبة القادمة التي تنطبق فيها.',
   'help.contextual.hint.emptyCanvas.name': 'لوحة فارغة',
   'help.contextual.hint.emptyCanvas.desc': 'تُعرض على لوحة خالية، قبل وجود أي عقدة.',
@@ -425,6 +425,20 @@ const ui = {
   'help.contextual.hint.review.desc': 'تُعرض أول مرة يُفتح فيها مقترح مشارَك للمراجعة.',
   'help.contextual.hint.focusFilter.name': 'التركيز / المرشّح',
   'help.contextual.hint.focusFilter.desc': 'تُعرض متى صار المخطط كبيرًا بما يكفي ليبدأ التركيز والمرشّح في المساعدة.',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': 'ما الجديد',
+  'whatsNew.newMarker': 'جديد',
+  'whatsNew.notice.region': 'إشعار التحديث',
+  'whatsNew.notice.text': 'تم تحديث Loop Studio إلى الإصدار {version}',
+  'whatsNew.notice.open': 'عرض الجديد',
+  'whatsNew.v0150.notes': 'بعد التحديث يظهر إشعار قصير، ويعرض “ما الجديد” في قائمة المساعدة ما الذي تغيّر.',
+  'whatsNew.v0150.help': 'قائمة المساعدة مرتبة حسب الغرض، وأسماء عناصرها تقول ما تفعله.',
+  'whatsNew.v0150.timeline': 'يرسم الخط الزمني في البداية 8 سلاسل على الأكثر. اختر ما يُعرض منها من زر السلاسل.',
+  'whatsNew.v0150.look': 'المظهر الفاتح صار بألوان أهدأ ولوحات أكثر استدارة ومؤشر تركيز أوضح للوحة المفاتيح.',
+  'whatsNew.v0140.languages': 'سبع لغات إضافية: العربية والهولندية والإيطالية والروسية والتايلاندية والتركية والفيتنامية. ثماني عشرة لغة في المجموع.',
+  'whatsNew.v0140.rtl': 'تُقرأ العربية من اليمين إلى اليسار: تنعكس القوائم واللوحات، ويحتفظ المخطط بشكله.',
+  'whatsNew.v0140.frames': 'يمكن تغيير اسم إطار المجموعة ولونه وحجمه من الإطار نفسه.',
+  'whatsNew.v0140.csv': 'ملفات CSV التي تُنزَّل تُفتح بشكل صحيح في Excel، حتى إن احتوت التسمية على فاصلة أو علامة اقتباس.',
 } as const
 
 export default ui

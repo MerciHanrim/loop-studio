@@ -404,11 +404,11 @@ const ui = {
   'tour.mobile.more.body':
     'Le partage, l’export et le changement de langue se trouvent tous dans ce menu.',
   'tour.help.menuLabel': 'Aide',
-  'tour.help.takeTour': 'Faire la visite',
+  'tour.help.takeTour': 'Recommencer la visite',
   'tour.help.about': 'À propos de Loop Studio',
-  'tour.help.feedback': 'Envoyer un retour (formulaire en anglais)',
+  'tour.help.feedback': 'Envoyer un retour · en anglais',
   'tour.help.feedbackAria':
-    'Envoyer un retour (formulaire en anglais) — s’ouvre dans un nouvel onglet',
+    'Envoyer un retour · en anglais — s’ouvre dans un nouvel onglet',
   'about.createdBy': 'Créé par',
   'about.repo': 'Dépôt GitHub',
   'about.repoAria': 'Dépôt GitHub de Loop Studio',
@@ -434,12 +434,12 @@ const ui = {
     'Affiché une fois, la première fois qu’un cadre de groupe est sélectionné sur un canevas modifiable.',
   'hint.focusFilter.body':
     'Le graphe se charge ? « Focus » estompe tout sauf le voisinage d’un nœud ; « Filtres » masque des types de nœuds ou de connexions.',
-  'help.contextual.menuLabel': 'Aide contextuelle',
-  'help.contextual.title': 'Aide contextuelle',
+  'help.contextual.menuLabel': 'Réactiver les notes contextuelles',
+  'help.contextual.title': 'Gérer les notes contextuelles',
   'help.contextual.intro':
-    'Loop Studio affiche quelques notes courtes la première fois que chacun de ces cas se présente. Réarmez-en une pour la revoir la prochaine fois qu’elle s’applique.',
-  'help.contextual.rearm': 'Afficher de nouveau la prochaine fois',
-  'help.contextual.rearmWaiting': 'En attente d’affichage',
+    'Loop Studio affiche une note courte la première fois que chacun de ces cas se présente. Choisissez-en une pour qu’elle s’affiche de nouveau la prochaine fois qu’elle s’applique.',
+  'help.contextual.rearm': 'Afficher à la prochaine occasion',
+  'help.contextual.rearmWaiting': 'Sera affichée',
   'help.contextual.rearmWaitingHint':
     'Elle s’affichera d’elle-même à la prochaine occasion appropriée.',
   'help.contextual.hint.emptyCanvas.name': 'Canevas vide',
@@ -454,6 +454,20 @@ const ui = {
   'help.contextual.hint.focusFilter.name': 'Focus / Filtres',
   'help.contextual.hint.focusFilter.desc':
     'Affiché une fois que le graphe est assez grand pour que Focus et Filtres deviennent utiles.',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': 'Nouveautés',
+  'whatsNew.newMarker': 'Nouveau',
+  'whatsNew.notice.region': 'Avis de mise à jour',
+  'whatsNew.notice.text': 'Loop Studio a été mis à jour vers la version {version}',
+  'whatsNew.notice.open': 'Voir les nouveautés',
+  'whatsNew.v0150.notes': 'Après une mise à jour, un court avis s’affiche, et « Nouveautés » dans le menu Aide liste ce qui a changé.',
+  'whatsNew.v0150.help': 'Le menu Aide est organisé par usage, et ses entrées disent ce qu’elles font.',
+  'whatsNew.v0150.timeline': 'La chronologie trace d’abord jusqu’à 8 séries. Le bouton Séries permet de choisir celles à afficher.',
+  'whatsNew.v0150.look': 'Le thème clair a des couleurs plus calmes, des panneaux plus arrondis et un indicateur de focus clavier plus net.',
+  'whatsNew.v0140.languages': 'Sept langues de plus : arabe, néerlandais, italien, russe, thaï, turc et vietnamien. Dix-huit au total.',
+  'whatsNew.v0140.rtl': 'L’arabe se lit de droite à gauche : les menus et les panneaux sont inversés, et le schéma garde sa forme.',
+  'whatsNew.v0140.frames': 'Le nom, la couleur et la taille d’un cadre de groupe se modifient depuis le cadre lui-même.',
+  'whatsNew.v0140.csv': 'Les fichiers CSV téléchargés s’ouvrent correctement dans Excel, même si un libellé contient une virgule ou un guillemet.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -1,6 +1,7 @@
 import { useId, useRef } from 'react'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
+import { DialogScrim } from './DialogScrim'
 
 // docs/guided-tour.md §GT7.1 — a small, static, read-only "About Loop Studio"
 // dialog (the creator / copyright are otherwise only in README.md). Opening or
@@ -30,7 +31,7 @@ export function AboutDialog({ open, onClose, returnFocusTo }: Props) {
   if (!open) return null
 
   return (
-    <div className="mcdlg__scrim" onMouseDown={onClose}>
+    <DialogScrim onMouseDown={onClose}>
       <div
         ref={ref}
         className="mcdlg mcdlg--about"
@@ -66,6 +67,6 @@ export function AboutDialog({ open, onClose, returnFocusTo }: Props) {
           <p className="about__note">{t('about.notAffiliated')}</p>
         </div>
       </div>
-    </div>
+    </DialogScrim>
   )
 }

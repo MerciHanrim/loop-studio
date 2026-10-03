@@ -391,6 +391,31 @@ opening. Its mobile placement rules:
   Bottom sheets open to at most ~55 vh and the MC dialog is centred with a
   safe-area top margin, so the top-anchored bar and a sheet **do not overlap**
   in practice; the z-order is the guarantee if they ever do.
+- **The dialog layer (2026-10-02, issue #296).** The order in the stylesheet is
+  `canvas < open-file card < sheet < run bar < dialogs < PWA update bar`. Two
+  things did not follow it and were measured before being fixed:
+  - A dialog declared INSIDE a sheet (About, the contextual-tips dialog, the
+    export-author dialog) was drawn in the sheet's layer, so its own z-index
+    only competed with the sheet's other children. The run bar and the
+    "Open a file" card were drawn over it: at 390 px the card's button was the
+    top element where the contextual dialog's title and close button are.
+    Every dialog's scrim is now rendered into the document body through
+    `DialogScrim`, so `--z-mc-dialog` means what it says wherever the dialog
+    is declared. A z-index on one dialog could not fix this: the ceiling was
+    the ancestor's layer.
+  - The "Open a file" card shared `--z-runbar` and so sat ABOVE an open sheet.
+    At 320x640 it covered the first row of the More sheet and took the tap.
+    It has its own `--z-openhint` now, below every sheet and dialog.
+  - A sheet re-renders when a dialog it contains opens, and the shared focus
+    hook re-ran on every render because it depended on the identity of an
+    inline `onEscape`. The re-run moved focus out of the dialog and back into
+    the sheet behind the scrim. The hook now reads `onEscape` through a ref.
+  `e2e/dialog-layer.spec.ts` opens every dialog a phone can reach at 320 px and
+  390 px on a profile that still shows the card, and requires the dialog to
+  be the top layer, its controls reachable, and focus kept inside it.
+  **Not fixed here:** at 320 px the run bar wraps to two rows and lies over a
+  sheet's last rows (issue #303). The run bar is above the sheet on purpose;
+  its height is what is wrong.
 - **Never covers a core control** — it is above a strip of canvas just under the
   top bar; Reset / Step / Play·Pause / Monte Carlo, the `More` trigger, and a
   sheet's **Close** are all elsewhere on screen. It can only occlude canvas,

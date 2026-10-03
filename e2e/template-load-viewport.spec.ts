@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, test } from './support/loop'
+import { seedWhatsNewSeen } from './support/whatsNew'
 
 // A whole-graph swap (Templates load / file Import / New) must re-fit the React
 // Flow camera to the NEW graph — otherwise a template opens panned to the
@@ -293,6 +294,8 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
               /* private mode */
             }
           })
+          // issue #296 - and this returning profile has already seen the newest release note
+          await seedWhatsNewSeen(page)
           await openApp(page)
           await resetAll(page)
           await pickDesktopTemplate(page, GACHA_EN, GACHA_L)
@@ -359,6 +362,8 @@ test.describe('template load re-fits the viewport (whole-graph swap boundary)', 
         /* private mode */
       }
     })
+    // issue #296 - and this returning profile has already seen the newest release note
+    await seedWhatsNewSeen(page)
     try {
       await openApp(page)
       await resetAll(page)

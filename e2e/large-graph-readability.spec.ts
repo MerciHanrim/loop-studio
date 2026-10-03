@@ -3739,7 +3739,7 @@ test.describe('LGR frame membership — a frame drag carries its contents (§LGR
     expect((await frameHead(page)).frames.map((f) => f.id)).toEqual([manual])
   })
 
-  test('the first time a frame is selected a one-time note explains "edge drag carries contents / Alt+drag frame only"; it is listed in Contextual help', async ({ page }) => {
+  test('the first time a frame is selected a one-time note explains "edge drag carries contents / Alt+drag frame only"; it is listed in the contextual-tips dialog', async ({ page }) => {
     await load(page)
     await page.evaluate(() => localStorage.removeItem('loop-studio/contextual-help/1'))
     await page.reload()

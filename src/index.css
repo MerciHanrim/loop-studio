@@ -196,13 +196,18 @@
   --sai-left: env(safe-area-inset-left, 0px);
 
   /* Mobile stacking order (docs/mobile.md §MV8a / §MV-D19):
-       canvas  <  sheet/scrim  <  run bar  <  MC dialog  <  PWA update bar
+       canvas  <  open-file card  <  sheet/scrim  <  run bar  <  dialogs  <  PWA update bar
      The run bar sits ABOVE the sheet scrim so Play / Step / Reset stay
      clickable while a sheet is open; each sheet panel is pushed above the run
      bar (scrim padding-bottom) so its Close is never hidden. The PWA update
      bar is above everything and anchored at the TOP, clear of it all. */
   --z-runbar: 45;
   --z-sheet: 40;
+  /* The first-run "Open a file" card is part of the page, not an overlay: it
+     sits above the canvas and BELOW every sheet and dialog. It used to share
+     `--z-runbar`, which put it over an open sheet: measured at 320x640, it
+     covered the first row of the More sheet and took the tap. */
+  --z-openhint: 35;
   --z-mc-dialog: 50;
   --z-pwa-update: 60;
   /* docs/guided-tour.md §GT4 — the tour layer is above the Canvas / Toolbar /
@@ -5595,7 +5600,7 @@ input[type='number']::-webkit-inner-spin-button {
     left: 50%;
     top: calc(var(--mob-topbar-h) + var(--sai-top) + 16px);
     transform: translateX(-50%);
-    z-index: var(--z-runbar);
+    z-index: var(--z-openhint);
     width: min(320px, calc(100vw - 24px));
     display: flex;
     flex-direction: column;
@@ -6321,4 +6326,128 @@ input[type='number']::-webkit-inner-spin-button {
     outline: 2px solid Highlight;
     outline-offset: -2px;
   }
+}
+
+/* ---- Issue #296 — the update notice, the What's new panel and the `New` marker ----
+   docs/release-notes.md. The notice is one line and two buttons.
+   Desktop: the inline-start top corner of the canvas (mirrors in right-to-left).
+   Mobile: the PHYSICAL right, just above the run bar and the attribution line,
+   in right-to-left too - the canvas zoom controls stay on the left there.
+   Both places were measured: no control is covered and no element moves. */
+.whatsnew-notice {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
+  z-index: 6;
+  box-sizing: border-box;
+  max-width: min(320px, calc(100% - 24px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--surface-overlay);
+  border: 1px solid var(--line-container);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-overlay);
+}
+.whatsnew-notice__text {
+  flex: 1 1 100%;
+  margin: 0;
+  font-weight: 600;
+}
+.whatsnew-notice__actions {
+  display: flex;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+/* the buttons never shrink or wrap inside themselves; the sentence wraps instead */
+.whatsnew-notice__actions .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+/* Korean breaks between words, never inside one */
+.whatsnew-notice:lang(ko) {
+  word-break: keep-all;
+}
+@media (max-width: 720px), (max-height: 500px) and (max-width: 950px) and (pointer: coarse) {
+  .whatsnew-notice {
+    inset-block-start: auto;
+    inset-inline-start: auto;
+    right: 12px;
+    /* a starting value only: the component measures the run bar, whose height
+       is not a constant (it wraps to two rows at 320px), and sets `bottom` */
+    bottom: calc(var(--mob-runbar-h) + var(--sai-bottom) + 30px);
+    /* leave the column of canvas zoom controls on the left free */
+    max-width: calc(100% - 12px - 66px);
+  }
+}
+
+/* the What's new panel — reuses the .mcdlg shell, like About */
+.mcdlg--whatsnew {
+  width: min(440px, calc(100vw - 24px));
+  max-height: min(80vh, 640px);
+}
+.whatsnew {
+  gap: 16px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.55;
+}
+/* the list is a keyboard stop (it scrolls). It fills the panel edge to edge, so
+   the global outline would be drawn outside the panel: it is drawn inside. */
+.whatsnew:focus-visible {
+  outline-offset: -2px;
+}
+.whatsnew__entry + .whatsnew__entry {
+  padding-top: 14px;
+  border-top: 1px solid var(--line-hairline);
+}
+.whatsnew__version {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+/* the version line is left-to-right in every language; in a right-to-left
+   layout it still starts at the reading edge */
+[dir='rtl'] .whatsnew__version {
+  justify-content: flex-end;
+}
+.whatsnew__date {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.whatsnew__items {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-primary);
+}
+.whatsnew:lang(ko) {
+  word-break: keep-all;
+}
+
+/* the `New` marker beside "What's new" in the Help menu. A bordered pill, so it
+   is still a shape when colours are forced. */
+.menu__badge {
+  display: inline-block;
+  margin-inline-start: 4px;
+  padding: 0 6px;
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text-secondary);
+  vertical-align: 1px;
 }

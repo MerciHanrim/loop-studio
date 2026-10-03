@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 const FOCUSABLE =
   'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
@@ -18,6 +18,21 @@ export function useDialogFocus(
   onEscape: () => void,
   returnFocusTo?: () => HTMLElement | null | undefined,
 ): void {
+  // The newest `onEscape`, without making its IDENTITY a reason to run the
+  // effect again. Most callers pass an inline arrow, which is a new function on
+  // every render, so the effect used to tear down and set up on every render of
+  // the owner: focus went back to the opener and then to the dialog's first
+  // control again. That is invisible for a lone dialog and wrong for a nested
+  // one. A sheet that opens a dialog re-renders when the dialog opens, and its
+  // re-run took focus out of the dialog and back into the sheet behind the
+  // scrim, where Tab then walked the covered rows. MEASURED on the mobile Help
+  // sheet: after opening About or the contextual-tips dialog, the focused
+  // element was outside the dialog.
+  const onEscapeRef = useRef(onEscape)
+  useEffect(() => {
+    onEscapeRef.current = onEscape
+  })
+
   useEffect(() => {
     if (!open) return
     const opener = document.activeElement as HTMLElement | null
@@ -30,7 +45,7 @@ export function useDialogFocus(
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onEscape()
+        onEscapeRef.current()
         return
       }
       if (e.key !== 'Tab' || !ref.current) return
@@ -52,7 +67,8 @@ export function useDialogFocus(
       const back = returnFocusTo?.() ?? opener
       back?.focus?.()
     }
-    // returnFocusTo is intentionally not a dep — it's read at cleanup time
+    // returnFocusTo is intentionally not a dep — it's read at cleanup time; and
+    // onEscape is read through its ref (above)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, ref, onEscape])
+  }, [open, ref])
 }

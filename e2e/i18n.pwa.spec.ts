@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { LOCALE_CHUNK_RE } from '../scripts/locale-chunk.mjs'
+import { seedWhatsNewSeen } from './support/whatsNew'
 
 // Runs under playwright.pwa.config.ts — a real `--mode pwa` build with the
 // service worker, served by e2e/support/pwa-serve.mjs at :4174.
@@ -20,6 +21,8 @@ test.beforeEach(async ({ context }) => {
       /* ignore */
     }
   })
+  // issue #296 - and this returning profile has already seen the newest release note
+  await seedWhatsNewSeen(context)
 })
 
 const setGen = (page: Page, to: 'a' | 'b' | 'c') =>

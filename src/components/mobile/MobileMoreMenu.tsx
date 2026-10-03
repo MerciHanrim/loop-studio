@@ -1,4 +1,4 @@
-import { useState, type RefObject } from 'react'
+import { useCallback, useState, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { FEEDBACK_URL } from '../../feedback'
 import { openTemplate } from '../../i18n/templateLabels'
@@ -22,6 +22,7 @@ import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
 import { prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
+import { useWhatsNewStore } from '../../store/whatsNewStore'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
 import { useArrowGlyph, useT } from '../../i18n'
 import { AboutDialog } from '../AboutDialog'
@@ -34,6 +35,7 @@ import { LanguageSwitch } from '../LanguageSwitch'
 import { TEMPLATE_KEY } from '../templateKeys'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
+import { WhatsNewPanel } from '../WhatsNewPanel'
 
 // docs/localization.md Slice 2b — Templates replace, the Project-revision
 // disclosure, and the Workspace-JSON summary are in-app ConfirmDialogs now;
@@ -114,6 +116,10 @@ export function MobileMoreMenu({
   const [authorOpen, setAuthorOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [contextualOpen, setContextualOpen] = useState(false)
+  // issue #296 — the What's new panel and the marker that says it is unread
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
+  const closeWhatsNew = useCallback(() => setWhatsNewOpen(false), [])
+  const whatsNewUnread = useWhatsNewStore((s) => s.unread)
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null)
 
   // docs/localization.md Slice 2b — the §U4 disclosure is an in-app ConfirmDialog
@@ -451,9 +457,11 @@ export function MobileMoreMenu({
     )
   }
 
-  // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 — the
-  // mobile Help sub-sheet: `Take a tour`, `Contextual help`, `Send feedback`
-  // (external link, new tab), `About Loop Studio`.
+  // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 /
+  // docs/release-notes.md — the mobile Help sub-sheet, in the same three groups
+  // and the same order as the desktop Help menu: restart the tour and turn the
+  // contextual tips back on; What's new, with its `New` marker; Send feedback
+  // (external link, new tab) and About Loop Studio.
   if (overlay === 'help') {
     return (
       <>
@@ -471,6 +479,12 @@ export function MobileMoreMenu({
         <button type="button" className="sheet__row" onClick={() => setContextualOpen(true)}>
           {t('help.contextual.menuLabel')}
         </button>
+        <div className="menu__divider" role="separator" />
+        <button type="button" className="sheet__row" data-whatsnew="menu-item" onClick={() => setWhatsNewOpen(true)}>
+          {t('whatsNew.title')}
+          {whatsNewUnread ? <span className="sheet__row-sub">{t('whatsNew.newMarker')}</span> : null}
+        </button>
+        <div className="menu__divider" role="separator" />
         <a
           className="sheet__row"
           href={FEEDBACK_URL}
@@ -490,6 +504,7 @@ export function MobileMoreMenu({
           returnFocusTo={backToMore}
         />
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} returnFocusTo={backToMore} />
+        <WhatsNewPanel open={whatsNewOpen} onClose={closeWhatsNew} returnFocusTo={backToMore} />
       </MobileSheet>
       </>
     )

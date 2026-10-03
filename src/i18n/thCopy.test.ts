@@ -88,11 +88,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('th copy — the first no-space script', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TH).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(857)
+    expect(KEYS).toHaveLength(870)
   })
 
   it('covers all three runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(857)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(870)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -333,6 +333,9 @@ const LATIN_KEYS = [
   'catalog:tour.help.about',
   'catalog:tour.mobile.open.body',
   'catalog:tour.welcome.title',
+  // issue #296 - the product name, and the file format and application a release note names
+  'catalog:whatsNew.notice.text',
+  'catalog:whatsNew.v0140.csv',
   'frame/gacha-banner-zones:zone_pickup',
   'frame/gacha-banner-zones:zone_standard',
   'template/gacha-banner-zones:cmp1_hit_rate_free',
@@ -396,7 +399,7 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
 
   it('the strings carrying a Latin run are exactly the declared ones', () => {
     expect(withLatin.slice().sort()).toEqual(LATIN_KEYS.slice().sort())
-    expect(LATIN_KEYS).toHaveLength(146)
+    expect(LATIN_KEYS).toHaveLength(148)
   })
 
   it('the Latin vocabulary is exactly the declared one', () => {

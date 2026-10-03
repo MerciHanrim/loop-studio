@@ -314,6 +314,15 @@ already occupying the slot.
 
 ## CIH4. The `Contextual help` Help-menu entry
 
+**Renamed on 2026-10-02 (issue #296).** The entry is not a help document: it
+only turns the short one-time notes back on, and its wording now says so. The
+menu item is `Turn contextual tips back on`, the dialog title is `Manage
+contextual tips`, the per-row button is `Show next time it applies`, and the
+waiting state reads `Will show`. The Korean wording is `상황별 안내 다시 켜기` /
+`상황별 안내 관리` / `다음 발생 시 표시` / `표시 예정`. Nothing about the mechanism changed.
+The text below keeps the original names where it records the original decisions;
+the Help menu's current order is in [`release-notes.md`](release-notes.md).
+
 Both Help surfaces already carry the placeholder and the exact same
 exclusion comment (`HelpMenu.tsx`, `MobileMoreMenu.tsx`): *"`Contextual help`
 is not shown (later slice)."* This is that slice.

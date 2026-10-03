@@ -392,10 +392,10 @@ const ui = {
   'tour.mobile.more.title': 'Diğer',
   'tour.mobile.more.body': 'Paylaşım, dışa aktarma ve dil değiştirme bu menüde.',
   'tour.help.menuLabel': 'Yardım',
-  'tour.help.takeTour': 'Tura katıl',
+  'tour.help.takeTour': 'Turu yeniden başlat',
   'tour.help.about': 'Loop Studio hakkında',
-  'tour.help.feedback': 'Geri bildirim gönder (İngilizce form)',
-  'tour.help.feedbackAria': 'Geri bildirim gönder (İngilizce form): yeni sekmede açılır',
+  'tour.help.feedback': 'Geri bildirim gönder · İngilizce',
+  'tour.help.feedbackAria': 'Geri bildirim gönder · İngilizce: yeni sekmede açılır',
   'about.createdBy': 'Yapan',
   'about.repo': 'GitHub deposu',
   'about.repoAria': 'Loop Studio GitHub deposu',
@@ -420,12 +420,12 @@ const ui = {
     'Düzenlenebilir bir tuvalde bir grup çerçevesi ilk kez seçildiğinde bir kez gösterilir.',
   'hint.focusFilter.body':
     'Grafik kalabalıklaşıyor mu? Odak, bir düğümün çevresi dışındaki her şeyi soluklaştırır; Süzgeç, düğüm ya da bağlantı türlerini gizler.',
-  'help.contextual.menuLabel': 'Bağlama duyarlı yardım',
-  'help.contextual.title': 'Bağlama duyarlı yardım',
+  'help.contextual.menuLabel': 'Bağlama duyarlı notları yeniden aç',
+  'help.contextual.title': 'Bağlama duyarlı notları yönet',
   'help.contextual.intro':
-    'Loop Studio, bunların her biri ilk kez ortaya çıktığında kısa birkaç not gösterir. Bir sonraki uygun anda yeniden görmek için notu tekrar açın.',
-  'help.contextual.rearm': 'Bir dahaki sefere yine göster',
-  'help.contextual.rearmWaiting': 'Bir dahaki sefere gösterilmeyi bekliyor',
+    'Loop Studio, bunların her biri ilk kez ortaya çıktığında kısa bir not gösterir. Bir sonraki uygun anda yeniden gösterilmesi için bir not seçin.',
+  'help.contextual.rearm': 'Bir sonraki uygun anda göster',
+  'help.contextual.rearmWaiting': 'Gösterilecek',
   'help.contextual.rearmWaitingHint':
     'Bir sonraki uygun anda kendiliğinden yeniden gösterilecek.',
   'help.contextual.hint.emptyCanvas.name': 'Boş tuval',
@@ -439,6 +439,20 @@ const ui = {
   'help.contextual.hint.focusFilter.name': 'Odak / Süzgeç',
   'help.contextual.hint.focusFilter.desc':
     'Grafik, Odak ve Süzgecin işe yaramaya başlayacağı kadar büyüdüğünde gösterilir.',
+  // issue #296 - the update notice, the What’s new panel and the first release notes
+  'whatsNew.title': 'Yenilikler',
+  'whatsNew.newMarker': 'Yeni',
+  'whatsNew.notice.region': 'Güncelleme bildirimi',
+  'whatsNew.notice.text': 'Loop Studio {version} sürümüne güncellendi',
+  'whatsNew.notice.open': 'Yenilikleri gör',
+  'whatsNew.v0150.notes': 'Bir güncellemeden sonra kısa bir bildirim görünür, Yardım menüsündeki «Yenilikler» de nelerin değiştiğini listeler.',
+  'whatsNew.v0150.help': 'Yardım menüsü amaca göre gruplandı, öğeleri de ne yaptıklarını söylüyor.',
+  'whatsNew.v0150.timeline': 'Zaman çizelgesi başlangıçta en fazla 8 seri çizer. Hangilerinin gösterileceğini Seriler düğmesinden seçebilirsiniz.',
+  'whatsNew.v0150.look': 'Açık temada renkler daha sakin, paneller daha yuvarlak ve klavye odağı göstergesi daha belirgin.',
+  'whatsNew.v0140.languages': 'Yedi dil daha: Arapça, Felemenkçe, İtalyanca, Rusça, Tayca, Türkçe ve Vietnamca. Toplam on sekiz.',
+  'whatsNew.v0140.rtl': 'Arapça sağdan sola okunur: menüler ve paneller yansıtılır, diyagram ise biçimini korur.',
+  'whatsNew.v0140.frames': 'Bir grup çerçevesinin adı, rengi ve boyutu doğrudan çerçeveden değiştirilebilir.',
+  'whatsNew.v0140.csv': 'İndirilen CSV dosyaları, bir etikette virgül veya tırnak işareti olsa bile Excel’de doğru açılır.',
 } as const
 
 export type UiKey = keyof typeof ui

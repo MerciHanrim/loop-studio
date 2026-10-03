@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
+import { seedWhatsNewSeen } from './whatsNew'
 
 // Slice-2 harness: instrument the Monte-Carlo execution path (Worker vs
 // cooperative) and capture Blob exports — all as page-side Web-API spies, no
@@ -94,6 +95,8 @@ export async function installProbe(page: Page): Promise<void> {
       /* opaque origin (file://) — the app guards storage; tour trigger sees null */
     }
   })
+  // issue #296 - and this returning profile has already seen the newest release note
+  await seedWhatsNewSeen(page)
 }
 
 /**
