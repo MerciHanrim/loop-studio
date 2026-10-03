@@ -138,7 +138,13 @@ test.describe('browser storage is reached through the port only (run time)', () 
     const bootReads = all.filter((c) => c.viaBoot)
     expect(bootReads.map((c) => [c.phase, c.op, c.key])).toEqual([['start-up', 'getItem', THEME]])
     expect(all.findIndex((c) => c.viaBoot), 'the boot read is the first storage call of all').toBe(0)
-    expect(inPhase('start-up', 'getItem', THEME)).toBeGreaterThanOrEqual(2)
+    // exactly three readers, by name: the boot door in <head>, the returning-
+    // profile check of the update notice (the theme key is one of the traces
+    // it looks for), and the module door, `applyStoredTheme()` in main.tsx.
+    // MEASURED with the module door removed: two reads, and the page still
+    // opened in the stored theme thanks to the boot door - so the count is
+    // pinned, or that door could vanish unnoticed.
+    expect(inPhase('start-up', 'getItem', THEME)).toBe(3)
 
     // 2. onboarding and a preference
     await page.getByRole('button', { name: 'Skip' }).first().click()
