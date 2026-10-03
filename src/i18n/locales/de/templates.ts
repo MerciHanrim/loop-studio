@@ -17,7 +17,7 @@
 import type { TemplatesKey } from '../en/templates'
 
 const templates = {
-  'templates.button': 'Vorlagen ▾',
+  'templates.button': 'Vorlagen',
   'templates.menuLabel': 'Vorlagen',
   'templates.equilibrium.name': 'Ausgeglichene Produktionslinie',
   // shortened deliberately: this blurb has the tightest budget of all
@@ -39,7 +39,7 @@ const templates = {
   'templates.replace.title': 'Diese Vorlage laden?',
   'templates.replace.body': 'Ihre aktuelle Arbeit wird ersetzt durch: {name}',
   'templates.replace.confirm': 'Vorlage laden',
-  'modules.button': 'Modul einfügen ▾',
+  'modules.button': 'Modul einfügen',
   'modules.menuLabel': 'Modul einfügen',
   'modules.fromFile': 'Aus Datei…',
   'modules.extract': 'Auswahl als Modul extrahieren…',

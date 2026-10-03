@@ -48,6 +48,7 @@ const inspector = {
   'inspector.resourceType.normalised': '정규화 결과: “{value}”.',
   'inspector.resourceType.custom': '사용자 정의 유형 — 기본 색상 없이 일반 견본으로 표시됩니다.',
   'inspector.resourceType.mismatch': '유형 불일치: {pairs}. 참고용일 뿐이며 어떤 수량도 바꾸지 않고 실행을 막지도 않습니다.',
+  'inspector.resourceType.pair': '연결은 {edge}, 노드는 {node}',
   'inspector.parameter.outOfRange': '값이 참고용 최소/최대 범위를 벗어났습니다 — 그대로 두며 잘라내지 않습니다.',
   'inspector.parameter.hintIncoherent': '참고용 힌트가 서로 맞지 않아 내보낼 때 제거됩니다.',
   'inspector.parameter.noPorts': '파라미터는 포트가 없습니다 — 표현식에서 id로 참조하세요.',
@@ -154,7 +155,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— 잘못된 참조에 의존함',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — 캔버스 클릭 참조 삽입
-  'regExpr.insert.title': '＋ 참조 삽입',
+  'regExpr.insert.title': '참조 삽입',
   'regExpr.insert.armedLabel': '참조 선택 중',
   'regExpr.insert.hint': '캔버스에서 풀·파라미터·레지스터를 클릭하면 참조가 삽입됩니다.',
   'regExpr.insert.armed': '참조 삽입 대기 중입니다. 캔버스에서 노드를 클릭하거나 Esc로 취소하세요.',

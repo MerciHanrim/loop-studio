@@ -36,15 +36,15 @@ const ui = {
   'toolbar.newGraph.title': 'Einen neuen Graphen anlegen?',
   'toolbar.newGraph.body': 'Ihr aktueller Graph wird ersetzt.',
   'toolbar.newGraph.confirm': 'Neuer Graph',
-  'toolbar.file.button': 'Datei ▾',
+  'toolbar.file.button': 'Datei',
   'toolbar.file.menuLabel': 'Datei',
-  'toolbar.settings.button': 'Einstellungen ▾',
+  'toolbar.settings.button': 'Einstellungen',
   'toolbar.settings.menuLabel': 'Einstellungen',
   'theme.rowLabel': 'Design',
   'theme.title': 'Design: System / Hell / Dunkel',
-  'theme.auto': '◐ Automatisch',
-  'theme.light': '☀ Hell',
-  'theme.dark': '☾ Dunkel',
+  'theme.auto': 'Automatisch',
+  'theme.light': 'Hell',
+  'theme.dark': 'Dunkel',
   'theme.option.system': 'Automatisch',
   'theme.option.light': 'Hell',
   'theme.option.dark': 'Dunkel',
@@ -75,9 +75,9 @@ const ui = {
   'language.arabic': 'Arabisch',
   'playbar.reset.title': 'Auf Schritt 0 zurücksetzen',
   'playbar.step.title': 'Einen Schritt weiter',
-  'playbar.play': '▶ Abspielen',
-  'playbar.pause': '⏸ Pause',
-  'playbar.replay': '⟳ Erneut abspielen',
+  'playbar.play': 'Abspielen',
+  'playbar.pause': 'Pause',
+  'playbar.replay': 'Erneut abspielen',
   'playbar.step': 'Schritt {n}',
   'playbar.stepEnded': 'Schritt {n} · beendet',
   'playbar.speed': 'Tempo',
@@ -144,7 +144,7 @@ const ui = {
     'Der Link enthält dieses gesamte Diagramm samt aller Namen — wer ihn hat, kann das Diagramm öffnen und bearbeiten. Er wird nicht auf einen Server geladen, reist aber im Link selbst mit: Er bleibt damit in Ihrem Browserverlauf und ist für alle sichtbar, denen Sie ihn schicken.',
   'share.disclosure.confirm': 'Link erstellen',
   'share.tooLarge':
-    'Dieses Diagramm ist für einen Link zum Teilen zu groß ({size}; die Grenze liegt bei {cap}). Nutzen Sie „Datei ▾ → Graph JSON“ und teilen Sie stattdessen die Datei.',
+    'Dieses Diagramm ist für einen Link zum Teilen zu groß ({size}; die Grenze liegt bei {cap}). Nutzen Sie „Datei → Graph JSON“ und teilen Sie stattdessen die Datei.',
   'share.replacePrompt':
     'Das geteilte Diagramm öffnen? Ihr aktuelles Diagramm wird ersetzt. Exportieren Sie es vorher, wenn Sie es behalten möchten.',
   'share.noBase':
@@ -191,7 +191,7 @@ const ui = {
     'Der Inhalt der Modellebene dieser Datei ist nicht lesbar ({detail}); ihre Projektdaten wurden ignoriert.',
   'mobile.more.import': 'Datei importieren',
   'mobile.more.importSub': 'Graph oder Workspace JSON',
-  'export.button': 'Exportieren ▾',
+  'export.button': 'Exportieren',
   'export.menuLabel': 'Exportieren',
   'export.graphJson.name': 'Graph JSON',
   'export.graphJson.blurb': 'das Diagramm + die empfohlenen Laufeinstellungen',
@@ -206,11 +206,11 @@ const ui = {
   'revision.export.noSecureRandom':
     'Dieser Browser hat keine sichere Zufallsquelle, daher lässt sich keine Stand-ID erzeugen. Es wurde nichts exportiert.',
   'revision.export.tooLarge':
-    'Dieses Diagramm ist zu groß, um es als Projektstand zu exportieren ({size}; Grenze {cap}). Nutzen Sie stattdessen „Datei ▾ → Graph JSON“.',
+    'Dieses Diagramm ist zu groß, um es als Projektstand zu exportieren ({size}; Grenze {cap}). Nutzen Sie stattdessen „Datei → Graph JSON“.',
   'proposal.needProject':
-    'Für einen Vorschlag muss ein Projekt geöffnet sein. Legen Sie zuerst über „Datei ▾ → Projektstand“ eines an.',
+    'Für einen Vorschlag muss ein Projekt geöffnet sein. Legen Sie zuerst über „Datei → Projektstand“ eines an.',
   'proposal.dirtyOrigin':
-    'Das Dokument hat sich seit diesem Stand geändert. Halten Sie die Änderungen über „Datei ▾ → Projektstand“ fest und erstellen Sie dann einen Vorschlag.',
+    'Das Dokument hat sich seit diesem Stand geändert. Halten Sie die Änderungen über „Datei → Projektstand“ fest und erstellen Sie dann einen Vorschlag.',
   'proposal.tooLarge':
     'Dieser Vorschlag ist zu groß, um ihn als eine Datei zu verschicken ({size}; Grenze {cap}). Ein einfaches Graph JSON geht weiterhin.',
   'export.author.name': 'Autor für Exporte festlegen…',
@@ -479,6 +479,9 @@ const ui = {
   'whatsNew.v0151.desktopStrip': 'In einem schmalen Fenster werden die Wiedergabe-Schaltflächen am unteren Fensterrand nicht mehr abgeschnitten.',
   'whatsNew.v0151.sheets': 'Das Zeitverlauf-Blatt, das Blatt „Mehr“ und die Zoom-Schaltflächen bleiben über der Wiedergabeleiste, unabhängig von ihrer Höhe.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0153.icons': 'Abspielen, Pause, das Schloss, die Menüpfeile und die anderen Schaltflächensymbole sind jetzt eigene Icons der App und sehen auf Windows, dem iPhone und jedem anderen Gerät gleich aus.',
+  'whatsNew.v0153.names': 'Schaltflächennamen bestehen jetzt nur aus Wörtern, ohne schmückende Symbole, und die Schaltflächen Zurücksetzen und Ein Schritt haben Namen.',
+  'whatsNew.v0153.canvas': 'Die Palettenzeichen und das Auslöserzeichen auf einer Verbindung werden im Stil des Diagramms gezeichnet, in jedem Design und bei hohem Kontrast.',
   'whatsNew.v0152.themeBack': 'Das gewählte Design ist beim Start wieder da, ohne dass die Einstellungen geöffnet werden müssen.',
   'whatsNew.v0152.noFlash': 'Das dunkle Design beginnt nicht mehr mit einem hellen Aufblitzen: das gespeicherte Design wird angewendet, bevor etwas gezeichnet wird.',
   'whatsNew.v0152.unknownValue': 'Ein gespeichertes Design, das die App nicht lesen kann, folgt jetzt der Systemeinstellung, statt ignoriert zu werden.',

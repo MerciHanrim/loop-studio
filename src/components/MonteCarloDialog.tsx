@@ -6,6 +6,7 @@ import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { InlineHintNote } from './HintNote'
 import { DialogScrim } from './DialogScrim'
+import { Icon } from '../ui/icons'
 
 // P2 — Monte-Carlo setup. Opens from the simulation strip (an execution mode,
 // not an authoring command). Shows an exact memory projection and a time RANGE
@@ -121,7 +122,7 @@ export function MonteCarloDialog() {
         <div className="mcdlg__head">
           <span id="mcdlg-title">{t('mc.title')}</span>
           <button type="button" className="mcdlg__x" onClick={close} aria-label={t('mc.close')}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
 

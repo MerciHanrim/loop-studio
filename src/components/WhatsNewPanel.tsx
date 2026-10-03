@@ -4,6 +4,7 @@ import { RELEASE_NOTES } from '../releaseNotes/releaseNotes'
 import { useWhatsNewStore } from '../store/whatsNewStore'
 import { DialogScrim } from './DialogScrim'
 import { useDialogFocus } from './useDialogFocus'
+import { Icon } from '../ui/icons'
 
 // Issue #296 — the What's new panel: every release note, newest first. A normal
 // modal, like About: Escape, the backdrop and the close button each dismiss it.
@@ -65,7 +66,7 @@ export function WhatsNewPanel({ open, onClose, returnFocusTo }: Props) {
         <div className="mcdlg__head">
           <span id={titleId}>{t('whatsNew.title')}</span>
           <button type="button" className="mcdlg__x" onClick={onClose} aria-label={t('dialog.close')}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="mcdlg__body whatsnew" role="group" aria-labelledby={titleId} tabIndex={0}>

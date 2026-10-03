@@ -457,7 +457,7 @@ test.describe('frame accessibility — the delete keys (§LGR6.6 / F1, F3)', () 
 
   for (const dialog of [
     { name: 'Monte Carlo', open: async (page: Page) => { await page.locator('.pstrip__mc button').click(); await expect(page.locator('.mcdlg[role="dialog"]')).toBeVisible() } },
-    { name: 'spreadsheet import', open: async (page: Page) => { await page.getByRole('button', { name: 'Data ▾' }).click(); await page.getByRole('menuitem').first().click(); await expect(page.locator('.mcdlg--dataimport')).toBeVisible() } },
+    { name: 'spreadsheet import', open: async (page: Page) => { await page.getByRole('button', { name: 'Data' }).click(); await page.getByRole('menuitem').first().click(); await expect(page.locator('.mcdlg--dataimport')).toBeVisible() } },
   ]) {
     test(`an open ${dialog.name} dialog blocks the canvas delete keys (F3)`, async ({ page }) => {
       await load(page)

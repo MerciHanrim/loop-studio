@@ -11,7 +11,7 @@
 // disjoint and exhaustive.
 
 const dataImport = {
-  'import.button': 'Gegevens ▾',
+  'import.button': 'Gegevens',
   'import.title': 'Spreadsheetgegevens importeren',
   'import.tableName': 'Tabelnaam',
   'import.removeTable': 'Tabel verwijderen',

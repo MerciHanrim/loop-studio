@@ -56,7 +56,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(876)
+    expect(KEYS).toHaveLength(880)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -90,7 +90,12 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // (`whatsNew.v0152.*`) - `escolheu` not `você escolheu`, `definições` not
     // `configurações`, `deixa de` not `não ... mais`, `passa a seguir` not
     // `agora segue`, and `guardado` not `salvo`.
-    expect(DELTA).toHaveLength(176)
+    //
+    // Issue #298 moved it from 176 to 180: `inspector.resourceType.pair` (`ligação`
+    // not `conexão`) and the three 0.15.3 release-note lines (`aplicação` not
+    // `aplicativo`, `aspeto` not `aparência`, `leitura por voz` for the screen
+    // reader, `Repor` not `Redefinir`, `numa ligação` not `em uma conexão`).
+    expect(DELTA).toHaveLength(180)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

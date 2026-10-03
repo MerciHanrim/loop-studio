@@ -103,8 +103,8 @@ test('Share sits between Data and Settings, kept standalone', async ({ page }) =
   const labels = await page.locator('.toolbar__actions .toolbar__slot button').allInnerTexts()
   const compact = labels.map((s) => s.trim()).filter(Boolean)
   expect(compact).toContain('Share')
-  expect(compact.indexOf('Share')).toBeGreaterThan(compact.indexOf('Data ▾'))
-  expect(compact.indexOf('Share')).toBeLessThan(compact.indexOf('Settings ▾'))
+  expect(compact.indexOf('Share')).toBeGreaterThan(compact.indexOf('Data'))
+  expect(compact.indexOf('Share')).toBeLessThan(compact.indexOf('Settings'))
 })
 
 test('happy path: disclosure → link copied, shown selectably, address bar untouched', async ({

@@ -135,6 +135,7 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'pity', 'hard', 'pickup', 'premium', 'standard', 'banner', 'gacha', 'roll', 'lv',
     'ssr', 'sr',
   ]],
+  ['platform names in the 0.15.3 release note (issue #298)', ['windows', 'iphone']],
   ['canonical `resourceType` tokens, listed verbatim in a placeholder', [
     'gold', 'energy', 'player',
   ]],
@@ -148,9 +149,9 @@ const DECLARED = new Set(SURVIVING.flatMap(([, ws]) => ws))
  *  do not. MEASURED, then pinned. */
 const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
   ['catalog toolbar.buildTitle', 'Loop Studio v{version} · build {sha}'],
-  ['catalog toolbar.file.button', 'File ▾'],
+  ['catalog toolbar.file.button', 'File'],
   ['catalog toolbar.file.menuLabel', 'File'],
-  ['catalog theme.auto', '◐ Auto'],
+  ['catalog theme.auto', 'Auto'],
   ['catalog theme.option.system', 'Auto'],
   ['catalog playbar.seed', 'seed'],
   ['catalog playbar.mc', 'Monte Carlo'],
@@ -190,15 +191,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(876)
+    expect(KEYS).toHaveLength(880)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 876, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1098)
+    expect(per).toEqual({ catalog: 880, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1102)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

@@ -19,7 +19,7 @@
 // file, not prose, so they stay verbatim (key-scoped in `ptBrCopy.test.ts`).
 
 const dataImport = {
-  'import.button': 'Dados ▾',
+  'import.button': 'Dados',
   'import.title': 'Importar dados de planilha',
   'import.tableName': 'Nome da tabela',
   'import.removeTable': 'Remover tabela',

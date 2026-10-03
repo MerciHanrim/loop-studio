@@ -60,6 +60,8 @@ jobs:
         run: npm run check:content-direction
       - name: Arrow direction — every arrow decided by its meaning unit, no mirroring transforms
         run: npm run check:arrow-direction
+      - name: Functional glyphs — no replaced glyph returns to a component or a translation catalog
+        run: npm run check:functional-glyphs
       - name: Check every deferred isolation obligation is implemented
         run: npm run check:isolate-arguments
       - name: ICU arguments — every interpolated value classified, nothing unexamined

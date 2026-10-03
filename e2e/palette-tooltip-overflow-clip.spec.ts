@@ -77,7 +77,7 @@ test('721×720: menu-open suppression and click suppression still hold with the 
   await page.setViewportSize({ width: 721, height: 720 })
 
   // menu-open suppresses it
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates$/ }).click()
   await chip(page, 'pool').hover()
   await expect(tip(page, 'pool')).toBeHidden()
   await page.keyboard.press('Escape')

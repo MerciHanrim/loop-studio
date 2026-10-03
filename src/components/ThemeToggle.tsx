@@ -4,6 +4,7 @@ import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { storagePort } from '../storage/storagePort'
 import { applyTheme, readStoredTheme, THEME_KEY, THEME_MODES, type ThemeMode } from '../theme/theme'
+import { Icon } from '../ui/icons'
 
 // issue #302 - the key, the reader and the applier live in src/theme/theme.ts,
 // shared with the start-up in src/main.tsx. This component only chooses.
@@ -154,7 +155,7 @@ export function ThemeToggle({
                 onKeyDown={onItemKeyDown}
               >
                 <span className="menu__name">
-                  {m === mode ? '✓ ' : ''}
+                  {m === mode ? <Icon name="check" className="icon--check" /> : null}
                   {t(OPTION_KEY[m])}
                 </span>
               </button>
@@ -167,6 +168,7 @@ export function ThemeToggle({
 
   return (
     <button type="button" className="btn" onClick={cycle} title={t('theme.title')}>
+      <Icon name={mode === 'system' ? 'auto' : mode === 'light' ? 'sun' : 'moon'} className="icon--lead" />
       {t(LABEL_KEY[mode])}
     </button>
   )

@@ -14,7 +14,7 @@
 // classifier noun that takes the suffix instead (§L2.18).
 
 const templates = {
-  'templates.button': 'Şablonlar ▾',
+  'templates.button': 'Şablonlar',
   'templates.menuLabel': 'Şablonlar',
   'templates.equilibrium.name': 'Dengeli üretim hattı',
   'templates.equilibrium.blurb':
@@ -34,7 +34,7 @@ const templates = {
   'templates.replace.title': 'Bu şablon yüklensin mi?',
   'templates.replace.body': 'Şu anki çalışmanızın yerini şu alacak: {name}',
   'templates.replace.confirm': 'Şablonu yükle',
-  'modules.button': 'Modül ekle ▾',
+  'modules.button': 'Modül ekle',
   'modules.menuLabel': 'Modül ekle',
   'modules.fromFile': 'Dosyadan…',
   'modules.extract': 'Seçimi modül olarak çıkar…',

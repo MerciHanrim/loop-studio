@@ -88,11 +88,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('th copy — the first no-space script', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TH).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(876)
+    expect(KEYS).toHaveLength(880)
   })
 
   it('covers all three runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(876)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(880)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -165,7 +165,7 @@ const latinWords = (s: string) => [...stripIcu(s).matchAll(/[A-Za-z][A-Za-z0-9]*
 /** Brand and product names. Never translated in any locale. */
 const LATIN_BRAND = [
   'loop', 'studio', 'machinations', 'io', 'github', 'google', 'sheets',
-  'excel', 'numbers', 'monte', 'carlo', 'mc', 'mmo',
+  'excel', 'numbers', 'monte', 'carlo', 'mc', 'mmo', 'windows', 'iphone',
 ]
 /** File formats and the export commands named after them. `Graph JSON` and
  *  `Runs CSV` are the names of the files the product writes. */
@@ -390,6 +390,7 @@ const LATIN_KEYS = [
   'template/mmo-progression:z1_xp_meter',
   'template/mmo-progression:z2_xp_meter',
   'template/mmo-progression:z3_xp_meter',
+  'catalog:whatsNew.v0153.icons',
 ]
 
 describe('a Latin run is declared, twice over — by key and by word', () => {
@@ -399,7 +400,7 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
 
   it('the strings carrying a Latin run are exactly the declared ones', () => {
     expect(withLatin.slice().sort()).toEqual(LATIN_KEYS.slice().sort())
-    expect(LATIN_KEYS).toHaveLength(148)
+    expect(LATIN_KEYS).toHaveLength(149)
   })
 
   it('the Latin vocabulary is exactly the declared one', () => {
@@ -407,14 +408,14 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
     for (const [, , v] of RUNTIME) for (const w of latinWords(v)) seen.add(w)
     const declared = new Set([...LATIN_GLOBAL, ...Object.keys(LATIN_KEY_SCOPED)])
     expect([...seen].sort()).toEqual([...declared].sort())
-    expect(declared.size).toBe(72)
+    expect(declared.size).toBe(74)
   })
 
   it('the groups are disjoint, and they add up', () => {
     // Otherwise a word could be quietly moved between groups, and the reason
     // it is allowed — which is the whole content of this list — would rot.
     const counts = LATIN_GROUPS.map(([, g]) => g.length)
-    expect(counts).toEqual([13, 10, 11, 23, 12])
+    expect(counts).toEqual([15, 10, 11, 23, 12])
     const all = LATIN_GROUPS.flatMap(([, g]) => g)
     expect(all).toHaveLength(LATIN_GLOBAL.size)
     for (const w of Object.keys(LATIN_KEY_SCOPED)) expect(LATIN_GLOBAL.has(w)).toBe(false)

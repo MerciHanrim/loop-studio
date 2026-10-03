@@ -122,7 +122,7 @@ const CONTROLS: Ctl[] = [
     plainToken: true,
     hoverToken: true,
     open: async (page) => {
-      await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
+      await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
       await page.locator('.lang-switch').first().click()
       const el = page.locator('.lang-menu__search')
       await expect(el).toBeVisible()
@@ -296,7 +296,7 @@ const CONTROLS: Ctl[] = [
 
 /** the import wizard with the quick-start example filled in, nothing focused */
 async function openImportWizard(page: Page) {
-  await page.getByRole('button', { name: 'Data ▾' }).click()
+  await page.getByRole('button', { name: 'Data' }).click()
   await page.getByRole('menuitem').first().click()
   const dlg = page.locator('.mcdlg--dataimport')
   await expect(dlg).toBeVisible()
@@ -307,7 +307,7 @@ async function openImportWizard(page: Page) {
 }
 
 async function openAuthorDialog(page: Page) {
-  await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
   await page
     .locator('.toolbar__actions .menu__pop [role="menuitem"]')
     .filter({ has: page.locator('.menu__name', { hasText: /author/i }) })

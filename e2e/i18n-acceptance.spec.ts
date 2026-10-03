@@ -42,7 +42,7 @@ const htmlLang = (page: Page) => page.evaluate(() => document.documentElement.la
 // desktop, not a standalone toolbar pill (Hanrim's visual review,
 // 2026-09-15); its trigger only exists once Settings is open.
 async function openSettings(page: Page): Promise<void> {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
 }
 
 /** open the language menu (desktop — inside `Settings ▾` — or inside a
@@ -350,7 +350,7 @@ test.describe('i18n Slice 3 — KO under forced-colors', () => {
     await importGraph(page, G)
     await pickLocale(page, 'ko')
 
-    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ 재생')
+    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('재생')
     await openMc(page)
     await expect(page.locator('.mcdlg #mcdlg-title')).toHaveText('몬테카를로')
     await assertContained(page, '.mcdlg')

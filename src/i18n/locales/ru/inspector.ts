@@ -65,6 +65,7 @@ const inspector = {
   'inspector.resourceType.custom': 'Свой тип — общий образец, встроенного цвета нет.',
   'inspector.resourceType.mismatch':
     'Несовпадение типов: {pairs}. Только справочно — количества не меняются и выполнение не блокируется.',
+  'inspector.resourceType.pair': '{edge} на связи, {node} на узле',
   'inspector.parameter.outOfRange':
     'Значение выходит за справочные мин./макс. — оставлено как есть, не обрезано.',
   'inspector.parameter.hintIncoherent':
@@ -181,7 +182,7 @@ const inspector = {
   'regExpr.row.notFinite': '→ не конечное число',
   'regExpr.row.dependsInvalid': '— зависит от некорректной ссылки',
   'regExpr.row.generic': '— {code}',
-  'regExpr.insert.title': '＋ Вставить ссылку',
+  'regExpr.insert.title': 'Вставить ссылку',
   'regExpr.insert.armedLabel': 'Выбор ссылки',
   'regExpr.insert.hint':
     'Нажмите на Накопитель, Параметр или Вычисляемое значение на холсте, чтобы вставить ссылку.',

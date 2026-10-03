@@ -52,7 +52,7 @@ async function openLanguageMenu(page: Page) {
   const trigger = page.locator('.lang-switch').first()
   if (!(await trigger.isVisible().catch(() => false))) {
     await page
-      .locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定|设置) ▾$/ })
+      .locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定|设置)$/ })
       .click()
   }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape')

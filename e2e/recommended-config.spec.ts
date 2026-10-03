@@ -21,7 +21,7 @@ const setConfig = (page: Page, c: Record<string, unknown>) =>
 
 /** toolbar `File ▾` → `Graph JSON` */
 async function exportGraphJSON(page: Page) {
-  await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
   await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Graph JSON' }).click()
 }
 

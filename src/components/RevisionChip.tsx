@@ -1,6 +1,7 @@
 import { useProjectStore } from '../store/projectStore'
 import { useT } from '../i18n'
 import { isolateLtr } from '../i18n/bidiIsolate'
+import { Icon } from '../ui/icons'
 
 // SEMANTICS-R.md §R2 / §R8 — a compact, non-interactive indicator of the open
 // project revision (or proposal) and whether the live doc has drifted from its
@@ -25,11 +26,9 @@ export function RevisionChip({ className }: { className?: string }) {
       className={`rev-chip${dirty ? ' rev-chip--dirty' : ''}${className ? ` ${className}` : ''}`}
       title={title}
     >
-      <span aria-hidden>{isProposal ? '✎' : '⌥'}</span> {label}
+      <Icon name={isProposal ? 'pencil' : 'branch'} /> {label}
       {dirty ? (
-        <span className="rev-chip__dot" aria-label={t('revChip.unsaved')}>
-          ●
-        </span>
+        <span className="rev-chip__dot" role="img" aria-label={t('revChip.unsaved')} />
       ) : null}
     </span>
   )

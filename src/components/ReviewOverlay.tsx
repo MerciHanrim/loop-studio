@@ -18,6 +18,7 @@ import { useArrowGlyph, useT, type MessageKey } from '../i18n'
 import { isolateLtr } from '../i18n/bidiIsolate'
 import { MobileSheet } from './mobile/MobileSheet'
 import { InlineHintNote } from './HintNote'
+import { Icon } from '../ui/icons'
 
 type TFn = ReturnType<typeof useT>
 
@@ -573,7 +574,7 @@ export function ReviewOverlay() {
         <div className="review__head">
           <span className="review__title">{t('review.title')}</span>
           <button type="button" className="btn btn--icon" onClick={close} aria-label={t('review.close')}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         {body}

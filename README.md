@@ -137,7 +137,16 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.15.2
+## Latest — v0.15.3
+
+A fix release: the buttons' symbols are the app's own icons.
+
+- **Every functional icon is drawn by the app**, not by an operating-system font, so Play,
+  the lock, the menu arrows and the rest look the same on Windows, iPhone and everywhere else
+- **Names are words**: no symbol is read out before a label, and the Reset and Step buttons
+  have names
+
+## v0.15.2
 
 A fix release: the theme you chose comes back when the app starts.
 

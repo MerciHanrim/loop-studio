@@ -23,7 +23,7 @@ test.describe('dialog focus + keyboard', () => {
     await expect(page.locator('.react-flow__node')).toHaveCount(1)
 
     // New is File ▾'s own row now (docs/toolbar-responsive.md)
-    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ })
+    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ })
     await fileBtn.click()
     const newBtn = page.getByRole('menuitem', { name: 'New' })
     await newBtn.click()
@@ -49,7 +49,7 @@ test.describe('dialog focus + keyboard', () => {
     await page.evaluate(() =>
       (window as any).__loop.graph.getState().addNodeAt('pool', { x: 200, y: 160 }),
     )
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
     await page.getByRole('menuitem', { name: 'New' }).click()
     await page.locator('.mcdlg--confirm').getByRole('button', { name: 'New graph' }).click()
     await expect(page.locator('.mcdlg--confirm')).toBeHidden()

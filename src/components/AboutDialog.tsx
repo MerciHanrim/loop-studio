@@ -2,6 +2,7 @@ import { useId, useRef } from 'react'
 import { useT } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { DialogScrim } from './DialogScrim'
+import { Icon } from '../ui/icons'
 
 // docs/guided-tour.md §GT7.1 — a small, static, read-only "About Loop Studio"
 // dialog (the creator / copyright are otherwise only in README.md). Opening or
@@ -43,7 +44,7 @@ export function AboutDialog({ open, onClose, returnFocusTo }: Props) {
         <div className="mcdlg__head">
           <span id={titleId}>Loop Studio</span>
           <button type="button" className="mcdlg__x" onClick={onClose} aria-label={t('dialog.close')}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="mcdlg__body about">

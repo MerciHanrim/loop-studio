@@ -11,6 +11,7 @@ import { applyMoveDelta, captureMoveOrigin, moveTargets, type MoveOrigin, type P
 import { createKeyGesture } from '../../ui/keyGestureLifetime'
 import { FramePropsPopover } from './FramePropsPopover'
 import { isolateAuto } from '../../i18n/bidiIsolate'
+import { Icon } from '../../ui/icons'
 
 // docs/large-graph-readability.md §LGR6 (transient) + …-auto-frames.md §AF (auto).
 // One render layer for BOTH frame kinds:
@@ -742,7 +743,7 @@ export function FrameLayer() {
                       else removeFrame(rf.id)
                     }}
                   >
-                    ✕
+                    <Icon name="close" />
                   </button>
                   <button
                     type="button"

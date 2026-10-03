@@ -48,6 +48,7 @@ const inspector = {
   'inspector.resourceType.normalised': 'Normalised to “{value}”.',
   'inspector.resourceType.custom': 'Custom type — generic swatch; no built-in colour.',
   'inspector.resourceType.mismatch': 'Type mismatch: {pairs}. Advisory only — it changes no amount and blocks no run.',
+  'inspector.resourceType.pair': '{edge} on the connection, {node} on the node',
   'inspector.parameter.outOfRange': 'The value is outside the advisory min/max — kept as-is, not clamped.',
   'inspector.parameter.hintIncoherent': 'An advisory hint is incoherent and will be dropped on export.',
   'inspector.parameter.noPorts': 'A Parameter has no ports — reference it by id from an expression.',
@@ -155,7 +156,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— depends on an invalid reference',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — arm-and-click canvas insert
-  'regExpr.insert.title': '＋ Insert reference',
+  'regExpr.insert.title': 'Insert reference',
   'regExpr.insert.armedLabel': 'Selecting a reference',
   'regExpr.insert.hint': 'Click a Pool, Parameter, or Register on the canvas to insert its reference.',
   'regExpr.insert.armed': 'Reference insert armed. Click a node on the canvas, or press Escape to cancel.',

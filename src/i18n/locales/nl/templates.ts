@@ -6,7 +6,7 @@
 // each kept token by key so a later edit cannot quietly translate one.
 
 const templates = {
-  'templates.button': 'Sjablonen ▾',
+  'templates.button': 'Sjablonen',
   'templates.menuLabel': 'Sjablonen',
   'templates.equilibrium.name': 'Gebalanceerde productielijn',
   'templates.equilibrium.blurb': 'Materiaal in, bewerking en uitval, eindproduct uit — een lijn die na enkele stappen stabiliseert.',
@@ -21,7 +21,7 @@ const templates = {
   'templates.replace.title': 'Dit sjabloon laden?',
   'templates.replace.body': 'Je huidige werk wordt vervangen door: {name}',
   'templates.replace.confirm': 'Sjabloon laden',
-  'modules.button': 'Module invoegen ▾',
+  'modules.button': 'Module invoegen',
   'modules.menuLabel': 'Module invoegen',
   'modules.fromFile': 'Uit bestand…',
   'modules.extract': 'Selectie als module uitnemen…',

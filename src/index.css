@@ -1146,6 +1146,94 @@ body {
   font-size: 14px;
   line-height: 1;
 }
+/* issue #298 — the shared inline-SVG icons (src/ui/icons.tsx). `1em` square, so
+   an icon takes the height of the text it replaced and the control keeps its
+   box; `currentColor` so it follows the control's text colour, in every theme
+   and under forced colours. Decorative: `aria-hidden`, the name is the control's. */
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+/* The sizes below reproduce the boxes the CHARACTERS gave each control, MEASURED
+   before the replacement (the layout fingerprint of issue #298): a typed glyph
+   came from an OS font whose line box was often a pixel taller than the text
+   font's, and a control must keep the box it had, so an icon that replaces a
+   glyph takes that glyph's advance width and the line box it produced. */
+/* an icon leading a text label (Play / Pause / Replay, the theme pill, Insert reference) */
+.icon--lead {
+  margin-inline-end: 0.25em;
+  height: 16px;
+  vertical-align: bottom;
+}
+/* the disclosure arrow after a menu button's word (`File ▾` before this issue) */
+.icon--caret {
+  margin-inline-start: 0.25em;
+  width: 0.9em;
+  height: 16px;
+  vertical-align: bottom;
+}
+/* the Insert reference button lays its children out with a 3 px flex gap, which already
+   separates the icon from the words: no margin, or the button grows by it */
+.regexpr__pick > .icon--lead {
+  margin-inline-end: 0;
+}
+/* the Distribution panel's Export button is a 9 px mono label: its line box was 11 px */
+.timeline__csv > .icon--caret {
+  height: 11px;
+  width: 10.6px; /* the advance of ` ▾` in the letter-spaced mono label, less the margin */
+}
+/* the mobile Help sheet's feedback row: a 17 px line box behind the old `↗` */
+.sheet__row > .menu__ext.icon {
+  height: 19px;
+}
+/* the selected mark in the Language and Theme menus (`✓ ` before this issue) */
+.icon--check {
+  margin-inline-end: 0.3em;
+  height: 17px;
+  vertical-align: bottom;
+}
+/* the external-link mark after a menu item's words */
+.menu__ext.icon {
+  height: 16px;
+  vertical-align: bottom;
+}
+/* icon-only controls: the icon IS the content box */
+.btn--icon > .icon {
+  display: block;
+  height: 14px;
+}
+.toolbar__actions-core .btn--icon > .icon {
+  width: 11.5px; /* the advance of `↶` / `↷` */
+}
+.mcdlg__x > .icon,
+.sheet__x > .icon {
+  display: block;
+  width: 10px;
+  height: 16px;
+}
+.pstrip__reset > .icon,
+.pstrip__step-btn > .icon,
+.pstrip__collapse > .icon {
+  display: block;
+  height: 16px;
+}
+.pstrip__step-btn > .icon {
+  width: 10px; /* the advance of `⏭` */
+}
+.pstrip__collapse > .icon {
+  width: 11px; /* the advance of `▾` / `▴` */
+}
+.pb-btn .icon--lead {
+  width: 12px;
+}
+.pstrip__tl > .icon {
+  width: 11px;
+  height: 16px;
+  vertical-align: bottom;
+}
 .btn--sm {
   padding: 3px 9px;
   font-size: 11px;
@@ -3719,6 +3807,12 @@ a.sheet__row {
   font-style: normal;
 }
 /* label delta + separate clamp note; trigger "blocked" tag */
+/* issue #298 — the trigger mark, an icon of the label's own size and colour */
+.edge-label__mark {
+  display: block;
+  width: 9.5px; /* the advance of `✳` at this size, so the label's width is unchanged */
+  height: 15px; /* the line box the glyph gave the label */
+}
 .edge-label__delta {
   margin-left: 5px;
   font-style: normal;
@@ -5756,9 +5850,15 @@ input[type='number']::-webkit-inner-spin-button {
   border-color: var(--warning);
   color: var(--warning);
 }
+/* issue #298 — the unsaved mark is a CSS circle (was the `●` character, drawn
+   by an OS font); it follows the chip's text colour */
 .rev-chip__dot {
-  font-size: 9px;
-  line-height: 1;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
 }
 .rev-chip--mobile {
   font-size: 9px;

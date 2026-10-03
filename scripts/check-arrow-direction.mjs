@@ -28,6 +28,9 @@
 //     character: it flips whatever else shares the element, never reaches the
 //     accessible name, and cannot be read back as text. The opposite characters were
 //     measured to exist in the shipping font stack, so a real glyph is available.
+//     Since issue #298 the arrows that are ICONS follow the same rule: `ArrowIcon`
+//     (src/ui/icons.tsx) ships an rtl DRAWING derived from the ltr one as path data
+//     (src/ui/mirrorPath.ts), and clause 1b holds every mirroring icon to it.
 //  4. The catalogue contract, for every registered locale. An LTR catalogue carries
 //     the ltr glyph; an RTL one carries the mirrored glyph where the unit mirrors and
 //     the SAME glyph where it does not — which is the case a translator is most
@@ -177,6 +180,82 @@ for (const [id, u] of mirrorUnits) {
     for (const [rel, per] of measured) {
       if (per[g]) problems.push(`${rel}: renders \`${g}\` as a literal - it belongs to the mirroring unit \`${id}\` and must come from useArrowGlyph`)
     }
+  }
+}
+
+// ── clause 1b: the ICON units (issue #298) ─────────────────────────────────
+// A mirroring icon is rendered only by `<ArrowIcon unit="…">`, which picks one of
+// two drawings by the reader's direction; a keeping icon is a plain `<Icon>` with
+// one drawing. The manifest records every ArrowIcon site and count, and the table
+// in src/ui/icons.tsx must name exactly the mirroring units and no other.
+const ICON_MIRROR = new Set(Object.keys(M.icons.mirror))
+const ICON_KEEP = new Set(Object.keys(M.icons.keep))
+const iconSitesSeen = new Map() // `${file} ${unit}` -> count
+let iconSiteTotal = 0
+for (const abs of tsxFiles) {
+  const rel = path.relative(ROOT, abs).split(path.sep).join('/')
+  const sf = parse(abs, rel)
+  const visit = (n) => {
+    if (ts.isJsxSelfClosingElement(n) || ts.isJsxOpeningElement(n)) {
+      const tag = n.tagName.getText(sf)
+      const attr = (name) => {
+        const a = n.attributes.properties.find((p) => ts.isJsxAttribute(p) && p.name.getText(sf) === name)
+        if (!a || !a.initializer) return null
+        if (ts.isStringLiteral(a.initializer)) return { literal: a.initializer.text }
+        return { literal: null }
+      }
+      if (tag === 'ArrowIcon') {
+        const u = attr('unit')
+        if (!u || u.literal === null) problems.push(`${rel}: an <ArrowIcon> must name its unit as a string literal`)
+        else if (!ICON_MIRROR.has(u.literal)) problems.push(`${rel}: <ArrowIcon unit="${u.literal}"> - "${u.literal}" is not a mirroring icon unit${ICON_KEEP.has(u.literal) ? ' (it KEEPS its drawing for every reader: use <Icon>)' : ''}`)
+        else {
+          const k = rel + ' ' + u.literal
+          iconSitesSeen.set(k, (iconSitesSeen.get(k) ?? 0) + 1)
+          iconSiteTotal++
+        }
+      } else if (tag === 'Icon') {
+        const nm = attr('name')
+        if (nm && nm.literal !== null && ICON_MIRROR.has(nm.literal)) problems.push(`${rel}: <Icon name="${nm.literal}"> - a mirroring unit must be an <ArrowIcon>, which follows the reader`)
+      }
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(sf)
+}
+for (const s of M.icons.sites) {
+  const k = s.file + ' ' + s.unit
+  const seen = iconSitesSeen.get(k) ?? 0
+  if (seen !== s.count) problems.push(`${s.file}: <ArrowIcon unit="${s.unit}"> is rendered ${seen} time(s), the manifest records ${s.count}`)
+  iconSitesSeen.delete(k)
+}
+for (const [k, n] of iconSitesSeen) problems.push(`${k.split(' ')[0]}: <ArrowIcon unit="${k.split(' ')[1]}"> is rendered ${n} time(s) and the manifest records no site there - a new arrow arrived unruled`)
+if (iconSiteTotal !== M.totals.iconSites) problems.push(`the icon sites sum to ${iconSiteTotal} and totals.iconSites says ${M.totals.iconSites}`)
+{
+  // the table in icons.tsx: ARROW_ICONS keys == the mirroring units; every keep unit is a plain ICONS key
+  const iconsAbs = path.join(ROOT, 'src/ui/icons.tsx')
+  const sf = parse(iconsAbs, 'src/ui/icons.tsx')
+  const keysOf = (name) => {
+    let keys = null
+    const visit = (n) => {
+      if (ts.isVariableDeclaration(n) && n.name.getText(sf) === name && n.initializer) {
+        let init = n.initializer
+        while (ts.isSatisfiesExpression?.(init) || ts.isAsExpression(init)) init = init.expression
+        if (ts.isObjectLiteralExpression(init)) keys = init.properties.map((p) => p.name.getText(sf).replace(/^['"]|['"]$/g, ''))
+      }
+      ts.forEachChild(n, visit)
+    }
+    visit(sf)
+    return keys
+  }
+  const arrowKeys = keysOf('ARROW_ICONS')
+  const iconKeys = keysOf('ICONS')
+  if (!arrowKeys || !iconKeys) problems.push('src/ui/icons.tsx: could not read the ARROW_ICONS / ICONS tables')
+  else {
+    const want = [...ICON_MIRROR].sort().join(',')
+    const have = [...arrowKeys].sort().join(',')
+    if (want !== have) problems.push(`src/ui/icons.tsx: ARROW_ICONS draws [${have}] but the mirroring icon units are [${want}]`)
+    for (const k of ICON_KEEP) if (!iconKeys.includes(k)) problems.push(`src/ui/icons.tsx: the keep unit "${k}" has no drawing in ICONS`)
+    for (const k of arrowKeys) if (iconKeys.includes(k)) problems.push(`src/ui/icons.tsx: "${k}" is drawn both as a plain icon and as an arrow icon`)
   }
 }
 
@@ -364,6 +443,7 @@ if (conditionalHits < 0) problems.push('a locale checked fewer keys than the con
 console.log('check-arrow-direction')
 console.log('  units                  ' + Object.keys(M.units).length + '  (mirror ' + mirrorUnits.length + ', keep ' + (Object.keys(M.units).length - mirrorUnits.length) + ')')
 console.log('  jsx sites via the hook ' + siteTotal)
+console.log('  icon sites (ArrowIcon) ' + iconSiteTotal + '  (mirroring icon units ' + ICON_MIRROR.size + ', keeping ' + ICON_KEEP.size + ')')
 console.log('  keep literals          ' + M.keepLiterals.reduce((n, k) => n + k.count, 0))
 console.log('')
 console.log('  the catalogue clause, and where its key-check total comes from:')
@@ -373,8 +453,8 @@ console.log('     pseudo, no catalogue of their own   ' + pseudoNoCatalogue.leng
 console.log('        en-XA generates from en; ar-XB falls back to en verbatim. Neither has')
 console.log('        a file, and a catalogue-CONTENT rule cannot apply to a verbatim copy.')
 console.log('     (unit, key) pairs per locale   ' + pairsPerLocale + '   = ' + M.catalog.map((c) => c.keys.length + ' ' + c.unit).join(' + '))
-console.log('        four keys are governed by TWO units - their string carries two')
-console.log('        different arrows - so pairs exceed distinct keys.')
+console.log('        (a key governed by TWO units counts twice; since issue #298 no key is,')
+console.log('        the disclosure arrow that shared four keys with menu-path is an icon.)')
 console.log('     conditional hits               ' + conditionalHits + '   (import.qs.sources.excel, counted only where a translation uses an arrow at all)')
 console.log('')
 console.log('  TWO AXES, named, because they are different numbers:')

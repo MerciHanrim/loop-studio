@@ -10,7 +10,7 @@
 // for frame — §L2.19.
 
 const templates = {
-  'templates.button': 'เทมเพลต ▾',
+  'templates.button': 'เทมเพลต',
   'templates.menuLabel': 'เทมเพลต',
   'templates.equilibrium.name': 'สายการผลิตที่สมดุล',
   'templates.equilibrium.blurb':
@@ -30,7 +30,7 @@ const templates = {
   'templates.replace.title': 'โหลดเทมเพลตนี้หรือไม่',
   'templates.replace.body': 'งานปัจจุบันจะถูกแทนที่ด้วย: {name}',
   'templates.replace.confirm': 'โหลดเทมเพลต',
-  'modules.button': 'แทรกมอดูล ▾',
+  'modules.button': 'แทรกมอดูล',
   'modules.menuLabel': 'แทรกมอดูล',
   'modules.fromFile': 'จากไฟล์…',
   'modules.extract': 'แยกสิ่งที่เลือกออกเป็นมอดูล…',

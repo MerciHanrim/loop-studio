@@ -3,6 +3,7 @@ import { useT, type MessageKey } from '../i18n'
 import { useDialogFocus } from './useDialogFocus'
 import { useHintStore, type HintId } from '../store/hintStore'
 import { DialogScrim } from './DialogScrim'
+import { Icon } from '../ui/icons'
 
 // docs/contextual-inline-help.md §CIH4 — the Help-menu entry both Help surfaces
 // reserve a row for. Since issue #296 it is named for what it does: the menu
@@ -62,7 +63,7 @@ export function ContextualHelpDialog({ open, onClose, returnFocusTo }: Props) {
         <div className="mcdlg__head">
           <span id={titleId}>{t('help.contextual.title')}</span>
           <button type="button" className="mcdlg__x" onClick={onClose} aria-label={t('dialog.close')}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="mcdlg__body contextual-help">

@@ -5,7 +5,7 @@
 import type { TemplatesKey } from '../en/templates'
 
 const templates = {
-  'templates.button': '템플릿 ▾',
+  'templates.button': '템플릿',
   'templates.menuLabel': '템플릿',
   'templates.equilibrium.name': '균형 잡힌 생산 라인',
   'templates.equilibrium.blurb': '원료 투입부터 가공, 폐기, 출하까지 이어지며 몇 단계 만에 안정됩니다.',
@@ -20,7 +20,7 @@ const templates = {
   'templates.replace.title': '템플릿을 불러오시겠습니까?',
   'templates.replace.body': '현재 작업을 다음 템플릿으로 바꿉니다: {name}',
   'templates.replace.confirm': '템플릿 불러오기',
-  'modules.button': '모듈 삽입 ▾',
+  'modules.button': '모듈 삽입',
   'modules.menuLabel': '모듈 삽입',
   'modules.fromFile': '파일에서…',
   'modules.extract': '선택 항목을 모듈로 내보내기…',

@@ -976,7 +976,7 @@ function ResourceTypeField({
         <p className="inspector__note inspector__note--warn">
           {t('inspector.resourceType.mismatch', {
             pairs: findings
-              .map((f) => `${isolateAuto(f.edgeType)} ↔ ${isolateAuto(f.nodeType)}`)
+              .map((f) => t('inspector.resourceType.pair', { edge: isolateAuto(f.edgeType), node: isolateAuto(f.nodeType) }))
               .join(', '),
           })}
         </p>

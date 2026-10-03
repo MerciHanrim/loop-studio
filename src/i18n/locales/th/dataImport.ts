@@ -14,7 +14,7 @@
 // same way, because without a delimiter a value runs into unspaced Thai text.
 
 const dataImport = {
-  'import.button': 'ข้อมูล ▾',
+  'import.button': 'ข้อมูล',
   'import.title': 'นำเข้าข้อมูลจากตาราง',
   'import.tableName': 'ชื่อตาราง',
   'import.removeTable': 'ลบตาราง',

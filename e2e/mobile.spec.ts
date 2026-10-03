@@ -1478,6 +1478,8 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
       return {
         sub: sub ? getComputedStyle(sub).color : null,
         subText: sub ? (sub.textContent ?? '') : '',
+        // issue #298 — the submenu affordance is an icon, not a character in the text
+        subArrow: sub ? sub.querySelector('svg[data-arrow="submenu"]') !== null : false,
         bg,
         hovered: el.matches(':hover'),
         focusVisible: el.matches(':focus-visible'),
@@ -1573,7 +1575,7 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
         const r = ratio(parseRgb(s.sub!), parseRgb(s.bg))
         console.log(`[sub] ${which}/${name} focus ${s.sub} on ${s.bg} = ${r2(r)}:1`)
         if (r < 4.5) bad.push(`${which}/${name} ${r2(r)}:1`)
-        if (which === 'More' && s.subText.includes('▸')) markers.push(name)
+        if (which === 'More' && s.subArrow) markers.push(name)
       }
       await page.keyboard.press('Escape')
     }

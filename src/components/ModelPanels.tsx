@@ -8,8 +8,9 @@ import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcomes } from '../store/registers'
 import { useSimStore } from '../store/simStore'
 import { useUiStore } from '../store/uiStore'
-import { useArrowGlyph, useT, type MessageKey } from '../i18n'
+import { useT, type MessageKey } from '../i18n'
 import { isolateAuto } from '../i18n/bidiIsolate'
+import { ArrowIcon, Icon } from '../ui/icons'
 
 // docs/module-system.md §MS5 — the Inputs and Summary panels. Two collapsible
 // sections at the top of the desktop right column, above the Inspector. Pure
@@ -79,10 +80,8 @@ function PanelHead({
   aside?: ReactNode
 }) {
   const t = useT()
-  // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
-  // only the inline-end arm mirrors: `▾` is the disclosure-vertical unit and a
-  // menu opens downward for every reader
-  const caret = useArrowGlyph('submenu-disclosure')
+  // §L9.3 — only the inline-end arm follows the reader (`ArrowIcon`, issue #298);
+  // a menu opens downward for every reader, so the open state is a plain icon
   return (
     <div className="mpanel__headrow">
       <h2 className="mpanel__head">
@@ -94,7 +93,7 @@ function PanelHead({
           onClick={onToggle}
         >
           <span className="mpanel__caret" aria-hidden="true">
-            {open ? '▾' : caret}
+            {open ? <Icon name="chevron-down" /> : <ArrowIcon unit="submenu" />}
           </span>
           {title}
           <span className="mpanel__count" dir="ltr">{count}</span>

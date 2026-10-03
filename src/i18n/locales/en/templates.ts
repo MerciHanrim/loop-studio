@@ -5,7 +5,7 @@
 // unchanged from the pre-split single file.
 
 const templates = {
-  'templates.button': 'Templates ▾',
+  'templates.button': 'Templates',
   'templates.menuLabel': 'Templates',
   'templates.equilibrium.name': 'Balanced production line',
   'templates.equilibrium.blurb': 'Material in, processing and scrap, finished goods out — a line that settles within a few steps.',
@@ -20,7 +20,7 @@ const templates = {
   'templates.replace.title': 'Load this template?',
   'templates.replace.body': 'Your current work will be replaced with: {name}',
   'templates.replace.confirm': 'Load template',
-  'modules.button': 'Insert module ▾',
+  'modules.button': 'Insert module',
   'modules.menuLabel': 'Insert module',
   'modules.fromFile': 'From file…',
   'modules.extract': 'Extract selection as module…',

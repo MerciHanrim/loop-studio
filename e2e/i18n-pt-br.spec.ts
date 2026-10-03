@@ -163,7 +163,7 @@ test('the picker offers Português (Brasil), tagged as its own language', async 
   await row.click()
   await expect.poll(() => htmlLang(page)).toBe('pt-BR')
   expect(await stored(page)).toBe('pt-BR')
-  await expect(page.locator('.toolbar__settingsmenu > button')).toHaveText('Configurações ▾')
+  await expect(page.locator('.toolbar__settingsmenu > button')).toHaveText('Configurações')
 })
 
 // ------------------------------------------------------------------ 5
@@ -253,8 +253,8 @@ test('a bundled Template opens with Portuguese node labels', async ({ page }) =>
   await resetAll(page)
   await setLocale(page, 'pt-BR')
   await page
-    .locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Templates ▾' }) })
-    .getByRole('button', { name: 'Templates ▾' })
+    .locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Templates' }) })
+    .getByRole('button', { name: 'Templates' })
     .click()
   await page.locator('.menu__name', { hasText: 'Linha de produção equilibrada' }).click()
   await expect

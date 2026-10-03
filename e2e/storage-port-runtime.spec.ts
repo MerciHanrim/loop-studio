@@ -94,7 +94,7 @@ async function boot(page: Page, url = '/'): Promise<void> {
   await expect(page.locator('.canvas')).toBeVisible()
 }
 
-const fileMenu = (page: Page) => page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ })
+const fileMenu = (page: Page) => page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ })
 async function authorDialog(page: Page) {
   await fileMenu(page).click()
   await page
@@ -158,7 +158,7 @@ test.describe('browser storage is reached through the port only (run time)', () 
     expect(inPhase('preference', 'setItem', LOCK)).toBe(2)
 
     // 3. autosave: an edit (the example spreadsheet) is written without a save action
-    await page.getByRole('button', { name: 'Data ▾' }).click()
+    await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem').first().click()
     const imp = page.locator('.mcdlg--dataimport')
     await imp.getByRole('button', { name: 'Use this example' }).click()

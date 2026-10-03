@@ -33,7 +33,7 @@
 // silent gap rather than a decision (§L2.13).
 
 const dataImport = {
-  'import.button': 'Datos ▾',
+  'import.button': 'Datos',
   'import.title': 'Importar datos de una hoja de cálculo',
   'import.tableName': 'Nombre de la tabla',
   'import.removeTable': 'Quitar la tabla',

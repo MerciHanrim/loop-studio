@@ -225,9 +225,10 @@ describe('arrowCensus', () => {
   })
 
   it('two units of one key requiring the SAME glyph is reported, not silently merged', () => {
-    // the real manifest has no such pair — `share.tooLarge` takes `←` from
-    // menu-path and `▾` from disclosure-vertical — and this asserts the census
-    // would SAY so rather than attributing one glyph twice
+    // the real manifest has no such pair (before issue #298 `share.tooLarge` took
+    // `←` from menu-path and a disclosure glyph from a second unit; the disclosure
+    // is an icon now) — and this asserts the census would SAY so rather than
+    // attributing one glyph twice
     const ambiguous: ArrowCatalogInput = {
       ...INPUT,
       catalog: [...INPUT.catalog, { unit: 'graph-relation', keys: ['share.tooLarge'] }],

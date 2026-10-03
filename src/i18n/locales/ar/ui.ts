@@ -22,10 +22,10 @@
 // ARROWS, per `scripts/arrow-units.json`. Four keys carry TWO units each —
 // `share.tooLarge`, `revision.export.tooLarge`, `proposal.needProject`,
 // `proposal.dirtyOrigin` — a `menu-path` arrow that MIRRORS to `←` and a
-// `disclosure-vertical` `▾` that does NOT, because it points at a menu that
+// `disclosure-vertical` (an icon since issue #298) that does NOT, because it points at a menu that
 // opens downwards in either direction. `review.hunk.framesTake` carries
-// `before-after`, also mirroring: `←`. `playbar.play` `▶` and
-// `playbar.replay` `⟳` are transport controls and KEEP their glyph.
+// `before-after`, also mirroring: `←`. The play and replay marks are icons
+// beside the words since issue #298; the words carry no glyph.
 //
 // ICU ESCAPES are copied character for character in the two `error.EXPR_*`
 // messages that carry them. `'{'` and `'}'` are ICU literal-brace quoting, not
@@ -45,15 +45,15 @@ const ui = {
   'toolbar.newGraph.title': 'بدء مخطط جديد؟',
   'toolbar.newGraph.body': 'سيُستبدل مخططك الحالي.',
   'toolbar.newGraph.confirm': 'مخطط جديد',
-  'toolbar.file.button': 'ملف ▾',
+  'toolbar.file.button': 'ملف',
   'toolbar.file.menuLabel': 'ملف',
-  'toolbar.settings.button': 'الإعدادات ▾',
+  'toolbar.settings.button': 'الإعدادات',
   'toolbar.settings.menuLabel': 'الإعدادات',
   'theme.rowLabel': 'المظهر',
   'theme.title': 'المظهر: النظام / فاتح / داكن',
-  'theme.auto': '◐ تلقائي',
-  'theme.light': '☀ فاتح',
-  'theme.dark': '☾ داكن',
+  'theme.auto': 'تلقائي',
+  'theme.light': 'فاتح',
+  'theme.dark': 'داكن',
   'theme.option.system': 'تلقائي',
   'theme.option.light': 'فاتح',
   'theme.option.dark': 'داكن',
@@ -85,9 +85,9 @@ const ui = {
   'language.arabic': 'العربية',
   'playbar.reset.title': 'إعادة الضبط إلى الخطوة 0',
   'playbar.step.title': 'التقدّم خطوة واحدة',
-  'playbar.play': '▶ تشغيل',
-  'playbar.pause': '⏸ إيقاف مؤقت',
-  'playbar.replay': '⟳ إعادة التشغيل',
+  'playbar.play': 'تشغيل',
+  'playbar.pause': 'إيقاف مؤقت',
+  'playbar.replay': 'إعادة التشغيل',
   'playbar.step': 'الخطوة {n}',
   'playbar.stepEnded': 'الخطوة {n} · انتهى',
   'playbar.speed': 'السرعة',
@@ -149,7 +149,7 @@ const ui = {
   'share.disclosure.body':
     'يحتوي الرابط على هذا المخطط كاملًا، بكل تسمياته — وأي شخص يملكه يمكنه فتحه وتحريره. لا يُرفع إلى خادم، لكنه يسافر داخل الرابط نفسه، فيبقى في سجل متصفحك ويكون مرئيًا لكل من ترسله إليه.',
   'share.disclosure.confirm': 'إنشاء الرابط',
-  'share.tooLarge': 'هذا المخطط أكبر من أن يُشارَك برابط ({size}؛ والحد {cap}). استخدم ملف ▾ ← JSON المخطط وشارك الملف بدلًا من ذلك.',
+  'share.tooLarge': 'هذا المخطط أكبر من أن يُشارَك برابط ({size}؛ والحد {cap}). استخدم ملف ← JSON المخطط وشارك الملف بدلًا من ذلك.',
   'share.replacePrompt': 'فتح المخطط المشارَك؟ سيُستبدل مخططك الحالي. صدّره أولًا إن أردت الاحتفاظ به.',
   'share.noBase': 'المشاركة غير مهيّأة بعنوان عام، فلا يمكن إنشاء رابط. يرجى الإبلاغ عن هذا.',
   'share.panel.label': 'رابط المشاركة',
@@ -190,7 +190,7 @@ const ui = {
   'import.modelLayerUnreadable': 'محتوى طبقة النموذج في هذا الملف غير قابل للقراءة ({detail})؛ وتُجوهلت بيانات مشروعه.',
   'mobile.more.import': 'استيراد ملف',
   'mobile.more.importSub': 'JSON المخطط أو مساحة العمل',
-  'export.button': 'تصدير ▾',
+  'export.button': 'تصدير',
   'export.menuLabel': 'تصدير',
   'export.graphJson.name': 'JSON المخطط',
   'export.graphJson.blurb': 'المخطط + إعدادات التشغيل الموصى بها',
@@ -204,10 +204,10 @@ const ui = {
   'revision.export.noSecureRandom':
     'لا مصدر عشوائي آمن في هذا المتصفح، فلا يمكن إنشاء معرّف مراجعة. لم يُصدَّر شيء.',
   'revision.export.tooLarge':
-    'هذا المخطط أكبر من أن يُصدَّر كمراجعة مشروع ({size}؛ والحد {cap}). استخدم ملف ▾ ← JSON المخطط بدلًا من ذلك.',
-  'proposal.needProject': 'إنشاء مقترح يحتاج إلى مشروع مفتوح. استخدم ملف ▾ ← مراجعة مشروع أولًا لإنشاء واحد.',
+    'هذا المخطط أكبر من أن يُصدَّر كمراجعة مشروع ({size}؛ والحد {cap}). استخدم ملف ← JSON المخطط بدلًا من ذلك.',
+  'proposal.needProject': 'إنشاء مقترح يحتاج إلى مشروع مفتوح. استخدم ملف ← مراجعة مشروع أولًا لإنشاء واحد.',
   'proposal.dirtyOrigin':
-    'تغيّر المستند منذ هذه المراجعة. استخدم ملف ▾ ← مراجعة مشروع لتثبيت التغييرات، ثم أنشئ مقترحًا.',
+    'تغيّر المستند منذ هذه المراجعة. استخدم ملف ← مراجعة مشروع لتثبيت التغييرات، ثم أنشئ مقترحًا.',
   'proposal.tooLarge': 'هذا المقترح أكبر من أن يُرسل كملف واحد ({size}؛ والحد {cap}). ولا يزال JSON المخطط العادي يعمل.',
   'export.author.name': 'تعيين مؤلّف التصدير…',
   'export.author.blurb': 'تسمية محلية على الجهاز تُرفق بالملف دون تحقّق',
@@ -444,6 +444,9 @@ const ui = {
   'whatsNew.v0151.desktopStrip': 'في نافذة ضيقة، لم تعد أزرار التشغيل تُقطع عند الحافة السفلية للنافذة.',
   'whatsNew.v0151.sheets': 'تبقى لوحة الخط الزمني ولوحة المزيد وأزرار التكبير فوق شريط التشغيل مهما كان ارتفاعه.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0153.icons': 'تشغيل وإيقاف مؤقت والقفل وأسهم القوائم وسائر رموز الأزرار صارت أيقونات خاصة بالتطبيق، فتبدو متطابقة على Windows وiPhone وكل جهاز آخر.',
+  'whatsNew.v0153.names': 'صارت أسماء الأزرار كلمات فقط من دون رموز زخرفية، وصار لزرَّي إعادة الضبط والخطوة الواحدة اسمان.',
+  'whatsNew.v0153.canvas': 'تُرسم علامات اللوحة وعلامة المشغِّل على الاتصال بأسلوب المخطط نفسه، في كل مظهر وفي التباين العالي.',
   'whatsNew.v0152.themeBack': 'يعود السمة التي اخترتها عند بدء التطبيق، من دون فتح الإعدادات.',
   'whatsNew.v0152.noFlash': 'لم تعد السمة الداكنة تبدأ بومضة فاتحة: تُطبَّق السمة المحفوظة قبل رسم أي شيء.',
   'whatsNew.v0152.unknownValue': 'قيمة السمة المحفوظة التي لا يستطيع التطبيق قراءتها تتبع الآن إعداد النظام بدلًا من تجاهلها.',

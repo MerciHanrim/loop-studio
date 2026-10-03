@@ -154,7 +154,7 @@ test('the picker offers Deutsch, tagged as its own language', async ({ page }) =
   await row.click()
   await expect.poll(() => htmlLang(page)).toBe('de')
   expect(await stored(page)).toBe('de')
-  await expect(page.locator('.toolbar__settingsmenu > button')).toHaveText('Einstellungen ▾')
+  await expect(page.locator('.toolbar__settingsmenu > button')).toHaveText('Einstellungen')
 })
 
 test('German is findable by code, English name and endonym', async ({ page }) => {

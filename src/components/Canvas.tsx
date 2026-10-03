@@ -41,6 +41,7 @@ import { useTourStore } from '../store/tourStore'
 import { useWhatsNewStore } from '../store/whatsNewStore'
 import { isolateAuto } from '../i18n/bidiIsolate'
 import { WhatsNewNotice } from './WhatsNewNotice'
+import { Icon } from '../ui/icons'
 
 // docs/large-graph-readability.md §LGR3.1 — the class the CSS fades on an
 // out-of-focus node / edge. It fades only the body / silhouette / label; the
@@ -894,7 +895,7 @@ export function Canvas() {
               })}
             </span>
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={importHint.close}>
-              ✕
+              <Icon name="close" />
             </button>
           </Panel>
         )}
@@ -902,7 +903,7 @@ export function Canvas() {
           <Panel position="top-center" className="hint-note" role="note">
             <span dir={uiDir}>{t('hint.frameMove.body')}</span>
             <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={frameMoveHint.close}>
-              ✕
+              <Icon name="close" />
             </button>
           </Panel>
         )}
@@ -915,7 +916,7 @@ export function Canvas() {
               aria-label={t('canvas.frame.suggestNoteDismiss')}
               onClick={() => setSuggestNoteDismissed(true)}
             >
-              ✕
+              <Icon name="close" />
             </button>
           </Panel>
         )}
@@ -998,7 +999,7 @@ export function Canvas() {
               aria-pressed={focusMode}
               className="rf-focus"
             >
-              ⌖
+              <Icon name="focus" size={14} />
             </ControlButton>
           )}
           {/* docs/large-graph-readability.md §LGR3.2 / §LGR9 — the Filters
@@ -1171,7 +1172,7 @@ export function Canvas() {
               aria-pressed={canvasLocked}
               className="rf-lock"
             >
-              {canvasLocked ? '🔒' : '🔓'}
+              <Icon name={canvasLocked ? 'lock' : 'unlock'} size={14} />
             </ControlButton>
           )}
           {/* docs/dense-graph-pan.md — desktop Pan mode. Session-only; not on

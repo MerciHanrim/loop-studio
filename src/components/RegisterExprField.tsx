@@ -36,6 +36,7 @@ import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
 import { useLocaleDirection, useT, type MessageKey } from '../i18n'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
+import { Icon } from '../ui/icons'
 
 /** §RXA6 / RXA-D7 — popover ceiling; the rest is a "+N — keep typing" footer. */
 const RXA_MAX_ROWS = 12
@@ -759,6 +760,7 @@ export function RegisterExprField({
         aria-pressed={armed}
         onClick={toggleArm}
       >
+        {armed ? null : <Icon name="plus" className="icon--lead" />}
         {armed ? t('regExpr.insert.armedLabel') : t('regExpr.insert.title')}
       </button>
       {armed && (

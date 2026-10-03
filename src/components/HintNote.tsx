@@ -3,6 +3,7 @@ import { Panel } from '@xyflow/react'
 import { useT } from '../i18n'
 import type { ContentDir } from '../i18n/contentDirection'
 import { useHintStore, type HintId } from '../store/hintStore'
+import { Icon } from '../ui/icons'
 
 // docs/contextual-inline-help.md §CIH2 — the shared situational-hint
 // mechanism. Never a modal: no backdrop, no focus trap, no Escape handling
@@ -78,7 +79,7 @@ export function CanvasHintNote({ id, trigger, ready, children, dir }: CanvasHint
     <Panel position="top-center" className="hint-note" role="note">
       <span dir={dir}>{children}</span>
       <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={close}>
-        ✕
+        <Icon name="close" />
       </button>
     </Panel>
   )
@@ -95,7 +96,7 @@ export function InlineHintNote({ id, trigger, ready, children }: HintNoteProps) 
     <div className="hint-note hint-note--inline" role="note">
       <span>{children}</span>
       <button type="button" className="hint-note__x" aria-label={t('hint.close')} onClick={close}>
-        ✕
+        <Icon name="close" />
       </button>
     </div>
   )

@@ -211,7 +211,7 @@ test('a count of 1 renders the one plural arm, with the digit kept', async ({ pa
   // and 4 Parameters, so the same message renders a count of 1 and a count of
   // 4 side by side: in English those are different arms, in Vietnamese they
   // must be the same one, and both must keep the number.
-  await page.getByRole('button', { name: 'Dữ liệu ▾' }).click()
+  await page.getByRole('button', { name: 'Dữ liệu' }).click()
   await page.getByRole('menuitem').first().click()
   const dlg = page.locator('.mcdlg--dataimport')
   await expect(dlg).toBeVisible()

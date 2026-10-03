@@ -56,6 +56,7 @@ const inspector = {
   'inspector.resourceType.custom': 'Özel tür — genel örnek renk; yerleşik bir renk yok.',
   'inspector.resourceType.mismatch':
     'Tür uyuşmazlığı: {pairs}. Yalnızca bilgilendirici — hiçbir miktarı değiştirmez ve hiçbir çalıştırmayı engellemez.',
+  'inspector.resourceType.pair': 'bağlantıda {edge}, düğümde {node}',
   'inspector.parameter.outOfRange':
     'Değer bilgilendirici en az/en çok aralığının dışında — olduğu gibi tutuldu, kırpılmadı.',
   'inspector.parameter.hintIncoherent':
@@ -171,7 +172,7 @@ const inspector = {
   'regExpr.row.notFinite': '→ sonlu bir sayı değil',
   'regExpr.row.dependsInvalid': '— geçersiz bir başvuruya bağlı',
   'regExpr.row.generic': '— {code}',
-  'regExpr.insert.title': '＋ Başvuru ekle',
+  'regExpr.insert.title': 'Başvuru ekle',
   'regExpr.insert.armedLabel': 'Başvuru seçiliyor',
   'regExpr.insert.hint':
     'Başvurusunu eklemek için tuvalde bir Havuz, Parametre ya da Hesaplanan değere tıklayın.',

@@ -10,6 +10,7 @@ import { TEMPLATE_KEY } from './templateKeys'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { useMenuKeyboard } from '../ui/useMenuKeyboard'
+import { Icon } from '../ui/icons'
 
 // Replacing the current diagram is confirmed through the shared in-app dialog —
 // `loadGraph` runs only from Confirm (docs/localization.md Slice 2b).
@@ -72,6 +73,7 @@ export function Templates() {
         onClick={() => setOpen((v) => !v)}
       >
         {t('templates.button')}
+        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
         <div className="menu__pop menu__pop--scrollable menu__pop--wide" role="menu" ref={popRef}>

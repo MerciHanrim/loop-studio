@@ -234,7 +234,7 @@ test.describe('closing the notice and opening the panel are different things', (
         expect(text).not.toContain('text unavailable')
       }
     }
-    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.15.2', '0.15.1', '0.15.0', '0.14.0'])
+    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
 
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)
@@ -309,7 +309,7 @@ test.describe('the Help menu', () => {
       '-',
       'What’s new New',
       '-',
-      'Send feedback ↗',
+      'Send feedback',
       'About Loop Studio',
     ])
     await expect(page.getByRole('menuitem', { name: 'Send feedback — opens in a new tab' })).toBeVisible()
@@ -323,7 +323,7 @@ test.describe('the Help menu', () => {
       '-',
       '새로운 기능 새로움',
       '-',
-      '피드백 보내기 · 영문 ↗',
+      '피드백 보내기 · 영문',
       'Loop Studio 정보',
     ])
     await page.getByRole('menuitem', { name: '상황별 안내 다시 켜기' }).click()
@@ -430,7 +430,7 @@ test.describe('the Help menu', () => {
         c.getAttribute('role') === 'separator' ? '-' : (c.textContent ?? '').replace(/\s+/g, ' ').trim(),
       ),
     )
-    expect(rows).toEqual(['Restart the tour', 'Turn contextual tips back on', '-', 'What’s newNew', '-', 'Send feedback ↗', 'About Loop Studio'])
+    expect(rows).toEqual(['Restart the tour', 'Turn contextual tips back on', '-', 'What’s newNew', '-', 'Send feedback', 'About Loop Studio'])
     await page.locator(MENU_ITEM).click()
     await expect(page.locator(PANEL)).toBeVisible()
     await expect.poll(() => stored(page, OPENED_KEY)).toBe(ID)

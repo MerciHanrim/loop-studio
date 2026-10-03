@@ -341,7 +341,7 @@ test('applying a waiting update keeps a locked Template locked after reload', as
   await setGen(page, 'a')
   await installAndControl(page)
 
-  await page.getByRole('button', { name: 'Templates ▾' }).click()
+  await page.getByRole('button', { name: 'Templates' }).click()
   await page.getByRole('menuitem', { name: /Early MMO progression/ }).click()
   const replaceDlg = page.locator('.mcdlg--confirm')
   await expect(replaceDlg).toBeVisible()

@@ -304,6 +304,9 @@ describe('es-419 copy — mechanical review', () => {
       Google: ['import.qs.sources.summary', 'import.qs.sources.sheets'],
       Sheets: ['import.qs.sources.summary', 'import.qs.sources.sheets'],
       Numbers: ['import.qs.sources.excel'],
+      // platform names in the 0.15.3 release note (issue #298)
+      Windows: ['whatsNew.v0153.icons'],
+      iPhone: ['whatsNew.v0153.icons'],
       xlsx: ['import.qs.notImported.list'],
       Machinations: ['about.notAffiliated'],
       io: ['about.notAffiliated'],

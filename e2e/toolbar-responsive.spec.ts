@@ -204,10 +204,10 @@ test.describe('toolbar — the fixed two-tier contract', () => {
 test.describe('toolbar — group render order and collapse', () => {
   const rankOf = (label: string): number => {
     if (/insert module|모듈 삽입|モジュールを挿入/i.test(label)) return 0
-    if (/^file ▾|^파일 ▾|^ファイル ▾/i.test(label)) return 1
-    if (/^data ▾|^데이터 ▾|^データ ▾/i.test(label)) return 2
+    if (/^file$|^파일$|^ファイル$/i.test(label)) return 1
+    if (/^data$|^데이터$|^データ$/i.test(label)) return 2
     if (/^share$|^공유$|^共有$/i.test(label)) return 3
-    if (/^settings ▾|^설정 ▾|^設定 ▾/i.test(label)) return 4
+    if (/^settings$|^설정$|^設定$/i.test(label)) return 4
     if (/help/i.test(label)) return 5
     return -1
   }
@@ -274,7 +274,7 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
     const overflowPop = page.locator('.toolbar__overflow-pop')
     await expect(overflowPop).toBeVisible()
 
-    await overflowPop.locator('button', { hasText: /^File ▾$/ }).click()
+    await overflowPop.locator('button', { hasText: /^File$/ }).click()
     const filePop = page.locator('.toolbar__filemenu-pop')
     await expect(filePop).toBeVisible()
 
@@ -288,7 +288,7 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
   }) => {
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await moreBtn.click()
-    await page.locator('.toolbar__overflow-pop button', { hasText: /^File ▾$/ }).click()
+    await page.locator('.toolbar__overflow-pop button', { hasText: /^File$/ }).click()
     await page
       .locator('.toolbar__overflow-pop .menu__item')
       .filter({ has: page.locator('.menu__name', { hasText: 'Project revision' }) })
@@ -311,7 +311,7 @@ test.describe('toolbar — nested-menu Escape scoping and dialog survival (revie
     await page.setViewportSize({ width: 1920, height: 900 })
     await page.waitForTimeout(150)
 
-    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ })
+    const fileBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ })
     await fileBtn.click()
     await page
       .locator('.toolbar__actions .menu__item')
@@ -426,7 +426,7 @@ test.describe('toolbar — Settings is exempt from ancestor-closing', () => {
     await openApp(page)
     await resetAll(page)
 
-    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ })
+    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
     await settingsBtn.click()
     const pop = page.locator('.toolbar__settingsmenu-pop')
     await expect(pop).toBeVisible()
@@ -513,7 +513,7 @@ test.describe('toolbar — dropdowns are never clipped by the responsive layout'
         expect(tpl.ok, `${code} @ ${width} — Templates pop on screen`).toBe(true)
         await page.keyboard.press('Escape')
 
-        const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ })
+        const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ })
         await settingsBtn.click()
         const langBtn = page.locator('.toolbar__settingsmenu-pop .lang-switch')
         await langBtn.click()

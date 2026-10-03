@@ -17,7 +17,7 @@
 import type { DataImportKey } from '../en/dataImport'
 
 const dataImport = {
-  'import.button': 'Dữ liệu ▾',
+  'import.button': 'Dữ liệu',
   'import.title': 'Nhập dữ liệu bảng tính',
   'import.tableName': 'Tên bảng',
   'import.removeTable': 'Bỏ bảng',

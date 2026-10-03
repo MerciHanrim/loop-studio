@@ -55,6 +55,7 @@ const inspector = {
   'inspector.resourceType.custom': 'カスタム種別 — 汎用スウォッチで、組み込みの色はありません。',
   'inspector.resourceType.mismatch':
     '種別の不一致：{pairs}。参考情報のみで、量は変わらず実行も妨げません。',
+  'inspector.resourceType.pair': '接続は {edge}、ノードは {node}',
   'inspector.parameter.outOfRange':
     '値が参考の最小 / 最大の範囲外です — そのまま保持され、クランプされません。',
   'inspector.parameter.hintIncoherent': '参考ヒントに矛盾があり、書き出し時に削除されます。',
@@ -168,7 +169,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— 無効な参照に依存しています',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — キャンバスのクリックで参照を挿入
-  'regExpr.insert.title': '＋ 参照を挿入',
+  'regExpr.insert.title': '参照を挿入',
   'regExpr.insert.armedLabel': '参照を選択中',
   'regExpr.insert.hint': 'キャンバスでプール・パラメーター・レジスターをクリックすると参照が挿入されます。',
   'regExpr.insert.armed': '参照の挿入を待機しています。キャンバスでノードをクリックするか、Esc で取り消してください。',
