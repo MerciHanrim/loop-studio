@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, openApp, resetAll, test } from './support/loop'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { ensureTimelineOpen, expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // docs/example-mmo-progression.md §EM10 — the "Early MMO progression (levels
 // 1–15)" Templates demo, exercised through the app: pick it from Templates ▾
@@ -335,8 +334,9 @@ test.describe('Early MMO progression example', () => {
         /* private mode */
       }
     })
-    // issue #296 - and this returning profile has already seen the newest release note
-    await seedWhatsNewSeen(page)
+    // issue #296 / #297 - a returning profile that has seen the newest release
+// note and remembers a personal browser (this page is not the fixture's)
+    await seedPersonalBrowser(page)
     try {
       await openApp(page)
       await resetAll(page)
