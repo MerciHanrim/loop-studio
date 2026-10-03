@@ -12,7 +12,7 @@ number. Source of truth: `e2e/support/snapshot-policy.ts`. Runtime: `snap()` in
 |---|---|---|---|
 | `desktop-full-page` | `expect(page)` at 1280×800 | 1280×800 | **0.005** (0.5 %) |
 | `desktop-canvas-clip` | `.react-flow` at the desktop viewport | 980×462 | **0.0002** (0.02 %) |
-| `mobile-canvas-clip` | `.react-flow` under the `mobile` project | 390×735 | **0.001** (0.1 %) |
+| `mobile-canvas-clip` | `.react-flow` under the `mobile` project | 390×734 (735 before issue #303: the pane now reserves the run bar's measured 53 px) | **0.001** (0.1 %) |
 | `mobile-full-page` | `expect(page)` at the phone viewport | 390×844 | **0.001** (0.1 %) |
 | `element` | one component: Inspector, dialog, review overlay, minimap, Distribution panel | any other size | **0.0005** (0.05 %) |
 
