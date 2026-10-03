@@ -241,6 +241,10 @@ export function mcSnapshot(page: Page): Promise<McSnapshot> {
 /** Load a serialized graph — same path as the Import button, including applying
  *  the file's `recommendedRunConfig` to the Monte-Carlo config. */
 export async function importGraph(page: Page, json: string): Promise<void> {
+  // issue #297 - the app (and its bridge) is loaded behind the storage gate,
+  // after the document's load event; a spec that reloads and imports at once
+  // must wait for the bridge the way `openApp` does
+  await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
   await page.evaluate((text) => {
     const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
     l.mc.getState().applyRecommended(l.graph.getState().loadJSON(text))
