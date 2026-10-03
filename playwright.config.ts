@@ -16,7 +16,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI ? [['github'], ['list'], ['html', { open: 'never' }]] : [['list']],
+  // on CI the JSON report is also the per-file timing sample that
+  // scripts/e2e-shard-weights.mjs feeds back into e2e/shard-weights.json
+  reporter: process.env.CI
+    ? [['github'], ['list'], ['html', { open: 'never' }], ['json', { outputFile: 'test-results/e2e-report.json' }]]
+    : [['list']],
   timeout: 30_000,
   expect: {
     timeout: 8_000,

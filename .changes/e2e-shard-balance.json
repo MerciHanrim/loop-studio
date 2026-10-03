@@ -1,0 +1,1 @@
+{ "type": "internal", "reason": "CI only: the e2e suite is split into shards by measured time instead of test count, with a check that the shards partition the suite and stay within the job's time budget. Nothing in the app changes." }
