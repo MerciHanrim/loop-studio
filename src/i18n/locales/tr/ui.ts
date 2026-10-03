@@ -457,6 +457,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'Telefonda, oynatma çubuğunun düğmeleri ikinci satıra taşsa bile tuvalin alt kısmı artık örtülmüyor.',
   'whatsNew.v0151.desktopStrip': 'Dar bir pencerede oynatma denetimleri artık pencerenin alt kenarında kesilmiyor.',
   'whatsNew.v0151.sheets': 'Zaman çizelgesi sayfası, Diğer sayfası ve yakınlaştırma düğmeleri, yüksekliği ne olursa olsun oynatma çubuğunun üstünde kalır.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'Seçtiğiniz tema, ayarları açmanıza gerek kalmadan uygulama başlarken geri gelir.',
+  'whatsNew.v0152.noFlash': 'Koyu tema artık açık renkli bir parlamayla başlamıyor: kaydedilen tema, herhangi bir şey çizilmeden önce uygulanır.',
+  'whatsNew.v0152.unknownValue': 'Uygulamanın okuyamadığı kayıtlı bir tema değeri artık yok sayılmak yerine sistem ayarını izler.',
 } as const
 
 export type UiKey = keyof typeof ui

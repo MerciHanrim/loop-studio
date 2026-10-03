@@ -527,3 +527,99 @@ test.describe('production build — release notes', () => {
     })
   })
 })
+
+// ── issue #302 — the stored theme, before the first paint of the PRODUCTION build
+//
+// The boot script is inlined into <head> by the build, so this is where it is
+// really checked: the dev server inlines it too, but the bundle, its size and
+// the order of the head are the build's. The frames come from the browser's
+// own screencast, from the new document's first paint on.
+test.describe('production build — the stored theme is on before the first paint', () => {
+  const seedTheme = (page: Page, stored: string) =>
+    page.addInitScript((v) => {
+      try {
+        if (!sessionStorage.getItem('__theme_seeded')) {
+          sessionStorage.setItem('__theme_seeded', '1')
+          localStorage.setItem('loop-studio:theme', v)
+        }
+      } catch {
+        /* ignore */
+      }
+      const w = window as unknown as { __firstFrameTheme?: string | null }
+      requestAnimationFrame(() => {
+        w.__firstFrameTheme = document.documentElement.getAttribute('data-theme')
+      })
+    }, stored)
+
+  for (const [name, width, height] of [
+    ['desktop', 1280, 800],
+    ['mobile', 390, 844],
+  ] as const) {
+    test(`${name}: dark is on at the first frame, and the boot script is in the head once`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await seedTheme(page, 'dark')
+      const { bad } = await openProd(page)
+      expect(await page.evaluate(() => (window as unknown as { __firstFrameTheme?: string | null }).__firstFrameTheme)).toBe('dark')
+      expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark')
+      const boot = await page.evaluate(() => [...document.querySelectorAll('script[data-storage-boot]')].map((s) => ({ inHead: !!s.closest('head'), type: s.getAttribute('type'), text: s.textContent ?? '' })))
+      expect(boot).toHaveLength(1)
+      expect(boot[0]).toMatchObject({ inHead: true, type: null })
+      expect(boot[0]!.text).toContain("localStorage.getItem('loop-studio:theme')")
+      expect(bad, 'no failed or cross-origin requests').toEqual([])
+    })
+  }
+
+  test('mobile, dark stored, a slow network: no light or blank frame is painted', async ({ page }) => {
+    test.setTimeout(120_000)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await seedTheme(page, 'dark')
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Network.enable')
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 400, downloadThroughput: 400 * 1024, uploadThroughput: 200 * 1024 })
+    const frames: { at: number; data: string }[] = []
+    cdp.on('Page.screencastFrame', (f) => {
+      frames.push({ at: f.metadata.timestamp ?? 0, data: f.data })
+      void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {})
+    })
+    await cdp.send('Page.enable')
+    await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1, maxWidth: 400, maxHeight: 400 })
+    await page.goto('/')
+    await expect(page.locator('.canvas .react-flow')).toBeVisible({ timeout: 90_000 })
+    await page.waitForTimeout(600)
+    await cdp.send('Page.stopScreencast').catch(() => {})
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
+    const firstPaintEpoch = await page.evaluate(() => {
+      const p = performance.getEntriesByType('paint').find((e) => e.name === 'first-paint')
+      return p ? (performance.timeOrigin + p.startTime) / 1000 : null
+    })
+    expect(firstPaintEpoch).not.toBeNull()
+    const own = frames.filter((f) => f.at >= firstPaintEpoch! - 0.02)
+    expect(own.length).toBeGreaterThan(0)
+    const kinds: string[] = []
+    for (const { data } of own) {
+      const lum = await page.evaluate(async (src) => {
+        const img = new Image()
+        await new Promise((ok, bad) => {
+          img.onload = ok
+          img.onerror = bad
+          img.src = src
+        })
+        const c = document.createElement('canvas')
+        c.width = img.naturalWidth
+        c.height = img.naturalHeight
+        const ctx = c.getContext('2d')!
+        ctx.drawImage(img, 0, 0)
+        const pts: number[] = []
+        for (const fx of [0.1, 0.5, 0.9])
+          for (const fy of [0.15, 0.5, 0.85]) {
+            const [r, g, b] = ctx.getImageData(Math.floor(c.width * fx), Math.floor(c.height * fy), 1, 1).data
+            pts.push(0.2126 * r! + 0.7152 * g! + 0.0722 * b!)
+          }
+        return pts.reduce((a, b) => a + b, 0) / pts.length
+      }, 'data:image/png;base64,' + data)
+      kinds.push(lum >= 254 ? 'blank' : lum > 140 ? 'light' : lum < 90 ? 'dark' : 'mixed')
+    }
+    expect(kinds.filter((k) => k === 'light' || k === 'blank'), `frames: ${kinds.join(',')}`).toEqual([])
+    expect(kinds.filter((k) => k === 'dark').length).toBeGreaterThan(0)
+  })
+})

@@ -390,6 +390,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': '휴대폰에서 재생 막대의 버튼이 두 줄로 접혀도 캔버스 아래쪽을 가리지 않습니다.',
   'whatsNew.v0151.desktopStrip': '좁은 창에서 재생 조작 버튼이 창 아래쪽에서 잘리지 않습니다.',
   'whatsNew.v0151.sheets': '타임라인 시트, 더 보기 시트, 확대·축소 버튼이 재생 막대의 높이에 맞춰 그 위에 놓입니다.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': '선택한 테마가 설정을 열지 않아도 앱을 켤 때 바로 적용됩니다.',
+  'whatsNew.v0152.noFlash': '다크 테마가 밝게 번쩍이며 시작하지 않습니다. 저장된 테마를 화면을 그리기 전에 적용합니다.',
+  'whatsNew.v0152.unknownValue': '읽을 수 없는 테마 값이 저장돼 있으면 무시하지 않고 시스템 설정을 따릅니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

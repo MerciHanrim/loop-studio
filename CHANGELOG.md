@@ -4,6 +4,15 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.15.2 — 2026-10-03
+
+A fix release. The theme you chose was saved but not applied when the app started.
+
+- **The saved theme comes back at start-up.** Since the two-tier toolbar (v0.10.0) the only code that read the saved theme was the toggle inside the Settings menu, which is mounted only while that menu is open, so a reload opened in the system theme and the saved one appeared when Settings (or, on a phone, the More sheet) was opened. The theme is now read and applied before the first render, through the storage port, and an unreadable or unknown value means the system theme.
+- **No light flash before a dark start.** Reading the theme in the bundle is still too late for the browser's first paint: measured on the production build, one light frame on a phone-sized window and two on a slow network. A tiny classic script in the page head, the storage port's second door, reads the one key before anything is painted. It is scanned by the same check as the port and seen by the same run-time trap.
+
+**No migration.** A v0.15.1 file opens unchanged, and the stored theme value and its key are the same. The informational `meta.tool` string is now `loop-studio/0.15.2`.
+
 ## v0.15.1 — 2026-10-03
 
 A fix release. The playback bar grew taller than the space the layout gave it, and the layout did not notice.

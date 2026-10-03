@@ -403,6 +403,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'No celular, a barra de reprodução não cobre mais a parte de baixo da tela quando seus botões passam para uma segunda linha.',
   'whatsNew.v0151.desktopStrip': 'Em uma janela estreita, os controles de reprodução não ficam mais cortados na parte de baixo da janela.',
   'whatsNew.v0151.sheets': 'O painel Linha do tempo, o painel Mais e os botões de zoom ficam acima da barra de reprodução, seja qual for a altura dela.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'O tema que você escolheu volta ao iniciar o aplicativo, sem abrir as configurações.',
+  'whatsNew.v0152.noFlash': 'O tema escuro não começa mais com um clarão claro: o tema salvo é aplicado antes de qualquer coisa ser desenhada.',
+  'whatsNew.v0152.unknownValue': 'Um tema salvo que o aplicativo não consegue ler agora segue a configuração do sistema em vez de ser ignorado.',
 } as const
 
 export type UiKey = keyof typeof ui

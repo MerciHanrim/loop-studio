@@ -181,3 +181,44 @@ Unit: `src/components/toolbar/toolbarOverflow.test.ts` pins the pure
 calculator — the collapse count is monotonic in width, and
 `overflowedItems`/`isInline` are checked against the 6-group
 `OVERFLOW_ORDER`.
+
+## The theme at start-up (issue #302)
+
+The Settings → Theme choice is stored as `loop-studio:theme` (`system`,
+`light` or `dark`) and shown through the `data-theme` attribute on the root
+element: set for `light` and `dark`, absent for `system`, which lets the
+stylesheet follow `prefers-color-scheme`.
+
+Since the two-tier toolbar the only reader of that key was the toggle inside
+the Settings menu, which is mounted only while the menu is open, so a reload
+opened in the system theme and the saved one appeared when Settings (or the
+More sheet on a phone) was opened. Measured on `main 16020f2` in every build:
+with `dark` stored, every painted frame was light.
+
+What applies it now, in order:
+
+1. **The boot door**, `src/storage/themeBoot.js`, a classic script that
+   `vite.config.ts` inlines into `<head>` of every build. It runs before the
+   browser can paint and before any module. It reads the one key with
+   `getItem`, sets `data-theme` for `light` and `dark`, and does nothing for
+   anything else or when storage throws. The module alone was too late:
+   measured on the production build, the first frame was painted at 36 ms on a
+   phone-sized window and at 952 ms on a slow network, while the module applied
+   the theme at 67 ms and 1,725 ms.
+2. **The module door**, `src/theme/theme.ts`, `applyStoredTheme()` from
+   `src/main.tsx` before the first render, through `storagePort`. The same rule
+   as the boot script; an unknown value means `system` and nothing is written
+   back.
+3. The toggle, which reads through the same module and writes the choice.
+
+The storage rule is unchanged in spirit and extended in letter: the boot script
+is the port's second door, the only file besides `storagePort.ts` that may touch
+browser storage, allowed exactly one `getItem` of that key.
+`scripts/check-storage-port.mjs` enforces that and refuses an `index.html` that
+touches storage on its own; the run-time trap in
+`e2e/storage-port-runtime.spec.ts` expects exactly one read through the boot
+door, as the first storage call of all. `e2e/theme-boot.spec.ts` holds the
+contract: the attribute at the first animation frame for every stored value,
+desktop and mobile; no light or blank frame painted before a dark start, on the
+browser's own screencast, including a throttled network; the choice survives a
+reload; the boot script is in the page once.

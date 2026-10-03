@@ -29,6 +29,26 @@ const appVersion: string = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
 ).version
 
+/**
+ * Issue #302 — the stored theme before the first paint. `src/storage/themeBoot.js`
+ * is inlined as a classic script in <head>, so it runs before the browser can
+ * paint and before any module: the bundle's own `applyStoredTheme()` runs too
+ * late on a phone-sized window and on a slow network (measured: the first frame
+ * was painted before the module ran). It is read from its file at config time so
+ * that the check in `scripts/check-storage-port.mjs` scans the same bytes that
+ * ship. One tag, in the web, PWA and portable builds and on the dev server.
+ */
+function themeBoot(): Plugin {
+  const code = readFileSync(new URL('./src/storage/themeBoot.js', import.meta.url), 'utf8')
+  return {
+    name: 'loop-studio:theme-boot',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: () => [{ tag: 'script', attrs: { 'data-storage-boot': 'theme' }, children: code, injectTo: 'head' }],
+    },
+  }
+}
+
 /** Short commit SHA: CI env first (CF Pages / GitHub Actions), then local git, else ''. */
 function buildSha(): string {
   const env = process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA
@@ -75,6 +95,7 @@ export default defineConfig(({ mode }) => {
       ),
     },
     plugins: [
+      themeBoot(),
       react(),
       ...(portable ? [viteSingleFile(), renameHtml('loop-studio.html')] : []),
       // Emits `sw.js` (Workbox generateSW) + `manifest.webmanifest` and injects

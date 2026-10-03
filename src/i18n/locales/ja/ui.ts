@@ -422,6 +422,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'スマートフォンで再生バーのボタンが2段になっても、キャンバスの下部が隠れなくなりました。',
   'whatsNew.v0151.desktopStrip': '幅の狭いウィンドウで、再生の操作ボタンがウィンドウの下端で切れなくなりました。',
   'whatsNew.v0151.sheets': 'タイムラインのシート、「その他」のシート、ズームボタンは、再生バーの高さに合わせてその上に表示されます。',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': '選んだテーマが、設定を開かなくてもアプリの起動時にすぐ適用されます。',
+  'whatsNew.v0152.noFlash': 'ダークテーマが明るく一瞬光ってから始まることがなくなりました。保存したテーマを画面を描く前に適用します。',
+  'whatsNew.v0152.unknownValue': '読み取れないテーマの値が保存されている場合は、無視せずにシステム設定に従います。',
 } satisfies Record<UiKey, string>
 
 export default ui

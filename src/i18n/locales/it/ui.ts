@@ -417,6 +417,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'Sul telefono la barra di riproduzione non copre più la parte bassa dell’area di disegno quando i suoi pulsanti vanno a capo su una seconda riga.',
   'whatsNew.v0151.desktopStrip': 'In una finestra stretta i controlli di riproduzione non vengono più tagliati sul bordo inferiore della finestra.',
   'whatsNew.v0151.sheets': 'Il pannello Cronologia, il pannello Altro e i pulsanti di ingrandimento restano sopra la barra di riproduzione, qualunque sia la sua altezza.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'Il tema che hai scelto torna all’avvio dell’app, senza aprire le impostazioni.',
+  'whatsNew.v0152.noFlash': 'Il tema scuro non inizia più con un lampo chiaro: il tema salvato viene applicato prima che venga disegnato qualsiasi cosa.',
+  'whatsNew.v0152.unknownValue': 'Un tema salvato che l’app non riesce a leggere ora segue l’impostazione di sistema invece di essere ignorato.',
 } satisfies Record<UiKey, string>
 
 export default ui
