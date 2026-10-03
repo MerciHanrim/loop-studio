@@ -474,7 +474,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'Le volet Chronologie, le volet Plus et les boutons de zoom restent au-dessus de la barre de lecture, quelle que soit sa hauteur.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Lecture, Pause, le cadenas, les flèches des menus et les autres symboles des boutons sont désormais les icônes de l’application elle-même : ils ont le même aspect sur Windows, sur iPhone et sur tout autre appareil.',
-  'whatsNew.v0153.names': 'Un lecteur d’écran n’entend que les mots : aucun symbole n’est lu avant Lecture, Clair ou le nom d’un menu, et les boutons Réinitialiser et Une étape ont désormais un nom.',
+  'whatsNew.v0153.names': 'Les noms des boutons ne contiennent plus que des mots, sans symboles décoratifs, et les boutons Réinitialiser et Une étape ont un nom.',
   'whatsNew.v0153.canvas': 'Les repères de la palette et le repère de déclenchement sur une connexion sont dessinés dans le style du diagramme, dans chaque thème et en contraste élevé.',
   'whatsNew.v0152.themeBack': 'Le thème que vous avez choisi revient au démarrage, sans ouvrir les réglages.',
   'whatsNew.v0152.noFlash': 'Le thème sombre ne commence plus par un éclair clair : le thème enregistré est appliqué avant tout affichage.',

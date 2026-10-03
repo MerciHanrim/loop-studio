@@ -400,7 +400,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'Het Tijdlijn-paneel, het Meer-paneel en de zoomknoppen blijven boven de afspeelbalk, hoe hoog die ook is.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Afspelen, Pauzeren, het slot, de menupijlen en de andere knopsymbolen zijn nu eigen pictogrammen van de app, zodat ze er op Windows, iPhone en elk ander apparaat hetzelfde uitzien.',
-  'whatsNew.v0153.names': 'Een schermlezer hoort alleen de woorden: er wordt geen symbool voorgelezen vóór Afspelen, Licht of een menunaam, en de knoppen Terugzetten en Eén stap hebben nu een naam.',
+  'whatsNew.v0153.names': 'Knopnamen bestaan nu alleen uit woorden, zonder decoratieve symbolen, en de knoppen Terugzetten en Eén stap hebben een naam.',
   'whatsNew.v0153.canvas': 'De palettekens en het triggerteken op een verbinding worden in de stijl van het diagram getekend, in elk thema en bij hoog contrast.',
   'whatsNew.v0152.themeBack': 'Het thema dat je koos is er weer bij het starten van de app, zonder de instellingen te openen.',
   'whatsNew.v0152.noFlash': 'Het donkere thema begint niet meer met een lichte flits: het opgeslagen thema wordt toegepast voordat er iets wordt getekend.',

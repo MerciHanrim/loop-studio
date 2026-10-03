@@ -86,10 +86,12 @@ test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately
     expect(undoRtl).toMatchObject({ unit: 'undo', dir: 'rtl' })
     expect(redoRtl).toMatchObject({ unit: 'redo', dir: 'rtl' })
     // each is now drawn the way the OTHER was drawn for an ltr reader, and they are
-    // still opposite
-    expect(undoRtl!.d).toBe(redoLtr!.d)
-    expect(redoRtl!.d).toBe(undoLtr!.d)
-    expect(undoRtl!.d).not.toBe(redoRtl!.d)
+    // still opposite (compared as path tokens: the derived drawing is spaced
+    // differently from the authored one)
+    const tokens = (d: string) => d.match(/[A-Za-z]|-?[\d.]+/g)
+    expect(tokens(undoRtl!.d)).toEqual(tokens(redoLtr!.d))
+    expect(tokens(redoRtl!.d)).toEqual(tokens(undoLtr!.d))
+    expect(tokens(undoRtl!.d)).not.toEqual(tokens(redoRtl!.d))
   })
 
   test('en → ar-XB → en puts every reachable arrow back exactly', async ({ page }) => {

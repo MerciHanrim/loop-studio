@@ -390,7 +390,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'The Timeline sheet, the More sheet and the zoom buttons stay above the run bar whatever its height.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Play, Pause, the lock, the menu arrows and the other button symbols are now the app’s own icons, so they look the same on Windows, iPhone and every other device.',
-  'whatsNew.v0153.names': 'Read aloud, a button is its words alone: no symbol is spoken before Play, Light or a menu name, and the Reset and Step buttons now have names.',
+  'whatsNew.v0153.names': 'Button names now contain words only, without decorative symbols, and the Reset and Step buttons have names.',
   'whatsNew.v0153.canvas': 'The palette marks and the trigger mark on a connection are drawn in the diagram’s own style, in every theme and under high contrast.',
   'whatsNew.v0152.themeBack': 'The theme you chose comes back when the app starts, without opening Settings.',
   'whatsNew.v0152.noFlash': 'The dark theme no longer starts with a light flash: the saved theme is applied before anything is drawn.',

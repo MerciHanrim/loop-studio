@@ -419,7 +419,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'Il pannello Cronologia, il pannello Altro e i pulsanti di ingrandimento restano sopra la barra di riproduzione, qualunque sia la sua altezza.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Avvia, Pausa, il lucchetto, le frecce dei menu e gli altri simboli dei pulsanti sono ora icone dell’app stessa, quindi hanno lo stesso aspetto su Windows, su iPhone e su ogni altro dispositivo.',
-  'whatsNew.v0153.names': 'Un lettore di schermo sente solo le parole: nessun simbolo viene letto prima di Avvia, Chiaro o del nome di un menu, e i pulsanti Azzera e Un passo ora hanno un nome.',
+  'whatsNew.v0153.names': 'I nomi dei pulsanti ora contengono solo parole, senza simboli decorativi, e i pulsanti Azzera e Un passo hanno un nome.',
   'whatsNew.v0153.canvas': 'I segni della tavolozza e il segno di attivazione su una connessione sono disegnati nello stile del diagramma, in ogni tema e in contrasto elevato.',
   'whatsNew.v0152.themeBack': 'Il tema che hai scelto torna all’avvio dell’app, senza aprire le impostazioni.',
   'whatsNew.v0152.noFlash': 'Il tema scuro non inizia più con un lampo chiaro: il tema salvato viene applicato prima che venga disegnato qualsiasi cosa.',

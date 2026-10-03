@@ -480,7 +480,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'Das Zeitverlauf-Blatt, das Blatt „Mehr“ und die Zoom-Schaltflächen bleiben über der Wiedergabeleiste, unabhängig von ihrer Höhe.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Abspielen, Pause, das Schloss, die Menüpfeile und die anderen Schaltflächensymbole sind jetzt eigene Icons der App und sehen auf Windows, dem iPhone und jedem anderen Gerät gleich aus.',
-  'whatsNew.v0153.names': 'Ein Screenreader hört nur die Wörter: Vor Abspielen, Hell oder einem Menünamen wird kein Symbol vorgelesen, und die Schaltflächen Zurücksetzen und Ein Schritt haben jetzt Namen.',
+  'whatsNew.v0153.names': 'Schaltflächennamen bestehen jetzt nur aus Wörtern, ohne schmückende Symbole, und die Schaltflächen Zurücksetzen und Ein Schritt haben Namen.',
   'whatsNew.v0153.canvas': 'Die Palettenzeichen und das Auslöserzeichen auf einer Verbindung werden im Stil des Diagramms gezeichnet, in jedem Design und bei hohem Kontrast.',
   'whatsNew.v0152.themeBack': 'Das gewählte Design ist beim Start wieder da, ohne dass die Einstellungen geöffnet werden müssen.',
   'whatsNew.v0152.noFlash': 'Das dunkle Design beginnt nicht mehr mit einem hellen Aufblitzen: das gespeicherte Design wird angewendet, bevor etwas gezeichnet wird.',

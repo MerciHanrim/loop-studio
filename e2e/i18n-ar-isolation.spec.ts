@@ -996,8 +996,11 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
   test('the resource-type mismatch isolates each TYPE, leaving the arrow and the comma to the sentence', async ({ page }) => {
     // The SECOND per-fragment site, and a different shape from the first: the
     // canvas hint joins single labels with `, `, this joins PAIRS with `, ` and
-    // each pair with `↔`. Both separators belong to the sentence, so four user
-    // values produce four isolates and neither separator is inside one.
+    // each pair is a translated phrase around two values (since issue #298 the
+    // words "on the connection … on the node", `inspector.resourceType.pair`,
+    // where a `↔` used to stand). The words and the comma belong to the
+    // sentence, so four user values produce four isolates and no connective is
+    // inside one.
     await page.evaluate(() => {
       const g = () => (window as unknown as { __loop: { graph: { getState: () => any } } }).__loop.graph.getState()
       g().newGraph()
@@ -1020,10 +1023,10 @@ test.describe('§L9.4 the shapes C3.5 added', () => {
     expect(m.spans.map((s) => s.kind)).toEqual(['FSI', 'FSI', 'FSI', 'FSI'])
     expect(m.spans.map((s) => s.text)).toEqual(['ذهب', '2024 Coins', 'ذهب', '(مسودة) بن'])
     expect(m.controls).toEqual(['FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI', 'FSI', 'PDI'])
-    // the arrow is BETWEEN a pair and the comma between pairs — both outside
-    expect(m.between[0], 'the arrow belongs to the sentence').toBe(' ↔ ')
-    expect(m.between[1], 'the comma belongs to the sentence').toBe(', ')
-    expect(m.between[2]).toBe(' ↔ ')
+    // the words are BETWEEN a pair and the comma between pairs — both outside
+    expect(m.between[0], 'the connective belongs to the sentence').toBe(' على الاتصال و')
+    expect(m.between[1], 'the tail and the comma belong to the sentence').toBe(' على العقدة, ')
+    expect(m.between[2]).toBe(' على الاتصال و')
     expect(m.head.text).toContain('عدم تطابق')
     expect(expectReadingOrder(m, 'resourceType.mismatch')).toBeGreaterThanOrEqual(2)
 

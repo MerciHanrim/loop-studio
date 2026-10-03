@@ -1175,6 +1175,20 @@ body {
   height: 16px;
   vertical-align: bottom;
 }
+/* the Insert reference button lays its children out with a 3 px flex gap, which already
+   separates the icon from the words: no margin, or the button grows by it */
+.regexpr__pick > .icon--lead {
+  margin-inline-end: 0;
+}
+/* the Distribution panel's Export button is a 9 px mono label: its line box was 11 px */
+.timeline__csv > .icon--caret {
+  height: 11px;
+  width: 10.6px; /* the advance of ` ▾` in the letter-spaced mono label, less the margin */
+}
+/* the mobile Help sheet's feedback row: a 17 px line box behind the old `↗` */
+.sheet__row > .menu__ext.icon {
+  height: 19px;
+}
 /* the selected mark in the Language and Theme menus (`✓ ` before this issue) */
 .icon--check {
   margin-inline-end: 0.3em;

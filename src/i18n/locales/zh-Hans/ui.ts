@@ -397,7 +397,7 @@ const ui = {
   'whatsNew.v0151.sheets': '时间线面板、“更多”面板和缩放按钮会按播放栏的实际高度停在它上方。',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': '播放、暂停、锁定、菜单箭头等按钮符号改为应用自带的图标，在 Windows、iPhone 和其他任何设备上外观一致。',
-  'whatsNew.v0153.names': '屏幕阅读器只读文字：播放、浅色或菜单名前不再读出符号，重置和单步按钮也有了名称。',
+  'whatsNew.v0153.names': '按钮名称现在只含文字、不含装饰符号，重置和单步按钮也有了名称。',
   'whatsNew.v0153.canvas': '调色板标记和连线上的触发标记采用与图表相同的样式绘制，在任何主题和高对比度下都可辨认。',
   'whatsNew.v0152.themeBack': '你选择的主题会在应用启动时直接生效，无需打开设置。',
   'whatsNew.v0152.noFlash': '深色主题不再在启动时闪过一下浅色：保存的主题会在绘制任何内容之前应用。',

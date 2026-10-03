@@ -61,7 +61,10 @@ const measureRow = (page: Page) =>
       clipped: buttons
         .filter((b) => b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1)
         .map((b) => (b.textContent ?? '').trim().slice(0, 28)),
-      labels: buttons.map((b) => (b.textContent ?? '').trim()).filter((t) => t.length > 2),
+      // a labelled button has words in it (the icon-only ones — undo, redo, the
+      // overflow trigger — have none). Since issue #298 the disclosure arrow is
+      // an icon, so a CJK menu label can be two characters long: `设置`, `파일`.
+      labels: buttons.map((b) => (b.textContent ?? '').trim()).filter((t) => t.length > 0),
     }
   })
 

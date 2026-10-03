@@ -423,7 +423,7 @@ const ui = {
   'whatsNew.v0151.sheets': '時間軸面板、「更多」面板和縮放按鈕會依播放列的實際高度停在它上方。',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': '播放、暫停、鎖定、選單箭頭等按鈕符號改為應用程式自有的圖示，在 Windows、iPhone 和其他任何裝置上外觀一致。',
-  'whatsNew.v0153.names': '螢幕閱讀器只讀文字：播放、淺色或選單名稱前不再讀出符號，重設和單步按鈕也有了名稱。',
+  'whatsNew.v0153.names': '按鈕名稱現在只含文字、不含裝飾符號，重設和單步按鈕也有了名稱。',
   'whatsNew.v0153.canvas': '調色盤標記和連線上的觸發標記以與圖表相同的樣式繪製，在任何主題和高對比度下都可辨認。',
   'whatsNew.v0152.themeBack': '你選擇的主題會在應用程式啟動時直接生效，不必打開設定。',
   'whatsNew.v0152.noFlash': '深色主題不再在啟動時閃過一下淺色：儲存的主題會在繪製任何內容之前套用。',

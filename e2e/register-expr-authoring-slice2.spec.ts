@@ -333,9 +333,9 @@ test('§RXA8.8 — the mode announces enter / block-reason / insert to the statu
 })
 
 const PICK_LABEL = {
-  en: { idle: /^＋ Insert reference$/, armed: /^Selecting a reference$/ },
-  ko: { idle: /^＋ 참조 삽입$/, armed: /^참조 선택 중$/ },
-  ja: { idle: /^＋ 参照を挿入$/, armed: /^参照を選択中$/ },
+  en: { idle: /^Insert reference$/, armed: /^Selecting a reference$/ },
+  ko: { idle: /^참조 삽입$/, armed: /^참조 선택 중$/ },
+  ja: { idle: /^参照を挿入$/, armed: /^参照を選択中$/ },
 } as const
 
 for (const loc of ['en', 'ko', 'ja'] as const) {

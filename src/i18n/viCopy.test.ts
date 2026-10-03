@@ -526,7 +526,6 @@ const ASCII_KEYS = [
   'template/mmo-progression:z2_xp_meter',
   'template/mmo-progression:z3_xp_meter',
   'catalog:whatsNew.v0153.icons',
-  'catalog:whatsNew.v0153.names',
 ]
 
 describe('a kept English word is declared, twice over — by key and by word', () => {
@@ -540,7 +539,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(170)
+    expect(ASCII_KEYS).toHaveLength(169)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {

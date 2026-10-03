@@ -417,7 +417,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'El panel Línea de tiempo, el panel Más y los botones de zoom se mantienen por encima de la barra de reproducción, sea cual sea su altura.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Reproducir, Pausar, el candado, las flechas de los menús y los demás símbolos de los botones son ahora iconos propios de la aplicación, así que se ven igual en Windows, en iPhone y en cualquier otro dispositivo.',
-  'whatsNew.v0153.names': 'Un lector de pantalla oye solo las palabras: no se lee ningún símbolo antes de Reproducir, Claro o el nombre de un menú, y los botones Restablecer y Un paso ahora tienen nombre.',
+  'whatsNew.v0153.names': 'Los nombres de los botones ahora contienen solo palabras, sin símbolos decorativos, y los botones Restablecer y Un paso tienen nombre.',
   'whatsNew.v0153.canvas': 'Las marcas de la paleta y la marca de disparo de una conexión se dibujan con el estilo del diagrama, en todos los temas y en contraste alto.',
   'whatsNew.v0152.themeBack': 'El tema que elegiste vuelve al iniciar la aplicación, sin abrir la configuración.',
   'whatsNew.v0152.noFlash': 'El tema oscuro ya no empieza con un destello claro: el tema guardado se aplica antes de dibujar nada.',

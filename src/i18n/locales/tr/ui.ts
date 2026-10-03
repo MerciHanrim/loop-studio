@@ -459,7 +459,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'Zaman çizelgesi sayfası, Diğer sayfası ve yakınlaştırma düğmeleri, yüksekliği ne olursa olsun oynatma çubuğunun üstünde kalır.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Çalıştır, Duraklat, kilit, menü okları ve diğer düğme simgeleri artık uygulamanın kendi simgeleri; Windows’ta, iPhone’da ve diğer her cihazda aynı görünür.',
-  'whatsNew.v0153.names': 'Ekran okuyucu yalnızca sözcükleri duyar: Çalıştır, Açık ya da bir menü adından önce simge okunmaz; Sıfırla ve Bir adım düğmelerinin de artık adı var.',
+  'whatsNew.v0153.names': 'Düğme adları artık süsleyici simgeler olmadan yalnızca sözcüklerden oluşuyor; Sıfırla ve Bir adım düğmelerinin de adı var.',
   'whatsNew.v0153.canvas': 'Palet işaretleri ve bağlantıdaki tetikleyici işareti her temada ve yüksek karşıtlıkta diyagramın kendi üslubuyla çizilir.',
   'whatsNew.v0152.themeBack': 'Seçtiğiniz tema, ayarları açmanıza gerek kalmadan uygulama başlarken geri gelir.',
   'whatsNew.v0152.noFlash': 'Koyu tema artık açık renkli bir parlamayla başlamıyor: kaydedilen tema, herhangi bir şey çizilmeden önce uygulanır.',

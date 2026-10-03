@@ -405,7 +405,7 @@ const ui = {
   'whatsNew.v0151.sheets': 'Bảng Dòng thời gian, bảng Thêm và các nút thu phóng luôn nằm phía trên thanh chạy, dù thanh cao bao nhiêu.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
   'whatsNew.v0153.icons': 'Chạy, Tạm dừng, ổ khóa, mũi tên menu và các ký hiệu nút khác giờ là biểu tượng riêng của ứng dụng, nên trông giống nhau trên Windows, iPhone và mọi thiết bị khác.',
-  'whatsNew.v0153.names': 'Trình đọc màn hình chỉ nghe thấy chữ: không ký hiệu nào được đọc trước Chạy, Sáng hay tên menu, và các nút Đặt lại và Một bước giờ đã có tên.',
+  'whatsNew.v0153.names': 'Tên nút giờ chỉ gồm chữ, không có ký hiệu trang trí, và các nút Đặt lại và Một bước đã có tên.',
   'whatsNew.v0153.canvas': 'Các dấu trên bảng công cụ và dấu kích hoạt trên liên kết được vẽ theo phong cách của sơ đồ, trong mọi chủ đề và ở chế độ tương phản cao.',
   'whatsNew.v0152.themeBack': 'Giao diện bạn đã chọn trở lại khi khởi động ứng dụng, không cần mở phần cài đặt.',
   'whatsNew.v0152.noFlash': 'Giao diện tối không còn bắt đầu bằng một chớp sáng: giao diện đã lưu được áp dụng trước khi vẽ bất cứ thứ gì.',
