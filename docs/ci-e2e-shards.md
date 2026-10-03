@@ -1,6 +1,6 @@
 # The e2e shards (issue #311)
 
-The browser suite (`npm run e2e`: the dev-server projects and the portable file) runs on CI as four concurrent jobs on `windows-latest`, each with a 20-minute limit. This page says how the suite is divided between them, what proves the division is complete, and how the division is kept honest as the suite grows.
+The browser suite (`npm run e2e`: the dev-server projects and the portable file) runs on CI as five concurrent jobs on `windows-latest`, each with a 20-minute limit. This page says how the suite is divided between them, what proves the division is complete, and how the division is kept honest as the suite grows.
 
 ## Why not Playwright's `--shard`
 
@@ -27,7 +27,7 @@ It runs in the `checks` job on every pull request and push.
 2. **The budget.** For every shard, the sum of its files' **slowest** recorded samples plus the fixed cost of a shard job (120 s: checkout, Node, `npm ci`, the Chromium install, the dev server, measured at 35 to 100 s plus 9 to 27 s) must stay at least two minutes under the 20-minute limit. The slowest samples stand for the slowest runner in the sample; the two minutes are the room the next spec file needs before the split has to grow. When this goes red the remedy is another shard (the matrix in `.github/workflows/ci.yml` and the `/N` in its run step; the check keeps the two equal), not a longer limit.
 3. **Hygiene.** Every weight belongs to a file the suite still lists.
 
-Measured at the first split (weights from six runs, 2026-10-01 to 2026-10-03): with four shards the predicted loads are 808 / 808 / 809 / 808 s by the medians and 894 / 919 / 882 / 919 s by the slowest samples, so the longest predicted job is 17 min 19 s, 2 min 41 s under the limit. Against each of the eleven recorded runs, with that run's own times and weights that exclude it, the longest shard would have been 9 to 18 % shorter than the count split that ran (for example 848 s instead of 1,037 s on `16020f2`).
+Predicted at the first split (weights from six runs, 2026-10-01 to 2026-10-03), before any CI run of it: with four shards the loads would be 808 / 808 / 809 / 808 s by the medians and 894 / 919 / 882 / 919 s by the slowest samples, a longest job of 17 min 19 s and only 41 s inside the budget; so the split ships with **five** shards: 648 / 647 / 647 / 646 / 646 s by the medians, 712 / 746 / 708 / 725 / 723 s by the slowest samples, a longest predicted job of 14 min 26 s, 5 min 34 s under the limit. Against each of the eleven recorded runs, with that run's own times and weights that exclude it, the longest of four time-cut shards would have been 9 to 18 % shorter than the count split that ran (848 s instead of 1,037 s on `16020f2`), and the longest of five 606 to 693 s. These are predictions from recorded samples; the measured shard times of the first CI runs are what confirms them.
 
 ## Keeping the weights current
 
