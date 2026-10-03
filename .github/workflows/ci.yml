@@ -75,6 +75,8 @@ jobs:
         env:
           # a pull request is compared with its base; a push to main with the commit before it
           CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - name: E2E shards — every listed test in exactly one shard, every shard within the time budget
+        run: npm run check:e2e-shards
       - name: Web build
         run: npm run build
       - name: Portable build
@@ -89,11 +91,20 @@ jobs:
         run: CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist
 
   # ── E2E, parallelised ──────────────────────────────────────────────────
-  # The dev-server + portable suite (`npm run e2e`) is split into N Playwright
-  # shards that run concurrently; the production-bundle and PWA suites are
-  # their own jobs. The `e2e` job below fans them back into one status.
+  # The dev-server + portable suite (`npm run e2e`) is split into N shards that
+  # run concurrently; the production-bundle and PWA suites are their own jobs.
+  # The `e2e` job below fans them back into one status.
+  #
+  # The split is by PREDICTED TIME (issue #311): `scripts/e2e-shards.mjs` reads
+  # the live test list and `e2e/shard-weights.json` (measured seconds per spec
+  # file, one sample per CI run) and places the files longest-first into the
+  # least-loaded shard. Playwright's own `--shard` splits by test count, and
+  # that left one shard at 18 min 44 s against the 20-minute limit. The `checks`
+  # job proves every listed test is in exactly one shard and that every shard is
+  # within the budget (`npm run check:e2e-shards`). To change the shard count,
+  # change the matrix AND the `/N` in the run step; the check keeps them equal.
   e2e-shard:
-    name: e2e (shard ${{ matrix.shard }}/4)
+    name: e2e (shard ${{ matrix.shard }}/5)
     # Windows so the committed visual baselines (`*-win32.png`) match; public
     # repo ⇒ Actions minutes are free.
     runs-on: windows-latest
@@ -101,7 +112,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,9 +123,19 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
       # the default config's `build-portable` setup project self-builds the
-      # portable bundle on each shard that carries a portable spec
+      # portable bundle on the one shard that carries the portable spec
       - name: E2E (dev server + portable file://)
-        run: npx playwright test --shard=${{ matrix.shard }}/4
+        run: node scripts/e2e-shards.mjs run ${{ matrix.shard }}/5
+      # the JSON report is the timing sample `scripts/e2e-shard-weights.mjs`
+      # reads to refresh the weights; small, kept for two weeks, uploaded always
+      - name: Upload the timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-shard-${{ matrix.shard }}
+          path: test-results/e2e-report.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Upload Playwright artifacts
         if: failure()
         uses: actions/upload-artifact@v4
