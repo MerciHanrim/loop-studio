@@ -19,6 +19,10 @@ const ALT_ORIGIN = 'http://127.0.0.1:4174' // reaches the same content, NOT an a
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
     try {
+      // issue #297 - a remembered personal browser: no storage gate in front of
+      // these tests, which are about the service worker, not the gate
+      if (!localStorage.getItem('loop-studio:storage-mode'))
+        localStorage.setItem('loop-studio:storage-mode', 'personal')
       if (!localStorage.getItem('loop-studio/guided-tour/1'))
         localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
     } catch {

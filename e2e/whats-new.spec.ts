@@ -58,6 +58,10 @@ async function boot(page: Page, { width = 1280, height = 800, storage = {}, pwaW
       try {
         if (!sessionStorage.getItem('__whatsnew_seeded')) {
           sessionStorage.setItem('__whatsnew_seeded', '1')
+          // issue #297 - a remembered personal browser, so the storage gate does
+          // not stand in front of these tests; the mode key is not a trace of a
+          // person (src/whatsNew/decide.ts), so "a first visit" stays one
+          if (!('loop-studio:storage-mode' in storage)) localStorage.setItem('loop-studio:storage-mode', 'personal')
           for (const [k, v] of Object.entries(storage)) localStorage.setItem(k, v)
         }
       } catch {
@@ -147,7 +151,8 @@ test.describe('who gets the automatic notice', () => {
       localStorage.removeItem(a)
       localStorage.removeItem(t)
     }, [ANNOUNCED_KEY, TOUR])
-    expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([DOC])
+    // issue #297 - the gate's answer is stored beside it, and is not a trace either
+    expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual([DOC, 'loop-studio:storage-mode'].sort())
     await page.reload()
     await expect(page.locator('.canvas')).toBeVisible()
     await expect.poll(() => stored(page, ANNOUNCED_KEY)).toBe(ID)
@@ -234,7 +239,7 @@ test.describe('closing the notice and opening the panel are different things', (
         expect(text).not.toContain('text unavailable')
       }
     }
-    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
+    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
 
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)

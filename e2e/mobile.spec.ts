@@ -735,6 +735,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await page.addInitScript(() => {
       try {
         localStorage.clear()
+        localStorage.setItem('loop-studio:storage-mode', 'personal') // issue #297 - the clear took the gate's answer too
         localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
       } catch {
         /* private mode — fine */
@@ -793,6 +794,7 @@ test.describe('mobile view/run — Slice 3 editing lock', () => {
     await page.addInitScript(() => {
       try {
         localStorage.clear()
+        localStorage.setItem('loop-studio:storage-mode', 'personal') // issue #297 - the clear took the gate's answer too
         localStorage.setItem('loop-studio/guided-tour/1', 'dismissed') // no first-run tour card
       } catch {
         /* private mode */

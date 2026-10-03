@@ -6564,3 +6564,242 @@ input[type='number']::-webkit-inner-spin-button {
   color: var(--text-secondary);
   vertical-align: 1px;
 }
+
+/* ── issue #297 — the storage gate ─────────────────────────────────────────
+   Drawn by the boot module before the app exists: a full-page ground with one
+   card, in the system theme. The two choices are equal: the same `.btn`, the
+   same weight, nothing primary. On a phone the card takes the width with the
+   16 px gutter; on a desktop it sits centred. */
+.gate {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+.gate__card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface-panel);
+  border: 1px solid var(--line-container);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.4);
+  padding: 22px 22px 18px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gate__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.gate__title:focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.gate__lead {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.gate__note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-sunken);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.gate__choices {
+  display: grid;
+  /* two columns on a desktop, one on a phone, without a media query of its own
+     (scripts/check-mobile-query.mjs allows exactly one breakpoint in this file) */
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-top: 6px;
+}
+.gate__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--control-radius);
+}
+.gate__btn {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: normal;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.gate__badge {
+  padding: 0 6px;
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+.gate__sub,
+.gate__help,
+.gate__later {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.gate__remember {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.gate__remember input {
+  margin: 1px 0 0;
+  flex: none;
+}
+.gate__later {
+  margin-top: 4px;
+}
+.gate:lang(ko),
+.gate:lang(ja),
+.gate:lang(zh-Hans),
+.gate:lang(zh-Hant) {
+  word-break: keep-all;
+}
+
+/* ── issue #297 — the temporary-session chip (toolbar) ────────────────────
+   A `.rev-chip` that is a button: the same box as the revision chip beside
+   it, a solid boundary when colours are forced, and a small menu with the
+   ways out (export, save here after all, the Storage area). */
+.session-chip {
+  position: relative;
+  display: inline-flex;
+}
+.session-chip__btn {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  font-weight: 600;
+  border-color: var(--warning);
+}
+.session-chip__btn:hover,
+.session-chip__btn[aria-expanded='true'] {
+  border-color: var(--line-control-hover);
+}
+.session-chip__pop {
+  min-width: 240px;
+}
+.session-chip__text {
+  margin: 0;
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--line-hairline);
+}
+
+/* ── issue #297 — the Storage and privacy dialog ─────────────────────────── */
+.mcdlg--storage {
+  width: min(460px, calc(100vw - 32px));
+}
+.storage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.storage__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.storage__h {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+.storage__mode {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.storage__text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.storage__sub {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.storage__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.storage__toggle input {
+  margin: 1px 0 0;
+  flex: none;
+}
+.storage__toggle:has(input:disabled) {
+  color: var(--text-disabled);
+  cursor: default;
+}
+.storage__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-hairline);
+}
+.storage__actions .btn {
+  white-space: normal;
+  text-align: start;
+}
+.storage__done {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--cs-success);
+}
+/* a step's foot: the export offer sits at the inline start, Cancel and Confirm at the end */
+.mcdlg__foot--spread {
+  flex-wrap: wrap;
+}
+.mcdlg__foot--spread .btn:first-child {
+  margin-inline-end: auto;
+}
+.storage:lang(ko),
+.mcdlg--storage:lang(ko) {
+  word-break: keep-all;
+}

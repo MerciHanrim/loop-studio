@@ -5,95 +5,69 @@ import '@fontsource/ibm-plex-sans/latin-600.css'
 import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@xyflow/react/dist/style.css'
 import './index.css'
-import App from './App.tsx'
-import { directionOf, initI18n, useI18n } from './i18n'
-import * as share from './model/share'
-import { flushAutosave, useGraphStore } from './store/graphStore'
-import { useAutosaveStore } from './store/autosaveStore'
-import { useMcStore } from './store/mcStore'
-import { useProjectStore } from './store/projectStore'
-import { usePwaStore } from './store/pwaStore'
-import { useReviewStore } from './store/reviewStore'
-import * as revisionIO from './store/revisionIO'
-import { __resetRouteCache, __routeGenCount, currentRouteMap } from './store/routeMap'
-import * as shareLink from './store/shareLink'
-import { useDataImportStore } from './store/dataImportStore'
-import { useFilterStore } from './store/filterStore'
-import { useFrameStore } from './store/frameStore'
-import { useAutoFrameStore } from './store/autoFrameStore'
-import { useHintStore } from './store/hintStore'
-import { useSimStore } from './store/simStore'
-import { useTourStore } from './store/tourStore'
-import { useUiStore } from './store/uiStore'
-import { useWhatsNewStore } from './store/whatsNewStore'
-import * as workspaceIO from './store/workspaceIO'
-import { applyStoredTheme } from './theme/theme'
+import { StorageGate } from './components/StorageGate'
+import { initI18n } from './i18n'
+import { classifyFragment } from './model/share'
+import { storageSession, type StorageMode } from './storage/storagePort'
 
-// Issue #302 — the stored theme is applied before anything is rendered. Until
-// this, the only reader of the key was the toggle inside the Settings menu, so
-// a reload opened in the system theme and the saved one appeared when that
-// menu was opened. Read through the storage port; an unreadable or unknown
-// value means `system`.
-applyStoredTheme()
-
-// Dev-only store bridge for browser E2E (never in the production / portable
-// build — `import.meta.env.DEV` is statically false there and tree-shaken out).
-if (import.meta.env.DEV) {
-  ;(window as unknown as { __loop: unknown }).__loop = {
-    graph: useGraphStore,
-    // audit ①-4 — the pending-save flush + its failure state, so a spec that
-    // clears storage before navigating can first settle the debounce (the
-    // pagehide flush would otherwise re-persist the graph after the clear)
-    autosave: { store: useAutosaveStore, flush: flushAutosave },
-    sim: useSimStore,
-    mc: useMcStore,
-    ui: useUiStore,
-    filter: useFilterStore,
-    frame: useFrameStore,
-    dataImport: useDataImportStore,
-    autoFrame: useAutoFrameStore,
-    pwa: usePwaStore,
-    project: useProjectStore,
-    review: useReviewStore,
-    tour: useTourStore,
-    hint: useHintStore,
-    whatsNew: useWhatsNewStore,
-    i18n: useI18n,
-    // §L9.2 — the direction resolver itself, so the RTL e2e can assert the value
-    // the app's own `dir` attributes read rather than re-deriving it from the
-    // locale code (which would be a second, divergent implementation living in
-    // the test) or from `<html dir>` (which is the OUTPUT under test).
-    directionOf,
-    io: workspaceIO,
-    revisionIO,
-    routeMap: {
-      genCount: __routeGenCount,
-      reset: __resetRouteCache,
-      get: (id: string) => {
-        const g = useGraphStore.getState()
-        return currentRouteMap(g.nodes, g.edges).get(id) ?? null
-      },
-    },
-    share,
-    shareLink,
-  }
-}
+// Issue #297 — the boot module: the gate in front of everything stored.
+//
+// This file imports nothing that reads the browser profile. The stores, and
+// the App that uses them, live behind `import('./app')`, which runs only once
+// the storage session is open. Until then the port is shut (every call
+// throws), so the only storage read on this page is the mode key below.
+//
+// Three ways in:
+//   remembered `personal`   the person asked to trust this browser: open the
+//                           browser door and start, with no gate. The theme was
+//                           already applied before the first paint by the boot
+//                           script in <head>, which read the same mode key.
+//   remembered `temporary`  open the in-memory door and start, with no gate.
+//   nothing remembered,     show the gate, in the BROWSER's language (the port
+//   or the portable file    is shut, so `initI18n` cannot see a stored one) and
+//                           in the system theme. The answer opens a door, is
+//                           remembered only when the box was ticked, and then
+//                           the app starts.
+//
+// The gate shows nothing about stored work: it is drawn before anything stored
+// is read, so there is nothing it could show.
 
 // Service worker — Production / PWA-test build only. `__PWA_ENABLED__` is a
 // compile-time constant, so this whole block (and `./pwa/register-sw`) is
 // tree-shaken out of a plain `npm run build`, dev, and portable (docs/pwa.md
-// §P7). The origin allow-list inside `registerPwa` is the second gate.
+// §P7). The origin allow-list inside `registerPwa` is the second gate. The
+// PWA's cache holds app files only, never user work, so registering it before
+// the storage gate is allowed (issue #297).
 if (__PWA_ENABLED__) {
   void import('./pwa/register-sw').then((m) => m.registerPwa())
 }
 
-// docs/localization.md §L5.2 — resolve + load the initial catalog BEFORE React
-// mounts, so the first paint is already in the right language (no flash). The
-// embedded `en` catalog makes this fast and un-failable.
-void initI18n().then(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  )
-})
+async function start(): Promise<void> {
+  const { startApp } = await import('./startApp')
+  await startApp()
+}
+
+const remembered = storageSession.readRemembered()
+if (remembered !== null) {
+  storageSession.use(remembered)
+  void start()
+} else {
+  // a share link in the address is told to the gate: a temporary session keeps
+  // the shared document out of this browser's storage
+  const shareLinkWaiting = typeof location !== 'undefined' && classifyFragment(location.hash).kind === 'share'
+  void initI18n().then(() => {
+    const host = document.getElementById('root')!
+    const root = createRoot(host)
+    const answer = (mode: StorageMode, remember: boolean) => {
+      root.unmount()
+      storageSession.use(mode)
+      if (remember) storageSession.remember(mode)
+      void start()
+    }
+    root.render(
+      <StrictMode>
+        <StorageGate shareLinkWaiting={shareLinkWaiting} onAnswer={answer} />
+      </StrictMode>,
+    )
+  })
+}

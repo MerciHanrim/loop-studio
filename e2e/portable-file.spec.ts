@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
+import { seedPersonalBrowser } from './support/loop'
 import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
@@ -22,10 +23,27 @@ import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 const RF = 'examples/risky-factory.json'
 const HTTP = 'http://localhost:5173'
 
-async function openPortable(page: Page): Promise<void> {
+/** issue #297 - the portable file shows the storage gate EVERY time, with the
+ *  temporary session recommended and no way to remember a choice. Every test
+ *  here goes through it: `temporary` unless the test is about what a personal
+ *  browser stores. */
+async function answerPortableGate(page: Page, mode: 'personal' | 'temporary' = 'temporary'): Promise<void> {
+  const gate = page.locator('.gate[data-gate="portable"]')
+  await expect(gate).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-build'))).toBe('portable')
+  // the gate itself: the portable warning, the recommendation, and no remember boxes
+  await expect(gate.locator('[data-gate-note="portable"]')).toBeVisible()
+  await expect(gate.locator('[data-gate-choice="temporary"] .gate__badge')).toBeVisible()
+  await expect(gate.locator('input[type="checkbox"]')).toHaveCount(0)
+  await gate.locator(`[data-gate-choice="${mode}"] button`).click()
+  await expect(gate).toHaveCount(0)
+}
+
+async function openPortable(page: Page, mode: 'personal' | 'temporary' = 'temporary'): Promise<void> {
   await installProbe(page)
   await page.goto(portableUrl())
   expect(await page.evaluate(() => location.protocol)).toBe('file:')
+  await answerPortableGate(page, mode)
   await expect(page.locator('.toolbar')).toBeVisible()
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
   expect(await page.evaluate(() => Boolean((window as any).__loop))).toBe(false)
@@ -159,14 +177,17 @@ test.describe('portable file://', () => {
     expectOneVersionStory((await readAboutVersion(page)).version, newest)
   })
 
-  // issue #302 - the single file carries the boot script in its head. On file://
-  // storage may or may not be readable; either way the page opens, with the
-  // stored theme when it can be read and the system theme when it cannot.
-  test('the boot script is in the single file, and a stored dark theme is on at the first frame when storage is readable', async ({ page }) => {
-    let readable = false
+  // issue #302 / #297 - the single file carries the boot script in its head, but
+  // the portable file shows the gate every time and reads nothing before it: a
+  // stored dark theme, even beside a stored `personal` mode key (which another
+  // local file could have written into the shared file:// storage), is NOT on at
+  // the first frame. It is applied by the module door only after the person
+  // chooses the personal browser, and only when storage is readable.
+  test('the boot script is in the single file, reads nothing before the gate, and a stored dark theme appears only after choosing the personal browser', async ({ page }) => {
     await page.addInitScript(() => {
       const w = window as unknown as { __firstFrameTheme?: string | null; __storageReadable?: boolean }
       try {
+        localStorage.setItem('loop-studio:storage-mode', 'personal')
         localStorage.setItem('loop-studio:theme', 'dark')
         w.__storageReadable = localStorage.getItem('loop-studio:theme') === 'dark'
       } catch {
@@ -176,15 +197,55 @@ test.describe('portable file://', () => {
         w.__firstFrameTheme = document.documentElement.getAttribute('data-theme')
       })
     })
-    await openPortable(page)
-    const r = await page.evaluate(() => {
+    await installProbe(page)
+    await page.goto(portableUrl())
+    const atGate = await page.evaluate(() => {
       const w = window as unknown as { __firstFrameTheme?: string | null; __storageReadable?: boolean }
       return { readable: w.__storageReadable, firstFrame: w.__firstFrameTheme, now: document.documentElement.getAttribute('data-theme'), boot: document.querySelectorAll('head script[data-storage-boot]').length }
     })
-    readable = r.readable === true
-    expect(r.boot).toBe(1)
-    expect(r.firstFrame).toBe(readable ? 'dark' : null)
-    expect(r.now).toBe(readable ? 'dark' : null)
+    const readable = atGate.readable === true
+    expect(atGate.boot).toBe(1)
+    expect(atGate.firstFrame, 'no stored theme at the first frame of the portable file').toBeNull()
+    expect(atGate.now).toBeNull()
+    await answerPortableGate(page, 'personal')
+    await expect(page.locator('.toolbar')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(readable ? 'dark' : null)
+  })
+
+  test('a temporary session in the portable file ignores the stored theme and stores nothing', async ({ page }) => {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('loop-studio:theme', 'dark')
+      } catch {
+        /* unreadable storage: the test below still holds */
+      }
+    })
+    const snapshot = () =>
+      page.evaluate(() => {
+        try {
+          return Object.keys(localStorage)
+            .filter((k) => k.startsWith('loop-studio'))
+            .sort()
+            .map((k) => [k, localStorage.getItem(k)])
+        } catch {
+          return 'unreadable'
+        }
+      })
+    await installProbe(page)
+    await page.goto(portableUrl())
+    // what the storage holds AT the gate: the test's theme and the harness's own
+    // seeds (`installProbe` dismisses the tour and marks the release as seen);
+    // the gate is on screen although a mode key is among them - the portable
+    // file ignores it
+    const before = await snapshot()
+    await answerPortableGate(page, 'temporary')
+    await expect(page.locator('.toolbar')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBeNull()
+    await page.locator('input[type="file"]').setInputFiles(RF)
+    await expect(page.locator('.react-flow__node')).toHaveCount(18)
+    await page.waitForTimeout(700) // past the autosave debounce
+    // the import and the autosave it triggers left the browser's storage byte for byte as it was
+    expect(await snapshot()).toEqual(before)
   })
 
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
@@ -261,6 +322,7 @@ test.describe('portable file://', () => {
     // recommendedRunConfig (500 × 40, seed 1, the 6 tracked Pools) — no manual
     // config on either side.
     const pctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    await seedPersonalBrowser(pctx) // issue #297 - no storage gate in front of this context
     const ppage = await pctx.newPage()
     await openPortable(ppage)
     await startMcPrefilled(ppage, 500, 40, 1)
@@ -270,7 +332,18 @@ test.describe('portable file://', () => {
     await pctx.close()
 
     const hctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+
+    await seedPersonalBrowser(hctx) // issue #297 - no storage gate in front of this context
     const hpage = await hctx.newPage()
+    await hpage.addInitScript(() => {
+      try {
+        localStorage.setItem('loop-studio:storage-mode', 'personal') // issue #297 - no gate on the hosted side
+        localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+      } catch {
+        /* ignore */
+      }
+    })
+    await seedWhatsNewSeen(hpage)
     await installProbe(hpage)
     await hpage.goto(HTTP)
     await hpage.waitForFunction(() => Boolean((window as any).__loop))
@@ -323,6 +396,7 @@ test.describe('portable file://', () => {
     killCompressionStream: boolean,
   ): Promise<{ url: string; clip: string[] }> {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
     const page = await ctx.newPage()
     await page.addInitScript((kill: boolean) => {
       if (kill) {
@@ -351,9 +425,11 @@ test.describe('portable file://', () => {
     payload: string,
   ): Promise<void> {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
     const page = await ctx.newPage()
     await page.addInitScript(() => {
       try {
+        localStorage.setItem('loop-studio:storage-mode', 'personal') // issue #297 - no gate on the hosted side
         localStorage.setItem('loop-studio/guided-tour/1', 'dismissed') // no first-run card
       } catch {
         /* ignore */
