@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // Brazilian Portuguese (`pt-BR`). docs/localization.md §L2.14 (the locale's own
 // decisions), §L5.2 step 4 (`baseFallbackFor`), §L2.11 (`caractere` vs
@@ -80,6 +80,7 @@ test.describe('a Portuguese browser', () => {
   ] as const) {
     test(`${tag} reaches Portuguese, not English — ${note}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe('pt-BR')
@@ -118,6 +119,7 @@ test.describe('the other shipped locales are unaffected', () => {
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(want)

@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(880)
+    expect(KEYS).toHaveLength(941)
   })
 
   // ----------------------------------------------------------------- script
@@ -207,11 +207,13 @@ describe('ru copy — the first Cyrillic catalog', () => {
     }
     expect([...yo].sort()).toEqual([
       'введённое',
+      'вернётся',
       'включён',
       'всё',
       'даёт',
       'ещё',
       'её',
+      'ждёт',
       'завершённый',
       'задаёт',
       'задаётся',
@@ -223,6 +225,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'несохранённые',
       'несёт',
       'неё',
+      'нём',
       'обновлён',
       'объединённые',
       'остаётся',
@@ -238,7 +241,11 @@ describe('ru copy — the first Cyrillic catalog', () => {
       // issue #302: the 0.15.2 release-note lines, `сохранённая тема` and
       // `сохранённое значение темы`
       'сохранённая',
+      // issue #297: the storage gate and the Storage and privacy area
+      'сохранённого',
       'сохранённое',
+      'сохранённой',
+      'сохранённую',
       'сохранённые',
       'сохранённый',
       'трёх',

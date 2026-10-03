@@ -97,6 +97,17 @@ describe('es-ES — the region audit, as a contract', () => {
         'tour.desktop.pieces.body',
         'hint.importFirstCommit.body',
         'timeline.series.showAllHint',
+        // issue #297: the storage gate and the Storage and privacy area -
+        // `ordenador` not `computadora`, `Ajustes` not `Configuración`, and the
+        // `usted` register (`Puede`, `ha visto`, `Se ha eliminado`)
+        'gate.cannotTell',
+        'gate.later',
+        'storage.delete.allBody',
+        'storage.delete.workBody',
+        'storage.delete.workDone',
+        'storage.statement',
+        'whatsNew.v0160.gate',
+        'whatsNew.v0160.settings',
         // the formatter emits a NO-BREAK SPACE before the percent sign
         'playbar.mc.progress',
         'runbar.mc.cancel',

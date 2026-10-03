@@ -140,6 +140,10 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'gold', 'energy', 'player',
   ]],
   ['cognates that are the correct Italian word, not a leak', ['america']],
+  // issue #297 - the storage gate and the Storage and privacy area: `computer`
+  // and `privacy` are the words Italian uses, `area` is Italian, Chrome and
+  // HTML are names
+  ['the storage gate (issue #297)', ['computer', 'privacy', 'area', 'chrome', 'html']],
 ]
 
 const DECLARED = new Set(SURVIVING.flatMap(([, ws]) => ws))
@@ -191,15 +195,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(880)
+    expect(KEYS).toHaveLength(941)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 880, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1102)
+    expect(per).toEqual({ catalog: 941, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1163)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

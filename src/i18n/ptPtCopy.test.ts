@@ -56,7 +56,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(880)
+    expect(KEYS).toHaveLength(941)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -95,7 +95,13 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // not `conexão`) and the three 0.15.3 release-note lines (`aplicação` not
     // `aplicativo`, `aspeto` not `aparência`, `leitura por voz` for the screen
     // reader, `Repor` not `Redefinir`, `numa ligação` not `em uma conexão`).
-    expect(DELTA).toHaveLength(180)
+    //
+    // Issue #297 moved it from 180 to 224: the storage gate, the temporary-
+    // session chip, the Storage and privacy area and the five 0.16.0 release-
+    // note lines, on the usual axes - `guardado` not `salvo`, `repor` not
+    // `redefinir`, `ficheiro` not `arquivo`, `ligação` not `link`, `definições`
+    // not `configurações`, `aplicação` not `aplicativo`, `num` not `em um`.
+    expect(DELTA).toHaveLength(224)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

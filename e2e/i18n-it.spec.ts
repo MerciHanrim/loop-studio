@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // Italian (`it`). docs/localization.md §L2.22.
 //
@@ -73,6 +73,7 @@ test.describe('every Italian tag reaches it, and an unregistrable tag does not',
   ] as const) {
     test(`${tag} resolves to ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const p = await ctx.newPage()
       await openApp(p)
       expect(await htmlLang(p)).toBe(want)

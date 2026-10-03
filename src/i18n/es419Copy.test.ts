@@ -234,7 +234,10 @@ describe('es-419 copy — mechanical review', () => {
       (
         'Loop Studio Graph JSON Workspace CSV TSV csv Monte Carlo MonteCarloResult MC GitHub id ID ' +
         'a base bytes contextual control editable error Error final literal local Local material ' +
-        'no No normal panel Roles series Total use Use web zoom'
+        'no No normal panel Roles series Total use Use web zoom ' +
+        // issue #297: a browser name, a file format, and two Spanish/English
+        // homographs (`accidental`, `personal`) in the storage gate and area
+        'Chrome HTML accidental personal'
       ).split(' '),
     )
     // allowed ONLY on the surface that owns it — the key set is the contract,

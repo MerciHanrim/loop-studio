@@ -199,26 +199,37 @@ What applies it now, in order:
 
 1. **The boot door**, `src/storage/themeBoot.js`, a classic script that
    `vite.config.ts` inlines into `<head>` of every build. It runs before the
-   browser can paint and before any module. It reads the one key with
+   browser can paint and before any module. It reads the theme key with
    `getItem`, sets `data-theme` for `light` and `dark`, and does nothing for
    anything else or when storage throws. The module alone was too late:
    measured on the production build, the first frame was painted at 36 ms on a
    phone-sized window and at 952 ms on a slow network, while the module applied
    the theme at 67 ms and 1,725 ms.
 2. **The module door**, `src/theme/theme.ts`, `applyStoredTheme()` from
-   `src/main.tsx` before the first render, through `storagePort`. The same rule
-   as the boot script; an unknown value means `system` and nothing is written
-   back.
+   `src/startApp.tsx` before the first render, through `storagePort`. The same
+   rule as the boot script; an unknown value means `system` and nothing is
+   written back.
 3. The toggle, which reads through the same module and writes the choice.
+
+Issue #297 put a gate in front of everything stored
+([docs/storage-sessions.md](storage-sessions.md)), and the theme is one
+person's setting shown to the next, so both doors now stand behind it. The
+boot script reads the non-sensitive mode key first and the theme only when
+that key says `personal`; a profile that has not answered the gate, one that
+always starts a temporary session, and the portable file start in the system
+theme. The module door reads through the port, which holds nothing in a
+temporary session, so it decides `system` there too.
 
 The storage rule is unchanged in spirit and extended in letter: the boot script
 is the port's second door, the only file besides `storagePort.ts` that may touch
-browser storage, allowed exactly one `getItem` of that key.
-`scripts/check-storage-port.mjs` enforces that and refuses an `index.html` that
-touches storage on its own; the run-time trap in
-`e2e/storage-port-runtime.spec.ts` expects exactly one read through the boot
-door, as the first storage call of all. `e2e/theme-boot.spec.ts` holds the
-contract: the attribute at the first animation frame for every stored value,
+browser storage, allowed exactly one `getItem` of the mode key and exactly one
+of the theme key, the second nested under the first.
+`scripts/check-storage-port.mjs` enforces that on the syntax tree and refuses an
+`index.html` that touches storage on its own; the run-time trap in
+`e2e/storage-port-runtime.spec.ts` expects the boot door's mode read as the
+first storage call of all, and its theme read only at a start that remembered
+a personal browser. `e2e/theme-boot.spec.ts` holds the contract for such a
+browser: the attribute at the first animation frame for every stored value,
 desktop and mobile; no light or blank frame painted before a dark start, on the
 browser's own screencast, including a throttled network; the choice survives a
 reload; the boot script is in the page once.

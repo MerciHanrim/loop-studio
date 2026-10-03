@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // Thai (`th`). docs/localization.md §L2.19.
 //
@@ -91,6 +91,7 @@ test.describe('every Thai tag reaches th, and its neighbours do not', () => {
   ] as const) {
     test(`${tag} reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(want)

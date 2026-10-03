@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 import { seedWhatsNewSeen } from './support/whatsNew'
 
 // Neutral Latin American Spanish (`es-419`). docs/localization.md §L2.13
@@ -93,6 +93,7 @@ test.describe('a Spanish browser', () => {
   ]) {
     test(`${tag} reaches Spanish, not English`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe('es-419')
@@ -132,6 +133,7 @@ test.describe('the other shipped locales are unaffected', () => {
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(want)
@@ -143,6 +145,7 @@ test.describe('the other shipped locales are unaffected', () => {
 // ------------------------------------------------------------------ 3
 test('a stored es-419 survives a reload; a region tag is not a code', async ({ browser }) => {
   const ctx = await browser.newContext({ locale: 'en-US' })
+  await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
   const page = await ctx.newPage()
   await openApp(page)
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'es-419'))
