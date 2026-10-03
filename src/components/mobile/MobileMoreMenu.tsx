@@ -36,6 +36,9 @@ import { TEMPLATE_KEY } from '../templateKeys'
 import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
 import { WhatsNewPanel } from '../WhatsNewPanel'
+import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
+import { shareDisclosureBody } from '../toolbar/shareDisclosure'
+import { selectTemporary, useSessionStore } from '../../store/sessionStore'
 import { ArrowIcon } from '../../ui/icons'
 
 // docs/localization.md Slice 2b — Templates replace, the Project-revision
@@ -114,6 +117,9 @@ export function MobileMoreMenu({
   const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  // issue #297 — the Storage and privacy area, and whether this is a temporary session
+  const [storageOpen, setStorageOpen] = useState(false)
+  const temporary = useSessionStore(selectTemporary)
   const [contextualOpen, setContextualOpen] = useState(false)
   // issue #296 — the What's new panel and the marker that says it is unread
   const [whatsNewOpen, setWhatsNewOpen] = useState(false)
@@ -381,6 +387,12 @@ export function MobileMoreMenu({
         <div className="sheet__row" style={{ cursor: 'default' }}>
           {t('lang.rowLabel')}<span className="sheet__row-sub"><LanguageSwitch /></span>
         </div>
+        {/* issue #297 - the Storage and privacy area; in a temporary session the
+            row also carries the standing reminder that nothing is saved here */}
+        <button type="button" className="sheet__row" data-settings-row="storage-privacy" onClick={() => setStorageOpen(true)}>
+          {t('storage.menuLabel')}
+          {temporary ? <span className="sheet__row-sub" data-session-chip="temporary">{t('session.temporary.chip')}</span> : null}
+        </button>
         <button type="button" className="sheet__row" onClick={() => openOverlay('help')}>
           {t('tour.help.menuLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
@@ -392,11 +404,17 @@ export function MobileMoreMenu({
       <ConfirmDialog
         open={shareConfirm}
         title={t('share.disclosure.title')}
-        body={t('share.disclosure.body')}
+        body={shareDisclosureBody(t, temporary)}
         confirmLabel={t('share.disclosure.confirm')}
         onConfirm={runShare}
         onCancel={() => setShareConfirm(false)}
         returnFocusTo={() => document.querySelector<HTMLButtonElement>('.sheet__row--first')}
+      />
+      {/* issue #297 - the Storage and privacy area, opened from its row above */}
+      <StoragePrivacyDialog
+        open={storageOpen}
+        onClose={() => setStorageOpen(false)}
+        returnFocusTo={() => document.querySelector<HTMLButtonElement>('[data-settings-row="storage-privacy"]')}
       />
       {pendingDlg}
       </>

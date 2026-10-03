@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
 import { selectUpdateReady, usePwaStore } from '../store/pwaStore'
+import { sessionHasWork } from '../store/sessionActions'
+import { selectTemporary, useSessionStore } from '../store/sessionStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -11,18 +13,24 @@ import { ConfirmDialog } from './ConfirmDialog'
 // the bar says so. A run in progress asks once more, now via the in-app
 // ConfirmDialog (docs/localization.md Slice 2b): `apply()` runs only from the
 // Confirm click; Cancel / Escape / backdrop keep the run and never reload.
+//
+// Issue #297 — in a temporary session the reload also loses the diagram, which
+// is saved nowhere. Such a session with work asks first, and says to export;
+// a run in progress is asked about after that, as before.
 
 export function PwaUpdateBar() {
   const t = useT()
   const show = usePwaStore(selectUpdateReady)
   const apply = usePwaStore((s) => s.apply)
   const dismiss = usePwaStore((s) => s.dismiss)
+  const temporary = useSessionStore(selectTemporary)
   const [confirmRunning, setConfirmRunning] = useState(false)
+  const [confirmTemporary, setConfirmTemporary] = useState(false)
   const updateBtnRef = useRef<HTMLButtonElement>(null)
 
-  if (!show && !confirmRunning) return null
+  if (!show && !confirmRunning && !confirmTemporary) return null
 
-  const onUpdate = () => {
+  const proceed = () => {
     const running =
       useSimStore.getState().status === 'running' || useMcStore.getState().status === 'running'
     if (!running) {
@@ -30,6 +38,14 @@ export function PwaUpdateBar() {
       return
     }
     setConfirmRunning(true)
+  }
+
+  const onUpdate = () => {
+    if (temporary && sessionHasWork()) {
+      setConfirmTemporary(true)
+      return
+    }
+    proceed()
   }
 
   return (
@@ -47,6 +63,19 @@ export function PwaUpdateBar() {
           </span>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmTemporary}
+        title={t('session.temporary.updateTitle')}
+        body={t('session.temporary.updateBody')}
+        confirmLabel={t('session.temporary.updateConfirm')}
+        onConfirm={() => {
+          setConfirmTemporary(false)
+          proceed()
+        }}
+        onCancel={() => setConfirmTemporary(false)}
+        returnFocusTo={() => updateBtnRef.current}
+      />
 
       <ConfirmDialog
         open={confirmRunning}

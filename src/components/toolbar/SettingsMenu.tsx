@@ -2,26 +2,30 @@ import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } f
 import { useT } from '../../i18n'
 import { LanguageSwitch } from '../LanguageSwitch'
 import { ThemeToggle } from '../ThemeToggle'
+import type { ToolbarDialog } from './dialogTypes'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
 import { Icon } from '../../ui/icons'
 
 // docs/toolbar-responsive.md — the `Settings ▾` Tier-1 group: Theme,
-// Language only — personal app-environment prefs, deliberately never a
-// junk drawer for anything else. Modeled on `OverflowMenu.tsx`'s
-// trigger+popover pattern. Deliberate exception (review condition 3):
-// Theme/Language never call `closeAncestors` — cycling Theme or picking a
-// Language is a plausible multi-click adjustment, and auto-closing this
-// menu after each click would be actively annoying.
+// Language, and (issue #297) the way into the Storage and privacy area —
+// personal app-environment prefs, deliberately never a junk drawer for
+// anything else. Modeled on `OverflowMenu.tsx`'s trigger+popover pattern.
+// Deliberate exception (review condition 3): Theme/Language never call
+// `closeAncestors` — cycling Theme or picking a Language is a plausible
+// multi-click adjustment, and auto-closing this menu after each click would
+// be actively annoying. The Storage row opens a modal dialog, so it closes
+// the menu like File's and Help's dialog rows do.
 
 type Props = {
   buttonRef?: (el: HTMLButtonElement | null) => void
+  onOpenDialog: (desc: ToolbarDialog) => void
 }
 
 export type SettingsMenuHandle = { close: () => void }
 
 export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function SettingsMenu(
-  { buttonRef },
+  { buttonRef, onOpenDialog },
   ref,
 ) {
   const t = useT()
@@ -113,6 +117,18 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
             open={activeRow === 'language'}
             onOpenChange={(v) => setActiveRow(v ? 'language' : null)}
           />
+          <button
+            type="button"
+            className="menu__item"
+            role="menuitem"
+            data-settings-row="storage-privacy"
+            onClick={() => {
+              setOpen(false)
+              onOpenDialog({ kind: 'storage-privacy' })
+            }}
+          >
+            <span className="menu__name">{t('storage.menuLabel')}</span>
+          </button>
         </div>
       ) : null}
     </div>

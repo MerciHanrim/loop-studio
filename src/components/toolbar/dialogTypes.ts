@@ -1,3 +1,5 @@
+import type { StorageStep } from '../StoragePrivacyDialog'
+
 // docs/toolbar-responsive.md — the modal dialogs that used to live inside
 // ExportMenu / DataImportMenu / HelpMenu / ModuleMenu now render at
 // Toolbar.tsx's stable top level (see `DialogHost.tsx`), so a group's own
@@ -25,6 +27,8 @@ export type ToolbarDialog =
   | { kind: 'contextualHelp' }
   // issue #296 - every release note; opening it clears the Help menu's New marker
   | { kind: 'whatsNew' }
+  // issue #297 - the Storage and privacy area; `step` opens it on a confirmation
+  | { kind: 'storage-privacy'; step?: StorageStep }
   | { kind: 'module-promote'; run: () => void }
   | { kind: 'module-frames'; body: string; run: () => void }
   | null
