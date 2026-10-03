@@ -417,6 +417,10 @@ const ui = {
   'whatsNew.v0140.rtl': '阿拉伯文由右至左閱讀：選單和面板會鏡像，圖維持原來的形狀。',
   'whatsNew.v0140.frames': '可以直接在群組框上修改它的名稱、顏色和大小。',
   'whatsNew.v0140.csv': '下載的 CSV 檔案能在 Excel 中正確開啟，即使標籤裡有逗號或引號。',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': '在手機上，即使播放列的按鈕換到第二行，也不再遮住畫布底部。',
+  'whatsNew.v0151.desktopStrip': '在較窄的視窗中，播放控制項不再被視窗底邊截斷。',
+  'whatsNew.v0151.sheets': '時間軸面板、「更多」面板和縮放按鈕會依播放列的實際高度停在它上方。',
 } satisfies Record<UiKey, string>
 
 export default ui

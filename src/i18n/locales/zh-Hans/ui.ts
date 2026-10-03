@@ -391,6 +391,10 @@ const ui = {
   'whatsNew.v0140.rtl': '阿拉伯语从右向左阅读：菜单和面板会镜像，图保持原来的形状。',
   'whatsNew.v0140.frames': '可以直接在分组框上修改它的名称、颜色和大小。',
   'whatsNew.v0140.csv': '下载的 CSV 文件能在 Excel 中正确打开，即使标签里有逗号或引号。',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': '在手机上，即使播放栏的按钮换到第二行，也不再遮住画布底部。',
+  'whatsNew.v0151.desktopStrip': '在较窄的窗口中，播放控件不再被窗口底边截断。',
+  'whatsNew.v0151.sheets': '时间线面板、“更多”面板和缩放按钮会按播放栏的实际高度停在它上方。',
 } satisfies Record<UiKey, string>
 
 export default ui

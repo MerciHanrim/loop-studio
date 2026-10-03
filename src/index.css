@@ -214,7 +214,15 @@
      Timeline / run bar / sheets but BELOW ConfirmDialog and every blocking
      modal (`--z-mc-dialog`) and the PWA bar. */
   --z-tour: 47;
-  /* run bar height used to anchor the Timeline sheet + PWA bar offsets */
+  /* the run bar's MINIMUM height. Its real height is measured by the bar
+     itself and written to  (src/components/mobile/
+     MobileRunBar.tsx): the bar wraps to two rows below about 390 px, and in
+     six languages at 390 px, and it grows a row for an initialisation error.
+     Everything that keeps clear of the bar (the canvas padding, the sheets,
+     the Timeline sheet, the zoom controls, the update notice) reads the
+     measured value and falls back to this minimum plus the safe-area inset
+     before the first measurement. Two constants used to stand in for one
+     height, and 49 px of canvas sat under the bar (issue #303). */
   --mob-runbar-h: 52px;
   --mob-topbar-h: 48px;
 
@@ -3409,8 +3417,13 @@ a.sheet__row {
   flex-direction: column;
   background: var(--surface-panel);
 }
+/* collapsed, the timeline is only the playback strip. The strip wraps to two
+   or three rows in a narrow window or a long-label language (MEASURED at 721 to
+   1000 px: 65 px, 94 px in German and Russian), so its box is the strip's own
+   height, never a constant: a fixed 40 px pushed the wrapped rows past the
+   bottom of the window, where they could not be reached (issue #303). */
 .timeline.is-collapsed {
-  height: 40px;
+  min-height: 40px;
 }
 .timeline__panel {
   height: 200px;
@@ -5409,7 +5422,7 @@ input[type='number']::-webkit-inner-spin-button {
   /* the canvas pane reserves the fixed run bar's height as real space so no
      node / React Flow control is ever painted under it (docs/mobile.md §MV7) */
   .canvas-col .canvas {
-    padding-bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
+    padding-bottom: var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom)));
   }
 
   /* ---- compact top bar (§MV6) — Logo + a caption + one More button ---- */
@@ -5479,7 +5492,7 @@ input[type='number']::-webkit-inner-spin-button {
     flex-direction: column;
     justify-content: flex-end;
     /* keep the sheet panel above the fixed run bar so its Close is reachable */
-    padding-bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
+    padding-bottom: var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom)));
   }
   .sheet {
     background: var(--surface-panel);
@@ -5674,7 +5687,7 @@ input[type='number']::-webkit-inner-spin-button {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--mob-runbar-h) + var(--sai-bottom));
+    bottom: var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom)));
     z-index: var(--z-sheet);
     max-height: 46dvh;
     border-top: 1px solid var(--line-container);
@@ -5715,7 +5728,7 @@ input[type='number']::-webkit-inner-spin-button {
 
   /* React Flow zoom / fit controls: 44px touch targets, clear of the run bar */
   .react-flow__controls {
-    margin-bottom: calc(var(--mob-runbar-h) + var(--sai-bottom) + 8px);
+    margin-bottom: calc(var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom))) + 8px);
     margin-left: calc(8px + var(--sai-left));
   }
   .react-flow__controls-button {
@@ -6380,7 +6393,7 @@ input[type='number']::-webkit-inner-spin-button {
     right: 12px;
     /* a starting value only: the component measures the run bar, whose height
        is not a constant (it wraps to two rows at 320px), and sets `bottom` */
-    bottom: calc(var(--mob-runbar-h) + var(--sai-bottom) + 30px);
+    bottom: calc(var(--mob-runbar-real, calc(var(--mob-runbar-h) + var(--sai-bottom))) + 30px);
     /* leave the column of canvas zoom controls on the left free */
     max-width: calc(100% - 12px - 66px);
   }

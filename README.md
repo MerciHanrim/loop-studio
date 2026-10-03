@@ -137,7 +137,17 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.15.0
+## Latest — v0.15.1
+
+A fix release: the playback bar keeps to its space at narrow widths.
+
+- **On a phone**, the run bar no longer covers the bottom of the canvas when its buttons wrap
+  to a second row; the Timeline sheet, the More sheet and the zoom buttons stay above it
+  whatever its height
+- **In a narrow desktop window**, the playback controls are no longer cut off at the bottom
+  of the window
+
+## v0.15.0
 
 - **An update notice** — after an update, a browser that has used Loop Studio before sees
   one line naming the new version; it takes no focus, changes nothing and never times out
@@ -154,8 +164,8 @@ No migration: a v0.14.0 file opens unchanged. From this release on, a visible ch
 with its version and its release note in the same change — see
 [`docs/release-notes.md`](docs/release-notes.md).
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.15.0 notes, the v0.14.0 and v0.13.0
-releases and every earlier one.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.15.1 and v0.15.0 notes, the v0.14.0 and
+v0.13.0 releases and every earlier one.
 
 ## Credits
 

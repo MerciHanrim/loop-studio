@@ -397,6 +397,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'El árabe se lee de derecha a izquierda: los menús y los paneles se invierten, y el diagrama conserva su forma.',
   'whatsNew.v0140.frames': 'El nombre, el color y el tamaño de un marco de grupo se cambian desde el propio marco.',
   'whatsNew.v0140.csv': 'Los archivos CSV descargados se abren correctamente en Excel, aunque una etiqueta contenga una coma o comillas.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'En el teléfono, la barra de reproducción ya no tapa la parte inferior del lienzo cuando sus botones pasan a una segunda fila.',
+  'whatsNew.v0151.desktopStrip': 'En una ventana estrecha, los controles de reproducción ya no quedan cortados en la parte inferior de la ventana.',
+  'whatsNew.v0151.sheets': 'El panel Línea de tiempo, el panel Más y los botones de zoom se mantienen por encima de la barra de reproducción, sea cual sea su altura.',
 } as const
 
 export type UiKey = keyof typeof ui

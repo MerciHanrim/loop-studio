@@ -386,6 +386,10 @@ const ui = {
   'whatsNew.v0140.rtl': '아랍어는 오른쪽에서 왼쪽으로 읽습니다. 메뉴와 패널은 좌우가 바뀌고 다이어그램은 모양을 유지합니다.',
   'whatsNew.v0140.frames': '그룹 프레임의 이름, 색, 크기를 프레임에서 바로 바꿀 수 있습니다.',
   'whatsNew.v0140.csv': '내려받은 CSV 파일이 Excel에서 바르게 열립니다. 라벨에 쉼표나 따옴표가 있어도 됩니다.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': '휴대폰에서 재생 막대의 버튼이 두 줄로 접혀도 캔버스 아래쪽을 가리지 않습니다.',
+  'whatsNew.v0151.desktopStrip': '좁은 창에서 재생 조작 버튼이 창 아래쪽에서 잘리지 않습니다.',
+  'whatsNew.v0151.sheets': '타임라인 시트, 더 보기 시트, 확대·축소 버튼이 재생 막대의 높이에 맞춰 그 위에 놓입니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

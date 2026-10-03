@@ -468,6 +468,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'L’arabe se lit de droite à gauche : les menus et les panneaux sont inversés, et le schéma garde sa forme.',
   'whatsNew.v0140.frames': 'Le nom, la couleur et la taille d’un cadre de groupe se modifient depuis le cadre lui-même.',
   'whatsNew.v0140.csv': 'Les fichiers CSV téléchargés s’ouvrent correctement dans Excel, même si un libellé contient une virgule ou un guillemet.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'Sur un téléphone, la barre de lecture ne recouvre plus le bas du canevas lorsque ses boutons passent sur une deuxième ligne.',
+  'whatsNew.v0151.desktopStrip': 'Dans une fenêtre étroite, les commandes de lecture ne sont plus coupées en bas de la fenêtre.',
+  'whatsNew.v0151.sheets': 'Le volet Chronologie, le volet Plus et les boutons de zoom restent au-dessus de la barre de lecture, quelle que soit sa hauteur.',
 } satisfies Record<UiKey, string>
 
 export default ui

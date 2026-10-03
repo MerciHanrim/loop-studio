@@ -399,6 +399,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'O árabe é lido da direita para a esquerda: os menus e os painéis são espelhados, e o diagrama mantém a forma.',
   'whatsNew.v0140.frames': 'O nome, a cor e o tamanho de um quadro de grupo podem ser alterados no próprio quadro.',
   'whatsNew.v0140.csv': 'Os arquivos CSV baixados abrem corretamente no Excel, mesmo quando um rótulo contém vírgula ou aspas.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'No celular, a barra de reprodução não cobre mais a parte de baixo da tela quando seus botões passam para uma segunda linha.',
+  'whatsNew.v0151.desktopStrip': 'Em uma janela estreita, os controles de reprodução não ficam mais cortados na parte de baixo da janela.',
+  'whatsNew.v0151.sheets': 'O painel Linha do tempo, o painel Mais e os botões de zoom ficam acima da barra de reprodução, seja qual for a altura dela.',
 } as const
 
 export type UiKey = keyof typeof ui

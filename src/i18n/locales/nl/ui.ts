@@ -394,6 +394,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'Arabisch lees je van rechts naar links: menu’s en panelen worden gespiegeld, en het diagram houdt zijn vorm.',
   'whatsNew.v0140.frames': 'De naam, kleur en grootte van een groepskader pas je aan vanuit het kader zelf.',
   'whatsNew.v0140.csv': 'Gedownloade CSV-bestanden openen correct in Excel, ook als een label een komma of aanhalingsteken bevat.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'Op een telefoon bedekt de afspeelbalk de onderkant van het tekengebied niet meer wanneer de knoppen naar een tweede regel gaan.',
+  'whatsNew.v0151.desktopStrip': 'In een smal venster worden de afspeelknoppen niet meer afgesneden aan de onderrand van het venster.',
+  'whatsNew.v0151.sheets': 'Het Tijdlijn-paneel, het Meer-paneel en de zoomknoppen blijven boven de afspeelbalk, hoe hoog die ook is.',
 } as const
 
 export default ui

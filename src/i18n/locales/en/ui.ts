@@ -384,6 +384,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'Arabic reads from right to left: menus and panels mirror, and the diagram keeps its shape.',
   'whatsNew.v0140.frames': 'A group frame’s name, colour and size can be changed from the frame itself.',
   'whatsNew.v0140.csv': 'Downloaded CSV files open correctly in Excel, even when a label contains a comma or a quotation mark.',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'On a phone, the run bar no longer covers the bottom of the canvas when its buttons wrap to a second row.',
+  'whatsNew.v0151.desktopStrip': 'In a narrow window, the playback controls are no longer cut off at the bottom of the window.',
+  'whatsNew.v0151.sheets': 'The Timeline sheet, the More sheet and the zoom buttons stay above the run bar whatever its height.',
 } as const
 
 export type UiKey = keyof typeof ui

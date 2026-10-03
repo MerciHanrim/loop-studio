@@ -418,6 +418,10 @@ const ui = {
   'whatsNew.v0140.rtl': 'アラビア語は右から左に読みます。メニューとパネルは左右が反転し、図の形はそのままです。',
   'whatsNew.v0140.frames': 'グループフレームの名前、色、サイズをフレームから直接変更できます。',
   'whatsNew.v0140.csv': 'ダウンロードした CSV ファイルが Excel で正しく開きます。ラベルにカンマや引用符が含まれていても問題ありません。',
+  // issue #303 - the 0.15.1 release notes: the run bar at narrow widths
+  'whatsNew.v0151.mobileBar': 'スマートフォンで再生バーのボタンが2段になっても、キャンバスの下部が隠れなくなりました。',
+  'whatsNew.v0151.desktopStrip': '幅の狭いウィンドウで、再生の操作ボタンがウィンドウの下端で切れなくなりました。',
+  'whatsNew.v0151.sheets': 'タイムラインのシート、「その他」のシート、ズームボタンは、再生バーの高さに合わせてその上に表示されます。',
 } satisfies Record<UiKey, string>
 
 export default ui
