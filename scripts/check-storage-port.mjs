@@ -43,6 +43,10 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
 const PORT = 'src/storage/storagePort.ts'
+/** the port's second door (issue #302): a classic script inlined into <head>
+ *  by vite.config.ts, which reads ONE key with `getItem` and writes nothing */
+const BOOT = 'src/storage/themeBoot.js'
+const BOOT_KEY = 'loop-studio:theme'
 /** the names that may not appear as an identifier outside the port */
 const NAMES = new Set(['localStorage', 'sessionStorage', 'indexedDB', 'cookie', 'onstorage'])
 /** the exact string values that may not appear outside the port */
@@ -69,6 +73,7 @@ const problems = []
 const violations = []
 let portUses = 0
 let portCalls = 0
+let bootReads = 0
 
 for (const abs of files) {
   const rel = path.relative(ROOT, abs).split(path.sep).join('/')
@@ -80,12 +85,28 @@ for (const abs of files) {
   const at = (n) => `${rel}:${sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1}`
   const visit = (n) => {
     if (ts.isIdentifier(n) && NAMES.has(n.text)) {
-      if (rel !== PORT) violations.push(`${at(n)}  ${n.text}`)
+      if (rel === BOOT) {
+        // the boot door: `localStorage.getItem('loop-studio:theme')` and nothing else
+        const access = n.parent
+        const call = access?.parent
+        const ok =
+          n.text === 'localStorage' &&
+          ts.isPropertyAccessExpression(access) &&
+          access.expression === n &&
+          access.name.text === 'getItem' &&
+          ts.isCallExpression(call) &&
+          call.expression === access &&
+          call.arguments.length === 1 &&
+          ts.isStringLiteral(call.arguments[0]) &&
+          call.arguments[0].text === BOOT_KEY
+        if (ok) bootReads++
+        else violations.push(`${at(n)}  ${n.text} (the boot door may only read '${BOOT_KEY}' with getItem)`)
+      } else if (rel !== PORT) violations.push(`${at(n)}  ${n.text}`)
       else if (PORT_GLOBALS.has(n.text)) portUses++
     } else if (ts.isStringLiteralLike(n) && STRINGS.has(n.text)) {
       // a string that IS the name: `window['localStorage']`, a constant that
       // holds it, `Reflect.get(window, 'localStorage')`, `addEventListener('storage')`
-      if (rel !== PORT) violations.push(`${at(n)}  '${n.text}'`)
+      if (rel !== PORT && rel !== BOOT) violations.push(`${at(n)}  '${n.text}'`)
     } else if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'storagePort') {
       portCalls++
     }
@@ -96,6 +117,11 @@ for (const abs of files) {
 
 if (!fs.existsSync(path.join(ROOT, PORT))) problems.push(`${PORT}: the storage port does not exist`)
 else if (portUses === 0) problems.push(`${PORT}: the port itself no longer touches a storage global - this check is looking at the wrong file`)
+if (!fs.existsSync(path.join(ROOT, BOOT))) problems.push(`${BOOT}: the boot door does not exist`)
+else if (bootReads !== 1) problems.push(`${BOOT}: expected exactly one read of '${BOOT_KEY}', found ${bootReads}`)
+// the inlined copy must be the file: a stale or edited copy in index.html would escape the scan
+const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
+if (/localStorage|sessionStorage|indexedDB|document\.cookie/.test(html)) problems.push('index.html: touches browser storage directly; the boot door is inlined by vite.config.ts from the scanned file, never written into index.html')
 
 console.log(`  scanned ${files.length} product source files`)
 console.log(`  storage port: ${PORT} (${portUses} use(s) of a storage global inside it, ${portCalls} call(s) through it elsewhere)`)

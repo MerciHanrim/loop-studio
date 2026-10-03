@@ -27,6 +27,14 @@ import { useTourStore } from './store/tourStore'
 import { useUiStore } from './store/uiStore'
 import { useWhatsNewStore } from './store/whatsNewStore'
 import * as workspaceIO from './store/workspaceIO'
+import { applyStoredTheme } from './theme/theme'
+
+// Issue #302 — the stored theme is applied before anything is rendered. Until
+// this, the only reader of the key was the toggle inside the Settings menu, so
+// a reload opened in the system theme and the saved one appeared when that
+// menu was opened. Read through the storage port; an unreadable or unknown
+// value means `system`.
+applyStoredTheme()
 
 // Dev-only store bridge for browser E2E (never in the production / portable
 // build — `import.meta.env.DEV` is statically false there and tree-shaken out).

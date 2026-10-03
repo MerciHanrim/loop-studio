@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(873)
+    expect(KEYS).toHaveLength(876)
   })
 
   // ----------------------------------------------------------------- script
@@ -235,6 +235,10 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'своё',
       'скруглённые',
       'создаёт',
+      // issue #302: the 0.15.2 release-note lines, `сохранённая тема` and
+      // `сохранённое значение темы`
+      'сохранённая',
+      'сохранённое',
       'сохранённые',
       'сохранённый',
       'трёх',

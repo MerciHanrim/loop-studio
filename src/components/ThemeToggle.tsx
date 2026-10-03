@@ -3,16 +3,14 @@ import { useT, type MessageKey } from '../i18n'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { storagePort } from '../storage/storagePort'
+import { applyTheme, readStoredTheme, THEME_KEY, THEME_MODES, type ThemeMode } from '../theme/theme'
 
-type Mode = 'system' | 'light' | 'dark'
-const KEY = 'loop-studio:theme'
-const MODES: Mode[] = ['system', 'light', 'dark']
-
-function apply(mode: Mode) {
-  const el = document.documentElement
-  if (mode === 'system') el.removeAttribute('data-theme')
-  else el.setAttribute('data-theme', mode)
-}
+// issue #302 - the key, the reader and the applier live in src/theme/theme.ts,
+// shared with the start-up in src/main.tsx. This component only chooses.
+type Mode = ThemeMode
+const KEY = THEME_KEY
+const MODES = THEME_MODES
+const apply = applyTheme
 
 const LABEL_KEY: Record<Mode, MessageKey> = {
   system: 'theme.auto',
@@ -46,14 +44,7 @@ export function ThemeToggle({
   onOpenChange?: (open: boolean) => void
 }) {
   const t = useT()
-  const [mode, setMode] = useState<Mode>(() => {
-    try {
-      const v = storagePort.getItem(KEY)
-      return v === 'light' || v === 'dark' ? v : 'system'
-    } catch {
-      return 'system'
-    }
-  })
+  const [mode, setMode] = useState<Mode>(readStoredTheme)
   const [localOpen, setLocalOpen] = useState(false)
   const open = controlledOpen ?? localOpen
   const setOpen = onOpenChange ?? setLocalOpen

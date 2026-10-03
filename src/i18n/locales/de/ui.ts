@@ -478,6 +478,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'Auf dem Telefon verdeckt die Wiedergabeleiste den unteren Rand der Arbeitsfläche nicht mehr, wenn ihre Schaltflächen in eine zweite Zeile umbrechen.',
   'whatsNew.v0151.desktopStrip': 'In einem schmalen Fenster werden die Wiedergabe-Schaltflächen am unteren Fensterrand nicht mehr abgeschnitten.',
   'whatsNew.v0151.sheets': 'Das Zeitverlauf-Blatt, das Blatt „Mehr“ und die Zoom-Schaltflächen bleiben über der Wiedergabeleiste, unabhängig von ihrer Höhe.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'Das gewählte Design ist beim Start wieder da, ohne dass die Einstellungen geöffnet werden müssen.',
+  'whatsNew.v0152.noFlash': 'Das dunkle Design beginnt nicht mehr mit einem hellen Aufblitzen: das gespeicherte Design wird angewendet, bevor etwas gezeichnet wird.',
+  'whatsNew.v0152.unknownValue': 'Ein gespeichertes Design, das die App nicht lesen kann, folgt jetzt der Systemeinstellung, statt ignoriert zu werden.',
 } satisfies Record<UiKey, string>
 
 export default ui

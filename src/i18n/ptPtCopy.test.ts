@@ -56,11 +56,11 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(873)
+    expect(KEYS).toHaveLength(876)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
-    // 173 of 873. Large on purpose: European and Brazilian Portuguese diverge
+    // 176 of 876. Large on purpose: European and Brazilian Portuguese diverge
     // far more than Spain and Latin America do (`es-ES` moved 32 of 842), and
     // most of this is the address register and progressive aspect, which touch
     // whole sentences rather than single words.
@@ -85,7 +85,12 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // (`whatsNew.v0151.*`), on the usual axes - `telemóvel` not `celular`,
     // `deixa de` not `não ... mais`, `controlos` not `controles`, `numa` not
     // `em uma`, and `a sua altura` not `a altura dela`.
-    expect(DELTA).toHaveLength(173)
+    //
+    // Issue #302 moved it from 173 to 176: the three 0.15.2 release-note lines
+    // (`whatsNew.v0152.*`) - `escolheu` not `você escolheu`, `definições` not
+    // `configurações`, `deixa de` not `não ... mais`, `passa a seguir` not
+    // `agora segue`, and `guardado` not `salvo`.
+    expect(DELTA).toHaveLength(176)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

@@ -398,6 +398,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'Op een telefoon bedekt de afspeelbalk de onderkant van het tekengebied niet meer wanneer de knoppen naar een tweede regel gaan.',
   'whatsNew.v0151.desktopStrip': 'In een smal venster worden de afspeelknoppen niet meer afgesneden aan de onderrand van het venster.',
   'whatsNew.v0151.sheets': 'Het Tijdlijn-paneel, het Meer-paneel en de zoomknoppen blijven boven de afspeelbalk, hoe hoog die ook is.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'Het thema dat je koos is er weer bij het starten van de app, zonder de instellingen te openen.',
+  'whatsNew.v0152.noFlash': 'Het donkere thema begint niet meer met een lichte flits: het opgeslagen thema wordt toegepast voordat er iets wordt getekend.',
+  'whatsNew.v0152.unknownValue': 'Een opgeslagen thema dat de app niet kan lezen volgt nu de systeeminstelling in plaats van genegeerd te worden.',
 } as const
 
 export default ui

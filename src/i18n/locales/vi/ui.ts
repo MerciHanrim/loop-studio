@@ -403,6 +403,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'Trên điện thoại, thanh chạy không còn che phần dưới của khung vẽ khi các nút của nó xuống dòng thứ hai.',
   'whatsNew.v0151.desktopStrip': 'Trong cửa sổ hẹp, các nút điều khiển chạy không còn bị cắt ở mép dưới cửa sổ.',
   'whatsNew.v0151.sheets': 'Bảng Dòng thời gian, bảng Thêm và các nút thu phóng luôn nằm phía trên thanh chạy, dù thanh cao bao nhiêu.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'Giao diện bạn đã chọn trở lại khi khởi động ứng dụng, không cần mở phần cài đặt.',
+  'whatsNew.v0152.noFlash': 'Giao diện tối không còn bắt đầu bằng một chớp sáng: giao diện đã lưu được áp dụng trước khi vẽ bất cứ thứ gì.',
+  'whatsNew.v0152.unknownValue': 'Một giá trị giao diện đã lưu mà ứng dụng không đọc được giờ sẽ theo thiết lập của hệ thống thay vì bị bỏ qua.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -388,6 +388,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'On a phone, the run bar no longer covers the bottom of the canvas when its buttons wrap to a second row.',
   'whatsNew.v0151.desktopStrip': 'In a narrow window, the playback controls are no longer cut off at the bottom of the window.',
   'whatsNew.v0151.sheets': 'The Timeline sheet, the More sheet and the zoom buttons stay above the run bar whatever its height.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'The theme you chose comes back when the app starts, without opening Settings.',
+  'whatsNew.v0152.noFlash': 'The dark theme no longer starts with a light flash: the saved theme is applied before anything is drawn.',
+  'whatsNew.v0152.unknownValue': 'A saved theme the app cannot read now follows the system setting instead of being ignored.',
 } as const
 
 export type UiKey = keyof typeof ui

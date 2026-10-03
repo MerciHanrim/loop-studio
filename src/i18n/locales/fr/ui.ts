@@ -472,6 +472,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'Sur un téléphone, la barre de lecture ne recouvre plus le bas du canevas lorsque ses boutons passent sur une deuxième ligne.',
   'whatsNew.v0151.desktopStrip': 'Dans une fenêtre étroite, les commandes de lecture ne sont plus coupées en bas de la fenêtre.',
   'whatsNew.v0151.sheets': 'Le volet Chronologie, le volet Plus et les boutons de zoom restent au-dessus de la barre de lecture, quelle que soit sa hauteur.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'Le thème que vous avez choisi revient au démarrage, sans ouvrir les réglages.',
+  'whatsNew.v0152.noFlash': 'Le thème sombre ne commence plus par un éclair clair : le thème enregistré est appliqué avant tout affichage.',
+  'whatsNew.v0152.unknownValue': 'Un thème enregistré que l’application ne peut pas lire suit désormais le réglage du système au lieu d’être ignoré.',
 } satisfies Record<UiKey, string>
 
 export default ui

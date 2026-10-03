@@ -15,11 +15,15 @@ import { expect, test, type Page } from '@playwright/test'
 // pre-dismisses the guided tour by writing to `localStorage` itself, which is
 // exactly the kind of direct call this spec exists to catch.
 
-type Call = { api: string; op: string; key: string | null; viaPort: boolean; stack: string }
+type Call = { api: string; op: string; key: string | null; viaPort: boolean; viaBoot: boolean; stack: string }
 type Phased = Call & { phase: string }
 type Trapped = { __storageCalls: Call[] }
 
 const PORT_FILE = '/src/storage/storagePort.ts'
+// issue #302 - the port's second door: the classic script inlined into <head>,
+// which reads the theme before the first paint. Its stack frames name the
+// document itself, never a module, and it may only read this one key.
+const THEME = 'loop-studio:theme'
 const GRAPH = 'loop-studio:graph:v1'
 const AUTHOR = 'loop-studio:author'
 const TOUR = 'loop-studio/guided-tour/1'
@@ -41,7 +45,11 @@ async function trap(page: Page, baseURL: string): Promise<void> {
     ;(window as unknown as Trapped).__storageCalls = calls
     const note = (api: string, op: string, key: string | null) => {
       const stack = String(new Error('storage call').stack)
-      calls.push({ api, op, key, viaPort: stack.includes(portFile), stack: stack.split('\n').slice(2, 7).join(' | ') })
+      const frames = stack.split('\n').slice(2)
+      // a frame from a module (dev: /src/..., /node_modules/...; build: /assets/...)
+      const fromModule = frames.some((f) => /\/(src|node_modules|assets)\//.test(f))
+      const viaBoot = !fromModule && api === 'localStorage' && op === 'getItem' && key === 'loop-studio:theme' && document.querySelector('script[data-storage-boot="theme"]') !== null
+      calls.push({ api, op, key, viaPort: stack.includes(portFile), viaBoot, stack: frames.slice(0, 5).join(' | ') })
     }
     const proto = Storage.prototype as unknown as Record<string, (...a: unknown[]) => unknown>
     for (const op of ['getItem', 'setItem', 'removeItem', 'clear', 'key']) {
@@ -124,6 +132,13 @@ test.describe('browser storage is reached through the port only (run time)', () 
     expect(inPhase('start-up', 'getItem', OPENED)).toBeGreaterThan(0)
     expect(inPhase('start-up', 'setItem', ANNOUNCED)).toBe(1)
     expect(inPhase('start-up', 'setItem', OPENED)).toBe(0)
+    // issue #302 - the theme is read twice at start-up: once by the boot door
+    // in <head>, before any module, and once by the module door; nothing else
+    // ever comes through the boot door
+    const bootReads = all.filter((c) => c.viaBoot)
+    expect(bootReads.map((c) => [c.phase, c.op, c.key])).toEqual([['start-up', 'getItem', THEME]])
+    expect(all.findIndex((c) => c.viaBoot), 'the boot read is the first storage call of all').toBe(0)
+    expect(inPhase('start-up', 'getItem', THEME)).toBeGreaterThanOrEqual(2)
 
     // 2. onboarding and a preference
     await page.getByRole('button', { name: 'Skip' }).first().click()
@@ -207,7 +222,7 @@ test.describe('browser storage is reached through the port only (run time)', () 
     expect([...new Set(all.map((c) => c.op))].sort()).toEqual(['getItem', 'removeItem', 'setItem'])
     // ... it was only ever localStorage, and every call went through the port
     expect([...new Set(all.map((c) => c.api))]).toEqual(['localStorage'])
-    expect(all.filter((c) => !c.viaPort)).toEqual([])
+    expect(all.filter((c) => !c.viaPort && !c.viaBoot)).toEqual([])
   })
 
   test('the trap itself sees what the source check cannot: a name assembled at run time', async ({ page, baseURL }) => {

@@ -210,6 +210,27 @@ test('offline: a #g1= share link opens from cache and strips the fragment', asyn
 
 // ── registration gate (real browser, not just the unit test) ────────────
 
+// issue #302 - the installed app opens in the stored theme at its first frame,
+// with the network down: the boot script is part of the precached page
+test('offline: a stored dark theme is on at the first frame, before any menu', async ({ page, context }) => {
+  await installAndControl(page)
+  await page.evaluate(() => localStorage.setItem('loop-studio:theme', 'dark'))
+  await context.addInitScript(() => {
+    const w = window as unknown as { __firstFrameTheme?: string | null }
+    requestAnimationFrame(() => {
+      w.__firstFrameTheme = document.documentElement.getAttribute('data-theme')
+    })
+  })
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.locator('.canvas .react-flow')).toBeVisible()
+  expect(await page.evaluate(() => (window as unknown as { __firstFrameTheme?: string | null }).__firstFrameTheme)).toBe('dark')
+  expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark')
+  await expect(page.locator('.menu__pop')).toHaveCount(0)
+  expect(await page.evaluate(() => document.querySelectorAll('head script[data-storage-boot]').length)).toBe(1)
+  await context.setOffline(false)
+})
+
 // issue #296 - once installed, the release notes read with the network down
 test('offline: What’s new opens from the precached app and lists every entry', async ({ page, context }) => {
   await installAndControl(page)

@@ -10,7 +10,10 @@
 // only be guaranteed if no code reaches storage on its own. So the rule is
 // enforced, not requested: `npm run check:storage-port` fails on any use of
 // `localStorage`, `sessionStorage`, `indexedDB` or `document.cookie` outside
-// this file.
+// this file and the port's one other door, `themeBoot.js` (issue #302): a
+// classic script inlined into <head> that reads the theme before the first
+// paint, allowed exactly one `getItem` of that key and nothing else. Both
+// doors are scanned by the check and seen by the run-time trap.
 //
 // What the port deliberately does NOT do:
 //   - catch errors. `localStorage` throws when storage is unavailable (private

@@ -39,7 +39,13 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
-    // the date is the day it is deployed, set right before the merge (issue #303)
+    // the date is the day it is deployed, set right before the merge (issue #302)
+    id: 'release:0.15.2',
+    version: '0.15.2',
+    date: '2026-10-03',
+    items: ['whatsNew.v0152.themeBack', 'whatsNew.v0152.noFlash', 'whatsNew.v0152.unknownValue'],
+  },
+  {
     id: 'release:0.15.1',
     version: '0.15.1',
     date: '2026-10-03',

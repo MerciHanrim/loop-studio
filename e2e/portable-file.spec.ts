@@ -159,6 +159,34 @@ test.describe('portable file://', () => {
     expectOneVersionStory((await readAboutVersion(page)).version, newest)
   })
 
+  // issue #302 - the single file carries the boot script in its head. On file://
+  // storage may or may not be readable; either way the page opens, with the
+  // stored theme when it can be read and the system theme when it cannot.
+  test('the boot script is in the single file, and a stored dark theme is on at the first frame when storage is readable', async ({ page }) => {
+    let readable = false
+    await page.addInitScript(() => {
+      const w = window as unknown as { __firstFrameTheme?: string | null; __storageReadable?: boolean }
+      try {
+        localStorage.setItem('loop-studio:theme', 'dark')
+        w.__storageReadable = localStorage.getItem('loop-studio:theme') === 'dark'
+      } catch {
+        w.__storageReadable = false
+      }
+      requestAnimationFrame(() => {
+        w.__firstFrameTheme = document.documentElement.getAttribute('data-theme')
+      })
+    })
+    await openPortable(page)
+    const r = await page.evaluate(() => {
+      const w = window as unknown as { __firstFrameTheme?: string | null; __storageReadable?: boolean }
+      return { readable: w.__storageReadable, firstFrame: w.__firstFrameTheme, now: document.documentElement.getAttribute('data-theme'), boot: document.querySelectorAll('head script[data-storage-boot]').length }
+    })
+    readable = r.readable === true
+    expect(r.boot).toBe(1)
+    expect(r.firstFrame).toBe(readable ? 'dark' : null)
+    expect(r.now).toBe(readable ? 'dark' : null)
+  })
+
   test('boots, imports, runs on the cooperative path, exports 424 / 500', async ({ page }) => {
     test.setTimeout(60_000)
     await openPortable(page)

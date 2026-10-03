@@ -421,6 +421,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': '在手機上，即使播放列的按鈕換到第二行，也不再遮住畫布底部。',
   'whatsNew.v0151.desktopStrip': '在較窄的視窗中，播放控制項不再被視窗底邊截斷。',
   'whatsNew.v0151.sheets': '時間軸面板、「更多」面板和縮放按鈕會依播放列的實際高度停在它上方。',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': '你選擇的主題會在應用程式啟動時直接生效，不必打開設定。',
+  'whatsNew.v0152.noFlash': '深色主題不再在啟動時閃過一下淺色：儲存的主題會在繪製任何內容之前套用。',
+  'whatsNew.v0152.unknownValue': '儲存的主題值無法讀取時，現在會跟隨系統設定，而不是被忽略。',
 } satisfies Record<UiKey, string>
 
 export default ui

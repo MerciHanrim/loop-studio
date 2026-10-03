@@ -417,6 +417,10 @@ const ui = {
   'whatsNew.v0151.mobileBar': 'No telemóvel, a barra de reprodução deixa de tapar a parte de baixo da tela quando os seus botões passam para uma segunda linha.',
   'whatsNew.v0151.desktopStrip': 'Numa janela estreita, os controlos de reprodução deixam de ficar cortados na parte de baixo da janela.',
   'whatsNew.v0151.sheets': 'O painel Linha do tempo, o painel Mais e os botões de zoom ficam acima da barra de reprodução, seja qual for a sua altura.',
+  // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0152.themeBack': 'O tema que escolheu volta ao iniciar a aplicação, sem abrir as definições.',
+  'whatsNew.v0152.noFlash': 'O tema escuro deixa de começar com um clarão claro: o tema guardado é aplicado antes de se desenhar o que quer que seja.',
+  'whatsNew.v0152.unknownValue': 'Um tema guardado que a aplicação não consegue ler passa a seguir a definição do sistema em vez de ser ignorado.',
 } as const
 
 export type UiKey = keyof typeof ui
