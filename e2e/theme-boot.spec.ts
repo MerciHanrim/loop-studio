@@ -185,7 +185,7 @@ test.describe('choosing a theme still works, and the choice survives a reload', 
     await page.goto('/')
     await expect(page.locator('.canvas .react-flow')).toBeVisible()
     expect(await attr(page)).toBeNull()
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
     await page.getByRole('button', { name: /^Theme/ }).click()
     await page.getByRole('menuitem', { name: /Dark/ }).click()
     expect(await attr(page)).toBe('dark')

@@ -54,7 +54,7 @@ async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
   let openedSettings = false
   if (!scope && !(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
     openedSettings = true
   }
   await trigger.click()

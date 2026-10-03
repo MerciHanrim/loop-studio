@@ -10,6 +10,7 @@ import {
 import { useT } from '../../i18n'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
+import { Icon } from '../../ui/icons'
 
 // The toolbar "⋯" overflow menu. It holds whichever trailing controls the
 // measured layout could not fit on the toolbar (see `useToolbarOverflow`). The
@@ -102,7 +103,7 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
         onClick={() => setOpen((v) => !v)}
         tabIndex={ghost ? -1 : undefined}
       >
-        ⋯
+        <Icon name="more" />
       </button>
       {open ? (
         <div className="menu__pop toolbar__overflow-pop" id={menuId} role="menu">

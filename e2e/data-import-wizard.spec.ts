@@ -22,7 +22,7 @@ const dataImportTables = (page: Page): Promise<unknown[]> =>
     () => (window as unknown as { __loop: { dataImport: { getState: () => { tables: unknown[] } } } }).__loop.dataImport.getState().tables,
   )
 
-const importButton = (page: Page) => page.getByRole('button', { name: 'Data ▾' })
+const importButton = (page: Page) => page.getByRole('button', { name: 'Data' })
 const dialog = (page: Page) => page.locator('.mcdlg--dataimport')
 
 async function openWizard(page: Page): Promise<void> {
@@ -162,9 +162,9 @@ test('review round 3 -- a validation issue reports the RAW source line number, n
 // message must contain, `notChar` the TABLE-column wording it must not
 // borrow — the same input is line 2, character 1.
 for (const [loc, needle, importLabel, char, notChar] of [
-  ['ko', '닫히지 않은 따옴표', '데이터 ▾', '1번째 문자', '1열'],
-  ['ja', '閉じられていない引用符', 'データ ▾', '1文字目', '1列目'],
-  ['zh-Hans', '有未闭合的引号', '数据 ▾', '第 1 个字符', '第 1 列'],
+  ['ko', '닫히지 않은 따옴표', '데이터', '1번째 문자', '1열'],
+  ['ja', '閉じられていない引用符', 'データ', '1文字目', '1列目'],
+  ['zh-Hans', '有未闭合的引号', '数据', '第 1 个字符', '第 1 列'],
 ] as const) {
   test(`review round 3 -- ${loc} shows a translated CSV parse-error message, never the raw internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
@@ -398,7 +398,7 @@ for (const loc of ['ko', 'ja'] as const) {
     // the data-import button collapses into the toolbar's ⋯ overflow menu at
     // some viewport/locale combinations (it has the lowest collapse priority
     // of any toolbar control) -- open that first if it isn't directly visible.
-    const importButtonText = loc === 'ko' ? '데이터 ▾' : 'データ ▾'
+    const importButtonText = loc === 'ko' ? '데이터' : 'データ'
     const importBtn = page.getByRole('button', { name: importButtonText, exact: true })
     if (!(await importBtn.isVisible())) {
       await page.locator('.toolbar__overflow-btn').click()

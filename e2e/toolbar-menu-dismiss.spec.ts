@@ -45,7 +45,7 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('outside interactions close an open Tier-1 menu', () => {
   test('Templates: clicking a canvas NODE closes it (not just the empty pane)', async ({ page }) => {
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await node(page).click()
@@ -59,7 +59,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
   test('Templates: clicking the empty canvas pane also closes it (control case, already worked)', async ({
     page,
   }) => {
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await page.locator('.react-flow__pane').click({ position: { x: 20, y: 20 } })
@@ -67,10 +67,10 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
   })
 
   const groups: [RegExp, string][] = [
-    [/^Insert module ▾$/, '.toolbar__actions .menu__pop'],
-    [/^File ▾$/, '.toolbar__filemenu-pop'],
-    [/^Data ▾$/, '.toolbar__actions .menu__pop'],
-    [/^Settings ▾$/, '.toolbar__settingsmenu-pop'],
+    [/^Insert module$/, '.toolbar__actions .menu__pop'],
+    [/^File$/, '.toolbar__filemenu-pop'],
+    [/^Data$/, '.toolbar__actions .menu__pop'],
+    [/^Settings$/, '.toolbar__settingsmenu-pop'],
   ]
   for (const [label, popSel] of groups) {
     test(`${label.source} closes on a canvas node click`, async ({ page }) => {
@@ -84,7 +84,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
 
   test('Templates closes on an Inspector click', async ({ page }) => {
     await node(page).click() // select it first so Inspector has real content
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await page.locator('aside.inspector, .sheet[aria-label="Inspector — read only"]').click()
@@ -93,7 +93,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
 
   test('Templates closes on a Timeline click', async ({ page }) => {
     await ensureTimelineOpen(page) // the panel starts collapsed (timeline-series-contract §7)
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await page.locator('.timeline__panel').click({ position: { x: 10, y: 10 } })
@@ -101,7 +101,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
   })
 
   test('Templates closes on a canvas wheel (zoom/scroll)', async ({ page }) => {
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await page.locator('.react-flow__pane').dispatchEvent('wheel', { deltaY: 100 })
@@ -118,7 +118,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
   // `mousedown` (still gated on `event.detail`, so the double-click guard
   // holds), which fires immediately at the START of the drag.
   test('Templates closes when a canvas PAN DRAG starts (not just a plain click)', async ({ page }) => {
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
 
@@ -143,7 +143,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
   })
 
   test('Templates closes on a window resize', async ({ page }) => {
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await page.setViewportSize({ width: 1300, height: 800 })
@@ -153,7 +153,7 @@ test.describe('outside interactions close an open Tier-1 menu', () => {
 
 test.describe('interactions inside a menu (or its own nested submenu) do not dismiss it', () => {
   test('a click inside File\'s scrollable popover keeps it open', async ({ page }) => {
-    await menuBtn(page, /^File ▾$/).click()
+    await menuBtn(page, /^File$/).click()
     const pop = page.locator('.toolbar__filemenu-pop')
     await expect(pop).toBeVisible()
     // scroll inside the popover itself
@@ -165,7 +165,7 @@ test.describe('interactions inside a menu (or its own nested submenu) do not dis
   })
 
   test('Theme flyout: clicking inside it keeps Settings (its parent) open too', async ({ page }) => {
-    await menuBtn(page, /^Settings ▾$/).click()
+    await menuBtn(page, /^Settings$/).click()
     const settingsPop = page.locator('.toolbar__settingsmenu-pop')
     await expect(settingsPop).toBeVisible()
     await settingsPop.locator('.settings-row', { hasText: /theme/i }).click()
@@ -178,7 +178,7 @@ test.describe('interactions inside a menu (or its own nested submenu) do not dis
   })
 
   test('Language flyout: clicking an option keeps Settings (its parent) open too', async ({ page }) => {
-    await menuBtn(page, /^Settings ▾$/).click()
+    await menuBtn(page, /^Settings$/).click()
     const settingsPop = page.locator('.toolbar__settingsmenu-pop')
     await expect(settingsPop).toBeVisible()
     await settingsPop.locator('.settings-row.lang-switch').click()
@@ -192,7 +192,7 @@ test.describe('interactions inside a menu (or its own nested submenu) do not dis
 
 test.describe('Escape / Dialog / Share are unaffected by the outside-dismiss fix', () => {
   test('Escape still closes Templates (existing contract untouched)', async ({ page }) => {
-    await menuBtn(page, /^Templates ▾$/).click()
+    await menuBtn(page, /^Templates$/).click()
     const pop = page.locator('.toolbar__actions .menu__pop').first()
     await expect(pop).toBeVisible()
     await page.keyboard.press('Escape')
@@ -210,7 +210,7 @@ test.describe('Escape / Dialog / Share are unaffected by the outside-dismiss fix
     // correct behavior, not something a "canvas click" test should trip over.
     // The actual regression risk this fix could introduce is wheel/resize —
     // useOutsideDismiss's two NEW trigger types — reaching past the dialog.
-    const fileBtn = menuBtn(page, /^File ▾$/)
+    const fileBtn = menuBtn(page, /^File$/)
     await fileBtn.click()
     await page.getByRole('menuitem', { name: 'New' }).click()
     const dlg = page.locator('.mcdlg--confirm')
@@ -252,9 +252,9 @@ test.describe('Escape / Dialog / Share are unaffected by the outside-dismiss fix
   test('switching directly between two Tier-1 triggers still closes the old one and opens the new one', async ({
     page,
   }) => {
-    await menuBtn(page, /^File ▾$/).click()
+    await menuBtn(page, /^File$/).click()
     await expect(page.locator('.toolbar__filemenu-pop')).toBeVisible()
-    await menuBtn(page, /^Data ▾$/).click()
+    await menuBtn(page, /^Data$/).click()
     await expect(page.locator('.toolbar__filemenu-pop')).toHaveCount(0)
     await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
     await page.keyboard.press('Escape')

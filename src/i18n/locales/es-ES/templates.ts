@@ -22,7 +22,7 @@
 // `paso` is reserved for the simulation timestep and its commands (§L2.13).
 
 const templates = {
-  'templates.button': 'Plantillas ▾',
+  'templates.button': 'Plantillas',
   'templates.menuLabel': 'Plantillas',
   'templates.equilibrium.name': 'Línea de producción equilibrada',
   // Measured in the real 272 px box (line-height 16.875, clamp 2): the literal
@@ -43,7 +43,7 @@ const templates = {
   'templates.replace.title': '¿Cargar esta plantilla?',
   'templates.replace.body': 'Su trabajo actual se reemplazará por: {name}',
   'templates.replace.confirm': 'Cargar plantilla',
-  'modules.button': 'Insertar módulo ▾',
+  'modules.button': 'Insertar módulo',
   'modules.menuLabel': 'Insertar módulo',
   'modules.fromFile': 'Desde un archivo…',
   'modules.extract': 'Extraer la selección como módulo…',

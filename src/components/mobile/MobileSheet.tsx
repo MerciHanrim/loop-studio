@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from 'react'
 import { useT } from '../../i18n'
 import { useDialogFocus } from '../useDialogFocus'
+import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV5 — the shared bottom-sheet chrome: a scrim (tap to close),
 // a titled header with a 44px Close, Escape + tab-trap + focus-return via
@@ -34,7 +35,7 @@ export function MobileSheet({
         <div className="sheet__head">
           <span className="sheet__title">{title}</span>
           <button type="button" className="sheet__x" onClick={onClose} aria-label={t('dialog.close')}>
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         {children}

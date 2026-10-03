@@ -6,6 +6,7 @@ import type { ToolbarDialog } from './dialogTypes'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
 import { useMenuKeyboard } from '../../ui/useMenuKeyboard'
+import { Icon } from '../../ui/icons'
 
 // docs/toolbar-responsive.md — the `File ▾` Tier-1 group: New, Import, then
 // Export's 5 actions flattened directly into this SAME popover (a divider
@@ -70,6 +71,7 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
         onClick={() => setOpen((v) => !v)}
       >
         {t('toolbar.file.button')}
+        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
         <div

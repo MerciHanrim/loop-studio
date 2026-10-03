@@ -21,7 +21,7 @@ const textOf = async (dl: Download): Promise<string> => readFileSync((await dl.p
 // the popover); `openFileMenu` opens File first, a no-op once it's already
 // open.
 const fileBtn = (page: Page) =>
-  page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' })
+  page.locator('.toolbar__actions .menu > button', { hasText: 'File' })
 async function openFileMenu(page: Page): Promise<void> {
   if ((await fileBtn(page).getAttribute('aria-expanded')) !== 'true') {
     await fileBtn(page).click()

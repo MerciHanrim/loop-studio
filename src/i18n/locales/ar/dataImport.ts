@@ -21,7 +21,7 @@
 //   arrow TWICE (`ملف ← تنزيل ←`) and `regExpr.row.cycle` its `graph-relation`
 //   arrow twice. Presence-checking passed a value whose SECOND arrow was wrong —
 //   MEASURED on this tree — so the rule counts now.
-//   `import.button` carries `disclosure-vertical`, a KEEP unit: `▾` unchanged.
+//   `import.button` is the word alone; its disclosure mark is an icon (issue #298).
 //
 // SETTLED (C3.5) — `import.qs.mapping` keeps the four column names verbatim, and
 // that is a decision with evidence rather than a default. The held premise was
@@ -41,7 +41,7 @@
 // THREE independent plural blocks (`cols`, `rows`, `n`), each six-armed.
 
 const dataImport = {
-  'import.button': 'البيانات ▾',
+  'import.button': 'البيانات',
   'import.title': 'استيراد بيانات جدول بيانات',
   'import.tableName': 'اسم الجدول',
   'import.removeTable': 'إزالة الجدول',

@@ -11,7 +11,7 @@ import {
   test,
 } from './support/loop'
 
-// Item 7 — the Distribution "Export ▾" menu really produces the files, and the
+// Item 7 — the Distribution "Export" menu really produces the files, and the
 // bytes are what we expect (header shape, row count, a known ratio).
 
 /** A downloaded file's text. A CSV this product writes is BOM-prefixed UTF-8

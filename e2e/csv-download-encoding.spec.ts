@@ -101,7 +101,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
     await openApp(page)
     await resetAll(page)
     await setLocale(page, 'en')
-    await page.getByRole('button', { name: 'Data ▾' }).click()
+    await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem').first().click()
     const dlg = page.locator('.mcdlg--dataimport')
     await expect(dlg).toBeVisible()
@@ -200,7 +200,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
     const NAME_COL = '표시이름'
     const NUM_COL = '무게'
 
-    await page.getByRole('button', { name: 'Data ▾' }).click()
+    await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem', { name: 'Import spreadsheet values as Parameters…' }).click()
     const wizard = page.getByRole('dialog', { name: 'Import spreadsheet data' })
     await expect(wizard).toBeVisible()
@@ -225,7 +225,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
       g.updateNodeData(n.id, { value: 25 })
     })
 
-    await page.getByRole('button', { name: 'Data ▾' }).click()
+    await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem', { name: 'Refresh or manage imported tables…' }).click()
     const manage = page.getByRole('dialog', { name: 'Manage spreadsheet bindings' })
     await expect(manage).toBeVisible()
@@ -255,7 +255,7 @@ test.describe('every downloaded CSV is BOM-prefixed UTF-8', () => {
     // the path a designer takes after editing it in their sheet.
     await page.keyboard.press('Escape')
     await expect(manage).toBeHidden()
-    await page.getByRole('button', { name: 'Data ▾' }).click()
+    await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem', { name: 'Import spreadsheet values as Parameters…' }).click()
     await expect(wizard).toBeVisible()
     await wizard.getByLabel('Table name').fill('제안 되읽기')

@@ -64,11 +64,11 @@ test.describe('Canvas edit-lock', () => {
 
     const btn = lockBtn(page)
     await expect(btn).toHaveAttribute('aria-pressed', 'false')
-    await expect(btn).toHaveText('🔓')
+    await expect(btn.locator('svg[data-icon="unlock"]')).toHaveCount(1)
     await btn.click()
     expect(await locked(page)).toBe(true)
     await expect(btn).toHaveAttribute('aria-pressed', 'true')
-    await expect(btn).toHaveText('🔒')
+    await expect(btn.locator('svg[data-icon="lock"]')).toHaveCount(1)
     await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
     await btn.click()
     expect(await locked(page)).toBe(false)

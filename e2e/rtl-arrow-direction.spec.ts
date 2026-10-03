@@ -8,25 +8,27 @@ import { expect, openApp, resetAll, test } from './support/loop'
 // and relational operators — so an arrow keeps pointing the same way while the
 // layout mirrors around it. Every arrow is therefore a product decision.
 //
-// The exhaustive layer is scripts/check-arrow-direction.mjs: 12 JSX sites all
-// taking their character from one table, 10 keep literals in recorded places, no
-// mirroring transform anywhere, and the catalogue contract across every registered
-// locale. It can say "all of them"; a browser cannot.
+// Since issue #298 the arrows that are ICONS (external link, submenu disclosure,
+// undo, redo) are drawn by `ArrowIcon` (src/ui/icons.tsx), which ships two
+// drawings and picks one by the reader's direction; the choice is readable as
+// `data-dir` on the icon. The arrows that are CHARACTERS inside sentences
+// (`→` / `←`) still come from `useArrowGlyph`.
+//
+// The exhaustive layer is scripts/check-arrow-direction.mjs: every mirroring icon
+// site is an `ArrowIcon`, every mirroring character comes from the one table, the
+// keep glyphs stay literal in recorded places, no mirroring transform anywhere,
+// and the catalogue contract across every registered locale. It can say "all of
+// them"; a browser cannot.
 //
 // This file is the behaviour that a source check cannot see:
 //
-//   * the character on screen actually changes with the reader, and changes BACK
+//   * the drawing on screen actually changes with the reader, and changes BACK
 //   * undo and redo swap into each other and are still DISTINCT afterwards — the
-//     failure a pair of independent literals produces is that both end up the same
-//   * an arrow that KEEPS its glyph keeps it, so the first clause cannot be
+//     failure a pair of independent drawings produces is that both end up the same
+//   * an arrow that KEEPS its orientation keeps it, so the first clause cannot be
 //     satisfied by mirroring everything
 //   * nothing is mirrored by a transform, read off the live computed style rather
 //     than off the stylesheet
-//
-// Not every one of the 12 sites is driven here. Four live in the mobile sheet and
-// one behind a spreadsheet import; reaching them costs a flow whose failure mode is
-// the flow, not the glyph. They are covered exhaustively by the source check, and
-// this is said plainly rather than left as a silent gap.
 
 type Bridge = {
   __loop: {
@@ -34,15 +36,6 @@ type Bridge = {
     i18n: { getState: () => { activeLocale: string; setLocale: (c: string) => void } }
   }
 }
-
-/** the table, repeated here ON PURPOSE. A test that imported the same constant the
- *  component reads would agree with it by construction and prove nothing. */
-const EXPECTED = {
-  undo: { ltr: '↶', rtl: '↷' },
-  redo: { ltr: '↷', rtl: '↶' },
-  'submenu-disclosure': { ltr: '▸', rtl: '◂' },
-  'external-link': { ltr: '↗', rtl: '↖' },
-} as const
 
 async function switchLocale(page: Page, code: string): Promise<void> {
   await page.evaluate((c) => {
@@ -53,34 +46,50 @@ async function switchLocale(page: Page, code: string): Promise<void> {
     .toBe(code)
 }
 
-const textOf = (page: Page, sel: string) =>
-  page.evaluate((s) => document.querySelector(s)?.textContent?.trim() ?? null, sel)
+/** the icon's unit, direction and the path data it is drawn with */
+type ArrowRead = { unit: string | null; dir: string | null; d: string } | null
+const arrowOf = (page: Page, sel: string): Promise<ArrowRead> =>
+  page.evaluate((s) => {
+    const svg = document.querySelector(s)?.querySelector('svg[data-arrow]')
+    if (!svg) return null
+    return {
+      unit: svg.getAttribute('data-arrow'),
+      dir: svg.getAttribute('data-dir'),
+      d: Array.from(svg.querySelectorAll('path'))
+        .map((p) => p.getAttribute('d') ?? '')
+        .join(' '),
+    }
+  }, sel)
 
 const UNDO = '.toolbar__actions-core button:nth-of-type(1)'
 const REDO = '.toolbar__actions-core button:nth-of-type(2)'
 
-test.describe('§L9.3 arrows — the glyph follows the reader, or deliberately does not', () => {
+test.describe('§L9.3 arrows — the drawing follows the reader, or deliberately does not', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page)
   })
 
   test('undo and redo swap, and stay distinct from each other', async ({ page }) => {
-    // The whole reason both come out of one table. Two literals in two files drift
-    // into each other: mirror undo, forget redo, and both read `↷`.
-    expect(await textOf(page, UNDO)).toBe(EXPECTED.undo.ltr)
-    expect(await textOf(page, REDO)).toBe(EXPECTED.redo.ltr)
+    // The whole reason both come out of one table: under an rtl reader undo curves
+    // the other way, and it must still be the OPPOSITE of redo, not equal to it.
+    const undoLtr = await arrowOf(page, UNDO)
+    const redoLtr = await arrowOf(page, REDO)
+    expect(undoLtr).toMatchObject({ unit: 'undo', dir: 'ltr' })
+    expect(redoLtr).toMatchObject({ unit: 'redo', dir: 'ltr' })
+    expect(undoLtr!.d).not.toBe(redoLtr!.d)
 
     await switchLocale(page, 'ar-XB')
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
 
-    const undoRtl = await textOf(page, UNDO)
-    const redoRtl = await textOf(page, REDO)
-    expect(undoRtl).toBe(EXPECTED.undo.rtl)
-    expect(redoRtl).toBe(EXPECTED.redo.rtl)
-    // each became the OTHER's ltr glyph, and they are still opposite
-    expect(undoRtl).toBe(EXPECTED.redo.ltr)
-    expect(redoRtl).toBe(EXPECTED.undo.ltr)
-    expect(undoRtl).not.toBe(redoRtl)
+    const undoRtl = await arrowOf(page, UNDO)
+    const redoRtl = await arrowOf(page, REDO)
+    expect(undoRtl).toMatchObject({ unit: 'undo', dir: 'rtl' })
+    expect(redoRtl).toMatchObject({ unit: 'redo', dir: 'rtl' })
+    // each is now drawn the way the OTHER was drawn for an ltr reader, and they are
+    // still opposite
+    expect(undoRtl!.d).toBe(redoLtr!.d)
+    expect(redoRtl!.d).toBe(undoLtr!.d)
+    expect(undoRtl!.d).not.toBe(redoRtl!.d)
   })
 
   test('en → ar-XB → en puts every reachable arrow back exactly', async ({ page }) => {
@@ -93,38 +102,32 @@ test.describe('§L9.3 arrows — the glyph follows the reader, or deliberately d
     })
     await expect(page.locator('.rightcol .mpanels')).toBeVisible()
 
-    // COLLAPSE one head first. An expanded head renders `▾`, the disclosure-vertical
-    // unit, which does not mirror - so with every panel open this test would assert
-    // the mirroring of a caret that is not on screen, and pass on the undo/redo pair
+    // COLLAPSE one head first. An expanded head renders the downward chevron, which
+    // does not mirror — so with every panel open this test would assert the
+    // mirroring of a caret that is not on screen, and pass on the undo/redo pair
     // alone. The inline-end caret has to be rendered for the claim to mean anything.
     await page.locator('.mpanel__toggle').first().click()
-    await expect
-      .poll(() => page.evaluate(() => Array.from(document.querySelectorAll('.mpanel__caret')).map((e) => e.textContent?.trim())))
-      .toContain('▸')
+    await expect(page.locator('.mpanel__caret svg[data-arrow="submenu"]').first()).toBeVisible()
 
     const snapshot = () =>
       page.evaluate(() => ({
-        undo: document.querySelector('.toolbar__actions-core button:nth-of-type(1)')?.textContent?.trim() ?? null,
-        redo: document.querySelector('.toolbar__actions-core button:nth-of-type(2)')?.textContent?.trim() ?? null,
-        carets: Array.from(document.querySelectorAll('.mpanel__caret')).map((e) => e.textContent?.trim() ?? ''),
+        undo: document.querySelector('.toolbar__actions-core button:nth-of-type(1) svg')?.getAttribute('data-dir') ?? null,
+        redo: document.querySelector('.toolbar__actions-core button:nth-of-type(2) svg')?.getAttribute('data-dir') ?? null,
+        carets: Array.from(document.querySelectorAll('.mpanel__caret svg')).map((e) => `${e.getAttribute('data-icon')}:${e.getAttribute('data-dir') ?? 'any'}`),
       }))
 
     const before = await snapshot()
-    expect(before.carets, 'a collapsed head must render the inline-end caret').toContain(
-      EXPECTED['submenu-disclosure'].ltr,
-    )
+    expect(before.carets, 'a collapsed head must render the inline-end caret').toContain('submenu:ltr')
 
     await switchLocale(page, 'ar-XB')
     const during = await snapshot()
     expect(during).not.toEqual(before)
     // the caret specifically moved, not just the undo/redo pair
-    expect(during.carets, 'the collapsed head caret mirrors').toContain(EXPECTED['submenu-disclosure'].rtl)
+    expect(during.carets, 'the collapsed head caret mirrors').toContain('submenu:rtl')
     // a collapsed head shows the inline-end caret, which mirrors; an expanded one
-    // shows `▾`, the disclosure-vertical unit, which does not
-    for (const c of during.carets) {
-      expect([EXPECTED['submenu-disclosure'].rtl, '▾']).toContain(c)
-    }
-    expect(during.carets).not.toContain(EXPECTED['submenu-disclosure'].ltr)
+    // shows the downward chevron, which has no direction at all
+    for (const c of during.carets) expect(['submenu:rtl', 'chevron-down:any']).toContain(c)
+    expect(during.carets).not.toContain('submenu:ltr')
 
     await switchLocale(page, 'en')
     expect(await snapshot()).toEqual(before)
@@ -156,28 +159,29 @@ test.describe('§L9.3 arrows — the glyph follows the reader, or deliberately d
   })
 
   test('the transport controls keep their physical orientation', async ({ page }) => {
-    // §L9.3 — the transport sits with the physical time axis, so `⏭` still advances
-    // in the direction the timeline runs.
-    const before = await page.evaluate(() => ({
-      reset: document.querySelector('.pstrip__reset')?.textContent?.trim() ?? null,
-      step: document.querySelector('.pstrip__step-btn')?.textContent?.trim() ?? null,
-      all: Array.from(document.querySelectorAll('.pstrip button')).map((b) => b.textContent?.trim() ?? ''),
-    }))
+    // §L9.3 — the transport sits with the physical time axis, so Step still
+    // advances in the direction the timeline runs: its icon carries no direction
+    // and its drawing is byte-identical for both readers.
+    const read = () =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll('.pstrip button svg')).map((svg) => ({
+          icon: svg.getAttribute('data-icon'),
+          arrow: svg.getAttribute('data-arrow'),
+          d: Array.from(svg.querySelectorAll('path')).map((p) => p.getAttribute('d')).join(' '),
+        })),
+      )
+    const before = await read()
+    expect(before.map((s) => s.icon)).toEqual(expect.arrayContaining(['reset', 'step', 'play']))
+    expect(before.every((s) => s.arrow === null), 'no transport icon is a direction-aware arrow').toBe(true)
     await switchLocale(page, 'ar-XB')
-    const after = await page.evaluate(() => ({
-      reset: document.querySelector('.pstrip__reset')?.textContent?.trim() ?? null,
-      step: document.querySelector('.pstrip__step-btn')?.textContent?.trim() ?? null,
-      all: Array.from(document.querySelectorAll('.pstrip button')).map((b) => b.textContent?.trim() ?? ''),
-    }))
-    expect(after.all).toEqual(before.all)
-    expect(before.all.join('')).toContain('⏭')
-    expect(before.all.join('')).toContain('⟲')
+    await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
+    expect(await read()).toEqual(before)
   })
 
   test('nothing is mirrored by a transform — read off the live computed style', async ({ page }) => {
     // The source check bans the pattern in the stylesheet and the components; this
     // reads what the browser actually resolved, which also covers a transform that
-    // arrived from a dependency's stylesheet.
+    // arrived from a dependency's stylesheet — and an SVG `transform` attribute.
     await switchLocale(page, 'ar-XB')
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('dir'))).toBe('rtl')
 
@@ -193,8 +197,11 @@ test.describe('§L9.3 arrows — the glyph follows the reader, or deliberately d
           bad.push({ tag: el.tagName, cls: (el as HTMLElement).className?.toString?.() ?? '', transform: t })
         }
       }
+      for (const el of Array.from(document.querySelectorAll('svg[data-arrow] *'))) {
+        if (el.hasAttribute('transform')) bad.push({ tag: el.tagName, cls: 'svg transform attribute', transform: el.getAttribute('transform') ?? '' })
+      }
       return bad
     })
-    expect(flipped, 'an arrow must be a character, not a flipped box').toEqual([])
+    expect(flipped, 'an arrow is a drawing of its own, not a flipped box').toEqual([])
   })
 })

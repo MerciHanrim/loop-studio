@@ -702,7 +702,7 @@ const NEW_HEADER = '2024 جديد'
  *  and re-deriving every selector in Arabic would be testing that spec again.
  *  What is under test here starts after the switch. */
 async function pasteTableWithCell(page: Page, cell: string): Promise<void> {
-  await page.getByRole('button', { name: 'Data ▾' }).click()
+  await page.getByRole('button', { name: 'Data' }).click()
   await page.getByRole('menuitem').first().click()
   const dlg = page.locator('.mcdlg--dataimport')
   await expect(dlg).toBeVisible()
@@ -781,7 +781,7 @@ test.describe('§L9.4 the spreadsheet paths — a user cell and a user header', 
     await dlg.getByRole('button', { name: 'Import' }).click()
     await expect(dlg).toBeHidden()
 
-    await page.getByRole('button', { name: 'Data ▾' }).click()
+    await page.getByRole('button', { name: 'Data' }).click()
     await page.getByRole('menuitem', { name: 'Refresh or manage imported tables…' }).click()
     const manage = page.getByRole('dialog', { name: 'Manage spreadsheet bindings' })
     await expect(manage).toBeVisible()

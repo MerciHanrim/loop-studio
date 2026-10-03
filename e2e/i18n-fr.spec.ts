@@ -165,7 +165,7 @@ test('the picker offers Français, tagged as its own language', async ({ page })
   await row.click()
   await expect.poll(() => htmlLang(page)).toBe('fr')
   expect(await stored(page)).toBe('fr')
-  await expect(page.locator('.toolbar__settingsmenu > button')).toHaveText('Paramètres ▾')
+  await expect(page.locator('.toolbar__settingsmenu > button')).toHaveText('Paramètres')
 })
 
 // ------------------------------------------------------------------ 5

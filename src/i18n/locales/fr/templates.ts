@@ -13,7 +13,7 @@
 import type { TemplatesKey } from '../en/templates'
 
 const templates = {
-  'templates.button': 'Modèles ▾',
+  'templates.button': 'Modèles',
   'templates.menuLabel': 'Modèles',
   'templates.equilibrium.name': 'Ligne de production équilibrée',
   'templates.equilibrium.blurb':
@@ -33,7 +33,7 @@ const templates = {
   'templates.replace.title': 'Charger ce modèle ?',
   'templates.replace.body': 'Votre travail actuel sera remplacé par : {name}',
   'templates.replace.confirm': 'Charger le modèle',
-  'modules.button': 'Insérer un module ▾',
+  'modules.button': 'Insérer un module',
   'modules.menuLabel': 'Insérer un module',
   'modules.fromFile': 'Depuis un fichier…',
   'modules.extract': 'Extraire la sélection comme module…',

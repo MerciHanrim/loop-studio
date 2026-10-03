@@ -11,7 +11,7 @@
 import type { DataImportKey } from '../en/dataImport'
 
 const dataImport = {
-  'import.button': '数据 ▾',
+  'import.button': '数据',
   'import.title': '导入电子表格数据',
   'import.tableName': '表名称',
   'import.removeTable': '移除此表',

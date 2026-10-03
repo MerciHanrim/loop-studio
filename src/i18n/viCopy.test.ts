@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(876)
+    expect(KEYS).toHaveLength(880)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(876)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(880)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -261,6 +261,7 @@ const asciiWords = (s: string) =>
 const ASCII_PROPER = [
   'loop', 'studio', 'machinations', 'io', 'github', 'google', 'sheets',
   'excel', 'numbers', 'monte', 'carlo', 'mc', 'mmo', 'brazil',
+  'windows', 'iphone', // the 0.15.3 release note (issue #298)
 ]
 /** File formats and the export commands named after them. */
 const ASCII_FILE_FORMAT = ['json', 'csv', 'tsv', 'xlsx', 'graph', 'workspace', 'montecarloresult']
@@ -283,7 +284,7 @@ const ASCII_WIRE = [
 const ASCII_COLUMN = ['item_id', 'item_name', 'price', 'drop_rate']
 /** Loanwords Vietnamese writes as they are: a browser `tab`, the `web`, and the
  *  two words the gacha genre uses untranslated in Vietnamese as well. */
-const ASCII_LOANWORD = ['tab', 'web', 'banner', 'gacha']
+const ASCII_LOANWORD = ['tab', 'web', 'banner', 'gacha', 'menu']
 /** Placeholder examples, the canonical `resourceType` tokens a user may type,
  *  the rarity letters, and the one unit. `gold` is here only because
  *  `inspector.resourceType.placeholder` lists the tokens verbatim — the mmo
@@ -524,6 +525,8 @@ const ASCII_KEYS = [
   'template/mmo-progression:z1_xp_meter',
   'template/mmo-progression:z2_xp_meter',
   'template/mmo-progression:z3_xp_meter',
+  'catalog:whatsNew.v0153.icons',
+  'catalog:whatsNew.v0153.names',
 ]
 
 describe('a kept English word is declared, twice over — by key and by word', () => {
@@ -537,7 +540,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(168)
+    expect(ASCII_KEYS).toHaveLength(170)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {
@@ -545,13 +548,13 @@ describe('a kept English word is declared, twice over — by key and by word', (
     for (const [s, id, v] of RUNTIME) for (const w of sharedWith(s, id, v)) seen.add(w)
     const declared = new Set([...ASCII_GLOBAL, ...Object.keys(ASCII_KEY_SCOPED)])
     expect([...seen].sort()).toEqual([...declared].sort())
-    expect(declared.size).toBe(75)
+    expect(declared.size).toBe(78)
   })
 
   it('the groups are disjoint, and they add up', () => {
     // Otherwise a word could be quietly moved between groups, and the reason it
     // is kept — which is the whole content of this list — would rot.
-    expect(ASCII_GROUPS.map(([, g]) => g.length)).toEqual([14, 7, 12, 17, 4, 4, 12, 2])
+    expect(ASCII_GROUPS.map(([, g]) => g.length)).toEqual([16, 7, 12, 17, 4, 5, 12, 2])
     const all = ASCII_GROUPS.flatMap(([, g]) => g)
     expect(all).toHaveLength(ASCII_GLOBAL.size)
     for (const w of Object.keys(ASCII_KEY_SCOPED)) expect(ASCII_GLOBAL.has(w)).toBe(false)

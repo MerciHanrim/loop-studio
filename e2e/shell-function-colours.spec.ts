@@ -325,7 +325,7 @@ for (const scheme of ['light', 'dark'] as const) {
     const sunken = await probe(page, 'var(--surface-sunken)')
     if (scheme === 'light') expect(hoverFill, 'hover does not follow the sunken surface').not.toBe(sunken)
 
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
     const item = page.locator('.toolbar__actions .menu__pop .menu__item').first()
     await expect(item).toBeVisible()
     await page.mouse.move(2, 2)

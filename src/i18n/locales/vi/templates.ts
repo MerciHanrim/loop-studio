@@ -14,7 +14,7 @@
 // person, and an imperative is used only where the English is one.
 
 const templates = {
-  'templates.button': 'Mẫu ▾',
+  'templates.button': 'Mẫu',
   'templates.menuLabel': 'Mẫu',
   'templates.equilibrium.name': 'Dây chuyền sản xuất cân bằng',
   'templates.equilibrium.blurb': 'Nguyên liệu vào, gia công và phế phẩm, thành phẩm ra — một dây chuyền ổn định sau vài bước.',
@@ -29,7 +29,7 @@ const templates = {
   'templates.replace.title': 'Nạp mẫu này?',
   'templates.replace.body': 'Phần đang làm sẽ được thay bằng: {name}',
   'templates.replace.confirm': 'Nạp mẫu',
-  'modules.button': 'Chèn mô-đun ▾',
+  'modules.button': 'Chèn mô-đun',
   'modules.menuLabel': 'Chèn mô-đun',
   'modules.fromFile': 'Từ tệp…',
   'modules.extract': 'Tách phần đang chọn thành mô-đun…',

@@ -94,7 +94,7 @@ async function exportJsonText(page: Page): Promise<string> {
 
 /** toolbar `File ▾` → `Workspace JSON` (accepts the in-app summary dialog) */
 async function exportWorkspaceText(page: Page): Promise<string> {
-  await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
   await page.locator('.toolbar__actions .menu__pop').getByRole('menuitem', { name: 'Workspace JSON' }).click()
   await page.locator('.mcdlg--confirm').getByRole('button', { name: /save workspace/i }).click()
   const exports = await capturedExports(page)

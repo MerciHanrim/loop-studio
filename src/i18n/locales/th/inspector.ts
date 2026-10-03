@@ -61,6 +61,7 @@ const inspector = {
   'inspector.resourceType.custom': 'ชนิดที่กำหนดเอง — ใช้สีตัวอย่างทั่วไป ไม่มีสีประจำในระบบ',
   'inspector.resourceType.mismatch':
     'ชนิดไม่ตรงกัน: {pairs} เป็นข้อมูลประกอบเท่านั้น — ไม่เปลี่ยนปริมาณใดและไม่ขวางการรันใด',
+  'inspector.resourceType.pair': '{edge} ที่เส้นเชื่อม, {node} ที่โหนด',
   'inspector.parameter.outOfRange':
     'ค่าอยู่นอกช่วงต่ำสุด/สูงสุดที่เป็นข้อมูลประกอบ — เก็บไว้ตามเดิม ไม่ถูกตัด',
   'inspector.parameter.hintIncoherent': 'ข้อมูลประกอบขัดแย้งกันเอง และจะถูกตัดทิ้งเมื่อส่งออก',
@@ -172,7 +173,7 @@ const inspector = {
   'regExpr.row.notFinite': '→ ไม่ใช่จำนวนจำกัด',
   'regExpr.row.dependsInvalid': '— ขึ้นกับการอ้างถึงที่ไม่ถูกต้อง',
   'regExpr.row.generic': '— {code}',
-  'regExpr.insert.title': '＋ แทรกการอ้างถึง',
+  'regExpr.insert.title': 'แทรกการอ้างถึง',
   'regExpr.insert.armedLabel': 'กำลังเลือกการอ้างถึง',
   'regExpr.insert.hint': 'คลิกถังพัก พารามิเตอร์ หรือค่าที่คำนวณ บนผืนผ้าใบเพื่อแทรกการอ้างถึง',
   'regExpr.insert.armed':

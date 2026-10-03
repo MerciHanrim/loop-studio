@@ -1,7 +1,7 @@
 {
   "name": "loop-studio",
   "private": true,
-  "version": "0.15.2",
+  "version": "0.15.3",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -34,6 +34,7 @@
     "check:storage-port": "node scripts/check-storage-port.mjs",
     "check:change-declaration": "node scripts/check-change-declaration.mjs",
     "check:e2e-shards": "node scripts/e2e-shards.mjs check",
+    "check:functional-glyphs": "node scripts/check-functional-glyphs.mjs",
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",

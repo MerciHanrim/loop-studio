@@ -4,6 +4,17 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.15.3 — 2026-10-03
+
+A fix release. The symbols on the buttons were characters an operating-system font drew, so a button looked different from Windows to iPhone, and on iPhone some of them were colour emoji.
+
+- **Every functional icon is the app's own drawing.** Play, Pause, Replay, Step and Reset, the canvas lock and focus buttons, the close and more buttons, the menu arrows, the selected marks in the Language and Theme menus, the external-link mark, undo and redo, the revision marks, the five palette marks and the trigger mark on a connection are inline SVG from one shared component, drawn with `currentColor`, so they look the same on every platform and in every theme, including forced colours. No icon package is added. Measured on the shipped font before the change: it drew three of the symbols; the operating system drew the rest.
+- **Names are words.** A translated label no longer carries a symbol (`▶ Play` is `Play` beside an icon, in all 18 languages), so a screen reader reads the words alone; the desktop Reset and Step buttons have explicit names; the "type mismatch" note in the Inspector says "on the connection, on the node" instead of a `↔`.
+- **Nothing moved.** Every replaced icon takes the box its character had, measured before and after on desktop and mobile, in English and Arabic; the width of an edge label is unchanged. The arrows that follow the reader (external link, submenu, undo, redo) ship two drawings and pick one by direction, never a transform; the transport and the menu arrows keep theirs.
+- A new check, `check:functional-glyphs`, fails when one of the replaced characters returns to a component or to a translation catalog. `©`, the formula characters, `＋ － ＝` and the names of control characters stay text on purpose.
+
+**No migration.** A v0.15.2 file opens unchanged. The informational `meta.tool` string is now `loop-studio/0.15.3`.
+
 ## v0.15.2 — 2026-10-03
 
 A fix release. The theme you chose was saved but not applied when the app started.

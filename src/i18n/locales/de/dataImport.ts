@@ -20,7 +20,7 @@
 import type { DataImportKey } from '../en/dataImport'
 
 const dataImport = {
-  'import.button': 'Daten ▾',
+  'import.button': 'Daten',
   'import.title': 'Daten aus einem Tabellenblatt importieren',
   'import.tableName': 'Tabellenname',
   'import.removeTable': 'Tabelle entfernen',

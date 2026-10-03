@@ -54,6 +54,7 @@ const inspector = {
   'inspector.resourceType.normalised': '已规范化为“{value}”。',
   'inspector.resourceType.custom': '自定义类型——使用通用色块，没有内置颜色。',
   'inspector.resourceType.mismatch': '类型不一致：{pairs}。仅供参考——不会改变任何数量，也不会阻止运行。',
+  'inspector.resourceType.pair': '连线为 {edge}，节点为 {node}',
   'inspector.parameter.outOfRange': '数值超出了参考的最小/最大范围——按原样保留，不做限幅。',
   'inspector.parameter.hintIncoherent': '有一项参考提示前后矛盾，导出时会被丢弃。',
   'inspector.parameter.noPorts': '参数没有端口——请在表达式中按 ID 引用它。',
@@ -158,7 +159,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— 依赖了一个无效的引用',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — arm-and-click canvas insert
-  'regExpr.insert.title': '＋ 插入引用',
+  'regExpr.insert.title': '插入引用',
   'regExpr.insert.armedLabel': '正在选择引用',
   'regExpr.insert.hint': '点击画布上的资源池、参数或计算值，即可插入它的引用。',
   'regExpr.insert.armed': '已进入引用插入状态。点击画布上的节点，或按 Esc 取消。',

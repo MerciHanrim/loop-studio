@@ -12,7 +12,7 @@
 // the Romance catalogs make with `etapa` / `passo`.
 
 const templates = {
-  'templates.button': 'Шаблоны ▾',
+  'templates.button': 'Шаблоны',
   'templates.menuLabel': 'Шаблоны',
   'templates.equilibrium.name': 'Сбалансированная производственная линия',
   'templates.equilibrium.blurb':
@@ -32,7 +32,7 @@ const templates = {
   'templates.replace.title': 'Загрузить этот шаблон?',
   'templates.replace.body': 'Текущая работа будет заменена на: {name}',
   'templates.replace.confirm': 'Загрузить шаблон',
-  'modules.button': 'Вставить модуль ▾',
+  'modules.button': 'Вставить модуль',
   'modules.menuLabel': 'Вставить модуль',
   'modules.fromFile': 'Из файла…',
   'modules.extract': 'Извлечь выделенное как модуль…',

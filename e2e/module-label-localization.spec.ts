@@ -43,26 +43,26 @@ async function renameNode(page: Page, nodeId: string, label: string) {
 }
 
 const STR = {
-  en: { menuBtn: 'Insert module ▾', bufferedStep: 'Buffered production step', rewardSplit: 'Reward split loop' },
-  ko: { menuBtn: '모듈 삽입 ▾', bufferedStep: '버퍼가 있는 생산 단계', rewardSplit: '보상 분배 루프' },
-  ja: { menuBtn: 'モジュールを挿入 ▾', bufferedStep: 'バッファ付き生産ステップ', rewardSplit: '報酬分配ループ' },
-  'zh-Hans': { menuBtn: '插入模块 ▾', bufferedStep: '带缓冲的生产环节', rewardSplit: '奖励分配循环' },
-  'zh-Hant': { menuBtn: '插入模組 ▾', bufferedStep: '含緩衝的生產環節', rewardSplit: '獎勵分配迴圈' },
-  fr: { menuBtn: 'Insérer un module ▾', bufferedStep: 'Étape de production tamponnée', rewardSplit: 'Boucle de répartition des récompenses' },
-  de: { menuBtn: 'Modul einfügen ▾', bufferedStep: 'Gepufferter Produktionsschritt', rewardSplit: 'Schleife zur Belohnungsaufteilung' },
-  'es-419': { menuBtn: 'Insertar módulo ▾', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
-  'pt-BR': { menuBtn: 'Inserir módulo ▾', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
-  'es-ES': { menuBtn: 'Insertar módulo ▾', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
-  'pt-PT': { menuBtn: 'Inserir módulo ▾', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
-  ru: { menuBtn: 'Вставить модуль ▾', bufferedStep: 'Производственный этап с буферами', rewardSplit: 'Цикл распределения награды' },
-  tr: { menuBtn: 'Modül ekle ▾', bufferedStep: 'Tamponlu üretim aşaması', rewardSplit: 'Ödül paylaştırma döngüsü' },
-  th: { menuBtn: 'แทรกมอดูล ▾', bufferedStep: 'ขั้นการผลิตที่มีบัฟเฟอร์', rewardSplit: 'วงจรแบ่งรางวัล' },
-  vi: { menuBtn: 'Chèn mô-đun ▾', bufferedStep: 'Bước sản xuất có bộ đệm', rewardSplit: 'Vòng chia phần thưởng' },
-  it: { menuBtn: 'Inserisci modulo ▾', bufferedStep: 'Fase di produzione con buffer', rewardSplit: 'Ciclo di ripartizione delle ricompense' },
-  nl: { menuBtn: 'Module invoegen ▾', bufferedStep: 'Productiestap met buffers', rewardSplit: 'Kringloop voor beloningsverdeling' },
+  en: { menuBtn: 'Insert module', bufferedStep: 'Buffered production step', rewardSplit: 'Reward split loop' },
+  ko: { menuBtn: '모듈 삽입', bufferedStep: '버퍼가 있는 생산 단계', rewardSplit: '보상 분배 루프' },
+  ja: { menuBtn: 'モジュールを挿入', bufferedStep: 'バッファ付き生産ステップ', rewardSplit: '報酬分配ループ' },
+  'zh-Hans': { menuBtn: '插入模块', bufferedStep: '带缓冲的生产环节', rewardSplit: '奖励分配循环' },
+  'zh-Hant': { menuBtn: '插入模組', bufferedStep: '含緩衝的生產環節', rewardSplit: '獎勵分配迴圈' },
+  fr: { menuBtn: 'Insérer un module', bufferedStep: 'Étape de production tamponnée', rewardSplit: 'Boucle de répartition des récompenses' },
+  de: { menuBtn: 'Modul einfügen', bufferedStep: 'Gepufferter Produktionsschritt', rewardSplit: 'Schleife zur Belohnungsaufteilung' },
+  'es-419': { menuBtn: 'Insertar módulo', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
+  'pt-BR': { menuBtn: 'Inserir módulo', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
+  'es-ES': { menuBtn: 'Insertar módulo', bufferedStep: 'Etapa de producción con búferes', rewardSplit: 'Ciclo de reparto de recompensas' },
+  'pt-PT': { menuBtn: 'Inserir módulo', bufferedStep: 'Etapa de produção com buffers', rewardSplit: 'Ciclo de divisão de recompensas' },
+  ru: { menuBtn: 'Вставить модуль', bufferedStep: 'Производственный этап с буферами', rewardSplit: 'Цикл распределения награды' },
+  tr: { menuBtn: 'Modül ekle', bufferedStep: 'Tamponlu üretim aşaması', rewardSplit: 'Ödül paylaştırma döngüsü' },
+  th: { menuBtn: 'แทรกมอดูล', bufferedStep: 'ขั้นการผลิตที่มีบัฟเฟอร์', rewardSplit: 'วงจรแบ่งรางวัล' },
+  vi: { menuBtn: 'Chèn mô-đun', bufferedStep: 'Bước sản xuất có bộ đệm', rewardSplit: 'Vòng chia phần thưởng' },
+  it: { menuBtn: 'Inserisci modulo', bufferedStep: 'Fase di produzione con buffer', rewardSplit: 'Ciclo di ripartizione delle ricompense' },
+  nl: { menuBtn: 'Module invoegen', bufferedStep: 'Productiestap met buffers', rewardSplit: 'Kringloop voor beloningsverdeling' },
   // the first RTL locale. `▾` is `disclosure-vertical`, a KEEP unit, so it is the
   // same character here as everywhere else (scripts/arrow-units.json).
-  ar: { menuBtn: 'إدراج وحدة ▾', bufferedStep: 'خطوة إنتاج بمخزن مؤقت', rewardSplit: 'حلقة تقسيم المكافآت' },
+  ar: { menuBtn: 'إدراج وحدة', bufferedStep: 'خطوة إنتاج بمخزن مؤقت', rewardSplit: 'حلقة تقسيم المكافآت' },
 } as const
 type Locale = keyof typeof STR
 

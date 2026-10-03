@@ -64,6 +64,7 @@ const inspector = {
   'inspector.resourceType.custom': 'Eigener Typ — allgemeine Markierung, keine eingebaute Farbe.',
   'inspector.resourceType.mismatch':
     'Typen passen nicht zusammen: {pairs}. Nur unverbindlich — es ändert keine Menge und blockiert keinen Lauf.',
+  'inspector.resourceType.pair': '{edge} auf der Verbindung, {node} am Knoten',
   'inspector.parameter.outOfRange':
     'Der Wert liegt außerhalb des unverbindlichen Minimums/Maximums — er bleibt unverändert und wird nicht gekappt.',
   'inspector.parameter.hintIncoherent':
@@ -186,7 +187,7 @@ const inspector = {
   'regExpr.row.notFinite': '→ keine endliche Zahl',
   'regExpr.row.dependsInvalid': '— hängt von einer ungültigen Referenz ab',
   'regExpr.row.generic': '— {code}',
-  'regExpr.insert.title': '＋ Referenz einfügen',
+  'regExpr.insert.title': 'Referenz einfügen',
   'regExpr.insert.armedLabel': 'Referenz wird ausgewählt',
   'regExpr.insert.hint':
     'Auf einen Speicher, Parameter oder berechneten Wert auf der Arbeitsfläche klicken, um die Referenz einzufügen.',

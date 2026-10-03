@@ -9,7 +9,7 @@ import { useReviewStore } from '../store/reviewStore'
 import { routeImport } from '../store/revisionIO'
 import { useIsMobile } from '../ui/media'
 import { useI18n } from '../i18n/store'
-import { useArrowGlyph, useT, type MessageKey } from '../i18n'
+import { useT, type MessageKey } from '../i18n'
 import { importErrorMessage } from '../ui/importError'
 import { ConfirmDialog } from './ConfirmDialog'
 import { HelpMenu } from './HelpMenu'
@@ -31,6 +31,7 @@ import { isInline, type OverflowItem } from './toolbar/toolbarOverflow'
 import { usePaletteTipPosition } from './toolbar/useAnchoredPosition'
 import { useShareSurface } from './toolbar/useShareSurface'
 import { useToolbarOverflow } from './toolbar/useToolbarOverflow'
+import { ArrowIcon, ICONS, Icon, type IconName } from '../ui/icons'
 
 const DND_TYPE = 'application/loop-node'
 
@@ -47,14 +48,16 @@ const DND_TYPE = 'application/loop-node'
 // a dwell timer. There is no OPEN delay (D1): the tooltip still appears at once.
 const TIP_CLOSE_GRACE_MS = 120
 
-const PALETTE: { kind: NodeKind; nameKey: MessageKey; descKey: MessageKey; glyph: string }[] = [
-  { kind: 'pool', nameKey: 'palette.pool.name', descKey: 'palette.pool.description', glyph: '◉' },
+// issue #298 — a node-kind MARK is a shared icon (the same shape on every platform);
+// `＋ － ＝` stay text, they are the meaning characters add / remove / equals
+const PALETTE: { kind: NodeKind; nameKey: MessageKey; descKey: MessageKey; glyph: string | IconName }[] = [
+  { kind: 'pool', nameKey: 'palette.pool.name', descKey: 'palette.pool.description', glyph: 'node-pool' },
   { kind: 'source', nameKey: 'palette.source.name', descKey: 'palette.source.description', glyph: '＋' },
   { kind: 'drain', nameKey: 'palette.drain.name', descKey: 'palette.drain.description', glyph: '－' },
-  { kind: 'gate', nameKey: 'palette.gate.name', descKey: 'palette.gate.description', glyph: '◇' },
-  { kind: 'converter', nameKey: 'palette.converter.name', descKey: 'palette.converter.description', glyph: '⇄' },
-  { kind: 'end', nameKey: 'palette.end.name', descKey: 'palette.end.description', glyph: '⊗' },
-  { kind: 'parameter', nameKey: 'palette.parameter.name', descKey: 'palette.parameter.description', glyph: '▭' },
+  { kind: 'gate', nameKey: 'palette.gate.name', descKey: 'palette.gate.description', glyph: 'node-gate' },
+  { kind: 'converter', nameKey: 'palette.converter.name', descKey: 'palette.converter.description', glyph: 'node-converter' },
+  { kind: 'end', nameKey: 'palette.end.name', descKey: 'palette.end.description', glyph: 'node-end' },
+  { kind: 'parameter', nameKey: 'palette.parameter.name', descKey: 'palette.parameter.description', glyph: 'node-parameter' },
   { kind: 'register', nameKey: 'palette.register.name', descKey: 'palette.register.description', glyph: '＝' },
 ]
 const PALETTE_GROUPS = [PALETTE.slice(0, 3), PALETTE.slice(3, 6), PALETTE.slice(6, 8)]
@@ -111,8 +114,6 @@ export function Toolbar() {
   // §L9.3 — a direction-aware CHARACTER from the shared table, never a transform
   // undo and redo come out of ONE table, so they swap into each other rather than
   // being two literals that have to stay opposite by hand
-  const undoGlyph = useArrowGlyph('undo')
-  const redoGlyph = useArrowGlyph('redo')
   const activeLocale = useI18n((s) => s.activeLocale)
   const projectOpen = useProjectStore((s) => s.open != null)
   const { layout, measuring, setToolbar, setBrand, setCore, setMore, setItem } = useToolbarOverflow(
@@ -470,7 +471,7 @@ export function Toolbar() {
                   aria-describedby={`palette-tip-${p.kind}`}
                 >
                   <span className="chip__glyph" aria-hidden="true">
-                    {p.glyph}
+                    {p.glyph in ICONS ? <Icon name={p.glyph as IconName} /> : p.glyph}
                   </span>
                   {t(p.nameKey)}
                 </button>
@@ -537,7 +538,7 @@ export function Toolbar() {
             disabled={!canUndo}
             title={t('toolbar.undo.title')}
           >
-            {undoGlyph}
+            <ArrowIcon unit="undo" />
           </button>
           <button
             type="button"
@@ -546,7 +547,7 @@ export function Toolbar() {
             disabled={!canRedo}
             title={t('toolbar.redo.title')}
           >
-            {redoGlyph}
+            <ArrowIcon unit="redo" />
           </button>
           <Templates />
           <RevisionChip />

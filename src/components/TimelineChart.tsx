@@ -13,6 +13,7 @@ import { buildRunCsv } from './timelineCsv'
 import { DistributionPanel } from './DistributionPanel'
 import { PlayBar } from './PlayBar'
 import { TimelineSeriesPopover, type SeriesItem } from './TimelineSeriesPopover'
+import { Icon } from '../ui/icons'
 
 // A — chart discipline: the canvas token, carried down onto the time axis.
 // Data line = resource-track weight; current value = the same solid Bead;
@@ -654,7 +655,7 @@ export function TimelineChart() {
             aria-label={t('dialog.close')}
             onClick={() => closeOverlay('timeline')}
           >
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         {panel}

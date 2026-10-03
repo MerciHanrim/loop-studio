@@ -125,6 +125,9 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'v', 'v1', 'v2', 'g1', 'mc', 'id', 'min', 'max', 'rev', 'build', 'mmo', 'gacha',
   ]],
   ['Monte Carlo — a place name to begin with', ['monte', 'carlo']],
+  ['platform names, and `contrast`, which Dutch spells as English does — the 0.15.3 release note (issue #298)', [
+    'windows', 'iphone', 'contrast',
+  ]],
   ['keyboard keys and axis letters, as the OS and the UI print them', [
     'ctrl', 'cmd', 'esc', 'escape', 'alt', 'backspace', 'enter', 'shift', 'delete', 'tab',
     'n', 'x', 'y', 'z', 'lv',
@@ -215,7 +218,7 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
   ['catalog regExpr.row.generic', '— {code}'],
   ['catalog revChip.rev', 'rev {id}'],
   ['catalog revChip.title', 'Project {project} · {role} {revision}'],
-  ['catalog theme.auto', '◐ Auto'],
+  ['catalog theme.auto', 'Auto'],
   ['catalog theme.option.system', 'Auto'],
   ['catalog timeline.csv', 'CSV'],
   ['catalog timeline.view.live', 'LIVE'],
@@ -247,15 +250,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(876)
+    expect(KEYS).toHaveLength(880)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 876, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1098)
+    expect(per).toEqual({ catalog: 880, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1102)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

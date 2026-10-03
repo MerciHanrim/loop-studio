@@ -28,7 +28,7 @@
 import type { DataImportKey } from '../en/dataImport'
 
 const dataImport = {
-  'import.button': 'Dati ▾',
+  'import.button': 'Dati',
   'import.title': 'Importa dati da foglio di calcolo',
   'import.tableName': 'Nome della tabella',
   'import.removeTable': 'Rimuovi la tabella',

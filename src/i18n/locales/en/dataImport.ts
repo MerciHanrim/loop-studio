@@ -4,7 +4,7 @@
 // `import.status.*`, `import.review.*`, the inline-error summary).
 
 const dataImport = {
-  'import.button': 'Data ▾',
+  'import.button': 'Data',
   'import.title': 'Import spreadsheet data',
   'import.tableName': 'Table name',
   'import.removeTable': 'Remove table',

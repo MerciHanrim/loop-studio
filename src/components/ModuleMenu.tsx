@@ -11,6 +11,7 @@ import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { useMenuKeyboard } from '../ui/useMenuKeyboard'
+import { Icon } from '../ui/icons'
 
 // docs/module-system.md §MS6 — the v1 assembly surface: an "Insert module ▾"
 // menu with the bundled Building blocks + "From file…" (no `#g1=` link — MS7-7),
@@ -187,6 +188,7 @@ export function ModuleMenu({
         onClick={() => setOpen((v) => !v)}
       >
         {t('modules.button')}
+        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
         <div

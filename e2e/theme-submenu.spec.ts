@@ -18,7 +18,7 @@ async function openSettings(page: Page) {
   // narrowest desktop checkpoint this suite tests) and its label localizes,
   // so match all 3 locales and fall back to opening ⋯ first when Settings
   // isn't inline.
-  const label = /^(Settings|설정|設定) ▾$/
+  const label = /^(Settings|설정|設定)$/
   const inline = page.locator('.toolbar__actions .menu > button', { hasText: label })
   if (await inline.isVisible().catch(() => false)) {
     await inline.click()
@@ -59,7 +59,7 @@ test('opening it shows exactly Auto / Light / Dark, in English, with the active 
   const items = pop.locator('.menu__item')
   await expect(items).toHaveCount(3)
   const texts = await items.locator('.menu__name').allTextContents()
-  expect(texts.map((s) => s.trim())).toEqual(['✓ Auto', 'Light', 'Dark'])
+  expect(texts.map((s) => s.trim())).toEqual(['Auto', 'Light', 'Dark'])
   expect(texts.join(' ')).not.toContain('System') // the internal mode literal must never leak into EN UI
 
   await expect(items.nth(0)).toHaveAttribute('aria-selected', 'true')
@@ -83,7 +83,7 @@ test('selecting Dark applies it immediately, checks it, and closes only the Them
 
   // reopening shows Dark checked
   await row.click()
-  await expect(page.locator('.theme-menu__pop .menu__item', { hasText: /^✓ Dark$/ })).toBeVisible()
+  await expect(page.locator('.theme-menu__pop .menu__item[aria-selected="true"]', { hasText: /^Dark$/ })).toBeVisible()
 })
 
 test('keyboard: ArrowDown/ArrowUp move between options, Enter selects, Escape closes only Theme', async ({
@@ -173,7 +173,7 @@ test('flips to the right when there is no room on the left', async ({ page }) =>
   // synthetically relocates just the OPEN Settings popover (not its
   // trigger, which stays clickable in its normal place) to exercise the
   // flip branch rather than waiting for a layout that can't occur
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
   await page.addStyleTag({
     content: '.toolbar__settingsmenu-pop { position: fixed !important; left: 4px !important; right: auto !important; top: 80px !important; }',
   })
@@ -193,7 +193,7 @@ test('Korean and Japanese show the agreed labels, never a raw mode literal', asy
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ko')
   await openThemeSubmenu(page)
   let texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
-  expect(texts).toEqual(['✓ 자동', '라이트', '다크'])
+  expect(texts).toEqual(['자동', '라이트', '다크'])
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
 
@@ -201,5 +201,5 @@ test('Korean and Japanese show the agreed labels, never a raw mode literal', asy
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ja')
   await openThemeSubmenu(page)
   texts = (await page.locator('.theme-menu__pop .menu__name').allTextContents()).map((s) => s.trim())
-  expect(texts).toEqual(['✓ 自動', 'ライト', 'ダーク'])
+  expect(texts).toEqual(['自動', 'ライト', 'ダーク'])
 })

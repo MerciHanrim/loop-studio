@@ -12,7 +12,7 @@ import { expect, iso, openApp, resetAll, snap, test } from './support/loop'
 type Node = { id: string; type?: string; data?: { label?: string; value?: number } }
 
 const dialog = (page: Page) => page.locator('.mcdlg--dataimport')
-const dataButton = (page: Page) => page.getByRole('button', { name: 'Data ▾' })
+const dataButton = (page: Page) => page.getByRole('button', { name: 'Data' })
 
 type Box = { x: number; y: number; width: number; height: number }
 
@@ -323,7 +323,7 @@ for (const [loc, needle] of [
   test(`${loc} -- the invalid-number message carries the value and the header, never the internal code`, async ({ page }) => {
     await page.evaluate((l) => (window as unknown as { __loop: { i18n: { getState: () => { setLocale: (s: string) => void } } } }).__loop.i18n.getState().setLocale(l), loc)
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(loc)
-    const btn = page.getByRole('button', { name: loc === 'ko' ? '데이터 ▾' : 'データ ▾', exact: true })
+    const btn = page.getByRole('button', { name: loc === 'ko' ? '데이터' : 'データ', exact: true })
     if (!(await btn.isVisible())) await page.locator('.toolbar__overflow-btn').click()
     await btn.click()
     await page.getByRole('menuitem').first().click()
@@ -640,6 +640,6 @@ test.describe('mobile boundary', () => {
     await expect(page.getByRole('button', { name: /spreadsheet/i })).toHaveCount(0)
     await expect(page.getByRole('menuitem', { name: /spreadsheet/i })).toHaveCount(0)
     await expect(page.locator('.mcdlg--dataimport')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Data ▾' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Data' })).toHaveCount(0)
   })
 })

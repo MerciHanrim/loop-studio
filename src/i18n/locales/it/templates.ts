@@ -21,7 +21,7 @@
 import type { TemplatesKey } from '../en/templates'
 
 const templates = {
-  'templates.button': 'Modelli ▾',
+  'templates.button': 'Modelli',
   'templates.menuLabel': 'Modelli',
   'templates.equilibrium.name': 'Linea di produzione bilanciata',
   // Deliberately shorter than a literal rendering of the English. The menu
@@ -41,7 +41,7 @@ const templates = {
   'templates.replace.title': 'Caricare questo modello?',
   'templates.replace.body': 'Il lavoro attuale verrà sostituito con: {name}',
   'templates.replace.confirm': 'Carica il modello',
-  'modules.button': 'Inserisci modulo ▾',
+  'modules.button': 'Inserisci modulo',
   'modules.menuLabel': 'Inserisci modulo',
   'modules.fromFile': 'Da file…',
   'modules.extract': 'Estrai la selezione come modulo…',

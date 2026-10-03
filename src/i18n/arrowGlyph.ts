@@ -21,26 +21,17 @@ import type { LocaleDir } from './registry'
  *  means it also flips anything that shares the element, it does not reach the
  *  accessible name, and it cannot be read back as text by a test. */
 export const MIRRORED_ARROWS = {
-  /** this opens something outside the app */
-  'external-link': { ltr: '↗', rtl: '↖' },
-  /** a submenu or sheet opens on the inline-end side */
-  'submenu-disclosure': { ltr: '▸', rtl: '◂' },
   /** a value changes from one thing to another */
   'before-after': { ltr: '→', rtl: '←' },
-  /** step back through the edit history */
-  undo: { ltr: '↶', rtl: '↷' },
-  /** step forward through the edit history */
-  redo: { ltr: '↷', rtl: '↶' },
+  // The external-link mark, the submenu disclosure, undo and redo were characters
+  // in this table until issue #298; they are ICONS now (`ArrowIcon` in
+  // src/ui/icons.tsx), with an rtl drawing derived from the ltr one, and the same
+  // check (scripts/check-arrow-direction.mjs, clause 1b) holds them to the reader.
 } as const
 
 export type MirroredArrow = keyof typeof MIRRORED_ARROWS
 
-/** The glyph this unit uses for a reader of `dir`.
- *
- *  `undo` and `redo` swap into each other, which is the point: under an rtl reader
- *  undo curves the other way, and it must still be the OPPOSITE of redo rather than
- *  equal to it. Reading the pair out of one table is what makes that true by
- *  construction instead of by two edits staying in step. */
+/** The glyph this unit uses for a reader of `dir`. */
 export function arrowGlyph(unit: MirroredArrow, dir: LocaleDir): string {
   return MIRRORED_ARROWS[unit][dir]
 }

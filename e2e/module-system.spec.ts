@@ -29,11 +29,11 @@ const gs = (page: Page): Promise<GS> =>
 
 const moduleMenu = (page: Page) =>
   page.locator('.toolbar__actions .menu', {
-    has: page.getByRole('button', { name: 'Insert module ▾' }),
+    has: page.getByRole('button', { name: 'Insert module' }),
   })
 
 async function openMenu(page: Page): Promise<void> {
-  await moduleMenu(page).getByRole('button', { name: 'Insert module ▾' }).click()
+  await moduleMenu(page).getByRole('button', { name: 'Insert module' }).click()
   await expect(moduleMenu(page).locator('.menu__pop')).toBeVisible()
 }
 
@@ -387,5 +387,5 @@ test('the module menu is desktop-only — absent on a narrow (mobile) viewport',
   await page.setViewportSize({ width: 700, height: 900 }) // < the 720px mobile breakpoint
   await page.reload()
   await expect(page.locator('.toolbar--mobile')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Insert module ▾' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Insert module' })).toHaveCount(0)
 })

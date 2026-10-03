@@ -21,7 +21,7 @@
 // template concept, never catalog-wide.
 
 const templates = {
-  'templates.button': 'Templates ▾',
+  'templates.button': 'Templates',
   'templates.menuLabel': 'Templates',
   'templates.equilibrium.name': 'Linha de produção equilibrada',
   // Same shape the Spanish blurb was measured into: an action sentence with
@@ -42,7 +42,7 @@ const templates = {
   'templates.replace.title': 'Carregar este template?',
   'templates.replace.body': 'O seu trabalho atual será substituído por: {name}',
   'templates.replace.confirm': 'Carregar template',
-  'modules.button': 'Inserir módulo ▾',
+  'modules.button': 'Inserir módulo',
   'modules.menuLabel': 'Inserir módulo',
   'modules.fromFile': 'De um ficheiro…',
   'modules.extract': 'Extrair a seleção como módulo…',

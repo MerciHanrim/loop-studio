@@ -92,7 +92,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     expect(result.recommendedRunConfig).toBeUndefined() // MC JSON export, not a graph doc
 
     // 5 — a graph Export is a valid graph file carrying recommendedRunConfig
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Graph JSON' })
@@ -148,7 +148,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
   }) => {
     const { bad } = await openProd(page)
 
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     const opts = page.locator('.lang-menu__pop [role="option"]')
     // ar, en, ko, ja, zh-Hans, zh-Hant, fr, de, it, es-419, pt-BR, es-ES, pt-PT,
@@ -239,7 +239,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     // trigger's own label is itself locale-dependent, so match all three
     // shipped-language spellings (same pattern as e2e/i18n.spec.ts's
     // openSettings), not just the English one.
-    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ })
+    const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ })
     await settingsBtn.click()
     await page.locator('.toolbar .lang-switch').click()
     await page.locator('.lang-menu__item[data-locale="ko"]').click()
@@ -449,7 +449,7 @@ test.describe('production build — the version the release bumped', () => {
 
     // 3 — `meta.tool` in an exported Project revision. This one is not cosmetic:
     // it is written INTO a file a user keeps and sends to someone else.
-    await page.locator('.toolbar__actions .menu > button', { hasText: 'File ▾' }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: 'File' }).click()
     await page
       .locator('.toolbar__actions .menu__pop')
       .getByRole('menuitem', { name: 'Project revision' })

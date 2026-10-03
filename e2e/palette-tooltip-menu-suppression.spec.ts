@@ -32,7 +32,7 @@ test.beforeEach(async ({ page }) => {
 test('Module menu open suppresses the palette tooltip; closing it (pointer still over the chip) keeps it suppressed until leave+re-enter', async ({
   page,
 }) => {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Insert module ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Insert module$/ }).click()
   const modulePop = page.locator('.toolbar__actions .menu__pop').first()
   await expect(modulePop).toBeVisible()
 
@@ -51,7 +51,7 @@ test('Module menu open suppresses the palette tooltip; closing it (pointer still
   await expect(tip(page, 'register')).toBeVisible()
 })
 
-for (const label of [/^Templates ▾$/, /^File ▾$/, /^Data ▾$/]) {
+for (const label of [/^Templates$/, /^File$/, /^Data$/]) {
   test(`${label} suppresses the palette tooltip while open`, async ({ page }) => {
     await page.locator('.toolbar__actions .menu > button', { hasText: label }).click()
     await page.locator('.chip--pool').hover()
@@ -81,7 +81,7 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
   const overflowPop = page.locator('.toolbar__overflow-pop')
   await expect(overflowPop).toBeVisible()
 
-  await overflowPop.locator('button', { hasText: /^File ▾$/ }).click()
+  await overflowPop.locator('button', { hasText: /^File$/ }).click()
   const filePop = page.locator('.toolbar__filemenu-pop')
   await expect(filePop).toBeVisible()
 
@@ -109,7 +109,7 @@ test('⋯ → File (two nested menus): closing File alone keeps the palette supp
 test('Settings → Theme submenu: closing Theme alone (Escape) keeps Settings open and the palette suppressed', async ({
   page,
 }) => {
-  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ })
+  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
   await settingsBtn.click()
   const settingsPop = page.locator('.toolbar__settingsmenu-pop')
   await expect(settingsPop).toBeVisible()
@@ -140,7 +140,7 @@ test('Settings → Theme submenu: closing Theme alone (Escape) keeps Settings op
 })
 
 test('Theme and Language submenus are mutually exclusive inside Settings', async ({ page }) => {
-  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ })
+  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
   await settingsBtn.click()
   const settingsPop = page.locator('.toolbar__settingsmenu-pop')
 
@@ -160,14 +160,14 @@ test('Theme and Language submenus are mutually exclusive inside Settings', async
 test('switching directly between two Tier-1 triggers leaves no stray suppression state', async ({
   page,
 }) => {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   await expect(page.locator('.toolbar__filemenu-pop')).toBeVisible()
 
   // click straight across to Data — File closes (outside-click) and Data
   // opens; the pointer is over toolbar TRIGGERS the whole time, nowhere
   // near the palette, so there is nothing for a transient all-closed frame
   // to visibly affect
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Data ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Data$/ }).click()
   await expect(page.locator('.toolbar__filemenu-pop')).toHaveCount(0)
   await expect(page.locator('.toolbar__actions .menu__pop')).toBeVisible()
 
@@ -223,7 +223,7 @@ test('a menu closed by clicking a canvas node re-arms the palette tooltip (not a
   await page.evaluate(() => (window as any).__loop.graph.getState().addNodeAt('pool', { x: 240, y: 200 }))
   await expect(page.locator('.react-flow__node')).toHaveCount(1)
 
-  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings ▾$/ })
+  const settingsBtn = page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ })
   await settingsBtn.click()
   const settingsPop = page.locator('.toolbar__settingsmenu-pop')
   await expect(settingsPop).toBeVisible()

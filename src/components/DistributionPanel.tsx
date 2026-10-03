@@ -11,6 +11,7 @@ import {
   type MonteCarloResult,
 } from '../engine'
 import { downloadCsv, downloadText } from '../ui/download'
+import { Icon } from '../ui/icons'
 
 // P2 distribution view — occupies the timeline area when a Monte-Carlo result
 // exists and the LIVE / DISTRIBUTION switch is on DISTRIBUTION.
@@ -60,6 +61,7 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
         onClick={() => setOpen((v) => !v)}
       >
         {t('export.button')}
+        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
         <div className="menu__pop menu__pop--up" role="menu">

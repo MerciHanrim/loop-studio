@@ -10,7 +10,7 @@
 import type { TemplatesKey } from '../en/templates'
 
 const templates = {
-  'templates.button': '範本 ▾',
+  'templates.button': '範本',
   'templates.menuLabel': '範本',
   'templates.equilibrium.name': '平衡的生產線',
   'templates.equilibrium.blurb': '原料進場，加工與廢料，成品出貨——幾步之內就會穩定下來的產線。',
@@ -25,7 +25,7 @@ const templates = {
   'templates.replace.title': '要載入這個範本嗎？',
   'templates.replace.body': '目前的內容將被取代為：{name}',
   'templates.replace.confirm': '載入範本',
-  'modules.button': '插入模組 ▾',
+  'modules.button': '插入模組',
   'modules.menuLabel': '插入模組',
   'modules.fromFile': '從檔案…',
   'modules.extract': '將選取範圍擷取為模組…',

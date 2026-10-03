@@ -13,12 +13,12 @@
 // settled Arabic spelling, unlike the three above. Each kept token is pinned by
 // key in `../../arCopy.test.ts`, so a later edit cannot quietly translate one.
 //
-// `▾` is a KEEP arrow (docs/localization.md §L9.3, `disclosure-vertical`): it
+// the disclosure mark is an icon beside the word since issue #298 (it was a KEEP arrow, §L9.3): it
 // points at the menu it opens, which is below the button in either direction,
 // so it is the same character here as in every other locale.
 
 const templates = {
-  'templates.button': 'القوالب ▾',
+  'templates.button': 'القوالب',
   'templates.menuLabel': 'القوالب',
   'templates.equilibrium.name': 'خط إنتاج متوازن',
   'templates.equilibrium.blurb': 'مواد داخلة، ومعالجة وهدر، وبضائع تامة خارجة — خط يستقر خلال خطوات قليلة.',
@@ -33,7 +33,7 @@ const templates = {
   'templates.replace.title': 'تحميل هذا القالب؟',
   'templates.replace.body': 'سيُستبدل عملك الحالي بـ: {name}',
   'templates.replace.confirm': 'تحميل القالب',
-  'modules.button': 'إدراج وحدة ▾',
+  'modules.button': 'إدراج وحدة',
   'modules.menuLabel': 'إدراج وحدة',
   'modules.fromFile': 'من ملف…',
   'modules.extract': 'استخراج التحديد كوحدة…',

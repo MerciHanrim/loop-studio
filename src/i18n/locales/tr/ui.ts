@@ -25,15 +25,15 @@ const ui = {
   'toolbar.newGraph.title': 'Yeni bir grafik başlatılsın mı?',
   'toolbar.newGraph.body': 'Şu anki grafiğinizin yerini yenisi alacak.',
   'toolbar.newGraph.confirm': 'Yeni grafik',
-  'toolbar.file.button': 'Dosya ▾',
+  'toolbar.file.button': 'Dosya',
   'toolbar.file.menuLabel': 'Dosya',
-  'toolbar.settings.button': 'Ayarlar ▾',
+  'toolbar.settings.button': 'Ayarlar',
   'toolbar.settings.menuLabel': 'Ayarlar',
   'theme.rowLabel': 'Tema',
   'theme.title': 'Tema: sistem / açık / koyu',
-  'theme.auto': '◐ Otomatik',
-  'theme.light': '☀ Açık',
-  'theme.dark': '☾ Koyu',
+  'theme.auto': 'Otomatik',
+  'theme.light': 'Açık',
+  'theme.dark': 'Koyu',
   'theme.option.system': 'Otomatik',
   'theme.option.light': 'Açık',
   'theme.option.dark': 'Koyu',
@@ -64,9 +64,9 @@ const ui = {
   'language.arabic': 'Arapça',
   'playbar.reset.title': '0. adıma sıfırla',
   'playbar.step.title': 'Bir adım ilerlet',
-  'playbar.play': '▶ Çalıştır',
-  'playbar.pause': '⏸ Duraklat',
-  'playbar.replay': '⟳ Yeniden oynat',
+  'playbar.play': 'Çalıştır',
+  'playbar.pause': 'Duraklat',
+  'playbar.replay': 'Yeniden oynat',
   'playbar.step': '{n}. adım',
   'playbar.stepEnded': '{n}. adım · bitti',
   'playbar.speed': 'hız',
@@ -131,7 +131,7 @@ const ui = {
     'Bağlantı, her etiket dahil bu diyagramın tamamını içerir — bağlantıya sahip olan herkes diyagramı açabilir ve değiştirebilir. Sunucuya yüklenmez, ama bağlantının içinde taşınır; bu yüzden tarayıcı geçmişinizde kalır ve gönderdiğiniz herkes görebilir.',
   'share.disclosure.confirm': 'Bağlantı oluştur',
   'share.tooLarge':
-    'Bu diyagram paylaşım bağlantısı için fazla büyük ({size}; sınır {cap}). Bunun yerine Dosya ▾ → Graph JSON kullanıp dosyayı paylaşın.',
+    'Bu diyagram paylaşım bağlantısı için fazla büyük ({size}; sınır {cap}). Bunun yerine Dosya → Graph JSON kullanıp dosyayı paylaşın.',
   'share.replacePrompt':
     'Paylaşılan diyagram açılsın mı? Şu anki diyagramınızın yerini o alacak. Saklamak istiyorsanız önce dışa aktarın.',
   'share.noBase':
@@ -178,7 +178,7 @@ const ui = {
     'Bu dosyanın model katmanı içeriği okunamıyor ({detail}); proje verisi yok sayıldı.',
   'mobile.more.import': 'Dosya içe aktar',
   'mobile.more.importSub': 'Graph ya da Workspace JSON',
-  'export.button': 'Dışa aktar ▾',
+  'export.button': 'Dışa aktar',
   'export.menuLabel': 'Dışa aktar',
   'export.graphJson.name': 'Graph JSON',
   'export.graphJson.blurb': 'diyagram + önerilen çalıştırma ayarları',
@@ -192,11 +192,11 @@ const ui = {
   'revision.export.noSecureRandom':
     'Bu tarayıcıda güvenli bir rastgelelik kaynağı yok, bu yüzden sürüm kimliği oluşturulamıyor. Hiçbir şey dışa aktarılmadı.',
   'revision.export.tooLarge':
-    'Bu diyagram Proje sürümü olarak dışa aktarılamayacak kadar büyük ({size}; sınır {cap}). Bunun yerine Dosya ▾ → Graph JSON kullanın.',
+    'Bu diyagram Proje sürümü olarak dışa aktarılamayacak kadar büyük ({size}; sınır {cap}). Bunun yerine Dosya → Graph JSON kullanın.',
   'proposal.needProject':
-    'Öneri oluşturmak için açık bir proje gerekir. Önce Dosya ▾ → Proje sürümü ile bir tane oluşturun.',
+    'Öneri oluşturmak için açık bir proje gerekir. Önce Dosya → Proje sürümü ile bir tane oluşturun.',
   'proposal.dirtyOrigin':
-    'Belge bu sürümden beri değişti. Değişiklikleri sabitlemek için Dosya ▾ → Proje sürümü kullanın, sonra öneri oluşturun.',
+    'Belge bu sürümden beri değişti. Değişiklikleri sabitlemek için Dosya → Proje sürümü kullanın, sonra öneri oluşturun.',
   'proposal.tooLarge':
     'Bu öneri tek dosya olarak gönderilemeyecek kadar büyük ({size}; sınır {cap}). Düz bir Graph JSON yine de çalışır.',
   'export.author.name': 'Dışa aktarım yazarını belirle…',
@@ -458,6 +458,9 @@ const ui = {
   'whatsNew.v0151.desktopStrip': 'Dar bir pencerede oynatma denetimleri artık pencerenin alt kenarında kesilmiyor.',
   'whatsNew.v0151.sheets': 'Zaman çizelgesi sayfası, Diğer sayfası ve yakınlaştırma düğmeleri, yüksekliği ne olursa olsun oynatma çubuğunun üstünde kalır.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0153.icons': 'Çalıştır, Duraklat, kilit, menü okları ve diğer düğme simgeleri artık uygulamanın kendi simgeleri; Windows’ta, iPhone’da ve diğer her cihazda aynı görünür.',
+  'whatsNew.v0153.names': 'Ekran okuyucu yalnızca sözcükleri duyar: Çalıştır, Açık ya da bir menü adından önce simge okunmaz; Sıfırla ve Bir adım düğmelerinin de artık adı var.',
+  'whatsNew.v0153.canvas': 'Palet işaretleri ve bağlantıdaki tetikleyici işareti her temada ve yüksek karşıtlıkta diyagramın kendi üslubuyla çizilir.',
   'whatsNew.v0152.themeBack': 'Seçtiğiniz tema, ayarları açmanıza gerek kalmadan uygulama başlarken geri gelir.',
   'whatsNew.v0152.noFlash': 'Koyu tema artık açık renkli bir parlamayla başlamıyor: kaydedilen tema, herhangi bir şey çizilmeden önce uygulanır.',
   'whatsNew.v0152.unknownValue': 'Uygulamanın okuyamadığı kayıtlı bir tema değeri artık yok sayılmak yerine sistem ayarını izler.',

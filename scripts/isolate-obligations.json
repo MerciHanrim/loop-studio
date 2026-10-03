@@ -4,13 +4,14 @@
   "$limit": "This manifest defends the call sites listed here, exactly and in both directions. It does NOT by itself discover a NEW ICU argument that starts carrying a user value later — that half is `scripts/check-icu-arguments.mjs`, which enumerates EVERY ICU argument in shipped source and refuses one that is neither mechanically classifiable nor dispositioned. The two together close the population; neither alone does. `scripts/content-direction.json` still carries the original unbounded limit, because a new text-rendering ELEMENT is a different question and only a census finds that.",
   "$history": "PR B recorded 11 decision rows and deferred them. C3.5 re-ran the population from the TypeScript type checker — 205 ICU arguments — and found 27 more that carry user or technical values: 8 in its first pass (the unrecognized-column header and the five `import.loc.*` calls) and 19 that its first pass only RECORDED as open. All 27 are implemented here, so no row of the disposition manifest is classed `auto`, `ltr` or `per-fragment` any more.",
   "totals": {
-    "rows": 38,
+    "rows": 40,
     "obligations": 25,
-    "callSites": 34
+    "callSites": 35
   },
   "rowsBySource": {
     "pr-b-census": 11,
-    "c3.5-sweep": 27
+    "c3.5-sweep": 27,
+    "issue-298": 2
   },
   "obligations": [
     {
@@ -457,7 +458,9 @@
     {
       "id": "inspector-resourcetype-mismatch",
       "rows": [
-        "c3.5-sweep Inspector.tsx inspector.resourceType.mismatch {pairs}"
+        "c3.5-sweep Inspector.tsx inspector.resourceType.mismatch {pairs}",
+        "issue-298 Inspector.tsx inspector.resourceType.pair {edge}",
+        "issue-298 Inspector.tsx inspector.resourceType.pair {node}"
       ],
       "file": "src/components/Inspector.tsx",
       "enclosing": "ResourceTypeField",
@@ -474,6 +477,16 @@
           "kind": "auto",
           "shape": "per-fragment",
           "fragments": 2
+        },
+        {
+          "keys": [
+            "inspector.resourceType.pair"
+          ],
+          "args": [
+            "edge",
+            "node"
+          ],
+          "kind": "auto"
         }
       ]
     },

@@ -9,7 +9,7 @@
 import type { TemplatesKey } from '../en/templates'
 
 const templates = {
-  'templates.button': 'テンプレート ▾',
+  'templates.button': 'テンプレート',
   'templates.menuLabel': 'テンプレート',
   'templates.equilibrium.name': 'バランスの取れた生産ライン',
   'templates.equilibrium.blurb':
@@ -29,7 +29,7 @@ const templates = {
   'templates.replace.title': 'このテンプレートを読み込みますか？',
   'templates.replace.body': '現在の作業を置き換えます。テンプレート：{name}',
   'templates.replace.confirm': 'テンプレートを読み込む',
-  'modules.button': 'モジュールを挿入 ▾',
+  'modules.button': 'モジュールを挿入',
   'modules.menuLabel': 'モジュールを挿入',
   'modules.fromFile': 'ファイルから…',
   'modules.extract': '選択範囲をモジュールとして書き出し…',

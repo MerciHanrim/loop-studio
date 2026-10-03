@@ -4,6 +4,7 @@ import { useSimStore } from '../../store/simStore'
 import { selectOverlay, useUiStore } from '../../store/uiStore'
 import { useIsMobile } from '../../ui/media'
 import { useT } from '../../i18n'
+import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV4 — the fixed bottom run bar. Reset / Step / Play·Pause /
 // Monte Carlo + the step counter + a Timeline-sheet toggle. No speed slider or
@@ -106,17 +107,17 @@ export function MobileRunBar() {
       data-tour="mobile-run"
     >
       <div className="pstrip__group">
-        <button type="button" className="pb-btn" onClick={reset} aria-label={t('playbar.reset.title')}>
-          ⟲
+        <button type="button" className="pb-btn pstrip__reset" onClick={reset} aria-label={t('playbar.reset.title')}>
+          <Icon name="reset" />
         </button>
         <button
           type="button"
-          className="pb-btn"
+          className="pb-btn pstrip__step-btn"
           onClick={stepOnce}
           disabled={running || initError != null}
           aria-label={t('playbar.step.title')}
         >
-          ⏭
+          <Icon name="step" />
         </button>
         <button
           type="button"
@@ -125,6 +126,7 @@ export function MobileRunBar() {
           disabled={initError != null}
           title={initError != null ? t('playbar.initError', { detail: initError }) : undefined}
         >
+          <Icon name={ended ? 'replay' : running ? 'pause' : 'play'} className="icon--lead" />
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
       </div>
@@ -167,7 +169,7 @@ export function MobileRunBar() {
         aria-expanded={overlay === 'timeline'}
         onClick={() => toggleOverlay('timeline')}
       >
-        {t('runbar.timeline')} {overlay === 'timeline' ? '▾' : '▴'}
+        {t('runbar.timeline')} <Icon name={overlay === 'timeline' ? 'chevron-down' : 'chevron-up'} />
       </button>
 
       {/* the graph cannot be initialised for a run (simStore.initError). A

@@ -3,6 +3,7 @@ import { useT } from '../../i18n'
 import type { ToolbarDialog } from '../toolbar/dialogTypes'
 import { useMenuOpenStore } from '../toolbar/menuOpenStore'
 import { useOutsideDismiss } from '../toolbar/useOutsideDismiss'
+import { Icon } from '../../ui/icons'
 
 // docs/data-import.md §DI16 Phase 1B/2 — the toolbar trigger. Phase 1B
 // shipped this as a single plain button (its own label already ends in "▾",
@@ -49,6 +50,7 @@ export function DataImportMenu({
     <div className="menu" ref={wrapRef}>
       <button ref={buttonRef} type="button" className="btn" aria-haspopup="true" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
         {t('import.button')}
+        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {menuOpen && (
         <div className="menu__pop" role="menu">

@@ -72,7 +72,7 @@ const REPS: Rep[] = [
     name: 'Import wizard Download sample CSV (.btn--sm on the sunken quick start)',
     surface: 'sunken',
     open: async (page) => {
-      await page.getByRole('button', { name: 'Data ▾' }).click()
+      await page.getByRole('button', { name: 'Data' }).click()
       await page.getByRole('menuitem').first().click()
       const btn = page.locator('.mcdlg--dataimport .import__quickstart .btn:not(.btn--primary)').first()
       await expect(btn).toBeVisible()

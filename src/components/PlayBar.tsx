@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { useT } from '../i18n'
+import { Icon } from '../ui/icons'
 
 // P2 — playback lives in the chart-header strip, treated as part of the time
 // axis rather than the editing toolbar.
@@ -133,17 +134,18 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
       data-tour="playback"
     >
       <div className="pstrip__group">
-        <button type="button" className="pb-btn" onClick={reset} title={t('playbar.reset.title')}>
-          ⟲
+        <button type="button" className="pb-btn pstrip__reset" onClick={reset} title={t('playbar.reset.title')} aria-label={t('playbar.reset.title')}>
+          <Icon name="reset" />
         </button>
         <button
           type="button"
-          className="pb-btn"
+          className="pb-btn pstrip__step-btn"
           onClick={stepOnce}
           disabled={running || initError != null}
           title={t('playbar.step.title')}
+          aria-label={t('playbar.step.title')}
         >
-          ⏭
+          <Icon name="step" />
         </button>
         <button
           type="button"
@@ -151,6 +153,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
           onClick={onPrimary}
           disabled={initError != null}
         >
+          <Icon name={ended ? 'replay' : running ? 'pause' : 'play'} className="icon--lead" />
           {ended ? t('playbar.replay') : running ? t('playbar.pause') : t('playbar.play')}
         </button>
       </div>
@@ -229,7 +232,7 @@ export function PlayBar({ collapsed, onToggleCollapse }: Props) {
         aria-label={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
         title={collapsed ? t('playbar.timeline.show') : t('playbar.timeline.hide')}
       >
-        {collapsed ? '▴' : '▾'}
+        <Icon name={collapsed ? 'chevron-up' : 'chevron-down'} />
       </button>
 
       {/* out of flow; always rendered so its box can be measured, shown only

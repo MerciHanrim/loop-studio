@@ -10,6 +10,7 @@ import {
 } from '../i18n'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
+import { Icon } from '../ui/icons'
 
 // docs/localization.md §L5 — the language control is AUTO-GENERATED from the
 // registry: `enabledLocales()` for the SET and `displayLocaleOrder()` for the
@@ -196,7 +197,7 @@ export function LanguageSwitch({
         ) : (
           <>
             <span lang={current.code} dir="auto">{current.nativeName}</span>
-            <span aria-hidden="true"> ▾</span>
+            <Icon name="chevron-down" className="icon--caret" />
           </>
         )}
       </button>
@@ -266,7 +267,7 @@ export function LanguageSwitch({
                     onClick={() => choose(i)}
                   >
                     <span className="menu__name" lang={l.code}>
-                      {isActive ? '✓ ' : ''}
+                      {isActive ? <Icon name="check" className="icon--check" /> : null}
                       <bdi dir="auto">{l.nativeName}</bdi>
                       {isLoading ? ` · ${t('lang.loading')}` : ''}
                     </span>

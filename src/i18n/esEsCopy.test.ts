@@ -69,6 +69,8 @@ describe('es-ES — the region audit, as a contract', () => {
         'regExpr.insert.armed',
         'tour.mobile.run.body',
         'canvas.frame.a11y.desc',
+        // issue #298: Spain writes `iconos`, Latin America `íconos`
+        'whatsNew.v0153.icons',
         'rf.node.a11y',
         'rf.node.a11yKeyboard',
         'rf.edge.a11y',

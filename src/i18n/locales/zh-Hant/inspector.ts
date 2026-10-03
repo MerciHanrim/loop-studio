@@ -58,6 +58,7 @@ const inspector = {
   'inspector.resourceType.custom': '自訂類型——使用通用色塊，沒有內建顏色。',
   'inspector.resourceType.mismatch':
     '類型不一致：{pairs}。僅供參考——不會改變任何數量，也不會阻擋執行。',
+  'inspector.resourceType.pair': '連線為 {edge}，節點為 {node}',
   'inspector.parameter.outOfRange': '數值超出參考的最小／最大範圍——按原樣保留，不做限幅。',
   'inspector.parameter.hintIncoherent': '有一項參考提示前後矛盾，匯出時會被捨棄。',
   'inspector.parameter.noPorts': '參數沒有連接點——請在運算式中用 ID 引用它。',
@@ -170,7 +171,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— 依賴了一個無效的引用',
   'regExpr.row.generic': '— {code}',
   // §RXA8 — arm-and-click canvas insert
-  'regExpr.insert.title': '＋ 插入引用',
+  'regExpr.insert.title': '插入引用',
   'regExpr.insert.armedLabel': '正在選擇引用',
   'regExpr.insert.hint': '點一下畫布上的資源池、參數或計算值，即可插入它的引用。',
   'regExpr.insert.armed': '已進入插入引用狀態。點一下畫布上的節點，或按 Esc 取消。',

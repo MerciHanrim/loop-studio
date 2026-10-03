@@ -12,7 +12,7 @@
 // form. That is correct, not a copy-paste slip.
 
 const dataImport = {
-  'import.button': 'Veri ▾',
+  'import.button': 'Veri',
   'import.title': 'Tablo verisi içe aktar',
   'import.tableName': 'Tablo adı',
   'import.removeTable': 'Tabloyu kaldır',

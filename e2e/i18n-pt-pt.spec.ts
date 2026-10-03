@@ -148,7 +148,7 @@ test('the audited European words are what the product actually shows', async ({ 
   expect(cat['rf.edge.a11y']).toMatch(/ligação/)
   expect(cat['rf.edge.a11y']).not.toMatch(/conexão/)
   // `ficheiro`, `guardar`, `partilhar`, `eliminar`
-  expect(cat['toolbar.file.button']).toBe('Ficheiro ▾')
+  expect(cat['toolbar.file.button']).toBe('Ficheiro')
   expect(cat['share.button']).toBe('Partilhar')
   expect(cat['inspector.delete']).toBe('Eliminar')
   expect(cat['author.save']).toBe('Guardar')

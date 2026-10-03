@@ -21,7 +21,7 @@
 // FORMATTER, never from a string here.
 
 const dataImport = {
-  'import.button': 'Данные ▾',
+  'import.button': 'Данные',
   'import.title': 'Импорт данных из таблицы',
   'import.tableName': 'Название таблицы',
   'import.removeTable': 'Удалить таблицу',

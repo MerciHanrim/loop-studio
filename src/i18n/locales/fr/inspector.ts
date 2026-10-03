@@ -60,6 +60,7 @@ const inspector = {
     'Type personnalisé — pastille générique ; aucune couleur intégrée.',
   'inspector.resourceType.mismatch':
     'Types incompatibles : {pairs}. Indicatif seulement — cela ne change aucune quantité et ne bloque aucune exécution.',
+  'inspector.resourceType.pair': '{edge} sur la connexion, {node} sur le nœud',
   'inspector.parameter.outOfRange':
     'La valeur est en dehors du minimum/maximum indicatif — conservée telle quelle, sans écrêtage.',
   'inspector.parameter.hintIncoherent':
@@ -184,7 +185,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— dépend d’une référence invalide',
   'regExpr.row.generic': '— {code}',
   // §RXA8 — arm-and-click canvas insert
-  'regExpr.insert.title': '＋ Insérer une référence',
+  'regExpr.insert.title': 'Insérer une référence',
   'regExpr.insert.armedLabel': 'Sélection d’une référence',
   'regExpr.insert.hint':
     'Cliquez sur un réservoir, un paramètre ou une valeur calculée du canevas pour insérer sa référence.',

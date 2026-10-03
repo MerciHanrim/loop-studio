@@ -174,7 +174,7 @@ test.describe('Early MMO progression example', () => {
     expect(await isLocked()).toBe(true) // recommendedRunConfig.canvasLocked
     expect(DOC.recommendedRunConfig.canvasLocked).toBe(true)
     await expect(page.locator('.canvas.canvas--locked')).toBeVisible()
-    await expect(page.locator('.react-flow__controls-button.rf-lock')).toHaveText('🔒')
+    await expect(page.locator('.react-flow__controls-button.rf-lock svg[data-icon="lock"]')).toHaveCount(1)
 
     // selection + a read-only Inspector still work while locked
     await page.locator('.react-flow__node[data-id="level"]').click()

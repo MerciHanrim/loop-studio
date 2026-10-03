@@ -78,6 +78,7 @@ const inspector = {
   'inspector.resourceType.normalised': 'طُبّع إلى “{value}”.',
   'inspector.resourceType.custom': 'نوع مخصّص — لون عام؛ لا لون مدمج له.',
   'inspector.resourceType.mismatch': 'عدم تطابق في النوع: {pairs}. استرشادي فقط — لا يغيّر أي كمية ولا يمنع أي تشغيل.',
+  'inspector.resourceType.pair': '{edge} على الاتصال و{node} على العقدة',
   'inspector.parameter.outOfRange': 'القيمة خارج الحد الأدنى/الأقصى الاسترشادي — حُفظت كما هي دون تقييد.',
   'inspector.parameter.hintIncoherent': 'أحد التلميحات الاسترشادية غير متّسق وسيُسقَط عند التصدير.',
   'inspector.parameter.noPorts': 'المُعامِل بلا منافذ — أشِر إليه بمعرّفه من داخل تعبير.',
@@ -188,7 +189,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— يعتمد على مرجع غير صالح',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — arm-and-click canvas insert
-  'regExpr.insert.title': '＋ إدراج مرجع',
+  'regExpr.insert.title': 'إدراج مرجع',
   'regExpr.insert.armedLabel': 'جارٍ اختيار مرجع',
   'regExpr.insert.hint': 'انقر على مَجمَع أو مُعامِل أو سِجِلّ في اللوحة لإدراج مرجعه.',
   'regExpr.insert.armed': 'تهيّأ إدراج المرجع. انقر على عقدة في اللوحة، أو اضغط Escape للإلغاء.',

@@ -169,7 +169,7 @@ const exportItem = (page: Page, name: RegExp) =>
 
 test('Templates replace: Cancel loads nothing (no graph change, no rev bump)', async ({ page }) => {
   const before = await snapshot(page)
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^Templates$/ }).click()
   await page.locator('.toolbar__actions .menu__pop .menu__item').first().click()
   await expect(dlg(page)).toBeVisible()
   expect(await snapshot(page)).toEqual(before) // dialog OPEN — still nothing loaded
@@ -180,7 +180,7 @@ test('Templates replace: Cancel loads nothing (no graph change, no rev bump)', a
 
 test('Export Project revision: Cancel writes no file and no project header', async ({ page }) => {
   const before = await snapshot(page)
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   const dl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
   await exportItem(page, /Project revision/).click()
   await expect(dlg(page)).toBeVisible()
@@ -196,7 +196,7 @@ test('Export Workspace JSON: Cancel writes no file', async ({ page }) => {
     s.advance()
     s.advance()
   })
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   const dl = page.waitForEvent('download', { timeout: 1500 }).catch(() => null)
   await exportItem(page, /Workspace JSON/).click()
   await expect(dlg(page)).toBeVisible()
@@ -226,7 +226,7 @@ test('Export Project revision: a rapid double-click on Confirm downloads exactly
   const downloads: string[] = []
   page.on('download', (d) => downloads.push(d.suggestedFilename()))
 
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   await exportItem(page, /Project revision/).click()
   await expect(dlg(page)).toBeVisible()
 
@@ -240,7 +240,7 @@ test('Export Workspace JSON: a rapid double-click on Confirm downloads exactly o
   const downloads: string[] = []
   page.on('download', (d) => downloads.push(d.suggestedFilename()))
 
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   await exportItem(page, /Workspace JSON/).click()
   await expect(dlg(page)).toBeVisible()
 
@@ -261,7 +261,7 @@ test('Export Project revision: the guard re-arms for a second open, one download
   const downloads: string[] = []
   page.on('download', (d) => downloads.push(d.suggestedFilename()))
 
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   await exportItem(page, /Project revision/).click()
   await expect(dlg(page)).toBeVisible()
   await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))
@@ -269,7 +269,7 @@ test('Export Project revision: the guard re-arms for a second open, one download
   await page.waitForTimeout(300)
   expect(downloads).toHaveLength(1) // exactly one from the first open
 
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^File ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ }).click()
   await exportItem(page, /Project revision/).click()
   await expect(dlg(page)).toBeVisible()
   await syncDoubleClick(dlg(page).getByRole('button', { name: /^export revision$/i }))

@@ -11,6 +11,7 @@ import { Logo } from '../Logo'
 import { RevisionChip } from '../RevisionChip'
 import { MobileMoreMenu } from './MobileMoreMenu'
 import { MobileOpenFileHint } from './MobileOpenFileHint'
+import { Icon } from '../../ui/icons'
 
 // docs/mobile.md §MV6 — the compact top bar: Logo mark, a "view & run" caption,
 // and a single More button. No palette, no undo/redo, no New (editing is
@@ -86,7 +87,7 @@ export function MobileTopBar() {
         aria-label={t('mobile.more')}
         onClick={() => toggleOverlay('more')}
       >
-        ⋯
+        <Icon name="more" />
       </button>
 
       <MobileMoreMenu fileInputRef={fileRef} moreBtnRef={moreRef} getViewport={getViewport} />

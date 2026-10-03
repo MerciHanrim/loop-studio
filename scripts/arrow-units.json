@@ -1,46 +1,23 @@
 {
-  "$comment": "docs/localization.md L9.3 - the arrow meaning units. None of these glyphs mirrors on its own: Unicode mirrors only Bidi_Mirrored characters, which are brackets and relational operators, never arrows. So each arrow is a product decision, recorded here with what its sense is relative to.",
-  "$limit": "The JSX clause is exhaustive for the sites listed and for the glyphs tracked. A NEW arrow character nobody has ruled on is caught only where it reuses a tracked glyph - clause 2 reports a keep glyph rendered somewhere the manifest does not record. An entirely new symbol needs a census pass, the same limit scripts/content-direction.json carries.",
+  "$comment": "docs/localization.md L9.3 - the arrow meaning units. None of these glyphs mirrors on its own: Unicode mirrors only Bidi_Mirrored characters, which are brackets and relational operators, never arrows. So each arrow is a product decision, recorded here with what its sense is relative to. Since issue #298 the arrows that are ICONS (external link, submenu disclosure, undo, redo; and the keep units: the downward disclosure and the transport) are drawn by src/ui/icons.tsx and listed under `icons`; the `units` are the arrows that are still CHARACTERS, inside sentences.",
+  "$limit": "The JSX clause is exhaustive for the sites listed and for the glyphs tracked. A NEW arrow character nobody has ruled on is caught only where it reuses a tracked glyph - clause 2 reports a keep glyph rendered somewhere the manifest does not record. An entirely new symbol needs a census pass, the same limit scripts/content-direction.json carries. A replaced glyph typed back into a component or a catalog is caught by scripts/check-functional-glyphs.mjs.",
   "totals": {
-    "units": 14,
-    "mirroring": 8,
-    "jsxSites": 12,
-    "keepLiterals": 10,
+    "units": 5,
+    "mirroring": 4,
+    "jsxSites": 1,
+    "keepLiterals": 1,
+    "iconSites": 11,
     "catalogKeysMirror": 9,
-    "catalogKeysKeep": 13,
-    "catalogPairsPerLocale": 22,
-    "catalogOccurrencesPerLocale": 24
+    "catalogKeysKeep": 1,
+    "catalogPairsPerLocale": 10,
+    "catalogOccurrencesPerLocale": 12
   },
   "units": {
-    "external-link": {
-      "meaning": "this opens something outside the app",
-      "verdict": "mirror",
-      "ltr": "↗",
-      "rtl": "↖"
-    },
-    "submenu-disclosure": {
-      "meaning": "a submenu or sheet opens on the inline-end side",
-      "verdict": "mirror",
-      "ltr": "▸",
-      "rtl": "◂"
-    },
     "before-after": {
       "meaning": "a value changes from one thing to another",
       "verdict": "mirror",
       "ltr": "→",
       "rtl": "←"
-    },
-    "undo": {
-      "meaning": "step back through the edit history",
-      "verdict": "mirror",
-      "ltr": "↶",
-      "rtl": "↷"
-    },
-    "redo": {
-      "meaning": "step forward through the edit history",
-      "verdict": "mirror",
-      "ltr": "↷",
-      "rtl": "↶"
     },
     "graph-relation": {
       "meaning": "an edge in the model graph - source to target, or a path through it",
@@ -65,153 +42,49 @@
       "verdict": "mirror",
       "ltr": "→",
       "rtl": "←"
-    },
-    "disclosure-vertical": {
-      "meaning": "a menu opens downward",
-      "verdict": "keep",
-      "ltr": "▾",
-      "rtl": "▾"
-    },
-    "transport-play": {
-      "meaning": "play forward from here",
-      "verdict": "keep",
-      "ltr": "▶",
-      "rtl": "▶"
-    },
-    "transport-replay": {
-      "meaning": "replay forward from step 0",
-      "verdict": "keep",
-      "ltr": "⟳",
-      "rtl": "⟳"
-    },
-    "transport-step": {
-      "meaning": "advance one step",
-      "verdict": "keep",
-      "ltr": "⏭",
-      "rtl": "⏭"
-    },
-    "transport-reset": {
-      "meaning": "reset to step 0",
-      "verdict": "keep",
-      "ltr": "⟲",
-      "rtl": "⟲"
     }
   },
+  "icons": {
+    "$comment": "The icon units. A MIRRORING one is rendered only by <ArrowIcon unit=...>, which ships an ltr drawing and an rtl drawing derived from it (src/ui/mirrorPath.ts), never a transform. A KEEPING one is a plain <Icon name=...> with one drawing for every reader; the check refuses an ArrowIcon for it and refuses the mirroring names as plain Icons.",
+    "mirror": {
+      "external-link": "this opens something outside the app",
+      "submenu": "a submenu or sheet opens on the inline-end side",
+      "undo": "step back through the edit history",
+      "redo": "step forward through the edit history"
+    },
+    "keep": {
+      "chevron-down": "a menu opens downward for every reader",
+      "chevron-up": "the timeline sheet closes upward for every reader",
+      "play": "play forward from here - the transport sits with the physical time axis",
+      "pause": "pause",
+      "replay": "replay forward from step 0",
+      "step": "advance one step",
+      "reset": "reset to step 0"
+    },
+    "sites": [
+      { "file": "src/components/HelpMenu.tsx", "unit": "external-link", "count": 1 },
+      { "file": "src/components/dataImport/DataImportWizard.tsx", "unit": "external-link", "count": 1 },
+      { "file": "src/components/dataImport/DataImportWizard.tsx", "unit": "submenu", "count": 1 },
+      { "file": "src/components/mobile/MobileMoreMenu.tsx", "unit": "external-link", "count": 1 },
+      { "file": "src/components/mobile/MobileMoreMenu.tsx", "unit": "submenu", "count": 4 },
+      { "file": "src/components/ModelPanels.tsx", "unit": "submenu", "count": 1 },
+      { "file": "src/components/Toolbar.tsx", "unit": "undo", "count": 1 },
+      { "file": "src/components/Toolbar.tsx", "unit": "redo", "count": 1 }
+    ]
+  },
   "jsx": [
-    {
-      "file": "src/components/HelpMenu.tsx",
-      "unit": "external-link",
-      "binding": "extArrow",
-      "sites": 1
-    },
-    {
-      "file": "src/components/dataImport/DataImportWizard.tsx",
-      "unit": "external-link",
-      "binding": "extArrow",
-      "sites": 1
-    },
-    {
-      "file": "src/components/dataImport/DataImportWizard.tsx",
-      "unit": "submenu-disclosure",
-      "binding": "caret",
-      "sites": 1
-    },
-    {
-      "file": "src/components/mobile/MobileMoreMenu.tsx",
-      "unit": "external-link",
-      "binding": "extArrow",
-      "sites": 1
-    },
-    {
-      "file": "src/components/mobile/MobileMoreMenu.tsx",
-      "unit": "submenu-disclosure",
-      "binding": "caret",
-      "sites": 4
-    },
-    {
-      "file": "src/components/ModelPanels.tsx",
-      "unit": "submenu-disclosure",
-      "binding": "caret",
-      "sites": 1
-    },
     {
       "file": "src/components/ReviewOverlay.tsx",
       "unit": "before-after",
       "binding": "beforeAfter",
       "sites": 1
-    },
-    {
-      "file": "src/components/Toolbar.tsx",
-      "unit": "undo",
-      "binding": "undoGlyph",
-      "sites": 1
-    },
-    {
-      "file": "src/components/Toolbar.tsx",
-      "unit": "redo",
-      "binding": "redoGlyph",
-      "sites": 1
     }
   ],
   "keepLiterals": [
     {
-      "file": "src/components/dataImport/DataImportWizard.tsx",
-      "unit": "disclosure-vertical",
-      "glyph": "▾",
-      "count": 1
-    },
-    {
-      "file": "src/components/LanguageSwitch.tsx",
-      "unit": "disclosure-vertical",
-      "glyph": "▾",
-      "count": 1
-    },
-    {
-      "file": "src/components/mobile/MobileRunBar.tsx",
-      "unit": "transport-step",
-      "glyph": "⏭",
-      "count": 1
-    },
-    {
-      "file": "src/components/mobile/MobileRunBar.tsx",
-      "unit": "disclosure-vertical",
-      "glyph": "▾",
-      "count": 1
-    },
-    {
-      "file": "src/components/mobile/MobileRunBar.tsx",
-      "unit": "transport-reset",
-      "glyph": "⟲",
-      "count": 1
-    },
-    {
       "file": "src/components/ModelPanels.tsx",
       "unit": "graph-relation",
       "glyph": "→",
-      "count": 1
-    },
-    {
-      "file": "src/components/ModelPanels.tsx",
-      "unit": "disclosure-vertical",
-      "glyph": "▾",
-      "count": 1
-    },
-    {
-      "file": "src/components/PlayBar.tsx",
-      "unit": "transport-step",
-      "glyph": "⏭",
-      "count": 1
-    },
-    {
-      "file": "src/components/PlayBar.tsx",
-      "unit": "disclosure-vertical",
-      "glyph": "▾",
-      "count": 1
-    },
-    {
-      "file": "src/components/PlayBar.tsx",
-      "unit": "transport-reset",
-      "glyph": "⟲",
       "count": 1
     }
   ],
@@ -261,36 +134,6 @@
         "regExpr.row.divZero",
         "regExpr.row.notFinite"
       ]
-    },
-    {
-      "unit": "disclosure-vertical",
-      "verdict": "keep",
-      "keys": [
-        "import.button",
-        "templates.button",
-        "modules.button",
-        "toolbar.file.button",
-        "toolbar.settings.button",
-        "export.button",
-        "share.tooLarge",
-        "revision.export.tooLarge",
-        "proposal.needProject",
-        "proposal.dirtyOrigin"
-      ]
-    },
-    {
-      "unit": "transport-play",
-      "verdict": "keep",
-      "keys": [
-        "playbar.play"
-      ]
-    },
-    {
-      "unit": "transport-replay",
-      "verdict": "keep",
-      "keys": [
-        "playbar.replay"
-      ]
     }
   ],
   "conditional": [
@@ -300,5 +143,5 @@
       "why": "CONDITIONAL, not mandatory. This is a locale-local arrow: ja and ko chose one where English has none. Nothing requires the Arabic translation to use an arrow here. What the contract says is that IF it does, the  rule applies and the arrow is written mirrored - the same rule every other menu-path arrow follows. Requiring an arrow would be inventing a translation decision; leaving it unrecorded would let one ship unruled."
     }
   ],
-  "$axes": "TWO axes, and they are different numbers that were reported as one. CONTRACT PAIRS are the (locale, unit, key) triples the rule is evaluated on: 22 per catalogue locale. GLYPH OCCURRENCES are the arrow characters actually in those values: 24 per locale. They cannot be equal - FOUR keys are governed by two units each (their string carries two different arrows), and TWO keys carry the same unit’s glyph twice (`regExpr.row.cycle` renders `{name} → … → {name}`, `import.qs.sources.sheets` names a two-step menu path). `occurrences` records the second case; the first is already visible as two catalog groups naming the same key."
+  "$axes": "TWO axes, and they are different numbers that were reported as one. CONTRACT PAIRS are the (locale, unit, key) triples the rule is evaluated on: 10 per catalogue locale. GLYPH OCCURRENCES are the arrow characters actually in those values: 12 per locale. They cannot be equal - TWO keys carry the same unit's glyph twice (`regExpr.row.cycle` renders `{name} → … → {name}`, `import.qs.sources.sheets` names a two-step menu path). `occurrences` records that. Before issue #298 four keys were governed by two units each (a menu-path arrow and the disclosure `▾` of the button they quote); the `▾` left those strings with the issue."
 }

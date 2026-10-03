@@ -187,8 +187,8 @@ test('the labels that differ from es-419 differ in the product', async ({ page }
   await resetAll(page)
   await setLocale(page, 'es-ES')
   await page
-    .locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Plantillas ▾' }) })
-    .getByRole('button', { name: 'Plantillas ▾' })
+    .locator('.toolbar__actions .menu', { has: page.getByRole('button', { name: 'Plantillas' }) })
+    .getByRole('button', { name: 'Plantillas' })
     .click()
   await page.locator('.menu__name', { hasText: 'Progresión temprana de MMO' }).click()
   await expect

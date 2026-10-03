@@ -21,6 +21,7 @@ import type { LoopEdgeData } from '../../model/types'
 import { canonicalNumber } from '../../model/expr'
 import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
+import { Icon } from '../../ui/icons'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
 // docs/visual-language.md §VL7.2 — the flow / condition chip is L2-only detail;
@@ -78,7 +79,7 @@ function rmEmitTriangle(sx: number, sy: number, tx: number, ty: number): string 
 
 /** §L9.3 - an edge label's text together with what KIND of text it is. The two
  *  are one value so a branch cannot set the text and forget the kind. */
-type EdgeText = { s: string; kind: 'token' | 'prose' }
+type EdgeText = { s: string; kind: 'token' | 'prose'; mark?: 'trigger' }
 
 function LoopEdge({
   id,
@@ -207,7 +208,9 @@ function LoopEdge({
       label = token(raw)
     }
   } else if (d.mode === 'trigger') {
-    label = token('✳')
+    // issue #298 — the trigger mark is a shared icon, not a character an OS font
+    // draws (and iOS may draw in colour); the label keeps the token's ltr pin
+    label = { s: '', kind: 'token', mark: 'trigger' }
   } else if (d.mode === 'activator') {
     const raw = d.expr || '≥'
     if (raw.includes('@')) {
@@ -588,7 +591,7 @@ function LoopEdge({
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             dir={textDir}
           >
-            {text}
+            {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}
             {sv?.kind === 'label' && sv.delta !== 0 ? (
               <span className="edge-label__delta" dir="ltr">{fmtSigned(sv.delta)}</span>
             ) : null}

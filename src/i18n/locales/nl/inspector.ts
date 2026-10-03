@@ -59,6 +59,7 @@ const inspector = {
   'inspector.resourceType.normalised': 'Genormaliseerd naar “{value}”.',
   'inspector.resourceType.custom': 'Eigen type — algemeen staal; geen ingebouwde kleur.',
   'inspector.resourceType.mismatch': 'Typeconflict: {pairs}. Alleen indicatief — het verandert geen hoeveelheid en blokkeert geen run.',
+  'inspector.resourceType.pair': '{edge} op de verbinding, {node} op het knooppunt',
   'inspector.parameter.outOfRange': 'De waarde valt buiten de indicatieve min/max — ongewijzigd bewaard, niet begrensd.',
   'inspector.parameter.hintIncoherent': 'Een indicatieve hint is tegenstrijdig en vervalt bij het exporteren.',
   'inspector.parameter.noPorts': 'Een Parameter heeft geen poorten — verwijs ernaar met het id vanuit een expressie.',
@@ -171,7 +172,7 @@ const inspector = {
   'regExpr.row.dependsInvalid': '— hangt af van een ongeldige verwijzing',
   'regExpr.row.generic': '— {code}',
   // docs/register-expression-authoring.md §RXA8 — arm-and-click canvas insert
-  'regExpr.insert.title': '＋ Verwijzing invoegen',
+  'regExpr.insert.title': 'Verwijzing invoegen',
   'regExpr.insert.armedLabel': 'Bezig met een verwijzing kiezen',
   'regExpr.insert.hint': 'Klik op een Voorraad, Parameter of Berekende waarde in het tekengebied om de verwijzing ernaar in te voegen.',
   'regExpr.insert.armed': 'Verwijzing invoegen staat klaar. Klik op een knooppunt in het tekengebied, of druk op Escape om te annuleren.',

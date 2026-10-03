@@ -8,6 +8,7 @@ import { TOUR_TOTAL, readTourKey, useTourStore } from '../store/tourStore'
 import { useUiStore } from '../store/uiStore'
 import { tourScript } from './tourSteps'
 import { useDialogFocus } from './useDialogFocus'
+import { Icon } from '../ui/icons'
 
 // docs/guided-tour.md — a read-only overlay that points at the six regions of
 // the UI. It drives nothing: starting / Next / Back / Escape / Done mutate no
@@ -230,7 +231,7 @@ function TourPopover() {
             onClick={() => dismiss()}
             aria-label={t('tour.nav.close')}
           >
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <h2 id="tour-step-title" className="tour-popover__title">

@@ -37,7 +37,7 @@ const stored = (page: Page) => page.evaluate(() => localStorage.getItem('loop-st
 /** open the desktop `Settings ▾` menu — Theme/Language now live there
  *  (Hanrim's visual review, 2026-09-15), not as standalone toolbar pills. */
 async function openSettings(page: Page): Promise<void> {
-  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+  await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
 }
 
 /** open the language menu (desktop — inside `Settings ▾` — or inside the
@@ -50,7 +50,7 @@ async function pickLocale(page: Page, code: string, scope = '') {
   const trigger = page.locator(`${scope} .lang-switch`.trim()).first()
   let openedSettings = false
   if (!scope && !(await trigger.isVisible().catch(() => false))) {
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
     openedSettings = true
   }
   if ((await trigger.getAttribute('aria-expanded')) === 'true') {
@@ -97,17 +97,17 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
     await resetAll(page)
 
     expect(await htmlLang(page)).toBe('en')
-    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ Play')
+    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('Play')
     await expect(page.locator('.toolbar__tag')).toHaveText('preview')
 
     await pickLocale(page, 'ko')
     expect(await stored(page)).toBe('ko')
-    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ 재생')
+    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('재생')
     await expect(page.locator('.toolbar__tag')).toHaveText('미리보기')
     await expect(page.locator('.toolbar__palette .chip--pool')).toContainText('풀')
 
     await pickLocale(page, 'en')
-    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ Play')
+    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('Play')
   })
 
   test('the chosen locale survives a reload (no flash — resolved before mount)', async ({ page }) => {
@@ -117,7 +117,7 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
     await page.reload()
     await expect(page.locator('.toolbar')).toBeVisible()
     expect(await htmlLang(page)).toBe('ko')
-    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('▶ 재생')
+    await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('재생')
   })
 
   test('a new node in a Korean UI gets the Korean default name, fixed at placement (§L3.4a)', async ({ page }) => {
@@ -656,7 +656,7 @@ test.describe('i18n — the language MENU: a11y & N-locale generality', () => {
     await pickLocale(page, 'en-XA')
     expect(await htmlLang(page)).toBe('en-XA')
     // the list now marks en-XA selected
-    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定) ▾$/ }).click()
+    await page.locator('.toolbar__actions .menu > button', { hasText: /^(Settings|설정|設定)$/ }).click()
     await page.locator('.toolbar .lang-switch').click()
     await expect(page.locator('.lang-menu__item[data-locale="en-XA"]')).toHaveAttribute('aria-selected', 'true')
   })

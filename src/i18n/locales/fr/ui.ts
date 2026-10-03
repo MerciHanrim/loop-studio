@@ -27,15 +27,15 @@ const ui = {
   'toolbar.newGraph.title': 'Commencer un nouveau graphe ?',
   'toolbar.newGraph.body': 'Votre graphe actuel sera remplacé.',
   'toolbar.newGraph.confirm': 'Nouveau graphe',
-  'toolbar.file.button': 'Fichier ▾',
+  'toolbar.file.button': 'Fichier',
   'toolbar.file.menuLabel': 'Fichier',
-  'toolbar.settings.button': 'Paramètres ▾',
+  'toolbar.settings.button': 'Paramètres',
   'toolbar.settings.menuLabel': 'Paramètres',
   'theme.rowLabel': 'Thème',
   'theme.title': 'Thème : système / clair / sombre',
-  'theme.auto': '◐ Auto',
-  'theme.light': '☀ Clair',
-  'theme.dark': '☾ Sombre',
+  'theme.auto': 'Auto',
+  'theme.light': 'Clair',
+  'theme.dark': 'Sombre',
   'theme.option.system': 'Auto',
   'theme.option.light': 'Clair',
   'theme.option.dark': 'Sombre',
@@ -67,9 +67,9 @@ const ui = {
   'language.arabic': 'Arabe',
   'playbar.reset.title': 'Réinitialiser au pas 0',
   'playbar.step.title': 'Avancer d’un pas',
-  'playbar.play': '▶ Lecture',
-  'playbar.pause': '⏸ Pause',
-  'playbar.replay': '⟳ Rejouer',
+  'playbar.play': 'Lecture',
+  'playbar.pause': 'Pause',
+  'playbar.replay': 'Rejouer',
   'playbar.step': 'pas {n}',
   'playbar.stepEnded': 'pas {n} · terminé',
   'playbar.speed': 'vitesse',
@@ -136,7 +136,7 @@ const ui = {
     'Le lien contient l’intégralité de ce schéma, y compris chaque nom — toute personne qui l’a peut ouvrir et modifier le schéma. Il n’est pas envoyé sur un serveur, mais il voyage à l’intérieur du lien : il reste donc dans votre historique de navigation et il est visible par toute personne à qui vous l’envoyez.',
   'share.disclosure.confirm': 'Créer le lien',
   'share.tooLarge':
-    'Ce schéma est trop volumineux pour un lien de partage ({size} ; la limite est {cap}). Utilisez « Fichier ▾ → Graph JSON » et partagez le fichier à la place.',
+    'Ce schéma est trop volumineux pour un lien de partage ({size} ; la limite est {cap}). Utilisez « Fichier → Graph JSON » et partagez le fichier à la place.',
   'share.replacePrompt':
     'Ouvrir le schéma partagé ? Votre schéma actuel sera remplacé. Exportez-le d’abord si vous voulez le conserver.',
   'share.noBase':
@@ -183,7 +183,7 @@ const ui = {
     'Le contenu de la couche modèle de ce fichier est illisible ({detail}) ; ses données de projet ont été ignorées.',
   'mobile.more.import': 'Importer un fichier',
   'mobile.more.importSub': 'Graph ou Workspace JSON',
-  'export.button': 'Exporter ▾',
+  'export.button': 'Exporter',
   'export.menuLabel': 'Exporter',
   'export.graphJson.name': 'Graph JSON',
   'export.graphJson.blurb': 'le schéma + les réglages d’exécution recommandés',
@@ -198,11 +198,11 @@ const ui = {
   'revision.export.noSecureRandom':
     'Ce navigateur n’a pas de source aléatoire sûre, un identifiant de révision ne peut donc pas être créé. Rien n’a été exporté.',
   'revision.export.tooLarge':
-    'Ce schéma est trop volumineux pour être exporté comme révision de projet ({size} ; limite {cap}). Utilisez « Fichier ▾ → Graph JSON » à la place.',
+    'Ce schéma est trop volumineux pour être exporté comme révision de projet ({size} ; limite {cap}). Utilisez « Fichier → Graph JSON » à la place.',
   'proposal.needProject':
-    'Créer une proposition demande un projet ouvert. Utilisez d’abord « Fichier ▾ → Révision de projet » pour en créer un.',
+    'Créer une proposition demande un projet ouvert. Utilisez d’abord « Fichier → Révision de projet » pour en créer un.',
   'proposal.dirtyOrigin':
-    'Le document a changé depuis cette révision. Utilisez « Fichier ▾ → Révision de projet » pour figer les modifications, puis créez une proposition.',
+    'Le document a changé depuis cette révision. Utilisez « Fichier → Révision de projet » pour figer les modifications, puis créez une proposition.',
   'proposal.tooLarge':
     'Cette proposition est trop volumineuse pour être envoyée en un seul fichier ({size} ; limite {cap}). Un Graph JSON ordinaire reste possible.',
   'export.author.name': 'Définir l’auteur des exports…',
@@ -473,6 +473,9 @@ const ui = {
   'whatsNew.v0151.desktopStrip': 'Dans une fenêtre étroite, les commandes de lecture ne sont plus coupées en bas de la fenêtre.',
   'whatsNew.v0151.sheets': 'Le volet Chronologie, le volet Plus et les boutons de zoom restent au-dessus de la barre de lecture, quelle que soit sa hauteur.',
   // issue #302 - the 0.15.2 release notes: the theme at start-up
+  'whatsNew.v0153.icons': 'Lecture, Pause, le cadenas, les flèches des menus et les autres symboles des boutons sont désormais les icônes de l’application elle-même : ils ont le même aspect sur Windows, sur iPhone et sur tout autre appareil.',
+  'whatsNew.v0153.names': 'Un lecteur d’écran n’entend que les mots : aucun symbole n’est lu avant Lecture, Clair ou le nom d’un menu, et les boutons Réinitialiser et Une étape ont désormais un nom.',
+  'whatsNew.v0153.canvas': 'Les repères de la palette et le repère de déclenchement sur une connexion sont dessinés dans le style du diagramme, dans chaque thème et en contraste élevé.',
   'whatsNew.v0152.themeBack': 'Le thème que vous avez choisi revient au démarrage, sans ouvrir les réglages.',
   'whatsNew.v0152.noFlash': 'Le thème sombre ne commence plus par un éclair clair : le thème enregistré est appliqué avant tout affichage.',
   'whatsNew.v0152.unknownValue': 'Un thème enregistré que l’application ne peut pas lire suit désormais le réglage du système au lieu d’être ignoré.',

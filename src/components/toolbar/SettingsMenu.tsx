@@ -4,6 +4,7 @@ import { LanguageSwitch } from '../LanguageSwitch'
 import { ThemeToggle } from '../ThemeToggle'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
+import { Icon } from '../../ui/icons'
 
 // docs/toolbar-responsive.md — the `Settings ▾` Tier-1 group: Theme,
 // Language only — personal app-environment prefs, deliberately never a
@@ -93,6 +94,7 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
         onClick={() => setOpen((v) => !v)}
       >
         {t('toolbar.settings.button')}
+        <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
         <div
