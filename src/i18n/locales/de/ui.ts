@@ -141,7 +141,7 @@ const ui = {
   'share.button.title': 'Einen Link kopieren, der dieses Diagramm öffnet',
   'share.disclosure.title': 'Einen Link zum Teilen erstellen?',
   'share.disclosure.body':
-    'Der Link enthält dieses gesamte Diagramm samt aller Namen — wer ihn hat, kann das Diagramm öffnen und bearbeiten. Er wird nicht auf einen Server geladen, reist aber im Link selbst mit: Er bleibt damit in Ihrem Browserverlauf und ist für alle sichtbar, denen Sie ihn schicken.',
+    'Der Link selbst enthält das ganze Dokument, mit jeder Beschriftung, jedem importierten Tabellenwert und jedem gespeicherten Rahmen: Wer ihn hat, kann das Diagramm öffnen und bearbeiten. Nichts wird auf einen Server hochgeladen, aber der Link kann in deinem Browserverlauf, in einem Messenger oder in der Zwischenablage bleiben. Exportiere für sensible Arbeit eine Datei, statt einen Link zu teilen.',
   'share.disclosure.confirm': 'Link erstellen',
   'share.tooLarge':
     'Dieses Diagramm ist für einen Link zum Teilen zu groß ({size}; die Grenze liegt bei {cap}). Nutzen Sie „Datei → Graph JSON“ und teilen Sie stattdessen die Datei.',
@@ -496,13 +496,13 @@ const ui = {
   'gate.personal.remember': 'Diesem persönlichen Browser vertrauen und automatisch wiederherstellen',
   'gate.personal.rememberHelp': 'Wähle das nur in einem Browser, den allein du benutzt.',
   'gate.temporary.button': 'Temporäre Sitzung starten',
-  'gate.temporary.sub': 'Aus diesem Browser wird nichts gelesen und nichts darin gespeichert. Exportiere eine Datei, um deine Arbeit zu behalten.',
+  'gate.temporary.sub': 'Gespeicherte Arbeit, Angaben zur Autorin oder zum Autor und Einstellungen werden weder gelesen noch gespeichert. Exportiere eine Datei, um deine Arbeit zu behalten.',
   'gate.temporary.remember': 'Immer eine temporäre Sitzung starten',
   'gate.recommended': 'Empfohlen',
   'gate.later': 'Du kannst das später in den Einstellungen unter „Speicher und Datenschutz“ ändern.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Temporäre Sitzung',
-  'session.temporary.chipTitle': 'In diesem Browser wird nichts gespeichert. Exportiere eine Datei, um deine Arbeit zu behalten.',
+  'session.temporary.chipTitle': 'Gespeicherte Arbeit, Angaben zur Autorin oder zum Autor und Einstellungen werden in diesem Browser weder gelesen noch gespeichert. Exportiere eine Datei, um deine Arbeit zu behalten.',
   'session.temporary.menuExport': 'Diagramm als Datei exportieren',
   'session.temporary.menuKeep': 'Stattdessen in diesem Browser speichern …',
   'session.temporary.updateTitle': 'Jetzt aktualisieren?',
@@ -512,7 +512,7 @@ const ui = {
   'storage.title': 'Speicher und Datenschutz',
   'storage.mode.label': 'Speichermodus',
   'storage.mode.personal': 'Persönlicher Browser: Die Arbeit wird in diesem Browser gespeichert und beim nächsten Mal wiederhergestellt.',
-  'storage.mode.temporary': 'Temporäre Sitzung: Aus diesem Browser wird nichts gelesen und nichts darin gespeichert.',
+  'storage.mode.temporary': 'Temporäre Sitzung: Gespeicherte Arbeit, Angaben zur Autorin oder zum Autor und Einstellungen werden in diesem Browser weder gelesen noch gespeichert. Höchstens die Startauswahl wird gespeichert.',
   'storage.statement': 'In einem persönlichen Browser behält Loop Studio das Diagramm, den Namen und die Notiz der Autorin oder des Autors, alle importierten Tabellenwerte, deine Einstellungen und die bereits gezeigten Hinweise – nur in diesem Browserprofil. Nichts wird hochgeladen. Das ist keine Sperre: Wer dieses Browserprofil öffnet, kann alles sehen.',
   'storage.restore.label': 'Automatisch wiederherstellen',
   'storage.restore.on': 'An: Dieser Browser gilt als vertrauenswürdig, und die Wahl wird beim Start nicht gestellt.',
@@ -544,11 +544,15 @@ const ui = {
   'storage.notSecurity': 'Das verhindert nur eine versehentliche Offenlegung. Es sperrt nichts und prüft nicht, wer du bist.',
   'share.disclosure.temporary': 'In dieser temporären Sitzung wird das Diagramm nicht in diesem Browser behalten; der Link enthält es trotzdem vollständig.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Bevor die App startet, fragt sie, ob dies dein persönlicher Browser oder ein gemeinsam genutzter Computer ist. Vor deiner Antwort wird nichts Gespeichertes gelesen.',
-  'whatsNew.v0160.temporary': 'Eine temporäre Sitzung liest nichts aus diesem Browser und speichert nichts darin. Exportiere eine Datei, um die Arbeit zu behalten.',
+  'whatsNew.v0160.gate': 'Bevor die App startet, fragt sie, ob dies dein persönlicher Browser oder ein gemeinsam genutzter Computer ist. Bis du antwortest, wird außer dieser Auswahl selbst nichts Gespeichertes gelesen.',
+  'whatsNew.v0160.temporary': 'Eine temporäre Sitzung liest und speichert in diesem Browser weder gespeicherte Arbeit noch Angaben zur Autorin oder zum Autor noch Einstellungen; nur die Startauswahl kann gespeichert werden. Exportiere eine Datei, um die Arbeit zu behalten.',
   'whatsNew.v0160.settings': 'Die Einstellungen haben einen Bereich „Speicher und Datenschutz“: der Speichermodus, der Wechsel zwischen Sitzungen, das Löschen des gespeicherten Diagramms und das Zurücksetzen von allem, was die App behält.',
   'whatsNew.v0160.share': 'Der Teilen-Dialog sagt, wo ein Link bleiben kann, und empfiehlt für sensible Arbeit eine Datei.',
   'whatsNew.v0160.portable': 'Die portable Datei stellt die Frage jedes Mal und empfiehlt eine temporäre Sitzung.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Nur diese Startauswahl wird gespeichert.',
+  'storage.delete.workFailed': 'Das gespeicherte Diagramm konnte nicht entfernt werden und ist möglicherweise noch in diesem Browser. Versuche es erneut, oder lösche die Daten dieser Website in den Einstellungen des Browsers.',
+  'storage.delete.workKeepsTemporary': 'Deine aktuelle temporäre Arbeit bleibt geöffnet.',
 } satisfies Record<UiKey, string>
 
 export default ui

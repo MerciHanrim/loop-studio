@@ -60,9 +60,13 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
   const build = useSessionStore((s) => s.build)
   const setRemembered = useSessionStore((s) => s.setRemembered)
   const [step, setStep] = useState<StorageStep>(initialStep)
-  const [notice, setNotice] = useState<string | null>(null)
+  /** what the last deletion did: `done` shows on the area, `failed` on the step it failed on */
+  const [notice, setNotice] = useState<{ kind: 'done' | 'failed'; text: string } | null>(null)
 
-  const back = () => setStep('menu')
+  const back = () => {
+    setStep('menu')
+    setNotice((n) => (n?.kind === 'failed' ? null : n))
+  }
   useDialogFocus(true, ref, step === 'menu' ? onClose : back, returnFocusTo)
 
   const temporary = mode === 'temporary'
@@ -99,16 +103,20 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
     },
     deleteWork: {
       title: t('storage.delete.workTitle'),
-      body: temporary ? t('storage.delete.workBody') : `${t('storage.delete.workBody')} ${t('storage.delete.workCanvas')}`,
+      body: temporary
+        ? `${t('storage.delete.workBody')} ${t('storage.delete.workKeepsTemporary')}`
+        : `${t('storage.delete.workBody')} ${t('storage.delete.workCanvas')}`,
       confirm: t('storage.delete.workConfirm'),
       run: () => {
+        // a deletion that failed is never reported as done: the step stays, says
+        // so, and says the record may still be there (Lumi, 2026-10-04)
         try {
           deleteWorkData()
         } catch {
-          // storage that throws on a remove also throws on a read: there is no
-          // record anyone could restore, which is what the deletion is for
+          setNotice({ kind: 'failed', text: t('storage.delete.workFailed') })
+          return
         }
-        setNotice(t('storage.delete.workDone'))
+        setNotice({ kind: 'done', text: t('storage.delete.workDone') })
         setStep('menu')
       },
     },
@@ -205,9 +213,9 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
                   {t('storage.delete.all')}
                 </button>
               </section>
-              {notice ? (
-                <p className="storage__done" role="status" data-storage-notice="">
-                  {notice}
+              {notice?.kind === 'done' ? (
+                <p className="storage__done" role="status" data-storage-notice="done">
+                  {notice.text}
                 </p>
               ) : null}
             </div>
@@ -222,8 +230,13 @@ function StorageArea({ onClose, returnFocusTo, initialStep }: Required<Pick<Prop
             <div className="mcdlg__head">
               <span id={titleId}>{steps[step].title}</span>
             </div>
-            <div className="mcdlg__body">
+            <div className="mcdlg__body storage">
               <p className="storage__text">{steps[step].body}</p>
+              {notice?.kind === 'failed' ? (
+                <p className="storage__failed" role="alert" data-storage-notice="failed">
+                  {notice.text}
+                </p>
+              ) : null}
             </div>
             <div className="mcdlg__foot mcdlg__foot--spread">
               <button type="button" className="btn" data-storage-export="" onClick={exportNow}>

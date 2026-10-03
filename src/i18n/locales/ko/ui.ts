@@ -121,7 +121,7 @@ const ui = {
   'share.button': '공유',
   'share.button.title': '이 다이어그램을 여는 링크 복사',
   'share.disclosure.title': '공유 링크를 만들까요?',
-  'share.disclosure.body': '링크 자체에 모든 이름표를 포함한 이 다이어그램 전체가 담깁니다. 링크를 가진 사람은 누구나 다이어그램을 열고 편집할 수 있습니다. 서버에 올라가지는 않지만, 링크는 브라우저 기록이나 메신저, 클립보드에 남을 수 있습니다. 민감한 작업은 링크 대신 파일로 내보내세요.',
+  'share.disclosure.body': '링크 자체에 모든 이름표, 가져온 스프레드시트 값, 저장된 프레임을 포함한 문서 전체가 담깁니다. 링크를 가진 사람은 누구나 다이어그램을 열고 편집할 수 있습니다. 서버에 올라가지는 않지만, 링크는 브라우저 기록이나 메신저, 클립보드에 남을 수 있습니다. 민감한 작업은 링크 대신 파일로 내보내세요.',
   'share.disclosure.confirm': '링크 만들기',
   'share.tooLarge': '이 다이어그램은 공유 링크로 만들기에 너무 큽니다 ({size}, 한도 {cap}). 대신 파일 → Graph JSON으로 파일을 공유하세요.',
   'share.replacePrompt': '공유된 다이어그램을 열까요? 현재 다이어그램이 대체됩니다. 남겨 두려면 먼저 내보내세요.',
@@ -408,13 +408,13 @@ const ui = {
   'gate.personal.remember': '이 개인 브라우저를 신뢰하고 자동으로 복원',
   'gate.personal.rememberHelp': '혼자만 쓰는 브라우저에서만 고르세요.',
   'gate.temporary.button': '임시 세션 시작',
-  'gate.temporary.sub': '이 브라우저에서 아무것도 읽지 않고 아무것도 저장하지 않습니다. 작업을 남기려면 파일로 내보내세요.',
+  'gate.temporary.sub': '저장된 작업·작성자 정보·환경설정을 읽지도 저장하지도 않습니다. 작업을 남기려면 파일로 내보내세요.',
   'gate.temporary.remember': '항상 임시 세션으로 시작',
   'gate.recommended': '권장',
   'gate.later': '나중에 설정의 저장 및 개인정보에서 바꿀 수 있습니다.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': '임시 세션',
-  'session.temporary.chipTitle': '이 브라우저에 아무것도 저장하지 않습니다. 작업을 남기려면 파일로 내보내세요.',
+  'session.temporary.chipTitle': '저장된 작업·작성자 정보·환경설정을 이 브라우저에서 읽지도 저장하지도 않습니다. 작업을 남기려면 파일로 내보내세요.',
   'session.temporary.menuExport': '다이어그램을 파일로 내보내기',
   'session.temporary.menuKeep': '이 브라우저에 저장하기…',
   'session.temporary.updateTitle': '지금 업데이트할까요?',
@@ -424,7 +424,7 @@ const ui = {
   'storage.title': '저장 및 개인정보',
   'storage.mode.label': '저장 방식',
   'storage.mode.personal': '개인 브라우저: 작업이 이 브라우저에 저장되고 다음에 복원됩니다.',
-  'storage.mode.temporary': '임시 세션: 이 브라우저에서 아무것도 읽지 않고 아무것도 저장하지 않습니다.',
+  'storage.mode.temporary': '임시 세션: 저장된 작업·작성자 정보·환경설정을 이 브라우저에서 읽지도 저장하지도 않습니다. 저장되는 것은 많아야 시작 선택 하나입니다.',
   'storage.statement': '개인 브라우저에서는 다이어그램, 작성자 이름과 메모, 가져온 스프레드시트 값, 설정, 이미 본 안내가 이 브라우저 프로필에만 보관됩니다. 어디에도 업로드하지 않습니다. 잠금은 아니므로, 이 브라우저 프로필을 여는 누구나 볼 수 있습니다.',
   'storage.restore.label': '자동 복원',
   'storage.restore.on': '켜짐: 이 브라우저를 신뢰하며, 앱을 켤 때 선택을 묻지 않습니다.',
@@ -456,11 +456,15 @@ const ui = {
   'storage.notSecurity': '우연한 노출을 막을 뿐입니다. 아무것도 잠그지 않고 사용자를 확인하지도 않습니다.',
   'share.disclosure.temporary': '이 임시 세션에서는 다이어그램이 이 브라우저에 남지 않지만, 링크에는 그대로 모두 들어 있습니다.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': '앱을 열기 전에 개인 브라우저인지 함께 쓰는 컴퓨터인지 묻습니다. 답하기 전에는 저장된 것을 읽지 않습니다.',
-  'whatsNew.v0160.temporary': '임시 세션은 이 브라우저에서 아무것도 읽지 않고 아무것도 저장하지 않습니다. 작업을 남기려면 파일로 내보내세요.',
+  'whatsNew.v0160.gate': '앱을 열기 전에 개인 브라우저인지 함께 쓰는 컴퓨터인지 묻습니다. 답하기 전에는 그 선택 자체 말고는 저장된 것을 읽지 않습니다.',
+  'whatsNew.v0160.temporary': '임시 세션은 저장된 작업·작성자 정보·환경설정을 이 브라우저에서 읽지도 저장하지도 않으며, 저장될 수 있는 것은 시작 선택뿐입니다. 작업을 남기려면 파일로 내보내세요.',
   'whatsNew.v0160.settings': '설정에 저장 및 개인정보 영역이 생겼습니다: 저장 방식, 세션 전환, 저장된 다이어그램 삭제, 앱이 보관한 모든 것의 초기화.',
   'whatsNew.v0160.share': '공유 대화상자가 링크가 남을 수 있는 곳을 알려 주고, 민감한 작업에는 파일을 권합니다.',
   'whatsNew.v0160.portable': '포터블 파일은 매번 묻고 임시 세션을 권장합니다.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': '이 시작 선택 하나만 저장됩니다.',
+  'storage.delete.workFailed': '저장된 다이어그램을 지우지 못했습니다. 이 브라우저에 아직 남아 있을 수 있습니다. 다시 시도하거나, 브라우저 설정에서 이 사이트의 데이터를 지우세요.',
+  'storage.delete.workKeepsTemporary': '지금 하고 있는 임시 작업은 그대로 열려 있습니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -388,7 +388,7 @@ export function MobileMoreMenu({
           {t('lang.rowLabel')}<span className="sheet__row-sub"><LanguageSwitch /></span>
         </div>
         {/* issue #297 - the Storage and privacy area; in a temporary session the
-            row also carries the standing reminder that nothing is saved here */}
+            row also carries the standing reminder that no work is saved here */}
         <button type="button" className="sheet__row" data-settings-row="storage-privacy" onClick={() => setStorageOpen(true)}>
           {t('storage.menuLabel')}
           {temporary ? <span className="sheet__row-sub" data-session-chip="temporary">{t('session.temporary.chip')}</span> : null}

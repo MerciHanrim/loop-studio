@@ -20,18 +20,19 @@ export const OPENED_KEY = 'loop-studio/whats-new/opened/1'
 /** the release note an automatic notice would be about */
 export const NEWEST_RELEASE = RELEASE_NOTES[0]!
 
-export const WHATS_NEW_SEEN = { announcedKey: ANNOUNCED_KEY, openedKey: OPENED_KEY, id: NEWEST_RELEASE.id as string, mode: 'personal' }
+export const WHATS_NEW_SEEN = { announcedKey: ANNOUNCED_KEY, openedKey: OPENED_KEY, id: NEWEST_RELEASE.id as string }
 export type WhatsNewSeen = typeof WHATS_NEW_SEEN
 
 /** Runs IN THE PAGE (serialized by Playwright), so it uses only its argument.
  *  A value that is already there is kept: a spec that writes its own, or the
- *  app's own write followed by a reload, is not overwritten. */
+ *  app's own write followed by a reload, is not overwritten.
+ *
+ *  This seeds the What's new state ONLY. The storage gate's mode key (issue
+ *  #297) is seeded by the fixture and by `seedPersonalBrowser` in
+ *  `./loop`, never from here: a helper that quietly answered the gate hid a
+ *  gate test twice. */
 export function seedWhatsNewSeenScript(s: WhatsNewSeen): void {
   try {
-    // issue #297 - a returning profile that is also a remembered browser of
-    // kind `mode` (personal unless the spec says otherwise), so the storage
-    // gate does not stand in front of the spec; `gate` leaves the key alone
-    if (s.mode !== 'gate' && !localStorage.getItem('loop-studio:storage-mode')) localStorage.setItem('loop-studio:storage-mode', s.mode)
     if (!localStorage.getItem(s.announcedKey)) localStorage.setItem(s.announcedKey, s.id)
     if (!localStorage.getItem(s.openedKey)) localStorage.setItem(s.openedKey, s.id)
   } catch {
@@ -40,10 +41,9 @@ export function seedWhatsNewSeenScript(s: WhatsNewSeen): void {
 }
 
 /** Register the seed for every document the page or context loads. Call it
- *  AFTER an init script that clears storage. `mode` is the storage mode the
- *  profile remembers (`personal` | `temporary`), or `gate` for none. */
-export async function seedWhatsNewSeen(target: Page | BrowserContext, mode: string = 'personal'): Promise<void> {
-  await target.addInitScript(seedWhatsNewSeenScript, { ...WHATS_NEW_SEEN, mode })
+ *  AFTER an init script that clears storage. */
+export async function seedWhatsNewSeen(target: Page | BrowserContext): Promise<void> {
+  await target.addInitScript(seedWhatsNewSeenScript, WHATS_NEW_SEEN)
 }
 
 // ── one build, one version ──────────────────────────────────────────────────

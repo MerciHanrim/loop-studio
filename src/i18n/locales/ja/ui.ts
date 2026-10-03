@@ -124,7 +124,7 @@ const ui = {
   'share.button.title': 'この図を開くリンクをコピー',
   'share.disclosure.title': '共有リンクを作成しますか？',
   'share.disclosure.body':
-    'リンクにはこの図全体が、すべてのラベルを含めて入ります — リンクを持つ人は誰でも図を開いて編集できます。サーバーにはアップロードされませんが、リンクの中に含まれて移動するため、ブラウザーの履歴に残り、送った相手全員に見えます。',
+    'リンク自体に、すべてのラベル、取り込んだスプレッドシートの値、保存されたフレームを含む文書全体が入っています。リンクを持つ人は誰でもダイアグラムを開いて編集できます。サーバーには何もアップロードされませんが、リンクはブラウザーの履歴やメッセンジャー、クリップボードに残ることがあります。機密性の高い作業では、リンクを共有する代わりにファイルに書き出してください。',
   'share.disclosure.confirm': 'リンクを作成',
   'share.tooLarge':
     'この図は共有リンクには大きすぎます（{size}、上限は {cap}）。ファイル → グラフ JSON を使い、ファイルを共有してください。',
@@ -440,13 +440,13 @@ const ui = {
   'gate.personal.remember': 'この個人用ブラウザーを信頼して自動的に復元する',
   'gate.personal.rememberHelp': '自分だけが使うブラウザーでのみ選んでください。',
   'gate.temporary.button': '一時セッションを開始',
-  'gate.temporary.sub': 'このブラウザーからは何も読み込まず、何も保存しません。作業内容を残すにはファイルに書き出してください。',
+  'gate.temporary.sub': '保存された作業内容、作成者情報、設定は読み込まれず、保存もされません。作業内容を残すにはファイルに書き出してください。',
   'gate.temporary.remember': '常に一時セッションで開始する',
   'gate.recommended': 'おすすめ',
   'gate.later': 'あとから設定の「保存とプライバシー」で変更できます。',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': '一時セッション',
-  'session.temporary.chipTitle': 'このブラウザーには何も保存されません。作業内容を残すにはファイルに書き出してください。',
+  'session.temporary.chipTitle': '保存された作業内容、作成者情報、設定は、このブラウザーで読み込まれず、保存もされません。作業内容を残すにはファイルに書き出してください。',
   'session.temporary.menuExport': 'ダイアグラムをファイルに書き出す',
   'session.temporary.menuKeep': '代わりにこのブラウザーに保存する…',
   'session.temporary.updateTitle': '今すぐ更新しますか？',
@@ -456,7 +456,7 @@ const ui = {
   'storage.title': '保存とプライバシー',
   'storage.mode.label': '保存モード',
   'storage.mode.personal': '個人用ブラウザー：作業内容はこのブラウザーに保存され、次回復元されます。',
-  'storage.mode.temporary': '一時セッション：このブラウザーからは何も読み込まず、何も保存しません。',
+  'storage.mode.temporary': '一時セッション：保存された作業内容、作成者情報、設定は、このブラウザーで読み込まれず、保存もされません。保存されるとしても起動時の選択だけです。',
   'storage.statement': '個人用ブラウザーでは、Loop Studio はダイアグラム、作成者の名前とメモ、取り込んだスプレッドシートの値、設定、表示済みのガイドを、このブラウザーのプロファイルにのみ保持します。アップロードは行いません。これはロックではありません。このブラウザーのプロファイルを開ける人なら誰でも見ることができます。',
   'storage.restore.label': '自動的に復元',
   'storage.restore.on': 'オン：このブラウザーを信頼し、アプリ起動時に選択をたずねません。',
@@ -488,11 +488,15 @@ const ui = {
   'storage.notSecurity': 'これは意図しない露出を防ぐだけです。何もロックせず、本人確認も行いません。',
   'share.disclosure.temporary': 'この一時セッションではダイアグラムはこのブラウザーに残りませんが、リンクにはその全体が含まれます。',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'アプリを開く前に、個人用ブラウザーか共用のコンピューターかをたずねます。答えるまで、保存されたものは何も読み込みません。',
-  'whatsNew.v0160.temporary': '一時セッションはこのブラウザーから何も読み込まず、何も保存しません。作業内容を残すにはファイルに書き出してください。',
+  'whatsNew.v0160.gate': 'アプリを開く前に、個人用ブラウザーか共用のコンピューターかをたずねます。答えるまで、その選択自体のほかには保存されたものを何も読み込みません。',
+  'whatsNew.v0160.temporary': '一時セッションは、このブラウザーで保存された作業内容、作成者情報、設定を読み込まず、保存もしません。保存され得るのは起動時の選択だけです。作業内容を残すにはファイルに書き出してください。',
   'whatsNew.v0160.settings': '設定に「保存とプライバシー」が加わりました。保存モード、セッションの切り替え、保存されたダイアグラムの削除、アプリが保持するすべてのリセットができます。',
   'whatsNew.v0160.share': '共有ダイアログは、リンクが残り得る場所を示し、機密性の高い作業にはファイルを勧めます。',
   'whatsNew.v0160.portable': 'ポータブル版のファイルは毎回この質問をたずね、一時セッションを勧めます。',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'この起動時の選択だけが保存されます。',
+  'storage.delete.workFailed': '保存されたダイアグラムを削除できませんでした。このブラウザーにまだ残っている可能性があります。もう一度試すか、ブラウザー自体の設定でこのサイトのデータを消去してください。',
+  'storage.delete.workKeepsTemporary': '現在の一時的な作業はそのまま開いたままです。',
 } satisfies Record<UiKey, string>
 
 export default ui

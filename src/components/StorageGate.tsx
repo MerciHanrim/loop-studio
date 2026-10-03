@@ -89,10 +89,13 @@ export function StorageGate({ shareLinkWaiting, onAnswer }: Props) {
             </button>
             <p className="gate__sub">{t('gate.temporary.sub')}</p>
             {portable ? null : (
-              <label className="gate__remember">
-                <input type="checkbox" checked={rememberTemporary} onChange={(e) => setRememberTemporary(e.currentTarget.checked)} />
-                <span>{t('gate.temporary.remember')}</span>
-              </label>
+              <>
+                <label className="gate__remember">
+                  <input type="checkbox" checked={rememberTemporary} onChange={(e) => setRememberTemporary(e.currentTarget.checked)} />
+                  <span>{t('gate.temporary.remember')}</span>
+                </label>
+                <p className="gate__help">{t('gate.temporary.rememberHelp')}</p>
+              </>
             )}
           </div>
         </div>

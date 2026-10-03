@@ -144,7 +144,7 @@ const ui = {
   'share.button': 'Condividi',
   'share.button.title': 'Copia un link che apre questo diagramma',
   'share.disclosure.title': 'Creare un link di condivisione?',
-  'share.disclosure.body': 'Il link contiene l’intero diagramma, comprese tutte le etichette — chiunque lo possieda può aprirlo e modificarlo. Non viene caricato su alcun server, ma viaggia dentro il link, quindi resta nella cronologia del browser ed è visibile a chiunque tu lo invii.',
+  'share.disclosure.body': 'Il link stesso contiene l’intero documento, con ogni etichetta, ogni valore importato dal foglio di calcolo e ogni riquadro salvato: chiunque lo abbia può aprire e modificare il diagramma. Nulla viene caricato su un server, ma il link può restare nella cronologia del browser, in una chat o negli appunti. Per il lavoro sensibile esporta un file invece di condividere un link.',
   'share.disclosure.confirm': 'Crea il link',
   'share.tooLarge': 'Questo diagramma è troppo grande per un link di condivisione ({size}; il limite è {cap}). Usa File → Grafo JSON e condividi il file.',
   'share.replacePrompt': 'Aprire il diagramma condiviso? Il diagramma attuale verrà sostituito. Esportalo prima se vuoi conservarlo.',
@@ -435,13 +435,13 @@ const ui = {
   'gate.personal.remember': 'Considera attendibile questo browser personale e ripristina automaticamente',
   'gate.personal.rememberHelp': 'Scegli questa opzione solo in un browser che usi soltanto tu.',
   'gate.temporary.button': 'Avvia una sessione temporanea',
-  'gate.temporary.sub': 'Da questo browser non viene letto nulla e nulla vi viene salvato. Esporta un file per conservare il tuo lavoro.',
+  'gate.temporary.sub': 'Il lavoro salvato, le informazioni sull’autore e le impostazioni non vengono né letti né salvati. Esporta un file per conservare il tuo lavoro.',
   'gate.temporary.remember': 'Avvia sempre una sessione temporanea',
   'gate.recommended': 'Consigliato',
   'gate.later': 'Potrai cambiarlo in seguito nelle impostazioni, in Archiviazione e privacy.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Sessione temporanea',
-  'session.temporary.chipTitle': 'Nulla viene salvato in questo browser. Esporta un file per conservare il tuo lavoro.',
+  'session.temporary.chipTitle': 'Il lavoro salvato, le informazioni sull’autore e le impostazioni non vengono né letti né salvati in questo browser. Esporta un file per conservare il tuo lavoro.',
   'session.temporary.menuExport': 'Esporta il diagramma come file',
   'session.temporary.menuKeep': 'Salva invece in questo browser…',
   'session.temporary.updateTitle': 'Aggiornare adesso?',
@@ -451,7 +451,7 @@ const ui = {
   'storage.title': 'Archiviazione e privacy',
   'storage.mode.label': 'Modalità di archiviazione',
   'storage.mode.personal': 'Browser personale: il lavoro viene salvato in questo browser e ripristinato la prossima volta.',
-  'storage.mode.temporary': 'Sessione temporanea: da questo browser non viene letto nulla e nulla vi viene salvato.',
+  'storage.mode.temporary': 'Sessione temporanea: il lavoro salvato, le informazioni sull’autore e le impostazioni non vengono né letti né salvati in questo browser. Al massimo viene salvata la scelta di avvio.',
   'storage.statement': 'In un browser personale Loop Studio conserva il diagramma, il nome e la nota dell’autore, i valori importati dal foglio di calcolo, le tue impostazioni e i suggerimenti già visti, solo in questo profilo del browser. Nulla viene caricato in rete. Non è un lucchetto: chiunque apra questo profilo del browser può vederlo.',
   'storage.restore.label': 'Ripristina automaticamente',
   'storage.restore.on': 'Attivo: questo browser è considerato attendibile e la scelta non viene chiesta all’avvio dell’app.',
@@ -483,11 +483,15 @@ const ui = {
   'storage.notSecurity': 'Questo evita solo un’esposizione accidentale. Non blocca nulla e non verifica chi sei.',
   'share.disclosure.temporary': 'In questa sessione temporanea il diagramma non viene conservato in questo browser; il link però lo contiene tutto.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Prima di aprirsi, l’app chiede se questo è il tuo browser personale o un computer condiviso. Nulla di salvato viene letto prima della tua risposta.',
-  'whatsNew.v0160.temporary': 'Una sessione temporanea non legge nulla da questo browser e non vi salva nulla. Esporta un file per conservare il lavoro.',
+  'whatsNew.v0160.gate': 'Prima di aprirsi, l’app chiede se questo è il tuo browser personale o un computer condiviso. Finché non rispondi, nulla di salvato viene letto, tranne quella scelta stessa.',
+  'whatsNew.v0160.temporary': 'Una sessione temporanea non legge né salva in questo browser il lavoro salvato, le informazioni sull’autore o le impostazioni; solo la scelta di avvio può essere salvata. Esporta un file per conservare il lavoro.',
   'whatsNew.v0160.settings': 'Le impostazioni hanno un’area Archiviazione e privacy: la modalità di archiviazione, il passaggio da una sessione all’altra, l’eliminazione del diagramma salvato e il ripristino di tutto ciò che l’app conserva.',
   'whatsNew.v0160.share': 'La finestra di condivisione dice dove un link può restare e consiglia un file per il lavoro sensibile.',
   'whatsNew.v0160.portable': 'Il file portatile pone la domanda ogni volta e consiglia una sessione temporanea.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Viene salvata solo questa scelta di avvio.',
+  'storage.delete.workFailed': 'Non è stato possibile rimuovere il diagramma salvato, che potrebbe trovarsi ancora in questo browser. Riprova, oppure cancella i dati di questo sito dalle impostazioni del browser.',
+  'storage.delete.workKeepsTemporary': 'Il tuo lavoro temporaneo attuale resta aperto.',
 } satisfies Record<UiKey, string>
 
 export default ui

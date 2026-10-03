@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test'
 import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
-import { seedWhatsNewSeen } from './support/whatsNew'
 
 // Neutral Latin American Spanish (`es-419`). docs/localization.md §L2.13
 // (the locale's own decisions), §L5.2 step 4 (`baseFallbackFor`), §L2.11
@@ -68,8 +67,9 @@ async function pageAt(page: Page, tag: string) {
       /* storage blocked */
     }
   })
-  // issue #296 - and this returning profile has already seen the newest release note
-  await seedWhatsNewSeen(ctx)
+  // issue #296 / #297 - a returning profile that has seen the newest release
+  // note and remembers a personal browser, so no storage gate stands in front
+  await seedPersonalBrowser(ctx)
   return { ctx, page: await ctx.newPage() }
 }
 

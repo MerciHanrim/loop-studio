@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, test } from './support/loop'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { expect, openApp, seedPersonalBrowser, test } from './support/loop'
 
 // docs/localization.md — descriptive copy (`.menu__blurb`, `.palette-tip__desc`)
 // must wrap by the rules of the language it is written in.
@@ -78,8 +77,9 @@ async function pageAt(page: Page, tag: string) {
       /* storage blocked — the tour card is dismissed by the test instead */
     }
   })
-  // issue #296 - and this returning profile has already seen the newest release note
-  await seedWhatsNewSeen(ctx)
+  // issue #296 / #297 - a returning profile that has seen the newest release
+  // note and remembers a personal browser, so no storage gate stands in front
+  await seedPersonalBrowser(ctx)
   return { ctx, page: await ctx.newPage() }
 }
 

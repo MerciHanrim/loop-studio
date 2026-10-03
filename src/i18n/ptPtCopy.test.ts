@@ -56,7 +56,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(941)
+    expect(KEYS).toHaveLength(944)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -101,7 +101,9 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // note lines, on the usual axes - `guardado` not `salvo`, `repor` not
     // `redefinir`, `ficheiro` not `arquivo`, `ligação` not `link`, `definições`
     // not `configurações`, `aplicação` not `aplicativo`, `num` not `em um`.
-    expect(DELTA).toHaveLength(224)
+    // Then 224 to 227: the corrected temporary-session copy and the failed-
+    // deletion notice, on the same axes (`guardado`, `definições`, `ficheiro`).
+    expect(DELTA).toHaveLength(227)
     // and it is a real audit, not a rewrite — most of the catalog agrees
     expect(DELTA.length).toBeLessThan(KEYS.length / 4)
   })

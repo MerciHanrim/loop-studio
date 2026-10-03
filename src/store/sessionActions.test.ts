@@ -132,6 +132,49 @@ describe('Delete work data', () => {
   })
 })
 
+describe('Delete work data — a deletion that fails is a failure, not a success', () => {
+  // the dialog reports the throw as "could not be removed, may still be there";
+  // these pin that the action THROWS and leaves everything as it was
+  it('personal: a browser that refuses the remove throws, and the canvas and the record stay', () => {
+    makeWork()
+    const before = entries()
+    const nodes = graph().nodes.map((n) => n.id)
+    const denied = new Error('denied')
+    mem.removeItem = () => {
+      throw denied
+    }
+    expect(() => deleteWorkData()).toThrow(denied)
+    expect(entries()).toEqual(before)
+    expect(graph().nodes.map((n) => n.id)).toEqual(nodes)
+  })
+
+  it("temporary: a browser that refuses the remove throws, and the browser's record stays", () => {
+    mem.m.set(WORK_KEY, '{"previous":true}')
+    storageSession.use('temporary')
+    useSessionStore.getState().sync()
+    makeWork()
+    const mine = graph().nodes.map((n) => n.id)
+    mem.removeItem = () => {
+      throw new Error('denied')
+    }
+    expect(() => deleteWorkData()).toThrow('denied')
+    expect(mem.m.get(WORK_KEY)).toBe('{"previous":true}')
+    expect(graph().nodes.map((n) => n.id)).toEqual(mine)
+  })
+
+  it('personal: after a successful delete the autosave holds an empty document, never the old one', () => {
+    graph().addNodeAt('pool', { x: 0, y: 0 })
+    graph().updateNodeData(graph().nodes[graph().nodes.length - 1]!.id, { label: 'SensitiveLabel' })
+    vi.runAllTimers()
+    expect(mem.m.get(WORK_KEY)).toContain('SensitiveLabel')
+    deleteWorkData()
+    vi.runAllTimers()
+    const raw = mem.m.get(WORK_KEY)
+    expect(raw === undefined || !raw.includes('SensitiveLabel')).toBe(true)
+    if (raw) expect(JSON.parse(raw).nodes).toEqual([])
+  })
+})
+
 describe('Reset all Loop Studio data', () => {
   it('removes every registered key, the mode key included, and closes the port', () => {
     for (const k of Object.keys(STORAGE_KEYS)) mem.m.set(k, 'v')

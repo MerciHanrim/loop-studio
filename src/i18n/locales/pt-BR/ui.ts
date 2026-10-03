@@ -131,7 +131,7 @@ const ui = {
   'share.button': 'Compartilhar',
   'share.button.title': 'Copiar um link que abre este diagrama',
   'share.disclosure.title': 'Criar um link de compartilhamento?',
-  'share.disclosure.body': 'O link contém este diagrama inteiro, incluindo todos os rótulos — qualquer pessoa com ele pode abrir e editar o diagrama. Ele não é enviado para nenhum servidor, mas viaja dentro do link, então fica no histórico do seu navegador e fica visível para qualquer pessoa a quem você o envie.',
+  'share.disclosure.body': 'O próprio link contém o documento inteiro, com cada rótulo, cada valor de planilha importado e cada quadro salvo: quem o tiver pode abrir e editar o diagrama. Nada é enviado a um servidor, mas o link pode ficar no histórico do navegador, em um mensageiro ou na área de transferência. Para trabalhos sensíveis, exporte um arquivo em vez de compartilhar um link.',
   'share.disclosure.confirm': 'Criar link',
   'share.tooLarge': 'Este diagrama é grande demais para um link de compartilhamento ({size}; o limite é {cap}). Use Arquivo → Grafo JSON e compartilhe o arquivo.',
   'share.replacePrompt': 'Abrir o diagrama compartilhado? Seu diagrama atual será substituído. Exporte-o antes se quiser mantê-lo.',
@@ -421,13 +421,13 @@ const ui = {
   'gate.personal.remember': 'Confiar neste navegador pessoal e restaurar automaticamente',
   'gate.personal.rememberHelp': 'Escolha isto apenas em um navegador que só você usa.',
   'gate.temporary.button': 'Iniciar uma sessão temporária',
-  'gate.temporary.sub': 'Nada é lido deste navegador e nada é salvo nele. Exporte um arquivo para manter seu trabalho.',
+  'gate.temporary.sub': 'O trabalho salvo, as informações do autor e as configurações não são lidos nem salvos. Exporte um arquivo para manter seu trabalho.',
   'gate.temporary.remember': 'Sempre iniciar uma sessão temporária',
   'gate.recommended': 'Recomendado',
   'gate.later': 'Você pode mudar isso depois em Configurações, em Armazenamento e privacidade.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Sessão temporária',
-  'session.temporary.chipTitle': 'Nada é salvo neste navegador. Exporte um arquivo para manter seu trabalho.',
+  'session.temporary.chipTitle': 'O trabalho salvo, as informações do autor e as configurações não são lidos nem salvos neste navegador. Exporte um arquivo para manter seu trabalho.',
   'session.temporary.menuExport': 'Exportar o diagrama como arquivo',
   'session.temporary.menuKeep': 'Salvar neste navegador em vez disso…',
   'session.temporary.updateTitle': 'Atualizar agora?',
@@ -437,7 +437,7 @@ const ui = {
   'storage.title': 'Armazenamento e privacidade',
   'storage.mode.label': 'Modo de armazenamento',
   'storage.mode.personal': 'Navegador pessoal: o trabalho é salvo neste navegador e restaurado na próxima vez.',
-  'storage.mode.temporary': 'Sessão temporária: nada é lido deste navegador e nada é salvo nele.',
+  'storage.mode.temporary': 'Sessão temporária: o trabalho salvo, as informações do autor e as configurações não são lidos nem salvos neste navegador. No máximo, a escolha de início é salva.',
   'storage.statement': 'Em um navegador pessoal, o Loop Studio mantém o diagrama, o nome e a nota do autor, os valores de planilha importados, suas configurações e as orientações que você já viu, apenas neste perfil do navegador. Nada é enviado. Isto não é uma tranca: qualquer pessoa que abra este perfil do navegador pode ver tudo.',
   'storage.restore.label': 'Restaurar automaticamente',
   'storage.restore.on': 'Ativado: este navegador é confiável, e a escolha não é perguntada quando o aplicativo inicia.',
@@ -469,11 +469,15 @@ const ui = {
   'storage.notSecurity': 'Isto evita apenas a exposição acidental. Não tranca nada e não verifica quem você é.',
   'share.disclosure.temporary': 'Nesta sessão temporária o diagrama não é mantido neste navegador; o link ainda assim o contém por inteiro.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Antes de abrir, o aplicativo pergunta se este é o seu navegador pessoal ou um computador compartilhado. Nada salvo é lido antes de você responder.',
-  'whatsNew.v0160.temporary': 'Uma sessão temporária não lê nada deste navegador e não salva nada nele. Exporte um arquivo para manter o trabalho.',
+  'whatsNew.v0160.gate': 'Antes de abrir, o aplicativo pergunta se este é o seu navegador pessoal ou um computador compartilhado. Até você responder, nada salvo é lido, exceto essa própria escolha.',
+  'whatsNew.v0160.temporary': 'Uma sessão temporária não lê nem salva neste navegador o trabalho salvo, as informações do autor ou as configurações; apenas a escolha de início pode ser salva. Exporte um arquivo para manter o trabalho.',
   'whatsNew.v0160.settings': 'As Configurações têm uma área Armazenamento e privacidade: o modo de armazenamento, a troca de sessão, a exclusão do diagrama salvo e a redefinição de tudo o que o aplicativo mantém.',
   'whatsNew.v0160.share': 'A caixa de diálogo de compartilhamento diz onde um link pode ficar e recomenda um arquivo para trabalhos sensíveis.',
   'whatsNew.v0160.portable': 'O arquivo portátil faz a pergunta toda vez e recomenda uma sessão temporária.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Apenas esta escolha de início é salva.',
+  'storage.delete.workFailed': 'Não foi possível remover o diagrama salvo, e ele ainda pode estar neste navegador. Tente de novo, ou limpe os dados deste site nas configurações do próprio navegador.',
+  'storage.delete.workKeepsTemporary': 'Seu trabalho temporário atual continua aberto.',
 } as const
 
 export type UiKey = keyof typeof ui

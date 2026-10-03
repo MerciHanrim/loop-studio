@@ -128,7 +128,7 @@ const ui = {
   'share.button': 'Delen',
   'share.button.title': 'Kopieer een link die dit diagram opent',
   'share.disclosure.title': 'Een deellink maken?',
-  'share.disclosure.body': 'De link bevat dit hele diagram, inclusief elk label — iedereen die hem heeft, kan het diagram openen en bewerken. Hij wordt niet naar een server geüpload, maar reist mee in de link, dus hij blijft in je browsergeschiedenis staan en is zichtbaar voor iedereen aan wie je hem stuurt.',
+  'share.disclosure.body': 'De link zelf bevat het hele document, met elk label, elke geïmporteerde spreadsheetwaarde en elk opgeslagen kader: iedereen die hem heeft kan het diagram openen en bewerken. Er wordt niets naar een server geüpload, maar de link kan achterblijven in je browsergeschiedenis, in een berichtenapp of op het klembord. Exporteer voor gevoelig werk een bestand in plaats van een link te delen.',
   'share.disclosure.confirm': 'Link maken',
   'share.tooLarge': 'Dit diagram is te groot voor een deellink ({size}; de limiet is {cap}). Gebruik Bestand → Diagram-JSON en deel het bestand.',
   'share.replacePrompt': 'Het gedeelde diagram openen? Je huidige diagram wordt vervangen. Exporteer het eerst als je het wilt bewaren.',
@@ -416,13 +416,13 @@ const ui = {
   'gate.personal.remember': 'Deze persoonlijke browser vertrouwen en automatisch herstellen',
   'gate.personal.rememberHelp': 'Kies dit alleen in een browser die jij alleen gebruikt.',
   'gate.temporary.button': 'Een tijdelijke sessie starten',
-  'gate.temporary.sub': 'Er wordt niets uit deze browser gelezen en niets in opgeslagen. Exporteer een bestand om je werk te bewaren.',
+  'gate.temporary.sub': 'Opgeslagen werk, auteursgegevens en instellingen worden niet gelezen en niet opgeslagen. Exporteer een bestand om je werk te bewaren.',
   'gate.temporary.remember': 'Altijd een tijdelijke sessie starten',
   'gate.recommended': 'Aanbevolen',
   'gate.later': 'Je kunt dit later wijzigen in Instellingen, onder Opslag en privacy.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Tijdelijke sessie',
-  'session.temporary.chipTitle': 'Er wordt niets in deze browser opgeslagen. Exporteer een bestand om je werk te bewaren.',
+  'session.temporary.chipTitle': 'Opgeslagen werk, auteursgegevens en instellingen worden in deze browser niet gelezen en niet opgeslagen. Exporteer een bestand om je werk te bewaren.',
   'session.temporary.menuExport': 'Het diagram als bestand exporteren',
   'session.temporary.menuKeep': 'Toch in deze browser opslaan…',
   'session.temporary.updateTitle': 'Nu bijwerken?',
@@ -432,7 +432,7 @@ const ui = {
   'storage.title': 'Opslag en privacy',
   'storage.mode.label': 'Opslagmodus',
   'storage.mode.personal': 'Persoonlijke browser: werk wordt in deze browser opgeslagen en de volgende keer hersteld.',
-  'storage.mode.temporary': 'Tijdelijke sessie: er wordt niets uit deze browser gelezen en niets in opgeslagen.',
+  'storage.mode.temporary': 'Tijdelijke sessie: opgeslagen werk, auteursgegevens en instellingen worden in deze browser niet gelezen en niet opgeslagen. Hooguit de startkeuze wordt opgeslagen.',
   'storage.statement': 'In een persoonlijke browser bewaart Loop Studio het diagram, de naam en notitie van de auteur, geïmporteerde spreadsheetwaarden, je instellingen en de uitleg die je al hebt gezien, alleen in dit browserprofiel. Er wordt niets geüpload. Dit is geen slot: iedereen die dit browserprofiel opent, kan het zien.',
   'storage.restore.label': 'Automatisch herstellen',
   'storage.restore.on': 'Aan: deze browser wordt vertrouwd en de keuze wordt bij het starten van de app niet gevraagd.',
@@ -464,11 +464,15 @@ const ui = {
   'storage.notSecurity': 'Dit voorkomt alleen onbedoelde blootstelling. Het vergrendelt niets en controleert niet wie je bent.',
   'share.disclosure.temporary': 'In deze tijdelijke sessie wordt het diagram niet in deze browser bewaard; de link bevat het wel volledig.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Voordat de app opent, vraagt die of dit je persoonlijke browser is of een gedeelde computer. Er wordt niets opgeslagens gelezen voordat je antwoordt.',
-  'whatsNew.v0160.temporary': 'Een tijdelijke sessie leest niets uit deze browser en slaat er niets in op. Exporteer een bestand om het werk te bewaren.',
+  'whatsNew.v0160.gate': 'Voordat de app opent, vraagt die of dit je persoonlijke browser is of een gedeelde computer. Tot je antwoordt wordt er niets opgeslagens gelezen, behalve die keuze zelf.',
+  'whatsNew.v0160.temporary': 'Een tijdelijke sessie leest en bewaart in deze browser geen opgeslagen werk, auteursgegevens of instellingen; alleen de startkeuze kan worden opgeslagen. Exporteer een bestand om het werk te bewaren.',
   'whatsNew.v0160.settings': 'Instellingen heeft een onderdeel Opslag en privacy: de opslagmodus, wisselen van sessie, het opgeslagen diagram verwijderen en alles wissen wat de app bewaart.',
   'whatsNew.v0160.share': 'Het dialoogvenster Delen vertelt waar een link kan achterblijven en raadt een bestand aan voor gevoelig werk.',
   'whatsNew.v0160.portable': 'Het draagbare bestand stelt de vraag elke keer en raadt een tijdelijke sessie aan.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Alleen deze startkeuze wordt opgeslagen.',
+  'storage.delete.workFailed': 'Het opgeslagen diagram kon niet worden verwijderd en staat mogelijk nog in deze browser. Probeer het opnieuw, of wis de gegevens van deze site in de instellingen van de browser zelf.',
+  'storage.delete.workKeepsTemporary': 'Je huidige tijdelijke werk blijft open.',
 } as const
 
 export default ui

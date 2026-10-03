@@ -108,6 +108,15 @@ describe('es-ES — the region audit, as a contract', () => {
         'storage.statement',
         'whatsNew.v0160.gate',
         'whatsNew.v0160.settings',
+        // the corrected temporary-session copy (`ajustes`, `usted`), the share
+        // facts (`aplicación de mensajería`) and the failed-deletion notice
+        'gate.temporary.sub',
+        'session.temporary.chipTitle',
+        'share.disclosure.body',
+        'storage.delete.workFailed',
+        'storage.delete.workKeepsTemporary',
+        'storage.mode.temporary',
+        'whatsNew.v0160.temporary',
         // the formatter emits a NO-BREAK SPACE before the percent sign
         'playbar.mc.progress',
         'runbar.mc.cancel',

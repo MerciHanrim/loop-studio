@@ -134,7 +134,7 @@ const ui = {
   'share.button': 'Chia sẻ',
   'share.button.title': 'Sao chép một liên kết mở sơ đồ này',
   'share.disclosure.title': 'Tạo liên kết chia sẻ?',
-  'share.disclosure.body': 'Liên kết chứa toàn bộ sơ đồ này, kể cả mọi nhãn — bất kỳ ai có nó đều mở và sửa được sơ đồ. Nó không được tải lên máy chủ nào, nhưng nó nằm ngay trong liên kết, nên sẽ lưu lại trong lịch sử trình duyệt và ai nhận được cũng thấy.',
+  'share.disclosure.body': 'Bản thân liên kết chứa toàn bộ tài liệu, gồm mọi nhãn, mọi giá trị bảng tính đã nhập và mọi khung đã lưu: bất kỳ ai có nó đều có thể mở và chỉnh sửa sơ đồ. Không có gì được tải lên máy chủ, nhưng liên kết có thể còn lại trong lịch sử trình duyệt, trong ứng dụng nhắn tin hoặc trên bảng tạm. Với công việc nhạy cảm, hãy xuất tệp thay vì chia sẻ liên kết.',
   'share.disclosure.confirm': 'Tạo liên kết',
   'share.tooLarge': 'Sơ đồ này quá lớn để tạo liên kết chia sẻ ({size}; giới hạn là {cap}). Hãy dùng Tệp → Graph JSON và chia sẻ tệp đó.',
   'share.replacePrompt': 'Mở sơ đồ được chia sẻ? Sơ đồ hiện tại sẽ bị thay thế. Hãy xuất nó ra trước nếu muốn giữ lại.',
@@ -421,13 +421,13 @@ const ui = {
   'gate.personal.remember': 'Tin cậy trình duyệt cá nhân này và tự động khôi phục',
   'gate.personal.rememberHelp': 'Chỉ chọn mục này trong trình duyệt mà một mình bạn sử dụng.',
   'gate.temporary.button': 'Bắt đầu phiên tạm thời',
-  'gate.temporary.sub': 'Không đọc gì từ trình duyệt này và không lưu gì vào đó. Hãy xuất tệp để giữ lại công việc của bạn.',
+  'gate.temporary.sub': 'Công việc đã lưu, thông tin tác giả và cài đặt không được đọc cũng không được lưu. Hãy xuất tệp để giữ lại công việc của bạn.',
   'gate.temporary.remember': 'Luôn bắt đầu phiên tạm thời',
   'gate.recommended': 'Nên chọn',
   'gate.later': 'Bạn có thể thay đổi điều này sau trong Cài đặt, mục Lưu trữ và quyền riêng tư.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Phiên tạm thời',
-  'session.temporary.chipTitle': 'Không có gì được lưu trong trình duyệt này. Hãy xuất tệp để giữ lại công việc của bạn.',
+  'session.temporary.chipTitle': 'Công việc đã lưu, thông tin tác giả và cài đặt không được đọc cũng không được lưu trong trình duyệt này. Hãy xuất tệp để giữ lại công việc của bạn.',
   'session.temporary.menuExport': 'Xuất sơ đồ ra tệp',
   'session.temporary.menuKeep': 'Lưu vào trình duyệt này thay thế…',
   'session.temporary.updateTitle': 'Cập nhật ngay bây giờ?',
@@ -437,7 +437,7 @@ const ui = {
   'storage.title': 'Lưu trữ và quyền riêng tư',
   'storage.mode.label': 'Chế độ lưu trữ',
   'storage.mode.personal': 'Trình duyệt cá nhân: công việc được lưu trong trình duyệt này và khôi phục ở lần sau.',
-  'storage.mode.temporary': 'Phiên tạm thời: không đọc gì từ trình duyệt này và không lưu gì vào đó.',
+  'storage.mode.temporary': 'Phiên tạm thời: công việc đã lưu, thông tin tác giả và cài đặt không được đọc cũng không được lưu trong trình duyệt này. Nhiều nhất chỉ lựa chọn khởi động được lưu.',
   'storage.statement': 'Trong trình duyệt cá nhân, Loop Studio giữ sơ đồ, tên và ghi chú của tác giả, mọi giá trị bảng tính đã nhập, các cài đặt của bạn và những hướng dẫn bạn đã xem, chỉ trong hồ sơ trình duyệt này. Không có gì được tải lên. Đây không phải là khóa: bất kỳ ai mở hồ sơ trình duyệt này đều có thể xem.',
   'storage.restore.label': 'Tự động khôi phục',
   'storage.restore.on': 'Bật: trình duyệt này được tin cậy, và lựa chọn không được hỏi khi ứng dụng khởi động.',
@@ -469,11 +469,15 @@ const ui = {
   'storage.notSecurity': 'Điều này chỉ ngăn việc lộ thông tin do vô ý. Nó không khóa gì cả và không xác minh bạn là ai.',
   'share.disclosure.temporary': 'Trong phiên tạm thời này, sơ đồ không được giữ trong trình duyệt này; nhưng liên kết vẫn mang toàn bộ nội dung của nó.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Trước khi mở, ứng dụng hỏi đây là trình duyệt cá nhân của bạn hay máy tính dùng chung. Không có gì đã lưu được đọc trước khi bạn trả lời.',
-  'whatsNew.v0160.temporary': 'Phiên tạm thời không đọc gì từ trình duyệt này và không lưu gì vào đó. Hãy xuất tệp để giữ lại công việc.',
+  'whatsNew.v0160.gate': 'Trước khi mở, ứng dụng hỏi đây là trình duyệt cá nhân của bạn hay máy tính dùng chung. Cho đến khi bạn trả lời, không có gì đã lưu được đọc, ngoại trừ chính lựa chọn đó.',
+  'whatsNew.v0160.temporary': 'Phiên tạm thời không đọc cũng không lưu công việc đã lưu, thông tin tác giả hay cài đặt trong trình duyệt này; chỉ lựa chọn khởi động có thể được lưu. Hãy xuất tệp để giữ lại công việc.',
   'whatsNew.v0160.settings': 'Cài đặt có mục Lưu trữ và quyền riêng tư: chế độ lưu trữ, chuyển đổi phiên, xóa sơ đồ đã lưu, và đặt lại mọi thứ ứng dụng giữ.',
   'whatsNew.v0160.share': 'Hộp thoại chia sẻ cho biết liên kết có thể còn lưu ở đâu, và khuyên dùng tệp cho công việc nhạy cảm.',
   'whatsNew.v0160.portable': 'Tệp di động hỏi câu này mỗi lần và khuyên dùng phiên tạm thời.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Chỉ lựa chọn khởi động này được lưu.',
+  'storage.delete.workFailed': 'Không thể xóa sơ đồ đã lưu, và nó có thể vẫn còn trong trình duyệt này. Hãy thử lại, hoặc xóa dữ liệu của trang này trong cài đặt của chính trình duyệt.',
+  'storage.delete.workKeepsTemporary': 'Công việc tạm thời hiện tại của bạn vẫn mở.',
 } satisfies Record<UiKey, string>
 
 export default ui

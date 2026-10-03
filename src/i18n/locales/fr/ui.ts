@@ -133,7 +133,7 @@ const ui = {
   'share.button.title': 'Copier un lien qui ouvre ce schéma',
   'share.disclosure.title': 'Créer un lien de partage ?',
   'share.disclosure.body':
-    'Le lien contient l’intégralité de ce schéma, y compris chaque nom — toute personne qui l’a peut ouvrir et modifier le schéma. Il n’est pas envoyé sur un serveur, mais il voyage à l’intérieur du lien : il reste donc dans votre historique de navigation et il est visible par toute personne à qui vous l’envoyez.',
+    'Le lien lui-même contient le document entier, avec chaque étiquette, chaque valeur de feuille de calcul importée et chaque cadre enregistré : quiconque le possède peut ouvrir et modifier le diagramme. Rien n’est envoyé à un serveur, mais le lien peut rester dans l’historique de votre navigateur, dans une messagerie ou dans le presse-papiers. Pour un travail sensible, exportez un fichier au lieu de partager un lien.',
   'share.disclosure.confirm': 'Créer le lien',
   'share.tooLarge':
     'Ce schéma est trop volumineux pour un lien de partage ({size} ; la limite est {cap}). Utilisez « Fichier → Graph JSON » et partagez le fichier à la place.',
@@ -490,13 +490,13 @@ const ui = {
   'gate.personal.remember': 'Faire confiance à ce navigateur personnel et restaurer automatiquement',
   'gate.personal.rememberHelp': 'Ne choisissez ceci que dans un navigateur que vous seul utilisez.',
   'gate.temporary.button': 'Démarrer une session temporaire',
-  'gate.temporary.sub': 'Rien n’est lu dans ce navigateur et rien n’y est enregistré. Exportez un fichier pour conserver votre travail.',
+  'gate.temporary.sub': 'Le travail enregistré, les informations sur l’auteur et les paramètres ne sont ni lus ni enregistrés. Exportez un fichier pour conserver votre travail.',
   'gate.temporary.remember': 'Toujours démarrer une session temporaire',
   'gate.recommended': 'Recommandé',
   'gate.later': 'Vous pourrez changer cela plus tard dans les paramètres, sous Stockage et confidentialité.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Session temporaire',
-  'session.temporary.chipTitle': 'Rien n’est enregistré dans ce navigateur. Exportez un fichier pour conserver votre travail.',
+  'session.temporary.chipTitle': 'Le travail enregistré, les informations sur l’auteur et les paramètres ne sont ni lus ni enregistrés dans ce navigateur. Exportez un fichier pour conserver votre travail.',
   'session.temporary.menuExport': 'Exporter le diagramme dans un fichier',
   'session.temporary.menuKeep': 'Enregistrer dans ce navigateur à la place…',
   'session.temporary.updateTitle': 'Mettre à jour maintenant ?',
@@ -506,7 +506,7 @@ const ui = {
   'storage.title': 'Stockage et confidentialité',
   'storage.mode.label': 'Mode de stockage',
   'storage.mode.personal': 'Navigateur personnel : le travail est enregistré dans ce navigateur et restauré la prochaine fois.',
-  'storage.mode.temporary': 'Session temporaire : rien n’est lu dans ce navigateur et rien n’y est enregistré.',
+  'storage.mode.temporary': 'Session temporaire : le travail enregistré, les informations sur l’auteur et les paramètres ne sont ni lus ni enregistrés dans ce navigateur. Au plus, le choix de démarrage est enregistré.',
   'storage.statement': 'Dans un navigateur personnel, Loop Studio conserve le diagramme, le nom et la note de l’auteur, les valeurs de feuille de calcul importées, vos paramètres et les conseils déjà vus, uniquement dans ce profil de navigateur. Rien n’est envoyé. Ce n’est pas un verrou : toute personne qui ouvre ce profil de navigateur peut le voir.',
   'storage.restore.label': 'Restaurer automatiquement',
   'storage.restore.on': 'Activé : ce navigateur est de confiance, et le choix n’est pas demandé au démarrage de l’application.',
@@ -538,11 +538,15 @@ const ui = {
   'storage.notSecurity': 'Cela n’empêche qu’une exposition accidentelle. Rien n’est verrouillé et votre identité n’est pas vérifiée.',
   'share.disclosure.temporary': 'Dans cette session temporaire, le diagramme n’est pas conservé dans ce navigateur ; le lien le contient tout de même en entier.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Avant de s’ouvrir, l’application demande s’il s’agit de votre navigateur personnel ou d’un ordinateur partagé. Rien d’enregistré n’est lu avant votre réponse.',
-  'whatsNew.v0160.temporary': 'Une session temporaire ne lit rien dans ce navigateur et n’y enregistre rien. Exportez un fichier pour conserver le travail.',
+  'whatsNew.v0160.gate': 'Avant de s’ouvrir, l’application demande s’il s’agit de votre navigateur personnel ou d’un ordinateur partagé. Tant que vous n’avez pas répondu, rien d’enregistré n’est lu, à part ce choix lui-même.',
+  'whatsNew.v0160.temporary': 'Une session temporaire ne lit ni n’enregistre dans ce navigateur le travail enregistré, les informations sur l’auteur ou les paramètres ; seul le choix de démarrage peut être enregistré. Exportez un fichier pour conserver le travail.',
   'whatsNew.v0160.settings': 'Les paramètres ont une zone Stockage et confidentialité : le mode de stockage, le passage d’une session à l’autre, la suppression du diagramme enregistré et la réinitialisation de tout ce que l’application conserve.',
   'whatsNew.v0160.share': 'La boîte de dialogue de partage indique où un lien peut subsister et recommande un fichier pour le travail sensible.',
   'whatsNew.v0160.portable': 'Le fichier portable pose la question à chaque fois et recommande une session temporaire.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Seul ce choix de démarrage est enregistré.',
+  'storage.delete.workFailed': 'Le diagramme enregistré n’a pas pu être supprimé et se trouve peut-être encore dans ce navigateur. Réessayez, ou effacez les données de ce site dans les paramètres du navigateur lui-même.',
+  'storage.delete.workKeepsTemporary': 'Votre travail temporaire actuel reste ouvert.',
 } satisfies Record<UiKey, string>
 
 export default ui

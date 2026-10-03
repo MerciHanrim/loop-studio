@@ -9,7 +9,7 @@ cash flows, and other resource-flow systems; it's an independent, client-only
 implementation — nothing is uploaded, the whole app runs in your browser, and
 a graph is a plain JSON file you own. Work is kept in your browser profile
 only when you say it is your own browser; on a shared computer a temporary
-session reads nothing stored and stores nothing
+session neither reads nor saves stored work, author information or settings
 ([docs/storage-sessions.md](docs/storage-sessions.md)).
 
 **Run it now: <https://cozy-loop-studio.pages.dev>** — available in

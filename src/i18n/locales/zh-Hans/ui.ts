@@ -125,7 +125,7 @@ const ui = {
   'share.button': '分享',
   'share.button.title': '复制一个能打开这张图的链接',
   'share.disclosure.title': '创建分享链接？',
-  'share.disclosure.body': '链接里包含整张图，连同每一个名称——任何拿到它的人都能打开并编辑。它不会上传到服务器，但会随链接一起传播，因此会留在你的浏览器历史里，也能被你发送的对象看到。',
+  'share.disclosure.body': '链接本身包含整个文档：每个标签、每个导入的电子表格数值和每个已保存的框。任何拿到链接的人都能打开并编辑图表。不会上传任何内容到服务器，但链接可能留在浏览器历史记录、即时通讯工具或剪贴板中。涉及敏感工作时，请导出文件，而不是分享链接。',
   'share.disclosure.confirm': '创建链接',
   'share.tooLarge': '这张图太大，放不进分享链接（{size}，上限 {cap}）。请改用“文件 → Graph JSON”并分享文件。',
   'share.replacePrompt': '打开分享的图？当前的图将被替换。想保留就先导出。',
@@ -413,13 +413,13 @@ const ui = {
   'gate.personal.remember': '信任这个个人浏览器并自动恢复',
   'gate.personal.rememberHelp': '只在只有你一个人使用的浏览器中选择此项。',
   'gate.temporary.button': '开始临时会话',
-  'gate.temporary.sub': '不从这个浏览器读取任何内容，也不在其中保存任何内容。要保留工作，请导出为文件。',
+  'gate.temporary.sub': '不读取也不保存已保存的工作、作者信息和设置。要保留工作，请导出为文件。',
   'gate.temporary.remember': '总是开始临时会话',
   'gate.recommended': '推荐',
   'gate.later': '以后可以在“设置”的“存储与隐私”中更改。',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': '临时会话',
-  'session.temporary.chipTitle': '这个浏览器里不会保存任何内容。要保留工作，请导出为文件。',
+  'session.temporary.chipTitle': '在这个浏览器中不读取也不保存已保存的工作、作者信息和设置。要保留工作，请导出为文件。',
   'session.temporary.menuExport': '将图表导出为文件',
   'session.temporary.menuKeep': '改为保存到这个浏览器…',
   'session.temporary.updateTitle': '现在更新吗？',
@@ -429,7 +429,7 @@ const ui = {
   'storage.title': '存储与隐私',
   'storage.mode.label': '存储模式',
   'storage.mode.personal': '个人浏览器：工作保存在这个浏览器里，下次恢复。',
-  'storage.mode.temporary': '临时会话：不从这个浏览器读取任何内容，也不在其中保存任何内容。',
+  'storage.mode.temporary': '临时会话：在这个浏览器中不读取也不保存已保存的工作、作者信息和设置。最多只保存启动选择。',
   'storage.statement': '在个人浏览器中，Loop Studio 只把图表、作者姓名和备注、导入的电子表格数值、你的设置以及已看过的指引保存在这个浏览器配置文件里。不会上传任何内容。这不是加锁：任何打开这个浏览器配置文件的人都能看到。',
   'storage.restore.label': '自动恢复',
   'storage.restore.on': '开启：信任这个浏览器，应用启动时不再询问。',
@@ -461,11 +461,15 @@ const ui = {
   'storage.notSecurity': '这只能防止无意的泄露。它不会锁定任何内容，也不会验证你的身份。',
   'share.disclosure.temporary': '在这个临时会话中，图表不会留在这个浏览器里；但链接仍然包含它的全部内容。',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': '应用打开前会询问这是你的个人浏览器还是共用电脑。在你回答之前，不会读取任何已保存的内容。',
-  'whatsNew.v0160.temporary': '临时会话不从这个浏览器读取任何内容，也不在其中保存任何内容。要保留工作，请导出为文件。',
+  'whatsNew.v0160.gate': '应用打开前会询问这是你的个人浏览器还是共用电脑。在你回答之前，除了这个选择本身，不会读取任何已保存的内容。',
+  'whatsNew.v0160.temporary': '临时会话在这个浏览器中不读取也不保存已保存的工作、作者信息和设置；只有启动选择可能被保存。要保留工作，请导出为文件。',
   'whatsNew.v0160.settings': '“设置”新增了“存储与隐私”区域：存储模式、切换会话、删除保存的图表，以及重置应用保存的一切。',
   'whatsNew.v0160.share': '分享对话框会说明链接可能残留在哪里，并建议敏感工作使用文件。',
   'whatsNew.v0160.portable': '便携版文件每次都会询问，并推荐使用临时会话。',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': '只会保存这一个启动选择。',
+  'storage.delete.workFailed': '无法删除保存的图表，它可能仍在这个浏览器中。请重试，或在浏览器自身的设置中清除此站点的数据。',
+  'storage.delete.workKeepsTemporary': '你当前的临时工作保持打开。',
 } satisfies Record<UiKey, string>
 
 export default ui

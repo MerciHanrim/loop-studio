@@ -81,7 +81,9 @@ export const STORAGE_MODE_KEY = 'loop-studio:storage-mode' satisfies StorageKey
 /** the document record: the one key "Delete work data" removes */
 export const WORK_KEY = 'loop-studio:graph:v1' satisfies StorageKey
 
-/** `personal`: this browser is trusted, stored work is restored; `temporary`: nothing is read or stored */
+/** `personal`: this browser is trusted, stored work is restored; `temporary`: no
+ *  stored work, author information or preference is read or stored - the mode
+ *  key itself is the one exception, written only when the person asked */
 export type StorageMode = 'personal' | 'temporary'
 export const isStorageMode = (v: unknown): v is StorageMode => v === 'personal' || v === 'temporary'
 

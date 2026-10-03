@@ -128,7 +128,7 @@ const ui = {
   'share.button.title': 'Bu diyagramı açan bir bağlantı kopyala',
   'share.disclosure.title': 'Paylaşım bağlantısı oluşturulsun mu?',
   'share.disclosure.body':
-    'Bağlantı, her etiket dahil bu diyagramın tamamını içerir — bağlantıya sahip olan herkes diyagramı açabilir ve değiştirebilir. Sunucuya yüklenmez, ama bağlantının içinde taşınır; bu yüzden tarayıcı geçmişinizde kalır ve gönderdiğiniz herkes görebilir.',
+    'Bağlantının kendisi tüm belgeyi içerir: her etiket, içe aktarılan her tablo değeri ve kaydedilen her çerçeve. Bağlantıya sahip olan herkes diyagramı açıp düzenleyebilir. Sunucuya hiçbir şey yüklenmez, ancak bağlantı tarayıcı geçmişinizde, bir mesajlaşma uygulamasında veya panoda kalabilir. Hassas çalışmalar için bağlantı paylaşmak yerine bir dosya dışa aktarın.',
   'share.disclosure.confirm': 'Bağlantı oluştur',
   'share.tooLarge':
     'Bu diyagram paylaşım bağlantısı için fazla büyük ({size}; sınır {cap}). Bunun yerine Dosya → Graph JSON kullanıp dosyayı paylaşın.',
@@ -475,13 +475,13 @@ const ui = {
   'gate.personal.remember': 'Bu kişisel tarayıcıya güven ve otomatik olarak geri yükle',
   'gate.personal.rememberHelp': 'Bunu yalnızca sadece sizin kullandığınız bir tarayıcıda seçin.',
   'gate.temporary.button': 'Geçici oturum başlat',
-  'gate.temporary.sub': 'Bu tarayıcıdan hiçbir şey okunmaz ve içine hiçbir şey kaydedilmez. Çalışmanızı saklamak için bir dosya dışa aktarın.',
+  'gate.temporary.sub': 'Kayıtlı çalışma, yazar bilgileri ve ayarlar ne okunur ne de kaydedilir. Çalışmanızı saklamak için bir dosya dışa aktarın.',
   'gate.temporary.remember': 'Her zaman geçici oturum başlat',
   'gate.recommended': 'Önerilen',
   'gate.later': 'Bunu daha sonra Ayarlar’daki Depolama ve gizlilik bölümünden değiştirebilirsiniz.',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': 'Geçici oturum',
-  'session.temporary.chipTitle': 'Bu tarayıcıya hiçbir şey kaydedilmez. Çalışmanızı saklamak için bir dosya dışa aktarın.',
+  'session.temporary.chipTitle': 'Kayıtlı çalışma, yazar bilgileri ve ayarlar bu tarayıcıda ne okunur ne de kaydedilir. Çalışmanızı saklamak için bir dosya dışa aktarın.',
   'session.temporary.menuExport': 'Diyagramı dosya olarak dışa aktar',
   'session.temporary.menuKeep': 'Bunun yerine bu tarayıcıya kaydet…',
   'session.temporary.updateTitle': 'Şimdi güncellensin mi?',
@@ -491,7 +491,7 @@ const ui = {
   'storage.title': 'Depolama ve gizlilik',
   'storage.mode.label': 'Depolama modu',
   'storage.mode.personal': 'Kişisel tarayıcı: çalışma bu tarayıcıya kaydedilir ve bir sonraki sefer geri yüklenir.',
-  'storage.mode.temporary': 'Geçici oturum: bu tarayıcıdan hiçbir şey okunmaz ve içine hiçbir şey kaydedilmez.',
+  'storage.mode.temporary': 'Geçici oturum: kayıtlı çalışma, yazar bilgileri ve ayarlar bu tarayıcıda ne okunur ne de kaydedilir. En fazla başlangıç seçimi kaydedilir.',
   'storage.statement': 'Kişisel bir tarayıcıda Loop Studio diyagramı, yazar adı ve notunu, içe aktarılan tablo değerlerini, ayarlarınızı ve gördüğünüz yönlendirmeleri yalnızca bu tarayıcı profilinde tutar. Hiçbir şey yüklenmez. Bu bir kilit değildir: bu tarayıcı profilini açan herkes bunları görebilir.',
   'storage.restore.label': 'Otomatik geri yükle',
   'storage.restore.on': 'Açık: bu tarayıcıya güveniliyor ve uygulama başlarken seçim sorulmuyor.',
@@ -523,11 +523,15 @@ const ui = {
   'storage.notSecurity': 'Bu yalnızca kazara açığa çıkmayı önler. Hiçbir şeyi kilitlemez ve kim olduğunuzu doğrulamaz.',
   'share.disclosure.temporary': 'Bu geçici oturumda diyagram bu tarayıcıda tutulmaz; bağlantı yine de tamamını taşır.',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': 'Uygulama açılmadan önce bunun kişisel tarayıcınız mı yoksa ortak bir bilgisayar mı olduğunu sorar. Siz yanıtlamadan kayıtlı hiçbir şey okunmaz.',
-  'whatsNew.v0160.temporary': 'Geçici oturum bu tarayıcıdan hiçbir şey okumaz ve içine hiçbir şey kaydetmez. Çalışmayı saklamak için bir dosya dışa aktarın.',
+  'whatsNew.v0160.gate': 'Uygulama açılmadan önce bunun kişisel tarayıcınız mı yoksa ortak bir bilgisayar mı olduğunu sorar. Siz yanıtlayana kadar, bu seçimin kendisi dışında kayıtlı hiçbir şey okunmaz.',
+  'whatsNew.v0160.temporary': 'Geçici oturum bu tarayıcıda kayıtlı çalışmayı, yazar bilgilerini veya ayarları ne okur ne de kaydeder; yalnızca başlangıç seçimi kaydedilebilir. Çalışmayı saklamak için bir dosya dışa aktarın.',
   'whatsNew.v0160.settings': 'Ayarlar’da bir Depolama ve gizlilik bölümü var: depolama modu, oturumlar arasında geçiş, kayıtlı diyagramı silme ve uygulamanın tuttuğu her şeyi sıfırlama.',
   'whatsNew.v0160.share': 'Paylaşım iletişim kutusu bir bağlantının nerede kalabileceğini söyler ve hassas çalışmalar için dosya önerir.',
   'whatsNew.v0160.portable': 'Taşınabilir dosya soruyu her seferinde sorar ve geçici oturumu önerir.',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': 'Yalnızca bu başlangıç seçimi kaydedilir.',
+  'storage.delete.workFailed': 'Kayıtlı diyagram kaldırılamadı ve hâlâ bu tarayıcıda olabilir. Yeniden deneyin veya bu sitenin verilerini tarayıcının kendi ayarlarından temizleyin.',
+  'storage.delete.workKeepsTemporary': 'Geçerli geçici çalışmanız açık kalır.',
 } as const
 
 export type UiKey = keyof typeof ui

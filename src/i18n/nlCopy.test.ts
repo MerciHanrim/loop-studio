@@ -176,7 +176,7 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'focus', 'filters', 'type', 'route', 'diagram', 'object', 'offset', 'bytes',
     'repository', 'index', 'effect', 'conflict', 'contact', 'parallel', 'plus', 'per',
     'open', 'water', 'meter', 'moment', 'rest', 'via', 'violet', 'auto', 'zone', 'zones',
-    'zoom', 'activator', 'later',
+    'zoom', 'activator', 'later', 'site',
   ]],
   // issue #297 - the storage gate and the Storage and privacy area: `computer`
   // and `privacy` are ordinary Dutch, Chrome and HTML are names
@@ -253,15 +253,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(941)
+    expect(KEYS).toHaveLength(944)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 941, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1163)
+    expect(per).toEqual({ catalog: 944, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1166)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

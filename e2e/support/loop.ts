@@ -36,7 +36,7 @@ export const test = base.extend<{ errors: string[]; _tourSeed: void; whatsNewSee
   // (or the app's own write followed by a reload) is not overwritten.
   _tourSeed: [
     async ({ context, whatsNewSeen, storageMode }, use) => {
-      if (whatsNewSeen) await seedWhatsNewSeen(context, storageMode)
+      if (whatsNewSeen) await seedWhatsNewSeen(context)
       await context.addInitScript((mode) => {
         try {
           if (mode !== 'gate' && !localStorage.getItem('loop-studio:storage-mode'))
@@ -73,7 +73,7 @@ export { expect }
  *  the same profile the shared fixture gives every page: a remembered personal
  *  browser (no storage gate), the tour dismissed, the newest release seen. */
 export async function seedPersonalBrowser(target: Page | BrowserContext, mode: StorageModeSeed = 'personal'): Promise<void> {
-  await seedWhatsNewSeen(target, mode)
+  await seedWhatsNewSeen(target)
   await target.addInitScript((m) => {
     try {
       if (m !== 'gate' && !localStorage.getItem('loop-studio:storage-mode')) localStorage.setItem('loop-studio:storage-mode', m)

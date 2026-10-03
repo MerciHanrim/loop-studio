@@ -183,27 +183,92 @@ test.describe('switching sessions', () => {
 })
 
 test.describe('the two deletions', () => {
-  test('Delete work data removes the document record; the author record and the preferences stay; the canvas is emptied', async ({ page }) => {
+  /** the stored document's raw text, or null */
+  const storedWorkRaw = async (page: Page): Promise<string | null> => (await stored(page)).find(([k]) => k === WORK)?.[1] ?? null
+  /** give the one node a label that must not survive the deletion anywhere */
+  const labelTheWork = async (page: Page) => {
+    await page.evaluate(() => {
+      const g = (window as unknown as { __loop: { graph: { getState: () => { nodes: { id: string }[]; updateNodeData: (id: string, d: object) => void } } } }).__loop.graph.getState()
+      g.updateNodeData(g.nodes[0]!.id, { label: 'SensitiveLabel' })
+    })
+    await page.waitForTimeout(600)
+    expect(await storedWorkRaw(page)).toContain('SensitiveLabel')
+  }
+
+  test('personal: Delete work data removes the document record; the author record and the preferences stay; the canvas is emptied and what is autosaved afterwards holds none of the old diagram', async ({ page }) => {
     await openWithOneNode(page)
+    await labelTheWork(page)
     // the author record and a preference, to prove they stay
     await page.evaluate(() => {
       localStorage.setItem('loop-studio:author', JSON.stringify({ name: 'Keep Me' }))
       localStorage.setItem('loop-studio:canvas-locked', '1')
     })
-    expect(await storedWorkNodes(page)).toBe(1)
     await openStorageArea(page)
-    await confirmAction(page, 'delete-work')
+    await expect(dialog(page).locator('[data-storage-action="delete-work"]')).toBeVisible()
+    await dialog(page).locator('[data-storage-action="delete-work"]').click()
+    await expect(dialog(page)).toContainText('The open diagram is emptied too')
+    await dialog(page).locator('[data-storage-confirm]').click()
     await expect(dialog(page)).toHaveAttribute('data-storage-step', 'menu')
-    await expect(dialog(page).locator('[data-storage-notice]')).toBeVisible()
+    await expect(dialog(page).locator('[data-storage-notice="done"]')).toBeVisible()
+    await expect(dialog(page).locator('[data-storage-notice="failed"]')).toHaveCount(0)
     expect(await nodeCount(page)).toBe(0)
     await page.waitForTimeout(600) // the autosave of the emptied canvas
     const after = Object.fromEntries((await stored(page)) as [string, string][])
     expect(after['loop-studio:author']).toBe(JSON.stringify({ name: 'Keep Me' }))
     expect(after['loop-studio:canvas-locked']).toBe('1')
     expect(after[MODE]).toBe('personal')
-    // the record is gone, or holds the emptied canvas - never the old diagram
-    const work = await storedWorkNodes(page)
-    expect(work === null || work === 0).toBe(true)
+    // the record is gone, or it is the emptied canvas: in neither case does any
+    // of the old diagram survive - the key may come back, the data may not
+    const raw = await storedWorkRaw(page)
+    expect(raw === null || !raw.includes('SensitiveLabel')).toBe(true)
+    if (raw) expect(JSON.parse(raw).nodes).toEqual([])
+  })
+
+  test("temporary: Delete work data removes the browser's stored document and keeps the temporary work open", async ({ page }) => {
+    await openWithOneNode(page)
+    await labelTheWork(page)
+    await openStorageArea(page)
+    await confirmAction(page, 'copy') // the labelled diagram comes along; the browser keeps its copy
+    expect(await storedWorkRaw(page)).toContain('SensitiveLabel')
+    await openStorageArea(page)
+    await dialog(page).locator('[data-storage-action="delete-work"]').click()
+    await expect(dialog(page)).toContainText('Your current temporary work stays open')
+    await dialog(page).locator('[data-storage-confirm]').click()
+    await expect(dialog(page).locator('[data-storage-notice="done"]')).toBeVisible()
+    expect(await storedWorkRaw(page)).toBeNull()
+    expect(await nodeCount(page)).toBe(1) // the temporary work, untouched
+    expect(await mode(page)).toBe('temporary')
+    await page.waitForTimeout(600)
+    expect(await storedWorkRaw(page)).toBeNull() // and the temporary autosave does not bring it back
+  })
+
+  test('a deletion the browser refuses is reported as failed, on its step, and nothing is called done', async ({ page }) => {
+    // the mutation: every remove of the document record throws, as a locked-down
+    // or broken storage would; reads and writes still work
+    await page.addInitScript((key) => {
+      const orig = Storage.prototype.removeItem
+      Storage.prototype.removeItem = function (this: Storage, k: string) {
+        if (k === key) throw new Error('removal refused by the test')
+        return orig.call(this, k)
+      }
+    }, WORK)
+    await openWithOneNode(page)
+    await labelTheWork(page)
+    await openStorageArea(page)
+    await dialog(page).locator('[data-storage-action="delete-work"]').click()
+    await dialog(page).locator('[data-storage-confirm]').click()
+    // the step stays, says it failed and that the record may still be there
+    await expect(dialog(page)).toHaveAttribute('data-storage-step', 'deleteWork')
+    await expect(dialog(page).locator('[data-storage-notice="failed"]')).toBeVisible()
+    await expect(dialog(page).locator('[data-storage-notice="failed"]')).toContainText('could not be removed')
+    await expect(dialog(page).locator('[data-storage-notice="failed"]')).toContainText('may still be in this browser')
+    await expect(dialog(page).locator('[data-storage-notice="done"]')).toHaveCount(0)
+    expect(await storedWorkRaw(page)).toContain('SensitiveLabel')
+    expect(await nodeCount(page)).toBe(1)
+    // Cancel goes back to the area without a success notice
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog(page)).toHaveAttribute('data-storage-step', 'menu')
+    await expect(dialog(page).locator('[data-storage-notice]')).toHaveCount(0)
   })
 })
 
@@ -215,6 +280,10 @@ test.describe('Reset all Loop Studio data', () => {
   test('removes every key, and the app restarts into the gate', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('.gate')).toBeVisible()
+    // no helper answered the gate on the side: the fixture still seeded the tour
+    // and the release-note state (`whatsNewSeen`), and neither carries the mode key
+    expect(await page.evaluate((k) => localStorage.getItem(k), MODE)).toBeNull()
+    expect(await storedKeys(page)).toEqual(['loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
     await page.locator('.gate [data-gate-choice="personal"] input[type="checkbox"]').check()
     await page.locator('.gate [data-gate-choice="personal"] button').click()
     await expect(page.locator('.toolbar')).toBeVisible()
@@ -238,7 +307,7 @@ test.describe('the share dialog', () => {
     await openApp(page)
     await page.locator('.toolbar__actions button.btn', { hasText: /^Share$/ }).click()
     const body = page.locator('.mcdlg--confirm .mcdlg__note')
-    await expect(body).toContainText('contains this entire diagram')
+    await expect(body).toContainText('contains the entire document, including every label, imported spreadsheet value, and saved frame')
     await expect(body).toContainText('Nothing is uploaded')
     await expect(body).toContainText('browser history, in a messenger, or on the clipboard')
     await expect(body).toContainText('export a file instead of sharing a link')

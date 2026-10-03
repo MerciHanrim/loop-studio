@@ -128,7 +128,7 @@ const ui = {
   'share.button.title': '複製一個可以開啟這張圖的連結',
   'share.disclosure.title': '要建立分享連結嗎？',
   'share.disclosure.body':
-    '連結裡包含整張圖，連同每一個名稱——任何拿到它的人都能開啟並編輯這張圖。它不會上傳到伺服器，但會隨連結一起傳播，因此會留在你的瀏覽紀錄裡，也會被你傳送的對象看到。',
+    '連結本身包含整個文件：每個標籤、每個匯入的試算表數值和每個已保存的框。任何拿到連結的人都能開啟並編輯圖表。不會上傳任何內容到伺服器，但連結可能留在瀏覽器歷史記錄、即時通訊工具或剪貼簿中。涉及敏感工作時，請匯出檔案，而不是分享連結。',
   'share.disclosure.confirm': '建立連結',
   'share.tooLarge':
     '這張圖太大，放不進分享連結（{size}，上限是 {cap}）。請改用「檔案 → Graph JSON」並分享檔案。',
@@ -439,13 +439,13 @@ const ui = {
   'gate.personal.remember': '信任這個個人瀏覽器並自動還原',
   'gate.personal.rememberHelp': '只在只有你一個人使用的瀏覽器中選擇此項。',
   'gate.temporary.button': '開始臨時工作階段',
-  'gate.temporary.sub': '不從這個瀏覽器讀取任何內容，也不在其中保存任何內容。要保留工作，請匯出為檔案。',
+  'gate.temporary.sub': '不讀取也不保存已保存的工作、作者資訊和設定。要保留工作，請匯出為檔案。',
   'gate.temporary.remember': '總是開始臨時工作階段',
   'gate.recommended': '建議',
   'gate.later': '之後可以在「設定」的「儲存與隱私」中變更。',
   // issue #297 - the temporary-session chip, the Storage and privacy area, the two deletions, the session switches
   'session.temporary.chip': '臨時工作階段',
-  'session.temporary.chipTitle': '這個瀏覽器裡不會保存任何內容。要保留工作，請匯出為檔案。',
+  'session.temporary.chipTitle': '在這個瀏覽器中不讀取也不保存已保存的工作、作者資訊和設定。要保留工作，請匯出為檔案。',
   'session.temporary.menuExport': '將圖表匯出為檔案',
   'session.temporary.menuKeep': '改為保存到這個瀏覽器…',
   'session.temporary.updateTitle': '現在更新嗎？',
@@ -455,7 +455,7 @@ const ui = {
   'storage.title': '儲存與隱私',
   'storage.mode.label': '儲存模式',
   'storage.mode.personal': '個人瀏覽器：工作保存在這個瀏覽器裡，下次還原。',
-  'storage.mode.temporary': '臨時工作階段：不從這個瀏覽器讀取任何內容，也不在其中保存任何內容。',
+  'storage.mode.temporary': '臨時工作階段：在這個瀏覽器中不讀取也不保存已保存的工作、作者資訊和設定。最多只保存啟動選擇。',
   'storage.statement': '在個人瀏覽器中，Loop Studio 只把圖表、作者姓名和備註、匯入的試算表數值、你的設定以及已看過的指引保存在這個瀏覽器設定檔裡。不會上傳任何內容。這不是上鎖：任何開啟這個瀏覽器設定檔的人都能看到。',
   'storage.restore.label': '自動還原',
   'storage.restore.on': '開啟：信任這個瀏覽器，應用程式啟動時不再詢問。',
@@ -487,11 +487,15 @@ const ui = {
   'storage.notSecurity': '這只能防止無意的洩露。它不會鎖定任何內容，也不會驗證你的身分。',
   'share.disclosure.temporary': '在這個臨時工作階段中，圖表不會留在這個瀏覽器裡；但連結仍然包含它的全部內容。',
   // issue #297 - the 0.16.0 release notes: the storage gate and temporary sessions
-  'whatsNew.v0160.gate': '應用程式開啟前會詢問這是你的個人瀏覽器還是共用電腦。在你回答之前，不會讀取任何已保存的內容。',
-  'whatsNew.v0160.temporary': '臨時工作階段不從這個瀏覽器讀取任何內容，也不在其中保存任何內容。要保留工作，請匯出為檔案。',
+  'whatsNew.v0160.gate': '應用程式開啟前會詢問這是你的個人瀏覽器還是共用電腦。在你回答之前，除了這個選擇本身，不會讀取任何已保存的內容。',
+  'whatsNew.v0160.temporary': '臨時工作階段在這個瀏覽器中不讀取也不保存已保存的工作、作者資訊和設定；只有啟動選擇可能被保存。要保留工作，請匯出為檔案。',
   'whatsNew.v0160.settings': '「設定」新增了「儲存與隱私」區域：儲存模式、切換工作階段、刪除保存的圖表，以及重設應用程式保存的一切。',
   'whatsNew.v0160.share': '分享對話方塊會說明連結可能殘留在哪裡，並建議敏感工作使用檔案。',
   'whatsNew.v0160.portable': '可攜式檔案每次都會詢問，並建議使用臨時工作階段。',
+  // issue #297 - the start-up choice as the one stored thing, and a deletion that failed
+  'gate.temporary.rememberHelp': '只會保存這一個啟動選擇。',
+  'storage.delete.workFailed': '無法刪除保存的圖表，它可能仍在這個瀏覽器中。請重試，或在瀏覽器自身的設定中清除此網站的資料。',
+  'storage.delete.workKeepsTemporary': '你目前的臨時工作保持開啟。',
 } satisfies Record<UiKey, string>
 
 export default ui

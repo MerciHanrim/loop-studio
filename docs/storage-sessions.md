@@ -27,7 +27,7 @@ Before anything stored is read, the app asks: personal browser, or temporary ses
 | Language | the stored one, else the browser's | the browser's |
 | Theme | the stored one, else the system's | the system's |
 
-A temporary session never relies on clearing data when the browser closes. A crash or a forced close skips that step. It simply never writes. It warns before a reload or a close would lose the work where the browser fires `beforeunload` at all (iOS Safari does not), and it offers the export in three places: the `Temporary session` chip in the toolbar (and the Storage row of the More sheet on a phone), every confirmation step of the Storage and privacy area, and the update bar of the installed app, which asks before a temporary session with work is restarted.
+A temporary session never relies on clearing data when the browser closes. A crash or a forced close skips that step. It writes no work, no author information and no preference; the one thing it may store is the start-up choice, when the person ticked "Always start a temporary session". It warns before a reload or a close would lose the work where the browser fires `beforeunload` at all (iOS Safari does not), and it offers the export in three places: the `Temporary session` chip in the toolbar (and the Storage row of the More sheet on a phone), every confirmation step of the Storage and privacy area, and the update bar of the installed app, which asks before a temporary session with work is restarted.
 
 ## The port and its session
 
@@ -75,7 +75,9 @@ A share link always carries the whole document and always names the public addre
 | The port's four states, the mode key, reset | `src/storage/storagePort.test.ts` |
 | Switches, the two deletions, the loss warning | `src/store/sessionActions.test.ts`, `e2e/storage-sessions.spec.ts` |
 | The area, the chip, the share dialog's facts, the phone's row | `e2e/storage-sessions.spec.ts` |
-| The portable file: gate every time, recommendation, no boxes, no theme before the gate, a temporary session stores nothing | `e2e/portable-file.spec.ts` |
+| The portable file: gate every time, recommendation, no boxes, no theme before the gate, a temporary session leaves the storage byte for byte as it was | `e2e/portable-file.spec.ts` |
+| Before the gate, the ONLY storage traffic is the mode key: two reads (boot script, port), no other key read, nothing written | `e2e/storage-port-runtime.spec.ts` |
+| A deletion that fails is reported as failed, on its step, never as done | `src/store/sessionActions.test.ts`, `e2e/storage-sessions.spec.ts` |
 | The installed app's update bar asks a temporary session with work | `src/components/PwaUpdateBar.tsx` (the confirm), `e2e/pwa.spec.ts` for the bar itself |
 
 ## Limits, stated
