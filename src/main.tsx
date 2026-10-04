@@ -52,9 +52,12 @@ if (remembered !== null) {
   storageSession.use(remembered)
   void start()
 } else {
-  // a share link in the address is told to the gate: a temporary session keeps
-  // the shared document out of this browser's storage
-  const shareLinkWaiting = typeof location !== 'undefined' && classifyFragment(location.hash).kind === 'share'
+  // a share link in the address - plain (`g1`) or protected (`p1`) - is told to
+  // the gate: a temporary session keeps the shared document out of this
+  // browser's storage. The fragment itself is only classified here; it is read
+  // and tidied by the app, after the gate (issue #300).
+  const waiting = typeof location !== 'undefined' ? classifyFragment(location.hash).kind : 'foreign'
+  const shareLinkWaiting = waiting === 'share' || waiting === 'protected'
   void initI18n().then(() => {
     const host = document.getElementById('root')!
     const root = createRoot(host)

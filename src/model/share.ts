@@ -20,6 +20,11 @@
 
 /** fragment key: `g` = graph, `1` = payload format (SS U1.2 / U11) */
 export const SHARE_PREFIX = 'g1='
+/** fragment key of a PROTECTED link: `p` = protected, `1` = payload format
+ *  (SEMANTICS-P.md, loop-share-protected/1). The sealed transport is
+ *  `shareProtected.ts`; the key lives here because the fragment grammar has one
+ *  classifier (`classifyFragment`), which the boot module also uses. */
+export const PROTECTED_SHARE_PREFIX = 'p1='
 /** hard cap on the base64url payload byte length AFTER `#g1=` (SS U3.1 / U11) */
 export const SHARE_MAX_BYTES = 8 * 1024
 /** incremental cap on the inflated bytes; abort before JSON.parse (SS U3.2 / U11) */
@@ -662,11 +667,25 @@ export async function decodeShareText(payload: string): Promise<string> {
  *
  * `unsupported` and `malformed` are Loop Studio's to clean up (warn + strip);
  * `foreign` is left untouched.
+ *
+ * The protected grammar (SEMANTICS-P.md SS P4) sits beside it:
+ *
+ *  - `protected`             - `p1=<payload>` : a protected link (payload may be '')
+ *  - `protected-unsupported` - `p<n>=...`, n != 1 : a protected link from a newer
+ *                              version. Its fragment is KEPT (unlike `g<n>=`), so
+ *                              the same address opens after the app updates
+ *  - `protected-malformed`   - starts `p1` but is not `p1=...` : a broken protected link
+ *
+ * A build that predates `p1` classifies all three as `foreign` and leaves them
+ * in the address bar; that is what lets a protected link survive an update.
  */
 export type FragmentKind =
   | { kind: 'share'; payload: string }
   | { kind: 'unsupported' }
   | { kind: 'malformed' }
+  | { kind: 'protected'; payload: string }
+  | { kind: 'protected-unsupported' }
+  | { kind: 'protected-malformed' }
   | { kind: 'foreign' }
 
 export function classifyFragment(hash: string): FragmentKind {
@@ -674,6 +693,9 @@ export function classifyFragment(hash: string): FragmentKind {
   if (h.startsWith(SHARE_PREFIX)) return { kind: 'share', payload: h.slice(SHARE_PREFIX.length) }
   if (/^g\d+=/.test(h)) return { kind: 'unsupported' } // g2=, g10=, ... - a real versioned prefix
   if (/^g1(?![0-9])/.test(h)) return { kind: 'malformed' } // g1, g1x, g1-... (g1= handled above)
+  if (h.startsWith(PROTECTED_SHARE_PREFIX)) return { kind: 'protected', payload: h.slice(PROTECTED_SHARE_PREFIX.length) }
+  if (/^p\d+=/.test(h)) return { kind: 'protected-unsupported' } // p2=, p10=, ...
+  if (/^p1(?![0-9])/.test(h)) return { kind: 'protected-malformed' } // p1, p1x, p1-...
   return { kind: 'foreign' }
 }
 

@@ -553,9 +553,35 @@ describe('classifyFragment (SS U5.1 / U6)', () => {
   })
 
   it('anything else ⇒ foreign (left in the address bar)', () => {
-    for (const h of ['', '#', '#section-2', '#/a/route', '#w1=abc', '#gg=1', '#g=1', '#g=', '#graph']) {
+    for (const h of ['', '#', '#section-2', '#/a/route', '#w1=abc', '#gg=1', '#g=1', '#g=', '#graph', '#p=1', '#p', '#pp1=abc', '#P1=abc', '#p2', '#page']) {
       expect(classifyFragment(h).kind).toBe('foreign')
     }
+  })
+})
+
+describe('classifyFragment - the protected grammar (SEMANTICS-P.md SS P4)', () => {
+  it('p1=<payload> ⇒ protected (payload may be empty), # optional', () => {
+    expect(classifyFragment('#p1=AbC-_')).toEqual({ kind: 'protected', payload: 'AbC-_' })
+    expect(classifyFragment('p1=')).toEqual({ kind: 'protected', payload: '' })
+  })
+
+  it('p<n>=... with n ≠ 1 ⇒ protected-unsupported (a newer protected version)', () => {
+    for (const h of ['#p2=abc', 'p3=', '#p10=zzz', '#p99=AAAA']) {
+      expect(classifyFragment(h).kind).toBe('protected-unsupported')
+    }
+  })
+
+  it('starts p1 but is not p1=... ⇒ protected-malformed', () => {
+    for (const h of ['#p1', 'p1', '#p1x', '#p1-abc', '#p1/']) {
+      expect(classifyFragment(h).kind).toBe('protected-malformed')
+    }
+  })
+
+  it('the plain grammar is untouched by it', () => {
+    expect(classifyFragment('#g1=AbC').kind).toBe('share')
+    expect(classifyFragment('#g2=AbC').kind).toBe('unsupported')
+    expect(classifyFragment('#g1x').kind).toBe('malformed')
+    expect(readShareFragment('#p1=AbC')).toBeNull()
   })
 })
 

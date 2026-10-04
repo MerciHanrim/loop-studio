@@ -27,6 +27,7 @@
 // in a store, not in storage, not in the link.
 
 import {
+  PROTECTED_SHARE_PREFIX,
   SHARE_MAX_BYTES,
   SHARE_MAX_DECODED_BYTES,
   base64urlDecode,
@@ -37,8 +38,9 @@ import {
   zlibInflate,
 } from './share'
 
-/** fragment key: `p` = protected, `1` = payload format (SS P1) */
-export const PROTECTED_PREFIX = 'p1='
+/** fragment key: `p` = protected, `1` = payload format (SS P1). Defined beside
+ *  the fragment classifier in `share.ts`; re-exported here as the format's own. */
+export const PROTECTED_PREFIX = PROTECTED_SHARE_PREFIX
 /** the format identifier; its UTF-8 bytes are the AES-GCM additional authenticated data */
 export const PROTECTED_FORMAT_ID = 'loop-share-protected/1'
 /** fixed by the format, never read from a link (SS P2) */
