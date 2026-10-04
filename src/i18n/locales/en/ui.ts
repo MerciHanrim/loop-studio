@@ -492,6 +492,11 @@ const ui = {
   'share.open.notice.unavailable': 'Opening a protected link needs a current browser and a secure (HTTPS) address. The link is still in the address bar, so it can be opened in another browser.',
   'share.open.notice.newer': 'This protected link was made with a newer version of Loop Studio. Update the app and open the link again: it is still in the address bar.',
   'share.open.notice.content': 'The password is correct, but the link does not contain a diagram that Loop Studio can open. Ask its sender for a new link.',
+  // issue #300 - the 0.17.0 release notes: password protection for share links
+  'whatsNew.v0170.protect': 'A share link can be protected with a password: the diagram is encrypted inside the link, and only someone who has the password can open it.',
+  'whatsNew.v0170.open': 'A protected link asks for its password before anything from the shared diagram is shown. A wrong password and a damaged link give the same message.',
+  'whatsNew.v0170.limits': 'A lost password cannot be recovered, and the link is only as strong as its password. Loop Studio does not store or transmit the password or the key.',
+  'whatsNew.v0170.plain': 'A plain link is still the default and works as before.',
 } as const
 
 export type UiKey = keyof typeof ui

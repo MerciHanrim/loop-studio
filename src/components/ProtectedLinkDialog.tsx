@@ -97,6 +97,7 @@ function Prompt({ busy, failures }: { busy: boolean; failures: number }) {
               <input
                 ref={inputRef}
                 type={shown ? 'text' : 'password'}
+                dir="auto"
                 name="password"
                 autoComplete="current-password"
                 autoCapitalize="off"

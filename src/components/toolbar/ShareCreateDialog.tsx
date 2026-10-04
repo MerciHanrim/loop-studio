@@ -173,6 +173,7 @@ function ShareCreateBody({ temporary, onCancel, onCreatePlain, onCreateProtected
                 <input
                   ref={passwordRef}
                   type={shown ? 'text' : 'password'}
+                  dir="auto"
                   name="new-password"
                   autoComplete="new-password"
                   autoCapitalize="off"
@@ -191,6 +192,7 @@ function ShareCreateBody({ temporary, onCancel, onCreatePlain, onCreateProtected
                 <input
                   ref={confirmRef}
                   type={shown ? 'text' : 'password'}
+                  dir="auto"
                   name="confirm-password"
                   autoComplete="new-password"
                   autoCapitalize="off"

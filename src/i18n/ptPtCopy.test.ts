@@ -56,7 +56,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(944)
+    expect(KEYS).toHaveLength(977)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -103,9 +103,17 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // not `configurações`, `aplicação` not `aplicativo`, `num` not `em um`.
     // Then 224 to 227: the corrected temporary-session copy and the failed-
     // deletion notice, on the same axes (`guardado`, `definições`, `ficheiro`).
-    expect(DELTA).toHaveLength(227)
-    // and it is a real audit, not a rewrite — most of the catalog agrees
-    expect(DELTA.length).toBeLessThan(KEYS.length / 4)
+    // Issue #300 moved it from 227 to 255: the password dialogs and the 0.17.0
+    // release-note lines - `palavra-passe` not `senha`, `ligação` not `link`,
+    // `cifrado` not `criptografado`, `guardar` not `salvar`, `aplicação` not
+    // `app`, `gestor` not `gerenciador`, `a abrir` not `abrindo`.
+    expect(DELTA).toHaveLength(255)
+    // and it is a real audit, not a rewrite — most of the catalog agrees.
+    // The bound was a quarter until issue #300. The word for a password itself
+    // differs (`palavra-passe` / `senha`), so 28 of that issue's 33 strings
+    // differ for one reason, and the share reached 26%. The bound is 30% now;
+    // the count above is still the exact pin.
+    expect(DELTA.length).toBeLessThan(KEYS.length * 0.3)
   })
 
   // ------------------------------------------------- direction 1: nothing left

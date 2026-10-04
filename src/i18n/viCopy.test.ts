@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(944)
+    expect(KEYS).toHaveLength(977)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(944)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(977)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -280,6 +280,7 @@ const ASCII_KEYBOARD = [
 const ASCII_WIRE = [
   'id', 'n', 's', 'x', 'y', 'v1', 'v2', 'g1', 'd6', 'all', 'p10', 'p50', 'p90',
   'resource', 'state', 'timing', 'when',
+  'https', // issue #300: the protocol the password dialogs name
 ]
 /** The spreadsheet column names in the quick-start mapping example. */
 const ASCII_COLUMN = ['item_id', 'item_name', 'price', 'drop_rate']
@@ -449,6 +450,12 @@ const ASCII_KEYS = [
   'catalog:rf.node.moveCancelled',
   'catalog:rf.node.moved',
   'catalog:runbar.mc.cancel',
+  // issue #300: `Loop Studio` and `HTTPS` in the password dialogs
+  'catalog:share.open.notice.content',
+  'catalog:share.open.notice.newer',
+  'catalog:share.open.notice.unavailable',
+  'catalog:share.protect.note.contract',
+  'catalog:share.protect.unavailable',
   'catalog:share.tooLarge',
   'catalog:stateExpr.label.hint.empty',
   'catalog:stateExpr.label.hint.notAnAssignment',
@@ -527,6 +534,7 @@ const ASCII_KEYS = [
   'template/mmo-progression:z2_xp_meter',
   'template/mmo-progression:z3_xp_meter',
   'catalog:whatsNew.v0153.icons',
+  'catalog:whatsNew.v0170.limits',
   // the storage gate and the Storage and privacy area (issue #297)
   'catalog:gate.lead',
   'catalog:gate.portable.note',
@@ -548,7 +556,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(176)
+    expect(ASCII_KEYS).toHaveLength(182)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {
@@ -556,13 +564,13 @@ describe('a kept English word is declared, twice over — by key and by word', (
     for (const [s, id, v] of RUNTIME) for (const w of sharedWith(s, id, v)) seen.add(w)
     const declared = new Set([...ASCII_GLOBAL, ...Object.keys(ASCII_KEY_SCOPED)])
     expect([...seen].sort()).toEqual([...declared].sort())
-    expect(declared.size).toBe(80)
+    expect(declared.size).toBe(81)
   })
 
   it('the groups are disjoint, and they add up', () => {
     // Otherwise a word could be quietly moved between groups, and the reason it
     // is kept — which is the whole content of this list — would rot.
-    expect(ASCII_GROUPS.map(([, g]) => g.length)).toEqual([17, 8, 12, 17, 4, 5, 12, 2])
+    expect(ASCII_GROUPS.map(([, g]) => g.length)).toEqual([17, 8, 12, 18, 4, 5, 12, 2])
     const all = ASCII_GROUPS.flatMap(([, g]) => g)
     expect(all).toHaveLength(ASCII_GLOBAL.size)
     for (const w of Object.keys(ASCII_KEY_SCOPED)) expect(ASCII_GLOBAL.has(w)).toBe(false)

@@ -495,6 +495,11 @@ const ui = {
   'share.open.notice.unavailable': '보호된 링크를 열려면 최신 브라우저와 보안(HTTPS) 주소가 필요합니다. 링크는 주소 표시줄에 그대로 있으니 다른 브라우저에서 열 수 있습니다.',
   'share.open.notice.newer': '이 보호된 링크는 더 새로운 버전의 Loop Studio로 만들어졌습니다. 앱을 업데이트한 뒤 링크를 다시 여세요. 링크는 주소 표시줄에 그대로 있습니다.',
   'share.open.notice.content': '비밀번호는 맞지만 링크에 Loop Studio가 열 수 있는 다이어그램이 들어 있지 않습니다. 보낸 사람에게 새 링크를 요청하세요.',
+  // issue #300 - the 0.17.0 release notes: password protection for share links
+  'whatsNew.v0170.protect': '공유 링크를 비밀번호로 보호할 수 있습니다. 다이어그램이 링크 안에 암호화되어 들어가며, 비밀번호를 가진 사람만 열 수 있습니다.',
+  'whatsNew.v0170.open': '보호된 링크는 공유된 다이어그램의 어떤 것도 보이기 전에 비밀번호를 묻습니다. 틀린 비밀번호와 손상된 링크는 같은 안내가 나옵니다.',
+  'whatsNew.v0170.limits': '잊은 비밀번호는 되찾을 수 없고, 링크는 비밀번호만큼만 안전합니다. Loop Studio는 비밀번호와 키를 저장하거나 전송하지 않습니다.',
+  'whatsNew.v0170.plain': '일반 링크가 여전히 기본이며 이전과 같이 동작합니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

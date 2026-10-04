@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(944)
+    expect(KEYS).toHaveLength(977)
   })
 
   // ----------------------------------------------------------------- script
@@ -218,9 +218,16 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'задаёт',
       'задаётся',
       'заменён',
+      // issue #300: the password dialogs (`защищённая ссылка`, `надёжен`,
+      // `не передаёт`, `повреждённая ссылка`), here and below
+      'защищённая',
+      'защищённую',
+      'защищённый',
       'идёт',
       'изменён',
       'моё',
+      'надёжен',
+      'надёжна',
       'надёжного',
       'несохранённые',
       'несёт',
@@ -228,8 +235,10 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'обновлён',
       'объединённые',
       'остаётся',
+      'передаёт',
       'передаётся',
       'перемещён',
+      'повреждённая',
       'подключён',
       'прервёт',
       'прошёл',

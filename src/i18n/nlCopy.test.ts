@@ -181,6 +181,8 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
   // issue #297 - the storage gate and the Storage and privacy area: `computer`
   // and `privacy` are ordinary Dutch, Chrome and HTML are names
   ['the storage gate (issue #297)', ['computer', 'privacy', 'chrome', 'html']],
+  // issue #300 - password protection for share links: HTTPS is a protocol name
+  ['password protection for share links (issue #300)', ['https']],
 ]
 
 const SURVIVING_WORDS = new Set(SURVIVING.flatMap(([, ws]) => ws))
@@ -253,15 +255,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(944)
+    expect(KEYS).toHaveLength(977)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 944, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1166)
+    expect(per).toEqual({ catalog: 977, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1199)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

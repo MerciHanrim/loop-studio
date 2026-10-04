@@ -117,6 +117,17 @@ describe('es-ES — the region audit, as a contract', () => {
         'storage.delete.workKeepsTemporary',
         'storage.mode.temporary',
         'whatsNew.v0160.temporary',
+        // issue #300 - the password dialogs: `usted` where es-419 says `tú`
+        // (`Envíe`, `Introduzca`, `Compruebe`, `Pida`, `Actualice`), and
+        // `gestor de contraseñas` where es-419 says `administrador`
+        'share.open.body',
+        'share.open.error.auth',
+        'share.open.notice.content',
+        'share.open.notice.damaged',
+        'share.open.notice.newer',
+        'share.panel.protected',
+        'share.protect.note.channel',
+        'share.protect.note.contract',
         // the formatter emits a NO-BREAK SPACE before the percent sign
         'playbar.mc.progress',
         'runbar.mc.cancel',
