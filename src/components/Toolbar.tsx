@@ -18,6 +18,7 @@ import { DataImportMenu } from './dataImport/DataImportMenu'
 import { MobileTopBar } from './mobile/MobileTopBar'
 import { ModuleMenu } from './ModuleMenu'
 import { RevisionChip } from './RevisionChip'
+import { SessionChip } from './SessionChip'
 import { ShareButton } from './ShareButton'
 import { Templates } from './Templates'
 import { DialogHost } from './toolbar/DialogHost'
@@ -215,6 +216,8 @@ export function Toolbar() {
   const dataTriggerRef = useRef<HTMLButtonElement | null>(null)
   const shareTriggerRef = useRef<HTMLButtonElement | null>(null)
   const helpTriggerRef = useRef<HTMLButtonElement | null>(null)
+  // issue #297 - the Storage and privacy dialog returns focus to the Settings trigger
+  const settingsTriggerRef = useRef<HTMLButtonElement | null>(null)
   const moreTriggerRef = useRef<HTMLButtonElement | null>(null)
   const fileMenuRef = useRef<FileMenuHandle>(null)
   const overflowMenuRef = useRef<OverflowMenuHandle>(null)
@@ -307,6 +310,7 @@ export function Toolbar() {
     data: dataTriggerRef,
     share: shareTriggerRef,
     help: helpTriggerRef,
+    settings: settingsTriggerRef,
   }
   const captureReturnFocus = (id: OverflowItem): boolean => {
     const collapsedNow = !inline(id)
@@ -400,7 +404,18 @@ export function Toolbar() {
           />
         )
       case 'settings':
-        return <SettingsMenu />
+        return (
+          <SettingsMenu
+            buttonRef={(el) => (settingsTriggerRef.current = el)}
+            // issue #297 - the Storage and privacy row opens a dialog in the
+            // DialogHost, like File's and Help's rows; focus returns to whatever
+            // opened it (the Settings trigger, or the overflow trigger)
+            onOpenDialog={(desc) => {
+              captureReturnFocus('settings')
+              setActiveDialog(desc)
+            }}
+          />
+        )
       case 'help':
         return (
           <HelpMenu
@@ -551,6 +566,12 @@ export function Toolbar() {
           </button>
           <Templates />
           <RevisionChip />
+          <SessionChip
+            onOpenDialog={(desc, opener) => {
+              returnFocusElRef.current = opener
+              setActiveDialog(desc)
+            }}
+          />
         </div>
 
         {GROUP_ORDER.filter((id) => inline(id)).map((id) => (

@@ -49,8 +49,13 @@ export const RETURNING_PROFILE_KEYS = [
  * - the two keys of this feature: a first visit writes `announced` silently,
  *   so reading it back as a trace would turn every new profile into a
  *   returning one on its second launch
+ * - the storage-mode key (issue #297): it IS written by a person, but at the
+ *   gate, which a brand-new profile answers before anything else - the very
+ *   first start would then look like a return and announce an update that
+ *   nobody was updated from. It is also the one key a temporary session may
+ *   write, and a temporary session's storage is otherwise empty by design.
  */
-export const NOT_A_TRACE = ['loop-studio:graph:v1', ANNOUNCED_KEY, OPENED_KEY] as const satisfies readonly StorageKey[]
+export const NOT_A_TRACE = ['loop-studio:graph:v1', ANNOUNCED_KEY, OPENED_KEY, 'loop-studio:storage-mode'] as const satisfies readonly StorageKey[]
 
 /** `release:<version>`, or null for anything else. An unreadable or corrupt
  *  stored value is treated as absent, never as "already told". */

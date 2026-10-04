@@ -37,14 +37,24 @@ const appVersion: string = JSON.parse(
  * was painted before the module ran). It is read from its file at config time so
  * that the check in `scripts/check-storage-port.mjs` scans the same bytes that
  * ship. One tag, in the web, PWA and portable builds and on the dev server.
+ *
+ * Issue #297 — the same plugin marks the portable build on the <html> element
+ * (`data-build="portable"`). That attribute is the single source every reader
+ * of "which build is this" uses: the boot script above (which cannot import a
+ * constant) and the app (`src/storage/buildKind.ts`). The portable file shows
+ * the storage gate every time and never remembers a mode, and the boot script
+ * reads no theme for it.
  */
-function themeBoot(): Plugin {
+function themeBoot(portable: boolean): Plugin {
   const code = readFileSync(new URL('./src/storage/themeBoot.js', import.meta.url), 'utf8')
   return {
     name: 'loop-studio:theme-boot',
     transformIndexHtml: {
       order: 'pre',
-      handler: () => [{ tag: 'script', attrs: { 'data-storage-boot': 'theme' }, children: code, injectTo: 'head' }],
+      handler: (html) => ({
+        html: portable ? html.replace(/<html\b/, '<html data-build="portable"') : html,
+        tags: [{ tag: 'script', attrs: { 'data-storage-boot': 'theme' }, children: code, injectTo: 'head' }],
+      }),
     },
   }
 }
@@ -95,7 +105,7 @@ export default defineConfig(({ mode }) => {
       ),
     },
     plugins: [
-      themeBoot(),
+      themeBoot(portable),
       react(),
       ...(portable ? [viteSingleFile(), renameHtml('loop-studio.html')] : []),
       // Emits `sw.js` (Workbox generateSW) + `manifest.webmanifest` and injects
@@ -168,6 +178,8 @@ export default defineConfig(({ mode }) => {
       // Robust to nested worktree checkouts under .claude/worktrees/, which
       // otherwise leak their own e2e/ Playwright specs into this glob.
       exclude: [...configDefaults.exclude, 'e2e/**', '**/.claude/worktrees/**'],
+      // issue #297 - the storage port starts shut; the unit tests open it
+      setupFiles: ['src/test/setup.ts'],
     },
   }
 })

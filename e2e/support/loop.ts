@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { test as base, expect, type Locator, type Page } from '@playwright/test'
+import { test as base, expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
 import { seedWhatsNewSeen } from './whatsNew'
 
@@ -9,29 +9,44 @@ import { seedWhatsNewSeen } from './whatsNew'
 
 const IGNORE = [/favicon/i, /\[vite\] connect/i, /Download the React DevTools/i]
 
-export const test = base.extend<{ errors: string[]; _tourSeed: void; whatsNewSeen: boolean }>({
+/** issue #297 — what the profile says about the storage gate before a spec starts:
+ *  `personal` (the default: a remembered personal browser, no gate, the stores
+ *  read and write `localStorage` as every spec was written against),
+ *  `temporary` (a remembered temporary session), or `gate` (nothing remembered:
+ *  the gate is on screen and the spec answers it). */
+export type StorageModeSeed = 'personal' | 'temporary' | 'gate'
+
+export const test = base.extend<{ errors: string[]; _tourSeed: void; whatsNewSeen: boolean; storageMode: StorageModeSeed }>({
   // Issue #296 — pre-dismissing the tour (below) makes the profile a RETURNING
   // one, and a returning profile that has not been told about the newest
   // release note gets the update notice on its canvas. So the same seed also
   // records that release as announced and opened. `e2e/whats-new.spec.ts`
   // turns this off with `test.use({ whatsNewSeen: false })`.
   whatsNewSeen: [true, { option: true }],
+  storageMode: ['personal', { option: true }],
   // docs/guided-tour.md — every spec starts with the first-run Welcome card
   // suppressed so it never intercepts a click. The suppression is the real
   // product mechanism: the stored key set to `dismissed`. Context-scoped so a
   // second page (`context.newPage()`) is covered too. guided-tour.spec.ts
   // overrides this with its own `seedKey(page, …)` (registered later, wins).
+  //
+  // Issue #297 — the same seed answers the storage gate, with the real product
+  // mechanism too: the remembered-mode key. Without it every spec would open
+  // on the gate. A value already there is kept, so a spec that writes its own
+  // (or the app's own write followed by a reload) is not overwritten.
   _tourSeed: [
-    async ({ context, whatsNewSeen }, use) => {
+    async ({ context, whatsNewSeen, storageMode }, use) => {
       if (whatsNewSeen) await seedWhatsNewSeen(context)
-      await context.addInitScript(() => {
+      await context.addInitScript((mode) => {
         try {
+          if (mode !== 'gate' && !localStorage.getItem('loop-studio:storage-mode'))
+            localStorage.setItem('loop-studio:storage-mode', mode)
           if (!localStorage.getItem('loop-studio/guided-tour/1'))
             localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
         } catch {
           /* opaque origin — a spec that hits this stubs storage itself */
         }
-      })
+      }, storageMode)
       await use()
     },
     { auto: true },
@@ -53,6 +68,21 @@ export const test = base.extend<{ errors: string[]; _tourSeed: void; whatsNewSee
 })
 
 export { expect }
+
+/** issue #297 — for a browser context a spec creates ITSELF (`browser.newContext`),
+ *  the same profile the shared fixture gives every page: a remembered personal
+ *  browser (no storage gate), the tour dismissed, the newest release seen. */
+export async function seedPersonalBrowser(target: Page | BrowserContext, mode: StorageModeSeed = 'personal'): Promise<void> {
+  await seedWhatsNewSeen(target)
+  await target.addInitScript((m) => {
+    try {
+      if (m !== 'gate' && !localStorage.getItem('loop-studio:storage-mode')) localStorage.setItem('loop-studio:storage-mode', m)
+      if (!localStorage.getItem('loop-studio/guided-tour/1')) localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
+    } catch {
+      /* opaque origin */
+    }
+  }, mode)
+}
 
 /** docs/visual-snapshot-policy.md — the ONLY way to take a pixel snapshot.
  *  Resolves the tolerance from the stem + the running project and returns the
@@ -211,6 +241,10 @@ export function mcSnapshot(page: Page): Promise<McSnapshot> {
 /** Load a serialized graph — same path as the Import button, including applying
  *  the file's `recommendedRunConfig` to the Monte-Carlo config. */
 export async function importGraph(page: Page, json: string): Promise<void> {
+  // issue #297 - the app (and its bridge) is loaded behind the storage gate,
+  // after the document's load event; a spec that reloads and imports at once
+  // must wait for the bridge the way `openApp` does
+  await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
   await page.evaluate((text) => {
     const l = (window as unknown as { __loop: Record<string, { getState: () => any }> }).__loop
     l.mc.getState().applyRecommended(l.graph.getState().loadJSON(text))

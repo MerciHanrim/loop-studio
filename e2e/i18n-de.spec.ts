@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { expect, importGraph, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // German (`de`), the SEVENTH shipped language. Written RED-FIRST against the
 // unmodified product. docs/localization.md §L2.12 (region policy), §L2.11
@@ -75,8 +74,9 @@ async function pageAt(page: Page, tag: string) {
       /* storage blocked */
     }
   })
-  // issue #296 - and this returning profile has already seen the newest release note
-  await seedWhatsNewSeen(ctx)
+  // issue #296 / #297 - a returning profile that has seen the newest release
+  // note and remembers a personal browser, so no storage gate stands in front
+  await seedPersonalBrowser(ctx)
   return { ctx, page: await ctx.newPage() }
 }
 
@@ -88,6 +88,7 @@ test.describe('a German browser', () => {
   for (const tag of ['de-DE', 'de-AT', 'de-CH', 'de-LI', 'de-LU', 'de']) {
     test(`${tag} reaches German, not English`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe('de')
@@ -113,6 +114,7 @@ test.describe('the six existing locales are unaffected', () => {
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(want)
@@ -124,6 +126,7 @@ test.describe('the six existing locales are unaffected', () => {
 // ------------------------------------------------------------------ 3
 test('a stored de survives a reload; a region-tagged value is not a code', async ({ browser }) => {
   const ctx = await browser.newContext({ locale: 'en-US' })
+  await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
   const page = await ctx.newPage()
   await openApp(page)
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'de'))

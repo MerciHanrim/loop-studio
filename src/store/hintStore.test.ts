@@ -98,6 +98,11 @@ describe('hintStore — seen / markSeen / rearm (§CIH2.1a / §CIH4)', () => {
 describe('hintStore — reading a corrupt/absent stored value (§CIH8, §GT6.3 precedent)', () => {
   const freshStore = async () => {
     vi.resetModules()
+    // issue #297 - a fresh module graph has a fresh storage port, and a fresh
+    // port starts shut; open it the way the boot module does, before the store
+    // module reads through it
+    const port = await import('../storage/storagePort')
+    port.storageSession.use('personal')
     const mod = await import('./hintStore')
     return mod.useHintStore.getState()
   }

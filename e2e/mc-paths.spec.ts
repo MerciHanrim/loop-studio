@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, readRiskyFactory, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, readRiskyFactory, resetAll, seedPersonalBrowser, test } from './support/loop'
 import { forcePath, installProbe, mcResultJson, pathProbe } from './support/mc'
 
 // SLICE-2 §1–§4 (http): the store's Monte-Carlo run goes through the real Worker
@@ -74,6 +74,7 @@ test.describe('MC execution paths (http)', () => {
   test('byte-equal: worker result === cooperative result (whole MonteCarloResult)', async ({ browser }) => {
     const run = async (path: 'worker' | 'coop') => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await ready(page, path)
       await setConfig(page, { baseSeed: 1, runs: 500, steps: 40, tracked: [] })

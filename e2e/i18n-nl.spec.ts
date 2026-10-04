@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // docs/localization.md §L2.23 — Dutch, the seventeenth locale and the FIRST
 // one the picker sorts AHEAD of English.
@@ -68,6 +68,7 @@ test.describe('every Dutch tag reaches nl, and an unregistrable tag does not', (
   ] as const) {
     test(`${tag} reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(want)
@@ -89,6 +90,7 @@ test.describe('a stored Dutch locale round-trips', () => {
 
   test('an unregistrable stored value is ignored, never repaired into one', async ({ browser }) => {
     const ctx = await browser.newContext({ locale: 'en-US' })
+    await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
     const page = await ctx.newPage()
     await openApp(page)
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'qaa'))

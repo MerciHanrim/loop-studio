@@ -62,6 +62,9 @@ async function installWriteOnlyFailure(page: Page): Promise<void> {
     // also holds the record that the newest release note was announced and
     // opened; with writes failing, the app could not record it itself
     const store = new Map<string, string>([
+      // issue #297 - and a remembered personal browser, or the storage gate
+      // would stand in front of the test (this fake replaces the fixture's seed)
+      ['loop-studio:storage-mode', 'personal'],
       ['loop-studio/guided-tour/1', 'dismissed'],
       [seen.announcedKey, seen.id],
       [seen.openedKey, seen.id],

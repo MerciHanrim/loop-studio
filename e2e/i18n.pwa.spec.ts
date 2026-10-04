@@ -15,6 +15,9 @@ const ORIGIN = 'http://localhost:4174'
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
     try {
+      // issue #297 - a remembered personal browser: no storage gate in front of these tests
+      if (!localStorage.getItem('loop-studio:storage-mode'))
+        localStorage.setItem('loop-studio:storage-mode', 'personal')
       if (!localStorage.getItem('loop-studio/guided-tour/1'))
         localStorage.setItem('loop-studio/guided-tour/1', 'dismissed')
     } catch {

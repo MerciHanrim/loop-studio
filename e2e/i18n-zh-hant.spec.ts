@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, test } from './support/loop'
+import { expect, openApp, seedPersonalBrowser, test } from './support/loop'
 
 // Traditional Chinese (`zh-Hant`). Written RED-FIRST against the unmodified
 // product — 6 of these 13 failed before the locale existed, the other 7 were
@@ -65,6 +65,7 @@ test.describe('a Traditional-region browser', () => {
   for (const tag of ['zh-TW', 'zh-HK', 'zh-MO']) {
     test(`${tag} reaches Traditional Chinese, not English`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(HANT)
@@ -85,6 +86,7 @@ test.describe('a Simplified-region browser is unaffected', () => {
   ] as const) {
     test(`${tag} still reaches ${want}`, async ({ browser }) => {
       const ctx = await browser.newContext({ locale: tag })
+      await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
       const page = await ctx.newPage()
       await openApp(page)
       expect(await htmlLang(page)).toBe(want)
@@ -97,6 +99,7 @@ test.describe('a Simplified-region browser is unaffected', () => {
 test.describe('a stored locale', () => {
   test('zh-Hant survives a reload; an unregistered value falls back', async ({ browser }) => {
     const ctx = await browser.newContext({ locale: 'en-US' })
+    await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
     const page = await ctx.newPage()
     await openApp(page)
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'zh-Hant'))

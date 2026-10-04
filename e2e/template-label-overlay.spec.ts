@@ -1,6 +1,5 @@
 import type { Browser, Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
-import { seedWhatsNewSeen } from './support/whatsNew'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
 
 // docs/template-label-overlay.md — the shared fresh-open Template label overlay:
 // a bundled Template opens with the current locale's node `label`s; `openTemplate`
@@ -181,8 +180,9 @@ test.describe('template label overlay', () => {
         /* private mode */
       }
     })
-    // issue #296 - and this returning profile has already seen the newest release note
-    await seedWhatsNewSeen(page)
+    // issue #296 / #297 - a returning profile that has seen the newest release
+// note and remembers a personal browser (this page is not the fixture's)
+    await seedPersonalBrowser(page)
     try {
       await openApp(page)
       await resetAll(page)

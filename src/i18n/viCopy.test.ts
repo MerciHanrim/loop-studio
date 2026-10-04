@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(880)
+    expect(KEYS).toHaveLength(944)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(880)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(944)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -262,9 +262,10 @@ const ASCII_PROPER = [
   'loop', 'studio', 'machinations', 'io', 'github', 'google', 'sheets',
   'excel', 'numbers', 'monte', 'carlo', 'mc', 'mmo', 'brazil',
   'windows', 'iphone', // the 0.15.3 release note (issue #298)
+  'chrome', // the storage gate (issue #297)
 ]
 /** File formats and the export commands named after them. */
-const ASCII_FILE_FORMAT = ['json', 'csv', 'tsv', 'xlsx', 'graph', 'workspace', 'montecarloresult']
+const ASCII_FILE_FORMAT = ['json', 'csv', 'tsv', 'xlsx', 'graph', 'workspace', 'montecarloresult', 'html']
 /** Keyboard keys, as printed on the key. A translated key name would tell the
  *  reader to press something that is not on their keyboard. */
 const ASCII_KEYBOARD = [
@@ -526,6 +527,14 @@ const ASCII_KEYS = [
   'template/mmo-progression:z2_xp_meter',
   'template/mmo-progression:z3_xp_meter',
   'catalog:whatsNew.v0153.icons',
+  // the storage gate and the Storage and privacy area (issue #297)
+  'catalog:gate.lead',
+  'catalog:gate.portable.note',
+  'catalog:gate.title',
+  'catalog:storage.delete.all',
+  'catalog:storage.delete.allBody',
+  'catalog:storage.delete.allTitle',
+  'catalog:storage.statement',
 ]
 
 describe('a kept English word is declared, twice over — by key and by word', () => {
@@ -539,7 +548,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(169)
+    expect(ASCII_KEYS).toHaveLength(176)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {
@@ -547,13 +556,13 @@ describe('a kept English word is declared, twice over — by key and by word', (
     for (const [s, id, v] of RUNTIME) for (const w of sharedWith(s, id, v)) seen.add(w)
     const declared = new Set([...ASCII_GLOBAL, ...Object.keys(ASCII_KEY_SCOPED)])
     expect([...seen].sort()).toEqual([...declared].sort())
-    expect(declared.size).toBe(78)
+    expect(declared.size).toBe(80)
   })
 
   it('the groups are disjoint, and they add up', () => {
     // Otherwise a word could be quietly moved between groups, and the reason it
     // is kept — which is the whole content of this list — would rot.
-    expect(ASCII_GROUPS.map(([, g]) => g.length)).toEqual([16, 7, 12, 17, 4, 5, 12, 2])
+    expect(ASCII_GROUPS.map(([, g]) => g.length)).toEqual([17, 8, 12, 17, 4, 5, 12, 2])
     const all = ASCII_GROUPS.flatMap(([, g]) => g)
     expect(all).toHaveLength(ASCII_GLOBAL.size)
     for (const w of Object.keys(ASCII_KEY_SCOPED)) expect(ASCII_GLOBAL.has(w)).toBe(false)

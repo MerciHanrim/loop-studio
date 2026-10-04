@@ -407,6 +407,14 @@ export function flushAutosave(): void {
   writeAutosaveNow()
 }
 
+/** Issue #297 — write the live document NOW, pending or not: the first write
+ *  of a session that just became personal (the person confirmed that the open
+ *  diagram is to be saved in this browser), and the seed of a temporary
+ *  session that took the open diagram along. */
+export function persistNow(): void {
+  writeAutosaveNow()
+}
+
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   // `pagehide` fires for a close, a reload and a navigation (also on iOS,
   // where `beforeunload` does not); the hidden transition covers a mobile

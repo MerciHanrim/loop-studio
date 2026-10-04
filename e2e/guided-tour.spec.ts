@@ -350,7 +350,17 @@ test.describe('guided tour — localStorage unavailable (§GT6.3)', () => {
   test('the app boots, the card is offered once, closing still works', async ({ page }) => {
     await seedKey(page, null) // enable the trigger; storage is broken next
     await breakStorage(page)
-    await openApp(page)
+    // issue #297 - with storage unreadable nothing can be remembered, so the
+    // storage gate is asked (the fixture's seed could not land); the personal
+    // browser is chosen and the app boots on a storage that throws, as before
+    await page.goto('/')
+    await expect(page.locator('.gate')).toBeVisible()
+    await page.locator('.gate [data-gate-choice="personal"] button').click()
+    // not `openApp()`: that navigates again, and an unreadable storage would
+    // bring the gate back
+    await expect(page.locator('.toolbar')).toBeVisible()
+    await expect(page.locator('.canvas')).toBeVisible()
+    await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await expect(page.locator('.toolbar')).toBeVisible()
     await expect(welcome(page)).toBeVisible()
     await welcome(page).getByRole('button', { name: /Skip|건너뛰기/ }).click()

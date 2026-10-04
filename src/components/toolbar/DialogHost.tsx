@@ -2,6 +2,7 @@ import { AboutDialog } from '../AboutDialog'
 import { AuthorDialog } from '../AuthorDialog'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { ContextualHelpDialog } from '../ContextualHelpDialog'
+import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
 import { WhatsNewPanel } from '../WhatsNewPanel'
 import { DataImportRefreshMenu } from '../dataImport/DataImportRefreshMenu'
 import { DataImportWizard } from '../dataImport/DataImportWizard'
@@ -82,6 +83,13 @@ export function DialogHost({ activeDialog, onClose, returnFocusTo }: Props) {
         returnFocusTo={returnFocusTo}
       />
       <WhatsNewPanel open={activeDialog?.kind === 'whatsNew'} onClose={onClose} returnFocusTo={returnFocusTo} />
+      {/* issue #297 - the Storage and privacy area, from Settings and from the temporary-session chip */}
+      <StoragePrivacyDialog
+        open={activeDialog?.kind === 'storage-privacy'}
+        initialStep={activeDialog?.kind === 'storage-privacy' ? (activeDialog.step ?? 'menu') : 'menu'}
+        onClose={onClose}
+        returnFocusTo={returnFocusTo}
+      />
       <ConfirmDialog
         open={activeDialog?.kind === 'module-promote'}
         title={t('modules.promote.title')}

@@ -25,7 +25,12 @@ export type WhatsNewSeen = typeof WHATS_NEW_SEEN
 
 /** Runs IN THE PAGE (serialized by Playwright), so it uses only its argument.
  *  A value that is already there is kept: a spec that writes its own, or the
- *  app's own write followed by a reload, is not overwritten. */
+ *  app's own write followed by a reload, is not overwritten.
+ *
+ *  This seeds the What's new state ONLY. The storage gate's mode key (issue
+ *  #297) is seeded by the fixture and by `seedPersonalBrowser` in
+ *  `./loop`, never from here: a helper that quietly answered the gate hid a
+ *  gate test twice. */
 export function seedWhatsNewSeenScript(s: WhatsNewSeen): void {
   try {
     if (!localStorage.getItem(s.announcedKey)) localStorage.setItem(s.announcedKey, s.id)

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { useT } from '../../i18n'
+import { selectTemporary, useSessionStore } from '../../store/sessionStore'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { shareDisclosureBody } from './shareDisclosure'
 import { useAnchoredPosition } from './useAnchoredPosition'
 import { useOutsideDismiss } from './useOutsideDismiss'
 import type { ShareSurface as ShareSurfaceState } from './useShareSurface'
@@ -35,6 +37,7 @@ export function ShareSurface({
   onClosePanel,
 }: Props) {
   const t = useT()
+  const temporary = useSessionStore(selectTemporary)
   const panelRef = useRef<HTMLDivElement>(null)
   const urlRef = useRef<HTMLInputElement>(null)
   const panelOpen = surface?.phase === 'panel'
@@ -66,7 +69,7 @@ export function ShareSurface({
       <ConfirmDialog
         open={surface?.phase === 'confirm'}
         title={t('share.disclosure.title')}
-        body={t('share.disclosure.body')}
+        body={shareDisclosureBody(t, temporary)}
         confirmLabel={t('share.disclosure.confirm')}
         onConfirm={onConfirm}
         onCancel={onCancel}
