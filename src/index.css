@@ -5700,6 +5700,11 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet .share-pop__url {
     font-size: 12px;
   }
+  /* issue #300 - the result sheet's Copy button: one full-width touch target */
+  .sheet .share-pop__row .btn {
+    flex: 1;
+    min-height: 44px;
+  }
   /* issue #300 - a password field under 16px makes iOS zoom the page on focus.
      The base rules for these two sit at the END of this file, after this block,
      so each override here carries one more class than its base rule. */

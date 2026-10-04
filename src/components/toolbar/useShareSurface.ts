@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useGraphStore } from '../../store/graphStore'
 import { recommendedRunConfigForExport } from '../../store/mcStore'
-import { type ProtectedShareLinkResult, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
+import { type ProtectedShareLinkResult, copyShareLink, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useT } from '../../i18n'
 
 export type ShareSurface =
@@ -54,13 +54,8 @@ export function useShareSurface() {
       }
 
       const url = result.url
-      let copied = false
-      try {
-        await navigator.clipboard.writeText(url)
-        copied = true
-      } catch {
-        copied = false // Clipboard API missing or denied — the field below is the fallback
-      }
+      // Clipboard API missing or denied ⇒ false: the field below is the fallback
+      const copied = await copyShareLink(url)
       setSurface({ phase: 'panel', url, copied })
     } finally {
       busyRef.current = false
@@ -79,13 +74,7 @@ export function useShareSurface() {
     try {
       const result = await prepareProtectedShareLink(exportJSON(recommendedRunConfigForExport()), password)
       if (result.status !== 'ok') return result
-      let copied = false
-      try {
-        await navigator.clipboard.writeText(result.url)
-        copied = true
-      } catch {
-        copied = false
-      }
+      const copied = await copyShareLink(result.url)
       setSurface({ phase: 'panel', url: result.url, copied, protected: true })
       return result
     } finally {
@@ -96,13 +85,9 @@ export function useShareSurface() {
 
   const retryCopy = async (): Promise<boolean> => {
     if (surface?.phase !== 'panel') return false
-    try {
-      await navigator.clipboard.writeText(surface.url)
-      setSurface({ ...surface, copied: true })
-      return true
-    } catch {
-      return false
-    }
+    const ok = await copyShareLink(surface.url)
+    if (ok) setSurface({ ...surface, copied: true })
+    return ok
   }
 
   const closePanel = () => setSurface(null)

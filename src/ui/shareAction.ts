@@ -44,6 +44,21 @@ export async function prepareShareLink(doc: string): Promise<ShareLinkResult> {
   return url == null ? { status: 'no-base' } : { status: 'ok', url }
 }
 
+/**
+ * Put a share link on the clipboard. Resolves `false` where the Clipboard API
+ * is missing or refuses; the caller then leaves the link in its field for a
+ * manual copy (§U7). The one copy path of desktop and phone, for a plain and a
+ * protected link alike - and it is only ever handed the LINK, never a password.
+ */
+export async function copyShareLink(url: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export type ProtectedShareLinkResult =
   | ShareLinkResult
   | { status: 'unavailable' } // no Web Crypto on this page
