@@ -388,6 +388,47 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await expect(field).toHaveValue(/^https:\/\/cozy-loop-studio\.pages\.dev\/#g1=/)
   })
 
+  // issue #300 - the same dialog and the same shared action as desktop
+  test('Share from the More menu can protect the link with a password; the dialog and the opening prompt fit the screen', async ({ page }) => {
+    const password = 'phone e2e password 7' // never a real one
+    await loadDiagram(page)
+    await more(page).click()
+    await sheet(page, 'More').locator('.sheet__row', { hasText: 'Share link' }).click()
+    const dlg = page.locator('.mcdlg--share[data-share-create]')
+    await dlg.locator('[data-share-protect="option"]').check()
+    await dlg.locator('[data-share-protect="password"]').fill(password)
+    await dlg.locator('[data-share-protect="confirm"]').fill(password)
+    expect(rectInside(await dlg.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
+    // under 16px, iOS zooms the page when the field takes focus
+    expect(await dlg.locator('[data-share-protect="password"]').evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px')
+    await dlg.getByRole('button', { name: 'Create link' }).click()
+
+    const field = page.locator('.sheet .share-pop__url')
+    await expect(field).toHaveValue(/^https:\/\/cozy-loop-studio\.pages\.dev\/#p1=[A-Za-z0-9_-]+$/)
+    await expect(page.locator('.sheet [data-share-protected="note"]')).toBeVisible()
+    const nodes = await page.locator('.react-flow__node').count()
+    const hash = (await field.inputValue()).split('#')[1]
+
+    // what this browser stores is now something else, so the count below can
+    // only come from the link
+    await resetAll(page)
+    await page.evaluate(() => (window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush())
+    expect(await page.locator('.react-flow__node').count()).not.toBe(nodes)
+
+    // a link is consumed at boot: a real load, on the local server
+    await page.goto('about:blank')
+    await page.goto('/#' + hash)
+    const prompt = page.locator('[data-protected-open="prompt"]')
+    await expect(prompt).toBeVisible()
+    expect(rectInside(await prompt.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
+    expect(await page.evaluate(() => location.hash)).toBe('')
+    await prompt.locator('[data-protected-open="password"]').fill(password)
+    page.once('dialog', (d) => void d.accept()) // the stored diagram is not the untouched sample
+    await prompt.getByRole('button', { name: 'Open' }).click()
+    await expect(prompt).toHaveCount(0)
+    await expect(page.locator('.react-flow__node')).toHaveCount(nodes)
+  })
+
   test('PWA update bar + an open sheet: Close, Update and Play are each visible and clickable', async ({ page }) => {
     await loadDiagram(page)
     // dev has no service worker — poke the store so `.pwa-update` renders

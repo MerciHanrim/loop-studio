@@ -154,7 +154,7 @@ export async function sealShareText(text: string, password: string): Promise<{ p
 }
 
 /**
- * The structure check that runs BEFORE any password is asked for (SS P5): the
+ * The structure check that runs BEFORE any password is asked for (SS P6): the
  * length bounds and the strict base64url alphabet. Returns the decoded bytes -
  * the in-memory copy the caller keeps once the fragment is gone. Throws
  * `ProtectedShareError('structure')` and nothing else.

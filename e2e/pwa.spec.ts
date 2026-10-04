@@ -212,6 +212,54 @@ test('offline: a #g1= share link opens from cache and strips the fragment', asyn
   await context.setOffline(false)
 })
 
+// issue #300 - sealing and opening a protected link need no network at all
+test('offline: a #p1= protected link asks for its password and opens from cache', async ({ page, context }) => {
+  const password = 'pwa e2e password 31' // never a real one
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => undefined } })
+  })
+  await setGen(page, 'a')
+  await installAndControl(page)
+
+  await page.locator('.toolbar__palette .chip--drain').click()
+  const distinct = await nodeCount(page)
+  await context.setOffline(true) // the link is made offline too
+  await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+  const dlg = page.locator('.mcdlg--share[data-share-create]')
+  await dlg.locator('[data-share-protect="option"]').check()
+  await dlg.locator('[data-share-protect="password"]').fill(password)
+  await dlg.locator('[data-share-protect="confirm"]').fill(password)
+  await dlg.getByRole('button', { name: /create link/i }).click()
+  const url = await page.locator('.share-pop__url').inputValue()
+  const payload = url.split('#p1=')[1]
+  expect(payload).toMatch(/^[A-Za-z0-9_-]+$/)
+
+  // one more node after the link was made: what this browser stores now differs
+  // from what the link carries, so the count at the end can only come from the link
+  await page.keyboard.press('Escape')
+  await page.locator('.toolbar__palette .chip--drain').click()
+  await page.waitForFunction(
+    (n) => (JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? '{}').nodes ?? []).length === n,
+    distinct + 1,
+  )
+
+  const p2 = await context.newPage()
+  p2.once('dialog', (d) => {
+    expect(d.message()).toMatch(/replaced/i)
+    void d.accept()
+  })
+  await p2.goto(`/#p1=${payload}`)
+  const prompt = p2.locator('[data-protected-open="prompt"]')
+  await expect(prompt).toBeVisible()
+  await expect(p2.locator('.react-flow__node')).toHaveCount(distinct + 1)
+  expect(await p2.evaluate(() => location.hash)).toBe('')
+  await prompt.locator('[data-protected-open="password"]').fill(password)
+  await prompt.getByRole('button', { name: 'Open' }).click()
+  await expect(prompt).toHaveCount(0)
+  await expect(p2.locator('.react-flow__node')).toHaveCount(distinct)
+  await context.setOffline(false)
+})
+
 // ── registration gate (real browser, not just the unit test) ────────────
 
 // issue #302 - the installed app opens in the stored theme at its first frame,
