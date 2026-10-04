@@ -493,11 +493,33 @@ test.describe('playback — Slice 2 choreography', () => {
     expect(z).toBeLessThan(0.45)
 
     const step0 = (await simState(page)).stepIndex
+
+    // The first settle is caught WHERE IT HAPPENS, not by the poll below. Under
+    // Play the store starts the next transition on the very next animation
+    // frame, so "one step committed, no transition in flight" lasts about one
+    // frame; a 30 ms poll used to have to land inside it, and when it did not
+    // the loop left one beat later with two steps committed (measured: 12 of 30
+    // runs on `main`). A store subscription, installed before Play, sees that
+    // state in the same synchronous notification that creates it and pauses
+    // there, so the second transition never begins and the state the
+    // assertions read is the settled one, for as long as they need it.
+    await page.evaluate((from) => {
+      const w = window as any
+      const sim = w.__loop.sim
+      w.__pb44FirstSettle = null
+      const unsubscribe = sim.subscribe((s: any) => {
+        if (s.stepIndex !== from + 1 || s.transition != null) return
+        unsubscribe()
+        sim.getState().pause()
+        w.__pb44FirstSettle = { stepIndex: s.stepIndex, at: performance.now() }
+      })
+    }, step0)
     await call(page, 'play')
 
     // through the whole transition: never a moving `.pb-move` dot on the flowing edge
     const phases = new Set<string>()
     let sawL0Pulse = false
+    let settled = false
     for (let i = 0; i < 90; i++) {
       const snap = await page.evaluate(() => {
         const edge = document.querySelector('.react-flow__edge[data-id="e_sp"]')!
@@ -512,6 +534,7 @@ test.describe('playback — Slice 2 choreography', () => {
           phase: s.transition?.phase ?? null,
           tau: s.transition?.tau ?? null,
           step: s.stepIndex,
+          firstSettle: (window as any).__pb44FirstSettle != null,
         }
       })
       expect(snap.dot).toBe(false) // the sub-pixel dot is never created at L0
@@ -520,13 +543,21 @@ test.describe('playback — Slice 2 choreography', () => {
         sawL0Pulse = true
         expect(snap.phase).toBe('travel') // the pulse only stands in for `travel`
       }
-      if (snap.step > step0 && snap.tau == null) break
+      if (snap.firstSettle) {
+        settled = true
+        expect(snap.tau).toBeNull() // nothing in flight: the pause held
+        break
+      }
       await page.waitForTimeout(30)
     }
 
+    expect(settled).toBe(true) // the first settle was seen by the subscription
     expect([...phases].sort()).toEqual(['arrive', 'depart', 'travel']) // ordered beats still ran
     expect(sawL0Pulse).toBe(true) // the travel stand-in showed
-    expect((await simState(page)).stepIndex).toBe(step0 + 1) // settle still committed exactly one step
+    const end = await simState(page)
+    expect(end.stepIndex).toBe(step0 + 1) // settle still committed exactly one step
+    expect(end.status).toBe('paused') // and the run stopped there
+    expect(end.fromStep).toBeNull() // no second transition began
     await call(page, 'pause')
   })
 
