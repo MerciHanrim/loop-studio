@@ -72,6 +72,8 @@ jobs:
         run: npm run check:control-bytes
       - name: Storage port — browser storage is reached through one module only
         run: npm run check:storage-port
+      - name: Share crypto — key handling and encryption stay in one module, with fixed parameters
+        run: npm run check:share-crypto
       - name: Change declaration — a change that ships says whether it is user-facing, with its version and release note
         run: npm run check:change-declaration
         env:
