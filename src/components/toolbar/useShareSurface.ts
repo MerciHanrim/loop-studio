@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { useGraphStore } from '../../store/graphStore'
 import { recommendedRunConfigForExport } from '../../store/mcStore'
-import { prepareShareLink, shareKb } from '../../ui/shareAction'
+import { type ProtectedShareLinkResult, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useT } from '../../i18n'
 
 export type ShareSurface =
   | { phase: 'confirm' }
-  | { phase: 'panel'; url: string; copied: boolean }
+  /** `protected` - the link is a `p1` link: the panel reminds to send the password separately */
+  | { phase: 'panel'; url: string; copied: boolean; protected?: boolean }
   | null
 
 /** Share's entire confirm→panel flow, lifted to Toolbar-level (review
@@ -67,6 +68,32 @@ export function useShareSurface() {
     }
   }
 
+  /** Issue #300 — the protected link. The dialog stays open while the key is
+   *  derived and shows anything but `ok` itself (over the cap, no public
+   *  address, no Web Crypto), so nothing is alerted from here. On `ok` the
+   *  LINK is copied - never the password - and the panel opens. */
+  const confirmProtected = async (password: string): Promise<ProtectedShareLinkResult> => {
+    if (busyRef.current) return { status: 'unavailable' }
+    busyRef.current = true
+    setBusy(true)
+    try {
+      const result = await prepareProtectedShareLink(exportJSON(recommendedRunConfigForExport()), password)
+      if (result.status !== 'ok') return result
+      let copied = false
+      try {
+        await navigator.clipboard.writeText(result.url)
+        copied = true
+      } catch {
+        copied = false
+      }
+      setSurface({ phase: 'panel', url: result.url, copied, protected: true })
+      return result
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+  }
+
   const retryCopy = async (): Promise<boolean> => {
     if (surface?.phase !== 'panel') return false
     try {
@@ -80,5 +107,5 @@ export function useShareSurface() {
 
   const closePanel = () => setSurface(null)
 
-  return { surface, busy, openConfirm, cancel, confirm, retryCopy, closePanel }
+  return { surface, busy, openConfirm, cancel, confirm, confirmProtected, retryCopy, closePanel }
 }

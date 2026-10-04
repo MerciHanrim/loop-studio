@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import { useT } from '../../i18n'
 import { selectTemporary, useSessionStore } from '../../store/sessionStore'
-import { ConfirmDialog } from '../ConfirmDialog'
-import { shareDisclosureBody } from './shareDisclosure'
+import type { ProtectedShareLinkResult } from '../../ui/shareAction'
+import { ShareCreateDialog } from './ShareCreateDialog'
 import { useAnchoredPosition } from './useAnchoredPosition'
 import { useOutsideDismiss } from './useOutsideDismiss'
 import type { ShareSurface as ShareSurfaceState } from './useShareSurface'
@@ -16,6 +16,8 @@ type Props = {
   anchorRef: RefObject<HTMLElement | null>
   returnFocusTo: () => HTMLElement | null | undefined
   onConfirm: () => void
+  /** issue #300 — the protected link; anything but `ok` is shown inside the dialog */
+  onConfirmProtected: (password: string) => Promise<ProtectedShareLinkResult>
   onCancel: () => void
   onRetryCopy: () => Promise<boolean>
   onClosePanel: () => void
@@ -32,6 +34,7 @@ export function ShareSurface({
   anchorRef,
   returnFocusTo,
   onConfirm,
+  onConfirmProtected,
   onCancel,
   onRetryCopy,
   onClosePanel,
@@ -66,12 +69,11 @@ export function ShareSurface({
 
   return (
     <>
-      <ConfirmDialog
+      <ShareCreateDialog
         open={surface?.phase === 'confirm'}
-        title={t('share.disclosure.title')}
-        body={shareDisclosureBody(t, temporary)}
-        confirmLabel={t('share.disclosure.confirm')}
-        onConfirm={onConfirm}
+        temporary={temporary}
+        onCreatePlain={onConfirm}
+        onCreateProtected={onConfirmProtected}
         onCancel={onCancel}
         returnFocusTo={returnFocusTo}
       />
@@ -87,6 +89,11 @@ export function ShareSurface({
           <div className="share-pop__status">
             {surface.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
           </div>
+          {surface.protected ? (
+            <div className="share-pop__status share-pop__status--protected" data-share-protected="note">
+              {t('share.panel.protected')}
+            </div>
+          ) : null}
           <input dir="ltr"
             ref={urlRef}
             className="share-pop__url"

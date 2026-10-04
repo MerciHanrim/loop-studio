@@ -20,7 +20,7 @@ import {
 } from '../../store/workspaceIO'
 import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
-import { prepareShareLink, shareKb } from '../../ui/shareAction'
+import { type ProtectedShareLinkResult, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
 import { useWhatsNewStore } from '../../store/whatsNewStore'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
@@ -37,7 +37,7 @@ import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
 import { WhatsNewPanel } from '../WhatsNewPanel'
 import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
-import { shareDisclosureBody } from '../toolbar/shareDisclosure'
+import { ShareCreateDialog } from '../toolbar/ShareCreateDialog'
 import { selectTemporary, useSessionStore } from '../../store/sessionStore'
 import { ArrowIcon } from '../../ui/icons'
 
@@ -112,7 +112,7 @@ export function MobileMoreMenu({
     closeOverlay('more')
   }
 
-  const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
+  const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean; protected?: boolean } | null>(null)
   const [shareConfirm, setShareConfirm] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
@@ -152,6 +152,31 @@ export function MobileMoreMenu({
       }
       setSharePanel({ url: result.url, copied })
       openOverlay('share')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  // issue #300 — the protected link, through the same dialog and the same
+  // shared action as desktop. Anything but `ok` is shown inside the dialog; on
+  // `ok` the LINK is copied (never the password) and the result sheet opens.
+  const runProtectedShare = async (password: string): Promise<ProtectedShareLinkResult> => {
+    if (shareBusy) return { status: 'unavailable' }
+    setShareBusy(true)
+    try {
+      const result = await prepareProtectedShareLink(exportJSON({ ...useMcStore.getState().config }), password)
+      if (result.status !== 'ok') return result
+      let copied = false
+      try {
+        await navigator.clipboard.writeText(result.url)
+        copied = true
+      } catch {
+        copied = false
+      }
+      setShareConfirm(false)
+      setSharePanel({ url: result.url, copied, protected: true })
+      openOverlay('share')
+      return result
     } finally {
       setShareBusy(false)
     }
@@ -401,12 +426,11 @@ export function MobileMoreMenu({
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </div>
       </MobileSheet>
-      <ConfirmDialog
+      <ShareCreateDialog
         open={shareConfirm}
-        title={t('share.disclosure.title')}
-        body={shareDisclosureBody(t, temporary)}
-        confirmLabel={t('share.disclosure.confirm')}
-        onConfirm={runShare}
+        temporary={temporary}
+        onCreatePlain={runShare}
+        onCreateProtected={runProtectedShare}
         onCancel={() => setShareConfirm(false)}
         returnFocusTo={() => document.querySelector<HTMLButtonElement>('.sheet__row--first')}
       />
@@ -554,6 +578,11 @@ export function MobileMoreMenu({
         <div className="share-pop__status">
           {sharePanel.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
         </div>
+        {sharePanel.protected ? (
+          <div className="share-pop__status share-pop__status--protected" data-share-protected="note">
+            {t('share.panel.protected')}
+          </div>
+        ) : null}
         <input dir="ltr"
           className="share-pop__url"
           type="text"
