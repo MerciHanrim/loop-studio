@@ -33,6 +33,8 @@
     "check:snapshot-policy": "node scripts/check-snapshot-policy.mjs",
     "check:storage-port": "node scripts/check-storage-port.mjs",
     "check:share-crypto": "node scripts/check-share-crypto.mjs",
+    "check:third-party-notices": "node scripts/check-third-party-notices.mjs dist web && node scripts/check-third-party-notices.mjs dist-portable portable && node scripts/check-third-party-notices.mjs dist-pwa pwa",
+    "licenses:update": "node scripts/third-party-notices/update.mjs",
     "check:change-declaration": "node scripts/check-change-declaration.mjs",
     "check:e2e-shards": "node scripts/e2e-shards.mjs check",
     "check:functional-glyphs": "node scripts/check-functional-glyphs.mjs",
