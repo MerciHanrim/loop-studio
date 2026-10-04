@@ -31,7 +31,11 @@
 //     `extractable` argument, and `deriveKey` asks for exactly one usage;
 //   - there is exactly one `encrypt` call and one `decrypt` call.
 //
-// And `package.json` names no cryptography library: Web Crypto only.
+// And `package.json` names no cryptography library: Web Crypto only. The one
+// exception (issue #301) is `@noble/hashes` 2.4.0 for the synchronous SHA-256 of
+// `src/model/workspace.ts`, held to the conditions in
+// `scripts/share-crypto-noble.mjs`: one exact version, nothing it depends on,
+// one importer, one path, one name, and nothing of it reachable from the module.
 //
 // What it CANNOT see: a name assembled at run time, code in a dependency, and
 // whether the values passed at run time are the ones the format fixes - the
@@ -43,6 +47,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { fileURLToPath } from 'node:url'
+import { checkLock, checkNobleUse, checkPackage } from './share-crypto-noble.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const SRC = path.join(ROOT, 'src')
@@ -53,7 +58,6 @@ const ITERATIONS = 600000
 const FORMAT_ID = 'loop-share-protected/1'
 
 const KEY_OPS = new Set(['deriveKey', 'deriveBits', 'importKey', 'exportKey', 'generateKey', 'wrapKey', 'unwrapKey', 'encrypt', 'decrypt'])
-const CRYPTO_LIBRARY = /(^|[-_/@.])(crypto|cryptojs|argon2?|scrypt|bcrypt(js)?|sodium|libsodium|nacl|tweetnacl|forge|sjcl|noble|aes|pbkdf2?|hash-wasm|openpgp|jose|webcrypto)([-_/@.]|$)/i
 
 const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const TEST = /\.test\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
@@ -151,9 +155,25 @@ else {
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const deps = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'].flatMap((k) => Object.keys(pkg[k] ?? {}))
-for (const d of deps) if (CRYPTO_LIBRARY.test(d)) problems.push(`package.json: '${d}' looks like a cryptography library - protected links use Web Crypto only`)
+// issue #301 - no cryptography library, with ONE exception: `@noble/hashes`
+// 2.4.0 for the synchronous SHA-256 in src/model/workspace.ts, under the
+// conditions in scripts/share-crypto-noble.mjs (and its tests). Every source
+// the repository has is scanned for it: product code, unit tests, end-to-end
+// specs and scripts.
+const lock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'))
+const everySource = []
+const walkAll = (dir) => {
+  if (!fs.existsSync(dir)) return
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, e.name)
+    if (e.isDirectory()) walkAll(abs)
+    else if (CODE.test(e.name) && !/\.d\.(ts|mts|cts)$/.test(e.name)) everySource.push({ rel: path.relative(ROOT, abs).split(path.sep).join('/'), text: fs.readFileSync(abs, 'utf8') })
+  }
+}
+for (const d of ['src', 'e2e', 'scripts']) walkAll(path.join(ROOT, d))
+problems.push(...checkPackage(pkg), ...checkLock(lock), ...checkNobleUse(everySource))
 
-console.log(`  scanned ${files.length} product source files and ${deps.length} package names`)
+console.log(`  scanned ${files.length} product source files, ${everySource.length} sources for @noble imports, and ${deps.length} package names`)
 console.log(`  module: ${MODULE} (deriveKey ${inModule.deriveKey}, importKey ${inModule.importKey}, encrypt ${inModule.encrypt}, decrypt ${inModule.decrypt}; iteration count written ${inModule.iterations}x, format identifier ${inModule.formatId}x)`)
 for (const p of problems) console.error(`  FAIL  ${p}`)
 if (violations.length) {

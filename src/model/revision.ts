@@ -574,8 +574,9 @@ export function canonicalJson(x: CanonicalContent): string {
 }
 
 /** §R4.4 — `fullContentDigest` = SHA-256 (lowercase hex) of the UTF-8 bytes of
- *  `canonicalJson(canonicalContent(doc))`. Web Crypto where present, pure-JS
- *  fallback elsewhere (shared with `loop-workspace/1`). */
+ *  `canonicalJson(canonicalContent(doc))`. Web Crypto where present, the
+ *  synchronous `sha256Js` (`@noble/hashes`) elsewhere (shared with
+ *  `loop-workspace/1`). */
 export async function fullContentDigest(
   doc: {
     nodes: LoopNode[]
@@ -593,7 +594,8 @@ export async function fullContentDigest(
   return sha256Hex(utf8Bytes(canonicalJson(canonicalContent(doc, { modelVersion }))))
 }
 
-/** synchronous digest of an already-built `CanonicalContent` (pure-JS SHA-256).
+/** synchronous digest of an already-built `CanonicalContent` (`sha256Js`, the
+ *  synchronous SHA-256 of `@noble/hashes`).
  *  Used where the caller has the projection in hand and wants no `await`. */
 export function digestOfCanonical(c: CanonicalContent): string {
   return sha256Js(utf8Bytes(canonicalJson(c)))
