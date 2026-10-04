@@ -19,8 +19,9 @@ import {
   ShareError,
   classifyFragment,
   decodeShareText,
+  shareCompressionAvailable,
 } from '../model/share'
-import { type ProtectedOutcome, openProtectedLink } from './protectedLink'
+import { type ProtectedOutcome, openProtectedLink, openUnavailableShareLink } from './protectedLink'
 import { applySharedGraph, replaceConfirmed, replacePrompt } from './shareApply'
 
 export { replacePrompt }
@@ -81,6 +82,11 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
     console.warn('Loop Studio: ignored a malformed share link.')
     return { kind: 'failed', reason: 'malformed' }
   }
+
+  // No Compression Streams on this page: no link can be read here, and there
+  // is no bundled fallback (§U1.3, issue #301 decision 1). The fragment stays,
+  // so the address still opens in another browser; a notice says why.
+  if (!shareCompressionAvailable()) return openUnavailableShareLink()
 
   const payload = fragment.payload
 

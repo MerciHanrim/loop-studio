@@ -532,6 +532,12 @@ const ui = {
   'whatsNew.v0170.open': '保護されたリンクは、共有されたダイアグラムの内容を何も表示する前にパスワードを尋ねます。パスワードの誤りと、作成後に変更された暗号化リンクデータでは、同じメッセージが表示されます。',
   'whatsNew.v0170.limits': '忘れたパスワードは復元できず、リンクの強さはパスワードの強さで決まります。Loop Studio はパスワードも鍵も保存せず、送信もしません。',
   'whatsNew.v0170.plain': '通常のリンクが引き続き既定で、これまでどおり動作します。',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'このブラウザーでは共有リンクを作成することも開くこともできません。最新のブラウザーでもう一度お試しください。',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': '共有リンクはブラウザーに組み込まれた圧縮機能を使うようになりました。',
+  'whatsNew.v0171.unavailable': 'この機能を使えない場合は、現在のダイアグラムをそのまま保ち、最新のブラウザーが必要であることを案内します。',
+  'whatsNew.v0171.compatible': '既存の共有リンクとの互換性は保たれ、リンクの形式も変わっていません。',
 } satisfies Record<UiKey, string>
 
 export default ui

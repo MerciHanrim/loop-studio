@@ -582,6 +582,12 @@ const ui = {
   'whatsNew.v0170.open': 'Un lien protégé demande son mot de passe avant que quoi que ce soit du diagramme partagé ne soit affiché. Un mot de passe incorrect et des données de lien chiffrées qui ont été modifiées après la création donnent le même message.',
   'whatsNew.v0170.limits': 'Un mot de passe perdu ne peut pas être récupéré, et le lien n’est pas plus solide que son mot de passe. Loop Studio ne conserve ni ne transmet le mot de passe ou la clé.',
   'whatsNew.v0170.plain': 'Un lien simple reste le choix par défaut et fonctionne comme avant.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Ce navigateur ne peut ni créer ni ouvrir de liens de partage. Réessayez dans un navigateur récent.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Les liens de partage utilisent désormais la compression intégrée du navigateur.',
+  'whatsNew.v0171.unavailable': 'Si cette fonction n’est pas disponible, Loop Studio laisse le diagramme actuel inchangé et explique qu’un navigateur récent est nécessaire.',
+  'whatsNew.v0171.compatible': 'Les liens de partage existants restent compatibles et leur format n’a pas changé.',
 } satisfies Record<UiKey, string>
 
 export default ui

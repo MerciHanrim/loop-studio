@@ -511,6 +511,12 @@ const ui = {
   'whatsNew.v0170.open': 'Un enlace protegido pide su contraseña antes de mostrar nada del diagrama compartido. Una contraseña incorrecta y unos datos cifrados del enlace que se alteraron después de crearlo dan el mismo mensaje.',
   'whatsNew.v0170.limits': 'Una contraseña perdida no se puede recuperar, y el enlace es tan fuerte como su contraseña. Loop Studio no almacena ni transmite la contraseña ni la clave.',
   'whatsNew.v0170.plain': 'Un enlace sin protección sigue siendo la opción predeterminada y funciona como antes.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Este navegador no puede crear ni abrir enlaces para compartir. Vuelve a intentarlo en un navegador actual.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Los enlaces para compartir ahora usan la compresión integrada del navegador.',
+  'whatsNew.v0171.unavailable': 'Si esa función no está disponible, Loop Studio deja el diagrama actual sin cambios y explica que se necesita un navegador actual.',
+  'whatsNew.v0171.compatible': 'Los enlaces para compartir existentes siguen siendo compatibles; el formato del enlace no ha cambiado.',
 } as const
 
 export type UiKey = keyof typeof ui

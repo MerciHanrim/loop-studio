@@ -77,7 +77,7 @@ support). Installability needs: HTTPS ✓, manifest with name + icons + `display
 
 **Tooling — `vite-plugin-pwa` (Workbox), `generateSW` mode.** It reads the Vite
 build and emits a precache manifest automatically, so the cache list can never
-drift from the build. Hand-rolling the SW (as with the SHA / deflate fallbacks)
+drift from the build. Hand-rolling the SW (as with the SHA fallback)
 buys nothing here — the precache-and-activate lifecycle is exactly what Workbox
 does well, and it is battle-tested. The plugin is added to `plugins` **only for
 the Production and PWA-test builds** (`mode === 'pwa'` or

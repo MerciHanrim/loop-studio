@@ -32,7 +32,14 @@ const NOTICE_KEY = {
   unavailable: 'share.open.notice.unavailable',
   newer: 'share.open.notice.newer',
   content: 'share.open.notice.content',
+  // issue #301 decision 1 - the same sentence for either kind of link
+  'no-compression': 'share.unavailable',
+  'plain-no-compression': 'share.unavailable',
 } as const satisfies Record<ProtectedNotice, MessageKey>
+
+/** a plain `g1` link is not a "protected link": its notice is titled "Share link" */
+const noticeTitleKey = (notice: ProtectedNotice): MessageKey =>
+  notice === 'plain-no-compression' ? 'share.panel.label' : 'share.open.notice.title'
 
 export function ProtectedLinkDialog() {
   const open = useProtectedLinkStore((s) => s.open)
@@ -169,7 +176,7 @@ function Notice({ notice }: { notice: ProtectedNotice }) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mcdlg__head">
-          <span id={titleId}>{t('share.open.notice.title')}</span>
+          <span id={titleId}>{t(noticeTitleKey(notice))}</span>
         </div>
         <div className="mcdlg__body">
           <p id={bodyId} className="mcdlg__note">

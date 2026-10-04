@@ -588,6 +588,12 @@ const ui = {
   'whatsNew.v0170.open': 'Ein geschützter Link fragt nach seinem Passwort, bevor irgendetwas vom geteilten Diagramm gezeigt wird. Ein falsches Passwort und verschlüsselte Linkdaten, die nach dem Erstellen verändert wurden, ergeben dieselbe Meldung.',
   'whatsNew.v0170.limits': 'Ein verlorenes Passwort lässt sich nicht wiederherstellen, und der Link ist nur so stark wie sein Passwort. Loop Studio speichert und überträgt weder das Passwort noch den Schlüssel.',
   'whatsNew.v0170.plain': 'Ein einfacher Link bleibt die Voreinstellung und funktioniert wie bisher.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Dieser Browser kann keine Links zum Teilen erstellen oder öffnen. Bitte in einem aktuellen Browser erneut versuchen.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Links zum Teilen nutzen jetzt die eingebaute Komprimierung des Browsers.',
+  'whatsNew.v0171.unavailable': 'Ist diese Funktion nicht verfügbar, lässt Loop Studio das aktuelle Diagramm unverändert und weist darauf hin, dass ein aktueller Browser nötig ist.',
+  'whatsNew.v0171.compatible': 'Bestehende Links zum Teilen bleiben kompatibel; das Linkformat hat sich nicht geändert.',
 } satisfies Record<UiKey, string>
 
 export default ui

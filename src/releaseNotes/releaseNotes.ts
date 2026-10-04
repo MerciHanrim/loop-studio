@@ -39,6 +39,13 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #301 decision 1 - share links use only the browser's own compression
+    id: 'release:0.17.1',
+    version: '0.17.1',
+    date: '2026-10-04',
+    items: ['whatsNew.v0171.compression', 'whatsNew.v0171.unavailable', 'whatsNew.v0171.compatible'],
+  },
+  {
     // the date is the day it is deployed, set right before the merge (issue #300)
     id: 'release:0.17.0',
     version: '0.17.0',

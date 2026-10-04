@@ -505,6 +505,12 @@ const ui = {
   'whatsNew.v0170.open': '受保护的链接会先询问密码，之后才显示共享图表的任何内容。密码错误和创建后被改动的加密链接数据，给出的是同一条提示。',
   'whatsNew.v0170.limits': '密码丢失后无法找回，链接的安全程度取决于密码。Loop Studio 不存储也不传输密码或密钥。',
   'whatsNew.v0170.plain': '普通链接仍是默认选项，用法与之前相同。',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': '此浏览器无法创建或打开分享链接。请在较新的浏览器中重试。',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': '分享链接现在使用浏览器内置的压缩功能。',
+  'whatsNew.v0171.unavailable': '如果无法使用此功能，当前图表将保持不变，并提示需要较新的浏览器。',
+  'whatsNew.v0171.compatible': '现有的分享链接仍然兼容，链接格式也没有改变。',
 } satisfies Record<UiKey, string>
 
 export default ui

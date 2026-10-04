@@ -497,6 +497,12 @@ const ui = {
   'whatsNew.v0170.open': 'A protected link asks for its password before anything from the shared diagram is shown. A wrong password and encrypted link data that was altered after creation give the same message.',
   'whatsNew.v0170.limits': 'A lost password cannot be recovered, and the link is only as strong as its password. Loop Studio does not store or transmit the password or the key.',
   'whatsNew.v0170.plain': 'A plain link is still the default and works as before.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'This browser cannot create or open share links. Try again in a current browser.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Share links now use the browser’s built-in compression.',
+  'whatsNew.v0171.unavailable': 'If that feature is unavailable, Loop Studio keeps your current diagram unchanged and explains that a current browser is required.',
+  'whatsNew.v0171.compatible': 'Existing share links remain compatible; the link format has not changed.',
 } as const
 
 export type UiKey = keyof typeof ui
