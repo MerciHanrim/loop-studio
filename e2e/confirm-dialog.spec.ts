@@ -102,9 +102,13 @@ test('focus is trapped, initial focus is Cancel, and it returns to the trigger o
   // initial focus on Cancel — so a stray Enter never fires the confirm
   await expect(dlg(page).getByRole('button', { name: /^cancel$/i })).toBeFocused()
 
-  // Tab cycles inside the dialog only (2 buttons → wraps)
+  // Tab cycles inside the dialog only. Since issue #300 the share dialog has a
+  // third control, the `Protect with a password` box, which comes first in the
+  // document: Cancel → Create link → (wraps) the box → Cancel.
   await page.keyboard.press('Tab')
   await expect(dlg(page).getByRole('button', { name: /create link/i })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(dlg(page).locator('[data-share-protect="option"]')).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(dlg(page).getByRole('button', { name: /^cancel$/i })).toBeFocused()
 

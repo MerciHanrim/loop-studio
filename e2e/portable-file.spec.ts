@@ -484,4 +484,41 @@ test.describe('portable file://', () => {
 
     await openPayloadOnHttp(browser, url.split('#g1=')[1])
   })
+
+  // issue #300 - Web Crypto is there on file:// (a secure context in Chromium),
+  // so the portable file makes a protected link the hosted build opens
+  test('Share on file:// can protect the link with a password, and the hosted build opens it', async ({ browser }) => {
+    test.setTimeout(60_000)
+    const password = 'portable e2e password 5' // never a real one
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    await seedPersonalBrowser(ctx)
+    const page = await ctx.newPage()
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => undefined } })
+    })
+    await openPortable(page) // imports risky-factory (18 nodes)
+    await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+    const dlg = page.locator('.mcdlg--share[data-share-create]')
+    await expect(dlg.locator('[data-share-protect="option"]')).toBeEnabled()
+    await dlg.locator('[data-share-protect="option"]').check()
+    await dlg.locator('[data-share-protect="password"]').fill(password)
+    await dlg.locator('[data-share-protect="confirm"]').fill(password)
+    await dlg.getByRole('button', { name: /create link/i }).click()
+    const url = await page.locator('.share-pop__url').inputValue()
+    await ctx.close()
+    expect(url).toMatch(/^https:\/\/cozy-loop-studio\.pages\.dev\/#p1=[A-Za-z0-9_-]+$/)
+
+    const hosted = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    await seedPersonalBrowser(hosted)
+    const p2 = await hosted.newPage()
+    await p2.goto(`${HTTP}/#p1=${url.split('#p1=')[1]}`)
+    const prompt = p2.locator('[data-protected-open="prompt"]')
+    await expect(prompt).toBeVisible()
+    await prompt.locator('[data-protected-open="password"]').fill(password)
+    await prompt.getByRole('button', { name: 'Open' }).click()
+    await expect(prompt).toHaveCount(0)
+    await expect(p2.locator('.react-flow__node')).toHaveCount(18)
+    expect(await p2.evaluate(() => location.hash)).toBe('')
+    await hosted.close()
+  })
 })

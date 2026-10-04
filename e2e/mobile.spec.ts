@@ -388,6 +388,172 @@ test.describe('mobile view/run — Slice 2 chrome', () => {
     await expect(field).toHaveValue(/^https:\/\/cozy-loop-studio\.pages\.dev\/#g1=/)
   })
 
+  // issue #300 - the same dialog and the same shared action as desktop
+  test('Share from the More menu can protect the link with a password; the dialog and the opening prompt fit the screen', async ({ page }) => {
+    const password = 'phone e2e password 7' // never a real one
+    await loadDiagram(page)
+    await more(page).click()
+    await sheet(page, 'More').locator('.sheet__row', { hasText: 'Share link' }).click()
+    const dlg = page.locator('.mcdlg--share[data-share-create]')
+    await dlg.locator('[data-share-protect="option"]').check()
+    await dlg.locator('[data-share-protect="password"]').fill(password)
+    await dlg.locator('[data-share-protect="confirm"]').fill(password)
+    expect(rectInside(await dlg.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
+    // under 16px, iOS zooms the page when the field takes focus
+    expect(await dlg.locator('[data-share-protect="password"]').evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px')
+    await dlg.getByRole('button', { name: 'Create link' }).click()
+
+    const field = page.locator('.sheet .share-pop__url')
+    await expect(field).toHaveValue(/^https:\/\/cozy-loop-studio\.pages\.dev\/#p1=[A-Za-z0-9_-]+$/)
+    await expect(page.locator('.sheet [data-share-protected="note"]')).toBeVisible()
+    const nodes = await page.locator('.react-flow__node').count()
+    const hash = (await field.inputValue()).split('#')[1]
+
+    // what this browser stores is now something else, so the count below can
+    // only come from the link
+    await resetAll(page)
+    await page.evaluate(() => (window as unknown as { __loop: { autosave: { flush: () => void } } }).__loop.autosave.flush())
+    expect(await page.locator('.react-flow__node').count()).not.toBe(nodes)
+
+    // a link is consumed at boot: a real load, on the local server
+    await page.goto('about:blank')
+    await page.goto('/#' + hash)
+    const prompt = page.locator('[data-protected-open="prompt"]')
+    await expect(prompt).toBeVisible()
+    expect(rectInside(await prompt.boundingBox(), PORTRAIT.width, PORTRAIT.height, 1)).toBe(true)
+    expect(await page.evaluate(() => location.hash)).toBe('')
+    await prompt.locator('[data-protected-open="password"]').fill(password)
+    page.once('dialog', (d) => void d.accept()) // the stored diagram is not the untouched sample
+    await prompt.getByRole('button', { name: 'Open' }).click()
+    await expect(prompt).toHaveCount(0)
+    await expect(page.locator('.react-flow__node')).toHaveCount(nodes)
+  })
+
+  // issue #300 - the automatic copy happens once; the button is the way back to
+  // a link that takes a password typed twice to make again
+  test.describe('the result sheet has a Copy button', () => {
+    const PASSWORD = 'phone copy password 9' // never a real one
+    const urlField = (page: Page) => page.locator('.sheet .share-pop__url')
+    const copyButton = (page: Page) => page.locator('.sheet [data-share-copy]')
+    const status = (page: Page) => page.locator('.sheet .share-pop__status[role="status"]')
+    const clip = (page: Page) => page.evaluate(() => (window as any).__clipWrites as string[])
+
+    /** every write is recorded; `window.__clipMode = 'fail'` makes the next ones throw */
+    async function stubClipboard(page: Page): Promise<void> {
+      await page.addInitScript(() => {
+        ;(window as any).__clipWrites = []
+        ;(window as any).__derives = 0
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: {
+            writeText: async (t: string) => {
+              if ((window as any).__clipMode === 'fail') throw new Error('denied')
+              ;(window as any).__clipWrites.push(t)
+            },
+          },
+        })
+        if (crypto.subtle) {
+          const real = crypto.subtle.deriveKey.bind(crypto.subtle)
+          crypto.subtle.deriveKey = ((...a: Parameters<SubtleCrypto['deriveKey']>) => {
+            ;(window as any).__derives++
+            return real(...a)
+          }) as SubtleCrypto['deriveKey']
+        }
+      })
+    }
+    async function makeLink(page: Page, protect: boolean): Promise<string> {
+      await more(page).click()
+      await sheet(page, 'More').locator('.sheet__row', { hasText: 'Share link' }).click()
+      const dlg = page.locator('.mcdlg--share[data-share-create]')
+      if (protect) {
+        await dlg.locator('[data-share-protect="option"]').check()
+        await dlg.locator('[data-share-protect="password"]').fill(PASSWORD)
+        await dlg.locator('[data-share-protect="confirm"]').fill(PASSWORD)
+      }
+      await dlg.getByRole('button', { name: 'Create link' }).click()
+      await expect(urlField(page)).toBeVisible()
+      return urlField(page).inputValue()
+    }
+
+    for (const [kind, protect, prefix] of [['plain', false, '#g1='], ['protected', true, '#p1=']] as const) {
+      test(`a ${kind} link: copied once automatically, then again by the button - the same link, nothing made twice, no password`, async ({ page }) => {
+        await stubClipboard(page)
+        await loadDiagram(page)
+        const url = await makeLink(page, protect)
+        expect(url).toContain(prefix)
+        expect(await clip(page)).toEqual([url])
+        const derivesAfterMaking = await page.evaluate(() => (window as any).__derives as number)
+
+        // an accessible name, and it says "again" because the first copy worked
+        await expect(copyButton(page)).toHaveAccessibleName('Copy again')
+        await expect(status(page)).toHaveText('Link copied to the clipboard.')
+
+        for (let n = 2; n <= 4; n++) {
+          await copyButton(page).click()
+          await expect.poll(async () => (await clip(page)).length).toBe(n)
+        }
+        expect(new Set(await clip(page))).toEqual(new Set([url])) // the link, four times, and nothing else
+        expect(await urlField(page).inputValue()).toBe(url) // the link did not change
+        expect(await page.evaluate(() => (window as any).__derives as number)).toBe(derivesAfterMaking) // and none was made again
+        await expect(status(page)).toHaveText('Link copied to the clipboard.')
+        for (const text of await clip(page)) expect(text).not.toContain(PASSWORD)
+      })
+    }
+
+    test('the first copy refused: the button says Copy, a second refusal selects the whole link, then it copies', async ({ page }) => {
+      await stubClipboard(page)
+      await loadDiagram(page)
+      await page.evaluate(() => {
+        ;(window as any).__clipMode = 'fail'
+      })
+      const url = await makeLink(page, true)
+      expect(await clip(page)).toEqual([])
+      await expect(status(page)).toHaveText('Copy this link:')
+      await expect(copyButton(page)).toHaveAccessibleName('Copy')
+
+      // still refused: the field is selected whole, for a manual copy
+      await copyButton(page).click()
+      await expect
+        .poll(() => urlField(page).evaluate((el: HTMLInputElement) => document.activeElement === el && el.selectionStart === 0 && el.selectionEnd === el.value.length))
+        .toBe(true)
+      await expect(status(page)).toHaveText('Copy this link:')
+
+      // the clipboard works again: the button copies, and says so
+      await page.evaluate(() => {
+        ;(window as any).__clipMode = 'ok'
+      })
+      await copyButton(page).click()
+      await expect(status(page)).toHaveText('Link copied to the clipboard.')
+      await expect(copyButton(page)).toHaveAccessibleName('Copy again')
+      expect(await clip(page)).toEqual([url])
+    })
+
+    for (const size of [
+      { width: 320, height: 568 },
+      { width: 390, height: 844 },
+    ]) {
+      test(`at ${size.width} px the button is inside the sheet and the screen, and the run bar does not cover it`, async ({ page }) => {
+        await page.setViewportSize(size)
+        await stubClipboard(page)
+        await loadDiagram(page)
+        await makeLink(page, true)
+        const button = copyButton(page)
+        await button.scrollIntoViewIfNeeded()
+        const box = (await button.boundingBox())!
+        const sheetBox = (await page.locator('.sheet').filter({ has: page.locator('[data-share-copy]') }).boundingBox())!
+        expect(rectInside(box, size.width, size.height, 1)).toBe(true)
+        expect(box.x).toBeGreaterThanOrEqual(sheetBox.x)
+        expect(box.x + box.width).toBeLessThanOrEqual(sheetBox.x + sheetBox.width + 1)
+        expect(box.y + box.height).toBeLessThanOrEqual(sheetBox.y + sheetBox.height + 1)
+        expect(box.height).toBeGreaterThanOrEqual(44) // a touch target
+        // what a finger at its centre would hit is the button itself
+        const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.closest('[data-share-copy]') != null, [box.x + box.width / 2, box.y + box.height / 2])
+        expect(hit).toBe(true)
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true) // no sideways scroll
+      })
+    }
+  })
+
   test('PWA update bar + an open sheet: Close, Update and Play are each visible and clickable', async ({ page }) => {
     await loadDiagram(page)
     // dev has no service worker — poke the store so `.pwa-update` renders

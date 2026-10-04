@@ -5700,6 +5700,22 @@ input[type='number']::-webkit-inner-spin-button {
   .sheet .share-pop__url {
     font-size: 12px;
   }
+  /* issue #300 - the result sheet's Copy button: one full-width touch target */
+  .sheet .share-pop__row .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+  /* issue #300 - a password field under 16px makes iOS zoom the page on focus.
+     The base rules for these two sit at the END of this file, after this block,
+     so each override here carries one more class than its base rule. */
+  .mcdlg--share .share-protect__field input {
+    font-size: 16px;
+  }
+  .mcdlg.mcdlg--confirm.mcdlg--share {
+    width: 100%;
+    max-width: 380px;
+    max-height: calc(100dvh - var(--sai-top) - var(--sai-bottom) - 16px);
+  }
 
   /* ---- "open a file" first-run hint (§MV6) — no account sync ---- */
   .openhint {
@@ -6811,5 +6827,105 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .storage:lang(ko),
 .mcdlg--storage:lang(ko) {
+  word-break: keep-all;
+}
+
+/* ============================================================================
+   Issue #300 - password protection for share links (SEMANTICS-P.md).
+   The share dialog with its optional password, and the prompt a protected link
+   opens with. Wider than the 320px confirm: two labelled fields and four short
+   notes. The body scrolls inside the dialog when the window is short. The
+   inputs keep the global `:focus-visible` outline, so the ring also shows in
+   forced colours.
+   ============================================================================ */
+.mcdlg--confirm.mcdlg--share {
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+}
+.mcdlg--share .mcdlg__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 10px;
+}
+.share-protect {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+/* the opening prompt's form wraps the body AND the foot: it must pass the
+   dialog's column layout through, or the body could not scroll */
+.share-protect--open {
+  gap: 0;
+  min-height: 0;
+}
+.share-protect__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.share-protect__option input {
+  margin: 2px 0 0;
+  flex: none;
+}
+.share-protect__help,
+.share-protect__status {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.share-protect__status:empty {
+  display: none;
+}
+.share-protect__field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.share-protect__field input {
+  width: 100%;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+}
+.share-protect__reveal {
+  align-self: flex-start;
+}
+.share-protect__notes {
+  margin: 0;
+  padding-inline-start: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+/* a refusal: on the dialog it happened in, in the warning colour */
+.share-protect__problem {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--warning);
+  border-radius: var(--control-radius);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.share-pop__status--protected {
+  font-weight: 400;
+}
+.mcdlg--share:lang(ko) {
   word-break: keep-all;
 }

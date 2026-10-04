@@ -619,6 +619,7 @@ export function Toolbar() {
         anchorRef={shareAnchorElRef}
         returnFocusTo={() => returnFocusElRef.current}
         onConfirm={share.confirm}
+        onConfirmProtected={share.confirmProtected}
         onCancel={share.cancel}
         onRetryCopy={share.retryCopy}
         onClosePanel={share.closePanel}

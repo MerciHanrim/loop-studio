@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { useGraphStore } from '../../store/graphStore'
 import { recommendedRunConfigForExport } from '../../store/mcStore'
-import { prepareShareLink, shareKb } from '../../ui/shareAction'
+import { type ProtectedShareLinkResult, copyShareLink, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useT } from '../../i18n'
 
 export type ShareSurface =
   | { phase: 'confirm' }
-  | { phase: 'panel'; url: string; copied: boolean }
+  /** `protected` - the link is a `p1` link: the panel reminds to send the password separately */
+  | { phase: 'panel'; url: string; copied: boolean; protected?: boolean }
   | null
 
 /** Share's entire confirm→panel flow, lifted to Toolbar-level (review
@@ -53,14 +54,29 @@ export function useShareSurface() {
       }
 
       const url = result.url
-      let copied = false
-      try {
-        await navigator.clipboard.writeText(url)
-        copied = true
-      } catch {
-        copied = false // Clipboard API missing or denied — the field below is the fallback
-      }
+      // Clipboard API missing or denied ⇒ false: the field below is the fallback
+      const copied = await copyShareLink(url)
       setSurface({ phase: 'panel', url, copied })
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+  }
+
+  /** Issue #300 — the protected link. The dialog stays open while the key is
+   *  derived and shows anything but `ok` itself (over the cap, no public
+   *  address, no Web Crypto), so nothing is alerted from here. On `ok` the
+   *  LINK is copied - never the password - and the panel opens. */
+  const confirmProtected = async (password: string): Promise<ProtectedShareLinkResult> => {
+    if (busyRef.current) return { status: 'unavailable' }
+    busyRef.current = true
+    setBusy(true)
+    try {
+      const result = await prepareProtectedShareLink(exportJSON(recommendedRunConfigForExport()), password)
+      if (result.status !== 'ok') return result
+      const copied = await copyShareLink(result.url)
+      setSurface({ phase: 'panel', url: result.url, copied, protected: true })
+      return result
     } finally {
       busyRef.current = false
       setBusy(false)
@@ -69,16 +85,12 @@ export function useShareSurface() {
 
   const retryCopy = async (): Promise<boolean> => {
     if (surface?.phase !== 'panel') return false
-    try {
-      await navigator.clipboard.writeText(surface.url)
-      setSurface({ ...surface, copied: true })
-      return true
-    } catch {
-      return false
-    }
+    const ok = await copyShareLink(surface.url)
+    if (ok) setSurface({ ...surface, copied: true })
+    return ok
   }
 
   const closePanel = () => setSurface(null)
 
-  return { surface, busy, openConfirm, cancel, confirm, retryCopy, closePanel }
+  return { surface, busy, openConfirm, cancel, confirm, confirmProtected, retryCopy, closePanel }
 }

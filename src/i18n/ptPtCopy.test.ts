@@ -50,13 +50,15 @@ const BANNED: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bsaques?\b/i, 'levantamentos'],
   [/\bdetectar\b/i, 'detetar'],
   [/nova aba\b/i, 'novo separador'],
+  // issue #300 - the word for a password itself
+  [/\bsenhas?\b/i, 'palavra-passe'],
 ]
 
 describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(944)
+    expect(KEYS).toHaveLength(977)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -103,9 +105,56 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // not `configurações`, `aplicação` not `aplicativo`, `num` not `em um`.
     // Then 224 to 227: the corrected temporary-session copy and the failed-
     // deletion notice, on the same axes (`guardado`, `definições`, `ficheiro`).
-    expect(DELTA).toHaveLength(227)
-    // and it is a real audit, not a rewrite — most of the catalog agrees
-    expect(DELTA.length).toBeLessThan(KEYS.length / 4)
+    // Issue #300 moved it from 227 to 255: the password dialogs and the 0.17.0
+    // release-note lines - `palavra-passe` not `senha`, `ligação` not `link`,
+    // `cifrado` not `criptografado`, `guardar` not `salvar`, `aplicação` not
+    // `app`, `gestor` not `gerenciador`, `a abrir` not `abrindo`.
+    expect(DELTA).toHaveLength(255)
+    // and it is a real audit, not a rewrite — most of the catalog agrees.
+    //
+    // The password strings of issue #300 are counted apart. The word for a
+    // password itself differs (`palavra-passe` / `senha`, pinned in both
+    // directions by the banned-form scans below), so they differ by
+    // construction, and counting them into the share would say nothing about
+    // how much of the catalog was rewritten. Exactly these 28 of the 33 differ;
+    // the five that do not are the ones with no password word and no link word.
+    const isPasswordKey = (k: string) => /^(share\.protect\.|share\.open\.|share\.panel\.protected$|whatsNew\.v0170\.)/.test(k)
+    expect(KEYS.filter(isPasswordKey)).toHaveLength(33)
+    expect(DELTA.filter(isPasswordKey).sort()).toEqual([
+      'share.open.body',
+      'share.open.busy',
+      'share.open.error.auth',
+      'share.open.notice.content',
+      'share.open.notice.damaged',
+      'share.open.notice.newer',
+      'share.open.notice.title',
+      'share.open.notice.unavailable',
+      'share.panel.protected',
+      'share.protect.busy',
+      'share.protect.confirm',
+      'share.protect.error.long',
+      'share.protect.error.mismatch',
+      'share.protect.error.short',
+      'share.protect.hide',
+      'share.protect.note.channel',
+      'share.protect.note.contract',
+      'share.protect.note.lost',
+      'share.protect.note.strength',
+      'share.protect.option',
+      'share.protect.optionHelp',
+      'share.protect.password',
+      'share.protect.show',
+      'share.protect.unavailable',
+      'whatsNew.v0170.limits',
+      'whatsNew.v0170.open',
+      'whatsNew.v0170.plain',
+      'whatsNew.v0170.protect',
+    ])
+    // outside them, the quarter bound stands as it always did
+    const rest = KEYS.filter((k) => !isPasswordKey(k))
+    const restDelta = DELTA.filter((k) => !isPasswordKey(k))
+    expect(restDelta).toHaveLength(227)
+    expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 
   // ------------------------------------------------- direction 1: nothing left

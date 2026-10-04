@@ -9,6 +9,7 @@ import { MobileInspectorSheet } from './components/mobile/MobileInspectorSheet'
 import { MobileRunBar } from './components/mobile/MobileRunBar'
 import { MonteCarloDialog } from './components/MonteCarloDialog'
 import { PlaybackAnnouncer } from './components/PlaybackAnnouncer'
+import { ProtectedLinkDialog } from './components/ProtectedLinkDialog'
 import { PwaUpdateBar } from './components/PwaUpdateBar'
 import { ReviewOverlay } from './components/ReviewOverlay'
 import { ShareLoader } from './components/ShareLoader'
@@ -40,6 +41,7 @@ export default function App() {
       <MonteCarloDialog />
       <ReviewOverlay />
       <PlaybackAnnouncer />
+      <ProtectedLinkDialog />
       <GuidedTour />
     </ReactFlowProvider>
   )

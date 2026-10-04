@@ -20,19 +20,17 @@ import {
   classifyFragment,
   decodeShareText,
 } from '../model/share'
-import { t } from '../i18n'
-import { useGraphStore } from './graphStore'
-import { useMcStore } from './mcStore'
-import { useSimStore } from './simStore'
+import { type ProtectedOutcome, openProtectedLink } from './protectedLink'
+import { applySharedGraph, replaceConfirmed, replacePrompt } from './shareApply'
 
-/** the replace-confirm text, in the active UI language (`share.replacePrompt`) */
-export const replacePrompt = (): string => t('share.replacePrompt')
+export { replacePrompt }
 
 export type ShareLoadOutcome =
   | { kind: 'none' } // not a Loop Studio fragment - left in the address bar
   | { kind: 'loaded' } // a valid link was applied
-  | { kind: 'cancelled' } // a valid link, but the user declined the replace
+  | { kind: 'cancelled' } // a valid link, but the user declined the replace (or the password prompt)
   | { kind: 'failed'; reason: ShareFailure | 'bad-graph' | 'unsupported-version' | 'malformed' }
+  | Extract<ProtectedOutcome, { kind: 'failed' }> // a protected link that did not open (SEMANTICS-P.md)
 
 type Options = {
   /** defaults to `location.hash` */
@@ -63,6 +61,13 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
   // Not ours - a section anchor, a router path, another app's fragment. Leave it
   // exactly as it is (§U5.1 / U6).
   if (fragment.kind === 'foreign') return { kind: 'none' }
+
+  // A protected link (`p1`, SEMANTICS-P.md) has its own flow: a structure check,
+  // a password prompt, then the same replace confirmation and the same one load.
+  // The promise resolves when that whole flow has ended.
+  if (fragment.kind === 'protected' || fragment.kind === 'protected-unsupported' || fragment.kind === 'protected-malformed') {
+    return openProtectedLink(fragment, { strip, confirm: opts.confirm })
+  }
 
   // Ours, but not a link this build can open. Still Loop Studio's to tidy up:
   // warn, leave the graph + run untouched, and strip the dead fragment (§U6).
@@ -100,27 +105,13 @@ export async function consumeShareLink(opts: Options = {}): Promise<ShareLoadOut
   }
 
   // ---- replace confirmation (§U5.4) --------------------------------------
-  const pristine = useGraphStore.getState().pristineSample
-  if (!pristine) {
-    const ask = opts.confirm ?? (typeof window !== 'undefined' ? window.confirm : () => true)
-    if (!ask(replacePrompt())) {
-      strip() // Cancel: only the fragment goes; no run-stop, no bump
-      return { kind: 'cancelled' }
-    }
+  if (!replaceConfirmed(opts.confirm)) {
+    strip() // Cancel: only the fragment goes; no run-stop, no bump
+    return { kind: 'cancelled' }
   }
 
   // ---- apply (§U5.5): stop any run, then exactly one loadDoc -------------
-  useSimStore.getState().pause() // first point that run state changes
-  // The link is a whole GraphDoc (the Share encoder is `exportJSON`, which
-  // carries the saved `frames` + `dataImports`), so it REPLACES those too:
-  // `[]` when the link has none. Passing nothing here would mean "keep the
-  // current document's" (`loadDoc`'s revision-Apply posture), which carried
-  // the PREVIOUS document's frames and data-import records into the shared
-  // graph — and into its next Export / digest — while dropping the link's own.
-  useGraphStore
-    .getState()
-    .loadDoc({ nodes: parsed.nodes, edges: parsed.edges }, parsed.modelVersion, parsed.frames, parsed.dataImports) // the ONE bump
-  useMcStore.getState().applyRecommended(parsed.recommendedRunConfig)
+  applySharedGraph(parsed)
 
   strip()
   return { kind: 'loaded' }

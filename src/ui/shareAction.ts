@@ -1,4 +1,5 @@
-import { SHARE_MAX_BYTES, encodeShareText } from '../model/share'
+import { SHARE_MAX_BYTES, SHARE_PREFIX, encodeShareText } from '../model/share'
+import { PROTECTED_PREFIX, ProtectedShareError, sealShareText } from '../model/shareProtected'
 
 // SEMANTICS-U.md §U7 — the shared parts of "make a share link", used by the
 // desktop `ShareButton` and the mobile More menu. The one-time disclosure (an
@@ -20,9 +21,9 @@ export function shareCap(): number {
  * http(s) URL (a build misconfiguration — the caller surfaces an error, never a
  * silent `null/...` link).
  */
-export function buildShareUrl(payload: string): string | null {
+export function buildShareUrl(payload: string, prefix: string = SHARE_PREFIX): string | null {
   try {
-    const u = new URL(`#g1=${payload}`, __SHARE_BASE_URL__)
+    const u = new URL(`#${prefix}${payload}`, __SHARE_BASE_URL__)
     return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null
   } catch {
     return null
@@ -40,5 +41,43 @@ export async function prepareShareLink(doc: string): Promise<ShareLinkResult> {
   const cap = shareCap()
   if (bytes > cap) return { status: 'too-large', bytes, cap }
   const url = buildShareUrl(payload)
+  return url == null ? { status: 'no-base' } : { status: 'ok', url }
+}
+
+/**
+ * Put a share link on the clipboard. Resolves `false` where the Clipboard API
+ * is missing or refuses; the caller then leaves the link in its field for a
+ * manual copy (§U7). The one copy path of desktop and phone, for a plain and a
+ * protected link alike - and it is only ever handed the LINK, never a password.
+ */
+export async function copyShareLink(url: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(url)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export type ProtectedShareLinkResult =
+  | ShareLinkResult
+  | { status: 'unavailable' } // no Web Crypto on this page
+  | { status: 'password' } // the 12..128 rule; the dialog checks it first, this is the second line
+
+/**
+ * SEMANTICS-P.md SS P5 - seal `doc` with `password`, enforce the SAME cap on the
+ * protected payload (a hard reject, never a truncation), build the `#p1=` URL.
+ * No side effects; the password is passed straight through and not kept.
+ */
+export async function prepareProtectedShareLink(doc: string, password: string): Promise<ProtectedShareLinkResult> {
+  let sealed: { payload: string; bytes: number }
+  try {
+    sealed = await sealShareText(doc, password)
+  } catch (e) {
+    return { status: e instanceof ProtectedShareError && e.reason === 'password' ? 'password' : 'unavailable' }
+  }
+  const cap = shareCap()
+  if (sealed.bytes > cap) return { status: 'too-large', bytes: sealed.bytes, cap }
+  const url = buildShareUrl(sealed.payload, PROTECTED_PREFIX)
   return url == null ? { status: 'no-base' } : { status: 'ok', url }
 }

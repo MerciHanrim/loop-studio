@@ -144,6 +144,9 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
   // and `privacy` are the words Italian uses, `area` is Italian, Chrome and
   // HTML are names
   ['the storage gate (issue #297)', ['computer', 'privacy', 'area', 'chrome', 'html']],
+  // issue #300 - password protection for share links: `password` is the word
+  // Italian uses, HTTPS is a protocol name
+  ['password protection for share links (issue #300)', ['password', 'https']],
 ]
 
 const DECLARED = new Set(SURVIVING.flatMap(([, ws]) => ws))
@@ -165,6 +168,7 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
   ['catalog revChip.rev', 'rev {id}'],
   ['catalog mc.title', 'Monte Carlo'],
   ['catalog review.field.base', 'base'],
+  ['catalog share.protect.password', 'Password'], // issue #300: the Italian word
   ['catalog dist.seed', 'seed'],
   ['catalog tour.nav.position', '{n} / {total}'],
   ['catalog help.contextual.hint.mc.name', 'Monte Carlo'],
@@ -195,15 +199,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(944)
+    expect(KEYS).toHaveLength(977)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 944, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1166)
+    expect(per).toEqual({ catalog: 977, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1199)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {
@@ -284,9 +288,9 @@ describe('it copy — what is identical to English, exactly', () => {
     expect([...actual].sort()).toEqual([...IDENTICAL_TO_EN].sort())
   })
 
-  it('the declared set is what it claims — 38 pairs, no duplicate key', () => {
-    expect(IDENTICAL_TO_EN).toHaveLength(38)
-    expect(new Set(IDENTICAL_TO_EN.map(([k]) => k)).size).toBe(38)
+  it('the declared set is what it claims — 39 pairs, no duplicate key', () => {
+    expect(IDENTICAL_TO_EN).toHaveLength(39)
+    expect(new Set(IDENTICAL_TO_EN.map(([k]) => k)).size).toBe(39)
   })
 })
 

@@ -1,4 +1,4 @@
-import { useCallback, useState, type RefObject } from 'react'
+import { useCallback, useRef, useState, type RefObject } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { FEEDBACK_URL } from '../../feedback'
 import { openTemplate } from '../../i18n/templateLabels'
@@ -20,7 +20,7 @@ import {
 } from '../../store/workspaceIO'
 import { downloadText } from '../../ui/download'
 import { exportProjectRevision, makeProposal } from '../../ui/revisionActions'
-import { prepareShareLink, shareKb } from '../../ui/shareAction'
+import { type ProtectedShareLinkResult, copyShareLink, prepareProtectedShareLink, prepareShareLink, shareKb } from '../../ui/shareAction'
 import { useTourStore } from '../../store/tourStore'
 import { useWhatsNewStore } from '../../store/whatsNewStore'
 import { useHintStore, useTier3Ready, useLargeGraphInteractionGate } from '../../store/hintStore'
@@ -37,7 +37,7 @@ import { MobileSheet } from './MobileSheet'
 import { ThemeToggle } from '../ThemeToggle'
 import { WhatsNewPanel } from '../WhatsNewPanel'
 import { StoragePrivacyDialog } from '../StoragePrivacyDialog'
-import { shareDisclosureBody } from '../toolbar/shareDisclosure'
+import { ShareCreateDialog } from '../toolbar/ShareCreateDialog'
 import { selectTemporary, useSessionStore } from '../../store/sessionStore'
 import { ArrowIcon } from '../../ui/icons'
 
@@ -112,7 +112,10 @@ export function MobileMoreMenu({
     closeOverlay('more')
   }
 
-  const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean } | null>(null)
+  // `copies` counts the successful copies of THIS link, so the status line is
+  // announced again each time the button below copies it again
+  const [sharePanel, setSharePanel] = useState<{ url: string; copied: boolean; copies: number; protected?: boolean } | null>(null)
+  const shareUrlRef = useRef<HTMLInputElement>(null)
   const [shareConfirm, setShareConfirm] = useState(false)
   const [shareBusy, setShareBusy] = useState(false)
   const [authorOpen, setAuthorOpen] = useState(false)
@@ -143,17 +146,48 @@ export function MobileMoreMenu({
         window.alert(t('share.noBase'))
         return
       }
-      let copied = false
-      try {
-        await navigator.clipboard.writeText(result.url)
-        copied = true
-      } catch {
-        copied = false
-      }
-      setSharePanel({ url: result.url, copied })
+      const copied = await copyShareLink(result.url)
+      setSharePanel({ url: result.url, copied, copies: copied ? 1 : 0 })
       openOverlay('share')
     } finally {
       setShareBusy(false)
+    }
+  }
+
+  // issue #300 — the protected link, through the same dialog and the same
+  // shared action as desktop. Anything but `ok` is shown inside the dialog; on
+  // `ok` the LINK is copied (never the password) and the result sheet opens.
+  const runProtectedShare = async (password: string): Promise<ProtectedShareLinkResult> => {
+    if (shareBusy) return { status: 'unavailable' }
+    setShareBusy(true)
+    try {
+      const result = await prepareProtectedShareLink(exportJSON({ ...useMcStore.getState().config }), password)
+      if (result.status !== 'ok') return result
+      const copied = await copyShareLink(result.url)
+      setShareConfirm(false)
+      setSharePanel({ url: result.url, copied, copies: copied ? 1 : 0, protected: true })
+      openOverlay('share')
+      return result
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  // issue #300 — the result sheet's Copy button. The automatic copy above
+  // happens once; a clipboard that was overwritten since, or a browser that
+  // refused that first write, left no way back to a link that takes a password
+  // typed twice to make again. This copies the SAME link (never a password, the
+  // sheet never has one) and nothing is created again. Where the clipboard
+  // refuses, the field is selected whole for a manual copy.
+  const copyShareAgain = async () => {
+    const panel = sharePanel
+    if (!panel) return
+    const ok = await copyShareLink(panel.url)
+    setSharePanel((p) => (p && p.url === panel.url ? { ...p, copied: ok, copies: ok ? p.copies + 1 : p.copies } : p))
+    if (!ok) {
+      const el = shareUrlRef.current
+      el?.focus()
+      el?.setSelectionRange(0, el.value.length) // `select()` alone does not select on iOS
     }
   }
 
@@ -401,12 +435,11 @@ export function MobileMoreMenu({
           {__BUILD_SHA__ ? ` · ${__BUILD_SHA__}` : ''}
         </div>
       </MobileSheet>
-      <ConfirmDialog
+      <ShareCreateDialog
         open={shareConfirm}
-        title={t('share.disclosure.title')}
-        body={shareDisclosureBody(t, temporary)}
-        confirmLabel={t('share.disclosure.confirm')}
-        onConfirm={runShare}
+        temporary={temporary}
+        onCreatePlain={runShare}
+        onCreateProtected={runProtectedShare}
         onCancel={() => setShareConfirm(false)}
         returnFocusTo={() => document.querySelector<HTMLButtonElement>('.sheet__row--first')}
       />
@@ -551,16 +584,29 @@ export function MobileMoreMenu({
         }}
         returnFocusTo={backToMore}
       >
-        <div className="share-pop__status">
-          {sharePanel.copied ? t('share.panel.copied') : t('share.panel.copyThis')}
+        {/* a live region: the keyed child is replaced on every successful copy, so
+            "copied" is said again when the button copies the same link again */}
+        <div className="share-pop__status" role="status" data-share-status={sharePanel.copied ? 'copied' : 'manual'}>
+          <span key={sharePanel.copies}>{sharePanel.copied ? t('share.panel.copied') : t('share.panel.copyThis')}</span>
         </div>
+        {sharePanel.protected ? (
+          <div className="share-pop__status share-pop__status--protected" data-share-protected="note">
+            {t('share.panel.protected')}
+          </div>
+        ) : null}
         <input dir="ltr"
+          ref={shareUrlRef}
           className="share-pop__url"
           type="text"
           readOnly
           value={sharePanel.url}
           onFocus={(e) => e.currentTarget.select()}
         />
+        <div className="share-pop__row">
+          <button type="button" className="btn" data-share-copy={sharePanel.copied ? 'again' : 'first'} onClick={() => void copyShareAgain()}>
+            {sharePanel.copied ? t('share.panel.copyAgain') : t('share.panel.copy')}
+          </button>
+        </div>
       </MobileSheet>
     )
   }

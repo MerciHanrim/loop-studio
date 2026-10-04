@@ -1,7 +1,7 @@
 {
   "name": "loop-studio",
   "private": true,
-  "version": "0.16.0",
+  "version": "0.17.0",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -32,6 +32,7 @@
     "check:locale-lists": "node scripts/check-locale-lists.mjs",
     "check:snapshot-policy": "node scripts/check-snapshot-policy.mjs",
     "check:storage-port": "node scripts/check-storage-port.mjs",
+    "check:share-crypto": "node scripts/check-share-crypto.mjs",
     "check:change-declaration": "node scripts/check-change-declaration.mjs",
     "check:e2e-shards": "node scripts/e2e-shards.mjs check",
     "check:functional-glyphs": "node scripts/check-functional-glyphs.mjs",

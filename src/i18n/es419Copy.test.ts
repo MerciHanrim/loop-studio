@@ -237,7 +237,9 @@ describe('es-419 copy — mechanical review', () => {
         'no No normal panel Roles series Total use Use web zoom ' +
         // issue #297: a browser name, a file format, and two Spanish/English
         // homographs (`accidental`, `personal`) in the storage gate and area
-        'Chrome HTML accidental personal'
+        'Chrome HTML accidental personal ' +
+        // issue #300: the protocol the password dialogs name
+        'HTTPS'
       ).split(' '),
     )
     // allowed ONLY on the surface that owns it — the key set is the contract,

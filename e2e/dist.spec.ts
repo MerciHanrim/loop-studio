@@ -623,3 +623,55 @@ test.describe('production build — the stored theme is on before the first pain
     expect(kinds.filter((k) => k === 'dark').length).toBeGreaterThan(0)
   })
 })
+
+// issue #300 - a protected share link in the PRODUCTION bundle: no dev bridge,
+// the minified sealed transport, the lazy app chunk
+test.describe('production build: a password-protected share link', () => {
+  test('is created and opened; a wrong password loads nothing; no request leaves the origin', async ({ page, context }) => {
+    const password = 'dist e2e password 19' // never a real one
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => undefined } })
+    })
+    const { bad } = await openProd(page)
+    await page.locator('.toolbar__palette .chip--drain').click()
+    const nodes = await page.locator('.react-flow__node').count()
+    await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+    const dlg = page.locator('.mcdlg--share[data-share-create]')
+    await dlg.locator('[data-share-protect="option"]').check()
+    await dlg.locator('[data-share-protect="password"]').fill(password)
+    await dlg.locator('[data-share-protect="confirm"]').fill(password)
+    await dlg.getByRole('button', { name: 'Create link' }).click()
+    const url = await page.locator('.share-pop__url').inputValue()
+    expect(url).toMatch(/^https:\/\/cozy-loop-studio\.pages\.dev\/#p1=[A-Za-z0-9_-]+$/)
+
+    // one more node after the link was made: what this browser stores now differs
+    // from what the link carries, so the count at the end can only come from the link
+    await page.keyboard.press('Escape')
+    await page.locator('.toolbar__palette .chip--drain').click()
+    await page.waitForFunction(
+      (n) => (JSON.parse(localStorage.getItem('loop-studio:graph:v1') ?? '{}').nodes ?? []).length === n,
+      nodes + 1,
+    )
+
+    const p2 = await context.newPage()
+    const warnings: string[] = []
+    p2.on('console', (m) => {
+      if (m.type() === 'warning' && m.text().startsWith('Loop Studio:')) warnings.push(m.text())
+    })
+    p2.on('dialog', (d) => void d.accept()) // the stored diagram is not the untouched sample
+    await p2.goto(`/#p1=${url.split('#p1=')[1]}`)
+    const prompt = p2.locator('[data-protected-open="prompt"]')
+    await expect(prompt).toBeVisible()
+    await expect(p2.locator('.react-flow__node')).toHaveCount(nodes + 1)
+    expect(await p2.evaluate(() => location.hash)).toBe('')
+    await prompt.locator('[data-protected-open="password"]').fill('not the password')
+    await prompt.getByRole('button', { name: 'Open' }).click()
+    await expect(prompt.locator('[data-protected-open="error"]')).toBeVisible()
+    expect(warnings).toEqual(['Loop Studio: a protected share link was not opened; the password is wrong or the link is damaged.'])
+    await prompt.locator('[data-protected-open="password"]').fill(password)
+    await prompt.getByRole('button', { name: 'Open' }).click()
+    await expect(prompt).toHaveCount(0)
+    await expect(p2.locator('.react-flow__node')).toHaveCount(nodes)
+    expect(bad).toEqual([])
+  })
+})

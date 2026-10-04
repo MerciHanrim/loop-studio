@@ -74,14 +74,23 @@ for (const abs of files) {
           if (!a) return null
           if (!a.initializer) return 'true'
           if (ts.isStringLiteral(a.initializer)) return a.initializer.text
+          // `cond ? 'text' : 'password'` (a show / hide control, issue #300): both
+          // branches are literals, so both can be judged. Anything else stays
+          // undecidable and fails below.
+          const e = ts.isJsxExpression(a.initializer) ? a.initializer.expression : null
+          if (e && ts.isConditionalExpression(e) && ts.isStringLiteral(e.whenTrue) && ts.isStringLiteral(e.whenFalse)) {
+            return e.whenTrue.text + '|' + e.whenFalse.text
+          }
           return '(expression)'
         }
         const type = attr('type')
         const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1
         const spread = open.attributes.properties.some((x) => ts.isJsxSpreadAttribute(x))
+        // a conditional type carries text only when EVERY branch does
+        const types = type === null ? [] : type.split('|')
         const textual =
-          tag === 'textarea' || type === null || TEXTUAL_INPUT_TYPES.has(type ?? '')
-        if (!textual && !NON_TEXTUAL.has(type ?? '')) {
+          tag === 'textarea' || type === null || types.every((x) => TEXTUAL_INPUT_TYPES.has(x))
+        if (!textual && !types.every((x) => NON_TEXTUAL.has(x))) {
           problems.push(`${rel}:${line} <${tag} type="${type}"> - unknown input type, cannot decide whether it carries text`)
         } else if (textual) {
           const dir = attr('dir')
