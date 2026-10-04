@@ -26,7 +26,7 @@ import { shareDisclosureBody } from './shareDisclosure'
 // size cap, no public address, no Web Crypto) is shown here, inline.
 
 type Problem =
-  | { kind: 'short' | 'long' | 'mismatch' | 'unavailable' | 'no-base' }
+  | { kind: 'short' | 'long' | 'mismatch' | 'unavailable' | 'no-base' | 'no-compression' }
   | { kind: 'too-large'; bytes: number; cap: number }
 
 type Props = {
@@ -47,6 +47,8 @@ const PROBLEM_KEY = {
   mismatch: 'share.protect.error.mismatch',
   unavailable: 'share.protect.unavailable',
   'no-base': 'share.noBase',
+  // issue #301 decision 1 - no Compression Streams: no link of either kind here
+  'no-compression': 'share.unavailable',
 } as const satisfies Record<string, MessageKey>
 
 // Closed = forgotten. The body is mounted only while the dialog is open, so the

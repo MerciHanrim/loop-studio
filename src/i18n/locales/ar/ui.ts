@@ -553,6 +553,12 @@ const ui = {
   'whatsNew.v0170.open': 'يطلب الرابط المحمي كلمة المرور قبل عرض أي شيء من المخطط المشترك. كلمة المرور الخاطئة وبيانات الرابط المشفّرة التي غُيّرت بعد إنشائه تعطيان الرسالة نفسها.',
   'whatsNew.v0170.limits': 'لا يمكن استرجاع كلمة مرور مفقودة، وقوة الرابط من قوة كلمة المرور. لا يخزّن Loop Studio كلمة المرور ولا المفتاح ولا يرسلهما.',
   'whatsNew.v0170.plain': 'الرابط العادي ما زال الخيار الافتراضي ويعمل كما كان.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'لا يمكن لهذا المتصفح إنشاء روابط المشاركة أو فتحها. أعد المحاولة في متصفح حديث.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'تستخدم روابط المشاركة الآن الضغط المدمج في المتصفح.',
+  'whatsNew.v0171.unavailable': 'إذا لم تكن هذه الميزة متاحة، يُبقي Loop Studio المخطط الحالي كما هو ويوضح أن المطلوب متصفح حديث.',
+  'whatsNew.v0171.compatible': 'تظل روابط المشاركة الحالية متوافقة، ولم يتغير تنسيق الرابط.',
 } as const
 
 export default ui

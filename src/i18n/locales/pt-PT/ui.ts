@@ -527,6 +527,12 @@ const ui = {
   'whatsNew.v0170.open': 'Uma ligação protegida pede a palavra-passe antes de mostrar qualquer coisa do diagrama partilhado. Uma palavra-passe errada e dados cifrados da ligação que foram alterados depois da criação dão a mesma mensagem.',
   'whatsNew.v0170.limits': 'Uma palavra-passe perdida não pode ser recuperada, e a ligação é tão forte quanto a palavra-passe. O Loop Studio não armazena nem transmite a palavra-passe nem a chave.',
   'whatsNew.v0170.plain': 'A ligação simples continua a ser a predefinição e funciona como antes.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Este navegador não consegue criar nem abrir ligações de partilha. Tente novamente num navegador atual.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'As ligações de partilha passam a usar a compressão integrada do navegador.',
+  'whatsNew.v0171.unavailable': 'Se essa funcionalidade não estiver disponível, o Loop Studio mantém o diagrama atual sem alterações e explica que é necessário um navegador atual.',
+  'whatsNew.v0171.compatible': 'As ligações de partilha existentes continuam compatíveis; o formato da ligação não mudou.',
 } as const
 
 export type UiKey = keyof typeof ui

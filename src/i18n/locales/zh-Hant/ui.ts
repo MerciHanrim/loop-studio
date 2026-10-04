@@ -531,6 +531,12 @@ const ui = {
   'whatsNew.v0170.open': '受保護的連結會先詢問密碼，之後才顯示共享圖表的任何內容。密碼錯誤和建立後被更動的加密連結資料，給出的是同一則提示。',
   'whatsNew.v0170.limits': '密碼遺失後無法找回，連結的安全程度取決於密碼。Loop Studio 不保存也不傳輸密碼或金鑰。',
   'whatsNew.v0170.plain': '一般連結仍是預設選項，用法與之前相同。',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': '此瀏覽器無法建立或開啟分享連結。請在較新的瀏覽器中重試。',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': '分享連結現在使用瀏覽器內建的壓縮功能。',
+  'whatsNew.v0171.unavailable': '如果無法使用此功能，目前的圖表會保持不變，並提示需要較新的瀏覽器。',
+  'whatsNew.v0171.compatible': '現有的分享連結仍然相容，連結格式也沒有改變。',
 } satisfies Record<UiKey, string>
 
 export default ui

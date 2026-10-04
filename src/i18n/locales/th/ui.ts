@@ -573,6 +573,12 @@ const ui = {
   'whatsNew.v0170.open': 'ลิงก์ที่ป้องกันไว้จะถามรหัสผ่านก่อนแสดงสิ่งใดจากไดอะแกรมที่แชร์ รหัสผ่านที่ผิดและข้อมูลลิงก์ที่เข้ารหัสซึ่งถูกเปลี่ยนแปลงหลังจากสร้างจะได้ข้อความเดียวกัน',
   'whatsNew.v0170.limits': 'รหัสผ่านที่หายไปกู้คืนไม่ได้ และลิงก์ปลอดภัยได้เท่ากับรหัสผ่านเท่านั้น Loop Studio ไม่จัดเก็บและไม่ส่งรหัสผ่านหรือกุญแจ',
   'whatsNew.v0170.plain': 'ลิงก์ธรรมดายังคงเป็นค่าเริ่มต้นและทำงานเหมือนเดิม',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'เบราว์เซอร์นี้สร้างหรือเปิดลิงก์แชร์ไม่ได้ ลองอีกครั้งในเบราว์เซอร์รุ่นปัจจุบัน',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'ลิงก์แชร์ใช้การบีบอัดที่มีในเบราว์เซอร์แล้ว',
+  'whatsNew.v0171.unavailable': 'หากใช้ฟีเจอร์นี้ไม่ได้ ไดอะแกรมปัจจุบันจะยังคงเหมือนเดิม และจะแจ้งว่าต้องใช้เบราว์เซอร์รุ่นปัจจุบัน',
+  'whatsNew.v0171.compatible': 'ลิงก์แชร์ที่มีอยู่ยังใช้งานร่วมกันได้ และรูปแบบลิงก์ไม่ได้เปลี่ยน',
 } as const
 
 export type UiKey = keyof typeof ui

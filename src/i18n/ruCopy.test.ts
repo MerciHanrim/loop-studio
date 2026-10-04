@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(977)
+    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
   })
 
   // ----------------------------------------------------------------- script

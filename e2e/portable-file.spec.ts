@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
 // server, no window.__loop bridge (production build) — driven entirely through
@@ -398,26 +399,18 @@ test.describe('portable file://', () => {
   })
 
   /** Open the real portable page, click Share (accepting the §U4 disclosure),
-   *  and return the URL shown in the field + what hit the (stubbed) clipboard.
-   *  `killCompressionStream` forces the self-contained fixed-Huffman deflate. */
-  async function shareFromPortable(
-    browser: import('@playwright/test').Browser,
-    killCompressionStream: boolean,
-  ): Promise<{ url: string; clip: string[] }> {
+   *  and return the URL shown in the field + what hit the (stubbed) clipboard. */
+  async function shareFromPortable(browser: import('@playwright/test').Browser): Promise<{ url: string; clip: string[] }> {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
     await seedPersonalBrowser(ctx) // issue #297 - no storage gate in front of this context
     const page = await ctx.newPage()
-    await page.addInitScript((kill: boolean) => {
-      if (kill) {
-        // @ts-expect-error removing a global for the test
-        delete window.CompressionStream
-      }
+    await page.addInitScript(() => {
       ;(window as any).__clip = []
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: async (t: string) => void (window as any).__clip.push(t) },
       })
-    }, killCompressionStream)
+    })
     await openPortable(page) // imports risky-factory (18 nodes)
     // the §U4 disclosure is an in-app ConfirmDialog now (docs/localization.md 2b)
     await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
@@ -459,12 +452,56 @@ test.describe('portable file://', () => {
     await ctx.close()
   }
 
-  // codec check (keep): the pure-JS fixed-Huffman deflate output decodes on the
-  // native path across contexts.
-  test('pure-JS deflate link (file://) decodes on the hosted build', async ({ browser }) => {
+  // issue #301 decision 1 - the bundled pure-JS zlib encoder is gone, and the
+  // links it made are still out there: one of them, made by that encoder as it
+  // shipped on main 938aae3, must keep opening on the hosted build and in the
+  // portable file, through the browser's own DecompressionStream.
+  const LEGACY_RISKY = LEGACY_SHARE_VECTORS.find((v) => v.name.startsWith('risky-factory'))!
+
+  test('a link the removed pure-JS encoder made opens on the hosted build', async ({ browser }) => {
     test.setTimeout(60_000)
-    const { url } = await shareFromPortable(browser, /* kill CompressionStream */ true)
-    await openPayloadOnHttp(browser, url.split('#g1=')[1])
+    await openPayloadOnHttp(browser, LEGACY_RISKY.payload)
+  })
+
+  test('a link the removed pure-JS encoder made opens in the portable file', async ({ browser }) => {
+    test.setTimeout(60_000)
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const page = await ctx.newPage()
+    await page.goto(portableUrl() + '#g1=' + LEGACY_RISKY.payload)
+    expect(await page.evaluate(() => location.protocol)).toBe('file:')
+    await answerPortableGate(page, 'temporary')
+    await expect(page.locator('.react-flow__node')).toHaveCount(18)
+    await expect(page.locator('.react-flow__node', { hasText: 'Ore Source' })).toHaveCount(1)
+    await page.waitForFunction(() => location.hash === '') // consumed + stripped
+    await ctx.close()
+  })
+
+  // and with no Compression Streams the portable file makes no link at all:
+  // there is no fallback to make one with
+  test('without CompressionStream the portable file makes no link and says so', async ({ browser }) => {
+    test.setTimeout(60_000)
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+    const page = await ctx.newPage()
+    await page.addInitScript(() => {
+      delete (window as any).CompressionStream
+      ;(window as any).__clip = []
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: async (t: string) => void (window as any).__clip.push(t) },
+      })
+    })
+    await openPortable(page)
+    const alerts: string[] = []
+    page.on('dialog', (d) => {
+      alerts.push(d.message())
+      void d.accept()
+    })
+    await page.locator('.toolbar__actions button', { hasText: /^Share$/ }).click()
+    await page.locator('.mcdlg--confirm').getByRole('button', { name: /create link/i }).click()
+    await expect.poll(() => alerts).toEqual(['This browser cannot create or open share links. Try again in a current browser.'])
+    await expect(page.locator('.share-pop__url')).toHaveCount(0)
+    expect(await page.evaluate(() => (window as any).__clip as string[])).toEqual([])
+    await ctx.close()
   })
 
   // real user path: the Share button on the actual file:// screen must produce a
@@ -474,7 +511,7 @@ test.describe('portable file://', () => {
     browser,
   }) => {
     test.setTimeout(60_000)
-    const { url, clip } = await shareFromPortable(browser, /* keep CompressionStream */ false)
+    const { url, clip } = await shareFromPortable(browser)
 
     expect(url).toMatch(/^https:\/\/cozy-loop-studio\.pages\.dev\/#g1=[A-Za-z0-9_-]+$/)
     expect(url).not.toContain('null/')

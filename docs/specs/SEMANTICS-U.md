@@ -10,6 +10,10 @@ implementation. A behavioural change after this is a new spec id in a new
 document (`loop-share/2`), exactly as with `loop-state/1 → loop-state/2` and
 `loop-workspace/1`; this file only takes typo / clarifying-prose fixes.
 
+**Amended** (2026-10-04): decision D2 is replaced by the decision recorded in
+§U13, and §U1.3, §U6, §U11 and §U12 follow it. The link format, the limits and
+the opening order are unchanged.
+
 Defines *what a share link is*, *what it carries*, *how it is produced*, and
 *how it is opened*.
 
@@ -93,17 +97,20 @@ The compressed layer is **zlib-wrapped DEFLATE (RFC 1950)** — a 2-byte zlib
 header and a trailing Adler-32 checksum around an RFC 1951 DEFLATE stream —
 **not** raw DEFLATE (RFC 1951). Implementations:
 
-- **`CompressionStream('deflate')` / `DecompressionStream('deflate')`** when the
-  context exposes them (these emit / accept the zlib wrapper by definition;
-  `'deflate-raw'` must **not** be used).
-- A **bundled pure-JS zlib inflate *and* deflate** for the portable `file://`
-  build and any browser without Compression Streams — the same self-contained
-  fallback principle already accepted for SHA-256 in `loop-workspace/1` §W12.
-  The fallback covers **both directions**: a portable build must be able to
-  *produce* a link and to *open* one.
+- **`CompressionStream('deflate')` / `DecompressionStream('deflate')`**, in
+  both directions and in every build, the portable `file://` build included
+  (these emit / accept the zlib wrapper by definition; `'deflate-raw'` must
+  **not** be used).
+- There is **no bundled fallback**. A page that lacks either stream can neither
+  make nor open a link: making one says so and makes nothing, and opening one
+  shows a notice, leaves the working graph untouched and leaves the fragment in
+  the address bar, so the same address opens in another browser. Every browser
+  the build targets has both streams.
+- Links made by the pure-JS encoder that earlier builds bundled are conformant
+  zlib streams and must keep opening through `DecompressionStream` (§U12.8).
 
-Different compressor implementations (native vs. fallback, different levels) may
-emit **different bytes** for the same graph. That is valid as long as every
+Different compressor implementations (browsers, versions, levels, and the
+encoder earlier builds bundled) may emit **different bytes** for the same graph. That is valid as long as every
 conformant decoder can inflate every conformant encoder's output. **There is no
 requirement that the same graph yields the same URL string**, and callers must
 not assume link stability across builds or sessions. Interop is mandatory:
@@ -337,7 +344,8 @@ unsupported link or a Cancel.
 | build with `loop-share/1` | starts `g1` but is not `g1=…` (a **malformed** Share link) | normal boot + **console warning**; working graph + run **untouched**; **fragment stripped** |
 | build with `loop-share/1` | `g1=` fragment that fails any of base64url / inflate / size / parse / `deserialize` | normal boot + console warning; working graph + run **untouched**; **fragment stripped** |
 | build with `loop-share/1` | a fragment that is **not ours** (`#section`, `#/route`, `#w1=…`, `#gg=…`) | normal boot; working graph untouched; **fragment left as-is** |
-| `https://` build ↔ portable `file://` build | either one's `g1=` link | **must** decode in the other (zlib interop + fallback inflate) |
+| `https://` build ↔ portable `file://` build | either one's `g1=` link | **must** decode in the other (zlib interop; both use the browser's Compression Streams) |
+| build with `loop-share/1` on a page **without** Compression Streams | any share link (`g1=` or `p1=`) | one notice: this browser cannot make or open share links; working graph + run **untouched**; **fragment left as-is** |
 
 - The **graph wire format is unchanged** (`loop-studio/graph` `version: 1`). A
   link is only a transport for the same bytes a `Graph JSON` export writes: a
@@ -348,7 +356,7 @@ unsupported link or a Cancel.
   `w1=` prefix under a new spec id — not this document.
 - **Portable `file://` build:** a share link targets an `https://` host, so
   *opening* one needs the hosted app. The **encoder and decoder both** work in
-  the portable build via base64url and the bundled zlib fallback (§U1.3).
+  the portable build through the browser's own Compression Streams (§U1.3).
 
 ---
 
@@ -398,7 +406,7 @@ unsupported link or a Cancel.
 | # | decision |
 |---|---|
 | **D1** | Payload in the URL **fragment**, never a query string. |
-| **D2** | Encode = base64url of **zlib-wrapped DEFLATE (RFC 1950)** of the `serialize()` output. `CompressionStream('deflate')` when available; a bundled pure-JS zlib **inflate + deflate** fallback otherwise (portable `file://` and no-Compression-Streams). `deflate-raw` is not used. Cross-implementation byte differences are allowed; mutual decodability and `https ↔ file://` interop are required; URL-string stability is **not** promised. |
+| **D2** | Encode = base64url of **zlib-wrapped DEFLATE (RFC 1950)** of the `serialize()` output. `CompressionStream('deflate')` / `DecompressionStream('deflate')` only, in every build; no bundled fallback (amended 2026-10-04, §U13). A page without them makes and opens no link and says so. `deflate-raw` is not used. Cross-implementation byte differences are allowed; mutual decodability and `https ↔ file://` interop are required; URL-string stability is **not** promised. |
 | **D3** | `SHARE_MAX_BYTES = 8 * 1024` — hard cap on the **base64url payload byte length after `#g1=`** (not whole-URL, not pre-compression). Over ⇒ hard reject, no truncation. |
 | **D3b** | `SHARE_MAX_DECODED_BYTES = 1024 * 1024` — decompression-bomb guard on the inflated bytes, enforced **incrementally**, aborting **before** `JSON.parse`. |
 | **D4** | A link carries the **`GraphDoc` only**. `view` / `canvas` framing is deferred to `loop-share/2`. |
@@ -427,7 +435,7 @@ document, the graph / engine specs, or `loop-workspace/1`.
 | `__SHARE_BASE_URL__` | `https://cozy-loop-studio.pages.dev/` (env `VITE_SHARE_BASE_URL`) | the fixed public base a link is built on; **not** `location`. A non-`http(s)` value ⇒ `Share` errors, never a `null/…` link |
 | `SHARE_MAX_BYTES` | `8 * 1024` (8 KiB) | hard cap on the base64url payload byte length **after `#g1=`** |
 | `SHARE_MAX_DECODED_BYTES` | `1024 * 1024` (1 MiB) | incremental cap on inflated bytes; abort before `JSON.parse` |
-| compression | **zlib-wrapped DEFLATE (RFC 1950)** | `CompressionStream('deflate')` or the bundled pure-JS zlib fallback (inflate **and** deflate); never `deflate-raw` |
+| compression | **zlib-wrapped DEFLATE (RFC 1950)** | `CompressionStream('deflate')` / `DecompressionStream('deflate')` only, no bundled fallback; never `deflate-raw` |
 | base64url alphabet | `A–Za–z0–9-_`, no `=` padding | strict decode: any other char (incl. `+` `/` whitespace `=`) ⇒ invalid |
 | graph schema | `loop-studio/graph` `version: 1` | unchanged; the link is only a transport |
 
@@ -465,17 +473,18 @@ document, the graph / engine specs, or `loop-workspace/1`.
 7. **zlib wrapper, not raw** — a payload compressed as **raw** DEFLATE
    (`deflate-raw`) ⇒ rejected at inflate (no zlib header); a correctly
    zlib-wrapped payload decodes.
-8. **Compressor interop** — a link made with `CompressionStream('deflate')` and
-   a link made with the pure-JS zlib fallback, for the same graph, **both**
-   decode to the identical graph (bytes / URL strings need not match). Tested
-   against standard RFC 1950/1951 vectors.
+8. **Compressor interop** — a link made with `CompressionStream('deflate')`
+   decodes to the identical graph, and so does every fixed payload made by the
+   pure-JS encoder that earlier builds bundled (fixed-Huffman blocks and stored
+   blocks, recorded before it was removed): bytes / URL strings need not match.
 9. **Decompression-bomb guard** — a crafted `g1=` payload that inflates past
    `SHARE_MAX_DECODED_BYTES` ⇒ inflation aborts **before** `JSON.parse`, the
    link is reported damaged, the current graph is untouched, output is never
    fully materialised.
 10. **`https ↔ file://` interop** — a link produced by the portable single-file
     build opens correctly in the hosted build, and a link produced by the hosted
-    build opens in the portable build (decoder fallback path).
+    build opens in the portable build. A link the removed pure-JS encoder made
+    opens in both.
 11. **Fragment classification (§U5.1)** —
     - `#g2=…` / `#g10=…` (unsupported version) and `#g1` / `#g1x` (malformed) ⇒
       normal boot, working graph **and a running sim untouched**, `simulationRev`
@@ -502,3 +511,18 @@ document, the graph / engine specs, or `loop-workspace/1`.
     export: identical; no id / email / timestamp / build field present.
 17. **Old build** — a share link opened by a share-unaware build (simulate by
     disabling the loader) boots normally and ignores the fragment.
+18. **No Compression Streams** — with `CompressionStream` removed, making a
+    plain or a protected link shows the one sentence, copies nothing and opens
+    no panel (a protected one before any key derivation). With
+    `DecompressionStream` removed, a `g1=` or a `p1=` link shows the notice, no
+    password is asked for, the working graph is untouched and the fragment
+    stays in the address bar.
+
+---
+
+## U13. Change record
+
+| date | change | why |
+|---|---|---|
+| 2026-08-29 | Frozen. | |
+| 2026-10-04 | §U1.3, §U6, D2, §U11 and §U12.8 / §U12.10 amended; §U12.18 added. The bundled pure-JS zlib inflate and deflate are removed: both directions use `CompressionStream` / `DecompressionStream` only, and a page without them makes and opens no link and says so. The link format, the size limits, the opening order and the fragment grammar are unchanged; links the removed encoder made still open. | Issue #301 decision 1. The fallback's origin could not be established from the repository's record, so it could not be listed with a notice. Every browser the build targets has Compression Streams, so the fallback ran only outside that target. |

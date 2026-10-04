@@ -1,4 +1,4 @@
-import { SHARE_MAX_BYTES, SHARE_PREFIX, encodeShareText } from '../model/share'
+import { SHARE_MAX_BYTES, SHARE_PREFIX, encodeShareText, shareCompressionAvailable } from '../model/share'
 import { PROTECTED_PREFIX, ProtectedShareError, sealShareText } from '../model/shareProtected'
 
 // SEMANTICS-U.md §U7 — the shared parts of "make a share link", used by the
@@ -34,9 +34,12 @@ export type ShareLinkResult =
   | { status: 'ok'; url: string }
   | { status: 'too-large'; bytes: number; cap: number }
   | { status: 'no-base' }
+  /** the page has no Compression Streams: no link can be made here (§U1.3) */
+  | { status: 'no-compression' }
 
 /** Encode `doc` → payload, enforce the §U3.1 cap, build the URL. No side effects. */
 export async function prepareShareLink(doc: string): Promise<ShareLinkResult> {
+  if (!shareCompressionAvailable()) return { status: 'no-compression' }
   const { payload, bytes } = await encodeShareText(doc)
   const cap = shareCap()
   if (bytes > cap) return { status: 'too-large', bytes, cap }
@@ -70,6 +73,8 @@ export type ProtectedShareLinkResult =
  * No side effects; the password is passed straight through and not kept.
  */
 export async function prepareProtectedShareLink(doc: string, password: string): Promise<ProtectedShareLinkResult> {
+  // before the key derivation: a page that cannot compress cannot make any link
+  if (!shareCompressionAvailable()) return { status: 'no-compression' }
   let sealed: { payload: string; bytes: number }
   try {
     sealed = await sealShareText(doc, password)

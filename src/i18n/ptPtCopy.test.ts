@@ -58,7 +58,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(977)
+    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -109,7 +109,12 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // release-note lines - `palavra-passe` not `senha`, `ligação` not `link`,
     // `cifrado` not `criptografado`, `guardar` not `salvar`, `aplicação` not
     // `app`, `gestor` not `gerenciador`, `a abrir` not `abrindo`.
-    expect(DELTA).toHaveLength(255)
+    // Issue #301 decision 1 moved it from 255 to 259: the one sentence for a
+    // browser that can make no share link and the three 0.17.1 release-note
+    // lines - `ligações de partilha` not `links de compartilhamento`, `num`
+    // not `em um`, `passam a usar` not `agora usam`, `funcionalidade` not
+    // `recurso`, `necessário` not `preciso`, `ligação` not `link`.
+    expect(DELTA).toHaveLength(259)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
@@ -153,7 +158,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // outside them, the quarter bound stands as it always did
     const rest = KEYS.filter((k) => !isPasswordKey(k))
     const restDelta = DELTA.filter((k) => !isPasswordKey(k))
-    expect(restDelta).toHaveLength(227)
+    expect(restDelta).toHaveLength(231)
     expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 

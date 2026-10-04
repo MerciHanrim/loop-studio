@@ -146,6 +146,10 @@ export function MobileMoreMenu({
         window.alert(t('share.noBase'))
         return
       }
+      if (result.status === 'no-compression') {
+        window.alert(t('share.unavailable'))
+        return
+      }
       const copied = await copyShareLink(result.url)
       setSharePanel({ url: result.url, copied, copies: copied ? 1 : 0 })
       openOverlay('share')

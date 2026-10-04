@@ -265,7 +265,9 @@ additional authenticated data, none at all, 599,999 iterations.
 Measured sizes at v0.17.0: every bundled template in every shipped language fits
 the cap as a protected link; the largest is the MMO progression template in
 Thai, 7,000 characters plain and 7,059 protected, and 7,983 with the pure
-JavaScript compressor used where `CompressionStream` is missing.
+JavaScript compressor used where `CompressionStream` is missing. That compressor
+was removed after this measurement (issue #301 decision 1, `SEMANTICS-U.md`
+§U13): a page without `CompressionStream` now makes no link at all.
 
 ## P13. Not verified
 

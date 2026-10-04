@@ -567,6 +567,12 @@ const ui = {
   'whatsNew.v0170.open': 'Korumalı bağlantı, paylaşılan diyagramdan herhangi bir şey gösterilmeden önce parolasını sorar. Yanlış parola ile oluşturulduktan sonra değiştirilmiş şifreli bağlantı verileri aynı mesajı verir.',
   'whatsNew.v0170.limits': 'Kaybedilen parola kurtarılamaz ve bağlantı ancak parolası kadar güçlüdür. Loop Studio parolayı da anahtarı da saklamaz ve iletmez.',
   'whatsNew.v0170.plain': 'Düz bağlantı hâlâ varsayılandır ve eskisi gibi çalışır.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Bu tarayıcı paylaşım bağlantısı oluşturamaz veya açamaz. Güncel bir tarayıcıda yeniden deneyin.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Paylaşım bağlantıları artık tarayıcının yerleşik sıkıştırmasını kullanıyor.',
+  'whatsNew.v0171.unavailable': 'Bu özellik kullanılamıyorsa Loop Studio mevcut diyagramı değiştirmeden bırakır ve güncel bir tarayıcı gerektiğini açıklar.',
+  'whatsNew.v0171.compatible': 'Mevcut paylaşım bağlantıları uyumlu kalıyor; bağlantı biçimi değişmedi.',
 } as const
 
 export type UiKey = keyof typeof ui

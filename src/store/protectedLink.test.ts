@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { serialize } from '../model/serialize'
 import type { LoopEdge, LoopNode } from '../model/types'
+import { encodeShareText } from '../model/share'
 import { sealShareText } from '../model/shareProtected'
 import { useGraphStore } from './graphStore'
 import { useMcStore } from './mcStore'
@@ -292,5 +293,54 @@ describe('the plain path is unchanged by the protected one', () => {
     expect(await consumeShareLink({ hash: '#g2=abc', confirm: NEVER, stripFragment: strip })).toEqual({ kind: 'failed', reason: 'unsupported-version' })
     expect(strip).toHaveBeenCalledTimes(1)
     expect(phase()).toEqual({ phase: 'idle' })
+  })
+})
+
+// issue #301 decision 1 - there is no bundled zlib fallback any more, so a page
+// without Compression Streams opens no link of either kind (SEMANTICS-U.md SS U1.3)
+describe('a page without Compression Streams', () => {
+  it('a plain link ⇒ the "Share link" notice, the fragment KEPT, the graph untouched', async () => {
+    const hash = `#g1=${(await encodeShareText(docString())).payload}`
+    vi.stubGlobal('DecompressionStream', undefined)
+    const before = { ids: nodeIds(), rev: rev() }
+    const { strip, result, done } = start(hash)
+    await tick()
+    expect(phase()).toEqual({ phase: 'notice', notice: 'plain-no-compression' })
+    expect(result.outcome).toBeNull() // the boot flow waits for the notice
+    dismissProtectedNotice()
+    expect(await done).toEqual({ kind: 'failed', reason: 'share-unavailable' })
+    expect(strip).not.toHaveBeenCalled()
+    expect({ ids: nodeIds(), rev: rev() }).toEqual(before)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith('Loop Studio: this browser cannot open share links; a current browser is required.')
+  })
+
+  it('a protected link ⇒ the same sentence, checked before Web Crypto, the fragment KEPT, no prompt', async () => {
+    const hash = await protectedHash()
+    vi.stubGlobal('DecompressionStream', undefined)
+    vi.stubGlobal('crypto', {}) // both missing: the message names Compression Streams
+    const { strip, done } = start(hash)
+    await tick()
+    expect(phase()).toEqual({ phase: 'notice', notice: 'no-compression' })
+    dismissProtectedNotice()
+    expect(await done).toEqual({ kind: 'failed', reason: 'share-unavailable' })
+    expect(strip).not.toHaveBeenCalled()
+  })
+
+  it('a broken protected link is still damaged (the structure check needs neither)', async () => {
+    vi.stubGlobal('DecompressionStream', undefined)
+    const { strip, done } = start('#p1=AAAA')
+    await tick()
+    expect(phase()).toEqual({ phase: 'notice', notice: 'damaged' })
+    dismissProtectedNotice()
+    await done
+    expect(strip).toHaveBeenCalledTimes(1)
+  })
+
+  it('a link this build does not know is handled as before', async () => {
+    vi.stubGlobal('DecompressionStream', undefined)
+    const strip = vi.fn()
+    expect(await consumeShareLink({ hash: '#g2=abc', confirm: NEVER, stripFragment: strip })).toEqual({ kind: 'failed', reason: 'unsupported-version' })
+    expect(strip).toHaveBeenCalledTimes(1)
   })
 })

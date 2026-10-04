@@ -513,6 +513,12 @@ const ui = {
   'whatsNew.v0170.open': 'Liên kết được bảo vệ sẽ hỏi mật khẩu trước khi hiện bất cứ thứ gì của sơ đồ được chia sẻ. Mật khẩu sai và dữ liệu liên kết đã mã hóa bị thay đổi sau khi tạo cho cùng một thông báo.',
   'whatsNew.v0170.limits': 'Mật khẩu đã mất thì không thể khôi phục, và liên kết chỉ an toàn bằng chính mật khẩu của nó. Loop Studio không lưu trữ và không truyền đi mật khẩu hay khóa.',
   'whatsNew.v0170.plain': 'Liên kết thường vẫn là mặc định và hoạt động như trước.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Trình duyệt này không thể tạo hoặc mở liên kết chia sẻ. Hãy thử lại bằng một trình duyệt hiện hành.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Liên kết chia sẻ giờ dùng tính năng nén có sẵn của trình duyệt.',
+  'whatsNew.v0171.unavailable': 'Nếu tính năng này không dùng được, Loop Studio giữ nguyên sơ đồ hiện tại và cho biết cần một trình duyệt hiện hành.',
+  'whatsNew.v0171.compatible': 'Các liên kết chia sẻ hiện có vẫn tương thích; định dạng liên kết không thay đổi.',
 } satisfies Record<UiKey, string>
 
 export default ui

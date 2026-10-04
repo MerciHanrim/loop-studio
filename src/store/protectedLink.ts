@@ -24,7 +24,7 @@
 
 import { create } from 'zustand'
 import { deserialize } from '../model/serialize'
-import type { FragmentKind } from '../model/share'
+import { type FragmentKind, shareCompressionAvailable } from '../model/share'
 import { ProtectedShareError, openProtectedBytes, protectedShareAvailable, readProtectedPayload } from '../model/shareProtected'
 import { applySharedGraph, replaceConfirmed } from './shareApply'
 
@@ -33,6 +33,12 @@ export type ProtectedNotice =
   | 'unavailable' // no Web Crypto here; the fragment is left in place
   | 'newer' // a protected link from a newer version; the fragment is left in place
   | 'content' // the password was right and what was sealed is not a diagram
+  // issue #301 decision 1 - no Compression Streams here, so NO share link opens
+  // (there is no bundled fallback, SEMANTICS-U.md SS U1.3). The fragment is left
+  // in place so the address can be opened in another browser. Two names only
+  // for the dialog title: one for a protected link, one for a plain `g1` link.
+  | 'no-compression'
+  | 'plain-no-compression'
 
 export type ProtectedOpenState =
   | { phase: 'idle' }
@@ -43,7 +49,7 @@ export type ProtectedOpenState =
 export type ProtectedOutcome =
   | { kind: 'loaded' }
   | { kind: 'cancelled' }
-  | { kind: 'failed'; reason: 'protected-damaged' | 'protected-unavailable' | 'protected-newer' | 'protected-content' }
+  | { kind: 'failed'; reason: 'protected-damaged' | 'protected-unavailable' | 'protected-newer' | 'protected-content' | 'share-unavailable' }
 
 type ProtectedFragment = Extract<FragmentKind, { kind: 'protected' | 'protected-unsupported' | 'protected-malformed' }>
 
@@ -55,6 +61,8 @@ const LINE = {
   newer: 'Loop Studio: this protected share link needs a newer version of Loop Studio.',
   auth: 'Loop Studio: a protected share link was not opened; the password is wrong or the link is damaged.',
   content: 'Loop Studio: a protected share link opened, but what it carries is not a diagram.',
+  'no-compression': 'Loop Studio: this browser cannot open share links; a current browser is required.',
+  'plain-no-compression': 'Loop Studio: this browser cannot open share links; a current browser is required.',
 } as const
 
 const NOTICE_REASON = {
@@ -62,6 +70,8 @@ const NOTICE_REASON = {
   unavailable: 'protected-unavailable',
   newer: 'protected-newer',
   content: 'protected-content',
+  'no-compression': 'share-unavailable',
+  'plain-no-compression': 'share-unavailable',
 } as const
 
 /** the sealed bytes of the link being opened - memory only */
@@ -128,11 +138,30 @@ export function openProtectedLink(
       opts.strip()
       return showNotice('damaged')
     }
+    // no Compression Streams: no link of any kind opens here - checked before
+    // Web Crypto, so the message names the real limit
+    if (!shareCompressionAvailable()) return showNotice('no-compression')
     if (!protectedShareAvailable()) return showNotice('unavailable')
 
     sealed = bytes
     opts.strip()
     setOpen({ phase: 'prompt', busy: false, failures: 0 })
+  })
+}
+
+/**
+ * Issue #301 decision 1 - a plain `g1` link on a page without Compression
+ * Streams. Nothing is decoded and the fragment is NOT removed, so the same
+ * address can be opened in another browser; the notice says why. Resolves when
+ * the notice is dismissed, like `openProtectedLink`, so what must come after
+ * the boot flow (the first-run Welcome card) still waits for it.
+ */
+export function openUnavailableShareLink(): Promise<ProtectedOutcome> {
+  return new Promise((resolve) => {
+    if (settle) end({ kind: 'cancelled' })
+    settle = resolve
+    confirmReplace = undefined
+    showNotice('plain-no-compression')
   })
 }
 

@@ -128,6 +128,9 @@ describe('es-ES — the region audit, as a contract', () => {
         'share.panel.protected',
         'share.protect.note.channel',
         'share.protect.note.contract',
+        // issue #301 decision 1 - the browser that can make no share link:
+        // `usted` (`Vuelva`) where es-419 says `tú` (`Vuelve`)
+        'share.unavailable',
         // the formatter emits a NO-BREAK SPACE before the percent sign
         'playbar.mc.progress',
         'runbar.mc.cancel',

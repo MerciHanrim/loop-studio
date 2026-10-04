@@ -500,6 +500,12 @@ const ui = {
   'whatsNew.v0170.open': '보호된 링크는 공유된 다이어그램의 어떤 것도 보이기 전에 비밀번호를 묻습니다. 틀린 비밀번호와 생성된 뒤 변경된 암호화 링크 데이터에는 같은 안내가 나옵니다.',
   'whatsNew.v0170.limits': '잊은 비밀번호는 되찾을 수 없고, 링크는 비밀번호만큼만 안전합니다. Loop Studio는 비밀번호와 키를 저장하거나 전송하지 않습니다.',
   'whatsNew.v0170.plain': '일반 링크가 여전히 기본이며 이전과 같이 동작합니다.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': '이 브라우저에서는 공유 링크를 만들거나 열 수 없습니다. 최신 브라우저에서 다시 시도하세요.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': '공유 링크는 이제 브라우저의 기본 압축 기능을 사용합니다.',
+  'whatsNew.v0171.unavailable': '이 기능을 사용할 수 없으면 현재 다이어그램을 그대로 유지하고 최신 브라우저가 필요하다고 안내합니다.',
+  'whatsNew.v0171.compatible': '기존 공유 링크와의 호환성은 유지되며 링크 형식도 바뀌지 않았습니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

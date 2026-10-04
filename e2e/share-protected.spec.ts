@@ -2,6 +2,7 @@ import { createCipheriv, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { deflateSync } from 'node:zlib'
 import type { Browser, BrowserContext, Page } from '@playwright/test'
 import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
 
 // SEMANTICS-P.md loop-share-protected/1 (issue #300) — a share link protected
 // with a password, through the real UI: the choice in the share dialog, the
@@ -448,6 +449,82 @@ test.describe('opening a link', () => {
     await freshGoto(page, '/' + hash)
     await expect(notice(page)).toHaveAttribute('data-notice', 'unavailable')
     await expect(notice(page)).toContainText('needs a current browser and a secure (HTTPS) address')
+    expect(await hashOf(page)).toBe(hash)
+    await ctx.close()
+  })
+})
+
+// issue #301 decision 1 - there is no bundled zlib fallback: a page without
+// Compression Streams makes and opens no share link of either kind, says so in
+// one sentence, and leaves a link it was handed in the address bar
+// (SEMANTICS-U.md SS U1.3)
+test.describe('without Compression Streams', () => {
+  const SENTENCE = 'This browser cannot create or open share links. Try again in a current browser.'
+  const RISKY = LEGACY_SHARE_VECTORS.find((v) => v.name.startsWith('risky-factory'))!
+
+  async function pageWithout(browser: Browser, global: 'CompressionStream' | 'DecompressionStream'): Promise<{ ctx: BrowserContext; page: Page }> {
+    const ctx = await browser.newContext()
+    await seedPersonalBrowser(ctx)
+    await stubClipboard(ctx)
+    await ctx.addInitScript((name: string) => {
+      delete (window as any)[name]
+    }, global)
+    return { ctx, page: await ctx.newPage() }
+  }
+
+  test('a plain link is not made: the sentence is alerted, nothing is copied, no panel opens', async ({ browser }) => {
+    const { ctx, page } = await pageWithout(browser, 'CompressionStream')
+    await openApp(page)
+    const alerts: string[] = []
+    page.on('dialog', (d) => {
+      alerts.push(d.message())
+      void d.accept()
+    })
+    await shareBtn(page).click()
+    await createDialog(page).getByRole('button', { name: 'Create link' }).click()
+    await expect.poll(() => alerts).toEqual([SENTENCE])
+    await expect(page.locator('.share-pop__url')).toHaveCount(0)
+    expect(await clipWrites(page)).toEqual([])
+    await ctx.close()
+  })
+
+  test('a protected link is not made: the sentence is said inside the dialog, before any key derivation', async ({ browser }) => {
+    const { ctx, page } = await pageWithout(browser, 'CompressionStream')
+    await countDerivations(ctx)
+    await openApp(page)
+    await shareBtn(page).click()
+    await field(page, 'option').check()
+    await field(page, 'password').fill(PASSWORD)
+    await field(page, 'confirm').fill(PASSWORD)
+    await createDialog(page).getByRole('button', { name: 'Create link' }).click()
+    await expect(field(page, 'problem')).toHaveText(SENTENCE)
+    await expect(createDialog(page)).toBeVisible()
+    expect(await page.evaluate(() => (window as any).__derives as number)).toBe(0)
+    expect(await clipWrites(page)).toEqual([])
+    await ctx.close()
+  })
+
+  test('a plain link is not opened: a "Share link" notice, the fragment kept, the diagram untouched', async ({ browser }) => {
+    const { ctx, page } = await pageWithout(browser, 'DecompressionStream')
+    await freshGoto(page, '/#g1=' + RISKY.payload)
+    await expect(notice(page)).toHaveAttribute('data-notice', 'plain-no-compression')
+    await expect(notice(page).locator('.mcdlg__head')).toHaveText('Share link')
+    await expect(notice(page).locator('.mcdlg__note')).toHaveText(SENTENCE)
+    expect(await hashOf(page)).toBe('#g1=' + RISKY.payload)
+    await notice(page).getByRole('button', { name: 'Close' }).click()
+    await expect(notice(page)).toHaveCount(0)
+    expect(await hashOf(page)).toBe('#g1=' + RISKY.payload)
+    expect(await labelsOf(page)).not.toContain('Ore Source')
+    await ctx.close()
+  })
+
+  test('a protected link is not opened: the same sentence, no password asked, the fragment kept', async ({ browser }) => {
+    const { hash } = await linkFromAnotherProfile(browser)
+    const { ctx, page } = await pageWithout(browser, 'DecompressionStream')
+    await freshGoto(page, '/' + hash)
+    await expect(notice(page)).toHaveAttribute('data-notice', 'no-compression')
+    await expect(notice(page).locator('.mcdlg__note')).toHaveText(SENTENCE)
+    await expect(prompt(page)).toHaveCount(0)
     expect(await hashOf(page)).toBe(hash)
     await ctx.close()
   })

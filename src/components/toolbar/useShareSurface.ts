@@ -52,6 +52,10 @@ export function useShareSurface() {
         window.alert(t('share.noBase'))
         return
       }
+      if (result.status === 'no-compression') {
+        window.alert(t('share.unavailable'))
+        return
+      }
 
       const url = result.url
       // Clipboard API missing or denied ⇒ false: the field below is the fallback

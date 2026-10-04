@@ -508,6 +508,12 @@ const ui = {
   'whatsNew.v0170.open': 'Een beveiligde link vraagt om het wachtwoord voordat er iets van het gedeelde diagram wordt getoond. Een verkeerd wachtwoord en versleutelde linkgegevens die na het maken zijn gewijzigd, geven dezelfde melding.',
   'whatsNew.v0170.limits': 'Een verloren wachtwoord kan niet worden teruggehaald, en de link is maar zo sterk als het wachtwoord. Loop Studio bewaart en verstuurt het wachtwoord en de sleutel niet.',
   'whatsNew.v0170.plain': 'Een gewone link blijft de standaard en werkt zoals voorheen.',
+  // issue #301 decision 1 - no Compression Streams: no share link of either kind can be made or opened here
+  'share.unavailable': 'Deze browser kan geen deellinks maken of openen. Probeer het opnieuw in een actuele browser.',
+  // issue #301 decision 1 - the 0.17.1 release notes: share links use the browser's own compression
+  'whatsNew.v0171.compression': 'Deellinks gebruiken nu de ingebouwde compressie van de browser.',
+  'whatsNew.v0171.unavailable': 'Is die functie niet beschikbaar, dan laat Loop Studio het huidige diagram ongewijzigd en legt uit dat een actuele browser nodig is.',
+  'whatsNew.v0171.compatible': 'Bestaande deellinks blijven compatibel; de opbouw van de link is niet veranderd.',
 } as const
 
 export default ui
