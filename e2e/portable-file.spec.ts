@@ -45,6 +45,15 @@ async function openPortable(page: Page, mode: 'personal' | 'temporary' = 'tempor
   expect(await page.evaluate(() => location.protocol)).toBe('file:')
   await answerPortableGate(page, mode)
   await expect(page.locator('.toolbar')).toBeVisible()
+  if (mode === 'temporary') {
+    // a temporary session reads no tour key, so the first-run Welcome card is
+    // offered once the app has settled - on the CI runner that was after the
+    // first click of a test, and its scrim swallowed the click. It always comes
+    // in this mode: wait for it and skip it, the way a person would.
+    await page.locator('.tour-card').waitFor({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Skip' }).first().click()
+    await expect(page.locator('.tour-scrim')).toHaveCount(0)
+  }
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
   expect(await page.evaluate(() => Boolean((window as any).__loop))).toBe(false)
   // the portable build ships no PWA layer and registers no service worker (§P6).

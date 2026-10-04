@@ -128,6 +128,14 @@ async function answerGate(page: Page, mode: 'personal' | 'temporary', remember: 
 async function appUp(page: Page): Promise<void> {
   await expect(page.locator('.toolbar')).toBeVisible()
   await expect(page.locator('.canvas')).toBeVisible()
+  await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
+}
+/** skip the first-run Welcome card through the product's own action, whether
+ *  it has been offered yet or not: the key is written through the port either
+ *  way, and the scrim is gone */
+async function skipTour(page: Page): Promise<void> {
+  await page.evaluate(() => (window as unknown as { __loop: { tour: { getState: () => { skipWelcome: () => void } } } }).__loop.tour.getState().skipWelcome())
+  await expect(page.locator('.tour-scrim')).toHaveCount(0)
 }
 
 const fileMenu = (page: Page) => page.locator('.toolbar__actions .menu > button', { hasText: /^File$/ })
@@ -208,8 +216,13 @@ test.describe('browser storage is reached through the port only, and only behind
     expect(all.filter((c) => c.viaBoot && c.phase === 'start-up')).toEqual([])
     expect(inPhase('start-up', 'getItem', THEME)).toBe(2)
 
-    // 2. onboarding and a preference
-    await page.getByRole('button', { name: 'Skip' }).first().click()
+    // 2. onboarding and a preference. A profile with no tour key is offered the
+    //    Welcome card once the app has settled; WHEN that is differs between this
+    //    machine and the CI runner, and its scrim covers every control, so it is
+    //    skipped through the product's own action as soon as the app is up
+    //    (before the offer: the key is written and the offer reads it; after:
+    //    the card closes) rather than by a click that races it.
+    await skipTour(page)
     await seen(page, 'setItem', TOUR)
     const lock = page.locator('.react-flow__controls-button.rf-lock')
     await lock.click()
@@ -355,6 +368,7 @@ test.describe('browser storage is reached through the port only, and only behind
     //    that reaches localStorage is the mode key
     await answerGate(page, 'temporary', true)
     await appUp(page)
+    await skipTour(page) // the tour key is not read in a temporary session, so the card would be offered; its write goes to memory
     expect(await htmlState(page)).toEqual({ lang: 'en', theme: null })
     await expect(page.locator('body')).not.toContainText('PreviousPersonWork')
     expect(await page.evaluate(() => (window as unknown as { __loop: { storage: { mode: () => string } } }).__loop.storage.mode())).toBe('temporary')
@@ -365,7 +379,6 @@ test.describe('browser storage is reached through the port only, and only behind
 
     // 2. work in the session: a preference, the example spreadsheet, a theme -
     //    the autosave and the toggles run, and none of it reaches localStorage
-    await page.getByRole('button', { name: 'Skip' }).first().click()
     const lock = page.locator('.react-flow__controls-button.rf-lock')
     await lock.click()
     await expect(lock).toHaveAttribute('aria-pressed', 'true')
