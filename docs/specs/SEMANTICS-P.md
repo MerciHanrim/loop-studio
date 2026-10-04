@@ -123,8 +123,8 @@ already open document does not open it, as with a plain link.
 - The plain link is the default and behaves as `loop-share/1` says. Protection
   is an explicit choice in the same dialog.
 - The dialog tells the sender to send the password some other way than the link,
-  that a lost password cannot be recovered, and that the link is only as strong
-  as its password.
+  that Loop Studio cannot recover or reset the password, and that the link is
+  only as strong as its password.
 - The outbound cap applies to the protected payload exactly as to a plain one:
   `SHARE_MAX_BYTES` (8 KiB) characters after `#p1=`. Over the cap is a hard
   reject shown inside the dialog, never a truncation. A document can therefore
@@ -163,7 +163,9 @@ issue #297's.
 
 One derivation runs at a time. Cancel leaves the current document and any run in
 progress untouched; a derivation still running when Cancel is pressed is ignored
-when it finishes. A press on the backdrop does not dismiss the prompt.
+when it finishes. A press on the backdrop does not dismiss the prompt. An Enter
+that only commits an input-method composition does not submit, here or in the
+creating dialog.
 
 After a successful open the rules of `loop-share/1` apply: the replace
 confirmation unless the session is the untouched sample, one load, no auto-run.

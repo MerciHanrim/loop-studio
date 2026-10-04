@@ -327,6 +327,7 @@ const LATIN_KEYS = [
   'catalog:share.open.notice.newer',
   'catalog:share.open.notice.unavailable',
   'catalog:share.protect.note.contract',
+  'catalog:share.protect.note.lost',
   'catalog:share.protect.unavailable',
   'catalog:share.tooLarge',
   'catalog:stateExpr.label.hint.empty',
@@ -417,7 +418,7 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
 
   it('the strings carrying a Latin run are exactly the declared ones', () => {
     expect(withLatin.slice().sort()).toEqual(LATIN_KEYS.slice().sort())
-    expect(LATIN_KEYS).toHaveLength(162)
+    expect(LATIN_KEYS).toHaveLength(163)
   })
 
   it('the Latin vocabulary is exactly the declared one', () => {

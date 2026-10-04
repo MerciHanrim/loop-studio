@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { KeyboardEvent, SyntheticEvent } from 'react'
+import type { SyntheticEvent } from 'react'
 import { useT, type MessageKey } from '../i18n'
 import { PROTECTED_PASSWORD_MAX } from '../model/shareProtected'
 import {
@@ -11,6 +11,7 @@ import {
 } from '../store/protectedLink'
 import { selectTemporary, useSessionStore } from '../store/sessionStore'
 import { DialogScrim } from './DialogScrim'
+import { useCompositionGuard } from './useCompositionGuard'
 import { useDialogFocus } from './useDialogFocus'
 
 // Issue #300 — what a person sees when a protected share link is opened
@@ -50,6 +51,8 @@ function Prompt({ busy, failures }: { busy: boolean; failures: number }) {
   const errorId = useId()
   const [shown, setShown] = useState(false)
   const [empty, setEmpty] = useState(true)
+  // an Enter that only commits an input-method composition must not submit
+  const guard = useCompositionGuard()
 
   useDialogFocus(true, ref, cancelProtectedOpen)
   // a wrong answer: the field keeps what was typed, selected, ready to be
@@ -66,10 +69,6 @@ function Prompt({ busy, failures }: { busy: boolean; failures: number }) {
     const password = inputRef.current?.value ?? ''
     if (password === '') return
     void submitProtectedPassword(password) // one at a time: the flow ignores a second call
-  }
-  // Enter that only commits an IME composition must not submit the form
-  const guardComposition = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault()
   }
 
   return (
@@ -108,7 +107,9 @@ function Prompt({ busy, failures }: { busy: boolean; failures: number }) {
                 aria-invalid={failures > 0 ? true : undefined}
                 aria-describedby={failures > 0 ? errorId : undefined}
                 data-protected-open="password"
-                onKeyDown={guardComposition}
+                onCompositionStart={guard.onCompositionStart}
+                onCompositionEnd={guard.onCompositionEnd}
+                onKeyDown={guard.onKeyDown}
                 onInput={(e) => setEmpty(e.currentTarget.value === '')}
               />
             </label>

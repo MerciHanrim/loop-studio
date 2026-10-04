@@ -475,7 +475,7 @@ const ui = {
   'share.protect.error.long': 'The password can have at most 128 characters.',
   'share.protect.error.mismatch': 'The two passwords are not the same.',
   'share.protect.note.channel': 'Send the password some other way than the link, not in the same message.',
-  'share.protect.note.lost': 'A lost password cannot be recovered. There is no server and no reset.',
+  'share.protect.note.lost': 'Loop Studio cannot recover or reset the password.',
   'share.protect.note.strength': 'The link is only as strong as its password: anyone who has the link can keep guessing, with no limit.',
   'share.protect.note.contract': 'Loop Studio does not store or transmit the password or the key. Your browser or a password manager may offer to save it.',
   'share.protect.busy': 'Encrypting…',
@@ -494,7 +494,7 @@ const ui = {
   'share.open.notice.content': 'The password is correct, but the link does not contain a diagram that Loop Studio can open. Ask its sender for a new link.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'A share link can be protected with a password: the diagram is encrypted inside the link, and only someone who has the password can open it.',
-  'whatsNew.v0170.open': 'A protected link asks for its password before anything from the shared diagram is shown. A wrong password and a damaged link give the same message.',
+  'whatsNew.v0170.open': 'A protected link asks for its password before anything from the shared diagram is shown. A wrong password and encrypted link data that was altered after creation give the same message.',
   'whatsNew.v0170.limits': 'A lost password cannot be recovered, and the link is only as strong as its password. Loop Studio does not store or transmit the password or the key.',
   'whatsNew.v0170.plain': 'A plain link is still the default and works as before.',
 } as const

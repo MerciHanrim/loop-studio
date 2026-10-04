@@ -503,7 +503,7 @@ const ui = {
   'share.protect.error.long': 'La contraseña puede tener como máximo 128 caracteres.',
   'share.protect.error.mismatch': 'Las dos contraseñas no son iguales.',
   'share.protect.note.channel': 'Envíe la contraseña por otra vía distinta del enlace, no en el mismo mensaje.',
-  'share.protect.note.lost': 'Una contraseña perdida no se puede recuperar. No hay servidor ni restablecimiento.',
+  'share.protect.note.lost': 'Loop Studio no puede recuperar ni restablecer la contraseña.',
   'share.protect.note.strength': 'El enlace es tan fuerte como su contraseña: quien tenga el enlace puede seguir probando, sin límite.',
   'share.protect.note.contract': 'Loop Studio no almacena ni transmite la contraseña ni la clave. El navegador o un gestor de contraseñas puede ofrecerse a guardarla.',
   'share.protect.busy': 'Cifrando…',
@@ -522,7 +522,7 @@ const ui = {
   'share.open.notice.content': 'La contraseña es correcta, pero el enlace no contiene un diagrama que Loop Studio pueda abrir. Pida un enlace nuevo a quien lo envió.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Un enlace para compartir puede protegerse con una contraseña: el diagrama se cifra dentro del enlace, y solo quien tenga la contraseña puede abrirlo.',
-  'whatsNew.v0170.open': 'Un enlace protegido pide su contraseña antes de mostrar nada del diagrama compartido. Una contraseña incorrecta y un enlace dañado dan el mismo mensaje.',
+  'whatsNew.v0170.open': 'Un enlace protegido pide su contraseña antes de mostrar nada del diagrama compartido. Una contraseña incorrecta y unos datos cifrados del enlace que se alteraron después de crearlo dan el mismo mensaje.',
   'whatsNew.v0170.limits': 'Una contraseña perdida no se puede recuperar, y el enlace es tan fuerte como su contraseña. Loop Studio no almacena ni transmite la contraseña ni la clave.',
   'whatsNew.v0170.plain': 'Un enlace sin protección sigue siendo la opción predeterminada y funciona como antes.',
 } as const

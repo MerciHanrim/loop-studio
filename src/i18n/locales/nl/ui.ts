@@ -486,7 +486,7 @@ const ui = {
   'share.protect.error.long': 'Het wachtwoord mag hoogstens 128 tekens hebben.',
   'share.protect.error.mismatch': 'De twee wachtwoorden zijn niet gelijk.',
   'share.protect.note.channel': 'Stuur het wachtwoord langs een andere weg dan de link, niet in hetzelfde bericht.',
-  'share.protect.note.lost': 'Een verloren wachtwoord kan niet worden teruggehaald. Er is geen server en geen herstelmogelijkheid.',
+  'share.protect.note.lost': 'Loop Studio kan het wachtwoord niet terughalen of opnieuw instellen.',
   'share.protect.note.strength': 'De link is maar zo sterk als het wachtwoord: wie de link heeft kan onbeperkt blijven raden.',
   'share.protect.note.contract': 'Loop Studio bewaart en verstuurt het wachtwoord en de sleutel niet. Je browser of een wachtwoordbeheerder kan aanbieden het op te slaan.',
   'share.protect.busy': 'Bezig met versleutelen…',
@@ -505,7 +505,7 @@ const ui = {
   'share.open.notice.content': 'Het wachtwoord klopt, maar de link bevat geen diagram dat Loop Studio kan openen. Vraag de afzender om een nieuwe link.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Een deellink kan met een wachtwoord worden beveiligd: het diagram wordt in de link versleuteld, en alleen wie het wachtwoord heeft kan het openen.',
-  'whatsNew.v0170.open': 'Een beveiligde link vraagt om het wachtwoord voordat er iets van het gedeelde diagram wordt getoond. Een verkeerd wachtwoord en een beschadigde link geven dezelfde melding.',
+  'whatsNew.v0170.open': 'Een beveiligde link vraagt om het wachtwoord voordat er iets van het gedeelde diagram wordt getoond. Een verkeerd wachtwoord en versleutelde linkgegevens die na het maken zijn gewijzigd, geven dezelfde melding.',
   'whatsNew.v0170.limits': 'Een verloren wachtwoord kan niet worden teruggehaald, en de link is maar zo sterk als het wachtwoord. Loop Studio bewaart en verstuurt het wachtwoord en de sleutel niet.',
   'whatsNew.v0170.plain': 'Een gewone link blijft de standaard en werkt zoals voorheen.',
 } as const

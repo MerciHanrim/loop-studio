@@ -505,7 +505,7 @@ const ui = {
   'share.protect.error.long': 'La password può avere al massimo 128 caratteri.',
   'share.protect.error.mismatch': 'Le due password non coincidono.',
   'share.protect.note.channel': 'Invia la password per un’altra via rispetto al link, non nello stesso messaggio.',
-  'share.protect.note.lost': 'Una password persa non si può recuperare. Non c’è un server e non c’è un ripristino.',
+  'share.protect.note.lost': 'Loop Studio non può recuperare né reimpostare la password.',
   'share.protect.note.strength': 'Il link è forte solo quanto la sua password: chi ha il link può continuare a tentare, senza limiti.',
   'share.protect.note.contract': 'Loop Studio non conserva né trasmette la password o la chiave. Il browser o un gestore di password può proporre di salvarla.',
   'share.protect.busy': 'Cifratura in corso…',
@@ -524,7 +524,7 @@ const ui = {
   'share.open.notice.content': 'La password è corretta, ma il link non contiene un diagramma che Loop Studio possa aprire. Chiedi un nuovo link a chi lo ha inviato.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Un link di condivisione può essere protetto da una password: il diagramma viene cifrato dentro il link, e solo chi ha la password può aprirlo.',
-  'whatsNew.v0170.open': 'Un link protetto chiede la password prima che venga mostrato qualcosa del diagramma condiviso. Una password sbagliata e un link danneggiato danno lo stesso messaggio.',
+  'whatsNew.v0170.open': 'Un link protetto chiede la password prima che venga mostrato qualcosa del diagramma condiviso. Una password sbagliata e dati cifrati del link modificati dopo la creazione danno lo stesso messaggio.',
   'whatsNew.v0170.limits': 'Una password persa non si può recuperare, e il link è forte solo quanto la sua password. Loop Studio non conserva né trasmette la password o la chiave.',
   'whatsNew.v0170.plain': 'Il link semplice resta la scelta predefinita e funziona come prima.',
 } satisfies Record<UiKey, string>

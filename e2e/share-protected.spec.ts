@@ -181,6 +181,23 @@ test.describe('creating a link', () => {
     await expect(field(page, 'problem')).toHaveCount(0)
   })
 
+  // synthetic composition events around a real Enter, as in the opening test below:
+  // this pins the guard, it is not a test of a real input method
+  test('an Enter inside a composition does not submit the create form; after the composition ends it does', async ({ page }) => {
+    await shareBtn(page).click()
+    await field(page, 'option').check()
+    await field(page, 'password').fill(PASSWORD)
+    await field(page, 'confirm').fill(PASSWORD + '!') // a submit would say so at once
+    for (const name of ['password', 'confirm']) {
+      await field(page, name).dispatchEvent('compositionstart')
+      await field(page, name).press('Enter')
+      await expect(field(page, 'problem')).toHaveCount(0)
+      await field(page, name).dispatchEvent('compositionend')
+    }
+    await field(page, 'confirm').press('Enter')
+    await expect(field(page, 'problem')).toHaveText('The two passwords are not the same.')
+  })
+
   test('a protected link: `#p1=` on the public base, the LINK copied, the address bar untouched, the password nowhere', async ({ page }) => {
     const before = await page.evaluate(() => location.href)
     const url = await createProtected(page)
@@ -385,6 +402,25 @@ test.describe('opening a link', () => {
     await promptPart(page, 'password').fill(PASSWORD)
     await prompt(page).getByRole('button', { name: 'Open' }).dblclick()
     await expect(prompt(page)).toHaveCount(0)
+    expect(await page.evaluate(() => (window as any).__derives)).toBe(1)
+  })
+
+  // NOT a test of any real input method. `compositionstart` and `compositionend`
+  // are dispatched by hand around a real Enter key press, which is enough to pin
+  // the guard: without it the first Enter submits the wrong password, and a
+  // second key derivation is counted.
+  test('an Enter inside a composition does not submit; after the composition ends it does (synthetic composition events)', async ({ page }) => {
+    await countDerivations(page)
+    await freshGoto(page, '/' + hash)
+    const input = promptPart(page, 'password')
+    await input.fill('not the password at all')
+    await input.dispatchEvent('compositionstart')
+    await input.press('Enter')
+    await input.dispatchEvent('compositionend')
+    await input.fill(PASSWORD)
+    await input.press('Enter')
+    await expect(prompt(page)).toHaveCount(0)
+    expect(await labelsOf(page)).toEqual(['α ⚙', 'β 보물'])
     expect(await page.evaluate(() => (window as any).__derives)).toBe(1)
   })
 

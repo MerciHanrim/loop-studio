@@ -560,7 +560,7 @@ const ui = {
   'share.protect.error.long': 'Le mot de passe peut compter au plus 128 caractères.',
   'share.protect.error.mismatch': 'Les deux mots de passe ne sont pas identiques.',
   'share.protect.note.channel': 'Envoyez le mot de passe par un autre moyen que le lien, pas dans le même message.',
-  'share.protect.note.lost': 'Un mot de passe perdu ne peut pas être récupéré. Il n’y a ni serveur ni réinitialisation.',
+  'share.protect.note.lost': 'Loop Studio ne peut ni récupérer ni réinitialiser le mot de passe.',
   'share.protect.note.strength': 'Le lien n’est pas plus solide que son mot de passe : quiconque a le lien peut continuer à deviner, sans limite.',
   'share.protect.note.contract': 'Loop Studio ne conserve ni ne transmet le mot de passe ou la clé. Votre navigateur ou un gestionnaire de mots de passe peut proposer de l’enregistrer.',
   'share.protect.busy': 'Chiffrement…',
@@ -579,7 +579,7 @@ const ui = {
   'share.open.notice.content': 'Le mot de passe est correct, mais le lien ne contient pas de diagramme que Loop Studio puisse ouvrir. Demandez un nouveau lien à son expéditeur.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Un lien de partage peut être protégé par un mot de passe : le diagramme est chiffré dans le lien, et seule une personne qui a le mot de passe peut l’ouvrir.',
-  'whatsNew.v0170.open': 'Un lien protégé demande son mot de passe avant que quoi que ce soit du diagramme partagé ne soit affiché. Un mot de passe incorrect et un lien endommagé donnent le même message.',
+  'whatsNew.v0170.open': 'Un lien protégé demande son mot de passe avant que quoi que ce soit du diagramme partagé ne soit affiché. Un mot de passe incorrect et des données de lien chiffrées qui ont été modifiées après la création donnent le même message.',
   'whatsNew.v0170.limits': 'Un mot de passe perdu ne peut pas être récupéré, et le lien n’est pas plus solide que son mot de passe. Loop Studio ne conserve ni ne transmet le mot de passe ou la clé.',
   'whatsNew.v0170.plain': 'Un lien simple reste le choix par défaut et fonctionne comme avant.',
 } satisfies Record<UiKey, string>

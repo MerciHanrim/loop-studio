@@ -483,7 +483,7 @@ const ui = {
   'share.protect.error.long': '密码最多 128 个字符。',
   'share.protect.error.mismatch': '两次输入的密码不一致。',
   'share.protect.note.channel': '请通过与链接不同的途径发送密码，不要放在同一条消息里。',
-  'share.protect.note.lost': '密码丢失后无法找回。这里没有服务器，也没有重置。',
+  'share.protect.note.lost': 'Loop Studio 无法找回或重置密码。',
   'share.protect.note.strength': '链接的安全程度取决于密码：拿到链接的人可以不受限制地一直猜下去。',
   'share.protect.note.contract': 'Loop Studio 不存储也不传输密码或密钥。浏览器或密码管理器可能会提议保存它。',
   'share.protect.busy': '正在加密…',
@@ -502,7 +502,7 @@ const ui = {
   'share.open.notice.content': '密码正确，但链接中没有 Loop Studio 能打开的图表。请向发送者索取新链接。',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': '分享链接可以用密码保护：图表会在链接内加密，只有持有密码的人才能打开。',
-  'whatsNew.v0170.open': '受保护的链接会先询问密码，之后才显示共享图表的任何内容。密码错误和链接损坏给出的是同一条提示。',
+  'whatsNew.v0170.open': '受保护的链接会先询问密码，之后才显示共享图表的任何内容。密码错误和创建后被改动的加密链接数据，给出的是同一条提示。',
   'whatsNew.v0170.limits': '密码丢失后无法找回，链接的安全程度取决于密码。Loop Studio 不存储也不传输密码或密钥。',
   'whatsNew.v0170.plain': '普通链接仍是默认选项，用法与之前相同。',
 } satisfies Record<UiKey, string>

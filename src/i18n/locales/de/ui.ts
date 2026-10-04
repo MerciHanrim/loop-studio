@@ -566,7 +566,7 @@ const ui = {
   'share.protect.error.long': 'Das Passwort darf höchstens 128 Zeichen haben.',
   'share.protect.error.mismatch': 'Die beiden Passwörter stimmen nicht überein.',
   'share.protect.note.channel': 'Schicke das Passwort auf einem anderen Weg als den Link, nicht in derselben Nachricht.',
-  'share.protect.note.lost': 'Ein verlorenes Passwort lässt sich nicht wiederherstellen. Es gibt keinen Server und kein Zurücksetzen.',
+  'share.protect.note.lost': 'Loop Studio kann das Passwort weder wiederherstellen noch zurücksetzen.',
   'share.protect.note.strength': 'Der Link ist nur so stark wie sein Passwort: Wer den Link hat, kann unbegrenzt weiterraten.',
   'share.protect.note.contract': 'Loop Studio speichert und überträgt weder das Passwort noch den Schlüssel. Dein Browser oder ein Passwortmanager kann anbieten, es zu speichern.',
   'share.protect.busy': 'Wird verschlüsselt …',
@@ -585,7 +585,7 @@ const ui = {
   'share.open.notice.content': 'Das Passwort stimmt, aber der Link enthält kein Diagramm, das Loop Studio öffnen kann. Bitte den Absender um einen neuen Link.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Ein Link zum Teilen lässt sich mit einem Passwort schützen: Das Diagramm wird im Link verschlüsselt, und nur wer das Passwort hat, kann es öffnen.',
-  'whatsNew.v0170.open': 'Ein geschützter Link fragt nach seinem Passwort, bevor irgendetwas vom geteilten Diagramm gezeigt wird. Ein falsches Passwort und ein beschädigter Link ergeben dieselbe Meldung.',
+  'whatsNew.v0170.open': 'Ein geschützter Link fragt nach seinem Passwort, bevor irgendetwas vom geteilten Diagramm gezeigt wird. Ein falsches Passwort und verschlüsselte Linkdaten, die nach dem Erstellen verändert wurden, ergeben dieselbe Meldung.',
   'whatsNew.v0170.limits': 'Ein verlorenes Passwort lässt sich nicht wiederherstellen, und der Link ist nur so stark wie sein Passwort. Loop Studio speichert und überträgt weder das Passwort noch den Schlüssel.',
   'whatsNew.v0170.plain': 'Ein einfacher Link bleibt die Voreinstellung und funktioniert wie bisher.',
 } satisfies Record<UiKey, string>

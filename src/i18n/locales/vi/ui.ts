@@ -491,7 +491,7 @@ const ui = {
   'share.protect.error.long': 'Mật khẩu có tối đa 128 ký tự.',
   'share.protect.error.mismatch': 'Hai mật khẩu không giống nhau.',
   'share.protect.note.channel': 'Hãy gửi mật khẩu bằng một cách khác với liên kết, không gửi trong cùng một tin nhắn.',
-  'share.protect.note.lost': 'Mật khẩu đã mất thì không thể khôi phục. Không có máy chủ và không có cách đặt lại.',
+  'share.protect.note.lost': 'Loop Studio không thể khôi phục hay đặt lại mật khẩu.',
   'share.protect.note.strength': 'Liên kết chỉ an toàn bằng chính mật khẩu của nó: ai có liên kết đều có thể đoán mãi, không giới hạn.',
   'share.protect.note.contract': 'Loop Studio không lưu trữ và không truyền đi mật khẩu hay khóa. Trình duyệt hoặc trình quản lý mật khẩu có thể đề nghị lưu mật khẩu.',
   'share.protect.busy': 'Đang mã hóa…',
@@ -510,7 +510,7 @@ const ui = {
   'share.open.notice.content': 'Mật khẩu đúng, nhưng liên kết không chứa sơ đồ mà Loop Studio mở được. Hãy xin người gửi một liên kết mới.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Liên kết chia sẻ có thể được bảo vệ bằng mật khẩu: sơ đồ được mã hóa ngay trong liên kết, và chỉ người có mật khẩu mới mở được.',
-  'whatsNew.v0170.open': 'Liên kết được bảo vệ sẽ hỏi mật khẩu trước khi hiện bất cứ thứ gì của sơ đồ được chia sẻ. Mật khẩu sai và liên kết hỏng cho cùng một thông báo.',
+  'whatsNew.v0170.open': 'Liên kết được bảo vệ sẽ hỏi mật khẩu trước khi hiện bất cứ thứ gì của sơ đồ được chia sẻ. Mật khẩu sai và dữ liệu liên kết đã mã hóa bị thay đổi sau khi tạo cho cùng một thông báo.',
   'whatsNew.v0170.limits': 'Mật khẩu đã mất thì không thể khôi phục, và liên kết chỉ an toàn bằng chính mật khẩu của nó. Loop Studio không lưu trữ và không truyền đi mật khẩu hay khóa.',
   'whatsNew.v0170.plain': 'Liên kết thường vẫn là mặc định và hoạt động như trước.',
 } satisfies Record<UiKey, string>

@@ -455,6 +455,7 @@ const ASCII_KEYS = [
   'catalog:share.open.notice.newer',
   'catalog:share.open.notice.unavailable',
   'catalog:share.protect.note.contract',
+  'catalog:share.protect.note.lost',
   'catalog:share.protect.unavailable',
   'catalog:share.tooLarge',
   'catalog:stateExpr.label.hint.empty',
@@ -556,7 +557,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(182)
+    expect(ASCII_KEYS).toHaveLength(183)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {

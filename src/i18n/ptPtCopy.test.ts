@@ -50,6 +50,8 @@ const BANNED: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bsaques?\b/i, 'levantamentos'],
   [/\bdetectar\b/i, 'detetar'],
   [/nova aba\b/i, 'novo separador'],
+  // issue #300 - the word for a password itself
+  [/\bsenhas?\b/i, 'palavra-passe'],
 ]
 
 describe('pt-PT copy — the region audit over pt-BR', () => {
@@ -109,11 +111,50 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // `app`, `gestor` not `gerenciador`, `a abrir` not `abrindo`.
     expect(DELTA).toHaveLength(255)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
-    // The bound was a quarter until issue #300. The word for a password itself
-    // differs (`palavra-passe` / `senha`), so 28 of that issue's 33 strings
-    // differ for one reason, and the share reached 26%. The bound is 30% now;
-    // the count above is still the exact pin.
-    expect(DELTA.length).toBeLessThan(KEYS.length * 0.3)
+    //
+    // The password strings of issue #300 are counted apart. The word for a
+    // password itself differs (`palavra-passe` / `senha`, pinned in both
+    // directions by the banned-form scans below), so they differ by
+    // construction, and counting them into the share would say nothing about
+    // how much of the catalog was rewritten. Exactly these 28 of the 33 differ;
+    // the five that do not are the ones with no password word and no link word.
+    const isPasswordKey = (k: string) => /^(share\.protect\.|share\.open\.|share\.panel\.protected$|whatsNew\.v0170\.)/.test(k)
+    expect(KEYS.filter(isPasswordKey)).toHaveLength(33)
+    expect(DELTA.filter(isPasswordKey).sort()).toEqual([
+      'share.open.body',
+      'share.open.busy',
+      'share.open.error.auth',
+      'share.open.notice.content',
+      'share.open.notice.damaged',
+      'share.open.notice.newer',
+      'share.open.notice.title',
+      'share.open.notice.unavailable',
+      'share.panel.protected',
+      'share.protect.busy',
+      'share.protect.confirm',
+      'share.protect.error.long',
+      'share.protect.error.mismatch',
+      'share.protect.error.short',
+      'share.protect.hide',
+      'share.protect.note.channel',
+      'share.protect.note.contract',
+      'share.protect.note.lost',
+      'share.protect.note.strength',
+      'share.protect.option',
+      'share.protect.optionHelp',
+      'share.protect.password',
+      'share.protect.show',
+      'share.protect.unavailable',
+      'whatsNew.v0170.limits',
+      'whatsNew.v0170.open',
+      'whatsNew.v0170.plain',
+      'whatsNew.v0170.protect',
+    ])
+    // outside them, the quarter bound stands as it always did
+    const rest = KEYS.filter((k) => !isPasswordKey(k))
+    const restDelta = DELTA.filter((k) => !isPasswordKey(k))
+    expect(restDelta).toHaveLength(227)
+    expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 
   // ------------------------------------------------- direction 1: nothing left

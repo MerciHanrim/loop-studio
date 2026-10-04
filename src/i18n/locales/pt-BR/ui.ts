@@ -491,7 +491,7 @@ const ui = {
   'share.protect.error.long': 'A senha pode ter no máximo 128 caracteres.',
   'share.protect.error.mismatch': 'As duas senhas não são iguais.',
   'share.protect.note.channel': 'Envie a senha por outro caminho que não o do link, não na mesma mensagem.',
-  'share.protect.note.lost': 'Uma senha perdida não pode ser recuperada. Não há servidor nem redefinição.',
+  'share.protect.note.lost': 'O Loop Studio não pode recuperar nem redefinir a senha.',
   'share.protect.note.strength': 'O link é tão forte quanto a senha: quem tem o link pode continuar tentando, sem limite.',
   'share.protect.note.contract': 'O Loop Studio não armazena nem transmite a senha nem a chave. O navegador ou um gerenciador de senhas pode oferecer para salvá-la.',
   'share.protect.busy': 'Criptografando…',
@@ -510,7 +510,7 @@ const ui = {
   'share.open.notice.content': 'A senha está certa, mas o link não contém um diagrama que o Loop Studio consiga abrir. Peça um novo link a quem o enviou.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Um link de compartilhamento pode ser protegido com uma senha: o diagrama é criptografado dentro do link, e só quem tem a senha pode abri-lo.',
-  'whatsNew.v0170.open': 'Um link protegido pede a senha antes de mostrar qualquer coisa do diagrama compartilhado. Uma senha errada e um link danificado dão a mesma mensagem.',
+  'whatsNew.v0170.open': 'Um link protegido pede a senha antes de mostrar qualquer coisa do diagrama compartilhado. Uma senha errada e dados criptografados do link que foram alterados depois da criação dão a mesma mensagem.',
   'whatsNew.v0170.limits': 'Uma senha perdida não pode ser recuperada, e o link é tão forte quanto a senha. O Loop Studio não armazena nem transmite a senha nem a chave.',
   'whatsNew.v0170.plain': 'O link simples continua sendo o padrão e funciona como antes.',
 } as const

@@ -505,7 +505,7 @@ const ui = {
   'share.protect.error.long': 'A palavra-passe pode ter no máximo 128 caracteres.',
   'share.protect.error.mismatch': 'As duas palavras-passe não são iguais.',
   'share.protect.note.channel': 'Envie a palavra-passe por outra via que não a da ligação, não na mesma mensagem.',
-  'share.protect.note.lost': 'Uma palavra-passe perdida não pode ser recuperada. Não há servidor nem reposição.',
+  'share.protect.note.lost': 'O Loop Studio não pode recuperar nem repor a palavra-passe.',
   'share.protect.note.strength': 'A ligação é tão forte quanto a palavra-passe: quem tem a ligação pode continuar a tentar, sem limite.',
   'share.protect.note.contract': 'O Loop Studio não armazena nem transmite a palavra-passe nem a chave. O navegador ou um gestor de palavras-passe pode propor guardá-la.',
   'share.protect.busy': 'A cifrar…',
@@ -524,7 +524,7 @@ const ui = {
   'share.open.notice.content': 'A palavra-passe está certa, mas a ligação não contém um diagrama que o Loop Studio consiga abrir. Peça uma nova ligação a quem a enviou.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Um link de partilha pode ser protegido com uma palavra-passe: o diagrama é cifrado dentro da ligação, e só quem tem a palavra-passe o pode abrir.',
-  'whatsNew.v0170.open': 'Uma ligação protegida pede a palavra-passe antes de mostrar qualquer coisa do diagrama partilhado. Uma palavra-passe errada e uma ligação danificada dão a mesma mensagem.',
+  'whatsNew.v0170.open': 'Uma ligação protegida pede a palavra-passe antes de mostrar qualquer coisa do diagrama partilhado. Uma palavra-passe errada e dados cifrados da ligação que foram alterados depois da criação dão a mesma mensagem.',
   'whatsNew.v0170.limits': 'Uma palavra-passe perdida não pode ser recuperada, e a ligação é tão forte quanto a palavra-passe. O Loop Studio não armazena nem transmite a palavra-passe nem a chave.',
   'whatsNew.v0170.plain': 'A ligação simples continua a ser a predefinição e funciona como antes.',
 } as const

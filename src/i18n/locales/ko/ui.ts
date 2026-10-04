@@ -478,7 +478,7 @@ const ui = {
   'share.protect.error.long': '비밀번호는 128자 이하여야 합니다.',
   'share.protect.error.mismatch': '두 비밀번호가 서로 다릅니다.',
   'share.protect.note.channel': '비밀번호는 링크와 다른 경로로 보내세요. 같은 메시지에 함께 넣지 마세요.',
-  'share.protect.note.lost': '비밀번호를 잊으면 되찾을 수 없습니다. 서버도, 재설정도 없습니다.',
+  'share.protect.note.lost': 'Loop Studio에서는 비밀번호를 복구하거나 재설정할 수 없습니다.',
   'share.protect.note.strength': '링크는 비밀번호만큼만 안전합니다. 링크를 가진 사람은 횟수 제한 없이 계속 추측해 볼 수 있습니다.',
   'share.protect.note.contract': 'Loop Studio는 비밀번호와 키를 저장하거나 전송하지 않습니다. 브라우저나 비밀번호 관리자가 저장을 제안할 수는 있습니다.',
   'share.protect.busy': '암호화하는 중…',
@@ -497,7 +497,7 @@ const ui = {
   'share.open.notice.content': '비밀번호는 맞지만 링크에 Loop Studio가 열 수 있는 다이어그램이 들어 있지 않습니다. 보낸 사람에게 새 링크를 요청하세요.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': '공유 링크를 비밀번호로 보호할 수 있습니다. 다이어그램이 링크 안에 암호화되어 들어가며, 비밀번호를 가진 사람만 열 수 있습니다.',
-  'whatsNew.v0170.open': '보호된 링크는 공유된 다이어그램의 어떤 것도 보이기 전에 비밀번호를 묻습니다. 틀린 비밀번호와 손상된 링크는 같은 안내가 나옵니다.',
+  'whatsNew.v0170.open': '보호된 링크는 공유된 다이어그램의 어떤 것도 보이기 전에 비밀번호를 묻습니다. 틀린 비밀번호와 생성된 뒤 변경된 암호화 링크 데이터에는 같은 안내가 나옵니다.',
   'whatsNew.v0170.limits': '잊은 비밀번호는 되찾을 수 없고, 링크는 비밀번호만큼만 안전합니다. Loop Studio는 비밀번호와 키를 저장하거나 전송하지 않습니다.',
   'whatsNew.v0170.plain': '일반 링크가 여전히 기본이며 이전과 같이 동작합니다.',
 } satisfies Record<UiKey, string>

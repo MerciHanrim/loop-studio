@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { KeyboardEvent, SyntheticEvent } from 'react'
+import type { SyntheticEvent } from 'react'
 import { useT, type MessageKey } from '../../i18n'
 import { passwordRule, protectedShareAvailable } from '../../model/shareProtected'
 import { shareKb, type ProtectedShareLinkResult } from '../../ui/shareAction'
 import { DialogScrim } from '../DialogScrim'
+import { useCompositionGuard } from '../useCompositionGuard'
 import { useDialogFocus } from '../useDialogFocus'
 import { shareDisclosureBody } from './shareDisclosure'
 
@@ -72,6 +73,9 @@ function ShareCreateBody({ temporary, onCancel, onCreatePlain, onCreateProtected
   // one creation at a time; a ref, because two clicks in one tick both see the
   // same render's `busy` (see `useShareSurface`)
   const busyRef = useRef(false)
+  // an Enter that only commits an input-method composition must not submit
+  const guardPassword = useCompositionGuard()
+  const guardConfirm = useCompositionGuard()
   const available = protectedShareAvailable()
 
   useDialogFocus(true, ref, () => {
@@ -119,10 +123,6 @@ function ShareCreateBody({ temporary, onCancel, onCreatePlain, onCreateProtected
     }
   }
 
-  // Enter that only commits an IME composition must not submit the form
-  const guardComposition = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault()
-  }
 
   const problemText =
     problem == null
@@ -183,7 +183,9 @@ function ShareCreateBody({ temporary, onCancel, onCreatePlain, onCreateProtected
                   aria-describedby={problem ? `${ruleId} ${problemId}` : ruleId}
                   aria-invalid={problem?.kind === 'short' || problem?.kind === 'long' ? true : undefined}
                   data-share-protect="password"
-                  onKeyDown={guardComposition}
+                  onCompositionStart={guardPassword.onCompositionStart}
+                  onCompositionEnd={guardPassword.onCompositionEnd}
+                  onKeyDown={guardPassword.onKeyDown}
                   onInput={() => setProblem(null)}
                 />
               </label>
@@ -202,7 +204,9 @@ function ShareCreateBody({ temporary, onCancel, onCreatePlain, onCreateProtected
                   aria-invalid={problem?.kind === 'mismatch' ? true : undefined}
                   aria-describedby={problem?.kind === 'mismatch' ? problemId : undefined}
                   data-share-protect="confirm"
-                  onKeyDown={guardComposition}
+                  onCompositionStart={guardConfirm.onCompositionStart}
+                  onCompositionEnd={guardConfirm.onCompositionEnd}
+                  onKeyDown={guardConfirm.onKeyDown}
                   onInput={() => setProblem(null)}
                 />
               </label>

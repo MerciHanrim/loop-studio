@@ -510,7 +510,7 @@ const ui = {
   'share.protect.error.long': 'パスワードは128文字以下にしてください。',
   'share.protect.error.mismatch': '2つのパスワードが一致しません。',
   'share.protect.note.channel': 'パスワードはリンクとは別の方法で送ってください。同じメッセージには入れないでください。',
-  'share.protect.note.lost': '忘れたパスワードは復元できません。サーバーもリセットもありません。',
+  'share.protect.note.lost': 'Loop Studio ではパスワードを復元することも、再設定することもできません。',
   'share.protect.note.strength': 'リンクの強さはパスワードの強さで決まります。リンクを持つ人は、回数の制限なく推測を続けられます。',
   'share.protect.note.contract': 'Loop Studio はパスワードも鍵も保存せず、送信もしません。ブラウザーやパスワードマネージャーが保存を提案することはあります。',
   'share.protect.busy': '暗号化しています…',
@@ -529,7 +529,7 @@ const ui = {
   'share.open.notice.content': 'パスワードは正しいのですが、リンクには Loop Studio で開けるダイアグラムが含まれていません。送信者に新しいリンクを依頼してください。',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': '共有リンクをパスワードで保護できます。ダイアグラムはリンクの中で暗号化され、パスワードを持つ人だけが開けます。',
-  'whatsNew.v0170.open': '保護されたリンクは、共有されたダイアグラムの内容を何も表示する前にパスワードを尋ねます。パスワードの誤りとリンクの破損では、同じメッセージが表示されます。',
+  'whatsNew.v0170.open': '保護されたリンクは、共有されたダイアグラムの内容を何も表示する前にパスワードを尋ねます。パスワードの誤りと、作成後に変更された暗号化リンクデータでは、同じメッセージが表示されます。',
   'whatsNew.v0170.limits': '忘れたパスワードは復元できず、リンクの強さはパスワードの強さで決まります。Loop Studio はパスワードも鍵も保存せず、送信もしません。',
   'whatsNew.v0170.plain': '通常のリンクが引き続き既定で、これまでどおり動作します。',
 } satisfies Record<UiKey, string>

@@ -545,7 +545,7 @@ const ui = {
   'share.protect.error.long': 'Parola en fazla 128 karakter olabilir.',
   'share.protect.error.mismatch': 'İki parola aynı değil.',
   'share.protect.note.channel': 'Parolayı bağlantıdan farklı bir yolla gönderin; aynı mesajda göndermeyin.',
-  'share.protect.note.lost': 'Kaybedilen parola kurtarılamaz. Sunucu da yok, sıfırlama da.',
+  'share.protect.note.lost': 'Loop Studio parolayı kurtaramaz ve sıfırlayamaz.',
   'share.protect.note.strength': 'Bağlantı ancak parolası kadar güçlüdür: bağlantıya sahip olan biri sınırsız kez tahmin etmeyi sürdürebilir.',
   'share.protect.note.contract': 'Loop Studio parolayı da anahtarı da saklamaz ve iletmez. Tarayıcınız veya bir parola yöneticisi onu kaydetmeyi önerebilir.',
   'share.protect.busy': 'Şifreleniyor…',
@@ -564,7 +564,7 @@ const ui = {
   'share.open.notice.content': 'Parola doğru, ancak bağlantıda Loop Studio’nun açabileceği bir diyagram yok. Gönderenden yeni bir bağlantı isteyin.',
   // issue #300 - the 0.17.0 release notes: password protection for share links
   'whatsNew.v0170.protect': 'Paylaşım bağlantısı parolayla korunabilir: diyagram bağlantının içinde şifrelenir ve onu yalnızca parolayı bilen biri açabilir.',
-  'whatsNew.v0170.open': 'Korumalı bağlantı, paylaşılan diyagramdan herhangi bir şey gösterilmeden önce parolasını sorar. Yanlış parola ile hasarlı bağlantı aynı mesajı verir.',
+  'whatsNew.v0170.open': 'Korumalı bağlantı, paylaşılan diyagramdan herhangi bir şey gösterilmeden önce parolasını sorar. Yanlış parola ile oluşturulduktan sonra değiştirilmiş şifreli bağlantı verileri aynı mesajı verir.',
   'whatsNew.v0170.limits': 'Kaybedilen parola kurtarılamaz ve bağlantı ancak parolası kadar güçlüdür. Loop Studio parolayı da anahtarı da saklamaz ve iletmez.',
   'whatsNew.v0170.plain': 'Düz bağlantı hâlâ varsayılandır ve eskisi gibi çalışır.',
 } as const
