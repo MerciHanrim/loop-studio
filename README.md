@@ -17,7 +17,7 @@ session neither reads nor saves stored work, author information or settings
 production flow to a large game economy and a three-zone probability/pity
 comparison.
 
-![Loop Studio's two-tier toolbar and the Coffee roastery Template, grouped into three labelled zone frames, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
+![Loop Studio's two-tier toolbar in a temporary session, its orange-bordered Temporary session button beside the menu buttons, and the Coffee roastery Template, grouped into three labelled zone frames, a few steps into a run with the Timeline filling in below](docs/assets/hero-coffee.png)
 
 ## Key features
 
