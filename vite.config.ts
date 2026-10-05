@@ -8,6 +8,7 @@ import { configDefaults, defineConfig } from 'vitest/config'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { manifest } from './src/pwa/manifest.ts'
 import { LOCALE_CHUNK_RE } from './scripts/locale-chunk.mjs'
+import { VITE_LICENSE_JSON, thirdPartyNotices } from './scripts/third-party-notices/vite-plugin.mjs'
 
 // docs/localization.md §L4.5 — each non-`en` UI catalog and template-label dict
 // is its own chunk (`assets/locale-<code>-<hash>.js` /
@@ -108,6 +109,10 @@ export default defineConfig(({ mode }) => {
       themeBoot(portable),
       react(),
       ...(portable ? [viteSingleFile(), renameHtml('loop-studio.html')] : []),
+      // Issue #301 — THIRD_PARTY_NOTICES.txt (web / PWA) or the notices inside
+      // the single HTML file (portable), checked against
+      // licenses/third-party-manifest.json; a mismatch fails the build.
+      thirdPartyNotices({ flavour: portable ? 'portable' : pwa ? 'pwa' : 'web', root: import.meta.dirname }),
       // Emits `sw.js` (Workbox generateSW) + `manifest.webmanifest` and injects
       // `<link rel="manifest">`. `injectRegister: false` — we call
       // `navigator.serviceWorker.register` ourselves, dual-gated (§P7). The SW
@@ -127,6 +132,8 @@ export default defineConfig(({ mode }) => {
                   'assets/*.{woff,woff2}', // the CSS @font-face lists both — precache both
                   'manifest.webmanifest',
                   'icons/*.png',
+                  // issue #301 — the notices open offline too
+                  'THIRD_PARTY_NOTICES.txt',
                 ],
                 // docs/localization.md §L4.5 / docs/pwa.md §P8 — the per-locale
                 // catalog + template-label chunks are NOT precached; they are
@@ -165,6 +172,9 @@ export default defineConfig(({ mode }) => {
     build: portable
       ? { outDir: 'dist-portable', emptyOutDir: true } // viteSingleFile inlines everything — no manual chunks
       : {
+          // issue #301 — Vite's own list of bundled packages: read by the
+          // third-party-notices plugin as evidence, then removed from the output
+          license: { fileName: VITE_LICENSE_JSON },
           // docs/localization.md §L4.5 — split each non-`en` UI catalog and
           // template-label dict into its own stably-named chunk.
           rollupOptions: {

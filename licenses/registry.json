@@ -1,0 +1,49 @@
+{
+  "_about": "Issue #301. Shipped third-party code that the bundler's module graph does not show, and the reviews some licences need. Versions are NOT written here: they are read from node_modules at build time and pinned in third-party-manifest.json. See licenses/README.md.",
+  "runtime": [
+    {
+      "name": "vite",
+      "licenceSummary": "MIT + bundled third-party notices",
+      "files": [
+        { "file": "LICENSE.md", "covers": "Vite's own MIT license, followed by the licenses of the third-party code bundled in Vite" }
+      ],
+      "builds": ["web", "pwa", "portable"],
+      "evidence": { "virtualModule": "vite/preload-helper.js" },
+      "source": "build-tool runtime (module preload helper)"
+    },
+    {
+      "name": "rolldown",
+      "licenceSummary": "MIT + bundled third-party notices",
+      "files": [
+        { "file": "LICENSE", "covers": "Rolldown's own MIT license" },
+        { "file": "THIRD-PARTY-LICENSE", "covers": "the licenses of the third-party code bundled in Rolldown" }
+      ],
+      "builds": ["web", "pwa", "portable"],
+      "evidence": { "virtualModule": "rolldown/runtime.js" },
+      "source": "build-tool runtime (module interop helpers)"
+    }
+  ],
+  "serviceWorker": [
+    { "name": "workbox-core", "evidence": { "file": "workbox-*.js", "contains": "workbox:core:" }, "source": "service worker runtime" },
+    { "name": "workbox-routing", "evidence": { "file": "workbox-*.js", "contains": "workbox:routing:" }, "source": "service worker runtime" },
+    { "name": "workbox-precaching", "evidence": { "file": "workbox-*.js", "contains": "workbox:precaching:" }, "source": "service worker runtime" },
+    { "name": "workbox-strategies", "evidence": { "file": "workbox-*.js", "contains": "workbox:strategies:" }, "source": "service worker runtime" },
+    { "name": "workbox-expiration", "evidence": { "file": "workbox-*.js", "contains": "workbox:expiration:" }, "source": "service worker runtime" },
+    { "name": "workbox-cacheable-response", "evidence": { "file": "workbox-*.js", "contains": "workbox:cacheable-response:" }, "source": "service worker runtime" },
+    { "name": "idb", "evidence": { "file": "workbox-*.js", "contains": "versionchange" }, "source": "service worker runtime (IndexedDB wrapper used by workbox-expiration)" },
+    { "name": "workbox-build", "evidence": { "file": "sw.js", "contains": "SKIP_WAITING" }, "source": "service worker template (sw.js body)" },
+    {
+      "name": "@trickfilm400/rollup-plugin-off-main-thread",
+      "evidence": { "file": "sw.js", "contains": "didn’t register its module" },
+      "source": "service worker template (AMD loader at the top of sw.js, loader.ejs)",
+      "copyright": ["Copyright 2018 Google Inc. All Rights Reserved."],
+      "copyrightFrom": "the header of loader.ejs in the package; the Apache-2.0 LICENSE file itself carries no copyright line"
+    }
+  ],
+  "reviews": {
+    "@trickfilm400/rollup-plugin-off-main-thread": {
+      "reviewed": true,
+      "note": "Apache-2.0, no NOTICE file. Shipped in the PWA service worker; kept and listed with the full Apache-2.0 text (issue #301 decision, 2026-10-04). A new Apache-2.0 package needs its own review entry."
+    }
+  }
+}

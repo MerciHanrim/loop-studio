@@ -7,6 +7,7 @@ import { capturedExports, installProbe, pathProbe, portableUrl } from './support
 import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
+import { PORTABLE_TEMPLATE_ID, portableTemplate, sha256 } from '../scripts/third-party-notices/core.mjs'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
 // server, no window.__loop bridge (production build) — driven entirely through
@@ -165,6 +166,53 @@ test.describe('portable file://', () => {
     ]) {
       expect(html, `production bundle still contains "${marker}"`).not.toContain(marker)
     }
+  })
+
+  // issue #301 - the notices ride in the single file as TEXT in a <template>
+  // (scripts/third-party-notices/core.mjs states the contract). A browser
+  // gives back exactly the bytes the manifest pins for the web build's
+  // THIRD_PARTY_NOTICES.txt, and the same writer, fed a licence text built to
+  // break out, yields one template holding one text node and nothing that runs.
+  test('the third-party notices are text: the DOM gives back the web build’s bytes, and no licence text becomes markup', async ({ page }) => {
+    const TEXT_NODE = 3
+    const manifest = JSON.parse(readFileSync(resolve('licenses/third-party-manifest.json'), 'utf8'))
+    expect(manifest.builds.portable.noticesSha256).toBe(manifest.builds.web.noticesSha256)
+    await page.goto(portableUrl())
+    const shipped = await page.evaluate((id) => {
+      const all = document.querySelectorAll(`template#${id}`)
+      const t = all[0]
+      if (all.length !== 1 || !(t instanceof HTMLTemplateElement)) return null
+      return { kinds: [...t.content.childNodes].map((n) => n.nodeType), text: t.content.textContent ?? '' }
+    }, PORTABLE_TEMPLATE_ID)
+    expect(shipped, 'exactly one notices <template>').not.toBeNull()
+    expect(shipped!.kinds).toEqual([TEXT_NODE])
+    expect(sha256(shipped!.text)).toBe(manifest.builds.web.noticesSha256)
+
+    const HOSTILE = [
+      'MIT License',
+      '</template><script>window.__pwned = 1</script>',
+      '<img src=x onerror="window.__pwned = 2"><!-- a comment --><![CDATA[ x ]]>',
+      '</body></html><template id="third-party-notices">a second one',
+      '&lt;already escaped&gt; &amp; &copy; &#60;script&#62; &',
+      "$& $' $` $1 $$",
+      '',
+    ].join('\n')
+    const html = `<!doctype html><html><head></head><body>${portableTemplate(HOSTILE)}</body></html>`
+    // the structure a parser builds from it
+    const parsed = await page.evaluate((h) => {
+      const d = new DOMParser().parseFromString(h, 'text/html')
+      const t = d.querySelector('template')!
+      return {
+        elements: [...d.querySelectorAll('*')].map((e) => e.localName),
+        kinds: [...t.content.childNodes].map((n) => n.nodeType),
+        inside: t.content.querySelectorAll('*').length,
+        text: t.content.textContent,
+      }
+    }, html)
+    expect(parsed).toEqual({ elements: ['html', 'head', 'body', 'template'], kinds: [TEXT_NODE], inside: 0, text: HOSTILE })
+    // and a live document: nothing in it runs
+    await page.setContent(html)
+    expect(await page.evaluate(() => ({ pwned: (window as unknown as { __pwned?: number }).__pwned ?? null, scripts: document.scripts.length, imgs: document.images.length }))).toEqual({ pwned: null, scripts: 0, imgs: 0 })
   })
 
   // issue #296 - the release notes ship inside the single file: the panel reads

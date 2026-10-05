@@ -91,8 +91,12 @@ jobs:
         run: npm run build:pwa
       - name: PWA precache closure (mode=pwa)
         run: npm run check:pwa-closure
-      - name: PWA precache closure (Cloudflare Production path)
-        run: CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist
+      # issue #301 — the notices ship in each build, match the manifest, and the
+      # PWA precaches them; the build itself already failed on a manifest mismatch
+      - name: Third-party notices in the web, portable and PWA builds
+        run: npm run check:third-party-notices
+      - name: PWA precache closure and notices (Cloudflare Production path)
+        run: CF_PAGES_BRANCH=main npm run build && node scripts/check-pwa-closure.mjs dist && node scripts/check-third-party-notices.mjs dist pwa
 
   # ── E2E, parallelised ──────────────────────────────────────────────────
   # The dev-server + portable suite (`npm run e2e`) is split into N shards that
