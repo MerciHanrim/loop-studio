@@ -427,6 +427,31 @@ Loop Studio는 독립 프로젝트이며 Machinations.io와
 - No animation requirement; respects `prefers-reduced-motion` and `forced-colors`
   like every other dialog.
 
+**The licence view** (issue #301, v0.18.0)
+
+- Below the non-affiliation sentence, a button, `Third-party open-source
+  licenses` / `제3자 오픈소스 라이선스` (key `about.licenses`), turns the SAME
+  dialog into its licence view: no second modal. The title becomes that name;
+  focus moves to `Back to About`, which returns to About and puts focus back on
+  the button. `Escape`, the backdrop and × still close the whole dialog, and
+  the next opening starts on About.
+- The view says first, in the UI language, that these are the notices of the
+  third-party software Loop Studio includes, that they cover those components
+  only and not Loop Studio itself, and that each licence is shown in its
+  original English. Loop Studio's own copyright line is unchanged.
+- The notices are the build's own `THIRD_PARTY_NOTICES.txt`, untranslated, in a
+  scrollable, focusable `<pre dir="ltr" lang="en">` that the browser can search,
+  select and copy. They are a React text child, never HTML
+  (`npm run check:licence-screen`, and [`licenses/README.md`](../licenses/README.md)).
+- Web and PWA read the same-origin file when the view opens (the PWA has it
+  precached, so it opens offline) and offer `Open as a text file`, a new tab
+  with `rel="noopener noreferrer"`. The portable file reads the text from its
+  own `<template id="third-party-notices">` and has no file link. The dev
+  server answers the file with the web build's text, rebuilt from the
+  committed manifest.
+- Loading and a failed read have their own states; `Try again` reads again,
+  and `Back to About` works in every state. Nothing is stored.
+
 ## GT8. Localization
 
 All copy is in the localization catalog under a `tour.*` namespace, EN canonical

@@ -401,6 +401,15 @@ const ui = {
   'about.repoAria': 'Loop Studio GitHub deposu',
   'about.notAffiliated':
     'Loop Studio bağımsız bir projedir; Machinations.io ile bağlantılı değildir ve onun tarafından onaylanmamıştır.',
+  'about.licenses': 'Üçüncü taraf açık kaynak lisansları',
+  'licenses.back': 'Geri',
+  'licenses.lead': 'Bunlar Loop Studio’ya dahil üçüncü taraf yazılımların bildirimleridir. Yalnızca bu bileşenler için geçerlidir, Loop Studio’nun kendisi için değil. Her lisans, İngilizce orijinal metniyle eksiksiz yer alır.',
+  'licenses.openFile': 'Metin dosyası olarak aç',
+  'licenses.openFileAria': 'Lisans metinlerini yeni sekmede metin dosyası olarak aç',
+  'licenses.loading': 'Lisans metinleri yükleniyor…',
+  'licenses.error': 'Lisans metinleri yüklenemedi.',
+  'licenses.retry': 'Tekrar dene',
+  'licenses.textLabel': 'Lisans metinleri',
   'hint.close': 'Bu notu gizle',
   'hint.emptyCanvas.body':
     'Bir Şablonla başlayın ya da sol panelden düğüm türlerini sürükleyin.',
@@ -576,6 +585,9 @@ const ui = {
   'whatsNew.v0172.size': 'Pencerenin üst kısmındaki geçici oturum düğmesi artık yanındaki menü düğmeleriyle aynı yükseklikte ve aynı yuvarlak köşelere sahip.',
   'whatsNew.v0172.text': 'Düğmenin yazısı daha büyük ve daha kolay okunuyor.',
   'whatsNew.v0172.same': 'Turuncu kenarlığını koruyor ve aynı menüyü açıyor; geçici oturumun çalışma biçimi değişmedi.',
+  'whatsNew.v0180.licenses': 'Loop Studio hakkında bölümünde artık üçüncü taraf açık kaynak lisansları sayfası var; uygulamadaki her bileşenin lisans metni eksiksiz olarak yer alıyor.',
+  'whatsNew.v0180.offline': 'Lisans metinleri, yüklenmiş uygulamada ve tek dosyalık sürümde ağ bağlantısı olmadan açılır.',
+  'whatsNew.v0180.own': 'Loop Studio’nun kendi telif hakkı bildirimi değişmedi; bu lisanslar yalnızca dahil edilen üçüncü taraf bileşenler için geçerlidir.',
 } as const
 
 export type UiKey = keyof typeof ui

@@ -7,11 +7,13 @@ import {
   copyrightLines,
   diffSection,
   escapeHtml,
+  findPackageDir,
   injectPortableTemplate,
   judgeLicence,
   LOCAL_PATH,
   manifestSection,
   normaliseText,
+  noticesFromManifest,
   packageDirOf,
   parseSpdx,
   portableTemplate,
@@ -246,6 +248,32 @@ describe('the committed manifest', () => {
     expect(LOCAL_PATH.test(' /Users/someone/x')).toBe(true)
     expect(LOCAL_PATH.test(' /home/runner/work')).toBe(true)
     expect(LOCAL_PATH.test('https://github.com/vitejs/vite')).toBe(false)
+  })
+  // the dev server serves this rebuild: it must be the build's text, byte for byte
+  it.each([['web'], ['pwa'], ['portable']])('%s: the text rebuilt from the manifest and node_modules is the build text the manifest pins', (build) => {
+    const text = noticesFromManifest(manifest.builds[build], ROOT)
+    expect(sha256(text)).toBe(manifest.builds[build].noticesSha256)
+  })
+  it('the rebuild fails closed: another licence hash, a missing NOTICE, a version not installed, a changed copyright line', () => {
+    const copy = () => JSON.parse(JSON.stringify(manifest.builds.web))
+    const a = copy()
+    a.entries.find((e) => e.name === 'react').licenceFiles[0].sha256 = '0'.repeat(64)
+    expect(() => noticesFromManifest(a, ROOT)).toThrow(/react@.*LICENSE is not the text the manifest pins/)
+    const b = copy()
+    b.entries.find((e) => e.name === 'react').noticeFiles = [{ file: 'NOTICE', sha256: '1'.repeat(64) }]
+    expect(() => noticesFromManifest(b, ROOT)).toThrow(/NOTICE files are not the ones/)
+    const c = copy()
+    c.entries.find((e) => e.name === 'classcat').version = '9.9.9'
+    expect(() => noticesFromManifest(c, ROOT)).toThrow(/classcat@9\.9\.9: not installed/)
+    const d = copy()
+    d.entries.find((e) => e.name === 'classcat').copyright = ['Copyright (c) Someone Else']
+    expect(() => noticesFromManifest(d, ROOT)).toThrow(/rebuilt notices .* are not the manifest's/)
+  })
+  it('finds the second, nested copy of a package by its version', () => {
+    const v4 = findPackageDir(ROOT, 'zustand', '4.5.7')
+    const v5 = findPackageDir(ROOT, 'zustand', '5.0.15')
+    expect(v4 && v5 && v4 !== v5).toBe(true)
+    expect(findPackageDir(ROOT, 'zustand', '0.0.1')).toBeNull()
   })
   it('pins the same notices bytes for the web and portable builds', () => {
     expect(manifest.builds.portable.noticesSha256).toBe(manifest.builds.web.noticesSha256)

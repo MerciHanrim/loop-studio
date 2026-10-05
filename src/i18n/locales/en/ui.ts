@@ -343,6 +343,15 @@ const ui = {
   'about.repo': 'GitHub repository',
   'about.repoAria': 'Loop Studio GitHub repository',
   'about.notAffiliated': 'Loop Studio is an independent project and is not affiliated with or endorsed by Machinations.io.',
+  'about.licenses': 'Third-party open-source licenses',
+  'licenses.back': 'Back to About',
+  'licenses.lead': 'These are the notices for the third-party software included in Loop Studio. They cover those components only, not Loop Studio itself. Each license is reproduced in full in its original English.',
+  'licenses.openFile': 'Open as a text file',
+  'licenses.openFileAria': 'Open the license texts as a text file in a new tab',
+  'licenses.loading': 'Loading the license texts…',
+  'licenses.error': 'The license texts could not be loaded.',
+  'licenses.retry': 'Try again',
+  'licenses.textLabel': 'License texts',
   'hint.close': 'Dismiss this note',
   'hint.emptyCanvas.body': 'Start from a Template, or drag node types in from the left panel.',
   'hint.mc.body': 'Monte Carlo runs the model many times and shows a spread of outcomes, not a single prediction.',
@@ -506,6 +515,9 @@ const ui = {
   'whatsNew.v0172.size': 'The Temporary session button at the top of the window now has the same height and rounded corners as the menu buttons beside it.',
   'whatsNew.v0172.text': 'Its label is larger and easier to read.',
   'whatsNew.v0172.same': 'It keeps its orange border and opens the same menu; how a temporary session works has not changed.',
+  'whatsNew.v0180.licenses': 'About Loop Studio now has a Third-party open-source licenses page with the full license text of every component the app includes.',
+  'whatsNew.v0180.offline': 'The license texts open without a network connection in the installed app and in the single-file version.',
+  'whatsNew.v0180.own': 'Loop Studio’s own copyright notice is unchanged; these licenses cover the included third-party components only.',
 } as const
 
 export type UiKey = keyof typeof ui

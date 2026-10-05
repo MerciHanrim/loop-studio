@@ -6,7 +6,7 @@
     "mirroring": 4,
     "jsxSites": 1,
     "keepLiterals": 1,
-    "iconSites": 11,
+    "iconSites": 12,
     "catalogKeysMirror": 9,
     "catalogKeysKeep": 1,
     "catalogPairsPerLocale": 10,
@@ -63,6 +63,7 @@
     },
     "sites": [
       { "file": "src/components/HelpMenu.tsx", "unit": "external-link", "count": 1 },
+      { "file": "src/components/LicensesView.tsx", "unit": "external-link", "count": 1 },
       { "file": "src/components/dataImport/DataImportWizard.tsx", "unit": "external-link", "count": 1 },
       { "file": "src/components/dataImport/DataImportWizard.tsx", "unit": "submenu", "count": 1 },
       { "file": "src/components/mobile/MobileMoreMenu.tsx", "unit": "external-link", "count": 1 },

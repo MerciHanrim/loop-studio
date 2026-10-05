@@ -45,6 +45,8 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.map': 'application/json',
   '.ico': 'image/x-icon',
+  // issue #301 - THIRD_PARTY_NOTICES.txt, as Cloudflare Pages serves it
+  '.txt': 'text/plain; charset=utf-8',
 }
 
 const server = createServer(async (req, res) => {

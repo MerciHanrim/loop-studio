@@ -39,6 +39,14 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #301 - the third-party open-source licences, in the About dialog;
+    // the date is the day it is deployed, set right before the merge
+    id: 'release:0.18.0',
+    version: '0.18.0',
+    date: '2026-10-05',
+    items: ['whatsNew.v0180.licenses', 'whatsNew.v0180.offline', 'whatsNew.v0180.own'],
+  },
+  {
     // the temporary-session chip takes the box of the toolbar's menu buttons;
     // the date is the day it is deployed, set right before the merge
     id: 'release:0.17.2',

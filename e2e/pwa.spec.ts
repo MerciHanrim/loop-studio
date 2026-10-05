@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
 
 // Runs under playwright.pwa.config.ts — three pre-built `--mode pwa` generations
 // (stamps pwagenA/B/C) served by e2e/support/pwa-serve.mjs, which switches which
@@ -138,6 +139,32 @@ test('offline cold boot: app + deterministic Step work with the network down', a
   await expect(p2.locator('.react-flow__node')).toHaveCount(before + 1)
   await p2.locator('.pb-btn[title="Advance one step"]').click()
   await expect(p2.locator('.pstrip__step')).toContainText('step 1')
+
+  await context.setOffline(false)
+})
+
+// issue #301 — the precached THIRD_PARTY_NOTICES.txt, with the network down:
+// the About dialog's licence view shows it, and its file link opens it
+test('offline: the third-party licences open in About and as their file, from the precache', async ({ page, context }) => {
+  await setGen(page, 'a')
+  await installAndControl(page)
+  expect(await swPrecache(page)).toContain('THIRD_PARTY_NOTICES.txt')
+  await context.setOffline(true)
+
+  const p2 = await context.newPage()
+  await p2.goto('/')
+  await expect(p2.locator('.canvas .react-flow')).toBeVisible()
+  expect(await controller(p2)).not.toBeNull()
+  await openAbout(p2)
+  const dlg = await openLicences(p2)
+  await expectShownNoticesAre(p2, 'pwa')
+  const [tab] = await Promise.all([context.waitForEvent('page'), dlg.locator('[data-licenses-file]').click()])
+  await tab.waitForLoadState()
+  expect(new URL(tab.url()).pathname).toBe('/THIRD_PARTY_NOTICES.txt')
+  const body = await tab.evaluate(() => document.body.innerText)
+  expect(body.startsWith('Loop Studio\nCopyright © 2026 Hanrim. All rights reserved.')).toBe(true)
+  expect(sha256(await tab.evaluate(async () => (await fetch(location.href)).text()))).toBe(manifestNoticesSha('pwa'))
+  await tab.close()
 
   await context.setOffline(false)
 })

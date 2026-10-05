@@ -109,6 +109,67 @@ export function packageDirOf(id) {
   return p.slice(0, i + '/node_modules/'.length) + name
 }
 
+/**
+ * The installed directory of `name` at exactly `version`: `node_modules/<name>`,
+ * or one level down (`node_modules/<pkg>/node_modules/<name>`, the way npm
+ * nests a second version). Null when no copy has that version.
+ */
+export function findPackageDir(root, name, version) {
+  const nm = path.join(root, 'node_modules')
+  const isIt = (dir) => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version === version
+    } catch {
+      return false
+    }
+  }
+  const direct = path.join(nm, ...name.split('/'))
+  if (isIt(direct)) return direct
+  for (const a of fs.readdirSync(nm)) {
+    const parents = a.startsWith('@') ? fs.readdirSync(path.join(nm, a)).map((b) => path.join(nm, a, b)) : [path.join(nm, a)]
+    for (const parent of parents) {
+      const nested = path.join(parent, 'node_modules', ...name.split('/'))
+      if (isIt(nested)) return nested
+    }
+  }
+  return null
+}
+
+/**
+ * A build's notices text rebuilt from its manifest section and the installed
+ * packages, without the bundler - what the dev server serves (it has no module
+ * graph to read). Every package is found by name AND version, every licence
+ * and NOTICE file must have the SHA-256 the manifest pins, and the whole text
+ * must have the manifest's `noticesSha256`. Throws on any difference: the dev
+ * text is the build's text or nothing.
+ */
+export function noticesFromManifest(section, root) {
+  const entries = section.entries.map((m) => {
+    const who = `${m.name}@${m.version}`
+    const dir = findPackageDir(root, m.name, m.version)
+    if (!dir) throw new Error(`${who}: not installed at that version`)
+    const p = readPackage(dir, { files: m.licenceFiles.map((f) => f.file) })
+    const licenceFiles = p.licenceFiles.map((l, i) => {
+      if (l.sha256 !== m.licenceFiles[i].sha256) throw new Error(`${who}: ${l.file} is not the text the manifest pins`)
+      return { ...l, ...(m.licenceFiles[i].covers !== undefined ? { covers: m.licenceFiles[i].covers } : {}) }
+    })
+    if (JSON.stringify(p.noticeFiles.map((n) => ({ file: n.file, sha256: n.sha256 }))) !== JSON.stringify(m.noticeFiles)) throw new Error(`${who}: its NOTICE files are not the ones the manifest pins`)
+    return {
+      name: m.name,
+      version: m.version,
+      spdx: m.spdx,
+      ...(m.licenceSummary !== undefined ? { licenceSummary: m.licenceSummary } : {}),
+      source: m.source,
+      licenceFiles,
+      noticeFiles: p.noticeFiles,
+      copyright: m.copyright,
+    }
+  })
+  const text = renderNotices(entries)
+  if (sha256(text) !== section.noticesSha256) throw new Error(`the rebuilt notices (SHA-256 ${sha256(text).slice(0, 12)}) are not the manifest's (${section.noticesSha256.slice(0, 12)})`)
+  return text
+}
+
 /** every problem with a set of entries: licence, licence text, copyright */
 export function checkEntries(entries, reviews = {}) {
   const problems = []

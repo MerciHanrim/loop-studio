@@ -353,6 +353,15 @@ const ui = {
   'about.repo': 'GitHub-repository',
   'about.repoAria': 'GitHub-repository van Loop Studio',
   'about.notAffiliated': 'Loop Studio is een onafhankelijk project en is niet verbonden aan of onderschreven door Machinations.io.',
+  'about.licenses': 'Opensourcelicenties van derden',
+  'licenses.back': 'Terug',
+  'licenses.lead': 'Dit zijn de vermeldingen voor de software van derden die in Loop Studio zit. Ze gelden alleen voor die onderdelen, niet voor Loop Studio zelf. Elke licentie staat er volledig in, in de oorspronkelijke Engelse tekst.',
+  'licenses.openFile': 'Openen als tekstbestand',
+  'licenses.openFileAria': 'De licentieteksten als tekstbestand openen in een nieuw tabblad',
+  'licenses.loading': 'Licentieteksten laden…',
+  'licenses.error': 'De licentieteksten konden niet worden geladen.',
+  'licenses.retry': 'Opnieuw proberen',
+  'licenses.textLabel': 'Licentieteksten',
   'hint.close': 'Deze melding sluiten',
   'hint.emptyCanvas.body': 'Begin met een Sjabloon, of sleep soorten knooppunten uit het linkerpaneel naar binnen.',
   'hint.mc.body': 'Monte Carlo voert het model vaak uit en toont een spreiding van uitkomsten, niet één voorspelling.',
@@ -517,6 +526,9 @@ const ui = {
   'whatsNew.v0172.size': 'De knop voor de tijdelijke sessie bovenaan het venster heeft nu dezelfde hoogte en dezelfde afgeronde hoeken als de menuknoppen ernaast.',
   'whatsNew.v0172.text': 'Het opschrift is groter en beter leesbaar.',
   'whatsNew.v0172.same': 'De knop houdt zijn oranje rand en opent hetzelfde menu; hoe een tijdelijke sessie werkt, is niet veranderd.',
+  'whatsNew.v0180.licenses': 'Over Loop Studio heeft nu een pagina met opensourcelicenties van derden, met de volledige licentietekst van elk onderdeel van de app.',
+  'whatsNew.v0180.offline': 'De licentieteksten openen zonder netwerkverbinding in de geïnstalleerde app en in de versie als één bestand.',
+  'whatsNew.v0180.own': 'De auteursrechtvermelding van Loop Studio zelf is niet veranderd; deze licenties gelden alleen voor de meegeleverde onderdelen van derden.',
 } as const
 
 export default ui

@@ -350,6 +350,15 @@ const ui = {
   'about.repo': 'GitHub 仓库',
   'about.repoAria': 'Loop Studio 的 GitHub 仓库',
   'about.notAffiliated': 'Loop Studio 是独立项目，与 Machinations.io 没有任何隶属或背书关系。',
+  'about.licenses': '第三方开源许可证',
+  'licenses.back': '返回',
+  'licenses.lead': '以下是 Loop Studio 所含第三方软件的声明。这些声明仅适用于相应组件，不适用于 Loop Studio 本身。各许可证均以英文原文完整收录。',
+  'licenses.openFile': '以文本文件打开',
+  'licenses.openFileAria': '在新标签页中以文本文件打开许可证原文',
+  'licenses.loading': '正在加载许可证原文…',
+  'licenses.error': '无法加载许可证原文。',
+  'licenses.retry': '重试',
+  'licenses.textLabel': '许可证原文',
   'hint.close': '关闭此说明',
   'hint.emptyCanvas.body': '从模板开始，或者从左侧面板把节点类型拖进来。',
   'hint.mc.body': '蒙特卡洛会把模型运行很多次，展示结果的分布范围，而不是单一的预测值。',
@@ -514,6 +523,9 @@ const ui = {
   'whatsNew.v0172.size': '窗口顶部的临时会话按钮现在与旁边的菜单按钮高度相同、圆角一致。',
   'whatsNew.v0172.text': '按钮文字更大，更易阅读。',
   'whatsNew.v0172.same': '它仍保留橙色边框，打开的菜单也相同；临时会话的工作方式没有改变。',
+  'whatsNew.v0180.licenses': '关于对话框中新增了第三方开源许可证页面，可查看应用所含每个组件的许可证全文。',
+  'whatsNew.v0180.offline': '在已安装的应用和单文件版本中，无需联网即可打开许可证原文。',
+  'whatsNew.v0180.own': 'Loop Studio 本身的版权声明没有改变；这些许可证仅适用于所含的第三方组件。',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -4,6 +4,7 @@ import { expect, test } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
+import { expectShownNoticesAre, manifestNoticesSha, openAbout, openLicences, sha256 } from './support/licenses'
 
 // Runs under playwright.dist.config.ts: production `npm run build` served by
 // `vite preview` at the root `/` — the shape Cloudflare Pages serves. No
@@ -673,5 +674,24 @@ test.describe('production build: a password-protected share link', () => {
     await expect(prompt).toHaveCount(0)
     await expect(p2.locator('.react-flow__node')).toHaveCount(nodes)
     expect(bad).toEqual([])
+  })
+})
+
+// ── issue #301 — the third-party licences, as the production build serves them
+test.describe('production build — the third-party open-source licenses', () => {
+  test('About shows the built THIRD_PARTY_NOTICES.txt as text, and its file link opens the same bytes in a new tab', async ({ page, context }) => {
+    const { bad } = await openProd(page)
+    await openAbout(page)
+    const dlg = await openLicences(page)
+    await expectShownNoticesAre(page, 'web')
+    const link = dlg.locator('[data-licenses-file]')
+    await expect(link).toHaveAttribute('rel', /\bnoopener\b/)
+    const [tab] = await Promise.all([context.waitForEvent('page'), link.click()])
+    await tab.waitForLoadState()
+    expect(new URL(tab.url()).pathname).toBe('/THIRD_PARTY_NOTICES.txt')
+    expect(await tab.evaluate(() => window.opener)).toBeNull()
+    expect(sha256(await (await tab.request.get(tab.url())).text())).toBe(manifestNoticesSha('web'))
+    await tab.close()
+    expect(bad, 'no failed or cross-origin requests').toEqual([])
   })
 })

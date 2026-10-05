@@ -421,6 +421,15 @@ const ui = {
   'about.repoAria': 'GitHub-Repository von Loop Studio',
   'about.notAffiliated':
     'Loop Studio ist ein unabhängiges Projekt und steht weder in Verbindung mit Machinations.io noch wird es von dort unterstützt.',
+  'about.licenses': 'Open-Source-Lizenzen von Drittanbietern',
+  'licenses.back': 'Zurück',
+  'licenses.lead': 'Hier stehen die Hinweise zur Software von Drittanbietern, die Loop Studio enthält. Sie gelten nur für diese Komponenten, nicht für Loop Studio selbst. Jede Lizenz ist vollständig im englischen Originaltext wiedergegeben.',
+  'licenses.openFile': 'Als Textdatei öffnen',
+  'licenses.openFileAria': 'Die Lizenztexte als Textdatei in einem neuen Tab öffnen',
+  'licenses.loading': 'Lizenztexte werden geladen…',
+  'licenses.error': 'Die Lizenztexte konnten nicht geladen werden.',
+  'licenses.retry': 'Erneut versuchen',
+  'licenses.textLabel': 'Lizenztexte',
   'hint.close': 'Diesen Hinweis ausblenden',
   'hint.emptyCanvas.body':
     'Mit einer Vorlage beginnen oder Knotenarten aus der linken Leiste hereinziehen.',
@@ -597,6 +606,9 @@ const ui = {
   'whatsNew.v0172.size': 'Die Schaltfläche für die temporäre Sitzung oben im Fenster hat jetzt dieselbe Höhe und dieselben abgerundeten Ecken wie die Menüschaltflächen daneben.',
   'whatsNew.v0172.text': 'Ihre Beschriftung ist größer und besser lesbar.',
   'whatsNew.v0172.same': 'Sie behält ihren orangefarbenen Rahmen und öffnet dasselbe Menü; an der Funktionsweise einer temporären Sitzung hat sich nichts geändert.',
+  'whatsNew.v0180.licenses': 'Über Loop Studio enthält jetzt eine Seite mit den Open-Source-Lizenzen von Drittanbietern und dem vollständigen Lizenztext jeder Komponente der App.',
+  'whatsNew.v0180.offline': 'Die Lizenztexte öffnen sich ohne Netzwerkverbindung in der installierten App und in der Version als einzelne Datei.',
+  'whatsNew.v0180.own': 'Der Urheberrechtshinweis von Loop Studio selbst ist unverändert; diese Lizenzen gelten nur für die enthaltenen Komponenten von Drittanbietern.',
 } satisfies Record<UiKey, string>
 
 export default ui

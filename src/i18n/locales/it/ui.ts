@@ -373,6 +373,15 @@ const ui = {
   'about.repo': 'Repository GitHub',
   'about.repoAria': 'Repository GitHub di Loop Studio',
   'about.notAffiliated': 'Loop Studio è un progetto indipendente e non è affiliato né approvato da Machinations.io.',
+  'about.licenses': 'Licenze open source di terze parti',
+  'licenses.back': 'Indietro',
+  'licenses.lead': 'Queste sono le note sul software di terze parti incluso in Loop Studio. Valgono solo per quei componenti, non per Loop Studio stesso. Ogni licenza è riportata per intero nel testo originale inglese.',
+  'licenses.openFile': 'Apri come file di testo',
+  'licenses.openFileAria': 'Apri i testi delle licenze come file di testo in una nuova scheda',
+  'licenses.loading': 'Caricamento dei testi delle licenze…',
+  'licenses.error': 'Impossibile caricare i testi delle licenze.',
+  'licenses.retry': 'Riprova',
+  'licenses.textLabel': 'Testi delle licenze',
   'hint.close': 'Ignora questa nota',
   'hint.emptyCanvas.body': 'Parti da un Modello, oppure trascina i tipi di nodo dal pannello a sinistra.',
   'hint.mc.body': 'Monte Carlo esegue il modello molte volte e mostra una gamma di esiti, non una previsione singola.',
@@ -536,6 +545,9 @@ const ui = {
   'whatsNew.v0172.size': 'Il pulsante della sessione temporanea, in alto nella finestra, ha ora la stessa altezza e gli stessi angoli arrotondati dei pulsanti di menu accanto.',
   'whatsNew.v0172.text': 'La sua scritta è più grande e più facile da leggere.',
   'whatsNew.v0172.same': 'Mantiene il bordo arancione e apre lo stesso menu; il funzionamento di una sessione temporanea non è cambiato.',
+  'whatsNew.v0180.licenses': 'Informazioni su Loop Studio ora include una pagina con le licenze open source di terze parti e il testo completo della licenza di ogni componente dell’app.',
+  'whatsNew.v0180.offline': 'I testi delle licenze si aprono senza connessione di rete nell’app installata e nella versione in un unico file.',
+  'whatsNew.v0180.own': 'La nota di copyright di Loop Studio stesso non è cambiata; queste licenze valgono solo per i componenti di terze parti inclusi.',
 } satisfies Record<UiKey, string>
 
 export default ui

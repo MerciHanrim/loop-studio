@@ -183,6 +183,8 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['the storage gate (issue #297)', ['computer', 'privacy', 'chrome', 'html']],
   // issue #300 - password protection for share links: HTTPS is a protocol name
   ['password protection for share links (issue #300)', ['https']],
+  // issue #301 - the licence view: `software` is the word Dutch uses
+  ['the third-party licence view (issue #301)', ['software']],
 ]
 
 const SURVIVING_WORDS = new Set(SURVIVING.flatMap(([, ws]) => ws))
@@ -255,15 +257,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
+    expect(KEYS).toHaveLength(996) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 984, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1206)
+    expect(per).toEqual({ catalog: 996, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1218)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

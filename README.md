@@ -140,53 +140,42 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.15.3
+## Latest — v0.18.0
 
-A fix release: the buttons' symbols are the app's own icons.
+The third-party open-source licenses, inside the app.
 
-- **Every functional icon is drawn by the app**, not by an operating-system font, so Play,
-  the lock, the menu arrows and the rest look the same on Windows, iPhone and everywhere else
-- **Names are words**: no symbol is read out before a label, and the Reset and Step buttons
-  have names
+- **About Loop Studio → Third-party open-source licenses** shows the full license text of
+  every third-party component the build includes, in its original English, in the same
+  dialog; Back returns to About
+- **Offline too**: the installed app has the text precached, and the single-file version
+  carries it inside the file; the web and installed builds also open it as a text file
+- **Loop Studio's own notice is unchanged**: the licenses cover the included components only
 
-## v0.15.2
+## v0.17.2
 
-A fix release: the theme you chose comes back when the app starts.
+A fix release: the Temporary session button looks like the menu buttons beside it.
 
-- **The saved theme is applied at start-up**, without opening Settings; an unreadable value
-  follows the system theme
-- **No light flash before a dark start**: the theme is read in the page head, before anything
-  is painted
+- **The same height, corners, text size and colours** as the toolbar's menu buttons, and
+  their hover and keyboard focus; its orange border still marks a temporary session
 
-## v0.15.1
+## v0.17.1
 
-A fix release: the playback bar keeps to its space at narrow widths.
+A fix release: share links use the browser's own compression.
 
-- **On a phone**, the run bar no longer covers the bottom of the canvas when its buttons wrap
-  to a second row; the Timeline sheet, the More sheet and the zoom buttons stay above it
-  whatever its height
-- **In a narrow desktop window**, the playback controls are no longer cut off at the bottom
-  of the window
+- **Share links are compressed with the browser's built-in Compression Streams**; the
+  bundled compression code is removed. Existing links still open and the link format is
+  unchanged
+- **A browser without them** makes no link and says so, and the open diagram is kept
 
-## v0.15.0
+## v0.17.0
 
-- **An update notice** — after an update, a browser that has used Loop Studio before sees
-  one line naming the new version; it takes no focus, changes nothing and never times out
-- **What's new, in the Help menu** — every release note, newest first, in all eighteen
-  languages, offline; a `New` marker stays until the newest entry has been opened
-- **A clearer Help menu** — grouped by purpose, with items named for what they do:
-  `Restart the tour`, `Turn contextual tips back on`
-- **A Timeline series selector** — choose which series the chart draws; a document with no
-  saved choice draws the first eight instead of every line
-- **A refreshed light theme** — one calm palette, rounder panels and a clearer keyboard
-  focus indicator; the dark theme is unchanged
+- **Password-protected share links** — an optional password encrypts the diagram inside
+  the link, in the browser; the password is asked for before anything from the diagram is
+  shown, and a lost password cannot be recovered. A plain link is still the default
 
-No migration: a v0.14.0 file opens unchanged. From this release on, a visible change ships
-with its version and its release note in the same change — see
-[`docs/release-notes.md`](docs/release-notes.md).
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full v0.15.2, v0.15.1 and v0.15.0 notes, the
-v0.14.0 and v0.13.0 releases and every earlier one.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.16.0 (the
+storage gate, temporary sessions and the Storage and privacy area), the v0.15 releases and
+every earlier one.
 
 ## Credits
 
@@ -199,3 +188,7 @@ publicly documented academic work on game-economy diagrams.
 ## Copyright
 
 Copyright © 2026 Hanrim. All rights reserved.
+
+Loop Studio includes third-party open-source components. Their licenses are in the app
+(About Loop Studio → Third-party open-source licenses) and in every build
+([`licenses/README.md`](licenses/README.md)); they cover those components only.
