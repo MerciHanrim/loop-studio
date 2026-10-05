@@ -357,6 +357,15 @@ const ui = {
   'about.repo': 'Repositorio de GitHub',
   'about.repoAria': 'Repositorio de Loop Studio en GitHub',
   'about.notAffiliated': 'Loop Studio es un proyecto independiente y no está afiliado a Machinations.io ni cuenta con su respaldo.',
+  'about.licenses': 'Licencias de código abierto de terceros',
+  'licenses.back': 'Volver',
+  'licenses.lead': 'Estos son los avisos del software de terceros incluido en Loop Studio. Se aplican solo a esos componentes, no a Loop Studio. Cada licencia se reproduce completa en su versión original en inglés.',
+  'licenses.openFile': 'Abrir como archivo de texto',
+  'licenses.openFileAria': 'Abrir los textos de las licencias como archivo de texto en una pestaña nueva',
+  'licenses.loading': 'Cargando los textos de las licencias…',
+  'licenses.error': 'No se pudieron cargar los textos de las licencias.',
+  'licenses.retry': 'Reintentar',
+  'licenses.textLabel': 'Textos de las licencias',
   'hint.close': 'Descartar esta nota',
   'hint.emptyCanvas.body': 'Empiece desde una Plantilla, o arrastre tipos de nodo desde el panel izquierdo.',
   'hint.mc.body': 'Monte Carlo ejecuta el modelo muchas veces y muestra un rango de resultados, no una sola predicción.',
@@ -520,6 +529,9 @@ const ui = {
   'whatsNew.v0172.size': 'El botón de sesión temporal, en la parte superior de la ventana, ahora tiene la misma altura y las mismas esquinas redondeadas que los botones de menú que lo acompañan.',
   'whatsNew.v0172.text': 'Su texto es más grande y más fácil de leer.',
   'whatsNew.v0172.same': 'Conserva su borde naranja y abre el mismo menú; el funcionamiento de una sesión temporal no ha cambiado.',
+  'whatsNew.v0180.licenses': 'Acerca de Loop Studio ahora incluye una página de licencias de código abierto de terceros con el texto completo de la licencia de cada componente de la aplicación.',
+  'whatsNew.v0180.offline': 'Los textos de las licencias se abren sin conexión a internet en la aplicación instalada y en la versión de un solo archivo.',
+  'whatsNew.v0180.own': 'El aviso de derechos de autor de Loop Studio no ha cambiado; estas licencias solo se aplican a los componentes de terceros incluidos.',
 } as const
 
 export type UiKey = keyof typeof ui

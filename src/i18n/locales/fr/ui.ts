@@ -414,6 +414,15 @@ const ui = {
   'about.repoAria': 'Dépôt GitHub de Loop Studio',
   'about.notAffiliated':
     'Loop Studio est un projet indépendant, sans affiliation avec Machinations.io ni approbation de sa part.',
+  'about.licenses': 'Licences open source de tiers',
+  'licenses.back': 'Retour',
+  'licenses.lead': 'Voici les mentions des logiciels tiers inclus dans Loop Studio. Elles ne concernent que ces composants, et non Loop Studio lui-même. Chaque licence est reproduite en entier, dans sa version anglaise d’origine.',
+  'licenses.openFile': 'Ouvrir en fichier texte',
+  'licenses.openFileAria': 'Ouvrir les textes des licences en fichier texte dans un nouvel onglet',
+  'licenses.loading': 'Chargement des textes des licences…',
+  'licenses.error': 'Les textes des licences n’ont pas pu être chargés.',
+  'licenses.retry': 'Réessayer',
+  'licenses.textLabel': 'Textes des licences',
   'hint.close': 'Masquer cette note',
   'hint.emptyCanvas.body':
     'Partez d’un modèle, ou faites glisser des types de nœuds depuis le panneau de gauche.',
@@ -591,6 +600,9 @@ const ui = {
   'whatsNew.v0172.size': 'Le bouton Session temporaire, en haut de la fenêtre, a désormais la même hauteur et les mêmes coins arrondis que les boutons de menu voisins.',
   'whatsNew.v0172.text': 'Son libellé est plus grand et plus facile à lire.',
   'whatsNew.v0172.same': 'Il garde sa bordure orange et ouvre le même menu, et le fonctionnement d’une session temporaire n’a pas changé.',
+  'whatsNew.v0180.licenses': 'À propos de Loop Studio comporte désormais une page Licences open source de tiers, avec le texte complet de la licence de chaque composant inclus dans l’application.',
+  'whatsNew.v0180.offline': 'Les textes des licences s’ouvrent sans connexion réseau dans l’application installée et dans la version en un seul fichier.',
+  'whatsNew.v0180.own': 'La mention de droits d’auteur de Loop Studio est inchangée et ces licences ne concernent que les composants tiers inclus.',
 } satisfies Record<UiKey, string>
 
 export default ui

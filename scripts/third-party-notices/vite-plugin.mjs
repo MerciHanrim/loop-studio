@@ -28,12 +28,52 @@ import {
   diffSection,
   injectPortableTemplate,
   manifestSection,
+  noticesFromManifest,
   packageDirOf,
   readPackage,
   renderNotices,
 } from './core.mjs'
 
 export const VITE_LICENSE_JSON = '.vite/third-party-licenses.json'
+
+/**
+ * The dev server's THIRD_PARTY_NOTICES.txt. A dev server has no finished
+ * module graph to read, so it serves the web build's text rebuilt from the
+ * committed manifest and the installed packages (`noticesFromManifest`), from
+ * memory - nothing is written to disk, nothing is fetched. The rebuild checks
+ * every licence file's SHA-256 and the whole text's against the manifest, so
+ * the dev text is the build's text byte for byte, or a 500 that says why.
+ */
+export function thirdPartyNoticesDev({ root = process.cwd() } = {}) {
+  const manifestPath = path.join(root, 'licenses', 'third-party-manifest.json')
+  let cache = null
+  const text = () => {
+    const stamp = fs.statSync(manifestPath).mtimeMs
+    if (!cache || cache.stamp !== stamp) cache = { stamp, text: noticesFromManifest(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).builds.web, root) }
+    return cache.text
+  }
+  return {
+    name: 'loop-studio:third-party-notices-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.method !== 'GET' && req.method !== 'HEAD') return next()
+        if (new URL(req.url ?? '/', 'http://dev').pathname !== `/${NOTICES_FILE}`) return next()
+        try {
+          const body = text()
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.setHeader('Cache-Control', 'no-store')
+          res.end(req.method === 'HEAD' ? undefined : body)
+        } catch (err) {
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end(`${NOTICES_FILE} could not be rebuilt from licenses/third-party-manifest.json: ${err.message}\n`)
+        }
+      })
+    },
+  }
+}
 
 export function thirdPartyNotices({ flavour, root = process.cwd() }) {
   const manifestPath = path.join(root, 'licenses', 'third-party-manifest.json')

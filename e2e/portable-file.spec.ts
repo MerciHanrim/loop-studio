@@ -8,6 +8,7 @@ import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewS
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
 import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
 import { PORTABLE_TEMPLATE_ID, portableTemplate, sha256 } from '../scripts/third-party-notices/core.mjs'
+import { expectShownNoticesAre, openAbout, openLicences } from './support/licenses'
 
 // SLICE-2 §5–§6: the portable single-file build opened from file://. No dev
 // server, no window.__loop bridge (production build) — driven entirely through
@@ -210,6 +211,18 @@ test.describe('portable file://', () => {
       }
     }, html)
     expect(parsed).toEqual({ elements: ['html', 'head', 'body', 'template'], kinds: [TEXT_NODE], inside: 0, text: HOSTILE })
+    // the About dialog's licence view reads the same template and shows it as
+    // text; the file has no separate notices file, so there is no file link
+    await page.goto(portableUrl())
+    await answerPortableGate(page)
+    await expect(page.locator('.toolbar')).toBeVisible()
+    await page.locator('.tour-card').waitFor({ timeout: 15_000 })
+    await page.getByRole('button', { name: 'Skip' }).first().click()
+    await openAbout(page)
+    const dlg = await openLicences(page)
+    await expectShownNoticesAre(page, 'portable')
+    await expect(dlg.locator('[data-licenses-file]')).toHaveCount(0)
+    await page.keyboard.press('Escape')
     // and a live document: nothing in it runs
     await page.setContent(html)
     expect(await page.evaluate(() => ({ pwned: (window as unknown as { __pwned?: number }).__pwned ?? null, scripts: document.scripts.length, imgs: document.images.length }))).toEqual({ pwned: null, scripts: 0, imgs: 0 })

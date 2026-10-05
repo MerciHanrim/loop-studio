@@ -238,6 +238,8 @@ describe('es-419 copy — mechanical review', () => {
         // issue #297: a browser name, a file format, and two Spanish/English
         // homographs (`accidental`, `personal`) in the storage gate and area
         'Chrome HTML accidental personal ' +
+        // issue #301: two Spanish/English homographs in the licence view
+        'original software ' +
         // issue #300: the protocol the password dialogs name
         'HTTPS'
       ).split(' '),

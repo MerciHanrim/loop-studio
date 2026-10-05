@@ -4,6 +4,53 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.18.0 — 2026-10-05
+
+The third-party open-source licenses, inside the app (issue #301).
+
+- **About Loop Studio has a Third-party open-source licenses button.** It turns the same dialog into a licence view, not a second dialog: the view says first that these are the notices of the third-party software Loop Studio includes and that they cover those components only, not Loop Studio itself, then shows every component's full licence text, in its original English, in a scrollable block that can be searched, selected and copied. Back to About returns to the button; Escape closes the dialog.
+- **The text is the build's own notices file**, the one every build has carried since the previous change: the web and installed builds read `THIRD_PARTY_NOTICES.txt` from their own origin (the installed app has it precached, so it opens offline) and also offer it as a text file in a new tab; the single-file version reads the copy inside its own HTML. It is shown as text, never as HTML, and a new check, `check:licence-screen`, fails if that ever changes. Loading and a failed read have their own states, with Try again.
+- **The dev server serves the same text**, rebuilt from the committed manifest and the installed packages, and checked against the manifest byte for byte. On the dev server, the production bundle, the installed app offline and the single-file version, the end-to-end tests compare the text on screen with the manifest's SHA-256.
+- **The About dialog's links are readable in the dark theme**: they had the browser's default blue.
+
+**No migration.** Nine new interface strings and three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.18.0`.
+
+## v0.17.2 — 2026-10-05
+
+A fix release. The Temporary session button in the toolbar was a 20 px pill with 10 px grey text and read as a status badge.
+
+- **It is drawn as the menu buttons beside it**: 28 px tall, the 8 px control radius, 12 px text, the primary ink on the raised face, their hover boundary and their keyboard focus. Its orange border still marks a temporary session at rest. Nothing in how sessions switch or save changed.
+
+**No migration.** The informational `meta.tool` string is now `loop-studio/0.17.2`.
+
+## v0.17.1 — 2026-10-04
+
+A fix release (issue #301). Share links used a bundled compression library whose origin the repository's record does not establish.
+
+- **Share links are compressed and decompressed only with the browser's own Compression Streams**; the bundled code is removed. Every browser the build targets has them. Links the removed code made still open, and the link format, limits and opening order are unchanged.
+- **A page without them** makes no plain or protected link, and opening a link there shows one sentence, asks for no password and leaves the open diagram untouched.
+
+**No migration.** The informational `meta.tool` string is now `loop-studio/0.17.1`.
+
+## v0.17.0 — 2026-10-04
+
+Optional password protection for share links (issue #300).
+
+- **Protect with a password**, unticked by default: the diagram is sealed inside the link with AES-256-GCM under a key derived from the password (PBKDF2-HMAC-SHA-256, 600,000 iterations), with Web Crypto only (`docs/specs/SEMANTICS-P.md`). A plain link is created and opened exactly as before.
+- **Opening a protected link** checks its structure first, removes the fragment, then asks for the password; nothing from the shared diagram is drawn before a correct one. A wrong password and altered link data give the same message. Loop Studio does not store or transmit the password or the key, and a lost password cannot be recovered.
+
+**No migration.** The informational `meta.tool` string is now `loop-studio/0.17.0`.
+
+## v0.16.0 — 2026-10-04
+
+Storage on a shared computer (issue #297).
+
+- **A storage gate**: before anything stored is read, Loop Studio asks whether this is a personal browser or a shared computer. A temporary session neither reads nor saves stored work, author information or settings; only the start-up choice can be stored. The single-file version asks every time and never remembers.
+- **A Storage and privacy area in Settings**: the storage mode, the restore toggle, switching to the other kind of session, deleting the stored work and resetting everything Loop Studio keeps. A failed deletion is never shown as done.
+- **A temporary session shows a standing button** with export and the ways out, warns before a reload would lose work, and is asked before the installed app restarts. The share dialog says that the link itself contains the entire document.
+
+**No migration.** The informational `meta.tool` string is now `loop-studio/0.16.0`.
+
 ## v0.15.3 — 2026-10-03
 
 A fix release. The symbols on the buttons were characters an operating-system font drew, so a button looked different from Windows to iPhone, and on iPhone some of them were colour emoji.

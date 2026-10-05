@@ -74,6 +74,8 @@ jobs:
         run: npm run check:storage-port
       - name: Share crypto — key handling and encryption stay in one module, with fixed parameters
         run: npm run check:share-crypto
+      - name: Licence screen — the third-party notices are shown as text, never through an HTML sink
+        run: npm run check:licence-screen
       - name: Change declaration — a change that ships says whether it is user-facing, with its version and release note
         run: npm run check:change-declaration
         env:

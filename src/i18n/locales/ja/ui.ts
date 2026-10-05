@@ -375,6 +375,15 @@ const ui = {
   'about.repoAria': 'Loop Studio の GitHub リポジトリ',
   'about.notAffiliated':
     'Loop Studio は独立したプロジェクトであり、Machinations.io とは提携しておらず、その承認も受けていません。',
+  'about.licenses': 'サードパーティのオープンソースライセンス',
+  'licenses.back': '戻る',
+  'licenses.lead': 'Loop Studio に含まれるサードパーティ製ソフトウェアの表示です。これらは各コンポーネントにのみ適用され、Loop Studio 自体には適用されません。各ライセンスの原文を英語のまま全文掲載しています。',
+  'licenses.openFile': 'テキストファイルとして開く',
+  'licenses.openFileAria': 'ライセンス原文を新しいタブでテキストファイルとして開く',
+  'licenses.loading': 'ライセンス原文を読み込んでいます…',
+  'licenses.error': 'ライセンス原文を読み込めませんでした。',
+  'licenses.retry': 'もう一度試す',
+  'licenses.textLabel': 'ライセンス原文',
   'hint.close': 'この注記を閉じる',
   'hint.emptyCanvas.body': 'テンプレートから始めるか、左のパネルからノードの種類をドラッグしてください。',
   'hint.mc.body': 'モンテカルロはモデルを何度も実行し、単一の予測ではなく結果の広がりを示します。',
@@ -541,6 +550,9 @@ const ui = {
   'whatsNew.v0172.size': '画面上部の一時セッションのボタンが、隣のメニューボタンと同じ高さと角の形になりました。',
   'whatsNew.v0172.text': 'ボタンの文字が大きくなり、読みやすくなりました。',
   'whatsNew.v0172.same': 'オレンジ色の枠と開くメニューはそのままで、一時セッションの動作も変わっていません。',
+  'whatsNew.v0180.licenses': 'Loop Studio の概要画面にサードパーティのオープンソースライセンスのページが加わり、アプリに含まれるすべてのコンポーネントのライセンス原文を確認できます。',
+  'whatsNew.v0180.offline': 'インストールしたアプリと単一ファイル版では、ネットワークに接続していなくてもライセンス原文を開けます。',
+  'whatsNew.v0180.own': 'Loop Studio 自体の著作権表示は変わっていません。これらのライセンスは、含まれているサードパーティ製コンポーネントにのみ適用されます。',
 } satisfies Record<UiKey, string>
 
 export default ui

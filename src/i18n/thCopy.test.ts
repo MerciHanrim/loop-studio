@@ -88,11 +88,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('th copy — the first no-space script', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TH).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
+    expect(KEYS).toHaveLength(996) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines)
   })
 
   it('covers all three runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(984)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(996)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -401,6 +401,10 @@ const LATIN_KEYS = [
   'template/mmo-progression:z3_xp_meter',
   'catalog:whatsNew.v0153.icons',
   'catalog:whatsNew.v0170.limits',
+  // issue #301 - the licence view: `Loop Studio` in its lead and two 0.18.0 release-note lines
+  'catalog:licenses.lead',
+  'catalog:whatsNew.v0180.licenses',
+  'catalog:whatsNew.v0180.own',
   // the storage gate and the Storage and privacy area (issue #297)
   'catalog:gate.lead',
   'catalog:gate.portable.note',
@@ -418,7 +422,7 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
 
   it('the strings carrying a Latin run are exactly the declared ones', () => {
     expect(withLatin.slice().sort()).toEqual(LATIN_KEYS.slice().sort())
-    expect(LATIN_KEYS).toHaveLength(163)
+    expect(LATIN_KEYS).toHaveLength(166)
   })
 
   it('the Latin vocabulary is exactly the declared one', () => {

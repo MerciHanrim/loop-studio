@@ -346,6 +346,15 @@ const ui = {
   'about.repo': 'GitHub 저장소',
   'about.repoAria': 'Loop Studio GitHub 저장소',
   'about.notAffiliated': 'Loop Studio는 독립 프로젝트이며 Machinations.io와 제휴하거나 보증받은 프로젝트가 아닙니다.',
+  'about.licenses': '제3자 오픈소스 라이선스',
+  'licenses.back': 'Loop Studio 정보로 돌아가기',
+  'licenses.lead': 'Loop Studio에 포함된 제3자 소프트웨어의 고지입니다. 이 고지는 해당 구성 요소에만 적용되며 Loop Studio 자체에는 적용되지 않습니다. 각 라이선스 원문을 영어 그대로 모두 싣습니다.',
+  'licenses.openFile': '텍스트 파일로 열기',
+  'licenses.openFileAria': '라이선스 원문을 새 탭에서 텍스트 파일로 열기',
+  'licenses.loading': '라이선스 원문을 불러오는 중…',
+  'licenses.error': '라이선스 원문을 불러오지 못했습니다.',
+  'licenses.retry': '다시 시도',
+  'licenses.textLabel': '라이선스 원문',
   'hint.close': '이 안내 닫기',
   'hint.emptyCanvas.body': '템플릿으로 시작하거나, 왼쪽 패널에서 노드 유형을 끌어다 놓으세요.',
   'hint.mc.body': '몬테카를로는 모델을 여러 번 실행해 결과의 분포를 보여줍니다. 단일 예측이 아닙니다.',
@@ -509,6 +518,9 @@ const ui = {
   'whatsNew.v0172.size': '화면 위쪽의 임시 세션 버튼이 옆의 메뉴 버튼과 같은 높이와 모서리 모양이 되었습니다.',
   'whatsNew.v0172.text': '버튼 글자가 커져 더 읽기 쉬워졌습니다.',
   'whatsNew.v0172.same': '주황색 테두리와 버튼을 누르면 열리는 메뉴는 그대로이며, 임시 세션이 작동하는 방식도 바뀌지 않았습니다.',
+  'whatsNew.v0180.licenses': 'Loop Studio 정보에 제3자 오픈소스 라이선스 화면이 생겨, 앱에 포함된 모든 구성 요소의 라이선스 원문을 볼 수 있습니다.',
+  'whatsNew.v0180.offline': '설치한 앱과 단일 파일 버전에서는 네트워크 연결 없이도 라이선스 원문이 열립니다.',
+  'whatsNew.v0180.own': 'Loop Studio 자체의 저작권 표시는 바뀌지 않았으며, 이 라이선스는 포함된 제3자 구성 요소에만 적용됩니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

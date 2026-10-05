@@ -373,6 +373,15 @@ const ui = {
   'about.repo': 'GitHub 儲存庫',
   'about.repoAria': 'Loop Studio 的 GitHub 儲存庫',
   'about.notAffiliated': 'Loop Studio 是獨立專案，與 Machinations.io 沒有任何隸屬或背書關係。',
+  'about.licenses': '第三方開放原始碼授權',
+  'licenses.back': '返回',
+  'licenses.lead': '以下是 Loop Studio 所含第三方軟體的聲明。這些聲明僅適用於相應元件，不適用於 Loop Studio 本身。各授權均以英文原文完整收錄。',
+  'licenses.openFile': '以文字檔開啟',
+  'licenses.openFileAria': '在新分頁中以文字檔開啟授權原文',
+  'licenses.loading': '正在載入授權原文…',
+  'licenses.error': '無法載入授權原文。',
+  'licenses.retry': '重試',
+  'licenses.textLabel': '授權原文',
   'hint.close': '關閉這則說明',
   'hint.emptyCanvas.body': '從範本開始，或是從左側面板把節點類型拖進來。',
   'hint.mc.body': '蒙地卡羅會把模型執行很多次，呈現結果的分布範圍，而不是單一的預測值。',
@@ -540,6 +549,9 @@ const ui = {
   'whatsNew.v0172.size': '視窗頂端的臨時工作階段按鈕現在與旁邊的選單按鈕高度相同、圓角一致。',
   'whatsNew.v0172.text': '按鈕文字更大，更容易閱讀。',
   'whatsNew.v0172.same': '它仍保留橘色邊框，開啟的選單也相同；臨時工作階段的運作方式沒有改變。',
+  'whatsNew.v0180.licenses': '關於對話方塊新增了第三方開放原始碼授權頁面，可查看應用程式所含每個元件的授權全文。',
+  'whatsNew.v0180.offline': '在已安裝的應用程式和單一檔案版本中，無需連線即可開啟授權原文。',
+  'whatsNew.v0180.own': 'Loop Studio 本身的版權聲明沒有改變；這些授權僅適用於所含的第三方元件。',
 } satisfies Record<UiKey, string>
 
 export default ui

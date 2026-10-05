@@ -359,6 +359,15 @@ const ui = {
   'about.repo': 'Kho GitHub',
   'about.repoAria': 'Kho GitHub của Loop Studio',
   'about.notAffiliated': 'Loop Studio là một dự án độc lập, không liên kết với và không được Machinations.io bảo trợ.',
+  'about.licenses': 'Giấy phép nguồn mở của bên thứ ba',
+  'licenses.back': 'Quay lại',
+  'licenses.lead': 'Đây là thông báo về phần mềm của bên thứ ba có trong Loop Studio. Chúng chỉ áp dụng cho các thành phần đó, không áp dụng cho chính Loop Studio. Mỗi giấy phép được giữ nguyên toàn văn bằng tiếng Anh.',
+  'licenses.openFile': 'Mở dưới dạng tệp văn bản',
+  'licenses.openFileAria': 'Mở văn bản giấy phép dưới dạng tệp văn bản trong thẻ mới',
+  'licenses.loading': 'Đang tải văn bản giấy phép…',
+  'licenses.error': 'Không tải được văn bản giấy phép.',
+  'licenses.retry': 'Thử lại',
+  'licenses.textLabel': 'Văn bản giấy phép',
   'hint.close': 'Bỏ qua ghi chú này',
   'hint.emptyCanvas.body': 'Bắt đầu từ một Mẫu, hoặc kéo các loại nút từ bảng bên trái vào.',
   'hint.mc.body': 'Monte Carlo chạy mô hình nhiều lần và cho thấy khoảng trải của kết quả, không phải một dự đoán duy nhất.',
@@ -522,6 +531,9 @@ const ui = {
   'whatsNew.v0172.size': 'Nút phiên tạm thời ở đầu cửa sổ giờ có cùng chiều cao và góc bo tròn như các nút menu bên cạnh.',
   'whatsNew.v0172.text': 'Chữ trên nút lớn hơn và dễ đọc hơn.',
   'whatsNew.v0172.same': 'Nút vẫn giữ viền màu cam và mở cùng một menu; cách phiên tạm thời hoạt động không thay đổi.',
+  'whatsNew.v0180.licenses': 'Giới thiệu Loop Studio giờ có trang giấy phép nguồn mở của bên thứ ba, với toàn văn giấy phép của mọi thành phần trong ứng dụng.',
+  'whatsNew.v0180.offline': 'Văn bản giấy phép mở được mà không cần kết nối mạng trong ứng dụng đã cài đặt và trong phiên bản một tệp.',
+  'whatsNew.v0180.own': 'Thông báo bản quyền của chính Loop Studio không thay đổi; các giấy phép này chỉ áp dụng cho các thành phần của bên thứ ba có trong ứng dụng.',
 } satisfies Record<UiKey, string>
 
 export default ui

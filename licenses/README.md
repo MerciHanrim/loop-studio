@@ -7,6 +7,9 @@ Loop Studio ships third-party code and fonts. Every build carries their notices:
 | web (`npm run build`) | `dist/THIRD_PARTY_NOTICES.txt` |
 | PWA (`npm run build:pwa`, and the Cloudflare Production build) | `THIRD_PARTY_NOTICES.txt` in the output, precached by the service worker |
 | portable (`npm run build:portable`) | inside the single HTML file, in `<template id="third-party-notices">` |
+| dev server (`npm run dev`) | `/THIRD_PARTY_NOTICES.txt`, the web build's text rebuilt in memory from `third-party-manifest.json` and the installed packages |
+
+In the app they are in **About Loop Studio → Third-party open-source licenses** (v0.18.0): the same dialog shows the build's text, unchanged and in English, with a link to the file on the web and PWA builds ([`docs/guided-tour.md`](../docs/guided-tour.md) §GT7.1).
 
 ## The files here
 
@@ -23,6 +26,8 @@ Licence texts are third-party input. Wherever Loop Studio shows them, including 
 - The writer refuses a text holding U+0000 or CR, which an HTML parser would drop or rewrite.
 
 The rules are in `scripts/third-party-notices/core.mjs` (`portableTemplate`, `readPortableTemplate`); a hostile text is tested there and in a real browser in `e2e/portable-file.spec.ts`.
+
+The licence view keeps this contract: `src/licenses/notices.ts` reads the file or the template, and `src/components/LicensesView.tsx` shows the text in a `<pre>` as a text node. `npm run check:licence-screen` parses those files (and `AboutDialog.tsx`) and fails on any HTML sink: `dangerouslySetInnerHTML`, `innerHTML` / `outerHTML`, `insertAdjacentHTML`, `document.write`, `createContextualFragment`, `DOMParser`, `setHTMLUnsafe`; it also requires the loader to read the template through `.content.textContent`. The e2e specs compare the text the screen shows with the manifest's SHA-256 on the dev server, the production bundle, the PWA offline and the portable file.
 
 ## When a build fails on the notices
 
@@ -45,6 +50,7 @@ The update itself refuses to write when a component breaks a rule:
 
 ## The checks
 
+- The dev server's file comes from `thirdPartyNoticesDev` in the same plugin module: `noticesFromManifest` finds every package of the manifest's web section in `node_modules` by name and version, checks each licence and NOTICE file's SHA-256 and the whole text's, and serves it from memory or answers 500 with the reason. `scripts/third-party-notices.test.mjs` rebuilds all three sections and compares them with the manifest.
 - The build step is `scripts/third-party-notices/vite-plugin.mjs`. It reads the module graph, Vite's own `build.license` list (as evidence, then removed from the output), the fonts named by CSS, and the registry. Its rules are in `scripts/third-party-notices/core.mjs`, tested in `scripts/third-party-notices.test.mjs`.
 - `npm run check:third-party-notices` runs after the three builds. It checks that the notices are in each output, match the manifest, are precached by the PWA, and that every service-worker item's marker is present. It also checks that the portable copy is escaped and pinned to the same bytes as the web file, and that neither the notices nor the manifest hold a local absolute path.
 

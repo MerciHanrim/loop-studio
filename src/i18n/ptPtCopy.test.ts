@@ -58,7 +58,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
+    expect(KEYS).toHaveLength(996) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -118,7 +118,14 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // release-note lines - `tem agora` not `agora tem`, `contorno cor de
     // laranja` not `borda laranja`, no subject pronoun `Ele`; the third line
     // reads the same in both.
-    expect(DELTA).toHaveLength(261)
+    // The licence view (0.18.0) moved it from 261 to 268: seven of its twelve
+    // lines - `ficheiro` not `arquivo`, `num novo separador` not `em uma nova
+    // aba`, `A carregar` not `Carregando`, `aplicação` not `aplicativo`,
+    // `ligação à rede` not `conexão de rede`, `direitos de autor` not
+    // `direitos autorais`, `tem agora` not `agora tem`, `aplicam-se` not
+    // `valem`; the title, Back, Try again, the failure line and the text's
+    // name read the same in both.
+    expect(DELTA).toHaveLength(268)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
@@ -162,7 +169,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // outside them, the quarter bound stands as it always did
     const rest = KEYS.filter((k) => !isPasswordKey(k))
     const restDelta = DELTA.filter((k) => !isPasswordKey(k))
-    expect(restDelta).toHaveLength(233)
+    expect(restDelta).toHaveLength(240)
     expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 

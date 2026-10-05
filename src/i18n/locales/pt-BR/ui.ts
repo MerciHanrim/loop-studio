@@ -359,6 +359,15 @@ const ui = {
   'about.repo': 'Repositório no GitHub',
   'about.repoAria': 'Repositório do Loop Studio no GitHub',
   'about.notAffiliated': 'O Loop Studio é um projeto independente e não tem vínculo com a Machinations.io nem é endossado por ela.',
+  'about.licenses': 'Licenças de código aberto de terceiros',
+  'licenses.back': 'Voltar',
+  'licenses.lead': 'Estes são os avisos do software de terceiros incluído no Loop Studio. Eles valem apenas para esses componentes, não para o próprio Loop Studio. Cada licença é reproduzida na íntegra, no original em inglês.',
+  'licenses.openFile': 'Abrir como arquivo de texto',
+  'licenses.openFileAria': 'Abrir os textos das licenças como arquivo de texto em uma nova aba',
+  'licenses.loading': 'Carregando os textos das licenças…',
+  'licenses.error': 'Não foi possível carregar os textos das licenças.',
+  'licenses.retry': 'Tentar novamente',
+  'licenses.textLabel': 'Textos das licenças',
   'hint.close': 'Dispensar este aviso',
   'hint.emptyCanvas.body': 'Comece por um template ou arraste tipos de nó do painel da esquerda.',
   'hint.mc.body': 'O Monte Carlo executa o modelo muitas vezes e mostra uma faixa de resultados, não uma única previsão.',
@@ -522,6 +531,9 @@ const ui = {
   'whatsNew.v0172.size': 'O botão de sessão temporária, no topo da janela, agora tem a mesma altura e os mesmos cantos arredondados que os botões de menu ao lado.',
   'whatsNew.v0172.text': 'O texto do botão está maior e mais fácil de ler.',
   'whatsNew.v0172.same': 'Ele mantém a borda laranja e abre o mesmo menu; o funcionamento de uma sessão temporária não mudou.',
+  'whatsNew.v0180.licenses': 'Sobre o Loop Studio agora tem uma página de licenças de código aberto de terceiros, com o texto completo da licença de cada componente do aplicativo.',
+  'whatsNew.v0180.offline': 'Os textos das licenças abrem sem conexão de rede no aplicativo instalado e na versão em arquivo único.',
+  'whatsNew.v0180.own': 'O aviso de direitos autorais do próprio Loop Studio não mudou; essas licenças valem apenas para os componentes de terceiros incluídos.',
 } as const
 
 export type UiKey = keyof typeof ui
