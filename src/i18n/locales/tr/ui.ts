@@ -573,6 +573,9 @@ const ui = {
   'whatsNew.v0171.compression': 'Paylaşım bağlantıları artık tarayıcının yerleşik sıkıştırmasını kullanıyor.',
   'whatsNew.v0171.unavailable': 'Bu özellik kullanılamıyorsa Loop Studio mevcut diyagramı değiştirmeden bırakır ve güncel bir tarayıcı gerektiğini açıklar.',
   'whatsNew.v0171.compatible': 'Mevcut paylaşım bağlantıları uyumlu kalıyor; bağlantı biçimi değişmedi.',
+  'whatsNew.v0172.size': 'Pencerenin üst kısmındaki geçici oturum düğmesi artık yanındaki menü düğmeleriyle aynı yükseklikte ve aynı yuvarlak köşelere sahip.',
+  'whatsNew.v0172.text': 'Düğmenin yazısı daha büyük ve daha kolay okunuyor.',
+  'whatsNew.v0172.same': 'Turuncu kenarlığını koruyor ve aynı menüyü açıyor; geçici oturumun çalışma biçimi değişmedi.',
 } as const
 
 export type UiKey = keyof typeof ui

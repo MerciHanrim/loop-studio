@@ -519,6 +519,9 @@ const ui = {
   'whatsNew.v0171.compression': 'Liên kết chia sẻ giờ dùng tính năng nén có sẵn của trình duyệt.',
   'whatsNew.v0171.unavailable': 'Nếu tính năng này không dùng được, Loop Studio giữ nguyên sơ đồ hiện tại và cho biết cần một trình duyệt hiện hành.',
   'whatsNew.v0171.compatible': 'Các liên kết chia sẻ hiện có vẫn tương thích; định dạng liên kết không thay đổi.',
+  'whatsNew.v0172.size': 'Nút phiên tạm thời ở đầu cửa sổ giờ có cùng chiều cao và góc bo tròn như các nút menu bên cạnh.',
+  'whatsNew.v0172.text': 'Chữ trên nút lớn hơn và dễ đọc hơn.',
+  'whatsNew.v0172.same': 'Nút vẫn giữ viền màu cam và mở cùng một menu; cách phiên tạm thời hoạt động không thay đổi.',
 } satisfies Record<UiKey, string>
 
 export default ui

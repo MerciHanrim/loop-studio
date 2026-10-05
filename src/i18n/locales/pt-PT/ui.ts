@@ -533,6 +533,9 @@ const ui = {
   'whatsNew.v0171.compression': 'As ligações de partilha passam a usar a compressão integrada do navegador.',
   'whatsNew.v0171.unavailable': 'Se essa funcionalidade não estiver disponível, o Loop Studio mantém o diagrama atual sem alterações e explica que é necessário um navegador atual.',
   'whatsNew.v0171.compatible': 'As ligações de partilha existentes continuam compatíveis; o formato da ligação não mudou.',
+  'whatsNew.v0172.size': 'O botão de sessão temporária, no topo da janela, tem agora a mesma altura e os mesmos cantos arredondados que os botões de menu ao lado.',
+  'whatsNew.v0172.text': 'O texto do botão está maior e mais fácil de ler.',
+  'whatsNew.v0172.same': 'Mantém o contorno cor de laranja e abre o mesmo menu; o funcionamento de uma sessão temporária não mudou.',
 } as const
 
 export type UiKey = keyof typeof ui

@@ -88,11 +88,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('th copy — the first no-space script', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TH).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
+    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
   })
 
   it('covers all three runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(981)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(984)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)

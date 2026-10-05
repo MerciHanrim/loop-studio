@@ -514,6 +514,9 @@ const ui = {
   'whatsNew.v0171.compression': 'Deellinks gebruiken nu de ingebouwde compressie van de browser.',
   'whatsNew.v0171.unavailable': 'Is die functie niet beschikbaar, dan laat Loop Studio het huidige diagram ongewijzigd en legt uit dat een actuele browser nodig is.',
   'whatsNew.v0171.compatible': 'Bestaande deellinks blijven compatibel; de opbouw van de link is niet veranderd.',
+  'whatsNew.v0172.size': 'De knop voor de tijdelijke sessie bovenaan het venster heeft nu dezelfde hoogte en dezelfde afgeronde hoeken als de menuknoppen ernaast.',
+  'whatsNew.v0172.text': 'Het opschrift is groter en beter leesbaar.',
+  'whatsNew.v0172.same': 'De knop houdt zijn oranje rand en opent hetzelfde menu; hoe een tijdelijke sessie werkt, is niet veranderd.',
 } as const
 
 export default ui
