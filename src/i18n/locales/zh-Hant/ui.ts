@@ -537,6 +537,9 @@ const ui = {
   'whatsNew.v0171.compression': '分享連結現在使用瀏覽器內建的壓縮功能。',
   'whatsNew.v0171.unavailable': '如果無法使用此功能，目前的圖表會保持不變，並提示需要較新的瀏覽器。',
   'whatsNew.v0171.compatible': '現有的分享連結仍然相容，連結格式也沒有改變。',
+  'whatsNew.v0172.size': '視窗頂端的臨時工作階段按鈕現在與旁邊的選單按鈕高度相同、圓角一致。',
+  'whatsNew.v0172.text': '按鈕文字更大，更容易閱讀。',
+  'whatsNew.v0172.same': '它仍保留橘色邊框，開啟的選單也相同；臨時工作階段的運作方式沒有改變。',
 } satisfies Record<UiKey, string>
 
 export default ui

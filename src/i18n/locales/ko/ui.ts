@@ -506,6 +506,9 @@ const ui = {
   'whatsNew.v0171.compression': '공유 링크는 이제 브라우저의 기본 압축 기능을 사용합니다.',
   'whatsNew.v0171.unavailable': '이 기능을 사용할 수 없으면 현재 다이어그램을 그대로 유지하고 최신 브라우저가 필요하다고 안내합니다.',
   'whatsNew.v0171.compatible': '기존 공유 링크와의 호환성은 유지되며 링크 형식도 바뀌지 않았습니다.',
+  'whatsNew.v0172.size': '화면 위쪽의 임시 세션 버튼이 옆의 메뉴 버튼과 같은 높이와 모서리 모양이 되었습니다.',
+  'whatsNew.v0172.text': '버튼 글자가 커져 더 읽기 쉬워졌습니다.',
+  'whatsNew.v0172.same': '주황색 테두리와 버튼을 누르면 열리는 메뉴는 그대로이며, 임시 세션이 작동하는 방식도 바뀌지 않았습니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -199,15 +199,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
+    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 981, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1203)
+    expect(per).toEqual({ catalog: 984, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1206)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

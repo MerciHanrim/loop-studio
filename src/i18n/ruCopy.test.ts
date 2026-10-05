@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
+    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
   })
 
   // ----------------------------------------------------------------- script
@@ -246,6 +246,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'разделённые',
       'своё',
       'скруглённые',
+      'скруглёнными',
       'создаёт',
       // issue #302: the 0.15.2 release-note lines, `сохранённая тема` and
       // `сохранённое значение темы`

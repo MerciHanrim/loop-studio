@@ -155,6 +155,80 @@ test.describe('switching sessions', () => {
     expect(await storedWorkNodes(page)).toBe(2)
   })
 
+  // the chip is a control in the toolbar row: drawn as the menu button beside
+  // it (28 px, the 8 px control radius, 12 px text, its ink on its raised
+  // face), centred on the same line, one line of text, no icon; the warning
+  // border still marks the session, and its name, keyboard path and focus are
+  // those of a menu button
+  test('the chip is drawn as the menu buttons beside it, keeps its warning border and name, and works from the keyboard', async ({ page }) => {
+    await openApp(page)
+    await openStorageArea(page)
+    await confirmAction(page, 'to-temporary')
+    await expect(chip(page)).toBeVisible()
+    const m = await page.evaluate(() => {
+      const el = document.querySelector('.toolbar [data-session-chip="temporary"]')!
+      const btn = document.querySelector('.toolbar__actions-core > .menu > .btn')!
+      const c = el.getBoundingClientRect()
+      const b = btn.getBoundingClientRect()
+      const cs = getComputedStyle(el)
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--warning)'
+      document.body.append(probe)
+      const warning = getComputedStyle(probe).color
+      probe.remove()
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      return {
+        h: c.height,
+        btnH: b.height,
+        offCentre: Math.abs(c.top + c.height / 2 - (b.top + b.height / 2)),
+        radius: cs.borderTopLeftRadius,
+        btnRadius: getComputedStyle(btn).borderTopLeftRadius,
+        fontSize: cs.fontSize,
+        btnFontSize: getComputedStyle(btn).fontSize,
+        border: cs.borderTopColor,
+        warning,
+        color: cs.color,
+        btnColor: getComputedStyle(btn).color,
+        background: cs.backgroundColor,
+        btnBackground: getComputedStyle(btn).backgroundColor,
+        btnBorder: getComputedStyle(btn).borderTopColor,
+        lines: new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size,
+        icons: el.querySelectorAll('svg, img, .icon').length,
+        clipped: el.scrollWidth > el.clientWidth,
+      }
+    })
+    expect(m).toMatchObject({ h: 28, btnH: 28, radius: '8px', btnRadius: '8px', fontSize: '12px', btnFontSize: '12px', lines: 1, icons: 0, clipped: false })
+    expect(m.offCentre).toBeLessThan(0.5)
+    expect(m.color).toBe(m.btnColor)
+    expect(m.background).toBe(m.btnBackground)
+    expect(m.border).toBe(m.warning)
+    expect(m.border).not.toBe(m.btnBorder) // the session still shows
+    await expect(chip(page)).toHaveAccessibleName('Temporary session')
+    // keyboard: Enter opens, ArrowDown enters the menu, Escape closes it and focus comes back
+    await chip(page).focus()
+    await page.keyboard.press('Enter')
+    await expect(chip(page)).toHaveAttribute('aria-expanded', 'true')
+    await page.keyboard.press('ArrowDown')
+    await expect(page.locator('.session-chip__pop').getByRole('menuitem').first()).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.session-chip__pop')).toHaveCount(0)
+    await expect(chip(page)).toBeFocused()
+    // the menu buttons' focus: the boundary takes the focus colour, with the halo
+    const focus = await chip(page).evaluate((el) => {
+      const probe = document.createElement('span')
+      probe.style.color = 'var(--line-focus)'
+      document.body.append(probe)
+      const lineFocus = getComputedStyle(probe).color
+      probe.remove()
+      const cs = getComputedStyle(el)
+      return { visible: el.matches(':focus-visible'), border: cs.borderTopColor, lineFocus, halo: cs.boxShadow }
+    })
+    expect(focus.visible).toBe(true)
+    expect(focus.border).toBe(focus.lineFocus)
+    expect(focus.halo).toMatch(/0px 0px 0px 3px/)
+  })
+
   test('a temporary session with work warns before the page is closed; a personal browser does not', async ({ page, context }) => {
     // personal: no dialog, the page closes
     const p2 = await context.newPage()

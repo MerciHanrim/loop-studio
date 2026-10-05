@@ -503,6 +503,9 @@ const ui = {
   'whatsNew.v0171.compression': 'Share links now use the browser’s built-in compression.',
   'whatsNew.v0171.unavailable': 'If that feature is unavailable, Loop Studio keeps your current diagram unchanged and explains that a current browser is required.',
   'whatsNew.v0171.compatible': 'Existing share links remain compatible; the link format has not changed.',
+  'whatsNew.v0172.size': 'The Temporary session button at the top of the window now has the same height and rounded corners as the menu buttons beside it.',
+  'whatsNew.v0172.text': 'Its label is larger and easier to read.',
+  'whatsNew.v0172.same': 'It keeps its orange border and opens the same menu; how a temporary session works has not changed.',
 } as const
 
 export type UiKey = keyof typeof ui

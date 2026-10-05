@@ -39,6 +39,14 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // the temporary-session chip takes the box of the toolbar's menu buttons;
+    // the date is the day it is deployed, set right before the merge
+    id: 'release:0.17.2',
+    version: '0.17.2',
+    date: '2026-10-05',
+    items: ['whatsNew.v0172.size', 'whatsNew.v0172.text', 'whatsNew.v0172.same'],
+  },
+  {
     // issue #301 decision 1 - share links use only the browser's own compression
     id: 'release:0.17.1',
     version: '0.17.1',

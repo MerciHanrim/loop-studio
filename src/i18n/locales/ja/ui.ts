@@ -538,6 +538,9 @@ const ui = {
   'whatsNew.v0171.compression': '共有リンクはブラウザーに組み込まれた圧縮機能を使うようになりました。',
   'whatsNew.v0171.unavailable': 'この機能を使えない場合は、現在のダイアグラムをそのまま保ち、最新のブラウザーが必要であることを案内します。',
   'whatsNew.v0171.compatible': '既存の共有リンクとの互換性は保たれ、リンクの形式も変わっていません。',
+  'whatsNew.v0172.size': '画面上部の一時セッションのボタンが、隣のメニューボタンと同じ高さと角の形になりました。',
+  'whatsNew.v0172.text': 'ボタンの文字が大きくなり、読みやすくなりました。',
+  'whatsNew.v0172.same': 'オレンジ色の枠と開くメニューはそのままで、一時セッションの動作も変わっていません。',
 } satisfies Record<UiKey, string>
 
 export default ui

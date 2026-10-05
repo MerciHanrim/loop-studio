@@ -533,6 +533,9 @@ const ui = {
   'whatsNew.v0171.compression': 'I link di condivisione ora usano la compressione integrata del browser.',
   'whatsNew.v0171.unavailable': 'Se questa funzione non è disponibile, Loop Studio lascia invariato il diagramma attuale e spiega che serve un browser aggiornato.',
   'whatsNew.v0171.compatible': 'I link di condivisione esistenti restano compatibili; il formato dei link non è cambiato.',
+  'whatsNew.v0172.size': 'Il pulsante della sessione temporanea, in alto nella finestra, ha ora la stessa altezza e gli stessi angoli arrotondati dei pulsanti di menu accanto.',
+  'whatsNew.v0172.text': 'La sua scritta è più grande e più facile da leggere.',
+  'whatsNew.v0172.same': 'Mantiene il bordo arancione e apre lo stesso menu; il funzionamento di una sessione temporanea non è cambiato.',
 } satisfies Record<UiKey, string>
 
 export default ui

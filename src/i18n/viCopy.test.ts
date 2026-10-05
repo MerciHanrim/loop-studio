@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
+    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(981)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(984)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -538,6 +538,9 @@ const ASCII_KEYS = [
   'catalog:whatsNew.v0170.limits',
   // issue #301 decision 1: `Loop Studio` in a 0.17.1 release-note line
   'catalog:whatsNew.v0171.unavailable',
+  // the session chip (0.17.2): `menu` in two release-note lines
+  'catalog:whatsNew.v0172.size',
+  'catalog:whatsNew.v0172.same',
   // the storage gate and the Storage and privacy area (issue #297)
   'catalog:gate.lead',
   'catalog:gate.portable.note',
@@ -559,7 +562,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(184)
+    expect(ASCII_KEYS).toHaveLength(186)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {

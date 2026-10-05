@@ -58,7 +58,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(981) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines)
+    expect(KEYS).toHaveLength(984) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -114,7 +114,11 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // lines - `ligações de partilha` not `links de compartilhamento`, `num`
     // not `em um`, `passam a usar` not `agora usam`, `funcionalidade` not
     // `recurso`, `necessário` not `preciso`, `ligação` not `link`.
-    expect(DELTA).toHaveLength(259)
+    // The session chip (0.17.2) moved it from 259 to 261: two of its three
+    // release-note lines - `tem agora` not `agora tem`, `contorno cor de
+    // laranja` not `borda laranja`, no subject pronoun `Ele`; the third line
+    // reads the same in both.
+    expect(DELTA).toHaveLength(261)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
@@ -158,7 +162,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // outside them, the quarter bound stands as it always did
     const rest = KEYS.filter((k) => !isPasswordKey(k))
     const restDelta = DELTA.filter((k) => !isPasswordKey(k))
-    expect(restDelta).toHaveLength(231)
+    expect(restDelta).toHaveLength(233)
     expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 

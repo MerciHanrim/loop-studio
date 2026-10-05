@@ -588,6 +588,9 @@ const ui = {
   'whatsNew.v0171.compression': 'Les liens de partage utilisent désormais la compression intégrée du navigateur.',
   'whatsNew.v0171.unavailable': 'Si cette fonction n’est pas disponible, Loop Studio laisse le diagramme actuel inchangé et explique qu’un navigateur récent est nécessaire.',
   'whatsNew.v0171.compatible': 'Les liens de partage existants restent compatibles et leur format n’a pas changé.',
+  'whatsNew.v0172.size': 'Le bouton Session temporaire, en haut de la fenêtre, a désormais la même hauteur et les mêmes coins arrondis que les boutons de menu voisins.',
+  'whatsNew.v0172.text': 'Son libellé est plus grand et plus facile à lire.',
+  'whatsNew.v0172.same': 'Il garde sa bordure orange et ouvre le même menu, et le fonctionnement d’une session temporaire n’a pas changé.',
 } satisfies Record<UiKey, string>
 
 export default ui

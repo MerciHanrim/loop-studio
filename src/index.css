@@ -6396,6 +6396,7 @@ input[type='number']::-webkit-inner-spin-button {
    beat its hover and its on / selected state, by specificity or by order.
    The graph is not here — node and frame focus read `--state-focus`. */
 .btn:not(.btn--ghost):focus-visible:not(:disabled),
+.session-chip__btn:focus-visible,
 .pb-btn:focus-visible:not(:disabled),
 .field input:focus-visible:not(:disabled),
 .field select:focus-visible:not(:disabled),
@@ -6431,6 +6432,7 @@ input[type='number']::-webkit-inner-spin-button {
    inside its own box for the same reason its halo was dropped. */
 @media (forced-colors: active) {
   .btn:not(.btn--ghost):focus-visible:not(:disabled),
+  .session-chip__btn:focus-visible,
   .pb-btn:focus-visible:not(:disabled),
   .field input:focus-visible:not(:disabled),
   .field select:focus-visible:not(:disabled),
@@ -6705,19 +6707,30 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /* ── issue #297 — the temporary-session chip (toolbar) ────────────────────
-   A `.rev-chip` that is a button: the same box as the revision chip beside
-   it, a solid boundary when colours are forced, and a small menu with the
-   ways out (export, save here after all, the Storage area). */
+   A `.rev-chip` that is a button, with a solid boundary when colours are
+   forced and a small menu with the ways out (export, save here after all, the
+   Storage area). It is a control, so it is drawn as the toolbar's menu
+   buttons (`.btn`) are: 28 px tall, the control radius, 12 px text, 12 px of
+   side padding, their ink on their raised face, their hover boundary and
+   their focus (it is listed with `.btn` in the focus block at the end of this
+   file). The warning border is what still marks the session. */
 .session-chip {
   position: relative;
   display: inline-flex;
 }
 .session-chip__btn {
   cursor: pointer;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--control-radius);
   font-family: var(--font-sans);
+  font-size: 12px;
   letter-spacing: 0;
   font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-raised);
   border-color: var(--warning);
+  flex-shrink: 0;
 }
 .session-chip__btn:hover,
 .session-chip__btn[aria-expanded='true'] {

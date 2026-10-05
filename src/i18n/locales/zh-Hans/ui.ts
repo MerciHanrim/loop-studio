@@ -511,6 +511,9 @@ const ui = {
   'whatsNew.v0171.compression': '分享链接现在使用浏览器内置的压缩功能。',
   'whatsNew.v0171.unavailable': '如果无法使用此功能，当前图表将保持不变，并提示需要较新的浏览器。',
   'whatsNew.v0171.compatible': '现有的分享链接仍然兼容，链接格式也没有改变。',
+  'whatsNew.v0172.size': '窗口顶部的临时会话按钮现在与旁边的菜单按钮高度相同、圆角一致。',
+  'whatsNew.v0172.text': '按钮文字更大，更易阅读。',
+  'whatsNew.v0172.same': '它仍保留橙色边框，打开的菜单也相同；临时会话的工作方式没有改变。',
 } satisfies Record<UiKey, string>
 
 export default ui
