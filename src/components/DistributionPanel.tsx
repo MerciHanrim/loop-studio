@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMcStore } from '../store/mcStore'
+import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import { useT } from '../i18n'
 import { BandChart } from './BandChart'
 import { TerminationSparkline } from './TerminationSparkline'
@@ -26,19 +27,21 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
   const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
+    return () => window.removeEventListener('mousedown', onDown)
   }, [open])
+  // the menu keyboard contract (issue #307): the shared hook owns Escape, the
+  // arrows and Tab; a download chosen from the keyboard returns focus here
+  const close = useCallback(() => setOpen(false), [])
+  const { entry, triggerProps } = useMenuTrigger(open, setOpen)
+  useMenuKeyboard(open, popRef, btnRef, close, entry)
 
   const saveCsv = (suffix: string, text: string) => {
     downloadCsv(text, `loop-studio-montecarlo-${suffix}`)
@@ -58,13 +61,14 @@ function ExportMenu({ result, disabled }: { result: MonteCarloResult; disabled: 
         aria-expanded={open}
         disabled={disabled}
         title={disabled ? t('dist.export.staleTitle') : t('dist.export.title')}
-        onClick={() => setOpen((v) => !v)}
+        ref={btnRef}
+        {...triggerProps}
       >
         {t('export.button')}
         <Icon name="chevron-down" className="icon--caret" />
       </button>
       {open ? (
-        <div className="menu__pop menu__pop--up" role="menu">
+        <div className="menu__pop menu__pop--up" role="menu" ref={popRef}>
           <button type="button" className="menu__item" role="menuitem" onClick={() => saveCsv('series.csv', toSeriesCsv(result))}>
             <span className="menu__name">{t('dist.export.seriesCsv')}</span>
             <span className="menu__blurb">{t('dist.export.seriesCsv.blurb')}</span>

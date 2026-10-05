@@ -62,9 +62,11 @@ test('opening it shows exactly Auto / Light / Dark, in English, with the active 
   expect(texts.map((s) => s.trim())).toEqual(['Auto', 'Light', 'Dark'])
   expect(texts.join(' ')).not.toContain('System') // the internal mode literal must never leak into EN UI
 
-  await expect(items.nth(0)).toHaveAttribute('aria-selected', 'true')
-  await expect(items.nth(1)).toHaveAttribute('aria-selected', 'false')
-  await expect(items.nth(2)).toHaveAttribute('aria-selected', 'false')
+  // issue #307: one-of-three choices, so menuitemradio + aria-checked
+  await expect(items.nth(0)).toHaveAttribute('role', 'menuitemradio')
+  await expect(items.nth(0)).toHaveAttribute('aria-checked', 'true')
+  await expect(items.nth(1)).toHaveAttribute('aria-checked', 'false')
+  await expect(items.nth(2)).toHaveAttribute('aria-checked', 'false')
 })
 
 test('selecting Dark applies it immediately, checks it, and closes only the Theme submenu', async ({
@@ -83,17 +85,26 @@ test('selecting Dark applies it immediately, checks it, and closes only the Them
 
   // reopening shows Dark checked
   await row.click()
-  await expect(page.locator('.theme-menu__pop .menu__item[aria-selected="true"]', { hasText: /^Dark$/ })).toBeVisible()
+  await expect(page.locator('.theme-menu__pop .menu__item[aria-checked="true"]', { hasText: /^Dark$/ })).toBeVisible()
 })
 
 test('keyboard: ArrowDown/ArrowUp move between options, Enter selects, Escape closes only Theme', async ({
   page,
 }) => {
-  await openThemeSubmenu(page)
+  await openSettings(page)
+  const row = page.locator('.toolbar__settingsmenu-pop .theme-menu .settings-row')
   const pop = page.locator('.theme-menu__pop')
   const items = pop.locator('.menu__item')
 
-  await expect(items.nth(0)).toBeFocused() // opens focused on the current (Auto) item
+  // issue #307: a pointer open leaves focus on the row; a keyboard open
+  // enters at the first item
+  await row.click()
+  await expect(pop).toBeVisible()
+  await expect(row).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(pop).toBeHidden()
+  await row.press('Enter')
+  await expect(items.nth(0)).toBeFocused()
   await page.keyboard.press('ArrowDown')
   await expect(items.nth(1)).toBeFocused()
   await page.keyboard.press('ArrowDown')

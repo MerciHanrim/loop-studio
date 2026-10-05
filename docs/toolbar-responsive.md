@@ -233,3 +233,57 @@ browser: the attribute at the first animation frame for every stored value,
 desktop and mobile; no light or blank frame painted before a dark start, on the
 browser's own screencast, including a throttled network; the choice survives a
 reload; the boot script is in the page once.
+
+## The menu keyboard contract (issue #307)
+
+One contract for every desktop menu button, in `src/ui/useMenuKeyboard.ts`
+(`useMenuTrigger` + `useMenuKeyboard`): Templates, Insert module, File, Data,
+Help, the temporary-session chip, Settings → Theme and the Distribution
+panel's export. It follows the WAI-ARIA menu-button pattern, with typeahead
+left out.
+
+- **Opening.** Enter, Space or a screen reader's activation opens the menu
+  at its first item; Arrow Down on the closed trigger opens it at the first
+  item, Arrow Up at the last. A pointer open leaves focus on the trigger.
+- **Inside.** Arrow Down / Arrow Up move between items and wrap; Home and End
+  go to the first and last. Disabled items, hidden items and separators are
+  skipped (`usableItems`).
+- **Leaving.** Escape closes the menu and returns focus to its trigger. Tab
+  and Shift+Tab close it and move to the element after or before the
+  trigger; Tab never moves between items. The popup is gone before Tab's
+  default action runs (`flushSync`), so focus cannot land inside it.
+- **After a choice.** A keyboard choice that opens no dialog returns focus to
+  the trigger; one that opens a dialog leaves focus to the dialog, which
+  returns it to the trigger when it closes. A pointer choice never pulls
+  focus (`useReturnFocusAfterKeyboardChoice`).
+- **Theme** offers one of three, so its items are `menuitemradio` with
+  `aria-checked`.
+- **`aria-controls` only while the panel exists.** A popup mounts on open,
+  so Settings, `⋯`, File, the temporary-session chip and Theme name it in
+  `aria-controls` only while it is open. MEASURED with Narrator and Edge on a
+  comparison page: a button whose `aria-controls` named a panel absent while
+  closed was never read as "expanded" after opening, even on a re-read; with
+  the attribute only while the panel exists, "expanded" and "collapsed" were
+  both read at once.
+
+Three controls are deliberately not menu buttons:
+
+- **Settings and `⋯` are disclosures**: no `role="menu"`, the trigger
+  carries `aria-expanded` and `aria-controls`, the panel is a labelled
+  `role="group"`, Tab moves through it, opening leaves focus on the trigger,
+  and Escape inside closes it and returns to the trigger. A keyboard choice
+  in a group nested inside `⋯` still returns focus to `⋯`.
+- **Language keeps its combobox**: real focus stays in the search field
+  (`aria-activedescendant`); Arrow Down on the closed trigger opens it at the
+  first language, Arrow Up at the last, Enter or Space at the current one.
+- **Help** keeps the behaviour it had since issue #306 and now shares the
+  hook.
+
+The phone's sheets are not modal; the open dialogs and sheets are ordered for
+Escape in `src/ui/overlayStack.ts`: see docs/mobile.md §MV5. Every real
+dialog (`aria-modal="true"`, at any width) makes everything outside it
+`inert` while it is the top one, the PWA update bar included, which sits
+behind the dialog layer meanwhile (docs/mobile.md §MV8a).
+
+`e2e/menu-keyboard.spec.ts` runs the same contract on every menu above, the
+disclosures, the Language combobox and the phone's sheets.

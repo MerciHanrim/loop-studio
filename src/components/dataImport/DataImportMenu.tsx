@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useT } from '../../i18n'
+import { useMenuKeyboard, useMenuTrigger } from '../../ui/useMenuKeyboard'
 import type { ToolbarDialog } from '../toolbar/dialogTypes'
 import { useMenuOpenStore } from '../toolbar/menuOpenStore'
 import { useOutsideDismiss } from '../toolbar/useOutsideDismiss'
@@ -27,17 +28,16 @@ export function DataImportMenu({
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement | null>(null)
+  const popRef = useRef<HTMLDivElement>(null)
 
   useOutsideDismiss(menuOpen, wrapRef, () => setMenuOpen(false))
 
-  useEffect(() => {
-    if (!menuOpen) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
+  // the menu keyboard contract (issue #307): the shared hook owns Escape now,
+  // with the focus return this menu's own listener never did
+  const close = useCallback(() => setMenuOpen(false), [])
+  const { entry, triggerProps } = useMenuTrigger(menuOpen, setMenuOpen)
+  useMenuKeyboard(menuOpen, popRef, btnRef, close, entry)
 
   // review, Hanrim 2026-09-15 — announce open/closed so the palette can
   // suppress its own hover tooltip while this menu is up
@@ -48,12 +48,22 @@ export function DataImportMenu({
 
   return (
     <div className="menu" ref={wrapRef}>
-      <button ref={buttonRef} type="button" className="btn" aria-haspopup="true" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+      <button
+        ref={(el) => {
+          btnRef.current = el
+          buttonRef?.(el)
+        }}
+        type="button"
+        className="btn"
+        aria-haspopup="true"
+        aria-expanded={menuOpen}
+        {...triggerProps}
+      >
         {t('import.button')}
         <Icon name="chevron-down" className="icon--caret" />
       </button>
       {menuOpen && (
-        <div className="menu__pop" role="menu">
+        <div className="menu__pop" role="menu" ref={popRef}>
           <button
             type="button"
             className="menu__item"

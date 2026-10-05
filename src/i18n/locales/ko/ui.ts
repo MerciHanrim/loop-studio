@@ -521,6 +521,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Loop Studio 정보에 제3자 오픈소스 라이선스 화면이 생겨, 앱에 포함된 모든 구성 요소의 라이선스 원문을 볼 수 있습니다.',
   'whatsNew.v0180.offline': '설치한 앱과 단일 파일 버전에서는 네트워크 연결 없이도 라이선스 원문이 열립니다.',
   'whatsNew.v0180.own': 'Loop Studio 자체의 저작권 표시는 바뀌지 않았으며, 이 라이선스는 포함된 제3자 구성 요소에만 적용됩니다.',
+  'whatsNew.v0181.open': '키보드로 연 메뉴는 이제 첫 항목에 포커스가 가고, 닫힌 메뉴 버튼에서 아래쪽·위쪽 화살표를 누르면 첫 항목이나 마지막 항목에서 열립니다.',
+  'whatsNew.v0181.move': '메뉴 안에서는 방향키와 Home·End로 항목을 오가며, Escape와 Tab은 메뉴를 닫고 메뉴 버튼으로 돌아갑니다. 다른 창을 열지 않는 항목을 고른 뒤에도 마찬가지입니다.',
+  'whatsNew.v0181.phone': '휴대폰에서는 시트가 열릴 때 포커스가 시트 안으로 들어가고, Escape를 누르면 한 단계 위인 더 보기 시트로 돌아갑니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

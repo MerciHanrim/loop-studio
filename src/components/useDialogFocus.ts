@@ -1,14 +1,16 @@
 import { useEffect, useRef, type RefObject } from 'react'
+import { isTopOverlay, pushOverlay, topOverlay, type OverlayKind } from '../ui/overlayStack'
 
 const FOCUSABLE =
   'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
 
 /**
- * Modal-dialog focus behaviour shared by every app dialog:
+ * Focus behaviour shared by every app dialog and every mobile sheet:
  *  - on open, move focus to the first field (input/select) or the first
  *    focusable element
- *  - trap Tab inside the dialog
- *  - Escape → `onEscape`
+ *  - a dialog (`kind: 'modal'`, the default) traps Tab inside itself; a mobile
+ *    sheet (`kind: 'sheet'`) does not, it is not modal (src/ui/overlayStack.ts)
+ *  - Escape → `onEscape`, for the top dialog or sheet only
  *  - on close, restore focus to `returnFocusTo()` (or the element that was
  *    focused when the dialog opened)
  */
@@ -17,7 +19,16 @@ export function useDialogFocus(
   ref: RefObject<HTMLElement | null>,
   onEscape: () => void,
   returnFocusTo?: () => HTMLElement | null | undefined,
+  options: {
+    /** issue #307 - a mobile sheet is not modal: no Tab trap (overlayStack.ts) */
+    kind?: OverlayKind
+    /** where focus goes on opening, before the default first field / control */
+    initialFocus?: () => HTMLElement | null | undefined
+  } = {},
 ): void {
+  const kind = options.kind ?? 'modal'
+  const initialFocusRef = useRef(options.initialFocus)
+  initialFocusRef.current = options.initialFocus
   // The newest `onEscape`, without making its IDENTITY a reason to run the
   // effect again. Most callers pass an inline arrow, which is a new function on
   // every render, so the effect used to tear down and set up on every render of
@@ -37,18 +48,25 @@ export function useDialogFocus(
     if (!open) return
     const opener = document.activeElement as HTMLElement | null
     const d = ref.current
+    // issue #307 - the top dialog or sheet alone answers Escape; a dialog over a
+    // mobile sheet makes the rest inert. Registered before focus moves in, so
+    // the page behind is already inert when it does.
+    const removeEntry = d ? pushOverlay(d, kind) : () => {}
     const target =
+      initialFocusRef.current?.() ??
       d?.querySelector<HTMLElement>('input, select, textarea') ??
       d?.querySelector<HTMLElement>(FOCUSABLE)
     target?.focus()
 
     const onKey = (e: KeyboardEvent) => {
+      if (!isTopOverlay(ref.current)) return
       if (e.key === 'Escape') {
         e.preventDefault()
         onEscapeRef.current()
         return
       }
-      if (e.key !== 'Tab' || !ref.current) return
+      // a sheet is not modal: Tab follows the page's own order out of it
+      if (e.key !== 'Tab' || kind !== 'modal' || !ref.current) return
       const items = [...ref.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
       if (!items.length) return
       const first = items[0]
@@ -64,7 +82,15 @@ export function useDialogFocus(
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      const back = returnFocusTo?.() ?? opener
+      // the entry goes first: what focus returns to must not be inert
+      removeEntry()
+      // Opened from inside a sheet or dialog that is still open (About from the
+      // phone's Help sheet): back to the control that opened it there. The
+      // target the owner names (the top bar's More button) is outside what the
+      // person is still working in. MEASURED with the target alone: focus left
+      // the Help sheet, and while the page behind was inert it fell to <body>.
+      const top = topOverlay()
+      const back = top && opener?.isConnected && top.contains(opener) ? opener : (returnFocusTo?.() ?? opener)
       back?.focus?.()
     }
     // returnFocusTo is intentionally not a dep — it's read at cleanup time; and

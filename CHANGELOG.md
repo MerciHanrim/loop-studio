@@ -4,6 +4,17 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.18.1 — 2026-10-06
+
+A fix release (issue #307): the menus answer the keyboard the same way, and the phone's sheets take focus and step back one level at a time.
+
+- **Every desktop menu button opens, moves and closes alike**: Templates, Insert module, File, Data, Help, the temporary-session chip, Theme and the Distribution export. A keyboard open puts focus on the first item, and Arrow Down or Arrow Up on a closed button opens it at the first or last item. Inside, the arrows wrap, Home and End jump, and disabled items are skipped. Escape returns to the button; Tab and Shift+Tab close the menu and move on. After a keyboard choice that opens no dialog, focus returns to the button; a dialog returns it there when it closes. Pointer use is unchanged.
+- **Settings and the `⋯` button are disclosures**, not menus: Tab moves through them, and Escape closes them and returns to their button. Theme's three choices are announced as a choice of one. Language keeps its search field, and Arrow Down or Arrow Up on its closed button opens it at the first or last language.
+- **On a phone, each sheet takes focus when it opens.** Escape in a sheet opened from More goes back to More, on the row that opened it; Close still closes everything. A sheet stays non-modal: the run bar and the update bar are still usable while it is open, by touch, keyboard and screen reader, and only what the sheet covers leaves the keyboard order. A dialog opened from a sheet returns focus to the row that opened it.
+- **A dialog is modal for real, on every screen**: while one is open (the Monte Carlo dialog, a confirmation, About, the guided tour), nothing outside it can be reached by pointer, keyboard or screen reader. The update notice waits behind it and is back, unchanged, the moment it closes; while only a sheet is open it stays usable.
+
+**No migration.** Three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.18.1`.
+
 ## v0.18.0 — 2026-10-05
 
 The third-party open-source licenses, inside the app (issue #301).

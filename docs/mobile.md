@@ -252,6 +252,22 @@ Both are bottom sheets. **Shared sheet contract:**
   `role="dialog"` + `aria-label`;
 - a visible **Close** button (44 px), **Escape** closes, and focus **returns to
   the trigger** on close; focus moves into the sheet on open;
+- **a sheet is not modal** (issue #307): no `aria-modal` and no Tab trap,
+  because the run bar and the PWA update bar are used while a sheet is open
+  (MV-D11, MV-D18, MV-D19). They stay reachable by pointer, keyboard and screen
+  reader, and Tab follows the page's own order out of the sheet. Only what the
+  sheet's scrim covers for the pointer (the canvas, the top bar's `More`
+  button, the open-file card) is `inert` while it is open, so the keyboard and
+  a screen reader reach the same controls as a finger. A real dialog opened
+  over a sheet is modal like every real dialog: it traps Tab and everything
+  else, the sheet, the run bar and the PWA update bar included, is `inert`
+  until it closes (MV8a); focus then returns to the sheet row that opened it,
+  and the sheet is non-modal again. Only the top dialog or sheet answers
+  Escape (`src/ui/overlayStack.ts`);
+- **Escape in a sheet opened from `More`** (Templates, Export, Filters, Help,
+  Share) goes back one level: it closes that sheet, reopens `More` and puts
+  focus on the row that opened it. Close and the scrim still close
+  everything;
 - `env(safe-area-inset-bottom)` padding; max-height leaves the top bar visible;
   the sheet body scrolls internally (`overflow-y: auto`; `overscroll-behavior:
   contain`);
@@ -397,15 +413,24 @@ opening. Its mobile placement rules:
   full-width minus the left/right safe-area insets. This keeps it away from the
   crowded bottom edge (run bar + rising sheets) entirely, so it can collide with
   neither.
-- **Z-index — above everything**, so its two 44 px buttons (**Update** /
-  **Dismiss**) stay reachable even while an exclusive sheet or the MC dialog is
-  open: `--z-canvas < --z-runbar < --z-sheet <= --z-mc-dialog < --z-pwa-update`.
-  Bottom sheets open to at most ~55 vh and the MC dialog is centred with a
-  safe-area top margin, so the top-anchored bar and a sheet **do not overlap**
-  in practice; the z-order is the guarantee if they ever do.
+- **Usable while a sheet is open; behind a real dialog (issue #307).** The
+  update notice can be used while a sheet is open. While a real modal dialog
+  is open (the MC dialog, a confirmation, About, the guided tour, any
+  `aria-modal` dialog) it is covered and inactive, and the moment that dialog
+  closes it is back in the state it was in. So its two 44 px buttons
+  (**Update** / **Dismiss**) sit above every sheet and the run bar but below
+  the tour and the dialogs:
+  `--z-sheet < --z-runbar < --z-pwa-update < --z-tour < --z-mc-dialog`, and
+  while a dialog is open everything outside it, the bar included, is `inert`
+  (`src/ui/overlayStack.ts`), so the pointer, Tab and a screen reader cannot
+  reach it either. Nothing about the waiting update is dropped: the bar is
+  still mounted behind the dialog's scrim. Bottom sheets open to at most
+  ~55 vh, so the top-anchored bar and a sheet **do not overlap** in practice;
+  the z-order is the guarantee if they ever do.
 - **The dialog layer (2026-10-02, issue #296).** The order in the stylesheet is
-  `canvas < open-file card < sheet < run bar < dialogs < PWA update bar`. Two
-  things did not follow it and were measured before being fixed:
+  `canvas < open-file card < sheet < run bar < PWA update bar < tour < dialogs`
+  (the update bar was above the dialogs until issue #307). Two things did not
+  follow it and were measured before being fixed:
   - A dialog declared INSIDE a sheet (About, the contextual-tips dialog, the
     export-author dialog) was drawn in the sheet's layer, so its own z-index
     only competed with the sheet's other children. The run bar and the
@@ -460,7 +485,7 @@ opening. Its mobile placement rules:
 | MV-D16a | opening files | no account / cloud sync (MV6a). `More` → `Import file` accepts Graph **and** Workspace JSON; a `#g1=` Share link is the other path. An **"Open a file"** card with the "No account sync" copy sits on the pristine first screen and clears once a document loads |
 | MV-D17 | viewport height | `100dvh` with `100vh` fallback everywhere (MV4a); a `visualViewport` listener nudges the bottom bar if a browser lags; the fixed bottom bar stays on-screen through iOS address-bar / keyboard height changes |
 | MV-D18 | PWA update bar | **not** in the exclusive set (MV8a) — a pending update never closes a sheet and a sheet never blocks it |
-| MV-D19 | PWA update bar placement | fixed at the **top**, below the top bar (`top: calc(topbar + safe-area)`); **highest z-index** (`canvas < runbar < sheet <= mc-dialog < pwa-update`) so Update/Dismiss stay clickable with a sheet open; Canvas top padding grows by its height; can only ever occlude canvas |
+| MV-D19 | PWA update bar placement | fixed at the **top**, below the top bar (`top: calc(topbar + safe-area)`); z-index above every sheet and the run bar, below the tour and the dialogs (`sheet < runbar < pwa-update < tour < mc-dialog`), so Update/Dismiss stay clickable with a sheet open and are covered and inert while a real dialog is open (issue #307); Canvas top padding grows by its height; can only ever occlude canvas |
 
 ## MV10. Required E2E
 
@@ -497,7 +522,7 @@ A dedicated **`mobile` Playwright project** — `devices['iPhone 13']`, run at
 - with the update bar **and** a sheet open at once (open the Inspector while the
   bar shows): the sheet's **Close**, the bar's **Update**, and the run bar's
   **Play** are each fully visible and independently clickable — none is occluded
-  by another (the bar carries the highest z-index, MV8a);
+  by another (the bar is above every sheet and the run bar, MV8a);
 - the Share result URL field: open `More` → Share, the selectable URL field's
   rect is fully within the viewport and the text is selectable.
 

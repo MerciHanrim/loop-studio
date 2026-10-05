@@ -529,6 +529,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Over Loop Studio heeft nu een pagina met opensourcelicenties van derden, met de volledige licentietekst van elk onderdeel van de app.',
   'whatsNew.v0180.offline': 'De licentieteksten openen zonder netwerkverbinding in de geïnstalleerde app en in de versie als één bestand.',
   'whatsNew.v0180.own': 'De auteursrechtvermelding van Loop Studio zelf is niet veranderd; deze licenties gelden alleen voor de meegeleverde onderdelen van derden.',
+  'whatsNew.v0181.open': 'Een menu dat met het toetsenbord wordt geopend, zet de focus nu op het eerste item, en Pijl omlaag of Pijl omhoog op een gesloten menuknop opent het bij het eerste of laatste item.',
+  'whatsNew.v0181.move': 'In een menu gaan de pijltoetsen, Home en End door de items; Escape en Tab sluiten het en gaan terug naar de menuknop, ook na het kiezen van een item dat niets anders opent.',
+  'whatsNew.v0181.phone': 'Op een telefoon krijgt elk blad de focus bij het openen, en Escape gaat één niveau terug naar het blad Meer.',
 } as const
 
 export default ui

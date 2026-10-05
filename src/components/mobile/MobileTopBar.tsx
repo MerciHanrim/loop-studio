@@ -82,6 +82,7 @@ export function MobileTopBar() {
         type="button"
         className="btn mob-more"
         data-tour="mobile-more"
+        data-covered-by-sheets=""
         aria-haspopup="dialog"
         aria-expanded={overlay === 'more'}
         aria-label={t('mobile.more')}

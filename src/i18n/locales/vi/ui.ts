@@ -534,6 +534,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Giới thiệu Loop Studio giờ có trang giấy phép nguồn mở của bên thứ ba, với toàn văn giấy phép của mọi thành phần trong ứng dụng.',
   'whatsNew.v0180.offline': 'Văn bản giấy phép mở được mà không cần kết nối mạng trong ứng dụng đã cài đặt và trong phiên bản một tệp.',
   'whatsNew.v0180.own': 'Thông báo bản quyền của chính Loop Studio không thay đổi; các giấy phép này chỉ áp dụng cho các thành phần của bên thứ ba có trong ứng dụng.',
+  'whatsNew.v0181.open': 'Menu mở bằng bàn phím giờ đưa tiêu điểm đến mục đầu tiên, và phím mũi tên xuống hoặc lên trên nút menu đang đóng sẽ mở menu ở mục đầu hoặc mục cuối.',
+  'whatsNew.v0181.move': 'Trong menu, các phím mũi tên, Home và End di chuyển giữa các mục; Escape và Tab đóng menu và quay lại nút menu, kể cả sau khi chọn một mục không mở gì khác.',
+  'whatsNew.v0181.phone': 'Trên điện thoại, mỗi bảng nhận tiêu điểm khi mở, và Escape quay lại một cấp, về bảng Thêm.',
 } satisfies Record<UiKey, string>
 
 export default ui

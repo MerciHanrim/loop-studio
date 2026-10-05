@@ -308,6 +308,8 @@ describe('pt-BR copy — mechanical review', () => {
       'SR', 'R', 'MC', 'PWA', 'bytes', 'byte', 'kg', 'workers', 'Machinations',
       'Pity', 'pity', 'UP', 'Hard', 'Drops', 'Loot', 'drop', 'loot', 'Tickets',
       'buffer', 'buffers', 'MonteCarloResult', 'p10', 'p50', 'p90',
+      // issue #307: the key names in the 0.18.1 release note
+      'Home', 'End',
     ])
     // KEY-SCOPED — allowed only where the key owns the token
     const SCOPED: Record<string, string[]> = {

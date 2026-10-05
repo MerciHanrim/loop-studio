@@ -482,7 +482,9 @@ test.describe('toolbar — an overflowed control is reachable with the mouse and
 
     const moreBtn = page.locator('.toolbar__overflow-btn')
     await expect(moreBtn).toBeVisible()
-    await expect(moreBtn).toHaveAttribute('aria-haspopup', 'menu')
+    // issue #307: a disclosure, not a menu button
+    await expect(moreBtn).not.toHaveAttribute('aria-haspopup')
+    await expect(moreBtn).toHaveAttribute('aria-expanded', 'false')
 
     await moreBtn.click()
     const pop = page.locator('.toolbar__overflow-pop')

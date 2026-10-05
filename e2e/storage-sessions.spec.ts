@@ -205,11 +205,10 @@ test.describe('switching sessions', () => {
     expect(m.border).toBe(m.warning)
     expect(m.border).not.toBe(m.btnBorder) // the session still shows
     await expect(chip(page)).toHaveAccessibleName('Temporary session')
-    // keyboard: Enter opens, ArrowDown enters the menu, Escape closes it and focus comes back
+    // keyboard: Enter opens at the first item (issue #307), Escape closes it and focus comes back
     await chip(page).focus()
     await page.keyboard.press('Enter')
     await expect(chip(page)).toHaveAttribute('aria-expanded', 'true')
-    await page.keyboard.press('ArrowDown')
     await expect(page.locator('.session-chip__pop').getByRole('menuitem').first()).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(page.locator('.session-chip__pop')).toHaveCount(0)

@@ -588,6 +588,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Loop Studio hakkında bölümünde artık üçüncü taraf açık kaynak lisansları sayfası var; uygulamadaki her bileşenin lisans metni eksiksiz olarak yer alıyor.',
   'whatsNew.v0180.offline': 'Lisans metinleri, yüklenmiş uygulamada ve tek dosyalık sürümde ağ bağlantısı olmadan açılır.',
   'whatsNew.v0180.own': 'Loop Studio’nun kendi telif hakkı bildirimi değişmedi; bu lisanslar yalnızca dahil edilen üçüncü taraf bileşenler için geçerlidir.',
+  'whatsNew.v0181.open': 'Klavyeyle açılan bir menü artık odağı ilk öğesine taşır; kapalı bir menü düğmesinde aşağı veya yukarı ok tuşu menüyü ilk ya da son öğede açar.',
+  'whatsNew.v0181.move': 'Menünün içinde ok tuşları, Home ve End öğeler arasında gezinir; Escape ve Tab menüyü kapatıp menü düğmesine döner. Başka bir şey açmayan bir öğe seçildikten sonra da böyledir.',
+  'whatsNew.v0181.phone': 'Telefonda her sayfa açılınca odağı alır ve Escape bir üst düzeye, Diğer sayfasına döner.',
 } as const
 
 export type UiKey = keyof typeof ui

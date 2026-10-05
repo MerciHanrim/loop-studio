@@ -279,7 +279,11 @@ describe('es-419 copy — mechanical review', () => {
         'rf.node.a11yKeyboard',
         'rf.edge.a11y',
         'regExpr.insert.armed',
+        // issue #307: the key names in the 0.18.1 release note
+        'whatsNew.v0181.move',
+        'whatsNew.v0181.phone',
       ],
+      Tab: ['whatsNew.v0181.move'],
       Ctrl: ['toolbar.undo.title', 'toolbar.redo.title'],
       Cmd: ['toolbar.undo.title', 'toolbar.redo.title'],
       Z: ['toolbar.undo.title', 'toolbar.redo.title'],

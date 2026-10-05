@@ -39,6 +39,15 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #307 - one keyboard contract for every menu, and the phone's
+    // sheets taking focus and stepping back one level; the date is the day it
+    // is deployed, set right before the merge
+    id: 'release:0.18.1',
+    version: '0.18.1',
+    date: '2026-10-06',
+    items: ['whatsNew.v0181.open', 'whatsNew.v0181.move', 'whatsNew.v0181.phone'],
+  },
+  {
     // issue #301 - the third-party open-source licences, in the About dialog;
     // the date is the day it is deployed, set right before the merge
     id: 'release:0.18.0',

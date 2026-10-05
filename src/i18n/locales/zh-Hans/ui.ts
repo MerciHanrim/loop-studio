@@ -526,6 +526,9 @@ const ui = {
   'whatsNew.v0180.licenses': '关于对话框中新增了第三方开源许可证页面，可查看应用所含每个组件的许可证全文。',
   'whatsNew.v0180.offline': '在已安装的应用和单文件版本中，无需联网即可打开许可证原文。',
   'whatsNew.v0180.own': 'Loop Studio 本身的版权声明没有改变；这些许可证仅适用于所含的第三方组件。',
+  'whatsNew.v0181.open': '用键盘打开的菜单现在会把焦点放在第一项上；在关闭的菜单按钮上按下箭头或上箭头，会从第一项或最后一项打开菜单。',
+  'whatsNew.v0181.move': '在菜单中，方向键和 Home、End 用于在各项之间移动；Escape 和 Tab 会关闭菜单并回到菜单按钮，选择不打开其他内容的项目后也是如此。',
+  'whatsNew.v0181.phone': '在手机上，表单打开时焦点会进入其中，按 Escape 会返回上一级的“更多”表单。',
 } satisfies Record<UiKey, string>
 
 export default ui

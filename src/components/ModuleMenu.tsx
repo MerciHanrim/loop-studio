@@ -10,7 +10,7 @@ import { MODULE_KEY } from './moduleKeys'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
-import { useMenuKeyboard } from '../ui/useMenuKeyboard'
+import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import { Icon } from '../ui/icons'
 
 // docs/module-system.md §MS6 — the v1 assembly surface: an "Insert module ▾"
@@ -59,10 +59,10 @@ export function ModuleMenu({
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
 
-  // arrow / Home / End / Escape, including the focus return Escape used to
-  // skip (it left focus on `body`). One owner for the key -- see the hook.
+  // the menu keyboard contract (issue #307) -- see the hook
   const close = useCallback(() => setOpen(false), [])
-  useMenuKeyboard(open, popRef, btnRef, close)
+  const { entry, triggerProps } = useMenuTrigger(open, setOpen)
+  useMenuKeyboard(open, popRef, btnRef, close, entry)
 
   // review, Hanrim 2026-09-15 — announce open/closed so the palette can
   // suppress its own hover tooltip while this menu is up
@@ -185,7 +185,7 @@ export function ModuleMenu({
         className="btn"
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        {...triggerProps}
       >
         {t('modules.button')}
         <Icon name="chevron-down" className="icon--caret" />

@@ -74,7 +74,9 @@ function WelcomeCard() {
   useDialogFocus(true, ref, onEscape)
 
   return (
-    <div className="tour" role="presentation">
+    // issue #307 - the whole tour layer (scrim, card) is the modal one, so the
+    // scrim is not made inert with the page behind it (src/ui/overlayStack.ts)
+    <div className="tour" role="presentation" data-modal-layer="">
       {/* §GT4 — the scrim swallows background input; a click on it is inert */}
       <div className="tour-scrim" />
       <div
@@ -205,7 +207,9 @@ function TourPopover() {
     : null
 
   return (
-    <div className="tour" role="presentation">
+    // issue #307 - the whole tour layer (scrim, spotlight, popover) is the
+    // modal one (src/ui/overlayStack.ts)
+    <div className="tour" role="presentation" data-modal-layer="">
       <div className="tour-scrim" />
       {spot ? <div className="tour-spot" style={spot} /> : null}
       <div

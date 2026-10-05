@@ -68,6 +68,24 @@ export function MobileMoreMenu({
   const overlay = useUiStore(selectOverlay)
   const openOverlay = useUiStore((s) => s.openOverlay)
   const closeOverlay = useUiStore((s) => s.closeOverlay)
+  // issue #307 - Escape in a sub-sheet goes back ONE level: to the More sheet,
+  // with focus on the row that opened the sub-sheet. Close and a tap on the
+  // scrim still close everything, as they always did.
+  const returnRow = useRef<string | null>(null)
+  const backToMoreFrom = (row: string, before?: () => void) => () => {
+    before?.()
+    returnRow.current = row
+    openOverlay('more')
+  }
+  const moreInitialFocus = () => {
+    const row = returnRow.current
+    // forgotten after this task, not at once: StrictMode runs a mount effect
+    // twice, and both runs must land on the same row
+    setTimeout(() => {
+      returnRow.current = null
+    })
+    return row ? document.querySelector<HTMLElement>(`.sheet [data-more-row="${row}"]`) : null
+  }
   const focusMode = useUiStore((s) => s.focusMode)
   const activityOverlay = useUiStore((s) => s.activityOverlay)
   const autoFramesExist = useAutoFrameStore(hasAutoFrames)
@@ -319,10 +337,11 @@ export function MobileMoreMenu({
   if (overlay === 'more') {
     return (
       <>
-      <MobileSheet title={t('mobile.more')} onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current}>
+      <MobileSheet key="more" title={t('mobile.more')} onClose={() => closeOverlay('more')} returnFocusTo={() => moreBtnRef.current} initialFocus={moreInitialFocus}>
         <button
           type="button"
           className="sheet__row sheet__row--first"
+          data-more-row="share"
           onClick={() => setShareConfirm(true)}
         >
           {t('share.panel.label')}
@@ -338,10 +357,10 @@ export function MobileMoreMenu({
           {t('mobile.more.import')}
           <span className="sheet__row-sub">{t('mobile.more.importSub')}</span>
         </button>
-        <button type="button" className="sheet__row" onClick={() => openOverlay('export')}>
+        <button type="button" className="sheet__row" data-more-row="export" onClick={() => openOverlay('export')}>
           {t('export.menuLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
-        <button type="button" className="sheet__row" onClick={() => openOverlay('templates')}>
+        <button type="button" className="sheet__row" data-more-row="templates" onClick={() => openOverlay('templates')}>
           {t('templates.menuLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
         <InlineHintNote id="focus-filter-discovery" trigger={focusFilterHintTrigger} ready={focusFilterHintReady}>
@@ -365,7 +384,7 @@ export function MobileMoreMenu({
         </div>
         {/* docs/large-graph-readability.md §LGR3.2 / §LGR9 — Filters + Reset view
             on mobile. Filters opens a sub-sheet; Reset view is a one-shot. */}
-        <button type="button" className="sheet__row" onClick={() => openOverlay('filter')}>
+        <button type="button" className="sheet__row" data-more-row="filter" onClick={() => openOverlay('filter')}>
           {t('canvas.filter.rowLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
         {/* docs/large-graph-readability.md §LGR6 / §LGR9 — on mobile the
@@ -431,7 +450,7 @@ export function MobileMoreMenu({
           {t('storage.menuLabel')}
           {temporary ? <span className="sheet__row-sub" data-session-chip="temporary">{t('session.temporary.chip')}</span> : null}
         </button>
-        <button type="button" className="sheet__row" onClick={() => openOverlay('help')}>
+        <button type="button" className="sheet__row" data-more-row="help" onClick={() => openOverlay('help')}>
           {t('tour.help.menuLabel')}<span className="sheet__row-sub"><ArrowIcon unit="submenu" /></span>
         </button>
         <div className="sheet__stamp" dir="ltr">
@@ -462,8 +481,10 @@ export function MobileMoreMenu({
     return (
       <>
       <MobileSheet
+        key="templates"
         title={t('templates.menuLabel')}
         onClose={() => closeOverlay('templates')}
+        onEscape={backToMoreFrom('templates')}
         returnFocusTo={backToMore}
       >
         {TEMPLATES.map((tpl) => (
@@ -483,7 +504,7 @@ export function MobileMoreMenu({
   if (overlay === 'export') {
     return (
       <>
-      <MobileSheet title={t('export.menuLabel')} onClose={() => closeOverlay('export')} returnFocusTo={backToMore}>
+      <MobileSheet key="export" title={t('export.menuLabel')} onClose={() => closeOverlay('export')} onEscape={backToMoreFrom('export')} returnFocusTo={backToMore}>
         <button type="button" className="sheet__row" onClick={graphJSON}>
           {t('export.graphJson.name')}<span className="sheet__row-sub">{t('export.graphJson.blurb')}</span>
         </button>
@@ -519,7 +540,7 @@ export function MobileMoreMenu({
   if (overlay === 'help') {
     return (
       <>
-      <MobileSheet title={t('tour.help.menuLabel')} onClose={() => closeOverlay('help')} returnFocusTo={backToMore}>
+      <MobileSheet key="help" title={t('tour.help.menuLabel')} onClose={() => closeOverlay('help')} onEscape={backToMoreFrom('help')} returnFocusTo={backToMore}>
         <button
           type="button"
           className="sheet__row"
@@ -569,8 +590,10 @@ export function MobileMoreMenu({
   if (overlay === 'filter') {
     return (
       <MobileSheet
+        key="filter"
         title={t('canvas.filter.title')}
         onClose={() => closeOverlay('filter')}
+        onEscape={backToMoreFrom('filter')}
         returnFocusTo={backToMore}
       >
         <FilterControls />
@@ -581,11 +604,13 @@ export function MobileMoreMenu({
   if (overlay === 'share' && sharePanel) {
     return (
       <MobileSheet
+        key="share"
         title={t('share.panel.label')}
         onClose={() => {
           setSharePanel(null)
           closeOverlay('share')
         }}
+        onEscape={backToMoreFrom('share', () => setSharePanel(null))}
         returnFocusTo={backToMore}
       >
         {/* a live region: the keyed child is replaced on every successful copy, so

@@ -414,8 +414,8 @@ test('a 2-table import with a lookup-only table reports "0 (lookup only)" and th
 
 test('keyboard only: the quick start, fields, role selects and buttons are reachable in order; Escape returns focus to the Data trigger', async ({ page }) => {
   await dataButton(page).focus()
-  await page.keyboard.press('Enter') // opens the Data menu
-  await page.keyboard.press('Tab') // the first menu item follows the trigger in DOM order
+  await page.keyboard.press('Enter') // opens the Data menu at its first item (issue #307)
+  await expect(page.getByRole('menuitem').first()).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(dialog(page)).toBeVisible()
   const active = () => page.evaluate(() => {
