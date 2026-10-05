@@ -196,11 +196,14 @@
   --sai-left: env(safe-area-inset-left, 0px);
 
   /* Mobile stacking order (docs/mobile.md §MV8a / §MV-D19):
-       canvas  <  open-file card  <  sheet/scrim  <  run bar  <  dialogs  <  PWA update bar
+       canvas  <  open-file card  <  sheet/scrim  <  run bar  <  PWA update bar  <  tour  <  dialogs
      The run bar sits ABOVE the sheet scrim so Play / Step / Reset stay
      clickable while a sheet is open; each sheet panel is pushed above the run
      bar (scrim padding-bottom) so its Close is never hidden. The PWA update
-     bar is above everything and anchored at the TOP, clear of it all. */
+     bar is above every sheet and anchored at the TOP, clear of it all; issue
+     #307 put it BELOW the tour and the dialogs, which are modal: while one is
+     open the bar sits behind its scrim and is inert (src/ui/overlayStack.ts),
+     and it is back, unchanged, when it closes. */
   --z-runbar: 45;
   --z-sheet: 40;
   /* The first-run "Open a file" card is part of the page, not an overlay: it
@@ -209,10 +212,10 @@
      covered the first row of the More sheet and took the tap. */
   --z-openhint: 35;
   --z-mc-dialog: 50;
-  --z-pwa-update: 60;
+  --z-pwa-update: 46;
   /* docs/guided-tour.md §GT4 — the tour layer is above the Canvas / Toolbar /
-     Timeline / run bar / sheets but BELOW ConfirmDialog and every blocking
-     modal (`--z-mc-dialog`) and the PWA bar. */
+     Timeline / run bar / sheets / PWA bar but BELOW ConfirmDialog and every
+     blocking modal (`--z-mc-dialog`). */
   --z-tour: 47;
   /* the run bar's MINIMUM height. Its real height is measured by the bar
      itself and written to  (src/components/mobile/
@@ -738,7 +741,8 @@ body {
   left: 50%;
   bottom: 16px;
   transform: translateX(-50%);
-  z-index: 60;
+  /* below the tour and the dialogs: they are modal (issue #307) */
+  z-index: var(--z-pwa-update);
   max-width: min(560px, calc(100vw - 24px));
   display: flex;
   align-items: center;
@@ -5825,7 +5829,7 @@ input[type='number']::-webkit-inner-spin-button {
     overscroll-behavior: contain;
   }
 
-  /* ---- PWA update bar: TOP, above every sheet (§MV8a / §MV-D19) ---- */
+  /* ---- PWA update bar: TOP, above every sheet, below the dialogs (§MV8a / §MV-D19) ---- */
   .pwa-update {
     top: calc(var(--mob-topbar-h) + var(--sai-top) + 6px);
     bottom: auto;

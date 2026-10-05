@@ -548,6 +548,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Sobre o Loop Studio tem agora uma página de licenças de código aberto de terceiros, com o texto completo da licença de cada componente da aplicação.',
   'whatsNew.v0180.offline': 'Os textos das licenças abrem sem ligação à rede na aplicação instalada e na versão num único ficheiro.',
   'whatsNew.v0180.own': 'O aviso de direitos de autor do próprio Loop Studio não mudou; estas licenças aplicam-se apenas aos componentes de terceiros incluídos.',
+  'whatsNew.v0181.open': 'Um menu aberto pelo teclado passa a colocar o foco no primeiro item, e, quando um botão de menu fechado tem o foco, a Seta para baixo ou a Seta para cima abre o menu no primeiro ou no último item.',
+  'whatsNew.v0181.move': 'Dentro de um menu, as setas, Home e End percorrem os itens, e Esc e Tab fecham o menu e voltam ao botão do menu, também depois de escolher um item que não abre mais nada.',
+  'whatsNew.v0181.phone': 'No telemóvel, cada painel recebe o foco ao abrir, e Esc volta um nível, para o painel Mais.',
 } as const
 
 export type UiKey = keyof typeof ui

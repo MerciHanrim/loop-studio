@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useT, type MessageKey } from '../i18n'
+import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import { useSideFlyoutPosition } from './toolbar/useAnchoredPosition'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 import { storagePort } from '../storage/storagePort'
@@ -52,7 +53,6 @@ export function ThemeToggle({
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const menuId = useId()
   const flyoutPos = useSideFlyoutPosition(btnRef, panelRef, variant === 'row' && open)
 
@@ -70,44 +70,19 @@ export function ThemeToggle({
 
   useOutsideDismiss(variant === 'row' && open, wrapRef, () => setOpen(false))
 
-  useEffect(() => {
-    if (variant !== 'row' || !open) return
-    const onKey = (e: KeyboardEvent | globalThis.KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      btnRef.current?.focus()
-    }
-    window.addEventListener('keydown', onKey as (e: globalThis.KeyboardEvent) => void)
-    return () => {
-      window.removeEventListener('keydown', onKey as (e: globalThis.KeyboardEvent) => void)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant, open])
-
-  useEffect(() => {
-    if (variant !== 'row' || !open || !flyoutPos) return
-    itemRefs.current[MODES.indexOf(mode)]?.focus()
-    // depends on whether a position has landed, not the position object
-    // itself (a new `{top,left}` on every resize-triggered recompute would
-    // otherwise steal focus back to the current-mode item on every resize)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant, open, Boolean(flyoutPos)])
+  // the menu keyboard contract (issue #307), from the shared hook: opened from
+  // the keyboard, focus goes to the first option (the hook waits for the
+  // flyout to be positioned and visible); opened with the pointer it stays on
+  // the row. Escape closes this submenu alone and returns to the row, before
+  // Settings sees the key. The options are radio items: one is checked.
+  const close = useCallback(() => setOpen(false), [setOpen])
+  const { entry, triggerProps } = useMenuTrigger(open, setOpen)
+  useMenuKeyboard(variant === 'row' && open, panelRef, btnRef, close, entry)
 
   const choose = (m: Mode) => {
     setMode(m)
     setOpen(false)
     btnRef.current?.focus()
-  }
-
-  const onItemKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
-    const idx = itemRefs.current.findIndex((el) => el === document.activeElement)
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      itemRefs.current[(idx + 1 + MODES.length) % MODES.length]?.focus()
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      itemRefs.current[(idx - 1 + MODES.length) % MODES.length]?.focus()
-    }
   }
 
   if (variant === 'row') {
@@ -119,8 +94,10 @@ export function ThemeToggle({
           className="settings-row"
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-controls={menuId}
-          onClick={() => setOpen(!open)}
+          // only while the menu exists (issue #307): an id that names nothing
+          // while closed stopped Narrator reading "expanded" once it opened
+          aria-controls={open ? menuId : undefined}
+          {...triggerProps}
         >
           <span className="settings-row__label">{t('theme.rowLabel')}</span>
           <span className="settings-row__value">
@@ -141,18 +118,14 @@ export function ThemeToggle({
                 : { position: 'fixed', top: 0, left: 0, visibility: 'hidden' }
             }
           >
-            {MODES.map((m, i) => (
+            {MODES.map((m) => (
               <button
                 key={m}
-                ref={(el) => {
-                  itemRefs.current[i] = el
-                }}
                 type="button"
                 className="menu__item lang-menu__item"
-                role="menuitem"
-                aria-selected={m === mode}
+                role="menuitemradio"
+                aria-checked={m === mode}
                 onClick={() => choose(m)}
-                onKeyDown={onItemKeyDown}
               >
                 <span className="menu__name">
                   {m === mode ? <Icon name="check" className="icon--check" /> : null}

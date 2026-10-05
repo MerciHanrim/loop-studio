@@ -609,6 +609,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Über Loop Studio enthält jetzt eine Seite mit den Open-Source-Lizenzen von Drittanbietern und dem vollständigen Lizenztext jeder Komponente der App.',
   'whatsNew.v0180.offline': 'Die Lizenztexte öffnen sich ohne Netzwerkverbindung in der installierten App und in der Version als einzelne Datei.',
   'whatsNew.v0180.own': 'Der Urheberrechtshinweis von Loop Studio selbst ist unverändert; diese Lizenzen gelten nur für die enthaltenen Komponenten von Drittanbietern.',
+  'whatsNew.v0181.open': 'Ein mit der Tastatur geöffnetes Menü setzt den Fokus jetzt auf den ersten Eintrag, und Pfeil nach unten oder oben auf einer geschlossenen Menüschaltfläche öffnet es beim ersten oder letzten Eintrag.',
+  'whatsNew.v0181.move': 'Im Menü bewegen die Pfeiltasten, Pos1 und Ende durch die Einträge; Escape und Tab schließen es und kehren zur Menüschaltfläche zurück, auch nach der Wahl eines Eintrags, der nichts weiter öffnet.',
+  'whatsNew.v0181.phone': 'Auf dem Smartphone erhält jedes Blatt beim Öffnen den Fokus, und Escape führt eine Ebene zurück zum Blatt Mehr.',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -130,6 +130,8 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
   ]],
   ['keyboard keys and axis letters, as the OS and the UI print them', [
     'ctrl', 'cmd', 'esc', 'escape', 'alt', 'backspace', 'enter', 'shift', 'delete', 'tab',
+    // issue #307: the key names in the 0.18.1 release note
+    'home', 'end',
     'n', 'x', 'y', 'z', 'lv',
   ]],
   // The engine's own mini-language. `inspector.edge.flowPlaceholder` shows
@@ -257,15 +259,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('nl copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(996) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines)
+    expect(KEYS).toHaveLength(999) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines)
     expect(Object.keys(NL).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 996, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1218)
+    expect(per).toEqual({ catalog: 999, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1221)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

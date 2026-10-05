@@ -5,7 +5,7 @@ import type { Viewport } from '../../store/workspaceIO'
 import type { ToolbarDialog } from './dialogTypes'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
-import { useMenuKeyboard } from '../../ui/useMenuKeyboard'
+import { useMenuKeyboard, useMenuTrigger } from '../../ui/useMenuKeyboard'
 import { Icon } from '../../ui/icons'
 
 // docs/toolbar-responsive.md — the `File ▾` Tier-1 group: New, Import, then
@@ -45,7 +45,8 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
   // to close and return focus from its own `window` listener, which would run
   // a second time behind the hook.
   const close = useCallback(() => setOpen(false), [])
-  useMenuKeyboard(open, popRef, btnRef, close)
+  const { entry, triggerProps } = useMenuTrigger(open, setOpen)
+  useMenuKeyboard(open, popRef, btnRef, close, entry)
 
   useImperativeHandle(ref, () => ({ close: () => setOpen(false) }), [])
 
@@ -67,8 +68,10 @@ export const FileMenu = forwardRef<FileMenuHandle, Props>(function FileMenu(
         className="btn"
         aria-haspopup="true"
         aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((v) => !v)}
+        // only while the menu exists (issue #307): an id that names nothing
+        // while closed stopped Narrator reading "expanded" once it opened
+        aria-controls={open ? menuId : undefined}
+        {...triggerProps}
       >
         {t('toolbar.file.button')}
         <Icon name="chevron-down" className="icon--caret" />

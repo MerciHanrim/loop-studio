@@ -125,7 +125,8 @@ const SURVIVING: ReadonlyArray<readonly [string, readonly string[]]> = [
     'v1', 'v2', 'g1', 'mc', 'id', 'min', 'max', 'mmo',
   ]],
   ['Monte Carlo — an Italian place name to begin with', ['monte', 'carlo']],
-  ['keyboard keys, as the OS prints them', ['ctrl', 'cmd', 'esc', 'alt', 'backspace']],
+  // issue #307: `home` and `tab`, the key names in the 0.18.1 release note
+  ['keyboard keys, as the OS prints them', ['ctrl', 'cmd', 'esc', 'alt', 'backspace', 'home', 'tab']],
   ['loanwords Italian genuinely uses for these things', [
     'file', 'link', 'browser', 'desktop', 'server', 'offline', 'online', 'app', 'menu',
     'budget', 'buffer', 'benchmark', 'web', 'account', 'digest', 'repository', 'formula',
@@ -202,15 +203,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(996) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines)
+    expect(KEYS).toHaveLength(999) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 996, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1218)
+    expect(per).toEqual({ catalog: 999, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1221)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {

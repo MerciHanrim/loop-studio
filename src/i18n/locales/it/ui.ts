@@ -548,6 +548,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Informazioni su Loop Studio ora include una pagina con le licenze open source di terze parti e il testo completo della licenza di ogni componente dell’app.',
   'whatsNew.v0180.offline': 'I testi delle licenze si aprono senza connessione di rete nell’app installata e nella versione in un unico file.',
   'whatsNew.v0180.own': 'La nota di copyright di Loop Studio stesso non è cambiata; queste licenze valgono solo per i componenti di terze parti inclusi.',
+  'whatsNew.v0181.open': 'Un menu aperto con la tastiera ora porta lo stato attivo sul primo elemento, e Freccia giù o Freccia su su un pulsante di menu chiuso lo apre sul primo o sull’ultimo elemento.',
+  'whatsNew.v0181.move': 'Nel menu, le frecce, Home e Fine scorrono gli elementi; Esc e Tab lo chiudono e tornano al pulsante del menu, anche dopo aver scelto un elemento che non apre altro.',
+  'whatsNew.v0181.phone': 'Sul telefono ogni pannello riceve lo stato attivo all’apertura, ed Esc torna indietro di un livello, al pannello Altro.',
 } satisfies Record<UiKey, string>
 
 export default ui

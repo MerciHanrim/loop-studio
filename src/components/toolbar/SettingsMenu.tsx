@@ -36,6 +36,7 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
   const [activeRow, setActiveRow] = useState<'theme' | 'language' | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
@@ -61,6 +62,8 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
       )
         return
       setOpen(false)
+      // issue #307 - from anywhere inside, Escape returns to the button
+      btnRef.current?.focus()
     }
     window.addEventListener('keydown', onKey, true)
     return () => {
@@ -92,9 +95,13 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
         }}
         type="button"
         className="btn"
-        aria-haspopup="true"
+        // issue #307 - a disclosure, not a menu: its content is other controls
+        // (two rows that open their own popups, and a button), reached with
+        // Tab. Opening leaves focus on this button, from the keyboard too.
         aria-expanded={open}
-        aria-controls={menuId}
+        // only while the panel exists: an id that names nothing, while closed,
+        // stopped Narrator reading "expanded" once it opened (issue #307)
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         {t('toolbar.settings.button')}
@@ -104,7 +111,8 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
         <div
           className="menu__pop toolbar__settingsmenu-pop"
           id={menuId}
-          role="menu"
+          ref={popRef}
+          role="group"
           aria-label={t('toolbar.settings.menuLabel')}
         >
           <ThemeToggle
@@ -120,7 +128,6 @@ export const SettingsMenu = forwardRef<SettingsMenuHandle, Props>(function Setti
           <button
             type="button"
             className="menu__item"
-            role="menuitem"
             data-settings-row="storage-privacy"
             onClick={() => {
               setOpen(false)

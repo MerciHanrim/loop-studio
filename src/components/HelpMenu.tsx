@@ -6,7 +6,7 @@ import { useWhatsNewStore } from '../store/whatsNewStore'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useMenuOpenStore } from './toolbar/menuOpenStore'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
-import { useMenuKeyboard } from '../ui/useMenuKeyboard'
+import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import { ArrowIcon } from '../ui/icons'
 
 // docs/guided-tour.md §GT7 / docs/contextual-inline-help.md §CIH4 /
@@ -63,11 +63,14 @@ export function HelpMenu({
   // - Escape closes the menu once and returns focus to the button. The shared
   //   hook owns that key now, so the listener this menu had is gone: it would
   //   run a second time behind the hook.
-  const [byKeyboard, setByKeyboard] = useState(false)
+  //
+  // Issue #307 made this the contract of every menu: the trigger's handlers
+  // and the entry point come from the shared `useMenuTrigger`.
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const popRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
-  useMenuKeyboard(open, popRef, triggerRef, close, byKeyboard)
+  const { entry, triggerProps } = useMenuTrigger(open, setOpen)
+  useMenuKeyboard(open, popRef, triggerRef, close, entry)
 
   // review, Hanrim 2026-09-15 — announce open/closed so the palette can
   // suppress its own hover tooltip while this menu is up
@@ -89,12 +92,7 @@ export function HelpMenu({
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={t('tour.help.menuLabel')}
-        onClick={(e) => {
-          // a click that no pointer made (Enter, Space, a screen reader's
-          // "activate") carries no click count
-          setByKeyboard(e.detail === 0)
-          setOpen((v) => !v)
-        }}
+        {...triggerProps}
       >
         ?
       </button>

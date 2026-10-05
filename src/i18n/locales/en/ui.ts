@@ -518,6 +518,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'About Loop Studio now has a Third-party open-source licenses page with the full license text of every component the app includes.',
   'whatsNew.v0180.offline': 'The license texts open without a network connection in the installed app and in the single-file version.',
   'whatsNew.v0180.own': 'Loop Studio’s own copyright notice is unchanged; these licenses cover the included third-party components only.',
+  'whatsNew.v0181.open': 'A menu opened with the keyboard now puts focus on its first item, and Arrow Down or Arrow Up on a closed menu button opens it at the first or last item.',
+  'whatsNew.v0181.move': 'Inside a menu, the arrow keys, Home and End move through the items; Escape and Tab close it and return to the menu button, also after choosing an item that opens nothing else.',
+  'whatsNew.v0181.phone': 'On a phone, each sheet takes focus when it opens, and Escape goes back one level to the More sheet.',
 } as const
 
 export type UiKey = keyof typeof ui

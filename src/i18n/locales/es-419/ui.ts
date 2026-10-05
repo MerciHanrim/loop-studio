@@ -532,6 +532,9 @@ const ui = {
   'whatsNew.v0180.licenses': 'Acerca de Loop Studio ahora incluye una página de licencias de código abierto de terceros con el texto completo de la licencia de cada componente de la aplicación.',
   'whatsNew.v0180.offline': 'Los textos de las licencias se abren sin conexión a internet en la aplicación instalada y en la versión de un solo archivo.',
   'whatsNew.v0180.own': 'El aviso de derechos de autor de Loop Studio no ha cambiado; estas licencias solo se aplican a los componentes de terceros incluidos.',
+  'whatsNew.v0181.open': 'Un menú abierto con el teclado ahora pone el foco en su primer elemento, y Flecha abajo o Flecha arriba en un botón de menú cerrado lo abre en el primer o el último elemento.',
+  'whatsNew.v0181.move': 'Dentro de un menú, las flechas, Inicio y Fin recorren los elementos, y Escape y Tab lo cierran y vuelven al botón del menú, también después de elegir un elemento que no abre nada más.',
+  'whatsNew.v0181.phone': 'En un teléfono, cada panel recibe el foco al abrirse y Escape vuelve un nivel, al panel Más.',
 } as const
 
 export type UiKey = keyof typeof ui

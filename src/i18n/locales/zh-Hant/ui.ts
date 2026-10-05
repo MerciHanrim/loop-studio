@@ -552,6 +552,9 @@ const ui = {
   'whatsNew.v0180.licenses': '關於對話方塊新增了第三方開放原始碼授權頁面，可查看應用程式所含每個元件的授權全文。',
   'whatsNew.v0180.offline': '在已安裝的應用程式和單一檔案版本中，無需連線即可開啟授權原文。',
   'whatsNew.v0180.own': 'Loop Studio 本身的版權聲明沒有改變；這些授權僅適用於所含的第三方元件。',
+  'whatsNew.v0181.open': '用鍵盤開啟的選單現在會把焦點放在第一個項目上；在關閉的選單按鈕上按下方向鍵或上方向鍵，會從第一個或最後一個項目開啟選單。',
+  'whatsNew.v0181.move': '在選單中，方向鍵與 Home、End 用來在項目之間移動；Escape 與 Tab 會關閉選單並回到選單按鈕，選擇不會開啟其他內容的項目後也是如此。',
+  'whatsNew.v0181.phone': '在手機上，表單開啟時焦點會進入其中，按 Escape 會返回上一層的「更多」表單。',
 } satisfies Record<UiKey, string>
 
 export default ui

@@ -140,7 +140,17 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.18.0
+## Latest — v0.18.1
+
+A fix release: the menus answer the keyboard the same way.
+
+- **Every menu button** opens at its first item from the keyboard, moves with the arrows,
+  Home and End, and closes with Escape or Tab, back to its button
+- **Settings and `⋯`** are disclosures you Tab through; Theme is a choice of one
+- **On a phone**, a sheet takes focus when it opens, and Escape in a sheet opened from
+  More goes back to More; the run bar and the update bar stay usable
+
+## v0.18.0
 
 The third-party open-source licenses, inside the app.
 
@@ -167,15 +177,9 @@ A fix release: share links use the browser's own compression.
   unchanged
 - **A browser without them** makes no link and says so, and the open diagram is kept
 
-## v0.17.0
-
-- **Password-protected share links** — an optional password encrypts the diagram inside
-  the link, in the browser; the password is asked for before anything from the diagram is
-  shown, and a lost password cannot be recovered. A plain link is still the default
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.16.0 (the
-storage gate, temporary sessions and the Storage and privacy area), the v0.15 releases and
-every earlier one.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.17.0
+(password-protected share links), v0.16.0 (the storage gate, temporary sessions and the
+Storage and privacy area), the v0.15 releases and every earlier one.
 
 ## Credits
 

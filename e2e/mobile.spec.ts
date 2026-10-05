@@ -1673,6 +1673,20 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
     return page.locator(`.sheet[aria-label="${which}"]`)
   }
 
+  /** Escape out of the sheet `openSheet` opened. Issue #307: Escape in a sheet
+   *  opened from More goes back to More, on the row that opened it; a second
+   *  Escape closes More. */
+  async function escapeSheet(page: Page, which: 'More' | 'Templates' | 'Export') {
+    await page.keyboard.press('Escape')
+    if (which !== 'More') {
+      const more = page.locator('.sheet[aria-label="More"]')
+      await expect(more).toBeVisible()
+      await expect(more.locator('.sheet__row', { hasText: which })).toBeFocused()
+      await page.keyboard.press('Escape')
+    }
+    await expect(page.locator('.sheet')).toHaveCount(0)
+  }
+
   /** every row whose sub-label is really painted in the sub colour */
   async function textSubRows(page: Page, sheet: Locator) {
     const all = sheet.locator('.sheet__row').filter({ has: page.locator('.sheet__row-sub') })
@@ -1720,7 +1734,7 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
         console.log(`[sub] ${which}/${name} hover ${s.sub} on ${s.bg} = ${r2(r)}:1`)
         if (r < 4.5) bad.push(`${which}/${name} ${r2(r)}:1`)
       }
-      await page.keyboard.press('Escape')
+      await escapeSheet(page, which)
     }
     expect(checked, 'the walk must reach every text sub-label: 5 More + 5 Templates + 4 enabled Export').toBe(14)
     expect(bad, 'hovered secondary labels below 4.5:1').toEqual([])
@@ -1745,7 +1759,7 @@ test.describe('sheet row secondary label contrast (§MV5 / WCAG 1.4.3)', () => {
         if (r < 4.5) bad.push(`${which}/${name} ${r2(r)}:1`)
         if (which === 'More' && s.subArrow) markers.push(name)
       }
-      await page.keyboard.press('Escape')
+      await escapeSheet(page, which)
     }
     // the four submenu rows carry their affordance IN the sub-label, so they
     // are covered by the same contract rather than by the row's own text

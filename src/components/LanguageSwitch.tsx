@@ -106,9 +106,12 @@ export function LanguageSwitch({
     if (open) optionRefs.current[focusIdx]?.scrollIntoView({ block: 'nearest' })
   }, [open, focusIdx])
 
-  function openMenu() {
+  // issue #307 - the combobox keeps its own keys (it is not a menu), with the
+  // menus' entry points: Arrow Down on the closed button opens at the first
+  // option, Arrow Up at the last; Enter / Space open at the current language
+  function openMenu(at: 'current' | 'first' | 'last' = 'current') {
     setQuery('')
-    setFocusIdx(activeIdxIn(locales))
+    setFocusIdx(at === 'first' ? 0 : at === 'last' ? Math.max(0, locales.length - 1) : activeIdxIn(locales))
     setOpenState(true)
   }
   function close(returnFocus = true) {
@@ -124,9 +127,9 @@ export function LanguageSwitch({
   }
 
   const onTriggerKey = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
-      openMenu()
+      openMenu(e.key === 'ArrowDown' ? 'first' : e.key === 'ArrowUp' ? 'last' : 'current')
     }
   }
 

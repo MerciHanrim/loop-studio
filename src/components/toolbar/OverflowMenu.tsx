@@ -10,6 +10,7 @@ import {
 import { useT } from '../../i18n'
 import { useMenuOpenStore } from './menuOpenStore'
 import { useOutsideDismiss } from './useOutsideDismiss'
+import { useReturnFocusAfterKeyboardChoice } from '../../ui/useMenuKeyboard'
 import { Icon } from '../../ui/icons'
 
 // The toolbar "⋯" overflow menu. It holds whichever trailing controls the
@@ -43,9 +44,14 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
 
   useOutsideDismiss(open, wrapRef, () => setOpen(false))
+  // issue #307 - a choice made from the keyboard inside a group that lives
+  // here (an item of Help, say) closes this popup with its own trigger; focus
+  // then comes back to this button rather than being lost
+  useReturnFocusAfterKeyboardChoice(open, popRef, btnRef)
 
   useEffect(() => {
     if (!open) return
@@ -95,9 +101,13 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
         }}
         type="button"
         className="btn btn--icon toolbar__overflow-btn"
-        aria-haspopup="menu"
+        // issue #307 - a disclosure, not a menu: it holds the toolbar groups
+        // that did not fit (buttons that open their own menus), reached with
+        // Tab; opening leaves focus on this button
         aria-expanded={open}
-        aria-controls={menuId}
+        // only while the panel exists: an id that names nothing, while closed,
+        // stopped Narrator reading "expanded" once it opened (issue #307)
+        aria-controls={open ? menuId : undefined}
         aria-label={t('toolbar.more')}
         title={t('toolbar.more')}
         onClick={() => setOpen((v) => !v)}
@@ -106,7 +116,7 @@ export const OverflowMenu = forwardRef<OverflowMenuHandle, Props>(function Overf
         <Icon name="more" />
       </button>
       {open ? (
-        <div className="menu__pop toolbar__overflow-pop" id={menuId} role="menu">
+        <div className="menu__pop toolbar__overflow-pop" id={menuId} ref={popRef} role="group" aria-label={t('toolbar.more')}>
           {children}
         </div>
       ) : null}

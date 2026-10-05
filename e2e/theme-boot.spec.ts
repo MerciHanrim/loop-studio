@@ -187,7 +187,7 @@ test.describe('choosing a theme still works, and the choice survives a reload', 
     expect(await attr(page)).toBeNull()
     await page.locator('.toolbar__actions .menu > button', { hasText: /^Settings$/ }).click()
     await page.getByRole('button', { name: /^Theme/ }).click()
-    await page.getByRole('menuitem', { name: /Dark/ }).click()
+    await page.getByRole('menuitemradio', { name: /Dark/ }).click()
     expect(await attr(page)).toBe('dark')
     expect(await page.evaluate(() => localStorage.getItem('loop-studio:theme'))).toBe('dark')
     await page.reload()

@@ -240,9 +240,11 @@ is resolved once:
    page session (`offeredThisSession`), so a re-render, route change, or a
    surface opening/closing after the check changes nothing.
 4. **Z-order** (§GT4): the tour / Welcome layer is above the Canvas / Toolbar /
-   Timeline but **below** `ConfirmDialog` — a confirm can always appear over the
-   tour and take focus. (They should not coexist, but the ordering is fixed
-   regardless.)
+   Timeline and the PWA update bar but **below** `ConfirmDialog` — a confirm can
+   always appear over the tour and take focus. (They should not coexist, but the
+   ordering is fixed regardless.) The tour's card is a real modal dialog: while
+   it is open everything outside it is `inert`, the update bar included
+   (issue #307, docs/mobile.md §MV8a).
 
 Manual entry via `Help → Take a tour` (§GT7) has **no** timing gate — the user
 asked for it — beyond the normal focus handoff.

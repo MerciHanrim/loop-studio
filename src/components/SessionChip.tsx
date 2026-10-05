@@ -3,7 +3,7 @@ import { useT } from '../i18n'
 import { exportableDocument } from '../store/sessionActions'
 import { selectTemporary, useSessionStore } from '../store/sessionStore'
 import { downloadText } from '../ui/download'
-import { useMenuKeyboard } from '../ui/useMenuKeyboard'
+import { useMenuKeyboard, useMenuTrigger } from '../ui/useMenuKeyboard'
 import type { ToolbarDialog } from './toolbar/dialogTypes'
 import { useOutsideDismiss } from './toolbar/useOutsideDismiss'
 
@@ -25,7 +25,8 @@ export function SessionChip({ onOpenDialog }: { onOpenDialog: (desc: ToolbarDial
   const menuId = useId()
   const close = useCallback(() => setOpen(false), [])
   useOutsideDismiss(open, wrapRef, close)
-  useMenuKeyboard(open, popRef, btnRef, close)
+  const { entry, triggerProps } = useMenuTrigger(open, setOpen)
+  useMenuKeyboard(open, popRef, btnRef, close, entry)
   if (!temporary) return null
 
   return (
@@ -36,10 +37,12 @@ export function SessionChip({ onOpenDialog }: { onOpenDialog: (desc: ToolbarDial
         className="rev-chip session-chip__btn"
         aria-haspopup="true"
         aria-expanded={open}
-        aria-controls={menuId}
+        // only while the menu exists (issue #307): an id that names nothing
+        // while closed stopped Narrator reading "expanded" once it opened
+        aria-controls={open ? menuId : undefined}
         title={t('session.temporary.chipTitle')}
         data-session-chip="temporary"
-        onClick={() => setOpen((v) => !v)}
+        {...triggerProps}
       >
         {t('session.temporary.chip')}
       </button>

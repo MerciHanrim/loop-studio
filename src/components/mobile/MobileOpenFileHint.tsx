@@ -15,7 +15,7 @@ export function MobileOpenFileHint({ onOpenFile }: { onOpenFile: () => void }) {
   if (!isMobile || !pristine) return null
 
   return (
-    <div className="openhint" role="note">
+    <div className="openhint" role="note" data-covered-by-sheets="">
       <p className="openhint__title">{t('openhint.title')}</p>
       <p className="openhint__body">{t('openhint.body')}</p>
       <button type="button" className="btn openhint__btn" onClick={onOpenFile}>

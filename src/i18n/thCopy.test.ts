@@ -88,11 +88,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('th copy — the first no-space script', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TH).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(996) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines)
+    expect(KEYS).toHaveLength(999) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines)
   })
 
   it('covers all three runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(996)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(999)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -179,6 +179,8 @@ const LATIN_FILE_FORMAT = [
 const LATIN_KEYBOARD = [
   'enter', 'space', 'shift', 'backspace', 'delete', 'escape', 'esc', 'alt',
   'ctrl', 'cmd', 'z',
+  // issue #307: the key names in the 0.18.1 release note
+  'home', 'end', 'tab',
 ]
 /** Wire tokens: column names, model-version tags, expression syntax, share-URL
  *  fragments and the axis letters in the a11y messages. Every one of these is
@@ -405,6 +407,9 @@ const LATIN_KEYS = [
   'catalog:licenses.lead',
   'catalog:whatsNew.v0180.licenses',
   'catalog:whatsNew.v0180.own',
+  // issue #307 - the key names in two 0.18.1 release-note lines
+  'catalog:whatsNew.v0181.move',
+  'catalog:whatsNew.v0181.phone',
   // the storage gate and the Storage and privacy area (issue #297)
   'catalog:gate.lead',
   'catalog:gate.portable.note',
@@ -422,7 +427,7 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
 
   it('the strings carrying a Latin run are exactly the declared ones', () => {
     expect(withLatin.slice().sort()).toEqual(LATIN_KEYS.slice().sort())
-    expect(LATIN_KEYS).toHaveLength(166)
+    expect(LATIN_KEYS).toHaveLength(168) // issue #307: +2 (two 0.18.1 release-note lines)
   })
 
   it('the Latin vocabulary is exactly the declared one', () => {
@@ -430,14 +435,14 @@ describe('a Latin run is declared, twice over — by key and by word', () => {
     for (const [, , v] of RUNTIME) for (const w of latinWords(v)) seen.add(w)
     const declared = new Set([...LATIN_GLOBAL, ...Object.keys(LATIN_KEY_SCOPED)])
     expect([...seen].sort()).toEqual([...declared].sort())
-    expect(declared.size).toBe(77)
+    expect(declared.size).toBe(80) // issue #307: +3 (home, end, tab)
   })
 
   it('the groups are disjoint, and they add up', () => {
     // Otherwise a word could be quietly moved between groups, and the reason
     // it is allowed — which is the whole content of this list — would rot.
     const counts = LATIN_GROUPS.map(([, g]) => g.length)
-    expect(counts).toEqual([16, 11, 11, 24, 12])
+    expect(counts).toEqual([16, 11, 14, 24, 12])
     const all = LATIN_GROUPS.flatMap(([, g]) => g)
     expect(all).toHaveLength(LATIN_GLOBAL.size)
     for (const w of Object.keys(LATIN_KEY_SCOPED)) expect(LATIN_GLOBAL.has(w)).toBe(false)

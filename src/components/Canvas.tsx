@@ -782,6 +782,7 @@ export function Canvas() {
       ref={canvasRef}
       className={`canvas${canvasLocked ? ' canvas--locked' : ''}${refInsertArmed ? ' canvas--ref-insert' : ''}`}
       data-tour="canvas"
+      data-covered-by-sheets=""
       onDrop={noEdit ? undefined : handleDrop}
       onDragOver={noEdit ? undefined : handleDragOver}
       onContextMenu={noEdit ? (e) => e.preventDefault() : undefined}
