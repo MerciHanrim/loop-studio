@@ -340,6 +340,7 @@ const ui = {
   'tour.nav.done': 'Fatto',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Chiudi il giro',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Elementi',
   'tour.desktop.pieces.body': 'I mattoni di base — Serbatoio, Sorgente, Scarico, Ripartitore e gli altri. Fai clic su uno, oppure trascinalo sull’area di disegno, per aggiungerlo.',
   'tour.desktop.canvas.title': 'Area di disegno',
@@ -551,6 +552,9 @@ const ui = {
   'whatsNew.v0181.open': 'Un menu aperto con la tastiera ora porta lo stato attivo sul primo elemento, e Freccia giù o Freccia su su un pulsante di menu chiuso lo apre sul primo o sull’ultimo elemento.',
   'whatsNew.v0181.move': 'Nel menu, le frecce, Home e Fine scorrono gli elementi; Esc e Tab lo chiudono e tornano al pulsante del menu, anche dopo aver scelto un elemento che non apre altro.',
   'whatsNew.v0181.phone': 'Sul telefono ogni pannello riceve lo stato attivo all’apertura, ed Esc torna indietro di un livello, al pannello Altro.',
+  'whatsNew.v0182.steps': 'Nel giro guidato, il numero, il titolo e il testo di ogni passaggio vengono ora annunciati una sola volta, e la domanda della scheda di benvenuto viene annunciata con il suo titolo.',
+  'whatsNew.v0182.focus': 'Il giro si apre con lo stato attivo su Avanti, e lo stato attivo resta su Avanti o Indietro mentre i passaggi cambiano, anche quando Indietro torna al primo passaggio.',
+  'whatsNew.v0182.end': 'Comunque si chiuda il giro, con Fatto, Esc o il pulsante di chiusura, lo stato attivo va sul pulsante Guida, o su Altro sul telefono, invece di andare perso.',
 } satisfies Record<UiKey, string>
 
 export default ui

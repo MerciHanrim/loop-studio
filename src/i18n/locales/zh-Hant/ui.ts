@@ -339,6 +339,7 @@ const ui = {
   'tour.nav.done': '完成',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': '關閉導覽',
+  'tour.nav.announce': '{n} / {total}。{title}。{body}',
   'tour.desktop.pieces.title': '元件',
   'tour.desktop.pieces.body':
     '組成模型的積木——資源池、來源、匯、分流閘等等。點一下，或把它拖到畫布上，即可加入。',
@@ -555,6 +556,9 @@ const ui = {
   'whatsNew.v0181.open': '用鍵盤開啟的選單現在會把焦點放在第一個項目上；在關閉的選單按鈕上按下方向鍵或上方向鍵，會從第一個或最後一個項目開啟選單。',
   'whatsNew.v0181.move': '在選單中，方向鍵與 Home、End 用來在項目之間移動；Escape 與 Tab 會關閉選單並回到選單按鈕，選擇不會開啟其他內容的項目後也是如此。',
   'whatsNew.v0181.phone': '在手機上，表單開啟時焦點會進入其中，按 Escape 會返回上一層的「更多」表單。',
+  'whatsNew.v0182.steps': '在導覽中，每一步的編號、標題與說明現在只會播報一次，歡迎卡片中的問題也會與標題一起播報。',
+  'whatsNew.v0182.focus': '導覽開啟時焦點位於「下一步」，切換步驟時以及用「上一步」回到第一步時，焦點都會停留在「下一步」或「上一步」上。',
+  'whatsNew.v0182.end': '無論用「完成」、Escape 或關閉按鈕結束導覽，焦點都不會遺失，而是回到「說明」按鈕（在手機上是「更多」按鈕）。',
 } satisfies Record<UiKey, string>
 
 export default ui

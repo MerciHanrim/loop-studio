@@ -310,6 +310,7 @@ const ui = {
   'tour.nav.done': 'Done',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Close the tour',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Pieces',
   'tour.desktop.pieces.body': 'The building blocks — Pool, Source, Drain, Gate, and the rest. Click one, or drag it onto the canvas, to add it.',
   'tour.desktop.canvas.title': 'Canvas',
@@ -521,6 +522,9 @@ const ui = {
   'whatsNew.v0181.open': 'A menu opened with the keyboard now puts focus on its first item, and Arrow Down or Arrow Up on a closed menu button opens it at the first or last item.',
   'whatsNew.v0181.move': 'Inside a menu, the arrow keys, Home and End move through the items; Escape and Tab close it and return to the menu button, also after choosing an item that opens nothing else.',
   'whatsNew.v0181.phone': 'On a phone, each sheet takes focus when it opens, and Escape goes back one level to the More sheet.',
+  'whatsNew.v0182.steps': 'In the guided tour, each step’s number, title and text are now announced once, and the welcome card’s question is announced with its title.',
+  'whatsNew.v0182.focus': 'The tour opens with focus on Next, and focus stays on Next or Back while the steps change, also when Back reaches the first step.',
+  'whatsNew.v0182.end': 'However the tour ends, with Done, Escape or its close button, focus goes to the Help button, or to More on a phone, instead of being lost.',
 } as const
 
 export type UiKey = keyof typeof ui

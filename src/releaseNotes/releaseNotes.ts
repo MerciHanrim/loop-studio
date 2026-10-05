@@ -39,6 +39,14 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #308 - the guided tour announces each step once and never drops
+    // focus; the date is the day it is deployed, set right before the merge
+    id: 'release:0.18.2',
+    version: '0.18.2',
+    date: '2026-10-06',
+    items: ['whatsNew.v0182.steps', 'whatsNew.v0182.focus', 'whatsNew.v0182.end'],
+  },
+  {
     // issue #307 - one keyboard contract for every menu, and the phone's
     // sheets taking focus and stepping back one level; the date is the day it
     // is deployed, set right before the merge

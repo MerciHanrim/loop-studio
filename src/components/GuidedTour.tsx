@@ -17,6 +17,39 @@ import { Icon } from '../ui/icons'
 
 const PLATFORM = () => (window.innerWidth < 768 ? 'mobile' : 'desktop') as 'mobile' | 'desktop'
 
+// issue #308 - where focus goes when the tour ends, by Done, Escape or the
+// close control, whether it was a first run or a replay: never <body>. The Help
+// button, where a replay starts; when the toolbar has folded Help into the
+// overflow menu, that menu's button; on a phone the More button, where the
+// phone's replay starts. A target that is gone, hidden, inert or disabled is
+// skipped. Only when none of them is usable, the last resort is the top bar's
+// first usable menu button: opening a menu is harmless. Never a palette piece,
+// which Enter would insert, and never <body>.
+// `visibility: hidden` keeps an element's boxes, so client rects alone are not
+// enough: MEASURED, the overflow button at 1280 px is in the page, hidden that
+// way, and focusing it left focus on <body>.
+const usable = (el: HTMLElement | null): el is HTMLElement =>
+  !!el &&
+  el.isConnected &&
+  el.getClientRects().length > 0 &&
+  getComputedStyle(el).visibility === 'visible' &&
+  !el.closest('[inert]') &&
+  !(el as HTMLButtonElement).disabled
+
+function tourExitTarget(): HTMLElement | null {
+  const named = [
+    '[data-tour="help-trigger"]',
+    '.toolbar__overflow-btn',
+    '[data-tour="mobile-more"]',
+  ].map((sel) => document.querySelector<HTMLElement>(sel))
+  const found = named.find(usable)
+  if (found) return found
+  const menus = document.querySelectorAll<HTMLElement>(
+    'header.toolbar button[aria-haspopup], header.toolbar button[aria-expanded]',
+  )
+  return [...menus].find((el) => usable(el) && !el.closest('[data-tour="palette"]')) ?? null
+}
+
 export function GuidedTour() {
   const phase = useTourStore((s) => s.phase)
   return (
@@ -79,17 +112,22 @@ function WelcomeCard() {
     <div className="tour" role="presentation" data-modal-layer="">
       {/* §GT4 — the scrim swallows background input; a click on it is inert */}
       <div className="tour-scrim" />
+      {/* issue #308 - the question is the dialog's description, read with its
+          name when the card opens */}
       <div
         ref={ref}
         className="tour-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="tour-welcome-title"
+        aria-describedby="tour-welcome-body"
       >
         <h2 id="tour-welcome-title" className="tour-card__title">
           {t('tour.welcome.title')}
         </h2>
-        <p className="tour-card__body">{t('tour.welcome.body')}</p>
+        <p id="tour-welcome-body" className="tour-card__body">
+          {t('tour.welcome.body')}
+        </p>
         <div className="tour-card__foot">
           <button type="button" className="btn" onClick={() => skipWelcome()}>
             {t('tour.welcome.skip')}
@@ -132,7 +170,6 @@ function TourPopover() {
   const ref = useRef<HTMLDivElement>(null)
   const step = useTourStore((s) => s.step)
   const platform = useTourStore((s) => s.platform)
-  const replay = useTourStore((s) => s.replay)
   const next = useTourStore((s) => s.next)
   const back = useTourStore((s) => s.back)
   const finish = useTourStore((s) => s.finish)
@@ -157,16 +194,38 @@ function TourPopover() {
     }
   }, [cfg.sel])
 
+  // issue #308 - focus starts on Next and stays on Back / Next while the steps
+  // change in place
+  const nextRef = useRef<HTMLButtonElement>(null)
   const onEscape = useCallback(() => dismiss(), [dismiss])
-  const returnFocusTo = useCallback(
-    () =>
-      replay
-        ? (document.querySelector<HTMLElement>('[data-tour="help-trigger"]') ??
-          document.querySelector<HTMLElement>('.mob-more'))
-        : null,
-    [replay],
-  )
-  useDialogFocus(true, ref, onEscape, returnFocusTo)
+  useDialogFocus(true, ref, onEscape, tourExitTarget, { initialFocus: () => nextRef.current })
+
+  // issue #308 - each step is announced ONCE. Step 1 is the dialog's name (its
+  // `N / 6` and title) and description (its body), read when focus enters it; the live
+  // region starts empty, so step 1 is not said twice. A step reached with Next
+  // or Back is said once by the live region, as `N / 6. title. body` worded per
+  // language (`tour.nav.announce`). It is written by the press itself, so a
+  // re-render (a language switch) announces nothing. The visible `N / 6` is
+  // not live, nor is the title, so neither repeats it.
+  const [announcement, setAnnouncement] = useState('')
+  const announce = (to: number) => {
+    const s = script[to]
+    setAnnouncement(
+      t('tour.nav.announce', { n: to + 1, total: TOUR_TOTAL, title: t(s.titleKey), body: t(s.bodyKey) }),
+    )
+  }
+  const onNext = () => {
+    if (isLast) return finish()
+    announce(step + 1)
+    next()
+  }
+  const onBack = () => {
+    // Back is disabled on step 1: focus moves to Next BEFORE it is, or it would
+    // fall to <body> inside the dialog
+    if (step === 1) nextRef.current?.focus()
+    announce(step - 1)
+    back()
+  }
 
   // popover placement: below the target if it fits, else above, else centred;
   // always clamped to the viewport (§GT4 overflow). No transition (§GT4 RM).
@@ -217,7 +276,8 @@ function TourPopover() {
         className={`tour-popover${rect ? '' : ' tour-popover--centred'}`}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="tour-step-title"
+        aria-labelledby="tour-step-pos tour-step-title"
+        aria-describedby="tour-step-body"
         style={{ top: pop.top, left: pop.left, width: POP_W }}
       >
         <div className="tour-popover__head">
@@ -225,8 +285,10 @@ function TourPopover() {
               number runs with a neutral slash between them, so inside an RTL
               paragraph the runs swap and step 2 of 6 reads `6 / 2`. MEASURED in
               `e2e/i18n-ar.spec.ts` under `ar`; the characters are identical either
-              way, which is why no text assertion could have caught it. */}
-          <span className="tour-popover__pos" dir="ltr" aria-live="polite">
+              way, which is why no text assertion could have caught it.
+              issue #308 - not live: the step's announcement says it. With the
+              title it names the dialog, so step 1 is said with its number. */}
+          <span id="tour-step-pos" className="tour-popover__pos" dir="ltr">
             {t('tour.nav.position', { n: step + 1, total: TOUR_TOTAL })}
           </span>
           <button
@@ -241,23 +303,19 @@ function TourPopover() {
         <h2 id="tour-step-title" className="tour-popover__title">
           {t(cfg.titleKey)}
         </h2>
-        <p className="tour-popover__body">{t(cfg.bodyKey)}</p>
+        <p id="tour-step-body" className="tour-popover__body">
+          {t(cfg.bodyKey)}
+        </p>
         <div className="tour-popover__foot">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => back()}
-            disabled={step === 0}
-          >
+          <button type="button" className="btn" onClick={onBack} disabled={step === 0}>
             {t('tour.nav.back')}
           </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => (isLast ? finish() : next())}
-          >
+          <button ref={nextRef} type="button" className="btn btn--primary" onClick={onNext}>
             {isLast ? t('tour.nav.done') : t('tour.nav.next')}
           </button>
+        </div>
+        <div className="sr-only tour-popover__announce" aria-live="polite" aria-atomic="true">
+          {announcement}
         </div>
       </div>
     </div>

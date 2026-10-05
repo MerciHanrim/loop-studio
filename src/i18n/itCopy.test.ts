@@ -175,6 +175,8 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
   ['catalog share.protect.password', 'Password'], // issue #300: the Italian word
   ['catalog dist.seed', 'seed'],
   ['catalog tour.nav.position', '{n} / {total}'],
+  // issue #308 - the step announcement, worded with the same full stops
+  ['catalog tour.nav.announce', '{n} / {total}. {title}. {body}'],
   ['catalog help.contextual.hint.mc.name', 'Monte Carlo'],
   ['catalog canvas.frame.areaName', 'Area {n}'],
   ['catalog inspector.edge.flowPlaceholder', '1, all, 2D6, 1-3, 25%'],
@@ -203,15 +205,15 @@ const IDENTICAL_TO_EN: ReadonlyArray<readonly [string, string]> = [
 // ------------------------------------------------------------------ shape
 describe('it copy — the surfaces exist and are complete', () => {
   it('has exactly the base key set', () => {
-    expect(KEYS).toHaveLength(999) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines)
+    expect(KEYS).toHaveLength(1003) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines)
     expect(Object.keys(IT).sort()).toEqual([...KEYS].sort())
   })
 
   it('covers all four runtime surfaces, at the measured sizes', () => {
     const per: Record<string, number> = {}
     for (const r of RUNTIME) per[r.surface.split('/')[0]!] = (per[r.surface.split('/')[0]!] ?? 0) + 1
-    expect(per).toEqual({ catalog: 999, template: 196, frame: 7, module: 19 })
-    expect(RUNTIME).toHaveLength(1221)
+    expect(per).toEqual({ catalog: 1003, template: 196, frame: 7, module: 19 })
+    expect(RUNTIME).toHaveLength(1225)
   })
 
   it('EVERY row has a non-empty ENGLISH side — the vacuity guard', () => {
@@ -292,9 +294,10 @@ describe('it copy — what is identical to English, exactly', () => {
     expect([...actual].sort()).toEqual([...IDENTICAL_TO_EN].sort())
   })
 
-  it('the declared set is what it claims — 39 pairs, no duplicate key', () => {
-    expect(IDENTICAL_TO_EN).toHaveLength(39)
-    expect(new Set(IDENTICAL_TO_EN.map(([k]) => k)).size).toBe(39)
+  // issue #308: 39 -> 40 (tour.nav.announce)
+  it('the declared set is what it claims — 40 pairs, no duplicate key', () => {
+    expect(IDENTICAL_TO_EN).toHaveLength(40)
+    expect(new Set(IDENTICAL_TO_EN.map(([k]) => k)).size).toBe(40)
   })
 })
 

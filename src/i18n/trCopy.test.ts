@@ -30,7 +30,7 @@ const KEYS = Object.keys(EN)
 describe('tr copy — the first Turkish catalog', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(TR).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(999) // issue #300: +33; issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines)
+    expect(KEYS).toHaveLength(1003) // issue #300: +33; issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines)
   })
 })
 
@@ -177,6 +177,7 @@ describe('a value left in English is declared, not accidental', () => {
     'regExpr.row.generic', // — {code}
     'timeline.csv', // CSV
     'tour.nav.position', // {n} / {total}
+    'tour.nav.announce', // {n} / {total}. {title}. {body} - issue #308
   ]
 
   it('the identical-to-English set is exactly the declared one', () => {

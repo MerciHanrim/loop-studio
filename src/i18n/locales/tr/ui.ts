@@ -356,6 +356,7 @@ const ui = {
   'tour.nav.done': 'Bitti',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Turu kapat',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Parçalar',
   'tour.desktop.pieces.body':
     'Yapı taşları — Havuz, Kaynak, Gider, Dağıtıcı ve diğerleri. Eklemek için birine tıklayın ya da onu tuvale sürükleyin.',
@@ -591,6 +592,9 @@ const ui = {
   'whatsNew.v0181.open': 'Klavyeyle açılan bir menü artık odağı ilk öğesine taşır; kapalı bir menü düğmesinde aşağı veya yukarı ok tuşu menüyü ilk ya da son öğede açar.',
   'whatsNew.v0181.move': 'Menünün içinde ok tuşları, Home ve End öğeler arasında gezinir; Escape ve Tab menüyü kapatıp menü düğmesine döner. Başka bir şey açmayan bir öğe seçildikten sonra da böyledir.',
   'whatsNew.v0181.phone': 'Telefonda her sayfa açılınca odağı alır ve Escape bir üst düzeye, Diğer sayfasına döner.',
+  'whatsNew.v0182.steps': 'Rehberli turda her adımın numarası, başlığı ve metni artık bir kez duyurulur; karşılama kartındaki soru da başlığıyla birlikte duyurulur.',
+  'whatsNew.v0182.focus': 'Tur, odak İleri düğmesindeyken açılır ve adımlar değişirken, Geri ilk adıma döndüğünde de odak İleri veya Geri düğmesinde kalır.',
+  'whatsNew.v0182.end': 'Tur Bitti, Escape ya da kapatma düğmesiyle nasıl biterse bitsin, odak kaybolmaz; Yardım düğmesine, telefonda ise Diğer düğmesine gider.',
 } as const
 
 export type UiKey = keyof typeof ui

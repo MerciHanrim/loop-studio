@@ -4,6 +4,16 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.18.2 — 2026-10-06
+
+A fix release (issue #308): the guided tour says each step once and never loses focus.
+
+- **Each step is announced once.** Step 1 is read as the tour opens, by its title and text; every later step is read once, as its number, title and text, when Next or Back reaches it. The visible step counter no longer repeats it. The welcome card's question is now read with its title.
+- **Focus stays where you are.** The tour opens with focus on Next and keeps it on Next or Back while the steps change; going Back to the first step moves focus to Next instead of losing it.
+- **Ending the tour lands somewhere.** Done, Escape and the close button, on a first run or a replay, return focus to the Help button (to the overflow button when Help is folded into it, to More on a phone), never to the page itself.
+
+**No migration.** One new spoken sentence and three release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.18.2`.
+
 ## v0.18.1 — 2026-10-06
 
 A fix release (issue #307): the menus answer the keyboard the same way, and the phone's sheets take focus and step back one level at a time.
