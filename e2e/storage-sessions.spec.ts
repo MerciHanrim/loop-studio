@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, test, waitForAppReady } from './support/loop'
 
 // Issue #297 — the Storage and privacy area, the temporary-session chip, the
 // switches between the two kinds of session, the two deletions, the share
@@ -359,7 +359,7 @@ test.describe('Reset all Loop Studio data', () => {
     expect(await storedKeys(page)).toEqual(['loop-studio/guided-tour/1', 'loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
     await page.locator('.gate [data-gate-choice="personal"] input[type="checkbox"]').check()
     await page.locator('.gate [data-gate-choice="personal"] button').click()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await resetAll(page)
     await makeWork(page)

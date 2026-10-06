@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, test } from './support/loop'
+import { expect, test, waitForAppReady } from './support/loop'
 
 // Runs under playwright.dist.config.ts — the real `dist/` build via `vite
 // preview`, the shape Cloudflare Pages serves. docs/localization.md §L4.5:
@@ -20,7 +20,7 @@ const localeChunks = (urls: string[]) =>
 
 async function openProd(page: Page) {
   await page.goto('/')
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
 }
 

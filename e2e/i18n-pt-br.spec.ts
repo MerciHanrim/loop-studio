@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // Brazilian Portuguese (`pt-BR`). docs/localization.md §L2.14 (the locale's own
 // decisions), §L5.2 step 4 (`baseFallbackFor`), §L2.11 (`caractere` vs
@@ -135,7 +135,7 @@ test('a stored pt-BR survives a reload; a region tag is not a code', async ({ pa
   await setLocale(page, 'pt-BR')
   expect(await stored(page)).toBe('pt-BR')
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('pt-BR')
 
   // `pt-PT` is now a REGISTERED code, so it no longer serves as the unregistered
@@ -146,7 +146,7 @@ test('a stored pt-BR survives a reload; a region tag is not a code', async ({ pa
   // `pt-BR` perfectly well.
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'pt-AO'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('en')
 })
 

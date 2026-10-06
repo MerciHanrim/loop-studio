@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Page } from '@playwright/test'
-import { expect, test } from './support/loop'
+import { expect, test, waitForAppReady } from './support/loop'
 import { capturedExports, installProbe, pathProbe } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown } from './support/whatsNew'
 import { RELEASE_NOTES } from '../src/releaseNotes/releaseNotes'
@@ -33,7 +33,7 @@ async function openProd(page: Page): Promise<{ bad: string[] }> {
 
   await installProbe(page)
   await page.goto('/')
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   await expect(page.locator('.canvas .react-flow')).toBeVisible()
   expect(await page.evaluate(() => Boolean((window as any).__loop)), 'no dev bridge in the prod build').toBe(false)
   return { bad }
@@ -107,7 +107,7 @@ test.describe('production build (Cloudflare Pages shape)', () => {
 
     // 6 — hard reload: the app boots again and restores the graph from storage
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await expect(page.locator('.react-flow__node')).toHaveCount(18)
 
     // 7 — no console errors (support/loop fixture), no failed / cross-origin requests
@@ -210,14 +210,14 @@ test.describe('production build (Cloudflare Pages shape)', () => {
     await page.locator('.lang-menu__item[data-locale="ja"]').click()
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('ja')
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await page.evaluate(() => document.documentElement.lang)).toBe('ja')
 
     // a hand-planted 'en-XA' in storage is not a registered code in Production —
     // the resolver ignores it and falls back rather than selecting it
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'en-XA'))
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await page.evaluate(() => document.documentElement.lang)).not.toBe('en-XA')
 
     expect(bad, 'no failed or cross-origin requests').toEqual([])

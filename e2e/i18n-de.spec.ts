@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // German (`de`), the SEVENTH shipped language. Written RED-FIRST against the
 // unmodified product. docs/localization.md §L2.12 (region policy), §L2.11
@@ -131,13 +131,13 @@ test('a stored de survives a reload; a region-tagged value is not a code', async
   await openApp(page)
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'de'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('de')
 
   // `de-AT` is a browser tag, never a stored CODE
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'de-AT'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('en')
   await ctx.close()
 })

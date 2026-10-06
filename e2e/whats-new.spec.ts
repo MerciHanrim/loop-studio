@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, test as shared } from './support/loop'
+import { expect, test as shared, waitForAppReady } from './support/loop'
 import {
   ANNOUNCED_KEY,
   expectOneVersionStory,
@@ -88,8 +88,7 @@ async function boot(page: Page, { width = 1280, height = 800, storage = {}, pwaW
     { live: LIVE, storage, pwaWaitingAtBoot },
   )
   await page.goto('/')
-  await expect(page.locator('.toolbar')).toBeVisible()
-  await expect(page.locator('.canvas')).toBeVisible()
+  await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
   if (storage[LOCALE]) await page.waitForFunction((l) => document.documentElement.lang === l, storage[LOCALE])
 }

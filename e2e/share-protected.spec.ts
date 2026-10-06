@@ -1,7 +1,7 @@
 import { createCipheriv, pbkdf2Sync, randomBytes } from 'node:crypto'
 import { deflateSync } from 'node:zlib'
 import type { Browser, BrowserContext, Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 import { LEGACY_SHARE_VECTORS } from '../src/model/shareLegacy.fixture'
 
 // SEMANTICS-P.md loop-share-protected/1 (issue #300) — a share link protected
@@ -65,7 +65,7 @@ async function countDerivations(target: Page | BrowserContext): Promise<void> {
 async function freshGoto(page: Page, url: string): Promise<void> {
   await page.goto('about:blank')
   await page.goto(url)
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as any).__loop))
 }
 
@@ -393,7 +393,7 @@ test.describe('opening a link', () => {
     await expect(prompt(page)).toHaveCount(0)
     expect(await labelsOf(page)).toEqual(sample)
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await expect(prompt(page)).toHaveCount(0)
   })
 

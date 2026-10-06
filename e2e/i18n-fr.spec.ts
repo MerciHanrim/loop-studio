@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // French (`fr`). Written RED-FIRST against the unmodified product.
 // docs/localization.md §L2.9 (region policy), §L2.8 (French typography),
@@ -140,14 +140,14 @@ test('a stored fr survives a reload; a region-tagged value is not a code', async
   await openApp(page)
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'fr'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('fr')
 
   // `fr-CA` is a browser tag, never a stored CODE — the registry has no such
   // entry, so the stored value is ignored and the browser list decides
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'fr-CA'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('en')
   await ctx.close()
 })

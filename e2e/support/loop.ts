@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { test as base, expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
+import { waitForAppReady, watchContext, watchPage } from './appReady'
 import { SNAPSHOT_POLICY, snapshotKind } from './snapshot-policy'
 import { seedWhatsNewSeen } from './whatsNew'
+
+export { safeUrl, waitForAppReady, watchContext, watchPage } from './appReady'
 
 // Base test: fails automatically on any console.error or uncaught page error,
 // plus small helpers for reaching the app's Zustand stores through the dev-only
@@ -16,7 +19,40 @@ const IGNORE = [/favicon/i, /\[vite\] connect/i, /Download the React DevTools/i]
  *  the gate is on screen and the spec answers it). */
 export type StorageModeSeed = 'personal' | 'temporary' | 'gate'
 
-export const test = base.extend<{ errors: string[]; _tourSeed: void; whatsNewSeen: boolean; storageMode: StorageModeSeed }>({
+/** marks a Browser whose `newContext` already watches its pages */
+const WATCHED = Symbol('appReady.watchedNewContext')
+
+export const test = base.extend<
+  { errors: string[]; _tourSeed: void; whatsNewSeen: boolean; storageMode: StorageModeSeed },
+  { _watchNewContexts: void }
+>({
+  // Issue #305 - every page is watched from before its first navigation, so a
+  // boot that fails can say why (support/appReady.ts). The default context's
+  // pages here (the default `page` is opened after this runs); the contexts a
+  // spec makes itself with `browser.newContext()` through the worker fixture
+  // below.
+  // (the fixture callback is named `provide`, not `use`: oxlint's React rule
+  // takes `use(context)` for the React `use` hook)
+  context: async ({ context }, provide) => {
+    watchContext(context)
+    await provide(context)
+  },
+  _watchNewContexts: [
+    async ({ browser }, use) => {
+      const b = browser as typeof browser & { [WATCHED]?: true }
+      if (!b[WATCHED]) {
+        const original = browser.newContext.bind(browser)
+        b.newContext = async (...args: Parameters<typeof browser.newContext>) => {
+          const ctx = await original(...args)
+          watchContext(ctx)
+          return ctx
+        }
+        b[WATCHED] = true
+      }
+      await use()
+    },
+    { auto: true, scope: 'worker' },
+  ],
   // Issue #296 — pre-dismissing the tour (below) makes the profile a RETURNING
   // one, and a returning profile that has not been told about the newest
   // release note gets the update notice on its canvas. So the same seed also
@@ -124,9 +160,11 @@ export const iso = (value: string): string => FSI + value + PDI
 export const isoLtr = (value: string): string => LRI + value + PDI
 
 export async function openApp(page: Page): Promise<void> {
+  // issue #305 - idempotent; covers a page from a context the fixture did not
+  // make, and is attached before the navigation either way
+  watchPage(page)
   await page.goto('/')
-  await expect(page.locator('.toolbar')).toBeVisible()
-  await expect(page.locator('.canvas')).toBeVisible()
+  await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
 }
 

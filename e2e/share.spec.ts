@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, test } from './support/loop'
+import { expect, openApp, resetAll, test, waitForAppReady } from './support/loop'
 
 // SEMANTICS-U.md loop-share/1 — the `Share` button (§U7), the §U3.1 8 KiB hard
 // reject, the Clipboard-API fallback, and the boot-time `#g1=` load (§U5),
@@ -39,7 +39,7 @@ const locationParts = (page: Page) =>
 async function freshGoto(page: Page, url: string): Promise<void> {
   await page.goto('about:blank')
   await page.goto(url)
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as any).__loop))
   await page.waitForFunction(() => !/^#g\d/.test(location.hash), undefined, { timeout: 5000 })
 }

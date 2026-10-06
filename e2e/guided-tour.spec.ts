@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, importGraph, openApp, test } from './support/loop'
+import { expect, importGraph, openApp, test, waitForAppReady } from './support/loop'
 
 // docs/guided-tour.md §GT9 — the 19-point acceptance set for the guided
 // first-run tour + Help menu + About dialog. UI-chrome only: nothing it does is
@@ -129,7 +129,7 @@ test.describe('guided tour — first run', () => {
     await expect(welcome(page)).toHaveCount(0)
     expect(await storedKey(page)).toBe('dismissed')
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await page.waitForTimeout(400)
     await expect(welcome(page)).toHaveCount(0)
     await expect(popover(page)).toHaveCount(0)
@@ -143,7 +143,7 @@ test.describe('guided tour — first run', () => {
     await popover(page).getByRole('button', { name: /Done|완료/ }).click()
     expect(await storedKey(page)).toBe('completed')
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await page.waitForTimeout(400)
     await expect(welcome(page)).toHaveCount(0)
     await expect(popover(page)).toHaveCount(0)
@@ -322,7 +322,7 @@ test.describe('guided tour — display priority (§GT6.1)', () => {
     // a fresh visit with nothing up ⇒ the card appears
     await page.evaluate(() => sessionStorage.removeItem('__tour_seeded')) // let seedKey re-clear
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await expect(welcome(page)).toBeVisible()
   })
 })
@@ -358,8 +358,7 @@ test.describe('guided tour — localStorage unavailable (§GT6.3)', () => {
     await page.locator('.gate [data-gate-choice="personal"] button').click()
     // not `openApp()`: that navigates again, and an unreadable storage would
     // bring the gate back
-    await expect(page.locator('.toolbar')).toBeVisible()
-    await expect(page.locator('.canvas')).toBeVisible()
+    await waitForAppReady(page)
     await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
     await expect(page.locator('.toolbar')).toBeVisible()
     await expect(welcome(page)).toBeVisible()

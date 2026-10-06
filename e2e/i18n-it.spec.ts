@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // Italian (`it`). docs/localization.md §L2.22.
 //
@@ -90,7 +90,7 @@ test.describe('a stored Italian locale round-trips', () => {
     await setLocale(page, 'it')
     expect(await stored(page)).toBe('it')
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await htmlLang(page)).toBe('it')
   })
 
@@ -98,7 +98,7 @@ test.describe('a stored Italian locale round-trips', () => {
     await openApp(page)
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'it-IT'))
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     // §L5.2 step 1 takes an EXACT registered code or nothing; an unregistered
     // stored value is ignored rather than normalised into one.
     expect(await htmlLang(page)).not.toBe('it-IT')

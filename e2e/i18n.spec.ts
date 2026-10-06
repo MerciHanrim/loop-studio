@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { ensureTimelineOpen, expect, importGraph, openApp, resetAll, test, waitForAppReady } from './support/loop'
 
 // docs/localization.md Slice 1 + the language-menu follow-up.
 //   • the language control is a trigger button + a registry-driven overlay
@@ -115,7 +115,7 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
     await resetAll(page)
     await pickLocale(page, 'ko')
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await htmlLang(page)).toBe('ko')
     await expect(page.locator('.pstrip__group .pb-btn--primary')).toHaveText('재생')
   })
@@ -189,13 +189,13 @@ test.describe('i18n — Slice 1 (Toolbar + Play bar)', () => {
 
   test('?lang= forces a locale without touching localStorage; a corrupt stored value is ignored', async ({ page }) => {
     await page.goto('/?lang=ko')
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await expect.poll(() => htmlLang(page)).toBe('ko')
     expect(await stored(page)).toBeNull()
 
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'KO_bad_value'))
     await page.goto('/')
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await htmlLang(page)).toBe('en')
     expect(await stored(page)).toBe('KO_bad_value') // left exactly as it was
   })
@@ -755,7 +755,7 @@ test.describe('i18n — export / storage boundary (§L12 #5 extended)', () => {
 
   test('a `?lang=` dev override never propagates to a Share URL', async ({ page }) => {
     await page.goto('/?lang=ko')
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await expect.poll(() => htmlLang(page)).toBe('ko')
     const url = await page.evaluate(async () => {
       const l = (window as unknown as Bridge).__loop as any
