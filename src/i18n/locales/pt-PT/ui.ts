@@ -340,6 +340,7 @@ const ui = {
   'tour.nav.done': 'Concluir',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Fechar o tour',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Peças',
   'tour.desktop.pieces.body': 'Os blocos de montagem — Reservatório, Fonte, Sumidouro, Distribuidor e os demais. Clique em um, ou arraste-o para a tela, para adicioná-lo.',
   'tour.desktop.canvas.title': 'Tela',
@@ -551,6 +552,9 @@ const ui = {
   'whatsNew.v0181.open': 'Um menu aberto pelo teclado passa a colocar o foco no primeiro item, e, quando um botão de menu fechado tem o foco, a Seta para baixo ou a Seta para cima abre o menu no primeiro ou no último item.',
   'whatsNew.v0181.move': 'Dentro de um menu, as setas, Home e End percorrem os itens, e Esc e Tab fecham o menu e voltam ao botão do menu, também depois de escolher um item que não abre mais nada.',
   'whatsNew.v0181.phone': 'No telemóvel, cada painel recebe o foco ao abrir, e Esc volta um nível, para o painel Mais.',
+  'whatsNew.v0182.steps': 'No tour guiado, o número, o título e o texto de cada etapa passam a ser anunciados uma única vez, e a pergunta do cartão de boas-vindas é anunciada com o título.',
+  'whatsNew.v0182.focus': 'O tour abre com o foco em Avançar, e o foco fica em Avançar ou Voltar enquanto as etapas mudam, também quando Voltar chega à primeira etapa.',
+  'whatsNew.v0182.end': 'Seja qual for a forma de encerrar o tour, com Concluir, Esc ou o botão de fechar, o foco vai para o botão Ajuda, ou para Mais no telemóvel, em vez de se perder.',
 } as const
 
 export type UiKey = keyof typeof ui

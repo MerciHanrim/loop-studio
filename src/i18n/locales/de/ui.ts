@@ -374,6 +374,7 @@ const ui = {
   'tour.nav.done': 'Fertig',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Die Tour schließen',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Bausteine',
   'tour.desktop.pieces.body':
     'Die Bausteine — Speicher, Quelle, Senke, Verteiler und die übrigen. Einen anklicken oder auf die Arbeitsfläche ziehen, um ihn hinzuzufügen.',
@@ -612,6 +613,9 @@ const ui = {
   'whatsNew.v0181.open': 'Ein mit der Tastatur geöffnetes Menü setzt den Fokus jetzt auf den ersten Eintrag, und Pfeil nach unten oder oben auf einer geschlossenen Menüschaltfläche öffnet es beim ersten oder letzten Eintrag.',
   'whatsNew.v0181.move': 'Im Menü bewegen die Pfeiltasten, Pos1 und Ende durch die Einträge; Escape und Tab schließen es und kehren zur Menüschaltfläche zurück, auch nach der Wahl eines Eintrags, der nichts weiter öffnet.',
   'whatsNew.v0181.phone': 'Auf dem Smartphone erhält jedes Blatt beim Öffnen den Fokus, und Escape führt eine Ebene zurück zum Blatt Mehr.',
+  'whatsNew.v0182.steps': 'In der Tour werden Nummer, Titel und Text jedes Schritts jetzt einmal angesagt, und die Frage der Willkommenskarte wird mit ihrem Titel angesagt.',
+  'whatsNew.v0182.focus': 'Die Tour öffnet mit dem Fokus auf Weiter, und der Fokus bleibt beim Wechsel der Schritte auf Weiter oder Zurück, auch wenn Zurück den ersten Schritt erreicht.',
+  'whatsNew.v0182.end': 'Wie auch immer die Tour endet, mit Fertig, Escape oder ihrer Schließen-Schaltfläche: Der Fokus geht auf die Schaltfläche Hilfe, auf dem Smartphone auf Mehr, statt verloren zu gehen.',
 } satisfies Record<UiKey, string>
 
 export default ui

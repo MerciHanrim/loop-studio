@@ -326,6 +326,7 @@ const ui = {
   'tour.nav.done': 'Xong',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Đóng phần giới thiệu',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Các thành phần',
   'tour.desktop.pieces.body': 'Những khối dựng nên mô hình — Bể chứa, Nguồn, Điểm xả, Bộ chia và những cái khác. Nhấn một cái, hoặc kéo nó vào khung vẽ, để thêm.',
   'tour.desktop.canvas.title': 'Khung vẽ',
@@ -537,6 +538,9 @@ const ui = {
   'whatsNew.v0181.open': 'Menu mở bằng bàn phím giờ đưa tiêu điểm đến mục đầu tiên, và phím mũi tên xuống hoặc lên trên nút menu đang đóng sẽ mở menu ở mục đầu hoặc mục cuối.',
   'whatsNew.v0181.move': 'Trong menu, các phím mũi tên, Home và End di chuyển giữa các mục; Escape và Tab đóng menu và quay lại nút menu, kể cả sau khi chọn một mục không mở gì khác.',
   'whatsNew.v0181.phone': 'Trên điện thoại, mỗi bảng nhận tiêu điểm khi mở, và Escape quay lại một cấp, về bảng Thêm.',
+  'whatsNew.v0182.steps': 'Trong phần giới thiệu, số thứ tự, tiêu đề và nội dung của mỗi bước giờ chỉ được thông báo một lần, và câu hỏi trên thẻ chào mừng được thông báo cùng tiêu đề.',
+  'whatsNew.v0182.focus': 'Phần giới thiệu mở ra với tiêu điểm ở nút Tiếp, và tiêu điểm vẫn ở nút Tiếp hoặc Quay lại khi các bước thay đổi, kể cả khi Quay lại về đến bước đầu tiên.',
+  'whatsNew.v0182.end': 'Dù kết thúc phần giới thiệu bằng Xong, Escape hay nút đóng, tiêu điểm sẽ không bị mất mà chuyển đến nút Trợ giúp, hoặc nút Thêm trên điện thoại.',
 } satisfies Record<UiKey, string>
 
 export default ui

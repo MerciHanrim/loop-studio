@@ -162,11 +162,46 @@ menu mid-tour, so this is not a user-reachable flow in this slice — the E2E
 - `Back` / `Next` buttons; `Next` on step 6 is `Done` and ends the tour
   (→ `completed`, written **on the `Done` press**, not on merely reaching
   step 6).
-- keyboard focus is **trapped** inside the popover while the tour is open; on
-  end, focus returns to the control that opened it (the Welcome card's
-  `Start tour`, or the Help menu's `Take a tour`).
+- keyboard focus is **trapped** inside the popover while the tour is open.
 - the popover is a labelled dialog (`role="dialog"`, `aria-modal`,
-  `aria-labelledby` the step title); the `N / 6` position is announced.
+  `aria-labelledby` the `N / 6` position and the step title,
+  `aria-describedby` the step body).
+
+**Announcement and focus (issue #308, Lumi 2026-10-06).** Each step is said
+**once**, and focus is never lost:
+
+- **Step 1** is said by the dialog's name (its `1 / 6` and its title, so the
+  number is not lost) and description (its body) when focus enters it, all
+  three once. Focus enters on **`Next`**.
+- **Every later step** is said by one hidden live region inside the popover
+  (`aria-live="polite"`, `aria-atomic="true"`), written **once per `Next` or
+  `Back` press**, as `N / 6. title. body`. The sentence is its own catalog key
+  (`tour.nav.announce`) in every language, so the punctuation and order are
+  the language's own, not English joined in code. The region starts empty, so
+  step 1 is not said twice; a re-render that is not a step change (a language
+  switch) writes nothing.
+- The visible `N / 6` is **not** live, and neither is the title, so neither
+  repeats the announcement. A step read twice (title change and live region
+  together) is a failure, not a pass.
+- Focus stays on `Back` / `Next` while the steps change in place. On `Back` to
+  step 1, focus moves to `Next` **before** `Back` is disabled (`disabled`, not
+  `aria-disabled`); otherwise it falls to `<body>` inside the dialog
+  (MEASURED on v0.18.1).
+- **Every exit** (`Done`, `Escape`, the close control), first run or replay,
+  lands on the **Help** button, which is where a replay starts: the
+  overflow button when the toolbar has folded Help into it, the **More**
+  button on a phone. A target that is gone, hidden, inert or disabled is
+  skipped for the next. Only when none of them is usable, the last resort is
+  the top bar's first usable menu button outside the palette (opening a menu
+  is harmless; Enter on a palette piece would insert it). Never `<body>`.
+- **The Welcome card** is named by its title and described by its question
+  (`aria-describedby`); its buttons, their order and the first focus (`Skip`)
+  are unchanged.
+- The phone tour has the same contract; its layout is unchanged.
+- Merge condition: a real check with Windows Narrator in desktop Edge and
+  desktop Chrome. A real mobile screen reader is **not** a merge condition and
+  is recorded as unverified; the phone is checked by automated focus and
+  accessibility-tree tests (`e2e/tour-announcement.spec.ts`).
 - every string (titles, bodies, `Back` / `Next` / `Done` / `Skip`, the `N / 6`
   template) comes from the catalog (§GT8) — nothing hard-coded.
 
@@ -463,6 +498,11 @@ and KO `satisfies MessageCatalog`, e.g.:
   `tour.welcome.skip`
 - `tour.nav.back` · `tour.nav.next` · `tour.nav.done` ·
   `tour.nav.position` = `"{n} / {total}"`
+- `tour.nav.announce` = `"{n} / {total}. {title}. {body}"` in English — the
+  step's spoken sentence (§GT4, issue #308), worded per language: `。` in
+  Japanese and Chinese, a space in Thai, the full stop elsewhere. `{title}`
+  and `{body}` are the step's own catalog strings. It is never shown, so it
+  needs no direction pinning.
 - `tour.desktop.<step>.title` / `.body` for steps `pieces` · `canvas` ·
   `inspector` · `playback` · `timeline` · `files`
 - `tour.mobile.<step>.title` / `.body` for the six mobile steps
@@ -536,7 +576,13 @@ The implementation slice must ship E2E covering:
     **no** `tour` / `guided-tour` key; exported bytes and digest are identical
     with the key `completed` vs absent.
 14. **a11y** — `Escape` ends; focus is trapped while open and returns to the
-    trigger on end; `Back` / `Next` reachable by keyboard.
+    trigger on end; `Back` / `Next` reachable by keyboard. Issue #308
+    (`e2e/tour-announcement.spec.ts`): step 1 by the dialog's name and
+    description with focus on `Next` and an empty live region; steps 2–6 each
+    written to the live region exactly once; the only live region in the tour
+    is that one; `Back` to step 1 leaves focus on `Next`; `Done`, `Escape` and
+    the close control, first run and replay, at 1280 px, 760 px and 390 px,
+    land on Help, the overflow button or More, never `<body>`.
 15. **Missing target** — force a step's `data-tour` node out of the DOM; the tour
     shows the centred fallback card, does not advance or crash, and `Next` /
     `Back` still work.
@@ -625,6 +671,14 @@ The implementation slice must ship E2E covering:
   background language menu is unreachable during the tour; the E2E asserts only
   the reactivity (external `setLocale` → same step re-renders), not a
   non-existent user path. *(Lumi, rev 2.)*
+- **One announcement per step** (§GT4, issue #308). Found with Narrator on
+  2026-10-02: from step 2 on only `2 / 6` was read, because the position was the
+  only live text and the title and body changed in place. Decided: a hidden
+  polite, atomic live region written per `Next` / `Back` press, the dialog's
+  name (number and title) and description for step 1, focus entering on `Next`, a translated
+  sentence per language, and every exit landing on Help / More. Moving focus
+  to the heading at each step was rejected: it reads the step but takes focus
+  off `Next`. *(Lumi, 2026-10-06.)*
 
 ## GT11. Slices
 

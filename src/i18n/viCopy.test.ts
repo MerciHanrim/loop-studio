@@ -132,11 +132,11 @@ const englishFor = (surface: string, id: string): string => {
 describe('vi copy — the first locale English hides inside', () => {
   it('has exactly the base key set', () => {
     expect(Object.keys(VI).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(999) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines)
+    expect(KEYS).toHaveLength(1003) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines)
   })
 
   it('covers all four runtime surfaces', () => {
-    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(999)
+    expect(RUNTIME.filter(([s]) => s === 'catalog')).toHaveLength(1003)
     expect(RUNTIME.filter(([s]) => s.startsWith('template/'))).toHaveLength(196)
     expect(RUNTIME.filter(([s]) => s.startsWith('frame/'))).toHaveLength(7)
     expect(RUNTIME.filter(([s]) => s.startsWith('module/'))).toHaveLength(19)
@@ -178,6 +178,8 @@ const IDENTICAL_TO_EN: [string, string][] = [
   ['catalog:regExpr.row.generic', '— {code}'],
   ['catalog:timeline.csv', 'CSV'],
   ['catalog:tour.nav.position', '{n} / {total}'],
+  // issue #308 - the step announcement, worded with the same full stops
+  ['catalog:tour.nav.announce', '{n} / {total}. {title}. {body}'],
   ['frame/gacha-banner-zones:zone_pickup', 'Premium Pickup'],
   ['frame/gacha-banner-zones:zone_standard', 'Premium Standard'],
   ['template/gacha-banner-zones:pity_pickup', 'Pity'],
@@ -201,7 +203,7 @@ describe('a string identical to English is declared, with its value', () => {
     expect(actual.slice().sort((a, b) => a[0].localeCompare(b[0]))).toEqual(
       IDENTICAL_TO_EN.slice().sort((a, b) => a[0].localeCompare(b[0])),
     )
-    expect(IDENTICAL_TO_EN).toHaveLength(28)
+    expect(IDENTICAL_TO_EN).toHaveLength(29) // issue #308: +1 (tour.nav.announce)
   })
 
   it('every declared pair still reads back the value it declares', () => {
@@ -551,6 +553,8 @@ const ASCII_KEYS = [
   'catalog:whatsNew.v0181.move',
   'catalog:whatsNew.v0181.open',
   'catalog:whatsNew.v0181.phone',
+  // issue #308 - `Escape` in a 0.18.2 release-note line
+  'catalog:whatsNew.v0182.end',
   // the storage gate and the Storage and privacy area (issue #297)
   'catalog:gate.lead',
   'catalog:gate.portable.note',
@@ -572,7 +576,7 @@ describe('a kept English word is declared, twice over — by key and by word', (
       ([s, id]) => s + ':' + id,
     )
     expect(actual.slice().sort()).toEqual(ASCII_KEYS.slice().sort())
-    expect(ASCII_KEYS).toHaveLength(192) // issue #307: +3 (the three 0.18.1 release-note lines)
+    expect(ASCII_KEYS).toHaveLength(193) // issue #307: +3 (the three 0.18.1 release-note lines); issue #308: +1 (one 0.18.2 release-note line)
   })
 
   it('the kept vocabulary is exactly the declared one', () => {

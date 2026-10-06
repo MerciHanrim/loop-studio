@@ -336,6 +336,7 @@ const ui = {
   'tour.nav.done': '完了',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'ツアーを閉じる',
+  'tour.nav.announce': '{n} / {total}。{title}。{body}',
   'tour.desktop.pieces.title': 'パーツ',
   'tour.desktop.pieces.body':
     '基本要素 — プール、ソース、ドレイン、ゲートなど。クリックするか、キャンバスへドラッグして追加します。',
@@ -556,6 +557,9 @@ const ui = {
   'whatsNew.v0181.open': 'キーボードで開いたメニューは最初の項目にフォーカスが移り、閉じたメニューボタンで下矢印・上矢印を押すと最初または最後の項目から開きます。',
   'whatsNew.v0181.move': 'メニュー内では矢印キーと Home・End で項目を移動し、Escape と Tab でメニューを閉じてメニューボタンに戻ります。ほかに何も開かない項目を選んだ後も同じです。',
   'whatsNew.v0181.phone': 'スマートフォンでは、シートが開くとフォーカスがシート内に移り、Escape で一つ上の「その他」シートに戻ります。',
+  'whatsNew.v0182.steps': 'ガイドツアーでは、各ステップの番号・タイトル・説明が一度ずつ読み上げられ、ようこそカードの質問もタイトルと一緒に読み上げられます。',
+  'whatsNew.v0182.focus': 'ツアーはフォーカスが「次へ」にある状態で始まり、ステップが切り替わる間も、「戻る」で最初のステップに戻ったときも、フォーカスは「次へ」または「戻る」に留まります。',
+  'whatsNew.v0182.end': '「完了」、Escape、閉じるボタンのどれでツアーを終えても、フォーカスは失われず「ヘルプ」ボタン（スマートフォンでは「その他」ボタン）に移ります。',
 } satisfies Record<UiKey, string>
 
 export default ui

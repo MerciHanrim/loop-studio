@@ -282,6 +282,8 @@ describe('es-419 copy — mechanical review', () => {
         // issue #307: the key names in the 0.18.1 release note
         'whatsNew.v0181.move',
         'whatsNew.v0181.phone',
+        // issue #308: the key name in the 0.18.2 release note
+        'whatsNew.v0182.end',
       ],
       Tab: ['whatsNew.v0181.move'],
       Ctrl: ['toolbar.undo.title', 'toolbar.redo.title'],

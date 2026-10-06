@@ -320,6 +320,7 @@ const ui = {
   'tour.nav.done': 'Klaar',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'De rondleiding sluiten',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Onderdelen',
   'tour.desktop.pieces.body': 'De bouwstenen — Voorraad, Bron, Afvoer, Verdeler en de rest. Klik op een onderdeel, of sleep het naar het tekengebied, om het toe te voegen.',
   'tour.desktop.canvas.title': 'Tekengebied',
@@ -532,6 +533,9 @@ const ui = {
   'whatsNew.v0181.open': 'Een menu dat met het toetsenbord wordt geopend, zet de focus nu op het eerste item, en Pijl omlaag of Pijl omhoog op een gesloten menuknop opent het bij het eerste of laatste item.',
   'whatsNew.v0181.move': 'In een menu gaan de pijltoetsen, Home en End door de items; Escape en Tab sluiten het en gaan terug naar de menuknop, ook na het kiezen van een item dat niets anders opent.',
   'whatsNew.v0181.phone': 'Op een telefoon krijgt elk blad de focus bij het openen, en Escape gaat één niveau terug naar het blad Meer.',
+  'whatsNew.v0182.steps': 'In de rondleiding worden het nummer, de titel en de tekst van elke stap nu één keer aangekondigd, en de vraag op de welkomstkaart wordt met de titel aangekondigd.',
+  'whatsNew.v0182.focus': 'De rondleiding opent met de focus op Volgende, en de focus blijft op Volgende of Terug terwijl de stappen wisselen, ook wanneer Terug de eerste stap bereikt.',
+  'whatsNew.v0182.end': 'Hoe de rondleiding ook eindigt, met Klaar, Escape of de sluitknop, de focus gaat naar de knop Help, of naar Meer op een telefoon, in plaats van verloren te gaan.',
 } as const
 
 export default ui

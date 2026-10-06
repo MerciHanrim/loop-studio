@@ -140,7 +140,16 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.18.1
+## Latest — v0.18.2
+
+A fix release: the guided tour says each step once.
+
+- **Each step is announced once**: step 1 as the tour opens, every later step as Next or
+  Back reaches it, with its number, title and text
+- **Focus stays on Next or Back** while the steps change, and ending the tour returns it
+  to the Help button (More on a phone)
+
+## v0.18.1
 
 A fix release: the menus answer the keyboard the same way.
 
@@ -168,16 +177,8 @@ A fix release: the Temporary session button looks like the menu buttons beside i
 - **The same height, corners, text size and colours** as the toolbar's menu buttons, and
   their hover and keyboard focus; its orange border still marks a temporary session
 
-## v0.17.1
-
-A fix release: share links use the browser's own compression.
-
-- **Share links are compressed with the browser's built-in Compression Streams**; the
-  bundled compression code is removed. Existing links still open and the link format is
-  unchanged
-- **A browser without them** makes no link and says so, and the open diagram is kept
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.17.0
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.17.1 (share
+links compressed with the browser's own Compression Streams), v0.17.0
 (password-protected share links), v0.16.0 (the storage gate, temporary sessions and the
 Storage and privacy area), the v0.15 releases and every earlier one.
 

@@ -320,6 +320,7 @@ const ui = {
   'tour.nav.done': 'Listo',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Cerrar el recorrido',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Piezas',
   'tour.desktop.pieces.body': 'Los bloques de construcción: Depósito, Fuente, Sumidero, Distribuidor y los demás. Haga clic en uno, o arrástrelo al lienzo, para agregarlo.',
   'tour.desktop.canvas.title': 'Lienzo',
@@ -535,6 +536,9 @@ const ui = {
   'whatsNew.v0181.open': 'Un menú abierto con el teclado ahora pone el foco en su primer elemento, y Flecha abajo o Flecha arriba en un botón de menú cerrado lo abre en el primer o el último elemento.',
   'whatsNew.v0181.move': 'Dentro de un menú, las flechas, Inicio y Fin recorren los elementos, y Escape y Tab lo cierran y vuelven al botón del menú, también después de elegir un elemento que no abre nada más.',
   'whatsNew.v0181.phone': 'En un teléfono, cada panel recibe el foco al abrirse y Escape vuelve un nivel, al panel Más.',
+  'whatsNew.v0182.steps': 'En el recorrido guiado, el número, el título y el texto de cada paso ahora se anuncian una sola vez, y la pregunta de la tarjeta de bienvenida se anuncia con su título.',
+  'whatsNew.v0182.focus': 'El recorrido se abre con el foco en Siguiente, y el foco se queda en Siguiente o Atrás mientras cambian los pasos, también cuando Atrás llega al primer paso.',
+  'whatsNew.v0182.end': 'Termine como termine el recorrido, con Listo, Escape o su botón de cierre, el foco pasa al botón Ayuda, o a Más en un teléfono, en lugar de perderse.',
 } as const
 
 export type UiKey = keyof typeof ui

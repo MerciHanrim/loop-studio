@@ -313,6 +313,7 @@ const ui = {
   'tour.nav.done': '완료',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': '투어 닫기',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': '조각',
   'tour.desktop.pieces.body': '풀, 소스, 드레인, 게이트 등 기본 구성 요소입니다. 클릭하거나 캔버스로 끌어다 놓아 추가하세요.',
   'tour.desktop.canvas.title': '캔버스',
@@ -524,6 +525,9 @@ const ui = {
   'whatsNew.v0181.open': '키보드로 연 메뉴는 이제 첫 항목에 포커스가 가고, 닫힌 메뉴 버튼에서 아래쪽·위쪽 화살표를 누르면 첫 항목이나 마지막 항목에서 열립니다.',
   'whatsNew.v0181.move': '메뉴 안에서는 방향키와 Home·End로 항목을 오가며, Escape와 Tab은 메뉴를 닫고 메뉴 버튼으로 돌아갑니다. 다른 창을 열지 않는 항목을 고른 뒤에도 마찬가지입니다.',
   'whatsNew.v0181.phone': '휴대폰에서는 시트가 열릴 때 포커스가 시트 안으로 들어가고, Escape를 누르면 한 단계 위인 더 보기 시트로 돌아갑니다.',
+  'whatsNew.v0182.steps': '가이드 투어에서 이제 각 단계의 번호, 제목, 설명이 한 번씩 안내되고, 환영 카드의 질문도 제목과 함께 안내됩니다.',
+  'whatsNew.v0182.focus': '투어가 열리면 포커스가 다음 버튼에 있고, 단계가 바뀌는 동안에도, 이전 버튼으로 첫 단계에 돌아왔을 때도 포커스는 다음 또는 이전 버튼에 머뭅니다.',
+  'whatsNew.v0182.end': '완료, Escape, 닫기 버튼 중 어느 것으로 투어를 끝내도 포커스가 사라지지 않고 도움말 버튼으로, 휴대폰에서는 더 보기 버튼으로 갑니다.',
 } satisfies Record<UiKey, string>
 
 export default ui

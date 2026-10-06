@@ -367,6 +367,7 @@ const ui = {
   'tour.nav.done': 'Terminé',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': 'Fermer la visite',
+  'tour.nav.announce': '{n} / {total}. {title}. {body}',
   'tour.desktop.pieces.title': 'Éléments',
   'tour.desktop.pieces.body':
     'Les briques de base — réservoir, source, puits, aiguillage, et les autres. Cliquez sur l’une d’elles, ou faites-la glisser sur le canevas, pour l’ajouter.',
@@ -606,6 +607,9 @@ const ui = {
   'whatsNew.v0181.open': 'Un menu ouvert au clavier place désormais le focus sur son premier élément, et Flèche bas ou Flèche haut sur un bouton de menu fermé l’ouvre au premier ou au dernier élément.',
   'whatsNew.v0181.move': 'Dans un menu, les flèches, Début et Fin parcourent les éléments, et Échap et Tab le ferment en revenant au bouton du menu, y compris après le choix d’un élément qui n’ouvre rien d’autre.',
   'whatsNew.v0181.phone': 'Sur un téléphone, chaque panneau prend le focus à son ouverture et Échap revient d’un niveau, au panneau Plus.',
+  'whatsNew.v0182.steps': 'Dans la visite guidée, le numéro, le titre et le texte de chaque étape sont désormais annoncés une seule fois, et la question de la carte de bienvenue est annoncée avec son titre.',
+  'whatsNew.v0182.focus': 'La visite s’ouvre avec le focus sur Suivant, et le focus reste sur Suivant ou Précédent pendant le changement d’étape, y compris quand Précédent ramène à la première étape.',
+  'whatsNew.v0182.end': 'Quelle que soit la façon de terminer la visite, Terminé, Échap ou son bouton de fermeture, le focus va sur le bouton Aide, ou sur Plus sur un téléphone, au lieu d’être perdu.',
 } satisfies Record<UiKey, string>
 
 export default ui

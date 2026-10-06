@@ -317,6 +317,7 @@ const ui = {
   'tour.nav.done': '完成',
   'tour.nav.position': '{n} / {total}',
   'tour.nav.close': '关闭导览',
+  'tour.nav.announce': '{n} / {total}。{title}。{body}',
   'tour.desktop.pieces.title': '元件',
   'tour.desktop.pieces.body': '构成模型的积木——资源池、源、汇、分流门等等。点击一个，或把它拖到画布上，即可添加。',
   'tour.desktop.canvas.title': '画布',
@@ -529,6 +530,9 @@ const ui = {
   'whatsNew.v0181.open': '用键盘打开的菜单现在会把焦点放在第一项上；在关闭的菜单按钮上按下箭头或上箭头，会从第一项或最后一项打开菜单。',
   'whatsNew.v0181.move': '在菜单中，方向键和 Home、End 用于在各项之间移动；Escape 和 Tab 会关闭菜单并回到菜单按钮，选择不打开其他内容的项目后也是如此。',
   'whatsNew.v0181.phone': '在手机上，表单打开时焦点会进入其中，按 Escape 会返回上一级的“更多”表单。',
+  'whatsNew.v0182.steps': '在导览中，每一步的编号、标题和说明现在只播报一次，欢迎卡片中的问题也会与标题一起播报。',
+  'whatsNew.v0182.focus': '导览打开时焦点位于“下一步”，切换步骤时以及用“上一步”回到第一步时，焦点都停留在“下一步”或“上一步”上。',
+  'whatsNew.v0182.end': '无论用“完成”、Escape 还是关闭按钮结束导览，焦点都不会丢失，而是回到“帮助”按钮（在手机上是“更多”按钮）。',
 } satisfies Record<UiKey, string>
 
 export default ui
