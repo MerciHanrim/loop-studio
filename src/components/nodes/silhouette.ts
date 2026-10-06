@@ -15,6 +15,30 @@ import type { NodeKind } from '../../model/types'
 /** The design height every silhouette was drawn at. */
 export const BASE_NODE_H = 64
 
+/** docs/flow-colour-and-compact-nodes.md FC-4.1 — the rings' distance from the
+ *  silhouette, in screen px (every stroke is non-scaling, so these hold at any
+ *  node size, height and zoom). From the inside out: focus, the flow-colour
+ *  band, the structure line on the silhouette, selection, invalid. Each ring
+ *  is cut out of a wider stroke by a mask (`nodes.tsx`), so they never overlap
+ *  and nothing is painted in the gaps between them (an edge reaching a port
+ *  stays visible). */
+export const NODE_RINGS = {
+  /** the flow-colour band: 0 … 3 px inside, clipped to the silhouette */
+  band: 3,
+  /** keyboard focus, dashed, inside the band */
+  focus: { from: 4.5, to: 6 },
+  /** selection, solid, outside the structure line */
+  selection: { from: 2.5, to: 4.5 },
+  /** invalid, dashed, outermost */
+  invalid: { from: 6.5, to: 8.5 },
+} as const
+
+/** the user-space rectangle every ring mask covers (`RingMasks.tsx`), in
+ *  viewBox units — vertical units are px, horizontal ones at least ~1 px; its
+ *  height follows the node's */
+export type MaskBox = { x: number; y: number; width: number; height: number }
+export const maskBox = (boxH: number): MaskBox => ({ x: -200, y: -200, width: 520, height: boxH + 400 })
+
 /** How many px the drawn vessel path leaves EMPTY at the top + bottom of its
  *  `0 0 120 H` viewBox — the `y` where the top cap's straight run begins and
  *  `H − y` where the bottom cap's begins, summed (independent of `H`, since

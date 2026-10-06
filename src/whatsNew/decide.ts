@@ -37,6 +37,9 @@ export const RETURNING_PROFILE_KEYS = [
   'loop-studio:minimap-collapsed',
   'loop-studio:inputs-panel',
   'loop-studio:summary-panel',
+  // docs/flow-colour-and-compact-nodes.md FC-2.7 — written only when the person
+  // picks a flow colour
+  'loop-studio:recent-accents',
   'loop-studio/guided-tour/1',
   'loop-studio/contextual-help/1',
   'loop-studio/import-quickstart/1',

@@ -189,6 +189,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — voegt {sym} in de formule in',
   'regExpr.op.groupTitle': 'Haakjes — zet het geselecteerde deel ertussen, of voeg ( ) toe',
   'regExpr.op.inserted': '{name} ingevoegd',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Kleur',
+  'inspector.accent.palette': 'Stroomkleuren',
+  'inspector.accent.default': 'Standaard',
+  'inspector.accent.recent': 'Laatst gebruikt',
+  'inspector.accent.document': 'In dit document',
+  'inspector.accent.hex': 'Hexcode',
+  'inspector.accent.picker': 'Andere kleur',
+  'inspector.accent.mixed': 'Gemengd',
+  'inspector.accent.appliesTo': '{n, plural, one {Geldt voor # geselecteerd element} other {Geldt voor # geselecteerde elementen}}',
+  'inspector.accent.error.alpha': 'Transparantie wordt niet ondersteund. Voer zes hexadecimale cijfers in, bijvoorbeeld #336699.',
+  'inspector.accent.error.format': 'Geen kleur. Voer drie of zes hexadecimale cijfers in, bijvoorbeeld #336699.',
+  'inspector.accent.notice.canvasLight': 'Slecht zichtbaar op het lichte tekengebied.',
+  'inspector.accent.notice.canvasDark': 'Slecht zichtbaar op het donkere tekengebied.',
+  'inspector.accent.notice.nodeLight': 'Slecht zichtbaar op lichte knooppunten.',
+  'inspector.accent.notice.nodeDark': 'Slecht zichtbaar op donkere knooppunten.',
+  'inspector.accent.notice.state': 'Lijkt op een kleur die het tekengebied gebruikt voor focus, waarschuwingen of een lopende simulatie.',
 } as const
 
 export default inspector

@@ -238,7 +238,7 @@ test.describe('closing the notice and opening the panel are different things', (
         expect(text).not.toContain('text unavailable')
       }
     }
-    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.18.2', '0.18.1', '0.18.0', '0.17.2', '0.17.1', '0.17.0', '0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
+    expect(RELEASE_NOTES.map((n) => n.version)).toEqual(['0.19.0', '0.18.2', '0.18.1', '0.18.0', '0.17.2', '0.17.1', '0.17.0', '0.16.0', '0.15.3', '0.15.2', '0.15.1', '0.15.0', '0.14.0'])
 
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)
@@ -588,7 +588,25 @@ test.describe('the end of the list can be reached', () => {
       expect((await panelEnd(page)).lastLineShown).toBe(false)
       const box = (await panel.boundingBox())!
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-      await page.mouse.wheel(0, 4000)
+      // real wheel turns, at most WHEEL_TURNS of them: the list grows with every
+      // release, and at 0.19.0 one 4000 px turn no longer reached its end in
+      // fr, de and ru. The end criterion is unchanged; not reaching it within
+      // the turns fails.
+      const WHEEL_TURNS = 5
+      const scrollTop = () => list.evaluate((el) => el.scrollTop)
+      for (let turn = 0; turn < WHEEL_TURNS; turn++) {
+        await page.mouse.wheel(0, 4000)
+        // let the turn land: the list's position stops moving
+        let last = -1
+        await expect.poll(async () => {
+          const now = await scrollTop()
+          const settled = now === last
+          last = now
+          return settled
+        }, { intervals: [100] }).toBe(true)
+        const at = await panelEnd(page)
+        if (at.atEnd && at.lastLineShown) break
+      }
       await expect.poll(() => panelEnd(page)).toMatchObject({ atEnd: true, lastLineShown: true })
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
     })

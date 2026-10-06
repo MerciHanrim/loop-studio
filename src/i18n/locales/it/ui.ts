@@ -555,6 +555,10 @@ const ui = {
   'whatsNew.v0182.steps': 'Nel giro guidato, il numero, il titolo e il testo di ogni passaggio vengono ora annunciati una sola volta, e la domanda della scheda di benvenuto viene annunciata con il suo titolo.',
   'whatsNew.v0182.focus': 'Il giro si apre con lo stato attivo su Avanti, e lo stato attivo resta su Avanti o Indietro mentre i passaggi cambiano, anche quando Indietro torna al primo passaggio.',
   'whatsNew.v0182.end': 'Comunque si chiuda il giro, con Fatto, Esc o il pulsante di chiusura, lo stato attivo va sul pulsante Guida, o su Altro sul telefono, invece di andare perso.',
+  'whatsNew.v0190.colour': 'Nell’Ispettore puoi dare a nodi e connessioni un colore di flusso: un colore della tavolozza, uno recente, uno già presente nel diagramma, un valore esadecimale o qualsiasi colore dal selettore del browser.',
+  'whatsNew.v0190.keep': 'I colori di flusso si salvano con il diagramma e restano nei link e nell’annullamento; cambiarli non azzera mai l’esecuzione e non rende superato un risultato Monte Carlo.',
+  'whatsNew.v0190.select': 'Un nodo selezionato ora mostra un anello fuori dal contorno e una connessione selezionata un’evidenziazione sotto la linea, così la selezione resta chiara con qualsiasi colore.',
+  'whatsNew.v0190.notice': 'Se un colore è poco visibile, o somiglia a uno che l’area di disegno usa per lo stato attivo, gli avvisi o una simulazione in corso, l’Ispettore lo segnala; il colore viene comunque applicato.',
 } satisfies Record<UiKey, string>
 
 export default ui

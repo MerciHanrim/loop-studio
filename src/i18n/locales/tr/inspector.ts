@@ -190,6 +190,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — formüle {sym} ekler',
   'regExpr.op.groupTitle': 'Parantez — seçili bölümü sarar ya da ( ) ekler',
   'regExpr.op.inserted': 'Eklendi: {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Renk',
+  'inspector.accent.palette': 'Akış renkleri',
+  'inspector.accent.default': 'Varsayılan',
+  'inspector.accent.recent': 'Son kullanılanlar',
+  'inspector.accent.document': 'Bu belgede',
+  'inspector.accent.hex': 'Onaltılık',
+  'inspector.accent.picker': 'Başka bir renk',
+  'inspector.accent.mixed': 'Karışık',
+  'inspector.accent.appliesTo': '{n, plural, one {Seçili # öğeye uygulanır} other {Seçili # öğeye uygulanır}}',
+  'inspector.accent.error.alpha': 'Saydamlık desteklenmez. #336699 gibi altı onaltılık rakam girin.',
+  'inspector.accent.error.format': 'Bu bir renk değil. #336699 gibi üç ya da altı onaltılık rakam girin.',
+  'inspector.accent.notice.canvasLight': 'Açık tuvalde zor görünür.',
+  'inspector.accent.notice.canvasDark': 'Koyu tuvalde zor görünür.',
+  'inspector.accent.notice.nodeLight': 'Açık düğümlerde zor görünür.',
+  'inspector.accent.notice.nodeDark': 'Koyu düğümlerde zor görünür.',
+  'inspector.accent.notice.state': 'Tuvalin odak, uyarılar ya da çalışan bir simülasyon için kullandığı bir renge yakın.',
 } as const
 
 export type InspectorKey = keyof typeof inspector

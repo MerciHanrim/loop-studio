@@ -206,6 +206,23 @@ const inspector = {
   'regExpr.op.groupTitle':
     'Parenthèses — encadrer la partie sélectionnée, ou ajouter ( )',
   'regExpr.op.inserted': '{name} inséré',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Couleur',
+  'inspector.accent.palette': 'Couleurs de flux',
+  'inspector.accent.default': 'Par défaut',
+  'inspector.accent.recent': 'Récentes',
+  'inspector.accent.document': 'Dans ce document',
+  'inspector.accent.hex': 'Hexadécimal',
+  'inspector.accent.picker': 'Autre couleur',
+  'inspector.accent.mixed': 'Mixte',
+  'inspector.accent.appliesTo': '{n, plural, one {S’applique à # élément sélectionné} other {S’applique à # éléments sélectionnés}}',
+  'inspector.accent.error.alpha': 'La transparence n’est pas prise en charge. Saisissez six chiffres hexadécimaux, par exemple #336699.',
+  'inspector.accent.error.format': 'Ce n’est pas une couleur. Saisissez trois ou six chiffres hexadécimaux, par exemple #336699.',
+  'inspector.accent.notice.canvasLight': 'Peu visible sur le canevas clair.',
+  'inspector.accent.notice.canvasDark': 'Peu visible sur le canevas sombre.',
+  'inspector.accent.notice.nodeLight': 'Peu visible sur les nœuds clairs.',
+  'inspector.accent.notice.nodeDark': 'Peu visible sur les nœuds sombres.',
+  'inspector.accent.notice.state': 'Proche d’une couleur que le canevas utilise pour le focus, les avertissements ou une simulation en cours.',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

@@ -23,6 +23,7 @@
 // make it invisible to `isDataImportContent` (SEMANTICS-R8.md §R8-1), which
 // must classify by storage shape, not validity.
 
+import { carryAccent } from './accent'
 import { trimUnicodeWhitespace, truncateUtf8, utf8Len } from './text'
 
 export const PARAM_UNIT_MAX_BYTES = 24
@@ -61,6 +62,8 @@ export type ParameterData = {
    *  and kept independently of it too; never dropped merely because the
    *  triple (or part of it) is absent. */
   labelAutoComposed?: boolean
+  /** docs/flow-colour-and-compact-nodes.md FC-2 — upper-case `#RRGGBB`. */
+  accent?: string
 }
 
 export type ParamNotice =
@@ -190,6 +193,9 @@ export function readParameterData(raw: unknown): ParamReadResult {
     if (typeof raw.labelAutoComposed === 'boolean') data.labelAutoComposed = raw.labelAutoComposed
     else notices.push('PARAM_LABEL_AUTO_COMPOSED_INVALID')
   }
+
+  // FC-2.3 — a flow colour that does not read is dropped, with no notice
+  carryAccent(raw, data)
 
   return { ok: true, data, notices }
 }

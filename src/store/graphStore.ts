@@ -43,6 +43,7 @@ import {
   type SavedFrame,
   type TimelineSeries,
 } from '../model/serialize'
+import { readAccent } from '../model/model'
 import type { InitialView } from '../model/templates'
 import type { LoopEdge, LoopEdgeData, LoopNode, NodeKind } from '../model/types'
 
@@ -206,6 +207,11 @@ type GraphStore = {
   renameDataImportTable: (id: string, newLabel: string) => { ok: true } | { ok: false; reason: 'empty-table-name' | 'label-too-long' }
   updateNodeData: (id: string, patch: Record<string, unknown>) => void
   setEdgeData: (id: string, data: LoopEdgeData) => void
+  /** docs/flow-colour-and-compact-nodes.md FC-2.4 — set (`#RRGGBB` in any
+   *  form `readAccent` takes) or remove (`null`) the flow colour of these
+   *  nodes and edges as ONE undo entry. Elements that already have it are
+   *  left alone; when nothing changes, no entry. Never a simulation change. */
+  setAccent: (nodeIds: readonly string[], edgeIds: readonly string[], accent: string | null) => void
   removeNode: (id: string) => void
   removeEdge: (id: string) => void
   setSelection: (nodeId: string | null, edgeId: string | null) => void
@@ -432,6 +438,66 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 // entry. Selection and simulation never create history.
 const COALESCE_MS = 600
 const HISTORY_MAX = 100
+
+// docs/flow-colour-and-compact-nodes.md FC-2.4 — a flow colour is not a model
+// change: setting, removing, undoing or redoing one never resets the run.
+const accentOf = (data: unknown): unknown => (data as { accent?: unknown } | undefined)?.accent
+const withoutAccent = (data: unknown): string => {
+  if (!data || typeof data !== 'object') return JSON.stringify(data)
+  const { accent: _accent, ...rest } = data as Record<string, unknown>
+  return JSON.stringify(rest)
+}
+/** true when `a` and `b` differ ONLY in some element's `data.accent` (and at
+ *  least one accent does differ): same model version, same elements in the
+ *  same order, same positions, handles and every other data field. */
+export function onlyAccentsDiffer(
+  a: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+  b: { nodes: LoopNode[]; edges: LoopEdge[]; modelVersion: ModelSemanticsVersion },
+): boolean {
+  if (a.modelVersion !== b.modelVersion) return false
+  if (a.nodes.length !== b.nodes.length || a.edges.length !== b.edges.length) return false
+  let accentChanged = false
+  for (let i = 0; i < a.nodes.length; i++) {
+    const p = a.nodes[i]!, q = b.nodes[i]!
+    if (p === q) continue
+    if (p.id !== q.id || p.type !== q.type || p.position?.x !== q.position?.x || p.position?.y !== q.position?.y) return false
+    if (p.data === q.data) continue
+    if (withoutAccent(p.data) !== withoutAccent(q.data)) return false
+    if (accentOf(p.data) !== accentOf(q.data)) accentChanged = true
+  }
+  for (let i = 0; i < a.edges.length; i++) {
+    const p = a.edges[i]!, q = b.edges[i]!
+    if (p === q) continue
+    if (
+      p.id !== q.id || p.source !== q.source || p.target !== q.target ||
+      (p.sourceHandle ?? null) !== (q.sourceHandle ?? null) || (p.targetHandle ?? null) !== (q.targetHandle ?? null)
+    ) return false
+    if (p.data === q.data) continue
+    if (withoutAccent(p.data) !== withoutAccent(q.data)) return false
+    if (accentOf(p.data) !== accentOf(q.data)) accentChanged = true
+  }
+  return accentChanged
+}
+
+/** docs/flow-colour-and-compact-nodes.md FC-5 — what a colour choice applies
+ *  to: every node and edge React Flow marks `selected`; with none marked, the
+ *  one `selectedNodeId` / `selectedEdgeId` the Inspector shows. The selection
+ *  model itself is unchanged, and the flags never reach a document (`serialize`
+ *  writes id, type, position and data only). */
+export function accentTargets(s: {
+  nodes: LoopNode[]
+  edges: LoopEdge[]
+  selectedNodeId: string | null
+  selectedEdgeId: string | null
+}): { nodeIds: string[]; edgeIds: string[] } {
+  const nodeIds = s.nodes.filter((n) => n.selected).map((n) => n.id)
+  const edgeIds = s.edges.filter((e) => e.selected).map((e) => e.id)
+  if (nodeIds.length > 0 || edgeIds.length > 0) return { nodeIds, edgeIds }
+  return {
+    nodeIds: s.selectedNodeId != null && s.nodes.some((n) => n.id === s.selectedNodeId) ? [s.selectedNodeId] : [],
+    edgeIds: s.selectedEdgeId != null && s.edges.some((e) => e.id === s.selectedEdgeId) ? [s.selectedEdgeId] : [],
+  }
+}
 let lastTag = ''
 let lastTagAt = 0
 
@@ -608,7 +674,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      bump()
+      // FC-2.4 — undoing a flow colour is not a model change
+      if (onlyAccentsDiffer({ nodes, edges, modelVersion }, prev)) clearPristine()
+      else bump()
       persist()
       restoreSidecar(prev.sidecar) // restore the project header + saved frames this entry carried
     },
@@ -629,7 +697,9 @@ export const useGraphStore = create<GraphStore>((set, get) => {
         selectedNodeId: null,
         selectedEdgeId: null,
       })
-      bump()
+      // FC-2.4 — redoing a flow colour is not a model change
+      if (onlyAccentsDiffer({ nodes, edges, modelVersion }, next)) clearPristine()
+      else bump()
       persist()
       restoreSidecar(next.sidecar) // restore the project header + saved frames this entry carried
     },
@@ -734,8 +804,33 @@ export const useGraphStore = create<GraphStore>((set, get) => {
           n.id === id ? { ...n, data: { ...n.data, ...patch } as LoopNode['data'] } : n,
         ),
       })
-      // a pure `label` rename does not change what a simulation computes
-      if (Object.keys(patch).some((k) => k !== 'label')) bump()
+      // a pure `label` rename does not change what a simulation computes, and
+      // neither does a flow colour (FC-2.4)
+      if (Object.keys(patch).some((k) => k !== 'label' && k !== 'accent')) bump()
+      persist()
+    },
+
+    setAccent: (nodeIds, edgeIds, accent) => {
+      const value = accent == null ? undefined : readAccent(accent)
+      if (accent != null && value === undefined) return
+      const nodeSet = new Set(nodeIds)
+      const edgeSet = new Set(edgeIds)
+      const differs = (data: unknown) => accentOf(data) !== value
+      const { nodes, edges } = get()
+      if (!nodes.some((n) => nodeSet.has(n.id) && differs(n.data)) && !edges.some((e) => edgeSet.has(e.id) && differs(e.data))) {
+        return
+      }
+      commit('')
+      const recolour = <D,>(data: D): D => {
+        const next = { ...(data as Record<string, unknown>) }
+        if (value === undefined) delete next.accent
+        else next.accent = value
+        return next as D
+      }
+      set({
+        nodes: nodes.map((n) => (nodeSet.has(n.id) && differs(n.data) ? { ...n, data: recolour(n.data) } : n)),
+        edges: edges.map((e) => (edgeSet.has(e.id) && differs(e.data) ? { ...e, data: recolour(e.data) } : e)),
+      })
       persist()
     },
 
@@ -747,7 +842,8 @@ export const useGraphStore = create<GraphStore>((set, get) => {
       // the canonical digest but NOTHING a simulation computes, so a routing-only
       // edit must not bump `simulationRev` (mirrors the pure-`label` exemption).
       const after = data as unknown as Record<string, unknown>
-      const COSMETIC = new Set(['route', 'waypoints'])
+      // docs/flow-colour-and-compact-nodes.md FC-2.4 — so is a flow colour
+      const COSMETIC = new Set(['route', 'waypoints', 'accent'])
       const touched = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter(
         (k) => !Object.is(before?.[k], after[k]),
       )

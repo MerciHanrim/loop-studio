@@ -536,6 +536,10 @@ const ui = {
   'whatsNew.v0182.steps': 'In de rondleiding worden het nummer, de titel en de tekst van elke stap nu één keer aangekondigd, en de vraag op de welkomstkaart wordt met de titel aangekondigd.',
   'whatsNew.v0182.focus': 'De rondleiding opent met de focus op Volgende, en de focus blijft op Volgende of Terug terwijl de stappen wisselen, ook wanneer Terug de eerste stap bereikt.',
   'whatsNew.v0182.end': 'Hoe de rondleiding ook eindigt, met Klaar, Escape of de sluitknop, de focus gaat naar de knop Help, of naar Meer op een telefoon, in plaats van verloren te gaan.',
+  'whatsNew.v0190.colour': 'Geef knooppunten en verbindingen in de Inspector een stroomkleur: een paletkleur, een recente, een die al in het diagram staat, een hexwaarde of een kleur uit de kleurkiezer van de browser.',
+  'whatsNew.v0190.keep': 'Stroomkleuren worden met het diagram opgeslagen en blijven behouden in een gedeelde link en bij ongedaan maken; een kleur wijzigen zet de run nooit terug en maakt een Monte Carlo-resultaat niet verouderd.',
+  'whatsNew.v0190.select': 'Een geselecteerd knooppunt toont nu een extra rand buiten de omtrek, en een geselecteerde verbinding een markering eronder, zodat een selectie op elke kleur duidelijk blijft.',
+  'whatsNew.v0190.notice': 'Is een kleur slecht zichtbaar, of lijkt ze op een kleur die het tekengebied gebruikt voor focus, waarschuwingen of een lopende simulatie, dan meldt de Inspector dat; de kleur wordt toch toegepast.',
 } as const
 
 export default ui

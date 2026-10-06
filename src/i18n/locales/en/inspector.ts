@@ -173,6 +173,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — inserts {sym} into the formula',
   'regExpr.op.groupTitle': 'Parentheses — wrap the selected part, or add ( )',
   'regExpr.op.inserted': '{name} inserted',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Colour',
+  'inspector.accent.palette': 'Flow colours',
+  'inspector.accent.default': 'Default',
+  'inspector.accent.recent': 'Recent',
+  'inspector.accent.document': 'In this document',
+  'inspector.accent.hex': 'Hex',
+  'inspector.accent.picker': 'Any colour',
+  'inspector.accent.mixed': 'Mixed',
+  'inspector.accent.appliesTo': '{n, plural, one {Applies to # selected item} other {Applies to # selected items}}',
+  'inspector.accent.error.alpha': 'Transparency is not supported. Use six hex digits, such as #336699.',
+  'inspector.accent.error.format': 'Not a colour. Use three or six hex digits, such as #336699.',
+  'inspector.accent.notice.canvasLight': 'Hard to see on the light canvas.',
+  'inspector.accent.notice.canvasDark': 'Hard to see on the dark canvas.',
+  'inspector.accent.notice.nodeLight': 'Hard to see on light nodes.',
+  'inspector.accent.notice.nodeDark': 'Hard to see on dark nodes.',
+  'inspector.accent.notice.state': 'Close to a colour the canvas uses for focus, warnings or a running simulation.',
 } as const
 
 export type InspectorKey = keyof typeof inspector

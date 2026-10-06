@@ -539,6 +539,10 @@ const ui = {
   'whatsNew.v0182.steps': 'En el recorrido guiado, el número, el título y el texto de cada paso ahora se anuncian una sola vez, y la pregunta de la tarjeta de bienvenida se anuncia con su título.',
   'whatsNew.v0182.focus': 'El recorrido se abre con el foco en Siguiente, y el foco se queda en Siguiente o Atrás mientras cambian los pasos, también cuando Atrás llega al primer paso.',
   'whatsNew.v0182.end': 'Termine como termine el recorrido, con Listo, Escape o su botón de cierre, el foco pasa al botón Ayuda, o a Más en un teléfono, en lugar de perderse.',
+  'whatsNew.v0190.colour': 'En Propiedades puede dar un color de flujo a nodos y conexiones: un color de la paleta, uno reciente, uno que ya está en el diagrama, un valor hexadecimal o cualquier color del selector del navegador.',
+  'whatsNew.v0190.keep': 'Los colores de flujo se guardan con el diagrama y se conservan en los enlaces y al deshacer; cambiar uno nunca reinicia la ejecución ni deja desactualizado un resultado de Monte Carlo.',
+  'whatsNew.v0190.select': 'Un nodo seleccionado muestra ahora un anillo fuera de su contorno, y una conexión seleccionada un resaltado debajo, de modo que la selección se ve clara sobre cualquier color.',
+  'whatsNew.v0190.notice': 'Si un color se ve mal, o se parece a uno que el lienzo usa para el foco, los avisos o una simulación en curso, Propiedades lo indica; el color se aplica igualmente.',
 } as const
 
 export type UiKey = keyof typeof ui

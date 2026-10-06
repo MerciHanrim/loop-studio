@@ -595,6 +595,10 @@ const ui = {
   'whatsNew.v0182.steps': 'Rehberli turda her adımın numarası, başlığı ve metni artık bir kez duyurulur; karşılama kartındaki soru da başlığıyla birlikte duyurulur.',
   'whatsNew.v0182.focus': 'Tur, odak İleri düğmesindeyken açılır ve adımlar değişirken, Geri ilk adıma döndüğünde de odak İleri veya Geri düğmesinde kalır.',
   'whatsNew.v0182.end': 'Tur Bitti, Escape ya da kapatma düğmesiyle nasıl biterse bitsin, odak kaybolmaz; Yardım düğmesine, telefonda ise Diğer düğmesine gider.',
+  'whatsNew.v0190.colour': 'İnceleyici’de düğümlere ve bağlantılara akış rengi verin: paletten bir renk, son kullanılan bir renk, diyagramda zaten olan bir renk, bir onaltılık renk kodu ya da tarayıcının renk seçicisinden herhangi bir renk.',
+  'whatsNew.v0190.keep': 'Akış renkleri diyagramla birlikte kaydedilir, bağlantılarda ve geri almada korunur; bir rengi değiştirmek çalıştırmayı asla sıfırlamaz ve Monte Carlo sonucunu eskimiş yapmaz.',
+  'whatsNew.v0190.select': 'Seçili bir düğüm artık dış çizgisinin dışında bir halka, seçili bir bağlantı da altında bir vurgu gösterir; böylece seçim her renkte açıkça görünür.',
+  'whatsNew.v0190.notice': 'Bir renk zor görünüyorsa ya da tuvalin odak, uyarılar veya çalışan bir simülasyon için kullandığı bir renge benziyorsa İnceleyici bunu söyler; renk yine de uygulanır.',
 } as const
 
 export type UiKey = keyof typeof ui

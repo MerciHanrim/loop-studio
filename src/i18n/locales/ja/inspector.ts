@@ -186,6 +186,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — 数式に {sym} を挿入',
   'regExpr.op.groupTitle': 'かっこ — 選択部分を囲む、または ( ) を追加',
   'regExpr.op.inserted': '{name} を挿入しました',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': '色',
+  'inspector.accent.palette': 'フローの色',
+  'inspector.accent.default': '既定',
+  'inspector.accent.recent': '最近',
+  'inspector.accent.document': 'このドキュメントの色',
+  'inspector.accent.hex': 'Hex',
+  'inspector.accent.picker': '任意の色',
+  'inspector.accent.mixed': '混在',
+  'inspector.accent.appliesTo': '{n, plural, other {選択した # 個の項目に適用}}',
+  'inspector.accent.error.alpha': '透明度には対応していません。#336699 のように 16 進数 6 桁で入力してください。',
+  'inspector.accent.error.format': '色ではありません。#336699 のように 16 進数 3 桁または 6 桁で入力してください。',
+  'inspector.accent.notice.canvasLight': '明るいキャンバスでは見えにくい色です。',
+  'inspector.accent.notice.canvasDark': '暗いキャンバスでは見えにくい色です。',
+  'inspector.accent.notice.nodeLight': '明るいノードでは見えにくい色です。',
+  'inspector.accent.notice.nodeDark': '暗いノードでは見えにくい色です。',
+  'inspector.accent.notice.state': 'キャンバスがフォーカス、警告、実行中のシミュレーションに使う色に近い色です。',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

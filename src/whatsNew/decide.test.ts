@@ -15,10 +15,10 @@ describe('every stored key is classified', () => {
     expect(RETURNING_PROFILE_KEYS.filter((k) => (NOT_A_TRACE as readonly string[]).includes(k))).toEqual([])
     expect(new Set(RETURNING_PROFILE_KEYS).size).toBe(RETURNING_PROFILE_KEYS.length)
   })
-  it('thirteen keys are traces, and four are not', () => {
+  it('fourteen keys are traces, and four are not', () => {
     // a key added to the registry later lands in NEITHER list and fails the
     // first test above: it does not become a trace on its own
-    expect(RETURNING_PROFILE_KEYS).toHaveLength(13)
+    expect(RETURNING_PROFILE_KEYS).toHaveLength(14)
     expect(NOT_A_TRACE).toHaveLength(4)
   })
   it('the storage-mode key is not a trace: a brand-new profile writes it at the gate (issue #297)', () => {

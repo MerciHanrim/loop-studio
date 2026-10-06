@@ -119,7 +119,10 @@ Top to bottom, shown/hidden per §VL7:
    monospace line of the expression **as written**, ellipsized, in
    `--text-tertiary`. It is display text, not evaluated here.
 5. **Type chip** — a 10–12 px pill in the node's hue with the resource-type
-   name (§VL5). One chip per node.
+   name (§VL5). One chip per node. A node with a flow colour (issue #325,
+   `docs/flow-colour-and-compact-nodes.md` FC-4.1) shows that colour on the
+   chip, the faint hue wash and the L0 dot instead of the kind hue; the
+   silhouette still carries the kind.
 
 ### VL2.3 Handles
 
@@ -205,8 +208,8 @@ Each is an **additive** layer over the resting node. Colours are from
 |---|---|---|---|
 | **resting** | — | — | none |
 | **hover** | `--line-strong` → slightly darker | 1 px outline grows | none |
-| **selected** | `--state-selected` ring | 2 px ring, offset 2 px | none |
-| **focus** (keyboard) | `--state-focus` ring | dashed ring **inside** the selected ring | none |
+| **selected** | `--state-selected` ring | 2 px ring, offset 2 px — drawn 2.5–4.5 px outside the silhouette, never a recolour of the outline (`docs/flow-colour-and-compact-nodes.md` FC-4.1) | none |
+| **focus** (keyboard) | `--state-focus` ring | dashed ring, the **innermost** layer: 4.5–6 px inside the silhouette, inside the selected ring and inside a flow-colour band | none |
 | **acted this step** ("fired") | `--state-fired` edge glow | a corner tick mark appears for the step | one 320 ms fade-in, then hold until the next step |
 | **value changed** | `--state-fired` on the number | ▲ / ▼ glyph beside the value | number slides up/down ~320 ms (`→` §VL9) |
 | **arrival** (a pool just received) | `--state-arrival` fill pulse at the `in` port | a small inbound chevron | one 320 ms pulse |
@@ -217,6 +220,13 @@ Each is an **additive** layer over the resting node. Colours are from
 Stacking: rings (focus inside selected) < step cues (fired glow, value slide) <
 persistent flags (blocked, conflict, invalid badges, always top-right, stacked
 downward in that order).
+
+Spatial order of the rings (issue #325, `docs/flow-colour-and-compact-nodes.md`
+FC-4.1), from the inside out: the dashed focus ring, the flow-colour band (only
+when the node has a flow colour), the neutral structure line on the silhouette,
+the selection ring, and the dashed `invalid` ring outermost. Each is cut from
+the silhouette at a fixed pixel distance, so all of them show at once and none
+paints over another.
 
 The **`invalid`** state applies **only to Register** nodes (`→ SEMANTICS-M.md
 §M3`). A **Parameter is never `invalid`** (§M1.1): a bad `value` is read-time
@@ -309,8 +319,14 @@ one of these nodes it is rendered as the chip and otherwise ignored.
 
 | Class | Line | Arrowhead | Selected | Label |
 |---|---|---|---|---|
-| **resource** | solid, `--edge-resource`, 1.5 px (+ type inner-stroke, §VL5.2) | filled triangle | `--edge-selected`, 2 px | flow chip (§VL4) |
-| **state** | **dashed**, `--edge-state`, 1.25 px | small open triangle | `--edge-selected`, dashed 2 px | `✳` / `≥…` / `±…` chip |
+| **resource** | solid, `--edge-resource` or its flow colour, 1.5 px (+ type inner-stroke, §VL5.2) | filled triangle | keeps its colour, 2 px, over a translucent `--state-selected` underlay | flow chip (§VL4) |
+| **state** | **dashed**, `--edge-state` or its flow colour, 1.25 px | small open triangle | keeps its colour, dashed 2 px, over the same underlay | `✳` / `≥…` / `±…` chip |
+
+A flow colour (issue #325, `docs/flow-colour-and-compact-nodes.md` FC-4.2) is
+the edge's rest colour on its line, its arrowhead and a 1 px border on its
+label. Selection is the underlay, never a recolour; a satisfied activator keeps
+its `--signal-primary` stroke over the colour, a route-invalid edge keeps its
+`--warning` dash and flag, and run tokens keep their own colours.
 | **dependency hint** (Review: "removing this node also removes/retargets this edge", `→ SEMANTICS-R.md §R7A.3`) | dotted, `--warning` | none | — | — |
 
 - **Live flow** — while a resource edge carries flow this step, a bead travels

@@ -181,6 +181,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — insere {sym} na fórmula',
   'regExpr.op.groupTitle': 'Parênteses — envolva a parte selecionada ou acrescente ( )',
   'regExpr.op.inserted': 'Inserido: {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Cor',
+  'inspector.accent.palette': 'Cores de fluxo',
+  'inspector.accent.default': 'Padrão',
+  'inspector.accent.recent': 'Recentes',
+  'inspector.accent.document': 'Neste documento',
+  'inspector.accent.hex': 'Hexadecimal',
+  'inspector.accent.picker': 'Outra cor',
+  'inspector.accent.mixed': 'Misto',
+  'inspector.accent.appliesTo': '{n, plural, one {Aplica-se a # item selecionado} many {Aplica-se a # de itens selecionados} other {Aplica-se a # itens selecionados}}',
+  'inspector.accent.error.alpha': 'Sem transparência: use seis dígitos hexadecimais, como #336699.',
+  'inspector.accent.error.format': 'Não é uma cor: use três ou seis dígitos hexadecimais, como #336699.',
+  'inspector.accent.notice.canvasLight': 'Difícil de ver na tela clara.',
+  'inspector.accent.notice.canvasDark': 'Difícil de ver na tela escura.',
+  'inspector.accent.notice.nodeLight': 'Difícil de ver nos nós claros.',
+  'inspector.accent.notice.nodeDark': 'Difícil de ver nos nós escuros.',
+  'inspector.accent.notice.state': 'Parecida com uma cor que a tela usa para foco, avisos ou uma simulação em execução.',
 } as const
 
 export type InspectorKey = keyof typeof inspector

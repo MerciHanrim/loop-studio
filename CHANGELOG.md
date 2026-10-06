@@ -4,6 +4,18 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.19.0 — 2026-10-06
+
+Flow colours (issue #325, the first of three parts): nodes and connections can carry a colour so the flows of a large graph read apart at a glance. The contract is [`docs/flow-colour-and-compact-nodes.md`](docs/flow-colour-and-compact-nodes.md).
+
+- **Colour from the Inspector.** A new Colour section sets or removes the colour of every selected node and connection in one step: five palette colours (Slate, Sage, Gold, Violet, Rose), the recently used colours, the colours already in the diagram, a hex value (`#rgb` or `#rrggbb`; no transparency) or any colour from the browser's own picker. Default removes it. A selection whose colours differ shows Mixed.
+- **Where it shows.** On a node, a band just inside its outline, the small kind marker, the faint fill tint and the low-zoom dot; the node's shape, outline and text are unchanged, so a node with no contrast colour still has its edge. On a connection, its line, arrow and a thin border on its label. The same colour is drawn in the light and the dark theme.
+- **Nothing a run computes changes.** A colour change, its undo and its redo never reset the run or make a Monte Carlo result out of date. Colours are kept in the saved diagram, autosave, exports, share links, inserted modules and Project revisions; a colour value a file cannot use is dropped and the node or connection kept.
+- **Selection, focus and warnings stay clear on any colour.** A selected node now shows its ring outside the outline, as the visual design always specified, instead of a darker outline; a selected connection keeps its colour and shows a highlight beneath it. Focus, the invalid warning, run cues and Focus mode keep their own marks. This applies to every diagram, coloured or not.
+- **Advice, never a block.** A colour that would be hard to see where it is drawn, in either theme, or that looks like the colour the canvas uses for focus, warnings or a run, is applied with a note; the palette colours never get one.
+
+**No migration.** A file without colours opens and looks as before, apart from the new selection ring. A Project revision with a colour is a new revision format (`loop-revision/9`): an older version opens the diagram but not the revision, and keeps only the colours of flow nodes. The recent colours are a browser preference: a temporary session keeps them in memory only, and "Reset all Loop Studio data" removes them. Sixteen strings and four release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.19.0`.
+
 ## v0.18.2 — 2026-10-06
 
 A fix release (issue #308): the guided tour says each step once and never loses focus.

@@ -201,6 +201,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — вставляет {sym} в формулу',
   'regExpr.op.groupTitle': 'Скобки — обернуть выделенную часть или добавить ( )',
   'regExpr.op.inserted': 'Вставлено: {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Цвет',
+  'inspector.accent.palette': 'Цвета потоков',
+  'inspector.accent.default': 'По умолчанию',
+  'inspector.accent.recent': 'Недавние',
+  'inspector.accent.document': 'В этом документе',
+  'inspector.accent.hex': 'Hex',
+  'inspector.accent.picker': 'Другой цвет',
+  'inspector.accent.mixed': 'Разные',
+  'inspector.accent.appliesTo': '{n, plural, one {Применяется к # выбранному элементу} few {Применяется к # выбранным элементам} many {Применяется к # выбранным элементам} other {Применяется к # выбранного элемента}}',
+  'inspector.accent.error.alpha': 'Прозрачность не поддерживается. Введите шесть шестнадцатеричных цифр, например #336699.',
+  'inspector.accent.error.format': 'Это не цвет. Введите три или шесть шестнадцатеричных цифр, например #336699.',
+  'inspector.accent.notice.canvasLight': 'Плохо видно на светлом холсте.',
+  'inspector.accent.notice.canvasDark': 'Плохо видно на тёмном холсте.',
+  'inspector.accent.notice.nodeLight': 'Плохо видно на светлых узлах.',
+  'inspector.accent.notice.nodeDark': 'Плохо видно на тёмных узлах.',
+  'inspector.accent.notice.state': 'Похож на цвет, которым холст показывает фокус, предупреждения или идущую симуляцию.',
 } as const
 
 export type InspectorKey = keyof typeof inspector

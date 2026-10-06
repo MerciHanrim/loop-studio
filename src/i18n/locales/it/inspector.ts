@@ -187,6 +187,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — inserisce {sym} nella formula',
   'regExpr.op.groupTitle': 'Parentesi — racchiudi la parte selezionata, oppure aggiungi ( )',
   'regExpr.op.inserted': '{name} inserito',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Colore',
+  'inspector.accent.palette': 'Colori del flusso',
+  'inspector.accent.default': 'Predefinito',
+  'inspector.accent.recent': 'Recenti',
+  'inspector.accent.document': 'In questo documento',
+  'inspector.accent.hex': 'Esadecimale',
+  'inspector.accent.picker': 'Altro colore',
+  'inspector.accent.mixed': 'Misto',
+  'inspector.accent.appliesTo': '{n, plural, one {Si applica a # elemento selezionato} many {Si applica a # elementi selezionati} other {Si applica a # elementi selezionati}}',
+  'inspector.accent.error.alpha': 'La trasparenza non è supportata. Inserisci sei cifre esadecimali, ad esempio #336699.',
+  'inspector.accent.error.format': 'Non è un colore. Inserisci tre o sei cifre esadecimali, ad esempio #336699.',
+  'inspector.accent.notice.canvasLight': 'Poco visibile sull’area di disegno chiara.',
+  'inspector.accent.notice.canvasDark': 'Poco visibile sull’area di disegno scura.',
+  'inspector.accent.notice.nodeLight': 'Poco visibile sui nodi chiari.',
+  'inspector.accent.notice.nodeDark': 'Poco visibile sui nodi scuri.',
+  'inspector.accent.notice.state': 'Simile a un colore che l’area di disegno usa per lo stato attivo, gli avvisi o una simulazione in corso.',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

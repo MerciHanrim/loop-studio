@@ -541,6 +541,10 @@ const ui = {
   'whatsNew.v0182.steps': 'No tour guiado, o número, o título e o texto de cada etapa passam a ser anunciados uma única vez, e a pergunta do cartão de boas-vindas é anunciada com o título.',
   'whatsNew.v0182.focus': 'O tour abre com o foco em Avançar, e o foco fica em Avançar ou Voltar enquanto as etapas mudam, também quando Voltar chega à primeira etapa.',
   'whatsNew.v0182.end': 'Seja qual for a forma de encerrar o tour, com Concluir, Esc ou o botão de fechar, o foco vai para o botão Ajuda, ou para Mais no celular, em vez de se perder.',
+  'whatsNew.v0190.colour': 'No Inspetor, dê uma cor de fluxo a nós e conexões: uma cor da paleta, uma recente, uma que já está no diagrama, um valor hexadecimal ou qualquer cor do seletor do navegador.',
+  'whatsNew.v0190.keep': 'As cores de fluxo são salvas com o diagrama e mantidas nos links e no desfazer; mudar uma nunca reinicia a execução nem deixa um resultado de Monte Carlo desatualizado.',
+  'whatsNew.v0190.select': 'Um nó selecionado agora mostra um anel fora do contorno, e uma conexão selecionada um destaque por baixo, então a seleção fica clara em qualquer cor.',
+  'whatsNew.v0190.notice': 'Se uma cor ficar difícil de ver, ou parecer uma que a tela usa para foco, avisos ou uma simulação em execução, o Inspetor avisa; a cor é aplicada mesmo assim.',
 } as const
 
 export type UiKey = keyof typeof ui

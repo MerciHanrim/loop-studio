@@ -140,7 +140,21 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.18.2
+## Latest — v0.19.0
+
+Flow colours: give nodes and connections a colour so a large graph's flows read apart.
+
+- **The Inspector's Colour section** colours every selected node and connection at once:
+  five palette colours, recent ones, the colours already in the diagram, a hex value or any
+  colour from the browser's picker; Default removes it
+- **Kept everywhere, changing nothing it computes**: saved with the diagram and in links
+  and undo, and a colour change never resets the run or a Monte Carlo result
+- **Selection stays clear on any colour**: a selected node shows a ring outside its
+  outline, a selected connection a highlight beneath it
+- **Advice, never a block**: a colour that would be hard to see, or that looks like a
+  colour the canvas uses for focus, warnings or a run, is still applied, with a note
+
+## v0.18.2
 
 A fix release: the guided tour says each step once.
 
@@ -170,14 +184,8 @@ The third-party open-source licenses, inside the app.
   carries it inside the file; the web and installed builds also open it as a text file
 - **Loop Studio's own notice is unchanged**: the licenses cover the included components only
 
-## v0.17.2
-
-A fix release: the Temporary session button looks like the menu buttons beside it.
-
-- **The same height, corners, text size and colours** as the toolbar's menu buttons, and
-  their hover and keyboard focus; its orange border still marks a temporary session
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.17.1 (share
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.17.2 (the
+Temporary session button drawn like the menu buttons), v0.17.1 (share
 links compressed with the browser's own Compression Streams), v0.17.0
 (password-protected share links), v0.16.0 (the storage gate, temporary sessions and the
 Storage and privacy area), the v0.15 releases and every earlier one.

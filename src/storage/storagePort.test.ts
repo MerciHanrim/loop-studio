@@ -77,16 +77,16 @@ describe('storagePort — a pass-through to localStorage', () => {
 })
 
 describe('storagePort — the key registry', () => {
-  it('lists the seventeen keys Loop Studio stores, by kind', () => {
+  it('lists the eighteen keys Loop Studio stores, by kind', () => {
     const byKind: Record<string, string[]> = {}
     for (const [key, kind] of Object.entries(STORAGE_KEYS)) (byKind[kind] ??= []).push(key)
-    expect(Object.keys(STORAGE_KEYS)).toHaveLength(17)
+    expect(Object.keys(STORAGE_KEYS)).toHaveLength(18)
     // issue #297 - the one key read before the gate and written by a temporary session
     expect(byKind.mode).toEqual(['loop-studio:storage-mode'])
     expect(STORAGE_MODE_KEY).toBe('loop-studio:storage-mode')
     expect(byKind.work).toEqual(['loop-studio:graph:v1'])
     expect(byKind.personal).toEqual(['loop-studio:author'])
-    expect(byKind.preference).toHaveLength(9)
+    expect(byKind.preference).toHaveLength(10)
     expect(byKind.onboarding).toEqual(['loop-studio/guided-tour/1', 'loop-studio/contextual-help/1', 'loop-studio/import-quickstart/1'])
     // issue #296 - which release note this profile was told about, and which it opened
     expect(byKind.release).toEqual(['loop-studio/whats-new/announced/1', 'loop-studio/whats-new/opened/1'])
@@ -111,6 +111,7 @@ describe('storagePort — the key registry', () => {
         'loop-studio:graph:v1',
         'loop-studio:inputs-panel',
         'loop-studio:minimap-collapsed',
+        'loop-studio:recent-accents',
         'loop-studio:summary-panel',
         'loop-studio:theme',
       ].sort(),

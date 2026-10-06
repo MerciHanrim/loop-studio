@@ -26,7 +26,13 @@ export type ResourceMode = PushMode | PullMode
 
 export type GateDistribution = 'deterministic' | 'probabilistic'
 
-export type PoolData = {
+/** docs/flow-colour-and-compact-nodes.md FC-2 — an optional flow colour on
+ *  any node or edge: upper-case `#RRGGBB`, absent when none. Decorative only:
+ *  outside the engine digest, cosmetic in the revision digest, never a reason
+ *  to reset a run (`src/model/model/accent.ts`). */
+export type FlowColour = { accent?: string }
+
+export type PoolData = FlowColour & {
   kind: 'pool'
   label: string
   activation: Activation
@@ -39,21 +45,21 @@ export type PoolData = {
   resourceType?: string
 }
 
-export type SourceData = {
+export type SourceData = FlowColour & {
   kind: 'source'
   label: string
   activation: Activation
   mode: PushMode
 }
 
-export type DrainData = {
+export type DrainData = FlowColour & {
   kind: 'drain'
   label: string
   activation: Activation
   mode: PullMode
 }
 
-export type GateData = {
+export type GateData = FlowColour & {
   kind: 'gate'
   label: string
   activation: Activation
@@ -62,14 +68,14 @@ export type GateData = {
   mode?: PullMode
 }
 
-export type ConverterData = {
+export type ConverterData = FlowColour & {
   kind: 'converter'
   label: string
   activation: Activation
   mode: PullMode
 }
 
-export type EndData = {
+export type EndData = FlowColour & {
   kind: 'end'
   label: string
   activation: Activation
@@ -88,7 +94,7 @@ export type RegisterFormat = 'int' | 'float' | 'percent'
  *  and `labelAutoComposed` are optional data-import provenance, absent on a
  *  hand-created Parameter. Kept in sync with `src/model/model/parameter.ts`'s
  *  own `ParameterData` (the canonical defensive-read shape). */
-export type ParameterData = {
+export type ParameterData = FlowColour & {
   kind: 'parameter'
   label: string
   value: number
@@ -105,7 +111,7 @@ export type ParameterData = {
 /** loop-model/1 §M2 — a derived readout: `expr` is a `loop-expr/1` string in
  *  §X8 canonical form (default `"0"`); the Register stores no value. `unit` /
  *  `format` are advisory display hints. Has no ports. */
-export type RegisterData = {
+export type RegisterData = FlowColour & {
   kind: 'register'
   label: string
   expr: string
@@ -132,7 +138,7 @@ export type EdgeRoutingData = {
   waypoints?: { x: number; y: number }[]
 }
 
-export type ResourceEdgeData = EdgeRoutingData & {
+export type ResourceEdgeData = EdgeRoutingData & FlowColour & {
   kind: 'resource'
   /** Flow expression: "1", "all", "2D6", "1-3", "25%", ... (parsed by the engine). */
   flow: string
@@ -140,7 +146,7 @@ export type ResourceEdgeData = EdgeRoutingData & {
   resourceType?: string
 }
 
-export type StateEdgeData = EdgeRoutingData & {
+export type StateEdgeData = EdgeRoutingData & FlowColour & {
   kind: 'state'
   mode: StateMode
   /** Modifier or condition expression, e.g. "+1" or ">=5". Unused for triggers. */

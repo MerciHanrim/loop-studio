@@ -1,6 +1,6 @@
 import { readRoutingPayload } from './edgeRouting'
 import { defaultData } from './factory'
-import { readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
+import { readAccent, readParameterData, readRegisterData, SOURCE_ID_MAX_BYTES, SOURCE_KEY_MAX_BYTES, utf8Len } from './model'
 import type { LoopEdge, LoopNode, NodeKind } from './types'
 import { storagePort } from '../storage/storagePort'
 
@@ -522,11 +522,13 @@ function normalizeNode(n: LoopNode): LoopNode {
   }
 
   if (!FLOW_KINDS.includes(kind)) return n
-  return {
-    ...n,
-    type: n.type ?? kind,
-    data: { ...defaultData(kind), ...n.data, kind } as LoopNode['data'],
-  }
+  const data = { ...defaultData(kind), ...n.data, kind } as Record<string, unknown>
+  // docs/flow-colour-and-compact-nodes.md FC-2.3 — the spread above would carry
+  // any `accent` unchecked: keep it only in its stored form, else drop the key
+  const accent = readAccent(data.accent)
+  if (accent === undefined) delete data.accent
+  else data.accent = accent
+  return { ...n, type: n.type ?? kind, data: data as LoopNode['data'] }
 }
 
 /** A handle id counts as "unset" when it is null, undefined, or empty. */
@@ -551,6 +553,9 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
   // key order too). A bad payload is quarantined silently here; the import path
   // re-scans raw edges via `routingReadIssues` for the user warning.
   const routing = readRoutingPayload(e.data)
+  // docs/flow-colour-and-compact-nodes.md FC-2.3 — a flow colour, trailing,
+  // only in its stored form (both edge kinds)
+  const accent = readAccent((e.data as Record<string, unknown> | undefined)?.accent)
 
   if (stateEdge) {
     const prev = e.data?.kind === 'state' ? e.data : undefined
@@ -575,6 +580,7 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
         ...(typeof prev?.when === 'string' ? { when: prev.when } : {}),
         ...(routing.route ? { route: routing.route } : {}),
         ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
+        ...(accent !== undefined ? { accent } : {}),
       },
     }
   }
@@ -595,6 +601,7 @@ function normalizeEdge(e: LoopEdge): LoopEdge {
       ...(typeof prevRes?.resourceType === 'string' ? { resourceType: prevRes.resourceType } : {}),
       ...(routing.route ? { route: routing.route } : {}),
       ...(routing.waypoints ? { waypoints: routing.waypoints } : {}),
+      ...(accent !== undefined ? { accent } : {}),
     } as LoopEdge['data'],
   }
 }
