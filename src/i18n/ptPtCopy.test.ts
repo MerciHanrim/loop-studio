@@ -58,7 +58,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1003) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines)
+    expect(KEYS).toHaveLength(1023) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -131,7 +131,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // The tour announcement (0.18.2) moved it from 269 to 270: one of its
     // three release-note lines - `telemóvel` not `celular`; the other two
     // and the step announcement's template read the same in both.
-    expect(DELTA).toHaveLength(270)
+    expect(DELTA).toHaveLength(273)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
@@ -175,7 +175,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // outside them, the quarter bound stands as it always did
     const rest = KEYS.filter((k) => !isPasswordKey(k))
     const restDelta = DELTA.filter((k) => !isPasswordKey(k))
-    expect(restDelta).toHaveLength(242)
+    expect(restDelta).toHaveLength(245)
     expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 
@@ -298,7 +298,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
       new Intl.PluralRules('pt-BR').resolvedOptions().pluralCategories.slice().sort(),
     )
     const plurals = KEYS.filter((k) => /,\s*plural\s*,/.test(ptValues[k]!))
-    expect(plurals).toHaveLength(19)
+    expect(plurals).toHaveLength(20)
     for (const k of plurals) {
       expect(ptValues[k], `${k} needs a many arm`).toMatch(/\bmany\s*\{/)
     }

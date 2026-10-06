@@ -525,6 +525,10 @@ const ui = {
   'whatsNew.v0182.steps': 'In the guided tour, each step’s number, title and text are now announced once, and the welcome card’s question is announced with its title.',
   'whatsNew.v0182.focus': 'The tour opens with focus on Next, and focus stays on Next or Back while the steps change, also when Back reaches the first step.',
   'whatsNew.v0182.end': 'However the tour ends, with Done, Escape or its close button, focus goes to the Help button, or to More on a phone, instead of being lost.',
+  'whatsNew.v0190.colour': 'Give nodes and connections a flow colour in the Inspector: a palette colour, a recent one, one already in the diagram, a hex value, or any colour from the browser’s picker.',
+  'whatsNew.v0190.keep': 'Flow colours are saved with the diagram and kept in links and in undo, and changing one never resets the run or makes a Monte Carlo result out of date.',
+  'whatsNew.v0190.select': 'A selected node now shows a ring outside its outline, and a selected connection a highlight beneath it, so a selection stays clear on any colour.',
+  'whatsNew.v0190.notice': 'If a colour would be hard to see, or looks like one the canvas uses for focus, warnings or a running simulation, the Inspector says so; the colour is still applied.',
 } as const
 
 export type UiKey = keyof typeof ui

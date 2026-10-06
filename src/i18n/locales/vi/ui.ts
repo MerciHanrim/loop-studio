@@ -541,6 +541,10 @@ const ui = {
   'whatsNew.v0182.steps': 'Trong phần giới thiệu, số thứ tự, tiêu đề và nội dung của mỗi bước giờ chỉ được thông báo một lần, và câu hỏi trên thẻ chào mừng được thông báo cùng tiêu đề.',
   'whatsNew.v0182.focus': 'Phần giới thiệu mở ra với tiêu điểm ở nút Tiếp, và tiêu điểm vẫn ở nút Tiếp hoặc Quay lại khi các bước thay đổi, kể cả khi Quay lại về đến bước đầu tiên.',
   'whatsNew.v0182.end': 'Dù kết thúc phần giới thiệu bằng Xong, Escape hay nút đóng, tiêu điểm sẽ không bị mất mà chuyển đến nút Trợ giúp, hoặc nút Thêm trên điện thoại.',
+  'whatsNew.v0190.colour': 'Trong Bảng thuộc tính, bạn có thể đặt màu luồng cho nút và liên kết: màu trong bảng màu, màu dùng gần đây, màu đã có trong sơ đồ, mã màu hoặc bất kỳ màu nào từ bộ chọn màu của trình duyệt.',
+  'whatsNew.v0190.keep': 'Màu luồng được lưu cùng sơ đồ, giữ nguyên trong liên kết và khi hoàn tác; đổi màu không bao giờ đặt lại lượt chạy hay làm kết quả Monte Carlo trở nên lỗi thời.',
+  'whatsNew.v0190.select': 'Nút đang chọn giờ có một vòng bên ngoài đường viền, liên kết đang chọn có một dải làm nổi bên dưới, nên vùng chọn luôn rõ trên mọi màu.',
+  'whatsNew.v0190.notice': 'Nếu màu khó nhìn, hoặc giống màu mà khung vẽ dùng cho tiêu điểm, cảnh báo hay mô phỏng đang chạy, Bảng thuộc tính sẽ báo; màu vẫn được áp dụng.',
 } satisfies Record<UiKey, string>
 
 export default ui

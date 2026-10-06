@@ -10,6 +10,7 @@ import { edgeHasRoutingIntent } from './edgeRouting'
 import { defaultData } from './factory'
 import {
   normalizeResourceType,
+  readAccent,
   readParameterData,
   readRegisterData,
 } from './model'
@@ -195,13 +196,17 @@ function numOrThrow(n: number, where: string): number {
  *  non-empty, so a graph with no resource types projects byte-identically to
  *  `loop-revision/1` (R2-INV-2). */
 const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
-  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType'],
-  source: ['kind', 'label', 'activation', 'mode'],
-  drain: ['kind', 'label', 'activation', 'mode'],
-  gate: ['kind', 'label', 'activation', 'distribution', 'mode'],
-  converter: ['kind', 'label', 'activation', 'mode'],
-  end: ['kind', 'label', 'activation', 'mode'],
+  pool: ['kind', 'label', 'activation', 'initial', 'capacity', 'mode', 'resourceType', 'accent'],
+  source: ['kind', 'label', 'activation', 'mode', 'accent'],
+  drain: ['kind', 'label', 'activation', 'mode', 'accent'],
+  gate: ['kind', 'label', 'activation', 'distribution', 'mode', 'accent'],
+  converter: ['kind', 'label', 'activation', 'mode', 'accent'],
+  end: ['kind', 'label', 'activation', 'mode', 'accent'],
 }
+// `loop-revision/9` (SEMANTICS-R9.md) appends a trailing `accent` (the flow
+// colour, docs/flow-colour-and-compact-nodes.md FC-2) to EVERY node and edge
+// list here and below — emitted only when set, so a document with no flow
+// colour projects byte-identically to before (R9-INV-1).
 /** `loop-revision/2` (`SEMANTICS-R2.md` §R2-2.1) — new node kinds, exact field
  *  order. Only reached for a `data.kind` of `parameter` / `register`.
  *  `loop-revision/8` (`SEMANTICS-R8.md` §R8-2.2) appends `sourceTableId`,
@@ -213,9 +218,9 @@ const NODE_FIELDS: Record<FlowNodeKind, readonly string[]> = {
 const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
   parameter: [
     'kind', 'label', 'value', 'min', 'max', 'step', 'unit',
-    'sourceTableId', 'sourceKey', 'sourceColumnId', 'labelAutoComposed',
+    'sourceTableId', 'sourceKey', 'sourceColumnId', 'labelAutoComposed', 'accent',
   ],
-  register: ['kind', 'label', 'expr', 'unit', 'format'],
+  register: ['kind', 'label', 'expr', 'unit', 'format', 'accent'],
 }
 /** edge `data` keys, in the frozen emit order, by kind (§R4.2 EDGE_FIELDS_BY_KIND).
  *  `loop-revision/2` appends a trailing `resourceType` to `resource`;
@@ -226,8 +231,8 @@ const MODEL_NODE_FIELDS: Record<'parameter' | 'register', readonly string[]> = {
  *  default), not `cosmetic` like `route` / `waypoints`: they change what a
  *  step computes. Each new key is emitted only when non-default. */
 const EDGE_FIELDS: Record<'resource' | 'state', readonly string[]> = {
-  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints'],
-  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints', 'timing', 'when'],
+  resource: ['kind', 'flow', 'resourceType', 'route', 'waypoints', 'accent'],
+  state: ['kind', 'mode', 'expr', 'delay', 'route', 'waypoints', 'timing', 'when', 'accent'],
 }
 
 const MODEL_NODE_KINDS = new Set(['parameter', 'register'])
@@ -379,6 +384,13 @@ function projectNode(n: LoopNode, modelLayer: boolean): CanonicalNode {
       if (rt !== null) data.resourceType = rt
       continue
     }
+    if (f === 'accent') {
+      // loop-revision/9 — trailing, only when a stored-form colour is present
+      if (!modelLayer) continue
+      const a = readAccent(src.accent)
+      if (a !== undefined) data.accent = a
+      continue
+    }
     let v = src[f]
     if (f === 'capacity') {
       // pool capacity: number (finite) or null (unbounded); absent ⇒ null
@@ -443,6 +455,12 @@ function projectEdge(e: LoopEdge, modelLayer: boolean): CanonicalEdge {
       // both change engine behaviour from the no-`when` default).
       if (!modelLayer) continue
       if (src?.when !== undefined) data.when = src.when
+    }
+    else if (f === 'accent') {
+      // loop-revision/9 — trailing, only when a stored-form colour is present
+      if (!modelLayer) continue
+      const a = readAccent(src?.accent)
+      if (a !== undefined) data.accent = a
     }
   }
   return {
@@ -611,6 +629,7 @@ export type SideVersion =
   | 'loop-revision/5' // SEMANTICS-R5.md — the side carries ≥ 1 surviving graph-level `frames` entry
   | 'loop-revision/6' // SEMANTICS-R6.md — the side carries CSU (loop-state/3) `timing` / `when` content
   | 'loop-revision/8' // SEMANTICS-R8.md — the side carries data-import provenance content (§R8-1)
+  | 'loop-revision/9' // SEMANTICS-R9.md — the side carries ≥ 1 flow colour (`data.accent`)
 export type RevisionSideOk = {
   ok: true
   version: SideVersion
@@ -774,7 +793,17 @@ export function readRevisionSide(
     }[],
   })
   const hasDataImport = hasDataImportTable || hasDataImportNode || (graph.rawDataImportSignal ?? false)
-  const version: SideVersion = hasDataImport
+  // SEMANTICS-R9.md §R9-1 — ≥ 1 SURVIVING flow colour (an invalid one was
+  // already dropped by `normalizeGraph`), on any node or edge. The newest
+  // extension, so the highest label precedence; like every v2+ label it
+  // shares the one `{ modelLayer: true }` projection, which is the only one
+  // that emits `accent`.
+  const hasAccent =
+    g.nodes.some((n) => readAccent((n.data as { accent?: unknown } | undefined)?.accent) !== undefined) ||
+    g.edges.some((e) => readAccent((e.data as { accent?: unknown } | undefined)?.accent) !== undefined)
+  const version: SideVersion = hasAccent
+    ? 'loop-revision/9'
+    : hasDataImport
     ? 'loop-revision/8'
     : hasCsu
       ? 'loop-revision/6'
@@ -802,7 +831,7 @@ export function readRevisionSide(
     return { ok: true, version, content: lifted, digestVerified: storedDigest !== undefined }
   }
 
-  // v2 / v3 / v4 / v5 / v6 / v8 all use the ONE conservative
+  // v2 / v3 / v4 / v5 / v6 / v8 / v9 all use the ONE conservative
   // `{ modelLayer: true }` projection; v4 additionally carries the §M2-8
   // model-semantics discriminator. The label distinguishes them for the loss
   // report / UI (§R3-5) — it does not change which fields the projection
@@ -933,6 +962,8 @@ export function fieldTag(kind: 'node' | 'edge', field: string): FieldTag {
   // loop-revision/3 §R3-3 — routing intent is cosmetic (like `label` / `position`):
   // projected, diffed, dirty-tracked; never engineAffecting, never advisoryAffecting.
   if (kind === 'edge' && (field === 'data.route' || field === 'data.waypoints')) return 'cosmetic'
+  // loop-revision/9 — the flow colour is decorative on a node and on an edge
+  if (field === 'data.accent') return 'cosmetic'
   if (field === 'data.resourceType') return 'advisory'
   if (kind === 'node') {
     if (
@@ -1473,6 +1504,8 @@ const OPTIONAL_PROJECTED_KEYS = new Set([
   // `undefined`) — the exact bug that once let a CSU->legacy selective-Apply
   // silently keep a stored `timing`/`when` it should have cleared.
   'sourceTableId', 'sourceKey', 'sourceColumnId', 'labelAutoComposed',
+  // `loop-revision/9` (SEMANTICS-R9.md) — the flow colour, on nodes and edges
+  'accent',
 ])
 
 export type HunkSelection = {

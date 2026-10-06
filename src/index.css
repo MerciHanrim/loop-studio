@@ -1141,7 +1141,9 @@ body {
 .mcdlg__field input:disabled,
 .band__pool:disabled,
 .review__field input:disabled,
-.review__field textarea:disabled {
+.review__field textarea:disabled,
+.accent-field__hex input:disabled,
+.accent-field__picker input:disabled {
   border-color: var(--line-disabled);
   color: var(--text-disabled);
 }
@@ -1550,6 +1552,27 @@ a.sheet__row {
   stroke-dasharray: 4 4;
   stroke-linecap: butt;
 }
+/* docs/flow-colour-and-compact-nodes.md FC-4.2 — a selected edge keeps its
+   colour (flow colour or default) and is shown by this underlay: a wider,
+   translucent `--state-selected` stroke beneath the path */
+.edge-select-underlay {
+  fill: none;
+  stroke: var(--state-selected);
+  stroke-width: 7;
+  stroke-opacity: 0.38;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+@media (forced-colors: active) {
+  .edge-select-underlay {
+    stroke: Highlight;
+    stroke-opacity: 0.6;
+  }
+}
+.react-flow__edge.lgr-deemph .edge-select-underlay {
+  opacity: 0.26;
+}
 .route-invalid-flag {
   pointer-events: none;
 }
@@ -1580,6 +1603,16 @@ a.sheet__row {
 }
 .loop-arrow--selected path {
   fill: var(--edge-selected);
+}
+/* docs/flow-colour-and-compact-nodes.md FC-4.2 — an edge with a flow colour */
+.loop-arrow--accent path {
+  fill: var(--loop-arrow-fill);
+}
+@media (forced-colors: active) {
+  /* FC-3.4 — no flow colour: the arrow takes the edge-class colour back */
+  .loop-arrow--accent path {
+    fill: var(--edge-resource);
+  }
 }
 .react-flow__attribution {
   background: transparent;
@@ -1741,12 +1774,39 @@ a.sheet__row {
   vector-effect: non-scaling-stroke;
 }
 
-/* state: selected — shape-hugging SOLID outline, never removed by animation */
+/* state: selected — a SOLID ring OUTSIDE the structure line (§VL3 "offset
+   2 px"; docs/flow-colour-and-compact-nodes.md FC-4.1). Its width and its
+   distance are set in nodes.tsx (`NODE_RINGS`): the stroke is cut by a mask,
+   so no stroke-width here. Never removed by animation. */
 .nodef__sel {
   fill: none;
   stroke: var(--state-selected);
-  stroke-width: 2;
   vector-effect: non-scaling-stroke;
+}
+/* docs/flow-colour-and-compact-nodes.md FC-4.1 — the flow-colour band, just
+   inside the neutral structure line (clipped to the silhouette in nodes.tsx).
+   Under forced colours no flow colour is drawn (FC-3.4). */
+.nodef__band {
+  fill: none;
+  stroke: var(--node-accent);
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+@media (forced-colors: active) {
+  .nodef__band {
+    display: none;
+  }
+}
+/* FC-4.1 — "the flow colour if set, else the kind hue" for the chip, the hue
+   wash and the L0 dot: the class outranks the per-kind `--node-hue`. Not under
+   forced colours (FC-3.4). */
+@media not (forced-colors: active) {
+  .nodef.has-accent {
+    --node-hue: var(--node-accent);
+  }
+  .nodef.has-accent .nodef__chip {
+    opacity: 1;
+  }
 }
 /* docs/register-expression-authoring.md §RXA3.4 — the Inspector expression
    reference "peek": a wide, soft, shape-hugging halo drawn UNDER the crisp
@@ -1775,18 +1835,14 @@ a.sheet__row {
     transition: none;
   }
 }
-/* state: keyboard focus — DASHED ring, scaled INSIDE the selection ring so
-   both read at once (§VL3 stacking: "focus inside selected"); solid-vs-dashed
-   is the non-colour tell. */
+/* state: keyboard focus — a DASHED ring, the innermost one (inside the
+   flow-colour band; §VL3 "focus inside selected", FC-4.1); solid-vs-dashed is
+   the non-colour tell. Width and distance: `NODE_RINGS` in nodes.tsx. */
 .nodef__focus {
   fill: none;
   stroke: var(--state-focus);
-  stroke-width: 1.5;
   stroke-dasharray: 3 2.5;
   vector-effect: non-scaling-stroke;
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scale(0.9);
 }
 /* state: invalid (loop-model/1) — WARNING dashed outline, the OUTERMOST ring
    (scaled slightly out so it survives under the selection ring); the dash
@@ -1805,12 +1861,8 @@ a.sheet__row {
 .nodef__invalid {
   fill: none;
   stroke: var(--warning);
-  stroke-width: 2;
   stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: scale(1.06);
 }
 .nodef__flag {
   position: absolute;
@@ -2147,6 +2199,7 @@ a.sheet__row {
    (a faded parent would clamp them). */
 .react-flow__node.lgr-deemph .nodef__fill,
 .react-flow__node.lgr-deemph .nodef__hue,
+.react-flow__node.lgr-deemph .nodef__band,
 .react-flow__node.lgr-deemph .nodef__stroke,
 .react-flow__node.lgr-deemph .nodef__endbar,
 .react-flow__node.lgr-deemph .nodef__body,
@@ -3804,6 +3857,12 @@ a.sheet__row {
   border-color: var(--state-selected);
   color: var(--text-primary);
 }
+/* docs/flow-colour-and-compact-nodes.md FC-4.2 — the label's mark of the
+   edge's flow colour: its border, at rest only (selected / on / blocked keep
+   their own border); under forced colours the UA owns the border. */
+.edge-label.has-accent:not(.is-selected):not(.edge-label--on):not(.edge-label--blocked) {
+  border-color: var(--edge-accent);
+}
 /* activator satisfied — steady "on" tint on the label to match the edge */
 .edge-label--on {
   color: var(--signal-primary);
@@ -4173,6 +4232,102 @@ a.sheet__row {
 }
 .field input[aria-invalid='true'] {
   border-color: var(--state-warning);
+}
+
+/* docs/flow-colour-and-compact-nodes.md FC-5 — the Inspector's Colour section */
+.accent-field {
+  margin: 4px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-hairline);
+}
+.accent-field__title {
+  margin: 0 0 6px;
+}
+.accent-field__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.accent-field__rowlabel {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.accent-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line-control);
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+}
+.accent-swatch--default {
+  width: auto;
+  padding: 0 8px;
+  border-radius: 11px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+}
+/* a NON-hue pressed tell (a ring), so it survives forced colours */
+.accent-swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface-raised),
+    0 0 0 4px var(--text-primary);
+}
+.accent-swatch:disabled,
+.accent-field__picker input:disabled {
+  cursor: default;
+}
+.accent-field__custom {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.accent-field__hex {
+  flex: 1;
+}
+.accent-field__hex input {
+  width: 100%;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.accent-field__hex input[aria-invalid='true'] {
+  border-color: var(--state-warning);
+}
+.accent-field__picker input {
+  display: block;
+  width: 44px;
+  height: 31px;
+  padding: 2px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+@media (forced-colors: active) {
+  .accent-swatch {
+    border-color: ButtonText;
+    forced-color-adjust: none;
+    background: var(--swatch);
+  }
+  .accent-swatch--default {
+    forced-color-adjust: auto;
+  }
+  .accent-swatch[aria-pressed='true'] {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
 }
 .field__hint {
   margin: 4px 0 0;

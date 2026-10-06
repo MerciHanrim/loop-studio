@@ -610,6 +610,10 @@ const ui = {
   'whatsNew.v0182.steps': 'Dans la visite guidée, le numéro, le titre et le texte de chaque étape sont désormais annoncés une seule fois, et la question de la carte de bienvenue est annoncée avec son titre.',
   'whatsNew.v0182.focus': 'La visite s’ouvre avec le focus sur Suivant, et le focus reste sur Suivant ou Précédent pendant le changement d’étape, y compris quand Précédent ramène à la première étape.',
   'whatsNew.v0182.end': 'Quelle que soit la façon de terminer la visite, Terminé, Échap ou son bouton de fermeture, le focus va sur le bouton Aide, ou sur Plus sur un téléphone, au lieu d’être perdu.',
+  'whatsNew.v0190.colour': 'Dans les Propriétés, donnez une couleur de flux aux nœuds et aux connexions : une couleur de la palette, une couleur récente, une couleur déjà présente dans le diagramme, une valeur hex ou n’importe quelle couleur du sélecteur du navigateur.',
+  'whatsNew.v0190.keep': 'Les couleurs de flux sont enregistrées avec le diagramme et conservées dans les liens et l’annulation ; en changer ne réinitialise jamais l’exécution et ne rend pas un résultat Monte-Carlo obsolète.',
+  'whatsNew.v0190.select': 'Un nœud sélectionné affiche désormais un anneau autour de son contour, et une connexion sélectionnée une surbrillance en dessous : la sélection reste nette sur toutes les couleurs.',
+  'whatsNew.v0190.notice': 'Si une couleur est peu visible, ou ressemble à une couleur que le canevas utilise pour le focus, les avertissements ou une simulation en cours, les Propriétés le signalent ; la couleur est appliquée quand même.',
 } satisfies Record<UiKey, string>
 
 export default ui

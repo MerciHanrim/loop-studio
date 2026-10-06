@@ -172,6 +172,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — 수식에 {sym} 삽입',
   'regExpr.op.groupTitle': '괄호 — 선택한 부분을 감싸거나 ( ) 추가',
   'regExpr.op.inserted': '{name} 삽입됨',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': '색상',
+  'inspector.accent.palette': '흐름 색상',
+  'inspector.accent.default': '기본값',
+  'inspector.accent.recent': '최근',
+  'inspector.accent.document': '이 문서의 색상',
+  'inspector.accent.hex': 'Hex',
+  'inspector.accent.picker': '다른 색상',
+  'inspector.accent.mixed': '혼합',
+  'inspector.accent.appliesTo': '{n, plural, other {선택한 항목 #개에 적용}}',
+  'inspector.accent.error.alpha': '투명도는 지원하지 않습니다. #336699처럼 16진수 여섯 자리를 입력하세요.',
+  'inspector.accent.error.format': '색상 값이 아닙니다. #336699처럼 16진수 세 자리나 여섯 자리를 입력하세요.',
+  'inspector.accent.notice.canvasLight': '밝은 캔버스에서 잘 보이지 않습니다.',
+  'inspector.accent.notice.canvasDark': '어두운 캔버스에서 잘 보이지 않습니다.',
+  'inspector.accent.notice.nodeLight': '밝은 노드에서 잘 보이지 않습니다.',
+  'inspector.accent.notice.nodeDark': '어두운 노드에서 잘 보이지 않습니다.',
+  'inspector.accent.notice.state': '캔버스가 포커스, 경고, 실행 중인 시뮬레이션에 쓰는 색상과 비슷합니다.',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

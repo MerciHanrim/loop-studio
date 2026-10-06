@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import {
   Handle,
   Position,
@@ -10,11 +10,13 @@ import {
 import {
   BASE_NODE_H,
   clampNodeHeight,
+  maskBox,
+  NODE_RINGS,
   silhouettePath,
   VESSEL_INSET_Y,
   VESSEL_MIN_PAD_Y,
 } from './silhouette'
-import { formatRegisterValue, readParameterData, readRegisterData } from '../../model/model'
+import { formatRegisterValue, readAccent, readParameterData, readRegisterData } from '../../model/model'
 import { useGraphStore } from '../../store/graphStore'
 import { useRegisterOutcome } from '../../store/registers'
 import { useSimStore } from '../../store/simStore'
@@ -23,9 +25,11 @@ import { type MessageKey, useLocaleDirection, useT } from '../../i18n'
 import type { ContentDir } from '../../i18n/contentDirection'
 import { useI18n } from '../../i18n/store'
 import { usePhrasedTitle } from './phraseTitle'
+import { InsideMask, OutsideMask } from './RingMasks'
 import type {
   ConverterData,
   DrainData,
+  FlowColour,
   GateData,
   NodeKind,
   PoolData,
@@ -107,6 +111,9 @@ type FrameProps = {
    *  before. Never engine- / digest-affecting. */
   unit?: string
   selected?: boolean
+  /** docs/flow-colour-and-compact-nodes.md FC-4.1 — the node's flow colour as
+   *  stored (`data.accent`); re-read here, so only `#RRGGBB` is ever drawn. */
+  accent?: string
   firing?: boolean
   /** §LGR5 — `evaluated`: activated this step but did not fire. A small static
    *  bottom-left corner bracket, lower weight than `firing`'s outline pulse;
@@ -135,6 +142,7 @@ function NodeFrame({
   sub,
   subDir,
   selected,
+  accent: accentProp,
   firing,
   evaluated,
   activity,
@@ -232,6 +240,11 @@ function NodeFrame({
   }, [])
 
   const path = silhouettePath(kind, boxH)
+  // FC-4.1 — only a stored-form colour is drawn; the ids are this component's
+  // own (never built from the node id or the colour)
+  const accent = readAccent(accentProp)
+  const uid = 'nf' + useId().replace(/[^A-Za-z0-9_-]/g, '_')
+  const box = maskBox(boxH)
   // state ports are invisible at rest; they surface on hover / selection /
   // keyboard focus / while a state wire is being dragged. A port that already
   // carries a state edge stays faintly visible so the wiring reads.
@@ -261,10 +274,16 @@ function NodeFrame({
         (selected ? ' is-selected' : '') +
         (focused ? ' is-focused' : '') +
         (invalid ? ' is-invalid' : '') +
-        (refPeek ? ' is-ref-peek' : '')
+        (refPeek ? ' is-ref-peek' : '') +
+        (accent ? ' has-accent' : '')
       }
       data-invalid={invalid ? '' : undefined}
-      style={grown ? { height: boxH } : undefined}
+      data-accent={accent}
+      style={
+        grown || accent
+          ? { ...(grown ? { height: boxH } : null), ...(accent ? { ['--node-accent' as string]: accent } : null) }
+          : undefined
+      }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -307,17 +326,66 @@ function NodeFrame({
         {activity ? (
           <path className="nodef__activity" d={path} style={{ opacity: activity }} />
         ) : null}
+        {/* FC-4.1 — the masks that cut each ring out of a wider stroke at a
+            fixed px distance from the silhouette (NODE_RINGS), and the clip
+            that keeps the flow-colour band inside it */}
+        {accent || selected || invalid || focused ? (
+          <defs>
+            {accent ? (
+              <clipPath id={`${uid}-in`}>
+                <path d={path} />
+              </clipPath>
+            ) : null}
+            {selected ? <OutsideMask id={`${uid}-sel`} d={path} box={box} from={NODE_RINGS.selection.from} /> : null}
+            {invalid ? <OutsideMask id={`${uid}-inv`} d={path} box={box} from={NODE_RINGS.invalid.from} /> : null}
+            {focused ? <InsideMask id={`${uid}-foc`} d={path} box={box} from={NODE_RINGS.focus.from} /> : null}
+          </defs>
+        ) : null}
+        {/* FC-4.1 — the flow-colour band: just inside the structure line,
+            never over it, so a colour with no contrast never erases the node's
+            edge */}
+        {accent ? (
+          <path
+            className="nodef__band"
+            d={path}
+            clipPath={`url(#${uid}-in)`}
+            strokeWidth={2 * NODE_RINGS.band}
+          />
+        ) : null}
         <path className="nodef__stroke" d={path} />
         {kind === 'end' ? (
           <line className="nodef__endbar" x1="95" y1="15" x2="95" y2={boxH - 15} />
         ) : null}
-        {/* §VL3 — invalid: a --warning dashed outline (dash pattern is the
-            non-colour tell). Sits under the selection / focus rings. */}
-        {invalid ? <path className="nodef__invalid" d={path} /> : null}
-        {selected ? <path className="nodef__sel" d={path} /> : null}
-        {/* §VL3 — keyboard focus: a DASHED ring, inside the (solid) selection
-            ring; dashed-vs-solid is the non-colour tell. */}
-        {focused ? <path className="nodef__focus" d={path} /> : null}
+        {/* §VL3 / FC-4.1 — invalid: a --warning dashed ring, the OUTERMOST one;
+            the dash pattern and the corner flag are the non-colour tell */}
+        {invalid ? (
+          <path
+            className="nodef__invalid"
+            d={path}
+            mask={`url(#${uid}-inv)`}
+            strokeWidth={2 * NODE_RINGS.invalid.to}
+          />
+        ) : null}
+        {/* §VL3 / FC-4.1 — selection: a solid ring OUTSIDE the structure line
+            ("2 px ring, offset 2 px"), never a recolour of the line itself */}
+        {selected ? (
+          <path
+            className="nodef__sel"
+            d={path}
+            mask={`url(#${uid}-sel)`}
+            strokeWidth={2 * NODE_RINGS.selection.to}
+          />
+        ) : null}
+        {/* §VL3 / FC-4.1 — keyboard focus: a DASHED ring, the innermost one;
+            dashed-vs-solid is the non-colour tell */}
+        {focused ? (
+          <path
+            className="nodef__focus"
+            d={path}
+            mask={`url(#${uid}-foc)`}
+            strokeWidth={2 * NODE_RINGS.focus.to}
+          />
+        ) : null}
         {firing ? <path key={`w${stepKey}`} className="nodef__wave" d={path} /> : null}
         {arriving ? (
           <circle
@@ -404,6 +472,7 @@ function PoolNode({ id, data, selected }: NodeProps) {
         sub={d.capacity != null ? `≤ ${d.capacity}` : undefined}
         subDir="ltr"
         selected={selected}
+        accent={(data as FlowColour).accent}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -428,6 +497,7 @@ function SourceNode({ id, data, selected }: NodeProps) {
         sub={`${d.activation} · ${d.mode}`}
         subDir="ltr"
         selected={selected}
+        accent={(data as FlowColour).accent}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -452,6 +522,7 @@ function DrainNode({ id, data, selected }: NodeProps) {
         sub={`${d.activation} · ${d.mode}`}
         subDir="ltr"
         selected={selected}
+        accent={(data as FlowColour).accent}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -475,6 +546,7 @@ function GateNode({ id, data, selected }: NodeProps) {
         sub={d.distribution}
         subDir="ltr"
         selected={selected}
+        accent={(data as FlowColour).accent}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -499,6 +571,7 @@ function ConverterNode({ id, data, selected }: NodeProps) {
         sub={d.mode}
         subDir="ltr"
         selected={selected}
+        accent={(data as FlowColour).accent}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -521,6 +594,7 @@ function EndNode({ id, data, selected }: NodeProps) {
         title={d.label}
         titleDir="auto"
         selected={selected}
+        accent={(data as FlowColour).accent}
         firing={useFiring(id)}
         evaluated={useEvaluated(id)}
         activity={useNodeActivityOpacity(id)}
@@ -580,6 +654,7 @@ function ParameterNode({ id, data, selected }: NodeProps) {
       sub={d.unit || undefined}
       subDir="auto"
       selected={selected}
+      accent={(data as FlowColour).accent}
       stepKey={stepKey}
     />
   )
@@ -608,6 +683,7 @@ function RegisterNode({ id, data, selected }: NodeProps) {
       sub={`= ${d.expr}`}
       subDir="ltr"
       selected={selected}
+      accent={(data as FlowColour).accent}
       invalid={invalid}
       stepKey={stepKey}
     />

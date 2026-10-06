@@ -616,6 +616,10 @@ const ui = {
   'whatsNew.v0182.steps': 'In der Tour werden Nummer, Titel und Text jedes Schritts jetzt einmal angesagt, und die Frage der Willkommenskarte wird mit ihrem Titel angesagt.',
   'whatsNew.v0182.focus': 'Die Tour öffnet mit dem Fokus auf Weiter, und der Fokus bleibt beim Wechsel der Schritte auf Weiter oder Zurück, auch wenn Zurück den ersten Schritt erreicht.',
   'whatsNew.v0182.end': 'Wie auch immer die Tour endet, mit Fertig, Escape oder ihrer Schließen-Schaltfläche: Der Fokus geht auf die Schaltfläche Hilfe, auf dem Smartphone auf Mehr, statt verloren zu gehen.',
+  'whatsNew.v0190.colour': 'Knoten und Verbindungen bekommen in den Eigenschaften eine Flussfarbe: eine Palettenfarbe, eine zuletzt verwendete, eine schon im Diagramm genutzte, einen Hex-Wert oder eine beliebige Farbe aus der Farbauswahl des Browsers.',
+  'whatsNew.v0190.keep': 'Flussfarben werden mit dem Diagramm gespeichert und bleiben in Links und beim Rückgängigmachen erhalten; eine Farbänderung setzt den Lauf nie zurück und macht kein Monte-Carlo-Ergebnis veraltet.',
+  'whatsNew.v0190.select': 'Ein ausgewählter Knoten zeigt jetzt einen Ring außerhalb seines Umrisses, eine ausgewählte Verbindung eine Hervorhebung darunter, sodass die Auswahl auf jeder Farbe klar bleibt.',
+  'whatsNew.v0190.notice': 'Ist eine Farbe schwer zu erkennen oder ähnelt sie einer Farbe, die die Arbeitsfläche für Fokus, Warnungen oder eine laufende Simulation verwendet, weisen die Eigenschaften darauf hin; die Farbe wird trotzdem angewendet.',
 } satisfies Record<UiKey, string>
 
 export default ui

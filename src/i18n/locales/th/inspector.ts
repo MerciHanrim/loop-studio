@@ -190,6 +190,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — แทรก {sym} ลงในสูตร',
   'regExpr.op.groupTitle': 'วงเล็บ — ครอบส่วนที่เลือกไว้ หรือเพิ่ม ( )',
   'regExpr.op.inserted': 'แทรกแล้ว: {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'สี',
+  'inspector.accent.palette': 'สีของโฟลว์',
+  'inspector.accent.default': 'ค่าเริ่มต้น',
+  'inspector.accent.recent': 'ล่าสุด',
+  'inspector.accent.document': 'ในเอกสารนี้',
+  'inspector.accent.hex': 'รหัสสี',
+  'inspector.accent.picker': 'สีอื่น',
+  'inspector.accent.mixed': 'ผสม',
+  'inspector.accent.appliesTo': '{n, plural, other {ใช้กับ # รายการที่เลือก}}',
+  'inspector.accent.error.alpha': 'ไม่รองรับความโปร่งใส ป้อนเลขฐานสิบหกหกหลัก เช่น #336699',
+  'inspector.accent.error.format': 'ไม่ใช่สี ป้อนเลขฐานสิบหกสามหรือหกหลัก เช่น #336699',
+  'inspector.accent.notice.canvasLight': 'มองเห็นยากบนผืนผ้าใบสีอ่อน',
+  'inspector.accent.notice.canvasDark': 'มองเห็นยากบนผืนผ้าใบสีเข้ม',
+  'inspector.accent.notice.nodeLight': 'มองเห็นยากบนโหนดสีอ่อน',
+  'inspector.accent.notice.nodeDark': 'มองเห็นยากบนโหนดสีเข้ม',
+  'inspector.accent.notice.state': 'ใกล้กับสีที่ผืนผ้าใบใช้แสดงโฟกัส คำเตือน หรือการจำลองที่กำลังทำงาน',
 } as const
 
 export type InspectorKey = keyof typeof inspector

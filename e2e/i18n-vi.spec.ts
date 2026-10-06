@@ -70,6 +70,16 @@ async function openLanguageMenu(page: Page) {
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
 }
 
+// Two tests below read which font subsets were fetched from the page's resource
+// timeline. A page keeps 250 resource entries by default, and the dev server
+// loads one per module: measured on issue #325's PR 1, the timeline was full
+// (250, `resourcetimingbufferfull` fired) before the Vietnamese subset arrived,
+// so it was fetched on the network but never listed. A larger buffer keeps the
+// measurement honest as the app grows; nothing about the fonts changes.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => performance.setResourceTimingBufferSize(2000))
+})
+
 // Built from code points. A Vietnamese letter can carry a diacritic on the
 // vowel AND a tone mark above it, and the composed forms are not distinguishable
 // from their decomposed twins by eye in a source listing.

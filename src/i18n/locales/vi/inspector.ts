@@ -178,6 +178,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — chèn {sym} vào công thức',
   'regExpr.op.groupTitle': 'Dấu ngoặc — bọc phần đang chọn, hoặc thêm ( )',
   'regExpr.op.inserted': 'Đã chèn {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Màu',
+  'inspector.accent.palette': 'Màu luồng',
+  'inspector.accent.default': 'Mặc định',
+  'inspector.accent.recent': 'Gần đây',
+  'inspector.accent.document': 'Trong tài liệu này',
+  'inspector.accent.hex': 'Mã màu',
+  'inspector.accent.picker': 'Màu khác',
+  'inspector.accent.mixed': 'Hỗn hợp',
+  'inspector.accent.appliesTo': '{n, plural, other {Áp dụng cho # mục đã chọn}}',
+  'inspector.accent.error.alpha': 'Không hỗ trợ độ trong suốt. Hãy nhập sáu chữ số thập lục phân, ví dụ #336699.',
+  'inspector.accent.error.format': 'Không phải là màu. Hãy nhập ba hoặc sáu chữ số thập lục phân, ví dụ #336699.',
+  'inspector.accent.notice.canvasLight': 'Khó nhìn trên khung vẽ sáng.',
+  'inspector.accent.notice.canvasDark': 'Khó nhìn trên khung vẽ tối.',
+  'inspector.accent.notice.nodeLight': 'Khó nhìn trên các nút sáng.',
+  'inspector.accent.notice.nodeDark': 'Khó nhìn trên các nút tối.',
+  'inspector.accent.notice.state': 'Gần với màu mà khung vẽ dùng cho tiêu điểm, cảnh báo hoặc mô phỏng đang chạy.',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

@@ -283,7 +283,7 @@ describe('pt-BR copy — mechanical review', () => {
     // reachable (1e6). A plural without it renders the `other` arm there,
     // which drops the `de` Portuguese requires: `1.000.000 de linhas`.
     const plurals = entries.filter(([k]) => /,\s*plural\s*,/.test(enOf[k] ?? ''))
-    expect(plurals.length, 'plural keys in `en`').toBe(19)
+    expect(plurals.length, 'plural keys in `en`').toBe(20)
     const missing = plurals.filter(([, v]) => !/\bmany\s*\{/.test(v)).map(([k]) => k)
     expect(missing).toEqual([])
   })

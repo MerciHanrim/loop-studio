@@ -186,6 +186,23 @@ const inspector = {
   'regExpr.op.inserts': '{name}: inserta {sym} en la fórmula',
   'regExpr.op.groupTitle': 'Paréntesis: envuelve la parte seleccionada o añade ( )',
   'regExpr.op.inserted': 'Se insertó {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Color',
+  'inspector.accent.palette': 'Colores de flujo',
+  'inspector.accent.default': 'Predeterminado',
+  'inspector.accent.recent': 'Recientes',
+  'inspector.accent.document': 'En este documento',
+  'inspector.accent.hex': 'Hexadecimal',
+  'inspector.accent.picker': 'Otro color',
+  'inspector.accent.mixed': 'Mixto',
+  'inspector.accent.appliesTo': '{n, plural, one {Se aplica a # elemento seleccionado} many {Se aplica a # elementos seleccionados} other {Se aplica a # elementos seleccionados}}',
+  'inspector.accent.error.alpha': 'No se admite transparencia. Escriba seis dígitos hexadecimales, por ejemplo #336699.',
+  'inspector.accent.error.format': 'No es un color. Escriba tres o seis dígitos hexadecimales, por ejemplo #336699.',
+  'inspector.accent.notice.canvasLight': 'Difícil de ver en el lienzo claro.',
+  'inspector.accent.notice.canvasDark': 'Difícil de ver en el lienzo oscuro.',
+  'inspector.accent.notice.nodeLight': 'Difícil de ver en los nodos claros.',
+  'inspector.accent.notice.nodeDark': 'Difícil de ver en los nodos oscuros.',
+  'inspector.accent.notice.state': 'Parecido a un color que el lienzo usa para el foco, los avisos o una simulación en curso.',
 } as const
 
 export type InspectorKey = keyof typeof inspector

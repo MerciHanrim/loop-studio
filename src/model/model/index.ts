@@ -41,6 +41,7 @@ export {
   type RegisterSnapshotView,
 } from './registers'
 export { trimUnicodeWhitespace, truncateUtf8, utf8Len } from './text'
+export { ACCENT_STORED, type AccentInput, carryAccent, parseAccentInput, readAccent } from './accent'
 export {
   formatRegisterValue,
   initialPoolValues,

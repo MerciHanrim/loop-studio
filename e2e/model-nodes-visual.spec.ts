@@ -149,16 +149,32 @@ test.describe('Parameter / Register — chrome & states (hue-independent)', () =
     for (const l of [sel, focus, inv, flag]) await expect(l).toBeVisible()
 
     // the non-colour tells stay distinct: selection SOLID, focus + invalid DASHED
-    // with different patterns; the focus ring is inset (scaled), the invalid ring
-    // is the outermost (scaled out).
+    // with different patterns; the focus ring is inset and the invalid ring is
+    // the outermost. Since issue #325 (docs/flow-colour-and-compact-nodes.md
+    // FC-4.1) each ring is cut from the silhouette by its own mask at a fixed
+    // px distance instead of being scaled: focus inside, selection and invalid
+    // outside, invalid the widest.
     await expect(sel).toHaveCSS('stroke-dasharray', /none|^$/)
     const focusDash = await focus.evaluate((el) => getComputedStyle(el).strokeDasharray)
     const invDash = await inv.evaluate((el) => getComputedStyle(el).strokeDasharray)
     expect(focusDash).toMatch(/\d/)
     expect(invDash).toMatch(/\d/)
     expect(focusDash).not.toBe(invDash)
-    expect(await focus.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none') // inset
-    expect(await inv.evaluate((el) => getComputedStyle(el).transform)).not.toBe('none') // outset
+    const ring = (l: typeof sel) =>
+      l.evaluate((el) => {
+        const id = /url\(#([^)]+)\)/.exec(el.getAttribute('mask') ?? '')?.[1]
+        const m = id ? document.getElementById(id) : null
+        const cut = m?.querySelector('path')
+        return {
+          width: Number(el.getAttribute('stroke-width')),
+          // an inside mask is a white silhouette; an outside one a white box
+          inside: cut?.getAttribute('fill') === 'white',
+        }
+      })
+    const [s, f, i] = [await ring(sel), await ring(focus), await ring(inv)]
+    expect(f.inside, 'focus ring is inset').toBe(true)
+    expect(s.inside || i.inside, 'selection and invalid are outside').toBe(false)
+    expect(i.width, 'invalid is the outermost ring').toBeGreaterThan(s.width)
     await expect(flag).toHaveText('!')
 
     // accessible name carries the invalid state (not shape / colour alone)

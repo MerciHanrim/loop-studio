@@ -21,6 +21,8 @@ import type { LoopEdgeData } from '../../model/types'
 import { canonicalNumber } from '../../model/expr'
 import { parseActivatorExpr, parseFlow, resolveParamRhs, type StateEvent } from '../../engine'
 import { EDGE_MARKER } from './EdgeMarkers'
+import { accentMarkerId } from '../../ui/flowColour'
+import { readAccent } from '../../model/model'
 import { Icon } from '../../ui/icons'
 
 const FALLBACK: LoopEdgeData = { kind: 'resource', flow: '1' }
@@ -350,25 +352,26 @@ function LoopEdge({
   // labels drop out when zoomed out to scan structure — kept for a selected edge
   const showLabel = (!lowZoom || selected) && !outOfFocus
 
-  const baseStroke = selected
-    ? 'var(--edge-selected)'
-    : activatorOn === true
+  // docs/flow-colour-and-compact-nodes.md FC-4.2 — the edge's flow colour is
+  // its REST colour: a satisfied activator keeps the run signal over it, and a
+  // selection no longer recolours anything (the underlay below shows it), so a
+  // selected edge keeps its colour, flow or default.
+  const accent = readAccent((d as { accent?: unknown }).accent)
+  const baseStroke =
+    activatorOn === true
       ? 'var(--signal-primary)'
-      : isState
-        ? 'var(--edge-state)'
-        : 'var(--edge-resource)'
+      : accent ?? (isState ? 'var(--edge-state)' : 'var(--edge-resource)')
 
   // §VL6 — the renderer owns the direction marker (see EdgeMarkers.tsx); it is
-  // always drawn and tracks the edge class so the arrow is tokenised in both
-  // themes, never React Flow's fixed grey.
-  const markerId = selected
-    ? EDGE_MARKER.selected
-    : isState
-      ? EDGE_MARKER.state
-      : EDGE_MARKER.resource
+  // always drawn and tracks the edge class (or its flow colour) so the arrow is
+  // tokenised in both themes, never React Flow's fixed grey.
+  const markerId =
+    (accent ? accentMarkerId(accent) : null) ?? (isState ? EDGE_MARKER.state : EDGE_MARKER.resource)
 
   return (
     <>
+      {/* FC-4.2 — selection is an underlay beneath the path, never a recolour */}
+      {selected ? <path className="edge-select-underlay" d={path} aria-hidden="true" /> : null}
       <BaseEdge
         id={id}
         path={path}
@@ -587,8 +590,11 @@ function LoopEdge({
               selected ? ' is-selected' : ''
             }${activatorOn === true ? ' edge-label--on' : ''}${
               sv?.kind === 'trigger' && !sv.applied ? ' edge-label--blocked' : ''
-            }`}
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            }${accent ? ' has-accent' : ''}`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              ...(accent ? { ['--edge-accent' as string]: accent } : null),
+            }}
             dir={textDir}
           >
             {label.mark ? <Icon name="trigger" className="edge-label__mark" /> : text}

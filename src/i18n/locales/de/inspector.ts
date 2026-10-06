@@ -206,6 +206,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — fügt {sym} in die Formel ein',
   'regExpr.op.groupTitle': 'Klammern — den markierten Teil umschließen oder ( ) einfügen',
   'regExpr.op.inserted': '{name} eingefügt',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'Farbe',
+  'inspector.accent.palette': 'Flussfarben',
+  'inspector.accent.default': 'Standard',
+  'inspector.accent.recent': 'Zuletzt verwendet',
+  'inspector.accent.document': 'In diesem Dokument',
+  'inspector.accent.hex': 'Hex',
+  'inspector.accent.picker': 'Beliebige Farbe',
+  'inspector.accent.mixed': 'Gemischt',
+  'inspector.accent.appliesTo': '{n, plural, one {Gilt für # ausgewähltes Element} other {Gilt für # ausgewählte Elemente}}',
+  'inspector.accent.error.alpha': 'Transparenz wird nicht unterstützt. Geben Sie sechs Hexadezimalziffern ein, zum Beispiel #336699.',
+  'inspector.accent.error.format': 'Keine Farbe. Geben Sie drei oder sechs Hexadezimalziffern ein, zum Beispiel #336699.',
+  'inspector.accent.notice.canvasLight': 'Auf der hellen Arbeitsfläche schwer zu erkennen.',
+  'inspector.accent.notice.canvasDark': 'Auf der dunklen Arbeitsfläche schwer zu erkennen.',
+  'inspector.accent.notice.nodeLight': 'Auf hellen Knoten schwer zu erkennen.',
+  'inspector.accent.notice.nodeDark': 'Auf dunklen Knoten schwer zu erkennen.',
+  'inspector.accent.notice.state': 'Ähnelt einer Farbe, die die Arbeitsfläche für Fokus, Warnungen oder eine laufende Simulation verwendet.',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

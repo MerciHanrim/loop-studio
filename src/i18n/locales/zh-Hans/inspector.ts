@@ -176,6 +176,23 @@ const inspector = {
   'regExpr.op.inserts': '{name}——在公式中插入 {sym}',
   'regExpr.op.groupTitle': '括号——把所选部分括起来，或插入一对 ( )',
   'regExpr.op.inserted': '已插入{name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': '颜色',
+  'inspector.accent.palette': '流程颜色',
+  'inspector.accent.default': '默认',
+  'inspector.accent.recent': '最近',
+  'inspector.accent.document': '本文档中的颜色',
+  'inspector.accent.hex': '十六进制',
+  'inspector.accent.picker': '任意颜色',
+  'inspector.accent.mixed': '混合',
+  'inspector.accent.appliesTo': '{n, plural, other {应用于选中的 # 个项目}}',
+  'inspector.accent.error.alpha': '不支持透明度。请输入六位十六进制数，例如 #336699。',
+  'inspector.accent.error.format': '不是颜色值。请输入三位或六位十六进制数，例如 #336699。',
+  'inspector.accent.notice.canvasLight': '在浅色画布上难以看清。',
+  'inspector.accent.notice.canvasDark': '在深色画布上难以看清。',
+  'inspector.accent.notice.nodeLight': '在浅色节点上难以看清。',
+  'inspector.accent.notice.nodeDark': '在深色节点上难以看清。',
+  'inspector.accent.notice.state': '接近画布用于焦点、警告或运行中模拟的颜色。',
 } satisfies Record<InspectorKey, string>
 
 export default inspector

@@ -206,6 +206,23 @@ const inspector = {
   'regExpr.op.inserts': '{name} — يُدرج {sym} في الصيغة',
   'regExpr.op.groupTitle': 'أقواس — أحِط الجزء المحدد، أو أضف ( )',
   'regExpr.op.inserted': 'أُدرج {name}',
+  // docs/flow-colour-and-compact-nodes.md FC-5 — the Colour section
+  'inspector.accent.title': 'اللون',
+  'inspector.accent.palette': 'ألوان التدفق',
+  'inspector.accent.default': 'الافتراضي',
+  'inspector.accent.recent': 'الأخيرة',
+  'inspector.accent.document': 'في هذا المستند',
+  'inspector.accent.hex': 'رمز اللون',
+  'inspector.accent.picker': 'لون آخر',
+  'inspector.accent.mixed': 'مختلط',
+  'inspector.accent.appliesTo': '{n, plural, zero {ينطبق على # عنصر محدد} one {ينطبق على عنصر محدد واحد} two {ينطبق على عنصرين محددين} few {ينطبق على # عناصر محددة} many {ينطبق على # عنصرًا محددًا} other {ينطبق على # عنصر محدد}}',
+  'inspector.accent.error.alpha': 'الشفافية غير مدعومة. أدخل ستة أرقام سداسية عشرية، مثل #336699.',
+  'inspector.accent.error.format': 'هذا ليس لونًا. أدخل ثلاثة أو ستة أرقام سداسية عشرية، مثل #336699.',
+  'inspector.accent.notice.canvasLight': 'يصعب رؤيته على اللوحة الفاتحة.',
+  'inspector.accent.notice.canvasDark': 'يصعب رؤيته على اللوحة الداكنة.',
+  'inspector.accent.notice.nodeLight': 'يصعب رؤيته على العقد الفاتحة.',
+  'inspector.accent.notice.nodeDark': 'يصعب رؤيته على العقد الداكنة.',
+  'inspector.accent.notice.state': 'قريب من لون تستخدمه اللوحة للتركيز أو التحذيرات أو محاكاة قيد التشغيل.',
 } as const
 
 export default inspector

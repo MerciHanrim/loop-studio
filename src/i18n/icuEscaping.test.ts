@@ -138,7 +138,7 @@ describe('French plural categories', () => {
         wording(render(message, 'fr', 2)),
       )
     }
-    expect(checked.length, 'the French catalog must actually have plurals').toBe(19)
+    expect(checked.length, 'the French catalog must actually have plurals').toBe(20)
   })
 
   it('0 takes the `one` arm, where the gender and participle agreement lives', () => {

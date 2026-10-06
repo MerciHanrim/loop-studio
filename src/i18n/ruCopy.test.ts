@@ -43,7 +43,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ------------------------------------------------------------------ shape
   it('has exactly the base key set', () => {
     expect(Object.keys(ruValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1003) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines)
+    expect(KEYS).toHaveLength(1023) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines)
   })
 
   // ----------------------------------------------------------------- script
@@ -120,7 +120,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
   // ----------------------------------------------------------------- plural
   it('gives every plural four arms, and never spells the numeral out', () => {
     const plurals = KEYS.filter((k) => /,\s*plural\s*,/.test(ruValues[k]!))
-    expect(plurals).toHaveLength(19)
+    expect(plurals).toHaveLength(20)
 
     for (const k of plurals) {
       for (const arm of ['one', 'few', 'many', 'other']) {
@@ -234,6 +234,7 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'несохранённые',
       'несёт',
       'неё',
+      'обведён',
       'обновлён',
       'объединённые',
       'остаётся',
@@ -261,6 +262,10 @@ describe('ru copy — the first Cyrillic catalog', () => {
       'сохранённый',
       'трёх',
       'тёмная',
+      // issue #325: the flow-colour notices (`на тёмном холсте`, `на тёмных
+      // узлах`) and a 0.19.0 release-note line (`обведён кольцом`)
+      'тёмном',
+      'тёмных',
       'удалён',
       'упрощённый',
       'ёмкости',

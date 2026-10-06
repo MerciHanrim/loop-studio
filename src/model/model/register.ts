@@ -8,6 +8,7 @@
 // dangling `@id` is fine here; it becomes `invalid` only at evaluation.
 
 import { canonicaliseExpr } from '../expr'
+import { carryAccent } from './accent'
 import { trimUnicodeWhitespace, truncateUtf8, utf8Len } from './text'
 import { PARAM_UNIT_MAX_BYTES } from './parameter'
 
@@ -21,6 +22,8 @@ export type RegisterData = {
   expr: string
   unit?: string
   format?: RegisterFormat
+  /** docs/flow-colour-and-compact-nodes.md FC-2 — upper-case `#RRGGBB`. */
+  accent?: string
 }
 
 export type RegisterNotice = 'REG_FORMAT_INVALID' | 'REG_UNIT_TOO_LONG'
@@ -86,6 +89,9 @@ export function readRegisterData(raw: unknown): RegReadResult {
       notices.push('REG_FORMAT_INVALID')
     }
   }
+
+  // FC-2.3 — a flow colour that does not read is dropped, with no notice
+  carryAccent(raw, data)
 
   return { ok: true, data, notices }
 }

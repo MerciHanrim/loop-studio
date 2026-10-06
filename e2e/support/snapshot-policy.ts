@@ -66,6 +66,13 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'frame-colours-dark': { chromium: 'desktop-full-page' },
   'frame-colours-overlap': { chromium: 'desktop-full-page' },
   'frame-colours-forced': { chromium: 'desktop-full-page' },
+  // flow-colour-visual.spec.ts — docs/flow-colour-and-compact-nodes.md FC-4;
+  // the full canvas pane with the timeline closed (980 x 662), so `element`
+  'flow-colour-light-L2': { chromium: 'element' },
+  'flow-colour-light-L0': { chromium: 'element' },
+  'flow-colour-dark-L2': { chromium: 'element' },
+  'flow-colour-dark-L0': { chromium: 'element' },
+  'flow-colour-states': { chromium: 'element' },
   // model-nodes-visual.spec.ts
   'register-unit-row': { chromium: 'desktop-canvas-clip' },
   // i18n-visual.spec.ts — representative KO scenes

@@ -77,6 +77,8 @@ describe('es-ES — the region audit, as a contract', () => {
         // typing into a field: Spain says `escribir`, not `ingresar`
         'stateExpr.activator.hint.empty',
         'stateExpr.label.hint.empty',
+        'inspector.accent.error.alpha',
+        'inspector.accent.error.format',
         // adding something: Spain says `anadir`, and `agregar` reads Latin
         // American. Found only by the SECOND review — the first pass never
         // had it on the candidate list.

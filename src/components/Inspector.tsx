@@ -28,6 +28,7 @@ import { useGraphStore } from '../store/graphStore'
 import { useRegisterOutcome } from '../store/registers'
 import { useUiStore } from '../store/uiStore'
 import { useIsMobile } from '../ui/media'
+import { AccentField } from './AccentField'
 import { RegisterExprField } from './RegisterExprField'
 import { useT, type MessageKey } from '../i18n'
 import { isolateAuto, isolateLtr } from '../i18n/bidiIsolate'
@@ -220,6 +221,8 @@ export function Inspector() {
         {d.kind === 'converter' && <ConverterFields d={d} set={set} />}
         {d.kind === 'parameter' && <ParameterFields d={d} set={set} />}
         {d.kind === 'register' && <RegisterFields id={node.id} d={d} set={set} />}
+
+        <AccentField />
       </aside>
     )
   }
@@ -303,6 +306,8 @@ export function Inspector() {
         />
 
         <p className="inspector__note">{t('inspector.edge.note')}</p>
+
+        <AccentField />
       </aside>
     )
   }
