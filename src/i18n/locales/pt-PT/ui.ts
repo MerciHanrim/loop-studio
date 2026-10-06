@@ -559,6 +559,10 @@ const ui = {
   'whatsNew.v0190.keep': 'As cores de fluxo são guardadas com o diagrama e mantidas nas hiperligações e ao anular; mudar uma nunca reinicia a execução nem deixa desatualizado um resultado de Monte Carlo.',
   'whatsNew.v0190.select': 'Um nó selecionado passa a mostrar um anel fora do contorno, e uma ligação selecionada um realce por baixo, pelo que a seleção fica nítida em qualquer cor.',
   'whatsNew.v0190.notice': 'Se uma cor ficar difícil de ver, ou parecer uma que a tela usa para foco, avisos ou uma simulação em execução, o Inspetor avisa; a cor é aplicada mesmo assim.',
+  'whatsNew.v0200.views': 'O minimapa e a linha do tempo agora mostram as cores de fluxo: um nó com cor aparece na sua cor no minimapa, e um reservatório ou um valor calculado com cor desenham a sua linha nessa cor na linha do tempo.',
+  'whatsNew.v0200.templates': 'Três dos templates incluídos agora abrem com os fluxos principais em cor; os resultados não mudam.',
+  'whatsNew.v0200.once': 'Na área Cor do Inspetor, cada cor aparece uma só vez: Recentes e Neste documento omitem as cores já mostradas acima.',
+  'whatsNew.v0200.phone': 'No telemóvel, o Inspetor somente leitura mostra uma cor numa linha: um ponto com o nome da cor e o seu valor hexadecimal.',
 } as const
 
 export type UiKey = keyof typeof ui

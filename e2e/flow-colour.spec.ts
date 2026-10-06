@@ -148,9 +148,11 @@ test.describe('flow colour — the Colour section (FC-5)', () => {
     // a palette colour gives no notice
     await swatch(page, 'Sage').click()
     await expect(notices).toBeEmpty()
-    // recent colours: newest first
-    await expect(section(page).getByRole('group', { name: 'Recent' }).getByRole('button')).toHaveCount(2)
-    await expect(section(page).getByRole('group', { name: 'Recent' }).getByRole('button').first()).toHaveAttribute('aria-label', '#74906B')
+    // recent colours: stored newest first; the Recent row leaves out the
+    // palette's colours, which the palette row already offers (PR 2, FC-5)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('loop-studio:recent-accents') ?? '[]'))).toEqual(['#74906B', '#FFFF00'])
+    await expect(section(page).getByRole('group', { name: 'Recent' }).getByRole('button')).toHaveCount(1)
+    await expect(section(page).getByRole('group', { name: 'Recent' }).getByRole('button').first()).toHaveAttribute('aria-label', '#FFFF00')
   })
 
   test('keyboard only: Tab reaches the swatches, Enter and Space apply', async ({ page }) => {

@@ -58,7 +58,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
   // ---------------------------------------------------------------- shape
   it('has exactly the same key set as pt-BR', () => {
     expect(Object.keys(ptValues).sort()).toEqual(KEYS.slice().sort())
-    expect(KEYS).toHaveLength(1023) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines)
+    expect(KEYS).toHaveLength(1027) // issue #301 decision 1: +4 (share.unavailable and the three 0.17.1 release-note lines); the session chip: +3 (the three 0.17.2 release-note lines); the licence screen: +12 (nine strings of the view and the three 0.18.0 release-note lines); the menu keyboard: +3 (the three 0.18.1 release-note lines); the tour announcement: +4 (tour.nav.announce and the three 0.18.2 release-note lines); the flow colour: +20 (the sixteen strings of the Colour section and the four 0.19.0 release-note lines); the flow colour views: +4 (the four 0.20.0 release-note lines)
   })
 
   it('differs from pt-BR on exactly the audited keys', () => {
@@ -131,7 +131,15 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // The tour announcement (0.18.2) moved it from 269 to 270: one of its
     // three release-note lines - `telemóvel` not `celular`; the other two
     // and the step announcement's template read the same in both.
-    expect(DELTA).toHaveLength(273)
+    // The flow colour (0.19.0) moved it from 270 to 273: three of its four
+    // release-note lines - `ligação` not `conexão`, `guardadas` not `salvas`,
+    // `hiperligações` not `links`, `anular` not `desfazer`, `passa a mostrar`
+    // not `agora mostra`; its fourth line and its sixteen Colour-section
+    // strings read the same in both.
+    // The flow colour views (0.20.0) moved it from 273 to 274: one of its four
+    // release-note lines - `telemóvel` not `celular`; the other three read the
+    // same in both.
+    expect(DELTA).toHaveLength(274)
     // and it is a real audit, not a rewrite — most of the catalog agrees.
     //
     // The password strings of issue #300 are counted apart. The word for a
@@ -175,7 +183,7 @@ describe('pt-PT copy — the region audit over pt-BR', () => {
     // outside them, the quarter bound stands as it always did
     const rest = KEYS.filter((k) => !isPasswordKey(k))
     const restDelta = DELTA.filter((k) => !isPasswordKey(k))
-    expect(restDelta).toHaveLength(245)
+    expect(restDelta).toHaveLength(246)
     expect(restDelta.length).toBeLessThan(rest.length / 4)
   })
 

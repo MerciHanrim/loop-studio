@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MiniMap, useStore } from '@xyflow/react'
 import { useT } from '../i18n'
+import { readAccent } from '../model/model'
 import type { NodeKind } from '../model/types'
 import { useUiStore } from '../store/uiStore'
+import { useForcedColors } from '../ui/media'
 
 // docs/large-graph-readability.md — the bottom-right graph minimap plus its
 // collapse control. Rendered by Canvas only when `minimapFits` (pane ≥ 640×380,
@@ -16,7 +18,9 @@ import { useUiStore } from '../store/uiStore'
 // `.minimap-toggle` in index.css against the pinned 200×150 minimap box.
 
 // minimap node fill by kind — resolved from the theme tokens (var() in an inline
-// style property stays theme-reactive)
+// style property stays theme-reactive). A node with a flow colour is filled with
+// it instead (docs/flow-colour-and-compact-nodes.md FC-6), except under forced
+// colours (FC-3.4), where every mark keeps its kind fill.
 const MINIMAP_HUE: Record<NodeKind, string> = {
   pool: 'var(--hue-pool)',
   source: 'var(--hue-source)',
@@ -62,6 +66,7 @@ export function MinimapDock() {
   const t = useT()
   const collapsed = useUiStore((s) => s.minimapCollapsed)
   const toggle = useUiStore((s) => s.toggleMinimapCollapsed)
+  const forced = useForcedColors()
 
   if (collapsed) {
     // no minimap on screen — a compact restore tile at the pane's corner
@@ -85,7 +90,10 @@ export function MinimapDock() {
         pannable
         zoomable
         ariaLabel={t('canvas.minimap')}
-        nodeColor={(n) => MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)'}
+        nodeColor={(n) =>
+          (!forced && readAccent((n.data as { accent?: unknown } | undefined)?.accent)) ||
+          (MINIMAP_HUE[(n.type as NodeKind) ?? 'pool'] ?? 'var(--line-strong)')
+        }
         nodeStrokeColor="var(--line-strong)"
         nodeStrokeWidth={2}
         nodeBorderRadius={2}

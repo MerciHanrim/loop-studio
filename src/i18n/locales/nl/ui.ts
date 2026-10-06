@@ -540,6 +540,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Stroomkleuren worden met het diagram opgeslagen en blijven behouden in een gedeelde link en bij ongedaan maken; een kleur wijzigen zet de run nooit terug en maakt een Monte Carlo-resultaat niet verouderd.',
   'whatsNew.v0190.select': 'Een geselecteerd knooppunt toont nu een extra rand buiten de omtrek, en een geselecteerde verbinding een markering eronder, zodat een selectie op elke kleur duidelijk blijft.',
   'whatsNew.v0190.notice': 'Is een kleur slecht zichtbaar, of lijkt ze op een kleur die het tekengebied gebruikt voor focus, waarschuwingen of een lopende simulatie, dan meldt de Inspector dat; de kleur wordt toch toegepast.',
+  'whatsNew.v0200.views': 'De minikaart en de tijdlijn tonen nu stroomkleuren: een gekleurd knooppunt verschijnt in zijn kleur op de minikaart, en een gekleurde voorraad of berekende waarde tekent zijn lijn in de tijdlijn in die kleur.',
+  'whatsNew.v0200.templates': 'Drie van de meegeleverde sjablonen openen nu met hun hoofdstromen in kleur; hun resultaten veranderen niet.',
+  'whatsNew.v0200.once': 'In het onderdeel Kleur van de Inspector staat elke kleur maar één keer: Laatst gebruikt en In dit document laten de kleuren weg die al hoger staan.',
+  'whatsNew.v0200.phone': 'Op een telefoon toont de alleen-lezen Inspector een kleur op één regel: een stip met de naam van de kleur en de hexwaarde.',
 } as const
 
 export default ui

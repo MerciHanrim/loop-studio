@@ -82,7 +82,8 @@
         "kind": "source",
         "label": "Fund tickets",
         "activation": "onStart",
-        "mode": "pushAny"
+        "mode": "pushAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -98,7 +99,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -114,7 +116,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -169,7 +172,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -185,7 +189,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -201,7 +206,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -216,7 +222,8 @@
         "label": "Roll",
         "activation": "automatic",
         "distribution": "probabilistic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -231,7 +238,8 @@
         "label": "SSR",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -246,7 +254,8 @@
         "label": "SR",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -261,7 +270,8 @@
         "label": "R",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -275,7 +285,8 @@
         "kind": "source",
         "label": "Fund tickets",
         "activation": "onStart",
-        "mode": "pushAny"
+        "mode": "pushAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -291,7 +302,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -307,7 +319,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -362,7 +375,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -378,7 +392,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -394,7 +409,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -409,7 +425,8 @@
         "label": "Roll",
         "activation": "automatic",
         "distribution": "probabilistic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -424,7 +441,8 @@
         "label": "SSR",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -439,7 +457,8 @@
         "label": "SR",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -454,7 +473,8 @@
         "label": "R",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -470,7 +490,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -498,7 +519,8 @@
         "label": "Forced SSR",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -514,7 +536,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#9182A8"
       }
     },
     {
@@ -528,7 +551,8 @@
         "kind": "source",
         "label": "Fund tickets",
         "activation": "onStart",
-        "mode": "pushAny"
+        "mode": "pushAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -544,7 +568,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -560,7 +585,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -615,7 +641,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -631,7 +658,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -647,7 +675,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -663,7 +692,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -692,7 +722,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -708,7 +739,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -749,7 +781,8 @@
         "label": "Roll — normal, not owed",
         "activation": "automatic",
         "distribution": "probabilistic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -764,7 +797,8 @@
         "label": "Roll — normal, owed",
         "activation": "automatic",
         "distribution": "probabilistic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -779,7 +813,8 @@
         "label": "Roll — forced, not owed",
         "activation": "automatic",
         "distribution": "probabilistic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -794,7 +829,8 @@
         "label": "Roll — forced, owed",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -809,7 +845,8 @@
         "label": "SSR split — not owed",
         "activation": "automatic",
         "distribution": "probabilistic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -824,7 +861,8 @@
         "label": "Pickup hit",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -839,7 +877,8 @@
         "label": "Standard hit",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -854,7 +893,8 @@
         "label": "SR",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -869,7 +909,8 @@
         "label": "R",
         "activation": "automatic",
         "distribution": "deterministic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -885,7 +926,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -901,7 +943,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -945,7 +988,8 @@
       "data": {
         "kind": "resource",
         "flow": "@pulls_per_zone",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -958,7 +1002,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone1_free_w_ssr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -971,7 +1016,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone1_free_w_sr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -984,7 +1030,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone1_free_w_r",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -997,7 +1044,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -1010,7 +1058,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -1071,7 +1120,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -1084,7 +1134,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#74906B"
       }
     },
     {
@@ -1097,7 +1148,8 @@
       "data": {
         "kind": "resource",
         "flow": "@pulls_per_zone",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1110,7 +1162,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone2_standard_w_ssr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1123,7 +1176,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone2_standard_w_sr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1142,7 +1196,8 @@
             "x": 1740,
             "y": 370
           }
-        ]
+        ],
+        "accent": "#9182A8"
       }
     },
     {
@@ -1155,7 +1210,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1168,7 +1224,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1229,7 +1286,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1242,7 +1300,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1391,7 +1450,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1404,7 +1464,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#9182A8"
       }
     },
     {
@@ -1417,7 +1478,8 @@
       "data": {
         "kind": "resource",
         "flow": "@pulls_per_zone",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1430,7 +1492,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1443,7 +1506,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1456,7 +1520,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1469,7 +1534,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1618,7 +1684,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_ssr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1631,7 +1698,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1644,7 +1712,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_pickup",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1657,7 +1726,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_standard",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1670,7 +1740,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_ssr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1683,7 +1754,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_sr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1696,7 +1768,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_r",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1709,7 +1782,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_sr",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1722,7 +1796,8 @@
       "data": {
         "kind": "resource",
         "flow": "@zone3_pickup_w_r",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1735,7 +1810,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1748,7 +1824,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1761,7 +1838,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1774,7 +1852,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {
@@ -1787,7 +1866,8 @@
       "data": {
         "kind": "resource",
         "flow": "1",
-        "route": "orthogonal"
+        "route": "orthogonal",
+        "accent": "#B47599"
       }
     },
     {

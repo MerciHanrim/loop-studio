@@ -545,6 +545,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Màu luồng được lưu cùng sơ đồ, giữ nguyên trong liên kết và khi hoàn tác; đổi màu không bao giờ đặt lại lượt chạy hay làm kết quả Monte Carlo trở nên lỗi thời.',
   'whatsNew.v0190.select': 'Nút đang chọn giờ có một vòng bên ngoài đường viền, liên kết đang chọn có một dải làm nổi bên dưới, nên vùng chọn luôn rõ trên mọi màu.',
   'whatsNew.v0190.notice': 'Nếu màu khó nhìn, hoặc giống màu mà khung vẽ dùng cho tiêu điểm, cảnh báo hay mô phỏng đang chạy, Bảng thuộc tính sẽ báo; màu vẫn được áp dụng.',
+  'whatsNew.v0200.views': 'Bản đồ thu nhỏ và dòng thời gian giờ cũng hiển thị màu luồng: nút có màu hiện bằng màu của nó trên bản đồ thu nhỏ, còn bể chứa hoặc giá trị tính toán có màu vẽ đường của nó trên dòng thời gian bằng màu đó.',
+  'whatsNew.v0200.templates': 'Ba mẫu có sẵn giờ mở ra với các luồng chính đã được tô màu; kết quả của chúng không thay đổi.',
+  'whatsNew.v0200.once': 'Trong mục Màu của Bảng thuộc tính, mỗi màu chỉ xuất hiện một lần: Gần đây và Trong tài liệu này bỏ qua các màu đã hiện ở phía trên.',
+  'whatsNew.v0200.phone': 'Trên điện thoại, Bảng thuộc tính chỉ đọc hiển thị màu trên một dòng: một chấm màu cùng tên màu và mã màu.',
 } satisfies Record<UiKey, string>
 
 export default ui

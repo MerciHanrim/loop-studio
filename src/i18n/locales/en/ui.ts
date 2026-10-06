@@ -529,6 +529,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Flow colours are saved with the diagram and kept in links and in undo, and changing one never resets the run or makes a Monte Carlo result out of date.',
   'whatsNew.v0190.select': 'A selected node now shows a ring outside its outline, and a selected connection a highlight beneath it, so a selection stays clear on any colour.',
   'whatsNew.v0190.notice': 'If a colour would be hard to see, or looks like one the canvas uses for focus, warnings or a running simulation, the Inspector says so; the colour is still applied.',
+  'whatsNew.v0200.views': 'The minimap and the timeline now show flow colours: a coloured node’s minimap mark takes its colour, and a coloured Pool or Register draws its timeline line in it.',
+  'whatsNew.v0200.templates': 'Three of the bundled templates now open with their main flows coloured, and their results are unchanged.',
+  'whatsNew.v0200.once': 'The Inspector’s Colour section shows each colour once: Recent and In this document leave out the colours already shown above them.',
+  'whatsNew.v0200.phone': 'On a phone, the read-only Inspector shows a colour as one line: a dot with the colour’s name and hex value.',
 } as const
 
 export type UiKey = keyof typeof ui

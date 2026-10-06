@@ -39,6 +39,16 @@ export const releaseNoteIdFor = (version: string): ReleaseNoteId => `release:${v
  */
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    // issue #325 PR 2 - flow colours in the minimap, the timeline and three
+    // bundled templates, each colour offered once in the Inspector, and a
+    // one-line colour summary on the phone; the date is the day it is
+    // deployed, set right before the merge
+    id: 'release:0.20.0',
+    version: '0.20.0',
+    date: '2026-10-07',
+    items: ['whatsNew.v0200.views', 'whatsNew.v0200.templates', 'whatsNew.v0200.once', 'whatsNew.v0200.phone'],
+  },
+  {
     // issue #325 PR 1 - flow colours on nodes and edges, and a selection that
     // stays clear on any colour; the date is the day it is deployed, set right
     // before the merge

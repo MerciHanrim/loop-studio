@@ -108,7 +108,7 @@ The mobile layout is a **viewer + runner**. Precisely:
 | structural keyboard shortcuts (undo/redo, duplicate, select-all, nudge) | same early-return |
 | double-click / context-menu editing | `zoomOnDoubleClick={false}`; `onContextMenu` preventDefault on the canvas; no context menu wired |
 | change any node/edge property | Inspector renders every field `disabled` / `readOnly` |
-| change a flow colour (issue #325) | the Inspector's Colour section shows the current colour; its swatches, hex field and colour input are disabled with the rest of the sheet. A colour set on desktop renders on the phone (`docs/flow-colour-and-compact-nodes.md` FC-5) |
+| change a flow colour (issue #325) | the Inspector's Colour section is one line of read-only text with no control: a dot and the colour's name and hex, the hex alone off the palette, Default with an empty ring, Mixed with no dot. A colour set on desktop renders on the phone, in the minimap and the timeline too (`docs/flow-colour-and-compact-nodes.md` FC-5, FC-6) |
 
 **Allowed on mobile** (these are *not* structural graph mutations):
 

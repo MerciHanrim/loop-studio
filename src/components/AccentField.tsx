@@ -4,6 +4,7 @@ import { parseAccentInput, readAccent } from '../model/model'
 import { accentTargets, useGraphStore } from '../store/graphStore'
 import { readRecentAccents, rememberAccent } from '../store/recentAccents'
 import { accentNotices, FLOW_PALETTE, type AccentNotice } from '../ui/flowColour'
+import { useIsMobile } from '../ui/media'
 
 // docs/flow-colour-and-compact-nodes.md FC-5 — the Inspector's Colour section.
 //
@@ -15,6 +16,14 @@ import { accentNotices, FLOW_PALETTE, type AccentNotice } from '../ui/flowColour
 // The browser's colour input applies on its real `change` only — never on
 // opening it, never on the live `input` events while it is open — so opening it
 // on Default or on a mixed selection applies nothing.
+//
+// Each colour is offered once: Recent leaves out the palette's colours, and
+// In this document leaves out both, so the current colour's ring shows once.
+//
+// On the phone the Inspector is a read-only sheet (docs/mobile.md MV-D3): the
+// section is one line of read-only text there, a dot and the colour's name and
+// hex (its hex alone off the palette; Default with an empty ring; Mixed with no
+// dot), instead of the disabled editor.
 
 const NOTICE_KEY = {
   'canvas-light': 'inspector.accent.notice.canvasLight',
@@ -29,6 +38,8 @@ const noticeKey = (n: AccentNotice): MessageKey =>
 /** what the browser colour input shows while there is no single colour */
 const PICKER_NEUTRAL = '#808080'
 const DOCUMENT_MAX = 12
+const PALETTE_HEX: ReadonlySet<string> = new Set(FLOW_PALETTE.map((p) => p.hex))
+const paletteEntry = (hex: string) => FLOW_PALETTE.find((p) => p.hex === hex)
 
 export function AccentField() {
   const t = useT()
@@ -38,6 +49,7 @@ export function AccentField() {
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId)
   const selectedEdgeId = useGraphStore((s) => s.selectedEdgeId)
   const setAccent = useGraphStore((s) => s.setAccent)
+  const isMobile = useIsMobile()
 
   const targets = useMemo(
     () => accentTargets({ nodes, edges, selectedNodeId, selectedEdgeId }),
@@ -55,18 +67,22 @@ export function AccentField() {
     return values.size === 1 ? { mixed: false as const, value: [...values][0] ?? null } : { mixed: true as const, value: null }
   }, [nodes, edges, targets])
 
-  // FC-2.7 — "In this document": distinct colours by first use, derived
+  const [recent, setRecent] = useState<string[]>(() => readRecentAccents())
+  // Recent without the palette's colours
+  const recentShown = useMemo(() => recent.filter((a) => !PALETTE_HEX.has(a)), [recent])
+
+  // FC-2.7 — "In this document": distinct colours by first use, derived, without
+  // the colours the palette or Recent already offer
   const documentColours = useMemo(() => {
+    const shown = new Set<string>([...PALETTE_HEX, ...recentShown])
     const out: string[] = []
     for (const el of [...nodes, ...edges]) {
       const a = readAccent((el.data as { accent?: unknown } | undefined)?.accent)
-      if (a !== undefined && !out.includes(a)) out.push(a)
+      if (a !== undefined && !shown.has(a) && !out.includes(a)) out.push(a)
       if (out.length === DOCUMENT_MAX) break
     }
     return out
-  }, [nodes, edges])
-
-  const [recent, setRecent] = useState<string[]>(() => readRecentAccents())
+  }, [nodes, edges, recentShown])
   const [hexDraft, setHexDraft] = useState<string | null>(null)
   const [hexError, setHexError] = useState<'alpha' | 'format' | null>(null)
 
@@ -113,6 +129,41 @@ export function AccentField() {
 
   if (count === 0) return null
 
+  if (isMobile) {
+    const entry = current.value ? paletteEntry(current.value) : undefined
+    return (
+      <section className="accent-field accent-field--summary" aria-labelledby={`${ids}-title`}>
+        <h3 className="field__label accent-field__title" id={`${ids}-title`}>
+          {t('inspector.accent.title')}
+        </h3>
+        <p className="accent-field__summary">
+          {/* Mixed has no dot: a dot would read as one particular colour */}
+          {current.mixed ? null : (
+            <span
+              className={`accent-field__dot${current.value ? '' : ' accent-field__dot--none'}`}
+              style={current.value ? { ['--swatch' as string]: current.value } : undefined}
+              aria-hidden="true"
+            />
+          )}
+          {current.mixed ? (
+            <span>{t('inspector.accent.mixed')}</span>
+          ) : current.value === null ? (
+            <span>{t('inspector.accent.default')}</span>
+          ) : (
+            <>
+              {/* a real space, so the text reads "Rose #B47599", not one word */}
+              {entry ? <span>{t(`canvas.frame.color.${entry.id}` as MessageKey)}</span> : null}
+              {entry ? ' ' : null}
+              <span className="accent-field__hexvalue" dir="ltr">
+                {current.value}
+              </span>
+            </>
+          )}
+        </p>
+      </section>
+    )
+  }
+
   const notices = current.value ? accentNotices(current.value, { nodes: targets.nodeIds.length > 0, edges: targets.edgeIds.length > 0 }) : []
   const pressed = (v: string | null) => !current.mixed && current.value === v
 
@@ -149,10 +200,10 @@ export function AccentField() {
         {FLOW_PALETTE.map((p) => swatch(p.hex, t(`canvas.frame.color.${p.id}` as MessageKey), `p-${p.id}`))}
       </div>
 
-      {recent.length > 0 ? (
+      {recentShown.length > 0 ? (
         <div className="accent-field__row" role="group" aria-label={t('inspector.accent.recent')}>
           <span className="accent-field__rowlabel" aria-hidden="true">{t('inspector.accent.recent')}</span>
-          {recent.map((a) => swatch(a, a, `r-${a}`))}
+          {recentShown.map((a) => swatch(a, a, `r-${a}`))}
         </div>
       ) : null}
 

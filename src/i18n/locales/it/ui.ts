@@ -559,6 +559,10 @@ const ui = {
   'whatsNew.v0190.keep': 'I colori di flusso si salvano con il diagramma e restano nei link e nell’annullamento; cambiarli non azzera mai l’esecuzione e non rende superato un risultato Monte Carlo.',
   'whatsNew.v0190.select': 'Un nodo selezionato ora mostra un anello fuori dal contorno e una connessione selezionata un’evidenziazione sotto la linea, così la selezione resta chiara con qualsiasi colore.',
   'whatsNew.v0190.notice': 'Se un colore è poco visibile, o somiglia a uno che l’area di disegno usa per lo stato attivo, gli avvisi o una simulazione in corso, l’Ispettore lo segnala; il colore viene comunque applicato.',
+  'whatsNew.v0200.views': 'La minimappa e la cronologia ora mostrano i colori del flusso: un nodo colorato appare nel suo colore nella minimappa, e un serbatoio o un valore calcolato colorati tracciano la loro linea in quel colore nella cronologia.',
+  'whatsNew.v0200.templates': 'Tre dei modelli inclusi ora si aprono con i flussi principali colorati; i loro risultati non cambiano.',
+  'whatsNew.v0200.once': 'Nella sezione Colore dell’Ispettore ogni colore compare una sola volta: Recenti e In questo documento tralasciano i colori già mostrati sopra.',
+  'whatsNew.v0200.phone': 'Sul telefono l’Ispettore in sola lettura mostra un colore su una riga: un punto con il nome del colore e il suo valore esadecimale.',
 } satisfies Record<UiKey, string>
 
 export default ui

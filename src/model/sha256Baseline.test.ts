@@ -60,17 +60,63 @@ describe('SHA-256 after the replacement, against what the replaced code computed
   })
 })
 
+// #325 PR 2 - these three Templates gained flow colours after the baseline was
+// recorded (docs/flow-colour-and-compact-nodes.md FC-6). A colour is cosmetic:
+// their engine digest still equals the recorded one, while their content and
+// full-content digests change, as they must, and are pinned at their current
+// values in src/engine/templateFlowColours.test.ts. The recorded #301 values
+// are kept, checked only by the explicit legacy test below.
+const COLOURED_SINCE = new Set(['coffee-roastery.json', 'gacha-banner-zones.json', 'mmo-progression.json'])
+
+/** a document's text without its flow colours: the file as it was recorded */
+const withoutFlowColours = (text: string): string => {
+  const doc = JSON.parse(text) as { nodes: { data: Record<string, unknown> }[]; edges: { data?: Record<string, unknown> }[] }
+  for (const el of [...doc.nodes, ...doc.edges]) if (el.data) delete el.data.accent
+  return JSON.stringify(doc)
+}
+
+const docOf = (p: ReturnType<typeof deserialize>) => ({
+  nodes: p.nodes,
+  edges: p.edges,
+  recommendedRunConfig: p.recommendedRunConfig,
+  frames: p.frames,
+  dataImports: p.dataImports,
+})
+
 describe('the digests of real documents are unchanged', () => {
   for (const g of EXAMPLE_GRAPH_DIGESTS.filter((x) => x.graph)) {
+    if (COLOURED_SINCE.has(g.file)) {
+      it(`examples/${g.file}: the semantic digest (a flow colour is not a model change)`, async () => {
+        const p = deserialize(read(g.file))
+        expect(p.modelVersion).toBe(g.modelVersion)
+        expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
+        expect(digestOfCanonical(canonicalContent(docOf(p), { modelVersion: p.modelVersion }))).not.toBe(g.contentDigest)
+        expect(await fullContentDigest(docOf(p), p.modelVersion)).not.toBe(g.fullContentDigest)
+      })
+      continue
+    }
     it(`examples/${g.file}: semantic, content and full-content digests`, async () => {
       const p = deserialize(read(g.file))
-      const doc = { nodes: p.nodes, edges: p.edges, recommendedRunConfig: p.recommendedRunConfig, frames: p.frames, dataImports: p.dataImports }
+      const doc = docOf(p)
       expect(p.modelVersion).toBe(g.modelVersion)
       expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion)).toBe(g.semanticDigest)
       expect(digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion }))).toBe(g.contentDigest)
       expect(await fullContentDigest(doc, p.modelVersion)).toBe(g.fullContentDigest)
     })
   }
+
+  it('legacy (#301 baseline): the three coloured Templates without their flow colours give the recorded digests', async () => {
+    const legacy = EXAMPLE_GRAPH_DIGESTS.filter((g) => COLOURED_SINCE.has(g.file))
+    expect(legacy.map((g) => g.file).sort()).toEqual([...COLOURED_SINCE].sort())
+    for (const g of legacy) {
+      const p = deserialize(withoutFlowColours(read(g.file)))
+      const doc = docOf(p)
+      expect(p.modelVersion, g.file).toBe(g.modelVersion)
+      expect(await semanticDigest({ nodes: p.nodes, edges: p.edges }, p.modelVersion), g.file).toBe(g.semanticDigest)
+      expect(digestOfCanonical(canonicalContent(doc, { modelVersion: p.modelVersion })), g.file).toBe(g.contentDigest)
+      expect(await fullContentDigest(doc, p.modelVersion), g.file).toBe(g.fullContentDigest)
+    }
+  })
 
   for (const r of EXAMPLE_REVISION_READS) {
     it(`examples/${String(r.file)}: the import reader gives the same outcome`, () => {

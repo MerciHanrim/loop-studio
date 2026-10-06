@@ -1,12 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { formatRegisterValue, registerSeriesRuns, registersOfSnapshot } from '../model/model'
+import { formatRegisterValue, readAccent, registerSeriesRuns, registersOfSnapshot } from '../model/model'
 import { resolveTimelineSeries } from '../model/timelineSeries'
 import { useGraphStore } from '../store/graphStore'
 import { currentRegisterOutcomes } from '../store/registers'
 import { useMcStore } from '../store/mcStore'
 import { useSimStore } from '../store/simStore'
 import { selectOverlay, useUiStore } from '../store/uiStore'
-import { useIsMobile } from '../ui/media'
+import { useForcedColors, useIsMobile } from '../ui/media'
 import { useT } from '../i18n'
 import { downloadCsv } from '../ui/download'
 import { buildRunCsv } from './timelineCsv'
@@ -30,6 +30,11 @@ const HUES = [
   '--hue-end',
 ]
 const colorFor = (i: number) => `var(${HUES[i % HUES.length]})`
+// docs/flow-colour-and-compact-nodes.md FC-6 — a Pool or Register with a flow
+// colour draws its series in it; every other series keeps its colour by index,
+// so colouring one node never recolours another series. No flow colour under
+// forced colours (FC-3.4). Edge colours never reach the timeline.
+const seriesColor = (accent: unknown, i: number, forced: boolean) => (!forced && readAccent(accent)) || colorFor(i)
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
@@ -62,6 +67,7 @@ export function TimelineChart() {
   const plotRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 760, h: 116 })
   const isMobile = useIsMobile()
+  const forced = useForcedColors()
   const overlay = useUiStore(selectOverlay)
   const closeOverlay = useUiStore((s) => s.closeOverlay)
 
@@ -110,14 +116,17 @@ export function TimelineChart() {
     () =>
       nodes
         .filter((n) => n.data.kind === 'pool')
-        .map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(i) })),
-    [nodes],
+        .map((n, i) => ({ id: n.id, label: n.data.label, color: seriesColor(n.data.accent, i, forced) })),
+    [nodes, forced],
   )
   // loop-model/1 §M3.5 — R(t) per committed snapshot for each Register.
   // Nothing stored: recomputed from `series[i].values` + the live graph.
   const registers = useMemo(
-    () => nodes.filter((n) => n.data.kind === 'register').map((n, i) => ({ id: n.id, label: n.data.label, color: colorFor(pools.length + i) })),
-    [nodes, pools.length],
+    () =>
+      nodes
+        .filter((n) => n.data.kind === 'register')
+        .map((n, i) => ({ id: n.id, label: n.data.label, color: seriesColor(n.data.accent, pools.length + i, forced) })),
+    [nodes, pools.length, forced],
   )
 
   // `timelineSeries` (simStore, UI-only) is the stored choice — `auto`, `'all'`
@@ -531,6 +540,7 @@ export function TimelineChart() {
                     <path
                       key={l.id}
                       className="timeline__line"
+                      data-series={l.id}
                       d={l.d}
                       fill="none"
                       style={{ stroke: l.color }}
@@ -546,6 +556,7 @@ export function TimelineChart() {
                       <path
                         key={`reg-${l.id}`}
                         className="timeline__line timeline__line--register"
+                        data-series={l.id}
                         d={l.d}
                         fill="none"
                         style={{ stroke: l.color, strokeDasharray: '4 3', opacity: 0.85 }}
