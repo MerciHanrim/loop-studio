@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test'
-import { expect, importGraph, openApp, resetAll, test } from './support/loop'
+import { expect, importGraph, openApp, resetAll, snap, test } from './support/loop'
 
 // docs/flow-colour-and-compact-nodes.md FC-5 / docs/mobile.md — on a phone a
 // flow colour set on desktop renders, and the read-only Inspector sheet shows
@@ -104,4 +104,13 @@ test('the read-only sheet shows the colour as one line of text, with no control'
     ['gems', null],
     ['spend', '#336699'],
   ])
+})
+
+test('the one-line Colour summary, in pixels', async ({ page }) => {
+  await open(page)
+  await tapNode(page, page.locator('.react-flow__node[data-id="gold"]'))
+  await expect(colour(page)).toBeVisible()
+  await colour(page).scrollIntoViewIfNeeded()
+  await page.evaluate(() => (document as unknown as { fonts: { ready: Promise<unknown> } }).fonts.ready)
+  await expect(colour(page)).toHaveScreenshot(...snap(page, 'flow-views-phone-summary'))
 })

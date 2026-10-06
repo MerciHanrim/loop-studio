@@ -73,6 +73,23 @@ export const SNAPSHOTS: Record<string, Partial<Record<SnapshotProject, SnapshotK
   'flow-colour-dark-L2': { chromium: 'element' },
   'flow-colour-dark-L0': { chromium: 'element' },
   'flow-colour-states': { chromium: 'element' },
+  // flow-colour-views-visual.spec.ts — docs/flow-colour-and-compact-nodes.md
+  // FC-6 (PR 2): the minimap and the timeline panel, and each Template's full
+  // canvas pane with the timeline closed (980 x 662), light and dark, so `element`
+  'flow-views-minimap-light': { chromium: 'element' },
+  'flow-views-minimap-dark': { chromium: 'element' },
+  'flow-views-timeline-light': { chromium: 'element' },
+  'flow-views-timeline-dark': { chromium: 'element' },
+  'flow-views-forced-minimap': { chromium: 'element' },
+  'flow-views-forced-timeline': { chromium: 'element' },
+  'flow-views-template-coffee-light': { chromium: 'element' },
+  'flow-views-template-coffee-dark': { chromium: 'element' },
+  'flow-views-template-gacha-light': { chromium: 'element' },
+  'flow-views-template-gacha-dark': { chromium: 'element' },
+  'flow-views-template-mmo-light': { chromium: 'element' },
+  'flow-views-template-mmo-dark': { chromium: 'element' },
+  // flow-colour-mobile.spec.ts — the phone's one-line Colour summary (FC-5)
+  'flow-views-phone-summary': { mobile: 'element' },
   // model-nodes-visual.spec.ts
   'register-unit-row': { chromium: 'desktop-canvas-clip' },
   // i18n-visual.spec.ts — representative KO scenes
