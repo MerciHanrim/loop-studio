@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // Spain Spanish (`es-ES`). docs/localization.md §L2.15.
 //
@@ -80,13 +80,13 @@ test('a stored es-ES survives a reload, and es-419 stays its own value', async (
   await setLocale(page, 'es-ES')
   expect(await stored(page)).toBe('es-ES')
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('es-ES')
 
   await setLocale(page, 'es-419')
   expect(await stored(page)).toBe('es-419')
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('es-419')
 })
 

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, test } from './support/loop'
+import { expect, test, waitForAppReady } from './support/loop'
 
 // The dialog layer (src/components/DialogScrim.tsx).
 //
@@ -82,8 +82,7 @@ const DIALOGS: Dialog[] = [
 async function boot(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height })
   await page.goto('/')
-  await expect(page.locator('.toolbar')).toBeVisible()
-  await expect(page.locator('.canvas')).toBeVisible()
+  await waitForAppReady(page)
   // the profile this defect needs: the untouched sample, so the open-file card is up
   await expect(page.locator('.openhint')).toBeVisible()
   await expect(page.locator('.pstrip--mobile')).toBeVisible()

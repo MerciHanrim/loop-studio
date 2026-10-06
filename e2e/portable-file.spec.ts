@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { seedPersonalBrowser } from './support/loop'
+import { waitForAppReady, watchPage } from './support/appReady'
 import { expect, test } from '@playwright/test'
 import { capturedExports, installProbe, pathProbe, portableUrl } from './support/mc'
 import { expectOneVersionStory, readAboutVersion, readNewestShown, seedWhatsNewSeen } from './support/whatsNew'
@@ -47,7 +48,7 @@ async function openPortable(page: Page, mode: 'personal' | 'temporary' = 'tempor
   await page.goto(portableUrl())
   expect(await page.evaluate(() => location.protocol)).toBe('file:')
   await answerPortableGate(page, mode)
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   if (mode === 'temporary') {
     // a temporary session reads no tour key, so the first-run Welcome card is
     // offered once the app has settled - on the CI runner that was after the
@@ -133,6 +134,10 @@ async function exportWorkspaceText(page: Page): Promise<string> {
   return ws!.text
 }
 
+// issue #305 - this file takes `test` from @playwright/test, so the shared
+// fixture does not watch its page: attach before any navigation
+test.beforeEach(({ page }) => watchPage(page))
+
 test.describe('portable file://', () => {
   test('the production bundle carries NO dev-only bridges / helpers (tree-shaken)', () => {
     // docs/edge-routing.md — `__loop.routeMap` (genCount / reset / get) and
@@ -215,7 +220,7 @@ test.describe('portable file://', () => {
     // text; the file has no separate notices file, so there is no file link
     await page.goto(portableUrl())
     await answerPortableGate(page)
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await page.locator('.tour-card').waitFor({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Skip' }).first().click()
     await openAbout(page)
@@ -279,7 +284,7 @@ test.describe('portable file://', () => {
     expect(atGate.firstFrame, 'no stored theme at the first frame of the portable file').toBeNull()
     expect(atGate.now).toBeNull()
     await answerPortableGate(page, 'personal')
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe(readable ? 'dark' : null)
   })
 
@@ -310,7 +315,7 @@ test.describe('portable file://', () => {
     // file ignores it
     const before = await snapshot()
     await answerPortableGate(page, 'temporary')
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBeNull()
     await page.locator('input[type="file"]').setInputFiles(RF)
     await expect(page.locator('.react-flow__node')).toHaveCount(18)

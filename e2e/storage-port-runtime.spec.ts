@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { waitForAppReady, watchPage } from './support/appReady'
 
 // Issue #297 — browser storage has ONE door, and a gate in front of it: the
 // run-time half.
@@ -126,8 +127,7 @@ async function answerGate(page: Page, mode: 'personal' | 'temporary', remember: 
   await expect(gate(page)).toHaveCount(0)
 }
 async function appUp(page: Page): Promise<void> {
-  await expect(page.locator('.toolbar')).toBeVisible()
-  await expect(page.locator('.canvas')).toBeVisible()
+  await waitForAppReady(page)
   await page.waitForFunction(() => Boolean((window as unknown as { __loop?: unknown }).__loop))
 }
 /** skip the first-run Welcome card through the product's own action, whether
@@ -171,6 +171,10 @@ function phases() {
   const brief = (c: Call) => [c.op, c.key, c.viaBoot ? 'boot' : c.viaPort ? 'port' : 'DIRECT'] as const
   return { all, take, inPhase, brief }
 }
+
+// issue #305 - this file takes `test` from @playwright/test, so the shared
+// fixture does not watch its page: attach before any navigation
+test.beforeEach(({ page }) => watchPage(page))
 
 test.describe('browser storage is reached through the port only, and only behind the gate (run time)', () => {
   test('a new profile: nothing but the mode key is read before the gate; then every path passes through storagePort', async ({
@@ -269,7 +273,7 @@ test.describe('browser storage is reached through the port only, and only behind
     //    the boot door now reads the mode key and then the theme, before any
     //    module; the stored document is read back
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     await expect(gate(page)).toHaveCount(0)
     await seen(page, 'getItem', GRAPH)
     await expect(page.locator('.react-flow__node')).toHaveCount(0)

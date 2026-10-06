@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // Neutral Latin American Spanish (`es-419`). docs/localization.md §L2.13
 // (the locale's own decisions), §L5.2 step 4 (`baseFallbackFor`), §L2.11
@@ -150,7 +150,7 @@ test('a stored es-419 survives a reload; a region tag is not a code', async ({ b
   await openApp(page)
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'es-419'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('es-419')
 
   // `es-MX` is a browser tag, never a stored CODE. An unregistered stored
@@ -158,7 +158,7 @@ test('a stored es-419 survives a reload; a region tag is not a code', async ({ b
   // navigator list would have produced.
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'es-MX'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('en')
   await ctx.close()
 })

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // Traditional Chinese (`zh-Hant`). Written RED-FIRST against the unmodified
 // product — 6 of these 13 failed before the locale existed, the other 7 were
@@ -104,12 +104,12 @@ test.describe('a stored locale', () => {
     await openApp(page)
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'zh-Hant'))
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await htmlLang(page)).toBe(HANT)
 
     await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'zh-Hant-XX'))
     await page.reload()
-    await expect(page.locator('.toolbar')).toBeVisible()
+    await waitForAppReady(page)
     expect(await htmlLang(page)).toBe('en') // not registered — never selected
     await ctx.close()
   })

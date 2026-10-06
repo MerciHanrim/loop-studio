@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, openApp, resetAll, seedPersonalBrowser, test } from './support/loop'
+import { expect, openApp, resetAll, seedPersonalBrowser, test, waitForAppReady } from './support/loop'
 
 // Russian (`ru`). docs/localization.md §L2.17.
 //
@@ -89,14 +89,14 @@ test('a stored ru survives a reload; a regional code does not restore', async ({
   await setLocale(page, 'ru')
   expect(await stored(page)).toBe('ru')
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('ru')
 
   // §L5.1 is stricter than §L5.2: `ru-RU` as a NAVIGATOR tag reaches `ru`, but
   // as a STORED value it is not a registered code and is ignored outright.
   await page.evaluate(() => localStorage.setItem('loop-studio/ui-locale/1', 'ru-RU'))
   await page.reload()
-  await expect(page.locator('.toolbar')).toBeVisible()
+  await waitForAppReady(page)
   expect(await htmlLang(page)).toBe('en')
 })
 
