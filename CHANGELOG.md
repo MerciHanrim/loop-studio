@@ -4,6 +4,17 @@ All notable Loop Studio releases, newest first. Behavioral changes are pinned
 in versioned spec documents (see the [README](README.md#technical-reference));
 this file is the narrative history, not the contract.
 
+## v0.20.0 — 2026-10-07
+
+Flow colours beyond the canvas (issue #325, the second of three parts). The contract is [`docs/flow-colour-and-compact-nodes.md`](docs/flow-colour-and-compact-nodes.md) FC-5 and FC-6.
+
+- **The minimap and the timeline.** A coloured node's minimap mark takes its colour, and a coloured Pool or Register draws its timeline line, its legend mark and its endpoint in it. Every other mark and series keeps its colour, so colouring one node never recolours another; the Register's dashed line and the Pool's solid line stay, and connection colours never reach the timeline. Under forced colours neither view draws a flow colour.
+- **Three templates in colour.** The Coffee roastery, gacha banner and early MMO templates open with three colours on their main flows: green beans, roasted beans and desserts; the gacha banner's three zones, in the colours their frames already carry; items, gold and experience. Parameters and Registers stay uncoloured. Their simulation is unchanged: the engine digest of each template is the one recorded before.
+- **Each colour once.** In the Inspector's Colour section, Recent leaves out the palette's colours, and In this document leaves out both, so the current colour's ring shows once; a row with nothing left is hidden.
+- **The phone shows a colour as one line.** The read-only Inspector on a phone shows the colour as text, a dot with the colour's name and hex (its hex alone off the palette), Default with an empty ring, Mixed with no dot, instead of the disabled editor. A locked canvas on the desktop keeps the disabled editor.
+
+**No migration.** Run results and the run CSV are unchanged for any diagram. The three templates' files now carry `accent` fields, so their content and revision digests differ from v0.19.0's. Four release-note lines in 18 languages, 16 of them without native review. The informational `meta.tool` string is now `loop-studio/0.20.0`.
+
 ## v0.19.0 — 2026-10-06
 
 Flow colours (issue #325, the first of three parts): nodes and connections can carry a colour so the flows of a large graph read apart at a glance. The contract is [`docs/flow-colour-and-compact-nodes.md`](docs/flow-colour-and-compact-nodes.md).

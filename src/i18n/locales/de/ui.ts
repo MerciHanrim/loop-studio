@@ -620,6 +620,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Flussfarben werden mit dem Diagramm gespeichert und bleiben in Links und beim Rückgängigmachen erhalten; eine Farbänderung setzt den Lauf nie zurück und macht kein Monte-Carlo-Ergebnis veraltet.',
   'whatsNew.v0190.select': 'Ein ausgewählter Knoten zeigt jetzt einen Ring außerhalb seines Umrisses, eine ausgewählte Verbindung eine Hervorhebung darunter, sodass die Auswahl auf jeder Farbe klar bleibt.',
   'whatsNew.v0190.notice': 'Ist eine Farbe schwer zu erkennen oder ähnelt sie einer Farbe, die die Arbeitsfläche für Fokus, Warnungen oder eine laufende Simulation verwendet, weisen die Eigenschaften darauf hin; die Farbe wird trotzdem angewendet.',
+  'whatsNew.v0200.views': 'Übersichtskarte und Zeitverlauf zeigen jetzt Flussfarben: Ein farbiger Knoten erscheint in der Übersichtskarte in seiner Farbe, und ein farbiger Speicher oder berechneter Wert zeichnet seine Linie im Zeitverlauf in dieser Farbe.',
+  'whatsNew.v0200.templates': 'Drei der mitgelieferten Vorlagen öffnen sich jetzt mit farbigen Hauptflüssen; ihre Ergebnisse bleiben gleich.',
+  'whatsNew.v0200.once': 'Im Abschnitt Farbe der Eigenschaften erscheint jede Farbe nur einmal: Zuletzt verwendet und In diesem Dokument lassen die Farben weg, die schon darüber stehen.',
+  'whatsNew.v0200.phone': 'Auf dem Smartphone zeigen die schreibgeschützten Eigenschaften eine Farbe in einer Zeile: einen Punkt mit dem Namen der Farbe und ihrem Hex-Wert.',
 } satisfies Record<UiKey, string>
 
 export default ui

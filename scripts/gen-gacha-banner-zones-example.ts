@@ -65,6 +65,7 @@ import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
   DEFAULT_TIMELINE_SERIES,
+  GACHA_BANNER_ZONES_FLOWS,
   PULLS_PER_ZONE,
   TRACKED_POOLS,
   ZONE_TITLE,
@@ -72,6 +73,7 @@ import {
   isControlNode,
   type ZoneKey,
 } from '../src/engine/gachaBannerZonesGraph'
+import { withTemplateFlowColours } from '../src/engine/templateFlowColours'
 import { serialize, type RecommendedRunConfig, type SavedFrame } from '../src/model/serialize'
 import type { LoopEdge, LoopNode } from '../src/model/types'
 
@@ -372,7 +374,11 @@ const routedEdges: LoopEdge[] = (edges as LoopEdge[]).map((e) => ({
   data: { ...e.data, route: 'orthogonal', ...(WAYPOINTS[e.id] ? { waypoints: WAYPOINTS[e.id] } : {}) },
 }))
 
-const text = serialize(positioned, routedEdges, recommendedRunConfig, undefined, undefined, 2, frames)
+// docs/flow-colour-and-compact-nodes.md FC-6 — each zone's flow colour, the
+// same as its frame's (cosmetic data, like the routing above)
+const coloured = withTemplateFlowColours(positioned, routedEdges, GACHA_BANNER_ZONES_FLOWS)
+
+const text = serialize(coloured.nodes, coloured.edges, recommendedRunConfig, undefined, undefined, 2, frames)
 
 const outPath = fileURLToPath(new URL('../examples/gacha-banner-zones.json', import.meta.url))
 writeFileSync(outPath, text + '\n')

@@ -78,7 +78,8 @@
         "kind": "source",
         "label": "Green bean delivery",
         "activation": "automatic",
-        "mode": "pushAny"
+        "mode": "pushAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -94,7 +95,8 @@
         "activation": "passive",
         "initial": 90,
         "capacity": 130,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -108,7 +110,8 @@
         "kind": "drain",
         "label": "Green wholesale",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#74906B"
       }
     },
     {
@@ -122,7 +125,8 @@
         "kind": "gate",
         "label": "Roasting · 82% yield",
         "activation": "automatic",
-        "distribution": "deterministic"
+        "distribution": "deterministic",
+        "accent": "#A78243"
       }
     },
     {
@@ -138,7 +142,8 @@
         "activation": "passive",
         "initial": 30,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#A78243"
       }
     },
     {
@@ -152,7 +157,8 @@
         "kind": "drain",
         "label": "Roasting weight loss",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#A78243"
       }
     },
     {
@@ -166,7 +172,8 @@
         "kind": "drain",
         "label": "Online bagged-bean sales",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#A78243"
       }
     },
     {
@@ -180,7 +187,8 @@
         "kind": "drain",
         "label": "Cafe & retail bean use",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#A78243"
       }
     },
     {
@@ -194,7 +202,8 @@
         "kind": "drain",
         "label": "Staff, cupping & sampling",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#A78243"
       }
     },
     {
@@ -208,7 +217,8 @@
         "kind": "source",
         "label": "Dessert prep",
         "activation": "automatic",
-        "mode": "pushAny"
+        "mode": "pushAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -224,7 +234,8 @@
         "activation": "passive",
         "initial": 0,
         "capacity": null,
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -238,7 +249,8 @@
         "kind": "drain",
         "label": "Dessert sales",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -252,7 +264,8 @@
         "kind": "drain",
         "label": "End-of-day leftover",
         "activation": "automatic",
-        "mode": "pullAny"
+        "mode": "pullAny",
+        "accent": "#B47599"
       }
     },
     {
@@ -334,7 +347,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "34"
+        "flow": "34",
+        "accent": "#74906B"
       }
     },
     {
@@ -346,7 +360,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "@green_wholesale_kg"
+        "flow": "@green_wholesale_kg",
+        "accent": "#74906B"
       }
     },
     {
@@ -370,7 +385,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "82"
+        "flow": "82",
+        "accent": "#A78243"
       }
     },
     {
@@ -382,7 +398,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "18"
+        "flow": "18",
+        "accent": "#A78243"
       }
     },
     {
@@ -394,7 +411,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "@online_orders"
+        "flow": "@online_orders",
+        "accent": "#A78243"
       }
     },
     {
@@ -406,7 +424,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "@cafe_retail_demand_kg"
+        "flow": "@cafe_retail_demand_kg",
+        "accent": "#A78243"
       }
     },
     {
@@ -418,7 +437,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "14%"
+        "flow": "14%",
+        "accent": "#A78243"
       }
     },
     {
@@ -430,7 +450,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "@dessert_prep"
+        "flow": "@dessert_prep",
+        "accent": "#B47599"
       }
     },
     {
@@ -442,7 +463,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "16"
+        "flow": "16",
+        "accent": "#B47599"
       }
     },
     {
@@ -454,7 +476,8 @@
       "type": "loop",
       "data": {
         "kind": "resource",
-        "flow": "55%"
+        "flow": "55%",
+        "accent": "#B47599"
       }
     }
   ],

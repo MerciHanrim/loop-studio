@@ -1,5 +1,6 @@
 import { defaultData } from '../model/factory'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
 
 // Builder for examples/mmo-progression.json — the "Early MMO progression
 // (levels 1–15)" Templates demo. Design: docs/example-mmo-progression.md
@@ -608,8 +609,30 @@ export function buildMmoProgression(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     }
   }
 
-  return { nodes, edges }
+  return withTemplateFlowColours(nodes, edges, MMO_PROGRESSION_FLOWS)
 }
+
+// docs/flow-colour-and-compact-nodes.md FC-6 — the three economies: items and
+// loot (Sage), gold (Gold), experience and level (Violet). The combat chain, the
+// encounters, the upkeep pools and every Register stay uncoloured.
+export const MMO_PROGRESSION_FLOWS: TemplateFlows = {
+  sage: [
+    'drop', 'loot_feed', 'loot_dispatch', 'loot_category',
+    'bucket_equip', 'bucket_vendor', 'bucket_consumable', 'bucket_rare',
+    'items_looted', 'items_equipped', 'items_sold', 'items_consumed',
+    'equip_conv', 'vendor_conv', 'consumable_conv', 'rare_conv',
+    'z1_lootroll', 'z1_loot', 'z2_lootroll', 'z2_loot', 'z3_lootroll', 'z3_loot',
+  ],
+  gold: [
+    'reward', 'hunt_payout', 'quest_payout', 'gold', 'gold_earned', 'vendor_revenue',
+    'repair_spend', 'resupply_spend', 'training_spend', 'resupply', 'repair_gold',
+  ],
+  violet: [
+    'level', 'xp', 'xp_earned', 'hunt_xp', 'quest_xp',
+    'z1_xp_meter', 'z1_xp2lvl', 'z2_xp_meter', 'z2_xp2lvl', 'z3_xp_meter', 'z3_xp2lvl',
+  ],
+}
+
 
 // ── the verified Monte-Carlo run (saved into the file, walked in the README) ─
 export const MMO_PROGRESSION_MC = {

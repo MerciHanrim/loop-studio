@@ -4314,6 +4314,33 @@ a.sheet__row {
   background: var(--surface-raised);
   cursor: pointer;
 }
+/* the phone's read-only summary (FC-5): one line, a dot and the name / hex */
+.accent-field__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.accent-field__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line-control);
+  border-radius: 50%;
+  background: var(--swatch);
+}
+/* Default: an empty ring, so the line keeps one shape */
+.accent-field__dot--none {
+  background: transparent;
+}
+.accent-field__hexvalue {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 @media (forced-colors: active) {
   .accent-swatch {
     border-color: ButtonText;
@@ -4327,6 +4354,14 @@ a.sheet__row {
     box-shadow: none;
     outline: 2px solid Highlight;
     outline-offset: 2px;
+  }
+  .accent-field__dot {
+    border-color: CanvasText;
+    forced-color-adjust: none;
+    background: var(--swatch);
+  }
+  .accent-field__dot--none {
+    background: Canvas;
   }
 }
 .field__hint {

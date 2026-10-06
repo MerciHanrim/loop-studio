@@ -231,11 +231,11 @@ describe('pt-BR copy — mechanical review', () => {
     expect(missing).toEqual([])
   })
 
-  it('names the Register with one term on all ten keys that show it', () => {
+  it('names the Register with one term on all eleven keys that show it', () => {
     // English shows `Register` / `Registers` on exactly these; `Computed value`
     // is not an English UI string anywhere (docs/localization.md §L2.14).
     const REGISTER_KEYS = Object.keys(enOf).filter((k) => /\bRegisters?\b/.test(enOf[k] ?? ''))
-    expect(REGISTER_KEYS.length, 'the English surface for the Register kind').toBe(10)
+    expect(REGISTER_KEYS.length, 'the English surface for the Register kind').toBe(11)
     const wrong: string[] = []
     for (const k of REGISTER_KEYS) {
       const v = ptBR[k as Key]

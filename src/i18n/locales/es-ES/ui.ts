@@ -557,6 +557,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Los colores de flujo se guardan con el diagrama y se conservan en los enlaces y al deshacer; cambiar uno nunca reinicia la ejecución ni deja desactualizado un resultado de Monte Carlo.',
   'whatsNew.v0190.select': 'Un nodo seleccionado muestra ahora un anillo fuera de su contorno, y una conexión seleccionada un resaltado debajo, de modo que la selección se ve clara sobre cualquier color.',
   'whatsNew.v0190.notice': 'Si un color se ve mal, o se parece a uno que el lienzo usa para el foco, los avisos o una simulación en curso, Propiedades lo indica; el color se aplica igualmente.',
+  'whatsNew.v0200.views': 'El minimapa y la línea de tiempo ahora muestran los colores de flujo: un nodo con color aparece en su color en el minimapa, y un depósito o un valor calculado con color dibujan su línea en ese color en la línea de tiempo.',
+  'whatsNew.v0200.templates': 'Tres de las plantillas incluidas ahora se abren con sus flujos principales en color; sus resultados no cambian.',
+  'whatsNew.v0200.once': 'En la sección Color de Propiedades, cada color aparece una sola vez: Recientes y En este documento omiten los colores que ya se muestran arriba.',
+  'whatsNew.v0200.phone': 'En un teléfono, Propiedades en modo de solo lectura muestra un color en una línea: un punto con el nombre del color y su valor hexadecimal.',
 } as const
 
 export type UiKey = keyof typeof ui

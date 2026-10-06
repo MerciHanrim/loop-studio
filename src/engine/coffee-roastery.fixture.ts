@@ -1,5 +1,6 @@
 import { defaultData } from '../model/factory'
 import type { LoopEdge, LoopNode, NodeKind } from '../model/types'
+import { withTemplateFlowColours, type TemplateFlows } from './templateFlowColours'
 
 // Builder for examples/coffee-roastery.json — the "Coffee roastery operations
 // flow" Templates demo (docs/example-coffee-roastery.md, settled design,
@@ -275,8 +276,18 @@ export function buildCoffeeRoastery(): { nodes: LoopNode[]; edges: LoopEdge[] } 
     ),
   )
 
-  return { nodes, edges }
+  return withTemplateFlowColours(nodes, edges, COFFEE_ROASTERY_FLOWS)
 }
+
+// docs/flow-colour-and-compact-nodes.md FC-6 — the three product flows: green
+// beans (Sage), roasted beans from the roast on (Gold), desserts (Rose). The
+// Parameters and the Forecast Registers stay uncoloured.
+export const COFFEE_ROASTERY_FLOWS: TemplateFlows = {
+  sage: ['green_delivery', 'green_stock', 'green_wholesale'],
+  gold: ['roasting', 'roasted_stock', 'roast_loss', 'online_sales', 'cafe_retail', 'roasted_bleed'],
+  rose: ['dessert_prep_src', 'dessert_stock', 'dessert_sales', 'dessert_wrapup'],
+}
+
 
 // ── the recommended run saved into the file ────────────────────────────────
 export const COFFEE_ROASTERY_MC = {

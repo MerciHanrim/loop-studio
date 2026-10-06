@@ -614,6 +614,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Les couleurs de flux sont enregistrées avec le diagramme et conservées dans les liens et l’annulation ; en changer ne réinitialise jamais l’exécution et ne rend pas un résultat Monte-Carlo obsolète.',
   'whatsNew.v0190.select': 'Un nœud sélectionné affiche désormais un anneau autour de son contour, et une connexion sélectionnée une surbrillance en dessous : la sélection reste nette sur toutes les couleurs.',
   'whatsNew.v0190.notice': 'Si une couleur est peu visible, ou ressemble à une couleur que le canevas utilise pour le focus, les avertissements ou une simulation en cours, les Propriétés le signalent ; la couleur est appliquée quand même.',
+  'whatsNew.v0200.views': 'La miniature et la chronologie affichent désormais les couleurs de flux : un nœud coloré apparaît dans sa couleur sur la miniature, et un réservoir ou une valeur calculée colorés tracent leur courbe dans cette couleur sur la chronologie.',
+  'whatsNew.v0200.templates': 'Trois des modèles fournis s’ouvrent désormais avec leurs flux principaux en couleur ; leurs résultats ne changent pas.',
+  'whatsNew.v0200.once': 'Dans la section Couleur des Propriétés, chaque couleur n’apparaît qu’une fois : Récentes et Dans ce document omettent les couleurs déjà affichées au-dessus.',
+  'whatsNew.v0200.phone': 'Sur un téléphone, les Propriétés en lecture seule affichent une couleur sur une ligne : une pastille avec le nom de la couleur et sa valeur hex.',
 } satisfies Record<UiKey, string>
 
 export default ui

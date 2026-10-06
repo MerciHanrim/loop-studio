@@ -13,19 +13,34 @@ import { useSyncExternalStore } from 'react'
 export const MOBILE_MEDIA_QUERY =
   '(max-width: 720px), (max-height: 500px) and (max-width: 950px) and (pointer: coarse)'
 
-function subscribe(onChange: () => void): () => void {
-  if (typeof window === 'undefined' || !window.matchMedia) return () => {}
-  const mql = window.matchMedia(MOBILE_MEDIA_QUERY)
-  mql.addEventListener('change', onChange)
-  return () => mql.removeEventListener('change', onChange)
+/** a `matchMedia` query in `useSyncExternalStore` form. SSR-safe. */
+function mediaQuery(query: string) {
+  return {
+    subscribe(onChange: () => void): () => void {
+      if (typeof window === 'undefined' || !window.matchMedia) return () => {}
+      const mql = window.matchMedia(query)
+      mql.addEventListener('change', onChange)
+      return () => mql.removeEventListener('change', onChange)
+    },
+    getSnapshot(): boolean {
+      if (typeof window === 'undefined' || !window.matchMedia) return false
+      return window.matchMedia(query).matches
+    },
+  }
 }
 
-function getSnapshot(): boolean {
-  if (typeof window === 'undefined' || !window.matchMedia) return false
-  return window.matchMedia(MOBILE_MEDIA_QUERY).matches
-}
+const mobile = mediaQuery(MOBILE_MEDIA_QUERY)
+const forcedColors = mediaQuery('(forced-colors: active)')
 
 /** `true` while the viewport is in the mobile view/run layout. SSR-safe. */
 export function useIsMobile(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, () => false)
+  return useSyncExternalStore(mobile.subscribe, mobile.getSnapshot, () => false)
+}
+
+/** `true` under forced colours (Windows contrast themes). An inline SVG `fill`
+ *  or `stroke` is not replaced by the system palette, so a view that paints a
+ *  flow colour inline asks this instead (docs/flow-colour-and-compact-nodes.md
+ *  FC-3.4: no flow colour under forced colours). SSR-safe. */
+export function useForcedColors(): boolean {
+  return useSyncExternalStore(forcedColors.subscribe, forcedColors.getSnapshot, () => false)
 }

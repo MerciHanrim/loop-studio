@@ -140,7 +140,19 @@ Additional feature-specific design documents (localization, mobile, module
 system, large-graph readability, simulation playback, edge routing, data
 import, …) live under [`docs/`](docs/).
 
-## Latest — v0.19.0
+## Latest — v0.20.0
+
+Flow colours beyond the canvas.
+
+- **The minimap and the timeline** show a coloured node in its colour; a coloured Pool or
+  Register draws its timeline line in it, and every other series keeps its own
+- **Three templates in colour**: Coffee roastery, the gacha banner and early MMO open with
+  three colours on their main flows; their results are unchanged
+- **Each colour once** in the Inspector: Recent and In this document leave out the colours
+  already shown above them
+- **On a phone**, the read-only Inspector shows a colour as one line: a dot, its name and hex
+
+## v0.19.0
 
 Flow colours: give nodes and connections a colour so a large graph's flows read apart.
 
@@ -173,18 +185,8 @@ A fix release: the menus answer the keyboard the same way.
 - **On a phone**, a sheet takes focus when it opens, and Escape in a sheet opened from
   More goes back to More; the run bar and the update bar stay usable
 
-## v0.18.0
-
-The third-party open-source licenses, inside the app.
-
-- **About Loop Studio → Third-party open-source licenses** shows the full license text of
-  every third-party component the build includes, in its original English, in the same
-  dialog; Back returns to About
-- **Offline too**: the installed app has the text precached, and the single-file version
-  carries it inside the file; the web and installed builds also open it as a text file
-- **Loop Studio's own notice is unchanged**: the licenses cover the included components only
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.17.2 (the
+See [`CHANGELOG.md`](CHANGELOG.md) for the full notes of these releases, v0.18.0 (the
+third-party open-source licenses in the About dialog), v0.17.2 (the
 Temporary session button drawn like the menu buttons), v0.17.1 (share
 links compressed with the browser's own Compression Streams), v0.17.0
 (password-protected share links), v0.16.0 (the storage gate, temporary sessions and the

@@ -599,6 +599,10 @@ const ui = {
   'whatsNew.v0190.keep': 'Akış renkleri diyagramla birlikte kaydedilir, bağlantılarda ve geri almada korunur; bir rengi değiştirmek çalıştırmayı asla sıfırlamaz ve Monte Carlo sonucunu eskimiş yapmaz.',
   'whatsNew.v0190.select': 'Seçili bir düğüm artık dış çizgisinin dışında bir halka, seçili bir bağlantı da altında bir vurgu gösterir; böylece seçim her renkte açıkça görünür.',
   'whatsNew.v0190.notice': 'Bir renk zor görünüyorsa ya da tuvalin odak, uyarılar veya çalışan bir simülasyon için kullandığı bir renge benziyorsa İnceleyici bunu söyler; renk yine de uygulanır.',
+  'whatsNew.v0200.views': 'Mini harita ve zaman çizelgesi artık akış renklerini gösteriyor: renkli bir düğüm mini haritada kendi renginde görünür, renkli bir Havuz ya da Hesaplanan değer de zaman çizelgesindeki çizgisini o renkte çizer.',
+  'whatsNew.v0200.templates': 'Hazır şablonlardan üçü artık ana akışları renkli olarak açılıyor; sonuçları değişmiyor.',
+  'whatsNew.v0200.once': 'İnceleyici’nin Renk bölümünde her renk yalnızca bir kez görünür: Son kullanılanlar ve Bu belgede, yukarıda zaten görünen renkleri göstermez.',
+  'whatsNew.v0200.phone': 'Telefonda salt okunur İnceleyici bir rengi tek satırda gösterir: rengin adı ve onaltılık değeriyle bir nokta.',
 } as const
 
 export type UiKey = keyof typeof ui

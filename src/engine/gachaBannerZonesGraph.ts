@@ -78,6 +78,7 @@
 // label — this is a scoped exception, not a reversal of note 3.
 
 import type { LoopEdge, LoopNode } from '../model/types'
+import type { TemplateFlows } from './templateFlowColours'
 
 export const PULLS_PER_ZONE = 200
 export const HARD_PITY_STANDARD = 80
@@ -583,4 +584,28 @@ export function isControlNode(id: string): boolean {
     id.startsWith('ceiling_hits_') ||
     id === 'missed_pickup_pickup'
   )
+}
+
+/** docs/flow-colour-and-compact-nodes.md FC-6 — each zone's flow nodes take
+ *  the colour its frame already carries (General / Free Sage, Premium Standard
+ *  Violet, Premium Pickup Rose), so the two say the same thing. The comparison
+ *  row, every Parameter and every Register stay uncoloured. Applied by
+ *  scripts/gen-gacha-banner-zones-example.ts, which writes the shipped JSON. */
+export const GACHA_BANNER_ZONES_FLOWS: TemplateFlows = {
+  sage: [
+    'fund_free', 'ticket_free', 'pulls_made_free', 'sr_count_free', 'r_count_free', 'ssr_count_free',
+    'roll_gate_free', 'ssr_hit_free', 'sr_hit_free', 'r_hit_free',
+  ],
+  violet: [
+    'fund_standard', 'ticket_standard', 'pulls_made_standard', 'sr_count_standard', 'r_count_standard',
+    'ssr_count_standard', 'roll_gate_standard', 'ssr_hit_standard', 'sr_hit_standard', 'r_hit_standard',
+    'pity_standard', 'forced_ssr_standard', 'ceiling_hits_standard',
+  ],
+  rose: [
+    'fund_pickup', 'ticket_pickup', 'pulls_made_pickup', 'sr_count_pickup', 'r_count_pickup', 'ssr_count_pickup',
+    'pity_pickup', 'ceiling_hits_pickup', 'missed_pickup_pickup', 'roll_normal_open_pickup',
+    'roll_normal_owed_pickup', 'roll_forced_open_pickup', 'roll_forced_owed_pickup', 'ssr_split_open_pickup',
+    'pickup_hit_pickup', 'standard_hit_pickup', 'sr_hit_pickup', 'r_hit_pickup', 'pickup_count_pickup',
+    'standard_count_pickup',
+  ],
 }
